@@ -41,12 +41,6 @@
 
 namespace {
 
-// TODO(crbug.com/355925253): Consider removing one constant when a working
-// combination is found.
-base::TimeDelta kTimeElapsedSincePageLoadForDataCollection = base::Seconds(30);
-base::TimeDelta kTimeElapsedSinceTreeChangedForDataCollection =
-    base::Seconds(30);
-
 const ui::AXNode* GetUnignoredParentForSelection(const ui::AXNode* node) {
   const ui::AXNode* parent = node;
   while (const ui::AXNode* ancestor =
@@ -184,6 +178,13 @@ bool ReadAnythingAppModel::PostProcessSelection() {
   const bool was_empty = is_empty();
 
   UpdateSelectionEndpoints();
+
+  // TODO: crbug.com/505770261 - Implement selection_mode for readability.
+  // AXtree mapping is needed first and is_empty() must be redefined since a
+  // readability distillation doesn't use display_node_ids.
+  if (is_readability_next_distillation_method()) {
+    return false;
+  }
 
   // If the new selection came from the side panel, we don't need to draw
   // anything in the side panel, since whatever was being selected had to have
@@ -364,8 +365,8 @@ void ReadAnythingAppModel::ComputeDisplayNodeIdsForDistilledTree() {
     // active ax tree, GetAXNode will return nullptr. Fix GetAXNode to harvest
     // nodes from child trees, and then replace the `if (!content_node)` check
     // with `DCHECK(content_node)`.
-    // TODO(abigailbklein) This prevents the crash in crbug.com/1402788, but may
-    // not be the correct approach. Do we need a version of
+    // TODO(abigailbklein) This prevents the crash in crbug.com/40884999, but
+    // may not be the correct approach. Do we need a version of
     // GetDeepestLastUnignoredDescendant() that works on ignored nodes?
     if (!content_node) {
       RecordHeuristicMetric(ReadAnythingHeuristics::kNodeNotFound);
@@ -655,6 +656,12 @@ void ReadAnythingAppModel::EnsureAXTreeExists(const ui::AXTreeID& tree_id) {
 
 void ReadAnythingAppModel::UpdateActiveTreeIfNeeded(
     const ui::AXTreeID& tree_id) {
+  // Readability distillation does not use child trees so skip to avoid
+  // triggering unnecessary re-distillation or tree-switching.
+  if (is_readability_next_distillation_method()) {
+    return;
+  }
+
   if (!may_use_child_for_active_tree_) {
     return;
   }
@@ -702,19 +709,6 @@ void ReadAnythingAppModel::ApplyAccessibilityUpdates(
     VLOG(1) << "ApplyAccessibilityUpdates- tree ID is not the active tree";
     UnserializeUpdates(updates, tree_id);
   }
-
-  HandleScreen2xDataCollection(updates);
-}
-
-void ReadAnythingAppModel::HandleScreen2xDataCollection(
-    const Updates& updates) {
-  if (features::IsDataCollectionModeForScreen2xEnabled() && updates.size()) {
-    waiting_for_tree_change_timer_trigger_ = true;
-    timer_since_tree_changed_for_data_collection_.Start(
-        FROM_HERE, kTimeElapsedSinceTreeChangedForDataCollection,
-        base::BindRepeating(&ReadAnythingAppModel::OnTreeChangeTimerTriggered,
-                            weak_ptr_factory_.GetWeakPtr()));
-  }
 }
 
 void ReadAnythingAppModel::QueueAccessibilityUpdates(
@@ -734,10 +728,6 @@ void ReadAnythingAppModel::QueueAccessibilityUpdates(
   // complete.
   AddPendingUpdates(tree_id, updates);
   ProcessNonGeneratedEvents(events);
-  if (timer_since_tree_changed_for_data_collection_.IsRunning()) {
-    CHECK(features::IsDataCollectionModeForScreen2xEnabled());
-    timer_since_tree_changed_for_data_collection_.Reset();
-  }
 }
 
 void ReadAnythingAppModel::OnAXTreeDestroyed(const ui::AXTreeID& tree_id) {
@@ -931,34 +921,10 @@ void ReadAnythingAppModel::SetActiveTreeId(ui::AXTreeID active_tree_id) {
   }
 
   active_tree_id_ = std::move(active_tree_id);
-  // If data collection mode for screen2x is enabled, begin
-  // `timer_since_page_load_for_data_collection_` from here. This is a
-  // one-shot timer which times 30 seconds from when the active AXTree changes.
-  // This is one of two timers associated with the data collection flow. When
-  // either of these timers expires, this triggers the screen2x distillation
-  // data collection flow.
-  if (features::IsDataCollectionModeForScreen2xEnabled()) {
-    timer_since_page_load_for_data_collection_.Start(
-        FROM_HERE, kTimeElapsedSincePageLoadForDataCollection,
-        base::BindOnce(&ReadAnythingAppModel::OnPageLoadTimerTriggered,
-                       weak_ptr_factory_.GetWeakPtr()));
-
-    // If tree does not change until the page load timer triggers, assume that
-    // the page is not changing. `waiting_for_tree_change_timer_trigger_` is set
-    // again when tree changes.
-    if (timer_since_tree_changed_for_data_collection_.IsRunning()) {
-      timer_since_tree_changed_for_data_collection_.Stop();
-    }
-    waiting_for_tree_change_timer_trigger_ = false;
-  }
 }
 
 void ReadAnythingAppModel::ProcessNonGeneratedEvents(
     const std::vector<ui::AXEvent>& events) {
-  // Marks if an event has happened that can affect collection of training data
-  // for Screen2x.
-  bool delay_screen2x_training_data_collection_ = false;
-
   // Note that this list of events may overlap with generated events in the
   // model. It's up to the consumer to pick but its generally good to prefer
   // generated. The consumer should not process the same event here and for
@@ -967,18 +933,22 @@ void ReadAnythingAppModel::ProcessNonGeneratedEvents(
 #if BUILDFLAG(IS_MAC)
     VLOG(2) << "Non-generated event type: " << event.event_type;
 #endif
+    // Readability distillation ignores state change events as selection
+    // post-processing is the only required dynamic update.
+    if (is_readability_next_distillation_method()) {
+      continue;
+    }
+
     switch (event.event_type) {
       case ax::mojom::Event::kLoadComplete:
         requires_distillation_ = true;
         page_finished_loading_ = true;
-        delay_screen2x_training_data_collection_ = true;
         // TODO(accessibility): Some pages may never completely load; use a
         // timer with a reasonable delay to force distillation -> drawing.
         // Investigate if this is needed.
         break;
 
       case ax::mojom::Event::kLocationChanged:
-        delay_screen2x_training_data_collection_ = true;
         break;
       case ax::mojom::Event::kCheckedStateChanged:
         if (IsWhatsNew()) {
@@ -1077,22 +1047,6 @@ void ReadAnythingAppModel::ProcessNonGeneratedEvents(
         NOTREACHED();
     }
   }
-
-  // If data collection mode for screen2x is enabled, begin
-  // `timer_since_tree_changed_for_data_collection_` from here. This is a
-  // repeating one-shot timer which times 10 seconds from page load and
-  // resets every time the accessibility tree changes in a way that affects data
-  // collection. This is one of two timers associated with the data collection
-  // flow. When both of these timers expire, the screen2x distillation data
-  // collection flow is triggered.
-  if (features::IsDataCollectionModeForScreen2xEnabled() &&
-      delay_screen2x_training_data_collection_) {
-    waiting_for_tree_change_timer_trigger_ = true;
-    timer_since_tree_changed_for_data_collection_.Start(
-        FROM_HERE, kTimeElapsedSinceTreeChangedForDataCollection,
-        base::BindRepeating(&ReadAnythingAppModel::OnTreeChangeTimerTriggered,
-                            weak_ptr_factory_.GetWeakPtr()));
-  }
 }
 
 void ReadAnythingAppModel::ProcessGeneratedEvents(
@@ -1105,6 +1059,17 @@ void ReadAnythingAppModel::ProcessGeneratedEvents(
 #if BUILDFLAG(IS_MAC)
     VLOG(2) << "Generated event type: " << event.event_params->event;
 #endif
+
+    // Readability only requires selection events. This ensures the side
+    // panel selection stays synchronized with the main panel.
+    if (is_readability_next_distillation_method()) {
+      if (event.event_params->event ==
+          ui::AXEventGenerator::Event::DOCUMENT_SELECTION_CHANGED) {
+        requires_post_process_selection_ = true;
+      }
+      continue;
+    }
+
     switch (event.event_params->event) {
       case ui::AXEventGenerator::Event::DOCUMENT_SELECTION_CHANGED:
         requires_post_process_selection_ = true;
@@ -1229,53 +1194,6 @@ void ReadAnythingAppModel::ProcessGeneratedEvents(
         break;
     }
   }
-}
-
-bool ReadAnythingAppModel::ScreenAIServiceReadyForDataCollection() const {
-  CHECK(features::IsDataCollectionModeForScreen2xEnabled());
-  return screen_ai_service_ready_for_data_collection_;
-}
-
-void ReadAnythingAppModel::SetScreenAIServiceReadyForDataCollection() {
-  screen_ai_service_ready_for_data_collection_ = true;
-  MaybeRunDataCollectionForScreen2xCallback();
-}
-
-bool ReadAnythingAppModel::PageFinishedLoadingForDataCollection() const {
-  CHECK(features::IsDataCollectionModeForScreen2xEnabled());
-  return !waiting_for_page_load_completion_timer_trigger_ &&
-         !waiting_for_tree_change_timer_trigger_;
-}
-
-void ReadAnythingAppModel::OnPageLoadTimerTriggered() {
-  CHECK(waiting_for_page_load_completion_timer_trigger_);
-  waiting_for_page_load_completion_timer_trigger_ = false;
-  MaybeRunDataCollectionForScreen2xCallback();
-}
-
-void ReadAnythingAppModel::OnTreeChangeTimerTriggered() {
-  CHECK(waiting_for_tree_change_timer_trigger_);
-  waiting_for_tree_change_timer_trigger_ = false;
-  MaybeRunDataCollectionForScreen2xCallback();
-}
-
-void ReadAnythingAppModel::SetDataCollectionForScreen2xCallback(
-    base::OnceCallback<void()> callback) {
-  CHECK(features::IsDataCollectionModeForScreen2xEnabled());
-  data_collection_for_screen2x_callback_ = std::move(callback);
-}
-
-void ReadAnythingAppModel::MaybeRunDataCollectionForScreen2xCallback() {
-  CHECK(features::IsDataCollectionModeForScreen2xEnabled());
-  if (!PageFinishedLoadingForDataCollection() ||
-      !ScreenAIServiceReadyForDataCollection()) {
-    return;
-  }
-  if (data_collection_for_screen2x_callback_.is_null()) {
-    LOG(ERROR) << "Callback not set or triggered more than once.";
-    return;
-  }
-  std::move(data_collection_for_screen2x_callback_).Run();
 }
 
 void ReadAnythingAppModel::SetBaseLanguageCode(std::string base_language_code) {

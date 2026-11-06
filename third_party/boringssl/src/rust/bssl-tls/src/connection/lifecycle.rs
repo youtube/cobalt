@@ -14,7 +14,10 @@
 
 //! TLS Connection lifecycle controls
 
-use alloc::boxed::Box;
+use alloc::{
+    boxed::Box,
+    string::ToString, //
+};
 use core::{
     future::poll_fn,
     ops::{
@@ -25,12 +28,13 @@ use core::{
 };
 
 use crate::{
+    alerts::AlertDescription,
     check_tls_error,
     connection::{
+        methods::HasTlsConnectionMethod, //
         Client,
         Server,
         TlsConnectionRef,
-        methods::HasTlsConnectionMethod, //
     },
     context::{
         HasBasicIo,
@@ -123,6 +127,41 @@ impl<R, M> TlsConnectionRef<R, M> {
     }
 }
 
+/// # Alerts
+impl<R, M> TlsConnectionRef<R, M>
+where
+    M: HasTlsConnectionMethod,
+{
+    /// Send fatal alert.
+    ///
+    /// This would usually lead to termination of the connection.
+    pub fn send_fatal_alert(
+        &mut self,
+        alert: AlertDescription,
+    ) -> Result<Option<TlsRetryReason>, Error> {
+        Ok(check_tls_error!(self.ptr(), {
+            // Safety: `self.0` is still a valid handle and `alert` is valid by construction.
+            bssl_sys::SSL_send_fatal_alert(self.ptr(), alert as u8)
+        }))
+    }
+
+    /// Send fatal alert asynchronously.
+    pub fn async_send_fatal_alert<'a>(
+        &'a mut self,
+        alert: AlertDescription,
+    ) -> impl 'a + Send + Future<Output = Result<(), Error>> {
+        poll_fn(move |cx| {
+            self.set_waker(cx.waker());
+            match self.send_fatal_alert(alert) {
+                Ok(Some(TlsRetryReason::WantRead | TlsRetryReason::WantWrite)) => Poll::Pending,
+                Ok(None) => Poll::Ready(Ok(())),
+                Ok(Some(reason)) => unreachable!("unexpected retry reason {reason:?}"),
+                Err(e) => Poll::Ready(Err(e)),
+            }
+        })
+    }
+}
+
 impl<R> TlsConnectionRef<R, TlsMode> {
     /// Inspect if the connection is suspended for which reason, after invocation of I/O methods.
     pub fn take_pending_reason(&mut self) -> Option<TlsRetryReason> {
@@ -148,34 +187,22 @@ impl<R, M> DerefMut for TlsConnectionInHandshake<'_, R, M> {
     }
 }
 
-impl<R, M> TlsConnectionInHandshake<'_, R, M>
-where
-    M: HasTlsConnectionMethod,
-{
-    #[allow(unused)] // This method will be used in the following patch to support some async tasks.
-    pub(super) fn get_connection_methods(
-        &mut self,
-    ) -> &mut super::methods::RustConnectionMethods<M> {
-        unsafe {
-            // Safety: the validity of the handle `self.0` is witnessed by `self`.
-            super::get_connection_methods(self.ptr())
-        }
-    }
-}
-
 /// # Handshake
 impl<R, M> TlsConnectionInHandshake<'_, R, M>
 where
     M: HasTlsConnectionMethod,
 {
-    /// Continue the handshake.
+    /// Drive the handshake.
     ///
     /// Call this method after the initial [`Self::accept`] or [`Self::connect`],
     /// should the handshake be suspended.
-    pub fn do_handshake(&mut self) -> Result<&mut Self, Error> {
+    ///
+    /// This method returns `Ok(None)` to signal handshake completion;
+    /// otherwise, `Ok(Some(reason))` is returned and the suspension `reason` must be resolved first
+    /// before this method can make progress again.
+    pub fn do_handshake(&mut self) -> Result<Option<TlsRetryReason>, Error> {
         let conn = self.ptr();
-        check_tls_error!(conn, bssl_sys::SSL_do_handshake(conn));
-        Ok(self)
+        Ok(check_tls_error!(conn, bssl_sys::SSL_do_handshake(conn)))
     }
 }
 
@@ -184,10 +211,12 @@ where
     M: HasTlsConnectionMethod,
 {
     /// Accept a connection by responding to `ClientHello` with `ServerHello`.
-    pub fn accept(&mut self) -> Result<&mut Self, Error> {
-        let conn = self.ptr();
-        check_tls_error!(conn, bssl_sys::SSL_accept(conn));
-        Ok(self)
+    ///
+    /// This method returns `Ok(None)` to signal handshake completion;
+    /// otherwise, given `Ok(Some(reason))` the suspension `reason` must be resolved first
+    /// before calling [`Self::do_handshake`] can make progress again.
+    pub fn accept(&mut self) -> Result<Option<TlsRetryReason>, Error> {
+        self.do_handshake()
     }
 }
 
@@ -196,10 +225,12 @@ where
     M: HasTlsConnectionMethod,
 {
     /// Initiate a connection by sending a `ClientHello`.
-    pub fn connect(&mut self) -> Result<&mut Self, Error> {
-        let conn = self.ptr();
-        check_tls_error!(conn, bssl_sys::SSL_connect(conn));
-        Ok(self)
+    ///
+    /// This method returns `Ok(None)` to signal handshake completion;
+    /// otherwise, given `Ok(Some(reason))` the suspension `reason` must be resolved first
+    /// before calling [`Self::do_handshake`] can make progress again.
+    pub fn connect(&mut self) -> Result<Option<TlsRetryReason>, Error> {
+        self.do_handshake()
     }
 }
 
@@ -227,6 +258,8 @@ where
 {
     /// Perform synchronising shutdown.
     ///
+    /// If the method returns `Ok(None)`, the shutdown will not progress until I/O makes progress.
+    ///
     /// # Shutdown protocol
     /// A live connection can be actively shut down by calling this method at most two times.
     /// The first call will send `close_notify` down the transport.
@@ -243,27 +276,30 @@ where
     ///   The connection is then in terminal state.
     /// To process the remaining application data, normal reading should continue until the end of
     /// stream, at which [`Self::sync_shutdown`] can be called again to set the connection to the terminal state.
-    pub fn sync_shutdown(&mut self) -> Result<ShutdownStatus, Error> {
+    pub fn sync_shutdown(&mut self) -> Result<Option<ShutdownStatus>, Error> {
         let rc = unsafe {
             // Safety: we have exclusive access to the connection state.
             bssl_sys::SSL_shutdown(self.ptr())
         };
         if self.is_write_closed() {
-            return Ok(ShutdownStatus::CloseNotifyReceived);
+            return Ok(Some(ShutdownStatus::EndOfStream));
         }
         match rc {
-            0 => Ok(ShutdownStatus::CloseNotifyPosted),
-            1 => Ok(ShutdownStatus::CloseNotifyReceived),
+            0 => Ok(Some(ShutdownStatus::CloseNotifyPosted)),
+            1 => Ok(Some(ShutdownStatus::CloseNotifyReceived)),
             _ => match self.categorise_error_for_io(rc) {
                 Ok(IoStatus::Ok(_)) => unreachable!(),
                 Ok(IoStatus::Empty | IoStatus::EndOfStream) => {
-                    Err(Error::Io(crate::errors::IoError::EndOfStream))
+                    Ok(Some(ShutdownStatus::EndOfStream))
                 }
-                Ok(IoStatus::Retry(reason)) => Err(Error::TlsRetry(reason)),
+                Ok(IoStatus::Retry(TlsRetryReason::WantRead | TlsRetryReason::WantWrite)) => {
+                    Ok(None)
+                }
+                Ok(IoStatus::Retry(reason)) => panic!("unexpected retry reason {reason:?}"),
                 Err(Error::TlsReason(TlsErrorReason::ApplicationDataOnShutdown)) => {
-                    Ok(ShutdownStatus::RemainingApplicationData)
+                    Ok(Some(ShutdownStatus::RemainingApplicationData))
                 }
-                Err(Error::Library(0, _, _)) => Ok(ShutdownStatus::CloseNotifyReceived),
+                Err(Error::Library(0, _, _)) => Ok(Some(ShutdownStatus::CloseNotifyReceived)),
                 Ok(IoStatus::Err) => Err(Error::Unknown(Box::new("transport error".to_string()))),
                 Err(e) => Err(e),
             },
@@ -279,18 +315,15 @@ where
     ///
     /// The caller needs to ensure that any pending operations during the handshake are resolved,
     /// before polling [`async_handshake`] again.
-    pub fn async_handshake(&mut self) -> impl Send + Future<Output = Result<(), Error>> + '_ {
+    pub fn async_handshake(
+        &mut self,
+    ) -> impl Send + Future<Output = Result<Option<TlsRetryReason>, Error>> + '_ {
         poll_fn(move |cx| {
             self.set_waker(cx.waker());
             match self.do_handshake() {
-                Ok(_) => Poll::Ready(Ok(())),
-                Err(Error::TlsRetry(r)) => {
-                    if matches!(r, TlsRetryReason::WantRead | TlsRetryReason::WantWrite) {
-                        Poll::Pending
-                    } else {
-                        Poll::Ready(Err(Error::TlsRetry(r)))
-                    }
-                }
+                Ok(Some(TlsRetryReason::WantRead | TlsRetryReason::WantWrite)) => Poll::Pending,
+                Ok(Some(reason)) => Poll::Ready(Ok(Some(reason))),
+                Ok(None) => Poll::Ready(Ok(None)),
                 Err(e) => Poll::Ready(Err(e)),
             }
         })
@@ -309,8 +342,8 @@ where
         poll_fn(move |cx| {
             self.set_waker(cx.waker());
             match self.do_handshake() {
-                Ok(_) => Poll::Ready(Ok(())),
-                Err(Error::TlsRetry(_)) => Poll::Pending,
+                Ok(Some(_)) => Poll::Pending,
+                Ok(None) => Poll::Ready(Ok(())),
                 Err(e) => Poll::Ready(Err(e)),
             }
         })
@@ -325,4 +358,6 @@ pub enum ShutdownStatus {
     CloseNotifyReceived,
     /// There are remaining application data. Consume them first before calling `shutdown` again.
     RemainingApplicationData,
+    /// The read half of the connection reaches the end of the stream.
+    EndOfStream,
 }

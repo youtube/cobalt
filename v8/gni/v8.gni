@@ -183,7 +183,7 @@ declare_args() {
   }
 
   # Enable runtime call stats.
-  v8_enable_runtime_call_stats = !v8_is_on_release_branch
+  v8_enable_runtime_call_stats = false
 
   # Add fuzzilli fuzzer support.
   v8_fuzzilli = false

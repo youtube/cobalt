@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/feature_list.h"
 #include "base/test/test_timeouts.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/multi_contents_drop_target_view.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
@@ -18,6 +19,7 @@
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/prefs/pref_service.h"
+#include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/test/ui_controls.h"
@@ -171,8 +173,9 @@ class MultiContentsViewTabDragEntrypointsUiTest
   // Waits for two browser windows to exist, then runs a callback.
   DragStep WaitForDetachedWindow() {
     return base::BindOnce([](base::OnceClosure callback) {
-      Poll(base::BindRepeating(
-               []() { return chrome::GetTotalBrowserCount() == 2u; }),
+      Poll(base::BindRepeating([]() {
+             return GlobalBrowserCollection::GetInstance()->GetSize() == 2u;
+           }),
            std::move(callback));
     });
   }
@@ -276,8 +279,8 @@ IN_PROC_BROWSER_TEST_P(MultiContentsViewTabDragEntrypointsUiParamTest,
 
   QuitTabDraggingObserver observer(browser_view.tab_strip_view());
   RunTestSequence(
-      AddInstrumentedTab(kNewTab, GURL(chrome::kChromeUINewTabURL), 1),
-      AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUINewTabURL), 2),
+      AddInstrumentedTab(kNewTab, chrome::ChromeUINewTabURLAsGURL(), 1),
+      AddInstrumentedTab(kSecondTab, chrome::ChromeUINewTabURLAsGURL(), 2),
       WaitForActiveTabChange(2), Do([&]() {
         SelectTabAt(1);
         DragSequence(
@@ -316,8 +319,8 @@ IN_PROC_BROWSER_TEST_P(MultiContentsViewTabDragEntrypointsUiParamTest,
 
   QuitTabDraggingObserver observer(browser_view.tab_strip_view());
   RunTestSequence(
-      AddInstrumentedTab(kNewTab, GURL(chrome::kChromeUINewTabURL), 1),
-      AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUINewTabURL), 2),
+      AddInstrumentedTab(kNewTab, chrome::ChromeUINewTabURLAsGURL(), 1),
+      AddInstrumentedTab(kSecondTab, chrome::ChromeUINewTabURLAsGURL(), 2),
       WaitForActiveTabChange(2), Do([&]() {
         SelectTabAt(1);
         DragSequence(
@@ -373,7 +376,7 @@ IN_PROC_BROWSER_TEST_P(MultiContentsViewTabDragEntrypointsUiParamTest,
 }
 
 // TODO(crbug.com/500937645): Re-enable the test
-#if BUILDFLAG(IS_WIN) && defined(ARCH_CPU_ARM64)
+#if (BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)) && defined(ARCH_CPU_ARM64)
 #define MAYBE_DragAndDropDisabled DISABLED_DragAndDropDisabled
 #else
 #define MAYBE_DragAndDropDisabled DragAndDropDisabled
@@ -388,6 +391,13 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewTabDragEntrypointsUiTest,
   }
 #endif
 
+#if BUILDFLAG(IS_LINUX) && !defined(NDEBUG)
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails with InitialWebUI enabled. "
+                    "See crbug.com/477426026.";
+  }
+#endif
+
   BrowserView& browser_view = GetBrowserView();
 
   // Disable drag and drop.
@@ -396,8 +406,8 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewTabDragEntrypointsUiTest,
 
   QuitTabDraggingObserver observer(browser_view.tab_strip_view());
   RunTestSequence(
-      AddInstrumentedTab(kNewTab, GURL(chrome::kChromeUINewTabURL), 1),
-      AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUINewTabURL), 2),
+      AddInstrumentedTab(kNewTab, chrome::ChromeUINewTabURLAsGURL(), 1),
+      AddInstrumentedTab(kSecondTab, chrome::ChromeUINewTabURLAsGURL(), 2),
       WaitForActiveTabChange(2), Do([&]() {
         SelectTabAt(1);
         DragSequence(MoveMouse(ui_test_utils::GetCenterInScreenCoordinates(

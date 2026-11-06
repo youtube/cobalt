@@ -57,7 +57,6 @@ enum IndirectPointerTag : uint16_t {
   kWasmSuspenderIndirectPointerTag,
   kAsmWasmDataIndirectPointerTag,
   kWasmExportedFunctionDataIndirectPointerTag,
-  kWasmJSFunctionDataIndirectPointerTag,
   kWasmCapiFunctionDataIndirectPointerTag,
   kRegExpDataIndirectPointerTag,
   kInterpreterDataIndirectPointerTag,
@@ -269,8 +268,6 @@ V8_INLINE IndirectPointerTag IndirectPointerTagFromInstanceType(
       UNREACHABLE();
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:
       return kWasmExportedFunctionDataIndirectPointerTag;
-    case WASM_JS_FUNCTION_DATA_TYPE:
-      return kWasmJSFunctionDataIndirectPointerTag;
     case WASM_CAPI_FUNCTION_DATA_TYPE:
       return kWasmCapiFunctionDataIndirectPointerTag;
 #endif  // V8_ENABLE_WEBASSEMBLY

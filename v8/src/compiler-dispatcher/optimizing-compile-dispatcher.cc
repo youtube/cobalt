@@ -32,7 +32,7 @@ class OptimizingCompileTaskExecutor::CompileTask : public v8::JobTask {
       : task_executor_(task_executor) {}
 
   void Run(JobDelegate* delegate) override {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.TurbofanTask");
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.TurbofanTask");
     DCHECK_LT(delegate->GetTaskId(), task_executor_->task_states_.size());
     OptimizingCompileTaskState& task_state =
         task_executor_->task_states_[delegate->GetTaskId()];
@@ -147,9 +147,8 @@ OptimizingCompileTaskExecutor::NextInputIfIsolateMatches(
 void OptimizingCompileTaskExecutor::RunCompilationJob(
     OptimizingCompileTaskState& task_state, Isolate* isolate,
     LocalIsolate& local_isolate, TurbofanCompilationJob* job) {
-  TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                         "V8.OptimizeBackground", job->trace_id(),
-                         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeBackground",
+              perfetto::Flow::ProcessScoped(job->trace_id()));
   TimerEventScope<TimerEventRecompileConcurrent> timer(isolate);
 
   if (recompilation_delay_ != 0) {

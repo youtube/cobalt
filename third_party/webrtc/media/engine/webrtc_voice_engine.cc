@@ -1562,11 +1562,11 @@ bool WebRtcVoiceSendChannel::SetSendCodecs(
   return true;
 }
 
-void WebRtcVoiceSendChannel::SetSend(bool send) {
+bool WebRtcVoiceSendChannel::SetSend(bool send) {
   RTC_DCHECK_RUN_ON(worker_thread_);
   TRACE_EVENT0("webrtc", "WebRtcVoiceMediaChannel::SetSend");
   if (send_ == send) {
-    return;
+    return true;
   }
 
   // Apply channel specific options.
@@ -1591,6 +1591,7 @@ void WebRtcVoiceSendChannel::SetSend(bool send) {
   }
 
   send_ = send;
+  return true;
 }
 
 bool WebRtcVoiceSendChannel::SetAudioSend(uint32_t ssrc,
@@ -2356,7 +2357,7 @@ bool WebRtcVoiceReceiveChannel::SetRecvCodecs(
   bool playout_enabled = playout_;
   // Receive codecs can not be changed while playing. So we temporarily
   // pause playout.
-  SetPlayout(false);
+  SetReceive(false);
   RTC_DCHECK(!playout_);
 
   decoder_map_ = std::move(decoder_map);
@@ -2366,7 +2367,7 @@ bool WebRtcVoiceReceiveChannel::SetRecvCodecs(
 
   recv_codecs_ = codecs;
 
-  SetPlayout(playout_enabled);
+  SetReceive(playout_enabled);
   RTC_DCHECK_EQ(playout_, playout_enabled);
 
   return true;
@@ -2411,17 +2412,17 @@ void WebRtcVoiceReceiveChannel::SetReceiveNonSenderRttEnabled(bool enabled) {
   }
 }
 
-void WebRtcVoiceReceiveChannel::SetPlayout(bool playout) {
-  TRACE_EVENT0("webrtc", "WebRtcVoiceMediaChannel::SetPlayout");
+void WebRtcVoiceReceiveChannel::SetReceive(bool receive) {
+  TRACE_EVENT0("webrtc", "WebRtcVoiceMediaChannel::SetReceive");
   RTC_DCHECK_RUN_ON(worker_thread_);
-  if (playout_ == playout) {
+  if (playout_ == receive) {
     return;
   }
 
   for (const auto& kv : recv_streams_) {
-    kv.second->SetPlayout(playout);
+    kv.second->SetPlayout(receive);
   }
-  playout_ = playout;
+  playout_ = receive;
 }
 
 bool WebRtcVoiceReceiveChannel::AddRecvStream(const StreamParams& sp) {

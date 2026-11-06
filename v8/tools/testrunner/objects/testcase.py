@@ -274,11 +274,6 @@ class TestCase(object):
       flags = remove_flags_after(flags, "--fuzzing")
       flags = remove_flags_after(
           flags, "--flag-processing-mode=ignore-contradictions")
-      flag_aofnf = normalize_flag("--allow-overwriting-for-next-flag")
-      while flag_aofnf in flags:
-        pos = flags.index(flag_aofnf)
-        flags.pop(pos)
-        flags.pop(pos)
       return flags
 
     if not self._checked_flag_contradictions:

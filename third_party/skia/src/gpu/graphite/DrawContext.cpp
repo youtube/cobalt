@@ -93,11 +93,13 @@ DrawContext::DrawContext(const Caps* caps,
         , fDstReadStrategy(caps->getDstReadStrategy())
         , fSupportsHardwareAdvancedBlend(caps->supportsHardwareAdvancedBlending())
         , fAdvancedBlendsRequireBarrier(caps->blendEquationSupport() ==
-                                            Caps::BlendEquationSupport::kAdvancedNoncoherent)
+                                        Caps::BlendEquationSupport::kAdvancedNoncoherent)
         , fCurrentDrawTask(sk_make_sp<DrawTask>(fTarget.refProxy()))
-        , fPendingDraws(caps->useDrawListLayer() ?
-                        std::unique_ptr<DrawListBase>(std::make_unique<DrawListLayer>()) :
-                        std::unique_ptr<DrawListBase>(std::make_unique<DrawList>()))
+        , fPendingDraws(
+                  caps->useDrawListLayer()
+                          ? std::unique_ptr<DrawListBase>(std::make_unique<DrawListLayer>(
+                                   caps->storageBufferSupport()))
+                          : std::unique_ptr<DrawListBase>(std::make_unique<DrawList>()))
         , fPendingUploads(std::make_unique<UploadList>()) {
     // Must determine a valid strategy to use should a dst texture read be required.
     SkASSERT(fDstReadStrategy != DstReadStrategy::kNoneRequired);

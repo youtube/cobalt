@@ -324,6 +324,8 @@ std::string CongestionControlTypeToString(CongestionControlType cc_type) {
       return "BBR";
     case kBBRv2:
       return "BBRv2";
+    case kBBRv3:
+      return "BBRv3";
     case kPCC:
       return "PCC";
     case kGoogCC:

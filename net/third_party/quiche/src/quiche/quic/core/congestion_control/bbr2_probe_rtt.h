@@ -35,12 +35,7 @@ class QUICHE_EXPORT Bbr2ProbeRttMode final : public Bbr2ModeBase {
   Bbr2Mode OnExitQuiescence(QuicTime now,
                             QuicTime quiescence_start_time) override;
 
-  struct QUICHE_EXPORT DebugState {
-    QuicByteCount inflight_target;
-    QuicTime exit_time = QuicTime::Zero();
-  };
-
-  DebugState ExportDebugState() const;
+  Bbr2DebugState::ProbeRtt ExportDebugState() const;
 
  private:
   const Bbr2Params& Params() const;
@@ -50,8 +45,6 @@ class QUICHE_EXPORT Bbr2ProbeRttMode final : public Bbr2ModeBase {
   QuicTime exit_time_ = QuicTime::Zero();
 };
 
-QUICHE_EXPORT std::ostream& operator<<(
-    std::ostream& os, const Bbr2ProbeRttMode::DebugState& state);
 
 }  // namespace quic
 

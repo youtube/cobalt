@@ -2479,7 +2479,7 @@ static void AssertLayoutTreeUpdatedForPseudoElements(const Element& element) {
                                  kPseudoIdAfter,
                                  kPseudoIdExpandIcon,
                                  kPseudoIdPickerIcon,
-                                 kPseudoIdInterestHint,
+                                 kPseudoIdInterestButton,
                                  kPseudoIdMarker,
                                  kPseudoIdBackdrop,
                                  kPseudoIdScrollMarkerGroupBefore,
@@ -3387,6 +3387,18 @@ void Document::Shutdown() {
   ViewTransitionUtils::ForEachTransition(
       *this, [](ViewTransition& transition) { transition.SkipTransition(); });
 
+  // Preserve the global custom element registry on the TreeScope before the
+  // window reference is cleared. This ensures that
+  // Document.customElementRegistry continues to return the correct registry
+  // even after the document's browsing context is destroyed (e.g., when an
+  // iframe is removed from the DOM).
+  if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() &&
+      dom_window_) {
+    if (CustomElementRegistry* registry = dom_window_->MaybeCustomElements()) {
+      SetCustomElementRegistry(registry);
+    }
+  }
+
   // This is required, as our LocalFrame might delete itself as soon as it
   // detaches us. However, this violates Node::detachLayoutTree() semantics, as
   // it's never possible to re-attach. Eventually Document::detachLayoutTree()
@@ -3570,8 +3582,12 @@ CanvasFontCache* Document::GetCanvasFontCache() {
 
 DocumentParser* Document::CreateParser() {
   if (auto* html_document = DynamicTo<HTMLDocument>(this)) {
-    return MakeGarbageCollected<HTMLDocumentParser>(*html_document,
-                                                    parser_sync_policy_);
+    CustomElementRegistry* registry = nullptr;
+    if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()) {
+      registry = CustomElementRegistry::DefaultRegistry(*this);
+    }
+    return MakeGarbageCollected<HTMLDocumentParser>(
+        *html_document, parser_sync_policy_, registry);
   }
 
   data_->using_rust_xml_parser_ = false;
@@ -4088,13 +4104,6 @@ void Document::setBody(HTMLElement* prp_new_body,
 }
 
 void Document::WillInsertBody() {
-  if (RuntimeEnabledFeatures::ResponsiveIframesEnabled() && GetFrame() &&
-      GetFrame()->Tree().Parent() && !responsive_embedded_sizing_) {
-    if (FrameOwner* owner = GetFrame()->Owner()) {
-      owner->ClearLastNaturalSizingInfo();
-    }
-  }
-
   if (Loader())
     fetcher_->LoosenLoadThrottlingPolicy();
 
@@ -4104,6 +4113,15 @@ void Document::WillInsertBody() {
 
   if (render_blocking_resource_manager_) {
     render_blocking_resource_manager_->WillInsertDocumentBody();
+  }
+
+  // Clear the last natural size of the owner `<iframe>` if this document isn't
+  // opted-in to responsive iframes.
+  if (RuntimeEnabledFeatures::ResponsiveIframesEnabled() && GetFrame() &&
+      GetFrame()->Tree().Parent() && !responsive_embedded_sizing_) {
+    if (FrameOwner* owner = GetFrame()->Owner()) {
+      owner->ClearLastNaturalSizingInfo();
+    }
   }
 
   // If we get to the <body> try to resume commits since we should have content
@@ -5233,6 +5251,19 @@ void Document::ExecuteScriptsWaitingForResources() {
 
 void Document::UnblockScriptExecutionForPrerenderActivation() {
   CHECK(!IsScriptBlockedUntilPrerenderActivation());
+  ResumeBlockedScriptExecution();
+}
+
+void Document::UnblockScriptExecutionForPrerenderUpgrade() {
+  // The Page has already cleared should_pause_javascript_execution, so
+  // IsScriptBlockedUntilPrerenderActivation() returns false.
+  CHECK(!IsScriptBlockedUntilPrerenderActivation());
+  // The page should still be in prerendering state after upgrade.
+  CHECK(is_prerendering_);
+  ResumeBlockedScriptExecution();
+}
+
+void Document::ResumeBlockedScriptExecution() {
   if (ScriptableDocumentParser* parser = GetScriptableDocumentParser()) {
     parser->ExecuteScriptsWaitingForPrerenderActivation();
   }
@@ -7513,7 +7544,7 @@ void Document::SetEncodingData(const DocumentEncodingData& new_data) {
     std::string original_bytes = title_element_->textContent().Latin1();
     std::unique_ptr<TextCodec> codec = NewTextCodec(new_data.Encoding());
     String correctly_decoded_title = codec->Decode(
-        base::as_byte_span(original_bytes), FlushBehavior::kDataEOF);
+        base::as_byte_span(original_bytes), FlushBehavior::kDataEof);
     title_element_->setTextContent(correctly_decoded_title);
   }
 

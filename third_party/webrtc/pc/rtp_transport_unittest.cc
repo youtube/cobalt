@@ -390,6 +390,28 @@ TEST(RtpTransportTest, VerifyRtpHeaderExtensionMapRejectsIdReassignment) {
   EXPECT_EQ(error.type(), RTCErrorType::INVALID_PARAMETER);
 }
 
+TEST(RtpTransportTest,
+     VerifyRtpHeaderExtensionMapAllowsIdReuseAfterUnregister) {
+  test::RunLoop loop;
+  RtpTransport transport(kMuxDisabled, CreateTestFieldTrials());
+  RtpHeaderExtensions extensions1 = {
+      RtpExtension("urn:ietf:params:rtp-hdrext:ssrc-audio-level", 1)};
+  RtpHeaderExtensions extensions2 = {RtpExtension(
+      "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time", 1)};
+
+  // Registering the first map should succeed.
+  EXPECT_TRUE(
+      transport.RegisterRtpHeaderExtensionMap("audio", extensions1).ok());
+
+  // Unregister the first map.
+  transport.UnregisterRtpHeaderExtensionMap("audio");
+
+  // Registering the second map with same ID but different URI should now
+  // succeed!
+  EXPECT_TRUE(
+      transport.RegisterRtpHeaderExtensionMap("video", extensions2).ok());
+}
+
 // Test that SignalPacketReceived fires with rtcp=true when a RTCP packet is
 // received.
 TEST(RtpTransportTest, SignalDemuxedRtcp) {

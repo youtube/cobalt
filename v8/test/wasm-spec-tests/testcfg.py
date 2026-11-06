@@ -10,9 +10,6 @@ from testrunner.objects import testcase
 default_flags = []
 
 proposal_flags = [{
-    'name': 'js-types',
-    'flags': ['--experimental-wasm-type-reflection']
-}, {
     'name': 'tail-call',
     'flags': []
 }, {

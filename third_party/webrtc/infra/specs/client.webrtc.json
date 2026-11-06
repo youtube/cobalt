@@ -91,6 +91,27 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -215,6 +236,27 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -432,8 +474,29 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
         "resultdb": {
           "enable": true,
           "has_native_resultdb_integration": true
@@ -447,8 +510,8 @@
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 4
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -652,6 +715,27 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -776,6 +860,27 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -993,8 +1098,29 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
         "resultdb": {
           "enable": true,
           "has_native_resultdb_integration": true
@@ -1008,8 +1134,8 @@
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 4
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -1242,6 +1368,27 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -1366,6 +1513,27 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -1583,8 +1751,29 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
         "resultdb": {
           "enable": true,
           "has_native_resultdb_integration": true
@@ -1598,8 +1787,8 @@
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 4
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -1803,6 +1992,27 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -1927,6 +2137,27 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -2144,8 +2375,29 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
         "resultdb": {
           "enable": true,
           "has_native_resultdb_integration": true
@@ -2159,8 +2411,8 @@
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 4
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -2314,6 +2566,31 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "result_file": "${ISOLATED_OUTDIR}/gtest_output.json",
+          "result_format": "gtest_json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "args": [
+          "--test-launcher-summary-output=${ISOLATED_OUTDIR}/gtest_output.json",
+          "--test-arg=--gtest_output=json:/custom_artifacts/gtest_output.json",
+          "--test-arg=--undefok=test_launcher_summary_output",
+          "--gtest_output=json:${ISOLATED_OUTDIR}/gtest_output.json"
+        ],
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -2378,6 +2655,31 @@
         },
         "test": "dcsctp_unittests",
         "test_id_prefix": "ninja://net/dcsctp:dcsctp_unittests/"
+      },
+      {
+        "args": [
+          "--test-launcher-summary-output=${ISOLATED_OUTDIR}/gtest_output.json",
+          "--test-arg=--gtest_output=json:/custom_artifacts/gtest_output.json",
+          "--test-arg=--undefok=test_launcher_summary_output",
+          "--gtest_output=json:${ISOLATED_OUTDIR}/gtest_output.json"
+        ],
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "result_file": "${ISOLATED_OUTDIR}/gtest_output.json",
+          "result_format": "gtest_json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "args": [
@@ -2515,8 +2817,33 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
+        "resultdb": {
+          "result_file": "${ISOLATED_OUTDIR}/gtest_output.json",
+          "result_format": "gtest_json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "args": [
+          "--test-launcher-summary-output=${ISOLATED_OUTDIR}/gtest_output.json",
+          "--test-arg=--gtest_output=json:/custom_artifacts/gtest_output.json",
+          "--test-arg=--undefok=test_launcher_summary_output",
+          "--gtest_output=json:${ISOLATED_OUTDIR}/gtest_output.json"
+        ],
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
         "resultdb": {
           "result_file": "${ISOLATED_OUTDIR}/gtest_output.json",
           "result_format": "gtest_json"
@@ -2528,8 +2855,8 @@
           },
           "shards": 4
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "args": [
@@ -2648,6 +2975,24 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -2754,6 +3099,24 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -2960,8 +3323,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
         "resultdb": {
           "result_format": "json"
         },
@@ -2969,11 +3332,28 @@
           "dimensions": {
             "cpu": "x86-64",
             "os": "Ubuntu-22.04"
-          },
-          "shards": 4
+          }
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -3073,6 +3453,24 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -3179,6 +3577,24 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -3385,8 +3801,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
         "resultdb": {
           "result_format": "json"
         },
@@ -3394,11 +3810,28 @@
           "dimensions": {
             "cpu": "x86-64",
             "os": "Ubuntu-22.04"
-          },
-          "shards": 4
+          }
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -3498,6 +3931,24 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -3604,6 +4055,24 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -3810,8 +4279,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
         "resultdb": {
           "result_format": "json"
         },
@@ -3819,11 +4288,28 @@
           "dimensions": {
             "cpu": "x86-64",
             "os": "Ubuntu-22.04"
-          },
-          "shards": 4
+          }
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -3923,6 +4409,24 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -4029,6 +4533,24 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -4235,8 +4757,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
         "resultdb": {
           "result_format": "json"
         },
@@ -4244,11 +4766,28 @@
           "dimensions": {
             "cpu": "x86-64",
             "os": "Ubuntu-22.04"
-          },
-          "shards": 4
+          }
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -4348,6 +4887,24 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -4454,6 +5011,24 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -4660,8 +5235,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
         "resultdb": {
           "result_format": "json"
         },
@@ -4669,11 +5244,28 @@
           "dimensions": {
             "cpu": "x86-64",
             "os": "Ubuntu-22.04"
-          },
-          "shards": 4
+          }
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -4768,6 +5360,24 @@
         },
         "test": "audio_engine_tests",
         "test_id_prefix": "ninja://:audio_engine_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
       },
       {
         "merge": {
@@ -4879,6 +5489,24 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -5067,8 +5695,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
         "resultdb": {
           "result_format": "json"
         },
@@ -5076,11 +5704,28 @@
           "dimensions": {
             "cpu": "x86-64",
             "os": "Ubuntu-22.04"
-          },
-          "shards": 4
+          }
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -5181,6 +5826,24 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -5287,6 +5950,24 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -5475,8 +6156,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
         "resultdb": {
           "result_format": "json"
         },
@@ -5484,11 +6165,28 @@
           "dimensions": {
             "cpu": "x86-64",
             "os": "Ubuntu-22.04"
-          },
-          "shards": 4
+          }
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -5590,6 +6288,24 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -5696,6 +6412,24 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -5902,8 +6636,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
         "resultdb": {
           "result_format": "json"
         },
@@ -5911,11 +6645,28 @@
           "dimensions": {
             "cpu": "x86-64",
             "os": "Ubuntu-22.04"
-          },
-          "shards": 4
+          }
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -6016,6 +6767,24 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -6122,6 +6891,24 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -6328,8 +7115,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
         "resultdb": {
           "result_format": "json"
         },
@@ -6337,11 +7124,28 @@
           "dimensions": {
             "cpu": "x86-64",
             "os": "Ubuntu-22.04"
-          },
-          "shards": 4
+          }
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Ubuntu-22.04"
+          }
+        },
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -6445,6 +7249,25 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cores": "12",
+            "cpu": "x86-64",
+            "os": "Mac-15"
+          }
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -6557,6 +7380,25 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cores": "12",
+            "cpu": "x86-64",
+            "os": "Mac-15"
+          }
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -6755,8 +7597,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
         "resultdb": {
           "result_format": "json"
         },
@@ -6765,11 +7607,29 @@
             "cores": "12",
             "cpu": "x86-64",
             "os": "Mac-15"
-          },
-          "shards": 4
+          }
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cores": "12",
+            "cpu": "x86-64",
+            "os": "Mac-15"
+          }
+        },
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -6874,6 +7734,25 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cores": "12",
+            "cpu": "x86-64",
+            "os": "Mac-15"
+          }
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -6986,6 +7865,25 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cores": "12",
+            "cpu": "x86-64",
+            "os": "Mac-15"
+          }
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -7184,8 +8082,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
         "resultdb": {
           "result_format": "json"
         },
@@ -7194,11 +8092,29 @@
             "cores": "12",
             "cpu": "x86-64",
             "os": "Mac-15"
-          },
-          "shards": 4
+          }
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cores": "12",
+            "cpu": "x86-64",
+            "os": "Mac-15"
+          }
+        },
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -7301,6 +8217,24 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Mac-15"
+          }
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -7407,6 +8341,24 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Mac-15"
+          }
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -7595,8 +8547,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
         "resultdb": {
           "result_format": "json"
         },
@@ -7604,11 +8556,28 @@
           "dimensions": {
             "cpu": "x86-64",
             "os": "Mac-15"
-          },
-          "shards": 4
+          }
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Mac-15"
+          }
+        },
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -7708,6 +8677,24 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "arm64-64-Apple_M1",
+            "os": "Mac-15"
+          }
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -7814,6 +8801,24 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "arm64-64-Apple_M1",
+            "os": "Mac-15"
+          }
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -8002,8 +9007,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
         "resultdb": {
           "result_format": "json"
         },
@@ -8011,11 +9016,28 @@
           "dimensions": {
             "cpu": "arm64-64-Apple_M1",
             "os": "Mac-15"
-          },
-          "shards": 4
+          }
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "arm64-64-Apple_M1",
+            "os": "Mac-15"
+          }
+        },
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -8141,6 +9163,24 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -8247,6 +9287,24 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -8435,8 +9493,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
         "resultdb": {
           "result_format": "json"
         },
@@ -8444,11 +9502,28 @@
           "dimensions": {
             "cpu": "x86-64",
             "os": "Windows-10-19045"
-          },
-          "shards": 4
+          }
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -8548,6 +9623,24 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -8654,6 +9747,24 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -8842,8 +9953,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
         "resultdb": {
           "result_format": "json"
         },
@@ -8851,11 +9962,28 @@
           "dimensions": {
             "cpu": "x86-64",
             "os": "Windows-10-19045"
-          },
-          "shards": 4
+          }
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -8955,6 +10083,24 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -9061,6 +10207,24 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -9249,8 +10413,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
         "resultdb": {
           "result_format": "json"
         },
@@ -9258,11 +10422,28 @@
           "dimensions": {
             "cpu": "x86-64",
             "os": "Windows-10-19045"
-          },
-          "shards": 4
+          }
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -9362,6 +10543,24 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//call:call_tests",
+        "name": "call_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
         "module_name": "//common_audio:common_audio_unittests",
         "name": "common_audio_unittests",
         "resultdb": {
@@ -9468,6 +10667,24 @@
         },
         "test": "peerconnection_unittests",
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/"
       },
       {
         "merge": {
@@ -9656,8 +10873,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests",
         "resultdb": {
           "result_format": "json"
         },
@@ -9665,11 +10882,28 @@
           "dimensions": {
             "cpu": "x86-64",
             "os": "Windows-10-19045"
-          },
-          "shards": 4
+          }
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/"
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/"
+      },
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "dimensions": {
+            "cpu": "x86-64",
+            "os": "Windows-10-19045"
+          }
+        },
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/"
       },
       {
         "merge": {
@@ -10023,6 +11257,104 @@
         },
         "test": "audio_engine_tests",
         "test_id_prefix": "ninja://:audio_engine_tests/",
+        "variant_id": "iPhone 15 18.2"
+      },
+      {
+        "args": [
+          "--platform",
+          "iPhone 14",
+          "--version",
+          "17.5",
+          "--xcode-build-version",
+          "17a400",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}",
+          "--xctest"
+        ],
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call:call_tests",
+        "name": "call_tests iPhone 14 17.5",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
+            }
+          ],
+          "dimensions": {
+            "cpu": "arm64",
+            "os": "Mac-15"
+          },
+          "named_caches": [
+            {
+              "name": "runtime_ios_17_5",
+              "path": "Runtime-ios-17.5"
+            },
+            {
+              "name": "xcode_ios_17a400",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/",
+        "variant_id": "iPhone 14 17.5"
+      },
+      {
+        "args": [
+          "--platform",
+          "iPhone 15",
+          "--version",
+          "18.2",
+          "--xcode-build-version",
+          "17a400",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}",
+          "--xctest"
+        ],
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call:call_tests",
+        "name": "call_tests iPhone 15 18.2",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
+            }
+          ],
+          "dimensions": {
+            "cpu": "arm64",
+            "os": "Mac-15"
+          },
+          "named_caches": [
+            {
+              "name": "runtime_ios_18_2",
+              "path": "Runtime-ios-18.2"
+            },
+            {
+              "name": "xcode_ios_17a400",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "call_tests",
+        "test_id_prefix": "ninja://call:call_tests/",
         "variant_id": "iPhone 15 18.2"
       },
       {
@@ -10519,6 +11851,104 @@
         },
         "test": "modules_unittests",
         "test_id_prefix": "ninja://modules:modules_unittests/",
+        "variant_id": "iPhone 15 18.2"
+      },
+      {
+        "args": [
+          "--platform",
+          "iPhone 14",
+          "--version",
+          "17.5",
+          "--xcode-build-version",
+          "17a400",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}",
+          "--xctest"
+        ],
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests iPhone 14 17.5",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
+            }
+          ],
+          "dimensions": {
+            "cpu": "arm64",
+            "os": "Mac-15"
+          },
+          "named_caches": [
+            {
+              "name": "runtime_ios_17_5",
+              "path": "Runtime-ios-17.5"
+            },
+            {
+              "name": "xcode_ios_17a400",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/",
+        "variant_id": "iPhone 14 17.5"
+      },
+      {
+        "args": [
+          "--platform",
+          "iPhone 15",
+          "--version",
+          "18.2",
+          "--xcode-build-version",
+          "17a400",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}",
+          "--xctest"
+        ],
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//call/adaptation:resource_adaptation_tests",
+        "name": "resource_adaptation_tests iPhone 15 18.2",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
+            }
+          ],
+          "dimensions": {
+            "cpu": "arm64",
+            "os": "Mac-15"
+          },
+          "named_caches": [
+            {
+              "name": "runtime_ios_18_2",
+              "path": "Runtime-ios-18.2"
+            },
+            {
+              "name": "xcode_ios_17a400",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "resource_adaptation_tests",
+        "test_id_prefix": "ninja://call/adaptation:resource_adaptation_tests/",
         "variant_id": "iPhone 15 18.2"
       },
       {
@@ -11524,8 +12954,106 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests iPhone 14 17.5",
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests iPhone 14 17.5",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
+            }
+          ],
+          "dimensions": {
+            "cpu": "arm64",
+            "os": "Mac-15"
+          },
+          "named_caches": [
+            {
+              "name": "runtime_ios_17_5",
+              "path": "Runtime-ios-17.5"
+            },
+            {
+              "name": "xcode_ios_17a400",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/",
+        "variant_id": "iPhone 14 17.5"
+      },
+      {
+        "args": [
+          "--platform",
+          "iPhone 15",
+          "--version",
+          "18.2",
+          "--xcode-build-version",
+          "17a400",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}",
+          "--xctest"
+        ],
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video/adaptation:video_adaptation_tests",
+        "name": "video_adaptation_tests iPhone 15 18.2",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
+            }
+          ],
+          "dimensions": {
+            "cpu": "arm64",
+            "os": "Mac-15"
+          },
+          "named_caches": [
+            {
+              "name": "runtime_ios_18_2",
+              "path": "Runtime-ios-18.2"
+            },
+            {
+              "name": "xcode_ios_17a400",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "video_adaptation_tests",
+        "test_id_prefix": "ninja://video/adaptation:video_adaptation_tests/",
+        "variant_id": "iPhone 15 18.2"
+      },
+      {
+        "args": [
+          "--platform",
+          "iPhone 14",
+          "--version",
+          "17.5",
+          "--xcode-build-version",
+          "17a400",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}",
+          "--xctest"
+        ],
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "module_name": "//video:video_tests",
+        "name": "video_tests iPhone 14 17.5",
         "resultdb": {
           "enable": true,
           "has_native_resultdb_integration": true
@@ -11555,8 +13083,8 @@
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 4
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/",
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/",
         "variant_id": "iPhone 14 17.5"
       },
       {
@@ -11574,8 +13102,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:video_engine_tests",
-        "name": "video_engine_tests iPhone 15 18.2",
+        "module_name": "//video:video_tests",
+        "name": "video_tests iPhone 15 18.2",
         "resultdb": {
           "enable": true,
           "has_native_resultdb_integration": true
@@ -11605,8 +13133,8 @@
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 4
         },
-        "test": "video_engine_tests",
-        "test_id_prefix": "ninja://:video_engine_tests/",
+        "test": "video_tests",
+        "test_id_prefix": "ninja://video:video_tests/",
         "variant_id": "iPhone 15 18.2"
       },
       {

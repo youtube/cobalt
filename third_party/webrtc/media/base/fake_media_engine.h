@@ -512,7 +512,7 @@ class FakeVoiceMediaReceiveChannel
   MediaType media_type() const override { return MediaType::AUDIO; }
 
   bool SetReceiverParameters(const AudioReceiverParameters& params) override;
-  void SetPlayout(bool playout) override;
+  void SetReceive(bool receive) override;
 
   bool AddRecvStream(const StreamParams& sp) override;
   bool RemoveRecvStream(uint32_t ssrc) override;
@@ -603,7 +603,7 @@ class FakeVoiceMediaSendChannel
   MediaType media_type() const override { return MediaType::AUDIO; }
 
   bool SetSenderParameters(const AudioSenderParameter& params) override;
-  void SetSend(bool send) override;
+  bool SetSend(bool send) override;
   bool SetAudioSend(uint32_t ssrc,
                     bool enable,
                     const AudioOptions* options,

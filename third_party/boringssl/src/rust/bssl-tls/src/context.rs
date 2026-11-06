@@ -48,6 +48,7 @@ use crate::{
 
 mod credentials;
 mod methods;
+mod sessions;
 
 /// TLS or DTLS mode
 pub enum TlsMode {}
@@ -246,7 +247,7 @@ where
         }
         if has_duplicates(groups) {
             return Err(Error::Configuration(
-                ConfigurationError::DuplicatedKeyExchangeGroup,
+                ConfigurationError::DuplicatedParameters,
             ));
         }
 
@@ -412,7 +413,7 @@ where
             // Safety: the connection is still valid here
             bssl_sys::SSL_set_connect_state(conn.as_ptr());
         }
-        let mut builder = TlsConnectionBuilder::from_ssl(conn);
+        let mut builder = TlsConnectionBuilder::from_ssl(conn, self.cert_cache.clone());
         // The safe default is that the client should perform at least
         // some certification verification.
         builder.with_certificate_verification_mode(
@@ -431,7 +432,10 @@ where
             // Safety: the connection is still valid here
             bssl_sys::SSL_set_accept_state(conn.as_ptr());
         }
-        Ok(TlsConnectionBuilder::from_ssl(conn))
+        Ok(TlsConnectionBuilder::from_ssl(
+            conn,
+            self.cert_cache.clone(),
+        ))
     }
 
     /// Expose the fully built BoringSSL's `SSL_CTX` pointer.

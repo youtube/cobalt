@@ -38,6 +38,11 @@ void RegExpMacroAssemblerTracer::Bind(Label* label) {
   assembler_->Bind(label);
 }
 
+void RegExpMacroAssemblerTracer::BindJumpTarget(Label* label) {
+  PrintF("label[%08x]: (BindJumpTarget)\n", LabelToInt(label));
+  assembler_->BindJumpTarget(label);
+}
+
 void RegExpMacroAssemblerTracer::AdvanceCurrentPosition(int by) {
   PrintF(" AdvanceCurrentPosition(by=%d);\n", by);
   assembler_->AdvanceCurrentPosition(by);

@@ -372,7 +372,7 @@ SuppressionGain::SuppressionGain(const EchoCanceller3Config& config,
   last_gain_.fill(1.f);
   if (config.suppressor.use_subband_nearend_detection) {
     dominant_nearend_detector_ = std::make_unique<SubbandNearendDetector>(
-        config.suppressor.subband_nearend_detection, num_capture_channels_);
+        config.suppressor, num_capture_channels_);
   } else {
     dominant_nearend_detector_ = std::make_unique<DominantNearendDetector>(
         config.suppressor.dominant_nearend_detection, num_capture_channels_);

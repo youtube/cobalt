@@ -87,7 +87,6 @@
 #include "remoting/protocol/peer_connection_controls.h"
 #include "remoting/protocol/session.h"
 #include "remoting/protocol/transport.h"
-#include "remoting/protocol/video_frame_pump.h"
 #include "remoting/protocol/webrtc_video_stream.h"
 #include "remoting/signaling/session_config.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_capture_types.h"
@@ -950,12 +949,6 @@ void ClientSession::OnSessionServicesClientConnected(
   session_services_receivers_.Add(this, std::move(receiver));
 }
 
-std::uint32_t ClientSession::desktop_session_id() const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(desktop_environment_);
-  return desktop_environment_->GetDesktopSessionId();
-}
-
 ClientSessionControl* ClientSession::session_control() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return this;
@@ -1433,7 +1426,7 @@ void ClientSession::OnDesktopDisplayChanged(
   }
 }
 
-void ClientSession::OnDesktopAttached(std::uint32_t session_id) {
+void ClientSession::OnDesktopAttached() {
   if (remote_webauthn_message_handler_) {
     // On Windows, only processes running on an attached desktop session can
     // bind ChromotingHostServices, so we notify the extension that it might be

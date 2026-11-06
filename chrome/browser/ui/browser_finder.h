@@ -10,7 +10,6 @@
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "ui/display/types/display_constants.h"
-#include "ui/gfx/native_ui_types.h"
 
 namespace base {
 class FilePath;
@@ -19,18 +18,9 @@ class FilePath;
 class Browser;
 class BrowserWindowInterface;
 class Profile;
-class SessionID;
 
 namespace content {
 class WebContents;
-}
-
-namespace tab_groups {
-class TabGroupId;
-}
-
-namespace ui {
-class ElementContext;
 }
 
 // Collection of functions to find Browsers based on various criteria.
@@ -110,21 +100,6 @@ Browser* FindTabbedBrowser(const Profile* profile,
 // WARNING: Do not use this method. See comment at top of file.
 Browser* FindBrowserWithProfile(const Profile* profile);
 
-
-
-// Returns an existing browser with the provided ID. Returns nullptr if no such
-// browser currently exists.
-Browser* FindBrowserWithID(SessionID desired_id);
-
-// Returns the browser represented by `window`. Returns nullptr if no such
-// browser currently exists.
-Browser* FindBrowserWithWindow(gfx::NativeWindow window);
-
-// Returns the browser with the currently active window. Returns nullptr if no
-// such browser currently exists.
-// WARNING: Do not use this method. See comment at top of file.
-Browser* FindBrowserWithActiveWindow();
-
 // Returns the browser containing the specified `web_contents` as a tab in that
 // browser. Returns nullptr if no such browser currently exists. `web_contents`
 // must not be nullptr.
@@ -140,18 +115,6 @@ Browser* FindBrowserWithActiveWindow();
 // to be found via this method.
 // WARNING: Do not use this method. See comment at top of file.
 Browser* FindBrowserWithTab(const content::WebContents* web_contents);
-
-// Returns the browser containing the group with ID `group` within the given
-// `profile`. If the specified profile is nullptr, returns any browser
-// containing a group with the given group ID. Returns nullptr if no such
-// browser currently exists.
-// WARNING: Do not use this method. See comment at top of file.
-Browser* FindBrowserWithGroup(tab_groups::TabGroupId group, Profile* profile);
-
-// Returns the browser for the given element context. Returns nullptr if no such
-// browser currently exists.
-// WARNING: Do not use this method. See comment at top of file.
-Browser* FindBrowserWithUiElementContext(ui::ElementContext context);
 
 // Returns the browser owned by `profile` whose window was most recently active.
 // Returns nullptr if no such browser currently exists.

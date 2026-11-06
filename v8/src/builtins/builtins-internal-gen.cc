@@ -52,7 +52,7 @@ TF_BUILTIN(GrowFastDoubleElements, CodeStubAssembler) {
   Label runtime(this, Label::kDeferred);
   TNode<FixedArrayBase> elements = LoadElements(object);
   elements = TryGrowElementsCapacity(object, elements, PACKED_DOUBLE_ELEMENTS,
-                                     key, &runtime);
+                                     SmiUntag(key), &runtime);
   Return(elements);
 
   BIND(&runtime);
@@ -66,8 +66,8 @@ TF_BUILTIN(GrowFastSmiOrObjectElements, CodeStubAssembler) {
 
   Label runtime(this, Label::kDeferred);
   TNode<FixedArrayBase> elements = LoadElements(object);
-  elements =
-      TryGrowElementsCapacity(object, elements, PACKED_ELEMENTS, key, &runtime);
+  elements = TryGrowElementsCapacity(object, elements, PACKED_ELEMENTS,
+                                     SmiUntag(key), &runtime);
   Return(elements);
 
   BIND(&runtime);

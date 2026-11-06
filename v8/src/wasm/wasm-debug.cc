@@ -65,11 +65,16 @@ Address FindNewPC(WasmFrame* frame, WasmCode* wasm_code, int byte_offset,
   // If {return_location == kAfterWasmCall} we return the last code offset
   // associated with the byte offset.
   SourcePositionTableIterator it(new_pos_table);
-  while (!it.done() && it.source_position().ScriptOffset() != byte_offset) {
+  while (true) {
+    CHECK(!it.done());
+    if (it.source_position().ScriptOffset() == byte_offset) break;
     it.Advance();
   }
   if (return_location == kAfterBreakpoint) {
-    while (!it.is_statement()) it.Advance();
+    while (!it.is_statement()) {
+      it.Advance();
+      CHECK(!it.done());
+    }
     DCHECK_EQ(byte_offset, it.source_position().ScriptOffset());
     return wasm_code->instruction_start() + it.code_offset() +
            call_instruction_size;
@@ -77,10 +82,11 @@ Address FindNewPC(WasmFrame* frame, WasmCode* wasm_code, int byte_offset,
 
   DCHECK_EQ(kAfterWasmCall, return_location);
   int code_offset;
-  do {
+  while (true) {
     code_offset = it.code_offset();
     it.Advance();
-  } while (!it.done() && it.source_position().ScriptOffset() == byte_offset);
+    if (it.done() || it.source_position().ScriptOffset() != byte_offset) break;
+  }
   return wasm_code->instruction_start() + code_offset + call_instruction_size;
 }
 
@@ -186,22 +192,28 @@ class DebugInfoImpl {
     return offset;
   }
 
-  // Find the dead breakpoint (see above) for the top wasm frame, if that frame
+  // Find the dead breakpoint (see above) for the top Wasm frame, if that frame
   // is in the function of the given index.
   int DeadBreakpoint(int func_index, base::Vector<const int> breakpoints,
                      Isolate* isolate) {
-    DebuggableStackFrameIterator it(isolate);
-#if !V8_ENABLE_DRUMBRAKE
-    if (it.done() || !it.is_wasm()) return 0;
-#else   // !V8_ENABLE_DRUMBRAKE
-    // TODO(paolosev@microsoft.com) - Implement for Wasm interpreter.
-    if (it.done() || !it.is_wasm() || it.is_wasm_interpreter_entry()) {
-      return 0;
+    auto isolate_it = per_isolate_data_.find(isolate);
+    StackFrameId stepping_frame = isolate_it == per_isolate_data_.end()
+                                      ? NO_ID
+                                      : isolate_it->second.stepping_frame;
+
+    for (DebuggableStackFrameIterator it(isolate); !it.done(); it.Advance()) {
+      if (it.frame()->id() == stepping_frame) continue;
+      if (!it.is_wasm()) continue;
+#if V8_ENABLE_DRUMBRAKE
+      // TODO(paolosev@microsoft.com) - Implement for Wasm interpreter.
+      if (it.is_wasm_interpreter_entry()) break;
+#endif  // V8_ENABLE_DRUMBRAKE
+      WasmFrame* wasm_frame = WasmFrame::cast(it.frame());
+      if (wasm_frame->native_module() != native_module_) break;
+      if (static_cast<int>(wasm_frame->function_index()) != func_index) break;
+      return DeadBreakpoint(wasm_frame, breakpoints);
     }
-#endif  // !V8_ENABLE_DRUMBRAKE
-    auto* wasm_frame = WasmFrame::cast(it.frame());
-    if (static_cast<int>(wasm_frame->function_index()) != func_index) return 0;
-    return DeadBreakpoint(wasm_frame, breakpoints);
+    return 0;
   }
 
   WasmCode* RecompileLiftoffWithBreakpoints(int func_index,
@@ -341,19 +353,14 @@ class DebugInfoImpl {
                                        all_breakpoints.end(), offset);
     bool breakpoint_exists =
         insertion_point != all_breakpoints.end() && *insertion_point == offset;
-    // If the breakpoint was already set before, then we can just reuse the old
-    // code. Otherwise, recompile it. In any case, rewrite this isolate's stack
-    // to make sure that it uses up-to-date code containing the breakpoint.
-    WasmCode* new_code;
-    if (breakpoint_exists) {
-      new_code = native_module_->GetCode(func_index);
-    } else {
+    if (!breakpoint_exists) {
       all_breakpoints.insert(insertion_point, offset);
-      int dead_breakpoint =
-          DeadBreakpoint(func_index, base::VectorOf(all_breakpoints), isolate);
-      new_code = RecompileLiftoffWithBreakpoints(
-          func_index, base::VectorOf(all_breakpoints), dead_breakpoint);
     }
+
+    int dead_breakpoint =
+        DeadBreakpoint(func_index, base::VectorOf(all_breakpoints), isolate);
+    WasmCode* new_code = RecompileLiftoffWithBreakpoints(
+        func_index, base::VectorOf(all_breakpoints), dead_breakpoint);
     UpdateReturnAddresses(isolate, new_code, isolate_data.stepping_frame);
   }
 
@@ -723,24 +730,36 @@ class DebugInfoImpl {
   // code. The frame layout itself should be independent of breakpoints.
   void UpdateReturnAddresses(Isolate* isolate, WasmCode* new_code,
                              StackFrameId stepping_frame) {
-    // The first return location is after the breakpoint, others are after wasm
-    // calls.
-    ReturnLocation return_location = kAfterBreakpoint;
-    for (DebuggableStackFrameIterator it(isolate); !it.done();
-         it.Advance(), return_location = kAfterWasmCall) {
-      // We still need the flooded function for stepping.
-      if (it.frame()->id() == stepping_frame) continue;
-#if !V8_ENABLE_DRUMBRAKE
-      if (!it.is_wasm()) continue;
-#else   // !V8_ENABLE_DRUMBRAKE
-      // TODO(paolosev@microsoft.com) - Implement for Wasm interpreter.
-      if (!it.is_wasm() || it.is_wasm_interpreter_entry()) continue;
-#endif  // !V8_ENABLE_DRUMBRAKE
+    auto matches = [new_code](WasmFrame* frame) {
+      return frame->native_module() == new_code->native_module() &&
+             frame->function_index() == new_code->index() &&
+             frame->wasm_code()->is_liftoff();
+    };
+
+    // 1. Find and handle the first Wasm frame (potential breakpoint resume).
+    DebuggableStackFrameIterator it(isolate);
+    while (!it.done() && !it.is_wasm()) it.Advance();
+
+    if (!it.done()) {
       WasmFrame* frame = WasmFrame::cast(it.frame());
-      if (frame->native_module() != new_code->native_module()) continue;
-      if (frame->function_index() != new_code->index()) continue;
-      if (!frame->wasm_code()->is_liftoff()) continue;
-      UpdateReturnAddress(frame, new_code, return_location);
+      // We still need the flooded function for stepping.
+      if (frame->id() != stepping_frame &&
+#if V8_ENABLE_DRUMBRAKE
+          // TODO(paolosev@microsoft.com) - Implement for Wasm interpreter.
+          !it.is_wasm_interpreter_entry() &&
+#endif
+          matches(frame)) {
+        UpdateReturnAddress(frame, new_code, kAfterBreakpoint);
+      }
+      it.Advance();
+    }
+
+    // 2. Handle all remaining frames (always at call sites).
+    for (; !it.done(); it.Advance()) {
+      if (!it.is_wasm()) continue;
+      WasmFrame* frame = WasmFrame::cast(it.frame());
+      if (!matches(frame)) continue;
+      UpdateReturnAddress(frame, new_code, kAfterWasmCall);
     }
   }
 

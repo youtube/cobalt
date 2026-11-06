@@ -27,9 +27,9 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
-#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_quic_config.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/quic_simple_crypto_server_stream_helper.h"
 #include "quiche/common/quiche_status_utils.h"
@@ -47,8 +47,10 @@ std::string GenerateRandomTokenSecret() {
 }
 
 quic::WebTransportHandlerFactoryCallback CreateWebTransportCallback(
-    MoqtIncomingSessionCallback callback, quic::QuicEventLoop* event_loop) {
-  return [event_loop = event_loop, callback = std::move(callback)](
+    MoqtIncomingSessionCallback callback, quic::QuicEventLoop* event_loop,
+    const MoqtSessionParameters& session_parameters) {
+  return [event_loop = event_loop, callback = std::move(callback),
+          parameters = session_parameters](
              webtransport::Session* session,
              const quic::WebTransportIncomingRequestDetails& details)
              -> absl::StatusOr<quic::WebTransportConnectResponse> {
@@ -58,8 +60,6 @@ quic::WebTransportHandlerFactoryCallback CreateWebTransportCallback(
     if (!configurator.ok()) {
       return configurator.status();
     }
-
-    MoqtSessionParameters parameters(quic::Perspective::IS_SERVER);
     auto moqt_session = std::make_unique<MoqtSession>(
         session, parameters, event_loop->CreateAlarmFactory());
     std::move (*configurator)(moqt_session.get());
@@ -72,7 +72,8 @@ quic::WebTransportHandlerFactoryCallback CreateWebTransportCallback(
 }  // namespace
 
 MoqtServer::MoqtServer(std::unique_ptr<quic::ProofSource> proof_source,
-                       MoqtIncomingSessionCallback callback)
+                       MoqtIncomingSessionCallback callback,
+                       MoqtSessionParameters session_parameters)
     : config_(GenerateQuicConfig()),
       crypto_config_(GenerateRandomTokenSecret(),
                      quic::QuicRandom::GetInstance(), std::move(proof_source),
@@ -86,9 +87,11 @@ MoqtServer::MoqtServer(std::unique_ptr<quic::ProofSource> proof_source,
                   std::make_unique<quic::QuicSimpleCryptoServerStreamHelper>(),
                   event_loop_->CreateAlarmFactory(),
                   quic::kQuicDefaultConnectionIdLength,
-                  connection_id_generator_) {
-  dispatcher_.parameters().handler_factory =
-      CreateWebTransportCallback(std::move(callback), event_loop_.get());
+                  connection_id_generator_),
+      session_parameters_(session_parameters) {
+  session_parameters_.perspective = quic::Perspective::IS_SERVER;
+  dispatcher_.parameters().handler_factory = CreateWebTransportCallback(
+      std::move(callback), event_loop_.get(), session_parameters_);
   dispatcher_.parameters().subprotocol_callback =
       +[](absl::Span<const absl::string_view> subprotocols) {
         return absl::c_find(subprotocols, kDefaultMoqtVersion) -

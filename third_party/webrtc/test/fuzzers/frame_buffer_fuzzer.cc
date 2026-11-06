@@ -23,7 +23,9 @@ namespace webrtc {
 namespace {
 class FuzzyFrameObject : public EncodedFrame {
  public:
-  int64_t ReceivedTime() const override { return 0; }
+  std::optional<Timestamp> ReceivedTimestamp() const override {
+    return Timestamp::Zero();
+  }
   int64_t RenderTime() const override { return 0; }
 };
 

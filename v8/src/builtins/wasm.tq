@@ -101,9 +101,6 @@ extern runtime WasmTypeAssertionFailed(NoContext): never;
 extern operator '.wasm_exported_function_data' macro
     LoadSharedFunctionInfoWasmExportedFunctionData(SharedFunctionInfo):
         WasmExportedFunctionData;
-extern operator '.wasm_js_function_data' macro
-    LoadSharedFunctionInfoWasmJSFunctionData(SharedFunctionInfo):
-        WasmJSFunctionData;
 
 namespace unsafe {
 extern macro Allocate(intptr): HeapObject;
@@ -810,7 +807,7 @@ macro UpdateCallRefOrIndirectIC(
     // Polymorphic miss.
     const entries = UnsafeCast<FixedArray>(firstSlot);
     const kMaxSlots = kMaxPolymorphism * 2;  // 2 slots per entry.
-    if (entries.length == SmiConstant(kMaxSlots)) {
+    if (entries.length == Unsigned(Int32Constant(kMaxSlots))) {
       // Polymorphic to megamorphic transition.
       vector.objects[index] = ic::kMegamorphicSymbol;
       // The second slot/counter has already been set to undefined below.
@@ -1385,7 +1382,7 @@ macro IsWtf8CodepointStart(view: ByteArray, pos: uint32): bool {
   return (view.values[Convert<uintptr>(pos)] & 0xc0) != 0x80;
 }
 macro AlignWtf8PositionForward(view: ByteArray, pos: uint32): uint32 {
-  const length = Unsigned(SmiToInt32(view.length));
+  const length = view.length;
   if (pos >= length) return length;
 
   if (IsWtf8CodepointStart(view, pos)) return pos;
@@ -1414,7 +1411,7 @@ builtin WasmStringViewWtf8Advance(view: ByteArray, pos: uint32, bytes: uint32):
     uint32 {
   const clampedPos = AlignWtf8PositionForward(view, pos);
   if (bytes == 0) return clampedPos;
-  const length = Unsigned(SmiToInt32(view.length));
+  const length = view.length;
   if (bytes >= length - clampedPos) return length;
   return AlignWtf8PositionBackward(view, clampedPos + bytes);
 }

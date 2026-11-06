@@ -739,7 +739,7 @@ SelectorChecker::FeaturelessMatch SelectorChecker::MatchShadowHost(
     case CSSSelector::kPseudoHover:
     case CSSSelector::kPseudoIncrement:
     case CSSSelector::kPseudoIndeterminate:
-    case CSSSelector::kPseudoInterestHint:
+    case CSSSelector::kPseudoInterestButton:
     case CSSSelector::kPseudoInterestSource:
     case CSSSelector::kPseudoInterestTarget:
     case CSSSelector::kPseudoInvalid:
@@ -2647,9 +2647,6 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
       if (force_pseudo_state) {
         return false;
       }
-      if (auto* scroll_button = DynamicTo<ScrollButtonPseudoElement>(element)) {
-        return scroll_button->IsEnabled();
-      }
       return element.MatchesEnabledPseudoClass();
     }
     case CSSSelector::kPseudoFullPageMedia:
@@ -2666,9 +2663,6 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
                               &force_pseudo_state);
       if (force_pseudo_state) {
         return false;
-      }
-      if (auto* scroll_button = DynamicTo<ScrollButtonPseudoElement>(element)) {
-        return !scroll_button->IsEnabled();
       }
       return element.MatchesDisabledPseudoClass();
     case CSSSelector::kPseudoReadOnly: {

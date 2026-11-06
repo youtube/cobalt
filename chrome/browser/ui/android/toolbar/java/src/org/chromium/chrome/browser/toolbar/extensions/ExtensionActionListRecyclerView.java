@@ -19,7 +19,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.toolbar.R;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -112,6 +111,11 @@ public class ExtensionActionListRecyclerView extends RecyclerView {
      */
     public void addOnAnimationsFinishedRunnable(Runnable runnable) {
         mOnAnimationsFinishedRunnables.add(runnable);
+    }
+
+    /** Clears all of the registered callbacks. */
+    public void clearOnAnimationsFinishedRunnables() {
+        mOnAnimationsFinishedRunnables.clear();
     }
 
     private void runAllOnAnimationsFinishedRunnables() {

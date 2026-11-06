@@ -32,6 +32,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/string_encode.h"
+#include "rtc_base/string_utils.h"
 
 namespace webrtc {
 
@@ -122,8 +123,28 @@ bool StunRequestManager::CheckResponse(StunMessage* msg) {
   bool skip_integrity_checking =
       (request->msg()->integrity() == StunMessage::IntegrityStatus::kNotSet);
   if (!request->AuthenticationRequired()) {
-    // This is a STUN_BINDING to from stun_port.cc or
-    // the initial (unauthenticated) TURN_ALLOCATE_REQUEST.
+    if (request->type() != STUN_BINDING_REQUEST) {
+      if (msg->type() == GetStunSuccessResponseType(request->type())) {
+        RTC_LOG(LS_WARNING)
+            << "Discarding unauthenticated success response (0x"
+            << ToHex(msg->type()) << ") to TURN request of type 0x"
+            << ToHex(request->type())
+            << ", id=" << hex_encode(msg->transaction_id());
+        return false;
+      }
+      if (msg->type() == GetStunErrorResponseType(request->type())) {
+        int error_code = msg->GetErrorCodeValue();
+        if (error_code != STUN_ERROR_UNAUTHORIZED &&
+            error_code != STUN_ERROR_TRY_ALTERNATE) {
+          RTC_LOG(LS_WARNING)
+              << "Discarding unauthenticated error response with code "
+              << error_code << " to TURN request of type 0x"
+              << ToHex(request->type())
+              << ", id=" << hex_encode(msg->transaction_id());
+          return false;
+        }
+      }
+    }
   } else if (skip_integrity_checking) {
     // TODO(chromium:1177125): Remove below!
     // This indicates lazy test writing (not adding integrity attribute).

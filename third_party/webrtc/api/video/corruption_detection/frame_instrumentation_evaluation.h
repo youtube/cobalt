@@ -43,7 +43,7 @@ class FrameInstrumentationEvaluation {
       CorruptionScoreObserver* observer);
 
   virtual ~FrameInstrumentationEvaluation() = default;
-  virtual void OnInstrumentedFrame(const FrameInstrumentationData& data,
+  virtual void OnInstrumentedFrame(FrameInstrumentationData data,
                                    const VideoFrame& frame,
                                    VideoContentType frame_type) = 0;
 

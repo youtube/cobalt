@@ -10,7 +10,6 @@
 
 #include <iostream>
 #include <type_traits>
-#include <vector>
 
 namespace v8::bigint {
 
@@ -90,13 +89,50 @@ class ProcessorImpl;
 // Support for parsing BigInts from Strings, using an Accumulator object
 // for intermediate state.
 
-static constexpr uint32_t kStackParts = 8;
+// A minimal subset of std::vector, backed by the {Platform}'s allocator.
+class GrowableDigitsVector {
+ public:
+  explicit GrowableDigitsVector(Platform* platform) : platform_(platform) {}
+  ~GrowableDigitsVector() {
+    if (data_) platform_->Free(data_);
+  }
+
+  void Init(size_t capacity) {
+    DCHECK(capacity_ == nullptr);  // Only call Init() once.
+    data_ = end_ = platform_->Allocate(capacity);
+    capacity_ = data_ + capacity;
+  }
+  void push_back(digit_t value) {
+    if (end_ == capacity_) [[unlikely]] {
+      // Grow by 2x.
+      size_t capacity = capacity_ - data_;
+      digit_t* new_data = platform_->Allocate(2 * capacity);
+      memcpy(new_data, data_, capacity * sizeof(digit_t));
+      platform_->Free(data_);
+      data_ = new_data;
+      capacity_ = data_ + 2 * capacity;
+      end_ = data_ + capacity;
+    }
+    *end_++ = value;
+  }
+
+  bool empty() const { return end_ == data_; }
+  size_t size() const { return end_ - data_; }
+  digit_t operator[](size_t i) const { return data_[i]; }
+  digit_t back() const { return *(end_ - 1); }
+  digit_t* data() { return data_; }
+
+ private:
+  digit_t* data_{nullptr};
+  digit_t* end_{nullptr};
+  digit_t* capacity_{nullptr};
+  Platform* platform_;
+};
 
 // A container object for all metadata required for parsing a BigInt from
 // a string.
 // Aggressively optimized not to waste instructions for small cases, while
 // also scaling transparently to huge cases.
-// Defined here in the header so that it can be inlined.
 class FromStringAccumulator {
  public:
   enum class Result { kOk, kMaxSizeExceeded };
@@ -110,8 +146,8 @@ class FromStringAccumulator {
   // whereas the final result will be slightly smaller (depending on {radix}).
   // So for sufficiently large N, setting max_digits=N here will not actually
   // allow parsing BigInts with N digits. We can fix that if/when anyone cares.
-  explicit FromStringAccumulator(uint32_t max_digits)
-      : max_digits_(std::max(max_digits, kStackParts)) {}
+  FromStringAccumulator(uint32_t max_digits, Platform* platform)
+      : heap_parts_(platform), max_digits_(std::max(max_digits, kStackParts)) {}
 
   // Step 2: Call this method to read all characters.
   // {CharIt} should be a forward iterator and
@@ -133,6 +169,9 @@ class FromStringAccumulator {
   // Step 4: Use BigIntProcessor::FromString() to retrieve the result into an
   // {RWDigits} struct allocated for the size returned by step 3.
 
+  // Users may wish to align when to use stack or heap memory.
+  static constexpr uint32_t kStackParts = 8;
+
  private:
   friend class ProcessorImpl;
 
@@ -143,7 +182,7 @@ class FromStringAccumulator {
   ALWAYS_INLINE bool AddPart(digit_t part);
 
   digit_t stack_parts_[kStackParts];
-  std::vector<digit_t> heap_parts_;
+  GrowableDigitsVector heap_parts_;
   digit_t max_multiplier_{0};
   digit_t last_multiplier_;
   const uint32_t max_digits_;
@@ -311,7 +350,7 @@ bool FromStringAccumulator::AddPart(digit_t part) {
   }
   if (heap_parts_.size() == 0) {
     // Initialize heap storage. Copy the stack part to make things easier later.
-    heap_parts_.reserve(kStackParts * 2);
+    heap_parts_.Init(kStackParts * 2);
     for (uint32_t i = 0; i < kStackParts; i++) {
       heap_parts_.push_back(stack_parts_[i]);
     }
@@ -561,7 +600,7 @@ inline int Compare(Digits A, Digits B) {
 
 inline digit_t Add(RWDigits Z, Digits X, Digits Y) {
   if (X.len() < Y.len()) std::swap(X, Y);  // Now X.len() >= Y.len().
-  CHECK(Z.len() >= X.len());
+  DCHECK(Z.len() >= X.len());
   uint32_t i = 0;
   digit_t carry = 0;
   digit_t top = 0;
@@ -581,7 +620,7 @@ inline digit_t Add(RWDigits Z, Digits X, Digits Y) {
 inline digit_t Subtract(RWDigits Z, Digits X, Digits Y) {
   DCHECK(IsDigitNormalized(X));
   DCHECK(IsDigitNormalized(Y));
-  CHECK(Z.len() >= X.len() && X.len() >= Y.len());
+  DCHECK(Z.len() >= X.len() && X.len() >= Y.len());
   uint32_t i = 0;
   digit_t borrow = 0;
   digit_t top = 0;
@@ -694,7 +733,7 @@ inline digit_t InplaceSubAndReturnBorrow(RWDigits Z, Digits X) {
 // These add exactly Y's digits to the matching digits in X, storing the
 // result in (part of) Z, and return the carry/borrow.
 inline digit_t AddAndReturnCarry(RWDigits Z, Digits X, Digits Y) {
-  CHECK(Z.len() >= Y.len() && X.len() >= Y.len());
+  DCHECK(Z.len() >= Y.len() && X.len() >= Y.len());
   digit_t carry = 0;
   for (uint32_t i = 0; i < Y.len(); i++) {
     Z[i] = digit_add3(X[i], Y[i], carry, &carry);
@@ -703,7 +742,7 @@ inline digit_t AddAndReturnCarry(RWDigits Z, Digits X, Digits Y) {
 }
 
 inline digit_t SubtractAndReturnBorrow(RWDigits Z, Digits X, Digits Y) {
-  CHECK(Z.len() >= Y.len() && X.len() >= Y.len());
+  DCHECK(Z.len() >= Y.len() && X.len() >= Y.len());
   digit_t borrow = 0;
   for (uint32_t i = 0; i < Y.len(); i++) {
     Z[i] = digit_sub2(X[i], Y[i], borrow, &borrow);
@@ -909,8 +948,7 @@ inline digit_t ModSingle(Digits A, digit_t b) {
 inline std::pair<bool, digit_t> DivideSmall(RWDigits& Q, Digits& A, Digits& B) {
   DCHECK(IsDigitNormalized(A));
   DCHECK(IsDigitNormalized(B));
-  // This is a Release-mode check for security fuzzing purposes.
-  CHECK(B.len() > 0);
+  DCHECK(B.len() > 0);
   int cmp = CompareNoNormalize(A, B);
   if (cmp < 0) {
     Q.Clear();
@@ -933,8 +971,7 @@ inline std::pair<bool, digit_t> DivideSmall(RWDigits& Q, Digits& A, Digits& B) {
 inline std::pair<bool, digit_t> ModuloSmall(RWDigits& R, Digits& A, Digits& B) {
   DCHECK(IsDigitNormalized(A));
   DCHECK(IsDigitNormalized(B));
-  // This is a Release-mode check for security fuzzing purposes.
-  CHECK(B.len() > 0);
+  DCHECK(B.len() > 0);
   int cmp = CompareNoNormalize(A, B);
   if (cmp < 0) {
     digit_t top;

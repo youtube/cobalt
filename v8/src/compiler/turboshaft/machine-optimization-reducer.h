@@ -1281,6 +1281,117 @@ class MachineOptimizationReducer : public Next {
 #endif  // V8_ENABLE_WEBASSEMBLY
 #endif  // V8_TARGET_ARCH_ARM64
 
+  std::optional<V<Word>> TryReduceRorInTree(V<Word> left, V<Word> right,
+                                            WordBinopOp::Kind kind,
+                                            WordRepresentation rep) {
+    // Traces tree of XOR or OR operations to find pairs of shifts that form
+    // a rotation, and reduces them.
+    //
+    // Examples for 32-bit with another operand 'z':
+    //   ((x << y) ^ z) ^ (x >>> (32 - y))  =>  (x ror (32 - y)) ^ z
+    //   ((x << y) | z) | (x >>> (32 - y))  =>  (x ror (32 - y)) | z
+
+    DCHECK(kind == WordBinopOp::Kind::kBitwiseXor ||
+           kind == WordBinopOp::Kind::kBitwiseOr);
+
+    constexpr size_t kMaxOperands = 8;
+    base::SmallVector<OpIndex, kMaxOperands> operands;
+    base::SmallVector<OpIndex, kMaxOperands> worklist;
+
+    worklist.push_back(left);
+    worklist.push_back(right);
+
+    bool has_shl = false;
+    bool has_shr = false;
+
+    // Searching for a tree of XORs (or ORs).
+    while (!worklist.empty() && operands.size() < kMaxOperands) {
+      OpIndex current_op = worklist.back();
+      worklist.pop_back();
+
+      const auto* binop = matcher_.TryCast<WordBinopOp>(current_op);
+      if (binop != nullptr && binop->kind == kind) {
+        worklist.push_back(binop->right());
+        worklist.push_back(binop->left());
+      } else {
+        operands.push_back(current_op);
+
+        if (const auto* shift = matcher_.TryCast<ShiftOp>(current_op)) {
+          if (shift->kind == ShiftOp::Kind::kShiftLeft) has_shl = true;
+          if (shift->kind == ShiftOp::Kind::kShiftRightLogical) has_shr = true;
+        }
+      }
+    }
+
+    if (!has_shl || !has_shr) {
+      return {};
+    }
+
+    if (operands.size() <= 2) {
+      return {};
+    }
+
+    // Find a rotation pair and combine it with the remaining operands. We
+    // reduce at most one pair at a time, as the rest will be caught when
+    // reducing the combined result.
+    for (size_t i = 0; i < operands.size(); ++i) {
+      OpIndex op1 = operands[i];
+      const auto* s1 = matcher_.TryCast<ShiftOp>(op1);
+      if (s1 == nullptr) {
+        continue;
+      }
+
+      for (size_t j = i + 1; j < operands.size(); ++j) {
+        OpIndex op2 = operands[j];
+        const auto* s2 = matcher_.TryCast<ShiftOp>(op2);
+        if (s2 == nullptr) {
+          continue;
+        }
+
+        const ShiftOp* shl_node = nullptr;
+        const ShiftOp* shr_node = nullptr;
+        if (s1->kind == ShiftOp::Kind::kShiftLeft &&
+            s2->kind == ShiftOp::Kind::kShiftRightLogical) {
+          shl_node = s1;
+          shr_node = s2;
+        } else if (s1->kind == ShiftOp::Kind::kShiftRightLogical &&
+                   s2->kind == ShiftOp::Kind::kShiftLeft) {
+          shl_node = s2;
+          shr_node = s1;
+        } else {
+          continue;
+        }
+
+        if (shl_node->left() != shr_node->left()) {
+          continue;
+        }
+
+        uint32_t l, r;
+        if (matcher_.MatchIntegralWord32Constant(shl_node->right(), &l) &&
+            matcher_.MatchIntegralWord32Constant(shr_node->right(), &r)) {
+          // Rotation requires l+r = bit_width. For XOR, shift cannot be 0
+          // mod bit_width to avoid cancellation (x ^ x = 0). For OR, shift
+          // amount 0 is valid as it simplifies to identity.
+          if (l + r == rep.bit_width()) {
+            // Shifts by 0 or bit_width should have been simplified away
+            // earlier.
+            DCHECK_NE(l & (rep.bit_width() - 1), 0);
+
+            V<Word> ror =
+                __ RotateRight(shl_node->left(), shr_node->right(), rep);
+            V<Word> result = ror;
+            for (size_t k = 0; k < operands.size(); ++k) {
+              if (k == i || k == j) continue;
+              result = __ WordBinop(result, operands[k], kind, rep);
+            }
+            return result;
+          }
+        }
+      }
+    }
+    return {};
+  }
+
   std::optional<V<Word>> TryReduceToRor(V<Word> left, V<Word> right,
                                         WordBinopOp::Kind kind,
                                         WordRepresentation rep) {
@@ -1294,11 +1405,16 @@ class MachineOptimizationReducer : public Next {
     // Note the side condition for XOR: the optimization doesn't hold for
     // an effective rotation amount of 0.
 
-    if (!(kind == any_of(WordBinopOp::Kind::kBitwiseOr,
-                         WordBinopOp::Kind::kBitwiseXor))) {
+    if (kind !=
+        any_of(WordBinopOp::Kind::kBitwiseOr, WordBinopOp::Kind::kBitwiseXor)) {
       return {};
     }
+    // Try chain optimization if we detect a potential chain.
+    if (auto ror = TryReduceRorInTree(left, right, kind, rep)) {
+      return ror;
+    }
 
+    // Direct pair reduction otherwise.
     const ShiftOp* high = matcher_.TryCast<ShiftOp>(left);
     if (!high) return {};
     const ShiftOp* low = matcher_.TryCast<ShiftOp>(right);
@@ -2241,14 +2357,21 @@ class MachineOptimizationReducer : public Next {
   V<Simd128> REDUCE(Simd128ReplaceLane)(V<Simd128> into, V<Any> new_lane,
                                         Simd128ReplaceLaneOp::Kind kind,
                                         uint8_t lane) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceSimd128ReplaceLane(into, new_lane, kind, lane);
+    }
     if (kind == Simd128ReplaceLaneOp::Kind::kF16x8) {
       // Not supported yet.
-      return Next::ReduceSimd128ReplaceLane(into, new_lane, kind, lane);
+      goto no_change;
     }
 
     if (const Simd128ExtractLaneOp* extract =
             matcher_.TryCast<Simd128ExtractLaneOp>(new_lane)) {
       Simd128ExtractLaneOp::Kind extract_kind = extract->kind;
+      if (extract_kind == Simd128ExtractLaneOp::Kind::kF16x8) {
+        // Not supported yet.
+        goto no_change;
+      }
       int extract_bytes =
           ElementSizeInBytes(Simd128ExtractLaneOp::element_rep(extract_kind));
       int replace_bytes =
@@ -2284,7 +2407,7 @@ class MachineOptimizationReducer : public Next {
                                   from_lane);
       }
     }
-    return Next::ReduceSimd128ReplaceLane(into, new_lane, kind, lane);
+    goto no_change;
   }
 
   V<Any> REDUCE(Simd128ExtractLane)(V<Simd128> input,

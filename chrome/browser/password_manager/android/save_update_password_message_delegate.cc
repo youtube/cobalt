@@ -124,8 +124,6 @@ void SaveUpdatePasswordMessageDelegate::DisplaySaveUpdatePasswordPromptInternal(
 
   CreateMessage(update_password);
   RecordMessageShownMetrics(update_password);
-  password_manager::metrics_util::LogFormSubmissionsVsSavePromptsHistogram(
-      password_manager::metrics_util::SaveFlowStep::kSavePromptShown);
   messages::MessageDispatcherBridge::Get()->EnqueueMessage(
       message_.get(), web_contents_, messages::MessageScopeType::WEB_CONTENTS,
       messages::MessagePriority::kUrgent);
@@ -351,7 +349,7 @@ void SaveUpdatePasswordMessageDelegate::DisplayEditDialog(
   CreatePasswordEditDialog();
 
   // Password edit dialog factory method can return nullptr when web_contents
-  // is not attached to a window. See crbug.com/1049090 for details.
+  // is not attached to a window. See crbug.com/40672358 for details.
   if (!password_edit_dialog_) {
     return;
   }

@@ -761,6 +761,7 @@ struct ShaderInfo::SharedGeneratorData {
                         UniquePaintParamsID paintID,
                         const char* uniformSsboIndex)
             : fRootNodes(SkSpan<const ShaderNode*>())
+            , fTexturesAndSamplersSkSL("")
             , fHasStepUniforms(step->numUniforms() > 0) {
 
         // Decompress Root Nodes & Determine Local Coords
@@ -848,6 +849,9 @@ struct ShaderInfo::SharedGeneratorData {
 
     // The base SkSL preamble (uniforms, varyings) shared by both stages
     std::string fSharedPreamble;
+    // Textures and samplers are also shared between fragment and vertex shaders.
+    // TODO (thomsmit): Possibly pull texturues and samplers into the shared preamble?
+    std::string fTexturesAndSamplersSkSL;
 
     // Shared calculated properties
     bool fNeedsLocalCoords;
@@ -897,6 +901,7 @@ std::unique_ptr<ShaderInfo> ShaderInfo::Make(const Caps* caps,
                                      rpDesc.fColorAttachment.fFormat,
                                      rpDesc.fWriteSwizzle,
                                      outDescs,
+                                     &sharedData.fTexturesAndSamplersSkSL,
                                      sharedData);
     } else {
         result->fBlendInfo.fWritesColor = false;
@@ -960,6 +965,7 @@ void ShaderInfo::generateFragmentSkSL(const Caps* caps,
                                       TextureFormat targetFormat,
                                       Swizzle writeSwizzle,
                                       skia_private::TArray<SamplerDesc>* outDescs,
+                                      std::string* textureAndSamplerSkSL,
                                       const SharedGeneratorData& sharedData) {
 #if defined(SK_DEBUG)
     // Validate the root node structure of the key.
@@ -1067,11 +1073,12 @@ void ShaderInfo::generateFragmentSkSL(const Caps* caps,
                                fDstReadStrategy == DstReadStrategy::kTextureSample;
     {
         int binding = 0;
-        fsPreamble += emit_textures_and_samplers(bindingReqs, sharedData.fRootNodes, &binding,
-                                               outDescs);
+        // Cache the texture and fragment sksl so we can add it to the vertex shader
+        *textureAndSamplerSkSL = emit_textures_and_samplers(bindingReqs, sharedData.fRootNodes,
+                                                            &binding, outDescs);
         int paintTextureCount = binding;
         if (step->hasTextures()) {
-            fsPreamble += step->texturesAndSamplersSkSL(bindingReqs, &binding);
+            *textureAndSamplerSkSL += step->texturesAndSamplersSkSL(bindingReqs, &binding);
             if (outDescs) {
                 // Determine how many render step samplers were used by comparing the binding value
                 // against paintTextureCount, taking into account the binding requirements. We
@@ -1085,14 +1092,16 @@ void ShaderInfo::generateFragmentSkSL(const Caps* caps,
             }
         }
         if (useDstSampler) {
-            fsPreamble += EmitSamplerLayout(bindingReqs, &binding);
-            fsPreamble += " sampler2D dstSampler;";
+            *textureAndSamplerSkSL += EmitSamplerLayout(bindingReqs, &binding);
+            *textureAndSamplerSkSL += " sampler2D dstSampler;";
             // Add default SamplerDesc for the intrinsic dstSampler to stay consistent with
             // `fNumFragmentTexturesAndSamplers`.
             if (outDescs) {
                 outDescs->push_back({});
             }
         }
+
+        fsPreamble += *textureAndSamplerSkSL;
 
         // Record how many textures and samplers are used.
         fNumFragmentTexturesAndSamplers = binding;
@@ -1287,6 +1296,11 @@ void ShaderInfo::generateVertexSkSL(const Caps* caps,
     // Fixed program header (intrinsics are always declared as an uniform interface block)
     const ResourceBindingRequirements& bindingReqs = caps->resourceBindingRequirements();
     vsPreamble = emit_intrinsic_constants(bindingReqs);
+
+    if (step->hasTextures()) {
+        vsPreamble += sharedData.fTexturesAndSamplersSkSL;
+    }
+
     // Varyings needed by RenderStep and potentially lifted expressions
     vsPreamble += emit_varyings(step, "out",
                                 sharedData.fLiftedExpr,

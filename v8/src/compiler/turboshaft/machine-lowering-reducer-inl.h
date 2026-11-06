@@ -29,6 +29,7 @@
 #include "src/compiler/write-barrier-kind.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/execution/frame-constants.h"
+#include "src/ic/handler-configuration.h"
 #include "src/objects/bigint.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-number.h"
@@ -36,6 +37,7 @@
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/oddball.h"
+#include "src/objects/property-details.h"
 #include "src/objects/string-inl.h"
 #include "src/runtime/runtime.h"
 #include "src/utils/utils.h"
@@ -2015,9 +2017,17 @@ class MachineLoweringReducer : public Next {
         size, allocation_type, kTaggedAligned);
     __ InitializeField(uninitialized_array, AccessBuilder::ForMap(),
                        __ HeapConstant(array_map));
+#if TAGGED_SIZE_8_BYTES
+#if V8_TARGET_BIG_ENDIAN
+#error "TODO(375937549): Implement storing length+padding on big endian arch"
+#endif  // V8_TARGET_BIG_ENDIAN
+    __ InitializeField(uninitialized_array,
+                       AccessBuilder::ForFixedArrayLength(), length);
+#else
     __ InitializeField(uninitialized_array,
                        AccessBuilder::ForFixedArrayLength(),
-                       __ TagSmi(__ TruncateWordPtrToWord32(length)));
+                       __ TruncateWordPtrToWord32(length));
+#endif  // TAGGED_SIZE_8_BYTES
     // TODO(nicohartmann@): Should finish initialization only after all elements
     // have been initialized.
     auto array = __ FinishInitialization(std::move(uninitialized_array));
@@ -3330,6 +3340,121 @@ class MachineLoweringReducer : public Next {
     // Inserting a AssumeMap so that subsequent optimizations know the map of
     // this object.
     __ AssumeMap(heap_object, maps);
+    return {};
+  }
+
+  V<None> REDUCE(CheckHomomorphic)(
+      V<Object> heap_object, V<FrameState> frame_state, NameRef name,
+      WeakHomomorphicFixedArrayRef homomorphic_array, int handler_value,
+      bool check_heap_object, const FeedbackSource& feedback) {
+    Label<Map> done(this);
+    if (check_heap_object) {
+      IF_NOT (__ IsSmi(heap_object)) {
+        GOTO(done, __ LoadMapField(heap_object));
+      } ELSE {
+        GOTO(done, __ HeapConstant(factory_->heap_number_map()));
+      }
+    } else {
+      // TODO(leszeks): Assert that the object is not a Smi.
+      GOTO(done, __ LoadMapField(heap_object));
+    }
+    BIND(done, map);
+
+    int handler = handler_value;
+    int descriptor_index = LoadHandler::DescriptorIndexBits::decode(handler);
+    V<WordPtr> map_word = __ BitcastTaggedToWordPtr(map);
+    V<WordPtr> cache_index = __ WordPtrBitwiseAnd(
+        __ WordPtrShiftRightLogical(map_word, kTaggedSizeLog2),
+        __ WordPtrConstant(
+            static_cast<uint32_t>(v8_flags.homomorphic_ic_count) - 1));
+    V<HeapObject> array =
+        __ HeapConstant(homomorphic_array.HeapObjectRef::object());
+    V<WordPtr> weak_map = __ WordPtrBitwiseOr(map_word, kWeakHeapObjectMask);
+
+    V<Object> array_entry =
+        __ Load(array, cache_index, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::AnyTagged(),
+                FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
+
+    IF_NOT (__ WordPtrEqual(__ BitcastTaggedToWordPtr(array_entry), weak_map)) {
+      // 1. Check descriptor count.
+      V<Word32> bitfield3 =
+          __ template LoadField<Word32>(map, AccessBuilder::ForMapBitField3());
+      V<Word32> nof_desc = __ Word32BitwiseAnd(
+          bitfield3, Map::Bits3::NumberOfOwnDescriptorsBits::kMask);
+      uint32_t encoded_descriptor_index =
+          Map::Bits3::NumberOfOwnDescriptorsBits::encode(descriptor_index);
+      __ DeoptimizeIf(
+          __ Uint32LessThanOrEqual(nof_desc, encoded_descriptor_index),
+          frame_state, DeoptimizeReason::kWrongMap, feedback);
+
+      // 2. Load descriptor array.
+      V<DescriptorArray> descriptors = __ template LoadField<DescriptorArray>(
+          map, AccessBuilder::ForMapDescriptors());
+
+      // 3. Check key.
+      int key_offset = DescriptorArray::OffsetOfDescriptorAt(descriptor_index) +
+                       DescriptorArray::kEntryKeyOffset;
+      V<Object> key = __ LoadTaggedField(descriptors, key_offset);
+      V<Object> name_node = __ HeapConstant(name.object());
+      __ DeoptimizeIfNot(__ TaggedEqual(key, name_node), frame_state,
+                         DeoptimizeReason::kWrongMap, feedback);
+
+      // 4. Check details.
+      int details_offset =
+          DescriptorArray::OffsetOfDescriptorAt(descriptor_index) +
+          DescriptorArray::kEntryDetailsOffset;
+      V<Smi> details_smi =
+          __ Load(descriptors, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::TaggedSigned(), details_offset);
+      V<Word32> details = __ UntagSmi(details_smi);
+
+      // 4a. Check kind, location, and in-object.
+      uint16_t storage_offset =
+          LoadHandler::StorageOffsetInWordsBits::decode(handler);
+      bool is_inobject = LoadHandler::IsInobjectBits::decode(handler);
+      bool is_double = LoadHandler::IsDoubleBits::decode(handler);
+      uint32_t expected_details_mask =
+          PropertyDetails::KindField::kMask |
+          PropertyDetails::LocationField::kMask |
+          PropertyDetails::OffsetInWordsField::kMask |
+          PropertyDetails::InObjectField::kMask;
+      uint32_t expected_details =
+          PropertyDetails::KindField::encode(PropertyKind::kData) |
+          PropertyDetails::LocationField::encode(PropertyLocation::kField) |
+          PropertyDetails::OffsetInWordsField::encode(storage_offset) |
+          PropertyDetails::InObjectField::encode(is_inobject);
+      if (is_double) {
+        // 4b. Check Representation is exactly double, if needed.
+        expected_details_mask |= PropertyDetails::RepresentationField::kMask;
+        expected_details |= PropertyDetails::RepresentationField::encode(
+            PropertyDetails::EncodeRepresentation(Representation::Double()));
+      }
+
+      V<Word32> masked_details =
+          __ Word32BitwiseAnd(details, expected_details_mask);
+      __ DeoptimizeIfNot(__ Word32Equal(masked_details, expected_details),
+                         frame_state, DeoptimizeReason::kWrongMap, feedback);
+
+      if (!is_double) {
+        // 4b. Check Representation is NOT double. If we wanted a double
+        // representation, we would have checked it already as part of the
+        // expected details check.
+        uint32_t repr_mask = PropertyDetails::RepresentationField::kMask;
+        uint32_t expected_repr = PropertyDetails::RepresentationField::encode(
+            PropertyDetails::EncodeRepresentation(Representation::Double()));
+
+        V<Word32> masked_repr = __ Word32BitwiseAnd(details, repr_mask);
+        __ DeoptimizeIf(__ Word32Equal(masked_repr, expected_repr), frame_state,
+                        DeoptimizeReason::kWrongMap, feedback);
+      }
+
+      __ Store(array, cache_index, __ BitcastWordPtrToTagged(weak_map),
+               StoreOp::Kind::TaggedBase(), MemoryRepresentation::AnyTagged(),
+               WriteBarrierKind::kFullWriteBarrier,
+               FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
+    }
+
     return {};
   }
 

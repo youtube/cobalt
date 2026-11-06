@@ -144,6 +144,17 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, MAYBE_Common) {
   RunSidePanelTest("side_panel/read_anything/common_test.js", "mocha.run()");
 }
 
+// TODO(crbug.com/502069860): Re-enable after fixing flakiness.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_RectCalculations DISABLED_RectCalculations
+#else
+#define MAYBE_RectCalculations RectCalculations
+#endif
+IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, MAYBE_RectCalculations) {
+  RunSidePanelTest("side_panel/read_anything/rect_calculations_test.js",
+                   "mocha.run()");
+}
+
 IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, Logger) {
   RunSidePanelTest("side_panel/read_anything/read_anything_logger_test.js",
                    "mocha.run()");
@@ -263,6 +274,22 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, LineFocusController) {
                    "mocha.run()");
 }
 
+IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, LineFocusStyleMode) {
+  RunSidePanelTest("side_panel/read_anything/line_focus_style_mode_test.js",
+                   "mocha.run()");
+}
+
+// TODO(crbug.com/502069860): Re-enable after fixing flakiness.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_LineFocusMoveMode DISABLED_LineFocusMoveMode
+#else
+#define MAYBE_LineFocusMoveMode LineFocusMoveMode
+#endif
+IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, MAYBE_LineFocusMoveMode) {
+  RunSidePanelTest("side_panel/read_anything/line_focus_move_mode_test.js",
+                   "mocha.run()");
+}
+
 IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, DomQueries) {
   RunSidePanelTest("side_panel/read_anything/dom_queries_test.js",
                    "mocha.run()");
@@ -343,6 +370,13 @@ IN_PROC_BROWSER_TEST_F(ImmersiveReadAnythingWithReadabilityMochaTest,
                        MAYBE_ReadabilityImageClassifier) {
   RunSidePanelTest(
       "side_panel/read_anything/readability_image_classifier_test.js",
+      "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(ImmersiveReadAnythingWithReadabilityMochaTest,
+                       ReadabilityContentProcessing) {
+  RunSidePanelTest(
+      "side_panel/read_anything/readability_content_processing_test.js",
       "mocha.run()");
 }
 

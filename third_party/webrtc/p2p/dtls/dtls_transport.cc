@@ -541,14 +541,12 @@ bool DtlsTransportInternalImpl::SetupDtls() {
     }
     if (ssl_stream_factory_) {
       dtls_ = ssl_stream_factory_(
-          std::move(downward),
-          [this](SSLHandshakeError error) { OnDtlsHandshakeError(error); },
-          &env_.field_trials());
+          env_, std::move(downward),
+          [this](SSLHandshakeError error) { OnDtlsHandshakeError(error); });
     } else {
       dtls_ = SSLStreamAdapter::Create(
-          std::move(downward),
-          [this](SSLHandshakeError error) { OnDtlsHandshakeError(error); },
-          &env_.field_trials());
+          env_, std::move(downward),
+          [this](SSLHandshakeError error) { OnDtlsHandshakeError(error); });
     }
     if (!dtls_) {
       RTC_LOG(LS_ERROR) << ToString() << ": Failed to create DTLS adapter.";

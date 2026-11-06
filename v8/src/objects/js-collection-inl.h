@@ -18,7 +18,17 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-collection-tq-inl.inc"
+Tagged<Object> JSCollection::table() const { return table_.load(); }
+
+void JSCollection::set_table(Tagged<Object> value, WriteBarrierMode mode) {
+  table_.store(this, value, mode);
+}
+
+Tagged<Object> JSWeakCollection::table() const { return table_.load(); }
+
+void JSWeakCollection::set_table(Tagged<Object> value, WriteBarrierMode mode) {
+  table_.store(this, value, mode);
+}
 
 Tagged<Object> JSMapIterator::CurrentValue() {
   Tagged<OrderedHashMap> table = Cast<OrderedHashMap>(this->table());

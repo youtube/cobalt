@@ -21,9 +21,7 @@ class HeapObject;
 class HeapNumber;
 class HeapObjectLayout;
 class TrustedObject;
-class TrustedObjectLayout;
 class ExposedTrustedObject;
-class ExposedTrustedObjectLayout;
 class Object;
 class TaggedIndex;
 class Smi;
@@ -186,13 +184,20 @@ using StrongTaggedBase = TaggedImpl<HeapObjectReferenceType::STRONG, Address>;
 using WeakTaggedBase = TaggedImpl<HeapObjectReferenceType::WEAK, Address>;
 
 // Types which provide both a legacy Foo as well as a new-style FooLayout class.
-#define LAYOUT_TYPES(V)   \
-  V(HeapObject)           \
-  V(ExposedTrustedObject) \
-  V(TrustedObject)
+#define LAYOUT_TYPES(V) \
+  V(HeapObject)         \
+  V(JSReceiver)
 
 // Forward declarations for is_subtype.
 class Struct;
+class JSReceiverLayout;
+class JSReceiver;
+class JSObject;
+class JSObjectWithEmbedderSlots;
+class JSAPIObjectWithEmbedderSlots;
+class JSCustomElementsObject;
+class JSSpecialObject;
+class JSFunctionOrBoundFunctionOrWrappedFunction;
 class FixedArrayBase;
 class FixedArray;
 class FixedDoubleArray;
@@ -462,19 +467,12 @@ struct is_complex_subtype<Derived, HeapObject,
                               std::is_base_of<HeapObjectLayout, Derived>>>>
     : public std::true_type {};
 
+class JSReceiverLayout;
 template <typename Derived>
-struct is_complex_subtype<Derived, TrustedObject,
+struct is_complex_subtype<Derived, JSReceiver,
                           std::enable_if_t<std::disjunction_v<
-                              std::is_base_of<TrustedObject, Derived>,
-                              std::is_base_of<TrustedObjectLayout, Derived>>>>
-    : public std::true_type {};
-
-template <typename Derived>
-struct is_complex_subtype<
-    Derived, ExposedTrustedObject,
-    std::enable_if_t<std::disjunction_v<
-        std::is_base_of<ExposedTrustedObject, Derived>,
-        std::is_base_of<ExposedTrustedObjectLayout, Derived>>>>
+                              std::is_base_of<JSReceiver, Derived>,
+                              std::is_base_of<JSReceiverLayout, Derived>>>>
     : public std::true_type {};
 
 template <typename Derived, typename... BaseTs>
@@ -749,6 +747,8 @@ class Tagged<HeapObject> : public StrongTaggedBase {
 #endif
   template <typename TFieldType, int kFieldOffset, typename CompressionScheme>
   friend class TaggedField;
+  template <typename TFieldType, typename CompressionScheme>
+  friend class TaggedMember;
   template <typename To, typename From>
   friend inline Tagged<To> UncheckedCast(Tagged<From> value);
 
@@ -809,6 +809,8 @@ class Tagged<Weak<HeapObject>> : public WeakTaggedBase {
 #endif
   template <typename TFieldType, int kFieldOffset, typename CompressionScheme>
   friend class TaggedField;
+  template <typename TFieldType, typename CompressionScheme>
+  friend class TaggedMember;
   template <typename To, typename From>
   friend inline Tagged<To> UncheckedCast(Tagged<From> value);
 

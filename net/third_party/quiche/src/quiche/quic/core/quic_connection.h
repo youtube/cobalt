@@ -810,7 +810,8 @@ class QUICHE_EXPORT QuicConnection
   std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override;
 
   // Whether destination connection ID is required but missing in the packet
-  // creator.
+  // creator. This can occur if we're trying to send a PATH_RESPONSE, but the
+  // peer hasn't provided enough connection IDs.
   bool IsMissingDestinationConnectionID() const;
   // QuicPacketCreator::DelegateInterface
   bool ShouldGeneratePacket(HasRetransmittableData retransmittable,

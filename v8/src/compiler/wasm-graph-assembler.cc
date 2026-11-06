@@ -348,12 +348,6 @@ Node* WasmGraphAssembler::LoadWasmTypeInfo(Node* map) {
 
 // FixedArrays.
 
-Node* WasmGraphAssembler::LoadFixedArrayLengthAsSmi(Node* fixed_array) {
-  return LoadImmutableFromObject(
-      MachineType::TaggedSigned(), fixed_array,
-      offsetof(FixedArray, length_) - kHeapObjectTag);
-}
-
 Node* WasmGraphAssembler::LoadFixedArrayElement(Node* fixed_array,
                                                 Node* index_intptr,
                                                 MachineType type) {

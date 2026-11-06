@@ -1,27 +1,16 @@
 // Tests resizing a 2d canvas from within the oncontextlost event.
 async function TestResizeInOnContextLost(canvas,
                                          {desynchronized = false} = {}) {
-  const ctx = canvas.getContext('2d', {
-    // Stay on GPU acceleration despite read-backs.
-    willReadFrequently: false,
-    desynchronized: desynchronized,
-  });
-
-  const contextLost = new Promise(resolve => {
-    canvas.oncontextlost = resolve;
-  });
-  const contextRestored = new Promise(resolve => {
-    canvas.oncontextrestored = resolve;
-  });
+  const ctx = get2dContext(canvas, {desynchronized});
 
   ctx.fillStyle = 'red';
   ctx.fillRect(0, 0, 100, 100);
 
   chrome.gpuBenchmarking.terminateGpuProcessNormally();
-  await contextLost;
+  await waitForContextLost(ctx);
   // Resize from within the oncontextlost task.
   canvas.width = 100;
-  await contextRestored;
+  await waitForContextRestored(ctx);
 
   ctx.fillStyle = 'lime';
   ctx.fillRect(0, 0, 50, 50);

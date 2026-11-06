@@ -185,7 +185,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
     private CustomTabToolbarColorController mCustomTabToolbarColorController;
     private SplashController mSplashController;
     private CustomTabCompositorContentInitializer mCustomTabCompositorContentInitializer;
-    private CustomTabBottomBarDelegate mCustomTabBottomBarDelegate;
+    private @Nullable CustomTabBottomBarDelegate mCustomTabBottomBarDelegate;
     private CustomTabTabPersistencePolicy mCustomTabTabPersistencePolicy;
     private WebappDeferredStartupWithStorageHandler mWebappDeferredStartupWithStorageHandler;
     private TrustedWebActivityModel mTrustedWebActivityModel;
@@ -363,7 +363,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                     rootLayout.findViewById(WebAppHeaderUtils.getWebAppHeaderContentId());
             linearLayout.addView(view, LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
 
-            super.setContentView(linearLayout);
+            super.setContentView(rootLayout);
         } else if (DesktopPopupHeaderUtils.isDesktopPopupHeaderEnabled(mIntentDataProvider)) {
             final View rootLayout =
                     getLayoutInflater().inflate(DesktopPopupHeaderUtils.getMainLayoutId(), null);
@@ -897,6 +897,11 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
         if (mBrowserServicesThemeColorProvider != null) {
             mBrowserServicesThemeColorProvider.destroy();
             mBrowserServicesThemeColorProvider = null;
+        }
+
+        if (mCustomTabBottomBarDelegate != null) {
+            mCustomTabBottomBarDelegate.destroy();
+            mCustomTabBottomBarDelegate = null;
         }
 
         if (mTabProvider != null && mTabProvider.getTab() != null) {
@@ -1485,7 +1490,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
     }
 
     protected CustomTabBottomBarDelegate getCustomTabBottomBarDelegate() {
-        return mCustomTabBottomBarDelegate;
+        return assumeNonNull(mCustomTabBottomBarDelegate);
     }
 
     private CustomTabDelegateFactory getCustomTabDelegateFactory() {

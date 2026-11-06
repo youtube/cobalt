@@ -407,9 +407,7 @@ class ChromePasswordManagerClient
   password_manager::UndoPasswordChangeController*
   GetUndoPasswordChangeController() override;
 
-#if !BUILDFLAG(IS_ANDROID)
   bool IsActorTaskActive() override;
-#endif  // !BUILDFLAG(IS_ANDROID)
 
   bool apply_client_side_prediction_override_for_testing() const {
     return apply_client_side_prediction_override_;
@@ -417,6 +415,8 @@ class ChromePasswordManagerClient
   void ApplyClientSidePredictionOverride() {
     apply_client_side_prediction_override_ = true;
   }
+
+  void OnNonFedCmFederatedLogin();
 
  protected:
   // Callable for tests.
@@ -514,6 +514,8 @@ class ChromePasswordManagerClient
   void PropagatePredictionsToPasswordManager(autofill::AutofillManager& manager,
                                              autofill::FormGlobalId form_id,
                                              FieldTypeSource source);
+
+  void OnNonPasswordLoginDetected();
 
   password_manager::PasswordManager password_manager_;
   password_manager::PasswordFeatureManagerImpl password_feature_manager_;

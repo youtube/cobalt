@@ -2488,7 +2488,7 @@ void MarkCompactCollector::RecordObjectStats() {
   if (V8_LIKELY(!TracingFlags::is_gc_stats_enabled())) return;
   // Cannot run during bootstrapping due to incomplete objects.
   if (heap_->isolate()->bootstrapper()->IsActive()) return;
-  TRACE_EVENT0(TRACE_GC_CATEGORIES, "V8.GC_OBJECT_DUMP_STATISTICS");
+  TRACE_EVENT(TRACE_GC_CATEGORIES, "V8.GC_OBJECT_DUMP_STATISTICS");
   heap_->CreateObjectStats();
   ObjectStatsCollector collector(heap_, heap_->live_object_stats_.get(),
                                  heap_->dead_object_stats_.get());
@@ -2498,10 +2498,9 @@ void MarkCompactCollector::RecordObjectStats() {
     std::stringstream live, dead;
     heap_->live_object_stats_->Dump(live);
     heap_->dead_object_stats_->Dump(dead);
-    TRACE_EVENT_INSTANT2(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats"),
-                         "V8.GC_Objects_Stats", TRACE_EVENT_SCOPE_THREAD,
-                         "live", TRACE_STR_COPY(live.str().c_str()), "dead",
-                         TRACE_STR_COPY(dead.str().c_str()));
+    TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats"),
+                        "V8.GC_Objects_Stats", "live", live.str().c_str(),
+                        "dead", dead.str().c_str());
   }
   if (v8_flags.trace_gc_object_stats) {
     heap_->live_object_stats_->PrintJSON("live");
@@ -4098,7 +4097,7 @@ void RightTrimDescriptorArray(Heap* heap, Tagged<DescriptorArray> array,
   if (heap::ShouldZapGarbage()) {
     heap::ZapBlock(start, aligned_start - start, kZapValue);
   }
-  array->set_number_of_all_descriptors(new_nof_all_descriptors);
+  array->set_number_of_all_descriptors(new_nof_all_descriptors, kReleaseStore);
 }
 
 void TrimEnumCache(Heap* heap, Tagged<Map> map,
@@ -4283,7 +4282,7 @@ void MarkCompactCollector::ProcessJSWeakRefs(JobDelegate* delegate) {
                            SKIP_WRITE_BARRIER);
     } else {
       // The value of the JSWeakRef is alive.
-      ObjectSlot slot = weak_ref->RawField(JSWeakRef::kTargetOffset);
+      ObjectSlot slot(&weak_ref->target_);
       RecordSlot(weak_ref, slot, target);
     }
   }
@@ -4809,7 +4808,7 @@ class Evacuator final : public Malloced {
 };
 
 void Evacuator::EvacuatePage(MutablePage* page) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "Evacuator::EvacuatePage");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "Evacuator::EvacuatePage");
   DCHECK(page->SweepingDone());
   intptr_t saved_live_bytes = page->live_bytes();
   double evacuation_time = 0.0;
@@ -4865,8 +4864,8 @@ class LiveObjectVisitor final : AllStatic {
 template <class Visitor>
 bool LiveObjectVisitor::VisitMarkedObjects(NormalPage* page, Visitor* visitor,
                                            Tagged<HeapObject>* failed_object) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-               "LiveObjectVisitor::VisitMarkedObjects");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+              "LiveObjectVisitor::VisitMarkedObjects");
   for (auto [object, size] : LiveObjectRange(page)) {
     if (!visitor->Visit(object, size)) {
       *failed_object = object;
@@ -4879,8 +4878,8 @@ bool LiveObjectVisitor::VisitMarkedObjects(NormalPage* page, Visitor* visitor,
 template <class Visitor>
 void LiveObjectVisitor::VisitMarkedObjectsNoFail(NormalPage* page,
                                                  Visitor* visitor) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-               "LiveObjectVisitor::VisitMarkedObjectsNoFail");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+              "LiveObjectVisitor::VisitMarkedObjectsNoFail");
   for (auto [object, size] : LiveObjectRange(page)) {
     const bool success = visitor->Visit(object, size);
     USE(success);
@@ -4890,10 +4889,10 @@ void LiveObjectVisitor::VisitMarkedObjectsNoFail(NormalPage* page,
 
 bool Evacuator::RawEvacuatePage(MutablePage* page) {
   const EvacuationMode evacuation_mode = ComputeEvacuationMode(page);
-  TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-               "FullEvacuator::RawEvacuatePage", "evacuation_mode",
-               EvacuationModeName(evacuation_mode), "live_bytes",
-               page->live_bytes());
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+              "FullEvacuator::RawEvacuatePage", "evacuation_mode",
+              EvacuationModeName(evacuation_mode), "live_bytes",
+              page->live_bytes());
   switch (evacuation_mode) {
     case kObjectsNewToOld:
 #if DEBUG
@@ -5267,9 +5266,9 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   const size_t pages_count = evacuation_items.size();
   size_t wanted_num_tasks = 0;
   if (!evacuation_items.empty()) {
-    TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                 "MarkCompactCollector::EvacuatePagesInParallel", "pages",
-                 evacuation_items.size());
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                "MarkCompactCollector::EvacuatePagesInParallel", "pages",
+                evacuation_items.size());
 
     wanted_num_tasks = CreateAndExecuteEvacuationTasks(
         heap_, this, std::move(evacuation_items));
@@ -5462,8 +5461,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   ~RememberedSetUpdatingItem() override = default;
 
   void Process() override {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                 "RememberedSetUpdatingItem::Process");
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                "RememberedSetUpdatingItem::Process");
     UpdateUntypedPointers();
     UpdateTypedPointers();
   }

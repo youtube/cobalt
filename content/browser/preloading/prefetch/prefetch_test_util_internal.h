@@ -38,8 +38,6 @@ namespace content {
 
 network::mojom::URLResponseHeadPtr SuccessfulPrefetchResponseHeadForTesting();
 
-using OnPrefetchCompleteTestFuture =
-    base::test::TestFuture<network::URLLoaderCompletionStatus>;
 using OnPrefetchReceiveRedirectTestFuture =
     base::test::TestFuture<net::RedirectInfo,
                            network::mojom::URLResponseHeadPtr>;
@@ -61,7 +59,7 @@ CreateStreamingURLLoaderWithoutPrefetchContainerForTests(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
     const network::ResourceRequest& prefetch_request,
     NotReachedTagForTestsOr<base::RunLoop*> on_response_received,
-    NotReachedTagForTestsOr<OnPrefetchCompleteTestFuture*> on_complete,
+    NotReachedTagForTestsOr<base::RunLoop*> on_complete,
     NotReachedTagForTestsOr<OnPrefetchReceiveRedirectTestFuture*>
         on_receive_redirect,
     NotReachedTagForTestsOr<base::RunLoop*> on_head_received,
@@ -217,8 +215,7 @@ class TestPrefetchService final : public PrefetchService {
   void PrefetchUrl(
       base::WeakPtr<PrefetchContainer> prefetch_container) override;
   void OnPrefetchCompletedOrFailed(
-      const PrefetchContainer& prefetch_container,
-      const network::URLLoaderCompletionStatus& completion_status) override;
+      const PrefetchContainer& prefetch_container) override;
   void EvictPrefetch(size_t index);
 
   std::vector<base::WeakPtr<PrefetchContainer>> prefetches_;
@@ -353,6 +350,8 @@ class PrefetchingMetricsTestBase : public RenderViewHostTestHarness {
 struct PrefetchRearchParam final {
  public:
   static std::vector<PrefetchRearchParam> Params();
+
+  bool force_off_the_main_thread;
 };
 
 class WithPrefetchRearchParam {
@@ -366,6 +365,7 @@ class WithPrefetchRearchParam {
 
  private:
   PrefetchRearchParam param_;
+  base::test::ScopedFeatureList feature_list_force_off_the_main_thread_;
 };
 
 // A wrapper for `PrefetchService::SetInjectedEligibilityCheckForTesting`.

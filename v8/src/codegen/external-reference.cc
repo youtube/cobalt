@@ -1644,6 +1644,16 @@ ExternalReference ExternalReference::promise_hook_flags_address(
   return ExternalReference(isolate->promise_hook_flags_address());
 }
 
+ExternalReference
+ExternalReference::compare_operation_feedback_transition_table() {
+  return ExternalReference(CompareOperationFeedback::GetTransitionMapAddress());
+}
+
+ExternalReference ExternalReference::compare_operation_feedback_encode_table() {
+  return ExternalReference(
+      CompareOperationFeedback::GetFeedbackEncodeTableAddress());
+}
+
 ExternalReference ExternalReference::promise_hook_address(Isolate* isolate) {
   return ExternalReference(isolate->promise_hook_address());
 }

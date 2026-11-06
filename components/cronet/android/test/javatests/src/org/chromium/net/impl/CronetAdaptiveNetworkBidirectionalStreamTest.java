@@ -10,10 +10,13 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -37,6 +40,7 @@ import org.chromium.net.ConnectivityManagerWrapper;
 import org.chromium.net.CronetException;
 import org.chromium.net.UrlResponseInfo;
 
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -59,11 +63,12 @@ public class CronetAdaptiveNetworkBidirectionalStreamTest {
         // We need java.util.stream.Stream to be available for these tests.
         assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N);
         mMockScheduledExecutorService = mock(ScheduledExecutorService.class);
-        when(mMockScheduledExecutorService.schedule(
+        doReturn(mock(ScheduledFuture.class))
+                .when(mMockScheduledExecutorService)
+                .schedule(
                         any(Runnable.class),
                         any(Long.class),
-                        any(java.util.concurrent.TimeUnit.class)))
-                .thenReturn(mock(ScheduledFuture.class));
+                        any(java.util.concurrent.TimeUnit.class));
         doAnswer(
                         invocation -> {
                             ((Runnable) invocation.getArgument(0)).run();
@@ -86,7 +91,7 @@ public class CronetAdaptiveNetworkBidirectionalStreamTest {
                         mMockCallback,
                         mMockScheduledExecutorService,
                         mMockAdaptiveRequestContext,
-                        TEST_URL,
+                        URI.create(TEST_URL),
                         mTestLogger,
                         /* isFastIdempotentRequest= */ false);
         mAdaptiveStream.setFallbackStream(mFallbackStream);
@@ -194,7 +199,39 @@ public class CronetAdaptiveNetworkBidirectionalStreamTest {
 
         mAdaptiveStream.getCallback().onStreamReady(mFallbackStream);
 
-        verify(mMockAdaptiveRequestContext).reportFallbackUsed(eq(TEST_URL), eq(networkHandle));
+        verify(mMockAdaptiveRequestContext)
+                .reportFallbackUsed(eq(URI.create(TEST_URL)), eq(networkHandle));
+    }
+
+    @Test
+    @SmallTest
+    public void onStreamReady_onFallback_defaultNetwork_reportsFallbackUsed() {
+        // We need java.util.stream.Stream to be available for these tests.
+        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N);
+        mAdaptiveStream.setPrimaryStream(mPrimaryStream);
+
+        long networkHandle = CronetEngineBase.DEFAULT_NETWORK_HANDLE;
+        when(mFallbackStream.getTargetNetworkHandle()).thenReturn(networkHandle);
+
+        mAdaptiveStream.getCallback().onStreamReady(mFallbackStream);
+
+        verify(mMockAdaptiveRequestContext)
+                .reportFallbackUsed(eq(URI.create(TEST_URL)), eq(networkHandle));
+    }
+
+    @Test
+    @SmallTest
+    public void onStreamReady_onPrimary_doesNotReportFallbackUsed() {
+        // We need java.util.stream.Stream to be available for these tests.
+        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N);
+        mAdaptiveStream.setPrimaryStream(mPrimaryStream);
+        long networkHandle = 987654321L;
+        when(mPrimaryStream.getTargetNetworkHandle()).thenReturn(networkHandle);
+
+        mAdaptiveStream.start();
+        mAdaptiveStream.getCallback().onStreamReady(mPrimaryStream);
+
+        verify(mMockAdaptiveRequestContext, never()).reportFallbackUsed(any(URI.class), anyLong());
     }
 
     @Test
@@ -578,10 +615,10 @@ public class CronetAdaptiveNetworkBidirectionalStreamTest {
         mAdaptiveStream.setPrimaryStream(mPrimaryStream);
 
         ArgumentCaptor<Runnable> failoverRunnableCaptor = ArgumentCaptor.forClass(Runnable.class);
-        ScheduledFuture mockFuture = mock(ScheduledFuture.class);
-        when(mMockScheduledExecutorService.schedule(
-                        any(Runnable.class), eq(3000L), eq(MILLISECONDS)))
-                .thenReturn(mockFuture);
+        ScheduledFuture<?> mockFuture = mock(ScheduledFuture.class);
+        doReturn(mockFuture)
+                .when(mMockScheduledExecutorService)
+                .schedule(any(Runnable.class), eq(3000L), eq(MILLISECONDS));
 
         mAdaptiveStream.start();
         verify(mMockScheduledExecutorService)
@@ -609,10 +646,10 @@ public class CronetAdaptiveNetworkBidirectionalStreamTest {
         mAdaptiveStream.setPrimaryStream(mPrimaryStream);
 
         ArgumentCaptor<Runnable> failoverRunnableCaptor = ArgumentCaptor.forClass(Runnable.class);
-        ScheduledFuture mockFuture = mock(ScheduledFuture.class);
-        when(mMockScheduledExecutorService.schedule(
-                        any(Runnable.class), eq(3000L), eq(MILLISECONDS)))
-                .thenReturn(mockFuture);
+        ScheduledFuture<?> mockFuture = mock(ScheduledFuture.class);
+        doReturn(mockFuture)
+                .when(mMockScheduledExecutorService)
+                .schedule(any(Runnable.class), eq(3000L), eq(MILLISECONDS));
 
         mAdaptiveStream.start();
         verify(mMockScheduledExecutorService)
@@ -633,10 +670,10 @@ public class CronetAdaptiveNetworkBidirectionalStreamTest {
         assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N);
         mAdaptiveStream.setPrimaryStream(mPrimaryStream);
 
-        ScheduledFuture mockFuture = mock(ScheduledFuture.class);
-        when(mMockScheduledExecutorService.schedule(
-                        any(Runnable.class), eq(3000L), eq(MILLISECONDS)))
-                .thenReturn(mockFuture);
+        ScheduledFuture<?> mockFuture = mock(ScheduledFuture.class);
+        doReturn(mockFuture)
+                .when(mMockScheduledExecutorService)
+                .schedule(any(Runnable.class), eq(3000L), eq(MILLISECONDS));
         // Simulate that the future cannot be canceled (e.g., it's already running).
         when(mockFuture.cancel(false)).thenReturn(false);
 
@@ -661,7 +698,7 @@ public class CronetAdaptiveNetworkBidirectionalStreamTest {
                         mMockCallback,
                         mMockScheduledExecutorService,
                         mMockAdaptiveRequestContext,
-                        TEST_URL,
+                        URI.create(TEST_URL),
                         mTestLogger,
                         /* isFastIdempotentRequest= */ true);
         mAdaptiveStream.setPrimaryStream(mPrimaryStream);
@@ -684,7 +721,7 @@ public class CronetAdaptiveNetworkBidirectionalStreamTest {
                         mMockCallback,
                         mMockScheduledExecutorService,
                         mMockAdaptiveRequestContext,
-                        TEST_URL,
+                        URI.create(TEST_URL),
                         mTestLogger,
                         /* isFastIdempotentRequest= */ true);
         mAdaptiveStream.setPrimaryStream(mPrimaryStream);
@@ -718,7 +755,7 @@ public class CronetAdaptiveNetworkBidirectionalStreamTest {
                         mMockCallback,
                         mMockScheduledExecutorService,
                         mMockAdaptiveRequestContext,
-                        TEST_URL,
+                        URI.create(TEST_URL),
                         mTestLogger,
                         /* isFastIdempotentRequest= */ true);
         mAdaptiveStream.setPrimaryStream(mPrimaryStream);
@@ -745,7 +782,7 @@ public class CronetAdaptiveNetworkBidirectionalStreamTest {
                         mMockCallback,
                         mMockScheduledExecutorService,
                         mMockAdaptiveRequestContext,
-                        TEST_URL,
+                        URI.create(TEST_URL),
                         mTestLogger,
                         /* isFastIdempotentRequest= */ true);
         mAdaptiveStream.setPrimaryStream(mPrimaryStream);
@@ -768,7 +805,7 @@ public class CronetAdaptiveNetworkBidirectionalStreamTest {
 
     @Test
     @SmallTest
-    public void testFastIdempotent_onWriteCompleted_ignoresReplayedOnFallback() {
+    public void testFastIdempotent_onWriteCompleted_forwardsOriginal() {
         // We need java.util.stream.Stream to be available for these tests.
         assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N);
         mAdaptiveStream =
@@ -776,7 +813,7 @@ public class CronetAdaptiveNetworkBidirectionalStreamTest {
                         mMockCallback,
                         mMockScheduledExecutorService,
                         mMockAdaptiveRequestContext,
-                        TEST_URL,
+                        URI.create(TEST_URL),
                         mTestLogger,
                         /* isFastIdempotentRequest= */ true);
         mAdaptiveStream.setPrimaryStream(mPrimaryStream);
@@ -801,8 +838,57 @@ public class CronetAdaptiveNetworkBidirectionalStreamTest {
                 .getCallback()
                 .onWriteCompleted(mFallbackStream, info, replayedBuffer, false);
 
-        // Should NOT be forwarded to callback because it was a replayed write.
-        verify(mMockCallback, never()).onWriteCompleted(any(), any(), any(), any(Boolean.class));
+        // Should be forwarded to callback with the ORIGINAL buffer.
+        verify(mMockCallback).onWriteCompleted(mAdaptiveStream, info, buffer, false);
+        assertEquals(buffer.limit(), buffer.position());
+    }
+
+    @Test
+    @SmallTest
+    public void testFastIdempotent_onWriteCompleted_reportsOnlyOnce() {
+        // We need java.util.stream.Stream to be available for these tests.
+        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N);
+        mAdaptiveStream =
+                new CronetAdaptiveNetworkBidirectionalStream(
+                        mMockCallback,
+                        mMockScheduledExecutorService,
+                        mMockAdaptiveRequestContext,
+                        URI.create(TEST_URL),
+                        mTestLogger,
+                        /* isFastIdempotentRequest= */ true);
+        mAdaptiveStream.setPrimaryStream(mPrimaryStream);
+        mAdaptiveStream.setFallbackStream(mFallbackStream);
+
+        ByteBuffer buffer = ByteBuffer.allocate(100);
+        mAdaptiveStream.write(buffer, false);
+
+        // Both become ready and replay
+        mAdaptiveStream.getCallback().onStreamReady(mPrimaryStream);
+        mAdaptiveStream.getCallback().onStreamReady(mFallbackStream);
+
+        ArgumentCaptor<ByteBuffer> primaryBufferCaptor = ArgumentCaptor.forClass(ByteBuffer.class);
+        verify(mPrimaryStream).write(primaryBufferCaptor.capture(), eq(false));
+        ByteBuffer primaryReplayedBuffer = primaryBufferCaptor.getValue();
+
+        ArgumentCaptor<ByteBuffer> fallbackBufferCaptor = ArgumentCaptor.forClass(ByteBuffer.class);
+        verify(mFallbackStream).write(fallbackBufferCaptor.capture(), eq(false));
+        ByteBuffer fallbackReplayedBuffer = fallbackBufferCaptor.getValue();
+
+        UrlResponseInfo info = mock(UrlResponseInfo.class);
+
+        // 1. Completion on primary
+        mAdaptiveStream
+                .getCallback()
+                .onWriteCompleted(mPrimaryStream, info, primaryReplayedBuffer, false);
+        verify(mMockCallback).onWriteCompleted(mAdaptiveStream, info, buffer, false);
+
+        // 2. Completion on fallback
+        mAdaptiveStream
+                .getCallback()
+                .onWriteCompleted(mFallbackStream, info, fallbackReplayedBuffer, false);
+        // Should NOT be reported again. Total calls should still be 1.
+        verify(mMockCallback, times(1))
+                .onWriteCompleted(any(), any(), eq(buffer), any(Boolean.class));
     }
 
     @Test
@@ -829,5 +915,166 @@ public class CronetAdaptiveNetworkBidirectionalStreamTest {
         when(mPrimaryStream.isDone()).thenReturn(true);
         when(mFallbackStream.isDone()).thenReturn(true);
         assertTrue(mAdaptiveStream.isDone());
+    }
+
+    @Test
+    @SmallTest
+    public void start_registersWithContext() {
+        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N);
+        mAdaptiveStream.setPrimaryStream(mPrimaryStream);
+        mAdaptiveStream.start();
+
+        verify(mMockAdaptiveRequestContext).registerStream(mAdaptiveStream);
+    }
+
+    @Test
+    @SmallTest
+    public void onFailed_terminal_unregistersFromContext() {
+        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N);
+        mAdaptiveStream.setPrimaryStream(mPrimaryStream);
+        mAdaptiveStream.start();
+
+        UrlResponseInfo info = mock(UrlResponseInfo.class);
+        CronetException error = mock(CronetException.class);
+
+        // Fail primary
+        mAdaptiveStream.getCallback().onFailed(mPrimaryStream, info, error);
+        when(mPrimaryStream.isDone()).thenReturn(true);
+        // Not terminal yet (fallback remains)
+        verify(mMockAdaptiveRequestContext, never()).unregisterStream(any());
+
+        // Fail fallback
+        mAdaptiveStream.getCallback().onFailed(mFallbackStream, info, error);
+        when(mFallbackStream.isDone()).thenReturn(true);
+
+        verify(mMockAdaptiveRequestContext).unregisterStream(mAdaptiveStream);
+    }
+
+    @Test
+    @SmallTest
+    public void onCanceled_terminal_unregistersFromContext() {
+        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N);
+        mAdaptiveStream.setPrimaryStream(mPrimaryStream);
+        mAdaptiveStream.start();
+
+        UrlResponseInfo info = mock(UrlResponseInfo.class);
+
+        // Cancel fallback
+        mAdaptiveStream.getCallback().onCanceled(mFallbackStream, info);
+        when(mFallbackStream.isDone()).thenReturn(true);
+        // Not terminal yet
+        verify(mMockAdaptiveRequestContext, never()).unregisterStream(any());
+
+        // Cancel primary
+        mAdaptiveStream.getCallback().onCanceled(mPrimaryStream, info);
+        when(mPrimaryStream.isDone()).thenReturn(true);
+
+        verify(mMockAdaptiveRequestContext).unregisterStream(mAdaptiveStream);
+    }
+
+    @Test
+    @SmallTest
+    public void reportOtherStreamFallback_matchingHostAndNetwork_triggersFailover() {
+        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N);
+        mAdaptiveStream.setPrimaryStream(mPrimaryStream);
+
+        ScheduledFuture<?> mockFuture = mock(ScheduledFuture.class);
+        when(mockFuture.cancel(false)).thenReturn(true);
+        doReturn(mockFuture)
+                .when(mMockScheduledExecutorService)
+                .schedule(any(Runnable.class), eq(3000L), eq(MILLISECONDS));
+
+        mAdaptiveStream.start();
+
+        long fallbackNetworkHandle = 12345L;
+        when(mFallbackStream.getTargetNetworkHandle()).thenReturn(fallbackNetworkHandle);
+
+        mAdaptiveStream.reportOtherStreamFallback(
+                java.net.URI.create(TEST_URL), fallbackNetworkHandle);
+
+        verify(mFallbackStream).start();
+        verify(mockFuture).cancel(false);
+    }
+
+    @Test
+    @SmallTest
+    public void reportOtherStreamFallback_differentHost_ignored() {
+        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N);
+        mAdaptiveStream.setPrimaryStream(mPrimaryStream);
+        mAdaptiveStream.start();
+
+        long fallbackNetworkHandle = 12345L;
+        when(mFallbackStream.getTargetNetworkHandle()).thenReturn(fallbackNetworkHandle);
+
+        mAdaptiveStream.reportOtherStreamFallback(
+                java.net.URI.create("https://other.com"), fallbackNetworkHandle);
+
+        verify(mFallbackStream, never()).start();
+    }
+
+    @Test
+    @SmallTest
+    public void reportOtherStreamFallback_differentNetwork_ignored() {
+        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N);
+        mAdaptiveStream.setPrimaryStream(mPrimaryStream);
+        mAdaptiveStream.start();
+
+        long fallbackNetworkHandle = 12345L;
+        when(mFallbackStream.getTargetNetworkHandle()).thenReturn(fallbackNetworkHandle);
+
+        mAdaptiveStream.reportOtherStreamFallback(java.net.URI.create(TEST_URL), 99999L);
+
+        verify(mFallbackStream, never()).start();
+    }
+
+    @Test
+    @SmallTest
+    public void reportOtherStreamFallback_calledTwice_triggersFailoverOnlyOnce() {
+        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N);
+        mAdaptiveStream.setPrimaryStream(mPrimaryStream);
+
+        ScheduledFuture<?> mockFuture = mock(ScheduledFuture.class);
+        when(mockFuture.cancel(false)).thenReturn(true);
+        doReturn(mockFuture)
+                .when(mMockScheduledExecutorService)
+                .schedule(any(Runnable.class), eq(3000L), eq(MILLISECONDS));
+
+        mAdaptiveStream.start();
+
+        long fallbackNetworkHandle = 12345L;
+        when(mFallbackStream.getTargetNetworkHandle()).thenReturn(fallbackNetworkHandle);
+
+        mAdaptiveStream.reportOtherStreamFallback(
+                java.net.URI.create(TEST_URL), fallbackNetworkHandle);
+        mAdaptiveStream.reportOtherStreamFallback(
+                java.net.URI.create(TEST_URL), fallbackNetworkHandle);
+
+        verify(mFallbackStream, times(1)).start();
+    }
+
+    @Test
+    @SmallTest
+    public void reportOtherStreamFallback_afterTimerFires_ignored() {
+        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N);
+        mAdaptiveStream.setPrimaryStream(mPrimaryStream);
+
+        ArgumentCaptor<Runnable> failoverRunnableCaptor = ArgumentCaptor.forClass(Runnable.class);
+        mAdaptiveStream.start();
+        verify(mMockScheduledExecutorService)
+                .schedule(failoverRunnableCaptor.capture(), eq(3000L), eq(MILLISECONDS));
+
+        long fallbackNetworkHandle = 12345L;
+        when(mFallbackStream.getTargetNetworkHandle()).thenReturn(fallbackNetworkHandle);
+
+        // Trigger failover via timer
+        failoverRunnableCaptor.getValue().run();
+        verify(mFallbackStream, times(1)).start();
+
+        // Now trigger via external fallback signal
+        mAdaptiveStream.reportOtherStreamFallback(
+                java.net.URI.create(TEST_URL), fallbackNetworkHandle);
+
+        // Fallback should still only have been started once (by the timer).
+        verify(mFallbackStream, times(1)).start();
     }
 }

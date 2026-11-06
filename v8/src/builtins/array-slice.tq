@@ -22,7 +22,7 @@ macro HandleSimpleArgumentsSlice(
   const end: Smi = start + count;
   const sourceElements: FixedArray =
       Cast<FixedArray>(args.elements) otherwise Bailout;
-  if (SmiAbove(end, sourceElements.length)) goto Bailout;
+  if (Convert<intptr>(end) > sourceElements.length_intptr) goto Bailout;
 
   const arrayMap: Map =
       LoadJSArrayElementsMap(ElementsKind::HOLEY_ELEMENTS, context);
@@ -49,16 +49,16 @@ macro HandleFastAliasedSloppyArgumentsSlice(
 
   const sloppyElements: SloppyArgumentsElements =
       Cast<SloppyArgumentsElements>(args.elements) otherwise Bailout;
-  const parameterMapLength: Smi = sloppyElements.length;
+  const parameterMapLength: intptr = sloppyElements.length_intptr;
 
   // Check to make sure that the extraction will not access outside the
   // defined arguments
-  const end: Smi = start + count;
+  const end: intptr = Convert<intptr>(start + count);
   const unmappedElements: FixedArray =
       Cast<FixedArray>(sloppyElements.arguments)
       otherwise Bailout;
-  const unmappedElementsLength: Smi = unmappedElements.length;
-  if (SmiAbove(end, unmappedElementsLength)) goto Bailout;
+  const unmappedElementsLength: intptr = unmappedElements.length_intptr;
+  if (end > unmappedElementsLength) goto Bailout;
 
   const argumentsContext: Context = sloppyElements.context;
 
@@ -69,10 +69,10 @@ macro HandleFastAliasedSloppyArgumentsSlice(
 
   let indexOut: Smi = 0;
   const resultElements: FixedArray = UnsafeCast<FixedArray>(result.elements);
-  const to: Smi = SmiMin(parameterMapLength, end);
+  const to: intptr = IntPtrMin(parameterMapLength, end);
 
   // Fill in the part of the result that map to context-mapped parameters.
-  for (let current: Smi = start; current < to; ++current) {
+  for (let current: intptr = Convert<intptr>(start); current < to; ++current) {
     const e: Object = sloppyElements.mapped_entries[current];
     const newElement = UnsafeCast<(JSAny | TheHole)>(
         e != TheHole ? argumentsContext.elements[UnsafeCast<Smi>(e)] :
@@ -87,12 +87,12 @@ macro HandleFastAliasedSloppyArgumentsSlice(
 
   // Fill in the rest of the result that contains the unmapped parameters
   // above the formal parameters.
-  const unmappedFrom: Smi = SmiMin(SmiMax(parameterMapLength, start), end);
-  const restCount: Smi = end - unmappedFrom;
+  const unmappedFrom: intptr =
+      IntPtrMin(IntPtrMax(parameterMapLength, Convert<intptr>(start)), end);
+  const restCount: intptr = end - unmappedFrom;
   CopyElements(
       ElementsKind::PACKED_ELEMENTS, resultElements, Convert<intptr>(indexOut),
-      unmappedElements, Convert<intptr>(unmappedFrom),
-      Convert<intptr>(restCount));
+      unmappedElements, unmappedFrom, restCount);
   return result;
 }
 

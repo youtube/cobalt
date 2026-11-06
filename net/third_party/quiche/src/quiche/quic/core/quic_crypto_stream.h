@@ -5,7 +5,6 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_CRYPTO_STREAM_H_
 #define QUICHE_QUIC_CORE_QUIC_CRYPTO_STREAM_H_
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -15,15 +14,22 @@
 #include "absl/strings/string_view.h"
 #include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/crypto_framer.h"
+#include "quiche/quic/core/crypto/crypto_handshake.h"
+#include "quiche/quic/core/crypto/crypto_message_parser.h"
 #include "quiche/quic/core/crypto/crypto_utils.h"
+#include "quiche/quic/core/frames/quic_crypto_frame.h"
+#include "quiche/quic/core/frames/quic_rst_stream_frame.h"
+#include "quiche/quic/core/frames/quic_stream_frame.h"
 #include "quiche/quic/core/proto/cached_network_parameters_proto.h"
-#include "quiche/quic/core/quic_config.h"
+#include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_interval_set.h"
-#include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_stream.h"
-#include "quiche/quic/core/quic_stream_send_buffer_base.h"
+#include "quiche/quic/core/quic_stream_send_buffer_inlining.h"
+#include "quiche/quic/core/quic_stream_sequencer.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/quic/core/quic_versions.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace quic {
 
@@ -275,7 +281,7 @@ class QUICHE_EXPORT QuicCryptoStream : public QuicStream {
     CryptoSubstream(QuicCryptoStream* crypto_stream);
 
     QuicStreamSequencer sequencer;
-    std::unique_ptr<QuicStreamSendBufferBase> send_buffer;
+    QuicStreamSendBufferInlining send_buffer;
   };
 
   // Consumed data according to encryption levels.

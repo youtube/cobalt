@@ -170,11 +170,14 @@ struct ObjectTraits<Module> {
 // When importing a module namespace (import * as foo from "bar"), a
 // JSModuleNamespace object (representing module "bar") is created and bound to
 // the declared variable (foo).  A module can have at most one namespace object.
-class JSModuleNamespace
-    : public TorqueGeneratedJSModuleNamespace<JSModuleNamespace,
-                                              JSSpecialObject> {
+V8_OBJECT class JSModuleNamespace : public JSSpecialObject {
  public:
+  inline Tagged<Module> module() const;
+  inline void set_module(Tagged<Module> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   DECL_PRINTER(JSModuleNamespace)
+  DECL_VERIFIER(JSModuleNamespace)
 
   // Retrieve the value exported by [module] under the given [name]. If there is
   // no such export, return Just(undefined). If the export is uninitialized,
@@ -202,19 +205,27 @@ class JSModuleNamespace
     kInObjectFieldCount,
   };
 
+  // Back-compat offset/size constants.
+  static const int kModuleOffset;
+  static const int kHeaderSize;
   // We need to include in-object fields
   // TODO(v8:8944): improve handling of in-object fields
-  static constexpr int kSize =
-      kHeaderSize + (kTaggedSize * kInObjectFieldCount);
+  static const int kSize;
 
-  TQ_OBJECT_CONSTRUCTORS(JSModuleNamespace)
-};
+ public:
+  TaggedMember<Module> module_;
+} V8_OBJECT_END;
 
-class JSDeferredModuleNamespace
-    : public TorqueGeneratedJSDeferredModuleNamespace<JSDeferredModuleNamespace,
-                                                      JSModuleNamespace> {
+inline constexpr int JSModuleNamespace::kModuleOffset =
+    offsetof(JSModuleNamespace, module_);
+inline constexpr int JSModuleNamespace::kHeaderSize = sizeof(JSModuleNamespace);
+inline constexpr int JSModuleNamespace::kSize =
+    JSModuleNamespace::kHeaderSize + (kTaggedSize * kInObjectFieldCount);
+
+V8_OBJECT class JSDeferredModuleNamespace : public JSModuleNamespace {
  public:
   DECL_PRINTER(JSDeferredModuleNamespace)
+  DECL_VERIFIER(JSDeferredModuleNamespace)
 
   static void EvaluateModuleSync(
       Isolate* isolate, DirectHandle<JSDeferredModuleNamespace> holder);
@@ -222,11 +233,11 @@ class JSDeferredModuleNamespace
 
   // We need to include in-object fields
   // TODO(v8:8944): improve handling of in-object fields
-  static constexpr int kSize =
-      kHeaderSize + (kTaggedSize * kInObjectFieldCount);
+  static const int kSize;
+} V8_OBJECT_END;
 
-  TQ_OBJECT_CONSTRUCTORS(JSDeferredModuleNamespace)
-};
+inline constexpr int JSDeferredModuleNamespace::kSize =
+    sizeof(JSDeferredModuleNamespace) + (kTaggedSize * kInObjectFieldCount);
 
 V8_OBJECT class ScriptOrModule : public Struct {
  public:

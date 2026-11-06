@@ -1053,6 +1053,42 @@ TEST(TestIncrementUseCounterInBuiltin) {
   global_use_counts = nullptr;
 }
 
+TEST(TestNodePower) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 0;
+  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    auto context = m.GetJSContextParameter();
+
+    // Fixed test cases
+    struct TestCase {
+      int s1, n1, n2, n;
+    } cases[] = {{0, 2, 2, 8},     {0, 1, 1, 4},    {2, 1, 1, 4},
+                 {0, 3, 3, 8},     {0, 1, 1, 2},    {0, 2, 2, 4},
+                 {0, 4, 4, 8},     {0, 1, 3, 4},    {0, 3, 1, 4},
+                 {1, 1, 1, 3},     {1, 1, 2, 4},    {0, 8, 8, 16},
+                 {0, 16, 16, 32},  {0, 32, 32, 64}, {0, 10, 20, 64},
+                 {10, 10, 10, 64}, {0, 31, 32, 64}};
+
+    for (const auto& c : cases) {
+      TNode<Smi> s1 = m.SmiConstant(c.s1);
+      TNode<Smi> n1 = m.SmiConstant(c.n1);
+      TNode<Smi> n2 = m.SmiConstant(c.n2);
+      TNode<Smi> n = m.SmiConstant(c.n);
+
+      TNode<Smi> p32 = m.NodePower32(context, s1, n1, n2, n);
+      TNode<Smi> p = m.NodePower(context, s1, n1, n2, n);
+
+      CSA_CHECK(&m, m.TaggedEqual(p32, p));
+    }
+
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  ft.Call();
+}
+
 #include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace compiler

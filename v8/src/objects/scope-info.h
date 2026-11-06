@@ -37,7 +37,7 @@ inline std::ostream& operator<<(std::ostream& os, ScopeType type) {
 }
 
 struct VariableLookupResult {
-  int context_index;
+  uint32_t context_index;
   int slot_index;
   // repl_mode flag is needed to disable inlining of 'const' variables in REPL
   // mode.

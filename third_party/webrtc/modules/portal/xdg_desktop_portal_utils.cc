@@ -73,6 +73,14 @@ std::string PrepareSignalHandle(absl::string_view token,
   return webrtc::StrJoin(parts, "/");
 }
 
+bool UnsubscribeSignalHandler(GDBusConnection* connection, guint& signal_id) {
+  if (!signal_id)
+    return false;
+  g_dbus_connection_signal_unsubscribe(connection, signal_id);
+  signal_id = 0;
+  return true;
+}
+
 uint32_t SetupRequestResponseSignal(absl::string_view object_path,
                                     const GDBusSignalCallback callback,
                                     scoped_refptr<PortalGuard> guard,

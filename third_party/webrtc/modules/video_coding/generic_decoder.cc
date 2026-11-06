@@ -249,7 +249,7 @@ void VCMDecodedFrameCallback::Decoded(VideoFrame& decodedImage,
   if (corruption_score_calculator_ &&
       frame_info->frame_instrumentation_data.has_value()) {
     corruption_score_calculator_->CalculateCorruptionScore(
-        decodedImage, *frame_info->frame_instrumentation_data,
+        decodedImage, std::move(*frame_info->frame_instrumentation_data),
         frame_info->content_type);
   }
 }

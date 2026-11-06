@@ -174,7 +174,7 @@ void Code::SetMarkedForDeoptimization(Isolate* isolate,
   if (handle != kNullJSDispatchHandle) {
     JSDispatchTable& jdt = isolate->js_dispatch_table();
     Tagged<Code> cur = jdt.GetCode(handle);
-    if (SafeEquals(cur)) {
+    if (Tagged{this}.SafeEquals(cur)) {
       if (v8_flags.reopt_after_lazy_deopts &&
           isolate->concurrent_recompilation_enabled()) {
         jdt.SetCodeNoWriteBarrier(

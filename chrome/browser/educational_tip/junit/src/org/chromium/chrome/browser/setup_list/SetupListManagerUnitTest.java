@@ -49,7 +49,6 @@ import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.chrome.browser.ui.default_browser_promo.DefaultBrowserPromoUtils;
 import org.chromium.components.regional_capabilities.RegionalProgram;
 import org.chromium.components.search_engines.SearchEngineChoiceService;
-import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.identitymanager.PrimaryAccountChangeEvent;
 import org.chromium.components.sync.SyncService;
@@ -99,7 +98,7 @@ public class SetupListManagerUnitTest {
 
         IdentityServicesProvider.setInstanceForTests(mIdentityServicesProvider);
         when(mIdentityServicesProvider.getIdentityManager(any())).thenReturn(mIdentityManager);
-        when(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(false);
+        when(mIdentityManager.hasPrimaryAccount()).thenReturn(false);
 
         SafeBrowsingBridgeJni.setInstanceForTesting(mSafeBrowsingBridgeJni);
         when(mSafeBrowsingBridgeJni.getSafeBrowsingState(any()))
@@ -132,28 +131,28 @@ public class SetupListManagerUnitTest {
         SetupListManager manager = SetupListManager.getInstance();
 
         // Initially signed out: Save Passwords and Password Checkup should be hidden.
-        when(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(false);
+        when(mIdentityManager.hasPrimaryAccount()).thenReturn(false);
         manager.maybePrimeCompletionStatus(mProfile);
         assertFalse(manager.getRankedModuleTypes().contains(ModuleType.SAVE_PASSWORDS_PROMO));
         assertFalse(manager.getRankedModuleTypes().contains(ModuleType.PASSWORD_CHECKUP_PROMO));
 
         // Sign in: Save Passwords and History Sync should appear. Password Checkup needs sync.
-        when(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(true);
+        when(mIdentityManager.hasPrimaryAccount()).thenReturn(true);
         when(mPasswordManagerHelperJni.hasChosenToSyncPasswords(any())).thenReturn(false);
         manager.maybePrimeCompletionStatus(mProfile);
         assertTrue(manager.getRankedModuleTypes().contains(ModuleType.SAVE_PASSWORDS_PROMO));
         assertTrue(manager.getRankedModuleTypes().contains(ModuleType.HISTORY_SYNC_PROMO));
         assertFalse(manager.getRankedModuleTypes().contains(ModuleType.PASSWORD_CHECKUP_PROMO));
 
-        // Enable Password Sync: Password Checkup should now appear.
+        // Enable Password Sync: Password Checkup should now appear and Save passwords should be
+        // hidden
         when(mPasswordManagerHelperJni.hasChosenToSyncPasswords(any())).thenReturn(true);
         manager.maybePrimeCompletionStatus(mProfile);
-        assertTrue(manager.getRankedModuleTypes().contains(ModuleType.SAVE_PASSWORDS_PROMO));
         assertTrue(manager.getRankedModuleTypes().contains(ModuleType.HISTORY_SYNC_PROMO));
         assertTrue(manager.getRankedModuleTypes().contains(ModuleType.PASSWORD_CHECKUP_PROMO));
 
         // Sign out: All should disappear.
-        when(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(false);
+        when(mIdentityManager.hasPrimaryAccount()).thenReturn(false);
         manager.maybePrimeCompletionStatus(mProfile);
         assertFalse(manager.getRankedModuleTypes().contains(ModuleType.SAVE_PASSWORDS_PROMO));
         assertFalse(manager.getRankedModuleTypes().contains(ModuleType.HISTORY_SYNC_PROMO));
@@ -164,7 +163,7 @@ public class SetupListManagerUnitTest {
     @SmallTest
     public void testPriming_SignInCompletedInSystem() {
         // Mock user as signed out initially.
-        when(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(false);
+        when(mIdentityManager.hasPrimaryAccount()).thenReturn(false);
 
         SetupListManager.setInstanceForTesting(new SetupListManager());
         SetupListManager manager = SetupListManager.getInstance();
@@ -175,7 +174,7 @@ public class SetupListManagerUnitTest {
         assertFalse(manager.isModuleCompleted(ModuleType.SIGN_IN_PROMO));
 
         // Mock user as signed in.
-        when(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(true);
+        when(mIdentityManager.hasPrimaryAccount()).thenReturn(true);
 
         // Re-prime status.
         manager.maybePrimeCompletionStatus(mProfile);
@@ -188,7 +187,7 @@ public class SetupListManagerUnitTest {
     @SmallTest
     public void testPriming_HistorySyncCompletedInSystem() {
         // Mock user as signed in but with history sync NOT yet completed in system.
-        when(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(true);
+        when(mIdentityManager.hasPrimaryAccount()).thenReturn(true);
         when(mSyncService.getSelectedTypes()).thenReturn(Set.of());
 
         SetupListManager.setInstanceForTesting(new SetupListManager());
@@ -358,7 +357,7 @@ public class SetupListManagerUnitTest {
     @Test
     @SmallTest
     public void testMaybePrimeCompletionStatus() {
-        when(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(true);
+        when(mIdentityManager.hasPrimaryAccount()).thenReturn(true);
         SetupListManager.setInstanceForTesting(new SetupListManager());
         SetupListManager manager = SetupListManager.getInstance();
 
@@ -376,7 +375,7 @@ public class SetupListManagerUnitTest {
     public void testReconcileState_MaxLimit() {
         // Mock 6 eligible promos.
         // SIGN_IN will be automatically detected as completed because user is signed in.
-        when(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(true);
+        when(mIdentityManager.hasPrimaryAccount()).thenReturn(true);
         // Ensure other account-dependent promos are eligible.
         when(mPasswordManagerHelperJni.hasChosenToSyncPasswords(any())).thenReturn(true);
         when(mRegionalServiceClient.getDeviceProgram()).thenReturn(RegionalProgram.DEFAULT);
@@ -517,7 +516,7 @@ public class SetupListManagerUnitTest {
                 .apply();
 
         // Mock eligible promos.
-        when(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(true);
+        when(mIdentityManager.hasPrimaryAccount()).thenReturn(true);
         when(mPasswordManagerHelperJni.hasChosenToSyncPasswords(any())).thenReturn(true);
         when(mSearchEngineChoiceService.isDefaultBrowserPromoSuppressed()).thenReturn(true);
 
@@ -542,7 +541,7 @@ public class SetupListManagerUnitTest {
                 .apply();
 
         // Mock eligible promos.
-        when(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(true);
+        when(mIdentityManager.hasPrimaryAccount()).thenReturn(true);
         when(mPasswordManagerHelperJni.hasChosenToSyncPasswords(any())).thenReturn(true);
         when(mSearchEngineChoiceService.isDefaultBrowserPromoSuppressed()).thenReturn(true);
 
@@ -552,7 +551,6 @@ public class SetupListManagerUnitTest {
 
         List<Integer> rankedModules = manager.getRankedModuleTypes();
         assertFalse(rankedModules.contains(ModuleType.ADDRESS_BAR_PLACEMENT_PROMO));
-        assertTrue(rankedModules.contains(ModuleType.SAVE_PASSWORDS_PROMO));
         assertTrue(rankedModules.contains(ModuleType.PASSWORD_CHECKUP_PROMO));
     }
 
@@ -567,7 +565,7 @@ public class SetupListManagerUnitTest {
                 .apply();
 
         // Mock eligible promos.
-        when(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(true);
+        when(mIdentityManager.hasPrimaryAccount()).thenReturn(true);
         when(mPasswordManagerHelperJni.hasChosenToSyncPasswords(any())).thenReturn(true);
         when(mSearchEngineChoiceService.isDefaultBrowserPromoSuppressed()).thenReturn(true);
 
@@ -577,7 +575,6 @@ public class SetupListManagerUnitTest {
 
         List<Integer> rankedModules = manager.getRankedModuleTypes();
         assertTrue(rankedModules.contains(ModuleType.ADDRESS_BAR_PLACEMENT_PROMO));
-        assertTrue(rankedModules.contains(ModuleType.SAVE_PASSWORDS_PROMO));
         assertTrue(rankedModules.contains(ModuleType.PASSWORD_CHECKUP_PROMO));
     }
 
@@ -617,7 +614,7 @@ public class SetupListManagerUnitTest {
     @SmallTest
     public void testOnPrimaryAccountChanged_CompletesSignIn() {
         // 1. Setup: User is signed out.
-        when(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(false);
+        when(mIdentityManager.hasPrimaryAccount()).thenReturn(false);
 
         SetupListManager.setInstanceForTesting(new SetupListManager());
         SetupListManager manager = SetupListManager.getInstance();
@@ -633,8 +630,7 @@ public class SetupListManagerUnitTest {
 
         // 2. Act: Trigger a sign-in event via the captured observer.
         PrimaryAccountChangeEvent event =
-                new PrimaryAccountChangeEvent(
-                        PrimaryAccountChangeEvent.Type.SET, ConsentLevel.SIGNIN);
+                new PrimaryAccountChangeEvent(PrimaryAccountChangeEvent.Type.SET);
         observer.onPrimaryAccountChanged(event);
 
         // 3. Assert: Sign-In should be completed and awaiting animation.
@@ -652,15 +648,13 @@ public class SetupListManagerUnitTest {
 
         // Sign-in event
         PrimaryAccountChangeEvent signInEvent =
-                new PrimaryAccountChangeEvent(
-                        PrimaryAccountChangeEvent.Type.SET, ConsentLevel.SIGNIN);
+                new PrimaryAccountChangeEvent(PrimaryAccountChangeEvent.Type.SET);
         manager.onPrimaryAccountChanged(signInEvent);
         verify(observer).onSetupListStateChanged();
 
         // Sign-out event
         PrimaryAccountChangeEvent signOutEvent =
-                new PrimaryAccountChangeEvent(
-                        PrimaryAccountChangeEvent.Type.CLEARED, ConsentLevel.SIGNIN);
+                new PrimaryAccountChangeEvent(PrimaryAccountChangeEvent.Type.CLEARED);
         manager.onPrimaryAccountChanged(signOutEvent);
         verify(observer, times(2)).onSetupListStateChanged();
     }
@@ -669,7 +663,7 @@ public class SetupListManagerUnitTest {
     @SmallTest
     public void testSyncStateChanged_CompletesHistorySync() {
         // 1. Setup: User is signed in but history sync is disabled.
-        when(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(true);
+        when(mIdentityManager.hasPrimaryAccount()).thenReturn(true);
         when(mSyncService.getSelectedTypes()).thenReturn(Set.of());
 
         SetupListManager.setInstanceForTesting(new SetupListManager());

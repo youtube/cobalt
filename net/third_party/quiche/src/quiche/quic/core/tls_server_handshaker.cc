@@ -120,8 +120,10 @@ TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
 
   handshaker_->OnSelectCertificateDone(
       /*ok=*/true, /*is_sync=*/true,
-      ProofSourceHandleCallback::LocalSSLConfig(cert_chains_result.chains,
-                                                QuicDelayedSSLConfig()),
+      ProofSourceHandleCallback::LocalSSLConfig(
+          cert_chains_result.chains,
+          QuicDelayedSSLConfig{.ssl_compliance_policy =
+                                   cert_chains_result.ssl_compliance_policy}),
       /*ticket_encryption_key=*/absl::string_view(),
       /*cert_matched_sni=*/cert_chains_result.chains_match_sni);
   if (!handshaker_->select_cert_status().has_value()) {
@@ -1127,6 +1129,10 @@ void TlsServerHandshaker::OnSelectCertificateDone(
     tls_connection_.SetClientCertMode(*delayed_ssl_config.client_cert_mode);
     QUIC_DVLOG(1) << "client_cert_mode after cert selection: "
                   << client_cert_mode();
+  }
+
+  if (delayed_ssl_config.ssl_compliance_policy.has_value()) {
+    SSL_set_compliance_policy(ssl(), *delayed_ssl_config.ssl_compliance_policy);
   }
 
   if (ok) {

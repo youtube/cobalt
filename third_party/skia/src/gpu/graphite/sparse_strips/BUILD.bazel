@@ -7,6 +7,8 @@ package(
 licenses(["notice"])
 
 SPARSE_STRIPS_FILES = [
+    "Flatten.cpp",
+    "Flatten.h",
     "MSAA_LUT.h",
     "Polyline.h",
     "SparseStripsTypes.h",

@@ -606,6 +606,27 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
           : CodeKind::TURBOFAN_JS);
 }
 
+RUNTIME_FUNCTION(Runtime_ExhaustInterruptBudget) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  CHECK_UNLESS_FUZZING(IsJSFunction(args[0]));
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
+
+  if (!function->has_feedback_vector()) {
+    IsCompiledScope is_compiled_scope;
+    CHECK_UNLESS_FUZZING(
+        EnsureCompiledAndFeedbackVector(isolate, function, &is_compiled_scope));
+  }
+
+  CHECK_UNLESS_FUZZING(function->has_feedback_vector());
+  CHECK_UNLESS_FUZZING(function->shared()->HasBytecodeArray());
+
+  function->SetInterruptBudget(isolate, BudgetModification::kReset);
+  function->raw_feedback_cell()->set_interrupt_budget(0);
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {
   HandleScope scope(isolate);
   CHECK_UNLESS_FUZZING(args.length() == 1);
@@ -1122,7 +1143,7 @@ RUNTIME_FUNCTION(Runtime_GetAbstractModuleSource) {
   DisallowGarbageCollection no_gc;
   Tagged<JSFunction> abstract_module_source_function =
       isolate->native_context()->abstract_module_source_function();
-  CHECK(IsJSFunction(*abstract_module_source_function));
+  CHECK(IsJSFunction(abstract_module_source_function));
   return abstract_module_source_function;
 }
 
@@ -1999,6 +2020,9 @@ RUNTIME_FUNCTION(Runtime_HeapObjectVerify) {
   DirectHandle<Object> object = args.at(0);
 #ifdef VERIFY_HEAP
   Object::ObjectVerify(*object, isolate);
+  if (IsHeapObject(*object)) {
+    Cast<HeapObject>(*object)->map()->MapVerify(isolate);
+  }
 #else
   CHECK(IsObject(*object));
   if (IsHeapObject(*object)) {

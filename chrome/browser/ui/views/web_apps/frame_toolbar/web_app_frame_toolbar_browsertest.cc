@@ -19,6 +19,7 @@
 #include "base/test/bind.h"
 #include "base/test/gmock_expected_support.h"
 #include "base/test/icu_test_util.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
@@ -80,6 +81,7 @@
 #include "chrome/browser/web_applications/test/web_app_test_observers.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
+#include "chrome/browser/web_applications/web_app_filter.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_origin_association_manager.h"
@@ -102,7 +104,6 @@
 #include "components/webapps/services/web_app_origin_association/test/test_web_app_origin_association_fetcher.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
-#include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/page_zoom.h"
 #include "content/public/test/browser_test.h"
@@ -121,6 +122,7 @@
 #include "third_party/skia/include/core/SkRect.h"
 #include "ui/base/hit_test.h"
 #include "ui/base/ozone_buildflags.h"
+#include "ui/events/event.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/scoped_animation_duration_scale_mode.h"
 #include "ui/views/accessibility/view_accessibility.h"
@@ -128,6 +130,8 @@
 #include "ui/views/controls/label.h"
 #include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/layout/animating_layout_manager_test_util.h"
+#include "ui/views/test/button_test_api.h"
+#include "ui/views/test/dialog_test.h"
 #include "ui/views/test/views_test_utils.h"
 #include "ui/views/test/widget_activation_waiter.h"
 #include "ui/views/view.h"
@@ -1479,7 +1483,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
 
 // TODO(crbug.com/40827841): Enable for mac/win when flakiness has been fixed.
 #if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_WIN)
-// Test to ensure crbug.com/1298226 won't reproduce.
+// Test to ensure crbug.com/40822808 won't reproduce.
 IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
                        PopupFromWcoAppToItself) {
   InstallAndLaunchWebApp();
@@ -1506,7 +1510,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
                   .ExtractBool());
 }
 
-// Test to ensure crbug.com/1298237 won't reproduce.
+// Test to ensure crbug.com/40822812 won't reproduce.
 IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
                        PopupFromWcoAppToAnyOtherWebsite) {
   InstallAndLaunchWebApp();
@@ -1552,7 +1556,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
   EXPECT_FALSE(bounds.IsEmpty());
 }
 
-// Test to ensure crbug.com/1353133 won't reproduce. It casts the frame_view to
+// Test to ensure crbug.com/40858241 won't reproduce. It casts the frame_view to
 // the ChromeOS's frame_view to have access to the caption_button_container_ so
 // it cannot be run on any other platform.
 #if BUILDFLAG(IS_CHROMEOS)
@@ -1719,7 +1723,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
   helper()->TestDraggableRegions();
 }
 
-// Regression test for https://crbug.com/1448878.
+// Regression test for https://crbug.com/40914522.
 IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
                        DraggableRegionsIgnoredForOwnedWidgets) {
   // TODO(https://crbug.com/329235190): In case accelerated widget is used for
@@ -1895,7 +1899,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
   EXPECT_FALSE(browser_view->IsWindowControlsOverlayEnabled());
 }
 
-// Regression test for https://crbug.com/1239443.
+// Regression test for https://crbug.com/40784780.
 IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
                        OpenWithOverlayEnabled) {
   webapps::AppId app_id = InstallAndLaunchWebApp();
@@ -1984,7 +1988,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
 
 // Extensions in  ChromeOS are not in the titlebar.
 #if !BUILDFLAG(IS_CHROMEOS)
-// Regression test for https://crbug.com/1351566.
+// Regression test for https://crbug.com/40857235.
 IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
                        ExtensionsIconVisibility) {
   webapps::AppId app_id = InstallAndLaunchWebApp();
@@ -2153,7 +2157,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
   EXPECT_FALSE(draggable_region.value().isEmpty());
 }
 
-// Regression test for https://crbug.com/1516830.
+// Regression test for https://crbug.com/41489813.
 IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
                        DragAfterNavigation) {
   InstallAndLaunchWebApp();
@@ -3469,4 +3473,111 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_ScopeExtensionsOriginText,
         helper()->app_browser()->app_controller()->ShouldShowCustomTabBar());
     ExpectLastCommittedUrl(nav_url);
   }
+}
+
+class WebAppFrameToolbarUninstallButtonTest
+    : public WebAppFrameToolbarBrowserTest {
+ private:
+  base::test::ScopedFeatureList feature_list_{features::kWebAppInstallDialog};
+};
+
+IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarUninstallButtonTest, ButtonExists) {
+  const GURL app_url("https://test.org");
+  webapps::AppId app_id = helper()->InstallAndLaunchWebApp(browser(), app_url);
+
+  WebAppToolbarButtonContainer* toolbar_right_container =
+      helper()->web_app_frame_toolbar()->get_right_container_for_testing();
+
+  // First launch: uninstall button should be visible.
+  EXPECT_NE(toolbar_right_container->uninstall_button(), nullptr);
+  EXPECT_TRUE(toolbar_right_container->uninstall_button()->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarUninstallButtonTest,
+                       NotVisibleOnSecondLaunch) {
+  const GURL app_url("https://test.org");
+  webapps::AppId app_id = helper()->InstallAndLaunchWebApp(browser(), app_url);
+
+  WebAppToolbarButtonContainer* toolbar_right_container =
+      helper()->web_app_frame_toolbar()->get_right_container_for_testing();
+
+  // First launch: uninstall button should be visible.
+  EXPECT_NE(toolbar_right_container->uninstall_button(), nullptr);
+  EXPECT_TRUE(toolbar_right_container->uninstall_button()->GetVisible());
+
+  // Close the app and launch it again.
+  Browser* app_browser = helper()->app_browser();
+  ui_test_utils::BrowserDestroyedObserver browser_destroyed_observer(
+      app_browser);
+  app_browser->window()->Close();
+  browser_destroyed_observer.Wait();
+
+  helper()->LaunchWebAppBrowserAndWait(browser()->profile(), app_id);
+  toolbar_right_container =
+      helper()->web_app_frame_toolbar()->get_right_container_for_testing();
+
+  // Second launch: uninstall button should NOT be present.
+  EXPECT_EQ(toolbar_right_container->uninstall_button(), nullptr);
+}
+
+IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarUninstallButtonTest, AppRemoved) {
+  base::HistogramTester histogram_tester;
+  const GURL app_url("https://test.org");
+  webapps::AppId app_id = helper()->InstallAndLaunchWebApp(browser(), app_url);
+
+  WebAppToolbarButtonContainer* toolbar_right_container =
+      helper()->web_app_frame_toolbar()->get_right_container_for_testing();
+
+  // First launch: uninstall button should be visible.
+  EXPECT_NE(toolbar_right_container->uninstall_button(), nullptr);
+  EXPECT_TRUE(toolbar_right_container->uninstall_button()->GetVisible());
+
+  auto uninstall_dialog_waiter =
+      std::make_unique<views::NamedWidgetShownWaiter>(
+          views::test::AnyWidgetTestPasskey{},
+          "WebAppUninstallDialogDelegateView");
+  Browser* app_browser = helper()->app_browser();
+  ui_test_utils::BrowserDestroyedObserver browser_destroyed_observer(
+      app_browser);
+
+  // Trigger uninstall by clicking the button, waiting for the uninstall dialog
+  // to show up, and then accepting that dialog. A successful uninstall should
+  // close the browser window.
+  views::test::ButtonTestApi test_api(
+      toolbar_right_container->uninstall_button());
+  test_api.NotifyClick(ui::MouseEvent(
+      ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+      base::TimeTicks(), ui::EF_LEFT_MOUSE_BUTTON, ui::EF_LEFT_MOUSE_BUTTON));
+  views::Widget* uninstall_dialog =
+      uninstall_dialog_waiter->WaitIfNeededAndGet();
+  views::test::AcceptDialog(uninstall_dialog);
+  browser_destroyed_observer.Wait();
+
+  // Verify the app has been removed from the web app registry.
+  EXPECT_FALSE(
+      web_app::WebAppProvider::GetForWebApps(browser()->profile())
+          ->registrar_unsafe()
+          .AppMatches(app_id,
+                      web_app::WebAppFilter::IsAppEligibleForManifestUpdate()));
+  EXPECT_THAT(histogram_tester.GetAllSamples("Webapp.Install.UninstallEvent"),
+              base::BucketsAre(base::Bucket(
+                  webapps::WebappUninstallSource::kToolbarPostInstall, 1)));
+}
+
+IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarUninstallButtonTest,
+                       NotVisibleForPreinstalledApp) {
+  const GURL app_url("https://test.org");
+  auto web_app_info =
+      web_app::WebAppInstallInfo::CreateWithStartUrlForTesting(app_url);
+  web_app_info->scope = app_url;
+  web_app_info->title = u"preinstalled app";
+  webapps::AppId app_id = web_app::test::InstallWebApp(
+      browser()->profile(), std::move(web_app_info),
+      /*overwrite_existing_manifest_fields=*/false,
+      webapps::WebappInstallSource::INTERNAL_DEFAULT);
+  helper()->LaunchWebAppBrowserAndWait(browser()->profile(), app_id);
+
+  WebAppToolbarButtonContainer* toolbar_right_container =
+      helper()->web_app_frame_toolbar()->get_right_container_for_testing();
+  EXPECT_EQ(toolbar_right_container->uninstall_button(), nullptr);
 }

@@ -31,10 +31,10 @@
 #include "chrome/browser/search/background/wallpaper_search/wallpaper_search_data.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
 #include "chrome/browser/ui/hats/survey_config.h"
 #include "chrome/browser/ui/views/side_panel/customize_chrome/customize_chrome_utils.h"
@@ -253,7 +253,7 @@ void WallpaperSearchHandler::GetDescriptors(GetDescriptorsCallback callback) {
   resource_request->url =
       GURL(base::StrCat({kGstaticBaseURL, "descriptors_en-US.json"}));
   resource_request->request_initiator =
-      url::Origin::Create(GURL(chrome::kChromeUINewTabURL));
+      url::Origin::Create(chrome::ChromeUINewTabURLAsGURL());
   resource_request->credentials_mode = network::mojom::CredentialsMode::kOmit;
   descriptors_simple_url_loader_ = network::SimpleURLLoader::Create(
       std::move(resource_request), traffic_annotation);
@@ -316,7 +316,7 @@ void WallpaperSearchHandler::GetInspirations(GetInspirationsCallback callback) {
   resource_request->url =
       GURL(base::StrCat({kGstaticBaseURL, "inspirations_en-US.json"}));
   resource_request->request_initiator =
-      url::Origin::Create(GURL(chrome::kChromeUINewTabURL));
+      url::Origin::Create(chrome::ChromeUINewTabURLAsGURL());
 
   inspirations_simple_url_loader_ = network::SimpleURLLoader::Create(
       std::move(resource_request), traffic_annotation);
@@ -489,7 +489,7 @@ void WallpaperSearchHandler::SetBackgroundToInspirationImage(
   auto resource_request = std::make_unique<network::ResourceRequest>();
   resource_request->url = GURL(background_url);
   resource_request->request_initiator =
-      url::Origin::Create(GURL(chrome::kChromeUINewTabURL));
+      url::Origin::Create(chrome::ChromeUINewTabURLAsGURL());
 
   image_download_simple_url_loader_ = network::SimpleURLLoader::Create(
       std::move(resource_request), traffic_annotation);
@@ -579,7 +579,8 @@ void WallpaperSearchHandler::ShowFeedbackPage() {
     return;
   }
 #endif  // BUILDFLAG(IS_CHROMEOS)
-  BrowserWindowInterface* browser = chrome::FindLastActive();
+  BrowserWindowInterface* browser =
+      GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
   if (!browser) {
     return;
   }

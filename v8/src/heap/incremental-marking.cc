@@ -780,8 +780,8 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
                               StepOrigin step_origin) {
   NestedTimedHistogramScope incremental_marking_scope(
       isolate()->counters()->gc_incremental_marking());
-  TRACE_EVENT1("v8", "V8.GCIncrementalMarking", "epoch",
-               heap_->tracer()->CurrentEpoch());
+  TRACE_EVENT("v8", "V8.GCIncrementalMarking", "epoch",
+              heap_->tracer()->CurrentEpoch());
   TRACE_GC_EPOCH_WITH_FLOW(
       heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL, ThreadKind::kMain,
       current_trace_id_.value(),

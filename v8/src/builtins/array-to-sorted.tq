@@ -51,15 +51,15 @@ transitioning macro CopyWorkArrayToNewJSArray(
   return copy;
 }
 
-transitioning builtin ArrayTimSortIntoCopy(
+transitioning builtin ArrayPowerSortIntoCopy(
     context: Context, sortState: SortState): JSArray {
   const isToSorted: constexpr bool = true;
   const numberOfNonUndefined: Smi =
       CompactReceiverElementsIntoWorkArray(isToSorted);
-  if (numberOfNonUndefined < kMinTimSortLen) {
+  if (numberOfNonUndefined < kMaxBinaryInsertionSortLength) {
     BinaryInsertionSort(0, 0, numberOfNonUndefined);
   } else {
-    ArrayTimSortImpl(context, sortState, numberOfNonUndefined);
+    ArrayPowerSortImpl(context, sortState, numberOfNonUndefined);
   }
   if (sortState.sortLength <= kMaxFastArrayLength) {
     // The result copy of Array.prototype.toSorted is always packed.
@@ -67,10 +67,10 @@ transitioning builtin ArrayTimSortIntoCopy(
       if (sortState.numberOfUndefined != 0) goto FastObject;
 
       const workArray = sortState.workArray;
-      dcheck(numberOfNonUndefined <= workArray.length);
+      dcheck(Convert<intptr>(numberOfNonUndefined) <= workArray.length_intptr);
       for (let i: Smi = 0; i < numberOfNonUndefined; ++i) {
         const e = UnsafeCast<JSAny>(workArray.objects[i]);
-        // TODO(v8:12764): ArrayTimSortImpl already boxed doubles. Support
+        // TODO(v8:12764): ArrayPowerSortImpl already boxed doubles. Support
         // PACKED_DOUBLE_ELEMENTS.
         if (TaggedIsNotSmi(e)) {
           goto FastObject;
@@ -131,6 +131,6 @@ transitioning javascript builtin ArrayPrototypeToSorted(
   // The implementation of the above steps is shared with Array.prototype.sort.
   const isToSorted: constexpr bool = true;
   const sortState: SortState = NewSortState(obj, comparefn, len, isToSorted);
-  return ArrayTimSortIntoCopy(context, sortState);
+  return ArrayPowerSortIntoCopy(context, sortState);
 }
 }

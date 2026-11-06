@@ -11,19 +11,22 @@
 #include "call/payload_type_picker.h"
 
 #include <algorithm>
-#include <set>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/match.h"
+#include "absl/strings/string_view.h"
 #include "api/audio_codecs/audio_format.h"
+#include "api/payload_type.h"
 #include "api/rtc_error.h"
+#include "api/rtp_parameters.h"
 #include "call/payload_type.h"
 #include "media/base/codec.h"
 #include "media/base/codec_comparators.h"
 #include "media/base/media_constants.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/containers/flat_set.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/string_encode.h"
 
@@ -95,7 +98,7 @@ bool CodecPrefersLowerRange(const Codec& codec) {
 }
 
 RTCErrorOr<PayloadType> FindFreePayloadType(const Codec& codec,
-                                            std::set<PayloadType> seen_pt) {
+                                            flat_set<PayloadType> seen_pt) {
   // Prefer to use lower range for codecs that can handle it.
   bool prefer_lower_range = CodecPrefersLowerRange(codec);
   if (prefer_lower_range) {
@@ -330,6 +333,121 @@ void PayloadTypeRecorder::Commit() {
 }
 void PayloadTypeRecorder::Rollback() {
   payload_type_to_codec_ = checkpoint_payload_type_to_codec_;
+}
+
+RTCError RtpHeaderExtensionRecorder::AddMapping(int id,
+                                                absl::string_view uri,
+                                                bool encrypt) {
+  auto it = uri_to_id_.find(std::pair{uri, encrypt});
+  if (it != uri_to_id_.end()) {
+    if (it->second != id) {
+      // TODO: https://issues.webrtc.org/41480892 - This will return an error in
+      // the future.
+      RTC_LOG(LS_ERROR) << "RtpHeaderExtensionRecorder: Redefining mapping for "
+                        << uri << " (encrypt=" << encrypt << ") from "
+                        << it->second << " to " << id;
+    }
+  }
+  uri_to_id_[{std::string(uri), encrypt}] = id;
+  return RTCError::OK();
+}
+
+RTCErrorOr<int> RtpHeaderExtensionRecorder::LookupId(absl::string_view uri,
+                                                     bool encrypt) const {
+  auto it = uri_to_id_.find(std::pair{uri, encrypt});
+  if (it == uri_to_id_.end()) {
+    return RTCError(RTCErrorType::INVALID_PARAMETER,
+                    "No ID found for extension");
+  }
+  return it->second;
+}
+
+void RtpHeaderExtensionRecorder::Commit() {
+  checkpoint_uri_to_id_ = uri_to_id_;
+}
+
+void RtpHeaderExtensionRecorder::Rollback() {
+  uri_to_id_ = checkpoint_uri_to_id_;
+}
+
+RTCErrorOr<int> RtpHeaderExtensionPicker::SuggestMapping(
+    absl::string_view uri,
+    bool encrypt,
+    int preferred_id,
+    RtpTransceiverIdDomain id_domain,
+    const RtpHeaderExtensionRecorder* excluder) {
+  // If we already have a mapping for this (uri, encrypt), use it.
+  for (const auto& entry : entries_) {
+    if (entry.uri == uri && entry.encrypt == encrypt) {
+      if (excluder) {
+        auto result = excluder->LookupId(entry.uri, entry.encrypt);
+        if (result.ok() && result.value() != entry.id) {
+          continue;
+        }
+      }
+      return entry.id;
+    }
+  }
+
+  // Test compatibility: If preferred_id is provided and free, use it.
+  if (preferred_id >= 1 && preferred_id <= 255 &&
+      seen_ids_.count(preferred_id) == 0) {
+    if (preferred_id <= 14) {
+      AddMapping(preferred_id, uri, encrypt);
+      return preferred_id;
+    }
+    // We allow preferred_id >= 15 even if id_domain is kOneByteOnly because
+    // it might be a re-negotiation or a test where the ID was explicitly
+    // assigned. Automatic allocation below will still respect id_domain.
+    if (preferred_id >= 15) {
+      AddMapping(preferred_id, uri, encrypt);
+      return preferred_id;
+    }
+  }
+
+  // Find a free ID.
+  // One-byte range: 1-14.
+  // We prefer to allocate from the top of the range (14 down to 1).
+  for (int id = 14; id >= 1; --id) {
+    if (seen_ids_.count(id) == 0) {
+      AddMapping(id, uri, encrypt);
+      return id;
+    }
+  }
+
+  if (id_domain == RtpTransceiverIdDomain::kTwoByteAllowed) {
+    // TODO: issues.webrtc.org/334925828 - add unit tests for this case.
+    // Two-byte range: 16-255. (Avoid 15, which is special in RFC 8285)
+    for (int id = 16; id <= 255; ++id) {
+      if (seen_ids_.count(id) == 0) {
+        AddMapping(id, uri, encrypt);
+        return id;
+      }
+    }
+  }
+
+  return RTCError(RTCErrorType::RESOURCE_EXHAUSTED,
+                  "No free RTP extension IDs");
+}
+
+RTCError RtpHeaderExtensionPicker::AddMapping(int id,
+                                              absl::string_view uri,
+                                              bool encrypt) {
+  RTC_DCHECK_GT(id, 0);
+  RTC_DCHECK_LE(id, 255);
+  // 15 is special and should be avoided, but allowed in the two-byte form
+  // according to RFC 8285. But still, it's unexpected to see it used.
+  if (id == 15) {
+    RTC_LOG(LS_WARNING) << "Use of special URI extension id 15 encountered.";
+  }
+  for (const auto& entry : entries_) {
+    if (entry.id == id && entry.uri == uri && entry.encrypt == encrypt) {
+      return RTCError::OK();
+    }
+  }
+  entries_.push_back({std::string(uri), encrypt, id});
+  seen_ids_.insert(id);
+  return RTCError::OK();
 }
 
 }  // namespace webrtc

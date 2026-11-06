@@ -141,12 +141,7 @@ void WasmWrapperCache<CacheKey>::Free(std::vector<WasmCode*>& wrappers) {
     }
   }
   code_allocator_.FreeCode(base::VectorOf(wrappers));
-  for (WasmCode* wrapper : wrappers) {
-    // TODO(407003348): Drop this check if it doesn't trigger in the wild.
-    CHECK_EQ(wrapper->ref_count_bitfield_.load(std::memory_order_acquire),
-             WasmCode::kIsDyingMask);
-    delete wrapper;
-  }
+  for (WasmCode* wrapper : wrappers) delete wrapper;
   // Make sure nobody tries to access stale pointers.
   wrappers.clear();
 }

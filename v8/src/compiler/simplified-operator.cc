@@ -302,6 +302,34 @@ CheckMapsParameters const& CheckMapsParametersOf(Operator const* op) {
   return OpParameter<CheckMapsParameters>(op);
 }
 
+bool operator==(CheckHomomorphicParameters const& lhs,
+                CheckHomomorphicParameters const& rhs) {
+  return lhs.name() == rhs.name() &&
+         lhs.homomorphic_array() == rhs.homomorphic_array() &&
+         lhs.handler_value() == rhs.handler_value() &&
+         lhs.check_heap_object() == rhs.check_heap_object() &&
+         lhs.feedback() == rhs.feedback();
+}
+
+size_t hash_value(CheckHomomorphicParameters const& p) {
+  FeedbackSource::Hash feedback_hash;
+  return base::hash_combine(p.name(), p.homomorphic_array(), p.handler_value(),
+                            p.check_heap_object(), feedback_hash(p.feedback()));
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         CheckHomomorphicParameters const& p) {
+  return os << p.name() << ", " << p.homomorphic_array() << ", "
+            << p.handler_value() << ", " << p.check_heap_object() << ", "
+            << p.feedback();
+}
+
+CheckHomomorphicParameters const& CheckHomomorphicParametersOf(
+    Operator const* op) {
+  DCHECK_EQ(IrOpcode::kCheckHomomorphic, op->opcode());
+  return OpParameter<CheckHomomorphicParameters>(op);
+}
+
 ZoneRefSet<Map> const& CompareMapsParametersOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kCompareMaps, op->opcode());
   return OpParameter<ZoneRefSet<Map>>(op);
@@ -2099,6 +2127,20 @@ const Operator* SimplifiedOperatorBuilder::CheckMaps(
       "CheckMaps",                                     // name
       1, 1, 1, 0, 1, 0,                                // counts
       parameters);                                     // parameter
+}
+
+const Operator* SimplifiedOperatorBuilder::CheckHomomorphic(
+    NameRef name, WeakHomomorphicFixedArrayRef homomorphic_array,
+    int handler_value, bool check_heap_object, const FeedbackSource& feedback) {
+  CheckHomomorphicParameters const parameters(
+      name, homomorphic_array, handler_value, check_heap_object, feedback);
+  Operator::Properties operator_props = Operator::kNoThrow | Operator::kNoWrite;
+  return zone()->New<Operator1<CheckHomomorphicParameters>>(  // --
+      IrOpcode::kCheckHomomorphic,                            // opcode
+      operator_props,                                         // flags
+      "CheckHomomorphic",                                     // name
+      1, 1, 1, 0, 1, 0,                                       // counts
+      parameters);                                            // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::MapGuard(ZoneRefSet<Map> maps) {

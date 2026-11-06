@@ -149,3 +149,5 @@ bazel-testlogs
 bazel-v8
 launch.json
 MODULE.bazel.lock
+GEMINI.md
+AGENTS.md

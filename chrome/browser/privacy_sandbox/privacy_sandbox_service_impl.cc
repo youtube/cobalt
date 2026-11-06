@@ -9,23 +9,14 @@
 #include <numeric>
 #include <optional>
 
-#include "base/command_line.h"
 #include "base/feature_list.h"
-#include "base/metrics/field_trial.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/user_metrics.h"
-#include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
-#include "build/branding_buildflags.h"
-#include "chrome/browser/privacy_sandbox/notice/notice.mojom.h"
-#include "chrome/browser/privacy_sandbox/notice/notice_service_factory.h"
-#include "chrome/browser/privacy_sandbox/notice/notice_service_interface.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_countries.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_notice_confirmation.h"
 #include "chrome/browser/privacy_sandbox/profile_bucket_metrics.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/common/chrome_switches.h"
 #include "components/browsing_topics/browsing_topics_service.h"
 #include "components/browsing_topics/common/common_types.h"
 #include "components/browsing_topics/common/semantic_tree.h"
@@ -47,10 +38,6 @@
 #include "third_party/blink/public/common/features.h"
 #include "ui/base/l10n/l10n_util.h"
 
-#if !BUILDFLAG(IS_ANDROID)
-#include "ui/views/widget/widget.h"
-#endif  // !BUILDFLAG(IS_ANDROID)
-
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/profiles/profiles_state.h"
 #include "chromeos/components/kiosk/kiosk_utils.h"
@@ -59,12 +46,7 @@
 
 namespace {
 
-using NoticeSurfaceType = ::privacy_sandbox::SurfaceType;
-using PromptStartupState = ::PrivacySandboxService::PromptStartupState;
 using ::privacy_sandbox::EligibilityLevel;
-using ::privacy_sandbox::PrivacySandboxNoticeServiceInterface;
-using ::privacy_sandbox::notice::mojom::PrivacySandboxNotice;
-using ::privacy_sandbox::notice::mojom::PrivacySandboxNoticeEvent;
 
 using enum privacy_sandbox::EligibilityLevel;
 
@@ -313,17 +295,6 @@ PrivacySandboxServiceImpl::PrivacySandboxServiceImpl(
         prefs::kPrivacySandboxTopicsConsentTextAtLastUpdate);
   }
 
-  PromptSuppressedReason prompt_suppressed_reason =
-      static_cast<PromptSuppressedReason>(
-          pref_service->GetInteger(prefs::kPrivacySandboxM1PromptSuppressed));
-
-  // kRestricted prompt suppression reason must be cleared at startup when
-  // restricted notice feature is enabled.
-  if (IsRestrictedNoticeRequired() &&
-      prompt_suppressed_reason == PromptSuppressedReason::kRestricted) {
-    pref_service_->ClearPref(prefs::kPrivacySandboxM1PromptSuppressed);
-  }
-
   // Check for FPS pref init at each startup.
   // TODO(crbug.com/40234448): Remove this logic when most users have run init.
   MaybeInitializeRelatedWebsiteSetsPref();
@@ -337,7 +308,6 @@ PrivacySandboxServiceImpl::~PrivacySandboxServiceImpl() = default;
 void PrivacySandboxServiceImpl::Shutdown() {
   user_prefs_registrar_.RemoveAll();
   privacy_sandbox_countries_ = nullptr;
-  product_messaging_controller_ = nullptr;
   first_party_sets_policy_service_ = nullptr;
   browsing_topics_service_ = nullptr;
   host_content_settings_map_ = nullptr;
@@ -375,20 +345,6 @@ bool PrivacySandboxServiceImpl::IsRelatedWebsiteSetsDataAccessEnabled() const {
 bool PrivacySandboxServiceImpl::IsRelatedWebsiteSetsDataAccessManaged() const {
   return pref_service_->IsManagedPreference(
       prefs::kPrivacySandboxRelatedWebsiteSetsEnabled);
-}
-
-void PrivacySandboxServiceImpl::RecordPromptStartupStateHistograms(
-    PromptStartupState state) {
-  std::string profile_bucket = privacy_sandbox::GetProfileBucketName(profile_);
-
-  if (!profile_bucket.empty()) {
-    base::UmaHistogramEnumeration(
-        base::StrCat({"Settings.PrivacySandbox.", profile_bucket,
-                      ".PromptStartupState"}),
-        state);
-  }
-  base::UmaHistogramEnumeration("Settings.PrivacySandbox.PromptStartupState",
-                                state);
 }
 
 std::optional<net::SchemefulSite>
@@ -492,7 +448,14 @@ void PrivacySandboxServiceImpl::RecordTrackingProtectionStateHistogram() {
       pref_service_->GetBoolean(prefs::kTrackingProtection3pcdEnabled));
 }
 
-void PrivacySandboxServiceImpl::RecordPrivacySandbox4StartupMetrics() {
+void PrivacySandboxServiceImpl::LogPrivacySandboxState() {
+  // Do not record metrics for non-regular profiles.
+  if (!IsRegularProfile(profile_type_)) {
+    return;
+  }
+  RecordFirstPartySetsStateHistogram();
+  RecordTrackingProtectionStateHistogram();
+
   // Record the status of the APIs.
   const bool topics_enabled =
       pref_service_->GetBoolean(prefs::kPrivacySandboxM1TopicsEnabled);
@@ -504,177 +467,6 @@ void PrivacySandboxServiceImpl::RecordPrivacySandbox4StartupMetrics() {
   RecordTopicsEnabledHistograms(profile_, topics_enabled);
   RecordProtectedAudienceEnabledHistograms(profile_, fledge_enabled);
   RecordAdMeasurementEnabledHistograms(profile_, ad_measurement_enabled);
-
-  const bool user_reported_restricted =
-      pref_service_->GetBoolean(prefs::kPrivacySandboxM1Restricted);
-  const bool user_is_currently_unrestricted =
-      privacy_sandbox_settings_->IsPrivacySandboxCurrentlyUnrestricted();
-
-  // Prompt suppressed cases.
-  PromptSuppressedReason prompt_suppressed_reason =
-      static_cast<PromptSuppressedReason>(
-          pref_service_->GetInteger(prefs::kPrivacySandboxM1PromptSuppressed));
-
-  switch (prompt_suppressed_reason) {
-    // Prompt never suppressed.
-    case PromptSuppressedReason::kNone: {
-      break;
-    }
-
-    case PromptSuppressedReason::kRestricted: {
-      RecordPromptStartupStateHistograms(
-          PromptStartupState::kPromptNotShownDueToPrivacySandboxRestricted);
-      return;
-    }
-
-    case PromptSuppressedReason::kThirdPartyCookiesBlocked: {
-      RecordPromptStartupStateHistograms(
-          PromptStartupState::kPromptNotShownDueTo3PCBlocked);
-      return;
-    }
-
-    case PromptSuppressedReason::kTrialsConsentDeclined: {
-      RecordPromptStartupStateHistograms(
-          PromptStartupState::kPromptNotShownDueToTrialConsentDeclined);
-      return;
-    }
-
-    case PromptSuppressedReason::kTrialsDisabledAfterNotice: {
-      RecordPromptStartupStateHistograms(
-          PromptStartupState::
-              kPromptNotShownDueToTrialsDisabledAfterNoticeShown);
-      return;
-    }
-
-    case PromptSuppressedReason::kPolicy: {
-      RecordPromptStartupStateHistograms(
-          PromptStartupState::kPromptNotShownDueToManagedState);
-      return;
-    }
-
-    case PromptSuppressedReason::kEEAFlowCompletedBeforeRowMigration: {
-      RecordPromptStartupStateHistograms(
-          topics_enabled
-              ? PromptStartupState::kEEAFlowCompletedWithTopicsAccepted
-              : PromptStartupState::kEEAFlowCompletedWithTopicsDeclined);
-      return;
-    }
-
-    case PromptSuppressedReason::
-        kROWFlowCompletedAndTopicsDisabledBeforeEEAMigration: {
-      RecordPromptStartupStateHistograms(
-          PromptStartupState::kROWNoticeFlowCompleted);
-      return;
-    }
-
-    case PromptSuppressedReason::kNoticeShownToGuardian: {
-      // Check for users waiting for graduation: If a user was ever reported
-      // as restricted and is currently unrestricted it means they are ready
-      // for graduation.
-      RecordPromptStartupStateHistograms(
-          user_reported_restricted && user_is_currently_unrestricted
-              ? PromptStartupState::
-                    kWaitingForGraduationRestrictedNoticeFlowNotCompleted
-              : PromptStartupState::
-                    kRestrictedNoticeNotShownDueToNoticeShownToGuardian);
-      return;
-    }
-  }
-
-  // Prompt was not suppressed explicitly at this point.
-  CHECK_EQ(prompt_suppressed_reason, PromptSuppressedReason::kNone);
-
-  // Check if prompt was suppressed implicitly.
-  if (IsM1PrivacySandboxEffectivelyManaged(pref_service_)) {
-    RecordPromptStartupStateHistograms(
-        PromptStartupState::kPromptNotShownDueToManagedState);
-    return;
-  }
-
-  const bool restricted_notice_acknowledged = pref_service_->GetBoolean(
-      prefs::kPrivacySandboxM1RestrictedNoticeAcknowledged);
-
-  // Check for users waiting for graduation: If a user was ever reported as
-  // restricted and is currently unrestricted it means they are ready for
-  // graduation.
-  if (user_reported_restricted && user_is_currently_unrestricted) {
-    RecordPromptStartupStateHistograms(
-        restricted_notice_acknowledged
-            ? PromptStartupState::
-                  kWaitingForGraduationRestrictedNoticeFlowCompleted
-            : PromptStartupState::
-                  kWaitingForGraduationRestrictedNoticeFlowNotCompleted);
-
-    return;
-  }
-
-  const bool row_notice_acknowledged =
-      pref_service_->GetBoolean(prefs::kPrivacySandboxM1RowNoticeAcknowledged);
-  const bool eaa_notice_acknowledged =
-      pref_service_->GetBoolean(prefs::kPrivacySandboxM1EEANoticeAcknowledged);
-  // Restricted Notice
-  // Note that ordering is important: one of consent or notice will always be
-  // required when the restricted prompt is shown, and both return
-  // unconditionally.
-  if (privacy_sandbox_settings_->IsSubjectToM1NoticeRestricted()) {
-    // Acknowledgement of any of the prompt types implies acknowledgement of
-    // the restricted notice as well.
-    if (row_notice_acknowledged || eaa_notice_acknowledged) {
-      RecordPromptStartupStateHistograms(
-          PromptStartupState::
-              kRestrictedNoticeNotShownDueToFullNoticeAcknowledged);
-
-      return;
-    }
-    RecordPromptStartupStateHistograms(
-        restricted_notice_acknowledged
-            ? PromptStartupState::kRestrictedNoticeFlowCompleted
-            : PromptStartupState::kRestrictedNoticePromptWaiting);
-    return;
-  }
-
-  // EEA
-  if (IsConsentRequired()) {
-    // Consent decision not made
-    if (!pref_service_->GetBoolean(
-            prefs::kPrivacySandboxM1ConsentDecisionMade)) {
-      RecordPromptStartupStateHistograms(
-          PromptStartupState::kEEAConsentPromptWaiting);
-      return;
-    }
-
-    // Consent decision made at this point.
-
-    // Notice Acknowledged
-    if (eaa_notice_acknowledged) {
-      RecordPromptStartupStateHistograms(
-          topics_enabled
-              ? PromptStartupState::kEEAFlowCompletedWithTopicsAccepted
-              : PromptStartupState::kEEAFlowCompletedWithTopicsDeclined);
-    } else {
-      RecordPromptStartupStateHistograms(
-          PromptStartupState::kEEANoticePromptWaiting);
-    }
-    return;
-  }
-
-  // ROW
-  if (IsNoticeRequired()) {
-    RecordPromptStartupStateHistograms(
-        row_notice_acknowledged ? PromptStartupState::kROWNoticeFlowCompleted
-                                : PromptStartupState::kROWNoticePromptWaiting);
-    return;
-  }
-}
-
-void PrivacySandboxServiceImpl::LogPrivacySandboxState() {
-  // Do not record metrics for non-regular profiles.
-  if (!IsRegularProfile(profile_type_)) {
-    return;
-  }
-  RecordFirstPartySetsStateHistogram();
-  RecordTrackingProtectionStateHistogram();
-  RecordPrivacySandbox4StartupMetrics();
 }
 
 void PrivacySandboxServiceImpl::ConvertInterestGroupDataKeysForDisplay(
@@ -706,7 +498,7 @@ void PrivacySandboxServiceImpl::ConvertInterestGroupDataKeysForDisplay(
 
     // By design, each interest group should have a joining site or host, and
     // so this could ideally be a NOTREACHED(). However, following
-    // crbug.com/1487191, it is apparent that this is not always true.
+    // crbug.com/40933994, it is apparent that this is not always true.
     // A host or site is expected in other parts of the UI, so we cannot
     // simply display the origin directly (it may also be empty). Instead, we
     // elide it but record a metric to understand how widespread this is.
@@ -1014,24 +806,6 @@ void PrivacySandboxServiceImpl::UpdateProtectedAudienceApiResult(bool value) {
 void PrivacySandboxServiceImpl::UpdateMeasurementApiResult(bool value) {
   pref_service_->SetBoolean(prefs::kPrivacySandboxM1AdMeasurementEnabled,
                             value);
-}
-
-// static
-bool PrivacySandboxServiceImpl::IsM1PrivacySandboxEffectivelyManaged(
-    PrefService* pref_service) {
-  bool is_prompt_suppressed_by_policy =
-      pref_service->IsManagedPreference(
-          prefs::kPrivacySandboxM1PromptSuppressed) &&
-      static_cast<int>(PromptSuppressedReason::kPolicy) ==
-          pref_service->GetInteger(prefs::kPrivacySandboxM1PromptSuppressed);
-
-  return is_prompt_suppressed_by_policy ||
-         pref_service->IsManagedPreference(
-             prefs::kPrivacySandboxM1TopicsEnabled) ||
-         pref_service->IsManagedPreference(
-             prefs::kPrivacySandboxM1FledgeEnabled) ||
-         pref_service->IsManagedPreference(
-             prefs::kPrivacySandboxM1AdMeasurementEnabled);
 }
 
 bool PrivacySandboxServiceImpl::IsConsentRequired() {

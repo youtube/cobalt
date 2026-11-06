@@ -1867,9 +1867,9 @@ void RegExp::TraceExecutionBegin(Address isolate_ptr) {
   if (prev_level == -1) {
     // First use, print the csv header.
     if (v8_flags.trace_regexp_exec_ool_subjects) {
-      PrintF("time_in_ns,kind,pattern,last_index,subject_string_id\n");
+      PrintF("time_in_ns,kind,pattern,last_index,subject_string_id,result\n");
     } else {
-      PrintF("time_in_ns,kind,pattern,last_index,subject_string\n");
+      PrintF("time_in_ns,kind,pattern,last_index,subject_string,result\n");
     }
     isolate->trace_regexp_exec_nesting_level()++;
   }
@@ -1881,7 +1881,8 @@ void RegExp::TraceExecutionBegin(Address isolate_ptr) {
 // * Subjects are wrapped in eternal_handles s.t. they survive until isolate
 //   shutdown.
 void RegExp::TraceExecutionEnd(Address isolate_ptr, Address data_ptr,
-                               Address subject_ptr, int32_t last_index) {
+                               Address subject_ptr, int32_t last_index,
+                               int32_t result) {
   DisallowGarbageCollection no_gc;
   Isolate* isolate = reinterpret_cast<Isolate*>(isolate_ptr);
   DCHECK_GT(isolate->trace_regexp_exec_nesting_level(), 0);
@@ -1944,8 +1945,8 @@ void RegExp::TraceExecutionEnd(Address isolate_ptr, Address data_ptr,
       backref_id = it->second;
     }
 
-    PrintF("%" PRId64 ",%s,/%s/%s,%d,%d\n", elapsed_ns, engine_type,
-           pattern_cstring.get(), flags_string, last_index, backref_id);
+    PrintF("%" PRId64 ",%s,/%s/%s,%d,%d,%d\n", elapsed_ns, engine_type,
+           pattern_cstring.get(), flags_string, last_index, backref_id, result);
   } else {
     static constexpr int kMaxInlineSubjectLength = 512;
     std::string subject_string = subject->ToStdString();
@@ -1954,9 +1955,9 @@ void RegExp::TraceExecutionEnd(Address isolate_ptr, Address data_ptr,
           subject_string.substr(0, kMaxInlineSubjectLength) + "...";
     }
 
-    PrintF("%" PRId64 ",%s,/%s/%s,%d,\"%s\"\n", elapsed_ns, engine_type,
+    PrintF("%" PRId64 ",%s,/%s/%s,%d,\"%s\",%d\n", elapsed_ns, engine_type,
            pattern_cstring.get(), flags_string, last_index,
-           subject_string.c_str());
+           subject_string.c_str(), result);
   }
 }
 #endif

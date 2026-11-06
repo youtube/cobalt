@@ -1818,12 +1818,11 @@ void LiftoffAssembler::emit_f32x4_div(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f32x4_min(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  const int32_t kNaN = 0x7FC00000;
   VU.SetSimd128(E32);
   vmfeq_vv(v0, lhs.simd128(), lhs.simd128());
   vmfeq_vv(kSimd128ScratchReg, rhs.simd128(), rhs.simd128());
   vand_vv(v0, v0, kSimd128ScratchReg);
-  li(kScratchReg, kNaN);
+  li(kScratchReg, kFP32DefaultNaN);
   vmv_vx(kSimd128ScratchReg, kScratchReg);
   vfmin_vv(kSimd128ScratchReg, rhs.simd128(), lhs.simd128(), Mask);
   vmv_vv(dst.simd128(), kSimd128ScratchReg);
@@ -1831,12 +1830,11 @@ void LiftoffAssembler::emit_f32x4_min(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  const int32_t kNaN = 0x7FC00000;
   VU.SetSimd128(E32);
   vmfeq_vv(v0, lhs.simd128(), lhs.simd128());
   vmfeq_vv(kSimd128ScratchReg, rhs.simd128(), rhs.simd128());
   vand_vv(v0, v0, kSimd128ScratchReg);
-  li(kScratchReg, kNaN);
+  li(kScratchReg, kFP32DefaultNaN);
   vmv_vx(kSimd128ScratchReg, kScratchReg);
   vfmax_vv(kSimd128ScratchReg, rhs.simd128(), lhs.simd128(), Mask);
   vmv_vv(dst.simd128(), kSimd128ScratchReg);

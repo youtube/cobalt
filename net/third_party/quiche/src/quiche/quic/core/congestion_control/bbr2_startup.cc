@@ -132,24 +132,13 @@ void Bbr2StartupMode::CheckExcessiveLosses(
   }
 }
 
-Bbr2StartupMode::DebugState Bbr2StartupMode::ExportDebugState() const {
-  DebugState s;
+Bbr2DebugState::Startup Bbr2StartupMode::ExportDebugState() const {
+  Bbr2DebugState::Startup s;
   s.full_bandwidth_reached = model_->full_bandwidth_reached();
   s.full_bandwidth_baseline = model_->full_bandwidth_baseline();
   s.round_trips_without_bandwidth_growth =
       model_->rounds_without_bandwidth_growth();
   return s;
-}
-
-std::ostream& operator<<(std::ostream& os,
-                         const Bbr2StartupMode::DebugState& state) {
-  os << "[STARTUP] full_bandwidth_reached: " << state.full_bandwidth_reached
-     << "\n";
-  os << "[STARTUP] full_bandwidth_baseline: " << state.full_bandwidth_baseline
-     << "\n";
-  os << "[STARTUP] round_trips_without_bandwidth_growth: "
-     << state.round_trips_without_bandwidth_growth << "\n";
-  return os;
 }
 
 const Bbr2Params& Bbr2StartupMode::Params() const { return sender_->Params(); }

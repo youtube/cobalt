@@ -1222,6 +1222,10 @@ class UnoptimizedJSFrame : public JavaScriptFrame {
     DCHECK(frame->is_unoptimized_js());
     return static_cast<UnoptimizedJSFrame*>(frame);
   }
+  static const UnoptimizedJSFrame* cast(const StackFrame* frame) {
+    DCHECK(frame->is_unoptimized_js());
+    return static_cast<const UnoptimizedJSFrame*>(frame);
+  }
 
  protected:
   inline explicit UnoptimizedJSFrame(StackFrameIteratorBase* iterator);

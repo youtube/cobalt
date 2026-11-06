@@ -55,6 +55,11 @@ def print_landmines():  # pylint: disable=invalid-name
         print('Clobber because of libc++ issue - take 6 (crbug.com/1337238)')
         print('Clobber because b/367066321')
     if host_os() == 'mac':  # includes iOS
+        print('Clobber due changing compilation type #3 (webrtc:498394143)')
+        print('Clobber due changing compilation type again (webrtc:498394143)')
+        print(
+            'Clobber due changing compilation type of call_tests (webrtc:498394143)'
+        )
         print('Clobber due to iOS compile errors (crbug.com/694721)')
         print('Clobber to unblock https://codereview.webrtc.org/2709573003')
         print('Clobber to fix https://codereview.webrtc.org/2709573003 after '

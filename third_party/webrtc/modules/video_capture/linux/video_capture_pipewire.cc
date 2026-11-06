@@ -490,12 +490,12 @@ void VideoCaptureModulePipeWire::ProcessBuffers() {
       if (!frame) {
         RTC_LOG(LS_ERROR) << "Failed to mmap the memory: "
                           << std::strerror(errno);
+        pw_stream_queue_buffer(stream_, buffer);
         return;
       }
 
-      IncomingFrame(
-          SPA_MEMBER(frame.get(), spaBuffer->datas[0].mapoffset, uint8_t),
-          spaBuffer->datas[0].chunk->size, configured_capability_);
+      IncomingFrame(frame.get(), spaBuffer->datas[0].chunk->size,
+                    configured_capability_);
     } else {  // SPA_DATA_MemPtr
       IncomingFrame(static_cast<uint8_t*>(spaBuffer->datas[0].data),
                     spaBuffer->datas[0].chunk->size, configured_capability_);

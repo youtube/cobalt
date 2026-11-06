@@ -109,8 +109,8 @@ bool FakeVoiceMediaReceiveChannel::SetReceiverParameters(
   return (SetRecvCodecs(params.codecs) &&
           SetRecvRtpHeaderExtensions(params.extensions));
 }
-void FakeVoiceMediaReceiveChannel::SetPlayout(bool playout) {
-  set_playout(playout);
+void FakeVoiceMediaReceiveChannel::SetReceive(bool receive) {
+  set_playout(receive);
 }
 bool FakeVoiceMediaReceiveChannel::HasSource(uint32_t ssrc) const {
   return local_sinks_.find(ssrc) != local_sinks_.end();
@@ -282,8 +282,8 @@ bool FakeVoiceMediaSendChannel::SetSenderParameters(
           SetMaxSendBandwidth(params.max_bandwidth_bps) &&
           SetOptions(params.options));
 }
-void FakeVoiceMediaSendChannel::SetSend(bool send) {
-  set_sending(send);
+bool FakeVoiceMediaSendChannel::SetSend(bool send) {
+  return set_sending(send);
 }
 bool FakeVoiceMediaSendChannel::SetAudioSend(uint32_t ssrc,
                                              bool enable,

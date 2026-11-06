@@ -174,18 +174,25 @@ void MasqueConnectionPool::OnRequest(MasqueH2Connection* /*connection*/,
 void MasqueConnectionPool::OnResponse(MasqueH2Connection* connection,
                                       int32_t stream_id,
                                       const quiche::HttpHeaderBlock& headers,
-                                      const std::string& body) {
+                                      const std::string& body,
+                                      bool end_stream) {
   bool found = false;
   for (auto it = pending_requests_.begin(); it != pending_requests_.end();) {
     RequestId request_id = it->first;
     PendingRequest& pending_request = *it->second;
     if (pending_request.connection == connection &&
         pending_request.stream_id == stream_id) {
-      pending_requests_.erase(it++);
       Message response;
       response.headers = headers.Clone();
       response.body = body;
-      visitor_->OnPoolResponse(this, request_id, std::move(response));
+      if (end_stream) {
+        pending_request.response_done = true;
+      }
+      if (end_stream && pending_request.end_stream_pending) {
+        pending_requests_.erase(it);
+      }
+      visitor_->OnPoolResponse(this, request_id, std::move(response),
+                               end_stream);
       found = true;
       break;
     }
@@ -194,6 +201,28 @@ void MasqueConnectionPool::OnResponse(MasqueH2Connection* connection,
   if (!found) {
     QUICHE_LOG(ERROR) << "Received unexpected response for unknown request: "
                       << headers.DebugString();
+  }
+}
+
+void MasqueConnectionPool::OnDataForStream(MasqueH2Connection* connection,
+                                           int32_t stream_id,
+                                           absl::string_view data,
+                                           bool end_stream) {
+  for (auto it = pending_requests_.begin(); it != pending_requests_.end();
+       ++it) {
+    RequestId request_id = it->first;
+    PendingRequest& pending_request = *it->second;
+    if (pending_request.connection == connection &&
+        pending_request.stream_id == stream_id) {
+      if (end_stream) {
+        pending_request.response_done = true;
+      }
+      if (end_stream && pending_request.end_stream_pending) {
+        pending_requests_.erase(it);
+      }
+      visitor_->OnPoolData(this, request_id, data, end_stream);
+      break;
+    }
   }
 }
 
@@ -206,7 +235,7 @@ void MasqueConnectionPool::OnStreamFailure(MasqueH2Connection* connection,
     if (pending_request.connection == connection &&
         pending_request.stream_id == stream_id) {
       pending_requests_.erase(it++);
-      visitor_->OnPoolResponse(this, request_id, error);
+      visitor_->OnPoolResponse(this, request_id, error, /*end_stream=*/true);
       break;
     }
     ++it;
@@ -214,7 +243,8 @@ void MasqueConnectionPool::OnStreamFailure(MasqueH2Connection* connection,
 }
 
 absl::StatusOr<MasqueConnectionPool::RequestId>
-MasqueConnectionPool::SendRequest(const Message& request, bool mtls) {
+MasqueConnectionPool::SendRequest(const Message& request, bool mtls,
+                                  bool end_stream, bool stream_response) {
   auto authority = request.headers.find(":authority");
   if (authority == request.headers.end()) {
     return absl::InvalidArgumentError("Request missing :authority header");
@@ -224,10 +254,12 @@ MasqueConnectionPool::SendRequest(const Message& request, bool mtls) {
       GetOrCreateConnectionState(std::string(authority->second), mtls));
   auto pending_request = std::make_unique<PendingRequest>();
   if (connection->connection() != nullptr) {
-    QUICHE_LOG(INFO) << "Reusing existing connection to " << authority->second;
+    QUICHE_LOG(INFO) << "Reusing existing connection "
+                     << connection->connection()->info() << " to "
+                     << authority->second;
     pending_request->connection = connection->connection();
-    pending_request->stream_id =
-        connection->connection()->SendRequest(request.headers, request.body);
+    pending_request->stream_id = connection->connection()->SendRequest(
+        request.headers, request.body, end_stream, stream_response);
     if (pending_request->stream_id < 0) {
       return absl::InternalError(
           absl::StrCat("Failed to send request to ", authority->second));
@@ -239,8 +271,40 @@ MasqueConnectionPool::SendRequest(const Message& request, bool mtls) {
   RequestId request_id = ++next_request_id_;
   pending_request->request.headers = request.headers.Clone();
   pending_request->request.body = request.body;
+  pending_request->stream_response = stream_response;
+  pending_request->end_stream_pending = end_stream;
   pending_requests_.insert({request_id, std::move(pending_request)});
   return request_id;
+}
+
+absl::Status MasqueConnectionPool::SendBodyChunk(RequestId request_id,
+                                                 const std::string& body,
+                                                 bool end_stream) {
+  auto it = pending_requests_.find(request_id);
+  if (it == pending_requests_.end()) {
+    return absl::InternalError(
+        absl::StrCat("SendBodyChunk called for unknown request ", request_id));
+  }
+  PendingRequest& pending_request = *it->second;
+  if (pending_request.connection == nullptr || pending_request.stream_id < 0) {
+    // Connection not ready yet, append to pending body chunks.
+    pending_request.pending_data += body;
+    pending_request.end_stream_pending = end_stream;
+    return absl::OkStatus();
+  }
+  if (pending_request.end_stream_pending) {
+    return absl::FailedPreconditionError(absl::StrCat(
+        "SendBodyChunk called when end_stream already pending ", request_id));
+  }
+  pending_request.end_stream_pending = end_stream;
+  pending_request.connection->SendBodyChunk(pending_request.stream_id, body,
+                                            end_stream);
+  pending_request.connection->AttemptToSend();
+
+  if (end_stream && pending_request.response_done) {
+    pending_requests_.erase(it);
+  }
+  return absl::OkStatus();
 }
 
 absl::StatusOr<MasqueConnectionPool::ConnectionState*>
@@ -272,8 +336,8 @@ void MasqueConnectionPool::AttachConnectionToPendingRequests(
     if (authority_header->second != authority) {
       continue;
     }
-    QUICHE_LOG(INFO) << "Attaching connection to pending request for "
-                     << authority;
+    QUICHE_LOG(INFO) << "Attaching connection " << connection->info()
+                     << " to pending request for " << authority;
     pending_request.connection = connection;
   }
 }
@@ -286,17 +350,32 @@ void MasqueConnectionPool::SendPendingRequests(MasqueH2Connection* connection) {
       ++it;
       continue;
     }
+    bool is_request_complete = pending_request.pending_data.empty() &&
+                               pending_request.end_stream_pending;
     QUICHE_LOG(INFO) << "Sending pending request ID " << request_id;
-    int32_t stream_id = connection->SendRequest(pending_request.request.headers,
-                                                pending_request.request.body);
+    int32_t stream_id = connection->SendRequest(
+        pending_request.request.headers, pending_request.request.body,
+        is_request_complete, pending_request.stream_response);
     if (stream_id < 0) {
-      QUICHE_LOG(ERROR) << "Failed to send request";
+      QUICHE_LOG(ERROR) << "Failed to send request ID " << request_id
+                        << " on connection " << connection->info();
       visitor_->OnPoolResponse(this, request_id,
-                               absl::InternalError("Failed to send request"));
+                               absl::InternalError("Failed to send request"),
+                               /*end_stream=*/true);
       pending_requests_.erase(it++);
       continue;
     }
-    connection->AttemptToSend();
+
+    if (!pending_request.pending_data.empty()) {
+      connection->AttemptToSend();
+    }
+
+    if (!is_request_complete) {
+      connection->SendBodyChunk(stream_id, pending_request.pending_data,
+                                pending_request.end_stream_pending);
+    }
+    pending_request.pending_data.clear();
+
     pending_request.stream_id = stream_id;
     ++it;
   }
@@ -311,7 +390,7 @@ void MasqueConnectionPool::FailPendingRequests(MasqueH2Connection* connection,
       ++it;
       continue;
     }
-    visitor_->OnPoolResponse(this, request_id, error);
+    visitor_->OnPoolResponse(this, request_id, error, /*end_stream=*/true);
     pending_requests_.erase(it++);
   }
 }

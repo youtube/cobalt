@@ -159,6 +159,12 @@
         android:exported="false"
         android:grantUriPermissions="true">
     </provider>  # DIFF-ANCHOR: 6e040436
+    <provider  # DIFF-ANCHOR: ace92cb0
+        android:name="org.chromium.chrome.browser.screenshotprovider.ScreenshotContentProvider"
+        android:authorities="$PACKAGE.ScreenshotContentProvider"
+        android:exported="false"
+        android:grantUriPermissions="true">
+    </provider>  # DIFF-ANCHOR: ace92cb0
     <provider  # DIFF-ANCHOR: 67014fab
         android:name="org.chromium.chrome.browser.util.ChromeFileProvider"
         android:authorities="$PACKAGE.FileProvider"
@@ -246,8 +252,7 @@
         android:isolatedProcess="true"
         android:nativeService="true"
         android:permission="$PACKAGE.permission.CHILD_SERVICE"
-        android:process=":sandboxed_process1"
-        android:useAppZygote="true">
+        android:process=":sandboxed_process1">
       <property android:name="android.app.PROPERTY_NATIVE_SERVICE_FUNCTION_NAME" android:value="NativeChildProcessService_onCreate"/>
       <property android:name="android.app.PROPERTY_NATIVE_SERVICE_LIBRARY_NAME" android:value="libmonochrome.so"/>
     </service>  # DIFF-ANCHOR: bb0c45b7

@@ -17,6 +17,7 @@
 #include "chrome/browser/profiles/profile_io_data.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
@@ -332,7 +333,8 @@ bool WebAppNavigationBrowserTest::ExpectLinkClickNotCapturedIntoAppBrowser(
 
   EXPECT_EQ(num_tabs, browser->tab_strip_model()->count());
   EXPECT_EQ(num_browsers, chrome::GetBrowserCount(browser->profile()));
-  EXPECT_EQ(browser, chrome::FindLastActive());
+  EXPECT_EQ(browser,
+            GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser());
   EXPECT_EQ(initial_tab, browser->tab_strip_model()->GetActiveWebContents());
   EXPECT_EQ(target_url, initial_tab->GetLastCommittedURL());
 

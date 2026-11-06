@@ -64,6 +64,9 @@ const VIEWPORT_WIDTH_KEY = 'biw';
 
 const CHROME_TASK_PARAM_KEY = 'chrome_task_id';
 const DEBUG_PARAM_KEY = 'deb';
+const CHROME_HOST_PARAM_KEY = 'chrome_host';
+
+const AIOH_URL_IDENTIFIER = 'aioh';
 
 // The extra padding to add to the occluders to ensure that the composebox is
 // fully visible. This helps to account for inconsistencies between the bounding
@@ -113,13 +116,22 @@ function updateWebuiParams(aimUrl: Url) {
   const webuiUrl = new URL(window.location.href);
 
   const taskId = webuiUrl.searchParams.get(CHROME_TASK_PARAM_KEY);
+  const host = webuiUrl.searchParams.get(CHROME_HOST_PARAM_KEY);
 
   // Clear the existing params
   webuiUrl.search = '';
 
-  // Add all the params from the aim URL.
-  new URL(aimUrl).searchParams.forEach(
-      (value, key) => webuiUrl.searchParams.set(key, value));
+  // Preserve host if present in current URL.
+  if (host) {
+    webuiUrl.searchParams.set(CHROME_HOST_PARAM_KEY, host);
+  }
+
+  // Add all the params from the aim URL, except host.
+  new URL(aimUrl).searchParams.forEach((value, key) => {
+    if (key !== CHROME_HOST_PARAM_KEY) {
+      webuiUrl.searchParams.set(key, value);
+    }
+  });
 
   // Add the task ID back to the params if it was there to begin with.
   if (taskId) {
@@ -165,8 +177,13 @@ export class ContextualTasksAppElement extends CrLitElement {
         reflect: true,
       },
       isInBasicMode_: {type: Boolean, reflect: true},
+      isInputHidden_: {type: Boolean, reflect: true},
       // Means no queries have been submitted in current AIM thread.
       isZeroState_: {
+        type: Boolean,
+        reflect: true,
+      },
+      inNlm_: {
         type: Boolean,
         reflect: true,
       },
@@ -215,9 +232,15 @@ export class ContextualTasksAppElement extends CrLitElement {
         type: Boolean,
         value: loadTimeData.getBoolean('showOnboardingTooltip'),
       },
+      energyEffectEnabled_: {
+        type: Boolean,
+        reflect: true,
+      },
     };
   }
 
+  protected accessor energyEffectEnabled_: boolean =
+      loadTimeData.getBoolean('energyEffectEnabled');
   protected accessor showOnboardingTooltip_: boolean =
       loadTimeData.getBoolean('showOnboardingTooltip');
   protected accessor userName_: string =
@@ -233,6 +256,9 @@ export class ContextualTasksAppElement extends CrLitElement {
       loadTimeData.getBoolean('enableBasicMode');
   protected accessor enableBasicModeZOrder_: boolean =
       loadTimeData.getBoolean('enableBasicModeZOrder');
+  private nlmUrlParam_: string = loadTimeData.getString('nlmUrlParam');
+  private enableCustomNlmUi_: boolean =
+      loadTimeData.getBoolean('enableCustomNlmUi');
   // Whether top-level navigation failed. Initialized based on online status
   // though top-level navigation could fail for numerous reasons.
   protected accessor isLoadError_: boolean = !window.navigator.onLine;
@@ -246,6 +272,8 @@ export class ContextualTasksAppElement extends CrLitElement {
   private pendingUrl_: string = '';
   protected accessor threadTitle_: string = '';
   protected accessor isInBasicMode_: boolean = false;
+  protected accessor isInputHidden_: boolean = false;
+
   protected accessor isErrorPageVisible_: boolean = false;
   // Whether no queries have been submitted in the current AIM thread. This
   // can be undefined on initial load to prevent the composebox from flashing
@@ -254,6 +282,7 @@ export class ContextualTasksAppElement extends CrLitElement {
       loadTimeData.getBoolean('isGhostLoaderVisible') ? false : undefined;
   protected accessor enableNativeZeroStateSuggestions_: boolean =
       loadTimeData.getBoolean('enableNativeZeroStateSuggestions');
+  protected accessor inNlm_: boolean = false;
   protected accessor isGhostLoaderVisible_: boolean =
       loadTimeData.getBoolean('isGhostLoaderVisible');
   protected accessor useStratusDarkModeColors_: boolean =
@@ -279,12 +308,11 @@ export class ContextualTasksAppElement extends CrLitElement {
   private isFrameLoading: boolean = false;
   private listenerIds_: number[] = [];
   private eventTracker_: EventTracker = new EventTracker();
-  private commonSearchParams_: {[key: string]: string} = {};
+  private commonSearchParams_: {[key: string]: string}|null = null;
   private postMessageHandler_: PostMessageHandler|null = null;
-  private forcedEmbeddedPageHost =
-      loadTimeData.getString('forcedEmbeddedPageHost');
   private signInDomains_: string[] =
       loadTimeData.getString('contextualTasksSignInDomains').split(',');
+  private host_: string|null = null;
   // Whether the composebox jump fix is enabled. This fix hides the composebox
   // until the server gives the embedded page gives the initial bounds for the
   // composebox.
@@ -315,6 +343,16 @@ export class ContextualTasksAppElement extends CrLitElement {
   private lastThreadFrameLoadStartEvent_: chrome.webviewTag.LoadStartEvent|
       LoadEvent|null = null;
 
+  private updateThemeFromUrl(url: URL) {
+    const csParam = url.searchParams.get('cs');
+    if (csParam === '0') {
+      this.darkMode_ = false;
+    } else if (csParam === '1') {
+      this.darkMode_ = true;
+    }
+    this.updateBackgroundColor_();
+    this.updateCommonSearchParams();
+  }
   private get composebox_(): ContextualTasksComposeboxElement|null {
     // <if expr="not is_android">
     return this.$.composebox || null;
@@ -326,10 +364,16 @@ export class ContextualTasksAppElement extends CrLitElement {
 
   override async connectedCallback() {
     super.connectedCallback();
+    this.updateBackgroundColor_();
 
     // Record the WebUI URL in case one of the events below fires and changes
     // it.
     const webUiUrlOnLoad = new URL(window.location.href);
+    this.host_ = webUiUrlOnLoad.searchParams.get(CHROME_HOST_PARAM_KEY);
+    if (!this.host_ && loadTimeData.valueExists('chrome_host')) {
+      this.host_ = loadTimeData.getString('chrome_host');
+    }
+    // Relying on C++ to provide the correct host via getUrlForTask
 
     const callbackRouter = this.browserProxy_.callbackRouter;
     this.listenerIds_ = [
@@ -350,37 +394,29 @@ export class ContextualTasksAppElement extends CrLitElement {
       // TODO(crbug.com/474359572): Rename this to be more descriptive of what
       // it actually does.
       callbackRouter.hideInput.addListener(() => {
+        this.isInputHidden_ = true;
+      }),
+      callbackRouter.restoreInput.addListener(() => {
+        this.isInputHidden_ = false;
+      }),
+      callbackRouter.enterBasicMode.addListener(() => {
         if (!this.enableBasicMode_) {
           return;
         }
-        // OnBeforeRequest will trigger before the navigation, so this is needed
-        // to prevent the input from being hidden when navigating to a new
-        // page. However, while this guard prevents flickering, it also
-        // prevents legitimate changes when going from history page to old
-        // thread. Stash it. Whichever is the last basic mode signal is the
-        // legitimate one.
         if (this.isNavigatingFromAiPage_) {
           this.pendingBasicMode_ = true;
           return;
         }
-
         this.isInBasicMode_ = true;
       }),
-      callbackRouter.restoreInput.addListener(() => {
+      callbackRouter.exitBasicMode.addListener(() => {
         if (!this.enableBasicMode_) {
           return;
         }
-        // OnBeforeRequest will trigger before the navigation, so this is needed
-        // to prevent the input from being restored when navigating to a new
-        // page. However, while this guard prevents flickering, it also
-        // prevents legitimate changes when going from history page to old
-        // thread. Stash it. Whichever is the last basic mode signal is the
-        // legitimate one.
         if (this.isNavigatingFromAiPage_) {
           this.pendingBasicMode_ = false;
           return;
         }
-
         this.isInBasicMode_ = false;
       }),
       callbackRouter.injectInput.addListener(
@@ -411,6 +447,9 @@ export class ContextualTasksAppElement extends CrLitElement {
           // is controlled natively.
           this.forcedComposeboxBounds_ = null;
         }
+      }),
+      callbackRouter.setInNlm.addListener((inNlm: boolean) => {
+        this.inNlm_ = inNlm;
       }),
       callbackRouter.onLensOverlayStateChanged.addListener(
           (isOverlayShowing, isOverlayOpenForAimVisualSearch) => {
@@ -517,6 +556,7 @@ export class ContextualTasksAppElement extends CrLitElement {
     }
 
     const threadUrlAsUrl = new URL(threadUrl);
+    this.updateThemeFromUrl(threadUrlAsUrl);
     // If the thread URL has parameters to open history, set basic mode.
     if (this.enableBasicMode_ && this.hasThreadHistoryParams(threadUrlAsUrl) &&
         this.forceBasicModeIfOpeningThreadHistory_) {
@@ -553,6 +593,8 @@ export class ContextualTasksAppElement extends CrLitElement {
     const {isZeroState} =
         await this.browserProxy_.handler.isZeroState(threadUrlAsUrl.href);
     this.isZeroState_ = isZeroState;
+
+    this.inNlm_ = this.checkInNlm_(threadUrlAsUrl);
 
     // The thread URL is considered pending (not loaded immediately in the
     // webview) until oauth tokens are received from the WebUI controller. This
@@ -754,6 +796,8 @@ export class ContextualTasksAppElement extends CrLitElement {
         this.lastThreadFrameLoadStartEvent_.url === navigationUrl) {
       const event = this.lastThreadFrameLoadStartEvent_;
       this.lastThreadFrameLoadStartEvent_ = null;
+      const url = new URL(navigationUrl);
+      this.updateThemeFromUrl(url);
       this.onThreadFrameTopLevelNavigation(event);
     }
   }
@@ -764,6 +808,7 @@ export class ContextualTasksAppElement extends CrLitElement {
     // reloading.
     this.forcedComposeboxBounds_ = null;
     this.occluders_ = null;
+    this.isInputHidden_ = false;
 
     // Set frame loading to true initially to avoid race conditions.
     this.isFrameLoading = true;
@@ -849,6 +894,11 @@ export class ContextualTasksAppElement extends CrLitElement {
     if (inputRect !== undefined) {
       const composebox = this.composebox_!;
       const currentHeight = composebox.offsetHeight;
+      const currentUrl = this.$.threadFrame.src;
+      if (currentUrl.includes(AIOH_URL_IDENTIFIER) &&
+          this.forcedComposeboxBounds_ === null) {
+        this.playComposeboxAiohFadeInAnimation_();
+      }
       if (currentHeight !== inputRect.height) {
         // If the height that the client reports for the composebox is different
         // from the height that the server is reporting, update the server.
@@ -872,6 +922,23 @@ export class ContextualTasksAppElement extends CrLitElement {
     }
   }
 
+  private playComposeboxAiohFadeInAnimation_() {
+    const composebox = this.composebox_;
+    if (!composebox) {
+      return;
+    }
+    composebox.animate(
+        [
+          {opacity: 0},
+          {opacity: 1},
+        ],
+        {
+          duration: 150,
+          easing: 'ease-in-out',
+          fill: 'forwards',
+        });
+  }
+
   protected isComposeboxHidden_(): boolean {
     // Stay hidden until the first isZeroState_ value is determined to prevent
     // the composebox from flickering in.
@@ -879,10 +946,20 @@ export class ContextualTasksAppElement extends CrLitElement {
       return true;
     }
 
+    if (this.isInputHidden_) {
+      return true;
+    }
+
     // If using the basic mode without z-ordering, if in basic mode, hide the
     // composebox.
     if (this.enableBasicMode_ && this.isInBasicMode_ &&
         !this.enableBasicModeZOrder_) {
+      return true;
+    }
+
+    // If in NLM mode, only show the composebox if the forcedComposeboxBounds
+    // are set. We expect NLM mode to send us bounds.
+    if (this.inNlm_ && !this.forcedComposeboxBounds_) {
       return true;
     }
 
@@ -897,8 +974,21 @@ export class ContextualTasksAppElement extends CrLitElement {
     return false;
   }
 
+  protected isComposeboxHeaderWrapperHidden_(): boolean {
+    return (this.enableBasicMode_ && this.isInBasicMode_ &&
+            !this.enableBasicModeZOrder_) ||
+        this.inNlm_;
+  }
+
+  private checkInNlm_(url: URL): boolean {
+    if (!this.enableCustomNlmUi_) {
+      return false;
+    }
+    return url.searchParams.has(this.nlmUrlParam_);
+  }
+
   getComposeboxBoundsStyles() {
-    if (this.isZeroState_ || !this.forcedComposeboxBounds_) {
+    if ((this.isZeroState_ && !this.inNlm_) || !this.forcedComposeboxBounds_) {
       return '';
     }
 
@@ -921,7 +1011,7 @@ export class ContextualTasksAppElement extends CrLitElement {
     const style: string[] = [
       `--composebox-margin-bottom: 0;`,  // Need to remove margin on the child
                                          // container.
-      `position: relative;`,
+      `position: fixed;`,
       `bottom: ${window.innerHeight - relativeRect.bottom}px;`,
       `left: ${relativeRect.left}px;`,
       `width: ${relativeRect.width}px;`,
@@ -956,10 +1046,12 @@ export class ContextualTasksAppElement extends CrLitElement {
     const borderRadius =
         roundedClipPathEnabled ? COMPOSEBOX_BORDER_RADIUS_PX : 0;
 
-    return getNonOccludedClipPath(
-               composeboxBounds, this.occluders_, OCCLUDER_EXTRA_PADDING_PX,
-               frameRect.width, frameRect.height, borderRadius) +
+    const result =
+        getNonOccludedClipPath(
+            composeboxBounds, this.occluders_, OCCLUDER_EXTRA_PADDING_PX,
+            frameRect.width, frameRect.height, borderRadius) +
         'z-index: 100;';
+    return result;
   }
 
   protected getComposeboxBoundsRelativeToThreadFrame_() {
@@ -1063,7 +1155,7 @@ export class ContextualTasksAppElement extends CrLitElement {
     if (isFullWebView(this.$.threadFrame)) {
       this.$.threadFrame.request.onBeforeRequest.addListener(
           this.onBeforeRequest, {
-            types: ['main_frame'] as any,
+            types: ['main_frame' as chrome.webRequest.ResourceType],
             urls: ['<all_urls>'],
           },
           ['blocking']);
@@ -1096,6 +1188,9 @@ export class ContextualTasksAppElement extends CrLitElement {
   }
 
   private addCommonSearchParams(url: URL): URL {
+    if (!this.commonSearchParams_) {
+      return url;
+    }
     for (const [key, value] of Object.entries(this.commonSearchParams_)) {
       // If the url already has a key, skip it to avoid overriding it. `cs` is an
       // exception since it will cause UI mismatch between native and embedded
@@ -1133,8 +1228,9 @@ export class ContextualTasksAppElement extends CrLitElement {
             const newUrl = this.addCommonSearchParams(url);
             const isSigninDomain =
                 !!this.signInDomains_.find((domain) => domain === url.host);
-            if (this.forcedEmbeddedPageHost && !isSigninDomain) {
-              newUrl.host = this.forcedEmbeddedPageHost;
+
+            if (this.host_ && !isSigninDomain) {
+              newUrl.host = this.host_;
             }
             if (newUrl.href !== details.url) {
               return {redirectUrl: newUrl.href};
@@ -1255,6 +1351,10 @@ export class ContextualTasksAppElement extends CrLitElement {
 
   setIsZeroStateForTesting(isZeroState: boolean|undefined) {
     this.isZeroState_ = isZeroState;
+  }
+
+  setInNlmForTesting(inNlm: boolean) {
+    this.inNlm_ = inNlm;
   }
 
   setForcedComposeboxBoundsForTesting(bounds: Rect|null) {

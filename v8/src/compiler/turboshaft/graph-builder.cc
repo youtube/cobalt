@@ -2096,6 +2096,15 @@ OpIndex GraphBuilder::Process(
       return OpIndex{};
     }
 
+    case IrOpcode::kCheckHomomorphic: {
+      DCHECK(dominating_frame_state.valid());
+      const auto& p = CheckHomomorphicParametersOf(node->op());
+      __ CheckHomomorphic(Map(node->InputAt(0)), dominating_frame_state,
+                          p.name(), p.homomorphic_array(), p.handler_value(),
+                          p.check_heap_object(), p.feedback());
+      return OpIndex{};
+    }
+
     case IrOpcode::kCheckedUint32Bounds:
     case IrOpcode::kCheckedUint64Bounds: {
       WordRepresentation rep = node->opcode() == IrOpcode::kCheckedUint32Bounds

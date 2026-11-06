@@ -26,8 +26,7 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-segment-iterator-tq.inc"
 
-class JSSegmentIterator
-    : public TorqueGeneratedJSSegmentIterator<JSSegmentIterator, JSObject> {
+V8_OBJECT class JSSegmentIterator : public JSObject {
  public:
   // https://tc39.es/ecma402/#sec-CreateSegmentIterator
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSSegmentIterator> Create(
@@ -43,11 +42,21 @@ class JSSegmentIterator
   Handle<String> GranularityAsString(Isolate* isolate) const;
 
   // SegmentIterator accessors.
-  DECL_ACCESSORS(icu_iterator_with_text,
-                 Tagged<Managed<IcuBreakIteratorWithText>>)
-  DECL_ACCESSORS(raw_string, Tagged<String>)
+  inline Tagged<Managed<IcuBreakIteratorWithText>> icu_iterator_with_text()
+      const;
+  inline void set_icu_iterator_with_text(
+      Tagged<Managed<IcuBreakIteratorWithText>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<String> raw_string() const;
+  inline void set_raw_string(Tagged<String> value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int flags() const;
+  inline void set_flags(int value);
 
   DECL_PRINTER(JSSegmentIterator)
+  DECL_VERIFIER(JSSegmentIterator)
 
   inline void set_granularity(JSSegmenter::Granularity granularity);
   inline JSSegmenter::Granularity granularity() const;
@@ -59,23 +68,83 @@ class JSSegmentIterator
   static_assert(GranularityBits::is_valid(JSSegmenter::Granularity::WORD));
   static_assert(GranularityBits::is_valid(JSSegmenter::Granularity::SENTENCE));
 
-  TQ_OBJECT_CONSTRUCTORS(JSSegmentIterator)
-};
+  // Back-compat offset/size constants.
+  static const int kIcuIteratorWithTextOffset;
+  static const int kRawStringOffset;
+  static const int kFlagsOffset;
+  static const int kHeaderSize;
 
-class JSSegmentDataObject
-    : public TorqueGeneratedJSSegmentDataObject<JSSegmentDataObject, JSObject> {
  public:
- private:
-  TQ_OBJECT_CONSTRUCTORS(JSSegmentDataObject)
-};
+  TaggedMember<Foreign> icu_iterator_with_text_;
+  TaggedMember<String> raw_string_;
+  TaggedMember<Smi> flags_;
+} V8_OBJECT_END;
 
-class JSSegmentDataObjectWithIsWordLike
-    : public TorqueGeneratedJSSegmentDataObjectWithIsWordLike<
-          JSSegmentDataObjectWithIsWordLike, JSSegmentDataObject> {
+inline constexpr int JSSegmentIterator::kIcuIteratorWithTextOffset =
+    offsetof(JSSegmentIterator, icu_iterator_with_text_);
+inline constexpr int JSSegmentIterator::kRawStringOffset =
+    offsetof(JSSegmentIterator, raw_string_);
+inline constexpr int JSSegmentIterator::kFlagsOffset =
+    offsetof(JSSegmentIterator, flags_);
+inline constexpr int JSSegmentIterator::kHeaderSize = sizeof(JSSegmentIterator);
+
+V8_OBJECT class JSSegmentDataObject : public JSObject {
  public:
- private:
-  TQ_OBJECT_CONSTRUCTORS(JSSegmentDataObjectWithIsWordLike)
-};
+  inline Tagged<String> segment() const;
+  inline void set_segment(Tagged<String> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Number> index() const;
+  inline void set_index(Tagged<Number> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<String> input() const;
+  inline void set_input(Tagged<String> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  DECL_VERIFIER(JSSegmentDataObject)
+
+  // Back-compat offset/size constants.
+  static const int kSegmentOffset;
+  static const int kIndexOffset;
+  static const int kInputOffset;
+  static const int kHeaderSize;
+
+ public:
+  TaggedMember<String> segment_;
+  TaggedMember<Number> index_;
+  TaggedMember<String> input_;
+} V8_OBJECT_END;
+
+inline constexpr int JSSegmentDataObject::kSegmentOffset =
+    offsetof(JSSegmentDataObject, segment_);
+inline constexpr int JSSegmentDataObject::kIndexOffset =
+    offsetof(JSSegmentDataObject, index_);
+inline constexpr int JSSegmentDataObject::kInputOffset =
+    offsetof(JSSegmentDataObject, input_);
+inline constexpr int JSSegmentDataObject::kHeaderSize =
+    sizeof(JSSegmentDataObject);
+
+V8_OBJECT class JSSegmentDataObjectWithIsWordLike : public JSSegmentDataObject {
+ public:
+  inline Tagged<Boolean> is_word_like() const;
+  inline void set_is_word_like(Tagged<Boolean> value,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  DECL_VERIFIER(JSSegmentDataObjectWithIsWordLike)
+
+  // Back-compat offset/size constants.
+  static const int kIsWordLikeOffset;
+  static const int kHeaderSize;
+
+ public:
+  TaggedMember<Boolean> is_word_like_;
+} V8_OBJECT_END;
+
+inline constexpr int JSSegmentDataObjectWithIsWordLike::kIsWordLikeOffset =
+    offsetof(JSSegmentDataObjectWithIsWordLike, is_word_like_);
+inline constexpr int JSSegmentDataObjectWithIsWordLike::kHeaderSize =
+    sizeof(JSSegmentDataObjectWithIsWordLike);
 
 }  // namespace internal
 }  // namespace v8

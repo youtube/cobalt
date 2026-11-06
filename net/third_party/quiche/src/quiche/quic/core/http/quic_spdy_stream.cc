@@ -246,7 +246,7 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id, QuicSpdySession* spdy_session,
   spdy_session_->OnStreamCreated(this);
 }
 
-QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
+QuicSpdyStream::QuicSpdyStream(PendingStream& pending,
                                QuicSpdySession* spdy_session)
     : QuicStream(pending, spdy_session, /*is_static=*/false),
       spdy_session_(spdy_session),

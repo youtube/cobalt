@@ -14,7 +14,10 @@
 
 //! TLS Connection
 
-use alloc::boxed::Box;
+use alloc::{
+    boxed::Box,
+    sync::Arc, //
+};
 use core::{
     ffi::c_int,
     marker::PhantomData,
@@ -33,7 +36,7 @@ use core::{
 use crate::{
     config::{ConnectionMode, ProtocolVersion},
     connection::methods::waker_data_ref_from_ssl,
-    context::TlsMode,
+    context::{CertificateCache, TlsMode},
     errors::{
         Error,
         TlsRetryReason, //
@@ -42,6 +45,7 @@ use crate::{
 };
 
 mod credentials;
+pub mod io;
 pub mod lifecycle;
 pub(crate) mod methods;
 pub mod transport;
@@ -54,6 +58,7 @@ pub enum Client {}
 /// A TLS connection builder.
 pub struct TlsConnectionBuilder<Role, Mode = TlsMode> {
     ptr: NonNull<bssl_sys::SSL>,
+    cert_cache: Option<Arc<CertificateCache>>,
     _p: PhantomData<fn() -> (Role, Mode)>,
 }
 
@@ -79,26 +84,38 @@ where
     M: methods::HasTlsConnectionMethod,
 {
     /// Finalise the connection, so that a handshake can be run.
-    pub fn build(self) -> TlsConnection<R, M> {
+    pub fn build(mut self) -> TlsConnection<R, M> {
         let ptr = self.ptr;
+        let cert_cache = self.cert_cache.take();
         forget(self);
         TlsConnection {
             ptr,
+            _cert_cache: cert_cache,
             _p: PhantomData,
         }
     }
 
-    pub(crate) fn from_ssl(ptr: NonNull<bssl_sys::ssl_st>) -> Self {
+    pub(crate) fn from_ssl(
+        ptr: NonNull<bssl_sys::SSL>,
+        cert_cache: Option<Arc<CertificateCache>>,
+    ) -> Self {
         let idx = M::registration();
         let data = Box::into_raw(Box::new(methods::RustConnectionMethods::<M>::new())) as _;
         unsafe {
             // Safety:
+            // - the validity of the handle `ptr` is witnessed by `self`.
             // - `M::registration` will return a valid ex-data index.
             // - `data` should be valid by non-null invariant.
             bssl_sys::SSL_set_ex_data(ptr.as_ptr(), idx, data);
+            // Safety: the validity of the handle `ptr` is witnessed by `self`.
+            bssl_sys::SSL_set_mode(
+                ptr.as_ptr(),
+                ConnectionMode::ACCEPT_MOVING_WRITE_BUFFER.bits(),
+            );
         }
         Self {
             ptr,
+            cert_cache,
             _p: PhantomData,
         }
     }
@@ -122,6 +139,7 @@ where
 // NOTE: any method that involves I/O must require exclusive access, enforced by requiring `&mut`.
 pub struct TlsConnection<Role, Mode = TlsMode> {
     ptr: NonNull<bssl_sys::SSL>,
+    _cert_cache: Option<Arc<CertificateCache>>,
     _p: PhantomData<fn() -> (Role, Mode)>,
 }
 
@@ -167,7 +185,7 @@ impl<R, M> DerefMut for TlsConnection<R, M> {
 unsafe impl<R, M> Send for TlsConnectionRef<R, M> {}
 
 impl<R, M> TlsConnectionRef<R, M> {
-    #[allow(unused)]
+    /// Call this method whenever I/O is performed on the connection.
     pub(crate) fn categorise_error_for_io(&self, rc: c_int) -> Result<IoStatus, Error> {
         let reason = unsafe {
             // Safety: we only want to extract the last I/O error on an existing valid connection.
@@ -186,6 +204,8 @@ impl<R, M> TlsConnectionRef<R, M> {
     }
 }
 
+// TODO(@xfding): there seems to be some type inference regression, drop the turbofish when it is
+// resolved.
 impl<R, M> TlsConnectionRef<R, M>
 where
     M: methods::HasTlsConnectionMethod,
@@ -193,13 +213,13 @@ where
     fn get_connection_methods(&mut self) -> &mut methods::RustConnectionMethods<M> {
         unsafe {
             // Safety: the validity of the handle `self.0` is witnessed by `self`.
-            get_connection_methods(self.ptr())
+            get_connection_methods::<M>(self.ptr())
         }
     }
     fn get_connection_methods_ref(&self) -> &methods::RustConnectionMethods<M> {
         unsafe {
             // Safety: the validity of the handle `self.0` is witnessed by `self`.
-            get_connection_methods_ref(self.ptr())
+            get_connection_methods_ref::<M>(self.ptr())
         }
     }
 }

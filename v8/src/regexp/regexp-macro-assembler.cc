@@ -498,7 +498,8 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
     // We are not using operator == here because it does a slow DCHECK
     // CheckObjectComparisonAllowed() which might crash when trying to access
     // the page header of the stale pointer.
-    if (!code_handle->SafeEquals(re_code)) {  // Return address no longer valid
+    if (!Tagged<InstructionStream>(*code_handle).SafeEquals(re_code)) {
+      // Return address no longer valid
       // Overwrite the return address on the stack.
       intptr_t delta = code_handle->address() - re_code.address();
       Address new_pc = old_pc + delta;
@@ -582,7 +583,8 @@ int NativeRegExpMacroAssembler::Match(DirectHandle<IrRegExpData> regexp_data,
 #ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
   if (V8_UNLIKELY(v8_flags.trace_regexp_exec)) {
     RegExp::TraceExecutionEnd(reinterpret_cast<Address>(isolate),
-                              regexp_data->ptr(), subject->ptr(), start_offset);
+                              regexp_data->ptr(), subject->ptr(), start_offset,
+                              res);
   }
 #endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
   return res;

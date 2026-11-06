@@ -169,7 +169,7 @@ public class BrowserControlsManager implements ActivityStateListener, BrowserCon
                             // This may be almost equivalent to using View.GONE, but we still use
                             // View.INVISIBLE since drawing caches etc. won't be destroyed, and the
                             // layout may be less expensive. The overlay trimming optimization
-                            // only works pre-Android N (see https://crbug.com/725453), so this
+                            // only works pre-Android N (see https://crbug.com/41321012), so this
                             // call should be removed entirely once it's confirmed to be safe.
                             ViewUtils.requestLayout(
                                     mControlContainer.getView(),
@@ -337,7 +337,7 @@ public class BrowserControlsManager implements ActivityStateListener, BrowserCon
                         }
                     }
                 };
-        assert controlContainer != null || mControlsPosition == ControlsPosition.NONE;
+        assert controlContainer != null;
         mControlContainer = controlContainer;
         int controlContainerHeight =
                 mActivity.getResources().getDimensionPixelSize(resControlContainerHeight);
@@ -350,10 +350,6 @@ public class BrowserControlsManager implements ActivityStateListener, BrowserCon
             case ControlsPosition.BOTTOM:
                 assert resControlContainerHeight != ActivityUtils.NO_RESOURCE_ID;
                 mBottomControlsHeight = controlContainerHeight;
-                break;
-            case ControlsPosition.NONE:
-                // Treat the case of no controls as controls always being totally offscreen.
-                mControlOffsetRatio = 1.0f;
                 break;
         }
 
@@ -662,7 +658,6 @@ public class BrowserControlsManager implements ActivityStateListener, BrowserCon
     }
 
     private void updateControlOffset() {
-        if (mControlsPosition == ControlsPosition.NONE) return;
 
         if (mControlsPosition == ControlsPosition.TOP) {
             mControlOffsetRatio =

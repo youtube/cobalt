@@ -635,7 +635,7 @@ void Map::CopyUnusedPropertyFields(Tagged<Map> map) {
 
 void Map::CopyUnusedPropertyFieldsAdjustedForInstanceSize(Tagged<Map> map) {
   int value = map->used_or_unused_instance_size_in_words();
-  if (value >= JSPrimitiveWrapper::kFieldsAdded) {
+  if (value >= JSObject::kFieldsAdded) {
     // Unused in-object fields. Adjust the offset from the object’s start
     // so it matches the distance to the object’s end.
     value += instance_size_in_words() - map->instance_size_in_words();

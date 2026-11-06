@@ -106,8 +106,6 @@ V8_INLINE void UpdateEmbeddedFeedback(Tagged<BytecodeArray> bytecode_array,
                                       int current_feedback) {
   feedback_offset -= BytecodeArray::kHeaderSize - kHeapObjectTag;
   bytecode_array->set(feedback_offset, static_cast<uint8_t>(current_feedback));
-  bytecode_array->set(feedback_offset + 1,
-                      (static_cast<uint8_t>(current_feedback >> 8)));
 }
 
 V8_INLINE void TryPatchBaselineCode(Isolate* isolate, int current_feedback) {
@@ -121,8 +119,10 @@ V8_INLINE void TryPatchBaselineCode(Isolate* isolate, int current_feedback) {
   // TODO(chromium:429351411): Consider using a cache.
   Builtin current_builtin =
       OffHeapInstructionStream::TryLookupCode(isolate, current);
-  Builtin target_builtin =
-      GetTypedBinaryOpBuiltin(current_feedback, current_builtin);
+  Builtin target_builtin = GetTypedBinaryOpBuiltin(
+      CompareOperationFeedback::DecodeTypeIndex(
+          static_cast<CompareOperationFeedback::TypeIndex>(current_feedback)),
+      current_builtin);
 
   if (target_builtin != Builtin::kNoBuiltinId) {
     Address target = Builtins::EntryOf(target_builtin, isolate);
@@ -880,6 +880,7 @@ RUNTIME_FUNCTION(Runtime_PatchBaselineCode) {
 
   DirectHandle<Boolean> compare_result = args.at<Boolean>(1);
   int current_feedback = args.smi_value_at(0);
+  DCHECK_LE(current_feedback, std::numeric_limits<uint8_t>::max());
   UpdateEmbeddedFeedback(TrustedCast<BytecodeArray>(args[2]),
                          static_cast<int>(args.number_value_at(3)),
                          current_feedback);
@@ -894,6 +895,7 @@ RUNTIME_FUNCTION(Runtime_PatchBaselineCodeAndThrow) {
 
   DirectHandle<Object> exception = args.at<Object>(1);
   int current_feedback = args.smi_value_at(0);
+  DCHECK_LE(current_feedback, std::numeric_limits<uint8_t>::max());
   UpdateEmbeddedFeedback(TrustedCast<BytecodeArray>(args[2]),
                          static_cast<int>(args.number_value_at(3)),
                          current_feedback);

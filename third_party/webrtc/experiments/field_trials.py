@@ -251,9 +251,6 @@ ACTIVE_FIELD_TRIALS: FrozenSet[FieldTrial] = frozenset([
     FieldTrial('WebRTC-Video-H26xPacketBuffer',
                41480904,
                date(2024, 6, 1)),
-    FieldTrial('WebRTC-Video-Vp9FlexibleMode',
-               329396373,
-               date(2025, 6, 26)),
     FieldTrial('WebRTC-VideoEncoderSettings',
                40252667,
                date(2024, 4, 1)),
@@ -607,12 +604,6 @@ POLICY_EXEMPT_FIELD_TRIALS: FrozenSet[FieldTrial] = frozenset([
     FieldTrial('WebRTC-Bwe-MinAllocAsLowerBound',
                NO_BUG,
                date(2024, 4, 1)),
-    FieldTrial('WebRTC-Bwe-NetworkRouteConstraints',
-               42221535,
-               date(2024, 4, 1)),
-    FieldTrial('WebRTC-Bwe-NoFeedbackReset',
-               42234928,
-               date(2024, 4, 1)),
     FieldTrial('WebRTC-Bwe-ProbingBehavior',
                42220440,
                date(2024, 4, 1)),
@@ -941,7 +932,7 @@ POLICY_EXEMPT_FIELD_TRIALS: FrozenSet[FieldTrial] = frozenset([
 ])  # yapf: disable
 
 POLICY_EXEMPT_FIELD_TRIALS_DIGEST: str = \
-    '71d9f133598bcdbc40f515029be48e9ce8619d36'
+    '20cad45453c8a63b501bd34503e1f616413f05a1'
 
 REGISTERED_FIELD_TRIALS: FrozenSet[FieldTrial] = ACTIVE_FIELD_TRIALS.union(
     POLICY_EXEMPT_FIELD_TRIALS)

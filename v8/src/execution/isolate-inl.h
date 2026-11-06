@@ -62,7 +62,7 @@ void Isolate::set_topmost_script_having_context(Tagged<Context> context) {
 
 void Isolate::clear_topmost_script_having_context() {
   static_assert(Context::kNoContext == 0);
-  thread_local_top()->topmost_script_having_context_ = Context();
+  thread_local_top()->topmost_script_having_context_ = {};
 }
 
 DirectHandle<NativeContext> Isolate::GetIncumbentContext() {

@@ -26,7 +26,7 @@ class RegExpData;
 class RegExpData;
 
 // Regular expressions
-class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
+V8_OBJECT class JSRegExp : public JSObject {
  public:
   DEFINE_TORQUE_GENERATED_JS_REG_EXP_FLAGS()
 
@@ -49,6 +49,8 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   // https://tc39.es/ecma262/#sec-escaperegexppattern.
   inline Tagged<String> source(IsolateForSandbox isolate) const;
   inline Flags flags() const;
+  inline void set_flags(Tagged<Object> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_TRUSTED_POINTER_ACCESSORS(data, RegExpData)
 
@@ -107,15 +109,15 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
 
   /* This is already an in-object field. */
   // TODO(v8:8944): improve handling of in-object fields
-  static constexpr int kLastIndexOffset = kHeaderSize;
+  static const int kLastIndexOffset;
   static constexpr int kInObjectFieldCount = 1;
 
   // The initial value of the last_index field on a new JSRegExp instance.
   static constexpr int kInitialLastIndexValue = 0;
 
   // The actual object size including in-object fields.
-  static constexpr int kSize = kHeaderSize + kInObjectFieldCount * kTaggedSize;
-  static constexpr int Size() { return kSize; }
+  static const int kSize;
+  static int Size() { return kSize; }
 
   // Descriptor array index to important methods in the prototype.
   static constexpr int kExecFunctionDescriptorIndex = 1;
@@ -143,17 +145,32 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
 
   class BodyDescriptor;
 
+  // Back-compat offset / size constants.
+  static const int kDataOffset;
+  static const int kFlagsOffset;
+  static const int kHeaderSize;
+
  private:
   friend class RegExpData;
+  friend class TorqueGeneratedJSRegExpAsserts;
 
-  TQ_OBJECT_CONSTRUCTORS(JSRegExp)
-};
+ public:
+  TrustedPointerMember<RegExpData, kRegExpDataIndirectPointerTag> data_;
+  TaggedMember<Object> flags_;
+} V8_OBJECT_END;
+
+inline constexpr int JSRegExp::kDataOffset = offsetof(JSRegExp, data_);
+inline constexpr int JSRegExp::kFlagsOffset = offsetof(JSRegExp, flags_);
+inline constexpr int JSRegExp::kHeaderSize = sizeof(JSRegExp);
+inline constexpr int JSRegExp::kLastIndexOffset = kHeaderSize;
+inline constexpr int JSRegExp::kSize =
+    kHeaderSize + kInObjectFieldCount * kTaggedSize;
 
 DEFINE_OPERATORS_FOR_FLAGS(JSRegExp::Flags)
 
 class RegExpDataWrapper;
 
-V8_OBJECT class RegExpData : public ExposedTrustedObjectLayout {
+V8_OBJECT class RegExpData : public ExposedTrustedObject {
  public:
   enum class Type : uint8_t {
     ATOM,          // A simple string match.
@@ -304,30 +321,54 @@ V8_OBJECT class IrRegExpData : public RegExpData {
 // faster creation of RegExp exec results.
 // This class just holds constants used when creating the result.
 // After creation the result must be treated as a JSArray in all regards.
-class JSRegExpResult
-    : public TorqueGeneratedJSRegExpResult<JSRegExpResult, JSArray> {
+// JSRegExpResult is a JSArray with in-object properties for exec() results.
+// Shape-style class: no own C++ storage. Fields live in the parent JSArray's
+// in-object property slots at fixed offsets past JSArray::kHeaderSize. Matches
+// the layout that legacy Torque-generated for the `extern shape` declaration
+// in js-regexp.tq: `kHeaderSize` is inherited from JSArray (no new header),
+// and `kInObjectPropertyCount` is the total count of in-object properties
+// relative to JSArray::kHeaderSize.
+V8_OBJECT class JSRegExpResult : public JSArray {
  public:
   // TODO(joshualitt): We would like to add printers and verifiers to
   // JSRegExpResult, and maybe JSRegExpResultIndices, but both have the same
   // instance type as JSArray.
 
-  static constexpr int kInObjectPropertyCount =
-      (kSize - JSArray::kHeaderSize) / kTaggedSize;
+  // Slot indices of the in-object properties, relative to JSArray::kHeaderSize.
+  static constexpr int kIndexSlotIndex = 0;
+  static constexpr int kInputSlotIndex = 1;
+  static constexpr int kGroupsSlotIndex = 2;
+  static constexpr int kRegexpInputSlotIndex = 3;
+  static constexpr int kRegexpLastIndexSlotIndex = 4;
+  static constexpr int kInObjectPropertyCount = 5;
+
+  static constexpr int kIndexOffset =
+      JSArray::kHeaderSize + kIndexSlotIndex * kTaggedSize;
+  static constexpr int kInputOffset =
+      JSArray::kHeaderSize + kInputSlotIndex * kTaggedSize;
+  static constexpr int kGroupsOffset =
+      JSArray::kHeaderSize + kGroupsSlotIndex * kTaggedSize;
+  static constexpr int kRegexpInputOffset =
+      JSArray::kHeaderSize + kRegexpInputSlotIndex * kTaggedSize;
+  static constexpr int kRegexpLastIndexOffset =
+      JSArray::kHeaderSize + kRegexpLastIndexSlotIndex * kTaggedSize;
+  static constexpr int kSize =
+      JSArray::kHeaderSize + kInObjectPropertyCount * kTaggedSize;
 
   static constexpr int kMapIndexInContext = Context::REGEXP_RESULT_MAP_INDEX;
+} V8_OBJECT_END;
 
-  TQ_OBJECT_CONSTRUCTORS(JSRegExpResult)
-};
-
-class JSRegExpResultWithIndices
-    : public TorqueGeneratedJSRegExpResultWithIndices<JSRegExpResultWithIndices,
-                                                      JSRegExpResult> {
+V8_OBJECT class JSRegExpResultWithIndices : public JSRegExpResult {
  public:
+  // Additional in-object property past JSRegExpResult's fields.
+  static constexpr int kAdditionalInObjectPropertyCount = 1;
+  static constexpr int kIndicesOffset = JSRegExpResult::kSize;
+  static constexpr int kSize =
+      JSRegExpResult::kSize + kAdditionalInObjectPropertyCount * kTaggedSize;
+  // Total in-object property count relative to JSArray::kHeaderSize.
   static constexpr int kInObjectPropertyCount =
-      (kSize - JSRegExpResult::kHeaderSize) / kTaggedSize;
-
-  TQ_OBJECT_CONSTRUCTORS(JSRegExpResultWithIndices)
-};
+      JSRegExpResult::kInObjectPropertyCount + kAdditionalInObjectPropertyCount;
+} V8_OBJECT_END;
 
 // JSRegExpResultIndices is just a JSArray with a specific initial map.
 // This initial map adds in-object properties for "group"
@@ -335,22 +376,23 @@ class JSRegExpResultWithIndices
 // faster creation of RegExp exec results.
 // This class just holds constants used when creating the result.
 // After creation the result must be treated as a JSArray in all regards.
-class JSRegExpResultIndices
-    : public TorqueGeneratedJSRegExpResultIndices<JSRegExpResultIndices,
-                                                  JSArray> {
+V8_OBJECT class JSRegExpResultIndices : public JSArray {
  public:
   static DirectHandle<JSRegExpResultIndices> BuildIndices(
       Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,
       DirectHandle<RegExpData> re_data);
 
-  static constexpr int kInObjectPropertyCount =
-      (kSize - JSArray::kHeaderSize) / kTaggedSize;
+  static constexpr int kGroupsSlotIndex = 0;
+  static constexpr int kInObjectPropertyCount = 1;
+
+  static constexpr int kGroupsOffset =
+      JSArray::kHeaderSize + kGroupsSlotIndex * kTaggedSize;
+  static constexpr int kSize =
+      JSArray::kHeaderSize + kInObjectPropertyCount * kTaggedSize;
 
   // Descriptor index of groups.
   static constexpr int kGroupsDescriptorIndex = 1;
-
-  TQ_OBJECT_CONSTRUCTORS(JSRegExpResultIndices)
-};
+} V8_OBJECT_END;
 
 }  // namespace v8::internal
 

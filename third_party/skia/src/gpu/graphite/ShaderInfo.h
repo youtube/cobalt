@@ -98,6 +98,7 @@ private:
                               TextureFormat targetFormat,
                               skgpu::Swizzle writeSwizzle,
                               skia_private::TArray<SamplerDesc>* outDescs,
+                              std::string* textureAndSamplerSkSL,
                               const SharedGeneratorData&);
 
     void generateVertexSkSL(const Caps*,

@@ -7,11 +7,13 @@
 #include <optional>
 
 #include "src/base/logging.h"
+#include "src/base/sanitizer/tsan.h"
 #include "src/common/globals.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/sandbox/bounded-size-inl.h"
 
 #ifdef ENABLE_SLOW_DCHECKS
 #include <algorithm>
@@ -427,6 +429,24 @@ OptionalObjectRef GetOwnDictionaryPropertyFromHeap(
   return TryMakeRef(broker, constant);
 }
 
+// Separate function for racy JSTypedArray length read, so that we can
+// explicitly suppress it in TSAN (see tools/sanitizers/tsan_suppressions.txt).
+// We prevent inlining of this function in TSAN builds, so that TSAN does indeed
+// see that this is where the race is, and does indeed ignore it.
+#ifdef V8_IS_TSAN
+V8_NOINLINE
+#endif
+size_t RacyReadJSTypedArrayLength(Tagged<JSTypedArray> object) {
+  Address field_address =
+      object->address() + JSArrayBufferView::kRawByteLengthOffset;
+#ifdef V8_ENABLE_SANDBOX
+  size_t raw_value = base::ReadUnalignedValue<size_t>(field_address);
+  return raw_value >> kBoundedSizeShift;
+#else
+  return ReadMaybeUnalignedValue<size_t>(field_address);
+#endif
+}
+
 }  // namespace
 
 class JSTypedArrayData : public JSObjectData {
@@ -435,7 +455,12 @@ class JSTypedArrayData : public JSObjectData {
                    InstanceType instance_type,
                    IndirectHandle<JSTypedArray> object, ObjectDataKind kind)
       : JSObjectData(broker, storage, instance_type, object, kind) {
-    byte_length_ = object->byte_length();
+    size_t length = RacyReadJSTypedArrayLength(*object);
+    if (object->buffer()->was_detached(kAcquireLoad)) {
+      byte_length_ = 0;
+    } else {
+      byte_length_ = length;
+    }
   }
 
   size_t byte_length() const { return byte_length_; }
@@ -2223,7 +2248,7 @@ std::optional<Tagged<Object>> JSObjectRef::GetOwnConstantElementFromHeap(
   //   of `length` below.
   if (i::IsJSArray(*holder)) {
     Tagged<Object> array_length_obj =
-        Cast<JSArray>(*holder)->length(broker->isolate(), kRelaxedLoad);
+        Cast<JSArray>(*holder)->length(kRelaxedLoad);
     if (!i::IsSmi(array_length_obj)) {
       // Can't safely read into HeapNumber objects without atomic semantics
       // (relaxed would be sufficient due to the guarantees above).
@@ -2316,7 +2341,7 @@ ObjectRef JSArrayRef::GetBoilerplateLength(JSHeapBroker* broker) const {
 }
 
 OptionalObjectRef JSArrayRef::length_unsafe(JSHeapBroker* broker) const {
-  return TryMakeRef(broker, object()->length(broker->isolate(), kRelaxedLoad));
+  return TryMakeRef(broker, object()->length(kRelaxedLoad));
 }
 
 OptionalObjectRef JSArrayRef::GetOwnCowElement(JSHeapBroker* broker,

@@ -2066,6 +2066,10 @@ void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
   ModU32(dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_i64_mul_wide_s() { UNIMPLEMENTED(); }
+
+void LiftoffAssembler::emit_i64_mul_wide_u() { UNIMPLEMENTED(); }
+
 bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero,

@@ -4,10 +4,9 @@
 
 #include "quiche/quic/test_tools/quic_stream_peer.h"
 
-#include <list>
-
 #include "quiche/quic/core/quic_stream.h"
-#include "quiche/quic/core/quic_stream_send_buffer_base.h"
+#include "quiche/quic/core/quic_stream_send_buffer_inlining.h"
+#include "quiche/quic/core/quic_stream_sequencer.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/test_tools/quic_flow_controller_peer.h"
 
@@ -98,7 +97,7 @@ QuicSession* QuicStreamPeer::session(QuicStream* stream) {
 }
 
 // static
-QuicStreamSendBufferBase& QuicStreamPeer::SendBuffer(QuicStream* stream) {
+QuicStreamSendBufferInlining& QuicStreamPeer::SendBuffer(QuicStream* stream) {
   return stream->send_buffer();
 }
 

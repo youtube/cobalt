@@ -698,7 +698,8 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
     // Let the runtime compute the elements.
     TNode<FixedArray> elements =
         CAST(CallRuntime(Runtime::kObjectKeys, context, object));
-    var_length = LoadObjectField<Smi>(elements, offsetof(FixedArray, length_));
+    var_length = Convert<Smi>(
+        LoadObjectField<Uint32T>(elements, offsetof(FixedArray, length_)));
     var_elements = elements;
     Goto(&if_join);
   }
@@ -820,7 +821,8 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
     // Let the runtime compute the elements and try initializing enum cache.
     TNode<FixedArray> elements = CAST(CallRuntime(
         Runtime::kObjectGetOwnPropertyNamesTryFast, context, object));
-    var_length = LoadObjectField<Smi>(elements, offsetof(FixedArray, length_));
+    var_length = Convert<Smi>(
+        LoadObjectField<Uint32T>(elements, offsetof(FixedArray, length_)));
     var_elements = elements;
     Goto(&if_join);
   }
@@ -838,7 +840,8 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
     // Let the runtime compute the elements.
     TNode<FixedArray> elements =
         CAST(CallRuntime(Runtime::kObjectGetOwnPropertyNames, context, object));
-    var_length = LoadObjectField<Smi>(elements, offsetof(FixedArray, length_));
+    var_length = Convert<Smi>(
+        LoadObjectField<Uint32T>(elements, offsetof(FixedArray, length_)));
     var_elements = elements;
     Goto(&if_join);
   }
@@ -1435,26 +1438,26 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   TNode<JSObject> result =
       AllocateJSObjectFromMap(map, std::nullopt, std::nullopt,
                               AllocationFlag::kNone, kWithSlackTracking);
-  StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kFunctionOffset,
+  StoreObjectFieldNoWriteBarrier(result, offsetof(JSGeneratorObject, function_),
                                  closure);
-  StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContextOffset,
+  StoreObjectFieldNoWriteBarrier(result, offsetof(JSGeneratorObject, context_),
                                  context);
-  StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kReceiverOffset,
+  StoreObjectFieldNoWriteBarrier(result, offsetof(JSGeneratorObject, receiver_),
                                  receiver);
   StoreObjectFieldNoWriteBarrier(
-      result, JSGeneratorObject::kParametersAndRegistersOffset,
+      result, offsetof(JSGeneratorObject, parameters_and_registers_),
       parameters_and_registers);
   TNode<Smi> resume_mode = SmiConstant(JSGeneratorObject::ResumeMode::kNext);
-  StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kResumeModeOffset,
-                                 resume_mode);
+  StoreObjectFieldNoWriteBarrier(
+      result, offsetof(JSGeneratorObject, resume_mode_), resume_mode);
   TNode<Smi> executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
-  StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContinuationOffset,
-                                 executing);
+  StoreObjectFieldNoWriteBarrier(
+      result, offsetof(JSGeneratorObject, continuation_), executing);
   GotoIfNot(InstanceTypeEqual(LoadMapInstanceType(map),
                               JS_ASYNC_GENERATOR_OBJECT_TYPE),
             &done);
   StoreObjectFieldNoWriteBarrier(
-      result, JSAsyncGeneratorObject::kIsAwaitingOffset, SmiConstant(0));
+      result, offsetof(JSAsyncGeneratorObject, is_awaiting_), SmiConstant(0));
   Goto(&done);
 
   BIND(&done);

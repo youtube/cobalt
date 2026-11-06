@@ -13,12 +13,13 @@ those in [Chromium's agents directory](https://source.chromium.org/chromium/chro
 
 ## Directory Structure
 
-### Skills
+### Subagents
 
-On-demand expertise for specific tasks. See [`//agents/skills/README.md`].
+On-demand expertise for specific tasks. Source files are located in [`agents/`](agents/).
 
-[`//agents/skills/README.md`]: /agents/skills/README.md
-
+To use them, you need to run the appropriate installation script from the `agents/` directory:
+- **For Gemini CLI**: Run `vpython3 scripts/install_for_gemini_cli.py` to generate the subagent files in `.gemini/agents/`.
+- **For Jetski**: Run `vpython3 scripts/install_for_jetski.py` to create symlinks in `.agents/agents/`.
 
 ## Contributing
 

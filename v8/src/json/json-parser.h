@@ -520,6 +520,10 @@ class JsonParser final {
   const Char* cursor_;
   const Char* end_;
   const Char* chars_;
+
+  // Remaining budget for heuristic internalization of non-key, short one-byte
+  // strings.
+  uint32_t remaining_heuristic_internalizations_;
 };
 
 // Explicit instantiation declarations.

@@ -21,9 +21,14 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-locale-tq-inl.inc"
+Tagged<Managed<icu::Locale>> JSLocale::icu_locale() const {
+  return Cast<Managed<icu::Locale>>(icu_locale_.load());
+}
 
-ACCESSORS(JSLocale, icu_locale, Tagged<Managed<icu::Locale>>, kIcuLocaleOffset)
+void JSLocale::set_icu_locale(Tagged<Managed<icu::Locale>> value,
+                              WriteBarrierMode mode) {
+  icu_locale_.store(this, value, mode);
+}
 
 }  // namespace internal
 }  // namespace v8

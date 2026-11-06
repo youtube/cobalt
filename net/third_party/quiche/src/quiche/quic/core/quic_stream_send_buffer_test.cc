@@ -7,13 +7,11 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/quic_data_writer.h"
-#include "quiche/quic/core/quic_stream_send_buffer_base.h"
 #include "quiche/quic/core/quic_stream_send_buffer_inlining.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
@@ -66,8 +64,8 @@ class QuicStreamSendBufferTest : public quiche::test::QuicheTest {
     // BufferedSlice4: 'd' * 768
   }
 
-  std::unique_ptr<QuicStreamSendBufferBase> CreateBuffer() {
-        return std::make_unique<QuicStreamSendBufferInlining>(&allocator_);
+  std::unique_ptr<QuicStreamSendBufferInlining> CreateBuffer() {
+    return std::make_unique<QuicStreamSendBufferInlining>(&allocator_);
   }
 
   void WriteAllData() {
@@ -82,7 +80,7 @@ class QuicStreamSendBufferTest : public quiche::test::QuicheTest {
   }
 
   quiche::SimpleBufferAllocator allocator_;
-  std::unique_ptr<QuicStreamSendBufferBase> send_buffer_;
+  std::unique_ptr<QuicStreamSendBufferInlining> send_buffer_;
 };
 
 TEST_F(QuicStreamSendBufferTest, CopyDataToBuffer) {
@@ -304,7 +302,7 @@ TEST_F(QuicStreamSendBufferTest, OutOfOrderWrites) {
 }
 
 TEST_F(QuicStreamSendBufferTest, SaveMemSliceSpan) {
-  std::unique_ptr<QuicStreamSendBufferBase> send_buffer = CreateBuffer();
+  std::unique_ptr<QuicStreamSendBufferInlining> send_buffer = CreateBuffer();
 
   std::string data(1024, 'a');
   std::vector<quiche::QuicheMemSlice> buffers;
@@ -317,7 +315,7 @@ TEST_F(QuicStreamSendBufferTest, SaveMemSliceSpan) {
 }
 
 TEST_F(QuicStreamSendBufferTest, SaveEmptyMemSliceSpan) {
-  std::unique_ptr<QuicStreamSendBufferBase> send_buffer = CreateBuffer();
+  std::unique_ptr<QuicStreamSendBufferInlining> send_buffer = CreateBuffer();
 
   std::string data(1024, 'a');
   std::vector<quiche::QuicheMemSlice> buffers;
@@ -331,7 +329,7 @@ TEST_F(QuicStreamSendBufferTest, SaveEmptyMemSliceSpan) {
 }
 
 TEST_F(QuicStreamSendBufferTest, SmallWrite) {
-  std::unique_ptr<QuicStreamSendBufferBase> send_buffer = CreateBuffer();
+  std::unique_ptr<QuicStreamSendBufferInlining> send_buffer = CreateBuffer();
 
   constexpr absl::string_view kData = "abcd";
   send_buffer->SaveStreamData(kData);

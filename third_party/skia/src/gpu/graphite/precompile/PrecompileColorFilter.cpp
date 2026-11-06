@@ -188,29 +188,34 @@ sk_sp<PrecompileColorFilter> PrecompileColorFilters::Blend(SkSpan<const SkBlendM
 //--------------------------------------------------------------------------------------------------
 class PrecompileMatrixColorFilter : public PrecompileColorFilter {
 public:
-    PrecompileMatrixColorFilter(bool inHSLA) : fInHSLA(inHSLA) {}
+    PrecompileMatrixColorFilter(bool inHSLA, bool clamp) : fInHSLA(inHSLA), fClamp(clamp) {}
 
 private:
     void addToKey(const KeyContext& keyContext, int desiredCombination) const override {
-        SkASSERT(desiredCombination == 0);
+        // NOTE: desiredCombination (i.e. whether or not alpha is unchanged) doesn't impact what
+        // this node would add to the key, but it can bubble up to later decisions for the key.
+        SkASSERT(desiredCombination == 0 || desiredCombination == 1);
         static constexpr float kIdentity[20] = { 1, 0, 0, 0, 0,
                                                  0, 1, 0, 0, 0,
                                                  0, 0, 1, 0, 0,
                                                  0, 0, 0, 1, 0 };
-        MatrixColorFilterBlock::MatrixColorFilterData matrixCFData(kIdentity, fInHSLA,
-                                                                   /* clamp= */ true);
+        MatrixColorFilterBlock::MatrixColorFilterData matrixCFData(kIdentity, fInHSLA, fClamp);
         MatrixColorFilterBlock::AddBlock(keyContext, matrixCFData);
     }
 
+    // There are 3 possible combinations here, but we force them to be specified when the
+    // PrecompileColorFilter is created and not as an intrinsic combination count. This combines
+    // with the intrinsic combination for whether or not the matrix's 4th row is [0,0,0,1,0].
     bool fInHSLA;
+    bool fClamp; // always true if fInHLSA is true
 };
 
-sk_sp<PrecompileColorFilter> PrecompileColorFilters::Matrix() {
-    return sk_make_sp<PrecompileMatrixColorFilter>(/*inHSLA=*/false);
+sk_sp<PrecompileColorFilter> PrecompileColorFilters::Matrix(bool clamp) {
+    return sk_make_sp<PrecompileMatrixColorFilter>(/*inHSLA=*/false, clamp);
 }
 
 sk_sp<PrecompileColorFilter> PrecompileColorFilters::HSLAMatrix() {
-    return sk_make_sp<PrecompileMatrixColorFilter>(/*inHSLA=*/true);
+    return sk_make_sp<PrecompileMatrixColorFilter>(/*inHSLA=*/true, /*clamp=*/true);
 }
 
 //--------------------------------------------------------------------------------------------------

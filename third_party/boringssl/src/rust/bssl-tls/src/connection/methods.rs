@@ -19,13 +19,13 @@ use core::{
         c_long,
         c_void, //
     },
+    marker::PhantomData,
     ptr::{
         NonNull,
         null_mut, //
     },
     task::Waker, //
 };
-use std::marker::PhantomData;
 
 use once_cell::sync::Lazy;
 
@@ -58,6 +58,10 @@ impl<M> RustConnectionMethods<M> {
             pending_reason: None,
             _p: PhantomData,
         }
+    }
+
+    pub fn set_pending_reason(&mut self, reason: TlsRetryReason) {
+        self.pending_reason = Some(reason);
     }
 
     pub fn take_pending_reason(&mut self) -> Option<TlsRetryReason> {

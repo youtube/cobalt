@@ -76,6 +76,8 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
 
   std::unique_ptr<MoqtFetchTask> StandaloneFetch(
       Location start, Location end, MoqtDeliveryOrder order) override;
+  // Joining Fetch functions should never be called because subscriptions are
+  // never pending in MoqtOutgoingQueue.
   std::unique_ptr<MoqtFetchTask> RelativeFetch(
       uint64_t group_diff, MoqtDeliveryOrder order) override;
   std::unique_ptr<MoqtFetchTask> AbsoluteFetch(

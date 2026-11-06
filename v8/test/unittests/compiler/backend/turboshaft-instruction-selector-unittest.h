@@ -215,6 +215,18 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
                                               parameter2_type)) {
       Init();
     }
+    StreamBuilder(TurboshaftInstructionSelectorTest* test,
+                  MachineType return_type, MachineType parameter0_type,
+                  MachineType parameter1_type, MachineType parameter2_type,
+                  MachineType parameter3_type)
+        : BaseAssembler(test->data(), test->graph(), test->graph(),
+                        test->zone()),
+          test_(test),
+          call_descriptor_(MakeCallDescriptor(
+              test->zone(), return_type, parameter0_type, parameter1_type,
+              parameter2_type, parameter3_type)) {
+      Init();
+    }
 
     Stream Build(CpuFeature feature) { return Build(CpuFeatureSet{feature}); }
     Stream Build(CpuFeature feature1, CpuFeature feature2) {

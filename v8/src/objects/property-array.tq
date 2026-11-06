@@ -6,3 +6,5 @@
 extern class PropertyArray extends HeapObject {
   length_and_hash: Smi;
 }
+
+type EmptyPropertyArray extends PropertyArray;

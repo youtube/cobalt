@@ -28,13 +28,14 @@ BASE_DECLARE_FEATURE(kDseIntegrity);
 BASE_DECLARE_FEATURE(kFewerUpdateConfirmations);
 #endif
 
-BASE_DECLARE_FEATURE(kTabStripDeclutter);
-BASE_DECLARE_FEATURE(kGlassToolbar);
+BASE_DECLARE_FEATURE(kEnableExtensionsMenuTeardownFix);
 
 BASE_DECLARE_FEATURE(kImportExportFlags);
 
+// All feature flags associated with Glow Up
+BASE_DECLARE_FEATURE(kTabStripDeclutter);
 BASE_DECLARE_FEATURE(kToolbarGlowUp);
-
+BASE_DECLARE_FEATURE(kRoundedIcons);
 BASE_DECLARE_FEATURE(kMenuSimplification);
 BASE_DECLARE_FEATURE(kTabGroupColorRefresh);
 
@@ -242,12 +243,6 @@ BASE_DECLARE_FEATURE(kNTPFooterBadgingPolicies);
 BASE_DECLARE_FEATURE(kEnterpriseManagementDisclaimerUsesCustomLabel);
 BASE_DECLARE_FEATURE(kManagedProfileRequiredInterstitial);
 
-BASE_DECLARE_FEATURE(kWebUITabStrip);
-
-// Controls whether the context menu is shown on a touch press or a touch
-// tap gesture on the WebUI Tab Strip.
-BASE_DECLARE_FEATURE(kWebUITabStripContextMenuAfterTap);
-
 // Cocoa to views migration.
 #if BUILDFLAG(IS_MAC)
 BASE_DECLARE_FEATURE(kViewsJSAppModalDialog);
@@ -327,6 +322,8 @@ bool IsWebUISplitTabsButtonEnabled();
 // Controls whether the WebUI version of the Avatar Button is used.
 BASE_DECLARE_FEATURE(kWebUIAvatarButton);
 bool IsWebUIAvatarButtonEnabled();
+
+bool IsWebUIAppMenuButtonEnabled();
 
 bool IsWebUILocationBarEnabled();
 

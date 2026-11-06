@@ -5,10 +5,13 @@
 #ifndef COMPONENTS_NAMED_MOJO_IPC_SERVER_CONNECTION_INFO_H_
 #define COMPONENTS_NAMED_MOJO_IPC_SERVER_CONNECTION_INFO_H_
 
+#include "base/process/process.h"
 #include "base/process/process_handle.h"
 #include "build/buildflag.h"
 
 #if BUILDFLAG(IS_WIN)
+#include <cstdint>
+
 #include "base/win/scoped_handle.h"
 #elif BUILDFLAG(IS_MAC)
 #include <bsm/libbsm.h>
@@ -31,6 +34,13 @@ struct ConnectionInfo {
   audit_token_t audit_token{};
 #elif BUILDFLAG(IS_LINUX)
   ucred credentials{};
+#elif BUILDFLAG(IS_WIN)
+  // The process of the peer. Only valid if `include_peer_process_info` is true
+  // in EndpointOptions.
+  base::Process process;
+
+  // The Windows session ID of the peer.
+  uint32_t session_id = UINT32_MAX;
 #endif
 };
 

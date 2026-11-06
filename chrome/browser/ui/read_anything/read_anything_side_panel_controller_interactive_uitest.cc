@@ -8,6 +8,8 @@
 #include "base/metrics/histogram_base.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
@@ -28,6 +30,8 @@
 #include "chrome/test/user_education/interactive_feature_promo_test.h"
 #include "components/accessibility/reading/distillable_pages.h"
 #include "components/feature_engagement/public/feature_constants.h"
+#include "components/optimization_guide/core/optimization_guide_features.h"
+#include "components/optimization_guide/proto/hints.pb.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/user_education/views/help_bubble_view.h"
 #include "content/public/test/browser_test.h"
@@ -46,7 +50,6 @@ class MockReadAnythingLifecycleObserver : public ReadAnythingLifecycleObserver {
               (bool active, std::optional<ReadAnythingOpenTrigger>),
               (override));
   MOCK_METHOD(void, OnDestroyed, (), (override));
-  MOCK_METHOD(void, OnTabWillDetach, ());
 };
 
 class ReadAnythingSidePanelControllerTest
@@ -158,14 +161,6 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingSidePanelControllerTest,
   EXPECT_CALL(read_anything_observer_, Activate(false, empty_trigger()))
       .Times(1);
   OnEntryHidden(entry);
-}
-
-IN_PROC_BROWSER_TEST_P(ReadAnythingSidePanelControllerTest,
-                       TabWillDetach_NotfiyObservers) {
-  AddObserver(&read_anything_observer_);
-
-  EXPECT_CALL(read_anything_observer_, OnTabWillDetach()).Times(1);
-  browser()->GetActiveTabInterface()->Close();
 }
 
 IN_PROC_BROWSER_TEST_P(ReadAnythingSidePanelControllerTest,
@@ -352,3 +347,79 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingSidePanelControllerInteractiveTest,
 INSTANTIATE_TEST_SUITE_P(All,
                          ReadAnythingSidePanelControllerInteractiveTest,
                          testing::Bool());
+
+class ReadAnythingKeyboardShortcutCUJTest
+    : public PageActionInteractiveTestMixin<InteractiveFeaturePromoTest> {
+ public:
+  template <typename... Args>
+  explicit ReadAnythingKeyboardShortcutCUJTest(Args&&... args)
+      : PageActionInteractiveTestMixin(
+            UseDefaultTrackerAllowingPromos({std::forward<Args>(args)...})) {}
+  void SetUp() override {
+    ASSERT_TRUE(embedded_test_server()->InitializeAndListen());
+    distillable_url_ = embedded_test_server()->GetURL("/long_text_page.html");
+    non_distillable_url_ = GURL("chrome://blank");
+    a11y::SetDistillableDomainsForTesting({distillable_url_.GetHost()});
+
+    std::vector<base::test::FeatureRef> enabled_features = {
+        features::kImmersiveReadAnything, features::kReadAnythingOmniboxChip,
+        features::kPageActionsMigration,
+        feature_engagement::kIPHReadingModeKeyboardShortcutFeature};
+    feature_list_.InitAndEnableFeatures(enabled_features);
+    ReadAnythingController::SetFreezeDistillationOnCreationForTesting(true);
+
+    InteractiveFeaturePromoTest::SetUp();
+  }
+  void SetUpOnMainThread() override {
+    InteractiveFeaturePromoTest::SetUpOnMainThread();
+    embedded_test_server()->StartAcceptingConnections();
+    OptimizationGuideKeyedServiceFactory::GetForProfile(browser()->GetProfile())
+        ->AddHintForTesting(
+            distillable_url_, optimization_guide::proto::READER_MODE_ELIGIBLE,
+            std::optional<optimization_guide::OptimizationMetadata>());
+  }
+  void TearDownOnMainThread() override {
+    EXPECT_TRUE(embedded_test_server()->ShutdownAndWaitUntilComplete());
+    ReadAnythingController::SetFreezeDistillationOnCreationForTesting(false);
+    InteractiveFeaturePromoTest::TearDownOnMainThread();
+  }
+
+  using PageActionInteractiveTestMixin::InvokePageAction;
+
+  auto WaitForPageActionChipVisible() {
+    return PageActionInteractiveTestMixin::WaitForPageActionChipVisible(
+        kActionSidePanelShowReadAnything);
+  }
+
+  auto WaitForPageActionChipNotVisible() {
+    return PageActionInteractiveTestMixin::WaitForPageActionChipNotVisible(
+        kActionSidePanelShowReadAnything);
+  }
+
+  auto InvokePageAction() {
+    return PageActionInteractiveTestMixin::InvokePageAction(
+        kActionSidePanelShowReadAnything);
+  }
+
+  GURL distillable_url_;
+  GURL non_distillable_url_;
+  feature_engagement::test::ScopedIphFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(ReadAnythingKeyboardShortcutCUJTest, ShowAndHideIph) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kActiveTab);
+  RunTestSequence(
+      InstrumentTab(kActiveTab),
+      NavigateWebContents(kActiveTab, distillable_url_),
+
+      // Open Reading Mode.
+      WaitForPageActionChipVisible(), InvokePageAction(),
+
+      // Wait for the promo to show.
+      WaitForPromo(feature_engagement::kIPHReadingModeKeyboardShortcutFeature),
+
+      // Hide the Iph by navigating away.
+      NavigateWebContents(kActiveTab, non_distillable_url_),
+      WaitForHide(
+          user_education::HelpBubbleView::kHelpBubbleElementIdForTesting));
+}

@@ -23,6 +23,7 @@ NSString* const kToolWait = @"Wait";
 NSString* const kToolMultiTool = @"Multi-tool";
 NSString* const kToolScroll = @"Scroll";
 NSString* const kToolScrollTo = @"Scroll To";
+NSString* const kToolSelect = @"Select";
 
 // Placeholder macro for tab ID.
 NSString* const kTabIdMacro = @"{{tab_id}}";
@@ -35,7 +36,8 @@ bool IsWebActuationTool(NSString* tool) {
          [tool isEqualToString:kToolType] ||
          [tool isEqualToString:kToolMultiTool] ||
          [tool isEqualToString:kToolScroll] ||
-         [tool isEqualToString:kToolScrollTo];
+         [tool isEqualToString:kToolScrollTo] ||
+         [tool isEqualToString:kToolSelect];
 }
 }  // namespace
 
@@ -355,8 +357,8 @@ bool IsWebActuationTool(NSString* tool) {
   _framesAndContentNodesLabel.textColor = primaryColor;
 
   UIStackView* mainStack = [[UIStackView alloc] initWithArrangedSubviews:@[
-    label, toolStack, _tabIdContainer, _frameIdContainer, _jsonContainer,
-    buttonsStack, _responseContainer, _framesAndContentNodesLabel,
+    label, buttonsStack, toolStack, _tabIdContainer, _frameIdContainer,
+    _jsonContainer, _responseContainer, _framesAndContentNodesLabel,
     _framesAndContentNodesContainer
   ]];
   mainStack.translatesAutoresizingMaskIntoConstraints = NO;
@@ -407,21 +409,47 @@ bool IsWebActuationTool(NSString* tool) {
       @"ui" : @[ _tabIdContainer, _frameIdContainer, _jsonContainer ],
       @"template" : @[
         @{
-          @"click" : @{
-            @"tab_id" : @(0),
-            @"target" : @{@"coordinate" : @{@"x" : @(100), @"y" : @(100)}},
-            @"click_type" : @(1),
-            @"click_count" : @(1)
+          @"scroll" : @{
+            @"tab_id" : kTabIdMacro,
+            @"target" : @{@"coordinate" : @{@"x" : @(200), @"y" : @(200)}},
+            @"direction" : @(4),
+            @"distance" : @"123.45"
           }
         },
-        @{@"wait" : @{@"wait_time_ms" : @(3000), @"observe_tab_id" : @(0)}}, @{
+        @{
+          @"scroll_to" : @{
+            @"tab_id" : kTabIdMacro,
+            @"target" : @{@"coordinate" : @{@"x" : @(200), @"y" : @(200)}}
+          }
+        },
+        @{
           @"click" : @{
-            @"tab_id" : @(0),
+            @"tab_id" : kTabIdMacro,
             @"target" : @{@"coordinate" : @{@"x" : @(200), @"y" : @(200)}},
             @"click_type" : @(1),
             @"click_count" : @(1)
           }
-        }
+        },
+        @{
+          @"type" : @{
+            @"tab_id" : kTabIdMacro,
+            @"target" : @{@"coordinate" : @{@"x" : @(200), @"y" : @(200)}},
+            @"text" : @"Foobarbaz",
+            @"follow_by_enter" : @(NO),
+            @"mode" : @(1),
+          }
+        },
+        @{
+          @"navigate" :
+              @{@"tab_id" : kTabIdMacro, @"url" : @"https://www.google.com"}
+        },
+        @{
+          @"wait" : @{@"wait_time_ms" : @(500), @"observe_tab_id" : kTabIdMacro}
+        },
+        @{@"back" : @{@"tab_id" : kTabIdMacro}}, @{
+          @"wait" : @{@"wait_time_ms" : @(500), @"observe_tab_id" : kTabIdMacro}
+        },
+        @{@"forward" : @{@"tab_id" : kTabIdMacro}}
       ]
     },
     kToolNavigate : @{
@@ -485,6 +513,16 @@ bool IsWebActuationTool(NSString* tool) {
         @"scroll_to" : @{
           @"tab_id" : kTabIdMacro,
           @"target" : @{@"coordinate" : @{@"x" : @(200), @"y" : @(200)}}
+        }
+      }
+    },
+    kToolSelect : @{
+      @"ui" : @[ _tabIdContainer, _frameIdContainer, _jsonContainer ],
+      @"template" : @{
+        @"select" : @{
+          @"tab_id" : kTabIdMacro,
+          @"target" : @{@"coordinate" : @{@"x" : @(200), @"y" : @(200)}},
+          @"value" : @"Option 1"
         }
       }
     },
@@ -705,7 +743,7 @@ bool IsWebActuationTool(NSString* tool) {
   // Define the explicit order for the dropdown menu.
   NSArray<NSString*>* orderedTools = @[
     kToolMultiTool, kToolNavigate, kToolClick, kToolType, kToolHistoryBack,
-    kToolHistoryForward, kToolWait, kToolScroll, kToolScrollTo
+    kToolHistoryForward, kToolWait, kToolScroll, kToolScrollTo, kToolSelect
   ];
 
   for (NSString* toolName in orderedTools) {

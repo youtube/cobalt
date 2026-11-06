@@ -51,8 +51,8 @@ void GeneratorBuiltinsAssembler::InnerResume(
     TNode<Object> value, TNode<Context> context,
     JSGeneratorObject::ResumeMode resume_mode, char const* const method_name) {
   // Check if the {receiver} is running or already closed.
-  TNode<Smi> receiver_continuation =
-      LoadObjectField<Smi>(receiver, JSGeneratorObject::kContinuationOffset);
+  TNode<Smi> receiver_continuation = LoadObjectField<Smi>(
+      receiver, offsetof(JSGeneratorObject, continuation_));
   Label if_receiverisclosed(this, Label::kDeferred),
       if_receiverisrunning(this, Label::kDeferred);
   TNode<Smi> closed = SmiConstant(JSGeneratorObject::kGeneratorClosed);
@@ -62,7 +62,8 @@ void GeneratorBuiltinsAssembler::InnerResume(
   GotoIf(SmiLessThan(receiver_continuation, closed), &if_receiverisrunning);
 
   // Remember the {resume_mode} for the {receiver}.
-  StoreObjectFieldNoWriteBarrier(receiver, JSGeneratorObject::kResumeModeOffset,
+  StoreObjectFieldNoWriteBarrier(receiver,
+                                 offsetof(JSGeneratorObject, resume_mode_),
                                  SmiConstant(resume_mode));
 
   // Resume the {receiver} using our trampoline.
@@ -79,8 +80,8 @@ void GeneratorBuiltinsAssembler::InnerResume(
 
   // If the generator is not suspended (i.e., its state is 'executing'),
   // close it and wrap the return value in IteratorResult.
-  TNode<Smi> result_continuation =
-      LoadObjectField<Smi>(receiver, JSGeneratorObject::kContinuationOffset);
+  TNode<Smi> result_continuation = LoadObjectField<Smi>(
+      receiver, offsetof(JSGeneratorObject, continuation_));
 
   // The generator function should not close the generator by itself, let's
   // check it is indeed not closed yet.
@@ -95,7 +96,7 @@ void GeneratorBuiltinsAssembler::InnerResume(
   {
     // Close the generator.
     StoreObjectFieldNoWriteBarrier(
-        receiver, JSGeneratorObject::kContinuationOffset, closed);
+        receiver, offsetof(JSGeneratorObject, continuation_), closed);
     // Return the wrapped result.
     args->PopAndReturn(CallBuiltin<JSAny>(Builtin::kCreateIterResultObject,
                                           context, result, TrueConstant()));
@@ -131,7 +132,7 @@ void GeneratorBuiltinsAssembler::InnerResume(
   BIND(&if_exception);
   {
     StoreObjectFieldNoWriteBarrier(
-        receiver, JSGeneratorObject::kContinuationOffset, closed);
+        receiver, offsetof(JSGeneratorObject, continuation_), closed);
     CallRuntime(Runtime::kReThrow, context, var_exception.value());
     Unreachable();
   }
@@ -230,12 +231,13 @@ TF_BUILTIN(SuspendGeneratorBaseline, GeneratorBuiltinsAssembler) {
       SmiTag(UncheckedParameter<IntPtrT>(Descriptor::kBytecodeOffset));
   // Avoid the write barrier by using the generic helper.
   StoreObjectFieldNoWriteBarrier(
-      generator, JSGeneratorObject::kInputOrDebugPosOffset, bytecode_offset);
+      generator, offsetof(JSGeneratorObject, input_or_debug_pos_),
+      bytecode_offset);
 
   TNode<FixedArray> parameters_and_registers =
       LoadJSGeneratorObjectParametersAndRegisters(generator);
   auto parameters_and_registers_length =
-      LoadAndUntagFixedArrayBaseLength(parameters_and_registers);
+      LoadFixedArrayBaseLength(parameters_and_registers);
 
   // Copy over the function parameters
   auto parameter_base_index = IntPtrConstant(
@@ -290,7 +292,7 @@ TF_BUILTIN(ResumeGeneratorBaseline, GeneratorBuiltinsAssembler) {
   auto register_count = UncheckedParameter<IntPtrT>(Descriptor::kRegisterCount);
   auto end_index = IntPtrAdd(parameter_count, register_count);
   auto parameters_and_registers_length =
-      LoadAndUntagFixedArrayBaseLength(parameters_and_registers);
+      LoadFixedArrayBaseLength(parameters_and_registers);
   CSA_CHECK(this, UintPtrLessThan(end_index, parameters_and_registers_length));
   auto parent_frame_pointer = LoadParentFramePointer();
   BuildFastLoop<IntPtrT>(
@@ -317,8 +319,8 @@ TF_BUILTIN(GeneratorNextLazyDeoptContinuation, GeneratorBuiltinsAssembler) {
 
   // If the generator is not suspended (i.e., its state is 'executing'),
   // close it and wrap the return value in IteratorResult.
-  TNode<Smi> result_continuation =
-      LoadObjectField<Smi>(generator, JSGeneratorObject::kContinuationOffset);
+  TNode<Smi> result_continuation = LoadObjectField<Smi>(
+      generator, offsetof(JSGeneratorObject, continuation_));
   TNode<Smi> closed = SmiConstant(JSGeneratorObject::kGeneratorClosed);
   TNode<Smi> executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
 
@@ -332,7 +334,7 @@ TF_BUILTIN(GeneratorNextLazyDeoptContinuation, GeneratorBuiltinsAssembler) {
   {
     // Close the generator.
     StoreObjectFieldNoWriteBarrier(
-        generator, JSGeneratorObject::kContinuationOffset, closed);
+        generator, offsetof(JSGeneratorObject, continuation_), closed);
     // Return the wrapped result.
     Return(CallBuiltin(Builtin::kCreateIterResultObject, context, result,
                        TrueConstant()));

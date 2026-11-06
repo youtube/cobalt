@@ -13,7 +13,7 @@ class QUICHE_EXPORT QuicSpdyServerStreamBase : public QuicSpdyStream {
  public:
   QuicSpdyServerStreamBase(QuicStreamId id, QuicSpdySession* session,
                            StreamType type);
-  QuicSpdyServerStreamBase(PendingStream* pending, QuicSpdySession* session);
+  QuicSpdyServerStreamBase(PendingStream& pending, QuicSpdySession* session);
   QuicSpdyServerStreamBase(const QuicSpdyServerStreamBase&) = delete;
   QuicSpdyServerStreamBase& operator=(const QuicSpdyServerStreamBase&) = delete;
 

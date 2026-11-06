@@ -251,8 +251,9 @@ struct _JniFuncMappings;
 
 template <>
 struct _JniFuncMappings<bool> {
-  static JArray<bool> NewArray(JNIEnv* env, int32_t size) {
-    return static_cast<JArray<bool>>(env->NewBooleanArray(size));
+  static JArray<bool> NewArray(JNIEnv* env, size_t size) {
+    return static_cast<JArray<bool>>(
+        env->NewBooleanArray(static_cast<jsize>(size)));
   }
   static void SetArrayRegion(JNIEnv* env,
                              JArray<bool> arr,
@@ -273,8 +274,9 @@ struct _JniFuncMappings<bool> {
 
 template <>
 struct _JniFuncMappings<int8_t> {
-  static JArray<int8_t> NewArray(JNIEnv* env, int32_t size) {
-    return static_cast<JArray<int8_t>>(env->NewByteArray(size));
+  static JArray<int8_t> NewArray(JNIEnv* env, size_t size) {
+    return static_cast<JArray<int8_t>>(
+        env->NewByteArray(static_cast<jsize>(size)));
   }
   static void SetArrayRegion(JNIEnv* env,
                              JArray<int8_t> arr,
@@ -295,8 +297,9 @@ struct _JniFuncMappings<int8_t> {
 
 template <>
 struct _JniFuncMappings<uint16_t> {
-  static JArray<uint16_t> NewArray(JNIEnv* env, int32_t size) {
-    return static_cast<JArray<uint16_t>>(env->NewCharArray(size));
+  static JArray<uint16_t> NewArray(JNIEnv* env, size_t size) {
+    return static_cast<JArray<uint16_t>>(
+        env->NewCharArray(static_cast<jsize>(size)));
   }
   static void SetArrayRegion(JNIEnv* env,
                              JArray<uint16_t> arr,
@@ -317,8 +320,9 @@ struct _JniFuncMappings<uint16_t> {
 
 template <>
 struct _JniFuncMappings<int16_t> {
-  static JArray<int16_t> NewArray(JNIEnv* env, int32_t size) {
-    return static_cast<JArray<int16_t>>(env->NewShortArray(size));
+  static JArray<int16_t> NewArray(JNIEnv* env, size_t size) {
+    return static_cast<JArray<int16_t>>(
+        env->NewShortArray(static_cast<jsize>(size)));
   }
   static void SetArrayRegion(JNIEnv* env,
                              JArray<int16_t> arr,
@@ -339,8 +343,9 @@ struct _JniFuncMappings<int16_t> {
 
 template <>
 struct _JniFuncMappings<int32_t> {
-  static JArray<int32_t> NewArray(JNIEnv* env, int32_t size) {
-    return static_cast<JArray<int32_t>>(env->NewIntArray(size));
+  static JArray<int32_t> NewArray(JNIEnv* env, size_t size) {
+    return static_cast<JArray<int32_t>>(
+        env->NewIntArray(static_cast<jsize>(size)));
   }
   static void SetArrayRegion(JNIEnv* env,
                              JArray<int32_t> arr,
@@ -361,8 +366,9 @@ struct _JniFuncMappings<int32_t> {
 
 template <>
 struct _JniFuncMappings<int64_t> {
-  static JArray<int64_t> NewArray(JNIEnv* env, int32_t size) {
-    return static_cast<JArray<int64_t>>(env->NewLongArray(size));
+  static JArray<int64_t> NewArray(JNIEnv* env, size_t size) {
+    return static_cast<JArray<int64_t>>(
+        env->NewLongArray(static_cast<jsize>(size)));
   }
   static void SetArrayRegion(JNIEnv* env,
                              JArray<int64_t> arr,
@@ -383,8 +389,9 @@ struct _JniFuncMappings<int64_t> {
 
 template <>
 struct _JniFuncMappings<float> {
-  static JArray<float> NewArray(JNIEnv* env, int32_t size) {
-    return static_cast<JArray<float>>(env->NewFloatArray(size));
+  static JArray<float> NewArray(JNIEnv* env, size_t size) {
+    return static_cast<JArray<float>>(
+        env->NewFloatArray(static_cast<jsize>(size)));
   }
   static void SetArrayRegion(JNIEnv* env,
                              JArray<float> arr,
@@ -403,8 +410,9 @@ struct _JniFuncMappings<float> {
 
 template <>
 struct _JniFuncMappings<double> {
-  static JArray<double> NewArray(JNIEnv* env, int32_t size) {
-    return static_cast<JArray<double>>(env->NewDoubleArray(size));
+  static JArray<double> NewArray(JNIEnv* env, size_t size) {
+    return static_cast<JArray<double>>(
+        env->NewDoubleArray(static_cast<jsize>(size)));
   }
   static void SetArrayRegion(JNIEnv* env,
                              JArray<double> arr,
@@ -477,6 +485,16 @@ class JArrayView<T> : public JArrayViewBase<T> {
 
 template <typename T>
   requires internal::IsJobject<T>
+static ScopedJavaLocalRef<JArray<T>> NewArray(JNIEnv* env,
+                                              size_t length,
+                                              jclass cls) {
+  JArray<T> ret = static_cast<JArray<T>>(
+      env->NewObjectArray(static_cast<jsize>(length), cls, nullptr));
+  return jni_zero::AdoptRef(env, ret);
+}
+
+template <typename T>
+  requires internal::IsJobject<T>
 static ScopedJavaLocalRef<JArray<T>>
 NewArray(JNIEnv* env, std::span<const ScopedJavaLocalRef<T>> buf, jclass cls) {
   int32_t length = static_cast<int32_t>(buf.size());
@@ -523,6 +541,11 @@ static ScopedJavaLocalRef<JArray<jobject>> NewObjectArray(
   return NewArray<jobject>(env, buf, g_object_class);
 }
 
+inline ScopedJavaLocalRef<JArray<jobject>> NewObjectArray(JNIEnv* env,
+                                                          size_t length) {
+  return NewArray<jobject>(env, length, g_object_class);
+}
+
 extern jclass g_string_class;
 
 template <typename T>
@@ -530,6 +553,11 @@ static ScopedJavaLocalRef<JArray<jstring>> NewStringArray(
     JNIEnv* env,
     std::span<const T> buf) {
   return NewArray<jstring>(env, buf, g_string_class);
+}
+
+inline ScopedJavaLocalRef<JArray<jstring>> NewStringArray(JNIEnv* env,
+                                                          size_t length) {
+  return NewArray<jstring>(env, length, g_string_class);
 }
 
 // Below are overloads that take a std::vector instead of std::span.

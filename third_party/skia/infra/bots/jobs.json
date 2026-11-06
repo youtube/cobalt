@@ -2252,9 +2252,6 @@
     "name": "Test-Win11-Clang-NUC11TZi5-GPU-IntelIrisXe-x86_64-Debug-All-Vulkan"
   },
   {
-    "name": "Test-Win11-Clang-NUC11TZi5-GPU-IntelIrisXe-x86_64-Release-All-ANGLE"
-  },
-  {
     "name": "Test-Win11-Clang-NUC11TZi5-GPU-IntelIrisXe-x86_64-Release-All-Graphite_Dawn_D3D11"
   },
   {
@@ -2265,9 +2262,6 @@
   },
   {
     "name": "Test-Win11-Clang-NUC11TZi5-GPU-IntelIrisXe-x86_64-Release-All-Vulkan"
-  },
-  {
-    "name": "Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Debug-All-ANGLE"
   },
   {
     "name": "Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Debug-All-Graphite_Dawn_D3D11"

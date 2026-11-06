@@ -41,12 +41,6 @@ class FakeDtmfObserver : public DtmfSenderObserverInterface {
   FakeDtmfObserver() : completed_(false) {}
 
   // Implements DtmfSenderObserverInterface.
-  void OnToneChange(const std::string& tone) override {
-    tones_from_single_argument_callback_.push_back(tone);
-    if (tone.empty()) {
-      completed_ = true;
-    }
-  }
   void OnToneChange(const std::string& tone,
                     const std::string& tone_buffer) override {
     tones_.push_back(tone);
@@ -58,17 +52,13 @@ class FakeDtmfObserver : public DtmfSenderObserverInterface {
 
   // getters
   const std::vector<std::string>& tones() const { return tones_; }
-  const std::vector<std::string>& tones_from_single_argument_callback() const {
-    return tones_from_single_argument_callback_;
-  }
   std::string tones_remaining() { return tones_remaining_; }
   bool completed() const { return completed_; }
 
  private:
-  std::vector<std::string> tones_;
-  std::vector<std::string> tones_from_single_argument_callback_;
-  std::string tones_remaining_;
   bool completed_;
+  std::vector<std::string> tones_;
+  std::string tones_remaining_;
 };
 
 class FakeDtmfProvider : public DtmfProviderInterface {

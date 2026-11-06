@@ -32,6 +32,7 @@ class FrameTimingDetails;
 
 namespace cc {
 
+class ClientLayerTreeHostImpl;
 class LayerTreeHost;
 class LayerTreeHostSingleThreadClient;
 class RenderFrameMetadataObserver;
@@ -65,7 +66,8 @@ class CC_EXPORT SingleThreadProxy : public Proxy,
   void DetachInputDelegateAndRenderFrameObserver() override;
   bool RequestedAnimatePending() override;
   void SetDeferMainFrameUpdate(bool defer_main_frame_update) override;
-  void SetPauseRendering(bool pause_rendering) override;
+  void SetPauseRendering(bool pause_rendering,
+                         bool delay_until_visibility_change) override;
   void SetInputResponsePending() override;
   bool StartDeferringCommits(base::TimeDelta timeout,
                              PaintHoldingReason reason) override;
@@ -180,7 +182,7 @@ class CC_EXPORT SingleThreadProxy : public Proxy,
       base::TimeDelta first_scroll_delay,
       base::TimeTicks first_scroll_timestamp) override;
 
-  LayerTreeHostImpl* LayerTreeHostImplForTesting() const {
+  ClientLayerTreeHostImpl* LayerTreeHostImplForTesting() const {
     return host_impl_.get();
   }
 
@@ -217,7 +219,7 @@ class CC_EXPORT SingleThreadProxy : public Proxy,
 
   // Used on the Thread, but checked on main thread during
   // initialization/shutdown.
-  std::unique_ptr<LayerTreeHostImpl> host_impl_;
+  std::unique_ptr<ClientLayerTreeHostImpl> host_impl_;
 
   // Accessed from both threads.
   std::unique_ptr<Scheduler> scheduler_on_impl_thread_;

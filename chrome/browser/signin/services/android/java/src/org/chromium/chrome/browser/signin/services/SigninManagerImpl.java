@@ -6,7 +6,6 @@ package org.chromium.chrome.browser.signin.services;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 
-import androidx.annotation.IntDef;
 import androidx.annotation.MainThread;
 import androidx.annotation.VisibleForTesting;
 
@@ -40,7 +39,6 @@ import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.identitymanager.AccountManagedStatusFinder;
 import org.chromium.components.signin.identitymanager.AccountManagedStatusFinderOutcome;
-import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.identitymanager.IdentityMutator;
 import org.chromium.components.signin.identitymanager.PrimaryAccountError;
@@ -48,8 +46,6 @@ import org.chromium.components.signin.metrics.SigninAccessPoint;
 import org.chromium.components.signin.metrics.SignoutReason;
 import org.chromium.google_apis.gaia.CoreAccountId;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -91,11 +87,8 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
      */
     private @Nullable SignInState mSignInState;
 
-    /**
-     * Set during sign-out process and nulled out once complete. Helps to atomically gather/clear
-     * various sign-out state.
-     */
-    private @Nullable SignOutState mSignOutState;
+    /** Set during sign-out process and nulled out once complete. */
+    private @Nullable Runnable mSignOutCallback;
 
     /** Tracks whether deletion of browsing data is in progress. */
     private boolean mWipeUserDataInProgress;
@@ -145,8 +138,7 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
                 && (didAccountFetchSucceed() || !accountsPromise.getResult().isEmpty())) {
             seedThenReloadAllAccountsFromSystem(
                     mAccountManagerFacade.getAccounts().getResult(),
-                    CoreAccountInfo.getIdFrom(
-                            identityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN)));
+                    CoreAccountInfo.getIdFrom(identityManager.getPrimaryAccountInfo()));
         }
         mPrefChangeRegistrar = new PrefChangeRegistrar(mPrefService);
         mPrefChangeRegistrar.addObserver(Pref.SIGNIN_ALLOWED, this::notifySignInAllowedChanged);
@@ -176,8 +168,7 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
             return;
         }
 
-        @Nullable CoreAccountInfo primaryAccountInfo =
-                mIdentityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN);
+        @Nullable CoreAccountInfo primaryAccountInfo = mIdentityManager.getPrimaryAccountInfo();
         if (primaryAccountInfo == null) {
             seedThenReloadAllAccountsFromSystem(accounts, null);
             return;
@@ -204,7 +195,7 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
      * to null in case the user is signed out.
      */
     private void maybeUpdateLegacyPrimaryAccountEmail() {
-        CoreAccountInfo accountInfo = mIdentityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN);
+        CoreAccountInfo accountInfo = mIdentityManager.getPrimaryAccountInfo();
         if (Objects.equals(
                 CoreAccountInfo.getEmailFrom(accountInfo),
                 SigninPreferencesManager.getInstance().getLegacyPrimaryAccountEmail())) {
@@ -214,42 +205,32 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
                 .setLegacyPrimaryAccountEmail(CoreAccountInfo.getEmailFrom(accountInfo));
     }
 
-    /** Extracts the domain name of a given account's email. */
     @Override
     public String extractDomainName(String accountEmail) {
         return SigninManagerImplJni.get().extractDomainName(accountEmail);
     }
 
-    /** Returns the IdentityManager used by SigninManager. */
     @Override
     public IdentityManager getIdentityManager() {
         return mIdentityManager;
     }
 
-    /** Returns true if sign in can be started now. */
     @Override
     public boolean isSigninAllowed() {
         return mSignInState == null
                 && mPrefService.getBoolean(Pref.SIGNIN_ALLOWED)
-                && mIdentityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN) == null
+                && mIdentityManager.getPrimaryAccountInfo() == null
                 && isSigninSupported(/* requireUpdatedPlayServices= */ false);
     }
 
-    /** Returns true if sign out can be started now. */
     @Override
     public boolean isSignOutAllowed() {
-        return mSignOutState == null
+        return mSignOutCallback == null
                 && mSignInState == null
-                && mIdentityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN) != null
+                && mIdentityManager.getPrimaryAccountInfo() != null
                 && mIdentityManager.isClearPrimaryAccountAllowed();
     }
 
-    /**
-     * Returns whether the user can sign-in (maybe after an update to Google Play services).
-     *
-     * @param requireUpdatedPlayServices Indicates whether an updated version of play services is
-     *     required or not.
-     */
     @Override
     public boolean isSigninSupported(boolean requireUpdatedPlayServices) {
         if (requireUpdatedPlayServices) {
@@ -259,13 +240,11 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
                 .isGooglePlayServicesMissing(ContextUtils.getApplicationContext());
     }
 
-    /** Registers a SignInStateObserver to be notified when the user signs in or out of Chrome. */
     @Override
     public void addSignInStateObserver(SignInStateObserver observer) {
         mSignInStateObservers.addObserver(observer);
     }
 
-    /** Unregisters a SignInStateObserver to be notified when the user signs in or out of Chrome. */
     @Override
     public void removeSignInStateObserver(SignInStateObserver observer) {
         mSignInStateObservers.removeObserver(observer);
@@ -295,21 +274,20 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
     public void signin(
             CoreAccountInfo coreAccountInfo,
             @SigninAccessPoint int accessPoint,
-            @Nullable SignInCallback callback) {
+            SignInCallback callback) {
         signinInternal(SignInState.createForSignin(accessPoint, coreAccountInfo, callback));
     }
 
     @Override
     public void turnOnSyncForTesting(
             CoreAccountInfo coreAccountInfo, @SigninAccessPoint int accessPoint) {
-        CoreAccountInfo primaryAccountInfo =
-                mIdentityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN);
+        CoreAccountInfo primaryAccountInfo = mIdentityManager.getPrimaryAccountInfo();
         assert primaryAccountInfo != null && primaryAccountInfo.equals(coreAccountInfo)
                 : "Must be signed-in to turn on sync ";
         @PrimaryAccountError
         int primaryAccountError =
-                mIdentityMutator.setPrimaryAccount(
-                        coreAccountInfo.getId(), ConsentLevel.SYNC, accessPoint, () -> {});
+                mIdentityMutator.setPrimaryAccountWithSyncConsentForTesting(
+                        coreAccountInfo.getId(), accessPoint, () -> {});
         assert primaryAccountError == PrimaryAccountError.NO_ERROR
                 : "Encountered error: " + primaryAccountError;
     }
@@ -327,7 +305,7 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
                                     + "  Signed-in account: %s",
                             mSignInState,
                             mPrefService.getBoolean(Pref.SIGNIN_ALLOWED),
-                            mIdentityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN)));
+                            mIdentityManager.getPrimaryAccountInfo()));
         }
 
         // The mSignInState must be updated prior to the async processing below, as this indicates
@@ -375,8 +353,7 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
      */
     private void finishSignInAfterPolicyEnforced() {
         assert mSignInState != null : "SigninState shouldn't be null!";
-        assert !mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)
-                : "The user should not be already signed in";
+        assert !mIdentityManager.hasPrimaryAccount() : "The user should not be already signed in";
 
         // Retain the sign-in callback since pref commit callback will be called after sign-in is
         // considered completed and sign-in state is reset.
@@ -385,13 +362,10 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
         int primaryAccountError =
                 mIdentityMutator.setPrimaryAccount(
                         mSignInState.mCoreAccountInfo.getId(),
-                        ConsentLevel.SIGNIN,
                         mSignInState.getAccessPoint(),
                         () -> {
                             Log.d(TAG, "Sign-in native prefs written.");
-                            if (signInCallback != null) {
-                                signInCallback.onPrefsCommitted();
-                            }
+                            signInCallback.onPrefsCommitted();
                         });
 
         if (primaryAccountError != PrimaryAccountError.NO_ERROR) {
@@ -406,9 +380,7 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
         // Should be called after setting the primary account.
         maybeUpdateLegacyPrimaryAccountEmail();
 
-        if (mSignInState.mCallback != null) {
-            mSignInState.mCallback.onSignInComplete();
-        }
+        mSignInState.mCallback.onSignInComplete();
 
         Log.i(TAG, "Signin completed.");
         mSignInState = null;
@@ -438,7 +410,7 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
      */
     private boolean isOperationInProgress() {
         ThreadUtils.assertOnUiThread();
-        return mSignInState != null || mSignOutState != null || mWipeUserDataInProgress;
+        return mSignInState != null || mSignOutCallback != null || mWipeUserDataInProgress;
     }
 
     /**
@@ -457,68 +429,13 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
         }
     }
 
-    /** Initialize SignOutState, and call identity mutator to revoke the sync consent. */
     @Override
-    public void revokeSyncConsent(
-            @SignoutReason int signoutSource,
-            @Nullable SignOutCallback signOutCallback,
-            boolean forceWipeUserData) {
+    public void signOut(@SignoutReason int signoutSource, Runnable signOutCallback) {
         // Only one signOut at a time!
-        assert mSignOutState == null;
-        // User must be syncing.
-        assert mIdentityManager.hasPrimaryAccount(ConsentLevel.SYNC);
+        assert mSignOutCallback == null;
 
-        // Grab the management domain before nativeSignOut() potentially clears it.
-        String managementDomain = getManagementDomain();
-
-        // We wipe sync data only, as wiping the profile data would also trigger sign-out.
-        mSignOutState =
-                new SignOutState(
-                        signOutCallback,
-                        (forceWipeUserData || managementDomain != null)
-                                ? SignOutState.DataWipeAction.WIPE_SYNC_DATA_ONLY
-                                : SignOutState.DataWipeAction.WIPE_SIGNIN_DATA_ONLY);
-        Log.i(
-                TAG,
-                "Revoking sync consent, dataWipeAction: %d",
-                (forceWipeUserData || managementDomain != null)
-                        ? SignOutState.DataWipeAction.WIPE_SYNC_DATA_ONLY
-                        : SignOutState.DataWipeAction.WIPE_SIGNIN_DATA_ONLY);
-
-        mIdentityMutator.revokeSyncConsent(signoutSource);
-
-        notifySignOutAllowedChanged();
-        disableSyncAndWipeData(this::finishSignOut);
-    }
-
-    /**
-     * Signs out of Chrome. This method clears the signed-in username, stops sync and sends out a
-     * sign-out notification on the native side.
-     *
-     * @param signoutSource describes the event driving the signout (e.g. {@link
-     *     SignoutReason.USER_CLICKED_SIGNOUT_SETTINGS}).
-     * @param signOutCallback Callback to notify about the sign-out progress.
-     * @param forceWipeUserData Whether user selected to wipe all device data.
-     */
-    @Override
-    public void signOut(
-            @SignoutReason int signoutSource,
-            @Nullable SignOutCallback signOutCallback,
-            boolean forceWipeUserData) {
-        // Only one signOut at a time!
-        assert mSignOutState == null;
-
-        // Check the management domain before nativeSignOut() potentially clears it.
-        boolean shouldWipeBecauseOfAccountManagement =
-                getManagementDomain() != null
-                        && mIdentityManager.hasPrimaryAccount(ConsentLevel.SYNC);
-        @SignOutState.DataWipeAction
-        int dataWipeAction =
-                (forceWipeUserData || shouldWipeBecauseOfAccountManagement)
-                        ? SignOutState.DataWipeAction.WIPE_ALL_PROFILE_DATA
-                        : SignOutState.DataWipeAction.WIPE_SIGNIN_DATA_ONLY;
-        mSignOutState = new SignOutState(signOutCallback, dataWipeAction);
-        Log.i(TAG, "Signing out, dataWipeAction: %d", dataWipeAction);
+        mSignOutCallback = signOutCallback;
+        Log.i(TAG, "Signing out");
 
         mIdentityMutator.removePrimaryAccountButKeepTokens(signoutSource);
 
@@ -532,15 +449,13 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
         }
 
         notifySignOutAllowedChanged();
-        disableSyncAndWipeData(this::finishSignOut);
-    }
+        assumeNonNull(mSignOutCallback);
+        Log.i(TAG, "Native signout complete");
 
-    /**
-     * Returns the management domain if the signed in account is managed, otherwise returns null.
-     */
-    @Override
-    public @Nullable String getManagementDomain() {
-        return SigninManagerImplJni.get().getManagementDomain(mNativeSigninManagerAndroid);
+        maybeUpdateLegacyPrimaryAccountEmail();
+
+        SigninManagerImplJni.get()
+                .wipeGoogleServiceWorkerCaches(mNativeSigninManagerAndroid, this::finishSignOut);
     }
 
     /**
@@ -560,9 +475,7 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
                 signInState.getAccessPoint(),
                 SigninAccessPoint.MAX_VALUE);
 
-        if (signInState.mCallback != null) {
-            signInState.mCallback.onSignInAborted();
-        }
+        signInState.mCallback.onSignInAborted();
 
         stopApplyingCloudPolicy();
 
@@ -573,7 +486,7 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
     @VisibleForTesting
     void finishSignOut() {
         // Should be set at start of sign-out flow.
-        assert mSignOutState != null;
+        assert mSignOutCallback != null;
 
         // After sign-out, reset the Sync promo show count, so the user will see Sync promos
         // again.
@@ -582,10 +495,10 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
                         ChromePreferenceKeys.SYNC_PROMO_SHOW_COUNT.createKey(
                                 SigninPreferencesManager.SigninPromoAccessPointId.NTP),
                         0);
-        SignOutCallback signOutCallback = mSignOutState.mSignOutCallback;
-        mSignOutState = null;
+        Runnable signOutCallback = mSignOutCallback;
+        mSignOutCallback = null;
 
-        if (signOutCallback != null) signOutCallback.signOutComplete();
+        signOutCallback.run();
         notifyCallbacksWaitingForOperation();
 
         for (SignInStateObserver observer : mSignInStateObservers) {
@@ -632,39 +545,19 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
         maybeUpdateLegacyPrimaryAccountEmail();
     }
 
-    /**
-     * Wipes the user's bookmarks and sync data.
-     *
-     * @param wipeDataCallback A callback which will be called once the data is wiped.
-     * @param dataWipeOption What kind of data to delete.
-     */
     @Override
-    public void wipeSyncUserData(Runnable wipeDataCallback, @DataWipeOption int dataWipeOption) {
+    public void wipeSyncUserData(Runnable wipeDataCallback) {
         assert !mWipeUserDataInProgress;
         mWipeUserDataInProgress = true;
 
-        switch (dataWipeOption) {
-            case DataWipeOption.WIPE_SYNC_DATA:
-                SigninManagerImplJni.get()
-                        .wipeSyncUserData(
-                                mNativeSigninManagerAndroid,
-                                () -> {
-                                    mWipeUserDataInProgress = false;
-                                    wipeDataCallback.run();
-                                    notifyCallbacksWaitingForOperation();
-                                });
-                break;
-            case DataWipeOption.WIPE_ALL_PROFILE_DATA:
-                SigninManagerImplJni.get()
-                        .wipeProfileData(
-                                mNativeSigninManagerAndroid,
-                                () -> {
-                                    mWipeUserDataInProgress = false;
-                                    wipeDataCallback.run();
-                                    notifyCallbacksWaitingForOperation();
-                                });
-                break;
-        }
+        SigninManagerImplJni.get()
+                .wipeProfileData(
+                        mNativeSigninManagerAndroid,
+                        () -> {
+                            mWipeUserDataInProgress = false;
+                            wipeDataCallback.run();
+                            notifyCallbacksWaitingForOperation();
+                        });
     }
 
     @Override
@@ -680,8 +573,7 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
                 .getUserAcceptedAccountManagement(mNativeSigninManagerAndroid);
     }
 
-    @Override
-    public boolean didAccountFetchSucceed() {
+    private boolean didAccountFetchSucceed() {
         return mAccountManagerFacade.didAccountFetchSucceed();
     }
 
@@ -694,33 +586,6 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
         SigninManagerImplJni.get().stopApplyingCloudPolicy(mNativeSigninManagerAndroid);
     }
 
-    private void disableSyncAndWipeData(final Runnable wipeDataCallback) {
-        assumeNonNull(mSignOutState);
-        Log.i(
-                TAG,
-                "Native signout complete, wiping data (user callback: %s)",
-                mSignOutState.mDataWipeAction);
-
-        maybeUpdateLegacyPrimaryAccountEmail();
-
-        if (mSignOutState.mSignOutCallback != null) {
-            mSignOutState.mSignOutCallback.preWipeData();
-        }
-        switch (mSignOutState.mDataWipeAction) {
-            case SignOutState.DataWipeAction.WIPE_SIGNIN_DATA_ONLY:
-                SigninManagerImplJni.get()
-                        .wipeGoogleServiceWorkerCaches(
-                                mNativeSigninManagerAndroid, wipeDataCallback);
-                break;
-            case SignOutState.DataWipeAction.WIPE_SYNC_DATA_ONLY:
-                wipeSyncUserData(wipeDataCallback, DataWipeOption.WIPE_SYNC_DATA);
-                break;
-            case SignOutState.DataWipeAction.WIPE_ALL_PROFILE_DATA:
-                wipeSyncUserData(wipeDataCallback, DataWipeOption.WIPE_ALL_PROFILE_DATA);
-                break;
-        }
-    }
-
     /**
      * Contains all the state needed for signin. This forces signin flow state to be cleared
      * atomically, and all final fields to be set upon initialization.
@@ -728,7 +593,7 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
     private static class SignInState {
         private final @SigninAccessPoint Integer mAccessPoint;
         private final CoreAccountInfo mCoreAccountInfo;
-        final @Nullable SignInCallback mCallback;
+        final SignInCallback mCallback;
 
         /**
          * State for the sign-in flow that doesn't enable sync.
@@ -740,14 +605,14 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
         static SignInState createForSignin(
                 @SigninAccessPoint int accessPoint,
                 CoreAccountInfo coreAccountInfo,
-                @Nullable SignInCallback callback) {
+                SignInCallback callback) {
             return new SignInState(accessPoint, coreAccountInfo, callback);
         }
 
         private SignInState(
                 @SigninAccessPoint Integer accessPoint,
                 CoreAccountInfo coreAccountInfo,
-                @Nullable SignInCallback callback) {
+                SignInCallback callback) {
             assert coreAccountInfo != null : "CoreAccountInfo must be set and valid to progress.";
             mAccessPoint = accessPoint;
             mCoreAccountInfo = coreAccountInfo;
@@ -759,38 +624,6 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
         int getAccessPoint() {
             assert mAccessPoint != null : "Not going to enable sync - no access point!";
             return mAccessPoint;
-        }
-    }
-
-    /**
-     * Contains all the state needed for sign out. Like SignInState, this forces flow state to be
-     * cleared atomically, and all final fields to be set upon initialization.
-     */
-    private static class SignOutState {
-        @IntDef({
-            DataWipeAction.WIPE_SIGNIN_DATA_ONLY,
-            DataWipeAction.WIPE_SYNC_DATA_ONLY,
-            DataWipeAction.WIPE_ALL_PROFILE_DATA
-        })
-        @Retention(RetentionPolicy.SOURCE)
-        public @interface DataWipeAction {
-            int WIPE_SIGNIN_DATA_ONLY = 0;
-            int WIPE_SYNC_DATA_ONLY = 1;
-            int WIPE_ALL_PROFILE_DATA = 2;
-        }
-
-        final @Nullable SignOutCallback mSignOutCallback;
-        final @DataWipeAction int mDataWipeAction;
-
-        /**
-         * @param signOutCallback Hooks to call before/after data wiping phase of sign-out.
-         * @param dataWipeAction Flag to wipe user data as requested by the user and enforced for
-         *     managed users.
-         */
-        SignOutState(
-                @Nullable SignOutCallback signOutCallback, @DataWipeAction int dataWipeAction) {
-            this.mSignOutCallback = signOutCallback;
-            this.mDataWipeAction = dataWipeAction;
         }
     }
 
@@ -806,17 +639,11 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
 
         void stopApplyingCloudPolicy(long nativeSigninManagerAndroid);
 
-        @Nullable String getManagementDomain(long nativeSigninManagerAndroid);
-
         void wipeProfileData(
                 long nativeSigninManagerAndroid,
                 @JniType("base::RepeatingClosure") Runnable callback);
 
         void wipeGoogleServiceWorkerCaches(
-                long nativeSigninManagerAndroid,
-                @JniType("base::RepeatingClosure") Runnable callback);
-
-        void wipeSyncUserData(
                 long nativeSigninManagerAndroid,
                 @JniType("base::RepeatingClosure") Runnable callback);
 

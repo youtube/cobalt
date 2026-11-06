@@ -1207,7 +1207,7 @@ void V8Debugger::asyncTaskScheduledForStack(const StringView& taskName,
 #ifdef V8_USE_PERFETTO
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
               "v8::Debugger::AsyncTaskScheduled", "taskName",
-              TRACE_STR_COPY(toString16(taskName).utf8().c_str()),
+              toString16(taskName).utf8().c_str(),
               perfetto::Flow::ProcessScoped(reinterpret_cast<uintptr_t>(task)),
               "data", [isolate = m_isolate](perfetto::TracedValue context) {
                 AddTraceDataWithSample(isolate, std::move(context));
@@ -1270,8 +1270,7 @@ void V8Debugger::asyncTaskStartedForStack(void* task) {
 
 void V8Debugger::asyncTaskFinishedForStack(void* task) {
 #ifdef V8_USE_PERFETTO
-  TRACE_EVENT_END0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
-                   "v8::Debugger::AsyncTaskRun");
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.inspector"));
 #endif  // V8_USE_PERFETTO
   if (!m_maxAsyncCallStackDepth) return;
   // We could start instrumenting half way and the stack is empty.

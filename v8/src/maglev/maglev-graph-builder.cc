@@ -3249,8 +3249,8 @@ ReduceResult MaglevGraphBuilder::LoadAndCacheContextSlot(
   }
   if (assigned == kMaybeAssigned &&
       !known_node_aspects().IsContextCacheEmpty(assigned)) {
-    known_node_aspects().UpdateMayHaveAliasingContexts(
-        broker(), local_isolate(), context);
+    known_node_aspects().UpdateMayHaveAliasingContexts(broker(), local_isolate(),
+                                                      context);
   }
   if (HasContextCell(context_mode, assigned)) {
     // We collect feedback only for mutable context slots.
@@ -3382,10 +3382,11 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
                                             << offset
                                             << "]: " << PrintNode(value));
 
-  auto aliased_slots = known_node_aspects().ClearAliasedContextSlotsFor(
-      graph(), context, offset, value);
-  bool added_to_cache = known_node_aspects().SetContextCachedValue(
-      context, offset, value, maybe_assigned);
+  auto result = known_node_aspects().RecordContextSlotStore(
+      graph(), context, offset, value, maybe_assigned);
+  auto& aliased_slots = result.aliased_slots;
+  bool added_to_cache =
+      result.type == KnownNodeAspects::ContextStoreResult::kSetNewValue;
 
   // Update loop effect state.
   KnownNodeAspects::LoadedContextSlotsKey key{context, offset};
@@ -5203,9 +5204,9 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayLength(
   // cannot end up with an empty type for it.
   DCHECK(!IsEmptyNodeType(GetType(fixed_array)));
   ValueNode* length;
-  GET_VALUE(length,
-            BuildLoadTaggedField(fixed_array, offsetof(FixedArray, length_),
-                                 LoadType::kSmi));
+  GET_VALUE(length, AddNewNode<LoadInt32>(
+                        {fixed_array},
+                        static_cast<int>(offsetof(FixedArray, length_))));
   return length;
 }
 
@@ -5399,6 +5400,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
   }
 
   if (field_representation.IsDouble()) {
+    if (access_info.IsFastDataConstant()) {
+      // Force conversion to Float64 to ensure we can check for hole NaN.
+      GET_VALUE_OR_ABORT(value, GetFloat64(value));
+      GET_VALUE_OR_ABORT(value, GetSilencedNaN(value));
+    }
     if (access_info.HasTransitionMap()) {
       // Allocate the mutable double box owned by the field.
       ValueNode* heapnumber_value;
@@ -5495,7 +5501,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
       ValueNode* string;
       GET_VALUE_OR_ABORT(
           string, BuildLoadTaggedField(lookup_start_object,
-                                       JSPrimitiveWrapper::kValueOffset));
+                                       offsetof(JSPrimitiveWrapper, value_)));
       return AddNewNodeNoInputConversion<StringLength>({string});
     }
     case compiler::PropertyAccessInfo::kTypedArrayLength: {
@@ -5734,10 +5740,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildHomomorphicNamedAccess(
         {lookup_start_object}, CheckType::kCheckHeapObject, JS_ARRAY_TYPE,
         JS_ARRAY_TYPE));
     return BuildLoadJSArrayLength(lookup_start_object);
-  } else if (descriptor_index ==
-             LoadHandler::kStringLengthFieldDescriptorIndex) {
-    RETURN_IF_ABORT(BuildCheckString(lookup_start_object));
-    return BuildLoadStringLength(lookup_start_object);
   }
 
   RETURN_IF_ABORT(AddNewNode<CheckHomomorphicMap>(
@@ -9380,7 +9382,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
 
   std::optional<MapInference> map_inference;
   ValueNode* iterated_object =
-      iterator->get(JSArrayIterator::kIteratedObjectOffset);
+      iterator->get(offsetof(JSArrayIterator, iterated_object_));
   ElementsKind elements_kind;
   base::SmallVector<compiler::MapRef, 4> maps;
   if (iterated_object->Is<InlinedAllocation>()) {
@@ -9434,7 +9436,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
   // We can assume index and length fit in Uint32.
   ValueNode* index;
   GET_VALUE_OR_ABORT(
-      index, BuildLoadTaggedField(receiver, JSArrayIterator::kNextIndexOffset));
+      index,
+      BuildLoadTaggedField(receiver, offsetof(JSArrayIterator, next_index_)));
   ValueNode* uint32_index;
   GET_VALUE_OR_ABORT(uint32_index, GetUint32ElementIndex(index));
   ValueNode* length;
@@ -9460,10 +9463,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
         ValueNode* int32_index;
         GET_VALUE_OR_ABORT(int32_index, GetInt32(uint32_index));
         subgraph.set(is_done, GetBooleanConstant(false));
-        DCHECK(
-            iterator->get(JSArrayIterator::kKindOffset)->Is<Int32Constant>());
+        DCHECK(iterator->get(offsetof(JSArrayIterator, kind_))
+                   ->Is<Int32Constant>());
         IterationKind iteration_kind = static_cast<IterationKind>(
-            iterator->get(JSArrayIterator::kKindOffset)
+            iterator->get(offsetof(JSArrayIterator, kind_))
                 ->Cast<Int32Constant>()
                 ->value());
         if (iteration_kind == IterationKind::kKeys) {
@@ -9491,7 +9494,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
         EnsureType(next_index, NodeType::kSmi);
         // Update [[NextIndex]]
         return BuildStoreTaggedFieldNoWriteBarrier(
-            receiver, next_index, JSArrayIterator::kNextIndexOffset,
+            receiver, next_index, offsetof(JSArrayIterator, next_index_),
             StoreTaggedMode::kDefault);
       },
       [&] {
@@ -9509,9 +9512,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
           // This is not necessary for JSTypedArray's, since the length of those
           // cannot change later and so if we were ever out of bounds for them
           // we will stay out-of-bounds forever.
-          return BuildStoreTaggedField(
-              receiver, GetRootConstant(RootIndex::kMaxUInt32),
-              JSArrayIterator::kNextIndexOffset, StoreTaggedMode::kDefault);
+          return BuildStoreTaggedField(receiver,
+                                       GetRootConstant(RootIndex::kMaxUInt32),
+                                       offsetof(JSArrayIterator, next_index_),
+                                       StoreTaggedMode::kDefault);
         }
         return ReduceResult::Done();
       }));
@@ -10046,9 +10050,16 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIndexOfIncludes(
   GET_VALUE_OR_ABORT(max_value, BuildInt32Max(start, GetInt32Constant(0)));
   ValueNode* clamped_start;
   GET_VALUE_OR_ABORT(clamped_start, BuildInt32Min(max_value, receiver_length));
+
+  // TODO(496266449): Change StringIndexOf value representation type to
+  // kSmi and remove this GetSmiValue call.
+  ValueNode* clamped_start_smi;
+  GET_VALUE_OR_ABORT(clamped_start_smi, GetSmiValue(clamped_start));
+
   ValueNode* result;
-  GET_VALUE_OR_ABORT(result, AddNewNode<StringIndexOf>(
-                                 {receiver, search_element, clamped_start}));
+  GET_VALUE_OR_ABORT(
+      result,
+      AddNewNode<StringIndexOf>({receiver, search_element, clamped_start_smi}));
 
   if (is_includes) {
     return AddNewNode<Int32Compare>({result, GetInt32Constant(0)},
@@ -10482,7 +10493,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetField(
 
   ValueNode* receiver = args.receiver();
   DCHECK_NOT_NULL(receiver);
-  int field_offset = JSDate::kYearOffset + field_index * kTaggedSize;
+  int field_offset = offsetof(JSDate, year_) + field_index * kTaggedSize;
   ValueNode* field_value;
   GET_VALUE_OR_ABORT(field_value, BuildLoadTaggedField(receiver, field_offset));
   // All cached JSDate fields are Smi|NaN.
@@ -10500,7 +10511,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetTime(
 
   ValueNode* receiver = args.receiver();
   DCHECK_NOT_NULL(receiver);
-  return AddNewNode<LoadFloat64>({receiver}, JSDate::kValueOffset);
+  return AddNewNode<LoadFloat64>({receiver},
+                                 static_cast<int>(offsetof(JSDate, value_)));
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceDatePrototypeGetFullYear(
@@ -10724,7 +10736,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMapPrototypeGet(
   ValueNode* key = args[0];
   ValueNode* table;
   GET_VALUE_OR_ABORT(
-      table, BuildLoadTaggedField(receiver, JSCollection::kTableOffset));
+      table, BuildLoadTaggedField(receiver, offsetof(JSCollection, table_)));
 
   ValueNode* entry;
   auto key_info = known_node_aspects().TryGetInfoFor(key);
@@ -10778,7 +10790,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceSetPrototypeHas(
   ValueNode* key = args[0];
   ValueNode* table;
   GET_VALUE_OR_ABORT(
-      table, BuildLoadTaggedField(receiver, JSCollection::kTableOffset));
+      table, BuildLoadTaggedField(receiver, offsetof(JSCollection, table_)));
 
   return AddNewNode<SetPrototypeHas>({table, key});
 }
@@ -12065,8 +12077,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(
         compiler::HolderLookupResult{CallOptimization::kHolderIsReceiver};
   } else if (args.receiver()) {
     // Try to infer API holder from the known aspects of the {receiver}.
-    api_holder =
+    // TryInferApiHolderValue may emit map checks that abort graph building; in
+    // that case we must not emit further nodes.
+    auto maybe_holder =
         TryInferApiHolderValue(function_template_info, args.receiver());
+    if (!maybe_holder) return ReduceResult::DoneWithAbort();
+    api_holder = *maybe_holder;
   }
 
   switch (api_holder.lookup) {
@@ -12434,7 +12450,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallForConstant(
   return BuildGenericCall(target_node, Call::TargetType::kJSFunction, args);
 }
 
-compiler::HolderLookupResult MaglevGraphBuilder::TryInferApiHolderValue(
+std::optional<compiler::HolderLookupResult>
+MaglevGraphBuilder::TryInferApiHolderValue(
     compiler::FunctionTemplateInfoRef function_template_info,
     ValueNode* receiver) {
   const compiler::HolderLookupResult not_found;
@@ -12492,9 +12509,10 @@ compiler::HolderLookupResult MaglevGraphBuilder::TryInferApiHolderValue(
           function_template_info.accept_any_receiver());
   }
 
-  // If we infer the holder, we rely on the map.
+  // If we infer the holder, we rely on the map. InsertMapChecks can abort, in
+  // which case we must not continue building nodes -- signal abort via nullopt.
   if (inference.InsertMapChecks(zone()).IsDoneWithAbort()) {
-    return not_found;
+    return std::nullopt;
   }
 
   return api_holder;
@@ -13129,8 +13147,8 @@ ReduceResult MaglevGraphBuilder::VisitIntrinsicGeneratorGetResumeMode(
     interpreter::RegisterList args) {
   DCHECK_EQ(args.register_count(), 1);
   ValueNode* generator = current_interpreter_frame_.get(args[0]);
-  return SetAccumulator(
-      BuildLoadTaggedField(generator, JSGeneratorObject::kResumeModeOffset));
+  return SetAccumulator(BuildLoadTaggedField(
+      generator, offsetof(JSGeneratorObject, resume_mode_)));
 }
 
 ReduceResult MaglevGraphBuilder::VisitIntrinsicGeneratorClose(
@@ -13139,7 +13157,7 @@ ReduceResult MaglevGraphBuilder::VisitIntrinsicGeneratorClose(
   ValueNode* generator = current_interpreter_frame_.get(args[0]);
   ValueNode* value = GetSmiConstant(JSGeneratorObject::kGeneratorClosed);
   RETURN_IF_ABORT(BuildStoreTaggedFieldNoWriteBarrier(
-      generator, value, JSGeneratorObject::kContinuationOffset,
+      generator, value, offsetof(JSGeneratorObject, continuation_),
       StoreTaggedMode::kDefault));
   SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
   return ReduceResult::Done();
@@ -13214,7 +13232,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceAsyncFunctionReject(
   ValueNode* promise;
   GET_VALUE_OR_ABORT(
       promise, BuildLoadTaggedField(async_function_object,
-                                    JSAsyncFunctionObject::kPromiseOffset));
+                                    offsetof(JSAsyncFunctionObject, promise_)));
 
   // Create a nested frame state inside the current method's most-recent
   // {frame_state} that will ensure that lazy deoptimizations at this
@@ -13258,7 +13276,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceAsyncFunctionResolve(
   ValueNode* promise;
   GET_VALUE_OR_ABORT(
       promise, BuildLoadTaggedField(async_function_object,
-                                    JSAsyncFunctionObject::kPromiseOffset));
+                                    offsetof(JSAsyncFunctionObject, promise_)));
 
   if (NodeTypeIs(GetType(value), NodeType::kJSPrimitive)) {
     // We can strength-reduce JSResolvePromise to JSFulfillPromise  if the
@@ -14599,7 +14617,7 @@ VirtualObject* MaglevGraphBuilder::CreateJSStringWrapper(ValueNode* value) {
             GetRootConstant(RootIndex::kEmptyFixedArray));
   vobj->set(JSObject::kElementsOffset,
             GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(JSPrimitiveWrapper::kValueOffset, value);
+  vobj->set(offsetof(JSPrimitiveWrapper, value_), value);
   return vobj;
 }
 
@@ -14611,13 +14629,13 @@ VirtualObject* MaglevGraphBuilder::CreateJSArrayIterator(
   VirtualObject* vobj = NodeBase::New<VirtualObject>(
       zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
   vobj->set(HeapObject::kMapOffset, GetConstant(map));
-  vobj->set(JSArrayIterator::kPropertiesOrHashOffset,
+  vobj->set(offsetof(JSArrayIterator, properties_or_hash_),
             GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(JSArrayIterator::kElementsOffset,
+  vobj->set(offsetof(JSArrayIterator, elements_),
             GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(JSArrayIterator::kIteratedObjectOffset, iterated_object);
-  vobj->set(JSArrayIterator::kNextIndexOffset, GetInt32Constant(0));
-  vobj->set(JSArrayIterator::kKindOffset,
+  vobj->set(offsetof(JSArrayIterator, iterated_object_), iterated_object);
+  vobj->set(offsetof(JSArrayIterator, next_index_), GetInt32Constant(0));
+  vobj->set(offsetof(JSArrayIterator, kind_),
             GetInt32Constant(static_cast<int>(kind)));
   return vobj;
 }
@@ -14658,17 +14676,27 @@ VirtualObject* MaglevGraphBuilder::CreateFixedArray(
   DCHECK_NE(length, 0);  // Use kEmptyFixedArray instead.
   DCHECK_EQ(FixedArray::SizeFor(length) % FieldSizeOf(Shape::kBodyFieldType),
             0);
-  DCHECK_EQ(Shape::header_slot_count + length,
-            FixedArray::SizeFor(length) / FieldSizeOf(Shape::kBodyFieldType));
+#if TAGGED_SIZE_8_BYTES
+  // FixedArray header fields are: map, length, optional_padding
+  DCHECK_EQ(Shape::header_slot_count, 3);
+#else
+  // FixedArray header fields are: map, length
+  DCHECK_EQ(Shape::header_slot_count, 2);
+#endif  // TAGGED_SIZE_8_BYTES
+  DCHECK_EQ(length,
+            (FixedArray::SizeFor(length) - FixedArrayBase::kHeaderSize) /
+                FieldSizeOf(Shape::kBodyFieldType));
 
   int slot_count = Shape::header_slot_count + length;
   VirtualObject* vobj = NodeBase::New<VirtualObject>(
       zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
+  DCHECK_EQ(vobj->size(), FixedArray::SizeFor(length));
 
   vobj->set(HeapObject::kMapOffset, GetConstant(map));
-  // TODO(jgruber): This is a smi field. Is there some advantage to creating an
-  // int32 constant first?
   vobj->set(FixedArrayBase::kLengthOffset, GetInt32Constant(length));
+#if TAGGED_SIZE_8_BYTES
+  vobj->set(FixedArrayBase::kPaddingOffset, GetInt32Constant(0));
+#endif  // TAGGED_SIZE_8_BYTES
   for (int i = 0; i < length; i++) {
     DCHECK_NOT_NULL(values[i]);
     vobj->set(FixedArray::OffsetOfElementAt(i), values[i]);
@@ -14691,9 +14719,16 @@ VirtualObject* MaglevGraphBuilder::CreateFixedDoubleArray(
       zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
   DCHECK_EQ(vobj->size(), T::SizeFor(length));
 
+#if TAGGED_SIZE_8_BYTES
+  DCHECK_EQ(Shape::header_slot_count, 3);
+#else
   DCHECK_EQ(Shape::header_slot_count, 2);
+#endif  // TAGGED_SIZE_8_BYTES
   vobj->set(HeapObject::kMapOffset, GetConstant(map));
   vobj->set(FixedArrayBase::kLengthOffset, GetInt32Constant(length));
+#if TAGGED_SIZE_8_BYTES
+  vobj->set(FixedArrayBase::kPaddingOffset, GetInt32Constant(0));
+#endif  // TAGGED_SIZE_8_BYTES
   for (uint32_t i = 0; i < length; i++) {
     vobj->set(T::OffsetOfElementAt(i), values[i]);
   }
@@ -14703,19 +14738,18 @@ VirtualObject* MaglevGraphBuilder::CreateFixedDoubleArray(
 VirtualObject* MaglevGraphBuilder::CreateContext(
     compiler::MapRef map, int length, compiler::ScopeInfoRef scope_info,
     ValueNode* previous_context, std::optional<ValueNode*> extension) {
-  using Shape = VirtualFixedArrayShape;
+  using Shape = ContextShape;
   SBXCHECK_GE(length, Context::MIN_CONTEXT_SLOTS);
-  DCHECK_EQ(FixedArray::SizeFor(length) % FieldSizeOf(Shape::kBodyFieldType),
-            0);
+  DCHECK_EQ(Context::SizeFor(length) % FieldSizeOf(Shape::kBodyFieldType), 0);
   DCHECK_EQ(Shape::header_slot_count + length,
-            FixedArray::SizeFor(length) / FieldSizeOf(Shape::kBodyFieldType));
+            Context::SizeFor(length) / FieldSizeOf(Shape::kBodyFieldType));
 
   int slot_count = Shape::header_slot_count + length;
   VirtualObject* vobj = NodeBase::New<VirtualObject>(
       zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
 
   vobj->set(HeapObject::kMapOffset, GetConstant(map));
-  vobj->set(Context::kLengthOffset, GetInt32Constant(length));
+  vobj->set(Context::kLengthOffset, GetSmiConstant(length));
   vobj->set(Context::OffsetOfElementAt(Context::SCOPE_INFO_INDEX),
             GetConstant(scope_info));
   vobj->set(Context::OffsetOfElementAt(Context::PREVIOUS_INDEX),
@@ -14763,12 +14797,21 @@ VirtualObject* MaglevGraphBuilder::CreateMappedArgumentsElements(
     compiler::MapRef map, int mapped_count, ValueNode* context,
     ValueNode* unmapped_elements) {
   using Shape = VirtualSloppyArgumentsElementsShape;
-  int slot_count = SloppyArgumentsElements::SizeFor(mapped_count) / kTaggedSize;
+  int slot_count = Shape::header_slot_count + mapped_count;
+#if TAGGED_SIZE_8_BYTES
+  DCHECK_EQ(Shape::header_slot_count, 5);
+#else
+  DCHECK_EQ(Shape::header_slot_count, 4);
+#endif  // TAGGED_SIZE_8_BYTES
   VirtualObject* vobj = NodeBase::New<VirtualObject>(
       zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
   vobj->set(HeapObject::kMapOffset, GetConstant(map));
   vobj->set(offsetof(SloppyArgumentsElements, length_),
             GetInt32Constant(mapped_count));
+#if TAGGED_SIZE_8_BYTES
+  vobj->set(offsetof(SloppyArgumentsElements, optional_padding_),
+            GetInt32Constant(0));
+#endif  // TAGGED_SIZE_8_BYTES
   vobj->set(offsetof(SloppyArgumentsElements, context_), context);
   vobj->set(offsetof(SloppyArgumentsElements, arguments_), unmapped_elements);
   return vobj;
@@ -14811,24 +14854,26 @@ VirtualObject* MaglevGraphBuilder::CreateJSGeneratorObject(
   VirtualObject* vobj = NodeBase::New<VirtualObject>(
       zone(), 0, NewObjectId(), this, object_layout, map, slot_count);
   vobj->set(HeapObject::kMapOffset, GetConstant(map));
-  vobj->set(JSGeneratorObject::kPropertiesOrHashOffset,
+  vobj->set(offsetof(JSGeneratorObject, properties_or_hash_),
             GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(JSGeneratorObject::kElementsOffset,
+  vobj->set(offsetof(JSGeneratorObject, elements_),
             GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(JSGeneratorObject::kContextOffset, context);
-  vobj->set(JSGeneratorObject::kFunctionOffset, closure);
-  vobj->set(JSGeneratorObject::kReceiverOffset, receiver);
-  vobj->set(JSGeneratorObject::kInputOrDebugPosOffset,
+  vobj->set(offsetof(JSGeneratorObject, context_), context);
+  vobj->set(offsetof(JSGeneratorObject, function_), closure);
+  vobj->set(offsetof(JSGeneratorObject, receiver_), receiver);
+  vobj->set(offsetof(JSGeneratorObject, input_or_debug_pos_),
             GetRootConstant(RootIndex::kUndefinedValue));
-  vobj->set(JSGeneratorObject::kResumeModeOffset,
+  vobj->set(offsetof(JSGeneratorObject, resume_mode_),
             GetInt32Constant(JSGeneratorObject::kNext));
-  vobj->set(JSGeneratorObject::kContinuationOffset,
+  vobj->set(offsetof(JSGeneratorObject, continuation_),
             GetInt32Constant(JSGeneratorObject::kGeneratorExecuting));
-  vobj->set(JSGeneratorObject::kParametersAndRegistersOffset, register_file);
+  vobj->set(offsetof(JSGeneratorObject, parameters_and_registers_),
+            register_file);
   if (is_async) {
-    vobj->set(JSAsyncGeneratorObject::kQueueOffset,
+    vobj->set(offsetof(JSAsyncGeneratorObject, queue_),
               GetRootConstant(RootIndex::kUndefinedValue));
-    vobj->set(JSAsyncGeneratorObject::kIsAwaitingOffset, GetInt32Constant(0));
+    vobj->set(offsetof(JSAsyncGeneratorObject, is_awaiting_),
+              GetInt32Constant(0));
   }
   return vobj;
 }
@@ -14841,7 +14886,7 @@ VirtualObject* MaglevGraphBuilder::CreateJSAsyncFunctionObject(
   const vobj::ObjectLayout* object_layout =
       &VirtualJSAsyncFunctionObjectShape::kObjectLayout;
 
-  constexpr int slot_count = JSAsyncFunctionObject::kHeaderSize / kTaggedSize;
+  constexpr int slot_count = sizeof(JSAsyncFunctionObject) / kTaggedSize;
   static_assert(slot_count == 13,
                 "If the number of slots in JSAsyncFunctionObject changes, then "
                 "the additional slots need to be initialized below");
@@ -14849,25 +14894,25 @@ VirtualObject* MaglevGraphBuilder::CreateJSAsyncFunctionObject(
   VirtualObject* vobj = NodeBase::New<VirtualObject>(
       zone(), 0, NewObjectId(), this, object_layout, map, slot_count);
   vobj->set(HeapObject::kMapOffset, GetConstant(map));
-  vobj->set(JSAsyncFunctionObject::kPropertiesOrHashOffset,
+  vobj->set(offsetof(JSAsyncFunctionObject, properties_or_hash_),
             GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(JSAsyncFunctionObject::kElementsOffset,
+  vobj->set(offsetof(JSAsyncFunctionObject, elements_),
             GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(JSAsyncFunctionObject::kContextOffset, context);
-  vobj->set(JSAsyncFunctionObject::kFunctionOffset, closure);
-  vobj->set(JSAsyncFunctionObject::kReceiverOffset, receiver);
-  vobj->set(JSAsyncFunctionObject::kInputOrDebugPosOffset,
+  vobj->set(offsetof(JSAsyncFunctionObject, context_), context);
+  vobj->set(offsetof(JSAsyncFunctionObject, function_), closure);
+  vobj->set(offsetof(JSAsyncFunctionObject, receiver_), receiver);
+  vobj->set(offsetof(JSAsyncFunctionObject, input_or_debug_pos_),
             GetRootConstant(RootIndex::kUndefinedValue));
-  vobj->set(JSAsyncFunctionObject::kResumeModeOffset,
+  vobj->set(offsetof(JSAsyncFunctionObject, resume_mode_),
             GetInt32Constant(JSGeneratorObject::kNext));
-  vobj->set(JSAsyncFunctionObject::kContinuationOffset,
+  vobj->set(offsetof(JSAsyncFunctionObject, continuation_),
             GetInt32Constant(JSGeneratorObject::kGeneratorExecuting));
-  vobj->set(JSAsyncFunctionObject::kParametersAndRegistersOffset,
+  vobj->set(offsetof(JSAsyncFunctionObject, parameters_and_registers_),
             register_file);
-  vobj->set(JSAsyncFunctionObject::kPromiseOffset, promise);
-  vobj->set(JSAsyncFunctionObject::kAwaitResolveClosureOffset,
+  vobj->set(offsetof(JSAsyncFunctionObject, promise_), promise);
+  vobj->set(offsetof(JSAsyncFunctionObject, await_resolve_closure_),
             GetRootConstant(RootIndex::kUndefinedValue));
-  vobj->set(JSAsyncFunctionObject::kAwaitRejectClosureOffset,
+  vobj->set(offsetof(JSAsyncFunctionObject, await_reject_closure_),
             GetRootConstant(RootIndex::kUndefinedValue));
 
   return vobj;
@@ -14887,12 +14932,14 @@ VirtualObject* MaglevGraphBuilder::CreateJSPromiseObject() {
             GetRootConstant(RootIndex::kEmptyFixedArray));
   vobj->set(JSPromise::kElementsOffset,
             GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(JSPromise::kReactionsOrResultOffset, GetSmiConstant(0));
+  vobj->set(offsetof(JSPromise, reactions_or_result_), GetSmiConstant(0));
   static_assert(v8::Promise::kPending == 0);
-  vobj->set(JSPromise::kFlagsOffset, GetSmiConstant(0));
-  static_assert(JSPromise::kHeaderSize == 5 * kTaggedSize);
-  for (int offset = JSPromise::kHeaderSize;
-       offset < JSPromise::kSizeWithEmbedderFields; offset += kTaggedSize) {
+  vobj->set(offsetof(JSPromise, flags_), GetSmiConstant(0));
+  static_assert(sizeof(JSPromise) == 5 * kTaggedSize);
+  for (int offset = sizeof(JSPromise);
+       offset < static_cast<int>(sizeof(JSPromise)) +
+                    v8::Promise::kEmbedderFieldCount * kEmbedderDataSlotSize;
+       offset += kTaggedSize) {
     vobj->set(offset, GetSmiConstant(0));
   }
   return vobj;
@@ -14919,17 +14966,17 @@ VirtualObject* MaglevGraphBuilder::CreateJSIteratorResult(compiler::MapRef map,
 VirtualObject* MaglevGraphBuilder::CreateJSStringIterator(compiler::MapRef map,
                                                           ValueNode* string) {
   using Shape = VirtualJSStringIteratorShape;
-  static_assert(JSStringIterator::kHeaderSize == 5 * kTaggedSize);
+  static_assert(sizeof(JSStringIterator) == 5 * kTaggedSize);
   int slot_count = Shape::header_slot_count;
   VirtualObject* vobj = NodeBase::New<VirtualObject>(
       zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
   vobj->set(HeapObject::kMapOffset, GetConstant(map));
-  vobj->set(JSStringIterator::kPropertiesOrHashOffset,
+  vobj->set(offsetof(JSStringIterator, properties_or_hash_),
             GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(JSStringIterator::kElementsOffset,
+  vobj->set(offsetof(JSStringIterator, elements_),
             GetRootConstant(RootIndex::kEmptyFixedArray));
-  vobj->set(JSStringIterator::kStringOffset, string);
-  vobj->set(JSStringIterator::kIndexOffset, GetInt32Constant(0));
+  vobj->set(offsetof(JSStringIterator, string_), string);
+  vobj->set(offsetof(JSStringIterator, index_), GetInt32Constant(0));
   return vobj;
 }
 
@@ -16755,11 +16802,11 @@ ReduceResult MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
   ValueNode* generator = maybe_generator;
   ValueNode* state;
   GET_VALUE_OR_ABORT(
-      state,
-      BuildLoadTaggedField(generator, JSGeneratorObject::kContinuationOffset));
+      state, BuildLoadTaggedField(generator,
+                                  offsetof(JSGeneratorObject, continuation_)));
   ValueNode* new_state = GetSmiConstant(JSGeneratorObject::kGeneratorExecuting);
   RETURN_IF_ABORT(BuildStoreTaggedFieldNoWriteBarrier(
-      generator, new_state, JSGeneratorObject::kContinuationOffset,
+      generator, new_state, offsetof(JSGeneratorObject, continuation_),
       StoreTaggedMode::kDefault));
 
   // Guarantee that we have something in the accumulator.
@@ -16862,15 +16909,17 @@ ReduceResult MaglevGraphBuilder::VisitResumeGenerator() {
   // ResumeGenerator <generator> <first output register> <register count>
   ValueNode* generator = LoadRegister(0);
   ValueNode* context;
-  GET_VALUE_OR_ABORT(context, BuildLoadTaggedField(
-                                  generator, JSGeneratorObject::kContextOffset,
-                                  LoadType::kContext));
+  GET_VALUE_OR_ABORT(
+      context,
+      BuildLoadTaggedField(generator, offsetof(JSGeneratorObject, context_),
+                           LoadType::kContext));
 
   SetContext(context);
   ValueNode* array;
   GET_VALUE_OR_ABORT(
-      array, BuildLoadTaggedField(
-                 generator, JSGeneratorObject::kParametersAndRegistersOffset));
+      array,
+      BuildLoadTaggedField(
+          generator, offsetof(JSGeneratorObject, parameters_and_registers_)));
   interpreter::RegisterList registers = iterator_.GetRegisterListOperand(1);
 
   if (v8_flags.maglev_assert) {
@@ -16901,7 +16950,7 @@ ReduceResult MaglevGraphBuilder::VisitResumeGenerator() {
     }
   }
   return SetAccumulator(BuildLoadTaggedField(
-      generator, JSGeneratorObject::kInputOrDebugPosOffset));
+      generator, offsetof(JSGeneratorObject, input_or_debug_pos_)));
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceGetIterator(
@@ -17534,7 +17583,9 @@ void MaglevGraphBuilder::MarkBytecodeDead() {
   DCHECK_NULL(current_block());
   if (is_resumable_function_) {
     int current_offset = iterator_.current_offset();
-    if (merge_states_[current_offset] == nullptr) {
+    if (merge_states_[current_offset] != nullptr) {
+      SetCurrentScopeInfo(merge_states_[current_offset]->context_scope_info());
+    } else {
       auto it = dead_scope_infos_.find(current_offset);
       if (it != dead_scope_infos_.end()) {
         SetCurrentScopeInfo(it->second);

@@ -270,7 +270,7 @@ TEST(RTCErrorOrTest, BuildStringLog) {
   } log_monitor;
 
   auto foo = [&]() {
-    return LOG_ERROR(RTCError::InvalidParameter() << "BuildStringLog");
+    return LOG_ERROR(RTCError::InvalidParameter("BuildStringLog"));
   };
 
   LogMessage::AddLogToStream(&log_monitor, LS_ERROR);

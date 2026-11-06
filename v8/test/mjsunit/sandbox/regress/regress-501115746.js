@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --sandbox-testing --jit-fuzzing
+// Flags: --sandbox-testing --jit-fuzzing --no-lazy-feedback-allocation --no-baseline-batch-compilation
 
 class Memory {
     constructor() {

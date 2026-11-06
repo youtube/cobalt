@@ -15,9 +15,9 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/types/optional_ref.h"
-#include "components/accessibility_annotator/content/content_annotator/content_classifier.h"
-#include "components/accessibility_annotator/content/content_annotator/content_classifier_types.h"
 #include "components/accessibility_annotator/core/accessibility_annotator_features.h"
+#include "components/accessibility_annotator/core/content_annotator/content_classifier.h"
+#include "components/accessibility_annotator/core/content_annotator/content_classifier_types.h"
 #include "components/accessibility_annotator/core/storage/accessibility_annotator_backend_impl.h"
 #include "components/history/core/browser/history_database_params.h"
 #include "components/history/core/browser/history_service.h"
@@ -159,6 +159,7 @@ class ContentAnnotatorServiceTest : public content::RenderViewHostTestHarness {
     accessibility_annotator_backend_ =
         std::make_unique<AccessibilityAnnotatorBackendImpl>(
             /*history_service=*/nullptr,
+            /*os_crypt_async=*/nullptr,
             syncer::DataTypeStoreTestUtil::FactoryForInMemoryStoreForTest(),
             temp_dir_.GetPath().Append(
                 FILE_PATH_LITERAL("AccessibilityAnnotatorDatabase")));

@@ -10,7 +10,7 @@
 #include "components/enterprise/connectors/core/features.h"
 #include "components/enterprise/connectors/core/reporting_event_router.h"
 
-#if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_FUCHSIA)
+#if !BUILDFLAG(IS_IOS)
 #include "components/safe_browsing/content/browser/web_ui/web_ui_content_info_singleton.h"
 #endif
 
@@ -26,8 +26,9 @@ AnalysisConnector AccessPointToEnterpriseConnector(
     case DeepScanAccessPoint::UPLOAD:
     case DeepScanAccessPoint::DRAG_AND_DROP:
     case DeepScanAccessPoint::PASTE:
+    case DeepScanAccessPoint::ACTOR:
       // A file can be uploaded to a website by either a normal file picker, a
-      // dragNdrop event or using copy+paste.
+      // dragNdrop event, using copy+paste, or an agent action.
       return enterprise_connectors::FILE_ATTACHED;
     case DeepScanAccessPoint::DOWNLOAD:
       return enterprise_connectors::FILE_DOWNLOADED;
@@ -199,7 +200,7 @@ void FilesRequestHandlerBase::OnGotFileInfo(
 void FilesRequestHandlerBase::FinishRequestEarly(
     std::unique_ptr<BinaryUploadRequest> request,
     ScanRequestUploadResult result) {
-#if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_FUCHSIA)
+#if !BUILDFLAG(IS_IOS)
   // We add the request here in case we never actually uploaded anything, so it
   // wasn't added in OnGetRequestData
   safe_browsing::WebUIContentInfoSingleton::GetInstance()

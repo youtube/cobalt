@@ -441,33 +441,32 @@
   inline void set_##name(i::IsolateForSandbox isolate, const type value);
 
 // Host objects in ReadOnlySpace can't define the isolate-less accessor.
-#define LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(      \
-    holder, name, type, offset, tag, get_condition, set_condition)          \
-  void holder::init_##name() {                                              \
-    HeapObject::SetupLazilyInitializedExternalPointerField(offset);         \
-  }                                                                         \
-  bool holder::has_##name() const {                                         \
-    return HeapObject::IsLazilyInitializedExternalPointerFieldInitialized(  \
-        offset);                                                            \
-  }                                                                         \
-  type holder::name(i::IsolateForSandbox isolate) const {                   \
-    DCHECK(get_condition);                                                  \
-    /* This is a workaround for MSVC error C2440 not allowing  */           \
-    /* reinterpret casts to the same type. */                               \
-    struct C2440 {};                                                        \
-    Address result =                                                        \
-        HeapObject::ReadExternalPointerField<tag>(offset, isolate);         \
-    return reinterpret_cast<type>(reinterpret_cast<C2440*>(result));        \
-  }                                                                         \
-  void holder::set_##name(i::IsolateForSandbox isolate, const type value) { \
-    DCHECK(set_condition);                                                  \
-    /* This is a workaround for MSVC error C2440 not allowing  */           \
-    /* reinterpret casts to the same type. */                               \
-    struct C2440 {};                                                        \
-    Address the_value =                                                     \
-        reinterpret_cast<Address>(reinterpret_cast<const C2440*>(value));   \
-    HeapObject::WriteLazilyInitializedExternalPointerField<tag>(            \
-        offset, isolate, the_value);                                        \
+#define LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(       \
+    holder, name, type, offset, tag, get_condition, set_condition)           \
+  void holder::init_##name() {                                               \
+    this->SetupLazilyInitializedExternalPointerField(offset);                \
+  }                                                                          \
+  bool holder::has_##name() const {                                          \
+    return this->IsLazilyInitializedExternalPointerFieldInitialized(offset); \
+  }                                                                          \
+  type holder::name(i::IsolateForSandbox isolate) const {                    \
+    DCHECK(get_condition);                                                   \
+    /* This is a workaround for MSVC error C2440 not allowing  */            \
+    /* reinterpret casts to the same type. */                                \
+    struct C2440 {};                                                         \
+    Address result =                                                         \
+        this->template ReadExternalPointerField<tag>(offset, isolate);       \
+    return reinterpret_cast<type>(reinterpret_cast<C2440*>(result));         \
+  }                                                                          \
+  void holder::set_##name(i::IsolateForSandbox isolate, const type value) {  \
+    DCHECK(set_condition);                                                   \
+    /* This is a workaround for MSVC error C2440 not allowing  */            \
+    /* reinterpret casts to the same type. */                                \
+    struct C2440 {};                                                         \
+    Address the_value =                                                      \
+        reinterpret_cast<Address>(reinterpret_cast<const C2440*>(value));    \
+    this->template WriteLazilyInitializedExternalPointerField<tag>(          \
+        offset, isolate, the_value);                                         \
   }
 
 #define LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED( \
@@ -507,52 +506,51 @@
 // that can be called from native code.
 // See DECL_LAZY_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST for details.
 // Host objects in ReadOnlySpace can't define the isolate-less accessor.
-#define LAZY_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(  \
-    holder, name, type, offset, tag, ext_ref_type, get_condition,          \
-    set_condition)                                                         \
-                                                                           \
-  /* Accessors for un-redirected callback pointer that can be used */      \
-  /* in C++ code and an accessor to the raw value for printing. */         \
-  void holder::init_##name() {                                             \
-    HeapObject::SetupLazilyInitializedExternalPointerField(offset);        \
-  }                                                                        \
-  bool holder::has_##name() const {                                        \
-    return HeapObject::IsLazilyInitializedExternalPointerFieldInitialized( \
-        offset);                                                           \
-  }                                                                        \
-  Address holder::name##_raw(i::IsolateForSandbox isolate) const {         \
-    return HeapObject::ReadExternalPointerField<tag>(offset, isolate);     \
-  }                                                                        \
-  type holder::name(i::IsolateForSandbox isolate) const {                  \
-    Address result = name##_raw(isolate);                                  \
-    if (!USE_SIMULATOR_BOOL) return result;                                \
-    if (result == kNullAddress) return kNullAddress;                       \
-    return ExternalReference::UnwrapRedirection(result);                   \
-  }                                                                        \
-  void holder::set_##name(i::IsolateForSandbox isolate, Address value) {   \
-    HeapObject::WriteLazilyInitializedExternalPointerField<tag>(           \
-        offset, isolate, value);                                           \
-    if (USE_SIMULATOR_BOOL) {                                              \
-      init_##name##_redirection(isolate);                                  \
-    }                                                                      \
-  }                                                                        \
-                                                                           \
-  /* Implementation of init/remove callback redirection methods. */        \
-  void holder::init_##name##_redirection(i::IsolateForSandbox isolate) {   \
-    CHECK(USE_SIMULATOR_BOOL);                                             \
-    Address value = name##_raw(isolate);                                   \
-    if (value == kNullAddress) return;                                     \
-    value = ExternalReference::Redirect(value, ext_ref_type);              \
-    HeapObject::WriteLazilyInitializedExternalPointerField<tag>(           \
-        offset, isolate, value);                                           \
-  }                                                                        \
-  void holder::remove_##name##_redirection(i::IsolateForSandbox isolate) { \
-    CHECK(USE_SIMULATOR_BOOL);                                             \
-    Address value = name##_raw(isolate);                                   \
-    if (value == kNullAddress) return;                                     \
-    value = ExternalReference::UnwrapRedirection(value);                   \
-    HeapObject::WriteLazilyInitializedExternalPointerField<tag>(           \
-        offset, isolate, value);                                           \
+#define LAZY_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(    \
+    holder, name, type, offset, tag, ext_ref_type, get_condition,            \
+    set_condition)                                                           \
+                                                                             \
+  /* Accessors for un-redirected callback pointer that can be used */        \
+  /* in C++ code and an accessor to the raw value for printing. */           \
+  void holder::init_##name() {                                               \
+    this->SetupLazilyInitializedExternalPointerField(offset);                \
+  }                                                                          \
+  bool holder::has_##name() const {                                          \
+    return this->IsLazilyInitializedExternalPointerFieldInitialized(offset); \
+  }                                                                          \
+  Address holder::name##_raw(i::IsolateForSandbox isolate) const {           \
+    return this->template ReadExternalPointerField<tag>(offset, isolate);    \
+  }                                                                          \
+  type holder::name(i::IsolateForSandbox isolate) const {                    \
+    Address result = name##_raw(isolate);                                    \
+    if (!USE_SIMULATOR_BOOL) return result;                                  \
+    if (result == kNullAddress) return kNullAddress;                         \
+    return ExternalReference::UnwrapRedirection(result);                     \
+  }                                                                          \
+  void holder::set_##name(i::IsolateForSandbox isolate, Address value) {     \
+    this->template WriteLazilyInitializedExternalPointerField<tag>(          \
+        offset, isolate, value);                                             \
+    if (USE_SIMULATOR_BOOL) {                                                \
+      init_##name##_redirection(isolate);                                    \
+    }                                                                        \
+  }                                                                          \
+                                                                             \
+  /* Implementation of init/remove callback redirection methods. */          \
+  void holder::init_##name##_redirection(i::IsolateForSandbox isolate) {     \
+    CHECK(USE_SIMULATOR_BOOL);                                               \
+    Address value = name##_raw(isolate);                                     \
+    if (value == kNullAddress) return;                                       \
+    value = ExternalReference::Redirect(value, ext_ref_type);                \
+    this->template WriteLazilyInitializedExternalPointerField<tag>(          \
+        offset, isolate, value);                                             \
+  }                                                                          \
+  void holder::remove_##name##_redirection(i::IsolateForSandbox isolate) {   \
+    CHECK(USE_SIMULATOR_BOOL);                                               \
+    Address value = name##_raw(isolate);                                     \
+    if (value == kNullAddress) return;                                       \
+    value = ExternalReference::UnwrapRedirection(value);                     \
+    this->template WriteLazilyInitializedExternalPointerField<tag>(          \
+        offset, isolate, value);                                             \
   }
 
 // Host objects in ReadOnlySpace can't define the isolate-less accessor.
@@ -563,32 +561,32 @@
   inline void set_##name(i::IsolateForSandbox isolate, const type value);
 
 // Host objects in ReadOnlySpace can't define the isolate-less accessor.
-#define EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(holder, name, type, \
-                                                        offset, tag)        \
-  type holder::name(i::IsolateForSandbox isolate) const {                   \
-    /* This is a workaround for MSVC error C2440 not allowing  */           \
-    /* reinterpret casts to the same type. */                               \
-    struct C2440 {};                                                        \
-    Address result =                                                        \
-        HeapObject::ReadExternalPointerField<tag>(offset, isolate);         \
-    return reinterpret_cast<type>(reinterpret_cast<C2440*>(result));        \
-  }                                                                         \
-  void holder::init_##name(i::IsolateForSandbox isolate,                    \
-                           const type initial_value) {                      \
-    /* This is a workaround for MSVC error C2440 not allowing  */           \
-    /* reinterpret casts to the same type. */                               \
-    struct C2440 {};                                                        \
-    Address the_value = reinterpret_cast<Address>(                          \
-        reinterpret_cast<const C2440*>(initial_value));                     \
-    HeapObject::InitExternalPointerField<tag>(offset, isolate, the_value);  \
-  }                                                                         \
-  void holder::set_##name(i::IsolateForSandbox isolate, const type value) { \
-    /* This is a workaround for MSVC error C2440 not allowing  */           \
-    /* reinterpret casts to the same type. */                               \
-    struct C2440 {};                                                        \
-    Address the_value =                                                     \
-        reinterpret_cast<Address>(reinterpret_cast<const C2440*>(value));   \
-    HeapObject::WriteExternalPointerField<tag>(offset, isolate, the_value); \
+#define EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(holder, name, type,    \
+                                                        offset, tag)           \
+  type holder::name(i::IsolateForSandbox isolate) const {                      \
+    /* This is a workaround for MSVC error C2440 not allowing  */              \
+    /* reinterpret casts to the same type. */                                  \
+    struct C2440 {};                                                           \
+    Address result =                                                           \
+        this->template ReadExternalPointerField<tag>(offset, isolate);         \
+    return reinterpret_cast<type>(reinterpret_cast<C2440*>(result));           \
+  }                                                                            \
+  void holder::init_##name(i::IsolateForSandbox isolate,                       \
+                           const type initial_value) {                         \
+    /* This is a workaround for MSVC error C2440 not allowing  */              \
+    /* reinterpret casts to the same type. */                                  \
+    struct C2440 {};                                                           \
+    Address the_value = reinterpret_cast<Address>(                             \
+        reinterpret_cast<const C2440*>(initial_value));                        \
+    this->template InitExternalPointerField<tag>(offset, isolate, the_value);  \
+  }                                                                            \
+  void holder::set_##name(i::IsolateForSandbox isolate, const type value) {    \
+    /* This is a workaround for MSVC error C2440 not allowing  */              \
+    /* reinterpret casts to the same type. */                                  \
+    struct C2440 {};                                                           \
+    Address the_value =                                                        \
+        reinterpret_cast<Address>(reinterpret_cast<const C2440*>(value));      \
+    this->template WriteExternalPointerField<tag>(offset, isolate, the_value); \
   }
 
 // Declares all required accessors for C function pointer that can be called
@@ -618,49 +616,50 @@
 // from native code.
 // See DECL_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST for details.
 // Host objects in ReadOnlySpace can't define the isolate-less accessor.
-#define REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(                    \
-    holder, name, type, offset, tag, ext_ref_type)                             \
-                                                                               \
-  Address holder::name##_raw(i::IsolateForSandbox isolate) const {             \
-    return HeapObject::ReadExternalPointerField<tag>(offset, isolate);         \
-  }                                                                            \
-                                                                               \
-  /* Accessors for un-redirected callback pointer that can be used */          \
-  /* in C++ code. */                                                           \
-  type holder::name(i::IsolateForSandbox isolate) const {                      \
-    Address value = name##_raw(isolate);                                       \
-    if (!USE_SIMULATOR_BOOL) return value;                                     \
-    if (value == kNullAddress) return kNullAddress;                            \
-    return ExternalReference::UnwrapRedirection(value);                        \
-  }                                                                            \
-  void holder::init_##name(i::IsolateForSandbox isolate,                       \
-                           Address initial_value) {                            \
-    HeapObject::InitExternalPointerField<tag>(offset, isolate, initial_value); \
-    if (USE_SIMULATOR_BOOL) {                                                  \
-      init_##name##_redirection(isolate);                                      \
-    }                                                                          \
-  }                                                                            \
-  void holder::set_##name(i::IsolateForSandbox isolate, Address value) {       \
-    HeapObject::WriteExternalPointerField<tag>(offset, isolate, value);        \
-    if (USE_SIMULATOR_BOOL) {                                                  \
-      init_##name##_redirection(isolate);                                      \
-    }                                                                          \
-  }                                                                            \
-                                                                               \
-  /* Implementation of init/remove callback redirection methods. */            \
-  void holder::init_##name##_redirection(i::IsolateForSandbox isolate) {       \
-    CHECK(USE_SIMULATOR_BOOL);                                                 \
-    Address value = name##_raw(isolate);                                       \
-    if (value == kNullAddress) return;                                         \
-    value = ExternalReference::Redirect(value, ext_ref_type);                  \
-    HeapObject::WriteExternalPointerField<tag>(offset, isolate, value);        \
-  }                                                                            \
-  void holder::remove_##name##_redirection(i::IsolateForSandbox isolate) {     \
-    CHECK(USE_SIMULATOR_BOOL);                                                 \
-    Address value = name##_raw(isolate);                                       \
-    if (value == kNullAddress) return;                                         \
-    value = ExternalReference::UnwrapRedirection(value);                       \
-    HeapObject::WriteExternalPointerField<tag>(offset, isolate, value);        \
+#define REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(                \
+    holder, name, type, offset, tag, ext_ref_type)                         \
+                                                                           \
+  Address holder::name##_raw(i::IsolateForSandbox isolate) const {         \
+    return this->template ReadExternalPointerField<tag>(offset, isolate);  \
+  }                                                                        \
+                                                                           \
+  /* Accessors for un-redirected callback pointer that can be used */      \
+  /* in C++ code. */                                                       \
+  type holder::name(i::IsolateForSandbox isolate) const {                  \
+    Address value = name##_raw(isolate);                                   \
+    if (!USE_SIMULATOR_BOOL) return value;                                 \
+    if (value == kNullAddress) return kNullAddress;                        \
+    return ExternalReference::UnwrapRedirection(value);                    \
+  }                                                                        \
+  void holder::init_##name(i::IsolateForSandbox isolate,                   \
+                           Address initial_value) {                        \
+    this->template InitExternalPointerField<tag>(offset, isolate,          \
+                                                 initial_value);           \
+    if (USE_SIMULATOR_BOOL) {                                              \
+      init_##name##_redirection(isolate);                                  \
+    }                                                                      \
+  }                                                                        \
+  void holder::set_##name(i::IsolateForSandbox isolate, Address value) {   \
+    this->template WriteExternalPointerField<tag>(offset, isolate, value); \
+    if (USE_SIMULATOR_BOOL) {                                              \
+      init_##name##_redirection(isolate);                                  \
+    }                                                                      \
+  }                                                                        \
+                                                                           \
+  /* Implementation of init/remove callback redirection methods. */        \
+  void holder::init_##name##_redirection(i::IsolateForSandbox isolate) {   \
+    CHECK(USE_SIMULATOR_BOOL);                                             \
+    Address value = name##_raw(isolate);                                   \
+    if (value == kNullAddress) return;                                     \
+    value = ExternalReference::Redirect(value, ext_ref_type);              \
+    this->template WriteExternalPointerField<tag>(offset, isolate, value); \
+  }                                                                        \
+  void holder::remove_##name##_redirection(i::IsolateForSandbox isolate) { \
+    CHECK(USE_SIMULATOR_BOOL);                                             \
+    Address value = name##_raw(isolate);                                   \
+    if (value == kNullAddress) return;                                     \
+    value = ExternalReference::UnwrapRedirection(value);                   \
+    this->template WriteExternalPointerField<tag>(offset, isolate, value); \
   }
 
 #define DECL_EXTERNAL_POINTER_ACCESSORS(name, type) \

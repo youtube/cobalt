@@ -24,6 +24,7 @@ class RegExpMacroAssemblerTracer : public RegExpMacroAssembler {
   void AdvanceRegister(int reg, int by) override;  // r[reg] += by.
   void Backtrack() override;
   void Bind(Label* label) override;
+  void BindJumpTarget(Label* label) override;
   void CheckCharacter(unsigned c, Label* on_equal) override;
   void CheckCharacterAfterAnd(unsigned c, unsigned and_with,
                               Label* on_equal) override;

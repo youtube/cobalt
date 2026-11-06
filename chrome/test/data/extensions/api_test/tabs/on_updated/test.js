@@ -16,8 +16,8 @@ function checkExpectations() {
   if (capturedEventData.length < expectedEventData.length) {
     return;
   }
-  chrome.test.assertEq(JSON.stringify(expectedEventData),
-      JSON.stringify(capturedEventData));
+  chrome.test.assertEq(
+      JSON.stringify(expectedEventData), JSON.stringify(capturedEventData));
   chrome.test.succeed();
 }
 
@@ -37,29 +37,29 @@ chrome.test.runTests([
     // Note that a.html will set it's location.href to b.html, creating a
     // renderer-initiated navigation.
     expect([
-      { status: 'loading', url: getURL('browserThenRendererInitiated/a.html') },
-      { status: 'loading', url: getURL('browserThenRendererInitiated/b.html') },
-      { status: 'complete' },
+      {status: 'loading', url: getURL('browserThenRendererInitiated/a.html')},
+      {status: 'loading', url: getURL('browserThenRendererInitiated/b.html')},
+      {status: 'complete'},
     ]);
 
-    chrome.tabs.create({ url: getURL('browserThenRendererInitiated/a.html') });
+    chrome.tabs.create({url: getURL('browserThenRendererInitiated/a.html')});
   },
 
   function chromeUrls() {
-    // Test for crbug.com/27208.
+    // Test for crbug.com/40328751.
     expect([
-      { status: 'loading', url: 'chrome://chrome-urls/' },
-      { title : 'Chrome URLs' },
-      { status: 'complete' }
+      {status: 'loading', url: 'chrome://chrome-urls/'},
+      {title: 'Chrome URLs'},
+      {status: 'complete'},
     ]);
 
-    chrome.tabs.create({ url: 'chrome://chrome-urls/' });
+    chrome.tabs.create({url: 'chrome://chrome-urls/'});
   },
 
   /*
   // TODO(rafaelw) -- This is disabled because this test is flaky.
   function updateDuringCreateCallback() {
-    // Test for crbug.com/27204.
+    // Test for crbug.com/40328737.
     // We have to ignore anything that comes before the about:blank loading
     // status.
     let ignore = true;
@@ -90,54 +90,54 @@ chrome.test.runTests([
     // which causes the new status: 'loading' event to fire without having
     // changed the url.
     expect([
-      { status: 'loading', url: getURL('iframeNavigated/a.html') },
-      { status: 'complete' },
-      { status: 'loading' },
-      { status: 'complete' },
+      {status: 'loading', url: getURL('iframeNavigated/a.html')},
+      {status: 'complete'},
+      {status: 'loading'},
+      {status: 'complete'},
     ]);
 
-    chrome.tabs.create({ url: getURL('iframeNavigated/a.html') });
+    chrome.tabs.create({url: getURL('iframeNavigated/a.html')});
   },
 
   function internalAnchorNavigated() {
     expect([
-      { status: 'loading', url: getURL('internalAnchorNavigated/a.html') },
-      { status: 'complete' },
-      { status: 'loading', url: getURL('internalAnchorNavigated/a.html#b') },
-      { status: 'complete' },
+      {status: 'loading', url: getURL('internalAnchorNavigated/a.html')},
+      {status: 'complete'},
+      {status: 'loading', url: getURL('internalAnchorNavigated/a.html#b')},
+      {status: 'complete'},
     ]);
 
-    chrome.tabs.create({ url: getURL('internalAnchorNavigated/a.html') });
+    chrome.tabs.create({url: getURL('internalAnchorNavigated/a.html')});
   },
 
   async function faviconLoaded() {
-    // TODO(https://crbug.com/371432155): Enable this on desktop Android.
+    // TODO(https://crbug.com/449095632): Enable this on desktop Android.
     if ((await chrome.runtime.getPlatformInfo()).os == 'android') {
       chrome.test.succeed('skipped');
       return;
     }
     expect([
-      { status: 'loading', url: getURL('favicon/a.html') },
-      { status: 'complete' },
-      { favIconUrl: getURL('favicon/favicon.ico') },
+      {status: 'loading', url: getURL('favicon/a.html')},
+      {status: 'complete'},
+      {favIconUrl: getURL('favicon/favicon.ico')},
     ]);
 
-    chrome.tabs.create({ url: getURL('favicon/a.html') });
+    chrome.tabs.create({url: getURL('favicon/a.html')});
   },
 
   async function titleUpdated() {
-    // TODO(https://crbug.com/371432155): Enable this on desktop Android.
+    // TODO(https://crbug.com/449095632): Enable this on desktop Android.
     if ((await chrome.runtime.getPlatformInfo()).os == 'android') {
       chrome.test.succeed('skipped');
       return;
     }
     expect([
-      { status: 'loading', url: getURL('title/test.html') },
-      { status: 'complete' },
-      { title: 'foo' },
-      { title: 'bar' }
+      {status: 'loading', url: getURL('title/test.html')},
+      {status: 'complete'},
+      {title: 'foo'},
+      {title: 'bar'},
     ]);
 
-    chrome.tabs.create({ url: getURL('title/test.html') });
-  }
+    chrome.tabs.create({url: getURL('title/test.html')});
+  },
 ]);

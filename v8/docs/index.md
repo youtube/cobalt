@@ -41,7 +41,7 @@ V8 enables any C++ application to expose its own objects and functions to JavaSc
     - [Official support](/docs/official-support)
     - [Merging & patching](/docs/merge-patch)
     - [Node.js integration build](/docs/node-integration)
-    - [Reporting security bugs](/docs/security-bugs)
+    - [Reporting security bugs](https://chromium.googlesource.com/v8/v8/+/HEAD/SECURITY.md)
     - [Running benchmarks locally](/docs/benchmarks)
     - [Testing](/docs/test)
     - [Triaging issues](/docs/triage-issues)

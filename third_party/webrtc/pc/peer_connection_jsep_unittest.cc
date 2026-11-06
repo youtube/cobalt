@@ -1031,6 +1031,20 @@ TEST_P(RecycleMediaSectionTest, PendingLocalRejectedAndNotRejectedRemote) {
   EXPECT_EQ(second_mid, caller_second_transceiver->mid());
 }
 
+TEST_F(PeerConnectionJsepTest, LocallyRejectedTransceiverDoesNotCrash) {
+  auto caller = CreatePeerConnection();
+  auto transceiver = caller->AddTransceiver(MediaType::AUDIO);
+
+  ASSERT_TRUE(caller->SetLocalDescription(caller->CreateOffer()));
+
+  transceiver->StopInternal();
+
+  // The reoffer will have a rejected media section.
+  // Setting it as local description triggers
+  // MaybeHandleLocallyRejectedTransceiver.
+  ASSERT_TRUE(caller->SetLocalDescription(caller->CreateOffer()));
+}
+
 // Test that an m= section is *not* recycled if the media section is only
 // rejected in the pending remote description and there is no current local
 // description.

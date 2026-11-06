@@ -920,17 +920,17 @@ void FeedbackNexus::ConfigurePropertyCellMode(DirectHandle<PropertyCell> cell) {
 
 #if DEBUG
 namespace {
-bool shouldStressLexicalIC(int script_context_index, int context_slot_index) {
+bool shouldStressLexicalIC(uint32_t script_context_index,
+                           int context_slot_index) {
   return (script_context_index + context_slot_index) % 100 == 0;
 }
 }  // namespace
 #endif
 
-bool FeedbackNexus::ConfigureLexicalVarMode(int script_context_index,
+bool FeedbackNexus::ConfigureLexicalVarMode(uint32_t script_context_index,
                                             int context_slot_index,
                                             bool immutable) {
   DCHECK(IsGlobalICKind(kind()));
-  DCHECK_LE(0, script_context_index);
   DCHECK_LE(0, context_slot_index);
 #if DEBUG
   if (v8_flags.stress_ic &&

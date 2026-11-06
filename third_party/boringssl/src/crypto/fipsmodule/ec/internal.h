@@ -58,20 +58,20 @@ typedef struct {
 
 // ec_bignum_to_scalar converts |in| to an |EC_SCALAR| and writes it to
 // |*out|. It returns one on success and zero if |in| is out of range.
-OPENSSL_EXPORT int ec_bignum_to_scalar(const EC_GROUP *group, EC_SCALAR *out,
-                                       const BIGNUM *in);
+int ec_bignum_to_scalar(const EC_GROUP *group, EC_SCALAR *out,
+                        const BIGNUM *in);
 
 // ec_scalar_to_bytes serializes |in| as a big-endian bytestring to |out| and
 // sets |*out_len| to the number of bytes written. The number of bytes written
 // is |BN_num_bytes(&group->order)|, which is at most |EC_MAX_BYTES|.
-OPENSSL_EXPORT void ec_scalar_to_bytes(const EC_GROUP *group, uint8_t *out,
-                                       size_t *out_len, const EC_SCALAR *in);
+void ec_scalar_to_bytes(const EC_GROUP *group, uint8_t *out, size_t *out_len,
+                        const EC_SCALAR *in);
 
 // ec_scalar_from_bytes deserializes |in| and stores the resulting scalar over
 // group |group| to |out|. It returns one on success and zero if |in| is
 // invalid.
-OPENSSL_EXPORT int ec_scalar_from_bytes(const EC_GROUP *group, EC_SCALAR *out,
-                                        const uint8_t *in, size_t len);
+int ec_scalar_from_bytes(const EC_GROUP *group, EC_SCALAR *out,
+                         const uint8_t *in, size_t len);
 
 // ec_scalar_reduce sets |out| to |words|, reduced modulo the group order.
 // |words| must be less than order^2. |num| must be at most twice the width of
@@ -145,8 +145,8 @@ void ec_scalar_select(const EC_GROUP *group, EC_SCALAR *out, BN_ULONG mask,
 
 // An EC_FELEM represents a field element. Only the first |field->width| words
 // are used. An |EC_FELEM| is specific to an |EC_GROUP| and must not be mixed
-// between groups. Additionally, the representation (whether or not elements are
-// represented in Montgomery-form) may vary between |EC_METHOD|s.
+// between groups. Unless otherwise stated, all inputs and outputs are in
+// Montgomery form.
 typedef struct {
   BN_ULONG words[EC_MAX_WORDS];
 } EC_FELEM;
@@ -196,6 +196,38 @@ void ec_felem_select(const EC_GROUP *group, EC_FELEM *out, BN_ULONG mask,
 // ec_felem_equal returns one if |a| and |b| are equal and zero otherwise.
 int ec_felem_equal(const EC_GROUP *group, const EC_FELEM *a, const EC_FELEM *b);
 
+// ec_felem_mul sets |out| to |a| * |b|.
+void ec_felem_mul(const EC_GROUP *group, EC_FELEM *out, const EC_FELEM *a,
+                  const EC_FELEM *b);
+
+// ec_felem_sqr sets |out| to |a|^2.
+void ec_felem_sqr(const EC_GROUP *group, EC_FELEM *out, const EC_FELEM *a);
+
+// ec_felem_to_montgomery sets |out| to |a| converted to Montgomery form.
+void ec_felem_to_montgomery(const EC_GROUP *group, EC_FELEM *out,
+                            const EC_FELEM *a);
+
+// ec_felem_from_montgomery sets |out| to |a| converted from Montgomery form.
+void ec_felem_from_montgomery(const EC_GROUP *group, EC_FELEM *out,
+                              const EC_FELEM *a);
+
+// ec_felem_reduce sets |out| to |words|, reduced modulo the field size, p.
+// |words| must be less than p^2. |num| must be at most twice the width of p.
+// This function treats |words| as secret.
+void ec_felem_reduce(const EC_GROUP *group, EC_FELEM *out,
+                     const BN_ULONG *words, size_t num);
+
+// ec_felem_exp sets |out| to |a|^|exp|. It treats |a| is secret but |exp| as
+// public.
+//
+// TODO(crbug.com/42290435): hash-to-curve uses this as part of computing a
+// square root, which is what compressed coordinates ultimately needs to avoid
+// |BIGNUM|. Can we unify this a bit? By generalizing to arbitrary
+// exponentiation, we also miss an opportunity to use a specialized addition
+// chain. We also miss our specialized field arithmetic for P-256.
+void ec_felem_exp(const EC_GROUP *group, EC_FELEM *out, const EC_FELEM *a,
+                  const BN_ULONG *exp, size_t num_exp);
+
 
 // Points.
 //
@@ -236,8 +268,8 @@ void ec_affine_to_jacobian(const EC_GROUP *group, EC_JACOBIAN *out,
 //
 // If only extracting the x-coordinate, use |ec_get_x_coordinate_*| which is
 // slightly faster.
-OPENSSL_EXPORT int ec_jacobian_to_affine(const EC_GROUP *group, EC_AFFINE *out,
-                                         const EC_JACOBIAN *p);
+int ec_jacobian_to_affine(const EC_GROUP *group, EC_AFFINE *out,
+                          const EC_JACOBIAN *p);
 
 // ec_jacobian_to_affine_batch converts |num| points in |in| from Jacobian
 // coordinates to affine coordinates and writes the results to |out|. It returns
@@ -344,11 +376,9 @@ int ec_point_mul_scalar_precomp(const EC_GROUP *group, EC_JACOBIAN *r,
 // ec_point_mul_scalar_public sets |r| to
 // generator * |g_scalar| + |p| * |p_scalar|. It assumes that the inputs are
 // public so there is no concern about leaking their values through timing.
-OPENSSL_EXPORT int ec_point_mul_scalar_public(const EC_GROUP *group,
-                                              EC_JACOBIAN *r,
-                                              const EC_SCALAR *g_scalar,
-                                              const EC_JACOBIAN *p,
-                                              const EC_SCALAR *p_scalar);
+int ec_point_mul_scalar_public(const EC_GROUP *group, EC_JACOBIAN *r,
+                               const EC_SCALAR *g_scalar, const EC_JACOBIAN *p,
+                               const EC_SCALAR *p_scalar);
 
 // ec_point_mul_scalar_public_batch sets |r| to the sum of generator *
 // |g_scalar| and |points[i]| * |scalars[i]| where |points| and |scalars| have
@@ -488,52 +518,6 @@ struct ec_method_st {
                       const bssl::EC_PRECOMP *p2,
                       const bssl::EC_SCALAR *scalar2);
 
-  // felem_mul and felem_sqr implement multiplication and squaring,
-  // respectively, so that the generic |bssl::EC_POINT_add| and
-  // |bssl::EC_POINT_dbl| implementations can work both with
-  // |bssl::EC_GFp_mont_method| and the tuned operations.
-  //
-  // TODO(davidben): This constrains |bssl::EC_FELEM|'s internal representation,
-  // adds many indirect calls in the middle of the generic code, and a bunch of
-  // conversions. If p224-64.c were easily convertible to Montgomery form, we
-  // could say |bssl::EC_FELEM| is always in Montgomery form. If we routed the
-  // rest of simple.c to |bssl::EC_METHOD|, we could give |bssl::EC_POINT| an
-  // |bssl::EC_METHOD|-specific representation and say |bssl::EC_FELEM| is
-  // purely a |bssl::EC_GFp_mont_method| type.
-  void (*felem_mul)(const EC_GROUP *, bssl::EC_FELEM *r,
-                    const bssl::EC_FELEM *a, const bssl::EC_FELEM *b);
-  void (*felem_sqr)(const EC_GROUP *, bssl::EC_FELEM *r,
-                    const bssl::EC_FELEM *a);
-
-  void (*felem_to_bytes)(const EC_GROUP *group, uint8_t *out, size_t *out_len,
-                         const bssl::EC_FELEM *in);
-  int (*felem_from_bytes)(const EC_GROUP *group, bssl::EC_FELEM *out,
-                          const uint8_t *in, size_t len);
-
-  // felem_reduce sets |out| to |words|, reduced modulo the field size, p.
-  // |words| must be less than p^2. |num| must be at most twice the width of p.
-  // This function treats |words| as secret.
-  //
-  // This function is only used in hash-to-curve and may be omitted in curves
-  // that do not support it.
-  void (*felem_reduce)(const EC_GROUP *group, bssl::EC_FELEM *out,
-                       const BN_ULONG *words, size_t num);
-
-  // felem_exp sets |out| to |a|^|exp|. It treats |a| is secret but |exp| as
-  // public.
-  //
-  // This function is used in hash-to-curve and may be NULL in curves not used
-  // with hash-to-curve.
-  //
-  // TODO(https://crbug.com/boringssl/567): hash-to-curve uses this as part of
-  // computing a square root, which is what compressed coordinates ultimately
-  // needs to avoid |BIGNUM|. Can we unify this a bit? By generalizing to
-  // arbitrary exponentiation, we also miss an opportunity to use a specialized
-  // addition chain.
-  void (*felem_exp)(const EC_GROUP *group, bssl::EC_FELEM *out,
-                    const bssl::EC_FELEM *a, const BN_ULONG *exp,
-                    size_t num_exp);
-
   // scalar_inv0_montgomery implements |ec_scalar_inv0_montgomery|.
   void (*scalar_inv0_montgomery)(const EC_GROUP *group, bssl::EC_SCALAR *out,
                                  const bssl::EC_SCALAR *in);
@@ -634,11 +618,6 @@ void ec_GFp_mont_mul_precomp(const EC_GROUP *group, EC_JACOBIAN *r,
                              const EC_PRECOMP *p0, const EC_SCALAR *scalar0,
                              const EC_PRECOMP *p1, const EC_SCALAR *scalar1,
                              const EC_PRECOMP *p2, const EC_SCALAR *scalar2);
-void ec_GFp_mont_felem_reduce(const EC_GROUP *group, EC_FELEM *out,
-                              const BN_ULONG *words, size_t num);
-void ec_GFp_mont_felem_exp(const EC_GROUP *group, EC_FELEM *out,
-                           const EC_FELEM *a, const BN_ULONG *exp,
-                           size_t num_exp);
 
 // ec_compute_wNAF writes the modified width-(w+1) Non-Adjacent Form (wNAF) of
 // |scalar| to |out|. |out| must have room for |bits| + 1 elements, each of
@@ -682,25 +661,9 @@ int ec_simple_scalar_to_montgomery_inv_vartime(const EC_GROUP *group,
 int ec_GFp_simple_cmp_x_coordinate(const EC_GROUP *group, const EC_JACOBIAN *p,
                                    const EC_SCALAR *r);
 
-void ec_GFp_simple_felem_to_bytes(const EC_GROUP *group, uint8_t *out,
-                                  size_t *out_len, const EC_FELEM *in);
-int ec_GFp_simple_felem_from_bytes(const EC_GROUP *group, EC_FELEM *out,
-                                   const uint8_t *in, size_t len);
-
-// method functions in montgomery.c
-void ec_GFp_mont_felem_mul(const EC_GROUP *, EC_FELEM *r, const EC_FELEM *a,
-                           const EC_FELEM *b);
-void ec_GFp_mont_felem_sqr(const EC_GROUP *, EC_FELEM *r, const EC_FELEM *a);
-
-void ec_GFp_mont_felem_to_bytes(const EC_GROUP *group, uint8_t *out,
-                                size_t *out_len, const EC_FELEM *in);
-int ec_GFp_mont_felem_from_bytes(const EC_GROUP *group, EC_FELEM *out,
-                                 const uint8_t *in, size_t len);
-
 void ec_GFp_nistp_recode_scalar_bits(crypto_word_t *sign, crypto_word_t *digit,
                                      crypto_word_t in);
 
-const EC_METHOD *EC_GFp_nistp224_method();
 const EC_METHOD *EC_GFp_nistp256_method();
 
 // EC_GFp_nistz256_method is a GFp method using montgomery multiplication, with

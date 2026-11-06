@@ -264,14 +264,6 @@ void PasswordChangeFromCheckupDelegate::StartPasswordChangeFlow(
   glic::GlicInvokeOptions options(glic::Target(new_tab_interface),
                                   glic::mojom::InvocationSource::kSharedTab);
   options.prompts.push_back(std::move(reach_form_prompt));
-  options.additional_context = glic::mojom::AdditionalContext::New();
-
-  sessions::SessionTabHelper* session_tab_helper =
-      sessions::SessionTabHelper::FromWebContents(new_contents);
-  if (session_tab_helper) {
-    options.additional_context->tab_id = session_tab_helper->session_id().id();
-  }
-
   // Invoking it in a new tab ensures that the settings page is not shared.
   glic_service->InvokeWithAutoSubmit(
       glic::InvokeWithAutoSubmitPasskeyProvider::GetPassKey(),
@@ -492,7 +484,6 @@ void PasswordChangeFromCheckupDelegate::OnVerificationTaskStateChanged(
       // A task was created, so stopping the timer to not trigger
       // the password being saved.
       verification_timer_.Stop();
-      RegisterAutoSelectCredential(task);
     } else {
       return;
     }
@@ -500,6 +491,17 @@ void PasswordChangeFromCheckupDelegate::OnVerificationTaskStateChanged(
 
   // Ignore unrelated tasks.
   if (verification_task_id_ && *verification_task_id_ != task.id()) {
+    return;
+  }
+
+  if (IsTaskInterrupted(new_state)) {
+    if (auto logger = GetLoggerIfAvailable(client_)) {
+      logger->LogMessage(
+          Logger::STRING_PASSWORD_CHANGE_FROM_CHECKUP_CANCEL_FLOW);
+    }
+    task.Stop(actor::ActorTask::StoppedReason::kShutdown);
+    actor_task_state_subscription_ = {};
+    saved_form_manager_.reset();
     return;
   }
 
@@ -560,14 +562,6 @@ void PasswordChangeFromCheckupDelegate::InvokeVerificationFlow(
       glic::Target(tab_interface, glic::NewConversation()),
       glic::mojom::InvocationSource::kSharedTab);
   options.prompts.push_back(std::move(post_submission_prompt));
-  options.additional_context = glic::mojom::AdditionalContext::New();
-  sessions::SessionTabHelper* session_tab_helper =
-      sessions::SessionTabHelper::FromWebContents(
-          actuation_web_contents_.get());
-  if (session_tab_helper) {
-    options.additional_context->tab_id = session_tab_helper->session_id().id();
-  }
-
   glic_service->InvokeWithAutoSubmit(
       glic::InvokeWithAutoSubmitPasskeyProvider::GetPassKey(),
       std::move(options));

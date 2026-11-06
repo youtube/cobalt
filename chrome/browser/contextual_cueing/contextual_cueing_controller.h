@@ -17,6 +17,7 @@
 class BrowserWindowInterface;
 class OptimizationGuideKeyedService;
 class TabListInterface;
+class TemplateURLService;
 
 namespace actions {
 class ActionItem;
@@ -28,45 +29,13 @@ class ModelQualityLogEntry;
 struct OptimizationGuideModelExecutionResult;
 }  // namespace optimization_guide
 
+namespace syncer {
+class SyncService;
+}  // namespace syncer
+
 namespace contextual_cueing {
 
 class ContextualCueingService;
-
-// LINT.IfChange(ContextualCueingDecision)
-enum class ContextualCueingDecision {
-  kUnspecified = 0,
-  // Tab was not active when the page was classified.
-  kNoLongerActiveTabAfterCategoryClassification = 1,
-  // Tab was active but the page was not classified as a vertical we support.
-  kFailedCategoryClassification = 2,
-  // Model execution service is unavailable.
-  kModelExecutionUnavailable = 3,
-  // Model execution failed.
-  kModelExecutionFailed = 4,
-  // Model execution response failed to parse.
-  kModelExecutionResponseFailedToParse = 5,
-  // Contextual cue was shown to the user.
-  kSuccess = 6,
-  // The response didn't have both anchored_message_text and action_text.
-  kMissingAnchoredMessageText = 7,
-  // The response didn't match a known target feature.
-  kUnknownFulfillmentSurface = 8,
-  // The response was for a target feature that didn't register itself.
-  kTargetFeatureNotRegistered = 9,
-  // The feature reported that its cue shouldn't be shown.
-  kTargetFeatureNotEligible = 10,
-  // The cue couldn't be shown because the window had no active tab.
-  kNoActiveTab = 11,
-  // The cue couldn't be shown because the page actions framework wasn't
-  // available.
-  kNoPageActions = 12,
-  // The cue couldn't be shown because the tab for the cue was no longer active.
-  kNoLongerActiveTabAfterModelExecution = 13,
-  // The cue couldn't be shown because there was a feature promo active.
-  kFeaturePromoActive = 14,
-  kMaxValue = kFeaturePromoActive,
-};
-// LINT.ThenChange(//tools/metrics/histograms/metadata/contextual_cueing/enums.xml:ContextualCueingDecision)
 
 class ContextualCueingController
     : public page_content_annotations::PageContentAnnotationsService::
@@ -79,6 +48,10 @@ class ContextualCueingController
   ContextualCueingController& operator=(const ContextualCueingController&) =
       delete;
   ~ContextualCueingController() override;
+
+  // Get contents' browser's ContextualCueingController if it exists.
+  static ContextualCueingController* GetForWebContents(
+      content::WebContents& contents);
 
   // Register a cue type. Feature code provides a CueTarget for reporting the
   // feature's cue eligibility and handling clicks. Calling this function for a
@@ -94,6 +67,9 @@ class ContextualCueingController
       const page_content_annotations::PageContentAnnotationsResult& result)
       override;
 
+  // Hide the cue if it's showing.
+  void HideCue();
+
  private:
   // Initiates a model execution request to MES for the current window state.
   void InitiateModelExecutionRequest();
@@ -103,6 +79,12 @@ class ContextualCueingController
       optimization_guide::proto::Tab active_tab,
       optimization_guide::OptimizationGuideModelExecutionResult result,
       std::unique_ptr<optimization_guide::ModelQualityLogEntry> log_entry);
+
+  // Whether the URL is eligible for a cue.
+  bool IsUrlEligibleForCue(const GURL& url);
+
+  // Returns true if the cue should be shown to the user.
+  bool IsAllowedToShowCue();
 
   void ShowCue(CueTargetType cue_type,
                const CueTarget& target,
@@ -114,6 +96,10 @@ class ContextualCueingController
 
   CueTarget* GetTarget(CueTargetType type);
 
+  // Returns the list of cue surfaces that are currently eligible to show a cue.
+  absl::flat_hash_set<optimization_guide::proto::ContextualCueingSurface>
+  GetEligibleCueSurfaces();
+
   // Not owned. Guaranteed to outlive `this`.
   const raw_ptr<BrowserWindowInterface> browser_window_interface_;
   const raw_ptr<TabListInterface> tab_list_interface_;
@@ -122,6 +108,8 @@ class ContextualCueingController
       page_content_annotations_service_;
   raw_ptr<OptimizationGuideKeyedService> optimization_guide_keyed_service_;
   raw_ptr<OptimizationGuideLogger> optimization_guide_logger_;
+  raw_ptr<syncer::SyncService> sync_service_;
+  raw_ptr<TemplateURLService> template_url_service_;
   absl::flat_hash_map<CueTargetType, std::unique_ptr<CueTarget>> cue_targets_;
 
   base::WeakPtrFactory<ContextualCueingController> weak_ptr_factory_{this};

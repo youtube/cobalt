@@ -19,11 +19,10 @@
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/crypto/frame_decryptor_interface.h"
 #include "api/dtls_transport_interface.h"
-#include "api/frame_transformer_interface.h"
 #include "api/media_stream_interface.h"
 #include "api/media_types.h"
+#include "api/rtc_error.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/scoped_refptr.h"
@@ -49,6 +48,7 @@ class VideoRtpReceiver : public RtpReceiverBase {
   VideoRtpReceiver(Thread* worker_thread,
                    absl::string_view receiver_id,
                    std::vector<std::string> streams_ids,
+                   absl::AnyInvocable<RTCError()> enable_sframe_at_owner,
                    VideoMediaReceiveChannelInterface* media_channel = nullptr);
   // TODO(hbos): Remove this when streams() is removed.
   // https://crbug.com/webrtc/9480
@@ -58,6 +58,7 @@ class VideoRtpReceiver : public RtpReceiverBase {
       Thread* worker_thread,
       absl::string_view receiver_id,
       const std::vector<scoped_refptr<MediaStreamInterface>>& streams,
+      absl::AnyInvocable<RTCError()> enable_sframe_at_owner,
       VideoMediaReceiveChannelInterface* media_channel = nullptr);
 
   ~VideoRtpReceiver() override;
@@ -77,19 +78,12 @@ class VideoRtpReceiver : public RtpReceiverBase {
 
   RtpParameters GetParameters() const override;
 
-  void SetFrameDecryptor(
-      scoped_refptr<FrameDecryptorInterface> frame_decryptor) override;
-
-  scoped_refptr<FrameDecryptorInterface> GetFrameDecryptor() const override;
-
-  void SetFrameTransformer(
-      scoped_refptr<FrameTransformerInterface> frame_transformer) override;
-
   // RtpReceiverInternal implementation.
   void Stop() override;
   absl::AnyInvocable<void() &&> GetSetupForMediaChannel(uint32_t ssrc) override;
   absl::AnyInvocable<void() &&> GetSetupForUnsignaledMediaChannel() override;
-  std::optional<uint32_t> ssrc() const override;
+  MediaReceiveChannelInterface* media_channel() const override
+      RTC_RUN_ON(worker_thread_);
   void NotifyFirstPacketReceived(uint32_t ssrc) override;
   void NotifyFirstPacketReceivedAfterReceptiveChange(uint32_t ssrc) override;
   void set_stream_ids(std::vector<std::string> stream_ids) override;
@@ -148,7 +142,6 @@ class VideoRtpReceiver : public RtpReceiverBase {
   const std::string id_;
   VideoMediaReceiveChannelInterface* media_channel_
       RTC_GUARDED_BY(worker_thread_) = nullptr;
-  std::optional<uint32_t> signaled_ssrc_ RTC_GUARDED_BY(worker_thread_);
   // `source_` is held here to be able to change the state of the source when
   // the VideoRtpReceiver is stopped.
   const scoped_refptr<VideoRtpTrackSource> source_;
@@ -160,12 +153,8 @@ class VideoRtpReceiver : public RtpReceiverBase {
   bool received_first_packet_ RTC_GUARDED_BY(&signaling_thread_checker_) =
       false;
   const int attachment_id_;
-  scoped_refptr<FrameDecryptorInterface> frame_decryptor_
-      RTC_GUARDED_BY(worker_thread_);
   scoped_refptr<DtlsTransportInterface> dtls_transport_
       RTC_GUARDED_BY(&signaling_thread_checker_);
-  scoped_refptr<FrameTransformerInterface> frame_transformer_
-      RTC_GUARDED_BY(worker_thread_);
   // Stores the minimum jitter buffer delay. Handles caching cases
   // if `SetJitterBufferMinimumDelay` is called before start.
   JitterBufferDelay delay_ RTC_GUARDED_BY(worker_thread_);

@@ -777,7 +777,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(DirectHandle<JSArray> array) {
   // existed (as only indices which were enumerable own properties at this point
   // should be serialized).
   const bool should_serialize_densely =
-      array->HasFastElements(cage_base) && !array->HasHoleyElements(cage_base);
+      array->HasFastElements() && !array->HasHoleyElements();
 
   if (should_serialize_densely) {
     DCHECK_LE(length, FixedArray::kMaxLength);
@@ -787,7 +787,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(DirectHandle<JSArray> array) {
 
     // Fast paths. Note that PACKED_ELEMENTS in particular can bail due to the
     // structure of the elements changing.
-    switch (array->GetElementsKind(cage_base)) {
+    switch (array->GetElementsKind()) {
       case PACKED_SMI_ELEMENTS: {
         DisallowGarbageCollection no_gc;
         Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
@@ -810,10 +810,10 @@ Maybe<bool> ValueSerializer::WriteJSArray(DirectHandle<JSArray> array) {
         break;
       }
       case PACKED_ELEMENTS: {
-        DirectHandle<Object> old_length(array->length(cage_base), isolate_);
+        DirectHandle<Object> old_length(array->length(), isolate_);
         for (; i < length; i++) {
-          if (array->length(cage_base) != *old_length ||
-              array->GetElementsKind(cage_base) != PACKED_ELEMENTS) {
+          if (array->length() != *old_length ||
+              array->GetElementsKind() != PACKED_ELEMENTS) {
             // Fall back to slow path.
             break;
           }
@@ -1129,7 +1129,8 @@ Maybe<bool> ValueSerializer::WriteJSError(DirectHandle<JSObject> error) {
   WriteTag(SerializationTag::kError);
 
   DirectHandle<Object> name_object;
-  if (!JSObject::GetProperty(isolate_, error, "name").ToHandle(&name_object)) {
+  if (!JSReceiver::GetProperty(isolate_, error, "name")
+           .ToHandle(&name_object)) {
     return Nothing<bool>();
   }
   DirectHandle<String> name;

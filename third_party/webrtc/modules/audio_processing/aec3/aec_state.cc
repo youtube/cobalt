@@ -38,16 +38,6 @@
 namespace webrtc {
 namespace {
 
-bool DeactivateInitialStateResetAtEchoPathChange(
-    const FieldTrialsView& field_trials) {
-  return field_trials.IsEnabled(
-      "WebRTC-Aec3DeactivateInitialStateResetKillSwitch");
-}
-
-bool FullResetAtEchoPathChange(const FieldTrialsView& field_trials) {
-  return !field_trials.IsEnabled("WebRTC-Aec3AecStateFullResetKillSwitch");
-}
-
 bool SubtractorAnalyzerResetAtEchoPathChange(
     const FieldTrialsView& field_trials) {
   return !field_trials.IsEnabled(
@@ -131,10 +121,6 @@ AecState::AecState(const Environment& env,
     : data_dumper_(new ApmDataDumper(instance_count_.fetch_add(1) + 1)),
       config_(config),
       num_capture_channels_(num_capture_channels),
-      deactivate_initial_state_reset_at_echo_path_change_(
-          DeactivateInitialStateResetAtEchoPathChange(env.field_trials())),
-      full_reset_at_echo_path_change_(
-          FullResetAtEchoPathChange(env.field_trials())),
       subtractor_analyzer_reset_at_echo_path_change_(
           SubtractorAnalyzerResetAtEchoPathChange(env.field_trials())),
       initial_state_(config_),
@@ -161,9 +147,7 @@ void AecState::HandleEchoPathChange(
     capture_signal_saturation_ = false;
     strong_not_saturated_render_blocks_ = 0;
     blocks_with_active_render_ = 0;
-    if (!deactivate_initial_state_reset_at_echo_path_change_) {
-      initial_state_.Reset();
-    }
+    initial_state_.Reset();
     if (transparent_state_) {
       transparent_state_->Reset();
     }
@@ -175,9 +159,8 @@ void AecState::HandleEchoPathChange(
   // TODO(peah): Refine the reset scheme according to the type of gain and
   // delay adjustment.
 
-  if (full_reset_at_echo_path_change_ &&
-      echo_path_variability.delay_change !=
-          EchoPathVariability::DelayAdjustment::kNone) {
+  if (echo_path_variability.delay_change !=
+      EchoPathVariability::DelayAdjustment::kNone) {
     full_reset();
   } else if (echo_path_variability.gain_change) {
     erle_estimator_.Reset(false);

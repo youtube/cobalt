@@ -139,12 +139,22 @@ void SkillsDownloader::OnUrlDownloadComplete(
     last_modified_header_ = last_modified_value;
   }
 
-  auto skills_map = std::make_unique<SkillIdToProtoMap>();
+  auto first_party_skill_data = std::make_unique<FirstPartySkillData>();
+  // If a skill curated by field is not set, default to Chrome
   for (auto& skill : *skills_list->mutable_skills()) {
-    skills_map->insert_or_assign(skill.id(), std::move(skill));
+    if (!skill.has_curated_by() || skill.curated_by().empty()) {
+      skill.set_curated_by("Chrome");
+    }
+  }
+  first_party_skill_data->skills_list.insert(
+      first_party_skill_data->skills_list.end(),
+      std::make_move_iterator(skills_list->mutable_skills()->begin()),
+      std::make_move_iterator(skills_list->mutable_skills()->end()));
+  for (auto& topic : *skills_list->mutable_topics_list()) {
+    first_party_skill_data->topics_list.push_back(std::move(topic));
   }
 
-  std::move(callback).Run(std::move(skills_map));
+  std::move(callback).Run(std::move(first_party_skill_data));
 }
 
 }  // namespace skills

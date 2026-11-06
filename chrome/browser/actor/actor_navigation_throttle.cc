@@ -17,6 +17,7 @@
 #include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/chrome_features.h"
 #include "components/actor/core/actor_features.h"
+#include "components/actor/public/mojom/actor_types.mojom.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/navigation_throttle.h"
@@ -198,18 +199,6 @@ ActorNavigationThrottle::WillStartOrRedirectRequest(bool is_redirection) {
                 JournalDetailsBuilder()
                     .Add("navigate", "Not triggered by page")
                     .Build());
-    return content::NavigationThrottle::PROCEED;
-  }
-
-  if (initiator_origin && initiator_origin->IsSameOriginWith(navigation_url)) {
-    journal.Log(navigation_url, task_id_, "NavThrottle",
-                JournalDetailsBuilder()
-                    .Add("navigate", is_redirection ? "Same origin redirect"
-                                                    : "Same origin navigation")
-                    .Build());
-    // This isn't needed for correctness. We know that if the actor triggered a
-    // same origin navigation, the destination URL will be allowed. So we
-    // avoid an unnecessary defer.
     return content::NavigationThrottle::PROCEED;
   }
 

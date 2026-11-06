@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_CORE_QUIC_STREAM_SEND_BUFFER_INLINING_H_
 
 #include <cstddef>
+#include <cstdint>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
@@ -13,7 +14,7 @@
 #include "quiche/quic/core/quic_inlined_string_view.h"
 #include "quiche/quic/core/quic_interval.h"
 #include "quiche/quic/core/quic_interval_deque.h"
-#include "quiche/quic/core/quic_stream_send_buffer_base.h"
+#include "quiche/quic/core/quic_interval_set.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_buffer_allocator.h"
@@ -55,42 +56,94 @@ struct QUICHE_EXPORT BufferedSliceInlining {
   QuicStreamOffset offset;
 };
 
+struct QUICHE_EXPORT StreamPendingRetransmission {
+  constexpr StreamPendingRetransmission(QuicStreamOffset offset,
+                                        QuicByteCount length)
+      : offset(offset), length(length) {}
+
+  // Starting offset of this pending retransmission.
+  QuicStreamOffset offset;
+  // Length of this pending retransmission.
+  QuicByteCount length;
+
+  bool operator==(const StreamPendingRetransmission& other) const = default;
+};
+
 // QuicStreamSendBuffer contains all of the outstanding (provided by the
 // application and not yet acknowledged by the peer) stream data.  Internally it
 // is a circular deque of (potentially inlined) QuicheMemSlices, indexed by the
 // offset in the stream.  The stream can be accessed randomly in O(log(n)) time,
 // though if the offsets are accessed sequentially, the access will be O(1).
-class QUICHE_EXPORT QuicStreamSendBufferInlining
-    : public QuicStreamSendBufferBase {
+class QUICHE_EXPORT QuicStreamSendBufferInlining {
  public:
   explicit QuicStreamSendBufferInlining(
       quiche::QuicheBufferAllocator* allocator);
 
+  // Called when |bytes_consumed| bytes has been consumed by the stream.
+  void OnStreamDataConsumed(size_t bytes_consumed);
+
+  // Called when data [offset, offset + data_length) is acked or removed as
+  // stream is canceled. Removes fully acked data slice from send buffer. Set
+  // |newly_acked_length|. Returns false if trying to ack unsent data.
+  bool OnStreamDataAcked(QuicStreamOffset offset, QuicByteCount data_length,
+                         QuicByteCount* newly_acked_length);
+
+  // Called when data [offset, offset + data_length) is considered as lost.
+  void OnStreamDataLost(QuicStreamOffset offset, QuicByteCount data_length);
+
+  // Called when data [offset, offset + length) was retransmitted.
+  void OnStreamDataRetransmitted(QuicStreamOffset offset,
+                                 QuicByteCount data_length);
+
+  // Returns true if there is pending retransmissions.
+  bool HasPendingRetransmission() const;
+
+  // Returns next pending retransmissions.
+  StreamPendingRetransmission NextPendingRetransmission() const;
+
+  // Returns true if data [offset, offset + data_length) is outstanding and
+  // waiting to be acked. Returns false otherwise.
+  bool IsStreamDataOutstanding(QuicStreamOffset offset,
+                               QuicByteCount data_length) const;
+
+  uint64_t stream_bytes_written() const { return stream_bytes_written_; }
+
+  uint64_t stream_bytes_outstanding() const {
+    return stream_bytes_outstanding_;
+  }
+
+  const QuicIntervalSet<QuicStreamOffset>& bytes_acked() const {
+    return bytes_acked_;
+  }
+
+  const QuicIntervalSet<QuicStreamOffset>& pending_retransmissions() const {
+    return pending_retransmissions_;
+  }
+
   // Save |data| to send buffer.
-  void SaveStreamData(absl::string_view data) override;
+  void SaveStreamData(absl::string_view data);
 
   // Save |slice| to send buffer.
-  void SaveMemSlice(quiche::QuicheMemSlice slice) override;
+  void SaveMemSlice(quiche::QuicheMemSlice slice);
 
   // Save all slices in |span| to send buffer. Return total bytes saved.
-  QuicByteCount SaveMemSliceSpan(
-      absl::Span<quiche::QuicheMemSlice> span) override;
+  QuicByteCount SaveMemSliceSpan(absl::Span<quiche::QuicheMemSlice> span);
 
   // Write |data_length| of data starts at |offset|. Returns true if all data
   // was successfully written. Returns false if the writer fails to write, or if
   // the data was already marked as acked, or if the data was never saved in the
   // first place.
   bool WriteStreamData(QuicStreamOffset offset, QuicByteCount data_length,
-                       QuicDataWriter* writer) override;
+                       QuicDataWriter* writer);
 
   // Number of data slices in send buffer.
-  size_t size() const override;
+  size_t size() const;
 
-  QuicStreamOffset stream_offset() const override { return stream_offset_; }
+  QuicStreamOffset stream_offset() const { return stream_offset_; }
 
-  void SetStreamOffsetForTest(QuicStreamOffset new_offset) override;
-  absl::string_view LatestWriteForTest() override;
-  QuicByteCount TotalDataBufferedForTest() override;
+  void SetStreamOffsetForTest(QuicStreamOffset new_offset);
+  absl::string_view LatestWriteForTest();
+  QuicByteCount TotalDataBufferedForTest();
 
  private:
   friend class test::QuicStreamSendBufferPeer;
@@ -98,13 +151,25 @@ class QUICHE_EXPORT QuicStreamSendBufferInlining
   // Called when data within offset [start, end) gets acked. Frees fully
   // acked buffered slices if any. Returns false if the corresponding data does
   // not exist or has been acked.
-  bool FreeMemSlices(QuicStreamOffset start, QuicStreamOffset end) override;
+  bool FreeMemSlices(QuicStreamOffset start, QuicStreamOffset end);
 
   // Cleanup acked data from the start of the interval.
-  void CleanUpBufferedSlices() override;
+  void CleanUpBufferedSlices();
 
   // Frees an individual buffered slice.
   void ClearSlice(BufferedSliceInlining& slice);
+
+  // Bytes that have been consumed by the stream.
+  uint64_t stream_bytes_written_ = 0;
+
+  // Bytes that have been consumed and are waiting to be acked.
+  uint64_t stream_bytes_outstanding_ = 0;
+
+  // Offsets of data that has been acked.
+  QuicIntervalSet<QuicStreamOffset> bytes_acked_;
+
+  // Data considered as lost and needs to be retransmitted.
+  QuicIntervalSet<QuicStreamOffset> pending_retransmissions_;
 
   // Contains actual stream data.
   QuicIntervalDeque<BufferedSliceInlining> interval_deque_;

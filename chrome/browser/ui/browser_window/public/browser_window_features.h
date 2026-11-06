@@ -42,6 +42,7 @@ class BrowserSyncedWindowDelegate;
 class BrowserUserEducationInterface;
 class BrowserView;
 class BrowserWindowInterface;
+class BrowserWindowModalDialogDelegate;
 class BrowserWindowThemeObserver;
 class BrowserWindowZoomObserver;
 class CallToActionLock;
@@ -196,6 +197,16 @@ class SessionServiceTabGroupSyncObserver;
 class SharedTabGroupFeedbackController;
 class MostRecentSharedTabUpdateStore;
 }  // namespace tab_groups
+
+namespace qrcode_generator {
+class QRCodeWindowController;
+}  // namespace qrcode_generator
+
+class SharingWindowController;
+
+namespace sharing_hub {
+class SharingHubWindowController;
+}  // namespace sharing_hub
 
 namespace send_tab_to_self {
 class SendTabToSelfToolbarBubbleController;
@@ -511,6 +522,11 @@ class BrowserWindowFeatures {
   std::unique_ptr<BrowserInstantController> instant_controller_;
   std::unique_ptr<send_tab_to_self::SendTabToSelfToolbarBubbleController>
       send_tab_to_self_toolbar_bubble_controller_;
+  std::unique_ptr<SharingWindowController> sharing_window_controller_;
+  std::unique_ptr<sharing_hub::SharingHubWindowController>
+      sharing_hub_window_controller_;
+  std::unique_ptr<qrcode_generator::QRCodeWindowController>
+      qrcode_window_controller_;
   std::unique_ptr<ChromeLabsCoordinator> chrome_labs_coordinator_;
 
   std::unique_ptr<ImmersiveModeController> immersive_mode_controller_;
@@ -790,6 +806,9 @@ class BrowserWindowFeatures {
   std::unique_ptr<BrowserWindowThemeObserver> browser_window_theme_observer_;
 
   std::unique_ptr<BrowserWindowZoomObserver> browser_window_zoom_observer_;
+
+  std::unique_ptr<BrowserWindowModalDialogDelegate>
+      browser_window_modal_dialog_delegate_;
 
   // Keep this member last to ensure embedder features are torn down first, in
   // reverse order of initialization.

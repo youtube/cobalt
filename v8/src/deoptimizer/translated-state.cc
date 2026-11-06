@@ -1396,7 +1396,7 @@ int TranslatedState::CreateNextTranslatedValue(
         PrintF(trace_file, "arguments length field (length = %d)",
                actual_argument_count_);
       }
-      frame.Add(TranslatedValue::NewInt32(this, actual_argument_count_));
+      frame.Add(TranslatedValue::NewUint32(this, actual_argument_count_));
       return 0;
     }
 
@@ -2031,7 +2031,7 @@ void TranslatedState::Prepare(Address stack_frame_pointer) {
 
   if (!feedback_vector_.is_null()) {
     feedback_vector_handle_ = handle(feedback_vector_, isolate());
-    feedback_vector_ = FeedbackVector();
+    feedback_vector_ = {};
   }
   stack_frame_pointer_ = stack_frame_pointer;
 
@@ -2149,7 +2149,6 @@ void TranslatedState::InitializeCapturedObjectAt(
     case FIXED_DOUBLE_ARRAY_TYPE:
       return;
 
-    case FIXED_ARRAY_TYPE:
     case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
@@ -2160,6 +2159,18 @@ void TranslatedState::InitializeCapturedObjectAt(
     case NATIVE_CONTEXT_TYPE:
     case SCRIPT_CONTEXT_TYPE:
     case WITH_CONTEXT_TYPE:
+    case PROPERTY_ARRAY_TYPE: {
+      constexpr int kAlreadyInitializedSlots = 2;
+      static_assert(Context::kHeaderSize == sizeof(PropertyArray));
+      static_assert(Context::kHeaderSize ==
+                    kAlreadyInitializedSlots * kTaggedSize);
+      InitializeFirstHeaderField(frame, &value_index, slot, false, no_gc);
+      InitializeObjectWithTaggedFieldsAt(frame, &value_index, slot, map, no_gc,
+                                         kAlreadyInitializedSlots);
+      break;
+    }
+
+    case FIXED_ARRAY_TYPE:
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:
@@ -2168,11 +2179,16 @@ void TranslatedState::InitializeCapturedObjectAt(
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
-    case PROPERTY_ARRAY_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
-    case SLOPPY_ARGUMENTS_ELEMENTS_TYPE:
-      InitializeObjectWithTaggedFieldsAt(frame, &value_index, slot, map, no_gc);
+    case SLOPPY_ARGUMENTS_ELEMENTS_TYPE: {
+      constexpr int kFixedArrayHeaderFields = 2;
+      static_assert(FixedArrayBase::kHeaderSize ==
+                    kFixedArrayHeaderFields * kTaggedSize);
+      InitializeFirstHeaderField(frame, &value_index, slot, true, no_gc);
+      InitializeObjectWithTaggedFieldsAt(frame, &value_index, slot, map, no_gc,
+                                         kFixedArrayHeaderFields);
       break;
+    }
 
     default:
       CHECK(IsJSObjectMap(*map));
@@ -2213,12 +2229,13 @@ void TranslatedState::MaterializeFixedDoubleArray(TranslatedFrame* frame,
                                                   int* value_index,
                                                   TranslatedValue* slot,
                                                   DirectHandle<Map> map) {
-  int length = frame->values_[*value_index].GetSmiValue();
+  uint32_t length =
+      base::checked_cast<uint32_t>(frame->values_[*value_index].GetSmiValue());
   (*value_index)++;
   Handle<FixedDoubleArray> array =
       Cast<FixedDoubleArray>(isolate()->factory()->NewFixedDoubleArray(length));
   CHECK_GT(length, 0);
-  for (int i = 0; i < length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     CHECK_NE(TranslatedValue::kCapturedObject,
              frame->values_[*value_index].kind());
     DirectHandle<Object> value = frame->values_[*value_index].GetValue();
@@ -2326,7 +2343,8 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE: {
       // Check we have the right size.
-      int array_length = frame->values_[value_index].GetSmiValue();
+      uint32_t array_length = base::checked_cast<uint32_t>(
+          frame->values_[value_index].GetSmiValue());
       int instance_size = FixedArray::SizeFor(array_length);
       CHECK_EQ(instance_size, slot->GetChildrenCount() * kTaggedSize);
 
@@ -2345,7 +2363,8 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
 
     case SLOPPY_ARGUMENTS_ELEMENTS_TYPE: {
       // Verify that the arguments size is correct.
-      int args_length = frame->values_[value_index].GetSmiValue();
+      uint32_t args_length = base::checked_cast<uint32_t>(
+          frame->values_[value_index].GetSmiValue());
       int args_size = SloppyArgumentsElements::SizeFor(args_length);
       CHECK_EQ(args_size, slot->GetChildrenCount() * kTaggedSize);
 
@@ -2552,16 +2571,9 @@ DirectHandle<Object> TranslatedState::GetValueAndAdvance(TranslatedFrame* frame,
   return slot->GetValue();
 }
 
-void TranslatedState::InitializeJSObjectAt(
-    TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
-    DirectHandle<Map> map, const DisallowGarbageCollection& no_gc) {
-  auto object_storage = Cast<HeapObject>(slot->storage_);
-  DCHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
-  int children_count = slot->GetChildrenCount();
-
-  // The object should have at least a map and some payload.
-  CHECK_GE(children_count, 2);
-
+void TranslatedState::PrepareObjectForLayoutChange(
+    Handle<HeapObject> object_storage, int children_count,
+    const DisallowGarbageCollection& no_gc) {
 #if DEBUG
   // No need to invalidate slots in object because no slot was recorded yet.
   // Verify this here.
@@ -2579,6 +2591,19 @@ void TranslatedState::InitializeJSObjectAt(
   // Finish any sweeping so that it becomes safe to overwrite the ByteArray
   // headers. See chromium:1228036.
   isolate()->heap()->EnsureSweepingCompletedForObject(*object_storage);
+}
+
+void TranslatedState::InitializeJSObjectAt(
+    TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
+    DirectHandle<Map> map, const DisallowGarbageCollection& no_gc) {
+  auto object_storage = Cast<HeapObject>(slot->storage_);
+  DCHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
+  int children_count = slot->GetChildrenCount();
+
+  // The object should have at least a map and some payload.
+  CHECK_GE(children_count, 2);
+
+  PrepareObjectForLayoutChange(object_storage, children_count, no_gc);
 
   // Fill the property array field.
   {
@@ -2651,9 +2676,9 @@ void TranslatedState::InitializeJSObjectAt(
   object_storage->set_map(isolate(), *map, kReleaseStore);
 }
 
-void TranslatedState::InitializeObjectWithTaggedFieldsAt(
+void TranslatedState::InitializeFirstHeaderField(
     TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
-    DirectHandle<Map> map, const DisallowGarbageCollection& no_gc) {
+    bool is_fixed_array, const DisallowGarbageCollection& no_gc) {
   auto object_storage = Cast<HeapObject>(slot->storage_);
   int children_count = slot->GetChildrenCount();
 
@@ -2665,26 +2690,39 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
     return;
   }
 
-#if DEBUG
-  // No need to invalidate slots in object because no slot was recorded yet.
-  // Verify this here.
-  Address object_start = object_storage->address();
-  Address object_end = object_start + children_count * kTaggedSize;
-  isolate()->heap()->VerifySlotRangeHasNoRecordedSlots(object_start,
-                                                       object_end);
-#endif  // DEBUG
+  PrepareObjectForLayoutChange(object_storage, children_count, no_gc);
 
-  // Notify the concurrent marker about the layout change.
-  isolate()->heap()->NotifyObjectLayoutChange(
-      *object_storage, no_gc, InvalidateRecordedSlots::kNo,
-      InvalidateExternalPointerSlots::kNo);
+  TranslatedValue* resolved_slot =
+      GetResolvedSlotAndAdvance(frame, value_index);
+  int offset = kTaggedSize;
+  if (is_fixed_array) {
+    RELAXED_WRITE_UINT32_FIELD(
+        *object_storage, offset,
+        base::checked_cast<uint32_t>(resolved_slot->GetSmiValue()));
+#if TAGGED_SIZE_8_BYTES
+    int padding_offset = offset + kUInt32Size;
+    RELAXED_WRITE_UINT32_FIELD(*object_storage, padding_offset, 0);
+#endif  // TAGGED_SIZE_8_BYTES
+  } else {
+    DirectHandle<Object> field_value = resolved_slot->GetValue();
+    WRITE_FIELD(*object_storage, offset, *field_value);
+    WRITE_BARRIER(*object_storage, offset, *field_value);
+  }
+}
 
-  // Finish any sweeping so that it becomes safe to overwrite the ByteArray
-  // headers. See chromium:1228036.
-  isolate()->heap()->EnsureSweepingCompletedForObject(*object_storage);
+void TranslatedState::InitializeObjectWithTaggedFieldsAt(
+    TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
+    DirectHandle<Map> map, const DisallowGarbageCollection& no_gc,
+    int consumed_slots) {
+  auto object_storage = Cast<HeapObject>(slot->storage_);
+  int children_count = slot->GetChildrenCount();
+
+  if (consumed_slots == children_count) {
+    return;
+  }
 
   // Write the fields to the object.
-  for (int i = 1; i < children_count; i++) {
+  for (int i = consumed_slots; i < children_count; i++) {
     slot = GetResolvedSlotAndAdvance(frame, value_index);
     int offset = i * kTaggedSize;
     uint8_t marker = object_storage->ReadField<uint8_t>(offset);

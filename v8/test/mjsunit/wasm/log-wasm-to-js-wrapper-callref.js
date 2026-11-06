@@ -6,7 +6,6 @@
 // interval-triggered samples and explicitly triggered samples. The goal of the
 // big interval is to avoid any interval-triggered samples.
 // Flags: --cpu-profiler-sampling-interval=1000000
-// Flags: --experimental-wasm-type-reflection
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -50,7 +49,7 @@ function imp(i) {
   console.profileEnd();
 }
 const wrapped_imp =
-    new WebAssembly.Function({parameters: ['i32'], results: ['i32']}, imp);
+    new WebAssemblyFunction({parameters: ['i32'], results: ['i32']}, imp);
 let instance = new WebAssembly.Instance(wasm_module, {m: {val: wrapped_imp}});
 
 // In its default configuration, this test is deterministic. However, in an

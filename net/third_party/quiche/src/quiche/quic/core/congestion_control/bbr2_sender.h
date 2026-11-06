@@ -116,32 +116,7 @@ class QUICHE_EXPORT Bbr2Sender final : public SendAlgorithmInterface {
     return model_.IsBandwidthOverestimateAvoidanceEnabled();
   }
 
-  struct QUICHE_EXPORT DebugState {
-    Bbr2Mode mode;
-
-    // Shared states.
-    QuicRoundTripCount round_trip_count;
-    QuicBandwidth bandwidth_hi = QuicBandwidth::Zero();
-    QuicBandwidth bandwidth_lo = QuicBandwidth::Zero();
-    QuicBandwidth bandwidth_est = QuicBandwidth::Zero();
-    QuicByteCount inflight_hi;
-    QuicByteCount inflight_lo;
-    QuicByteCount max_ack_height;
-    QuicTime::Delta min_rtt = QuicTime::Delta::Zero();
-    QuicTime min_rtt_timestamp = QuicTime::Zero();
-    QuicByteCount congestion_window;
-    QuicBandwidth pacing_rate = QuicBandwidth::Zero();
-    bool last_sample_is_app_limited;
-    QuicPacketNumber end_of_app_limited_phase;
-
-    // Mode-specific debug states.
-    Bbr2StartupMode::DebugState startup;
-    Bbr2DrainMode::DebugState drain;
-    Bbr2ProbeBwMode::DebugState probe_bw;
-    Bbr2ProbeRttMode::DebugState probe_rtt;
-  };
-
-  DebugState ExportDebugState() const;
+  Bbr2DebugState ExportDebugState() const;
 
   const Bbr2NetworkModel& GetNetworkModel() const { return model_; }
 
@@ -149,7 +124,6 @@ class QUICHE_EXPORT Bbr2Sender final : public SendAlgorithmInterface {
   void UpdatePacingRate(QuicByteCount bytes_acked);
   void UpdateCongestionWindow(QuicByteCount bytes_acked);
   QuicByteCount GetTargetCongestionWindow(float gain) const;
-  void OnEnterQuiescence(QuicTime now);
   void OnExitQuiescence(QuicTime now);
 
   // Helper function for BBR2_MODE_DISPATCH.
@@ -216,8 +190,6 @@ class QUICHE_EXPORT Bbr2Sender final : public SendAlgorithmInterface {
   friend class Bbr2ProbeRttMode;
 };
 
-QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
-                                       const Bbr2Sender::DebugState& state);
 
 }  // namespace quic
 

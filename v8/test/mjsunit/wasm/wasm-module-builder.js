@@ -2765,3 +2765,36 @@ function wasmF32ConstSignalingNaN() {
 function wasmF64ConstSignalingNaN() {
   return [kExprF64Const, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf4, 0x7f];
 }
+
+// Polyfill for "new WebAssembly.Function" from the defunct "type reflection"
+// proposal.
+function WebAssemblyFunction(sig, closure) {
+  const typeMap = {
+    'i32': kWasmI32,
+    'i64': kWasmI64,
+    'f32': kWasmF32,
+    'f64': kWasmF64,
+    'externref': kWasmExternRef,
+    'funcref': kWasmFuncRef,
+    'anyfunc': kWasmFuncRef,
+    'v128': kWasmS128,
+    'structref': kWasmStructRef,
+    'arrayref': kWasmArrayRef,
+  };
+
+  let builder = new WasmModuleBuilder();
+  let params = sig.parameters.map(t => {
+    let mapped = typeMap[t];
+    if (mapped === undefined) throw new Error(`Unknown type: ${t}`);
+    return mapped;
+  });
+  let results = sig.results.map(t => {
+    let mapped = typeMap[t];
+    if (mapped === undefined) throw new Error(`Unknown type: ${t}`);
+    return mapped;
+  });
+  let index = builder.addImport('m', 'f', makeSig(params, results));
+  builder.addExport('f', index);
+  let instance = builder.instantiate({m: {f: closure}});
+  return instance.exports.f;
+}

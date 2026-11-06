@@ -47,39 +47,6 @@ void FakePlusAddressService::RemoveObserver(PlusAddressService::Observer* o) {
   NOTIMPLEMENTED();
 }
 
-std::vector<autofill::Suggestion>
-FakePlusAddressService::GetSuggestionsFromPlusAddresses(
-    const std::vector<std::string>& plus_addresses) {
-  Suggestion suggestion = Suggestion(plus_addresses::test::kFakePlusAddressU16,
-                                     SuggestionType::kFillExistingPlusAddress);
-  if constexpr (!BUILDFLAG(IS_ANDROID)) {
-    suggestion.labels = {{Suggestion::Text(l10n_util::GetStringUTF16(
-        IDS_PLUS_ADDRESS_FILL_SUGGESTION_SECONDARY_TEXT))}};
-  }
-  suggestion.icon = Suggestion::Icon::kPlusAddress;
-  return {suggestion};
-}
-
-autofill::Suggestion FakePlusAddressService::GetManagePlusAddressSuggestion()
-    const {
-  return Suggestion(autofill::SuggestionType::kManagePlusAddress);
-}
-
-void FakePlusAddressService::RecordAutofillSuggestionEvent(
-    SuggestionEvent suggestion_event) {
-  NOTIMPLEMENTED();
-}
-
-void FakePlusAddressService::OnPlusAddressSuggestionShown(
-    autofill::AutofillManager& manager,
-    autofill::FormGlobalId form,
-    autofill::FieldGlobalId field,
-    SuggestionContext suggestion_context,
-    autofill::PasswordFormClassification::Type form_type,
-    autofill::SuggestionType suggestion_type) {
-  NOTIMPLEMENTED();
-}
-
 void FakePlusAddressService::DidFillPlusAddress() {
   did_fill_plus_address_suggestion_ = true;
 }

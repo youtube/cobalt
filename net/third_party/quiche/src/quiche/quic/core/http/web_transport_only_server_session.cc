@@ -74,7 +74,7 @@ QuicSpdyStream* WebTransportOnlyServerSession::CreateIncomingStream(
 
 QuicSpdyStream* WebTransportOnlyServerSession::CreateIncomingStream(
     PendingStream* pending) {
-  QuicSpdyStream* stream = new Stream(pending, this);
+  QuicSpdyStream* stream = new Stream(*pending, this);
   ActivateStream(absl::WrapUnique(stream));
   return stream;
 }
@@ -92,8 +92,8 @@ WebTransportOnlyServerSession::CreateOutgoingBidirectionalStream() {
 }
 
 QuicStream* WebTransportOnlyServerSession::ProcessBidirectionalPendingStream(
-    PendingStream* pending) {
-  return CreateIncomingStream(pending);
+    PendingStream& pending) {
+  return CreateIncomingStream(&pending);
 }
 
 bool WebTransportOnlyServerSession::OnSettingsFrame(

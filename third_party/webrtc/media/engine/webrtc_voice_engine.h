@@ -223,7 +223,7 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
   RTCError SetRtpSendParameters(uint32_t ssrc,
                                 const RtpParameters& parameters,
                                 SetParametersCallback callback) override;
-  void SetSend(bool send) override;
+  bool SetSend(bool send) override;
   bool SetAudioSend(uint32_t ssrc,
                     bool enable,
                     const AudioOptions* options,
@@ -354,7 +354,7 @@ class WebRtcVoiceReceiveChannel final
   RtpParameters GetRtpReceiverParameters(uint32_t ssrc) const override;
   RtpParameters GetDefaultRtpReceiveParameters() const override;
 
-  void SetPlayout(bool playout) override;
+  void SetReceive(bool receive) override;
   bool AddRecvStream(const StreamParams& sp) override;
   bool RemoveRecvStream(uint32_t ssrc) override;
   void ResetUnsignaledRecvStream() override;

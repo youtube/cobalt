@@ -21,7 +21,7 @@
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
-#include "quiche/quic/moqt/moqt_subscribe_windows.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_weak_ptr.h"
@@ -197,8 +197,8 @@ class UpstreamFetch : public RemoteTrack {
       : RemoteTrack(standalone.full_track_name, fetch.request_id),
         group_order_(fetch.parameters.group_order.value_or(
             MoqtDeliveryOrder::kAscending)),
-        window_(SubscribeWindow(standalone.start_location,
-                                standalone.end_location)),
+        start_(standalone.start_location),
+        end_(standalone.end_location),
         subscriber_priority_(fetch.parameters.subscriber_priority.value_or(
             kDefaultSubscriberPriority)),
         ok_callback_(std::move(callback)) {}
@@ -208,7 +208,8 @@ class UpstreamFetch : public RemoteTrack {
       : RemoteTrack(full_track_name, fetch.request_id),
         group_order_(fetch.parameters.group_order.value_or(
             MoqtDeliveryOrder::kAscending)),
-        window_(SubscribeWindow(Location(0, 0))),
+        relative_groups_(
+            std::get<JoiningFetchRelative>(fetch.fetch).joining_start),
         subscriber_priority_(fetch.parameters.subscriber_priority.value_or(
             kDefaultSubscriberPriority)),
         ok_callback_(std::move(callback)) {}
@@ -219,7 +220,7 @@ class UpstreamFetch : public RemoteTrack {
       : RemoteTrack(full_track_name, fetch.request_id),
         group_order_(fetch.parameters.group_order.value_or(
             MoqtDeliveryOrder::kAscending)),
-        window_(SubscribeWindow(Location(absolute_joining.joining_start, 0))),
+        start_(Location(absolute_joining.joining_start, 0)),
         subscriber_priority_(fetch.parameters.subscriber_priority.value_or(
             kDefaultSubscriberPriority)),
         ok_callback_(std::move(callback)) {}
@@ -227,7 +228,7 @@ class UpstreamFetch : public RemoteTrack {
   ~UpstreamFetch();
 
   bool InWindow(Location location) const override {
-    return (window_.InWindow(location));
+    return (location >= start_ && location <= end_);
   }
 
   MoqtPriority subscriber_priority() const override {
@@ -338,7 +339,9 @@ class UpstreamFetch : public RemoteTrack {
 
  private:
   MoqtDeliveryOrder group_order_;
-  SubscribeWindow window_;
+  Location start_ = Location(0, 0);
+  Location end_ = Location(kMaxGroupId, kMaxObjectId);
+  std::optional<uint64_t> relative_groups_;
   MoqtPriority subscriber_priority_;
   // The last object received on the stream.
   std::optional<Location> last_location_;

@@ -64,10 +64,11 @@ std::unique_ptr<RtpFrameObject> CreateRtpFrameObject(
                             /*receive_time=*/Timestamp::Seconds(123456));
   return std::make_unique<RtpFrameObject>(
       kFirstSeqNum, kLastSeqNum, /*markerBit=*/true,
-      /*times_nacked=*/3, /*first_packet_received_time=*/4,
-      /*last_packet_received_time=*/5, /*rtp_timestamp=*/6, /*ntp_time_ms=*/7,
-      VideoSendTiming(), /*payload_type=*/8, video_header.codec,
-      kVideoRotation_0, VideoContentType::UNSPECIFIED, video_header,
+      /*times_nacked=*/3, /*first_packet_received_time=*/Timestamp::Millis(4),
+      /*last_packet_received_time=*/Timestamp::Millis(5), /*rtp_timestamp=*/6,
+      /*ntp_time_ms=*/7, VideoSendTiming(), /*payload_type=*/8,
+      video_header.codec, kVideoRotation_0, VideoContentType::UNSPECIFIED,
+      video_header,
       /*color_space=*/std::nullopt, /*frame_instrumentation_data=*/std::nullopt,
       RtpPacketInfos({packet_info}), EncodedImageBuffer::Create(0));
 }
@@ -354,7 +355,7 @@ TEST(RtpVideoStreamReceiverFrameTransformerDelegateTest,
   EXPECT_CALL(receiver, ManageFrame)
       .WillOnce([&](std::unique_ptr<RtpFrameObject> frame) {
         EXPECT_EQ(frame->codec_type(), metadata.GetCodec());
-        EXPECT_EQ(frame->ReceivedTime(), 12345);
+        EXPECT_EQ(frame->ReceivedTimestamp(), Timestamp::Micros(12345000));
       });
   callback->OnTransformedFrame(std::move(mock_sender_frame));
   ThreadManager::ProcessAllMessageQueuesForTesting();

@@ -24,6 +24,7 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
 #include "chrome/common/chrome_switches.h"
@@ -145,53 +146,55 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowManagerTest, OpenSettingsWindow) {
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsWindowManagerTest, OpenChromePages) {
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
 
   // History should open in the existing browser window.
   chrome::ShowHistory(browser());
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
 
   // Settings should open a new browser window.
   ShowOSSettings();
-  EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
 
   // About should reuse the existing Settings window.
   chrome::ShowAboutChrome(browser());
-  EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
 
   // Extensions should open in an existing browser window.
   CloseNonDefaultBrowsers();
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
   std::string extension_to_highlight;  // none
   chrome::ShowExtensions(browser(), extension_to_highlight);
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
 
   // Downloads should open in an existing browser window.
   chrome::ShowDownloads(browser());
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsWindowManagerTest, OpenAboutPage) {
   // About should open settings window.
   chrome::ShowAboutChrome(browser());
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsWindowManagerTest, OpenSettings) {
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
 
   // Browser settings opens in the existing browser window.
   chrome::ShowSettings(browser());
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
 
   // OS settings opens in a new window.
   ShowOSSettings();
   EXPECT_EQ(1u, GetNumberOfSettingsWindows());
-  EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
 
   // The opened Settings window should be the active browser.
-  content::WebContents* web_contents =
-      chrome::FindLastActive()->GetTabStripModel()->GetWebContentsAt(0);
+  content::WebContents* web_contents = GlobalBrowserCollection::GetInstance()
+                                           ->GetLastActiveBrowser()
+                                           ->GetTabStripModel()
+                                           ->GetWebContentsAt(0);
   EXPECT_EQ(ash::kChromeUIOSSettingsHost, web_contents->GetURL().GetHost());
 
   // Showing an OS sub-page reuses the OS settings window.
@@ -206,15 +209,15 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowManagerTest, OpenSettings) {
   EXPECT_EQ(apps::LaunchResult::kSuccess, result.Get());
 
   EXPECT_EQ(1u, GetNumberOfSettingsWindows());
-  EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
 
   // Close the settings window.
   CloseNonDefaultBrowsers();
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
 
   // Showing a browser setting sub-page reuses the browser window.
   chrome::ShowSettingsSubPage(browser(), chrome::kAutofillSubPage);
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
 }
 
 class SettingsWindowManagerLoginTest : public MixinBasedInProcessBrowserTest {
@@ -230,7 +233,7 @@ class SettingsWindowManagerLoginTest : public MixinBasedInProcessBrowserTest {
   ash::LoginManagerMixin login_manager_{&mixin_host_, {}};
 };
 
-// Regression test for crash. https://crbug.com/1174525
+// Regression test for crash. https://crbug.com/40746844
 IN_PROC_BROWSER_TEST_F(SettingsWindowManagerLoginTest, OpenBeforeLogin) {
   // Precondition: We're not signed in.
   ASSERT_FALSE(session_manager::SessionManager::Get()->IsSessionStarted());
@@ -240,6 +243,6 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowManagerLoginTest, OpenBeforeLogin) {
       ash::ProfileHelper::GetSigninProfile());
 
   // We didn't crash, and nothing opened.
-  EXPECT_EQ(0u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(0u, GlobalBrowserCollection::GetInstance()->GetSize());
   EXPECT_EQ(0u, GetNumberOfSettingsWindows());
 }

@@ -676,7 +676,7 @@ class WebIdlSchemaTest(unittest.TestCase):
 
     self.assertEqual('nested.example', schema['namespace'])
     self.assertEqual(
-        'Schema to test nested namespacee names types in IDL (API names with a'
+        'Schema to test nested namespace names types in IDL (API names with a'
         ' dot in them). API should end up on `<Browser>.nested.example`.',
         schema['description'],
     )
@@ -690,7 +690,7 @@ class WebIdlSchemaTest(unittest.TestCase):
 
     self.assertEqual('multi.nested.example', schema['namespace'])
     self.assertEqual(
-        'Schema to test triple nested namespacee names types in IDL (API names'
+        'Schema to test triple nested namespace names types in IDL (API names'
         ' with 2 dots in them). API should end up on `<Browser>.multi.nested.'
         'example`.',
         schema['description'],
@@ -701,7 +701,7 @@ class WebIdlSchemaTest(unittest.TestCase):
   def testMissingBrowserInterfaceError(self):
     expected_error_regex = (
         r'.* File\(test\/web_idl\/missing_browser_interface.idl\): Schema must'
-        r' contain either a paritial Browser interface \(for APIs\) or a'
+        r' contain either a partial Browser interface \(for APIs\) or a'
         r' partial ExtensionManifest dictionary \(for manifest stubs\)\.')
     self.assertRaisesRegex(
         SchemaCompilerError,
@@ -1286,9 +1286,10 @@ class WebIdlSchemaTest(unittest.TestCase):
             }]
         }, union_dict['properties']['dictTypeOrLong'])
 
-  # Tests 'ArrayBuffer' types on Dictionaries.
-  def testArrayBufferTypes(self):
-    idl = web_idl_schema.Load('test/web_idl/array_buffer.idl')
+  # Tests supported 'binary' buffer source types in dictionaries and as function
+  # parameters. Currently only ArrayBuffer and Uint8Array.
+  def testBufferSourceTypes(self):
+    idl = web_idl_schema.Load('test/web_idl/buffer_source_types.idl')
     self.assertEqual(1, len(idl))
     schema = idl[0]
 
@@ -1308,11 +1309,20 @@ class WebIdlSchemaTest(unittest.TestCase):
             'isInstanceOf': 'ArrayBuffer'
         }, array_buffer_dict['properties']['optionalArrayBuffer'])
 
-  # Tests 'ArrayBuffer' types used as function parameters.
-  def testArrayBufferFunctionParams(self):
-    idl = web_idl_schema.Load('test/web_idl/array_buffer.idl')
-    self.assertEqual(1, len(idl))
-    schema = idl[0]
+    uint_8_array_dict = getType(schema, 'Uint8ArrayDict')
+    self.assertEqual('object', uint_8_array_dict['type'])
+    self.assertEqual({
+        'type': 'binary',
+        'name': 'requiredUint8Array',
+        'isInstanceOf': 'Uint8Array'
+    }, uint_8_array_dict['properties']['requiredUint8Array'])
+    self.assertEqual(
+        {
+            'type': 'binary',
+            'optional': True,
+            'name': 'optionalUint8Array',
+            'isInstanceOf': 'Uint8Array'
+        }, uint_8_array_dict['properties']['optionalUint8Array'])
 
     array_buffer_params = getFunctionParameters(schema,
                                                 'arrayBufferParamFunction')
@@ -1329,6 +1339,21 @@ class WebIdlSchemaTest(unittest.TestCase):
             'name': 'optionalArrayBufferParam',
             'isInstanceOf': 'ArrayBuffer'
         }, array_buffer_params[1])
+
+    uint_8_array_params = getFunctionParameters(
+        schema, 'uint8ArrayParamFunction')
+    self.assertEqual({
+        'type': 'binary',
+        'name': 'requiredUint8ArrayParam',
+        'isInstanceOf': 'Uint8Array'
+    }, uint_8_array_params[0])
+    self.assertEqual(
+        {
+            'type': 'binary',
+            'optional': True,
+            'name': 'optionalUint8ArrayParam',
+            'isInstanceOf': 'Uint8Array'
+        }, uint_8_array_params[1])
 
   # Tests using the ExternalExtensionType extended attribute to indicate a type
   # has the actual definition in another schema file from another API

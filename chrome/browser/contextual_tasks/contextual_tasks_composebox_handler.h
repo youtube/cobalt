@@ -81,6 +81,10 @@ class ContextualTasksComposeboxHandler
   void AddTabContext(int32_t tab_id,
                      bool delay_upload,
                      AddTabContextCallback callback) override;
+  void AddDriveContext(const std::string& drive_id,
+                       const std::string& resource_key,
+                       const std::string& mime_type_string,
+                       AddDriveContextCallback callback) override;
 
   // We override this method to inject an existing `InputStateModel` if one is
   // provided by the ContextualTasksUI via the `take_input_model_callback_`.
@@ -104,10 +108,7 @@ class ContextualTasksComposeboxHandler
   void ResetInputStateModel() override;
   void UpdateModelFromUrl(const GURL& url) override;
   void UpdateSuggestedTabContext(
-      std::unique_ptr<contextual_tasks::SuggestedTabInfo> suggested_tab)
-      override;
-  bool has_suggested_tab_context() const override;
-  void ResetBlocklistedSuggestions() override;
+      const contextual_tasks::SuggestedTabInfo* suggested_tab) override;
   void OnTaskChanged() override;
 
   void ClearFiles(bool should_block_auto_suggested_tabs) override;
@@ -181,9 +182,6 @@ class ContextualTasksComposeboxHandler
   // Helper to send the pending query if all uploads are complete.
   void MaybeSendPendingQuery();
 
-  // Sends an update to AIM that an injected input has been deleted.
-  void SendDeleteInjectedInputUpdate(const std::string& id);
-
   TakeInputStateModelCallback take_input_model_callback_;
   raw_ptr<contextual_tasks::ContextualTasksUIInterface> web_ui_interface_;
 
@@ -205,17 +203,10 @@ class ContextualTasksComposeboxHandler
   // submits the query in the composebox.
   std::map<base::UnguessableToken, int32_t> delayed_tabs_;
 
-  // List of auto-suggested tab URLs that have been explicitly dismissed by the
-  // user. Those URLs will not be auto-suggested again for the same task in the
-  // same session, unless the user explicitly adds the tab via "+" button or
-  // switches to a new thread in which case the whole list will be cleared.
-  std::set<GURL> blocklisted_suggestions_;
-
-  // The URL of the current suggested tab context.
-  std::optional<GURL> current_suggestion_;
-
-  // The message to be sent to the webview once uploads are complete.
-  std::optional<lens::ClientToAimMessage> pending_message_;
+  // The pending query request info to be sent once uploads are complete.
+  std::unique_ptr<contextual_search::ContextualSearchContextController::
+                      CreateClientToAimRequestInfo>
+      pending_query_request_info_;
 
   // Set of tabs still delayed. Is set of tab id's, while `delayed_tabs_`
   // is map of token to tab id. We do not always have access to file token

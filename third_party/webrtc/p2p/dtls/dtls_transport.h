@@ -25,7 +25,6 @@
 #include "api/crypto/crypto_options.h"
 #include "api/dtls_transport_interface.h"
 #include "api/environment/environment.h"
-#include "api/field_trials_view.h"
 #include "api/ice_transport_interface.h"
 #include "api/rtc_error.h"
 #include "api/scoped_refptr.h"
@@ -144,9 +143,9 @@ class DtlsTransportInternalImpl : public DtlsTransportInternal {
 
   // For testing purposes only.
   using SslStreamFactory = std::function<std::unique_ptr<SSLStreamAdapter>(
+      const Environment&,
       std::unique_ptr<StreamInterface>,
-      absl::AnyInvocable<void(SSLHandshakeError)> handshake_error_callback,
-      const FieldTrialsView* field_trials)>;
+      absl::AnyInvocable<void(SSLHandshakeError)> handshake_error_callback)>;
 
   // `ice_transport` is the ICE transport this DTLS transport is wrapping.  It
   // must outlive this DTLS transport.

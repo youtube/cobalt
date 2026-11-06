@@ -28,13 +28,20 @@ namespace internal {
 
 // For a type wrapping a rust field, add accessors for it
 // including a initialize_with_wrapped_rust_value() that can be used in
-// templates
-#define DECL_ACCESSORS_FOR_RUST_WRAPPER(field, RustType_) \
-  typedef RustType_ RustType;                             \
-  DECL_ACCESSORS(field, Tagged<Managed<RustType_>>)       \
-  inline void initialize_with_wrapped_rust_value(         \
-      Tagged<Managed<RustType_>> handle);                 \
-  inline Managed<RustType_>::Ptr wrapped_rust() const;
+// templates. Declares the TaggedMember storage slot as well, so the
+// invocation must be the final member of the enclosing V8_OBJECT class
+// body.
+#define DECL_ACCESSORS_FOR_RUST_WRAPPER(field, RustType_)                \
+  typedef RustType_ RustType;                                            \
+  inline Tagged<Managed<RustType_>> field() const;                       \
+  inline void set_##field(Tagged<Managed<RustType_>> value,              \
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER); \
+  inline void initialize_with_wrapped_rust_value(                        \
+      Tagged<Managed<RustType_>> handle);                                \
+  inline Managed<RustType_>::Ptr wrapped_rust() const;                   \
+                                                                         \
+ public:                                                                 \
+  TaggedMember<Managed<RustType_>> field##_;
 
 // Adds JSTemporalFoo::GetConstructorTarget()
 // that can be used to obtain a constructor target/new_target for constructing
@@ -66,8 +73,7 @@ class JSTemporalPlainDate;
 class JSTemporalPlainMonthDay;
 class JSTemporalPlainYearMonth;
 
-class JSTemporalDuration
-    : public TorqueGeneratedJSTemporalDuration<JSTemporalDuration, JSObject> {
+V8_OBJECT class JSTemporalDuration : public JSObject {
  public:
   // https://tc39.es/proposal-temporal/#sec-temporal.duration
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalDuration>
@@ -145,16 +151,14 @@ class JSTemporalDuration
       DirectHandle<Object> temporal_duration_like);
 
   DECL_PRINTER(JSTemporalDuration)
+  DECL_VERIFIER(JSTemporalDuration)
 
   DECL_CTOR_HELPER()
   static constexpr bool kTypeContainsCalendar = false;
   DECL_ACCESSORS_FOR_RUST_WRAPPER(duration, temporal_rs::Duration)
+} V8_OBJECT_END;
 
-  TQ_OBJECT_CONSTRUCTORS(JSTemporalDuration)
-};
-
-class JSTemporalInstant
-    : public TorqueGeneratedJSTemporalInstant<JSTemporalInstant, JSObject> {
+V8_OBJECT class JSTemporalInstant : public JSObject {
  public:
   // https://tc39.es/proposal-temporal/#sec-temporal-instant-constructor
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalInstant> Constructor(
@@ -239,12 +243,10 @@ class JSTemporalInstant
   DECL_ACCESSORS_FOR_RUST_WRAPPER(instant, temporal_rs::Instant)
 
   DECL_PRINTER(JSTemporalInstant)
+  DECL_VERIFIER(JSTemporalInstant)
+} V8_OBJECT_END;
 
-  TQ_OBJECT_CONSTRUCTORS(JSTemporalInstant)
-};
-
-class JSTemporalPlainDate
-    : public TorqueGeneratedJSTemporalPlainDate<JSTemporalPlainDate, JSObject> {
+V8_OBJECT class JSTemporalPlainDate : public JSObject {
  public:
   // https://tc39.es/proposal-temporal/#sec-temporal-createtemporaldate
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainDate>
@@ -345,16 +347,13 @@ class JSTemporalPlainDate
       Isolate* isolate);
 
   DECL_PRINTER(JSTemporalPlainDate)
+  DECL_VERIFIER(JSTemporalPlainDate)
   DECL_CTOR_HELPER()
   static constexpr bool kTypeContainsCalendar = true;
   DECL_ACCESSORS_FOR_RUST_WRAPPER(date, temporal_rs::PlainDate)
+} V8_OBJECT_END;
 
-  TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainDate)
-};
-
-class JSTemporalPlainDateTime
-    : public TorqueGeneratedJSTemporalPlainDateTime<JSTemporalPlainDateTime,
-                                                    JSObject> {
+V8_OBJECT class JSTemporalPlainDateTime : public JSObject {
  public:
   // https://tc39.es/proposal-temporal/#sec-temporal-createtemporaldatetime
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainDateTime>
@@ -465,16 +464,14 @@ class JSTemporalPlainDateTime
       Isolate* isolate);
 
   DECL_PRINTER(JSTemporalPlainDateTime)
+  DECL_VERIFIER(JSTemporalPlainDateTime)
 
   DECL_CTOR_HELPER()
   static constexpr bool kTypeContainsCalendar = true;
   DECL_ACCESSORS_FOR_RUST_WRAPPER(date_time, temporal_rs::PlainDateTime)
-  TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainDateTime)
-};
+} V8_OBJECT_END;
 
-class JSTemporalPlainMonthDay
-    : public TorqueGeneratedJSTemporalPlainMonthDay<JSTemporalPlainMonthDay,
-                                                    JSObject> {
+V8_OBJECT class JSTemporalPlainMonthDay : public JSObject {
  public:
   // ##sec-temporal.plainmonthday
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainMonthDay>
@@ -528,16 +525,14 @@ class JSTemporalPlainMonthDay
       Isolate* isolate);
 
   DECL_PRINTER(JSTemporalPlainMonthDay)
+  DECL_VERIFIER(JSTemporalPlainMonthDay)
 
   DECL_CTOR_HELPER()
   static constexpr bool kTypeContainsCalendar = true;
   DECL_ACCESSORS_FOR_RUST_WRAPPER(month_day, temporal_rs::PlainMonthDay)
+} V8_OBJECT_END;
 
-  TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainMonthDay)
-};
-
-class JSTemporalPlainTime
-    : public TorqueGeneratedJSTemporalPlainTime<JSTemporalPlainTime, JSObject> {
+V8_OBJECT class JSTemporalPlainTime : public JSObject {
  public:
   // https://tc39.es/proposal-temporal/#sec-temporal-plaintime-constructor
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainTime>
@@ -621,16 +616,14 @@ class JSTemporalPlainTime
       Isolate* isolate);
 
   DECL_PRINTER(JSTemporalPlainTime)
+  DECL_VERIFIER(JSTemporalPlainTime)
 
   DECL_CTOR_HELPER()
   static constexpr bool kTypeContainsCalendar = false;
   DECL_ACCESSORS_FOR_RUST_WRAPPER(time, temporal_rs::PlainTime)
-  TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainTime)
-};
+} V8_OBJECT_END;
 
-class JSTemporalPlainYearMonth
-    : public TorqueGeneratedJSTemporalPlainYearMonth<JSTemporalPlainYearMonth,
-                                                     JSObject> {
+V8_OBJECT class JSTemporalPlainYearMonth : public JSObject {
  public:
   // ##sec-temporal.plainyearmonth
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalPlainYearMonth>
@@ -709,16 +702,14 @@ class JSTemporalPlainYearMonth
   // Abstract Operations
 
   DECL_PRINTER(JSTemporalPlainYearMonth)
+  DECL_VERIFIER(JSTemporalPlainYearMonth)
 
   DECL_CTOR_HELPER()
   static constexpr bool kTypeContainsCalendar = true;
   DECL_ACCESSORS_FOR_RUST_WRAPPER(year_month, temporal_rs::PlainYearMonth)
-  TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainYearMonth)
-};
+} V8_OBJECT_END;
 
-class JSTemporalZonedDateTime
-    : public TorqueGeneratedJSTemporalZonedDateTime<JSTemporalZonedDateTime,
-                                                    JSObject> {
+V8_OBJECT class JSTemporalZonedDateTime : public JSObject {
  public:
   // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSTemporalZonedDateTime>
@@ -863,13 +854,12 @@ class JSTemporalZonedDateTime
       DirectHandle<Object> options);
 
   DECL_PRINTER(JSTemporalZonedDateTime)
+  DECL_VERIFIER(JSTemporalZonedDateTime)
 
   DECL_CTOR_HELPER()
   static constexpr bool kTypeContainsCalendar = true;
   DECL_ACCESSORS_FOR_RUST_WRAPPER(zoned_date_time, temporal_rs::ZonedDateTime)
-
-  TQ_OBJECT_CONSTRUCTORS(JSTemporalZonedDateTime)
-};
+} V8_OBJECT_END;
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.timezoneid
 V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> JSTemporalNowTimeZoneId(

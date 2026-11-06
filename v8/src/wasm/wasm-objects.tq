@@ -14,9 +14,6 @@ type PodArrayOfWasmValueType extends ByteArray
 type ManagedWasmNativeModule extends Foreign
     constexpr 'Managed<wasm::NativeModule>';
 @useParentTypeChecker
-type TrustedManagedWasmJSFunctionOffheapData extends TrustedForeign
-    constexpr 'TrustedManaged<WasmJSFunctionData::OffheapData>';
-@useParentTypeChecker
 type ManagedBackingStore extends Foreign
     constexpr 'Managed<BackingStore>';
 
@@ -36,6 +33,7 @@ Convert<uintptr, WasmCodePointer>(p: WasmCodePointer): uintptr {
 // Trusted instance data, exposed via WasmInstanceObject::trusted_data.
 extern class WasmTrustedInstanceData extends ExposedTrustedObject;
 
+@cppObjectLayoutDefinition
 extern class WasmInstanceObject extends JSObject {
   trusted_data: TrustedPointer<WasmTrustedInstanceData>;
   module_object: WasmModuleObject;
@@ -46,6 +44,7 @@ extern class WasmInstanceObject extends JSObject {
 // WasmTrustedInstanceData. It is used in import wrappers (wasm-to-*) to load
 // needed information, and is used during wrapper tiering to know which
 // call site to patch (see the `call_origin` field).
+@cppObjectLayoutDefinition
 extern class WasmImportData extends TrustedObject {
   // The instance data is used to load memory start/size for fast API calls, and
   // for tier-up of wasm-to-js wrappers.
@@ -78,6 +77,7 @@ class WasmFastApiCallData extends HeapObject {
 
 // This is the representation that is used internally by wasm to represent
 // function references. It is "exposed" via the WasmFuncRef.
+@cppObjectLayoutDefinition
 extern class WasmInternalFunction extends ExposedTrustedObject {
   // This is the implicit first argument that must be passed along in the
   // "instance" register when calling the given function. It is either the
@@ -99,7 +99,6 @@ extern class WasmInternalFunction extends ExposedTrustedObject {
   // The call target, stored as a WasmCodePointer in this trusted object.
   raw_call_target: WasmCodePointer;
   @if(WASM_CODE_POINTER_NEEDS_PADDING) optional_padding: uint32;
-  @ifnot(WASM_CODE_POINTER_NEEDS_PADDING) optional_padding: void;
   sig: RawFunctionSigPtr;
 }
 
@@ -108,6 +107,7 @@ extern operator '.implicit_arg' macro LoadImplicitArgFromWasmInternalFunction(
 
 // WasmFuncRef is the type of function references. They are stored on-heap and
 // link to a WasmInternalFunction which contains the actual information.
+@cppObjectLayoutDefinition
 extern class WasmFuncRef extends HeapObject {
   // Note: Torque code uses the '.internal' macro below to access the reference.
   trusted_internal: TrustedPointer<WasmInternalFunction>;
@@ -117,6 +117,7 @@ extern operator '.internal' macro LoadWasmInternalFunctionFromFuncRef(
     WasmFuncRef): WasmInternalFunction;
 
 // Exposed via SharedFunctionInfo::trusted_function_data.
+@cppObjectLayoutDefinition
 extern class WasmFunctionData extends ExposedTrustedObject {
   // Used for calling this function from JavaScript.
   wrapper_code: TrustedPointer<Code>;
@@ -133,6 +134,7 @@ extern class WasmFunctionData extends ExposedTrustedObject {
 extern operator '.internal' macro LoadWasmInternalFunctionFromFunctionData(
     WasmFunctionData): WasmInternalFunction;
 
+@cppObjectLayoutDefinition
 extern class WasmExportedFunctionData extends WasmFunctionData {
   // This is the instance that exported the function (which in case of
   // imported and re-exported functions is different from the instance
@@ -153,20 +155,18 @@ extern operator '.instance_data' macro
     LoadWasmTrustedInstanceDataFromWasmExportedFunctionData(
         WasmExportedFunctionData): WasmTrustedInstanceData;
 
-extern class WasmJSFunctionData extends WasmFunctionData {
-  protected_offheap_data:
-      ProtectedPointer<TrustedManagedWasmJSFunctionOffheapData>;
-}
-
+@cppObjectLayoutDefinition
 extern class WasmCapiFunctionData extends WasmFunctionData {
   embedder_data: Foreign;  // Managed<wasm::FuncData>
 }
 
+@cppObjectLayoutDefinition
 extern class WasmResumeData extends HeapObject {
   trusted_suspender: TrustedPointer<WasmSuspenderObject>;
   on_resume: Smi;  // See wasm::OnResume enum.
 }
 
+@cppObjectLayoutDefinition
 extern class WasmSuspenderObject extends ExposedTrustedObject {
   stack: ExternalPointer;
   parent: ProtectedPointer<WasmSuspenderObject>;
@@ -175,12 +175,14 @@ extern class WasmSuspenderObject extends ExposedTrustedObject {
   reject: JSObject|Undefined;
 }
 
+@cppObjectLayoutDefinition
 extern class WasmContinuationObject extends HeapObject {
   stack_obj: WasmStackObject;
 }
 
 // Wrapper around the C++ StackMemory object.
 // 1:N relationship with WasmContinuationObject.
+@cppObjectLayoutDefinition
 extern class WasmStackObject extends HeapObject {
   stack: ExternalPointer;
 }
@@ -195,6 +197,7 @@ extern class WasmExceptionTag extends Struct {
 
 extern class WasmExceptionPackage extends JSObject;
 
+@cppObjectLayoutDefinition
 extern class WasmModuleObject extends JSObject {
   managed_native_module: ManagedWasmNativeModule;
   script: Script;
@@ -203,13 +206,13 @@ extern class WasmModuleObject extends JSObject {
 extern class WasmDispatchTable extends ExposedTrustedObject;
 extern class WasmDispatchTableForImports extends TrustedObject;
 
+@cppObjectLayoutDefinition
 extern class WasmTableObject extends JSObject {
   // The entries array is at least as big as {current_length()}, but might be
   // bigger to make future growth more efficient.
   // If this is a function table, each element is either
   //   - a WasmFuncRef (Wasm function added from Wasm),
-  //   - a WasmExportedFunction (exported Wasm function added from JS),
-  //   - a WasmJSFunction (WebAssembly.Function created from JS), or
+  //   - a WasmExportedFunction (exported Wasm function added from JS), or
   //   - a Tuple2 (placeholder for lazy initialization), holding a
   //     WasmInstanceObject and Smi for the function index.
   entries: FixedArray;
@@ -236,6 +239,7 @@ extern class WasmTableObject extends JSObject {
   @if(TAGGED_SIZE_8_BYTES) padding_for_address_type_2: uint32;
 }
 
+@cppObjectLayoutDefinition
 extern class WasmMemoryObject extends JSObject {
   // Either a JSArrayBuffer or undefined if a new JSArrayBuffer needs to be
   // allocated on the next access.
@@ -255,6 +259,7 @@ extern class WasmMemoryObject extends JSObject {
   @if(TAGGED_SIZE_8_BYTES) padding_for_flags_2: uint32;
 }
 
+@cppObjectLayoutDefinition
 extern class WasmMemoryMapDescriptor extends JSObject {
   // TODO(ahaas): Don't store the file descriptor here directly, but store it
   // in an array in the isolate, and only store an index into that array here.
@@ -268,6 +273,7 @@ extern class WasmMemoryMapDescriptor extends JSObject {
   @if(TAGGED_SIZE_8_BYTES) padding: uint32;
 }
 
+@cppObjectLayoutDefinition
 extern class WasmGlobalObject extends JSObject {
   // The instance in which this WasmGlobalObject is defined.
   // This field is not set if the global is defined outside any Wasm module,
@@ -288,6 +294,7 @@ extern class WasmGlobalObject extends JSObject {
   is_mutable: Smi;
 }
 
+@cppObjectLayoutDefinition
 extern class WasmTagObject extends JSObject {
   tag: HeapObject;
   canonical_type_index: Smi;
@@ -302,6 +309,7 @@ extern class AsmWasmData extends Struct {
   uses_bitset: HeapNumber;
 }
 
+@cppObjectLayoutDefinition
 extern class WasmTypeInfo extends HeapObject {
   canonical_type: uint32;
   canonical_element_type: uint32;  // Only for WasmArrays.
@@ -311,17 +319,19 @@ extern class WasmTypeInfo extends HeapObject {
 
 // WasmObject corresponds to data ref types which are WasmStruct and WasmArray.
 @abstract
+@cppObjectLayoutDefinition
 extern class WasmObject extends JSReceiver {}
 
 @highestInstanceTypeWithinParentClassRange
+@cppObjectLayoutDefinition
 extern class WasmStruct extends WasmObject {}
 
 @lowestInstanceTypeWithinParentClassRange
+@cppObjectLayoutDefinition
 extern class WasmArray extends WasmObject {
   length: uint32;
 
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }
 
 class WasmStringViewIter extends HeapObject {
@@ -332,11 +342,13 @@ class WasmStringViewIter extends HeapObject {
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }
 
+@cppObjectLayoutDefinition
 extern class WasmNull extends HeapObject {}
 
 extern macro WasmNullConstant(): WasmNull;
 const kWasmNull: WasmNull = WasmNullConstant();
 
+@cppObjectLayoutDefinition
 extern class WasmSuspendingObject extends JSObject {
   callable: JSReceiver;
 }

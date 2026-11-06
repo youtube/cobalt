@@ -172,7 +172,7 @@ class QUICHE_EXPORT WebTransportHttp3
 class QUICHE_EXPORT WebTransportHttp3UnidirectionalStream : public QuicStream {
  public:
   // Incoming stream.
-  WebTransportHttp3UnidirectionalStream(PendingStream* pending,
+  WebTransportHttp3UnidirectionalStream(PendingStream& pending,
                                         QuicSpdySession* session);
   // Outgoing stream.
   WebTransportHttp3UnidirectionalStream(QuicStreamId id,

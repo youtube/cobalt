@@ -57,6 +57,12 @@ static int dh_param_copy(EvpPkey *to, const EvpPkey *from) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_MISSING_PARAMETERS);
     return 0;
   }
+  if (to->pkey == nullptr) {
+    to->pkey = DH_new();
+    if (to->pkey == nullptr) {
+      return 0;
+    }
+  }
 
   const DH *dh = reinterpret_cast<DH *>(from->pkey);
   const BIGNUM *q_old = DH_get0_q(dh);
@@ -183,9 +189,7 @@ static int pkey_dh_copy(EvpPkeyCtx *dst, EvpPkeyCtx *src) {
 }
 
 static void pkey_dh_cleanup(EvpPkeyCtx *ctx) {
-  DH_PKEY_CTX *dctx = reinterpret_cast<DH_PKEY_CTX *>(ctx->data);
-  Delete(dctx);
-  ctx->data = nullptr;
+  Delete(reinterpret_cast<DH_PKEY_CTX *>(ctx->data));
 }
 
 static int pkey_dh_keygen(EvpPkeyCtx *ctx, EvpPkey *pkey) {

@@ -557,14 +557,11 @@ void TraceV8ConsoleMessageEvent(V8MessageOrigin origin, ConsoleAPIType type) {
   // tracing/tracing/metrics/console_error_metric.html.
   // See https://crbug.com/880432
   if (origin == V8MessageOrigin::kException) {
-    TRACE_EVENT_INSTANT0("v8.console", "V8ConsoleMessage::Exception",
-                         TRACE_EVENT_SCOPE_THREAD);
+    TRACE_EVENT_INSTANT("v8.console", "V8ConsoleMessage::Exception");
   } else if (type == ConsoleAPIType::kError) {
-    TRACE_EVENT_INSTANT0("v8.console", "V8ConsoleMessage::Error",
-                         TRACE_EVENT_SCOPE_THREAD);
+    TRACE_EVENT_INSTANT("v8.console", "V8ConsoleMessage::Error");
   } else if (type == ConsoleAPIType::kAssert) {
-    TRACE_EVENT_INSTANT0("v8.console", "V8ConsoleMessage::Assert",
-                         TRACE_EVENT_SCOPE_THREAD);
+    TRACE_EVENT_INSTANT("v8.console", "V8ConsoleMessage::Assert");
   }
 }
 

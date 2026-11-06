@@ -25,7 +25,7 @@ QuicSpdyServerStreamBase::QuicSpdyServerStreamBase(QuicStreamId id,
                                                    StreamType type)
     : QuicSpdyStream(id, session, type) {}
 
-QuicSpdyServerStreamBase::QuicSpdyServerStreamBase(PendingStream* pending,
+QuicSpdyServerStreamBase::QuicSpdyServerStreamBase(PendingStream& pending,
                                                    QuicSpdySession* session)
     : QuicSpdyStream(pending, session) {}
 

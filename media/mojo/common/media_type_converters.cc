@@ -208,6 +208,11 @@ TypeConverter<scoped_refptr<media::DecoderBuffer>,
       return nullptr;
     }
     buffer->set_decrypt_config(std::move(decrypt_config));
+
+    if (!media::DecoderBuffer::DoSubsamplesMatch(*buffer)) {
+      DVLOG(1) << __func__ << ": Subsamples do not match buffer size";
+      return nullptr;
+    }
   }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 

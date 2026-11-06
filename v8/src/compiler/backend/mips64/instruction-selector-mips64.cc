@@ -763,6 +763,8 @@ void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
   UNIMPLEMENTED();
 }
 
+void InstructionSelector::VisitUint64Add128(OpIndex node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitInt32Div(OpIndex node) {
   Mips64OperandGenerator g(this);
 
@@ -874,7 +876,15 @@ void InstructionSelector::VisitChangeFloat64ToUint32(OpIndex node) {
 }
 
 void InstructionSelector::VisitChangeFloat64ToUint64(OpIndex node) {
-  VisitRR(this, kMips64TruncUlD, node);
+  Mips64OperandGenerator g(this);
+  const ChangeOp& op = Cast<ChangeOp>(node);
+  InstructionCode opcode = kMips64TruncUlD;
+
+  if (op.Is<Opmask::kTruncateFloat64ToUint64OverflowToMin>()) {
+    opcode |= MiscField::encode(true);
+  }
+
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()));
 }
 
 void InstructionSelector::VisitTruncateFloat64ToUint32(OpIndex node) {
@@ -1323,9 +1333,8 @@ void InstructionSelector::EmitPrepareArguments(
 
   // Prepare for C function call.
   if (call_descriptor->IsCFunctionCall()) {
-    Emit(kArchPrepareCallCFunction | MiscField::encode(static_cast<int>(
-                                         call_descriptor->ParameterCount())),
-         0, nullptr, 0, nullptr);
+    int param_count = static_cast<int>(call_descriptor->ParameterCount());
+    Emit(kArchPrepareCallCFunction, g.NoOutput(), g.TempImmediate(param_count));
 
     // Poke any stack arguments.
     int slot = kCArgSlotCount;

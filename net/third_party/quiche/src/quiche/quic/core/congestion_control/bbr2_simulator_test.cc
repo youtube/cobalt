@@ -48,7 +48,6 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
 
 namespace quic {
 
-using CyclePhase = Bbr2ProbeBwMode::CyclePhase;
 
 namespace test {
 
@@ -177,7 +176,7 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
   ~Bbr2DefaultTopologyTest() {
     const auto* test_info =
         ::testing::UnitTest::GetInstance()->current_test_info();
-    const Bbr2Sender::DebugState& debug_state = sender_->ExportDebugState();
+    const Bbr2DebugState& debug_state = sender_->ExportDebugState();
     QUIC_LOG(INFO) << "Bbr2DefaultTopologyTest." << test_info->name()
                    << " completed at simulated time: "
                    << SimulatedNow().ToDebuggingValue() / 1e6
@@ -334,7 +333,7 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
 
   QuicConnection* sender_connection() { return sender_endpoint_.connection(); }
 
-  Bbr2Sender::DebugState sender_debug_state() const {
+  Bbr2DebugState sender_debug_state() const {
     return sender_->ExportDebugState();
   }
 
@@ -370,23 +369,23 @@ TEST_F(Bbr2DefaultTopologyTest, NormalStartup) {
   QuicBandwidth max_bw(QuicBandwidth::Zero());
   bool simulator_result = simulator_.RunUntilOrTimeout(
       [this, &max_bw, &max_bw_round]() {
-        if (max_bw * 1.001 < sender_->ExportDebugState().bandwidth_hi) {
-          max_bw = sender_->ExportDebugState().bandwidth_hi;
-          max_bw_round = sender_->ExportDebugState().round_trip_count;
+        const auto debug_state = sender_->ExportDebugState();
+        if (max_bw * 1.001 < debug_state.bandwidth_hi) {
+          max_bw = debug_state.bandwidth_hi;
+          max_bw_round = debug_state.round_trip_count;
         }
-        return sender_->ExportDebugState().startup.full_bandwidth_reached;
+        return debug_state.startup.full_bandwidth_reached;
       },
       QuicTime::Delta::FromSeconds(5));
   ASSERT_TRUE(simulator_result);
-  EXPECT_EQ(Bbr2Mode::DRAIN, sender_->ExportDebugState().mode);
-  EXPECT_EQ(3u, sender_->ExportDebugState().round_trip_count - max_bw_round);
-  EXPECT_EQ(
-      3u,
-      sender_->ExportDebugState().startup.round_trips_without_bandwidth_growth);
+  const auto debug_state = sender_->ExportDebugState();
+  EXPECT_EQ(Bbr2Mode::DRAIN, debug_state.mode);
+  EXPECT_EQ(3u, debug_state.round_trip_count - max_bw_round);
+  EXPECT_EQ(3u, debug_state.startup.round_trips_without_bandwidth_growth);
   EXPECT_EQ(0u, sender_connection_stats().packets_lost);
-  EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
-                   sender_->ExportDebugState().bandwidth_hi, 0.01f);
-  EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
+  EXPECT_APPROX_EQ(params.BottleneckBandwidth(), debug_state.bandwidth_hi,
+                   0.01f);
+  EXPECT_FALSE(debug_state.last_sample_is_app_limited);
 }
 
 TEST_F(Bbr2DefaultTopologyTest, NormalStartupB207) {
@@ -400,21 +399,21 @@ TEST_F(Bbr2DefaultTopologyTest, NormalStartupB207) {
   QuicBandwidth max_bw(QuicBandwidth::Zero());
   bool simulator_result = simulator_.RunUntilOrTimeout(
       [this, &max_bw, &max_bw_round]() {
-        if (max_bw < sender_->ExportDebugState().bandwidth_hi) {
-          max_bw = sender_->ExportDebugState().bandwidth_hi;
-          max_bw_round = sender_->ExportDebugState().round_trip_count;
+        const auto debug_state = sender_->ExportDebugState();
+        if (max_bw < debug_state.bandwidth_hi) {
+          max_bw = debug_state.bandwidth_hi;
+          max_bw_round = debug_state.round_trip_count;
         }
-        return sender_->ExportDebugState().startup.full_bandwidth_reached;
+        return debug_state.startup.full_bandwidth_reached;
       },
       QuicTime::Delta::FromSeconds(5));
   ASSERT_TRUE(simulator_result);
-  EXPECT_EQ(Bbr2Mode::DRAIN, sender_->ExportDebugState().mode);
-  EXPECT_EQ(1u, sender_->ExportDebugState().round_trip_count - max_bw_round);
-  EXPECT_EQ(
-      1u,
-      sender_->ExportDebugState().startup.round_trips_without_bandwidth_growth);
-  EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
-                   sender_->ExportDebugState().bandwidth_hi, 0.01f);
+  const auto debug_state = sender_->ExportDebugState();
+  EXPECT_EQ(Bbr2Mode::DRAIN, debug_state.mode);
+  EXPECT_EQ(1u, debug_state.round_trip_count - max_bw_round);
+  EXPECT_EQ(1u, debug_state.startup.round_trips_without_bandwidth_growth);
+  EXPECT_APPROX_EQ(params.BottleneckBandwidth(), debug_state.bandwidth_hi,
+                   0.01f);
   EXPECT_EQ(0u, sender_connection_stats().packets_lost);
 }
 
@@ -431,21 +430,21 @@ TEST_F(Bbr2DefaultTopologyTest, NormalStartupB207andB205) {
   QuicBandwidth max_bw(QuicBandwidth::Zero());
   bool simulator_result = simulator_.RunUntilOrTimeout(
       [this, &max_bw, &max_bw_round]() {
-        if (max_bw < sender_->ExportDebugState().bandwidth_hi) {
-          max_bw = sender_->ExportDebugState().bandwidth_hi;
-          max_bw_round = sender_->ExportDebugState().round_trip_count;
+        const auto debug_state = sender_->ExportDebugState();
+        if (max_bw < debug_state.bandwidth_hi) {
+          max_bw = debug_state.bandwidth_hi;
+          max_bw_round = debug_state.round_trip_count;
         }
-        return sender_->ExportDebugState().startup.full_bandwidth_reached;
+        return debug_state.startup.full_bandwidth_reached;
       },
       QuicTime::Delta::FromSeconds(5));
   ASSERT_TRUE(simulator_result);
-  EXPECT_EQ(Bbr2Mode::DRAIN, sender_->ExportDebugState().mode);
-  EXPECT_EQ(1u, sender_->ExportDebugState().round_trip_count - max_bw_round);
-  EXPECT_EQ(
-      2u,
-      sender_->ExportDebugState().startup.round_trips_without_bandwidth_growth);
-  EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
-                   sender_->ExportDebugState().bandwidth_hi, 0.01f);
+  const auto debug_state = sender_->ExportDebugState();
+  EXPECT_EQ(Bbr2Mode::DRAIN, debug_state.mode);
+  EXPECT_EQ(1u, debug_state.round_trip_count - max_bw_round);
+  EXPECT_EQ(2u, debug_state.startup.round_trips_without_bandwidth_growth);
+  EXPECT_APPROX_EQ(params.BottleneckBandwidth(), debug_state.bandwidth_hi,
+                   0.01f);
   EXPECT_EQ(0u, sender_connection_stats().packets_lost);
 }
 
@@ -461,22 +460,22 @@ TEST_F(Bbr2DefaultTopologyTest, NormalStartupBB2S) {
   QuicBandwidth max_bw(QuicBandwidth::Zero());
   bool simulator_result = simulator_.RunUntilOrTimeout(
       [this, &max_bw, &max_bw_round]() {
-        if (max_bw * 1.001 < sender_->ExportDebugState().bandwidth_hi) {
-          max_bw = sender_->ExportDebugState().bandwidth_hi;
-          max_bw_round = sender_->ExportDebugState().round_trip_count;
+        const auto debug_state = sender_->ExportDebugState();
+        if (max_bw * 1.001 < debug_state.bandwidth_hi) {
+          max_bw = debug_state.bandwidth_hi;
+          max_bw_round = debug_state.round_trip_count;
         }
-        return sender_->ExportDebugState().startup.full_bandwidth_reached;
+        return debug_state.startup.full_bandwidth_reached;
       },
       QuicTime::Delta::FromSeconds(5));
   ASSERT_TRUE(simulator_result);
-  EXPECT_EQ(Bbr2Mode::DRAIN, sender_->ExportDebugState().mode);
+  const auto debug_state = sender_->ExportDebugState();
+  EXPECT_EQ(Bbr2Mode::DRAIN, debug_state.mode);
   // BB2S reduces 3 rounds without bandwidth growth to 2.
-  EXPECT_EQ(2u, sender_->ExportDebugState().round_trip_count - max_bw_round);
-  EXPECT_EQ(
-      2u,
-      sender_->ExportDebugState().startup.round_trips_without_bandwidth_growth);
-  EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
-                   sender_->ExportDebugState().bandwidth_hi, 0.01f);
+  EXPECT_EQ(2u, debug_state.round_trip_count - max_bw_round);
+  EXPECT_EQ(2u, debug_state.startup.round_trips_without_bandwidth_growth);
+  EXPECT_APPROX_EQ(params.BottleneckBandwidth(), debug_state.bandwidth_hi,
+                   0.01f);
   EXPECT_EQ(0u, sender_connection_stats().packets_lost);
 }
 
@@ -1549,7 +1548,7 @@ TEST_F(Bbr2DefaultTopologyTest, Drain) {
         QuicRoundTripCount rounds_passed =
             debug_state.round_trip_count - start_round_trip;
         return rounds_passed >= 4 && debug_state.mode == Bbr2Mode::PROBE_BW &&
-               debug_state.probe_bw.phase == CyclePhase::PROBE_REFILL;
+               debug_state.probe_bw.phase == ProbePhase::PROBE_REFILL;
       },
       timeout);
   ASSERT_TRUE(simulator_result);
@@ -1573,7 +1572,7 @@ TEST_F(Bbr2DefaultTopologyTest, InFlightAwareGainCycling) {
   simulator_result = SendUntilOrTimeout(
       [this]() {
         return sender_->ExportDebugState().probe_bw.phase ==
-               CyclePhase::PROBE_REFILL;
+               ProbePhase::PROBE_REFILL;
       },
       timeout);
   ASSERT_TRUE(simulator_result);
@@ -1585,7 +1584,7 @@ TEST_F(Bbr2DefaultTopologyTest, InFlightAwareGainCycling) {
   for (int i = 0; i < 2; i++) {
     SendBursts(params, 5, target_bandwidth * burst_interval, burst_interval);
     EXPECT_EQ(Bbr2Mode::PROBE_BW, sender_->ExportDebugState().mode);
-    EXPECT_EQ(CyclePhase::PROBE_UP, sender_->ExportDebugState().probe_bw.phase);
+    EXPECT_EQ(ProbePhase::PROBE_UP, sender_->ExportDebugState().probe_bw.phase);
     EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
                      sender_->ExportDebugState().bandwidth_hi, 0.02f);
   }
@@ -1604,13 +1603,13 @@ TEST_F(Bbr2DefaultTopologyTest, InFlightAwareGainCycling) {
   simulator_result = simulator_.RunUntilOrTimeout(
       [this]() {
         return sender_->ExportDebugState().probe_bw.phase ==
-               CyclePhase::PROBE_DOWN;
+               ProbePhase::PROBE_DOWN;
       },
       timeout);
   ASSERT_TRUE(simulator_result);
   simulator_.RunFor(0.75 * sender_->ExportDebugState().min_rtt);
   EXPECT_EQ(Bbr2Mode::PROBE_BW, sender_->ExportDebugState().mode);
-  EXPECT_EQ(CyclePhase::PROBE_CRUISE,
+  EXPECT_EQ(ProbePhase::PROBE_CRUISE,
             sender_->ExportDebugState().probe_bw.phase);
 }
 
@@ -1626,23 +1625,23 @@ TEST_F(Bbr2DefaultTopologyTest, ExitStartupDueToLoss) {
   QuicBandwidth max_bw(QuicBandwidth::Zero());
   bool simulator_result = simulator_.RunUntilOrTimeout(
       [this, &max_bw, &max_bw_round]() {
-        if (max_bw < sender_->ExportDebugState().bandwidth_hi) {
-          max_bw = sender_->ExportDebugState().bandwidth_hi;
-          max_bw_round = sender_->ExportDebugState().round_trip_count;
+        const auto debug_state = sender_->ExportDebugState();
+        if (max_bw < debug_state.bandwidth_hi) {
+          max_bw = debug_state.bandwidth_hi;
+          max_bw_round = debug_state.round_trip_count;
         }
-        return sender_->ExportDebugState().startup.full_bandwidth_reached;
+        return debug_state.startup.full_bandwidth_reached;
       },
       QuicTime::Delta::FromSeconds(5));
   ASSERT_TRUE(simulator_result);
-  EXPECT_EQ(Bbr2Mode::DRAIN, sender_->ExportDebugState().mode);
-  EXPECT_GE(2u, sender_->ExportDebugState().round_trip_count - max_bw_round);
-  EXPECT_EQ(
-      1u,
-      sender_->ExportDebugState().startup.round_trips_without_bandwidth_growth);
+  const auto debug_state = sender_->ExportDebugState();
+  EXPECT_EQ(Bbr2Mode::DRAIN, debug_state.mode);
+  EXPECT_GE(2u, debug_state.round_trip_count - max_bw_round);
+  EXPECT_EQ(1u, debug_state.startup.round_trips_without_bandwidth_growth);
   EXPECT_NE(0u, sender_connection_stats().packets_lost);
-  EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
+  EXPECT_FALSE(debug_state.last_sample_is_app_limited);
 
-  EXPECT_GT(sender_->ExportDebugState().inflight_hi, 1.2f * params.BDP());
+  EXPECT_GT(debug_state.inflight_hi, 1.2f * params.BDP());
 }
 
 // Test exiting STARTUP earlier upon loss due to loss when connection option
@@ -1659,23 +1658,23 @@ TEST_F(Bbr2DefaultTopologyTest, ExitStartupDueToLossB2SL) {
   QuicBandwidth max_bw(QuicBandwidth::Zero());
   bool simulator_result = simulator_.RunUntilOrTimeout(
       [this, &max_bw, &max_bw_round]() {
-        if (max_bw < sender_->ExportDebugState().bandwidth_hi) {
-          max_bw = sender_->ExportDebugState().bandwidth_hi;
-          max_bw_round = sender_->ExportDebugState().round_trip_count;
+        const auto debug_state = sender_->ExportDebugState();
+        if (max_bw < debug_state.bandwidth_hi) {
+          max_bw = debug_state.bandwidth_hi;
+          max_bw_round = debug_state.round_trip_count;
         }
-        return sender_->ExportDebugState().startup.full_bandwidth_reached;
+        return debug_state.startup.full_bandwidth_reached;
       },
       QuicTime::Delta::FromSeconds(5));
   ASSERT_TRUE(simulator_result);
-  EXPECT_EQ(Bbr2Mode::DRAIN, sender_->ExportDebugState().mode);
-  EXPECT_GE(2u, sender_->ExportDebugState().round_trip_count - max_bw_round);
-  EXPECT_EQ(
-      1u,
-      sender_->ExportDebugState().startup.round_trips_without_bandwidth_growth);
+  const auto debug_state = sender_->ExportDebugState();
+  EXPECT_EQ(Bbr2Mode::DRAIN, debug_state.mode);
+  EXPECT_GE(2u, debug_state.round_trip_count - max_bw_round);
+  EXPECT_EQ(1u, debug_state.startup.round_trips_without_bandwidth_growth);
   EXPECT_NE(0u, sender_connection_stats().packets_lost);
-  EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
+  EXPECT_FALSE(debug_state.last_sample_is_app_limited);
 
-  EXPECT_APPROX_EQ(sender_->ExportDebugState().inflight_hi, params.BDP(), 0.1f);
+  EXPECT_APPROX_EQ(debug_state.inflight_hi, params.BDP(), 0.1f);
 }
 
 // Verifies that in STARTUP, if we exceed loss threshold in a round, we exit
@@ -1698,19 +1697,19 @@ TEST_F(Bbr2DefaultTopologyTest, ExitStartupDueToLossB2NE) {
   QuicBandwidth max_bw(QuicBandwidth::Zero());
   bool simulator_result = simulator_.RunUntilOrTimeout(
       [this, &max_bw, &max_bw_round]() {
-        if (max_bw < sender_->ExportDebugState().bandwidth_hi) {
-          max_bw = sender_->ExportDebugState().bandwidth_hi;
-          max_bw_round = sender_->ExportDebugState().round_trip_count;
+        const auto debug_state = sender_->ExportDebugState();
+        if (max_bw < debug_state.bandwidth_hi) {
+          max_bw = debug_state.bandwidth_hi;
+          max_bw_round = debug_state.round_trip_count;
         }
-        return sender_->ExportDebugState().startup.full_bandwidth_reached;
+        return debug_state.startup.full_bandwidth_reached;
       },
       QuicTime::Delta::FromSeconds(5));
   ASSERT_TRUE(simulator_result);
-  EXPECT_EQ(Bbr2Mode::DRAIN, sender_->ExportDebugState().mode);
-  EXPECT_EQ(sender_->ExportDebugState().round_trip_count, max_bw_round);
-  EXPECT_EQ(
-      0u,
-      sender_->ExportDebugState().startup.round_trips_without_bandwidth_growth);
+  const auto debug_state = sender_->ExportDebugState();
+  EXPECT_EQ(Bbr2Mode::DRAIN, debug_state.mode);
+  EXPECT_EQ(debug_state.round_trip_count, max_bw_round);
+  EXPECT_EQ(0u, debug_state.startup.round_trips_without_bandwidth_growth);
   EXPECT_NE(0u, sender_connection_stats().packets_lost);
 }
 
@@ -1775,7 +1774,7 @@ TEST_F(Bbr2DefaultTopologyTest, ProbeUpAdaptInflightHiGradually) {
   sender_->OnCongestionEvent(
       /*rtt_updated=*/true, sender_unacked_map()->bytes_in_flight(), now,
       acked_packets, {}, 0, 0);
-  ASSERT_EQ(CyclePhase::PROBE_REFILL,
+  ASSERT_EQ(ProbePhase::PROBE_REFILL,
             sender_->ExportDebugState().probe_bw.phase);
 
   // Send and Ack one packet to exit app limited and enter PROBE_UP.
@@ -1786,7 +1785,7 @@ TEST_F(Bbr2DefaultTopologyTest, ProbeUpAdaptInflightHiGradually) {
       /*rtt_updated=*/true, kDefaultMaxPacketSize, now,
       {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize, now)}, {}, 0,
       0);
-  ASSERT_EQ(CyclePhase::PROBE_UP, sender_->ExportDebugState().probe_bw.phase);
+  ASSERT_EQ(ProbePhase::PROBE_UP, sender_->ExportDebugState().probe_bw.phase);
 
   // Send 2 packets and lose the first one(50% loss) to exit PROBE_UP.
   for (uint64_t i = 0; i < 2; ++i) {
@@ -1940,7 +1939,7 @@ TEST_F(Bbr2DefaultTopologyTest, ProbeBwAfterQuiescencePostponeMinRttTimestamp) {
   simulator_result = SendUntilOrTimeout(
       [this]() {
         return sender_->ExportDebugState().probe_bw.phase ==
-               CyclePhase::PROBE_REFILL;
+               ProbePhase::PROBE_REFILL;
       },
       timeout);
   ASSERT_TRUE(simulator_result);

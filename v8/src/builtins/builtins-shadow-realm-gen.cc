@@ -325,7 +325,7 @@ TF_BUILTIN(ShadowRealmPrototypeImportValue, ShadowRealmBuiltinsAssembler) {
   // 6. Let evalRealm be O.[[ShadowRealm]].
   // 7. Let evalContext be O.[[ExecutionContext]].
   TNode<NativeContext> eval_context =
-      CAST(LoadObjectField(CAST(O), JSShadowRealm::kNativeContextOffset));
+      CAST(LoadObjectField(CAST(O), offsetof(JSShadowRealm, native_context_)));
   // 8. Return ? ShadowRealmImportValue(specifierString, exportNameString,
   // callerRealm, evalRealm, evalContext).
   TNode<Object> result = ImportValue(caller_context, eval_context,

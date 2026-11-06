@@ -436,6 +436,15 @@ class JavaRef : public JavaRef<jobject> {
     return Get(env, index).template ConvertTo<U>(env);
   }
 
+  void Set(JNIEnv* env, int32_t index, const JavaRef<jobject>& value) const
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+    requires std::is_same_v<T, jobjectArray>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
+  {
+    env->SetObjectArrayElement(this->obj(), index, value.obj());
+  }
+
   template <typename U>
   void CopyTo(JNIEnv* env, std::vector<ScopedJavaLocalRef<U>>* buf) const
 #if !BUILDFLAG(IS_COBALT) || \
@@ -494,6 +503,15 @@ class JavaRef<internal::_JObjectArray<T>*> : public JavaRef<jobjectArray> {
   template <typename U>
   U GetAs(JNIEnv* env, int32_t index) const {
     return Get(env, index).template ConvertTo<U>(env);
+  }
+
+  template <typename U>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+    requires internal::IsConvertableJObject<T, U>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
+  void Set(JNIEnv* env, int32_t index, const JavaRef<U>& value) const {
+    env->SetObjectArrayElement(this->obj(), index, value.obj());
   }
 
   JArrayView<T> CreateView(JNIEnv* env) const [[clang::lifetimebound]] {

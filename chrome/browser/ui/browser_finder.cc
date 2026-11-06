@@ -18,14 +18,9 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
-#include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/tab_contents/tab_contents_iterator.h"
-#include "chrome/browser/ui/tabs/tab_group_model.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "components/tab_groups/tab_group_id.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_controller.h"
-#include "ui/base/interaction/element_identifier.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
 
@@ -333,42 +328,6 @@ Browser* FindBrowserWithProfile(const Profile* profile) {
   return browser ? browser->GetBrowserForMigrationOnly() : nullptr;
 }
 
-Browser* FindBrowserWithID(SessionID desired_id) {
-  Browser* found = nullptr;
-  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
-      [&](BrowserWindowInterface* browser) {
-        if (browser->GetSessionID() == desired_id) {
-          found = browser->GetBrowserForMigrationOnly();
-        }
-        return !found;
-      });
-  return found;
-}
-
-Browser* FindBrowserWithWindow(gfx::NativeWindow window) {
-  if (!window) {
-    return nullptr;
-  }
-  Browser* found = nullptr;
-  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
-      [&](BrowserWindowInterface* browser) {
-        if (browser->GetWindow() &&
-            browser->GetWindow()->GetNativeWindow() == window) {
-          found = browser->GetBrowserForMigrationOnly();
-        }
-        return !found;
-      });
-  return found;
-}
-
-Browser* FindBrowserWithActiveWindow() {
-  BrowserWindowInterface* browser =
-      GetLastActiveBrowserWindowInterfaceWithAnyProfile();
-  return browser && browser->GetWindow()->IsActive()
-             ? browser->GetBrowserForMigrationOnly()
-             : nullptr;
-}
-
 Browser* FindBrowserWithTab(const WebContents* web_contents) {
   DCHECK(web_contents);
   Browser* found = nullptr;
@@ -378,33 +337,6 @@ Browser* FindBrowserWithTab(const WebContents* web_contents) {
     }
     return !found;
   });
-  return found;
-}
-
-Browser* FindBrowserWithGroup(tab_groups::TabGroupId group, Profile* profile) {
-  Browser* found = nullptr;
-  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
-      [&](BrowserWindowInterface* browser) {
-        TabStripModel* const tab_strip_model = browser->GetTabStripModel();
-        if ((!profile || browser->GetProfile() == profile) && tab_strip_model &&
-            tab_strip_model->group_model() &&
-            tab_strip_model->group_model()->ContainsTabGroup(group)) {
-          found = browser->GetBrowserForMigrationOnly();
-        }
-        return !found;
-      });
-  return found;
-}
-
-Browser* FindBrowserWithUiElementContext(ui::ElementContext context) {
-  Browser* found = nullptr;
-  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
-      [&](BrowserWindowInterface* browser) {
-        if (BrowserElements::From(browser)->GetContext() == context) {
-          found = browser->GetBrowserForMigrationOnly();
-        }
-        return !found;
-      });
   return found;
 }
 

@@ -173,7 +173,9 @@ public class TabListEditorMenuTest {
     private TabListEditorMenu mTabListEditorMenu;
     private ListMenuButton mMenuButton;
     private PropertyListModel<PropertyModel, PropertyKey> mPropertyListModel;
-    private ListModelChangeProcessor mChangeProcessor;
+    private ListModelChangeProcessor<
+                    PropertyListModel<PropertyModel, PropertyKey>, TabListEditorMenu, PropertyKey>
+            mChangeProcessor;
 
     public TabListEditorMenuTest(boolean nightModeEnabled) {
         NightModeTestUtils.setUpNightModeForBlankUiTestActivity(nightModeEnabled);
@@ -229,7 +231,7 @@ public class TabListEditorMenuTest {
                     mMenuButton = mToolbar.getActionViewLayout().getListMenuButtonForTesting();
                     mSelectionDelegate.addObserver(mTabListEditorMenu);
                     mChangeProcessor =
-                            new ListModelChangeProcessor(
+                            new ListModelChangeProcessor<>(
                                     mPropertyListModel,
                                     mTabListEditorMenu,
                                     new TabListEditorMenuAdapter());
@@ -600,7 +602,7 @@ public class TabListEditorMenuTest {
         closeMenu(listener);
     }
 
-    // Regression test for https://crbug.com/1377205.
+    // Regression test for https://crbug.com/40874164.
     @Test
     @MediumTest
     @Feature({"RenderTest"})

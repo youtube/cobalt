@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@cppObjectLayoutDefinition
 extern class JSArgumentsObject extends JSObject {}
 
 type JSArgumentsObjectWithLength =
@@ -14,12 +15,14 @@ macro IsJSArgumentsObjectWithLength(
 }
 
 // Just a starting shape for JSObject; properties can move after initialization.
+@doNotGenerateCppClass
 extern shape JSSloppyArgumentsObject extends JSArgumentsObject {
   length: JSAny;
   callee: JSAny;
 }
 
 // Just a starting shape for JSObject; properties can move after initialization.
+@doNotGenerateCppClass
 extern shape JSStrictArgumentsObject extends JSArgumentsObject {
   length: JSAny;
 }
@@ -32,11 +35,12 @@ extern class SloppyArgumentsElements extends FixedArrayBase {
 }
 
 macro NewSloppyArgumentsElements<Iterator: type>(
-    length: Smi, context: Context, arguments: FixedArray,
+    length: uint32, context: Context, arguments: FixedArray,
     it: Iterator): SloppyArgumentsElements {
   return new SloppyArgumentsElements{
     map: %GetClassMapConstant<SloppyArgumentsElements>(),
     length,
+    optional_padding: 0,
     context,
     arguments,
     mapped_entries: ...it
@@ -58,7 +62,7 @@ macro NewJSStrictArgumentsObject(
     map,
     properties_or_hash: kEmptyFixedArray,
     elements,
-    length: elements.length
+    length: Convert<Smi>(elements.length_intptr)
   };
 }
 
@@ -70,7 +74,7 @@ macro NewJSSloppyArgumentsObject(
     map,
     properties_or_hash: kEmptyFixedArray,
     elements,
-    length: elements.length,
+    length: Convert<Smi>(elements.length_intptr),
     callee
   };
 }
@@ -220,7 +224,7 @@ macro NewSloppyArguments(
   const mappedCount = IntPtrMin(formalParameterCount, argumentCount);
   let paramIter =
       NewParameterMapIterator(context, formalParameterCount, mappedCount);
-  const elementsLength = Convert<Smi>(mappedCount);
+  const elementsLength = Unsigned(Convert<int32>(mappedCount));
   const elements = NewSloppyArgumentsElements(
       elementsLength, context, parameterValues, paramIter);
   const length = Convert<Smi>(argumentCount);

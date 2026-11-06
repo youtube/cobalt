@@ -283,13 +283,6 @@ DEFINE_STRING(flag_processing_mode, nullptr,
               "Control behavior for flag errors. Possible values: "
               "abort-on-error, exit-on-error, ignore-contradictions.")
 
-// This is not really a flag, it affects the interpretation of the next flag but
-// doesn't become permanently true when specified. This only works for flags
-// defined in this file, but not for d8 flags defined in src/d8/d8.cc.
-DEFINE_BOOL(allow_overwriting_for_next_flag, false,
-            "temporary disable flag contradiction to allow overwriting just "
-            "the next flag")
-
 // Flags for language modes and experimental language features.
 DEFINE_BOOL(use_strict, false, "enforce strict mode")
 
@@ -895,6 +888,12 @@ DEFINE_BOOL(empty_context_extension_dep, true,
             "non-empty context extensions")
 
 DEFINE_BOOL(json_stringify_fast_path, true, "Enable JSON.stringify fast-path")
+DEFINE_UINT(json_parse_max_heuristically_internalized_strings, 100'000,
+            "Maximum number of strings that are eagerly internalized during "
+            "JSON.parse() based on heuristics. 0 means only strings that "
+            "must be internalized e.g. property keys will be internalized.")
+DEFINE_BOOL(trace_json_parse_internalization, false,
+            "Print heuristic internalization stats after each JSON.parse()")
 
 // TODO(jgruber): Remove this flag.
 DEFINE_BOOL(cache_property_key_string_adds, true,
@@ -1088,8 +1087,6 @@ DEFINE_BOOL(
     zero_unused_memory, true,
     "Zero unused memory (except for memory which was discarded) on memory "
     "reducing GCs.")
-DEFINE_BOOL(new_old_generation_heap_size, true,
-            "Enables new old generation max heap size.")
 DEFINE_BOOL(high_end_android, false,
             "Enables high-end mode unconditionally for Android.")
 DEFINE_UINT(high_end_android_physical_memory_threshold, 8,
@@ -1160,9 +1157,6 @@ DEFINE_INT(minimum_invocations_before_optimization, 2,
 // they otherwise would is probably not unreasonable.
 DEFINE_BOOL(jit_fuzzing, false,
             "Set JIT tiering thresholds suitable for JIT fuzzing")
-// Tier up to Sparkplug should happen after a handful o executions in ignition.
-DEFINE_NEG_IMPLICATION(jit_fuzzing, lazy_feedback_allocation)
-DEFINE_NEG_IMPLICATION(jit_fuzzing, baseline_batch_compilation)
 // Tier up to Maglev should happen soon afterwards.
 DEFINE_VALUE_IMPLICATION(jit_fuzzing, invocation_count_for_maglev, 10)
 // And tier up to Turbofan should happen after a couple dozen or so executions.
@@ -1192,6 +1186,9 @@ DEFINE_BOOL(use_std_math_pow, true,
 
 // Flags for inline caching and feedback vectors.
 DEFINE_BOOL(use_ic, true, "use inline caching")
+// Note: when fuzzing, it's typically desired to disable it as that allows
+// reaching higher JIT tiers faster (although a hard implication isn't used, to
+// avoid having production path untested).
 DEFINE_BOOL(lazy_feedback_allocation, true, "Allocate feedback vectors lazily")
 DEFINE_BOOL(stress_ic, false, "exercise interesting paths in ICs more often")
 
@@ -1211,6 +1208,9 @@ DEFINE_BOOL(print_bytecode, false,
 DEFINE_BOOL(enable_lazy_source_positions, V8_LAZY_SOURCE_POSITIONS_BOOL,
             "skip generating source positions during initial compile but "
             "regenerate when actually required")
+// Note: when fuzzing, it's typically desired to enable it (except for sandbox
+// fuzzers since it might trigger benign CHECKs that could mask actual sandbox
+// violations).
 DEFINE_BOOL(stress_lazy_source_positions, false,
             "collect lazy source positions immediately after lazy compile")
 DEFINE_BOOL(stress_lazy, false, "stress lazy compilation")
@@ -1256,6 +1256,9 @@ DEFINE_BOOL(sparkplug, ENABLE_SPARKPLUG_BY_DEFAULT,
 DEFINE_BOOL(always_sparkplug, false, "directly tier up to Sparkplug code")
 #if V8_ENABLE_SPARKPLUG
 DEFINE_IMPLICATION(always_sparkplug, sparkplug)
+// Note: when fuzzing, it's typically desired to disable it as that allows
+// reaching higher JIT tiers faster (although a hard implication isn't used, to
+// avoid having production path untested).
 DEFINE_BOOL(baseline_batch_compilation, true, "batch compile Sparkplug code")
 #if defined(V8_OS_DARWIN) && defined(V8_HOST_ARCH_ARM64) && \
     !V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT &&               \
@@ -1980,7 +1983,6 @@ DEFINE_BOOL(liftoff_only, false,
 DEFINE_IMPLICATION(liftoff_only, liftoff)
 DEFINE_NEG_IMPLICATION(liftoff_only, wasm_tier_up)
 DEFINE_NEG_IMPLICATION(liftoff_only, wasm_dynamic_tiering)
-DEFINE_NEG_IMPLICATION(fuzzing, liftoff_only)
 DEFINE_DEBUG_BOOL(
     enable_testing_opcode_in_wasm, false,
     "enables a testing opcode in wasm that is only implemented in TurboFan")
@@ -2867,7 +2869,10 @@ DEFINE_BOOL(enable_popcnt, true,
 DEFINE_BOOL(enable_apx_f, false, "enable use of APX_F instruction if available")
 DEFINE_BOOL(enable_apx_f_setzucc, false,
             "enable use of APX setzucc for x64 zero-extending setcc patterns")
+DEFINE_BOOL(enable_apx_f_cmovcc, false,
+            "enable use of APX cmovcc for x64 conditional move patterns")
 DEFINE_IMPLICATION(enable_apx_f_setzucc, enable_apx_f)
+DEFINE_IMPLICATION(enable_apx_f_cmovcc, enable_apx_f)
 #endif
 DEFINE_STRING(arm_arch, ARM_ARCH_DEFAULT,
               "generate instructions for the selected ARM architecture if "
@@ -3207,6 +3212,7 @@ DEFINE_BOOL(native_code_counters, DEBUG_BOOL,
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
 DEFINE_BOOL(sparkplug_plus, false, "enable dynamic patching on baseline code")
+DEFINE_WEAK_IMPLICATION(future, sparkplug_plus)
 #else
 DEFINE_BOOL_READONLY(sparkplug_plus, false,
                      "enable dynamic patching on baseline code")
@@ -3527,7 +3533,6 @@ DEFINE_BOOL(
 // avoids the need for bytecode aging to kick in to trigger the recomplication.
 // We use stress-lazy to still test the preparse / lazy compilation pipeline.
 DEFINE_WEAK_IMPLICATION(fuzzing, stress_lazy)
-DEFINE_WEAK_IMPLICATION(fuzzing, stress_lazy_source_positions)
 
 DEFINE_BOOL(
     hole_fuzzing, false,
@@ -3588,6 +3593,10 @@ DEFINE_BOOL_READONLY(sandbox_fuzzing, false,
                      "that does not represent a sandbox violation is detected.")
 #endif
 
+DEFINE_BOOL(sandbox_trap_fuzzing, false,
+            "Enable the trap-based sandbox fuzzing mode.")
+DEFINE_IMPLICATION(sandbox_trap_fuzzing, sandbox_fuzzing)
+
 // Only one of these can be enabled.
 DEFINE_NEG_IMPLICATION(sandbox_fuzzing, sandbox_testing)
 DEFINE_NEG_IMPLICATION(sandbox_testing, sandbox_fuzzing)
@@ -3641,8 +3650,14 @@ DEFINE_BOOL(freeze_flags_after_init, true,
 #else
 #define V8_CET_SHADOW_STACK_BOOL false
 #endif
+
+#if V8_TARGET_ARCH_X64
 DEFINE_BOOL(cet_compatible, V8_CET_SHADOW_STACK_BOOL,
             "Generate Intel CET compatible code")
+#else
+DEFINE_BOOL_READONLY(cet_compatible, false,
+                     "Intel CET is only supported on x64.")
+#endif  // V8_TARGET_ARCH_X64
 
 // mksnapshot.cc
 DEFINE_STRING(embedded_src, nullptr,
@@ -3780,12 +3795,15 @@ DEFINE_BOOL(multi_mapped_mock_allocator, false,
 DEFINE_BOOL(gdbjit, false, "enable GDBJIT interface")
 DEFINE_BOOL(gdbjit_full, false, "enable GDBJIT interface for all code objects")
 DEFINE_BOOL(gdbjit_dump, false, "dump elf objects with debug info to disk")
+DEFINE_BOOL(maglev_gdbjit, true, "enable GDBJIT line info for Maglev graph")
+DEFINE_BOOL(torque_dwarf, false, "enable DWARF line info for Torque files")
 DEFINE_STRING(gdbjit_dump_filter, "",
               "dump only objects containing this substring")
 
 #ifdef ENABLE_GDB_JIT_INTERFACE
 DEFINE_IMPLICATION(gdbjit_full, gdbjit)
 DEFINE_IMPLICATION(gdbjit_dump, gdbjit)
+DEFINE_WEAK_IMPLICATION(gdbjit, gdbjit_full)
 #endif
 DEFINE_NEG_IMPLICATION(gdbjit, compact_code_space)
 
@@ -4163,10 +4181,10 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")
 #endif
 
-DEFINE_EXPERIMENTAL_FEATURE(
-    track_array_buffer_views,
-    "Track TypedArrays and DataViews attached to array buffers and "
-    "update them in-place when the buffer detaches")
+DEFINE_BOOL(track_array_buffer_views, false,
+            "Track TypedArrays and DataViews attached to array buffers and "
+            "update them in-place when the buffer detaches")
+DEFINE_WEAK_IMPLICATION(future, track_array_buffer_views)
 
 DEFINE_EXPERIMENTAL_FEATURE(
     superspreading,
@@ -4234,6 +4252,7 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_ref_cast_nop)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
                        experimental_wasm_skip_bounds_checks)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, wasm_unsafe_fast_api_wrapper)
 // Enabled-by-default flags that should not be disabled.
 DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_bounds_checks)
 DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_stack_checks)

@@ -1761,13 +1761,13 @@ void V8HeapExplorer::ExtractSymbolReferences(HeapEntry* entry,
 void V8HeapExplorer::ExtractJSCollectionReferences(
     HeapEntry* entry, Tagged<JSCollection> collection) {
   SetInternalReference(entry, "table", collection->table(),
-                       JSCollection::kTableOffset);
+                       offsetof(JSCollection, table_));
 }
 
 void V8HeapExplorer::ExtractJSWeakCollectionReferences(
     HeapEntry* entry, Tagged<JSWeakCollection> obj) {
   SetInternalReference(entry, "table", obj->table(),
-                       JSWeakCollection::kTableOffset);
+                       offsetof(JSWeakCollection, table_));
 }
 
 void V8HeapExplorer::ExtractEphemeronHashTableReferences(
@@ -1803,12 +1803,12 @@ void V8HeapExplorer::ExtractEphemeronHashTableReferences(
 void V8HeapExplorer::ExtractJSDisposableStackReferences(
     HeapEntry* entry, Tagged<JSDisposableStackBase> disposable_stack) {
   SetInternalReference(entry, "stack", disposable_stack->stack(),
-                       JSDisposableStackBase::kStackOffset);
+                       offsetof(JSDisposableStackBase, stack_));
   SetInternalReference(entry, "error", disposable_stack->error(),
-                       JSDisposableStackBase::kErrorOffset);
+                       offsetof(JSDisposableStackBase, error_));
   SetInternalReference(entry, "error_message",
                        disposable_stack->error_message(),
-                       JSDisposableStackBase::kErrorMessageOffset);
+                       offsetof(JSDisposableStackBase, error_message_));
 }
 
 // These static arrays are used to prevent excessive code-size in
@@ -2085,7 +2085,7 @@ void V8HeapExplorer::ExtractAccessorPairReferences(
 void V8HeapExplorer::ExtractJSWeakRefReferences(HeapEntry* entry,
                                                 Tagged<JSWeakRef> js_weak_ref) {
   SetWeakReference(entry, "target", js_weak_ref->target(),
-                   JSWeakRef::kTargetOffset);
+                   offsetof(JSWeakRef, target_));
 }
 
 void V8HeapExplorer::ExtractWeakCellReferences(HeapEntry* entry,
@@ -2244,20 +2244,20 @@ void V8HeapExplorer::ExtractJSPromiseReferences(HeapEntry* entry,
                                                 Tagged<JSPromise> promise) {
   SetInternalReference(entry, "reactions_or_result",
                        promise->reactions_or_result(),
-                       JSPromise::kReactionsOrResultOffset);
+                       offsetof(JSPromise, reactions_or_result_));
 }
 
 void V8HeapExplorer::ExtractJSGeneratorObjectReferences(
     HeapEntry* entry, Tagged<JSGeneratorObject> generator) {
   SetInternalReference(entry, "function", generator->function(),
-                       JSGeneratorObject::kFunctionOffset);
+                       offsetof(JSGeneratorObject, function_));
   SetInternalReference(entry, "context", generator->context(),
-                       JSGeneratorObject::kContextOffset);
+                       offsetof(JSGeneratorObject, context_));
   SetInternalReference(entry, "receiver", generator->receiver(),
-                       JSGeneratorObject::kReceiverOffset);
+                       offsetof(JSGeneratorObject, receiver_));
   SetInternalReference(entry, "parameters_and_registers",
                        generator->parameters_and_registers(),
-                       JSGeneratorObject::kParametersAndRegistersOffset);
+                       offsetof(JSGeneratorObject, parameters_and_registers_));
 }
 
 void V8HeapExplorer::ExtractFixedArrayReferences(HeapEntry* entry,
@@ -2681,7 +2681,7 @@ Tagged<JSFunction> V8HeapExplorer::GetConstructor(Isolate* isolate,
   MaybeDirectHandle<JSFunction> maybe_constructor =
       JSReceiver::GetConstructor(isolate, direct_handle(receiver, isolate));
 
-  if (maybe_constructor.is_null()) return JSFunction();
+  if (maybe_constructor.is_null()) return {};
 
   return *maybe_constructor.ToHandleChecked();
 }
@@ -3574,7 +3574,7 @@ class V8_NODISCARD NullContextForSnapshotScope {
  public:
   explicit NullContextForSnapshotScope(Isolate* isolate)
       : isolate_(isolate), prev_(isolate->context()) {
-    isolate_->set_context(Context());
+    isolate_->set_context({});
   }
   ~NullContextForSnapshotScope() { isolate_->set_context(prev_); }
 

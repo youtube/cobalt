@@ -16,9 +16,14 @@ export type {ContentListener, ContentState} from './content/content_controller.j
 export {ContentController, ContentType, HIGHLIGHTED_LINK_CLASS} from './content/content_controller.js';
 export {LineFocusController} from './content/line_focus_controller.js';
 export type {LineFocusListener} from './content/line_focus_controller.js';
+export {LineFocusModel} from './content/line_focus_model.js';
+export {LineFocusCursorMoveMode, LineFocusMoveMode, LineFocusNoneMoveMode, LineFocusStaticMoveMode} from './content/line_focus_move_mode.js';
+export type {MoveModeDelegate} from './content/line_focus_move_mode.js';
+export {LineFocusLineStyleMode, LineFocusNoneStyleMode, LineFocusStyleMode, LineFocusWindowStyleMode, WINDOW_DIFF_THRESHOLD} from './content/line_focus_style_mode.js';
 export {ESTIMATED_WORDS_PER_MS, MIN_MS_TO_READ, NodeStore} from './content/node_store.js';
 export type {SettingsPrefs} from './content/read_anything_types.js';
 export {DEFAULT_SETTINGS, LineFocusMovement, LineFocusStyle, LineFocusType, SettingsOption, ToolbarEvent} from './content/read_anything_types.js';
+export {removeExtraneousElementsFrom} from './content/readability_content_processing.js';
 export {ReadabilityImageClassifier} from './content/readability_image_classifier.js';
 export {SelectionController} from './content/selection_controller.js';
 export type {ColorMenuElement} from './menus/color_menu.js';
@@ -63,9 +68,10 @@ export type {VoiceSelectionMenuElement} from './read_aloud/voice_selection_menu.
 export {WebSpeechTtsClient} from './read_aloud/webspeech_tts_client.js';
 export type {WordBoundaryState} from './read_aloud/word_boundaries.js';
 export {WordBoundaries} from './read_aloud/word_boundaries.js';
-export {getWordCount, isRectMostlyVisible, isRectVisible, LOG_EMPTY_DELAY_MS, MOSTLY_VISIBLE_PERCENT, playFromSelectionTimeout, spinnerDebounceTimeout} from './shared/common.js';
-export {getTextNodeOffsets} from './shared/dom_queries.js';
+export {getWordCount, LOG_EMPTY_DELAY_MS, playFromSelectionTimeout, spinnerDebounceTimeout} from './shared/common.js';
+export {getRectIndexAtY, getRectsForSegments, getTextNodeOffsets} from './shared/dom_queries.js';
 export {getNewIndex, isActivationKey, isArrow, isBackwardArrow, isForwardArrow, isHorizontalArrow, isVerticalArrow} from './shared/keyboard_util.js';
 export type {MetricsBrowserProxy} from './shared/metrics_browser_proxy.js';
 export {MetricsBrowserProxyImpl, ReadAloudSettingsChange, ReadAnythingNewPage, ReadAnythingSettingsChange, ReadAnythingSpeechError, ReadAnythingVoiceType} from './shared/metrics_browser_proxy.js';
 export {LinkStatus, ReadAnythingLogger, SpeechControls, TimeFrom} from './shared/read_anything_logger.js';
+export {calculateTextBounds, isRectMostlyVisible, isRectVisible, MOSTLY_VISIBLE_PERCENT} from './shared/rect_calculations.js';

@@ -75,6 +75,10 @@ constexpr CpuFeatureSet CpuFeaturesImpliedByCompiler() {
 #if (defined __riscv_zicond)
   features.Add(ZICOND);
 #endif  // def __riscv_zicond
+
+#if (defined __riscv_zfa)
+  features.Add(ZFA);
+#endif  // def __riscv_zfa
   return features;
 }
 
@@ -85,10 +89,12 @@ static CpuFeatureSet SimulatorFeatures() {
   features.Add(ZBA);
   features.Add(ZBB);
   features.Add(ZBS);
+  features.Add(ZFA);
   features.Add(ZICOND);
   features.Add(ZICFISS);
   features.Add(FPU);
   features.Add(ZFH);
+  features.Add(ZFA);
   return features;
 }
 #endif
@@ -117,6 +123,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.has_zba()) supported_.Add(ZBA);
   if (cpu.has_zbb()) supported_.Add(ZBB);
   if (cpu.has_zbs()) supported_.Add(ZBS);
+  if (cpu.has_zfa()) supported_.Add(ZFA);
   if (v8_flags.riscv_b_extension) {
     supported_.Add(ZBA);
     supported_.Add(ZBB);
@@ -143,9 +150,10 @@ void CpuFeatures::PrintFeatures() {
     printf(", vlen=%u", CpuFeatures::vlen());
   }
   printf("\n");
-  printf("RISC-V Extension zba=%d,zbb=%d,zbs=%d,ZICOND=%d\n",
+  printf("RISC-V Extension zba=%d,zbb=%d,zbs=%d,ZICOND=%d, ZFA=%d\n",
          CpuFeatures::IsSupported(ZBA), CpuFeatures::IsSupported(ZBB),
-         CpuFeatures::IsSupported(ZBS), CpuFeatures::IsSupported(ZICOND));
+         CpuFeatures::IsSupported(ZBS), CpuFeatures::IsSupported(ZICOND),
+         CpuFeatures::IsSupported(ZFA));
 }
 
 // -----------------------------------------------------------------------------

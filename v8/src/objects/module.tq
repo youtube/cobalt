@@ -19,10 +19,12 @@ extern class Module extends HeapObject {
   top_level_capability: JSPromise|Undefined;
 }
 
+@cppObjectLayoutDefinition
 extern class JSModuleNamespace extends JSSpecialObject {
   module: Module;
 }
 
+@cppObjectLayoutDefinition
 extern class JSDeferredModuleNamespace extends JSModuleNamespace {}
 
 @cppObjectLayoutDefinition

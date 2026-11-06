@@ -25,9 +25,8 @@ namespace webrtc {
 // Class for selecting whether the suppressor is in the nearend or echo state.
 class SubbandNearendDetector : public NearendDetector {
  public:
-  SubbandNearendDetector(
-      const EchoCanceller3Config::Suppressor::SubbandNearendDetection& config,
-      size_t num_capture_channels);
+  SubbandNearendDetector(const EchoCanceller3Config::Suppressor& config,
+                         size_t num_capture_channels);
 
   // Returns whether the current state is the nearend state.
   bool IsNearendState() const override { return nearend_state_; }

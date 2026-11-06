@@ -112,6 +112,10 @@ static Address DetermineAddressSpaceLimit() {
         break;
     }
   }
+#elif defined(V8_TARGET_ARCH_LOONG64)
+  // Some hardwares like 2k3000 only have 40-bit virtual address space, 39 bits
+  // userspace and kernel each.
+  hardware_virtual_address_bits = 40;
 #endif
 
   // Assume virtual address space is split 50/50 between userspace and kernel.

@@ -581,7 +581,9 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public TaskQueueBase {
 // thread, and provides utilities for testing with threads. It also does not
 // expose a direct dependency on webrtc::Thread.
 //
-class AutoThread : public Thread {
+class [[deprecated(
+    "Use test::RunLoop or GlobalSimulatedTimeController")]] AutoThread
+    : public Thread {
  public:
   AutoThread();
   ~AutoThread() override;
@@ -598,7 +600,9 @@ class AutoThread : public Thread {
 // NOTE: Use test::RunLoop instead of AutoSocketServerThread as it also adopts
 // the current thread, and provides utilities for testing with threads. It also
 // does not expose a direct dependency on webrtc::Thread.
-class AutoSocketServerThread : public Thread {
+class [[deprecated(
+    "Use test::RunLoop or "
+    "GlobalSimulatedTimeController")]] AutoSocketServerThread : public Thread {
  public:
   explicit AutoSocketServerThread(SocketServer* ss);
   ~AutoSocketServerThread() override;
@@ -610,6 +614,5 @@ class AutoSocketServerThread : public Thread {
   Thread* old_thread_;
 };
 }  //  namespace webrtc
-
 
 #endif  // RTC_BASE_THREAD_H_

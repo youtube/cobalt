@@ -197,12 +197,6 @@ VideoFrame::Builder& VideoFrame::Builder::set_timestamp_us(
   return *this;
 }
 
-VideoFrame::Builder& VideoFrame::Builder::set_capture_time_identifier(
-    const std::optional<Timestamp>& presentation_timestamp) {
-  presentation_timestamp_ = presentation_timestamp;
-  return *this;
-}
-
 VideoFrame::Builder& VideoFrame::Builder::set_presentation_timestamp(
     const std::optional<Timestamp>& presentation_timestamp) {
   presentation_timestamp_ = presentation_timestamp;

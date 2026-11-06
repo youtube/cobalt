@@ -81,7 +81,7 @@ void JsonPrintBytecodeSource(std::ostream& os, int source_id,
   os << ", \"feedbackVector\": \"";
   if (!feedback_vector.is_null()) {
     std::stringstream stream;
-    FeedbackVector::Print(feedback_vector, stream);
+    Print(feedback_vector, stream);
     std::regex newlines_re("\n+");
     os << std::regex_replace(stream.str(), newlines_re, "\\n");
   }

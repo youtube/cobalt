@@ -480,6 +480,7 @@
   V(CheckIf)                                \
   V(CheckInternalizedString)                \
   V(CheckMaps)                              \
+  V(CheckHomomorphic)                       \
   V(CheckNotTaggedHole)                     \
   V(CheckNumber)                            \
   V(CheckNumberOrUndefined)                 \

@@ -8,6 +8,7 @@ extern class Foreign extends HeapObject {
   foreign_address: ExternalPointer;
 }
 
+@cppObjectLayoutDefinition
 extern class TrustedForeign extends TrustedObject {
   foreign_address: RawPtr;
 }

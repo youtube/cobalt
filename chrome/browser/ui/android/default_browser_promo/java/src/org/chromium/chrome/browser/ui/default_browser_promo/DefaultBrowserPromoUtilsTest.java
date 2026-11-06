@@ -36,6 +36,7 @@ import org.robolectric.ParameterizedRobolectricTestRunner.Parameters;
 import org.robolectric.Robolectric;
 import org.robolectric.shadows.ShadowRoleManager;
 
+import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.FakeTimeTestRule;
 import org.chromium.base.FeatureOverrides;
@@ -51,6 +52,7 @@ import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.ui.default_browser_promo.DefaultBrowserPromoMetrics.DefaultBrowserPromoSourceType;
 import org.chromium.chrome.browser.ui.default_browser_promo.DefaultBrowserPromoUtils.DefaultBrowserPromoTriggerStateListener;
 import org.chromium.chrome.browser.util.ChromePackageNameVariant;
 import org.chromium.chrome.browser.util.DefaultBrowserInfo;
@@ -117,7 +119,7 @@ public class DefaultBrowserPromoUtilsTest {
 
         @Override
         protected void fetchDefaultBrowserInfo(
-                org.chromium.base.Callback<DefaultBrowserInfo.@Nullable DefaultInfo> callback) {
+                Callback<DefaultBrowserInfo.@Nullable DefaultInfo> callback) {
             // This approach is used so that the lambda code is returned immediately.
             callback.onResult(mTestInfo);
         }
@@ -430,6 +432,9 @@ public class DefaultBrowserPromoUtilsTest {
                         .expectIntRecord(
                                 "Android.DefaultBrowserPromo.EntryPoint.AppMenu",
                                 DefaultBrowserState.NO_DEFAULT)
+                        .expectIntRecord(
+                                "Android.DefaultBrowserPromo.EntryPoint.AppMenu.RoleManagerDialog",
+                                DefaultBrowserState.NO_DEFAULT)
                         .build();
 
         DefaultBrowserInfo.DefaultInfo info =
@@ -505,6 +510,13 @@ public class DefaultBrowserPromoUtilsTest {
         // Promo Count > 0 (Already shown once). Chrome is not set to default.
         when(mCounter.getPromoCount()).thenReturn(1);
 
+        var histogramWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(
+                                "Android.DefaultBrowserPromo.Click",
+                                DefaultBrowserPromoSourceType.APP_MENU_DEEPLINK)
+                        .build();
+
         DefaultBrowserInfo.DefaultInfo info =
                 new DefaultBrowserInfo.DefaultInfo(
                         /* defaultBrowserState= */ DefaultBrowserState.NO_DEFAULT,
@@ -525,6 +537,7 @@ public class DefaultBrowserPromoUtilsTest {
         // Should not increment counter again.
         verify(mCounter, never()).onPromoShown();
         verifyOSSettingsFallbackIntentLaunched();
+        histogramWatcher.assertExpected();
     }
 
     @Test
@@ -542,6 +555,9 @@ public class DefaultBrowserPromoUtilsTest {
                         .expectIntRecord(
                                 "Android.DefaultBrowserPromo.EntryPoint.Settings",
                                 DefaultBrowserState.NO_DEFAULT)
+                        .expectIntRecord(
+                                "Android.DefaultBrowserPromo.Click",
+                                DefaultBrowserPromoSourceType.SETTINGS_ROW_DEEPLINK)
                         .build();
 
         DefaultBrowserInfo.DefaultInfo info =
@@ -564,6 +580,7 @@ public class DefaultBrowserPromoUtilsTest {
         // Should not increment counter since we are not showing the RoleManaerDialog.
         verify(mCounter, never()).onPromoShown();
         verifyOSSettingsFallbackIntentLaunched();
+        watcher.assertExpected();
     }
 
     @Test

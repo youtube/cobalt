@@ -13,11 +13,11 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/themes/theme_properties.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/tab_data.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
@@ -427,7 +427,7 @@ void TabIcon::MaybePaintFavicon(gfx::Canvas* canvas,
                         gfx::kFaviconSize;
     // Translating to/from bounds offset is done to scale around the center
     // point. This fixes RTL issues where bounds.x() is non-zero. See
-    // https://crbug.com/1147408
+    // https://crbug.com/40730696
     canvas->Translate(gfx::Vector2d(bounds.x(), bounds.y()));
     canvas->Translate(gfx::Vector2d(offset, offset));
     canvas->Scale(scale, scale);
@@ -480,10 +480,17 @@ void TabIcon::SetDiscarded(bool discarded) {
       favicon_size_animation_.Hide();
 
       // Potentially show an IPH if a tab was discarded.
-      BrowserWindowInterface* const browser =
-          chrome::FindBrowserWithUiElementContext(
-              views::ElementTrackerViews::GetInstance()->GetContextForView(
-                  this));
+      const ui::ElementContext context =
+          views::ElementTrackerViews::GetInstance()->GetContextForView(this);
+      BrowserWindowInterface* browser = nullptr;
+      ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+          [&](BrowserWindowInterface* current_browser) {
+            if (BrowserElements::From(current_browser)->GetContext() ==
+                context) {
+              browser = current_browser;
+            }
+            return !browser;
+          });
       BrowserUserEducationInterface::From(browser)->MaybeShowFeaturePromo(
           feature_engagement::kIPHDiscardRingFeature);
     } else {

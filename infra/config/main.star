@@ -263,6 +263,7 @@ chromium_luci.configure_targets(
             "has_native_resultdb_integration": True,
             "intel_uhd_630_or_770": True,
             "ios_runtime_cache_18_2": True,
+            "use-ios-simulator-cache": True,
             "long_skylab_timeout": True,
             "mac_14_x64": True,
             "mac_default_arm64": True,
@@ -336,7 +337,6 @@ chromium_luci.configure_targets(
             "win11_amd_rx_7600_stable": targets.IGNORE_UNUSED,
             "win11_nvidia_rtx_4070_super_experimental": targets.IGNORE_UNUSED,
             "win11_nvidia_rtx_4070_super_stable": targets.IGNORE_UNUSED,
-            "win11_qualcomm_adreno_690_stable": targets.IGNORE_UNUSED,
             "win11_qualcomm_snapdragon_x_elite_stable": targets.IGNORE_UNUSED,
 
             # The angle repo uses a script that wraps generate_buildbot_json.py

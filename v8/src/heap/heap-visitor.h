@@ -57,16 +57,20 @@ class MaybeObjectSize final {
   V(Cell)                             \
   V(CodeWrapper)                      \
   V(ConsString)                       \
+  V(Context)                          \
   V(ContextCell)                      \
   V(CoverageInfo)                     \
   V(DataHandler)                      \
   V(DebugInfo)                        \
+  V(DescriptorArray)                  \
+  V(StrongDescriptorArray)            \
   V(DoubleStringCache)                \
   V(EmbedderDataArray)                \
   V(EphemeronHashTable)               \
   V(ExternalString)                   \
   V(FeedbackCell)                     \
   V(FeedbackMetadata)                 \
+  V(FeedbackVector)                   \
   V(Foreign)                          \
   V(FunctionTemplateInfo)             \
   V(HeapNumber)                       \
@@ -79,6 +83,7 @@ class MaybeObjectSize final {
   V(PreparseData)                     \
   V(PropertyArray)                    \
   V(PropertyCell)                     \
+  V(JSProxy)                          \
   V(PrototypeInfo)                    \
   V(PrototypeSharedClosureInfo)       \
   V(RegExpBoilerplateDescription)     \

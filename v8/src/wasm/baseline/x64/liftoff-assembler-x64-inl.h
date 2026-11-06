@@ -1110,7 +1110,15 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
     if (result.gp() != rax) {
       movl(result.gp(), rax);
     }
-    addq(result.gp(), kPtrComprCageBaseRegister);
+    // Pointer decompression needs to use an or instead of an add as
+    // value_reg is a full pointer. If the expected value stored in rax matches
+    // the expected value, rax is left unmodified which already contains a
+    // decompressed pointer. Now, if result.gp() is rax, we don't emit the movl
+    // above and result.gp() holds the full decompressed pointer and doing an
+    // add here would decompress twice. Using an or means decompressing the
+    // value if it isn't already decompressed but keeping it unmodified
+    // otherwise.
+    orq(result.gp(), kPtrComprCageBaseRegister);
   } else {
     cmpxchgq(dst_op, value_reg);
     if (result.gp() != rax) {
@@ -1619,6 +1627,39 @@ void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
   } else {
     leaq(dst.gp(), Operand(lhs.gp(), static_cast<int32_t>(imm)));
   }
+}
+
+namespace liftoff {
+template <void (Assembler::*op)(Register)>
+void EmitI64MulWide(LiftoffAssembler* assm) {
+  static_assert(
+      op == static_cast<void (Assembler::*)(Register)>(&Assembler::imulq) ||
+          op == static_cast<void (Assembler::*)(Register)>(&Assembler::mulq),
+      "EmitI64MulWide only supports imulq or mulq");
+  DCHECK(!assm->cache_state()->frozen);
+  LiftoffRegister lrax{rax};
+  LiftoffRegister lrdx{rdx};
+  // For simplicity, force the input into rdx (the explicit input to the
+  // multiply). We have to free up rdx anyway because the machine instruction
+  // will overwrite it.
+  assm->PopToFixedRegister(lrdx);
+  assm->PopToFixedRegister(lrax);
+  // PopToFixedRegister can return without spilling the register.
+  if (assm->cache_state()->is_used(lrax)) assm->SpillRegister(lrax);
+  if (assm->cache_state()->is_used(lrdx)) assm->SpillRegister(lrdx);
+  // lhs = rax is implicit. Result is in [rdx:rax].
+  (assm->*op)(rdx);
+  assm->PushRegister(kI64, lrax);
+  assm->PushRegister(kI64, lrdx);
+}
+}  // namespace liftoff
+
+void LiftoffAssembler::emit_i64_mul_wide_s() {
+  liftoff::EmitI64MulWide<&Assembler::imulq>(this);
+}
+
+void LiftoffAssembler::emit_i64_mul_wide_u() {
+  liftoff::EmitI64MulWide<&Assembler::mulq>(this);
 }
 
 void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2497,61 +2538,45 @@ void LiftoffAssembler::emit_ptrsize_cond_jumpi(Condition cond, Label* label,
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   testl(src, src);
-#ifdef V8_ENABLE_APX_F
   if (UseApxSetzucc()) {
     setzucc(equal, dst);
   } else {
-#endif
     setcc(equal, dst);
     movzxbl(dst, dst);
-#ifdef V8_ENABLE_APX_F
   }
-#endif
 }
 
 void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
                                          Register lhs, Register rhs) {
   cmpl(lhs, rhs);
-#ifdef V8_ENABLE_APX_F
   if (UseApxSetzucc()) {
     setzucc(cond, dst);
   } else {
-#endif
     setcc(cond, dst);
     movzxbl(dst, dst);
-#ifdef V8_ENABLE_APX_F
   }
-#endif
 }
 
 void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
   testq(src.gp(), src.gp());
-#ifdef V8_ENABLE_APX_F
   if (UseApxSetzucc()) {
     setzucc(equal, dst);
   } else {
-#endif
     setcc(equal, dst);
     movzxbl(dst, dst);
-#ifdef V8_ENABLE_APX_F
   }
-#endif
 }
 
 void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
                                          LiftoffRegister lhs,
                                          LiftoffRegister rhs) {
   cmpq(lhs.gp(), rhs.gp());
-#ifdef V8_ENABLE_APX_F
   if (UseApxSetzucc()) {
     setzucc(cond, dst);
   } else {
-#endif
     setcc(cond, dst);
     movzxbl(dst, dst);
-#ifdef V8_ENABLE_APX_F
   }
-#endif
 }
 
 namespace liftoff {
@@ -2574,16 +2599,12 @@ void EmitFloatSetCond(LiftoffAssembler* assm, Condition cond, Register dst,
   assm->jmp(&cont, Label::kNear);
   assm->bind(&not_nan);
 
-#ifdef V8_ENABLE_APX_F
   if (UseApxSetzucc()) {
     assm->setzucc(cond, dst);
   } else {
-#endif
     assm->setcc(cond, dst);
     assm->movzxbl(dst, dst);
-#ifdef V8_ENABLE_APX_F
   }
-#endif
   assm->bind(&cont);
 }
 }  // namespace liftoff
@@ -2610,19 +2631,27 @@ bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
 
   testl(condition, condition);
 
-  if (kind == kI32) {
-    if (dst == false_value) {
-      cmovl(not_zero, dst.gp(), true_value.gp());
+  if (UseApxCmovcc()) {
+    if (kind == kI32) {
+      cfcmovl(not_zero, dst.gp(), false_value.gp(), true_value.gp());
     } else {
-      if (dst != true_value) movl(dst.gp(), true_value.gp());
-      cmovl(zero, dst.gp(), false_value.gp());
+      cfcmovq(not_zero, dst.gp(), false_value.gp(), true_value.gp());
     }
   } else {
-    if (dst == false_value) {
-      cmovq(not_zero, dst.gp(), true_value.gp());
+    if (kind == kI32) {
+      if (dst == false_value) {
+        cmovl(not_zero, dst.gp(), true_value.gp());
+      } else {
+        if (dst != true_value) movl(dst.gp(), true_value.gp());
+        cmovl(zero, dst.gp(), false_value.gp());
+      }
     } else {
-      if (dst != true_value) movq(dst.gp(), true_value.gp());
-      cmovq(zero, dst.gp(), false_value.gp());
+      if (dst == false_value) {
+        cmovq(not_zero, dst.gp(), true_value.gp());
+      } else {
+        if (dst != true_value) movq(dst.gp(), true_value.gp());
+        cmovq(zero, dst.gp(), false_value.gp());
+      }
     }
   }
 
@@ -2719,18 +2748,14 @@ void EmitSimdShiftOpImm(LiftoffAssembler* assm, LiftoffRegister dst,
 
 inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
                         LiftoffRegister src) {
-#ifdef V8_ENABLE_APX_F
   if (UseApxSetzucc()) {
     assm->Ptest(src.fp(), src.fp());
     assm->setzucc(not_equal, dst.gp());
   } else {
-#endif
     assm->xorq(dst.gp(), dst.gp());
     assm->Ptest(src.fp(), src.fp());
     assm->setcc(not_equal, dst.gp());
-#ifdef V8_ENABLE_APX_F
   }
-#endif
 }
 
 template <void (SharedMacroAssemblerBase::*pcmp)(XMMRegister, XMMRegister)>
@@ -2741,22 +2766,18 @@ inline void EmitAllTrue(LiftoffAssembler* assm, LiftoffRegister dst,
   if (feature.has_value()) sse_scope.emplace(assm, *feature);
 
   XMMRegister tmp = kScratchDoubleReg;
-#ifdef V8_ENABLE_APX_F
   if (UseApxSetzucc()) {
     assm->Pxor(tmp, tmp);
     (assm->*pcmp)(tmp, src.fp());
     assm->Ptest(tmp, tmp);
     assm->setzucc(equal, dst.gp());
   } else {
-#endif
     assm->xorq(dst.gp(), dst.gp());
     assm->Pxor(tmp, tmp);
     (assm->*pcmp)(tmp, src.fp());
     assm->Ptest(tmp, tmp);
     assm->setcc(equal, dst.gp());
-#ifdef V8_ENABLE_APX_F
   }
-#endif
 }
 
 }  // namespace liftoff

@@ -181,7 +181,7 @@ public class AddressEditorRenderTest {
                         });
         runOnUiThreadBlocking(
                 () -> {
-                    when(mSyncService.getSelectedTypes()).thenReturn(new HashSet());
+                    when(mSyncService.getSelectedTypes()).thenReturn(new HashSet<>());
                     SyncServiceFactory.setInstanceForTesting(mSyncService);
 
                     when(mPersonalDataManager.getDefaultCountryCodeForNewAddress())
@@ -192,7 +192,7 @@ public class AddressEditorRenderTest {
                     IdentityServicesProvider.setInstanceForTests(mIdentityServicesProvider);
                     when(mIdentityServicesProvider.getIdentityManager(mProfile))
                             .thenReturn(mIdentityManager);
-                    when(mIdentityManager.getPrimaryAccountInfo(anyInt())).thenReturn(mAccountInfo);
+                    when(mIdentityManager.getPrimaryAccountInfo()).thenReturn(mAccountInfo);
                 });
 
         doAnswer(

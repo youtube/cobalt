@@ -541,11 +541,14 @@ void PrefetchMatchResolver::OnWillBeDestroyed(
 }
 
 void PrefetchMatchResolver::OnGotInitialEligibility(
-    const PrefetchContainer& prefetch_container,
-    PreloadingEligibility eligibility) {
+    const PrefetchContainer& prefetch_container) {
   CHECK(features::UsePrefetchPrerenderIntegration());
 
-  if (eligibility != PreloadingEligibility::kEligible) {
+  std::optional<PreloadingEligibility> eligibility =
+      prefetch_container.GetInitialEligibility();
+  CHECK(eligibility.has_value());
+
+  if (eligibility.value() != PreloadingEligibility::kEligible) {
     MaybeUnblockForUnmatch(
         prefetch_container,
         PrefetchPotentialCandidateServingResult::kNotServedIneligiblePrefetch);
@@ -689,8 +692,7 @@ void PrefetchMatchResolver::OnDeterminedHead(
 }
 
 void PrefetchMatchResolver::OnPrefetchCompletedOrFailed(
-    const PrefetchContainer& prefetch_container,
-    const network::URLLoaderCompletionStatus& completion_status) {}
+    const PrefetchContainer& prefetch_container) {}
 
 void PrefetchMatchResolver::OnTimeout(PrefetchKey prefetch_key) {
   // `timeout_timer` is alive, which implies `candidate` is alive.
@@ -925,6 +927,9 @@ void PrefetchMatchResolver::AttachPrefetchMatchPrerenderDebugMetrics() {
         navigated_key_;
     metrics->prefetch_ahead_of_prerender_debug_metrics
         ->prefetch_key_ahead_of_prerender = prefetch_container->key();
+    metrics->prefetch_ahead_of_prerender_debug_metrics
+        ->prefetch_nvs_hint_ahead_of_prerender =
+        prefetch_container->GetNoVarySearchHint();
   }();
 
   prefetch_match_metrics_->prerender_debug_metrics = std::move(metrics);

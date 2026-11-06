@@ -379,8 +379,8 @@ void TraceScheduleAndVerify(OptimizedCompilationInfo* info,
   RCS_SCOPE(data->runtime_call_stats(),
             RuntimeCallCounterId::kOptimizeTraceScheduleAndVerify,
             RuntimeCallStats::kThreadSpecific);
-  TRACE_EVENT0(TurbofanPipelineStatistics::kTraceCategory,
-               "V8.TraceScheduleAndVerify");
+  TRACE_EVENT(TurbofanPipelineStatistics::kTraceCategory,
+              "V8.TraceScheduleAndVerify");
 
   TraceSchedule(info, data, schedule, phase_name);
 
@@ -410,9 +410,8 @@ TurbofanPipelineStatistics* CreatePipelineStatistics(
     Isolate* isolate, ZoneStats* zone_stats) {
   TurbofanPipelineStatistics* pipeline_statistics = nullptr;
 
-  bool tracing_enabled;
-  TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.turbofan"),
-                                     &tracing_enabled);
+  bool tracing_enabled =
+      TRACE_EVENT_CATEGORY_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.turbofan"));
   if (tracing_enabled || v8_flags.turbo_stats || v8_flags.turbo_stats_nvp) {
     pipeline_statistics = new TurbofanPipelineStatistics(
         info, isolate->GetTurboStatistics(), zone_stats);
@@ -436,9 +435,8 @@ TurbofanPipelineStatistics* CreatePipelineStatistics(
     OptimizedCompilationInfo* info, ZoneStats* zone_stats) {
   TurbofanPipelineStatistics* pipeline_statistics = nullptr;
 
-  bool tracing_enabled;
-  TRACE_EVENT_CATEGORY_GROUP_ENABLED(
-      TRACE_DISABLED_BY_DEFAULT("v8.wasm.turbofan"), &tracing_enabled);
+  bool tracing_enabled = TRACE_EVENT_CATEGORY_ENABLED(
+      TRACE_DISABLED_BY_DEFAULT("v8.wasm.turbofan"));
   if (tracing_enabled || v8_flags.turbo_stats_wasm) {
     pipeline_statistics = new TurbofanPipelineStatistics(
         info, wasm::GetWasmEngine()->GetOrCreateTurboStatistics(), zone_stats);
@@ -2187,6 +2185,9 @@ CodeAssemblerCompilationJob::CodeAssemblerCompilationJob(
       jump_opt_(ShouldOptimizeJumps(isolate) ? new JumpOptimizationInfo()
                                              : nullptr),
       finalize_order_(finalize_order) {
+  if (v8_flags.torque_dwarf) {
+    compilation_info_.set_source_positions();
+  }
   DCHECK(code_kind == CodeKind::BUILTIN ||
          code_kind == CodeKind::BYTECODE_HANDLER ||
          code_kind == CodeKind::FOR_TESTING ||

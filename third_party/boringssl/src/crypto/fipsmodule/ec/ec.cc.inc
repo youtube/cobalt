@@ -74,19 +74,11 @@ DEFINE_METHOD_FUNCTION(EC_GROUP, EC_group_p224) {
   ec_group_init_static_mont(&out->order, std::size(kP224Order), kP224Order,
                             kP224OrderRR, kP224OrderN0);
 
-#if defined(BORINGSSL_HAS_UINT128) && !defined(OPENSSL_SMALL)
-  out->meth = EC_GFp_nistp224_method();
-  OPENSSL_memcpy(out->generator.raw.X.words, kP224GX, sizeof(kP224GX));
-  OPENSSL_memcpy(out->generator.raw.Y.words, kP224GY, sizeof(kP224GY));
-  out->generator.raw.Z.words[0] = 1;
-  OPENSSL_memcpy(out->b.words, kP224B, sizeof(kP224B));
-#else
   out->meth = EC_GFp_mont_method();
   OPENSSL_memcpy(out->generator.raw.X.words, kP224MontGX, sizeof(kP224MontGX));
   OPENSSL_memcpy(out->generator.raw.Y.words, kP224MontGY, sizeof(kP224MontGY));
   OPENSSL_memcpy(out->generator.raw.Z.words, kP224FieldR, sizeof(kP224FieldR));
   OPENSSL_memcpy(out->b.words, kP224MontB, sizeof(kP224MontB));
-#endif
   out->generator.group = out;
 
   ec_group_set_a_minus3(out);
@@ -559,17 +551,12 @@ int bssl::ec_jacobian_to_affine_batch(const EC_GROUP *group, EC_AFFINE *out,
 int bssl::ec_point_set_affine_coordinates(const EC_GROUP *group, EC_AFFINE *out,
                                           const EC_FELEM *x,
                                           const EC_FELEM *y) {
-  void (*const felem_mul)(const EC_GROUP *, EC_FELEM *r, const EC_FELEM *a,
-                          const EC_FELEM *b) = group->meth->felem_mul;
-  void (*const felem_sqr)(const EC_GROUP *, EC_FELEM *r, const EC_FELEM *a) =
-      group->meth->felem_sqr;
-
   // Check if the point is on the curve.
   EC_FELEM lhs, rhs;
-  felem_sqr(group, &lhs, y);                   // lhs = y^2
-  felem_sqr(group, &rhs, x);                   // rhs = x^2
+  ec_felem_sqr(group, &lhs, y);                // lhs = y^2
+  ec_felem_sqr(group, &rhs, x);                // rhs = x^2
   ec_felem_add(group, &rhs, &rhs, &group->a);  // rhs = x^2 + a
-  felem_mul(group, &rhs, &rhs, x);             // rhs = x^3 + ax
+  ec_felem_mul(group, &rhs, &rhs, x);          // rhs = x^3 + ax
   ec_felem_add(group, &rhs, &rhs, &group->b);  // rhs = x^3 + ax + b
   if (!ec_felem_equal(group, &lhs, &rhs)) {
     OPENSSL_PUT_ERROR(EC, EC_R_POINT_IS_NOT_ON_CURVE);

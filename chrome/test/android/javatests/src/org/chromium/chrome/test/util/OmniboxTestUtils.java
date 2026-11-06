@@ -327,6 +327,8 @@ public class OmniboxTestUtils {
                     ModelList currentModels = mAutocomplete.getSuggestionModelListForTest();
                     for (int i = 0; i < currentModels.size(); i++) {
                         DropdownItemViewInfo info = (DropdownItemViewInfo) currentModels.get(i);
+                        // Callers are responsible for ensuring the view type matches T.
+                        @SuppressWarnings("unchecked")
                         T view = (T) dropdown.getDropdownItemViewForTest(i);
                         if (filter.apply(info) && view != null) {
                             result.set(
@@ -673,7 +675,8 @@ public class OmniboxTestUtils {
             OmniboxSuggestionsContainer container =
                     mLocationBar.getAutocompleteCoordinator().getSuggestionsContainerForTest();
             OmniboxSuggestionsDropdown dropdown =
-                    mLocationBar.getAutocompleteCoordinator().getSuggestionsDropdownForTest();
+                    (OmniboxSuggestionsDropdown)
+                            mLocationBar.getAutocompleteCoordinator().getSuggestionsDropdown();
             if (container == null || dropdown == null) {
                 return notFulfilled("suggestion list is null");
             }
@@ -703,7 +706,8 @@ public class OmniboxTestUtils {
             OmniboxSuggestionsContainer container =
                     mLocationBar.getAutocompleteCoordinator().getSuggestionsContainerForTest();
             OmniboxSuggestionsDropdown dropdown =
-                    mLocationBar.getAutocompleteCoordinator().getSuggestionsDropdownForTest();
+                    (OmniboxSuggestionsDropdown)
+                            mLocationBar.getAutocompleteCoordinator().getSuggestionsDropdown();
             // Suggestions list can't be showing if it's not constructed.
             if (container == null || dropdown == null) {
                 return fulfilled();

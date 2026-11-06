@@ -806,7 +806,9 @@ bool IsAnyAidaPoweredFeatureEnabled() {
          base::FeatureList::IsEnabled(
              ::features::kDevToolsAiCodeCompletionStyles) ||
          base::FeatureList::IsEnabled(
-             ::features::kDevToolsAiAssistanceAccessibilityAgent);
+             ::features::kDevToolsAiAssistanceAccessibilityAgent) ||
+         base::FeatureList::IsEnabled(
+             ::features::kDevToolsAiAssistanceStorageAgent);
 }
 }  // namespace
 
@@ -1265,8 +1267,32 @@ void DevToolsUIBindings::LoadNetworkResource(DispatchCallback callback,
   resource_request.site_for_cookies = net::SiteForCookies::FromUrl(gurl);
   resource_request.headers.AddHeadersFromString(headers);
 
+  content::WebContents* target_tab = delegate_->GetInspectedWebContents();
+
   NetworkResourceLoader::URLLoaderFactoryHolder url_loader_factory;
   if (gurl.SchemeIsFile()) {
+    GURL frontend_url = web_contents_->GetLastCommittedURL();
+    bool is_remote_frontend =
+        frontend_url.is_valid() && !frontend_url.IsAboutBlank() &&
+        IsValidRemoteFrontendURL(frontend_url);
+    if (is_remote_frontend) {
+      if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
+              switches::kAllowUnsafeDevToolsRemoteFileLoading)) {
+        base::DictValue response_dict;
+        response_dict.Set("statusCode", 403);
+        response_dict.Set("netError", net::ERR_ACCESS_DENIED);
+        response_dict.Set("netErrorName",
+                          net::ErrorToString(net::ERR_ACCESS_DENIED));
+        response_dict.Set(
+            "messageOverride",
+            "Local file loading is restricted for remote DevTools. Use "
+            "--allow-unsafe-devtools-remote-file-loading to enable it.");
+        auto response = base::Value(std::move(response_dict));
+        std::move(callback).Run(&response);
+        return;
+      }
+    }
+
     mojo::PendingRemote<network::mojom::URLLoaderFactory> pending_remote =
         content::CreateFileURLLoaderFactory(
             base::FilePath() /* profile_path */,
@@ -1275,7 +1301,6 @@ void DevToolsUIBindings::LoadNetworkResource(DispatchCallback callback,
         std::make_unique<network::WrapperPendingSharedURLLoaderFactory>(
             std::move(pending_remote)));
   } else if (content::HasWebUIScheme(gurl)) {
-    content::WebContents* target_tab = delegate_->GetInspectedWebContents();
 #if defined(NDEBUG)
     // In release builds, allow files from the chrome://, devtools:// and
     // chrome-untrusted:// schemes if a custom devtools front-end was specified.
@@ -1314,7 +1339,6 @@ void DevToolsUIBindings::LoadNetworkResource(DispatchCallback callback,
       return;
     }
   } else {
-    content::WebContents* target_tab = delegate_->GetInspectedWebContents();
     if (target_tab) {
       auto* partition =
           target_tab->GetPrimaryMainFrame()->GetStoragePartition();
@@ -1866,6 +1890,12 @@ base::DictValue DevToolsUIBindings::GetHostConfigDictionary(Profile* profile) {
     response_dict.Set("devToolsAiAssistanceAccessibilityAgent",
                       std::move(accessibility_agent_dict));
   }
+
+  response_dict.Set(
+      "devToolsAiAssistanceStorageAgent",
+      base::DictValue().Set(
+          "enabled", base::FeatureList::IsEnabled(
+                         ::features::kDevToolsAiAssistanceStorageAgent)));
 
   if (base::FeatureList::IsEnabled(
           ::features::kDevToolsAiAssistancePerformanceAgent)) {
@@ -2673,8 +2703,13 @@ void DevToolsUIBindings::AddDevToolsExtensionsToClient() {
       extensions::ExtensionManagementFactory::GetForBrowserContext(
           web_contents_->GetBrowserContext());
 
-  forbidden_origins.Append(
-      url::Origin::Create(search::GetNewTabPageURL(profile_)).Serialize());
+  // NOTE: on Android, GetNewTabPageURL may return invalid URL. This is short
+  // work around.
+  // TODO(crbug.com/505013947): Fix the root cause.
+  auto origin = url::Origin::Create(search::GetNewTabPageURL(profile_));
+  if (!origin.opaque()) {
+    forbidden_origins.Append(origin.Serialize());
+  }
   for (const scoped_refptr<const extensions::Extension>& extension :
        registry->enabled_extensions()) {
     if (extensions::Manifest::IsComponentLocation(extension->location())) {

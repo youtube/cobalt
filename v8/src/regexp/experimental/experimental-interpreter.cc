@@ -474,7 +474,8 @@ class NfaInterpreter {
   // output_register_count.  The search continues until all remaining matches
   // have been found or there is no space left in `output_registers`.  Returns
   // the number of matches found.
-  int FindMatches(int32_t* output_registers, int output_register_count) {
+  V8_WARN_UNUSED_RESULT int FindMatches(int32_t* output_registers,
+                                        int output_register_count) {
     const int max_match_num = output_register_count / register_count_per_match_;
 
     if (!only_captureless_lookbehinds_) {
@@ -687,7 +688,12 @@ class NfaInterpreter {
   V8_WARN_UNUSED_RESULT int RunActiveThreadsToEnd() {
     // Run the initial thread, potentially forking new threads, until every
     // thread is blocked without further input.
-    RunActiveThreads();
+    {
+      int error_code = RunActiveThreads();
+      if (V8_UNLIKELY(error_code != RegExp::kInternalRegExpSuccess)) {
+        return error_code;
+      }
+    }
 
     // We stop if one of the following conditions hold:
     // - We have exhausted the entire input.
@@ -725,7 +731,12 @@ class NfaInterpreter {
       FlushBlockedThreads(input_char);
 
       // Run all threads until they block or accept.
-      RunActiveThreads();
+      {
+        int error_code = RunActiveThreads();
+        if (V8_UNLIKELY(error_code != RegExp::kInternalRegExpSuccess)) {
+          return error_code;
+        }
+      }
     }
 
     return RegExp::kInternalRegExpSuccess;
@@ -808,7 +819,7 @@ class NfaInterpreter {
   // at the current `input_index_`.  Returns RegExp::kInternalRegExpSuccess if
   // execution could finish regularly (with or without a match) and an error
   // code due to interrupt otherwise.
-  int FindNextMatch() {
+  V8_WARN_UNUSED_RESULT int FindNextMatch() {
     DCHECK(active_threads_.is_empty());
     // TODO(mbid,v8:10765): Can we get around resetting `pc_last_input_index_`
     // here? As long as
@@ -863,7 +874,7 @@ class NfaInterpreter {
   //   RANGE_COUNT, it is pushed on `blocked_threads_`.
   // - If `t` executes ACCEPT, set `best_match` according to `t.match_begin` and
   //   the current input index. All remaining `active_threads_` are discarded.
-  int RunActiveThread(InterpreterThread t) {
+  V8_WARN_UNUSED_RESULT int RunActiveThread(InterpreterThread t) {
     while (true) {
       SBXCHECK_GE(t.pc, 0);
       SBXCHECK_LT(t.pc, bytecode_.size());
@@ -1097,7 +1108,7 @@ class NfaInterpreter {
   // Run each active thread until it can't continue without further input.
   // `active_threads_` is empty afterwards.  `blocked_threads_` are sorted from
   // low to high priority.
-  int RunActiveThreads() {
+  V8_WARN_UNUSED_RESULT int RunActiveThreads() {
     while (!active_threads_.is_empty()) {
       int err_code = RunActiveThread(active_threads_.RemoveLast());
       if (err_code != RegExp::kInternalRegExpSuccess) return err_code;
@@ -1163,17 +1174,28 @@ class NfaInterpreter {
   int CheckMemoryConsumption() {
     DCHECK(v8_flags.experimental_regexp_engine_capture_group_opt);
 
-    // Copmputes an approximation of the total current memory usage of the
-    // intepreter. It is based only on the threads' consumption, since the rest
+    // Computes an approximation of the total current memory usage of the
+    // interpreter. It is based only on the threads' consumption, since the rest
     // is negligible in comparison.
     uint64_t approx = (blocked_threads_.length() + active_threads_.length()) *
                       memory_consumption_per_thread_;
 
-    return (approx <
-            v8_flags.experimental_regexp_engine_capture_group_opt_max_memory_usage *
-                MB)
-               ? RegExp::kInternalRegExpSuccess
-               : RegExp::kInternalRegExpException;
+    const bool enough_memory =
+        approx <
+        v8_flags.experimental_regexp_engine_capture_group_opt_max_memory_usage *
+            MB;
+    if (V8_LIKELY(enough_memory)) {
+      return RegExp::kInternalRegExpSuccess;
+    }
+
+    // For Call From JS the exception is thrown in the Builtin
+    // (RegExpExecInternal)
+    if (call_origin_ == RegExp::CallOrigin::kFromRuntime) {
+      // Allow allocation for exception.
+      AllowGarbageCollection allow_gc;
+      isolate_->StackOverflow();
+    }
+    return RegExp::kInternalRegExpException;
   }
 
   base::Vector<int> GetRegisterArray(InterpreterThread t) {

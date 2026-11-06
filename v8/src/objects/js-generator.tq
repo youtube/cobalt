@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@cppObjectLayoutDefinition
 extern class JSGeneratorObject extends JSObject {
   function: JSFunction;
   context: Context;
@@ -25,6 +26,7 @@ extern class JSGeneratorObject extends JSObject {
   parameters_and_registers: FixedArray;
 }
 
+@cppObjectLayoutDefinition
 extern class JSAsyncFunctionObject extends JSGeneratorObject {
   promise: JSPromise;
   // Resolve/reject closures for await, reused across all await expressions.
@@ -33,6 +35,7 @@ extern class JSAsyncFunctionObject extends JSGeneratorObject {
   await_reject_closure: JSFunction|Undefined;
 }
 
+@cppObjectLayoutDefinition
 extern class JSAsyncGeneratorObject extends JSGeneratorObject {
   // Pointer to the head of a singly linked list of AsyncGeneratorRequest, or
   // undefined.

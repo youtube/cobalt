@@ -22,6 +22,7 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_mem_slice.h"
@@ -150,7 +151,12 @@ void UpstreamFetch::OnFetchResult(Location largest_location,
   auto task = std::make_unique<UpstreamFetchTask>(largest_location, status,
                                                   std::move(callback));
   task_ = task->weak_ptr();
-  window_.TruncateEnd(largest_location);
+  if (relative_groups_.has_value() &&
+      (*relative_groups_ < largest_location.group)) {
+    start_ = Location(largest_location.group - *relative_groups_, 0);
+    relative_groups_.reset();
+  }
+  end_ = std::min(end_, largest_location);
   std::move(ok_callback_)(std::move(task));
   if (can_read_callback_) {
     task_.GetIfAvailable()->set_can_read_callback(

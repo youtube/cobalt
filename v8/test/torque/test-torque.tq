@@ -476,8 +476,8 @@ macro IncrementIfSmi<A: type>(x: A): A {
 
 type NumberOrFixedArray = Number|FixedArray;
 macro TypeswitchExample(implicit context: Context)(
-                           x: NumberOrFixedArray): int32 {
-  let result: int32 = 0;
+                           x: NumberOrFixedArray): uint32 {
+  let result: uint32 = 0;
   typeswitch (IncrementIfSmi(x)) {
     case (_x: FixedArray): {
       result = result + 1;
@@ -491,10 +491,10 @@ macro TypeswitchExample(implicit context: Context)(
 
   typeswitch (IncrementIfSmi(x)) {
     case (x: Smi): {
-      result = result + Convert<int32>(x);
+      result = result + Unsigned(Convert<int32>(x));
     }
     case (a: FixedArray): {
-      result = result + Convert<int32>(a.length);
+      result = result + a.length;
     }
     case (_x: HeapNumber): {
       result = result + 7;
@@ -823,7 +823,12 @@ struct TestIterator {
 @export
 macro TestNewFixedArrayFromSpread(implicit context: Context)(): Object {
   let i = TestIterator{count: 5};
-  return new FixedArray{map: kFixedArrayMap, length: 5, objects: ...i};
+  return new FixedArray{
+    map: kFixedArrayMap,
+    length: 5,
+    optional_padding: 0,
+    objects: ...i
+  };
 }
 
 class SmiPair extends HeapObject {
@@ -854,7 +859,12 @@ macro TestReferences(): void {
 @export
 macro TestSlices(): void {
   const it = TestIterator{count: 3};
-  const a = new FixedArray{map: kFixedArrayMap, length: 3, objects: ...it};
+  const a = new FixedArray{
+    map: kFixedArrayMap,
+    length: 3,
+    optional_padding: 0,
+    objects: ...it
+  };
   check(a.length == 3);
 
   const oneTwoThree = Convert<Smi>(123);
@@ -965,7 +975,7 @@ macro TestLoadEliminationVariable(implicit context: Context)(): void {
 @export
 macro TestRedundantArrayElementCheck(implicit context: Context)(): Smi {
   const a = kEmptyFixedArray;
-  for (let i: Smi = 0; i < a.length; i++) {
+  for (let i: uint32 = 0; i < a.length; i++) {
     if (a.objects[i] == TheHole) {
       if (a.objects[i] == TheHole) {
         return -1;

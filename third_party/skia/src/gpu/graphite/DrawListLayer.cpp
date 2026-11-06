@@ -67,7 +67,8 @@ void DrawListLayer::recordBackwards(int stepIndex,
         // it drew into.
         targetLayer = stop.fLayer ? stop.fLayer : fLayers.head();
         if (targetLayer) {
-            targetMatch = targetLayer->searchBinding</*kForwards=*/false>(key, stop.fList);
+            targetMatch = targetLayer->searchBinding</*kForwards=*/false>(
+                    key, stop.fList, !fStorageBufferSupport);
         }
     } else {
         current = fLayers.tail();
@@ -76,11 +77,18 @@ void DrawListLayer::recordBackwards(int stepIndex,
             auto [overlapType, match] =
                     isStencil
                             ? current->test</*kIsStencil=*/true, kIsDepthOnly, /*kForwards=*/false>(
-                                      drawParams->drawBounds(), key, requiresBarrier, boundary)
+                                      drawParams->drawBounds(),
+                                      key,
+                                      requiresBarrier,
+                                      boundary,
+                                      !fStorageBufferSupport)
                             : current->test</*kIsStencil=*/false,
                                             kIsDepthOnly,
-                                            /*kForwards=*/false>(
-                                      drawParams->drawBounds(), key, requiresBarrier, boundary);
+                                            /*kForwards=*/false>(drawParams->drawBounds(),
+                                                                 key,
+                                                                 requiresBarrier,
+                                                                 boundary,
+                                                                 !fStorageBufferSupport);
 
             if (overlapType == BoundsTest::kIncompatibleOverlap) {
                 // If we need to read the dst, we cannot go earlier than this layer.
@@ -136,9 +144,9 @@ void DrawListLayer::recordBackwards(int stepIndex,
                     //        forward merges to the tail guarantees our assigned ordering is always
                     //        valid.
                     if (match && current == fLayers.tail() && canForwardMerge) {
-                        if (current->fBindings.head() != current->fBindings.tail()
-                            && (!requiresBarrier ||
-                                !match->fBounds.intersects(drawParams->drawBounds()))) {
+                        if (current->fBindings.head() != current->fBindings.tail() &&
+                            (!requiresBarrier ||
+                             !match->fBounds.intersects(drawParams->drawBounds()))) {
                             forwardMerge = match;
                             targetMatch = forwardMerge;
                         }
@@ -243,13 +251,14 @@ void DrawListLayer::recordForwards(int stepIndex,
     SkASSERT(start.fList);
     BindingList* targetMatch = nullptr;
     if (start.fList->fNext) {
-        targetMatch = start.fLayer->searchBinding</*kForwards=*/true>(key, start.fList->fNext);
+        targetMatch = start.fLayer->searchBinding</*kForwards=*/true>(
+                key, start.fList->fNext, !fStorageBufferSupport);
     }
     Draw* draw = fStorage.make<Draw>(drawParams, uniformIndex);
     // Because depth-only draws exclusively `recordBackwards`, it is safe to pass false for
     // `kIsDepthOnly`. This guarantees that new BindingLists append to the end of the layer and
     // draws after their parent.
-    BindingList* insertedList = start.fLayer->add</*kIsDepthOnly*/false>(
+    BindingList* insertedList = start.fLayer->add</*kIsDepthOnly*/ false>(
             &fStorage, targetMatch, key, draw, step, true);
     start.fList = insertedList;
 }
@@ -336,7 +345,7 @@ std::pair<DrawParams*, Insertion> DrawListLayer::recordDraw(const Renderer* rend
                     requiresBarrier,
                     step,
                     uniformIndex,
-                    LayerKey{pipelineIndex, textureBindingIndex},
+                    LayerKey{pipelineIndex, textureBindingIndex, uniformIndex},
                     drawParams,
                     /*stop=*/{},
                     &stepInsertion,
@@ -350,7 +359,7 @@ std::pair<DrawParams*, Insertion> DrawListLayer::recordDraw(const Renderer* rend
                         requiresBarrier,
                         step,
                         uniformIndex,
-                        LayerKey{pipelineIndex, textureBindingIndex},
+                        LayerKey{pipelineIndex, textureBindingIndex, uniformIndex},
                         drawParams,
                         latestInsertion,
                         &stepInsertion,
@@ -362,7 +371,7 @@ std::pair<DrawParams*, Insertion> DrawListLayer::recordDraw(const Renderer* rend
                                      requiresBarrier,
                                      step,
                                      uniformIndex,
-                                     LayerKey{pipelineIndex, textureBindingIndex},
+                                     LayerKey{pipelineIndex, textureBindingIndex, uniformIndex},
                                      drawParams,
                                      stepInsertion);
             }
@@ -410,9 +419,7 @@ std::unique_ptr<DrawPass> DrawListLayer::snapDrawPass(Recorder* recorder,
              SkIRect::MakeSize(drawPass->fTarget->dimensions()).contains(lastScissor));
     drawPass->fCommandList.setScissor(lastScissor);
 
-    const Caps* caps = recorder->priv().caps();
-    const bool useStorageBuffers = caps->storageBufferSupport();
-    UniformTracker uniformTracker(useStorageBuffers);
+    UniformTracker uniformTracker(fStorageBufferSupport);
 
     const bool rebindTexturesOnPipelineChange = dstReadStrategy == DstReadStrategy::kTextureCopy;
     CompressedPaintersOrder priorDrawPaintOrder{};
@@ -476,7 +483,7 @@ std::unique_ptr<DrawPass> DrawListLayer::snapDrawPass(Recorder* recorder,
             lastScissor = *newScissor;
         }
 
-        uint32_t uniformSsboIndex = useStorageBuffers ? uniformTracker.ssboIndex() : 0;
+        uint32_t uniformSsboIndex = fStorageBufferSupport ? uniformTracker.ssboIndex() : 0;
         renderStep->writeVertices(&drawWriter, drawParams, uniformSsboIndex);
 
         if (bufferMgr->hasMappingFailed()) {

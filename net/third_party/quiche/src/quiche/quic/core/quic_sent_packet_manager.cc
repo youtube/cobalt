@@ -1219,7 +1219,8 @@ const QuicTime::Delta QuicSentPacketManager::GetProbeTimeoutDelay(
 
 QuicTime::Delta QuicSentPacketManager::GetSlowStartDuration() const {
   if (send_algorithm_->GetCongestionControlType() == kBBR ||
-      send_algorithm_->GetCongestionControlType() == kBBRv2) {
+      send_algorithm_->GetCongestionControlType() == kBBRv2 ||
+      send_algorithm_->GetCongestionControlType() == kBBRv3) {
     return stats_->slowstart_duration.GetTotalElapsedTime(
         clock_->ApproximateNow());
   }

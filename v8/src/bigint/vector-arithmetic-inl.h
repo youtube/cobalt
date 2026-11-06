@@ -17,11 +17,7 @@ namespace bigint {
 inline digit_t AddAndReturnOverflow(RWDigits Z, Digits X) {
   X.Normalize();
   if (X.len() == 0) return 0;
-  // Here and below: callers are careful to pass sufficiently large result
-  // storage Z. If that ever goes wrong, then something is corrupted; could
-  // be a concurrent-mutation attack. So we harden against that with Release-
-  // mode CHECKs.
-  CHECK(Z.len() >= X.len());
+  DCHECK(Z.len() >= X.len());
   digit_t carry = 0;
   uint32_t i = 0;
   for (; i < X.len(); i++) {
@@ -37,7 +33,7 @@ inline digit_t AddAndReturnOverflow(RWDigits Z, Digits X) {
 inline digit_t SubAndReturnBorrow(RWDigits Z, Digits X) {
   X.Normalize();
   if (X.len() == 0) return 0;
-  CHECK(Z.len() >= X.len());
+  DCHECK(Z.len() >= X.len());
   digit_t borrow = 0;
   uint32_t i = 0;
   for (; i < X.len(); i++) {

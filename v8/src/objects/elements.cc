@@ -968,7 +968,8 @@ class ElementsAccessorBase : public InternalElementsAccessor {
         // Otherwise, assume we want exponential growing semantics, and grow as
         // if we were pushing. We might not grow enough for the length, so take
         // the max of hte two values.
-        new_capacity = std::max(length, JSArray::NewElementsCapacity(capacity));
+        new_capacity =
+            std::max(length, JSObject::NewElementsCapacity(capacity));
       }
       // Grow the array to the new capacity. Note that this code will allow
       // create backing stores that consist almost entirely of holes, for which
@@ -1455,8 +1456,8 @@ class ElementsAccessorBase : public InternalElementsAccessor {
         // large-object space which doesn't free memory on shrinking the list.
         // Hence we try to estimate the final size for holey backing stores more
         // precisely here.
-        nof_elements =
-            Subclass::NumberOfElementsImpl(isolate, *object, *backing_store);
+        nof_elements = static_cast<uint32_t>(
+            Subclass::NumberOfElementsImpl(isolate, *object, *backing_store));
         initial_list_length = nof_elements + nof_property_keys;
       }
       DCHECK_LE(initial_list_length, std::numeric_limits<int>::max());

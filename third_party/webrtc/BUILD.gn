@@ -51,7 +51,6 @@ if (!build_with_chromium) {
         ":rtc_p2p_unittests",
         ":rtc_unittests",
         ":test_suites",
-        ":video_engine_tests",
         ":voip_unittests",
         ":webrtc_nonparallel_tests",
         ":webrtc_perf_tests",
@@ -130,7 +129,14 @@ if (!build_with_chromium) {
 if (rtc_include_tests) {
   group("test_suites") {
     testonly = true
-    deps = [ ":webrtc_nonparallel_tests" ]
+    deps = [
+      ":webrtc_nonparallel_tests",
+      "//call:call_tests",
+      "//call/adaptation:resource_adaptation_tests",
+      "//pc:peerconnection_unittests",
+      "//video:video_tests",
+      "//video/adaptation:video_adaptation_tests",
+    ]
   }
 }
 
@@ -717,32 +723,6 @@ if (rtc_include_tests && !build_with_chromium) {
     if (is_android) {
       use_default_launcher = false
       deps += [ "//build/android/gtest_apk:native_test_instrumentation_test_runner_java" ]
-    }
-  }
-
-  # TODO(pbos): Rename test suite, this is no longer "just" for video targets.
-  rtc_test("video_engine_tests") {
-    testonly = true
-    deps = [
-      # TODO(eladalon): call_tests aren't actually video-specific, so we
-      # should move them to a more appropriate test suite.
-      "call:call_tests",
-      "call/adaptation:resource_adaptation_tests",
-      "test:test_common",
-      "test:video_test_common",
-      "video:video_tests",
-      "video/adaptation:video_adaptation_tests",
-    ]
-
-    data_deps = [ "resources:video_engine_tests_data" ]
-
-    if (is_android) {
-      use_default_launcher = false
-      deps += [ "//build/android/gtest_apk:native_test_instrumentation_test_runner_java" ]
-      shard_timeout = 900
-    }
-    if (is_ios) {
-      deps += [ "resources:video_engine_tests_bundle_data" ]
     }
   }
 

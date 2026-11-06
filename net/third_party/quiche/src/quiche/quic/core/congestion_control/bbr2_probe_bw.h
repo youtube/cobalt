@@ -38,27 +38,11 @@ class QUICHE_EXPORT Bbr2ProbeBwMode final : public Bbr2ModeBase {
   Bbr2Mode OnExitQuiescence(QuicTime now,
                             QuicTime quiescence_start_time) override;
 
-  enum class CyclePhase : uint8_t {
-    PROBE_NOT_STARTED,
-    PROBE_UP,
-    PROBE_DOWN,
-    PROBE_CRUISE,
-    PROBE_REFILL,
-  };
-
-  static const char* CyclePhaseToString(CyclePhase phase);
-
-  struct QUICHE_EXPORT DebugState {
-    CyclePhase phase;
-    QuicTime cycle_start_time = QuicTime::Zero();
-    QuicTime phase_start_time = QuicTime::Zero();
-  };
-
-  DebugState ExportDebugState() const;
+  Bbr2DebugState::ProbeBw ExportDebugState() const;
 
  private:
   const Bbr2Params& Params() const;
-  float PacingGainForPhase(CyclePhase phase) const;
+  float PacingGainForPhase(ProbePhase phase) const;
 
   void UpdateProbeUp(QuicByteCount prior_in_flight,
                      const Bbr2CongestionEvent& congestion_event);
@@ -108,7 +92,7 @@ class QUICHE_EXPORT Bbr2ProbeBwMode final : public Bbr2ModeBase {
 
   struct QUICHE_EXPORT Cycle {
     QuicTime cycle_start_time = QuicTime::Zero();
-    CyclePhase phase = CyclePhase::PROBE_NOT_STARTED;
+    ProbePhase phase = ProbePhase::PROBE_NOT_STARTED;
     uint64_t rounds_in_phase = 0;
     QuicTime phase_start_time = QuicTime::Zero();
     QuicRoundTripCount rounds_since_probe = 0;
@@ -127,11 +111,6 @@ class QUICHE_EXPORT Bbr2ProbeBwMode final : public Bbr2ModeBase {
   bool last_cycle_stopped_risky_probe_;
 };
 
-QUICHE_EXPORT std::ostream& operator<<(
-    std::ostream& os, const Bbr2ProbeBwMode::DebugState& state);
-
-QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
-                                       const Bbr2ProbeBwMode::CyclePhase phase);
 
 }  // namespace quic
 

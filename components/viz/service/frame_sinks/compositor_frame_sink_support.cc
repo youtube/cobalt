@@ -14,6 +14,8 @@
 #include "base/containers/map_util.h"
 #include "base/debug/crash_logging.h"
 #include "base/debug/stack_trace.h"
+#include "base/feature.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
@@ -64,6 +66,11 @@ bool HasElapsedCadenceInterval(
 }
 
 namespace viz {
+
+// TODO (crbug.com/495852034): Remove once M150 hits Stable.
+BASE_FEATURE(kDisconnectOnInvalidHitTestRegionList,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 namespace {
 
 // The maximum amount of time to wait for a new interactive frame before
@@ -998,8 +1005,13 @@ SubmitResult CompositorFrameSinkSupport::MaybeSubmitCompositorFrame(
 
   // QueueFrame can fail in unit tests, so SubmitHitTestRegionList has to be
   // called before that.
-  frame_sink_manager()->SubmitHitTestRegionList(
-      last_created_surface_id_, frame_index, std::move(hit_test_region_list));
+  if (!frame_sink_manager()->SubmitHitTestRegionList(
+          last_created_surface_id_, frame_index,
+          std::move(hit_test_region_list))) {
+    if (base::FeatureList::IsEnabled(kDisconnectOnInvalidHitTestRegionList)) {
+      return SubmitResult::HIT_TEST_DATA_INVALID;
+    }
+  }
   // Update the interaction state at the end of this method to ensure it only
   // reflects valid frames that were successfully accepted. This prevents
   // invalid frames (e.g. those with a size mismatch) from affecting the global
@@ -1157,29 +1169,13 @@ void CompositorFrameSinkSupport::OnBeginFrame(const BeginFrameArgs& args) {
   int64_t trace_id = base::trace_event::GetNextGlobalTraceId();
   TRACE_EVENT(
       "viz,benchmark,graphics.pipeline", "Graphics.Pipeline",
-      perfetto::Flow::Global(trace_id),
-      [trace_id, &args](perfetto::EventContext ctx) {
+      perfetto::Flow::Global(trace_id), [trace_id](perfetto::EventContext ctx) {
         base::TaskAnnotator::EmitTaskTimingDetails(ctx);
         auto* event = ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>();
         auto* data = event->set_chrome_graphics_pipeline();
         data->set_step(perfetto::protos::pbzero::ChromeGraphicsPipeline::
                            StepName::STEP_ISSUE_BEGIN_FRAME);
         data->set_surface_frame_trace_id(trace_id);
-        auto* possible_deadlines = data->set_possible_deadlines();
-        possible_deadlines->set_frame_time_us(
-            args.frame_time.since_origin().InMicroseconds());
-        if (args.possible_deadlines.has_value()) {
-          for (const PossibleDeadline& deadline :
-               args.possible_deadlines->deadlines) {
-            auto* timeline = possible_deadlines->add_frame_timeline();
-            timeline->set_vsync_id(deadline.vsync_id);
-            timeline->set_latch_delta_us(deadline.latch_delta.InMicroseconds());
-            timeline->set_present_delta_us(
-                deadline.present_delta.InMicroseconds());
-          }
-          possible_deadlines->set_preferred_frame_timeline_index(
-              args.possible_deadlines->preferred_index);
-        }
       });
 
   CheckPendingSurfaces();
@@ -1463,6 +1459,8 @@ const char* CompositorFrameSinkSupport::GetSubmitResultAsString(
       return "LocalSurfaceId sequence numbers decreased";
     case SubmitResult::SURFACE_OWNED_BY_ANOTHER_CLIENT:
       return "Surface belongs to another client";
+    case SubmitResult::HIT_TEST_DATA_INVALID:
+      return "Invalid hit-test data";
   }
   NOTREACHED();
 }

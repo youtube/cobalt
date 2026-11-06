@@ -9,6 +9,10 @@ group("remoting_all") {
 
   deps = [ ":remoting_unittests" ]
 
+  if (!is_component_build && (is_win || is_linux)) {
+    deps += [ "//remoting/codec:webrtc_video_encoder_benchmark" ]
+  }
+
   if (is_win) {
     deps += [
       "//remoting/host/win:all",
@@ -70,7 +74,6 @@ group("test_support") {
     "//base",
     "//net",
     "//remoting/base:test_support",
-    "//remoting/codec:decoder",
     "//remoting/codec:encoder",
     "//remoting/protocol:test_support",
     "//remoting/resources",

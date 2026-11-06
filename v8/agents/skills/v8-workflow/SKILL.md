@@ -1,3 +1,8 @@
+---
+name: v8-workflow
+description: "Manages git task isolation and environment setup in V8. Use at the start of any new task or bug fix. Do not use for general C++ editing."
+---
+
 # V8 Workflow Skill
 
 This skill defines the standard process for setting up and managing your development environment in V8.

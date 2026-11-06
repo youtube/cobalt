@@ -226,7 +226,7 @@ void GetPromptFromId(Profile& profile,
           .SetUrl(GURL(extensions_features::kProdPromptEndpointUrlParam.Get()))
           .SetAuthType(endpoint_fetcher::AuthType::OAUTH)
           .SetOAuthConsumerId(signin::OAuthConsumerId::kGlicInvokeApi)
-          .SetContentType("application/x-protobuf")
+          .SetContentType("application/json")
           .SetConsentLevel(signin::ConsentLevel::kSignin)
           .SetPostData(post_data)
           .Build());
@@ -309,7 +309,7 @@ ExtensionFunction::ResponseAction GlicPrivateInvokeFunction::Run() {
             extensions::api::glic_private::ErrorCode::kLocalGlicNotEnabled));
       }
       source = glic::mojom::InvocationSource::kUniversalCart;
-      feature_mode = glic::mojom::FeatureMode::kBluedog;
+      feature_mode = glic::mojom::FeatureMode::kActuation;
       break;
     default:
       return RespondNow(GetPromptResponseValueAndLog(

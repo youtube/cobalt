@@ -12,6 +12,7 @@
 
 #include <cstdint>
 
+#include "api/environment/environment.h"
 #include "api/scoped_refptr.h"
 #include "rtc_base/system/rtc_export.h"
 
@@ -32,6 +33,7 @@
 #endif
 
 #include "modules/desktop_capture/full_screen_window_detector.h"
+#include "system_wrappers/include/clock.h"
 
 namespace webrtc {
 
@@ -43,14 +45,20 @@ class RTC_EXPORT DesktopCaptureOptions {
   // also initializes X window connection. x_display() will be set to null if
   // X11 connection failed (e.g. DISPLAY isn't set).
   static DesktopCaptureOptions CreateDefault();
+  static DesktopCaptureOptions CreateDefault(const Environment& env);
 
   DesktopCaptureOptions();
+  explicit DesktopCaptureOptions(const Environment& env);
   DesktopCaptureOptions(const DesktopCaptureOptions& options);
   DesktopCaptureOptions(DesktopCaptureOptions&& options);
   ~DesktopCaptureOptions();
 
   DesktopCaptureOptions& operator=(const DesktopCaptureOptions& options);
   DesktopCaptureOptions& operator=(DesktopCaptureOptions&& options);
+
+  Clock& clock() const {
+    return env_.has_value() ? env_->clock() : *Clock::GetRealTimeClock();
+  }
 
 #if defined(WEBRTC_USE_X11)
   const scoped_refptr<SharedXDisplay>& x_display() const { return x_display_; }
@@ -313,6 +321,7 @@ class RTC_EXPORT DesktopCaptureOptions {
   bool disable_effects_ = true;
   bool detect_updated_region_ = false;
   bool prefer_cursor_embedded_ = false;
+  std::optional<Environment> env_;
 #if defined(WEBRTC_USE_PIPEWIRE)
   bool allow_pipewire_ = false;
   bool pipewire_use_damage_region_ = true;

@@ -234,8 +234,8 @@ void Script::TraceScriptRundown() {
   if (IsString(this->name())) {
     value->SetString("url", Cast<String>(this->name())->ToCString().get());
   }
-  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"),
-               "ScriptCatchup", "data", std::move(value));
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"),
+              "ScriptCatchup", "data", std::move(value));
 }
 
 void Script::TraceScriptRundownSources() {
@@ -254,18 +254,16 @@ void Script::TraceScriptRundownSources() {
     value->SetInteger("scriptId", script_id);
     value->SetInteger("length", source_length);
     value->SetInteger("limit", kSourceMaxLength);
-    TRACE_EVENT1(
-        TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
-        "TooLargeScriptCatchup", "data", std::move(value));
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
+                "TooLargeScriptCatchup", "data", std::move(value));
   } else if (source_length <= kSplitMaxLength) {
     auto value = v8::tracing::TracedValue::Create();
     value->SetString("isolate", std::to_string(isolate->debug()->IsolateId()));
     value->SetInteger("scriptId", script_id);
     value->SetInteger("length", source_length);
     value->SetString("sourceText", source->ToCString().get());
-    TRACE_EVENT1(
-        TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
-        "ScriptCatchup", "data", std::move(value));
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
+                "ScriptCatchup", "data", std::move(value));
   } else {
     int32_t split_count = source_length / kSplitMaxLength + 1;
     std::unique_ptr<char[]> source_ptr = source->ToCString();
@@ -280,7 +278,7 @@ void Script::TraceScriptRundownSources() {
       split_trace_value->SetInteger("scriptId", script_id);
       split_trace_value->SetString(
           "sourceText", std::string(source_ptr.get() + begin, end - begin));
-      TRACE_EVENT1(
+      TRACE_EVENT(
           TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
           "LargeScriptCatchup", "data", std::move(split_trace_value));
     }

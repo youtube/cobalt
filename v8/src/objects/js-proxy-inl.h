@@ -16,7 +16,24 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-proxy-tq-inl.inc"
+Tagged<UnionOf<JSReceiver, Null>> JSProxy::target() const {
+  return target_.load();
+}
+void JSProxy::set_target(Tagged<UnionOf<JSReceiver, Null>> value,
+                         WriteBarrierMode mode) {
+  target_.store(this, value, mode);
+}
+
+Tagged<UnionOf<JSReceiver, Null>> JSProxy::handler() const {
+  return handler_.load();
+}
+void JSProxy::set_handler(Tagged<UnionOf<JSReceiver, Null>> value,
+                          WriteBarrierMode mode) {
+  handler_.store(this, value, mode);
+}
+
+int JSProxy::flags() const { return flags_; }
+void JSProxy::set_flags(int value) { flags_ = value; }
 
 bool JSProxy::is_revocable() const { return IsRevocableBit::decode(flags()); }
 

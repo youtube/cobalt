@@ -45,13 +45,7 @@ static int SewToInt(VSew sew) {
 }
 
 static VSew DecodeElementWidth(int opcode) {
-#ifdef DEBUG
-  // Check that the lane-size field was populated.
-  DCHECK_NE((LaneSizeField::decode(opcode) & 0x4), 0);
-  return static_cast<VSew>(LaneSizeField::decode(opcode) & 0x3);
-#else
-  return static_cast<VSew>(LaneSizeField::decode(opcode));
-#endif
+  return static_cast<VSew>((LaneSizeField::decode(opcode)));
 }
 
 // Adds RISC-V-specific methods to convert InstructionOperands.
@@ -185,8 +179,8 @@ class RiscvOperandConverter final : public InstructionOperandConverter {
 static void CheckRegisterConstraints(int opcode, RiscvOperandConverter& i,
                                      RiscvRegisterConstraint constraint) {
 #ifdef DEBUG
-  auto decoded =
-      static_cast<RiscvRegisterConstraint>(LaneSizeField::decode(opcode) >> 3);
+  RiscvRegisterConstraint decoded =
+      RiscvRegisterConstraintField::decode(opcode);
   DCHECK_EQ(constraint, decoded);
 #endif
   switch (constraint) {
@@ -1032,8 +1026,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchPrepareCallCFunction: {
 #ifdef V8_TARGET_ARCH_RISCV64
-      int const num_gp_parameters = ParamField::decode(instr->opcode());
-      int const num_fp_parameters = FPParamField::decode(instr->opcode());
+      uint32_t num_parameters = i.InputUint32(instr->InputCount() - 1);
+      int const num_gp_parameters = ParamField::decode(num_parameters);
+      int const num_fp_parameters = FPParamField::decode(num_parameters);
       __ PrepareCallCFunction(num_gp_parameters, num_fp_parameters,
                               kScratchReg);
 #else
@@ -3405,7 +3400,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register result = kSimd128ScratchReg;
       if (sew == E32) {
         // Working on 32-bit floats.
-        __ li(kScratchReg, 0x7FC00000);
+        __ li(kScratchReg, kFP32DefaultNaN);
         __ vmv_vx(result, kScratchReg);
       } else {
 #ifdef V8_TARGET_ARCH_RISCV32
@@ -3444,7 +3439,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register result = kSimd128ScratchReg;
       if (sew == E32) {
         // Working on 32-bit floats.
-        __ li(kScratchReg, 0x7FC00000);
+        __ li(kScratchReg, kFP32DefaultNaN);
         __ vmv_vx(result, kScratchReg);
       } else {
 #ifdef V8_TARGET_ARCH_RISCV32

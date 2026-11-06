@@ -125,6 +125,7 @@ class LogLineRef {
   Timestamp timestamp() const { return timestamp_; }
   absl::string_view tag() const { return tag_; }
   LoggingSeverity severity() const { return severity_; }
+  absl::string_view queue_name() const { return queue_name_; }
 
 #if RTC_LOG_ENABLED()
   std::string DefaultLogLine() const;
@@ -190,7 +191,7 @@ class LogSink {
 #if RTC_LOG_ENABLED()
   // Members for LogMessage class to keep linked list of the registered sinks.
   LogSink* next_ = nullptr;
-  LoggingSeverity min_severity_;
+  LoggingSeverity min_severity_ = LS_INFO;
 #endif
 };
 

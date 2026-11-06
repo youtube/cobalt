@@ -7,6 +7,7 @@
 #import <UIKit/UIKit.h>
 
 #import "base/notreached.h"
+#import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "ios/chrome/browser/authentication/fullscreen_signin_screen/coordinator/fullscreen_signin_screen_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/fullscreen_signin/coordinator/fullscreen_signin_coordinator_delegate.h"
@@ -126,8 +127,7 @@
   __weak __typeof(self) weakSelf = self;
   AuthenticationService* authService =
       AuthenticationServiceFactory::GetForProfile(self.profile);
-  id<SystemIdentity> identity =
-      authService->GetPrimaryIdentity(signin::ConsentLevel::kSignin);
+  id<SystemIdentity> identity = authService->GetPrimaryIdentity();
   void (^completion)(void) = ^{
     SigninCoordinatorResult result =
         identity ? SigninCoordinatorResultSuccess

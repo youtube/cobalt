@@ -202,9 +202,7 @@ void BandwidthSampler::OnPacketSent(
     last_acked_packet_sent_time_ = sent_time;
   }
 
-  if (!connection_state_map_.IsEmpty() &&
-      packet_number >
-          connection_state_map_.last_packet() + max_tracked_packets_) {
+  if (connection_state_map_.entry_slots_used() > max_tracked_packets_) {
     if (unacked_packet_map_ != nullptr && !unacked_packet_map_->empty()) {
       QuicPacketNumber maybe_least_unacked =
           unacked_packet_map_->GetLeastUnacked();

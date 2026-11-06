@@ -80,6 +80,12 @@ class QUICHE_EXPORT HpackDecoderAdapter {
   // Error code if an error has occurred, Error::kOk otherwise.
   http2::HpackDecodingError error() const { return error_; }
 
+  // Returns the current amount of uncompressed bytes processed during the
+  // decoding of the current HPACK block.
+  size_t current_header_block_uncompressed_bytes() const {
+    return listener_adapter_.current_header_block_uncompressed_bytes();
+  }
+
  private:
   class QUICHE_EXPORT ListenerAdapter : public http2::HpackDecoderListener {
    public:
@@ -100,6 +106,9 @@ class QUICHE_EXPORT HpackDecoderAdapter {
 
     void AddToTotalHpackBytes(size_t delta) { total_hpack_bytes_ += delta; }
     size_t total_hpack_bytes() const { return total_hpack_bytes_; }
+    size_t current_header_block_uncompressed_bytes() const {
+      return current_header_block_uncompressed_bytes_;
+    }
 
    private:
     NoOpHeadersHandler no_op_handler_;
@@ -112,7 +121,7 @@ class QUICHE_EXPORT HpackDecoderAdapter {
     size_t total_hpack_bytes_;
 
     // Total bytes of the name and value strings in the current HPACK block.
-    size_t total_uncompressed_bytes_;
+    size_t current_header_block_uncompressed_bytes_;
   };
 
   // Converts calls to HpackDecoderListener into calls to

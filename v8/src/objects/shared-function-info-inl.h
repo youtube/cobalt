@@ -138,52 +138,66 @@ void InterpreterData::clear_interpreter_trampoline() {
   interpreter_trampoline_.store(this, {}, SKIP_WRITE_BARRIER);
 }
 
-RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, name_or_scope_info,
-                          Tagged<NameOrScopeInfoT>, kNameOrScopeInfoOffset)
-RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, script, Tagged<HeapObject>,
-                          kScriptOffset)
-RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, raw_script, Tagged<Object>,
-                          kScriptOffset)
+Tagged<NameOrScopeInfoT> SharedFunctionInfo::name_or_scope_info(
+    AcquireLoadTag) const {
+  return name_or_scope_info_.Acquire_Load();
+}
+Tagged<NameOrScopeInfoT> SharedFunctionInfo::name_or_scope_info(
+    PtrComprCageBase, AcquireLoadTag tag) const {
+  return name_or_scope_info(tag);
+}
+void SharedFunctionInfo::set_name_or_scope_info(Tagged<NameOrScopeInfoT> value,
+                                                ReleaseStoreTag,
+                                                WriteBarrierMode mode) {
+  name_or_scope_info_.Release_Store(this, value, mode);
+}
+
+Tagged<HeapObject> SharedFunctionInfo::script(AcquireLoadTag) const {
+  return script_.Acquire_Load();
+}
+void SharedFunctionInfo::set_script(Tagged<HeapObject> value, ReleaseStoreTag,
+                                    WriteBarrierMode mode) {
+  script_.Release_Store(this, value, mode);
+}
+Tagged<Object> SharedFunctionInfo::raw_script(AcquireLoadTag) const {
+  return script_.Acquire_Load();
+}
+void SharedFunctionInfo::set_raw_script(Tagged<Object> value, ReleaseStoreTag,
+                                        WriteBarrierMode mode) {
+  script_.Release_Store(this, Cast<HeapObject>(value), mode);
+}
 
 void SharedFunctionInfo::SetTrustedData(Tagged<ExposedTrustedObject> value,
                                         WriteBarrierMode mode) {
-  WriteTrustedPointerField<kTrustedDataIndirectPointerRange>(
-      kTrustedFunctionDataOffset, value);
+  trusted_function_data_.Release_Store(this, value, mode);
 
   // Only one of trusted_function_data and untrusted_function_data can be in
-  // use, so clear the untrusted data field. Using -1 here as cleared data value
-  // allows HasBuiltinId to become quite simple, as it can just check if the
-  // untrusted data is a Smi containing a valid builtin ID.
+  // use, so clear the untrusted data field. Using -1 here as cleared data
+  // value allows HasBuiltinId to become quite simple, as it can just check if
+  // the untrusted data is a Smi containing a valid builtin ID.
   constexpr int kClearedUntrustedFunctionDataValue = -1;
   static_assert(!Builtins::IsBuiltinId(kClearedUntrustedFunctionDataValue));
-  TaggedField<Object, kUntrustedFunctionDataOffset>::Release_Store(
-      *this, Smi::FromInt(kClearedUntrustedFunctionDataValue));
-
-  CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(*this, kTrustedFunctionDataOffset,
-                                            kTrustedDataIndirectPointerRange,
-                                            value, mode);
+  untrusted_function_data_.Release_Store(
+      this, Smi::FromInt(kClearedUntrustedFunctionDataValue),
+      SKIP_WRITE_BARRIER);
 }
 
 void SharedFunctionInfo::SetUntrustedData(Tagged<Object> value,
                                           WriteBarrierMode mode) {
-  TaggedField<Object, kUntrustedFunctionDataOffset>::Release_Store(*this,
-                                                                   value);
+  untrusted_function_data_.Release_Store(this, value, mode);
 
   // Only one of trusted_function_data and untrusted_function_data can be in
   // use, so clear the trusted data field.
-  ClearTrustedPointerField(kTrustedFunctionDataOffset, kReleaseStore);
-
-  CONDITIONAL_WRITE_BARRIER(*this, kUntrustedFunctionDataOffset, value, mode);
+  trusted_function_data_.clear(this);
 }
 
 bool SharedFunctionInfo::HasTrustedData() const {
-  return !IsTrustedPointerFieldEmpty(kTrustedFunctionDataOffset);
+  return !trusted_function_data_.is_empty();
 }
 
 bool SharedFunctionInfo::HasUnpublishedTrustedData(
     IsolateForSandbox isolate) const {
-  return IsTrustedPointerFieldUnpublished(
-      kTrustedFunctionDataOffset, kTrustedDataIndirectPointerRange, isolate);
+  return trusted_function_data_.is_unpublished(isolate);
 }
 
 bool SharedFunctionInfo::HasUntrustedData() const { return !HasTrustedData(); }
@@ -191,36 +205,111 @@ bool SharedFunctionInfo::HasUntrustedData() const { return !HasTrustedData(); }
 template <typename T, IndirectPointerTagRange tag_range>
 Tagged<T> SharedFunctionInfo::GetTrustedData(IsolateForSandbox isolate) const {
   static_assert(tag_range != kAllIndirectPointerTags);
-  return HeapObject::ReadTrustedPointerField<tag_range>(
-      kTrustedFunctionDataOffset, isolate, kAcquireLoad);
+  return Cast<T>(
+      Tagged<HeapObject>(this)->template ReadTrustedPointerField<tag_range>(
+          kTrustedFunctionDataOffset, isolate, kAcquireLoad));
 }
 
 Tagged<Object> SharedFunctionInfo::GetUntrustedData() const {
-  return TaggedField<Object, kUntrustedFunctionDataOffset>::Acquire_Load(*this);
+  return untrusted_function_data_.Acquire_Load();
 }
 
 DEF_GETTER(SharedFunctionInfo, script, Tagged<HeapObject>) {
   return script(cage_base, kAcquireLoad);
 }
+Tagged<HeapObject> SharedFunctionInfo::script(PtrComprCageBase,
+                                              AcquireLoadTag tag) const {
+  return script(tag);
+}
 bool SharedFunctionInfo::has_script(AcquireLoadTag tag) const {
   return IsScript(script(tag));
 }
 
-RENAME_TORQUE_ACCESSORS(SharedFunctionInfo,
-                        raw_outer_scope_info_or_feedback_metadata,
-                        outer_scope_info_or_feedback_metadata,
-                        Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>)
-DEF_ACQUIRE_GETTER(SharedFunctionInfo,
-                   raw_outer_scope_info_or_feedback_metadata,
-                   Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>) {
-  return TaggedField<
-      UnionOf<ScopeInfo, FeedbackMetadata, TheHole>,
-      kOuterScopeInfoOrFeedbackMetadataOffset>::Acquire_Load(cage_base, *this);
+Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>
+SharedFunctionInfo::outer_scope_info_or_feedback_metadata() const {
+  return outer_scope_info_or_feedback_metadata_.load();
+}
+Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>
+SharedFunctionInfo::outer_scope_info_or_feedback_metadata(
+    PtrComprCageBase) const {
+  return outer_scope_info_or_feedback_metadata();
+}
+void SharedFunctionInfo::set_outer_scope_info_or_feedback_metadata(
+    Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>> value,
+    WriteBarrierMode mode) {
+  outer_scope_info_or_feedback_metadata_.store(this, value, mode);
+}
+
+Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>
+SharedFunctionInfo::raw_outer_scope_info_or_feedback_metadata() const {
+  return outer_scope_info_or_feedback_metadata();
+}
+Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>
+SharedFunctionInfo::raw_outer_scope_info_or_feedback_metadata(
+    PtrComprCageBase cage_base) const {
+  return outer_scope_info_or_feedback_metadata(cage_base);
+}
+void SharedFunctionInfo::set_raw_outer_scope_info_or_feedback_metadata(
+    Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>> value,
+    WriteBarrierMode mode) {
+  set_outer_scope_info_or_feedback_metadata(value, mode);
+}
+Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>
+SharedFunctionInfo::raw_outer_scope_info_or_feedback_metadata(
+    AcquireLoadTag) const {
+  return outer_scope_info_or_feedback_metadata_.Acquire_Load();
+}
+Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>
+SharedFunctionInfo::raw_outer_scope_info_or_feedback_metadata(
+    PtrComprCageBase cage_base, AcquireLoadTag tag) const {
+  return raw_outer_scope_info_or_feedback_metadata(tag);
+}
+
+Tagged<Object> SharedFunctionInfo::untrusted_function_data() const {
+  return untrusted_function_data_.load();
+}
+Tagged<Object> SharedFunctionInfo::untrusted_function_data(
+    PtrComprCageBase) const {
+  return untrusted_function_data();
+}
+void SharedFunctionInfo::set_untrusted_function_data(Tagged<Object> value,
+                                                     WriteBarrierMode mode) {
+  untrusted_function_data_.store(this, value, mode);
+}
+
+// Primitive header accessors.
+uint16_t SharedFunctionInfo::length() const { return length_; }
+void SharedFunctionInfo::set_length(uint16_t value) { length_ = value; }
+uint16_t SharedFunctionInfo::formal_parameter_count() const {
+  return formal_parameter_count_;
+}
+void SharedFunctionInfo::set_formal_parameter_count(uint16_t value) {
+  formal_parameter_count_ = value;
+}
+uint16_t SharedFunctionInfo::function_token_offset() const {
+  return function_token_offset_;
+}
+void SharedFunctionInfo::set_function_token_offset(uint16_t value) {
+  function_token_offset_ = value;
+}
+uint8_t SharedFunctionInfo::expected_nof_properties() const {
+  return expected_nof_properties_;
+}
+void SharedFunctionInfo::set_expected_nof_properties(uint8_t value) {
+  expected_nof_properties_ = value;
+}
+int32_t SharedFunctionInfo::unique_id() const { return unique_id_; }
+void SharedFunctionInfo::set_unique_id(int32_t value) { unique_id_ = value; }
+uint16_t SharedFunctionInfo::feedback_slot() const {
+  return feedback_slot_.load(std::memory_order_relaxed);
+}
+void SharedFunctionInfo::set_feedback_slot(uint16_t value) {
+  feedback_slot_.store(value, std::memory_order_relaxed);
 }
 
 uint16_t SharedFunctionInfo::internal_formal_parameter_count_with_receiver()
     const {
-  const uint16_t param_count = TorqueGeneratedClass::formal_parameter_count();
+  const uint16_t param_count = formal_parameter_count();
   return param_count;
 }
 
@@ -241,7 +330,7 @@ bool SharedFunctionInfo::CanOnlyAccessFixedFormalParameters() const {
 
 uint16_t SharedFunctionInfo::internal_formal_parameter_count_without_receiver()
     const {
-  const uint16_t param_count = TorqueGeneratedClass::formal_parameter_count();
+  const uint16_t param_count = formal_parameter_count();
   if (param_count == kDontAdaptArgumentsSentinel) return param_count;
   return param_count - kJSArgcReceiverSlots;
 }
@@ -249,15 +338,29 @@ uint16_t SharedFunctionInfo::internal_formal_parameter_count_without_receiver()
 void SharedFunctionInfo::set_internal_formal_parameter_count(int value) {
   DCHECK_EQ(value, static_cast<uint16_t>(value));
   DCHECK_GE(value, kJSArgcReceiverSlots);
-  TorqueGeneratedClass::set_formal_parameter_count(value);
+  set_formal_parameter_count(value);
 }
 
-RENAME_PRIMITIVE_TORQUE_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
-                                  function_token_offset, uint16_t)
+uint16_t SharedFunctionInfo::raw_function_token_offset() const {
+  return function_token_offset();
+}
+void SharedFunctionInfo::set_raw_function_token_offset(uint16_t value) {
+  set_function_token_offset(value);
+}
 
-RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
-RELAXED_INT32_ACCESSORS(SharedFunctionInfo, function_literal_id,
-                        kFunctionLiteralIdOffset)
+int32_t SharedFunctionInfo::flags(RelaxedLoadTag) const {
+  return static_cast<int32_t>(flags_.load(std::memory_order_relaxed));
+}
+void SharedFunctionInfo::set_flags(int32_t value, RelaxedStoreTag) {
+  flags_.store(static_cast<uint32_t>(value), std::memory_order_relaxed);
+}
+int32_t SharedFunctionInfo::function_literal_id(RelaxedLoadTag) const {
+  return function_literal_id_.load(std::memory_order_relaxed);
+}
+void SharedFunctionInfo::set_function_literal_id(int32_t value,
+                                                 RelaxedStoreTag) {
+  function_literal_id_.store(value, std::memory_order_relaxed);
+}
 int32_t SharedFunctionInfo::relaxed_flags() const {
   return flags(kRelaxedLoad);
 }
@@ -265,7 +368,8 @@ void SharedFunctionInfo::set_relaxed_flags(int32_t flags) {
   return set_flags(flags, kRelaxedStore);
 }
 
-UINT8_ACCESSORS(SharedFunctionInfo, flags2, kFlags2Offset)
+uint8_t SharedFunctionInfo::flags2() const { return flags2_; }
+void SharedFunctionInfo::set_flags2(uint8_t value) { flags2_ = value; }
 
 bool SharedFunctionInfo::HasSharedName() const {
   Tagged<Object> value = name_or_scope_info(kAcquireLoad);
@@ -507,18 +611,18 @@ void SharedFunctionInfo::CalculateConstructAsBuiltin() {
 }
 
 uint16_t SharedFunctionInfo::age() const {
-  return RELAXED_READ_UINT16_FIELD(*this, kAgeOffset);
+  return age_.load(std::memory_order_relaxed);
 }
 
 void SharedFunctionInfo::set_age(uint16_t value) {
-  RELAXED_WRITE_UINT16_FIELD(*this, kAgeOffset, value);
+  age_.store(value, std::memory_order_relaxed);
 }
 
 uint16_t SharedFunctionInfo::CompareExchangeAge(uint16_t expected_age,
                                                 uint16_t new_age) {
-  Address age_addr = address() + kAgeOffset;
-  return base::AsAtomic16::Relaxed_CompareAndSwap(
-      reinterpret_cast<base::Atomic16*>(age_addr), expected_age, new_age);
+  age_.compare_exchange_strong(expected_age, new_age,
+                               std::memory_order_relaxed);
+  return expected_age;
 }
 
 int SharedFunctionInfo::function_map_index() const {
@@ -566,7 +670,7 @@ void SharedFunctionInfo::DontAdaptArguments() {
       }
     }
   }
-  TorqueGeneratedClass::set_formal_parameter_count(kDontAdaptArgumentsSentinel);
+  set_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 
 DEF_ACQUIRE_GETTER(SharedFunctionInfo, scope_info, Tagged<ScopeInfo>) {
@@ -620,8 +724,7 @@ void SharedFunctionInfo::SetScopeInfo(Tagged<ScopeInfo> scope_info,
 
 void SharedFunctionInfo::set_raw_scope_info(Tagged<ScopeInfo> scope_info,
                                             WriteBarrierMode mode) {
-  WRITE_FIELD(*this, kNameOrScopeInfoOffset, scope_info);
-  CONDITIONAL_WRITE_BARRIER(*this, kNameOrScopeInfoOffset, scope_info, mode);
+  name_or_scope_info_.store(this, scope_info, mode);
 }
 
 DEF_GETTER(SharedFunctionInfo, outer_scope_info,
@@ -681,12 +784,24 @@ DEF_GETTER(SharedFunctionInfo, feedback_metadata, Tagged<FeedbackMetadata>) {
       raw_outer_scope_info_or_feedback_metadata(cage_base));
 }
 
-RELEASE_ACQUIRE_ACCESSORS_CHECKED2(SharedFunctionInfo, feedback_metadata,
-                                   Tagged<FeedbackMetadata>,
-                                   kOuterScopeInfoOrFeedbackMetadataOffset,
-                                   HasFeedbackMetadata(kAcquireLoad),
-                                   !HasFeedbackMetadata(kAcquireLoad) &&
-                                       IsFeedbackMetadata(value))
+Tagged<FeedbackMetadata> SharedFunctionInfo::feedback_metadata(
+    AcquireLoadTag) const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return feedback_metadata(cage_base, kAcquireLoad);
+}
+Tagged<FeedbackMetadata> SharedFunctionInfo::feedback_metadata(
+    PtrComprCageBase cage_base, AcquireLoadTag) const {
+  Tagged<FeedbackMetadata> value = Cast<FeedbackMetadata>(
+      outer_scope_info_or_feedback_metadata_.Acquire_Load());
+  DCHECK(HasFeedbackMetadata(kAcquireLoad));
+  return value;
+}
+void SharedFunctionInfo::set_feedback_metadata(Tagged<FeedbackMetadata> value,
+                                               ReleaseStoreTag,
+                                               WriteBarrierMode mode) {
+  DCHECK(!HasFeedbackMetadata(kAcquireLoad) && IsFeedbackMetadata(value));
+  outer_scope_info_or_feedback_metadata_.Release_Store(this, value, mode);
+}
 
 bool SharedFunctionInfo::is_compiled() const {
   return GetUntrustedData() != Smi::FromEnum(Builtin::kCompileLazy) &&
@@ -967,11 +1082,6 @@ bool SharedFunctionInfo::HasWasmExportedFunctionData(
   return IsWasmExportedFunctionData(GetTrustedData(isolate));
 }
 
-bool SharedFunctionInfo::HasWasmJSFunctionData(
-    IsolateForSandbox isolate) const {
-  return IsWasmJSFunctionData(GetTrustedData(isolate));
-}
-
 bool SharedFunctionInfo::HasWasmCapiFunctionData(
     IsolateForSandbox isolate) const {
   return IsWasmCapiFunctionData(GetTrustedData(isolate));
@@ -1008,14 +1118,6 @@ DEF_GETTER(SharedFunctionInfo, wasm_exported_function_data,
   DCHECK(HasWasmExportedFunctionData(isolate));
   return GetTrustedData<WasmExportedFunctionData,
                         kWasmExportedFunctionDataIndirectPointerTag>(isolate);
-}
-
-DEF_GETTER(SharedFunctionInfo, wasm_js_function_data,
-           Tagged<WasmJSFunctionData>) {
-  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
-  DCHECK(HasWasmJSFunctionData(isolate));
-  return GetTrustedData<WasmJSFunctionData,
-                        kWasmJSFunctionDataIndirectPointerTag>(isolate);
 }
 
 DEF_GETTER(SharedFunctionInfo, wasm_capi_function_data,
@@ -1217,8 +1319,13 @@ bool SharedFunctionInfo::are_properties_final() const {
   return bit && is_class_constructor();
 }
 
-ACCESSORS(SharedFunctionInfoWrapper, shared_info, Tagged<SharedFunctionInfo>,
-          kSharedInfoOffset)
+Tagged<SharedFunctionInfo> SharedFunctionInfoWrapper::shared_info() const {
+  return shared_info_.load();
+}
+void SharedFunctionInfoWrapper::set_shared_info(
+    Tagged<SharedFunctionInfo> value, WriteBarrierMode mode) {
+  shared_info_.store(this, value, mode);
+}
 
 }  // namespace v8::internal
 

@@ -54,6 +54,12 @@ const char kAppBackgroundRefreshDescription[] =
     "Schedules app background refresh after some minimum period of time has "
     "passed after the last refresh.";
 
+const char kAppStoreInAppEventsName[] = "App Store In-App Events";
+const char kAppStoreInAppEventsDescription[] =
+    "Enables a user to tap the promo within the iOS App Store and invoke the "
+    "Gemini FRE after navigating to a Gemini related web page through an "
+    "external action.";
+
 const char kAppleCalendarExperienceKitName[] = "Experience Kit Apple Calendar";
 const char kAppleCalendarExperienceKitDescription[] =
     "When enabled, long pressing on dates will trigger Experience Kit Apple "
@@ -71,9 +77,15 @@ const char kAskAboutThisPageDescription[] =
 const char kAskGeminiChipName[] = "Ask Gemini Chip";
 const char kAskGeminiChipDescription[] = "Enables the Ask Gemini Chip feature.";
 
+const char kAssistantAimMinimizedStateName[] = "AssistantAimMinimizedState";
+const char kAssistantAimMinimizedStateDescription[] =
+    "When enabled, the Assistant AIM (Co-browse) interface initially appears "
+    "in a minimized state instead of the default medium state.";
+
 const char kAssistantContainerName[] = "Assistant Container";
 const char kAssistantContainerDescription[] =
-    "Enables the Assistant Container feature.";
+    "Enables the Assistant Container feature. The debug parameter enables "
+    "debug elements and forces AIM eligibility.";
 
 const char kAssistantSidePanelName[] = "AssistantSidePanel";
 const char kAssistantSidePanelDescription[] =
@@ -83,6 +95,11 @@ const char kAutofillAcrossIframesName[] = "Enables Autofill across iframes";
 const char kAutofillAcrossIframesDescription[] =
     "When enabled, Autofill will fill and save information on forms that "
     "spread across multiple iframes.";
+
+const char kAutofillAiAvailableByDefaultName[] =
+    "Autofill AI available by default";
+const char kAutofillAiAvailableByDefaultDescription[] =
+    "Makes Autofill AI available by default.";
 
 const char kAutofillAiCreateEntityDataManagerName[] =
     "Autofill AI Create Entity Data Manager";
@@ -111,6 +128,12 @@ const char kAutofillAiWalletFlightReservationName[] =
 const char kAutofillAiWalletFlightReservationDescription[] =
     "Enables Autofill AI support for flight reservation entities from Google "
     "Wallet.";
+
+const char kAutofillAiWalletPrivatePassesDeepLinkName[] =
+    "Autofill AI Google Wallet private passes deep link";
+const char kAutofillAiWalletPrivatePassesDeepLinkDescription[] =
+    "Enables Autofill AI support for deep linking to private passes from "
+    "Google Wallet.";
 
 const char kAutofillAiWalletPrivatePassesName[] =
     "Autofill AI Google Wallet private passes";
@@ -404,6 +427,11 @@ const char kComposeboxImmersiveSRPDescription[] =
 const char kComposeboxIpadName[] = "ComposeboxIpad";
 const char kComposeboxIpadDescription[] = "Enables the composeboxIpad feature.";
 
+const char kComposeboxPlusButtonBottomSheetName[] =
+    "Enable the bottom sheet for plus button in Composebox";
+const char kComposeboxPlusButtonBottomSheetDescription[] =
+    "Uses the updated bottom sheet for the plus button multimodal menu.";
+
 const char kComposeboxServerSideStateName[] =
     "Enable server side state in Composebox";
 extern const char kComposeboxServerSideStateDescription[] =
@@ -453,6 +481,10 @@ const char kCredentialProviderPerformanceImprovementsName[] =
 const char kCredentialProviderPerformanceImprovementsDescription[] =
     "Enables a series of performance improvements for the Credential Provider "
     "Extension.";
+
+const char kCrossDeviceSigninName[] = "Cross-Device Sign-in";
+const char kCrossDeviceSigninDescription[] =
+    "Guards the logic to start sign-in from a given QR Code.";
 
 const char kDataSharingDebugLogsName[] = "Enable data sharing debug logs";
 const char kDataSharingDebugLogsDescription[] =
@@ -879,6 +911,12 @@ const char kIOSKeyboardAccessoryTwoBubbleDescription[] =
     "When enabled, the two-bubble design is used for the Keyboard Accessory "
     "view.";
 
+const char kIOSMiniMapUniversalLinkName[] =
+    "Open Maps Universal links in native view.";
+const char kIOSMiniMapUniversalLinkDescription[] =
+    "When enabled, maps universal links on Google Page are opened in "
+    "native views (under conditions).";
+
 const char kIOSOmniboxAimServerEligibilityEnName[] =
     "AIM Server Eligibility EN locales";
 const char kIOSOmniboxAimServerEligibilityEnDescription[] =
@@ -1023,6 +1061,10 @@ const char kLensExactMatchesEnabledDescription[] =
 
 const char kLensFetchSrpApiEnabledName[] = "Lens fetch SRP API enabled";
 const char kLensFetchSrpApiEnabledDescription[] = "Enables the fetch SRP API.";
+
+const char kLensFilterToggleEnabledName[] = "Lens filter toggle enabled";
+const char kLensFilterToggleEnabledDescription[] =
+    "Enables the filter toggle in Lens camera.";
 
 const char kLensFiltersAblationModeEnabledName[] =
     "Lens filters ablation mode enabled";
@@ -1192,6 +1234,12 @@ const char kNTPBackgroundDownsampleImageDescription[] =
     "Downsamples user-uploaded NTP background images to screen size, "
     "reducing memory usage.";
 
+const char kNTPHeaderUseTransformsForAnimationsName[] =
+    "NTP Header Transform Animations";
+const char kNTPHeaderUseTransformsForAnimationsDescription[] =
+    "Use high-performance transforms for NTP header animations instead of "
+    "updating constraints on scroll.";
+
 const char kNativeFindInPageName[] = "Native Find in Page";
 const char kNativeFindInPageDescription[] =
     "When enabled, the JavaScript implementation of the Find in Page feature "
@@ -1203,6 +1251,12 @@ const char kNewTabPageFieldTrialName[] =
 const char kNewTabPageFieldTrialDescription[] =
     "Enables new tab page features that are available on first run for new "
     "Chrome iOS users.";
+
+const char kNoAccountWebSigninName[] =
+    "Enable no account web sigin bottom sheet";
+const char kNoAccountWebSigninDescription[] =
+    "Surfaces the web sign in bottom sheet when the user attempts to sign in "
+    "to the web.";
 
 const char kNonModalSignInPromoName[] = "Non-modal sign-in promo";
 const char kNonModalSignInPromoDescription[] =
@@ -1580,11 +1634,6 @@ const char kSharedHighlightingIOSDescription[] =
     "Adds a Link to Text option in the Edit Menu which generates URLs with a "
     "text fragment.";
 
-const char kShopCardImpressionLimitsName[] =
-    "Enables ShopCard Impression limits";
-const char kShopCardImpressionLimitsDescription[] =
-    "Limits the number of times ShopCards can be shown in the Magic Stack";
-
 const char kShopCardName[] = "Enables Tab Resumption ShopCard";
 const char kShopCardDescription[] =
     "Enables being able to show Tab Resumption ShopCard in the Magic Stack";
@@ -1721,12 +1770,6 @@ const char kTabGroupInOverflowMenuName[] =
 const char kTabGroupInOverflowMenuDescription[] =
     "When enabled, a Tab Group button will appear in the overflow menu.";
 
-const char kTabGroupInTabIconContextMenuName[] =
-    "Enable the Tab Group button in the tab grid icon context menu";
-const char kTabGroupInTabIconContextMenuDescription[] =
-    "When enabled, a Tab Group button will appear in the tab grid icon context "
-    "menu.";
-
 const char kTabGroupIndicatorName[] = "Tab Group Indicator";
 const char kTabGroupIndicatorDescription[] =
     "When enabled, displays a tab group indicator next to the omnibox.";
@@ -1735,12 +1778,6 @@ const char kTabGroupSyncName[] = "Enable Tab Group Sync";
 const char kTabGroupSyncDescription[] =
     "When enabled, tab groups are synced between syncing devices. Requires "
     "#tab-groups-on-ipad to also be enabled on iPad.";
-
-const char kTabRecallNewTabGroupButtonName[] =
-    "Enable the New Tab Group Button on the Tab Group recall surface.";
-const char kTabRecallNewTabGroupButtonDescription[] =
-    "When enabled, a New Tab Group Button will appear on the Tab Group recall "
-    "surface.";
 
 const char kTabResumptionImagesName[] = "Enable Tab Resumption images";
 const char kTabResumptionImagesDescription[] =
@@ -1802,6 +1839,10 @@ const char kWaitThresholdMillisecondsForCapabilitiesApiName[] =
     "Capabilities API";
 const char kWaitThresholdMillisecondsForCapabilitiesApiDescription[] =
     "Used for testing purposes to test waiting thresholds in dev.";
+
+const char kWalletApiPrivatePassesEnabledName[] = "Wallet API Private Passes";
+const char kWalletApiPrivatePassesEnabledDescription[] =
+    "Enables the Wallet API for private passes.";
 
 const char kWalletServiceUseSandboxName[] = "Use Google Payments sandbox";
 const char kWalletServiceUseSandboxDescription[] =

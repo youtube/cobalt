@@ -285,14 +285,25 @@ class ValueNumberingReducer : public Next {
 
   template <class Op>
   bool CanGVN(const Op& op) {
-    if (std::is_same_v<Op, PendingLoopPhiOp>) {
+    if constexpr (std::is_same_v<Op, PendingLoopPhiOp>) {
       // Cannot GVN PendingLoopPhis because we are missing the backedge input.
       return false;
     }
     if (op.IsBlockTerminator()) return false;
-    if (std::is_same_v<Op, DeoptimizeIfOp>) {
+    if constexpr (std::is_same_v<Op, DeoptimizeIfOp>) {
       // GVNing DeoptimizeIf even though its effect would otherwise prevent it.
       return true;
+    }
+    if constexpr (std::is_same_v<Op, LoadOp>) {
+      if (v8_flags.turbolev && !op.index().valid() &&
+          op.offset == HeapObject::kMapOffset) {
+        // We don't GVN loads at offset kMapOffset, because they could be string
+        // maps loads, which can get invalidated on GCs and we don't increment
+        // {current_epoch_} on operations that can_allocate but only on those
+        // that can_write. Note that this is only an issue for Turbolev, since
+        // Turbofan doesn't really care about string maps that much.
+        return false;
+      }
     }
     return CanGVN(op.Effects());
   }

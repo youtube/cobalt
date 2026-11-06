@@ -21,17 +21,16 @@
 
 namespace webrtc {
 SubbandNearendDetector::SubbandNearendDetector(
-    const EchoCanceller3Config::Suppressor::SubbandNearendDetection& config,
+    const EchoCanceller3Config::Suppressor& config,
     size_t num_capture_channels)
-    : config_(config),
-      num_capture_channels_(num_capture_channels),
-      nearend_smoothers_(num_capture_channels_,
-                         MovingAverageSpectrum(kFftLengthBy2Plus1,
-                                               config_.nearend_average_blocks)),
-      one_over_subband_length1_(
-          1.f / (config_.subband1.high - config_.subband1.low + 1)),
-      one_over_subband_length2_(
-          1.f / (config_.subband2.high - config_.subband2.low + 1)) {}
+    : num_capture_channels_(num_capture_channels),
+      nearend_smoothers_(
+          num_capture_channels_,
+          MovingAverageSpectrum(
+              kFftLengthBy2Plus1,
+              config.subband_nearend_detection.nearend_average_blocks)) {
+  SetConfig(config);
+}
 
 void SubbandNearendDetector::Update(
     std::span<const std::array<float, kFftLengthBy2Plus1>> nearend_spectrum,

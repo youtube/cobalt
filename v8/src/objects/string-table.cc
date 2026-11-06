@@ -406,6 +406,23 @@ DirectHandle<InternalizedString> StringTable::LookupString(
 }
 
 template <typename StringTableKey, typename IsolateT>
+std::optional<DirectHandle<InternalizedString>> StringTable::TryLookupKey(
+    IsolateT* isolate, StringTableKey* key) {
+  // See LookupKey for the concurrency safety argument.
+  Data* const current_data = data_.load(std::memory_order_acquire);
+  OffHeapStringHashSet& current_table = current_data->table();
+  InternalIndex entry = current_table.FindEntry(isolate, key, key->hash());
+  if (entry.is_not_found()) return std::nullopt;
+  return direct_handle(
+      Cast<InternalizedString>(current_table.GetKey(isolate, entry)), isolate);
+}
+
+template std::optional<DirectHandle<InternalizedString>>
+StringTable::TryLookupKey(Isolate* isolate, OneByteStringKey* key);
+template std::optional<DirectHandle<InternalizedString>>
+StringTable::TryLookupKey(Isolate* isolate, SeqOneByteSubStringKey* key);
+
+template <typename StringTableKey, typename IsolateT>
 DirectHandle<InternalizedString> StringTable::LookupKey(IsolateT* isolate,
                                                         StringTableKey* key) {
   // String table lookups are allowed to be concurrent, assuming that:
@@ -442,24 +459,16 @@ DirectHandle<InternalizedString> StringTable::LookupKey(IsolateT* isolate,
   // allocation if another write also did an allocation. This assumes that
   // writes are rarer than reads.
 
-  // Load the current string table data, in case another thread updates the
-  // data while we're reading.
-  Data* const current_data = data_.load(std::memory_order_acquire);
-  OffHeapStringHashSet& current_table = current_data->table();
-
   // First try to find the string in the table. This is safe to do even if the
   // table is now reallocated; we won't find a stale entry in the old table
   // because the new table won't delete it's corresponding entry until the
   // string is dead, in which case it will die in this table too and worst
   // case we'll have a false miss.
-  InternalIndex entry = current_table.FindEntry(isolate, key, key->hash());
-  if (entry.is_found()) {
-    DirectHandle<InternalizedString> result(
-        Cast<InternalizedString>(current_table.GetKey(isolate, entry)),
-        isolate);
+  auto result = TryLookupKey(isolate, key);
+  if (result) {
     DCHECK_IMPLIES(v8_flags.shared_string_table,
-                   HeapLayout::InAnySharedSpace(*result));
-    return result;
+                   HeapLayout::InAnySharedSpace(*result.value()));
+    return result.value();
   }
 
   // No entry found, so adding new string.
@@ -482,7 +491,8 @@ DirectHandle<InternalizedString> StringTable::LookupKey(IsolateT* isolate,
 
     // Check one last time if the key is present in the table, in case it was
     // added after the check.
-    entry = table.FindEntryOrInsertionEntry(isolate, key, key->hash());
+    InternalIndex entry =
+        table.FindEntryOrInsertionEntry(isolate, key, key->hash());
 
     Tagged<Object> element = table.GetKey(isolate, entry);
     if (element == OffHeapStringHashSet::empty_element()) {

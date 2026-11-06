@@ -18,12 +18,14 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_test.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
+#include "chrome/browser/ui/web_modal/browser_window_modal_dialog_delegate.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
 #include "chrome/browser/web_applications/test/os_integration_test_override_impl.h"
@@ -180,7 +182,7 @@ void FullscreenControllerInteractiveTest::ToggleTabFullscreen(
 // and some flakiness has occurred when calling |ToggleTabFullscreen|, so that
 // method has been made robust by retrying if the transition fails.
 // The root cause of that flakiness should still be tracked down, see
-// http://crbug.com/133831. In the mean time, this method
+// http://crbug.com/40229557. In the mean time, this method
 // allows a fullscreen_controller_interactive_browsertest.cc test to verify
 // that when running serially there is no flakiness in the transition.
 void FullscreenControllerInteractiveTest::ToggleTabFullscreenNoRetries(
@@ -228,7 +230,7 @@ void FullscreenControllerInteractiveTest::ToggleTabFullscreen_Internal(
 IN_PROC_BROWSER_TEST_F(FullscreenControllerInteractiveTest,
                        TestNewTabExitsFullscreen) {
 #if BUILDFLAG(IS_LINUX) && BUILDFLAG(IS_OZONE)
-  // Flaky in Linux interactive_ui_tests_wayland: crbug.com/1200036
+  // Flaky in Linux interactive_ui_tests_wayland: crbug.com/40761568
   if (ui::OzonePlatform::RunningOnWaylandForTest()) {
     GTEST_SKIP();
   }
@@ -345,7 +347,7 @@ IN_PROC_BROWSER_TEST_F(FullscreenControllerInteractiveTest,
   ASSERT_FALSE(browser()->window()->IsFullscreen());
 }
 
-// Test is flaky on all platforms: https://crbug.com/1234337
+// Test is flaky on all platforms: https://crbug.com/40781433
 // Tests fullscreen is exited when navigating back.
 IN_PROC_BROWSER_TEST_F(FullscreenControllerInteractiveTest,
                        DISABLED_TestTabExitsFullscreenOnGoBack) {
@@ -377,7 +379,7 @@ IN_PROC_BROWSER_TEST_F(FullscreenControllerInteractiveTest,
   ASSERT_TRUE(IsWindowFullscreenForTabOrPending());
 }
 
-// Test is flaky on all platforms: https://crbug.com/1234337
+// Test is flaky on all platforms: https://crbug.com/40781433
 // Tests tab fullscreen exits, but browser fullscreen remains, on navigation.
 IN_PROC_BROWSER_TEST_F(
     FullscreenControllerInteractiveTest,
@@ -522,11 +524,11 @@ IN_PROC_BROWSER_TEST_F(FullscreenControllerInteractiveTest,
   ASSERT_TRUE(IsWindowFullscreenForTabOrPending());
 }
 
-// Disabled on all due to issue with code under test: http://crbug.com/1255610.
+// Disabled on all due to issue with code under test: http://crbug.com/40795016.
 //
 // Was also disabled on platforms before:
-// Times out sometimes on Linux. http://crbug.com/135115
-// Mac: http://crbug.com/103912
+// Times out sometimes on Linux. http://crbug.com/40234381
+// Mac: http://crbug.com/40113467
 // Tests pointer lock then fullscreen in same request.
 IN_PROC_BROWSER_TEST_F(FullscreenControllerInteractiveTest,
                        DISABLED_PointerLockAndFullscreen) {
@@ -623,7 +625,7 @@ IN_PROC_BROWSER_TEST_F(FullscreenControllerInteractiveTest,
 
 // Tests pointer lock is exited on page navigation.
 #if BUILDFLAG(IS_LINUX) && defined(USE_AURA)
-// https://crbug.com/1191964
+// https://crbug.com/40756957
 #define MAYBE_TestTabExitsPointerLockOnNavigation \
   DISABLED_TestTabExitsPointerLockOnNavigation
 #else
@@ -650,7 +652,7 @@ IN_PROC_BROWSER_TEST_F(FullscreenControllerInteractiveTest,
 
 // Tests pointer lock is exited when navigating back.
 #if BUILDFLAG(IS_LINUX) && defined(USE_AURA)
-// https://crbug.com/1192097
+// https://crbug.com/40757042
 #define MAYBE_TestTabExitsPointerLockOnGoBack \
   DISABLED_TestTabExitsPointerLockOnGoBack
 #else
@@ -679,8 +681,8 @@ IN_PROC_BROWSER_TEST_F(FullscreenControllerInteractiveTest,
 
 #if BUILDFLAG(IS_LINUX) && defined(USE_AURA) || \
     BUILDFLAG(IS_WIN) && defined(NDEBUG)
-// TODO(erg): linux_aura bringup: http://crbug.com/163931
-// Test is flaky on Windows: https://crbug.com/1124492
+// TODO(erg): linux_aura bringup: http://crbug.com/40295645
+// Test is flaky on Windows: https://crbug.com/40717280
 #define MAYBE_TestTabDoesntExitPointerLockOnSubFrameNavigation \
   DISABLED_TestTabDoesntExitPointerLockOnSubFrameNavigation
 #else
@@ -869,11 +871,11 @@ IN_PROC_BROWSER_TEST_F(FullscreenControllerInteractiveTest,
 
   // Open a popup, which is activated. The opener exits fullscreen to mitigate
   // usable security concerns. See WebContents::ForSecurityDropFullscreen().
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
   WebContents* tab = browser()->tab_strip_model()->GetActiveWebContents();
   content::ExecuteScriptAsync(tab, "open('.', '', 'popup')");
   BrowserWindowInterface* const popup = ui_test_utils::WaitForBrowserToOpen();
-  EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
   ui_test_utils::BrowserActivationWaiter(popup).WaitForActivation();
   EXPECT_TRUE(ui_test_utils::IsBrowserActive(popup));
   ASSERT_FALSE(IsWindowFullscreenForTabOrPending());
@@ -887,8 +889,8 @@ IN_PROC_BROWSER_TEST_F(FullscreenControllerInteractiveTest,
   // Blocking the tab for a modal dialog exits fullscreen.
   WebContents* tab = browser()->tab_strip_model()->GetActiveWebContents();
   ui_test_utils::FullscreenWaiter waiter(browser(), {.tab_fullscreen = false});
-  static_cast<web_modal::WebContentsModalDialogManagerDelegate*>(browser())
-      ->SetWebContentsBlocked(tab, true);
+  BrowserWindowModalDialogDelegate::From(browser())->SetWebContentsBlocked(
+      tab, true);
   waiter.Wait();
   EXPECT_FALSE(IsWindowFullscreenForTabOrPending());
 }
@@ -939,12 +941,12 @@ IN_PROC_BROWSER_TEST_F(FullscreenControllerInteractiveTest,
   EXPECT_TRUE(tab->IsFullscreen());
 
   // Open a popup, which is activated. The opener remains fullscreen-within-tab.
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
   content::ExecuteScriptAsync(tab, "open('.', '', 'popup')");
   BrowserWindowInterface* const popup = ui_test_utils::WaitForBrowserToOpen();
   ASSERT_TRUE(popup);
   ui_test_utils::WaitUntilBrowserBecomeActive(popup);
-  EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
   EXPECT_EQ(tab->GetDelegate()->GetFullscreenState(tab).target_mode,
             content::FullscreenMode::kPseudoContent);
 }
@@ -964,8 +966,8 @@ IN_PROC_BROWSER_TEST_F(FullscreenControllerInteractiveTest,
   EXPECT_TRUE(tab->IsFullscreen());
 
   // Blocking the tab for a modal dialog does not exit fullscreen-within-tab.
-  static_cast<web_modal::WebContentsModalDialogManagerDelegate*>(browser())
-      ->SetWebContentsBlocked(tab, true);
+  BrowserWindowModalDialogDelegate::From(browser())->SetWebContentsBlocked(
+      tab, true);
   EXPECT_EQ(tab->GetDelegate()->GetFullscreenState(tab).target_mode,
             content::FullscreenMode::kPseudoContent);
 }
@@ -1256,8 +1258,8 @@ IN_PROC_BROWSER_TEST_P(AutomaticFullscreenTest, BlockingContentsDoesNotExit) {
   // Blocking the tab for a modal dialog does not exit fullscreen if the origin
   // has been granted the automatic fullscreen content setting.
   Browser* browser = chrome::FindBrowserWithTab(web_contents_);
-  static_cast<web_modal::WebContentsModalDialogManagerDelegate*>(browser)
-      ->SetWebContentsBlocked(web_contents_, true);
+  BrowserWindowModalDialogDelegate::From(browser)->SetWebContentsBlocked(
+      web_contents_, true);
   EXPECT_TRUE(web_contents_->IsFullscreen());
 }
 
@@ -1844,7 +1846,7 @@ IN_PROC_BROWSER_TEST_F(MAYBE_MultiScreenFullscreenControllerInteractiveTest,
   content::WebContents* tab = SetUpWindowManagementTab();
   const display::Display original_display = GetCurrentDisplay(browser());
 
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
   blocked_content::PopupBlockerTabHelper* popup_blocker =
       blocked_content::PopupBlockerTabHelper::FromWebContents(tab);
   EXPECT_EQ(0u, popup_blocker->GetBlockedPopupsCount());
@@ -1873,7 +1875,7 @@ IN_PROC_BROWSER_TEST_F(MAYBE_MultiScreenFullscreenControllerInteractiveTest,
   auto* popup_contents = popup->GetTabStripModel()->GetActiveWebContents();
   EXPECT_TRUE(WaitForRenderFrameReady(popup_contents->GetPrimaryMainFrame()));
   EXPECT_EQ(0u, popup_blocker->GetBlockedPopupsCount());
-  EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
   EXPECT_EQ(original_display.id(), GetCurrentDisplay(browser()).id());
   EXPECT_NE(original_display.id(), GetCurrentDisplay(popup).id());
 
@@ -1904,7 +1906,7 @@ IN_PROC_BROWSER_TEST_F(MAYBE_MultiScreenFullscreenControllerInteractiveTest,
                        MAYBE_FullscreenCompanionWindow) {
   content::WebContents* tab = SetUpWindowManagementTab();
 
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
   blocked_content::PopupBlockerTabHelper* popup_blocker =
       blocked_content::PopupBlockerTabHelper::FromWebContents(tab);
   EXPECT_EQ(0u, popup_blocker->GetBlockedPopupsCount());
@@ -1954,7 +1956,7 @@ IN_PROC_BROWSER_TEST_F(MAYBE_MultiScreenFullscreenControllerInteractiveTest,
   BrowserWindowInterface* const popup = browser_created_observer.Wait();
   EXPECT_TRUE(IsWindowFullscreenForTabOrPending());
   EXPECT_EQ(0u, popup_blocker->GetBlockedPopupsCount());
-  EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
   EXPECT_NE(browser(), popup);
   EXPECT_NE(GetCurrentDisplay(browser()).id(), GetCurrentDisplay(popup).id());
 

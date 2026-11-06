@@ -88,20 +88,18 @@ SkEnumBitMask<DstUsage> get_dst_usage(const Caps* caps,
             dstUsage |= DstUsage::kAdvancedBlend;
         }
 
-        // TODO(b/478239991): With shader-based blending, always treat the paint as depending
-        // on the dst. Almost all blend modes that trigger a dst read aren't able to simplify into
-        // something that doesn't depend on the dst; the exception is kSrc triggering a dst
-        // read when the renderer has coverage and there's no dual-src blending support. In that
-        // case we can't support an inner fill operation w/o coverage that shares the same
-        // paint key (it would be expecting a fixed blend mode node here).
-        if (!SkToBool(dstUsage & DstUsage::kDstReadRequired) &&
-            !hasAnalyticClip && (finalBlendMode == SkBlendMode::kSrc ||
+        if (!hasAnalyticClip && (finalBlendMode == SkBlendMode::kSrc ||
                                  finalBlendMode == SkBlendMode::kSrcOver)) {
             if (rendererCoverage != Coverage::kNone) {
-                // Optimistically added for kSrcOver, must be removed if it's not opaque
+                // For kSrc, kDstOnlyUsedByRenderer is the correct final usage. For kSrcOver,
+                // we optimistically add it on the assumption the rest of the paint will be
+                // opaque. toKey() must remove this flag if it's not opaque.
                 dstUsage |= DstUsage::kDstOnlyUsedByRenderer;
             } else {
-                // Optimistically removed for kSrcOver, must be re-added if it's not opaque
+                // For kSrc, we definitely now do not depend on the dst so we can remove that
+                // flag entirely. Optimistically we also remove it for kSrcOver under the
+                // assumption that the paint is opaque; if toKey() finds that is not the case,
+                // it must restore the flag.
                 SkASSERT(dstUsage == DstUsage::kDependsOnDst);
                 dstUsage = DstUsage::kNone;
             }
@@ -446,6 +444,13 @@ std::optional<ShadingParams::Result> ShadingParams::toKey(const KeyContext& keyC
         SkBlendMode finalBlendMode = fPaint.finalBlendMode();
         SkASSERT(finalBlendMode != SkBlendMode::kClear);
 
+        // If the KeyContext has opted into prioritizing Src (no blending) and we actually don't
+        // need blending or only need blending due to the renderer (e.g. inner fill eligible), then
+        // try to keep the final blend snippet as Src when it wouldn't impact the rendering.
+        const bool optimizeSrcBlend =
+                (dstUsage == DstUsage::kNone || dstUsage == DstUsage::kDstOnlyUsedByRenderer) &&
+                SkToBool(keyContext.flags() & KeyGenFlags::kPreferFixedSrcBlend);
+
         // fDstUsage was almost fully specified, except for kSrcOver, which was assumed to be
         // opaque. If we're src over and not opaque, we have to adjust flags.
         if (finalBlendMode == SkBlendMode::kSrcOver && !isOpaque) {
@@ -453,13 +458,14 @@ std::optional<ShadingParams::Result> ShadingParams::toKey(const KeyContext& keyC
             dstUsage |= DstUsage::kDependsOnDst;
         }
 
-        if (!(fDstUsage & DstUsage::kDstReadRequired)) {
-            // With no shader blending, be as explicit as possible about the final blend
-            AddFixedBlendMode(keyContext, finalBlendMode);
-            // Blend modes can be analyzed to determine if specific src colors depend on the dst.
-            SkDEBUGCODE(paintDependsOnDst =
+        SkDEBUGCODE(paintDependsOnDst =
                     !(finalBlendMode == SkBlendMode::kSrc ||
                      (finalBlendMode == SkBlendMode::kSrcOver && isOpaque)));
+        if (!(dstUsage & DstUsage::kDstReadRequired) ||
+            (finalBlendMode == SkBlendMode::kSrc && optimizeSrcBlend)) {
+            // With no shader blending, be as explicit as possible about the final blend. We also
+            // keep a fixed Src mode if it means a follow-up inner fill could be used.
+            AddFixedBlendMode(keyContext, finalBlendMode);
         } else {
             // With shader blending, use AddBlendMode() to select the more universal blend functions
             // when possible. Technically we could always use a fixed blend mode but would then

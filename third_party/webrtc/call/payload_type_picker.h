@@ -11,21 +11,25 @@
 #ifndef CALL_PAYLOAD_TYPE_PICKER_H_
 #define CALL_PAYLOAD_TYPE_PICKER_H_
 
-#include <map>
-#include <set>
+#include <string>
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
+#include "api/payload_type.h"
 #include "api/rtc_error.h"
+#include "api/rtp_parameters.h"
 #include "call/payload_type.h"
 #include "media/base/codec.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/containers/flat_map.h"
+#include "rtc_base/containers/flat_set.h"
 
 namespace webrtc {
 
 class PayloadTypeRecorder;
 
-class PayloadTypePicker {
+class PayloadTypePicker final {
  public:
   PayloadTypePicker();
   PayloadTypePicker(const PayloadTypePicker&) = delete;
@@ -39,7 +43,7 @@ class PayloadTypePicker {
   RTCError AddMapping(PayloadType payload_type, Codec codec);
 
  private:
-  class MapEntry {
+  class MapEntry final {
    public:
     MapEntry(PayloadType payload_type, Codec codec)
         : payload_type_(payload_type), codec_(codec) {}
@@ -55,7 +59,7 @@ class PayloadTypePicker {
     }
   };
   std::vector<MapEntry> entries_;
-  std::set<PayloadType> seen_payload_types_;
+  flat_set<PayloadType> seen_payload_types_;
   template <typename Sink>
   friend void AbslStringify(Sink& sink, const PayloadTypePicker& picker) {
     sink.Append("Reserved:");
@@ -69,7 +73,7 @@ class PayloadTypePicker {
   }
 };
 
-class PayloadTypeRecorder {
+class PayloadTypeRecorder final {
  public:
   explicit PayloadTypeRecorder(PayloadTypePicker& suggester)
       : suggester_(suggester) {}
@@ -98,10 +102,49 @@ class PayloadTypeRecorder {
 
  private:
   PayloadTypePicker& suggester_;
-  std::map<PayloadType, Codec> payload_type_to_codec_;
-  std::map<PayloadType, Codec> checkpoint_payload_type_to_codec_;
+  flat_map<PayloadType, Codec> payload_type_to_codec_;
+  flat_map<PayloadType, Codec> checkpoint_payload_type_to_codec_;
   int disallow_redefinition_level_ = 0;
-  std::set<PayloadType> accepted_definitions_;
+  flat_set<PayloadType> accepted_definitions_;
+};
+
+class RtpHeaderExtensionRecorder final {
+ public:
+  RtpHeaderExtensionRecorder() {}
+  ~RtpHeaderExtensionRecorder() {}
+
+  RTCError AddMapping(int id, absl::string_view uri, bool encrypt);
+  RTCErrorOr<int> LookupId(absl::string_view uri, bool encrypt) const;
+
+  void Commit();
+  void Rollback();
+
+ private:
+  // (uri, encrypt) -> id
+  flat_map<std::pair<std::string, bool>, int> uri_to_id_;
+  flat_map<std::pair<std::string, bool>, int> checkpoint_uri_to_id_;
+};
+
+class RtpHeaderExtensionPicker final {
+ public:
+  RtpHeaderExtensionPicker() {}
+  ~RtpHeaderExtensionPicker() {}
+
+  RTCErrorOr<int> SuggestMapping(absl::string_view uri,
+                                 bool encrypt,
+                                 int preferred_id,
+                                 RtpTransceiverIdDomain id_domain,
+                                 const RtpHeaderExtensionRecorder* excluder);
+  RTCError AddMapping(int id, absl::string_view uri, bool encrypt);
+
+ private:
+  struct MapEntry {
+    std::string uri;
+    bool encrypt;
+    int id;
+  };
+  std::vector<MapEntry> entries_;
+  flat_set<int> seen_ids_;
 };
 
 }  // namespace webrtc

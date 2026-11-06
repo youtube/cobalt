@@ -19,11 +19,10 @@
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/crypto/frame_decryptor_interface.h"
 #include "api/dtls_transport_interface.h"
-#include "api/frame_transformer_interface.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
+#include "api/rtc_error.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/scoped_refptr.h"
@@ -44,10 +43,12 @@ AudioRtpReceiver::AudioRtpReceiver(
     Thread* worker_thread,
     absl::string_view receiver_id,
     std::vector<std::string> stream_ids,
+    absl::AnyInvocable<RTCError()> enable_sframe_at_owner,
     VoiceMediaReceiveChannelInterface* voice_channel)
     : AudioRtpReceiver(worker_thread,
                        receiver_id,
                        CreateStreamsFromIds(std::move(stream_ids)),
+                       std::move(enable_sframe_at_owner),
                        voice_channel,
                        RemoteAudioSource::OnAudioChannelGoneAction::kSurvive) {}
 
@@ -60,6 +61,7 @@ AudioRtpReceiver::AudioRtpReceiver(
     : AudioRtpReceiver(worker_thread,
                        receiver_id,
                        streams,
+                       nullptr,
                        media_channel,
                        RemoteAudioSource::OnAudioChannelGoneAction::kEnd) {
   RTC_DCHECK(!is_unified_plan);
@@ -73,6 +75,7 @@ AudioRtpReceiver::AudioRtpReceiver(
     : AudioRtpReceiver(worker_thread,
                        receiver_id,
                        streams,
+                       nullptr,
                        media_channel,
                        RemoteAudioSource::OnAudioChannelGoneAction::kSurvive) {}
 
@@ -80,9 +83,10 @@ AudioRtpReceiver::AudioRtpReceiver(
     Thread* worker_thread,
     absl::string_view receiver_id,
     const std::vector<scoped_refptr<MediaStreamInterface>>& streams,
+    absl::AnyInvocable<RTCError()> enable_sframe_at_owner,
     VoiceMediaReceiveChannelInterface* voice_channel,
     RemoteAudioSource::OnAudioChannelGoneAction source_gone_action)
-    : RtpReceiverBase(worker_thread),
+    : RtpReceiverBase(worker_thread, std::move(enable_sframe_at_owner)),
       id_(receiver_id),
       source_(make_ref_counted<RemoteAudioSource>(worker_thread,
                                                   source_gone_action)),
@@ -180,22 +184,6 @@ RtpParameters AudioRtpReceiver::GetParameters() const {
              : media_channel_->GetDefaultRtpReceiveParameters();
 }
 
-void AudioRtpReceiver::SetFrameDecryptor(
-    scoped_refptr<FrameDecryptorInterface> frame_decryptor) {
-  RTC_DCHECK_RUN_ON(worker_thread_);
-  frame_decryptor_ = std::move(frame_decryptor);
-  // Special Case: Set the frame decryptor to any value on any existing channel.
-  if (media_channel_ && signaled_ssrc_) {
-    media_channel_->SetFrameDecryptor(*signaled_ssrc_, frame_decryptor_);
-  }
-}
-
-scoped_refptr<FrameDecryptorInterface> AudioRtpReceiver::GetFrameDecryptor()
-    const {
-  RTC_DCHECK_RUN_ON(worker_thread_);
-  return frame_decryptor_;
-}
-
 void AudioRtpReceiver::Stop() {
   RTC_DCHECK_RUN_ON(&signaling_thread_checker_);
   source_->SetState(MediaSourceInterface::kEnded);
@@ -256,12 +244,9 @@ AudioRtpReceiver::GetSetupForUnsignaledMediaChannel() {
   return GetRestartFunctionForMediaChannel(std::nullopt);
 }
 
-std::optional<uint32_t> AudioRtpReceiver::ssrc() const {
+MediaReceiveChannelInterface* AudioRtpReceiver::media_channel() const {
   RTC_DCHECK_RUN_ON(worker_thread_);
-  if (!signaled_ssrc_.has_value() && media_channel_) {
-    return media_channel_->GetUnsignaledSsrc();
-  }
-  return signaled_ssrc_;
+  return media_channel_;
 }
 
 void AudioRtpReceiver::set_stream_ids(std::vector<std::string> stream_ids) {
@@ -316,16 +301,6 @@ std::vector<RtpSource> AudioRtpReceiver::GetSources() const {
     return {};
   }
   return media_channel_->GetSources(current_ssrc.value());
-}
-
-void AudioRtpReceiver::SetFrameTransformer(
-    scoped_refptr<FrameTransformerInterface> frame_transformer) {
-  RTC_DCHECK_RUN_ON(worker_thread_);
-  if (media_channel_) {
-    media_channel_->SetDepacketizerToDecoderFrameTransformer(
-        signaled_ssrc_.value_or(0), frame_transformer);
-  }
-  frame_transformer_ = std::move(frame_transformer);
 }
 
 void AudioRtpReceiver::Reconfigure(bool track_enabled) {

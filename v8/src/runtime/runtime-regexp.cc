@@ -1764,7 +1764,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   DirectHandle<Object> flags_obj;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, flags_obj,
-      JSObject::GetProperty(isolate, recv, factory->flags_string()));
+      JSReceiver::GetProperty(isolate, recv, factory->flags_string()));
 
   DirectHandle<String> flags;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, flags,

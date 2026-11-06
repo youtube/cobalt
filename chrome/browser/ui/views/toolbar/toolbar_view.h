@@ -133,10 +133,6 @@ class ToolbarView : public views::AccessiblePaneView,
   // transition.
   void UpdateCustomTabBarVisibility(bool visible, bool animate);
 
-  // We may or may not be using a WebUI tab strip. Make sure toolbar items are
-  // added or removed accordingly.
-  void UpdateForWebUITabStrip();
-
   // Clears the current state for |tab|.
   void ResetTabState(content::WebContents* tab);
 
@@ -147,6 +143,8 @@ class ToolbarView : public views::AccessiblePaneView,
 
   // Returns true if the app menu is focused.
   bool GetAppMenuFocused() const;
+
+  WebUIToolbarWebView* GetWebUIToolbarViewForTesting() override;
 
   void ShowIntentPickerBubble(
       std::vector<IntentPickerBubbleView::AppInfo> app_info,
@@ -197,6 +195,9 @@ class ToolbarView : public views::AccessiblePaneView,
   }
 
   views::View* new_tab_button_for_testing() { return new_tab_button_; }
+  WebUIToolbarWebView* detached_toolbar_webview_for_testing() {
+    return detached_toolbar_webview_.get();
+  }
 
   glic::ToolbarGlicActorTaskIcon* glic_actor_task_icon() {
     return glic_actor_task_icon_;
@@ -297,7 +298,6 @@ class ToolbarView : public views::AccessiblePaneView,
   ReloadControl* GetReloadButton() override;
   IntentChipButton* GetIntentChipButton() override;
   ToolbarButton* GetDownloadButton() override;
-  WebUIToolbarWebView* GetWebUIToolbarViewForTesting() override;
 
   // BrowserRootView::DropTarget
   std::optional<BrowserRootView::DropIndex> GetDropIndex(
@@ -327,6 +327,8 @@ class ToolbarView : public views::AccessiblePaneView,
   void OnTouchUiChanged();
 
   void NewTabButtonPressed(const ui::Event& event);
+
+  void InitGlicContainer();
 
   void OnVerticalTabStripModeChanged(
       tabs::VerticalTabStripStateController* controller);
@@ -371,6 +373,7 @@ class ToolbarView : public views::AccessiblePaneView,
   raw_ptr<ToolbarButton> forward_ = nullptr;
   raw_ptr<ReloadButton> reload_ = nullptr;
   raw_ptr<WebUIToolbarWebView> toolbar_webview_ = nullptr;
+  std::unique_ptr<WebUIToolbarWebView> detached_toolbar_webview_;
   raw_ptr<HomeButton> home_ = nullptr;
   raw_ptr<SplitTabsToolbarButton> split_tabs_ = nullptr;
   raw_ptr<CustomTabBarView> custom_tab_bar_ = nullptr;
@@ -415,6 +418,13 @@ class ToolbarView : public views::AccessiblePaneView,
 
   const raw_ptr<Browser> browser_;
   const raw_ptr<BrowserView> browser_view_;
+
+  // ToolbarView may or may not serve as the `ToolbarButtonProvider` for a given
+  // browser instance depending on the browser type (e.g. WebApp browsers set
+  // their own in `WebAppFrameToolbarView`). Make this optional to allow
+  // conditionally configuring this as the `ToolbarButtonProvider`.
+  std::optional<ui::ScopedUnownedUserData<ToolbarButtonProvider>>
+      scoped_unowned_user_data_;
 
   raw_ptr<views::FlexLayout> layout_manager_ = nullptr;
 

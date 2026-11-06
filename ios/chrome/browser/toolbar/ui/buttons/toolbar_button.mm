@@ -41,9 +41,10 @@ UIColor* NormalTintColor() {
 
 @synthesize image = _image;
 
-- (instancetype)initWithImageLoader:(ToolbarButtonImageLoader)imageLoader {
-  self = [super initWithFrame:CGRectZero];
-  if (self) {
+- (instancetype)initWithImageLoader:(ToolbarButtonImageLoader)imageLoader
+                          incognito:(BOOL)incognito {
+  if ((self = [super initWithFrame:CGRectMake(0, 0, kToolbarButtonSize,
+                                              kToolbarButtonSize)])) {
     _imageLoader = [imageLoader copy];
 
     [NSLayoutConstraint activateConstraints:@[
@@ -53,7 +54,7 @@ UIColor* NormalTintColor() {
 
     _backgroundView = [[UIView alloc] initWithFrame:CGRectZero];
     _backgroundView.translatesAutoresizingMaskIntoConstraints = NO;
-    _backgroundView.backgroundColor = ToolbarButtonColor();
+    _backgroundView.backgroundColor = ToolbarElementBackgroundColor(incognito);
     _backgroundView.userInteractionEnabled = NO;
     _backgroundView.clipsToBounds = YES;
     [self insertSubview:_backgroundView belowSubview:self.imageView];
@@ -62,7 +63,7 @@ UIColor* NormalTintColor() {
     ConfigureCornerRadiusForToolbarButtonContainer(_backgroundView,
                                                    self.traitCollection);
 
-    ConfigureShadowForToolbarButton(self);
+    ConfigureShadowForToolbarElement(self);
 
     self.tintColor = NormalTintColor();
 
@@ -96,9 +97,9 @@ UIColor* NormalTintColor() {
 - (void)setEnabled:(BOOL)enabled {
   [super setEnabled:enabled];
   if (enabled) {
-    self.tintColor = NormalTintColor();
+    self.imageView.tintColor = NormalTintColor();
   } else {
-    self.tintColor =
+    self.imageView.tintColor =
         [NormalTintColor() colorWithAlphaComponent:kDisabledOpacity];
   }
   [self updateAppearance];
@@ -125,6 +126,7 @@ UIColor* NormalTintColor() {
   if (hasBlueDot && !_blueDotView) {
     _blueDotView = [[UIView alloc] initWithFrame:CGRectZero];
     _blueDotView.translatesAutoresizingMaskIntoConstraints = NO;
+    _blueDotView.isAccessibilityElement = NO;
     _blueDotView.backgroundColor = [UIColor colorNamed:kBlueColor];
     _blueDotView.layer.cornerRadius = kBlueDotRadius;
     // Do not add the blue dot to the background as the background will be
@@ -142,6 +144,11 @@ UIColor* NormalTintColor() {
     ]];
   }
   _blueDotView.hidden = !hasBlueDot;
+  if (hasBlueDot) {
+    self.accessibilityValue = self.blueDotAccessibilityLabel;
+  } else {
+    self.accessibilityValue = nil;
+  }
   [self updateMask];
   [self updateHighlight];
 }

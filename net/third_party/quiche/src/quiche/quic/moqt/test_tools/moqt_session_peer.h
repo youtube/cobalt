@@ -258,6 +258,10 @@ class MoqtSessionPeer {
   static MoqtSession::ControlStream* GetControlStream(MoqtSession* session) {
     return session->control_stream_.GetIfAvailable();
   }
+
+  static const MoqtSessionParameters& GetParameters(MoqtSession* session) {
+    return session->parameters_;
+  }
 };
 
 }  // namespace moqt::test

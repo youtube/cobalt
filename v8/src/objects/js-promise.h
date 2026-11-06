@@ -6,10 +6,10 @@
 #define V8_OBJECTS_JS_PROMISE_H_
 
 #include "include/v8-promise.h"
+#include "src/base/bit-field.h"
 #include "src/handles/handles.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/promise.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -29,10 +29,17 @@ namespace internal {
 // We also overlay the result and reactions fields on the JSPromise, since
 // the reactions are only necessary for pending promises, whereas the result
 // is only meaningful for settled promises.
-class JSPromise
-    : public TorqueGeneratedJSPromise<JSPromise, JSObjectWithEmbedderSlots> {
+V8_OBJECT class JSPromise : public JSObjectWithEmbedderSlots {
  public:
   static constexpr uint32_t kInvalidAsyncTaskId = 0;
+
+  inline Tagged<UnionOf<PromiseReaction, JSAny>> reactions_or_result() const;
+  inline void set_reactions_or_result(
+      Tagged<UnionOf<PromiseReaction, JSAny>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int flags() const;
+  inline void set_flags(int value);
 
   // [result]: Checks that the promise is settled and returns the result.
   inline Tagged<Object> result() const;
@@ -84,15 +91,22 @@ class JSPromise
   DECL_PRINTER(JSPromise)
   DECL_VERIFIER(JSPromise)
 
-  static const int kSizeWithEmbedderFields =
-      kHeaderSize + v8::Promise::kEmbedderFieldCount * kEmbedderDataSlotSize;
-
   // Flags layout.
-  DEFINE_TORQUE_GENERATED_JS_PROMISE_FLAGS()
+  using StatusBits = base::BitField<Promise::PromiseState, 0, 2>;
+  using HasHandlerBit = base::BitField<bool, 2, 1>;
+  using IsSilentBit = base::BitField<bool, 3, 1>;
+  using AsyncTaskIdBits = base::BitField<uint32_t, 4, 27>;
 
   static_assert(v8::Promise::kPending == 0);
   static_assert(v8::Promise::kFulfilled == 1);
   static_assert(v8::Promise::kRejected == 2);
+
+ public:
+  // Smi 0 terminated list of PromiseReaction objects in case the JSPromise
+  // was not settled yet, otherwise the result.
+  TaggedMember<UnionOf<PromiseReaction, JSAny>> reactions_or_result_;
+  // SmiTagged<JSPromiseFlags>.
+  TaggedMember<Smi> flags_;
 
  private:
   // https://tc39.es/ecma262/#sec-triggerpromisereactions
@@ -100,9 +114,7 @@ class JSPromise
                                                 DirectHandle<Object> reactions,
                                                 DirectHandle<Object> argument,
                                                 PromiseReaction::Type type);
-
-  TQ_OBJECT_CONSTRUCTORS(JSPromise)
-};
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

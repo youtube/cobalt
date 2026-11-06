@@ -2791,7 +2791,7 @@ Reduction JSTypedLowering::ReduceJSAsyncFunctionAwait(Node* node) {
   // through to the slow path.  The builtin path uses a masked check.
   Node* flags = graph()->NewNode(
       simplified()->LoadField(
-          AccessBuilder::ForJSObjectOffset(JSPromise::kFlagsOffset)),
+          AccessBuilder::ForJSObjectOffset(offsetof(JSPromise, flags_))),
       value, map_effect, if_promise);
   Node* is_fulfilled = graph()->NewNode(
       simplified()->ReferenceEqual(), flags,
@@ -2809,13 +2809,13 @@ Reduction JSTypedLowering::ReduceJSAsyncFunctionAwait(Node* node) {
   // Extract the fulfilled value.
   Node* fulfilled_value = fast_effect =
       graph()->NewNode(simplified()->LoadField(AccessBuilder::ForJSObjectOffset(
-                           JSPromise::kReactionsOrResultOffset)),
+                           offsetof(JSPromise, reactions_or_result_))),
                        value, fast_effect, fast_control);
 
   // Mark as handled.
   fast_effect = graph()->NewNode(
       simplified()->StoreField(
-          AccessBuilder::ForJSObjectOffset(JSPromise::kFlagsOffset)),
+          AccessBuilder::ForJSObjectOffset(offsetof(JSPromise, flags_))),
       value,
       jsgraph()->SmiConstant(v8::Promise::kFulfilled |
                              JSPromise::HasHandlerBit::kMask),
@@ -2932,7 +2932,7 @@ Reduction JSTypedLowering::ReduceJSFulfillPromise(Node* node) {
   // Look through LoadField[JSAsyncFunctionObjectPromise].
   if (promise_origin->opcode() == IrOpcode::kLoadField) {
     FieldAccess const& access = FieldAccessOf(promise_origin->op());
-    if (access.offset == JSAsyncFunctionObject::kPromiseOffset) {
+    if (access.offset == offsetof(JSAsyncFunctionObject, promise_)) {
       Node* async_fn = NodeProperties::GetValueInput(promise_origin, 0);
       // The async function object is a FinishRegion wrapping its Allocate.
       // Find the StoreField[Promise] that stored the promise into it.
@@ -2942,7 +2942,8 @@ Reduction JSTypedLowering::ReduceJSFulfillPromise(Node* node) {
         Node* effect_scan = NodeProperties::GetEffectInput(async_fn);
         while (effect_scan->opcode() == IrOpcode::kStoreField) {
           FieldAccess const& store_access = FieldAccessOf(effect_scan->op());
-          if (store_access.offset == JSAsyncFunctionObject::kPromiseOffset) {
+          if (store_access.offset ==
+              offsetof(JSAsyncFunctionObject, promise_)) {
             promise_origin = NodeProperties::GetValueInput(effect_scan, 1);
             break;
           }
@@ -2985,12 +2986,12 @@ Reduction JSTypedLowering::ReduceJSFulfillPromise(Node* node) {
 
   effect = graph()->NewNode(
       simplified()->StoreField(AccessBuilder::ForJSObjectOffset(
-          JSPromise::kReactionsOrResultOffset)),
+          offsetof(JSPromise, reactions_or_result_))),
       promise, value, effect, control);
 
   effect = graph()->NewNode(
       simplified()->StoreField(
-          AccessBuilder::ForJSObjectOffset(JSPromise::kFlagsOffset)),
+          AccessBuilder::ForJSObjectOffset(offsetof(JSPromise, flags_))),
       promise, jsgraph()->SmiConstant(v8::Promise::kFulfilled), effect,
       control);
 

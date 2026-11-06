@@ -23,6 +23,7 @@
 #include "base/types/optional_util.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/affiliations/affiliation_service_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/device_reauth/chrome_device_authenticator_factory.h"
@@ -109,6 +110,7 @@
 #include "components/sync/base/user_selectable_type.h"
 #include "components/sync/service/sync_service.h"
 #include "components/sync/service/sync_user_settings.h"
+#include "components/tabs/public/tab_interface.h"
 #include "components/translate/core/browser/translate_manager.h"
 #include "content/public/browser/back_forward_cache.h"
 #include "content/public/browser/browser_context.h"
@@ -145,7 +147,6 @@
 #include "chrome/browser/android/tab_web_contents_delegate_android.h"
 #include "chrome/browser/keyboard_accessory/android/manual_filling_controller.h"
 #include "chrome/browser/keyboard_accessory/android/password_accessory_controller.h"
-#include "chrome/browser/keyboard_accessory/android/password_accessory_controller_impl.h"
 #include "chrome/browser/password_manager/android/account_chooser_dialog_android.h"
 #include "chrome/browser/password_manager/android/auto_signin_first_run_dialog_android.h"
 #include "chrome/browser/password_manager/android/auto_signin_prompt_controller.h"
@@ -167,17 +168,15 @@
 #include "components/webauthn/android/webauthn_cred_man_delegate.h"
 #include "components/webauthn/android/webauthn_cred_man_delegate_factory.h"
 #else  // BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/password_manager/factories/password_counter_factory.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/hats/hats_service.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
 #include "chrome/browser/ui/hats/survey_config.h"
 #include "components/password_manager/core/browser/password_counter.h"
 #include "components/policy/core/common/features.h"
-#include "components/tabs/public/tab_interface.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
@@ -1353,7 +1352,7 @@ void ChromePasswordManagerClient::NavigateToManagePasswordsPage(
   BrowserWindowInterface* browser =
       tab ? tab->GetBrowserWindowInterface() : nullptr;
   if (!browser) {
-    browser = chrome::FindLastActive();
+    browser = GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
   }
   ::NavigateToManagePasswordsPage(browser->GetBrowserForMigrationOnly(),
                                   referrer);
@@ -1379,8 +1378,8 @@ bool ChromePasswordManagerClient::IsIsolationForPasswordSitesEnabled() const {
 bool ChromePasswordManagerClient::IsNewTabPage() const {
   auto origin = GetLastCommittedURL().DeprecatedGetOriginAsURL();
   return origin ==
-             GURL(chrome::kChromeUINewTabPageURL).DeprecatedGetOriginAsURL() ||
-         origin == GURL(chrome::kChromeUINewTabURL).DeprecatedGetOriginAsURL();
+             chrome::ChromeUINewTabPageURLAsGURL().DeprecatedGetOriginAsURL() ||
+         origin == chrome::ChromeUINewTabURLAsGURL().DeprecatedGetOriginAsURL();
 }
 
 password_manager::WebAuthnCredentialsDelegate*
@@ -1563,7 +1562,7 @@ void ChromePasswordManagerClient::AutomaticGenerationAvailable(
               element_bounds_in_top_frame_space, ui_data.text_direction,
               /*show_password_suggestions=*/
               ui_data.is_generation_element_password_type)) {
-    // (see crbug.com/1338105)
+    // (see crbug.com/40229464)
     if (popup_controller_) {
       popup_controller_->GeneratedPasswordRejected();
     }
@@ -1804,7 +1803,6 @@ ChromePasswordManagerClient::GetUndoPasswordChangeController() {
   return &undo_password_change_controller_;
 }
 
-#if !BUILDFLAG(IS_ANDROID)
 bool ChromePasswordManagerClient::IsActorTaskActive() {
   actor::ActorKeyedService* actor_service =
       actor::ActorKeyedService::Get(GetProfile());
@@ -1816,7 +1814,6 @@ bool ChromePasswordManagerClient::IsActorTaskActive() {
       tabs::TabInterface::MaybeGetFromContents(web_contents());
   return tab_interface && actor_service->IsActiveOnTab(*tab_interface);
 }
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 ChromePasswordManagerClient::ChromePasswordManagerClient(
     content::WebContents* web_contents)
@@ -1893,7 +1890,7 @@ void ChromePasswordManagerClient::PrimaryPageChanged(content::Page& page) {
 }
 
 void ChromePasswordManagerClient::WebContentsDestroyed() {
-  // crbug/1090011
+  // crbug.com/40133549
   // Drop the connection before the WebContentsObserver destructors are invoked.
   // Other classes may contain callbacks to the Mojo methods. Those callbacks
   // don't like to be destroyed earlier than the pipe itself.
@@ -1924,7 +1921,15 @@ void ChromePasswordManagerClient::ResourceLoadComplete(
 }
 
 void ChromePasswordManagerClient::OnFedCmFederatedLogin(bool success) {
-  // If the federated login flow happens in the popup window, the owner of the
+  OnNonPasswordLoginDetected();
+}
+
+void ChromePasswordManagerClient::OnNonFedCmFederatedLogin() {
+  OnNonPasswordLoginDetected();
+}
+
+void ChromePasswordManagerClient::OnNonPasswordLoginDetected() {
+  // If the login flow happens in the popup window, the owner of the
   // window needs to handle the notification because the window usually gets
   // destroyed right after the login.
   content::RenderFrameHost* opener_rfh = web_contents()->GetOpener();
@@ -1936,13 +1941,11 @@ void ChromePasswordManagerClient::OnFedCmFederatedLogin(bool success) {
           ? ChromePasswordManagerClient::FromWebContents(opener_web_contents)
           : nullptr;
   if (opener_client) {
-    opener_client->OnFedCmFederatedLogin(success);
+    opener_client->OnNonPasswordLoginDetected();
     return;
   }
 
-  // TODO(crbug.com/498593355): Propagate the call to the password manager. Only
-  // the password manager click from the last opener will handle the federated
-  // login.
+  password_manager_.OnNonPasswordLoginDetected();
 }
 
 void ChromePasswordManagerClient::OnFieldTypesDetermined(

@@ -295,15 +295,29 @@ void WebRtcLoggingController::StopRtpDump(RtpDumpType type,
 }
 
 void WebRtcLoggingController::StartEventLogging(
+    webrtc_logging::ApiType api_type,
     const std::string& session_id,
     size_t max_log_size_bytes,
     int output_period_ms,
     size_t web_app_id,
-    const StartEventLoggingCallback& callback) {
+    StartEventLoggingCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  WebRtcEventLogManager::GetInstance()->StartRemoteLogging(
-      render_process_id_, session_id, max_log_size_bytes, output_period_ms,
-      web_app_id, callback);
+  if ((api_type == webrtc_logging::ApiType::kWeb &&
+       !IsWebApiDiagnosticLoggingStarted()) ||
+      !CanOperationProceedInWebApiMode()) {
+    std::move(callback).Run(false, "", "Invalid state");
+    return;
+  }
+
+  if (api_type == webrtc_logging::ApiType::kWeb &&
+      !web_api_settings_->should_upload_on_stop) {
+    // TODO(https://crbug.com/481412281): Add support for local event logging.
+    std::move(callback).Run(false, "", "Local event logging not supported");
+  } else {
+    WebRtcEventLogManager::GetInstance()->StartRemoteLogging(
+        render_process_id_, session_id, max_log_size_bytes, output_period_ms,
+        web_app_id, std::move(callback));
+  }
 }
 
 base::RepeatingCallback<void(const std::string&)>
@@ -571,7 +585,7 @@ void WebRtcLoggingController::DoUploadLogAndRtpDumps(
     }
 
     // Do not fire callback if it is null. Nesting null callbacks is not
-    // allowed, as it can lead to crashes. See https://crbug.com/1071475
+    // allowed, as it can lead to crashes. See https://crbug.com/40685126
     if (!callback.is_null()) {
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(std::move(callback), false, "",
@@ -704,6 +718,10 @@ webrtc_logging::ApiType WebRtcLoggingController::GetApiType() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return web_api_settings_.has_value() ? webrtc_logging::ApiType::kWeb
                                        : webrtc_logging::ApiType::kExtension;
+}
+
+bool WebRtcLoggingController::IsWebApiDiagnosticLoggingStarted() const {
+  return web_api_settings_.has_value();
 }
 
 std::string WebRtcLoggingController::GetContentName() const {

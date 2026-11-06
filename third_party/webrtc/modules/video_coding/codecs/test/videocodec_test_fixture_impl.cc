@@ -75,6 +75,7 @@
 #include "test/testsupport/file_utils.h"
 #include "test/testsupport/frame_reader.h"
 #include "test/testsupport/frame_writer.h"
+#include "test/testsupport/ivf_frame_reader.h"
 #include "test/video_codec_settings.h"
 #include "video/config/encoder_stream_factory.h"
 #include "video/config/video_encoder_config.h"
@@ -121,7 +122,7 @@ void ConfigureSvc(VideoCodec* codec_settings,
   const std::vector<SpatialLayer> layers = GetSvcConfig(
       codec_settings->width, codec_settings->height, kDefaultMaxFramerateFps,
       /*first_active_layer=*/0, num_spatial_layers, num_temporal_layers,
-      /* is_screen_sharing = */ false);
+      codec_settings->mode == VideoCodecMode::kScreensharing);
   ASSERT_EQ(num_spatial_layers, layers.size())
       << "GetSvcConfig returned fewer spatial layers than configured.";
 
@@ -770,10 +771,18 @@ bool VideoCodecTestFixtureImpl::SetUpAndInitObjects(
   int clip_height = config_.clip_height.value_or(config_.codec_settings.height);
 
   // Create file objects for quality analysis.
-  source_frame_reader_ = CreateYuvFrameReader(
-      config_.filepath,
-      Resolution({.width = clip_width, .height = clip_height}),
-      YuvFrameReaderImpl::RepeatMode::kPingPong);
+  if (config_.filepath.ends_with(".yuv")) {
+    source_frame_reader_ = CreateYuvFrameReader(
+        config_.filepath,
+        Resolution({.width = clip_width, .height = clip_height}),
+        YuvFrameReaderImpl::RepeatMode::kPingPong);
+  } else if (config_.filepath.ends_with(".y4m")) {
+    source_frame_reader_ = CreateY4mFrameReader(
+        config_.filepath, YuvFrameReaderImpl::RepeatMode::kPingPong);
+  } else if (config_.filepath.ends_with(".ivf")) {
+    source_frame_reader_ = std::make_unique<IvfFrameReader>(
+        env_, config_.filepath, /*repeat=*/true);
+  }
 
   RTC_DCHECK(encoded_frame_writers_.empty());
   RTC_DCHECK(decoded_frame_writers_.empty());

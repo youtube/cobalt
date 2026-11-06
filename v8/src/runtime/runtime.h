@@ -587,6 +587,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(MajorGCForCompilerTesting, 0, 1)                                     \
   F(GetAbstractModuleSource, 0, 1)                                       \
   F(GetBytecode, 1, 1)                                                   \
+  F(ExhaustInterruptBudget, 1, 1)                                        \
   F(GetCallable, 1, 1)                                                   \
   F(GetFeedback, 1, 1)                                                   \
   F(GetFunctionForCurrentFrame, 0, 1)                                    \
@@ -792,7 +793,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(GetWasmExceptionTagId, 2, 1)                                \
   F(GetWasmExceptionValues, 1, 1)                               \
   F(GetWasmRecoveredTrapCount, 0, 1)                            \
-  F(HasUnoptimizedJSToJSWrapper, 1, 1)                          \
   F(HasUnoptimizedWasmToJSWrapper, 1, 1)                        \
   F(IsAsmWasmCode, 1, 1)                                        \
   F(IsLiftoffFunction, 1, 1)                                    \

@@ -227,29 +227,78 @@ V8_OBJECT class BreakPointInfo : public Struct {
   TaggedMember<UnionOf<FixedArray, BreakPoint, Undefined>> break_points_;
 } V8_OBJECT_END;
 
+// Layout of a single slot within CoverageInfo.
+struct CoverageInfoSlot {
+  int32_t start_source_position;
+  int32_t end_source_position;
+  int32_t block_count;
+  int32_t padding;
+
+  static const int kSize;
+  static const int kStartSourcePositionOffset;
+  static const int kEndSourcePositionOffset;
+  static const int kBlockCountOffset;
+  static const int kPaddingOffset;
+};
+static_assert(sizeof(CoverageInfoSlot) == 16);
+
+inline constexpr int CoverageInfoSlot::kSize = sizeof(CoverageInfoSlot);
+inline constexpr int CoverageInfoSlot::kStartSourcePositionOffset =
+    offsetof(CoverageInfoSlot, start_source_position);
+inline constexpr int CoverageInfoSlot::kEndSourcePositionOffset =
+    offsetof(CoverageInfoSlot, end_source_position);
+inline constexpr int CoverageInfoSlot::kBlockCountOffset =
+    offsetof(CoverageInfoSlot, block_count);
+inline constexpr int CoverageInfoSlot::kPaddingOffset =
+    offsetof(CoverageInfoSlot, padding);
+
 // Holds information related to block code coverage.
-class CoverageInfo
-    : public TorqueGeneratedCoverageInfo<CoverageInfo, HeapObject> {
+V8_OBJECT class CoverageInfo : public HeapObjectLayout {
  public:
+  inline int32_t slot_count() const;
+  inline void set_slot_count(int32_t value);
+
+  inline int32_t slots_start_source_position(int i) const;
+  inline void set_slots_start_source_position(int i, int32_t value);
+  inline int32_t slots_end_source_position(int i) const;
+  inline void set_slots_end_source_position(int i, int32_t value);
+  inline int32_t slots_block_count(int i) const;
+  inline void set_slots_block_count(int i, int32_t value);
+  inline int32_t slots_padding(int i) const;
+  inline void set_slots_padding(int i, int32_t value);
+
   void InitializeSlot(int slot_index, int start_pos, int end_pos);
   void ResetBlockCount(int slot_index);
 
   // Computes the size for a CoverageInfo instance of a given length.
-  static int SizeFor(int slot_count) {
-    return OBJECT_POINTER_ALIGN(kHeaderSize + slot_count * Slot::kSize);
-  }
+  static constexpr int SizeFor(int slot_count);
+  inline int AllocatedSize() const;
 
   // Print debug info.
   void CoverageInfoPrint(std::ostream& os,
                          std::unique_ptr<char[]> function_name = nullptr);
 
+  DECL_VERIFIER(CoverageInfo)
+
   class BodyDescriptor;  // GC visitor.
 
   // Description of layout within each slot.
-  using Slot = TorqueGeneratedCoverageInfoSlotOffsets;
+  using Slot = CoverageInfoSlot;
 
-  TQ_OBJECT_CONSTRUCTORS(CoverageInfo)
-};
+  // Back-compat offset/size constants.
+  static const int kSlotCountOffset;
+
+  int32_t slot_count_;
+  FLEXIBLE_ARRAY_MEMBER(CoverageInfoSlot, slots);
+} V8_OBJECT_END;
+
+inline constexpr int CoverageInfo::kSlotCountOffset =
+    offsetof(CoverageInfo, slot_count_);
+
+constexpr int CoverageInfo::SizeFor(int slot_count) {
+  return OBJECT_POINTER_ALIGN(OFFSET_OF_DATA_START(CoverageInfo) +
+                              slot_count * sizeof(CoverageInfoSlot));
+}
 
 // Holds breakpoint related information. This object is used by inspector.
 V8_OBJECT class BreakPoint : public Struct {

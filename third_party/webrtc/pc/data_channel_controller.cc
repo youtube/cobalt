@@ -433,7 +433,7 @@ DataChannelController::InternalCreateDataChannelWithProxy(
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(!pc_->IsClosed());
   if (!config.IsValid()) {
-    return LOG_ERROR(RTCError::InvalidParameter() << "Invalid DataChannelInit");
+    return LOG_ERROR(RTCError::InvalidParameter("Invalid DataChannelInit"));
   }
 
   bool ready_to_send = false;
@@ -475,7 +475,7 @@ void DataChannelController::AllocateSctpSids(SSLRole role) {
   const bool ready_to_send =
       data_channel_transport_ && data_channel_transport_->IsReadyToSend();
 
-  std::vector<SctpDataChannel*> channels_to_start;
+  std::vector<scoped_refptr<SctpDataChannel>> channels_to_start;
   std::vector<scoped_refptr<SctpDataChannel>> channels_to_close;
   for (auto it = sctp_data_channels_n_.begin();
        it != sctp_data_channels_n_.end();) {
@@ -484,7 +484,7 @@ void DataChannelController::AllocateSctpSids(SSLRole role) {
       if (sid.has_value()) {
         (*it)->SetSctpSid_n(*sid);
         AddSctpDataStream(*sid, (*it)->priority());
-        channels_to_start.push_back((*it).get());
+        channels_to_start.push_back(*it);
       } else {
         channels_to_close.push_back(std::move(*it));
         it = sctp_data_channels_n_.erase(it);
@@ -496,7 +496,7 @@ void DataChannelController::AllocateSctpSids(SSLRole role) {
   // Since OnTransportReady can cause sending, and sending may fail and cause
   // channel to close, do this outside the loop.
   if (ready_to_send) {
-    for (auto* channel : channels_to_start) {
+    for (auto& channel : channels_to_start) {
       RTC_LOG(LS_INFO) << "AllocateSctpSids: Id assigned, ready to send.";
       channel->OnTransportReady();
     }

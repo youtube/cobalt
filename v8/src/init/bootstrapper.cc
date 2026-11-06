@@ -1128,8 +1128,7 @@ void Genesis::CreateAsyncIteratorMaps(DirectHandle<JSFunction> empty) {
 
   DirectHandle<Map> async_from_sync_iterator_map =
       factory()->NewContextfulMapForCurrentContext(
-          JS_ASYNC_FROM_SYNC_ITERATOR_TYPE,
-          JSAsyncFromSyncIterator::kHeaderSize);
+          JS_ASYNC_FROM_SYNC_ITERATOR_TYPE, sizeof(JSAsyncFromSyncIterator));
   Map::SetPrototype(isolate(), async_from_sync_iterator_map,
                     async_from_sync_iterator_prototype);
   native_context()->set_async_from_sync_iterator_map(
@@ -1482,11 +1481,11 @@ void Genesis::HookUpGlobalObject(DirectHandle<JSGlobalObject> global_object) {
   native_context()->set_security_token(*global_object);
 
   TransferNamedProperties(global_object_from_snapshot, global_object);
-  if (global_object_from_snapshot->HasDictionaryElements()) {
+  if (Cast<JSObject>(global_object_from_snapshot)->HasDictionaryElements()) {
     JSObject::NormalizeElements(isolate(), global_object);
   }
-  DCHECK_EQ(global_object_from_snapshot->GetElementsKind(),
-            global_object->GetElementsKind());
+  DCHECK_EQ(Cast<JSObject>(global_object_from_snapshot)->GetElementsKind(),
+            Cast<JSObject>(global_object)->GetElementsKind());
   TransferIndexedProperties(global_object_from_snapshot, global_object);
 }
 
@@ -1640,8 +1639,8 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
   }
 #define INSTALL_TEMPORAL_CTOR_AND_PROTOTYPE(N, U, NUM_ARGS)                    \
   DirectHandle<JSFunction> obj_func = InstallFunction(                         \
-      isolate, temporal, #N, JS_TEMPORAL_##U##_TYPE,                           \
-      JSTemporal##N::kHeaderSize, 0, isolate->factory()->the_hole_value(),     \
+      isolate, temporal, #N, JS_TEMPORAL_##U##_TYPE, sizeof(JSTemporal##N), 0, \
+      isolate->factory()->the_hole_value(),                                    \
       Builtin::kTemporal##N##Constructor, NUM_ARGS, kDontAdapt);               \
   InstallWithIntrinsicDefaultProto(isolate, obj_func,                          \
                                    Context::JS_TEMPORAL_##U##_FUNCTION_INDEX); \
@@ -2576,8 +2575,8 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
 
     DirectHandle<JSFunction> array_iterator_function = CreateFunction(
         isolate_, factory->ArrayIterator_string(), JS_ARRAY_ITERATOR_TYPE,
-        JSArrayIterator::kHeaderSize, 0, array_iterator_prototype,
-        Builtin::kIllegal, 0, kDontAdapt);
+        sizeof(JSArrayIterator), 0, array_iterator_prototype, Builtin::kIllegal,
+        0, kDontAdapt);
     array_iterator_function->shared()->set_native(false);
 
     native_context()->set_initial_array_iterator_map(
@@ -2587,11 +2586,10 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
   }
 
   {  // --- N u m b e r ---
-    DirectHandle<JSFunction> number_fun =
-        InstallFunction(isolate_, global, "Number", JS_PRIMITIVE_WRAPPER_TYPE,
-                        JSPrimitiveWrapper::kHeaderSize, 0,
-                        isolate_->initial_object_prototype(),
-                        Builtin::kNumberConstructor, 1, kDontAdapt);
+    DirectHandle<JSFunction> number_fun = InstallFunction(
+        isolate_, global, "Number", JS_PRIMITIVE_WRAPPER_TYPE,
+        sizeof(JSPrimitiveWrapper), 0, isolate_->initial_object_prototype(),
+        Builtin::kNumberConstructor, 1, kDontAdapt);
     InstallWithIntrinsicDefaultProto(isolate_, number_fun,
                                      Context::NUMBER_FUNCTION_INDEX);
 
@@ -2673,11 +2671,10 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
   }
 
   {  // --- B o o l e a n ---
-    DirectHandle<JSFunction> boolean_fun =
-        InstallFunction(isolate_, global, "Boolean", JS_PRIMITIVE_WRAPPER_TYPE,
-                        JSPrimitiveWrapper::kHeaderSize, 0,
-                        isolate_->initial_object_prototype(),
-                        Builtin::kBooleanConstructor, 1, kDontAdapt);
+    DirectHandle<JSFunction> boolean_fun = InstallFunction(
+        isolate_, global, "Boolean", JS_PRIMITIVE_WRAPPER_TYPE,
+        sizeof(JSPrimitiveWrapper), 0, isolate_->initial_object_prototype(),
+        Builtin::kBooleanConstructor, 1, kDontAdapt);
     InstallWithIntrinsicDefaultProto(isolate_, boolean_fun,
                                      Context::BOOLEAN_FUNCTION_INDEX);
 
@@ -2699,11 +2696,10 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
   }
 
   {  // --- S t r i n g ---
-    DirectHandle<JSFunction> string_fun =
-        InstallFunction(isolate_, global, "String", JS_PRIMITIVE_WRAPPER_TYPE,
-                        JSPrimitiveWrapper::kHeaderSize, 0,
-                        isolate_->initial_object_prototype(),
-                        Builtin::kStringConstructor, 1, kDontAdapt);
+    DirectHandle<JSFunction> string_fun = InstallFunction(
+        isolate_, global, "String", JS_PRIMITIVE_WRAPPER_TYPE,
+        sizeof(JSPrimitiveWrapper), 0, isolate_->initial_object_prototype(),
+        Builtin::kStringConstructor, 1, kDontAdapt);
     InstallWithIntrinsicDefaultProto(isolate_, string_fun,
                                      Context::STRING_FUNCTION_INDEX);
 
@@ -2900,7 +2896,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
 
     DirectHandle<JSFunction> string_iterator_function = CreateFunction(
         isolate_, factory->InternalizeUtf8String("StringIterator"),
-        JS_STRING_ITERATOR_TYPE, JSStringIterator::kHeaderSize, 0,
+        JS_STRING_ITERATOR_TYPE, sizeof(JSStringIterator), 0,
         string_iterator_prototype, Builtin::kIllegal, 0, kDontAdapt);
     string_iterator_function->shared()->set_native(false);
     native_context()->set_initial_string_iterator_map(
@@ -2912,7 +2908,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
   {  // --- S y m b o l ---
     DirectHandle<JSFunction> symbol_fun = InstallFunction(
         isolate_, global, "Symbol", JS_PRIMITIVE_WRAPPER_TYPE,
-        JSPrimitiveWrapper::kHeaderSize, 0, factory->the_hole_value(),
+        sizeof(JSPrimitiveWrapper), 0, factory->the_hole_value(),
         Builtin::kSymbolConstructor, 0, kDontAdapt);
     native_context()->set_symbol_function(*symbol_fun);
 
@@ -2974,7 +2970,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
 
   {  // --- D a t e ---
     DirectHandle<JSFunction> date_fun = InstallFunction(
-        isolate_, global, "Date", JS_DATE_TYPE, JSDate::kHeaderSize, 0,
+        isolate_, global, "Date", JS_DATE_TYPE, sizeof(JSDate), 0,
         factory->the_hole_value(), Builtin::kDateConstructor, 7, kDontAdapt);
     InstallWithIntrinsicDefaultProto(isolate_, date_fun,
                                      Context::DATE_FUNCTION_INDEX);
@@ -3111,8 +3107,9 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
   {  // -- P r o m i s e
     DirectHandle<JSFunction> promise_fun = InstallFunction(
         isolate_, global, "Promise", JS_PROMISE_TYPE,
-        JSPromise::kSizeWithEmbedderFields, 0, factory->the_hole_value(),
-        Builtin::kPromiseConstructor, 1, kAdapt);
+        sizeof(JSPromise) +
+            v8::Promise::kEmbedderFieldCount * kEmbedderDataSlotSize,
+        0, factory->the_hole_value(), Builtin::kPromiseConstructor, 1, kAdapt);
     InstallWithIntrinsicDefaultProto(isolate_, promise_fun,
                                      Context::PROMISE_FUNCTION_INDEX);
 
@@ -3398,8 +3395,8 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
 
     DirectHandle<JSFunction> regexp_string_iterator_function = CreateFunction(
         isolate(), "RegExpStringIterator", JS_REG_EXP_STRING_ITERATOR_TYPE,
-        JSRegExpStringIterator::kHeaderSize, 0,
-        regexp_string_iterator_prototype, Builtin::kIllegal, 0, kDontAdapt);
+        sizeof(JSRegExpStringIterator), 0, regexp_string_iterator_prototype,
+        Builtin::kIllegal, 0, kDontAdapt);
     regexp_string_iterator_function->shared()->set_native(false);
     native_context()->set_initial_regexp_string_iterator_prototype_map(
         regexp_string_iterator_function->initial_map());
@@ -3454,14 +3451,13 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
 
   {  // -- J S O N
     DirectHandle<Map> raw_json_map = factory->NewContextfulMapForCurrentContext(
-        JS_RAW_JSON_TYPE, JSRawJson::kInitialSize, TERMINAL_FAST_ELEMENTS_KIND,
-        1);
+        JS_RAW_JSON_TYPE, sizeof(JSRawJson) + kTaggedSize,
+        TERMINAL_FAST_ELEMENTS_KIND, 1);
     Map::EnsureDescriptorSlack(isolate_, raw_json_map, 1);
     {
-      Descriptor d =
-          Descriptor::DataField(isolate(), factory->raw_json_string(),
-                                JSRawJson::kRawJsonInitialOffset, NONE,
-                                Representation::Tagged(), true);
+      Descriptor d = Descriptor::DataField(
+          isolate(), factory->raw_json_string(), sizeof(JSRawJson), NONE,
+          Representation::Tagged(), true);
       raw_json_map->AppendDescriptor(isolate(), &d);
     }
     raw_json_map->SetPrototype(isolate(), raw_json_map, factory->null_value());
@@ -4399,7 +4395,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
 
   {  // -- M a p
     DirectHandle<JSFunction> js_map_fun = InstallFunction(
-        isolate_, global, "Map", JS_MAP_TYPE, JSMap::kHeaderSize, 0,
+        isolate_, global, "Map", JS_MAP_TYPE, sizeof(JSMap), 0,
         factory->the_hole_value(), Builtin::kMapConstructor, 0, kDontAdapt);
     InstallWithIntrinsicDefaultProto(isolate_, js_map_fun,
                                      Context::JS_MAP_FUN_INDEX);
@@ -4465,7 +4461,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
   {  // -- B i g I n t
     DirectHandle<JSFunction> bigint_fun = InstallFunction(
         isolate_, global, "BigInt", JS_PRIMITIVE_WRAPPER_TYPE,
-        JSPrimitiveWrapper::kHeaderSize, 0, factory->the_hole_value(),
+        sizeof(JSPrimitiveWrapper), 0, factory->the_hole_value(),
         Builtin::kBigIntConstructor, 1, kDontAdapt);
     InstallWithIntrinsicDefaultProto(isolate_, bigint_fun,
                                      Context::BIGINT_FUNCTION_INDEX);
@@ -4501,7 +4497,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
 
   {  // -- S e t
     DirectHandle<JSFunction> js_set_fun = InstallFunction(
-        isolate_, global, "Set", JS_SET_TYPE, JSSet::kHeaderSize, 0,
+        isolate_, global, "Set", JS_SET_TYPE, sizeof(JSSet), 0,
         factory->the_hole_value(), Builtin::kSetConstructor, 0, kDontAdapt);
     InstallWithIntrinsicDefaultProto(isolate_, js_set_fun,
                                      Context::JS_SET_FUN_INDEX);
@@ -4641,7 +4637,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
         Builtin::kWrapForValidIteratorPrototypeReturn, 0, kAdapt);
     DirectHandle<Map> valid_iterator_wrapper_map =
         factory->NewContextfulMapForCurrentContext(
-            JS_VALID_ITERATOR_WRAPPER_TYPE, JSValidIteratorWrapper::kHeaderSize,
+            JS_VALID_ITERATOR_WRAPPER_TYPE, sizeof(JSValidIteratorWrapper),
             TERMINAL_FAST_ELEMENTS_KIND, 0);
     Map::SetPrototype(isolate(), valid_iterator_wrapper_map,
                       wrap_for_valid_iterator_prototype);
@@ -4687,7 +4683,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
   {                                                                           \
     DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(       \
         JS_ITERATOR_##ALL_CAPS_NAME##_HELPER_TYPE,                            \
-        JSIterator##Capitalized_name##Helper::kHeaderSize,                    \
+        sizeof(JSIterator##Capitalized_name##Helper),                         \
         TERMINAL_FAST_ELEMENTS_KIND, 0);                                      \
     Map::SetPrototype(isolate(), map, iterator_helper_prototype);             \
     map->SetConstructor(*iterator_function);                                  \
@@ -4742,10 +4738,9 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
   }
 
   {  // -- W e a k M a p
-    DirectHandle<JSFunction> cons =
-        InstallFunction(isolate_, global, "WeakMap", JS_WEAK_MAP_TYPE,
-                        JSWeakMap::kHeaderSize, 0, factory->the_hole_value(),
-                        Builtin::kWeakMapConstructor, 0, kDontAdapt);
+    DirectHandle<JSFunction> cons = InstallFunction(
+        isolate_, global, "WeakMap", JS_WEAK_MAP_TYPE, sizeof(JSWeakMap), 0,
+        factory->the_hole_value(), Builtin::kWeakMapConstructor, 0, kDontAdapt);
     InstallWithIntrinsicDefaultProto(isolate_, cons,
                                      Context::JS_WEAK_MAP_FUN_INDEX);
 
@@ -4782,10 +4777,9 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
   }
 
   {  // -- W e a k S e t
-    DirectHandle<JSFunction> cons =
-        InstallFunction(isolate_, global, "WeakSet", JS_WEAK_SET_TYPE,
-                        JSWeakSet::kHeaderSize, 0, factory->the_hole_value(),
-                        Builtin::kWeakSetConstructor, 0, kDontAdapt);
+    DirectHandle<JSFunction> cons = InstallFunction(
+        isolate_, global, "WeakSet", JS_WEAK_SET_TYPE, sizeof(JSWeakSet), 0,
+        factory->the_hole_value(), Builtin::kWeakSetConstructor, 0, kDontAdapt);
     InstallWithIntrinsicDefaultProto(isolate_, cons,
                                      Context::JS_WEAK_SET_FUN_INDEX);
 
@@ -4944,10 +4938,9 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
   }
 
   {  // -- W e a k R e f
-    DirectHandle<JSFunction> weak_ref_fun =
-        InstallFunction(isolate_, global, "WeakRef", JS_WEAK_REF_TYPE,
-                        JSWeakRef::kHeaderSize, 0, factory->the_hole_value(),
-                        Builtin::kWeakRefConstructor, 1, kDontAdapt);
+    DirectHandle<JSFunction> weak_ref_fun = InstallFunction(
+        isolate_, global, "WeakRef", JS_WEAK_REF_TYPE, sizeof(JSWeakRef), 0,
+        factory->the_hole_value(), Builtin::kWeakRefConstructor, 1, kDontAdapt);
     InstallWithIntrinsicDefaultProto(isolate_, weak_ref_fun,
                                      Context::JS_WEAK_REF_FUNCTION_INDEX);
 
@@ -5400,7 +5393,7 @@ void Genesis::InitializeIteratorFunctions() {
     // JavaScript anyways.
     DirectHandle<Map> async_function_object_map =
         factory->NewContextfulMapForCurrentContext(
-            JS_ASYNC_FUNCTION_OBJECT_TYPE, JSAsyncFunctionObject::kHeaderSize);
+            JS_ASYNC_FUNCTION_OBJECT_TYPE, sizeof(JSAsyncFunctionObject));
     native_context->set_async_function_object_map(*async_function_object_map);
 
     isolate_->async_function_map()->SetConstructor(*async_function_constructor);
@@ -5615,7 +5608,7 @@ void Genesis::InitializeGlobal_js_iterator_sequencing() {
       direct_handle(native_context()->initial_iterator_function(), isolate_);
   DirectHandle<Map> map =
       isolate_->factory()->NewContextfulMapForCurrentContext(
-          JS_ITERATOR_CONCAT_HELPER_TYPE, JSIteratorConcatHelper::kHeaderSize,
+          JS_ITERATOR_CONCAT_HELPER_TYPE, sizeof(JSIteratorConcatHelper),
           TERMINAL_FAST_ELEMENTS_KIND, 0);
   Map::SetPrototype(isolate(), map, iterator_helper_prototype);
   map->SetConstructor(*iterator_function);
@@ -5633,7 +5626,7 @@ void Genesis::InitializeGlobal_js_joint_iteration() {
       direct_handle(native_context()->initial_iterator_function(), isolate_);
   DirectHandle<Map> map =
       isolate_->factory()->NewContextfulMapForCurrentContext(
-          JS_ITERATOR_ZIP_HELPER_TYPE, JSIteratorZipHelper::kHeaderSize,
+          JS_ITERATOR_ZIP_HELPER_TYPE, sizeof(JSIteratorZipHelper),
           TERMINAL_FAST_ELEMENTS_KIND, 0);
   Map::SetPrototype(isolate(), map, iterator_helper_prototype);
   map->SetConstructor(*iterator_function);
@@ -5685,7 +5678,7 @@ void Genesis::InitializeGlobal_harmony_shadow_realm() {
                                       isolate());
   DirectHandle<JSFunction> shadow_realm_fun =
       InstallFunction(isolate_, global, "ShadowRealm", JS_SHADOW_REALM_TYPE,
-                      JSShadowRealm::kHeaderSize, 0, factory->the_hole_value(),
+                      sizeof(JSShadowRealm), 0, factory->the_hole_value(),
                       Builtin::kShadowRealmConstructor, 0, kDontAdapt);
 
   // Setup %ShadowRealmPrototype%.
@@ -5861,8 +5854,8 @@ void Genesis::InitializeGlobal_js_explicit_resource_management() {
 
   // -- D i s p o s a b l e S t a c k
   DirectHandle<Map> js_disposable_stack_map =
-      factory->NewContextfulMapForCurrentContext(
-          JS_DISPOSABLE_STACK_BASE_TYPE, JSDisposableStackBase::kHeaderSize);
+      factory->NewContextfulMapForCurrentContext(JS_DISPOSABLE_STACK_BASE_TYPE,
+                                                 sizeof(JSDisposableStackBase));
   js_disposable_stack_map->SetConstructor(native_context()->object_function());
   native_context()->set_js_disposable_stack_map(*js_disposable_stack_map);
   LOG(isolate(), MapDetails(*js_disposable_stack_map));
@@ -5870,7 +5863,7 @@ void Genesis::InitializeGlobal_js_explicit_resource_management() {
   // SyncDisposableStack
   DirectHandle<JSFunction> disposable_stack_function = InstallFunction(
       isolate(), global, "DisposableStack", JS_SYNC_DISPOSABLE_STACK_TYPE,
-      JSSyncDisposableStack::kHeaderSize, 0, factory->the_hole_value(),
+      sizeof(JSSyncDisposableStack), 0, factory->the_hole_value(),
       Builtin::kDisposableStackConstructor, 0, kDontAdapt);
   DirectHandle<JSObject> sync_disposable_stack_prototype(
       Cast<JSObject>(disposable_stack_function->instance_prototype()),
@@ -5901,7 +5894,7 @@ void Genesis::InitializeGlobal_js_explicit_resource_management() {
   // AsyncDisposableStack
   DirectHandle<JSFunction> async_disposable_stack_function = InstallFunction(
       isolate(), global, "AsyncDisposableStack", JS_ASYNC_DISPOSABLE_STACK_TYPE,
-      JSAsyncDisposableStack::kHeaderSize, 0, factory->the_hole_value(),
+      sizeof(JSAsyncDisposableStack), 0, factory->the_hole_value(),
       Builtin::kAsyncDisposableStackConstructor, 0, kDontAdapt);
   DirectHandle<JSObject> async_disposable_stack_prototype(
       Cast<JSObject>(async_disposable_stack_function->instance_prototype()),
@@ -6411,8 +6404,8 @@ bool Genesis::InstallABunchOfRandomThings() {
         .ToChecked();
 
     // Freeze the {template_object} as well.
-    JSObject::SetIntegrityLevel(isolate(), template_object, FROZEN,
-                                kThrowOnError)
+    JSReceiver::SetIntegrityLevel(isolate(), template_object, FROZEN,
+                                  kThrowOnError)
         .ToChecked();
     {
       DisallowGarbageCollection no_gc;

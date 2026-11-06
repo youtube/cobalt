@@ -47,6 +47,8 @@
 #include "ui/gfx/scoped_animation_duration_scale_mode.h"
 
 namespace ash {
+
+using chromeos::AppType;
 namespace {
 
 gfx::PointF CalculateDragPoint(const WindowResizer& resizer,
@@ -203,7 +205,7 @@ using OverviewControllerTest = AshTestBase;
 TEST_F(OverviewControllerTest,
        PressOverviewKeyDuringWindowDragInClamshellMode) {
   ASSERT_FALSE(display::Screen::Get()->InTabletMode());
-  std::unique_ptr<aura::Window> dragged_window = CreateTestWindow();
+  std::unique_ptr<aura::Window> dragged_window = CreateWindowWithAppType();
   std::unique_ptr<WindowResizer> resizer =
       CreateWindowResizer(dragged_window.get(), gfx::PointF(), HTCAPTION,
                           ::wm::WINDOW_MOVE_SOURCE_MOUSE);
@@ -224,8 +226,10 @@ TEST_F(OverviewControllerTest, OcclusionTestWithSnapshot) {
   gfx::ScopedAnimationDurationScaleMode non_zero(
       gfx::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
   constexpr gfx::Rect kBounds(0, 0, 100, 100);
-  std::unique_ptr<aura::Window> window1(CreateAppWindow(kBounds));
-  std::unique_ptr<aura::Window> window2(CreateAppWindow(kBounds));
+  std::unique_ptr<aura::Window> window1 =
+      CreateWindowWithAppType(AppType::SYSTEM_APP, kBounds);
+  std::unique_ptr<aura::Window> window2 =
+      CreateWindowWithAppType(AppType::SYSTEM_APP, kBounds);
   // Wait for show/hide animation because occlusion tracker because
   // the test depends on opacity.
   WaitForShowAnimation(window1.get());
@@ -303,7 +307,7 @@ TEST_F(OverviewControllerTest, PipMustNotInOverviewGridTest) {
 
 // Tests that beginning window selection hides the app list.
 TEST_F(OverviewControllerTest, SelectingHidesAppList) {
-  std::unique_ptr<aura::Window> window(CreateTestWindow());
+  std::unique_ptr<aura::Window> window = CreateWindowWithAppType();
 
   GetAppListTestHelper()->ShowAndRunLoop(GetPrimaryDisplay().id());
   GetAppListTestHelper()->CheckVisibility(true);
@@ -318,10 +322,10 @@ TEST_F(OverviewControllerTest, SelectingHidesAppList) {
 TEST_F(OverviewControllerTest, ExcludedWindowsHidden) {
   // Create three windows, one normal, one which is not user positionable (and
   // so should be hidden) and one specifically set to be hidden in overview.
-  std::unique_ptr<aura::Window> window1 = CreateTestWindow();
+  std::unique_ptr<aura::Window> window1 = CreateWindowWithAppType();
   std::unique_ptr<aura::Window> window2 =
       CreateTestWindowInShell({.window_type = aura::client::WINDOW_TYPE_POPUP});
-  std::unique_ptr<aura::Window> window3 = CreateTestWindow();
+  std::unique_ptr<aura::Window> window3 = CreateWindowWithAppType();
   window3->SetProperty(kHideInOverviewKey, true);
 
   // After creation, all windows are visible.
@@ -388,7 +392,7 @@ TEST_F(OverviewControllerTest, ObserverCallsMatch) {
   }
 
   // Create one window for the next set of tests.
-  std::unique_ptr<aura::Window> window(CreateTestWindow());
+  std::unique_ptr<aura::Window> window = CreateWindowWithAppType();
 
   for (bool is_tablet_mode : {false, true}) {
     SCOPED_TRACE(is_tablet_mode ? "Tablet Mode" : "Clamshell Mode");
@@ -513,9 +517,10 @@ TEST_F(OverviewControllerTest, OverviewExitWhileStillEntering) {
 TEST_F(OverviewControllerTest, CloseWindowDuringAnimation) {
   // Create two windows. They should both be visible so that they both get
   // animated.
-  std::unique_ptr<aura::Window> window1 = CreateAppWindow(gfx::Rect(250, 100));
+  std::unique_ptr<aura::Window> window1 =
+      CreateWindowWithAppType(AppType::SYSTEM_APP, {250, 100});
   std::unique_ptr<aura::Window> window2 =
-      CreateAppWindow(gfx::Rect(250, 250, 250, 100));
+      CreateWindowWithAppType(AppType::SYSTEM_APP, {250, 250, 250, 100});
 
   gfx::ScopedAnimationDurationScaleMode non_zero(
       gfx::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
@@ -665,7 +670,7 @@ TEST_F(OverviewControllerTest, OverviewEnterExitWhileDeskAnimation) {
 // Tests that clipping the window to remove the top view inset (header) works as
 // expected.
 TEST_F(OverviewControllerTest, WindowClipping) {
-  std::unique_ptr<aura::Window> window = CreateTestWindow();
+  std::unique_ptr<aura::Window> window = CreateWindowWithAppType();
   window->SetBounds(gfx::Rect(300, 300));
   window->SetProperty(aura::client::kTopViewInset, 20);
   ASSERT_EQ(gfx::Rect(), window->layer()->GetTargetClipRect());
@@ -747,15 +752,14 @@ TEST_F(OverviewControllerTest, FrameThrottling) {
              browser_window_count + arc_window_count>
       created_windows;
   for (int i = 0; i < browser_window_count; ++i) {
-    created_windows[i] =
-        CreateAppWindow(gfx::Rect(), chromeos::AppType::BROWSER);
+    created_windows[i] = CreateWindowWithAppType(AppType::BROWSER);
     created_windows[i]->SetEmbedFrameSinkId(ids[i]);
   }
 
   std::vector<aura::Window*> arc_windows(arc_window_count, nullptr);
   for (int i = 0; i < arc_window_count; ++i) {
     created_windows[i + browser_window_count] =
-        CreateAppWindow(gfx::Rect(), chromeos::AppType::ARC_APP);
+        CreateWindowWithAppType(AppType::ARC_APP);
     arc_windows[i] = created_windows[i + browser_window_count].get();
   }
 

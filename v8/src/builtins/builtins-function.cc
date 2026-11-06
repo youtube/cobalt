@@ -245,12 +245,6 @@ BUILTIN(FunctionPrototypeBind) {
   return DoFunctionBind(isolate, args, ProtoSource::kUseTargetPrototype);
 }
 
-#if V8_ENABLE_WEBASSEMBLY
-BUILTIN(WebAssemblyFunctionPrototypeBind) {
-  return DoFunctionBind(isolate, args, ProtoSource::kNormalFunction);
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
-
 // https://tc39.es/ecma262/#sec-function.prototype.tostring
 BUILTIN(FunctionPrototypeToString) {
   HandleScope scope(isolate);

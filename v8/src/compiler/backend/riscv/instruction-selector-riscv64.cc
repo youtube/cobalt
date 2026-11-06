@@ -1080,6 +1080,8 @@ void InstructionSelector::VisitInt32Mul(OpIndex node) {
   VisitRRR(this, kRiscvMul32, node);
 }
 
+void InstructionSelector::VisitUint64Add128(OpIndex node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitInt32MulHigh(OpIndex node) {
   VisitRRR(this, kRiscvMulHigh32, node);
 }
@@ -1101,7 +1103,27 @@ void InstructionSelector::VisitInt64Mul(OpIndex node) {
 }
 
 void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
-  UNIMPLEMENTED();
+  RiscvOperandGenerator g(this);
+
+  const turboshaft::Word64MulWideOp& op =
+      this->Get(node).Cast<turboshaft::Word64MulWideOp>();
+  OpIndex lhs = op.left();
+  OpIndex rhs = op.right();
+
+  InstructionOperand left = g.UseUniqueRegister(lhs);
+  InstructionOperand right = g.UseUniqueRegister(rhs);
+
+  OptionalOpIndex out_low = FindProjection(node, 0);
+  Emit(kRiscvMul64,
+       g.DefineAsRegister(out_low.valid() ? out_low.value() : node), left,
+       right);
+
+  OptionalOpIndex out_high = FindProjection(node, 1);
+  if (out_high.valid() && IsUsed(out_high.value())) {
+    InstructionCode high_opcode =
+        is_signed ? kRiscvMulHigh64 : kRiscvMulHighU64;
+    Emit(high_opcode, g.DefineAsRegister(out_high.value()), left, right);
+  }
 }
 
 void InstructionSelector::VisitInt32Div(OpIndex node) {
@@ -1673,10 +1695,10 @@ void InstructionSelector::EmitPrepareArguments(
   if (call_descriptor->IsCFunctionCall()) {
     int gp_param_count = static_cast<int>(call_descriptor->GPParameterCount());
     int fp_param_count = static_cast<int>(call_descriptor->FPParameterCount());
-    Emit(kArchPrepareCallCFunction | ParamField::encode(gp_param_count) |
-             FPParamField::encode(fp_param_count),
-         0, nullptr, 0, nullptr);
-
+    uint32_t param_counts = ParamField::encode(gp_param_count) |
+                            FPParamField::encode(fp_param_count);
+    Emit(kArchPrepareCallCFunction, g.NoOutput(),
+         g.TempImmediate(param_counts));
     // Poke any stack arguments.
     int slot = 0;
     for (PushParameter input : (*arguments)) {

@@ -74,6 +74,7 @@
 #include "extensions/common/mojom/context_type.mojom.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/result_catcher.h"
+#include "extensions/test/test_extension_dir.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "pdf/buildflags.h"
@@ -96,7 +97,6 @@
 #include "chrome/browser/resource_coordinator/utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
@@ -1455,7 +1455,7 @@ class ExtensionWindowCreateIwaTest
 IN_PROC_BROWSER_TEST_P(ExtensionWindowCreateIwaTest, CreateWindowForIwa) {
   auto url_info = InstallAndTrustBundle();
 
-  EXPECT_EQ(chrome::GetTotalBrowserCount(), 0ul);
+  EXPECT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(), 0ul);
 
   scoped_refptr<const Extension> extension =
       ExtensionBuilder("ExtensionWindowCreateIwaTest").Build();
@@ -1468,7 +1468,7 @@ IN_PROC_BROWSER_TEST_P(ExtensionWindowCreateIwaTest, CreateWindowForIwa) {
     EXPECT_TRUE(result) << function->GetError();
 
     // A single browser for the IWA should now be open.
-    ASSERT_EQ(chrome::GetTotalBrowserCount(), 1ul);
+    ASSERT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(), 1ul);
     BrowserWindowInterface* iwa_browser =
         GetLastActiveBrowserWindowInterfaceWithAnyProfile();
     ASSERT_TRUE(iwa_browser);
@@ -1492,7 +1492,7 @@ IN_PROC_BROWSER_TEST_P(ExtensionWindowCreateIwaTest, CreateWindowForIwa) {
   } else {
     EXPECT_FALSE(result);
     // No browser should have opened.
-    EXPECT_EQ(chrome::GetTotalBrowserCount(), 0ul);
+    EXPECT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(), 0ul);
   }
 }
 
@@ -1792,8 +1792,14 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, ExecuteScriptOnDevTools) {
   DevToolsWindowTesting::CloseDevToolsWindowSync(devtools);
 }
 
+// TODO(crbug.com/504781983): Fails on Linux.
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_DiscardedProperty DISABLED_DiscardedProperty
+#else
+#define MAYBE_DiscardedProperty DiscardedProperty
+#endif
 // TODO(georgesak): change this browsertest to an unittest.
-IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, DiscardedProperty) {
+IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, MAYBE_DiscardedProperty) {
   ASSERT_TRUE(g_browser_process && g_browser_process->GetTabManager());
   resource_coordinator::TabManager* tab_manager =
       g_browser_process->GetTabManager();
@@ -2320,6 +2326,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, AutoDiscardableProperty) {
 }
 
 // Tester class for the tabs.zoom* api functions.
+// TODO(https://crbug.com/505313377): Port these to desktop android. Currently,
+// zoom controllers are not created for tabs, so the functions always return
+// an error.
 class ExtensionTabsZoomTest : public ExtensionTabsTest {
  public:
   void SetUpOnMainThread() override;
@@ -3260,16 +3269,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, TabsUpdate_JavaScriptUrlNotAllowed) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   // An extension with access to www.example.com.
-  // TODO(crbug.com/371432155): Use the semantic extension builder and Manifest
-  // V3.
   scoped_refptr<const Extension> extension =
-      ExtensionBuilder()
-          .SetManifest(base::DictValue()
-                           .Set("name", "Extension with a host permission")
-                           .Set("version", "1.0")
-                           .Set("manifest_version", 2)
-                           .Set("permissions", base::ListValue().Append(
-                                                   "http://www.example.com/*")))
+      ExtensionBuilder("Extension with a host permission")
+          .AddHostPermission("http://www.example.com/*")
           .Build();
   auto function = base::MakeRefCounted<TabsUpdateFunction>();
   function->set_extension(extension.get());
@@ -3363,7 +3365,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, TabsUpdate_WebToAboutNewTab) {
   GURL web_url = embedded_test_server()->GetURL("/title1.html");
   url::Origin web_origin = url::Origin::Create(web_url);
 
-  // https://crbug.com/1145381: about:version is rewritten to chrome://version
+  // https://crbug.com/40155847: about:version is rewritten to chrome://version
   // when entered in the omnibox or used in a bookmark.  Such rewriting is
   // definitely undesirable for http-initiated navigations (see r818969), but
   // it is less clear what should happen in extension-initiated navigations.
@@ -3555,7 +3557,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest,
 
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
-// Bug fix for crbug.com/1196309. Ensure that an extension can't update the tab
+// Bug fix for crbug.com/40055468. Ensure that an extension can't update the tab
 // strip while a tab drag is in progress.
 IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, IsTabStripEditable) {
   // Add a couple of web contents to the browser and get their tab IDs.
@@ -3629,7 +3631,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, IsTabStripEditable) {
                                    utils::FunctionMode::kNone));
   }
 
-  // Bug fix for crbug.com/1198717. Error updating tabs while drag in progress.
+  // Bug fix for crbug.com/40055542. Error updating tabs while drag in progress.
   {
     std::string args =
         base::StringPrintf("[%d, {\"highlighted\": true}]", tab_ids[1]);
@@ -3650,7 +3652,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, IsTabStripEditable) {
     EXPECT_EQ(ExtensionTabUtil::kTabStripNotEditableError, error);
   }
 
-  // Bug fix for crbug.com/1197146. Tab group modification during drag.
+  // Bug fix for crbug.com/40055487. Tab group modification during drag.
   {
     std::string args = base::StringPrintf("[{\"tabIds\": [%d]}]", tab_ids[0]);
     scoped_refptr<TabsGroupFunction> function =
@@ -5046,6 +5048,67 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, GroupSingleTabInSplitView) {
   EXPECT_TRUE(browser()->tab_strip_model()->GetSplitForTab(1).has_value());
 }
 
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+#if !BUILDFLAG(IS_ANDROID)
+class ExtensionTabsWebContentsDiscardDisabledTest : public ExtensionTabsTest {
+ public:
+  ExtensionTabsWebContentsDiscardDisabledTest() {
+    scoped_feature_list_.InitAndDisableFeature(features::kWebContentsDiscard);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(ExtensionTabsWebContentsDiscardDisabledTest,
+                       OnReplacedEvent) {
+  TestExtensionDir test_dir;
+  test_dir.WriteManifest(R"({
+    "name": "onReplaced Test",
+    "version": "1.0",
+    "manifest_version": 3,
+    "background": {
+      "service_worker": "background.js"
+    }
+  })");
+  test_dir.WriteFile(FILE_PATH_LITERAL("background.js"), R"(
+    chrome.tabs.create({"url": "about:blank"}, function(tab) {
+      chrome.tabs.onReplaced.addListener(function(new_tab_id, old_tab_id) {
+        if (old_tab_id === tab.id && new_tab_id !== tab.id) {
+          chrome.test.sendMessage("success");
+        } else {
+          chrome.test.sendMessage("failure");
+        }
+      });
+      chrome.test.sendMessage("ready");
+    });
+  )");
+
+  ExtensionTestMessageListener ready_listener("ready");
+  ExtensionTestMessageListener success_listener("success");
+
+  const Extension* extension = LoadExtension(test_dir.UnpackedPath());
+  ASSERT_TRUE(extension);
+
+  // Wait for the JS to create the tab and attach its listener.
+  ASSERT_TRUE(ready_listener.WaitUntilSatisfied());
+
+  // Do the replacement on the last tab (the one the extension just created).
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+  int target_index = tab_strip_model->count() - 1;
+
+  auto new_contents =
+      content::WebContents::Create(content::WebContents::CreateParams(
+          browser()->profile(),
+          content::SiteInstance::Create(browser()->profile())));
+
+  auto old_contents = tab_strip_model->DiscardWebContentsAt(
+      target_index, std::move(new_contents));
+
+  // Wait for the JS test to catch the event and send "success".
+  ASSERT_TRUE(success_listener.WaitUntilSatisfied());
+}
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace extensions

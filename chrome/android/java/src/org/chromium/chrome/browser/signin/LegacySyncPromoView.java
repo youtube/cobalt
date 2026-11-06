@@ -29,7 +29,6 @@ import org.chromium.components.browser_ui.settings.SettingsNavigation;
 import org.chromium.components.browser_ui.widget.MaterialCardViewNoShadow;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
 import org.chromium.components.sync.SyncService;
-import org.chromium.ui.base.DeviceFormFactor;
 
 // TODO(crbug.com/40223169): Extend the comment below to explain under which circumstances this
 // class is
@@ -67,7 +66,7 @@ public class LegacySyncPromoView extends FrameLayout
      */
     public static LegacySyncPromoView create(
             ViewGroup parent, Profile profile, @SigninAccessPoint int accessPoint) {
-        // TODO(injae): crbug.com/829548
+        // TODO(injae): crbug.com/40570370
         LegacySyncPromoView result =
                 (LegacySyncPromoView)
                         LayoutInflater.from(parent.getContext())
@@ -86,7 +85,7 @@ public class LegacySyncPromoView extends FrameLayout
     protected void onFinishInflate() {
         super.onFinishInflate();
 
-        // @Todo(crbug.com/1465523) Refactor Recent Tabs Empty States implementation. We don't want
+        // @Todo(crbug.com/40923516) Refactor Recent Tabs Empty States implementation. We don't want
         // this implementation to live in this class and we can add another subclass of PromoGroup
         // similar to the one used for LegacySyncPromoView.
         ViewStub emptyViewStub = findViewById(R.id.recent_tab_empty_state_view_stub);
@@ -154,64 +153,22 @@ public class LegacySyncPromoView extends FrameLayout
     }
 
     private void update() {
-        ViewState viewState;
-        if (!mSyncService.hasSyncConsent() || mSyncService.getSelectedTypes().isEmpty()) {
-            viewState = getStateForEnableChromeSync();
-            viewState.apply(mDescription, mPositiveButton, mEmptyView, mOldEmptyCardView);
-        } else {
-            viewState = getStateForStartUsing();
-            if (mAccessPoint == SigninAccessPoint.BOOKMARK_MANAGER) {
-                viewState.apply(mDescription, mPositiveButton, mEmptyView, mOldEmptyCardView);
-            } else {
-                viewState.applyEmptyView(
-                        mEmptyStateTitle,
-                        mEmptyStateDescription,
-                        mEmptyStateImage,
-                        mOldEmptyCardView,
-                        mEmptyView);
-            }
-        }
+        ViewState viewState = getStateForEnableChromeSync();
+        viewState.apply(mDescription, mPositiveButton, mEmptyView, mOldEmptyCardView);
     }
 
     /**
-     * The ViewState class represents all the UI elements that can change for each variation of
-     * this View. We use this to ensure each variation (created in the getStateFor* methods)
-     * explicitly touches each UI element.
+     * The ViewState class represents all the UI elements that can change for each variation of this
+     * View. We use this to ensure each variation (created in the getStateFor* methods) explicitly
+     * touches each UI element.
      */
     private static class ViewState {
-        private int mDescriptionText;
-        private @Nullable ButtonState mPositiveButtonState;
-        private int mEmptyStateTitleText;
-        private int mEmptyStateDescriptionText;
-        private int mEmptyStateImageResource;
+        private final int mDescriptionText;
+        private final @Nullable ButtonState mPositiveButtonState;
 
         public ViewState(int descriptionText, ButtonState positiveButtonState) {
             mDescriptionText = descriptionText;
             mPositiveButtonState = positiveButtonState;
-        }
-
-        // Initialize empty State view resources.
-        public ViewState(
-                int emptyStateTitleText,
-                int emptyStateDescriptionText,
-                int emptyStateImageResource) {
-            mEmptyStateTitleText = emptyStateTitleText;
-            mEmptyStateDescriptionText = emptyStateDescriptionText;
-            mEmptyStateImageResource = emptyStateImageResource;
-        }
-
-        // Apply empty state view resources.
-        public void applyEmptyView(
-                TextView emptyStateTitle,
-                TextView emptyStateDescription,
-                ImageView emptyStateImageView,
-                MaterialCardViewNoShadow oldEmptyCardView,
-                View emptyStateView) {
-            emptyStateTitle.setText(mEmptyStateTitleText);
-            emptyStateDescription.setText(mEmptyStateDescriptionText);
-            emptyStateImageView.setImageResource(mEmptyStateImageResource);
-            oldEmptyCardView.setVisibility(View.GONE);
-            emptyStateView.setVisibility(View.VISIBLE);
         }
 
         public void apply(
@@ -235,13 +192,6 @@ public class LegacySyncPromoView extends FrameLayout
      */
     private interface ButtonState {
         void apply(Button button);
-    }
-
-    private static class ButtonAbsent implements ButtonState {
-        @Override
-        public void apply(Button button) {
-            button.setVisibility(View.GONE);
-        }
     }
 
     private static class ButtonPresent implements ButtonState {
@@ -280,26 +230,6 @@ public class LegacySyncPromoView extends FrameLayout
                         });
 
         return new ViewState(descId, positiveButton);
-    }
-
-    private ViewState getStateForStartUsing() {
-        // TODO(peconn): Ensure this state is never seen when used for bookmarks.
-        // State is updated before this view is removed, so this invalid state happens, but is not
-        // visible. I want there to be a guarantee that this state is never seen, but to do so would
-        // require some code restructuring.
-        if (mAccessPoint != SigninAccessPoint.BOOKMARK_MANAGER) {
-            int emptyViewImageResId =
-                    DeviceFormFactor.isNonMultiDisplayContextOnTablet(getContext())
-                            ? R.drawable.tablet_recent_tab_empty_state_illustration
-                            : R.drawable.phone_recent_tab_empty_state_illustration;
-            return new ViewState(
-                    R.string.recent_tabs_no_tabs_empty_state,
-                    R.string.recent_tabs_sign_in_on_other_devices,
-                    emptyViewImageResId);
-        } else {
-            return new ViewState(
-                    R.string.ntp_recent_tabs_sync_promo_instructions, new ButtonAbsent());
-        }
     }
 
     @Override

@@ -30,6 +30,14 @@ builder.addFunction("wasm_f64_arg", makeSig([kWasmF64], [kWasmI32]))
     .addBody([kExprI32Const, 44])
     .exportFunc();
 
+builder.addFunction("wasm_i64_arg", makeSig([kWasmI64], [kWasmI32]))
+    .addBody([kExprI32Const, 46])
+    .exportFunc();
+
+builder.addFunction("wasm_i64_identity", makeSig([kWasmI64], [kWasmI64]))
+    .addBody([kExprLocalGet, 0])
+    .exportFunc();
+
 builder.addFunction("wasm_externref_arg", makeSig([kWasmExternRef], [kWasmI32]))
     .addBody([kExprI32Const, 45])
     .exportFunc();
@@ -69,6 +77,19 @@ optimize_and_call(test_f64_smi, 4, 44);
 function test_f64_heap(arg) { return instance.exports.wasm_f64_arg(arg); }
 optimize_and_call(test_f64_heap, 2.718281828, 44);
 
+function test_i64_bigint(arg) { return instance.exports.wasm_i64_identity(arg); }
+optimize_and_call(test_i64_bigint, 42n, 42n);
+
+// BigInt larger than i64: should silently wrap around (ToBigInt64 modular
+// truncation), no deopt expected.
+function test_i64_bigint_wrap(arg) {
+  return instance.exports.wasm_i64_identity(arg);
+}
+optimize_and_call(test_i64_bigint_wrap, (1n << 64n) + 42n, 42n);
+print("test_i64_bigint_wrap done");
+// CHECK-NOT: deopt
+// CHECK: test_i64_bigint_wrap done
+
 function test_externref(arg) {
   return instance.exports.wasm_externref_arg(arg);
 }
@@ -107,6 +128,24 @@ function test_f64_obj(arg) { return instance.exports.wasm_f64_arg(arg); }
 // CHECK: [bailout (kind: deopt-eager, reason: not a Number): begin. deoptimizing {{.*}} <JSFunction test_f64_obj {{.*}}>
 // CHECK-NOT: deopt-lazy
 optimize_and_call(test_f64_obj, deopt_obj_f64, 44);
+
+// --- i64: object -> eager deopt "not a BigInt" ---
+let deopt_obj_i64 = {
+  valueOf() { %DeoptimizeFunction(test_i64_obj); return 1n; }
+};
+function test_i64_obj(arg) { return instance.exports.wasm_i64_arg(arg); }
+// CHECK: [bailout (kind: deopt-eager, reason: not a BigInt): begin. deoptimizing {{.*}} <JSFunction test_i64_obj {{.*}}>
+// CHECK-NOT: deopt-lazy
+optimize_and_call(test_i64_obj, deopt_obj_i64, 46);
+
+// --- i64: Smi -> eager deopt "not a BigInt" ---
+function test_i64_smi(arg) { return instance.exports.wasm_i64_arg(arg); }
+%PrepareFunctionForOptimization(test_i64_smi);
+test_i64_smi(1n);
+test_i64_smi(1n);
+%OptimizeFunctionOnNextCall(test_i64_smi);
+// CHECK: [bailout (kind: deopt-eager, reason: not a BigInt): begin. deoptimizing {{.*}} <JSFunction test_i64_smi {{.*}}>
+assertThrows(() => test_i64_smi(42), TypeError);
 
 // --- i32 + externref return: original crash scenario (crbug.com/493307329) ---
 // Valid arg: no deopt. The original crash involved an externref return type

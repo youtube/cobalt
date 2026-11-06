@@ -8,6 +8,7 @@
 #include <optional>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "components/accessibility_annotator/core/storage/accessibility_annotator_backend.h"
 #include "components/history/core/browser/history_types.h"
@@ -61,9 +62,10 @@ class ContentAnnotationsTable {
   // success. Must be called before any other methods.
   bool Init(sql::Database* db, const os_crypt_async::Encryptor* encryptor);
 
-  // Creates the tables if they do not exist. Returns true on success. Must be
-  // called after `Init()`.
-  bool CreateTablesIfNecessary();
+  // Creates the tables required at database version 1. Returns true on success.
+  // Should only be called when creating the database from a clean state. Must
+  // be called after `Init()`.
+  bool MigrateFromCleanStateToVersion1();
 
   // Inserts or replaces `data` in content_annotations table. Returns true on
   // success.
@@ -79,9 +81,9 @@ class ContentAnnotationsTable {
   std::vector<std::pair<history::VisitID, ContentAnnotationsData>>
   GetAllContentAnnotations();
 
-  // Deletes a record from content_annotations table by visit_id. Returns true
+  // Deletes records from content_annotations table by visit_ids. Returns true
   // on success.
-  bool DeleteContentAnnotation(history::VisitID visit_id);
+  bool DeleteContentAnnotations(base::span<const history::VisitID> visit_ids);
 
   // Clears all records from content_annotations table. Returns true on success.
   bool ClearAllContentAnnotations();

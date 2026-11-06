@@ -228,6 +228,9 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
   result->set_map_after_allocation(isolate(), *map, SKIP_WRITE_BARRIER);
   Tagged<FixedArray> array = Cast<FixedArray>(result);
   array->set_length(length);
+#if TAGGED_SIZE_8_BYTES
+  array->clear_optional_padding();
+#endif  // TAGGED_SIZE_8_BYTES
   MemsetTagged(array->RawFieldOfFirstElement(), *filler, length);
   return handle(array, isolate());
 }
@@ -245,6 +248,9 @@ DirectHandle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
       isolate(), read_only_roots().fixed_array_map(), SKIP_WRITE_BARRIER);
   Tagged<FixedArray> array = Cast<FixedArray>(result);
   array->set_length(length);
+#if TAGGED_SIZE_8_BYTES
+  array->clear_optional_padding();
+#endif  // TAGGED_SIZE_8_BYTES
   MemsetTagged(array->RawFieldOfFirstElement(), Smi::zero(), length);
   return direct_handle(array, isolate());
 }
@@ -268,6 +274,9 @@ Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArrayWithMap(
   DisallowGarbageCollection no_gc;
   Tagged<WeakFixedArray> array = Cast<WeakFixedArray>(result);
   array->set_length(length);
+#if TAGGED_SIZE_8_BYTES
+  array->clear_optional_padding();
+#endif  // TAGGED_SIZE_8_BYTES
   MemsetTagged(ObjectSlot(array->RawFieldOfFirstElement()),
                read_only_roots().undefined_value(), length);
 
@@ -442,6 +451,9 @@ FactoryBase<Impl>::NewSloppyArgumentsElements(
                                             ? SKIP_WRITE_BARRIER
                                             : UPDATE_WRITE_BARRIER;
   result->set_length(length);
+#if TAGGED_SIZE_8_BYTES
+  result->clear_optional_padding();
+#endif  // TAGGED_SIZE_8_BYTES
   result->set_context(*context, write_barrier_mode);
   result->set_arguments(*arguments, write_barrier_mode);
   return direct_handle(result, isolate());

@@ -1017,9 +1017,7 @@ WebRtcVideoSendChannel::WebRtcVideoSendStream::ConfigureVideoEncoderSettings(
         vp9_settings.interLayerPred = InterLayerPredMode::kOnKeyPic;
       }
 
-      // TODO(webrtc:329396373): Remove after flexible mode is fully deployed.
-      vp9_settings.flexibleMode =
-          !env_.field_trials().IsDisabled("WebRTC-Video-Vp9FlexibleMode");
+      vp9_settings.flexibleMode = true;
     } else {
       // Multiple spatial layers vp9 screenshare needs flexible mode.
       vp9_settings.flexibleMode = vp9_settings.numberOfSpatialLayers > 1;

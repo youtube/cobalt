@@ -200,24 +200,23 @@ void UnexportableKeyServiceImpl::FromWrappedSigningKeySlowlyAsync(
   }
 }
 
-void UnexportableKeyServiceImpl::
-    GetAllSigningKeysForGarbageCollectionSlowlyAsync(
-        BackgroundTaskPriority priority,
-        base::OnceCallback<void(ServiceErrorOr<std::vector<UnexportableKeyId>>)>
-            callback) {
-  task_manager_->GetAllSigningKeysForGarbageCollectionSlowlyAsync(
+void UnexportableKeyServiceImpl::GetAllKeysForGarbageCollectionSlowlyAsync(
+    BackgroundTaskPriority priority,
+    base::OnceCallback<void(ServiceErrorOr<std::vector<UnexportableKeyId>>)>
+        callback) {
+  task_manager_->GetAllKeysForGarbageCollectionSlowlyAsync(
       task_origin_, config_, priority,
       WrapCallbackWithErrorIfCancelled(
           std::move(callback),
           // SAFETY: `this` is guaranteed to be alive if the projection callback
           // is invoked.
           base::BindOnce(&UnexportableKeyServiceImpl::
-                             OnGetAllSigningKeysForGarbageCollectionSlowlyImpl,
+                             OnGetAllKeysForGarbageCollectionSlowlyImpl,
                          base::Unretained(this))));
 }
 
 void UnexportableKeyServiceImpl::SignSlowlyAsync(
-    UnexportableKeyId key_id,
+    UnexportableSigningKeyId key_id,
     base::span<const uint8_t> data,
     BackgroundTaskPriority priority,
     base::OnceCallback<void(ServiceErrorOr<std::vector<uint8_t>>)> callback) {
@@ -237,24 +236,24 @@ void UnexportableKeyServiceImpl::DeleteKeysSlowlyAsync(
     BackgroundTaskPriority priority,
     base::OnceCallback<void(ServiceErrorOr<size_t>)> callback) {
   // Delete the keys from the in-memory maps.
-  std::vector<ServiceErrorOr<scoped_refptr<RefCountedUnexportableSigningKey>>>
+  std::vector<ServiceErrorOr<scoped_refptr<RefCountedUnexportableKey>>>
       keys_or_errors = base::ToVector(key_ids, [&](UnexportableKeyId key_id) {
         return ExtractKeyFromMaps(key_id);
       });
 
   // Collect the keys that were successfully deleted.
   std::erase_if(keys_or_errors, [](auto& k) { return !k.has_value(); });
-  std::vector<scoped_refptr<RefCountedUnexportableSigningKey>> signing_keys =
+  std::vector<scoped_refptr<RefCountedUnexportableKey>> keys_to_delete =
       base::ToVector(keys_or_errors, [](auto& key) { return *std::move(key); });
 
   // If no keys were deleted, return an error.
-  if (signing_keys.empty()) {
+  if (keys_to_delete.empty()) {
     std::move(callback).Run(base::unexpected(ServiceError::kKeyNotFound));
     return;
   }
 
-  task_manager_->DeleteSigningKeysSlowlyAsync(
-      task_origin_, config_, std::move(signing_keys), priority,
+  task_manager_->DeleteKeysSlowlyAsync(
+      task_origin_, config_, std::move(keys_to_delete), priority,
       WrapCallbackWithErrorIfCancelled(std::move(callback)));
 }
 
@@ -266,7 +265,7 @@ void UnexportableKeyServiceImpl::DeleteAllKeysSlowlyAsync(
   // Invalidate weak pointers to cancel pending key lookup requests.
   weak_ptr_factory_.InvalidateWeakPtrs();
 
-  task_manager_->DeleteAllSigningKeysSlowlyAsync(
+  task_manager_->DeleteAllKeysSlowlyAsync(
       task_origin_, config_, BackgroundTaskPriority::kUserBlocking,
       WrapCallbackWithErrorIfCancelled(std::move(callback)));
 }
@@ -306,8 +305,7 @@ ServiceErrorOr<std::string> UnexportableKeyServiceImpl::GetKeyTag(
     return base::unexpected(ServiceError::kKeyNotFound);
   }
 
-  crypto::StatefulUnexportableSigningKey* stateful_key =
-      it->second->key().AsStatefulUnexportableSigningKey();
+  const crypto::StatefulKey* stateful_key = it->second->key().AsStatefulKey();
   if (!stateful_key) {
     return base::unexpected(ServiceError::kOperationNotSupported);
   }
@@ -321,8 +319,7 @@ ServiceErrorOr<base::Time> UnexportableKeyServiceImpl::GetCreationTime(
     return base::unexpected(ServiceError::kKeyNotFound);
   }
 
-  crypto::StatefulUnexportableSigningKey* stateful_key =
-      it->second->key().AsStatefulUnexportableSigningKey();
+  const crypto::StatefulKey* stateful_key = it->second->key().AsStatefulKey();
   if (!stateful_key) {
     return base::unexpected(ServiceError::kOperationNotSupported);
   }
@@ -334,8 +331,7 @@ UnexportableKeyServiceImpl::WrappedKeyAndTag
 UnexportableKeyServiceImpl::GetWrappedKeyAndTag(
     const RefCountedUnexportableSigningKey& key) {
   std::string tag;
-  if (crypto::StatefulUnexportableSigningKey* stateful_key =
-          key.key().AsStatefulUnexportableSigningKey()) {
+  if (const crypto::StatefulKey* stateful_key = key.key().AsStatefulKey()) {
     tag = stateful_key->GetKeyTag();
   }
 
@@ -349,7 +345,7 @@ UnexportableKeyServiceImpl::Materialize(WrappedKeyAndTagView view) {
   return {base::ToVector(wrapped_key), std::string(tag)};
 }
 
-ServiceErrorOr<scoped_refptr<RefCountedUnexportableSigningKey>>
+ServiceErrorOr<scoped_refptr<RefCountedUnexportableKey>>
 UnexportableKeyServiceImpl::ExtractKeyFromMaps(UnexportableKeyId key_id) {
   auto key_id_it = key_by_key_id_.find(key_id);
   if (key_id_it == key_by_key_id_.end()) {
@@ -372,7 +368,7 @@ UnexportableKeyServiceImpl::ExtractKeyFromMaps(UnexportableKeyId key_id) {
 }
 
 ServiceErrorOr<std::vector<UnexportableKeyId>>
-UnexportableKeyServiceImpl::OnGetAllSigningKeysForGarbageCollectionSlowlyImpl(
+UnexportableKeyServiceImpl::OnGetAllKeysForGarbageCollectionSlowlyImpl(
     ServiceErrorOr<std::vector<scoped_refptr<RefCountedUnexportableSigningKey>>>
         keys_or_error) {
   ASSIGN_OR_RETURN(
@@ -452,7 +448,7 @@ void UnexportableKeyServiceImpl::OnKeyCreatedFromWrappedKeyAndTag(
   if (maybe_pending_callbacks.HasKeyId()) {
     // If there is already a key ID for this wrapped key, it means that the key
     // id has been resolved in the meantime, for example through
-    // `GetAllSigningKeys...`. In this case, there is nothing to do and we can
+    // `GetAllKeys...`. In this case, there is nothing to do and we can
     // return immediately.
     return;
   }

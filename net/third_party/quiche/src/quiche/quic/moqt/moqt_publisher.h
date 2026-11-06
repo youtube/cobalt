@@ -102,9 +102,12 @@ class MoqtTrackPublisher {
   virtual const TrackExtensions& extensions() const = 0;
   virtual std::optional<quic::QuicTimeDelta> expiration() const = 0;
 
-  // Performs a fetch for the specified range of objects.
+  // Performs a fetch for the specified range of objects. Should also be used
+  // for joining fetches where Largest Location is known.
   virtual std::unique_ptr<MoqtFetchTask> StandaloneFetch(
       Location start, Location end, MoqtDeliveryOrder order) = 0;
+  // Use only when the subscription is pending, so that Largest Location is
+  // unknown.
   virtual std::unique_ptr<MoqtFetchTask> RelativeFetch(
       uint64_t group_diff, MoqtDeliveryOrder order) = 0;
   virtual std::unique_ptr<MoqtFetchTask> AbsoluteFetch(

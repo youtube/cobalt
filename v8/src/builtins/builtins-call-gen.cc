@@ -243,7 +243,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
   Branch(IsJSArrayMap(arguments_list_map), &if_array, &if_runtime);
 
   TVARIABLE(FixedArrayBase, var_elements);
-  TVARIABLE(Int32T, var_length);
+  TVARIABLE(Uint32T, var_length);
   BIND(&if_array);
   {
     TNode<Int32T> kind = LoadMapElementsKind(arguments_list_map);
@@ -254,8 +254,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     TNode<JSObject> js_object = CAST(arguments_list);
     // Try to extract the elements from a JSArray object.
     var_elements = LoadElements(js_object);
-    var_length =
-        LoadAndUntagToWord32ObjectField(js_object, JSArray::kLengthOffset);
+    var_length = Unsigned(
+        LoadAndUntagToWord32ObjectField(js_object, JSArray::kLengthOffset));
 
     // Holey arrays and double backing stores need special treatment.
     static_assert(PACKED_SMI_ELEMENTS == 0);
@@ -284,10 +284,10 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     // Try to extract the elements from a JSArgumentsObject with standard map.
     TNode<Object> length = LoadJSArgumentsObjectLength(context, js_arguments);
     TNode<FixedArrayBase> elements = LoadElements(js_arguments);
-    TNode<Smi> elements_length = LoadFixedArrayBaseLength(elements);
-    GotoIfNot(TaggedEqual(length, elements_length), &if_runtime);
+    TNode<IntPtrT> elements_length = LoadFixedArrayBaseLength(elements);
+    GotoIfNot(TaggedEqual(length, SmiTag(elements_length)), &if_runtime);
     var_elements = elements;
-    var_length = SmiToInt32(CAST(length));
+    var_length = Unsigned(SmiToInt32(CAST(length)));
     Goto(&if_done);
   }
 
@@ -296,8 +296,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     // Ask the runtime to create the list (actually a FixedArray).
     var_elements = CAST(CallRuntime(Runtime::kCreateListFromArrayLike, context,
                                     arguments_list));
-    var_length = LoadAndUntagToWord32ObjectField(var_elements.value(),
-                                                 offsetof(FixedArray, length_));
+    var_length = LoadFixedArrayBaseLengthAsUint32(var_elements.value());
     Goto(&if_done);
   }
 
@@ -309,7 +308,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     TNode<Int32T> args_count =
         Int32Constant(i::JSParameterCount(0));  // args already on the stack
 
-    TNode<Int32T> length = var_length.value();
+    TNode<Uint32T> length = var_length.value();
     {
       Label normalize_done(this);
       CSA_DCHECK(this, Uint32LessThanOrEqual(
@@ -354,7 +353,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
 // on whether {new_target} was passed.
 void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
     TNode<JSAny> target, std::optional<TNode<Object>> new_target,
-    TNode<FixedDoubleArray> elements, TNode<Int32T> length,
+    TNode<FixedDoubleArray> elements, TNode<Uint32T> length,
     TNode<Int32T> args_count, TNode<Context> context, TNode<Int32T> kind) {
   const ElementsKind new_kind = PACKED_ELEMENTS;
   const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
@@ -483,8 +482,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
   BIND(&if_double);
   {
-    TNode<Int32T> length = LoadAndUntagToWord32ObjectField(
-        var_js_array.value(), JSArray::kLengthOffset);
+    TNode<Uint32T> length = Unsigned(LoadAndUntagToWord32ObjectField(
+        var_js_array.value(), JSArray::kLengthOffset));
     GotoIf(Word32Equal(length, Int32Constant(0)), &if_smiorobject);
     CallOrConstructDoubleVarargs(target, new_target, CAST(var_elements.value()),
                                  length, args_count, context,

@@ -16,6 +16,7 @@
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_element.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_updater.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/chrome_overlay_window/chrome_overlay_container_view.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -54,6 +55,7 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
 }  // namespace
 
 @interface AssistantContainerViewController () <FullscreenUIElement,
+                                                LayoutStateObserver,
                                                 UIGestureRecognizerDelegate>
 @end
 
@@ -120,7 +122,6 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
   // which prevents excessive layout passes in the parent view when resizing
   // the Assistant container.
   self.view = [[ChromeOverlayContainerView alloc] init];
-
   [self setupDimmingView];
 
   _assistantContainerView = [[AssistantContainerView alloc] init];
@@ -138,8 +139,7 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
   [self
       registerForTraitChanges:
           @[ UITraitHorizontalSizeClass.class, UITraitVerticalSizeClass.class ]
-                   withAction:@selector
-                   (updatePresentationContextFromTraitCollection)];
+                   withAction:@selector(onTraitChange)];
 
   // Apply pending configuration.
   if (_childViewController) {
@@ -150,6 +150,8 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
                        _assistantContainerView.contentView);
     [_childViewController didMoveToParentViewController:self];
   }
+
+  [self updateAccessibilityIdentifier];
 
   // Create and activate the height constraint.
   CGFloat initialHeight =
@@ -290,6 +292,20 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
 
 #pragma mark - Properties
 
+- (void)setLayoutState:(LayoutState*)layoutState {
+  if (_layoutState == layoutState) {
+    return;
+  }
+  [_layoutState removeObserver:self];
+  _layoutState = layoutState;
+  [_layoutState addObserver:self];
+
+  if (_layoutState) {
+    [self updatePresentationContextForSupportedState:
+              _layoutState.containedLayoutSupported];
+  }
+}
+
 - (void)setPresentationContext:
     (AssistantPresentationContext)presentationContext {
   if (_presentationContext == presentationContext) {
@@ -385,6 +401,14 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
   if ([otherGestureRecognizer.view isKindOfClass:[UIScrollView class]]) {
     UIScrollView* scrollView =
         static_cast<UIScrollView*>(otherGestureRecognizer.view);
+
+    // If the scroll view is not part of the assistant content, pause it.
+    BOOL inAssistantContent = [scrollView isDescendantOfView:self.view];
+    if (!inAssistantContent) {
+      [self pauseScrollView:scrollView];
+      return YES;
+    }
+
     if ([self.delegate
             respondsToSelector:@selector(assistantContainer:
                                       shouldPauseScrollView:forGesture:)]) {
@@ -491,12 +515,38 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
   _dimmingView.alpha = constraints.background_dimming_alpha;
 }
 
+// Updates the accessibility identifier of the container view based on the
+// current detent.
+- (void)updateAccessibilityIdentifier {
+  if (!_assistantContainerView) {
+    return;
+  }
+  AssistantContainerDetent detent =
+      _activeDetent.value_or(self.detents.front());
+  switch (detent) {
+    case AssistantContainerDetent::kMinimized:
+      _assistantContainerView.accessibilityIdentifier =
+          kAssistantContainerDetentMinimizedIdentifier;
+      break;
+    case AssistantContainerDetent::kMedium:
+      _assistantContainerView.accessibilityIdentifier =
+          kAssistantContainerDetentMediumIdentifier;
+      break;
+    case AssistantContainerDetent::kLarge:
+      _assistantContainerView.accessibilityIdentifier =
+          kAssistantContainerDetentLargeIdentifier;
+      break;
+  }
+}
+
 // Notifies the delegate of a detent change if it differs from the previously
 // notified active detent.
 - (void)notifyDelegateOfDetentChangeIfNeeded:
     (AssistantContainerDetent)newDetent {
-  if (!_activeDetent.has_value() || _activeDetent.value() != newDetent) {
+  if (_activeDetent != newDetent) {
     _activeDetent = newDetent;
+    [self updateAccessibilityIdentifier];
+
     if ([self.delegate respondsToSelector:@selector(assistantContainer:
                                                        didChangeDetent:)]) {
       [self.delegate assistantContainer:self didChangeDetent:newDetent];
@@ -701,11 +751,14 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
 
   // Calculate target height based on gesture end state.
   CGFloat currentHeight = _heightConstraint.constant;
-  NSInteger targetHeight = [self targetHeightForCurrentHeight:currentHeight
-                                                     velocity:velocity];
+  AssistantContainerDetent targetDetent =
+      [self targetDetentForCurrentHeight:currentHeight velocity:velocity];
+  NSInteger targetHeight = _detentHeights[targetDetent];
 
   _heightConstraint.constant = targetHeight;
   [self updateContainerStylingForHeight:targetHeight];
+
+  [self notifyDelegateOfDetentChangeIfNeeded:targetDetent];
 
   // Current height from visual frame (approximate start of animation).
   CGFloat currentFrameHeight = self.view.frame.size.height;
@@ -725,12 +778,12 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
 
 // Calculates the target height based on the current height and velocity of the
 // gesture.
-- (NSInteger)targetHeightForCurrentHeight:(CGFloat)currentHeight
-                                 velocity:(CGPoint)velocity {
+- (AssistantContainerDetent)targetDetentForCurrentHeight:(CGFloat)currentHeight
+                                                velocity:(CGPoint)velocity {
   NSInteger maxHeight = [self effectiveMaxHeight];
   NSInteger minHeight = [self effectiveMinHeight];
 
-  NSInteger bestDetentValue = 0;
+  AssistantContainerDetent bestDetent = self.detents.front();
   NSInteger minDistance = NSIntegerMax;
 
   // Project height based on velocity to simulate momentum.
@@ -745,10 +798,10 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
     NSInteger diff = ABS(projectedHeight - val);
     if (diff < minDistance) {
       minDistance = diff;
-      bestDetentValue = val;
+      bestDetent = detent;
     }
   }
-  return bestDetentValue;
+  return bestDetent;
 }
 
 - (void)updateHeightConstraint {
@@ -846,26 +899,40 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
 
   // Trigger initial adaptive layout once the view is successfully in the
   // hierarchy.
-  [self updatePresentationContextFromTraitCollection];
+  [self applyLayoutForPresentationContext];
+  [self
+      updatePresentationContextForSupportedState:self.layoutState
+                                                     .containedLayoutSupported];
 }
 
-// Updates the presentation context based on the current trait collection.
-- (void)updatePresentationContextFromTraitCollection {
+// Updates the presentation context based on the layout state.
+- (void)updatePresentationContextForSupportedState:(BOOL)supported {
   if (!self.view.window) {
     return;
   }
 
   AssistantPresentationContext targetContext =
-      IsSidePanelLayout(self.traitCollection)
-          ? AssistantPresentationContext::kPanel
-          : AssistantPresentationContext::kSheet;
+      supported ? AssistantPresentationContext::kPanel
+                : AssistantPresentationContext::kSheet;
 
   if (_presentationContext != targetContext) {
     self.presentationContext = targetContext;
-  } else if (_presentationContext == AssistantPresentationContext::kSheet) {
+  }
+}
+
+// Called when system traits change.
+- (void)onTraitChange {
+  if (_presentationContext == AssistantPresentationContext::kSheet) {
     // Re-evaluate sheet constraints on pure trait changes.
     [self applySheetLayoutConstraints];
   }
+}
+
+#pragma mark - LayoutStateObserver
+
+- (void)layoutState:(LayoutState*)layoutState
+    didChangeContainedLayoutSupported:(BOOL)supported {
+  [self updatePresentationContextForSupportedState:supported];
 }
 
 // Configures the constraints for the panel layout.

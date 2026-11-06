@@ -67,7 +67,7 @@ QuicStream* QboneServerSession::CreateControlStreamFromPendingStream(
   QUICHE_DCHECK(control_stream_ == nullptr);
   // Register the reserved control stream.
   auto control_stream =
-      std::make_unique<QboneServerControlStream>(pending, this, handler_);
+      std::make_unique<QboneServerControlStream>(*pending, this, handler_);
   control_stream_ = control_stream.get();
   ActivateStream(std::move(control_stream));
   return control_stream_;

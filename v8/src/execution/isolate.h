@@ -3045,7 +3045,7 @@ class V8_EXPORT_PRIVATE SaveAndSwitchContext : public SaveContext {
 class V8_NODISCARD NullContextScope : public SaveAndSwitchContext {
  public:
   explicit NullContextScope(Isolate* isolate)
-      : SaveAndSwitchContext(isolate, Context()) {}
+      : SaveAndSwitchContext(isolate, {}) {}
 };
 
 class AssertNoContextChange {

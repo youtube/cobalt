@@ -6123,14 +6123,10 @@ void QuicConnection::SendAllPendingAcks() {
     }
     ResetAckStates();
   }
-  if (GetQuicReloadableFlag(quic_disconnect_early_exit)) {
-    // FlushAckFrame can result in a closed connection. If so, avoid updating
-    // ack state that could trigger QUICHE_BUGs.
-    QUIC_RELOADABLE_FLAG_COUNT(quic_disconnect_early_exit);
-    if (!connected_) {
-      QUIC_CODE_COUNT(quic_flush_ack_frame_result_in_disconnect);
-      return;
-    }
+  // FlushAckFrame can result in a closed connection. If so, avoid updating
+  // ack state that could trigger QUICHE_BUGs.
+  if (!connected_) {
+    return;
   }
 
   const QuicTime timeout =

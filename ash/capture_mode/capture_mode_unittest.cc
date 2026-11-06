@@ -139,6 +139,8 @@
 
 namespace ash {
 
+using chromeos::AppType;
+
 namespace {
 
 using ::ui::mojom::CursorType;
@@ -344,7 +346,8 @@ class CaptureModeTestBase : public AshTestBase {
   std::unique_ptr<aura::Window> CreateTransientModalChildWindow(
       gfx::Rect child_window_bounds,
       aura::Window* transient_parent) {
-    auto child = CreateTestWindow(child_window_bounds);
+    auto child = CreateWindowWithAppType(chromeos::AppType::NON_APP,
+                                         child_window_bounds);
     wm::AddTransientChild(transient_parent, child.get());
     child->Show();
 
@@ -517,7 +520,8 @@ TEST_P(CaptureModeTest, CheckCursorVisibilityOnTabletMode) {
 
 // Regression test for https://crbug.com/1172425.
 TEST_P(CaptureModeTest, NoCrashOnClearingCapture) {
-  TestCaptureClientObserver observer(CreateTestWindow(gfx::Rect(200, 200)));
+  TestCaptureClientObserver observer(
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {200, 200}));
   auto* controller = StartImageRegionCapture();
   EXPECT_TRUE(controller->IsActive());
 }
@@ -1147,9 +1151,11 @@ TEST_P(CaptureModeTest, SetCaptureRegionAfterPressOnCaptureBar) {
 TEST_P(CaptureModeTest, WindowCapture) {
   // Create 2 windows that overlap with each other.
   const gfx::Rect bounds1(0, 0, 200, 200);
-  std::unique_ptr<aura::Window> window1(CreateTestWindow(bounds1));
+  std::unique_ptr<aura::Window> window1 =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, bounds1);
   const gfx::Rect bounds2(150, 150, 200, 200);
-  std::unique_ptr<aura::Window> window2(CreateTestWindow(bounds2));
+  std::unique_ptr<aura::Window> window2 =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, bounds2);
 
   auto* controller = CaptureModeController::Get();
   controller->SetSource(CaptureModeSource::kWindow);
@@ -1171,7 +1177,8 @@ TEST_P(CaptureModeTest, WindowCapture) {
   window2.reset();
   EXPECT_EQ(capture_mode_session->GetSelectedWindow(), window1.get());
   // Open another one on top also change the selected window.
-  std::unique_ptr<aura::Window> window3(CreateTestWindow(bounds2));
+  std::unique_ptr<aura::Window> window3 =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, bounds2);
   EXPECT_EQ(capture_mode_session->GetSelectedWindow(), window3.get());
   // Minimize the window should also automatically change the selected window.
   WindowState::Get(window3.get())->Minimize();
@@ -1183,7 +1190,8 @@ TEST_P(CaptureModeTest, WindowCapture) {
 }
 
 TEST_P(CaptureModeTest, WindowCaptureConfineBoundsDoNotOverlapWindowCaption) {
-  std::unique_ptr<aura::Window> window(CreateTestWindow(gfx::Rect(200, 200)));
+  std::unique_ptr<aura::Window> window =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {200, 200});
   auto* controller =
       StartCaptureSession(CaptureModeSource::kWindow, CaptureModeType::kVideo);
   GetEventGenerator()->MoveMouseToCenterOf(window.get());
@@ -1256,7 +1264,8 @@ TEST_P(CaptureModeTest, DisplayRemovalWithCountdownVisible) {
   UpdateDisplay("800x700,801+0-800x700");
 
   // Start capture mode on the secondary display.
-  auto recorded_window = CreateTestWindow(gfx::Rect(1000, 200, 400, 400));
+  auto recorded_window = CreateWindowWithAppType(chromeos::AppType::NON_APP,
+                                                 {1000, 200, 400, 400});
   auto* controller =
       StartCaptureSession(CaptureModeSource::kWindow, CaptureModeType::kVideo);
   GetEventGenerator()->MoveMouseToCenterOf(recorded_window.get());
@@ -1277,7 +1286,8 @@ TEST_P(CaptureModeTest,
   UpdateDisplay("800x700,801+0-800x700");
 
   // Start capture mode on the secondary display.
-  auto recorded_window = CreateTestWindow(gfx::Rect(1000, 200, 400, 400));
+  auto recorded_window = CreateWindowWithAppType(chromeos::AppType::NON_APP,
+                                                 {1000, 200, 400, 400});
   auto* controller =
       StartCaptureSession(CaptureModeSource::kWindow, CaptureModeType::kVideo);
   GetEventGenerator()->MoveMouseToCenterOf(recorded_window.get());
@@ -1612,7 +1622,8 @@ TEST_P(CaptureModeTest, FullscreenCursorStates) {
 }
 
 TEST_P(CaptureModeTest, WindowCursorStates) {
-  std::unique_ptr<aura::Window> window(CreateTestWindow(gfx::Rect(200, 200)));
+  std::unique_ptr<aura::Window> window =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {200, 200});
 
   auto* cursor_manager = Shell::Get()->cursor_manager();
   CursorType original_cursor_type = cursor_manager->GetCursor().type();
@@ -1694,8 +1705,10 @@ TEST_P(CaptureModeTest, WindowDestruction) {
   const gfx::Rect bounds1(0, 0, 200, 200);
   const gfx::Rect bounds2(150, 150, 200, 200);
   const gfx::Rect bounds3(50, 50, 200, 200);
-  std::unique_ptr<aura::Window> window1(CreateTestWindow(bounds1));
-  std::unique_ptr<aura::Window> window2(CreateTestWindow(bounds2));
+  std::unique_ptr<aura::Window> window1 =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, bounds1);
+  std::unique_ptr<aura::Window> window2 =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, bounds2);
 
   auto* cursor_manager = Shell::Get()->cursor_manager();
   CursorType original_cursor_type = cursor_manager->GetCursor().type();
@@ -1726,7 +1739,8 @@ TEST_P(CaptureModeTest, WindowDestruction) {
 
   // Destroy the window while mouse is in a pressed state. Cursor should revert
   // back to the original cursor.
-  std::unique_ptr<aura::Window> window3(CreateTestWindow(bounds2));
+  std::unique_ptr<aura::Window> window3 =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, bounds2);
   EXPECT_EQ(CursorType::kCustom, cursor_manager->GetCursor().type());
   EXPECT_TRUE(test_api.IsUsingCustomCursor(CaptureModeType::kImage));
   event_generator->PressLeftButton();
@@ -1739,7 +1753,8 @@ TEST_P(CaptureModeTest, WindowDestruction) {
   // When hovering over a window, if it is destroyed and there is another window
   // under the cursor location in screen, then the selected window is
   // automatically updated.
-  std::unique_ptr<aura::Window> window4(CreateTestWindow(bounds3));
+  std::unique_ptr<aura::Window> window4 =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, bounds3);
   event_generator->MoveMouseToCenterOf(window4.get());
   EXPECT_EQ(CursorType::kCustom, cursor_manager->GetCursor().type());
   EXPECT_TRUE(test_api.IsUsingCustomCursor(CaptureModeType::kImage));
@@ -1753,7 +1768,8 @@ TEST_P(CaptureModeTest, WindowDestruction) {
   // Cursor is over a window in the mouse pressed state. If the window is
   // destroyed and there is another window under the cursor, the selected window
   // is updated and the new selected window is captured.
-  std::unique_ptr<aura::Window> window5(CreateTestWindow(bounds3));
+  std::unique_ptr<aura::Window> window5 =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, bounds3);
   EXPECT_EQ(capture_mode_session->GetSelectedWindow(), window5.get());
   event_generator->PressLeftButton();
   window5.reset();
@@ -1847,9 +1863,10 @@ TEST_P(CaptureModeTest, DoNotHandleEventDuringCountDown) {
       gfx::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
 
   // Create 2 windows that overlap with each other.
-  std::unique_ptr<aura::Window> window1(CreateTestWindow(gfx::Rect(200, 200)));
-  std::unique_ptr<aura::Window> window2(
-      CreateTestWindow(gfx::Rect(150, 150, 200, 200)));
+  std::unique_ptr<aura::Window> window1 =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {200, 200});
+  std::unique_ptr<aura::Window> window2 =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {150, 150, 200, 200});
 
   auto* controller = CaptureModeController::Get();
   controller->SetSource(CaptureModeSource::kWindow);
@@ -1887,7 +1904,7 @@ TEST_P(CaptureModeTest, WindowChangesDuringCountdown) {
   controller->SetType(CaptureModeType::kVideo);
 
   auto start_countdown = [this, &window, controller]() {
-    window = CreateTestWindow(gfx::Rect(200, 200));
+    window = CreateWindowWithAppType(chromeos::AppType::NON_APP, {200, 200});
     controller->Start(CaptureModeEntryType::kQuickSettings);
 
     auto* event_generator = GetEventGenerator();
@@ -1980,7 +1997,7 @@ TEST_P(CaptureModeTest, LowDriveFsSpace) {
 }
 
 TEST_P(CaptureModeTest, WindowRecordingCaptureId) {
-  auto window = CreateTestWindow(gfx::Rect(200, 200));
+  auto window = CreateWindowWithAppType(chromeos::AppType::NON_APP, {200, 200});
   StartCaptureSession(CaptureModeSource::kWindow, CaptureModeType::kVideo);
 
   auto* event_generator = GetEventGenerator();
@@ -2004,7 +2021,8 @@ TEST_P(CaptureModeTest, StopOnPinnedStateChanged) {
   EXPECT_TRUE(controller->IsActive());
 
   // Pin a window.
-  std::unique_ptr<aura::Window> window = CreateTestWindow(gfx::Rect(200, 200));
+  std::unique_ptr<aura::Window> window =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {200, 200});
   wm::ActivateWindow(window.get());
   window_util::PinWindow(window.get(), /*trusted=*/false);
   EXPECT_FALSE(controller->IsActive());
@@ -2014,7 +2032,8 @@ TEST_P(CaptureModeTest, ClosingDimmedWidgetAboveRecordedWindow) {
   views::Widget* widget =
       views::test::TestWidgetBuilder().BuildOwnedByNativeWidget();
   auto* window = widget->GetNativeWindow();
-  auto recorded_window = CreateTestWindow(gfx::Rect(200, 200));
+  auto recorded_window =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {200, 200});
 
   auto* controller = StartSessionAndRecordWindow(recorded_window.get());
   EXPECT_TRUE(controller->is_recording_in_progress());
@@ -2031,9 +2050,10 @@ TEST_P(CaptureModeTest, ClosingDimmedWidgetAboveRecordedWindow) {
 }
 
 TEST_P(CaptureModeTest, DimmingOfUnRecordedWindows) {
-  auto win1 = CreateTestWindow(gfx::Rect(200, 200));
-  auto win2 = CreateTestWindow(gfx::Rect(200, 200));
-  auto recorded_window = CreateTestWindow(gfx::Rect(200, 200));
+  auto win1 = CreateWindowWithAppType(chromeos::AppType::NON_APP, {200, 200});
+  auto win2 = CreateWindowWithAppType(chromeos::AppType::NON_APP, {200, 200});
+  auto recorded_window =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {200, 200});
 
   auto* controller = StartSessionAndRecordWindow(recorded_window.get());
   auto* recording_watcher = controller->video_recording_watcher_for_testing();
@@ -2088,7 +2108,8 @@ TEST_P(CaptureModeTest, DimmingOfUnRecordedWindows) {
 }
 
 TEST_P(CaptureModeTest, DimmingWithDesks) {
-  auto recorded_window = CreateAppWindow(gfx::Rect(250, 100));
+  auto recorded_window =
+      CreateWindowWithAppType(AppType::SYSTEM_APP, {250, 100});
   auto* controller = StartSessionAndRecordWindow(recorded_window.get());
   auto* recording_watcher = controller->video_recording_watcher_for_testing();
   EXPECT_TRUE(recording_watcher->should_paint_layer());
@@ -2100,7 +2121,7 @@ TEST_P(CaptureModeTest, DimmingWithDesks) {
 
   // A window on a different desk than that of the recorded window should not be
   // dimmed.
-  auto win1 = CreateAppWindow(gfx::Rect(200, 200));
+  auto win1 = CreateWindowWithAppType(AppType::SYSTEM_APP, {200, 200});
   EXPECT_FALSE(recording_watcher->IsWindowDimmedForTesting(win1.get()));
 
   // However, moving it to the desk of the recorded window should give it a
@@ -2123,13 +2144,15 @@ TEST_P(CaptureModeTest, DimmingWithDesks) {
 
 TEST_P(CaptureModeTest, DimmingWithDisplays) {
   UpdateDisplay("500x400,401+0-800x700");
-  auto recorded_window = CreateAppWindow(gfx::Rect(250, 100));
+  auto recorded_window =
+      CreateWindowWithAppType(AppType::SYSTEM_APP, {250, 100});
   auto* controller = StartSessionAndRecordWindow(recorded_window.get());
   auto* recording_watcher = controller->video_recording_watcher_for_testing();
   EXPECT_TRUE(recording_watcher->should_paint_layer());
 
   // Create a new window on the second display. It should not be dimmed.
-  auto window = CreateTestWindow(gfx::Rect(420, 10, 200, 200));
+  auto window =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {420, 10, 200, 200});
   auto roots = Shell::GetAllRootWindows();
   EXPECT_EQ(roots[1], window->GetRootWindow());
   EXPECT_FALSE(recording_watcher->IsWindowDimmedForTesting(window.get()));
@@ -2151,7 +2174,7 @@ TEST_P(CaptureModeTest, MultiDisplayWindowRecording) {
   auto roots = Shell::GetAllRootWindows();
   ASSERT_EQ(2u, roots.size());
 
-  auto window = CreateTestWindow(gfx::Rect(200, 200));
+  auto window = CreateWindowWithAppType(chromeos::AppType::NON_APP, {200, 200});
   auto* controller =
       StartCaptureSession(CaptureModeSource::kWindow, CaptureModeType::kVideo);
 
@@ -2196,7 +2219,6 @@ TEST_P(CaptureModeTest, MultiDisplayWindowRecording) {
   EXPECT_TRUE(IsLayerStackedRightBelow(shield_layer, window->layer()));
   EXPECT_EQ(shield_layer->bounds(), roots[1]->bounds());
 }
-
 
 TEST_P(CaptureModeTest, RotateDisplayWhileRecording) {
   UpdateDisplay("600x800");
@@ -2288,7 +2310,8 @@ TEST_P(CaptureModeTest, DISABLED_CornerRegionWithScreenRotation) {
 //
 // TODO(crbug.com/1439950): This test is flaky.
 TEST_P(CaptureModeTest, DISABLED_VerifyWindowRecordingVideoFrames) {
-  auto window = CreateTestWindow(gfx::Rect(100, 50, 200, 200));
+  auto window =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {100, 50, 200, 200});
   StartCaptureSession(CaptureModeSource::kWindow, CaptureModeType::kVideo);
 
   auto* event_generator = GetEventGenerator();
@@ -2452,13 +2475,13 @@ TEST_P(CaptureModeTest, IgnoreMinimizeWindowsInKWindow) {
   //   |      |       +-----------+
   //   +------+
   std::unique_ptr<aura::Window> window3 =
-      CreateTestWindow(gfx::Rect(100, 45, 150, 200));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {100, 45, 150, 200});
   std::unique_ptr<aura::Window> window2 =
-      CreateTestWindow(gfx::Rect(150, 50, 150, 250));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {150, 50, 150, 250});
   std::unique_ptr<aura::Window> window1 =
-      CreateTestWindow(gfx::Rect(20, 30, 100, 300));
-  std::unique_ptr<aura::Window> window4(
-      CreateTestWindow(gfx::Rect(0, 0, 50, 90)));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {20, 30, 100, 300});
+  std::unique_ptr<aura::Window> window4 =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {50, 90});
   WindowState::Get(window4.get())->Minimize();
 
   auto* controller =
@@ -2512,15 +2535,15 @@ TEST_P(CaptureModeTest, PartiallyOccludedWindowIsFocusableInKWindow) {
   //        |            |
   //        +------------+
   std::unique_ptr<aura::Window> window3 =
-      CreateTestWindow(gfx::Rect(100, 45, 150, 200));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {100, 45, 150, 200});
   std::unique_ptr<aura::Window> window2 =
-      CreateTestWindow(gfx::Rect(150, 50, 150, 250));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {150, 50, 150, 250});
   std::unique_ptr<aura::Window> window1 =
-      CreateTestWindow(gfx::Rect(20, 30, 100, 300));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {20, 30, 100, 300});
   std::unique_ptr<aura::Window> window4 =
-      CreateTestWindow(gfx::Rect(50, 5, 150, 55));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {50, 5, 150, 55});
   std::unique_ptr<aura::Window> window5 =
-      CreateTestWindow(gfx::Rect(60, 225, 210, 45));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {60, 225, 210, 45});
 
   auto* controller =
       StartCaptureSession(CaptureModeSource::kWindow, CaptureModeType::kImage);
@@ -2573,17 +2596,17 @@ TEST_P(CaptureModeTest, IgnoreFullyOccludedWindowWhileTabbingInKWindow) {
   //        |            |
   //        +------------+
   std::unique_ptr<aura::Window> window3 =
-      CreateTestWindow(gfx::Rect(100, 45, 150, 200));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {100, 45, 150, 200});
   std::unique_ptr<aura::Window> window2 =
-      CreateTestWindow(gfx::Rect(150, 50, 150, 250));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {150, 50, 150, 250});
   std::unique_ptr<aura::Window> window1 =
-      CreateTestWindow(gfx::Rect(20, 30, 100, 300));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {20, 30, 100, 300});
   std::unique_ptr<aura::Window> window4 =
-      CreateTestWindow(gfx::Rect(50, 5, 150, 55));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {50, 5, 150, 55});
   std::unique_ptr<aura::Window> window5 =
-      CreateTestWindow(gfx::Rect(60, 225, 210, 45));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {60, 225, 210, 45});
   std::unique_ptr<aura::Window> window6 =
-      CreateTestWindow(gfx::Rect(30, 55, 175, 185));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {30, 55, 175, 185});
 
   auto* controller =
       StartCaptureSession(CaptureModeSource::kWindow, CaptureModeType::kImage);
@@ -2621,8 +2644,8 @@ TEST_P(CaptureModeTest, IgnoreFullyOccludedWindowWhileTabbingInKWindow) {
 // event propagation. Other events like Alt + Tab should still behave as
 // intended.
 TEST_P(CaptureModeTest, OnlyAdvanceFocusWhenTabShiftPressed) {
-  auto window1 = CreateTestWindow();
-  auto window2 = CreateTestWindow();
+  auto window1 = CreateWindowWithAppType();
+  auto window2 = CreateWindowWithAppType();
 
   auto* controller =
       StartCaptureSession(CaptureModeSource::kWindow, CaptureModeType::kVideo);
@@ -2685,7 +2708,8 @@ TEST_P(CaptureModeTest, OnlyAdvanceFocusWhenTabShiftPressed) {
 // Tests that the capture region will be refreshed if in overview to reflect the
 // bounds of the overview item for this window in `kWindow` mode.
 TEST_P(CaptureModeTest, RefreshCaptureRegionInOverviewForKWindow) {
-  auto window = CreateAppWindow(gfx::Rect(100, 50, 200, 200));
+  auto window =
+      CreateWindowWithAppType(AppType::SYSTEM_APP, {100, 50, 200, 200});
   auto* controller =
       StartCaptureSession(CaptureModeSource::kWindow, CaptureModeType::kImage);
   auto* session = controller->capture_mode_session();
@@ -2885,7 +2909,8 @@ class CaptureModeRecordingSizeTest : public CaptureModeTest {
   // CaptureModeTest:
   void SetUp() override {
     CaptureModeTest::SetUp();
-    window_ = CreateTestWindow(gfx::Rect(100, 50, 200, 200));
+    window_ = CreateWindowWithAppType(chromeos::AppType::NON_APP,
+                                      {100, 50, 200, 200});
     CaptureModeController::Get()->SetUserCaptureRegion(user_region_,
                                                        /*by_user=*/true);
     UpdateDisplay("800x600");
@@ -3109,12 +3134,13 @@ class CaptureModeHdcpTest : public CaptureModeTestBase,
     auto [unused_source, sunfish_enabled, scanner_enabled] = GetParam();
     InitFeatures(sunfish_enabled, scanner_enabled);
     CaptureModeTestBase::SetUp();
-    window_ = CreateTestWindow(gfx::Rect(200, 200));
+    window_ = CreateWindowWithAppType(chromeos::AppType::NON_APP, {200, 200});
     // Create a child window with protected content. This simulates the real
     // behavior of a browser window hosting a page with protected content, where
     // the window that has a protection mask is the RenderWidgetHostViewAura,
     // which is a descendant of the BrowserWidget window which can get recorded.
-    protected_content_window_ = CreateTestWindow(gfx::Rect(150, 150));
+    protected_content_window_ =
+        CreateWindowWithAppType(chromeos::AppType::NON_APP, {150, 150});
     window_->AddChild(protected_content_window_.get());
     protection_delegate_ = std::make_unique<OutputProtectionDelegate>(
         protected_content_window_.get());
@@ -3207,7 +3233,8 @@ TEST_P(CaptureModeHdcpTest, ProtectedTabBecomesActiveAfterRecordingStarts) {
 }
 
 TEST_P(CaptureModeHdcpTest, ProtectedWindowDestruction) {
-  auto window_2 = CreateTestWindow(gfx::Rect(100, 50));
+  auto window_2 =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {100, 50});
   OutputProtectionDelegate protection_delegate_2(window_2.get());
   protection_delegate_2.SetProtection(display::CONTENT_PROTECTION_METHOD_HDCP,
                                       base::DoNothing());
@@ -3310,7 +3337,7 @@ INSTANTIATE_TEST_SUITE_P(
     });
 
 TEST_P(CaptureModeTest, ClosingWindowBeingRecorded) {
-  auto window = CreateTestWindow(gfx::Rect(200, 200));
+  auto window = CreateWindowWithAppType(chromeos::AppType::NON_APP, {200, 200});
   StartCaptureSession(CaptureModeSource::kWindow, CaptureModeType::kVideo);
 
   auto* event_generator = GetEventGenerator();
@@ -3347,7 +3374,8 @@ TEST_P(CaptureModeTest, ClosingWindowBeingRecorded) {
 TEST_P(CaptureModeTest, DetachDisplayWhileWindowRecording) {
   UpdateDisplay("500x400,401+0-500x400");
   // Create a window on the second display.
-  auto window = CreateTestWindow(gfx::Rect(450, 20, 200, 200));
+  auto window =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {450, 20, 200, 200});
   auto roots = Shell::GetAllRootWindows();
   ASSERT_EQ(2u, roots.size());
   EXPECT_EQ(window->GetRootWindow(), roots[1]);
@@ -3915,12 +3943,12 @@ TEST_P(CaptureModeTest, KeyboardNavigationTabThroughWindowsOnMultipleDisplays) {
   ASSERT_EQ(2u, root_windows.size());
 
   // Create three windows, one of them is a modal transient child.
-  std::unique_ptr<aura::Window> window1(
-      CreateTestWindow(gfx::Rect(0, 0, 200, 200)));
+  std::unique_ptr<aura::Window> window1 =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {200, 200});
   auto window1_transient = CreateTransientModalChildWindow(
       gfx::Rect(20, 30, 200, 150), window1.get());
-  std::unique_ptr<aura::Window> window2(
-      CreateTestWindow(gfx::Rect(900, 0, 200, 200)));
+  std::unique_ptr<aura::Window> window2 =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {900, 0, 200, 200});
 
   auto* controller =
       StartCaptureSession(CaptureModeSource::kWindow, CaptureModeType::kImage);
@@ -4283,7 +4311,7 @@ TEST_P(CaptureModeTest, A11yEnterWithFocusOnRegionKnob) {
 }
 
 TEST_P(CaptureModeTest, A11yEnterWithFocusOnWindow) {
-  auto window = CreateTestWindow(gfx::Rect(200, 200));
+  auto window = CreateWindowWithAppType(chromeos::AppType::NON_APP, {200, 200});
   auto* controller =
       StartCaptureSession(CaptureModeSource::kWindow, CaptureModeType::kImage);
 
@@ -4500,7 +4528,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(CaptureModeMockTimeTest, WindowResizing) {
   UpdateDisplay("700x600");
-  auto window = CreateTestWindow(gfx::Rect(200, 200));
+  auto window = CreateWindowWithAppType(chromeos::AppType::NON_APP, {200, 200});
   auto* controller =
       StartCaptureSession(CaptureModeSource::kWindow, CaptureModeType::kVideo);
 
@@ -5120,7 +5148,8 @@ TEST_P(CaptureModeTest, SimulateUserCancelingDlpWarningDialog) {
 // successfully and that the image size matches the window size.
 TEST_P(CaptureModeTest, InstantScreenshotForkWindow) {
   const gfx::Rect window_bounds(10, 20, 700, 500);
-  std::unique_ptr<aura::Window> window(CreateTestWindow(window_bounds));
+  std::unique_ptr<aura::Window> window =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, window_bounds);
   CaptureModeController::Get()->CaptureScreenshotOfGivenWindow(window.get());
   const auto file_path = WaitForCaptureFileToBeSaved();
   gfx::Image image = ReadAndDecodeImageFile(file_path);
@@ -5274,7 +5303,7 @@ class CaptureModeCursorOverlayTest : public CaptureModeTest {
   // CaptureModeTest:
   void SetUp() override {
     CaptureModeTest::SetUp();
-    window_ = CreateTestWindow(gfx::Rect(200, 200));
+    window_ = CreateWindowWithAppType(chromeos::AppType::NON_APP, {200, 200});
   }
 
   void TearDown() override {
@@ -5687,7 +5716,8 @@ class ProjectorCaptureModeIntegrationTestsBase : public CaptureModeTestBase {
   void SetUp() override {
     CaptureModeTestBase::SetUp();
     projector_helper_.SetUp();
-    window_ = CreateTestWindow(gfx::Rect(20, 30, 200, 200));
+    window_ =
+        CreateWindowWithAppType(chromeos::AppType::NON_APP, {20, 30, 200, 200});
     CaptureModeController::Get()->SetUserCaptureRegion(kUserRegion,
                                                        /*by_user=*/true);
   }
@@ -6711,8 +6741,8 @@ TEST_P(CaptureModeSettingsTest, SelectFolderFromDialog) {
 // Tests that folder selection dialog can be opened without crash while in
 // window capture mode.
 TEST_P(CaptureModeSettingsTest, SelectFolderInWindowCaptureMode) {
-  std::unique_ptr<aura::Window> window1(
-      CreateTestWindow(gfx::Rect(0, 0, 200, 300)));
+  std::unique_ptr<aura::Window> window1 =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {200, 300});
   StartCaptureSession(CaptureModeSource::kWindow, CaptureModeType::kImage);
   auto* event_generator = GetEventGenerator();
   ClickOnView(GetSettingsButton(), event_generator);
@@ -7519,8 +7549,8 @@ TEST_P(CaptureModeHistogramTest, CaptureModeEntryPointHistograms) {
                                      CaptureModeEntryType::kStylusPalette, 1);
   controller->Stop();
 
-  std::unique_ptr<aura::Window> window(
-      CreateTestWindow(gfx::Rect(10, 20, 700, 500)));
+  std::unique_ptr<aura::Window> window =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {10, 20, 700, 500});
   controller->CaptureScreenshotOfGivenWindow(window.get());
   WaitForCaptureFileToBeSaved();
   histogram_tester.ExpectBucketCount(
@@ -7543,8 +7573,8 @@ TEST_P(CaptureModeHistogramTest, ScreenshotConfigurationHistogram) {
   UpdateDisplay("800x700");
 
   // Create a window for window captures later.
-  std::unique_ptr<aura::Window> window(
-      CreateTestWindow(gfx::Rect(600, 600, 100, 100)));
+  std::unique_ptr<aura::Window> window =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {600, 600, 100, 100});
 
   // Perform a fullscreen screenshot.
   auto* controller = StartCaptureSession(CaptureModeSource::kFullscreen,

@@ -149,6 +149,7 @@ class Managed : public Foreign {
 
     V8_INLINE void Reset() { ptr_.reset(); }
 
+    V8_INLINE explicit operator bool() const { return ptr_ != nullptr; }
     V8_INLINE bool operator==(std::nullptr_t) const { return ptr_ == nullptr; }
     V8_INLINE bool operator==(const Ptr&) const = default;
     V8_INLINE bool operator==(const std::shared_ptr<CppType>& other) const {
@@ -170,12 +171,6 @@ class Managed : public Foreign {
   V8_INLINE CppType* raw(
       const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) {
     return GetSharedPtrPtr(GetDestructor())->get();
-  }
-
-  // Deprecated. Get a reference to the shared pointer to the C++ object.
-  // TODO(crbug/485286897): Prefer `raw(no_gc)` or `ptr()`.
-  V8_INLINE const std::shared_ptr<CppType>& get() {
-    return *GetSharedPtrPtr(GetDestructor());
   }
 
   // Get the wrapper that exposes access to the C++ object.

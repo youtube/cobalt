@@ -160,24 +160,12 @@ class AshTestBase : public testing::Test {
   // display matching |bounds_in_screen|. |shell_window_id| is the shell window
   // id to give to the new window. If |delegate| is empty, a new
   // |TestWidgetDelegate| instance will be set as this widget's delegate.
-  [[nodiscard]] std::unique_ptr<aura::Window> CreateAppWindow(
-      const gfx::Rect& bounds_in_screen = gfx::Rect(),
-      chromeos::AppType app_type = chromeos::AppType::SYSTEM_APP,
+  [[nodiscard]] std::unique_ptr<aura::Window> CreateWindowWithAppType(
+      chromeos::AppType app_type = chromeos::AppType::NON_APP,
+      const gfx::Rect& bounds_in_screen = {},
       int shell_window_id = kShellWindowId_Invalid,
       views::WidgetDelegate* delegate = nullptr,
       bool show = true);
-
-  // Creates a visible window in the appropriate container. If
-  // |bounds_in_screen| is empty the window is added to the primary root
-  // window, otherwise the window is added to the display matching
-  // |bounds_in_screen|. |shell_window_id| is the shell window id to give to
-  // the new window.
-  // If |type| is WINDOW_TYPE_NORMAL this creates a views::Widget, otherwise
-  // this creates an aura::Window.
-  [[nodiscard]] std::unique_ptr<aura::Window> CreateTestWindow(
-      const gfx::Rect& bounds_in_screen = gfx::Rect(),
-      aura::client::WindowType type = aura::client::WINDOW_TYPE_NORMAL,
-      int shell_window_id = kShellWindowId_Invalid);
 
   // Creates a visible top-level window with a delegate.
   [[nodiscard]] std::unique_ptr<aura::Window> CreateToplevelTestWindow(

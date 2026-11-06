@@ -39,11 +39,7 @@ class QUICHE_EXPORT Bbr2DrainMode final : public Bbr2ModeBase {
     return Bbr2Mode::DRAIN;
   }
 
-  struct QUICHE_EXPORT DebugState {
-    QuicByteCount drain_target;
-  };
-
-  DebugState ExportDebugState() const;
+  Bbr2DebugState::Drain ExportDebugState() const;
 
  private:
   const Bbr2Params& Params() const;
@@ -51,8 +47,6 @@ class QUICHE_EXPORT Bbr2DrainMode final : public Bbr2ModeBase {
   QuicByteCount DrainTarget() const;
 };
 
-QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
-                                       const Bbr2DrainMode::DebugState& state);
 
 }  // namespace quic
 

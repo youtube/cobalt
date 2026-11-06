@@ -107,12 +107,12 @@ public abstract class CobaltService {
     /** The synchronous response data from the service. */
     public byte[] data;
 
-    @CalledByNative("ResponseToClient")
+    @CalledByNative
     public boolean getInvalidState() {
       return invalidState;
     }
 
-    @CalledByNative("ResponseToClient")
+    @CalledByNative
     public byte[] getData() {
       return data;
     }

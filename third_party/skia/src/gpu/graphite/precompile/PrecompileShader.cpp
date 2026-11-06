@@ -27,6 +27,7 @@
 #include "src/gpu/graphite/precompile/PrecompileBaseComplete.h"
 #include "src/gpu/graphite/precompile/PrecompileBasePriv.h"
 #include "src/gpu/graphite/precompile/PrecompileBlenderPriv.h"
+#include "src/gpu/graphite/precompile/PrecompileColorFiltersPriv.h"
 #include "src/gpu/graphite/precompile/PrecompileImageShader.h"
 #include "src/gpu/graphite/precompile/PrecompileShaderPriv.h"
 #include "src/gpu/graphite/precompile/PrecompileShadersPriv.h"

@@ -111,8 +111,7 @@ void AccessorAssembler::HandlePolymorphicCase(
   const int kEntrySize = 2;
 
   // Load the {feedback} array length.
-  TNode<Int32T> length =
-      Signed(LoadAndUntagWeakFixedArrayLengthAsUint32(feedback));
+  TNode<Int32T> length = Signed(LoadWeakFixedArrayLengthAsUint32(feedback));
   CSA_DCHECK(this, Int32LessThanOrEqual(Int32Constant(kEntrySize), length));
 
   // This is a hand-crafted loop that iterates backwards and only compares
@@ -144,28 +143,26 @@ void AccessorAssembler::HandlePolymorphicCase(
   }
 }
 
-void AccessorAssembler::TryHomomorphicCase(
-    TNode<Object> lookup_start_object, TNode<Map> lookup_start_object_map,
-    TNode<Name> name, TVariable<MaybeObject>* var_handler, TNode<Object> vector,
-    TNode<TaggedIndex> slot, Label* miss, ExitPoint* exit_point) {
+void AccessorAssembler::TryHomomorphicCase(TNode<Object> lookup_start_object,
+                                           TNode<Map> lookup_start_object_map,
+                                           TNode<Name> name,
+                                           TNode<Object> vector,
+                                           TNode<TaggedIndex> slot, Label* miss,
+                                           ExitPoint* exit_point) {
   // Check if feedback is WeakHomomorphicFixedArray.
   TNode<MaybeObject> feedback = LoadFeedbackVectorSlot(CAST(vector), slot);
   // We assume the caller (LoadIC_Noninlined) has checked that feedback is a
   // WeakHomomorphicFixedArray.
   TNode<WeakHomomorphicFixedArray> array = CAST(feedback);
-  TNode<Smi> handler;
-  if (var_handler->IsBound()) {
-    handler = CAST(var_handler->value());
-  } else {
-    handler = CAST(LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize));
-  }
+  TNode<Smi> handler =
+      CAST(LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize));
 
   Label execute_handler(this);
 
   // Look up in map cache.
   // TODO(leszeks): Could avoid this lookup by fixing the length at build time.
   TNode<IntPtrT> length =
-      LoadAndUntagWeakFixedArrayLength(ReinterpretCast<WeakFixedArray>(array));
+      LoadWeakFixedArrayLength(ReinterpretCast<WeakFixedArray>(array));
 
   // Hash: (map_ptr >> kTaggedSizeLog2) % length
   // We assume length is power of 2.
@@ -194,9 +191,6 @@ void AccessorAssembler::TryHomomorphicCase(
   GotoIf(IsEqualInWord32<LoadHandler::DescriptorIndexBits>(
              handler_value, LoadHandler::kArrayLengthFieldDescriptorIndex),
          &if_array_len);
-  GotoIf(IsEqualInWord32<LoadHandler::DescriptorIndexBits>(
-             handler_value, LoadHandler::kStringLengthFieldDescriptorIndex),
-         &if_string_len);
 
   {
     // Fallback checks -- decode the handler, and validate against the incoming
@@ -294,14 +288,8 @@ void AccessorAssembler::TryHomomorphicCase(
 
   BIND(&if_array_len);
   {
-    GotoIfNot(IsJSArray(lookup_start_object_map), miss);
+    GotoIfNot(IsJSArrayMap(lookup_start_object_map), miss);
     exit_point->Return(LoadJSArrayLength(CAST(lookup_start_object)));
-  }
-
-  BIND(&if_string_len);
-  {
-    GotoIfNot(IsStringMap(lookup_start_object_map), miss);
-    exit_point->Return(LoadStringLengthAsSmi(CAST(lookup_start_object)));
   }
 }
 
@@ -628,117 +616,6 @@ void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
   Goto(rebox_double);
 }
 
-#if V8_ENABLE_WEBASSEMBLY
-
-void AccessorAssembler::HandleLoadWasmField(
-    TNode<WasmObject> holder, TNode<Int32T> wasm_value_type,
-    TNode<IntPtrT> field_offset, TVariable<Float64T>* var_double_value,
-    Label* rebox_double, ExitPoint* exit_point) {
-  Label type_I8(this), type_I16(this), type_I32(this), type_U32(this),
-      type_I64(this), type_U64(this), type_F32(this), type_F64(this),
-      type_Ref(this), unsupported_type(this, Label::kDeferred),
-      unexpected_type(this, Label::kDeferred);
-  Label* wasm_value_type_labels[] = {
-      &type_I8,  &type_I16, &type_I32, &type_U32, &type_I64,
-      &type_F32, &type_F64, &type_Ref, &type_Ref, &unsupported_type};
-  int32_t wasm_value_types[] = {
-      static_cast<int32_t>(WasmValueType::kI8),
-      static_cast<int32_t>(WasmValueType::kI16),
-      static_cast<int32_t>(WasmValueType::kI32),
-      static_cast<int32_t>(WasmValueType::kU32),
-      static_cast<int32_t>(WasmValueType::kI64),
-      static_cast<int32_t>(WasmValueType::kF32),
-      static_cast<int32_t>(WasmValueType::kF64),
-      static_cast<int32_t>(WasmValueType::kRef),
-      static_cast<int32_t>(WasmValueType::kRefNull),
-      // TODO(v8:11804): support the following value types.
-      static_cast<int32_t>(WasmValueType::kS128)};
-  const size_t kWasmValueTypeCount =
-      static_cast<size_t>(WasmValueType::kNumTypes);
-  DCHECK_EQ(kWasmValueTypeCount, arraysize(wasm_value_types));
-  DCHECK_EQ(kWasmValueTypeCount, arraysize(wasm_value_type_labels));
-
-  Switch(wasm_value_type, &unexpected_type, wasm_value_types,
-         wasm_value_type_labels, kWasmValueTypeCount);
-  BIND(&type_I8);
-  {
-    Comment("type_I8");
-    TNode<Int32T> value = LoadObjectField<Int8T>(holder, field_offset);
-    exit_point->Return(SmiFromInt32(value));
-  }
-  BIND(&type_I16);
-  {
-    Comment("type_I16");
-    TNode<Int32T> value = LoadObjectField<Int16T>(holder, field_offset);
-    exit_point->Return(SmiFromInt32(value));
-  }
-  BIND(&type_I32);
-  {
-    Comment("type_I32");
-    TNode<Int32T> value = LoadObjectField<Int32T>(holder, field_offset);
-    exit_point->Return(ChangeInt32ToTagged(value));
-  }
-  BIND(&type_U32);
-  {
-    Comment("type_U32");
-    TNode<Uint32T> value = LoadObjectField<Uint32T>(holder, field_offset);
-    exit_point->Return(ChangeUint32ToTagged(value));
-  }
-  BIND(&type_I64);
-  {
-    Comment("type_I64");
-    TNode<RawPtrT> data_pointer =
-        ReinterpretCast<RawPtrT>(BitcastTaggedToWord(holder));
-    TNode<BigInt> value = LoadFixedBigInt64ArrayElementAsTagged(
-        data_pointer,
-        Signed(IntPtrSub(field_offset, IntPtrConstant(kHeapObjectTag))));
-    exit_point->Return(value);
-  }
-  BIND(&type_F32);
-  {
-    Comment("type_F32");
-    TNode<Float32T> value = LoadObjectField<Float32T>(holder, field_offset);
-    *var_double_value = ChangeFloat32ToFloat64(value);
-    Goto(rebox_double);
-  }
-  BIND(&type_F64);
-  {
-    Comment("type_F64");
-    TNode<Float64T> value = LoadObjectField<Float64T>(holder, field_offset);
-    *var_double_value = value;
-    Goto(rebox_double);
-  }
-  BIND(&type_Ref);
-  {
-    Comment("type_Ref");
-    TNode<Object> value = LoadObjectField(holder, field_offset);
-    exit_point->Return(value);
-  }
-  BIND(&unsupported_type);
-  {
-    Print("Not supported Wasm field type");
-    Unreachable();
-  }
-  BIND(&unexpected_type);
-  { Unreachable(); }
-}
-
-void AccessorAssembler::HandleLoadWasmField(
-    TNode<WasmObject> holder, TNode<Word32T> handler_word,
-    TVariable<Float64T>* var_double_value, Label* rebox_double,
-    ExitPoint* exit_point) {
-  Comment("LoadWasmField");
-  TNode<Int32T> wasm_value_type =
-      Signed(DecodeWord32<LoadHandler::WasmFieldTypeBits>(handler_word));
-  TNode<IntPtrT> field_offset = Signed(
-      DecodeWordFromWord32<LoadHandler::WasmFieldOffsetBits>(handler_word));
-
-  HandleLoadWasmField(holder, wasm_value_type, field_offset, var_double_value,
-                      rebox_double, exit_point);
-}
-
-#endif  // V8_ENABLE_WEBASSEMBLY
-
 TNode<Object> AccessorAssembler::LoadDescriptorValue(
     TNode<Map> map, TNode<IntPtrT> descriptor_entry) {
   return CAST(LoadDescriptorValueOrFieldType(map, descriptor_entry));
@@ -783,9 +660,6 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     BIND(&if_element);
     {
       Comment("element_load");
-      // TODO(ishell): implement
-      CSA_DCHECK(this,
-                 IsClearWord32<LoadHandler::IsWasmArrayBits>(handler_word));
       TVARIABLE(Int32T, var_instance_type);
       TNode<IntPtrT> intptr_index = TryToIntptr(
           p->name(), &try_string_to_array_index, &var_instance_type);
@@ -979,23 +853,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
 
   BIND(&field);
   {
-#if V8_ENABLE_WEBASSEMBLY
-    Label is_wasm_field(this);
-    GotoIf(IsSetWord32<LoadHandler::IsWasmStructBits>(handler_word),
-           &is_wasm_field);
-#else
-    CSA_DCHECK(this,
-               IsClearWord32<LoadHandler::IsWasmStructBits>(handler_word));
-#endif  // V8_ENABLE_WEBASSEMBLY
-
     HandleLoadField(CAST(holder), handler_word, var_double_value, rebox_double,
                     miss, exit_point);
-
-#if V8_ENABLE_WEBASSEMBLY
-    BIND(&is_wasm_field);
-    HandleLoadWasmField(CAST(holder), handler_word, var_double_value,
-                        rebox_double, exit_point);
-#endif  // V8_ENABLE_WEBASSEMBLY
   }
 
   BIND(&nonexistent);
@@ -1046,7 +905,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
       } else {
         TNode<IntPtrT> element_index = EntryToIndex<NameDictionary>(index_ptr);
         TNode<IntPtrT> properties_length =
-            LoadAndUntagFixedArrayBaseLength(CAST(properties));
+            LoadFixedArrayBaseLength(CAST(properties));
         GotoIf(UintPtrGreaterThanOrEqual(element_index, properties_length),
                &lookup);
         static_assert(NameDictionary::kEntryKeyIndex == 0);
@@ -2065,8 +1924,9 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
       {
         TNode<Float64T> double_value = ChangeNumberToFloat64(CAST(value));
         if (do_transitioning_store) {
+          TNode<Float64T> silenced_value = Float64SilenceNaN(double_value);
           TNode<HeapNumber> heap_number =
-              AllocateHeapNumberWithValue(double_value);
+              AllocateHeapNumberWithValue(silenced_value);
           StoreMap(object, object_map);
           StoreObjectField(object, field_offset, heap_number);
         } else {
@@ -2111,9 +1971,8 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
                  &cont);
           {
             TNode<Float64T> double_value = ChangeNumberToFloat64(CAST(value));
-            TNode<HeapNumber> heap_number =
-                AllocateHeapNumberWithValue(double_value);
-            var_value = heap_number;
+            TNode<Float64T> silenced = Float64SilenceNaN(double_value);
+            var_value = AllocateHeapNumberWithValue(silenced);
             Goto(&cont);
           }
           BIND(&cont);
@@ -2615,6 +2474,10 @@ void AccessorAssembler::HandleStoreFieldAndReturn(
     Label* miss) {
   bool store_value_as_double = representation.IsDouble();
 
+  if (store_value_as_double) {
+    double_value = Float64SilenceNaN(*double_value);
+  }
+
   TNode<BoolT> is_inobject =
       IsSetWord32<StoreHandler::IsInobjectBits>(handler_word);
   TNode<HeapObject> property_storage = Select<HeapObject>(
@@ -2772,7 +2635,7 @@ void AccessorAssembler::EmitFastElementsBoundsCheck(
   Label if_array(this), length_loaded(this, &var_length);
   GotoIf(is_jsarray_condition, &if_array);
   {
-    var_length = LoadAndUntagFixedArrayBaseLength(elements);
+    var_length = LoadFixedArrayBaseLength(elements);
     Goto(&length_loaded);
   }
   BIND(&if_array);
@@ -3816,8 +3679,8 @@ void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
     BIND(&try_homomorphic);
     {
       TryHomomorphicCase(p->lookup_start_object(), lookup_start_object_map,
-                         CAST(p->name()), var_handler, p->vector(), p->slot(),
-                         miss, exit_point);
+                         CAST(p->name()), p->vector(), p->slot(), miss,
+                         exit_point);
     }
 
     BIND(&try_megadom);
@@ -4011,8 +3874,9 @@ void AccessorAssembler::ScriptContextTableLookup(
                                     Context::SCRIPT_CONTEXT_TABLE_INDEX));
   TVARIABLE(IntPtrT, context_index, IntPtrConstant(-1));
   Label loop(this, &context_index);
-  TNode<IntPtrT> num_script_contexts = PositiveSmiUntag(CAST(LoadObjectField(
-      script_context_table, offsetof(ScriptContextTable, length_))));
+  TNode<IntPtrT> num_script_contexts =
+      Signed(ChangeUint32ToWord(LoadObjectField<Uint32T>(
+          script_context_table, offsetof(ScriptContextTable, length_))));
   Goto(&loop);
 
   BIND(&loop);

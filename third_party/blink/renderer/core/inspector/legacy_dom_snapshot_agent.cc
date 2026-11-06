@@ -283,9 +283,9 @@ int LegacyDOMSnapshotAgent::VisitNode(Node* node,
     value->setDocumentURL(InspectorDOMAgent::DocumentURLString(document));
     value->setBaseURL(InspectorDOMAgent::DocumentBaseURLString(document));
     if (document->ContentLanguage())
-      value->setContentLanguage(document->ContentLanguage().Utf8().c_str());
+      value->setContentLanguage(document->ContentLanguage());
     if (document->EncodingName())
-      value->setDocumentEncoding(document->EncodingName().Utf8().c_str());
+      value->setDocumentEncoding(document->EncodingName());
     value->setFrameId(IdentifiersFactory::FrameId(document->GetFrame()));
     if (document->View() && document->View()->LayoutViewport()) {
       auto offset = document->View()->LayoutViewport()->GetScrollOffset();
@@ -343,7 +343,7 @@ LegacyDOMSnapshotAgent::VisitPseudoElements(
       !parent->GetPseudoElement(kPseudoIdAfter) &&
       !parent->GetPseudoElement(kPseudoIdExpandIcon) &&
       !parent->GetPseudoElement(kPseudoIdPickerIcon) &&
-      !parent->GetPseudoElement(kPseudoIdInterestHint)) {
+      !parent->GetPseudoElement(kPseudoIdInterestButton)) {
     return nullptr;
   }
 
@@ -351,7 +351,7 @@ LegacyDOMSnapshotAgent::VisitPseudoElements(
   for (PseudoId pseudo_id :
        {kPseudoIdFirstLetter, kPseudoIdCheckMark, kPseudoIdBefore,
         kPseudoIdAfter, kPseudoIdExpandIcon, kPseudoIdPickerIcon,
-        kPseudoIdInterestHint}) {
+        kPseudoIdInterestButton}) {
     if (Node* pseudo_node = parent->GetPseudoElement(pseudo_id)) {
       pseudo_elements->emplace_back(VisitNode(pseudo_node,
                                               include_event_listeners,

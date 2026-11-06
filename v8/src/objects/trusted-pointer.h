@@ -30,7 +30,6 @@ class WasmInternalFunction;
 class WasmSuspenderObject;
 class WasmFunctionData;
 class WasmExportedFunctionData;
-class WasmJSFunctionData;
 class WasmCapiFunctionData;
 
 template <typename T, IndirectPointerTagRange kTagRange>
@@ -55,7 +54,6 @@ namespace detail {
   IF_WASM(V, kWasmFunctionDataIndirectPointerTagRange, WasmFunctionData)    \
   IF_WASM(V, kWasmExportedFunctionDataIndirectPointerTag,                   \
           WasmExportedFunctionData)                                         \
-  IF_WASM(V, kWasmJSFunctionDataIndirectPointerTag, WasmJSFunctionData)     \
   IF_WASM(V, kWasmCapiFunctionDataIndirectPointerTag, WasmCapiFunctionData)
 
 template <IndirectPointerTagRange tag_range>
@@ -163,6 +161,7 @@ class TrustedPointerMember
                                              Tagged<T> value);
 
   inline bool is_empty() const;
+  inline bool is_unpublished(IsolateForSandbox isolate) const;
   inline void clear(HeapObjectLayout* host);
 
  private:

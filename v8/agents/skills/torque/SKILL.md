@@ -1,6 +1,6 @@
 ---
 name: torque
-description: Expert guidance for navigating, implementing, and verifying V8 Torque (.tq) builtins and object layouts.
+description: "Provides expert guidance for navigating, implementing, and verifying V8 Torque (.tq) builtins. Use when modifying or debugging Torque files. Do not use for C++ macro builtins."
 ---
 
 # V8 Torque
@@ -46,22 +46,7 @@ transitioning javascript builtin Name(js-implicit context: NativeContext, receiv
 extern transitioning macro NameInCpp(Context, JSAny): JSAny;
 ```
 
-## Register in BUILD.gn
 
-If you create a **new** `.tq` file, you **MUST** register it in the root `BUILD.gn`.
-
-1.  Locate the `v8_torque_files` list in `BUILD.gn`.
-2.  Add your new file path in alphabetical order.
-
-```gn
-v8_torque_files = [
-  "src/builtins/array-join.tq",
-  "src/builtins/my-new-builtin.tq", # Your addition
-  ...
-]
-```
-
-*Note: Modifications to existing files do not require registration changes.*
 
 ## Mandatory verification workflow
 

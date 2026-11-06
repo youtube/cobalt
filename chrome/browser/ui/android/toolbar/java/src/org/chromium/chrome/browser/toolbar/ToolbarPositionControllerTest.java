@@ -26,6 +26,7 @@ import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getO
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Insets;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
@@ -66,6 +67,8 @@ import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerV
 import org.chromium.chrome.browser.browser_controls.BrowserControlsSizer;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
+import org.chromium.chrome.browser.browser_controls.TopControlsStacker;
+import org.chromium.chrome.browser.browser_controls.TopControlsStacker.TopControlType;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.preferences.Pref;
@@ -290,6 +293,7 @@ public class ToolbarPositionControllerTest {
     @Mock private PrefService mPrefs;
     @Mock private LocalStatePrefs.Natives mLocalStatePrefsNatives;
     @Mock private PrefService mLocalPrefService;
+    @Mock private TopControlsStacker mTopControlsStacker;
     @Mock private WindowAndroid mWindowAndroid;
     @Mock private DisplayAndroid mDisplayAndroid;
     @Mock private InsetObserver mInsetObserver;
@@ -306,7 +310,7 @@ public class ToolbarPositionControllerTest {
     private final SettableNonNullObservableSupplier<Boolean> mIsFindInPageShowing =
             ObservableSuppliers.createNonNull(false);
     private final SettableNonNullObservableSupplier<Integer> mToolbarPosition =
-            ObservableSuppliers.createNonNull(ControlsPosition.NONE);
+            ObservableSuppliers.createNonNull(ControlsPosition.TOP);
     private final FormFieldFocusedSupplier mIsFormFieldFocused = new FormFieldFocusedSupplier();
     private BottomControlsStacker mBottomControlsStacker;
     private ToolbarPositionController mController;
@@ -390,6 +394,7 @@ public class ToolbarPositionControllerTest {
                         mKeyboardVisibilityDelegate,
                         mControlContainer,
                         mToolbarLayout,
+                        mTopControlsStacker,
                         mBottomControlsStacker,
                         mBottomSheetController,
                         mBottomToolbarOffsetSupplier,
@@ -459,7 +464,7 @@ public class ToolbarPositionControllerTest {
     }
 
     @Test
-    @Config(qualifiers = "sw400dp", sdk = android.os.Build.VERSION_CODES.R)
+    @Config(qualifiers = "sw400dp", sdk = Build.VERSION_CODES.R)
     public void testIsToolbarPositionCustomizationEnabled_foldable() {
         ShadowPackageManager shadowPackageManager = Shadows.shadowOf(mContext.getPackageManager());
         shadowPackageManager.setSystemFeature(PackageManager.FEATURE_SENSOR_HINGE_ANGLE, true);
@@ -1295,6 +1300,24 @@ public class ToolbarPositionControllerTest {
         BottomControlsLayer toolbarLayer =
                 mBottomControlsStacker.getLayerForTesting(LayerType.BOTTOM_TOOLBAR);
         assertEquals(LayerVisibility.HIDDEN, toolbarLayer.getLayerVisibility());
+    }
+
+    @Test
+    @Config(qualifiers = "sw400dp")
+    public void testTopMarginFromTopControlsStacker() {
+        int heightAboveToolbar = 24;
+        when(mTopControlsStacker.getHeightFromLayerToTop(TopControlType.TOOLBAR))
+                .thenReturn(heightAboveToolbar);
+
+        // When controls are at bottom, topMargin should be 0.
+        setUserToolbarAnchorPreference(/* showToolbarOnTop= */ false);
+        assertControlsAtBottom();
+        assertEquals(0, mControlContainerLayoutParams.topMargin);
+
+        // When controls are at top, topMargin should match heightAboveToolbar.
+        setUserToolbarAnchorPreference(/* showToolbarOnTop= */ true);
+        assertControlsAtTop();
+        assertEquals(heightAboveToolbar, mControlContainerLayoutParams.topMargin);
     }
 
     private void assertControlsAtBottom() {

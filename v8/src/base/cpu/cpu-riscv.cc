@@ -60,6 +60,9 @@ void CPU::DetectFeatures() {
     if (pairs[0].value & RISCV_HWPROBE_EXT_ZBS) {
       has_zbs_ = true;
     }
+    if (pairs[0].value & RISCV_HWPROBE_EXT_ZFA) {
+      has_zfa_ = true;
+    }
   }
 
   char* mmu = cpu_info.ExtractField("mmu");

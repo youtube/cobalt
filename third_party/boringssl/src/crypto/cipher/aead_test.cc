@@ -141,6 +141,10 @@ static const struct KnownAEAD kAEADs[] = {
      "des_ede3_cbc_sha1_tls_implicit_iv_tests.txt",
      kLimitedImplementation | kVariableTag, /*required_ad_length=*/11},
 
+    {"AES_128_CBC_SHA256_TLS", EVP_aead_aes_128_cbc_sha256_tls,
+     "aes_128_cbc_sha256_tls_tests.txt", kLimitedImplementation | kVariableTag,
+     /*required_ad_length=*/11},
+
     {"AES_128_CTR_HMAC_SHA256", EVP_aead_aes_128_ctr_hmac_sha256,
      "aes_128_ctr_hmac_sha256.txt", kCanTruncateTags},
 
@@ -328,6 +332,25 @@ TEST_P(PerAEADTest, TestExtraInput) {
       EXPECT_EQ(Bytes(ct), Bytes(out.data(), in.size()));
       EXPECT_EQ(Bytes(tag), Bytes(out_tag.data() + extra_in_size,
                                   tag_bytes_written - extra_in_size));
+
+      // Bounds on the tag output should be checked.
+      {
+        std::vector<uint8_t> tag_buf(extra_in_size == 0 ? 0
+                                                        : extra_in_size - 1);
+        EXPECT_FALSE(EVP_AEAD_CTX_seal_scatter(
+            ctx.get(), out.data(), tag_buf.data(), &tag_bytes_written,
+            tag_buf.size(), nonce.data(), nonce.size(), in.data(),
+            in.size() - extra_in_size, in.data() + in.size() - extra_in_size,
+            extra_in_size, ad.data(), ad.size()));
+      }
+      {
+        std::vector<uint8_t> tag_buf(extra_in_size + tag.size() - 1);
+        EXPECT_FALSE(EVP_AEAD_CTX_seal_scatter(
+            ctx.get(), out.data(), tag_buf.data(), &tag_bytes_written,
+            tag_buf.size(), nonce.data(), nonce.size(), in.data(),
+            in.size() - extra_in_size, in.data() + in.size() - extra_in_size,
+            extra_in_size, ad.data(), ad.size()));
+      }
     }
   });
 }

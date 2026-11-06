@@ -22,12 +22,13 @@
 #include "api/video/render_resolution.h"
 #include "api/video_codecs/sdp_video_format.h"
 #include "api/video_codecs/video_encoder.h"
+#include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 
 // A factory that creates VideoEncoders.
 // NOTE: This class is still under development and may change without notice.
-class VideoEncoderFactory {
+class RTC_EXPORT VideoEncoderFactory {
  public:
   struct CodecSupport {
     bool is_supported = false;
@@ -89,16 +90,7 @@ class VideoEncoderFactory {
   // subject to change without notice.
   virtual CodecSupport QueryCodecSupport(
       const SdpVideoFormat& format,
-      std::optional<std::string> scalability_mode) const {
-    // Default implementation, query for supported formats and check if the
-    // specified format is supported. Returns false if scalability_mode is
-    // specified.
-    CodecSupport codec_support;
-    if (!scalability_mode) {
-      codec_support.is_supported = format.IsCodecInList(GetSupportedFormats());
-    }
-    return codec_support;
-  }
+      std::optional<std::string> scalability_mode) const;
 
   // Creates a VideoEncoder for the specified format.
   virtual std::unique_ptr<VideoEncoder> Create(

@@ -37,6 +37,7 @@
 #include "base/sampling_heap_profiler/poisson_allocation_sampler.h"
 #include "base/sampling_heap_profiler/sampling_heap_profiler.h"
 #include "build/build_config.h"
+#include "third_party/blink/public/platform/file_path_conversion.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_client.h"
 #include "third_party/blink/renderer/core/inspector/inspected_frames.h"
@@ -68,7 +69,12 @@ protocol::Response InspectorMemoryAgent::getDOMCounters(
 }
 
 protocol::Response InspectorMemoryAgent::forciblyPurgeJavaScriptMemory() {
-  for (const auto& page : Page::OrdinaryPages()) {
+  // Copy Page::OrdinaryPages() to avoid UAF. Synchronous JS
+  // execution during iteration can create new pages, which causes rehashing
+  // of the OrdinaryPages() set and invalidates the iterator.
+  // See crbug.com/502089411
+  Page::PageSet pages(Page::OrdinaryPages());
+  for (const auto& page : pages) {
     for (Frame* frame = page->MainFrame(); frame;
          frame = frame->Tree().TraverseNext()) {
       LocalFrame* local_frame = DynamicTo<LocalFrame>(frame);
@@ -176,8 +182,8 @@ InspectorMemoryAgent::GetSamplingProfileById(uint32_t id) {
   for (const auto* module : module_cache.GetModules()) {
     modules->emplace_back(
         protocol::Memory::Module::create()
-            .setName(module->GetDebugBasename().AsUTF16Unsafe().c_str())
-            .setUuid(module->GetId().c_str())
+            .setName(FilePathToString(module->GetDebugBasename()))
+            .setUuid(String(module->GetId()))
             .setBaseAddress(
                 String::Format("0x%" PRIxPTR, module->GetBaseAddress()))
             .setSize(static_cast<double>(module->GetSize()))
@@ -201,8 +207,7 @@ Vector<String> InspectorMemoryAgent::Symbolize(
     }
   }
 
-  String text(
-      base::debug::StackTrace(addresses_to_symbolize).ToString().c_str());
+  String text(base::debug::StackTrace(addresses_to_symbolize).ToString());
   // Populate cache with new entries.
   wtf_size_t next_pos;
   for (wtf_size_t pos = 0, i = 0;; pos = next_pos + 1, ++i) {
@@ -221,12 +226,8 @@ Vector<String> InspectorMemoryAgent::Symbolize(
     char buffer[20];
     std::snprintf(buffer, sizeof(buffer), "0x%" PRIxPTR,
                   reinterpret_cast<uintptr_t>(address));
-    if (symbols_cache_.Contains(address)) {
-      StringBuilder builder;
-      builder.Append(buffer);
-      builder.Append(" ");
-      builder.Append(symbols_cache_.at(address));
-      result.push_back(builder.ToString());
+    if (auto it = symbols_cache_.find(address); it != symbols_cache_.end()) {
+      result.push_back(StrCat({buffer, " ", it->value}));
     } else {
       result.push_back(buffer);
     }

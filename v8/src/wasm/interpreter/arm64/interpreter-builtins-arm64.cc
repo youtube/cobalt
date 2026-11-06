@@ -47,22 +47,11 @@ void Builtins::Generate_WasmInterpreterEntry(MacroAssembler* masm) {
   __ Ret();
 }
 
-void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
-                                     Register function_data,
-                                     Register wasm_instance) {
-  Register closure = function_data;
-  Register shared_function_info = closure;
-  __ LoadTaggedField(
-      shared_function_info,
-      FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
-  closure = no_reg;
-  __ LoadTrustedPointerField(
-      function_data,
-      FieldMemOperand(shared_function_info,
-                      SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kWasmExportedFunctionDataIndirectPointerTag);
-  shared_function_info = no_reg;
-
+// Given a WasmExportedFunctionData in |function_data|, derive the Wasm
+// instance object into |wasm_instance|. The two registers may alias.
+void LoadWasmInstanceFromFunctionData(MacroAssembler* masm,
+                                      Register function_data,
+                                      Register wasm_instance) {
   Register trusted_instance_data = wasm_instance;
 #if V8_ENABLE_SANDBOX
   __ DecompressProtected(
@@ -79,6 +68,25 @@ void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
       wasm_instance,
       FieldMemOperand(trusted_instance_data,
                       WasmTrustedInstanceData::kInstanceObjectOffset));
+}
+
+void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
+                                     Register function_data,
+                                     Register wasm_instance) {
+  Register closure = function_data;
+  Register shared_function_info = closure;
+  __ LoadTaggedField(
+      shared_function_info,
+      FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  closure = no_reg;
+  __ LoadTrustedPointerField(
+      function_data,
+      FieldMemOperand(shared_function_info,
+                      SharedFunctionInfo::kTrustedFunctionDataOffset),
+      kWasmExportedFunctionDataIndirectPointerTag);
+  shared_function_info = no_reg;
+
+  LoadWasmInstanceFromFunctionData(masm, function_data, wasm_instance);
 }
 
 void LoadFromSignature(MacroAssembler* masm, Register valuetypes_array_ptr,
@@ -266,23 +274,8 @@ void Builtins::Generate_JSToWasmInterpreterWrapperAsm(MacroAssembler* masm) {
   __ Sub(sp, sp, Operand(4 * kSystemPointerSize));
   __ Ldr(implicitArg,
          MemOperand(fp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
-#if V8_ENABLE_SANDBOX
-  __ DecompressProtected(
-      implicitArg,
-      MemOperand(implicitArg,
-                 WasmExportedFunctionData::kProtectedInstanceDataOffset -
-                     kHeapObjectTag));
-#else
-  __ LoadTaggedField(
-      implicitArg,
-      MemOperand(implicitArg,
-                 WasmExportedFunctionData::kProtectedInstanceDataOffset -
-                     kHeapObjectTag));
-#endif
-  __ LoadTaggedField(
-      wasm_instance,
-      FieldMemOperand(implicitArg,
-                      WasmTrustedInstanceData::kInstanceObjectOffset));
+  LoadWasmInstanceFromFunctionData(masm, /*function_data=*/implicitArg,
+                                   /*wasm_instance=*/wasm_instance);
   __ Ldr(
       result_array,
       MemOperand(fp, JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
@@ -337,12 +330,17 @@ void Builtins::Generate_JSToWasmInterpreterWrapperAsm(MacroAssembler* masm) {
   regs.ResetExcept(wasm_instance, wrapper_buffer);
   // The wrapper_buffer has to be in x2 as the correct parameter register.
   regs.Reserve(kReturnRegister0, kReturnRegister1, x2);
+  // Reload from the caller's outgoing-arg slot rather than from our own
+  // kImplicitArgOffset spill. The caller (Torque JSToWasmInterpreterWrapper)
+  // keeps `functionData` alive AND updates it across GC, per
+  // WasmJSToWasmWrapperDescriptor's stack-parameter contract. Our own spill
+  // at WasmInterpreterWrapperConstants::kImplicitArgOffset is intentionally
+  // not visited by JsToWasmFrame::Iterate and therefore must not be read
+  // after any safepoint (e.g. the WasmInterpreterEntry call above).
   __ Ldr(wasm_instance,
-         MemOperand(fp, WasmInterpreterWrapperConstants::kImplicitArgOffset));
-  __ LoadTaggedField(
-      wasm_instance,
-      FieldMemOperand(wasm_instance,
-                      WasmTrustedInstanceData::kInstanceObjectOffset));
+         MemOperand(fp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
+  LoadWasmInstanceFromFunctionData(masm, /*function_data=*/wasm_instance,
+                                   /*wasm_instance=*/wasm_instance);
 
   __ Ldr(x0, MemOperand(
                  fp, JSToWasmWrapperFrameConstants::kResultArrayParamOffset));

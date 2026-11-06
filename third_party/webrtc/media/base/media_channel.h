@@ -216,6 +216,9 @@ class MediaSendChannelInterface {
   virtual void SetExtmapAllowMixed(bool extmap_allow_mixed) = 0;
   virtual bool ExtmapAllowMixed() const = 0;
 
+  // Starts or stops transmission (and potentially capture) of local media.
+  virtual bool SetSend(bool send) = 0;
+
   // Set the frame encryptor to use on all outgoing frames. This is optional.
   // This pointers lifetime is managed by the set of RtpSender it is attached
   // to.
@@ -275,6 +278,8 @@ class MediaReceiveChannelInterface {
   // ssrc must be the first SSRC of the media stream if the stream uses
   // multiple SSRCs.
   virtual bool RemoveRecvStream(uint32_t ssrc) = 0;
+  // Starts or stops playout or decoding of received media.
+  virtual void SetReceive(bool receive) = 0;
   // Resets any cached StreamParams for an unsignaled RecvStream, and removes
   // any existing unsignaled streams.
   virtual void ResetUnsignaledRecvStream() = 0;
@@ -911,8 +916,7 @@ struct AudioReceiverParameters : MediaChannelParameters {};
 class VoiceMediaSendChannelInterface : public MediaSendChannelInterface {
  public:
   virtual bool SetSenderParameters(const AudioSenderParameter& params) = 0;
-  // Starts or stops sending (and potentially capture) of local audio.
-  virtual void SetSend(bool send) = 0;
+
   // Configure stream for sending.
   virtual bool SetAudioSend(uint32_t ssrc,
                             bool enable,
@@ -947,8 +951,7 @@ class VoiceMediaReceiveChannelInterface : public MediaReceiveChannelInterface {
   // Retrieve the receive parameters for the default receive
   // stream, which is used when SSRCs are not signaled.
   virtual RtpParameters GetDefaultRtpReceiveParameters() const = 0;
-  // Starts or stops playout of received audio.
-  virtual void SetPlayout(bool playout) = 0;
+
   // Set speaker output volume of the specified ssrc.
   virtual bool SetOutputVolume(uint32_t ssrc, double volume) = 0;
   // Set speaker output volume for future unsignaled streams.
@@ -996,8 +999,7 @@ class VideoMediaSendChannelInterface : public MediaSendChannelInterface {
       absl::AnyInvocable<void(EncoderSwitchRequestAction)>;
 
   virtual bool SetSenderParameters(const VideoSenderParameters& params) = 0;
-  // Starts or stops transmission (and potentially capture) of local video.
-  virtual bool SetSend(bool send) = 0;
+
   // Configure stream for sending and register a source.
   // The `ssrc` must correspond to a registered send stream.
   virtual bool SetVideoSend(uint32_t ssrc,
@@ -1031,8 +1033,7 @@ class VideoMediaReceiveChannelInterface : public MediaReceiveChannelInterface {
   virtual bool SetReceiverParameters(const VideoReceiverParameters& params) = 0;
   // Get the receive parameters for the incoming stream identified by `ssrc`.
   virtual RtpParameters GetRtpReceiverParameters(uint32_t ssrc) const = 0;
-  // Starts or stops decoding of remote video.
-  virtual void SetReceive(bool receive) = 0;
+
   // Retrieve the receive parameters for the default receive
   // stream, which is used when SSRCs are not signaled.
   virtual RtpParameters GetDefaultRtpReceiveParameters() const = 0;

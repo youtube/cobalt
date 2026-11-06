@@ -683,7 +683,7 @@ class MasqueTcpServer : public QuicSocketEventListener,
 
   void OnResponse(MasqueH2Connection* /*connection*/, int32_t /*stream_id*/,
                   const quiche::HttpHeaderBlock& /*headers*/,
-                  const std::string& /*body*/) override {
+                  const std::string& /*body*/, bool /*end_stream*/) override {
     QUICHE_LOG(FATAL) << "Server cannot receive responses";
   }
 
@@ -692,9 +692,20 @@ class MasqueTcpServer : public QuicSocketEventListener,
     QUICHE_LOG(ERROR) << "Stream " << stream_id << " failed: " << error;
   }
 
+  void OnDataForStream(MasqueH2Connection* /*connection*/,
+                       int32_t /*stream_id*/, absl::string_view /*data*/,
+                       bool /*end_stream*/) override {
+    QUICHE_LOG(FATAL) << "MasqueTcpServer does not request streamed responses";
+  }
+
   // From MasqueConnectionPool::Visitor.
   void OnPoolResponse(MasqueConnectionPool* /*pool*/, RequestId request_id,
-                      absl::StatusOr<Message>&& response) override {
+                      absl::StatusOr<Message>&& response,
+                      bool end_stream) override {
+    if (!end_stream) {
+      QUICHE_LOG(FATAL)
+          << "MasqueTcpServer does not request streamed responses";
+    }
     auto it = pending_requests_.find(request_id);
     if (it == pending_requests_.end()) {
       QUICHE_LOG(ERROR) << "Received unexpected response for unknown request "
@@ -737,6 +748,11 @@ class MasqueTcpServer : public QuicSocketEventListener,
     pending_request.connection->SendResponse(pending_request.stream_id,
                                              response_headers, response_body);
     pending_request.connection->AttemptToSend();
+  }
+
+  void OnPoolData(MasqueConnectionPool* /*pool*/, RequestId /*request_id*/,
+                  absl::string_view /*data*/, bool /*end_stream*/) override {
+    QUICHE_LOG(FATAL) << "Server received unexpected pool data";
   }
 
   bool SetupGateway(const std::string& gateway_path,

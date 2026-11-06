@@ -848,7 +848,7 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
 
 // static
 void HeapVerifier::VerifyHeap(Heap* heap) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.HeapVerification");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.HeapVerification");
   HeapVerification verifier(heap);
   verifier.Verify();
 }

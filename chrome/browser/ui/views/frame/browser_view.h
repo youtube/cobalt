@@ -98,7 +98,6 @@ class TopControlsSlideController;
 class TopControlsSlideControllerTest;
 class VerticalTabStripRegionView;
 class WebAppFrameToolbarView;
-class WebUITabStripContainerView;
 
 namespace gfx {
 class AnimationRunner;
@@ -298,9 +297,6 @@ class BrowserView : public BrowserWindow,
     return horizontal_tab_strip_region_view_->tab_strip();
   }
 
-  // Accessor for the WebUI tab strip.
-  WebUITabStripContainerView* webui_tab_strip() { return webui_tab_strip_; }
-
   // Accessor for the Toolbar.
   const ToolbarView* toolbar() const { return toolbar_; }
   ToolbarView* toolbar() { return toolbar_; }
@@ -436,12 +432,8 @@ class BrowserView : public BrowserWindow,
   // FullscreenController. This method does any processing which was skipped.
   void FullscreenStateChanged();
 
-  // Sets the button provider for this BrowserView. Must be called before
-  // InitViews() which sets the ToolbarView as the default button provider.
-  void SetToolbarButtonProvider(ToolbarButtonProvider* provider);
-  ToolbarButtonProvider* toolbar_button_provider() {
-    return toolbar_button_provider_;
-  }
+  // TODO(tluk): Replace this accessor with `ToolbarButtonProvider::From()`.
+  ToolbarButtonProvider* toolbar_button_provider();
 
   // Callback for listening for link-opening-from-gesture events (i.e. only
   // those resulting from direct user action).
@@ -532,8 +524,6 @@ class BrowserView : public BrowserWindow,
   void SetTopControlsGestureScrollInProgress(bool in_progress) override;
   std::vector<StatusBubble*> GetStatusBubbles() override;
   void UpdateTitleBar() override;
-  void UpdateDevTools(content::WebContents* inspected_web_contents) override;
-  bool CanDockDevTools() const override;
   void UpdateLoadingAnimations(bool is_visible) override;
   void SetStarredState(bool is_starred) override;
   void OnActiveTabChanged(content::WebContents* old_contents,
@@ -567,7 +557,6 @@ class BrowserView : public BrowserWindow,
   void UpdateToolbar(content::WebContents* contents) override;
   bool UpdateToolbarSecurityState() override;
   void UpdateCustomTabBarVisibility(bool visible, bool animate) override;
-  void SetDevToolsScrimVisibility(bool visible) override;
   void ResetToolbarTabState(content::WebContents* contents) override;
   void FocusToolbar() override;
   void ToolbarSizeChanged(bool is_animating) override;
@@ -585,8 +574,6 @@ class BrowserView : public BrowserWindow,
   bool IsUnframedModeEnabled() const override;
   void ShowChromeLabs() override;
   BrowserView* AsBrowserView() override;
-  SharingDialog* ShowSharingDialog(content::WebContents* contents,
-                                   SharingDialogData data) override;
   void ShowUpdateChromeDialog() override;
   void ShowIntentPickerBubble(
       std::vector<IntentPickerBubbleView::AppInfo> app_info,
@@ -596,23 +583,8 @@ class BrowserView : public BrowserWindow,
       const std::optional<url::Origin>& initiating_origin,
       IntentPickerResponse callback) override;
   void ShowBookmarkBubble(const GURL& url, bool already_bookmarked) override;
-  sharing_hub::ScreenshotCapturedBubble* ShowScreenshotCapturedBubble(
-      content::WebContents* contents,
-      const gfx::Image& image) override;
-  qrcode_generator::QRCodeGeneratorBubbleView* ShowQRCodeGeneratorBubble(
-      content::WebContents* contents,
-      const GURL& url,
-      bool show_back_button) override;
-  send_tab_to_self::SendTabToSelfBubbleView*
-  ShowSendTabToSelfDevicePickerBubble(content::WebContents* contents) override;
-  send_tab_to_self::SendTabToSelfBubbleView* ShowSendTabToSelfPromoBubble(
-      content::WebContents* contents,
-      bool show_signin_button) override;
 #if BUILDFLAG(IS_CHROMEOS)
   void ToggleMultitaskMenu() override;
-#else
-  sharing_hub::SharingHubBubbleView* ShowSharingHubBubble(
-      share::ShareAttempt attempt) override;
 #endif  // BUILDFLAG(IS_CHROMEOS)
   ShowTranslateBubbleResult ShowTranslateBubble(
       content::WebContents* contents,
@@ -744,6 +716,8 @@ class BrowserView : public BrowserWindow,
 
   // content::WebContentsObserver:
   void TitleWasSet(content::NavigationEntry* entry) override;
+  void DidFinishNavigation(
+      content::NavigationHandle* navigation_handle) override;
 
   // views::ClientView:
   views::CloseRequestResult OnWindowCloseRequested() override;
@@ -940,9 +914,6 @@ class BrowserView : public BrowserWindow,
       tabs::VerticalTabStripStateController* controller);
 
   void OnProjectsPanelStateChanged(ProjectsPanelStateController* controller);
-
-  // Make sure the WebUI tab strip exists if it should.
-  void MaybeInitializeWebUITabStrip();
 
   // Callback for the loading animation(s) associated with this view.
   void LoadingAnimationTimerCallback();
@@ -1222,19 +1193,11 @@ class BrowserView : public BrowserWindow,
   // The view that contains the tabstrip, new tab button, and grab handle space.
   raw_ptr<HorizontalTabStripRegionView> horizontal_tab_strip_region_view_ =
       nullptr;
+
   // The insertion index of the HorizontalTabStripRegionView in the BrowserView
   // view tree. This is used to correctly reparent the tabstrip when exiting
   // fullscreen mode. See BrowserView::ReparentTopContainerForEndOfImmersive.
   std::optional<size_t> horizontal_tab_strip_region_insertion_index_;
-
-  // The webui based tabstrip, when applicable. see https://crbug.com/989131.
-  raw_ptr<WebUITabStripContainerView> webui_tab_strip_ = nullptr;
-
-  // Allows us to react to changes in accessibility mode. Having an observer
-  // object allows for the browser to change mode if it enters or leaves
-  // accessibility mode.
-  std::unique_ptr<AccessibilityModeObserver> accessibility_mode_observer_;
-
   // The Toolbar containing the navigation buttons, menus and the address bar.
   raw_ptr<ToolbarView> toolbar_ = nullptr;
 
@@ -1323,10 +1286,6 @@ class BrowserView : public BrowserWindow,
   // Conceptually this member should exist if and only if the
   // side_panel_coordinator is created.
   raw_ptr<SidePanel> contents_height_side_panel_ = nullptr;
-
-  // Provides access to the toolbar buttons this browser view uses. Buttons may
-  // appear in a hosted app frame or in a tabbed UI toolbar.
-  raw_ptr<ToolbarButtonProvider> toolbar_button_provider_ = nullptr;
 
   // The handler responsible for showing autofill bubbles.
   std::unique_ptr<autofill::AutofillBubbleHandler> autofill_bubble_handler_;

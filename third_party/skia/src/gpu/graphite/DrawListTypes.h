@@ -35,20 +35,21 @@ enum class BoundsTest {
 struct LayerKey {
     GraphicsPipelineCache::Index fPipelineIndex;
     TextureDataCache::Index fTextureIndex;
+    UniformDataCache::Index fUniformIndex;
 
     static constexpr LayerKey None() {
-        constexpr LayerKey kInvalid = {GraphicsPipelineCache::kInvalidIndex,
-                                       TextureDataCache::kInvalidIndex};
-        return kInvalid;
+        return {GraphicsPipelineCache::kInvalidIndex,
+                TextureDataCache::kInvalidIndex,
+                UniformDataCache::kInvalidIndex};
     }
 
-    // NOTE: removing the uniform index on this check decreases stencil lists on desk_samoa
-    // from 602 -> 69
-    bool operator==(const LayerKey& other) const {
-        return fPipelineIndex == other.fPipelineIndex && fTextureIndex == other.fTextureIndex;
+    SK_ALWAYS_INLINE bool isEqual(const LayerKey& other, bool matchUniforms) const {
+        if (fPipelineIndex != other.fPipelineIndex ||
+            fTextureIndex != other.fTextureIndex) {
+            return false;
+        }
+        return !matchUniforms || fUniformIndex == other.fUniformIndex;
     }
-
-    bool operator!=(const LayerKey& other) const { return !(*this == other); }
 };
 
 struct Draw {
@@ -101,7 +102,7 @@ struct Layer {
     SK_DECLARE_INTERNAL_LLIST_INTERFACE(Layer);
 
     template <bool kForwards>
-    BindingList* searchBinding(const LayerKey& key, BindingList* startList) {
+    BindingList* searchBinding(const LayerKey& key, BindingList* startList, bool matchUniform) {
         BindingList* list;
         BindingList* end;
 
@@ -115,7 +116,7 @@ struct Layer {
 
         // Advancement is evaluated at compile time
         for (; list != end; list = kForwards ? list->fNext : list->fPrev) {
-            if (list->fKey == key) {
+            if (list->fKey.isEqual(key, matchUniform)) {
                 return list;
             }
         }
@@ -135,7 +136,8 @@ struct Layer {
     SK_ALWAYS_INLINE std::pair<BoundsTest, BindingList*> test(const Rect& drawBounds,
                                                               const LayerKey& key,
                                                               bool requiresBarrier,
-                                                              BindingList* startList) {
+                                                              BindingList* startList,
+                                                              bool matchUniform) {
         BindingList* foundMatch = nullptr;
         BindingList* list;
         BindingList* end;
@@ -148,7 +150,7 @@ struct Layer {
         }
         // Advancement is also constexpr
         for (; list != end; list = kForwards ? list->fNext : list->fPrev) {
-            if (list->fKey == key) {
+            if (list->fKey.isEqual(key, matchUniform)) {
                 // Depth-only and stencil draws check for intersection under the rules listed below.
                 if constexpr (!kIsDepthOnly && !kIsStencil) {
                     foundMatch = list;

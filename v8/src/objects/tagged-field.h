@@ -21,8 +21,15 @@ namespace v8::internal {
 template <typename T, typename CompressionScheme = V8HeapCompressionScheme>
 class TaggedMember;
 
+// Distinct marker type so that `ProtectedTaggedMember<T>::WriteBarrier`
+// always routes through `WriteBarrier::ForProtectedPointer`. Without the
+// sandbox `TrustedSpaceCompressionScheme` aliases `V8HeapCompressionScheme`,
+// so we cannot distinguish protected-pointer fields via the scheme alone.
+struct ProtectedPointerCompressionScheme : TrustedSpaceCompressionScheme {};
+
 template <typename T>
-using ProtectedTaggedMember = TaggedMember<T, TrustedSpaceCompressionScheme>;
+using ProtectedTaggedMember =
+    TaggedMember<T, ProtectedPointerCompressionScheme>;
 
 // Base class for all TaggedMember<T> classes.
 // TODO(leszeks): Merge with TaggedImpl.
@@ -95,6 +102,40 @@ class UnalignedDoubleMember : public UnalignedValueMember<double> {
 };
 static_assert(alignof(UnalignedDoubleMember) == alignof(Tagged_t));
 static_assert(sizeof(UnalignedDoubleMember) == sizeof(double));
+
+// JSDispatchHandleMember stores a 32-bit JSDispatchHandle as a member of a
+// HeapObjectLayout subclass. Explicit padding must be added to the containing
+// class on builds with kTaggedSize == 8.
+class JSDispatchHandleMember {
+ public:
+  constexpr JSDispatchHandleMember() = default;
+
+  JSDispatchHandleMember(const JSDispatchHandleMember&) = delete;
+  JSDispatchHandleMember& operator=(const JSDispatchHandleMember&) = delete;
+
+  inline JSDispatchHandle Relaxed_Load() const;
+  inline JSDispatchHandle Acquire_Load() const;
+
+  // Resets the handle to kNullJSDispatchHandle. No write barrier (matches the
+  // semantics of clearing a dispatch handle on a dying object).
+  inline void Relaxed_Clear();
+
+  // Stores a new handle and emits the JSDispatchHandle write barrier.
+  inline void Relaxed_Store(HeapObjectLayout* host, JSDispatchHandle handle,
+                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  // Allocates a new dispatch-table entry, release-stores it into this member
+  // and emits the write barrier anchored on |host|. Mirrors
+  // HeapObject::AllocateAndInstallJSDispatchHandle.
+  template <typename ObjectType>
+  inline JSDispatchHandle AllocateAndInstall(
+      DirectHandle<ObjectType> host, Isolate* isolate, uint16_t parameter_count,
+      DirectHandle<Code> code, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+ private:
+  std::atomic<uint32_t> storage_{0};
+};
+static_assert(sizeof(JSDispatchHandleMember) == sizeof(uint32_t));
 
 // FLEXIBLE_ARRAY_MEMBER(T, name) represents a marker for a variable-sized
 // suffix of members for a type.

@@ -233,7 +233,7 @@ void RtpVideoStreamReceiverFrameTransformerDelegate::ManageFrame(
     RTPVideoHeader video_header = RTPVideoHeader::FromMetadata(metadata);
     VideoSendTiming timing;
     std::span<const uint8_t> data = transformed_frame->GetData();
-    int64_t receive_time = clock_->CurrentTime().ms();
+    Timestamp receive_time = clock_->CurrentTime();
     receiver_->ManageFrame(std::make_unique<RtpFrameObject>(
         /*first_seq_num=*/metadata.GetFrameId().value_or(0),
         /*last_seq_num=*/metadata.GetFrameId().value_or(0),

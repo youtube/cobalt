@@ -8,6 +8,8 @@
 #include "src/objects/js-promise.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/smi-inl.h"
 #include "src/objects/tagged-field-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -16,7 +18,20 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-promise-tq-inl.inc"
+Tagged<UnionOf<PromiseReaction, JSAny>> JSPromise::reactions_or_result() const {
+  return reactions_or_result_.load();
+}
+
+void JSPromise::set_reactions_or_result(
+    Tagged<UnionOf<PromiseReaction, JSAny>> value, WriteBarrierMode mode) {
+  reactions_or_result_.store(this, value, mode);
+}
+
+int JSPromise::flags() const { return flags_.load().value(); }
+
+void JSPromise::set_flags(int value) {
+  flags_.store(this, Smi::From31BitPattern(value));
+}
 
 BOOL_ACCESSORS(JSPromise, flags, has_handler, HasHandlerBit::kShift)
 BOOL_ACCESSORS(JSPromise, flags, is_silent, IsSilentBit::kShift)

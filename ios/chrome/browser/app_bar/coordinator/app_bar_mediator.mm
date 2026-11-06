@@ -19,6 +19,7 @@
 #import "ios/chrome/browser/fullscreen/public/fullscreen_metrics.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_element.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_updater.h"
+#import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_service.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
@@ -446,8 +447,7 @@
       break;
     }
     case AppBarAssistantButtonState::kAsk: {
-      if (!_authenticationService->HasPrimaryIdentity(
-              signin::ConsentLevel::kSignin)) {
+      if (!_authenticationService->HasPrimaryIdentity()) {
         ShowSigninCommand* command = [[ShowSigninCommand alloc]
             initWithOperation:AuthenticationOperation::kSigninOnly
                   accessPoint:signin_metrics::AccessPoint::kIosAppBar];
@@ -455,7 +455,10 @@
                    baseViewController:self.baseViewController];
         return;
       }
-      if (!_geminiService || !_geminiService->IsProfileEligibleForGemini()) {
+      if (!_geminiService || (!_geminiService->IsProfileEligibleForGemini() &&
+                              _geminiService->GeminiIneligibilityForProfile()
+                                  .value()
+                                  .account_capability)) {
         // TODO(crbug.com/484000888): If user is not eligible, then show prompt
         // notifying ineligibility.
         return;
@@ -485,41 +488,6 @@
   params.load_in_group = true;
   params.tab_group = self.currentTabGroup->GetWeakPtr();
   _URLLoader->Load(params);
-  [self updateConsumer];
-}
-
-- (void)moveCurrentTabToGroup:(const TabGroup*)destinationGroup {
-  CHECK(base::FeatureList::IsEnabled(kTabGroupInTabIconContextMenu));
-  CHECK(GetGroupForActiveWebState(self.currentWebStateList));
-  int tabIndex = self.currentWebStateList->active_index();
-  self.currentWebStateList->MoveToGroup({tabIndex}, destinationGroup);
-  [self updateConsumer];
-}
-
-- (void)removeCurrentTabFromGroup {
-  CHECK(base::FeatureList::IsEnabled(kTabGroupInTabIconContextMenu));
-  CHECK(GetGroupForActiveWebState(self.currentWebStateList));
-  int tabIndex = self.currentWebStateList->active_index();
-  self.currentWebStateList->RemoveFromGroups({tabIndex});
-  [self updateConsumer];
-}
-
-- (void)addCurrentTabToGroup:(const TabGroup*)destinationGroup {
-  CHECK(base::FeatureList::IsEnabled(kTabGroupInTabIconContextMenu));
-  CHECK(!GetGroupForActiveWebState(self.currentWebStateList));
-  int tabIndex = self.currentWebStateList->active_index();
-  if (destinationGroup) {
-    self.currentWebStateList->MoveToGroup({tabIndex}, destinationGroup);
-  } else {
-    web::WebState* currentWebState =
-        self.currentWebStateList->GetActiveWebState();
-    if (!currentWebState) {
-      return;
-    }
-    std::set<web::WebStateID> identifiers = {
-        currentWebState->GetUniqueIdentifier()};
-    [self createNewTabGroupWithTabs:identifiers];
-  }
   [self updateConsumer];
 }
 

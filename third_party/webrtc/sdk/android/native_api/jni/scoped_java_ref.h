@@ -21,6 +21,8 @@
 namespace webrtc {
 template <typename T>
 using JavaParamRef = jni_zero::JavaRef<T>;
+using jni_zero::AdoptRef;
+using jni_zero::CreateLeaky;
 using jni_zero::JavaRef;
 using jni_zero::ScopedJavaGlobalRef;
 using jni_zero::ScopedJavaLocalRef;

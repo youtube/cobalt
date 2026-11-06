@@ -484,7 +484,7 @@ public class MultiWindowUtils implements ActivityStateListener {
         // If already running CTA was started via .Main activity alias, starting it again with
         // LAUNCH_ADJACENT will create another CTA instance with just a single tab. There doesn't
         // seem to be a reliable way to check if an activity was started via an alias, so we're
-        // removing the flag if any CTA instance is running. See crbug.com/771516 for details.
+        // removing the flag if any CTA instance is running. See crbug.com/40543122 for details.
         if (!isMultiInstanceApi31Enabled()
                 && targetActivity.equals(ChromeTabbedActivity.class)
                 && isPrimaryTabbedActivityRunning()) {
@@ -540,6 +540,49 @@ public class MultiWindowUtils implements ActivityStateListener {
         return intent;
     }
 
+    @VisibleForTesting
+    /* package */ static @Nullable Intent createNewWindowIntent(
+            Activity sourceActivity, boolean isIncognito, @NewWindowAppSource int source) {
+        boolean isInMultiWindowMode = getInstance().isInMultiWindowMode(sourceActivity);
+        boolean isInMultiDisplayMode = getInstance().isInMultiDisplayMode(sourceActivity);
+
+        if (isMultiInstanceApi31Enabled()) {
+            boolean openAdjacently =
+                    (canEnterMultiWindowMode() || isInMultiWindowMode || isInMultiDisplayMode)
+                            && shouldOpenInAdjacentWindow(sourceActivity);
+
+            Intent intent =
+                    createNewWindowIntent(
+                            sourceActivity,
+                            INVALID_WINDOW_ID,
+                            /* preferNew= */ true,
+                            openAdjacently,
+                            source);
+            intent.putExtra(IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_WINDOW, isIncognito);
+            return intent;
+        }
+
+        assert !isIncognito : "Opening an incognito window isn't supported";
+        assert isInMultiWindowMode || isInMultiDisplayMode
+                : "Current windowing mode doesn't support opening a new window";
+
+        Class<? extends Activity> targetActivity =
+                getInstance().getOpenInOtherWindowActivity(sourceActivity);
+        if (targetActivity == null) return null;
+
+        Intent intent = new Intent(sourceActivity, targetActivity);
+        setOpenInOtherWindowIntentExtras(intent, sourceActivity, targetActivity);
+
+        intent.putExtra(IntentHandler.EXTRA_NEW_WINDOW_APP_SOURCE, source);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+        if (shouldOpenInAdjacentWindow(sourceActivity)) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
+        }
+
+        return intent;
+    }
+
     /**
      * @param intent The {@link Intent} to determine whether creation of a new instance is
      *     preferred.
@@ -578,9 +621,24 @@ public class MultiWindowUtils implements ActivityStateListener {
         }
 
         if (!isMultiInstanceApi31Enabled()) return 0;
-        Set<Integer> ids = getPersistedInstanceIds(type);
         Context context = ContextUtils.getApplicationContext();
         Set<Integer> appTaskIds = MultiWindowUtils.getAllAppTaskIds(context);
+        return getInstanceCount(type, appTaskIds);
+    }
+
+    /**
+     * Overload that accepts pre-fetched appTaskIds to avoid redundant Binder IPC calls to
+     * ActivityManager.getAppTasks(). Use this when calling getInstanceCount() multiple times
+     * to share a single IPC result.
+     */
+    /* package */ static int getInstanceCount(
+            @PersistedInstanceType int type, Set<Integer> appTaskIds) {
+        if (sInstanceCountForTesting != null) {
+            return sInstanceCountForTesting;
+        }
+
+        if (!isMultiInstanceApi31Enabled()) return 0;
+        Set<Integer> ids = getPersistedInstanceIds(type, appTaskIds);
         int count = 0;
         for (Integer id : ids) {
             if (ChromeMultiInstancePersistentStore.readMarkedForDeletion(id)) continue;
@@ -1104,9 +1162,23 @@ public class MultiWindowUtils implements ActivityStateListener {
      * @return A set of instance ids of the specified {@code type}.
      */
     /* package */ static Set<Integer> getPersistedInstanceIds(int type) {
+        // For ANY type, no need to call getAllAppTaskIds() — just return all IDs directly.
+        if (type == PersistedInstanceType.ANY) {
+            return ChromeMultiInstancePersistentStore.readAllInstanceIds();
+        }
+
         Context context = ContextUtils.getApplicationContext();
         Set<Integer> activeTaskIds = getAllAppTaskIds(context);
 
+        return getPersistedInstanceIds(type, activeTaskIds);
+    }
+
+    /**
+     * Overload that accepts pre-fetched appTaskIds to avoid redundant Binder IPC calls to
+     * ActivityManager.getAppTasks().
+     */
+    /* package */ static Set<Integer> getPersistedInstanceIds(
+            int type, Set<Integer> activeTaskIds) {
         Set<Integer> allIds = ChromeMultiInstancePersistentStore.readAllInstanceIds();
         if (type == PersistedInstanceType.ANY) return allIds;
 

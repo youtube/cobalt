@@ -310,7 +310,8 @@ public class ChromePageInfoControllerDelegate extends PageInfoControllerDelegate
                             return tab;
                         }));
 
-        if (PageInfoAboutThisSiteController.isFeatureEnabled()) {
+        if (PageInfoAboutThisSiteController.isFeatureEnabled()
+                && (mEphemeralTabCoordinatorSupplier != null || mTabCreator != null)) {
             var aboutThisSiteRow = new PageInfoRowView(rowWrapper.getContext(), null);
             aboutThisSiteRow.setId(PageInfoAboutThisSiteController.ROW_ID);
             rowWrapper.addView(aboutThisSiteRow);
@@ -378,6 +379,7 @@ public class ChromePageInfoControllerDelegate extends PageInfoControllerDelegate
                 mProfile,
                 url,
                 size,
+                /* fallbackToHost= */ true,
                 (image, iconUrl) -> {
                     if (image != null) {
                         callback.onResult(new BitmapDrawable(resources, image));
@@ -408,6 +410,12 @@ public class ChromePageInfoControllerDelegate extends PageInfoControllerDelegate
     @Override
     public boolean isIncognito() {
         return mProfile.isOffTheRecord();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean isHttpsFirstDialogUiEnabled() {
+        return ChromeFeatureList.isEnabled(ChromeFeatureList.HTTPS_FIRST_DIALOG_UI);
     }
 
     private PageInfoRowView.ViewParams getAppInfoRowParams(

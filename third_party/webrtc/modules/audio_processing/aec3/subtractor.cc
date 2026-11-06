@@ -19,7 +19,6 @@
 
 #include "api/audio/echo_canceller3_config.h"
 #include "api/environment/environment.h"
-#include "api/field_trials_view.h"
 #include "modules/audio_processing/aec3/adaptive_fir_filter.h"
 #include "modules/audio_processing/aec3/adaptive_fir_filter_erl.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
@@ -40,11 +39,6 @@
 namespace webrtc {
 
 namespace {
-
-bool UseCoarseFilterResetHangover(const FieldTrialsView& field_trials) {
-  return !field_trials.IsEnabled(
-      "WebRTC-Aec3CoarseFilterResetHangoverKillSwitch");
-}
 
 void PredictionError(const Aec3Fft& fft,
                      const FftData& S,
@@ -89,8 +83,6 @@ Subtractor::Subtractor(const Environment& env,
       optimization_(optimization),
       config_(config),
       num_capture_channels_(num_capture_channels),
-      use_coarse_filter_reset_hangover_(
-          UseCoarseFilterResetHangover(env.field_trials())),
       refined_filters_(num_capture_channels_),
       coarse_filter_(num_capture_channels_),
       refined_gains_(num_capture_channels_),
@@ -270,8 +262,7 @@ void Subtractor::Process(const RenderBuffer& render_buffer,
       // adaptation speed of the refined filter just after the coarse filter has
       // been reset.
       const bool disallow_leakage_diverged =
-          coarse_filter_reset_hangover_[ch] > 0 &&
-          use_coarse_filter_reset_hangover_;
+          coarse_filter_reset_hangover_[ch] > 0;
 
       std::array<float, kFftLengthBy2Plus1> erl;
       ComputeErl(optimization_, refined_frequency_responses_[ch], erl);

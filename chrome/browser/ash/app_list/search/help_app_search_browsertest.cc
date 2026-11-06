@@ -23,6 +23,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/common/chrome_paths.h"
@@ -185,7 +186,7 @@ IN_PROC_BROWSER_TEST_F(HelpAppSearchBrowserTest,
 
 // Test that the number of times the suggestion chip should show decreases when
 // the chip is shown in tablet mode.
-// https://crbug.com/1489431: test is flaky on bots.
+// https://crbug.com/40935045: test is flaky on bots.
 IN_PROC_BROWSER_TEST_F(
     HelpAppSearchBrowserTest,
     DISABLED_ReleaseNotesDecreasesTimesShownOnAppListOpenInTabletMode) {
@@ -230,7 +231,7 @@ IN_PROC_BROWSER_TEST_F(HelpAppSearchBrowserTest,
   ChromeSearchResult* result = FindResult("help-app://updates");
 
   // Open the search result. This should open the help app at the expected url.
-  size_t num_browsers = chrome::GetTotalBrowserCount();
+  size_t num_browsers = GlobalBrowserCollection::GetInstance()->GetSize();
   const GURL expected_url("chrome://help-app/updates");
   content::TestNavigationObserver navigation_observer(expected_url);
   navigation_observer.StartWatchingNewWebContents();
@@ -243,8 +244,10 @@ IN_PROC_BROWSER_TEST_F(HelpAppSearchBrowserTest,
 
   navigation_observer.Wait();
 
-  EXPECT_EQ(num_browsers + 1, chrome::GetTotalBrowserCount());
-  EXPECT_EQ(expected_url, chrome::FindLastActive()
+  EXPECT_EQ(num_browsers + 1,
+            GlobalBrowserCollection::GetInstance()->GetSize());
+  EXPECT_EQ(expected_url, GlobalBrowserCollection::GetInstance()
+                              ->GetLastActiveBrowser()
                               ->GetTabStripModel()
                               ->GetActiveWebContents()
                               ->GetVisibleURL());
@@ -305,7 +308,7 @@ IN_PROC_BROWSER_TEST_F(HelpAppSearchBrowserTest,
 
   // Open the search result. This should open the help app at the expected url
   // and log a metric indicating what content was launched.
-  const size_t num_browsers = chrome::GetTotalBrowserCount();
+  const size_t num_browsers = GlobalBrowserCollection::GetInstance()->GetSize();
   const GURL expected_url("chrome://help-app/help/id/test");
   content::TestNavigationObserver navigation_observer(expected_url);
   navigation_observer.StartWatchingNewWebContents();
@@ -318,8 +321,10 @@ IN_PROC_BROWSER_TEST_F(HelpAppSearchBrowserTest,
       /*launch_as_default=*/false);
   navigation_observer.Wait();
 
-  EXPECT_EQ(num_browsers + 1, chrome::GetTotalBrowserCount());
-  EXPECT_EQ(expected_url, chrome::FindLastActive()
+  EXPECT_EQ(num_browsers + 1,
+            GlobalBrowserCollection::GetInstance()->GetSize());
+  EXPECT_EQ(expected_url, GlobalBrowserCollection::GetInstance()
+                              ->GetLastActiveBrowser()
                               ->GetTabStripModel()
                               ->GetActiveWebContents()
                               ->GetVisibleURL());

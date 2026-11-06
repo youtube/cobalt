@@ -14,6 +14,7 @@
 #include "base/test/values_test_util.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "chrome/browser/devtools/devtools_ui_controller.h"
 #include "chrome/browser/devtools/devtools_window_testing.h"
 #include "chrome/browser/policy/dm_token_utils.h"
 #include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
@@ -305,7 +306,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, DevToolsDockedUpdatesBrowserWindow) {
   gfx::Rect full_bounds = active_contents_container_view()->GetLocalBounds();
   gfx::Rect small_bounds(10, 20, 30, 40);
 
-  browser_view()->UpdateDevTools(active_web_contents());
+  DevtoolsUIController::From(browser())->UpdateDevtools(active_web_contents());
   views::test::RunScheduledLayout(browser_view());
   EXPECT_FALSE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
@@ -323,7 +324,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, DevToolsDockedUpdatesBrowserWindow) {
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
   EXPECT_EQ(small_bounds, contents_web_view()->bounds());
 
-  browser_view()->UpdateDevTools(active_web_contents());
+  DevtoolsUIController::From(browser())->UpdateDevtools(active_web_contents());
   views::test::RunScheduledLayout(browser_view());
   EXPECT_TRUE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
@@ -335,7 +336,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, DevToolsDockedUpdatesBrowserWindow) {
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
   EXPECT_EQ(full_bounds, contents_web_view()->bounds());
 
-  browser_view()->UpdateDevTools(active_web_contents());
+  DevtoolsUIController::From(browser())->UpdateDevtools(active_web_contents());
   views::test::RunScheduledLayout(browser_view());
   EXPECT_FALSE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
@@ -366,7 +367,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, DevToolsUndockedUpdatesBrowserWindow) {
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
   EXPECT_EQ(small_bounds, contents_web_view()->bounds());
 
-  browser_view()->UpdateDevTools(active_web_contents());
+  DevtoolsUIController::From(browser())->UpdateDevtools(active_web_contents());
   views::test::RunScheduledLayout(browser_view());
   EXPECT_TRUE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
@@ -378,7 +379,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, DevToolsUndockedUpdatesBrowserWindow) {
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
   EXPECT_EQ(full_bounds, contents_web_view()->bounds());
 
-  browser_view()->UpdateDevTools(active_web_contents());
+  DevtoolsUIController::From(browser())->UpdateDevtools(active_web_contents());
   views::test::RunScheduledLayout(browser_view());
   EXPECT_FALSE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
@@ -493,7 +494,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, AvoidUnnecessaryVisibilityChanges) {
   // BookmarkBarView isn't shown.
   browser()->profile()->GetPrefs()->SetBoolean(
       bookmarks::prefs::kShowBookmarkBar, false);
-  GURL new_tab_url(chrome::kChromeUINewTabURL);
+  GURL new_tab_url = chrome::ChromeUINewTabURLAsGURL();
   chrome::AddTabAt(browser(), GURL(), -1, true);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), new_tab_url));
 
@@ -541,7 +542,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, AvoidUnnecessaryVisibilityChanges) {
 
 // Launch the app, navigate to a page with a title, check that the tab title
 // is set before load finishes and the throbber state updates when the title
-// changes. Regression test for crbug.com/752266
+// changes. Regression test for crbug.com/40533493
 IN_PROC_BROWSER_TEST_F(BrowserViewTest, TitleAndLoadState) {
   const std::u16string test_title(u"Title Of Awesomeness");
   auto* contents = browser()->tab_strip_model()->GetActiveWebContents();

@@ -749,6 +749,10 @@ void RecorderPriv::setContext(Context* context) {
 void RecorderPriv::issueFlushToken() {
     fRecorder->fTokenTracker->issueFlushToken();
 }
+
+int RecorderPriv::numRootTasks() const {
+    return fRecorder->fRootTaskList->size();
+}
 #endif
 
 } // namespace skgpu::graphite

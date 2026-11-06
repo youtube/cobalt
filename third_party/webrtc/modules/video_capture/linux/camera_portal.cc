@@ -92,11 +92,7 @@ CameraPortalPrivate::~CameraPortalPrivate() {
     guard_->portal = nullptr;
   }
 
-  if (access_request_signal_id_) {
-    g_dbus_connection_signal_unsubscribe(connection_,
-                                         access_request_signal_id_);
-    access_request_signal_id_ = 0;
-  }
+  xdg_portal::UnsubscribeSignalHandler(connection_, access_request_signal_id_);
   if (cancellable_) {
     g_object_unref(cancellable_);
     cancellable_ = nullptr;
@@ -182,11 +178,8 @@ void CameraPortalPrivate::OnAccessResponse(GDBusProxy* proxy,
     if (g_error_matches(error.get(), G_IO_ERROR, G_IO_ERROR_CANCELLED))
       return;
     RTC_LOG(LS_ERROR) << "Failed to access portal:" << error->message;
-    if (that->access_request_signal_id_) {
-      g_dbus_connection_signal_unsubscribe(that->connection_,
-                                           that->access_request_signal_id_);
-      that->access_request_signal_id_ = 0;
-    }
+    xdg_portal::UnsubscribeSignalHandler(that->connection_,
+                                         that->access_request_signal_id_);
     that->OnPortalDone(RequestResponse::kError);
   }
 }
@@ -203,6 +196,13 @@ void CameraPortalPrivate::OnResponseSignalEmitted(GDBusConnection* connection,
   auto* that = static_cast<CameraPortalPrivate*>(lock.portal());
   if (!that)
     return;
+
+  if (!xdg_portal::UnsubscribeSignalHandler(that->connection_,
+                                            that->access_request_signal_id_)) {
+    RTC_LOG(LS_ERROR) << "Duplicate access response signal from portal.";
+    that->OnPortalDone(RequestResponse::kError);
+    return;
+  }
 
   uint32_t portal_response;
   g_variant_get(parameters, "(u@a{sv})", &portal_response, nullptr);
@@ -240,11 +240,8 @@ void CameraPortalPrivate::OnOpenResponse(GDBusProxy* proxy,
     if (g_error_matches(error.get(), G_IO_ERROR, G_IO_ERROR_CANCELLED))
       return;
     RTC_LOG(LS_ERROR) << "Failed to open PipeWire remote:" << error->message;
-    if (that->access_request_signal_id_) {
-      g_dbus_connection_signal_unsubscribe(that->connection_,
-                                           that->access_request_signal_id_);
-      that->access_request_signal_id_ = 0;
-    }
+    xdg_portal::UnsubscribeSignalHandler(that->connection_,
+                                         that->access_request_signal_id_);
     that->OnPortalDone(RequestResponse::kError);
     return;
   }

@@ -296,12 +296,12 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
 
   temps.Include(x17);
 
-  Register scratch = temps.AcquireX();
-
   // Shift the whole frame upwards, except for fp and lr.
   // Adjust x16 to be the new stack pointer first, so that {str} doesn't need
   // a temp register to materialize the offset.
   Sub(x16, x16, stack_param_delta * 8);
+
+  Register scratch = temps.AcquireX();
   int slot_count = num_callee_stack_params;
   for (int i = slot_count - 1; i >= 0; --i) {
     ldr(scratch, MemOperand(sp, i * 8));
@@ -1706,6 +1706,10 @@ void LiftoffAssembler::emit_i64_muli(LiftoffRegister dst, LiftoffRegister lhs,
   Mov(scratch, imm);
   Mul(dst.gp().X(), lhs.gp().X(), scratch);
 }
+
+void LiftoffAssembler::emit_i64_mul_wide_s() { UNIMPLEMENTED(); }
+
+void LiftoffAssembler::emit_i64_mul_wide_u() { UNIMPLEMENTED(); }
 
 void LiftoffAssembler::emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
@@ -4323,7 +4327,7 @@ bool LiftoffAssembler::supports_f16_mem_access() {
 
 void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t max_index,
                                              Label* trap_label) {
-  DCHECK_EQ(base::bits::RoundUpToPowerOfTwo64(max_index), kMaxMemory64Size);
+  DCHECK_LE(max_index, kMaxMemory64Size);
 
   if (kMaxMemory64Size - max_index <= AllocatePageSize()) {
     // We have reserved an extra guard page, so that more accesses with small

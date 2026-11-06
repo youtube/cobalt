@@ -457,37 +457,13 @@ InstructionOperand EmitAddBeforeS128LoadStore(InstructionSelector* selector,
   *opcode |= AddressingModeField::encode(kMode_MRI);
   return addr_reg;
 }
-
-// Helper struct for load lane and store lane to indicate what memory size
-// to be encoded in the opcode, and the new lane index.
-struct LoadStoreLaneParams {
-  LSXSize sz;
-  uint8_t laneidx;
-  LoadStoreLaneParams(uint8_t laneidx, LSXSize sz, int lanes)
-      : sz(sz), laneidx(laneidx % lanes) {}
-};
-
-LSXSize GetLoadStoreLaneSize(uint8_t lane_size) {
-  switch (lane_size) {
-    // TODO(loong64): Better way?
-    case sizeof(int8_t):
-      return LSX_B;
-    case sizeof(int16_t):
-      return LSX_H;
-    case sizeof(int32_t):
-      return LSX_W;
-    case sizeof(int64_t):
-      return LSX_D;
-    default:
-      UNREACHABLE();
-  }
-}
 }  // namespace
 
 void InstructionSelector::VisitStoreLane(OpIndex node) {
   const Simd128LaneMemoryOp& store = Cast<Simd128LaneMemoryOp>(node);
   InstructionCode opcode = kLoong64S128StoreLane;
-  opcode |= LaneSizeField::encode(GetLoadStoreLaneSize(store.lane_size()));
+  opcode |= LaneSizeField::encode(
+      LaneSizeFromBits(static_cast<uint8_t>(store.lane_size() * kBitsPerByte)));
   if (store.kind.with_trap_handler) {
     opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
   }
@@ -506,7 +482,8 @@ void InstructionSelector::VisitStoreLane(OpIndex node) {
 void InstructionSelector::VisitLoadLane(OpIndex node) {
   const Simd128LaneMemoryOp& load = Cast<Simd128LaneMemoryOp>(node);
   InstructionCode opcode = kLoong64S128LoadLane;
-  opcode |= LaneSizeField::encode(GetLoadStoreLaneSize(load.lane_size()));
+  opcode |= LaneSizeField::encode(
+      LaneSizeFromBits(static_cast<uint8_t>(load.lane_size() * kBitsPerByte)));
   if (load.kind.with_trap_handler) {
     opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
   }
@@ -525,19 +502,19 @@ void InstructionSelector::VisitLoadTransform(OpIndex node) {
       // TODO(LOONG_dev): LOONG64 S128 LoadSplat
     case Simd128LoadTransformOp::TransformKind::k8Splat:
       opcode = kLoong64S128LoadSplat;
-      opcode |= LaneSizeField::encode(LSXSize::LSX_B);
+      opcode |= LaneSizeField::encode(LaneSize::kL8);
       break;
     case Simd128LoadTransformOp::TransformKind::k16Splat:
       opcode = kLoong64S128LoadSplat;
-      opcode |= LaneSizeField::encode(LSXSize::LSX_H);
+      opcode |= LaneSizeField::encode(LaneSize::kL16);
       break;
     case Simd128LoadTransformOp::TransformKind::k32Splat:
       opcode = kLoong64S128LoadSplat;
-      opcode |= LaneSizeField::encode(LSXSize::LSX_W);
+      opcode |= LaneSizeField::encode(LaneSize::kL32);
       break;
     case Simd128LoadTransformOp::TransformKind::k64Splat:
       opcode = kLoong64S128LoadSplat;
-      opcode |= LaneSizeField::encode(LSXSize::LSX_D);
+      opcode |= LaneSizeField::encode(LaneSize::kL64);
       break;
     case Simd128LoadTransformOp::TransformKind::k8x8S:
       opcode = kLoong64S128Load8x8S;
@@ -1047,8 +1024,30 @@ void InstructionSelector::VisitInt64Mul(OpIndex node) {
 }
 
 void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
-  UNIMPLEMENTED();
+  Loong64OperandGenerator g(this);
+
+  // Loong64 doesn't have a dedicated single instruction to return the 128-bit
+  // product of two 64 bit operands but we can use two multiply instructions
+  // (Mul_d and either Mulh_d or Mulh_du).
+  const turboshaft::Word64MulWideOp& op =
+      this->Get(node).Cast<turboshaft::Word64MulWideOp>();
+
+  InstructionOperand left = g.UseRegister(op.left());
+  InstructionOperand right = g.UseRegister(op.right());
+
+  OptionalOpIndex out_low = FindProjection(node, 0);
+  Emit(kLoong64Mul_d,
+       g.DefineAsRegister(out_low.valid() ? out_low.value() : node), left,
+       right);
+
+  OptionalOpIndex out_high = FindProjection(node, 1);
+  if (out_high.valid() && IsUsed(out_high.value())) {
+    InstructionCode high_opcode = is_signed ? kLoong64Mulh_d : kLoong64Mulh_du;
+    Emit(high_opcode, g.DefineAsRegister(out_high.value()), left, right);
+  }
 }
+
+void InstructionSelector::VisitUint64Add128(OpIndex node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitInt32Div(OpIndex node) {
   Loong64OperandGenerator g(this);
@@ -1161,7 +1160,15 @@ void InstructionSelector::VisitChangeFloat64ToUint32(OpIndex node) {
 }
 
 void InstructionSelector::VisitChangeFloat64ToUint64(OpIndex node) {
-  VisitRR(this, kLoong64Float64ToUint64, node);
+  Loong64OperandGenerator g(this);
+  const ChangeOp& op = Cast<ChangeOp>(node);
+  InstructionCode opcode = kLoong64Float64ToUint64;
+
+  if (op.Is<Opmask::kTruncateFloat64ToUint64OverflowToMin>()) {
+    opcode |= MiscField::encode(true);
+  }
+
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()));
 }
 
 void InstructionSelector::VisitTruncateFloat64ToUint32(OpIndex node) {
@@ -1621,9 +1628,9 @@ void InstructionSelector::EmitPrepareArguments(
   if (call_descriptor->IsCFunctionCall()) {
     int gp_param_count = static_cast<int>(call_descriptor->GPParameterCount());
     int fp_param_count = static_cast<int>(call_descriptor->FPParameterCount());
-    Emit(kArchPrepareCallCFunction | ParamField::encode(gp_param_count) |
-             FPParamField::encode(fp_param_count),
-         0, nullptr, 0, nullptr);
+    uint32_t param_count = ParamField::encode(gp_param_count) |
+                           FPParamField::encode(fp_param_count);
+    Emit(kArchPrepareCallCFunction, g.NoOutput(), g.TempImmediate(param_count));
 
     // Poke any stack arguments.
     int slot = 0;

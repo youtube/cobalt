@@ -142,6 +142,11 @@ struct NSEdgeAndCornerThicknesses {
 - (void)_regularMinimizeToDock;
 @end
 
+// Private API for window fill.
+@interface NSWindow (NSWindow_Fill)
+- (void)_zoomFill:(id)sender;
+@end
+
 @interface NativeWidgetMacNSWindow () <NSKeyedArchiverDelegate>
 - (ViewsNSWindowDelegate*)viewsNSWindowDelegate;
 - (BOOL)hasViewsMenuActive;
@@ -562,6 +567,35 @@ struct NSEdgeAndCornerThicknesses {
 
   NSEventType type = [event type];
 
+  // Handle double-click on custom draggable regions outside the native
+  // titlebar. macOS AppKit natively handles double-click-to-zoom for the
+  // native titlebar region (via _NSTitlebarContainerView), but not for custom
+  // draggable areas like the empty space in a vertical tab strip.
+  //
+  // Only intercept mouse-up events within contentLayoutRect (which excludes
+  // the native titlebar and the window resize handle) where hitTest: returns
+  // nil (indicating a custom draggable background). Performing the action on
+  // mouse-up matches the native titlebar behavior.
+  if (type == NSEventTypeLeftMouseUp && [event clickCount] == 2) {
+    const BOOL hitCustomDraggableArea =
+        NSPointInRect(event.locationInWindow, self.contentLayoutRect) &&
+        [[self contentView] hitTest:event.locationInWindow] == nil;
+    if (hitCustomDraggableArea) {
+      NSString* action = [[NSUserDefaults standardUserDefaults]
+          stringForKey:@"AppleActionOnDoubleClick"];
+      if ([action isEqualToString:@"Fill"] &&
+          [self respondsToSelector:@selector(_zoomFill:)]) {
+        [self _zoomFill:nil];
+      } else if (!action || [action isEqualToString:@"Maximize"]) {
+        [self performZoom:nil];
+      } else if ([action isEqualToString:@"Minimize"]) {
+        [self performMiniaturize:nil];
+      }
+      // "None" or unrecognized value => do nothing.
+      return;
+    }
+  }
+
   // Draggable regions only respond to left-click dragging, but the system will
   // still suppress right-clicks in a draggable region. Forwarding right-clicks
   // and ctrl+left-clicks allows the underlying views to respond to right-click
@@ -660,6 +694,14 @@ struct NSEdgeAndCornerThicknesses {
 // -orderWindowByShuffling:relativeTo: instead.
 - (void)orderWindow:(NSWindowOrderingMode)orderingMode
          relativeTo:(NSInteger)otherWindowNumber {
+  // Prevent a window that should never be visible from being ordered in.
+  // External frameworks (e.g., AuthenticationServicesCore presenting
+  // passkey/WebAuthn dialogs) can trigger window ordering on the invisible
+  // browser-side proxy window for app shims, causing a DumpWithoutCrashing.
+  // See https://crbug.com/325931972 and https://crbug.com/40626510.
+  if (_isEnforcingNeverMadeVisible && orderingMode != NSWindowOut) {
+    return;
+  }
   [super orderWindow:orderingMode relativeTo:otherWindowNumber];
   [[self viewsNSWindowDelegate] onWindowOrderChanged:nil];
 }

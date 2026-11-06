@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# LINT.IfChange
+
 import("//build/config/android/config.gni")
 import("//build/config/arm.gni")
 import("//build/config/c++/c++.gni")
@@ -57,6 +59,10 @@ declare_args() {
 
   # Sets -DVERIFY_PREDICTABLE
   v8_enable_verify_predictable = false
+
+  # Enable DWARF line info for Torque files.
+  # TODO(olivf): Find out how this works on other platforms.
+  v8_enable_torque_dwarf = is_debug && is_linux
 
   # Enable compiler warnings when using V8_DEPRECATED apis.
   v8_deprecation_warnings = true
@@ -1703,6 +1709,9 @@ config("toolchain") {
     if (riscv_use_zbs) {
       defines += [ "__riscv_zbs" ]
     }
+    if (riscv_profile == "rva23u64") {
+      defines += [ "__riscv_zfa" ]
+    }
     defines += [ "RISCV_CODE_ALIGNMENT=${riscv_code_alignment}" ]
     defines +=
         [ "RISCV_CONSTANT_POOL_ALIGNMENT=${riscv_constant_pool_alignment}" ]
@@ -1968,7 +1977,6 @@ if (v8_postmortem_support) {
       "src/objects/code.h",
       "src/objects/code-inl.h",
       "src/objects/cpp-heap-external-object.h",
-      "src/objects/cpp-heap-external-object-inl.h",
       "src/objects/cpp-heap-object-wrapper.h",
       "src/objects/cpp-heap-object-wrapper-inl.h",
       "src/objects/data-handler.h",
@@ -2303,7 +2311,6 @@ if (v8_enable_temporal_support) {
 
 if (v8_enable_webassembly) {
   torque_files += [
-    "src/builtins/js-to-js.tq",
     "src/builtins/js-to-wasm.tq",
     "src/builtins/wasm.tq",
     "src/builtins/wasm-strings.tq",
@@ -2465,6 +2472,9 @@ template("run_torque") {
     ]
     if (v8_annotate_torque_ir) {
       args += [ "-annotate-ir" ]
+    }
+    if (v8_enable_torque_dwarf) {
+      args += [ "-torque-dwarf" ]
     }
     if (defined(invoker.args)) {
       args += invoker.args
@@ -2880,6 +2890,10 @@ template("run_mksnapshot") {
       args += [ "--code-comments" ]
     }
 
+    if (v8_enable_torque_dwarf) {
+      args += [ "--torque-dwarf" ]
+    }
+
     if (v8_enable_snapshot_native_code_counters) {
       args += [ "--native-code-counters" ]
     } else {
@@ -3048,6 +3062,10 @@ action("v8_dump_build_config") {
   simulator_run = target_cpu != v8_target_cpu
   use_sanitizer = is_asan || is_cfi || is_msan || is_tsan || is_ubsan
 
+  # Close the ITTT block, because stacked blocks are not allowed.
+  # LINT.ThenChange(BUILD.bazel)
+  # LINT.IfChange
+
   # This lists all build-time switches consumed by the test framework. All
   # switches can be used automatically in the status files as is - no
   # further files need to be modified.
@@ -3126,6 +3144,9 @@ action("v8_dump_build_config") {
     # Please add new switches also in `build_config_content` in `bazel/defs.bzl`
     # so that the switches also work for tests triggered by bazel.
   ]
+
+  # LINT.ThenChange(bazel/defs.bzl)
+  # LINT.IfChange
 }
 
 # Generate a json file containing essential V8 build flags.
@@ -3208,6 +3229,10 @@ v8_source_set("v8_snapshot") {
   }
 
   configs = [ ":internal_config" ]
+
+  if (is_debug) {
+    asmflags = [ "-g" ]
+  }
 
   if (v8_use_external_startup_data) {
     deps += [ ":v8_base" ]
@@ -4268,7 +4293,6 @@ v8_header_set("v8_internal_headers") {
     "src/objects/compressed-slots.h",
     "src/objects/contexts-inl.h",
     "src/objects/contexts.h",
-    "src/objects/cpp-heap-external-object-inl.h",
     "src/objects/cpp-heap-external-object.h",
     "src/objects/cpp-heap-object-wrapper-inl.h",
     "src/objects/cpp-heap-object-wrapper.h",
@@ -5237,6 +5261,7 @@ v8_header_set("v8_internal_headers") {
       "src/codegen/riscv/constant-riscv-f.h",
       "src/codegen/riscv/constant-riscv-m.h",
       "src/codegen/riscv/constant-riscv-v.h",
+      "src/codegen/riscv/constant-riscv-zfa.h",
       "src/codegen/riscv/constant-riscv-zicond.h",
       "src/codegen/riscv/constant-riscv-zicsr.h",
       "src/codegen/riscv/constant-riscv-zifencei.h",
@@ -5249,6 +5274,7 @@ v8_header_set("v8_internal_headers") {
       "src/codegen/riscv/extension-riscv-inl.h",
       "src/codegen/riscv/extension-riscv-m.h",
       "src/codegen/riscv/extension-riscv-v.h",
+      "src/codegen/riscv/extension-riscv-zfa.h",
       "src/codegen/riscv/extension-riscv-zicond.h",
       "src/codegen/riscv/extension-riscv-zicsr.h",
       "src/codegen/riscv/extension-riscv-zifencei.h",
@@ -5301,6 +5327,8 @@ v8_header_set("v8_internal_headers") {
       "src/codegen/riscv/constant-riscv-i.h",
       "src/codegen/riscv/constant-riscv-m.h",
       "src/codegen/riscv/constant-riscv-v.h",
+      "src/codegen/riscv/constant-riscv-zfa.h",
+      "src/codegen/riscv/constant-riscv-zicond.h",
       "src/codegen/riscv/constant-riscv-zicsr.h",
       "src/codegen/riscv/constant-riscv-zifencei.h",
       "src/codegen/riscv/constants-riscv.h",
@@ -5312,6 +5340,7 @@ v8_header_set("v8_internal_headers") {
       "src/codegen/riscv/extension-riscv-inl.h",
       "src/codegen/riscv/extension-riscv-m.h",
       "src/codegen/riscv/extension-riscv-v.h",
+      "src/codegen/riscv/extension-riscv-zfa.h",
       "src/codegen/riscv/extension-riscv-zicsr.h",
       "src/codegen/riscv/extension-riscv-zifencei.h",
       "src/codegen/riscv/extension-riscv-zimop.h",
@@ -6087,6 +6116,7 @@ v8_cluster_source_set("v8_base_without_compiler") {
     "src/objects/elements-kind.cc",
     "src/objects/elements.cc",
     "src/objects/embedder-data-array.cc",
+    "src/objects/feedback-transition-table.cc",
     "src/objects/feedback-vector.cc",
     "src/objects/field-type.cc",
     "src/objects/fixed-array.cc",
@@ -6241,6 +6271,7 @@ v8_cluster_source_set("v8_base_without_compiler") {
     "src/sandbox/sandbox.cc",
     "src/sandbox/sandboxable-thread.cc",
     "src/sandbox/testing.cc",
+    "src/sandbox/trap-fuzzer.cc",
     "src/sandbox/trusted-pointer-scope.cc",
     "src/sandbox/trusted-pointer-table.cc",
     "src/snapshot/code-serializer.cc",
@@ -6689,6 +6720,7 @@ v8_cluster_source_set("v8_base_without_compiler") {
       "src/codegen/riscv/extension-riscv-f.cc",
       "src/codegen/riscv/extension-riscv-m.cc",
       "src/codegen/riscv/extension-riscv-v.cc",
+      "src/codegen/riscv/extension-riscv-zfa.cc",
       "src/codegen/riscv/extension-riscv-zfh.cc",
       "src/codegen/riscv/extension-riscv-zicond.cc",
       "src/codegen/riscv/extension-riscv-zicsr.cc",
@@ -6735,6 +6767,7 @@ v8_cluster_source_set("v8_base_without_compiler") {
       "src/codegen/riscv/extension-riscv-f.cc",
       "src/codegen/riscv/extension-riscv-m.cc",
       "src/codegen/riscv/extension-riscv-v.cc",
+      "src/codegen/riscv/extension-riscv-zfa.cc",
       "src/codegen/riscv/extension-riscv-zfh.cc",
       "src/codegen/riscv/extension-riscv-zicond.cc",
       "src/codegen/riscv/extension-riscv-zicsr.cc",
@@ -8836,3 +8869,4 @@ if (current_toolchain == default_toolchain) {
 
   write_file("$root_build_dir/gn_logs.txt", _lines)
 }
+# LINT.ThenChange(BUILD.bazel)

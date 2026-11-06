@@ -761,7 +761,7 @@ Reduction JSCreateLowering::ReduceJSCreateArrayIterator(Node* node) {
 
   // Create the JSArrayIterator result.
   AllocationBuilder a(jsgraph(), broker(), effect, control);
-  a.Allocate(JSArrayIterator::kHeaderSize, AllocationType::kYoung,
+  a.Allocate(sizeof(JSArrayIterator), AllocationType::kYoung,
              Type::OtherObject());
   a.Store(AccessBuilder::ForMap(),
           native_context().initial_array_iterator_map(broker()));
@@ -802,7 +802,7 @@ Reduction JSCreateLowering::ReduceJSCreateAsyncFunctionObject(Node* node) {
 
   // Create the JSAsyncFunctionObject result.
   AllocationBuilder a(jsgraph(), broker(), effect, control);
-  a.Allocate(JSAsyncFunctionObject::kHeaderSize);
+  a.Allocate(sizeof(JSAsyncFunctionObject));
   a.Store(AccessBuilder::ForMap(),
           native_context().async_function_object_map(broker()));
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer(),
@@ -1062,7 +1062,7 @@ Reduction JSCreateLowering::ReduceJSCreateStringIterator(Node* node) {
       native_context().initial_string_iterator_map(broker()), broker());
   // Allocate new iterator and attach the iterator to this string.
   AllocationBuilder a(jsgraph(), broker(), effect, graph()->start());
-  a.Allocate(JSStringIterator::kHeaderSize, AllocationType::kYoung,
+  a.Allocate(sizeof(JSStringIterator), AllocationType::kYoung,
              Type::OtherObject());
   a.Store(AccessBuilder::ForMap(), map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer(),
@@ -1120,14 +1120,17 @@ Reduction JSCreateLowering::ReduceJSCreatePromise(Node* node) {
           jsgraph()->EmptyFixedArrayConstant());
   a.Store(AccessBuilder::ForJSObjectElements(),
           jsgraph()->EmptyFixedArrayConstant());
-  a.Store(AccessBuilder::ForJSObjectOffset(JSPromise::kReactionsOrResultOffset),
+  a.Store(AccessBuilder::ForJSObjectOffset(
+              offsetof(JSPromise, reactions_or_result_)),
           jsgraph()->ZeroConstant());
   static_assert(v8::Promise::kPending == 0);
-  a.Store(AccessBuilder::ForJSObjectOffset(JSPromise::kFlagsOffset),
+  a.Store(AccessBuilder::ForJSObjectOffset(offsetof(JSPromise, flags_)),
           jsgraph()->ZeroConstant());
-  static_assert(JSPromise::kHeaderSize == 5 * kTaggedSize);
-  for (int offset = JSPromise::kHeaderSize;
-       offset < JSPromise::kSizeWithEmbedderFields; offset += kTaggedSize) {
+  static_assert(sizeof(JSPromise) == 5 * kTaggedSize);
+  for (int offset = static_cast<int>(sizeof(JSPromise));
+       offset < static_cast<int>(sizeof(JSPromise)) +
+                    v8::Promise::kEmbedderFieldCount * kEmbedderDataSlotSize;
+       offset += kTaggedSize) {
     a.Store(AccessBuilder::ForJSObjectOffset(offset),
             jsgraph()->ZeroConstant());
   }
@@ -1416,8 +1419,16 @@ Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
     a.Allocate(size, AllocationType::kYoung, Type::Any());
     a.Store(AccessBuilder::ForMap(), map);
     // Initialize FixedArray fields.
+#if TAGGED_SIZE_8_BYTES
+#if V8_TARGET_BIG_ENDIAN
+#error "TODO(375937549): Implement storing length+padding on big endian arch"
+#endif  // V8_TARGET_BIG_ENDIAN
     a.Store(AccessBuilder::ForFixedArrayLength(),
-            jsgraph()->SmiConstant(length));
+            jsgraph()->Uint64Constant(length));
+#else
+    a.Store(AccessBuilder::ForFixedArrayLength(),
+            jsgraph()->Uint32Constant(length));
+#endif  // TAGGED_SIZE_8_BYTES
     // Initialize HashTable fields.
     a.Store(AccessBuilder::ForHashTableBaseNumberOfElements(),
             jsgraph()->SmiConstant(0));
@@ -1476,12 +1487,12 @@ Reduction JSCreateLowering::ReduceJSCreateStringWrapper(Node* node) {
   Node* primitive_value = NodeProperties::GetValueInput(node, 0);
 
   MapRef map = native_context().string_function(broker()).initial_map(broker());
-  DCHECK_EQ(map.instance_size(), JSPrimitiveWrapper::kHeaderSize);
+  DCHECK_EQ(map.instance_size(), sizeof(JSPrimitiveWrapper));
   CHECK(!map.IsInobjectSlackTrackingInProgress());
 
   // Emit code to allocate the JSPrimitiveWrapper instance for the given {map}.
   AllocationBuilder a(jsgraph(), broker(), effect, graph()->start());
-  a.Allocate(JSPrimitiveWrapper::kHeaderSize, AllocationType::kYoung,
+  a.Allocate(sizeof(JSPrimitiveWrapper), AllocationType::kYoung,
              Type::StringWrapper());
   a.Store(AccessBuilder::ForMap(), map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),

@@ -3767,27 +3767,47 @@ void MacroAssembler::FaddS(FPURegister dst, FPURegister lhs, FPURegister rhs) {
 #if V8_TARGET_ARCH_RISCV64
 void MacroAssembler::Floor_d_d(FPURegister dst, FPURegister src,
                                FPURegister fpu_scratch) {
+  if (CpuFeatures::IsSupported(ZFA)) {
+    fround_d(dst, src, RDN);
+    return;
+  }
   RoundHelper<double>(dst, src, fpu_scratch, RDN);
 }
 
 void MacroAssembler::Ceil_d_d(FPURegister dst, FPURegister src,
                               FPURegister fpu_scratch) {
+  if (CpuFeatures::IsSupported(ZFA)) {
+    fround_d(dst, src, RUP);
+    return;
+  }
   RoundHelper<double>(dst, src, fpu_scratch, RUP);
 }
 
 void MacroAssembler::Trunc_d_d(FPURegister dst, FPURegister src,
                                FPURegister fpu_scratch) {
+  if (CpuFeatures::IsSupported(ZFA)) {
+    fround_d(dst, src, RTZ);
+    return;
+  }
   RoundHelper<double>(dst, src, fpu_scratch, RTZ);
 }
 
 void MacroAssembler::Round_d_d(FPURegister dst, FPURegister src,
                                FPURegister fpu_scratch) {
+  if (CpuFeatures::IsSupported(ZFA)) {
+    fround_d(dst, src, RNE);
+    return;
+  }
   RoundHelper<double>(dst, src, fpu_scratch, RNE);
 }
 #endif
 
 void MacroAssembler::Floor_s_s(FPURegister dst, FPURegister src,
                                FPURegister fpu_scratch) {
+  if (CpuFeatures::IsSupported(ZFA)) {
+    fround_s(dst, src, RDN);
+    return;
+  }
 #if V8_TARGET_ARCH_RISCV64
   RoundHelper<float>(dst, src, fpu_scratch, RDN);
 #elif V8_TARGET_ARCH_RISCV32
@@ -3797,6 +3817,10 @@ void MacroAssembler::Floor_s_s(FPURegister dst, FPURegister src,
 
 void MacroAssembler::Ceil_s_s(FPURegister dst, FPURegister src,
                               FPURegister fpu_scratch) {
+  if (CpuFeatures::IsSupported(ZFA)) {
+    fround_s(dst, src, RUP);
+    return;
+  }
 #if V8_TARGET_ARCH_RISCV64
   RoundHelper<float>(dst, src, fpu_scratch, RUP);
 #elif V8_TARGET_ARCH_RISCV32
@@ -3806,6 +3830,10 @@ void MacroAssembler::Ceil_s_s(FPURegister dst, FPURegister src,
 
 void MacroAssembler::Trunc_s_s(FPURegister dst, FPURegister src,
                                FPURegister fpu_scratch) {
+  if (CpuFeatures::IsSupported(ZFA)) {
+    fround_s(dst, src, RTZ);
+    return;
+  }
 #if V8_TARGET_ARCH_RISCV64
   RoundHelper<float>(dst, src, fpu_scratch, RTZ);
 #elif V8_TARGET_ARCH_RISCV32
@@ -3815,6 +3843,10 @@ void MacroAssembler::Trunc_s_s(FPURegister dst, FPURegister src,
 
 void MacroAssembler::Round_s_s(FPURegister dst, FPURegister src,
                                FPURegister fpu_scratch) {
+  if (CpuFeatures::IsSupported(ZFA)) {
+    fround_s(dst, src, RNE);
+    return;
+  }
 #if V8_TARGET_ARCH_RISCV64
   RoundHelper<float>(dst, src, fpu_scratch, RNE);
 #elif V8_TARGET_ARCH_RISCV32
@@ -4480,6 +4512,11 @@ void MacroAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
                                        Register result,
                                        DoubleRegister double_input,
                                        StubCallMode stub_mode) {
+  if (CpuFeatures::IsSupported(ZFA)) {
+    fcvtmod_w_d(result, double_input);
+    return;
+  }
+
   Label done;
 
   TryInlineTruncateDoubleToI(result, double_input, &done);
@@ -7269,24 +7306,40 @@ void MacroAssembler::FloatMinMaxHelper(FPURegister dst, FPURegister src1,
 void MacroAssembler::Float32Max(FPURegister dst, FPURegister src1,
                                 FPURegister src2) {
   ASM_CODE_COMMENT(this);
+  if (CpuFeatures::IsSupported(ZFA)) {
+    fmaxm_s(dst, src1, src2);
+    return;
+  }
   FloatMinMaxHelper<float>(dst, src1, src2, MaxMinKind::kMax);
 }
 
 void MacroAssembler::Float32Min(FPURegister dst, FPURegister src1,
                                 FPURegister src2) {
   ASM_CODE_COMMENT(this);
+  if (CpuFeatures::IsSupported(ZFA)) {
+    fminm_s(dst, src1, src2);
+    return;
+  }
   FloatMinMaxHelper<float>(dst, src1, src2, MaxMinKind::kMin);
 }
 
 void MacroAssembler::Float64Max(FPURegister dst, FPURegister src1,
                                 FPURegister src2) {
   ASM_CODE_COMMENT(this);
+  if (CpuFeatures::IsSupported(ZFA)) {
+    fmaxm_d(dst, src1, src2);
+    return;
+  }
   FloatMinMaxHelper<double>(dst, src1, src2, MaxMinKind::kMax);
 }
 
 void MacroAssembler::Float64Min(FPURegister dst, FPURegister src1,
                                 FPURegister src2) {
   ASM_CODE_COMMENT(this);
+  if (CpuFeatures::IsSupported(ZFA)) {
+    fminm_d(dst, src1, src2);
+    return;
+  }
   FloatMinMaxHelper<double>(dst, src1, src2, MaxMinKind::kMin);
 }
 

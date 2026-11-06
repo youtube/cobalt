@@ -353,7 +353,7 @@ const ui::ThemeProvider* WebUIBrowserWindow::GetThemeProvider() const {
   // Ignore the system theme for web apps with window-controls-overlay as the
   // display_override so the web contents can blend with the overlay by using
   // the developer-provided theme color for a better experience. Context:
-  // https://crbug.com/1219073.
+  // https://crbug.com/40771982.
   if (app_controller && (!IsUsingLinuxSystemTheme(browser_->profile()) ||
                          app_controller->AppUsesWindowControlsOverlay())) {
     return app_controller->GetThemeProvider();
@@ -377,7 +377,7 @@ WebUIBrowserWindow::GetThemeInitializerSupplier() const {
   // Ignore the system theme for web apps with window-controls-overlay as the
   // display_override so the web contents can blend with the overlay by using
   // the developer-provided theme color for a better experience. Context:
-  // https://crbug.com/1219073.
+  // https://crbug.com/40771982.
   if (app_controller && (!IsUsingLinuxSystemTheme(browser_->profile()) ||
                          app_controller->AppUsesWindowControlsOverlay())) {
     return app_controller->GetThemeSupplier();
@@ -642,18 +642,6 @@ void WebUIBrowserWindow::OnBookmarkBarStateChanged(
   GetWebUIBrowserUI()->BookmarkBarStateChanged(change_type);
 }
 
-void WebUIBrowserWindow::UpdateDevTools(
-    content::WebContents* inspected_web_contents) {
-  NOTIMPLEMENTED_LOG_ONCE();
-}
-
-bool WebUIBrowserWindow::CanDockDevTools() const {
-  // This forces DevTools to open in a new window, which is currently necessary
-  // because the code path for a launching docked DevTools requires BrowserView,
-  // ContentsContainerView, etc.
-  return false;
-}
-
 void WebUIBrowserWindow::UpdateLoadingAnimations(bool is_visible) {
   NOTIMPLEMENTED_LOG_ONCE();
 }
@@ -777,10 +765,6 @@ void WebUIBrowserWindow::UpdateCustomTabBarVisibility(bool visible,
   NOTIMPLEMENTED_LOG_ONCE();
 }
 
-void WebUIBrowserWindow::SetDevToolsScrimVisibility(bool visible) {
-  NOTIMPLEMENTED_LOG_ONCE();
-}
-
 void WebUIBrowserWindow::ResetToolbarTabState(content::WebContents* contents) {
   NOTIMPLEMENTED_LOG_ONCE();
 }
@@ -844,13 +828,6 @@ bool WebUIBrowserWindow::IsLocationBarVisible() const {
   return true;
 }
 
-SharingDialog* WebUIBrowserWindow::ShowSharingDialog(
-    content::WebContents* contents,
-    SharingDialogData data) {
-  NOTIMPLEMENTED_LOG_ONCE();
-  return nullptr;
-}
-
 void WebUIBrowserWindow::ShowUpdateChromeDialog() {
   NOTIMPLEMENTED_LOG_ONCE();
 }
@@ -870,44 +847,9 @@ void WebUIBrowserWindow::ShowBookmarkBubble(const GURL& url,
   NOTIMPLEMENTED_LOG_ONCE();
 }
 
-sharing_hub::ScreenshotCapturedBubble*
-WebUIBrowserWindow::ShowScreenshotCapturedBubble(content::WebContents* contents,
-                                                 const gfx::Image& image) {
-  NOTIMPLEMENTED_LOG_ONCE();
-  return nullptr;
-}
-
-qrcode_generator::QRCodeGeneratorBubbleView*
-WebUIBrowserWindow::ShowQRCodeGeneratorBubble(content::WebContents* contents,
-                                              const GURL& url,
-                                              bool show_back_button) {
-  NOTIMPLEMENTED_LOG_ONCE();
-  return nullptr;
-}
-
-send_tab_to_self::SendTabToSelfBubbleView*
-WebUIBrowserWindow::ShowSendTabToSelfDevicePickerBubble(
-    content::WebContents* contents) {
-  NOTIMPLEMENTED_LOG_ONCE();
-  return nullptr;
-}
-
-send_tab_to_self::SendTabToSelfBubbleView*
-WebUIBrowserWindow::ShowSendTabToSelfPromoBubble(content::WebContents* contents,
-                                                 bool show_signin_button) {
-  NOTIMPLEMENTED_LOG_ONCE();
-  return nullptr;
-}
-
 #if BUILDFLAG(IS_CHROMEOS)
 void WebUIBrowserWindow::ToggleMultitaskMenu() {
   NOTIMPLEMENTED_LOG_ONCE();
-}
-#else
-sharing_hub::SharingHubBubbleView* WebUIBrowserWindow::ShowSharingHubBubble(
-    share::ShareAttempt attempt) {
-  NOTIMPLEMENTED_LOG_ONCE();
-  return nullptr;
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 

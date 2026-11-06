@@ -11,6 +11,7 @@
 #import "base/test/scoped_feature_list.h"
 #import "components/prefs/pref_registry_simple.h"
 #import "components/prefs/testing_pref_service.h"
+#import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #import "components/signin/public/identity_manager/account_info.h"
 #import "components/signin/public/identity_manager/identity_test_environment.h"
@@ -307,8 +308,7 @@ TEST_F(GeminiServiceImplTest,
   EXPECT_FALSE(gemini_service_->IsProfileEligibleForGemini());
 
   // Verify that the primary identity is now flagged as managed.
-  EXPECT_TRUE(
-      auth_service_->HasPrimaryIdentityManaged(signin::ConsentLevel::kSignin));
+  EXPECT_TRUE(auth_service_->HasPrimaryIdentityManaged());
 
   // Workspace restriction should NOT be logged.
   histogram_tester_.ExpectBucketCount(

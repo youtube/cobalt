@@ -289,7 +289,7 @@ bool EvaluateAndAddContainerQueries(
        current = current->Parent()) {
     Element* starting_element =
         ContainerQueryEvaluator::DetermineStartingElement(
-            element, pseudo_id, container_query.Selector(),
+            element, pseudo_id, current->Selector(),
             /*nearest_size_container=*/style_recalc_context.size_container);
     if (!ContainerQueryEvaluator::EvalAndAdd(
             starting_element, style_recalc_context, *current,
@@ -1377,7 +1377,7 @@ void ElementRuleCollector::DidMatchRule(
          dynamic_pseudo == kPseudoIdAfter ||
          dynamic_pseudo == kPseudoIdExpandIcon ||
          dynamic_pseudo == kPseudoIdPickerIcon ||
-         dynamic_pseudo == kPseudoIdInterestHint) &&
+         dynamic_pseudo == kPseudoIdInterestButton) &&
         !rule_data->Rule()->Properties().HasProperty(CSSPropertyID::kContent)) {
       return;
     }

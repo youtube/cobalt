@@ -26,17 +26,6 @@ class GlicInstanceMetricsBackwardsCompatibility {
   virtual void DidRequestContextFromTab(tabs::TabInterface& tab) = 0;
   virtual void OnResponseStarted() = 0;
   virtual void OnResponseStopped(mojom::ResponseStopCause cause) = 0;
-  virtual void OnTurnCompleted(mojom::WebClientModel model,
-                               base::TimeDelta duration) = 0;
-  virtual void OnReaction(mojom::MetricUserInputReactionType reaction_type) = 0;
-
-  // Called when glic requests a scroll.
-  virtual void OnGlicScrollAttempt() = 0;
-
-  // Called when scrolling starts (after glic requests to scroll) or if
-  // the operation fails. `success` is true if a scroll was successfully
-  // triggered.
-  virtual void OnGlicScrollComplete(bool success) = 0;
 };
 
 }  // namespace glic

@@ -790,6 +790,18 @@ TEST_F(TestSimulcastEncoderAdapterFake, ReleaseWithoutInitEncode) {
   EXPECT_EQ(0, adapter_->Release());
 }
 
+TEST_F(TestSimulcastEncoderAdapterFake, DestructorCallsReleaseIfInitialized) {
+  SetupCodec();
+  std::vector<MockVideoEncoder*> encoders = helper_->factory()->encoders();
+  ASSERT_EQ(3u, encoders.size());
+
+  for (auto* encoder : encoders) {
+    EXPECT_CALL(*encoder, ReleaseMock()).WillOnce(testing::Return(0));
+  }
+
+  adapter_.reset();
+}
+
 TEST_F(TestSimulcastEncoderAdapterFake, Reinit) {
   SetupCodec();
   EXPECT_EQ(0, adapter_->Release());

@@ -43,6 +43,9 @@ class Int64LoweringReducer : public Next {
   using Word32OrWord32Pair = OpIndex;
 
   Int64LoweringReducer() {
+    // Int64 lowering is currently only supported and used in Wasm pipelines.
+    CHECK_NE(__ data()->pipeline_kind(), TurboshaftPipelineKind::kJS);
+
     wasm::CallOrigin origin = __ data() -> is_js_to_wasm()
                                   ? wasm::kCalledFromJS
                                   : wasm::kCalledFromWasm;
@@ -117,6 +120,80 @@ class Int64LoweringReducer : public Next {
       }
     }
     return Next::ReduceShift(left, right, kind, rep);
+  }
+
+  OpIndex REDUCE(Word64MulWide)(V<Word32Pair> left, V<Word32Pair> right,
+                                Word64MulWideOp::Kind kind) {
+    auto [al, ah] = Unpack(left);
+    auto [bl, bh] = Unpack(right);
+    // We split the 64-bit multiplicands into 32-bit halves:
+    // a = ah:al
+    // b = bh:bl
+    //
+    // The product is:
+    // ab = (ah:al) * (bh:bl)
+    //    = ah*bh*2^64 + (ah*bl + al*bh)*2^32 + al*bl
+    //
+    // We compute the result in four 32-bit parts: r0, r1, r2, r3.
+    // r0 = low(al*bl)
+    // r1 = high(al*bl) + low(al*bh) + low(ah*bl) + carries
+    // r2 = high(al*bh) + high(ah*bl) + low(ah*bh) + carries
+    // r3 = high(ah*bh) + carries
+    //
+    // For signed multiplication, we compute the unsigned product and correct it
+    // if operands are negative.
+
+    V<Word32> r0 = __ Word32Mul(al, bl);
+    V<Word32> r1_a = __ Uint32MulOverflownBits(al, bl);
+
+    V<Word32> al_bh_l = __ Word32Mul(al, bh);
+    V<Word32> al_bh_h = __ Uint32MulOverflownBits(al, bh);
+
+    V<Word32> ah_bl_l = __ Word32Mul(ah, bl);
+    V<Word32> ah_bl_h = __ Uint32MulOverflownBits(ah, bl);
+
+    V<Word32> ah_bh_l = __ Word32Mul(ah, bh);
+    V<Word32> ah_bh_h = __ Uint32MulOverflownBits(ah, bh);
+
+    auto AddWithCarry = [this](V<Word32> a, V<Word32> b) {
+      V<Word32> res = __ Word32Add(a, b);
+      V<Word32> carry = __ Uint32LessThan(res, a);
+      return std::make_pair(res, carry);
+    };
+
+    auto [r1_0, c1] = AddWithCarry(r1_a, al_bh_l);
+    auto [r1, c2] = AddWithCarry(r1_0, ah_bl_l);
+
+    auto [r2_0, c3] = AddWithCarry(al_bh_h, ah_bl_h);
+    auto [r2_1, c4] = AddWithCarry(r2_0, ah_bh_l);
+
+    V<Word32> carry_r1 = __ Word32Add(c1, c2);
+    auto [r2, c5] = AddWithCarry(r2_1, carry_r1);
+
+    V<Word32> r3 =
+        __ Word32Add(ah_bh_h, __ Word32Add(c3, __ Word32Add(c4, c5)));
+
+    V<Word32Pair> res_low = __ MakeTuple(r0, r1);
+    V<Word32Pair> res_high = __ MakeTuple(r2, r3);
+
+    if (kind == Word64MulWideOp::Kind::kSigned) {
+      // Correction for signed multiplication:
+      // If a < 0, we subtract b from the high 64 bits of the result (res_high).
+      // If b < 0, we subtract a from the high 64 bits of the result (res_high).
+      // We use arithmetic shift right to create a mask of all 1s or all 0s
+      // based on the sign bit of the high word.
+      V<Word32> a_mask = __ Word32ShiftRightArithmetic(ah, 31);
+      V<Word32Pair> sub_a = __ MakeTuple(__ Word32BitwiseAnd(a_mask, bl),
+                                         __ Word32BitwiseAnd(a_mask, bh));
+      res_high = LowerPairBinOp(res_high, sub_a, Word32PairBinopOp::Kind::kSub);
+
+      V<Word32> b_mask = __ Word32ShiftRightArithmetic(bh, 31);
+      V<Word32Pair> sub_b = __ MakeTuple(__ Word32BitwiseAnd(b_mask, al),
+                                         __ Word32BitwiseAnd(b_mask, ah));
+      res_high = LowerPairBinOp(res_high, sub_b, Word32PairBinopOp::Kind::kSub);
+    }
+
+    return __ MakeTuple(res_low, res_high);
   }
 
   V<Word32> REDUCE(Comparison)(V<Any> left, V<Any> right,

@@ -288,7 +288,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     // One or more named captures exist, add a property for each one.
     TNode<TrustedFixedArray> names =
         TrustedCast<TrustedFixedArray>(maybe_names, "from RegExpData");
-    TNode<IntPtrT> names_length = SmiUntag(LoadTrustedFixedArrayLength(names));
+    TNode<IntPtrT> names_length = LoadWordArrayLength(names);
     CSA_DCHECK(this, IntPtrGreaterThan(names_length, IntPtrZero()));
 
     // Allocate a new object to store the named capture properties.
@@ -506,9 +506,10 @@ RegExpBuiltinsAssembler::InitializeMatchInfoFromRegisters(
   // Check that the last match info has space for the capture registers.
   {
     Label next(this);
-    TNode<Smi> available_slots = LoadSmiArrayLength(var_match_info.value());
-    GotoIf(SmiLessThanOrEqual(register_count, available_slots), &next,
-           GotoHint::kLabel);
+    TNode<IntPtrT> available_slots =
+        LoadWordArrayLength(var_match_info.value());
+    GotoIf(IntPtrLessThanOrEqual(SmiUntag(register_count), available_slots),
+           &next, GotoHint::kLabel);
 
     // Grow.
     var_match_info =
@@ -969,7 +970,9 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
         std::make_pair(MachineType::AnyTagged(), data),
         std::make_pair(MachineType::AnyTagged(), string),
         std::make_pair(MachineType::Int32(),
-                       TruncateNumberToWord32(last_index)));
+                       TruncateNumberToWord32(last_index)),
+        std::make_pair(MachineType::Int32(),
+                       TruncateIntPtrToInt32(Signed(var_result.value()))));
     Goto(&next);
     BIND(&next);
   }
@@ -1649,21 +1652,21 @@ TNode<JSAny> RegExpMatchAllAssembler::CreateRegExpStringIterator(
   // 4. Let iterator be ObjectCreate(%RegExpStringIteratorPrototype%, «
   // [[IteratingRegExp]], [[IteratedString]], [[Global]], [[Unicode]],
   // [[Done]] »).
-  TNode<HeapObject> iterator = Allocate(JSRegExpStringIterator::kHeaderSize);
+  TNode<HeapObject> iterator = Allocate(sizeof(JSRegExpStringIterator));
   StoreMapNoWriteBarrier(iterator, map);
   StoreObjectFieldRoot(iterator,
-                       JSRegExpStringIterator::kPropertiesOrHashOffset,
+                       offsetof(JSRegExpStringIterator, properties_or_hash_),
                        RootIndex::kEmptyFixedArray);
-  StoreObjectFieldRoot(iterator, JSRegExpStringIterator::kElementsOffset,
+  StoreObjectFieldRoot(iterator, offsetof(JSRegExpStringIterator, elements_),
                        RootIndex::kEmptyFixedArray);
 
   // 5. Set iterator.[[IteratingRegExp]] to R.
   StoreObjectFieldNoWriteBarrier(
-      iterator, JSRegExpStringIterator::kIteratingRegExpOffset, regexp);
+      iterator, offsetof(JSRegExpStringIterator, iterating_reg_exp_), regexp);
 
   // 6. Set iterator.[[IteratedString]] to S.
   StoreObjectFieldNoWriteBarrier(
-      iterator, JSRegExpStringIterator::kIteratedStringOffset, string);
+      iterator, offsetof(JSRegExpStringIterator, iterated_string_), string);
 
   // 7. Set iterator.[[Global]] to global.
   // 8. Set iterator.[[Unicode]] to fullUnicode.
@@ -1675,7 +1678,8 @@ TNode<JSAny> RegExpMatchAllAssembler::CreateRegExpStringIterator(
       Word32Shl(ReinterpretCast<Int32T>(full_unicode),
                 Int32Constant(JSRegExpStringIterator::UnicodeBit::kShift));
   TNode<Int32T> iterator_flags = Word32Or(global_flag, unicode_flag);
-  StoreObjectFieldNoWriteBarrier(iterator, JSRegExpStringIterator::kFlagsOffset,
+  StoreObjectFieldNoWriteBarrier(iterator,
+                                 offsetof(JSRegExpStringIterator, flags_),
                                  SmiFromInt32(iterator_flags));
 
   return CAST(iterator);

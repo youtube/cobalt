@@ -243,9 +243,6 @@ class RTC_EXPORT Candidate {
   // candidate.
   // The username fragment may be filtered, e.g. for prflx candidates before
   // any remote ice parameters have been set.
-  [[deprecated("Use variant with filter_ufrag")]] Candidate ToSanitizedCopy(
-      bool use_hostname_address,
-      bool filter_related_address) const;
   Candidate ToSanitizedCopy(bool use_hostname_address,
                             bool filter_related_address,
                             bool filter_ufrag) const;

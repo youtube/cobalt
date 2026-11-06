@@ -33,7 +33,7 @@ QuicSpdyClientStream::QuicSpdyClientStream(QuicStreamId id,
       header_bytes_written_(0),
       session_(session) {}
 
-QuicSpdyClientStream::QuicSpdyClientStream(PendingStream* pending,
+QuicSpdyClientStream::QuicSpdyClientStream(PendingStream& pending,
                                            QuicSpdyClientSession* session)
     : QuicSpdyStream(pending, session),
       content_length_(-1),

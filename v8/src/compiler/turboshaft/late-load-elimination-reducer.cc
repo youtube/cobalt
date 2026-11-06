@@ -294,6 +294,14 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
 
         break;
     }
+    if (op.Effects().can_allocate && v8_flags.turbolev) {
+      // String maps can be invalidated by the GC. Unfortunately, there is no
+      // way to know if a particular load at offset 0 loads a string map or not.
+      // So, to be safe, we invalidate every load at offset 0 whenever we see an
+      // allocation.
+      memory_.InvalidatePotentialLoadedStringMaps();
+      WipeAllMaps();
+    }
   }
 
   FinishBlock(&block);
@@ -464,9 +472,13 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
     // TODO(dmercadier): do this only if `value` is a Constant with kind
     // kHeapObject, since all map stores should store a known constant maps.
     TRACE(">> Wiping all maps\n");
-    for (auto it : object_maps_) {
-      object_maps_.Set(it.second, MapMaskAndOr{});
-    }
+    WipeAllMaps();
+  }
+}
+
+void LateLoadEliminationAnalyzer::WipeAllMaps() {
+  for (auto it : object_maps_) {
+    object_maps_.Set(it.second, MapMaskAndOr{});
   }
 }
 

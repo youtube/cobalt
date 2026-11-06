@@ -23,7 +23,7 @@ TEST(ResourceConstraints, ConfigureDefaultsFromHeapSizeSmall) {
 
 TEST(ResourceConstraints, ConfigureDefaultsFromHeapSizeLarge) {
   const uint64_t physical_memory = 0;
-  const size_t heap_max_size = Heap::DefaultMaxHeapSize(physical_memory);
+  const size_t heap_max_size = Heap::kDefaultMaxHeapSize;
   v8::ResourceConstraints constraints;
   const size_t expected_young_gen_max_size =
       Heap::DefaultMaxSemiSpaceSize(physical_memory) *

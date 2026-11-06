@@ -977,6 +977,9 @@ void WasmLoadEliminationAnalyzer::ProcessAllocate(OpIndex op_idx,
 void WasmLoadEliminationAnalyzer::ProcessPhi(OpIndex op_idx, const PhiOp& phi) {
   InvalidateAllNonAliasingInputs(phi);
 
+  // For robustness, unset the replacement by default.
+  replacements_[op_idx] = OpIndex::Invalid();
+
   base::Vector<const OpIndex> inputs = phi.inputs();
   // This copies some of the functionality of {RequiredOptimizationReducer}:
   // Phis whose inputs are all the same value can be replaced by that value.
@@ -984,18 +987,18 @@ void WasmLoadEliminationAnalyzer::ProcessPhi(OpIndex op_idx, const PhiOp& phi) {
   // of load elimination can unlock further optimizations: simplifying Phis
   // can allow elimination of more loads, which can then allow simplification
   // of even more Phis.
-  if (inputs.size() > 0) {
-    bool same_inputs = true;
-    OpIndex first = memory_.ResolveBase(inputs.first());
-    for (const OpIndex& input : inputs.SubVectorFrom(1)) {
-      if (memory_.ResolveBase(input) != first) {
-        same_inputs = false;
-        break;
-      }
+  DCHECK_GT(inputs.size(), 0);
+
+  bool same_inputs = true;
+  OpIndex first = memory_.ResolveBase(inputs.first());
+  for (const OpIndex& input : inputs.SubVectorFrom(1)) {
+    if (memory_.ResolveBase(input) != first) {
+      same_inputs = false;
+      break;
     }
-    if (same_inputs) {
-      replacements_[op_idx] = first;
-    }
+  }
+  if (same_inputs) {
+    replacements_[op_idx] = first;
   }
 }
 

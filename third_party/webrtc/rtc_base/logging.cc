@@ -111,6 +111,10 @@ bool InitializeLogging(LoggingConfig config) {
   GetOrInitConfig(&config, config_applied);
   if (config_applied) {
     MutexLock lock(&GetLoggingLock());
+    LogMessage::SetLogQueueNames(config.log_queue_name());
+    LogMessage::LogTimestamps(config.log_timestamp());
+    LogMessage::SetLogToStderr(config.log_to_stderr());
+    g_dbg_sev = config.debug_severity();
     LogMessage::UpdateMinLogSeverity();
   }
   return config_applied;

@@ -934,6 +934,10 @@ class LiftoffAssembler : public MacroAssembler {
   inline void emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src);
   inline bool emit_i64_popcnt(LiftoffRegister dst, LiftoffRegister src);
 
+  // i64 wide ops
+  inline void emit_i64_mul_wide_s();
+  inline void emit_i64_mul_wide_u();
+
   inline void emit_u32_to_uintptr(Register dst, Register src);
   // For security hardening: unconditionally clear {dst}'s high word.
   inline void clear_i32_upper_half(Register dst);

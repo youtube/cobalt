@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection
-
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // Test casting null from one type to another using ref.test & ref.cast.
@@ -133,7 +131,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   let instance = builder.instantiate();
   let wasm = instance.exports;
-  let jsFct = new WebAssembly.Function(
+  let jsFct = new WebAssemblyFunction(
       {parameters:['i32', 'i32'], results: ['i32']},
       function mul(a, b) { return a * b; });
   assertEquals([0, 0, 0, 0], wasm.testFromFuncRef(null));
@@ -187,7 +185,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   let instance = builder.instantiate();
   let wasm = instance.exports;
-  let jsFct = new WebAssembly.Function(
+  let jsFct = new WebAssemblyFunction(
       {parameters:['i32', 'i32'], results: ['i32']},
       function mul(a, b) { return a * b; });
 
@@ -306,7 +304,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   let instance = builder.instantiate();
   let wasm = instance.exports;
-  let jsFct = new WebAssembly.Function(
+  let jsFct = new WebAssemblyFunction(
       {parameters:['i32', 'i32'], results: ['i32']},
       function mul(a, b) { return a * b; });
   assertEquals(0, wasm.brOnCast_funcref(null));

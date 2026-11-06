@@ -314,7 +314,7 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
       // JSFunction or JSGeneratorObject.
       USE(load);
       DCHECK(load->offset() == JSFunction::kContextOffset ||
-             load->offset() == JSGeneratorObject::kContextOffset);
+             load->offset() == offsetof(JSGeneratorObject, context_));
       may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
       DCHECK(NodeTypeIs(GetTypeUnchecked(broker, context), NodeType::kContext));
       break;
@@ -611,9 +611,40 @@ KnownNodeAspects::ClearAliasedContextSlotsFor(Graph* graph, ValueNode* context,
   return aliased_slots_;
 }
 
+bool KnownNodeAspects::SetContextCachedValue(ValueNode* context, int offset,
+                                             ValueNode* value,
+                                             MaybeAssignedFlag assigned) {
+  value = value->UnwrapIdentities();
+  auto& target_map = (assigned == kMaybeAssigned) ? loaded_context_slots_
+                                                  : loaded_context_constants_;
+
+  auto [it, inserted] = target_map.insert({{context, offset}, value});
+
+  if (!inserted) {
+    it->second = value;
+    return false;
+  }
+
+  return true;
+}
+
+KnownNodeAspects::ContextStoreResult KnownNodeAspects::RecordContextSlotStore(
+    Graph* graph, ValueNode* context, int offset, ValueNode* value,
+    MaybeAssignedFlag assigned) {
+  SmallZoneVector<LoadedContextSlotsKey, 8> aliased_slots =
+      ClearAliasedContextSlotsFor(graph, context, offset, value);
+
+  bool inserted_or_updated =
+      SetContextCachedValue(context, offset, value, assigned);
+
+  if (!inserted_or_updated) {
+    return {ContextStoreResult::kNone, std::move(aliased_slots)};
+  }
+  return {ContextStoreResult::kSetNewValue, std::move(aliased_slots)};
+}
+
 void KnownNodeAspects::TraceLoadedProperties(TraceLogger* logger) const {
   *logger << "  Constant properties:" << TraceNewline{};
-  ;
   for (auto [key, map] : loaded_constant_properties_) {
     *logger << "    - " << key << ": { ";
     bool is_first = true;

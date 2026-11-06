@@ -18,6 +18,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
@@ -970,7 +971,7 @@ public class NotificationPlatformBridge {
                             // Display notification as Chrome.
                             // Android may throw an exception on
                             // INotificationManager.enqueueNotificationWithTag,
-                            // see crbug.com/1077027.
+                            // see crbug.com/40688509.
                             try {
                                 if (shouldTreatNotificationAsSuspicious) {
                                     mNotificationContentDetectionManager.showWarning(
@@ -1241,7 +1242,7 @@ public class NotificationPlatformBridge {
 
         // If action buttons are displayed, there isn't room for the full Site Settings button
         // label and icon, so abbreviate it. This has the unfortunate side-effect of
-        // unnecessarily abbreviating it on Android Wear also (crbug.com/576656). If custom
+        // unnecessarily abbreviating it on Android Wear also (crbug.com/40451941). If custom
         // layouts are enabled, the label and icon provided here only affect Android Wear, so
         // don't abbreviate them.
         boolean abbreviateSiteSettings = actions.length > 0;
@@ -1358,7 +1359,7 @@ public class NotificationPlatformBridge {
 
         // Mark the title of the notification as being bold.
         spannableStringBuilder.setSpan(
-                new StyleSpan(android.graphics.Typeface.BOLD),
+                new StyleSpan(Typeface.BOLD),
                 0,
                 title.length(),
                 Spannable.SPAN_INCLUSIVE_INCLUSIVE);

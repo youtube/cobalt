@@ -200,6 +200,21 @@ bool TrustedPointerMember<T, kTagRange>::is_empty() const {
 }
 
 template <typename T, IndirectPointerTagRange kTagRange>
+bool TrustedPointerMember<T, kTagRange>::is_unpublished(
+    IsolateForSandbox isolate) const {
+#ifdef V8_ENABLE_SANDBOX
+  IndirectPointerHandle handle = handle_.load(std::memory_order_acquire);
+  if (handle == kNullIndirectPointerHandle) return false;
+  if (handle & kCodePointerHandleMarker) return false;
+  const TrustedPointerTable& table =
+      isolate.GetTrustedPointerTableFor(kTagRange);
+  return table.IsUnpublished(handle);
+#else
+  return false;
+#endif
+}
+
+template <typename T, IndirectPointerTagRange kTagRange>
 void TrustedPointerMember<T, kTagRange>::clear(HeapObjectLayout* host) {
 #ifdef V8_ENABLE_SANDBOX
   handle_.store(kNullIndirectPointerHandle, std::memory_order_release);

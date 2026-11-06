@@ -350,6 +350,7 @@ class HTMLDocumentParser::PendingPreloads
 
 HTMLDocumentParser::HTMLDocumentParser(HTMLDocument& document,
                                        ParserSynchronizationPolicy sync_policy,
+                                       CustomElementRegistry* registry,
                                        ParserPrefetchPolicy prefetch_policy)
     : HTMLDocumentParser(document,
                          kAllowScriptingContent,
@@ -363,7 +364,8 @@ HTMLDocumentParser::HTMLDocumentParser(HTMLDocument& document,
   bool include_shadow_roots = document.GetDeclarativeShadowRootAllowState() !=
                               Document::DeclarativeShadowRootAllowState::kDeny;
   tree_builder_ = MakeGarbageCollected<HTMLTreeBuilder>(
-      this, document, kAllowScriptingContent, options_, include_shadow_roots);
+      this, document, kAllowScriptingContent, options_, include_shadow_roots,
+      registry);
 }
 
 HTMLDocumentParser::HTMLDocumentParser(

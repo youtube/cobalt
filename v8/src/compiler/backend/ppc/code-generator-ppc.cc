@@ -1075,10 +1075,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         int offset_since_start_call = pc_offset - start_pc_offset;
         // Here we are going to patch the `addi` instruction above to use the
         // correct offset.
-        // LoadPC emits two instructions and pc is the address of its second
-        // emitted instruction. Add one more to the offset to point to after the
-        // Call.
-        offset_since_start_call += kInstrSize;
         __ patch_pc_address(kScratchReg, start_pc_offset,
                             offset_since_start_call);
       }
@@ -1474,22 +1470,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ mulld(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
                  LeaveOE, i.OutputRCBit());
-      }
-      break;
-    case kPPC_Mul32WithHigh32:
-      if (i.OutputRegister(0) == i.InputRegister(0) ||
-          i.OutputRegister(0) == i.InputRegister(1) ||
-          i.OutputRegister(1) == i.InputRegister(0) ||
-          i.OutputRegister(1) == i.InputRegister(1)) {
-        __ mullw(kScratchReg, i.InputRegister(0), i.InputRegister(1));  // low
-        __ mulhw(i.OutputRegister(1), i.InputRegister(0),
-                 i.InputRegister(1));  // high
-        __ mr(i.OutputRegister(0), kScratchReg);
-      } else {
-        __ mullw(i.OutputRegister(0), i.InputRegister(0),
-                 i.InputRegister(1));  // low
-        __ mulhw(i.OutputRegister(1), i.InputRegister(0),
-                 i.InputRegister(1));  // high
       }
       break;
     case kPPC_MulHighS64:
@@ -2571,7 +2551,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef SIMD_LOAD_SPLAT
 
     case kPPC_FSplat: {
-      int lane_size = LaneSizeField::decode(instr->opcode());
+      int lane_size = LaneSizeBits(LaneSizeField::decode(instr->opcode()));
       switch (lane_size) {
         case 32: {
           __ F32x4Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0),
@@ -2589,7 +2569,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_ISplat: {
-      int lane_size = LaneSizeField::decode(instr->opcode());
+      int lane_size = LaneSizeBits(LaneSizeField::decode(instr->opcode()));
       switch (lane_size) {
         case 8: {
           __ I8x16Splat(i.OutputSimd128Register(), i.InputRegister(0));
@@ -2613,7 +2593,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_FExtractLane: {
-      int lane_size = LaneSizeField::decode(instr->opcode());
+      int lane_size = LaneSizeBits(LaneSizeField::decode(instr->opcode()));
       switch (lane_size) {
         case 32: {
           __ F32x4ExtractLane(i.OutputDoubleRegister(),
@@ -2633,7 +2613,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_IExtractLane: {
-      int lane_size = LaneSizeField::decode(instr->opcode());
+      int lane_size = LaneSizeBits(LaneSizeField::decode(instr->opcode()));
       switch (lane_size) {
         case 32: {
           __ I32x4ExtractLane(i.OutputRegister(), i.InputSimd128Register(0),
@@ -2651,7 +2631,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_IExtractLaneU: {
-      int lane_size = LaneSizeField::decode(instr->opcode());
+      int lane_size = LaneSizeBits(LaneSizeField::decode(instr->opcode()));
       switch (lane_size) {
         case 8: {
           __ I8x16ExtractLaneU(i.OutputRegister(), i.InputSimd128Register(0),
@@ -2669,7 +2649,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_IExtractLaneS: {
-      int lane_size = LaneSizeField::decode(instr->opcode());
+      int lane_size = LaneSizeBits(LaneSizeField::decode(instr->opcode()));
       switch (lane_size) {
         case 8: {
           __ I8x16ExtractLaneS(i.OutputRegister(), i.InputSimd128Register(0),
@@ -2688,7 +2668,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kPPC_FReplaceLane: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      int lane_size = LaneSizeField::decode(instr->opcode());
+      int lane_size = LaneSizeBits(LaneSizeField::decode(instr->opcode()));
       switch (lane_size) {
         case 32: {
           __ F32x4ReplaceLane(
@@ -2711,7 +2691,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kPPC_IReplaceLane: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      int lane_size = LaneSizeField::decode(instr->opcode());
+      int lane_size = LaneSizeBits(LaneSizeField::decode(instr->opcode()));
       switch (lane_size) {
         case 8: {
           __ I8x16ReplaceLane(i.OutputSimd128Register(),

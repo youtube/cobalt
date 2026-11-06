@@ -39,30 +39,6 @@ public interface SyncService {
      */
     boolean isEngineInitialized();
 
-    /**
-     * Returns whether all conditions are satisfied for Sync-the-feature to start. This means that
-     * there is a Sync-consented account, no disable reasons, and first-time Sync setup has been
-     * completed by the user.
-     *
-     * <p>Note: This does not imply that Sync is actually running. Check IsSyncFeatureActive or
-     * GetTransportState to get the current state.
-     *
-     * @return true if the sync feature is enabled.
-     */
-    // TODO(crbug.com/40066949): Remove once kSync becomes unreachable or is deleted from the
-    // codebase. See ConsentLevel::kSync documentation for details.
-    boolean isSyncFeatureEnabled();
-
-    /**
-     * Checks whether Sync-the-feature is currently active. Note that Sync-the-transport may be
-     * active even if this is false.
-     *
-     * @return true if Sync is active, false otherwise.
-     */
-    // TODO(crbug.com/40066949): Remove once kSync becomes unreachable or is deleted from the
-    // codebase. See ConsentLevel::kSync documentation for details.
-    boolean isSyncFeatureActive();
-
     GoogleServiceAuthError getAuthError();
 
     /**
@@ -74,16 +50,6 @@ public interface SyncService {
     boolean isSyncDisabledByEnterprisePolicy();
 
     @Nullable CoreAccountInfo getAccountInfo();
-
-    /**
-     * Checks whether the primary account is consented to run Sync (the feature). Note that even if
-     * this is true, other reasons might prevent Sync from actually starting up.
-     *
-     * @return true if the primary account is consented to Sync (the feature), false otherwise.
-     */
-    // TODO(crbug.com/40066949): Remove once kSync becomes unreachable or is deleted from the
-    // codebase. See ConsentLevel::kSync documentation for details.
-    boolean hasSyncConsent();
 
     /**
      * Gets the set of data types that are currently syncing.
@@ -119,53 +85,17 @@ public interface SyncService {
 
     void triggerLocalDataMigration(Set<Integer> types);
 
-    boolean hasKeepEverythingSynced();
-
     boolean isTypeManagedByPolicy(@UserSelectableType int type);
 
     boolean isTypeManagedByCustodian(@UserSelectableType int type);
 
     /**
-     * Enables syncing for the passed types.
-     *
-     * @param syncEverything Set to true if the user wants to sync all data types (including new
-     *     data types we add in the future).
-     * @param enabledTypes The set of types to enable.
-     */
-    void setSelectedTypes(boolean syncEverything, Set<Integer> enabledTypes);
-
-    /**
-     * Sets an individual type selection. For Sync-the-feature mode, invoking this function is only
-     * allowed while IsSyncEverythingEnabled() returns false.
+     * Sets an individual type selection.
      *
      * @param type The type that should be enabled or disabled.
      * @param isTypeOn Set to true if the type should be enabled, false otherwise.
      */
     void setSelectedType(@UserSelectableType int type, boolean isTypeOn);
-
-    void setInitialSyncFeatureSetupComplete();
-
-    boolean isInitialSyncFeatureSetupComplete();
-
-    /**
-     * Instances of this class keep sync paused until {@link #close} is called. Use {@link
-     * SyncService#getSetupInProgressHandle} to create. Please note that {@link #close} should be
-     * called on every instance of this class.
-     */
-    interface SyncSetupInProgressHandle {
-        void close();
-    }
-
-    /**
-     * Called by the UI to prevent changes in sync settings from taking effect while these settings
-     * are being modified by the user. When sync settings UI is no longer visible, {@link
-     * SyncSetupInProgressHandle#close} has to be invoked for sync settings to be applied. Sync
-     * settings will remain paused as long as there are unclosed objects returned by this method.
-     * Please note that the behavior of SyncSetupInProgressHandle is slightly different from the
-     * equivalent C++ object, as Java instances don't commit sync settings as soon as any instance
-     * of SyncSetupInProgressHandle is closed.
-     */
-    SyncSetupInProgressHandle getSetupInProgressHandle();
 
     void addSyncStateChangedListener(SyncStateChangedListener listener);
 

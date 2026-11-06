@@ -21,6 +21,8 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_quic_config.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/quic_default_client.h"
 #include "quiche/quic/tools/quic_event_loop_tools.h"
@@ -34,11 +36,14 @@ namespace moqt {
 MoqtClient::MoqtClient(quic::QuicSocketAddress peer_address,
                        const quic::QuicServerId& server_id,
                        std::unique_ptr<quic::ProofVerifier> proof_verifier,
-                       quic::QuicEventLoop* event_loop)
+                       quic::QuicEventLoop* event_loop,
+                       MoqtSessionParameters parameters)
     : spdy_client_(peer_address, server_id, GetMoqtSupportedQuicVersions(),
-                   event_loop, std::move(proof_verifier)) {
+                   event_loop, std::move(proof_verifier)),
+      parameters_(parameters) {
   TuneQuicConfig(*spdy_client_.config());
   spdy_client_.set_enable_web_transport(true);
+  parameters_.perspective = quic::Perspective::IS_CLIENT;
 }
 
 void MoqtClient::Connect(std::string path, MoqtSessionCallbacks callbacks) {
@@ -101,8 +106,6 @@ absl::Status MoqtClient::ConnectInner(std::string path,
     return absl::InternalError("Failed to initialize WebTransport session");
   }
 
-  MoqtSessionParameters parameters(quic::Perspective::IS_CLIENT);
-
   // Ensure that we never have a dangling pointer to the session.
   MoqtSessionDeletedCallback deleted_callback =
       std::move(callbacks.session_deleted_callback);
@@ -113,7 +116,7 @@ absl::Status MoqtClient::ConnectInner(std::string path,
       };
 
   auto session = std::make_unique<MoqtSession>(
-      web_transport, parameters,
+      web_transport, parameters_,
       spdy_client_.default_network_helper()->event_loop()->CreateAlarmFactory(),
       std::move(callbacks));
   session_ = session.get();

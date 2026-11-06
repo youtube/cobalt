@@ -1377,12 +1377,12 @@ TurnAllocateRequest::TurnAllocateRequest(TurnPort* port)
       StunAttribute::CreateUInt32(STUN_ATTR_REQUESTED_TRANSPORT);
   transport_attr->SetValue(IPPROTO_UDP << 24);
   message->AddAttribute(std::move(transport_attr));
+  port_->MaybeAddTurnLoggingId(message);
   if (!port_->hash().empty()) {
     port_->AddRequestAuthInfo(message);
   } else {
     SetAuthenticationRequired(false);
   }
-  port_->MaybeAddTurnLoggingId(message);
   port_->TurnCustomizerMaybeModifyOutgoingStunMessage(message);
 }
 

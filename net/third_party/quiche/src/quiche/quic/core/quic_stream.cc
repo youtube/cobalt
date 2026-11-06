@@ -28,7 +28,6 @@
 #include "quiche/quic/core/quic_interval_set.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_stream_priority.h"
-#include "quiche/quic/core/quic_stream_send_buffer_base.h"
 #include "quiche/quic/core/quic_stream_send_buffer_inlining.h"
 #include "quiche/quic/core/quic_stream_sequencer.h"
 #include "quiche/quic/core/quic_time.h"
@@ -130,26 +129,26 @@ QuicByteCount GetReceivedFlowControlWindow(QuicSession* session,
 
 }  // namespace
 
-PendingStream::PendingStream(QuicStreamId id, QuicSession* session)
+PendingStream::PendingStream(QuicStreamId id, QuicSession& session)
     : id_(id),
-      version_(session->version()),
-      stream_delegate_(session),
+      version_(session.version()),
+      stream_delegate_(&session),
       stream_bytes_read_(0),
       fin_received_(false),
-      is_bidirectional_(QuicUtils::GetStreamType(id, session->perspective(),
+      is_bidirectional_(QuicUtils::GetStreamType(id, session.perspective(),
                                                  /*peer_initiated = */ true,
-                                                 session->version()) ==
+                                                 session.version()) ==
                         BIDIRECTIONAL),
-      connection_flow_controller_(session->flow_controller()),
-      flow_controller_(session, id,
+      connection_flow_controller_(session.flow_controller()),
+      flow_controller_(&session, id,
                        /*is_connection_flow_controller*/ false,
-                       GetReceivedFlowControlWindow(session, id),
-                       GetInitialStreamFlowControlWindowToSend(session, id),
+                       GetReceivedFlowControlWindow(&session, id),
+                       GetInitialStreamFlowControlWindowToSend(&session, id),
                        kStreamReceiveWindowLimit,
-                       session->flow_controller()->auto_tune_receive_window(),
-                       session->flow_controller()),
+                       session.flow_controller()->auto_tune_receive_window(),
+                       session.flow_controller()),
       sequencer_(this),
-      creation_time_(session->GetClock()->ApproximateNow()) {
+      creation_time_(session.GetClock()->ApproximateNow()) {
   if (is_bidirectional_) {
     QUIC_CODE_COUNT_N(quic_pending_stream, 3, 3);
   }
@@ -329,20 +328,20 @@ void PendingStream::StopReading() {
   sequencer_.StopReading();
 }
 
-QuicStream::QuicStream(PendingStream* pending, QuicSession* session,
+QuicStream::QuicStream(PendingStream& pending, QuicSession* session,
                        bool is_static)
     : QuicStream(
-          pending->id_, session, std::move(pending->sequencer_), is_static,
-          QuicUtils::GetStreamType(pending->id_, session->perspective(),
+          pending.id_, session, std::move(pending.sequencer_), is_static,
+          QuicUtils::GetStreamType(pending.id_, session->perspective(),
                                    /*peer_initiated = */ true,
                                    session->version()),
-          pending->stream_bytes_read_, pending->fin_received_,
-          std::move(pending->flow_controller_),
-          pending->connection_flow_controller_,
-          (session->GetClock()->ApproximateNow() - pending->creation_time())) {
+          pending.stream_bytes_read_, pending.fin_received_,
+          std::move(pending.flow_controller_),
+          pending.connection_flow_controller_,
+          (session->GetClock()->ApproximateNow() - pending.creation_time())) {
   QUICHE_DCHECK(session->version().IsIetfQuic());
   sequencer_.set_stream(this);
-  buffered_reset_stream_at_ = pending->buffered_reset_stream_at();
+  buffered_reset_stream_at_ = pending.buffered_reset_stream_at();
 }
 
 namespace {

@@ -23,19 +23,48 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-regexp-tq-inl.inc"
 
-ACCESSORS(JSRegExp, last_index, Tagged<Object>, kLastIndexOffset)
+Tagged<Object> JSRegExp::last_index() const {
+  return TaggedField<Object, kLastIndexOffset>::load(*this);
+}
+void JSRegExp::set_last_index(Tagged<Object> value, WriteBarrierMode mode) {
+  TaggedField<Object, kLastIndexOffset>::store(*this, value);
+  CONDITIONAL_WRITE_BARRIER(Tagged<HeapObject>(this), kLastIndexOffset, value,
+                            mode);
+}
 
 Tagged<String> JSRegExp::source(IsolateForSandbox isolate) const {
   return data(isolate)->escaped_source();
 }
 
 JSRegExp::Flags JSRegExp::flags() const {
-  Tagged<Smi> smi = Cast<Smi>(TorqueGeneratedClass::flags());
+  Tagged<Smi> smi = Cast<Smi>(flags_.load());
   return Flags(smi.value());
 }
+void JSRegExp::set_flags(Tagged<Object> value, WriteBarrierMode mode) {
+  flags_.store(this, value, mode);
+}
 
-TRUSTED_POINTER_ACCESSORS(JSRegExp, data, RegExpData, kDataOffset,
-                          kRegExpDataIndirectPointerTag)
+Tagged<RegExpData> JSRegExp::data(IsolateForSandbox isolate) const {
+  return data_.load(isolate);
+}
+Tagged<RegExpData> JSRegExp::data(IsolateForSandbox isolate,
+                                  AcquireLoadTag) const {
+  return data_.Acquire_Load(isolate);
+}
+void JSRegExp::set_data(Tagged<RegExpData> value, WriteBarrierMode mode) {
+  data_.store(this, value, mode);
+}
+void JSRegExp::set_data(Tagged<RegExpData> value, ReleaseStoreTag,
+                        WriteBarrierMode mode) {
+  data_.Release_Store(this, value, mode);
+}
+bool JSRegExp::has_data() const { return !data_.is_empty(); }
+bool JSRegExp::has_data_unpublished(IsolateForSandbox isolate) const {
+  return TrustedPointerField::IsTrustedPointerFieldUnpublished(
+      Tagged<HeapObject>(this), kDataOffset, kRegExpDataIndirectPointerTag,
+      isolate);
+}
+void JSRegExp::clear_data() { data_.clear(this); }
 
 // static
 const char* JSRegExp::FlagsToString(Flags flags, FlagsBuffer* out_buffer) {

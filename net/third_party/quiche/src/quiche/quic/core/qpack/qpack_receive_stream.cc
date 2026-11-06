@@ -8,7 +8,7 @@
 #include "quiche/quic/core/quic_session.h"
 
 namespace quic {
-QpackReceiveStream::QpackReceiveStream(PendingStream* pending,
+QpackReceiveStream::QpackReceiveStream(PendingStream& pending,
                                        QuicSession* session,
                                        QpackStreamReceiver* receiver)
     : QuicStream(pending, session, /*is_static=*/true), receiver_(receiver) {}

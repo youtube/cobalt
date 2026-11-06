@@ -22,7 +22,7 @@
 namespace quic {
 
 QuicReceiveControlStream::QuicReceiveControlStream(
-    PendingStream* pending, QuicSpdySession* spdy_session)
+    PendingStream& pending, QuicSpdySession* spdy_session)
     : QuicStream(pending, spdy_session,
                  /*is_static=*/true),
       settings_frame_received_(false),

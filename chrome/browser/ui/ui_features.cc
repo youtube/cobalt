@@ -30,12 +30,14 @@ BASE_FEATURE(kAllowEyeDropperWGCScreenCapture,
 BASE_FEATURE(kCreateNewTabGroupAppMenuTopLevel,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kTabStripDeclutter, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kEnableExtensionsMenuTeardownFix,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kImportExportFlags, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlassToolbar, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kTabStripDeclutter, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kToolbarGlowUp, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kRoundedIcons, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kMenuSimplification, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kTabGroupColorRefresh, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -52,7 +54,7 @@ BASE_FEATURE(kExtensionsCollapseMainMenu, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
-BASE_FEATURE(kInfobarRefresh, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kInfobarRefresh, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 // Shows an infobar on PDFs offering to become the default PDF viewer if Chrome
@@ -147,7 +149,7 @@ BASE_FEATURE_PARAM(int,
 BASE_FEATURE(kTabDuplicateMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables tabs to be frozen when collapsed.
-// https://crbug.com/1110108
+// https://crbug.com/40141996
 BASE_FEATURE(kTabGroupsCollapseFreezing, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -166,7 +168,7 @@ bool IsTabGroupHoverCardsEnabled() {
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 // Enables preview images in tab-hover cards.
-// https://crbug.com/928954
+// https://crbug.com/41439486
 BASE_FEATURE(kTabHoverCardImages,
 #if BUILDFLAG(IS_MAC)
              base::FEATURE_DISABLED_BY_DEFAULT
@@ -226,21 +228,6 @@ BASE_FEATURE(kEnterpriseManagementDisclaimerUsesCustomLabel,
 BASE_FEATURE(kManagedProfileRequiredInterstitial,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables a web-based tab strip. See https://crbug.com/989131. Note this
-// feature only works when the ENABLE_WEBUI_TAB_STRIP buildflag is enabled.
-BASE_FEATURE(kWebUITabStrip, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// The default value of this flag is aligned with platform behavior to handle
-// context menu with touch.
-// TODO(crbug.com/40796475): Enable this flag for all platforms after launch.
-BASE_FEATURE(kWebUITabStripContextMenuAfterTap,
-#if BUILDFLAG(IS_CHROMEOS)
-             base::FEATURE_DISABLED_BY_DEFAULT
-#else
-             base::FEATURE_ENABLED_BY_DEFAULT
-#endif
-);
-
 #if BUILDFLAG(IS_MAC)
 BASE_FEATURE(kViewsJSAppModalDialog, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
@@ -271,7 +258,7 @@ BASE_FEATURE_PARAM(bool,
                    "intent_picker",
 // TODOD(crbug.com/480035938): Enable on ChromeOS.
 #if BUILDFLAG(IS_CHROMEOS)
-                   true
+                   false
 #else
                    true
 #endif
@@ -281,7 +268,7 @@ BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationZoom,
                    &kPageActionsMigration,
                    "zoom",
-                   true);
+                   false);
 
 BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationFileSystemAccess,
@@ -293,37 +280,37 @@ BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationCookieControls,
                    &kPageActionsMigration,
                    "cookie_controls",
-                   true);
+                   false);
 
 BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationAutofillMandatoryReauth,
                    &kPageActionsMigration,
                    "mandatory_reauth",
-                   true);
+                   false);
 
 BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationSharingHub,
                    &kPageActionsMigration,
                    "sharing_hub",
-                   true);
+                   false);
 
 BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationAiMode,
                    &kPageActionsMigration,
                    "ai_mode",
-                   true);
+                   false);
 
 BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationVirtualCard,
                    &kPageActionsMigration,
                    "virtual_card",
-                   true);
+                   false);
 
 BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationFilledCardInformation,
                    &kPageActionsMigration,
                    "filled_card_information",
-                   true);
+                   false);
 
 BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationReadingMode,
@@ -335,17 +322,17 @@ BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationSavePayments,
                    &kPageActionsMigration,
                    "save_payments",
-                   true);
+                   false);
 BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationLensOverlayHomework,
                    &kPageActionsMigration,
                    "lens_overlay_homework",
-                   true);
+                   false);
 BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationBookmarkStar,
                    &kPageActionsMigration,
                    "bookmark_star",
-                   true);
+                   false);
 
 BASE_FEATURE(kSavePasswordsContextualUi, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -390,6 +377,11 @@ bool IsWebUIHomeButtonEnabled() {
          base::FeatureList::IsEnabled(features::kWebUIHomeButton);
 }
 
+bool IsWebUIAppMenuButtonEnabled() {
+  return base::FeatureList::IsEnabled(features::kInitialWebUI) &&
+         base::FeatureList::IsEnabled(features::kWebUIAppMenuButton);
+}
+
 bool IsWebUIBackForwardButtonEnabled() {
   return base::FeatureList::IsEnabled(features::kInitialWebUI) &&
          base::FeatureList::IsEnabled(features::kWebUIBackForwardButton);
@@ -419,7 +411,8 @@ bool IsWebUIToolbarEnabled() {
   return IsWebUIReloadButtonEnabled() || IsWebUISplitTabsButtonEnabled() ||
          IsWebUIHomeButtonEnabled() || IsWebUILocationBarEnabled() ||
          IsWebUIBackForwardButtonEnabled() ||
-         IsWebUIPinnedToolbarActionsEnabled() || IsWebUIAvatarButtonEnabled();
+         IsWebUIPinnedToolbarActionsEnabled() || IsWebUIAvatarButtonEnabled() ||
+         IsWebUIAppMenuButtonEnabled();
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 

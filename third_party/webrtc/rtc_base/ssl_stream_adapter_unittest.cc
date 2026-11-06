@@ -34,7 +34,6 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "api/crypto/crypto_options.h"
-#include "api/field_trials.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/test/rtc_error_matchers.h"
@@ -51,7 +50,7 @@
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/stream.h"
 #include "rtc_base/thread.h"
-#include "test/create_test_field_trials.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/time_controller/simulated_time_controller.h"
@@ -474,19 +473,16 @@ class SSLStreamAdapterTestBase : public ::testing::Test {
   void InitializeClientAndServerStreams(
       absl::string_view client_experiment = "",
       absl::string_view server_experiment = "") {
-    // Note: `client_ssl_` and `server_ssl_` may be non-nullptr.
+    client_ssl_ = SSLStreamAdapter::Create(
+        CreateTestEnvironment(
+            {.field_trials = client_experiment, .time = &time_controller_}),
+        CreateClientStream(), /*handshake_error=*/nullptr);
 
-    // The field trials are read when the OpenSSLStreamAdapter is initialized.
-    {
-      FieldTrials trial = CreateTestFieldTrials(client_experiment);
-      client_ssl_ =
-          SSLStreamAdapter::Create(CreateClientStream(), nullptr, &trial);
-    }
-    {
-      FieldTrials trial = CreateTestFieldTrials(server_experiment);
-      server_ssl_ =
-          SSLStreamAdapter::Create(CreateServerStream(), nullptr, &trial);
-    }
+    server_ssl_ = SSLStreamAdapter::Create(
+        CreateTestEnvironment(
+            {.field_trials = server_experiment, .time = &time_controller_}),
+        CreateServerStream(), /*handshake_error=*/nullptr);
+
     client_ssl_->SetEventCallback(
         [this](int events, int err) { OnClientEvent(events, err); });
     server_ssl_->SetEventCallback(

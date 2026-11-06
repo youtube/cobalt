@@ -57,6 +57,8 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
     // The assumed initial value of the remote endpoint's max concurrent streams
     // setting.
     std::optional<uint32_t> remote_max_concurrent_streams = std::nullopt;
+    // Whether to enforce the max header list bytes.
+    bool enforce_max_header_list_bytes = false;
     // Whether to automatically send PING acks when receiving a PING.
     bool auto_ping_ack = true;
     // Whether (as server) to send a RST_STREAM NO_ERROR when sending a fin on

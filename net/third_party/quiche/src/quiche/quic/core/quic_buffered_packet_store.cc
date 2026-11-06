@@ -623,11 +623,7 @@ bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
   return true;
 }
 
-static std::unique_ptr<QuicStreamSendBufferBase> CreateSendBuffer(
-    quiche::QuicheBufferAllocator* allocator) {
-  return std::make_unique<QuicStreamSendBufferInlining>(allocator);
-}
-
 PacketCollector::PacketCollector(quiche::QuicheBufferAllocator* allocator)
-    : send_buffer_(CreateSendBuffer(allocator)) {}
+    : send_buffer_(allocator) {}
+
 }  // namespace quic

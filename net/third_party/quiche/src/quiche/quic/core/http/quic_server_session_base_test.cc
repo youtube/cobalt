@@ -92,7 +92,7 @@ class TestServerSession : public QuicServerSessionBase {
 
   QuicSpdyStream* CreateIncomingStream(PendingStream* pending) override {
     QuicSpdyStream* stream =
-        new QuicSimpleServerStream(pending, this, quic_simple_server_backend_);
+        new QuicSimpleServerStream(*pending, this, quic_simple_server_backend_);
     ActivateStream(absl::WrapUnique(stream));
     return stream;
   }
@@ -110,8 +110,8 @@ class TestServerSession : public QuicServerSessionBase {
   }
 
   QuicStream* ProcessBidirectionalPendingStream(
-      PendingStream* pending) override {
-    return CreateIncomingStream(pending);
+      PendingStream& pending) override {
+    return CreateIncomingStream(&pending);
   }
 
  private:

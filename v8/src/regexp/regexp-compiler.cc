@@ -2693,7 +2693,9 @@ class AlternativeGeneration : public Malloced {
 // size then it is on the stack, otherwise the excess is on the heap.
 class AlternativeGenerationList {
  public:
-  AlternativeGenerationList(int count, Zone* zone) : alt_gens_(count, zone) {
+  AlternativeGenerationList(int count, Compiler* compiler)
+      : alt_gens_(count, compiler->zone()), compiler_(compiler) {
+    Zone* zone = compiler->zone();
     for (int i = 0; i < count && i < kAFew; i++) {
       alt_gens_.Add(a_few_alt_gens_ + i, zone);
     }
@@ -2702,6 +2704,14 @@ class AlternativeGenerationList {
     }
   }
   ~AlternativeGenerationList() {
+    if (V8_UNLIKELY(compiler_->IsRegExpTooBig())) {
+      for (int i = 0; i < alt_gens_.length(); i++) {
+        alt_gens_[i]->possible_success.UnuseNear();
+        alt_gens_[i]->possible_success.Unuse();
+        alt_gens_[i]->after.UnuseNear();
+        alt_gens_[i]->after.Unuse();
+      }
+    }
     for (int i = kAFew; i < alt_gens_.length(); i++) {
       delete alt_gens_[i];
       alt_gens_[i] = nullptr;
@@ -2714,6 +2724,7 @@ class AlternativeGenerationList {
   static const int kAFew = 10;
   ZoneList<AlternativeGeneration*> alt_gens_;
   AlternativeGeneration a_few_alt_gens_[kAFew];
+  Compiler* compiler_;
 };
 
 void BoyerMoorePositionInfo::Set(int character) {
@@ -3196,7 +3207,7 @@ EmitResult ChoiceNode::Emit(Compiler* compiler, Trace* trace) {
   SpecialLoopState special_loop_state(not_at_start(), this);
 
   int text_length = FixedLengthLoopLengthForAlternative(&alternatives_->at(0));
-  AlternativeGenerationList alt_gens(choice_count, zone());
+  AlternativeGenerationList alt_gens(choice_count, compiler);
 
   // Flags need to be reset to the state of the ChoiceNode at the beginning
   // of each alternative (in-line and out-of-line), as flags might be modified

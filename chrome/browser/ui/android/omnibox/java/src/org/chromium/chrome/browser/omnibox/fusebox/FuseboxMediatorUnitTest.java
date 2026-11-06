@@ -82,6 +82,7 @@ import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.browser_ui.util.ChromeItemPickerExtras;
 import org.chromium.components.browser_ui.util.ChromeItemPickerUtils;
+import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
 import org.chromium.components.contextual_search.InputState;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
@@ -132,6 +133,7 @@ public class FuseboxMediatorUnitTest {
     @Mock private ProfileResolver.Natives mProfileResolverNatives;
     @Mock private SnackbarManager mSnackbarManager;
     @Mock private Tracker mTracker;
+    @Mock private ScrimManager mScrimManager;
 
     @Captor private ArgumentCaptor<Intent> mIntentCaptor;
 
@@ -206,7 +208,9 @@ public class FuseboxMediatorUnitTest {
                         mTabModelSelectorSupplier,
                         mFuseboxStateSupplier,
                         mSnackbarManager,
-                        mClipboard);
+                        mClipboard,
+                        mScrimManager,
+                        () -> null);
         mMediator.beginInput(createSession());
     }
 
@@ -272,6 +276,25 @@ public class FuseboxMediatorUnitTest {
                             new byte[0],
                             SystemClock.elapsedRealtime(),
                             FuseboxAttachmentButtonType.CAMERA);
+        } else if (attachmentType == FuseboxAttachmentType.ATTACHMENT_IMAGE_NO_THUMBNAIL) {
+            doReturn(token).when(mComposeboxQueryControllerBridge).addFile(eq(title), any(), any());
+            attachment =
+                    FuseboxAttachment.forImageNoThumbnail(
+                            title,
+                            "image/",
+                            new byte[0],
+                            SystemClock.elapsedRealtime(),
+                            FuseboxAttachmentButtonType.CAMERA);
+        } else if (attachmentType == FuseboxAttachmentType.ATTACHMENT_PDF) {
+            doReturn(token).when(mComposeboxQueryControllerBridge).addFile(eq(title), any(), any());
+            attachment =
+                    FuseboxAttachment.forPdf(
+                            /* thumbnail= */ null,
+                            title,
+                            "application/pdf",
+                            new byte[0],
+                            SystemClock.elapsedRealtime(),
+                            FuseboxAttachmentButtonType.FILES);
         } else {
             throw new UnsupportedOperationException();
         }
@@ -381,6 +404,36 @@ public class FuseboxMediatorUnitTest {
         mMediator.onPlusButtonClicked();
         assertEquals(PopupState.HIDDEN, (int) mModel.get(FuseboxProperties.POPUP_STATE));
         dismissWatcher.assertExpected();
+    }
+
+    @Test
+    public void testPopupShowHide_triggersScrim() {
+        OmniboxFeatures.sShowBottomSheetPopup.setForTesting(true);
+        recreateMediator();
+        Runnable runnable = mModel.get(FuseboxProperties.BUTTON_ADD_CLICKED);
+        assertNotNull(runnable);
+
+        // Show popup.
+        mModel.set(FuseboxProperties.POPUP_STATE, PopupState.HIDDEN);
+        runnable.run();
+        verify(mScrimManager).showScrim(any());
+
+        // Hide popup.
+        runnable.run();
+        verify(mScrimManager).hideScrim(any(), eq(true));
+    }
+
+    @Test
+    public void testPopupShowHide_floatingMode_doesNotTriggerScrim() {
+        OmniboxFeatures.sShowBottomSheetPopup.setForTesting(false);
+        recreateMediator();
+        Runnable runnable = mModel.get(FuseboxProperties.BUTTON_ADD_CLICKED);
+        assertNotNull(runnable);
+
+        // Show popup.
+        mModel.set(FuseboxProperties.POPUP_STATE, PopupState.HIDDEN);
+        runnable.run();
+        verify(mScrimManager, never()).showScrim(any());
     }
 
     @Test
@@ -501,6 +554,26 @@ public class FuseboxMediatorUnitTest {
         addAttachment("title2", "token2", FuseboxAttachmentType.ATTACHMENT_IMAGE);
         assertEquals(1, mAttachments.size());
         assertEquals("token2", mAttachments.get(0).getToken());
+    }
+
+    @Test
+    public void testAddAttachment_replacesDuringCreateImage_imageNoThumbnail() {
+        addAttachment("title1", "token1", FuseboxAttachmentType.ATTACHMENT_IMAGE_NO_THUMBNAIL);
+        assertEquals(1, mAttachments.size());
+
+        mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_CLICKED).run();
+
+        addAttachment("title2", "token2", FuseboxAttachmentType.ATTACHMENT_IMAGE_NO_THUMBNAIL);
+        assertEquals(1, mAttachments.size());
+        assertEquals("token2", mAttachments.get(0).getToken());
+
+        addAttachment("title3", "token3", FuseboxAttachmentType.ATTACHMENT_IMAGE);
+        assertEquals(1, mAttachments.size());
+        assertEquals("token3", mAttachments.get(0).getToken());
+
+        addAttachment("title4", "token4", FuseboxAttachmentType.ATTACHMENT_IMAGE_NO_THUMBNAIL);
+        assertEquals(1, mAttachments.size());
+        assertEquals("token4", mAttachments.get(0).getToken());
     }
 
     @Test
@@ -965,6 +1038,14 @@ public class FuseboxMediatorUnitTest {
         assertEquals(0, mAttachments.size());
         assertTrue(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_ENABLED));
 
+        addAttachment("title", "token-pdf", FuseboxAttachmentType.ATTACHMENT_PDF);
+        assertEquals(1, mAttachments.size());
+        assertFalse(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_ENABLED));
+
+        mAttachments.remove(mAttachments.get(0), /* isFailure= */ false);
+        assertEquals(0, mAttachments.size());
+        assertTrue(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_ENABLED));
+
         addAttachment("title", "token2", FuseboxAttachmentType.ATTACHMENT_IMAGE);
         assertEquals(1, mAttachments.size());
         assertTrue(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_ENABLED));
@@ -976,6 +1057,17 @@ public class FuseboxMediatorUnitTest {
         mAttachments.remove(mAttachments.get(0), /* isFailure= */ false);
         assertEquals(1, mAttachments.size());
         assertTrue(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_ENABLED));
+
+        mAttachments.remove(mAttachments.get(0), /* isFailure= */ false);
+        assertTrue(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_ENABLED));
+
+        addAttachment("title", "token4", FuseboxAttachmentType.ATTACHMENT_IMAGE_NO_THUMBNAIL);
+        assertEquals(1, mAttachments.size());
+        assertTrue(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_ENABLED));
+
+        addAttachment("title", "token5", FuseboxAttachmentType.ATTACHMENT_IMAGE_NO_THUMBNAIL);
+        assertEquals(2, mAttachments.size());
+        assertFalse(mModel.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_ENABLED));
     }
 
     @Test
@@ -1076,6 +1168,23 @@ public class FuseboxMediatorUnitTest {
     }
 
     @Test
+    public void onTabPickerClicked_sendsAllowedSelectionCount_imageNoThumbnail() {
+        addTabAttachment(mockTab(101, /* webContentsReady= */ true));
+        addAttachment("title1", "token1", FuseboxAttachmentType.ATTACHMENT_IMAGE_NO_THUMBNAIL);
+        addAttachment("title2", "token2", FuseboxAttachmentType.ATTACHMENT_FILE);
+
+        mModel.get(FuseboxProperties.POPUP_ATTACH_TAB_PICKER_CLICKED).run();
+
+        assertEquals(PopupState.HIDDEN, (int) mModel.get(FuseboxProperties.POPUP_STATE));
+        verify(mWindowAndroid).showCancelableIntent(mIntentCaptor.capture(), any(), any());
+        Intent intent = mIntentCaptor.getValue();
+        int allowedSelectionCount =
+                intent.getIntExtra(ChromeItemPickerExtras.EXTRA_ALLOWED_SELECTION_COUNT, -1);
+        // The image and file attachments should count against the max, the tab should not.
+        assertEquals(FuseboxAttachmentModelList.getMaxAttachments() - 2, allowedSelectionCount);
+    }
+
+    @Test
     public void testMaxAttachments() {
         for (int i = 0; i < FuseboxAttachmentModelList.getMaxAttachments(); i++) {
             addAttachment("title", "token" + i, FuseboxAttachmentType.ATTACHMENT_FILE);
@@ -1148,6 +1257,21 @@ public class FuseboxMediatorUnitTest {
 
         addAttachment("title", "token", FuseboxAttachmentType.ATTACHMENT_IMAGE);
         assertFalse(mMediator.isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_IMAGE));
+        verify(mSnackbarManager, never()).showSnackbar(any());
+    }
+
+    @Test
+    public void testIsMaxAttachmentCountReached_imageNoThumbnailInImageGeneration() {
+        mInput.setRequestType(AutocompleteRequestType.IMAGE_GENERATION);
+        assertFalse(
+                mMediator.isMaxAttachmentCountReached(
+                        FuseboxAttachmentType.ATTACHMENT_IMAGE_NO_THUMBNAIL));
+        verify(mSnackbarManager, never()).showSnackbar(any());
+
+        addAttachment("title", "token", FuseboxAttachmentType.ATTACHMENT_IMAGE_NO_THUMBNAIL);
+        assertFalse(
+                mMediator.isMaxAttachmentCountReached(
+                        FuseboxAttachmentType.ATTACHMENT_IMAGE_NO_THUMBNAIL));
         verify(mSnackbarManager, never()).showSnackbar(any());
     }
 

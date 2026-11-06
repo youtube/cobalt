@@ -18,8 +18,7 @@ namespace internal {
 
 GlicFreShowingDialogObserver::GlicFreShowingDialogObserver(
     const GlicFreController& controller)
-    : PollingStateObserver(
-          [&controller]() { return controller.IsShowingDialog(); }) {}
+    : PollingStateObserver([]() { return false; }) {}
 GlicFreShowingDialogObserver::~GlicFreShowingDialogObserver() = default;
 
 DEFINE_STATE_IDENTIFIER_VALUE(GlicFreShowingDialogObserver,
@@ -29,35 +28,20 @@ GlicInstanceCoordinatorStateObserver::GlicInstanceCoordinatorStateObserver(
     const GlicInstanceCoordinator& controller,
     tabs::TabInterface* tab)
     : PollingStateObserver([&controller, tab]() {
-        if (!tab) {
-          return controller.state();
-        }
-
+        CHECK(tab);
         auto* instance = controller.GetInstanceForTab(tab);
         if (instance && instance->IsShowing()) {
-          return GlicInstanceCoordinator::State::kOpen;
+          return GlicPanelState::kOpen;
         } else {
-          return GlicInstanceCoordinator::State::kClosed;
+          return GlicPanelState::kClosed;
         }
       }) {}
+
 GlicInstanceCoordinatorStateObserver::~GlicInstanceCoordinatorStateObserver() =
     default;
 
 DEFINE_STATE_IDENTIFIER_VALUE(GlicInstanceCoordinatorStateObserver,
                               kGlicInstanceCoordinatorState);
-
-GlicInstanceCoordinatorResizeObserver::GlicInstanceCoordinatorResizeObserver(
-    GlicInstanceCoordinator& controller)
-    : PollingStateObserver([&controller]() {
-        return controller.GetGlicWidget()
-                   ? controller.GetGlicWidget()->widget_delegate()->CanResize()
-                   : false;
-      }) {}
-GlicInstanceCoordinatorResizeObserver::
-    ~GlicInstanceCoordinatorResizeObserver() = default;
-
-DEFINE_STATE_IDENTIFIER_VALUE(GlicInstanceCoordinatorResizeObserver,
-                              kGlicInstanceCoordinatorResizeState);
 
 GlicAppStateObserver::GlicAppStateObserver(Host* host)
     : ObservationStateObserver(host) {

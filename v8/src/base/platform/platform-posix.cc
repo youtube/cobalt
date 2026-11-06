@@ -932,7 +932,7 @@ int OS::GetCurrentThreadIdInternal() {
 #elif V8_OS_SOLARIS
   return static_cast<int>(pthread_self());
 #elif V8_OS_ZOS
-  return gettid();
+  return __tcbtid();
 #else
   return static_cast<int>(reinterpret_cast<intptr_t>(pthread_self()));
 #endif

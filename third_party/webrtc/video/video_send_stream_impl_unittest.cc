@@ -116,6 +116,12 @@ class MockRtpVideoSender : public RtpVideoSenderInterface {
               OnEncodedImage,
               (const EncodedImage&, const CodecSpecificInfo*),
               (override));
+  MOCK_METHOD(void,
+              OnFrameDropped,
+              (uint32_t rtp_timestamp,
+               int spatial_id,
+               bool is_end_of_temporal_unit),
+              (override));
   MOCK_METHOD(void, OnTransportOverheadChanged, (size_t), (override));
   MOCK_METHOD(void,
               OnBitrateUpdated,

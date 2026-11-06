@@ -100,32 +100,33 @@ PermissionDashboardView::PermissionDashboardView() {
       views::BoxLayout::Orientation::kHorizontal));
 
   // Left-Hand Side Activity indicators chip.
-  anchored_chip_ = AddChildView(std::make_unique<PermissionChipView>(
+  auto indicator_chip = std::make_unique<PermissionChipView>(
       PermissionChipView::Role::kIndicatorChip,
-      PermissionChipView::PressedCallback()));
+      PermissionChipView::PressedCallback());
+  indicator_chip->SetVisible(false);
+  indicator_chip_ = AddChildView(std::move(indicator_chip));
 
   // An empty view is created to be placed between the LHS activity indicator
   // chip and the permission request chip. This view is a divider that creates
   // an illusion of an empty space between chips.
-  chip_divider_view_ = AddChildView(std::make_unique<views::View>());
-  chip_divider_view_->SetPaintToLayer();
-  chip_divider_view_->layer()->SetFillsBoundsOpaquely(false);
-  chip_divider_view_->SetVisible(false);
+  auto chip_divider_view = std::make_unique<views::View>();
+  chip_divider_view->SetPaintToLayer();
+  chip_divider_view->layer()->SetFillsBoundsOpaquely(false);
+  chip_divider_view->SetVisible(false);
+  chip_divider_view_ = AddChildView(std::move(chip_divider_view));
 
   // Permission request chip.
-  secondary_chip_ = AddChildView(std::make_unique<PermissionChipView>(
+  auto request_chip = std::make_unique<PermissionChipView>(
       PermissionChipView::Role::kPermissionRequestChip,
-      PermissionChipView::PressedCallback()));
-
-  // It is unclear which chip will be shown first, hence hide both of them.
-  secondary_chip_->SetVisible(false);
-  anchored_chip_->SetVisible(false);
+      PermissionChipView::PressedCallback());
+  request_chip->SetVisible(false);
+  request_chip_ = AddChildView(std::move(request_chip));
 
   // This is needed to make sure that the permission dashboard view is
   // recognized as a single button. Individual elements inside this view should
   // not be accessible and/or focusable.
-  anchored_chip_->GetViewAccessibility().SetIsIgnored(true);
-  secondary_chip_->GetViewAccessibility().SetIsIgnored(true);
+  indicator_chip_->GetViewAccessibility().SetIsIgnored(true);
+  request_chip_->GetViewAccessibility().SetIsIgnored(true);
   chip_divider_view_->GetViewAccessibility().SetIsIgnored(true);
 
   GetViewAccessibility().SetRole(ax::mojom::Role::kButton);
@@ -141,22 +142,42 @@ void PermissionDashboardView::SetDividerBackgroundColor(
                                                    kDividerViewArcRadius));
 }
 
+void PermissionDashboardView::SetVisible(bool visible) {
+  views::View::SetVisible(visible);
+}
+
+bool PermissionDashboardView::GetVisible() const {
+  return views::View::GetVisible();
+}
+
+PermissionChipView* PermissionDashboardView::GetRequestChip() {
+  return request_chip_;
+}
+
+PermissionChipView* PermissionDashboardView::GetIndicatorChip() {
+  return indicator_chip_;
+}
+
+views::BubbleAnchor PermissionDashboardView::GetAnchor() {
+  return views::BubbleAnchor(this);
+}
+
 void PermissionDashboardView::UpdateDividerViewVisibility() {
   // This method can be called even if both chips are hidden. Exit early to
   // avoid unnecessary computations.
-  if (!anchored_chip_->GetVisible() && !secondary_chip_->GetVisible()) {
+  if (!indicator_chip_->GetVisible() && !request_chip_->GetVisible()) {
     chip_divider_view_->SetVisible(false);
     return;
   }
 
   const bool is_visible =
-      anchored_chip_->GetVisible() && secondary_chip_->GetVisible();
+      indicator_chip_->GetVisible() && request_chip_->GetVisible();
 
   if (is_visible) {
-    int width = anchored_chip_->GetIconViewWidth();
+    int width = indicator_chip_->GetIconViewWidth();
     chip_divider_view_->SetPreferredSize(
-        gfx::Size(width, anchored_chip_->GetHeightForWidth(width)));
-    // `chip_divider_view_` should be shown under `anchored_chip_`. Move
+        gfx::Size(width, indicator_chip_->GetHeightForWidth(width)));
+    // `chip_divider_view_` should be shown under `indicator_chip_`. Move
     // `chip_divider_view_` to the left by setting a negative margin.
     chip_divider_view_->SetProperty(
         views::kMarginsKey,
@@ -171,35 +192,35 @@ void PermissionDashboardView::UpdateDividerViewVisibility() {
   const int arc_width =
       GetLayoutConstant(LayoutConstant::kLocationBarChipPadding) +
       kExtraArcPadding;
-  secondary_chip_->UpdateForDividerVisibility(is_visible, arc_width);
+  request_chip_->UpdateForDividerVisibility(is_visible, arc_width);
   chip_divider_view_->SetVisible(is_visible);
 }
 
 gfx::Size PermissionDashboardView::CalculatePreferredSize(
     const views::SizeBounds& available_size) const {
-  if (!secondary_chip_->GetVisible() && !anchored_chip_->GetVisible()) {
+  if (!request_chip_->GetVisible() && !indicator_chip_->GetVisible()) {
     return gfx::Size();
   }
 
-  if (!secondary_chip_->GetVisible()) {
-    return anchored_chip_->GetPreferredSize();
+  if (!request_chip_->GetVisible()) {
+    return indicator_chip_->GetPreferredSize();
   }
 
-  if (!anchored_chip_->GetVisible()) {
-    return secondary_chip_->GetPreferredSize();
+  if (!indicator_chip_->GetVisible()) {
+    return request_chip_->GetPreferredSize();
   }
 
   // Part of the request chip that is drawn under the arc.
-  const int secondary_chip_margin =
+  const int request_chip_margin =
       GetLayoutConstant(LayoutConstant::kLocationBarChipPadding) +
       kExtraArcPadding;
 
   // Visible width of the request chip.
-  int secondary_chip_visible_width =
-      secondary_chip_->GetPreferredSize().width() - secondary_chip_margin;
+  int request_chip_visible_width =
+      request_chip_->GetPreferredSize().width() - request_chip_margin;
 
-  gfx::Size size = anchored_chip_->GetPreferredSize();
-  size.Enlarge(secondary_chip_visible_width +
+  gfx::Size size = indicator_chip_->GetPreferredSize();
+  size.Enlarge(request_chip_visible_width +
                    GetLayoutConstant(LayoutConstant::kLocationBarChipPadding),
                0);
   return size;
@@ -209,6 +230,12 @@ views::View::Views PermissionDashboardView::GetChildrenInZOrder() {
   View::Views paint_order = View::GetChildrenInZOrder();
   std::ranges::reverse(paint_order);
   return paint_order;
+}
+
+void PermissionDashboardView::ChildVisibilityChanged(views::View* child) {
+  if (child == indicator_chip_ || child == request_chip_) {
+    UpdateDividerViewVisibility();
+  }
 }
 
 BEGIN_METADATA(PermissionDashboardView)

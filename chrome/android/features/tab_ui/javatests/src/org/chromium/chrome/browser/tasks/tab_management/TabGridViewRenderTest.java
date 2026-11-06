@@ -76,7 +76,7 @@ public class TabGridViewRenderTest {
     public ChromeRenderTestRule mRenderTestRule =
             ChromeRenderTestRule.Builder.withPublicCorpus()
                     .setBugComponent(UI_BROWSER_MOBILE_TAB_SWITCHER_GRID)
-                    .setRevision(1)
+                    .setRevision(2)
                     .build();
 
     public TabGridViewRenderTest(boolean isNightModeEnabled) {
@@ -88,7 +88,7 @@ public class TabGridViewRenderTest {
     public void setUp() throws Exception {
         mActivityTestRule.launchActivity(null);
         mActivity = mActivityTestRule.getActivity();
-        mActivity.setTheme(org.chromium.chrome.test.R.style.Theme_BrowserUI_DayNight);
+        mActivity.setTheme(R.style.Theme_BrowserUI_DayNight);
 
         FrameLayout.LayoutParams params =
                 new FrameLayout.LayoutParams(

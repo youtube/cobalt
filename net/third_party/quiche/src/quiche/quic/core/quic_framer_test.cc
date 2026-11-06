@@ -37,6 +37,7 @@
 #include "quiche/quic/test_tools/quic_framer_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/simple_data_producer.h"
+#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/quiche_endian.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
@@ -10591,6 +10592,48 @@ TEST_P(QuicFramerTest, InvalidRetirePriorToNewConnectionIdFrame) {
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
   EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_NEW_CONNECTION_ID_DATA));
   EXPECT_EQ("Retire_prior_to > sequence_number.", framer_.detailed_error());
+}
+
+TEST_P(QuicFramerTest, InvalidEmptyNewConnectionIdFrame) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    // The NEW_CONNECTION_ID frame is only for IETF QUIC.
+    return;
+  }
+  SetQuicheReloadableFlag(quic_reject_empty_cid_in_ncid, true);
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  PacketFragments packet_ietf = {
+      // type (short header, 4 byte packet number)
+      {"",
+       {0x43}},
+      // connection_id
+      {"",
+       {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10}},
+      // packet number
+      {"",
+       {0x12, 0x34, 0x56, 0x78}},
+      // frame type (IETF_NEW_CONNECTION_ID frame)
+      {"",
+       {0x18}},
+      // error code
+      {"Unable to read new connection ID frame sequence number.",
+       {kVarInt62OneByte + 0x11}},
+      {"Unable to read new connection ID frame retire_prior_to.",
+       {kVarInt62OneByte + 0x0a}},
+      {"Connection ID with zero length",
+       {0x00}},  // connection ID length
+      {"Can not read new connection ID frame reset token.",
+       {0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
+        0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f}}
+  };
+  // clang-format on
+
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      AssemblePacketFromFragments(packet_ietf));
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_NEW_CONNECTION_ID_DATA));
+  EXPECT_EQ("Connection IDs in NEW_CONNECTION_ID cannot be empty.",
+            framer_.detailed_error());
 }
 
 TEST_P(QuicFramerTest, BuildNewConnectionIdFramePacket) {

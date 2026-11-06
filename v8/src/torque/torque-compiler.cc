@@ -66,6 +66,9 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   if (options.annotate_ir) {
     GlobalContext::SetAnnotateIR();
   }
+  if (options.torque_dwarf) {
+    GlobalContext::SetTorqueDwarf();
+  }
   TypeOracle::Scope type_oracle;
   CurrentScope::Scope current_namespace(GlobalContext::GetDefaultNamespace());
 

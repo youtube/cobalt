@@ -1399,20 +1399,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load the length of a fast JSArray instance. Returns a positive Smi.
   TNode<Smi> LoadFastJSArrayLength(TNode<JSArray> array);
   // Load the length of a fixed array base instance.
-  TNode<Smi> LoadFixedArrayBaseLength(TNode<FixedArrayBase> array);
+  TNode<Uint32T> LoadFixedArrayBaseLengthAsUint32(TNode<FixedArrayBase> array);
   template <typename Array>
-  TNode<Smi> LoadSmiArrayLength(TNode<Array> array) {
-    return LoadObjectField<Smi>(array, offsetof(Array, length_));
+  TNode<IntPtrT> LoadWordArrayLength(TNode<Array> array) {
+    static_assert(
+        std::is_same_v<decltype(std::declval<Array>().length_), uint32_t>,
+        "Array::length_ must be a uint32_t");
+    return Signed(ChangeUint32ToWord(
+        LoadObjectField<Uint32T>(array, offsetof(Array, length_))));
   }
   // Load the length of a fixed array base instance.
-  TNode<IntPtrT> LoadAndUntagFixedArrayBaseLength(TNode<FixedArrayBase> array);
-  TNode<Uint32T> LoadAndUntagFixedArrayBaseLengthAsUint32(
-      TNode<FixedArrayBase> array);
+  TNode<IntPtrT> LoadFixedArrayBaseLength(TNode<FixedArrayBase> array);
   // Load the length of a WeakFixedArray.
-  TNode<Smi> LoadWeakFixedArrayLength(TNode<WeakFixedArray> array);
-  TNode<IntPtrT> LoadAndUntagWeakFixedArrayLength(TNode<WeakFixedArray> array);
-  TNode<Uint32T> LoadAndUntagWeakFixedArrayLengthAsUint32(
-      TNode<WeakFixedArray> array);
+  TNode<IntPtrT> LoadWeakFixedArrayLength(TNode<WeakFixedArray> array);
+  TNode<Uint32T> LoadWeakFixedArrayLengthAsUint32(TNode<WeakFixedArray> array);
   // Load the length of a BytecodeArray.
   TNode<Uint32T> LoadAndUntagBytecodeArrayLength(TNode<BytecodeArray> array);
   // Load the number of descriptors in DescriptorArray.
@@ -1758,8 +1758,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 #ifdef V8_ENABLE_WEBASSEMBLY
   TNode<WasmExportedFunctionData>
   LoadSharedFunctionInfoWasmExportedFunctionData(TNode<SharedFunctionInfo> sfi);
-  TNode<WasmJSFunctionData> LoadSharedFunctionInfoWasmJSFunctionData(
-      TNode<SharedFunctionInfo> sfi);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TNode<BytecodeArray> LoadInterpreterDataBytecodeArray(
@@ -1937,7 +1935,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
   template <typename Array>
   void UnsafeStoreArrayElement(
-      TNode<Array> object, TNode<Smi> index,
+      TNode<Array> object, TNode<Uint32T> index,
       TNode<typename Array::Shape::ElementT> value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
     DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
@@ -1945,8 +1943,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     // TODO(jgruber): This is just a barebones implementation taken from
     // StoreFixedArrayOrPropertyArrayElement. We can make it more robust and
     // generic if needed.
-    TNode<IntPtrT> offset = ElementOffsetFromIndex(index, PACKED_ELEMENTS,
-                                                   OFFSET_OF_DATA_START(Array));
+    TNode<IntPtrT> offset =
+        ElementOffsetFromIndex(ChangeUint32ToWord(index), PACKED_ELEMENTS,
+                               OFFSET_OF_DATA_START(Array));
     if (barrier_mode == SKIP_WRITE_BARRIER) {
       StoreObjectFieldNoWriteBarrier(object, offset, value);
     } else if (barrier_mode == UPDATE_WRITE_BARRIER) {
@@ -2363,8 +2362,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void FillEntireFixedArrayWithSmiZero(ElementsKind kind,
                                        TNode<FixedArray> array,
                                        TNode<IntPtrT> length) {
-    CSA_DCHECK(this,
-               WordEqual(length, LoadAndUntagFixedArrayBaseLength(array)));
+    CSA_DCHECK(this, WordEqual(length, LoadFixedArrayBaseLength(array)));
     FillFixedArrayWithSmiZero(kind, array, IntPtrConstant(0), length);
   }
 
@@ -2373,8 +2371,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     TNode<IntPtrT> length);
   void FillEntireFixedDoubleArrayWithZero(TNode<FixedDoubleArray> array,
                                           TNode<IntPtrT> length) {
-    CSA_DCHECK(this,
-               WordEqual(length, LoadAndUntagFixedArrayBaseLength(array)));
+    CSA_DCHECK(this, WordEqual(length, LoadFixedArrayBaseLength(array)));
     FillFixedDoubleArrayWithZero(array, IntPtrConstant(0), length);
   }
 
@@ -2484,14 +2481,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return UncheckedCast<FixedDoubleArray>(base);
   }
 
-  TNode<ArrayList> AllocateArrayList(TNode<Smi> size);
+  TNode<ArrayList> AllocateArrayList(TNode<Uint32T> size);
   TNode<ArrayList> ArrayListEnsureSpace(TNode<ArrayList> array,
-                                        TNode<Smi> length);
+                                        TNode<Uint32T> length);
   TNode<ArrayList> ArrayListAdd(TNode<ArrayList> array, TNode<Object> object);
-  void ArrayListSet(TNode<ArrayList> array, TNode<Smi> index,
+  void ArrayListSet(TNode<ArrayList> array, TNode<Uint32T> index,
                     TNode<Object> object);
-  TNode<Smi> ArrayListGetLength(TNode<ArrayList> array);
-  void ArrayListSetLength(TNode<ArrayList> array, TNode<Smi> length);
+  TNode<Uint32T> ArrayListGetLength(TNode<ArrayList> array);
+  void ArrayListSetLength(TNode<ArrayList> array, TNode<Uint32T> length);
   // TODO(jgruber): Rename to ArrayListToFixedArray.
   TNode<FixedArray> ArrayListElements(TNode<ArrayList> array);
 
@@ -2646,17 +2643,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<FixedArrayBase> TryGrowElementsCapacity(TNode<HeapObject> object,
                                                 TNode<FixedArrayBase> elements,
                                                 ElementsKind kind,
-                                                TNode<Smi> key, Label* bailout);
+                                                TNode<IntPtrT> key,
+                                                Label* bailout);
 
   // Tries to grow the |capacity|-length |elements| array of given |object|
   // to store the |key| or bails out if the growing gap is too big. Returns
   // new elements.
-  template <typename TIndex>
   TNode<FixedArrayBase> TryGrowElementsCapacity(TNode<HeapObject> object,
                                                 TNode<FixedArrayBase> elements,
                                                 ElementsKind kind,
-                                                TNode<TIndex> key,
-                                                TNode<TIndex> capacity,
+                                                TNode<IntPtrT> key,
+                                                TNode<IntPtrT> capacity,
                                                 Label* bailout);
 
   // Grows elements capacity of given object. Returns new elements.
@@ -3895,7 +3892,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                            TNode<HeapObject> maybe_feedback_vector,
                            TNode<UintPtrT> slot_id);
 
-  void UpdateEmbeddedFeedback(TNode<Int32T> feedback,
+  void UpdateEmbeddedFeedback(TNode<Smi> feedback,
                               TNode<BytecodeArray> bytecode_array,
                               TNode<IntPtrT> feedback_offset);
 
@@ -3912,6 +3909,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Overwrite the existing feedback with new_feedback. Do nothing if
   // existing_feedback is nullptr.
   void OverwriteFeedback(TVariable<Smi>* existing_feedback, int new_feedback);
+
+  // Convert comparison feedback to corresponding feedback index.
+  TNode<Int32T> EncodeCompareOperationFeedback(TNode<Smi> feedback_value);
+
+  // Combine comparison feedback index using transition map.
+  TNode<Uint8T> CombineCompareOperationFeedback(
+      TNode<Int32T> old_feedback_index, TNode<Int32T> current_feedback_index);
 
   // Check if a property name might require protector invalidation when it is
   // used for a property store or deletion.

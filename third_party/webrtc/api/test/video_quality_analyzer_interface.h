@@ -22,7 +22,6 @@
 #include "api/test/stats_observer_interface.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_frame.h"
-#include "api/video_codecs/video_encoder.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {
@@ -113,12 +112,6 @@ class VideoQualityAnalyzerInterface
   // Will be called for each frame dropped by encoder.
   // `peer_name` is name of the peer on which side frame drop was detected.
   virtual void OnFrameDropped(absl::string_view /* peer_name */) {}
-  // TODO: webrtc:467444018 - Remove when downstream usage is gone.
-  [[deprecated("Use callback without DropReason parameter")]]
-  virtual void OnFrameDropped(absl::string_view peer_name,
-                              EncodedImageCallback::DropReason /* reason */) {
-    OnFrameDropped(peer_name);
-  }
   // Will be called before calling the decoder.
   // `peer_name` is name of the peer on which side frame was received.
   virtual void OnFramePreDecode(absl::string_view /* peer_name */,

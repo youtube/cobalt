@@ -437,7 +437,7 @@ void HTMLSelectElement::ParseAttribute(
           DynamicTo<HTMLSelectedContentElement>(
               getElementByIdIncludingDisconnected(*this, params.new_value));
       if (old_selectedcontent != new_selectedcontent && new_selectedcontent) {
-        new_selectedcontent->CloneContentsFromOptionElement(SelectedOption());
+        UpdateIndividualSelectedcontent(*new_selectedcontent);
       }
     }
   } else {
@@ -908,10 +908,19 @@ void HTMLSelectElement::OptionInserted(HTMLOptionElement& option,
 
 void HTMLSelectElement::OptionRemoved(HTMLOptionElement& option) {
   SetRecalcListItems();
-  if (option.Selected())
-    ResetToDefaultSelection(kResetReasonSelectedOptionRemoved);
-  else if (!last_on_change_option_)
-    ResetToDefaultSelection();
+  if (IsMultiple()) {
+    // ResetToDefaultSelection early-outs for select multiple, so we need to
+    // manually update the selectedcontent element here.
+    if (option.Selected()) {
+      UpdateAllSelectedcontentsMultiple();
+    }
+  } else {
+    if (option.Selected()) {
+      ResetToDefaultSelection(kResetReasonSelectedOptionRemoved);
+    } else if (!last_on_change_option_) {
+      ResetToDefaultSelection();
+    }
+  }
   if (last_on_change_option_ == &option)
     last_on_change_option_.Clear();
   select_type_->OptionRemoved(option);
@@ -974,8 +983,10 @@ void HTMLSelectElement::SelectOption(HTMLOptionElement* element,
   if (flags & kDeselectOtherOptionsFlag)
     should_update_popup |= DeselectItemsWithoutValidation(element);
 
-  if (!IsMultiple()) {
-    UpdateAllSelectedcontents(element);
+  if (IsMultiple()) {
+    UpdateAllSelectedcontentsMultiple();
+  } else {
+    UpdateAllSelectedcontentsSingle(element);
   }
 
   // Note that DidSelectOption fires change events, which can invoke script
@@ -1019,9 +1030,14 @@ void HTMLSelectElement::SelectOptionFromPopoverPickerOrListbox(
         }
       }
     }
+    SetNeedsValidityCheck();
     DispatchInputEvent();
     DispatchChangeEvent();
-    // TODO call UpdateAllSelectedcontents()
+    if (!IsMultiple()) {
+      UpdateAllSelectedcontentsSingle(option->Selected() ? option : nullptr);
+    } else if (RuntimeEnabledFeatures::SelectedcontentMultipleEnabled()) {
+      UpdateAllSelectedcontentsMultiple();
+    }
     select_type_->UpdateTextStyleAndContent();
   } else {
     SelectOptionByPopup(option);
@@ -1143,7 +1159,7 @@ void HTMLSelectElement::RestoreFormControlState(const FormControlState& state) {
         option_element = nullptr;
       }
     }
-    UpdateAllSelectedcontents(last_on_change_option_);
+    UpdateAllSelectedcontentsSingle(last_on_change_option_);
   } else {
     wtf_size_t start_index = 0;
     for (wtf_size_t i = 0; i < state.ValueSize(); i += 2) {
@@ -1169,6 +1185,7 @@ void HTMLSelectElement::RestoreFormControlState(const FormControlState& state) {
         start_index = found_index + 1;
       }
     }
+    UpdateAllSelectedcontentsMultiple();
   }
 
   SetNeedsValidityCheck();
@@ -1537,7 +1554,7 @@ LayoutUnit HTMLSelectElement::ClientPaddingLeft() const {
       style.IsLeftToRightDirection()
           ? theme.PopupInternalPaddingStart(style)
           : theme.PopupInternalPaddingEnd(GetDocument().GetFrame(), style);
-  return this_box->PaddingLeft() + inner_padding;
+  return this_box->PaddingOutsets().left + inner_padding;
 }
 
 LayoutUnit HTMLSelectElement::ClientPaddingRight() const {
@@ -1552,7 +1569,7 @@ LayoutUnit HTMLSelectElement::ClientPaddingRight() const {
       style.IsLeftToRightDirection()
           ? theme.PopupInternalPaddingEnd(GetDocument().GetFrame(), style)
           : theme.PopupInternalPaddingStart(style);
-  return this_box->PaddingRight() + inner_padding;
+  return this_box->PaddingOutsets().right + inner_padding;
 }
 
 void HTMLSelectElement::PopupDidHide() {
@@ -1648,6 +1665,16 @@ void HTMLSelectElement::AttachLayoutTree(AttachContext& context) {
 void HTMLSelectElement::DetachLayoutTree(bool performing_reattach) {
   HTMLFormControlElementWithState::DetachLayoutTree(performing_reattach);
   select_type_->DidDetachLayoutTree();
+}
+
+void HTMLSelectElement::RemovedFrom(ContainerNode& insertion_point) {
+  // Disconnect the descendants observer on the way out of the document.
+  // Otherwise any mutation records it still has queued will be delivered
+  // after the select is detached, and the DCHECK(IsAppearanceBase()) in
+  // IncreaseContentModelViolationCount() will fire -- a detached element
+  // has no computed style, so IsAppearanceBase() returns false.
+  UpdateMutationObserver();
+  HTMLFormControlElementWithState::RemovedFrom(insertion_point);
 }
 
 void HTMLSelectElement::ResetTypeAheadSessionForTesting() {
@@ -1846,9 +1873,9 @@ void HTMLSelectElement::SelectedContentElementInsertedLegacy(
   descendant_selectedcontents_.Add(selectedcontent);
   auto iter = descendant_selectedcontents_.begin();
   if (*iter == selectedcontent) {
-    selectedcontent->CloneContentsFromOptionElement(SelectedOption());
+    UpdateIndividualSelectedcontent(*selectedcontent);
     if (++iter != descendant_selectedcontents_.end()) {
-      (*iter)->CloneContentsFromOptionElement(nullptr);
+      (*iter)->RemoveChildren();
     }
   }
 }
@@ -1862,8 +1889,7 @@ void HTMLSelectElement::SelectedContentElementRemoved(
         *descendant_selectedcontents_.begin() == removed_selectedcontent;
     descendant_selectedcontents_.Remove(removed_selectedcontent);
     if (was_first && !descendant_selectedcontents_.IsEmpty()) {
-      (*descendant_selectedcontents_.begin())
-          ->CloneContentsFromOptionElement(SelectedOption());
+      UpdateIndividualSelectedcontent(**descendant_selectedcontents_.begin());
     }
   }
 }
@@ -1945,13 +1971,13 @@ void HTMLSelectElement::setSelectedContentElement(
                       new_selectedcontent);
 
   if (old_selectedcontent != new_selectedcontent && new_selectedcontent) {
-    new_selectedcontent->CloneContentsFromOptionElement(SelectedOption());
+    UpdateIndividualSelectedcontent(*new_selectedcontent);
   }
 }
 
-void HTMLSelectElement::UpdateAllSelectedcontents(
+void HTMLSelectElement::UpdateAllSelectedcontentsSingle(
     HTMLOptionElement* selected_option) {
-  DCHECK(!IsMultiple());
+  CHECK(!IsMultiple());
   // SelectedOption() can be slow, so callers are required to pass it in, and
   // we have a DCHECK() that they did so correctly.
   DCHECK_EQ(selected_option, SelectedOption());
@@ -1978,6 +2004,31 @@ void HTMLSelectElement::UpdateAllSelectedcontents(
     if (auto* attr_selectedcontent = selectedContentElement()) {
       attr_selectedcontent->CloneContentsFromOptionElement(selected_option);
     }
+  }
+}
+
+void HTMLSelectElement::UpdateAllSelectedcontentsMultiple() {
+  CHECK(IsMultiple());
+  if (!RuntimeEnabledFeatures::SelectedcontentMultipleEnabled()) {
+    return;
+  }
+  for (HTMLSelectedContentElement* selectedcontent :
+       descendant_selectedcontents_) {
+    selectedcontent->CloneMultipleOptionsFromSelectElement(*this);
+  }
+}
+
+void HTMLSelectElement::UpdateIndividualSelectedcontent(
+    HTMLSelectedContentElement& selectedcontent) {
+  DCHECK(RuntimeEnabledFeatures::SelectedcontentelementAttributeEnabled() ||
+         descendant_selectedcontents_.Contains(&selectedcontent));
+  if (IsMultiple()) {
+    if (!RuntimeEnabledFeatures::SelectedcontentMultipleEnabled()) {
+      return;
+    }
+    selectedcontent.CloneMultipleOptionsFromSelectElement(*this);
+  } else {
+    selectedcontent.CloneContentsFromOptionElement(SelectedOption());
   }
 }
 

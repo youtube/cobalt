@@ -29,6 +29,7 @@
 #include "pdf/draw_utils/page_boundary_intersect.h"
 #include "pdf/input_utils.h"
 #include "pdf/message_util.h"
+#include "pdf/mojom/pdf.mojom.h"
 #include "pdf/page_orientation.h"
 #include "pdf/pdf_caret.h"
 #include "pdf/pdf_features.h"
@@ -37,6 +38,7 @@
 #include "pdf/pdf_ink_cursor.h"
 #include "pdf/pdf_ink_metrics_handler.h"
 #include "pdf/pdf_ink_module_client.h"
+#include "pdf/pdf_ink_text.h"
 #include "pdf/pdf_ink_transform.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/blink/public/common/input/web_keyboard_event.h"
@@ -129,6 +131,18 @@ void CheckColorIsWithinRange(int color) {
   CHECK_LE(color, 255);
 }
 
+SkColor GetColorFromDict(const base::DictValue& dict) {
+  const base::DictValue& color = *dict.FindDict("color");
+  int color_r = color.FindInt("r").value();
+  int color_g = color.FindInt("g").value();
+  int color_b = color.FindInt("b").value();
+
+  CheckColorIsWithinRange(color_r);
+  CheckColorIsWithinRange(color_g);
+  CheckColorIsWithinRange(color_b);
+  return SkColorSetRGB(color_r, color_g, color_b);
+}
+
 ink::Rect GetEraserRect(const gfx::PointF& center) {
   return ink::Rect::FromTwoPoints(
       {center.x() - kEraserSize, center.y() - kEraserSize},
@@ -175,7 +189,7 @@ PdfInkModule::PdfInkModule(PdfInkModuleClient& client)
 PdfInkModule::~PdfInkModule() = default;
 
 bool PdfInkModule::ShouldBlockTextSelectionChanged() {
-  return features::kPdfInk2TextHighlighting.Get() && is_text_highlighting();
+  return is_text_highlighting();
 }
 
 bool PdfInkModule::HasInputsToDraw() const {
@@ -401,10 +415,6 @@ const PdfInkBrush* PdfInkModule::GetPdfInkBrushForTesting() const {
 }
 
 bool PdfInkModule::OnKeyDown(const blink::WebKeyboardEvent& event) {
-  if (!features::kPdfInk2TextHighlighting.Get()) {
-    return false;
-  }
-
   // Return false if not starting or continuing a text highlight.
   if (is_erasing_stroke() ||
       (is_drawing_stroke() &&
@@ -477,8 +487,7 @@ bool PdfInkModule::OnMouseDown(const blink::WebMouseEvent& event) {
 
   if (is_drawing_stroke()) {
     MaybeFinishStrokeForMissingMouseUpEvent();
-  } else if (features::kPdfInk2TextHighlighting.Get() &&
-             is_text_highlighting()) {
+  } else if (is_text_highlighting()) {
     const EventDetails& event_details = text_highlight_state().input_last_event;
     FinishTextHighlight(event_details.position,
                         /*is_multi_click=*/false, event_details.tool_type);
@@ -502,7 +511,7 @@ bool PdfInkModule::OnMouseUp(const blink::WebMouseEvent& event) {
   }
 
   gfx::PointF position = event.PositionInWidget();
-  if (features::kPdfInk2TextHighlighting.Get() && is_text_highlighting()) {
+  if (is_text_highlighting()) {
     return FinishTextHighlight(position, /*is_multi_click=*/false,
                                ink::StrokeInput::ToolType::kMouse);
   }
@@ -520,8 +529,7 @@ bool PdfInkModule::OnMouseMove(const blink::WebMouseEvent& event) {
   // Before the multi-click text selection timer fired, the mouse moved to a new
   // position, so the click count can no longer increment. Fire the timer
   // immediately.
-  if (features::kPdfInk2TextHighlighting.Get() &&
-      text_selection_click_timer_.IsRunning()) {
+  if (text_selection_click_timer_.IsRunning()) {
     text_selection_click_timer_.FireNow();
   }
 
@@ -530,7 +538,7 @@ bool PdfInkModule::OnMouseMove(const blink::WebMouseEvent& event) {
   bool still_interacting_with_ink =
       event.GetModifiers() & blink::WebInputEvent::kLeftButtonDown;
   if (still_interacting_with_ink) {
-    if (features::kPdfInk2TextHighlighting.Get() && is_text_highlighting()) {
+    if (is_text_highlighting()) {
       return ContinueTextHighlight(position);
     }
 
@@ -559,7 +567,7 @@ bool PdfInkModule::OnMouseMove(const blink::WebMouseEvent& event) {
                                               input_last_event.timestamp));
   }
 
-  if (features::kPdfInk2TextHighlighting.Get() && is_text_highlighting()) {
+  if (is_text_highlighting()) {
     // Text highlighting is not sensitive to particular timestamps, just use
     // current time.
     return OnMouseUp(GenerateLeftMouseUpEvent(
@@ -636,8 +644,7 @@ bool PdfInkModule::OnTouchStart(const blink::WebTouchEvent& event) {
 
   if (is_drawing_stroke()) {
     MaybeFinishStrokeForMissingMouseUpEvent();
-  } else if (features::kPdfInk2TextHighlighting.Get() &&
-             is_text_highlighting()) {
+  } else if (is_text_highlighting()) {
     const EventDetails& event_details = text_highlight_state().input_last_event;
     FinishTextHighlight(event_details.position,
                         /*is_multi_click=*/false, event_details.tool_type);
@@ -689,7 +696,7 @@ bool PdfInkModule::OnTouchEnd(const blink::WebTouchEvent& event) {
 
   const blink::WebTouchPoint& touch_point = event.touches[0];
   gfx::PointF position = touch_point.PositionInWidget();
-  if (features::kPdfInk2TextHighlighting.Get() && is_text_highlighting()) {
+  if (is_text_highlighting()) {
     return FinishTextHighlight(position, /*is_multi_click=*/false, tool_type);
   }
   if (is_drawing_stroke()) {
@@ -728,7 +735,7 @@ bool PdfInkModule::OnTouchMove(const blink::WebTouchEvent& event) {
 
   const blink::WebTouchPoint& touch_point = event.touches[0];
   gfx::PointF position = touch_point.PositionInWidget();
-  if (features::kPdfInk2TextHighlighting.Get() && is_text_highlighting()) {
+  if (is_text_highlighting()) {
     return ContinueTextHighlight(position);
   }
   if (is_drawing_stroke()) {
@@ -1274,12 +1281,16 @@ std::optional<ink::Stroke> PdfInkModule::GetHighlightStrokeFromSelectionRect(
     }
   }
 
-  // Make a copy of the ink brush to avoid modifying the drawing highlighter.
-  ink::Brush ink_brush = highlighter_brush_.ink_brush();
-  if (!ink_brush.SetSize(stroke_data.brush_size).ok()) {
+  // Make a copy of the brush to avoid modifying the drawing highlighter.
+  // The copy uses a pass-through input model to accurately draw highlighter
+  // strokes based on `selection_rect`.
+  std::optional<ink::Brush> ink_brush =
+      highlighter_brush_.CloneToPassthroughModelWithSize(
+          stroke_data.brush_size);
+  if (!ink_brush.has_value()) {
     return std::nullopt;
   }
-  return ink::Stroke(ink_brush, batch);
+  return ink::Stroke(ink_brush.value(), batch);
 }
 
 PdfInkModule::TextSelectionHighlightStrokeData
@@ -1475,22 +1486,13 @@ void PdfInkModule::HandleSetAnnotationBrushMessage(
   }
 
   // All brush types except the eraser should have a color and size.
-  const base::DictValue* color = data->FindDict("color");
-  CHECK(color);
-
-  int color_r = color->FindInt("r").value();
-  int color_g = color->FindInt("g").value();
-  int color_b = color->FindInt("b").value();
-
-  CheckColorIsWithinRange(color_r);
-  CheckColorIsWithinRange(color_g);
-  CheckColorIsWithinRange(color_b);
+  SkColor color = GetColorFromDict(*data);
 
   std::optional<PdfInkBrush::Type> brush_type =
       PdfInkBrush::StringToType(brush_type_string);
   CHECK(brush_type.has_value());
-  pending_drawing_brush_state_ = PendingDrawingBrushState{
-      SkColorSetRGB(color_r, color_g, color_b), size, brush_type.value()};
+  pending_drawing_brush_state_ =
+      PendingDrawingBrushState{color, size, brush_type.value()};
 
   // Do not adjust current tool state if a drawing stroke is already
   // in-progress.  Changes to the tool state will only apply to subsequent
@@ -1542,13 +1544,47 @@ void PdfInkModule::HandleEditTextAnnotationMessage(
 
 void PdfInkModule::HandleFinishTextAnnotationMessage(
     const base::DictValue& message) {
-  // TODO(crbug.com/408976049): Implement.
+  const base::DictValue& data = *message.FindDict("data");
+  const base::ListValue& typefaces_value = *data.FindList("newTypefaces");
+  for (const base::Value& item : typefaces_value) {
+    const base::DictValue& item_as_dict = item.GetDict();
+    FontId unique_id(item_as_dict.FindInt("uniqueId").value());
+    const std::vector<uint8_t>& serialized_typeface =
+        *item_as_dict.FindBlob("serializedTypeface");
+    client_->AddFont(unique_id, serialized_typeface);
+  }
+
+  const std::vector<uint8_t>& text_info_blob = *data.FindBlob("mojoTextInfo");
+  pdf::mojom::InkTextInfoPtr text_info_mojo;
+  CHECK(pdf::mojom::InkTextInfo::Deserialize(text_info_blob, &text_info_mojo));
+
+  std::vector<InkTextInfo> ink_info = InkTextInfo::SplitTypefaceRuns(
+      text_info_mojo->text_runs, text_info_mojo->effective_zoom);
+
+  int page_index = data.FindInt("pageIndex").value();
+
+  const base::DictValue& text_attributes = *data.FindDict("textAttributes");
+  SkColor color = GetColorFromDict(text_attributes);
+  float font_size = text_attributes.FindDouble("size").value();
+
+  // Note: `pdf_zoom` is similar to GetZoom() but GetZoom() is multiplied by
+  // device scale factor while this value isn't. Additionally `pdf_zoom` comes
+  // from the frontend at the exact same time as the annotation commit happens
+  // to avoid any potential sync race issues between the frontend and backend.
+  double pdf_zoom = data.FindDouble("pdfZoom").value();
+
+  const base::DictValue& text_box_rect = *data.FindDict("textBoxRect");
+  gfx::RectF textbox(text_box_rect.FindDouble("locationX").value(),
+                     text_box_rect.FindDouble("locationY").value(),
+                     text_box_rect.FindDouble("width").value(),
+                     text_box_rect.FindDouble("height").value());
+
+  client_->DrawText(page_index, ink_info, color, font_size, pdf_zoom, textbox);
 }
 
 bool PdfInkModule::IsHighlightingTextAtPosition(
     const gfx::PointF& position) const {
-  return features::kPdfInk2TextHighlighting.Get() &&
-         drawing_stroke_state().brush_type == PdfInkBrush::Type::kHighlighter &&
+  return drawing_stroke_state().brush_type == PdfInkBrush::Type::kHighlighter &&
          client_->IsSelectableTextOrLinkArea(position);
 }
 
@@ -1825,7 +1861,7 @@ void PdfInkModule::MaybeSetCursor() {
       return;
 
     case InkAnnotationMode::kDraw: {
-      if (features::kPdfInk2TextHighlighting.Get() && is_text_highlighting()) {
+      if (is_text_highlighting()) {
         return;
       }
 
@@ -1860,10 +1896,6 @@ void PdfInkModule::MaybeSetCursor() {
 }
 
 void PdfInkModule::MaybeSetCursorOnMouseMove(const gfx::PointF& position) {
-  if (!features::kPdfInk2TextHighlighting.Get()) {
-    return;
-  }
-
   CHECK(is_drawing_stroke());
   if (drawing_stroke_state().brush_type != PdfInkBrush::Type::kHighlighter ||
       !client_->IsSelectableTextOrLinkArea(position)) {

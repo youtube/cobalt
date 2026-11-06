@@ -30,6 +30,7 @@
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/crypto/crypto_options.h"
+#include "api/data_channel_interface.h"
 #include "api/dtmf_sender_interface.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
@@ -61,14 +62,17 @@
 #include "media/base/codec.h"
 #include "media/base/media_constants.h"
 #include "media/base/stream_params.h"
+#include "p2p/base/p2p_constants.h"
 #include "p2p/base/port.h"
 #include "p2p/base/port_allocator.h"
 #include "p2p/base/transport_description.h"
 #include "p2p/base/transport_info.h"
+#include "p2p/dtls/dtls_transport_internal.h"
 #include "p2p/test/test_turn_server.h"
 #include "pc/media_session.h"
 #include "pc/peer_connection.h"
 #include "pc/peer_connection_factory.h"
+#include "pc/sctp_transport.h"
 #include "pc/session_description.h"
 #include "pc/test/fake_periodic_video_source.h"
 #include "pc/test/integration_test_helpers.h"
@@ -86,6 +90,7 @@
 #include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/test_certificate_verifier.h"
+#include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "system_wrappers/include/metrics.h"
 #include "test/gmock.h"
@@ -109,6 +114,7 @@ using ::testing::NiceMock;
 using ::testing::Not;
 using ::testing::NotNull;
 using ::testing::Return;
+using ::testing::SizeIs;
 using ::testing::WithParamInterface;
 
 class PeerConnectionIntegrationTest : public PeerConnectionIntegrationBaseTest,
@@ -306,7 +312,8 @@ class DummyDtmfObserver : public DtmfSenderObserverInterface {
   DummyDtmfObserver() : completed_(false) {}
 
   // Implements DtmfSenderObserverInterface.
-  void OnToneChange(const std::string& tone) override {
+  void OnToneChange(const std::string& tone,
+                    const std::string& /* tone_buffer */) override {
     tones_.push_back(tone);
     if (tone.empty()) {
       completed_ = true;
@@ -5124,6 +5131,230 @@ TEST_P(PeerConnectionIntegrationTest, PerPeerConnectionHeaderExtensions) {
                 Not(Contains(Field(&RtpExtension::uri, uri))));
   }
 }
+
+#ifdef WEBRTC_HAVE_SCTP
+
+class DowngradeLogSink : public LogSink {
+ public:
+  void OnLogMessage(const std::string& message) override {
+    if (message.find("Received unexpected non-DTLS packet") !=
+        std::string::npos) {
+      found_ = true;
+    }
+  }
+  bool found() const { return found_; }
+
+ private:
+  bool found_ = false;
+};
+
+// This test reproduces the vulnerability where a kPrAnswer with a BUNDLE group
+// but no fingerprint for a media section can cause that media section to use
+// an unencrypted transport.
+TEST_P(PeerConnectionIntegrationTest,
+       DataChannelEncryptionDowngradeViaBundleDesyncInPrAnswer) {
+  RTCConfiguration config;
+  config.bundle_policy = PeerConnectionInterface::kBundlePolicyBalanced;
+  ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));
+  ConnectFakeSignaling();
+
+  // 1. Initial negotiation without BUNDLE.
+  // We munge the answer to remove BUNDLE so that separate transports are
+  // created.
+  callee()->SetGeneratedSdpMunger(
+      [](std::unique_ptr<SessionDescriptionInterface>& desc) {
+        desc->description()->RemoveGroupByName(GROUP_TYPE_BUNDLE);
+      });
+
+  caller()->AddVideoTrack();
+  caller()->CreateDataChannel();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  ASSERT_TRUE(WaitUntil([&] { return DtlsConnected(); }));
+
+  // 2. Renegotiation with BUNDLE in offer, and malicious prAnswer.
+  // The malicious prAnswer will have a BUNDLE group containing mid 0 and mid 1,
+  // but mid 1 (Data Channel) will have no fingerprint.
+  callee()->SetGeneratedSdpMunger(nullptr);
+
+  // Create an offer.
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller()->CreateOfferAndWait();
+  ASSERT_THAT(offer, NotNull());
+
+  // Set local offer on caller.
+  auto observer = make_ref_counted<FakeSetLocalDescriptionObserver>();
+  caller()->pc()->SetLocalDescription(std::move(offer), observer);
+  ASSERT_TRUE(WaitUntil([&] { return observer->called(); }));
+
+  // Set remote offer on callee.
+  std::unique_ptr<SessionDescriptionInterface> offer_for_callee =
+      caller()->CreateOfferAndWait();
+  ASSERT_THAT(offer_for_callee, NotNull());
+  ASSERT_TRUE(callee()->SetRemoteDescription(std::move(offer_for_callee)));
+
+  // Callee creates a normal answer first.
+  auto answer_observer =
+      make_ref_counted<MockCreateSessionDescriptionObserver>();
+  callee()->pc()->CreateAnswer(
+      answer_observer.get(), PeerConnectionInterface::RTCOfferAnswerOptions());
+  ASSERT_TRUE(WaitUntil([&] { return answer_observer->called(); }));
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      answer_observer->MoveDescription();
+  ASSERT_THAT(answer, NotNull());
+
+  // Convert the answer to a prAnswer by serializing and re-parsing.
+  std::string sdp = answer->ToString();
+  ASSERT_FALSE(sdp.empty());
+  std::unique_ptr<SessionDescriptionInterface> pr_answer =
+      CreateSessionDescription(SdpType::kPrAnswer, sdp);
+  ASSERT_THAT(pr_answer, NotNull());
+
+  // Munge the prAnswer:
+  // - Ensure BUNDLE group is present.
+  // - Remove fingerprint from the second media section (mid 1).
+  SessionDescription* desc = pr_answer->description();
+  const ContentGroup* bundle_group = desc->GetGroupByName(GROUP_TYPE_BUNDLE);
+  ASSERT_THAT(bundle_group, NotNull());
+  ASSERT_THAT(bundle_group->content_names(), SizeIs(2));
+
+  // Remove fingerprint from the second content.
+  const ContentInfos& contents = desc->contents();
+  ASSERT_GE(contents.size(), 2u);
+  TransportInfo* transport_info =
+      desc->GetTransportInfoByName(contents[1].mid());
+  ASSERT_THAT(transport_info, NotNull());
+  transport_info->description.identity_fingerprint.reset();
+
+  // Set the remote prAnswer on the caller.
+  // This succeeds because VerifyCrypto skips the fingerprint check for
+  // bundled sections (except the first).
+  ASSERT_TRUE(caller()->SetRemoteDescription(std::move(pr_answer)));
+
+  // With the fix, the Data Channel's transport will now be BUNDLED into mid 0.
+  // Since mid 0 has DTLS active, mid 1's data will also be DTLS-wrapped.
+  // We can verify this by checking that the SCTP transport's internal DTLS
+  // transport is active.
+  EXPECT_TRUE(network_thread()->BlockingCall([&] {
+    return static_cast<SctpTransport*>(caller()->pc()->GetSctpTransport().get())
+        ->internal()
+        ->dtls_transport()
+        ->IsDtlsActive();
+  }));
+
+  // If the bug were present, it would be sent as raw SCTP and trigger an error
+  // on the peer.
+
+  DowngradeLogSink downgrade_log_sink;
+  LogMessage::AddLogToStream(&downgrade_log_sink, LS_ERROR);
+
+  // Send data from caller.
+  ASSERT_EQ(caller()->data_channels().size(), 1u);
+  ASSERT_TRUE(WaitUntil([&] {
+    return caller()->data_channels()[0]->state() == DataChannelInterface::kOpen;
+  }));
+  caller()->data_channels()[0]->Send(DataBuffer("SECRET-PLAINTEXT"));
+
+  // If the fix is correct, no non-DTLS packets should be received.
+  // We wait a bit to ensure packets have time to arrive.
+  Thread::Current()->ProcessMessages(500);
+
+  bool found = downgrade_log_sink.found();
+  LogMessage::RemoveLogToStream(&downgrade_log_sink);
+
+  EXPECT_FALSE(found) << "Security downgrade detected: raw SCTP packets sent "
+                         "instead of DTLS-wrapped packets.";
+}
+
+// This test verifies that establishing BUNDLE in a prAnswer does not cause
+// the destruction of transports that might be needed if the final answer
+// removes BUNDLE.
+TEST_P(PeerConnectionIntegrationTest,
+       BundleEstablishedInPrAnswerThenRemovedInFinalAnswer) {
+  RTCConfiguration config;
+  config.bundle_policy = PeerConnectionInterface::kBundlePolicyBalanced;
+  ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));
+  ConnectFakeSignaling();
+
+  // 1. Initial negotiation without BUNDLE.
+  callee()->SetGeneratedSdpMunger(
+      [](std::unique_ptr<SessionDescriptionInterface>& desc) {
+        desc->description()->RemoveGroupByName(GROUP_TYPE_BUNDLE);
+      });
+
+  caller()->AddVideoTrack();
+  caller()->CreateDataChannel();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  ASSERT_TRUE(WaitUntil([&] { return DtlsConnected(); }));
+
+  // 2. Renegotiation with BUNDLE in offer and prAnswer, then NO BUNDLE in
+  // answer.
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller()->CreateOfferAndWait();
+  ASSERT_THAT(offer, NotNull());
+
+  // Set local offer on caller.
+  auto observer = make_ref_counted<FakeSetLocalDescriptionObserver>();
+  caller()->pc()->SetLocalDescription(std::move(offer), observer);
+  ASSERT_TRUE(WaitUntil([&] { return observer->called(); }));
+
+  // Set remote offer on callee.
+  std::unique_ptr<SessionDescriptionInterface> offer_for_callee =
+      caller()->CreateOfferAndWait();
+  ASSERT_THAT(offer_for_callee, NotNull());
+  ASSERT_TRUE(callee()->SetRemoteDescription(std::move(offer_for_callee)));
+
+  // Callee creates a prAnswer WITH BUNDLE.
+  auto answer_observer =
+      make_ref_counted<MockCreateSessionDescriptionObserver>();
+  callee()->pc()->CreateAnswer(
+      answer_observer.get(), PeerConnectionInterface::RTCOfferAnswerOptions());
+  ASSERT_TRUE(WaitUntil([&] { return answer_observer->called(); }));
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      answer_observer->MoveDescription();
+  ASSERT_THAT(answer, NotNull());
+
+  std::string sdp = answer->ToString();
+  ASSERT_FALSE(sdp.empty());
+  std::unique_ptr<SessionDescriptionInterface> pr_answer =
+      CreateSessionDescription(SdpType::kPrAnswer, sdp);
+  ASSERT_THAT(pr_answer, NotNull());
+
+  // Set the remote prAnswer on the caller.
+  // This establishes BUNDLE.
+  const ContentGroup* bundle_group =
+      pr_answer->description()->GetGroupByName(GROUP_TYPE_BUNDLE);
+  ASSERT_THAT(bundle_group, NotNull());
+  ASSERT_THAT(bundle_group->content_names(), SizeIs(2));
+
+  ASSERT_TRUE(caller()->SetRemoteDescription(std::move(pr_answer)));
+
+  // 3. Final answer WITHOUT BUNDLE.
+  auto final_answer_observer =
+      make_ref_counted<MockCreateSessionDescriptionObserver>();
+  callee()->pc()->CreateAnswer(
+      final_answer_observer.get(),
+      PeerConnectionInterface::RTCOfferAnswerOptions());
+  ASSERT_TRUE(WaitUntil([&] { return final_answer_observer->called(); }));
+  std::unique_ptr<SessionDescriptionInterface> final_answer =
+      final_answer_observer->MoveDescription();
+  ASSERT_THAT(final_answer, NotNull());
+
+  // Munge it to remove BUNDLE.
+  final_answer->description()->RemoveGroupByName(GROUP_TYPE_BUNDLE);
+
+  // Verify it has no bundle.
+  ASSERT_FALSE(final_answer->description()->GetGroupByName(GROUP_TYPE_BUNDLE));
+
+  // Set the final remote answer on the caller.
+  // This should FAIL because mid 0 was already bundled with mid 1 in the
+  // prAnswer, and RFC 8843 says you can't remove an m= section from a BUNDLE
+  // group once it's been established.
+  ASSERT_FALSE(caller()->SetRemoteDescription(std::move(final_answer)));
+}
+
+#endif  // WEBRTC_HAVE_SCTP
 
 }  // namespace
 

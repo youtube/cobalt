@@ -76,6 +76,7 @@ class QUICHE_EXPORT ProofSource {
     bool chains_match_sni = false;
     std::vector<quiche::QuicheReferenceCountedPointer<Chain> absl_nonnull>
         chains;
+    std::optional<ssl_compliance_policy_t> ssl_compliance_policy = std::nullopt;
   };
 
   // Details is an abstract class which acts as a container for any

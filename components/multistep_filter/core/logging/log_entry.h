@@ -6,6 +6,7 @@
 #define COMPONENTS_MULTISTEP_FILTER_CORE_LOGGING_LOG_ENTRY_H_
 
 #include <string>
+#include <string_view>
 
 #include "base/time/time.h"
 #include "base/values.h"
@@ -37,7 +38,7 @@ struct LogEntry {
   // The time when the logged event occurred.
   base::Time timestamp = base::Time::Now();
   // A unique identifier for the navigation this event belongs to.
-  std::string navigation_id;
+  int64_t navigation_id;
   // The type of event that occurred.
   LogEventType event_type = LogEventType::kNavigationStarted;
   // The effective Top-Level Domain plus one (eTLD+1) of the page where the
@@ -46,9 +47,9 @@ struct LogEntry {
   // Additional key-value details associated with the event.
   base::DictValue details;
 
-  LogEntry(std::string nav_id,
+  LogEntry(int64_t navigation_id,
            LogEventType type,
-           std::string source_etld_plus_1);
+           std::string_view source_etld_plus_1);
   LogEntry(LogEntry&& other) noexcept;
   LogEntry& operator=(LogEntry&& other) noexcept;
   ~LogEntry();
@@ -64,9 +65,9 @@ struct LogEntry {
  private:
   // Internal constructor used for cloning.
   LogEntry(base::Time time,
-           std::string nav_id,
+           int64_t navigation_id,
            LogEventType type,
-           std::string source_etld_plus_1);
+           std::string_view source_etld_plus_1);
 };
 
 }  // namespace multistep_filter

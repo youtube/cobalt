@@ -23,6 +23,7 @@
 #endif  // !BUILDFLAG(IS_COBALT)
 #include "components/optimization_guide/public/mojom/model_broker.mojom.h"
 #include "components/viz/host/gpu_client.h"
+#include "components/vrp_flags/buildflags.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/attribution_reporting/attribution_internals.mojom.h"  // nogncheck
 #include "content/browser/attribution_reporting/attribution_internals_ui.h"  // nogncheck
@@ -271,6 +272,12 @@
 #if BUILDFLAG(IS_FUCHSIA)
 #include "content/browser/renderer_host/media/fuchsia_media_cdm_provider_impl.h"
 #include "media/mojo/mojom/fuchsia_media.mojom.h"
+#endif
+
+#if BUILDFLAG(ENABLE_VRP_FLAGS)
+#include "components/vrp_flags/vrp_flags.h"                    // nogncheck
+#include "components/vrp_flags/vrp_flags_impl.h"               // nogncheck
+#include "content/browser/vrp_flags/vrp_flags_factory_impl.h"  // nogncheck
 #endif
 
 namespace blink {
@@ -1304,6 +1311,16 @@ void PopulateBinderMapWithContext(
 #if BUILDFLAG(IS_FUCHSIA)
   map->Add<media::mojom::FuchsiaMediaCdmProvider>(
       &FuchsiaMediaCdmProviderImpl::Bind);
+#endif
+
+#if BUILDFLAG(ENABLE_VRP_FLAGS)
+  if (vrp_flags::IsEnabled()) {
+    map->Add<vrp_flags::mojom::VrpFlagsFactory>(base::BindRepeating(
+        [](content::RenderFrameHost* frame_host,
+           mojo::PendingReceiver<vrp_flags::mojom::VrpFlagsFactory> receiver) {
+          VrpFlagsFactoryImpl::Bind(std::move(receiver));
+        }));
+  }
 #endif
 
   map->Add<blink::mojom::OriginTrialStateHost>(

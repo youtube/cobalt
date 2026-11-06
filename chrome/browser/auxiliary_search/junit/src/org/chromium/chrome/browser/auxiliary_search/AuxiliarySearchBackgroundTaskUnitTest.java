@@ -6,9 +6,9 @@ package org.chromium.chrome.browser.auxiliary_search;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -52,7 +52,6 @@ import org.chromium.url.GURL;
 import org.chromium.url.JUnitTestGURLs;
 
 import java.util.List;
-import java.util.Map;
 
 /** Unit tests for AuxiliarySearchBackgroundTask. */
 @Config(
@@ -184,12 +183,14 @@ public class AuxiliarySearchBackgroundTaskUnitTest {
                         eq(mProfile),
                         eq(URL_1),
                         eq(faviconSize),
+                        anyBoolean(),
                         mFaviconImageCallbackCaptor.capture());
         verify(mFaviconHelper)
                 .getLocalFaviconImageForURL(
                         eq(mProfile),
                         eq(URL_2),
                         eq(faviconSize),
+                        anyBoolean(),
                         mFaviconImageCallbackCaptor.capture());
 
         mFakeTime.advanceMillis(timeDelta);
@@ -204,7 +205,7 @@ public class AuxiliarySearchBackgroundTaskUnitTest {
         mFaviconImageCallbackCaptor.getAllValues().get(0).onFaviconAvailable(bitmap1, URL_1);
         verify(mAuxiliarySearchController, never())
                 .onBackgroundTaskStart(
-                        eq(entries), any(Map.class), mDonateCallbackCaptor.capture(), anyLong());
+                        eq(entries), anyMap(), mDonateCallbackCaptor.capture(), anyLong());
         verify(mTaskFinishedCallback, never()).taskFinished(anyBoolean());
 
         // Verifies that AuxiliarySearchController#onBackgroundTaskStart() is called after two
@@ -212,7 +213,7 @@ public class AuxiliarySearchBackgroundTaskUnitTest {
         mFaviconImageCallbackCaptor.getAllValues().get(0).onFaviconAvailable(null, URL_1);
         verify(mAuxiliarySearchController)
                 .onBackgroundTaskStart(
-                        eq(entries), any(Map.class), mDonateCallbackCaptor.capture(), anyLong());
+                        eq(entries), anyMap(), mDonateCallbackCaptor.capture(), anyLong());
         histogramWatcher.assertExpected();
 
         String histogramName = "Search.AuxiliarySearch.Schedule.FaviconDonateResult";
@@ -262,12 +263,14 @@ public class AuxiliarySearchBackgroundTaskUnitTest {
                         eq(mProfile),
                         eq(URL_1),
                         eq(faviconSize),
+                        anyBoolean(),
                         mFaviconImageCallbackCaptor.capture());
         verify(mFaviconHelper)
                 .getLocalFaviconImageForURL(
                         eq(mProfile),
                         eq(URL_2),
                         eq(faviconSize),
+                        anyBoolean(),
                         mFaviconImageCallbackCaptor.capture());
 
         // Verifies that AuxiliarySearchController#onBackgroundTaskStart() isn't called since there
@@ -281,7 +284,7 @@ public class AuxiliarySearchBackgroundTaskUnitTest {
         mFaviconImageCallbackCaptor.getAllValues().get(0).onFaviconAvailable(null, URL_1);
         verify(mAuxiliarySearchController, never())
                 .onBackgroundTaskStart(
-                        eq(entries), any(Map.class), mDonateCallbackCaptor.capture(), anyLong());
+                        eq(entries), anyMap(), mDonateCallbackCaptor.capture(), anyLong());
 
         // Verifies that mTaskFinishedCallback is notified.
         verify(mTaskFinishedCallback).taskFinished(eq(false));

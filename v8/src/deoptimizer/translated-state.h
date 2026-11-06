@@ -571,9 +571,16 @@ class TranslatedState {
   void InitializeJSObjectAt(TranslatedFrame* frame, int* value_index,
                             TranslatedValue* slot, DirectHandle<Map> map,
                             const DisallowGarbageCollection& no_gc);
+  void InitializeFirstHeaderField(TranslatedFrame* frame, int* value_index,
+                                  TranslatedValue* slot, bool is_fixed_array,
+                                  const DisallowGarbageCollection& no_gc);
   void InitializeObjectWithTaggedFieldsAt(
       TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
-      DirectHandle<Map> map, const DisallowGarbageCollection& no_gc);
+      DirectHandle<Map> map, const DisallowGarbageCollection& no_gc,
+      int consumed_slots);
+  void PrepareObjectForLayoutChange(Handle<HeapObject> object_storage,
+                                    int children_count,
+                                    const DisallowGarbageCollection& no_gc);
 
   Handle<HeapObject> ResolveStringConcat(TranslatedValue* slot);
 

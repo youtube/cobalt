@@ -242,15 +242,22 @@ RTCError RtpTransport::VerifyRtpHeaderExtensionMap(
     if (new_extension.id == 0) {
       continue;
     }
-    auto it = absl::c_find_if(
-        historical_rtp_header_extensions_,
-        [&](const RtpExtension& ext) { return ext.id == new_extension.id; });
-    if (it != historical_rtp_header_extensions_.end() &&
-        it->uri != new_extension.uri) {
-      return RTCError::InvalidParameter()
-             << "RTP extension ID reassignment not supported (id="
-             << new_extension.id << ", old_uri=\"" << it->uri
-             << "\", new_uri=\"" << new_extension.uri << "\").";
+    // TODO: bugs.webrtc.org/503013383 - Introduce checking against IDs that are
+    // currently not present in the SDP, but have been used in previous
+    // negotiation rounds. Reusing extensions with a different ID is a protocol
+    // violation, but we cannot check this until we check against the same
+    // protocol violation on the sender side.
+    for (const auto& [mid, active_extensions] : header_extensions_by_mid_) {
+      auto it = absl::c_find_if(
+          active_extensions,
+          [&](const RtpExtension& ext) { return ext.id == new_extension.id; });
+      if (it != active_extensions.end() && it->uri != new_extension.uri) {
+        return RTCError::InvalidParameter()
+               << "RTP extension ID reassignment not supported (collision on "
+                  "active MID "
+               << mid << ", id=" << new_extension.id << ", old_uri=\""
+               << it->uri << "\", new_uri=\"" << new_extension.uri << "\").";
+      }
     }
   }
 
@@ -273,21 +280,6 @@ RTCError RtpTransport::RegisterRtpHeaderExtensionMap(
   if (existing_extensions != header_extensions_by_mid_.end() &&
       existing_extensions->second == extensions) {
     return RTCError::OK();
-  }
-
-  for (const RtpExtension& extension : extensions) {
-    if (extension.id == 0) {
-      continue;
-    }
-    auto it = absl::c_find_if(historical_rtp_header_extensions_,
-                              [&extension](const RtpExtension& ext) {
-                                return ext.id == extension.id;
-                              });
-    if (it == historical_rtp_header_extensions_.end()) {
-      historical_rtp_header_extensions_.push_back(extension);
-    } else {
-      RTC_DCHECK_EQ(it->uri, extension.uri);
-    }
   }
 
   RemoveExtensionMapForMid(mid, header_extensions_by_mid_);

@@ -32,6 +32,7 @@
 #include "media/base/codec.h"
 #include "media/base/media_channel.h"
 #include "pc/rtp_sender.h"
+#include "pc/scoped_operations_batcher.h"
 #include "test/gmock.h"
 
 namespace webrtc {
@@ -121,6 +122,10 @@ class MockRtpSenderInternal : public RtpSenderInternal {
               (webrtc::MediaSendChannelInterface*),
               (override));
   MOCK_METHOD(void, SetSsrc, (uint32_t), (override));
+  MOCK_METHOD(ScopedOperationsBatcher::BatchTaskWithFinalizer,
+              SetSsrcTask,
+              (uint32_t),
+              (override));
   MOCK_METHOD(void,
               set_stream_ids,
               (const std::vector<std::string>&),

@@ -298,9 +298,6 @@ type Numeric = Number|BigInt;
 
 extern class TransitionArray extends WeakFixedArray;
 
-extern operator '.length_intptr' macro LoadAndUntagWeakFixedArrayLength(
-    WeakFixedArray): intptr;
-
 type InstanceType extends uint16 constexpr 'InstanceType';
 
 type NoSharedNameSentinel extends Smi;

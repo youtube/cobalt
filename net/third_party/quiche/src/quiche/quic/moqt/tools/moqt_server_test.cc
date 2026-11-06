@@ -6,19 +6,19 @@
 
 #include <utility>
 
-#include "absl/base/nullability.h"
 #include "absl/memory/memory.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/http/web_transport_only_server_session.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/test_tools/moqt_session_peer.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
-#include "quiche/quic/tools/web_transport_only_backend.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/quiche_ip_address.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
@@ -77,6 +77,30 @@ TEST_F(MoqtServerTest, NewSessionHasAlarmFactory) {
       MoqtSessionPeer::GetAlarmFactory(session_)->CreateAlarm(delegate));
   alarm->Set(quic::QuicTime::Infinite());
   EXPECT_TRUE(alarm->IsSet());
+}
+
+TEST_F(MoqtServerTest, CustomSessionParameters) {
+  MoqtSessionParameters parameters;
+  parameters.deliver_partial_objects = true;
+  parameters.perspective = quic::Perspective::IS_CLIENT;
+  MoqtServer server(
+      quic::test::crypto_test_utils::ProofSourceForTesting(),
+      [&](absl::string_view /*path*/) {
+        return [&](MoqtSession* session) { session_ = session; };
+      },
+      parameters);
+  quiche::HttpHeaderBlock headers;
+  headers.AppendValueOrAddHeader(":path", "/foo");
+  absl::StatusOr<quic::WebTransportConnectResponse> response =
+      MoqtServerPeer::CallHandlerFactory(
+          server, &mock_session_,
+          quic::WebTransportIncomingRequestDetails{.headers =
+                                                       std::move(headers)});
+  QUICHE_EXPECT_OK(response.status());
+  ASSERT_NE(session_, nullptr);
+  EXPECT_TRUE(MoqtSessionPeer::GetParameters(session_).deliver_partial_objects);
+  EXPECT_EQ(MoqtSessionPeer::GetParameters(session_).perspective,
+            quic::Perspective::IS_SERVER);
 }
 
 }  // namespace moqt::test

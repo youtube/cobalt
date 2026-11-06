@@ -590,7 +590,7 @@ MaybeDirectHandle<String> Object::NoSideEffectsToMaybeString(
   } else if (IsJSProxy(*input)) {
     DirectHandle<Object> currInput = input;
     do {
-      Tagged<HeapObject> target = Cast<JSProxy>(currInput)->target(isolate);
+      Tagged<HeapObject> target = Cast<JSProxy>(currInput)->target();
       currInput = direct_handle(target, isolate);
     } while (IsJSProxy(*currInput));
     return NoSideEffectsToString(isolate, currInput);
@@ -1854,8 +1854,8 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Object::SpeciesConstructor(
   DirectHandle<Object> ctor_obj;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, ctor_obj,
-      JSObject::GetProperty(isolate, recv,
-                            isolate->factory()->constructor_string()));
+      JSReceiver::GetProperty(isolate, recv,
+                              isolate->factory()->constructor_string()));
 
   if (IsUndefined(*ctor_obj, isolate)) return default_ctor;
 
@@ -1869,8 +1869,8 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Object::SpeciesConstructor(
   DirectHandle<Object> species;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, species,
-      JSObject::GetProperty(isolate, ctor,
-                            isolate->factory()->species_symbol()));
+      JSReceiver::GetProperty(isolate, ctor,
+                              isolate->factory()->species_symbol()));
 
   if (IsNullOrUndefined(*species, isolate)) {
     return default_ctor;
@@ -4072,14 +4072,14 @@ void DescriptorArray::Initialize(Tagged<EnumCache> empty_enum_cache,
   DCHECK_GE(nof_descriptors, 0);
   DCHECK_GE(slack, 0);
   DCHECK_LE(nof_descriptors + slack, kMaxNumberOfDescriptors);
-  set_number_of_all_descriptors(nof_descriptors + slack);
+  set_number_of_all_descriptors(nof_descriptors + slack, kReleaseStore);
   set_number_of_descriptors(nof_descriptors);
   set_raw_gc_state(raw_gc_state, kRelaxedStore);
   set_enum_cache(empty_enum_cache, SKIP_WRITE_BARRIER);
   set_flags(FastIterableBits::encode(FastIterableState::kUnknown),
             kRelaxedStore);
 #if TAGGED_SIZE_8_BYTES
-  set_optional_padding(0);
+  optional_padding_ = 0;
 #endif
   MemsetTagged(GetDescriptorSlot(0), undefined_value,
                number_of_all_descriptors() * kEntrySize);

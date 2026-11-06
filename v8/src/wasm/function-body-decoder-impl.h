@@ -1504,6 +1504,9 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
   F(SimdOp, WasmOpcode opcode, const Value args[], Value* result)              \
   F(WideOp2, WasmOpcode opcode, const Value& lhs, const Value& rhs,            \
     Value* result_low, Value* result_high)                                     \
+  F(WideOp4, WasmOpcode opcode, const Value& lhs_lo, const Value& lhs_hi,      \
+    const Value& rhs_lo, const Value& rhs_hi, Value* result_low,               \
+    Value* result_high)                                                        \
   F(SimdLaneOp, WasmOpcode opcode, const SimdLaneImmediate& imm,               \
     base::Vector<const Value> inputs, Value* result)                           \
   F(Simd8x16ShuffleOp, const Simd128Immediate& imm, const Value& input0,       \
@@ -4840,16 +4843,18 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     CALL_INTERFACE_IF_OK_AND_REACHABLE(BeginEffectHandlers);
     for (int i = 0; i < handlers.length(); ++i) {
       if (handlers[i].kind == kOnSuspend) {
+        int push_count =
+            static_cast<int>(handlers[i].tag.tag->sig->parameter_count()) + 1;
+        stack_.EnsureMoreCapacity(push_count, this->zone_);
         Value* tag_params =
             PushValueTypes(handlers[i].tag.tag->sig->parameters());
-        stack_.EnsureMoreCapacity(1, this->zone_);
         Value* suspend_cont =
             Push(ValueType::Ref(imm.index, SharedFlag::kNo, RefTypeKind::kCont)
                      .AsExactIfEnabled(this->enabled_));
         const HandlerCase& handler = handlers[i];
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ResumeHandler, handler, i,
                                            suspend_cont, tag_params);
-        Drop(1 + static_cast<int>(handlers[i].tag.tag->sig->parameter_count()));
+        Drop(push_count);
         Control* target = control_at(handlers[i].maybe_depth.br.depth);
         target->br_merge()->reached = true;
       }
@@ -7847,17 +7852,26 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         }
         return DecodeStoreMem(StoreType::kF32StoreF16, 2);
       }
-      case kExprI64Add128:
-      case kExprI64Sub128: {
+      case kExprI64Add128: {
         CHECK_PROTOTYPE_OPCODE(wide_arithmetic);
-        // TODO(491766259): Implement wide arithmetic opcodes.
+#if V8_TARGET_ARCH_X64
+        auto [a_lo, a_hi, b_lo, b_hi] =
+            Pop(kWasmI64, kWasmI64, kWasmI64, kWasmI64);
+        Value* result_l = Push(kWasmI64);
+        Value* result_h = Push(kWasmI64);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(WideOp4, opcode, a_lo, a_hi, b_lo,
+                                           b_hi, result_l, result_h);
+        return opcode_length;
+#else
         this->DecodeError("Wide arithmetic opcodes are not yet implemented.");
         return 0;
+#endif
       }
       case kExprI64MulWideS:
       case kExprI64MulWideU: {
         CHECK_PROTOTYPE_OPCODE(wide_arithmetic);
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 || \
+    V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_RISCV64
 
         auto [a, b] = Pop(kWasmI64, kWasmI64);
         Value* result_l = Push(kWasmI64);
@@ -7869,6 +7883,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         this->DecodeError("Wide arithmetic opcodes are not yet implemented.");
         return 0;
 #endif
+      }
+      case kExprI64Sub128: {
+        CHECK_PROTOTYPE_OPCODE(wide_arithmetic);
+        this->DecodeError("Wide arithmetic opcodes are not yet implemented.");
+        return 0;
       }
       default:
         this->DecodeError("invalid numeric opcode: 0x%x", opcode);

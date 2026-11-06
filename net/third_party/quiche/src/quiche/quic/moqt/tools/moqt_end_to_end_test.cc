@@ -20,6 +20,7 @@
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/test_tools/moqt_session_peer.h"
 #include "quiche/quic/moqt/tools/moqt_client.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
@@ -125,6 +126,51 @@ TEST_F(MoqtEndToEndTest, HandshakeFailed404) {
   client->Connect(std::string(kNotFoundPath), std::move(callbacks));
   bool success = RunEventsUntil([&] { return resolved; });
   EXPECT_TRUE(success);
+}
+
+TEST_F(MoqtEndToEndTest, CustomParametersHandshake) {
+  MoqtSessionParameters server_parameters;
+  server_parameters.deliver_partial_objects = true;
+  MoqtSession* server_session = nullptr;
+  auto server_backend = [&](absl::string_view /*path*/)
+      -> absl::StatusOr<MoqtConfigureSessionCallback> {
+    return [&](MoqtSession* session) {
+      server_session = session;
+      session->callbacks().session_terminated_callback = [](absl::string_view) {
+      };
+    };
+  };
+  MoqtServer custom_server(
+      quic::test::crypto_test_utils::ProofSourceForTesting(),
+      std::move(server_backend), server_parameters);
+  quic::QuicIpAddress host = quic::TestLoopback();
+  QUICHE_CHECK_OK(custom_server.CreateUDPSocketAndListen(
+      quic::QuicSocketAddress(host, /*port=*/0)));
+  quic::QuicSocketAddress custom_server_address(host, custom_server.port());
+
+  MoqtSessionParameters client_parameters;
+  client_parameters.max_request_id = 200;
+  MoqtClient client(custom_server_address,
+                    quic::QuicServerId("test.example.com", 443),
+                    quic::test::crypto_test_utils::ProofVerifierForTesting(),
+                    custom_server.event_loop(), client_parameters);
+
+  MoqtSessionCallbacks callbacks;
+  bool established = false;
+  callbacks.session_established_callback = [&] { established = true; };
+  callbacks.session_terminated_callback = UnexpectedClose;
+  client.Connect("/test", std::move(callbacks));
+
+  bool success = quic::ProcessEventsUntil(custom_server.event_loop(), [&] {
+    return established && server_session != nullptr;
+  });
+  EXPECT_TRUE(success);
+  ASSERT_NE(client.session(), nullptr);
+  EXPECT_EQ(MoqtSessionPeer::GetParameters(client.session()).max_request_id,
+            200);
+  ASSERT_NE(server_session, nullptr);
+  EXPECT_TRUE(
+      MoqtSessionPeer::GetParameters(server_session).deliver_partial_objects);
 }
 
 }  // namespace

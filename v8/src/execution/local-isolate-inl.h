@@ -8,6 +8,8 @@
 #include "src/execution/local-isolate.h"
 // Include the non-inl header before the rest of the headers.
 
+#include <utility>
+
 #include "src/execution/isolate.h"
 #include "src/roots/roots-inl.h"
 
@@ -45,7 +47,7 @@ Handle<Object> LocalIsolate::root_handle(RootIndex index) const {
 
 template <typename Callback>
 V8_INLINE void LocalIsolate::ExecuteMainThreadWhileParked(Callback callback) {
-  heap_.ExecuteMainThreadWhileParked(callback);
+  heap_.ExecuteMainThreadWhileParked(std::move(callback));
 }
 
 template <typename Callback>
@@ -53,7 +55,7 @@ V8_INLINE void LocalIsolate::ParkIfOnBackgroundAndExecute(Callback callback) {
   if (is_main_thread()) {
     callback();
   } else {
-    heap_.ExecuteBackgroundThreadWhileParked(callback);
+    heap_.ExecuteBackgroundThreadWhileParked(std::move(callback));
   }
 }
 

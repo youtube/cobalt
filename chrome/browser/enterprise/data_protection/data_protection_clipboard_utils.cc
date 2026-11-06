@@ -31,6 +31,7 @@
 #include "components/safe_browsing/buildflags.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/clipboard_types.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/drop_data.h"
 #include "ui/base/clipboard/clipboard.h"
@@ -41,6 +42,7 @@
 #include "ui/base/clipboard/clipboard_sequence_number_token.h"
 #include "ui/base/clipboard/clipboard_util.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
+#include "ui/base/data_transfer_policy/data_transfer_endpoint.h"
 #include "ui/base/data_transfer_policy/data_transfer_policy_controller.h"
 #include "ui/base/l10n/l10n_util.h"
 
@@ -985,6 +987,137 @@ void OnGetSourceClipboardEndpointForFindBar(
   }
 
   std::move(callback).Run(std::nullopt);
+}
+
+bool IsSearchWithAllowed(content::WebContents* web_contents) {
+  if (!base::FeatureList::IsEnabled(data_controls::kDataControlsSearchWith)) {
+    return true;
+  }
+
+  auto source = GetValidURLEndpoint(web_contents);
+  if (!source) {
+    return true;
+  }
+
+  auto verdict = data_controls::ChromeRulesServiceFactory::GetInstance()
+                     ->GetForBrowserContext(source->browser_context())
+                     ->GetCopyToOSClipboardVerdict(GetUrlFromEndpoint(*source));
+
+  return verdict.level() != data_controls::Rule::Level::kBlock;
+}
+
+void ShouldAllowSearchWith(content::WebContents* web_contents,
+                           size_t selection_size,
+                           base::OnceClosure on_allowed_callback) {
+  if (!base::FeatureList::IsEnabled(data_controls::kDataControlsSearchWith)) {
+    std::move(on_allowed_callback).Run();
+    return;
+  }
+
+  auto source = GetValidURLEndpoint(web_contents);
+  if (!source) {
+    std::move(on_allowed_callback).Run();
+    return;
+  }
+
+  auto verdict = data_controls::ChromeRulesServiceFactory::GetInstance()
+                     ->GetForBrowserContext(source->browser_context())
+                     ->GetCopyToOSClipboardVerdict(GetUrlFromEndpoint(*source));
+
+  ui::ClipboardMetadata metadata{
+      .size = selection_size,
+      .format_type = ui::ClipboardFormatType::PlainTextType()};
+
+  switch (verdict.level()) {
+    case data_controls::Rule::Level::kReport:
+      MaybeReportDataControlsCopy(*source, metadata, verdict);
+      [[fallthrough]];
+    case data_controls::Rule::Level::kNotSet:
+    case data_controls::Rule::Level::kAllow:
+      std::move(on_allowed_callback).Run();
+      break;
+    case data_controls::Rule::Level::kWarn: {
+      auto* factory = GetDialogFactory();
+      if (!factory) {
+        LOG(ERROR) << "Failed to retrieve dialog factory";
+        std::move(on_allowed_callback).Run();
+        break;
+      }
+      factory->ShowDialogIfNeeded(
+          web_contents,
+          data_controls::DataControlsDialog::Type::kClipboardActionWarn,
+          base::BindOnce(
+              [](const content::ClipboardEndpoint& source,
+                 const ui::ClipboardMetadata& metadata,
+                 data_controls::Verdict verdict,
+                 base::OnceClosure on_allowed_callback, bool bypassed) {
+                if (bypassed) {
+                  MaybeReportDataControlsCopy(source, metadata, verdict,
+                                              /*bypassed=*/true);
+                  std::move(on_allowed_callback).Run();
+                } else {
+                  MaybeReportDataControlsCopy(source, metadata, verdict,
+                                              /*bypassed=*/false);
+                }
+              },
+              *source, metadata, std::move(verdict),
+              std::move(on_allowed_callback)));
+      break;
+    }
+    case data_controls::Rule::Level::kBlock:
+      LOG(ERROR) << "Block verdict for search with should be unreachable";
+      break;
+  }
+}
+
+void CopyTextToClipboard(content::RenderFrameHost* rfh,
+                         const std::u16string& text) {
+  if (!rfh) {
+    return;
+  }
+
+  ui::DataTransferEndpoint dte(
+      rfh->GetMainFrame()->GetLastCommittedURL(),
+      {.off_the_record = rfh->GetBrowserContext()->IsOffTheRecord()});
+  content::ClipboardEndpoint clipboard_endpoint(
+      dte,
+      base::BindRepeating(
+          [](content::GlobalRenderFrameHostId rfh_id)
+              -> content::BrowserContext* {
+            auto* rfh = content::RenderFrameHost::FromID(rfh_id);
+            if (!rfh) {
+              return nullptr;
+            }
+            return rfh->GetBrowserContext();
+          },
+          rfh->GetGlobalId()),
+      *rfh);
+
+  content::ClipboardPasteData data;
+  data.text = text;
+  size_t size = data.text.size() * sizeof(std::u16string::value_type);
+
+  IsClipboardCopyAllowedByPolicy(
+      std::move(clipboard_endpoint),
+      {
+          .size = size,
+          .format_type = ui::ClipboardFormatType::PlainTextType(),
+      },
+      std::move(data),
+      base::BindOnce(
+          [](std::unique_ptr<ui::DataTransferEndpoint> dte,
+             const ui::ClipboardFormatType& data_type,
+             const content::ClipboardPasteData& data,
+             std::optional<std::u16string> replacement_data) {
+            ui::ScopedClipboardWriter scw(ui::ClipboardBuffer::kCopyPaste,
+                                          std::move(dte));
+            if (replacement_data) {
+              scw.WriteText(std::move(*replacement_data));
+            } else {
+              scw.WriteText(data.text);
+            }
+          },
+          std::make_unique<ui::DataTransferEndpoint>(std::move(dte))));
 }
 
 }  // namespace enterprise_data_protection

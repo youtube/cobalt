@@ -169,15 +169,15 @@ public class AudioOutputManager {
     public int type;
     public int channels;
 
-    @CalledByNative("OutputDeviceInfo")
+    @CalledByNative
     private OutputDeviceInfo() {}
 
-    @CalledByNative("OutputDeviceInfo")
+    @CalledByNative
     public int getType() {
       return type;
     }
 
-    @CalledByNative("OutputDeviceInfo")
+    @CalledByNative
     public int getChannels() {
       return channels;
     }

@@ -46,9 +46,12 @@ class QUICHE_NO_EXPORT MasqueH2Connection
                            const std::string& body) = 0;
     virtual void OnResponse(MasqueH2Connection* connection, int32_t stream_id,
                             const quiche::HttpHeaderBlock& headers,
-                            const std::string& body) = 0;
+                            const std::string& body, bool end_stream) = 0;
     virtual void OnStreamFailure(MasqueH2Connection* connection,
                                  int32_t stream_id, absl::Status error) = 0;
+    virtual void OnDataForStream(MasqueH2Connection* connection,
+                                 int32_t stream_id, absl::string_view data,
+                                 bool end_stream) = 0;
   };
 
   // `ssl` and `visitor` must outlive this object.
@@ -67,16 +70,25 @@ class QUICHE_NO_EXPORT MasqueH2Connection
   // Call when there is more data to be written to SSL.
   bool AttemptToSend();
   int32_t SendRequest(const quiche::HttpHeaderBlock& headers,
-                      const std::string& body);
+                      const std::string& body, bool end_stream = true,
+                      bool stream_response = false);
+  // Enqueues a body chunk or fin for the given stream.
+  void SendBodyChunk(int32_t stream_id, const std::string& body,
+                     bool end_stream);
   void SendResponse(int32_t stream_id, const quiche::HttpHeaderBlock& headers,
                     const std::string& body);
+
+  // Human-readable string identifying this connection for logging.
+  const std::string& info() const { return info_; }
 
  private:
   struct MasqueH2Stream {
     quiche::HttpHeaderBlock received_headers;
     std::string received_body;
     std::string body_to_send;
+    bool end_stream_pending = true;
     bool callback_fired = false;
+    bool response_is_streamed = false;
   };
   static constexpr size_t kBioBufferSize = 16384;
   void Abort(absl::Status error);
@@ -137,9 +149,12 @@ class QUICHE_NO_EXPORT MasqueH2Connection
   bool OnMetadataEndForStream(Http2StreamId stream_id) override;
   void OnErrorDebug(absl::string_view message) override;
 
+  static uint32_t GetNextConnectionId();
+
   SSL* ssl_;
   std::unique_ptr<http2::adapter::OgHttp2Adapter> h2_adapter_;
   const bool is_server_;
+  const std::string info_;
   bool tls_connected_ = false;
   absl::Status error_ = absl::OkStatus();
   absl::flat_hash_map<Http2StreamId, std::unique_ptr<MasqueH2Stream>>

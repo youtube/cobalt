@@ -2515,17 +2515,6 @@ void AXObject::SerializeComputedDetailsRelation(
     return;
   }
 
-  // Add aria-details for the element anchored to this object.
-  if (!RuntimeEnabledFeatures::NoAriaDetailsForAnchorPosEnabled()) {
-    if (AXObject* positioned_obj = GetPositionedObjectForAnchor(node_data)) {
-      node_data->AddIntListAttribute(
-          ax::mojom::blink::IntListAttribute::kDetailsIds,
-          {static_cast<int32_t>(positioned_obj->AXObjectID())});
-      node_data->SetDetailsFrom(ax::mojom::blink::DetailsFrom::kCssAnchor);
-      return;
-    }
-  }
-
   // Add aria-details for a scroll marker pseudo-element.
   if (AXObject* marker_target = GetScrollMarkerTarget()) {
     node_data->AddIntListAttribute(
@@ -2684,46 +2673,6 @@ AXObject* AXObject::GetInterestForTargetPopover() const {
   }
 
   return ax_popover;
-}
-
-AXObject* AXObject::GetPositionedObjectForAnchor(ui::AXNodeData* data) const {
-  CHECK(!RuntimeEnabledFeatures::NoAriaDetailsForAnchorPosEnabled());
-  AXObject* positioned_obj = AXObjectCache().GetPositionedObjectForAnchor(this);
-  if (!positioned_obj) {
-    return nullptr;
-  }
-
-  // Check for cases where adding an aria-details relationship between the
-  // anchor and the positioned elements would add extra noise.
-  // https://github.com/w3c/html-aam/issues/545
-  if (positioned_obj->RoleValue() == ax::mojom::blink::Role::kTooltip) {
-    return nullptr;
-  }
-
-  // Elements are direct DOM siblings.
-  if (ElementTraversal::NextSkippingChildren(*GetNode()) ==
-      positioned_obj->GetElement()) {
-    return nullptr;
-  }
-
-  // Check for existing labelledby/describedby/controls relationships.
-  for (auto attr : {ax::mojom::blink::IntListAttribute::kLabelledbyIds,
-                    ax::mojom::blink::IntListAttribute::kDescribedbyIds,
-                    ax::mojom::blink::IntListAttribute::kControlsIds}) {
-    auto attr_ids = data->GetIntListAttribute(attr);
-    if (std::find(attr_ids.begin(), attr_ids.end(),
-                  positioned_obj->AXObjectID()) != attr_ids.end()) {
-      return nullptr;
-    }
-  }
-
-  // Check for existing parent/child relationship (includes case where the
-  // anchor has an aria-owns relationship with the positioned element).
-  if (positioned_obj->ParentObject() == this) {
-    return nullptr;
-  }
-
-  return positioned_obj;
 }
 
 AXObject* AXObject::GetScrollMarkerTarget() const {
@@ -6895,11 +6844,6 @@ void AXObject::ChildrenChangedWithCleanLayout() {
     }
   }
 
-  // TODO(accessibility) Move this up.
-  if (!CanHaveChildren()) {
-    return;
-  }
-
   DCHECK(!IsDetached()) << "None of the above should be able to detach |this|: "
                         << this;
 
@@ -8421,8 +8365,7 @@ const String AXObject::InternalRoleName(ax::mojom::blink::Role role) {
   // For example, kStaticText becomes StaticText.
   // Many conversions, but this isn't used in performance-sensitive code.
   std::string role_name_std = role_name.str().substr(1, std::string::npos);
-  String role_name_wtf_string = role_name_std.c_str();
-  return role_name_wtf_string;
+  return String(role_name_std);
 }
 
 // static

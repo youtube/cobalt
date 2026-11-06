@@ -13,6 +13,7 @@
 #include "include/v8-profiler.h"
 #include "src/d8/d8.h"
 #include "src/execution/isolate.h"
+#include "src/sandbox/trap-fuzzer.h"
 #include "src/utils/output-stream.h"
 
 namespace v8 {
@@ -110,6 +111,15 @@ void D8Console::Debug(const debug::ConsoleCallArguments& args,
 
 void D8Console::Profile(const debug::ConsoleCallArguments& args,
                         const v8::debug::ConsoleContext&) {
+#ifdef V8_SANDBOX_TRAP_FUZZER_AVAILABLE
+  // The profiler is currently not robust in combination with the sandbox trap
+  // fuzzer as its signal handler accesses in-sandbox data and may crash if the
+  // fuzzer mutates that data. This will then generate a lot of false positive
+  // reports (as the crashes happen inside a signal handler, they aren't
+  // handled by the sandbox crash filter, which is itself a signal handler).
+  // TODO(saelo): make the profiler's signal handler more robust.
+  if (i::SandboxTrapFuzzer::IsEnabled()) return;
+#endif  // V8_SANDBOX_TRAP_FUZZER_AVAILABLE
   if (!profiler_) {
     profiler_ = CpuProfiler::New(isolate_);
   }

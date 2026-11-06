@@ -488,11 +488,6 @@ void TurnServer::SendStun(TurnServerConnection* conn,
                           EcnMarking ecn) {
   RTC_DCHECK_RUN_ON(thread_);
   ByteBufferWriter buf;
-  // Add a SOFTWARE attribute if one is set.
-  if (!software_.empty()) {
-    msg->AddAttribute(std::make_unique<StunByteStringAttribute>(
-        STUN_ATTR_SOFTWARE, software_));
-  }
   msg->Write(&buf);
   Send(conn, buf, ecn);
 }

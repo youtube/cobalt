@@ -19,6 +19,7 @@
 #include "base/functional/bind.h"
 #include "base/i18n/case_conversion.h"
 #include "base/i18n/rtl.h"
+#include "base/i18n/string_search.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/utf_string_conversions.h"
@@ -117,11 +118,12 @@ SuggestionFiltrationResult FilterSuggestions(
         result.AddSuggestion(suggestion, std::move(filter_match));
       };
 
-  std::optional<std::u16string> lower_string_filter =
-      std::holds_alternative<AutofillPopupController::StringFilter>(filter)
-          ? std::optional(base::i18n::ToLower(
-                *std::get<AutofillPopupController::StringFilter>(filter)))
-          : std::nullopt;
+  std::optional<base::i18n::FixedPatternStringSearch> search;
+  if (std::holds_alternative<AutofillPopupController::StringFilter>(filter)) {
+    search.emplace(*std::get<AutofillPopupController::StringFilter>(filter),
+                   /*case_sensitive=*/false);
+  }
+
   for (const Suggestion& suggestion : suggestions) {
     if (suggestion.filtration_policy ==
         Suggestion::FiltrationPolicy::kPresentOnlyWithoutFilter) {
@@ -129,15 +131,15 @@ SuggestionFiltrationResult FilterSuggestions(
     } else if (suggestion.filtration_policy ==
                Suggestion::FiltrationPolicy::kStatic) {
       add_suggestion_filtration_result(suggestion);
-    } else if (lower_string_filter) {
-      if (size_t pos = base::i18n::ToLower(suggestion.main_text.value)
-                           .find(lower_string_filter.value());
-          pos != std::u16string::npos) {
+    } else if (search) {
+      size_t match_index = 0;
+      size_t match_length = 0;
+      if (search->Search(suggestion.main_text.value, &match_index,
+                         &match_length, /*forward_search=*/true)) {
         add_suggestion_filtration_result(
-            suggestion,
-            AutofillPopupController::SuggestionFilterMatch{
-                .main_text_match =
-                    gfx::Range(pos, pos + lower_string_filter.value().size())});
+            suggestion, AutofillPopupController::SuggestionFilterMatch{
+                            .main_text_match = gfx::Range(
+                                match_index, match_index + match_length)});
       }
     } else if (std::holds_alternative<SuggestionTabIndex>(filter) &&
                std::get<SuggestionTabIndex>(filter) == suggestion.tab_index) {
@@ -254,7 +256,7 @@ void AutofillPopupControllerImpl::Show(
       *ignore_focus_loss_ || (view_ && view_->HasFocus());
 
   // Autofill popups should only be shown in focused windows because on Windows
-  // the popup may overlap the focused window (see crbug.com/1239760).
+  // the popup may overlap the focused window (see crbug.com/40056880).
   if (auto* rwhv = web_contents_->GetRenderWidgetHostView();
       (!rwhv || !rwhv->HasFocus()) && IsRootPopup() &&
       !should_ignore_focus_loss) {
@@ -396,6 +398,10 @@ bool AutofillPopupControllerImpl::IsViewVisibilityAcceptingThresholdEnabled()
   return !disable_threshold_for_testing_;
 }
 
+bool AutofillPopupControllerImpl::IsSearching() const {
+  return delegate_ && delegate_->IsSearching();
+}
+
 void AutofillPopupControllerImpl::Hide(SuggestionHidingReason reason) {
   const bool ignore_focus_loss =
       *ignore_focus_loss_ || (view_ && view_->HasFocus());
@@ -454,7 +460,7 @@ void AutofillPopupControllerImpl::AcceptSuggestion(
   CHECK(IsAcceptableSuggestionType(GetSuggestions()[index].type));
 
   // Ignore clicks immediately after the popup was shown. This is to prevent
-  // users accidentally accepting suggestions (crbug.com/1279268).
+  // users accidentally accepting suggestions (crbug.com/40058217).
   if ((!barrier_for_accepting_ || !barrier_for_accepting_->value()) &&
       !disable_threshold_for_testing_) {
     return;
@@ -472,11 +478,7 @@ void AutofillPopupControllerImpl::AcceptSuggestion(
   if (!suggestion.IsAcceptable()) {
     return;
   }
-  if (Suggestion::AtMemoryPayload* payload =
-          std::get_if<Suggestion::AtMemoryPayload>(&suggestion.payload);
-      payload && payload->reveal_callback) {
-    payload->value = payload->reveal_callback.Run();
-  }
+
   NotifyUserEducationAboutAcceptedSuggestion(web_contents_.get(), suggestion);
   if (suggestion.acceptance_a11y_announcement && view_) {
     view_->AxAnnounce(*suggestion.acceptance_a11y_announcement);
@@ -556,7 +558,6 @@ AutofillPopupControllerImpl::GetSearchBarConfig(
     case AutofillSuggestionTriggerSource::kOpenTextDataListChooser:
     case AutofillSuggestionTriggerSource::kPasswordManager:
     case AutofillSuggestionTriggerSource::kiOS:
-    case AutofillSuggestionTriggerSource::kManualFallbackPlusAddresses:
     case AutofillSuggestionTriggerSource::kComposeDialogLostFocus:
     case AutofillSuggestionTriggerSource::kComposeDelayedProactiveNudge:
     case AutofillSuggestionTriggerSource::kPasswordManagerProcessedFocusedField:
@@ -647,7 +648,6 @@ bool AutofillPopupControllerImpl::RemoveSuggestion(
     case FillingProduct::kPasskey:
     case FillingProduct::kPassword:
     case FillingProduct::kCompose:
-    case FillingProduct::kPlusAddresses:
     case FillingProduct::kAutofillAi:
     case FillingProduct::kIdentityCredential:
     case FillingProduct::kDataList:
@@ -719,11 +719,11 @@ void AutofillPopupControllerImpl::HideViewAndDie() {
 
   // Invalidates in particular ChromeAutofillClient's WeakPtr to |this|, which
   // prevents recursive calls triggered by `view_->Hide()`
-  // (crbug.com/1267047).
+  // (crbug.com/40204318).
   weak_ptr_factory_.InvalidateWeakPtrs();
 
-  // TODO(crbug.com/1341374, crbug.com/1277218): Move this into the asynchronous
-  // call?
+  // TODO(crbug.com/40230669, crbug.com/40207703): Move this into the
+  // asynchronous call?
   if (view_) {
     // We need to fire the event while view is not deleted yet.
     FireControlsChangedEvent(false);

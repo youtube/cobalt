@@ -220,21 +220,23 @@ void VisitRR(InstructionSelector* selector, InstructionCode opcode,
 }
 
 void VisitSimdShiftRRR(InstructionSelector* selector, InstructionCode opcode,
-                       OpIndex node, int width) {
+                       OpIndex node, LaneSize lane_size) {
   Arm64OperandGenerator g(selector);
   const Operation& op = selector->Get(node);
   DCHECK_EQ(op.input_count, 2);
 
   int64_t constant;
   if (selector->MatchSignedIntegralConstant(op.input(1), &constant)) {
-    if (constant % width == 0) {
+    if (constant % LaneSizeBits(lane_size) == 0) {
       selector->EmitIdentity(node);
     } else {
-      selector->Emit(opcode, g.DefineAsRegister(node),
-                     g.UseRegister(op.input(0)), g.UseImmediate(op.input(1)));
+      selector->Emit(opcode | LaneSizeField::encode(lane_size),
+                     g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+                     g.UseImmediate(op.input(1)));
     }
   } else {
-    selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+    selector->Emit(opcode | LaneSizeField::encode(lane_size),
+                   g.DefineAsRegister(node), g.UseRegister(op.input(0)),
                    g.UseRegister(op.input(1)));
   }
 }
@@ -1104,7 +1106,8 @@ InstructionOperand EmitAddBeforeLoadOrStore(InstructionSelector* selector,
 void InstructionSelector::VisitLoadLane(OpIndex node) {
   const Simd128LaneMemoryOp& load = Cast<Simd128LaneMemoryOp>(node);
   InstructionCode opcode = kArm64LoadLane;
-  opcode |= LaneSizeField::encode(load.lane_size() * kBitsPerByte);
+  opcode |= LaneSizeField::encode(
+      LaneSizeFromBits(static_cast<uint8_t>(load.lane_size() * kBitsPerByte)));
   if (load.kind.with_trap_handler) {
     opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
   }
@@ -1118,7 +1121,8 @@ void InstructionSelector::VisitLoadLane(OpIndex node) {
 void InstructionSelector::VisitStoreLane(OpIndex node) {
   const Simd128LaneMemoryOp& store = Cast<Simd128LaneMemoryOp>(node);
   InstructionCode opcode = kArm64StoreLane;
-  opcode |= LaneSizeField::encode(store.lane_size() * kBitsPerByte);
+  opcode |= LaneSizeField::encode(
+      LaneSizeFromBits(static_cast<uint8_t>(store.lane_size() * kBitsPerByte)));
   if (store.kind.with_trap_handler) {
     opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
   }
@@ -1143,47 +1147,47 @@ void InstructionSelector::VisitLoadTransform(OpIndex node) {
   switch (op.transform_kind) {
     case Simd128LoadTransformOp::TransformKind::k8Splat:
       load_opcode = kArm64LoadSplat;
-      load_opcode |= LaneSizeField::encode(8);
+      load_opcode |= LaneSizeField::encode(LaneSize::kL8);
       require_add = true;
       break;
     case Simd128LoadTransformOp::TransformKind::k16Splat:
       load_opcode = kArm64LoadSplat;
-      load_opcode |= LaneSizeField::encode(16);
+      load_opcode |= LaneSizeField::encode(LaneSize::kL16);
       require_add = true;
       break;
     case Simd128LoadTransformOp::TransformKind::k32Splat:
       load_opcode = kArm64LoadSplat;
-      load_opcode |= LaneSizeField::encode(32);
+      load_opcode |= LaneSizeField::encode(LaneSize::kL32);
       require_add = true;
       break;
     case Simd128LoadTransformOp::TransformKind::k64Splat:
       load_opcode = kArm64LoadSplat;
-      load_opcode |= LaneSizeField::encode(64);
+      load_opcode |= LaneSizeField::encode(LaneSize::kL64);
       require_add = true;
       break;
     case Simd128LoadTransformOp::TransformKind::k8x8S:
       load_opcode = kArm64LdrD;
-      extend_opcode = kArm64Sxtl | LaneSizeField::encode(16);
+      extend_opcode = kArm64Sxtl | LaneSizeField::encode(LaneSize::kL16);
       break;
     case Simd128LoadTransformOp::TransformKind::k8x8U:
       load_opcode = kArm64LdrD;
-      extend_opcode = kArm64Uxtl | LaneSizeField::encode(16);
+      extend_opcode = kArm64Uxtl | LaneSizeField::encode(LaneSize::kL16);
       break;
     case Simd128LoadTransformOp::TransformKind::k16x4S:
       load_opcode = kArm64LdrD;
-      extend_opcode = kArm64Sxtl | LaneSizeField::encode(32);
+      extend_opcode = kArm64Sxtl | LaneSizeField::encode(LaneSize::kL32);
       break;
     case Simd128LoadTransformOp::TransformKind::k16x4U:
       load_opcode = kArm64LdrD;
-      extend_opcode = kArm64Uxtl | LaneSizeField::encode(32);
+      extend_opcode = kArm64Uxtl | LaneSizeField::encode(LaneSize::kL32);
       break;
     case Simd128LoadTransformOp::TransformKind::k32x2S:
       load_opcode = kArm64LdrD;
-      extend_opcode = kArm64Sxtl | LaneSizeField::encode(64);
+      extend_opcode = kArm64Sxtl | LaneSizeField::encode(LaneSize::kL64);
       break;
     case Simd128LoadTransformOp::TransformKind::k32x2U:
       load_opcode = kArm64LdrD;
-      extend_opcode = kArm64Uxtl | LaneSizeField::encode(64);
+      extend_opcode = kArm64Uxtl | LaneSizeField::encode(LaneSize::kL64);
       break;
     case Simd128LoadTransformOp::TransformKind::k32Zero:
       load_opcode = kArm64LdrS;
@@ -2181,49 +2185,79 @@ bool TryEmitUbfiz(InstructionSelector* selector, Arm64OperandGenerator& g,
   return false;
 }
 
+// Try to fold a right shift and a mask into a single bitfield-extract
+// instruction (Ubfx).
+template <int bit_length>
+  requires(bit_length == 32 || bit_length == 64)
+bool TryEmitUbfx(InstructionSelector* selector, Arm64OperandGenerator& g,
+                 OpIndex node, const WordBinopOp& bitwise_and,
+                 ArchOpcode ubfx_opcode) {
+  using Int = std::conditional_t<bit_length == 32, uint32_t, uint64_t>;
+
+  constexpr auto kRep = bit_length == 32
+                            ? turboshaft::RegisterRepresentation::Word32()
+                            : turboshaft::RegisterRepresentation::Word64();
+  constexpr Int kBitLengthMask = bit_length - 1;
+
+  DCHECK_EQ(node, selector->Index(bitwise_and));
+  const Operation& lhs = selector->Get(bitwise_and.left());
+
+  Int mask;
+  if (lhs.Is<ShiftOp>() && lhs.Cast<ShiftOp>().rep == kRep &&
+      selector->CanCover(node, bitwise_and.left()) &&
+      selector->MatchUnsignedIntegralConstant(bitwise_and.right(), &mask)) {
+    const auto& shift = lhs.Cast<ShiftOp>();
+    bool is_shr = (shift.kind == ShiftOp::Kind::kShiftRightLogical ||
+                   shift.kind == ShiftOp::Kind::kShiftRightArithmetic);
+    if (!is_shr) {
+      return false;
+    }
+
+    Int mask_width = base::bits::CountPopulation(mask);
+    Int mask_msb = base::bits::CountLeadingZeros(mask);
+    if (mask_width != 0 && mask_width != bit_length &&
+        (mask_msb + mask_width == bit_length)) {
+      // The mask must be contiguous, and occupy the least-significant bits.
+      DCHECK_EQ(0u, base::bits::CountTrailingZeros(mask));
+
+      int64_t shift_by;
+      if (selector->MatchSignedIntegralConstant(shift.right(), &shift_by)) {
+        // For arithmetic right shifts, we can only use ubfx if the mask does
+        // not include any of the sign bits introduced by the shift.
+        bool is_arithmetic =
+            (shift.kind == ShiftOp::Kind::kShiftRightArithmetic);
+        uint32_t lsb = static_cast<uint32_t>(shift_by & kBitLengthMask);
+        if (is_arithmetic && lsb + mask_width > bit_length) {
+          return false;
+        }
+
+        // Ubfx cannot extract bits past the register size, however since
+        // shifting the original value would have introduced some zeros we can
+        // still use ubfx with a smaller mask and the remaining bits will be
+        // zeros.
+        if (lsb + mask_width > bit_length) {
+          mask_width = bit_length - lsb;
+        }
+
+        selector->Emit(ubfx_opcode, g.DefineAsRegister(node),
+                       g.UseRegister(shift.left()),
+                       g.UseImmediateOrTemp(shift.right(), lsb),
+                       g.TempImmediate(static_cast<int32_t>(mask_width)));
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 void InstructionSelector::VisitWord32And(OpIndex node) {
   Arm64OperandGenerator g(this);
   const WordBinopOp& bitwise_and =
       this->Get(node).Cast<Opmask::kWord32BitwiseAnd>();
-  const Operation& lhs = this->Get(bitwise_and.left());
-  if (int64_t constant_rhs;
-      lhs.Is<Opmask::kWord32ShiftRightLogical>() &&
-      CanCover(node, bitwise_and.left()) &&
-      MatchSignedIntegralConstant(bitwise_and.right(), &constant_rhs)) {
-    DCHECK(base::IsInRange(constant_rhs, std::numeric_limits<int32_t>::min(),
-                           std::numeric_limits<int32_t>::max()));
-    uint32_t mask = static_cast<uint32_t>(constant_rhs);
-    uint32_t mask_width = base::bits::CountPopulation(mask);
-    uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
-    if ((mask_width != 0) && (mask_width != 32) &&
-        (mask_msb + mask_width == 32)) {
-      // The mask must be contiguous, and occupy the least-significant bits.
-      DCHECK_EQ(0u, base::bits::CountTrailingZeros32(mask));
-
-      // Select Ubfx for And(Shr(x, imm), mask) where the mask is in the least
-      // significant bits.
-      const ShiftOp& lhs_shift = lhs.Cast<Opmask::kWord32ShiftRightLogical>();
-      if (int64_t constant;
-          MatchSignedIntegralConstant(lhs_shift.right(), &constant)) {
-        // Any shift value can match; int32 shifts use `value % 32`.
-        uint32_t lsb = constant & 0x1F;
-
-        // Ubfx cannot extract bits past the register size, however since
-        // shifting the original value would have introduced some zeros we can
-        // still use ubfx with a smaller mask and the remaining bits will be
-        // zeros.
-        if (lsb + mask_width > 32) mask_width = 32 - lsb;
-
-        Emit(kArm64Ubfx32, g.DefineAsRegister(node),
-             g.UseRegister(lhs_shift.left()),
-             g.UseImmediateOrTemp(lhs_shift.right(), lsb),
-             g.TempImmediate(mask_width));
-        return;
-      }
-      // Other cases fall through to the normal And operation.
-    }
+  if (TryEmitUbfx<32>(this, g, node, bitwise_and, kArm64Ubfx32)) {
+    return;
   }
 
   if (TryEmitUbfiz<32>(this, g, node, bitwise_and, kArm64Lsl32,
@@ -2240,40 +2274,8 @@ void InstructionSelector::VisitWord64And(OpIndex node) {
   Arm64OperandGenerator g(this);
 
   const WordBinopOp& bitwise_and = Get(node).Cast<Opmask::kWord64BitwiseAnd>();
-  const Operation& lhs = Get(bitwise_and.left());
-
-  if (uint64_t mask;
-      lhs.Is<Opmask::kWord64ShiftRightLogical>() &&
-      CanCover(node, bitwise_and.left()) &&
-      MatchUnsignedIntegralConstant(bitwise_and.right(), &mask)) {
-    uint64_t mask_width = base::bits::CountPopulation(mask);
-    uint64_t mask_msb = base::bits::CountLeadingZeros64(mask);
-    if ((mask_width != 0) && (mask_width != 64) &&
-        (mask_msb + mask_width == 64)) {
-      // The mask must be contiguous, and occupy the least-significant bits.
-      DCHECK_EQ(0u, base::bits::CountTrailingZeros64(mask));
-
-      // Select Ubfx for And(Shr(x, imm), mask) where the mask is in the least
-      // significant bits.
-      const ShiftOp& shift = lhs.Cast<ShiftOp>();
-      if (int64_t shift_by;
-          MatchSignedIntegralConstant(shift.right(), &shift_by)) {
-        // Any shift value can match; int64 shifts use `value % 64`.
-        uint32_t lsb = static_cast<uint32_t>(shift_by & 0x3F);
-
-        // Ubfx cannot extract bits past the register size, however since
-        // shifting the original value would have introduced some zeros we can
-        // still use ubfx with a smaller mask and the remaining bits will be
-        // zeros.
-        if (lsb + mask_width > 64) mask_width = 64 - lsb;
-
-        Emit(kArm64Ubfx, g.DefineAsRegister(node), g.UseRegister(shift.left()),
-             g.UseImmediateOrTemp(shift.right(), lsb),
-             g.TempImmediate(static_cast<int32_t>(mask_width)));
-        return;
-      }
-      // Other cases fall through to the normal And operation.
-    }
+  if (TryEmitUbfx<64>(this, g, node, bitwise_and, kArm64Ubfx)) {
+    return;
   }
 
   if (TryEmitUbfiz<64>(this, g, node, bitwise_and, kArm64Lsl, kArm64Ubfiz)) {
@@ -2852,13 +2854,13 @@ void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
   // (Mul and either Smulh or Umulh).
   const turboshaft::Word64MulWideOp& op =
       this->Get(node).Cast<turboshaft::Word64MulWideOp>();
-  OpIndex lhs = op.left();
-  OpIndex rhs = op.right();
 
-  InstructionOperand left = g.UseRegister(lhs);
-  InstructionOperand right = g.UseRegister(rhs);
+  InstructionOperand left = g.UseRegister(op.left());
+  InstructionOperand right = g.UseRegister(op.right());
 
-  Emit(kArm64Mul, g.DefineAsRegister(node), left, right);
+  OptionalOpIndex out_low = FindProjection(node, 0);
+  Emit(kArm64Mul, g.DefineAsRegister(out_low.valid() ? out_low.value() : node),
+       left, right);
 
   OptionalOpIndex out_high = FindProjection(node, 1);
   if (out_high.valid() && IsUsed(out_high.value())) {
@@ -2867,10 +2869,12 @@ void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
   }
 }
 
+void InstructionSelector::VisitUint64Add128(OpIndex node) { UNIMPLEMENTED(); }
+
 #if V8_ENABLE_WEBASSEMBLY
 namespace {
 void VisitExtMul(InstructionSelector* selector, ArchOpcode opcode, OpIndex node,
-                 int dst_lane_size) {
+                 LaneSize dst_lane_size) {
   InstructionCode code = opcode;
   code |= LaneSizeField::encode(dst_lane_size);
   VisitRRR(selector, code, node);
@@ -2878,58 +2882,58 @@ void VisitExtMul(InstructionSelector* selector, ArchOpcode opcode, OpIndex node,
 }  // namespace
 
 void InstructionSelector::VisitI16x8ExtMulLowI8x16S(OpIndex node) {
-  VisitExtMul(this, kArm64Smull, node, 16);
+  VisitExtMul(this, kArm64Smull, node, LaneSize::kL16);
 }
 
 void InstructionSelector::VisitI16x8ExtMulHighI8x16S(OpIndex node) {
-  VisitExtMul(this, kArm64Smull2, node, 16);
+  VisitExtMul(this, kArm64Smull2, node, LaneSize::kL16);
 }
 
 void InstructionSelector::VisitI16x8ExtMulLowI8x16U(OpIndex node) {
-  VisitExtMul(this, kArm64Umull, node, 16);
+  VisitExtMul(this, kArm64Umull, node, LaneSize::kL16);
 }
 
 void InstructionSelector::VisitI16x8ExtMulHighI8x16U(OpIndex node) {
-  VisitExtMul(this, kArm64Umull2, node, 16);
+  VisitExtMul(this, kArm64Umull2, node, LaneSize::kL16);
 }
 
 void InstructionSelector::VisitI32x4ExtMulLowI16x8S(OpIndex node) {
-  VisitExtMul(this, kArm64Smull, node, 32);
+  VisitExtMul(this, kArm64Smull, node, LaneSize::kL32);
 }
 
 void InstructionSelector::VisitI32x4ExtMulHighI16x8S(OpIndex node) {
-  VisitExtMul(this, kArm64Smull2, node, 32);
+  VisitExtMul(this, kArm64Smull2, node, LaneSize::kL32);
 }
 
 void InstructionSelector::VisitI32x4ExtMulLowI16x8U(OpIndex node) {
-  VisitExtMul(this, kArm64Umull, node, 32);
+  VisitExtMul(this, kArm64Umull, node, LaneSize::kL32);
 }
 
 void InstructionSelector::VisitI32x4ExtMulHighI16x8U(OpIndex node) {
-  VisitExtMul(this, kArm64Umull2, node, 32);
+  VisitExtMul(this, kArm64Umull2, node, LaneSize::kL32);
 }
 
 void InstructionSelector::VisitI64x2ExtMulLowI32x4S(OpIndex node) {
-  VisitExtMul(this, kArm64Smull, node, 64);
+  VisitExtMul(this, kArm64Smull, node, LaneSize::kL64);
 }
 
 void InstructionSelector::VisitI64x2ExtMulHighI32x4S(OpIndex node) {
-  VisitExtMul(this, kArm64Smull2, node, 64);
+  VisitExtMul(this, kArm64Smull2, node, LaneSize::kL64);
 }
 
 void InstructionSelector::VisitI64x2ExtMulLowI32x4U(OpIndex node) {
-  VisitExtMul(this, kArm64Umull, node, 64);
+  VisitExtMul(this, kArm64Umull, node, LaneSize::kL64);
 }
 
 void InstructionSelector::VisitI64x2ExtMulHighI32x4U(OpIndex node) {
-  VisitExtMul(this, kArm64Umull2, node, 64);
+  VisitExtMul(this, kArm64Umull2, node, LaneSize::kL64);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #if V8_ENABLE_WEBASSEMBLY
 namespace {
 void VisitExtAddPairwise(InstructionSelector* selector, ArchOpcode opcode,
-                         OpIndex node, int dst_lane_size) {
+                         OpIndex node, LaneSize dst_lane_size) {
   InstructionCode code = opcode;
   code |= LaneSizeField::encode(dst_lane_size);
   VisitRR(selector, code, node);
@@ -2937,19 +2941,19 @@ void VisitExtAddPairwise(InstructionSelector* selector, ArchOpcode opcode,
 }  // namespace
 
 void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8S(OpIndex node) {
-  VisitExtAddPairwise(this, kArm64Saddlp, node, 32);
+  VisitExtAddPairwise(this, kArm64Saddlp, node, LaneSize::kL32);
 }
 
 void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8U(OpIndex node) {
-  VisitExtAddPairwise(this, kArm64Uaddlp, node, 32);
+  VisitExtAddPairwise(this, kArm64Uaddlp, node, LaneSize::kL32);
 }
 
 void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16S(OpIndex node) {
-  VisitExtAddPairwise(this, kArm64Saddlp, node, 16);
+  VisitExtAddPairwise(this, kArm64Saddlp, node, LaneSize::kL16);
 }
 
 void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(OpIndex node) {
-  VisitExtAddPairwise(this, kArm64Uaddlp, node, 16);
+  VisitExtAddPairwise(this, kArm64Uaddlp, node, LaneSize::kL16);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -5070,45 +5074,45 @@ void InstructionSelector::VisitInt64AbsWithOverflow(OpIndex node) {
   V(S128Not, kArm64S128Not)                                     \
   V(V128AnyTrue, kArm64V128AnyTrue)
 
-#define SIMD_UNOP_LANE_SIZE_LIST(V) \
-  V(F64x2Splat, kArm64FSplat, 64)   \
-  V(F64x2Abs, kArm64FAbs, 64)       \
-  V(F64x2Sqrt, kArm64FSqrt, 64)     \
-  V(F64x2Neg, kArm64FNeg, 64)       \
-  V(F32x4Splat, kArm64FSplat, 32)   \
-  V(F32x4Abs, kArm64FAbs, 32)       \
-  V(F32x4Sqrt, kArm64FSqrt, 32)     \
-  V(F32x4Neg, kArm64FNeg, 32)       \
-  V(I64x2Splat, kArm64ISplat, 64)   \
-  V(I64x2Abs, kArm64IAbs, 64)       \
-  V(I64x2Neg, kArm64INeg, 64)       \
-  V(I32x4Splat, kArm64ISplat, 32)   \
-  V(I32x4Abs, kArm64IAbs, 32)       \
-  V(I32x4Neg, kArm64INeg, 32)       \
-  V(F16x8Splat, kArm64FSplat, 16)   \
-  V(F16x8Abs, kArm64FAbs, 16)       \
-  V(F16x8Sqrt, kArm64FSqrt, 16)     \
-  V(F16x8Neg, kArm64FNeg, 16)       \
-  V(I16x8Splat, kArm64ISplat, 16)   \
-  V(I16x8Abs, kArm64IAbs, 16)       \
-  V(I16x8Neg, kArm64INeg, 16)       \
-  V(I8x16Splat, kArm64ISplat, 8)    \
-  V(I8x16Abs, kArm64IAbs, 8)        \
-  V(I8x16Neg, kArm64INeg, 8)
+#define SIMD_UNOP_LANE_SIZE_LIST(V)           \
+  V(F64x2Splat, kArm64FSplat, LaneSize::kL64) \
+  V(F64x2Abs, kArm64FAbs, LaneSize::kL64)     \
+  V(F64x2Sqrt, kArm64FSqrt, LaneSize::kL64)   \
+  V(F64x2Neg, kArm64FNeg, LaneSize::kL64)     \
+  V(F32x4Splat, kArm64FSplat, LaneSize::kL32) \
+  V(F32x4Abs, kArm64FAbs, LaneSize::kL32)     \
+  V(F32x4Sqrt, kArm64FSqrt, LaneSize::kL32)   \
+  V(F32x4Neg, kArm64FNeg, LaneSize::kL32)     \
+  V(I64x2Splat, kArm64ISplat, LaneSize::kL64) \
+  V(I64x2Abs, kArm64IAbs, LaneSize::kL64)     \
+  V(I64x2Neg, kArm64INeg, LaneSize::kL64)     \
+  V(I32x4Splat, kArm64ISplat, LaneSize::kL32) \
+  V(I32x4Abs, kArm64IAbs, LaneSize::kL32)     \
+  V(I32x4Neg, kArm64INeg, LaneSize::kL32)     \
+  V(F16x8Splat, kArm64FSplat, LaneSize::kL16) \
+  V(F16x8Abs, kArm64FAbs, LaneSize::kL16)     \
+  V(F16x8Sqrt, kArm64FSqrt, LaneSize::kL16)   \
+  V(F16x8Neg, kArm64FNeg, LaneSize::kL16)     \
+  V(I16x8Splat, kArm64ISplat, LaneSize::kL16) \
+  V(I16x8Abs, kArm64IAbs, LaneSize::kL16)     \
+  V(I16x8Neg, kArm64INeg, LaneSize::kL16)     \
+  V(I8x16Splat, kArm64ISplat, LaneSize::kL8)  \
+  V(I8x16Abs, kArm64IAbs, LaneSize::kL8)      \
+  V(I8x16Neg, kArm64INeg, LaneSize::kL8)
 
-#define SIMD_SHIFT_OP_LIST(V) \
-  V(I64x2Shl, IShl, 64)       \
-  V(I32x4Shl, IShl, 32)       \
-  V(I16x8Shl, IShl, 16)       \
-  V(I8x16Shl, IShl, 8)        \
-  V(I64x2ShrS, IShrS, 64)     \
-  V(I32x4ShrS, IShrS, 32)     \
-  V(I16x8ShrS, IShrS, 16)     \
-  V(I8x16ShrS, IShrS, 8)      \
-  V(I64x2ShrU, IShrU, 64)     \
-  V(I32x4ShrU, IShrU, 32)     \
-  V(I16x8ShrU, IShrU, 16)     \
-  V(I8x16ShrU, IShrU, 8)
+#define SIMD_SHIFT_OP_LIST(V)         \
+  V(I64x2Shl, IShl, LaneSize::kL64)   \
+  V(I32x4Shl, IShl, LaneSize::kL32)   \
+  V(I16x8Shl, IShl, LaneSize::kL16)   \
+  V(I8x16Shl, IShl, LaneSize::kL8)    \
+  V(I64x2ShrS, IShrS, LaneSize::kL64) \
+  V(I32x4ShrS, IShrS, LaneSize::kL32) \
+  V(I16x8ShrS, IShrS, LaneSize::kL16) \
+  V(I8x16ShrS, IShrS, LaneSize::kL8)  \
+  V(I64x2ShrU, IShrU, LaneSize::kL64) \
+  V(I32x4ShrU, IShrU, LaneSize::kL32) \
+  V(I16x8ShrU, IShrU, LaneSize::kL16) \
+  V(I8x16ShrU, IShrU, LaneSize::kL8)
 
 #define SIMD_BINOP_LIST(V)                        \
   V(I32x4Mul, kArm64I32x4Mul)                     \
@@ -5120,65 +5124,65 @@ void InstructionSelector::VisitInt64AbsWithOverflow(OpIndex node) {
   V(I8x16SConvertI16x8, kArm64I8x16SConvertI16x8) \
   V(I8x16UConvertI16x8, kArm64I8x16UConvertI16x8)
 
-#define SIMD_BINOP_LANE_SIZE_LIST(V)                   \
-  V(F64x2Min, kArm64FMin, 64)                          \
-  V(F64x2Max, kArm64FMax, 64)                          \
-  V(F64x2Add, kArm64FAdd, 64)                          \
-  V(F64x2Sub, kArm64FSub, 64)                          \
-  V(F64x2Div, kArm64FDiv, 64)                          \
-  V(F64x2RelaxedMin, kArm64FMin, 64)                   \
-  V(F64x2RelaxedMax, kArm64FMax, 64)                   \
-  V(F32x4Min, kArm64FMin, 32)                          \
-  V(F32x4Max, kArm64FMax, 32)                          \
-  V(F32x4Add, kArm64FAdd, 32)                          \
-  V(F32x4Sub, kArm64FSub, 32)                          \
-  V(F32x4Div, kArm64FDiv, 32)                          \
-  V(F32x4RelaxedMin, kArm64FMin, 32)                   \
-  V(F32x4RelaxedMax, kArm64FMax, 32)                   \
-  V(F16x8Add, kArm64FAdd, 16)                          \
-  V(F16x8Sub, kArm64FSub, 16)                          \
-  V(F16x8Div, kArm64FDiv, 16)                          \
-  V(F16x8Min, kArm64FMin, 16)                          \
-  V(F16x8Max, kArm64FMax, 16)                          \
-  V(I32x4GtU, kArm64IGtU, 32)                          \
-  V(I32x4GeU, kArm64IGeU, 32)                          \
-  V(I32x4MinS, kArm64IMinS, 32)                        \
-  V(I32x4MaxS, kArm64IMaxS, 32)                        \
-  V(I32x4MinU, kArm64IMinU, 32)                        \
-  V(I32x4MaxU, kArm64IMaxU, 32)                        \
-  V(I16x8AddSatS, kArm64IAddSatS, 16)                  \
-  V(I16x8SubSatS, kArm64ISubSatS, 16)                  \
-  V(I16x8AddSatU, kArm64IAddSatU, 16)                  \
-  V(I16x8SubSatU, kArm64ISubSatU, 16)                  \
-  V(I16x8GtU, kArm64IGtU, 16)                          \
-  V(I16x8GeU, kArm64IGeU, 16)                          \
-  V(I16x8RoundingAverageU, kArm64RoundingAverageU, 16) \
-  V(I8x16RoundingAverageU, kArm64RoundingAverageU, 8)  \
-  V(I16x8MinS, kArm64IMinS, 16)                        \
-  V(I16x8MaxS, kArm64IMaxS, 16)                        \
-  V(I16x8MinU, kArm64IMinU, 16)                        \
-  V(I16x8MaxU, kArm64IMaxU, 16)                        \
-  V(I8x16Sub, kArm64ISub, 8)                           \
-  V(I8x16AddSatS, kArm64IAddSatS, 8)                   \
-  V(I8x16SubSatS, kArm64ISubSatS, 8)                   \
-  V(I8x16AddSatU, kArm64IAddSatU, 8)                   \
-  V(I8x16SubSatU, kArm64ISubSatU, 8)                   \
-  V(I8x16GtU, kArm64IGtU, 8)                           \
-  V(I8x16GeU, kArm64IGeU, 8)                           \
-  V(I8x16MinS, kArm64IMinS, 8)                         \
-  V(I8x16MaxS, kArm64IMaxS, 8)                         \
-  V(I8x16MinU, kArm64IMinU, 8)                         \
-  V(I8x16MaxU, kArm64IMaxU, 8)
+#define SIMD_BINOP_LANE_SIZE_LIST(V)                               \
+  V(F64x2Min, kArm64FMin, LaneSize::kL64)                          \
+  V(F64x2Max, kArm64FMax, LaneSize::kL64)                          \
+  V(F64x2Add, kArm64FAdd, LaneSize::kL64)                          \
+  V(F64x2Sub, kArm64FSub, LaneSize::kL64)                          \
+  V(F64x2Div, kArm64FDiv, LaneSize::kL64)                          \
+  V(F64x2RelaxedMin, kArm64FMin, LaneSize::kL64)                   \
+  V(F64x2RelaxedMax, kArm64FMax, LaneSize::kL64)                   \
+  V(F32x4Min, kArm64FMin, LaneSize::kL32)                          \
+  V(F32x4Max, kArm64FMax, LaneSize::kL32)                          \
+  V(F32x4Add, kArm64FAdd, LaneSize::kL32)                          \
+  V(F32x4Sub, kArm64FSub, LaneSize::kL32)                          \
+  V(F32x4Div, kArm64FDiv, LaneSize::kL32)                          \
+  V(F32x4RelaxedMin, kArm64FMin, LaneSize::kL32)                   \
+  V(F32x4RelaxedMax, kArm64FMax, LaneSize::kL32)                   \
+  V(F16x8Add, kArm64FAdd, LaneSize::kL16)                          \
+  V(F16x8Sub, kArm64FSub, LaneSize::kL16)                          \
+  V(F16x8Div, kArm64FDiv, LaneSize::kL16)                          \
+  V(F16x8Min, kArm64FMin, LaneSize::kL16)                          \
+  V(F16x8Max, kArm64FMax, LaneSize::kL16)                          \
+  V(I32x4GtU, kArm64IGtU, LaneSize::kL32)                          \
+  V(I32x4GeU, kArm64IGeU, LaneSize::kL32)                          \
+  V(I32x4MinS, kArm64IMinS, LaneSize::kL32)                        \
+  V(I32x4MaxS, kArm64IMaxS, LaneSize::kL32)                        \
+  V(I32x4MinU, kArm64IMinU, LaneSize::kL32)                        \
+  V(I32x4MaxU, kArm64IMaxU, LaneSize::kL32)                        \
+  V(I16x8AddSatS, kArm64IAddSatS, LaneSize::kL16)                  \
+  V(I16x8SubSatS, kArm64ISubSatS, LaneSize::kL16)                  \
+  V(I16x8AddSatU, kArm64IAddSatU, LaneSize::kL16)                  \
+  V(I16x8SubSatU, kArm64ISubSatU, LaneSize::kL16)                  \
+  V(I16x8GtU, kArm64IGtU, LaneSize::kL16)                          \
+  V(I16x8GeU, kArm64IGeU, LaneSize::kL16)                          \
+  V(I16x8RoundingAverageU, kArm64RoundingAverageU, LaneSize::kL16) \
+  V(I8x16RoundingAverageU, kArm64RoundingAverageU, LaneSize::kL8)  \
+  V(I16x8MinS, kArm64IMinS, LaneSize::kL16)                        \
+  V(I16x8MaxS, kArm64IMaxS, LaneSize::kL16)                        \
+  V(I16x8MinU, kArm64IMinU, LaneSize::kL16)                        \
+  V(I16x8MaxU, kArm64IMaxU, LaneSize::kL16)                        \
+  V(I8x16Sub, kArm64ISub, LaneSize::kL8)                           \
+  V(I8x16AddSatS, kArm64IAddSatS, LaneSize::kL8)                   \
+  V(I8x16SubSatS, kArm64ISubSatS, LaneSize::kL8)                   \
+  V(I8x16AddSatU, kArm64IAddSatU, LaneSize::kL8)                   \
+  V(I8x16SubSatU, kArm64ISubSatU, LaneSize::kL8)                   \
+  V(I8x16GtU, kArm64IGtU, LaneSize::kL8)                           \
+  V(I8x16GeU, kArm64IGeU, LaneSize::kL8)                           \
+  V(I8x16MinS, kArm64IMinS, LaneSize::kL8)                         \
+  V(I8x16MaxS, kArm64IMaxS, LaneSize::kL8)                         \
+  V(I8x16MinU, kArm64IMinU, LaneSize::kL8)                         \
+  V(I8x16MaxU, kArm64IMaxU, LaneSize::kL8)
 
 #define SIMD_VISIT_ALLTRUE(Name, lane_size)                                \
   void InstructionSelector::Visit##Name(OpIndex node) {                    \
     VisitRR(this, kArm64AllTrue | LaneSizeField::encode(lane_size), node); \
   }
 
-SIMD_VISIT_ALLTRUE(I64x2AllTrue, 64)
-SIMD_VISIT_ALLTRUE(I32x4AllTrue, 32)
-SIMD_VISIT_ALLTRUE(I16x8AllTrue, 16)
-SIMD_VISIT_ALLTRUE(I8x16AllTrue, 8)
+SIMD_VISIT_ALLTRUE(I64x2AllTrue, LaneSize::kL64)
+SIMD_VISIT_ALLTRUE(I32x4AllTrue, LaneSize::kL32)
+SIMD_VISIT_ALLTRUE(I16x8AllTrue, LaneSize::kL16)
+SIMD_VISIT_ALLTRUE(I8x16AllTrue, LaneSize::kL8)
 #undef SIMD_VISIT_ALLTRUE
 
 void InstructionSelector::VisitS128Const(OpIndex node) {
@@ -5279,7 +5283,8 @@ bool TryEmitS128AndNotImm(InstructionSelector* selector, OpIndex node,
   if (param.has_value()) {
     if (selector->CanCover(node, result->other_node)) {
       selector->Emit(
-          kArm64S128AndNot | LaneSizeField::encode(param->lane_size),
+          kArm64S128AndNot |
+              LaneSizeField::encode(LaneSizeFromBits(param->lane_size)),
           g.DefineSameAsFirst(node), g.UseRegister(result->other_node),
           g.UseImmediate(param->imm), g.UseImmediate(param->shift_amount));
       return true;
@@ -5423,11 +5428,14 @@ void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(OpIndex node) {
     InstructionOperand smull = g.TempSimd128Register();
     InstructionOperand smull2 = g.TempSimd128Register();
     InstructionOperand addp = g.TempSimd128Register();
-    Emit(kArm64Smull | LaneSizeField::encode(16), smull, left, right);
-    Emit(kArm64Smull2 | LaneSizeField::encode(16), smull2, left, right);
-    Emit(kArm64IAddp | LaneSizeField::encode(16), addp, smull, smull2);
-    Emit(kArm64Sadalp | LaneSizeField::encode(32), g.DefineSameAsFirst(node),
-         acc, addp);
+    Emit(kArm64Smull | LaneSizeField::encode(LaneSize::kL16), smull, left,
+         right);
+    Emit(kArm64Smull2 | LaneSizeField::encode(LaneSize::kL16), smull2, left,
+         right);
+    Emit(kArm64IAddp | LaneSizeField::encode(LaneSize::kL16), addp, smull,
+         smull2);
+    Emit(kArm64Sadalp | LaneSizeField::encode(LaneSize::kL32),
+         g.DefineSameAsFirst(node), acc, addp);
   }
 }
 
@@ -5439,12 +5447,15 @@ void VisitDot(InstructionSelector* selector, OpIndex node, int lane_size) {
 
   InstructionOperand smull = g.TempSimd128Register();
   InstructionOperand smull2 = g.TempSimd128Register();
-  selector->Emit(kArm64Smull | LaneSizeField::encode(lane_size), smull, left,
-                 right);
-  selector->Emit(kArm64Smull2 | LaneSizeField::encode(lane_size), smull2, left,
-                 right);
-  selector->Emit(kArm64IAddp | LaneSizeField::encode(lane_size),
-                 g.DefineAsRegister(node), smull, smull2);
+  selector->Emit(
+      kArm64Smull | LaneSizeField::encode(LaneSizeFromBits(lane_size)), smull,
+      left, right);
+  selector->Emit(
+      kArm64Smull2 | LaneSizeField::encode(LaneSizeFromBits(lane_size)), smull2,
+      left, right);
+  selector->Emit(
+      kArm64IAddp | LaneSizeField::encode(LaneSizeFromBits(lane_size)),
+      g.DefineAsRegister(node), smull, smull2);
 }
 
 void InstructionSelector::VisitI16x8DotI8x16I7x16S(OpIndex node) {
@@ -5476,15 +5487,15 @@ void InstructionSelector::VisitI8x16BitMask(OpIndex node) {
              kArm64##T##ExtractLane##Sign | LaneSizeField::encode(LaneSize), \
              node);                                                          \
   }
-SIMD_VISIT_EXTRACT_LANE(F64x2, F, , 64)
-SIMD_VISIT_EXTRACT_LANE(F32x4, F, , 32)
-SIMD_VISIT_EXTRACT_LANE(F16x8, F, , 16)
-SIMD_VISIT_EXTRACT_LANE(I64x2, I, , 64)
-SIMD_VISIT_EXTRACT_LANE(I32x4, I, , 32)
-SIMD_VISIT_EXTRACT_LANE(I16x8, I, U, 16)
-SIMD_VISIT_EXTRACT_LANE(I16x8, I, S, 16)
-SIMD_VISIT_EXTRACT_LANE(I8x16, I, U, 8)
-SIMD_VISIT_EXTRACT_LANE(I8x16, I, S, 8)
+SIMD_VISIT_EXTRACT_LANE(F64x2, F, , LaneSize::kL64)
+SIMD_VISIT_EXTRACT_LANE(F32x4, F, , LaneSize::kL32)
+SIMD_VISIT_EXTRACT_LANE(F16x8, F, , LaneSize::kL16)
+SIMD_VISIT_EXTRACT_LANE(I64x2, I, , LaneSize::kL64)
+SIMD_VISIT_EXTRACT_LANE(I32x4, I, , LaneSize::kL32)
+SIMD_VISIT_EXTRACT_LANE(I16x8, I, U, LaneSize::kL16)
+SIMD_VISIT_EXTRACT_LANE(I16x8, I, S, LaneSize::kL16)
+SIMD_VISIT_EXTRACT_LANE(I8x16, I, U, LaneSize::kL8)
+SIMD_VISIT_EXTRACT_LANE(I8x16, I, S, LaneSize::kL8)
 #undef SIMD_VISIT_EXTRACT_LANE
 
 #define SIMD_VISIT_REPLACE_LANE(Type, T, LaneSize)                            \
@@ -5492,13 +5503,13 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, I, S, 8)
     VisitRRIR(this, kArm64##T##ReplaceLane | LaneSizeField::encode(LaneSize), \
               node);                                                          \
   }
-SIMD_VISIT_REPLACE_LANE(F64x2, F, 64)
-SIMD_VISIT_REPLACE_LANE(F32x4, F, 32)
-SIMD_VISIT_REPLACE_LANE(F16x8, F, 16)
-SIMD_VISIT_REPLACE_LANE(I64x2, I, 64)
-SIMD_VISIT_REPLACE_LANE(I32x4, I, 32)
-SIMD_VISIT_REPLACE_LANE(I16x8, I, 16)
-SIMD_VISIT_REPLACE_LANE(I8x16, I, 8)
+SIMD_VISIT_REPLACE_LANE(F64x2, F, LaneSize::kL64)
+SIMD_VISIT_REPLACE_LANE(F32x4, F, LaneSize::kL32)
+SIMD_VISIT_REPLACE_LANE(F16x8, F, LaneSize::kL16)
+SIMD_VISIT_REPLACE_LANE(I64x2, I, LaneSize::kL64)
+SIMD_VISIT_REPLACE_LANE(I32x4, I, LaneSize::kL32)
+SIMD_VISIT_REPLACE_LANE(I16x8, I, LaneSize::kL16)
+SIMD_VISIT_REPLACE_LANE(I8x16, I, LaneSize::kL8)
 #undef SIMD_VISIT_REPLACE_LANE
 
 #define SIMD_VISIT_MOVE_LANE(Type, LaneSize)                              \
@@ -5506,12 +5517,12 @@ SIMD_VISIT_REPLACE_LANE(I8x16, I, 8)
     VisitRRII(this, kArm64S128MoveLane | LaneSizeField::encode(LaneSize), \
               node);                                                      \
   }
-SIMD_VISIT_MOVE_LANE(I8x16, 8)
-SIMD_VISIT_MOVE_LANE(I16x8, 16)
-SIMD_VISIT_MOVE_LANE(I32x4, 32)
-SIMD_VISIT_MOVE_LANE(F32x4, 32)
-SIMD_VISIT_MOVE_LANE(I64x2, 64)
-SIMD_VISIT_MOVE_LANE(F64x2, 64)
+SIMD_VISIT_MOVE_LANE(I8x16, LaneSize::kL8)
+SIMD_VISIT_MOVE_LANE(I16x8, LaneSize::kL16)
+SIMD_VISIT_MOVE_LANE(I32x4, LaneSize::kL32)
+SIMD_VISIT_MOVE_LANE(F32x4, LaneSize::kL32)
+SIMD_VISIT_MOVE_LANE(I64x2, LaneSize::kL64)
+SIMD_VISIT_MOVE_LANE(F64x2, LaneSize::kL64)
 #undef SIMD_VISIT_MOVE_LANE
 
 #define SIMD_VISIT_UNOP(Name, instruction)              \
@@ -5522,26 +5533,24 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #undef SIMD_VISIT_UNOP
 #undef SIMD_UNOP_LIST
 
-#define SIMD_VISIT_SHIFT_OP(Name, instruction, width)                     \
-  void InstructionSelector::Visit##Name(OpIndex node) {                   \
-    const Simd128ShiftOp& op = Get(node).Cast<Simd128ShiftOp>();          \
-    if (op.kind == Simd128ShiftOp::Kind::kI64x2Shl ||                     \
-        op.kind == Simd128ShiftOp::Kind::kI32x4Shl ||                     \
-        op.kind == Simd128ShiftOp::Kind::kI16x8Shl ||                     \
-        op.kind == Simd128ShiftOp::Kind::kI8x16Shl) {                     \
-      if (auto* constant = TryCast<ConstantOp>(op.shift())) {             \
-        if (constant->word32() == 1) {                                    \
-          Arm64OperandGenerator g(this);                                  \
-          Emit(kArm64IAdd | LaneSizeField::encode(width),                 \
-               g.DefineAsRegister(node), g.UseRegister(op.input()),       \
-               g.UseRegister(op.input()));                                \
-          return;                                                         \
-        }                                                                 \
-      }                                                                   \
-    }                                                                     \
-    VisitSimdShiftRRR(this,                                               \
-                      kArm64##instruction | LaneSizeField::encode(width), \
-                      node, width);                                       \
+#define SIMD_VISIT_SHIFT_OP(Name, instruction, lane_size)           \
+  void InstructionSelector::Visit##Name(OpIndex node) {             \
+    const Simd128ShiftOp& op = Get(node).Cast<Simd128ShiftOp>();    \
+    if (op.kind == Simd128ShiftOp::Kind::kI64x2Shl ||               \
+        op.kind == Simd128ShiftOp::Kind::kI32x4Shl ||               \
+        op.kind == Simd128ShiftOp::Kind::kI16x8Shl ||               \
+        op.kind == Simd128ShiftOp::Kind::kI8x16Shl) {               \
+      if (auto* constant = TryCast<ConstantOp>(op.shift())) {       \
+        if (constant->word32() == 1) {                              \
+          Arm64OperandGenerator g(this);                            \
+          Emit(kArm64IAdd | LaneSizeField::encode(lane_size),       \
+               g.DefineAsRegister(node), g.UseRegister(op.input()), \
+               g.UseRegister(op.input()));                          \
+          return;                                                   \
+        }                                                           \
+      }                                                             \
+    }                                                               \
+    VisitSimdShiftRRR(this, kArm64##instruction, node, lane_size);  \
   }
 SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #undef SIMD_VISIT_SHIFT_OP
@@ -5633,33 +5642,36 @@ MulWithDup TryMatchMulWithDup(InstructionSelector* selector, OpIndex node) {
 void InstructionSelector::VisitF16x8Mul(OpIndex node) {
   if (MulWithDup result = TryMatchMulWithDup<8>(this, node)) {
     Arm64OperandGenerator g(this);
-    Emit(kArm64FMulElement | LaneSizeField::encode(16),
+    Emit(kArm64FMulElement | LaneSizeField::encode(LaneSize::kL16),
          g.DefineAsRegister(node), g.UseRegister(result.input),
          g.UseRegister(result.dup_node), g.UseImmediate(result.index));
   } else {
-    return VisitRRR(this, kArm64FMul | LaneSizeField::encode(16), node);
+    return VisitRRR(this, kArm64FMul | LaneSizeField::encode(LaneSize::kL16),
+                    node);
   }
 }
 
 void InstructionSelector::VisitF32x4Mul(OpIndex node) {
   if (MulWithDup result = TryMatchMulWithDup<4>(this, node)) {
     Arm64OperandGenerator g(this);
-    Emit(kArm64FMulElement | LaneSizeField::encode(32),
+    Emit(kArm64FMulElement | LaneSizeField::encode(LaneSize::kL32),
          g.DefineAsRegister(node), g.UseRegister(result.input),
          g.UseRegister(result.dup_node), g.UseImmediate(result.index));
   } else {
-    return VisitRRR(this, kArm64FMul | LaneSizeField::encode(32), node);
+    return VisitRRR(this, kArm64FMul | LaneSizeField::encode(LaneSize::kL32),
+                    node);
   }
 }
 
 void InstructionSelector::VisitF64x2Mul(OpIndex node) {
   if (MulWithDup result = TryMatchMulWithDup<2>(this, node)) {
     Arm64OperandGenerator g(this);
-    Emit(kArm64FMulElement | LaneSizeField::encode(64),
+    Emit(kArm64FMulElement | LaneSizeField::encode(LaneSize::kL64),
          g.DefineAsRegister(node), g.UseRegister(result.input),
          g.UseRegister(result.dup_node), g.UseImmediate(result.index));
   } else {
-    return VisitRRR(this, kArm64FMul | LaneSizeField::encode(64), node);
+    return VisitRRR(this, kArm64FMul | LaneSizeField::encode(LaneSize::kL64),
+                    node);
   }
 }
 
@@ -5702,7 +5714,7 @@ class SimdBinopMatcherTurboshaft {
 };
 
 template <typename OpmaskT>
-bool ShraHelper(InstructionSelector* selector, OpIndex node, int lane_size,
+bool ShraHelper(InstructionSelector* selector, OpIndex node, LaneSize lane_size,
                 InstructionCode shra_code, InstructionCode add_code) {
   Arm64OperandGenerator g(selector);
   SimdBinopMatcherTurboshaft m(selector, node);
@@ -5718,9 +5730,9 @@ bool ShraHelper(InstructionSelector* selector, OpIndex node, int lane_size,
   }
 
   // If shifting by zero, just do the addition
-  if (constant % lane_size == 0) {
-    selector->Emit(add_code, g.DefineAsRegister(node),
-                   g.UseRegister(shiftop.input()),
+  if (constant % LaneSizeBits(lane_size) == 0) {
+    selector->Emit(add_code | LaneSizeField::encode(lane_size),
+                   g.DefineAsRegister(node), g.UseRegister(shiftop.input()),
                    g.UseRegister(m.other_input()));
   } else {
     selector->Emit(shra_code | LaneSizeField::encode(lane_size),
@@ -5732,8 +5744,8 @@ bool ShraHelper(InstructionSelector* selector, OpIndex node, int lane_size,
 }
 
 template <typename OpmaskT>
-bool AdalpHelper(InstructionSelector* selector, OpIndex node, int lane_size,
-                 InstructionCode adalp_code) {
+bool AdalpHelper(InstructionSelector* selector, OpIndex node,
+                 LaneSize lane_size, InstructionCode adalp_code) {
   Arm64OperandGenerator g(selector);
   SimdBinopMatcherTurboshaft m(selector, node);
   if (!m.InputMatches<OpmaskT>() ||
@@ -5763,8 +5775,8 @@ bool MlaHelper(InstructionSelector* selector, OpIndex node,
 }
 
 template <Simd128BinopOp::Kind kind>
-bool SmlalHelper(InstructionSelector* selector, OpIndex node, int lane_size,
-                 InstructionCode smlal_code) {
+bool SmlalHelper(InstructionSelector* selector, OpIndex node,
+                 LaneSize lane_size, InstructionCode smlal_code) {
   Arm64OperandGenerator g(selector);
   SimdBinopMatcherTurboshaft m(selector, node);
   using OpmaskT = Opmask::Simd128BinopMask::For<kind>;
@@ -5873,7 +5885,7 @@ InstructionCode AddwOpcodeFromConvert() {
 
 template <Simd128UnaryOp::Kind K>
 bool TryEmitAdd(InstructionSelector* selector, const OpIndex node,
-                int ta_size) {
+                LaneSize ta_size) {
   Arm64OperandGenerator g(selector);
   const Simd128BinopOp* add_op = selector->Get(node).TryCast<Simd128BinopOp>();
   bool left = CanOptimizeUnaryWithKind<K>(selector, node, add_op->left());
@@ -5906,35 +5918,35 @@ bool TryEmitAdd(InstructionSelector* selector, const OpIndex node,
 }  // namespace
 
 void InstructionSelector::VisitI64x2Add(OpIndex node) {
-  if (ShraHelper<Opmask::kSimd128I64x2ShrS>(
-          this, node, 64, kArm64Ssra, kArm64IAdd | LaneSizeField::encode(64)) ||
-      ShraHelper<Opmask::kSimd128I64x2ShrU>(
-          this, node, 64, kArm64Usra, kArm64IAdd | LaneSizeField::encode(64))) {
+  if (ShraHelper<Opmask::kSimd128I64x2ShrS>(this, node, LaneSize::kL64,
+                                            kArm64Ssra, kArm64IAdd) ||
+      ShraHelper<Opmask::kSimd128I64x2ShrU>(this, node, LaneSize::kL64,
+                                            kArm64Usra, kArm64IAdd)) {
     return;
   }
-  if (TryEmitAdd<Simd128UnaryOp::Kind::kI64x2UConvertI32x4Low>(this, node,
-                                                               64)) {
+  if (TryEmitAdd<Simd128UnaryOp::Kind::kI64x2UConvertI32x4Low>(
+          this, node, LaneSize::kL64)) {
     return;
   } else if (TryEmitAdd<Simd128UnaryOp::Kind::kI64x2UConvertI32x4High>(
-                 this, node, 64)) {
+                 this, node, LaneSize::kL64)) {
     return;
   } else if (TryEmitAdd<Simd128UnaryOp::Kind::kI64x2SConvertI32x4Low>(
-                 this, node, 64)) {
+                 this, node, LaneSize::kL64)) {
     return;
   } else if (TryEmitAdd<Simd128UnaryOp::Kind::kI64x2SConvertI32x4High>(
-                 this, node, 64)) {
+                 this, node, LaneSize::kL64)) {
     return;
   } else {
-    VisitRRR(this, kArm64IAdd | LaneSizeField::encode(64), node);
+    VisitRRR(this, kArm64IAdd | LaneSizeField::encode(LaneSize::kL64), node);
   }
 }
 
 void InstructionSelector::VisitI8x16Add(OpIndex node) {
-  if (!ShraHelper<Opmask::kSimd128I8x16ShrS>(
-          this, node, 8, kArm64Ssra, kArm64IAdd | LaneSizeField::encode(8)) &&
-      !ShraHelper<Opmask::kSimd128I8x16ShrU>(
-          this, node, 8, kArm64Usra, kArm64IAdd | LaneSizeField::encode(8))) {
-    VisitRRR(this, kArm64IAdd | LaneSizeField::encode(8), node);
+  if (!ShraHelper<Opmask::kSimd128I8x16ShrS>(this, node, LaneSize::kL8,
+                                             kArm64Ssra, kArm64IAdd) &&
+      !ShraHelper<Opmask::kSimd128I8x16ShrU>(this, node, LaneSize::kL8,
+                                             kArm64Usra, kArm64IAdd)) {
+    VisitRRR(this, kArm64IAdd | LaneSizeField::encode(LaneSize::kL8), node);
   }
 }
 
@@ -5953,12 +5965,10 @@ void InstructionSelector::VisitI8x16Add(OpIndex node) {
       return;                                                                 \
     }                                                                         \
     /* Select S/Usra(x, y) for Add(x, ShiftRight(y, imm)). */                 \
-    if (ShraHelper<Opmask::kSimd128##Type##ShrS>(                             \
-            this, node, LaneSize, kArm64Ssra,                                 \
-            kArm64IAdd | LaneSizeField::encode(LaneSize)) ||                  \
-        ShraHelper<Opmask::kSimd128##Type##ShrU>(                             \
-            this, node, LaneSize, kArm64Usra,                                 \
-            kArm64IAdd | LaneSizeField::encode(LaneSize))) {                  \
+    if (ShraHelper<Opmask::kSimd128##Type##ShrS>(this, node, LaneSize,        \
+                                                 kArm64Ssra, kArm64IAdd) ||   \
+        ShraHelper<Opmask::kSimd128##Type##ShrU>(this, node, LaneSize,        \
+                                                 kArm64Usra, kArm64IAdd)) {   \
       return;                                                                 \
     }                                                                         \
     /* Select Smlal/Umlal(x, y, z) for Add(x, ExtMulLow(y, z)) and            \
@@ -5981,38 +5991,38 @@ void InstructionSelector::VisitI8x16Add(OpIndex node) {
   }
 
 void InstructionSelector::VisitI32x4Add(OpIndex node) {
-  if (TryEmitAdd<Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low>(this, node,
-                                                               32)) {
+  if (TryEmitAdd<Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low>(
+          this, node, LaneSize::kL32)) {
     return;
   } else if (TryEmitAdd<Simd128UnaryOp::Kind::kI32x4UConvertI16x8High>(
-                 this, node, 32)) {
+                 this, node, LaneSize::kL32)) {
     return;
   } else if (TryEmitAdd<Simd128UnaryOp::Kind::kI32x4SConvertI16x8Low>(
-                 this, node, 32)) {
+                 this, node, LaneSize::kL32)) {
     return;
   } else if (TryEmitAdd<Simd128UnaryOp::Kind::kI32x4SConvertI16x8High>(
-                 this, node, 32)) {
+                 this, node, LaneSize::kL32)) {
     return;
   } else {
-    VISIT_SIMD_ADD(I32x4, I16x8, 32)
+    VISIT_SIMD_ADD(I32x4, I16x8, LaneSize::kL32)
   }
 }
 
 void InstructionSelector::VisitI16x8Add(OpIndex node) {
-  if (TryEmitAdd<Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low>(this, node,
-                                                               16)) {
+  if (TryEmitAdd<Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low>(
+          this, node, LaneSize::kL16)) {
     return;
   } else if (TryEmitAdd<Simd128UnaryOp::Kind::kI16x8UConvertI8x16High>(
-                 this, node, 16)) {
+                 this, node, LaneSize::kL16)) {
     return;
   } else if (TryEmitAdd<Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low>(
-                 this, node, 16)) {
+                 this, node, LaneSize::kL16)) {
     return;
   } else if (TryEmitAdd<Simd128UnaryOp::Kind::kI16x8SConvertI8x16High>(
-                 this, node, 16)) {
+                 this, node, LaneSize::kL16)) {
     return;
   } else {
-    VISIT_SIMD_ADD(I16x8, I8x16, 16)
+    VISIT_SIMD_ADD(I16x8, I8x16, LaneSize::kL16)
   }
 }
 #undef VISIT_SIMD_ADD
@@ -6068,7 +6078,7 @@ InstructionCode SubwOpcodeFromConvert() {
 
 template <Simd128UnaryOp::Kind K>
 bool TryEmitSub(InstructionSelector* selector, const OpIndex node,
-                int target_lane_size) {
+                LaneSize target_lane_size) {
   Arm64OperandGenerator g(selector);
   const Simd128BinopOp* sub_op = selector->Get(node).TryCast<Simd128BinopOp>();
   bool left = CanOptimizeUnaryWithKind<K>(selector, node, sub_op->left());
@@ -6095,20 +6105,20 @@ bool TryEmitSub(InstructionSelector* selector, const OpIndex node,
 }  // namespace
 
 void InstructionSelector::VisitI64x2Sub(OpIndex node) {
-  if (TryEmitSub<Simd128UnaryOp::Kind::kI64x2UConvertI32x4Low>(this, node,
-                                                               64)) {
+  if (TryEmitSub<Simd128UnaryOp::Kind::kI64x2UConvertI32x4Low>(
+          this, node, LaneSize::kL64)) {
     return;
   } else if (TryEmitSub<Simd128UnaryOp::Kind::kI64x2UConvertI32x4High>(
-                 this, node, 64)) {
+                 this, node, LaneSize::kL64)) {
     return;
   } else if (TryEmitSub<Simd128UnaryOp::Kind::kI64x2SConvertI32x4Low>(
-                 this, node, 64)) {
+                 this, node, LaneSize::kL64)) {
     return;
   } else if (TryEmitSub<Simd128UnaryOp::Kind::kI64x2SConvertI32x4High>(
-                 this, node, 64)) {
+                 this, node, LaneSize::kL64)) {
     return;
   } else {
-    VisitRRR(this, kArm64ISub | LaneSizeField::encode(64), node);
+    VisitRRR(this, kArm64ISub | LaneSizeField::encode(LaneSize::kL64), node);
   }
 }
 
@@ -6129,38 +6139,38 @@ void InstructionSelector::VisitI64x2Sub(OpIndex node) {
   }
 
 void InstructionSelector::VisitI32x4Sub(OpIndex node) {
-  if (TryEmitSub<Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low>(this, node,
-                                                               32)) {
+  if (TryEmitSub<Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low>(
+          this, node, LaneSize::kL32)) {
     return;
   } else if (TryEmitSub<Simd128UnaryOp::Kind::kI32x4UConvertI16x8High>(
-                 this, node, 32)) {
+                 this, node, LaneSize::kL32)) {
     return;
   } else if (TryEmitSub<Simd128UnaryOp::Kind::kI32x4SConvertI16x8Low>(
-                 this, node, 32)) {
+                 this, node, LaneSize::kL32)) {
     return;
   } else if (TryEmitSub<Simd128UnaryOp::Kind::kI32x4SConvertI16x8High>(
-                 this, node, 32)) {
+                 this, node, LaneSize::kL32)) {
     return;
   } else {
-    VISIT_SIMD_SUB(I32x4, 32)
+    VISIT_SIMD_SUB(I32x4, LaneSize::kL32)
   }
 }
 
 void InstructionSelector::VisitI16x8Sub(OpIndex node) {
-  if (TryEmitSub<Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low>(this, node,
-                                                               16)) {
+  if (TryEmitSub<Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low>(
+          this, node, LaneSize::kL16)) {
     return;
   } else if (TryEmitSub<Simd128UnaryOp::Kind::kI16x8UConvertI8x16High>(
-                 this, node, 16)) {
+                 this, node, LaneSize::kL16)) {
     return;
   } else if (TryEmitSub<Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low>(
-                 this, node, 16)) {
+                 this, node, LaneSize::kL16)) {
     return;
   } else if (TryEmitSub<Simd128UnaryOp::Kind::kI16x8SConvertI8x16High>(
-                 this, node, 16)) {
+                 this, node, LaneSize::kL16)) {
     return;
   } else {
-    VISIT_SIMD_SUB(I16x8, 16)
+    VISIT_SIMD_SUB(I16x8, LaneSize::kL16)
   }
 }
 #undef VISIT_SIMD_SUB
@@ -6180,27 +6190,29 @@ void VisitSimdReduce(InstructionSelector* selector, OpIndex node,
     VisitSimdReduce(this, node, Opcode);                           \
   }
 
-VISIT_SIMD_REDUCE(I8x16, kArm64IAddv | LaneSizeField::encode(8))
-VISIT_SIMD_REDUCE(I16x8, kArm64IAddv | LaneSizeField::encode(16))
-VISIT_SIMD_REDUCE(I32x4, kArm64IAddv | LaneSizeField::encode(32))
+VISIT_SIMD_REDUCE(I8x16, kArm64IAddv | LaneSizeField::encode(LaneSize::kL8))
+VISIT_SIMD_REDUCE(I16x8, kArm64IAddv | LaneSizeField::encode(LaneSize::kL16))
+VISIT_SIMD_REDUCE(I32x4, kArm64IAddv | LaneSizeField::encode(LaneSize::kL32))
 VISIT_SIMD_REDUCE(I64x2, kArm64IAddpScalar)
-VISIT_SIMD_REDUCE(F64x2, kArm64FAddpScalar | LaneSizeField::encode(64))
+VISIT_SIMD_REDUCE(F64x2,
+                  kArm64FAddpScalar | LaneSizeField::encode(LaneSize::kL64))
 #undef VISIT_SIMD_REDUCE
 
 void InstructionSelector::VisitF32x4AddReduce(OpIndex node) {
   Arm64OperandGenerator g(this);
   InstructionOperand temp = g.TempSimd128Register();
   OpIndex input = this->Get(node).input(0);
-  Emit(kArm64FAddp | LaneSizeField::encode(32), temp, g.UseRegister(input),
-       g.UseRegister(input));
-  Emit(kArm64FAddpScalar | LaneSizeField::encode(32), g.DefineAsRegister(node),
-       temp);
+  Emit(kArm64FAddp | LaneSizeField::encode(LaneSize::kL32), temp,
+       g.UseRegister(input), g.UseRegister(input));
+  Emit(kArm64FAddpScalar | LaneSizeField::encode(LaneSize::kL32),
+       g.DefineAsRegister(node), temp);
 }
 
 void InstructionSelector::VisitI32x4AddPairwise(OpIndex node) {
   Arm64OperandGenerator g(this);
-  Emit(kArm64IAddp | LaneSizeField::encode(32), g.DefineAsRegister(node),
-       g.UseRegister(Get(node).input(0)), g.UseRegister(Get(node).input(1)));
+  Emit(kArm64IAddp | LaneSizeField::encode(LaneSize::kL32),
+       g.DefineAsRegister(node), g.UseRegister(Get(node).input(0)),
+       g.UseRegister(Get(node).input(1)));
 }
 
 #define VISIT_SIMD_CM(Type, T, CmOp, CmOpposite, LaneSize)                   \
@@ -6221,35 +6233,35 @@ void InstructionSelector::VisitI32x4AddPairwise(OpIndex node) {
     VisitRRR(this, kArm64##T##CmOp | LaneSizeField::encode(LaneSize), node); \
   }
 
-VISIT_SIMD_CM(F64x2, F, Eq, Eq, 64)
-VISIT_SIMD_CM(F64x2, F, Ne, Ne, 64)
-VISIT_SIMD_CM(F64x2, F, Lt, Gt, 64)
-VISIT_SIMD_CM(F64x2, F, Le, Ge, 64)
-VISIT_SIMD_CM(F32x4, F, Eq, Eq, 32)
-VISIT_SIMD_CM(F32x4, F, Ne, Ne, 32)
-VISIT_SIMD_CM(F32x4, F, Lt, Gt, 32)
-VISIT_SIMD_CM(F32x4, F, Le, Ge, 32)
-VISIT_SIMD_CM(F16x8, F, Eq, Eq, 16)
-VISIT_SIMD_CM(F16x8, F, Ne, Ne, 16)
-VISIT_SIMD_CM(F16x8, F, Lt, Gt, 16)
-VISIT_SIMD_CM(F16x8, F, Le, Ge, 16)
+VISIT_SIMD_CM(F64x2, F, Eq, Eq, LaneSize::kL64)
+VISIT_SIMD_CM(F64x2, F, Ne, Ne, LaneSize::kL64)
+VISIT_SIMD_CM(F64x2, F, Lt, Gt, LaneSize::kL64)
+VISIT_SIMD_CM(F64x2, F, Le, Ge, LaneSize::kL64)
+VISIT_SIMD_CM(F32x4, F, Eq, Eq, LaneSize::kL32)
+VISIT_SIMD_CM(F32x4, F, Ne, Ne, LaneSize::kL32)
+VISIT_SIMD_CM(F32x4, F, Lt, Gt, LaneSize::kL32)
+VISIT_SIMD_CM(F32x4, F, Le, Ge, LaneSize::kL32)
+VISIT_SIMD_CM(F16x8, F, Eq, Eq, LaneSize::kL16)
+VISIT_SIMD_CM(F16x8, F, Ne, Ne, LaneSize::kL16)
+VISIT_SIMD_CM(F16x8, F, Lt, Gt, LaneSize::kL16)
+VISIT_SIMD_CM(F16x8, F, Le, Ge, LaneSize::kL16)
 
-VISIT_SIMD_CM(I64x2, I, Eq, Eq, 64)
-VISIT_SIMD_CM(I64x2, I, Ne, Ne, 64)
-VISIT_SIMD_CM(I64x2, I, GtS, LtS, 64)
-VISIT_SIMD_CM(I64x2, I, GeS, LeS, 64)
-VISIT_SIMD_CM(I32x4, I, Eq, Eq, 32)
-VISIT_SIMD_CM(I32x4, I, Ne, Ne, 32)
-VISIT_SIMD_CM(I32x4, I, GtS, LtS, 32)
-VISIT_SIMD_CM(I32x4, I, GeS, LeS, 32)
-VISIT_SIMD_CM(I16x8, I, Eq, Eq, 16)
-VISIT_SIMD_CM(I16x8, I, Ne, Ne, 16)
-VISIT_SIMD_CM(I16x8, I, GtS, LtS, 16)
-VISIT_SIMD_CM(I16x8, I, GeS, LeS, 16)
-VISIT_SIMD_CM(I8x16, I, Eq, Eq, 8)
-VISIT_SIMD_CM(I8x16, I, Ne, Ne, 8)
-VISIT_SIMD_CM(I8x16, I, GtS, LtS, 8)
-VISIT_SIMD_CM(I8x16, I, GeS, LeS, 8)
+VISIT_SIMD_CM(I64x2, I, Eq, Eq, LaneSize::kL64)
+VISIT_SIMD_CM(I64x2, I, Ne, Ne, LaneSize::kL64)
+VISIT_SIMD_CM(I64x2, I, GtS, LtS, LaneSize::kL64)
+VISIT_SIMD_CM(I64x2, I, GeS, LeS, LaneSize::kL64)
+VISIT_SIMD_CM(I32x4, I, Eq, Eq, LaneSize::kL32)
+VISIT_SIMD_CM(I32x4, I, Ne, Ne, LaneSize::kL32)
+VISIT_SIMD_CM(I32x4, I, GtS, LtS, LaneSize::kL32)
+VISIT_SIMD_CM(I32x4, I, GeS, LeS, LaneSize::kL32)
+VISIT_SIMD_CM(I16x8, I, Eq, Eq, LaneSize::kL16)
+VISIT_SIMD_CM(I16x8, I, Ne, Ne, LaneSize::kL16)
+VISIT_SIMD_CM(I16x8, I, GtS, LtS, LaneSize::kL16)
+VISIT_SIMD_CM(I16x8, I, GeS, LeS, LaneSize::kL16)
+VISIT_SIMD_CM(I8x16, I, Eq, Eq, LaneSize::kL8)
+VISIT_SIMD_CM(I8x16, I, Ne, Ne, LaneSize::kL8)
+VISIT_SIMD_CM(I8x16, I, GtS, LtS, LaneSize::kL8)
+VISIT_SIMD_CM(I8x16, I, GeS, LeS, LaneSize::kL8)
 #undef VISIT_SIMD_CM
 
 void InstructionSelector::VisitS128Select(OpIndex node) {
@@ -6283,12 +6295,12 @@ void InstructionSelector::VisitI64x2RelaxedLaneSelect(OpIndex node) {
          g.DefineSameAsInput(node, 2), g.UseRegister(op.first()), \
          g.UseRegister(op.second()), g.UseRegister(op.third()));  \
   }
-VISIT_SIMD_QFMOP(F64x2Qfma, Ffma, 64)
-VISIT_SIMD_QFMOP(F64x2Qfms, Ffms, 64)
-VISIT_SIMD_QFMOP(F32x4Qfma, Ffma, 32)
-VISIT_SIMD_QFMOP(F32x4Qfms, Ffms, 32)
-VISIT_SIMD_QFMOP(F16x8Qfma, Ffma, 16)
-VISIT_SIMD_QFMOP(F16x8Qfms, Ffms, 16)
+VISIT_SIMD_QFMOP(F64x2Qfma, Ffma, LaneSize::kL64)
+VISIT_SIMD_QFMOP(F64x2Qfms, Ffms, LaneSize::kL64)
+VISIT_SIMD_QFMOP(F32x4Qfma, Ffma, LaneSize::kL32)
+VISIT_SIMD_QFMOP(F32x4Qfms, Ffms, LaneSize::kL32)
+VISIT_SIMD_QFMOP(F16x8Qfma, Ffma, LaneSize::kL16)
+VISIT_SIMD_QFMOP(F16x8Qfms, Ffms, LaneSize::kL16)
 #undef VISIT_SIMD_QFMOP
 
 namespace {
@@ -6317,38 +6329,52 @@ std::optional<InstructionCode> TryMapCanonicalShuffleToInstr(
   }
 
   static constexpr std::array arch_shuffles = std::to_array<CanonicalToInstr>({
-      CANONICAL_TO_INSTR(kS64x2Even, kArm64S128UnzipLeft, 64),
-      CANONICAL_TO_INSTR(kS64x2Odd, kArm64S128UnzipRight, 64),
-      CANONICAL_TO_INSTR(kS64x2ReverseBytes, kArm64S128Rev64, 8),
-      CANONICAL_TO_INSTR(kS32x4Even, kArm64S128UnzipLeft, 32),
-      CANONICAL_TO_INSTR(kS32x4Odd, kArm64S128UnzipRight, 32),
-      CANONICAL_TO_INSTR(kS32x4InterleaveLowHalves, kArm64S128ZipLeft, 32),
-      CANONICAL_TO_INSTR(kS32x4InterleaveHighHalves, kArm64S128ZipRight, 32),
-      CANONICAL_TO_INSTR(kS32x4ReverseBytes, kArm64S128Rev32, 8),
-      CANONICAL_TO_INSTR(kS32x2Reverse, kArm64S128Rev64, 32),
-      CANONICAL_TO_INSTR(kS32x4TransposeEven, kArm64S128TransposeLeft, 32),
-      CANONICAL_TO_INSTR(kS32x4TransposeOdd, kArm64S128TransposeRight, 32),
-      CANONICAL_TO_INSTR(kS16x8Even, kArm64S128UnzipLeft, 16),
-      CANONICAL_TO_INSTR(kS16x8Odd, kArm64S128UnzipRight, 16),
-      CANONICAL_TO_INSTR(kS16x4Even, kArm64S128LowUnzipLeft, 16),
-      CANONICAL_TO_INSTR(kS16x4Odd, kArm64S128LowUnzipRight, 16),
-      CANONICAL_TO_INSTR(kS16x8InterleaveLowHalves, kArm64S128ZipLeft, 16),
-      CANONICAL_TO_INSTR(kS16x8InterleaveHighHalves, kArm64S128ZipRight, 16),
-      CANONICAL_TO_INSTR(kS16x4InterleaveHighHalves, kArm64S128LowZipRight, 16),
-      CANONICAL_TO_INSTR(kS16x2Reverse, kArm64S128Rev32, 16),
-      CANONICAL_TO_INSTR(kS16x4Reverse, kArm64S128Rev64, 16),
-      CANONICAL_TO_INSTR(kS16x8ReverseBytes, kArm64S128Rev16, 8),
-      CANONICAL_TO_INSTR(kS16x8TransposeEven, kArm64S128TransposeLeft, 16),
-      CANONICAL_TO_INSTR(kS16x8TransposeOdd, kArm64S128TransposeRight, 16),
-      CANONICAL_TO_INSTR(kS8x16Even, kArm64S128UnzipLeft, 8),
-      CANONICAL_TO_INSTR(kS8x16Odd, kArm64S128UnzipRight, 8),
-      CANONICAL_TO_INSTR(kS8x8Even, kArm64S128LowUnzipLeft, 8),
-      CANONICAL_TO_INSTR(kS8x8Odd, kArm64S128LowUnzipRight, 8),
-      CANONICAL_TO_INSTR(kS8x16InterleaveLowHalves, kArm64S128ZipLeft, 8),
-      CANONICAL_TO_INSTR(kS8x16InterleaveHighHalves, kArm64S128ZipRight, 8),
-      CANONICAL_TO_INSTR(kS8x8InterleaveHighHalves, kArm64S128LowZipRight, 8),
-      CANONICAL_TO_INSTR(kS8x16TransposeEven, kArm64S128TransposeLeft, 8),
-      CANONICAL_TO_INSTR(kS8x16TransposeOdd, kArm64S128TransposeRight, 8),
+      CANONICAL_TO_INSTR(kS64x2Even, kArm64S128UnzipLeft, LaneSize::kL64),
+      CANONICAL_TO_INSTR(kS64x2Odd, kArm64S128UnzipRight, LaneSize::kL64),
+      CANONICAL_TO_INSTR(kS64x2ReverseBytes, kArm64S128Rev64, LaneSize::kL8),
+      CANONICAL_TO_INSTR(kS32x4Even, kArm64S128UnzipLeft, LaneSize::kL32),
+      CANONICAL_TO_INSTR(kS32x4Odd, kArm64S128UnzipRight, LaneSize::kL32),
+      CANONICAL_TO_INSTR(kS32x4InterleaveLowHalves, kArm64S128ZipLeft,
+                         LaneSize::kL32),
+      CANONICAL_TO_INSTR(kS32x4InterleaveHighHalves, kArm64S128ZipRight,
+                         LaneSize::kL32),
+      CANONICAL_TO_INSTR(kS32x4ReverseBytes, kArm64S128Rev32, LaneSize::kL8),
+      CANONICAL_TO_INSTR(kS32x2Reverse, kArm64S128Rev64, LaneSize::kL32),
+      CANONICAL_TO_INSTR(kS32x4TransposeEven, kArm64S128TransposeLeft,
+                         LaneSize::kL32),
+      CANONICAL_TO_INSTR(kS32x4TransposeOdd, kArm64S128TransposeRight,
+                         LaneSize::kL32),
+      CANONICAL_TO_INSTR(kS16x8Even, kArm64S128UnzipLeft, LaneSize::kL16),
+      CANONICAL_TO_INSTR(kS16x8Odd, kArm64S128UnzipRight, LaneSize::kL16),
+      CANONICAL_TO_INSTR(kS16x4Even, kArm64S128LowUnzipLeft, LaneSize::kL16),
+      CANONICAL_TO_INSTR(kS16x4Odd, kArm64S128LowUnzipRight, LaneSize::kL16),
+      CANONICAL_TO_INSTR(kS16x8InterleaveLowHalves, kArm64S128ZipLeft,
+                         LaneSize::kL16),
+      CANONICAL_TO_INSTR(kS16x8InterleaveHighHalves, kArm64S128ZipRight,
+                         LaneSize::kL16),
+      CANONICAL_TO_INSTR(kS16x4InterleaveHighHalves, kArm64S128LowZipRight,
+                         LaneSize::kL16),
+      CANONICAL_TO_INSTR(kS16x2Reverse, kArm64S128Rev32, LaneSize::kL16),
+      CANONICAL_TO_INSTR(kS16x4Reverse, kArm64S128Rev64, LaneSize::kL16),
+      CANONICAL_TO_INSTR(kS16x8ReverseBytes, kArm64S128Rev16, LaneSize::kL8),
+      CANONICAL_TO_INSTR(kS16x8TransposeEven, kArm64S128TransposeLeft,
+                         LaneSize::kL16),
+      CANONICAL_TO_INSTR(kS16x8TransposeOdd, kArm64S128TransposeRight,
+                         LaneSize::kL16),
+      CANONICAL_TO_INSTR(kS8x16Even, kArm64S128UnzipLeft, LaneSize::kL8),
+      CANONICAL_TO_INSTR(kS8x16Odd, kArm64S128UnzipRight, LaneSize::kL8),
+      CANONICAL_TO_INSTR(kS8x8Even, kArm64S128LowUnzipLeft, LaneSize::kL8),
+      CANONICAL_TO_INSTR(kS8x8Odd, kArm64S128LowUnzipRight, LaneSize::kL8),
+      CANONICAL_TO_INSTR(kS8x16InterleaveLowHalves, kArm64S128ZipLeft,
+                         LaneSize::kL8),
+      CANONICAL_TO_INSTR(kS8x16InterleaveHighHalves, kArm64S128ZipRight,
+                         LaneSize::kL8),
+      CANONICAL_TO_INSTR(kS8x8InterleaveHighHalves, kArm64S128LowZipRight,
+                         LaneSize::kL8),
+      CANONICAL_TO_INSTR(kS8x16TransposeEven, kArm64S128TransposeLeft,
+                         LaneSize::kL8),
+      CANONICAL_TO_INSTR(kS8x16TransposeOdd, kArm64S128TransposeRight,
+                         LaneSize::kL8),
   });
 #undef CANONICAL_TO_INSTR
 
@@ -6374,23 +6400,23 @@ std::optional<ShufflePair> TryMapCanonicalShuffleToShufflePair(
   }
 
   static constexpr std::array arch_shuffles = std::to_array<CanonicalToInstr>({
-      CANONICAL_TO_INSTRS(kS8x8DeinterleaveEvenEven, kArm64S128UnzipLeft, 8,
-                          kArm64S128UnzipLeft, 8),
-      CANONICAL_TO_INSTRS(kS8x8DeinterleaveOddEven, kArm64S128UnzipRight, 8,
-                          kArm64S128UnzipLeft, 8),
-      CANONICAL_TO_INSTRS(kS8x8DeinterleaveEvenOdd, kArm64S128UnzipLeft, 8,
-                          kArm64S128UnzipRight, 8),
-      CANONICAL_TO_INSTRS(kS8x8DeinterleaveOddOdd, kArm64S128UnzipRight, 8,
-                          kArm64S128UnzipRight, 8),
+      CANONICAL_TO_INSTRS(kS8x8DeinterleaveEvenEven, kArm64S128UnzipLeft,
+                          LaneSize::kL8, kArm64S128UnzipLeft, LaneSize::kL8),
+      CANONICAL_TO_INSTRS(kS8x8DeinterleaveOddEven, kArm64S128UnzipRight,
+                          LaneSize::kL8, kArm64S128UnzipLeft, LaneSize::kL8),
+      CANONICAL_TO_INSTRS(kS8x8DeinterleaveEvenOdd, kArm64S128UnzipLeft,
+                          LaneSize::kL8, kArm64S128UnzipRight, LaneSize::kL8),
+      CANONICAL_TO_INSTRS(kS8x8DeinterleaveOddOdd, kArm64S128UnzipRight,
+                          LaneSize::kL8, kArm64S128UnzipRight, LaneSize::kL8),
       // 16x4 Arm64 instructions selected using special 8x8 patterns
-      CANONICAL_TO_INSTRS(kS16x4DeinterleaveEvenEven, kArm64S128UnzipLeft, 16,
-                          kArm64S128UnzipLeft, 16),
-      CANONICAL_TO_INSTRS(kS16x4DeinterleaveOddEven, kArm64S128UnzipRight, 16,
-                          kArm64S128UnzipLeft, 16),
-      CANONICAL_TO_INSTRS(kS16x4DeinterleaveEvenOdd, kArm64S128UnzipLeft, 16,
-                          kArm64S128UnzipRight, 16),
-      CANONICAL_TO_INSTRS(kS16x4DeinterleaveOddOdd, kArm64S128UnzipRight, 16,
-                          kArm64S128UnzipRight, 16),
+      CANONICAL_TO_INSTRS(kS16x4DeinterleaveEvenEven, kArm64S128UnzipLeft,
+                          LaneSize::kL16, kArm64S128UnzipLeft, LaneSize::kL16),
+      CANONICAL_TO_INSTRS(kS16x4DeinterleaveOddEven, kArm64S128UnzipRight,
+                          LaneSize::kL16, kArm64S128UnzipLeft, LaneSize::kL16),
+      CANONICAL_TO_INSTRS(kS16x4DeinterleaveEvenOdd, kArm64S128UnzipLeft,
+                          LaneSize::kL16, kArm64S128UnzipRight, LaneSize::kL16),
+      CANONICAL_TO_INSTRS(kS16x4DeinterleaveOddOdd, kArm64S128UnzipRight,
+                          LaneSize::kL16, kArm64S128UnzipRight, LaneSize::kL16),
   });
 #undef CANONICAL_TO_INSTRS
 
@@ -6433,8 +6459,8 @@ bool TryCanonicalShuffle(InstructionSelector* selector, OpIndex node,
       return true;
     case CanonicalShuffle::kS32x4Reverse: {
       InstructionOperand temp = g.TempSimd128Register();
-      selector->Emit(kArm64S128Rev64 | LaneSizeField::encode(32), temp,
-                     g.UseRegister(input0), g.UseRegister(input1));
+      selector->Emit(kArm64S128Rev64 | LaneSizeField::encode(LaneSize::kL32),
+                     temp, g.UseRegister(input0), g.UseRegister(input1));
       selector->Emit(kArm64S128Extract, g.DefineAsRegister(node), temp, temp,
                      g.UseImmediate(8));
       return true;
@@ -6489,9 +6515,9 @@ void EmitShuffle1(InstructionSelector* selector, OpIndex node, OpIndex input0,
   Arm64OperandGenerator g(selector);
   // We only need to define one lane, as the rest are undefined, so just use a
   // dup (as it should be faster than a lane mov).
-  selector->Emit(kArm64S128Dup | LaneSizeField::encode(lane_size),
-                 g.DefineAsRegister(node), g.UseRegister(input),
-                 g.UseImmediate(lane));
+  selector->Emit(
+      kArm64S128Dup | LaneSizeField::encode(LaneSizeFromBits(lane_size)),
+      g.DefineAsRegister(node), g.UseRegister(input), g.UseImmediate(lane));
 }
 
 template <int32_t lane_size>
@@ -6508,17 +6534,19 @@ void EmitShuffle2(InstructionSelector* selector, OpIndex node, OpIndex input0,
     int32_t lane = shuffle[0];
     OpIndex input = GetInput<lane_size>(input0, input1, lane);
     lane = AdjustLane<lane_size>(lane);
-    selector->Emit(kArm64S128Dup | LaneSizeField::encode(lane_size), temp,
-                   g.UseRegister(input), g.UseImmediate(lane));
+    selector->Emit(
+        kArm64S128Dup | LaneSizeField::encode(LaneSizeFromBits(lane_size)),
+        temp, g.UseRegister(input), g.UseImmediate(lane));
   }
   {
     // Then overwrite the other with a lane mov.
     int32_t lane = shuffle[1];
     OpIndex input = GetInput<lane_size>(input0, input1, lane);
     lane = AdjustLane<lane_size>(lane);
-    selector->Emit(kArm64S128MoveLane | LaneSizeField::encode(lane_size),
-                   g.DefineSameAsFirst(node), temp, g.UseRegister(input),
-                   g.UseImmediate(lane), g.UseImmediate(1));
+    selector->Emit(
+        kArm64S128MoveLane | LaneSizeField::encode(LaneSizeFromBits(lane_size)),
+        g.DefineSameAsFirst(node), temp, g.UseRegister(input),
+        g.UseImmediate(lane), g.UseImmediate(1));
   }
 }
 
@@ -6607,8 +6635,9 @@ void InstructionSelector::VisitI8x8Shuffle(OpIndex node) {
                                              shuffle32x2.data())) {
     if (wasm::SimdShuffle::TryMatchSplat<2>(shuffle32x2, &index)) {
       DCHECK(is_swizzle);
-      Emit(kArm64S128Dup | LaneSizeField::encode(32), g.DefineAsRegister(node),
-           g.UseRegister(input0), g.UseImmediate(index));
+      Emit(kArm64S128Dup | LaneSizeField::encode(LaneSize::kL32),
+           g.DefineAsRegister(node), g.UseRegister(input0),
+           g.UseImmediate(index));
     } else {
       EmitShuffle2<32>(this, node, input0, input1, shuffle32x2);
     }
@@ -6619,16 +6648,18 @@ void InstructionSelector::VisitI8x8Shuffle(OpIndex node) {
                                              shuffle16x4.data())) {
     if (wasm::SimdShuffle::TryMatchSplat<4>(shuffle16x4, &index)) {
       DCHECK(is_swizzle);
-      Emit(kArm64S128Dup | LaneSizeField::encode(16), g.DefineAsRegister(node),
-           g.UseRegister(input0), g.UseImmediate(index));
+      Emit(kArm64S128Dup | LaneSizeField::encode(LaneSize::kL16),
+           g.DefineAsRegister(node), g.UseRegister(input0),
+           g.UseImmediate(index));
       return;
     }
   }
   if (wasm::SimdShuffle::TryMatchSplat<16, kSimd128Size, kSimd128HalfSize>(
           shuffle.data(), &index)) {
     DCHECK(is_swizzle);
-    Emit(kArm64S128Dup | LaneSizeField::encode(8), g.DefineAsRegister(node),
-         g.UseRegister(input0), g.UseImmediate(index));
+    Emit(kArm64S128Dup | LaneSizeField::encode(LaneSize::kL8),
+         g.DefineAsRegister(node), g.UseRegister(input0),
+         g.UseImmediate(index));
     return;
   }
 
@@ -6673,8 +6704,9 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
                                              shuffle64x2.data())) {
     if (wasm::SimdShuffle::TryMatchSplat<2>(shuffle64x2, &index)) {
       DCHECK(is_swizzle);
-      Emit(kArm64S128Dup | LaneSizeField::encode(64), g.DefineAsRegister(node),
-           g.UseRegister(input0), g.UseImmediate(index));
+      Emit(kArm64S128Dup | LaneSizeField::encode(LaneSize::kL64),
+           g.DefineAsRegister(node), g.UseRegister(input0),
+           g.UseImmediate(index));
     } else {
       EmitShuffle2<64>(this, node, input0, input1, shuffle64x2);
     }
@@ -6687,18 +6719,19 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
                                              shuffle32x4.data())) {
     if (wasm::SimdShuffle::TryMatchSplat<4>(shuffle32x4, &index)) {
       DCHECK(is_swizzle);
-      Emit(kArm64S128Dup | LaneSizeField::encode(32), g.DefineAsRegister(node),
-           g.UseRegister(input0), g.UseImmediate(index));
+      Emit(kArm64S128Dup | LaneSizeField::encode(LaneSize::kL32),
+           g.DefineAsRegister(node), g.UseRegister(input0),
+           g.UseImmediate(index));
     } else if (wasm::SimdShuffle::TryMatch32x4OneLaneSwizzle(shuffle32x4.data(),
                                                              &from, &to)) {
       if (CanCover(node, input0)) {
-        Emit(kArm64S128MoveLane | LaneSizeField::encode(32),
+        Emit(kArm64S128MoveLane | LaneSizeField::encode(LaneSize::kL32),
              g.DefineSameAsFirst(node), g.UseUniqueRegister(input0),
              g.UseRegister(input0), g.UseImmediate(from), g.UseImmediate(to));
       } else {
         InstructionOperand temp = g.TempSimd128Register();
         Emit(kArm64S128MoveReg, temp, g.UseRegister(input0));
-        Emit(kArm64S128MoveLane | LaneSizeField::encode(32),
+        Emit(kArm64S128MoveLane | LaneSizeField::encode(LaneSize::kL32),
              g.DefineSameAsFirst(node), temp, g.UseRegister(input0),
              g.UseImmediate(from), g.UseImmediate(to));
       }
@@ -6719,14 +6752,14 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
     }
     InstructionOperand dup = g.TempSimd128Register();
     int lane_size = kBitsPerByte * kSimd128Size / lanes;
-    Emit(kArm64S128Dup | LaneSizeField::encode(lane_size), dup,
-         g.UseRegister(dup_input), g.UseImmediate(dup_index));
+    Emit(kArm64S128Dup | LaneSizeField::encode(LaneSizeFromBits(lane_size)),
+         dup, g.UseRegister(dup_input), g.UseImmediate(dup_index));
     // First need to perform the shuffles with the two original inputs, into a
     // temp register.
     InstructionOperand temp = g.TempSimd128Register();
     Emit(shuffle_op, temp, g.UseRegister(input0), g.UseRegister(input1));
     // Then we need to move the dup result into the top 8 bytes.
-    Emit(kArm64S128MoveLane | LaneSizeField::encode(64),
+    Emit(kArm64S128MoveLane | LaneSizeField::encode(LaneSize::kL64),
          g.DefineSameAsFirst(node), temp, dup, g.UseImmediate(1),
          g.UseImmediate(1));
   };
@@ -6741,8 +6774,9 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
                                              shuffle16x8.data())) {
     if (wasm::SimdShuffle::TryMatchSplat<8>(shuffle16x8, &index)) {
       DCHECK(is_swizzle);
-      Emit(kArm64S128Dup | LaneSizeField::encode(16), g.DefineAsRegister(node),
-           g.UseRegister(input0), g.UseImmediate(index));
+      Emit(kArm64S128Dup | LaneSizeField::encode(LaneSize::kL16),
+           g.DefineAsRegister(node), g.UseRegister(input0),
+           g.UseImmediate(index));
       return;
     }
     if (instr_opcode && IsTopHalfSplat<8>(shuffle16x8, &index)) {
@@ -6751,8 +6785,9 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
     }
   } else if (wasm::SimdShuffle::TryMatchSplat<16>(shuffle.data(), &index)) {
     DCHECK(is_swizzle);
-    Emit(kArm64S128Dup | LaneSizeField::encode(8), g.DefineAsRegister(node),
-         g.UseRegister(input0), g.UseImmediate(index));
+    Emit(kArm64S128Dup | LaneSizeField::encode(LaneSize::kL8),
+         g.DefineAsRegister(node), g.UseRegister(input0),
+         g.UseImmediate(index));
     return;
   } else if (instr_opcode && IsTopHalfSplat<16>(shuffle, &index)) {
     EmitDupAndShuffle(instr_opcode.value(), 16, index);
@@ -6806,7 +6841,7 @@ void VisitPminOrPmax(InstructionSelector* selector, ArchOpcode opcode,
   const Simd128BinopOp& op = selector->Cast<Simd128BinopOp>(node);
   // Need all unique registers because we first compare the two inputs, then
   // we need the inputs to remain unchanged for the bitselect later.
-  selector->Emit(opcode | LaneSizeField::encode(lane_size),
+  selector->Emit(opcode | LaneSizeField::encode(LaneSizeFromBits(lane_size)),
                  g.DefineAsRegister(node), g.UseUniqueRegister(op.left()),
                  g.UseUniqueRegister(op.right()));
 }
@@ -6840,7 +6875,7 @@ namespace {
 void VisitSignExtendLong(InstructionSelector* selector, ArchOpcode opcode,
                          OpIndex node, int lane_size) {
   InstructionCode code = opcode;
-  code |= LaneSizeField::encode(lane_size);
+  code |= LaneSizeField::encode(LaneSizeFromBits(lane_size));
   VisitRR(selector, code, node);
 }
 }  // namespace
@@ -6895,7 +6930,7 @@ void InstructionSelector::VisitI16x8UConvertI8x16High(OpIndex node) {
 
 void InstructionSelector::VisitI8x16Popcnt(OpIndex node) {
   InstructionCode code = kArm64Cnt;
-  code |= LaneSizeField::encode(8);
+  code |= LaneSizeField::encode(LaneSize::kL8);
   VisitRR(this, code, node);
 }
 
@@ -6903,7 +6938,7 @@ void InstructionSelector::VisitSimd128LoadPairDeinterleave(OpIndex node) {
   const auto& load = this->Get(node).Cast<Simd128LoadPairDeinterleaveOp>();
   Arm64OperandGenerator g(this);
   InstructionCode opcode = kArm64S128LoadPairDeinterleave;
-  opcode |= LaneSizeField::encode(load.lane_size());
+  opcode |= LaneSizeField::encode(LaneSizeFromBits(load.lane_size()));
   if (load.load_kind.with_trap_handler) {
     opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
   }

@@ -45,23 +45,11 @@ void Builtins::Generate_WasmInterpreterEntry(MacroAssembler* masm) {
   __ ret(0);
 }
 
-void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
-                                     Register function_data,
-                                     Register wasm_instance) {
-  Register closure = function_data;
-  Register shared_function_info = closure;
-  __ LoadTaggedField(
-      shared_function_info,
-      FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
-  closure = no_reg;
-  __ LoadTrustedPointerField(
-      function_data,
-      FieldOperand(shared_function_info,
-                   SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kWasmExportedFunctionDataIndirectPointerTag, kScratchRegister);
-
-  shared_function_info = no_reg;
-
+// Given a WasmExportedFunctionData in |function_data|, derive the Wasm
+// instance object into |wasm_instance|. The two registers may alias.
+void LoadWasmInstanceFromFunctionData(MacroAssembler* masm,
+                                      Register function_data,
+                                      Register wasm_instance) {
   Register trusted_instance_data = wasm_instance;
 #if V8_ENABLE_SANDBOX
   __ DecompressProtected(
@@ -80,6 +68,26 @@ void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
                      MemOperand(trusted_instance_data,
                                 WasmTrustedInstanceData::kInstanceObjectOffset -
                                     kHeapObjectTag));
+}
+
+void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
+                                     Register function_data,
+                                     Register wasm_instance) {
+  Register closure = function_data;
+  Register shared_function_info = closure;
+  __ LoadTaggedField(
+      shared_function_info,
+      FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  closure = no_reg;
+  __ LoadTrustedPointerField(
+      function_data,
+      FieldOperand(shared_function_info,
+                   SharedFunctionInfo::kTrustedFunctionDataOffset),
+      kWasmExportedFunctionDataIndirectPointerTag, kScratchRegister);
+
+  shared_function_info = no_reg;
+
+  LoadWasmInstanceFromFunctionData(masm, function_data, wasm_instance);
 }
 
 void LoadFromSignature(MacroAssembler* masm, Register valuetypes_array_ptr,
@@ -142,23 +150,8 @@ void Builtins::Generate_JSToWasmInterpreterWrapperAsm(MacroAssembler* masm) {
   __ subq(rsp, Immediate(4 * kSystemPointerSize));
   __ movq(implicitArg,
           MemOperand(rbp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
-#if V8_ENABLE_SANDBOX
-  __ DecompressProtected(
-      implicitArg,
-      MemOperand(implicitArg,
-                 WasmExportedFunctionData::kProtectedInstanceDataOffset -
-                     kHeapObjectTag));
-#else
-  __ LoadTaggedField(
-      implicitArg,
-      MemOperand(implicitArg,
-                 WasmExportedFunctionData::kProtectedInstanceDataOffset -
-                     kHeapObjectTag));
-#endif
-  __ LoadTaggedField(
-      wasm_instance,
-      MemOperand(implicitArg, WasmTrustedInstanceData::kInstanceObjectOffset -
-                                  kHeapObjectTag));
+  LoadWasmInstanceFromFunctionData(masm, /*function_data=*/implicitArg,
+                                   /*wasm_instance=*/wasm_instance);
   __ movq(
       result_array,
       MemOperand(rbp, JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
@@ -208,12 +201,20 @@ void Builtins::Generate_JSToWasmInterpreterWrapperAsm(MacroAssembler* masm) {
   __ popq(wrapper_buffer);
   __ popq(params_start);
 
-  __ movq(wasm_instance,
-          MemOperand(rbp, WasmInterpreterWrapperConstants::kImplicitArgOffset));
-  __ LoadTaggedField(
-      wasm_instance,
-      FieldMemOperand(wasm_instance,
-                      WasmTrustedInstanceData::kInstanceObjectOffset));
+  // Reload from the caller's outgoing-arg slot rather than from our own
+  // kImplicitArgOffset spill. The caller (Torque JSToWasmInterpreterWrapper)
+  // keeps `functionData` alive AND updates it across GC, per
+  // WasmJSToWasmWrapperDescriptor's stack-parameter contract. Our own spill
+  // at WasmInterpreterWrapperConstants::kImplicitArgOffset is intentionally
+  // not visited by JsToWasmFrame::Iterate and therefore must not be read
+  // after any safepoint (e.g. the WasmInterpreterEntry call above).
+  Register function_data = rax;
+  __ movq(function_data,
+          MemOperand(rbp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
+  LoadWasmInstanceFromFunctionData(masm, function_data,
+                                   /*wasm_instance=*/wasm_instance);
+  function_data = no_reg;
+
   __ movq(
       rax,
       MemOperand(rbp, JSToWasmWrapperFrameConstants::kResultArrayParamOffset));

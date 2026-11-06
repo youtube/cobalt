@@ -19,8 +19,10 @@
 
 #include "absl/strings/string_view.h"
 #include "api/jsep.h"
+#include "api/payload_type.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
+#include "api/rtp_parameters.h"
 #include "call/payload_type.h"
 #include "call/payload_type_picker.h"
 #include "media/base/codec.h"
@@ -41,6 +43,16 @@ class SdpPayloadTypeSuggester : public PayloadTypeSuggester {
   RTCError AddLocalMapping(absl::string_view mid,
                            PayloadType payload_type,
                            const Codec& codec) override;
+  // Suggest an ID for a given RTP header extension on a given media section.
+  RTCErrorOr<int> SuggestRtpHeaderExtensionId(
+      absl::string_view mid,
+      const RtpExtension& extension,
+      RtpTransceiverIdDomain id_domain) override;
+  // Register an RTP header extension ID as mapped to a specific extension.
+  [[nodiscard]] RTCError AddRtpHeaderExtensionMapping(
+      absl::string_view mid,
+      const RtpExtension& extension,
+      bool local) override;
   // Updating the bundle mappings and recording PT assignments
   RTCError Update(const SessionDescription* description,
                   bool local,
@@ -57,13 +69,19 @@ class SdpPayloadTypeSuggester : public PayloadTypeSuggester {
     PayloadTypeRecorder& remote_payload_types() {
       return remote_payload_types_;
     }
+    RtpHeaderExtensionRecorder& header_extensions() {
+      return header_extensions_;
+    }
 
    private:
     PayloadTypeRecorder local_payload_types_;
     PayloadTypeRecorder remote_payload_types_;
+    RtpHeaderExtensionRecorder header_extensions_;
   };
   PayloadTypeRecorder& LookupRecorder(absl::string_view mid, bool local);
+  BundleTypeRecorder& LookupBundleRecorder(absl::string_view mid);
   PayloadTypePicker payload_type_picker_;
+  RtpHeaderExtensionPicker rtp_header_extension_picker_;
   // Record of bundle groups, used for looking up payload type suggesters.
   // This class also exists on the network thread, in JsepTransportController.
   BundleManager bundle_manager_;

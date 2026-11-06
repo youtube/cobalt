@@ -388,7 +388,19 @@ bool PermissionUtil::IsLowPriorityPermissionRequest(
   return request->request_type() == RequestType::kNotifications ||
          request->request_type() == RequestType::kGeolocation;
 }
-
+bool PermissionUtil::ShouldCurrentRequestUsePermissionElementSecondaryUI(
+    PermissionPrompt::Delegate* delegate,
+    content::WebContents* web_contents) {
+  if (permissions::PermissionsClient::
+          AllowEmbeddedPermissionPromptForAllowlistedSurfaces() &&
+      permissions::PermissionsClient::Get()
+          ->IsPrivilegedInternalWebUIOrNewTabPage(
+              web_contents, delegate->GetRequestingOrigin(),
+              /*already_overrode_requester=*/true)) {
+    return true;
+  }
+  return ShouldCurrentRequestUsePermissionElementSecondaryUI(delegate);
+}
 bool PermissionUtil::ShouldCurrentRequestUsePermissionElementSecondaryUI(
     PermissionPrompt::Delegate* delegate) {
   if (!base::FeatureList::IsEnabled(blink::features::kGeolocationElement) &&
@@ -440,7 +452,7 @@ bool PermissionUtil::DoesStoreTemporaryGrantsInHcsm(ContentSettingsType type) {
 // content/browser/permissions/permission_util.cc.
 GURL PermissionUtil::GetLastCommittedOriginAsURL(
     content::RenderFrameHost* render_frame_host) {
-  DCHECK(render_frame_host);
+  CHECK(render_frame_host);
 
   content::WebContents* web_contents =
       content::WebContents::FromRenderFrameHost(render_frame_host);
@@ -459,12 +471,13 @@ GURL PermissionUtil::GetLastCommittedOriginAsURL(
   }
 #endif
 
-  if (render_frame_host->GetLastCommittedOrigin().GetURL().is_empty()) {
+  GURL origin = render_frame_host->GetLastCommittedOrigin().GetURL();
+  if (origin.is_empty() && render_frame_host->IsInPrimaryMainFrame()) {
     if (!web_contents->GetVisibleURL().is_empty()) {
-      return web_contents->GetVisibleURL();
+      origin = web_contents->GetVisibleURL();
     }
   }
-  return render_frame_host->GetLastCommittedOrigin().GetURL();
+  return origin;
 }
 
 ContentSettingsType PermissionUtil::PermissionTypeToContentSettingsTypeSafe(
@@ -693,7 +706,22 @@ bool PermissionUtil::HasUserGesture(PermissionPrompt::Delegate* delegate) {
 
 bool PermissionUtil::CanPermissionRequestIgnoreStatus(
     const std::unique_ptr<PermissionRequestData>& request,
-    content::PermissionStatusSource source) {
+    content::PermissionStatusSource source,
+    blink::mojom::PermissionStatus status,
+    content::WebContents* web_contents) {
+  // Support requests from side panels/omnibox popup/NTP to be shown still, even
+  // if the permission status is denied. These requests will use the embedded
+  // permission prompt.
+  if (permissions::PermissionsClient::
+          AllowEmbeddedPermissionPromptForAllowlistedSurfaces() &&
+      permissions::PermissionsClient::Get()
+          ->IsPrivilegedInternalWebUIOrNewTabPage(
+              web_contents, request->requesting_origin,
+              /*already_overrode_requester=*/true) &&
+      status != blink::mojom::PermissionStatus::GRANTED) {
+    return true;
+  }
+
   if (!request->IsEmbeddedPermissionElementInitiated()) {
     return false;
   }

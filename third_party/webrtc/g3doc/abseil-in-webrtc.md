@@ -83,7 +83,7 @@ static extent template parameter that WebRTC relies on.
 
 ### `absl::StrCat`, `absl::StrAppend`, `absl::StrJoin`, `absl::StrSplit`
 
-*Use `webrtc::SimpleStringBuilder` to build strings.*
+*Use `webrtc::StringBuilder` to build strings.*
 
 These are optimized for speed, not binary size. Even `StrCat` calls with a
 modest number of arguments can easily add several hundred bytes to the binary.

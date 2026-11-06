@@ -1782,17 +1782,45 @@ void CodeLinePosEvent(JitLogger& jit_logger, Address code_start,
                       JitCodeEvent::CodeType code_type) {
   void* jit_handler_data = jit_logger.StartCodePosInfoEvent(code_type);
   for (; !iter.done(); iter.Advance()) {
+    int position = iter.source_position().IsExternal()
+                       ? iter.source_position().ExternalLine()
+                       : iter.source_position().ScriptOffset();
     if (iter.is_statement()) {
-      jit_logger.AddCodeLinePosInfoEvent(jit_handler_data, iter.code_offset(),
-                                         iter.source_position().ScriptOffset(),
-                                         JitCodeEvent::STATEMENT_POSITION,
-                                         code_type);
+      jit_logger.AddCodeLinePosInfoEvent(
+          jit_handler_data, iter.code_offset(), position,
+          JitCodeEvent::STATEMENT_POSITION, code_type);
     }
     jit_logger.AddCodeLinePosInfoEvent(jit_handler_data, iter.code_offset(),
-                                       iter.source_position().ScriptOffset(),
-                                       JitCodeEvent::POSITION, code_type);
+                                       position, JitCodeEvent::POSITION,
+                                       code_type);
   }
   jit_logger.EndCodePosInfoEvent(code_start, jit_handler_data, code_type);
+}
+
+template <typename T>
+void CodeLinePosInfoRecordEventHelper(
+    Isolate* isolate, JitLogger* jit_logger, JitLogger* gdb_jit_logger,
+    Address code_start, T source_position_table,
+    JitCodeEvent::CodeType code_type,
+    SourcePositionTableIterator::IterationFilter filter) {
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  if (!jit_logger && !gdb_jit_logger) return;
+#else
+  if (!jit_logger) return;
+#endif
+
+  VMStateIfMainThread<LOGGING> state(isolate);
+
+  if (jit_logger) {
+    SourcePositionTableIterator iter(source_position_table, filter);
+    CodeLinePosEvent(*jit_logger, code_start, iter, code_type);
+  }
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  if (gdb_jit_logger) {
+    SourcePositionTableIterator iter(source_position_table, filter);
+    CodeLinePosEvent(*gdb_jit_logger, code_start, iter, code_type);
+  }
+#endif
 }
 
 }  // namespace
@@ -1800,19 +1828,26 @@ void CodeLinePosEvent(JitLogger& jit_logger, Address code_start,
 void V8FileLogger::CodeLinePosInfoRecordEvent(
     Address code_start, Tagged<TrustedByteArray> source_position_table,
     JitCodeEvent::CodeType code_type) {
-  if (!jit_logger_) return;
-  VMStateIfMainThread<LOGGING> state(isolate_);
-  SourcePositionTableIterator iter(source_position_table);
-  CodeLinePosEvent(*jit_logger_, code_start, iter, code_type);
+  JitLogger* gdb_jit_logger = nullptr;
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  gdb_jit_logger = gdb_jit_logger_.get();
+#endif
+  CodeLinePosInfoRecordEventHelper(isolate_, jit_logger_.get(), gdb_jit_logger,
+                                   code_start, source_position_table, code_type,
+                                   SourcePositionTableIterator::kAll);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
 void V8FileLogger::WasmCodeLinePosInfoRecordEvent(
     Address code_start, base::Vector<const uint8_t> source_position_table) {
-  if (!jit_logger_) return;
-  VMStateIfMainThread<LOGGING> state(isolate_);
-  SourcePositionTableIterator iter(source_position_table);
-  CodeLinePosEvent(*jit_logger_, code_start, iter, JitCodeEvent::WASM_CODE);
+  JitLogger* gdb_jit_logger = nullptr;
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  gdb_jit_logger = gdb_jit_logger_.get();
+#endif
+  CodeLinePosInfoRecordEventHelper(
+      isolate_, jit_logger_.get(), gdb_jit_logger, code_start,
+      source_position_table, JitCodeEvent::WASM_CODE,
+      SourcePositionTableIterator::kJavaScriptOnly);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2732,11 +2767,6 @@ void ExistingCodeLogger::LogExistingFunction(
             CallbackEvent(fun_name, fun_data->GetCFunction(i).address))
       }
     }
-#if V8_ENABLE_WEBASSEMBLY
-  } else if (shared->HasWasmJSFunctionData(isolate_)) {
-    CALL_CODE_EVENT_HANDLER(
-        CodeCreateEvent(CodeTag::kFunction, code, "wasm-to-js"));
-#endif  // V8_ENABLE_WEBASSEMBLY
   }
 }
 

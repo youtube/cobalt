@@ -309,6 +309,11 @@ static const uint16_t kVerifySignatureAlgorithms[] = {
 // algorithms for signing.
 static const uint16_t kSignSignatureAlgorithms[] = {
     // List our preferred algorithms first.
+    SSL_SIGN_ML_DSA_44,
+    SSL_SIGN_ML_DSA_65,
+    SSL_SIGN_ML_DSA_87,
+
+    // Classical signature algorithms.
     SSL_SIGN_ED25519,
     SSL_SIGN_ECDSA_SECP256R1_SHA256,
     SSL_SIGN_RSA_PSS_RSAE_SHA256,
@@ -2807,7 +2812,8 @@ static bool ext_certificate_authorities_parse_clienthello(SSL_HANDSHAKE *hs,
   }
 
   hs->ca_names = SSL_parse_CA_list(hs->ssl, out_alert, contents);
-  if (!hs->ca_names) {
+  if (!hs->ca_names || sk_CRYPTO_BUFFER_num(hs->ca_names.get()) == 0 ||
+      CBS_len(contents) != 0) {
     return false;
   }
 
@@ -2859,7 +2865,8 @@ static bool ext_trust_anchors_parse_clienthello(SSL_HANDSHAKE *hs,
 
   CBS child;
   if (!CBS_get_u16_length_prefixed(contents, &child) ||
-      !ssl_is_valid_trust_anchor_list(child)) {
+      !ssl_is_valid_trust_anchor_list(child) ||  //
+      CBS_len(contents) != 0) {
     *out_alert = SSL_AD_DECODE_ERROR;
     OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
     return false;
@@ -2931,8 +2938,9 @@ static bool ext_trust_anchors_parse_serverhello(SSL_HANDSHAKE *hs,
   CBS child;
   if (!CBS_get_u16_length_prefixed(contents, &child) ||
       // The list of available trust anchors may not be empty.
-      CBS_len(&child) == 0 ||  //
-      !ssl_is_valid_trust_anchor_list(child)) {
+      CBS_len(&child) == 0 ||                    //
+      !ssl_is_valid_trust_anchor_list(child) ||  //
+      CBS_len(contents) != 0) {
     *out_alert = SSL_AD_DECODE_ERROR;
     OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
     return false;

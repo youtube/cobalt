@@ -49,7 +49,6 @@
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/heap/custom_spaces.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
 
@@ -475,7 +474,7 @@ class CORE_EXPORT Node : public EventTarget {
   virtual bool IsScrollMarkerGroupPseudoElement() const { return false; }
   virtual bool IsScrollButtonPseudoElement() const { return false; }
   virtual bool IsIndexedPseudoElement() const { return false; }
-  virtual bool IsInterestHintPseudoElement() const { return false; }
+  virtual bool IsInterestButtonPseudoElement() const { return false; }
   virtual bool IsMediaControlElement() const { return false; }
   virtual bool IsMediaControls() const { return false; }
   virtual bool IsMediaElement() const { return false; }
@@ -1203,6 +1202,9 @@ class CORE_EXPORT Node : public EventTarget {
   // Called when a node changes its flat tree parent, either because slot
   // assignments changed, or the node got reparented by a moveBefore().
   void FlatTreeParentChanged();
+
+  // Defined in node-inl.h.
+  ALWAYS_INLINE bool HasPseudoElements() const;
 
  private:
   enum NodeFlags : uint32_t {

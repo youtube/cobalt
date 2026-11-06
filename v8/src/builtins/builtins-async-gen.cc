@@ -244,8 +244,8 @@ TNode<Object> AsyncBuiltinsAssembler::Await(TNode<Context> context,
   GotoIfNot(IsUndefined(var_throwaway.value()), &if_perform_promise_then);
   {
     TNode<JSPromise> js_promise = CAST(value);
-    TNode<Int32T> promise_flags =
-        SmiToInt32(LoadObjectField<Smi>(js_promise, JSPromise::kFlagsOffset));
+    TNode<Int32T> promise_flags = SmiToInt32(
+        LoadObjectField<Smi>(js_promise, offsetof(JSPromise, flags_)));
 
     TNode<Int32T> status =
         Word32And(promise_flags, Int32Constant(JSPromise::StatusBits::kMask));
@@ -255,12 +255,12 @@ TNode<Object> AsyncBuiltinsAssembler::Await(TNode<Context> context,
     // Mark the promise as handled.
     TNode<Int32T> new_flags =
         Word32Or(promise_flags, Int32Constant(JSPromise::HasHandlerBit::kMask));
-    StoreObjectFieldNoWriteBarrier(js_promise, JSPromise::kFlagsOffset,
+    StoreObjectFieldNoWriteBarrier(js_promise, offsetof(JSPromise, flags_),
                                    SmiFromInt32(new_flags));
 
     // Extract the fulfilled value.
     TNode<Object> fulfilled_value =
-        LoadObjectField(js_promise, JSPromise::kReactionsOrResultOffset);
+        LoadObjectField(js_promise, offsetof(JSPromise, reactions_or_result_));
 
     // Enqueue the reaction job natively.
     CallBuiltin(Builtin::kAsyncAwaitNonThenableFastPath, native_context,
@@ -292,13 +292,13 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitWithReusableClosures(
 
         TNode<HeapObject> maybe_resolve = LoadObjectField<HeapObject>(
             async_function_object,
-            JSAsyncFunctionObject::kAwaitResolveClosureOffset);
+            offsetof(JSAsyncFunctionObject, await_resolve_closure_));
         GotoIf(IsUndefined(maybe_resolve), &allocate_closures);
 
         var_on_resolve = CAST(maybe_resolve);
         var_on_reject = LoadObjectField<JSFunction>(
             async_function_object,
-            JSAsyncFunctionObject::kAwaitRejectClosureOffset);
+            offsetof(JSAsyncFunctionObject, await_reject_closure_));
         Goto(&closures_ready);
 
         BIND(&allocate_closures);
@@ -313,12 +313,14 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitWithReusableClosures(
               RootIndex::kAsyncFunctionAwaitRejectClosureSharedFun,
               await_context, native_context);
 
-          StoreObjectField(async_function_object,
-                           JSAsyncFunctionObject::kAwaitResolveClosureOffset,
-                           resolve_closure);
-          StoreObjectField(async_function_object,
-                           JSAsyncFunctionObject::kAwaitRejectClosureOffset,
-                           reject_closure);
+          StoreObjectField(
+              async_function_object,
+              offsetof(JSAsyncFunctionObject, await_resolve_closure_),
+              resolve_closure);
+          StoreObjectField(
+              async_function_object,
+              offsetof(JSAsyncFunctionObject, await_reject_closure_),
+              reject_closure);
 
           var_on_resolve = resolve_closure;
           var_on_reject = reject_closure;

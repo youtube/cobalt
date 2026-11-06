@@ -506,6 +506,54 @@ TEST(LogTest, DoubleExplicitInitialization) {
 #endif
 }
 
+TEST(LogTest, InitializeLoggingTransfersQueueName) {
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
+#if defined(WEBRTC_WIN)
+  _putenv_s("WEBRTC_TEST_SKIP_LOGGING_INIT", "1");
+#else
+  setenv("WEBRTC_TEST_SKIP_LOGGING_INIT", "1", 1);
+#endif
+  EXPECT_EXIT(
+      {
+        LoggingConfig config;
+        config.set_log_queue_name(true);
+
+        struct CustomSink : public LogSink {
+          void OnLogMessage(const LogLineRef& line) override {
+            queue_name = std::string(line.queue_name());
+          }
+          void OnLogMessage(const std::string& message) override {}
+          void OnLogMessage(absl::string_view message) override {}
+          std::string queue_name;
+        };
+
+        auto sink = std::make_unique<CustomSink>();
+        CustomSink* sink_ptr = sink.get();
+        config.AddSink(std::move(sink));
+
+        if (!InitializeLogging(std::move(config))) {
+          exit(2);
+        }
+
+        std::unique_ptr<Thread> thread = Thread::Create();
+        thread->SetName("TestQueue", nullptr);
+        thread->Start();
+
+        thread->BlockingCall([&]() { RTC_LOG(LS_INFO) << "Hello"; });
+
+        if (sink_ptr->queue_name != "TestQueue") {
+          exit(1);
+        }
+        exit(0);
+      },
+      ::testing::ExitedWithCode(0), "");
+#if defined(WEBRTC_WIN)
+  _putenv_s("WEBRTC_TEST_SKIP_LOGGING_INIT", "");
+#else
+  unsetenv("WEBRTC_TEST_SKIP_LOGGING_INIT");
+#endif
+}
+
 #endif  // GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID) &&
         // !defined(WEBRTC_IOS)
 

@@ -36,8 +36,9 @@ class Renderer;
 
 class DrawListLayer final : public DrawListBase {
 public:
-    // Add a construtor to prevent default zero initialization of SkTBlockList members' storage.
-    DrawListLayer() : DrawListBase() {}
+    explicit DrawListLayer(bool storageBufferSupport)
+        : DrawListBase()
+        , fStorageBufferSupport(storageBufferSupport) {}
 
     // DrawList requires that all Transforms be valid and asserts as much; invalid transforms should
     // be detected at the Device level or similar. The provided Renderer must be compatible with the
@@ -90,8 +91,6 @@ private:
 
     friend class DrawPass;
 
-    // It turns out that these seem to be really good default parameters. Maybe the default
-    // allocation could be brough down a little bit.
     static constexpr int32_t  kMaxSearchLimit = 32;
     static constexpr uint32_t kDefaultAllocation = 4096;
 
@@ -102,6 +101,8 @@ private:
 
     int fDrawCount = 0;
     CompressedPaintersOrder fOrderCounter = CompressedPaintersOrder::First();
+
+    const bool fStorageBufferSupport;
 };
 
 } // namespace skgpu::graphite

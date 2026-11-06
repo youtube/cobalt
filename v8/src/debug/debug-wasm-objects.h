@@ -60,7 +60,8 @@ class WasmValueObject : public JSObject {
   static DirectHandle<WasmValueObject> New(Isolate* isolate,
                                            const wasm::WasmValue& value);
 
-  OBJECT_CONSTRUCTORS(WasmValueObject, JSObject);
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(WasmValueObject);
 };
 
 DirectHandle<JSObject> GetWasmDebugProxy(WasmFrame* frame);

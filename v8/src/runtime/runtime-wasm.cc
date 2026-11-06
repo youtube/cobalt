@@ -14,6 +14,7 @@
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
+#include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/heap/read-only-heap.h"
 #include "src/numbers/conversions.h"
@@ -26,6 +27,7 @@
 #include "src/strings/unicode-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/module-compiler.h"
+#include "src/wasm/signature-hashing.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-constants.h"
@@ -349,31 +351,41 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuardLoop) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
+  SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
-  Tagged<WasmTrustedInstanceData> trusted_instance_data =
-      TrustedCast<WasmTrustedInstanceData>(args[0]);
+  // A raw pointer is fine here, as the native module is kept alive by the
+  // caller implicitly (via the `WasmTrustedInstanceData`).
+  wasm::NativeModule* native_module;
   int func_index = args.smi_value_at(1);
+  {
+    // Note: When returning normally, this runtime function *must not* cause a
+    // GC, because the calling builtin (also called "WasmCompileLazy") spilled
+    // all arguments to the call but those are never visited by GC.
+    DisallowGarbageCollection no_gc;
+    Tagged<WasmTrustedInstanceData> trusted_instance_data =
+        TrustedCast<WasmTrustedInstanceData>(args[0]);
 
-  TRACE_EVENT1("v8.wasm", "wasm.CompileLazy", "func_index", func_index);
-  DisallowHeapAllocation no_gc;
-  SealHandleScope scope(isolate);
-  wasm::NativeModule* native_module = trusted_instance_data->native_module();
+    TRACE_EVENT1("v8.wasm", "wasm.CompileLazy", "func_index", func_index);
+    native_module = trusted_instance_data->native_module();
 
-  DCHECK(isolate->context().is_null());
-  DCHECK(trusted_instance_data->has_native_context());
-  isolate->set_context(trusted_instance_data->native_context());
-  bool success = wasm::CompileLazy(isolate, native_module, func_index);
-  native_module->counter_updates()->Publish(isolate);
-  if (!success) {
-    DCHECK(v8_flags.wasm_lazy_validation);
-    AllowHeapAllocation throwing_unwinds_the_stack;
-    wasm::ThrowLazyCompilationError(isolate, native_module, func_index);
-    DCHECK(isolate->has_exception());
-    return ReadOnlyRoots{isolate}.exception();
+    DCHECK(isolate->context().is_null());
+    DCHECK(trusted_instance_data->has_native_context());
+    isolate->set_context(trusted_instance_data->native_context());
+    bool success = wasm::CompileLazy(isolate, native_module, func_index);
+    native_module->counter_updates()->Publish(isolate);
+    if (success) {
+      return Smi::FromInt(
+          wasm::JumpTableOffset(native_module->module(), func_index));
+    }
   }
 
-  return Smi::FromInt(
-      wasm::JumpTableOffset(native_module->module(), func_index));
+  // Lazy compilation can only fail if lazy validation is enabled.
+  DCHECK(v8_flags.wasm_lazy_validation);
+  // Note: This throws the error via the `ErrorThrower` which comes with its own
+  // HandleScope.
+  wasm::ThrowLazyCompilationError(isolate, native_module, func_index);
+  DCHECK(isolate->has_exception());
+  return ReadOnlyRoots{isolate}.exception();
 }
 
 namespace {
@@ -393,7 +405,7 @@ Tagged<FixedArray> AllocateFeedbackVector(
   DCHECK_EQ(trusted_instance_data->feedback_vectors()->get(declared_func_index),
             Smi::zero());
   trusted_instance_data->feedback_vectors()->set(declared_func_index, *vector);
-  isolate->set_context(Tagged<Context>());
+  isolate->set_context({});
   return *vector;
 }
 }  // namespace
@@ -445,14 +457,17 @@ RUNTIME_FUNCTION(Runtime_WasmLiftoffDeoptFinish) {
       if (vector == Smi::zero()) {
         if (v8_flags.trace_deopt_verbose) {
           wasm::WasmCodeRefScope code_ref_scope;
+          const int module_func_index =
+              trusted_instance_data->native_module()->num_imported_functions() +
+              declared_func_index;
           const wasm::WasmCode* code =
               trusted_instance_data->native_module()->GetCode(
-                  declared_func_index);
+                  module_func_index);
           PrintF(
               "Wasm deoptimization: allocating feedback vector for function %s "
               "[%d]\n",
               code ? code->DebugName().c_str() : "<no code object>",
-              declared_func_index);
+              module_func_index);
         }
         vector = AllocateFeedbackVector(isolate, trusted_instance_data,
                                         declared_func_index);
@@ -478,7 +493,6 @@ void ReplaceJSToWasmWrapper(
   CHECK(trusted_instance_data->try_get_func_ref(function_index, &func_ref));
   Tagged<JSFunction> external_function;
   CHECK(func_ref->internal(isolate)->try_get_external(&external_function));
-  if (external_function->shared()->HasWasmJSFunctionData(isolate)) return;
   CHECK(external_function->shared()->HasWasmExportedFunctionData(isolate));
   Tagged<WasmExportedFunctionData> function_data =
       external_function->shared()->wasm_exported_function_data();
@@ -552,6 +566,8 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
 }
 
 RUNTIME_FUNCTION(Runtime_IsWasmExternalFunction) {
+  SealHandleScope shs(isolate);
+  DisallowGarbageCollection no_gc;
   DCHECK_EQ(1, args.length());
   return isolate->heap()->ToBoolean(
       WasmExternalFunction::IsWasmExternalFunction(args[0]));
@@ -655,6 +671,7 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
   SealHandleScope shs(isolate);
 
   {
+    // The main code does not allocate, but interrupt handling below could.
     DisallowGarbageCollection no_gc;
     DCHECK_EQ(1, args.length());
     Tagged<WasmTrustedInstanceData> trusted_data =
@@ -1095,7 +1112,7 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
 // TODO(manoskouk): Unify part of this with the implementation in
 // wasm-extern-refs.cc
 RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
-  HandleScope scope(isolate);
+  SealHandleScope shs(isolate);
   DisallowGarbageCollection no_gc;
   DCHECK_EQ(5, args.length());
   Tagged<WasmArray> dst_array = Cast<WasmArray>(args[0]);
@@ -1155,7 +1172,11 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
   uint32_t length = args.positive_smi_value_at(3);
   DirectHandle<Map> rtt(Cast<Map>(args[4]), isolate);
 
-  wasm::CanonicalValueType element_type = rtt->wasm_type_info()->element_type();
+  Tagged<WasmTypeInfo> type_info = rtt->wasm_type_info();
+  wasm::CanonicalValueType element_type = type_info->element_type();
+  AllocationType allocation = type_info->type().is_shared() == SharedFlag::kYes
+                                  ? AllocationType::kSharedOld
+                                  : AllocationType::kYoung;
 
   uint32_t element_size = element_type.value_kind_size();
   // This check also implies no overflow.
@@ -1178,7 +1199,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
     base::Vector<const uint8_t> source =
         trusted_instance_data->native_module()->wire_bytes() +
         segment_source.offset() + offset;
-    return *isolate->factory()->NewWasmArrayFromMemory(length, rtt,
+    return *isolate->factory()->NewWasmArrayFromMemory(length, rtt, allocation,
                                                        element_type, source);
   } else {
     DirectHandle<Object> elem_segment_raw(
@@ -1203,7 +1224,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
     DirectHandle<Object> result =
         isolate->factory()->NewWasmArrayFromElementSegment(
             trusted_instance_data, shared_instance, segment_index, offset,
-            length, rtt, element_type);
+            length, rtt, allocation, element_type);
     if (IsSmi(*result)) {
       return ThrowWasmError(
           isolate, static_cast<MessageTemplate>(Cast<Smi>(*result).value()));
@@ -1336,7 +1357,16 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   }
 
   // Update the suspender state.
-  suspender->set_parent(isolate->isolate_data()->active_suspender());
+  Tagged<WasmSuspenderObject> active_suspender =
+      isolate->isolate_data()->active_suspender();
+  if (v8_flags.experimental_wasm_wasmfx) {
+    // The active suspender is about to become inactive. Record the currently
+    // active stack (which may have changed due to WasmFX) for when we
+    // return to this suspender.
+    active_suspender->set_stack(isolate,
+                                isolate->isolate_data()->active_stack());
+  }
+  suspender->set_parent(active_suspender);
   suspender->set_stack(isolate, target_stack.get());
   // The active stack is updated in {Isolate::SwitchStacks}.
   isolate->isolate_data()->set_active_suspender(*suspender);
@@ -1355,6 +1385,8 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
 // This is a runtime function to avoid writing trusted space memory from
 // generated code.
 RUNTIME_FUNCTION(Runtime_ClearWasmSuspenderResumeField) {
+  SealHandleScope shs(isolate);
+  DisallowGarbageCollection no_gc;
   // Should only be used in stress stack switching mode.
   CHECK(v8_flags.stress_wasm_stack_switching);
 
@@ -2629,8 +2661,11 @@ RUNTIME_FUNCTION(Runtime_WasmStringToUtf8Array) {
                       : wasm::TypeCanonicalizer::kPredefinedArrayI8Index.index)
               .GetHeapObjectAssumeWeak()),
       isolate);
-  DirectHandle<WasmArray> array = isolate->factory()->NewWasmArray(
-      wasm::kWasmI8, length, initial_value, map, SKIP_WRITE_BARRIER);
+  AllocationType allocation =
+      shared ? AllocationType::kSharedOld : AllocationType::kYoung;
+  DirectHandle<WasmArray> array =
+      isolate->factory()->NewWasmArray(wasm::kWasmI8, length, initial_value,
+                                       map, allocation, SKIP_WRITE_BARRIER);
   auto get_writable_bytes =
       [&](const DisallowGarbageCollection&) -> base::Vector<char> {
     return {reinterpret_cast<char*>(array->ElementAddress(0)), length};
@@ -2776,10 +2811,11 @@ RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Slice) {
 
 #ifdef V8_ENABLE_DRUMBRAKE
 RUNTIME_FUNCTION(Runtime_WasmTraceBeginExecution) {
+  SealHandleScope shs(isolate);
+  DisallowGarbageCollection no_gc;
   DCHECK(v8_flags.slow_histograms && !v8_flags.wasm_jitless &&
          v8_flags.wasm_enable_exec_time_histograms);
   DCHECK_EQ(0, args.length());
-  HandleScope scope(isolate);
 
   wasm::WasmExecutionTimer* timer = isolate->wasm_execution_timer();
   timer->Start();
@@ -2788,10 +2824,11 @@ RUNTIME_FUNCTION(Runtime_WasmTraceBeginExecution) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTraceEndExecution) {
+  SealHandleScope shs(isolate);
+  DisallowGarbageCollection no_gc;
   DCHECK(v8_flags.slow_histograms && !v8_flags.wasm_jitless &&
          v8_flags.wasm_enable_exec_time_histograms);
   DCHECK_EQ(0, args.length());
-  HandleScope scope(isolate);
 
   wasm::WasmExecutionTimer* timer = isolate->wasm_execution_timer();
   timer->Stop();
@@ -2843,8 +2880,9 @@ RUNTIME_FUNCTION(Runtime_WasmStringFromCodePoint) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringHash) {
-  DCHECK_EQ(1, args.length());
   SealHandleScope seal_handle_scope(isolate);
+  DisallowGarbageCollection no_gc;
+  DCHECK_EQ(1, args.length());
   Tagged<String> string(Cast<String>(args[0]));
   uint32_t hash = string->EnsureHash();
   return Smi::FromInt(static_cast<int>(hash));
@@ -2904,6 +2942,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
       std::move(wrapper));
   stack->set_func_ref(*func_ref);
   stack->set_param_types(func_ref->internal(isolate)->sig()->parameters());
+  stack->set_signature_hash(wasm::SignatureHasher::Hash(sig));
   wasm::StackMemory* stack_ptr = stack.get();
   isolate->wasm_stacks().emplace_back(std::move(stack));
   DirectHandle<WasmContinuationObject> cont =
@@ -2926,6 +2965,11 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateBoundContinuation) {
   // Order matters: bound arguments must be adjusted first so that they are
   // visible to the GC potentially triggered by the allocation below.
   stack->bind_arguments(num_bound_args);
+  const wasm::CanonicalSig* original_sig =
+      stack->func_ref()->internal(isolate)->sig();
+  wasm::VectorSignature bound_sig(
+      original_sig->returns(), stack->param_types() + stack->num_bound_args());
+  stack->set_signature_hash(wasm::SignatureHasher::Hash(&bound_sig));
   DirectHandle<WasmContinuationObject> cont =
       isolate->factory()->NewWasmContinuationObject(old_stack_obj);
   stack->set_current_continuation(*cont);

@@ -49,7 +49,9 @@
 #include "chrome/browser/devtools/views/devtools_floaty.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/download/download_stats.h"
+#include "chrome/browser/enterprise/data_protection/data_protection_clipboard_utils.h"
 #include "chrome/browser/glic/browser_ui/glic_vector_icon_manager.h"
+#include "chrome/browser/glic/host/guest_util.h"
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_invoke_options.h"
@@ -101,6 +103,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/keyboard_lock_controller.h"
@@ -402,6 +405,9 @@ std::string GetGlicWebContentsContextToken(
   if (!params.selection_text.empty() && !params.link_url.is_empty()) {
     return "TextSelectionWithLink";
   }
+  if (!params.link_url.is_empty()) {
+    return "Link";
+  }
   return "TextSelection";
 }
 
@@ -593,13 +599,14 @@ const std::map<int, int>& GetIdcToUmaMap(UmaEnumIdLookupType type) {
        {IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY, 161},
        {IDC_CONTENT_CONTEXT_GLIC, 162},
        {IDC_CONTENT_CONTEXT_VIDEO_FRAME, 163},
+       {IDC_CONTENT_CONTEXT_LISTEN_TO_THIS_PAGE, 164},
        // To add new items:
        //   - Add one more line above this comment block, using the UMA value
        //     from the line below this comment block.
        //   - Increment the UMA value in that latter line.
        //   - Add the new item to the RenderViewContextMenuItem enum in
        //     tools/metrics/histograms/metadata/ui/enums.xml.
-       {0, 164}});
+       {0, 165}});
   // LINT.ThenChange(//tools/metrics/histograms/metadata/ui/enums.xml:RenderViewContextMenuItem)
 
   // LINT.IfChange(ContextMenuOptionDesktop)
@@ -885,10 +892,8 @@ bool IsLensOptionEnteredThroughKeyboard(int event_flags) {
 bool IsGlicWindow(const RenderViewContextMenu* menu,
                   content::BrowserContext* browser_context) {
   if (glic::GlicEnabling::IsEnabledByFlags()) {
-    auto* glic_service =
-        glic::GlicKeyedServiceFactory::GetGlicKeyedService(browser_context);
-    return glic_service && glic_service->IsActiveWebContents(
-                               menu->GetWebContents()->GetOuterWebContents());
+    return glic::GetGlicGuestWebContents(
+               menu->GetWebContents()->GetOuterWebContents()) != nullptr;
   }
   return false;
 }
@@ -1244,7 +1249,7 @@ void RenderViewContextMenu::InitMenu() {
     AppendSearchProvider();
   }
 
-  if (!params_.selection_text.empty()) {
+  if (!params_.selection_text.empty() || !params_.link_url.is_empty()) {
     MaybeAppendOpenGlicItem();
   }
 
@@ -1499,7 +1504,7 @@ void RenderViewContextMenu::RecordUsedItem(int id) {
       base::RecordAction(
           base::UserMetricsAction("MostVisited_ClickedFromContextMenu"));
     } else if (doc_url.DeprecatedGetOriginAsURL() ==
-                   GURL(chrome::kChromeUINewTabPageURL) ||
+                   chrome::ChromeUINewTabPageURLAsGURL() ||
                doc_url.DeprecatedGetOriginAsURL() ==
                    GURL(chrome::kChromeUIUntrustedNewTabPageUrl)) {
       base::RecordAction(base::UserMetricsAction(
@@ -2473,6 +2478,10 @@ void RenderViewContextMenu::AppendReadAnythingItem() {
       !IsReadAnythingEntryShowing(GetBrowser())) {
     menu_model_.AddItemWithStringId(IDC_CONTENT_CONTEXT_OPEN_IN_READING_MODE,
                                     IDS_CONTENT_CONTEXT_READING_MODE);
+    if (features::IsImprovedReadAloudEnabled()) {
+      menu_model_.AddItemWithStringId(IDC_CONTENT_CONTEXT_LISTEN_TO_THIS_PAGE,
+                                      IDS_CONTENT_CONTEXT_LISTEN_TO_THIS_PAGE);
+    }
   }
 }
 
@@ -2508,6 +2517,10 @@ void RenderViewContextMenu::AppendRotationItems() {
 
 void RenderViewContextMenu::AppendSearchProvider() {
   DCHECK(browser_context_);
+
+  if (!enterprise_data_protection::IsSearchWithAllowed(source_web_contents_)) {
+    return;
+  }
 
   base::TrimWhitespace(params_.selection_text, base::TRIM_ALL,
                        &params_.selection_text);
@@ -3160,6 +3173,7 @@ bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
       return IsRouteMediaEnabled();
 
     case IDC_CONTENT_CONTEXT_OPEN_IN_READING_MODE:
+    case IDC_CONTENT_CONTEXT_LISTEN_TO_THIS_PAGE:
       return navigation_allowed;
 
     case IDC_CONTENT_CONTEXT_RELOAD_GLIC:
@@ -3424,6 +3438,10 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
       ExecOpenInReadAnything();
       break;
 
+    case IDC_CONTENT_CONTEXT_LISTEN_TO_THIS_PAGE:
+      ExecListenToThisPage();
+      break;
+
     case IDC_CONTENT_CONTEXT_RELOAD_GLIC:
       if (glic::GlicEnabling::IsEnabledByFlags()) {
         auto* glic_service = glic::GlicKeyedService::Get(browser_context_);
@@ -3651,7 +3669,29 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
 #endif  // BUILDFLAG(ENABLE_LENS_DESKTOP_GOOGLE_BRANDED_FEATURES)
       [[fallthrough]];
     }
-    case IDC_CONTENT_CONTEXT_SEARCHWEBFORNEWTAB:
+    case IDC_CONTENT_CONTEXT_SEARCHWEBFORNEWTAB: {
+      auto disposition = ui::DispositionFromEventFlags(
+          event_flags, WindowOpenDisposition::NEW_FOREGROUND_TAB);
+
+      content::OpenURLParams open_url_params = GetOpenURLParamsWithExtraHeaders(
+          selection_navigation_url_, /*referring_url=*/GURL(),
+          /*initiator=*/{}, disposition, ui::PAGE_TRANSITION_LINK,
+          /*extra_headers=*/std::string(), /*started_from_context_menu=*/true);
+
+      enterprise_data_protection::ShouldAllowSearchWith(
+          source_web_contents_, params_.selection_text.size(),
+          base::BindOnce(
+              [](base::WeakPtr<content::WebContents> web_contents,
+                 content::OpenURLParams params) {
+                if (!web_contents) {
+                  return;
+                }
+                web_contents->OpenURL(params,
+                                      /*navigation_handle_callback=*/{});
+              },
+              source_web_contents_->GetWeakPtr(), std::move(open_url_params)));
+      break;
+    }
     case IDC_CONTENT_CONTEXT_GOTOURL: {
       auto disposition = ui::DispositionFromEventFlags(
           event_flags, WindowOpenDisposition::NEW_FOREGROUND_TAB);
@@ -3691,7 +3731,7 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
 
     case IDC_CONTENT_CONTEXT_EMOJI: {
       // The emoji dialog is UI that can interfere with the fullscreen bubble,
-      // so drop fullscreen when it is shown. https://crbug.com/1170584
+      // so drop fullscreen when it is shown. https://crbug.com/40054574
       // TODO(avi): Do we need to attach the fullscreen block to the emoji
       // panel?
       source_web_contents_
@@ -4291,6 +4331,13 @@ void RenderViewContextMenu::ExecOpenCompose() {
 #endif
 
 void RenderViewContextMenu::ExecOpenInReadAnything() {
+  read_anything::ReadAnythingEntryPointController::ShowUI(
+      GetBrowser(), ReadAnythingOpenTrigger::kReadAnythingContextMenu);
+}
+
+void RenderViewContextMenu::ExecListenToThisPage() {
+  // TODO(https://b/494307454): This is a placeholder. Full implementation will
+  // be done in a future request.
   read_anything::ReadAnythingEntryPointController::ShowUI(
       GetBrowser(), ReadAnythingOpenTrigger::kReadAnythingContextMenu);
 }
@@ -5005,7 +5052,9 @@ void RenderViewContextMenu::OpenTextQueryInLens() {
 }
 
 Browser* RenderViewContextMenu::GetBrowser() const {
-  return chrome::FindBrowserWithTab(embedder_web_contents_);
+  auto* browser = GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+      embedder_web_contents_);
+  return browser ? browser->GetBrowserForMigrationOnly() : nullptr;
 }
 
 ToastController* RenderViewContextMenu::GetToastController() const {

@@ -227,8 +227,8 @@ JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
 JSToWasmWrapperCompilationUnit::~JSToWasmWrapperCompilationUnit() = default;
 
 void JSToWasmWrapperCompilationUnit::Execute() {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-               "wasm.CompileJSToWasmWrapper");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+              "wasm.CompileJSToWasmWrapper");
   if (!v8_flags.wasm_jitless) {
     CompilationJob::Status status = job_->ExecuteJob(nullptr);
     CHECK_EQ(status, CompilationJob::SUCCEEDED);

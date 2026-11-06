@@ -37,6 +37,7 @@
 #include "third_party/blink/public/mojom/installedapp/related_application.mojom.h"
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom.h"
 #include "third_party/blink/public/mojom/page/draggable_region.mojom-forward.h"
+#include "third_party/blink/public/mojom/picture_in_picture/picture_in_picture.mojom-forward.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/mojom/window_show_state.mojom-forward.h"
 #include "ui/base/ui_base_types.h"
@@ -769,6 +770,11 @@ class CONTENT_EXPORT WebContentsDelegate {
       const base::UnguessableToken& guid,
       RenderFrameHost* render_frame_host) {}
 
+  // Returns true if the OS currently prevents the creation of a Document
+  // Picture-in-Picture window. This is used as a synchronous pre-check to block
+  // window creation (e.g. when Android is in an app fullscreen state).
+  virtual bool IsDocumentPictureInPictureBlockedBySystem() const;
+
   // Notifies the Picture-in-Picture controller that there is a new player
   // entering Picture-in-Picture.
   // Returns the result of the enter request.
@@ -940,6 +946,12 @@ class CONTENT_EXPORT WebContentsDelegate {
   // If this returns non-null, overrides the behavior of
   // WebContents::GetResponsibleWebContents.
   virtual WebContents* GetResponsibleWebContents(WebContents* web_contents);
+
+  // Returns true if Picture-in-Picture is enabled.
+  virtual bool IsPictureInPictureEnabled() const;
+
+  // Returns true if immersive playback is enabled.
+  virtual bool IsImmersivePlaybackEnabled() const;
 
  protected:
   virtual ~WebContentsDelegate();

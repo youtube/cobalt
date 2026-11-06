@@ -78,11 +78,7 @@ enum RTPExtensionType : int {
   kRtpExtensionRepairedRtpStreamId,
   kRtpExtensionMid,
   kRtpExtensionGenericFrameDescriptor,
-  kRtpExtensionGenericFrameDescriptor00 [[deprecated]] =
-      kRtpExtensionGenericFrameDescriptor,
   kRtpExtensionDependencyDescriptor,
-  kRtpExtensionGenericFrameDescriptor02 [[deprecated]] =
-      kRtpExtensionDependencyDescriptor,
   kRtpExtensionColorSpace,
   kRtpExtensionVideoFrameTrackingId,
   kRtpExtensionCorruptionDetection,

@@ -46,7 +46,8 @@ Tagged<InstructionStream> InstructionStream::Initialize(
             self.address(), InstructionStream::SizeFor(body_size));
     CHECK_EQ(InstructionStream::SizeFor(body_size), writable_allocation.size());
 
-    writable_allocation.WriteHeaderSlot<Map, kMapOffset>(map, kRelaxedStore);
+    writable_allocation.WriteHeaderSlot<Map, HeapObject::kMapOffset>(
+        map, kRelaxedStore);
 
     writable_allocation.WriteHeaderSlot<uint32_t, kBodySizeOffset>(body_size);
 

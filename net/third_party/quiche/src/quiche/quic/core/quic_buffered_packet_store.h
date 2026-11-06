@@ -28,18 +28,16 @@
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_stream_frame_data_producer.h"
-#include "quiche/quic/core/quic_stream_send_buffer_base.h"
+#include "quiche/quic/core/quic_stream_send_buffer_inlining.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/core/tls_chlo_extractor.h"
-#include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_intrusive_list.h"
-#include "quiche/common/quiche_linked_hash_map.h"
 
 namespace quic {
 
@@ -395,7 +393,7 @@ class QUICHE_EXPORT PacketCollector
                                         QuicStreamOffset offset,
                                         QuicByteCount data_length,
                                         QuicDataWriter* writer) override {
-    if (send_buffer_->WriteStreamData(offset, data_length, writer)) {
+    if (send_buffer_.WriteStreamData(offset, data_length, writer)) {
       return WRITE_SUCCESS;
     }
     return WRITE_FAILED;
@@ -403,7 +401,7 @@ class QUICHE_EXPORT PacketCollector
   bool WriteCryptoData(EncryptionLevel /*level*/, QuicStreamOffset offset,
                        QuicByteCount data_length,
                        QuicDataWriter* writer) override {
-    return send_buffer_->WriteStreamData(offset, data_length, writer);
+    return send_buffer_.WriteStreamData(offset, data_length, writer);
   }
 
   std::vector<std::unique_ptr<QuicEncryptedPacket>>* packets() {
@@ -414,7 +412,7 @@ class QUICHE_EXPORT PacketCollector
   std::vector<std::unique_ptr<QuicEncryptedPacket>> packets_;
   // This is only needed until the packets are encrypted. Once packets are
   // encrypted, the stream data is no longer required.
-  const std::unique_ptr<QuicStreamSendBufferBase> send_buffer_;
+  QuicStreamSendBufferInlining send_buffer_;
 };
 
 }  // namespace quic

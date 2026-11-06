@@ -604,6 +604,7 @@ interface CSSConditionRule : CSSGroupingRule
     method constructor
 interface CSSContainerRule : CSSConditionRule
     attribute @@toStringTag
+    getter conditions
     getter containerName
     getter containerQuery
     method constructor
@@ -4106,6 +4107,8 @@ interface HTMLElement : Element
     getter onwebkittransitionend
     getter onwheel
     getter outerText
+    getter overscrollarea
+    getter overscrollcontainer
     getter popover
     getter scrollParent
     getter spellcheck
@@ -4251,6 +4254,8 @@ interface HTMLElement : Element
     setter onwebkittransitionend
     setter onwheel
     setter outerText
+    setter overscrollarea
+    setter overscrollcontainer
     setter popover
     setter spellcheck
     setter style
@@ -5111,6 +5116,7 @@ interface HTMLScriptElement : HTMLElement
     getter async
     getter attributionSrc
     getter blocking
+    getter cacheHint
     getter charset
     getter crossOrigin
     getter defer
@@ -5130,6 +5136,7 @@ interface HTMLScriptElement : HTMLElement
     setter async
     setter attributionSrc
     setter blocking
+    setter cacheHint
     setter charset
     setter crossOrigin
     setter defer
@@ -9815,10 +9822,12 @@ interface Sanitizer
     attribute @@toStringTag
     method allowAttribute
     method allowElement
+    method allowProcessingInstruction
     method constructor
     method get
     method removeAttribute
     method removeElement
+    method removeProcessingInstruction
     method removeUnsafe
     method replaceElementWithChildren
     method setComments
@@ -12648,6 +12657,7 @@ interface WebSocketStream
 interface WebTransport
     attribute @@toStringTag
     getter closed
+    getter congestionControl
     getter datagrams
     getter incomingBidirectionalStreams
     getter incomingUnidirectionalStreams

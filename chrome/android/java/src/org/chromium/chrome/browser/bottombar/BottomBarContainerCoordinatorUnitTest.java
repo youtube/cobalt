@@ -32,15 +32,16 @@ import org.chromium.base.Callback;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNullableObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerScrollBehavior;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.bottom.BottomControlsCoordinator.BottomControlsVisibilityController;
+import org.chromium.chrome.browser.ui.actions.ActionId;
+import org.chromium.chrome.browser.ui.actions.ActionRegistry;
 import org.chromium.chrome.browser.ui.bottombar.BottomBar;
 import org.chromium.chrome.browser.ui.bottombar.BottomBarHostManager.Host;
 import org.chromium.ui.base.TestActivity;
-import org.chromium.url.JUnitTestGURLs;
+import org.chromium.ui.modelutil.PropertyModel;
 
 /** Unit tests for {@link BottomBarContainerCoordinator}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -55,9 +56,12 @@ public class BottomBarContainerCoordinatorUnitTest {
     @Mock private Callback<Boolean> mRequestLayerUpdateCallback;
     @Mock private BottomControlsVisibilityController mVisibilityController;
     @Mock private Callback<Object> mOnModelTokenChange;
-    @Mock private Tab mTab;
+    @Mock private ThemeColorProvider mThemeColorProvider;
+    @Mock private ActionRegistry mActionRegistry;
 
     private final SettableNullableObservableSupplier<Tab> mTabSupplier =
+            ObservableSuppliers.createNullable();
+    private final SettableNullableObservableSupplier<PropertyModel> mActionSupplier =
             ObservableSuppliers.createNullable();
 
     private Activity mActivity;
@@ -67,6 +71,7 @@ public class BottomBarContainerCoordinatorUnitTest {
     @Before
     public void setUp() {
         mTabSupplier.set(null);
+        when(mActionRegistry.get(ActionId.NEW_TAB)).thenReturn(mActionSupplier);
         mActivityScenarioRule
                 .getScenario()
                 .onActivity(
@@ -77,7 +82,9 @@ public class BottomBarContainerCoordinatorUnitTest {
                                     new BottomBarContainerCoordinator(
                                             mBottomBarContainer,
                                             mRequestLayerUpdateCallback,
-                                            mTabSupplier);
+                                            mActionRegistry,
+                                            mTabSupplier,
+                                            mThemeColorProvider);
                         });
     }
 
@@ -86,6 +93,7 @@ public class BottomBarContainerCoordinatorUnitTest {
         mCoordinator.initializeWithNative(mVisibilityController, mOnModelTokenChange);
         verify(mVisibilityController).setBottomControlsVisible(true);
         verify(mOnModelTokenChange).onResult(any());
+        verify(mActionRegistry).get(ActionId.NEW_TAB);
     }
 
     @Test
@@ -120,50 +128,15 @@ public class BottomBarContainerCoordinatorUnitTest {
     }
 
     @Test
-    @EnableFeatures({ChromeFeatureList.ANDROID_BOTTOM_BAR + ":disable_on_ntp/true"})
-    public void testDisableOnNtp() {
+    public void testOnVisibilityChanged() {
         mCoordinator.initializeWithNative(mVisibilityController, mOnModelTokenChange);
 
-        when(mTab.getUrl()).thenReturn(JUnitTestGURLs.NTP_URL);
-        when(mTab.isIncognito()).thenReturn(false);
-        mTabSupplier.set(mTab);
-
+        mCoordinator.onVisibilityChanged(false);
+        assertEquals(View.GONE, mBottomBarContainer.getVisibility());
         verify(mVisibilityController).setBottomControlsVisible(false);
-    }
 
-    @Test
-    @EnableFeatures({ChromeFeatureList.ANDROID_BOTTOM_BAR + ":disable_on_ntp/true"})
-    public void testDisableOnNtp_Incognito() {
-        mCoordinator.initializeWithNative(mVisibilityController, mOnModelTokenChange);
-
-        when(mTab.getUrl()).thenReturn(JUnitTestGURLs.NTP_URL);
-        when(mTab.isIncognito()).thenReturn(true);
-        mTabSupplier.set(mTab);
-
-        verify(mVisibilityController, times(2)).setBottomControlsVisible(true);
-    }
-
-    @Test
-    @EnableFeatures({ChromeFeatureList.ANDROID_BOTTOM_BAR + ":disable_on_ntp/true"})
-    public void testDisableOnNtp_NotNtp() {
-        mCoordinator.initializeWithNative(mVisibilityController, mOnModelTokenChange);
-
-        when(mTab.getUrl()).thenReturn(JUnitTestGURLs.EXAMPLE_URL);
-        when(mTab.isIncognito()).thenReturn(false);
-        mTabSupplier.set(mTab);
-
-        verify(mVisibilityController, times(2)).setBottomControlsVisible(true);
-    }
-
-    @Test
-    @EnableFeatures({ChromeFeatureList.ANDROID_BOTTOM_BAR + ":disable_on_ntp/false"})
-    public void testDisableOnNtp_FlagDisabled() {
-        mCoordinator.initializeWithNative(mVisibilityController, mOnModelTokenChange);
-
-        when(mTab.getUrl()).thenReturn(JUnitTestGURLs.NTP_URL);
-        when(mTab.isIncognito()).thenReturn(false);
-        mTabSupplier.set(mTab);
-
+        mCoordinator.onVisibilityChanged(true);
+        assertEquals(View.VISIBLE, mBottomBarContainer.getVisibility());
         verify(mVisibilityController, times(2)).setBottomControlsVisible(true);
     }
 

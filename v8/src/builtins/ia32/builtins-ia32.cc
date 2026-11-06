@@ -329,8 +329,17 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     NoRootArrayScope uninitialized_root_register(masm);
 
     // Set up frame.
+    __ RecordCfi(".cfi_startproc");
     __ push(ebp);
     __ mov(ebp, esp);
+    // The layout of the stack at this point is:
+    // [ebp + 4]  : Return address of JSEntry back to C++ (Invoke).
+    // [ebp]      : Saved ebp of the caller (Invoke).
+    //
+    // We lock the CFA to ebp + 8.
+    // We tell GDB that the saved ebp is at cfa - 8 (which is [ebp]).
+    __ RecordCfi(".cfi_def_cfa ebp, 8");
+    __ RecordCfi(".cfi_offset ebp, -8");
 
     // Push marker in two places.
     __ push(Immediate(StackFrame::TypeToMarker(type)));
@@ -427,6 +436,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // Restore frame pointer and return.
   __ pop(ebp);
   __ ret(0);
+  __ RecordCfi(".cfi_endproc");
 }
 
 }  // namespace
@@ -581,17 +591,18 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   //  -- esp[0] : return address
   // -----------------------------------
   // Store input value into generator object.
-  __ mov(FieldOperand(edx, JSGeneratorObject::kInputOrDebugPosOffset), eax);
+  __ mov(FieldOperand(edx, offsetof(JSGeneratorObject, input_or_debug_pos_)),
+         eax);
   Register object = WriteBarrierDescriptor::ObjectRegister();
   __ mov(object, edx);
-  __ RecordWriteField(object, JSGeneratorObject::kInputOrDebugPosOffset, eax,
-                      WriteBarrierDescriptor::SlotAddressRegister(),
+  __ RecordWriteField(object, offsetof(JSGeneratorObject, input_or_debug_pos_),
+                      eax, WriteBarrierDescriptor::SlotAddressRegister(),
                       SaveFPRegsMode::kIgnore);
   // Check that edx is still valid, RecordWrite might have clobbered it.
   __ AssertGeneratorObject(edx);
 
   // Load suspended function and context.
-  __ mov(edi, FieldOperand(edx, JSGeneratorObject::kFunctionOffset));
+  __ mov(edi, FieldOperand(edx, offsetof(JSGeneratorObject, function_)));
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
   // Flood function if we are stepping.
@@ -632,8 +643,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   {
     __ movd(xmm0, ebx);
 
-    __ mov(ebx,
-           FieldOperand(edx, JSGeneratorObject::kParametersAndRegistersOffset));
+    __ mov(ebx, FieldOperand(edx, offsetof(JSGeneratorObject,
+                                           parameters_and_registers_)));
     {
       Label done_loop, loop;
       __ bind(&loop);
@@ -646,10 +657,10 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     }
 
     // Push receiver.
-    __ Push(FieldOperand(edx, JSGeneratorObject::kReceiverOffset));
+    __ Push(FieldOperand(edx, offsetof(JSGeneratorObject, receiver_)));
 
     // Restore registers.
-    __ mov(edi, FieldOperand(edx, JSGeneratorObject::kFunctionOffset));
+    __ mov(edi, FieldOperand(edx, offsetof(JSGeneratorObject, function_)));
     __ movd(ebx, xmm0);
   }
 
@@ -695,7 +706,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ PushRoot(RootIndex::kTheHoleValue);
     __ CallRuntime(Runtime::kDebugOnFunctionCall);
     __ Pop(edx);
-    __ mov(edi, FieldOperand(edx, JSGeneratorObject::kFunctionOffset));
+    __ mov(edi, FieldOperand(edx, offsetof(JSGeneratorObject, function_)));
   }
   __ jmp(&stepping_prepared);
 
@@ -705,7 +716,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ Push(edx);
     __ CallRuntime(Runtime::kDebugPrepareStepInSuspendedGenerator);
     __ Pop(edx);
-    __ mov(edi, FieldOperand(edx, JSGeneratorObject::kFunctionOffset));
+    __ mov(edi, FieldOperand(edx, offsetof(JSGeneratorObject, function_)));
   }
   __ jmp(&stepping_prepared);
 
@@ -2723,7 +2734,6 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   Label no_bound_arguments;
   __ mov(ecx, FieldOperand(edi, JSBoundFunction::kBoundArgumentsOffset));
   __ mov(edx, FieldOperand(ecx, offsetof(FixedArray, length_)));
-  __ SmiUntag(edx);
   __ test(edx, edx);
   __ j(zero, &no_bound_arguments);
   {
@@ -2764,7 +2774,6 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       Label loop;
       __ mov(ecx, FieldOperand(edi, JSBoundFunction::kBoundArgumentsOffset));
       __ mov(edx, FieldOperand(ecx, offsetof(FixedArray, length_)));
-      __ SmiUntag(edx);
       // Adjust effective number of arguments (eax contains the number of
       // arguments from the call not including receiver plus the number of
       // [[BoundArguments]]).
@@ -3202,6 +3211,11 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Save all parameters and restore them before jumping to the generated code
+    // later. The spilled parameters are *not* visited by GC, but the
+    // `WasmCompileLazy` runtime function does not trigger GC except for
+    // exceptions (and then we unwind before using the spilled values).
     int offset = SaveWasmParams(masm);
 
     // Push arguments for the runtime function.

@@ -318,6 +318,7 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   std::string GetAcceptLangs(content::BrowserContext* context) override;
   gfx::ImageSkia GetDefaultFavicon() override;
   bool IsDataSaverEnabled(content::BrowserContext* context) override;
+  bool IsPinchToZoomAllowed(content::BrowserContext* context) override;
   void UpdateRendererPreferencesForWorker(
       content::BrowserContext* browser_context,
       blink::RendererPreferences* out_prefs) override;
@@ -522,7 +523,8 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   media::mojom::AvailabilityStatus
   GetOnDeviceSpeechRecognitionAvailabilityStatus(
       content::BrowserContext* context,
-      const std::string& language) override;
+      const std::string& language,
+      media::mojom::SpeechRecognitionQuality quality) override;
 #if BUILDFLAG(IS_CHROMEOS)
   content::TtsControllerDelegate* GetTtsControllerDelegate() override;
 #endif
@@ -685,6 +687,7 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   void RegisterNonNetworkWorkerMainResourceURLLoaderFactories(
       content::BrowserContext* browser_context,
       const std::optional<url::Origin>& request_initiator,
+      network::mojom::RequestDestination request_destination,
       NonNetworkURLLoaderFactoryMap* factories) override;
   void RegisterNonNetworkServiceWorkerUpdateURLLoaderFactories(
       content::BrowserContext* browser_context,

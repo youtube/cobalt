@@ -610,11 +610,22 @@ class KnownNodeAspects {
     if (m2 == ContextSlotLoadsAlias::kNone) return m1;
     return ContextSlotLoadsAlias::kYes;
   }
+  struct ContextStoreResult {
+    enum Type {
+      kNone,
+      kUpdatedValue,
+      kSetNewValue,
+    } type;
+    SmallZoneVector<LoadedContextSlotsKey, 8> aliased_slots;
+  };
+
   void UpdateMayHaveAliasingContexts(compiler::JSHeapBroker* broker,
                                      LocalIsolate* local_isolate,
                                      ValueNode* context);
-  SmallZoneVector<LoadedContextSlotsKey, 8> ClearAliasedContextSlotsFor(
-      Graph* graph, ValueNode* context, int offset, ValueNode* value);
+
+  ContextStoreResult RecordContextSlotStore(Graph* graph, ValueNode* context,
+                                            int offset, ValueNode* value,
+                                            MaybeAssignedFlag assigned);
 
   // Returns the value in the cache if exists without adding a new cache entry.
   ValueNode* TryGetContextCachedValue(ValueNode* context, int offset,
@@ -639,23 +650,6 @@ class KnownNodeAspects {
       cached_value = cached_value->UnwrapIdentities();
     }
     return cached_value;
-  }
-  // Returns true if value was added to the cache, or false if the value updated
-  // the cache.
-  bool SetContextCachedValue(ValueNode* context, int offset, ValueNode* value,
-                             MaybeAssignedFlag assigned) {
-    value = value->UnwrapIdentities();
-    auto& target_map = (assigned == kMaybeAssigned) ? loaded_context_slots_
-                                                    : loaded_context_constants_;
-
-    auto [it, inserted] = target_map.insert({{context, offset}, value});
-
-    if (!inserted) {
-      it->second = value;
-      return false;
-    }
-
-    return true;
   }
   bool HasContextCacheValue(ValueNode* context, int offset,
                             MaybeAssignedFlag assigned) {
@@ -721,6 +715,12 @@ class KnownNodeAspects {
         virtual_objects_() {}
 
  private:
+  bool SetContextCachedValue(ValueNode* context, int offset, ValueNode* value,
+                             MaybeAssignedFlag assigned);
+
+  SmallZoneVector<LoadedContextSlotsKey, 8> ClearAliasedContextSlotsFor(
+      Graph* graph, ValueNode* context, int offset, ValueNode* value);
+
   static constexpr uint32_t kEffectEpochForPureInstructions =
       std::numeric_limits<uint32_t>::max();
   static constexpr uint32_t kEffectEpochOverflow =

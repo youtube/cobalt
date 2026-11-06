@@ -6,6 +6,7 @@
 
 #include "absl/base/attributes.h"
 #include "quiche/quic/core/congestion_control/bbr2_sender.h"
+#include "quiche/quic/core/congestion_control/bbr3_sender.h"
 #include "quiche/quic/core/congestion_control/bbr_sender.h"
 #include "quiche/quic/core/congestion_control/prague_sender.h"
 #include "quiche/quic/core/congestion_control/tcp_cubic_sender_bytes.h"
@@ -37,6 +38,14 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
                            random, stats);
     case kBBRv2:
       return new Bbr2Sender(
+          clock->ApproximateNow(), rtt_stats, unacked_packets,
+          initial_congestion_window, max_congestion_window, random, stats,
+          old_send_algorithm &&
+                  old_send_algorithm->GetCongestionControlType() == kBBR
+              ? static_cast<BbrSender*>(old_send_algorithm)
+              : nullptr);
+    case kBBRv3:
+      return new Bbr3Sender(
           clock->ApproximateNow(), rtt_stats, unacked_packets,
           initial_congestion_window, max_congestion_window, random, stats,
           old_send_algorithm &&

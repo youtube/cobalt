@@ -26,12 +26,12 @@ QboneControlStreamBase::QboneControlStreamBase(QuicSession* session)
           /*is_static=*/true, BIDIRECTIONAL),
       pending_message_size_(0) {}
 
-QboneControlStreamBase::QboneControlStreamBase(quic::PendingStream* pending,
+QboneControlStreamBase::QboneControlStreamBase(quic::PendingStream& pending,
                                                QuicSession* session)
     : QuicStream(pending, session, /*is_static=*/true),
       pending_message_size_(0) {
-  QUICHE_DCHECK_EQ(pending->id(), QboneConstants::GetControlStreamId(
-                                      session->transport_version()));
+  QUICHE_DCHECK_EQ(pending.id(), QboneConstants::GetControlStreamId(
+                                     session->transport_version()));
 }
 
 void QboneControlStreamBase::OnDataAvailable() {

@@ -6,21 +6,12 @@ import("//remoting/remoting_options.gni")
 
 source_set("encoder") {
   sources = [
-    "audio_encoder.h",
     "encoder_bitrate_filter.cc",
     "encoder_bitrate_filter.h",
     "utils.cc",
     "utils.h",
-    "video_encoder.cc",
-    "video_encoder.h",
     "video_encoder_active_map.cc",
     "video_encoder_active_map.h",
-    "video_encoder_helper.cc",
-    "video_encoder_helper.h",
-    "video_encoder_verbatim.cc",
-    "video_encoder_verbatim.h",
-    "video_encoder_vpx.cc",
-    "video_encoder_vpx.h",
     "webrtc_video_encoder.cc",
     "webrtc_video_encoder_av1.cc",
     "webrtc_video_encoder_av1.h",
@@ -30,15 +21,15 @@ source_set("encoder") {
 
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
+  public_deps = [ "//third_party/libaom" ]
+
   deps = [
     ":vpx_codec",
     "//remoting/base",
     "//remoting/proto",
     "//remoting/signaling",
-    "//third_party/libaom",
     "//third_party/libvpx",
     "//third_party/libyuv",
-    "//third_party/opus",
     "//third_party/webrtc_overrides:webrtc_component",
     "//ui/gfx:color_space",
     "//ui/gfx/geometry",
@@ -57,45 +48,6 @@ source_set("encoder") {
       "//media/gpu",
     ]
   }
-
-  # Opus depends on //media, which is not a supported include for iOS.
-  # Also disabled it on Android, to avoid dependency on //media.
-  # TODO(sergeyu): Cleanup host-only deps in client targets.
-  if (!is_ios && !is_android) {
-    sources += [
-      "audio_encoder_opus.cc",
-      "audio_encoder_opus.h",
-    ]
-    deps += [ "//media" ]
-  }
-}
-
-source_set("decoder") {
-  sources = [
-    "audio_decoder.cc",
-    "audio_decoder.h",
-    "audio_decoder_opus.cc",
-    "audio_decoder_opus.h",
-    "video_decoder.h",
-    "video_decoder_verbatim.cc",
-    "video_decoder_verbatim.h",
-    "video_decoder_vpx.cc",
-    "video_decoder_vpx.h",
-  ]
-
-  configs += [ "//build/config/compiler:wexit_time_destructors" ]
-
-  deps = [
-    ":vpx_codec",
-    "//base",
-    "//remoting/base",
-    "//remoting/proto",
-    "//remoting/signaling",
-    "//third_party/libvpx",
-    "//third_party/libyuv",
-    "//third_party/opus",
-    "//third_party/webrtc_overrides:webrtc_component",
-  ]
 }
 
 source_set("vpx_codec") {
@@ -116,22 +68,28 @@ source_set("vpx_codec") {
   ]
 }
 
+if (!is_component_build && (is_win || is_linux)) {
+  executable("webrtc_video_encoder_benchmark") {
+    testonly = true
+
+    sources = [ "webrtc_video_encoder_benchmark.cc" ]
+
+    deps = [
+      ":encoder",
+      "//base",
+      "//base/test:test_support",
+      "//remoting/test/frame_generator:frame_generator_test_support",
+      "//third_party/webrtc_overrides:webrtc_component",
+    ]
+  }
+}
+
 source_set("unit_tests") {
   testonly = true
 
-  sources = [
-    "audio_encoder_opus_unittest.cc",
-    "codec_test.cc",
-    "codec_test.h",
-    "encoder_bitrate_filter_unittest.cc",
-    "video_decoder_vpx_unittest.cc",
-    "video_encoder_helper_unittest.cc",
-    "video_encoder_verbatim_unittest.cc",
-    "video_encoder_vpx_unittest.cc",
-  ]
+  sources = [ "encoder_bitrate_filter_unittest.cc" ]
 
   deps = [
-    ":decoder",
     ":encoder",
     "//base",
     "//remoting/base",
@@ -140,8 +98,4 @@ source_set("unit_tests") {
     "//third_party/webrtc_overrides:webrtc_component",
     "//ui/gfx:color_space",
   ]
-
-  if (is_ios || is_android) {
-    sources -= [ "audio_encoder_opus_unittest.cc" ]
-  }
 }

@@ -485,7 +485,7 @@ void SandboxGetBuiltinCode(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // function should probably return a CodeWrapper or whatever we'll be using
   // as IC handlers representing builtins. If we decide to encode those
   // builtins into Smi handlers, then this function should probably be removed.
-  CHECK(code->IsInMainCageBase());
+  CHECK(code.IsInMainCageBase());
 
   info.GetReturnValue().Set(V8HeapCompressionScheme::CompressAny(code.ptr()));
 }
@@ -818,7 +818,8 @@ bool IsCrashInSafeMemoryRegion(Address faultaddr,
   return false;
 }
 
-[[noreturn]] void FilterCrash(const char* reason) {
+[[noreturn]]
+void FilterCrash(const char* reason) {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
   PrintToStderr(reason);
@@ -1267,7 +1268,7 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
     fields[SCRIPT_TYPE]["wasm_managed_native_module"] =
         offsetof(Script, eval_from_position_);
     fields[JS_PROMISE_TYPE]["reactions_or_result"] =
-        JSPromise::kReactionsOrResultOffset;
+        offsetof(JSPromise, reactions_or_result_);
     fields[PROMISE_REACTION_TYPE]["fulfill_handler"] =
         offsetof(PromiseReaction, fulfill_handler_);
     fields[FEEDBACK_CELL_TYPE]["value"] = offsetof(FeedbackCell, value_);

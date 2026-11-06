@@ -144,20 +144,38 @@ class RTC_EXPORT RTCError {
   //
   // Preferred over the default constructor for code readability.
   static RTCError OK();
-  static RTCError InvalidParameter() {
-    return RTCError(RTCErrorType::INVALID_PARAMETER);
+  static RTCError InvalidParameter(absl::string_view message = "") {
+    return RTCError(RTCErrorType::INVALID_PARAMETER, message);
   }
-  static RTCError InvalidState() {
-    return RTCError(RTCErrorType::INVALID_STATE);
+  static RTCError InvalidState(absl::string_view message = "") {
+    return RTCError(RTCErrorType::INVALID_STATE, message);
   }
-  static RTCError InvalidModification() {
-    return RTCError(RTCErrorType::INVALID_MODIFICATION);
+  static RTCError InvalidModification(absl::string_view message = "") {
+    return RTCError(RTCErrorType::INVALID_MODIFICATION, message);
   }
-  static RTCError UnsupportedOperation() {
-    return RTCError(RTCErrorType::UNSUPPORTED_OPERATION);
+  static RTCError UnsupportedOperation(absl::string_view message = "") {
+    return RTCError(RTCErrorType::UNSUPPORTED_OPERATION, message);
   }
-  static RTCError UnsupportedParameter() {
-    return RTCError(RTCErrorType::UNSUPPORTED_PARAMETER);
+  static RTCError UnsupportedParameter(absl::string_view message = "") {
+    return RTCError(RTCErrorType::UNSUPPORTED_PARAMETER, message);
+  }
+  static RTCError InvalidRange(absl::string_view message = "") {
+    return RTCError(RTCErrorType::INVALID_RANGE, message);
+  }
+  static RTCError SyntaxError(absl::string_view message = "") {
+    return RTCError(RTCErrorType::SYNTAX_ERROR, message);
+  }
+  static RTCError NetworkError(absl::string_view message = "") {
+    return RTCError(RTCErrorType::NETWORK_ERROR, message);
+  }
+  static RTCError ResourceExhausted(absl::string_view message = "") {
+    return RTCError(RTCErrorType::RESOURCE_EXHAUSTED, message);
+  }
+  static RTCError InternalError(absl::string_view message = "") {
+    return RTCError(RTCErrorType::INTERNAL_ERROR, message);
+  }
+  static RTCError OperationErrorWithData(absl::string_view message = "") {
+    return RTCError(RTCErrorType::OPERATION_ERROR_WITH_DATA, message);
   }
 
   // Error type.

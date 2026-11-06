@@ -259,6 +259,19 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
     QUICHE_VLOG(3) << "Early return; status not HEADER_OK";
     return;
   }
+  if (session_.options_.enforce_max_header_list_bytes &&
+      session_.options_.max_header_list_bytes.has_value() &&
+      session_.decoder_.GetHpackDecoder()
+              .current_header_block_uncompressed_bytes() >
+          *session_.options_.max_header_list_bytes) {
+    QUICHE_DVLOG(1)
+        << "current_header_block_uncompressed_bytes > max_header_list_bytes: "
+        << session_.decoder_.GetHpackDecoder()
+               .current_header_block_uncompressed_bytes()
+        << " > " << *session_.options_.max_header_list_bytes;
+    SetResult(OnHeaderResult::HEADER_RST_STREAM);
+    return;
+  }
   const HeaderValidator::HeaderStatus validation_result =
       validator_->ValidateSingleHeader(key, value);
   if (validation_result == HeaderValidator::HEADER_SKIP) {

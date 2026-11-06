@@ -48,15 +48,6 @@ chromium-metrics-reviews@google.com.
   <variant name=".Total" summary="Measures total RSS."/>
 </variants>
 
-<histogram name="Platform.Bootlockbox.AvailabilityAtStart"
-    enum="BootlockboxAvailability" expires_after="2023-10-24">
-  <owner>yich@google.com</owner>
-  <owner>cros-hwsec-userland-eng+uma@google.com</owner>
-  <summary>
-    Record the bootlockbox space availability when bootlockbox started.
-  </summary>
-</histogram>
-
 <histogram name="Platform.BootMode.DevSwitch"
     enum="Platform.BootMode.SwitchStatus" expires_after="2025-03-09">
   <owner>enlightened@chromium.org</owner>
@@ -101,26 +92,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Platform.BootSectorsRead" units="units"
-    expires_after="2021-07-02">
-  <owner>sonnyrao@chromium.org</owner>
-  <owner>chromeos-performance@google.com</owner>
-  <summary>
-    Chrome OS number of disk sectors read at boot from kernel start to
-    login-prompt-ready.
-  </summary>
-</histogram>
-
-<histogram name="Platform.BootSectorsWritten" units="units"
-    expires_after="2021-07-02">
-  <owner>sonnyrao@chromium.org</owner>
-  <owner>chromeos-performance@google.com</owner>
-  <summary>
-    Chrome OS number of disk sectors written at boot from kernel start to
-    login-prompt-ready.
-  </summary>
-</histogram>
-
 <histogram name="Platform.Chaps.ReinitializingToken"
     enum="ChapsReinitializingToken" expires_after="2026-10-11">
   <owner>chenyian@google.com</owner>
@@ -131,7 +102,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Platform.Chaps.Session.{Operation}" enum="ChapsSessionStatus"
-    expires_after="2026-08-16">
+    expires_after="2026-10-25">
   <owner>chenyian@google.com</owner>
   <owner>cros-hwsec-userland-eng+uma@google.com</owner>
   <summary>
@@ -181,15 +152,6 @@ chromium-metrics-reviews@google.com.
   <owner>chenyian@google.com</owner>
   <owner>cros-hwsec-userland-eng+uma@google.com</owner>
   <summary>Each sample is the TPM Availability status.</summary>
-</histogram>
-
-<histogram name="Platform.CompressedSwapSize" units="MB"
-    expires_after="2021-11-07">
-  <owner>sonnyrao@chromium.org</owner>
-  <owner>chromeos-memory@google.com</owner>
-  <summary>
-    Chrome OS size of allocated swap area in megabytes (before compression)
-  </summary>
 </histogram>
 
 <histogram name="Platform.CoralService.ClusteringEngine.GeneratedGroupCount"
@@ -621,72 +583,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Platform.DetachableBase.ActivePercent" units="%"
-    expires_after="2025-02-16">
-  <owner>fshao@chromium.org</owner>
-  <owner>phoenixshen@chromium.org</owner>
-  <owner>chromeos-kukui@google.com</owner>
-  <summary>
-    Ratio of time a detachable base keyboard is active, i.e. when the USB
-    interface is not auto-suspended. Reported every 30 seconds when the base is
-    connected.
-  </summary>
-</histogram>
-
-<histogram name="Platform.DetachableBase.AttachedOnBoot" enum="BooleanAttached"
-    expires_after="2025-01-05">
-  <owner>fshao@chromium.org</owner>
-  <owner>phoenixshen@chromium.org</owner>
-  <owner>chromeos-kukui@google.com</owner>
-  <summary>
-    For devices with a detachable base: whether or not the base is connected on
-    boot. Recorded by upstart task on boot.
-  </summary>
-</histogram>
-
-<histogram name="Platform.DetachableBase.PairResult"
-    enum="DetachableBasePairResult" expires_after="2022-04-24">
-  <owner>fshao@chromium.org</owner>
-  <owner>phoenixshen@chromium.org</owner>
-  <owner>chromeos-kukui@google.com</owner>
-  <summary>Result of a detachable base pair operation.</summary>
-</histogram>
-
-<histogram name="Platform.DetachableBase.PendingRWUpdate"
-    enum="DetachableBasePendingRWUpdate" expires_after="2022-04-24">
-  <owner>fshao@chromium.org</owner>
-  <owner>phoenixshen@chromium.org</owner>
-  <owner>chromeos-kukui@google.com</owner>
-  <summary>
-    Detachable base firmware updates can be configured to only occur on boot. In
-    this mode, any update will be considered &quot;pending&quot; until the
-    system is rebooted, at which point the update may take place. Every time a
-    detachable base is connected to the system, a metric representing the
-    pending update status is recorded. Its possible values are as follows: (0)
-    communication error; (1) no update available; (2) critical update available;
-    or (3) non-critical update available. The definition of &quot;critical&quot;
-    is up to the software performing updates, and would typically be used in the
-    case of a security issue, or broken functionality in a previous firmware
-    version.
-  </summary>
-</histogram>
-
-<histogram name="Platform.DetachableBase.ROUpdateResult"
-    enum="DetachableBaseROUpdateResult" expires_after="2022-04-24">
-  <owner>fshao@chromium.org</owner>
-  <owner>phoenixshen@chromium.org</owner>
-  <owner>chromeos-kukui@google.com</owner>
-  <summary>Result of a detachable base RO firmware update.</summary>
-</histogram>
-
-<histogram name="Platform.DetachableBase.RWUpdateResult"
-    enum="DetachableBaseRWUpdateResult" expires_after="2022-04-24">
-  <owner>fshao@chromium.org</owner>
-  <owner>phoenixshen@chromium.org</owner>
-  <owner>chromeos-kukui@google.com</owner>
-  <summary>Result of a detachable base RW firmware update.</summary>
-</histogram>
-
 <histogram name="Platform.DeviceManagement.InstallAttributesRestoreResult"
     enum="InstallAttributesRestoreResult" expires_after="2025-05-04">
   <owner>yich@google.com</owner>
@@ -718,16 +614,6 @@ chromium-metrics-reviews@google.com.
   <owner>tls@chromium.org</owner>
   <summary>
     Number of users home directories on the device. Logged once a day.
-  </summary>
-</histogram>
-
-<histogram name="Platform.DiskUsage.OldestUserOnDevice" units="days"
-    expires_after="2022-08-01">
-  <owner>achuith@chromium.org</owner>
-  <owner>omrilio@chromium.org</owner>
-  <summary>
-    Number of days between now and the last login of the device's least recent
-    user. Logged once a day, if disk usage is high.
   </summary>
 </histogram>
 
@@ -961,7 +847,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Platform.FlexCpuIsaLevel" enum="FlexCpuIsaLevel"
-    expires_after="2026-08-23">
+    expires_after="2026-10-25">
   <owner>nicholasbishop@google.com</owner>
   <owner>chromeos-flex-eng@google.com</owner>
   <summary>
@@ -1915,7 +1801,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Platform.Missive.StorageDegradationAmount" units="KiB"
-    expires_after="2026-08-23">
+    expires_after="2026-10-25">
   <owner>nancylanxiao@google.com</owner>
   <owner>xanth@google.com</owner>
   <owner>domfc@google.com</owner>
@@ -1979,19 +1865,20 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Platform.Modemfwd.CheckForWedgedModemResult"
-    enum="ModemfwdCheckForWedgedModemResult" expires_after="2025-07-06">
+    enum="ModemfwdCheckForWedgedModemResult" expires_after="2027-04-05">
   <owner>andrewlassalle@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
     Result of the |CheckForWedgedModem| function. The function checks the modem
     state after modemfwd starts, and tries to recover the modem if the modem is
     non responsive. This function is only called once after boot, so a single
-    value is emitted per boot.
+    value is emitted per boot. Warning: this histogram was expired from
+    2025-07-06 to 2027-04-05; data may be missing.
   </summary>
 </histogram>
 
 <histogram name="Platform.Modemfwd.DlcInstallResult"
-    enum="ModemfwdDlcInstallResult" expires_after="2026-05-24">
+    enum="ModemfwdDlcInstallResult" expires_after="2027-04-05">
   <owner>andrewlassalle@google.com</owner>
   <owner>ujjwalpande@google.com</owner>
   <summary>
@@ -2001,7 +1888,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Platform.Modemfwd.DlcUninstallResult"
-    enum="ModemfwdDlcUninstallResult" expires_after="2026-05-17">
+    enum="ModemfwdDlcUninstallResult" expires_after="2027-04-05">
   <owner>andrewlassalle@google.com</owner>
   <owner>ujjwalpande@google.com</owner>
   <summary>
@@ -2012,14 +1899,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Platform.Modemfwd.FWInstallResult"
-    enum="ModemfwdFWInstallResult" expires_after="2026-07-15">
+    enum="ModemfwdFWInstallResult" expires_after="2027-04-05">
   <owner>andrewlassalle@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>The result of each modem FW install attempt.</summary>
 </histogram>
 
 <histogram name="Platform.Modemfwd.FWInstallTime" units="seconds"
-    expires_after="2026-06-07">
+    expires_after="2027-04-05">
   <owner>ujjwalpande@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -2032,7 +1919,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Platform.Modemfwd.FWUpdateLocation"
-    enum="ModemfwdFWUpdateLocation" expires_after="2026-05-17">
+    enum="ModemfwdFWUpdateLocation" expires_after="2027-04-05">
   <owner>andrewlassalle@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -2043,14 +1930,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Platform.Modemfwd.ModemRecoveryState"
-    enum="ModemfwdModemRecoveryState" expires_after="2026-06-07">
+    enum="ModemfwdModemRecoveryState" expires_after="2027-04-05">
   <owner>ujjwalpande@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>Report state of modem recovery operation.</summary>
 </histogram>
 
 <histogram name="Platform.MountEncrypted.EncryptionKeyStatus"
-    enum="MountEncryptedEncryptionKeyStatus" expires_after="2026-08-16">
+    enum="MountEncryptedEncryptionKeyStatus" expires_after="2026-10-18">
   <owner>apronin@chromium.org</owner>
   <owner>cros-hwsec+uma@google.com</owner>
   <summary>
@@ -2061,7 +1948,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Platform.MountEncrypted.SystemKeyStatus"
-    enum="MountEncryptedSystemKeyStatus" expires_after="2026-08-16">
+    enum="MountEncryptedSystemKeyStatus" expires_after="2026-10-18">
   <owner>apronin@chromium.org</owner>
   <owner>cros-hwsec+uma@google.com</owner>
   <summary>
@@ -2192,7 +2079,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Platform.SafetyService.ClassifySafetyLatency.{Ruleset}"
-    units="ms" expires_after="2026-07-26">
+    units="ms" expires_after="2026-10-25">
   <owner>chensa@google.com</owner>
   <owner>cros-odml-foundations-eng@google.com</owner>
   <summary>
@@ -2215,7 +2102,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Platform.SafetyService.ClassifySafetyResult.{Ruleset}"
-    enum="SafetyServiceVerdict" expires_after="2026-07-26">
+    enum="SafetyServiceVerdict" expires_after="2026-10-25">
   <owner>chensa@google.com</owner>
   <owner>cros-odml-foundations-eng@google.com</owner>
   <summary>
@@ -2598,7 +2485,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Platform.TPM.AuthErrorCode" enum="TPMResultCodeEnum"
-    expires_after="2026-08-16">
+    expires_after="2026-10-18">
   <owner>yich@google.com</owner>
   <owner>cros-hwsec-userland-eng+uma@google.com</owner>
   <summary>
@@ -2649,7 +2536,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Platform.TPM.DictionaryAttackCounter" units="units"
-    expires_after="2026-08-16">
+    expires_after="2026-10-18">
   <owner>yich@google.com</owner>
   <owner>cros-hwsec-userland-eng+uma@google.com</owner>
   <summary>
@@ -2678,7 +2565,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Platform.TPM.ErrorCode" enum="TPMResultCodeEnum"
-    expires_after="2026-08-16">
+    expires_after="2026-10-18">
   <owner>yich@google.com</owner>
   <owner>cros-hwsec-userland-eng+uma@google.com</owner>
   <summary>
@@ -2722,13 +2609,6 @@ chromium-metrics-reviews@google.com.
   <summary>
     Number of bytes used by the filesystem. Captured every cold boot.
   </summary>
-</histogram>
-
-<histogram name="Platform.TPM.FirmwareUpdate.Result"
-    enum="TPMFirmwareUpdateResult" expires_after="2025-01-05">
-  <owner>apronin@chromium.org</owner>
-  <owner>cros-hwsec+uma@google.com</owner>
-  <summary>Status of a complete TPM firmware update attempt.</summary>
 </histogram>
 
 <histogram name="Platform.TPM.HardwareAlerts" enum="PlatformTPMHardwareAlerts"
@@ -3087,16 +2967,6 @@ chromium-metrics-reviews@google.com.
     600%). The size of memory before compression includes zero-filled pages.
     Values close to 100% indicate low compression effectiveness. Snapshot every
     30s.
-  </summary>
-</histogram>
-
-<histogram name="Platform.ZramIncompressiblePages" units="pages"
-    expires_after="2021-03-06">
-  <owner>asavery@chromium.org</owner>
-  <owner>gwendal@chromium.org</owner>
-  <summary>
-    Number of incompressible pages stored in zram. A large number suggests lower
-    compression effectiveness. Snapshot every 30s.
   </summary>
 </histogram>
 

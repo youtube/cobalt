@@ -32,6 +32,8 @@
 
 namespace ash {
 
+using chromeos::AppType;
+
 class SplitViewDragIndicatorsTest : public AshTestBase {
  public:
   SplitViewDragIndicatorsTest() = default;
@@ -96,7 +98,7 @@ class SplitViewDragIndicatorsTest : public AshTestBase {
 
   // Creates a window which cannot be snapped by splitview.
   std::unique_ptr<aura::Window> CreateUnsnappableWindow() {
-    std::unique_ptr<aura::Window> window(CreateTestWindow());
+    std::unique_ptr<aura::Window> window = CreateWindowWithAppType();
     window->SetProperty(aura::client::kResizeBehaviorKey,
                         aura::client::kResizeBehaviorNone);
     return window;
@@ -112,7 +114,8 @@ TEST_F(SplitViewDragIndicatorsTest, DraggingBasic) {
   base::HistogramTester histogram_tester;
   aura::Env::GetInstance()->set_throttle_input_on_resize_for_testing(false);
 
-  std::unique_ptr<aura::Window> window = CreateAppWindow();
+  std::unique_ptr<aura::Window> window =
+      CreateWindowWithAppType(AppType::SYSTEM_APP);
   ui::test::EventGenerator* generator = GetEventGenerator();
 
   ToggleOverview();
@@ -162,8 +165,10 @@ TEST_F(SplitViewDragIndicatorsTest, DraggingBasic) {
 TEST_F(SplitViewDragIndicatorsTest, DraggingStartingInPreviewArea) {
   UpdateDisplay("800x600");
 
-  std::unique_ptr<aura::Window> window1 = CreateAppWindow();
-  std::unique_ptr<aura::Window> window2 = CreateAppWindow();
+  std::unique_ptr<aura::Window> window1 =
+      CreateWindowWithAppType(AppType::SYSTEM_APP);
+  std::unique_ptr<aura::Window> window2 =
+      CreateWindowWithAppType(AppType::SYSTEM_APP);
   ui::test::EventGenerator* generator = GetEventGenerator();
 
   ToggleOverview();
@@ -217,7 +222,7 @@ TEST_F(SplitViewDragIndicatorsTest, PreviewAreaVisibility) {
   UpdateDisplay("800x600");
   const int screen_width = 800;
   const float edge_inset = GetEdgeInset(screen_width);
-  std::unique_ptr<aura::Window> window(CreateTestWindow());
+  std::unique_ptr<aura::Window> window = CreateWindowWithAppType();
   ToggleOverview();
 
   // Verify the preview area is visible when |item|'s x is in the
@@ -280,8 +285,8 @@ TEST_F(SplitViewDragIndicatorsTest,
   UpdateDisplay("800x600");
   const int screen_width = 800;
   const float edge_inset = GetEdgeInset(screen_width);
-  std::unique_ptr<aura::Window> window1(CreateTestWindow());
-  std::unique_ptr<aura::Window> window2(CreateTestWindow());
+  std::unique_ptr<aura::Window> window1 = CreateWindowWithAppType();
+  std::unique_ptr<aura::Window> window2 = CreateWindowWithAppType();
   ToggleOverview();
 
   // Start dragging from overview.
@@ -361,7 +366,7 @@ TEST_F(SplitViewDragIndicatorsTest,
 // Verify when the window dragging state changes, the expected indicators will
 // become visible or invisible.
 TEST_F(SplitViewDragIndicatorsTest, SplitViewDragIndicatorsVisibility) {
-  std::unique_ptr<aura::Window> dragged_window(CreateTestWindow());
+  std::unique_ptr<aura::Window> dragged_window = CreateWindowWithAppType();
   auto indicator = std::make_unique<SplitViewDragIndicators>(
       dragged_window->GetRootWindow());
   indicator->SetDraggedWindow(dragged_window.get());
@@ -528,8 +533,8 @@ TEST_F(ClamshellMultiDisplaySplitViewDragIndicatorsTest,
   UpdateDisplay("800x600,600x800");
   aura::Window::Windows root_windows = Shell::GetAllRootWindows();
   ASSERT_EQ(2u, root_windows.size());
-  std::unique_ptr<aura::Window> window1(CreateTestWindow());
-  std::unique_ptr<aura::Window> window2(CreateTestWindow());
+  std::unique_ptr<aura::Window> window1 = CreateWindowWithAppType();
+  std::unique_ptr<aura::Window> window2 = CreateWindowWithAppType();
   const display::Display landscape_display =
       display::Screen::Get()->GetDisplayNearestWindow(root_windows[0]);
   const display::Display portrait_display =
@@ -601,7 +606,8 @@ TEST_F(ClamshellMultiDisplaySplitViewDragIndicatorsTest, IndicatorSize) {
   // The displays need to be different widths for the bug to repro.
   UpdateDisplay("800x600,800+0-1000x600");
 
-  std::unique_ptr<aura::Window> window = CreateAppWindow(gfx::Rect(300, 300));
+  std::unique_ptr<aura::Window> window =
+      CreateWindowWithAppType(AppType::SYSTEM_APP, {300, 300});
 
   ToggleOverview();
   auto* item = GetOverviewItemForWindow(window.get());

@@ -9,6 +9,7 @@
 #import "base/test/metrics/user_action_tester.h"
 #import "base/test/scoped_feature_list.h"
 #import "base/test/task_environment.h"
+#import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/base/signin_pref_names.h"
 #import "components/sync/test/test_sync_service.h"
 #import "components/test/ios/test_utils.h"
@@ -439,8 +440,7 @@ TEST_F(AccountMenuMediatorTest, TestAccountTapedSignInFailed) {
                                                            identity:nil];
 
   // Checks the user is signed-back in.
-  ASSERT_EQ(kPrimaryIdentity, authentication_service_->GetPrimaryIdentity(
-                                  signin::ConsentLevel::kSignin));
+  ASSERT_EQ(kPrimaryIdentity, authentication_service_->GetPrimaryIdentity());
 }
 
 // Tests the result of accountTappedWithGaiaID:targetRect:

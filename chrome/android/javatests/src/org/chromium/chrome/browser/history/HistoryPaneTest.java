@@ -40,6 +40,7 @@ import org.chromium.chrome.test.transit.hub.RegularTabSwitcherStation;
 import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.test.transit.SoftKeyboardCondition;
+import org.chromium.url.GURL;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -164,7 +165,7 @@ public class HistoryPaneTest {
 
         // urlOne and urlTwo are from the same host. In tests, the test server usually runs on
         // 127.0.0.1.
-        String domain = new org.chromium.url.GURL(urlOne).getHost();
+        String domain = new GURL(urlOne).getHost();
 
         RegularTabSwitcherStation tabSwitcher =
                 mStartingPage
@@ -180,8 +181,7 @@ public class HistoryPaneTest {
         history.expectNoEntry("Two");
 
         // Expand the cluster.
-        org.chromium.chrome.test.transit.hub.HistoryPaneStation.HistoryEntryFacility clusterHead =
-                history.expectEntry(domain);
+        HistoryPaneStation.HistoryEntryFacility clusterHead = history.expectEntry(domain);
         onView(clusterHead.removeButtonElement.getViewSpec().getViewMatcher()).perform(click());
 
         // After expansion, the items should be visible alongside the cluster head.

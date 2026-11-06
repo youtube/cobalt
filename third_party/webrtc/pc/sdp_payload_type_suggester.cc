@@ -18,6 +18,7 @@
 #include "api/jsep.h"
 #include "api/payload_type.h"
 #include "api/rtc_error.h"
+#include "api/rtp_parameters.h"
 #include "call/payload_type.h"
 #include "call/payload_type_picker.h"
 #include "media/base/codec.h"
@@ -74,6 +75,34 @@ RTCError SdpPayloadTypeSuggester::AddLocalMapping(absl::string_view mid,
   return recorder.AddMapping(payload_type, codec);
 }
 
+RTCErrorOr<int> SdpPayloadTypeSuggester::SuggestRtpHeaderExtensionId(
+    absl::string_view mid,
+    const RtpExtension& extension,
+    RtpTransceiverIdDomain id_domain) {
+  RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
+  BundleTypeRecorder& bundle_recorder = LookupBundleRecorder(mid);
+  auto result = bundle_recorder.header_extensions().LookupId(extension.uri,
+                                                             extension.encrypt);
+  if (result.ok()) {
+    return result;
+  }
+  return rtp_header_extension_picker_.SuggestMapping(
+      extension.uri, extension.encrypt, extension.id, id_domain,
+      &bundle_recorder.header_extensions());
+}
+
+RTCError SdpPayloadTypeSuggester::AddRtpHeaderExtensionMapping(
+    absl::string_view mid,
+    const RtpExtension& extension,
+    bool local) {
+  RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
+  BundleTypeRecorder& bundle_recorder = LookupBundleRecorder(mid);
+  rtp_header_extension_picker_.AddMapping(extension.id, extension.uri,
+                                          extension.encrypt);
+  return bundle_recorder.header_extensions().AddMapping(
+      extension.id, extension.uri, extension.encrypt);
+}
+
 RTCError SdpPayloadTypeSuggester::Update(const SessionDescription* description,
                                          bool local,
                                          SdpType type) {
@@ -98,6 +127,16 @@ RTCError SdpPayloadTypeSuggester::Update(const SessionDescription* description,
     if (!error.ok()) {
       return error;
     }
+
+    BundleTypeRecorder& bundle_recorder = LookupBundleRecorder(content.mid());
+    for (const auto& extension :
+         content.media_description()->rtp_header_extensions()) {
+      bundle_recorder.header_extensions().AddMapping(
+          extension.id, extension.uri, extension.encrypt);
+    }
+    if (type == SdpType::kAnswer) {
+      bundle_recorder.header_extensions().Commit();
+    }
   }
   return RTCError::OK();
 }
@@ -105,6 +144,13 @@ RTCError SdpPayloadTypeSuggester::Update(const SessionDescription* description,
 PayloadTypeRecorder& SdpPayloadTypeSuggester::LookupRecorder(
     absl::string_view mid,
     bool local) {
+  BundleTypeRecorder& recorder = LookupBundleRecorder(mid);
+  return local ? recorder.local_payload_types()
+               : recorder.remote_payload_types();
+}
+
+SdpPayloadTypeSuggester::BundleTypeRecorder&
+SdpPayloadTypeSuggester::LookupBundleRecorder(absl::string_view mid) {
   const ContentGroup* group = bundle_manager_.LookupGroupByMid(mid);
   std::string transport_mapped_name;
   if (group) {
@@ -119,9 +165,7 @@ PayloadTypeRecorder& SdpPayloadTypeSuggester::LookupRecorder(
     recorder_by_mid_.emplace(std::make_pair(
         transport_mapped_name, BundleTypeRecorder(payload_type_picker_)));
   }
-  BundleTypeRecorder& recorder = recorder_by_mid_.at(transport_mapped_name);
-  return local ? recorder.local_payload_types()
-               : recorder.remote_payload_types();
+  return recorder_by_mid_.at(transport_mapped_name);
 }
 
 }  // namespace webrtc

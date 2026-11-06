@@ -193,9 +193,6 @@ BASE_FEATURE(kIPHPdfSearchifyFeature,
 BASE_FEATURE(kIPHPerformanceInterventionDialogFeature,
              "IPH_PerformanceInterventionDialogFeature",
              base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kIPHPlusAddressFirstSaveFeature,
-             "IPH_PlusAddressFirstSaveFeature",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHPowerBookmarksSidePanelFeature,
              "IPH_PowerBookmarksSidePanel",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -217,11 +214,14 @@ BASE_FEATURE(kIPHReadingListEntryPointFeature,
 BASE_FEATURE(kIPHReadingListInSidePanelFeature,
              "IPH_ReadingListInSidePanel",
              base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kIPHReadingModeSidePanelFeature,
-             "IPH_ReadingModeSidePanel",
+BASE_FEATURE(kIPHReadingModeKeyboardShortcutFeature,
+             "IPH_ReadingModeKeyboardShortcut",
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHReadingModePageActionLabelFeature,
              "IPH_ReadingModePageActionLabel",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHReadingModeSidePanelFeature,
+             "IPH_ReadingModeSidePanel",
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHShoppingCollectionFeature,
              "IPH_ShoppingCollectionFeature",
@@ -231,7 +231,7 @@ BASE_FEATURE(kIPHSideBySidePinnableFeature,
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHSideBySideTabSwitchFeature,
              "IPH_SideBySideTabSwitchFeature",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHVerticalTabsExpandOnHoverFeature,
              "IPH_VerticalTabsExpandOnHoverFeature",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -600,9 +600,6 @@ BASE_FEATURE(kIPHExploreSitesTileFeature,
 BASE_FEATURE(kIPHFeedHeaderMenuFeature,
              "IPH_FeedHeaderMenu",
              base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kIPHWebFeedAwarenessFeature,
-             "IPH_WebFeedAwareness",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHFeedSwipeRefresh,
              "IPH_FeedSwipeRefresh",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -621,15 +618,6 @@ BASE_FEATURE(kIPHShareScreenshotFeature,
 BASE_FEATURE(kIPHSharingHubLinkToggleFeature,
              "IPH_SharingHubLinkToggle",
              base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kIPHWebFeedFollowFeature,
-             "IPH_WebFeedFollow",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kIPHWebFeedPostFollowDialogFeature,
-             "IPH_WebFeedPostFollowDialog",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kIPHWebFeedPostFollowDialogFeatureWithUIUpdate,
-             "IPH_WebFeedPostFollowDialogWithUIUpdate",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHSharedHighlightingBuilder,
              "IPH_SharedHighlightingBuilder",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -955,9 +943,6 @@ BASE_FEATURE(kIPHAutofillVirtualCardSuggestionFeature,
 BASE_FEATURE(kIPHCookieControlsFeature,
              "IPH_CookieControls",
              base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kIPHPlusAddressCreateSuggestionFeature,
-             "IPH_PlusAddressCreateSuggestion",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHAutofillEnableLoyaltyCardsFeature,
              "IPH_AutofillEnableLoyaltyCards",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1035,5 +1020,20 @@ BASE_FEATURE(kIPHResumptionRailFeature,
              "IPH_ResumptionRail",
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_IOS)
+
+#if BUILDFLAG(IS_WIN)
+BASE_FEATURE(kIPHSearchExtensionSideloadFeature,
+             "IPH_SearchExtensionSideloadFeature",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<std::string> kSideloadExtensionArm{
+    &kIPHSearchExtensionSideloadFeature, "arm", "disabled"};
+const base::FeatureParam<std::string> kSideloadExtensionEdgeStoreUrl{
+    &kIPHSearchExtensionSideloadFeature, "edge_store_url",
+    "https://microsoftedge.microsoft.com/addons/detail/google-search-for-edge/"
+    "dakcooigljlhlgibgdfadgphfnoooacj"};
+const base::FeatureParam<std::string> kSideloadExtensionInstructionsUrl{
+    &kIPHSearchExtensionSideloadFeature, "instructions_url", ""};
+#endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace feature_engagement

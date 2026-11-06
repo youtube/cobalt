@@ -18,6 +18,7 @@
 #include "absl/container/inlined_vector.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_packet_number.h"
@@ -455,8 +456,8 @@ enum CongestionControlType {
   kBBR,
   kPCC,
   kGoogCC,
-  kBBRv2,  // TODO(rch): This is effectively BBRv3. We should finish the
-           // implementation and rename this enum.
+  kBBRv2,  // This has some changes from BBRv3 as well.
+  kBBRv3,
   kPragueCubic,
 };
 
@@ -901,9 +902,13 @@ QUICHE_EXPORT bool operator==(const QuicSSLConfig& lhs,
 struct QUICHE_EXPORT QuicDelayedSSLConfig {
   // Client certificate mode for mTLS support. Only used at server side.
   // std::nullopt means do not change client certificate mode.
-  std::optional<ClientCertMode> client_cert_mode;
+  std::optional<ClientCertMode> client_cert_mode = std::nullopt;
   // QUIC transport parameters as serialized by ProofSourceHandle.
-  std::optional<std::vector<uint8_t>> quic_transport_parameters;
+  std::optional<std::vector<uint8_t>> quic_transport_parameters = std::nullopt;
+  // If not nullopt, the SSL compliance policy to use. See documentation for
+  // ssl_compliance_policy_t values in BoringSSL:
+  // https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#Compliance-policy-configurations
+  std::optional<ssl_compliance_policy_t> ssl_compliance_policy = std::nullopt;
 
   bool operator==(const QuicDelayedSSLConfig& other) const = default;
 };

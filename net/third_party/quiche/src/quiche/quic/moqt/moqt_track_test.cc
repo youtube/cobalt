@@ -16,6 +16,7 @@
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/common/quiche_mem_slice.h"
@@ -268,6 +269,38 @@ TEST_F(UpstreamFetchTest, LocationIsValidEndOfTrackTooLow) {
       fetch_.LocationIsValid(Location(3, 0), MoqtObjectStatus::kNormal, true));
   EXPECT_FALSE(fetch_.LocationIsValid(Location(2, 1),
                                       MoqtObjectStatus::kEndOfTrack, true));
+}
+
+TEST_F(UpstreamFetchTest, RelativeJoiningFetch) {
+  MoqtFetch relative_fetch_message = {
+      /*request_id=*/2,
+      JoiningFetchRelative(1, 2),
+      MessageParameters(),
+  };
+  UpstreamFetch relative_fetch(relative_fetch_message,
+                               FullTrackName("foo", "bar"),
+                               [&](std::unique_ptr<MoqtFetchTask> task) {
+                                 fetch_task_ = std::move(task);
+                               });
+  relative_fetch.OnFetchResult(Location(10, 50), absl::OkStatus(), nullptr);
+  EXPECT_FALSE(relative_fetch.InWindow(Location(7, 35)));
+  EXPECT_TRUE(relative_fetch.InWindow(Location(8, 0)));
+}
+
+TEST_F(UpstreamFetchTest, RelativeJoiningFetchUnderflow) {
+  MoqtFetch relative_fetch_message = {
+      /*request_id=*/2,
+      JoiningFetchRelative(1, 10),
+      MessageParameters(),
+  };
+  UpstreamFetch relative_fetch(relative_fetch_message,
+                               FullTrackName("foo", "bar"),
+                               [&](std::unique_ptr<MoqtFetchTask> task) {
+                                 fetch_task_ = std::move(task);
+                               });
+  relative_fetch.OnFetchResult(Location(1, 50), absl::OkStatus(), nullptr);
+  EXPECT_TRUE(relative_fetch.InWindow(Location(0, 0)));
+  EXPECT_TRUE(relative_fetch.InWindow(Location(1, 50)));
 }
 
 }  // namespace test

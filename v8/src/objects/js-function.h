@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_JS_FUNCTION_H_
 #define V8_OBJECTS_JS_FUNCTION_H_
 
+#include <atomic>
 #include <optional>
 
 #include "src/objects/code-kind.h"
@@ -23,9 +24,7 @@ class ClosureFeedbackCellArray;
 // An abstract superclass for classes representing JavaScript function values.
 // It doesn't carry any functionality but allows function classes to be
 // identified in the type system.
-class JSFunctionOrBoundFunctionOrWrappedFunction
-    : public TorqueGeneratedJSFunctionOrBoundFunctionOrWrappedFunction<
-          JSFunctionOrBoundFunctionOrWrappedFunction, JSObject> {
+V8_OBJECT class JSFunctionOrBoundFunctionOrWrappedFunction : public JSObject {
  public:
   static const int kLengthDescriptorIndex = 0;
   static const int kNameDescriptorIndex = 1;
@@ -37,19 +36,32 @@ class JSFunctionOrBoundFunctionOrWrappedFunction
       DirectHandle<JSReceiver> target, DirectHandle<String> prefix,
       int arg_count);
 
-  static_assert(kHeaderSize == JSObject::kHeaderSize);
-  TQ_OBJECT_CONSTRUCTORS(JSFunctionOrBoundFunctionOrWrappedFunction)
-};
+  static const int kHeaderSize;
+} V8_OBJECT_END;
+
+inline constexpr int JSFunctionOrBoundFunctionOrWrappedFunction::kHeaderSize =
+    sizeof(JSFunctionOrBoundFunctionOrWrappedFunction);
 
 // JSBoundFunction describes a bound function exotic object.
-class JSBoundFunction
-    : public TorqueGeneratedJSBoundFunction<
-          JSBoundFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
+V8_OBJECT class JSBoundFunction
+    : public JSFunctionOrBoundFunctionOrWrappedFunction {
  public:
   static MaybeHandle<String> GetName(Isolate* isolate,
                                      DirectHandle<JSBoundFunction> function);
   static Maybe<uint32_t> GetLength(Isolate* isolate,
                                    DirectHandle<JSBoundFunction> function);
+
+  inline Tagged<JSCallable> bound_target_function() const;
+  inline void set_bound_target_function(
+      Tagged<JSCallable> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Object> bound_this() const;
+  inline void set_bound_this(Tagged<Object> value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<FixedArray> bound_arguments() const;
+  inline void set_bound_arguments(Tagged<FixedArray> value,
+                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Dispatched behavior.
   DECL_PRINTER(JSBoundFunction)
@@ -60,13 +72,28 @@ class JSBoundFunction
   static DirectHandle<String> ToString(Isolate* isolate,
                                        DirectHandle<JSBoundFunction> function);
 
-  TQ_OBJECT_CONSTRUCTORS(JSBoundFunction)
-};
+  static const int kHeaderSize;
+  static const int kBoundTargetFunctionOffset;
+  static const int kBoundThisOffset;
+  static const int kBoundArgumentsOffset;
+
+ public:
+  TaggedMember<JSCallable> bound_target_function_;
+  TaggedMember<Object> bound_this_;
+  TaggedMember<FixedArray> bound_arguments_;
+} V8_OBJECT_END;
+
+inline constexpr int JSBoundFunction::kHeaderSize = sizeof(JSBoundFunction);
+inline constexpr int JSBoundFunction::kBoundTargetFunctionOffset =
+    offsetof(JSBoundFunction, bound_target_function_);
+inline constexpr int JSBoundFunction::kBoundThisOffset =
+    offsetof(JSBoundFunction, bound_this_);
+inline constexpr int JSBoundFunction::kBoundArgumentsOffset =
+    offsetof(JSBoundFunction, bound_arguments_);
 
 // JSWrappedFunction describes a wrapped function exotic object.
-class JSWrappedFunction
-    : public TorqueGeneratedJSWrappedFunction<
-          JSWrappedFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
+V8_OBJECT class JSWrappedFunction
+    : public JSFunctionOrBoundFunctionOrWrappedFunction {
  public:
   static MaybeHandle<String> GetName(Isolate* isolate,
                                      DirectHandle<JSWrappedFunction> function);
@@ -77,6 +104,14 @@ class JSWrappedFunction
       Isolate* isolate, DirectHandle<NativeContext> creation_context,
       DirectHandle<JSReceiver> value);
 
+  inline Tagged<JSCallable> wrapped_target_function() const;
+  inline void set_wrapped_target_function(
+      Tagged<JSCallable> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<NativeContext> context() const;
+  inline void set_context(Tagged<NativeContext> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   // Dispatched behavior.
   DECL_PRINTER(JSWrappedFunction)
   DECL_VERIFIER(JSWrappedFunction)
@@ -86,8 +121,20 @@ class JSWrappedFunction
   static DirectHandle<String> ToString(
       Isolate* isolate, DirectHandle<JSWrappedFunction> function);
 
-  TQ_OBJECT_CONSTRUCTORS(JSWrappedFunction)
-};
+  static const int kHeaderSize;
+  static const int kWrappedTargetFunctionOffset;
+  static const int kContextOffset;
+
+ public:
+  TaggedMember<JSCallable> wrapped_target_function_;
+  TaggedMember<NativeContext> context_;
+} V8_OBJECT_END;
+
+inline constexpr int JSWrappedFunction::kHeaderSize = sizeof(JSWrappedFunction);
+inline constexpr int JSWrappedFunction::kWrappedTargetFunctionOffset =
+    offsetof(JSWrappedFunction, wrapped_target_function_);
+inline constexpr int JSWrappedFunction::kContextOffset =
+    offsetof(JSWrappedFunction, context_);
 
 enum class BudgetModification { kReduce, kRaise, kReset };
 
@@ -95,8 +142,7 @@ enum class BudgetModification { kReduce, kRaise, kReset };
 // This abstract class represents JS function objects with and without
 // prototype. Respective subclass defines the layout of the object in memory
 // but all the JSFunction related logic lives in this class.
-class JSFunction : public TorqueGeneratedJSFunction<
-                       JSFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
+V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
  public:
   // [prototype_or_initial_map]:
   DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map,
@@ -111,6 +157,8 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
   // Fast binding requires length and name accessors.
   static const int kMinDescriptorsForFastBindAndWrap = 2;
+  static const int kLengthDescriptorIndex = 0;
+  static const int kNameDescriptorIndex = 1;
 
   static DirectHandle<Object> GetFunctionPrototype(
       Isolate* isolate, DirectHandle<JSFunction> function);
@@ -119,9 +167,9 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline Tagged<Context> context();
   DECL_RELAXED_GETTER(context, Tagged<Context>)
   inline bool has_context() const;
-  using TorqueGeneratedClass::context;
-  using TorqueGeneratedClass::set_context;
   DECL_RELEASE_ACQUIRE_ACCESSORS(context, Tagged<Context>)
+  inline void set_context(Tagged<Context> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline Tagged<JSGlobalProxy> global_proxy();
   inline Tagged<NativeContext> native_context();
   inline uint32_t length();
@@ -441,11 +489,17 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // info.
   CodeKinds GetAvailableCodeKinds(IsolateForSandbox isolate) const;
 
- protected:
-  // JSFunction doesn't have a fixed header size, one should use either
-  // JSFunctionWithoutPrototype or JSFunctionWithPrototype instead.
-  // Hide TorqueGeneratedClass::kHeaderSize to avoid confusion.
-  using TorqueGeneratedClass::kHeaderSize;
+  // Backward-compat offset constants. JSFunction doesn't have a fixed header
+  // size; use JSFunctionWithoutPrototype::kHeaderSize or
+  // JSFunctionWithPrototype::kHeaderSize instead.
+  static const int kDispatchHandleOffset;
+#if TAGGED_SIZE_8_BYTES
+  static const int kPaddingOffset;
+  static const int kPaddingOffsetEnd;
+#endif
+  static const int kSharedFunctionInfoOffset;
+  static const int kContextOffset;
+  static const int kFeedbackCellOffset;
 
  private:
   inline void UpdateCodeImpl(Isolate* isolate, Tagged<Code> code,
@@ -459,12 +513,6 @@ class JSFunction : public TorqueGeneratedJSFunction<
       Isolate* isolate, Tagged<Code> new_code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
-  // Hide generated accessors; custom accessors are called "shared".
-  DECL_ACCESSORS(shared_function_info, Tagged<SharedFunctionInfo>)
-
-  // Hide generated accessors; custom accessors are called "raw_feedback_cell".
-  DECL_ACCESSORS(feedback_cell, Tagged<FeedbackCell>)
-
   // Returns the set of code kinds of compilation artifacts (bytecode,
   // generated code) attached to this JSFunction.
   // Note that attached code objects that are marked_for_deoptimization are not
@@ -474,34 +522,69 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // kind if this becomes more convenient in the future.
   CodeKinds GetAttachedCodeKinds(IsolateForSandbox isolate) const;
 
-  TQ_OBJECT_CONSTRUCTORS(JSFunction)
-};
+ public:
+  JSDispatchHandleMember dispatch_handle_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t padding_;
+#endif
+  TaggedMember<SharedFunctionInfo> shared_function_info_;
+  TaggedMember<Context> context_;
+  TaggedMember<FeedbackCell> feedback_cell_;
+} V8_OBJECT_END;
+
+inline constexpr int JSFunction::kDispatchHandleOffset =
+    offsetof(JSFunction, dispatch_handle_);
+#if TAGGED_SIZE_8_BYTES
+inline constexpr int JSFunction::kPaddingOffset =
+    offsetof(JSFunction, padding_);
+inline constexpr int JSFunction::kPaddingOffsetEnd =
+    offsetof(JSFunction, padding_) + sizeof(uint32_t) - 1;
+#endif
+inline constexpr int JSFunction::kSharedFunctionInfoOffset =
+    offsetof(JSFunction, shared_function_info_);
+inline constexpr int JSFunction::kContextOffset =
+    offsetof(JSFunction, context_);
+inline constexpr int JSFunction::kFeedbackCellOffset =
+    offsetof(JSFunction, feedback_cell_);
 
 // Defines layout of JavaScript functions without prototype.
-class JSFunctionWithoutPrototype
-    : public TorqueGeneratedJSFunctionWithoutPrototype<
-          JSFunctionWithoutPrototype, JSFunction> {
+V8_OBJECT class JSFunctionWithoutPrototype : public JSFunction {
  public:
-  // Defines the size of the object without internal fields.
-  static constexpr int kMinSize = TorqueGeneratedClass::kHeaderSize;
+  static const int kHeaderSize;
+  static const int kMinSize;
+  DECL_PRINTER(JSFunctionWithoutPrototype)
+  DECL_VERIFIER(JSFunctionWithoutPrototype)
+} V8_OBJECT_END;
 
-  TQ_OBJECT_CONSTRUCTORS(JSFunctionWithoutPrototype)
-};
+inline constexpr int JSFunctionWithoutPrototype::kHeaderSize =
+    sizeof(JSFunctionWithoutPrototype);
+inline constexpr int JSFunctionWithoutPrototype::kMinSize =
+    sizeof(JSFunctionWithoutPrototype);
 
 // Defines layout of JavaScript functions with prototype.
-class JSFunctionWithPrototype
-    : public TorqueGeneratedJSFunctionWithPrototype<JSFunctionWithPrototype,
-                                                    JSFunction> {
+V8_OBJECT class JSFunctionWithPrototype : public JSFunction {
  public:
-  // Defines the size of the object without internal fields.
-  static constexpr int kMinSize = TorqueGeneratedClass::kHeaderSize;
+  static const int kHeaderSize;
+  static const int kMinSize;
 
   // [prototype_or_initial_map]:
   DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map,
                                  Tagged<UnionOf<JSPrototype, Map, TheHole>>)
 
-  TQ_OBJECT_CONSTRUCTORS(JSFunctionWithPrototype)
-};
+  static const int kPrototypeOrInitialMapOffset;
+  DECL_PRINTER(JSFunctionWithPrototype)
+  DECL_VERIFIER(JSFunctionWithPrototype)
+
+ public:
+  TaggedMember<Object> prototype_or_initial_map_;
+} V8_OBJECT_END;
+
+inline constexpr int JSFunctionWithPrototype::kHeaderSize =
+    sizeof(JSFunctionWithPrototype);
+inline constexpr int JSFunctionWithPrototype::kMinSize =
+    sizeof(JSFunctionWithPrototype);
+inline constexpr int JSFunctionWithPrototype::kPrototypeOrInitialMapOffset =
+    offsetof(JSFunctionWithPrototype, prototype_or_initial_map_);
 
 }  // namespace v8::internal
 

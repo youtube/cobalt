@@ -3,8 +3,10 @@
 // found in the LICENSE file.
 
 @abstract
+@cppObjectLayoutDefinition
 extern class JSFunctionOrBoundFunctionOrWrappedFunction extends JSObject {}
 
+@cppObjectLayoutDefinition
 extern class JSBoundFunction extends
     JSFunctionOrBoundFunctionOrWrappedFunction {
   // The wrapped function object.
@@ -17,6 +19,7 @@ extern class JSBoundFunction extends
   bound_arguments: FixedArray;
 }
 
+@cppObjectLayoutDefinition
 extern class JSWrappedFunction extends
     JSFunctionOrBoundFunctionOrWrappedFunction {
   // The wrapped function object.
@@ -30,6 +33,7 @@ extern class JSWrappedFunction extends
 // This class does not use the generated verifier, so if you change anything
 // here, please also update JSFunctionVerify in objects-debug.cc.
 @abstract
+@cppObjectLayoutDefinition
 extern class JSFunction extends JSFunctionOrBoundFunctionOrWrappedFunction {
   dispatch_handle: int32;
   @if(TAGGED_SIZE_8_BYTES) padding: int32;
@@ -49,10 +53,12 @@ extern operator '.prototype_or_initial_map=' macro
         void;
 
 // Defines layout and instance type for JSFunctions without prototype.
+@cppObjectLayoutDefinition
 extern class JSFunctionWithoutPrototype extends JSFunction {}
 
 // Defines layout and instance type for JSFunctions with prototype.
 @highestInstanceTypeWithinParentClassRange
+@cppObjectLayoutDefinition
 extern class JSFunctionWithPrototype extends JSFunction {
   prototype_or_initial_map: JSReceiver|Map|TheHole;
 }

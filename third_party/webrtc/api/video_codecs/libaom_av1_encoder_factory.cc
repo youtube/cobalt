@@ -44,8 +44,8 @@ LibaomAv1EncoderFactory::GetEncoderCapabilities() const {
   constexpr int kMaxQp = 63;
   constexpr int kNumBuffers = 8;
   constexpr int kMaxReferences = 3;
-  constexpr int kMinEffortLevel = -2;
-  constexpr int kMaxEffortLevel = 2;
+  constexpr int kMinEffortLevel = -2;  // Speed 11.
+  constexpr int kMaxEffortLevel = 4;   // Speed 5.
   constexpr int kMaxSpatialLayersLimit = 4;
   constexpr int kMaxTemporalLayers = 4;
 
@@ -53,13 +53,12 @@ LibaomAv1EncoderFactory::GetEncoderCapabilities() const {
       VideoFrameBuffer::Type::kI420, VideoFrameBuffer::Type::kNV12};
 
   constexpr std::array<Rational, 7> kSupportedScalingFactors = {
-      {{.numerator = 8, .denominator = 1},
-       {.numerator = 4, .denominator = 1},
-       {.numerator = 2, .denominator = 1},
+      {{.numerator = 2, .denominator = 1},
        {.numerator = 1, .denominator = 1},
        {.numerator = 1, .denominator = 2},
        {.numerator = 1, .denominator = 4},
-       {.numerator = 1, .denominator = 8}}};
+       {.numerator = 1, .denominator = 8},
+       {.numerator = 1, .denominator = 16}}};
 
   return {
       .prediction_constraints = {

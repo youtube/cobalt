@@ -112,11 +112,7 @@ class ShiftedDigits : public Digits {
       len_++;
     }
     shift_ = shift;
-    // For shift == 0, we could always allow in-place handling if we didn't
-    // have to worry about concurrent malicious corruption. The situations
-    // where the source is corruptible are the same where callers don't allow
-    // in-place modification.
-    if (shift == 0 && allow_inplace) {
+    if (shift == 0) {
       inplace_ = true;
       return;
     }
@@ -132,13 +128,16 @@ class ShiftedDigits : public Digits {
   // For callers that have available scratch memory.
   ShiftedDigits(Digits& original, RWDigits scratch)
       : Digits(scratch.digits_, original.len_),
-        inplace_(false),
         // Neither {storage_} nor its deleter will be used.
         storage_(nullptr, Platform::Deleter(nullptr)) {
     DCHECK(scratch.len() >= original.len());
     shift_ = CountLeadingZeros(original.msd());
-    // Always make a copy, even when shift_ == 0, to protect against
-    // concurrent in-sandbox mutation.
+    if (shift_ == 0) {
+      inplace_ = true;
+      digits_ = original.digits_;
+      return;
+    }
+    inplace_ = false;
     RWDigits rw_view(digits_, len_);
     LeftShift(rw_view, original, shift_);
   }

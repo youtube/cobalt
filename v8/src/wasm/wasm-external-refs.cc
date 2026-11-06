@@ -22,6 +22,7 @@
 #include "src/utils/memcopy.h"
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/leb-helper.h"
+#include "src/wasm/signature-hashing.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine-globals.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -1183,6 +1184,10 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
 
   from->set_param_types(sig->returns());
 
+  const CanonicalSig* original_sig = from->func_ref()->internal(isolate)->sig();
+  VectorSignature suspended_sig(original_sig->returns(), sig->returns());
+  from->set_signature_hash(SignatureHasher::Hash(&suspended_sig));
+
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (suspend)\n", from->id(), to->id());
   }
@@ -1219,6 +1224,7 @@ Address switch_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
   from->set_arg_buffer(arg_buffer);
   from->set_current_continuation(cont);
   from->set_param_types(return_sig->parameters());
+  from->set_signature_hash(SignatureHasher::Hash(return_sig));
   SuspendStack(isolate, from, parent, sp, fp, pc);
   ResumeStack(isolate, parent, target_stack, parent->jmpbuf()->sp,
               parent->jmpbuf()->fp, parent->jmpbuf()->pc);

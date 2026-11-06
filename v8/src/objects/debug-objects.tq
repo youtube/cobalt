@@ -62,6 +62,7 @@ struct CoverageInfoSlot {
 
 // CoverageInfo's visitor is included in DATA_ONLY_VISITOR_ID_LIST, so it must
 // not contain any HeapObject fields.
+@cppObjectLayoutDefinition
 extern class CoverageInfo extends HeapObject {
   const slot_count: int32;
   slots[slot_count]: CoverageInfoSlot;

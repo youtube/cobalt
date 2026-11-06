@@ -1229,7 +1229,11 @@ void Call::OnUpdateSyncGroup(webrtc::AudioReceiveStreamInterface& stream,
   RTC_DCHECK_RUN_ON(worker_thread_);
   webrtc::AudioReceiveStreamImpl& receive_stream =
       static_cast<webrtc::AudioReceiveStreamImpl&>(stream);
+  std::string old_sync_group(receive_stream.sync_group());
   receive_stream.SetSyncGroup(sync_group);
+  if (old_sync_group != sync_group) {
+    ConfigureSync(old_sync_group);
+  }
   ConfigureSync(sync_group);
 }
 

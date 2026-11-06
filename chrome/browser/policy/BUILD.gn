@@ -347,6 +347,7 @@ source_set("policy_specific_browser_tests") {
       "test/signed_exchange_browsertest.cc",
       "test/static_storage_quota_policy_browsertest.cc",
       "test/task_manager_end_process_enabled_browsertest.cc",
+      "test/web_rtc_diagnostic_log_collection_allowed_for_origins_policy_browsertest.cc",
       "test/web_rtc_event_log_collection_allowed_policy_browsertest.cc",
       "test/web_rtc_local_ips_allowed_urls_policy_browsertest.cc",
       "test/web_rtc_text_log_collection_allowed_policy_browsertest.cc",
@@ -610,9 +611,16 @@ source_set("browser_tests") {
 source_set("unit_tests") {
   testonly = true
 
-  sources = []
+  sources = [ "value_provider/policy_value_provider_unittest.cc" ]
 
-  deps = []
+  deps = [
+    ":test_support",
+    "//chrome/test:test_support",
+    "//components/policy/core/common:test_support",
+    "//extensions/buildflags",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
 
   if (is_chromeos) {
     sources += [
@@ -624,7 +632,6 @@ source_set("unit_tests") {
       "//chrome/browser/ash/login/users:test_support",
       "//chrome/browser/ash/settings",
       "//chrome/browser/ash/settings:test_support",
-      "//chrome/test:test_support",
       "//chromeos/ash/components/system",
       "//chromeos/components/onc",
       "//chromeos/components/onc:test_support",
@@ -911,6 +918,7 @@ source_set("impl") {
     "//chrome/browser/glic",
     "//chrome/browser/infobars",
     "//chrome/browser/invalidation",
+    "//chrome/browser/lifetime",
     "//chrome/browser/media/router/discovery/access_code:access_code_cast_feature",
     "//chrome/browser/media/webrtc",
     "//chrome/browser/net",
@@ -919,6 +927,7 @@ source_set("impl") {
     "//chrome/browser/privacy_sandbox:headers",
     "//chrome/browser/search",
     "//chrome/browser/spellchecker",
+    "//chrome/browser/ssl",
     "//chrome/browser/ui/side_search",
     "//chrome/browser/ui/toolbar/chrome_labs",
     "//chrome/browser/webauthn",
@@ -1160,7 +1169,7 @@ source_set("impl") {
     sources += [ "printing_restrictions_policy_handler.cc" ]
   }
 
-  if (enable_extensions) {
+  if (enable_extensions_core) {
     sources += [
       "value_provider/extension_install_policies_value_provider.cc",
       "value_provider/extension_policies_value_provider.cc",

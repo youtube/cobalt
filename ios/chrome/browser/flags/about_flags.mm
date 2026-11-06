@@ -87,6 +87,7 @@
 #import "components/translate/core/common/translate_util.h"
 #import "components/variations/net/variations_command_line.h"
 #import "components/variations/variations_switches.h"
+#import "components/wallet/core/common/wallet_features.h"
 #import "components/webui/flags/feature_entry.h"
 #import "components/webui/flags/feature_entry_macros.h"
 #import "components/webui/flags/flags_storage.h"
@@ -989,6 +990,7 @@ const FeatureEntry::FeatureVariation
 
 const FeatureEntry::FeatureParam kBestOfAppFREArm1[] = {{"variant", "1"}};
 const FeatureEntry::FeatureParam kBestOfAppFREArm2[] = {{"variant", "2"}};
+const FeatureEntry::FeatureParam kBestOfAppFREArm3[] = {{"variant", "3"}};
 const FeatureEntry::FeatureParam kBestOfAppFREArm4[] = {{"variant", "4"}};
 const FeatureEntry::FeatureParam kBestOfAppFREArm4Upload[] = {
     {"variant", "4"},
@@ -997,6 +999,7 @@ const FeatureEntry::FeatureParam kBestOfAppFREArm4Upload[] = {
 const FeatureEntry::FeatureVariation kBestOfAppFREVariations[] = {
     {" - Variant A: Lens Interactive Promo", kBestOfAppFREArm1, nullptr},
     {" - Variant B: Lens Animated Promo", kBestOfAppFREArm2, nullptr},
+    {" - Variant C: Best Features", kBestOfAppFREArm3, nullptr},
     {" - Variant D: Guided Tour", kBestOfAppFREArm4, nullptr},
     {" - Variant D: Guided Tour with manual metric upload",
      kBestOfAppFREArm4Upload, nullptr},
@@ -1232,6 +1235,13 @@ const FeatureEntry::FeatureVariation kZeroStateSuggestionsVariations[] = {
      nullptr},
 };
 
+const FeatureEntry::FeatureParam kWalletApiPrivatePassesUrl[] = {
+    {"wallet_pass_save_url", "https://wallet1ppasses.pa.googleapis.com"}};
+
+const FeatureEntry::FeatureVariation
+    kWalletApiPrivatePassesEnabledVariations[] = {
+        {"1P URL", kWalletApiPrivatePassesUrl, nullptr}};
+
 const FeatureEntry::FeatureParam kGeminiCopresenceResponseReadyIntervalParam[] =
     {{kGeminiCopresenceResponseReadyInterval, "7.0"}};
 const FeatureEntry::FeatureParam
@@ -1364,7 +1374,7 @@ const FeatureEntry::FeatureVariation kPageActionMenuIconVariations[] = {
     {"Sparkles 1", kPageActionMenuIconSparkles1, nullptr},
     {"Sparkles 2", kPageActionMenuIconSparkles2, nullptr}};
 
-const FeatureEntry::FeatureParam kAssistantContainerParamDebugDetents[] = {
+const FeatureEntry::FeatureParam kAssistantContainerParamDebugMode[] = {
     {kAssistantContainerParam, kAssistantContainerParamDebug}};
 
 const FeatureEntry::FeatureParam kAssistantContainer30[] = {
@@ -1374,7 +1384,7 @@ const FeatureEntry::FeatureParam kAssistantContainer60[] = {
     {kAssistantContainerMediumDetentPercentParam, "60"}};
 
 const FeatureEntry::FeatureVariation kAssistantContainerVariations[] = {
-    {"with debug elements", kAssistantContainerParamDebugDetents, nullptr},
+    {"with debug enabled", kAssistantContainerParamDebugMode, nullptr},
     {"30% medium detent", kAssistantContainer30, nullptr},
     {"60% medium detent", kAssistantContainer60, nullptr}};
 
@@ -1428,6 +1438,14 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      SINGLE_VALUE_TYPE_AND_VALUE(
          syncer::kSyncServiceURL,
          "https://chrome-sync.sandbox.google.com/chrome-sync/alpha")},
+    {"wallet-api-private-passes-enabled",
+     flag_descriptions::kWalletApiPrivatePassesEnabledName,
+     flag_descriptions::kWalletApiPrivatePassesEnabledDescription,
+     flags_ui::kOsIos,
+     FEATURE_WITH_PARAMS_VALUE_TYPE(
+         wallet::features::kWalletApiPrivatePassesEnabled,
+         kWalletApiPrivatePassesEnabledVariations,
+         "WalletApiPrivatePassesEnabled")},
     {"wallet-service-use-sandbox",
      flag_descriptions::kWalletServiceUseSandboxName,
      flag_descriptions::kWalletServiceUseSandboxDescription, flags_ui::kOsIos,
@@ -1446,6 +1464,11 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kNTPBackgroundCustomizationName,
      flag_descriptions::kNTPBackgroundCustomizationDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kNTPBackgroundCustomization)},
+    {"ntp-header-use-transforms-for-animations",
+     flag_descriptions::kNTPHeaderUseTransformsForAnimationsName,
+     flag_descriptions::kNTPHeaderUseTransformsForAnimationsDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kNTPHeaderUseTransformsForAnimations)},
     {"ntp-background-color-slider",
      flag_descriptions::kNTPBackgroundColorSliderName,
      flag_descriptions::kNTPBackgroundColorSliderDescription, flags_ui::kOsIos,
@@ -1854,10 +1877,7 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      FEATURE_WITH_PARAMS_VALUE_TYPE(commerce::kTabResumptionShopCard,
                                     kShopCardOverrideOptions,
                                     "TabResumptionShopCard")},
-    {"ios-shop-card-impression-limits",
-     flag_descriptions::kShopCardImpressionLimitsName,
-     flag_descriptions::kShopCardImpressionLimitsDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(commerce::kShopCardImpressionLimits)},
+
     {"ios-segmentation-ephemeral-card-ranker",
      flag_descriptions::kSegmentationPlatformEphemeralCardRankerName,
      flag_descriptions::kSegmentationPlatformEphemeralCardRankerDescription,
@@ -2369,14 +2389,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kTabGroupInOverflowMenuName,
      flag_descriptions::kTabGroupInOverflowMenuDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kTabGroupInOverflowMenu)},
-    {"ios-tab-group-entry-point-tab-icon",
-     flag_descriptions::kTabGroupInTabIconContextMenuName,
-     flag_descriptions::kTabGroupInTabIconContextMenuDescription,
-     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kTabGroupInTabIconContextMenu)},
-    {"ios-tab-group-entry-point-tab-recall",
-     flag_descriptions::kTabRecallNewTabGroupButtonName,
-     flag_descriptions::kTabRecallNewTabGroupButtonDescription,
-     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kTabRecallNewTabGroupButton)},
     {"ios-tab-group-entry-point-tab-switcher",
      flag_descriptions::kTabSwitcherOverflowMenuName,
      flag_descriptions::kTabSwitcherOverflowMenuDescription, flags_ui::kOsIos,
@@ -2559,6 +2571,10 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"composebox-ipad", flag_descriptions::kComposeboxIpadName,
      flag_descriptions::kComposeboxIpadDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kComposeboxIpad)},
+    {"composebox-plus-button-bottom-sheet",
+     flag_descriptions::kComposeboxPlusButtonBottomSheetName,
+     flag_descriptions::kComposeboxPlusButtonBottomSheetDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kComposeboxPlusButtonBottomSheet)},
     {"chrome-next-ia", flag_descriptions::kChromeNextIaName,
      flag_descriptions::kChromeNextIaDescription, flags_ui::kOsIos,
      FEATURE_WITH_PARAMS_VALUE_TYPE(kChromeNextIa,
@@ -2699,6 +2715,11 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"fullscreen-refactoring", flag_descriptions::kFullscreenRefactoringName,
      flag_descriptions::kFullscreenRefactoringDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kFullscreenRefactoring)},
+    {"autofill-ai-available-by-default",
+     flag_descriptions::kAutofillAiAvailableByDefaultName,
+     flag_descriptions::kAutofillAiAvailableByDefaultDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(autofill::features::kAutofillAiAvailableByDefault)},
     {"autofill-ai-create-entity-data-manager",
      flag_descriptions::kAutofillAiCreateEntityDataManagerName,
      flag_descriptions::kAutofillAiCreateEntityDataManagerDescription,
@@ -2726,6 +2747,12 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kAutofillAiWalletPrivatePassesDescription,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(autofill::features::kAutofillAiWalletPrivatePasses)},
+    {"autofill-ai-wallet-private-passes-deep-link",
+     flag_descriptions::kAutofillAiWalletPrivatePassesDeepLinkName,
+     flag_descriptions::kAutofillAiWalletPrivatePassesDeepLinkDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(
+         autofill::features::kAutofillAiWalletPrivatePassesDeepLink)},
     {"autofill-ai-reauth-required",
      flag_descriptions::kAutofillAiReauthRequiredName,
      flag_descriptions::kAutofillAiReauthRequiredDescription, flags_ui::kOsIos,
@@ -2840,6 +2867,27 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(
          autofill::features::kAutofillUpstreamEnforceStrikeDelay)},
+    {"no-accounts-web-signin", flag_descriptions::kNoAccountWebSigninName,
+     flag_descriptions::kNoAccountWebSigninDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(switches::kNoAccountWebSignin)},
+    {"assistant-aim-minimized-state",
+     flag_descriptions::kAssistantAimMinimizedStateName,
+     flag_descriptions::kAssistantAimMinimizedStateDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kAssistantAimMinimizedState)},
+    {"lens-filter-toggle-enabled",
+     flag_descriptions::kLensFilterToggleEnabledName,
+     flag_descriptions::kLensFilterToggleEnabledDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kLensFilterToggleEnabled)},
+    {"ios-mini-map-universal-links",
+     flag_descriptions::kIOSMiniMapUniversalLinkName,
+     flag_descriptions::kIOSMiniMapUniversalLinkDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kIOSMiniMapUniversalLink)},
+    {"cross-device-signin", flag_descriptions::kCrossDeviceSigninName,
+     flag_descriptions::kCrossDeviceSigninDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(switches::kCrossDeviceSignin)},
+    {"app-store-in-app-events", flag_descriptions::kAppStoreInAppEventsName,
+     flag_descriptions::kAppStoreInAppEventsDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kAppStoreInAppEvents)},
 });
 
 bool SkipConditionalFeatureEntry(const flags_ui::FeatureEntry& entry) {

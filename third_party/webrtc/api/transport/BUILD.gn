@@ -115,6 +115,7 @@ rtc_library("stun_types") {
     "../../rtc_base:logging",
     "../../rtc_base:net_helpers",
     "../../rtc_base:socket_address",
+    "../../rtc_base:stringutils",
     "../../system_wrappers:metrics",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]

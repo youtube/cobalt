@@ -33,7 +33,7 @@ chrome.test.runTests([
   },
 
   async function openBeforeListFails() {
-    let response = await openScanner('scanner');
+    const response = await openScanner('scanner');
     chrome.test.assertEq('scanner', response.scannerId);
     chrome.test.assertEq(OperationResult.INVALID, response.result);
     chrome.test.assertEq(null, response.scannerHandle);
@@ -43,8 +43,8 @@ chrome.test.runTests([
 
   async function getOptionGroupsInvalidHandleFails() {
     const response = await getOptionGroups('invalid-handle');
-    chrome.test.assertEq(chrome.documentScan.OperationResult.INVALID,
-                         response.result);
+    chrome.test.assertEq(
+        chrome.documentScan.OperationResult.INVALID, response.result);
     chrome.test.assertEq('invalid-handle', response.scannerHandle);
     chrome.test.assertEq(null, response.groups);
     chrome.test.succeed();
@@ -54,8 +54,8 @@ chrome.test.runTests([
     const scannerHandle = await getScannerHandle();
     chrome.test.assertNe(null, scannerHandle);
     const response = await getOptionGroups(scannerHandle);
-    chrome.test.assertEq(chrome.documentScan.OperationResult.SUCCESS,
-                         response.result);
+    chrome.test.assertEq(
+        chrome.documentScan.OperationResult.SUCCESS, response.result);
     chrome.test.assertEq(scannerHandle, response.scannerHandle);
     chrome.test.assertNe(null, response.groups);
     chrome.test.assertEq(1, response.groups.length);
@@ -67,17 +67,17 @@ chrome.test.runTests([
   },
 
   async function closeBeforeOpenFails() {
-    let response = await closeScanner('scanner');
+    const response = await closeScanner('scanner');
     chrome.test.assertEq('scanner', response.scannerHandle);
     chrome.test.assertEq(OperationResult.INVALID, response.result);
     chrome.test.succeed();
   },
 
   async function closeOpenHandleSucceeds() {
-    let scannerId = await getScannerId();
+    const scannerId = await getScannerId();
     chrome.test.assertNe(null, scannerId);
 
-    let openResponse = await openScanner(scannerId);
+    const openResponse = await openScanner(scannerId);
     chrome.test.assertEq(scannerId, openResponse.scannerId);
     chrome.test.assertEq(OperationResult.SUCCESS, openResponse.result);
     chrome.test.assertNe(null, openResponse.scannerHandle);
@@ -210,7 +210,7 @@ chrome.test.runTests([
       local: true,
       secure: true,
     };
-    let getListResponse = await getScannerList(filter);
+    const getListResponse = await getScannerList(filter);
     chrome.test.assertEq(OperationResult.SUCCESS, getListResponse.result);
 
     const cancelResponse = await cancelScan(jobHandle);
@@ -291,8 +291,8 @@ chrome.test.runTests([
   },
 
   async function setOptionsBeforeOpenFails() {
-    const response = await setOptions('invalid-handle', [
-        {name: 'option', type: OptionType.INT}]);
+    const response = await setOptions(
+        'invalid-handle', [{name: 'option', type: OptionType.INT}]);
     chrome.test.assertEq('invalid-handle', response.scannerHandle);
     chrome.test.assertEq(1, response.results.length);
     chrome.test.assertEq(OperationResult.INVALID, response.results[0].result);
@@ -310,9 +310,12 @@ chrome.test.runTests([
       {name: 'fixed3', type: OptionType.FIXED, value: 42.5},      // OK.
       {name: 'fixed4', type: OptionType.FIXED, value: '1.0'},     // Wrong type.
       {name: 'fixed5', type: OptionType.FIXED, value: [42, 43]},  // OK, mapped.
-      {name: 'fixed6', type: OptionType.FIXED,
-          value: [42.0, 43.0]},                                   // OK, mapped.
-      {name: 'fixed7', type: OptionType.FIXED, value: [42.5, 43.5]}  // OK.
+      {
+        name: 'fixed6',
+        type: OptionType.FIXED,
+        value: [42.0, 43.0]
+      },  // OK, mapped.
+      {name: 'fixed7', type: OptionType.FIXED, value: [42.5, 43.5]},  // OK.
     ];
 
     const scannerHandle = await getScannerHandle();
@@ -321,24 +324,17 @@ chrome.test.runTests([
     const response = await setOptions(scannerHandle, options);
     chrome.test.assertEq(scannerHandle, response.scannerHandle);
     chrome.test.assertEq(options.length, response.results.length);
-    // Match each result individually instead of one big array to make it easier
-    // to tell where any failures occur.
     chrome.test.assertEq(
-      {name: 'fixed1', result: OperationResult.SUCCESS}, response.results[0]);
-    chrome.test.assertEq(
-      {name: 'fixed2', result: OperationResult.SUCCESS}, response.results[1]);
-    chrome.test.assertEq(
-      {name: 'fixed3', result: OperationResult.SUCCESS}, response.results[2]);
-    chrome.test.assertEq(
-      {name: 'fixed4', result: OperationResult.WRONG_TYPE},
-      response.results[3]);
-    chrome.test.assertEq(
-      {name: 'fixed5', result: OperationResult.SUCCESS}, response.results[4]);
-    chrome.test.assertEq(
-      {name: 'fixed6', result: OperationResult.SUCCESS}, response.results[5]);
-    chrome.test.assertEq(
-      {name: 'fixed7', result: OperationResult.SUCCESS}, response.results[6]);
-
+        new Set([
+          {name: 'fixed1', result: OperationResult.SUCCESS},
+          {name: 'fixed2', result: OperationResult.SUCCESS},
+          {name: 'fixed3', result: OperationResult.SUCCESS},
+          {name: 'fixed4', result: OperationResult.WRONG_TYPE},
+          {name: 'fixed5', result: OperationResult.SUCCESS},
+          {name: 'fixed6', result: OperationResult.SUCCESS},
+          {name: 'fixed7', result: OperationResult.SUCCESS}
+        ]),
+        new Set(response.results));
     chrome.test.assertNe(null, response.options);
     chrome.test.succeed();
   },
@@ -358,7 +354,7 @@ chrome.test.runTests([
       {name: 'int8', type: OptionType.INT, value: 1e300},         // Wrong type.
       {name: 'int9', type: OptionType.INT, value: -1e300},        // Wrong type.
       {name: 'int10', type: OptionType.INT, value: [1e300]},      // Wrong type.
-      {name: 'int11', type: OptionType.INT, value: [-1e300]}      // Wrong type.
+      {name: 'int11', type: OptionType.INT, value: [-1e300]},     // Wrong type.
     ];
 
     const scannerHandle = await getScannerHandle();
@@ -367,33 +363,21 @@ chrome.test.runTests([
     const response = await setOptions(scannerHandle, options);
     chrome.test.assertEq(scannerHandle, response.scannerHandle);
     chrome.test.assertEq(options.length, response.results.length);
-    // Match each result individually instead of one big array to make it easier
-    // to tell where any failures occur.
     chrome.test.assertEq(
-      {name: 'int1', result: OperationResult.SUCCESS}, response.results[0]);
-    chrome.test.assertEq(
-      {name: 'int2', result: OperationResult.SUCCESS}, response.results[1]);
-    chrome.test.assertEq(
-      {name: 'int3', result: OperationResult.WRONG_TYPE}, response.results[2]);
-    chrome.test.assertEq(
-      {name: 'int4', result: OperationResult.WRONG_TYPE}, response.results[3]);
-    chrome.test.assertEq(
-      {name: 'int5', result: OperationResult.SUCCESS}, response.results[4]);
-    chrome.test.assertEq(
-      {name: 'int6', result: OperationResult.SUCCESS}, response.results[5]);
-    chrome.test.assertEq(
-      {name: 'int7', result: OperationResult.WRONG_TYPE}, response.results[6]);
-    chrome.test.assertEq(
-      {name: 'int8', result: OperationResult.WRONG_TYPE}, response.results[7]);
-    chrome.test.assertEq(
-      {name: 'int9', result: OperationResult.WRONG_TYPE}, response.results[8]);
-    chrome.test.assertEq(
-      {name: 'int10', result: OperationResult.WRONG_TYPE},
-      response.results[9]);
-    chrome.test.assertEq(
-      {name: 'int11', result: OperationResult.WRONG_TYPE},
-      response.results[10]);
-
+        new Set([
+          {name: 'int1', result: OperationResult.SUCCESS},
+          {name: 'int2', result: OperationResult.SUCCESS},
+          {name: 'int3', result: OperationResult.WRONG_TYPE},
+          {name: 'int4', result: OperationResult.WRONG_TYPE},
+          {name: 'int5', result: OperationResult.SUCCESS},
+          {name: 'int6', result: OperationResult.SUCCESS},
+          {name: 'int7', result: OperationResult.WRONG_TYPE},
+          {name: 'int8', result: OperationResult.WRONG_TYPE},
+          {name: 'int9', result: OperationResult.WRONG_TYPE},
+          {name: 'int10', result: OperationResult.WRONG_TYPE},
+          {name: 'int11', result: OperationResult.WRONG_TYPE}
+        ]),
+        new Set(response.results));
     chrome.test.assertNe(null, response.options);
     chrome.test.succeed();
   },
@@ -404,7 +388,7 @@ chrome.test.runTests([
       {name: 'bool1', type: OptionType.BOOL, value: true},    // OK.
       {name: 'bool2', type: OptionType.BOOL, value: 1},       // Wrong type.
       {name: 'bool3', type: OptionType.BOOL, value: 'true'},  // Wrong type.
-      {name: 'bool4', type: OptionType.BOOL, value: [1]}      // Wrong type.
+      {name: 'bool4', type: OptionType.BOOL, value: [1]},     // Wrong type.
     ];
 
     const scannerHandle = await getScannerHandle();
@@ -413,20 +397,14 @@ chrome.test.runTests([
     const response = await setOptions(scannerHandle, options);
     chrome.test.assertEq(scannerHandle, response.scannerHandle);
     chrome.test.assertEq(options.length, response.results.length);
-    // Match each result individually instead of one big array to make it easier
-    // to tell where any failures occur.
     chrome.test.assertEq(
-      {name: 'bool1', result: OperationResult.SUCCESS}, response.results[0]);
-    chrome.test.assertEq(
-      {name: 'bool2', result: OperationResult.WRONG_TYPE},
-      response.results[1]);
-    chrome.test.assertEq(
-      {name: 'bool3', result: OperationResult.WRONG_TYPE},
-      response.results[2]);
-    chrome.test.assertEq(
-      {name: 'bool4', result: OperationResult.WRONG_TYPE},
-      response.results[3]);
-
+        new Set([
+          {name: 'bool1', result: OperationResult.SUCCESS},
+          {name: 'bool2', result: OperationResult.WRONG_TYPE},
+          {name: 'bool3', result: OperationResult.WRONG_TYPE},
+          {name: 'bool4', result: OperationResult.WRONG_TYPE}
+        ]),
+        new Set(response.results));
     chrome.test.assertNe(null, response.options);
     chrome.test.succeed();
   },
@@ -447,23 +425,16 @@ chrome.test.runTests([
     const response = await setOptions(scannerHandle, options);
     chrome.test.assertEq(scannerHandle, response.scannerHandle);
     chrome.test.assertEq(options.length, response.results.length);
-    // Match each result individually instead of one big array to make it easier
-    // to tell where any failures occur.
     chrome.test.assertEq(
-      {name: 'string1', result: OperationResult.SUCCESS}, response.results[0]);
-    chrome.test.assertEq(
-      {name: 'string2', result: OperationResult.SUCCESS}, response.results[1]);
-    chrome.test.assertEq(
-      {name: 'string3', result: OperationResult.WRONG_TYPE},
-      response.results[2]);
-    chrome.test.assertEq(
-      {name: 'string4', result: OperationResult.WRONG_TYPE},
-      response.results[3]);
-    chrome.test.assertEq(
-      {name: 'string5', result: OperationResult.WRONG_TYPE},
-      response.results[4]);
-
+        new Set([
+          {name: 'string1', result: OperationResult.SUCCESS},
+          {name: 'string2', result: OperationResult.SUCCESS},
+          {name: 'string3', result: OperationResult.WRONG_TYPE},
+          {name: 'string4', result: OperationResult.WRONG_TYPE},
+          {name: 'string5', result: OperationResult.WRONG_TYPE}
+        ]),
+        new Set(response.results));
     chrome.test.assertNe(null, response.options);
     chrome.test.succeed();
-  }
+  },
 ]);

@@ -246,7 +246,8 @@ transitioning macro TryFastFlat(
         }
 
         if (currentDepth > 0 && Is<JSProxy>(element)) goto Bailout;
-        if (targetIndex >= doubleElements.length) goto Bailout;
+        if (Convert<intptr>(targetIndex) >= doubleElements.length_intptr)
+          goto Bailout;
         doubleElements.values[targetIndex] =
             Convert<float64_or_undefined_or_hole>(UnsafeCast<Number>(element));
         targetIndex++;
@@ -319,7 +320,8 @@ transitioning macro TryFastFlat(
       }
 
       if (currentDepth > 0 && Is<JSProxy>(element)) goto Bailout;
-      if (targetIndex >= vector.fixedArray.length) goto Bailout;
+      if (Convert<intptr>(targetIndex) >= vector.fixedArray.length_intptr)
+        goto Bailout;
       vector.StoreResult(targetIndex, element);
       targetIndex++;
       index++;

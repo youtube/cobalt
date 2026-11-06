@@ -545,14 +545,15 @@ Maybe<bool> JSModuleNamespace::DefineOwnProperty(
     Maybe<ShouldThrow> should_throw) {
   // 1. If Type(P) is Symbol, return OrdinaryDefineOwnProperty(O, P, Desc).
   if (IsSymbol(*key)) {
-    return OrdinaryDefineOwnProperty(isolate, object, key, desc, should_throw);
+    return JSReceiver::OrdinaryDefineOwnProperty(isolate, object, key, desc,
+                                                 should_throw);
   }
 
   // 2. Let current be ? O.[[GetOwnProperty]](P).
   PropertyKey lookup_key(isolate, key);
   LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
   PropertyDescriptor current;
-  Maybe<bool> has_own = GetOwnPropertyDescriptor(&it, &current);
+  Maybe<bool> has_own = JSReceiver::GetOwnPropertyDescriptor(&it, &current);
   MAYBE_RETURN(has_own, Nothing<bool>());
 
   // 3. If current is undefined, return false.

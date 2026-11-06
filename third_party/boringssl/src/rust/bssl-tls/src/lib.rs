@@ -35,6 +35,7 @@ extern crate core;
 
 use core::panic::AssertUnwindSafe;
 
+pub mod alerts;
 pub mod config;
 pub mod connection;
 pub mod context;
@@ -46,6 +47,8 @@ mod methods;
 #[macro_use]
 #[doc(hidden)]
 mod macros;
+
+pub use ffi::ReceiveBuffer;
 
 fn has_duplicates<T: Ord + Eq>(list: &[T]) -> bool {
     let mut seen = alloc::collections::BTreeSet::new();

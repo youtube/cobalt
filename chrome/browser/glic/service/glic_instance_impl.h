@@ -99,6 +99,10 @@ class GlicInstanceImpl : public GlicInstance,
     virtual void ContextAccessIndicatorChanged(
         GlicInstanceImpl& source_instance,
         bool enabled) = 0;
+
+    // Called to create a new web contents for the glic instance.
+    virtual std::unique_ptr<WebUIContentsContainer>
+    CreateWebUIContentsContainer() = 0;
   };
 
   GlicInstanceImpl(
@@ -126,8 +130,13 @@ class GlicInstanceImpl : public GlicInstance,
   base::TimeDelta GetTimeSinceLastActive() const override;
   bool IsHibernated() const;
   void Hibernate();
+  void Shutdown();
   void CloseInstanceAndShutdown();
   void BindTabWithoutShowing(tabs::TabInterface* tab, bool pin_on_bind);
+  // Initializes the instance for a hidden client. No-op if the instance already
+  // has webui contents.
+  void MaybeInitializeHiddenClient(mojom::InvocationSource invocation_source,
+                                   mojom::FreOverride fre_override);
 
   // GlicInstance implementation.
   bool IsShowing() const override;
@@ -135,6 +144,7 @@ class GlicInstanceImpl : public GlicInstance,
   gfx::Size GetPanelSize() override;
   bool IsActive() override;
 
+  bool HasActiveEmbedder() const;
   bool IsDetached();
   bool IsActuating() const;
   bool IsLiveMode();
@@ -229,10 +239,12 @@ class GlicInstanceImpl : public GlicInstance,
   void PrepareForOpen() override;
   void OnUserInputSubmitted(mojom::WebClientMode mode) override;
   void OnInteractionModeChange(mojom::WebClientMode new_mode) override;
-  glic::GlicInstanceMetrics* instance_metrics() override;
+  glic::GlicInstanceMetrics& instance_metrics() override;
   glic::GlicInstanceMetricsBackwardsCompatibility&
   instance_metrics_backwards_compatibility() override;
   void OnSelectionAreasChanged(int count) override;
+  std::unique_ptr<WebUIContentsContainer> CreateWebUIContentsContainer()
+      override;
 
   // GlicUiEmbedder::Delegate:
   void OnEmbedderWindowActivationChanged(bool has_focus) override;
@@ -266,8 +278,13 @@ class GlicInstanceImpl : public GlicInstance,
 #endif
   tabs::TabInterface* GetActiveEmbedderTabForTesting();
   std::string DescribeForTesting();
-  GlicActorTaskManager* GetActorTaskManagerForTesting() {
+
+  GlicActorTaskManager* GetActorTaskManager() {
     return actor_task_manager_.get();
+  }
+
+  base::WeakPtr<GlicInstanceImpl> GetWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
   }
 
   // ActorTaskDelegate:

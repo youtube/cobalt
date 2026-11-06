@@ -722,8 +722,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     // These builtins with JS calling convention are not JS language builtins
     // but are allowed to be installed into JSFunctions.
     case Builtin::kJSToWasmWrapper:
-    case Builtin::kJSToJSWrapper:
-    case Builtin::kJSToJSWrapperInvalidSig:
     case Builtin::kWasmPromising:
 #if V8_ENABLE_DRUMBRAKE
     case Builtin::kJSToWasmInterpreterWrapper:
@@ -788,12 +786,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
       //
       // Various feature-dependent builtins.
       //
-
-#if V8_ENABLE_WEBASSEMBLY
-    case Builtin::kWebAssemblyFunctionPrototypeBind:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(
-          wasm::WasmEnabledFeatures::FromFlags().has_type_reflection());
-#endif  // V8_ENABLE_WEBASSEMBLY
 
     // --enable-experimental-regexp-engine
     case Builtin::kRegExpPrototypeLinearGetter:

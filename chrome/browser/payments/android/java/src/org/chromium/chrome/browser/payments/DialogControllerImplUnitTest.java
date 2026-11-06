@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.payments;
 
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.eq;
@@ -27,8 +28,10 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.components.payments.PaymentAppError;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.payments.mojom.PaymentEventResponseType;
 import org.chromium.ui.base.WindowAndroid;
 
 import java.lang.ref.WeakReference;
@@ -45,7 +48,7 @@ public class DialogControllerImplUnitTest {
 
     @Mock private DialogControllerImpl.AlertDialogFactory mAlertDialogFactory;
     @Mock private AlertDialog.Builder mAlertDialog;
-    @Mock private Callback<String> mDenyCallback;
+    @Mock private Callback<PaymentAppError> mDenyCallback;
     @Mock private Runnable mApproveCallback;
 
     private DialogControllerImpl mDialogController;
@@ -55,7 +58,7 @@ public class DialogControllerImplUnitTest {
         when(mWebContents.isDestroyed()).thenReturn(false);
         when(mWebContents.getVisibility()).thenReturn(Visibility.VISIBLE);
         when(mWebContents.getTopLevelNativeWindow()).thenReturn(mWindowAndroid);
-        when(mWindowAndroid.getActivity()).thenReturn(new WeakReference(mActivity));
+        when(mWindowAndroid.getActivity()).thenReturn(new WeakReference<>(mActivity));
 
         when(mAlertDialogFactory.createAlertDialogBuilder(any(), anyInt()))
                 .thenReturn(mAlertDialog);
@@ -112,7 +115,7 @@ public class DialogControllerImplUnitTest {
     /** Cannot show the debug dialog if the web contents are not attached an Android activity. */
     @Test
     public void testCannotShowDebugDialogInWebContentsWithoutActivity() {
-        when(mWindowAndroid.getActivity()).thenReturn(new WeakReference(null));
+        when(mWindowAndroid.getActivity()).thenReturn(new WeakReference<Activity>(null));
 
         mDialogController.showReadyToPayDebugInfo("Debug info");
 
@@ -137,7 +140,10 @@ public class DialogControllerImplUnitTest {
 
         mDialogController.showLeavingIncognitoWarning(mDenyCallback, mApproveCallback);
 
-        verify(mDenyCallback).onResult("Unable to find Chrome activity.");
+        verify(mDenyCallback).onResult(argThat(error ->
+                        error.responseType == PaymentEventResponseType.PAYMENT_EVENT_BROWSER_ERROR
+                                && error.errorMessage.equals(
+                                        "Unable to find Chrome activity.")));
         verify(mAlertDialogFactory, never()).createAlertDialogBuilder(any(), anyInt());
     }
 
@@ -148,7 +154,11 @@ public class DialogControllerImplUnitTest {
 
         mDialogController.showLeavingIncognitoWarning(mDenyCallback, mApproveCallback);
 
-        verify(mDenyCallback).onResult("Unable to find Chrome activity.");
+        verify(mDenyCallback).onResult(
+            argThat(error ->
+                        error.responseType == PaymentEventResponseType.PAYMENT_EVENT_BROWSER_ERROR
+                                && error.errorMessage.equals(
+                                        "Unable to find Chrome activity.")));
         verify(mAlertDialogFactory, never()).createAlertDialogBuilder(any(), anyInt());
     }
 
@@ -162,7 +172,12 @@ public class DialogControllerImplUnitTest {
 
         mDialogController.showLeavingIncognitoWarning(mDenyCallback, mApproveCallback);
 
-        verify(mDenyCallback).onResult("Unable to find Chrome activity.");
+        verify(mDenyCallback).onResult(
+            argThat(
+                error ->
+                    error.responseType
+                            == PaymentEventResponseType.PAYMENT_EVENT_BROWSER_ERROR
+                        && error.errorMessage.equals("Unable to find Chrome activity.")));
         verify(mAlertDialogFactory, never()).createAlertDialogBuilder(any(), anyInt());
     }
 
@@ -172,11 +187,15 @@ public class DialogControllerImplUnitTest {
      */
     @Test
     public void testCannotShowIncognitoWarningInWebContentsWithoutActivity() {
-        when(mWindowAndroid.getActivity()).thenReturn(new WeakReference(null));
+        when(mWindowAndroid.getActivity()).thenReturn(new WeakReference<Activity>(null));
 
         mDialogController.showLeavingIncognitoWarning(mDenyCallback, mApproveCallback);
 
-        verify(mDenyCallback).onResult("Unable to find Chrome activity.");
+        verify(mDenyCallback).onResult(
+            argThat(error ->
+                        error.responseType == PaymentEventResponseType.PAYMENT_EVENT_BROWSER_ERROR
+                                && error.errorMessage.equals(
+                                        "Unable to find Chrome activity.")));
         verify(mAlertDialogFactory, never()).createAlertDialogBuilder(any(), anyInt());
     }
 }

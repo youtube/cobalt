@@ -98,6 +98,7 @@
 #include "ui/color/color_provider_source_observer.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/native_theme/native_theme_observer.h"
+#include "url/origin.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "content/public/browser/android/child_process_importance.h"
@@ -337,6 +338,9 @@ class CONTENT_EXPORT WebContentsImpl
                              const std::string& host,
                              RenderFrameHostImpl* rfh);
 
+  // RenderFrameHostDelegate implementation:
+  void OnCaptureHandleConfigUpdate(Page& page) override;
+
   // Returns the focused WebContents.
   // If there are multiple inner/outer WebContents (when embedding <webview>,
   // <guestview>, ...) returns the single one containing the currently focused
@@ -467,7 +471,6 @@ class CONTENT_EXPORT WebContentsImpl
       bool stay_hidden,
       bool stay_awake,
       bool is_activity) override;
-  const blink::mojom::CaptureHandleConfig& GetCaptureHandleConfig() override;
   bool IsBeingCaptured() override;
   bool IsBeingVisiblyCaptured() override;
 #if BUILDFLAG(IS_MAC) && BUILDFLAG(USE_EXTERNAL_POPUP_MENU)
@@ -750,8 +753,6 @@ class CONTENT_EXPORT WebContentsImpl
   void UpdateTargetURL(RenderFrameHostImpl* render_frame_host,
                        const GURL& url) override;
   bool IsNeverComposited() override;
-  void SetCaptureHandleConfig(
-      blink::mojom::CaptureHandleConfigPtr config) override;
   ui::AXMode GetAccessibilityMode() override;
   // Broadcasts the mode change to all frames.
   void ResetAccessibility() override;
@@ -2384,6 +2385,12 @@ class CONTENT_EXPORT WebContentsImpl
   int visible_capturer_count_ = 0;
   int hidden_capturer_count_ = 0;
 
+  // The last notified Capture Handle configuration.
+  blink::mojom::CaptureHandleConfig last_notified_capture_handle_config_;
+
+  // The last notified Capture Handle origin.
+  url::Origin last_notified_capture_handle_origin_;
+
   // When > 0, |capture_wake_lock_| will be held to prevent display sleep.
   int stay_awake_capturer_count_ = 0;
 
@@ -2717,9 +2724,6 @@ class CONTENT_EXPORT WebContentsImpl
 
   viz::FrameSinkId xr_render_target_;
 
-  // Allows the app in the current WebContents to opt-in to exposing
-  // information to apps that capture it.
-  blink::mojom::CaptureHandleConfig capture_handle_config_;
 
   // Background color of the page set by the embedder to be passed to all
   // renderers attached to this WebContents, for use in the main frame.

@@ -46,7 +46,7 @@ class ArrayHeaderBase<Super, false> : public Super {
 
   // TODO(leszeks): Make this private.
  public:
-  TaggedMember<Smi> capacity_;
+  uint32_t capacity_;
 } V8_OBJECT_END;
 
 V8_OBJECT template <class Super>
@@ -67,10 +67,18 @@ class ArrayHeaderBase<Super, true> : public Super {
   inline SafeHeapObjectSize capacity(AcquireLoadTag tag) const;
   inline void set_capacity(uint32_t value);
   inline void set_capacity(uint32_t value, ReleaseStoreTag tag);
+#if TAGGED_SIZE_8_BYTES
+  inline void clear_optional_padding();
+#endif  // TAGGED_SIZE_8_BYTES
 
   // TODO(leszeks): Make this private.
  public:
-  TaggedMember<Smi> length_;
+  uint32_t length_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#else
+  char optional_padding_[0];
+#endif  // TAGGED_SIZE_8_BYTES
 } V8_OBJECT_END;
 
 template <class Shape, class Super, typename = void>
@@ -327,9 +335,9 @@ class TrustedArrayShape final : public AllStatic {
 // pointers), use ProtectedFixedArray.
 V8_OBJECT class TrustedFixedArray
     : public TaggedArrayBase<TrustedFixedArray, TrustedArrayShape,
-                             TrustedObjectLayout> {
-  using Super = TaggedArrayBase<TrustedFixedArray, TrustedArrayShape,
-                                TrustedObjectLayout>;
+                             TrustedObject> {
+  using Super =
+      TaggedArrayBase<TrustedFixedArray, TrustedArrayShape, TrustedObject>;
 
  public:
   template <class IsolateT>
@@ -345,6 +353,10 @@ V8_OBJECT class TrustedFixedArray
   static constexpr uint32_t kMaxLength = TrustedFixedArray::kMaxCapacity;
   static constexpr int kMaxRegularLength =
       TrustedFixedArray::kMaxRegularCapacity;
+  static constexpr uint32_t kLengthOffset = TrustedObject::kHeaderSize;
+  static constexpr uint32_t kHeaderSize =
+      kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kUInt32Size);
+  static_assert(sizeof(Super::Header) == kHeaderSize);
 } V8_OBJECT_END;
 
 class ProtectedArrayShape final : public AllStatic {
@@ -360,9 +372,9 @@ class ProtectedArrayShape final : public AllStatic {
 // ProtectedFixedArray has a unique instance type.
 V8_OBJECT class ProtectedFixedArray
     : public TaggedArrayBase<ProtectedFixedArray, ProtectedArrayShape,
-                             TrustedObjectLayout> {
-  using Super = TaggedArrayBase<ProtectedFixedArray, ProtectedArrayShape,
-                                TrustedObjectLayout>;
+                             TrustedObject> {
+  using Super =
+      TaggedArrayBase<ProtectedFixedArray, ProtectedArrayShape, TrustedObject>;
 
  public:
   // Allocate a new ProtectedFixedArray of the given capacity, initialized with
@@ -400,7 +412,12 @@ V8_OBJECT
 class FixedArrayBase : public detail::ArrayHeaderBase<HeapObjectLayout, true> {
  public:
   static constexpr int kLengthOffset = HeapObject::kHeaderSize;
-  static constexpr int kHeaderSize = kLengthOffset + kTaggedSize;
+#if TAGGED_SIZE_8_BYTES
+  static constexpr uint32_t kPaddingOffset = kLengthOffset + kUInt32Size;
+  static constexpr uint32_t kHeaderSize = kPaddingOffset + kUInt32Size;
+#else
+  static constexpr uint32_t kHeaderSize = kLengthOffset + kUInt32Size;
+#endif  // TAGGED_SIZE_8_BYTES
   static constexpr uint32_t kMaxLength = FixedArray::kMaxCapacity;
   static constexpr int kMaxRegularLength = FixedArray::kMaxRegularCapacity;
 
@@ -556,6 +573,11 @@ V8_OBJECT class WeakFixedArray
   DECL_VERIFIER(WeakFixedArray)
 
   class BodyDescriptor;
+
+  static constexpr uint32_t kLengthOffset = HeapObject::kHeaderSize;
+  static constexpr uint32_t kHeaderSize =
+      kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kUInt32Size);
+  static_assert(sizeof(Super::Header) == kHeaderSize);
 } V8_OBJECT_END;
 
 class WeakHomomorphicFixedArrayShape final : public AllStatic {
@@ -588,6 +610,11 @@ V8_OBJECT class WeakHomomorphicFixedArray
   DECL_VERIFIER(WeakHomomorphicFixedArray)
 
   class BodyDescriptor;
+
+  static constexpr uint32_t kLengthOffset = HeapObject::kHeaderSize;
+  static constexpr uint32_t kHeaderSize =
+      kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kUInt32Size);
+  static_assert(sizeof(Super::Header) == kHeaderSize);
 } V8_OBJECT_END;
 
 class TrustedWeakFixedArrayShape final : public AllStatic {
@@ -602,7 +629,7 @@ class TrustedWeakFixedArrayShape final : public AllStatic {
 // A WeakFixedArray in trusted space holding pointers into the main cage.
 V8_OBJECT class TrustedWeakFixedArray
     : public TaggedArrayBase<TrustedWeakFixedArray, TrustedWeakFixedArrayShape,
-                             TrustedObjectLayout> {
+                             TrustedObject> {
   using Super =
       TaggedArrayBase<TrustedWeakFixedArray, TrustedWeakFixedArrayShape>;
 
@@ -615,6 +642,11 @@ V8_OBJECT class TrustedWeakFixedArray
   DECL_VERIFIER(TrustedWeakFixedArray)
 
   class BodyDescriptor;
+
+  static constexpr uint32_t kLengthOffset = TrustedObject::kHeaderSize;
+  static constexpr uint32_t kHeaderSize =
+      kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kUInt32Size);
+  static_assert(sizeof(Super::Header) == kHeaderSize);
 } V8_OBJECT_END;
 
 class ProtectedWeakFixedArrayShape final : public AllStatic {
@@ -630,11 +662,9 @@ class ProtectedWeakFixedArrayShape final : public AllStatic {
 // trusted objects (or smis).
 V8_OBJECT class ProtectedWeakFixedArray
     : public TaggedArrayBase<ProtectedWeakFixedArray,
-                             ProtectedWeakFixedArrayShape,
-                             TrustedObjectLayout> {
-  using Super =
-      TaggedArrayBase<ProtectedWeakFixedArray, ProtectedWeakFixedArrayShape,
-                      TrustedObjectLayout>;
+                             ProtectedWeakFixedArrayShape, TrustedObject> {
+  using Super = TaggedArrayBase<ProtectedWeakFixedArray,
+                                ProtectedWeakFixedArrayShape, TrustedObject>;
 
  public:
   template <class IsolateT>
@@ -653,7 +683,7 @@ class WeakArrayListShape final : public AllStatic {
   static constexpr RootIndex kMapRootIndex = RootIndex::kWeakArrayListMap;
   static constexpr bool kLengthEqualsCapacity = false;
 
-  V8_ARRAY_EXTRA_FIELDS({ TaggedMember<Smi> length_; });
+  V8_ARRAY_EXTRA_FIELDS({ uint32_t length_; });
 };
 
 // WeakArrayList is like a WeakFixedArray with static convenience methods for
@@ -760,8 +790,8 @@ V8_OBJECT class WeakArrayList
   class Iterator;
 
   static constexpr uint32_t kCapacityOffset = HeapObject::kHeaderSize;
-  static constexpr uint32_t kLengthOffset = kCapacityOffset + kTaggedSize;
-  static constexpr uint32_t kHeaderSize = kLengthOffset + kTaggedSize;
+  static constexpr uint32_t kLengthOffset = kCapacityOffset + kUInt32Size;
+  static constexpr uint32_t kHeaderSize = kLengthOffset + kUInt32Size;
   static_assert(sizeof(Super::Header) == kHeaderSize);
 
  private:
@@ -791,7 +821,7 @@ class ArrayListShape final : public AllStatic {
   static constexpr RootIndex kMapRootIndex = RootIndex::kArrayListMap;
   static constexpr bool kLengthEqualsCapacity = false;
 
-  V8_ARRAY_EXTRA_FIELDS({ TaggedMember<Smi> length_; });
+  V8_ARRAY_EXTRA_FIELDS({ uint32_t length_; });
 };
 
 // A generic array that grows dynamically with O(1) amortized insertion.
@@ -835,6 +865,11 @@ V8_OBJECT class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
   DECL_VERIFIER(ArrayList)
 
   class BodyDescriptor;
+
+  static constexpr uint32_t kCapacityOffset = HeapObject::kHeaderSize;
+  static constexpr uint32_t kLengthOffset = kCapacityOffset + kUInt32Size;
+  static constexpr uint32_t kHeaderSize = kLengthOffset + kUInt32Size;
+  static_assert(sizeof(Super::Header) == kHeaderSize);
 
  private:
   static DirectHandle<ArrayList> EnsureSpace(
@@ -894,9 +929,9 @@ class TrustedByteArrayShape final : public AllStatic {
 V8_OBJECT
 class TrustedByteArray
     : public PrimitiveArrayBase<TrustedByteArray, TrustedByteArrayShape,
-                                TrustedObjectLayout> {
+                                TrustedObject> {
   using Super = PrimitiveArrayBase<TrustedByteArray, TrustedByteArrayShape,
-                                   TrustedObjectLayout>;
+                                   TrustedObject>;
 
  public:
   using Shape = TrustedByteArrayShape;

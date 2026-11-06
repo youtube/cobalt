@@ -201,8 +201,6 @@ class WasmGraphAssembler : public GraphAssembler {
 
   // FixedArrays.
 
-  Node* LoadFixedArrayLengthAsSmi(Node* fixed_array);
-
   Node* LoadFixedArrayElement(Node* fixed_array, Node* index_intptr,
                               MachineType type = MachineType::AnyTagged());
 

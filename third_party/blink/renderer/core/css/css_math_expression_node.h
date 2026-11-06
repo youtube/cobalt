@@ -1126,8 +1126,6 @@ struct DowncastTraits<CSSMathExpressionSiblingFunction> {
 };
 
 // <random-cache-key> = auto | <random-name> | fixed <number [0,1]>
-// <random-name> = <dashed-ident> [ element-scoped || [ property-scoped |
-// property-index-scoped ]]?
 // https://drafts.csswg.org/css-values-5/#typedef-random-cache-key
 class CORE_EXPORT RandomCacheKey : public GarbageCollected<RandomCacheKey> {
  public:
@@ -1141,15 +1139,13 @@ class CORE_EXPORT RandomCacheKey : public GarbageCollected<RandomCacheKey> {
   using ElementScoped = base::StrongAlias<class ElementScopedTag, bool>;
   RandomCacheKey(const AtomicString& ident,
                  ElementScoped element_scoped,
-                 const AtomicString& property,
-                 std::optional<wtf_size_t> index)
-      : value_(RandomName(ident, element_scoped, property, index)) {}
+                 const AtomicString& random_ua_ident)
+      : value_(RandomName(ident, element_scoped, random_ua_ident)) {}
   explicit RandomCacheKey(const CSSPrimitiveValue* fixed_value)
       : value_(fixed_value) {}
 
   bool IsFixed() const;
   const CSSPrimitiveValue* GetFixed() const;
-  bool IsAuto() const;
   bool IsElementScoped() const;
 
   // For non-fixed values, returns a concatenated string of the identifier,
@@ -1163,48 +1159,55 @@ class CORE_EXPORT RandomCacheKey : public GarbageCollected<RandomCacheKey> {
 
  private:
   // Used for non fixed <random-cache-key> values, i.e.:
-  // <random-name> = <dashed-ident> [ element-scoped || [ property-scoped |
-  // property-index-scoped ]]?
+  // <random-name> =  <dashed-ident> || element-scoped
+  //                        || [ property-scoped | property-index-scoped |
+  //                        <random-ua-ident> ]
+  // <random-ua-ident> = <custom-ident>
+  // https://drafts.csswg.org/css-values-5/#typedef-random-name
   struct RandomName {
     RandomName() = delete;
     explicit RandomName(const AtomicString& random_ident,
-                        ElementScoped element_scoped = ElementScoped(false),
-                        const AtomicString& random_property = g_null_atom,
-                        std::optional<wtf_size_t> random_index = std::nullopt)
+                        ElementScoped element_scoped,
+                        const AtomicString& random_ua_ident)
         : ident(random_ident),
-          property(random_property),
-          index(random_index),
+          ua_ident(random_ua_ident),
           is_element_scoped(element_scoped) {}
     bool operator==(const RandomName& other) const {
       return ident == other.ident &&
              is_element_scoped == other.is_element_scoped &&
-             property == other.property && index == other.index;
+             ua_ident == other.ua_ident;
     }
     String CssText() const {
       StringBuilder result;
-      result.Append(ident);
-      if (is_element_scoped) {
-        result.Append(" element-scoped");
+      if (ident) {
+        result.Append(ident);
       }
-      if (property) {
-        if (index.has_value()) {
-          result.Append(" property-index-scoped");
-        } else {
-          result.Append(" property-scoped");
+      if (is_element_scoped) {
+        if (!result.empty()) {
+          result.Append(" ");
         }
+        result.Append("element-scoped");
+      }
+      if (ua_ident) {
+        if (!result.empty()) {
+          result.Append(" ");
+        }
+        result.Append(ua_ident);
       }
       return result.ToString();
     }
+    // user specified dashed ident
     const AtomicString ident;
-    const AtomicString property;
-    std::optional<wtf_size_t> index;
+    // property index ident
+    const AtomicString ua_ident;
     ElementScoped is_element_scoped;
   };
   std::variant<RandomName, Member<const CSSPrimitiveValue>> value_;
 };
 
 // <random()> = random( <random-value-sharing>? , <calc-sum>, <calc-sum>,
-// <calc-sum>? ) https://drafts.csswg.org/css-values-5/#random
+// <calc-sum>? )
+// https://drafts.csswg.org/css-values-5/#random
 class CORE_EXPORT CSSMathExpressionRandomFunction final
     : public CSSMathExpressionNode {
  public:

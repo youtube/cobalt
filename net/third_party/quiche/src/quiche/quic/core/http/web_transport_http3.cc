@@ -318,7 +318,7 @@ void WebTransportHttp3::OnGoAwayReceived() {
 void WebTransportHttp3::OnDrainSessionReceived() { OnGoAwayReceived(); }
 
 WebTransportHttp3UnidirectionalStream::WebTransportHttp3UnidirectionalStream(
-    PendingStream* pending, QuicSpdySession* session)
+    PendingStream& pending, QuicSpdySession* session)
     : QuicStream(pending, session, /*is_static=*/false),
       session_(session),
       adapter_(session, this, sequencer(), std::nullopt),

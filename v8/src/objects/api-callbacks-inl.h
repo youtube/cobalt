@@ -64,6 +64,29 @@ void AccessCheckInfo::set_data(Tagged<Object> value, WriteBarrierMode mode) {
   data_.store(this, value, mode);
 }
 
+// AccessorInfo.
+Tagged<Object> AccessorInfo::data() const { return data_.load(); }
+void AccessorInfo::set_data(Tagged<Object> value, WriteBarrierMode mode) {
+  data_.store(this, value, mode);
+}
+
+Tagged<Name> AccessorInfo::name() const { return name_.load(); }
+void AccessorInfo::set_name(Tagged<Name> value, WriteBarrierMode mode) {
+  name_.store(this, value, mode);
+}
+
+uint32_t AccessorInfo::flags() const { return flags_; }
+void AccessorInfo::set_flags(uint32_t value) { flags_ = value; }
+
+// InterceptorInfo.
+Tagged<Object> InterceptorInfo::data() const { return data_.load(); }
+void InterceptorInfo::set_data(Tagged<Object> value, WriteBarrierMode mode) {
+  data_.store(this, value, mode);
+}
+
+uint32_t InterceptorInfo::flags() const { return flags_; }
+void InterceptorInfo::set_flags(uint32_t value) { flags_ = value; }
+
 REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(
     AccessorInfo, getter, Address, kGetterOffset, kAccessorInfoGetterTag,
     ExternalReference::DIRECT_GETTER_CALL)

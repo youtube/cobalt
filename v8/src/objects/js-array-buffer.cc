@@ -63,8 +63,7 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
   set_is_shared(shared == SharedFlag::kYes);
   set_is_resizable_by_js(resizable == ResizableFlag::kResizable);
   set_is_detachable(shared == SharedFlag::kNo);
-  SetupLazilyInitializedCppHeapPointerField(
-      JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
+  cpp_heap_wrappable_.SetupLazilyInitialized();
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
     SetEmbedderField(i, Smi::zero());
   }
@@ -320,10 +319,9 @@ ArrayBufferExtension* JSArrayBuffer::CreateExtension(
   // inaccurate. However, a full GC will sweep both lists and promote all to
   // old, so it doesn't matter which list initially holds the extension in this
   // case.
-  const auto age =
-      HeapLayout::InYoungGeneration(UncheckedCast<JSArrayBuffer>(*this))
-          ? ArrayBufferExtension::Age::kYoung
-          : ArrayBufferExtension::Age::kOld;
+  const auto age = HeapLayout::InYoungGeneration(Tagged<JSArrayBuffer>(this))
+                       ? ArrayBufferExtension::Age::kYoung
+                       : ArrayBufferExtension::Age::kOld;
   ArrayBufferExtension* extension =
       new ArrayBufferExtension(std::move(backing_store), age);
   set_extension(extension);
@@ -469,17 +467,18 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
         if (!desc->has_writable()) desc->set_writable(true);
         DirectHandle<Object> value = desc->value();
         LookupIterator it(isolate, o, index, LookupIterator::OWN);
-        RETURN_ON_EXCEPTION_VALUE(
-            isolate,
-            DefineOwnPropertyIgnoreAttributes(&it, value, desc->ToAttributes()),
-            Nothing<bool>());
+        RETURN_ON_EXCEPTION_VALUE(isolate,
+                                  JSObject::DefineOwnPropertyIgnoreAttributes(
+                                      &it, value, desc->ToAttributes()),
+                                  Nothing<bool>());
       }
       // 1b vii. Return true.
       return Just(true);
     }
   }
   // 4. Return ! OrdinaryDefineOwnProperty(O, P, Desc).
-  return OrdinaryDefineOwnProperty(isolate, o, lookup_key, desc, should_throw);
+  return JSReceiver::OrdinaryDefineOwnProperty(isolate, o, lookup_key, desc,
+                                               should_throw);
 }
 
 ExternalArrayType JSTypedArray::type() const {

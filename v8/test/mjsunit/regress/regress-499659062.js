@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --expose-fast-api
+// Flags: --allow-natives-syntax --expose-fast-api --turbo-fast-api-calls
 const fast_c_api = new d8.test.FastCAPI();
 
 function sum_uint64_as_number(a, b) {

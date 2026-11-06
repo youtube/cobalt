@@ -335,10 +335,8 @@ class RecomputeKnownNodeAspectsProcessor {
 
   void ProcessStoreContextSlot(ValueNode* context, ValueNode* value, int offset,
                                MaybeAssignedFlag maybe_assigned) {
-    known_node_aspects().ClearAliasedContextSlotsFor(graph_, context, offset,
-                                                     value);
-    known_node_aspects().SetContextCachedValue(context, offset, value,
-                                               maybe_assigned);
+    known_node_aspects().RecordContextSlotStore(graph_, context, offset, value,
+                                                maybe_assigned);
   }
 
   template <typename NodeT>

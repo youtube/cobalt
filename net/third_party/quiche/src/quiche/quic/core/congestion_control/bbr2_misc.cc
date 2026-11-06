@@ -18,6 +18,24 @@
 
 namespace quic {
 
+const char* ProbePhaseToString(ProbePhase phase) {
+  switch (phase) {
+    case ProbePhase::PROBE_NOT_STARTED:
+      return "PROBE_NOT_STARTED";
+    case ProbePhase::PROBE_UP:
+      return "PROBE_UP";
+    case ProbePhase::PROBE_DOWN:
+      return "PROBE_DOWN";
+    case ProbePhase::PROBE_CRUISE:
+      return "PROBE_CRUISE";
+    case ProbePhase::PROBE_REFILL:
+      return "PROBE_REFILL";
+    default:
+      break;
+  }
+  return "<Invalid ProbePhase>";
+}
+
 RoundTripCounter::RoundTripCounter() : round_trip_count_(0) {}
 
 void RoundTripCounter::OnPacketSent(QuicPacketNumber packet_number) {
@@ -66,7 +84,6 @@ void MinRttFilter::ForceUpdate(QuicTime::Delta sample_rtt, QuicTime now) {
 Bbr2NetworkModel::Bbr2NetworkModel(const Bbr2Params* params,
                                    QuicTime::Delta initial_rtt,
                                    QuicTime initial_rtt_timestamp,
-                                   float cwnd_gain, float pacing_gain,
                                    const BandwidthSampler* old_sampler)
     : params_(params),
       bandwidth_sampler_([](QuicRoundTripCount max_height_tracker_window_length,
@@ -78,8 +95,8 @@ Bbr2NetworkModel::Bbr2NetworkModel(const Bbr2Params* params,
                                 max_height_tracker_window_length);
       }(params->initial_max_ack_height_filter_window, old_sampler)),
       min_rtt_filter_(initial_rtt, initial_rtt_timestamp),
-      cwnd_gain_(cwnd_gain),
-      pacing_gain_(pacing_gain) {}
+      cwnd_gain_(params->startup_cwnd_gain),
+      pacing_gain_(params->startup_pacing_gain) {}
 
 void Bbr2NetworkModel::OnPacketSent(QuicTime sent_time,
                                     QuicByteCount bytes_in_flight,
@@ -475,6 +492,31 @@ void Bbr2NetworkModel::CheckPersistentQueue(
   if (rounds_with_queueing_ >= Params().max_startup_queue_rounds) {
     full_bandwidth_reached_ = true;
   }
+}
+
+std::ostream& operator<<(std::ostream& os, const Bbr2DebugState& s) {
+  os << "mode: " << s.mode << "\n";
+  os << "round_trip_count: " << s.round_trip_count << "\n";
+  os << "bandwidth_hi ~ lo ~ est: " << s.bandwidth_hi << " ~ " << s.bandwidth_lo
+     << " ~ " << s.bandwidth_est << "\n";
+  os << "min_rtt: " << s.min_rtt << "\n";
+  os << "min_rtt_timestamp: " << s.min_rtt_timestamp << "\n";
+  os << "congestion_window: " << s.congestion_window << "\n";
+  os << "pacing_rate: " << s.pacing_rate << "\n";
+  os << "last_sample_is_app_limited: " << s.last_sample_is_app_limited << "\n";
+
+  os << "startup: {full_bw_reached: " << s.startup.full_bandwidth_reached
+     << ", full_bw_baseline: " << s.startup.full_bandwidth_baseline
+     << ", rounds_without_growth: "
+     << s.startup.round_trips_without_bandwidth_growth << "}\n";
+  os << "drain: {drain_target: " << s.drain.drain_target << "}\n";
+  os << "probe_bw: {phase: " << ProbePhaseToString(s.probe_bw.phase)
+     << ", cycle_start_time: " << s.probe_bw.cycle_start_time
+     << ", phase_start_time: " << s.probe_bw.phase_start_time << "}\n";
+  os << "probe_rtt: {inflight_target: " << s.probe_rtt.inflight_target
+     << ", exit_time: " << s.probe_rtt.exit_time << "}\n";
+
+  return os;
 }
 
 }  // namespace quic

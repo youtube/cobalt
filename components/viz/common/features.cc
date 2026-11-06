@@ -239,7 +239,7 @@ BASE_FEATURE(kEnableADPFSeparateRendererMainSession,
 // workload during page load.
 // Supported only on Android >= 16.
 BASE_FEATURE(kEnableADPFWorkloadIncreaseOnPageLoad,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, Chrome uses ADPF's setPreferPowerEfficiency API to try and save
 // energy at the cost of performance. Supported only on Android >= 16.
@@ -385,6 +385,12 @@ BASE_FEATURE(kFlingSchedulingImprovements, base::FEATURE_DISABLED_BY_DEFAULT);
 // This is a temporary flag to work as a kill switch for the optimization and
 // should be removed as soon as we confirm that the optimization is stable.
 BASE_FEATURE(kRpdqFilterLookupOptimizations, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Use correct default ColorSpace in `SharedMemoryVideoFramePool::WrapBuffer`
+// when creating a VideoFrame instead of when it is used in
+// `FrameSinkVideoCapturerImpl::MaybeCaptureFrame`.
+BASE_FEATURE(kSharedMemoryVFPoolUseCorrectColorSpace,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN)
 // Use BufferQueue for the primary plane instead of a DXGI swap chain or DComp

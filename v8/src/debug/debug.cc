@@ -1709,11 +1709,11 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
  public:
   explicit DiscardBaselineCodeVisitor(Tagged<SharedFunctionInfo> shared)
       : shared_(shared) {}
-  DiscardBaselineCodeVisitor() : shared_(SharedFunctionInfo()) {}
+  DiscardBaselineCodeVisitor() : shared_() {}
 
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
     DisallowGarbageCollection diallow_gc;
-    bool deopt_all = shared_ == SharedFunctionInfo();
+    bool deopt_all = shared_ == Tagged<SharedFunctionInfo>{};
     for (JavaScriptStackFrameIterator it(isolate, top); !it.done();
          it.Advance()) {
       if (!deopt_all && it.frame()->function()->shared() != shared_) continue;
@@ -1730,7 +1730,7 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
         UnoptimizedJSFrame* frame = UnoptimizedJSFrame::cast(it.frame());
         if (v8_flags.trace_baseline) {
           PrintF("[Sparkplug] discarding on-stack ");
-          ShortPrint(*code);
+          ShortPrint(code);
           PrintF("\n");
         }
         int bytecode_offset = code->GetBytecodeOffsetForBaselinePC(
@@ -1768,7 +1768,7 @@ void Debug::DiscardBaselineCode(Tagged<SharedFunctionInfo> shared) {
   DCHECK(shared->HasBaselineCode());
   if (v8_flags.trace_baseline) {
     PrintF("[Sparkplug] discarding baseline code for ");
-    ShortPrint(*shared);
+    ShortPrint(shared);
     PrintF("\n");
   }
   DiscardBaselineCodeVisitor visitor(shared);
@@ -2065,7 +2065,7 @@ class SharedFunctionInfoFinder {
         target_position_(target_position) {}
 
   void NewCandidate(Tagged<SharedFunctionInfo> shared,
-                    Tagged<JSFunction> closure = JSFunction()) {
+                    Tagged<JSFunction> closure = {}) {
     if (!shared->IsSubjectToDebugging()) return;
     int start_position = shared->function_token_position();
     if (start_position == kNoSourcePosition) {

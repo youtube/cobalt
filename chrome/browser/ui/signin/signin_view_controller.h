@@ -104,7 +104,7 @@ class SigninViewController {
   // page.
   // DEPRECATED: Use ShowDiceEnableSyncTab instead.
   void ShowSignin(signin_metrics::AccessPoint access_point,
-                  const GURL& redirect_url = GURL(chrome::kChromeUINewTabURL));
+                  const GURL& redirect_url = chrome::ChromeUINewTabURLAsGURL());
 
   // Shows a Chrome Sync signin tab. |email_hint| may be empty.
   // Note: If the user has already set a primary account, then this is
@@ -124,7 +124,7 @@ class SigninViewController {
   // function does not clear it, but still invalidates its credentials.
   // This is the only way to properly signout all accounts. In particular,
   // calling Gaia logout programmatically or revoking the tokens does not sign
-  // out SAML accounts completely (see https://crbug.com/1069421).
+  // out SAML accounts completely (see https://crbug.com/40125905).
   void ShowGaiaLogoutTab(signin_metrics::SourceForRefreshTokenOperation source);
 
   // Shows the modal signin intercept first run experience dialog as a
@@ -235,6 +235,8 @@ class SigninViewController {
       CreateLocalProfileWithoutSigninStep);
   FRIEND_TEST_ALL_PREFIXES(SyncSettingsInteractiveTest,
                            PressingSignOutButtonsSignsOutUser);
+  FRIEND_TEST_ALL_PREFIXES(ProfileManagementDisclaimerServiceBrowserTest,
+                           CancelFlowOnAccountRemoval);
   friend class ChromeSignoutConfirmationPromptPixelTest;
   friend class login_ui_test_utils::SigninViewControllerTestUtil;
   friend class SigninInterceptFirstRunExperienceDialogBrowserTestBase;

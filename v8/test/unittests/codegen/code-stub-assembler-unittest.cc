@@ -83,9 +83,8 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListAllocateEquivalent) {
   {
     compiler::CodeAssemblerTester tester(i_isolate(), JSParameterCount(0));
     CodeStubAssembler assembler(tester.state());
-    TNode<ArrayList> array =
-        __ AllocateArrayList(__ SmiConstant(Smi::FromUInt(L)));
-    __ ArrayListSet(array, __ SmiConstant(0), __ UndefinedConstant());
+    TNode<ArrayList> array = __ AllocateArrayList(__ Uint32Constant(L));
+    __ ArrayListSet(array, __ Uint32Constant(0), __ UndefinedConstant());
     __ Return(array);
     allocate_arraylist_in_csa = tester.GenerateCodeCloseAndEscape();
   }
@@ -105,8 +104,7 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListAddEquivalent) {
   {
     compiler::CodeAssemblerTester tester(i_isolate(), JSParameterCount(0));
     CodeStubAssembler assembler(tester.state());
-    TNode<ArrayList> array =
-        __ AllocateArrayList(__ SmiConstant(Smi::FromUInt(L)));
+    TNode<ArrayList> array = __ AllocateArrayList(__ Uint32Constant(L));
     array = __ ArrayListAdd(array, __ SmiConstant(0));
     array = __ ArrayListAdd(array, __ SmiConstant(1));
     array = __ ArrayListAdd(array, __ SmiConstant(2));
@@ -134,8 +132,7 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListElementsEquivalent) {
   {
     compiler::CodeAssemblerTester tester(i_isolate(), JSParameterCount(0));
     CodeStubAssembler assembler(tester.state());
-    TNode<ArrayList> list =
-        __ AllocateArrayList(__ SmiConstant(Smi::FromUInt(L)));
+    TNode<ArrayList> list = __ AllocateArrayList(__ Uint32Constant(L));
     list = __ ArrayListAdd(list, __ SmiConstant(0));
     list = __ ArrayListAdd(list, __ SmiConstant(1));
     list = __ ArrayListAdd(list, __ SmiConstant(2));

@@ -1638,7 +1638,7 @@ Handle<NativeContext> Factory::NewNativeContext() {
   context_map->set_native_context(context);
   context->set_meta_map(*contextful_meta_map);
   context->set_scope_info(*native_scope_info());
-  context->set_previous(Context());
+  context->set_previous({});
   context->set_extension(*undefined_value());
   context->set_errors_thrown(Smi::zero());
   context->set_is_wasm_js_installed(Smi::zero());
@@ -2147,9 +2147,7 @@ DirectHandle<WasmImportData> Factory::NewWasmImportData(
   result->set_wrapper_budget(*wrapper_budget_cell);
   result->clear_call_origin();
   result->set_sig(sig);
-#if TAGGED_SIZE_8_BYTES
-  result->set_optional_padding(0);
-#endif
+  result->clear_padding();
   return direct_handle(result, isolate());
 }
 
@@ -2210,45 +2208,6 @@ DirectHandle<WasmFuncRef> Factory::NewWasmFuncRef(
   Tagged<WasmFuncRef> func_ref = Cast<WasmFuncRef>(raw);
   func_ref->set_internal(*internal_function);
   return direct_handle(func_ref, isolate());
-}
-
-DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
-    const wasm::CanonicalSig* sig, DirectHandle<JSReceiver> callable,
-    DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
-    wasm::Suspend suspend, wasm::Promise promise,
-    std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle) {
-  DirectHandle<WasmImportData> import_data = NewWasmImportData(
-      callable, suspend, DirectHandle<WasmTrustedInstanceData>(), sig,
-      SharedFlag::kNo);
-
-  DirectHandle<WasmInternalFunction> internal = NewWasmInternalFunction(
-      import_data, -1, SharedFlag::kNo, wrapper_handle->code_pointer(), sig);
-  DirectHandle<WasmFuncRef> func_ref =
-      NewWasmFuncRef(internal, rtt, SharedFlag::kNo);
-  import_data->SetFuncRefAsCallOrigin(*internal);
-
-  // Rough guess for a wrapper that may be shared with other users of it.
-  constexpr size_t kOffheapDataSizeEstimate = 100;
-  DirectHandle<TrustedManaged<WasmJSFunctionData::OffheapData>> offheap_data =
-      TrustedManaged<WasmJSFunctionData::OffheapData>::From(
-          isolate(), kOffheapDataSizeEstimate,
-          std::make_shared<WasmJSFunctionData::OffheapData>(
-              std::move(wrapper_handle)),
-          SharedFlag::kNo);
-
-  Tagged<Map> map = *wasm_js_function_data_map();
-  Tagged<WasmJSFunctionData> result =
-      TrustedCast<WasmJSFunctionData>(AllocateRawWithImmortalMap(
-          map->instance_size(), AllocationType::kTrusted, map));
-  result->InitAndPublish(isolate());
-  DisallowGarbageCollection no_gc;
-  result->set_func_ref(*func_ref);
-  result->set_internal(*internal);
-  result->set_wrapper_code(*wrapper_code);
-  result->set_js_promise_flags(WasmFunctionData::SuspendField::encode(suspend) |
-                               WasmFunctionData::PromiseField::encode(promise));
-  result->set_protected_offheap_data(*offheap_data);
-  return direct_handle(result, isolate());
 }
 
 DirectHandle<WasmResumeData> Factory::NewWasmResumeData(
@@ -2389,13 +2348,13 @@ DirectHandle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   return direct_handle(result, isolate());
 }
 
-Tagged<WasmArray> Factory::NewWasmArrayUninitialized(uint32_t length,
-                                                     DirectHandle<Map> map) {
-  const bool is_shared = HeapLayout::InAnySharedSpace(*map);
-  Tagged<HeapObject> raw = AllocateRaw(
-      WasmArray::SizeFor(*map, length),
-      is_shared ? AllocationType::kSharedOld : AllocationType::kYoung,
-      is_shared ? kDoubleUnaligned : kTaggedAligned);
+Tagged<WasmArray> Factory::NewWasmArrayUninitialized(
+    uint32_t length, DirectHandle<Map> map, AllocationType allocation) {
+  const bool is_shared = allocation == AllocationType::kSharedOld;
+  DCHECK_EQ(is_shared, HeapLayout::InAnySharedSpace(*map));
+  Tagged<HeapObject> raw =
+      AllocateRaw(WasmArray::SizeFor(*map, length), allocation,
+                  is_shared ? kDoubleUnaligned : kTaggedAligned);
   DisallowGarbageCollection no_gc;
   raw->set_map_after_allocation(isolate(), *map);
   Tagged<WasmArray> result = Cast<WasmArray>(raw);
@@ -2408,8 +2367,9 @@ DirectHandle<WasmArray> Factory::NewWasmArray(wasm::ValueType element_type,
                                               uint32_t length,
                                               wasm::WasmValue initial_value,
                                               DirectHandle<Map> map,
+                                              AllocationType allocation,
                                               WriteBarrierMode write_barrier) {
-  Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map);
+  Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map, allocation);
   DisallowGarbageCollection no_gc;
   if (element_type.is_numeric()) {
     if (initial_value.zero_byte_representation()) {
@@ -2432,9 +2392,9 @@ DirectHandle<WasmArray> Factory::NewWasmArray(wasm::ValueType element_type,
 
 DirectHandle<WasmArray> Factory::NewWasmArrayFromElements(
     const wasm::ArrayType* type, base::Vector<wasm::WasmValue> elements,
-    DirectHandle<Map> map, WriteBarrierMode write_barrier) {
+    DirectHandle<Map> map, AllocationType allocation) {
   uint32_t length = static_cast<uint32_t>(elements.size());
-  Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map);
+  Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map, allocation);
   DisallowGarbageCollection no_gc;
   if (type->element_type().is_numeric()) {
     for (uint32_t i = 0; i < length; i++) {
@@ -2445,17 +2405,17 @@ DirectHandle<WasmArray> Factory::NewWasmArrayFromElements(
     }
   } else {
     for (uint32_t i = 0; i < length; i++) {
-      result->SetTaggedElement(i, elements[i].to_ref(), write_barrier);
+      result->SetTaggedElement(i, elements[i].to_ref());
     }
   }
   return direct_handle(result, isolate());
 }
 
 DirectHandle<WasmArray> Factory::NewWasmArrayFromMemory(
-    uint32_t length, DirectHandle<Map> map,
+    uint32_t length, DirectHandle<Map> map, AllocationType allocation,
     wasm::CanonicalValueType element_type, base::Vector<const uint8_t> source) {
   DCHECK(element_type.is_numeric());
-  Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map);
+  Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map, allocation);
   DisallowGarbageCollection no_gc;
 #if V8_TARGET_BIG_ENDIAN
   MemCopyAndSwitchEndianness(reinterpret_cast<void*>(result->ElementAddress(0)),
@@ -2475,7 +2435,8 @@ DirectHandle<Object> Factory::NewWasmArrayFromElementSegment(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
     DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t segment_index, uint32_t start_offset, uint32_t length,
-    DirectHandle<Map> map, wasm::CanonicalValueType element_type) {
+    DirectHandle<Map> map, AllocationType allocation,
+    wasm::CanonicalValueType element_type) {
   DCHECK(element_type.is_ref());
 
   // If the element segment has not been initialized yet, lazily initialize it
@@ -2492,14 +2453,14 @@ DirectHandle<Object> Factory::NewWasmArrayFromElementSegment(
           trusted_instance_data->element_segments()->get(segment_index)),
       isolate());
 
-  Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map);
+  Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map, allocation);
   DisallowGarbageCollection no_gc;
   if (length > 0) {
-    isolate()->heap()->CopyRange(
-        result, result->ElementSlot(0),
-        elements->RawFieldOfElementAt(start_offset), length,
-        HeapLayout::InAnySharedSpace(result) ? UPDATE_WRITE_BARRIER
-                                             : SKIP_WRITE_BARRIER);
+    WriteBarrierMode wb_mode = UPDATE_WRITE_BARRIER;
+    if (allocation == AllocationType::kYoung) wb_mode = SKIP_WRITE_BARRIER;
+    isolate()->heap()->CopyRange(result, result->ElementSlot(0),
+                                 elements->RawFieldOfElementAt(start_offset),
+                                 length, wb_mode);
   }
   return direct_handle(result, isolate());
 }
@@ -2552,13 +2513,6 @@ Factory::NewSharedFunctionInfoForWasmExportedFunction(
     DirectHandle<String> name, DirectHandle<WasmExportedFunctionData> data,
     int len, AdaptArguments adapt) {
   return NewSharedFunctionInfo(name, data, Builtin::kNoBuiltinId, len, adapt);
-}
-
-DirectHandle<SharedFunctionInfo>
-Factory::NewSharedFunctionInfoForWasmJSFunction(
-    DirectHandle<String> name, DirectHandle<WasmJSFunctionData> data) {
-  return NewSharedFunctionInfo(name, data, Builtin::kNoBuiltinId, 0,
-                               kDontAdapt);
 }
 
 DirectHandle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmResume(
@@ -3710,7 +3664,7 @@ DirectHandle<JSArray> Factory::NewJSArrayForTemplateLiteralArray(
   const uint32_t raw_strings_len = raw_strings->ulength().value();
   DirectHandle<JSArray> raw_object = NewJSArrayWithElements(
       raw_strings, PACKED_ELEMENTS, raw_strings_len, AllocationType::kOld);
-  JSObject::SetIntegrityLevel(isolate(), raw_object, FROZEN, kThrowOnError)
+  JSReceiver::SetIntegrityLevel(isolate(), raw_object, FROZEN, kThrowOnError)
       .ToChecked();
 
   DirectHandle<NativeContext> native_context = isolate()->native_context();
@@ -4273,7 +4227,7 @@ Handle<JSProxy> Factory::NewJSProxy(DirectHandle<JSReceiver> target,
   result->set_handler(*handler, SKIP_WRITE_BARRIER);
   result->set_flags(JSProxy::IsRevocableBit::encode(revocable));
 #if TAGGED_SIZE_8_BYTES
-  result->set_padding(0);
+  result->padding_ = 0;
 #endif
   return handle(result, isolate());
 }
@@ -5453,9 +5407,9 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
     // code->parameter_count() here instead, but not all Code objects know
     // their parameter count yet.
     function_handle->clear_dispatch_handle();
-    HeapObject::AllocateAndInstallJSDispatchHandle(
-        direct_handle(function_handle), JSFunction::kDispatchHandleOffset,
-        isolate, sfi_->internal_formal_parameter_count_with_receiver(), code);
+    JSFunction::AllocateDispatchHandle(
+        function_handle, isolate,
+        sfi_->internal_formal_parameter_count_with_receiver(), code);
   } else {
     DCHECK_NE(function_handle->dispatch_handle(), kNullJSDispatchHandle);
   }

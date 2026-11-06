@@ -2657,18 +2657,15 @@ uint32_t CommonFrameWithJSLinkage::ComputeParametersCount() const {
          isolate()->heap()->gc_state() == Heap::NOT_IN_GC);
   // Use the (trusted) parameter count from the Bytecode or Code object.
   uint32_t parameter_count;
-  if (is_interpreted()) {
-    const InterpretedFrame* iframe = InterpretedFrame::cast(this);
-    parameter_count =
-        iframe->GetBytecodeArray()->parameter_count_without_receiver();
+  if (is_unoptimized_js()) {
+    parameter_count = UnoptimizedJSFrame::cast(this)
+                          ->GetBytecodeArray()
+                          ->parameter_count_without_receiver();
   } else {
     Tagged<GcSafeCode> code = GcSafeLookupCode();
     parameter_count = code->parameter_count_without_receiver();
+    SBXCHECK_NE(code->parameter_count(), kDontAdaptArgumentsSentinel);
   }
-  // TODO(saelo): remove once we're confident that the two always match.
-  DCHECK_EQ(
-      parameter_count,
-      function()->shared()->internal_formal_parameter_count_without_receiver());
   return parameter_count;
 }
 
@@ -3778,13 +3775,6 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
         &Memory<Address>(sp() + scan_count * kSystemPointerSize));
     v->VisitRootPointers(Root::kStackRoots, nullptr, spill_slot_base,
                          spill_slot_limit);
-    // Also visit fixed spill slots that contain references.
-    FullObjectSlot instance_slot(&Memory<Address>(
-        fp() + WasmInterpreterWrapperConstants::kImplicitArgOffset));
-    v->VisitRootPointer(Root::kStackRoots, nullptr, instance_slot);
-    FullObjectSlot result_array_slot(&Memory<Address>(
-        fp() + WasmInterpreterWrapperConstants::kResultArrayOffset));
-    v->VisitRootPointer(Root::kStackRoots, nullptr, result_array_slot);
   }
 #endif  // V8_ENABLE_DRUMBRAKE
 }
@@ -3887,7 +3877,7 @@ FrameSummaries WasmInterpreterEntryFrame::Summarize(bool never_allocate) const {
 }
 
 Tagged<HeapObject> WasmInterpreterEntryFrame::unchecked_code() const {
-  return InstructionStream();
+  return {};
 }
 
 Tagged<WasmInstanceObject> WasmInterpreterEntryFrame::wasm_instance() const {

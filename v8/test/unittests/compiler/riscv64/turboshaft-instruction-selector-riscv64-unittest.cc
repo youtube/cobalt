@@ -1646,6 +1646,109 @@ TEST_F(TurboshaftInstructionSelectorTest, ExternalReferenceLoad2) {
   EXPECT_NE(kMode_Root, s[0]->addressing_mode());
 }
 
+TEST_F(TurboshaftInstructionSelectorTest, Word64MulWideSigned) {
+  StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
+                  MachineType::Int64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64Pair> mul = m.Word64MulWide(p0, p1, Word64MulWideOp::Kind::kSigned);
+  OpIndex low = m.Projection(mul, 0);
+  m.Return(low);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kRiscvMul64, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64MulWideSignedWithLoad) {
+  StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
+                  MachineType::Pointer());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64> load = m.Load(MachineType::Int64(), p1);
+  V<Tuple<Word64, Word64>> mul =
+      m.Word64MulWide(p0, load, Word64MulWideOp::Kind::kSigned);
+  OpIndex low = m.Projection(mul, 0);
+  m.Return(low);
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kRiscvLd, s[0]->arch_opcode());
+  EXPECT_EQ(kRiscvMul64, s[1]->arch_opcode());
+  ASSERT_EQ(2U, s[1]->InputCount());
+  ASSERT_EQ(1U, s[1]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64MulWideUnsigned) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Tuple<Word64, Word64>> mul =
+      m.Word64MulWide(p0, p1, Word64MulWideOp::Kind::kUnsigned);
+  OpIndex low = m.Projection(mul, 0);
+  m.Return(low);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kRiscvMul64, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64MulWideUnsignedWithLoad) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Pointer());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64> load = m.Load(MachineType::Uint64(), p1);
+  V<Tuple<Word64, Word64>> mul =
+      m.Word64MulWide(p0, load, Word64MulWideOp::Kind::kUnsigned);
+  OpIndex low = m.Projection(mul, 0);
+  m.Return(low);
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kRiscvLd, s[0]->arch_opcode());
+  EXPECT_EQ(kRiscvMul64, s[1]->arch_opcode());
+  ASSERT_EQ(2U, s[1]->InputCount());
+  ASSERT_EQ(1U, s[1]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       Word64MulWideSignedWithHighProjection) {
+  StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
+                  MachineType::Int64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Tuple<Word64, Word64>> mul =
+      m.Word64MulWide(p0, p1, Word64MulWideOp::Kind::kSigned);
+  OpIndex high = m.Projection(mul, 1);
+  m.Return(high);
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kRiscvMul64, s[0]->arch_opcode());
+  EXPECT_EQ(kRiscvMulHigh64, s[1]->arch_opcode());
+  ASSERT_EQ(2U, s[1]->InputCount());
+  ASSERT_EQ(1U, s[1]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       Word64MulWideUnsignedWithHighProjection) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Tuple<Word64, Word64>> mul =
+      m.Word64MulWide(p0, p1, Word64MulWideOp::Kind::kUnsigned);
+  OpIndex high = m.Projection(mul, 1);
+  m.Return(high);
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kRiscvMul64, s[0]->arch_opcode());
+  EXPECT_EQ(kRiscvMulHighU64, s[1]->arch_opcode());
+  ASSERT_EQ(2U, s[1]->InputCount());
+  ASSERT_EQ(1U, s[1]->OutputCount());
+}
+
 }  // namespace turboshaft
 }  // namespace compiler
 }  // namespace internal

@@ -1,3 +1,8 @@
+---
+name: framework-rule
+trigger: always_on
+---
+
 # Framework Rule
 
 For any complex task or project, the agent MUST adhere to the multi-layered skill framework defined in `.agents/skills/`.

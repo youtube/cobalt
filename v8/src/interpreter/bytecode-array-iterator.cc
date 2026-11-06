@@ -414,7 +414,7 @@ void BytecodeArrayIterator::UpdatePointers() {
   }
 }
 
-uint32_t BytecodeArrayIterator::GetEmbeddedFeedback(int operand_index) const {
+uint8_t BytecodeArrayIterator::GetEmbeddedFeedback(int operand_index) const {
   DCHECK_GE(operand_index, 0);
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(current_bytecode()));
   DCHECK_EQ(OperandType::kEmbeddedFeedback,
@@ -426,7 +426,8 @@ uint32_t BytecodeArrayIterator::GetEmbeddedFeedback(int operand_index) const {
 
 CompareOperationHint BytecodeArrayIterator::GetEmbeddedCompareOperationHint() {
   DCHECK(Bytecodes::IsCompareWithEmbeddedFeedback(current_bytecode()));
-  uint32_t type_feedback = GetEmbeddedFeedback(1);
+  uint32_t type_feedback = CompareOperationFeedback::DecodeTypeIndex(
+      static_cast<CompareOperationFeedback::TypeIndex>(GetEmbeddedFeedback(1)));
   return v8::internal::CompareOperationHintFromFeedback(type_feedback);
 }
 

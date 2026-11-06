@@ -84,7 +84,10 @@ chromium-metrics-reviews@google.com.
   <variant name="Text" summary="Content analysis of pasted text."/>
 </variants>
 
+<!-- LINT.IfChange(DeepScanAccessPoint) -->
+
 <variants name="DeepScanAccessPoint">
+  <variant name="Actor" summary="Initiated from an actor/agent action"/>
   <variant name="Download" summary="Initiated from downloading 1+ file(s)"/>
   <variant name="DragAndDrop"
       summary="Initiated from drag-and-dropping text or 1+ file(s)"/>
@@ -94,6 +97,8 @@ chromium-metrics-reviews@google.com.
   <variant name="Print" summary="Initiated from printing a page"/>
   <variant name="Upload" summary="Initiated from uploading 1+ file(s)"/>
 </variants>
+
+<!-- LINT.ThenChange(//components/enterprise/connectors/core/common.h:DeepScanAccessPoint) -->
 
 <variants name="EncryptedCacheOperation">
   <variant name="Open"
@@ -134,9 +139,11 @@ chromium-metrics-reviews@google.com.
   <variant name=".DeviceSetVolume" summary="Set volume"/>
   <variant name=".DeviceStartCrdSession" summary="Device start CRD session"/>
   <variant name=".DeviceWipeUsers" summary="Wipe users"/>
+  <variant name=".ExtensionUpdateCheck" summary="Extension Update Check"/>
   <variant name=".FetchCrdAvailabilityInfo"
       summary="Fetch CRD availability info"/>
   <variant name=".FetchSupportPacket" summary="Fetch support packet"/>
+  <variant name=".QueryGeolocation" summary="Query geolocation"/>
   <variant name=".UserArcCommand" summary="ARC command"/>
 </variants>
 
@@ -253,7 +260,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="Enterprise.AccountStatusCheckResult"
-    enum="EnterpriseAccountStatus" expires_after="2026-07-05">
+    enum="EnterpriseAccountStatus" expires_after="2026-10-18">
   <owner>dkuzmin@google.com</owner>
   <owner>cros-oobe@google.com</owner>
   <summary>
@@ -288,6 +295,18 @@ chromium-metrics-reviews@google.com.
     Records the reason of a failed authentication event for Entra SSO on
     Android. This metric is emitted by enterprise_auth::EntraProviderAndroid
     just before the navigation is resumed.
+  </summary>
+</histogram>
+
+<histogram name="Enterprise.AndroidEntraSso.HeaderSkipReason"
+    enum="AndroidEntraSsoHeaderSkipReason" expires_after="2027-03-30">
+  <owner>ssolarewicz@google.com</owner>
+  <owner>cec-growth@google.com</owner>
+  <summary>
+    If a header provided by the Android OS for the purpose of the Entra SSO
+    authentication event is skipped, reason is emitted via this histogram. This
+    metric is emitted by enterprise_auth::EntraProviderAndroid during parsing of
+    the authentication headers.
   </summary>
 </histogram>
 
@@ -480,7 +499,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.CBCMRemoteCommand.Executed"
-    enum="RemoteCommandExecutionStatus" expires_after="2026-05-01">
+    enum="RemoteCommandExecutionStatus" expires_after="2026-11-01">
   <owner>nicolaso@chromium.org</owner>
   <owner>zmin@chromium.org</owner>
   <owner>cbe-eng@google.com</owner>
@@ -492,7 +511,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.CBCMRemoteCommand.Received"
-    enum="RemoteCommandReceivedStatus" expires_after="2026-05-01">
+    enum="RemoteCommandReceivedStatus" expires_after="2026-11-01">
   <owner>nicolaso@chromium.org</owner>
   <owner>zmin@chromium.org</owner>
   <owner>cbe-eng@google.com</owner>
@@ -505,7 +524,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.CBCMRemoteCommandInvalidations"
-    enum="EnterprisePolicyInvalidations" expires_after="2026-05-01">
+    enum="EnterprisePolicyInvalidations" expires_after="2026-11-01">
   <owner>nicolaso@chromium.org</owner>
   <owner>zmin@chromium.org</owner>
   <owner>cbe-eng@google.com</owner>
@@ -873,7 +892,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.DevicePolicyRefresh3"
-    enum="EnterprisePolicyRefresh" expires_after="2026-08-23">
+    enum="EnterprisePolicyRefresh" expires_after="2026-10-25">
   <owner>asumaneev@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -1547,7 +1566,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.ConfidentialContentsCount" units="entries"
-    expires_after="2026-08-16">
+    expires_after="2026-10-18">
   <owner>aidazolic@chromium.org</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -2546,7 +2565,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.ExtensibleEnterpriseSSO.Okta.Failure.Reason"
-    enum="OktaSSOFailureReason" expires_after="2026-06-01">
+    enum="OktaSSOFailureReason" expires_after="2026-12-01">
   <owner>ssolarewicz@chromium.org</owner>
   <owner>cec-growth@google.com</owner>
   <summary>
@@ -2557,7 +2576,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.ExtensibleEnterpriseSSO.Okta.Result"
-    enum="BooleanSuccess" expires_after="2026-06-01">
+    enum="BooleanSuccess" expires_after="2026-12-01">
   <owner>ssolarewicz@chromium.org</owner>
   <owner>cec-growth@google.com</owner>
   <summary>
@@ -2569,7 +2588,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.ExtensibleEnterpriseSSO.Okta.{Status}.Duration"
-    units="ms" expires_after="2026-06-01">
+    units="ms" expires_after="2026-12-01">
   <owner>ssolarewicz@chromium.org</owner>
   <owner>cec-growth@google.com</owner>
   <summary>
@@ -2585,7 +2604,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.ExtensibleEnterpriseSSO.Supported.Result"
-    enum="Boolean" expires_after="2026-08-23">
+    enum="Boolean" expires_after="2026-10-25">
   <owner>ydago@chromium.org</owner>
   <owner>cec-growth@google.com</owner>
   <summary>
@@ -2630,6 +2649,18 @@ chromium-metrics-reviews@google.com.
     Records the size of printed pages being scanned for a file content analysis
     request. These requests happen for CEP to scan printed pages for DLP rules.
     It is logged once per user action that would trigger this Connector.
+  </summary>
+</histogram>
+
+<histogram name="Enterprise.FileOpeningJob.CancelDuration" units="ms"
+    expires_after="2026-10-31">
+  <owner>valadkevich@google.com</owner>
+  <owner>cbe-cep-eng@google.com</owner>
+  <summary>
+    Records the time it takes to cancel the FileOpeningJob. The cancellation
+    waits for currently running file analysis tasks to yield or complete. This
+    provides a measure of how long the UI thread or other threads might block
+    while waiting for the background job to finish.
   </summary>
 </histogram>
 
@@ -2788,7 +2819,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Enterprise.IOS.WebState.DataControls.Clipboard.{Action}.WarningBypassed"
-    enum="Boolean" expires_after="2026-04-30">
+    enum="Boolean" expires_after="2026-12-29">
   <owner>eic@google.com</owner>
   <owner>bling-enterprise@google.com</owner>
   <summary>
@@ -2936,7 +2967,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.ManagedScreensaver.StartupTime.Slideshow"
-    units="ms" expires_after="2026-05-30">
+    units="ms" expires_after="2027-04-21">
   <owner>mpetrisor@chromium.org</owner>
   <owner>imprivata-eng@google.com</owner>
   <summary>
@@ -3126,8 +3157,21 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Enterprise.Policy.AppRestrictionsRegisterReceiverTime"
+    units="ms" expires_after="2027-04-01">
+  <owner>zmin@chromium.org</owner>
+  <owner>cec-growth@google.com</owner>
+  <summary>
+    Wall-clock time spent in Context.registerReceiver() for the
+    AbstractAppRestrictionsProvider broadcast receiver on Android. Recorded once
+    per browser startup on a background thread, after the synchronous Binder IPC
+    into system_server returns. Used to quantify the latency that previously
+    caused UI-thread ANRs.
+  </summary>
+</histogram>
+
 <histogram name="Enterprise.PolicyInvalidations"
-    enum="EnterprisePolicyInvalidations" expires_after="2026-08-23">
+    enum="EnterprisePolicyInvalidations" expires_after="2026-10-25">
   <owner>asumaneev@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -3799,7 +3843,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.StateDetermination.DeviceIdentifierStatus"
-    enum="DeviceIdentifierStatus" expires_after="2026-06-01">
+    enum="DeviceIdentifierStatus" expires_after="2027-06-01">
   <owner>sergiyb@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -3808,14 +3852,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.StateDetermination.Enabled" enum="Boolean"
-    expires_after="2026-06-01">
+    expires_after="2027-06-01">
   <owner>sergiyb@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>Captures situations when state determination is enabled.</summary>
 </histogram>
 
 <histogram name="Enterprise.StateDetermination.IsInitialByState.{State}"
-    enum="Boolean" expires_after="2026-06-01">
+    enum="Boolean" expires_after="2027-06-01">
   <owner>sergiyb@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -3837,7 +3881,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.StateDetermination.OwnershipStatus"
-    enum="OwnershipStatus" expires_after="2026-06-01">
+    enum="OwnershipStatus" expires_after="2027-06-01">
   <owner>sergiyb@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -3846,7 +3890,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.StateDetermination.PsmReportedAvailableState"
-    enum="Boolean" expires_after="2026-06-01">
+    enum="Boolean" expires_after="2027-06-01">
   <owner>sergiyb@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -3856,7 +3900,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.StateDetermination.StateKeys.RetrievalErrorType"
-    enum="StateKeysRetrievalErrorType" expires_after="2026-06-01">
+    enum="StateKeysRetrievalErrorType" expires_after="2027-06-01">
   <owner>sergiyb@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -3866,7 +3910,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.StateDetermination.StateReturned" enum="Boolean"
-    expires_after="2026-06-01">
+    expires_after="2027-06-01">
   <owner>sergiyb@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -3875,7 +3919,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.StateDetermination.Status"
-    enum="StateDeterminationStatus" expires_after="2026-06-01">
+    enum="StateDeterminationStatus" expires_after="2027-06-01">
   <owner>sergiyb@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -3884,14 +3928,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.StateDetermination.TotalDuration" units="ms"
-    expires_after="2026-06-01">
+    expires_after="2027-06-01">
   <owner>sergiyb@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>Tracks the total duration of state determination.</summary>
 </histogram>
 
 <histogram name="Enterprise.StateDetermination.TotalDurationByState.{State}"
-    units="ms" expires_after="2026-06-01">
+    units="ms" expires_after="2027-06-01">
   <owner>sergiyb@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -4193,6 +4237,29 @@ chromium-metrics-reviews@google.com.
       variants="ContentAnalysisRequestType"/>
 </histogram>
 
+<histogram name="Enterprise.{FileUploadEvent}.Cancelled.BatchSize"
+    units="units" expires_after="2027-05-04">
+  <owner>domfc@chromium.org</owner>
+  <owner>chrome-enterprise-data-protection@google.com</owner>
+  <summary>
+    Number of files in {FileUploadEvent} that was cancelled. Recorded every time
+    files were cancelled before scan completion.
+  </summary>
+  <token key="FileUploadEvent" variants="FileUploadEvent"/>
+</histogram>
+
+<histogram name="Enterprise.{FileUploadEvent}.Cancelled.Duration" units="ms"
+    expires_after="2027-05-04">
+  <owner>domfc@chromium.org</owner>
+  <owner>chrome-enterprise-data-protection@google.com</owner>
+  <summary>
+    Duration of the scan from the moment files were selected until the scan was
+    cancelled in {FileUploadEvent}. Recorded every time files were cancelled
+    before scan completion.
+  </summary>
+  <token key="FileUploadEvent" variants="FileUploadEvent"/>
+</histogram>
+
 <histogram
     name="Enterprise.{LocalOrCloud}ContentAnalysis.{DeepScanAccessPoint}.{FinalResult}.Duration"
     units="ms" expires_after="2026-10-04">
@@ -4459,7 +4526,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="EnterpriseCheck.SystemCallCount" units="count"
-    expires_after="2026-08-16">
+    expires_after="2026-10-25">
   <owner>nafisabedin@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
   <summary>

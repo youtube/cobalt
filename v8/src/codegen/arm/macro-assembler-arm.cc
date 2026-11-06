@@ -157,6 +157,10 @@ MemOperand MacroAssembler::ExternalReferenceAsOperand(
 }
 
 void MacroAssembler::GetLabelAddress(Register dest, Label* target) {
+  // It's important that we don't emit the constant pool in between the
+  // `mov_label_offset` and the following `add`.
+  BlockConstPoolScope block_const_pool_scope(this);
+
   // This should be just a
   //    add(dest, pc, branch_offset(target));
   // but current implementation of Assembler::bind_to()/target_at_put() add

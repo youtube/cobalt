@@ -1008,12 +1008,12 @@ class QUICHE_EXPORT QuicSession
   // kMaxQuicStreamCount and UsesPendingStreamForFrame() returns false, this
   // method is not supposed to be called at all.
   virtual QuicStream* ProcessReadUnidirectionalPendingStream(
-      PendingStream* /*pending*/) {
+      PendingStream& /*pending*/) {
     QUICHE_BUG(received unexpected pending read unidirectional stream);
     return nullptr;
   }
   virtual QuicStream* ProcessBidirectionalPendingStream(
-      PendingStream* /*pending*/) {
+      PendingStream& /*pending*/) {
     QUICHE_BUG(received unexpected pending bidirectional stream);
     return nullptr;
   }

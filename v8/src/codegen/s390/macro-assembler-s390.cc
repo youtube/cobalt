@@ -4794,14 +4794,18 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 // Helper for CallApiFunctionAndReturn().
 void MacroAssembler::zosStoreReturnAddressAndCall(Register target,
                                                   Register scratch) {
-  DCHECK(target == r3 || target == r4);
+  DCHECK(target == r3 || target == r4 || target == r5);
   // Shuffle the arguments from Linux arg register to XPLINK arg regs
   mov(r1, r2);
   if (target == r3) {
     mov(r2, r3);
+  } else if (target == r4) {
+    mov(r2, r3);
+    mov(r3, r4);
   } else {
     mov(r2, r3);
     mov(r3, r4);
+    mov(r4, r5);
   }
 
   // Update System Stack Pointer with the appropriate XPLINK stack bias.

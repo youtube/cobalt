@@ -99,10 +99,6 @@ class WasmJs {
       Isolate* isolate, DirectHandle<NativeContext> context,
       DirectHandle<JSObject> webassembly);
 
-  V8_EXPORT_PRIVATE static bool InstallTypeReflection(
-      Isolate* isolate, DirectHandle<NativeContext> context,
-      DirectHandle<JSObject> webassembly);
-
   V8_EXPORT_PRIVATE static bool InstallJSPromiseIntegration(
       Isolate* isolate, DirectHandle<NativeContext> context,
       DirectHandle<JSObject> webassembly);

@@ -338,14 +338,14 @@ class ThresholdRunner {
           GenerateRandomDecimalDigits(rng_, string, char_count);
           {
             int64_t start = absl::GetCurrentTimeNanos();
-            FromStringAccumulator acc(2 * max);
+            FromStringAccumulator acc(2 * max, processor_->platform());
             acc.Parse(string, string + char_count, 10);
             processor_->FromStringClassic(Z, &acc);
             base_total += absl::GetCurrentTimeNanos() - start;
           }
           {
             int64_t start = absl::GetCurrentTimeNanos();
-            FromStringAccumulator acc(2 * max);
+            FromStringAccumulator acc(2 * max, processor_->platform());
             acc.Parse(string, string + char_count, 10);
             processor_->FromStringLarge(Z, &acc);
             other_total += absl::GetCurrentTimeNanos() - start;
@@ -809,8 +809,8 @@ class Runner {
       int num_chars = std::round(size * kDigitBits / std::log2(radix));
       std::unique_ptr<char[]> chars(new char[num_chars]);
       GenerateRandomString(chars.get(), num_chars, radix);
-      FromStringAccumulator accumulator(kMaxDigits);
-      FromStringAccumulator ref_accumulator(kMaxDigits);
+      FromStringAccumulator accumulator(kMaxDigits, platform_);
+      FromStringAccumulator ref_accumulator(kMaxDigits, platform_);
       const char* start = chars.get();
       const char* end = chars.get() + num_chars;
       accumulator.Parse(start, end, radix);
@@ -846,7 +846,7 @@ class Runner {
         }
         const char* start = chars.get();
         const char* end = start + chars_required;
-        FromStringAccumulator accumulator(kMaxDigits);
+        FromStringAccumulator accumulator(kMaxDigits, platform_);
         accumulator.Parse(start, end, radix);
         ScratchDigits result(accumulator.ResultLength(), platform_);
         processor()->FromString(result, &accumulator);

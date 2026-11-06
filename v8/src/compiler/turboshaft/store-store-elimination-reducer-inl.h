@@ -14,6 +14,7 @@
 #include "src/compiler/turboshaft/sidetable.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/compiler/turboshaft/uniform-reducer-adapter.h"
+#include "src/compiler/turboshaft/utils.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/objects/heap-object-inl.h"
 
@@ -493,6 +494,10 @@ class StoreStoreEliminationReducer : public Next {
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Store)(OpIndex ig_index, const StoreOp& store) {
+    if (ShouldSkipOptimizationStep()) {
+      return Next::ReduceInputGraphStore(ig_index, store);
+    }
+
     if (eliminable_stores_.count(ig_index) > 0) {
       return OpIndex::Invalid();
     } else if (mergeable_store_pairs_.count(ig_index) > 0) {

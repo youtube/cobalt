@@ -14,6 +14,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -23,10 +24,12 @@ import static org.mockito.Mockito.when;
 import android.content.ComponentCallbacks;
 import android.content.Context;
 import android.content.res.Configuration;
+import android.content.res.Resources;
+import android.graphics.Rect;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
-import android.widget.FrameLayout;
+import android.view.Window;
 
 import androidx.test.core.app.ApplicationProvider;
 
@@ -44,10 +47,12 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.chrome.browser.context_sharing.R;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tab_bottom_sheet.TabBottomSheetCoordinator.SheetEventsCallback;
 import org.chromium.chrome.browser.tab_bottom_sheet.TabBottomSheetProperties.ResizingState;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent.HeightMode;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.SheetState;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.StateChangeReason;
@@ -64,7 +69,7 @@ import org.chromium.ui.modelutil.PropertyModel;
 @Config(manifest = Config.NONE)
 public class TabBottomSheetCoordinatorTest {
     private static final float FULL_HEIGHT_RATIO = 0.7f;
-    private static final float KEYBOARD_SHOWING_HEIGHT_RATIO = 0.9f;
+    private static final float SMALL_SCREEN_HEIGHT_RATIO = 0.9f;
     private static final int MAX_OFFSET = 1000;
     private static final int CONTAINER_WIDTH = 500;
     private static final int CONTAINER_HEIGHT = 500;
@@ -90,8 +95,9 @@ public class TabBottomSheetCoordinatorTest {
             };
 
     @Mock private BottomSheetController mMockBottomSheetController;
+    @Mock private Window mMockWindow;
+    @Mock private View mMockDecorView;
     @Mock private TouchEventProvider mMockTouchEventProvider;
-    @Mock private CoBrowseViews mCoBrowseViews;
     @Mock private WindowAndroid mWindowAndroid;
     @Mock private KeyboardVisibilityDelegate mKeyboardDelegate;
     @Captor private ArgumentCaptor<TabBottomSheetContent> mBottomSheetContentArgumentCaptor;
@@ -99,6 +105,7 @@ public class TabBottomSheetCoordinatorTest {
     @Captor private ArgumentCaptor<ComponentCallbacks> mComponentCallbacksArgumentCaptor;
     @Captor private ArgumentCaptor<TouchEventObserver> mTouchEventObserverArgumentCaptor;
 
+    private CoBrowseViews mCoBrowseViews;
     private Context mContext;
     private View mView;
     private TabBottomSheetCoordinator mCoordinator;
@@ -107,9 +114,26 @@ public class TabBottomSheetCoordinatorTest {
     @Before
     public void setUp() {
         mContext = spy(ApplicationProvider.getApplicationContext());
-        mView = new FrameLayout(mContext);
-        when(mCoBrowseViews.getView()).thenReturn(mView);
+        mCoBrowseViews =
+                new CoBrowseViews(mContext, TabBottomSheetClientType.UNKNOWN, null, null, 0);
+        mView = mCoBrowseViews.getView();
+        assertNotNull(
+                "actor_control_container should be found in CoBrowseViews",
+                mView.findViewById(R.id.actor_control_container));
         when(mWindowAndroid.getKeyboardDelegate()).thenReturn(mKeyboardDelegate);
+
+        when(mWindowAndroid.getWindow()).thenReturn(mMockWindow);
+        when(mMockWindow.getDecorView()).thenReturn(mMockDecorView);
+        when(mMockDecorView.getHeight()).thenReturn(MAX_OFFSET);
+        when(mMockBottomSheetController.getMaxOffset()).thenReturn(MAX_OFFSET);
+        doAnswer(
+                        invocation -> {
+                            Rect rect = invocation.getArgument(0);
+                            rect.set(0, 0, CONTAINER_WIDTH, MAX_OFFSET);
+                            return null;
+                        })
+                .when(mMockDecorView)
+                .getWindowVisibleDisplayFrame(any(Rect.class));
 
         mCoordinator =
                 new TabBottomSheetCoordinator(
@@ -225,7 +249,7 @@ public class TabBottomSheetCoordinatorTest {
                 .requestShowContent(mBottomSheetContentArgumentCaptor.capture(), eq(true));
         TabBottomSheetContent content = mBottomSheetContentArgumentCaptor.getValue();
         assertNotNull(content);
-        assertEquals(FULL_HEIGHT_RATIO, content.getFullHeightRatio(), EPSILON);
+        assertEquals(HeightMode.WRAP_CONTENT, content.getFullHeightRatio(), EPSILON);
     }
 
     @Test
@@ -236,7 +260,7 @@ public class TabBottomSheetCoordinatorTest {
                 .requestShowContent(mBottomSheetContentArgumentCaptor.capture(), eq(true));
         TabBottomSheetContent content = mBottomSheetContentArgumentCaptor.getValue();
         assertNotNull(content);
-        assertEquals(KEYBOARD_SHOWING_HEIGHT_RATIO, content.getFullHeightRatio(), EPSILON);
+        assertEquals(HeightMode.WRAP_CONTENT, content.getFullHeightRatio(), EPSILON);
     }
 
     @Test
@@ -402,77 +426,89 @@ public class TabBottomSheetCoordinatorTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.TAB_BOTTOM_SHEET + ":resize_webview/false")
-    public void testOnContainerSizeChanged() {
-        BottomSheetObserver observer = simulateShowSuccessAndGetObserver();
-
-        int containerHeight = 1234;
-        when(mMockBottomSheetController.getMaxOffset()).thenReturn(containerHeight);
-
-        observer.onContainerSizeChanged(500, containerHeight);
-
-        ResizingState state = mCoordinatorModel.get(TabBottomSheetProperties.RESIZING_STATE);
-        assertEquals(containerHeight, state.webUiContainerHeight);
-    }
-
-    @Test
     @EnableFeatures(ChromeFeatureList.TAB_BOTTOM_SHEET + ":resize_webview/true")
     public void testOnContainerSizeChanged_resizingEnabled() {
         BottomSheetObserver observer = simulateShowSuccessAndGetObserver();
 
-        ResizingState impossibleState = new ResizingState(-1, -1.0f);
-        mCoordinatorModel.set(TabBottomSheetProperties.RESIZING_STATE, impossibleState);
-        when(mMockBottomSheetController.getMaxOffset()).thenReturn(MAX_OFFSET);
-
-        observer.onContainerSizeChanged(CONTAINER_WIDTH, MAX_OFFSET);
-
-        // Verify that the resizing state is not updated.
-        assertEquals(
-                impossibleState, mCoordinatorModel.get(TabBottomSheetProperties.RESIZING_STATE));
-    }
-
-    @Test
-    @EnableFeatures(ChromeFeatureList.TAB_BOTTOM_SHEET + ":resize_webview/true")
-    public void testOnSheetOffsetChanged_resizingEnabled_withoutKeyboard() {
-        BottomSheetObserver observer = simulateShowSuccessAndGetObserver();
-
-        when(mKeyboardDelegate.isKeyboardShowing(eq(mView))).thenReturn(false);
-        when(mMockBottomSheetController.getMaxOffset()).thenReturn(MAX_OFFSET);
-
-        observer.onSheetOffsetChanged(HALF_HEIGHT_FRACTION, HALF_OFFSET_HEIGHT);
+        observer.onContainerSizeChanged(CONTAINER_WIDTH, CONTAINER_HEIGHT);
+        // Resizing state is set to flexible height on the second call.
+        observer.onContainerSizeChanged(CONTAINER_WIDTH, CONTAINER_HEIGHT);
 
         ResizingState state = mCoordinatorModel.get(TabBottomSheetProperties.RESIZING_STATE);
-        int expectedLockedHeight = Math.round(MAX_OFFSET * FULL_HEIGHT_RATIO);
-        assertEquals(expectedLockedHeight, state.webUiContainerHeight);
-    }
-
-    @Test
-    @EnableFeatures(ChromeFeatureList.TAB_BOTTOM_SHEET + ":resize_webview/true")
-    public void testOnSheetOffsetChanged_resizingEnabled_withKeyboard() {
-        BottomSheetObserver observer = simulateShowSuccessAndGetObserver();
-
-        when(mKeyboardDelegate.isKeyboardShowing(eq(mView))).thenReturn(true);
-        when(mMockBottomSheetController.getMaxOffset()).thenReturn(MAX_OFFSET);
-
-        observer.onSheetOffsetChanged(FULL_HEIGHT_FRACTION, MAX_OFFSET);
-
-        ResizingState state = mCoordinatorModel.get(TabBottomSheetProperties.RESIZING_STATE);
-        assertEquals(MAX_OFFSET, state.webUiContainerHeight);
+        assertFalse(state.atFixedHeight);
     }
 
     @Test
     @EnableFeatures(ChromeFeatureList.TAB_BOTTOM_SHEET + ":resize_webview/false")
-    public void testOnSheetOffsetChanged_resizingDisabled() {
+    public void testOnContainerSizeChanged_resizingDisabled() {
         BottomSheetObserver observer = simulateShowSuccessAndGetObserver();
 
-        ResizingState impossibleState = new ResizingState(-1, -1.0f);
-        mCoordinatorModel.set(TabBottomSheetProperties.RESIZING_STATE, impossibleState);
-        when(mMockBottomSheetController.getMaxOffset()).thenReturn(MAX_OFFSET);
+        observer.onContainerSizeChanged(CONTAINER_WIDTH, CONTAINER_HEIGHT);
 
-        observer.onSheetOffsetChanged(FULL_HEIGHT_FRACTION, MAX_OFFSET);
+        ResizingState state = mCoordinatorModel.get(TabBottomSheetProperties.RESIZING_STATE);
+        assertTrue(state.atFixedHeight);
+    }
 
-        // Verify that the resizing state is not updated.
-        assertEquals(
-                impossibleState, mCoordinatorModel.get(TabBottomSheetProperties.RESIZING_STATE));
+    @Test
+    @EnableFeatures(ChromeFeatureList.TAB_BOTTOM_SHEET + ":resize_webview/true")
+    public void testOnContainerSizeChanged_StartWithFixedHeight() {
+        BottomSheetObserver observer = simulateShowSuccessAndGetObserver();
+
+        int expectedFixedHeight = (int) (MAX_OFFSET * FULL_HEIGHT_RATIO);
+        when(mMockBottomSheetController.getContainerHeight()).thenReturn(expectedFixedHeight);
+
+        observer.onContainerSizeChanged(CONTAINER_WIDTH, expectedFixedHeight);
+
+        ResizingState state = mCoordinatorModel.get(TabBottomSheetProperties.RESIZING_STATE);
+        assertTrue(state.atFixedHeight);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.TAB_BOTTOM_SHEET + ":resize_webview/true")
+    public void testOnContainerSizeChanged_FallbackToFlexible() {
+        BottomSheetObserver observer = simulateShowSuccessAndGetObserver();
+
+        int desiredFixedHeight = (int) (MAX_OFFSET * FULL_HEIGHT_RATIO);
+        when(mMockBottomSheetController.getContainerHeight()).thenReturn(desiredFixedHeight - 1);
+
+        observer.onContainerSizeChanged(CONTAINER_WIDTH, desiredFixedHeight);
+
+        ResizingState state = mCoordinatorModel.get(TabBottomSheetProperties.RESIZING_STATE);
+        assertFalse(state.atFixedHeight);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.TAB_BOTTOM_SHEET + ":resize_webview/true")
+    public void testOnContainerSizeChanged_MultipleCalls() {
+        BottomSheetObserver observer = simulateShowSuccessAndGetObserver();
+        int expectedFixedHeight = (int) (MAX_OFFSET * FULL_HEIGHT_RATIO);
+        when(mMockBottomSheetController.getContainerHeight()).thenReturn(expectedFixedHeight);
+
+        observer.onContainerSizeChanged(CONTAINER_WIDTH, expectedFixedHeight);
+        observer.onContainerSizeChanged(CONTAINER_WIDTH, expectedFixedHeight);
+
+        ResizingState state = mCoordinatorModel.get(TabBottomSheetProperties.RESIZING_STATE);
+        assertFalse(state.atFixedHeight);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.TAB_BOTTOM_SHEET + ":resize_webview/true")
+    public void testFixedHeightCalculation_UsesLandscapeRatio() {
+        Configuration landscapeConfig = new Configuration();
+        landscapeConfig.orientation = Configuration.ORIENTATION_LANDSCAPE;
+
+        Resources resources = mock();
+        when(mContext.getResources()).thenReturn(resources);
+        when(resources.getConfiguration()).thenReturn(landscapeConfig);
+
+        BottomSheetObserver observer = simulateShowSuccessAndGetObserver();
+
+        int expectedLandscapeHeight = (int) (MAX_OFFSET * SMALL_SCREEN_HEIGHT_RATIO);
+        when(mMockBottomSheetController.getContainerHeight()).thenReturn(expectedLandscapeHeight);
+
+        observer.onContainerSizeChanged(CONTAINER_WIDTH, expectedLandscapeHeight);
+
+        ResizingState state = mCoordinatorModel.get(TabBottomSheetProperties.RESIZING_STATE);
+        assertTrue(state.atFixedHeight);
     }
 }

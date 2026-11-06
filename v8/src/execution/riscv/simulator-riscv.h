@@ -541,6 +541,10 @@ class Simulator : public SimulatorBase {
   template <typename T>
   T FMaxMinHelper(T a, T b, MaxMinKind kind);
 
+  // IEEE 754-2019 minimum/maximum for Zfa extension (fminm/fmaxm).
+  template <typename T>
+  T FMaxMinMHelper(T a, T b, MaxMinKind kind);
+
   template <typename T>
   bool CompareFHelper(T input1, T input2, FPUCondition cc);
 

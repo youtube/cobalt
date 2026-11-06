@@ -177,14 +177,14 @@ DEF_UNOP(Negate_Baseline, Generate_NegateWithFeedback)
       result = RelationalComparison(Operation::k##Name, lhs, rhs, context, \
                                     &var_type_feedback);                   \
     }                                                                      \
-    UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()),          \
-                           bytecode_array, feedback_offset);               \
+    UpdateEmbeddedFeedback(var_type_feedback.value(), bytecode_array,      \
+                           feedback_offset);                               \
                                                                            \
     Return(result);                                                        \
     BIND(&if_exception);                                                   \
     {                                                                      \
-      UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()),        \
-                             bytecode_array, feedback_offset);             \
+      UpdateEmbeddedFeedback(var_type_feedback.value(), bytecode_array,    \
+                             feedback_offset);                             \
       CallRuntime(Runtime::kReThrow, context, var_exception.value());      \
       Unreachable();                                                       \
     }                                                                      \
@@ -213,15 +213,15 @@ DEF_RELATIONAL_COMPARE(GreaterThanOrEqual)
           [&]() { return LoadContextFromBaseline(); }, &var_type_feedback); \
     }                                                                       \
     auto bytecode_array = LoadBytecodeArrayFromBaseline();                  \
-    UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()),           \
-                           bytecode_array, feedback_offset);                \
+    UpdateEmbeddedFeedback(var_type_feedback.value(), bytecode_array,       \
+                           feedback_offset);                                \
                                                                             \
     Return(result);                                                         \
     BIND(&if_exception);                                                    \
     {                                                                       \
       bytecode_array = LoadBytecodeArrayFromBaseline();                     \
-      UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()),         \
-                             bytecode_array, feedback_offset);              \
+      UpdateEmbeddedFeedback(var_type_feedback.value(), bytecode_array,     \
+                             feedback_offset);                              \
       CallRuntime(Runtime::kReThrow, LoadContextFromBaseline(),             \
                   var_exception.value());                                   \
       Unreachable();                                                        \
@@ -307,12 +307,12 @@ TF_BUILTIN(Equal_WithEmbeddedFeedback, CodeStubAssembler) {
     ScopedExceptionHandler handler(this, &if_exception, &var_exception);
     result = Equal(lhs, rhs, [&]() { return context; }, &var_type_feedback);
   }
-  UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()), bytecode_array,
+  UpdateEmbeddedFeedback(var_type_feedback.value(), bytecode_array,
                          feedback_offset);
   Return(result);
 
   BIND(&if_exception);
-  UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()), bytecode_array,
+  UpdateEmbeddedFeedback(var_type_feedback.value(), bytecode_array,
                          feedback_offset);
   CallRuntime(Runtime::kReThrow, LoadContextFromBaseline(),
               var_exception.value());
@@ -328,7 +328,7 @@ TF_BUILTIN(StrictEqual_WithEmbeddedFeedback, CodeStubAssembler) {
 
   TVARIABLE(Smi, var_type_feedback);
   TNode<Boolean> result = StrictEqual(lhs, rhs, &var_type_feedback);
-  UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()), bytecode_array,
+  UpdateEmbeddedFeedback(var_type_feedback.value(), bytecode_array,
                          feedback_offset);
 
   Return(result);
@@ -351,15 +351,15 @@ TF_BUILTIN(Equal_Generic_Baseline, CodeStubAssembler) {
         &var_type_feedback);
   }
   auto bytecode_array = LoadBytecodeArrayFromBaseline();
-  UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()), bytecode_array,
+  UpdateEmbeddedFeedback(var_type_feedback.value(), bytecode_array,
                          feedback_offset);
   Return(result);
 
   BIND(&if_exception);
   {
     bytecode_array = LoadBytecodeArrayFromBaseline();
-    UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()),
-                           bytecode_array, feedback_offset);
+    UpdateEmbeddedFeedback(var_type_feedback.value(), bytecode_array,
+                           feedback_offset);
     CallRuntime(Runtime::kReThrow, LoadContextFromBaseline(),
                 var_exception.value());
     Unreachable();
@@ -374,7 +374,7 @@ TF_BUILTIN(StrictEqual_Generic_Baseline, CodeStubAssembler) {
 
   TVARIABLE(Smi, var_type_feedback);
   TNode<Boolean> result = StrictEqual(lhs, rhs, &var_type_feedback);
-  UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()),
+  UpdateEmbeddedFeedback(var_type_feedback.value(),
                          LoadBytecodeArrayFromBaseline(), feedback_offset);
 
   Return(result);
@@ -453,7 +453,7 @@ DEFINE_TYPED_EQUALITY_COMMON(Equal)
         [this](TNode<HeapObject> o) { return TypeChecker(o); },         \
         Builtin::k##EqualityType##AndTryPatchCode,                      \
         Int32Constant(static_cast<int32_t>(                             \
-            CompareOperationFeedback::Type::k##StubType)));             \
+            CompareOperationFeedback::TypeIndex::k##StubType)));        \
   }
 
 DEF_TYPED_OBJECT_EQUALITY(StrictEqual, Symbol, IsSymbol)
@@ -514,7 +514,7 @@ TF_BUILTIN(Equal_Any_Baseline, CodeStubAssembler) {
     TailCallBuiltin(Builtin::k##Name##AndTryPatchCode,                  \
                     LoadContextFromBaseline(), lhs, rhs,                \
                     Int32Constant(static_cast<int32_t>(                 \
-                        CompareOperationFeedback::Type::kNone)),        \
+                        CompareOperationFeedback::TypeIndex::kNone)),   \
                     feedback_offset);                                   \
   }                                                                     \
                                                                         \

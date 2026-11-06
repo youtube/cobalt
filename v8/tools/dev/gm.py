@@ -152,15 +152,40 @@ QUIET = sys.argv[0] == "quietgm"  # Overridden by "quiet" keyword.
 build_dir_prefix = os.getenv("V8_GM_BUILD_DIR_PREFIX")
 
 V8_DIR = Path(__file__).resolve().parent.parent.parent
-RECLIENT_CERT_CACHE = V8_DIR / ".#gm_reclient_cert_cache"
 
-if (V8_DIR.parent / "chrome").exists():
-  CHROMIUM_DIR = V8_DIR.parent
+
+def v8_root_dir() -> Path:
+  try:
+    git_dir = subprocess.check_output(["git", "rev-parse", "--git-common-dir"],
+                                      cwd=V8_DIR,
+                                      text=True,
+                                      stderr=subprocess.PIPE).strip()
+    if (V8_DIR / git_dir).exists():
+      return (V8_DIR / git_dir).parent.resolve()
+  except (subprocess.CalledProcessError, FileNotFoundError):
+    pass
+  return V8_DIR
+
+
+V8_ROOT_DIR = v8_root_dir()
+
+if V8_DIR != V8_ROOT_DIR:
+  subprocess.run([
+      sys.executable,
+      str(V8_DIR / "tools" / "dev" / "setup_worktree_build.py"),
+      str(V8_ROOT_DIR),
+      str(V8_DIR),
+  ])
+
+RECLIENT_CERT_CACHE = V8_ROOT_DIR / ".#gm_reclient_cert_cache"
+
+if (V8_ROOT_DIR.parent / "chrome").exists():
+  CHROMIUM_DIR = V8_ROOT_DIR.parent
 else:
   CHROMIUM_DIR = None
 
 GCLIENT_FILE_PATH = (CHROMIUM_DIR.parent
-                     if CHROMIUM_DIR else V8_DIR.parent) / ".gclient"
+                     if CHROMIUM_DIR else V8_ROOT_DIR.parent) / ".gclient"
 
 out_dir_override = os.getenv("V8_GM_OUTDIR")
 if out_dir_override and Path(out_dir_override).is_dir:
@@ -196,7 +221,7 @@ def get_gclient_solution(solutions):
 # Note: this function is reused by update-compile-commands.py. When renaming
 # this, please update that file too!
 def detect_reclient():
-  if not GCLIENT_FILE_PATH.exists():
+  if not GCLIENT_FILE_PATH or not GCLIENT_FILE_PATH.exists():
     return Reclient.NONE
   content = GCLIENT_FILE_PATH.read_text()
   try:
@@ -513,6 +538,8 @@ class RawConfig:
         match = csa_trap.search(output)
         extra_opt = match.group(1) if match else ""
         cmdline = re.compile("python3 ../../tools/run.py ./mksnapshot (.*)")
+        if CHROMIUM_DIR:
+          cmdline = re.compile("python3 ../../v8/tools/run.py ./mksnapshot (.*)")
         orig_cmdline = cmdline.search(output).group(1).strip()
         cmdline = (
             prepare_mksnapshot_cmdline(orig_cmdline, self.path) + extra_opt)
@@ -522,6 +549,8 @@ class RawConfig:
       elif "run.py ./torque" in output and not ": Torque Error: " in output:
         # Torque failed/crashed without printing an error message.
         cmdline = re.compile("python3 ../../tools/run.py ./torque (.*)")
+        if CHROMIUM_DIR:
+          cmdline = re.compile("python3 ../../v8/tools/run.py ./torque (.*)")
         orig_cmdline = cmdline.search(output).group(1).strip()
         cmdline = f"gdb --args "
         cmdline = prepare_torque_cmdline(orig_cmdline, self.path)

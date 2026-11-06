@@ -36,7 +36,7 @@
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
-#include "quiche/quic/moqt/moqt_subscribe_windows.h"
+#include "quiche/quic/moqt/moqt_stream_map.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
@@ -466,6 +466,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
       return default_publisher_priority_.value_or(kDefaultPublisherPriority);
     }
 
+    bool established() const { return established_; }
+
    private:
     friend class test::MoqtSessionPeer;
     SendStreamMap& stream_map();
@@ -484,6 +486,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     MoqtSession* session_;
     std::shared_ptr<MoqtTrackPublisher> track_publisher_;
     uint64_t request_id_;
+    // Subscription is in the ESTABLISHED state.
+    bool established_ = false;
     bool can_have_joining_fetch_ = false;
     const uint64_t track_alias_;
     // These are (mostly) the parameters from the SUBSCRIBE message. However,
@@ -522,10 +526,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // webtransport::StreamVisitor implementation.
     void OnCanRead() override {}
     void OnCanWrite() override;
-    void OnResetStreamReceived(
-        webtransport::StreamErrorCode /*error*/) override {}
+    void OnResetStreamReceived(webtransport::StreamErrorCode) override {}
     void OnStopSendingReceived(
-        webtransport::StreamErrorCode /*error*/) override {}
+        webtransport::StreamErrorCode error_code) override;
     void OnWriteSideInDataRecvdState() override {}
 
     class DeliveryTimeoutDelegate

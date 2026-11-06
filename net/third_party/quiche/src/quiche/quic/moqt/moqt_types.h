@@ -60,6 +60,32 @@ enum class QUICHE_EXPORT MoqtObjectStatus : uint64_t {
   kInvalidObjectStatus = 0x5,
 };
 
+// A tuple uniquely identifying a WebTransport data stream associated with a
+// subscription. By convention, if a DataStreamIndex is necessary for a datagram
+// track, `subgroup` is set to zero.
+struct DataStreamIndex {
+  uint64_t group = 0;
+  uint64_t subgroup = 0;
+
+  DataStreamIndex() = default;
+  DataStreamIndex(uint64_t group, uint64_t subgroup)
+      : group(group), subgroup(subgroup) {}
+
+  auto operator<=>(const DataStreamIndex&) const = default;
+
+  template <typename H>
+  friend H AbslHashValue(H h, const DataStreamIndex& index) {
+    return H::combine(std::move(h), index.group, index.subgroup);
+  }
+};
+
+enum class QUICHE_EXPORT SubscribeNamespaceOption : uint64_t {
+  kPublish = 0x00,
+  kNamespace = 0x01,
+  kBoth = 0x02,
+};
+static constexpr uint64_t kMaxSubscribeOption = 0x02;
+
 }  // namespace moqt
 
 #endif  // QUICHE_QUIC_MOQT_MOQT_TYPES_H_

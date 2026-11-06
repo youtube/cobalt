@@ -1076,7 +1076,8 @@ class V8_EXPORT_PRIVATE Instruction final {
   }
   bool HasCallDescriptorFlag(CallDescriptor::Flag flag) const {
     DCHECK(IsCallWithDescriptorFlags());
-    static_assert(CallDescriptor::kFlagsBitsEncodedInInstructionCode == 10);
+    static_assert(CallDescriptor::kFlagsBitsEncodedInInstructionCode ==
+                  MiscField::kSize);
 #ifdef DEBUG
     static constexpr int kInstructionCodeFlagsMask =
         ((1 << CallDescriptor::kFlagsBitsEncodedInInstructionCode) - 1);

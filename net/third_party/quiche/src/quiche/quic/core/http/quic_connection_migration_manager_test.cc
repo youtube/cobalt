@@ -287,7 +287,7 @@ class TestStream : public QuicSpdyStream {
   TestStream(QuicStreamId id, QuicSpdySession* session, StreamType type)
       : QuicSpdyStream(id, session, type) {}
 
-  TestStream(PendingStream* pending, QuicSpdySession* session)
+  TestStream(PendingStream& pending, QuicSpdySession* session)
       : QuicSpdyStream(pending, session) {}
 
   void OnBodyAvailable() override {}
@@ -401,7 +401,7 @@ class TestQuicSpdyClientSessionWithMigration
   }
 
   TestStream* CreateIncomingStream(PendingStream* pending) override {
-    TestStream* stream = new TestStream(pending, this);
+    TestStream* stream = new TestStream(*pending, this);
     ActivateStream(absl::WrapUnique(stream));
     return stream;
   }

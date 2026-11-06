@@ -22,6 +22,7 @@ import (
 
 	"boringssl.googlesource.com/boringssl.git/ssl/test/runner/hpke"
 	"boringssl.googlesource.com/boringssl.git/ssl/test/runner/spake2plus"
+	"filippo.io/mldsa"
 	"golang.org/x/crypto/cryptobyte"
 )
 
@@ -564,6 +565,7 @@ func (hs *serverHandshakeState) doTLS13Handshake() error {
 	// Prepare an EncryptedExtensions message, but do not send it yet.
 	encryptedExtensions := new(encryptedExtensionsMsg)
 	encryptedExtensions.empty = config.Bugs.EmptyEncryptedExtensions
+	encryptedExtensions.extensions.extensionsWithTrailingData = config.Bugs.ExtensionsWithTrailingData
 	if err := hs.processClientExtensions(&encryptedExtensions.extensions); err != nil {
 		return err
 	}
@@ -1139,10 +1141,11 @@ func (hs *serverHandshakeState) doTLS13Handshake() error {
 	if requestClientCert {
 		// Request a client certificate
 		certReq := &certificateRequestMsg{
-			hasSignatureAlgorithm: !config.Bugs.OmitCertificateRequestAlgorithms,
-			hasRequestContext:     true,
-			requestContext:        config.Bugs.SendRequestContext,
-			customExtension:       config.Bugs.SendCustomCertificateRequest,
+			hasSignatureAlgorithm:      !config.Bugs.OmitCertificateRequestAlgorithms,
+			hasRequestContext:          true,
+			requestContext:             config.Bugs.SendRequestContext,
+			customExtension:            config.Bugs.SendCustomCertificateRequest,
+			extensionsWithTrailingData: config.Bugs.ExtensionsWithTrailingData,
 		}
 		if !config.Bugs.NoSignatureAlgorithms {
 			certReq.signatureAlgorithms = config.verifySignatureAlgorithms()
@@ -1156,6 +1159,9 @@ func (hs *serverHandshakeState) doTLS13Handshake() error {
 		if config.ClientCAs != nil {
 			certReq.certificateAuthorities = config.ClientCAs.Subjects()
 		}
+		if config.Bugs.SendEmptyCertificateAuthorities {
+			certReq.certificateAuthorities = [][]byte{}
+		}
 		hs.writeServerHash(certReq.marshal())
 		c.writeRecord(recordTypeHandshake, certReq.marshal())
 	}
@@ -1166,7 +1172,8 @@ func (hs *serverHandshakeState) doTLS13Handshake() error {
 			useCert = config.Bugs.UseCertificateCredential
 		}
 		certMsg := &certificateMsg{
-			hasRequestContext: true,
+			hasRequestContext:          true,
+			extensionsWithTrailingData: config.Bugs.ExtensionsWithTrailingData,
 		}
 		certMsg.sendTrustAnchorWrongCertificate = config.Bugs.SendTrustAnchorWrongCertificate
 		certMsg.sendNonEmptyTrustAnchorMatch = config.Bugs.SendNonEmptyTrustAnchorMatch
@@ -1517,7 +1524,8 @@ func (hs *serverHandshakeState) processClientHello() (isResume bool, err error) 
 		versOverride:      config.Bugs.SendServerHelloVersion,
 		compressionMethod: config.Bugs.SendCompressionMethod,
 		extensions: serverExtensions{
-			supportedVersion: config.Bugs.SendServerSupportedVersionExtension,
+			supportedVersion:           config.Bugs.SendServerSupportedVersionExtension,
+			extensionsWithTrailingData: config.Bugs.ExtensionsWithTrailingData,
 		},
 		omitExtensions:  config.Bugs.OmitExtensions,
 		emptyExtensions: config.Bugs.EmptyExtensions,
@@ -2351,7 +2359,7 @@ func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (c
 	certs := make([]*x509.Certificate, len(certificates))
 	var err error
 	for i, asn1Data := range certificates {
-		if certs[i], err = x509.ParseCertificate(asn1Data); err != nil {
+		if certs[i], err = ParseX509Certificate(asn1Data); err != nil {
 			c.sendAlert(alertBadCertificate)
 			return nil, errors.New("tls: failed to parse client certificate: " + err.Error())
 		}
@@ -2386,7 +2394,7 @@ func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (c
 	if len(certs) > 0 {
 		pub := certs[0].PublicKey
 		switch pub.(type) {
-		case *ecdsa.PublicKey, *rsa.PublicKey, ed25519.PublicKey:
+		case *ecdsa.PublicKey, *rsa.PublicKey, ed25519.PublicKey, *mldsa.PublicKey:
 			break
 		default:
 			c.sendAlert(alertUnsupportedCertificate)

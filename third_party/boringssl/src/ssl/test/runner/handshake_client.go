@@ -23,6 +23,7 @@ import (
 
 	"boringssl.googlesource.com/boringssl.git/ssl/test/runner/hpke"
 	"boringssl.googlesource.com/boringssl.git/ssl/test/runner/spake2plus"
+	"filippo.io/mldsa"
 	"golang.org/x/crypto/cryptobyte"
 )
 
@@ -525,30 +526,31 @@ func (hs *clientHandshakeState) createClientHello(innerHello *clientHelloMsg, ec
 	}
 
 	hello := &clientHelloMsg{
-		isDTLS:                    c.isDTLS,
-		compressionMethods:        []uint8{compressionNone},
-		random:                    make([]byte, 32),
-		ocspStapling:              !c.config.Bugs.NoOCSPStapling,
-		sctListSupported:          !c.config.Bugs.NoSignedCertificateTimestamps,
-		supportedCurves:           c.config.curvePreferences(),
-		supportedPoints:           []uint8{pointFormatUncompressed},
-		nextProtoNeg:              len(c.config.NextProtos) > 0,
-		secureRenegotiation:       []byte{},
-		alpnProtocols:             c.config.NextProtos,
-		quicTransportParams:       quicTransportParams,
-		quicTransportParamsLegacy: quicTransportParamsLegacy,
-		duplicateExtension:        c.config.Bugs.DuplicateExtension,
-		channelIDSupported:        c.config.ChannelID != nil,
-		extendedMasterSecret:      maxVersion >= VersionTLS10,
-		srtpProtectionProfiles:    c.config.SRTPProtectionProfiles,
-		srtpMasterKeyIdentifier:   c.config.Bugs.SRTPMasterKeyIdentifier,
-		customExtension:           c.config.Bugs.CustomExtension,
-		omitExtensions:            c.config.Bugs.OmitExtensions,
-		emptyExtensions:           c.config.Bugs.EmptyExtensions,
-		delegatedCredential:       c.config.DelegatedCredentialAlgorithms,
-		trustAnchors:              c.config.RequestTrustAnchors,
-		clientCertificateTypes:    c.config.Bugs.SendClientCertificateTypes,
-		serverCertificateTypes:    c.config.Bugs.SendServerCertificateTypes,
+		isDTLS:                     c.isDTLS,
+		compressionMethods:         []uint8{compressionNone},
+		random:                     make([]byte, 32),
+		ocspStapling:               !c.config.Bugs.NoOCSPStapling,
+		sctListSupported:           !c.config.Bugs.NoSignedCertificateTimestamps,
+		supportedCurves:            c.config.curvePreferences(),
+		supportedPoints:            []uint8{pointFormatUncompressed},
+		nextProtoNeg:               len(c.config.NextProtos) > 0,
+		secureRenegotiation:        []byte{},
+		alpnProtocols:              c.config.NextProtos,
+		quicTransportParams:        quicTransportParams,
+		quicTransportParamsLegacy:  quicTransportParamsLegacy,
+		duplicateExtension:         c.config.Bugs.DuplicateExtension,
+		channelIDSupported:         c.config.ChannelID != nil,
+		extendedMasterSecret:       maxVersion >= VersionTLS10,
+		srtpProtectionProfiles:     c.config.SRTPProtectionProfiles,
+		srtpMasterKeyIdentifier:    c.config.Bugs.SRTPMasterKeyIdentifier,
+		customExtension:            c.config.Bugs.CustomExtension,
+		omitExtensions:             c.config.Bugs.OmitExtensions,
+		emptyExtensions:            c.config.Bugs.EmptyExtensions,
+		delegatedCredential:        c.config.DelegatedCredentialAlgorithms,
+		trustAnchors:               c.config.RequestTrustAnchors,
+		clientCertificateTypes:     c.config.Bugs.SendClientCertificateTypes,
+		serverCertificateTypes:     c.config.Bugs.SendServerCertificateTypes,
+		extensionsWithTrailingData: c.config.Bugs.ExtensionsWithTrailingData,
 	}
 
 	// Translate the bugs that modify ClientHello extension order into a
@@ -670,6 +672,9 @@ func (hs *clientHandshakeState) createClientHello(innerHello *clientHelloMsg, ec
 
 	if c.config.SendRootCAs && c.config.RootCAs != nil {
 		hello.certificateAuthorities = c.config.RootCAs.Subjects()
+	}
+	if c.config.Bugs.SendEmptyCertificateAuthorities {
+		hello.certificateAuthorities = [][]byte{}
 	}
 
 	if maxVersion >= VersionTLS13 {
@@ -1317,7 +1322,8 @@ func (hs *clientHandshakeState) doTLS13Handshake(msg any) error {
 			}
 
 			certMsg = &certificateMsg{
-				hasRequestContext: true,
+				hasRequestContext:          true,
+				extensionsWithTrailingData: c.config.Bugs.ExtensionsWithTrailingData,
 			}
 
 			if !certMsg.unmarshal(decompressed) {
@@ -1924,7 +1930,7 @@ func (hs *clientHandshakeState) verifyCertificates(certMsg *certificateMsg) erro
 	certs := make([]*x509.Certificate, len(certMsg.certificates))
 	if certMsg.certificateType == certTypeX509 {
 		for i, certEntry := range certMsg.certificates {
-			cert, err := x509.ParseCertificate(certEntry.data)
+			cert, err := ParseX509Certificate(certEntry.data)
 			if err != nil {
 				c.sendAlert(alertBadCertificate)
 				return errors.New("tls: failed to parse certificate from server: " + err.Error())
@@ -1971,7 +1977,7 @@ func (hs *clientHandshakeState) verifyCertificates(certMsg *certificateMsg) erro
 	}
 
 	switch peerPublicKey.(type) {
-	case *rsa.PublicKey, *ecdsa.PublicKey, ed25519.PublicKey:
+	case *rsa.PublicKey, *ecdsa.PublicKey, ed25519.PublicKey, *mldsa.PublicKey:
 		break
 	default:
 		c.sendAlert(alertUnsupportedCertificate)

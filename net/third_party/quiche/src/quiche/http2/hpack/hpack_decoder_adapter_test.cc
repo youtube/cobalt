@@ -407,6 +407,53 @@ TEST_P(HpackDecoderAdapterTest, HandleHeaderRepresentation) {
           Pair("empty-joined", absl::string_view("\0foo\0\0", 6))));
 }
 
+TEST_P(HpackDecoderAdapterTest, TotalUncompressedBytes) {
+  HandleControlFrameHeadersStart();
+  // Reference static table entries #2 and #5.
+  // :method: GET (7+3=10)
+  // :path: /index.html (5+11=16)
+  EXPECT_TRUE(HandleControlFrameHeadersData("\x82\x85"));
+  EXPECT_TRUE(HandleControlFrameHeadersComplete());
+
+  EXPECT_EQ(26u, decoder_.current_header_block_uncompressed_bytes());
+
+  HandleControlFrameHeadersStart();
+  // Literal header with indexing.
+  // foo: bar (3+3=6)
+  EXPECT_TRUE(
+      HandleControlFrameHeadersData("\x40\x03"
+                                    "foo"
+                                    "\x03"
+                                    "bar"));
+  EXPECT_TRUE(HandleControlFrameHeadersComplete());
+
+  EXPECT_EQ(6u, decoder_.current_header_block_uncompressed_bytes());
+}
+
+TEST_P(HpackDecoderAdapterTest, ManyReferencesToDynamicEntry) {
+  // First, add an entry to the dynamic table.
+  HandleControlFrameHeadersStart();
+  EXPECT_TRUE(
+      HandleControlFrameHeadersData("\x40\x03"
+                                    "foo"
+                                    "\x03"
+                                    "bar"));
+  EXPECT_TRUE(HandleControlFrameHeadersComplete());
+
+  // Now reference it many times in a new block.
+  HandleControlFrameHeadersStart();
+  std::string bomb;
+  for (int i = 0; i < 1000; ++i) {
+    bomb += '\xbe';  // Reference index 62
+  }
+  EXPECT_TRUE(HandleControlFrameHeadersData(bomb));
+  EXPECT_TRUE(HandleControlFrameHeadersComplete());
+
+  // Each reference to "foo: bar" adds 6 bytes to
+  // current_header_block_uncompressed_bytes. 1000 references -> 6000 bytes.
+  EXPECT_EQ(6000u, decoder_.current_header_block_uncompressed_bytes());
+}
+
 // Decoding indexed static table field should work.
 TEST_P(HpackDecoderAdapterTest, IndexedHeaderStatic) {
   // Reference static table entries #2 and #5.

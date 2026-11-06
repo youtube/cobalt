@@ -89,6 +89,12 @@ export declare interface AdditionalContextPart {
   pendingRegion?: PendingCapturedRegion;
 }
 
+/** Configuration to override the default ZSS behavior for the invocation. */
+export declare interface ZssConfig {
+  /** Additional content to inject into the body of the ZSS message. */
+  additionalContent?: string;
+}
+
 /** Options for invoking Glic. */
 export declare interface InvokeOptions {
   /** Source that triggered this invocation. */
@@ -105,6 +111,15 @@ export declare interface InvokeOptions {
   disableZeroStateSuggestions: boolean;
   /** Skill ID to trigger. */
   skillId?: string;
+  /** Configuration to override the default ZSS behavior for the invocation. */
+  zssConfig?: ZssConfig;
+}
+
+/** An update sent from the web client to the host. */
+export declare interface ExperimentalTriggeringUpdate {
+  type: ExperimentalTriggeringUpdateType;
+  /** Content associated with an update, such as log data or response text. */
+  data: string;
 }
 
 /**
@@ -196,6 +211,16 @@ export declare interface GlicWebClient {
    * and the result will be cached for the lifetime of the web client.
    */
   getClientCapabilities?(): Set<ClientCapabilities>;
+
+  /*
+   * Returns an observable that emits all the glic updates for this instance.
+   * A terminal `ExperimentalTriggeringUpdateType` in the
+   * `ExperimentalTriggeringUpdate` payload should be followed by the completion
+   * of the observable to ensure proper unsubscribing and cleanup operations
+   * take place.
+   */
+  getExperimentalTriggeringUpdates?
+      (): Observable2<ExperimentalTriggeringUpdate>;
 
   // !!! ATTENTION !!!
   // Avoid adding new methods to this interface! Instead, to push information to
@@ -895,6 +920,10 @@ export declare interface GlicBrowserHost {
    */
   showManageSkillsUi?(): void;
 
+  /**
+   * Requests that the browser open skill browsing UI.
+   */
+  showBrowseSkillsUi?(): void;
 
   /**
    * Logs metrics for UI interactions and state transitions specific to the
@@ -1078,6 +1107,16 @@ export declare interface GlicBrowserHost {
    * Called when the microphone status changes in the web client.
    */
   onMicrophoneStatusChange?(status: MicrophoneStatus): void;
+
+  /**
+   * Informs Chrome of whether an error dialog is showing. Used for metrics,
+   * and may cause Chrome to eventually reload the page if the GiC panel is
+   * backgrounded.
+   *
+   * @param shownDialogType The type of error dialog that is showing. If
+   *   `undefined`, no error dialog is showing.
+   */
+  setErrorDialogState?(shownDialogType?: ClientErrorDialogType): void;
 }
 
 /** Information about a conversation. */
@@ -1250,6 +1289,14 @@ export declare interface Rect {
 }
 
 /**
+ * A point with x and y coordinates. All coordinate values are in pixels.
+ */
+export declare interface Point {
+  x: number;
+  y: number;
+}
+
+/**
  * A region captured by the user from a document in a tab.
  *
  * This is a union of different possible region shapes. Currently only
@@ -1274,6 +1321,17 @@ export declare interface CapturedRegion {
    * document's bounds.
    */
   rect?: Rect;
+  /**
+   * A polyline captured from a document in a tab.
+   *
+   * The coordinate system is relative to the top-left corner of the document.
+   * The units are in pixels and match screenshot pixel dimensions.
+   *
+   * The polyline is represented by an ordered array of points. The line formed
+   * by these points is not required to be closed, and it represents a shape
+   * (path), not necessarily a region.
+   */
+  polyline?: Point[];
 }
 
 /** The captured region with an ID. */
@@ -2059,6 +2117,28 @@ export declare interface Observable<T> {
 }
 
 /**
+ * A generic interface for observing a stream of values.
+ *
+ * Unlike `Observable`, `subscribeObserver` is required and in the future the
+ * two related Observable interfaces will be merged into one.
+ *
+ * Subscriptions should be kept only while necessary, as they incur some cost.
+ * When not needed anymore, call Subscriber.unsubscribe() on the instance
+ * returned by subscribe.
+ */
+export declare interface Observable2<T> {
+  /** Receive updates for value changes. */
+  subscribe(change: (newValue: T) => void): Subscriber;
+
+  /**
+   * Subscribe with an Observer.
+   * This API was added in later, and is not supported by all versions of
+   * Chrome.
+   */
+  subscribeObserver(observer: Observer<T>): Subscriber;
+}
+
+/**
  * An observable value that may change over time. A subscriber is guaranteed to
  * be called once with the value, and again anytime the value changes. Note that
  * the subscriber may or may not be invoked immediately upon calling
@@ -2192,6 +2272,8 @@ export declare interface SkillPreview {
   description?: string;
   /** The image URL to show when rendering this skill. */
   image_url?: string;
+  /** The name of the curator for this skill. */
+  curated_by?: string;
   /** Whether the skill is contextually relevant to the current tab. */
   isContextual?: boolean;
 }
@@ -2702,9 +2784,9 @@ export enum SkillsWebClientEvent {
   USED_DERIVED_FIRST_PARTY_SKILL = 3,
   // User typed '/' or triggered the skills menu.
   OPENED_MENU = 4,
-  // User clicked the button to open the full skills management UI.
+  // User clicked the 'Manage skills' button from the slash menu.
   CLICKED_MANAGE_FROM_MENU = 5,
-  // User clicked the generic '+' button to create a new empty skill.
+  // User clicked the 'Add skill' button from the slash menu.
   CLICKED_ADD_FROM_MENU = 6,
   // User clicked the edit button on an existing skill preview.
   CLICKED_EDIT_FROM_MENU = 7,
@@ -2714,6 +2796,21 @@ export enum SkillsWebClientEvent {
   CLICKED_SAVE_AS_SKILL_HOVER_CHIP = 9,
   // User clicked the 'Edit Skill' chip that appears on hover.
   CLICKED_EDIT_SKILL_HOVER_CHIP = 10,
+  // User clicked the 'Browse skills' button from the plus menu.
+  CLICKED_BROWSE_SKILL_FROM_PLUS_MENU = 11,
+  // User clicked a skill from the plus menu.
+  CLICKED_SKILL_FROM_PLUS_MENU = 12,
+  // User clicked the 'Manage skills' button from the plus menu.
+  CLICKED_MANAGE_SKILL_FROM_PLUS_MENU = 13,
+  // User clicked the 'More' button from the slash menu.
+  CLICKED_MORE_FROM_MENU = 14,
+  // User clicked the 'Manage skills' button from the slash skills submenu.
+  // Deprecated. Use kClickedManageFromMenu instead.
+  CLICKED_MANAGE_SKILL_FROM_MENU = 15,
+  // User clicked a skill from the slash menu.
+  CLICKED_SKILL_FROM_MENU = 16,
+  // User clicked the 'Browse skills' button from the slash menu.
+  CLICKED_BROWSE_SKILLS_FROM_MENU = 17,
   // Skill Builder Step 1: User clicked the promo chip to start the flow.
   SKILL_BUILDER_CLICKED_PROMO_CHIP = 20,
   // Skill Builder Step 2: A draft skill was successfully generated by the AI.
@@ -2803,6 +2900,7 @@ export enum PanelStateKind {
 // Represents an override of the First Run Experience (FRE).
 export enum FreOverride {
   UNSPECIFIED = 0,
+  // Deprecated: No longer used.
   // Variation that requires text input from the user to unlock full client.
   TRUST_FIRST_TEXT = 1,
   // Variation that requires mouse click from the user to unlock full client.
@@ -2883,7 +2981,10 @@ export enum FeatureMode {
   UNSPECIFIED = 0,
   IMAGE_GENERATION = 1,
   ACTUATION = 2,
-  BLUEDOG = 2,
+  // Client feature mode to initiate actuation for Experimental Triggering.
+  EXPERIMENTAL_TRIGGERING = 3,
+  // Client feature mode to initiate actuation for Universal Cart.
+  UNIVERSAL_CART = 4,
 }
 
 ///////////////////////////////////////////////
@@ -2928,11 +3029,41 @@ export enum WebUseCounter {
 
 ///////////////////////////////////////////////
 // WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
+// Client error dialog types.
+export enum ClientErrorDialogType {
+  UNKNOWN = 0,
+  DISABLED_BY_ORGANIZATION = 1,
+  GENERIC_AVAILABILITY = 2,
+  INELIGIBLE_ACCOUNT = 3,
+  SIGNOUT = 4,
+  UNSUPPORTED_LOCATION = 5,
+}
+
+///////////////////////////////////////////////
+// WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
 export enum AdditionalContextSource {
   UNKNOWN = 2,
   SHARE_CONTEXT_MENU = 0,
   REGION_SELECTION = 1,
   TEXT_SELECTION = 3,
+}
+
+///////////////////////////////////////////////
+// WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
+// Types of updates that may be relayed back by the web client.
+export enum ExperimentalTriggeringUpdateType {
+  // An unknown, non-terminal update type.
+  UNKNOWN = 0,
+  // A log entry describing internal steps or "thought" process.
+  WORKLOG = 1,
+  // The interaction was paused.
+  PAUSED = 2,
+  // A final status update or metadata about the completed task.
+  TERMINAL_COMPLETION = 3,
+  // The interaction was stopped or cancelled.
+  TERMINAL_STOPPED = 4,
+  // The interaction failed.
+  TERMINAL_FAILED = 5,
 }
 
 ///////////////////////////////////////////////

@@ -76,8 +76,17 @@ class DesktopEnvironmentFactory;
 //    all pending tasks to complete. After all of that has completed, we
 //    return to the idle state. We then go to step (2) to wait for a new
 //    incoming connection.
-class ChromotingHost : public ClientSession::EventHandler,
-                       public mojom::ChromotingHostServices {
+class ChromotingHost :
+// The ChromotingHostServices inheritance is currently needed by the Mac host
+// and the single-process Linux host. For the Windows host and the Linux
+// multi-process host, ChromotingHostServices is implemented by the daemon
+// process and the ChromotingSessionServices receiver is passed through
+// DesktopSessionConnectionEvents.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+    public mojom::ChromotingHostServices,
+
+#endif
+    public ClientSession::EventHandler {
  public:
   // This is a multimap to allow for multiple unauthenticated sessions. For each
   // client ID, there can be up to one authenticated session and multiple
@@ -105,7 +114,6 @@ class ChromotingHost : public ClientSession::EventHandler,
       std::unique_ptr<protocol::SessionManager> secondary_session_manager,
       scoped_refptr<protocol::TransportContext> transport_context,
       scoped_refptr<base::SingleThreadTaskRunner> audio_task_runner,
-      scoped_refptr<base::SingleThreadTaskRunner> video_encode_task_runner,
       const DesktopEnvironmentOptions& options,
       const SessionPoliciesValidator& per_session_policies_validator,
       const LocalSessionPoliciesProvider* local_session_policies_provider);
@@ -125,8 +133,8 @@ class ChromotingHost : public ClientSession::EventHandler,
 #if BUILDFLAG(IS_LINUX)
   // Starts running the ChromotingHostServices server and listening for incoming
   // IPC binding requests.
-  // Currently only Linux runs the ChromotingHostServices server on the host
-  // process.
+  // Currently only the single-process Linux host runs the
+  // ChromotingHostServices server on the host process.
   void StartChromotingHostServices();
 
   void BindChromotingHostServicesForServer(
@@ -134,9 +142,10 @@ class ChromotingHost : public ClientSession::EventHandler,
       std::unique_ptr<named_mojo_ipc_server::ConnectionInfo> connection_info);
 #endif
 
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   void BindChromotingHostServices(
-      mojo::PendingReceiver<mojom::ChromotingHostServices> receiver,
-      base::ProcessId peer_pid);
+      mojo::PendingReceiver<mojom::ChromotingHostServices> receiver);
+#endif
 
   scoped_refptr<HostStatusMonitor> status_monitor() { return status_monitor_; }
   const DesktopEnvironmentOptions& desktop_environment_options() const {
@@ -168,10 +177,12 @@ class ChromotingHost : public ClientSession::EventHandler,
   std::optional<ErrorCode> OnSessionPoliciesReceived(
       const SessionPolicies& policies) override;
 
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   // mojom::ChromotingHostServices implementation.
   void BindSessionServices(
       mojo::PendingReceiver<mojom::ChromotingSessionServices> receiver)
       override;
+#endif
 
   // Callback for SessionManager to accept incoming sessions.
   void OnIncomingSession(
@@ -216,7 +227,6 @@ class ChromotingHost : public ClientSession::EventHandler,
   std::unique_ptr<protocol::SessionManager> secondary_session_manager_;
   scoped_refptr<protocol::TransportContext> transport_context_;
   scoped_refptr<base::SingleThreadTaskRunner> audio_task_runner_;
-  scoped_refptr<base::SingleThreadTaskRunner> video_encode_task_runner_;
 
   scoped_refptr<HostStatusMonitor> status_monitor_;
 
@@ -250,7 +260,9 @@ class ChromotingHost : public ClientSession::EventHandler,
   std::unique_ptr<ChromotingHostServicesServer> ipc_server_;
 #endif
 
-  mojo::ReceiverSet<mojom::ChromotingHostServices, base::ProcessId> receivers_;
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  mojo::ReceiverSet<mojom::ChromotingHostServices> receivers_;
+#endif
 
   SEQUENCE_CHECKER(sequence_checker_);
 

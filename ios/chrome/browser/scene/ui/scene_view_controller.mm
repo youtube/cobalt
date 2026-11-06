@@ -16,6 +16,7 @@
 #import "ios/chrome/browser/scene/ui/scene_view.h"
 #import "ios/chrome/browser/scene/ui/scene_view_controller_delegate.h"
 #import "ios/chrome/browser/scene/ui/scene_view_delegate.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
@@ -24,7 +25,7 @@
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 
-@interface SceneViewController () <SceneViewDelegate>
+@interface SceneViewController () <LayoutStateObserver, SceneViewDelegate>
 @end
 
 @implementation SceneViewController {
@@ -50,6 +51,7 @@
   NSArray<NSLayoutConstraint*>* _assistantSheetConstraints;
   NSArray<NSLayoutConstraint*>* _assistantPanelConstraints;
   NSLayoutConstraint* _assistantLeadingConstraint;
+  NSLayoutConstraint* _assistantTopConstraint;
   NSLayoutConstraint* _sideAppContentTopConstraint;
   NSLayoutConstraint* _sideAppContentTrailingConstraint;
   NSLayoutConstraint* _sideAppContentBottomConstraint;
@@ -113,10 +115,13 @@
     AddSameConstraints(_appContentContainerView, view);
   }
 
+  view.backgroundColor = [UIColor colorNamed:kSecondaryBackgroundColor];
+
   [self
       registerForTraitChanges:
           @[ UITraitHorizontalSizeClass.class, UITraitVerticalSizeClass.class ]
-                   withAction:@selector(updateAssistantLayout)];
+                   withAction:@selector(onSystemTraitChange)];
+  [self onSystemTraitChange];
 }
 
 - (void)viewWillTransitionToSize:(CGSize)size
@@ -135,9 +140,17 @@
 
 - (void)viewDidLayoutSubviews {
   [super viewDidLayoutSubviews];
+  self.layoutState.windowedMode = IsWindowedMode(self.view.window);
+  [self updateAssistantTopConstraints:self.layoutState.containedLayoutActive];
   if (!IsFullscreenRefactoringEnabled()) {
     [self applyFrameForLayout];
   }
+}
+
+- (void)viewSafeAreaInsetsDidChange {
+  [super viewSafeAreaInsetsDidChange];
+  [self updateAssistantTopConstraints:self.layoutState.containedLayoutActive];
+  [self.view layoutIfNeeded];
 }
 
 #pragma mark - Public
@@ -218,7 +231,7 @@
                      _assistantShadowView);
 
   [self updateAssistantLayoutConstraints];
-  [self updateAssistantVisualStyling:IsSidePanelLayout(self.traitCollection)];
+  [self updateAssistantVisualStyling:self.layoutState.containedLayoutSupported];
 }
 
 - (void)removeAssistantContainerViewController {
@@ -279,7 +292,77 @@
   }
 }
 
+#pragma mark - Accessors
+
+- (void)setLayoutState:(LayoutState*)layoutState {
+  if (_layoutState == layoutState) {
+    return;
+  }
+  [_layoutState removeObserver:self];
+  _layoutState = layoutState;
+  [_layoutState addObserver:self];
+}
+
+#pragma mark - LayoutStateObserver
+
+- (void)layoutState:(LayoutState*)layoutState
+    willChangeContainedLayout:(BOOL)containedLayoutActive
+    withTransitionCoordinator:(id<LayoutTransitionCoordinating>)coordinator {
+  __weak __typeof(self) weakSelf = self;
+  void (^animationBlock)(void) = ^{
+    [weakSelf setAssistantContainerVisible:containedLayoutActive];
+    [weakSelf setAssistantPanelActive:containedLayoutActive];
+  };
+
+  if (coordinator) {
+    [coordinator animateAlongsideTransition:animationBlock completion:nil];
+  } else {
+    animationBlock();
+  }
+}
+
+- (void)layoutState:(LayoutState*)layoutState
+    didChangeContainedLayoutSupported:(BOOL)supported {
+  if (supported && _assistantContainerViewController) {
+    layoutState.containedLayoutActive = YES;
+  } else if (!supported) {
+    layoutState.containedLayoutActive = NO;
+  }
+  [self updateAssistantLayout];
+}
+
+- (void)layoutState:(LayoutState*)layoutState
+    didChangeWindowedMode:(BOOL)windowedMode {
+  [self updateAssistantTopConstraints:self.layoutState.containedLayoutActive];
+  [self.view layoutIfNeeded];
+}
+
 #pragma mark - Private
+
+// This method updates the top constraints for the assistant and app content.
+- (void)updateAssistantTopConstraints:(BOOL)active {
+  CGFloat constant = 0.0;
+
+  if (active) {
+    // The constant equals the safe area inset if anchored to the status bar.
+    if (self.view.safeAreaInsets.top > 0) {
+      constant = self.view.safeAreaInsets.top;
+    } else {
+      // Otherwise, it uses the standard container margin.
+      constant = kAssistantContainerMargin;
+    }
+  }
+
+  _assistantTopConstraint.constant = constant;
+  _sideAppContentTopConstraint.constant = constant;
+}
+
+// Updates the layout state when system traits change.
+- (void)onSystemTraitChange {
+  self.layoutState.containedLayoutSupported =
+      IsSidePanelLayout(self.traitCollection);
+  self.layoutState.windowedMode = IsWindowedMode(self.view.window);
+}
 
 // Helper to update app content constraints for panel layout.
 - (void)updateAppContentConstraintsForPanel:(BOOL)active {
@@ -288,13 +371,10 @@
   // safeAreaLayoutGuide.top).
   if (active) {
     CHECK(AppBarPositionForView(self.view) == AppBarPosition::kNone);
-    CGFloat safeAreaTop = self.view.safeAreaInsets.top;
-    _sideAppContentTopConstraint.constant =
-        safeAreaTop + kAssistantContainerMargin;
+    [self updateAssistantTopConstraints:active];
     _sideAppContentTrailingConstraint.constant = -kAssistantContainerMargin;
     _sideAppContentBottomConstraint.constant = -kAssistantContainerMargin;
   } else {
-    _sideAppContentTopConstraint.constant = 0;
     _sideAppContentTrailingConstraint.constant = 0;
     _sideAppContentBottomConstraint.constant = 0;
   }
@@ -353,7 +433,7 @@
 // Updates both constraints and visual styling for the Assistant container.
 - (void)updateAssistantLayout {
   [self updateAssistantLayoutConstraints];
-  [self updateAssistantVisualStyling:IsSidePanelLayout(self.traitCollection)];
+  [self updateAssistantVisualStyling:self.layoutState.containedLayoutSupported];
 }
 
 // Updates the active assistant constraints for the current active layout.
@@ -379,10 +459,11 @@
   [self setupAssistantPanelConstraints:containerView];
   [self setupAssistantSheetConstraints:containerView];
 
-  if (IsSidePanelLayout(self.traitCollection)) {
+  if (self.layoutState.containedLayoutSupported) {
     _assistantContainerViewController.presentationContext =
         AssistantPresentationContext::kPanel;
     _activeAssistantConstraints = _assistantPanelConstraints;
+    [self updateAssistantTopConstraints:self.layoutState.containedLayoutActive];
   } else {
     _assistantContainerViewController.presentationContext =
         AssistantPresentationContext::kSheet;
@@ -399,8 +480,6 @@
     return;
   }
 
-  UIView* view = self.view;
-
   if (_assistantContainerViewController) {
     UIView* assistantView = _assistantContainerViewController.view;
     ApplyAssistantSidePanelAesthetics(assistantView, _assistantShadowView,
@@ -409,8 +488,6 @@
 
   ApplyAssistantSidePanelAesthetics(_appContentView, _appContentContainerView,
                                     active);
-  view.backgroundColor =
-      active ? [UIColor colorNamed:kSecondaryBackgroundColor] : nil;
 }
 
 // Updates the layout of the scene views depending on the active layout strategy
@@ -473,19 +550,32 @@
 
   CGFloat panelWidth = [self assistantSidePanelWidth];
 
-  if (IsSidePanelLayout(self.traitCollection) &&
+  if (self.layoutState.containedLayoutSupported &&
       _assistantContainerViewController && panelWidth > 0) {
     CGFloat safeAreaTop = self.view.safeAreaInsets.top;
     CGFloat margin = _assistantVisible ? kAssistantContainerMargin : 0.0;
+    // The base top inset uses the safe area if anchored to the status bar,
+    // otherwise it uses the container margin.
+    CGFloat baseTop =
+        (safeAreaTop > 0) ? safeAreaTop : kAssistantContainerMargin;
 
     insets.right += margin;
-    insets.top +=
-        _assistantVisible ? (safeAreaTop + kAssistantContainerMargin) : 0.0;
+    insets.top += _assistantVisible ? baseTop : 0.0;
     insets.bottom += margin;
   }
 
   CGRect contentFrame = UIEdgeInsetsInsetRect(frame, insets);
   _appContentContainerView.frame = contentFrame;
+  if (self.layoutState.containedLayoutActive && !IsChromeNextIaEnabled()) {
+    // When the Assistant side panel is active, use bounds to avoid a double
+    // shift of the origin.
+    // However, when IsChromeNextIaEnabled() is true, the view hierarchy is
+    // inverted (when fullscreen refactor is disabled). In that mode, we must
+    // use frame to avoid misplacing the view at the left edge.
+    _appContentView.frame = _appContentContainerView.bounds;
+    return;
+  }
+  _appContentView.frame = _appContentContainerView.frame;
 }
 
 // Applies manual frames to views. This is the fallback layout path when
@@ -536,7 +626,7 @@
 
 // Calculates left inset for the Assistant Side Panel.
 - (CGFloat)sidePanelLeftInset {
-  if (!IsSidePanelLayout(self.traitCollection) ||
+  if (!self.layoutState.containedLayoutSupported ||
       !_assistantContainerViewController) {
     return 0;
   }
@@ -593,26 +683,31 @@
   UIView* view = self.view;
   _assistantLeadingConstraint = [assistantView.leadingAnchor
       constraintEqualToAnchor:view.safeAreaLayoutGuide.leadingAnchor
-                     constant:kAssistantContainerMargin];
+                     constant:-kAssistantSidePanelMaxWidth];
 
-  NSArray* panelConstraints = @[
+  _assistantTopConstraint =
+      [assistantView.topAnchor constraintEqualToAnchor:view.topAnchor
+                                              constant:0];
+
+  NSLayoutConstraint* proportionalWidth = [assistantView.widthAnchor
+      constraintEqualToAnchor:view.widthAnchor
+                   multiplier:kAssistantSidePanelWidthMultiplier];
+  proportionalWidth.priority = UILayoutPriorityDefaultHigh;
+
+  _assistantPanelConstraints = @[
     _assistantLeadingConstraint,
-    [assistantView.topAnchor
-        constraintEqualToAnchor:view.safeAreaLayoutGuide.topAnchor
-                       constant:kAssistantContainerMargin],
+    _assistantTopConstraint,
     [assistantView.bottomAnchor
         constraintEqualToAnchor:view.bottomAnchor
                        constant:-kAssistantContainerMargin],
-    [assistantView.widthAnchor
-        constraintEqualToAnchor:view.widthAnchor
-                     multiplier:kAssistantSidePanelWidthMultiplier],
+    proportionalWidth,
     [assistantView.widthAnchor
         constraintLessThanOrEqualToConstant:kAssistantSidePanelMaxWidth],
   ];
 
-  _assistantPanelConstraints = panelConstraints;
   if (IsFullscreenRefactoringEnabled()) {
     [self setupAppContentConstraintsForPanel:assistantView];
+    [self updateAssistantTopConstraints:self.layoutState.containedLayoutActive];
   }
 }
 
@@ -620,9 +715,11 @@
 // active.
 - (void)setupAppContentConstraintsForPanel:(UIView*)assistantView {
   UIView* view = self.view;
+
   _sideAppContentTopConstraint =
       [_appContentContainerView.topAnchor constraintEqualToAnchor:view.topAnchor
                                                          constant:0];
+
   _sideAppContentTrailingConstraint = [_appContentContainerView.trailingAnchor
       constraintEqualToAnchor:view.trailingAnchor
                      constant:0];
@@ -630,15 +727,17 @@
       constraintEqualToAnchor:view.bottomAnchor
                      constant:0];
 
-  _assistantPanelConstraints =
-      [_assistantPanelConstraints arrayByAddingObjectsFromArray:@[
-        [_appContentContainerView.leadingAnchor
-            constraintEqualToAnchor:assistantView.trailingAnchor
-                           constant:kAssistantContainerMargin],
-        _sideAppContentTrailingConstraint,
-        _sideAppContentTopConstraint,
-        _sideAppContentBottomConstraint,
-      ]];
+  NSArray* appContentConstraints = @[
+    [_appContentContainerView.leadingAnchor
+        constraintEqualToAnchor:assistantView.trailingAnchor
+                       constant:kAssistantContainerMargin],
+    _sideAppContentTrailingConstraint,
+    _sideAppContentBottomConstraint,
+    _sideAppContentTopConstraint,
+  ];
+
+  _assistantPanelConstraints = [_assistantPanelConstraints
+      arrayByAddingObjectsFromArray:appContentConstraints];
 }
 
 // Sets up sheet constraints for bottom sheet layout.

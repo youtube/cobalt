@@ -108,8 +108,13 @@ struct MemoryAccessInformation {
   enum Kind { kRead, kWrite, kCmp };
 
   Kind kind;
-  // Pointer into the `user_regs_struct`, set for `kRead` kind.
+
+  // For kRead kind, one of the two following fields will be set.
+
+  // Pointer into the `user_regs_struct`.
   reg_value_type* result_reg = nullptr;
+  // Index of the XMM register (0-15) if it's an XMM register.
+  int xmm_reg_index = -1;
 };
 
 void DisassemblePreviousInstruction(struct user_regs_struct& regs,
@@ -178,7 +183,11 @@ MemoryAccessInformation GetMemoryAccessInformationFromPreviousInstruction(
     return {.kind = MemoryAccessInformation::kCmp};
   }
   // TODO(clemensb): Implement more instructions if necessary.
-  if (memcmp(insn_pos, "mov", 3) != 0) FATAL("Not a mov: %s\n", buffer);
+  if (memcmp(insn_pos, "mov", 3) != 0 && memcmp(insn_pos, "sub", 3) != 0 &&
+      memcmp(insn_pos, "add", 3) != 0) {
+    FATAL("Not a mov/sub/add: %s\n", buffer);
+  }
+
   // Find the position of the comma to figure out if the memory operand is
   // on the LHS (read) or RHS (write).
   char* space_pos = strchr(insn_pos + 3, ' ');
@@ -196,9 +205,15 @@ MemoryAccessInformation GetMemoryAccessInformationFromPreviousInstruction(
   if (memcmp(space_pos + 1, #name, strlen(#name)) == 0) {                      \
     return {.kind = MemoryAccessInformation::kRead, .result_reg = &regs.name}; \
   }
-  // TODO(clemensb): Also handle double registers.
   GENERAL_REGISTERS(FIND_REG_NAME)
 #undef FIND_REG_NAME
+
+  if (memcmp(space_pos + 1, "xmm", 3) == 0) {
+    int reg_num = atoi(space_pos + 4);
+    CHECK_LE(0, reg_num);
+    CHECK_LE(reg_num, 15);
+    return {.kind = MemoryAccessInformation::kRead, .xmm_reg_index = reg_num};
+  }
 
   FATAL("Could not read register name: %s", buffer);
 }
@@ -206,6 +221,58 @@ MemoryAccessInformation GetMemoryAccessInformationFromPreviousInstruction(
 void MutateReadValue(struct user_regs_struct& regs,
                      const MemoryAccessInformation& access_info) {
   DCHECK_EQ(MemoryAccessInformation::kRead, access_info.kind);
+
+  const bool is_xmm = access_info.xmm_reg_index >= 0;
+
+  if (is_xmm) {
+    // Floating point values are much less interesting to mutate, but for
+    // completeness we support mutating them as well.
+    struct user_fpregs_struct fpregs;
+    CHECK_EQ(0, ptrace(PTRACE_GETFPREGS, g_support.d8_pid,
+                       /* unused addr = */ 0, &fpregs));
+    uint64_t* target_val_ptr = reinterpret_cast<uint64_t*>(
+        &fpregs.xmm_space[access_info.xmm_reg_index * 4]);
+    uint64_t read_value_u64 = *target_val_ptr;
+    double read_value_double = base::bit_cast<double>(read_value_u64);
+
+    // TODO(clemensb): Same TODOs as below apply here.
+    // TODO(clemensb): In particular we could / should generate special values
+    // like different NaNs, denormals, +/-0, +/- inf.
+    uint64_t new_value;
+    double new_value_double;
+    switch (g_support.rng.NextInt(4)) {
+      case 0:
+        new_value_double = read_value_double + 10.;
+        new_value = base::bit_cast<uint64_t>(new_value_double);
+        break;
+      case 1:
+        new_value_double = read_value_double - 10.;
+        new_value = base::bit_cast<uint64_t>(new_value_double);
+        break;
+      case 2:
+        // Random bit flip.
+        new_value = read_value_u64 ^ (uint64_t{1} << g_support.rng.NextInt(64));
+        new_value_double = base::bit_cast<double>(new_value);
+        break;
+      case 3:
+        new_value = g_support.rng.NextInt64();
+        new_value_double = base::bit_cast<double>(new_value);
+        break;
+    }
+    TRACE(
+        "[debugger] Changing value in result register from "
+        "%" PRIu64 "/%" PRIx64 "/%.16g to %" PRIu64 "/%" PRIx64 "/%.16g.\n",
+        read_value_u64, read_value_u64, read_value_double, new_value, new_value,
+        new_value_double);
+
+    *target_val_ptr = new_value;
+
+    CHECK_EQ(0, ptrace(PTRACE_SETFPREGS, g_support.d8_pid,
+                       /* unused addr = */ 0, &fpregs));
+    return;
+  }
+
+  CHECK_NOT_NULL(access_info.result_reg);
   uint64_t read_value = *access_info.result_reg;
 
   // TODO(clemensb): Add API for specifying how to manipulate the value.
@@ -237,7 +304,8 @@ void MutateReadValue(struct user_regs_struct& regs,
         read_value, read_value, new_value, new_value);
   *access_info.result_reg = new_value;
 
-  CHECK_EQ(0, ptrace(PTRACE_SETREGS, g_support.d8_pid, 0, &regs));
+  CHECK_EQ(0, ptrace(PTRACE_SETREGS, g_support.d8_pid, /* unused addr = */ 0,
+                     &regs));
 }
 
 void MutateFlagsAfterCmp(struct user_regs_struct& regs) {
@@ -295,7 +363,8 @@ void MutateFlagsAfterCmp(struct user_regs_struct& regs) {
       (new_flags & SF) ? 1 : 0, (new_flags & OF) ? 1 : 0);
 
   regs.eflags = new_flags;
-  CHECK_EQ(0, ptrace(PTRACE_SETREGS, g_support.d8_pid, 0, &regs));
+  CHECK_EQ(0, ptrace(PTRACE_SETREGS, g_support.d8_pid, /* unused addr = */ 0,
+                     &regs));
 }
 
 // Executed in the "debugger" process: Check if a watchpoint was hit and handle
@@ -307,13 +376,11 @@ bool HandleWatchpoint(struct user_regs_struct& regs) {
                         offsetof(struct user, u_debugreg[6]), 0);
   CHECK_EQ(0, errno);
   // Check if a watchpoint was hit. Return false if not.
+  // Note that more than one watchpoint may be hit for instructions that access
+  // more than 4 bytes of memory (e.g. `movaps`).
   if ((dr6 & 0xf) == 0) return false;
 
-  int hit_watchpoint = base::bits::CountTrailingZeros(dr6 & 0xf);
-  // Exactly one watchpoint (DR0-DR4) must have been hit.
-  CHECK_EQ(0x1 << hit_watchpoint, dr6 & 0xf);
-
-  // Reset first four bits (B0-B4) in DR6.
+  // Reset first four bits (B0-B3) in DR6.
   CHECK_EQ(0, ptrace(PTRACE_POKEUSER, g_support.d8_pid,
                      offsetof(struct user, u_debugreg[6]), dr6 & ~0xf));
 
@@ -373,21 +440,12 @@ HowToContinueAfterWatchpoint WaitForD8ToStopThenReact() {
   int signal = WSTOPSIG(status);
 
   struct user_regs_struct regs;
-  CHECK_EQ(0, ptrace(PTRACE_GETREGS, g_support.d8_pid, 0, &regs));
+  CHECK_EQ(0, ptrace(PTRACE_GETREGS, g_support.d8_pid, /* unused addr = */ 0,
+                     &regs));
   TRACE("[debugger] d8 stopped at 0x%llx (sig %d, %s).\n", regs.rip, signal,
         strsignal(signal));
 
   switch (signal) {
-    case SIGCHLD:
-      TRACE("[debugger] A child process of d8 exited; continuing d8.\n");
-      return {.signal = signal};
-
-    case SIGCONT:
-      TRACE(
-          "[debugger] d8 received a SIGCONT (probably from external job "
-          "control); continuing d8.\n");
-      return {.signal = signal};
-
     case SIGSTOP:
       // D8 requested an update on watchpoints -> execute them.
       CHECK(g_support.shared->has_changed_watchpoints.exchange(false));
@@ -414,11 +472,11 @@ HowToContinueAfterWatchpoint WaitForD8ToStopThenReact() {
     case SIGILL:
       TRACE("[debugger] d8 crashed (%s)\n", strsignal(signal));
       return {.signal = signal};
-  }
 
-  // If there are other reasons for the d8 process to stop we should handle
-  // them.
-  UNREACHABLE();
+    // All other signals are just forwarded to d8 unchanged.
+    default:
+      return {.signal = signal};
+  }
 }
 
 }  // namespace

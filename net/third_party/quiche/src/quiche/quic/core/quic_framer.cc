@@ -6359,6 +6359,13 @@ bool QuicFramer::ProcessNewConnectionIdFrame(QuicDataReader* reader,
     return false;
   }
 
+  if (GetQuicReloadableFlag(quic_reject_empty_cid_in_ncid) &&
+      frame->connection_id.IsEmpty()) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_reject_empty_cid_in_ncid);
+    set_detailed_error("Connection IDs in NEW_CONNECTION_ID cannot be empty.");
+    return false;
+  }
+
   if (!QuicUtils::IsConnectionIdValidForVersion(frame->connection_id,
                                                 transport_version())) {
     set_detailed_error("Invalid new connection ID length for version.");

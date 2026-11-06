@@ -43,7 +43,7 @@
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
-#include "quiche/quic/moqt/moqt_subscribe_windows.h"
+#include "quiche/quic/moqt/moqt_stream_map.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/platform/api/quic_logging.h"
@@ -1481,28 +1481,56 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
     if (!it->second->can_have_joining_fetch()) {
       QUIC_DLOG(INFO) << ENDPOINT << "Received a JOINING_FETCH for "
                       << "joining_request_id " << joining_request_id
-                      << " that is not a LargestObject";
+                      << " that is not forwarding";
       session_->Error(MoqtError::kProtocolViolation,
-                      "Joining Fetch for non-LargestObject subscribe");
+                      "Joining Fetch for non-forwarding subscribe");
       return;
     }
     track_name = it->second->publisher().GetTrackName();
-    if (std::holds_alternative<JoiningFetchRelative>(message.fetch)) {
-      const JoiningFetchRelative& relative_fetch =
-          std::get<JoiningFetchRelative>(message.fetch);
-      QUIC_DLOG(INFO) << ENDPOINT << "Received a Relative Joining FETCH for "
-                      << track_name;
-      fetch = it->second->publisher().RelativeFetch(
-          relative_fetch.joining_start, message.parameters.group_order.value_or(
-                                            MoqtDeliveryOrder::kAscending));
+    if (it->second->established()) {
+      if (!it->second->parameters().largest_object.has_value()) {
+        // Nothing to Fetch.
+        SendRequestError(message.request_id, RequestErrorCode::kDoesNotExist,
+                         std::nullopt, "not found");
+        return;
+      }
+      const Location largest_location =
+          *it->second->parameters().largest_object;
+      uint64_t start_group;
+      if (std::holds_alternative<JoiningFetchRelative>(message.fetch)) {
+        const JoiningFetchRelative& relative_fetch =
+            std::get<JoiningFetchRelative>(message.fetch);
+        start_group =
+            (relative_fetch.joining_start > largest_location.group)
+                ? 0
+                : (largest_location.group - relative_fetch.joining_start);
+      } else {
+        const JoiningFetchAbsolute& absolute_fetch =
+            std::get<JoiningFetchAbsolute>(message.fetch);
+        start_group = absolute_fetch.joining_start;
+        if (start_group > largest_location.group) {
+          SendRequestError(message.request_id, RequestErrorCode::kInvalidRange,
+                           std::nullopt, "invalid range");
+          return;
+        }
+      }
+      fetch = it->second->publisher().StandaloneFetch(
+          Location{start_group, 0}, largest_location,
+          message.parameters.group_order.value_or(
+              MoqtDeliveryOrder::kAscending));
     } else {
-      const JoiningFetchAbsolute& absolute_fetch =
-          std::get<JoiningFetchAbsolute>(message.fetch);
-      QUIC_DLOG(INFO) << ENDPOINT << "Received a Absolute Joining FETCH for "
-                      << track_name;
-      fetch = it->second->publisher().AbsoluteFetch(
-          absolute_fetch.joining_start, message.parameters.group_order.value_or(
-                                            MoqtDeliveryOrder::kAscending));
+      // Subscription is in PENDING state.
+      if (std::holds_alternative<JoiningFetchRelative>(message.fetch)) {
+        fetch = it->second->publisher().RelativeFetch(
+            std::get<JoiningFetchRelative>(message.fetch).joining_start,
+            message.parameters.group_order.value_or(
+                MoqtDeliveryOrder::kAscending));
+      } else {
+        fetch = it->second->publisher().AbsoluteFetch(
+            std::get<JoiningFetchAbsolute>(message.fetch).joining_start,
+            message.parameters.group_order.value_or(
+                MoqtDeliveryOrder::kAscending));
+      }
     }
   }
   if (!fetch->GetStatus().ok()) {
@@ -1862,10 +1890,7 @@ MoqtSession::PublishedSubscription::PublishedSubscription(
     : session_(session),
       track_publisher_(track_publisher),
       request_id_(subscribe.request_id),
-      can_have_joining_fetch_(
-          subscribe.parameters.subscription_filter.has_value() &&
-          subscribe.parameters.subscription_filter->type() ==
-              MoqtFilterType::kLargestObject),
+      can_have_joining_fetch_(subscribe.parameters.forward()),
       track_alias_(track_alias),
       parameters_(subscribe.parameters),
       monitoring_interface_(monitoring_interface) {
@@ -1909,9 +1934,7 @@ void MoqtSession::PublishedSubscription::Update(
   // TODO(martinduke): If there are auth tokens, this probably has to go to the
   // application.
   parameters_.Update(parameters);
-  can_have_joining_fetch_ = (parameters_.subscription_filter.has_value() &&
-                             parameters_.subscription_filter->type() ==
-                                 MoqtFilterType::kLargestObject);
+  can_have_joining_fetch_ = parameters_.forward();
 }
 
 void MoqtSession::PublishedSubscription::set_subscriber_priority(
@@ -1933,6 +1956,8 @@ void MoqtSession::PublishedSubscription::set_subscriber_priority(
 
 void MoqtSession::PublishedSubscription::OnSubscribeAccepted() {
   ControlStream* stream = session_->GetControlStream();
+  QUICHE_DCHECK(!established_);
+  established_ = true;
   parameters_.largest_object = track_publisher_->largest_location();
   if (parameters_.subscription_filter.has_value()) {
     parameters_.subscription_filter->OnLargestObject(
@@ -2096,6 +2121,7 @@ void MoqtSession::PublishedSubscription::OnSubgroupAbandoned(
     // This subgroup has already been reset, ignore.
     return;
   }
+  reset_subgroups_.insert(index);
   QUICHE_DCHECK_GE(group, first_active_group_);
   std::optional<webtransport::StreamId> stream_id =
       stream_map().GetStreamFor(index);
@@ -2286,6 +2312,15 @@ void MoqtSession::OutgoingDataStream::OnCanWrite() {
     return;
   }
   SendObjects(*subscription);
+}
+
+void MoqtSession::OutgoingDataStream::OnStopSendingReceived(
+    webtransport::StreamErrorCode error_code) {
+  PublishedSubscription* subscription = GetSubscriptionIfValid();
+  if (subscription == nullptr) {
+    return;
+  }
+  subscription->OnSubgroupAbandoned(index_.group, index_.subgroup, error_code);
 }
 
 void MoqtSession::OutgoingDataStream::DeliveryTimeoutDelegate::OnAlarm() {
@@ -2557,6 +2592,28 @@ void MoqtSession::PublishedSubscription::ProcessObjectAck(
   monitoring_interface_->OnObjectAckReceived(
       Location(message.group_id, message.object_id),
       message.delta_from_deadline);
+}
+
+void MoqtSessionParameters::ToSetupParameters(SetupParameters& out) const {
+  if (perspective == quic::Perspective::IS_CLIENT && !using_webtrans) {
+    out.path = path;
+    out.authority = authority;
+  }
+  if (max_request_id != kDefaultMaxRequestId) {
+    out.max_request_id = max_request_id;
+  }
+  if (max_auth_token_cache_size != kDefaultMaxAuthTokenCacheSize) {
+    out.max_auth_token_cache_size = max_auth_token_cache_size;
+  }
+  if (support_object_acks != kDefaultSupportObjectAcks) {
+    out.support_object_acks = support_object_acks;
+  }
+  if (!moqt_implementation.empty()) {
+    out.moqt_implementation = moqt_implementation;
+  }
+  for (const AuthToken& token : authorization_token) {
+    out.authorization_tokens.push_back(token);
+  }
 }
 
 }  // namespace moqt

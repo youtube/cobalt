@@ -1167,6 +1167,8 @@ void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
   UNIMPLEMENTED();
 }
 
+void InstructionSelector::VisitUint64Add128(OpIndex node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitUint32MulHigh(OpIndex node) {
   PPCOperandGenerator g(this);
   const WordBinopOp& op = Cast<WordBinopOp>(node);
@@ -2482,12 +2484,12 @@ void InstructionSelector::VisitInt64AbsWithOverflow(OpIndex node) {
     Emit(kPPC_##T##Splat | LaneSizeField::encode(LaneSize),     \
          g.DefineAsRegister(node), g.UseRegister(op.input(0))); \
   }
-SIMD_VISIT_SPLAT(F64x2, F, 64)
-SIMD_VISIT_SPLAT(F32x4, F, 32)
-SIMD_VISIT_SPLAT(I64x2, I, 64)
-SIMD_VISIT_SPLAT(I32x4, I, 32)
-SIMD_VISIT_SPLAT(I16x8, I, 16)
-SIMD_VISIT_SPLAT(I8x16, I, 8)
+SIMD_VISIT_SPLAT(F64x2, F, LaneSize::kL64)
+SIMD_VISIT_SPLAT(F32x4, F, LaneSize::kL32)
+SIMD_VISIT_SPLAT(I64x2, I, LaneSize::kL64)
+SIMD_VISIT_SPLAT(I32x4, I, LaneSize::kL32)
+SIMD_VISIT_SPLAT(I16x8, I, LaneSize::kL16)
+SIMD_VISIT_SPLAT(I8x16, I, LaneSize::kL8)
 #undef SIMD_VISIT_SPLAT
 
 #define SIMD_VISIT_EXTRACT_LANE(Type, T, Sign, LaneSize)                   \
@@ -2500,14 +2502,14 @@ SIMD_VISIT_SPLAT(I8x16, I, 8)
          g.DefineAsRegister(node), g.UseRegister(op.input(0)),             \
          g.UseImmediate(lane));                                            \
   }
-SIMD_VISIT_EXTRACT_LANE(F64x2, F, , 64)
-SIMD_VISIT_EXTRACT_LANE(F32x4, F, , 32)
-SIMD_VISIT_EXTRACT_LANE(I64x2, I, , 64)
-SIMD_VISIT_EXTRACT_LANE(I32x4, I, , 32)
-SIMD_VISIT_EXTRACT_LANE(I16x8, I, U, 16)
-SIMD_VISIT_EXTRACT_LANE(I16x8, I, S, 16)
-SIMD_VISIT_EXTRACT_LANE(I8x16, I, U, 8)
-SIMD_VISIT_EXTRACT_LANE(I8x16, I, S, 8)
+SIMD_VISIT_EXTRACT_LANE(F64x2, F, , LaneSize::kL64)
+SIMD_VISIT_EXTRACT_LANE(F32x4, F, , LaneSize::kL32)
+SIMD_VISIT_EXTRACT_LANE(I64x2, I, , LaneSize::kL64)
+SIMD_VISIT_EXTRACT_LANE(I32x4, I, , LaneSize::kL32)
+SIMD_VISIT_EXTRACT_LANE(I16x8, I, U, LaneSize::kL16)
+SIMD_VISIT_EXTRACT_LANE(I16x8, I, S, LaneSize::kL16)
+SIMD_VISIT_EXTRACT_LANE(I8x16, I, U, LaneSize::kL8)
+SIMD_VISIT_EXTRACT_LANE(I8x16, I, S, LaneSize::kL8)
 #undef SIMD_VISIT_EXTRACT_LANE
 
 #define SIMD_VISIT_REPLACE_LANE(Type, T, LaneSize)                   \
@@ -2520,12 +2522,12 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, I, S, 8)
          g.DefineSameAsFirst(node), g.UseRegister(op.input(0)),      \
          g.UseImmediate(lane), g.UseRegister(op.input(1)));          \
   }
-SIMD_VISIT_REPLACE_LANE(F64x2, F, 64)
-SIMD_VISIT_REPLACE_LANE(F32x4, F, 32)
-SIMD_VISIT_REPLACE_LANE(I64x2, I, 64)
-SIMD_VISIT_REPLACE_LANE(I32x4, I, 32)
-SIMD_VISIT_REPLACE_LANE(I16x8, I, 16)
-SIMD_VISIT_REPLACE_LANE(I8x16, I, 8)
+SIMD_VISIT_REPLACE_LANE(F64x2, F, LaneSize::kL64)
+SIMD_VISIT_REPLACE_LANE(F32x4, F, LaneSize::kL32)
+SIMD_VISIT_REPLACE_LANE(I64x2, I, LaneSize::kL64)
+SIMD_VISIT_REPLACE_LANE(I32x4, I, LaneSize::kL32)
+SIMD_VISIT_REPLACE_LANE(I16x8, I, LaneSize::kL16)
+SIMD_VISIT_REPLACE_LANE(I8x16, I, LaneSize::kL8)
 #undef SIMD_VISIT_REPLACE_LANE
 
 #define SIMD_VISIT_BINOP(Opcode)                                              \

@@ -527,7 +527,7 @@ class QUICHE_EXPORT QuicSpdySession
   // corresponding type. Returns the pointer to the newly created stream, or
   // nullptr if the stream type is not yet available.
   QuicStream* ProcessReadUnidirectionalPendingStream(
-      PendingStream* pending) override;
+      PendingStream& pending) override;
 
   size_t WriteHeadersOnHeadersStreamImpl(
       QuicStreamId id, quiche::HttpHeaderBlock headers, bool fin,

@@ -129,6 +129,49 @@ WASM_EXEC_TEST(I64MulUseOnlyLowWord) {
   }
 }
 
+#if V8_TARGET_ARCH_X64
+WASM_EXEC_TEST(I64MulWideS) {
+  i::v8_flags.experimental_wasm_wide_arithmetic = true;
+  WasmRunner<int64_t, int64_t, int64_t> r(execution_tier);
+  const WasmGlobal* global = r.builder().AddGlobal(kWasmI64);
+  r.Build({WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+           WASM_NUMERIC_OP(kExprI64MulWideS), kExprGlobalSet, 0});
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      int64_t expected_low = base::MulWithWraparound(i, j);
+      int64_t expected_high = base::bits::SignedMulHigh64(i, j);
+
+      int64_t actual_low = r.Call(i, j);
+      int64_t actual_high = r.builder().ReadGlobal(*global).to_i64();
+
+      CHECK_EQ(expected_low, actual_low);
+      CHECK_EQ(expected_high, actual_high);
+    }
+  }
+}
+
+WASM_EXEC_TEST(I64MulWideU) {
+  i::v8_flags.experimental_wasm_wide_arithmetic = true;
+  WasmRunner<int64_t, int64_t, int64_t> r(execution_tier);
+  const WasmGlobal* global = r.builder().AddGlobal(kWasmI64);
+  r.Build({WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
+           WASM_NUMERIC_OP(kExprI64MulWideU), kExprGlobalSet, 0});
+  FOR_UINT64_INPUTS(i) {
+    FOR_UINT64_INPUTS(j) {
+      int64_t expected_low = static_cast<int64_t>(i * j);
+      int64_t expected_high =
+          static_cast<int64_t>(base::bits::UnsignedMulHigh64(i, j));
+
+      int64_t actual_low = r.Call(i, j);
+      int64_t actual_high = r.builder().ReadGlobal(*global).to_i64();
+
+      CHECK_EQ(expected_low, actual_low);
+      CHECK_EQ(expected_high, actual_high);
+    }
+  }
+}
+#endif
+
 WASM_EXEC_TEST(I64ShlUseOnlyLowWord) {
   WasmRunner<int32_t, int64_t, int64_t> r(execution_tier);
   r.Build({WASM_I32_CONVERT_I64(

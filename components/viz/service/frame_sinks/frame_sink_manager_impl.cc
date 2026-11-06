@@ -103,7 +103,7 @@ FrameSinkManagerImpl::FrameSinkManagerImpl(const InitParams& params)
       hint_session_factory_(params.hint_session_factory),
       frame_sink_manager_receiver_(std::in_place_type<Receiver>, this) {
   if (mojo::IsDirectReceiverSupported() && mojo::IsAsyncIOSupported() &&
-      features::IsVizDirectCompositorThreadIpcFrameSinkManagerEnabled()) {
+      params.use_direct_receiver) {
     frame_sink_manager_receiver_.emplace<DirectReceiver>(
         mojo::DirectReceiverKey{}, this);
   }
@@ -892,12 +892,12 @@ InputManager* FrameSinkManagerImpl::GetInputManager() {
   return input_manager_.get();
 }
 
-void FrameSinkManagerImpl::SubmitHitTestRegionList(
+bool FrameSinkManagerImpl::SubmitHitTestRegionList(
     const SurfaceId& surface_id,
     uint64_t frame_index,
     std::optional<HitTestRegionList> hit_test_region_list) {
-  hit_test_manager_.SubmitHitTestRegionList(surface_id, frame_index,
-                                            std::move(hit_test_region_list));
+  return hit_test_manager_.SubmitHitTestRegionList(
+      surface_id, frame_index, std::move(hit_test_region_list));
 }
 
 void FrameSinkManagerImpl::OnFrameTokenChangedDirect(
@@ -1523,6 +1523,15 @@ void FrameSinkManagerImpl::RequestBeginFrameForGpuService(bool toggle) {
 
 GpuServiceImpl* FrameSinkManagerImpl::GetGpuService() {
   return gpu_service_;
+}
+
+bool FrameSinkManagerImpl::IsChildOf(const FrameSinkId& parent,
+                                     const FrameSinkId& child) const {
+  auto it = frame_sink_source_map_.find(parent);
+  if (it == frame_sink_source_map_.end()) {
+    return false;
+  }
+  return it->second.children.contains(child);
 }
 
 }  // namespace viz

@@ -7,7 +7,7 @@
 // Tests for the compiler-inlined insertion sort of Array.prototype.sort.
 // Both Maglev and Turbofan inline a small insertion sort for PACKED arrays
 // with a provided comparefn and length <= 8.  Larger arrays fall through
-// to the generic TimSort builtin.  These tests are tier-neutral; the test
+// to the generic PowerSort builtin.  These tests are tier-neutral; the test
 // runner variants exercise both compiler tiers.
 
 // ---------------------------------------------------------------------------

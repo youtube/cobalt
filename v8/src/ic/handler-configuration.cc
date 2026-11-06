@@ -513,21 +513,14 @@ void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
   switch (kind) {
     case LoadHandler::Kind::kElement:
       os << "kElement, ";
-      if (LoadHandler::IsWasmArrayBits::decode(raw_handler)) {
-        os << "WasmArray, "
-           << LoadHandler::WasmArrayTypeBits::decode(raw_handler);
-
-      } else {
-        os << "allow out of bounds = "
-           << LoadHandler::AllowOutOfBoundsBits::decode(raw_handler)
-           << ", is JSArray = "
-           << LoadHandler::IsJsArrayBits::decode(raw_handler)
-           << ", allow reading holes = "
-           << LoadHandler::AllowHandlingHole::decode(raw_handler)
-           << ", elements kind = "
-           << ElementsKindToString(
-                  LoadHandler::ElementsKindBits::decode(raw_handler));
-      }
+      os << "allow out of bounds = "
+         << LoadHandler::AllowOutOfBoundsBits::decode(raw_handler)
+         << ", is JSArray = " << LoadHandler::IsJsArrayBits::decode(raw_handler)
+         << ", allow reading holes = "
+         << LoadHandler::AllowHandlingHole::decode(raw_handler)
+         << ", elements kind = "
+         << ElementsKindToString(
+                LoadHandler::ElementsKindBits::decode(raw_handler));
       break;
     case LoadHandler::Kind::kElementWithTransition:
       os << "kElementWithTransition, ";
@@ -551,20 +544,13 @@ void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
       os << "kGlobal";
       break;
     case LoadHandler::Kind::kField: {
-      if (LoadHandler::IsWasmStructBits::decode(raw_handler)) {
-        os << "kField, WasmStruct, type = "
-           << LoadHandler::WasmFieldTypeBits::decode(raw_handler)
-           << ", field offset = "
-           << LoadHandler::WasmFieldOffsetBits::decode(raw_handler);
-      } else {
-        os << "kField, is in object = "
-           << LoadHandler::IsInobjectBits::decode(raw_handler)
-           << ", is double = " << LoadHandler::IsDoubleBits::decode(raw_handler)
-           << ", storage offset in words = "
-           << LoadHandler::StorageOffsetInWordsBits::decode(raw_handler)
-           << ", descriptor index = "
-           << LoadHandler::DescriptorIndexBits::decode(raw_handler);
-      }
+      os << "kField, is in object = "
+         << LoadHandler::IsInobjectBits::decode(raw_handler)
+         << ", is double = " << LoadHandler::IsDoubleBits::decode(raw_handler)
+         << ", storage offset in words = "
+         << LoadHandler::StorageOffsetInWordsBits::decode(raw_handler)
+         << ", descriptor index = "
+         << LoadHandler::DescriptorIndexBits::decode(raw_handler);
       break;
     }
     case LoadHandler::Kind::kConstantFromPrototype:
@@ -754,9 +740,6 @@ void StoreHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
   }
 }
 
-std::ostream& operator<<(std::ostream& os, WasmValueType type) {
-  return os << WasmValueType2String(type);
-}
 
 #endif  // defined(OBJECT_PRINT)
 

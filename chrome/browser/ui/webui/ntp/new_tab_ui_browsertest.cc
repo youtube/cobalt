@@ -58,7 +58,7 @@ class NewTabUIBrowserTest : public InProcessBrowserTest {
 // Navigate to incognito NTP. Fails if there are console errors.
 IN_PROC_BROWSER_TEST_F(NewTabUIBrowserTest, ShowIncognito) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(CreateIncognitoBrowser(),
-                                           GURL(chrome::kChromeUINewTabURL)));
+                                           chrome::ChromeUINewTabURLAsGURL()));
 }
 
 class NewTabUIProcessPerTabTest : public NewTabUIBrowserTest {
@@ -72,12 +72,12 @@ class NewTabUIProcessPerTabTest : public NewTabUIBrowserTest {
 
 // Navigates away from NTP before it commits, in process-per-tab mode.
 // Ensures that we don't load the normal page in the NTP process (and thus
-// crash), as in http://crbug.com/69224.
-// If this flakes, use http://crbug.com/87200
+// crash), as in http://crbug.com/41301876.
+// If this flakes, use http://crbug.com/40588433
 IN_PROC_BROWSER_TEST_F(NewTabUIProcessPerTabTest, NavBeforeNTPCommits) {
   // Bring up a new tab page.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
-                                           GURL(chrome::kChromeUINewTabURL)));
+                                           chrome::ChromeUINewTabURLAsGURL()));
 
   // Navigate to chrome://hang/ to stall the process.
   ui_test_utils::NavigateToURLWithDisposition(
@@ -86,7 +86,7 @@ IN_PROC_BROWSER_TEST_F(NewTabUIProcessPerTabTest, NavBeforeNTPCommits) {
 
   // Visit a normal URL in another NTP that hasn't committed.
   ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL(chrome::kChromeUINewTabURL),
+      browser(), chrome::ChromeUINewTabURLAsGURL(),
       WindowOpenDisposition::NEW_FOREGROUND_TAB, 0);
 
   // We don't use ui_test_utils::NavigateToURLWithDisposition because that waits

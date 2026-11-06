@@ -20,12 +20,25 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-segments-tq-inl.inc"
+Tagged<Managed<IcuBreakIteratorWithText>> JSSegments::icu_iterator_with_text()
+    const {
+  return Cast<Managed<IcuBreakIteratorWithText>>(
+      icu_iterator_with_text_.load());
+}
+void JSSegments::set_icu_iterator_with_text(
+    Tagged<Managed<IcuBreakIteratorWithText>> value, WriteBarrierMode mode) {
+  icu_iterator_with_text_.store(this, value, mode);
+}
 
-// Base segments accessors.
-ACCESSORS(JSSegments, icu_iterator_with_text,
-          Tagged<Managed<IcuBreakIteratorWithText>>, kIcuIteratorWithTextOffset)
-ACCESSORS(JSSegments, raw_string, Tagged<String>, kRawStringOffset)
+Tagged<String> JSSegments::raw_string() const { return raw_string_.load(); }
+void JSSegments::set_raw_string(Tagged<String> value, WriteBarrierMode mode) {
+  raw_string_.store(this, value, mode);
+}
+
+int JSSegments::flags() const { return flags_.load().value(); }
+void JSSegments::set_flags(int value) {
+  flags_.store(this, Smi::FromInt(value));
+}
 
 inline void JSSegments::set_granularity(JSSegmenter::Granularity granularity) {
   DCHECK(GranularityBits::is_valid(granularity));

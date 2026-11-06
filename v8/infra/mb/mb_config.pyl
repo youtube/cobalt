@@ -117,7 +117,7 @@
       'V8 Linux64 - coverage - debug': 'debug_x64_coverage',
       'V8 Linux64 - cppgc-non-default - debug - builder': 'debug_x64_non_default_cppgc',
       'V8 Linux64 - debug - perfetto - builder': 'debug_x64_perfetto',
-      'V8 Linux64 - disable runtime call stats - builder': 'release_x64_disable_runtime_call_stats',
+      'V8 Linux64 - runtime call stats - builder': 'release_x64_runtime_call_stats',
       'V8 Linux64 - debug - single generation - builder': 'debug_x64_single_generation',
       'V8 Linux64 - dumpling - builder': 'release_x64_dumpling',
       'V8 Linux64 - no pointer compression - builder': 'release_x64_no_pointer_compression',
@@ -289,7 +289,7 @@
       'v8_linux64_coverage_rel': 'release_x64_coverage',
       'v8_linux64_no_sandbox_compile_dbg': 'debug_x64_no_sandbox',
       'v8_linux64_dict_tracking_compile_dbg': 'debug_x64_dict_tracking_trybot',
-      'v8_linux64_disable_runtime_call_stats_compile_rel': 'release_x64_disable_runtime_call_stats',
+      'v8_linux64_runtime_call_stats_compile_rel': 'release_x64_runtime_call_stats',
       'v8_linux64_css_compile_dbg': 'debug_x64_conservative_stack_scanning',
       'v8_linux64_dumpling_compile_rel': 'release_x64_dumpling',
       'v8_linux64_full_compile_dbg': 'full_debug_x64',
@@ -655,8 +655,8 @@
     'release_x64_correctness_fuzzer_undefined_double' : [
       'release_bot', 'x64', 'v8_correctness_fuzzer',
       'v8_enable_undefined_double'],
-    'release_x64_disable_runtime_call_stats': [
-      'release_bot', 'x64', 'v8_disable_runtime_call_stats'],
+    'release_x64_runtime_call_stats': [
+      'release_bot', 'x64', 'v8_enable_runtime_call_stats'],
     'release_x64_fuchsia': [
       'release_bot', 'x64', 'fuchsia'],
     'release_x64_fuchsia_trybot': [
@@ -1120,10 +1120,6 @@
       'gn_args': 'v8_correctness_fuzzer=true v8_multi_arch_build=true',
     },
 
-    'v8_disable_runtime_call_stats': {
-      'gn_args': 'v8_enable_runtime_call_stats=false',
-    },
-
     'v8_disable_verify_heap': {
       'gn_args': 'v8_enable_verify_heap=false',
     },
@@ -1149,6 +1145,10 @@
 
     'v8_enable_lite_mode': {
       'gn_args': 'v8_enable_lite_mode=true',
+    },
+
+    'v8_enable_runtime_call_stats': {
+      'gn_args': 'v8_enable_runtime_call_stats=true',
     },
 
     'v8_enable_slow_dchecks': {

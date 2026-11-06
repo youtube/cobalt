@@ -63,7 +63,7 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
 
   // Overridden to handle conversion from bidi pending stream.
   QuicStream* ProcessBidirectionalPendingStream(
-      PendingStream* pending) override;
+      PendingStream& pending) override;
 
   QuicSimpleServerBackend* server_backend() {
     return quic_simple_server_backend_;

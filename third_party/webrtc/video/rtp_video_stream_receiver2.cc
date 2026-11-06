@@ -825,8 +825,8 @@ void RtpVideoStreamReceiver2::OnInsertedPacket(
   RTC_DCHECK_RUN_ON(&worker_task_checker_);
   video_coding::PacketBuffer::Packet* first_packet = nullptr;
   int max_nack_count;
-  int64_t min_recv_time;
-  int64_t max_recv_time;
+  Timestamp min_recv_time = Timestamp::PlusInfinity();
+  Timestamp max_recv_time = Timestamp::MinusInfinity();
   std::optional<int64_t> absolute_capture_time_ms;
   std::vector<std::span<const uint8_t>> payloads;
   RtpPacketInfos::vector_type packet_infos;
@@ -856,8 +856,8 @@ void RtpVideoStreamReceiver2::OnInsertedPacket(
       packet_infos.clear();
       first_packet = packet.get();
       max_nack_count = packet->times_nacked;
-      min_recv_time = packet_info.receive_time().ms();
-      max_recv_time = packet_info.receive_time().ms();
+      min_recv_time = packet_info.receive_time();
+      max_recv_time = packet_info.receive_time();
       if (env_.field_trials().IsEnabled("WebRTC-UseAbsCapTimeForG2gMetric") &&
           packet_info.absolute_capture_time().has_value() &&
           packet_info.local_capture_clock_offset().has_value()) {
@@ -869,8 +869,8 @@ void RtpVideoStreamReceiver2::OnInsertedPacket(
       }
     } else {
       max_nack_count = std::max(max_nack_count, packet->times_nacked);
-      min_recv_time = std::min(min_recv_time, packet_info.receive_time().ms());
-      max_recv_time = std::max(max_recv_time, packet_info.receive_time().ms());
+      min_recv_time = std::min(min_recv_time, packet_info.receive_time());
+      max_recv_time = std::max(max_recv_time, packet_info.receive_time());
     }
     payloads.emplace_back(packet->video_payload);
     packet_infos.push_back(packet_info);

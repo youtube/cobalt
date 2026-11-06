@@ -69,7 +69,6 @@ set(
   crypto/fipsmodule/ec/ec_montgomery.cc.inc
   crypto/fipsmodule/ec/felem.cc.inc
   crypto/fipsmodule/ec/oct.cc.inc
-  crypto/fipsmodule/ec/p224-64.cc.inc
   crypto/fipsmodule/ec/p256-nistz.cc.inc
   crypto/fipsmodule/ec/p256.cc.inc
   crypto/fipsmodule/ec/scalar.cc.inc
@@ -861,6 +860,7 @@ set(
   crypto/blake2/blake2b256_tests.txt
   crypto/cipher/test/aes_128_cbc_sha1_tls_implicit_iv_tests.txt
   crypto/cipher/test/aes_128_cbc_sha1_tls_tests.txt
+  crypto/cipher/test/aes_128_cbc_sha256_tls_tests.txt
   crypto/cipher/test/aes_128_ccm_bluetooth_8_tests.txt
   crypto/cipher/test/aes_128_ccm_bluetooth_tests.txt
   crypto/cipher/test/aes_128_ccm_matter_tests.txt
@@ -2900,6 +2900,7 @@ set(
   pki/testdata/verify_unittest/mtc-leaf-b.pem
   pki/testdata/verify_unittest/mtc-leaf-bitflip.pem
   pki/testdata/verify_unittest/mtc-leaf-c.pem
+  pki/testdata/verify_unittest/mtc-leaf-unused-bit.pem
   pki/testdata/verify_unittest/mtc-leaf.pem
   pki/testdata/verify_unittest/self-issued.pem
 )

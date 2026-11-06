@@ -1412,8 +1412,8 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kArrayReduceLoopContinuation:
     case Builtin::kArrayReduceRightLoopContinuation:
     case Builtin::kArraySomeLoopContinuation:
-    case Builtin::kArrayTimSort:
-    case Builtin::kArrayTimSortIntoCopy:
+    case Builtin::kArrayPowerSort:
+    case Builtin::kArrayPowerSortIntoCopy:
     case Builtin::kCall_ReceiverIsAny:
     case Builtin::kCall_ReceiverIsNotNullOrUndefined:
     case Builtin::kCall_ReceiverIsNullOrUndefined:

@@ -152,11 +152,20 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case SCOPE_INFO_TYPE:
       return kVisitScopeInfo;
 
+    case DESCRIPTOR_ARRAY_TYPE:
+      return kVisitDescriptorArray;
+
+    case STRONG_DESCRIPTOR_ARRAY_TYPE:
+      return kVisitStrongDescriptorArray;
+
     case FEEDBACK_CELL_TYPE:
       return kVisitFeedbackCell;
 
     case FEEDBACK_METADATA_TYPE:
       return kVisitFeedbackMetadata;
+
+    case FEEDBACK_VECTOR_TYPE:
+      return kVisitFeedbackVector;
 
     case ODDBALL_TYPE:
       return kVisitOddball;
@@ -387,6 +396,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 
     case JS_WEAK_REF_TYPE:
       return kVisitJSWeakRef;
+
+    case JS_PROXY_TYPE:
+      return kVisitJSProxy;
 
     case WEAK_CELL_TYPE:
       return kVisitWeakCell;

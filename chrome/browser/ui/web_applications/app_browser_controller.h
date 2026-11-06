@@ -225,12 +225,19 @@ class AppBrowserController : public ui::ColorProviderKey::InitializerSupplier,
 
   virtual bool CanUserUninstall() const;
 
+  // Returns whether the app was preinstalled only, and not installed
+  // by any other sources.
+  virtual bool IsPreinstalledOnly() const;
+
   virtual void Uninstall(
       webapps::WebappUninstallSource webapp_uninstall_source);
 
   // Returns whether the app is installed (uninstallation may complete within
   // the lifetime of HostedAppBrowserController).
   virtual bool IsInstalled() const;
+
+  // Returns whether this is the first launch of the app after it was installed.
+  virtual bool IsFirstLaunchAfterInstall() const;
 
   // Returns an optional custom tab menu model factory.
   virtual std::unique_ptr<TabMenuModelFactory> GetTabMenuModelFactory() const;

@@ -21,6 +21,7 @@
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_version_manager.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -43,8 +44,10 @@ using MoqtIncomingSessionCallback =
 // A simple MoQT server.
 class QUICHE_EXPORT MoqtServer {
  public:
-  explicit MoqtServer(std::unique_ptr<quic::ProofSource> proof_source,
-                      MoqtIncomingSessionCallback callback);
+  explicit MoqtServer(
+      std::unique_ptr<quic::ProofSource> proof_source,
+      MoqtIncomingSessionCallback callback,
+      MoqtSessionParameters session_parameters = MoqtSessionParameters());
 
   MoqtServer(const MoqtServer&) = delete;
   MoqtServer(MoqtServer&&) = delete;
@@ -65,6 +68,7 @@ class QUICHE_EXPORT MoqtServer {
   quic::DeterministicConnectionIdGenerator connection_id_generator_;
   std::unique_ptr<quic::QuicEventLoop> event_loop_;
   quic::WebTransportOnlyDispatcher dispatcher_;
+  MoqtSessionParameters session_parameters_;
 
   quic::OwnedSocketFd fd_;
   std::unique_ptr<quic::QuicServerIoHarness> io_;

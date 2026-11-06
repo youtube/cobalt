@@ -17,7 +17,6 @@
 
 namespace v8::internal::wasm {
 
-using compiler::turboshaft::WasmBodyInliningResult;
 using TSBlock = compiler::turboshaft::Block;
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
@@ -62,6 +61,28 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildChangeInt32ToNumber(
 }
 
 template <typename Assembler>
+auto WasmWrapperTSGraphBuilder<Assembler>::BuildToJSFunctionRef(
+    V<WasmFuncRef> ret, V<Context> context) -> V<Object> {
+  V<WasmInternalFunction> internal = V<WasmInternalFunction>::Cast(
+      __ LoadTrustedPointer(ret, LoadOp::Kind::TaggedBase(),
+                            kWasmInternalFunctionIndirectPointerTag,
+                            WasmFuncRef::kTrustedInternalOffset));
+  V<Object> maybe_external = __ Load(internal, LoadOp::Kind::TaggedBase(),
+                                     MemoryRepresentation::TaggedPointer(),
+                                     WasmInternalFunction::kExternalOffset);
+  ScopedVar<Object> result(this, OpIndex::Invalid());
+  IF (__ TaggedEqual(maybe_external,
+                     __ template LoadRoot<RootIndex::kUndefinedValue>())) {
+    result = CallBuiltin<WasmInternalFunctionCreateExternalDescriptor>(
+        Builtin::kWasmInternalFunctionCreateExternal, Operator::kNoProperties,
+        internal, context);
+  } ELSE {
+    result = maybe_external;
+  }
+  return result;
+}
+
+template <typename Assembler>
 auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
                                                 CanonicalValueType type,
                                                 V<Context> context)
@@ -92,46 +113,18 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
 
   if (type.ref_type_kind() == RefTypeKind::kFunction) {
     // Function reference. Extract the external function.
-    ScopedVar<Object> result(this, OpIndex::Invalid());
     if (type.is_nullable()) {
+      ScopedVar<Object> result(this, OpIndex::Invalid());
       IF (__ TaggedEqual(ret, __ template LoadRoot<RootIndex::kWasmNull>())) {
         result = __ template LoadRoot<RootIndex::kNullValue>();
       } ELSE {
-        V<WasmInternalFunction> internal = V<WasmInternalFunction>::Cast(
-            __ LoadTrustedPointer(ret, LoadOp::Kind::TaggedBase(),
-                                  kWasmInternalFunctionIndirectPointerTag,
-                                  WasmFuncRef::kTrustedInternalOffset));
-        V<Object> maybe_external =
-            __ Load(internal, LoadOp::Kind::TaggedBase(),
-                    MemoryRepresentation::AnyTagged(),
-                    WasmInternalFunction::kExternalOffset);
-        IF (__ TaggedEqual(
-                maybe_external,
-                __ template LoadRoot<RootIndex::kUndefinedValue>())) {
-          result = CallBuiltin<WasmInternalFunctionCreateExternalDescriptor>(
-              Builtin::kWasmInternalFunctionCreateExternal,
-              Operator::kNoProperties, internal, context);
-        } ELSE {
-          result = maybe_external;
-        }
+        result = BuildToJSFunctionRef(V<WasmFuncRef>::Cast(ret), context);
       }
+      return result;
     } else {
       // Non-nullable funcref.
-      V<WasmInternalFunction> internal = V<WasmInternalFunction>::Cast(
-          __ LoadTrustedPointer(ret, LoadOp::Kind::TaggedBase(),
-                                kWasmInternalFunctionIndirectPointerTag,
-                                WasmFuncRef::kTrustedInternalOffset));
-      result = __ Load(internal, LoadOp::Kind::TaggedBase(),
-                       MemoryRepresentation::TaggedPointer(),
-                       WasmInternalFunction::kExternalOffset);
-      IF (__ TaggedEqual(result,
-                         __ template LoadRoot<RootIndex::kUndefinedValue>())) {
-        result = CallBuiltin<WasmInternalFunctionCreateExternalDescriptor>(
-            Builtin::kWasmInternalFunctionCreateExternal,
-            Operator::kNoProperties, internal, context);
-      }
+      return BuildToJSFunctionRef(V<WasmFuncRef>::Cast(ret), context);
     }
-    return result;
   }
 
   // Always null.
@@ -207,103 +200,52 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCallWasmFromWrapper(
 }
 
 template <typename Assembler>
-auto WasmWrapperTSGraphBuilder<Assembler>::BuildCallAndReturn(
-    V<Context> js_context, V<HeapObject> function_data,
-    base::Vector<OpIndex> args, OptionalV<FrameState> frame_state,
-    compiler::LazyDeoptOnThrow lazy_deopt_on_throw) -> OpIndex {
-  const int rets_count = static_cast<int>(sig_->return_count());
-  base::SmallVector<OpIndex, 1> rets(rets_count);
-
-  V<WasmInternalFunction> internal =
-      V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
-          function_data, LoadOp::Kind::TaggedBase().Immutable(),
-          WasmExportedFunctionData::kProtectedInternalOffset));
-  auto [target, implicit_arg] =
-      this->BuildFunctionTargetAndImplicitArg(internal);
-  args[0] = implicit_arg;
-  BuildCallWasmFromWrapper(__ phase_zone(), sig_, target, args,
-                           base::VectorOf(rets), frame_state,
-                           lazy_deopt_on_throw);
-
-  V<Object> jsval;
+auto WasmWrapperTSGraphBuilder<Assembler>::ConvertWasmResultsToJS(
+    base::Vector<OpIndex> returns, V<Context> js_context) -> V<Object> {
   if (sig_->return_count() == 0) {
     DCHECK_NOT_NULL(__ data()->isolate());
-    jsval = __ HeapConstant(__ data()->isolate()->factory()->undefined_value());
+    return __ HeapConstant(__ data()->isolate()->factory()->undefined_value());
   } else if (sig_->return_count() == 1) {
-    jsval = ToJS(rets[0], sig_->GetReturn(), js_context);
+    return ToJS(returns[0], sig_->GetReturn(), js_context);
   } else {
+    // We currently cannot inline Wasm functions with multi-return.
+    DCHECK(!is_inlining_into_js_);
     int32_t return_count = static_cast<int32_t>(sig_->return_count());
     V<Smi> size = __ SmiConstant(Smi::FromInt(return_count));
 
-    jsval = BuildCallAllocateJSArray(size, js_context);
+    V<Object> jsval = BuildCallAllocateJSArray(size, js_context);
 
     V<FixedArray> fixed_array = __ Load(jsval, LoadOp::Kind::TaggedBase(),
                                         MemoryRepresentation::TaggedPointer(),
                                         JSObject::kElementsOffset);
 
     for (int i = 0; i < return_count; ++i) {
-      V<Object> value = ToJS(rets[i], sig_->GetReturn(i), js_context);
+      V<Object> value = ToJS(returns[i], sig_->GetReturn(i), js_context);
       __ StoreFixedArrayElement(fixed_array, i, value,
                                 compiler::kFullWriteBarrier);
     }
+    return jsval;
   }
-  return jsval;
 }
 
 template <typename Assembler>
-auto WasmWrapperTSGraphBuilder<Assembler>::InlineWasmFunctionInsideWrapper(
-    V<Context> js_context, V<WasmFunctionData> function_data,
-    base::Vector<OpIndex> inlined_args, OptionalV<FrameState> frame_state,
-    compiler::LazyDeoptOnThrow lazy_deopt_on_throw) -> V<Object> {
-  if constexpr (requires(const Assembler& assembler) {
-                  assembler.has_wasm_in_js_inlining_reducer;
-                }) {
-    if (inlined_function_data_.has_value()) {
-      CHECK(v8_flags.turboshaft_wasm_in_js_inlining);
-      WasmBodyInliningResult inlining_result =
-          static_cast<Assembler*>(&Asm())->TryInlineWasmBody(
-              inlined_function_data_.value(), inlined_args,
-              lazy_deopt_on_throw);
-      // If the body inlining traps unconditionally (e.g., due to an
-      // unreachable) no need to produce/convert a result.
-      if (__ generating_unreachable_operations()) {
-        return OpIndex::Invalid();
-      }
-      switch (inlining_result.type) {
-        case WasmBodyInliningResult::Type::kSuccessWithValue:
-          DCHECK_EQ(sig_->return_count(), 1);
-          DCHECK(inlining_result.value.valid());
-          return ToJS(inlining_result.value.value(), sig_->GetReturn(),
-                      js_context);
-        case WasmBodyInliningResult::Type::kSuccessVoid:
-          DCHECK_EQ(sig_->return_count(), 0);
-          DCHECK_NOT_NULL(__ data()->isolate());
-          DCHECK(!inlining_result.value.valid());
-          return __ HeapConstant(
-              __ data()->isolate()->factory()->undefined_value());
-        case WasmBodyInliningResult::Type::kFailed:
-          // Do nothing, building non-inlined call is handled below.
-          break;
-      }
-    }
-  }
-
-  // If the wasm function was not inlined, we need to call it.
-  return BuildCallAndReturn(js_context, function_data, inlined_args,
-                            frame_state, lazy_deopt_on_throw);
-}
-
-template <typename Assembler>
-auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
+auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
     V<JSFunction> js_closure, V<Context> js_context,
     base::Vector<const OpIndex> arguments,
     OptionalV<FrameState> lazy_frame_state,
     compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
     OptionalV<FrameState> caller_frame_state) -> V<Any> {
-  // These parameters are all set if and only if we are inlining the wrapper.
+  // JS-to-Wasm wrappers are compiled per isolate, so they can emit
+  // isolate-dependent code.
+  DCHECK_NOT_NULL(__ data()->isolate());
+
+  // All parameters are set if and only if we are inlining the wrapper.
   DCHECK_EQ(is_inlining_into_js_, js_closure.valid());
   DCHECK_EQ(is_inlining_into_js_, js_context.valid());
   DCHECK_EQ(is_inlining_into_js_, lazy_frame_state.valid());
+  DCHECK_IMPLIES(!is_inlining_into_js_, arguments.empty());
+  DCHECK_IMPLIES(!is_inlining_into_js_,
+                 lazy_deopt_on_throw == compiler::LazyDeoptOnThrow::kNo);
   // We only need a `caller_frame_state` if there actually are arguments to
   // convert.
   const int wasm_param_count = static_cast<int>(sig_->parameter_count());
@@ -360,8 +302,8 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
       __ LoadTrustedPointer(sfi, LoadOp::Kind::TaggedBase().Immutable(),
                             kWasmExportedFunctionDataIndirectPointerTag,
                             SharedFunctionInfo::kTrustedFunctionDataOffset));
-  // If we are not inlining the Wasm body, we don't need the Wasm instance.
 
+  // If we are not inlining the Wasm body, we don't need the Wasm instance.
   V<WasmTrustedInstanceData> instance_data =
       inlined_function_data_.has_value()
           ? V<WasmTrustedInstanceData>::Cast(__ LoadProtectedPointerField(
@@ -375,26 +317,57 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
   base::SmallVector<OpIndex, 16> args(args_count);
   args[0] = instance_data;
   for (int i = 0; i < wasm_param_count; ++i) {
-    args[i + 1] = FromJS(params[i], js_context, sig_->GetParam(i),
-                         caller_frame_state, lazy_deopt_on_throw);
+    args[i + 1] =
+        FromJS(params[i], js_context, sig_->GetParam(i), caller_frame_state);
   }
 
-  // Inline the wasm function, if possible.
-  V<Object> jsval =
-      InlineWasmFunctionInsideWrapper(js_context, function_data, VectorOf(args),
-                                      lazy_frame_state, lazy_deopt_on_throw);
-  return jsval;
+  // Inline the Wasm function body, if possible.
+  base::SmallVector<OpIndex, 1> returns(sig_->return_count());
+  compiler::turboshaft::WasmBodyInliningResult inlining_result;
+  if constexpr (requires { &Assembler::TryInlineWasmBody; }) {
+    if (inlined_function_data_.has_value()) {
+      CHECK(v8_flags.turboshaft_wasm_in_js_inlining);
+      inlining_result = __ TryInlineWasmBody(
+          inlined_function_data_.value(), VectorOf(args), lazy_deopt_on_throw);
+      // If the body inlining traps unconditionally (e.g., due to an
+      // unreachable) no need to produce/convert a result.
+      if (__ generating_unreachable_operations()) {
+        DCHECK(inlining_result.success);
+        return OpIndex::Invalid();
+      } else if (inlining_result.result.valid()) {
+        DCHECK(inlining_result.success);
+        DCHECK_EQ(returns.size(), 1);
+        returns[0] = inlining_result.result.value();
+      }
+    }
+  }
+
+  // If the wasm function was not inlined, we need to call it.
+  if (!inlining_result.success) {
+    V<WasmInternalFunction> internal =
+        V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
+            function_data, LoadOp::Kind::TaggedBase().Immutable(),
+            WasmExportedFunctionData::kProtectedInternalOffset));
+    auto [target, implicit_arg] =
+        this->BuildFunctionTargetAndImplicitArg(internal);
+    args[0] = implicit_arg;
+    BuildCallWasmFromWrapper(__ phase_zone(), sig_, target, VectorOf(args),
+                             base::VectorOf(returns), lazy_frame_state,
+                             lazy_deopt_on_throw);
+  }
+
+  // In either case (Wasm body was inlined or not), we need to convert the
+  // result(s) to JavaScript value(s).
+  return ConvertWasmResultsToJS(base::VectorOf(returns), js_context);
 }
 
 template <typename Assembler>
 void WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper() {
-  // JS-to-Wasm wrappers are compiled per isolate, so they can emit
-  // isolate-dependent code.
-  DCHECK_NOT_NULL(__ data()->isolate());
-  V<Any> result = BuildJSToWasmWrapperImpl(
-      OpIndex::Invalid(), OpIndex::Invalid(), {}, {},
-      compiler::LazyDeoptOnThrow::kNo, OpIndex::Invalid());
-  if (result != OpIndex::Invalid()) {  // Invalid signature.
+  DCHECK(!is_inlining_into_js_);
+  V<Any> result =
+      BuildJSToWasmWrapper(OpIndex::Invalid(), OpIndex::Invalid(), {}, {},
+                           compiler::LazyDeoptOnThrow::kNo, OpIndex::Invalid());
+  if (result.valid()) {  // Invalid signature.
     __ Return(result);
   }
 }

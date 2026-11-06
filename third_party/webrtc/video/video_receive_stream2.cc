@@ -615,11 +615,11 @@ void VideoReceiveStream2::UpdateHistograms() {
 
 void VideoReceiveStream2::CalculateCorruptionScore(
     const VideoFrame& frame,
-    const FrameInstrumentationData& frame_instrumentation_data,
+    FrameInstrumentationData frame_instrumentation_data,
     VideoContentType content_type) {
   RTC_DCHECK_RUNS_SERIALIZED(&decode_callback_race_checker_);
-  frame_evaluator_->OnInstrumentedFrame(frame_instrumentation_data, frame,
-                                        content_type);
+  frame_evaluator_->OnInstrumentedFrame(std::move(frame_instrumentation_data),
+                                        frame, content_type);
 }
 
 bool VideoReceiveStream2::SetBaseMinimumPlayoutDelayMs(int delay_ms) {

@@ -100,10 +100,14 @@ ComposeboxQueryControllerBridge::ComposeboxQueryControllerBridge(
     Profile* profile,
     content::WebContents* contextual_tasks_web_contents)
     : profile_{profile}, java_obj_(java_obj) {
+  is_task_scoped_ = contextual_tasks_web_contents != nullptr;
   if (contextual_tasks_web_contents &&
       !contextual_tasks_web_contents->IsBeingDestroyed()) {
     contextual_tasks_web_ui_interface_ =
         contextual_tasks::GetWebUiInterface(contextual_tasks_web_contents);
+    if (contextual_tasks_web_ui_interface_) {
+      contextual_tasks_web_ui_interface_->SetComposeboxHandler(this);
+    }
   }
 
   auto query_controller_config_params = std::make_unique<
@@ -155,6 +159,10 @@ void ComposeboxQueryControllerBridge::Destroy(JNIEnv* env) {
   }
 
   delete this;
+}
+
+void ComposeboxQueryControllerBridge::OnWebUIDestroyed(JNIEnv* env) {
+  contextual_tasks_web_ui_interface_ = nullptr;
 }
 
 size_t ComposeboxQueryControllerBridge::GetAttachmentCount() const {
@@ -631,12 +639,8 @@ void ComposeboxQueryControllerBridge::ResetInputStateModel() {
   input_state_model_.reset();
 }
 
-void ComposeboxQueryControllerBridge::ResetBlocklistedSuggestions() {
-  // TODO(crbug.com/493281303): Implement this.
-}
-
 void ComposeboxQueryControllerBridge::UpdateSuggestedTabContext(
-    std::unique_ptr<contextual_tasks::SuggestedTabInfo> suggested_tab) {
+    const contextual_tasks::SuggestedTabInfo* suggested_tab) {
   // TODO(crbug.com/493281303): Implement this.
 }
 
@@ -673,8 +677,31 @@ void ComposeboxQueryControllerBridge::UpdateModelFromUrl(const GURL& url) {
   }
 }
 
-bool ComposeboxQueryControllerBridge::has_suggested_tab_context() const {
-  return false;
+void ComposeboxQueryControllerBridge::SubmitQueryToAimPage(
+    JNIEnv* env,
+    const std::string& query) {
+  if (!contextual_tasks_web_ui_interface_) {
+    return;
+  }
+
+  omnibox::ToolMode active_tool = omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
+  omnibox::ModelMode active_model = omnibox::ModelMode::MODEL_MODE_UNSPECIFIED;
+  if (input_state_model_) {
+    contextual_search::InputState input_state =
+        input_state_model_->GetInputState();
+    active_tool = input_state.active_tool;
+    active_model = input_state.active_model;
+  }
+
+  auto request_info = contextual_tasks::PrepareClientToAimRequestInfo(
+      query, session_handle_.get(), contextual_tasks_web_ui_interface_,
+      active_tool, active_model,
+      /*active_tab_context_id=*/std::nullopt,
+      /*overlay_token=*/std::nullopt);
+
+  contextual_tasks::FinalizeAndSendAimQuery(std::move(request_info),
+                                            session_handle_.get(),
+                                            contextual_tasks_web_ui_interface_);
 }
 
 DEFINE_JNI(ComposeboxQueryControllerBridge)

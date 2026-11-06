@@ -2264,6 +2264,89 @@ TEST_F(SdpOfferAnswerTest,
   ASSERT_THAT(answer3, NotNull());
   EXPECT_FALSE(pc1->SetRemoteDescription(std::move(answer3)));
 }
+
+TEST_F(SdpOfferAnswerTest, SubsequentOfferDoesNotAddSctpInit) {
+  auto pc1 = CreatePeerConnection("WebRTC-Sctp-Snap/Enabled/");
+  auto pc2 = CreatePeerConnection("WebRTC-Sctp-Snap/Enabled/");
+  EXPECT_TRUE(pc1->pc()->CreateDataChannelOrError("dc", nullptr).ok());
+  auto offer = pc1->CreateOfferAndSetAsLocal();
+  ASSERT_THAT(offer, NotNull());
+
+  // Remove the sctp-init.
+  {
+    auto& contents = offer->description()->contents();
+    ASSERT_THAT(contents, SizeIs(1));
+    auto* media_description = contents[0].media_description();
+    ASSERT_THAT(media_description, NotNull());
+    auto* sctp_description = media_description->as_sctp();
+    ASSERT_THAT(sctp_description, NotNull());
+    EXPECT_TRUE(sctp_description->sctp_init());
+    sctp_description->set_sctp_init(std::nullopt);
+  }
+  EXPECT_TRUE(pc2->SetRemoteDescription(std::move(offer)));
+
+  auto answer = pc2->CreateAnswerAndSetAsLocal();
+  ASSERT_THAT(answer, NotNull());
+  EXPECT_TRUE(pc1->SetRemoteDescription(std::move(answer)));
+
+  auto reoffer = pc2->CreateOfferAndSetAsLocal();
+  // Check that there is no sctp-init.
+  {
+    auto& contents = reoffer->description()->contents();
+    ASSERT_THAT(contents, SizeIs(1));
+    auto* media_description = contents[0].media_description();
+    ASSERT_THAT(media_description, NotNull());
+    auto* sctp_description = media_description->as_sctp();
+    ASSERT_THAT(sctp_description, NotNull());
+    EXPECT_FALSE(sctp_description->sctp_init());
+  }
+  EXPECT_TRUE(pc1->SetRemoteDescription(std::move(reoffer)));
+}
+
+TEST_F(SdpOfferAnswerTest, SubsequentOfferDoesNotNegotiateSctpInit) {
+  auto pc1 = CreatePeerConnection("WebRTC-Sctp-Snap/Enabled/");
+  auto pc2 = CreatePeerConnection("WebRTC-Sctp-Snap/Enabled/");
+  EXPECT_TRUE(pc1->pc()->CreateDataChannelOrError("dc", nullptr).ok());
+  auto offer = pc1->CreateOfferAndSetAsLocal();
+  ASSERT_THAT(offer, NotNull());
+
+  // Remove the sctp-init.
+  {
+    auto& contents = offer->description()->contents();
+    ASSERT_THAT(contents, SizeIs(1));
+    auto* media_description = contents[0].media_description();
+    ASSERT_THAT(media_description, NotNull());
+    auto* sctp_description = media_description->as_sctp();
+    ASSERT_THAT(sctp_description, NotNull());
+    EXPECT_TRUE(sctp_description->sctp_init());
+    sctp_description->set_sctp_init(std::nullopt);
+  }
+  EXPECT_TRUE(pc2->SetRemoteDescription(std::move(offer)));
+
+  auto answer = pc2->CreateAnswerAndSetAsLocal();
+  ASSERT_THAT(answer, NotNull());
+  EXPECT_TRUE(pc1->SetRemoteDescription(std::move(answer)));
+
+  auto reoffer = pc2->CreateOfferAndSetAsLocal();
+  // Check that there is no sctp-init and add one.
+  {
+    auto& contents = reoffer->description()->contents();
+    ASSERT_THAT(contents, SizeIs(1));
+    auto* media_description = contents[0].media_description();
+    ASSERT_THAT(media_description, NotNull());
+    auto* sctp_description = media_description->as_sctp();
+    ASSERT_THAT(sctp_description, NotNull());
+    EXPECT_FALSE(sctp_description->sctp_init());
+    // Example sctp-init from
+    // draft-hancke-tsvwg-snap.html#section-4.1
+    std::vector<uint8_t> example_init = {
+        0x01, 0x00, 0x00, 0x1e, 0x89, 0x6c, 0xdd, 0x1d, 0x00, 0x50,
+        0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xe0, 0x79, 0x65, 0x1d,
+        0xc0, 0x00, 0x00, 0x04, 0x80, 0x08, 0x00, 0x06, 0x82, 0xc0};
+    sctp_description->set_sctp_init(example_init);
+  }
+  EXPECT_FALSE(pc1->SetRemoteDescription(std::move(reoffer)));
+}
 #endif  // WEBRTC_HAVE_SCTP
 
 class SdpOfferAnswerDirectionTest

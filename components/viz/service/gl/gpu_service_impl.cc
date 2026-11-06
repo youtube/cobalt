@@ -36,6 +36,7 @@
 #include "components/viz/common/features.h"
 #include "components/viz/common/resources/peak_gpu_memory_tracker_util.h"
 #include "components/viz/service/gl/gpu_log_message_manager.h"
+#include "components/vrp_flags/buildflags.h"
 #include "gpu/command_buffer/service/dawn_caching_interface.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/command_buffer/service/scheduler.h"
@@ -124,6 +125,11 @@
 #include "ui/ozone/public/ozone_platform.h"
 #include "ui/ozone/public/surface_factory_ozone.h"
 #endif  // BUILDFLAG(IS_OZONE)
+
+#if BUILDFLAG(ENABLE_VRP_FLAGS)
+#include "components/vrp_flags/vrp_flags.h"       // nogncheck
+#include "components/vrp_flags/vrp_flags_impl.h"  // nogncheck
+#endif                                            // BUILDFLAG(ENABLE_VRP_FLAGS)
 
 #if BUILDFLAG(IS_COBALT)
 #include "ui/gl/gl_display.h"
@@ -270,15 +276,18 @@ GpuServiceImpl::GpuServiceImpl(
 
 #if BUILDFLAG(IS_COBALT)
 GpuServiceImpl::PendingEstablishGpuChannelRequest::
-    PendingEstablishGpuChannelRequest(int32_t client_id,
-                                      uint64_t client_tracing_id,
-                                      bool is_gpu_host,
-                                      bool enable_extra_handles_validation,
-                                      EstablishGpuChannelCallback callback)
+    PendingEstablishGpuChannelRequest(
+        int32_t client_id,
+        uint64_t client_tracing_id,
+        bool is_gpu_host,
+        bool enable_extra_handles_validation,
+        mojo::ScopedMessagePipeHandle channel_handle,
+        EstablishGpuChannelCallback callback)
     : client_id(client_id),
       client_tracing_id(client_tracing_id),
       is_gpu_host(is_gpu_host),
       enable_extra_handles_validation(enable_extra_handles_validation),
+      channel_handle(std::move(channel_handle)),
       callback(std::move(callback)) {}
 
 GpuServiceImpl::PendingEstablishGpuChannelRequest::
@@ -684,14 +693,9 @@ void GpuServiceImpl::CreateWebNNContextProviderIfNeeded() {
     return;
   }
 
-  scoped_refptr<gpu::SharedContextState> shared_context_state =
-      GetContextState();
-  // `shared_context_state` may be nullptr if there is no GPU acceleration.
-  // For such case, WebNN CPU backend, e.g. TFLite XNNPACK, is still useful.
-
   webnn_context_provider_ = webnn::WebNNContextProviderImpl::Create(
-      std::move(shared_context_state), gpu_feature_info_, gpu_info_,
-      shared_image_manager(), gpu_channel_manager_->peak_memory_monitor(),
+      gpu_feature_info_, gpu_info_, shared_image_manager(),
+      gpu_channel_manager_->peak_memory_monitor(),
       base::BindOnce(&GpuServiceImpl::LoseAllContexts, weak_ptr_),
       main_runner(), GetGpuScheduler(), gpu_host_);
 }
@@ -891,12 +895,13 @@ bool GpuServiceImpl::IsExiting() const {
   return is_exiting_.IsSet();
 }
 
-void GpuServiceImpl::EstablishGpuChannel(int32_t client_id,
-                                         uint64_t client_tracing_id,
-                                         bool is_gpu_host,
-                                         bool enable_extra_handles_validation,
-                                         EstablishGpuChannelCallback callback) {
-  // This should always be called on the IO thread first.
+void GpuServiceImpl::EstablishGpuChannel(
+    int32_t client_id,
+    uint64_t client_tracing_id,
+    bool is_gpu_host,
+    bool enable_extra_handles_validation,
+    mojo::ScopedMessagePipeHandle channel_handle,
+    EstablishGpuChannelCallback callback) {
   if (io_runner_->BelongsToCurrentThread()) {
     if (IsExiting()) {
       // We are already exiting so there is no point in responding. Close the
@@ -906,21 +911,19 @@ void GpuServiceImpl::EstablishGpuChannel(int32_t client_id,
     }
 
     if (gpu::IsReservedClientId(client_id)) {
-      // This returns a null handle, which is treated by the client as a failure
-      // case.
-      std::move(callback).Run(mojo::ScopedMessagePipeHandle(), gpu::GPUInfo(),
+      std::move(callback).Run(/*success=*/false, gpu::GPUInfo(),
                               gpu::GpuFeatureInfo(),
                               gpu::SharedImageCapabilities());
       return;
     }
-
     EstablishGpuChannelCallback wrap_callback =
         base::BindPostTask(io_runner_, std::move(callback));
     main_runner_->PostTask(
-        FROM_HERE, base::BindOnce(&GpuServiceImpl::EstablishGpuChannel,
-                                  weak_ptr_, client_id, client_tracing_id,
-                                  is_gpu_host, enable_extra_handles_validation,
-                                  std::move(wrap_callback)));
+        FROM_HERE,
+        base::BindOnce(&GpuServiceImpl::EstablishGpuChannel, weak_ptr_,
+                       client_id, client_tracing_id, is_gpu_host,
+                       enable_extra_handles_validation,
+                       std::move(channel_handle), std::move(wrap_callback)));
     return;
   }
 
@@ -932,7 +935,8 @@ void GpuServiceImpl::EstablishGpuChannel(int32_t client_id,
   if (display && !display->IsInitialized()) {
     pending_establish_gpu_channel_requests_.push_back(
         {client_id, client_tracing_id, is_gpu_host,
-         enable_extra_handles_validation, std::move(callback)});
+         enable_extra_handles_validation, std::move(channel_handle),
+         std::move(callback)});
     return;
   }
 #endif
@@ -944,24 +948,22 @@ void GpuServiceImpl::EstablishGpuChannel(int32_t client_id,
       gpu_feature_info_);
 
   if (!gpu_channel) {
-    // This returns a null handle, which is treated by the client as a failure
-    // case.
-    std::move(callback).Run(mojo::ScopedMessagePipeHandle(), gpu::GPUInfo(),
+    std::move(callback).Run(/*success=*/false, gpu::GPUInfo(),
                             gpu::GpuFeatureInfo(),
                             gpu::SharedImageCapabilities());
     return;
   }
-  mojo::MessagePipe pipe;
+
   if (features::IsLegacyIpcDisabled()) {
-    gpu_channel->Start(std::move(pipe.handle0));
+    gpu_channel->Start(std::move(channel_handle));
   } else {
-    gpu_channel->Init(pipe.handle0.release(), shutdown_event_);
+    gpu_channel->Init(channel_handle.release(), shutdown_event_);
   }
 
   media_gpu_channel_manager_->AddChannel(client_id, channel_token);
 
   std::move(callback).Run(
-      std::move(pipe.handle1), gpu_info_, gpu_feature_info_,
+      /*success=*/true, gpu_info_, gpu_feature_info_,
       gpu_channel->shared_image_stub()->factory()->MakeCapabilities());
 }
 
@@ -1237,16 +1239,16 @@ void GpuServiceImpl::OnForegroundedOnMainThread() {
   pending_establish_gpu_channel_requests_.clear();
   for (auto& request : pending_requests) {
     if (display_ready) {
-      EstablishGpuChannel(request.client_id, request.client_tracing_id,
-                          request.is_gpu_host,
-                          request.enable_extra_handles_validation,
-                          std::move(request.callback));
+      EstablishGpuChannel(
+          request.client_id, request.client_tracing_id, request.is_gpu_host,
+          request.enable_extra_handles_validation,
+          std::move(request.channel_handle), std::move(request.callback));
     } else {
       LOG(ERROR)
           << "Failed to initialize display on foreground, rejecting pending "
              "GPU channel request.";
       std::move(request.callback)
-          .Run(mojo::ScopedMessagePipeHandle(), gpu_info_, gpu_feature_info_,
+          .Run(/*success=*/false, gpu_info_, gpu_feature_info_,
                gpu::SharedImageCapabilities());
     }
   }
@@ -1303,6 +1305,20 @@ void GpuServiceImpl::ThrowJavaException() {
   NOTREACHED() << "Java exception not supported on this platform.";
 #endif
 }
+
+#if BUILDFLAG(ENABLE_VRP_FLAGS)
+void GpuServiceImpl::GetVrpFlags(GetVrpFlagsCallback callback) {
+  mojo::PendingRemote<vrp_flags::mojom::VrpFlags> remote;
+  if (!vrp_flags::IsEnabled()) {
+    std::move(callback).Run(std::move(remote));
+    return;
+  }
+
+  vrp_flags::VrpFlagsImpl::GetInstance()->Bind(
+      remote.InitWithNewPipeAndPassReceiver());
+  std::move(callback).Run(std::move(remote));
+}
+#endif
 
 void GpuServiceImpl::StartPeakMemoryMonitorOnMainThread(uint32_t sequence_num) {
   gpu_channel_manager_->StartPeakMemoryMonitor(sequence_num);

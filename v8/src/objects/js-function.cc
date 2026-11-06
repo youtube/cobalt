@@ -266,14 +266,14 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
     if (tiering_in_progress()) {
       if (v8_flags.trace_concurrent_recompilation) {
         PrintF("  ** Not marking ");
-        ShortPrint(*this);
+        ShortPrint(Tagged<HeapObject>(this));
         PrintF(" -- already in optimization queue.\n");
       }
       return;
     }
     if (v8_flags.trace_concurrent_recompilation) {
       PrintF("  ** Marking ");
-      ShortPrint(*this);
+      ShortPrint(Tagged<HeapObject>(this));
       PrintF(" for concurrent %s recompilation.\n",
              CodeKindToString(target_kind));
     }
@@ -1379,8 +1379,8 @@ DirectHandle<String> JSFunction::GetDebugName(
     // JSFunction where the "name" property is untouched, so we retain
     // that exact behavior and go with SharedFunctionInfo::DebugName()
     // in case of the fast-path.
-    DirectHandle<Object> name =
-        GetDataProperty(isolate, function, isolate->factory()->name_string());
+    DirectHandle<Object> name = JSReceiver::GetDataProperty(
+        isolate, function, isolate->factory()->name_string());
     if (IsString(*name)) return Cast<String>(name);
   }
   return SharedFunctionInfo::DebugName(

@@ -24,12 +24,6 @@
 
 // Experimental features (disabled by default).
 #define FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(V) /*     (force 80 columns) */ \
-  /* Type reflection proposal. */                                              \
-  /* https://github.com/webassembly/js-types */                                \
-  /* V8 side owner: ahaas */                                                   \
-  /* Staged in v7.8, unstaged in v13.6 (see https://crbug.com/402340845) */    \
-  V(type_reflection, "wasm type reflection in JS", false)                      \
-                                                                               \
   /* Instruction Tracing tool convention (early prototype, might change) */    \
   /* Tool convention: https://github.com/WebAssembly/tool-conventions */       \
   /* V8 side owner: jabraham */                                                \

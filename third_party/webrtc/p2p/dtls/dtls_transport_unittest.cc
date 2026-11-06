@@ -30,7 +30,6 @@
 #include "api/dtls_transport_interface.h"
 #include "api/environment/environment.h"
 #include "api/field_trials.h"
-#include "api/field_trials_view.h"
 #include "api/ice_transport_interface.h"
 #include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
@@ -836,13 +835,12 @@ TEST_F(DtlsTransportInternalImplTest, TestWriteError) {
   PrepareDtls(KT_DEFAULT);
   FakeSSLStreamAdapter* fake_stream = nullptr;
   client1_.set_ssl_stream_factory(
-      [&](std::unique_ptr<StreamInterface> stream,
-          absl::AnyInvocable<void(SSLHandshakeError)> handshake_error_callback,
-          const FieldTrialsView* field_trials) {
+      [&](const Environment& env, std::unique_ptr<StreamInterface> stream,
+          absl::AnyInvocable<void(SSLHandshakeError)>
+              handshake_error_callback) {
         auto fake =
             std::make_unique<FakeSSLStreamAdapter>(SSLStreamAdapter::Create(
-                std::move(stream), std::move(handshake_error_callback),
-                field_trials));
+                env, std::move(stream), std::move(handshake_error_callback)));
         fake->Init();
         fake_stream = fake.get();
         return fake;
@@ -859,13 +857,12 @@ TEST_F(DtlsTransportInternalImplTest, TestPacketOptionsResetAfterWriteError) {
   PrepareDtls(KT_DEFAULT);
   FakeSSLStreamAdapter* fake_stream = nullptr;
   client1_.set_ssl_stream_factory(
-      [&](std::unique_ptr<StreamInterface> stream,
-          absl::AnyInvocable<void(SSLHandshakeError)> handshake_error_callback,
-          const FieldTrialsView* field_trials) {
+      [&](const Environment& env, std::unique_ptr<StreamInterface> stream,
+          absl::AnyInvocable<void(SSLHandshakeError)>
+              handshake_error_callback) {
         auto fake =
             std::make_unique<FakeSSLStreamAdapter>(SSLStreamAdapter::Create(
-                std::move(stream), std::move(handshake_error_callback),
-                field_trials));
+                env, std::move(stream), std::move(handshake_error_callback)));
         fake->Init();
         fake_stream = fake.get();
         return fake;

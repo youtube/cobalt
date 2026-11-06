@@ -1716,6 +1716,11 @@ TEST(ASN1Test, StringPrintEx) {
        {0xff},
        0,
        ASN1_STRFLGS_ESC_MSB | ASN1_STRFLGS_UTF8_CONVERT},
+      // It is a caller error to place non-ASN1_STRING types in an ASN1_STRING.
+      // Still, we should gracefully detect this when we try to encode as DER.
+      {V_ASN1_NULL, {}, 0, ASN1_STRFLGS_DUMP_ALL | ASN1_STRFLGS_DUMP_DER},
+      {V_ASN1_BOOLEAN, {}, 0, ASN1_STRFLGS_DUMP_ALL | ASN1_STRFLGS_DUMP_DER},
+      {V_ASN1_OBJECT, {}, 0, ASN1_STRFLGS_DUMP_ALL | ASN1_STRFLGS_DUMP_DER},
   };
   for (const auto &t : kUnprintableTests) {
     SCOPED_TRACE(t.type);
@@ -2273,6 +2278,25 @@ TEST(ASN1Test, TypeMismatch) {
   // test is currently a no-op, but will not be if the above TODO is resolved.
   alg->parameter->value.asn1_string->type = V_ASN1_OCTET_STRING;
   TestSerialize(alg.get(), i2d_X509_ALGOR, kExpected);
+
+  // Repeat the test for a UTF8String parameter that, somehow, was constructed
+  // from an |ASN1_STRING| with the wrong type. This is much less likely than
+  // the |ASN1_item_pack| API flow for making a |V_ASN1_SEQUENCE|, but we should
+  // still be consistent about preferring the |ASN1_TYPE| or |ASN1_STRING| type
+  // value.
+  UniquePtr<ASN1_OCTET_STRING> utf8(ASN1_OCTET_STRING_new());
+  ASSERT_TRUE(utf8);
+  ASSERT_TRUE(X509_ALGOR_set0(alg.get(), OBJ_nid2obj(NID_rsassaPss),
+                              V_ASN1_UTF8STRING, utf8.release()));
+  // SEQUENCE {
+  //   # rsassa-pss
+  //   OBJECT_IDENTIFIER { 1.2.840.113549.1.1.10 }
+  //   UTF8String {}
+  // }
+  static const uint8_t kExpectedUTF8[] = {0x30, 0x0d, 0x06, 0x09, 0x2a,
+                                          0x86, 0x48, 0x86, 0xf7, 0x0d,
+                                          0x01, 0x01, 0x0a, 0x0c, 0x00};
+  TestSerialize(alg.get(), i2d_X509_ALGOR, kExpectedUTF8);
 }
 
 TEST(ASN1Test, StringTableSorted) {

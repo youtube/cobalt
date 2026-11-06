@@ -40,7 +40,7 @@ QuicSimpleServerStream::QuicSimpleServerStream(
 }
 
 QuicSimpleServerStream::QuicSimpleServerStream(
-    PendingStream* pending, QuicSpdySession* session,
+    PendingStream& pending, QuicSpdySession* session,
     QuicSimpleServerBackend* quic_simple_server_backend)
     : QuicSpdyServerStreamBase(pending, session),
       content_length_(-1),

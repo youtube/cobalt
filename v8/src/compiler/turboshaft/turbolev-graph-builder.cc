@@ -2720,118 +2720,16 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
 
-    V<Object> object = Map(node->ObjectInput());
-
-    ScopedVar<i::Map, AssemblerT> map(this);
-    if (node->check_type() == maglev::CheckType::kCheckHeapObject) {
-      IF_NOT (__ IsSmi(object)) {
-        map = __ LoadMapField(object);
-      } ELSE {
-        map = __ HeapConstant(local_factory_->heap_number_map());
-      }
-    } else {
-      // TODO(leszeks): Assert that the object is not a Smi.
-      map = __ LoadMapField(object);
-    }
-
-    int handler = node->handler_value();
-    int descriptor_index = LoadHandler::DescriptorIndexBits::decode(handler);
+    V<HeapObject> object = Map(node->ObjectInput());
 
     uint32_t length = node->homomorphic_array().length().value();
-    V<WordPtr> map_word = __ BitcastTaggedToWordPtr(map);
-    V<WordPtr> cache_index = __ WordPtrBitwiseAnd(
-        __ WordPtrShiftRightLogical(map_word, kTaggedSizeLog2),
-        __ WordPtrConstant(length - 1));
-    V<HeapObject> array = __ HeapConstant(node->homomorphic_array().object());
-    V<WordPtr> weak_map = __ WordPtrBitwiseOr(map_word, kWeakHeapObjectMask);
+    CHECK_EQ(length, static_cast<uint32_t>(v8_flags.homomorphic_ic_count));
 
-    V<Object> array_entry =
-        __ Load(array, cache_index, LoadOp::Kind::TaggedBase(),
-                MemoryRepresentation::AnyTagged(),
-                FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
-
-    IF_NOT (__ WordPtrEqual(__ BitcastTaggedToWordPtr(array_entry), weak_map)) {
-      // 1. Check descriptor count.
-      V<Word32> bitfield3 =
-          __ template LoadField<Word32>(map, AccessBuilder::ForMapBitField3());
-      V<Word32> nof_desc = __ Word32BitwiseAnd(
-          bitfield3, Map::Bits3::NumberOfOwnDescriptorsBits::kMask);
-      uint32_t encoded_descriptor_index =
-          Map::Bits3::NumberOfOwnDescriptorsBits::encode(descriptor_index);
-      __ DeoptimizeIf(
-          __ Uint32LessThanOrEqual(nof_desc, encoded_descriptor_index),
-          frame_state, DeoptimizeReason::kWrongMap,
-          node->eager_deopt_info()->feedback_to_update());
-
-      // 2. Load descriptor array.
-      V<DescriptorArray> descriptors = __ template LoadField<DescriptorArray>(
-          map, AccessBuilder::ForMapDescriptors());
-
-      // 3. Check key.
-      int key_offset = DescriptorArray::OffsetOfDescriptorAt(descriptor_index) +
-                       DescriptorArray::kEntryKeyOffset;
-      V<Object> key = __ LoadTaggedField(descriptors, key_offset);
-      V<Object> name = __ HeapConstant(node->name().object());
-      __ DeoptimizeIfNot(__ TaggedEqual(key, name), frame_state,
-                         DeoptimizeReason::kWrongMap,
-                         node->eager_deopt_info()->feedback_to_update());
-
-      // 4. Check details.
-      int details_offset =
-          DescriptorArray::OffsetOfDescriptorAt(descriptor_index) +
-          DescriptorArray::kEntryDetailsOffset;
-      V<Smi> details_smi =
-          __ Load(descriptors, LoadOp::Kind::TaggedBase(),
-                  MemoryRepresentation::TaggedSigned(), details_offset);
-      V<Word32> details = __ UntagSmi(details_smi);
-
-      // 4a. Check kind, location, and in-object.
-      uint16_t storage_offset =
-          LoadHandler::StorageOffsetInWordsBits::decode(handler);
-      bool is_inobject = LoadHandler::IsInobjectBits::decode(handler);
-      bool is_double = LoadHandler::IsDoubleBits::decode(handler);
-      uint32_t expected_details_mask =
-          PropertyDetails::KindField::kMask |
-          PropertyDetails::LocationField::kMask |
-          PropertyDetails::OffsetInWordsField::kMask |
-          PropertyDetails::InObjectField::kMask;
-      uint32_t expected_details =
-          PropertyDetails::KindField::encode(PropertyKind::kData) |
-          PropertyDetails::LocationField::encode(PropertyLocation::kField) |
-          PropertyDetails::OffsetInWordsField::encode(storage_offset) |
-          PropertyDetails::InObjectField::encode(is_inobject);
-      if (is_double) {
-        // 4b. Check Representation is exactly double, if needed.
-        expected_details_mask |= PropertyDetails::RepresentationField::kMask;
-        expected_details |= PropertyDetails::RepresentationField::encode(
-            PropertyDetails::EncodeRepresentation(Representation::Double()));
-      }
-
-      V<Word32> masked_details =
-          __ Word32BitwiseAnd(details, expected_details_mask);
-      __ DeoptimizeIfNot(__ Word32Equal(masked_details, expected_details),
-                         frame_state, DeoptimizeReason::kWrongMap,
-                         node->eager_deopt_info()->feedback_to_update());
-
-      if (!is_double) {
-        // 4b. Check Representation is NOT double. If we wanted a double
-        // representation, we would have checked it already as part of the
-        // expected details check.
-        uint32_t repr_mask = PropertyDetails::RepresentationField::kMask;
-        uint32_t expected_repr = PropertyDetails::RepresentationField::encode(
-            PropertyDetails::EncodeRepresentation(Representation::Double()));
-
-        V<Word32> masked_repr = __ Word32BitwiseAnd(details, repr_mask);
-        __ DeoptimizeIf(__ Word32Equal(masked_repr, expected_repr), frame_state,
-                        DeoptimizeReason::kWrongMap,
-                        node->eager_deopt_info()->feedback_to_update());
-      }
-
-      __ Store(array, cache_index, __ BitcastWordPtrToTagged(weak_map),
-               StoreOp::Kind::TaggedBase(), MemoryRepresentation::AnyTagged(),
-               WriteBarrierKind::kFullWriteBarrier,
-               FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
-    }
+    __ CheckHomomorphic(
+        object, frame_state, node->name(), node->homomorphic_array(),
+        node->handler_value(),
+        node->check_type() == maglev::CheckType::kCheckHeapObject,
+        node->eager_deopt_info()->feedback_to_update());
 
     return maglev::ProcessResult::kContinue;
   }
@@ -3232,7 +3130,7 @@ class GraphBuildingNodeProcessor {
     } ELSE {
       string = V<String>::Cast(
           __ LoadTaggedField(V<JSPrimitiveWrapper>::Cast(string_or_wrapper),
-                             JSPrimitiveWrapper::kValueOffset));
+                             offsetof(JSPrimitiveWrapper, value_)));
     }
     SetMap(node, string);
     return maglev::ProcessResult::kContinue;
@@ -3418,7 +3316,7 @@ class GraphBuildingNodeProcessor {
     if (generator_analyzer_.has_header_bypasses() &&
         maglev_generator_context_node_ == nullptr &&
         node->ValueInput().node()->template Is<maglev::RegisterInput>() &&
-        node->offset() == JSGeneratorObject::kContextOffset) {
+        node->offset() == offsetof(JSGeneratorObject, context_)) {
       // This is loading the context of a generator for the 1st time. We save it
       // in {generator_context_} for later use.
       __ SetVariable(generator_context_, value);
@@ -6123,16 +6021,31 @@ class GraphBuildingNodeProcessor {
     // TODO(olivf): Support elided maglev cons strings in turbolev.
     DCHECK_NE(vobj->object_type(), maglev::vobj::ObjectType::kConsString);
 
-    builder.AddDematerializedObject(dup_id.id, vobj->slot_count());
+    int fields = vobj->slot_count();
+#if TAGGED_SIZE_8_BYTES
+    // To keep the deoptimization data in sync with TF (which represents length
+    // and padding in a single Uint64), we skip the padding.
+    if (vobj->object_type() == maglev::vobj::ObjectType::kFixedArray) {
+      fields--;
+    }
+#endif  // TAGGED_SIZE_8_BYTES
+    builder.AddDematerializedObject(dup_id.id, fields);
+
     vobj->ForEachSlot(
         [&](maglev::ValueNode* value_node, maglev::vobj::Field desc) -> bool {
+#if TAGGED_SIZE_8_BYTES
+          if (vobj->object_type() == maglev::vobj::ObjectType::kFixedArray &&
+              desc.offset == FixedArrayBase::kPaddingOffset) {
+            return true;
+          }
+#endif  // TAGGED_SIZE_8_BYTES
           switch (desc.type) {
             case maglev::vobj::FieldType::kTagged:
             case maglev::vobj::FieldType::kTrustedPointer:
             case maglev::vobj::FieldType::kFloat64:
+            case maglev::vobj::FieldType::kInt32:
               AddVirtualObjectNestedValue(builder, virtual_objects, value_node);
               break;
-            case maglev::vobj::FieldType::kInt32:
             case maglev::vobj::FieldType::kNone:
               UNREACHABLE();
           }

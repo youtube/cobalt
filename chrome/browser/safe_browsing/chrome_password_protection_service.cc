@@ -58,10 +58,12 @@
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
+#include "components/safe_browsing/content/browser/client_side_detection_host.h"
 #include "components/safe_browsing/content/browser/content_unsafe_resource_util.h"
 #include "components/safe_browsing/content/browser/password_protection/password_protection_commit_deferring_condition.h"
 #include "components/safe_browsing/content/browser/password_protection/password_protection_request_content.h"
 #include "components/safe_browsing/content/browser/safe_browsing_navigation_observer_manager.h"
+#include "components/safe_browsing/content/browser/safe_browsing_tab_observer.h"
 #include "components/safe_browsing/content/browser/triggers/trigger_throttler.h"
 #include "components/safe_browsing/content/browser/ui_manager.h"
 #include "components/safe_browsing/content/browser/web_contents_key.h"
@@ -107,9 +109,9 @@
 #if BUILDFLAG(FULL_SAFE_BROWSING)
 #include "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router.h"
 #include "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router_factory.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"  // nogncheck crbug.com/40147906
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"  // nogncheck crbug.com/40147906
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #endif
 
@@ -360,7 +362,7 @@ void ChromePasswordProtectionService::SetSyncPasswordHash(
     const std::string& sync_password_hash) {
 // The following code is disabled on Android. RefreshTokenIsAvailable cannot be
 // used in unit tests, because it needs to interact with system accounts.
-// Considering avoid running it during unit tests. See: crbug.com/1009957.
+// Considering avoid running it during unit tests. See: crbug.com/40101266.
 #if !BUILDFLAG(IS_ANDROID)
   // This code is shared by the normal ctor and testing ctor.
   sync_password_hash_ = sync_password_hash;
@@ -593,6 +595,15 @@ void ChromePasswordProtectionService::ShowInterstitial(
 
   LogWarningAction(WarningUIType::INTERSTITIAL, WarningAction::SHOWN,
                    password_type);
+}
+
+void ChromePasswordProtectionService::MaybeTriggerClientSideDetectionScan(
+    content::WebContents* web_contents) {
+  SafeBrowsingTabObserver* tab_observer =
+      SafeBrowsingTabObserver::FromWebContents(web_contents);
+  if (tab_observer && tab_observer->client_side_detection_host()) {
+    tab_observer->client_side_detection_host()->OnUnfamiliarLoginPageDetected();
+  }
 }
 
 void ChromePasswordProtectionService::OnUserAction(
@@ -1147,7 +1158,9 @@ void ChromePasswordProtectionService::OpenPasswordCheck(
 
 #if BUILDFLAG(FULL_SAFE_BROWSING)
     // Opens chrome://settings/passwords/check in a new tab.
-    chrome::ShowPasswordCheck(chrome::FindBrowserWithTab(web_contents));
+    chrome::ShowPasswordCheck(
+        GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+            web_contents));
     password_manager::LogPasswordCheckReferrer(
         password_manager::PasswordCheckReferrer::kPhishGuardDialog);
 #endif

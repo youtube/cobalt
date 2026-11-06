@@ -37,35 +37,29 @@
 namespace v8::internal {
 template <class S>
 SafeHeapObjectSize detail::ArrayHeaderBase<S, false>::capacity() const {
-  int capacity = capacity_.load().value();
-  DCHECK_GE(capacity, 0);
-  return SafeHeapObjectSize(static_cast<uint32_t>(capacity));
+  return SafeHeapObjectSize(capacity_);
 }
 
 template <class S>
 SafeHeapObjectSize detail::ArrayHeaderBase<S, false>::capacity(
     AcquireLoadTag tag) const {
-  int capacity = capacity_.Acquire_Load().value();
-  DCHECK_GE(capacity, 0);
-  return SafeHeapObjectSize(static_cast<uint32_t>(capacity));
+  return SafeHeapObjectSize(base::AsAtomic32::Acquire_Load(&capacity_));
 }
 
 template <class S>
 void detail::ArrayHeaderBase<S, false>::set_capacity(uint32_t value) {
-  capacity_.store(this, Smi::FromUInt(value));
+  capacity_ = value;
 }
 
 template <class S>
 void detail::ArrayHeaderBase<S, false>::set_capacity(uint32_t value,
                                                      ReleaseStoreTag tag) {
-  capacity_.Release_Store(this, Smi::FromUInt(value));
+  base::AsAtomic32::Release_Store(&capacity_, value);
 }
 
 template <class S>
 SafeHeapObjectSize detail::ArrayHeaderBase<S, true>::length() const {
-  int len = length_.load().value();
-  DCHECK_GE(len, 0);
-  return SafeHeapObjectSize(static_cast<uint32_t>(len));
+  return SafeHeapObjectSize(length_);
 }
 
 template <class S>
@@ -76,20 +70,18 @@ SafeHeapObjectSize detail::ArrayHeaderBase<S, true>::ulength() const {
 template <class S>
 SafeHeapObjectSize detail::ArrayHeaderBase<S, true>::length(
     AcquireLoadTag tag) const {
-  int len = length_.Acquire_Load().value();
-  DCHECK_GE(len, 0);
-  return SafeHeapObjectSize(static_cast<uint32_t>(len));
+  return SafeHeapObjectSize(base::AsAtomic32::Acquire_Load(&length_));
 }
 
 template <class S>
 void detail::ArrayHeaderBase<S, true>::set_length(uint32_t value) {
-  length_.store(this, Smi::FromUInt(value));
+  length_ = value;
 }
 
 template <class S>
 void detail::ArrayHeaderBase<S, true>::set_length(uint32_t value,
                                                   ReleaseStoreTag tag) {
-  length_.Release_Store(this, Smi::FromUInt(value));
+  base::AsAtomic32::Release_Store(&length_, value);
 }
 
 template <class S>
@@ -113,6 +105,13 @@ void detail::ArrayHeaderBase<S, true>::set_capacity(uint32_t value,
                                                     ReleaseStoreTag tag) {
   set_length(value, tag);
 }
+
+#if TAGGED_SIZE_8_BYTES
+template <class S>
+void detail::ArrayHeaderBase<S, true>::clear_optional_padding() {
+  optional_padding_ = 0;
+}
+#endif
 
 template <class D, class S, class P>
 bool TaggedArrayBase<D, S, P>::IsInBounds(int index) const {
@@ -437,28 +436,20 @@ constexpr uint32_t TaggedArrayBase<D, S, P>::NewCapacityForIndex(
 }
 
 inline SafeHeapObjectSize WeakArrayList::capacity() const {
-  int value = capacity_.load().value();
-  DCHECK_GE(value, 0);
-  return SafeHeapObjectSize(static_cast<uint32_t>(value));
+  return SafeHeapObjectSize(capacity_);
 }
 
 inline SafeHeapObjectSize WeakArrayList::capacity(RelaxedLoadTag) const {
-  int value = capacity_.Relaxed_Load().value();
-  DCHECK_GE(value, 0);
-  return SafeHeapObjectSize(static_cast<uint32_t>(value));
+  return SafeHeapObjectSize(base::AsAtomic32::Relaxed_Load(&capacity_));
 }
 
 inline SafeHeapObjectSize WeakArrayList::length() const {
-  int len = length_.load().value();
-  DCHECK_GE(len, 0);
-  return SafeHeapObjectSize(static_cast<uint32_t>(len));
+  return SafeHeapObjectSize(length_);
 }
 
 inline SafeHeapObjectSize WeakArrayList::ulength() const { return length(); }
 
-inline void WeakArrayList::set_length(uint32_t value) {
-  length_.store(this, Smi::FromUInt(value));
-}
+inline void WeakArrayList::set_length(uint32_t value) { length_ = value; }
 
 bool FixedArray::is_the_hole(Isolate* isolate, uint32_t index) {
   return IsTheHole(get(index), isolate);
@@ -812,18 +803,15 @@ Tagged<HeapObject> WeakArrayList::Iterator::Next() {
 }
 
 int ArrayList::length() const {
-  int len = length_.load().value();
-  DCHECK_GE(len, 0);
-  return len;
+  DCHECK_LE(length_, kMaxInt);
+  return static_cast<int>(length_);
 }
 
 SafeHeapObjectSize ArrayList::ulength() const {
   return SafeHeapObjectSize(static_cast<uint32_t>(length()));
 }
 
-void ArrayList::set_length(uint32_t value) {
-  length_.store(this, Smi::FromUInt(value));
-}
+void ArrayList::set_length(uint32_t value) { length_ = value; }
 
 // static
 template <class IsolateT>

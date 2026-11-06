@@ -599,7 +599,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
     // The wanted name belongs to a script-scope variable and the feedback
     // tells us where to find its value.
     int const number = Object::NumberValue(*feedback_value);
-    int const script_context_index =
+    uint32_t const script_context_index =
         FeedbackNexus::ContextIndexBits::decode(number);
     int const context_slot_index = FeedbackNexus::SlotIndexBits::decode(number);
     ContextRef context = MakeRefAssumeMemoryFence(

@@ -41,6 +41,7 @@ using xdg_portal::SetupRequestResponseSignal;
 using xdg_portal::SetupSessionRequestHandlers;
 using xdg_portal::StartSessionRequest;
 using xdg_portal::TearDownSession;
+using xdg_portal::UnsubscribeSignalHandler;
 
 }  // namespace
 
@@ -113,18 +114,11 @@ void ScreenCastPortal::Stop() {
 }
 
 // static
-void UnsubscribeSignalHandler(GDBusConnection* connection, guint* signal_id) {
-  if (signal_id && *signal_id) {
-    g_dbus_connection_signal_unsubscribe(connection, *signal_id);
-    *signal_id = 0;
-  }
-}
-
 void ScreenCastPortal::UnsubscribeSignalHandlers() {
-  UnsubscribeSignalHandler(connection_, &session_request_signal_id_);
-  UnsubscribeSignalHandler(connection_, &sources_request_signal_id_);
-  UnsubscribeSignalHandler(connection_, &start_request_signal_id_);
-  UnsubscribeSignalHandler(connection_, &session_closed_signal_id_);
+  UnsubscribeSignalHandler(connection_, session_request_signal_id_);
+  UnsubscribeSignalHandler(connection_, sources_request_signal_id_);
+  UnsubscribeSignalHandler(connection_, start_request_signal_id_);
+  UnsubscribeSignalHandler(connection_, session_closed_signal_id_);
 }
 
 void ScreenCastPortal::SetSessionDetails(
@@ -205,6 +199,13 @@ void ScreenCastPortal::OnSessionRequestResponseSignal(
   if (!that)
     return;
 
+  if (!UnsubscribeSignalHandler(that->connection_,
+                                that->session_request_signal_id_)) {
+    RTC_LOG(LS_ERROR) << "Duplicate session request signal from portal.";
+    that->OnPortalDone(RequestResponse::kError);
+    return;
+  }
+
   that->RegisterSessionClosedSignalHandler(
       OnSessionClosedSignal, parameters, that->connection_,
       that->session_handle_, that->session_closed_signal_id_, that->guard_);
@@ -229,6 +230,12 @@ void ScreenCastPortal::OnSessionClosedSignal(GDBusConnection* connection,
   auto* that = static_cast<ScreenCastPortal*>(lock.portal());
   if (!that)
     return;
+
+  if (!UnsubscribeSignalHandler(that->connection_,
+                                that->session_closed_signal_id_)) {
+    RTC_LOG(LS_ERROR) << "Duplicate session closed signal from portal.";
+    return;
+  }
 
   RTC_LOG(LS_INFO) << "Received closed signal from session.";
 
@@ -328,7 +335,7 @@ void ScreenCastPortal::OnSourcesRequested(GDBusProxy* proxy,
   if (!handle) {
     RTC_LOG(LS_ERROR) << "Failed to initialize the screen cast session.";
     UnsubscribeSignalHandler(that->connection_,
-                             &that->sources_request_signal_id_);
+                             that->sources_request_signal_id_);
     that->OnPortalDone(RequestResponse::kError);
     return;
   }
@@ -349,6 +356,13 @@ void ScreenCastPortal::OnSourcesRequestResponseSignal(
   auto* that = static_cast<ScreenCastPortal*>(lock.portal());
   if (!that)
     return;
+
+  if (!UnsubscribeSignalHandler(that->connection_,
+                                that->sources_request_signal_id_)) {
+    RTC_LOG(LS_ERROR) << "Duplicate sources signal from portal.";
+    that->OnPortalDone(RequestResponse::kError);
+    return;
+  }
 
   RTC_LOG(LS_INFO) << "Received sources signal from session.";
 
@@ -391,6 +405,13 @@ void ScreenCastPortal::OnStartRequestResponseSignal(GDBusConnection* connection,
   auto* that = static_cast<ScreenCastPortal*>(lock.portal());
   if (!that)
     return;
+
+  if (!UnsubscribeSignalHandler(that->connection_,
+                                that->start_request_signal_id_)) {
+    RTC_LOG(LS_ERROR) << "Duplicate start signal from portal.";
+    that->OnPortalDone(RequestResponse::kError);
+    return;
+  }
 
   RTC_LOG(LS_INFO) << "Start signal received.";
   uint32_t portal_response;

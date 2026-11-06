@@ -479,6 +479,19 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
   UNREACHABLE();
 }
 
+LSXSize LaneSizeToLSXSize(LaneSize size) {
+  switch (size) {
+    case LaneSize::kL8:
+      return LSX_B;
+    case LaneSize::kL16:
+      return LSX_H;
+    case LaneSize::kL32:
+      return LSX_W;
+    case LaneSize::kL64:
+      return LSX_D;
+  }
+}
+
 }  // namespace
 
 #define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr)                    \
@@ -898,8 +911,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchPrepareCallCFunction: {
       UseScratchRegisterScope temps(masm());
       Register scratch = temps.Acquire();
-      int const num_gp_parameters = ParamField::decode(instr->opcode());
-      int const num_fp_parameters = FPParamField::decode(instr->opcode());
+      uint32_t param_counts = i.InputUint32(0);
+      int const num_gp_parameters = ParamField::decode(param_counts);
+      int const num_fp_parameters = FPParamField::decode(param_counts);
       __ PrepareCallCFunction(num_gp_parameters, num_fp_parameters, scratch);
       // Frame alignment requires using FP-relative frame addressing.
       frame_access_state()->SetFrameAccessToFP();
@@ -1883,10 +1897,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kLoong64Float64ToUint64: {
-      FPURegister scratch = kScratchDoubleReg;
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      FPURegister scratch_d = temps.AcquireFp();
+      bool set_overflow_to_min_u64 = MiscField::decode(instr->opcode());
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
-      __ Ftintrz_ul_d(i.OutputRegister(0), i.InputDoubleRegister(0), scratch,
+      __ Ftintrz_ul_d(i.OutputRegister(0), i.InputDoubleRegister(0), scratch_d,
                       result);
+      if (set_overflow_to_min_u64) {
+        // Avoid UINT64_MAX as an overflow indicator and use 0 instead,
+        // because 0 allows easier out-of-bounds detection.
+        __ addi_d(scratch, i.OutputRegister(0), 1);
+        __ maskeqz(i.OutputRegister(0), i.OutputRegister(0), scratch);
+      }
       break;
     }
     case kLoong64BitcastDL:
@@ -2365,7 +2388,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kLoong64S128LoadSplat: {
       CpuFeatureScope lsx_scope(masm(), LSX);
-      auto sz = static_cast<LSXSize>(LaneSizeField::decode(instr->opcode()));
+      LSXSize sz = LaneSizeToLSXSize(LaneSizeField::decode(instr->opcode()));
       __ LoadSplat(sz, i.OutputSimd128Register(), i.MemoryOperand(), &trap_pc);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
       break;
@@ -2468,7 +2491,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope lsx_scope(masm(), LSX);
       Simd128Register dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
-      auto sz = static_cast<LSXSize>(LaneSizeField::decode(instr->opcode()));
+      LSXSize sz = LaneSizeToLSXSize(LaneSizeField::decode(instr->opcode()));
       __ LoadLane(sz, dst, i.InputUint8(1), i.MemoryOperand(2), &trap_pc);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
       break;
@@ -2476,7 +2499,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64S128StoreLane: {
       CpuFeatureScope lsx_scope(masm(), LSX);
       Simd128Register src = i.InputSimd128Register(0);
-      auto sz = static_cast<LSXSize>(LaneSizeField::decode(instr->opcode()));
+      LSXSize sz = LaneSizeToLSXSize(LaneSizeField::decode(instr->opcode()));
       __ StoreLane(sz, src, i.InputUint8(1), i.MemoryOperand(2), &trap_pc);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
       break;

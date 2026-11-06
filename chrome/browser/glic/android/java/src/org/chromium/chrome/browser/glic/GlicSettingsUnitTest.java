@@ -36,8 +36,12 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.Shadows;
+import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -53,6 +57,7 @@ import org.chromium.ui.base.TestActivity;
 
 /** Unit tests for {@link GlicSettings}. */
 @RunWith(BaseRobolectricTestRunner.class)
+@DisableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
 public class GlicSettingsUnitTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -166,12 +171,60 @@ public class GlicSettingsUnitTest {
                         AdaptiveToolbarButtonVariant.AUTO);
         GlicSettings fragment = launchFragment();
         Preference preference = fragment.findPreference("glic_button");
-        assertEquals(
-                mActivity.getString(R.string.glic_button_entrypoint_unpinned_label),
-                preference.getTitle());
+        assertEquals(mActivity.getString(R.string.glic_pin), preference.getTitle());
         assertEquals(
                 mActivity.getString(R.string.settings_glic_button_toggle_sublabel),
                 preference.getSummary());
+    }
+
+    @Test
+    @Config(qualifiers = "sw600dp")
+    public void testGlicButtonPreference_Tablet_Glic() {
+        ChromeSharedPreferences.getInstance()
+                .writeInt(
+                        ChromePreferenceKeys.ADAPTIVE_TOOLBAR_CUSTOMIZATION_SETTINGS,
+                        AdaptiveToolbarButtonVariant.GLIC);
+        GlicSettings fragment = launchFragment();
+
+        Preference preference = fragment.findPreference("glic_button");
+        assertFalse("Preference glic_button should be invisible on tablet", preference.isVisible());
+
+        ChromeSwitchPreference togglePreference = fragment.findPreference("glic_button_toggle");
+        assertTrue(
+                "Preference glic_button_toggle should be visible on tablet",
+                togglePreference.isVisible());
+        assertTrue("Toggle should be checked when Glic is selected", togglePreference.isChecked());
+    }
+
+    @Test
+    @Config(qualifiers = "sw600dp")
+    public void testGlicButtonPreference_Tablet_Toggle() {
+        ChromeSharedPreferences.getInstance()
+                .writeInt(
+                        ChromePreferenceKeys.ADAPTIVE_TOOLBAR_CUSTOMIZATION_SETTINGS,
+                        AdaptiveToolbarButtonVariant.AUTO);
+        GlicSettings fragment = launchFragment();
+
+        ChromeSwitchPreference togglePreference = fragment.findPreference("glic_button_toggle");
+        assertFalse(
+                "Toggle should not be checked when Glic is not selected",
+                togglePreference.isChecked());
+
+        // Test toggling on
+        togglePreference.getOnPreferenceChangeListener().onPreferenceChange(togglePreference, true);
+        assertEquals(
+                AdaptiveToolbarButtonVariant.GLIC,
+                ChromeSharedPreferences.getInstance()
+                        .readInt(ChromePreferenceKeys.ADAPTIVE_TOOLBAR_CUSTOMIZATION_SETTINGS, -1));
+
+        // Test toggling off
+        togglePreference
+                .getOnPreferenceChangeListener()
+                .onPreferenceChange(togglePreference, false);
+        assertEquals(
+                AdaptiveToolbarButtonVariant.AUTO,
+                ChromeSharedPreferences.getInstance()
+                        .readInt(ChromePreferenceKeys.ADAPTIVE_TOOLBAR_CUSTOMIZATION_SETTINGS, -1));
     }
 
     @Test
@@ -298,5 +351,17 @@ public class GlicSettingsUnitTest {
         // Simulate toggle On
         locationPref.getOnPreferenceChangeListener().onPreferenceChange(locationPref, true);
         verify(mPrefServiceMock).setBoolean("glic.geolocation_enabled", true);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
+    public void testGlicButtonPreference_AndroidBottomBarEnabled() {
+        GlicSettings fragment = launchFragment();
+        Preference preference = fragment.findPreference("glic_button");
+        assertFalse("Preference glic_button should not be visible", preference.isVisible());
+        Preference preferenceCategory = fragment.findPreference("glic_preference_section");
+        assertFalse(
+                "Preference glic_preference_section should not be visible",
+                preferenceCategory.isVisible());
     }
 }

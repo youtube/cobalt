@@ -924,9 +924,11 @@ PaymentRequest::securePaymentConfirmationAvailability(
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   CredentialManagerProxy::From(script_state)
       ->SecurePaymentConfirmationService()
-      ->SecurePaymentConfirmationAvailability(
-          BindOnce(&OnSecurePaymentConfirmationAvailabilityResponse,
-                   std::make_unique<ScopedPromiseResolver>(resolver)));
+      ->SecurePaymentConfirmationAvailability(BindOnce(
+          &OnSecurePaymentConfirmationAvailabilityResponse,
+          std::make_unique<ScopedPromiseResolver>(
+              resolver,
+              ScopedPromiseResolver::ConnectionType::kPaymentConfirmation)));
 #else
   resolver->Resolve(V8SecurePaymentConfirmationAvailability(
       V8SecurePaymentConfirmationAvailability::Enum::
@@ -979,9 +981,11 @@ PaymentRequest::getSecurePaymentConfirmationCapabilities(
 
   CredentialManagerProxy::From(script_state)
       ->SecurePaymentConfirmationService()
-      ->GetSecurePaymentConfirmationCapabilities(
-          BindOnce(&OnGetSecurePaymentConfirmationCapabilitiesComplete,
-                   std::make_unique<ScopedPromiseResolver>(resolver)));
+      ->GetSecurePaymentConfirmationCapabilities(BindOnce(
+          &OnGetSecurePaymentConfirmationCapabilitiesComplete,
+          std::make_unique<ScopedPromiseResolver>(
+              resolver,
+              ScopedPromiseResolver::ConnectionType::kPaymentConfirmation)));
 
   return promise;
 #endif  // !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
@@ -1945,10 +1949,9 @@ void PaymentRequest::DispatchPaymentRequestUpdateEvent(
     // returns false if the merchant did not call event.updateWith() within
     // the event handler, which is optional, so the renderer sends a message
     // to the browser to re-enable UI interactions.
-    const String& message = String::Format(
-        "No updateWith() call in '%s' event handler. User may see outdated "
-        "line items and total.",
-        event->type().Ascii().c_str());
+    const String& message = StrCat(
+        {"No updateWith() call in '", event->type(),
+         "' event handler. User may see outdated line items and total."});
     GetExecutionContext()->AddConsoleMessage(
         MakeGarbageCollected<ConsoleMessage>(
             mojom::ConsoleMessageSource::kJavaScript,

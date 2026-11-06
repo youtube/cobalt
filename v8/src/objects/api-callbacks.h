@@ -6,6 +6,7 @@
 #define V8_OBJECTS_API_CALLBACKS_H_
 
 #include "src/objects/struct.h"
+#include "src/sandbox/external-pointer.h"
 #include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -28,9 +29,19 @@ class StructBodyDescriptor;
 // If the accessor in the prototype has the READ_ONLY property attribute, then
 // a new value is added to the derived object when the property is set.
 // This shadows the accessor in the prototype.
-class AccessorInfo
-    : public TorqueGeneratedAccessorInfo<AccessorInfo, HeapObject> {
+V8_OBJECT class AccessorInfo : public HeapObjectLayout {
  public:
+  inline Tagged<Object> data() const;
+  inline void set_data(Tagged<Object> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Name> name() const;
+  inline void set_name(Tagged<Name> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline uint32_t flags() const;
+  inline void set_flags(uint32_t value);
+
   // C function pointer that can be called from native code.
   DECL_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(getter, Address)
   inline bool has_getter(Isolate* isolate);
@@ -66,6 +77,7 @@ class AccessorInfo
                           int valid_descriptors);
 
   DECL_PRINTER(AccessorInfo)
+  DECL_VERIFIER(AccessorInfo)
 
   inline void RemoveCallbackRedirectionForSerialization(
       IsolateForSandbox isolate);
@@ -76,12 +88,51 @@ class AccessorInfo
 
   class BodyDescriptor;
 
+  // Back-compat offset/size constants.
+  static const int kDataOffset;
+  static const int kNameOffset;
+  static const int kGetterOffset;
+  static const int kSetterOffset;
+  static const int kFlagsOffset;
+  static const int kOptionalPaddingOffset;
+  static const int kOptionalPaddingOffsetEnd;
+  static const int kEndOfStrongFieldsOffset;
+  static const int kSize;
+
  private:
   // Bit positions in |flags|.
   DEFINE_TORQUE_GENERATED_ACCESSOR_INFO_FLAGS()
 
-  TQ_OBJECT_CONSTRUCTORS(AccessorInfo)
-};
+  friend class TorqueGeneratedAccessorInfoAsserts;
+
+ public:
+  TaggedMember<Object> data_;
+  TaggedMember<Name> name_;
+  ExternalPointerMember<kAccessorInfoGetterTag> getter_;
+  ExternalPointerMember<kAccessorInfoSetterTag> setter_;
+  uint32_t flags_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif  // TAGGED_SIZE_8_BYTES
+} V8_OBJECT_END;
+
+inline constexpr int AccessorInfo::kDataOffset = offsetof(AccessorInfo, data_);
+inline constexpr int AccessorInfo::kNameOffset = offsetof(AccessorInfo, name_);
+inline constexpr int AccessorInfo::kGetterOffset =
+    offsetof(AccessorInfo, getter_);
+inline constexpr int AccessorInfo::kSetterOffset =
+    offsetof(AccessorInfo, setter_);
+inline constexpr int AccessorInfo::kFlagsOffset =
+    offsetof(AccessorInfo, flags_);
+inline constexpr int AccessorInfo::kOptionalPaddingOffset =
+    AccessorInfo::kFlagsOffset + sizeof(uint32_t);
+inline constexpr int AccessorInfo::kOptionalPaddingOffsetEnd =
+    TAGGED_SIZE_8_BYTES
+        ? AccessorInfo::kOptionalPaddingOffset + sizeof(uint32_t) - 1
+        : AccessorInfo::kOptionalPaddingOffset - 1;
+inline constexpr int AccessorInfo::kEndOfStrongFieldsOffset =
+    AccessorInfo::kGetterOffset;
+inline constexpr int AccessorInfo::kSize = sizeof(AccessorInfo);
 
 V8_OBJECT class AccessCheckInfo : public Struct {
  public:
@@ -139,9 +190,15 @@ V8_OBJECT class AccessCheckInfo : public Struct {
   COMMON_INTERCEPTOR_INFO_CALLBACK_LIST(V)        \
   V(IndexOf, index_of)
 
-class InterceptorInfo
-    : public TorqueGeneratedInterceptorInfo<InterceptorInfo, HeapObject> {
+V8_OBJECT class InterceptorInfo : public HeapObjectLayout {
  public:
+  inline Tagged<Object> data() const;
+  inline void set_data(Tagged<Object> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline uint32_t flags() const;
+  inline void set_flags(uint32_t value);
+
   // Convenient predicates without named/indexed prefix.
   inline bool has_getter() const;
   inline bool has_setter() const;
@@ -200,6 +257,7 @@ class InterceptorInfo
   DEFINE_TORQUE_GENERATED_INTERCEPTOR_INFO_FLAGS()
 
   DECL_PRINTER(InterceptorInfo)
+  DECL_VERIFIER(InterceptorInfo)
 
   inline void RemoveCallbackRedirectionForSerialization(
       IsolateForSandbox isolate);
@@ -210,13 +268,77 @@ class InterceptorInfo
 
   class BodyDescriptor;
 
+  // Back-compat offset/size constants.
+  static const int kDataOffset;
+  static const int kFlagsOffset;
+  static const int kOptionalPaddingOffset;
+  static const int kOptionalPaddingOffsetEnd;
+  static const int kGetterOffset;
+  static const int kSetterOffset;
+  static const int kQueryOffset;
+  static const int kDescriptorOffset;
+  static const int kDeleterOffset;
+  static const int kEnumeratorOffset;
+  static const int kDefinerOffset;
+  static const int kIndexOfOffset;
+  static const int kEndOfStrongFieldsOffset;
+  static const int kIndexOfOffsetEnd;
+  static const int kSize;
+
  private:
   friend class Factory;
+  friend class TorqueGeneratedInterceptorInfoAsserts;
 
   inline void AllocateExternalPointerEntries(Isolate* isolate);
 
-  TQ_OBJECT_CONSTRUCTORS(InterceptorInfo)
-};
+ public:
+  TaggedMember<Object> data_;
+  uint32_t flags_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif  // TAGGED_SIZE_8_BYTES
+  ExternalPointerMember<kApiNamedPropertyGetterCallbackTag> getter_;
+  ExternalPointerMember<kApiNamedPropertySetterCallbackTag> setter_;
+  ExternalPointerMember<kApiNamedPropertyQueryCallbackTag> query_;
+  ExternalPointerMember<kApiNamedPropertyDescriptorCallbackTag> descriptor_;
+  ExternalPointerMember<kApiNamedPropertyDeleterCallbackTag> deleter_;
+  ExternalPointerMember<kApiNamedPropertyEnumeratorCallbackTag> enumerator_;
+  ExternalPointerMember<kApiNamedPropertyDefinerCallbackTag> definer_;
+  ExternalPointerMember<kApiIndexedPropertyIndexOfCallbackTag> index_of_;
+} V8_OBJECT_END;
+
+inline constexpr int InterceptorInfo::kDataOffset =
+    offsetof(InterceptorInfo, data_);
+inline constexpr int InterceptorInfo::kFlagsOffset =
+    offsetof(InterceptorInfo, flags_);
+inline constexpr int InterceptorInfo::kOptionalPaddingOffset =
+    InterceptorInfo::kFlagsOffset + sizeof(uint32_t);
+inline constexpr int InterceptorInfo::kOptionalPaddingOffsetEnd =
+    TAGGED_SIZE_8_BYTES
+        ? InterceptorInfo::kOptionalPaddingOffset + sizeof(uint32_t) - 1
+        : InterceptorInfo::kOptionalPaddingOffset - 1;
+inline constexpr int InterceptorInfo::kGetterOffset =
+    offsetof(InterceptorInfo, getter_);
+inline constexpr int InterceptorInfo::kSetterOffset =
+    offsetof(InterceptorInfo, setter_);
+inline constexpr int InterceptorInfo::kQueryOffset =
+    offsetof(InterceptorInfo, query_);
+inline constexpr int InterceptorInfo::kDescriptorOffset =
+    offsetof(InterceptorInfo, descriptor_);
+inline constexpr int InterceptorInfo::kDeleterOffset =
+    offsetof(InterceptorInfo, deleter_);
+inline constexpr int InterceptorInfo::kEnumeratorOffset =
+    offsetof(InterceptorInfo, enumerator_);
+inline constexpr int InterceptorInfo::kDefinerOffset =
+    offsetof(InterceptorInfo, definer_);
+inline constexpr int InterceptorInfo::kIndexOfOffset =
+    offsetof(InterceptorInfo, index_of_);
+inline constexpr int InterceptorInfo::kEndOfStrongFieldsOffset =
+    InterceptorInfo::kFlagsOffset;
+inline constexpr int InterceptorInfo::kIndexOfOffsetEnd =
+    InterceptorInfo::kIndexOfOffset +
+    sizeof(ExternalPointerMember<kApiIndexedPropertyIndexOfCallbackTag>) - 1;
+inline constexpr int InterceptorInfo::kSize = sizeof(InterceptorInfo);
 
 }  // namespace internal
 }  // namespace v8

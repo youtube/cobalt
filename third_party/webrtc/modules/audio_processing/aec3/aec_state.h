@@ -166,8 +166,6 @@ class AecState {
   std::unique_ptr<ApmDataDumper> data_dumper_;
   const EchoCanceller3Config config_;
   const size_t num_capture_channels_;
-  const bool deactivate_initial_state_reset_at_echo_path_change_;
-  const bool full_reset_at_echo_path_change_;
   const bool subtractor_analyzer_reset_at_echo_path_change_;
 
   // Class for controlling the transition from the intial state, which in turn

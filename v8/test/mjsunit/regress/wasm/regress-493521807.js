@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-js-interop --experimental-wasm-type-reflection
+// Flags: --experimental-wasm-js-interop
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -25,7 +25,7 @@ let $constructors = builder.addImportedGlobal(
   "c", "constructors", kWasmExternRef, false);
 let $p1 = builder.addImportedGlobal("c", "p1", kWasmExternRef, false);
 
-// Element segment containing the imported WasmJSFunction.
+// Element segment containing the imported function.
 let func_seg = builder.addPassiveElementSegment(
   [[kExprGlobalGet, $imported_func]], kWasmFuncRef);
 
@@ -56,8 +56,8 @@ builder.addFunction("test", kSig_v_v).exportFunc().addBody([
   kExprCallFunction, $configureAll,
 ]);
 
-// Create a WasmJSFunction.
-let wasm_js_func = new WebAssembly.Function(
+// Create a JS-backed funcref.
+let wasm_js_func = new WebAssemblyFunction(
   {parameters: [], results: []},
   () => {}
 );

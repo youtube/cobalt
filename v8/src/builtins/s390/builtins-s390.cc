@@ -630,15 +630,16 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // -----------------------------------
   // Store input value into generator object.
   __ StoreTaggedField(
-      r2, FieldMemOperand(r3, JSGeneratorObject::kInputOrDebugPosOffset), r0);
-  __ RecordWriteField(r3, JSGeneratorObject::kInputOrDebugPosOffset, r2, r5,
-                      kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore);
+      r2, FieldMemOperand(r3, offsetof(JSGeneratorObject, input_or_debug_pos_)),
+      r0);
+  __ RecordWriteField(r3, offsetof(JSGeneratorObject, input_or_debug_pos_), r2,
+                      r5, kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore);
   // Check that r3 is still valid, RecordWrite might have clobbered it.
   __ AssertGeneratorObject(r3);
 
   // Load suspended function and context.
-  __ LoadTaggedField(r6,
-                     FieldMemOperand(r3, JSGeneratorObject::kFunctionOffset));
+  __ LoadTaggedField(
+      r6, FieldMemOperand(r3, offsetof(JSGeneratorObject, function_)));
   __ LoadTaggedField(cp, FieldMemOperand(r6, JSFunction::kContextOffset));
 
   // Flood function if we are stepping.
@@ -678,8 +679,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
       r5, FieldMemOperand(r5, SharedFunctionInfo::kFormalParameterCountOffset));
   __ SubS64(r5, r5, Operand(kJSArgcReceiverSlots));
   __ LoadTaggedField(
-      r4,
-      FieldMemOperand(r3, JSGeneratorObject::kParametersAndRegistersOffset));
+      r4, FieldMemOperand(
+              r3, offsetof(JSGeneratorObject, parameters_and_registers_)));
 
   Label stack_overflow;
   __ StackOverflowCheck(r5, scratch, &stack_overflow);
@@ -698,8 +699,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ bind(&done_loop);
 
     // Push receiver.
-    __ LoadTaggedField(scratch,
-                       FieldMemOperand(r3, JSGeneratorObject::kReceiverOffset));
+    __ LoadTaggedField(
+        scratch, FieldMemOperand(r3, offsetof(JSGeneratorObject, receiver_)));
     __ Push(scratch);
   }
 
@@ -744,8 +745,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ PushRoot(RootIndex::kTheHoleValue);
     __ CallRuntime(Runtime::kDebugOnFunctionCall);
     __ Pop(r3);
-    __ LoadTaggedField(r6,
-                       FieldMemOperand(r3, JSGeneratorObject::kFunctionOffset));
+    __ LoadTaggedField(
+        r6, FieldMemOperand(r3, offsetof(JSGeneratorObject, function_)));
   }
   __ b(&stepping_prepared);
 
@@ -755,8 +756,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ Push(r3);
     __ CallRuntime(Runtime::kDebugPrepareStepInSuspendedGenerator);
     __ Pop(r3);
-    __ LoadTaggedField(r6,
-                       FieldMemOperand(r3, JSGeneratorObject::kFunctionOffset));
+    __ LoadTaggedField(
+        r6, FieldMemOperand(r3, offsetof(JSGeneratorObject, function_)));
   }
   __ b(&stepping_prepared);
 
@@ -2778,7 +2779,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   Label no_bound_arguments;
   __ LoadTaggedField(
       r4, FieldMemOperand(r3, JSBoundFunction::kBoundArgumentsOffset));
-  __ SmiUntagField(r6, FieldMemOperand(r4, offsetof(FixedArray, length_)));
+  __ LoadU32(r6, FieldMemOperand(r4, offsetof(FixedArray, length_)));
   __ LoadAndTestP(r6, r6);
   __ beq(&no_bound_arguments);
   {
@@ -3110,6 +3111,10 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
 
     {
+      // Save all parameters and restore them before jumping to the generated
+      // code later. The spilled parameters are *not* visited by GC, but the
+      // `WasmCompileLazy` runtime function does not trigger GC except for
+      // exceptions (and then we unwind before using the spilled values).
       SaveWasmParamsScope save_params(masm);
 
       // Push the instance data as an explicit argument to the runtime function.

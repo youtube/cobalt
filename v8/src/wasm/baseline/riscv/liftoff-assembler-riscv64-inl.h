@@ -1328,6 +1328,10 @@ void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
   MacroAssembler::Modu32(dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_i64_mul_wide_s() { UNIMPLEMENTED(); }
+
+void LiftoffAssembler::emit_i64_mul_wide_u() { UNIMPLEMENTED(); }
+
 #define I32_BINOP(name, instruction)                                 \
   void LiftoffAssembler::emit_i32_##name(Register dst, Register lhs, \
                                          Register rhs) {             \

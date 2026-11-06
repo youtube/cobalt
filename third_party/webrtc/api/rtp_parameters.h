@@ -287,6 +287,14 @@ struct RTC_EXPORT RtpCodecCapability : public RtpCodec {
   }
 };
 
+enum class RtpTransceiverIdDomain {
+  // Only allocate IDs that fit in one-byte header extensions.
+  kOneByteOnly,
+  // Prefer to allocate one-byte header extension IDs, but overflow to
+  // two-byte if none are left.
+  kTwoByteAllowed,
+};
+
 // Used in RtpCapabilities and RtpTransceiverInterface's header extensions query
 // and setup methods; represents the capabilities/preferences of an
 // implementation for a header extension.

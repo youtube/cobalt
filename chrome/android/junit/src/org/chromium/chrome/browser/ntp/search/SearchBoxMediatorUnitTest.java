@@ -66,7 +66,6 @@ public class SearchBoxMediatorUnitTest {
     private Context mContext;
     private ViewGroup mView;
     private PropertyModel mPropertyModel;
-    private Drawable mVoiceSearchDrawable;
     private SearchBoxMediator mMediator;
 
     @Before
@@ -82,18 +81,24 @@ public class SearchBoxMediatorUnitTest {
                                         .inflate(R.layout.fake_search_box_layout, null));
 
         mPropertyModel = new PropertyModel.Builder(SearchBoxProperties.ALL_KEYS).build();
-        mMediator = new SearchBoxMediator(mContext, mPropertyModel, mView, /* isTablet= */ false);
+        mMediator =
+                new SearchBoxMediator(
+                        mContext,
+                        mPropertyModel,
+                        mView,
+                        /* isTablet= */ false,
+                        mActivityLifecycleDispatcher);
     }
 
     @Test
     public void testOnDestroy() {
-        mVoiceSearchDrawable =
+        Drawable voiceSearchDrawable =
                 AppCompatResources.getDrawable(mContext, R.drawable.ic_mic_white_24dp);
 
         mPropertyModel.set(SearchBoxProperties.LENS_CLICK_CALLBACK, mLensClickListener);
         mPropertyModel.set(
                 SearchBoxProperties.VOICE_SEARCH_CLICK_CALLBACK, mVoiceSearchClickListener);
-        mPropertyModel.set(SearchBoxProperties.VOICE_SEARCH_DRAWABLE, mVoiceSearchDrawable);
+        mPropertyModel.set(SearchBoxProperties.VOICE_SEARCH_DRAWABLE, voiceSearchDrawable);
         mPropertyModel.set(
                 SearchBoxProperties.SEARCH_BOX_CLICK_CALLBACK, mock(View.OnClickListener.class));
         mPropertyModel.set(
@@ -109,7 +114,6 @@ public class SearchBoxMediatorUnitTest {
         assertNotNull(mPropertyModel.get(SearchBoxProperties.SEARCH_BOX_TEXT_WATCHER));
         assertNotNull(mPropertyModel.get(SearchBoxProperties.DSE_ICON_DRAWABLE));
 
-        mMediator.initialize(mActivityLifecycleDispatcher);
         mMediator.onDestroy();
 
         verify(mActivityLifecycleDispatcher).unregister(mMediator);
@@ -153,13 +157,6 @@ public class SearchBoxMediatorUnitTest {
         int padding = 10;
         mMediator.setEndPadding(padding);
         assertEquals(padding, mPropertyModel.get(SearchBoxProperties.SEARCH_BOX_END_PADDING));
-    }
-
-    @Test
-    public void testSetStartPadding() {
-        int padding = 20;
-        mMediator.setStartPadding(padding);
-        assertEquals(padding, mPropertyModel.get(SearchBoxProperties.SEARCH_BOX_START_PADDING));
     }
 
     @Test
@@ -344,7 +341,12 @@ public class SearchBoxMediatorUnitTest {
     @Test
     public void testGetToolbarTransitionPercentage_Tablet() {
         SearchBoxMediator tabletMediator =
-                new SearchBoxMediator(mContext, mPropertyModel, mView, /* isTablet= */ true);
+                new SearchBoxMediator(
+                        mContext,
+                        mPropertyModel,
+                        mView,
+                        /* isTablet= */ true,
+                        mActivityLifecycleDispatcher);
         int searchBoxTop = 100;
         int searchBoxPaddingTop = 10;
         int transitionStartOffset = 50;

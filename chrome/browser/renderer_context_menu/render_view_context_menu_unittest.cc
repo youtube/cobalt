@@ -24,7 +24,6 @@
 #include "chrome/browser/extensions/menu_manager.h"
 #include "chrome/browser/extensions/menu_manager_factory.h"
 #include "chrome/browser/extensions/test_extension_environment.h"
-#include "chrome/browser/feed/web_feed_tab_helper.h"
 #include "chrome/browser/navigation_predictor/navigation_predictor_keyed_service.h"
 #include "chrome/browser/navigation_predictor/navigation_predictor_keyed_service_factory.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
@@ -1858,7 +1857,7 @@ class FormatUrlForClipboardTest
 const FormatUrlForClipboardTestData kFormatUrlForClipboardTestData[]{
     {"http://www.foo.com/", "http://www.foo.com/", "HttpNoEscapes"},
     // Percent-encoded ASCII characters are no longer unescaped.
-    // See https://crbug.com/1252531.
+    // See https://crbug.com/40198802.
     {"http://www.foo.com/%61%62%63", "http://www.foo.com/%61%62%63",
      "HttpNoEscape"},
     {"https://www.foo.com/abc%20def", "https://www.foo.com/abc%20def",
@@ -1870,7 +1869,7 @@ const FormatUrlForClipboardTestData kFormatUrlForClipboardTestData[]{
     {"file://stuff.host.co/my%2Bshare/foo.txt",
      "file://stuff.host.co/my%2Bshare/foo.txt", "FileEscapedSpecialCharacters"},
     // Percent-encoded ASCII characters are no longer unescaped.
-    // See https://crbug.com/1252531.
+    // See https://crbug.com/40198802.
     {"file://stuff.host.co/my%2Dshare/foo.txt",
      "file://stuff.host.co/my%2Dshare/foo.txt", "FileNoEscape"},
     {"mailto:me@foo.com", "me@foo.com", "MailToNoEscapes"},
@@ -2130,6 +2129,38 @@ INSTANTIATE_TEST_SUITE_P(All,
                          testing::Values("MenuShuffleDefault",
                                          "MenuShuffleSeparation",
                                          "MenuShufflePlaceAtBottom"));
+
+class RenderViewContextMenuListenToThisPageTest
+    : public RenderViewContextMenuPrefsTest {
+ public:
+  RenderViewContextMenuListenToThisPageTest() = default;
+};
+
+TEST_F(RenderViewContextMenuListenToThisPageTest, MenuItemPresentWhenEnabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kImprovedReadAloud);
+
+  content::ContextMenuParams params = CreateParams(MenuItem::PAGE);
+  TestRenderViewContextMenu menu(*web_contents()->GetPrimaryMainFrame(),
+                                 params);
+  menu.SetBrowser(GetBrowser());
+  menu.Init();
+
+  EXPECT_TRUE(menu.IsItemPresent(IDC_CONTENT_CONTEXT_LISTEN_TO_THIS_PAGE));
+}
+
+TEST_F(RenderViewContextMenuListenToThisPageTest, MenuItemAbsentWhenDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(features::kImprovedReadAloud);
+
+  content::ContextMenuParams params = CreateParams(MenuItem::PAGE);
+  TestRenderViewContextMenu menu(*web_contents()->GetPrimaryMainFrame(),
+                                 params);
+  menu.SetBrowser(GetBrowser());
+  menu.Init();
+
+  EXPECT_FALSE(menu.IsItemPresent(IDC_CONTENT_CONTEXT_LISTEN_TO_THIS_PAGE));
+}
 
 class ReentrantTestRenderViewContextMenu : public TestRenderViewContextMenu {
  public:

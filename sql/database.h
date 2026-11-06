@@ -19,6 +19,7 @@
 #include "base/check_op.h"
 #include "base/component_export.h"
 #include "base/containers/flat_map.h"
+#include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
@@ -40,7 +41,6 @@
 #include "sql/sqlite_result_code.h"
 #include "sql/sqlite_result_code_values.h"
 #include "sql/statement_id.h"
-#include "sql/streaming_blob_handle.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_proto.h"
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
@@ -63,6 +63,7 @@ namespace sql {
 
 class DatabaseMemoryDumpProvider;
 class Statement;
+class StreamingBlobHandle;
 
 namespace test {
 class ScopedErrorExpecter;

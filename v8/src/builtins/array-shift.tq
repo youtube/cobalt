@@ -23,8 +23,8 @@ macro TryFastArrayShift(implicit context: Context)(receiver: JSAny): JSAny
 
   // Check that we're not supposed to right-trim the backing store, as
   // implemented in elements.cc:ElementsAccessorBase::SetLengthImpl.
-  if ((newLength + newLength + kMinAddedElementsCapacity) <
-      array.elements.length) {
+  if (Convert<intptr>(newLength + newLength + kMinAddedElementsCapacity) <
+      array.elements.length_intptr) {
     goto Runtime;
   }
 

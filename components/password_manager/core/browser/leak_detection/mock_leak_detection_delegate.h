@@ -6,7 +6,7 @@
 #define COMPONENTS_PASSWORD_MANAGER_CORE_BROWSER_LEAK_DETECTION_MOCK_LEAK_DETECTION_DELEGATE_H_
 
 #include "build/build_config.h"
-#include "components/password_manager/core/browser/leak_detection/leak_detection_delegate_interface.h"
+#include "components/password_manager/core/browser/leak_detection/bulk_leak_check_delegate_interface.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -15,17 +15,6 @@
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 namespace password_manager {
-
-class MockLeakDetectionDelegateInterface
-    : public LeakDetectionDelegateInterface {
- public:
-  MockLeakDetectionDelegateInterface();
-  ~MockLeakDetectionDelegateInterface() override;
-
-  // LeakDetectionDelegateInterface:
-  MOCK_METHOD(void, OnLeakDetectionDone, (bool, PasswordForm), (override));
-  MOCK_METHOD(void, OnError, (LeakDetectionError), (override));
-};
 
 #if !BUILDFLAG(IS_ANDROID)
 class MockBulkLeakCheckDelegateInterface

@@ -105,11 +105,11 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   // exist.
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetOrCreateInterpreterObject(instance);
-  wasm::InterpreterHandle* interpreter_handle =
+  DirectHandle<Managed<wasm::InterpreterHandle>> interpreter_handle =
       wasm::GetOrCreateInterpreterHandle(isolate, interpreter_object);
 
   if (wasm::WasmBytecode::ContainsSimd(sig)) {
-    interpreter_handle->SetTrapFunctionIndex(func_index);
+    interpreter_handle->ptr()->SetTrapFunctionIndex(func_index);
     isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kWasmTrapJSTypeError));
     return ReadOnlyRoots(isolate).exception();
@@ -165,7 +165,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
       DirectHandle<Object> ref(
           base::ReadUnalignedValue<Tagged<Object>>(arg_buf_ptr), isolate);
       if (isolate->has_exception()) {
-        interpreter_handle->SetTrapFunctionIndex(func_index);
+        interpreter_handle->ptr()->SetTrapFunctionIndex(func_index);
         return ReadOnlyRoots(isolate).exception();
       }
 
@@ -229,17 +229,18 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 
 namespace wasm {
 
-V8_EXPORT_PRIVATE InterpreterHandle* GetInterpreterHandle(
+V8_EXPORT_PRIVATE DirectHandle<Managed<InterpreterHandle>> GetInterpreterHandle(
     Isolate* isolate, DirectHandle<Tuple2> interpreter_object) {
   DirectHandle<Object> handle(
       WasmInterpreterObject::get_interpreter_handle(*interpreter_object),
       isolate);
   CHECK(!IsUndefined(*handle, isolate));
-  return TrustedCast<Managed<InterpreterHandle>>(handle)->get().get();
+  return TrustedCast<Managed<InterpreterHandle>>(handle);
 }
 
-V8_EXPORT_PRIVATE InterpreterHandle* GetOrCreateInterpreterHandle(
-    Isolate* isolate, DirectHandle<Tuple2> interpreter_object) {
+V8_EXPORT_PRIVATE DirectHandle<Managed<InterpreterHandle>>
+GetOrCreateInterpreterHandle(Isolate* isolate,
+                             DirectHandle<Tuple2> interpreter_object) {
   DirectHandle<Object> handle(
       WasmInterpreterObject::get_interpreter_handle(*interpreter_object),
       isolate);
@@ -256,7 +257,7 @@ V8_EXPORT_PRIVATE InterpreterHandle* GetOrCreateInterpreterHandle(
     WasmInterpreterObject::set_interpreter_handle(*interpreter_object, *handle);
   }
 
-  return TrustedCast<Managed<InterpreterHandle>>(handle)->get().get();
+  return TrustedCast<Managed<InterpreterHandle>>(handle);
 }
 
 // A helper for an entry in an indirect function table (IFT).
@@ -347,10 +348,10 @@ void WasmInterpreterRuntime::UpdateMemoryAddress(
   Isolate* isolate = Isolate::Current();
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetOrCreateInterpreterObject(instance);
-  InterpreterHandle* handle =
+  DirectHandle<Managed<InterpreterHandle>> handle =
       GetOrCreateInterpreterHandle(isolate, interpreter_object);
   WasmInterpreterRuntime* wasm_runtime =
-      handle->interpreter()->GetWasmRuntime();
+      handle->ptr()->interpreter()->GetWasmRuntime();
   DCHECK_LT(memory_index, wasm_runtime->module_->memories.size());
   wasm_runtime->InitMemoryAddresses();
 }
@@ -1529,7 +1530,19 @@ void WasmInterpreterRuntime::ExecuteFunction(const uint8_t*& code,
   ShadowStack* prev_shadow_stack = shadow_stack_;
   ShadowStack shadow_stack;
   if (v8_flags.trace_drumbrake_execution) {
+    // The `shadow_stack` local outlives all uses of `shadow_stack_` because
+    // `shadow_stack_` is restored to `prev_shadow_stack` before this function
+    // returns. Suppress the clang lifetime-safety warning for this by-design
+    // pattern.
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunknown-warning-option"
+#pragma clang diagnostic ignored "-Wlifetime-safety-dangling-field"
+#endif
     shadow_stack_ = &shadow_stack;
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
   }
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
@@ -1712,10 +1725,10 @@ void WasmInterpreterRuntime::ClearIndirectCallCacheEntry(
     uint32_t table_index, uint32_t entry_index) {
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetOrCreateInterpreterObject(instance);
-  InterpreterHandle* handle =
+  DirectHandle<Managed<InterpreterHandle>> handle =
       GetOrCreateInterpreterHandle(isolate, interpreter_object);
   WasmInterpreterRuntime* wasm_runtime =
-      handle->interpreter()->GetWasmRuntime();
+      handle->ptr()->interpreter()->GetWasmRuntime();
   DCHECK_LT(table_index, wasm_runtime->indirect_call_tables_.size());
   DCHECK_LT(entry_index,
             wasm_runtime->indirect_call_tables_[table_index].size());
@@ -1728,10 +1741,10 @@ void WasmInterpreterRuntime::UpdateIndirectCallTable(
     uint32_t table_index) {
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetOrCreateInterpreterObject(instance);
-  InterpreterHandle* handle =
+  DirectHandle<Managed<InterpreterHandle>> handle =
       GetOrCreateInterpreterHandle(isolate, interpreter_object);
   WasmInterpreterRuntime* wasm_runtime =
-      handle->interpreter()->GetWasmRuntime();
+      handle->ptr()->interpreter()->GetWasmRuntime();
   wasm_runtime->PurgeIndirectCallCache(table_index);
 }
 
@@ -2121,7 +2134,7 @@ void WasmInterpreterRuntime::CallWasmToJSBuiltin(
 
   if (Tagged<JSProxy> js_proxy; TryCast(*js_function, &js_proxy)) {
     do {
-      Tagged<HeapObject> target = js_proxy->target(isolate);
+      Tagged<Object> target = js_proxy->target();
       js_function = DirectHandle<Object>(target, isolate);
     } while (TryCast(*js_function, &js_proxy));
   }
@@ -2410,16 +2423,18 @@ DirectHandle<Map> WasmInterpreterRuntime::RttCanon(uint32_t type_index) const {
   return rtt;
 }
 
-std::pair<DirectHandle<WasmStruct>, const StructType*>
+WasmInterpreterRuntime::StructNewResult
 WasmInterpreterRuntime::StructNewUninitialized(uint32_t index) const {
   const TypeDefinition& type = module_->types[index];
   const StructType* struct_type = module_->struct_type({index});
   DirectHandle<Map> rtt = RttCanon(index);
-  return {isolate_->factory()->NewWasmStructUninitialized(
-              struct_type, rtt,
-              type.is_shared == SharedFlag::kYes ? AllocationType::kSharedOld
-                                                 : AllocationType::kYoung),
-          struct_type};
+  AllocationType allocation = type.is_shared == SharedFlag::kYes
+                                  ? AllocationType::kSharedOld
+                                  : AllocationType::kYoung;
+  const bool needs_write_barrier = allocation != AllocationType::kYoung;
+  return {isolate_->factory()->NewWasmStructUninitialized(struct_type, rtt,
+                                                          allocation),
+          struct_type, needs_write_barrier};
 }
 
 WasmInterpreterRuntime::ArrayNewResult
@@ -2435,10 +2450,19 @@ WasmInterpreterRuntime::ArrayNewUninitialized(uint32_t length,
   }
 
   DirectHandle<Map> rtt = RttCanon(array_index);
+  AllocationType allocation =
+      is_shared ? AllocationType::kSharedOld : AllocationType::kYoung;
+  // Ref-typed element initialization must use a write barrier whenever the
+  // backing store is not in (per-isolate) young space. Young-space
+  // allocations are scanned in full by the Scavenger, so the barrier can
+  // be skipped during initialization.
+  const bool needs_write_barrier = allocation != AllocationType::kYoung;
   return {
-      {isolate_->factory()->NewWasmArrayUninitialized(length, rtt), isolate_},
+      {isolate_->factory()->NewWasmArrayUninitialized(length, rtt, allocation),
+       isolate_},
       array_type,
-      is_shared};
+      is_shared,
+      needs_write_barrier};
 }
 
 WasmRef WasmInterpreterRuntime::WasmArrayNewSegment(uint32_t array_index,
@@ -2987,8 +3011,8 @@ DirectHandle<WasmInstanceObject> InterpreterHandle::GetInstanceObject() {
             TrustedCast<Managed<InterpreterHandle>>(
                 WasmInterpreterObject::get_interpreter_handle(
                     instance_obj->trusted_data(isolate_)->interpreter_object()))
-                ->get()
-                .get());
+                ->ptr()
+                .raw());
   return instance_obj;
 }
 

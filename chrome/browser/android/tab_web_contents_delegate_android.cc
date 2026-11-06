@@ -451,9 +451,6 @@ void TabWebContentsDelegateAndroid::UpdateUserGestureCarryoverInfo(
 content::PictureInPictureResult
 TabWebContentsDelegateAndroid::EnterPictureInPicture(
     content::WebContents* web_contents) {
-  if (!IsPictureInPictureEnabled()) {
-    return content::PictureInPictureResult::kNotSupported;
-  }
   return PictureInPictureWindowManager::GetInstance()
       ->EnterVideoPictureInPicture(web_contents);
 }
@@ -566,6 +563,18 @@ bool TabWebContentsDelegateAndroid::ShouldEnableEmbeddedMediaExperience()
   if (obj.is_null())
     return false;
   return Java_TabWebContentsDelegateAndroidImpl_shouldEnableEmbeddedMediaExperience(
+      env, obj);
+}
+
+bool TabWebContentsDelegateAndroid::IsDocumentPictureInPictureBlockedBySystem()
+    const {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> obj = GetJavaDelegate(env);
+  if (obj.is_null()) {
+    return false;
+  }
+
+  return Java_TabWebContentsDelegateAndroidImpl_isDocumentPictureInPictureBlockedBySystem(
       env, obj);
 }
 

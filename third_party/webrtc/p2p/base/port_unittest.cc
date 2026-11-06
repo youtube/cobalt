@@ -2635,12 +2635,12 @@ TEST_F(PortTest,
 
   // Build ordinary message with valid ufrag/pass.
   in_msg = CreateStunMessageWithUsername(STUN_BINDING_REQUEST, "rfrag:lfrag");
-  in_msg->AddMessageIntegrity("rpass");
   // Add a couple attributes with ID in comprehension-required range.
   in_msg->AddAttribute(StunAttribute::CreateUInt32(0x7777));
   in_msg->AddAttribute(StunAttribute::CreateUInt32(0x4567));
   // ... And one outside the range.
   in_msg->AddAttribute(StunAttribute::CreateUInt32(0xdead));
+  in_msg->AddMessageIntegrity("rpass");
   in_msg->AddFingerprint();
   WriteStunMessage(*in_msg, buf.get());
   ASSERT_TRUE(GetStunMessageFromBufferWriter(port.get(), buf.get(), addr,
@@ -2694,7 +2694,9 @@ TEST_F(PortTest,
       IsRtcOk());
   auto modified_response = rport->last_stun_msg()->Clone();
   modified_response->AddAttribute(StunAttribute::CreateUInt32(0x7777));
+  modified_response->RemoveAttribute(STUN_ATTR_MESSAGE_INTEGRITY);
   modified_response->RemoveAttribute(STUN_ATTR_FINGERPRINT);
+  modified_response->AddMessageIntegrity("rpass");
   modified_response->AddFingerprint();
   ByteBufferWriter buf;
   WriteStunMessage(*modified_response, &buf);
@@ -4085,6 +4087,32 @@ TEST_F(PortTest, TestAddConnectionWithSameAddress) {
   time_controller_.AdvanceTime(TimeDelta::Millis(300));
   EXPECT_TRUE(port->GetConnection(address) != nullptr);
 }
+
+// This is a COMPILE time check to ensure that the TurnPort class can be
+// subclassed properly.
+class TestPortWrapper : public TurnPort {
+  TestPortWrapper()
+      : TurnPort(args_,
+                 /*socket=*/nullptr,
+                 my_server_address_,
+                 credentials_,
+                 /*server_priority=*/1,
+                 /*tls_alpn_protocols=*/{"alpn"},
+                 /*tls_elliptic_curves=*/{"ecc"},
+                 /*customizer=*/nullptr,
+                 /*tls_cert_verifier=*/nullptr) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    SubscribeReadPacket([](PortInterface* port, const char* data, size_t size,
+                           const SocketAddress& addr) {});
+#pragma clang diagnostic pop
+  }
+
+ private:
+  PortParametersRef args_{.env = CreateTestEnvironment()};
+  ProtocolAddress my_server_address_{kLocalAddr1, PROTO_UDP};
+  RelayCredentials credentials_;
+};
 
 }  // namespace
 }  // namespace webrtc

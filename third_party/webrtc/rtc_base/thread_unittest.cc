@@ -33,6 +33,7 @@
 #include "rtc_base/event.h"
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/internal/default_socket_server.h"
+#include "rtc_base/logging.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/null_socket_server.h"
 #include "rtc_base/socket.h"
@@ -60,6 +61,26 @@ namespace {
 using ::testing::ElementsAre;
 using ::testing::IsNull;
 using ::testing::NotNull;
+
+class ScopedThread : public Thread {
+ public:
+  ScopedThread()
+      : Thread(CreateDefaultSocketServer(), /*do_init=*/false),
+        previous_thread_(ThreadManager::Instance()->CurrentThread()) {
+    DoInit();
+    ThreadManager::Instance()->SetCurrentThread(this);
+  }
+
+  ~ScopedThread() override {
+    Stop();
+    DoDestroy();
+    RTC_DCHECK_EQ(ThreadManager::Instance()->CurrentThread(), this);
+    ThreadManager::Instance()->SetCurrentThread(previous_thread_);
+  }
+
+ private:
+  Thread* const previous_thread_;
+};
 
 // Generates a sequence of numbers (collaboratively).
 class TestGenerator {
@@ -166,7 +187,7 @@ class SignalWhenDestroyedThread : public Thread {
 
 // See: https://code.google.com/p/webrtc/issues/detail?id=2409
 TEST(ThreadTest, DISABLED_Main) {
-  AutoThread main_thread;
+  ScopedThread main_thread;
   const SocketAddress addr("127.0.0.1", 0);
 
   // Create the messaging client on its own thread.
@@ -215,12 +236,12 @@ TEST(ThreadTest, DisallowBlockingCallsNoThread) {
 }
 
 TEST(ThreadTest, DisallowBlockingCallsWithThread) {
-  AutoThread current;
+  ScopedThread current;
   RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
 }
 
 TEST(ThreadTest, CountBlockingCalls) {
-  AutoThread current;
+  ScopedThread current;
 
   // When the test runs, this will print out:
   //   (thread_unittest.cc:262): Blocking TestBody: total=2 (actual=1, could=1)
@@ -262,7 +283,7 @@ TEST(ThreadTest, CountBlockingCalls) {
 
 #if RTC_DCHECK_IS_ON
 TEST(ThreadTest, CountBlockingCallsOneCallback) {
-  AutoThread current;
+  ScopedThread current;
   bool was_called_back = false;
   {
     Thread::ScopedCountBlockingCalls blocked_calls(
@@ -275,7 +296,7 @@ TEST(ThreadTest, CountBlockingCallsOneCallback) {
 }
 
 TEST(ThreadTest, CountBlockingCallsSkipCallback) {
-  AutoThread current;
+  ScopedThread current;
   bool was_called_back = false;
   {
     Thread::ScopedCountBlockingCalls blocked_calls(
@@ -329,7 +350,7 @@ TEST(ThreadTest, Wrap) {
 
 #if (!defined(NDEBUG) || RTC_DCHECK_IS_ON)
 TEST(ThreadTest, InvokeToThreadAllowedReturnsTrueWithoutPolicies) {
-  AutoThread main_thread;
+  ScopedThread main_thread;
   // Create and start the thread.
   auto thread1 = Thread::CreateWithSocketServer();
   auto thread2 = Thread::CreateWithSocketServer();
@@ -340,7 +361,7 @@ TEST(ThreadTest, InvokeToThreadAllowedReturnsTrueWithoutPolicies) {
 }
 
 TEST(ThreadTest, InvokeAllowedWhenThreadsAdded) {
-  AutoThread main_thread;
+  ScopedThread main_thread;
   // Create and start the thread.
   auto thread1 = Thread::CreateWithSocketServer();
   auto thread2 = Thread::CreateWithSocketServer();
@@ -359,7 +380,7 @@ TEST(ThreadTest, InvokeAllowedWhenThreadsAdded) {
 }
 
 TEST(ThreadTest, InvokesDisallowedWhenDisallowAllInvokes) {
-  AutoThread main_thread;
+  ScopedThread main_thread;
   // Create and start the thread.
   auto thread1 = Thread::CreateWithSocketServer();
   auto thread2 = Thread::CreateWithSocketServer();
@@ -373,7 +394,7 @@ TEST(ThreadTest, InvokesDisallowedWhenDisallowAllInvokes) {
 #endif  // (!defined(NDEBUG) || RTC_DCHECK_IS_ON)
 
 TEST(ThreadTest, InvokesAllowedByDefault) {
-  AutoThread main_thread;
+  ScopedThread main_thread;
   // Create and start the thread.
   auto thread1 = Thread::CreateWithSocketServer();
   auto thread2 = Thread::CreateWithSocketServer();
@@ -407,7 +428,7 @@ TEST(ThreadTest, BlockingCall) {
 #if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
 TEST(ThreadTest, TwoThreadsInvokeDeathTest) {
   GTEST_FLAG_SET(death_test_style, "threadsafe");
-  AutoThread thread;
+  ScopedThread thread;
   Thread* main_thread = Thread::Current();
   auto other_thread = Thread::CreateWithSocketServer();
   other_thread->Start();
@@ -418,7 +439,7 @@ TEST(ThreadTest, TwoThreadsInvokeDeathTest) {
 
 TEST(ThreadTest, ThreeThreadsInvokeDeathTest) {
   GTEST_FLAG_SET(death_test_style, "threadsafe");
-  AutoThread thread;
+  ScopedThread thread;
   Thread* first = Thread::Current();
 
   auto second = Thread::Create();
@@ -434,7 +455,7 @@ TEST(ThreadTest, ThreeThreadsInvokeDeathTest) {
 
 TEST(ThreadTest, DisallowBlockingCallDeathTest) {
   GTEST_FLAG_SET(death_test_style, "threadsafe");
-  AutoThread thread;
+  ScopedThread thread;
   ASSERT_THAT(Thread::Current(), NotNull());
   auto other_thread = Thread::CreateWithSocketServer();
   other_thread->Start();
@@ -450,7 +471,7 @@ TEST(ThreadTest, DisallowBlockingCallDeathTest) {
 // to invoke A at the same time, thread A does not handle C's invoke while
 // invoking B.
 TEST(ThreadTest, ThreeThreadsBlockingCall) {
-  AutoThread thread;
+  ScopedThread thread;
   Thread* thread_a = Thread::Current();
   auto thread_b = Thread::CreateWithSocketServer();
   auto thread_c = Thread::CreateWithSocketServer();
@@ -561,7 +582,7 @@ TEST(ThreadTest, DelayedPostsWithIdenticalTimesAreProcessedInFifoOrder) {
 // all messages (both delayed and non delayed) up until the current time, on
 // all registered message queues.
 TEST(ThreadManager, ProcessAllMessageQueues) {
-  AutoThread main_thread;
+  ScopedThread main_thread;
   Event entered_process_all_message_queues(true, false);
   auto a = Thread::CreateWithSocketServer();
   auto b = Thread::CreateWithSocketServer();
@@ -936,7 +957,6 @@ std::unique_ptr<TaskQueueFactory> CreateDefaultThreadFactory(
     const FieldTrialsView*) {
   return std::make_unique<ThreadFactory>();
 }
-
 
 INSTANTIATE_TEST_SUITE_P(RtcThread,
                          TaskQueueTest,

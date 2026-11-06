@@ -33,7 +33,7 @@
 #include "chrome/common/compose/compose.mojom.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
-#include "chrome/test/base/browser_with_test_window_test.h"
+#include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -126,39 +126,43 @@ class MockComposeDialog : public compose::mojom::ComposeUntrustedDialog {
 
 }  // namespace
 
-class ChromeComposeClientTest : public BrowserWithTestWindowTest {
+class ChromeComposeClientTest : public ChromeRenderViewHostTestHarness {
  public:
   ChromeComposeClientTest()
-      : BrowserWithTestWindowTest(
-            base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
+      : ChromeRenderViewHostTestHarness(
+            base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
+    // Allows early registration of an override of the factory that instantiates
+    // OptimizationGuideKeyedService and SegmentationPlatformService.
+    subscription_ =
+        BrowserContextDependencyManager::GetInstance()
+            ->RegisterCreateServicesCallbackForTesting(base::BindRepeating(
+                &ChromeComposeClientTest::SetTestingFactories,
+                base::Unretained(this)));
+  }
 
-  TestingProfile::TestingFactories GetTestingFactories() override {
-    return {
-        TestingProfile::TestingFactory{
-            segmentation_platform::SegmentationPlatformServiceFactory::
-                GetInstance(),
-            base::BindRepeating([](content::BrowserContext* context)
-                                    -> std::unique_ptr<KeyedService> {
+  void SetTestingFactories(content::BrowserContext* context) {
+    segmentation_platform::SegmentationPlatformServiceFactory::GetInstance()
+        ->SetTestingFactory(
+            context, base::BindRepeating([](content::BrowserContext* context)
+                                             -> std::unique_ptr<KeyedService> {
               return std::make_unique<
                   testing::NiceMock<MockSegmentationPlatformService>>();
-            })},
-        TestingProfile::TestingFactory{
-            OptimizationGuideKeyedServiceFactory::GetInstance(),
-            base::BindRepeating([](content::BrowserContext* context)
-                                    -> std::unique_ptr<KeyedService> {
-              return std::make_unique<
-                  testing::NiceMock<MockOptimizationGuideKeyedService>>();
-            })},
-    };
+            }));
+    OptimizationGuideKeyedServiceFactory::GetInstance()->SetTestingFactory(
+        context, base::BindRepeating([](content::BrowserContext* context)
+                                         -> std::unique_ptr<KeyedService> {
+          return std::make_unique<
+              testing::NiceMock<MockOptimizationGuideKeyedService>>();
+        }));
   }
 
   void SetUp() override {
     scoped_compose_enabled_ = ComposeEnabling::ScopedEnableComposeForTesting();
-    BrowserWithTestWindowTest::SetUp();
+    ChromeRenderViewHostTestHarness::SetUp();
 
     mock_hats_service_ = static_cast<MockHatsService*>(
         HatsServiceFactory::GetInstance()->SetTestingFactoryAndUse(
-            GetProfile(), base::BindRepeating(&BuildMockHatsService)));
+            profile(), base::BindRepeating(&BuildMockHatsService)));
     EXPECT_CALL(*mock_hats_service(), CanShowAnySurvey(_))
         .WillRepeatedly(testing::Return(true));
 
@@ -174,10 +178,10 @@ class ChromeComposeClientTest : public BrowserWithTestWindowTest {
         std::make_unique<TestModelQualityLogsUploaderService>(
             TestingBrowserProcess::GetGlobal()->local_state()));
 
-    GetProfile()->GetPrefs()->SetBoolean(prefs::kPrefHasCompletedComposeFRE,
-                                         true);
+    profile()->GetPrefs()->SetBoolean(prefs::kPrefHasCompletedComposeFRE, true);
     SetPrefsForComposeMSBBState(true);
-    AddTab(browser(), GetPageUrl());
+    NavigateAndCommit(GetPageUrl());
+    ChromeComposeClient::CreateForWebContents(web_contents());
 
     client_ = ChromeComposeClient::FromWebContents(web_contents());
     client_->SetModelExecutorForTest(&model_executor_);
@@ -253,11 +257,11 @@ class ChromeComposeClientTest : public BrowserWithTestWindowTest {
     ukm_recorder_.reset();
     // Needed for feature params to reset.
     compose::ResetConfigForTesting();
-    BrowserWithTestWindowTest::TearDown();
+    ChromeRenderViewHostTestHarness::TearDown();
   }
 
   void SetPrefsForComposeMSBBState(bool msbb_state) {
-    PrefService* prefs = GetProfile()->GetPrefs();
+    PrefService* prefs = profile()->GetPrefs();
     prefs->SetBoolean(
         unified_consent::prefs::kUrlKeyedAnonymizedDataCollectionEnabled,
         msbb_state);
@@ -329,11 +333,6 @@ class ChromeComposeClientTest : public BrowserWithTestWindowTest {
   MockComposeDialog& compose_dialog() { return compose_dialog_; }
   autofill::FormFieldData& field_data() { return field_data_; }
 
-  // Get the WebContents for the first browser tab.
-  content::WebContents* web_contents() {
-    return browser()->tab_strip_model()->GetWebContentsAt(0);
-  }
-
   mojo::Remote<compose::mojom::ComposeClientUntrustedPageHandler>&
   client_page_handler() {
     return client_page_handler_;
@@ -361,20 +360,19 @@ class ChromeComposeClientTest : public BrowserWithTestWindowTest {
   MockSegmentationPlatformService& GetSegmentationPlatformService() {
     return *static_cast<MockSegmentationPlatformService*>(
         segmentation_platform::SegmentationPlatformServiceFactory::
-            GetForProfile(GetProfile()));
+            GetForProfile(profile()));
   }
 
   MockOptimizationGuideKeyedService& GetOptimizationGuide() {
     return *static_cast<MockOptimizationGuideKeyedService*>(
-        OptimizationGuideKeyedServiceFactory::GetForProfile(GetProfile()));
+        OptimizationGuideKeyedServiceFactory::GetForProfile(profile()));
   }
 
  protected:
   optimization_guide::proto::ComposePageMetadata ComposePageMetadata() {
     optimization_guide::proto::ComposePageMetadata page_metadata;
     page_metadata.set_page_url(GetPageUrl().spec());
-    page_metadata.set_page_title(base::UTF16ToUTF8(
-        browser()->tab_strip_model()->GetWebContentsAt(0)->GetTitle()));
+    page_metadata.set_page_title(base::UTF16ToUTF8(web_contents()->GetTitle()));
     return page_metadata;
   }
 
@@ -442,6 +440,7 @@ class ChromeComposeClientTest : public BrowserWithTestWindowTest {
   }
 
   base::test::ScopedFeatureList scoped_feature_list_;
+  base::CallbackListSubscription subscription_;
 
   MockHatsService* mock_hats_service() { return mock_hats_service_; }
 
@@ -472,8 +471,6 @@ class ChromeComposeClientTest : public BrowserWithTestWindowTest {
   ComposeEnabling::ScopedOverride scoped_compose_enabled_;
   raw_ptr<MockHatsService> mock_hats_service_;
 };
-
-
 
 TEST_F(ChromeComposeClientTest, TestComposeServerResponses) {
   ShowDialogAndBindMojo();
@@ -641,7 +638,7 @@ TEST_F(ChromeComposeClientTest, TestComposeParams) {
   compose::mojom::ComposeResponsePtr result = test_future.Take();
   EXPECT_EQ(compose::mojom::ComposeStatus::kOk, result->status);
 
-  NavigateAndCommitActiveTab(GURL("about:blank"));
+  NavigateAndCommit(GURL("about:blank"));
 }
 
 
@@ -824,7 +821,7 @@ TEST_F(ChromeComposeClientTest, TestSaveThenComposeThenRestoreWebUIState) {
 }
 
 TEST_F(ChromeComposeClientTest, NoStateWorksAtChromeCompose) {
-  NavigateAndCommitActiveTab(GURL(chrome::kChromeUIUntrustedComposeUrl));
+  NavigateAndCommit(GURL(chrome::kChromeUIUntrustedComposeUrl));
   // We skip showing the dialog here as there is no dialog required at this URL.
   BindMojo();
 
@@ -867,7 +864,7 @@ TEST_F(ChromeComposeClientTest, TestCloseUI) {
 // Tests that closing the session at chrome-untrusted://compose does not crash
 // the browser, even though there is no dialog shown at that URL.
 TEST_F(ChromeComposeClientTest, TestCloseUIAtChromeCompose) {
-  NavigateAndCommitActiveTab(GURL(chrome::kChromeUIUntrustedComposeUrl));
+  NavigateAndCommit(GURL(chrome::kChromeUIUntrustedComposeUrl));
   // We skip showing the dialog here as there is no dialog required at this
   // URL.
   BindMojo();
@@ -1068,189 +1065,7 @@ TEST_F(ChromeComposeClientTest, TestInputParams) {
   EXPECT_EQ(100, result->configurable_params->max_character_limit);
 }
 
-// Tests that Undo is not possible when Compose is never called and no response
-// is ever received.
-TEST_F(ChromeComposeClientTest, TestEmptyUndo) {
-  ShowDialogAndBindMojo();
-  base::test::TestFuture<compose::mojom::ComposeStatePtr> test_future;
-  page_handler()->Undo(test_future.GetCallback());
-  EXPECT_FALSE(test_future.Take());
-}
 
-// Tests that Undo is not possible after only one Compose() invocation.
-// TODO(b/334007229): incorporate redo testing.
-TEST_F(ChromeComposeClientTest, TestUndoUnavailableFirstCompose) {
-  ShowDialogAndBindMojo();
-  base::test::TestFuture<compose::mojom::ComposeResponsePtr> compose_future;
-  BindComposeFutureToOnResponseReceived(compose_future);
-
-  page_handler()->Compose("", compose::mojom::InputMode::kPolish, false);
-  compose::mojom::ComposeResponsePtr response = compose_future.Take();
-  EXPECT_FALSE(response->undo_available)
-      << "First Compose() response should say undo not available.";
-
-  base::test::TestFuture<compose::mojom::OpenMetadataPtr> open_future;
-  page_handler()->RequestInitialState(open_future.GetCallback());
-  compose::mojom::OpenMetadataPtr open_metadata = open_future.Take();
-  EXPECT_FALSE(open_metadata->compose_state->response->undo_available)
-      << "RequestInitialState() should return a response that undo is "
-         "not available after only one Compose() invocation.";
-
-  base::test::TestFuture<compose::mojom::ComposeStatePtr> undo_future;
-  page_handler()->Undo(undo_future.GetCallback());
-  compose::mojom::ComposeStatePtr state = undo_future.Take();
-  EXPECT_FALSE(state)
-      << "Undo should return null after only one Compose() invocation.";
-}
-
-// Tests Undo after calling Compose() twice.
-TEST_F(ChromeComposeClientTest, TestComposeTwiceThenUpdateWebUIStateThenUndo) {
-  ShowDialogAndBindMojo();
-
-  base::test::TestFuture<compose::mojom::ComposeResponsePtr> compose_future;
-  BindComposeFutureToOnResponseReceived(compose_future);
-
-  page_handler()->SaveWebUIState("this state should be restored with undo");
-  page_handler()->Compose("", compose::mojom::InputMode::kPolish, false);
-
-  compose::mojom::ComposeResponsePtr response = compose_future.Take();
-  EXPECT_FALSE(response->undo_available) << "First Compose() response should "
-                                            "say undo is not available.";
-  page_handler()->SaveWebUIState("second state");
-  page_handler()->Compose("", compose::mojom::InputMode::kPolish, false);
-
-  response = compose_future.Take();
-  EXPECT_TRUE(response->undo_available) << "Second Compose() response should "
-                                           "say undo is available.";
-  page_handler()->SaveWebUIState("user edited the input field further");
-
-  base::test::TestFuture<compose::mojom::OpenMetadataPtr> open_future;
-
-  page_handler()->RequestInitialState(open_future.GetCallback());
-  compose::mojom::OpenMetadataPtr open_metadata = open_future.Take();
-  EXPECT_TRUE(open_metadata->compose_state->response->undo_available)
-      << "RequestInitialState() should return a response that undo is "
-         "available after second Compose() invocation.";
-  EXPECT_EQ("user edited the input field further",
-            open_metadata->compose_state->webui_state);
-
-  base::test::TestFuture<compose::mojom::ComposeStatePtr> undo_future;
-  page_handler()->Undo(undo_future.GetCallback());
-  compose::mojom::ComposeStatePtr state = undo_future.Take();
-  EXPECT_TRUE(state)
-      << "Undo should return valid state after second Compose() invocation.";
-  EXPECT_EQ("this state should be restored with undo", state->webui_state);
-
-  client_page_handler()->CloseUI(compose::mojom::CloseReason::kCloseButton);
-  // Make sure the async call to CloseUI() completes before navigating away.
-  FlushMojo();
-
-  // Check Compose Session Event Counts.
-  histograms().ExpectBucketCount(
-      compose::kComposeSessionEventCounts,
-      compose::ComposeSessionEventTypes::kMainDialogShown, 1);
-  histograms().ExpectBucketCount(
-      compose::kComposeSessionEventCounts,
-      compose::ComposeSessionEventTypes::kUndoClicked, 1);
-  histograms().ExpectBucketCount(
-      compose::kComposeSessionEventCounts,
-      compose::ComposeSessionEventTypes::kCloseClicked, 1);
-
-  // Navigate page away to upload UKM metrics to the collector.
-  NavigateAndCommitActiveTab(GURL("about:blank"));
-
-  // Check session level UKM metrics.
-  auto session_ukm_entries = ukm_recorder().GetEntries(
-      ukm::builders::Compose_SessionProgress::kEntryName,
-      {ukm::builders::Compose_SessionProgress::kUndoCountName});
-
-  EXPECT_EQ(session_ukm_entries.size(), 1UL);
-
-  EXPECT_THAT(session_ukm_entries[0].metrics,
-              testing::UnorderedElementsAre(testing::Pair(
-                  ukm::builders::Compose_SessionProgress::kUndoCountName, 1)));
-}
-
-// Tests if Undo can be done more than once.
-// TODO(b/334007229): incorporate redo testing.
-TEST_F(ChromeComposeClientTest, TestUndoStackMultipleUndos) {
-  ShowDialogAndBindMojo();
-
-  base::test::TestFuture<compose::mojom::ComposeResponsePtr> compose_future;
-  BindComposeFutureToOnResponseReceived(compose_future);
-
-  page_handler()->SaveWebUIState("first state");
-  page_handler()->Compose("", compose::mojom::InputMode::kPolish, false);
-
-  compose::mojom::ComposeResponsePtr response = compose_future.Take();
-  EXPECT_FALSE(response->undo_available) << "First Compose() response should "
-                                            "say undo is not available.";
-  page_handler()->SaveWebUIState("second state");
-  page_handler()->Compose("", compose::mojom::InputMode::kPolish, false);
-  response = compose_future.Take();
-  EXPECT_TRUE(response->undo_available) << "Second Compose() response should "
-                                           "say undo is available.";
-
-  page_handler()->SaveWebUIState("third state");
-  page_handler()->Compose("", compose::mojom::InputMode::kPolish, false);
-
-  response = compose_future.Take();
-  EXPECT_TRUE(response->undo_available) << "Third Compose() response should "
-                                           "say undo is available.";
-
-  page_handler()->SaveWebUIState("fourth state");
-
-  base::test::TestFuture<compose::mojom::ComposeStatePtr> undo_future;
-  page_handler()->Undo(undo_future.GetCallback());
-  compose::mojom::ComposeStatePtr state = undo_future.Take();
-  EXPECT_EQ("second state", state->webui_state);
-  EXPECT_TRUE(state->response->undo_available);
-
-  base::test::TestFuture<compose::mojom::ComposeStatePtr> undo_future2;
-  page_handler()->Undo(undo_future2.GetCallback());
-  compose::mojom::ComposeStatePtr state2 = undo_future2.Take();
-  EXPECT_EQ("first state", state2->webui_state);
-  EXPECT_FALSE(state2->response->undo_available);
-}
-
-// Tests scenario: Undo returns state A, Compose, then undo again returns to
-// state A.
-TEST_F(ChromeComposeClientTest, TestUndoComposeThenUndoAgain) {
-  ShowDialogAndBindMojo();
-
-  base::test::TestFuture<compose::mojom::ComposeResponsePtr> compose_future;
-  BindComposeFutureToOnResponseReceived(compose_future);
-
-  page_handler()->SaveWebUIState("first state");
-  page_handler()->Compose("", compose::mojom::InputMode::kPolish, false);
-
-  compose::mojom::ComposeResponsePtr response = compose_future.Take();
-  EXPECT_FALSE(response->undo_available) << "First Compose() response should "
-                                            "say undo is not available.";
-
-  page_handler()->SaveWebUIState("second state");
-  page_handler()->Compose("", compose::mojom::InputMode::kPolish, false);
-
-  response = compose_future.Take();
-  EXPECT_TRUE(response->undo_available) << "Second Compose() response should "
-                                           "say undo is available.";
-  page_handler()->SaveWebUIState("wip web ui state");
-
-  base::test::TestFuture<compose::mojom::ComposeStatePtr> undo_future;
-  page_handler()->Undo(undo_future.GetCallback());
-  EXPECT_EQ("first state", undo_future.Take()->webui_state);
-
-  page_handler()->SaveWebUIState("third state");
-  page_handler()->Compose("", compose::mojom::InputMode::kPolish, false);
-
-  response = compose_future.Take();
-  EXPECT_TRUE(response->undo_available) << "Third Compose() response should "
-                                           "say undo is available.";
-
-  base::test::TestFuture<compose::mojom::ComposeStatePtr> undo2_future;
-  page_handler()->Undo(undo2_future.GetCallback());
-  EXPECT_EQ("first state", undo2_future.Take()->webui_state);
-}
 
 // Tests that the corresponding callback is run when AcceptComposeResponse is
 // called.
@@ -1288,77 +1103,11 @@ TEST_F(ChromeComposeClientTest, TestAcceptComposeResultCallback) {
   EXPECT_EQ(u"Cucumbers", accept_callback.Take());
 }
 
-TEST_F(ChromeComposeClientTest, BugReportOpensCorrectURL) {
-  GURL bug_url("https://goto.google.com/ccbrfd");
 
-  ShowDialogAndBindMojo();
 
-  ui_test_utils::TabAddedWaiter tab_add_waiter(browser());
-  page_handler()->OpenBugReportingLink();
 
-  // Wait for the resulting new tab to be created.
-  tab_add_waiter.Wait();
-  // Check that the new foreground tab is opened.
-  EXPECT_EQ(2, browser()->tab_strip_model()->count());
-  EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
-  // This test uses web_contents->GetController()->GetPendingEntry() as it only
-  // verifies that a navigation has started, regardless of whether it commits or
-  // not.
-  content::WebContents* new_tab_webcontents =
-      browser()->tab_strip_model()->GetWebContentsAt(1);
-  EXPECT_EQ(bug_url,
-            new_tab_webcontents->GetController().GetPendingEntry()->GetURL());
-}
 
-// TODO(crbug.com/400504728): Remove after ComposeProactiveNudge is launched.
-TEST_F(ChromeComposeClientTest, LearnMoreLinkOpensCorrectURL) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures(
-      {compose::features::kEnableCompose},
-      {compose::features::kEnableComposeProactiveNudge});
 
-  GURL learn_more_url("https://support.google.com/chrome?p=help_me_write");
-
-  ShowDialogAndBindMojo();
-
-  ui_test_utils::TabAddedWaiter tab_add_waiter(browser());
-  page_handler()->OpenComposeLearnMorePage();
-
-  // Wait for the resulting new tab to be created.
-  tab_add_waiter.Wait();
-  // Check that the new foreground tab is opened.
-  EXPECT_EQ(2, browser()->tab_strip_model()->count());
-  EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
-  // This test uses web_contents->GetController()->GetPendingEntry() as it only
-  // verifies that a navigation has started, regardless of whether it commits or
-  // not.
-  content::WebContents* new_tab_webcontents =
-      browser()->tab_strip_model()->GetWebContentsAt(1);
-  EXPECT_EQ(learn_more_url,
-            new_tab_webcontents->GetController().GetPendingEntry()->GetURL());
-}
-
-TEST_F(ChromeComposeClientTest, SurveyLinkOpensCorrectURL) {
-  GURL survey_url("https://goto.google.com/ccfsfd");
-
-  ShowDialogAndBindMojo();
-
-  ui_test_utils::TabAddedWaiter tab_add_waiter(browser());
-  page_handler()->OpenFeedbackSurveyLink();
-
-  // Wait for the resulting new tab to be created.
-  tab_add_waiter.Wait();
-  // Check that the new foreground tab is opened.
-  EXPECT_EQ(2, browser()->tab_strip_model()->count());
-  EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
-  // This test uses web_contents->GetController()->GetPendingEntry() as it only
-  // verifies that a navigation has started, regardless of whether it commits or
-  // not.
-  content::WebContents* new_tab_webcontents =
-      browser()->tab_strip_model()->GetWebContentsAt(1);
-  EXPECT_EQ(survey_url,
-            new_tab_webcontents->GetController().GetPendingEntry()->GetURL());
-}
 
 // Tests that all ComposeSessions are deleted on page navigation.
 TEST_F(ChromeComposeClientTest, ResetClientOnNavigation) {
@@ -1376,7 +1125,7 @@ TEST_F(ChromeComposeClientTest, ResetClientOnNavigation) {
 
   // Navigate to a new page.
   GURL next_page("http://example.com/a.html");
-  NavigateAndCommit(web_contents(), next_page);
+  NavigateAndCommit(next_page);
 
   // All sessions should be deleted.
   EXPECT_EQ(0, client().GetSessionCountForTest());
@@ -1416,7 +1165,7 @@ TEST_F(ChromeComposeClientTest, ExpiredSessionBlocksSavedStateNudgeTest) {
 
 TEST_F(ChromeComposeClientTest, CompleteFirstRunTest) {
   // Enable FRE and show the dialog.
-  PrefService* prefs = GetProfile()->GetPrefs();
+  PrefService* prefs = profile()->GetPrefs();
   prefs->SetBoolean(prefs::kPrefHasCompletedComposeFRE, false);
 
   ShowDialogAndBindMojo();
@@ -1427,7 +1176,7 @@ TEST_F(ChromeComposeClientTest, CompleteFirstRunTest) {
   // Make sure the async calls complete before naviagating away.
   FlushMojo();
   // Navigate page away to upload session close metrics.
-  NavigateAndCommitActiveTab(GURL("about:blank"));
+  NavigateAndCommit(GURL("about:blank"));
 
   // Check the expected event count metrics.
   std::vector<std::pair<compose::ComposeSessionEventTypes, int>> event_counts =
@@ -1458,7 +1207,7 @@ TEST_F(ChromeComposeClientTest,
   config.proactive_nudge_focus_delay = base::Microseconds(4);
   config.proactive_nudge_segmentation = false;
 
-  PrefService* prefs = GetProfile()->GetPrefs();
+  PrefService* prefs = profile()->GetPrefs();
 
   auto test_url = GURL("http://foo");
   auto test_origin = url::Origin::Create(test_url);
@@ -1485,7 +1234,7 @@ TEST_F(ChromeComposeClientTest,
                   .Find(test_origin.Serialize()));
   EXPECT_FALSE(client().ShouldTriggerPopup(form_data, selected_field_data,
                                            trigger_source));
-  NavigateAndCommitActiveTab(GURL("about:blank"));
+  NavigateAndCommit(GURL("about:blank"));
 
   histograms().ExpectBucketCount(
       compose::kComposeProactiveNudgeCtr,
@@ -1519,7 +1268,7 @@ TEST_F(ChromeComposeClientTest,
   config.proactive_nudge_focus_delay = base::Microseconds(4);
   config.proactive_nudge_segmentation = false;
 
-  PrefService* prefs = GetProfile()->GetPrefs();
+  PrefService* prefs = profile()->GetPrefs();
 
   auto test_url = GURL("http://foo");
   auto test_origin = url::Origin::Create(test_url);
@@ -1550,7 +1299,7 @@ TEST_F(ChromeComposeClientTest,
                   .Find(test_origin.Serialize()));
   EXPECT_FALSE(client().ShouldTriggerPopup(form_data, selected_field_data,
                                            trigger_source));
-  NavigateAndCommitActiveTab(GURL("about:blank"));
+  NavigateAndCommit(GURL("about:blank"));
 
   histograms().ExpectUniqueSample(
       compose::kComposeSelectionNudgeCtr,
@@ -1582,7 +1331,7 @@ TEST_F(ChromeComposeClientTest, DisableComposeBlocksProactiveNudgeTest) {
   config.proactive_nudge_focus_delay = base::Microseconds(4);
   config.proactive_nudge_segmentation = false;
 
-  PrefService* prefs = GetProfile()->GetPrefs();
+  PrefService* prefs = profile()->GetPrefs();
   EXPECT_TRUE(prefs->GetBoolean(prefs::kEnableProactiveNudge));
 
   autofill::FormData form_data;
@@ -1610,7 +1359,7 @@ TEST_F(ChromeComposeClientTest, DisableComposeBlocksProactiveNudgeTest) {
   EXPECT_FALSE(
       client().ShouldTriggerPopup(form_data, field_data, trigger_source));
 
-  NavigateAndCommitActiveTab(GURL("about:blank"));
+  NavigateAndCommit(GURL("about:blank"));
 
   histograms().ExpectBucketCount(
       compose::kComposeProactiveNudgeCtr,
@@ -1643,7 +1392,7 @@ TEST_F(ChromeComposeClientTest, DisableComposeBlocksSelectionNudgeTest) {
   config.proactive_nudge_focus_delay = base::Microseconds(4);
   config.proactive_nudge_segmentation = false;
 
-  PrefService* prefs = GetProfile()->GetPrefs();
+  PrefService* prefs = profile()->GetPrefs();
   EXPECT_TRUE(prefs->GetBoolean(prefs::kEnableProactiveNudge));
 
   autofill::FormData form_data;
@@ -1674,7 +1423,7 @@ TEST_F(ChromeComposeClientTest, DisableComposeBlocksSelectionNudgeTest) {
   EXPECT_FALSE(
       client().ShouldTriggerPopup(form_data, field_data, trigger_source));
 
-  NavigateAndCommitActiveTab(GURL("about:blank"));
+  NavigateAndCommit(GURL("about:blank"));
 
   histograms().ExpectUniqueSample(
       compose::kComposeSelectionNudgeCtr,
@@ -1862,8 +1611,7 @@ TEST_F(ChromeComposeClientTest, TestNoAutoComposeBeforeFirstRun) {
   EXPECT_CALL(model_executor(), ExecuteModel(_, _, _, _)).Times(0);
 
   // Enable FRE and show the dialog.
-  GetProfile()->GetPrefs()->SetBoolean(prefs::kPrefHasCompletedComposeFRE,
-                                       false);
+  profile()->GetPrefs()->SetBoolean(prefs::kPrefHasCompletedComposeFRE, false);
   // Valid selection for auto compose to use.
   std::u16string selection = u"testing alpha bravo charlie";
   SetSelection(selection);
@@ -1953,7 +1701,7 @@ TEST_F(ChromeComposeClientTest, TestRegenerate) {
       compose::ComposeSessionEventTypes::kAnyModifierUsed, 0);
 
   // Navigate page away to upload UKM metrics to the collector.
-  NavigateAndCommitActiveTab(GURL("about:blank"));
+  NavigateAndCommit(GURL("about:blank"));
 
   // Check session level UKM metrics.
   auto session_ukm_entries = ukm_recorder().GetEntries(
@@ -2060,7 +1808,7 @@ TEST_F(ChromeComposeClientTest, TestToneChange) {
   FlushMojo();
 
   // Navigate page away to upload UKM metrics to the collector.
-  NavigateAndCommitActiveTab(GURL("about:blank"));
+  NavigateAndCommit(GURL("about:blank"));
 
   // Check Compose Session Event Counts.
   histograms().ExpectBucketCount(
@@ -2195,7 +1943,7 @@ TEST_F(ChromeComposeClientTest, TestLengthChange) {
   FlushMojo();
 
   // Navigate page away to upload UKM metrics to the collector.
-  NavigateAndCommitActiveTab(GURL("about:blank"));
+  NavigateAndCommit(GURL("about:blank"));
 
   // Check Compose Session Event Counts.
   histograms().ExpectBucketCount(
@@ -2501,7 +2249,7 @@ TEST_F(ChromeComposeClientTest, TestCannotSendMessagesAfterClosingDialog) {
 TEST_F(ChromeComposeClientTest,
        TestCannotSendMessagesAfterClosingDialogAtChromeCompose) {
   GTEST_FLAG_SET(death_test_style, "threadsafe");
-  NavigateAndCommitActiveTab(GURL(chrome::kChromeUIUntrustedComposeUrl));
+  NavigateAndCommit(GURL(chrome::kChromeUIUntrustedComposeUrl));
   // We skip the dialog showing here, as there is no dialog required at this
   // URL.
   BindMojo();

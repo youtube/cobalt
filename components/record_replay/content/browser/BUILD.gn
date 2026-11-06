@@ -4,12 +4,10 @@
 
 import("//third_party/protobuf/proto_library.gni")
 
-assert(is_win || is_mac || is_linux || is_chromeos)
+assert(use_blink)
 
 static_library("browser") {
   sources = [
-    "content_element_id.cc",
-    "content_element_id.h",
     "content_record_replay_driver.cc",
     "content_record_replay_driver.h",
     "content_record_replay_driver_factory.cc",

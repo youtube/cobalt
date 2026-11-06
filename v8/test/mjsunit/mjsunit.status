@@ -607,8 +607,6 @@
   'regress/wasm/regress-1364036': [SKIP],
   'regress/wasm/regress-1446221': [SKIP],
   'regress/wasm/regress-1449208': [SKIP],
-  'regress/wasm/regress-crbug-1047368': [SKIP],
-  'regress/wasm/regress-crbug-1463219': [SKIP],
   'regress/wasm/regress-385256127': [SKIP],
   'wasm/imported-function-types': [SKIP],
   'wasm/loop-unrolling': [SKIP],
@@ -617,7 +615,6 @@
 
   # --experimental-wasm-type-reflection
   'regress/wasm/regress-crbug-1002388': [SKIP],
-  'regress/wasm/regress-crbug-1006631': [SKIP],
   'regress/wasm/regress-14695': [SKIP],
   'regress/wasm/regress-329130358': [SKIP],
   'regress/wasm/regress-336358915*': [SKIP],
@@ -627,7 +624,6 @@
   'regress/wasm/regress-390675703': [SKIP],
   'regress/wasm/regress-393632542': [SKIP],
   'wasm/call-ref': [SKIP],
-  'wasm/exceptions-type-reflection': [SKIP],
   'wasm/externref-table': [SKIP],
   'wasm/js-to-js': [SKIP],
   'wasm/gc-casts-subtypes': [SKIP],
@@ -678,6 +674,7 @@
   'wasm/regress-497667917': [SKIP],
   'wasm/regress-498482620': [SKIP],
   'wasm/regress-499719427': [SKIP],
+  'wasm/regress-wasmfx-exact-types': [SKIP],
   'wasm/resume-throw': [SKIP],
   'wasm/stack-switching*': [SKIP],
   'wasm/wasmfx*': [SKIP],
@@ -786,6 +783,7 @@
 
   # --experimental-wasm-fp16
   'wasm/simd-fp16': [SKIP],
+  'regress/wasm/regress-504612573': [SKIP],
 
   # --experimental-wasm-rab-integration
   'regress/wasm/regress-451144692': [SKIP],
@@ -975,6 +973,7 @@
   'regress/regress-996234': [SKIP],
 
   # These tests rely on TurboFan being enabled.
+  'ensure-growing-store-learns': [SKIP],
   'compiler/call-with-arraylike-or-spread*': [SKIP],
   'compiler/fast-api-calls': [SKIP],
   'compiler/fast-api-attributes': [SKIP],
@@ -1532,6 +1531,7 @@
 
   # Needs FP16 support.
   'wasm/simd-fp16': [SKIP],
+  'regress/wasm/regress-504612573': [SKIP],
 
   # Flush to zero is not supported yet.
   'd8/flush-denormals-flag': [SKIP],
@@ -2137,6 +2137,7 @@
   'asm/*': [SKIP],
 
   # Tests that depend on optimization (beyond doing assertOptimized).
+  'ensure-growing-store-learns': [SKIP],
   'regress/regress-1049982-1': [SKIP],
   'regress/regress-1049982-2': [SKIP],
 
@@ -2500,9 +2501,11 @@
   'regress/wasm/regress-379811148': [SKIP],
   'regress/wasm/regress-381120595': [SKIP],
   'regress/wasm/regress-384549252': [SKIP],
+  'regress/wasm/regress-384974501': [SKIP],
   'regress/wasm/regress-395214627': [SKIP],
   'regress/wasm/regress-398439335': [SKIP],
   'regress/wasm/regress-450694568': [SKIP],
+  'regress/wasm/regress-504612573': [SKIP],
   'regress/wasm/regress-crbug-1338980': [SKIP],
   'regress/wasm/regress-crbug-1355070': [SKIP],
   'regress/wasm/regress-crbug-1356718': [SKIP],
@@ -2833,6 +2836,9 @@
   'regress-398879933': [SKIP],
   'regress-399698534': [SKIP],
   'regress-414738826': [SKIP],
+
+  # TODO(dmercadier,505648716): fix LateLoadElimination's map tracking and re-enable this test.
+  'turbolev/load-elimination-backing-store-alias': [SKIP],
 }], # variant in (stress_maglev, stress_maglev_tracing, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future)
 
 

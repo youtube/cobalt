@@ -115,6 +115,10 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
       Tagged<TrustedObject> host, ProtectedPointerSlot slot,
       Tagged<TrustedObject> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  template <typename T>
+  static inline void ForProtectedPointer(
+      HeapObjectLayout* host, TaggedMemberBase* slot, Tagged<T> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   static inline void ForCppHeapPointer(
       Tagged<CppHeapPointerWrapperObjectT> host, CppHeapPointerSlot slot,
       void* value);

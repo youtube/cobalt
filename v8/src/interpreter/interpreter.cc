@@ -174,7 +174,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
             RuntimeCallCounterId::kCompileIgnition,
             RuntimeCallStats::kThreadSpecific);
   // TODO(lpy): add support for background compilation RCS trace.
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
 
   std::optional<base::ElapsedTimer> timer;
   if (v8_flags.enable_bytecode_compiler_ablation &&
@@ -255,8 +255,8 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
     DirectHandle<SharedFunctionInfo> shared_info, Isolate* isolate) {
   RCS_SCOPE(parse_info()->runtime_call_stats(),
             RuntimeCallCounterId::kCompileIgnitionFinalization);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.CompileIgnitionFinalization");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+              "V8.CompileIgnitionFinalization");
   return DoFinalizeJobImpl(shared_info, isolate);
 }
 
@@ -264,8 +264,8 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
     DirectHandle<SharedFunctionInfo> shared_info, LocalIsolate* isolate) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileIgnitionFinalization,
             RuntimeCallStats::kThreadSpecific);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.CompileIgnitionFinalization");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+              "V8.CompileIgnitionFinalization");
   return DoFinalizeJobImpl(shared_info, isolate);
 }
 

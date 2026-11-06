@@ -260,7 +260,7 @@ MaybeDirectHandle<Object> IterableForEach(
     if (DirectHandle<JSFunction> func = Cast<JSFunction>(iterator_fn);
         isolate->builtins()
             ->code(Builtin::kTypedArrayPrototypeValues)
-            ->SafeEquals(func->code(isolate))) {
+            .SafeEquals(func->code(isolate))) {
       DirectHandle<JSTypedArray> typed_array = Cast<JSTypedArray>(receiver);
       ElementsKind kind = typed_array->GetElementsKind();
       bool out_of_bounds = false;

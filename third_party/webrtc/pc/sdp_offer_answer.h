@@ -284,6 +284,10 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   // Part of ApplyRemoteDescription steps specific to Unified Plan.
   void ApplyRemoteDescriptionUpdateTransceiverState(SdpType sdp_type);
 
+  // Updates sender SSRCs and init send encodings from transceivers.
+  // Part of ApplyLocalDescription steps specific to Unified Plan.
+  void UpdateSenderSsrcsFromLocalDescription() RTC_RUN_ON(signaling_thread());
+
   // Part of ApplyRemoteDescription steps specific to plan b.
   PLAN_B_ONLY void PlanBUpdateSendersAndReceivers(
       const ContentInfo* audio_content,
@@ -373,7 +377,8 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
                        size_t mline_index,
                        const ContentInfo& content,
                        const ContentInfo* old_local_content,
-                       const ContentInfo* old_remote_content)
+                       const ContentInfo* old_remote_content,
+                       ScopedOperationsBatcher& worker_tasks)
       RTC_RUN_ON(signaling_thread());
 
   // Returns the media section in the given session description that is
@@ -391,8 +396,10 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
           transceiver,
       const ContentInfo& content,
       const ContentGroup* bundle_group,
+      ScopedOperationsBatcher& network_teardown_tasks,
       ScopedOperationsBatcher& worker_tasks,
-      ScopedOperationsBatcher& network_tasks) RTC_RUN_ON(signaling_thread());
+      ScopedOperationsBatcher& network_init_tasks)
+      RTC_RUN_ON(signaling_thread());
 
   // Either creates or destroys the local data channel according to the given
   // media section.

@@ -70,7 +70,8 @@ SDFTextLCDRenderStep::SDFTextLCDRenderStep(Layout layout)
                       {"ssboIndex", VertexAttribType::kUInt, SkSLType::kUInt}}},
                      /*varyings=*/
                      {{{"unormTexCoords", SkSLType::kFloat2},
-                      {"texIndex", SkSLType::kFloat}}}) {}
+                       {"textureCoords", SkSLType::kFloat2},
+                       {"texIndex", SkSLType::kFloat}}}) {}
 
 SDFTextLCDRenderStep::~SDFTextLCDRenderStep() {}
 
@@ -79,6 +80,7 @@ std::string SDFTextLCDRenderStep::vertexSkSL() const {
     // must write to an already-defined float2 stepLocalCoords variable.
     return "texIndex = half(indexAndFlags.x);"
            "float4 devPosition = text_vertex_fn(float2(sk_VertexID >> 1, sk_VertexID & 1), "
+                                               "sdf_atlas_0, "
                                                "maskToDevice, "
                                                "localToDevice, "
                                                "float2(size), "
@@ -87,6 +89,7 @@ std::string SDFTextLCDRenderStep::vertexSkSL() const {
                                                "strikeToSourceScale, "
                                                "depth, "
                                                "unormTexCoords, "
+                                               "textureCoords, "
                                                "stepLocalCoords);";
 }
 
@@ -115,6 +118,7 @@ const char* SDFTextLCDRenderStep::fragmentCoverageSkSL() const {
     return "outputCoverage = sdf_text_lcd_coverage_fn(pixelGeometryDelta, "
                                                      "gammaParams, "
                                                      "unormTexCoords, "
+                                                     "textureCoords, "
                                                      "texIndex, "
                                                      "sdf_atlas_0, "
                                                      "sdf_atlas_1, "

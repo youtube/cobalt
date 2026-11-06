@@ -31,6 +31,7 @@
 #include "net/dns/dns_response.h"
 #include "net/dns/dns_transaction.h"
 #include "net/dns/dns_util.h"
+#include "net/dns/filtering_details_url_generator.h"
 #include "net/dns/public/dns_over_https_server_config.h"
 #include "net/dns/public/dns_protocol.h"
 #include "net/dns/public/resolution_details.h"
@@ -210,6 +211,20 @@ class URLRequestContext;
 
 DnsConfig CreateValidDnsConfig();
 
+class ScopedSetFilteringDetailsUrlGeneratorForTesting {
+ public:
+  ScopedSetFilteringDetailsUrlGeneratorForTesting();
+  ~ScopedSetFilteringDetailsUrlGeneratorForTesting();
+
+  ScopedSetFilteringDetailsUrlGeneratorForTesting(
+      const ScopedSetFilteringDetailsUrlGeneratorForTesting&) = delete;
+  ScopedSetFilteringDetailsUrlGeneratorForTesting& operator=(
+      const ScopedSetFilteringDetailsUrlGeneratorForTesting&) = delete;
+
+ private:
+  FilteringDetailsUrlGenerator generator_;
+};
+
 DnsResourceRecord BuildTestDnsRecord(std::string name,
                                      uint16_t type,
                                      base::span<const uint8_t> rdata,
@@ -255,6 +270,10 @@ DnsResourceRecord BuildTestHttpsServiceRecord(
     std::string_view service_name,
     const std::map<uint16_t, std::string>& params,
     base::TimeDelta ttl = base::Days(1));
+
+DnsResourceRecord BuildTestOptRecord(uint16_t udp_payload_size,
+                                     uint32_t extended_rcode_and_flags,
+                                     base::span<const uint8_t> rdata);
 
 DnsResponse BuildTestDnsResponse(
     std::string name,

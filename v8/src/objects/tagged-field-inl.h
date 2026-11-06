@@ -30,6 +30,8 @@ Address TaggedMember<T, CompressionScheme>::tagged_to_full(
     if constexpr (std::is_same_v<V8HeapCompressionScheme, CompressionScheme>) {
       static_assert(is_subtype_v<T, MaybeObject>);
     } else if constexpr (std::is_same_v<TrustedSpaceCompressionScheme,
+                                        CompressionScheme> ||
+                         std::is_same_v<ProtectedPointerCompressionScheme,
                                         CompressionScheme>) {
       static_assert(is_subtype_v<T, UnionOf<Smi, MaybeWeak<TrustedObject>>>);
     }
@@ -168,7 +170,17 @@ void TaggedMember<T, CompressionScheme>::WriteBarrier(HeapObjectLayout* host,
     mode = UPDATE_WRITE_BARRIER;
 #endif
     DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(Tagged(host)));
-    WriteBarrier::ForValue(host, this, value, mode);
+    if constexpr (std::is_same_v<CompressionScheme,
+                                 ProtectedPointerCompressionScheme>) {
+      // Protected pointers are always trusted->trusted (or trusted->shared-
+      // trusted). The dedicated barrier records TRUSTED_TO_SHARED_TRUSTED
+      // entries that the generational ForValue barrier would miss; it is
+      // required without the sandbox as well, since the verifier checks the
+      // remembered set regardless of the sandbox flag.
+      WriteBarrier::ForProtectedPointer(host, this, value, mode);
+    } else {
+      WriteBarrier::ForValue(host, this, value, mode);
+    }
   }
 #endif
 }
@@ -471,6 +483,27 @@ TaggedField<T, kFieldOffset, CompressionScheme>::SeqCst_CompareAndSwap(
       location(host, offset), full_to_tagged(old_ptr), full_to_tagged(ptr));
   return TaggedField<T, kFieldOffset, CompressionScheme>::PtrType(
       tagged_to_full(host.ptr(), old_value));
+}
+
+JSDispatchHandle JSDispatchHandleMember::Relaxed_Load() const {
+  return JSDispatchHandle(static_cast<JSDispatchHandle::underlying_type>(
+      storage_.load(std::memory_order_relaxed)));
+}
+
+JSDispatchHandle JSDispatchHandleMember::Acquire_Load() const {
+  return JSDispatchHandle(static_cast<JSDispatchHandle::underlying_type>(
+      storage_.load(std::memory_order_acquire)));
+}
+
+void JSDispatchHandleMember::Relaxed_Clear() {
+  storage_.store(0, std::memory_order_relaxed);
+}
+
+void JSDispatchHandleMember::Relaxed_Store(HeapObjectLayout* host,
+                                           JSDispatchHandle handle,
+                                           WriteBarrierMode mode) {
+  storage_.store(handle.value(), std::memory_order_relaxed);
+  WriteBarrier::ForJSDispatchHandle(host, handle, mode);
 }
 
 }  // namespace internal

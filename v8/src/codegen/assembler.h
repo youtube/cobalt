@@ -434,6 +434,12 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     }
   }
 
+  V8_INLINE void RecordCfi(std::string_view comment) {
+    // TODO(olivf): Have a dedicated table for CFI instead of putting it into
+    // the code comments.
+    code_comments_writer_.Add(pc_offset(), "CFI:" + std::string(comment));
+  }
+
 #ifdef V8_CODE_COMMENTS
   class CodeComment {
    public:

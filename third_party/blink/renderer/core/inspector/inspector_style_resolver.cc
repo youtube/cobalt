@@ -17,7 +17,6 @@
 #include "third_party/blink/renderer/core/view_transition/view_transition_pseudo_element_base.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_utils.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 
 namespace blink {
@@ -60,7 +59,7 @@ InspectorStyleResolver::InspectorStyleResolver(
         element_pseudo_id == kPseudoIdAfter ||
         element_pseudo_id == kPseudoIdExpandIcon ||
         element_pseudo_id == kPseudoIdPickerIcon ||
-        element_pseudo_id == kPseudoIdInterestHint ||
+        element_pseudo_id == kPseudoIdInterestButton ||
         element_pseudo_id == kPseudoIdMarker ||
         element_pseudo_id == kPseudoIdBackdrop ||
         element_pseudo_id == kPseudoIdColumn ||

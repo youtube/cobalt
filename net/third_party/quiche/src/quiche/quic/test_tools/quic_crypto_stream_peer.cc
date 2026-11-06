@@ -21,7 +21,7 @@ uint64_t QuicCryptoStreamPeer::BytesReadOnLevel(const QuicCryptoStream& stream,
 uint64_t QuicCryptoStreamPeer::BytesSentOnLevel(const QuicCryptoStream& stream,
                                                 EncryptionLevel level) {
   return stream.substreams_[QuicUtils::GetPacketNumberSpace(level)]
-      .send_buffer->stream_bytes_written();
+      .send_buffer.stream_bytes_written();
 }
 
 }  // namespace quic::test

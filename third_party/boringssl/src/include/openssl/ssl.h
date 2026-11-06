@@ -1154,6 +1154,9 @@ OPENSSL_EXPORT int SSL_set_ocsp_response(SSL *ssl, const uint8_t *response,
 #define SSL_SIGN_RSA_PSS_RSAE_SHA384 0x0805
 #define SSL_SIGN_RSA_PSS_RSAE_SHA512 0x0806
 #define SSL_SIGN_ED25519 0x0807
+#define SSL_SIGN_ML_DSA_44 0x0904
+#define SSL_SIGN_ML_DSA_65 0x0905
+#define SSL_SIGN_ML_DSA_87 0x0906
 
 // SSL_SIGN_RSA_PKCS1_SHA256_LEGACY is a backport of RSASSA-PKCS1-v1_5 with
 // SHA-256 to TLS 1.3. It is disabled by default and only defined for client
@@ -3782,17 +3785,21 @@ OPENSSL_EXPORT SSL_CREDENTIAL *SSL_CREDENTIAL_new_pre_shared_key(
 // This implementation uses NUL-terminated C strings for identities and identity
 // hints, so values with a NUL character are not supported. (RFC 4279 does not
 // specify the format of an identity.)
+//
+// Functions in this section only relate to PSKs in TLS 1.2 or earlier. New
+// PSK-based applications likely do not need this functionality and instead
+// should use TLS 1.3. See |SSL_CREDENTIAL_new_pre_shared_key| for TLS 1.3 PSKs.
 
-// PSK_MAX_IDENTITY_LEN is the maximum supported length of a PSK identity,
-// excluding the NUL terminator.
+// PSK_MAX_IDENTITY_LEN is the maximum supported length of a TLS 1.2 PSK
+// identity, excluding the NUL terminator.
 #define PSK_MAX_IDENTITY_LEN 128
 
-// PSK_MAX_PSK_LEN is the maximum supported length of a pre-shared key.
+// PSK_MAX_PSK_LEN is the maximum supported length of a TLS 1.2 pre-shared key.
 #define PSK_MAX_PSK_LEN 256
 
-// SSL_CTX_set_psk_client_callback sets the callback to be called when PSK is
-// negotiated on the client. This callback must be set to enable PSK cipher
-// suites on the client.
+// SSL_CTX_set_psk_client_callback sets the callback to be called when TLS 1.2
+// PSK is negotiated on the client. This callback must be set to enable PSK
+// cipher suites on the client.
 //
 // The callback is passed the identity hint in |hint| or NULL if none was
 // provided. It should select a PSK identity and write the identity and the
@@ -3806,17 +3813,17 @@ OPENSSL_EXPORT void SSL_CTX_set_psk_client_callback(
                                  unsigned max_identity_len, uint8_t *psk,
                                  unsigned max_psk_len));
 
-// SSL_set_psk_client_callback sets the callback to be called when PSK is
-// negotiated on the client. This callback must be set to enable PSK cipher
+// SSL_set_psk_client_callback sets the callback to be called when TLS 1.2 PSK
+// is negotiated on the client. This callback must be set to enable PSK cipher
 // suites on the client. See also |SSL_CTX_set_psk_client_callback|.
 OPENSSL_EXPORT void SSL_set_psk_client_callback(
     SSL *ssl, unsigned (*cb)(SSL *ssl, const char *hint, char *identity,
                              unsigned max_identity_len, uint8_t *psk,
                              unsigned max_psk_len));
 
-// SSL_CTX_set_psk_server_callback sets the callback to be called when PSK is
-// negotiated on the server. This callback must be set to enable PSK cipher
-// suites on the server.
+// SSL_CTX_set_psk_server_callback sets the callback to be called when TLS 1.2
+// PSK is negotiated on the server. This callback must be set to enable PSK
+// cipher suites on the server.
 //
 // The callback is passed the identity in |identity|. It should write a PSK of
 // length at most |max_psk_len| to |psk| and return the number of bytes written
@@ -3825,8 +3832,8 @@ OPENSSL_EXPORT void SSL_CTX_set_psk_server_callback(
     SSL_CTX *ctx, unsigned (*cb)(SSL *ssl, const char *identity, uint8_t *psk,
                                  unsigned max_psk_len));
 
-// SSL_set_psk_server_callback sets the callback to be called when PSK is
-// negotiated on the server. This callback must be set to enable PSK cipher
+// SSL_set_psk_server_callback sets the callback to be called when TLS 1.2 PSK
+// is negotiated on the server. This callback must be set to enable PSK cipher
 // suites on the server. See also |SSL_CTX_set_psk_server_callback|.
 OPENSSL_EXPORT void SSL_set_psk_server_callback(
     SSL *ssl, unsigned (*cb)(SSL *ssl, const char *identity, uint8_t *psk,
@@ -3844,12 +3851,12 @@ OPENSSL_EXPORT int SSL_CTX_use_psk_identity_hint(SSL_CTX *ctx,
 OPENSSL_EXPORT int SSL_use_psk_identity_hint(SSL *ssl,
                                              const char *identity_hint);
 
-// SSL_get_psk_identity_hint returns the PSK identity hint advertised for |ssl|
-// or NULL if there is none.
+// SSL_get_psk_identity_hint returns the TLS 1.2 PSK identity hint advertised
+// for |ssl| or NULL if there is none.
 OPENSSL_EXPORT const char *SSL_get_psk_identity_hint(const SSL *ssl);
 
-// SSL_get_psk_identity, after the handshake completes, returns the PSK identity
-// that was negotiated by |ssl| or NULL if PSK was not used.
+// SSL_get_psk_identity, after the handshake completes, returns the TLS 1.2 PSK
+// identity that was negotiated by |ssl| or NULL if PSK was not used.
 OPENSSL_EXPORT const char *SSL_get_psk_identity(const SSL *ssl);
 
 
@@ -7000,6 +7007,5 @@ BSSL_NAMESPACE_END
 #define SSL_R_TLSV1_ALERT_CERTIFICATE_REQUIRED 1116
 #define SSL_R_TLSV1_ALERT_NO_APPLICATION_PROTOCOL 1120
 #define SSL_R_TLSV1_ALERT_ECH_REQUIRED 1121
-#define SSL_R_PAKE_AND_KEY_SHARE_NOT_ALLOWED 1122
 
 #endif  // OPENSSL_HEADER_SSL_H

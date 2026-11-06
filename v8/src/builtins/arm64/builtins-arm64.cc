@@ -442,16 +442,16 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // -----------------------------------
 
   // Store input value into generator object.
-  __ StoreTaggedField(
-      x0, FieldMemOperand(x1, JSGeneratorObject::kInputOrDebugPosOffset));
-  __ RecordWriteField(x1, JSGeneratorObject::kInputOrDebugPosOffset, x0,
+  __ StoreTaggedField(x0, FieldMemOperand(x1, offsetof(JSGeneratorObject,
+                                                       input_or_debug_pos_)));
+  __ RecordWriteField(x1, offsetof(JSGeneratorObject, input_or_debug_pos_), x0,
                       kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore);
   // Check that x1 is still valid, RecordWrite might have clobbered it.
   __ AssertGeneratorObject(x1);
 
   // Load suspended function and context.
-  __ LoadTaggedField(x5,
-                     FieldMemOperand(x1, JSGeneratorObject::kFunctionOffset));
+  __ LoadTaggedField(
+      x5, FieldMemOperand(x1, offsetof(JSGeneratorObject, function_)));
   __ LoadTaggedField(cp, FieldMemOperand(x5, JSFunction::kContextOffset));
 
   // Flood function if we are stepping.
@@ -505,8 +505,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ Poke(padreg, Operand(x11, LSL, kSystemPointerSizeLog2));
 
   // Poke receiver into highest claimed slot.
-  __ LoadTaggedField(x6,
-                     FieldMemOperand(x1, JSGeneratorObject::kReceiverOffset));
+  __ LoadTaggedField(
+      x6, FieldMemOperand(x1, offsetof(JSGeneratorObject, receiver_)));
   __ Poke(x6, __ ReceiverOperand());
 
   // ----------- S t a t e -------------
@@ -526,8 +526,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ Sub(x10, argc, kJSArgcReceiverSlots);
     __ Cbz(x10, &done);
     __ LoadTaggedField(
-        x6,
-        FieldMemOperand(x1, JSGeneratorObject::kParametersAndRegistersOffset));
+        x6, FieldMemOperand(
+                x1, offsetof(JSGeneratorObject, parameters_and_registers_)));
 
     __ SlotAddress(x12, x10);
     __ Add(x6, x6, Operand(x10, LSL, kTaggedSizeLog2));
@@ -586,8 +586,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ Push(x1, padreg, x5, x6);
     __ CallRuntime(Runtime::kDebugOnFunctionCall);
     __ Pop(padreg, x1);
-    __ LoadTaggedField(x5,
-                       FieldMemOperand(x1, JSGeneratorObject::kFunctionOffset));
+    __ LoadTaggedField(
+        x5, FieldMemOperand(x1, offsetof(JSGeneratorObject, function_)));
   }
   __ B(&stepping_prepared);
 
@@ -597,8 +597,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ Push(x1, padreg);
     __ CallRuntime(Runtime::kDebugPrepareStepInSuspendedGenerator);
     __ Pop(padreg, x1);
-    __ LoadTaggedField(x5,
-                       FieldMemOperand(x1, JSGeneratorObject::kFunctionOffset));
+    __ LoadTaggedField(
+        x5, FieldMemOperand(x1, offsetof(JSGeneratorObject, function_)));
   }
   __ B(&stepping_prepared);
 
@@ -655,6 +655,9 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     }
 #endif
 
+#if !USE_SIMULATOR
+    __ RecordCfi(".cfi_startproc");
+#endif
     __ PushCalleeSavedRegisters();
 
     // Set up the reserved register for 0.0.
@@ -677,6 +680,18 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
       EntryFrameConstants::kCalleeSavedRegisterBytesPushedAfterFpLrPair == 0);
   static_assert(EntryFrameConstants::kOffsetToCalleeSavedRegisters == 0);
   __ Mov(fp, sp);
+  // The layout of the stack at this point is:
+  // [fp + 8]  : Return address of JSEntry back to C++ (Invoke).
+  // [fp]      : Saved fp of the caller (Invoke).
+  //
+  // We lock the CFA to fp + 16.
+  // We tell GDB that the saved fp is at cfa - 16 (which is [fp]).
+  // We tell GDB that the saved lr is at cfa - 8 (which is [fp + 8]).
+#if !USE_SIMULATOR
+  __ RecordCfi(".cfi_def_cfa x29, 16");
+  __ RecordCfi(".cfi_offset x29, -16");
+  __ RecordCfi(".cfi_offset x30, -8");
+#endif
 
   // Build an entry frame (see layout below).
 
@@ -834,6 +849,9 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // Restore the callee-saved registers and return.
   __ PopCalleeSavedRegisters();
   __ Ret();
+#if !USE_SIMULATOR
+  __ RecordCfi(".cfi_endproc");
+#endif
 }
 
 }  // namespace
@@ -3017,8 +3035,8 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   Label no_bound_arguments;
   __ LoadTaggedField(
       bound_argv, FieldMemOperand(x1, JSBoundFunction::kBoundArgumentsOffset));
-  __ SmiUntagFieldUnsigned(
-      bound_argc, FieldMemOperand(bound_argv, offsetof(FixedArray, length_)));
+  __ Ldr(bound_argc.W(),
+         FieldMemOperand(bound_argv, offsetof(FixedArray, length_)));
   __ Cbz(bound_argc, &no_bound_arguments);
   {
     // ----------- S t a t e -------------
@@ -3411,6 +3429,9 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
            MemOperand(fp, WasmFrameConstants::kWasmInstanceDataOffset));
 
     // Save registers that we need to keep alive across the runtime call.
+    // The spilled parameters are *not* visited by GC, but the `WasmCompileLazy`
+    // runtime function does not trigger GC except for exceptions (and then we
+    // unwind before using the spilled values).
     __ PushXRegList(kSavedGpRegs);
     __ PushQRegList(kSavedFpRegs);
 

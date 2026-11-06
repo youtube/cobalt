@@ -63,18 +63,11 @@ Bbr2Mode Bbr2ProbeRttMode::OnExitQuiescence(
   return Bbr2Mode::PROBE_RTT;
 }
 
-Bbr2ProbeRttMode::DebugState Bbr2ProbeRttMode::ExportDebugState() const {
-  DebugState s;
+Bbr2DebugState::ProbeRtt Bbr2ProbeRttMode::ExportDebugState() const {
+  Bbr2DebugState::ProbeRtt s;
   s.inflight_target = InflightTarget();
   s.exit_time = exit_time_;
   return s;
-}
-
-std::ostream& operator<<(std::ostream& os,
-                         const Bbr2ProbeRttMode::DebugState& state) {
-  os << "[PROBE_RTT] inflight_target: " << state.inflight_target << "\n";
-  os << "[PROBE_RTT] exit_time: " << state.exit_time << "\n";
-  return os;
 }
 
 const Bbr2Params& Bbr2ProbeRttMode::Params() const { return sender_->Params(); }

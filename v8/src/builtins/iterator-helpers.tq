@@ -1239,7 +1239,7 @@ const kConcatMethodName: constexpr string = 'Iterator.concat';
 
 macro NewJSIteratorConcatHelper(
     implicit context: Context)(iterables: FixedArray): JSIteratorConcatHelper {
-  dcheck(SmiUntag(iterables.length) % kIteratorRecordFieldCount == 0);
+  dcheck(iterables.length % kIteratorRecordFieldCount == 0);
   return new JSIteratorConcatHelper{
     map: *NativeContextSlot(ContextSlot::ITERATOR_CONCAT_HELPER_MAP_INDEX),
     properties_or_hash: EmptyFixedArrayConstant(),
@@ -1300,7 +1300,7 @@ transitioning builtin IteratorConcatHelperNext(
     // a. For each Record iterable of iterables, do
     while (true) {
       if (!innerAlive) {
-        if (helper.current >= helper.iterables.length) {
+        if (Convert<intptr>(helper.current) >= helper.iterables.length_intptr) {
           MarkIteratorHelperAsExhausted(helper);
           return AllocateJSIteratorResult(Undefined, True);
         }
@@ -1456,10 +1456,10 @@ transitioning javascript builtin IteratorPrototypeJoin(
 transitioning macro IteratorZipCloseAll(
     implicit context: Context)(iterators: FixedArray,
     propagate: constexpr bool): void {
-  dcheck(SmiUntag(iterators.length) % kIteratorRecordFieldCount == 0);
+  dcheck(iterators.length % kIteratorRecordFieldCount == 0);
   let firstError: JSAny = Undefined;
   let firstMessage: JSMessageObject|TheHole = TheHole;
-  for (let j: intptr = SmiUntag(iterators.length) - kIteratorRecordFieldCount;
+  for (let j: intptr = iterators.length_intptr - kIteratorRecordFieldCount;
        j >= 0; j -= kIteratorRecordFieldCount) {
     const itObject = iterators.objects[j];
     if (itObject != TheHole) {
@@ -1491,7 +1491,7 @@ transitioning macro IteratorZipCloseAll(
 macro NewJSIteratorZipHelper(
     implicit context: Context)(iterators: FixedArray, padding: FixedArray,
     zipMode: JSIteratorZipHelperMode): JSIteratorZipHelper {
-  dcheck(SmiUntag(iterators.length) % kIteratorRecordFieldCount == 0);
+  dcheck(iterators.length % kIteratorRecordFieldCount == 0);
   return new JSIteratorZipHelper{
     map: *NativeContextSlot(ContextSlot::ITERATOR_ZIP_HELPER_MAP_INDEX),
     properties_or_hash: kEmptyFixedArray,
@@ -1501,7 +1501,7 @@ macro NewJSIteratorZipHelper(
     underlying_iterators: iterators,
     mode: SmiTag<JSIteratorZipHelperMode>(zipMode),
     active_count:
-        Convert<Smi>(SmiUntag(iterators.length) / kIteratorRecordFieldCount),
+        Convert<Smi>(iterators.length_intptr / kIteratorRecordFieldCount),
     padding: padding
   };
 }
@@ -1691,7 +1691,7 @@ transitioning builtin IteratorZipHelperNext(
   }
 
   const iterCount =
-      SmiUntag(helper.underlying_iterators.length) / kIteratorRecordFieldCount;
+      helper.underlying_iterators.length_intptr / kIteratorRecordFieldCount;
   const mode = SmiUntag(helper.mode);
   MarkIteratorHelperAsExecuting(helper);
 

@@ -26,9 +26,11 @@ message SessionSpecifics {
   oneof content {
     SessionHeader header = 2;
     SessionTab tab = 3;
+    SessionTabScreenshot tab_screenshot = 5;
   }
 
-  // The local tab id used by sync. Unique across all nodes for that client.
+  // The local tab id used by sync. The same id can be used by at most two nodes
+  // per client: A tab node and its corresponding screenshot node.
   optional int32 tab_node_id = 4 [default = -1];
 }
 
@@ -98,4 +100,16 @@ message SessionTab {
   optional string favicon_source = 11 [deprecated = true];
   // Ids of the currently assigned variations which should be sent to sync.
   repeated uint64 variation_id = 12 [deprecated = true];
+}
+
+message SessionTabScreenshot {
+  // The jpeg-compressed screenshot data.
+  optional bytes screenshot_data = 1;
+  // The URL of the page captured in the screenshot. This is meant to verify
+  // that the screenshot (still) matches the tab's current URL. Such
+  // verification is necessary since a tab and its screenshot are not always
+  // updated at the same time, and so it's possible that a screenshot is stale.
+  optional string url = 2;
+  // The time when the screenshot was taken.
+  optional int64 timestamp_unix_epoch_millis = 3;
 }

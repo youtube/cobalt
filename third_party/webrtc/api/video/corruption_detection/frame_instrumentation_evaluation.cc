@@ -51,7 +51,7 @@ class FrameInstrumentationEvaluationImpl
   }
   ~FrameInstrumentationEvaluationImpl() override = default;
 
-  void OnInstrumentedFrame(const FrameInstrumentationData& data,
+  void OnInstrumentedFrame(FrameInstrumentationData data,
                            const VideoFrame& frame,
                            VideoContentType frame_type) override {
     if (data.sample_values().empty()) {

@@ -118,9 +118,7 @@ class ObjectPreProcessor final {
 #undef PROCESS_INDEXED_FIELD
   }
   void PreProcessJSExternalObject(Tagged<JSExternalObject> o) {
-    ExternalPointerSlot value_slot = o->RawExternalPointerField(
-        JSExternalObject::kValueOffset,
-        {kFirstExternalTypeTag, kLastExternalTypeTag});
+    ExternalPointerSlot value_slot(&o->value_, kExternalObjectValueTagRange);
     EncodeExternalPointerSlotWithTagRange(value_slot);
   }
   void PreProcessFunctionTemplateInfo(Tagged<FunctionTemplateInfo> o) {

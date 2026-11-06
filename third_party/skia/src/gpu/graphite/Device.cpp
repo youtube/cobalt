@@ -1635,14 +1635,19 @@ void Device::drawGeometry(const Transform& localToDevice,
     // Determine the paint ID and collect the paint uniforms now before anything has been recorded.
     // The paint may reference an SkPicture or a Graphite-backed dynamic SkImage that can trigger
     // a flush of the Recorder.
+    SkEnumBitMask<KeyGenFlags> keyGenFlags = KeyGenFlags::kDefault;
+    if (renderer && (renderer->useNonAAInnerFill() || renderer->coverage() == Coverage::kNone)) {
+        keyGenFlags |= KeyGenFlags::kPreferFixedSrcBlend;
+    }
     KeyContext keyContext{fRecorder,
                           fDC.get(),
                           fRecorder->priv().floatStorageManager(),
                           scopedDrawBuilder.builder(),
                           scopedDrawBuilder.gatherer(),
                           localToDevice.matrix(),
+                          clip.drawBounds().asSkRect(),
                           fDC->colorInfo(),
-                          KeyGenFlags::kDefault,
+                          keyGenFlags,
                           paint.color()};
     auto keyResult = shading.toKey(keyContext);
     if (!keyResult) {

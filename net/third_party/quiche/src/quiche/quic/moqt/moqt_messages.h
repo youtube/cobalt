@@ -7,20 +7,14 @@
 #ifndef QUICHE_QUIC_MOQT_MOQT_MESSAGES_H_
 #define QUICHE_QUIC_MOQT_MOQT_MESSAGES_H_
 
-#include <algorithm>
-#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
 #include <optional>
 #include <string>
-#include <utility>
 #include <variant>
-#include <vector>
 
-#include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
@@ -29,60 +23,12 @@
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_export.h"
-#include "quiche/common/quiche_endian.h"
 
 namespace moqt {
 
 inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
   return quic::ParsedQuicVersionVector{quic::ParsedQuicVersion::RFCv1()};
 }
-
-inline constexpr absl::string_view kDraft16 = "moqt-16";
-inline constexpr absl::string_view kDefaultMoqtVersion = kDraft16;
-inline constexpr absl::string_view kUnrecognizedVersionForTests = "moqt-15";
-
-inline constexpr absl::string_view kImplementationName =
-    "Google QUICHE MOQT draft 16";
-inline constexpr uint64_t kDefaultInitialMaxRequestId = 100;
-struct QUICHE_EXPORT MoqtSessionParameters {
-  // TODO: support multiple versions.
-  MoqtSessionParameters() = default;
-  explicit MoqtSessionParameters(quic::Perspective perspective)
-      : perspective(perspective), using_webtrans(true) {}
-  MoqtSessionParameters(quic::Perspective perspective, std::string path,
-                        std::string authority)
-      : perspective(perspective),
-        using_webtrans(false),
-        path(std::move(path)),
-        authority(std::move(authority)) {}
-  MoqtSessionParameters(quic::Perspective perspective, std::string path,
-                        std::string authority, uint64_t max_request_id)
-      : perspective(perspective),
-        using_webtrans(true),
-        path(std::move(path)),
-        max_request_id(max_request_id),
-        authority(std::move(authority)) {}
-  MoqtSessionParameters(quic::Perspective perspective, uint64_t max_request_id)
-      : perspective(perspective), max_request_id(max_request_id) {}
-  bool operator==(const MoqtSessionParameters& other) const = default;
-
-  std::string version = std::string(kDefaultMoqtVersion);
-  bool deliver_partial_objects = false;
-  quic::Perspective perspective = quic::Perspective::IS_SERVER;
-  bool using_webtrans = true;
-  std::string path;
-  uint64_t max_request_id = kDefaultInitialMaxRequestId;
-  uint64_t max_auth_token_cache_size = kDefaultMaxAuthTokenCacheSize;
-  bool support_object_acks = false;
-  // TODO(martinduke): Turn authorization_token into structured data.
-  std::vector<AuthToken> authorization_token;
-  std::string authority;
-  std::string moqt_implementation;
-
-  // Takes the relevant fields from this object and populates |out| if not the
-  // protocol default value.
-  void ToSetupParameters(SetupParameters& out) const;
-};
 
 // The maximum length of a message, excluding any OBJECT payload. This prevents
 // DoS attack via forcing the parser to buffer a large message (OBJECT payloads
@@ -277,25 +223,6 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   // kObjectAck (OACK for short) is a frame used by the receiver indicating that
   // it has received and processed the specified object.
   kObjectAck = 0x3184,
-};
-
-// A tuple uniquely identifying a WebTransport data stream associated with a
-// subscription. By convention, if a DataStreamIndex is necessary for a datagram
-// track, `subgroup` is set to zero.
-struct DataStreamIndex {
-  uint64_t group = 0;
-  uint64_t subgroup = 0;
-
-  DataStreamIndex() = default;
-  DataStreamIndex(uint64_t group, uint64_t subgroup)
-      : group(group), subgroup(subgroup) {}
-
-  auto operator<=>(const DataStreamIndex&) const = default;
-
-  template <typename H>
-  friend H AbslHashValue(H h, const DataStreamIndex& index) {
-    return H::combine(std::move(h), index.group, index.subgroup);
-  }
 };
 
 struct SubgroupPriority {
@@ -505,13 +432,6 @@ struct QUICHE_EXPORT MoqtTrackStatus : public MoqtSubscribe {
 struct QUICHE_EXPORT MoqtGoAway {
   std::string new_session_uri;
 };
-
-enum class QUICHE_EXPORT SubscribeNamespaceOption : uint64_t {
-  kPublish = 0x00,
-  kNamespace = 0x01,
-  kBoth = 0x02,
-};
-static constexpr uint64_t kMaxSubscribeOption = 0x02;
 
 struct QUICHE_EXPORT MoqtSubscribeNamespace {
   uint64_t request_id;

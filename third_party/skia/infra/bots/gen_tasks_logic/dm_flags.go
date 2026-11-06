@@ -535,12 +535,19 @@ func (b *TaskBuilder) dmFlags(internalHardwareLabel string) {
 					// b/425434638 - PaintParamsKeyTest failing on Release Dawn_Vulkan
 					skip(ALL, "test", ALL, "PaintParamsKeyTest")
 
-					// b/485161482 - Compute_SampledTexture fails with an access violation
 					if b.GPU("IntelIris540") {
+						// b/485161482 - Compute_SampledTexture fails with an access violation
 						skip(ALL, "test", ALL, "Compute_SampledTexture")
 						skip(ALL, "test", ALL, "Compute_StorageTextureMultipleComputeSteps")
 						skip(ALL, "test", ALL, "Compute_ReadOnlyStorageBuffer")
 						skip(ALL, "test", ALL, "Compute_StorageTextureReadAndWrite")
+						// b/504975414 - MSAA tests are failing
+						skip(ALL, "test", ALL, "RecordingSurfacesTestDraw")
+						skip(ALL, "test", ALL, "RecordingSurfacesTestDrawWithClip")
+						skip(ALL, "test", ALL, "RecordingSurfacesTestClear")
+						skip(ALL, "test", ALL, "RecordingOrderTest_Graphite")
+						skip(ALL, "test", ALL, "MultisampleRetainTest")
+						skip(ALL, "test", ALL, "ImageWrapTextureMipmapsTest")
 					}
 
 					if b.ExtraConfig("TSAN") {

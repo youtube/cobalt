@@ -28,7 +28,6 @@
 #include "third_party/blink/renderer/core/html/forms/html_form_element.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/input_type_names.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
@@ -321,11 +320,6 @@ bool HTMLFormControlElementWithState::ShouldSaveAndRestoreFormControlState()
     const {
   if (!isConnected()) {
     return false;
-  }
-  // TODO(crbug.com/1419161): remove this after M113 has been stable for a bit.
-  if (RuntimeEnabledFeatures::
-          FormControlRestoreStateIfAutocompleteOffEnabled()) {
-    return ShouldAutocomplete();
   }
   if (Form() && !Form()->ShouldAutocomplete()) {
     return false;

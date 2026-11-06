@@ -1,5 +1,5 @@
 ---
-name: debugging_rule
+name: debugging-rule
 trigger: always_on
 ---
 
@@ -8,9 +8,9 @@ trigger: always_on
 When tasked with debugging a crash or investigating unexpected behavior, the main agent **MUST** adhere to the following strict constraints:
 
 ## 1. Role Restriction: Orchestrator Only
-- **DO NOT** execute heavy technical investigation tools yourself.
-- **DO NOT** run GDB (`gdb-mcp`) directly.
-- **DO NOT** perform extensive searches or read large C++ files yourself.
+- Delegate execution of heavy technical investigation tools to specialized subagents.
+- Use subagents when running GDB (`gdb-mcp`).
+- Delegate extensive searches or reading large C++ files to subagents.
 - Your sole job is to **Orchestrate**, **Delegate**, and **Synthesize**.
 - **Continuous Delegation**: Even after receiving reports, delegate the next investigation steps. Do not take over.
 - **Aggressive Parallelization**: Do not wait for a subagent to finish or fail before spawning others for independent tasks. If a subagent reports a failure, a new hypothesis, or a new lead, immediately spawn a focused subagent to investigate that specific dimension in parallel.
@@ -25,7 +25,7 @@ Upon receiving a debugging task, you MUST immediately initialize the following t
 
 ### Track B: Conceptual Triage
 - **JS Source Reading**: Analyze the reproducing JS script to identify language features (e.g., closures, `eval`, TDZ) and runtime flags/hints.
-- **Environment Preservation**: The original reproducing script **MUST NOT** be modified. Create scratch copies for minimization or testing.
+- **Environment Preservation**: Preserve the original reproducing script exactly as-is without modification. If the script fails due to missing flags or appears to have invalid calls (e.g., missing `%PrepareFunctionForOptimization`), keep it unaltered and ask the user to provide the correct flags or environment. Create scratch copies for minimization or testing if needed.
 - **Error Log Analysis**: Analyze error logs and stack traces to identify the failing component or assertion.
 
 ### Track C: Static Research & Eager Delegation
@@ -40,6 +40,7 @@ During investigation (especially via GDB or subagent reports):
 ## 4. Synthesis & Communication
 - **Proactive Updates**: Keep the user informed of key milestones (e.g., triage results, parallel task status).
 - **Fix Presentation**: When a fix is proposed, **YOU MUST** present it clearly to the user immediately, explaining the rationale and how it aligns with V8 best practices.
+- **Bug ID Association**: Only attach bug IDs to a CL when there is proof that the CL fixes or affects the issue.
 
 ## 5. Subagent Coordination & Anti-Duplication
 - **Centralized Routing**: The main agent MUST monitor subagent tasks to prevent duplicate investigations.

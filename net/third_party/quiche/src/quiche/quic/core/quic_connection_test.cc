@@ -16099,6 +16099,7 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
   QuicPathChallengeFrame path_challenge_frame;
   QuicNewConnectionIdFrame new_connection_id_frame;
   new_connection_id_frame.sequence_number = 1u;
+  new_connection_id_frame.connection_id = TestConnectionId(789);
   QuicRetireConnectionIdFrame retire_connection_id_frame;
   retire_connection_id_frame.sequence_number = 1u;
   QuicStopSendingFrame stop_sending_frame;
@@ -18371,8 +18372,6 @@ TEST_P(QuicConnectionTest, DoNotUpdateAckStateAfterConnectionClose) {
   if (!version().IsIetfQuic()) {
     return;
   }
-  // Test will fail if this flag is false.
-  SetQuicReloadableFlag(quic_disconnect_early_exit, true);
   // Path validation must occur after the handshake is confirmed.
   connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);

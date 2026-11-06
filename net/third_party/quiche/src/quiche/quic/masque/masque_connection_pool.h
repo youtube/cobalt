@@ -79,14 +79,23 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
     virtual ~Visitor() = default;
     virtual void OnPoolResponse(MasqueConnectionPool* pool,
                                 RequestId request_id,
-                                absl::StatusOr<Message>&& response) = 0;
+                                absl::StatusOr<Message>&& response,
+                                bool end_stream) = 0;
+    virtual void OnPoolData(MasqueConnectionPool* pool, RequestId request_id,
+                            absl::string_view data, bool end_stream) = 0;
   };
 
   // If the request fails immediately, the error will be returned. Otherwise, a
   // request ID will be returned and the result (the response or an error) will
   // be delivered later with that same request ID via Visitor::OnResponse.
   absl::StatusOr<RequestId> SendRequest(const Message& request,
-                                        bool mtls = false);
+                                        bool mtls = false,
+                                        bool end_stream = true,
+                                        bool stream_response = false);
+
+  // Sends a body chunk for an existing request.
+  absl::Status SendBodyChunk(RequestId request_id, const std::string& body,
+                             bool end_stream);
 
   // `event_loop`, `ssl_ctx`, and `visitor` must outlive this object.
   explicit MasqueConnectionPool(QuicEventLoop* event_loop, SSL_CTX* ssl_ctx,
@@ -106,9 +115,11 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
                  const std::string& body) override;
   void OnResponse(MasqueH2Connection* connection, int32_t stream_id,
                   const quiche::HttpHeaderBlock& headers,
-                  const std::string& body) override;
+                  const std::string& body, bool end_stream) override;
   void OnStreamFailure(MasqueH2Connection* connection, int32_t stream_id,
                        absl::Status error) override;
+  void OnDataForStream(MasqueH2Connection* connection, int32_t stream_id,
+                       absl::string_view data, bool end_stream) override;
 
   static absl::StatusOr<bssl::UniquePtr<SSL_CTX>> CreateSslCtx(
       const std::string& client_cert_file,
@@ -147,8 +158,12 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
   };
   struct PendingRequest {
     Message request;
+    bool end_stream_pending = true;
+    std::string pending_data;
     MasqueH2Connection* connection = nullptr;  // Not owned.
     int32_t stream_id = -1;
+    bool response_done = false;
+    bool stream_response = false;
   };
 
   absl::StatusOr<MasqueConnectionPool::ConnectionState*>

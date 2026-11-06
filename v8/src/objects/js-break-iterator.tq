@@ -4,6 +4,7 @@
 
 #include 'src/objects/js-break-iterator.h'
 
+@cppObjectLayoutDefinition
 extern class JSV8BreakIterator extends JSObject {
   locale: String;
   icu_iterator_with_text: Foreign;  // Managed<IcuBreakIteratorWithText>

@@ -165,6 +165,9 @@ std::u16string GetIconAccessibleName(Suggestion::Icon icon) {
     case Suggestion::Icon::kVehicle:
     case Suggestion::Icon::kEdit:
     case Suggestion::Icon::kEmail:
+    case Suggestion::Icon::kGmail:
+    case Suggestion::Icon::kGooglePhotos:
+    case Suggestion::Icon::kGoogleCalendar:
     case Suggestion::Icon::kError:
     case Suggestion::Icon::kFlight:
     case Suggestion::Icon::kGlobe:
@@ -184,7 +187,6 @@ std::u16string GetIconAccessibleName(Suggestion::Icon icon) {
     case Suggestion::Icon::kPassport:
     case Suggestion::Icon::kPenSpark:
     case Suggestion::Icon::kPersonCheck:
-    case Suggestion::Icon::kPlusAddress:
     case Suggestion::Icon::kQuestionMark:
     case Suggestion::Icon::kRecoveryPassword:
     case Suggestion::Icon::kSaveAndFill:
@@ -192,6 +194,7 @@ std::u16string GetIconAccessibleName(Suggestion::Icon icon) {
     case Suggestion::Icon::kSettings:
     case Suggestion::Icon::kUndo:
     case Suggestion::Icon::kAndroidMessages:
+    case Suggestion::Icon::kSpark:
       return std::u16string();
   }
   NOTREACHED();
@@ -319,7 +322,6 @@ bool IsPaymentMethodSuggestion(const Suggestion& suggestion) {
     case SuggestionType::kManageCreditCard:
     case SuggestionType::kManageIban:
     case SuggestionType::kManageLoyaltyCard:
-    case SuggestionType::kManagePlusAddress:
     case SuggestionType::kScanCreditCard:
     case SuggestionType::kSeePromoCodeDetails:
     case SuggestionType::kUndoOrClear:
@@ -341,7 +343,6 @@ bool IsPaymentMethodSuggestion(const Suggestion& suggestion) {
     case SuggestionType::kDevtoolsTestAddressEntry:
     case SuggestionType::kDevtoolsTestAddresses:
     case SuggestionType::kAtMemorySearchResult:
-    case SuggestionType::kFillExistingPlusAddress:
     case SuggestionType::kFillPassword:
     case SuggestionType::kGeneratePasswordEntry:
     case SuggestionType::kInsecureContextPaymentDisabledMessage:
@@ -373,6 +374,8 @@ std::optional<ui::ImageModel> GetIconImageModelFromIcon(Suggestion::Icon icon) {
       return std::nullopt;
     case Suggestion::Icon::kHome:
       return ImageModelFromVectorIcon(vector_icons::kHomeIcon, kIconSize);
+    case Suggestion::Icon::kSpark:
+      return ImageModelFromVectorIcon(omnibox::kSparkIcon, kIconSize);
     case Suggestion::Icon::kWork:
       return ImageModelFromVectorIcon(vector_icons::kWorkIcon, kIconSize);
     case Suggestion::Icon::kAccount:
@@ -394,6 +397,24 @@ std::optional<ui::ImageModel> GetIconImageModelFromIcon(Suggestion::Icon icon) {
                                       kChromeRefreshIconSize);
     case Suggestion::Icon::kEmail:
       return ImageModelFromVectorIcon(vector_icons::kEmailOutlineIcon,
+                                      kIconSize);
+    case Suggestion::Icon::kGmail:
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+      return ImageModelFromVectorIcon(vector_icons::kGoogleGmailIcon,
+                                      kIconSize);
+#else
+      return ImageModelFromVectorIcon(vector_icons::kEmailOutlineIcon,
+                                      kIconSize);
+#endif
+    case Suggestion::Icon::kGooglePhotos:
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+      return ImageModelFromVectorIcon(vector_icons::kGooglePhotosIcon,
+                                      kIconSize);
+#else
+      return ImageModelFromVectorIcon(vector_icons::kPhotoIcon, kIconSize);
+#endif
+    case Suggestion::Icon::kGoogleCalendar:
+      return ImageModelFromVectorIcon(vector_icons::kCalendarTodayIcon,
                                       kIconSize);
     case Suggestion::Icon::kError:
       return ui::ImageModel::FromVectorIcon(vector_icons::kErrorIcon,
@@ -443,13 +464,6 @@ std::optional<ui::ImageModel> GetIconImageModelFromIcon(Suggestion::Icon icon) {
     case Suggestion::Icon::kPersonCheck:
       return ImageModelFromVectorIcon(vector_icons::kPersonCheckIcon,
                                       kPersonCheckIconSize);
-    case Suggestion::Icon::kPlusAddress:
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-      return ImageModelFromVectorIcon(plus_addresses::kPlusAddressLogoSmallIcon,
-                                      kIconSize);
-#else
-      return ImageModelFromVectorIcon(vector_icons::kEmailIcon, kIconSize);
-#endif
     case Suggestion::Icon::kQuestionMark:
       return ImageModelFromVectorIcon(vector_icons::kHelpOutlineIcon,
                                       kRecoveryPasswordIconSize);
@@ -685,8 +699,7 @@ void AddSuggestionContentToView(
     std::vector<std::unique_ptr<views::View>> subtext_views,
     std::unique_ptr<views::View> icon,
     PopupRowContentView& content_view) {
-  bool should_show_new_fop_format =
-      IsPaymentMethodSuggestion(suggestion);
+  bool should_show_new_fop_format = IsPaymentMethodSuggestion(suggestion);
   // Adjust the row height based on the number of subtexts (lines of text).
   int row_height = views::MenuConfig::instance().touchable_menu_height;
   if (!subtext_views.empty() || should_show_new_fop_format) {

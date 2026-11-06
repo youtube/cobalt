@@ -128,8 +128,9 @@ class SharedScreenCastStreamPrivate {
   Mutex latest_frame_lock_ RTC_ACQUIRED_AFTER(queue_lock_);
   SharedDesktopFrame* latest_available_frame_
       RTC_GUARDED_BY(&latest_frame_lock_) = nullptr;
-  std::unique_ptr<MouseCursor> mouse_cursor_;
-  DesktopVector mouse_cursor_position_ = DesktopVector(-1, -1);
+  std::unique_ptr<MouseCursor> mouse_cursor_ RTC_GUARDED_BY(&latest_frame_lock_);
+  DesktopVector mouse_cursor_position_ RTC_GUARDED_BY(&latest_frame_lock_) =
+      DesktopVector(-1, -1);
 
   int64_t modifier_;
   std::unique_ptr<EglDmaBuf> egl_dmabuf_;
@@ -695,6 +696,7 @@ SharedScreenCastStreamPrivate::CaptureFrame() {
 }
 
 std::unique_ptr<MouseCursor> SharedScreenCastStreamPrivate::CaptureCursor() {
+  MutexLock latest_frame_lock(&latest_frame_lock_);
   if (!mouse_cursor_) {
     return nullptr;
   }
@@ -703,6 +705,7 @@ std::unique_ptr<MouseCursor> SharedScreenCastStreamPrivate::CaptureCursor() {
 }
 
 DesktopVector SharedScreenCastStreamPrivate::CaptureCursorPosition() {
+  MutexLock latest_frame_lock(&latest_frame_lock_);
   return mouse_cursor_position_;
 }
 
@@ -774,20 +777,28 @@ void SharedScreenCastStreamPrivate::ProcessBuffer(pw_buffer* buffer) {
           mouse_frame->CopyPixelsFrom(
               bitmap_data, bitmap->stride,
               DesktopRect::MakeWH(bitmap->size.width, bitmap->size.height));
-          mouse_cursor_ = std::make_unique<MouseCursor>(
-              mouse_frame, DesktopVector(cursor->hotspot.x, cursor->hotspot.y));
+          {
+            MutexLock latest_frame_lock(&latest_frame_lock_);
+            mouse_cursor_ = std::make_unique<MouseCursor>(
+                mouse_frame,
+                DesktopVector(cursor->hotspot.x, cursor->hotspot.y));
+          }
 
           if (observer_) {
             observer_->OnCursorShapeChanged();
           }
         }
-        mouse_cursor_position_.set(cursor->position.x, cursor->position.y);
+        {
+          MutexLock latest_frame_lock(&latest_frame_lock_);
+          mouse_cursor_position_.set(cursor->position.x, cursor->position.y);
+        }
 
         if (observer_) {
           observer_->OnCursorPositionChanged();
         }
       } else {
         // Indicate an invalid cursor
+        MutexLock latest_frame_lock(&latest_frame_lock_);
         mouse_cursor_position_.set(-1, -1);
       }
     }

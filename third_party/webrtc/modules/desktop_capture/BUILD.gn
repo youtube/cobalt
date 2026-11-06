@@ -286,9 +286,14 @@ rtc_library("desktop_capture") {
   visibility = [ "*" ]
   defines = []
   deps = [
+    "../../api/environment",
+    "../../api/units:time_delta",
+    "../../api/units:timestamp",
     "../../media:video_common",
     "../../rtc_base/containers:flat_map",
     "../../rtc_base/containers:flat_set",
+    "../../system_wrappers",
+    "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
@@ -667,6 +672,7 @@ if (is_mac) {
       "../../api:refcountedbase",
       "../../api:scoped_refptr",
       "../../api:sequence_checker",
+      "../../api/environment",
       "../../rtc_base:checks",
       "../../rtc_base:event_tracer",
       "../../rtc_base:logging",
@@ -676,7 +682,9 @@ if (is_mac) {
       "../../rtc_base/synchronization:mutex",
       "../../rtc_base/system:rtc_export",
       "../../sdk:helpers_objc",
+      "../../system_wrappers",
       "//third_party/abseil-cpp/absl/base:core_headers",
+      "//third_party/abseil-cpp/absl/base:nullability",
       "//third_party/abseil-cpp/absl/strings:str_format",
     ]
     frameworks = [

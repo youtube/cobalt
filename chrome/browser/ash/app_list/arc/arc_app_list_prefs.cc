@@ -381,6 +381,7 @@ bool ignore_compare_app_info_install_time = false;
 
 // Reason for installation enumeration; Used for UMA counter for reason for
 // install.
+// LINT.IfChange(InstallationCounterReasonEnum)
 enum class InstallationCounterReasonEnum {
   USER = 0,     // Application installed by user.
   DEFAULT = 1,  // Application part of the default set.
@@ -389,12 +390,15 @@ enum class InstallationCounterReasonEnum {
   UNKNOWN = 4,
   kMaxValue = UNKNOWN,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/arc/enums.xml:InstallationCounterReasonEnum)
 
 // Reasons for uninstalls. Only one, USER, for now.
+// LINT.IfChange(UninstallCounterReasonEnum)
 enum class UninstallCounterReasonEnum {
   USER = 0,  // Uninstall triggered by user.
   kMaxValue = USER
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/arc/enums.xml:UninstallCounterReasonEnum)
 
 // Remove deprecated package prefs. Otherwise deprecated fields will stay on
 // disks.
@@ -1499,7 +1503,7 @@ void ArcAppListPrefs::SetResizeLockState(const std::string& app_id,
   app_dict.Set(kResizeLockState, static_cast<int32_t>(state));
 
   // If the app is not "ready", we shouldn't fire the AppStatesChanged
-  // callbacks. Otherwise, it would cause a crash (See crbug.com/1276603). When
+  // callbacks. Otherwise, it would cause a crash (See crbug.com/40808991). When
   // the app is changed to "ready", ArcAppListPrefs sends the notifications
   // afterwards so it's fine not to fire it here.
   if (app_info->ready)

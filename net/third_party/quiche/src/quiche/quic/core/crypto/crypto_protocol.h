@@ -549,9 +549,8 @@ DEFINE_STATIC_QUIC_TAG(MPR1);  // Probe for multi-port path on RTO.
 DEFINE_STATIC_QUIC_TAG(CFLS);  // Enable flow-label-based blackhole avoidance on
                                // the server side when the client sends CFLS.
 
-// Experiment for explicit connection close packet for silent idle timeout
-// from server.
-DEFINE_STATIC_QUIC_TAG(ECCP);
+// Explicit connection close packet for max age timeout from server.
+DEFINE_STATIC_QUIC_TAG(ECCP);  // Deprecated and Default Enabled.
 
 #undef DEFINE_STATIC_QUIC_TAG
 

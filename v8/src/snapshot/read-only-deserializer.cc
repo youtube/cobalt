@@ -345,9 +345,7 @@ class ObjectPostProcessor final {
   }
   void PostProcessJSExternalObject(Tagged<JSExternalObject> o) {
     DecodeExternalPointerSlot(
-        o, o->RawExternalPointerField(
-               JSExternalObject::kValueOffset,
-               {kFirstExternalTypeTag, kLastExternalTypeTag}));
+        o, ExternalPointerSlot(&o->value_, kExternalObjectValueTagRange));
   }
   void PostProcessFunctionTemplateInfo(Tagged<FunctionTemplateInfo> o) {
     DecodeExternalPointerSlot(o, ExternalPointerSlot(&o->callback_));

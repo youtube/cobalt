@@ -646,6 +646,29 @@ function allowOOM(fn) {
   assertTraps(kTrapMemOutOfBounds, () => load(0n));
 })();
 
+(function TestHugeOffsetOn64BitMemory() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+
+  builder.addMemory64(1);
+
+  let offset = max_num_pages * kPageSize / 2;
+
+  builder.addFunction('load', makeSig([kWasmI64], [kWasmI32]))
+      .addBody([
+        // local.get 0
+        kExprLocalGet, 0,
+        // i32.load align=0 offset=8589934592
+        kExprI32LoadMem, 0, ...wasmSignedLeb64(offset),
+      ])
+      .exportFunc();
+
+  let instance = builder.instantiate();
+
+  assertTraps(kTrapMemOutOfBounds, () => instance.exports.load(0n));
+})();
+
 (function TestImportMemory64() {
   print(arguments.callee.name);
   const builder1 = new WasmModuleBuilder();

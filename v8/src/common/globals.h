@@ -15,6 +15,7 @@
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/bit-field.h"
+#include "src/base/bits.h"
 #include "src/base/build_config.h"
 #include "src/base/enum-set.h"
 #include "src/base/flags.h"
@@ -1162,6 +1163,7 @@ class Debug;
 class DebugInfo;
 class Descriptor;
 class DescriptorArray;
+class StrongDescriptorArray;
 template <typename T>
 class DirectHandle;
 #ifdef V8_ENABLE_DIRECT_HANDLE
@@ -2454,7 +2456,26 @@ class BinaryOperationFeedback {
 // at different points by performing an 'OR' operation.
 // This is distinct from BinaryOperationFeedback on purpose, because the
 // feedback that matters differs greatly as well as the way it is consumed.
-class CompareOperationFeedback {
+#define COMPARE_OPERATION_FEEDBACK_TYPES(V) \
+  V(None)                                   \
+  V(Boolean)                                \
+  V(NullOrUndefined)                        \
+  V(Oddball)                                \
+  V(SignedSmall)                            \
+  V(Number)                                 \
+  V(NumberOrBoolean)                        \
+  V(NumberOrOddball)                        \
+  V(InternalizedString)                     \
+  V(String)                                 \
+  V(StringOrOddball)                        \
+  V(Receiver)                               \
+  V(ReceiverOrNullOrUndefined)              \
+  V(BigInt64)                               \
+  V(BigInt)                                 \
+  V(Symbol)                                 \
+  V(Any)
+
+class CompareOperationFeedback : public AllStatic {
   enum {
     kSignedSmallFlag = 1 << 0,
     kOtherNumberFlag = 1 << 1,
@@ -2495,6 +2516,85 @@ class CompareOperationFeedback {
 
     kAny = kAnyMask,
   };
+
+  enum class TypeIndex : uint8_t {
+#define DEF_TYPE_INDEX(name) k##name,
+    COMPARE_OPERATION_FEEDBACK_TYPES(DEF_TYPE_INDEX)
+#undef DEF_TYPE_INDEX
+        kFirstTypeIndex = kNone,
+    kLastTypeIndex = kAny
+  };
+
+  static V8_EXPORT_PRIVATE Address GetTransitionMapAddress();
+  static V8_EXPORT_PRIVATE Address GetFeedbackEncodeTableAddress();
+
+  // round up to 2^x for better memory access
+  static constexpr uint32_t kTransitionMapSize =
+      base::bits::RoundUpToPowerOfTwo32(
+          static_cast<uint32_t>(TypeIndex::kLastTypeIndex) + 1);
+
+  static constexpr Type DecodeTypeIndex(TypeIndex index) {
+    switch (index) {
+#define CASE_TYPE(name)    \
+  case TypeIndex::k##name: \
+    return Type::k##name;
+      COMPARE_OPERATION_FEEDBACK_TYPES(CASE_TYPE)
+#undef CASE_TYPE
+    }
+    return Type::kAny;
+  }
+
+ private:
+  static constexpr TypeIndex CalculateTypeIndex(uint32_t feedback_value) {
+#define CALCULATE_TYPE_INDEX(name)                               \
+  if ((static_cast<uint32_t>(Type::k##name) & feedback_value) == \
+      feedback_value) {                                          \
+    return TypeIndex::k##name;                                   \
+  }
+    COMPARE_OPERATION_FEEDBACK_TYPES(CALCULATE_TYPE_INDEX)
+#undef CALCULATE_TYPE_INDEX
+    return TypeIndex::kAny;
+  }
+
+  static constexpr TypeIndex CombineTypeIndex(TypeIndex a, TypeIndex b) {
+    Type type_a = DecodeTypeIndex(a);
+    Type type_b = DecodeTypeIndex(b);
+    uint32_t combined_feedback_value =
+        static_cast<uint32_t>(type_a) | static_cast<uint32_t>(type_b);
+    return CalculateTypeIndex(combined_feedback_value);
+  }
+
+  struct TransitionMap {
+    uint8_t map[kTransitionMapSize][kTransitionMapSize]{};
+  };
+
+  struct FeedbackEncodeTable {
+    uint8_t lut[static_cast<uint32_t>(Type::kAny) + 1]{};
+  };
+
+  static constexpr TransitionMap BuildTransitionMap() {
+    TransitionMap trans_map{};
+    uint32_t type_index_count =
+        static_cast<uint32_t>(TypeIndex::kLastTypeIndex) + 1;
+    for (uint32_t i = 0; i < type_index_count; i++) {
+      for (uint32_t j = 0; j < type_index_count; j++) {
+        trans_map.map[i][j] = static_cast<uint8_t>(CombineTypeIndex(
+            static_cast<TypeIndex>(i), static_cast<TypeIndex>(j)));
+      }
+    }
+    return trans_map;
+  }
+
+  static constexpr FeedbackEncodeTable BuildFeedbackEncodeTable() {
+    FeedbackEncodeTable lut{};
+    for (uint32_t i = 0; i < static_cast<uint32_t>(Type::kAny) + 1; i++) {
+      lut.lut[i] = static_cast<uint8_t>(CalculateTypeIndex(i));
+    }
+    return lut;
+  }
+
+  static const TransitionMap kTransitionMap;
+  static const FeedbackEncodeTable kFeedbackEncodeTable;
 };
 
 class TypeOfFeedback {

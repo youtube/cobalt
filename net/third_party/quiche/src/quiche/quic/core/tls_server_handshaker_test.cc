@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -371,6 +372,8 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
   QuicCryptoClientStream* client_stream() {
     return client_session_->GetMutableCryptoStream();
   }
+
+  SSL* server_ssl() { return server_stream()->GetSsl(); }
 
   // Initializes a fake client, and all its associated state, for
   // testing.  May be called multiple times.
@@ -1643,6 +1646,73 @@ TEST_P(TlsServerHandshakerTest, AlpsUseNewCodepoint) {
     ExpectHandshakeSuccessful();
     EXPECT_TRUE(server_stream()->version().IsIetfQuic());
   }
+}
+
+TEST_P(TlsServerHandshakerTest, NoCompliancePolicy) {
+  quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain(
+      new ProofSource::Chain({std::string(quic::test::kTestCertificate)}));
+
+  // Arrange GetCertChains to return no compliance policy.
+  EXPECT_CALL(*proof_source_, GetCertChains(_, _, kServerHostname))
+      .WillOnce(Return(ProofSource::CertChainsResult{
+          .chains_match_sni = true,
+          .chains = {chain},
+          .ssl_compliance_policy = std::nullopt,
+      }));
+
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+
+  EXPECT_NE(SSL_CIPHER_get_id(SSL_get_current_cipher(server_ssl())),
+            TLS1_3_CK_AES_256_GCM_SHA384);
+}
+
+TEST_P(TlsServerHandshakerTest, CompliancePolicyWithSynchronousSelectCert) {
+  quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain(
+      new ProofSource::Chain({std::string(quic::test::kTestCertificate)}));
+
+  // Arrange GetCertChains to return the compliance policy.
+  EXPECT_CALL(*proof_source_, GetCertChains(_, _, kServerHostname))
+      .WillOnce(Return(ProofSource::CertChainsResult{
+          .chains_match_sni = true,
+          .chains = {chain},
+          .ssl_compliance_policy = ssl_compliance_policy_cnsa_202407,
+      }));
+
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+
+  // See why AES_256 is preferred when using cnsa_202407 at:
+  // https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#Compliance-policy-configurations
+  EXPECT_EQ(SSL_CIPHER_get_id(SSL_get_current_cipher(server_ssl())),
+            TLS1_3_CK_AES_256_GCM_SHA384);
+}
+
+TEST_P(TlsServerHandshakerTest, CompliancePolicyWithAsynchronousSelectCert) {
+  InitializeServerWithFakeProofSourceHandle();
+
+  // Configure the handshaker to perform async cert selection with the policy.
+  server_handshaker_->SetupProofSourceHandle(
+      /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_ASYNC,
+      /*compute_signature_action=*/FakeProofSourceHandle::Action::DELEGATE_SYNC,
+      QuicDelayedSSLConfig{.ssl_compliance_policy =
+                               ssl_compliance_policy_cnsa_202407});
+
+  // Start handshake.
+  AdvanceHandshakeWithFakeClient();
+
+  // Complete the async select_certificate operation.
+  ASSERT_TRUE(
+      server_handshaker_->fake_proof_source_handle()->HasPendingOperation());
+  server_handshaker_->fake_proof_source_handle()->CompletePendingOperation();
+
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+
+  // See why AES_256 is preferred when using cnsa_202407 at:
+  // https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#Compliance-policy-configurations
+  EXPECT_EQ(SSL_CIPHER_get_id(SSL_get_current_cipher(server_ssl())),
+            TLS1_3_CK_AES_256_GCM_SHA384);
 }
 
 }  // namespace

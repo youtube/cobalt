@@ -418,6 +418,29 @@ void HeapObject::Relaxed_WriteField(size_t offset, T value)
 }
 
 template <class T>
+T HeapObjectLayout::Relaxed_ReadField(size_t offset) const
+  requires((std::is_arithmetic_v<T> || std::is_enum_v<T>) &&
+           !std::is_floating_point_v<T>)
+{
+  DCHECK_IMPLIES(COMPRESS_POINTERS_BOOL, sizeof(T) <= kTaggedSize);
+  using AtomicT = typename base::AtomicTypeFromByteWidth<sizeof(T)>::type;
+  return static_cast<T>(base::AsAtomicImpl<AtomicT>::Relaxed_Load(
+      reinterpret_cast<AtomicT*>(field_address(offset))));
+}
+
+template <class T>
+void HeapObjectLayout::Relaxed_WriteField(size_t offset, T value)
+  requires((std::is_arithmetic_v<T> || std::is_enum_v<T>) &&
+           !std::is_floating_point_v<T>)
+{
+  DCHECK_IMPLIES(COMPRESS_POINTERS_BOOL, sizeof(T) <= kTaggedSize);
+  using AtomicT = typename base::AtomicTypeFromByteWidth<sizeof(T)>::type;
+  base::AsAtomicImpl<AtomicT>::Relaxed_Store(
+      reinterpret_cast<AtomicT*>(field_address(offset)),
+      static_cast<AtomicT>(value));
+}
+
+template <class T>
 T HeapObject::Acquire_ReadField(size_t offset) const
   requires((std::is_arithmetic_v<T> || std::is_enum_v<T>) &&
            !std::is_floating_point_v<T>)
@@ -1097,11 +1120,37 @@ void HeapObject::WriteSandboxedPointerField(size_t offset, Isolate* isolate,
                                 PtrComprCageBase(isolate), value);
 }
 
+Address HeapObjectLayout::ReadSandboxedPointerField(
+    size_t offset, PtrComprCageBase cage_base) const {
+  return i::ReadSandboxedPointerField(field_address(offset), cage_base);
+}
+
+void HeapObjectLayout::WriteSandboxedPointerField(size_t offset,
+                                                  PtrComprCageBase cage_base,
+                                                  Address value) {
+  i::WriteSandboxedPointerField(field_address(offset), cage_base, value);
+}
+
+void HeapObjectLayout::WriteSandboxedPointerField(size_t offset,
+                                                  Isolate* isolate,
+                                                  Address value) {
+  i::WriteSandboxedPointerField(field_address(offset),
+                                PtrComprCageBase(isolate), value);
+}
+
 size_t HeapObject::ReadBoundedSizeField(size_t offset) const {
   return i::ReadBoundedSizeField(field_address(offset));
 }
 
 void HeapObject::WriteBoundedSizeField(size_t offset, size_t value) {
+  i::WriteBoundedSizeField(field_address(offset), value);
+}
+
+size_t HeapObjectLayout::ReadBoundedSizeField(size_t offset) const {
+  return i::ReadBoundedSizeField(field_address(offset));
+}
+
+void HeapObjectLayout::WriteBoundedSizeField(size_t offset, size_t value) {
   i::WriteBoundedSizeField(field_address(offset), value);
 }
 
@@ -1369,8 +1418,86 @@ JSDispatchHandle HeapObject::AllocateAndInstallJSDispatchHandle(
   return handle;
 }
 
+template <typename ObjectType>
+JSDispatchHandle JSDispatchHandleMember::AllocateAndInstall(
+    DirectHandle<ObjectType> host, Isolate* isolate, uint16_t parameter_count,
+    DirectHandle<Code> code, WriteBarrierMode mode) {
+  JSDispatchTable::Space* space =
+      isolate->GetJSDispatchTableSpaceFor(reinterpret_cast<Address>(&storage_));
+  JSDispatchHandle handle =
+      isolate->factory()->NewJSDispatchHandle(parameter_count, code, space);
+  storage_.store(static_cast<uint32_t>(handle.value()),
+                 std::memory_order_release);
+  CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*host, handle, mode);
+  return handle;
+}
+
 ObjectSlot HeapObject::RawField(int byte_offset) const {
   return ObjectSlot(field_address(byte_offset));
+}
+
+ObjectSlot HeapObjectLayout::RawField(int byte_offset) const {
+  return ObjectSlot(field_address(byte_offset));
+}
+
+MaybeObjectSlot HeapObjectLayout::RawMaybeWeakField(int byte_offset) const {
+  return MaybeObjectSlot(field_address(byte_offset));
+}
+
+IndirectPointerSlot HeapObjectLayout::RawIndirectPointerField(
+    int byte_offset, IndirectPointerTagRange tag_range) const {
+  return IndirectPointerSlot(field_address(byte_offset), tag_range);
+}
+
+ExternalPointerSlot HeapObjectLayout::RawExternalPointerField(
+    int byte_offset, ExternalPointerTagRange tag_range) const {
+  return ExternalPointerSlot(field_address(byte_offset), tag_range);
+}
+
+HeapObjectLayout::operator Tagged<HeapObject>() const {
+  return Tagged<HeapObject>(this);
+}
+
+template <ExternalPointerTag tag>
+void HeapObjectLayout::InitExternalPointerField(size_t offset,
+                                                IsolateForSandbox isolate,
+                                                Address value,
+                                                WriteBarrierMode mode) {
+  Tagged<HeapObject>(*this)->InitExternalPointerField<tag>(offset, isolate,
+                                                           value, mode);
+}
+
+template <ExternalPointerTagRange tag_range>
+Address HeapObjectLayout::ReadExternalPointerField(
+    size_t offset, IsolateForSandbox isolate) const {
+  return Tagged<HeapObject>(*this)->ReadExternalPointerField<tag_range>(
+      offset, isolate);
+}
+
+template <ExternalPointerTag tag>
+void HeapObjectLayout::WriteExternalPointerField(size_t offset,
+                                                 IsolateForSandbox isolate,
+                                                 Address value) {
+  Tagged<HeapObject>(*this)->WriteExternalPointerField<tag>(offset, isolate,
+                                                            value);
+}
+
+void HeapObjectLayout::SetupLazilyInitializedExternalPointerField(
+    size_t offset) {
+  Tagged<HeapObject>(*this)->SetupLazilyInitializedExternalPointerField(offset);
+}
+
+bool HeapObjectLayout::IsLazilyInitializedExternalPointerFieldInitialized(
+    size_t offset) const {
+  return Tagged<HeapObject>(*this)
+      ->IsLazilyInitializedExternalPointerFieldInitialized(offset);
+}
+
+template <ExternalPointerTag tag>
+void HeapObjectLayout::WriteLazilyInitializedExternalPointerField(
+    size_t offset, IsolateForSandbox isolate, Address value) {
+  Tagged<HeapObject>(*this)->WriteLazilyInitializedExternalPointerField<tag>(
+      offset, isolate, value);
 }
 
 MaybeObjectSlot HeapObject::RawMaybeWeakField(int byte_offset) const {
@@ -1477,6 +1604,41 @@ void HeapObject::VerifySmiField(int offset) {
   static_assert(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
 }
 
+void HeapObjectLayout::VerifyObjectField(Isolate* isolate, int offset) {
+  Cast<HeapObject>(this)->VerifyObjectField(isolate, offset);
+}
+
+void HeapObjectLayout::VerifyMaybeObjectField(Isolate* isolate, int offset) {
+  Cast<HeapObject>(this)->VerifyMaybeObjectField(isolate, offset);
+}
+
+void HeapObjectLayout::VerifySmiField(int offset) {
+  Cast<HeapObject>(this)->VerifySmiField(offset);
+}
+
+#endif
+
+bool HeapObjectLayout::NeedsRehashing(InstanceType instance_type) const {
+  return Cast<HeapObject>(this)->NeedsRehashing(instance_type);
+}
+
+bool HeapObjectLayout::NeedsRehashing(PtrComprCageBase cage_base) const {
+  return Cast<HeapObject>(this)->NeedsRehashing(cage_base);
+}
+
+bool HeapObjectLayout::CanBeRehashed(PtrComprCageBase cage_base) const {
+  return Cast<HeapObject>(this)->CanBeRehashed(cage_base);
+}
+
+template <typename IsolateT>
+void HeapObjectLayout::RehashBasedOnMap(IsolateT* isolate) {
+  Cast<HeapObject>(this)->RehashBasedOnMap(isolate);
+}
+
+#ifdef VERIFY_HEAP
+void HeapObjectLayout::HeapObjectVerify(Isolate* isolate) {
+  Cast<HeapObject>(this)->HeapObjectVerify(isolate);
+}
 #endif
 
 // static

@@ -148,7 +148,11 @@ public class HistoryTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     helper.getLocalFaviconImageForURL(
-                            ProfileManager.getLastUsedRegularProfile(), pageUrl, 0, waiter);
+                            ProfileManager.getLastUsedRegularProfile(),
+                            pageUrl,
+                            0,
+                            /* fallbackToHost= */ true,
+                            waiter);
                 });
         return waiter.waitForFavicon();
     }
@@ -291,7 +295,7 @@ public class HistoryTest {
                 mActivityTestRule
                         .getTestServer()
                         .getURL("/chrome/test/data/android/navigate/two.html");
-        String domain = new org.chromium.url.GURL(urlOne).getHost();
+        String domain = new GURL(urlOne).getHost();
 
         mActivityTestRule.loadUrl(urlOne);
         mActivityTestRule.loadUrl(urlTwo);
@@ -353,7 +357,7 @@ public class HistoryTest {
                 mActivityTestRule
                         .getTestServer()
                         .getURL("/chrome/test/data/android/navigate/two.html");
-        String domain = new org.chromium.url.GURL(urlOne).getHost();
+        String domain = new GURL(urlOne).getHost();
 
         mActivityTestRule.loadUrl(urlOne);
         mActivityTestRule.loadUrl(urlTwo);
@@ -409,7 +413,7 @@ public class HistoryTest {
                 mActivityTestRule
                         .getTestServer()
                         .getURL("/chrome/test/data/android/navigate/two.html");
-        String domain = new org.chromium.url.GURL(urlOne).getHost();
+        String domain = new GURL(urlOne).getHost();
 
         mActivityTestRule.loadUrl(urlOne);
         mActivityTestRule.loadUrl(urlTwo);

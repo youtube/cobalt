@@ -18,6 +18,8 @@
 #include "chrome/browser/browsing_topics/browsing_topics_service_factory.h"
 #include "chrome/browser/commerce/shopping_service_factory.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/contextual_cueing/contextual_cueing_service_factory.h"
+#include "chrome/browser/contextual_cueing/contextual_cueing_web_contents_observer.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_navigation_controller.h"
 #include "chrome/browser/enterprise/reporting/saas_usage/saas_usage_navigation_observer.h"
 #include "chrome/browser/glic/host/context/glic_page_features_manager.h"
@@ -505,10 +507,19 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
         std::make_unique<QwacWebContentsObserver>(tab);
   }
 
+  if (auto* contextual_cueing_service =
+          contextual_cueing::ContextualCueingServiceFactory::GetForProfile(
+              profile)) {
+    contextual_cueing_web_contents_observer_ = std::make_unique<
+        contextual_cueing::ContextualCueingWebContentsObserver>(
+        tab.GetContents(), contextual_cueing_service);
+  }
+
   if (base::FeatureList::IsEnabled(
           security_interstitials::features::kHttpsFirstDialogUi)) {
     ask_before_http_dialog_controller_ =
-        std::make_unique<AskBeforeHttpDialogController>(&tab);
+        GetUserDataFactory().CreateInstance<AskBeforeHttpDialogController>(
+            tab, &tab);
   }
 
   bookmarkbar_preload_pipeline_manager_ =

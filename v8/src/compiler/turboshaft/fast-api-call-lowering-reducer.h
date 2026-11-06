@@ -401,7 +401,7 @@ class FastApiCallLoweringReducer : public Next {
             __ template LoadRoot<RootIndex::kNullValue>());
 
     Uninitialized<HeapObject> external = __ Allocate(
-        JSExternalObject::kHeaderSize, AllocationType::kYoung, kTaggedAligned);
+        sizeof(JSExternalObject), AllocationType::kYoung, kTaggedAligned);
     __ InitializeField(external, AccessBuilder::ForMap(),
                        __ template LoadRoot<RootIndex::kExternalMap>());
     V<FixedArray> empty_fixed_array =

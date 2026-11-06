@@ -128,13 +128,6 @@ FlagProcessingMode FlagList::GetFlagProcessingMode() {
 }
 
 bool Flag::ShouldCheckFlagContradictions() {
-  if (v8_flags.allow_overwriting_for_next_flag) {
-    // Setting the flag manually to false before calling Reset() avoids this
-    // becoming re-entrant.
-    v8_flags.allow_overwriting_for_next_flag = false;
-    FindFlagByPointer(&v8_flags.allow_overwriting_for_next_flag)->Reset();
-    return false;
-  }
   return FlagList::GetFlagProcessingMode() !=
          FlagProcessingMode::kIgnoreContradictions;
 }
@@ -1277,6 +1270,12 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(turboshaft, stress_concurrent_inlining_attach_code),
       CONTRADICTION(minor_ms, handle_weak_ref_weakly_in_minor_gc),
 
+      // This stress enables additional CHECKs that are classified as non-issues
+      // by the sandbox fuzzer crash filters, and hence may result in masking
+      // real issues from the fuzzer.
+      CONTRADICTION(stress_lazy_source_positions, sandbox_fuzzing),
+      CONTRADICTION(stress_lazy_source_positions, sandbox_testing),
+
       // List of flags that shouldn't be used when --fuzzing or
       // --correctness-fuzzer-suppressions is passed. These flags will be reset
       // to their defaults.
@@ -1334,9 +1333,13 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
     if (!flag1 || !flag2) continue;
     if (flag1->IsDefault() || flag2->IsDefault()) continue;
 
-    // Ensure we never reset the fuzzing flags.
+    // Ensure we never reset the fuzzing or POC verification flags.
     CHECK(!flag1->PointsTo(&v8_flags.fuzzing));
     CHECK(!flag1->PointsTo(&v8_flags.correctness_fuzzer_suppressions));
+    CHECK(!flag1->PointsTo(&v8_flags.sandbox_fuzzing));
+    CHECK(!flag1->PointsTo(&v8_flags.sandbox_testing));
+    CHECK(!flag1->PointsTo(&v8_flags.run_as_security_poc));
+    CHECK(!flag1->PointsTo(&v8_flags.run_as_sandbox_security_poc));
 
     std::cerr << "Warning: resetting flag --" << flag1->name()
               << " due to conflicting flags" << std::endl;

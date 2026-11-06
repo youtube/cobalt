@@ -104,7 +104,7 @@ Tagged<Code> DeoptimizableCodeIterator::Next() {
           state_ = kDone;
           [[fallthrough]];
         case kDone:
-          return Code();
+          return {};
       }
     }
     Tagged<InstructionStream> istream =

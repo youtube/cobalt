@@ -19,11 +19,10 @@
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/crypto/frame_decryptor_interface.h"
 #include "api/dtls_transport_interface.h"
-#include "api/frame_transformer_interface.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
+#include "api/rtc_error.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/scoped_refptr.h"
@@ -47,18 +46,21 @@ VideoRtpReceiver::VideoRtpReceiver(
     Thread* worker_thread,
     absl::string_view receiver_id,
     std::vector<std::string> stream_ids,
+    absl::AnyInvocable<RTCError()> enable_sframe_at_owner,
     VideoMediaReceiveChannelInterface* media_channel)
     : VideoRtpReceiver(worker_thread,
                        receiver_id,
                        CreateStreamsFromIds(std::move(stream_ids)),
+                       std::move(enable_sframe_at_owner),
                        media_channel) {}
 
 VideoRtpReceiver::VideoRtpReceiver(
     Thread* worker_thread,
     absl::string_view receiver_id,
     const std::vector<scoped_refptr<MediaStreamInterface>>& streams,
+    absl::AnyInvocable<RTCError()> enable_sframe_at_owner,
     VideoMediaReceiveChannelInterface* media_channel)
-    : RtpReceiverBase(worker_thread),
+    : RtpReceiverBase(worker_thread, std::move(enable_sframe_at_owner)),
       id_(receiver_id),
       media_channel_(media_channel),
       source_(make_ref_counted<VideoRtpTrackSource>(&source_callback_)),
@@ -104,32 +106,6 @@ RtpParameters VideoRtpReceiver::GetParameters() const {
   return current_ssrc.has_value()
              ? media_channel_->GetRtpReceiverParameters(current_ssrc.value())
              : media_channel_->GetDefaultRtpReceiveParameters();
-}
-
-void VideoRtpReceiver::SetFrameDecryptor(
-    scoped_refptr<FrameDecryptorInterface> frame_decryptor) {
-  RTC_DCHECK_RUN_ON(worker_thread_);
-  frame_decryptor_ = std::move(frame_decryptor);
-  // Special Case: Set the frame decryptor to any value on any existing channel.
-  if (media_channel_ && signaled_ssrc_) {
-    media_channel_->SetFrameDecryptor(*signaled_ssrc_, frame_decryptor_);
-  }
-}
-
-scoped_refptr<FrameDecryptorInterface> VideoRtpReceiver::GetFrameDecryptor()
-    const {
-  RTC_DCHECK_RUN_ON(worker_thread_);
-  return frame_decryptor_;
-}
-
-void VideoRtpReceiver::SetFrameTransformer(
-    scoped_refptr<FrameTransformerInterface> frame_transformer) {
-  RTC_DCHECK_RUN_ON(worker_thread_);
-  frame_transformer_ = std::move(frame_transformer);
-  if (media_channel_) {
-    media_channel_->SetDepacketizerToDecoderFrameTransformer(
-        signaled_ssrc_.value_or(0), frame_transformer_);
-  }
 }
 
 void VideoRtpReceiver::Stop() {
@@ -214,12 +190,9 @@ VideoRtpReceiver::GetSetupForUnsignaledMediaChannel() {
   return GetRestartFunctionForMediaChannel(std::nullopt);
 }
 
-std::optional<uint32_t> VideoRtpReceiver::ssrc() const {
+MediaReceiveChannelInterface* VideoRtpReceiver::media_channel() const {
   RTC_DCHECK_RUN_ON(worker_thread_);
-  if (!signaled_ssrc_.has_value() && media_channel_) {
-    return media_channel_->GetUnsignaledSsrc();
-  }
-  return signaled_ssrc_;
+  return media_channel_;
 }
 
 void VideoRtpReceiver::set_stream_ids(std::vector<std::string> stream_ids) {

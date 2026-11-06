@@ -57,7 +57,7 @@ class MockVoiceMediaReceiveChannelInterface
               GetDefaultRtpReceiveParameters,
               (),
               (const, override));
-  MOCK_METHOD(void, SetPlayout, (bool playout), (override));
+  MOCK_METHOD(void, SetReceive, (bool receive), (override));
   MOCK_METHOD(bool,
               SetOutputVolume,
               (uint32_t ssrc, double volume),

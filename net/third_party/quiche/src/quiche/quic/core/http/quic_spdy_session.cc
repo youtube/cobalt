@@ -1517,9 +1517,9 @@ bool QuicSpdySession::HasActiveRequestStreams() const {
 }
 
 QuicStream* QuicSpdySession::ProcessReadUnidirectionalPendingStream(
-    PendingStream* pending) {
+    PendingStream& pending) {
   struct iovec iov;
-  if (!pending->sequencer()->GetReadableRegion(&iov)) {
+  if (!pending.sequencer()->GetReadableRegion(&iov)) {
     // The first byte hasn't been received yet.
     return nullptr;
   }
@@ -1528,15 +1528,15 @@ QuicStream* QuicSpdySession::ProcessReadUnidirectionalPendingStream(
   uint8_t stream_type_length = reader.PeekVarInt62Length();
   uint64_t stream_type = 0;
   if (!reader.ReadVarInt62(&stream_type)) {
-    if (pending->sequencer()->NumBytesBuffered() ==
-        pending->sequencer()->close_offset()) {
+    if (pending.sequencer()->NumBytesBuffered() ==
+        pending.sequencer()->close_offset()) {
       // Stream received FIN but there are not enough bytes for stream type.
       // Mark all bytes consumed in order to close stream.
-      pending->MarkConsumed(pending->sequencer()->close_offset());
+      pending.MarkConsumed(pending.sequencer()->close_offset());
     }
     return nullptr;
   }
-  pending->MarkConsumed(stream_type_length);
+  pending.MarkConsumed(stream_type_length);
 
   switch (stream_type) {
     case kControlStream: {  // HTTP/3 control stream.
@@ -1603,7 +1603,7 @@ QuicStream* QuicSpdySession::ProcessReadUnidirectionalPendingStream(
         break;
       }
       QUIC_DVLOG(1) << ENDPOINT << "Created an incoming WebTransport stream "
-                    << pending->id();
+                    << pending.id();
       auto stream_owned =
           std::make_unique<WebTransportHttp3UnidirectionalStream>(pending,
                                                                   this);
@@ -1615,9 +1615,9 @@ QuicStream* QuicSpdySession::ProcessReadUnidirectionalPendingStream(
       break;
   }
   MaybeSendStopSendingFrame(
-      pending->id(),
+      pending.id(),
       QuicResetStreamError::FromInternal(QUIC_STREAM_STREAM_CREATION_ERROR));
-  pending->StopReading();
+  pending.StopReading();
   return nullptr;
 }
 

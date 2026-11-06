@@ -10,12 +10,13 @@
 #import "components/autofill/ios/browser/credit_card_save_metrics_ios.h"
 #import "ios/chrome/browser/autofill/model/bottom_sheet/autofill_bottom_sheet_tab_helper.h"
 #import "ios/chrome/browser/autofill/model/bottom_sheet/save_card_bottom_sheet_model.h"
+#import "ios/chrome/browser/autofill/scan_save_and_fill/ui/payments_scan_save_and_fill_edit_view_controller.h"
 #import "ios/chrome/browser/autofill/ui_bundled/bottom_sheet/save_card_bottom_sheet_delegate.h"
 #import "ios/chrome/browser/autofill/ui_bundled/bottom_sheet/save_card_bottom_sheet_mediator.h"
 #import "ios/chrome/browser/autofill/ui_bundled/bottom_sheet/save_card_bottom_sheet_view_controller.h"
-#import "ios/chrome/browser/autofill/ui_bundled/bottom_sheet/scanned_card_bottom_sheet_view_controller.h"
 #import "ios/chrome/browser/net/model/crurl.h"
 #import "ios/chrome/browser/settings/ui_bundled/credit_card_scanner/credit_card_scanner_coordinator.h"
+#import "ios/chrome/browser/settings/ui_bundled/credit_card_scanner/credit_card_scanner_coordinator_delegate.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/autofill_commands.h"
@@ -23,7 +24,9 @@
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 
-@interface SaveCardBottomSheetCoordinator () <SaveCardBottomSheetDelegate>
+@interface SaveCardBottomSheetCoordinator () <
+    SaveCardBottomSheetDelegate,
+    CreditCardScannerCoordinatorDelegate>
 @end
 
 @implementation SaveCardBottomSheetCoordinator {
@@ -38,7 +41,7 @@
   SaveCardBottomSheetViewController* _saveCardViewController;
 
   // The view controller for the Scan and Save flow
-  ScannedCardBottomSheetViewController* _scannedCardViewController;
+  PaymentsScanSaveAndFillEditViewController* _scannedCardEditViewController;
 
   // The coordinator for the credit card scanner
   CreditCardScannerCoordinator* _creditCardScannerCoordinator;
@@ -81,38 +84,17 @@
                                           [weakSelf setInitialVoiceOverFocus];
                                         }];
   } else {
-    _scannedCardViewController =
-        [[ScannedCardBottomSheetViewController alloc] init];
+    _scannedCardEditViewController =
+        [[PaymentsScanSaveAndFillEditViewController alloc] init];
 
-    _scannedCardViewController.dataSource = _mediator;
-    _scannedCardViewController.mutator = _mediator;
-    _scannedCardViewController.delegate = self;
+    _scannedCardEditViewController.dataSource = _mediator;
+    _scannedCardEditViewController.mutator = _mediator;
+    _scannedCardEditViewController.delegate = self;
 
-    _mediator.consumer = _scannedCardViewController;
+    _mediator.consumer = _scannedCardEditViewController;
 
-    // Wrap the view controller in a UINavigationController.
-    // `ScannedCardBottomSheetViewController` uses this to display a title and
-    // cancel button.
-    UINavigationController* navigationController =
-        [[UINavigationController alloc]
-            initWithRootViewController:_scannedCardViewController];
-
-    navigationController.modalPresentationStyle = UIModalPresentationFormSheet;
-
-    __weak __typeof(self) weakSelf = self;
-    // The ScannedCardBottomSheetViewController must already be in the view
-    // hierarchy to serve as the baseViewController for the
-    // CreditCardScannerCoordinator. Therefore, we present the bottom sheet
-    // first and immediately start the scanner in the completion block to launch
-    // the camera UI over it. Once the scan finishes and the camera dismisses,
-    // the recognized data is fed back to the view controller, leaving the user
-    // with a pre-populated, editable form.
-    [self.baseViewController presentViewController:navigationController
-                                          animated:YES
-                                        completion:^{
-                                          [weakSelf setInitialVoiceOverFocus];
-                                          [weakSelf startCreditCardScanner];
-                                        }];
+    // Start the scanner directly on the base view controller.
+    [self startCreditCardScanner];
   }
 }
 
@@ -127,10 +109,10 @@
     _creditCardScannerCoordinator = nil;
   }
 
-  if (_scannedCardViewController) {
-    [_scannedCardViewController dismissViewControllerAnimated:YES
-                                                   completion:nil];
-    _scannedCardViewController = nil;
+  if (_scannedCardEditViewController) {
+    [_scannedCardEditViewController dismissViewControllerAnimated:YES
+                                                       completion:nil];
+    _scannedCardEditViewController = nil;
   }
 
   [_mediator disconnect];
@@ -163,18 +145,35 @@
                                     _saveCardViewController.titleLabel);
   } else {
     UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification,
-                                    _scannedCardViewController.view);
+                                    _scannedCardEditViewController.view);
   }
 }
 
 // Helper to start the credit card scanner
 - (void)startCreditCardScanner {
   _creditCardScannerCoordinator = [[CreditCardScannerCoordinator alloc]
-      initWithBaseViewController:_scannedCardViewController
+      initWithBaseViewController:self.baseViewController
                          browser:self.browser
-                        consumer:_scannedCardViewController];
-
+                        consumer:_scannedCardEditViewController];
+  _creditCardScannerCoordinator.delegate = self;
   [_creditCardScannerCoordinator start];
+}
+
+#pragma mark - CreditCardScannerCoordinatorDelegate
+
+- (void)creditCardScannerCoordinatorDidFinish:
+    (CreditCardScannerCoordinator*)coordinator {
+  UINavigationController* navigationController = [[UINavigationController alloc]
+      initWithRootViewController:_scannedCardEditViewController];
+
+  navigationController.modalPresentationStyle = UIModalPresentationFormSheet;
+
+  __weak __typeof(self) weakSelf = self;
+  [self.baseViewController presentViewController:navigationController
+                                        animated:YES
+                                      completion:^{
+                                        [weakSelf setInitialVoiceOverFocus];
+                                      }];
 }
 
 @end

@@ -70,8 +70,8 @@ namespace {
 constexpr int kMaxQp = 63;
 constexpr int kNumBuffers = 8;
 constexpr int kMaxReferences = 3;
-constexpr int kMinEffortLevel = -2;
-constexpr int kMaxEffortLevel = 2;
+constexpr int kMinEffortLevel = -2;  // Speed 11.
+constexpr int kMaxEffortLevel = 4;   // Speed 5.
 constexpr int kMaxSpatialLayersLimit = 4;
 constexpr int kMaxTemporalLayers = 4;
 constexpr int kRtpTicksPerSecond = 90000;
@@ -732,9 +732,9 @@ void LibaomAv1EncoderV2::Encode(
       }
 
       if (settings.effort_level != current_effort_level_[settings.spatial_id]) {
-        // For RTC we use speed level 6 to 10, with 8 being the default. Note
+        // For RTC we use speed level 5 to 11, with 9 being the default. Note
         // that low effort means higher speed.
-        SET_OR_RETURN(AOME_SET_CPUUSED, 8 - settings.effort_level);
+        SET_OR_RETURN(AOME_SET_CPUUSED, 9 - settings.effort_level);
         current_effort_level_[settings.spatial_id] = settings.effort_level;
       }
     }

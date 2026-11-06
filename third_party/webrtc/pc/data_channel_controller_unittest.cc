@@ -267,6 +267,39 @@ TEST_F(DataChannelControllerTest, DcepFailureOnTooSmallMaxMessageSize) {
   EXPECT_THAT(ch2.value()->state(), Eq(DataChannelInterface::kClosed));
 }
 
+// This test reproduces the UAF reported in b/503422316.
+// It creates a data channel, drops the external reference, and then triggers
+// AllocateSctpSids. AllocateSctpSids calls OnTransportReady, which fails
+// synchronously, causing the channel to close and be deleted while
+// AllocateSctpSids (and SctpDataChannel::UpdateState) are still on the stack.
+TEST_F(DataChannelControllerTest, AllocateSctpSidsUafRepro) {
+  NiceMock<MockDataChannelTransport> transport;
+  // Reject all SendData with "message too large"
+  EXPECT_CALL(transport, SendData(_, _, _))
+      .WillRepeatedly(
+          Return(RTCError(RTCErrorType::INVALID_RANGE, "Message too large")));
+  bool ready_to_send = false;
+  EXPECT_CALL(transport, IsReadyToSend())
+      .WillRepeatedly(ReturnPointee(&ready_to_send));
+  EXPECT_CALL(transport, DtlsRole())
+      .WillOnce(Return(std::nullopt))
+      .WillRepeatedly(Return(SSL_CLIENT));
+  ON_CALL(transport, MaxChannels).WillByDefault(Return(100));
+
+  DataChannelControllerForTest dcc(pc_.get(), &transport);
+  auto ret = dcc.InternalCreateDataChannelWithProxy(
+      "ch1", InternalDataChannelInit(DataChannelInit()));
+  ASSERT_TRUE(ret.ok());
+
+  // Drop the reference.
+  ret.MoveValue();
+
+  ready_to_send = true;
+  pc_->network_thread()->BlockingCall([&] { dcc.OnTransportConnected(); });
+
+  run_loop_.Flush();
+}
+
 TEST_F(DataChannelControllerTest, BufferedAmountIncludesFromTransport) {
   NiceMock<MockDataChannelTransport> transport;
   EXPECT_CALL(transport, buffered_amount(0)).WillOnce(Return(4711));

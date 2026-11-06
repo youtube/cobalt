@@ -142,6 +142,7 @@ chromium-metrics-reviews@google.com.
   <int value="21" label="ErrorFederatedExpectedAccountNotPresent"/>
   <int value="22" label="ErrorFederatedTimeout"/>
   <int value="23" label="RequiresButtonClick"/>
+  <int value="24" label="ErrorPageChangedDuringFilling"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/password_manager/core/browser/actor_login/internal/actor_login_metrics.h:AttemptLoginResult) -->
@@ -617,26 +618,6 @@ chromium-metrics-reviews@google.com.
   <int value="12" label="Password notes table failed initialization"/>
 </enum>
 
-<enum name="LoginDatabaseShouldDeleteUndecryptablePasswords">
-  <int value="0" label="Logins should be deleted"/>
-  <int value="1"
-      label="Should not delete, user data directory is specified using the
-             enviroment variable"/>
-  <int value="2"
-      label="Should not delete, user data directory is specified via switch"/>
-  <int value="3"
-      label="Should not delete, password store is specified via switch"/>
-  <int value="4"
-      label="Should not delete, encryption selection is specified via switch"/>
-  <int value="5" label="Should not delete, encryption is not availiable"/>
-  <int value="6"
-      label="Should not delete, user data directory is specified using the
-             enterprise policy"/>
-  <int value="7"
-      label="Should not delete, deleting undecryptable logins was disabled by
-             policy"/>
-</enum>
-
 <enum name="LoginsChangedTrigger">
   <summary>
     Triggers that may indirectly cause PasswordStore observers notifications
@@ -828,9 +809,9 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Model execution not allowed"/>
   <int value="3" label="Password saving disabled"/>
   <int value="4" label="Disabled by policy"/>
-  <int value="5" label="Feature disabled"/>
-  <int value="6" label="Unsupported language"/>
-  <int value="7" label="Unsupported country"/>
+  <int value="5" label="(Obsolete) Feature disabled"/>
+  <int value="6" label="(Obsolete) Unsupported language"/>
+  <int value="7" label="(Obsolete) Unsupported country"/>
   <int value="8" label="Unsupported site"/>
   <int value="9" label="User has no saved passwords"/>
   <int value="10" label="Throttled"/>
@@ -1826,11 +1807,6 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Other Gaia password"/>
   <int value="3" label="Enterprise password"/>
   <int value="4" label="Unknown password"/>
-</enum>
-
-<enum name="SaveFlowStep">
-  <int value="0" label="Form submitted"/>
-  <int value="1" label="Save prompt shown"/>
 </enum>
 
 <enum name="SharedPrefCredentialsAccessOutcome">

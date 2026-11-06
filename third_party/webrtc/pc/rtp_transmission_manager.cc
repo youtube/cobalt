@@ -47,6 +47,8 @@
 #include "pc/rtp_sender.h"
 #include "pc/rtp_sender_proxy.h"
 #include "pc/rtp_transceiver.h"
+#include "pc/scoped_operations_batcher.h"
+#include "pc/simulcast_description.h"
 #include "pc/usage_pattern.h"
 #include "pc/video_rtp_receiver.h"
 #include "rtc_base/checks.h"
@@ -248,13 +250,18 @@ RtpTransmissionManager::AddTrackUnifiedPlan(
     if (FindSenderById(sender_id)) {
       sender_id = CreateRandomUuid();
     }
+    ScopedOperationsBatcher worker_tasks(context_->worker_thread());
     transceiver = CreateAndAddTransceiver(
         media_config, audio_options, video_options, crypto_options,
         video_bitrate_allocator_factory, media_type, track, stream_ids,
         init_send_encodings
             ? *init_send_encodings
             : std::vector<RtpEncodingParameters>(1, RtpEncodingParameters{}),
-        /*header_extensions_to_negotiate=*/{}, sender_id, /*receiver_id=*/"");
+        /*header_extensions_to_negotiate=*/{},
+        /*simulcast_rejected=*/false, /*initial_simulcast_layers=*/{},
+        worker_tasks, sender_id, /*receiver_id=*/"");
+    RTCError error = worker_tasks.Run();
+    RTC_DCHECK(error.ok());
     transceiver->internal()->set_created_by_addtrack(true);
     transceiver->internal()->set_direction(RtpTransceiverDirection::kSendRecv);
   }
@@ -274,6 +281,9 @@ RtpTransmissionManager::CreateAndAddTransceiver(
     const std::vector<RtpEncodingParameters>& init_send_encodings,
     const std::vector<RtpHeaderExtensionCapability>&
         header_extensions_to_negotiate,
+    bool simulcast_rejected,
+    const std::vector<SimulcastLayer>& initial_simulcast_layers,
+    ScopedOperationsBatcher& worker_tasks,
     absl::string_view sender_id,
     absl::string_view receiver_id) {
   RTC_DCHECK_RUN_ON(signaling_thread());
@@ -309,7 +319,8 @@ RtpTransmissionManager::CreateAndAddTransceiver(
           stream_ids, std::move(init_send_encodings), context_,
           codec_lookup_helper_, legacy_stats_, observer, audio_options,
           video_options, crypto_options, video_bitrate_allocator_factory,
-          std::move(header_extensions),
+          std::move(header_extensions), simulcast_rejected,
+          initial_simulcast_layers, worker_tasks,
           [this_weak_ptr = weak_ptr_factory_.GetWeakPtr()]() {
             if (this_weak_ptr) {
               this_weak_ptr->OnNegotiationNeeded();
@@ -500,7 +511,8 @@ PLAN_B_ONLY void RtpTransmissionManager::CreateVideoReceiverPlanB(
   // TODO(https://crbug.com/webrtc/9480): When we remove remote_streams(), use
   // the constructor taking stream IDs instead.
   auto video_receiver = make_ref_counted<VideoRtpReceiver>(
-      worker_thread(), remote_sender_info.sender_id, streams);
+      worker_thread(), remote_sender_info.sender_id, streams,
+      /*enable_sframe_at_owner=*/nullptr);
 
   auto task = video_receiver->GetSetupForMediaChannel(
       remote_sender_info.sender_id == kDefaultVideoSenderId

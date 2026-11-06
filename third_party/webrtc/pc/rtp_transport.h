@@ -181,9 +181,6 @@ class RtpTransport : public RtpTransportInternal {
   std::vector<std::pair<std::string, RtpHeaderExtensions>>
       header_extensions_by_mid_ RTC_GUARDED_BY(network_thread_checker_);
 
-  RtpHeaderExtensions historical_rtp_header_extensions_
-      RTC_GUARDED_BY(network_thread_checker_);
-
   // Guard against recursive "ready to send" signals
   bool processing_ready_to_send_ = false;
   RTC_NO_UNIQUE_ADDRESS SequenceChecker network_thread_checker_;

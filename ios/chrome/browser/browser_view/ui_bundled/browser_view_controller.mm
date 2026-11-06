@@ -262,9 +262,6 @@ bool IsFullscreenNextIAEnabled() {
   // Used to get the layout guide center.
   LayoutGuideCenter* _layoutGuideCenter;
 
-  // Whether the secondary toolbar bottom constraint has been updated initially.
-  BOOL _didInitialToolbarConstraintUpdate;
-
   // Whether the Lens Overlay is currently active and visible for the browser
   // view.
   BOOL _lensOverlayVisible;
@@ -964,6 +961,19 @@ bool IsFullscreenNextIAEnabled() {
       secondaryToolbarHeightWithInset;
 }
 
+- (void)viewWillLayoutSubviews {
+  [super viewWillLayoutSubviews];
+  // Update the secondary toolbar bottom constraint once after the view is added
+  // to a window. The window is required to accurately determine the App
+  // Bar's position. This is done in `viewWillLayoutSubviews` rather than
+  // `viewDidLayoutSubviews` so that Auto Layout can resolve the new constraints
+  // in the upcoming pass, avoiding a redundant extra layout pass.
+  if (IsFullscreenNextIAEnabled() && self.view.window) {
+    [self addConstraintsToAppBar];
+    [self updateSecondaryToolbarBottomConstraint];
+  }
+}
+
 - (void)viewDidLayoutSubviews {
   [super viewDidLayoutSubviews];
   // Update the toolbar height to account for `topLayoutGuide` changes.
@@ -975,15 +985,6 @@ bool IsFullscreenNextIAEnabled() {
     // for the control setting island's dimensions.
     // Update the collapsedTopToolbarHeight when the dynamic island has moved.
     [self updateToolbarState];
-  }
-
-  // Update the secondary toolbar bottom constraint once after the view is added
-  // to a window. We must wait for the window to accurately determine the App
-  // Bar's position.
-  if (IsFullscreenNextIAEnabled() && !_didInitialToolbarConstraintUpdate &&
-      self.view.window) {
-    [self updateSecondaryToolbarBottomConstraint];
-    _didInitialToolbarConstraintUpdate = YES;
   }
 
   if (!IsFullscreenRefactoringEnabled()) {
@@ -1339,17 +1340,24 @@ bool IsFullscreenNextIAEnabled() {
         constraintEqualToAnchor:self.view.bottomAnchor];
     self.secondaryToolbarRegularBottomConstraint.active = YES;
 
-    // Create constraint for when the App Bar is at the bottom (Portrait).
-    LayoutGuideCenter* globalCenter = LayoutGuideCenterForBrowser(nil);
-    UILayoutGuide* appBarGuide =
-        [globalCenter makeLayoutGuideNamed:kAppBarGuide];
-    [self.view addLayoutGuide:appBarGuide];
-    self.secondaryToolbarAppBarBottomConstraint = [toolbarView.bottomAnchor
-        constraintEqualToAnchor:appBarGuide.topAnchor];
   } else {
     [toolbarView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor]
         .active = YES;
   }
+}
+
+// Create constraint for when the App Bar is at the bottom (Portrait).
+- (void)addConstraintsToAppBar {
+  if (self.secondaryToolbarAppBarBottomConstraint) {
+    return;
+  }
+  LayoutGuideCenter* globalCenter = LayoutGuideCenterForBrowser(nil);
+  UIView* appBar = [globalCenter referencedViewUnderName:kAppBarGuide];
+  CHECK(appBar);
+  UIView* toolbarView =
+      self.toolbarCoordinator.secondaryToolbarViewController.view;
+  self.secondaryToolbarAppBarBottomConstraint =
+      [toolbarView.bottomAnchor constraintEqualToAnchor:appBar.topAnchor];
 }
 
 // Adds constraints to the primary and secondary toolbars, anchoring them to the
@@ -1959,7 +1967,10 @@ bool IsFullscreenNextIAEnabled() {
   agent->AddObscuredInsetRange(UIRectEdgeTop, /*min=*/topInset,
                                /*max=*/topInset);
 
-  if (IsSplitToolbarMode(self)) {
+  // Avoid adding the bottom safe area inset when Chrome Next is enabled
+  // because the bottom UI elements report heights that already include the
+  // safe area.
+  if (IsSplitToolbarMode(self) && !IsChromeNextIaEnabled()) {
     CGFloat bottomInset = self.rootSafeAreaInsets.bottom;
     if ([self collapsedBottomToolbarHeight] == 0.0) {
       // If bottom toolbar collapses completely, then the safe area inset should
@@ -1979,12 +1990,23 @@ bool IsFullscreenNextIAEnabled() {
   [self updateFootersForFullscreenProgress:agent->bottom_progress()];
   CGFloat topInset = [self topInset];
   agent->AddObscuredInset(UIRectEdgeTop, topInset);
-  if (IsSplitToolbarMode(self)) {
+
+  // Avoid adding the bottom safe area inset when Chrome Next is enabled
+  // because the bottom UI elements report heights that already include the
+  // safe area.
+  if (IsSplitToolbarMode(self) && !IsChromeNextIaEnabled()) {
     CGFloat bottomInset = self.rootSafeAreaInsets.bottom;
     if ([self collapsedBottomToolbarHeight] == 0.0) {
       bottomInset *= agent->bottom_progress();
     }
     agent->AddObscuredInset(UIRectEdgeBottom, bottomInset);
+  }
+}
+
+- (void)fullscreenDidUpdateState:(FullscreenBrowserAgent*)agent {
+  // If this is inside an animation, layout immediately.
+  if (!agent->animation_duration().is_zero()) {
+    [self.view layoutIfNeeded];
   }
 }
 
@@ -2113,7 +2135,7 @@ bool IsFullscreenNextIAEnabled() {
 - (void)updateFootersForFullscreenProgress:(CGFloat)progress {
   self.footerFullscreenProgress = progress;
 
-  if (IsFullscreenNextIAEnabled()) {
+  if (IsChromeNextIaEnabled()) {
     [self updateNextIASecondaryToolbarForFullscreenProgress:progress];
     return;
   }
@@ -2779,6 +2801,16 @@ bool IsFullscreenNextIAEnabled() {
   CGFloat keyboardAttachedOffset =
       keyboardHeight +
       self.toolbarCoordinator.keyboardAttachedBottomOmniboxHeight;
+  if (IsChromeNextIaEnabled()) {
+    // When the App Bar is at the bottom, the secondary toolbar is already
+    // taller by the height of the App Bar. If the App Bar is not at the bottom
+    // (e.g., in landscape), we subtract the safe area instead.
+    if (AppBarPositionForView(self.view) == AppBarPosition::kBottom) {
+      keyboardAttachedOffset -= kAppBarHeightFullscreen;
+    } else {
+      keyboardAttachedOffset -= self.view.safeAreaInsets.bottom;
+    }
+  }
   CGFloat baseHeight = [self secondaryToolbarHeightWithInset];
   CGFloat offsetRequired = isCollapsed
                                ? keyboardAttachedOffset

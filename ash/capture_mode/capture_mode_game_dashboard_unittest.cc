@@ -52,6 +52,8 @@ bool operator==(const ButtonInfo& lhs, const ButtonInfo& rhs) {
 
 namespace ash {
 
+using chromeos::AppType;
+
 namespace {
 
 using ::ui::mojom::CursorType;
@@ -87,7 +89,8 @@ class GameDashboardCaptureModeTest : public AshTestBase {
     active_user_prefs->SetBoolean(prefs::kGameDashboardShowWelcomeDialog,
                                   false);
 
-    game_window_ = CreateAppWindow(gfx::Rect(0, 100, 300, 200));
+    game_window_ =
+        CreateWindowWithAppType(AppType::SYSTEM_APP, {0, 100, 300, 200});
     game_window_->SetProperty(kAppIDKey,
                               std::string(extension_misc::kGeForceNowAppId));
   }
@@ -176,8 +179,8 @@ TEST_F(GameDashboardCaptureModeTest, SwitchToDefaultCaptureMode) {
 // will be reset.
 TEST_F(GameDashboardCaptureModeTest, StartForGameDashboardTest) {
   UpdateDisplay("1000x700");
-  std::unique_ptr<aura::Window> other_window(
-      CreateAppWindow(gfx::Rect(0, 300, 500, 300)));
+  std::unique_ptr<aura::Window> other_window =
+      CreateWindowWithAppType(AppType::SYSTEM_APP, {0, 300, 500, 300});
   CaptureModeController* controller = StartGameCaptureModeSession();
   BaseCaptureModeSession* capture_mode_session =
       controller->capture_mode_session();
@@ -946,8 +949,8 @@ TEST_F(GameDashboardCaptureModeTest, AvoidToolbarAndCameraPreviewIntersection) {
 
 TEST_F(GameDashboardCaptureModeTest, CursorAndClickBehaviorWhenAnchored) {
   // Create second window on screen that underlaps `game_window_` slightly.
-  std::unique_ptr<aura::Window> window(
-      CreateTestWindow(gfx::Rect(50, 150, 100, 100)));
+  std::unique_ptr<aura::Window> window =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {50, 150, 100, 100});
 
   // The game window should be the top most active window.
   wm::ActivateWindow(game_window());

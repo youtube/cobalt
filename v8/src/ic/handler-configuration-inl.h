@@ -86,17 +86,9 @@ Tagged<Smi> LoadHandler::LoadField(int offset_in_words, bool is_in_object,
   if (descriptor_index.is_found()) {
     config |= DescriptorIndexBits::encode(descriptor_index.as_int());
   }
-  return Smi::FromInt(config);
+  return Smi::From31BitPattern(config);
 }
 
-DirectHandle<Smi> LoadHandler::LoadWasmStructField(Isolate* isolate,
-                                                   WasmValueType type,
-                                                   int offset) {
-  int config = KindBits::encode(Kind::kField) | IsWasmStructBits::encode(true) |
-               WasmFieldTypeBits::encode(type) |
-               WasmFieldOffsetBits::encode(offset);
-  return direct_handle(Smi::FromInt(config), isolate);
-}
 
 Handle<Smi> LoadHandler::LoadConstantFromPrototype(Isolate* isolate) {
   int config = KindBits::encode(Kind::kConstantFromPrototype);
@@ -168,12 +160,6 @@ Handle<Smi> LoadHandler::LoadIndexedString(Isolate* isolate,
   return handle(Smi::FromInt(config), isolate);
 }
 
-DirectHandle<Smi> LoadHandler::LoadWasmArrayElement(Isolate* isolate,
-                                                    WasmValueType type) {
-  int config = KindBits::encode(Kind::kElement) |
-               IsWasmArrayBits::encode(true) | WasmArrayTypeBits::encode(type);
-  return direct_handle(Smi::FromInt(config), isolate);
-}
 
 DirectHandle<Smi> StoreHandler::StoreGlobalProxy(Isolate* isolate) {
   int config = KindBits::encode(Kind::kGlobalProxy);
@@ -326,34 +312,6 @@ DirectHandle<Smi> StoreHandler::StoreApiSetter(Isolate* isolate) {
   return direct_handle(Smi::FromInt(config), isolate);
 }
 
-inline const char* WasmValueType2String(WasmValueType type) {
-  switch (type) {
-    case WasmValueType::kI8:
-      return "i8";
-    case WasmValueType::kI16:
-      return "i16";
-    case WasmValueType::kI32:
-      return "i32";
-    case WasmValueType::kU32:
-      return "u32";
-    case WasmValueType::kI64:
-      return "i64";
-    case WasmValueType::kF32:
-      return "f32";
-    case WasmValueType::kF64:
-      return "f64";
-    case WasmValueType::kS128:
-      return "s128";
-
-    case WasmValueType::kRef:
-      return "Ref";
-    case WasmValueType::kRefNull:
-      return "RefNull";
-
-    case WasmValueType::kNumTypes:
-      return "???";
-  }
-}
 
 }  // namespace internal
 }  // namespace v8

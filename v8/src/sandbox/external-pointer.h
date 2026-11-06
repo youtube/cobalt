@@ -58,7 +58,9 @@ class ExternalPointerMember {
   inline ExternalPointer_t load_encoded() const;
   inline void store_encoded(ExternalPointer_t value);
 
-  Address storage_address() { return reinterpret_cast<Address>(storage_); }
+  Address storage_address() const {
+    return reinterpret_cast<Address>(storage_);
+  }
 
  private:
   static_assert(

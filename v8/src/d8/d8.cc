@@ -71,6 +71,7 @@
 #include "src/parsing/parsing.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/profiler/profile-generator.h"
+#include "src/sandbox/trap-fuzzer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/strings/owning-external-string-resource.h"
 #include "src/tasks/cancelable-task.h"
@@ -441,21 +442,21 @@ static Local<Value> GetValue(v8::Isolate* isolate, Local<Context> context,
   return TryGetValue(isolate, context, object, property).ToLocalChecked();
 }
 
-std::shared_ptr<Worker> GetWorkerFromInternalField(Isolate* isolate,
+i::Managed<Worker>::Ptr GetWorkerFromInternalField(Isolate* isolate,
                                                    Local<Object> object) {
   if (object->InternalFieldCount() != 1) {
     ThrowError(isolate, "this is not a Worker");
-    return nullptr;
+    return {};
   }
 
   i::DirectHandle<i::Object> handle =
       Utils::OpenDirectHandle(*object->GetInternalField(0));
   if (IsSmi(*handle)) {
     ThrowError(isolate, "Worker is defunct because main thread is terminating");
-    return nullptr;
+    return {};
   }
   auto managed = i::Cast<i::Managed<Worker>>(handle);
-  return managed->get();
+  return managed->ptr();
 }
 
 base::Thread::Options GetThreadOptions(const char* name) {
@@ -845,7 +846,7 @@ class ModuleEmbedderData {
 
 enum { kModuleEmbedderDataIndex, kInspectorClientIndex };
 
-std::shared_ptr<ModuleEmbedderData> InitializeModuleEmbedderData(
+i::Managed<ModuleEmbedderData>::Ptr InitializeModuleEmbedderData(
     Local<Context> context) {
   i::Isolate* i_isolate = i::Isolate::Current();
   const size_t kModuleEmbedderDataEstimate = 4 * 1024;  // module map.
@@ -856,17 +857,17 @@ std::shared_ptr<ModuleEmbedderData> InitializeModuleEmbedderData(
               reinterpret_cast<v8::Isolate*>(i_isolate)));
   v8::Local<v8::Data> module_data = Utils::ToLocal(module_data_managed);
   context->SetEmbedderDataV2(kModuleEmbedderDataIndex, module_data);
-  return module_data_managed->get();
+  return module_data_managed->ptr();
 }
 
-std::shared_ptr<ModuleEmbedderData> GetModuleDataFromContext(
+i::Managed<ModuleEmbedderData>::Ptr GetModuleDataFromContext(
     Local<Context> context) {
   v8::Local<v8::Data> module_data =
       context->GetEmbedderDataV2(kModuleEmbedderDataIndex);
   i::DirectHandle<i::Managed<ModuleEmbedderData>> module_data_managed =
       i::Cast<i::Managed<ModuleEmbedderData>>(
           Utils::OpenDirectHandle<Data, i::Object>(module_data));
-  return module_data_managed->get();
+  return module_data_managed->ptr();
 }
 
 ScriptOrigin CreateScriptOrigin(Isolate* isolate, Local<String> resource_name,
@@ -1004,7 +1005,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
   Local<Context> context(isolate->GetCurrentContext());
   ScriptOrigin origin = CreateScriptOrigin(isolate, name, ScriptType::kClassic);
 
-  std::shared_ptr<ModuleEmbedderData> module_data =
+  i::Managed<ModuleEmbedderData>::Ptr module_data =
       GetModuleDataFromContext(realm);
   module_data->origin = ToSTLString(isolate, name);
 
@@ -1194,7 +1195,7 @@ MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
                                          Local<FixedArray> import_attributes,
                                          Local<Module> referrer) {
   Isolate* isolate = Isolate::GetCurrent();
-  std::shared_ptr<ModuleEmbedderData> module_data =
+  i::Managed<ModuleEmbedderData>::Ptr module_data =
       GetModuleDataFromContext(context);
   std::string referrer_specifier = module_data->GetModuleSpecifier(referrer);
 
@@ -1211,7 +1212,7 @@ MaybeLocal<Object> ResolveModuleSourceCallback(
     Local<Context> context, Local<String> specifier,
     Local<FixedArray> import_attributes, Local<Module> referrer) {
   Isolate* isolate = Isolate::GetCurrent();
-  std::shared_ptr<ModuleEmbedderData> module_data =
+  i::Managed<ModuleEmbedderData>::Ptr module_data =
       GetModuleDataFromContext(context);
   std::string referrer_specifier = module_data->GetModuleSpecifier(referrer);
 
@@ -1232,7 +1233,7 @@ MaybeLocal<Object> Shell::FetchModuleSource(Local<Module> referrer,
                                             const std::string& module_specifier,
                                             ModuleType module_type) {
   Isolate* isolate = Isolate::GetCurrent();
-  std::shared_ptr<ModuleEmbedderData> module_data =
+  i::Managed<ModuleEmbedderData>::Ptr module_data =
       GetModuleDataFromContext(context);
 
   // Loading modules is only allowed for local absolute paths.
@@ -1299,7 +1300,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
                                           const std::string& module_specifier,
                                           ModuleType module_type) {
   Isolate* isolate = Isolate::GetCurrent();
-  std::shared_ptr<ModuleEmbedderData> module_data =
+  i::Managed<ModuleEmbedderData>::Ptr module_data =
       GetModuleDataFromContext(context);
   MaybeLocal<String> source_text;
 
@@ -1462,7 +1463,7 @@ MaybeLocal<Value> Shell::JSONModuleEvaluationSteps(Local<Context> context,
                                                    Local<Module> module) {
   Isolate* isolate = Isolate::GetCurrent();
 
-  std::shared_ptr<ModuleEmbedderData> module_data =
+  i::Managed<ModuleEmbedderData>::Ptr module_data =
       GetModuleDataFromContext(context);
   Local<Value> json_value = module_data->GetJsonModuleValue(module);
 
@@ -1605,7 +1606,7 @@ void Shell::HostInitializeImportMetaObject(Local<Context> context,
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
 
-  std::shared_ptr<ModuleEmbedderData> module_data =
+  i::Managed<ModuleEmbedderData>::Ptr module_data =
       GetModuleDataFromContext(context);
   std::string specifier = module_data->GetModuleSpecifier(module);
 
@@ -1619,9 +1620,9 @@ void Shell::HostInitializeImportMetaObject(Local<Context> context,
 MaybeLocal<Context> Shell::HostCreateShadowRealmContext(
     Local<Context> initiator_context) {
   Local<Context> context = v8::Context::New(Isolate::GetCurrent());
-  std::shared_ptr<ModuleEmbedderData> shadow_realm_data =
+  i::Managed<ModuleEmbedderData>::Ptr shadow_realm_data =
       InitializeModuleEmbedderData(context);
-  std::shared_ptr<ModuleEmbedderData> initiator_data =
+  i::Managed<ModuleEmbedderData>::Ptr initiator_data =
       GetModuleDataFromContext(initiator_context);
 
   // ShadowRealms are synchronously accessible and are always in the same origin
@@ -1730,7 +1731,7 @@ void Shell::DoHostImportModuleDynamically(void* data) {
       return;
     }
 
-    std::shared_ptr<ModuleEmbedderData> module_data =
+    i::Managed<ModuleEmbedderData>::Ptr module_data =
         GetModuleDataFromContext(realm);
 
     std::string source_url = referrer->IsNull()
@@ -1859,7 +1860,7 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
     std::string absolute_path =
         NormalizeModuleSpecifier(file_name, GetWorkingDirectory());
 
-    std::shared_ptr<ModuleEmbedderData> module_data =
+    i::Managed<ModuleEmbedderData>::Ptr module_data =
         GetModuleDataFromContext(realm);
     Local<Module> root_module;
     auto module_it = module_data->module_map.find(
@@ -3737,9 +3738,9 @@ void Shell::WorkerPostMessage(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  std::shared_ptr<Worker> worker =
+  i::Managed<Worker>::Ptr worker =
       GetWorkerFromInternalField(isolate, info.This());
-  if (!worker.get()) {
+  if (!worker) {
     return;
   }
 
@@ -3757,9 +3758,9 @@ void Shell::WorkerGetMessage(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
-  std::shared_ptr<Worker> worker =
+  i::Managed<Worker>::Ptr worker =
       GetWorkerFromInternalField(isolate, info.This());
-  if (!worker.get()) {
+  if (!worker) {
     return;
   }
 
@@ -3887,13 +3888,15 @@ void Shell::WorkerOnMessageGetter(
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
 
-  std::shared_ptr<Worker> worker =
+  i::Managed<Worker>::Ptr worker =
       GetWorkerFromInternalField(isolate, info.This());
-  if (!worker.get()) {
+  if (!worker) {
     return;
   }
   Local<Function> callback =
-      PerIsolateData::Get(isolate)->GetWorkerOnMessage(worker).second;
+      PerIsolateData::Get(isolate)
+          ->GetWorkerOnMessage(std::move(worker).as_shared_ptr())
+          .second;
 
   if (!callback.IsEmpty()) {
     info.GetReturnValue().Set(callback);
@@ -3911,9 +3914,9 @@ void Shell::WorkerOnMessageSetter(
     return;
   }
 
-  std::shared_ptr<Worker> worker =
+  i::Managed<Worker>::Ptr worker =
       GetWorkerFromInternalField(isolate, info.This());
-  if (!worker.get()) {
+  if (!worker) {
     return;
   }
 
@@ -3921,16 +3924,17 @@ void Shell::WorkerOnMessageSetter(
   if (!callback->IsFunction()) return;
 
   PerIsolateData::Get(isolate)->SubscribeWorkerOnMessage(
-      worker, isolate->GetCurrentContext(), Local<Function>::Cast(callback));
+      std::move(worker).as_shared_ptr(), isolate->GetCurrentContext(),
+      Local<Function>::Cast(callback));
 }
 
 void Shell::WorkerTerminate(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
-  std::shared_ptr<Worker> worker =
+  i::Managed<Worker>::Ptr worker =
       GetWorkerFromInternalField(isolate, info.This());
-  if (!worker.get()) return;
+  if (!worker) return;
   worker->Terminate();
 }
 
@@ -3939,17 +3943,18 @@ void Shell::WorkerTerminateAndWait(
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
-  std::shared_ptr<Worker> worker =
+  i::Managed<Worker>::Ptr worker =
       GetWorkerFromInternalField(isolate, info.This());
-  if (!worker.get()) {
+  if (!worker) {
     return;
   }
 
   reinterpret_cast<i::Isolate*>(isolate)
       ->main_thread_local_isolate()
-      ->ExecuteMainThreadWhileParked([worker](const i::ParkedScope& parked) {
-        worker->TerminateAndWaitForThread(parked);
-      });
+      ->ExecuteMainThreadWhileParked(
+          [worker = std::move(worker)](const i::ParkedScope& parked) mutable {
+            worker->TerminateAndWaitForThread(parked);
+          });
 }
 
 void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* info) {
@@ -6127,7 +6132,7 @@ void Worker::ProcessMessage(std::unique_ptr<SerializationData> data) {
 
 void Worker::ProcessMessages() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
-  i::SaveAndSwitchContext saved_context(i_isolate, i::Context());
+  i::SaveAndSwitchContext saved_context(i_isolate, {});
   SealHandleScope shs(isolate_);
 
   TryCatch try_catch(isolate_);
@@ -6900,7 +6905,7 @@ bool ProcessMessages(
     Isolate* isolate,
     const std::function<platform::MessageLoopBehavior()>& behavior) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::SaveAndSwitchContext saved_context(i_isolate, i::Context());
+  i::SaveAndSwitchContext saved_context(i_isolate, {});
   SealHandleScope shs(isolate);
 
   if (isolate->IsExecutionTerminating()) return true;
@@ -7602,6 +7607,14 @@ int Shell::Main(int argc, char* argv[]) {
     D8Console console(isolate);
     Initialize(isolate, &console);
     PerIsolateData data(isolate);
+
+    if (i::v8_flags.sandbox_trap_fuzzing) {
+#ifdef V8_SANDBOX_TRAP_FUZZER_AVAILABLE
+      i::SandboxTrapFuzzer::Enable();
+#else
+      FATAL("Trap-based sandbox fuzzing is not available on this platform.");
+#endif
+    }
 
     // Fuzzilli REPRL = read-eval-print-loop
     do {

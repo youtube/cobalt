@@ -30,7 +30,6 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.feed.FeedSurfaceProvider.RestoringState;
 import org.chromium.chrome.browser.feed.Stream.ContentChangedListener;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.gesturenav.GestureNavigationUtils;
 import org.chromium.chrome.browser.new_tab_url.DseNewTabUrlManager;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
@@ -309,20 +308,9 @@ public class FeedSurfaceMediator
                 || mCurrentStream == null) {
             return;
         }
-        int spanCount =
-                shouldUseSingleSpan(isSmallLayoutWidth)
-                        ? SPAN_COUNT_SMALL_WIDTH
-                        : SPAN_COUNT_LARGE_WIDTH;
+        int spanCount = isSmallLayoutWidth ? SPAN_COUNT_SMALL_WIDTH : SPAN_COUNT_LARGE_WIDTH;
         boolean res = listLayoutHelper.setColumnCount(spanCount);
         assert res : "Failed to set column count on Feed";
-    }
-
-    private boolean shouldUseSingleSpan(boolean isSmallLayoutWidth) {
-        assumeNonNull(mCurrentStream);
-        boolean isFollowingFeedSortDisabled =
-                (!ChromeFeatureList.isEnabled(ChromeFeatureList.WEB_FEED_SORT)
-                        && mCurrentStream.getStreamKind() == StreamKind.FOLLOWING);
-        return isFollowingFeedSortDisabled || isSmallLayoutWidth;
     }
 
     /** Clears any dependencies. */
@@ -387,7 +375,7 @@ public class FeedSurfaceMediator
      * When the feed is disabled, the feed content is completely gone.
      */
     void updateContent() {
-        // See https://crbug.com/1498004.
+        // See https://crbug.com/40075985.
         if (ApplicationStatus.isEveryActivityDestroyed()) return;
 
         mFeedEnabled = FeedFeatures.isFeedEnabled(mProfile);
@@ -756,7 +744,7 @@ public class FeedSurfaceMediator
     void showOrHideFeed() {
         // It is possible that showOrHideFeed() is called when the surface which contains the
         // Feeds isn't visible or headers of streams haven't been added, returns here.
-        // See https://crbug.com/1485070 and https://crbug.com/1488210.
+        // See https://crbug.com/40072900 and https://crbug.com/40073830.
         if (!mIsPropertiesInitializedForStream) {
             return;
         }

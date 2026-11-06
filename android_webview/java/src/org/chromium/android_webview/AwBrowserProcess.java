@@ -174,7 +174,7 @@ public final class AwBrowserProcess {
      * Configures child process launcher. This is required only if child services are used in
      * WebView.
      */
-    public static void configureChildProcessLauncher() {
+    public static void configureChildProcessLauncher(boolean isNativeWebViewZygoteEnabled) {
         final boolean isExternalService = true;
         final boolean bindToCaller = true;
         final boolean ignoreVisibilityForImportance = true;
@@ -184,7 +184,8 @@ public final class AwBrowserProcess {
                 isExternalService,
                 LibraryProcessType.PROCESS_WEBVIEW_CHILD,
                 bindToCaller,
-                ignoreVisibilityForImportance);
+                ignoreVisibilityForImportance,
+                isNativeWebViewZygoteEnabled);
 
         ChildProcessLauncherHelper.initialize();
     }
@@ -199,13 +200,15 @@ public final class AwBrowserProcess {
         final boolean isExternalService = false;
         final boolean bindToCaller = false;
         final boolean ignoreVisibilityForImportance = false;
+        final boolean isNativeWebViewZygoteEnabled = false;
         ChildProcessCreationParams.set(
                 ContextUtils.getApplicationContext().getPackageName(),
                 ContextUtils.getApplicationContext().getPackageName(),
                 isExternalService,
                 LibraryProcessType.PROCESS_WEBVIEW_CHILD,
                 bindToCaller,
-                ignoreVisibilityForImportance);
+                ignoreVisibilityForImportance,
+                isNativeWebViewZygoteEnabled);
     }
 
     /**
@@ -361,6 +364,10 @@ public final class AwBrowserProcess {
     public static void setWebViewPackageName(String webViewPackageName) {
         assert sWebViewPackageName == null || sWebViewPackageName.equals(webViewPackageName);
         sWebViewPackageName = webViewPackageName;
+    }
+
+    public static void setNativeWebViewZygoteEnabled(boolean enabled) {
+        AwBrowserProcessJni.get().setNativeWebViewZygoteEnabled(enabled);
     }
 
     public static String getWebViewPackageName() {
@@ -970,6 +977,8 @@ public final class AwBrowserProcess {
 
     @NativeMethods
     interface Natives {
+        void setNativeWebViewZygoteEnabled(boolean enabled);
+
         void setProcessNameCrashKey(@JniType("std::string") String processName);
 
         ComponentLoaderPolicyBridge[] getComponentLoaderPolicies();

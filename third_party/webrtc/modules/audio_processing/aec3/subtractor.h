@@ -132,7 +132,6 @@ class Subtractor {
   const Aec3Optimization optimization_;
   const EchoCanceller3Config config_;
   const size_t num_capture_channels_;
-  const bool use_coarse_filter_reset_hangover_;
 
   std::vector<std::unique_ptr<AdaptiveFirFilter>> refined_filters_;
   std::vector<std::unique_ptr<AdaptiveFirFilter>> coarse_filter_;

@@ -4521,8 +4521,8 @@ JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
     if (!dependencies()->DependOnArrayIteratorProtector()) return NoChange();
   }
 
-  // Remove the {arguments_list} input from the {node}.
-  node->RemoveInput(arraylike_or_spread_index);
+  // The {arguments_list} input will be removed later, after we are sure
+  // we won't return NoChange(), to avoid leaving the node in an invalid state.
 
   // The index of the first relevant parameter. Only non-zero when looking at
   // rest parameters, in which case it is set to the index of the first rest
@@ -4537,6 +4537,8 @@ JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
   // Check if are spreading to inlined arguments or to the arguments of
   // the outermost function.
   if (frame_state.outer_frame_state()->opcode() != IrOpcode::kFrameState) {
+    // Remove the {arguments_list} input from the {node}.
+    node->RemoveInput(arraylike_or_spread_index);
     Operator const* op;
     if (IsCallWithArrayLikeOrSpread(node)) {
       static constexpr int kTargetAndReceiver = 2;
@@ -4560,6 +4562,11 @@ JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
     // Need to take the parameters from the inlined extra arguments frame state.
     frame_state = outer_state;
   }
+  if (frame_state.parameters()->opcode() == IrOpcode::kDeadValue) {
+    return NoChange();
+  }
+  // Remove the {arguments_list} input from the {node}.
+  node->RemoveInput(arraylike_or_spread_index);
   // Add the actual parameters to the {node}, skipping the receiver.
   StateValuesAccess parameters_access(frame_state.parameters());
   for (auto it = parameters_access.begin_without_receiver_and_skip(start_index);

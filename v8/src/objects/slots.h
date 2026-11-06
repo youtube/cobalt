@@ -9,6 +9,7 @@
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/objects/tagged-field.h"
+#include "src/sandbox/cppheap-pointer.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/external-pointer.h"
 #include "src/sandbox/indirect-pointer-tag.h"
@@ -409,6 +410,9 @@ class CppHeapPointerSlot
                       /*SlotDataAlignment=*/sizeof(CppHeapPointer_t)> {
  public:
   explicit CppHeapPointerSlot(Address ptr) : SlotBase(ptr) {}
+
+  explicit CppHeapPointerSlot(CppHeapPointerMember* member)
+      : SlotBase(member->storage_address()) {}
 
   inline void init() const;
 

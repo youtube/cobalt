@@ -183,7 +183,7 @@ std::optional<CFunctionWithSignature> FindSupportedWasmFastApiFunction(
         if (v8_flags.trace_opt) {
           CodeTracer::Scope scope(isolate->GetCodeTracer());
           PrintF(scope.file(), "[disabled optimization for ");
-          ShortPrint(*shared, scope.file());
+          ShortPrint(shared, scope.file());
           PrintF(scope.file(),
                  " for C function %" PRIu32
                  ", reason: the signature of the imported function in the Wasm "
@@ -764,28 +764,6 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
       SetCallable(isolate, entry.callable());
     }
   }
-  if (!trusted_function_data_.is_null()) {
-    if (Tagged<WasmJSFunctionData> js_function_data;
-        TryCast(*trusted_function_data_, &js_function_data)) {
-      suspend_ = js_function_data->GetSuspend();
-      if (!js_function_data->MatchesSignature(expected_sig->index())) {
-        return ImportCallKind::kLinkError;
-      }
-      if (IsJSFunction(js_function_data->GetCallable())) {
-        Tagged<SharedFunctionInfo> sfi =
-            Cast<JSFunction>(js_function_data->GetCallable())->shared();
-        if (sfi->HasWasmFunctionData(isolate)) {
-          // Special case if the underlying callable is a WasmJSFunction or
-          // WasmExportedFunction: link the outer WasmJSFunction itself and not
-          // the inner callable. Otherwise when the wrapper tiers up, we will
-          // try to link the inner WasmJSFunction/WamsExportedFunction which is
-          // incorrect.
-          return ImportCallKind::kUseCallBuiltin;
-        }
-      }
-      SetCallable(isolate, js_function_data->GetCallable());
-    }
-  }
   if (WasmCapiFunction::IsWasmCapiFunction(*callable_)) {
     // TODO(jkummerow): Update this to follow the style of the other kinds of
     // functions.
@@ -1066,8 +1044,8 @@ InstanceBuilder::InstanceBuilder(
 
 // Build an instance, in all of its glory.
 MaybeDirectHandle<WasmInstanceObject> InstanceBuilder::Build() {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-               "wasm.InstanceBuilder.Build");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+              "wasm.InstanceBuilder.Build");
   // Will check whether {ffi_} is available.
   SanitizeImports();
   if (thrower_->error()) return {};
@@ -1407,12 +1385,6 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
   }
 
   //--------------------------------------------------------------------------
-  // Set up the exports object for the new instance.
-  //--------------------------------------------------------------------------
-  ProcessExports();
-  if (thrower_->error()) return {};
-
-  //--------------------------------------------------------------------------
   // Set up uninitialized element segments.
   //--------------------------------------------------------------------------
   if (!module_->elem_segments.empty()) {
@@ -1523,6 +1495,12 @@ void InstanceBuilder::Build_Phase1_Infallible() {
 
 Maybe<bool> InstanceBuilder::Build_Phase2() {
   //--------------------------------------------------------------------------
+  // Set up the exports object for the new instance.
+  //--------------------------------------------------------------------------
+  ProcessExports();
+  if (thrower_->error()) return {};
+
+  //--------------------------------------------------------------------------
   // Load element segments into tables.
   //--------------------------------------------------------------------------
   if (module_->tables.size() > 0) {
@@ -1542,8 +1520,8 @@ Maybe<bool> InstanceBuilder::Build_Phase2() {
 }
 
 bool InstanceBuilder::ExecuteStartFunction() {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-               "wasm.ExecuteStartFunction");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+              "wasm.ExecuteStartFunction");
   if (start_function_.is_null()) return true;  // No start function.
 
   HandleScope scope(isolate_);
@@ -2534,15 +2512,16 @@ void InstanceBuilder::ProcessExports() {
 
   DirectHandle<WasmInstanceObject> instance_object{
       trusted_data_->instance_object(), isolate_};
-  DirectHandle<JSObject> exports_object =
-      direct_handle(instance_object->exports_object(), isolate_);
+  DirectHandle<JSObject> exports_object;
   bool is_asm_js = is_asmjs_module(module_);
   if (is_asm_js) {
     DirectHandle<JSFunction> object_function = DirectHandle<JSFunction>(
         isolate_->native_context()->object_function(), isolate_);
     exports_object = isolate_->factory()->NewJSObject(object_function);
-    instance_object->set_exports_object(*exports_object);
+  } else {
+    exports_object = isolate_->factory()->NewJSObjectWithNullProto();
   }
+  instance_object->set_exports_object(*exports_object);
 
   // Switch the exports object to dictionary mode and allocate enough storage
   // for the expected number of exports.
@@ -2687,6 +2666,9 @@ void InstanceBuilder::ProcessExports() {
   JSObject::MigrateSlowToFast(exports_object, 0, "WasmExportsObjectFinished");
 
   if (module_->origin == kWasmOrigin) {
+    // A well-timed concurrent mutation attack might manage to achieve
+    // execution of user code here; that's why ProcessExports() runs as
+    // part of Build_Phase2().
     CHECK(JSReceiver::SetIntegrityLevel(isolate_, exports_object, FROZEN,
                                         kDontThrow)
               .FromMaybe(false));
@@ -2704,7 +2686,7 @@ V8_INLINE void SetFunctionTablePlaceholder(
   const WasmFunction* function = &module->functions[func_index];
   Tagged<WasmFuncRef> func_ref;
   if (trusted_instance_data->try_get_func_ref(func_index, &func_ref)) {
-    table_object->entries()->set(entry_index, *func_ref);
+    table_object->entries()->set(entry_index, func_ref);
   } else {
     WasmTableObject::SetFunctionTablePlaceholder(
         isolate, table_object, entry_index, trusted_instance_data, func_index);

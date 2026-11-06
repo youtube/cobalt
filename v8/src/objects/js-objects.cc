@@ -2554,13 +2554,13 @@ int JSObject::GetHeaderSize(InstanceType type) {
     case JS_ERROR_TYPE:
       return JSObject::kHeaderSize;
     case JS_GENERATOR_OBJECT_TYPE:
-      return JSGeneratorObject::kHeaderSize;
+      return sizeof(JSGeneratorObject);
     case JS_ASYNC_FUNCTION_OBJECT_TYPE:
-      return JSAsyncFunctionObject::kHeaderSize;
+      return sizeof(JSAsyncFunctionObject);
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
-      return JSAsyncGeneratorObject::kHeaderSize;
+      return sizeof(JSAsyncGeneratorObject);
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
-      return JSAsyncFromSyncIterator::kHeaderSize;
+      return sizeof(JSAsyncFromSyncIterator);
     case JS_GLOBAL_PROXY_TYPE:
       return JSGlobalProxy::kHeaderSize;
     case JS_GLOBAL_OBJECT_TYPE:
@@ -2580,21 +2580,21 @@ int JSObject::GetHeaderSize(InstanceType type) {
 #undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
       return JSFunctionWithPrototype::kHeaderSize;
     case JS_PRIMITIVE_WRAPPER_TYPE:
-      return JSPrimitiveWrapper::kHeaderSize;
+      return sizeof(JSPrimitiveWrapper);
     case JS_DATE_TYPE:
-      return JSDate::kHeaderSize;
+      return sizeof(JSDate);
     case JS_DISPOSABLE_STACK_BASE_TYPE:
-      return JSDisposableStackBase::kHeaderSize;
+      return sizeof(JSDisposableStackBase);
     case JS_ASYNC_DISPOSABLE_STACK_TYPE:
-      return JSAsyncDisposableStack::kHeaderSize;
+      return sizeof(JSAsyncDisposableStack);
     case JS_SYNC_DISPOSABLE_STACK_TYPE:
-      return JSSyncDisposableStack::kHeaderSize;
+      return sizeof(JSSyncDisposableStack);
     case JS_ARRAY_TYPE:
       return JSArray::kHeaderSize;
     case JS_ARRAY_BUFFER_TYPE:
       return JSArrayBuffer::kHeaderSize;
     case JS_ARRAY_ITERATOR_TYPE:
-      return JSArrayIterator::kHeaderSize;
+      return sizeof(JSArrayIterator);
     case JS_TYPED_ARRAY_TYPE:
       return JSTypedArray::kHeaderSize;
     case JS_DETACHED_TYPED_ARRAY_TYPE:
@@ -2604,9 +2604,9 @@ int JSObject::GetHeaderSize(InstanceType type) {
     case JS_RAB_GSAB_DATA_VIEW_TYPE:
       return JSRabGsabDataView::kHeaderSize;
     case JS_SET_TYPE:
-      return JSSet::kHeaderSize;
+      return sizeof(JSSet);
     case JS_MAP_TYPE:
-      return JSMap::kHeaderSize;
+      return sizeof(JSMap);
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
     case JS_SET_VALUE_ITERATOR_TYPE:
       return JSSetIterator::kHeaderSize;
@@ -2615,41 +2615,41 @@ int JSObject::GetHeaderSize(InstanceType type) {
     case JS_MAP_VALUE_ITERATOR_TYPE:
       return JSMapIterator::kHeaderSize;
     case JS_WEAK_REF_TYPE:
-      return JSWeakRef::kHeaderSize;
+      return sizeof(JSWeakRef);
     case JS_FINALIZATION_REGISTRY_TYPE:
       return JSFinalizationRegistry::kHeaderSize;
     case JS_WEAK_MAP_TYPE:
-      return JSWeakMap::kHeaderSize;
+      return sizeof(JSWeakMap);
     case JS_WEAK_SET_TYPE:
-      return JSWeakSet::kHeaderSize;
+      return sizeof(JSWeakSet);
     case JS_PROMISE_TYPE:
-      return JSPromise::kHeaderSize;
+      return sizeof(JSPromise);
     case JS_REG_EXP_TYPE:
       return JSRegExp::kHeaderSize;
     case JS_REG_EXP_STRING_ITERATOR_TYPE:
-      return JSRegExpStringIterator::kHeaderSize;
+      return sizeof(JSRegExpStringIterator);
     case JS_MESSAGE_OBJECT_TYPE:
-      return JSMessageObject::kHeaderSize;
+      return sizeof(JSMessageObject);
     case JS_EXTERNAL_OBJECT_TYPE:
-      return JSExternalObject::kHeaderSize;
+      return sizeof(JSExternalObject);
     case JS_SHADOW_REALM_TYPE:
-      return JSShadowRealm::kHeaderSize;
+      return sizeof(JSShadowRealm);
     case JS_STRING_ITERATOR_TYPE:
-      return JSStringIterator::kHeaderSize;
+      return sizeof(JSStringIterator);
     case JS_ITERATOR_MAP_HELPER_TYPE:
-      return JSIteratorMapHelper::kHeaderSize;
+      return sizeof(JSIteratorMapHelper);
     case JS_ITERATOR_FILTER_HELPER_TYPE:
-      return JSIteratorFilterHelper::kHeaderSize;
+      return sizeof(JSIteratorFilterHelper);
     case JS_ITERATOR_TAKE_HELPER_TYPE:
-      return JSIteratorTakeHelper::kHeaderSize;
+      return sizeof(JSIteratorTakeHelper);
     case JS_ITERATOR_DROP_HELPER_TYPE:
-      return JSIteratorDropHelper::kHeaderSize;
+      return sizeof(JSIteratorDropHelper);
     case JS_ITERATOR_FLAT_MAP_HELPER_TYPE:
-      return JSIteratorFlatMapHelper::kHeaderSize;
+      return sizeof(JSIteratorFlatMapHelper);
     case JS_ITERATOR_CONCAT_HELPER_TYPE:
-      return JSIteratorConcatHelper::kHeaderSize;
+      return sizeof(JSIteratorConcatHelper);
     case JS_ITERATOR_ZIP_HELPER_TYPE:
-      return JSIteratorZipHelper::kHeaderSize;
+      return sizeof(JSIteratorZipHelper);
     case JS_MODULE_NAMESPACE_TYPE:
       return JSModuleNamespace::kHeaderSize;
     case JS_DEFERRED_MODULE_NAMESPACE_TYPE:
@@ -2664,24 +2664,24 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return JSAtomicsCondition::kHeaderSize;
 #ifdef V8_TEMPORAL_SUPPORT
     case JS_TEMPORAL_DURATION_TYPE:
-      return JSTemporalDuration::kHeaderSize;
+      return sizeof(JSTemporalDuration);
     case JS_TEMPORAL_INSTANT_TYPE:
-      return JSTemporalInstant::kHeaderSize;
+      return sizeof(JSTemporalInstant);
     case JS_TEMPORAL_PLAIN_DATE_TYPE:
-      return JSTemporalPlainDate::kHeaderSize;
+      return sizeof(JSTemporalPlainDate);
     case JS_TEMPORAL_PLAIN_DATE_TIME_TYPE:
-      return JSTemporalPlainDateTime::kHeaderSize;
+      return sizeof(JSTemporalPlainDateTime);
     case JS_TEMPORAL_PLAIN_MONTH_DAY_TYPE:
-      return JSTemporalPlainMonthDay::kHeaderSize;
+      return sizeof(JSTemporalPlainMonthDay);
     case JS_TEMPORAL_PLAIN_TIME_TYPE:
-      return JSTemporalPlainTime::kHeaderSize;
+      return sizeof(JSTemporalPlainTime);
     case JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE:
-      return JSTemporalPlainYearMonth::kHeaderSize;
+      return sizeof(JSTemporalPlainYearMonth);
     case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
-      return JSTemporalZonedDateTime::kHeaderSize;
+      return sizeof(JSTemporalZonedDateTime);
 #endif  // V8_TEMPORAL_SUPPORT
     case JS_VALID_ITERATOR_WRAPPER_TYPE:
-      return JSValidIteratorWrapper::kHeaderSize;
+      return sizeof(JSValidIteratorWrapper);
     case JS_WRAPPED_FUNCTION_TYPE:
       return JSWrappedFunction::kHeaderSize;
     case JS_RAW_JSON_TYPE:
@@ -2916,14 +2916,14 @@ void JSObject::SetNormalizedElement(DirectHandle<JSObject> object,
 void JSObject::JSObjectShortPrint(StringStream* accumulator) {
   switch (map()->instance_type()) {
     case JS_ARRAY_TYPE: {
-      double length = IsUndefined(Cast<JSArray>(*this)->length())
+      double length = IsUndefined(Cast<JSArray>(this)->length())
                           ? 0
-                          : Object::NumberValue(Cast<JSArray>(*this)->length());
+                          : Object::NumberValue(Cast<JSArray>(this)->length());
       accumulator->Add("<JSArray[%u]>", static_cast<uint32_t>(length));
       break;
     }
     case JS_BOUND_FUNCTION_TYPE: {
-      Tagged<JSBoundFunction> bound_function = Cast<JSBoundFunction>(*this);
+      Tagged<JSBoundFunction> bound_function = Cast<JSBoundFunction>(this);
       accumulator->Add("<JSBoundFunction");
       accumulator->Add(" (BoundTargetFunction %p)>",
                        reinterpret_cast<void*>(
@@ -2941,7 +2941,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
     case JS_REG_EXP_TYPE: {
       Isolate* isolate = Isolate::Current();
       accumulator->Add("<JSRegExp");
-      Tagged<JSRegExp> regexp = Cast<JSRegExp>(*this);
+      Tagged<JSRegExp> regexp = Cast<JSRegExp>(this);
       accumulator->Add(" ");
       Cast<String>(regexp->source(isolate))->StringShortPrint(accumulator);
       accumulator->Add(">");
@@ -2958,7 +2958,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
     case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE:
     case JS_FUNCTION_TYPE: {
-      Tagged<JSFunction> function = Cast<JSFunction>(*this);
+      Tagged<JSFunction> function = Cast<JSFunction>(this);
       std::unique_ptr<char[]> fun_name = function->shared()->DebugNameCStr();
       if (fun_name[0] != '\0') {
         accumulator->Add("<JSFunction ");
@@ -3051,7 +3051,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       }
       if (IsJSPrimitiveWrapper(*this)) {
         accumulator->Add(" value = ");
-        ShortPrint(Cast<JSPrimitiveWrapper>(*this)->value(), accumulator);
+        ShortPrint(Cast<JSPrimitiveWrapper>(this)->value(), accumulator);
       }
       accumulator->Put('>');
       break;
@@ -3310,8 +3310,8 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
         }
       } else {
         DCHECK_EQ(PropertyKind::kData, old_details.kind());
-        value = handle(Cast<JSAny>(old_descriptors->GetStrongValue(isolate, i)),
-                       isolate);
+        value =
+            handle(Cast<JSAny>(old_descriptors->GetStrongValue(i)), isolate);
         DCHECK(!old_representation.IsDouble() && !representation.IsDouble());
       }
     } else {
@@ -3429,7 +3429,7 @@ void MigrateFastToSlow(Isolate* isolate, DirectHandle<JSObject> object,
                                       isolate);
   for (InternalIndex i : InternalIndex::Range(real_size)) {
     PropertyDetails details = descs->GetDetails(i);
-    DirectHandle<Name> key(descs->GetKey(isolate, i), isolate);
+    DirectHandle<Name> key(descs->GetKey(i), isolate);
     DirectHandle<Object> value;
     if (details.location() == PropertyLocation::kField) {
       FieldIndex index = FieldIndex::ForDetails(*map, details);
@@ -3449,7 +3449,7 @@ void MigrateFastToSlow(Isolate* isolate, DirectHandle<JSObject> object,
 
     } else {
       DCHECK_EQ(PropertyLocation::kDescriptor, details.location());
-      value = direct_handle(descs->GetStrongValue(isolate, i), isolate);
+      value = direct_handle(descs->GetStrongValue(i), isolate);
     }
     DCHECK(!value.is_null());
     PropertyConstness constness = V8_DICT_PROPERTY_CONST_TRACKING_BOOL
@@ -4460,7 +4460,7 @@ MaybeDirectHandle<Object> JSObject::ReadFromOptionsBag(
     Isolate* isolate) {
   if (IsJSReceiver(*options)) {
     DirectHandle<JSReceiver> js_options = Cast<JSReceiver>(options);
-    return JSObject::GetProperty(isolate, js_options, option_name);
+    return JSReceiver::GetProperty(isolate, js_options, option_name);
   }
   return MaybeDirectHandle<Object>(isolate->factory()->undefined_value());
 }
@@ -4979,7 +4979,7 @@ Tagged<Object> JSObject::SlowReverseLookup(Tagged<Object> value) {
     }
     return GetReadOnlyRoots().undefined_value();
   } else if (IsJSGlobalObject(*this)) {
-    return Cast<JSGlobalObject>(*this)
+    return Cast<JSGlobalObject>(this)
         ->global_dictionary(kAcquireLoad)
         ->SlowReverseLookup(value);
   } else if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
@@ -5729,7 +5729,7 @@ uint32_t JSObject::GetFastElementsUsage() {
     case PACKED_SEALED_ELEMENTS:
     case PACKED_NONEXTENSIBLE_ELEMENTS:
     case SHARED_ARRAY_ELEMENTS:
-      return IsJSArray(*this) ? Smi::ToUInt(Cast<JSArray>(*this)->length())
+      return IsJSArray(*this) ? Smi::ToUInt(Cast<JSArray>(this)->length())
                               : store->ulength().value();
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
       store = Cast<SloppyArgumentsElements>(store)->arguments();

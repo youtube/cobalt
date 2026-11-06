@@ -62,6 +62,11 @@ RequestResponse RequestResponseFromPortalResponse(uint32_t portal_response);
 RTC_EXPORT std::string PrepareSignalHandle(absl::string_view token,
                                            GDBusConnection* connection);
 
+// Unsubscribes a signal subscription and zeros its ID.
+// Returns true if the subscription was active, false if the ID was already 0.
+RTC_EXPORT bool UnsubscribeSignalHandler(GDBusConnection* connection,
+                                         guint& signal_id);
+
 // Sets up the callback to execute when a response signal is received for the
 // given object. Adds a ref to the guard for the signal subscription.
 RTC_EXPORT uint32_t

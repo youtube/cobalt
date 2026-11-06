@@ -20,10 +20,29 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-collator-tq-inl.inc"
+Tagged<Managed<icu::Collator>> JSCollator::icu_collator() const {
+  return Cast<Managed<icu::Collator>>(icu_collator_.load());
+}
 
-ACCESSORS(JSCollator, icu_collator, Tagged<Managed<icu::Collator>>,
-          kIcuCollatorOffset)
+void JSCollator::set_icu_collator(Tagged<Managed<icu::Collator>> value,
+                                  WriteBarrierMode mode) {
+  icu_collator_.store(this, value, mode);
+}
+
+Tagged<UnionOf<Undefined, JSFunction>> JSCollator::bound_compare() const {
+  return bound_compare_.load();
+}
+
+void JSCollator::set_bound_compare(Tagged<UnionOf<Undefined, JSFunction>> value,
+                                   WriteBarrierMode mode) {
+  bound_compare_.store(this, value, mode);
+}
+
+Tagged<String> JSCollator::locale() const { return locale_.load(); }
+
+void JSCollator::set_locale(Tagged<String> value, WriteBarrierMode mode) {
+  locale_.store(this, value, mode);
+}
 
 }  // namespace internal
 }  // namespace v8

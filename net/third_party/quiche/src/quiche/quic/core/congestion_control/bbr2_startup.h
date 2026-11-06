@@ -44,13 +44,7 @@ class QUICHE_EXPORT Bbr2StartupMode final : public Bbr2ModeBase {
     return Bbr2Mode::STARTUP;
   }
 
-  struct QUICHE_EXPORT DebugState {
-    bool full_bandwidth_reached;
-    QuicBandwidth full_bandwidth_baseline = QuicBandwidth::Zero();
-    QuicRoundTripCount round_trips_without_bandwidth_growth;
-  };
-
-  DebugState ExportDebugState() const;
+  Bbr2DebugState::Startup ExportDebugState() const;
 
  private:
   const Bbr2Params& Params() const;
@@ -60,8 +54,6 @@ class QUICHE_EXPORT Bbr2StartupMode final : public Bbr2ModeBase {
   QuicBandwidth max_bw_at_round_beginning_ = QuicBandwidth::Zero();
 };
 
-QUICHE_EXPORT std::ostream& operator<<(
-    std::ostream& os, const Bbr2StartupMode::DebugState& state);
 
 }  // namespace quic
 

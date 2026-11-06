@@ -110,7 +110,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
             HasInstanceType(CAST(iterator), JS_ASYNC_FROM_SYNC_ITERATOR_TYPE));
   TNode<JSAsyncFromSyncIterator> async_iterator = CAST(iterator);
   const TNode<JSReceiver> sync_iterator = LoadObjectField<JSReceiver>(
-      async_iterator, JSAsyncFromSyncIterator::kSyncIteratorOffset);
+      async_iterator, offsetof(JSAsyncFromSyncIterator, sync_iterator_));
 
   TNode<Object> method = get_method(sync_iterator);
 
@@ -333,7 +333,7 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeNext, AsyncFromSyncBuiltinsAssembler) {
 
   auto get_method = [=, this](const TNode<JSReceiver> unused) {
     return LoadObjectField(CAST(iterator),
-                           JSAsyncFromSyncIterator::kNextOffset);
+                           offsetof(JSAsyncFromSyncIterator, next_));
   };
   Generate_AsyncFromSyncIteratorMethod(
       &args, context, iterator, value, get_method, UndefinedMethodHandler(),

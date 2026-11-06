@@ -72,6 +72,20 @@ type MockComposebox =
       transcript: string,
     };
 
+type MockComposeboxVoiceSearch = Omit<
+    ComposeboxVoiceSearchElement,
+    'state_'|'voiceRecognition_'|'onFinalResult_'|'onCloseClick_'|'onEnd_'|
+    'onTryAgainClick_'|'onLinkClick_'>&{
+  state_: number,
+  metricSource_: string,
+  voiceRecognition_: MockSpeechRecognition,
+  onFinalResult_: (result: string) => void,
+  onCloseClick_: () => void,
+  onEnd_: () => void,
+  onTryAgainClick_: (e: Event) => void,
+  onLinkClick_: (e: Event) => void,
+};
+
 let mockSpeechRecognition: MockSpeechRecognition;
 
 function createResults(n: number): SpeechRecognitionEvent {
@@ -852,6 +866,7 @@ suite('ComposeboxVoiceSearch', () => {
 
 suite('ComposeboxVoiceSearchMetrics', () => {
   let voiceSearchElement: ComposeboxVoiceSearchElement;
+  let mockVoiceSearch: MockComposeboxVoiceSearch;
   let metrics: MetricsTracker;
   let handler: TestMock<PageHandlerRemote>;
   let searchboxHandler: TestMock<SearchboxPageHandlerRemote>;
@@ -883,12 +898,14 @@ suite('ComposeboxVoiceSearchMetrics', () => {
     voiceSearchElement = document.createElement('cr-composebox-voice-search');
 
     document.body.appendChild(voiceSearchElement);
+    mockVoiceSearch =
+        voiceSearchElement as unknown as MockComposeboxVoiceSearch;
     await microtasksFinished();
   });
 
   test('Records SUCCESS and SUBMITTED metrics on final result', async () => {
     // Trigger: Simulate receiving the final voice result.
-    (voiceSearchElement as any).onFinalResult_('hello world');
+    mockVoiceSearch.onFinalResult_('hello world');
     await microtasksFinished();
     // Verify: Action logged QUERY_SUBMITTED.
     assertEquals(
@@ -900,7 +917,7 @@ suite('ComposeboxVoiceSearchMetrics', () => {
 
   test('Records CANCELED metrics on close button click', async () => {
     // Trigger: Simulate user clicking close.
-    (voiceSearchElement as any).onCloseClick_();
+    mockVoiceSearch.onCloseClick_();
     await microtasksFinished();
 
     // Verify: Action logged CANCELED_BY_USER.
@@ -916,12 +933,14 @@ suite('ComposeboxVoiceSearchMetrics', () => {
     searchboxHandler.setResultFor(
         'getPageClassification',
         Promise.resolve({metricSource: 'CO_BROWSING_COMPOSEBOX'}));
+    document.body.removeChild(voiceSearchElement);
+    document.body.appendChild(voiceSearchElement);
     await microtasksFinished();
 
     // Trigger: Simulate underlying API throwing an error (network).
     const errorEvent = new Event('error') as any;
     errorEvent.error = 'network';
-    (voiceSearchElement as any).voiceRecognition_.onerror(errorEvent);
+    mockVoiceSearch.voiceRecognition_.onerror!(errorEvent);
 
     await microtasksFinished();
     // Verify: Errors logged NETWORK.
@@ -936,11 +955,11 @@ suite('ComposeboxVoiceSearchMetrics', () => {
     // Trigger: Simulate permission denied (not-allowed).
     const errorEvent = new Event('error') as any;
     errorEvent.error = 'not-allowed';
-    (voiceSearchElement as any).voiceRecognition_.onerror(errorEvent);
+    mockVoiceSearch.voiceRecognition_.onerror!(errorEvent);
 
     // Call onEnd_ to simulate recognition ending, which is when the State is
     // recorded.
-    (voiceSearchElement as any).onEnd_();
+    mockVoiceSearch.onEnd_();
     await microtasksFinished();
 
     // Verify: State logged a non-canceling error (ERROR_NON_CANCELING).
@@ -957,7 +976,7 @@ suite('ComposeboxVoiceSearchMetrics', () => {
     errorEvent.error = 'network';
 
     // Note: Metrics are now recorded immediately in onError_, not in onEnd_.
-    (voiceSearchElement as any).voiceRecognition_.onerror(errorEvent);
+    mockVoiceSearch.voiceRecognition_.onerror!(errorEvent);
     await microtasksFinished();
 
     // Verify: State logged a non-canceling error (VOICE_SEARCH_ERROR)
@@ -971,8 +990,7 @@ suite('ComposeboxVoiceSearchMetrics', () => {
 
   test('Records NO_MATCH error on nomatch event', async () => {
     // Trigger: Simulate no match (onnomatch).
-    (voiceSearchElement as any)
-        .voiceRecognition_.onnomatch(new Event('nomatch'));
+    mockVoiceSearch.voiceRecognition_.onnomatch!(new Event('nomatch'));
 
     await microtasksFinished();
     // Verify: Errors logged NO_MATCH.
@@ -985,7 +1003,7 @@ suite('ComposeboxVoiceSearchMetrics', () => {
   test('Records Action metrics on link interactions', async () => {
     const mockRetryEvent = new MouseEvent('click');
     mockRetryEvent.stopPropagation = () => {};
-    (voiceSearchElement as any).onTryAgainClick_(mockRetryEvent);
+    mockVoiceSearch.onTryAgainClick_(mockRetryEvent);
     await microtasksFinished();
 
     assertEquals(
@@ -1001,7 +1019,7 @@ suite('ComposeboxVoiceSearchMetrics', () => {
         mockLinkEvent, 'currentTarget',
         {value: {href: 'https://support.google.com/'}});
 
-    (voiceSearchElement as any).onLinkClick_(mockLinkEvent);
+    mockVoiceSearch.onLinkClick_(mockLinkEvent);
     await microtasksFinished();
 
     assertEquals(
@@ -1010,16 +1028,16 @@ suite('ComposeboxVoiceSearchMetrics', () => {
             'VoiceSearch.Action.NTP_REALBOX',
             VoiceSearchAction.SUPPORT_LINK_CLICKED));
 
-    (voiceSearchElement as any).state_ = -1;
-    (voiceSearchElement as any).voiceRecognition_.abort();
+    mockVoiceSearch.state_ = -1;
+    mockVoiceSearch.voiceRecognition_.abort();
     await microtasksFinished();
   });
 
   test(
       'Records specific errors in onEnd_ based on fallback state', async () => {
         // Trigger: Force set internal state to STARTED and call onEnd_.
-        (voiceSearchElement as any).state_ = 0;  // State.STARTED
-        (voiceSearchElement as any).onEnd_();
+        mockVoiceSearch.state_ = 0;  // State.STARTED
+        mockVoiceSearch.onEnd_();
         await microtasksFinished();
         // Verify: Because it ended unexpectedly during STARTED, it should log
         // an AUDIO_CAPTURE error.
@@ -1032,7 +1050,7 @@ suite('ComposeboxVoiceSearchMetrics', () => {
 
   test('Records aggregated base metric for Actions', async () => {
     // Trigger an action: Start voice search via icon click.
-    (voiceSearchElement as any).onCloseClick_();
+    mockVoiceSearch.onCloseClick_();
 
     // Wait for the async metric recording to complete.
     await microtasksFinished();
@@ -1052,8 +1070,8 @@ suite('ComposeboxVoiceSearchMetrics', () => {
             'VoiceSearch.Action', VoiceSearchAction.CANCELED_BY_USER));
 
     // Clean up internal state to prevent leaking into the next test.
-    (voiceSearchElement as any).state_ = -1;
-    (voiceSearchElement as any).voiceRecognition_.abort();
+    mockVoiceSearch.state_ = -1;
+    mockVoiceSearch.voiceRecognition_.abort();
     await microtasksFinished();
   });
 
@@ -1061,7 +1079,7 @@ suite('ComposeboxVoiceSearchMetrics', () => {
     // Trigger an error: Simulate a network error.
     const errorEvent = new Event('error') as any;
     errorEvent.error = 'network';
-    (voiceSearchElement as any).voiceRecognition_.onerror(errorEvent);
+    mockVoiceSearch.voiceRecognition_.onerror!(errorEvent);
 
     // Wait for the async metric recording to complete.
     await microtasksFinished();
@@ -1078,8 +1096,148 @@ suite('ComposeboxVoiceSearchMetrics', () => {
         1, metrics.count('VoiceSearch.Errors', VoiceSearchError.NETWORK));
 
     // Clean up internal state to prevent leaking into the next test.
-    (voiceSearchElement as any).state_ = -1;
-    (voiceSearchElement as any).voiceRecognition_.abort();
+    mockVoiceSearch.state_ = -1;
+    mockVoiceSearch.voiceRecognition_.abort();
     await microtasksFinished();
   });
+
+  test('Records ACTIVATED_BY_ICON action on start', async () => {
+    // Trigger voice search via icon click.
+    voiceSearchElement.start();
+    await microtasksFinished();
+
+    // Verify the activation action is logged in both sliced and base metrics.
+    assertEquals(
+        1,
+        metrics.count(
+            'VoiceSearch.Action.NTP_REALBOX',
+            VoiceSearchAction.ACTIVATED_BY_ICON));
+    assertEquals(
+        1,
+        metrics.count(
+            'VoiceSearch.Action', VoiceSearchAction.ACTIVATED_BY_ICON));
+
+    // Clean up internal state to prevent leaking into the next test.
+    mockVoiceSearch.state_ = -1;
+    mockVoiceSearch.voiceRecognition_.abort();
+    await microtasksFinished();
+  });
+
+  test('Records CANCELED_BY_USER action on close click', async () => {
+    // Simulate a user explicitly closing the voice search overlay.
+    mockVoiceSearch.onCloseClick_();
+    await microtasksFinished();
+
+    // Verify the cancellation action is logged in both sliced and base metrics.
+    assertEquals(
+        1,
+        metrics.count(
+            'VoiceSearch.Action.NTP_REALBOX',
+            VoiceSearchAction.CANCELED_BY_USER));
+    assertEquals(
+        1,
+        metrics.count(
+            'VoiceSearch.Action', VoiceSearchAction.CANCELED_BY_USER));
+
+    // Clean up internal state to prevent leaking into the next test.
+    mockVoiceSearch.state_ = -1;
+    mockVoiceSearch.voiceRecognition_.abort();
+    await microtasksFinished();
+  });
+
+  test('Records ABORTED error but skips action metric recording', async () => {
+    // Simulate an aborted error from the underlying speech recognition API.
+    mockSpeechRecognition.onerror!
+        ({error: 'aborted'} as SpeechRecognitionErrorEvent);
+    await microtasksFinished();
+
+    // Verify the aborted error is properly logged in the Errors metrics.
+    assertEquals(
+        1,
+        metrics.count(
+            'VoiceSearch.Errors.NTP_REALBOX', VoiceSearchError.ABORTED));
+    assertEquals(
+        1, metrics.count('VoiceSearch.Errors', VoiceSearchError.ABORTED));
+
+    // Verify no action metrics are logged, as aborted errors should exit early.
+    assertEquals(
+        0,
+        metrics.count(
+            'VoiceSearch.Action.NTP_REALBOX',
+            VoiceSearchAction.ERROR_CANCELING));
+    assertEquals(
+        0,
+        metrics.count(
+            'VoiceSearch.Action.NTP_REALBOX',
+            VoiceSearchAction.ERROR_NON_CANCELING));
+
+    // Clean up internal state to prevent leaking into the next test.
+    mockVoiceSearch.state_ = -1;
+    mockVoiceSearch.voiceRecognition_.abort();
+    await microtasksFinished();
+  });
+
+  test('Records legacy NTP metrics only for NTP_REALBOX', async () => {
+    // This composebox_voice_search component is designed to replace the
+    // existing voice_search_overlay.ts on the NTP. Dual-logging the legacy
+    // NewTabPage.* metrics here to ensure data continuity during the upcoming
+    // UI migration and to validate the accuracy of the new unified
+    // VoiceSearch.* metrics. These legacy metrics should be removed entirely
+    // once the new metrics are fully validated and approved.
+    mockVoiceSearch.metricSource_ = 'NTP_REALBOX';
+
+    voiceSearchElement.$.closeButton.click();
+    await microtasksFinished();
+
+    // Verify: The legacy NewTabPage.VoiceActions metric records
+    // CLOSE_OVERLAY (value 2), instead of the new CANCELED_BY_USER (value 11).
+    assertEquals(
+        1, metrics.count('NewTabPage.VoiceActions', /* CLOSE_OVERLAY */ 2));
+    assertEquals(
+        0,
+        metrics.count(
+            'NewTabPage.VoiceActions', VoiceSearchAction.CANCELED_BY_USER));
+
+    // Trigger: Simulate a network error.
+    mockSpeechRecognition.onerror!
+        ({error: 'network'} as SpeechRecognitionErrorEvent);
+    await microtasksFinished();
+
+    // Verify: The legacy NewTabPage.VoiceErrors metric records NETWORK.
+    assertEquals(
+        1, metrics.count('NewTabPage.VoiceErrors', VoiceSearchError.NETWORK));
+
+    // Clean up internal state to prevent leaking into the next test.
+    mockVoiceSearch.state_ = -1;
+    mockVoiceSearch.voiceRecognition_.abort();
+    await microtasksFinished();
+  });
+
+  test('Does not record legacy NTP metrics for non-NTP surfaces', async () => {
+    mockVoiceSearch.metricSource_ = 'CO_BROWSING_COMPOSEBOX';
+
+    voiceSearchElement.$.closeButton.click();
+    mockSpeechRecognition.onerror!
+        ({error: 'network'} as SpeechRecognitionErrorEvent);
+    await microtasksFinished();
+
+    // Verify: The unified histograms are recorded correctly.
+    assertEquals(
+        1,
+        metrics.count(
+            'VoiceSearch.Action.CO_BROWSING_COMPOSEBOX',
+            VoiceSearchAction.CANCELED_BY_USER));
+
+    // Verify: The legacy NTP histograms are completely ignored and not
+    // polluted.
+    assertEquals(0, metrics.count('NewTabPage.VoiceSearch.Action', 2));
+    assertEquals(
+        0, metrics.count('NewTabPage.VoiceErrors', VoiceSearchError.NETWORK));
+
+    // Clean up internal state to prevent leaking into the next test.
+    mockVoiceSearch.state_ = -1;
+    mockVoiceSearch.voiceRecognition_.abort();
+    await microtasksFinished();
+  });
+
 });

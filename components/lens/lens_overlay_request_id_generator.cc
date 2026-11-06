@@ -88,8 +88,10 @@ LensOverlayRequestIdGenerator::GetNextRequestId(
 }
 
 std::unique_ptr<lens::LensOverlayRequestId>
-LensOverlayRequestIdGenerator::GetNextRequestId(RequestIdUpdateMode update_mode,
-                                                std::string mime_type) {
+LensOverlayRequestIdGenerator::GetNextRequestId(
+    RequestIdUpdateMode update_mode,
+    std::string mime_type,
+    lens::LensOverlayRequestId::MediaType media_type) {
   // Verify that the initial request id is only generated once.
   CHECK(update_mode != RequestIdUpdateMode::kInitialRequest ||
         sequence_id_ == 0);
@@ -99,8 +101,7 @@ LensOverlayRequestIdGenerator::GetNextRequestId(RequestIdUpdateMode update_mode,
 
   std::unique_ptr<lens::LensOverlayRequestId> current_request_id =
       GetCurrentRequestId();
-  current_request_id->set_media_type(
-      lens::LensOverlayRequestId::MEDIA_TYPE_RAW_FILE);
+  current_request_id->set_media_type(media_type);
   std::unique_ptr<lens::LensOverlayRequestId> next_request_id =
       CreateNextRequestIdForUpdate(std::move(current_request_id), update_mode);
 
@@ -120,7 +121,7 @@ LensOverlayRequestIdGenerator::CreateNextRequestIdForUpdate(
   request_id->set_image_sequence_id(previous_request_id->image_sequence_id());
   request_id->set_media_type(previous_request_id->media_type());
   request_id->set_time_usec(
-      base::Time::Now().ToDeltaSinceWindowsEpoch().InMicroseconds());
+      (base::Time::Now() - base::Time::UnixEpoch()).InMicroseconds());
   if (previous_request_id->has_routing_info()) {
     request_id->mutable_routing_info()->CopyFrom(
         previous_request_id->routing_info());
@@ -224,7 +225,7 @@ LensOverlayRequestIdGenerator::GetCurrentRequestId() {
   request_id->set_long_context_id(long_context_id_);
   request_id->set_image_sequence_id(image_sequence_id_);
   request_id->set_time_usec(
-      base::Time::Now().ToDeltaSinceWindowsEpoch().InMicroseconds());
+      (base::Time::Now() - base::Time::UnixEpoch()).InMicroseconds());
   if (routing_info_.has_value()) {
     request_id->mutable_routing_info()->CopyFrom(routing_info_.value());
   }

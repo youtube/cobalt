@@ -2206,18 +2206,21 @@ void MacroAssembler::Ffint_d_ul(FPURegister fd, FPURegister fj) {
 void MacroAssembler::Ffint_d_ul(FPURegister fd, Register rj) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  DCHECK(rj != scratch);
+  Register scratch1 = temps.Acquire();
+  DCHECK(rj != scratch1);
 
   Label msb_clear, conversion_done;
 
   Branch(&msb_clear, ge, rj, Operand(zero_reg));
 
   // Rj >= 2^63
-  andi(scratch, rj, 1);
-  srli_d(rj, rj, 1);
-  or_(scratch, scratch, rj);
-  movgr2fr_d(fd, scratch);
+  {
+    Register scratch2 = temps.Acquire();
+    andi(scratch1, rj, 1);
+    srli_d(scratch2, rj, 1);
+    or_(scratch1, scratch1, scratch2);
+  }
+  movgr2fr_d(fd, scratch1);
   ffint_d_l(fd, fd);
   fadd_d(fd, fd, fd);
   Branch(&conversion_done);
@@ -2260,18 +2263,21 @@ void MacroAssembler::Ffint_s_ul(FPURegister fd, FPURegister fj) {
 void MacroAssembler::Ffint_s_ul(FPURegister fd, Register rj) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  DCHECK(rj != scratch);
+  Register scratch1 = temps.Acquire();
+  DCHECK(rj != scratch1);
 
   Label positive, conversion_done;
 
   Branch(&positive, ge, rj, Operand(zero_reg));
 
   // Rs >= 2^31.
-  andi(scratch, rj, 1);
-  srli_d(rj, rj, 1);
-  or_(scratch, scratch, rj);
-  movgr2fr_d(fd, scratch);
+  {
+    Register scratch2 = temps.Acquire();
+    andi(scratch1, rj, 1);
+    srli_d(scratch2, rj, 1);
+    or_(scratch1, scratch1, scratch2);
+  }
+  movgr2fr_d(fd, scratch1);
   ffint_s_l(fd, fd);
   fadd_s(fd, fd, fd);
   Branch(&conversion_done);
@@ -4823,13 +4829,18 @@ void MacroAssembler::LoadCompressedMap(Register dst, Register object) {
   Ld_w(dst, FieldMemOperand(object, HeapObject::kMapOffset));
 }
 
-void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
-                                        Register scratch, Label* fbv_undef) {
-  Label done;
-  // Load the feedback vector from the closure.
+void MacroAssembler::LoadFeedbackCell(Register dst, Register closure) {
   LoadTaggedField(dst,
                   FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
-  LoadTaggedField(dst, FieldMemOperand(dst, offsetof(FeedbackCell, value_)));
+}
+
+void MacroAssembler::LoadFeedbackVectorFromCell(Register dst,
+                                                Register feedback_cell,
+                                                Register scratch,
+                                                Label* fbv_undef) {
+  Label done;
+  LoadTaggedField(
+      dst, FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)));
 
   // Check if feedback vector is valid.
   LoadTaggedField(scratch, FieldMemOperand(dst, HeapObject::kMapOffset));
@@ -4841,6 +4852,12 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   Branch(fbv_undef);
 
   bind(&done);
+}
+
+void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
+                                        Register scratch, Label* fbv_undef) {
+  LoadFeedbackCell(dst, closure);
+  LoadFeedbackVectorFromCell(dst, dst, scratch, fbv_undef);
 }
 
 void MacroAssembler::LoadInterpreterDataBytecodeArray(

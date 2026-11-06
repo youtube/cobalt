@@ -17,6 +17,7 @@
 #include "src/objects/function-kind.h"
 #include "src/objects/function-syntax-kind.h"
 #include "src/objects/name.h"
+#include "src/objects/objects-body-descriptors.h"
 #include "src/objects/objects.h"
 #include "src/objects/script.h"
 #include "src/objects/slots.h"
@@ -43,7 +44,6 @@ class Signature;
 class WasmFunctionData;
 class WasmCapiFunctionData;
 class WasmExportedFunctionData;
-class WasmJSFunctionData;
 class WasmResumeData;
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -138,7 +138,7 @@ static_assert(IsAligned(OFFSET_OF_DATA_START(PreparseData),
 
 // Abstract class representing extra data for an uncompiled function, which is
 // not stored in the SharedFunctionInfo.
-V8_OBJECT class UncompiledData : public ExposedTrustedObjectLayout {
+V8_OBJECT class UncompiledData : public ExposedTrustedObject {
  public:
   inline Tagged<String> inferred_name() const;
   inline void set_inferred_name(Tagged<String> value,
@@ -227,7 +227,7 @@ V8_OBJECT class UncompiledDataWithPreparseDataAndJob
   Address job_;
 } V8_OBJECT_END;
 
-V8_OBJECT class InterpreterData : public ExposedTrustedObjectLayout {
+V8_OBJECT class InterpreterData : public ExposedTrustedObject {
  public:
   inline Tagged<BytecodeArray> bytecode_array() const;
   inline void set_bytecode_array(Tagged<BytecodeArray> value,
@@ -259,11 +259,46 @@ using NameOrScopeInfoT = UnionOf<Smi, String, ScopeInfo>;
 
 // SharedFunctionInfo describes the JSFunction information that can be
 // shared by multiple instances of the function.
-class SharedFunctionInfo
-    : public TorqueGeneratedSharedFunctionInfo<SharedFunctionInfo, HeapObject> {
+V8_OBJECT class SharedFunctionInfo : public HeapObjectLayout {
  public:
   DEFINE_TORQUE_GENERATED_SHARED_FUNCTION_INFO_FLAGS()
   DEFINE_TORQUE_GENERATED_SHARED_FUNCTION_INFO_FLAGS2()
+
+  // Primitive header accessors (equivalents of the previously Torque-
+  // generated inline getters/setters). Kept in the same order as the
+  // field declarations. Other accessors are declared further below with
+  // the existing DECL_* macros.
+  inline Tagged<Object> untrusted_function_data() const;
+  inline Tagged<Object> untrusted_function_data(
+      PtrComprCageBase cage_base) const;
+  inline void set_untrusted_function_data(
+      Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>
+  outer_scope_info_or_feedback_metadata() const;
+  inline Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>
+  outer_scope_info_or_feedback_metadata(PtrComprCageBase cage_base) const;
+  inline void set_outer_scope_info_or_feedback_metadata(
+      Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline uint16_t length() const;
+  inline void set_length(uint16_t value);
+
+  inline uint16_t formal_parameter_count() const;
+  inline void set_formal_parameter_count(uint16_t value);
+
+  inline uint16_t function_token_offset() const;
+  inline void set_function_token_offset(uint16_t value);
+
+  inline uint8_t expected_nof_properties() const;
+  inline void set_expected_nof_properties(uint8_t value);
+
+  inline int32_t unique_id() const;
+  inline void set_unique_id(int32_t value);
+
+  inline uint16_t feedback_slot() const;
+  inline void set_feedback_slot(uint16_t value);
 
   // This initializes the SharedFunctionInfo after allocation. It must
   // initialize all fields, and leave the SharedFunctionInfo in a state where
@@ -308,7 +343,7 @@ class SharedFunctionInfo
 
   static const int kNotFound = -1;
 
-  static constexpr int kAgeSize = kAgeOffsetEnd - kAgeOffset + 1;
+  static constexpr int kAgeSize = sizeof(uint16_t);
   static constexpr uint16_t kMaxAge = UINT16_MAX;
 
   DECL_ACQUIRE_GETTER(scope_info, Tagged<ScopeInfo>)
@@ -342,13 +377,6 @@ class SharedFunctionInfo
                  Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>)
   DECL_ACQUIRE_GETTER(raw_outer_scope_info_or_feedback_metadata,
                       Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>)
- private:
-  using TorqueGeneratedSharedFunctionInfo::
-      outer_scope_info_or_feedback_metadata;
-  using TorqueGeneratedSharedFunctionInfo::
-      set_outer_scope_info_or_feedback_metadata;
-
- public:
   // Get the outer scope info whether this function is compiled or not.
   inline bool HasOuterScopeInfo() const;
   inline Tagged<ScopeInfo> GetOuterScopeInfo() const;
@@ -393,11 +421,6 @@ class SharedFunctionInfo
   inline bool CanOnlyAccessFixedFormalParameters() const;
   inline bool IsSloppyNormalJSFunction() const;
 
- private:
-  using TorqueGeneratedSharedFunctionInfo::formal_parameter_count;
-  using TorqueGeneratedSharedFunctionInfo::set_formal_parameter_count;
-
- public:
   // Set the formal parameter count so the function code will be
   // called without using argument adaptor frames.
   inline void DontAdaptArguments();
@@ -416,7 +439,6 @@ class SharedFunctionInfo
   //  - a UncompiledDataWithPreparseData for lazy compilation
   //    [HasUncompiledDataWithPreparseData()]
   //  - a WasmExportedFunctionData for Wasm [HasWasmExportedFunctionData()]
-  //  - a WasmJSFunctionData for functions created with WebAssembly.Function
   //  - a WasmCapiFunctionData for Wasm C-API functions
   //  - a WasmResumeData for JSPI Wasm functions
   //
@@ -500,7 +522,6 @@ class SharedFunctionInfo
   inline bool HasAsmWasmData() const;
   inline bool HasWasmFunctionData(IsolateForSandbox) const;
   inline bool HasWasmExportedFunctionData(IsolateForSandbox) const;
-  inline bool HasWasmJSFunctionData(IsolateForSandbox) const;
   inline bool HasWasmCapiFunctionData(IsolateForSandbox) const;
   inline bool HasWasmResumeData() const;
   DECL_ACCESSORS(asm_wasm_data, Tagged<AsmWasmData>)
@@ -510,7 +531,6 @@ class SharedFunctionInfo
   // concurrently running worker.
   DECL_GETTER(wasm_function_data, Tagged<WasmFunctionData>)
   DECL_GETTER(wasm_exported_function_data, Tagged<WasmExportedFunctionData>)
-  DECL_GETTER(wasm_js_function_data, Tagged<WasmJSFunctionData>)
   DECL_GETTER(wasm_capi_function_data, Tagged<WasmCapiFunctionData>)
 
   DECL_GETTER(wasm_resume_data, Tagged<WasmResumeData>)
@@ -584,11 +604,7 @@ class SharedFunctionInfo
   // start position. Can return kFunctionTokenOutOfRange if offset doesn't
   // fit in 16 bits.
   DECL_UINT16_ACCESSORS(raw_function_token_offset)
- private:
-  using TorqueGeneratedSharedFunctionInfo::function_token_offset;
-  using TorqueGeneratedSharedFunctionInfo::set_function_token_offset;
 
- public:
   // The position of the 'function' token in the script source. Can return
   // kNoSourcePosition if raw_function_token_offset() returns
   // kFunctionTokenOutOfRange.
@@ -828,7 +844,10 @@ class SharedFunctionInfo
 #endif
 
   // Iterate over all shared function infos in a given script.
-  class ScriptIterator {
+  // V8_OBJECT_INNER_CLASS restores default alignment: the enclosing
+  // V8_OBJECT pragma packs to 4 bytes, but ScriptIterator's Handle<...>
+  // member needs 8-byte alignment.
+  V8_OBJECT_INNER_CLASS class ScriptIterator {
    public:
     V8_EXPORT_PRIVATE ScriptIterator(Isolate* isolate, Tagged<Script> script);
     explicit ScriptIterator(Handle<WeakFixedArray> infos);
@@ -846,14 +865,35 @@ class SharedFunctionInfo
    private:
     Handle<WeakFixedArray> infos_;
     uint32_t index_;
-  };
+  } V8_OBJECT_INNER_CLASS_END;
 
   // Constants.
   static const int kMaximumFunctionTokenOffset = kMaxUInt16 - 1;
   static const uint16_t kFunctionTokenOutOfRange = static_cast<uint16_t>(-1);
   static_assert(kMaximumFunctionTokenOffset + 1 == kFunctionTokenOutOfRange);
 
-  static_assert(kSize % kTaggedSize == 0);
+  // Back-compat layout constants. Defined out-of-line below the class using
+  // offsetof() / sizeof() so external call sites (builtins, compiler, CSA,
+  // serializer) keep compiling against SharedFunctionInfo::kXxxOffset.
+  static const int kTrustedFunctionDataOffset;
+  static const int kUntrustedFunctionDataOffset;
+  static const int kNameOrScopeInfoOffset;
+  static const int kOuterScopeInfoOrFeedbackMetadataOffset;
+  static const int kScriptOffset;
+  static const int kLengthOffset;
+  static const int kFormalParameterCountOffset;
+  static const int kFunctionTokenOffsetOffset;
+  static const int kExpectedNofPropertiesOffset;
+  static const int kFlags2Offset;
+  static const int kFlagsOffset;
+  static const int kFunctionLiteralIdOffset;
+  static const int kUniqueIdOffset;
+  static const int kAgeOffset;
+  static const int kFeedbackSlotOffset;
+  static const int kStartOfStrongFieldsOffset;
+  static const int kEndOfStrongFieldsOffset;
+  static const int kSize;
+  static const int kHeaderSize;
 
   class BodyDescriptor;
 
@@ -910,37 +950,109 @@ class SharedFunctionInfo
   template <typename Impl>
   friend class FactoryBase;
   friend class V8HeapExplorer;
+  friend class TorqueGeneratedSharedFunctionInfoAsserts;
   FRIEND_TEST(PreParserTest, LazyFunctionLength);
 
-  TQ_OBJECT_CONSTRUCTORS(SharedFunctionInfo)
-
- private:
   inline Tagged<BytecodeArray> GetBytecodeArrayInternal(Isolate* isolate) const;
-};
+
+  // trusted_function_data may point at any concrete ExposedTrustedObject, so
+  // the indirect-pointer tag range covers all trusted tags.
+  TrustedPointerMember<ExposedTrustedObject, kAllIndirectPointerTags>
+      trusted_function_data_;
+  TaggedMember<Object> untrusted_function_data_;
+  TaggedMember<NameOrScopeInfoT> name_or_scope_info_;
+  TaggedMember<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>
+      outer_scope_info_or_feedback_metadata_;
+  TaggedMember<HeapObject> script_;
+  uint16_t length_;
+  uint16_t formal_parameter_count_;
+  uint16_t function_token_offset_;
+  uint8_t expected_nof_properties_;
+  uint8_t flags2_;
+  std::atomic<uint32_t> flags_;
+  std::atomic<int32_t> function_literal_id_;
+  int32_t unique_id_;
+  std::atomic<uint16_t> age_;
+  std::atomic<uint16_t> feedback_slot_;
+} V8_OBJECT_END;
+
+// Back-compat layout constants. Defined here because offsetof()/sizeof() on
+// a not-yet-complete class cannot appear inside the class body.
+inline constexpr int SharedFunctionInfo::kTrustedFunctionDataOffset =
+    offsetof(SharedFunctionInfo, trusted_function_data_);
+inline constexpr int SharedFunctionInfo::kUntrustedFunctionDataOffset =
+    offsetof(SharedFunctionInfo, untrusted_function_data_);
+inline constexpr int SharedFunctionInfo::kNameOrScopeInfoOffset =
+    offsetof(SharedFunctionInfo, name_or_scope_info_);
+inline constexpr int
+    SharedFunctionInfo::kOuterScopeInfoOrFeedbackMetadataOffset =
+        offsetof(SharedFunctionInfo, outer_scope_info_or_feedback_metadata_);
+inline constexpr int SharedFunctionInfo::kScriptOffset =
+    offsetof(SharedFunctionInfo, script_);
+inline constexpr int SharedFunctionInfo::kLengthOffset =
+    offsetof(SharedFunctionInfo, length_);
+inline constexpr int SharedFunctionInfo::kFormalParameterCountOffset =
+    offsetof(SharedFunctionInfo, formal_parameter_count_);
+inline constexpr int SharedFunctionInfo::kFunctionTokenOffsetOffset =
+    offsetof(SharedFunctionInfo, function_token_offset_);
+inline constexpr int SharedFunctionInfo::kExpectedNofPropertiesOffset =
+    offsetof(SharedFunctionInfo, expected_nof_properties_);
+inline constexpr int SharedFunctionInfo::kFlags2Offset =
+    offsetof(SharedFunctionInfo, flags2_);
+inline constexpr int SharedFunctionInfo::kFlagsOffset =
+    offsetof(SharedFunctionInfo, flags_);
+inline constexpr int SharedFunctionInfo::kFunctionLiteralIdOffset =
+    offsetof(SharedFunctionInfo, function_literal_id_);
+inline constexpr int SharedFunctionInfo::kUniqueIdOffset =
+    offsetof(SharedFunctionInfo, unique_id_);
+inline constexpr int SharedFunctionInfo::kAgeOffset =
+    offsetof(SharedFunctionInfo, age_);
+inline constexpr int SharedFunctionInfo::kFeedbackSlotOffset =
+    offsetof(SharedFunctionInfo, feedback_slot_);
+inline constexpr int SharedFunctionInfo::kStartOfStrongFieldsOffset =
+    offsetof(SharedFunctionInfo, untrusted_function_data_);
+inline constexpr int SharedFunctionInfo::kEndOfStrongFieldsOffset =
+    offsetof(SharedFunctionInfo, script_) + kTaggedSize;
+inline constexpr int SharedFunctionInfo::kSize = sizeof(SharedFunctionInfo);
+inline constexpr int SharedFunctionInfo::kHeaderSize =
+    sizeof(SharedFunctionInfo);
 
 std::ostream& operator<<(std::ostream& os, SharedFunctionInfo::Inlineability i);
 
 // A SharedFunctionInfoWrapper wraps a SharedFunctionInfo from trusted space.
 // It can be useful when a protected pointer reference to a SharedFunctionInfo
 // is needed, for example for a ProtectedFixedArray.
-class SharedFunctionInfoWrapper : public TrustedObject {
+V8_OBJECT class SharedFunctionInfoWrapper : public TrustedObject {
  public:
-  DECL_ACCESSORS(shared_info, Tagged<SharedFunctionInfo>)
+  inline Tagged<SharedFunctionInfo> shared_info() const;
+  inline void set_shared_info(Tagged<SharedFunctionInfo> value,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_PRINTER(SharedFunctionInfoWrapper)
   DECL_VERIFIER(SharedFunctionInfoWrapper)
 
-#define FIELD_LIST(V)               \
-  V(kSharedInfoOffset, kTaggedSize) \
-  V(kHeaderSize, 0)                 \
-  V(kSize, 0)
+  // Back-compat offset/size constants.
+  static const int kSharedInfoOffset;
+  static const int kHeaderSize;
+  static const int kSize;
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(TrustedObject::kHeaderSize, FIELD_LIST)
-#undef FIELD_LIST
+ public:
+  TaggedMember<SharedFunctionInfo> shared_info_;
+} V8_OBJECT_END;
 
-  class BodyDescriptor;
+inline constexpr int SharedFunctionInfoWrapper::kSharedInfoOffset =
+    offsetof(SharedFunctionInfoWrapper, shared_info_);
+inline constexpr int SharedFunctionInfoWrapper::kHeaderSize =
+    sizeof(SharedFunctionInfoWrapper);
+inline constexpr int SharedFunctionInfoWrapper::kSize =
+    sizeof(SharedFunctionInfoWrapper);
 
-  OBJECT_CONSTRUCTORS(SharedFunctionInfoWrapper, TrustedObject);
+template <>
+struct ObjectTraits<SharedFunctionInfoWrapper> {
+  using BodyDescriptor =
+      FixedBodyDescriptor<offsetof(SharedFunctionInfoWrapper, shared_info_),
+                          sizeof(SharedFunctionInfoWrapper),
+                          sizeof(SharedFunctionInfoWrapper)>;
 };
 
 static constexpr int kStaticRootsSFISize = 48;

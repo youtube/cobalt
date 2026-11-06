@@ -1948,6 +1948,65 @@ class MessageObserver : public StunMessageObserver {
   unsigned int* attr_counter_ = nullptr;
 };
 
+// Test that an unauthenticated TURN ALLOCATE success response is NOT accepted
+// if integrity is expected but not present.
+// This is a regression test for b/504572664.
+TEST_F(TurnPortTest, TestUnauthenticatedAllocateSuccessRejected) {
+  SocketAddress fake_server_addr("99.99.99.99", 3478);
+  CreateTurnPort(kTurnUsername, kTurnPassword,
+                 ProtocolAddress(fake_server_addr, PROTO_UDP));
+
+  std::unique_ptr<AsyncPacketSocket> server_socket =
+      socket_factory()->CreateUdpSocket(env_, fake_server_addr, 0, 0);
+
+  std::string transaction_id;
+  server_socket->RegisterReceivedPacketCallback(
+      [&](AsyncPacketSocket* /* socket */, const ReceivedIpPacket& packet) {
+        ByteBufferReader reader(packet.payload());
+        TurnMessage msg;
+        if (msg.Read(&reader) && msg.type() == STUN_ALLOCATE_REQUEST) {
+          transaction_id = msg.transaction_id();
+        }
+      });
+
+  turn_port_->PrepareAddress();
+
+  // Wait for the request to reach the server.
+  ASSERT_TRUE(
+      WaitUntil([&] { return !transaction_id.empty(); },
+                {.timeout = kSimulatedRtt, .clock = &time_controller_}));
+
+  TurnMessage forged_success(STUN_ALLOCATE_RESPONSE, transaction_id);
+
+  // Add required attributes for ALLOCATE success.
+  SocketAddress relayed_addr("198.51.100.99", 6666);
+  SocketAddress mapped_addr("203.0.113.77", 5555);
+
+  forged_success.AddAttribute(std::make_unique<StunXorAddressAttribute>(
+      STUN_ATTR_XOR_RELAYED_ADDRESS, relayed_addr));
+  forged_success.AddAttribute(std::make_unique<StunXorAddressAttribute>(
+      STUN_ATTR_XOR_MAPPED_ADDRESS, mapped_addr));
+  forged_success.AddAttribute(
+      std::make_unique<StunUInt32Attribute>(STUN_ATTR_LIFETIME, 300));
+
+  ByteBufferWriter buf;
+  forged_success.Write(&buf);
+
+  // Send the forged response to the TurnPort.
+  SocketAddress local_addr = turn_port_->socket()->GetLocalAddress();
+  AsyncSocketPacketOptions local_options;
+  server_socket->SendTo(buf.Data(), buf.Length(), local_addr, local_options);
+
+  // Wait a bit for the packet to be processed.
+  time_controller_.AdvanceTime(kSimulatedRtt);
+
+  // If vulnerable, turn_ready_ would be true because it accepted the forged
+  // success. The correct behavior is to reject it and eventually fail or
+  // receive the 401.
+  EXPECT_FALSE(turn_ready_)
+      << "Vulnerability present: Unauthenticated ALLOCATE success accepted!";
+}
+
 // Do a TURN allocation, establish a TLS connection, and send some data.
 // Add customizer and check that it get called.
 TEST_F(TurnPortTest, TestTurnCustomizerCount) {
@@ -2011,7 +2070,9 @@ TEST_F(TurnPortTest, TestTurnCustomizerDisallowChannelData) {
 
 // Do a TURN allocation, establish a TLS connection, and send some data.
 // Add customizer and check that it can add attribute to messages.
-TEST_F(TurnPortTest, TestTurnCustomizerAddAttribute) {
+// This destroys the integrity checks on the message.
+// TODO: crbug.com/504567957 - enable once integrity issues have been sorted.
+TEST_F(TurnPortTest, DISABLED_TestTurnCustomizerAddAttribute) {
   unsigned int observer_message_counter = 0;
   unsigned int observer_channel_data_counter = 0;
   unsigned int observer_attr_counter = 0;

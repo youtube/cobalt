@@ -17,6 +17,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
@@ -65,12 +66,7 @@ namespace webrtc {
 // and methods with _s suffix on signaling thread.
 // Network and worker threads may be the same thread.
 //
-class VideoChannel;
-class VoiceChannel;
-
 class BaseChannel : public ChannelInterface,
-                    // TODO(tommi): Consider implementing these interfaces
-                    // via composition.
                     public MediaChannelNetworkInterface,
                     public RtpPacketSinkInterface {
  public:
@@ -89,6 +85,7 @@ class BaseChannel : public ChannelInterface,
       std::unique_ptr<MediaSendChannelInterface> media_send_channel,
       std::unique_ptr<MediaReceiveChannelInterface> media_receive_channel,
       absl::string_view mid,
+      MediaType media_type,
       bool srtp_required,
       CryptoOptions crypto_options,
       UniqueRandomIdGenerator* ssrc_generator,
@@ -98,6 +95,7 @@ class BaseChannel : public ChannelInterface,
   TaskQueueBase* worker_thread() const { return worker_thread_; }
   Thread* network_thread() const { return network_thread_; }
   const std::string& mid() const override { return mid_; }
+  MediaType media_type() const override { return media_type_; }
   // TODO(deadbeef): This is redundant; remove this.
   absl::string_view transport_name() const override {
     RTC_DCHECK_RUN_ON(network_thread());
@@ -147,21 +145,28 @@ class BaseChannel : public ChannelInterface,
   // RtpPacketSinkInterface overrides.
   void OnRtpPacket(const RtpPacketReceived& packet) override;
 
+  MediaSendChannelInterface* media_send_channel() override {
+    return media_send_channel_.get();
+  }
+  MediaReceiveChannelInterface* media_receive_channel() override {
+    return media_receive_channel_.get();
+  }
+
   VideoMediaSendChannelInterface* video_media_send_channel() override {
-    RTC_CHECK(false) << "Attempt to fetch video channel from non-video";
-    return nullptr;
+    RTC_CHECK_EQ(media_type_, MediaType::VIDEO);
+    return media_send_channel_->AsVideoSendChannel();
   }
   VoiceMediaSendChannelInterface* voice_media_send_channel() override {
-    RTC_CHECK(false) << "Attempt to fetch voice channel from non-voice";
-    return nullptr;
+    RTC_CHECK_EQ(media_type_, MediaType::AUDIO);
+    return media_send_channel_->AsVoiceSendChannel();
   }
   VideoMediaReceiveChannelInterface* video_media_receive_channel() override {
-    RTC_CHECK(false) << "Attempt to fetch video channel from non-video";
-    return nullptr;
+    RTC_CHECK_EQ(media_type_, MediaType::VIDEO);
+    return media_receive_channel_->AsVideoReceiveChannel();
   }
   VoiceMediaReceiveChannelInterface* voice_media_receive_channel() override {
-    RTC_CHECK(false) << "Attempt to fetch voice channel from non-voice";
-    return nullptr;
+    RTC_CHECK_EQ(media_type_, MediaType::AUDIO);
+    return media_receive_channel_->AsVoiceReceiveChannel();
   }
 
  protected:
@@ -233,18 +238,16 @@ class BaseChannel : public ChannelInterface,
   // Should be called whenever the conditions for
   // IsReadyToReceiveMedia/IsReadyToSendMedia are satisfied (or unsatisfied).
   // Updates the send/recv state of the media channel.
-  virtual void UpdateMediaSendRecvState_w() RTC_RUN_ON(worker_thread()) = 0;
+  void UpdateMediaSendRecvState_w() RTC_RUN_ON(worker_thread());
 
   RTCError UpdateLocalStreams_w(const std::vector<StreamParams>& streams,
                                 SdpType type) RTC_RUN_ON(worker_thread());
   RTCError UpdateRemoteStreams_w(const MediaContentDescription* content,
                                  SdpType type) RTC_RUN_ON(worker_thread());
-  virtual RTCError SetLocalContent_w(const MediaContentDescription* content,
-                                     SdpType type)
-      RTC_RUN_ON(worker_thread()) = 0;
-  virtual RTCError SetRemoteContent_w(const MediaContentDescription* content,
-                                      SdpType type)
-      RTC_RUN_ON(worker_thread()) = 0;
+  RTCError SetLocalContent_w(const MediaContentDescription* content,
+                             SdpType type) RTC_RUN_ON(worker_thread());
+  RTCError SetRemoteContent_w(const MediaContentDescription* content,
+                              SdpType type) RTC_RUN_ON(worker_thread());
 
   // Returns a list of RTP header extensions where any extension URI is unique.
   // Encrypted extensions will be either preferred or discarded, depending on
@@ -330,6 +333,15 @@ class BaseChannel : public ChannelInterface,
 
   const std::string mid_;
   flat_set<uint32_t> ssrcs_ RTC_GUARDED_BY(network_thread());
+
+  using ReceiverParamsVariant =
+      std::variant<AudioReceiverParameters, VideoReceiverParameters>;
+  using SenderParamsVariant =
+      std::variant<AudioSenderParameter, VideoSenderParameters>;
+
+  ReceiverParamsVariant last_recv_params_;
+  SenderParamsVariant last_send_params_;
+  const MediaType media_type_;
   // This generator is used to generate SSRCs for local streams.
   // This is needed in cases where SSRCs are not negotiated or set explicitly
   // like in Simulcast.
@@ -337,139 +349,6 @@ class BaseChannel : public ChannelInterface,
   UniqueRandomIdGenerator* const ssrc_generator_;
 };
 
-// VoiceChannel is a specialization that adds support for early media, DTMF,
-// and input/output level monitoring.
-class VoiceChannel : public BaseChannel {
- public:
-  VoiceChannel(
-      TaskQueueBase* worker_thread,
-      Thread* network_thread,
-      TaskQueueBase* signaling_thread,
-      std::unique_ptr<VoiceMediaSendChannelInterface> send_channel_impl,
-      std::unique_ptr<VoiceMediaReceiveChannelInterface> receive_channel_impl,
-      absl::string_view mid,
-      bool srtp_required,
-      CryptoOptions crypto_options,
-      UniqueRandomIdGenerator* ssrc_generator,
-      ChannelCallbacks callbacks = {});
-
-  ~VoiceChannel() override;
-
-  VideoChannel* AsVideoChannel() override {
-    RTC_CHECK_NOTREACHED();
-    return nullptr;
-  }
-  VoiceChannel* AsVoiceChannel() override { return this; }
-
-  VoiceMediaSendChannelInterface* send_channel() {
-    return media_send_channel_->AsVoiceSendChannel();
-  }
-
-  VoiceMediaReceiveChannelInterface* receive_channel() {
-    return media_receive_channel_->AsVoiceReceiveChannel();
-  }
-
-  VoiceMediaSendChannelInterface* media_send_channel() override {
-    return send_channel();
-  }
-
-  VoiceMediaSendChannelInterface* voice_media_send_channel() override {
-    return send_channel();
-  }
-
-  VoiceMediaReceiveChannelInterface* media_receive_channel() override {
-    return receive_channel();
-  }
-
-  VoiceMediaReceiveChannelInterface* voice_media_receive_channel() override {
-    return receive_channel();
-  }
-
-  MediaType media_type() const override { return MediaType::AUDIO; }
-
- private:
-  // overrides from BaseChannel
-  void UpdateMediaSendRecvState_w() RTC_RUN_ON(worker_thread()) override;
-  RTCError SetLocalContent_w(const MediaContentDescription* content,
-                             SdpType type) RTC_RUN_ON(worker_thread()) override;
-  RTCError SetRemoteContent_w(const MediaContentDescription* content,
-                              SdpType type)
-      RTC_RUN_ON(worker_thread()) override;
-
-  // Last AudioSenderParameter sent down to the media_channel() via
-  // SetSenderParameters.
-  AudioSenderParameter last_send_params_ RTC_GUARDED_BY(worker_thread());
-  // Last AudioReceiverParameters sent down to the media_channel() via
-  // SetReceiverParameters.
-  AudioReceiverParameters last_recv_params_ RTC_GUARDED_BY(worker_thread());
-};
-
-// VideoChannel is a specialization for video.
-class VideoChannel : public BaseChannel {
- public:
-  VideoChannel(
-      TaskQueueBase* worker_thread,
-      Thread* network_thread,
-      TaskQueueBase* signaling_thread,
-      std::unique_ptr<VideoMediaSendChannelInterface> media_send_channel,
-      std::unique_ptr<VideoMediaReceiveChannelInterface> media_receive_channel,
-      absl::string_view mid,
-      bool srtp_required,
-      CryptoOptions crypto_options,
-      UniqueRandomIdGenerator* ssrc_generator,
-      ChannelCallbacks callbacks = {});
-  ~VideoChannel() override;
-
-  VideoChannel* AsVideoChannel() override { return this; }
-  VoiceChannel* AsVoiceChannel() override {
-    RTC_CHECK_NOTREACHED();
-    return nullptr;
-  }
-
-  VideoMediaSendChannelInterface* send_channel() {
-    return media_send_channel_->AsVideoSendChannel();
-  }
-
-  VideoMediaReceiveChannelInterface* receive_channel() {
-    return media_receive_channel_->AsVideoReceiveChannel();
-  }
-
-  VideoMediaSendChannelInterface* media_send_channel() override {
-    return send_channel();
-  }
-
-  VideoMediaSendChannelInterface* video_media_send_channel() override {
-    return send_channel();
-  }
-
-  VideoMediaReceiveChannelInterface* media_receive_channel() override {
-    return receive_channel();
-  }
-
-  VideoMediaReceiveChannelInterface* video_media_receive_channel() override {
-    return receive_channel();
-  }
-
-  MediaType media_type() const override { return MediaType::VIDEO; }
-
- private:
-  // overrides from BaseChannel
-  void UpdateMediaSendRecvState_w() RTC_RUN_ON(worker_thread()) override;
-  RTCError SetLocalContent_w(const MediaContentDescription* content,
-                             SdpType type) RTC_RUN_ON(worker_thread()) override;
-  RTCError SetRemoteContent_w(const MediaContentDescription* content,
-                              SdpType type)
-      RTC_RUN_ON(worker_thread()) override;
-
-  // Last VideoSenderParameters sent down to the media_channel() via
-  // SetSenderParameters.
-  VideoSenderParameters last_send_params_ RTC_GUARDED_BY(worker_thread());
-  // Last VideoReceiverParameters sent down to the media_channel() via
-  // SetReceiverParameters.
-  VideoReceiverParameters last_recv_params_ RTC_GUARDED_BY(worker_thread());
-};
-
 }  //  namespace webrtc
-
 
 #endif  // PC_CHANNEL_H_

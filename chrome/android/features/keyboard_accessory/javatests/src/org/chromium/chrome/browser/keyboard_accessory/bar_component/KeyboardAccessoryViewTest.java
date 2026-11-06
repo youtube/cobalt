@@ -49,6 +49,7 @@ import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
@@ -150,6 +151,11 @@ public class KeyboardAccessoryViewTest {
     private static class TestTracker implements Tracker {
         private boolean mWasDismissed;
         private @Nullable String mEmittedEvent;
+        private final String mFeature;
+
+        public TestTracker(String feature) {
+            mFeature = feature;
+        }
 
         @Override
         public void notifyEvent(String event) {
@@ -162,7 +168,7 @@ public class KeyboardAccessoryViewTest {
 
         @Override
         public boolean shouldTriggerHelpUi(String feature) {
-            return true;
+            return mFeature.equals(feature);
         }
 
         @Override
@@ -172,7 +178,7 @@ public class KeyboardAccessoryViewTest {
 
         @Override
         public boolean wouldTriggerHelpUi(String feature) {
-            return true;
+            return mFeature.equals(feature);
         }
 
         @Override
@@ -549,7 +555,9 @@ public class KeyboardAccessoryViewTest {
         itemWithIph.setFeatureForIph(
                 FeatureConstants.KEYBOARD_ACCESSORY_PAYMENT_CARD_INFO_RETRIEVAL_FEATURE);
 
-        TestTracker tracker = new TestTracker();
+        TestTracker tracker =
+                new TestTracker(
+                        FeatureConstants.KEYBOARD_ACCESSORY_PAYMENT_CARD_INFO_RETRIEVAL_FEATURE);
         TrackerFactory.setTrackerForTests(tracker);
 
         ThreadUtils.runOnUiThreadBlocking(
@@ -588,7 +596,9 @@ public class KeyboardAccessoryViewTest {
         itemWithIph.setFeatureForIph(
                 FeatureConstants.KEYBOARD_ACCESSORY_HOME_WORK_PROFILE_SUGGESTION_FEATURE);
 
-        TestTracker tracker = new TestTracker();
+        TestTracker tracker =
+                new TestTracker(
+                        FeatureConstants.KEYBOARD_ACCESSORY_HOME_WORK_PROFILE_SUGGESTION_FEATURE);
         TrackerFactory.setTrackerForTests(tracker);
 
         ThreadUtils.runOnUiThreadBlocking(
@@ -624,7 +634,8 @@ public class KeyboardAccessoryViewTest {
                         mMockProfile);
         itemWithIph.setFeatureForIph(FeatureConstants.KEYBOARD_ACCESSORY_PASSWORD_FILLING_FEATURE);
 
-        TestTracker tracker = new TestTracker();
+        TestTracker tracker =
+                new TestTracker(FeatureConstants.KEYBOARD_ACCESSORY_PASSWORD_FILLING_FEATURE);
         TrackerFactory.setTrackerForTests(tracker);
 
         ThreadUtils.runOnUiThreadBlocking(
@@ -662,7 +673,8 @@ public class KeyboardAccessoryViewTest {
                         mMockProfile);
         itemWithIph.setFeatureForIph(FeatureConstants.KEYBOARD_ACCESSORY_ADDRESS_FILL_FEATURE);
 
-        TestTracker tracker = new TestTracker();
+        TestTracker tracker =
+                new TestTracker(FeatureConstants.KEYBOARD_ACCESSORY_ADDRESS_FILL_FEATURE);
         TrackerFactory.setTrackerForTests(tracker);
 
         ThreadUtils.runOnUiThreadBlocking(
@@ -698,7 +710,8 @@ public class KeyboardAccessoryViewTest {
                         mMockProfile);
         itemWithIph.setFeatureForIph(FeatureConstants.KEYBOARD_ACCESSORY_PAYMENT_FILLING_FEATURE);
 
-        TestTracker tracker = new TestTracker();
+        TestTracker tracker =
+                new TestTracker(FeatureConstants.KEYBOARD_ACCESSORY_PAYMENT_FILLING_FEATURE);
         TrackerFactory.setTrackerForTests(tracker);
 
         ThreadUtils.runOnUiThreadBlocking(
@@ -723,7 +736,7 @@ public class KeyboardAccessoryViewTest {
     @DisableIf.Build(sdk_equals = Build.VERSION_CODES.S_V2, message = "crbug.com/40263973")
     public void testDismissesSwipingEducationBubbleOnTap() throws InterruptedException {
         TestTracker tracker =
-                new TestTracker() {
+                new TestTracker(FeatureConstants.KEYBOARD_ACCESSORY_BAR_SWIPING_FEATURE) {
                     @Override
                     public int getTriggerState(String feature) {
                         // Pretend that an autofill IPH was shown already.
@@ -772,7 +785,8 @@ public class KeyboardAccessoryViewTest {
                         mMockProfile);
         itemWithIph.setFeatureForIph(FeatureConstants.KEYBOARD_ACCESSORY_PAYMENT_OFFER_FEATURE);
 
-        TestTracker tracker = new TestTracker();
+        TestTracker tracker =
+                new TestTracker(FeatureConstants.KEYBOARD_ACCESSORY_PAYMENT_OFFER_FEATURE);
         TrackerFactory.setTrackerForTests(tracker);
 
         ThreadUtils.runOnUiThreadBlocking(
@@ -794,9 +808,19 @@ public class KeyboardAccessoryViewTest {
     @Test
     @MediumTest
     public void testScrollingNotResetOnItemUpdate() throws InterruptedException {
+        AtomicInteger obfuscatedChildAt = new AtomicInteger(-1);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
+                    mModel.set(OBFUSCATED_CHILD_AT_CALLBACK, obfuscatedChildAt::set);
                     mModel.set(VISIBLE, true);
+                    mModel.get(BAR_ITEMS).set(createAutofillChipAndTab("John", null));
+                });
+        KeyboardAccessoryView view = mKeyboardAccessoryView.take();
+        CriteriaHelper.pollUiThread(() -> view.mBarItemsView.getChildCount() > 0);
+        assertThat(obfuscatedChildAt.get(), is(-1));
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
                     mModel.get(BAR_ITEMS)
                             .set(
                                     new BarItem[] {
@@ -817,8 +841,8 @@ public class KeyboardAccessoryViewTest {
                                         createSheetOpener()
                                     });
                 });
-        KeyboardAccessoryView view = mKeyboardAccessoryView.take();
-        CriteriaHelper.pollUiThread(() -> view.mBarItemsView.getChildCount() > 0);
+        onViewWaiting(withText("Item 1 - very long text to fill width"));
+        CriteriaHelper.pollUiThread(() -> obfuscatedChildAt.get() > -1);
 
         // Scroll the view manually
         ThreadUtils.runOnUiThreadBlocking(() -> view.mBarItemsView.scrollBy(500, 0));
@@ -1073,6 +1097,26 @@ public class KeyboardAccessoryViewTest {
 
     @Test
     @MediumTest
+    public void testDismissesAtMemoryEducationBubbleOnTap() throws InterruptedException {
+        TestTracker tracker =
+                new TestTracker(FeatureConstants.KEYBOARD_ACCESSORY_AT_MEMORY_FEATURE);
+        TrackerFactory.setTrackerForTests(tracker);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mModel.set(VISIBLE, true);
+                    mModel.get(BAR_ITEMS).set(new BarItem[] {createSheetOpener()});
+                });
+
+        waitForHelpBubble(withText(R.string.iph_keyboard_accessory_at_memory));
+        assertThat(mKeyboardAccessoryView.take().areClicksAllowedWhenObscured(), is(true));
+        waitForHelpBubble(withText(R.string.iph_keyboard_accessory_at_memory)).perform(click());
+
+        assertThat(tracker.wasDismissed(), is(true));
+    }
+
+    @Test
+    @MediumTest
     public void testAlwaysAddsAtMemoryButton() throws InterruptedException {
         KeyboardAccessoryButtonGroupView buttonGroupView = setupButtonsAndGetGroup();
         ArrayList<ImageButton> buttons = buttonGroupView.getButtons();
@@ -1143,7 +1187,7 @@ public class KeyboardAccessoryViewTest {
 
         CoordinatorLayout.LayoutParams params =
                 (CoordinatorLayout.LayoutParams) view.getLayoutParams();
-        assertEquals(android.view.Gravity.LEFT | android.view.Gravity.TOP, params.gravity);
+        assertEquals(Gravity.LEFT | Gravity.TOP, params.gravity);
         assertEquals(verticalOffset, params.topMargin);
         assertEquals(0, view.getPaddingTop());
         assertEquals(
@@ -1176,7 +1220,7 @@ public class KeyboardAccessoryViewTest {
         ThreadUtils.runOnUiThreadBlocking(() -> view.setStyle(topNotchStyle));
         CoordinatorLayout.LayoutParams params =
                 (CoordinatorLayout.LayoutParams) view.getLayoutParams();
-        assertEquals(android.view.Gravity.LEFT | android.view.Gravity.TOP, params.gravity);
+        assertEquals(Gravity.LEFT | Gravity.TOP, params.gravity);
         assertEquals(verticalOffset, params.topMargin);
         assertEquals(0, view.getPaddingBottom());
         assertEquals(

@@ -4587,7 +4587,7 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
     code = handle(bar->code(isolate), isolate);
     CompileRun("%DeoptimizeFunction(bar);");
     CHECK(code->marked_for_deoptimization());
-    CHECK(!code->SafeEquals(bar->code(isolate)));
+    CHECK(!(*code).SafeEquals(bar->code(isolate)));
     code = scope.CloseAndEscape(code);
   }
 
@@ -6437,8 +6437,9 @@ TEST(RememberedSet_RemoveStaleOnScavenge) {
   arr->set(1, ReadOnlyRoots(CcTest::heap()).undefined_value());
   DirectHandle<FixedArrayBase> tail(heap->LeftTrimFixedArray(*arr, 1), isolate);
 
-  // None of the actions above should have updated the remembered set.
-  CHECK_EQ(3, GetRememberedSetSize<OLD_TO_NEW>(*tail));
+  // The first slot should be removed from the remembered set since the length
+  // is now in that place and represented as a uint32_t.
+  CHECK_EQ(2, GetRememberedSetSize<OLD_TO_NEW>(*tail));
 
   // Run GC to promote the remaining young object and fixup the stale entries in
   // the remembered set.
@@ -7207,7 +7208,7 @@ UNINITIALIZED_TEST(HugeHeapLimit) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 #ifdef V8_COMPRESS_POINTERS
-  size_t kExpectedHeapLimit = Heap::AllocatorLimitOnMaxOldGenerationSize(0);
+  size_t kExpectedHeapLimit = Heap::kAllocatorLimitOnMaxOldGenerationSize;
 #else
   size_t kExpectedHeapLimit = size_t{4} * GB;
 #endif

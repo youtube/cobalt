@@ -311,6 +311,8 @@ int main(int argc, char** argv) {
           i::StaticRootsTableGen::write(i_isolate,
                                         i::v8_flags.static_roots_src);
         }
+#else
+        i::StaticRootsTableGen::write_text(i_isolate, "static-roots.txt");
 #endif
 
         if (i::v8_flags.builtins_effects_src) {

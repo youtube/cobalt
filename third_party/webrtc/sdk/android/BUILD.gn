@@ -1828,6 +1828,7 @@ if (is_android) {
       "../../test:create_test_environment",
       "../../test:create_test_field_trials",
       "../../test:fileutils",
+      "../../test:run_loop",
       "../../test:test_support",
       "../../testing/gtest",
       "//third_party/abseil-cpp/absl/memory",

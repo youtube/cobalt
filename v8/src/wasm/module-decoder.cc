@@ -144,8 +144,8 @@ ModuleResult DecodeWasmModule(WasmEnabledFeatures enabled_features,
                               base::Vector<const uint8_t> wire_bytes,
                               bool validate_functions, ModuleOrigin origin,
                               WasmDetectedFeatures* detected_features) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-               "wasm.DecodeWasmModule");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+              "wasm.DecodeWasmModule");
   ModuleDecoderImpl decoder{enabled_features, wire_bytes, origin,
                             detected_features};
   ModuleResult result = decoder.DecodeModule(validate_functions);
@@ -529,8 +529,8 @@ class ValidateFunctionsTask : public JobTask {
   }
 
   void Run(JobDelegate* delegate) override {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-                 "wasm.ValidateFunctionsTask");
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+                "wasm.ValidateFunctionsTask");
 
     WasmDetectedFeatures detected_features;
     Zone zone(GetWasmEngine()->allocator(), "Wasm ValidateFunctionsTask");
@@ -623,9 +623,9 @@ WasmError ValidateFunctions(const WasmModule* module,
                             base::Vector<const uint8_t> wire_bytes,
                             std::function<bool(int)> filter,
                             WasmDetectedFeatures* detected_features_out) {
-  TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-               "wasm.ValidateFunctions", "num_declared_functions",
-               module->num_declared_functions, "has_filter", filter != nullptr);
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+              "wasm.ValidateFunctions", "num_declared_functions",
+              module->num_declared_functions, "has_filter", filter != nullptr);
   DCHECK_EQ(kWasmOrigin, module->origin);
 
   class NeverYieldDelegate final : public JobDelegate {

@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.data_sharing;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -37,6 +38,7 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.ui.favicon.FaviconHelper;
 import org.chromium.components.browser_ui.widget.RoundedIconGenerator;
+import org.chromium.ui.test.util.MockitoHelper;
 import org.chromium.url.GURL;
 
 import java.util.Arrays;
@@ -53,6 +55,7 @@ public class BulkFaviconUtilUnitTest {
     @Mock private RoundedIconGenerator mRoundedIconGenerator;
     @Captor private ArgumentCaptor<FaviconHelper.FaviconImageCallback> mCallbackCaptor;
     @Captor private ArgumentCaptor<List<Bitmap>> mResultCaptor;
+    @Captor private ArgumentCaptor<List<Drawable>> mDrawableResultCaptor;
 
     private Context mContext;
     private BulkFaviconUtil mBulkFaviconUtil;
@@ -76,10 +79,11 @@ public class BulkFaviconUtilUnitTest {
 
     @Test
     public void testFetchAsBitmap_emptyList() {
-        Callback<List<Bitmap>> callback = mock(Callback.class);
+        Callback<List<Bitmap>> callback = MockitoHelper.mockCallback();
         mBulkFaviconUtil.fetchAsBitmap(mContext, mProfile, Collections.emptyList(), 16, callback);
         verify(callback).onResult(Collections.emptyList());
-        verify(mFaviconHelper, never()).getForeignFaviconImageForURL(any(), any(), anyInt(), any());
+        verify(mFaviconHelper, never())
+                .getForeignFaviconImageForURL(any(), any(), anyInt(), anyBoolean(), any());
     }
 
     @Test
@@ -92,9 +96,13 @@ public class BulkFaviconUtilUnitTest {
                         })
                 .when(mFaviconHelper)
                 .getForeignFaviconImageForURL(
-                        eq(mProfile), eq(mGurl1), anyInt(), mCallbackCaptor.capture());
+                        eq(mProfile),
+                        eq(mGurl1),
+                        anyInt(),
+                        anyBoolean(),
+                        mCallbackCaptor.capture());
 
-        Callback<List<Bitmap>> callback = mock(Callback.class);
+        Callback<List<Bitmap>> callback = MockitoHelper.mockCallback();
         mBulkFaviconUtil.fetchAsBitmap(mContext, mProfile, Arrays.asList(mGurl1), 16, callback);
         verify(callback).onResult(Arrays.asList(mockBitmap));
     }
@@ -109,7 +117,11 @@ public class BulkFaviconUtilUnitTest {
                         })
                 .when(mFaviconHelper)
                 .getForeignFaviconImageForURL(
-                        eq(mProfile), eq(mGurl1), anyInt(), mCallbackCaptor.capture());
+                        eq(mProfile),
+                        eq(mGurl1),
+                        anyInt(),
+                        anyBoolean(),
+                        mCallbackCaptor.capture());
 
         Bitmap mockBitmap2 = mock(Bitmap.class);
         doAnswer(
@@ -119,9 +131,13 @@ public class BulkFaviconUtilUnitTest {
                         })
                 .when(mFaviconHelper)
                 .getForeignFaviconImageForURL(
-                        eq(mProfile), eq(mGurl2), anyInt(), mCallbackCaptor.capture());
+                        eq(mProfile),
+                        eq(mGurl2),
+                        anyInt(),
+                        anyBoolean(),
+                        mCallbackCaptor.capture());
 
-        Callback<List<Bitmap>> callback = mock(Callback.class);
+        Callback<List<Bitmap>> callback = MockitoHelper.mockCallback();
         mBulkFaviconUtil.fetchAsBitmap(mContext, mProfile, mGurlList, 16, callback);
         verify(callback).onResult(Arrays.asList(mockBitmap1, mockBitmap2));
     }
@@ -135,9 +151,13 @@ public class BulkFaviconUtilUnitTest {
                         })
                 .when(mFaviconHelper)
                 .getForeignFaviconImageForURL(
-                        eq(mProfile), eq(mGurl1), anyInt(), mCallbackCaptor.capture());
+                        eq(mProfile),
+                        eq(mGurl1),
+                        anyInt(),
+                        anyBoolean(),
+                        mCallbackCaptor.capture());
 
-        Callback<List<Bitmap>> callback = mock(Callback.class);
+        Callback<List<Bitmap>> callback = MockitoHelper.mockCallback();
         mBulkFaviconUtil.fetchAsBitmap(mContext, mProfile, Arrays.asList(mGurl1), 16, callback);
 
         // Verify that the default favicon is used.
@@ -147,10 +167,11 @@ public class BulkFaviconUtilUnitTest {
 
     @Test
     public void testFetchAsDrawable_emptyList() {
-        Callback<List<Drawable>> callback = mock(Callback.class);
+        Callback<List<Drawable>> callback = MockitoHelper.mockCallback();
         mBulkFaviconUtil.fetchAsDrawable(mContext, mProfile, Collections.emptyList(), 16, callback);
         verify(callback).onResult(Collections.emptyList());
-        verify(mFaviconHelper, never()).getForeignFaviconImageForURL(any(), any(), anyInt(), any());
+        verify(mFaviconHelper, never())
+                .getForeignFaviconImageForURL(any(), any(), anyInt(), anyBoolean(), any());
     }
 
     @Test
@@ -163,15 +184,18 @@ public class BulkFaviconUtilUnitTest {
                         })
                 .when(mFaviconHelper)
                 .getForeignFaviconImageForURL(
-                        eq(mProfile), eq(mGurl1), anyInt(), mCallbackCaptor.capture());
+                        eq(mProfile),
+                        eq(mGurl1),
+                        anyInt(),
+                        anyBoolean(),
+                        mCallbackCaptor.capture());
 
-        Callback<List<Drawable>> callback = mock(Callback.class);
+        Callback<List<Drawable>> callback = MockitoHelper.mockCallback();
         mBulkFaviconUtil.fetchAsDrawable(mContext, mProfile, Arrays.asList(mGurl1), 16, callback);
 
-        ArgumentCaptor<List<Drawable>> resultCaptor = ArgumentCaptor.forClass(List.class);
-        verify(callback).onResult(resultCaptor.capture());
-        assertEquals(1, resultCaptor.getValue().size());
-        assertTrue(resultCaptor.getValue().get(0) != null);
+        verify(callback).onResult(mDrawableResultCaptor.capture());
+        assertEquals(1, mDrawableResultCaptor.getValue().size());
+        assertTrue(mDrawableResultCaptor.getValue().get(0) != null);
     }
 
     @Test
@@ -184,7 +208,11 @@ public class BulkFaviconUtilUnitTest {
                         })
                 .when(mFaviconHelper)
                 .getForeignFaviconImageForURL(
-                        eq(mProfile), eq(mGurl1), anyInt(), mCallbackCaptor.capture());
+                        eq(mProfile),
+                        eq(mGurl1),
+                        anyInt(),
+                        anyBoolean(),
+                        mCallbackCaptor.capture());
 
         Bitmap realBitmap2 = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
         doAnswer(
@@ -194,16 +222,19 @@ public class BulkFaviconUtilUnitTest {
                         })
                 .when(mFaviconHelper)
                 .getForeignFaviconImageForURL(
-                        eq(mProfile), eq(mGurl2), anyInt(), mCallbackCaptor.capture());
+                        eq(mProfile),
+                        eq(mGurl2),
+                        anyInt(),
+                        anyBoolean(),
+                        mCallbackCaptor.capture());
 
-        Callback<List<Drawable>> callback = mock(Callback.class);
+        Callback<List<Drawable>> callback = MockitoHelper.mockCallback();
         mBulkFaviconUtil.fetchAsDrawable(mContext, mProfile, mGurlList, 16, callback);
 
-        ArgumentCaptor<List<Drawable>> resultCaptor = ArgumentCaptor.forClass(List.class);
-        verify(callback).onResult(resultCaptor.capture());
-        assertEquals(2, resultCaptor.getValue().size());
-        assertTrue(resultCaptor.getValue().get(0) != null);
-        assertTrue(resultCaptor.getValue().get(1) != null);
+        verify(callback).onResult(mDrawableResultCaptor.capture());
+        assertEquals(2, mDrawableResultCaptor.getValue().size());
+        assertTrue(mDrawableResultCaptor.getValue().get(0) != null);
+        assertTrue(mDrawableResultCaptor.getValue().get(1) != null);
     }
 
     @Test
@@ -215,7 +246,11 @@ public class BulkFaviconUtilUnitTest {
                         })
                 .when(mFaviconHelper)
                 .getForeignFaviconImageForURL(
-                        eq(mProfile), eq(mGurl1), anyInt(), mCallbackCaptor.capture());
+                        eq(mProfile),
+                        eq(mGurl1),
+                        anyInt(),
+                        anyBoolean(),
+                        mCallbackCaptor.capture());
 
         Bitmap realBitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
         doAnswer(
@@ -225,13 +260,12 @@ public class BulkFaviconUtilUnitTest {
                 .when(mRoundedIconGenerator)
                 .generateIconForUrl(eq(mGurl1));
 
-        Callback<List<Drawable>> callback = mock(Callback.class);
+        Callback<List<Drawable>> callback = MockitoHelper.mockCallback();
         mBulkFaviconUtil.fetchAsDrawable(mContext, mProfile, Arrays.asList(mGurl1), 16, callback);
 
         // Verify that the default favicon is used.
-        ArgumentCaptor<List<Drawable>> resultCaptor = ArgumentCaptor.forClass(List.class);
-        verify(callback).onResult(resultCaptor.capture());
-        assertEquals(1, resultCaptor.getValue().size());
-        assertTrue(resultCaptor.getValue().get(0) != null);
+        verify(callback).onResult(mDrawableResultCaptor.capture());
+        assertEquals(1, mDrawableResultCaptor.getValue().size());
+        assertTrue(mDrawableResultCaptor.getValue().get(0) != null);
     }
 }

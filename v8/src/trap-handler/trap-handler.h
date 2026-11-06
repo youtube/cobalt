@@ -39,13 +39,6 @@ namespace v8::internal::trap_handler {
     (!defined(_MSC_VER) || defined(__clang__))
 #define V8_TRAP_HANDLER_VIA_SIMULATOR
 #define V8_TRAP_HANDLER_SUPPORTED true
-// Loong64 (non-simulator) on Linux.
-#elif V8_TARGET_ARCH_LOONG64 && V8_HOST_ARCH_LOONG64 && V8_OS_LINUX
-#define V8_TRAP_HANDLER_SUPPORTED true
-// Loong64 simulator on x64 on Linux
-#elif V8_TARGET_ARCH_LOONG64 && V8_HOST_ARCH_X64 && V8_OS_LINUX
-#define V8_TRAP_HANDLER_VIA_SIMULATOR
-#define V8_TRAP_HANDLER_SUPPORTED true
 // RISCV64 (non-simulator) on Linux.
 #elif V8_TARGET_ARCH_RISCV64 && V8_HOST_ARCH_RISCV64 && V8_OS_LINUX && \
     !V8_OS_ANDROID

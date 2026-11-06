@@ -19,6 +19,7 @@
 namespace v8_inspector {
 
 class InjectedScript;
+class InspectedContext;
 class RemoteObjectIdBase;
 class V8ConsoleAgentImpl;
 class V8DebuggerAgentImpl;
@@ -55,8 +56,12 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   int contextGroupId() const { return m_contextGroupId; }
   int sessionId() const { return m_sessionId; }
 
-  Response findInjectedScript(int contextId, InjectedScript*&);
-  Response findInjectedScript(RemoteObjectIdBase*, InjectedScript*&);
+  Response findInjectedScript(
+      int contextId, InjectedScript*&,
+      std::shared_ptr<InspectedContext>* inspectedContext = nullptr);
+  Response findInjectedScript(
+      RemoteObjectIdBase*, InjectedScript*&,
+      std::shared_ptr<InspectedContext>* inspectedContext = nullptr);
   void reset();
   void discardInjectedScripts();
   void reportAllContexts(V8RuntimeAgentImpl*);

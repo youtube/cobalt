@@ -1078,15 +1078,47 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void InsertLowWordF64(FPURegister dst, Register src_low);
 
   void LoadFPRImmediate(FPURegister dst, float imm) {
+    ASM_CODE_COMMENT(this);
+    if (CpuFeatures::IsSupported(ZFA)) {
+      int imm5 = GetImm5ForFLIS(imm);
+      if (imm5 >= 0) {
+        fli_s(dst, static_cast<uint8_t>(imm5));
+        return;
+      }
+    }
     LoadFPRImmediate(dst, base::bit_cast<uint32_t>(imm));
   }
   void LoadFPRImmediate(FPURegister dst, double imm) {
+    ASM_CODE_COMMENT(this);
+    if (CpuFeatures::IsSupported(ZFA)) {
+      int imm5 = GetImm5ForFLID(imm);
+      if (imm5 >= 0) {
+        fli_d(dst, static_cast<uint8_t>(imm5));
+        return;
+      }
+    }
     LoadFPRImmediate(dst, base::bit_cast<uint64_t>(imm));
   }
   void LoadFPRImmediate(FPURegister dst, Float32 imm) {
+    ASM_CODE_COMMENT(this);
+    if (CpuFeatures::IsSupported(ZFA)) {
+      int imm5 = GetImm5ForFLIS(imm.get_scalar());
+      if (imm5 >= 0) {
+        fli_s(dst, static_cast<uint8_t>(imm5));
+        return;
+      }
+    }
     LoadFPRImmediate(dst, imm.get_bits());
   }
   void LoadFPRImmediate(FPURegister dst, Float64 imm) {
+    ASM_CODE_COMMENT(this);
+    if (CpuFeatures::IsSupported(ZFA)) {
+      int imm5 = GetImm5ForFLID(imm.get_scalar());
+      if (imm5 >= 0) {
+        fli_d(dst, static_cast<uint8_t>(imm5));
+        return;
+      }
+    }
     LoadFPRImmediate(dst, imm.get_bits());
   }
   void LoadFPRImmediate(FPURegister dst, uint32_t src);

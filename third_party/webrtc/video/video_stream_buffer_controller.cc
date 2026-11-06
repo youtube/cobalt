@@ -252,10 +252,7 @@ void VideoStreamBufferController::OnFrameReady(
                                        superframe_size);
     }
 
-    static constexpr float kRttMult = 0.9f;
-    static constexpr TimeDelta kRttMultAddCap = TimeDelta::Millis(200);
-    timing_->SetJitterDelay(
-        jitter_estimator_.GetJitterEstimate(kRttMult, kRttMultAddCap));
+    timing_->SetJitterDelay(jitter_estimator_.GetEstimate());
     timing_->UpdateCurrentDelay(render_time, now);
   } else {
     jitter_estimator_.FrameNacked();

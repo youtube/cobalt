@@ -86,7 +86,7 @@ class QUICHE_EXPORT WebTransportOnlyServerSession
   QuicSpdyStream* CreateIncomingStream(PendingStream* pending) override;
   QuicSpdyStream* CreateOutgoingBidirectionalStream() override;
   QuicStream* ProcessBidirectionalPendingStream(
-      PendingStream* pending) override;
+      PendingStream& pending) override;
 
   WebTransportHttp3VersionSet LocallySupportedWebTransportVersions()
       const override {

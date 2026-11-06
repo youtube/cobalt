@@ -235,6 +235,10 @@ constexpr size_t kSandboxSizeLog2 = 34;  // 16 GB
 // the available virtual address space. Uses V8_HOST_ARCH so that simulator
 // builds on x64 are not unnecessarily constrained.
 constexpr size_t kSandboxSizeLog2 = 37;  // 128 GB
+#elif defined(V8_TARGET_ARCH_LOONG64)
+// Some hardwares like 2k3000 only have 40-bit virtual address space, 39 bits
+// userspace and kernel each.
+constexpr size_t kSandboxSizeLog2 = 37;  // 128 GB
 #else
 // Everywhere else use a 1TB sandbox.
 constexpr size_t kSandboxSizeLog2 = 40;  // 1 TB

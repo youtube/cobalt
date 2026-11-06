@@ -34,8 +34,7 @@ class RtpPacketReceived;
 class MockChannelInterface : public ChannelInterface {
  public:
   MOCK_METHOD(MediaType, media_type, (), (const, override));
-  MOCK_METHOD(VideoChannel*, AsVideoChannel, (), (override));
-  MOCK_METHOD(VoiceChannel*, AsVoiceChannel, (), (override));
+
   MOCK_METHOD(MediaSendChannelInterface*, media_send_channel, (), (override));
   MOCK_METHOD(VoiceMediaSendChannelInterface*,
               voice_media_send_channel,

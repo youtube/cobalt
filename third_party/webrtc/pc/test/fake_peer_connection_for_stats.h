@@ -264,60 +264,30 @@ class FakeVideoMediaReceiveChannelForStats
 constexpr bool kDefaultRtcpMuxRequired = true;
 constexpr bool kDefaultSrtpRequired = true;
 
-class VoiceChannelForTesting : public VoiceChannel {
+class ChannelForTesting : public BaseChannel {
  public:
-  VoiceChannelForTesting(
+  ChannelForTesting(
       Thread* worker_thread,
       Thread* network_thread,
       Thread* signaling_thread,
-      std::unique_ptr<VoiceMediaSendChannelInterface> send_channel,
-      std::unique_ptr<VoiceMediaReceiveChannelInterface> receive_channel,
+      std::unique_ptr<MediaSendChannelInterface> send_channel,
+      std::unique_ptr<MediaReceiveChannelInterface> receive_channel,
       const std::string& content_name,
+      MediaType media_type,
       bool srtp_required,
       CryptoOptions crypto_options,
       UniqueRandomIdGenerator* ssrc_generator,
       std::string transport_name)
-      : VoiceChannel(worker_thread,
-                     network_thread,
-                     signaling_thread,
-                     std::move(send_channel),
-                     std::move(receive_channel),
-                     content_name,
-                     srtp_required,
-                     std::move(crypto_options),
-                     ssrc_generator),
-        test_transport_name_(std::move(transport_name)) {}
-
- private:
-  absl::string_view transport_name() const override {
-    return test_transport_name_;
-  }
-
-  const std::string test_transport_name_;
-};
-
-class VideoChannelForTesting : public VideoChannel {
- public:
-  VideoChannelForTesting(
-      Thread* worker_thread,
-      Thread* network_thread,
-      Thread* signaling_thread,
-      std::unique_ptr<VideoMediaSendChannelInterface> send_channel,
-      std::unique_ptr<VideoMediaReceiveChannelInterface> receive_channel,
-      const std::string& content_name,
-      bool srtp_required,
-      CryptoOptions crypto_options,
-      UniqueRandomIdGenerator* ssrc_generator,
-      std::string transport_name)
-      : VideoChannel(worker_thread,
-                     network_thread,
-                     signaling_thread,
-                     std::move(send_channel),
-                     std::move(receive_channel),
-                     content_name,
-                     srtp_required,
-                     std::move(crypto_options),
-                     ssrc_generator),
+      : BaseChannel(worker_thread,
+                    network_thread,
+                    signaling_thread,
+                    std::move(send_channel),
+                    std::move(receive_channel),
+                    content_name,
+                    media_type,
+                    srtp_required,
+                    std::move(crypto_options),
+                    ssrc_generator),
         test_transport_name_(std::move(transport_name)) {}
 
  private:
@@ -447,11 +417,12 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
         std::make_unique<FakeVoiceMediaReceiveChannelForStats>(network_thread_);
     auto* voice_media_send_channel_ptr = voice_media_send_channel.get();
     auto* voice_media_receive_channel_ptr = voice_media_receive_channel.get();
-    auto voice_channel = std::make_unique<VoiceChannelForTesting>(
+    auto voice_channel = std::make_unique<ChannelForTesting>(
         worker_thread_, network_thread_, signaling_thread_,
         std::move(voice_media_send_channel),
-        std::move(voice_media_receive_channel), mid, kDefaultSrtpRequired,
-        CryptoOptions(), context_->ssrc_generator(), transport_name);
+        std::move(voice_media_receive_channel), mid, MediaType::AUDIO,
+        kDefaultSrtpRequired, CryptoOptions(), context_->ssrc_generator(),
+        transport_name);
     auto transceiver =
         GetOrCreateFirstTransceiverOfType(webrtc::MediaType::AUDIO, mid)
             ->internal();
@@ -485,11 +456,12 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
         std::make_unique<FakeVideoMediaReceiveChannelForStats>(network_thread_);
     auto video_media_send_channel_ptr = video_media_send_channel.get();
     auto video_media_receive_channel_ptr = video_media_receive_channel.get();
-    auto video_channel = std::make_unique<VideoChannelForTesting>(
+    auto video_channel = std::make_unique<ChannelForTesting>(
         worker_thread_, network_thread_, signaling_thread_,
         std::move(video_media_send_channel),
-        std::move(video_media_receive_channel), mid, kDefaultSrtpRequired,
-        CryptoOptions(), context_->ssrc_generator(), transport_name);
+        std::move(video_media_receive_channel), mid, MediaType::VIDEO,
+        kDefaultSrtpRequired, CryptoOptions(), context_->ssrc_generator(),
+        transport_name);
     auto transceiver =
         GetOrCreateFirstTransceiverOfType(webrtc::MediaType::VIDEO, mid)
             ->internal();

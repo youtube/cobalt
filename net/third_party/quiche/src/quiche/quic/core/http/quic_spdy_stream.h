@@ -121,7 +121,7 @@ class QUICHE_EXPORT QuicSpdyStream
 
   QuicSpdyStream(QuicStreamId id, QuicSpdySession* spdy_session,
                  StreamType type);
-  QuicSpdyStream(PendingStream* pending, QuicSpdySession* spdy_session);
+  QuicSpdyStream(PendingStream& pending, QuicSpdySession* spdy_session);
   QuicSpdyStream(const QuicSpdyStream&) = delete;
   QuicSpdyStream& operator=(const QuicSpdyStream&) = delete;
   ~QuicSpdyStream() override;

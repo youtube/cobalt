@@ -6,6 +6,7 @@
 
 #import "base/strings/sys_string_conversions.h"
 #import "base/task/sequenced_task_runner.h"
+#import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/identity_manager/primary_account_change_event.h"
 #import "ios/chrome/browser/commerce/model/price_alert_util.h"
 #import "ios/chrome/browser/push_notification/model/push_notification_account_context_manager.h"
@@ -78,9 +79,7 @@ void PushNotificationProfileService::OnPrimaryAccountChanged(
   if (!service->DeviceTokenIsSet()) {
     return;
   }
-  const signin::ConsentLevel consent_level = signin::ConsentLevel::kSignin;
-
-  switch (event.GetEventTypeFor(consent_level)) {
+  switch (event.GetEventTypeFor(signin::ConsentLevel::kSignin)) {
     case signin::PrimaryAccountChangeEvent::Type::kSet: {
       // The PostTask function must be used for the OnPrimaryAccountSet to
       // ensure that the appropriate Profile has been updated with the newly

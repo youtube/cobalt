@@ -60,15 +60,19 @@ enum InstanceType : uint16_t;
   V(Cell)                             \
   V(CodeWrapper)                      \
   V(ConsString)                       \
+  V(Context)                          \
   V(ContextCell)                      \
   V(CppHeapExternalObject)            \
   V(DataHandler)                      \
   V(DebugInfo)                        \
+  V(DescriptorArray)                  \
+  V(StrongDescriptorArray)            \
   V(DoubleStringCache)                \
   V(EmbedderDataArray)                \
   V(EphemeronHashTable)               \
   V(ExternalString)                   \
   V(FeedbackCell)                     \
+  V(FeedbackVector)                   \
   V(Foreign)                          \
   V(FreeSpace)                        \
   V(FunctionTemplateInfo)             \
@@ -82,6 +86,7 @@ enum InstanceType : uint16_t;
   V(JSFunction)                       \
   V(JSObject)                         \
   V(JSObjectFast)                     \
+  V(JSProxy)                          \
   V(JSRegExp)                         \
   V(JSSynchronizationPrimitive)       \
   V(JSTypedArray)                     \

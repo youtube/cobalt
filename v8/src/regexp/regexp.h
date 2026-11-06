@@ -115,7 +115,8 @@ class RegExp final : public AllStatic {
 #ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
   static void TraceExecutionBegin(Address isolate_ptr);
   static void TraceExecutionEnd(Address isolate_ptr, Address data_ptr,
-                                Address subject_ptr, int32_t last_index);
+                                Address subject_ptr, int32_t last_index,
+                                int32_t result);
 #endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
   // See ECMA-262 section 15.10.6.2.

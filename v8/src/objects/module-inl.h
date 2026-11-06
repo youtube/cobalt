@@ -197,6 +197,13 @@ void Module::set_deferred_module_namespace(
   deferred_module_namespace_.store(this, value, mode);
 }
 
+Tagged<Module> JSModuleNamespace::module() const { return module_.load(); }
+
+void JSModuleNamespace::set_module(Tagged<Module> value,
+                                   WriteBarrierMode mode) {
+  module_.store(this, value, mode);
+}
+
 Tagged<Object> Module::exception() const { return exception_.load(); }
 void Module::set_exception(Tagged<Object> value, WriteBarrierMode mode) {
   exception_.store(this, value, mode);

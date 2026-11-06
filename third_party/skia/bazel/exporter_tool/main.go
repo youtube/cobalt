@@ -276,8 +276,8 @@ var gniExportDescs = []exporter.GNIExportDesc{
 			}},
 		{Var: "skia_graphite_dawn_sources",
 			Rules: []string{
-				"//src/gpu/graphite/dawn:_dawn_hdrs",
-				"//src/gpu/graphite/dawn:_dawn_srcs",
+				"//src/gpu/graphite/dawn:dawn_hdrs",
+				"//src/gpu/graphite/dawn:dawn_srcs",
 			}},
 		{Var: "skia_graphite_mtl_public",
 			Rules: []string{

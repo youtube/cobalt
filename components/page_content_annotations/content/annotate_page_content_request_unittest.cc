@@ -13,6 +13,7 @@
 
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
@@ -98,7 +99,7 @@ class AnnotatePageContentRequestTest
   }
 
   void TearDown() override {
-    request_.reset();
+    request_ = nullptr;
     extraction_service_.reset();
     os_crypt_async_.reset();
     content::RenderViewHostTestHarness::TearDown();
@@ -112,7 +113,9 @@ class AnnotatePageContentRequestTest
   }
 
   void RecreateRequest() {
-    request_ = AnnotatedPageContentRequest::Create(
+    request_ = nullptr;
+    web_contents()->RemoveUserData(AnnotatedPageContentRequest::UserDataKey());
+    AnnotatedPageContentRequest::CreateForWebContents(
         web_contents(), extraction_service_.value(),
         base::BindRepeating(
             [](AnnotatePageContentRequestTest* test, content::WebContents&,
@@ -132,6 +135,7 @@ class AnnotatePageContentRequestTest
         base::BindRepeating([](content::WebContents* web_contents) {
           return std::make_optional(reinterpret_cast<int64_t>(web_contents));
         }));
+    request_ = AnnotatedPageContentRequest::FromWebContents(web_contents());
   }
 
   std::unique_ptr<content::MockNavigationHandle> CreateHandle(
@@ -144,15 +148,15 @@ class AnnotatePageContentRequestTest
     return handle;
   }
 
-  void SimulatePageLoad() {
+  void SimulateNavigation(const GURL& url) {
     auto navigation = content::NavigationSimulator::CreateBrowserInitiated(
-        GURL("https://example.com/"), web_contents());
+        url, web_contents());
     navigation->Start();
-    request_->PrimaryPageChanged();
     navigation->Commit();
-    auto handle = CreateHandle(true, false);
-    request_->DidFinishNavigation(handle.get());
-    request_->DidStopLoading();
+  }
+
+  void SimulatePageLoad(const GURL& url = GURL("https://example.com/")) {
+    SimulateNavigation(url);
     request_->OnFirstContentfulPaintInPrimaryMainFrame();
   }
 
@@ -174,7 +178,7 @@ class AnnotatePageContentRequestTest
   base::test::ScopedFeatureList feature_list_;
   std::unique_ptr<os_crypt_async::OSCryptAsync> os_crypt_async_;
   std::optional<TestPageContentExtractionService> extraction_service_;
-  std::unique_ptr<AnnotatedPageContentRequest> request_;
+  raw_ptr<AnnotatedPageContentRequest> request_ = nullptr;
   blink::mojom::AIPageContentOptionsPtr previous_options_;
 };
 
@@ -189,7 +193,6 @@ TEST_F(AnnotatePageContentRequestTest, OnLoadTrigger) {
 
   // Hiding should not trigger another extraction.
   web_contents()->WasHidden();
-  request_->OnVisibilityChanged(content::Visibility::HIDDEN);
   EXPECT_EQ(extraction_service().extraction_count(), 1);
 }
 
@@ -203,19 +206,16 @@ TEST_F(AnnotatePageContentRequestTest, OnHiddenTrigger) {
 
   // Hiding should trigger extraction.
   web_contents()->WasHidden();
-  request_->OnVisibilityChanged(content::Visibility::HIDDEN);
   WaitForExtraction();
   EXPECT_EQ(extraction_service().extraction_count(), 1);
   EXPECT_TRUE(extraction_service().last_extracted_content().has_value());
 
   // Showing and hiding again should trigger another extraction.
   web_contents()->WasShown();
-  request_->OnVisibilityChanged(content::Visibility::VISIBLE);
   // No extraction expected.
   EXPECT_EQ(extraction_service().extraction_count(), 1);
 
   web_contents()->WasHidden();
-  request_->OnVisibilityChanged(content::Visibility::HIDDEN);
   WaitForExtraction();
   EXPECT_EQ(extraction_service().extraction_count(), 2);
 }
@@ -228,7 +228,6 @@ TEST_F(AnnotatePageContentRequestTest,
 
   // Hide the tab. Extraction should be scheduled (but delayed 5s).
   web_contents()->WasHidden();
-  request_->OnVisibilityChanged(content::Visibility::HIDDEN);
 
   // At this point, no extraction has happened because of the 5s delay.
   EXPECT_EQ(extraction_service().extraction_count(), 0);
@@ -236,7 +235,6 @@ TEST_F(AnnotatePageContentRequestTest,
   // Hide the tab again before the 5s delay finishes.
   // This should be a no-op because it's already kScheduled.
   web_contents()->WasHidden();
-  request_->OnVisibilityChanged(content::Visibility::HIDDEN);
 
   // Now speed up time to trigger the extraction scheduled tasks.
   task_environment()->FastForwardBy(base::Seconds(5));
@@ -257,18 +255,15 @@ TEST_F(AnnotatePageContentRequestTest, OnLoadAndHiddenTrigger) {
 
   // Hiding should trigger another extraction.
   web_contents()->WasHidden();
-  request_->OnVisibilityChanged(content::Visibility::HIDDEN);
   WaitForExtraction();
   EXPECT_EQ(extraction_service().extraction_count(), 2);
 
   // Showing and hiding again should trigger another extraction.
   web_contents()->WasShown();
-  request_->OnVisibilityChanged(content::Visibility::VISIBLE);
   // No extraction expected.
   EXPECT_EQ(extraction_service().extraction_count(), 2);
 
   web_contents()->WasHidden();
-  request_->OnVisibilityChanged(content::Visibility::HIDDEN);
   WaitForExtraction();
   EXPECT_EQ(extraction_service().extraction_count(), 3);
 }
@@ -278,7 +273,6 @@ TEST_F(AnnotatePageContentRequestTest, OnLoadAndHiddenTrigger_LoadWhileHidden) {
 
   // Start with the tab hidden.
   web_contents()->WasHidden();
-  request_->OnVisibilityChanged(content::Visibility::HIDDEN);
 
   SimulatePageLoad();
   WaitForExtraction();
@@ -289,12 +283,10 @@ TEST_F(AnnotatePageContentRequestTest, OnLoadAndHiddenTrigger_LoadWhileHidden) {
 
   // Showing should not trigger extraction.
   web_contents()->WasShown();
-  request_->OnVisibilityChanged(content::Visibility::VISIBLE);
   EXPECT_EQ(extraction_service().extraction_count(), 1);
 
   // Hiding again should trigger another extraction.
   web_contents()->WasHidden();
-  request_->OnVisibilityChanged(content::Visibility::HIDDEN);
   WaitForExtraction();
   EXPECT_EQ(extraction_service().extraction_count(), 2);
 }
@@ -308,15 +300,7 @@ TEST_F(AnnotatePageContentRequestTest, ResetOnNewNavigation) {
   EXPECT_EQ(extraction_service().extraction_count(), 1);
 
   // New navigation.
-  auto navigation = content::NavigationSimulator::CreateBrowserInitiated(
-      GURL("https://example.com/2"), web_contents());
-  navigation->Start();
-  request_->PrimaryPageChanged();
-  navigation->Commit();
-  auto handle = CreateHandle(true, false);
-  request_->DidFinishNavigation(handle.get());
-  request_->DidStopLoading();
-  request_->OnFirstContentfulPaintInPrimaryMainFrame();
+  SimulatePageLoad(GURL("https://example.com/2"));
   WaitForExtraction();
 
   EXPECT_EQ(extraction_service().extraction_count(), 2);
@@ -376,7 +360,6 @@ TEST_F(AnnotatePageContentRequestTest, OnLoadTrigger_ExtractsEvenWhileHidden) {
 
   // Tab starts completely hidden.
   web_contents()->WasHidden();
-  request_->OnVisibilityChanged(content::Visibility::HIDDEN);
 
   SimulatePageLoad();
   WaitForExtraction();
@@ -403,7 +386,6 @@ TEST_F(AnnotatePageContentRequestTest,
 
   // Not finished loading, but triggered a hide event!
   web_contents()->WasHidden();
-  request_->OnVisibilityChanged(content::Visibility::HIDDEN);
 
   // Should definitively not have scheduled or fired an extraction.
   // Wait using FastForward in case there's an erroneous 0s delay task.
@@ -435,17 +417,19 @@ TEST_F(AnnotatePageContentRequestTest,
       async_callback);
 
   // Overwrite the synchronous request with our manual mock.
-  request_ = AnnotatedPageContentRequest::Create(
+  request_ = nullptr;
+  web_contents()->RemoveUserData(AnnotatedPageContentRequest::UserDataKey());
+  AnnotatedPageContentRequest::CreateForWebContents(
       web_contents(), extraction_service(), manual_callback,
       base::BindRepeating([](content::WebContents* web_contents) {
         return std::make_optional(reinterpret_cast<int64_t>(web_contents));
       }));
+  request_ = AnnotatedPageContentRequest::FromWebContents(web_contents());
 
   SimulatePageLoad();
 
   // 1. Hide the tab -> Extraction is scheduled and begins.
   web_contents()->WasHidden();
-  request_->OnVisibilityChanged(content::Visibility::HIDDEN);
 
   // Fast forward past any immediate capture delays to post the request
   // callback.
@@ -458,7 +442,6 @@ TEST_F(AnnotatePageContentRequestTest,
   // 2. Tab becomes visible before the async call returns.
   // Under the old bug, this repeatedly toggled the state.
   web_contents()->WasShown();
-  request_->OnVisibilityChanged(content::Visibility::VISIBLE);
 
   // 3. The async call finally returns.
   auto page_content =
@@ -479,7 +462,6 @@ TEST_F(AnnotatePageContentRequestTest,
   // With the bug fixed, it should correctly identify it as a new hide
   // transition and extract again.
   web_contents()->WasHidden();
-  request_->OnVisibilityChanged(content::Visibility::HIDDEN);
 
   task_environment()->FastForwardBy(base::Seconds(1));
 
@@ -525,7 +507,7 @@ TEST_F(AnnotatePageContentRequestTest, RefreshAPC_Batching) {
 
   // Create another request with an async fetcher to test batching.
   FetchPageContextResultCallback saved_callback;
-  auto async_request = AnnotatedPageContentRequest::Create(
+  auto async_request = AnnotatedPageContentRequest::CreateForTesting(
       web_contents(), extraction_service(),
       base::BindRepeating(
           [](FetchPageContextResultCallback* saved, content::WebContents&,
@@ -603,8 +585,10 @@ TEST_F(AnnotatePageContentRequestTest,
 }
 
 TEST_F(AnnotatePageContentRequestTest, RefreshAPC_ExtractionFailure) {
+  // Ensures extraction is enabled for this class.
+  SetTriggeringMode("on_load");
   // Create a request with a failing fetcher.
-  auto failing_request = AnnotatedPageContentRequest::Create(
+  auto failing_request = AnnotatedPageContentRequest::CreateForTesting(
       web_contents(), extraction_service(),
       base::BindRepeating([](content::WebContents&,
                              const FetchPageContextOptions&,
@@ -627,9 +611,11 @@ TEST_F(AnnotatePageContentRequestTest, RefreshAPC_ExtractionFailure) {
 }
 
 TEST_F(AnnotatePageContentRequestTest, RefreshAPC_NavigationWhileRunning) {
+  // Ensures extraction is enabled for this class.
+  SetTriggeringMode("on_load");
   // Create a request with an async fetcher (saves the callback).
   FetchPageContextResultCallback saved_callback;
-  auto async_request = AnnotatedPageContentRequest::Create(
+  auto async_request = AnnotatedPageContentRequest::CreateForTesting(
       web_contents(), extraction_service(),
       base::BindRepeating(
           [](FetchPageContextResultCallback* saved, content::WebContents&,
@@ -643,23 +629,17 @@ TEST_F(AnnotatePageContentRequestTest, RefreshAPC_NavigationWhileRunning) {
         return std::make_optional(reinterpret_cast<int64_t>(web_contents));
       }));
 
-  SimulatePageLoad();
-
   base::test::TestFuture<std::optional<ExtractedPageContentResult>>
       refresh_future;
   async_request->RefreshExtractedPageContentAndEligibilityForPage(
       refresh_future.GetCallback());
 
-  // Extraction should be running now.
+  // Extraction should be scheduled now.
   EXPECT_TRUE(saved_callback);
   EXPECT_EQ(extraction_service().extraction_count(), 0);
 
   // Simulate another navigation.
-  auto navigation = content::NavigationSimulator::CreateBrowserInitiated(
-      GURL("https://example_new.com/"), web_contents());
-  navigation->Start();
-  async_request->PrimaryPageChanged();
-  navigation->Commit();
+  SimulateNavigation(GURL("https://example_new.com/"));
 
   // The callback should error out due to the navigation.
   EXPECT_FALSE(refresh_future.Get().has_value());
@@ -727,11 +707,7 @@ TEST_F(AnnotatePageContentRequestTest, GetAsync_InvalidateOnNavigation) {
   EXPECT_FALSE(eligibility_future.IsReady());
 
   // Navigate to a new URL before extraction finishes.
-  auto navigation = content::NavigationSimulator::CreateBrowserInitiated(
-      GURL("https://example.com/2"), web_contents());
-  navigation->Start();
-  request_->PrimaryPageChanged();
-  navigation->Commit();
+  SimulateNavigation(GURL("https://example.com/2"));
 
   ASSERT_TRUE(content_future.Wait());
   EXPECT_FALSE(content_future.Get().has_value());

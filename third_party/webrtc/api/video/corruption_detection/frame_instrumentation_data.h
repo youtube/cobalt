@@ -19,6 +19,11 @@ namespace webrtc {
 class FrameInstrumentationData {
  public:
   FrameInstrumentationData();
+  FrameInstrumentationData(const FrameInstrumentationData&) = default;
+  FrameInstrumentationData(FrameInstrumentationData&&) = default;
+  FrameInstrumentationData& operator=(const FrameInstrumentationData&) =
+      default;
+  FrameInstrumentationData& operator=(FrameInstrumentationData&&) = default;
 
   int sequence_index() const { return sequence_index_; }
   bool is_droppable() const { return droppable_; }

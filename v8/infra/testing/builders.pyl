@@ -471,7 +471,7 @@
       {'name': 'v8testing', 'shards': 3},
     ],
   },
-  'v8_linux64_disable_runtime_call_stats_rel': {
+  'v8_linux64_runtime_call_stats_rel': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-22.04',
     },
@@ -1694,7 +1694,7 @@
       {'name': 'v8testing', 'variant': 'default', 'shards': 12},
     ],
   },
-  'V8 Linux64 - disable runtime call stats': {
+  'V8 Linux64 - runtime call stats': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-22.04',
     },

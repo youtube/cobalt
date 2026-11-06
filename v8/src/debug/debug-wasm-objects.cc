@@ -226,7 +226,7 @@ struct NamedDebugProxy : IndexedDebugProxy<T, id, Provider> {
     DirectHandle<Symbol> symbol =
         isolate->factory()->wasm_debug_proxy_names_symbol();
     DirectHandle<Object> table_or_undefined =
-        JSObject::GetProperty(isolate, holder, symbol).ToHandleChecked();
+        JSReceiver::GetProperty(isolate, holder, symbol).ToHandleChecked();
     if (!IsUndefined(*table_or_undefined, isolate)) {
       return Cast<NameDictionary>(table_or_undefined);
     }
@@ -618,7 +618,7 @@ class ContextProxy {
       for (auto delegate_name : kDelegateNames) {
         DirectHandle<JSAny> delegate;
         ASSIGN_RETURN_ON_EXCEPTION(isolate, delegate,
-                                   Cast<JSAny>(JSObject::GetProperty(
+                                   Cast<JSAny>(JSReceiver::GetProperty(
                                        isolate, receiver, delegate_name)));
         if (!IsUndefined(*delegate, isolate)) {
           DirectHandle<Object> value;

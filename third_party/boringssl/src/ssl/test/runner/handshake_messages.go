@@ -7,6 +7,7 @@ package runner
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"golang.org/x/crypto/cryptobyte"
 )
@@ -259,6 +260,7 @@ type clientHelloMsg struct {
 	outerExtensions                          []uint16
 	reorderOuterExtensionsWithoutCompressing bool
 	prefixExtensions                         []uint16
+	extensionsWithTrailingData               []uint16
 	// The following fields are only filled in by |unmarshal| and ignored when
 	// marshaling a new ClientHello.
 	echPayloadStart int
@@ -611,7 +613,8 @@ func (m *clientHelloMsg) marshalBody(hello *cryptobyte.Builder, typ clientHelloT
 			body: body.BytesOrPanic(),
 		})
 	}
-	if len(m.certificateAuthorities) > 0 {
+	// Check against nil to allow sending an (invalid) empty list.
+	if m.certificateAuthorities != nil {
 		body := cryptobyte.NewBuilder(nil)
 		body.AddUint16LengthPrefixed(func(certificateAuthorities *cryptobyte.Builder) {
 			for _, ca := range m.certificateAuthorities {
@@ -678,6 +681,13 @@ func (m *clientHelloMsg) marshalBody(hello *cryptobyte.Builder, typ clientHelloT
 			id:   extensionPreSharedKey,
 			body: pskExtension.BytesOrPanic(),
 		})
+	}
+
+	// Append trailing data to extensions if requested.
+	for i := range extensions {
+		if slices.Contains(m.extensionsWithTrailingData, extensions[i].id) {
+			extensions[i].body = append(slices.Clip(extensions[i].body), 0)
+		}
 	}
 
 	if m.omitExtensions {
@@ -1631,92 +1641,92 @@ func (m *encryptedExtensionsMsg) unmarshal(data []byte) bool {
 }
 
 type serverExtensions struct {
-	nextProtoNeg              bool
-	nextProtos                []string
-	ocspStapling              bool
-	ticketSupported           bool
-	secureRenegotiation       []byte
-	alpnProtocol              string
-	alpnProtocolEmpty         bool
-	duplicateExtension        bool
-	channelIDRequested        bool
-	extendedMasterSecret      bool
-	srtpProtectionProfile     uint16
-	srtpMasterKeyIdentifier   string
-	sctList                   []byte
-	customExtension           string
-	npnAfterAlpn              bool
-	hasKeyShare               bool
-	hasEarlyData              bool
-	keyShare                  keyShareEntry
-	supportedVersion          uint16
-	supportedPoints           []uint8
-	supportedCurves           []CurveID
-	quicTransportParams       []byte
-	quicTransportParamsLegacy []byte
-	serverNameAck             bool
-	applicationSettings       []byte
-	hasApplicationSettings    bool
-	applicationSettingsOld    []byte
-	hasApplicationSettingsOld bool
-	echRetryConfigs           []byte
-	trustAnchors              [][]byte
-	clientCertificateType     *CertificateType
-	serverCertificateType     *CertificateType
+	nextProtoNeg               bool
+	nextProtos                 []string
+	ocspStapling               bool
+	ticketSupported            bool
+	secureRenegotiation        []byte
+	alpnProtocol               string
+	alpnProtocolEmpty          bool
+	duplicateExtension         bool
+	channelIDRequested         bool
+	extendedMasterSecret       bool
+	srtpProtectionProfile      uint16
+	srtpMasterKeyIdentifier    string
+	sctList                    []byte
+	customExtension            string
+	npnAfterAlpn               bool
+	hasKeyShare                bool
+	hasEarlyData               bool
+	keyShare                   keyShareEntry
+	supportedVersion           uint16
+	supportedPoints            []uint8
+	supportedCurves            []CurveID
+	quicTransportParams        []byte
+	quicTransportParamsLegacy  []byte
+	serverNameAck              bool
+	applicationSettings        []byte
+	hasApplicationSettings     bool
+	applicationSettingsOld     []byte
+	hasApplicationSettingsOld  bool
+	echRetryConfigs            []byte
+	trustAnchors               [][]byte
+	clientCertificateType      *CertificateType
+	serverCertificateType      *CertificateType
+	extensionsWithTrailingData []uint16
 }
 
 func (m *serverExtensions) marshal(extensions *cryptobyte.Builder) {
+	addExt := func(id uint16, cb func(*cryptobyte.Builder)) {
+		extensions.AddUint16(id)
+		extensions.AddUint16LengthPrefixed(func(extension *cryptobyte.Builder) {
+			cb(extension)
+			if slices.Contains(m.extensionsWithTrailingData, id) {
+				extension.AddUint8(0)
+			}
+		})
+	}
 	if m.duplicateExtension {
 		// Add a duplicate bogus extension at the beginning and end.
-		extensions.AddUint16(extensionDuplicate)
-		extensions.AddUint16(0) // length = 0 for empty extension
+		addExt(extensionDuplicate, func(*cryptobyte.Builder) {})
 	}
 	if m.nextProtoNeg && !m.npnAfterAlpn {
-		extensions.AddUint16(extensionNextProtoNeg)
-		extensions.AddUint16LengthPrefixed(func(extension *cryptobyte.Builder) {
+		addExt(extensionNextProtoNeg, func(extension *cryptobyte.Builder) {
 			for _, v := range m.nextProtos {
 				addUint8LengthPrefixedBytes(extension, []byte(v))
 			}
 		})
 	}
 	if m.ocspStapling {
-		extensions.AddUint16(extensionStatusRequest)
-		extensions.AddUint16(0)
+		addExt(extensionStatusRequest, func(*cryptobyte.Builder) {})
 	}
 	if m.ticketSupported {
-		extensions.AddUint16(extensionSessionTicket)
-		extensions.AddUint16(0)
+		addExt(extensionSessionTicket, func(*cryptobyte.Builder) {})
 	}
 	if m.secureRenegotiation != nil {
-		extensions.AddUint16(extensionRenegotiationInfo)
-		extensions.AddUint16LengthPrefixed(func(extension *cryptobyte.Builder) {
+		addExt(extensionRenegotiationInfo, func(extension *cryptobyte.Builder) {
 			addUint8LengthPrefixedBytes(extension, m.secureRenegotiation)
 		})
 	}
 	if len(m.alpnProtocol) > 0 || m.alpnProtocolEmpty {
-		extensions.AddUint16(extensionALPN)
-		extensions.AddUint16LengthPrefixed(func(extension *cryptobyte.Builder) {
+		addExt(extensionALPN, func(extension *cryptobyte.Builder) {
 			extension.AddUint16LengthPrefixed(func(protocolNameList *cryptobyte.Builder) {
 				addUint8LengthPrefixedBytes(protocolNameList, []byte(m.alpnProtocol))
 			})
 		})
 	}
 	if m.channelIDRequested {
-		extensions.AddUint16(extensionChannelID)
-		extensions.AddUint16(0)
+		addExt(extensionChannelID, func(*cryptobyte.Builder) {})
 	}
 	if m.duplicateExtension {
 		// Add a duplicate bogus extension at the beginning and end.
-		extensions.AddUint16(extensionDuplicate)
-		extensions.AddUint16(0)
+		addExt(extensionDuplicate, func(*cryptobyte.Builder) {})
 	}
 	if m.extendedMasterSecret {
-		extensions.AddUint16(extensionExtendedMasterSecret)
-		extensions.AddUint16(0)
+		addExt(extensionExtendedMasterSecret, func(*cryptobyte.Builder) {})
 	}
 	if m.srtpProtectionProfile != 0 {
-		extensions.AddUint16(extensionUseSRTP)
-		extensions.AddUint16LengthPrefixed(func(extension *cryptobyte.Builder) {
+		addExt(extensionUseSRTP, func(extension *cryptobyte.Builder) {
 			extension.AddUint16LengthPrefixed(func(srtpProtectionProfiles *cryptobyte.Builder) {
 				srtpProtectionProfiles.AddUint16(m.srtpProtectionProfile)
 			})
@@ -1724,44 +1734,42 @@ func (m *serverExtensions) marshal(extensions *cryptobyte.Builder) {
 		})
 	}
 	if m.sctList != nil {
-		extensions.AddUint16(extensionSignedCertificateTimestamp)
-		addUint16LengthPrefixedBytes(extensions, m.sctList)
+		addExt(extensionSignedCertificateTimestamp, func(extension *cryptobyte.Builder) {
+			extension.AddBytes(m.sctList)
+		})
 	}
 	if l := len(m.customExtension); l > 0 {
-		extensions.AddUint16(extensionCustom)
-		addUint16LengthPrefixedBytes(extensions, []byte(m.customExtension))
+		addExt(extensionCustom, func(extension *cryptobyte.Builder) {
+			extension.AddBytes([]byte(m.customExtension))
+		})
 	}
 	if m.nextProtoNeg && m.npnAfterAlpn {
-		extensions.AddUint16(extensionNextProtoNeg)
-		extensions.AddUint16LengthPrefixed(func(extension *cryptobyte.Builder) {
+		addExt(extensionNextProtoNeg, func(extension *cryptobyte.Builder) {
 			for _, v := range m.nextProtos {
 				addUint8LengthPrefixedBytes(extension, []byte(v))
 			}
 		})
 	}
 	if m.hasKeyShare {
-		extensions.AddUint16(extensionKeyShare)
-		extensions.AddUint16LengthPrefixed(func(keyShare *cryptobyte.Builder) {
+		addExt(extensionKeyShare, func(keyShare *cryptobyte.Builder) {
 			keyShare.AddUint16(uint16(m.keyShare.group))
 			addUint16LengthPrefixedBytes(keyShare, m.keyShare.keyExchange)
 		})
 	}
 	if m.supportedVersion != 0 {
-		extensions.AddUint16(extensionSupportedVersions)
-		extensions.AddUint16(2) // Length
-		extensions.AddUint16(m.supportedVersion)
+		addExt(extensionSupportedVersions, func(extension *cryptobyte.Builder) {
+			extension.AddUint16(m.supportedVersion)
+		})
 	}
 	if len(m.supportedPoints) > 0 {
 		// http://tools.ietf.org/html/rfc4492#section-5.1.2
-		extensions.AddUint16(extensionSupportedPoints)
-		extensions.AddUint16LengthPrefixed(func(supportedPointsList *cryptobyte.Builder) {
+		addExt(extensionSupportedPoints, func(supportedPointsList *cryptobyte.Builder) {
 			addUint8LengthPrefixedBytes(supportedPointsList, m.supportedPoints)
 		})
 	}
 	if len(m.supportedCurves) > 0 {
 		// https://tools.ietf.org/html/rfc8446#section-4.2.7
-		extensions.AddUint16(extensionSupportedCurves)
-		extensions.AddUint16LengthPrefixed(func(supportedCurvesList *cryptobyte.Builder) {
+		addExt(extensionSupportedCurves, func(supportedCurvesList *cryptobyte.Builder) {
 			supportedCurvesList.AddUint16LengthPrefixed(func(supportedCurves *cryptobyte.Builder) {
 				for _, curve := range m.supportedCurves {
 					supportedCurves.AddUint16(uint16(curve))
@@ -1770,36 +1778,38 @@ func (m *serverExtensions) marshal(extensions *cryptobyte.Builder) {
 		})
 	}
 	if len(m.quicTransportParams) > 0 {
-		extensions.AddUint16(extensionQUICTransportParams)
-		addUint16LengthPrefixedBytes(extensions, m.quicTransportParams)
+		addExt(extensionQUICTransportParams, func(extension *cryptobyte.Builder) {
+			extension.AddBytes(m.quicTransportParams)
+		})
 	}
 	if len(m.quicTransportParamsLegacy) > 0 {
-		extensions.AddUint16(extensionQUICTransportParamsLegacy)
-		addUint16LengthPrefixedBytes(extensions, m.quicTransportParamsLegacy)
+		addExt(extensionQUICTransportParamsLegacy, func(extension *cryptobyte.Builder) {
+			extension.AddBytes(m.quicTransportParamsLegacy)
+		})
 	}
 	if m.hasEarlyData {
-		extensions.AddUint16(extensionEarlyData)
-		extensions.AddBytes([]byte{0, 0})
+		addExt(extensionEarlyData, func(*cryptobyte.Builder) {})
 	}
 	if m.serverNameAck {
-		extensions.AddUint16(extensionServerName)
-		extensions.AddUint16(0) // zero length
+		addExt(extensionServerName, func(*cryptobyte.Builder) {})
 	}
 	if m.hasApplicationSettings {
-		extensions.AddUint16(extensionApplicationSettings)
-		addUint16LengthPrefixedBytes(extensions, m.applicationSettings)
+		addExt(extensionApplicationSettings, func(extension *cryptobyte.Builder) {
+			extension.AddBytes(m.applicationSettings)
+		})
 	}
 	if m.hasApplicationSettingsOld {
-		extensions.AddUint16(extensionApplicationSettingsOld)
-		addUint16LengthPrefixedBytes(extensions, m.applicationSettingsOld)
+		addExt(extensionApplicationSettingsOld, func(extension *cryptobyte.Builder) {
+			extension.AddBytes(m.applicationSettingsOld)
+		})
 	}
 	if len(m.echRetryConfigs) > 0 {
-		extensions.AddUint16(extensionEncryptedClientHello)
-		addUint16LengthPrefixedBytes(extensions, m.echRetryConfigs)
+		addExt(extensionEncryptedClientHello, func(extension *cryptobyte.Builder) {
+			extension.AddBytes(m.echRetryConfigs)
+		})
 	}
 	if len(m.trustAnchors) > 0 {
-		extensions.AddUint16(extensionTrustAnchors)
-		extensions.AddUint16LengthPrefixed(func(extension *cryptobyte.Builder) {
+		addExt(extensionTrustAnchors, func(extension *cryptobyte.Builder) {
 			extension.AddUint16LengthPrefixed(func(trustAnchorList *cryptobyte.Builder) {
 				for _, id := range m.trustAnchors {
 					addUint8LengthPrefixedBytes(trustAnchorList, id)
@@ -1808,14 +1818,14 @@ func (m *serverExtensions) marshal(extensions *cryptobyte.Builder) {
 		})
 	}
 	if m.clientCertificateType != nil {
-		extensions.AddUint16(extensionClientCertificateType)
-		extensions.AddUint16(1) // Length
-		extensions.AddUint8(uint8(*m.clientCertificateType))
+		addExt(extensionClientCertificateType, func(extension *cryptobyte.Builder) {
+			extension.AddUint8(uint8(*m.clientCertificateType))
+		})
 	}
 	if m.serverCertificateType != nil {
-		extensions.AddUint16(extensionServerCertificateType)
-		extensions.AddUint16(1) // Length
-		extensions.AddUint8(uint8(*m.serverCertificateType))
+		addExt(extensionServerCertificateType, func(extension *cryptobyte.Builder) {
+			extension.AddUint8(uint8(*m.serverCertificateType))
+		})
 	}
 }
 
@@ -2226,7 +2236,8 @@ type certificateMsg struct {
 	// `certTypeRawPublicKey`, then the Raw Public Key data, if any, is stored in
 	// `certificates[0].data` and `certificates` will contain exactly 1 entry.
 	// (Or else `certificates` will be empty.)
-	certificateType CertificateType
+	certificateType            CertificateType
+	extensionsWithTrailingData []uint16
 }
 
 func (m *certificateMsg) marshal() (x []byte) {
@@ -2252,13 +2263,21 @@ func (m *certificateMsg) marshal() (x []byte) {
 				addUint24LengthPrefixedBytes(certificateList, cert.data)
 				if m.hasRequestContext {
 					certificateList.AddUint16LengthPrefixed(func(extensions *cryptobyte.Builder) {
+						addExt := func(id uint16, cb func(*cryptobyte.Builder)) {
+							extensions.AddUint16(id)
+							extensions.AddUint16LengthPrefixed(func(extension *cryptobyte.Builder) {
+								cb(extension)
+								if slices.Contains(m.extensionsWithTrailingData, id) {
+									extension.AddUint8(0)
+								}
+							})
+						}
 						if (i == 0 && m.matchedTrustAnchor) || (i == 1 && m.sendTrustAnchorWrongCertificate) {
-							extensions.AddUint16(extensionTrustAnchors)
-							if m.sendNonEmptyTrustAnchorMatch {
-								addUint16LengthPrefixedBytes(extensions, []byte{0x03, 0xba, 0xdb, 0x0b})
-							} else {
-								extensions.AddUint16(0) // Empty extension
-							}
+							addExt(extensionTrustAnchors, func(extension *cryptobyte.Builder) {
+								if m.sendNonEmptyTrustAnchorMatch {
+									extension.AddBytes([]byte{0x03, 0xba, 0xdb, 0x0b})
+								}
+							})
 						}
 						count := 1
 						if cert.duplicateExtensions {
@@ -2267,16 +2286,16 @@ func (m *certificateMsg) marshal() (x []byte) {
 
 						for i := 0; i < count; i++ {
 							if cert.ocspResponse != nil {
-								extensions.AddUint16(extensionStatusRequest)
-								extensions.AddUint16LengthPrefixed(func(body *cryptobyte.Builder) {
+								addExt(extensionStatusRequest, func(body *cryptobyte.Builder) {
 									body.AddUint8(statusTypeOCSP)
 									addUint24LengthPrefixedBytes(body, cert.ocspResponse)
 								})
 							}
 
 							if cert.sctList != nil {
-								extensions.AddUint16(extensionSignedCertificateTimestamp)
-								addUint16LengthPrefixedBytes(extensions, cert.sctList)
+								addExt(extensionSignedCertificateTimestamp, func(body *cryptobyte.Builder) {
+									body.AddBytes(cert.sctList)
+								})
 							}
 						}
 						if cert.extraExtension != nil {
@@ -2625,12 +2644,13 @@ type certificateRequestMsg struct {
 	// TLS 1.3.
 	hasRequestContext bool
 
-	certificateTypes        []byte
-	requestContext          []byte
-	signatureAlgorithms     []signatureAlgorithm
-	signatureAlgorithmsCert []signatureAlgorithm
-	certificateAuthorities  [][]byte
-	customExtension         uint16
+	certificateTypes           []byte
+	requestContext             []byte
+	signatureAlgorithms        []signatureAlgorithm
+	signatureAlgorithmsCert    []signatureAlgorithm
+	certificateAuthorities     [][]byte
+	customExtension            uint16
+	extensionsWithTrailingData []uint16
 }
 
 func (m *certificateRequestMsg) marshal() []byte {
@@ -2645,9 +2665,18 @@ func (m *certificateRequestMsg) marshal() []byte {
 		if m.hasRequestContext {
 			addUint8LengthPrefixedBytes(body, m.requestContext)
 			body.AddUint16LengthPrefixed(func(extensions *cryptobyte.Builder) {
-				if m.hasSignatureAlgorithm {
-					extensions.AddUint16(extensionSignatureAlgorithms)
+				addExt := func(id uint16, cb func(*cryptobyte.Builder)) {
+					extensions.AddUint16(id)
 					extensions.AddUint16LengthPrefixed(func(extension *cryptobyte.Builder) {
+						cb(extension)
+						if slices.Contains(m.extensionsWithTrailingData, id) {
+							extension.AddUint8(0)
+						}
+					})
+				}
+
+				if m.hasSignatureAlgorithm {
+					addExt(extensionSignatureAlgorithms, func(extension *cryptobyte.Builder) {
 						extension.AddUint16LengthPrefixed(func(signatureAlgorithms *cryptobyte.Builder) {
 							for _, sigAlg := range m.signatureAlgorithms {
 								signatureAlgorithms.AddUint16(uint16(sigAlg))
@@ -2656,8 +2685,7 @@ func (m *certificateRequestMsg) marshal() []byte {
 					})
 				}
 				if len(m.signatureAlgorithmsCert) > 0 {
-					extensions.AddUint16(extensionSignatureAlgorithmsCert)
-					extensions.AddUint16LengthPrefixed(func(extension *cryptobyte.Builder) {
+					addExt(extensionSignatureAlgorithmsCert, func(extension *cryptobyte.Builder) {
 						extension.AddUint16LengthPrefixed(func(signatureAlgorithmsCert *cryptobyte.Builder) {
 							for _, sigAlg := range m.signatureAlgorithmsCert {
 								signatureAlgorithmsCert.AddUint16(uint16(sigAlg))
@@ -2665,9 +2693,9 @@ func (m *certificateRequestMsg) marshal() []byte {
 						})
 					})
 				}
-				if len(m.certificateAuthorities) > 0 {
-					extensions.AddUint16(extensionCertificateAuthorities)
-					extensions.AddUint16LengthPrefixed(func(extension *cryptobyte.Builder) {
+				// Check against nil to allow sending an (invalid) empty list.
+				if m.certificateAuthorities != nil {
+					addExt(extensionCertificateAuthorities, func(extension *cryptobyte.Builder) {
 						extension.AddUint16LengthPrefixed(func(certificateAuthorities *cryptobyte.Builder) {
 							for _, ca := range m.certificateAuthorities {
 								addUint16LengthPrefixedBytes(certificateAuthorities, ca)
@@ -2676,8 +2704,7 @@ func (m *certificateRequestMsg) marshal() []byte {
 					})
 				}
 				if m.customExtension > 0 {
-					extensions.AddUint16(m.customExtension)
-					extensions.AddUint16(0) // Empty extension
+					addExt(m.customExtension, func(extension *cryptobyte.Builder) {})
 				}
 			})
 		} else {

@@ -10,6 +10,7 @@
 #import "base/uuid.h"
 #import "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
 #import "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
+#import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/identity_manager/account_info.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "ios/chrome/browser/autofill/autofill_ai/error_dialog/model/autofill_ai_error_dialog_context.h"
@@ -56,6 +57,7 @@ autofill::EntityInstance GetEmptyEntityInstanceForType(
 }  // namespace
 
 @interface AutofillAIEntityEditCoordinator () <
+    AutofillAIEntityEditMediatorDelegate,
     AutofillAIEntityEditTableViewControllerDelegate,
     AutofillCountrySelectionTableViewControllerDelegate>
 
@@ -152,6 +154,7 @@ autofill::EntityInstance GetEmptyEntityInstanceForType(
   _viewController.mutator = _mediator;
   _viewController.mode = _editMode;
 
+  _mediator.delegate = self;
   _mediator.consumer = _viewController;
 
   CHECK(_baseNavigationController);
@@ -182,6 +185,15 @@ autofill::EntityInstance GetEmptyEntityInstanceForType(
     }
     _viewController = nil;
   }
+}
+
+#pragma mark - AutofillAIEntityEditMediatorDelegate
+
+- (BOOL)mediator:(AutofillAIEntityEditMediator*)mediator
+    canPerformWalletSaveForType:(autofill::EntityType)type {
+  return autofill::CanPerformAutofillAiAction(
+      self.browser->GetProfile(), autofill::AutofillAiAction::kImportToWallet,
+      type);
 }
 
 #pragma mark - AutofillAIEntityEditTableViewControllerDelegate

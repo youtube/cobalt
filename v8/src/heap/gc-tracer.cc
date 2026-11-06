@@ -488,9 +488,8 @@ void GCTracer::StopObservablePause(GarbageCollector collector,
     std::stringstream heap_stats;
     heap_->DumpJSONHeapStatistics(heap_stats);
 
-    TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GC_Heap_Stats",
-                         TRACE_EVENT_SCOPE_THREAD, "stats",
-                         TRACE_STR_COPY(heap_stats.str().c_str()));
+    TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GC_Heap_Stats",
+                        "stats", heap_stats.str().c_str());
   }
 }
 
@@ -1200,9 +1199,8 @@ void GCTracer::PrintNVP() const {
   }
 
   if (heap_->is_gc_tracing_category_enabled()) {
-    TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCTraceGCNVP",
-                         TRACE_EVENT_SCOPE_THREAD, "value",
-                         TRACE_STR_COPY(json_str.c_str()));
+    TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCTraceGCNVP",
+                        "value", json_str.c_str());
   }
 }
 
@@ -1450,10 +1448,10 @@ void GCTracer::RecordGCSumCounters() {
       atomic_pause_duration + incremental_marking + incremental_sweeping;
   const base::TimeDelta atomic_marking_duration =
       current_.scopes[Scope::MC_PROLOGUE] + current_.scopes[Scope::MC_MARK];
-  const base::TimeDelta marking_duration =
+  [[maybe_unused]] const base::TimeDelta marking_duration =
       atomic_marking_duration + incremental_marking;
-  base::TimeDelta background_duration;
-  base::TimeDelta marking_background_duration;
+  [[maybe_unused]] base::TimeDelta background_duration;
+  [[maybe_unused]] base::TimeDelta marking_background_duration;
   {
     base::MutexGuard guard(&background_scopes_mutex_);
     background_duration =
@@ -1469,19 +1467,19 @@ void GCTracer::RecordGCSumCounters() {
       BytesAndDuration(current_.end_object_size, overall_duration));
 
   // Emit trace event counters.
-  TRACE_EVENT_INSTANT2(
-      TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCMarkCompactorSummary",
-      TRACE_EVENT_SCOPE_THREAD, "duration", overall_duration.InMillisecondsF(),
-      "background_duration", background_duration.InMillisecondsF());
-  TRACE_EVENT_INSTANT2(
-      TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCMarkCompactorMarkingSummary",
-      TRACE_EVENT_SCOPE_THREAD, "duration", marking_duration.InMillisecondsF(),
-      "background_duration", marking_background_duration.InMillisecondsF());
-  TRACE_EVENT_INSTANT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCSpeedSummary",
-                       TRACE_EVENT_SCOPE_THREAD, "old_generation_speed",
-                       OldGenerationSpeedInBytesPerMillisecond().value_or(0.0),
-                       "embedder_speed",
-                       EmbedderSpeedInBytesPerMillisecond().value_or(0.0));
+  TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                      "V8.GCMarkCompactorSummary", "duration",
+                      overall_duration.InMillisecondsF(), "background_duration",
+                      background_duration.InMillisecondsF());
+  TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                      "V8.GCMarkCompactorMarkingSummary", "duration",
+                      marking_duration.InMillisecondsF(), "background_duration",
+                      marking_background_duration.InMillisecondsF());
+  TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCSpeedSummary",
+                      "old_generation_speed",
+                      OldGenerationSpeedInBytesPerMillisecond().value_or(0.0),
+                      "embedder_speed",
+                      EmbedderSpeedInBytesPerMillisecond().value_or(0.0));
 }
 
 void GCTracer::RecordGCSizeCounters() const {

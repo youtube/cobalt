@@ -60,6 +60,15 @@ def init(ctx):
         "properties": properties,
         "platforms": backend.platform_properties(ctx),
         "input_deps": {},
+        "scandeps": {
+            "step_inputs": {
+                "excludes": [
+                    "*.json",
+                    "*.proto",
+                    "*.xml",
+                ],
+            },
+        },
         "rules": [],
         # Executables sent from Windows host to Linux workers need to set executable bit explicitly.
         # This is necessary for cross platform build actions. e.g. node binary for typescript

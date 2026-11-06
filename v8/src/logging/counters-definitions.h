@@ -322,9 +322,7 @@ namespace internal {
 // Note: These use Histogram with options (min=1000, max=500000, buckets=50).
 #define HISTOGRAM_LEGACY_MEMORY_LIST(HM)                                      \
   HM(heap_sample_total_committed, V8.MemoryHeapSampleTotalCommitted)          \
-  HM(heap_sample_total_used, V8.MemoryHeapSampleTotalUsed)                    \
-  HM(heap_sample_code_space_committed, V8.MemoryHeapSampleCodeSpaceCommitted) \
-  HM(heap_sample_maximum_committed, V8.MemoryHeapSampleMaximumCommitted)
+  HM(heap_sample_total_used, V8.MemoryHeapSampleTotalUsed)
 
 #define STATS_COUNTER_LIST(SC)                                                 \
   /* Global handle count. */                                                   \

@@ -534,6 +534,9 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     obj->set_map_after_allocation(isolate(), roots.fixed_array_map(),
                                   SKIP_WRITE_BARRIER);
     Cast<FixedArray>(obj)->set_length(0);
+#if TAGGED_SIZE_8_BYTES
+    Cast<FixedArray>(obj)->clear_optional_padding();
+#endif  // TAGGED_SIZE_8_BYTES
   }
   set_empty_fixed_array(Cast<FixedArray>(obj));
 
@@ -544,6 +547,9 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     obj->set_map_after_allocation(isolate(), roots.weak_fixed_array_map(),
                                   SKIP_WRITE_BARRIER);
     Cast<WeakFixedArray>(obj)->set_length(0);
+#if TAGGED_SIZE_8_BYTES
+    Cast<WeakFixedArray>(obj)->clear_optional_padding();
+#endif  // TAGGED_SIZE_8_BYTES
   }
   set_empty_weak_fixed_array(Cast<WeakFixedArray>(obj));
 
@@ -782,8 +788,6 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
     IF_WASM(ALLOCATE_MAP, WASM_INTERNAL_FUNCTION_TYPE,
             WasmInternalFunction::kSize, wasm_internal_function)
     IF_WASM(ALLOCATE_MAP, WASM_FUNC_REF_TYPE, WasmFuncRef::kSize, wasm_func_ref)
-    IF_WASM(ALLOCATE_MAP, WASM_JS_FUNCTION_DATA_TYPE, WasmJSFunctionData::kSize,
-            wasm_js_function_data)
     IF_WASM(ALLOCATE_MAP, WASM_RESUME_DATA_TYPE, WasmResumeData::kSize,
             wasm_resume_data)
     IF_WASM(ALLOCATE_MAP, WASM_SUSPENDER_OBJECT_TYPE,
@@ -855,13 +859,12 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
     // of primitive values and exist only for the purpose of passing the data
     // across V8 Api. They are not supposed to be leaked to user JS code
     // except from d8 tests and they are not proper JSReceivers.
-    ALLOCATE_MAP(JS_MESSAGE_OBJECT_TYPE, JSMessageObject::kHeaderSize,
+    ALLOCATE_MAP(JS_MESSAGE_OBJECT_TYPE, sizeof(JSMessageObject),
                  message_object)
     roots.message_object_map()->SetEnumLength(0);
     roots.message_object_map()->set_is_extensible(false);
 
-    ALLOCATE_MAP(JS_EXTERNAL_OBJECT_TYPE, JSExternalObject::kHeaderSize,
-                 external)
+    ALLOCATE_MAP(JS_EXTERNAL_OBJECT_TYPE, sizeof(JSExternalObject), external)
     roots.external_map()->SetEnumLength(0);
     roots.external_map()->set_is_extensible(false);
 

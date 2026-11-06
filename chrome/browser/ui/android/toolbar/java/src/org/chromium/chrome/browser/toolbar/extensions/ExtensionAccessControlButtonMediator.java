@@ -18,7 +18,6 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.extensions.ExtensionAction;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsToolbarBridge;
-import org.chromium.chrome.browser.ui.extensions.R;
 import org.chromium.chrome.browser.ui.extensions.RequestAccessButtonParams;
 import org.chromium.components.messages.DismissReason;
 import org.chromium.components.messages.MessageBannerProperties;
@@ -29,6 +28,7 @@ import org.chromium.components.messages.PrimaryActionClickBehavior;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.modelutil.PropertyModel;
 
+import java.util.Arrays;
 import java.util.function.Supplier;
 
 /**
@@ -129,7 +129,7 @@ class ExtensionAccessControlButtonMediator implements Destroyable {
 
         if (mMessage != null) {
             if (mMessageWebContents == webContents
-                    && java.util.Arrays.equals(mMessageExtensionIds, params.getExtensionIds())) {
+                    && Arrays.equals(mMessageExtensionIds, params.getExtensionIds())) {
                 return;
             }
             dismissMessage(mMessageWebContents != null ? mMessageWebContents : webContents);

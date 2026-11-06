@@ -346,9 +346,6 @@ void AssemblerBase::RecordJSDispatchHandle(JSDispatchHandle handle,
 }
 
 int Assembler::WriteCodeComments() {
-  if (!v8_flags.code_comments) return 0;
-  CHECK_IMPLIES(code_comments_writer_.entry_count() > 0,
-                options().emit_code_comments);
   if (code_comments_writer_.entry_count() == 0) return 0;
   int offset = pc_offset();
   code_comments_writer_.Emit(this);

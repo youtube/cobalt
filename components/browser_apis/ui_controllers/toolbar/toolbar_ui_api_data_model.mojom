@@ -13,17 +13,48 @@ import "ui/gfx/range/mojom/range.mojom";
 // ShowContextMenu.
 enum ContextMenuType {
   kUnspecified,
+  // Navigation control buttons
   kReload,
   kSplitTabsAction,
   kSplitTabsContext,
   kBack,
   kForward,
   kHome,
+
+  // Pinned toolbar action buttons
+  kPinnedActionNewIncognitoWindow,
+  kPinnedActionShowPasswordsBubbleOrPage,
+  kPinnedActionShowPaymentsBubbleOrPage,
+  kPinnedActionShowAddressesBubbleOrPage,
+  kPinnedActionSidePanelShowBookmarks,
+  kPinnedActionSidePanelShowReadingList,
+  kPinnedActionSidePanelShowHistoryCluster,
+  kPinnedActionShowDownloads,
+  kPinnedActionClearBrowsingData,
+  kPinnedActionPrint,
+  kPinnedActionSidePanelShowLensOverlayResults,
+  kPinnedActionShowTranslate,
+  kPinnedActionQrCodeGenerator,
+  kPinnedActionRouteMedia,
+  kPinnedActionSidePanelShowReadAnything,
+  kPinnedActionCopyUrl,
+  kPinnedActionSendTabToSelf,
+  kPinnedActionTaskManager,
+  kPinnedActionDevTools,
+  kPinnedActionTabSearch,
+  kPinnedActionSidePanelShowContextualTasks,
+  kPinnedActionSidePanelShowLens,
+  kPinnedActionSidePanelShowAboutThisSite,
+  kPinnedActionSidePanelShowCustomizeChrome,
+  kPinnedActionSidePanelShowShoppingInsights,
+  kPinnedActionSidePanelShowMerchantTrust,
+  kPinnedActionSendSharedTabGroupFeedback,
+  kPinnedActionSidePanelShowComments,
 };
 
 struct BackForwardButtonState {
   bool enabled;
-  bool visible;
+  bool should_be_shown;
   bool is_context_menu_visible;
 };
 
@@ -41,6 +72,24 @@ enum ToolbarButtonType {
   kHome,
 };
 
+enum OmniboxActionName {
+  kFocus,
+  kBlur,
+  kTextInput,
+  kKeyDown,
+};
+
+struct OmniboxAction {
+  OmniboxActionName name;
+  // Set for kTextInput and kKeyDown
+  // For kTextInput, it's the entire user-entered text, and thus should be
+  // considered untrusted.
+  // For kKeyDown it's the KeyboardEvent.key of the event; nothing else
+  // should be stored in this field.
+  string text;
+  gfx.mojom.Range selection;
+};
+
 struct ReloadControlState {
   // The maximum delay for a double click. If there's a longer delay than this,
   // it should be treated as two separate clicks.
@@ -50,13 +99,13 @@ struct ReloadControlState {
   bool is_navigation_loading;
   bool is_context_menu_visible;
 
-  // Number of times the state of the reload button has been forcibly reset.
-  // When its value changes, the reload button changes immediately to the
-  // state corresponding to the value of `is_navigation_loading`, ignoring all
-  // debounding logic and double click delays.
-  //
-  // Incremented when switching tabs, and possibly other times as well.
-  int32 reset_state_count;
+  // This changes whenever the state should be reset, typically due to a change
+  // in context (i.e., a switch between tabs). When a `state_token` is received
+  // that has different from the most recently recently received token, the
+  // reload button icon changes immediately to the state corresponding to the
+  // value of `is_navigation_loading`, ignoring all debouncing logic and double
+  // click delays, and any timers are stopped.
+  int32 state_token;
 };
 
 struct SplitTabsControlState {
@@ -73,7 +122,7 @@ struct BackForwardControlState {
 };
 
 struct HomeControlState {
-  bool is_pinned;
+  bool should_be_shown;
   bool is_context_menu_visible;
 };
 
@@ -188,8 +237,8 @@ struct LocationBarFlags {
   // changes.
   bool user_input_in_progress = false;
 
-  // Whether to render as if we have focus, due to omnibox popup taking it over.
-  bool render_focused = false;
+  // Whether the omnibox popup is open
+  bool popup_open = false;
 };
 
 // Enum of all supported pinned toolbar actions.
@@ -209,6 +258,10 @@ enum PinnedToolbarAction {
  kShowTranslate,
  kQrCodeGenerator,
  kRouteMedia,
+ kRouteMediaIdle,
+ kRouteMediaWarning,
+ kRouteMediaPaused,
+ kRouteMediaActive,
  kSidePanelShowReadAnything,
  kCopyUrl,
  kSendTabToSelf,

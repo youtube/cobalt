@@ -97,7 +97,7 @@ FastSplice<FixedArrayType : type extends FixedArrayBase, ElementType: type>(
       StoreHoles(UnsafeCast<FixedArrayType>(elements), newLength, length);
     } else if (insertCount > actualDeleteCount) {
       // If the backing store is big enough, then moving elements is enough.
-      if (newLength <= elements.length) {
+      if (Convert<intptr>(newLength) <= elements.length_intptr) {
         DoMoveElements(
             UnsafeCast<FixedArrayType>(elements), dstIndex, srcIndex, count);
       } else {

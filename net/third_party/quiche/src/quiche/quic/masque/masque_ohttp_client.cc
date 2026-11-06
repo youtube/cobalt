@@ -4,6 +4,7 @@
 
 #include "quiche/quic/masque/masque_ohttp_client.h"
 
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -79,6 +80,119 @@ absl::Status ParseHeadersIntoMap(
     headers_map.push_back({std::move(header_name), std::move(header_value)});
   }
   return absl::OkStatus();
+}
+
+absl::StatusOr<std::vector<absl::string_view>> SplitIntoChunks(
+    absl::string_view data, int num_chunks) {
+  if (num_chunks <= 0) {
+    return absl::InvalidArgumentError("num_chunks must be greater than 0");
+  }
+  if (data.size() < num_chunks) {
+    return absl::InvalidArgumentError("data is smaller than num_chunks");
+  }
+  std::vector<absl::string_view> chunks;
+  size_t offset = 0;
+  for (size_t i = 0; i < num_chunks; ++i) {
+    size_t end = (data.size() * (i + 1)) / num_chunks;
+    chunks.push_back(data.substr(offset, end - offset));
+    offset = end;
+  }
+  return chunks;
+}
+
+class PingPongResponseVisitor : public MasqueOhttpClient::ResponseVisitor {
+ public:
+  explicit PingPongResponseVisitor(std::vector<std::string> chunks)
+      : chunks_(std::move(chunks)) {}
+
+  void OnRequestStarted(quic::MasqueConnectionPool::RequestId request_id,
+                        MasqueOhttpClient* client) override {
+    request_id_ = request_id;
+    client_ = client;
+    bool is_final = (chunks_.size() <= 1);
+    status_ = client_->SendBodyChunk(request_id_, chunks_[0], is_final);
+    current_chunk_idx_ = 1;
+    if (is_final) {
+      done_ = true;
+    }
+  }
+
+  void OnResponseChunk(quic::MasqueConnectionPool::RequestId request_id,
+                       absl::string_view) override {
+    if (request_id != request_id_ || current_chunk_idx_ >= chunks_.size()) {
+      return;
+    }
+    bool is_final = (current_chunk_idx_ == chunks_.size() - 1);
+    status_ = client_->SendBodyChunk(request_id_, chunks_[current_chunk_idx_],
+                                     is_final);
+    current_chunk_idx_++;
+  }
+
+  void OnResponseDone(quic::MasqueConnectionPool::RequestId request_id,
+                      const MasqueOhttpClient::Message&) override {
+    if (request_id == request_id_) {
+      done_ = true;
+    }
+  }
+
+  void OnError(quic::MasqueConnectionPool::RequestId request_id,
+               absl::Status status) override {
+    if (request_id == request_id_) {
+      status_ = status;
+      done_ = true;
+    }
+  }
+
+  bool done() const { return done_; }
+  absl::Status status() const { return status_; }
+
+ private:
+  MasqueOhttpClient* client_ = nullptr;
+  std::vector<std::string> chunks_;
+  size_t current_chunk_idx_ = 0;
+  quic::MasqueConnectionPool::RequestId request_id_ = 0;
+  bool done_ = false;
+  absl::Status status_ = absl::OkStatus();
+};
+
+absl::StatusOr<std::unique_ptr<PingPongResponseVisitor>>
+CreateVisitorIfPingPong(const MasqueOhttpClient::Config& config) {
+  const MasqueOhttpClient::Config::PerRequestConfig* ping_pong_config = nullptr;
+
+  for (const auto& req_config : config.per_request_configs()) {
+    if (req_config.ping_pong_mode()) {
+      ping_pong_config = &req_config;
+      break;
+    }
+  }
+
+  if (ping_pong_config == nullptr) {
+    return nullptr;
+  }
+
+  if (config.per_request_configs().size() > 1) {
+    return absl::InvalidArgumentError(
+        "PingPong mode is exclusive and supports only one request at a time");
+  }
+
+  if (ping_pong_config->num_ohttp_chunks() <= 0) {
+    return absl::InvalidArgumentError(
+        "num_ohttp_chunks must be set and greater than 0 when "
+        "ping_pong_mode is enabled");
+  }
+
+  std::string post_data = ping_pong_config->post_data();
+  QUICHE_ASSIGN_OR_RETURN(
+      std::vector<absl::string_view> chunks,
+      SplitIntoChunks(post_data, ping_pong_config->num_ohttp_chunks()));
+
+  std::vector<std::string> string_chunks;
+  string_chunks.reserve(chunks.size());
+  for (absl::string_view chunk : chunks) {
+    string_chunks.push_back(std::string(chunk));
+  }
+
+  return std::make_unique<PingPongResponseVisitor>(std::move(string_chunks));
 }
 
 }  // namespace
@@ -182,12 +296,24 @@ absl::Status MasqueOhttpClient::Run(Config config) {
   if (config.ohttp_ssl_ctx() == nullptr) {
     QUICHE_RETURN_IF_ERROR(config.ConfigureOhttpMtls("", ""));
   }
+  QUICHE_ASSIGN_OR_RETURN(
+      std::unique_ptr<PingPongResponseVisitor> ping_pong_visitor,
+      CreateVisitorIfPingPong(config));
+
   quiche::QuicheSystemEventLoop system_event_loop("masque_ohttp_client");
   std::unique_ptr<QuicEventLoop> event_loop =
       GetDefaultEventLoop()->Create(QuicDefaultClock::Get());
   MasqueOhttpClient ohttp_client(std::move(config), event_loop.get());
+
+  if (ping_pong_visitor) {
+    ohttp_client.set_response_visitor(ping_pong_visitor.get());
+  }
+
   QUICHE_RETURN_IF_ERROR(ohttp_client.Start());
   while (!ohttp_client.IsDone()) {
+    if (ping_pong_visitor && ping_pong_visitor->done()) {
+      break;
+    }
     ohttp_client.connection_pool_.event_loop()->RunEventLoopOnce(
         quic::QuicTime::Delta::FromMilliseconds(50));
   }
@@ -405,48 +531,43 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
         "Cannot send OHTTP request without OHTTP client");
   }
   std::string encoded_data;
-  const bool use_indeterminate_length =
-      per_request_config.use_indeterminate_length().value_or(
-          per_request_config.use_chunked_ohttp());
-  if (use_indeterminate_length) {
-    BinaryHttpRequest::IndeterminateLengthEncoder encoder;
-
-    QUICHE_ASSIGN_OR_RETURN(encoded_data,
-                            encoder.EncodeControlData(control_data));
+  int num_bhttp_chunks = per_request_config.num_bhttp_chunks();
+  if (num_bhttp_chunks < 0) {
+    num_bhttp_chunks = (per_request_config.num_ohttp_chunks() > 0 ? 1 : 0);
+  }
+  if (num_bhttp_chunks > 0) {
+    pending_request.encoder.emplace();
+    QUICHE_ASSIGN_OR_RETURN(
+        encoded_data, pending_request.encoder->EncodeControlData(control_data));
     std::vector<quiche::BinaryHttpMessage::FieldView> headers;
     for (const std::pair<std::string, std::string>& header :
          per_request_config.headers()) {
       headers.push_back({header.first, header.second});
     }
-    QUICHE_ASSIGN_OR_RETURN(std::string encoded_headers,
-                            encoder.EncodeHeaders(absl::MakeSpan(headers)));
-    encoded_data += encoded_headers;
-    if (!post_data.empty()) {
-      absl::string_view body = post_data;
-      std::vector<absl::string_view> body_chunks;
-      if (body.size() > 1) {
-        // Intentionally split the data into two chunks to test body chunking.
-        body_chunks.push_back(body.substr(0, body.size() / 2));
-        body_chunks.push_back(body.substr(body.size() / 2));
-      } else {
-        body_chunks.push_back(body);
-      }
-      QUICHE_ASSIGN_OR_RETURN(
-          std::string encoded_body,
-          encoder.EncodeBodyChunks(absl::MakeSpan(body_chunks),
-                                   /*body_chunks_done=*/false));
-      encoded_data += encoded_body;
-    }
-    std::vector<absl::string_view> empty_body_chunks;
     QUICHE_ASSIGN_OR_RETURN(
-        std::string encoded_final_chunk,
-        encoder.EncodeBodyChunks(absl::MakeSpan(empty_body_chunks),
-                                 /*body_chunks_done=*/true));
-    encoded_data += encoded_final_chunk;
-    std::vector<quiche::BinaryHttpMessage::FieldView> trailers;
-    QUICHE_ASSIGN_OR_RETURN(std::string encoded_trailers,
-                            encoder.EncodeTrailers(absl::MakeSpan(trailers)));
-    encoded_data += encoded_trailers;
+        std::string encoded_headers,
+        pending_request.encoder->EncodeHeaders(absl::MakeSpan(headers)));
+    encoded_data += encoded_headers;
+    if (!per_request_config.ping_pong_mode()) {
+      if (!post_data.empty()) {
+        QUICHE_ASSIGN_OR_RETURN(std::vector<absl::string_view> body_chunks,
+                                SplitIntoChunks(post_data, num_bhttp_chunks));
+        QUICHE_ASSIGN_OR_RETURN(std::string encoded_body,
+                                pending_request.encoder->EncodeBodyChunks(
+                                    absl::MakeSpan(body_chunks),
+                                    /*body_chunks_done=*/false));
+        encoded_data += encoded_body;
+      }
+      QUICHE_ASSIGN_OR_RETURN(std::string encoded_final_chunk,
+                              pending_request.encoder->EncodeBodyChunks(
+                                  {}, /*body_chunks_done=*/true));
+      encoded_data += encoded_final_chunk;
+      std::vector<quiche::BinaryHttpMessage::FieldView> trailers;
+      QUICHE_ASSIGN_OR_RETURN(
+          std::string encoded_trailers,
+          pending_request.encoder->EncodeTrailers(absl::MakeSpan(trailers)));
+      encoded_data += encoded_trailers;
+    }
   } else {
     BinaryHttpRequest binary_request(control_data);
     for (const std::pair<std::string, std::string>& header :
@@ -456,23 +577,25 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
     binary_request.set_body(post_data);
     QUICHE_ASSIGN_OR_RETURN(encoded_data, binary_request.Serialize());
   }
-  if (pending_request.per_request_config.use_chunked_ohttp()) {
+  int num_ohttp_chunks = per_request_config.num_ohttp_chunks();
+  if (num_ohttp_chunks > 0) {
     pending_request.chunk_handler = std::make_unique<ChunkHandler>();
     QUICHE_ASSIGN_OR_RETURN(
         ChunkedObliviousHttpClient chunked_client,
         ChunkedObliviousHttpClient::Create(
             ohttp_client_->GetPublicKey(), ohttp_client_->GetKeyConfig(),
             pending_request.chunk_handler.get()));
-    // Intentionally split the data into two chunks to test encryption chunking.
-    QUICHE_ASSIGN_OR_RETURN(encrypted_data,
-                            chunked_client.EncryptRequestChunk(
-                                absl::string_view(encoded_data).substr(0, 1),
-                                /*is_final_chunk=*/false));
-    QUICHE_ASSIGN_OR_RETURN(std::string encrypted_data2,
-                            chunked_client.EncryptRequestChunk(
-                                absl::string_view(encoded_data).substr(1),
-                                /*is_final_chunk=*/true));
-    encrypted_data += encrypted_data2;
+    QUICHE_ASSIGN_OR_RETURN(std::vector<absl::string_view> ohttp_chunks,
+                            SplitIntoChunks(encoded_data, num_ohttp_chunks));
+
+    for (size_t i = 0; i < ohttp_chunks.size(); i++) {
+      bool is_final_chunk = (i == ohttp_chunks.size() - 1 &&
+                             !per_request_config.ping_pong_mode());
+      QUICHE_ASSIGN_OR_RETURN(
+          std::string ohttp_chunk,
+          chunked_client.EncryptRequestChunk(ohttp_chunks[i], is_final_chunk));
+      encrypted_data += ohttp_chunk;
+    }
 
     pending_request.chunk_handler->SetChunkedClient(std::move(chunked_client));
   } else {
@@ -488,9 +611,7 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
   request.headers[":authority"] = relay_url_.HostPort();
   request.headers[":path"] = relay_url_.PathParamsQuery();
   request.headers["content-type"] =
-      pending_request.per_request_config.use_chunked_ohttp()
-          ? "message/ohttp-chunked-req"
-          : "message/ohttp-req";
+      num_ohttp_chunks > 0 ? "message/ohttp-chunked-req" : "message/ohttp-req";
   for (const std::pair<std::string, std::string>& header :
        per_request_config.outer_headers()) {
     request.headers[header.first] = header.second;
@@ -498,15 +619,32 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
   QUICHE_VLOG(1) << "Sending encrypted request: "
                  << absl::BytesToHexString(encrypted_data);
   request.body = encrypted_data;
-  absl::StatusOr<RequestId> request_id =
-      connection_pool_.SendRequest(request, /*mtls=*/true);
+  bool end_stream =
+      num_ohttp_chunks <= 0 || !per_request_config.ping_pong_mode();
+  bool stream_response = num_ohttp_chunks > 0;
+  absl::StatusOr<RequestId> request_id = connection_pool_.SendRequest(
+      request, /*mtls=*/true, end_stream, stream_response);
   if (!request_id.ok()) {
     return absl::InternalError(absl::StrCat("Failed to send request: ",
                                             request_id.status().message()));
   }
+
   QUICHE_LOG(INFO) << "Sent OHTTP request for " << per_request_config.url();
 
+  if (pending_request.chunk_handler) {
+    pending_request.chunk_handler->SetResponseChunkCallback(
+        [this, request_id = *request_id](absl::string_view chunk) {
+          if (response_visitor_) {
+            response_visitor_->OnResponseChunk(request_id, chunk);
+          }
+        });
+  }
   pending_ohttp_requests_.insert({*request_id, std::move(pending_request)});
+
+  if (response_visitor_) {
+    response_visitor_->OnRequestStarted(*request_id, this);
+  }
+
   return absl::OkStatus();
 }
 
@@ -544,6 +682,12 @@ absl::StatusOr<Message> MasqueOhttpClient::TryExtractEncapsulatedResponse(
     return encapsulated_response;
   }
   ChunkHandler chunk_handler;
+  chunk_handler.SetResponseChunkCallback(
+      [this, request_id](absl::string_view chunk) {
+        if (response_visitor_) {
+          response_visitor_->OnResponseChunk(request_id, chunk);
+        }
+      });
   QUICHE_RETURN_IF_ERROR(
       chunk_handler.OnDecryptedChunk(ohttp_response.GetPlaintextData()));
   QUICHE_RETURN_IF_ERROR(chunk_handler.OnChunksDone());
@@ -558,14 +702,18 @@ absl::StatusOr<Message> MasqueOhttpClient::TryExtractEncapsulatedResponse(
 }
 
 absl::Status MasqueOhttpClient::ProcessOhttpResponse(
-    RequestId request_id, const absl::StatusOr<Message>& response) {
+    RequestId request_id, const absl::StatusOr<Message>& response,
+    bool end_stream) {
   auto it = pending_ohttp_requests_.find(request_id);
   if (it == pending_ohttp_requests_.end()) {
     return absl::InternalError(absl::StrCat(
         "Received unexpected response for unknown request ", request_id));
   }
-  auto cleanup =
-      absl::MakeCleanup([this, it]() { pending_ohttp_requests_.erase(it); });
+  auto cleanup = absl::MakeCleanup([this, it, end_stream]() {
+    if (end_stream) {
+      pending_ohttp_requests_.erase(it);
+    }
+  });
   if (!response.ok()) {
     if (it->second.per_request_config.expected_gateway_error().has_value() &&
         absl::StrContains(
@@ -588,9 +736,10 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
     return absl::InvalidArgumentError(
         absl::StrCat("Bad gateway status code: ", gateway_status_code));
   }
-  std::string content_type = it->second.per_request_config.use_chunked_ohttp()
-                                 ? "message/ohttp-chunked-res"
-                                 : "message/ohttp-res";
+  std::string content_type =
+      it->second.per_request_config.num_ohttp_chunks() > 0
+          ? "message/ohttp-chunked-res"
+          : "message/ohttp-res";
   std::optional<uint16_t> expected_gateway_status_code =
       it->second.per_request_config.expected_gateway_status_code();
   absl::Status status = CheckStatusAndContentType(*response, content_type,
@@ -610,13 +759,28 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
     // If we expect a failure status code, skip decapsulation.
     return absl::OkStatus();
   }
+
+  if (!end_stream) {
+    // We delivered headers. For chunked OHTTP, we just wait for data chunks.
+    if (it->second.per_request_config.num_ohttp_chunks() <= 0) {
+      QUICHE_LOG(ERROR) << "Received partial response for non-chunked OHTTP";
+      return absl::InternalError(
+          "Received partial response for non-chunked OHTTP");
+    }
+    return absl::OkStatus();
+  }
+
   std::optional<Message> encapsulated_response;
   QUICHE_VLOG(2) << "Received encrypted response body: "
                  << absl::BytesToHexString(response->body);
-  if (it->second.per_request_config.use_chunked_ohttp()) {
-    QUICHE_ASSIGN_OR_RETURN(
-        encapsulated_response,
-        it->second.chunk_handler->DecryptFullResponse(response->body));
+  if (it->second.per_request_config.num_ohttp_chunks() > 0) {
+    absl::Status decrypt_status = it->second.chunk_handler->DecryptChunk(
+        /*encrypted_chunk=*/"", /*end_stream=*/true);
+    if (!decrypt_status.ok()) {
+      return decrypt_status;
+    }
+    encapsulated_response =
+        std::move(*it->second.chunk_handler).ExtractResponse();
   } else {
     if (!it->second.context.has_value()) {
       QUICHE_LOG(FATAL) << "Received OHTTP response without OHTTP context";
@@ -648,23 +812,22 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
     return absl::InvalidArgumentError(absl::StrCat(
         "Bad encapsulated status code: ", encapsulated_status_code));
   }
-  if (it->second.per_request_config.expected_encapsulated_response_body()
-          .has_value() &&
-      encapsulated_response->body !=
-          *it->second.per_request_config
-               .expected_encapsulated_response_body()) {
-    return absl::InvalidArgumentError(absl::StrCat(
-        "Unexpected encapsulated response body: \"",
-        encapsulated_response->body, "\" != \"",
-        *it->second.per_request_config.expected_encapsulated_response_body(),
-        "\""));
+  if (const auto& callback =
+          it->second.per_request_config.encapsulated_response_body_callback();
+      callback) {
+    QUICHE_RETURN_IF_ERROR(callback(encapsulated_response->body));
+  }
+
+  if (response_visitor_) {
+    response_visitor_->OnResponseDone(request_id, *encapsulated_response);
   }
   return absl::OkStatus();
 }
 
 void MasqueOhttpClient::OnPoolResponse(MasqueConnectionPool* /*pool*/,
                                        RequestId request_id,
-                                       absl::StatusOr<Message>&& response) {
+                                       absl::StatusOr<Message>&& response,
+                                       bool end_stream) {
   if (key_fetch_request_id_.has_value() &&
       *key_fetch_request_id_ == request_id) {
     absl::Status status = HandleKeyResponse(response);
@@ -672,29 +835,138 @@ void MasqueOhttpClient::OnPoolResponse(MasqueConnectionPool* /*pool*/,
       Abort(status);
     }
   } else {
-    absl::Status status = ProcessOhttpResponse(request_id, response);
+    absl::Status status =
+        ProcessOhttpResponse(request_id, response, end_stream);
     if (!status.ok()) {
       Abort(status);
+      if (response_visitor_) {
+        response_visitor_->OnError(request_id, status);
+      }
     }
   }
 }
 
+void MasqueOhttpClient::OnPoolData(MasqueConnectionPool* /*pool*/,
+                                   RequestId request_id, absl::string_view data,
+                                   bool end_stream) {
+  if (key_fetch_request_id_.has_value() &&
+      *key_fetch_request_id_ == request_id) {
+    Abort(absl::InternalError(absl::StrCat(
+        "Received data for non-streamed key fetch request ", request_id)));
+    return;
+  }
+  auto it = pending_ohttp_requests_.find(request_id);
+  if (it == pending_ohttp_requests_.end()) {
+    Abort(absl::InternalError(absl::StrCat(
+        "Received data for unknown or non-OHTTP request: ", request_id)));
+    return;
+  }
+  PendingRequest& pending_request = it->second;
+
+  if (!pending_request.chunk_handler) {
+    Abort(absl::InternalError(
+        absl::StrCat("Received data for non-streamed request ", request_id)));
+    return;
+  }
+
+  auto cleanup = absl::MakeCleanup([this, it, end_stream]() {
+    if (end_stream) {
+      pending_ohttp_requests_.erase(it);
+    }
+  });
+
+  absl::Status status =
+      pending_request.chunk_handler->DecryptChunk(data, end_stream);
+  if (!status.ok()) {
+    Abort(status);
+    if (response_visitor_) {
+      response_visitor_->OnError(request_id, status);
+    }
+    return;
+  }
+  if (end_stream && response_visitor_) {
+    response_visitor_->OnResponseDone(
+        request_id,
+        std::move(*pending_request.chunk_handler).ExtractResponse());
+  }
+}
+
+absl::Status MasqueOhttpClient::SendBodyChunk(RequestId request_id,
+                                              absl::string_view chunk,
+                                              bool is_final) {
+  if (chunk.empty() && !is_final) {
+    return absl::OkStatus();
+  }
+  auto it = pending_ohttp_requests_.find(request_id);
+  if (it == pending_ohttp_requests_.end()) {
+    return absl::NotFoundError(
+        absl::StrCat("Request ", request_id, " not found"));
+  }
+  PendingRequest& pending_request = it->second;
+  if (!pending_request.encoder.has_value()) {
+    if (!chunk.empty()) {
+      return absl::FailedPreconditionError(
+          "Cannot send non-empty body chunks for known-length requests");
+    }
+    std::string encoded_data;
+    auto& chunked_client = pending_request.chunk_handler->chunked_client();
+    if (!chunked_client.has_value()) {
+      return absl::FailedPreconditionError("Chunked client not initialized");
+    }
+    QUICHE_ASSIGN_OR_RETURN(
+        std::string encrypted_chunk,
+        chunked_client->EncryptRequestChunk(encoded_data, is_final));
+    return connection_pool_.SendBodyChunk(request_id, encrypted_chunk,
+                                          is_final);
+  }
+
+  std::string encoded_data;
+  std::vector<absl::string_view> body_chunks;
+  if (!chunk.empty()) {
+    body_chunks.push_back(chunk);
+  }
+
+  QUICHE_ASSIGN_OR_RETURN(
+      encoded_data,
+      pending_request.encoder->EncodeBodyChunks(absl::MakeSpan(body_chunks),
+                                                /*body_chunks_done=*/is_final));
+
+  if (is_final) {
+    std::vector<quiche::BinaryHttpMessage::FieldView> trailers;
+    QUICHE_ASSIGN_OR_RETURN(
+        std::string encoded_trailers,
+        pending_request.encoder->EncodeTrailers(absl::MakeSpan(trailers)));
+    encoded_data += encoded_trailers;
+  }
+
+  auto& chunked_client = pending_request.chunk_handler->chunked_client();
+  if (!chunked_client.has_value()) {
+    return absl::FailedPreconditionError("Chunked client not initialized");
+  }
+
+  QUICHE_ASSIGN_OR_RETURN(
+      std::string encrypted_chunk,
+      chunked_client->EncryptRequestChunk(encoded_data, is_final));
+
+  return connection_pool_.SendBodyChunk(request_id, encrypted_chunk, is_final);
+}
+
 MasqueOhttpClient::ChunkHandler::ChunkHandler() : decoder_(this) {}
 
-absl::StatusOr<Message> MasqueOhttpClient::ChunkHandler::DecryptFullResponse(
-    absl::string_view encrypted_response) {
+absl::Status MasqueOhttpClient::ChunkHandler::DecryptChunk(
+    absl::string_view encrypted_chunk, bool end_stream) {
   if (!chunked_client_.has_value()) {
-    QUICHE_LOG(FATAL) << "DecryptFullResponse called without a chunked client";
-    return absl::InternalError(
-        "DecryptFullResponse called without a chunked client");
+    QUICHE_LOG(FATAL) << "DecryptChunk called without a chunked client";
+    return absl::InternalError("DecryptChunk called without a chunked client");
   }
-  QUICHE_RETURN_IF_ERROR(chunked_client_->DecryptResponse(encrypted_response,
-                                                          /*end_stream=*/true));
-  return std::move(response_);
+  return chunked_client_->DecryptResponse(encrypted_chunk, end_stream);
 }
 
 absl::Status MasqueOhttpClient::ChunkHandler::OnDecryptedChunk(
     absl::string_view decrypted_chunk) {
+  decrypted_chunk_count_++;
+  QUICHE_LOG(INFO) << "Received decrypted chunk #" << decrypted_chunk_count_
+                   << " of size " << decrypted_chunk.size();
   absl::StrAppend(&buffered_binary_response_, decrypted_chunk);
   if (!is_chunked_response_.has_value()) {
     quiche::QuicheDataReader reader(buffered_binary_response_);
@@ -762,11 +1034,21 @@ absl::Status MasqueOhttpClient::ChunkHandler::OnFinalResponseHeader(
   return absl::OkStatus();
 }
 absl::Status MasqueOhttpClient::ChunkHandler::OnFinalResponseHeadersDone() {
+  QUICHE_LOG(INFO) << "Received incremental OHTTP response headers: "
+                   << response_.headers.DebugString();
   return absl::OkStatus();
 }
 absl::Status MasqueOhttpClient::ChunkHandler::OnBodyChunk(
     absl::string_view body_chunk) {
+  body_chunk_count_++;
+  QUICHE_LOG(INFO) << "Received body chunk #" << body_chunk_count_
+                   << " of size " << body_chunk.size();
   response_.body += body_chunk;
+
+  if (response_chunk_callback_) {
+    response_chunk_callback_(body_chunk);
+  }
+
   return absl::OkStatus();
 }
 absl::Status MasqueOhttpClient::ChunkHandler::OnBodyChunksDone() {

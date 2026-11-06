@@ -26,7 +26,7 @@ class AsyncGeneratorBuiltinsAssembler : public AsyncBuiltinsAssembler {
   inline TNode<Smi> LoadGeneratorState(
       const TNode<JSGeneratorObject> generator) {
     return LoadObjectField<Smi>(generator,
-                                JSGeneratorObject::kContinuationOffset);
+                                offsetof(JSGeneratorObject, continuation_));
   }
 
   inline TNode<BoolT> IsGeneratorStateClosed(const TNode<Smi> state) {
@@ -61,15 +61,16 @@ class AsyncGeneratorBuiltinsAssembler : public AsyncBuiltinsAssembler {
 
   inline TNode<BoolT> IsGeneratorAwaiting(
       const TNode<JSGeneratorObject> generator) {
-    TNode<Object> is_generator_awaiting =
-        LoadObjectField(generator, JSAsyncGeneratorObject::kIsAwaitingOffset);
+    TNode<Object> is_generator_awaiting = LoadObjectField(
+        generator, offsetof(JSAsyncGeneratorObject, is_awaiting_));
     return TaggedEqual(is_generator_awaiting, SmiConstant(1));
   }
 
   inline void SetGeneratorAwaiting(const TNode<JSGeneratorObject> generator) {
     CSA_DCHECK(this, Word32BinaryNot(IsGeneratorAwaiting(generator)));
     StoreObjectFieldNoWriteBarrier(
-        generator, JSAsyncGeneratorObject::kIsAwaitingOffset, SmiConstant(1));
+        generator, offsetof(JSAsyncGeneratorObject, is_awaiting_),
+        SmiConstant(1));
     CSA_DCHECK(this, IsGeneratorAwaiting(generator));
   }
 
@@ -77,20 +78,21 @@ class AsyncGeneratorBuiltinsAssembler : public AsyncBuiltinsAssembler {
       const TNode<JSGeneratorObject> generator) {
     CSA_DCHECK(this, IsGeneratorAwaiting(generator));
     StoreObjectFieldNoWriteBarrier(
-        generator, JSAsyncGeneratorObject::kIsAwaitingOffset, SmiConstant(0));
+        generator, offsetof(JSAsyncGeneratorObject, is_awaiting_),
+        SmiConstant(0));
     CSA_DCHECK(this, Word32BinaryNot(IsGeneratorAwaiting(generator)));
   }
 
   inline void CloseGenerator(const TNode<JSGeneratorObject> generator) {
     StoreObjectFieldNoWriteBarrier(
-        generator, JSGeneratorObject::kContinuationOffset,
+        generator, offsetof(JSGeneratorObject, continuation_),
         SmiConstant(JSGeneratorObject::kGeneratorClosed));
   }
 
   inline TNode<HeapObject> LoadFirstAsyncGeneratorRequestFromQueue(
       const TNode<JSGeneratorObject> generator) {
-    return LoadObjectField<HeapObject>(generator,
-                                       JSAsyncGeneratorObject::kQueueOffset);
+    return LoadObjectField<HeapObject>(
+        generator, offsetof(JSAsyncGeneratorObject, queue_));
   }
 
   inline TNode<Smi> LoadResumeTypeFromAsyncGeneratorRequest(
@@ -228,7 +230,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResume(
 
   // Remember the {resume_mode} for the {async_generator_object}.
   StoreObjectFieldNoWriteBarrier(async_generator_object,
-                                 JSGeneratorObject::kResumeModeOffset,
+                                 offsetof(JSGeneratorObject, resume_mode_),
                                  SmiConstant(resume_mode));
 
   CallBuiltin(Builtin::kResumeGeneratorTrampoline, context, value,
@@ -276,12 +278,13 @@ void AsyncGeneratorBuiltinsAssembler::AddAsyncGeneratorRequestToQueue(
   Label empty(this), loop(this, &var_current), done(this);
 
   var_current = LoadObjectField<HeapObject>(
-      generator, JSAsyncGeneratorObject::kQueueOffset);
+      generator, offsetof(JSAsyncGeneratorObject, queue_));
   Branch(IsUndefined(var_current.value()), &empty, &loop);
 
   BIND(&empty);
   {
-    StoreObjectField(generator, JSAsyncGeneratorObject::kQueueOffset, request);
+    StoreObjectField(generator, offsetof(JSAsyncGeneratorObject, queue_),
+                     request);
     Goto(&done);
   }
 
@@ -315,12 +318,12 @@ AsyncGeneratorBuiltinsAssembler::TakeFirstAsyncGeneratorRequestFromQueue(
   // Removes and returns the first AsyncGeneratorRequest from a
   // JSAsyncGeneratorObject's queue. Asserts that the queue is not empty.
   TNode<AsyncGeneratorRequest> request = LoadObjectField<AsyncGeneratorRequest>(
-      generator, JSAsyncGeneratorObject::kQueueOffset);
+      generator, offsetof(JSAsyncGeneratorObject, queue_));
 
   TNode<Object> next =
       LoadObjectField(request, offsetof(AsyncGeneratorRequest, next_));
 
-  StoreObjectField(generator, JSAsyncGeneratorObject::kQueueOffset, next);
+  StoreObjectField(generator, offsetof(JSAsyncGeneratorObject, queue_), next);
   return request;
 }
 
@@ -492,7 +495,7 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
   {
     // Remember the {resume_type} for the {generator}.
     StoreObjectFieldNoWriteBarrier(
-        generator, JSGeneratorObject::kResumeModeOffset, resume_type);
+        generator, offsetof(JSGeneratorObject, resume_mode_), resume_type);
 
     CallBuiltin(Builtin::kResumeGeneratorTrampoline, context,
                 LoadValueFromAsyncGeneratorRequest(next), generator);

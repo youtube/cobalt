@@ -81,6 +81,9 @@ BASE_FEATURE(kContextualTasksUseStratusDarkModeColors,
 // If enabled, animates the caret.
 BASE_FEATURE(kContextualTasksAnimatedCaret, base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Enables energy effect in Nextbox. This works as a killswitch for the feature.
+BASE_FEATURE(kEnergyEffectInNextbox, base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kContextualTasksEnableFileHint, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kContextualTasksComposeboxJumpFix,
@@ -99,13 +102,25 @@ BASE_FEATURE(kContextualTasksHideMenuOnAiPage,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
+BASE_FEATURE(kContextualTasksHideCloseButtonInVerticalTabs,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kContextualTasksUpdateModelOnNavigation,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kContextualTasksVideoCitations, base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kContextualTasksPdfCitations, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enables custom UI for NLM.
+BASE_FEATURE(kContextualTasksCustomNlmUi, base::FEATURE_ENABLED_BY_DEFAULT);
+
 bool GetIsContextualTasksUpdateModeOnNavigationEnabled() {
   return base::FeatureList::IsEnabled(kContextualTasksUpdateModelOnNavigation);
+}
+
+bool GetIsContextualTasksPdfCitationsEnabled() {
+  return base::FeatureList::IsEnabled(kContextualTasksPdfCitations);
 }
 
 const base::FeatureParam<bool> kContextualTasksLockAndUnlockInputCapability(
@@ -128,6 +143,11 @@ const base::FeatureParam<bool> kContextualTasksEnableCookieSync(
     "ContextualTasksEnableCookieSync",
     true);
 
+const base::FeatureParam<bool> kContextualTasksEnableCookiePrefetch(
+    &kContextualTasks,
+    "ContextualTasksEnableCookiePrefetch",
+    false);
+
 const base::FeatureParam<bool> kOnlyUseTitlesForSimilarity(
     &kContextualTasksContext,
     "ContextualTasksContextOnlyUseTitles",
@@ -135,7 +155,7 @@ const base::FeatureParam<bool> kOnlyUseTitlesForSimilarity(
 
 const base::FeatureParam<double> kTabSelectionScoreThreshold{
     &kContextualTasksContext,
-    "ContextualTasksContextTabSelectionScoreThreshold", 0.8};
+    "ContextualTasksContextTabSelectionScoreThreshold", 0.4};
 
 const base::FeatureParam<double> kContentVisibilityThreshold{
     &kContextualTasksContext,
@@ -157,7 +177,7 @@ const base::FeatureParam<base::TimeDelta> kSmartTabSharingTabSelectionTimeout(
 const base::FeatureParam<double> kSmartTabSharingPromoScoreThreshold(
     &kContextualTasksContext,
     "ContextualTasksContextSmartTabSharingPromoScoreThreshold",
-    0.9);
+    0.6);
 
 const base::FeatureParam<double> kContextualTasksContextLoggingSampleRate{
     &kContextualTasksContextLogging, "ContextualTasksContextLoggingSampleRate",
@@ -227,8 +247,11 @@ const base::FeatureParam<bool> kForceGscInTabMode(
 // Version 1.3: Bug fix for privacy notice on composebox camouflage.
 // Version 2.0: M146 respin launch candidate.
 // Version 2.1: Enables stratus dark mode colors.
+// Version 2.2: Added UI fixes for NLM.
+// Version 2.3: UI fixes for transitions from search results.
+// Version 2.4: Adds ability to hideInput/restoreInput
 const base::FeatureParam<std::string> kContextualTasksUserAgentSuffix{
-    &kContextualTasks, "contextual-tasks-user-agent-suffix", "Cobrowsing/2.1"};
+    &kContextualTasks, "contextual-tasks-user-agent-suffix", "Cobrowsing/2.4"};
 
 const base::FeatureParam<std::string> kContextualTasksHelpUrl(
     &kContextualTasks,
@@ -280,6 +303,10 @@ const base::FeatureParam<bool> kContextualTasksEnableNativeZeroStateSuggestions(
     &kContextualTasks,
     "ContextualTasksEnableNativeZeroStateSuggestions",
     true);
+
+// The URL parameter name to check for NLM mode.
+const base::FeatureParam<std::string> kContextualTasksNlmUrlParam{
+    &kContextualTasksCustomNlmUi, "ContextualTasksNlmUrlParam", "ajid"};
 
 const base::FeatureParam<std::string> kContextualTasksDisplayUrlScheme(
     &kContextualTasks,
@@ -485,6 +512,14 @@ bool GetEnableNativeZeroStateSuggestions() {
   return kContextualTasksEnableNativeZeroStateSuggestions.Get();
 }
 
+std::string GetContextualTasksNlmUrlParam() {
+  return kContextualTasksNlmUrlParam.Get();
+}
+
+bool IsCustomNlmUiEnabled() {
+  return base::FeatureList::IsEnabled(kContextualTasksCustomNlmUi);
+}
+
 bool ShouldUseSearchResultsScope() {
   return base::FeatureList::IsEnabled(kContextualTasksScopeChange);
 }
@@ -499,6 +534,10 @@ bool ShouldEnableBasicModeZOrder() {
 
 bool ShouldEnableCookieSync() {
   return kContextualTasksEnableCookieSync.Get();
+}
+
+bool ShouldEnableCookiePrefetch() {
+  return kContextualTasksEnableCookiePrefetch.Get();
 }
 
 bool ShouldEnableLockAndUnlockInputCapability() {

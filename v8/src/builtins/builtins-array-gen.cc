@@ -315,7 +315,7 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
 
     // 4) Check that we're not supposed to shrink the backing store, as
     //    implemented in elements.cc:ElementsAccessorBase::SetLengthImpl.
-    TNode<Int32T> capacity = SmiToInt32(LoadFixedArrayBaseLength(elements));
+    TNode<Uint32T> capacity = LoadFixedArrayBaseLengthAsUint32(elements);
     GotoIf(Int32LessThan(
                Int32Add(Int32Add(new_length, new_length),
                         Int32Constant(JSObject::kMinAddedElementsCapacity)),
@@ -1517,7 +1517,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     var_value = index;
 
     GotoIf(Word32Equal(LoadAndUntagToWord32ObjectField(
-                           iterator, JSArrayIterator::kKindOffset),
+                           iterator, offsetof(JSArrayIterator, kind_)),
                        Int32Constant(static_cast<int>(IterationKind::kKeys))),
            &allocate_iterator_result);
 
@@ -1563,7 +1563,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     var_value = index;
 
     Branch(Word32Equal(LoadAndUntagToWord32ObjectField(
-                           iterator, JSArrayIterator::kKindOffset),
+                           iterator, offsetof(JSArrayIterator, kind_)),
                        Int32Constant(static_cast<int>(IterationKind::kKeys))),
            &allocate_iterator_result, &if_generic);
   }
@@ -1617,7 +1617,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     var_value = index;
 
     GotoIf(Word32Equal(LoadAndUntagToWord32ObjectField(
-                           iterator, JSArrayIterator::kKindOffset),
+                           iterator, offsetof(JSArrayIterator, kind_)),
                        Int32Constant(static_cast<int>(IterationKind::kKeys))),
            &allocate_iterator_result);
 
@@ -1635,7 +1635,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   BIND(&allocate_entry_if_needed);
   {
     GotoIf(Word32Equal(LoadAndUntagToWord32ObjectField(
-                           iterator, JSArrayIterator::kKindOffset),
+                           iterator, offsetof(JSArrayIterator, kind_)),
                        Int32Constant(static_cast<int>(IterationKind::kValues))),
            &allocate_iterator_result);
 
@@ -2083,11 +2083,12 @@ class SlowBoilerplateCloneAssembler : public CodeStubAssembler {
   }
 
   void CloneElementsOfFixedArray(TNode<FixedArrayBase> elements,
-                                 TNode<Smi> length, TNode<Int32T> elements_kind,
+                                 TNode<Uint32T> length,
+                                 TNode<Int32T> elements_kind,
                                  TVariable<Object>& current_allocation_site,
                                  TNode<Context> context, Label* done,
                                  Label* bailout) {
-    CSA_DCHECK(this, SmiNotEqual(length, SmiConstant(0)));
+    CSA_DCHECK(this, Word32NotEqual(length, Uint32Constant(0)));
 
     auto loop_body = [&](TNode<IntPtrT> index) {
       TVARIABLE(Object, clone);
@@ -2108,7 +2109,7 @@ class SlowBoilerplateCloneAssembler : public CodeStubAssembler {
     };
     VariableList loop_vars({&current_allocation_site}, zone());
     BuildFastLoop<IntPtrT>(loop_vars, IntPtrConstant(0),
-                           PositiveSmiUntag(length), loop_body, 1,
+                           Signed(ChangeUint32ToWord(length)), loop_body, 1,
                            LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
     Goto(done);
   }
@@ -2195,7 +2196,8 @@ TF_BUILTIN(CreateArrayFromSlowBoilerplateHelper,
   PerformStackCheck(context);
 
   TNode<FixedArrayBase> boilerplate_elements = LoadElements(boilerplate);
-  TNode<Smi> length = LoadFixedArrayBaseLength(boilerplate_elements);
+  TNode<Uint32T> length =
+      LoadFixedArrayBaseLengthAsUint32(boilerplate_elements);
 
   // If the array contains other arrays (either directly or inside objects),
   // the AllocationSite tree is stored as a list (AllocationSite::nested_site)
@@ -2209,9 +2211,9 @@ TF_BUILTIN(CreateArrayFromSlowBoilerplateHelper,
   // Keep in sync with ArrayLiteralBoilerplateBuilder::IsFastCloningSupported.
   // TODO(42204675): Detect this in advance when constructing the boilerplate.
   GotoIf(
-      SmiAboveOrEqual(
-          length,
-          SmiConstant(ConstructorBuiltins::kMaximumClonedShallowArrayElements)),
+      Uint32GreaterThanOrEqual(
+          length, Uint32Constant(
+                      ConstructorBuiltins::kMaximumClonedShallowArrayElements)),
       &bailout);
 
   // First clone the array as if was a simple, shallow array:
@@ -2236,7 +2238,7 @@ TF_BUILTIN(CreateArrayFromSlowBoilerplateHelper,
              Uint32Constant(HOLEY_ELEMENTS - PACKED_ELEMENTS)),
          &done);
 
-  GotoIf(SmiEqual(length, SmiConstant(0)), &done);
+  GotoIf(Word32Equal(length, Uint32Constant(0)), &done);
   CloneElementsOfFixedArray(elements, length, elements_kind,
                             current_allocation_site, context, &done, &bailout);
   BIND(&done);
@@ -2321,7 +2323,8 @@ TF_BUILTIN(CreateObjectFromSlowBoilerplateHelper,
     GotoIf(IsEmptyFixedArray(elements), &done_with_elements);
 
     // Object elements are never COW and never SMI_ELEMENTS etc.
-    CloneElementsOfFixedArray(elements, LoadFixedArrayBaseLength(elements),
+    CloneElementsOfFixedArray(elements,
+                              LoadFixedArrayBaseLengthAsUint32(elements),
                               LoadElementsKind(object), current_allocation_site,
                               context, &done_with_elements, &bailout);
     BIND(&done_with_elements);

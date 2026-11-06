@@ -61,11 +61,7 @@ DownloadManagerTabHelper::~DownloadManagerTabHelper() {
     web_state_ = nullptr;
   }
 
-  if (task_) {
-    task_->RemoveObserver(this);
-    task_ = nullptr;
-    task_final_file_path_.clear();
-  }
+  CleanupCurrentDownload();
 }
 
 #pragma mark - Public methods
@@ -117,9 +113,7 @@ void DownloadManagerTabHelper::SetCurrentDownload(
   // If there is no new task and an existing task is present, remove the
   // observer and reset the task.
   if (!task) {
-    task_->RemoveObserver(this);
-    task_ = nullptr;
-    task_final_file_path_.clear();
+    CleanupCurrentDownload();
     return;
   }
 
@@ -171,15 +165,13 @@ web::DownloadTask* DownloadManagerTabHelper::GetActiveDownloadTask() {
 }
 
 void DownloadManagerTabHelper::CleanupCurrentDownload() {
-  if (delegate_ && delegate_started_) {
-    delegate_started_ = false;
-    [delegate_ downloadManagerTabHelper:this didCleanupDownload:task_.get()];
-  }
-
   if (task_) {
+    if (delegate_ && delegate_started_) {
+      delegate_started_ = false;
+      [delegate_ downloadManagerTabHelper:this didCleanupDownload:task_.get()];
+    }
     task_->RemoveObserver(this);
-    // Defer task destruction to avoid clearing ObserverList during iteration.
-    ScheduleTaskDestruction();
+    task_.reset();
     task_final_file_path_.clear();
   }
   files_request_handler_.reset();
@@ -230,11 +222,7 @@ void DownloadManagerTabHelper::WebStateDestroyed(web::WebState* web_state) {
   DCHECK_EQ(web_state_, web_state);
   web_state_->RemoveObserver(this);
   web_state_ = nullptr;
-  if (task_) {
-    task_->RemoveObserver(this);
-    task_ = nullptr;
-    task_final_file_path_.clear();
-  }
+  CleanupCurrentDownload();
 }
 
 #pragma mark - web::DownloadTaskObserver
@@ -243,7 +231,10 @@ void DownloadManagerTabHelper::OnDownloadUpdated(web::DownloadTask* task) {
   DCHECK_EQ(task, task_.get());
   switch (task->GetState()) {
     case web::DownloadTask::State::kCancelled:
-      CleanupCurrentDownload();
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE,
+          base::BindOnce(&DownloadManagerTabHelper::CleanupCurrentDownload,
+                         weak_ptr_factory_.GetWeakPtr()));
       break;
     case web::DownloadTask::State::kInProgress:
       break;
@@ -263,13 +254,7 @@ void DownloadManagerTabHelper::OnDownloadUpdated(web::DownloadTask* task) {
 
 void DownloadManagerTabHelper::DidCreateDownload(
     std::unique_ptr<web::DownloadTask> task) {
-  if (task_) {
-    task_->RemoveObserver(this);
-    task_ = nullptr;
-    task_final_file_path_.clear();
-  }
-  files_request_handler_.reset();
-  content_analysis_info_.reset();
+  CleanupCurrentDownload();
   task_ = std::move(task);
   task_->AddObserver(this);
   if (web_state_->IsVisible() && delegate_) {
@@ -370,16 +355,6 @@ void DownloadManagerTabHelper::MaybeSetDownloadPathForAutoDeletion() {
   service->SetDownloadPath(GetDownloadTaskFinalFilePath());
 }
 
-void DownloadManagerTabHelper::ScheduleTaskDestruction() {
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(&DownloadManagerTabHelper::DestroyTask,
-                                weak_ptr_factory_.GetWeakPtr()));
-}
-
-void DownloadManagerTabHelper::DestroyTask() {
-  task_.reset();
-}
-
 DownloadFileService* DownloadManagerTabHelper::GetDownloadFileService() {
   CHECK(web_state_);
 
@@ -446,7 +421,7 @@ void DownloadManagerTabHelper::ProcessCompleteDownloadTask() {
           settings.has_value() ? std::move(settings.value())
                                : enterprise_connectors::AnalysisSettings(),
           enterprise_connectors::ContentAnalysisRequest::NORMAL_DOWNLOAD,
-          web_state_->GetWeakPtr());
+          *web_state_);
   auto files_request_handler_delegate = std::make_unique<
       enterprise_connectors::FilesRequestHandlerIOS>(
       profile, task_->GetResponsePath(),
@@ -458,8 +433,6 @@ void DownloadManagerTabHelper::ProcessCompleteDownloadTask() {
               weak_ptr_factory_.GetWeakPtr())));
 
   // Send the download file for enterprise DLP download content scanning.
-  // TODO(crbug.com/501456247): Update the cloudBinaryUploadsService with
-  // cloudBinaryUploadsServiceBase once the desktop refactor is done.
   files_request_handler_ = std::make_unique<
       enterprise_connectors::FilesRequestHandlerBase>(
       content_analysis_info_.get(),

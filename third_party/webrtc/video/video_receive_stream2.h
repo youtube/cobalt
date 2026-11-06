@@ -254,7 +254,7 @@ class VideoReceiveStream2
   void UpdateHistograms();
   void CalculateCorruptionScore(
       const VideoFrame& frame,
-      const FrameInstrumentationData& frame_instrumentation_data,
+      FrameInstrumentationData frame_instrumentation_data,
       VideoContentType content_type) override;
 
   const Environment env_;

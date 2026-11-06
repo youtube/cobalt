@@ -131,9 +131,11 @@ TEST_F(ProofSourceX509CertificateSelectionTest, DefaultCertificate) {
                                            QuicSocketAddress(), "unknown.test"),
               FieldsAre(
                   /*chains_match_sni=*/IsFalse(),
-                  /*chains=*/ElementsAre(ReferenceCountedChainIs(
+                  /*chains=*/
+                  ElementsAre(ReferenceCountedChainIs(
                       /*certs*/ ElementsAre(kTestCertificate),
-                      /*trust_anchor_id*/ IsEmpty()))));
+                      /*trust_anchor_id*/ IsEmpty())),
+                  /*ssl_compliance_policy=*/std::nullopt));
 }
 
 // mail.example.org is explicitly a SubjectAltName in `kTestCertificate`.
@@ -150,9 +152,11 @@ TEST_F(ProofSourceX509CertificateSelectionTest, SubjectAltName) {
                   QuicSocketAddress(), QuicSocketAddress(), "mail.example.org"),
               FieldsAre(
                   /*chains_match_sni=*/IsTrue(),
-                  /*chains=*/ElementsAre(ReferenceCountedChainIs(
+                  /*chains=*/
+                  ElementsAre(ReferenceCountedChainIs(
                       /*certs*/ ElementsAre(kTestCertificate),
-                      /*trust_anchor_id*/ IsEmpty()))));
+                      /*trust_anchor_id*/ IsEmpty())),
+                  /*ssl_compliance_policy=*/std::nullopt));
 }
 
 // www.foo.test is in `kWildcardCertificate`.
@@ -169,9 +173,11 @@ TEST_F(ProofSourceX509CertificateSelectionTest, DomainInWildcardCertificate) {
                                            QuicSocketAddress(), "www.foo.test"),
               FieldsAre(
                   /*chains_match_sni=*/IsTrue(),
-                  /*chains=*/ElementsAre(ReferenceCountedChainIs(
+                  /*chains=*/
+                  ElementsAre(ReferenceCountedChainIs(
                       /*certs*/ ElementsAre(kWildcardCertificate),
-                      /*trust_anchor_id*/ IsEmpty()))));
+                      /*trust_anchor_id*/ IsEmpty())),
+                  /*ssl_compliance_policy=*/std::nullopt));
 }
 
 // *.wildcard.test is in `kWildcardCertificate`.
@@ -190,9 +196,11 @@ TEST_F(ProofSourceX509CertificateSelectionTest,
                                    "www.wildcard.test"),
       FieldsAre(
           /*chains_match_sni=*/IsTrue(),
-          /*chains=*/ElementsAre(ReferenceCountedChainIs(
+          /*chains=*/
+          ElementsAre(ReferenceCountedChainIs(
               /*certs*/ ElementsAre(kWildcardCertificate),
-              /*trust_anchor_id*/ IsEmpty()))));
+              /*trust_anchor_id*/ IsEmpty())),
+          /*ssl_compliance_policy=*/std::nullopt));
 
   EXPECT_THAT(proof_source_
                   ->GetCertChain(QuicSocketAddress(), QuicSocketAddress(),
@@ -206,9 +214,11 @@ TEST_F(ProofSourceX509CertificateSelectionTest,
                                    "etc.wildcard.test"),
       FieldsAre(
           /*chains_match_sni=*/IsTrue(),
-          /*chains=*/ElementsAre(ReferenceCountedChainIs(
+          /*chains=*/
+          ElementsAre(ReferenceCountedChainIs(
               /*certs*/ ElementsAre(kWildcardCertificate),
-              /*trust_anchor_id*/ IsEmpty()))));
+              /*trust_anchor_id*/ IsEmpty())),
+          /*ssl_compliance_policy=*/std::nullopt));
 }
 
 // wildcard.test itself is not in `kWildcardCertificate`.
@@ -225,9 +235,11 @@ TEST_F(ProofSourceX509CertificateSelectionTest, NotInWildcardCertificate) {
                   QuicSocketAddress(), QuicSocketAddress(), "wildcard.test"),
               FieldsAre(
                   /*chains_match_sni=*/IsFalse(),
-                  /*chains=*/ElementsAre(ReferenceCountedChainIs(
+                  /*chains=*/
+                  ElementsAre(ReferenceCountedChainIs(
                       /*certs*/ ElementsAre(kTestCertificate),
-                      /*trust_anchor_id*/ IsEmpty()))));
+                      /*trust_anchor_id*/ IsEmpty())),
+                  /*ssl_compliance_policy=*/std::nullopt));
 }
 
 }  // namespace

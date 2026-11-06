@@ -173,6 +173,7 @@ class InjectedScript final {
 
     V8InspectorImpl* m_inspector;
     InjectedScript* m_injectedScript;
+    std::shared_ptr<InspectedContext> m_inspectedContext;
 
    private:
     void cleanup();

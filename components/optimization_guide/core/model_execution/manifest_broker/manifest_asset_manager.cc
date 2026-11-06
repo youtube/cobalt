@@ -18,6 +18,7 @@
 #include "base/json/values_util.h"
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
 #include "base/power_monitor/power_monitor.h"
 #include "base/sequence_checker.h"
@@ -30,6 +31,7 @@
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/optimization_guide/core/model_execution/model_execution_util.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
+#include "components/optimization_guide/public/mojom/model_broker_debug.mojom.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
@@ -39,6 +41,41 @@ namespace optimization_guide {
 namespace {
 // TTL for disk space evaluation result.
 constexpr base::TimeDelta kDiskSpaceFreshnessThreshold = base::Seconds(10);
+
+// Possible base models. `ManifestAssetManager` does not serve any model earlier
+// than Nano V3, therefore the earlier UMA enums are not listed here.
+// LINT.IfChange(OnDeviceBaseModelEnum)
+enum class BaseModel {
+  kUnknown = 0,
+  kV3NanoCpu = 5,
+  kV3NanoGpu = 6,
+  kMaxValue = kV3NanoGpu,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/optimization/enums.xml:OnDeviceBaseModelEnum)
+
+BaseModel ConvertComponentKeyToEnum(const std::string& key) {
+  if (key == "nano_v3_component_gpu") {
+    return BaseModel::kV3NanoGpu;
+  } else if (key == "nano_v3_component_cpu") {
+    return BaseModel::kV3NanoCpu;
+  } else {
+    return BaseModel::kUnknown;
+  }
+}
+
+// LINT.IfChange(OnDeviceBaseModelName)
+std::string ConvertComponentKeyToUmaModelName(const std::string& key) {
+  if (key == "nano_v3_component_gpu") {
+    return "V3NanoGpu";
+  } else if (key == "nano_v3_component_cpu") {
+    return "V3NanoCpu";
+  } else if (key == "tinymodel_summarizer_component") {
+    return "TinyModelSummarizer";
+  } else {
+    return "Unknown";
+  }
+}
+// LINT.ThenChange(//tools/metrics/histograms/metadata/optimization/histograms.xml:OnDeviceBaseModelName)
 
 // Delay to give consumers time to unload the model before it's deleted.
 constexpr base::TimeDelta kUninstallDelay = base::Seconds(1);
@@ -76,6 +113,42 @@ ManifestAssetManager::ComponentContext::AsAssetState(
       ManifestSolutionFactory::AssetUnavailableReason::kNotDownloaded);
 }
 
+mojom::BrokerAssetState
+ManifestAssetManager::ComponentContext::ToBrokerAssetState() const {
+  switch (state_) {
+    case ComponentState::kNotRegistered:
+      return mojom::BrokerAssetState::kNotInstalled;
+    case ComponentState::kRegistering:
+      return mojom::BrokerAssetState::kRegistering;
+    case ComponentState::kRegistered:
+      return mojom::BrokerAssetState::kNotInstalled;
+    case ComponentState::kOnDemandDownloading:
+      return mojom::BrokerAssetState::kForegroundInstalling;
+    case ComponentState::kReady:
+      return mojom::BrokerAssetState::kReady;
+    case ComponentState::kUninstalling:
+      return mojom::BrokerAssetState::kUninstalling;
+  }
+}
+
+mojom::BrokerAssetInfoPtr
+ManifestAssetManager::ComponentContext::ToBrokerAssetInfo(
+    const proto::OnDemandComponent* target) const {
+  auto asset_info = mojom::BrokerAssetInfo::New();
+  asset_info->name = asset_id_;
+  if (target) {
+    asset_info->version = target->target_version();
+  } else {
+    asset_info->version = requested_version_;
+  }
+  asset_info->state = ToBrokerAssetState();
+  if (version_.has_value() && requested_version_ != version_->GetString()) {
+    asset_info->error =
+        base::StrCat({"Mismatched version: ", version_->GetString()});
+  }
+  return asset_info;
+}
+
 void ManifestAssetManager::ComponentContext::SetAssetId(
     const std::string& asset_id) {
   asset_id_ = asset_id;
@@ -98,7 +171,8 @@ void ManifestAssetManager::ComponentContext::SetRegistering(
 }
 
 void ManifestAssetManager::ComponentContext::SetRegistered() {
-  CHECK_EQ(state_, ComponentState::kRegistering);
+  CHECK(state_ == ComponentState::kRegistering ||
+        state_ == ComponentState::kReady);
   state_ = ComponentState::kRegistered;
 }
 
@@ -324,6 +398,13 @@ void ManifestAssetManager::UpdateSolutionFactory(
   UpdateActiveAssets();
 }
 
+void ManifestAssetManager::RefreshSolutions() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (factory_) {
+    factory_->UpdateSolutions();
+  }
+}
+
 // static
 bool ManifestAssetManager::VerifyInstallation(const base::FilePath& install_dir,
                                               const base::DictValue& manifest) {
@@ -377,7 +458,7 @@ bool ManifestAssetManager::ShouldInstall(
     return false;
   }
   if (context.requested_version() == component->target_version()) {
-    // We already started downloading this component, so we should continue.
+    // The component is either downloading or already installed.
     return true;
   }
   if (!disk_space_status_.CanSupportOnDemandInstall()) {
@@ -416,6 +497,16 @@ void ManifestAssetManager::UpdateRegistrations() {
       if (context.NeedsCleanup()) {
         // Component is obsolete.
         context.SetUninstalling();
+
+        Manifest::UninstallReason log_reason =
+            Manifest::UninstallReason::kUnknown;
+        log_reason = factory_->manifest().uninstall_reason();
+
+        base::UmaHistogramEnumeration(
+            "OptimizationGuide.ModelExecution.OnDeviceModelUninstallReason." +
+                ConvertComponentKeyToUmaModelName(context.asset_id()),
+            log_reason);
+
         keys_to_save.push_back(public_key);
         // Uninstall the component which will delete the model files, after a
         // short delay to give time for the consumers to unload the model.
@@ -522,7 +613,19 @@ void ManifestAssetManager::OnAssetReady(const std::string& public_key,
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   ComponentContext* context = ledger_.GetContext(public_key);
   CHECK(context);  // Any asset that is ready should be in the ledger.
+  bool is_new_installation =
+      (context->state() == ComponentState::kRegistered ||
+       context->state() == ComponentState::kOnDemandDownloading);
   context->SetReady(install_dir, version);
+
+  BaseModel model_enum = ConvertComponentKeyToEnum(context->asset_id());
+  base::UmaHistogramEnumeration(
+      "OptimizationGuide.OnDeviceModel.InstalledModel", model_enum);
+  if (is_new_installation) {
+    base::UmaHistogramEnumeration(
+        "OptimizationGuide.OnDeviceModel.NewModelInstalled", model_enum);
+  }
+
   NotifyFactory(public_key, *context);
 }
 
@@ -539,6 +642,37 @@ void ManifestAssetManager::NotifyFactory(const std::string& public_key,
   }
   factory_->UpdateAssetState(context.asset_id(),
                              context.AsAssetState(component->target_version()));
+}
+
+std::vector<mojom::BrokerPropertyInfoPtr>
+ManifestAssetManager::GetBrokerProperties() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  std::vector<mojom::BrokerPropertyInfoPtr> properties;
+  properties.push_back(mojom::BrokerPropertyInfo::New(
+      "Supports Installs",
+      disk_space_status_.CanSupportOnDemandInstall() ? "true" : "false"));
+  properties.push_back(mojom::BrokerPropertyInfo::New(
+      "Supports Proactive Downloads",
+      disk_space_status_.CanSupportProactiveDownload() ? "true" : "false"));
+  return properties;
+}
+
+std::vector<mojom::BrokerAssetInfoPtr> ManifestAssetManager::GetBrokerAssets()
+    const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  std::vector<mojom::BrokerAssetInfoPtr> assets;
+  for (const auto& [public_key, context] : ledger_.contexts()) {
+    const proto::OnDemandComponent* component =
+        factory_->manifest().GetAssetByPublicKey(public_key);
+    assets.push_back(context.ToBrokerAssetInfo(component));
+  }
+  return assets;
+}
+
+std::vector<mojom::BrokerModelInfoPtr> ManifestAssetManager::GetBrokerModels()
+    const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return factory_->GetBrokerModels();
 }
 
 }  // namespace optimization_guide

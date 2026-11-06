@@ -26,7 +26,7 @@ following categories:
     - `label:ClusterFuzz component:Blink>JavaScript status:Untriaged`
     - Will show up in [this](https://bugs.chromium.org/p/chromium/issues/list?can=2&q=label%3AClusterFuzz+component%3ABlink%3EJavaScript+status%3AUntriaged&colspec=ID+Pri+M+Stars+ReleaseBlock+Component+Status+Owner+Summary+OS+Modified&x=m&y=releaseblock&cells=ids) query.
     - No CC needed, will be triaged by a sheriff automatically
-- Security: All security issues are triaged by Chromium Security sheriffs. Please see [reporting security bugs](/docs/security-bugs) for more information.
+- Security: Please see [V8's security policy](https://chromium.googlesource.com/v8/v8/+/HEAD/SECURITY.md) for more information.
 
 If you need the attention of a sheriff, please consult the rotation information.
 

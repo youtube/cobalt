@@ -19,7 +19,10 @@
 #include "chrome/browser/glic/service/metrics/glic_metrics_session_manager.h"
 #include "chrome/browser/glic/service/metrics/metrics_types.h"
 
+class PrefService;
+
 namespace metrics {
+
 class ProfileMetricsService;
 }
 
@@ -154,7 +157,8 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
       const metrics::ProfileMetricsService* profile_metrics_service);
   GlicInstanceMetrics(
       const metrics::ProfileMetricsService* profile_metrics_service,
-      GlicSharingManager* sharing_manager);
+      GlicSharingManager* sharing_manager,
+      PrefService* pref_service = nullptr);
   ~GlicInstanceMetrics() override;
 
   GlicInstanceMetrics(const GlicInstanceMetrics&) = delete;
@@ -165,11 +169,10 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   void DidRequestContextFromTab(tabs::TabInterface& tab) override;
   void OnResponseStarted() override;
   void OnResponseStopped(mojom::ResponseStopCause cause) override;
-  void OnTurnCompleted(mojom::WebClientModel model,
-                       base::TimeDelta duration) override;
-  void OnReaction(mojom::MetricUserInputReactionType reaction_type) override;
-  void OnGlicScrollAttempt() override;
-  void OnGlicScrollComplete(bool success) override;
+  void OnTurnCompleted(mojom::WebClientModel model, base::TimeDelta duration);
+  void OnReaction(mojom::MetricUserInputReactionType reaction_type);
+  void OnGlicScrollAttempt();
+  void OnGlicScrollComplete(bool success);
 
   // Called when GlicInstanceImpl is destroyed.
   void OnInstanceDestroyed();
@@ -283,6 +286,8 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
 
   void OnSelectionAreasChanged(int count);
 
+  void OnZoomLevelChange();
+
   // Records the number of tabs attached as context for a Glic response.
   void RecordAttachedContextTabCount(int tab_count);
 
@@ -327,8 +332,6 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
     // should be removed, see crbug.com/399151164.
     bool response_started_ = false;
     bool did_request_context_ = false;
-    bool reported_reaction_time_canned_ = false;
-    bool reported_reaction_time_modelled_ = false;
     EmbedderType ui_mode_ = EmbedderType::kUnknown;
     mojom::WebClientMode input_mode_ = mojom::WebClientMode::kUnknown;
     bool pending_scroll_complete_ = false;
@@ -401,6 +404,7 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   base::CallbackListSubscription tab_pinning_status_subscription_;
   const raw_ref<const metrics::ProfileMetricsService> profile_metrics_service_;
   raw_ptr<GlicSharingManager> sharing_manager_ = nullptr;
+  raw_ptr<PrefService> pref_service_ = nullptr;
 
   bool first_side_panel_close_recorded_ = false;
 
@@ -412,6 +416,10 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
 
   // Whether region selection is active.
   int selection_areas_count_ = 0;
+
+  // The number of zoom change attempts (tracked per instance and reset when
+  // the instance is destroyed).
+  int zoom_change_count_ = 0;
 };
 
 }  // namespace glic

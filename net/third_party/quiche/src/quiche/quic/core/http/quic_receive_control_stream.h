@@ -19,7 +19,7 @@ class QuicSpdySession;
 class QUICHE_EXPORT QuicReceiveControlStream : public QuicStream,
                                                public HttpDecoder::Visitor {
  public:
-  explicit QuicReceiveControlStream(PendingStream* pending,
+  explicit QuicReceiveControlStream(PendingStream& pending,
                                     QuicSpdySession* spdy_session);
   QuicReceiveControlStream(const QuicReceiveControlStream&) = delete;
   QuicReceiveControlStream& operator=(const QuicReceiveControlStream&) = delete;

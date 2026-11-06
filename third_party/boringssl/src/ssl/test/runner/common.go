@@ -329,6 +329,11 @@ const (
 	signatureEd25519 signatureAlgorithm = 0x0807
 	signatureEd448   signatureAlgorithm = 0x0808
 
+	// ML-DSA algorithms (draft-ietf-tls-mldsa-02)
+	signatureMLDSA44 signatureAlgorithm = 0x0904
+	signatureMLDSA65 signatureAlgorithm = 0x0905
+	signatureMLDSA87 signatureAlgorithm = 0x0906
+
 	// draft-ietf-tls-tls13-pkcs1-00
 	signatureRSAPKCS1WithSHA256Legacy signatureAlgorithm = 0x0420
 
@@ -2269,6 +2274,17 @@ type ProtocolBugs struct {
 	// send a server_certificate_type extension containing the given values.
 	// For a server, this may not contain more than 1 value.
 	SendServerCertificateTypes []CertificateType
+
+	// SendEmptyCertificateAuthorities, if true, causes a TLS 1.3 client or
+	// server to send an empty certificate_authorities extension, instead of
+	// omitting the extension.
+	SendEmptyCertificateAuthorities bool
+
+	// ExtensionsWithTrailingData specifies a list of extensions to include
+	// trailing data in.
+	// TODO(crbug.com/505803427): Currently only implemented for ClientHello and
+	// CertificateRequest.
+	ExtensionsWithTrailingData []uint16
 }
 
 func (c *Config) serverInit() {

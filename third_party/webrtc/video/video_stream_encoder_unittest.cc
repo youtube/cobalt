@@ -28,6 +28,7 @@
 #include "api/adaptation/resource.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/fec_controller_override.h"
 #include "api/field_trials.h"
 #include "api/field_trials_view.h"
 #include "api/location.h"
@@ -42,6 +43,7 @@
 #include "api/test/mock_video_encoder_factory.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/test/time_controller.h"
+#include "api/test/video/function_video_encoder_factory.h"
 #include "api/units/data_rate.h"
 #include "api/units/data_size.h"
 #include "api/units/frequency.h"
@@ -813,6 +815,9 @@ class SimpleVideoStreamEncoderFactory {
         const CodecSpecificInfo* codec_specific_info) override {
       return Result(EncodedImageCallback::Result::OK);
     }
+    void OnFrameDropped(uint32_t rtp_timestamp,
+                        int spatial_id,
+                        bool is_end_of_temporal_unit) override {}
   };
 
   FieldTrials field_trials_ = CreateTestFieldTrials();
@@ -2376,6 +2381,96 @@ TEST_F(VideoStreamEncoderTest,
   EXPECT_EQ(1, encoder_factory_.GetMaxNumberOfSimultaneousEncoderInstances());
 
   video_stream_encoder_->Stop();
+}
+
+TEST_F(VideoStreamEncoderTest,
+       EncoderReleasedBeforeDestructionOnReconfiguration) {
+  class ReleaseCheckEncoderProxy : public VideoEncoder {
+   public:
+    ReleaseCheckEncoderProxy(VideoEncoder* encoder, bool& released)
+        : encoder_(encoder), released_(released) {}
+    ~ReleaseCheckEncoderProxy() override = default;
+
+    int32_t Encode(const VideoFrame& input_image,
+                   const std::vector<VideoFrameType>* frame_types) override {
+      return encoder_->Encode(input_image, frame_types);
+    }
+
+    int32_t InitEncode(const VideoCodec* config,
+                       const Settings& settings) override {
+      return encoder_->InitEncode(config, settings);
+    }
+
+    int32_t RegisterEncodeCompleteCallback(
+        EncodedImageCallback* callback) override {
+      return encoder_->RegisterEncodeCompleteCallback(callback);
+    }
+
+    int32_t Release() override {
+      released_ = true;
+      return encoder_->Release();
+    }
+
+    void SetRates(const RateControlParameters& parameters) override {
+      encoder_->SetRates(parameters);
+    }
+
+    VideoEncoder::EncoderInfo GetEncoderInfo() const override {
+      return encoder_->GetEncoderInfo();
+    }
+
+    void SetFecControllerOverride(
+        FecControllerOverride* fec_controller_override) override {
+      encoder_->SetFecControllerOverride(fec_controller_override);
+    }
+
+   private:
+    VideoEncoder* const encoder_;
+    bool& released_;
+  };
+
+  bool released[2] = {false, false};
+  int instance_count = 0;
+
+  test::FunctionVideoEncoderFactory factory(
+      [this, &instance_count, &released](const Environment& env,
+                                         const SdpVideoFormat& format) {
+        RTC_CHECK_LT(instance_count, 2);
+        bool& r = released[instance_count++];
+        return std::make_unique<ReleaseCheckEncoderProxy>(&fake_encoder_, r);
+      });
+
+  video_send_config_.encoder_settings.encoder_factory = &factory;
+  ConfigureEncoder(video_encoder_config_.Copy());
+
+  video_stream_encoder_->OnBitrateUpdatedAndWaitForManagedResources(
+      kTargetBitrate, kTargetBitrate, 0, 0, 0);
+
+  // Capture a frame and wait for it to synchronize with the encoder thread.
+  video_source_.IncomingCapturedFrame(CreateFrame(1, nullptr));
+  WaitForEncodedFrame(1);
+
+  EXPECT_EQ(instance_count, 1);
+  EXPECT_FALSE(released[0]);
+
+  VideoEncoderConfig video_encoder_config = video_encoder_config_.Copy();
+  // Changing the max payload data length recreates encoder.
+  video_stream_encoder_->ConfigureEncoder(std::move(video_encoder_config),
+                                          kMaxPayloadLength / 2);
+
+  // Capture a frame and wait for it to synchronize with the encoder thread.
+  video_source_.IncomingCapturedFrame(CreateFrame(2, nullptr));
+  WaitForEncodedFrame(2);
+
+  // We expect that two encoders were created.
+  EXPECT_EQ(instance_count, 2);
+  // The first encoder should have been released before destruction.
+  EXPECT_TRUE(released[0]);
+
+  video_stream_encoder_->Stop();
+
+  // The second encoder should also be released after Stop().
+  EXPECT_TRUE(released[1]);
 }
 
 TEST_F(VideoStreamEncoderTest, BitrateLimitsChangeReconfigureRateAllocator) {

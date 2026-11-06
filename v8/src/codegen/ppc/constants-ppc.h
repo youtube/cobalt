@@ -3065,7 +3065,7 @@ const Instr rtCallRedirInstr = TWI;
 
 constexpr uint8_t kInstrSize = 4;
 constexpr uint8_t kInstrSizeLog2 = 2;
-constexpr uint8_t kPcLoadDelta = 8;
+constexpr uint8_t kPcLoadDelta = 4;
 
 class Instruction {
  public:

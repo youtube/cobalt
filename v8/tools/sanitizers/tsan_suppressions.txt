@@ -9,3 +9,7 @@ deadlock:LockAndUnlockDifferentIsolatesThread::Run
 # that promise that this race is benign (compilation will fail if the race
 # happens).
 race:RacyReadHeapNumberBits
+
+# Allow racy reads of JSTypedArray length, for concurrent compilers
+# that promise that this race is benign.
+race:RacyReadJSTypedArrayLength

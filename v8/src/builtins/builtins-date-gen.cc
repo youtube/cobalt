@@ -54,10 +54,10 @@ void DateBuiltinsAssembler::Generate_DatePrototype_GetField(
         Load<Object>(IsolateField(IsolateFieldId::kDateCacheStamp));
 
     TNode<Object> cache_stamp =
-        LoadObjectField(date_receiver, JSDate::kCacheStampOffset);
+        LoadObjectField(date_receiver, offsetof(JSDate, cache_stamp_));
     GotoIf(TaggedNotEqual(date_cache_stamp, cache_stamp), &stamp_mismatch);
-    Return(LoadObjectField(date_receiver,
-                           JSDate::kYearOffset + field_index * kTaggedSize));
+    Return(LoadObjectField(
+        date_receiver, offsetof(JSDate, year_) + field_index * kTaggedSize));
 
     BIND(&stamp_mismatch);
   }
@@ -138,7 +138,7 @@ TF_BUILTIN(DatePrototypeGetTime, DateBuiltinsAssembler) {
   Generate_IsDateCheck(context, receiver);
   TNode<JSDate> date_receiver = CAST(receiver);
   Return(ChangeFloat64ToTagged(
-      LoadObjectField<Float64T>(date_receiver, JSDate::kValueOffset)));
+      LoadObjectField<Float64T>(date_receiver, offsetof(JSDate, value_))));
 }
 
 // https://tc39.es/ecma262/#sec-date.prototype.gettimezoneoffset
@@ -211,7 +211,7 @@ TF_BUILTIN(DatePrototypeValueOf, DateBuiltinsAssembler) {
   Generate_IsDateCheck(context, receiver);
   TNode<JSDate> date_receiver = CAST(receiver);
   Return(ChangeFloat64ToTagged(
-      LoadObjectField<Float64T>(date_receiver, JSDate::kValueOffset)));
+      LoadObjectField<Float64T>(date_receiver, offsetof(JSDate, value_))));
 }
 
 // https://tc39.es/ecma262/#sec-date.prototype-@@toprimitive

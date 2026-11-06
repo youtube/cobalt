@@ -1292,7 +1292,8 @@ void GlobalLexicalScopeNames(v8::Local<v8::Context> v8_context,
   i::Isolate* isolate = i::Isolate::Current();
   i::DirectHandle<i::ScriptContextTable> table(
       context->native_context()->script_context_table(), isolate);
-  for (int i = 0; i < table->length(kAcquireLoad); i++) {
+  const uint32_t len = table->length(kAcquireLoad).value();
+  for (uint32_t i = 0; i < len; i++) {
     i::DirectHandle<i::Context> script_context(table->get(i), isolate);
     DCHECK(script_context->IsScriptContext());
     i::DirectHandle<i::ScopeInfo> scope_info(script_context->scope_info(),

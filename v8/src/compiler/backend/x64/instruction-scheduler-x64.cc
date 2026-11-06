@@ -17,6 +17,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
       return kHasSideEffect;
     case kX64Add:
     case kX64Add32:
+    case kX64Add128:
     case kX64And:
     case kX64And32:
     case kX64Cmp:

@@ -38,6 +38,7 @@ Specifically, the following properties are different from regular security bugs:
 
 Security bugs should have proof-of-concept reproductions (POCs) attached to them.
 V8 currently still accepts bugs without a POC with the caveat that such bugs have a much higher chance of being dismissed quickly.
+See [the detailed documentation](reproducing-bugs.md) for the various different configurations V8 can be put in.
 
 ### Regular security bugs
 
@@ -95,11 +96,12 @@ Fields: **Type=Bug**, **Security_Impact-None**
 
 V8 relies on `nullptr` dereferences to deterministically crash.
 
-### Broken `DCHECK`s or reliable `CHECK` crashers
+### Bogus `DCHECK`s or reliable `CHECK` crashers
 
 Fields: **Type=Bug**, **Security_Impact-None**
 
-Rationale: Crashes either cannot happen in production builds (e.g., `DCHECK` failures) or they deterministically crash the process (e.g., `CHECK` failures).
+Rationale: These issues are not considered security vulnerabilities because the crashes either cannot happen in production builds (e.g., `DCHECK` failures, which are compiled out) or they result in a safe, deterministic crash (e.g., `CHECK` failures).
+Invalid ("bogus") `DCHECK`s should still be fixed or removed.
 
 Note: `CHECK`s must not be behind special builds or phases, such as `--verify-*`.
 

@@ -27,6 +27,7 @@
 #include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "test/create_test_field_trials.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 
 namespace webrtc {
 namespace test {
@@ -82,7 +83,7 @@ class AndroidNetworkMonitorTest : public ::testing::Test {
 
  protected:
   FieldTrials field_trials_ = CreateTestFieldTrials();
-  webrtc::AutoThread main_thread_;
+  webrtc::test::RunLoop main_thread_;
   std::unique_ptr<jni::AndroidNetworkMonitor> network_monitor_;
 };
 

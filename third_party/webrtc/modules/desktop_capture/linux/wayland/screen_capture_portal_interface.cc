@@ -100,6 +100,12 @@ void ScreenCapturePortalInterface::RegisterSessionClosedSignalHandler(
     return;
   }
 
+  if (UnsubscribeSignalHandler(connection, session_closed_signal_id)) {
+    RTC_LOG(LS_ERROR) << "Duplicate session closed signal registration.";
+    OnPortalDone(RequestResponse::kError);
+    return;
+  }
+
   session_closed_signal_id = g_dbus_connection_signal_subscribe(
       connection, kDesktopBusName, kSessionInterfaceName, /*member=*/"Closed",
       session_handle.c_str(), /*arg0=*/nullptr, G_DBUS_SIGNAL_FLAGS_NONE,

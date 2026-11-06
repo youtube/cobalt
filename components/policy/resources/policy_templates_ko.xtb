@@ -107,7 +107,7 @@
 <translation id="1060020040574767394">맞춤 워터마크 설정 구성</translation>
 <translation id="1062011392452772310">기기에 대한 원격 인증을 사용합니다.</translation>
 <translation id="1062407476771304334">바꾸기</translation>
-<translation id="1063860513136880926">정책을 '사용'으로 설정하면 단축키나 확장 프로그램 API를 통해 스크린샷을 캡처할 수 없습니다. 정책을 설정하지 않거나 '사용 안함'으로 설정하면 스크린샷을 캡처할 수 있습니다.
+<translation id="1063860513136880926">정책을 '사용'으로 설정하면 키보드 단축키나 확장 프로그램 API를 통해 스크린샷을 캡처할 수 없습니다. 정책을 설정하지 않거나 '사용 안함'으로 설정하면 스크린샷을 캡처할 수 있습니다.
 
 정책 설정과 관계없이 <ph name="MS_WIN_NAME" />, <ph name="MAC_OS_NAME" />, <ph name="LINUX_OS_NAME" />에서는 운영체제나 서드 파티 애플리케이션으로 찍은 스크린샷이 차단되지 않습니다.</translation>
 <translation id="1065175969514496951">정책을 설정하면 로그인 화면 및 잠금 화면 등 인증 중에 나열된 URL에 액세스할 수 있습니다. <ph name="DEVICE_AUTHENTICATION_URL_BLOCKLIST_POLICY_NAME" />는 예외입니다. 목록 항목의 형식은 정책 설명을 확인하세요. 예를 들어 <ph name="DEVICE_AUTHENTICATION_URL_BLOCKLIST_POLICY_NAME" />를 <ph name="WILDCARD_VALUE" /> 기호로 설정하면 모든 요청이 차단되며 이 정책을 사용하여 제한된 URL 목록에 액세스하도록 허용할 수 있습니다. 또한 https://support.google.com/chrome/a?p=url_blocklist_filter_format에 지정된 형식을 사용하여 특정 스키마, 다른 도메인의 하위 도메인, 포트, 특정 경로에 대한 예외 목록을 열 수도 있습니다. 가장 구체적인 필터에 따라 URL 차단 또는 허용 여부가 결정됩니다. <ph name="DEVICE_AUTHENTICATION_URL_ALLOWLIST_POLICY_NAME" /> 정책은 <ph name="DEVICE_AUTHENTICATION_URL_BLOCKLIST_POLICY_NAME" />보다 우선 적용됩니다. 정책의 항목은 1,000개로 제한됩니다.
@@ -123,6 +123,7 @@
 
 참고: 프로세스 완화 정책(https://chromium.googlesource.com/chromium/src/+/HEAD/docs/design/sandbox.md#Process-mitigation-policies)에 관해 자세히 알아보세요.</translation>
 <translation id="1068801725746725727">세이프 브라우징 설문조사 수신 허용</translation>
+<translation id="1069651607236021905">특정 출처에 포그라운드 우선순위 강제 적용</translation>
 <translation id="107045325503547419">기능 출시 프로세스에 따라 달라집니다.</translation>
 <translation id="1073983258515362346">기기의 백라이트에 관한 정보를 보고합니다.
 
@@ -711,14 +712,6 @@ https://support.google.com/chrome/a/?p=extended_updates_support 페이지를 참
 <translation id="1523587744262636189">포트 10080(2022년 4월 1일까지 차단 해제될 수 있음)</translation>
 <translation id="1523774894176285446">구성된 웹사이트를 실행하기 위한 대체 브라우저입니다.</translation>
 <translation id="152657506688053119">기본 검색 공급자의 대체 URL 목록</translation>
-<translation id="1526766414933532012">사용자가 <ph name="PRIVACY_SANDBOX_NAME" /> 광고 측정 설정을 사용 중지할 수 있는지 제어하는 정책입니다.
-
-정책을 사용 안함으로 설정하면 사용자의 광고 측정 설정이 사용 중지됩니다.
-정책을 사용 설정하거나 설정하지 않은 상태로 두면 사용자가 기기에서 <ph name="PRIVACY_SANDBOX_NAME" /> 광고 측정 설정을 사용 또는 사용 중지할 수 있습니다.
-
-이 정책을 설정하려면 <ph name="PRIVACY_SANDBOX_PROMPT_ENABLED_POLICY_NAME" /> 정책을 사용 안함으로 설정해야 합니다.
-
-이 정책은 Attribution Reporting API가 지원 중단됨에 따라 <ph name="PRODUCT_NAME" /> 버전 144부터 지원 중단됩니다.</translation>
 <translation id="1532928374875633053">창 배치 권한을 자동으로 부여하는 사이트를 지정하도록 사이트 URL 패턴 목록을 설정할 수 있습니다. 이렇게 하면 사이트에서 기기 화면에 관한 정보를 본 다음, 해당 정보를 사용하여 창을 열고 배치하거나 특정 화면에서는 전체 화면을 요청하는 기능이 확장됩니다.
 
       유효한 사이트 URL 패턴에 관해 자세히 알아보려면 https://chromeenterprise.google/policies/url-patterns를 참고하세요. 와일드 카드(<ph name="WILDCARD_VALUE" />)를 사용할 수 있습니다. 이 정책은 출처만 기준으로 일치 여부를 판단하므로 URL 패턴의 경로는 무시됩니다.
@@ -1171,6 +1164,7 @@ Chrome 앱은 ID(예: <ph name="DEFAULT_HANDLERS_FOR_FILE_EXTENSIONS_POLICY_CHRO
 
       정책을 설정하지 않으면 사용자가 기본 언어의 전체 목록을 변경할 수 있습니다.</translation>
 <translation id="1803646570632580723">런처에 표시되는 고정된 앱 목록</translation>
+<translation id="1807539058116290184">키오스크 모드에서 손가락을 모으거나 펼쳐 확대/축소 사용 중지</translation>
 <translation id="1808715480127969042">이 사이트에서 쿠키 차단</translation>
 <translation id="1810261428246410396">인스턴트 테더링 사용 허용</translation>
 <translation id="1813638828646876133">잠금 및 로그인 화면에서 PIN 자동 제출 사용 설정</translation>
@@ -2151,6 +2145,15 @@ False로 설정하면 개인 정보 보호 화면은 항상 사용 중지됩니�
 정책을 설정하지 않거나 False로 설정하면 자동 인쇄가 사용 중지되어
 인쇄 미리보기 창이 자동으로 닫히지 않으며
 평소처럼 사용자가 선택해야 합니다.</translation>
+<translation id="2451322901390143329">데이터 URL에서 생성된 웹 작업자에 고유한 불투명 출처를 할당할지 여부를 제어합니다.
+
+웹 작업자는 작업자의 스크립트가 포함된 데이터 URL을 사용하여 생성될 수 있습니다. 이전에는 이러한 작업자가 자신을 생성한 페이지의 출처를 상속받아 동일한 로컬 스토리지, 쿠키, 기타 출처 바인딩 데이터에 액세스할 수 있었습니다. 보안을 개선하고 HTML 사양을 준수하기 위해 Chrome은 149 버전부터 데이터 URL에서 생성된 작업자가 이제 고유한 불투명 출처를 갖도록 기본 동작을 변경합니다. 이렇게 하면 생성자 페이지의 데이터와 작업자가 분리됩니다.
+
+이 정책이 '사용 설정됨'으로 설정되거나 별도의 설정을 하지 않으면 새로운 더 안전한 기본 동작이 사용되며, 데이터 URL에서 생성된 웹 작업자에 고유한 불투명 출처가 부여됩니다.
+
+이 정책이 '사용 중지됨'으로 설정되면 Chrome이 기존 동작으로 되돌아가고, 데이터 URL에서 생성된 웹 작업자는 생성자의 출처를 상속받게 됩니다. 이렇게 하면 보안 변경으로 인해 내부 애플리케이션이 중단되는 경우 관리자가 호환성 문제를 일시적으로 해결할 수 있습니다.
+
+이 정책은 임시 조치이며 157 버전에서 삭제될 예정입니다.</translation>
 <translation id="2452225615952836461">요청 메서드를 항상 대문자로 표시</translation>
 <translation id="2454228136871844693">안정성에 최적화합니다.</translation>
 <translation id="2455033019778127130">기본 브라우저 동작을 사용하고 서비스 약관을 표시한 다음 사용자가 수락할 때까지 기다림</translation>
@@ -3337,6 +3340,18 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 변형은 크로스 사이트 
           설정되어 있지 않으면 기본 설정된 시간이 적용됩니다.
 
           정책 값은 밀리초로 지정되어야 합니다.</translation>
+<translation id="3197981761853858791"><ph name="PRIVACY_SANDBOX_NAME" /> 프롬프트 구성이 더 이상 지원되지 않으므로 이 정책은 지원 중단되었습니다.
+
+사용자에게 <ph name="PRIVACY_SANDBOX_NAME" /> 프롬프트를 표시할지 제어하는 정책입니다.
+이 프롬프트는 사용자에게 <ph name="PRIVACY_SANDBOX_NAME" /> 설정에 관해 알리는 사용자 차단 흐름입니다. <ph name="PRIVACY_SANDBOX_URL" />에서 서드 파티 쿠키 지원을 중단하기 위한 Chrome의 노력에 관해 자세히 알아보세요.
+
+정책을 '사용 안함'으로 설정하면 <ph name="PRODUCT_NAME" />에 <ph name="PRIVACY_SANDBOX_NAME" /> 프롬프트가 표시되지 않습니다.
+정책을 '사용'으로 설정하거나 설정하지 않은 상태로 두면 <ph name="PRODUCT_NAME" />에서 <ph name="PRIVACY_SANDBOX_NAME" /> 프롬프트를 표시할 수 있는지를 결정하고 가능한 경우 프롬프트를 표시합니다.
+
+다음 정책 중 하나가 설정된 경우 이 정책을 '사용 안함'으로 설정해야 합니다.
+<ph name="PRIVACY_SANDBOX_AD_TOPICS_ENABLED_POLICY_NAME" />
+<ph name="PRIVACY_SANDBOX_SITE_ENABLED_ADS_ENABLED_POLICY_NAME" />
+<ph name="PRIVACY_SANDBOX_AD_MEASUREMENT_ENABLED_POLICY_NAME" /></translation>
 <translation id="3198385910521788907">로그인 시 인기척 감지 센서 화면 표시 안함</translation>
 <translation id="3205825995289802549">처음 실행 시 첫 번째 브라우저 창 최대화</translation>
 <translation id="320607884987562184">정책을 1로 설정하면 웹사이트에서 JavaScript를 실행하도록 허용합니다. 정책을 2로 설정하면 JavaScript를 거부합니다.
@@ -4120,6 +4135,12 @@ HTTPS용 RSA 인증서에 두 가지를 모두 포함해야 합니다.</translat
       이 설정을 사용 중지하면 사용자가 자동 완성을 사용할 수 없습니다.
 
       이 설정을 사용 설정하거나 값을 지정하지 않으면 사용자가 자동 완성을 제어할 수 있게 됩니다. 따라서 사용자가 자동 완성 프로필을 설정하고 원하는 대로 자동 완성을 사용하거나 사용 중지할 수 있습니다.</translation>
+<translation id="3730809439296971274">사용자가 <ph name="PRIVACY_SANDBOX_NAME" /> 사이트 추천 광고 설정을 사용 중지할 수 있는지 제어하는 정책입니다.
+
+정책을 '사용 안함'으로 설정하면 사용자의 사이트 추천 광고 설정이 사용 중지됩니다.
+정책을 '사용'으로 설정하거나 설정하지 않은 상태로 두면 사용자가 기기에서 <ph name="PRIVACY_SANDBOX_NAME" /> 사이트 추천 광고 설정을 사용 또는 사용 중지할 수 있습니다.
+
+이 정책은 Protected Audience API가 지원 중단됨에 따라 <ph name="PRODUCT_NAME" /> 버전 144부터 지원 중단됩니다.</translation>
 <translation id="3733014427925403568">간격에 사용할 요일입니다.</translation>
 <translation id="3736879847913515635">사용자 관리자에서 사용자 추가 허용</translation>
 <translation id="3744984310825999317"><ph name="PEPPER_NAME" />에서 하드웨어 가속 동영상 디코딩에 새 디코더를 사용하도록 허용합니다.</translation>
@@ -5158,6 +5179,7 @@ false로 설정되면 확장 프로그램 및 플러그인 데이터가 수집�
 <translation id="4463675333222095358">빠른 답변 단위 변환 사용 설정</translation>
 <translation id="4464365009416584564"><ph name="CHROME_SYNC_NAME" /> 사용 안함</translation>
 <translation id="4467952432486360968">제3자 쿠키 차단</translation>
+<translation id="4468220154891570994">키오스크 모드에서 손가락을 모으거나 펼쳐 확대/축소 허용</translation>
 <translation id="4472740647327683596">페이지의 너비(마이크로미터)입니다.</translation>
 <translation id="4474167089968829729">비밀번호 관리자에 비밀번호 저장 기능 사용</translation>
 <translation id="4474266799109921560">정책을 2로 설정하면 분리형 웹 앱 출처에서 WebPrinting API를 사용하지 못하도록 자동으로 차단됩니다.
@@ -5367,6 +5389,17 @@ URL 패턴은 <ph name="CONTROLLED_FRAME_BLOCKED_FOR_URLS_POLICY_NAME" /> 정책
           어떠한 문제도 없습니다.
           </translation>
 <translation id="4578265298946081589">사용자 로그아웃 시 재부팅하지 않습니다.</translation>
+<translation id="4580711645933054901">이 정책을 사용하면 URL 패턴 목록을 지정할 수 있습니다. 해당 패턴과 일치하는 백그라운드 웹 콘텐츠는 포그라운드 우선순위로 강제 실행됩니다.
+
+<ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" /> 정책이 사용 설정되면 모든 탭이 포그라운드 우선순위로 강제 적용되므로 이 목록은 무시됩니다.
+
+<ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" /> 정책이 사용 중지되거나 설정되지 않은 경우, 이 목록의 패턴과 일치하는 콘텐츠만 강제 적용됩니다.
+
+유효한 <ph name="URL_LABEL" /> 패턴에 관해 자세히 알아보려면 https://support.google.com/chrome/a?p=url_blocklist_filter_format을 참고하세요.
+
+이 정책은 출처만을 기준으로 일치 여부를 판단하므로 패턴의 경로 또는 쿼리 매개변수는 무시됩니다. 스키마, 호스트, 포트가 지원됩니다.
+
+이 목록이 비어 있거나 설정되지 않은 경우 백그라운드 콘텐츠가 포그라운드 우선순위로 강제 적용되지 않습니다.</translation>
 <translation id="4581507927311097234">사용자 입력이 없어서 화면이 꺼지기까지 걸리는 시간(밀리초)입니다.</translation>
 <translation id="4582027661281685066">URL 패턴 목록입니다. 일치하는 출처에 의해 게재된 웹사이트에서 시작한 요청은 <ph name="PRIVATE_NETWORK_ACCESS" /> 확인 대상이 아닙니다.
 
@@ -5824,7 +5857,7 @@ JavaScript 최적화 정책 예외는 사이트 세부사항에서만 시행됩�
 <translation id="4860900625632464759">사용자가 휴대전화와 Chromebook 간에 SMS 메시지를 동기화하도록 허용</translation>
 <translation id="486146220825734683">사용자가 Kerberos 비밀번호를 기억하도록 허용 안함</translation>
 <translation id="4861767323695239729">사용자 세션에서 허용되는 입력 수단을 구성합니다.</translation>
-<translation id="4866159293453405598">정책을 설정하면 클립보드 사이트 권한을 사용할 수 없는 사이트를 명시하는 URL 패턴 목록을 설정할 수 있습니다. 여기에 패턴과 일치하는 출처에서 이루어진 모든 클립보드 작업이 포함되는 것은 아닙니다. 예를 들어 단축키를 사용하여 붙여넣는 작업은 클립보드 사이트 권한이 필요하지 않기 때문에 계속 가능합니다.
+<translation id="4866159293453405598">정책을 설정하면 클립보드 사이트 권한을 사용할 수 없는 사이트를 명시하는 URL 패턴 목록을 설정할 수 있습니다. 여기에 패턴과 일치하는 출처에서 이루어진 모든 클립보드 작업이 포함되는 것은 아닙니다. 예를 들어 키보드 단축키를 사용하여 붙여넣는 작업은 클립보드 사이트 권한이 필요하지 않기 때문에 계속 가능합니다.
 
       정책을 설정하지 않은 경우 <ph name="DEFAULT_CLIPBOARD_SETTING" />이 설정되어 있으면 모든 사이트에 적용됩니다. 설정되어 있지 않다면 사용자의 개인 설정이 적용됩니다.
 
@@ -6192,14 +6225,6 @@ https://chromeenterprise.google/policies/url-patterns/ 페이지를 참고하세
 <translation id="5063480226653192405">사용</translation>
 <translation id="5067143124345820993">로그인 사용자 허용 목록</translation>
 <translation id="50689955292091946">로그인 화면에서 접근성 가상 키보드 사용 설정</translation>
-<translation id="5069453818168036580">사용자가 <ph name="PRIVACY_SANDBOX_NAME" /> 사이트 추천 광고 설정을 사용 중지할 수 있는지 제어하는 정책입니다.
-
-정책을 사용 안함으로 설정하면 사용자의 사이트 추천 광고 설정이 사용 중지됩니다.
-정책을 사용 설정하거나 설정하지 않은 상태로 두면 사용자가 기기에서 <ph name="PRIVACY_SANDBOX_NAME" /> 사이트 추천 광고 설정을 사용 또는 사용 중지할 수 있습니다.
-
-이 정책을 설정하려면 <ph name="PRIVACY_SANDBOX_PROMPT_ENABLED_POLICY_NAME" /> 정책을 사용 안함으로 설정해야 합니다.
-
-이 정책은 Protected Audience API가 지원 중단됨에 따라 <ph name="PRODUCT_NAME" /> 버전 144부터 지원 중단됩니다.</translation>
 <translation id="5069522005630249098">이 설정은 <ph name="LACROS_NAME" />가 사용 중지된 후 사용자 데이터를 얼마나 유지할지 결정합니다.
 
       정책을 <ph name="LACROS_BACKWARD_MIGRATION_NONE" />으로 설정하거나 설정하지 않으면 과거 데이터 이전이 수행되지 않습니다.
@@ -6305,6 +6330,12 @@ https://chromeenterprise.google/policies/url-patterns/ 페이지를 참고하세
 <translation id="5124368997194894978">AC(교류 전원)로 부팅 사용</translation>
 <translation id="5130213897914754028">사이트에서 SharedArrayBuffers를 사용하지 못하도록 차단</translation>
 <translation id="5130935469849337738">항상 번역</translation>
+<translation id="513314432051760916">사용자가 <ph name="PRIVACY_SANDBOX_NAME" /> 광고 측정 설정을 사용 중지할 수 있는지 제어하는 정책입니다.
+
+정책을 '사용 안함'으로 설정하면 사용자의 광고 측정 설정이 사용 중지됩니다.
+정책을 '사용'으로 설정하거나 설정하지 않은 상태로 두면 사용자가 기기에서 <ph name="PRIVACY_SANDBOX_NAME" /> 광고 측정 설정을 사용 또는 사용 중지할 수 있습니다.
+
+이 정책은 Attribution Reporting API가 지원 중단됨에 따라 <ph name="PRODUCT_NAME" /> 버전 144부터 지원 중단됩니다.</translation>
 <translation id="5138579693170759139">이 정책을 사용하여 관리자는 <ph name="PRODUCT_OS_NAME" />를 통해 Google이 Google 검색에 전송된 쿠키 및 데이터를 처리하는 방식을 관리할 수 있습니다.
 정책을 사용 설정하면 사용자는 <ph name="PRODUCT_OS_NAME" /> 런처 검색창과 <ph name="PRODUCT_OS_NAME" />의 <ph name="PRODUCT_NAME" /> 브라우저 주소 상자를 사용할 수 있으며, 쿠키 및 데이터는 필수 목적으로만 사용될 수 있습니다.
 정책을 설정하지 않거나 사용 중지하면 쿠키 및 데이터가 필수 목적 외의 목적으로 사용될 수 있습니다.</translation>
@@ -6327,6 +6358,7 @@ https://chromeenterprise.google/policies/url-patterns/ 페이지를 참고하세
 
 형식이 잘못된 도메인은 무시됩니다.</translation>
 <translation id="5163002264923337812">오래된 웹 기반 로그인 플로 사용</translation>
+<translation id="5163120075537316507">웹 작업자의 데이터 URL에 불투명 출처가 사용 중지됨(지원 중단된 기존 동작)</translation>
 <translation id="5163889437570441600"><ph name="PRODUCT_NAME" /> 사용을 통해 콘텐츠를 기기로 전송할 수 있도록 허용합니다.
 
           이 정책을 False로 설정하면 사용자가 콘텐츠를 기기로 전송할 수 없게 됩니다. 반면에 True로 설정하면 사용자가 콘텐츠를 전송할 수 있습니다. 이 정책을 설정하지 않으면 사용자가 콘텐츠를 등록된 ChromeOS 기기로 전송할 수 없지만, 등록되지 않은 기기로는 전송할 수 있습니다.</translation>
@@ -6503,7 +6535,7 @@ False로 설정하면 <ph name="PRODUCT_NAME" />에서 시스템 알림을 사�
 
       정책을 사용 중지로 설정하거나 설정하지 않은 상태로 두면 기기 활동 상태가 보고되지 않습니다.
       사용으로 설정하면 사용자가 연결되어 있는 경우 기기 활동 상태가 서버에 보고되므로 서버에서 기기의 오프라인 여부를 감지할 수 있습니다.</translation>
-<translation id="5237063248422984115">정책을 설정하면 클립보드 사이트 권한을 사용할 수 있는 사이트를 명시하는 URL 패턴 목록을 설정할 수 있습니다. 여기에 패턴과 일치하는 출처에서 이루어진 모든 클립보드 작업이 포함되는 것은 아닙니다. 예를 들어 단축키를 사용하여 붙여넣는 작업은 클립보드 사이트 권한이 필요하지 않기 때문에 계속 가능합니다.
+<translation id="5237063248422984115">정책을 설정하면 클립보드 사이트 권한을 사용할 수 있는 사이트를 명시하는 URL 패턴 목록을 설정할 수 있습니다. 여기에 패턴과 일치하는 출처에서 이루어진 모든 클립보드 작업이 포함되는 것은 아닙니다. 예를 들어 키보드 단축키를 사용하여 붙여넣는 작업은 클립보드 사이트 권한이 필요하지 않기 때문에 계속 가능합니다.
 
 
       정책을 설정하지 않은 경우 <ph name="DEFAULT_CLIPBOARD_SETTING" />이 설정되어 있으면 모든 사이트에 적용됩니다. 설정되어 있지 않다면 사용자의 개인 설정이 적용됩니다.
@@ -6991,6 +7023,17 @@ Microsoft SharePoint 및 OneDrive 카드에는 추가 관리자 구성이 필요
 <translation id="5542235730745104308">정책을 True로 설정하면 <ph name="PRODUCT_NAME" />에서 브라우저에 내장된 대체 오류 페이지(예: '페이지를 찾을 수 없습니다')를 사용합니다. 정책을 False로 설정하면 <ph name="PRODUCT_NAME" />에서 대체 오류 페이지를 사용하지 않습니다.
 
 정책을 설정하면 사용자가 변경할 수 없습니다. 설정하지 않으면 정책이 사용 설정되지만 사용자가 이 설정을 변경할 수 있습니다.</translation>
+<translation id="5543124658694855168">이 정책을 설정하면 <ph name="CPU_PERFORMANCE_API_NAME" />에서 반환한 값을 기업이
+재정의할 수 있습니다(즉
+<ph name="CPU_PERFORMANCE_GETTER_NAME" />,
+자세한 내용은 https://github.com/WICG/cpu-performance 참고).
+
+이 정책을 설정하면
+<ph name="CPU_PERFORMANCE_GETTER_NAME" /> 값이
+지정된 값으로 재정의됩니다. 정책을 설정하지 않으면
+기본 성능 등급 계산이 사용됩니다.
+
+이 정책에 사용할 수 있는 값은 0~4입니다.</translation>
 <translation id="5544059132156503357">정책을 설정하면 <ph name="MS_AD_NAME" /> 서버에서 Kerberos 티켓을 요청할 때 어떤 암호화 유형이 허용되는지 지정됩니다.
 
 정책을 다음과 같이 설정할 수 있습니다.
@@ -7297,6 +7340,7 @@ Microsoft SharePoint 및 OneDrive 카드에는 추가 관리자 구성이 필요
 <translation id="5706929446669049441">사용자 인증 정보 공유 사용 중지</translation>
 <translation id="57072195677044908">프로필 분리 사용 중지</translation>
 <translation id="5708969689202733975">허용된 빠른 잠금 해제 모드를 설정합니다.</translation>
+<translation id="5714281972278520176">웹 작업자의 데이터 URL에 불투명 출처 사용 설정</translation>
 <translation id="5714563837055244378">Android에서 웹 앱 공유를 사용 설정합니다.</translation>
 <translation id="5715739768416614900">키오스크 문제 해결 도구 사용 설정</translation>
 <translation id="5717973246079053225">관리 프로필 클라우드 보고 사용 안함</translation>
@@ -8162,6 +8206,7 @@ Origin-Agent-Cluster: 헤더가 설정되지 않았을 때 M111의 기본값은 
 <translation id="6287128640500683781">모든 사용자의 로그인 허용</translation>
 <translation id="6287310684159482272">쿠키 설정</translation>
 <translation id="6287742528823584153"><ph name="PRODUCT_NAME" /> 서비스 사용 설정 및 로그인 시 원격 데스크 시작</translation>
+<translation id="6293411231114989812">웹 작업자의 데이터 URL에 불투명 출처가 사용 설정됨(신규 기본 동작)</translation>
 <translation id="6299147100249359151">정책 범위 감지 허용</translation>
 <translation id="6299554629216555326">창 관리 설정</translation>
 <translation id="6302021021024941085">키오스크 문제 해결 도구 사용 중지</translation>
@@ -9488,6 +9533,9 @@ JavaScript 최적화 정책 예외는 사이트 세부사항에서만 시행됩�
 
 정책이 설정되지 않으면 처음에는 로그인 화면에서 화면 돋보기가 사용되지 않지만 나중에 사용자가 언제든지 사용 설정할 수 있습니다.</translation>
 <translation id="7109384070286741861">CECPQ2 사용 중지</translation>
+<translation id="711246451611873603">정책을 '사용'으로 설정하거나 설정하지 않은 상태로 두면 키오스크 세션에서 손가락을 모으거나 펼쳐 확대/축소가 허용됩니다.
+
+정책을 '사용 안함'으로 설정하면 키오스크 세션에서 손가락을 모으거나 펼쳐 확대/축소가 허용되지 않습니다.</translation>
 <translation id="7113439794629928551">다른 기기에서 시작한 <ph name="PRODUCT_NAME" /> 세션에 미디어 컨트롤 표시</translation>
 <translation id="7113803652772945829">정책을 참으로 설정하면 사용자가 서드 파티 비밀번호 관리자를 사용할 수 있습니다.
 비밀번호 관리자는 모든 비밀번호, 결제, 자동 완성 데이터를 저장하고 입력합니다.
@@ -9824,7 +9872,7 @@ true로 설정하면 <ph name="PRODUCT_NAME" />에서는
 
       Developer Tools 및 자바스크립트 콘솔을 사용 중지합니다.
 
-      이 설정을 사용하면 Developer Tools에 액세스할 수 없으며 더 이상 웹사이트 요소를 검사할 수 없습니다. Developer Tools나 자바스크립트 콘솔을 열기 위한 모든 단축키와 메뉴, 컨텍스트 메뉴 항목이 사용 중지됩니다.
+      이 설정을 사용하면 Developer Tools에 액세스할 수 없으며 더 이상 웹사이트 요소를 검사할 수 없습니다. Developer Tools나 자바스크립트 콘솔을 열기 위한 모든 키보드 단축키와 메뉴, 컨텍스트 메뉴 항목이 사용 중지됩니다.
 
       이 옵션을 사용하지 않도록 설정하거나 설정하지 않은 채로 두면 사용자가 Developer Tools와 자바스크립트 콘솔을 사용할 수 있습니다.
 
@@ -10382,6 +10430,10 @@ URL 패턴은 <ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" /> 정책과 
       False로 설정하거나 설정하지 않으면 실시간 보고가 사용 중지됩니다.
       두 경우 모두 DataLeakPreventionRulesList에서 ALLOW 수준의 제한으로 정의된 규칙은 이벤트를 보고하지 않습니다.</translation>
 <translation id="7648907905084499629">모든 사이트에서 쿠키에 <ph name="FEATURE_NAME_SAMESITE_BY_DEFAULT_COOKIES" /> 동작 사용</translation>
+<translation id="7649831723389657756">정책을 설정하면 <ph name="AUTH_SCHEMES_POLICY_NAME" /> 정책과 관계없이 <ph name="PRODUCT_NAME" />에서 지원하는 모든 HTTP 인증 스킴을 허용할 출처가 지정됩니다.
+
+      출처 패턴 형식은 이 형식(<ph name="URL_SCHEME_FORMAT_LINK" />)을 따라야 합니다. <ph name="ALL_HTTP_AUTH_ALLOWED_FOR_ORIGINS_POLICY_NAME" />에 예외를 최대 1,000개 정의할 수 있습니다.
+      호스트 구성요소에 와일드카드를 사용할 수 있습니다(예: '*:8000'은 포트 8000의 모든 호스트와 일치함). 모든 스킴 또는 모든 포트와 일치시키려면 구성요소를 완전히 생략하세요(예: 'example.com'은 모든 스킴 및 모든 포트와 일치함). 호스트 이름(예: 'example.com')은 하위 도메인과도 일치합니다. 호스트를 정확히 일치시키고 하위 도메인을 제외하려면 호스트 앞에 점을 추가하세요(예: '.example.com'). 모든 출처와 일치시키려면 별표('*') 하나를 사용하세요.</translation>
 <translation id="7657261947024629645">성능에 최적화합니다.</translation>
 <translation id="76580522298425324">이전 사용자 동작 없이 화면 캡처 허용</translation>
 <translation id="7661379728107156839">낮은 복잡성</translation>
@@ -10430,6 +10482,7 @@ URL 패턴은 <ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" /> 정책과 
 
           정책 값은 밀리초로 지정되어야 합니다. 화면 꺼짐 지연 시간(설정된 경우) 및 유휴 지연 시간보다 작거나 같도록 값이 잘립니다.</translation>
 <translation id="7680437377926096177">마지막 창 종료 시 로그아웃 대화상자 표시 안함</translation>
+<translation id="7681075922820376711">CPU 성능 등급 재정의</translation>
 <translation id="7682409626897786151">키 생성 사용이 허용되는 사이트를 지정하는 URL 패턴 목록을 설정할 수 있습니다. URL 패턴이 'KeygenBlockedForUrls'에 있는 경우 예외는 무시됩니다.
 
           정책을 설정하지 않으면 'DefaultKeygenSetting' 정책(설정된 경우) 또는 사용자의 개인 설정에 따른 전체 기본값이 모든 사이트에 사용됩니다.
@@ -10761,6 +10814,12 @@ https://chromeenterprise.google/policies/url-patterns를 참고하세요.
 <translation id="7891884447851425349"><ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" />가 사용 설정되어 있는 경우 <ph name="DEFAULT_SEARCH_PROVIDER_SEARCH_URL_POLICY_NAME" />을 설정하여 기본 검색에서 사용되는 검색엔진의 URL을 지정합니다. URL은 <ph name="SEARCH_TERM_MARKER" /> 문자열을 포함해야 하며, 이 문자열은 쿼리 시 사용자의 검색어로 대체됩니다.
 
       Google 검색 URL은 <ph name="GOOGLE_SEARCH_URL" />으로 지정할 수 있습니다.</translation>
+<translation id="7892399002226884003">사용자가 <ph name="PRIVACY_SANDBOX_NAME" /> 광고 주제 설정을 사용 중지할 수 있는지 제어하는 정책입니다.
+
+정책을 '사용 안함'으로 설정하면 사용자의 광고 주제 설정이 사용 중지됩니다.
+정책을 '사용'으로 설정하거나 설정하지 않은 상태로 두면 사용자가 기기에서 <ph name="PRIVACY_SANDBOX_NAME" /> 광고 주제 설정을 사용 또는 사용 중지할 수 있습니다.
+
+이 정책은 <ph name="PRODUCT_NAME" /> 버전 144부터 Topics API 지원 중단과 함께 지원 중단됩니다.</translation>
 <translation id="7893719068404928632">정책을 사용 설정하면 <ph name="LOCAL_NETWORK_ACCESS" /> 검사에 실패하여
 <ph name="CHROME_DEVTOOLS_NAME" />에 경고가 표시되어야 하는 경우
 기본 요청이 대신 차단됩니다.
@@ -11290,16 +11349,6 @@ False로 설정하면 로그인 화면이 표시될 때 개인 정보 보호 화
 이러한 설정은 수동으로 구성할 필요가 없습니다. 사용이 간편한 Windows, Mac, Linux용 템플릿을 <ph name="POLICY_TEMPLATE_DOWNLOAD_URL" />에서 다운로드하여 사용할 수 있습니다.
 
 Windows에서는 GPO를 통해 정책을 설정하는 것이 좋습니다. 하지만 <ph name="MS_AD_NAME" /> 도메인에 연결된 Windows 인스턴스의 경우 아직 레지스트리를 통한 정책 프로비저닝이 지원됩니다.</translation>
-<translation id="8261008508574620157">사용자에게 <ph name="PRIVACY_SANDBOX_NAME" /> 메시지를 표시할지 제어하는 정책입니다.
-이 메시지는 사용자에게 <ph name="PRIVACY_SANDBOX_NAME" /> 설정에 관해 알리는 사용자 차단 흐름입니다. <ph name="PRIVACY_SANDBOX_URL" />에서 서드 파티 쿠키 지원을 중단하기 위한 Chrome의 노력에 관해 자세히 알아보세요.
-
-정책을 사용 안함으로 설정하면 <ph name="PRODUCT_NAME" />에 <ph name="PRIVACY_SANDBOX_NAME" /> 메시지가 표시되지 않습니다.
-정책을 사용 설정하거나 설정하지 않으면 <ph name="PRODUCT_NAME" />에서 <ph name="PRIVACY_SANDBOX_NAME" /> 메시지를 표시할 수 있는지를 결정하고 가능한 경우 메시지를 표시합니다.
-
-다음 정책 중 하나가 설정된 경우 이 정책을 사용 안함으로 설정해야 합니다.
-<ph name="PRIVACY_SANDBOX_AD_TOPICS_ENABLED_POLICY_NAME" />
-<ph name="PRIVACY_SANDBOX_SITE_ENABLED_ADS_ENABLED_POLICY_NAME" />
-<ph name="PRIVACY_SANDBOX_AD_MEASUREMENT_ENABLED_POLICY_NAME" /></translation>
 <translation id="826163650738550159">이 정책은 정책 테스트 페이지에 대한 액세스를 제공합니다. 이 페이지의 정책은 테스트되지만, 다른 모든 정책은 무시됩니다.
 이 기능은 Canary 채널에서만 지원됩니다.
 
@@ -11961,14 +12010,6 @@ JavaScript 최적화를 사용 중지하면(이 정책의 값을 2로 설정) <p
       정책을 사용 중지하면 악성일 가능성이 있는 알려지지 않은 코드가 <ph name="PRODUCT_NAME" />의 브라우저 프로세스 내에서 로드될 수 있으므로 <ph name="PRODUCT_NAME" />의 보안 및 안정성에 부정적인 영향을 미칩니다. <ph name="PRODUCT_NAME" />의 브라우저 프로세스 내에서 실행되어야 하는 타사 소프트웨어에 호환성 문제가 발생하는 경우에만 정책을 사용 중지하세요.
 
       참고: 프로세스 완화 정책(https://chromium.googlesource.com/chromium/src/+/HEAD/docs/design/sandbox.md#Process-mitigation-policies)에 관해 자세히 알아보세요.</translation>
-<translation id="8672039014434141545">사용자가 <ph name="PRIVACY_SANDBOX_NAME" /> 광고 주제 설정을 사용 중지할 수 있는지 제어하는 정책입니다.
-
-정책을 사용 중지하면 사용자의 광고 주제 설정이 사용 중지됩니다.
-정책을 사용 설정하거나 설정하지 않은 상태로 두면 사용자가 기기에서 <ph name="PRIVACY_SANDBOX_NAME" /> 광고 주제 설정을 사용 또는 사용 중지할 수 있습니다.
-
-이 정책을 설정하려면 <ph name="PRIVACY_SANDBOX_PROMPT_ENABLED_POLICY_NAME" /> 정책을 사용 중지해야 합니다.
-
-이 정책은 <ph name="PRODUCT_NAME" /> 버전 144부터 Topics API 지원 중단과 함께 지원 중단됩니다.</translation>
 <translation id="8672321184841719703">자동 업데이트 버전 타겟팅</translation>
 <translation id="867410340948518937">U2F(범용 2차 요소)</translation>
 <translation id="8675599659717867329">보고 사용 중지</translation>

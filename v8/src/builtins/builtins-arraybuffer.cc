@@ -531,9 +531,8 @@ static Tagged<Object> ResizeHelper(BuiltinArguments args, Isolate* isolate,
     CHECK(IsWasmMemoryObject(*memory));
     // WasmMemoryObject::Grow handles updating byte_length, as it's used by both
     // ArrayBuffer.prototype.resize and WebAssembly.Memory.prototype.grow.
-    uint32_t delta_pages =
-        static_cast<uint32_t>(new_byte_length - old_byte_length) /
-        wasm::kWasmPageSize;
+    uint32_t delta_pages = static_cast<uint32_t>(
+        (new_byte_length - old_byte_length) / wasm::kWasmPageSize);
     if (WasmMemoryObject::Grow(isolate, Cast<WasmMemoryObject>(memory),
                                delta_pages) == -1) {
       THROW_NEW_ERROR_RETURN_FAILURE(

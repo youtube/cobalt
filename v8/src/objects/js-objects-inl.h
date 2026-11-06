@@ -44,26 +44,24 @@ namespace v8::internal {
 
 #include "torque-generated/src/objects/js-objects-tq-inl.inc"
 
-DEF_GETTER(JSObject, elements, Tagged<FixedArrayBase>) {
-  return TaggedField<FixedArrayBase, kElementsOffset>::load(cage_base, *this);
+Tagged<FixedArrayBase> JSObject::elements() const { return elements_.load(); }
+
+Tagged<FixedArrayBase> JSObject::elements(PtrComprCageBase) const {
+  return elements();
 }
 
-Tagged<FixedArrayBase> JSObject::elements(RelaxedLoadTag tag) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return elements(cage_base, tag);
+Tagged<FixedArrayBase> JSObject::elements(RelaxedLoadTag) const {
+  return elements_.Relaxed_Load();
 }
 
-Tagged<FixedArrayBase> JSObject::elements(PtrComprCageBase cage_base,
-                                          RelaxedLoadTag) const {
-  return TaggedField<FixedArrayBase, kElementsOffset>::Relaxed_Load(cage_base,
-                                                                    *this);
+Tagged<FixedArrayBase> JSObject::elements(PtrComprCageBase,
+                                          RelaxedLoadTag tag) const {
+  return elements(tag);
 }
 
 void JSObject::set_elements(Tagged<FixedArrayBase> value,
                             WriteBarrierMode mode) {
-  // Note the relaxed atomic store.
-  TaggedField<FixedArrayBase, kElementsOffset>::Relaxed_Store(*this, value);
-  CONDITIONAL_WRITE_BARRIER(*this, kElementsOffset, value, mode);
+  elements_.Relaxed_Store(this, value, mode);
 }
 
 MaybeHandle<Object> JSReceiver::GetProperty(Isolate* isolate,
@@ -590,6 +588,114 @@ Tagged<Object> JSObject::InObjectPropertyAtOffset(int offset) {
   return TaggedField<Object>::load(*this, offset);
 }
 
+Tagged<Object> JSReceiverLayout::raw_properties_or_hash() const {
+  return Cast<JSReceiver>(this)->raw_properties_or_hash();
+}
+Tagged<Object> JSReceiverLayout::raw_properties_or_hash(
+    PtrComprCageBase cage_base) const {
+  return Cast<JSReceiver>(this)->raw_properties_or_hash(cage_base);
+}
+Tagged<Object> JSReceiverLayout::raw_properties_or_hash(
+    RelaxedLoadTag tag) const {
+  return Cast<JSReceiver>(this)->raw_properties_or_hash(tag);
+}
+Tagged<Object> JSReceiverLayout::raw_properties_or_hash(
+    PtrComprCageBase cage_base, RelaxedLoadTag tag) const {
+  return Cast<JSReceiver>(this)->raw_properties_or_hash(cage_base, tag);
+}
+
+void JSReceiverLayout::set_raw_properties_or_hash(Tagged<Object> value,
+                                                  WriteBarrierMode mode) {
+  Cast<JSReceiver>(this)->set_raw_properties_or_hash(value, mode);
+}
+
+void JSReceiverLayout::set_raw_properties_or_hash(Tagged<Object> value,
+                                                  RelaxedStoreTag tag,
+                                                  WriteBarrierMode mode) {
+  Cast<JSReceiver>(this)->set_raw_properties_or_hash(value, tag, mode);
+}
+
+void JSReceiverLayout::SetProperties(Tagged<HeapObject> properties) {
+  Cast<JSReceiver>(this)->SetProperties(properties);
+}
+
+// static
+Maybe<bool> JSReceiverLayout::OrdinaryDefineOwnProperty(
+    Isolate* isolate, DirectHandle<JSObject> object, DirectHandle<Object> key,
+    PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw) {
+  return JSReceiver::OrdinaryDefineOwnProperty(isolate, object, key, desc,
+                                               should_throw);
+}
+
+// static
+Maybe<bool> JSReceiverLayout::IsCompatiblePropertyDescriptor(
+    Isolate* isolate, bool extensible, PropertyDescriptor* desc,
+    PropertyDescriptor* current, DirectHandle<Name> property_name,
+    Maybe<ShouldThrow> should_throw) {
+  return JSReceiver::IsCompatiblePropertyDescriptor(
+      isolate, extensible, desc, current, property_name, should_throw);
+}
+
+// static
+Maybe<bool> JSReceiverLayout::GetOwnPropertyDescriptor(
+    Isolate* isolate, DirectHandle<JSReceiver> object, DirectHandle<Object> key,
+    PropertyDescriptor* desc) {
+  return JSReceiver::GetOwnPropertyDescriptor(isolate, object, key, desc);
+}
+
+bool JSReceiverLayout::HasFastProperties() const {
+  return Cast<JSReceiver>(this)->HasFastProperties();
+}
+bool JSReceiverLayout::HasFastProperties(PtrComprCageBase cage_base) const {
+  return Cast<JSReceiver>(this)->HasFastProperties(cage_base);
+}
+
+Tagged<Object> JSReceiverLayout::GetIdentityHash() {
+  return Cast<JSReceiver>(this)->GetIdentityHash();
+}
+Tagged<Smi> JSReceiverLayout::GetOrCreateIdentityHash(Isolate* isolate) {
+  return Cast<JSReceiver>(this)->GetOrCreateIdentityHash(isolate);
+}
+
+Tagged<PropertyArray> JSReceiverLayout::property_array() const {
+  return Cast<JSReceiver>(this)->property_array();
+}
+Tagged<PropertyArray> JSReceiverLayout::property_array(
+    PtrComprCageBase cage_base) const {
+  return Cast<JSReceiver>(this)->property_array(cage_base);
+}
+
+Tagged<NameDictionary> JSReceiverLayout::property_dictionary() const {
+  return Cast<JSReceiver>(this)->property_dictionary();
+}
+Tagged<NameDictionary> JSReceiverLayout::property_dictionary(
+    PtrComprCageBase cage_base) const {
+  return Cast<JSReceiver>(this)->property_dictionary(cage_base);
+}
+
+Tagged<SwissNameDictionary> JSReceiverLayout::property_dictionary_swiss()
+    const {
+  return Cast<JSReceiver>(this)->property_dictionary_swiss();
+}
+Tagged<SwissNameDictionary> JSReceiverLayout::property_dictionary_swiss(
+    PtrComprCageBase cage_base) const {
+  return Cast<JSReceiver>(this)->property_dictionary_swiss(cage_base);
+}
+
+void JSReceiverLayout::initialize_properties(Isolate* isolate) {
+  Cast<JSReceiver>(this)->initialize_properties(isolate);
+}
+
+std::optional<Tagged<NativeContext>> JSReceiverLayout::GetCreationContext()
+    const {
+  return Cast<JSReceiver>(this)->GetCreationContext();
+}
+
+MaybeDirectHandle<NativeContext> JSReceiverLayout::GetCreationContext(
+    Isolate* isolate) const {
+  return Cast<JSReceiver>(this)->GetCreationContext(isolate);
+}
+
 Tagged<Object> JSObject::InObjectPropertyPutAtIndex(int index,
                                                     Tagged<Object> value,
                                                     WriteBarrierMode mode) {
@@ -698,22 +804,100 @@ void* JSExternalObject::value(ExternalPointerTagRange tag_range) const {
 
 void* JSExternalObject::value(i::IsolateForSandbox isolate,
                               ExternalPointerTagRange tag_range) const {
-  Address result =
-      HeapObject::ReadExternalPointerField(kValueOffset, isolate, tag_range);
+  // Accessors take a runtime tag / tag_range (callers pick it dynamically
+  // based on v8::External tag values); ExternalPointerMember's template
+  // member variants require compile-time tags, so route through the
+  // field_address-based free functions instead.
+  Address result = ::v8::internal::ReadExternalPointerField(
+      value_.storage_address(), isolate, tag_range);
   return reinterpret_cast<void*>(result);
 }
 
 void JSExternalObject::init_value(i::IsolateForSandbox isolate,
                                   ExternalPointerTag tag, void* initial_value) {
-  Address the_value = reinterpret_cast<Address>(initial_value);
-  HeapObject::InitExternalPointerField(kValueOffset, isolate, tag, the_value);
+  ::v8::internal::InitExternalPointerField(
+      reinterpret_cast<Address>(this), value_.storage_address(), isolate, tag,
+      reinterpret_cast<Address>(initial_value));
 }
 
 void JSExternalObject::set_value(i::IsolateForSandbox isolate,
                                  ExternalPointerTag tag, void* value) {
-  Address the_value = reinterpret_cast<Address>(value);
-  HeapObject::WriteExternalPointerField(kValueOffset, isolate, tag, the_value);
+  ::v8::internal::WriteExternalPointerField(
+      value_.storage_address(), isolate, tag, reinterpret_cast<Address>(value));
 }
+
+Tagged<String> JSStringIterator::string() const { return string_.load(); }
+
+void JSStringIterator::set_string(Tagged<String> value, WriteBarrierMode mode) {
+  string_.store(this, value, mode);
+}
+
+int JSStringIterator::index() const { return index_.load().value(); }
+
+void JSStringIterator::set_index(int value) {
+  index_.store(this, Smi::FromInt(value));
+}
+
+Tagged<JSReceiver> JSAsyncFromSyncIterator::sync_iterator() const {
+  return sync_iterator_.load();
+}
+
+void JSAsyncFromSyncIterator::set_sync_iterator(Tagged<JSReceiver> value,
+                                                WriteBarrierMode mode) {
+  sync_iterator_.store(this, value, mode);
+}
+
+Tagged<Object> JSAsyncFromSyncIterator::next() const { return next_.load(); }
+
+void JSAsyncFromSyncIterator::set_next(Tagged<Object> value,
+                                       WriteBarrierMode mode) {
+  next_.store(this, value, mode);
+}
+
+Tagged<JSAny> JSPrimitiveWrapper::value() const { return value_.load(); }
+
+void JSPrimitiveWrapper::set_value(Tagged<JSAny> value, WriteBarrierMode mode) {
+  value_.store(this, value, mode);
+}
+
+Tagged<JSReceiver> JSValidIteratorWrapper::underlying_object() const {
+  return underlying_object_.load();
+}
+
+void JSValidIteratorWrapper::set_underlying_object(Tagged<JSReceiver> value,
+                                                   WriteBarrierMode mode) {
+  underlying_object_.store(this, value, mode);
+}
+
+Tagged<JSAny> JSValidIteratorWrapper::underlying_next() const {
+  return underlying_next_.load();
+}
+
+void JSValidIteratorWrapper::set_underlying_next(Tagged<JSAny> value,
+                                                 WriteBarrierMode mode) {
+  underlying_next_.store(this, value, mode);
+}
+
+double JSDate::value() const { return value_.value(); }
+void JSDate::set_value(double v) { value_.set_value(v); }
+
+#define DEFINE_JSDATE_CACHED_ACCESSOR(name)                       \
+  Tagged<UnionOf<Smi, HeapNumber>> JSDate::name() const {         \
+    return name##_.load();                                        \
+  }                                                               \
+  void JSDate::set_##name(Tagged<UnionOf<Smi, HeapNumber>> value, \
+                          WriteBarrierMode mode) {                \
+    name##_.store(this, value, mode);                             \
+  }
+DEFINE_JSDATE_CACHED_ACCESSOR(year)
+DEFINE_JSDATE_CACHED_ACCESSOR(month)
+DEFINE_JSDATE_CACHED_ACCESSOR(day)
+DEFINE_JSDATE_CACHED_ACCESSOR(weekday)
+DEFINE_JSDATE_CACHED_ACCESSOR(hour)
+DEFINE_JSDATE_CACHED_ACCESSOR(min)
+DEFINE_JSDATE_CACHED_ACCESSOR(sec)
+DEFINE_JSDATE_CACHED_ACCESSOR(cache_stamp)
+#undef DEFINE_JSDATE_CACHED_ACCESSOR
 
 bool JSMessageObject::DidEnsureSourcePositionsAvailable() const {
   return shared_info() == Smi::zero();
@@ -749,12 +933,63 @@ void JSMessageObject::set_type(MessageTemplate value) {
   set_raw_type(static_cast<int>(value));
 }
 
-ACCESSORS(JSMessageObject, shared_info, Tagged<Object>, kSharedInfoOffset)
-ACCESSORS(JSMessageObject, bytecode_offset, Tagged<Smi>, kBytecodeOffsetOffset)
-SMI_ACCESSORS(JSMessageObject, start_position, kStartPositionOffset)
-SMI_ACCESSORS(JSMessageObject, end_position, kEndPositionOffset)
-SMI_ACCESSORS(JSMessageObject, error_level, kErrorLevelOffset)
-SMI_ACCESSORS(JSMessageObject, raw_type, kMessageTypeOffset)
+Tagged<Object> JSMessageObject::shared_info() const {
+  return shared_info_.load();
+}
+void JSMessageObject::set_shared_info(Tagged<Object> value,
+                                      WriteBarrierMode mode) {
+  shared_info_.store(this, Cast<UnionOf<SharedFunctionInfo, Smi>>(value), mode);
+}
+
+Tagged<Smi> JSMessageObject::bytecode_offset() const {
+  return bytecode_offset_.load();
+}
+void JSMessageObject::set_bytecode_offset(Tagged<Smi> value) {
+  bytecode_offset_.store(this, value);
+}
+
+int JSMessageObject::start_position() const {
+  return start_position_.load().value();
+}
+void JSMessageObject::set_start_position(int value) {
+  start_position_.store(this, Smi::FromInt(value));
+}
+
+int JSMessageObject::end_position() const {
+  return end_position_.load().value();
+}
+void JSMessageObject::set_end_position(int value) {
+  end_position_.store(this, Smi::FromInt(value));
+}
+
+int JSMessageObject::error_level() const { return error_level_.load().value(); }
+void JSMessageObject::set_error_level(int value) {
+  error_level_.store(this, Smi::FromInt(value));
+}
+
+int JSMessageObject::raw_type() const { return message_type_.load().value(); }
+void JSMessageObject::set_raw_type(int value) {
+  message_type_.store(this, Smi::FromInt(value));
+}
+
+Tagged<Object> JSMessageObject::argument() const { return argument_.load(); }
+void JSMessageObject::set_argument(Tagged<Object> value,
+                                   WriteBarrierMode mode) {
+  argument_.store(this, value, mode);
+}
+
+Tagged<Script> JSMessageObject::script() const { return script_.load(); }
+void JSMessageObject::set_script(Tagged<Script> value, WriteBarrierMode mode) {
+  script_.store(this, value, mode);
+}
+
+Tagged<UnionOf<StackTraceInfo, Hole>> JSMessageObject::stack_trace() const {
+  return stack_trace_.load();
+}
+void JSMessageObject::set_stack_trace(
+    Tagged<UnionOf<StackTraceInfo, Hole>> value, WriteBarrierMode mode) {
+  stack_trace_.store(this, value, mode);
+}
 
 DEF_GETTER(JSObject, GetElementsKind, ElementsKind) {
   ElementsKind kind = map(cage_base)->elements_kind();
@@ -887,13 +1122,39 @@ DEF_GETTER(JSObject, HasIndexedInterceptor, bool) {
   return map(cage_base)->has_indexed_interceptor();
 }
 
-RELEASE_ACQUIRE_ACCESSORS_CHECKED2(JSGlobalObject, global_dictionary,
-                                   Tagged<GlobalDictionary>,
-                                   kPropertiesOrHashOffset,
-                                   !HasFastProperties(cage_base), true)
+Tagged<JSGlobalProxy> JSGlobalObject::global_proxy() const {
+  return global_proxy_.load();
+}
+void JSGlobalObject::set_global_proxy(Tagged<JSGlobalProxy> value,
+                                      WriteBarrierMode mode) {
+  global_proxy_.store(this, value, mode);
+}
 
-DEF_GETTER(JSGlobalObject, raw_global_proxy, Tagged<HeapObject>) {
-  return TaggedField<HeapObject, kGlobalProxyOffset>::load(cage_base, *this);
+Tagged<JSGlobalProxy> JSGlobalObject::global_proxy_for_api() const {
+  return global_proxy_for_api_.load();
+}
+void JSGlobalObject::set_global_proxy_for_api(Tagged<JSGlobalProxy> value,
+                                              WriteBarrierMode mode) {
+  global_proxy_for_api_.store(this, value, mode);
+}
+
+Tagged<GlobalDictionary> JSGlobalObject::global_dictionary(
+    AcquireLoadTag) const {
+  DCHECK(!HasFastProperties());
+  return Cast<GlobalDictionary>(properties_or_hash_.Acquire_Load());
+}
+Tagged<GlobalDictionary> JSGlobalObject::global_dictionary(
+    PtrComprCageBase cage_base, AcquireLoadTag tag) const {
+  return global_dictionary(tag);
+}
+void JSGlobalObject::set_global_dictionary(Tagged<GlobalDictionary> value,
+                                           ReleaseStoreTag,
+                                           WriteBarrierMode mode) {
+  properties_or_hash_.Release_Store(this, Cast<FixedArrayBase>(value), mode);
+}
+
+Tagged<HeapObject> JSGlobalObject::raw_global_proxy() const {
+  return Cast<HeapObject>(global_proxy_.load());
 }
 
 DEF_GETTER(JSObject, element_dictionary, Tagged<NumberDictionary>) {

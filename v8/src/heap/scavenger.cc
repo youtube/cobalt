@@ -218,8 +218,7 @@ class ScavengerWeakObjectsProcessor final {
     JSWeakRefsList::Local local_js_weak_refs(js_weak_refs);
     Tagged<JSWeakRef> js_weak_ref;
     while (local_js_weak_refs.Pop(&js_weak_ref)) {
-      ProcessField(heap, js_weak_ref,
-                   js_weak_ref->RawField(JSWeakRef::kTargetOffset),
+      ProcessField(heap, js_weak_ref, ObjectSlot(&js_weak_ref->target_),
                    on_dead_target_callback);
     }
   }
@@ -2397,8 +2396,8 @@ void Scavenger::RecordJSWeakRefIfNeeded(Tagged<JSWeakRef> js_weak_ref) {
     return;
   }
 
-  if (ShouldRecordWeakObject<Age>(
-          js_weak_ref, js_weak_ref->RawField(JSWeakRef::kTargetOffset))) {
+  if (ShouldRecordWeakObject<Age>(js_weak_ref,
+                                  ObjectSlot(&js_weak_ref->target_))) {
     local_js_weak_refs_list_.Push(js_weak_ref);
   }
 }

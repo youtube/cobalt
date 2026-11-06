@@ -2,20 +2,19 @@
 # Copyright 2026 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-import os
+from __future__ import annotations
 import json
 import sys
-import glob
+from pathlib import Path
 
 
-def analyze_brain(brain_id):
-  home_dir = os.path.expanduser("~")
-  brain_dir = f"{home_dir}/.gemini/jetski/brain/{brain_id}"
-  if not os.path.exists(brain_dir):
+def analyze_brain(brain_id: str) -> None:
+  brain_dir = Path.home() / f".gemini/jetski/brain/{brain_id}"
+  if not brain_dir.exists():
     print(f"Brain directory {brain_dir} not found.")
     return
 
-  message_files = glob.glob(f"{brain_dir}/.system_generated/messages/*.json")
+  message_files = list(brain_dir.glob(".system_generated/messages/*.json"))
   if not message_files:
     print("No messages found in brain.")
     return
@@ -32,7 +31,7 @@ def analyze_brain(brain_id):
   findings = []
   for msg_file in sorted(message_files):
     try:
-      with open(msg_file, 'r') as f:
+      with msg_file.open("r") as f:
         msg = json.load(f)
         content = msg.get("content", "").lower()
         for kw in keywords:
@@ -42,6 +41,7 @@ def analyze_brain(brain_id):
             )
             break
     except Exception as e:
+      print(f"Error analyzing message {msg_file}: {e}")
       pass
 
   if findings:

@@ -3016,7 +3016,26 @@ class LiftoffCompiler {
 
   void WideOp2(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs_val,
                const Value& rhs_val, Value* result_low, Value* result_high) {
+#if V8_TARGET_ARCH_X64
+    switch (opcode) {
+      case kExprI64MulWideS:
+        __ emit_i64_mul_wide_s();
+        break;
+      case kExprI64MulWideU:
+        __ emit_i64_mul_wide_u();
+        break;
+      default:
+        UNREACHABLE();
+    }
+#else
     unsupported(decoder, kUnsupportedArchitecture, "wide multiplication");
+#endif
+  }
+
+  void WideOp4(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs_lo_val,
+               const Value& lhs_hi_val, const Value& rhs_lo_val,
+               const Value& rhs_hi_val, Value* result_low, Value* result_high) {
+    unsupported(decoder, kUnsupportedArchitecture, "wide arithmetic");
   }
 
   void TraceInstruction(FullDecoder* decoder, uint32_t markid) {
@@ -11000,9 +11019,9 @@ WasmCompilationResult ExecuteLiftoffCompilation(
     start_time = base::TimeTicks::Now();
   }
   int func_body_size = static_cast<int>(func_body.end - func_body.start);
-  TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-               "wasm.CompileBaseline", "funcIndex", compiler_options.func_index,
-               "bodySize", func_body_size);
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+              "wasm.CompileBaseline", "funcIndex", compiler_options.func_index,
+              "bodySize", func_body_size);
 
   Zone zone(GetWasmEngine()->allocator(), "LiftoffCompilationZone");
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body.sig);

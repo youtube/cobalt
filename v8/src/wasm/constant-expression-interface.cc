@@ -203,7 +203,6 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
   if (rtt.is_null()) return;  // Trap (descriptor was null).
 
   DirectHandle<WasmStruct> obj;
-  WriteBarrierMode mode = UPDATE_WRITE_BARRIER;
   if (type.is_descriptor()) {
     // TODO(14616): Support shared custom descriptors.
     if (type.is_shared == SharedFlag::kYes) UNIMPLEMENTED();
@@ -214,13 +213,11 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
     obj = WasmStruct::AllocateDescriptorUninitialized(isolate_, data, imm.index,
                                                       rtt, first_field);
   } else {
+    // Pretenure, because we expect values in globals to be long-lived.
     obj = isolate_->factory()->NewWasmStructUninitialized(
         struct_type, rtt,
         type.is_shared == SharedFlag::kYes ? AllocationType::kSharedOld
-                                           : AllocationType::kYoung);
-    if (type.is_shared == SharedFlag::kNo && !v8_flags.single_generation) {
-      mode = SKIP_WRITE_BARRIER;  // Object is in new space.
-    }
+                                           : AllocationType::kOld);
   }
   {
     DisallowGarbageCollection no_gc;  // Must initialize fields first.
@@ -239,7 +236,7 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
                                    Smi::FromInt(0));
         }
       } else {
-        obj->SetTaggedFieldValue(offset, *args[i].runtime_value.to_ref(), mode);
+        obj->SetTaggedFieldValue(offset, *args[i].runtime_value.to_ref());
       }
     }
   }
@@ -335,10 +332,11 @@ void ConstantExpressionInterface::StructNewDefault(
     obj = WasmStruct::AllocateDescriptorUninitialized(isolate_, data, imm.index,
                                                       rtt, first_field);
   } else {
+    // Pretenure, because we expect values in globals to be long-lived.
     obj = isolate_->factory()->NewWasmStructUninitialized(
         struct_type, rtt,
         type.is_shared == SharedFlag::kYes ? AllocationType::kSharedOld
-                                           : AllocationType::kYoung);
+                                           : AllocationType::kOld);
   }
 
   {
@@ -386,13 +384,8 @@ void ConstantExpressionInterface::ArrayNew(FullDecoder* decoder,
                                            const Value& initial_value,
                                            Value* result) {
   if (!generate_value()) return;
-  bool in_old_space =
-      decoder->module_->type(imm.index).is_shared == SharedFlag::kYes ||
-      v8_flags.single_generation;
   ArrayNewImpl(decoder, imm, length, initial_value, result,
-               in_old_space && imm.array_type->element_type().is_ref()
-                   ? UPDATE_WRITE_BARRIER
-                   : SKIP_WRITE_BARRIER);
+               UPDATE_WRITE_BARRIER);
 }
 
 void ConstantExpressionInterface::ArrayNewDefault(
@@ -419,10 +412,13 @@ void ConstantExpressionInterface::ArrayNewImpl(
     error_ = MessageTemplate::kWasmTrapArrayTooLarge;
     return;
   }
+  AllocationType allocation = imm.shared == SharedFlag::kYes
+                                  ? AllocationType::kSharedOld
+                                  : AllocationType::kOld;
   result->runtime_value = WasmValue(
       isolate_->factory()->NewWasmArray(
           imm.array_type->element_type(), length.runtime_value.to_u32(),
-          initial_value.runtime_value, rtt, write_barrier),
+          initial_value.runtime_value, rtt, allocation, write_barrier),
       decoder->module_->canonical_type(
           ValueType::Ref(imm.heap_type()).AsExactIfEnabled(decoder->enabled_)));
 }
@@ -441,18 +437,15 @@ void ConstantExpressionInterface::ArrayNewFixed(
   for (size_t i = 0; i < length_imm.index; i++) {
     element_values[i] = elements[i].runtime_value;
   }
-  bool in_old_space =
-      decoder->module_->type(array_imm.index).is_shared == SharedFlag::kYes ||
-      v8_flags.single_generation;
-  result->runtime_value = WasmValue(
-      isolate_->factory()->NewWasmArrayFromElements(
-          array_imm.array_type, element_values, rtt,
-          in_old_space && array_imm.array_type->element_type().is_ref()
-              ? UPDATE_WRITE_BARRIER
-              : SKIP_WRITE_BARRIER),
-      decoder->module_->canonical_type(
-          ValueType::Ref(array_imm.heap_type())
-              .AsExactIfEnabled(decoder->enabled_)));
+  AllocationType allocation = array_imm.shared == SharedFlag::kYes
+                                  ? AllocationType::kSharedOld
+                                  : AllocationType::kOld;
+  result->runtime_value =
+      WasmValue(isolate_->factory()->NewWasmArrayFromElements(
+                    array_imm.array_type, element_values, rtt, allocation),
+                decoder->module_->canonical_type(
+                    ValueType::Ref(array_imm.heap_type())
+                        .AsExactIfEnabled(decoder->enabled_)));
 }
 
 // TODO(14034): These expressions are non-constant for now. There are plans to
@@ -483,6 +476,9 @@ void ConstantExpressionInterface::ArrayNewSegment(
   CanonicalValueType element_type = rtt->wasm_type_info()->element_type();
   CanonicalValueType result_type =
       rtt->wasm_type_info()->type().AsExactIfEnabled(decoder->enabled_);
+  AllocationType allocation = array_imm.shared == SharedFlag::kYes
+                                  ? AllocationType::kSharedOld
+                                  : AllocationType::kOld;
   if (element_type.is_numeric()) {
     uint32_t length_in_bytes =
         length * array_imm.array_type->element_type().value_kind_size();
@@ -496,8 +492,8 @@ void ConstantExpressionInterface::ArrayNewSegment(
     base::Vector<const uint8_t> source =
         data->native_module()->wire_bytes() + offset;
     DirectHandle<WasmArray> array_value =
-        isolate_->factory()->NewWasmArrayFromMemory(length, rtt, element_type,
-                                                    source);
+        isolate_->factory()->NewWasmArrayFromMemory(length, rtt, allocation,
+                                                    element_type, source);
     result->runtime_value = WasmValue(array_value, result_type);
   } else {
     const wasm::WasmElemSegment* elem_segment =
@@ -517,7 +513,7 @@ void ConstantExpressionInterface::ArrayNewSegment(
     DirectHandle<Object> array_object =
         isolate_->factory()->NewWasmArrayFromElementSegment(
             trusted_instance_data_, shared_trusted_instance_data_,
-            segment_imm.index, offset, length, rtt, element_type);
+            segment_imm.index, offset, length, rtt, allocation, element_type);
     if (IsSmi(*array_object)) {
       // A smi result stands for an error code.
       error_ = static_cast<MessageTemplate>(Cast<Smi>(*array_object).value());

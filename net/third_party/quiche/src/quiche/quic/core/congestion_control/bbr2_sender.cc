@@ -26,13 +26,6 @@
 namespace quic {
 
 namespace {
-// Constants based on TCP defaults.
-// The minimum CWND to ensure delayed acks don't reduce bandwidth measurements.
-// Does not inflate the pacing rate.
-const QuicByteCount kDefaultMinimumCongestionWindow = 4 * kMaxSegmentSize;
-
-const float kInitialPacingGain = 2.885f;
-
 const int kMaxModeChangesPerCongestionEvent = 4;
 }  // namespace
 
@@ -74,8 +67,6 @@ Bbr2Sender::Bbr2Sender(QuicTime now, const RttStats* rtt_stats,
               max_cwnd_in_packets * kDefaultTCPMSS),
       model_(&params_, rtt_stats->SmoothedOrInitialRtt(),
              rtt_stats->last_update_time(),
-             /*cwnd_gain=*/1.0,
-             /*pacing_gain=*/kInitialPacingGain,
              old_sender ? &old_sender->sampler_ : nullptr),
       initial_cwnd_(cwnd_limits().ApplyLimits(
           (old_sender) ? old_sender->GetCongestionWindow()
@@ -346,7 +337,7 @@ void Bbr2Sender::OnCongestionEvent(bool /*rtt_updated*/,
   }
   if (congestion_event.bytes_in_flight == 0 &&
       params().avoid_unnecessary_probe_rtt) {
-    OnEnterQuiescence(event_time);
+    last_quiescence_start_ = event_time;
   }
 
   QUIC_DVLOG(3)
@@ -466,8 +457,7 @@ void Bbr2Sender::OnPacketNeutered(QuicPacketNumber packet_number) {
 }
 
 bool Bbr2Sender::CanSend(QuicByteCount bytes_in_flight) {
-  const bool result = bytes_in_flight < GetCongestionWindow();
-  return result;
+  return bytes_in_flight < GetCongestionWindow();
 }
 
 QuicByteCount Bbr2Sender::GetCongestionWindow() const {
@@ -499,10 +489,6 @@ void Bbr2Sender::PopulateConnectionStats(QuicConnectionStats* stats) const {
   stats->num_ack_aggregation_epochs = model_.num_ack_aggregation_epochs();
 }
 
-void Bbr2Sender::OnEnterQuiescence(QuicTime now) {
-  last_quiescence_start_ = now;
-}
-
 void Bbr2Sender::OnExitQuiescence(QuicTime now) {
   if (last_quiescence_start_ != QuicTime::Zero()) {
     Bbr2Mode next_mode = BBR2_MODE_DISPATCH(
@@ -522,8 +508,8 @@ std::string Bbr2Sender::GetDebugState() const {
   return stream.str();
 }
 
-Bbr2Sender::DebugState Bbr2Sender::ExportDebugState() const {
-  DebugState s;
+Bbr2DebugState Bbr2Sender::ExportDebugState() const {
+  Bbr2DebugState s;
   s.mode = mode_;
   s.round_trip_count = model_.RoundTripCount();
   s.bandwidth_hi = model_.MaxBandwidth();
@@ -545,36 +531,6 @@ Bbr2Sender::DebugState Bbr2Sender::ExportDebugState() const {
   s.probe_rtt = probe_rtt_.ExportDebugState();
 
   return s;
-}
-
-std::ostream& operator<<(std::ostream& os, const Bbr2Sender::DebugState& s) {
-  os << "mode: " << s.mode << "\n";
-  os << "round_trip_count: " << s.round_trip_count << "\n";
-  os << "bandwidth_hi ~ lo ~ est: " << s.bandwidth_hi << " ~ " << s.bandwidth_lo
-     << " ~ " << s.bandwidth_est << "\n";
-  os << "min_rtt: " << s.min_rtt << "\n";
-  os << "min_rtt_timestamp: " << s.min_rtt_timestamp << "\n";
-  os << "congestion_window: " << s.congestion_window << "\n";
-  os << "pacing_rate: " << s.pacing_rate << "\n";
-  os << "last_sample_is_app_limited: " << s.last_sample_is_app_limited << "\n";
-
-  if (s.mode == Bbr2Mode::STARTUP) {
-    os << s.startup;
-  }
-
-  if (s.mode == Bbr2Mode::DRAIN) {
-    os << s.drain;
-  }
-
-  if (s.mode == Bbr2Mode::PROBE_BW) {
-    os << s.probe_bw;
-  }
-
-  if (s.mode == Bbr2Mode::PROBE_RTT) {
-    os << s.probe_rtt;
-  }
-
-  return os;
 }
 
 }  // namespace quic

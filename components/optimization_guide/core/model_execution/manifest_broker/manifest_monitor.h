@@ -21,6 +21,7 @@
 #include "base/time/time.h"
 #include "components/optimization_guide/core/model_execution/manifest_broker/manifest.h"
 #include "components/optimization_guide/core/model_execution/performance_class.h"
+#include "components/optimization_guide/public/mojom/model_broker_debug.mojom.h"
 #include "components/prefs/pref_change_registrar.h"
 
 class PrefService;
@@ -61,6 +62,9 @@ class ManifestMonitor {
   // Returns the base install directory for on-demand models.
   std::optional<base::FilePath> manifest_dir() const { return manifest_dir_; }
 
+  // Returns a list of properties for the broker state info.
+  std::vector<mojom::BrokerPropertyInfoPtr> GetBrokerProperties() const;
+
  private:
   // This should be called once during initialization.
   void OnDiskSpaceEvaluated(std::optional<base::ByteCount> free_space);
@@ -73,7 +77,7 @@ class ManifestMonitor {
   void OnInputsChanged();
 
   // Uses the default manifest, which has uninstalls all assets.
-  void UseUninstallManifest();
+  void UseUninstallManifest(Manifest::UninstallReason reason);
 
   // Called when the manifest is loaded.
   void OnManifestLoaded(

@@ -60,24 +60,25 @@ double MemoryController<Trait>::MaxGrowingFactor(uint64_t physical_memory,
   constexpr double kMaxSmallFactor = 2.0;
   constexpr double kHighFactor = 4.0;
 
+  const uint64_t max_heap_size_threshold =
+      1024u * Heap::HeapLimitMultiplier(physical_memory) * MB;
+
   // If we are on a device with lots of memory, we allow a high heap
   // growing factor.
-  if (max_heap_size >= Heap::DefaultMaxHeapSize(physical_memory)) {
+  if (max_heap_size >= max_heap_size_threshold) {
     return kHighFactor;
   }
 
-  size_t max_size =
-      std::max({max_heap_size, Heap::DefaultMinHeapSize(physical_memory)});
+  size_t max_size = std::max({max_heap_size, Heap::kDefaultMinHeapSize});
 
-  DCHECK_GE(max_size, Heap::DefaultMinHeapSize(physical_memory));
-  DCHECK_LT(max_size, Heap::DefaultMaxHeapSize(physical_memory));
+  DCHECK_GE(max_size, Heap::kDefaultMinHeapSize);
+  DCHECK_LT(max_size, max_heap_size_threshold);
 
   // On smaller devices we linearly scale the factor: C+(D-C)*(X-A)/(B-A)
   double factor = kMinSmallFactor +
                   (kMaxSmallFactor - kMinSmallFactor) *
-                      (max_size - Heap::DefaultMinHeapSize(physical_memory)) /
-                      (Heap::DefaultMaxHeapSize(physical_memory) -
-                       Heap::DefaultMinHeapSize(physical_memory));
+                      (max_size - Heap::kDefaultMinHeapSize) /
+                      (max_heap_size_threshold - Heap::kDefaultMinHeapSize);
   return factor;
 }
 
@@ -156,6 +157,8 @@ size_t GlobalMemoryTrait::BoundAllocationLimit(uint64_t current_size,
                                                size_t max_size,
                                                size_t new_space_capacity) {
   CHECK_LT(0, current_size);
+  limit = std::max(limit, current_size + kMinimumAllocationLimitGrowingStep) +
+          new_space_capacity;
   const uint64_t halfway_to_the_max = (current_size + max_size) / 2;
   const uint64_t result =
       std::clamp<uint64_t>(limit, min_size, halfway_to_the_max);
@@ -266,8 +269,7 @@ Heap::LimitsComputationResult HeapLimits::UpdateAllocationLimits(
           preliminary_old_generation_allocation_limit);
   const size_t next_global_allocation_limit =
       boundaries.bounded_global_allocation_limit(
-          std::max(preliminary_global_allocation_limit,
-                   preliminary_old_generation_allocation_limit));
+          preliminary_global_allocation_limit);
 
   CHECK_GE(next_global_allocation_limit, next_old_generation_allocation_limit);
 

@@ -4,41 +4,16 @@
 
 #include "quiche/quic/moqt/moqt_messages.h"
 
-#include <array>
 #include <cstdint>
 #include <string>
 
-#include "absl/algorithm/container.h"
 #include "absl/strings/str_cat.h"
-#include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 
 namespace moqt {
-
-void MoqtSessionParameters::ToSetupParameters(SetupParameters& out) const {
-  if (perspective == quic::Perspective::IS_CLIENT && !using_webtrans) {
-    out.path = path;
-    out.authority = authority;
-  }
-  if (max_request_id != kDefaultMaxRequestId) {
-    out.max_request_id = max_request_id;
-  }
-  if (max_auth_token_cache_size != kDefaultMaxAuthTokenCacheSize) {
-    out.max_auth_token_cache_size = max_auth_token_cache_size;
-  }
-  if (support_object_acks != kDefaultSupportObjectAcks) {
-    out.support_object_acks = support_object_acks;
-  }
-  if (!moqt_implementation.empty()) {
-    out.moqt_implementation = moqt_implementation;
-  }
-  for (const AuthToken& token : authorization_token) {
-    out.authorization_tokens.push_back(token);
-  }
-}
 
 MoqtObjectStatus IntegerToObjectStatus(uint64_t integer) {
   if (integer >=

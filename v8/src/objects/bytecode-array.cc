@@ -47,7 +47,7 @@ int BytecodeArray::SourceStatementPosition(int offset) const {
 void BytecodeArray::PrintJson(std::ostream& os) {
   DisallowGarbageCollection no_gc;
 
-  BytecodeArray handle_storage = *this;
+  Tagged<BytecodeArray> handle_storage(this);
   Handle<BytecodeArray> handle(reinterpret_cast<Address*>(&handle_storage));
   interpreter::BytecodeArrayIterator iterator(handle);
   bool first_data = true;
@@ -101,7 +101,7 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   DisallowGarbageCollection no_gc;
   // Storage for backing the handle passed to the iterator. This handle won't be
   // updated by the gc, but that's ok because we've disallowed GCs anyway.
-  BytecodeArray handle_storage = *this;
+  Tagged<BytecodeArray> handle_storage(this);
   Handle<BytecodeArray> handle(reinterpret_cast<Address*>(&handle_storage));
   Disassemble(handle, os);
 }
@@ -188,11 +188,9 @@ void BytecodeArray::Disassemble(Handle<BytecodeArray> handle,
 }
 
 void BytecodeArray::CopyBytecodesTo(Tagged<BytecodeArray> to) {
-  BytecodeArray from = *this;
-  DCHECK_EQ(from->length(), to->length());
+  DCHECK_EQ(length(), to->length());
   CopyBytes(reinterpret_cast<uint8_t*>(to->GetFirstBytecodeAddress()),
-            reinterpret_cast<uint8_t*>(from->GetFirstBytecodeAddress()),
-            from->length());
+            reinterpret_cast<uint8_t*>(GetFirstBytecodeAddress()), length());
 }
 
 }  // namespace internal
