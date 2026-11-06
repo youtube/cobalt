@@ -44,12 +44,12 @@ public class DisplayUtil {
       this.mY = ydpi;
     }
 
-    @CalledByNative("DisplayDpi")
+    @CalledByNative
     public float getX() {
       return mX;
     }
 
-    @CalledByNative("DisplayDpi")
+    @CalledByNative
     public float getY() {
       return mY;
     }

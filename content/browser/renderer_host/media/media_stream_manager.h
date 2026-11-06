@@ -426,17 +426,15 @@ class CONTENT_EXPORT MediaStreamManager
       const base::UnguessableToken& session_id,
       const std::optional<gfx::Rect>& region_capture_rect);
 
-<<<<<<< HEAD
+#if !BUILDFLAG(IS_COBALT) || BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   void OpenNativeScreenCapturePicker(
       DesktopMediaID::Type type,
       base::OnceCallback<void(DesktopMediaID::Id)> created_callback,
       base::OnceCallback<void(webrtc::DesktopCapturer::Source)> picker_callback,
       base::OnceCallback<void()> cancel_callback,
       base::OnceCallback<void()> error_callback);
+#endif  // !BUILDFLAG(IS_COBALT) || BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 
-#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
-=======
->>>>>>> parent of 942dff2be16 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Determines whether the captured surface (tab/window) should be focused.
   // This can be called at most once, and only within the first 1s of the
   // capture session being initiated. If a call with |focus=false| is not
@@ -558,9 +556,11 @@ class CONTENT_EXPORT MediaStreamManager
   void StopDevice(blink::mojom::MediaStreamType type,
                   const base::UnguessableToken& session_id);
 
+#if !BUILDFLAG(IS_COBALT) || BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   // Used by the native screen capture picker to stop audio for a specific
   // session ID.
   void StopAudioForPickerSessionId(DesktopMediaID::Id picker_session_id);
+#endif  // !BUILDFLAG(IS_COBALT) || BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 
   // Calls the correct capture manager and closes the device with |session_id|.
   // All requests that use the device are updated.

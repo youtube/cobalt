@@ -54,6 +54,7 @@ public abstract class UnownedUserDataSupplier<E>
      * Constructs an UnownedUserDataSupplier.
      * @param uudKey The {@link UnownedUserDataKey}, which is defined in subclasses.
      */
+    @SuppressWarnings("unchecked")
     protected UnownedUserDataSupplier(
             @NonNull UnownedUserDataKey<? extends UnownedUserDataSupplier<E>> uudKey) {
         mUudKey = (UnownedUserDataKey<UnownedUserDataSupplier<E>>) uudKey;

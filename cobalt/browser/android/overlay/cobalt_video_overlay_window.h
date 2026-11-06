@@ -92,6 +92,8 @@ class CobaltVideoOverlayWindow : public content::VideoOverlayWindow,
       const std::vector<media_session::MediaImage>& images) override;
   void SetSurfaceId(const viz::SurfaceId& surface_id) override;
   void SetPlaybackControlsVisibility(bool is_visible) override;
+  void SetImmersiveVideoOptions(
+      blink::mojom::ImmersiveOptionsPtr options) override;
 
   // JNI callbacks from CobaltPictureInPictureActivity.java
   void SetJavaActivity(JNIEnv* env,

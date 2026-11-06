@@ -19,7 +19,7 @@ import org.chromium.crashannotator.mojom.CrashAnnotator;
 import org.chromium.services.service_manager.InterfaceFactory;
 
 /** Creates instances of CrashAnnotator Mojo interface implementations. */
-public class CrashAnnotatorImplFactory implements InterfaceFactory {
+public class CrashAnnotatorImplFactory implements InterfaceFactory<CrashAnnotator> {
   private final RenderFrameHost mRenderFrameHost;
 
   public CrashAnnotatorImplFactory(RenderFrameHost renderFrameHost) {

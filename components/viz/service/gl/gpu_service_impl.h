@@ -562,11 +562,13 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
   // Represents a deferred EstablishGpuChannel request received while the
   // application is backgrounded / concealed.
   struct PendingEstablishGpuChannelRequest {
-    PendingEstablishGpuChannelRequest(int32_t client_id,
-                                      uint64_t client_tracing_id,
-                                      bool is_gpu_host,
-                                      bool enable_extra_handles_validation,
-                                      EstablishGpuChannelCallback callback);
+    PendingEstablishGpuChannelRequest(
+        int32_t client_id,
+        uint64_t client_tracing_id,
+        bool is_gpu_host,
+        bool enable_extra_handles_validation,
+        mojo::ScopedMessagePipeHandle channel_handle,
+        EstablishGpuChannelCallback callback);
     PendingEstablishGpuChannelRequest(
         PendingEstablishGpuChannelRequest&& other);
     PendingEstablishGpuChannelRequest& operator=(
@@ -577,6 +579,7 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
     uint64_t client_tracing_id;
     bool is_gpu_host;
     bool enable_extra_handles_validation;
+    mojo::ScopedMessagePipeHandle channel_handle;
     EstablishGpuChannelCallback callback;
   };
 

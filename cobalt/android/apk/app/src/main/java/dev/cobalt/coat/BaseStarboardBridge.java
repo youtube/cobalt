@@ -1125,12 +1125,12 @@ public class BaseStarboardBridge {
       mHeight = height;
     }
 
-    @CalledByNative("Size")
+    @CalledByNative
     public int getWidth() {
       return mWidth;
     }
 
-    @CalledByNative("Size")
+    @CalledByNative
     public int getHeight() {
       return mHeight;
     }
