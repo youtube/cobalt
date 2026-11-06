@@ -12,6 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+source_set("fake_monotonic_clock") {
+  testonly = true
+
+  sources = [ "fake_monotonic_clock.h" ]
+
+  public_deps = [ "//starboard/common" ]
+}
+
 static_library("fake_graphics_context_provider") {
   testonly = true
 

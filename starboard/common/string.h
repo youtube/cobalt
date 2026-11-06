@@ -22,6 +22,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -29,6 +30,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 #include "starboard/configuration.h"
@@ -68,6 +70,30 @@ inline std::string ToString(const std::string& val) {
 
 inline std::string ToString(bool val) {
   return val ? "true" : "false";
+}
+
+template <typename Rep, typename Period>
+std::string ToString(const std::chrono::duration<Rep, Period>& val) {
+  std::stringstream ss;
+  ss << val.count();
+  if constexpr (std::is_same_v<Period, std::nano>) {
+    ss << "ns";
+  } else if constexpr (std::is_same_v<Period, std::micro>) {
+    ss << "us";
+  } else if constexpr (std::is_same_v<Period, std::milli>) {
+    ss << "ms";
+  } else if constexpr (std::is_same_v<Period, std::ratio<1>>) {
+    ss << "s";
+  } else if constexpr (std::is_same_v<Period, std::ratio<60>>) {
+    ss << "min";
+  } else if constexpr (std::is_same_v<Period, std::ratio<3600>>) {
+    ss << "h";
+  } else if constexpr (Period::den == 1) {
+    ss << "[" << Period::num << "]s";
+  } else {
+    ss << "[" << Period::num << "/" << Period::den << "]s";
+  }
+  return ss.str();
 }
 
 template <typename T>

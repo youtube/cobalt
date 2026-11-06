@@ -18,6 +18,7 @@
 #include <time.h>
 
 #include "starboard/common/log.h"
+#include "starboard/common/monotonic_clock.h"
 
 namespace starboard {
 namespace {
@@ -33,12 +34,7 @@ auto ToMicroseconds(const struct timeval& tv) {
 }  // namespace
 
 int64_t CurrentMonotonicTime() {
-  struct timespec ts;
-  if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
-    SB_NOTREACHED() << "clock_gettime(CLOCK_MONOTONIC) failed.";
-    return 0;
-  }
-  return ToMicroseconds(ts);
+  return GetSystemMonotonicClock()->Now().time_since_epoch().count();
 }
 
 int64_t CurrentMonotonicThreadTime() {

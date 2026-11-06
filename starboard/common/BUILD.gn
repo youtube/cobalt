@@ -71,6 +71,8 @@ static_library("common") {
     "media.h",
     "metrics/stats_tracker.cc",
     "metrics/stats_tracker.h",
+    "monotonic_clock.cc",
+    "monotonic_clock.h",
     "murmurhash2.cc",
     "murmurhash2.h",
     "no_destructor.h",
@@ -140,6 +142,7 @@ source_set("common_test") {
     "log_unittest.cc",
     "media_test.cc",
     "memory_test.cc",
+    "monotonic_clock_test.cc",
     "no_destructor_test.cc",
     "player_test.cc",
     "queue_test.cc",
@@ -155,6 +158,7 @@ source_set("common_test") {
   deps = [
     ":common",
     "//starboard:starboard_group",
+    "//starboard/testing:fake_monotonic_clock",
     "//testing/gmock",
     "//testing/gtest",
   ]
