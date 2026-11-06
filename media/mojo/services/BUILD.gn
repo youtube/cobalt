@@ -366,6 +366,9 @@ source_set("unit_tests") {
       "//gpu/command_buffer/client",
       "//starboard/common",
     ]
+    if (is_ios && target_platform == "tvos") {
+      sources += [ "starboard/url_player_metadata_flow_unittest.cc" ]
+    }
   }
 }
 
