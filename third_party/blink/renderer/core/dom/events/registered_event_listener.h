@@ -26,15 +26,21 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DOM_EVENTS_REGISTERED_EVENT_LISTENER_H_
 
 #include "base/memory/scoped_refptr.h"
+#include "build/build_config.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
+#endif
 
 namespace blink {
 
 class AddEventListenerOptionsResolved;
 class Event;
 class EventListener;
+#if !BUILDFLAG(IS_COBALT)
 class EventListenerOptions;
+#endif
 
 // RegisteredEventListener represents 'event listener' defined in the DOM
 // standard. https://dom.spec.whatwg.org/#concept-event-listener
@@ -78,8 +84,28 @@ class RegisteredEventListener final
     blocked_event_warning_emitted_ = true;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  struct OptionsForMatching {
+    STACK_ALLOCATED();
+
+   public:
+    OptionsForMatching() = default;
+    OptionsForMatching(const OptionsForMatching&) = default;
+    OptionsForMatching(bool use_capture) : use_capture_(use_capture) {}
+    bool operator==(const OptionsForMatching&) const = default;
+
+    bool use_capture_{false};
+  };
+
+  OptionsForMatching GetOptionsForMatching() const {
+    return OptionsForMatching(use_capture_);
+  }
+  bool Matches(const EventListener* listener,
+               const OptionsForMatching& options) const;
+#else
   bool Matches(const EventListener* listener,
                const EventListenerOptions* options) const;
+#endif
 
   bool ShouldFire(const Event&) const;
 

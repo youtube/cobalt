@@ -35,6 +35,7 @@
 
 #include "base/format_macros.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "third_party/blink/renderer/bindings/core/v8/js_based_event_listener.h"
 #include "third_party/blink/renderer/bindings/core/v8/js_event_listener.h"
 #include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
@@ -788,21 +789,35 @@ bool EventTarget::removeEventListener(
 bool EventTarget::removeEventListener(const AtomicString& event_type,
                                       const EventListener* listener,
                                       bool use_capture) {
+#if BUILDFLAG(IS_COBALT)
+  RegisteredEventListener::OptionsForMatching options(use_capture);
+  return RemoveEventListenerInternal(event_type, listener, options);
+#else
   EventListenerOptions* options = EventListenerOptions::Create();
   options->setCapture(use_capture);
   return RemoveEventListenerInternal(event_type, listener, options);
+#endif
 }
 
 bool EventTarget::removeEventListener(const AtomicString& event_type,
                                       const EventListener* listener,
                                       EventListenerOptions* options) {
+#if BUILDFLAG(IS_COBALT)
+  RegisteredEventListener::OptionsForMatching match_options(options->capture());
+  return RemoveEventListenerInternal(event_type, listener, match_options);
+#else
   return RemoveEventListenerInternal(event_type, listener, options);
+#endif
 }
 
 bool EventTarget::RemoveEventListenerInternal(
     const AtomicString& event_type,
     const EventListener* listener,
+#if BUILDFLAG(IS_COBALT)
+    const RegisteredEventListener::OptionsForMatching& options) {
+#else
     const EventListenerOptions* options) {
+#endif
   if (!listener)
     return false;
 

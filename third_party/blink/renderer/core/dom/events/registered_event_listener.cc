@@ -24,6 +24,7 @@
 
 #include "third_party/blink/renderer/core/dom/events/registered_event_listener.h"
 
+#include "build/build_config.h"
 #include "third_party/blink/renderer/core/dom/events/add_event_listener_options_resolved.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/dom/events/event_listener.h"
@@ -71,6 +72,15 @@ void RegisteredEventListener::SetCallback(EventListener* listener) {
   callback_ = listener;
 }
 
+#if BUILDFLAG(IS_COBALT)
+bool RegisteredEventListener::Matches(const EventListener* listener,
+                                      const OptionsForMatching& options) const {
+  // Equality is soley based on the listener and useCapture flags.
+  DCHECK(callback_);
+  DCHECK(listener);
+  return callback_->Matches(*listener) && options == GetOptionsForMatching();
+}
+#else
 bool RegisteredEventListener::Matches(
     const EventListener* listener,
     const EventListenerOptions* options) const {
@@ -80,6 +90,7 @@ bool RegisteredEventListener::Matches(
   return callback_->Matches(*listener) &&
          static_cast<bool>(use_capture_) == options->capture();
 }
+#endif
 
 bool RegisteredEventListener::ShouldFire(const Event& event) const {
   if (event.FireOnlyCaptureListenersAtTarget()) {
