@@ -158,6 +158,7 @@ class MEDIA_EXPORT StarboardRendererClient
   void SetPlayingState(bool is_playing);
   void UpdateCurrentFrame();
   void OnGetCurrentVideoFrameDone(const scoped_refptr<VideoFrame>& frame);
+  void OnSbWindowHandleReady(uint64_t sb_window_handle);
 #if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
 #endif  // BUILDFLAG(IS_ANDROID)
