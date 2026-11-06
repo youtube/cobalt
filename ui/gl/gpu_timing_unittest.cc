@@ -11,6 +11,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gl/gl_context_stub.h"
 #include "ui/gl/gl_implementation.h"
@@ -140,6 +141,85 @@ TEST_F(GPUTimingTest, QueryTimeStampTest) {
   EXPECT_EQ(begin_cpu_time, start);
   EXPECT_EQ(begin_cpu_time, end);
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+class StarboardGPUTimingTest : public GPUTimingTest {
+ protected:
+  void SetUp() override {
+    GPUTimingTest::SetUp();
+    client_ = CreateGPUTimingClient();
+    gpu_timing_fake_queries_.SetCPUGLOffset(2250900);
+  }
+
+  void TearDown() override {
+    client_ = nullptr;
+    GPUTimingTest::TearDown();
+  }
+
+  // Issues a timestamp query at |query_cpu_time| and reads it back
+  // |read_latency_us| later, returning the resulting start timestamp.
+  int64_t QueryTimeStampAt(int64_t query_cpu_time, int64_t read_latency_us) {
+    ::testing::Mock::VerifyAndClearExpectations(gl_.get());
+    gpu_timing_fake_queries_.ExpectDisjointCalls(*gl_);
+    gpu_timing_fake_queries_.ExpectGPUTimeStampQuery(*gl_, false);
+    gpu_timing_fake_queries_.SetCurrentCPUTime(query_cpu_time);
+    std::unique_ptr<GPUTimer> timer = client_->CreateGPUTimer(false);
+    timer->QueryTimeStamp();
+    gpu_timing_fake_queries_.SetCurrentCPUTime(query_cpu_time +
+                                               read_latency_us);
+    EXPECT_TRUE(timer->IsAvailable());
+    int64_t start = 0, end = 0;
+    timer->GetStartEndTimestamps(&start, &end);
+    timer->Destroy(true);
+    EXPECT_EQ(start, end);
+    return start;
+  }
+
+  scoped_refptr<GPUTimingClient> client_;
+};
+
+// A raw 24 MHz glGetInteger64v(GL_TIMESTAMP_EXT) counter is rescaled on the
+// first query so the timestamp matches CPU time, even after days of uptime.
+TEST_F(StarboardGPUTimingTest, TimestampUnitCalibration) {
+  gpu_timing_fake_queries_.SetGLTimestampUnitsPerMicrosecond(24);
+  const int64_t cpu_time = 367060000000LL;  // >4 days of uptime
+  EXPECT_EQ(cpu_time, QueryTimeStampAt(cpu_time, 0));
+}
+
+// A sample read long after it was stamped relative to the counter's uptime
+// (here 100 ms at 1 s, 10%) is imprecise and must be retried, not rounded.
+TEST_F(StarboardGPUTimingTest, TimestampUnitCalibrationRetriesNoisySample) {
+  gpu_timing_fake_queries_.SetGLTimestampUnitsPerMicrosecond(24);
+  QueryTimeStampAt(1000000, 100000);  // 1 s uptime, read 100 ms later.
+  const int64_t cpu_time = 100000000;  // 100 s uptime, read 1 ms later.
+  EXPECT_EQ(cpu_time, QueryTimeStampAt(cpu_time, 1000));
+}
+
+// A query flagged by a disjoint event must not be used for calibration.
+TEST_F(StarboardGPUTimingTest, TimestampUnitCalibrationSkipsDisjointQuery) {
+  gpu_timing_fake_queries_.SetGLTimestampUnitsPerMicrosecond(100);
+  const int64_t cpu_time = 367060000000LL;
+  gpu_timing_fake_queries_.SetDisjoint();
+  QueryTimeStampAt(cpu_time, 0);
+  EXPECT_TRUE(client_->CheckAndResetTimerErrors());
+
+  gpu_timing_fake_queries_.SetGLTimestampUnitsPerMicrosecond(24);
+  EXPECT_EQ(cpu_time + 1000, QueryTimeStampAt(cpu_time + 1000, 0));
+  EXPECT_FALSE(client_->CheckAndResetTimerErrors());
+}
+
+// A disjoint event discards the previous calibration.
+TEST_F(StarboardGPUTimingTest, TimestampUnitCalibrationResetsOnDisjoint) {
+  gpu_timing_fake_queries_.SetGLTimestampUnitsPerMicrosecond(24);
+  const int64_t cpu_time = 367060000000LL;
+  EXPECT_EQ(cpu_time, QueryTimeStampAt(cpu_time, 0));
+
+  // After a driver reset the counter reports nanoseconds again.
+  gpu_timing_fake_queries_.SetDisjoint();
+  gpu_timing_fake_queries_.SetGLTimestampUnitsPerMicrosecond(1000);
+  EXPECT_EQ(cpu_time + 1000, QueryTimeStampAt(cpu_time + 1000, 0));
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 TEST_F(GPUTimingTest, QueryTimestampUsingElapsedTest) {
   // Test timestamp queries on platforms with GL_EXT_disjoint_timer_query but
