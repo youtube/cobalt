@@ -4,6 +4,7 @@
 
 #include "ui/gl/gl_fence_egl.h"
 
+#include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/notreached.h"
 #include "ui/gl/egl_util.h"
@@ -87,14 +88,15 @@ bool GLFenceEGL::HasCompleted() {
 void GLFenceEGL::ClientWait() {
   EGLint result = ClientWaitWithTimeoutNanos(EGL_FOREVER_KHR);
   DCHECK_NE(EGL_TIMEOUT_EXPIRED_KHR, result);
+  DCHECK_NE(EGL_FALSE, result);
 }
 
 EGLint GLFenceEGL::ClientWaitWithTimeoutNanos(EGLTimeKHR timeout) {
   EGLint flags = 0;
   EGLint result = eglClientWaitSyncKHR(display_, sync_, flags, timeout);
   if (result == EGL_FALSE) {
-    NOTREACHED() << "Failed to wait for EGLSync. error:"
-                 << ui::GetLastEGLErrorString();
+    LOG(ERROR) << "Failed to wait for EGLSync. error:"
+               << ui::GetLastEGLErrorString();
   }
   return result;
 }
