@@ -1,0 +1,83 @@
+// Copyright (C) 2023 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+@import "../../assets/theme";
+
+.pf-plugins-page {
+  margin-block: 16px;
+
+  &__topbar {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  &__chip {
+    font-size: var(--pf-font-size-s);
+  }
+
+  &__card {
+    display: flex;
+    flex-direction: row;
+    gap: 6px;
+    justify-content: space-between;
+    border-left: solid 3px transparent;
+  }
+
+  &__controls {
+    display: flex;
+    flex-direction: row;
+    column-gap: 16px;
+    align-items: center;
+  }
+
+  &__deps {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 6px;
+    row-gap: 4px;
+    margin-top: 6px;
+  }
+
+  &__deps-icon {
+    font-size: 18px;
+  }
+
+  &__deps-label {
+    font-weight: 600;
+    font-size: var(--pf-font-size-s);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-right: 4px;
+  }
+
+  &__deps--dependencies {
+    .pf-plugins-page__deps-icon,
+    .pf-plugins-page__deps-label {
+      color: var(--pf-color-primary);
+    }
+  }
+
+  &__deps--dependants {
+    .pf-plugins-page__deps-icon,
+    .pf-plugins-page__deps-label {
+      color: var(--pf-color-warning);
+    }
+  }
+
+  &__deps-link {
+    text-decoration: none;
+    color: inherit;
+  }
+}
