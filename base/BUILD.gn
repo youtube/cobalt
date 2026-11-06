@@ -4333,9 +4333,6 @@ test("base_unittests") {
     deps += [ ":stack_canary_linux_unittests" ]
   }
 
-<<<<<<< HEAD
-  sources += [ "test/tracing/test_trace_processor_example_unittest.cc" ]
-=======
   if (is_starboard) {
     sources -= [
       "debug/stack_trace_unittest.cc",
@@ -4375,9 +4372,8 @@ test("base_unittests") {
   }
 
   if (!is_cobalt_hermetic_build) {
-    sources += [ "test/test_trace_processor_example_unittest.cc" ]
+    sources += [ "test/tracing/test_trace_processor_example_unittest.cc" ]
   }
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   if (is_posix) {
     sources += [
