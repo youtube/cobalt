@@ -169,6 +169,7 @@ runs:
                 # preserves the passing XML from the earlier attempt.
                 if [[ "${GITHUB_RUN_ATTEMPT:-1}" -eq 1 ]]; then
                   mkdir -p "${shard_dir}"
+                  echo "Skipped due to test filter." > "${shard_dir}/${test_target}_log.txt"
                   printf '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites tests="0" failures="0" errors="0" time="0"></testsuites>\n' \
                     > "${shard_dir}/${test_target}_testoutput.xml"
                 fi
@@ -189,6 +190,19 @@ runs:
                 # Double-check the result XML for failures. ODT service has been known to report incorrect status.
                 echo "::error::Found failures in the test xml for ${test_target} shard ${shard_idx}."
                 target_failed=1
+              elif ! grep -q '<testcase' "${xml_files[@]}"; then
+                # A non-skipped shard that ran zero test cases (for example when
+                # device setup or test listing failed before execution) must not
+                # archive an empty XML that marks the shard as passed on retry.
+                echo "::error::Test result xml has no test cases for ${test_target} shard ${shard_idx}."
+                rm -f "${xml_files[@]}"
+                log_path="${shard_dir}/${test_target}_log.txt"
+                if [ -f "${log_path}" ]; then
+                  python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" \
+                    "${log_path}" \
+                    "${shard_dir}/${test_target}_testoutput.xml"
+                fi
+                target_failed=1
               fi
             done
           else
@@ -204,6 +218,14 @@ runs:
             elif grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
               # Double-check the result XML for failures. ODT service has been known to report incorrect status.
               echo "::error::Found failures in the test xml."
+              target_failed=1
+            elif [[ "${test_target}" == *"cobalt_browsertests"* ]] && ! grep -q '<testcase' "${xml_files[@]}"; then
+              echo "::error::Test result xml has no test cases for ${test_target}."
+              rm -f "${xml_files[@]}"
+              log_paths=("${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt)
+              if [ -f "${log_paths[0]:-}" ]; then
+                python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_paths[0]}" "${test_output}/${PLATFORM}/${test_target}_testoutput.xml"
+              fi
               target_failed=1
             fi
           fi
