@@ -608,7 +608,8 @@ void StarboardRendererWrapper::PollMediaTime() {
     return;
   }
   base::TimeDelta media_time = GetRenderer()->GetMediaTime();
-  base::TimeDelta max_time = media_time + 2 * kTimeUpdateInterval;
+  base::TimeDelta max_time =
+      media_time + 2 * playback_rate_ * kTimeUpdateInterval;
   bypass_bridge_->PostTimeUpdate(media_time, max_time, base::TimeTicks::Now());
 }
 
