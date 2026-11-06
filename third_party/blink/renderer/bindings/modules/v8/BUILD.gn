@@ -42,7 +42,7 @@ blink_modules_sources("v8") {
     # v8_rtc_diagnostic_logging_options, leaving it in place.
     _dropped_sources = filter_exclude(
         filter_include(sources, cobalt_bindings_exclude_patterns),
-        [ "*v8_rtc_diagnostic_logging_options.*" ])
+        [ "*v8_rtc_*diagnostic_logging_options.*" ])
     _kept_sources = filter_exclude(sources, _dropped_sources)
     sources = []
     sources = _kept_sources
