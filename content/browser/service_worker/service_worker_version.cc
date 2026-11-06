@@ -38,11 +38,7 @@
 #include "content/browser/back_forward_cache/back_forward_cache_can_store_document_result.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/child_process_security_policy_impl.h"
-<<<<<<< HEAD
-=======
 #include "content/browser/storage_partition_impl.h"
-#include "content/browser/renderer_host/back_forward_cache_can_store_document_result.h"
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "content/browser/renderer_host/local_network_access_util.h"
 #include "content/browser/service_worker/payment_handler_support.h"
 #include "content/browser/service_worker/service_worker_client.h"

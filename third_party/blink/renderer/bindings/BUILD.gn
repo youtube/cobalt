@@ -178,7 +178,7 @@ template("generate_bindings") {
       # Cobalt), not modules/peerconnection (removed).
       _dropped_outputs = filter_exclude(
           filter_include(outputs, cobalt_bindings_exclude_patterns),
-          [ "*v8_rtc_diagnostic_logging_options.*" ])
+          [ "*v8_rtc_*diagnostic_logging_options.*" ])
       _kept_outputs = filter_exclude(outputs, _dropped_outputs)
       outputs = []
       outputs = _kept_outputs
@@ -476,7 +476,7 @@ action_with_pydeps("check_generated_file_list") {
     # section.
     _dropped_bindings = filter_exclude(
         filter_include(file_list, cobalt_bindings_exclude_patterns),
-        [ "*v8_rtc_diagnostic_logging_options.*" ])
+        [ "*v8_rtc_*diagnostic_logging_options.*" ])
     _kept_file_list = filter_exclude(file_list, _dropped_bindings)
     file_list = []
     file_list = _kept_file_list
