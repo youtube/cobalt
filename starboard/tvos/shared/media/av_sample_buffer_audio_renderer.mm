@@ -14,6 +14,8 @@
 
 #include "starboard/tvos/shared/media/av_sample_buffer_audio_renderer.h"
 
+#include <algorithm>
+
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/tvos/shared/media/avutil/utils.h"
 #include "starboard/tvos/shared/media/playback_capabilities.h"
@@ -53,6 +55,16 @@ bool HasRemoteAudioOutput() {
     index++;
   }
   return false;
+}
+
+void SetTrimDuration(CMSampleBufferRef sample_buffer,
+                     CFStringRef key,
+                     int64_t duration_usec) {
+  CFDictionaryRef trim_duration = CMTimeCopyAsDictionary(
+      CMTimeMake(duration_usec, 1000000), kCFAllocatorDefault);
+  CMSetAttachment(sample_buffer, key, trim_duration,
+                  kCMAttachmentMode_ShouldPropagate);
+  CFRelease(trim_duration);
 }
 
 }  // namespace
@@ -164,12 +176,41 @@ void AVSBAudioRenderer::WriteSamples(const InputBuffers& input_buffers) {
     return;
   }
 
-  int64_t buffer_end_time =
-      input_buffer->timestamp() +
+  // AVSampleBufferAudioRenderer consumes compressed samples directly, so the
+  // discarded durations have to be applied here instead of in a decoder.
+  const int64_t buffer_duration =
       frames_in_buffer * 1000000 / audio_stream_info_.samples_per_second;
+  const auto& sample_info = input_buffer->audio_sample_info();
+  const int64_t discarded_duration_from_front = std::clamp<int64_t>(
+      sample_info.discarded_duration_from_front, 0, buffer_duration);
+  const int64_t discarded_duration_from_back =
+      std::clamp<int64_t>(sample_info.discarded_duration_from_back, 0,
+                          buffer_duration - discarded_duration_from_front);
+
+  if (discarded_duration_from_front + discarded_duration_from_back >=
+      buffer_duration) {
+    // The whole buffer is discarded.
+    CFRelease(sample_buffer);
+    return;
+  }
+
+  int64_t buffer_end_time = input_buffer->timestamp() + buffer_duration -
+                            discarded_duration_from_back;
 
   if (buffer_end_time < seek_to_time_) {
+    CFRelease(sample_buffer);
     return;
+  }
+
+  if (discarded_duration_from_front > 0) {
+    SetTrimDuration(sample_buffer,
+                    kCMSampleBufferAttachmentKey_TrimDurationAtStart,
+                    discarded_duration_from_front);
+  }
+  if (discarded_duration_from_back > 0) {
+    SetTrimDuration(sample_buffer,
+                    kCMSampleBufferAttachmentKey_TrimDurationAtEnd,
+                    discarded_duration_from_back);
   }
 
   const SbDrmSampleInfo* drm_info = input_buffer->drm_info();
