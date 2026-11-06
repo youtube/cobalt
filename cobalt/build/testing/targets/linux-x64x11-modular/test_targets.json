@@ -5,7 +5,6 @@
       "base:base_unittests_loader": "b/418842688 - Compilation failure",
       "gpu:gpu_benchmark_loader": "b/453909269 - Devtools missing inputs",
       "gpu:gpu_perftests_loader": "b/418842688 - Compilation failure",
-      "media:media_unittests_loader": "b/418842688 - Compilation failure",
       "mojo:mojo_perftests_loader": "b/418842688 - Compilation failure",
       "net:net_unittests_loader": "b/418842688 - Compilation failure",
       "third_party/blink/renderer/platform/heap:blink_heap_perftests_loader": "b/418842688 - Execution failure, crashes horribly",
@@ -91,6 +90,12 @@
   {
     "target": "gpu:gpu_unittests_loader",
     "executable": "out/linux-x64x11-modular_devel/gpu_unittests_loader",
+    "runs_on": "host",
+    "test_type": "gtest"
+  },
+  {
+    "target": "media:media_unittests_loader",
+    "executable": "out/linux-x64x11-modular_devel/media_unittests_loader",
     "runs_on": "host",
     "test_type": "gtest"
   },
