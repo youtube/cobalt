@@ -178,9 +178,9 @@ void ExpandAndroidTvFlags(const AndroidTvFlagMap& flag_map,
     }
   };
 
-  if (!flag_map.Has(flags::kEnableQuic)) {
-    AppendSwitchIfAbsent(cmd_line, ::switches::kDisableQuic);
-  }
+  // [Atom C13] Keep QUIC enabled by default on Android TV instead of appending
+  // --disable-quic when the EnableQuic experiment switch is unset.
+  (void)flags::kEnableQuic;
 
   if (flag_map.Has(flags::kUseMinorMsForMinorGc)) {
     js_flags.push_back(v8_switches::kMinorMs);
