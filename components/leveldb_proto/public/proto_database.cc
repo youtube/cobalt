@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "components/leveldb_proto/public/proto_database.h"
+#include "base/system/helium_knobs.h"
 
 #include "base/system/sys_info.h"
 
@@ -17,7 +18,7 @@ leveldb_env::Options CreateSimpleOptions() {
   options.create_if_missing = true;
   options.max_open_files = 0;  // Use minimum.
   static bool is_low_end_device =
-      base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled();
+      (base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled() || base::helium::IsLowEndFor("storage"));
   if (is_low_end_device)
     options.write_buffer_size = kDatabaseWriteBufferSizeBytesForLowEndDevice;
   else

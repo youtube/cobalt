@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "gin/public/isolate_holder.h"
+#include "base/system/helium_knobs.h"
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -188,8 +189,15 @@ IsolateHolder::getDefaultIsolateParams() {
   std::unique_ptr<v8::Isolate::CreateParams> params =
       std::make_unique<v8::Isolate::CreateParams>();
   params->code_event_handler = DebugImpl::GetJitCodeEventHandler();
-  params->constraints.ConfigureDefaults(base::SysInfo::AmountOfPhysicalMemory(),
-                                        base::SysInfo::AmountOfVirtualMemory());
+  params->constraints.ConfigureDefaults(
+      base::helium::AmountOfPhysicalMemoryFor("v8_heap"),
+      base::SysInfo::AmountOfVirtualMemory());
+  // [PoC][Helium] Explicit max semi-space size. The young generation is
+  // 3x the semi-space (two semi-spaces + new large object space).
+  if (auto kb = base::helium::GetSize("v8_semi_space_kb")) {
+    params->constraints.set_max_young_generation_size_in_bytes(
+        static_cast<size_t>(*kb) * 1024 * 3);
+  }
   params->array_buffer_allocator = g_array_buffer_allocator;
   params->allow_atomics_wait = true;
   params->external_references = g_reference_table;

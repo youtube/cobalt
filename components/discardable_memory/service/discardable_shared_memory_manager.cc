@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "components/discardable_memory/service/discardable_shared_memory_manager.h"
+#include "base/system/helium_knobs.h"
 
 #include <algorithm>
 #include <memory>
@@ -176,7 +177,7 @@ uint64_t GetDefaultMemoryLimit() {
 #endif
 
   // Use 1/8th of discardable memory on low-end devices.
-  if (base::SysInfo::IsLowEndDevice())
+  if (base::helium::IsLowEndDeviceOr("discardable"))
     max_default_memory_limit /= 8;
 #endif
 
@@ -201,6 +202,11 @@ uint64_t GetDefaultMemoryLimit() {
                  static_cast<uint64_t>(shmem_dir_amount_of_free_space / 2));
   }
 #endif
+
+  // [PoC][Helium] Explicit size.
+  if (auto mb = base::helium::GetSize("discardable_mb")) {
+    return static_cast<uint64_t>(*mb) * kMegabyte;
+  }
 
   // Allow 25% of physical memory to be used for discardable memory.
   return std::min(max_default_memory_limit,

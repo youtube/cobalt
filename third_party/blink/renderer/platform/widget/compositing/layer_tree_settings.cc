@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/platform/widget/compositing/layer_tree_settings.h"
+#include "base/system/helium_knobs.h"
 
 #include <algorithm>
 #include <tuple>
@@ -617,7 +618,7 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
 
   settings.max_staging_buffer_usage_in_bytes = 32 * 1024 * 1024;  // 32MB
   // Use 1/4th of staging buffers on low-end devices.
-  if (base::SysInfo::IsLowEndDevice())
+  if (base::helium::IsLowEndDeviceOr("raster_buffers"))
     settings.max_staging_buffer_usage_in_bytes /= 4;
 
   cc::ManagedMemoryPolicy defaults = settings.memory_policy;

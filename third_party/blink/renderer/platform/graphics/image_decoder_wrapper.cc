@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/platform/graphics/image_decoder_wrapper.h"
+#include "base/system/helium_knobs.h"
 
 #include "base/system/sys_info.h"
 #include "base/trace_event/trace_event.h"
@@ -93,7 +94,8 @@ bool IsLowEndDeviceOrPartialLowEndModeEnabled() {
   // Since ImageFrameGeneratorTest depends on Platform::Current(), use
   // Platform::Current()->IsLowEndDevice() here.
   return Platform::Current()->IsLowEndDevice() ||
-         base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled();
+         base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled() ||
+         base::helium::IsLowEndFor("decode_limit");
 #else
   return Platform::Current()->IsLowEndDevice();
 #endif

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "cc/trees/layer_tree_host_impl.h"
+#include "base/system/helium_knobs.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -3349,7 +3350,7 @@ void LayerTreeHostImpl::UpdateDisplayTree(FrameData& frame) {
 int LayerTreeHostImpl::RequestedMSAASampleCount() const {
   if (settings_.gpu_rasterization_msaa_sample_count == -1) {
     // On "low-end" devices use 4 samples per pixel to save memory.
-    if (base::SysInfo::IsLowEndDevice())
+    if (base::helium::IsLowEndDeviceOr("msaa"))
       return 4;
 
     // Use the most up-to-date version of device_scale_factor that we have.
@@ -4033,7 +4034,7 @@ void LayerTreeHostImpl::OnMemoryPressure(
   }
 
   // Only work for low-end devices for now.
-  if (!base::SysInfo::IsLowEndDevice())
+  if (!base::helium::IsLowEndDeviceOr("cc_pressure_purge"))
     return;
 
   if (!ImageDecodeCacheUtils::ShouldEvictCaches(level))

@@ -8,6 +8,7 @@
 #endif
 
 #include "gpu/command_buffer/service/memory_program_cache.h"
+#include "base/system/helium_knobs.h"
 
 #include <stddef.h>
 
@@ -255,7 +256,7 @@ bool CompressProgramBinaries() {
 #if !BUILDFLAG(IS_ANDROID)
   return false;
 #else   // !BUILDFLAG(IS_ANDROID)
-  return base::SysInfo::IsLowEndDevice();
+  return base::helium::IsLowEndDeviceOr("shader_cache");
 #endif  // !BUILDFLAG(IS_ANDROID)
 }
 
