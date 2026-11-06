@@ -176,9 +176,9 @@ public class StartupGuard {
   private final AtomicBoolean mIsArmed = new AtomicBoolean(false);
   // Origin for Cobalt.Startup.TimeToMilestone.*, on the SystemClock.elapsedRealtime() clock.
   private volatile long mStartupOriginMs = getProcessStartElapsedRealtime();
-  // Time-to-milestone samples describe a cold start only while the process is still in its first
-  // Activity. Cleared once that Activity is destroyed or a second Activity is created in this
-  // process, after which milestones reached for the first time are no longer startup events.
+  // Time-to-milestone samples describe a cold start only for the first Activity created in this
+  // process. Cleared once a second Activity is created, after which milestones reached for the
+  // first time are no longer startup events.
   private final AtomicBoolean mIsStartupTimingActive = new AtomicBoolean(true);
   private volatile Runnable mPreCrashHook;
   private volatile @Nullable Observer mObserver;
@@ -291,9 +291,6 @@ public class StartupGuard {
             TIME_TO_MILESTONE_BUCKETS);
       }
       RecordHistogram.recordSparseHistogram(METRIC_MILESTONE_REACHED, milestone);
-    }
-    if (milestone == ACTIVITY_ON_DESTROY) {
-      mIsStartupTimingActive.set(false);
     }
   }
 

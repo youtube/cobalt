@@ -114,13 +114,9 @@ public class StartupGuardTest {
 
   @Test
   public void setStartupMilestone_recordsUmaForMilestones1To37() {
-    // ActivityOnDestroy ends startup timing, so reach it last.
     for (int milestone = 1; milestone <= 37; milestone++) {
-      if (milestone != StartupGuard.ACTIVITY_ON_DESTROY) {
-        assertMilestoneRecordedToUma(milestone);
-      }
+      assertMilestoneRecordedToUma(milestone);
     }
-    assertMilestoneRecordedToUma(StartupGuard.ACTIVITY_ON_DESTROY);
   }
 
   private void assertMilestoneRecordedToUma(int milestone) {
@@ -168,18 +164,14 @@ public class StartupGuardTest {
   }
 
   @Test
-  public void setStartupMilestone_stopsTimingAfterActivityDestroyed() {
-    mStartupGuard.setStartupMilestone(StartupGuard.ACTIVITY_ON_DESTROY);
-    assertEquals(
-        "ActivityOnDestroy itself should be timed",
-        1,
-        RecordHistogram.getHistogramTotalCountForTesting(
-            StartupGuard.METRIC_TIME_TO_MILESTONE_PREFIX
-                + StartupGuard.MILESTONE_NAMES[StartupGuard.ACTIVITY_ON_DESTROY]));
+  public void setStartupMilestone_stopsTimingWhenSecondActivityIsCreated() {
+    mStartupGuard.setStartupMilestone(StartupGuard.JAVA_ACTIVITY_CREATED);
+    // A second Activity created in the same process reports JAVA_ACTIVITY_CREATED again.
+    mStartupGuard.setStartupMilestone(StartupGuard.JAVA_ACTIVITY_CREATED);
 
     mStartupGuard.setStartupMilestone(StartupGuard.PLATFORM_ERROR_RAISED);
     assertEquals(
-        "Milestones first reached after the Activity is destroyed are not startup timings",
+        "Milestones first reached by a later Activity are not startup timings",
         0,
         RecordHistogram.getHistogramTotalCountForTesting(
             StartupGuard.METRIC_TIME_TO_MILESTONE_PREFIX
@@ -189,26 +181,6 @@ public class StartupGuardTest {
         1,
         RecordHistogram.getHistogramValueCountForTesting(
             StartupGuard.METRIC_MILESTONE_REACHED, StartupGuard.PLATFORM_ERROR_RAISED));
-  }
-
-  @Test
-  public void setStartupMilestone_stopsTimingWhenSecondActivityIsCreated() {
-    mStartupGuard.setStartupMilestone(StartupGuard.JAVA_ACTIVITY_CREATED);
-    // A second Activity created in the same process reports JAVA_ACTIVITY_CREATED again.
-    mStartupGuard.setStartupMilestone(StartupGuard.JAVA_ACTIVITY_CREATED);
-
-    mStartupGuard.setStartupMilestone(StartupGuard.ACTIVITY_ON_RESUME);
-    assertEquals(
-        "Milestones first reached by a later Activity are not startup timings",
-        0,
-        RecordHistogram.getHistogramTotalCountForTesting(
-            StartupGuard.METRIC_TIME_TO_MILESTONE_PREFIX
-                + StartupGuard.MILESTONE_NAMES[StartupGuard.ACTIVITY_ON_RESUME]));
-    assertEquals(
-        "MilestoneReached is still recorded",
-        1,
-        RecordHistogram.getHistogramValueCountForTesting(
-            StartupGuard.METRIC_MILESTONE_REACHED, StartupGuard.ACTIVITY_ON_RESUME));
   }
 
   @Test
@@ -252,11 +224,11 @@ public class StartupGuardTest {
       assertEquals(
           1,
           RecordHistogram.getHistogramTotalCountForTesting(
-              StartupGuard.METRIC_MILESTONE_DURATION_PREFIX + expectedNames[i]));
+              StartupGuard.METRIC_TIME_TO_MILESTONE_PREFIX + expectedNames[i]));
       assertEquals(
           0,
           RecordHistogram.getHistogramTotalCountForTesting(
-              StartupGuard.METRIC_MILESTONE_DURATION_PREFIX + obsoleteNames[i]));
+              StartupGuard.METRIC_TIME_TO_MILESTONE_PREFIX + obsoleteNames[i]));
     }
   }
 

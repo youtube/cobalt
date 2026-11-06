@@ -595,7 +595,8 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
-<histogram name="Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.{ExitReason}"
+<histogram
+    name="Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.{ExitReason}"
     units="milestone" expires_after="2027-10-01">
   <owner>avvall@google.com</owner>
   <owner>cobalt-memory-team@google.com</owner>
@@ -606,7 +607,8 @@ Always run the pretty print utility on this file after editing:
   <token key="ExitReason" variants="AndroidExitReasonToken"/>
 </histogram>
 
-<histogram name="Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.{ExitReason}"
+<histogram
+    name="Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.{ExitReason}"
     enum="Boolean" expires_after="2027-10-01">
   <owner>avvall@google.com</owner>
   <owner>cobalt-memory-team@google.com</owner>
@@ -817,19 +819,16 @@ Always run the pretty print utility on this file after editing:
     Time from the start of the Android process
     (android.os.Process.getStartElapsedRealtime()) to the first time the
     StartupGuard startup milestone {Milestone} is reached. Recorded at most once
-    per milestone per process, and only while the process is in its cold-start
-    Activity: recording stops once ActivityOnDestroy is reached or a second
-    Activity is created in the same process. Every milestone shares the same
-    origin, so samples are comparable across milestones even though the
-    concurrent startup sequences (Activity lifecycle, native initialization,
-    main and splash WebContents, navigation observers) reach them in a
-    nondeterministic order; the difference between two milestones' averages is
-    the average span between them. ActivityOnPause, ActivityOnStop and
-    ActivityOnDestroy are included so that an app backgrounded or finished
-    during startup is visible. Samples of 3 minutes or more land in the overflow
-    bucket. Android only. Replaces Cobalt.Startup.MilestoneDuration.{Milestone},
-    which measured the time since whichever milestone happened to be recorded
-    last.
+    per milestone per process, and only for the first Activity created in the
+    process: recording stops once a second Activity is created. Every milestone
+    shares the same origin, so samples are comparable across milestones even
+    though the concurrent startup sequences (Activity lifecycle, native
+    initialization, main and splash WebContents, navigation observers) reach
+    them in a nondeterministic order; the difference between two milestones'
+    averages is the average span between them. Samples of 3 minutes or more land
+    in the overflow bucket. Android only. Replaces
+    Cobalt.Startup.MilestoneDuration.{Milestone}, which measured the time since
+    whichever milestone happened to be recorded last.
   </summary>
   <token key="Milestone">
     <variant name="ActivityWindowConfigured"/>
@@ -1035,10 +1034,10 @@ Always run the pretty print utility on this file after editing:
     units="ms" expires_after="never">
   <owner>charleykim@google.com</owner>
   <summary>
-    Records the time it takes to write HttpServerProperties to disk when the
-    app pauses and CobaltFlushHttpServerPropertiesOnPause is enabled. Recorded
-    only when an update was pending and therefore actually written; pauses
-    where nothing was pending are counted in
+    Records the time it takes to write HttpServerProperties to disk when the app
+    pauses and CobaltFlushHttpServerPropertiesOnPause is enabled. Recorded only
+    when an update was pending and therefore actually written; pauses where
+    nothing was pending are counted in
     Cobalt.Storage.OnPause.HttpServerPropertiesFlushed instead.
   </summary>
 </histogram>
@@ -1048,9 +1047,9 @@ Always run the pretty print utility on this file after editing:
   <owner>charleykim@google.com</owner>
   <summary>
     Records, for each app pause with CobaltFlushHttpServerPropertiesOnPause
-    enabled, whether HttpServerProperties had an update pending that was
-    written to disk by the pause flush. The true/false ratio shows how often
-    the 60 s write-coalescing timer would have lost state to a background kill.
+    enabled, whether HttpServerProperties had an update pending that was written
+    to disk by the pause flush. The true/false ratio shows how often the 60 s
+    write-coalescing timer would have lost state to a background kill.
   </summary>
 </histogram>
 
