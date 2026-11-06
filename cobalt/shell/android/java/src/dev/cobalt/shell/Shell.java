@@ -241,6 +241,16 @@ public class Shell {
     }
   }
 
+  /**
+   * Proof of concept: while a native splash video plays behind the UI, detaches the WebContents
+   * from the compositor, so that it draws nothing over the video.
+   */
+  @CalledByNative
+  private void setNativeSplashActive(boolean active) {
+    if (mContentViewRenderView == null) return;
+    mContentViewRenderView.setCurrentWebContents(active ? null : mWebContents);
+  }
+
   @CalledByNative
   public void setOverlayMode(boolean useOverlayMode) {
     assumeNonNull(mContentViewRenderView).setOverlayVideoMode(useOverlayMode);

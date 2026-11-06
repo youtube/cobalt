@@ -128,6 +128,20 @@ class ShellView : public views::BoxLayoutView {
 
   Shell* ReleaseShell() { return shell_.release(); }
 
+  // Shows nothing, not even a background, so that a punch-out video plays
+  // behind the window.
+  void SetNativeSplashActive(bool active) {
+    if (active) {
+      SetBackground(nullptr);
+    } else {
+      SetBackground(views::CreateSolidBackground(ui::kColorWindowBackground));
+    }
+    if (web_view_) {
+      web_view_->SetVisible(!active);
+    }
+    SchedulePaint();
+  }
+
   void SetWebContents(WebContents* web_contents, const gfx::Size& size) {
     // If there was a previous WebView in this Shell it should be removed and
     // deleted.
@@ -346,6 +360,16 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
         shell->web_contents(), SK_ColorTRANSPARENT);
   }
 }
+void ShellPlatformDelegate::SetNativeSplashActive(Shell* shell, bool active) {
+  auto it = shell_data_map_.find(shell);
+  if (it == shell_data_map_.end() || !it->second.window_widget) {
+    return;
+  }
+  if (auto* shell_view = ShellViewForWidget(it->second.window_widget)) {
+    shell_view->SetNativeSplashActive(active);
+  }
+}
+
 void ShellPlatformDelegate::DidCreateOrAttachWebContents(
     Shell* shell,
     WebContents* web_contents) {
