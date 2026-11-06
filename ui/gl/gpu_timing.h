@@ -148,6 +148,13 @@ class GL_EXPORT GPUTimingClient
   bool IsForceTimeElapsedQuery();
   void ForceTimeElapsedQuery();
 
+  // Returns true when GL_TIMESTAMP_EXT queries are natively supported (not
+  // emulated via GL_TIME_ELAPSED_EXT), properly calibrated to CPU time, and
+  // maintaining fine-grained hardware resolution (< 8 us step). Returns false
+  // once runtime validation detects coarse quantization (such as Mali's
+  // float32 GL_QUERY_RESULT truncation at uptime) or calibration mismatches.
+  bool AreTimestampQueriesPrecise();
+
  private:
   friend class base::RefCounted<GPUTimingClient>;
   friend class GPUTimer;
