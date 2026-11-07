@@ -7,7 +7,10 @@ package org.chromium.content.browser;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
+import android.speech.tts.Voice;
 import android.text.TextUtils;
+
+import androidx.annotation.VisibleForTesting;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
@@ -124,6 +127,11 @@ class TtsPlatformImpl {
                             engineId);
         }
 
+        private TtsEngine(TextToSpeech textToSpeech) {
+            mTextToSpeech = textToSpeech;
+            mInitialized = textToSpeech != null;
+        }
+
         /** Initialization for non-default TTS Engine does not enumerate voices. */
         private void initializeNonDefault() {
             mInitialized = true;
@@ -202,8 +210,14 @@ class TtsPlatformImpl {
             if (!isInitialized()) {
                 return false;
             }
-            if (lang == null) {
-                mCurrentLanguage = null;
+            if (TextUtils.isEmpty(lang)) {
+                if (mCurrentLanguage != null) {
+                    Voice defaultVoice = mTextToSpeech.getDefaultVoice();
+                    Locale defaultLocale = defaultVoice != null ? defaultVoice.getLocale() : null;
+                    mTextToSpeech.setLanguage(
+                            defaultLocale != null ? defaultLocale : Locale.getDefault());
+                    mCurrentLanguage = null;
+                }
             } else if (!TextUtils.equals(lang, mCurrentLanguage)) {
                 mTextToSpeech.setLanguage(LocaleUtils.forLanguageTag(lang.replace("_", "-")));
                 mCurrentLanguage = lang;
@@ -243,6 +257,14 @@ class TtsPlatformImpl {
     private TtsPlatformImpl(long nativeTtsPlatformImplAndroid) {
         mNativeTtsPlatformImplAndroid = nativeTtsPlatformImplAndroid;
         mDefaultTtsEngine = new TtsEngine(mNativeTtsPlatformImplAndroid);
+        mNonDefaultTtsEnginesMap = new HashMap<String, TtsEngine>();
+        addOnUtteranceProgressListener(mDefaultTtsEngine.getTextToSpeech());
+    }
+
+    @VisibleForTesting
+    TtsPlatformImpl(long nativeTtsPlatformImplAndroid, TextToSpeech defaultTextToSpeech) {
+        mNativeTtsPlatformImplAndroid = nativeTtsPlatformImplAndroid;
+        mDefaultTtsEngine = new TtsEngine(defaultTextToSpeech);
         mNonDefaultTtsEnginesMap = new HashMap<String, TtsEngine>();
         addOnUtteranceProgressListener(mDefaultTtsEngine.getTextToSpeech());
     }
@@ -330,23 +352,22 @@ class TtsPlatformImpl {
     }
 
     /**
-     * Attempt to start speaking an utterance. If it returns true, will call back on
-     * start and end.
+     * Attempt to start speaking an utterance. If it returns true, will call back on start and end.
      *
-     * @param utteranceId A unique id for this utterance so that callbacks can be tied
-     *     to a particular utterance.
+     * @param utteranceId A unique id for this utterance so that callbacks can be tied to a
+     *     particular utterance.
      * @param text The text to speak.
      * @param lang The language code for the text (e.g., "en-US").
-     * @param engineId The ID of the underlying TTS engine to use for this utterance.
-     *     If not specified or we are unable to create the engine, we use the default
-     *     engine.
+     * @param engineId The ID of the underlying TTS engine to use for this utterance. If not
+     *     specified or we are unable to create the engine, we use the default engine.
      * @param rate The speech rate, in the units expected by Android TextToSpeech.
      * @param pitch The speech pitch, in the units expected by Android TextToSpeech.
      * @param volume The speech volume, in the units expected by Android TextToSpeech.
      * @return true on success.
      */
     @CalledByNative
-    private boolean speak(
+    @VisibleForTesting
+    boolean speak(
             int utteranceId,
             String text,
             String lang,
