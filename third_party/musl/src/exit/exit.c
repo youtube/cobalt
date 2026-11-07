@@ -6,15 +6,16 @@
 #include "starboard/system.h"
 #endif  // defined(STARBOARD)
 
-#if !defined(STARBOARD)
 static void dummy()
 {
 }
 
 /* atexit.c and __stdio_exit.c override these. the latter is linked
  * as a consequence of linking either __toread.c or __towrite.c. */
-weak_alias(dummy, __funcs_on_exit);
 weak_alias(dummy, __stdio_exit);
+
+#if !defined(STARBOARD)
+weak_alias(dummy, __funcs_on_exit);
 weak_alias(dummy, _fini);
 
 extern weak hidden void (*const __fini_array_start)(void), (*const __fini_array_end)(void);
@@ -33,6 +34,7 @@ weak_alias(libc_exit_fini, __libc_exit_fini);
 _Noreturn void exit(int code)
 {
 #if defined(STARBOARD)
+	__stdio_exit();
 	SbSystemBreakIntoDebugger();
 #else   // !defined(STARBOARD)
 	__funcs_on_exit();
