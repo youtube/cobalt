@@ -162,6 +162,7 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
 
   if (num_crashes >= crash_streak_empty_config_threshold) {
     cached_config_type_ = ExperimentConfigType::kEmptyConfig;
+    is_crash_safe_mode_ = true;
     return log_and_return(ExperimentConfigType::kEmptyConfig,
                           FinchConfigOutcome::kEmptyConfigCrashStreak);
   }
