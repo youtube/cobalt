@@ -56,11 +56,11 @@ class ExperimentConfigManager {
   // whether the config has expired.
   ExperimentConfigType GetExperimentConfigType();
 
-  // Returns why the experiment config type was chosen, once
-  // GetExperimentConfigType() has been called.
-  std::optional<FinchConfigOutcome> finch_config_outcome() const {
-    return cached_config_outcome_;
-  }
+  // Whether Cobalt runs in Finch's crash safe mode, i.e., whether
+  // GetExperimentConfigType() chose the empty config because of the crash
+  // streak, not because the config expired or Cobalt rolled back. False until
+  // GetExperimentConfigType() is called.
+  bool IsCrashSafeMode() const { return is_crash_safe_mode_; }
 
   // If regular config is used in the current run, save the active config as
   // safe config.
@@ -87,7 +87,7 @@ class ExperimentConfigManager {
   const raw_ptr<PrefService> metrics_local_state_;
 
   std::optional<ExperimentConfigType> cached_config_type_;
-  std::optional<FinchConfigOutcome> cached_config_outcome_;
+  bool is_crash_safe_mode_ = false;
 
   FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest,
                            StoreSafeConfigWithRegularConfig);

@@ -154,15 +154,15 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
                 "than to use the safe one.");
 
   // Helper lambda to log UMA metrics and return the config type.
-  auto log_and_return = [this](ExperimentConfigType type,
-                               FinchConfigOutcome outcome) {
-    cached_config_outcome_ = outcome;
+  auto log_and_return = [](ExperimentConfigType type,
+                           FinchConfigOutcome outcome) {
     base::UmaHistogramEnumeration("Cobalt.Finch.ConfigOutcome", outcome);
     return type;
   };
 
   if (num_crashes >= crash_streak_empty_config_threshold) {
     cached_config_type_ = ExperimentConfigType::kEmptyConfig;
+    is_crash_safe_mode_ = true;
     return log_and_return(ExperimentConfigType::kEmptyConfig,
                           FinchConfigOutcome::kEmptyConfigCrashStreak);
   }
