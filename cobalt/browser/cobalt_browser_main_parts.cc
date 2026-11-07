@@ -806,11 +806,9 @@ void CobaltBrowserMainParts::MaybeClearCachedSplashFiles() {
   // Cobalt. They aren't read in this launch, as kEnableCachedSplashFile is
   // disabled, but would be in the next launches with the regular config. So
   // delete them, until the WebApp caches them again.
-  ExperimentConfigManager* experiment_config_manager =
-      GlobalFeatures::GetInstance()->experiment_config_manager();
-  if (!experiment_config_manager ||
-      experiment_config_manager->finch_config_outcome() !=
-          FinchConfigOutcome::kEmptyConfigCrashStreak) {
+  if (!GlobalFeatures::GetInstance()
+           ->experiment_config_manager()
+           ->IsCrashSafeMode()) {
     return;
   }
   LOG(INFO) << "Clearing cached splash assets in Finch's crash safe mode.";

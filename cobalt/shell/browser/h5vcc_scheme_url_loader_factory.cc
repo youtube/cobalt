@@ -48,7 +48,6 @@
 
 namespace content {
 
-using switches::kDefaultSplashCacheName;
 using switches::kDefaultURL;
 using switches::kMaxSplashContentSize;
 

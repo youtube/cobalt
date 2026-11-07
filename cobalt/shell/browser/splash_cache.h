@@ -39,6 +39,11 @@ namespace content {
 
 class BrowserContext;
 
+// The names of the caches where the WebApp caches the splash assets, for the
+// default and the music splash screens.
+inline constexpr char16_t kDefaultSplashCacheName[] = u"default";
+inline constexpr char16_t kMusicSplashCacheName[] = u"music";
+
 // An enum for UMA histogram to indicate the result of clearing the cached
 // splash assets. These values are persisted to logs. Entries should not be
 // renumbered and numeric values should never be reused.

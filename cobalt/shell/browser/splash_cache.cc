@@ -25,7 +25,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/task/sequenced_task_runner.h"
-#include "cobalt/shell/common/shell_switches.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
 #include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
 #include "content/public/browser/browser_context.h"
@@ -41,9 +40,6 @@
 #include "url/origin.h"
 
 namespace content {
-
-using switches::kDefaultSplashCacheName;
-using switches::kMusicSplashCacheName;
 
 void BindSplashCacheStorage(
     BrowserContext* browser_context,
@@ -111,6 +107,7 @@ class SplashCacheCleaner {
   SplashCacheCleaner& operator=(const SplashCacheCleaner&) = delete;
 
  private:
+  friend class base::DeleteHelper<SplashCacheCleaner>;
   SplashCacheCleaner(const std::string& splash_domain,
                      base::OnceClosure done_callback)
       : splash_domain_(splash_domain),
@@ -230,12 +227,18 @@ class SplashCacheCleaner {
   }
 
   void Finish(SplashCacheClearResult result) {
+    // Stops all callbacks and disconnect handlers, so that Finish() runs once.
+    weak_factory_.InvalidateWeakPtrs();
+    cache_remotes_.clear();
+    cache_storage_remote_.reset();
     LOG(INFO) << "Cleared cached splash assets with result: "
               << static_cast<int>(result);
     UMA_HISTOGRAM_ENUMERATION("Cobalt.SplashScreen.ClearCachedFilesResult",
                               result);
     std::move(done_callback_).Run();
-    delete this;
+    // Deletes |this| once the current call stack, which may still be in its
+    // methods, has unwound.
+    base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(FROM_HERE, this);
   }
 
   const std::string splash_domain_;

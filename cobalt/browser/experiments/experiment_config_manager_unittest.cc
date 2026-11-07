@@ -261,8 +261,7 @@ TEST_F(ExperimentConfigManagerTest,
 
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kSafeConfig);
-  EXPECT_EQ(experiment_config_manager_->finch_config_outcome(),
-            FinchConfigOutcome::kSafeConfig);
+  EXPECT_FALSE(experiment_config_manager_->IsCrashSafeMode());
 }
 
 TEST_F(ExperimentConfigManagerTest,
@@ -286,8 +285,7 @@ TEST_F(ExperimentConfigManagerTest,
   histogram_tester_.ExpectUniqueSample("Cobalt.Finch.ConfigState", 1, 1);
   histogram_tester_.ExpectUniqueSample("Cobalt.Finch.ConfigAgeInDays", 31, 1);
   // Not the crash streak, so the empty config isn't for crash safe mode.
-  EXPECT_EQ(experiment_config_manager_->finch_config_outcome(),
-            FinchConfigOutcome::kEmptyConfigExpired);
+  EXPECT_FALSE(experiment_config_manager_->IsCrashSafeMode());
 }
 
 TEST_F(ExperimentConfigManagerTest,
@@ -302,27 +300,20 @@ TEST_F(ExperimentConfigManagerTest,
   // The crash streak should take precedence over the expiration check.
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kEmptyConfig);
-  EXPECT_EQ(experiment_config_manager_->finch_config_outcome(),
-            FinchConfigOutcome::kEmptyConfigCrashStreak);
+  EXPECT_TRUE(experiment_config_manager_->IsCrashSafeMode());
 }
 
 TEST_F(ExperimentConfigManagerTest,
-       FinchConfigOutcomeIsUnsetBeforeGetExperimentConfigType) {
-  EXPECT_EQ(experiment_config_manager_->finch_config_outcome(), std::nullopt);
-}
-
-TEST_F(ExperimentConfigManagerTest, FinchConfigOutcomeIsCached) {
+       IsNotCrashSafeModeBeforeGetExperimentConfigType) {
   metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
                                     kDefaultCrashStreakEmptyConfigThreshold);
+  EXPECT_FALSE(experiment_config_manager_->IsCrashSafeMode());
+}
+
+TEST_F(ExperimentConfigManagerTest, IsNotCrashSafeModeWithRegularConfig) {
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
-            ExperimentConfigType::kEmptyConfig);
-  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
-            ExperimentConfigType::kEmptyConfig);
-  EXPECT_EQ(experiment_config_manager_->finch_config_outcome(),
-            FinchConfigOutcome::kEmptyConfigCrashStreak);
-  histogram_tester_.ExpectUniqueSample(
-      "Cobalt.Finch.ConfigOutcome", FinchConfigOutcome::kEmptyConfigCrashStreak,
-      1);
+            ExperimentConfigType::kRegularConfig);
+  EXPECT_FALSE(experiment_config_manager_->IsCrashSafeMode());
 }
 
 TEST_F(ExperimentConfigManagerTest, GetExperimentConfigTypeIsCached) {
