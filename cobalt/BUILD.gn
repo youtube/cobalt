@@ -393,6 +393,7 @@ test("cobalt_unittests") {
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
     "//cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager_unittest.cc",
     "//components/services/storage/dom_storage/dom_storage_database_unittest.cc",
+    "//content/renderer/media/cobalt/wasm_hole_web_media_player_unittest.cc",
   ]
 
   # On tvOS (is_ios), MessagePumpType::DEFAULT uses MessagePumpCFRunLoop.
@@ -486,6 +487,8 @@ test("cobalt_unittests") {
     "//cobalt/common/libc:libc_test",
     "//cobalt/memory:unit_tests",
     "//cobalt/shell/browser/migrate_storage_record:unittest",
+    "//cobalt/wasm/starboard:surface_video_size",
+    "//cobalt/wasm/starboard:unit_tests",
     "//components/metrics",
     "//components/metrics:test_support",
     "//components/prefs",
@@ -494,6 +497,7 @@ test("cobalt_unittests") {
     "//components/services/storage/public/cpp",
     "//components/variations",
     "//components/variations/service",
+    "//content/renderer:for_content_tests",
     "//content/test:test_support",
     "//gin",
     "//gin:gin_test",
