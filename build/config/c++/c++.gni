@@ -75,6 +75,13 @@ if (is_cobalt && is_partner_toolchain) {
   use_custom_libcxx = false
 }
 
+# Cobalt needs to handle use_cxx17, which does not exist upstream.
+if (is_cobalt) {
+  if (use_cxx17) {
+    use_cxx23 = false
+  }
+}
+
 declare_args() {
   # WARNING: Setting this to a non-default value is highly discouraged.
   # If true, libc++ will be built as a shared library; otherwise libc++ will be

@@ -15,7 +15,7 @@
 #include "src/execution/arguments-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/interpreter/wasm-interpreter-inl.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -168,14 +168,14 @@ inline bool WasmInterpreterRuntime::IsNull(Isolate* isolate, const WasmRef obj,
   if (obj_type == kWasmExternRef || obj_type == kWasmNullExternRef) {
     return i::IsNull(*obj, isolate);
   } else {
-    return i::IsWasmNull(*obj, isolate);
+    return i::IsWasmNull(*obj);
   }
 }
 
 inline bool WasmInterpreterRuntime::IsRefNull(
     DirectHandle<Object> object) const {
   // This function assumes that it is executed in a HandleScope.
-  return i::IsNull(*object, isolate_) || IsWasmNull(*object, isolate_);
+  return i::IsNull(*object, isolate_) || IsWasmNull(*object);
 }
 
 inline DirectHandle<Object> WasmInterpreterRuntime::GetFunctionRef(

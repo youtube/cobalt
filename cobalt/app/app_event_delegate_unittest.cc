@@ -707,14 +707,15 @@ TEST_P(AppEventDelegateFuzzTest, ChaoticOSLifecycleTransitions) {
     }
 
     SbEventType random_event =
-        fuzz_events[base::RandInt(0, fuzz_events.size() - 1)];
+        fuzz_events[base::RandIntInclusive(0, fuzz_events.size() - 1)];
     SendEventAsync(random_event);
 
     // Flush all posted setup tasks to the UI thread queue and start their
     // concurrent ThreadPool fuzzed executions before the main thread goes to
     // sleep. This maximizes scheduling jitter during the sleep period.
     base::RunLoop().RunUntilIdle();
-    base::PlatformThread::Sleep(base::Milliseconds(base::RandInt(1, 10)));
+    base::PlatformThread::Sleep(
+        base::Milliseconds(base::RandIntInclusive(1, 10)));
   }
 
   // 4. Wait cleanly for the final fuzzed transition to settle before triggering
