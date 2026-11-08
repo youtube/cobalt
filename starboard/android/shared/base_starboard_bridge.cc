@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <pthread.h>
+
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/strings/string_number_conversions.h"
@@ -19,6 +21,7 @@
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/log_internal.h"
+#include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
@@ -64,6 +67,40 @@ std::vector<std::string> GetArgs() {
   return args;
 }
 
+// Prototype (b/583195049): with this switch in the launch's command line (the
+// intent's commandLineArgs), MediaCapabilitiesCache does its first update
+// right after JNI's initialization, on a thread of its own.
+constexpr char kPrewarmMediaCapabilitiesSwitch[] = "prewarm-media-capabilities";
+
+// Runs MediaCapabilitiesCache's first update: MediaDrm's queries, the codec
+// list and the audio configurations. Its cold cost is Android's (MediaDrm and
+// the Widevine HAL, MediaCodecList, AudioManager), which every launch pays
+// once, so that the splash screen's VP9 check finds it warm.
+void* PrewarmMediaCapabilities(void*) {
+  pthread_setname_np(pthread_self(), "caps_prewarm");
+  const int64_t start_us = CurrentMonotonicTime();
+  SB_LOG(INFO) << "MediaCapabilitiesCache prewarm: started.";
+  MediaCapabilitiesCache::GetInstance()->IsWidevineSupported();
+  SB_LOG(INFO) << "MediaCapabilitiesCache prewarm: done in "
+               << (CurrentMonotonicTime() - start_us) / 1000 << " ms.";
+  // ART aborts if a thread that JNI attached exits without detaching.
+  jni_zero::DetachFromVM();
+  return nullptr;
+}
+
+void StartMediaCapabilitiesPrewarm() {
+  pthread_attr_t attributes;
+  pthread_attr_init(&attributes);
+  pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
+  pthread_t thread;
+  if (pthread_create(&thread, &attributes, &PrewarmMediaCapabilities,
+                     nullptr) != 0) {
+    SB_LOG(WARNING) << "MediaCapabilitiesCache prewarm: pthread_create() "
+                       "failed.";
+  }
+  pthread_attr_destroy(&attributes);
+}
+
 }  // namespace
 
 jboolean JNI_BaseStarboardBridge_InitJNI(
@@ -92,6 +129,8 @@ jlong JNI_BaseStarboardBridge_StartNativeStarboard(
   if (g_native_app_instance == nullptr) {
     auto command_line = std::make_unique<CommandLine>(GetArgs());
     LogInit(*command_line);
+    const bool prewarm_media_capabilities =
+        command_line->HasSwitch(kPrewarmMediaCapabilitiesSwitch);
     ScopedJavaGlobalRef<jobject> asset_manager(env, j_asset_manager.obj());
 #if BUILDFLAG(IS_STARBOARD)
     // Just initialize file_internal directories and asset manager here,
@@ -107,6 +146,9 @@ jlong JNI_BaseStarboardBridge_StartNativeStarboard(
         ConvertJavaStringToUTF8(env, j_cache_dir),
         ConvertJavaStringToUTF8(env, j_native_library_dir));
 #endif
+    if (prewarm_media_capabilities) {
+      StartMediaCapabilitiesPrewarm();
+    }
   }
   pthread_mutex_unlock(&g_native_app_init_mutex);
   return reinterpret_cast<jlong>(g_native_app_instance);
