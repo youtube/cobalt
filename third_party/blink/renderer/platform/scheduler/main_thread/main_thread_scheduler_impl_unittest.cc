@@ -52,6 +52,11 @@
 #include "third_party/blink/renderer/platform/scheduler/test/web_scheduling_test_helper.h"
 #include "v8/include/v8.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/memory_pressure_listener.h"
+#include "third_party/blink/renderer/platform/scheduler/common/process_state.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 using base::sequence_manager::TaskQueue;
 
 namespace blink {
@@ -4155,6 +4160,238 @@ INSTANTIATE_TEST_SUITE_P(
           return "AllTypes";
       }
     });
+
+#if BUILDFLAG(IS_COBALT)
+class CobaltMemoryPurgeMainThreadSchedulerTest
+    : public MainThreadSchedulerImplTest {
+ public:
+  CobaltMemoryPurgeMainThreadSchedulerTest()
+      : MainThreadSchedulerImplTest(
+            {features::kCobaltEnableBlinkMemoryPurgeManager},
+            {}) {}
+};
+
+TEST_F(CobaltMemoryPurgeMainThreadSchedulerTest,
+       SetRendererHiddenTransitionsBackgroundStateAndTriggersPurge) {
+  unsigned memory_pressure_count = 0;
+  base::MemoryPressureListener listener(
+      FROM_HERE,
+      base::BindLambdaForTesting(
+          [&](base::MemoryPressureListener::MemoryPressureLevel level) {
+            if (level ==
+                base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL) {
+              memory_pressure_count++;
+            }
+          }));
+  base::MemoryPressureListener::SetNotificationsSuppressed(false);
+
+  EXPECT_FALSE(internal::ProcessState::Get()->is_process_backgrounded);
+
+  scheduler_->SetRendererHidden(true);
+  EXPECT_TRUE(internal::ProcessState::Get()->is_process_backgrounded);
+
+  test_task_runner_->FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay);
+  EXPECT_EQ(1U, memory_pressure_count);
+
+  // Redundant SetRendererHidden(true) while already hidden must not trigger a
+  // duplicate background purge.
+  scheduler_->SetRendererHidden(true);
+  test_task_runner_->FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay);
+  EXPECT_EQ(1U, memory_pressure_count);
+
+  scheduler_->SetRendererHidden(false);
+  EXPECT_FALSE(internal::ProcessState::Get()->is_process_backgrounded);
+}
+
+TEST_F(CobaltMemoryPurgeMainThreadSchedulerTest,
+       SetRendererVisibleBeforeDelayCancelsHiddenPurge) {
+  unsigned memory_pressure_count = 0;
+  base::MemoryPressureListener listener(
+      FROM_HERE, base::BindLambdaForTesting(
+                     [&](base::MemoryPressureListener::MemoryPressureLevel) {
+                       memory_pressure_count++;
+                     }));
+  base::MemoryPressureListener::SetNotificationsSuppressed(false);
+
+  scheduler_->SetRendererHidden(true);
+  test_task_runner_->FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay / 2);
+  EXPECT_EQ(0U, memory_pressure_count);
+
+  scheduler_->SetRendererHidden(false);
+  EXPECT_FALSE(internal::ProcessState::Get()->is_process_backgrounded);
+  test_task_runner_->FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay);
+  EXPECT_EQ(0U, memory_pressure_count);
+}
+
+TEST_F(CobaltMemoryPurgeMainThreadSchedulerTest,
+       ForegroundPriorityBoostWhileHiddenDoesNotCancelPurge) {
+  unsigned memory_pressure_count = 0;
+  base::MemoryPressureListener listener(
+      FROM_HERE,
+      base::BindLambdaForTesting(
+          [&](base::MemoryPressureListener::MemoryPressureLevel level) {
+            if (level ==
+                base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL) {
+              memory_pressure_count++;
+            }
+          }));
+  base::MemoryPressureListener::SetNotificationsSuppressed(false);
+
+  scheduler_->SetRendererHidden(true);
+  EXPECT_TRUE(internal::ProcessState::Get()->is_process_backgrounded);
+
+  test_task_runner_->FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay / 2);
+  // Simulate RenderThreadImpl::SetProcessState(kUserBlocking, kHidden) firing
+  // OnRendererForegrounded() from a background service worker/media boost while
+  // visible_state_ stays kHidden (without re-calling OnRendererHidden).
+  scheduler_->SetRendererBackgrounded(false);
+  EXPECT_TRUE(internal::ProcessState::Get()->is_process_backgrounded);
+
+  test_task_runner_->FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay / 2);
+  EXPECT_EQ(1U, memory_pressure_count);
+
+  scheduler_->SetRendererHidden(false);
+  EXPECT_FALSE(internal::ProcessState::Get()->is_process_backgrounded);
+}
+
+TEST_F(CobaltMemoryPurgeMainThreadSchedulerTest,
+       InitialBackgroundedLaunchStateStillPurgesOnFirstRendererHidden) {
+  unsigned memory_pressure_count = 0;
+  base::MemoryPressureListener listener(
+      FROM_HERE,
+      base::BindLambdaForTesting(
+          [&](base::MemoryPressureListener::MemoryPressureLevel level) {
+            if (level ==
+                base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL) {
+              memory_pressure_count++;
+            }
+          }));
+  base::MemoryPressureListener::SetNotificationsSuppressed(false);
+
+  // Simulate Android's kLaunchingProcessIsBackgrounded=true startup state where
+  // renderer_backgrounded is already true before any PageScheduler exists,
+  // followed by page creation and cold-start SetRendererHidden(true).
+  main_frame_scheduler_.reset();
+  page_scheduler_.reset();
+  scheduler_->SetRendererBackgrounded(true);
+
+  page_scheduler_ = std::make_unique<NiceMock<MockPageSchedulerImpl>>(
+      scheduler_.get(), *agent_group_scheduler_);
+  agent_group_scheduler_->AddPageSchedulerForTesting(page_scheduler_.get());
+
+  scheduler_->SetRendererHidden(true);
+  test_task_runner_->FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay);
+  EXPECT_EQ(1U, memory_pressure_count);
+
+  scheduler_->SetRendererHidden(false);
+  EXPECT_FALSE(internal::ProcessState::Get()->is_process_backgrounded);
+}
+
+TEST_F(CobaltMemoryPurgeMainThreadSchedulerTest,
+       HiddenBeforeFirstOrdinaryPageAddedPurgesOnceAfterPageCreated) {
+  unsigned memory_pressure_count = 0;
+  base::MemoryPressureListener listener(
+      FROM_HERE,
+      base::BindLambdaForTesting(
+          [&](base::MemoryPressureListener::MemoryPressureLevel level) {
+            if (level ==
+                base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL) {
+              memory_pressure_count++;
+            }
+          }));
+  base::MemoryPressureListener::SetNotificationsSuppressed(false);
+
+  // Drop the initial page so total_page_count_ == 0.
+  main_frame_scheduler_.reset();
+  page_scheduler_.reset();
+
+  // Foreground Android-style launch (`SetRendererBackgrounded(true)` without
+  // `SetRendererHidden(true)`) must NOT purge when the first page is added.
+  scheduler_->SetRendererBackgrounded(true);
+  page_scheduler_ = std::make_unique<NiceMock<MockPageSchedulerImpl>>(
+      scheduler_.get(), *agent_group_scheduler_);
+  agent_group_scheduler_->AddPageSchedulerForTesting(page_scheduler_.get());
+  test_task_runner_->FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay);
+  EXPECT_EQ(0U, memory_pressure_count);
+
+  // Drop the page again and reset backgrounded state, then explicitly hide
+  // before any ordinary page exists (simulating `--preload` cold-start hide).
+  page_scheduler_.reset();
+  scheduler_->SetRendererBackgrounded(false);
+  scheduler_->SetRendererHidden(true);
+  test_task_runner_->FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay);
+  EXPECT_EQ(0U, memory_pressure_count);
+
+  // Registering the first ordinary page while still hidden starts the purge
+  // timer once.
+  page_scheduler_ = std::make_unique<NiceMock<MockPageSchedulerImpl>>(
+      scheduler_.get(), *agent_group_scheduler_);
+  agent_group_scheduler_->AddPageSchedulerForTesting(page_scheduler_.get());
+  test_task_runner_->FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay);
+  EXPECT_EQ(1U, memory_pressure_count);
+
+  // Adding a second ordinary page while still hidden must not trigger a
+  // duplicate background purge.
+  auto second_page = std::make_unique<NiceMock<MockPageSchedulerImpl>>(
+      scheduler_.get(), *agent_group_scheduler_);
+  agent_group_scheduler_->AddPageSchedulerForTesting(second_page.get());
+  test_task_runner_->FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay);
+  EXPECT_EQ(1U, memory_pressure_count);
+
+  second_page.reset();
+  scheduler_->SetRendererHidden(false);
+  EXPECT_FALSE(internal::ProcessState::Get()->is_process_backgrounded);
+}
+
+TEST_F(CobaltMemoryPurgeMainThreadSchedulerTest,
+       HiddenPurgeFollowedByDelayedPageFreezePurgesAndSuppressesNotifications) {
+  unsigned memory_pressure_count = 0;
+  base::MemoryPressureListener listener(
+      FROM_HERE,
+      base::BindLambdaForTesting(
+          [&](base::MemoryPressureListener::MemoryPressureLevel level) {
+            if (level ==
+                base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL) {
+              memory_pressure_count++;
+            }
+          }));
+  base::MemoryPressureListener::SetNotificationsSuppressed(false);
+
+  // t=0ms: Conceal / SetRendererHidden(true) + page hidden.
+  page_scheduler_->SetPageVisible(false);
+  scheduler_->SetRendererHidden(true);
+
+  // t=1000ms: Initial hidden purge fires while page is still in the 1500ms
+  // CobaltFreezeOnBackground / SHIELD_FREEZE_DELAY_MS grace window.
+  test_task_runner_->FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay);
+  EXPECT_EQ(1U, memory_pressure_count);
+  EXPECT_FALSE(base::MemoryPressureListener::AreNotificationsSuppressed());
+
+  // t=1500ms: Delayed freeze fires after YTS visibilitychange/pagehide flush.
+  test_task_runner_->FastForwardBy(base::Milliseconds(500));
+  page_scheduler_->SetPageFrozen(true);
+
+  // t=2500ms: Post-freeze purge fires and suppresses further notifications.
+  test_task_runner_->FastForwardBy(MemoryPurgeManager::kFreezePurgeDelay);
+  EXPECT_EQ(2U, memory_pressure_count);
+  EXPECT_TRUE(base::MemoryPressureListener::AreNotificationsSuppressed());
+
+  // Resume + visible restores foreground state and unsuppresses notifications.
+  page_scheduler_->SetPageFrozen(false);
+  page_scheduler_->SetPageVisible(true);
+  scheduler_->SetRendererHidden(false);
+  EXPECT_FALSE(base::MemoryPressureListener::AreNotificationsSuppressed());
+  EXPECT_FALSE(internal::ProcessState::Get()->is_process_backgrounded);
+}
+
+TEST_F(MainThreadSchedulerImplTest,
+       CobaltSetRendererHiddenDoesNotBackgroundWhenFeatureDisabled) {
+  EXPECT_FALSE(internal::ProcessState::Get()->is_process_backgrounded);
+  scheduler_->SetRendererHidden(true);
+  EXPECT_FALSE(internal::ProcessState::Get()->is_process_backgrounded);
+  scheduler_->SetRendererHidden(false);
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace main_thread_scheduler_impl_unittest
 }  // namespace scheduler
