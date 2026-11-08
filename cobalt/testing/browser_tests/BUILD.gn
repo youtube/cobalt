@@ -444,6 +444,7 @@ test("cobalt_browsertests") {
   }
 
   if (is_android) {
+    sources += [ "memory_purge_manager_browsertest.cc" ]
     deps += [
       ":content_browsertests_java",
       ":content_browsertests_jni_headers",
@@ -454,6 +455,7 @@ test("cobalt_browsertests") {
       "//cobalt/shell/android:cobalt_shell_jni_headers",
       "//content/test:android_test_message_pump_support",
       "//services/data_decoder/public/cpp/android:safe_json_java",
+      "//skia",
       "//testing/android/native_test:native_test_support",
       "//ui/android",
       "//ui/touch_selection",
