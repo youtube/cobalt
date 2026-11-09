@@ -17,7 +17,8 @@ config build = common.build {
     {
       define_artifacts = {
         regex = [
-          'lib_export/**/libchrobalt.so'
+          'lib_export/**/libchrobalt.so',
+          'lib_export/**/coat_java_sources.tar.gz',
         ]
       }
     },
