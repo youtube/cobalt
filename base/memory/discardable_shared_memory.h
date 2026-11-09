@@ -133,6 +133,13 @@ class BASE_EXPORT DiscardableSharedMemory {
   // different process. Returns NULL time if purged.
   Time last_known_usage() const { return last_known_usage_; }
 
+#if BUILDFLAG(IS_COBALT)
+  // Overrides the last known usage time, e.g. to move a segment that could not
+  // be purged to the back of the purge order. A wrong value only makes the next
+  // Purge() fail once and refresh it, like an out-of-date timestamp.
+  void set_last_known_usage(Time time) { last_known_usage_ = time; }
+#endif  // BUILDFLAG(IS_COBALT)
+
   // This returns true and sets |last_known_usage_| to 0 if
   // DiscardableSharedMemory object was successfully purged. Purging can fail
   // for two reasons; object might be locked or our last known usage timestamp
