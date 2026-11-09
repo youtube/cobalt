@@ -17,6 +17,7 @@
 #include "base/logging.h"
 #include "build/build_config.h"
 #include "components/viz/common/resources/shared_image_format.h"
+#include "gpu/command_buffer/common/shared_image_info.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/memory_tracking.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
@@ -113,16 +114,17 @@ StarboardGLTextureBacking::StarboardGLTextureBacking(
     scoped_refptr<gpu::RefCountedLock> drdc_lock
 #endif
     )
-    : ClearTrackingSharedImageBacking(mailbox,
-                                      format,
-                                      size,
-                                      color_space,
-                                      surface_origin,
-                                      alpha_type,
-                                      usage,
-                                      "StarboardGLTexture",
-                                      format.EstimatedSizeInBytes(size),
-                                      /*is_thread_safe=*/false),
+    : ClearTrackingSharedImageBacking(
+          mailbox,
+          SharedImageInfo(format,
+                          size,
+                          color_space,
+                          surface_origin,
+                          alpha_type,
+                          usage,
+                          "StarboardGLTexture"),
+          format.EstimatedSizeInBytes(size),
+          /*is_thread_safe=*/false),
       decode_target_(reinterpret_cast<SbDecodeTarget>(decode_target)) {
   for (size_t i = 0; i < texture_ids.size(); i++) {
     passthrough_textures_.push_back(
