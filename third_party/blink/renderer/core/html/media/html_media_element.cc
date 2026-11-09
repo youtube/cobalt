@@ -2580,13 +2580,10 @@ void HTMLMediaElement::ProgressEventTimerFired() {
   if (web_media_player_ && web_media_player_->DidLoadingProgress()) {
     ScheduleNamedEvent(event_type_names::kProgress);
     previous_progress_time_ = base::ElapsedTimer();
-<<<<<<< HEAD
     if (sent_stalled_event_) {
       sent_stalled_event_ = false;
       PseudoStateChanged(CSSSelector::kPseudoStalled);
     }
-=======
-    sent_stalled_event_ = false;
 #if BUILDFLAG(IS_COBALT)
     if (!base::FeatureList::IsEnabled(
             features::kCobaltSkipHiddenMediaControlsWork) ||
@@ -2594,7 +2591,6 @@ void HTMLMediaElement::ProgressEventTimerFired() {
       UpdateLayoutObject();
     }
 #else
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     UpdateLayoutObject();
 #endif  // BUILDFLAG(IS_COBALT)
   } else if (!media_source_attachment_ &&
