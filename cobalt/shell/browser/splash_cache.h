@@ -46,12 +46,18 @@ void BindSplashCacheStorage(
     mojo::PendingReceiver<blink::mojom::CacheStorage> receiver);
 
 // Returns the request for the cached splash asset |entry|, e.g.,
-// "splash.webm".
+// "splash.webm", resolved against the origin of |splash_domain|.
 blink::mojom::FetchAPIRequestPtr CreateSplashRequest(
     const std::string& splash_domain,
     const std::string& entry);
 
-// Returns the options to match a splash asset in the cache |cache_name|.
+// Returns the options to query a splash asset in a cache. Operations on the
+// same asset, e.g., matching and deleting it, should use the same options, so
+// that they find the same entries.
+blink::mojom::CacheQueryOptionsPtr CreateSplashQueryOptions();
+
+// Returns the options to match a splash asset in the cache |cache_name|, with
+// CreateSplashQueryOptions().
 blink::mojom::MultiCacheQueryOptionsPtr CreateSplashMatchOptions(
     const std::u16string& cache_name);
 

@@ -60,15 +60,22 @@ blink::mojom::FetchAPIRequestPtr CreateSplashRequest(
     const std::string& splash_domain,
     const std::string& entry) {
   auto fetch_api_request = blink::mojom::FetchAPIRequest::New();
-  fetch_api_request->url = GURL(splash_domain).Resolve(entry);
+  // Resolves against the origin, like the CacheStorage that
+  // BindSplashCacheStorage() binds, where the WebApp caches the asset.
+  fetch_api_request->url =
+      url::Origin::Create(GURL(splash_domain)).GetURL().Resolve(entry);
   fetch_api_request->method = "GET";
   return fetch_api_request;
+}
+
+blink::mojom::CacheQueryOptionsPtr CreateSplashQueryOptions() {
+  return blink::mojom::CacheQueryOptions::New();
 }
 
 blink::mojom::MultiCacheQueryOptionsPtr CreateSplashMatchOptions(
     const std::u16string& cache_name) {
   auto match_options = blink::mojom::MultiCacheQueryOptions::New();
-  match_options->query_options = blink::mojom::CacheQueryOptions::New();
+  match_options->query_options = CreateSplashQueryOptions();
   match_options->cache_name = cache_name;
   return match_options;
 }
