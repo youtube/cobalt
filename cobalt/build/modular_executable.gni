@@ -150,15 +150,19 @@ template("evergreen_final_target") {
       write_runtime_deps = "$root_build_dir/${target_name}.runtime_deps"
     }
 
+    _is_testonly = defined(invoker.testonly) && invoker.testonly
+
     group("${original_target_name}_loaded_content") {
       forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
       data_deps = [
         ":copy_${original_target_name}_content",
         ":copy_${original_target_name}_lib",
-        ":copy_${original_target_name}_uncompressed_lib",
         ":copy_${original_target_name}_zstd_lib",
         ":generate_${original_target_name}_manifest",
       ]
+      if (!_is_testonly) {
+        data_deps += [ ":copy_${original_target_name}_uncompressed_lib" ]
+      }
     }
 
     # Generates the Evergreen manifest.json for the installation so that the
@@ -221,12 +225,14 @@ template("evergreen_final_target") {
       ]
     }
 
-    copy("copy_${original_target_name}_uncompressed_lib") {
-      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
-      sources = [ "$root_out_dir/${lib_name}.so" ]
-      outputs =
-          [ "$root_out_dir/app/${original_target_name}/lib/${lib_name}.so" ]
-      deps = [ ":${original_target_name}" ]
+    if (!_is_testonly) {
+      copy("copy_${original_target_name}_uncompressed_lib") {
+        forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+        sources = [ "$root_out_dir/${lib_name}.so" ]
+        outputs =
+            [ "$root_out_dir/app/${original_target_name}/lib/${lib_name}.so" ]
+        deps = [ ":${original_target_name}" ]
+      }
     }
 
     if (_is_aosp) {

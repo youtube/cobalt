@@ -40,7 +40,7 @@ runs:
       run: |
         host_archive_flags="--compression zstd --compression-level=9"
         android_archive_flags="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
-        rdk_archive_flags="--compression gz --archive-per-target --flatten-deps"
+        rdk_archive_flags="--compression gz --archive-per-target --flatten-deps --strip"
         rdk_browser_archive_flags="--compression gz --archive-per-target --flatten-deps --strip"
 
         device_archive_flags=""
