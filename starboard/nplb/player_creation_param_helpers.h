@@ -19,7 +19,6 @@
 #include "starboard/configuration.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
-#include "starboard/nplb/player_test_util.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -57,11 +56,13 @@ struct PlayerCreationParam {
 
 starboard::AudioStreamInfo CreateAudioStreamInfo(SbMediaAudioCodec codec);
 starboard::VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec);
-PlayerCreationParam CreatePlayerCreationParam(SbMediaAudioCodec audio_codec,
-                                              SbMediaVideoCodec video_codec,
-                                              SbPlayerOutputMode output_mode);
-
-PlayerCreationParam CreatePlayerCreationParam(const SbPlayerTestConfig& config);
+PlayerCreationParam CreatePlayerCreationParam(
+    SbMediaAudioCodec audio_codec,
+    SbMediaVideoCodec video_codec,
+    SbPlayerOutputMode output_mode,
+    const starboard::AudioStreamInfo* audio_stream_info = nullptr,
+    SbDrmSystem drm_system = kSbDrmSystemInvalid,
+    const char* max_video_capabilities = "");
 
 SbPlayerOutputMode GetPreferredOutputMode(
     const PlayerCreationParam& creation_param);

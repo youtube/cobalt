@@ -14,14 +14,7 @@
 
 #include "starboard/nplb/player_creation_param_helpers.h"
 
-#include "starboard/shared/starboard/player/video_dmp_reader.h"
-
 namespace nplb {
-namespace {
-
-using ::starboard::VideoDmpReader;
-
-}  // namespace
 
 starboard::AudioStreamInfo CreateAudioStreamInfo(SbMediaAudioCodec codec) {
   starboard::AudioStreamInfo audio_stream_info = {};
@@ -116,32 +109,24 @@ starboard::VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
   return video_stream_info;
 }
 
-PlayerCreationParam CreatePlayerCreationParam(SbMediaAudioCodec audio_codec,
-                                              SbMediaVideoCodec video_codec,
-                                              SbPlayerOutputMode output_mode) {
+PlayerCreationParam CreatePlayerCreationParam(
+    SbMediaAudioCodec audio_codec,
+    SbMediaVideoCodec video_codec,
+    SbPlayerOutputMode output_mode,
+    const starboard::AudioStreamInfo* audio_stream_info,
+    SbDrmSystem drm_system,
+    const char* max_video_capabilities) {
   PlayerCreationParam creation_param;
 
-  creation_param.audio_stream_info = CreateAudioStreamInfo(audio_codec);
+  creation_param.audio_stream_info = audio_stream_info
+                                         ? *audio_stream_info
+                                         : CreateAudioStreamInfo(audio_codec);
   creation_param.video_stream_info = CreateVideoStreamInfo(video_codec);
   creation_param.output_mode = output_mode;
+  creation_param.drm_system = drm_system;
+  creation_param.video_stream_info.max_video_capabilities =
+      max_video_capabilities;
 
-  return creation_param;
-}
-
-PlayerCreationParam CreatePlayerCreationParam(
-    const SbPlayerTestConfig& config) {
-  PlayerCreationParam creation_param;
-  if (config.audio_filename) {
-    VideoDmpReader dmp_reader(config.audio_filename);
-    creation_param.audio_stream_info = dmp_reader.audio_stream_info();
-  }
-  if (config.video_filename) {
-    VideoDmpReader dmp_reader(config.video_filename);
-    creation_param.video_stream_info = dmp_reader.video_stream_info();
-    creation_param.video_stream_info.max_video_capabilities =
-        config.max_video_capabilities;
-  }
-  creation_param.output_mode = config.output_mode;
   return creation_param;
 }
 
