@@ -1348,10 +1348,9 @@ bool RasterImplementation::RasterCHROMIUMInProcess(
     return false;
   }
 
-  uint32_t size_allocated = 0;
-  void* mem =
-      MapRasterCHROMIUM(sizeof(InProcessRasterPayload*), &size_allocated);
-  if (mem) {
+  base::span<uint8_t> mem =
+      MapRasterCHROMIUM(sizeof(InProcessRasterPayload*));
+  if (!mem.empty()) {
     auto* payload = new InProcessRasterPayload();
     payload->display_item_list = base::WrapRefCounted(list);
     payload->content_size = content_size;
@@ -1367,7 +1366,7 @@ bool RasterImplementation::RasterCHROMIUMInProcess(
     payload->image_to_transfer_cache_id = std::move(image_to_transfer_cache_id);
 
     InProcessRasterPayloadRegistry::GetInstance().Register(payload);
-    UNSAFE_TODO(std::memcpy(mem, &payload, sizeof(payload)));
+    UNSAFE_TODO(std::memcpy(mem.data(), &payload, sizeof(payload)));
     UnmapRasterCHROMIUM(sizeof(InProcessRasterPayload*),
                         sizeof(InProcessRasterPayload*));
     return true;
