@@ -55,14 +55,10 @@ _proto_files = [
 
 fuzzable_proto_library("metrics_proto") {
   sources = _proto_files
-<<<<<<< HEAD
-  proto_in_dir = "//"
-=======
   if (is_cobalt) {
     sources += ["cobalt_uma_event.proto"]
   }
-  proto_in_dir = "."
->>>>>>> parent of a4c6069869a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  proto_in_dir = "//"
 }
 
 if (is_android) {
