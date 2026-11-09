@@ -153,16 +153,18 @@ class SplashCacheCleaner {
                  const std::string& entry,
                  base::OnceClosure on_matched,
                  blink::mojom::MatchResultPtr result) {
-    if (!result->is_status()) {
+    if (result->is_status()) {
+      // Not found. Only these two errors are misses, like
+      // H5vccSchemeURLLoader::OnCacheMatched(). Others, e.g., storage errors,
+      // mean that the entry may still be cached.
+      const auto status = result->get_status();
+      if (status != blink::mojom::CacheStorageError::kErrorNotFound &&
+          status != blink::mojom::CacheStorageError::kErrorCacheNameNotFound) {
+        has_failure_ = true;
+      }
+    } else {
+      // Found, as a response or an eager response.
       entries_to_delete_[cache_name].push_back(entry);
-    } else if (result->get_status() !=
-                   blink::mojom::CacheStorageError::kErrorNotFound &&
-               result->get_status() !=
-                   blink::mojom::CacheStorageError::kErrorCacheNameNotFound) {
-      // Not a miss, e.g., a storage error, so the entry may still be cached.
-      // Like H5vccSchemeURLLoader::OnCacheMatched(), only these two errors are
-      // misses.
-      has_failure_ = true;
     }
     std::move(on_matched).Run();
   }
