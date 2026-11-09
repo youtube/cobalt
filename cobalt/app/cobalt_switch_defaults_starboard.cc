@@ -85,7 +85,12 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        // missing and causes errors. So Enable it by default. (More context in
        // b/444042898)
        "DefaultEnableANGLEValidation, "
-       "SmallerInterestArea, "
+       // The prepaint interest area is 1200 px instead of the 500 px
+       // SmallerInterestArea default, so that content about to scroll into
+       // view (e.g. the next YouTube Home row, ~690 px) is rasterized before
+       // the slide instead of just-in-time on the GPU thread that also draws
+       // the frames. Keep in sync with cobalt_switch_defaults_android.cc.
+       "SmallerInterestArea:size_in_pixels/1200, "
        "ReclaimPrepaintTilesWhenIdle, "
        "ReclaimOldPrepaintTiles, "
        "WebAudioRemoveAudioDestinationResampler, "
