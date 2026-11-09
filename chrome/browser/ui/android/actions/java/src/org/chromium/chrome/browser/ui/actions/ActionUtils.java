@@ -11,7 +11,11 @@ import androidx.annotation.DrawableRes;
 import androidx.annotation.StringRes;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ui.actions.button.ButtonState;
+import org.chromium.chrome.browser.ui.actions.glic.GlicActionProperties;
+import org.chromium.chrome.browser.ui.actions.tabswitcher.TabSwitcherActionProperties;
+import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /** Helper methods for working with Action buttons. */
@@ -20,6 +24,12 @@ public class ActionUtils {
 
     // Avoid instantiation.
     private ActionUtils() {}
+
+    /** Returns whether the data sharing feature is enabled. */
+    public static boolean isDataSharingEnabled() {
+        return ChromeFeatureList.isEnabled(ChromeFeatureList.DATA_SHARING)
+                || ChromeFeatureList.isEnabled(ChromeFeatureList.DATA_SHARING_JOIN_ONLY);
+    }
 
     /**
      * Applies the given {@link ButtonState} to the view. This is currently unrelated to the view's
@@ -53,13 +63,53 @@ public class ActionUtils {
      * @param registry The {@link ActionRegistry} to register actions to.
      */
     public static void registerBottomBarActions(ActionRegistry registry) {
-        // Register new tab.
+
+        // Register home button.
+        registerAction(
+                registry,
+                ActionId.HOME_BUTTON,
+                HomeActionProperties.ALL_KEYS,
+                R.drawable.ic_home_24dp,
+                org.chromium.chrome.browser.ui.android.bars_common.R.string
+                        .accessibility_toolbar_btn_home,
+                org.chromium.chrome.browser.ui.android.bars_common.R.string
+                        .accessibility_toolbar_btn_home);
+
+        // Register glic button.
+        registerAction(
+                registry,
+                ActionId.GLIC,
+                GlicActionProperties.ALL_KEYS,
+                R.drawable.ic_spark_24dp,
+                R.string.glic_button_entrypoint_ask_gemini_label,
+                R.string.glic_button_entrypoint_ask_gemini_label);
+
+        // Register new tab button.
         registerAction(
                 registry,
                 ActionId.NEW_TAB,
-                R.drawable.new_tab_icon,
-                R.string.button_new_tab,
-                R.string.new_tab_title);
+                ActionProperties.BASE_KEYS,
+                org.chromium.chrome.browser.ui.android.bars_common.R.drawable.new_tab_icon,
+                org.chromium.chrome.browser.ui.android.bars_common.R.string.button_new_tab,
+                org.chromium.chrome.browser.ui.android.bars_common.R.string.new_tab_title);
+
+        // Register app menu.
+        registerAction(
+                registry,
+                ActionId.APP_MENU,
+                AppMenuActionProperties.ALL_KEYS,
+                org.chromium.components.browser_ui.widget.R.drawable.ic_more_vert_24dp,
+                R.string.accessibility_toolbar_btn_menu,
+                R.string.accessibility_toolbar_btn_menu);
+
+        // Register tab switcher button.
+        registerAction(
+                registry,
+                ActionId.TAB_SWITCHER,
+                TabSwitcherActionProperties.ALL_KEYS,
+                /* iconResId= */ Resources.ID_NULL,
+                R.string.tab_switcher_button_label,
+                R.string.tab_switcher_button_label);
     }
 
     /**
@@ -67,6 +117,7 @@ public class ActionUtils {
      *
      * @param registry The {@link ActionRegistry} to register to.
      * @param actionId The ID of the action.
+     * @param keys The property keys to use for the model.
      * @param iconResId The drawable resource ID for the icon.
      * @param contentDescriptionResId The string resource ID for the content description.
      * @param tooltipResId The string resource ID for the tooltip.
@@ -74,26 +125,30 @@ public class ActionUtils {
     public static void registerAction(
             ActionRegistry registry,
             @ActionId int actionId,
+            PropertyKey[] keys,
             @DrawableRes int iconResId,
             @StringRes int contentDescriptionResId,
             @StringRes int tooltipResId) {
-        PropertyModel model = createActionModel(iconResId, contentDescriptionResId, tooltipResId);
+        PropertyModel model =
+                createActionModel(keys, iconResId, contentDescriptionResId, tooltipResId);
         registry.register(actionId, model);
     }
 
     /**
      * Creates a property model for an action.
      *
+     * @param keys The property keys to use for the model.
      * @param iconResId The drawable resource ID for the icon.
      * @param contentDescriptionResId The string resource ID for the content description.
      * @param tooltipResId The string resource ID for the tooltip.
      * @return The constructed {@link PropertyModel}.
      */
     public static PropertyModel createActionModel(
+            PropertyKey[] keys,
             @DrawableRes int iconResId,
             @StringRes int contentDescriptionResId,
             @StringRes int tooltipResId) {
-        PropertyModel.Builder builder = new PropertyModel.Builder(ActionProperties.BASE_KEYS);
+        PropertyModel.Builder builder = new PropertyModel.Builder(keys);
         if (iconResId != Resources.ID_NULL) {
             builder.with(ActionProperties.ICON_ID, iconResId);
         }

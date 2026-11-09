@@ -46,6 +46,7 @@ public class TabBottomSheetWebUi {
 
     TabBottomSheetWebUi(
             Context context,
+            View containerView,
             WindowAndroid windowAndroid,
             ContextMenuPopulatorFactory contextMenuPopulatorFactory,
             @ColorInt int backgroundColor,
@@ -55,7 +56,7 @@ public class TabBottomSheetWebUi {
         mContextMenuPopulatorFactory = contextMenuPopulatorFactory;
         mBackgroundColor = backgroundColor;
         mZoomControl = zoomControl;
-        mWebViewResizingHelper = new WebViewResizingHelper(context, backgroundColor);
+        mWebViewResizingHelper = new WebViewResizingHelper(containerView, backgroundColor);
         resetThinWebView();
     }
 
@@ -108,12 +109,12 @@ public class TabBottomSheetWebUi {
         }
     }
 
-    void setIsResizing(boolean isResizing) {
-        mWebViewResizingHelper.setIsResizing(isResizing);
-    }
-
     @Nullable WebContents getWebContents() {
         return mWebContents;
+    }
+
+    WebViewResizingHelper getWebViewResizingHelper() {
+        return mWebViewResizingHelper;
     }
 
     void destroy() {

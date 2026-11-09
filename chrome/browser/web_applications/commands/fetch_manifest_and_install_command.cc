@@ -127,8 +127,6 @@ void LogInstallInfoForFallbackData(base::DictValue& dict,
   dict.Set("name", install_info.title.AsDebugValue());
 }
 
-
-
 static bool& ShouldBypassVisibilityChecks() {
   static bool g_bypass_visibility_checking = false;
   return g_bypass_visibility_checking;
@@ -443,14 +441,16 @@ void FetchManifestAndInstallCommand::OnDidPerformInstallableCheck(
   GetMutableDebugValue().Set("skip_page_favicons_on_initial_download",
                              skip_page_favicons_on_initial_download_);
   CHECK(opt_manifest->start_url.is_valid());
-  CHECK(opt_manifest->id.is_valid());
   opt_manifest_ = std::move(opt_manifest);
   StartPreloadingScreenshots();
+  std::optional<webapps::ManifestId> manifest_id =
+      webapps::ManifestId::Create(opt_manifest_->id);
+  CHECK(manifest_id.has_value());
 
   app_lock_ = std::make_unique<AppLock>();
   command_manager()->lock_manager().UpgradeAndAcquireLock(
       std::move(noop_lock_), *app_lock_,
-      {GenerateAppIdFromManifestId(webapps::ManifestId(opt_manifest_->id))},
+      {GenerateAppIdFromManifestId(*manifest_id)},
       base::BindOnce(
           &FetchManifestAndInstallCommand::CheckForPlayStoreIntentOrGetIcons,
           weak_ptr_factory_.GetWeakPtr()));
@@ -672,8 +672,11 @@ void FetchManifestAndInstallCommand::OnDialogCompleted(
       proto::InstallState::INSTALLED_WITH_OS_INTEGRATION;
   finalize_options.overwrite_existing_manifest_fields = true;
   finalize_options.add_to_applications_menu = true;
-  finalize_options.add_to_desktop = true;
-  finalize_options.add_to_quick_launch_bar = kAddAppsToQuickLaunchBarByDefault;
+  finalize_options.add_to_desktop =
+      web_app_info_->add_to_desktop.value_or(true);
+  finalize_options.add_to_quick_launch_bar =
+      web_app_info_->add_to_quick_launch_bar.value_or(
+          kAddAppsToQuickLaunchBarByDefault);
 
   DCHECK(app_lock_);
   auto* profile =

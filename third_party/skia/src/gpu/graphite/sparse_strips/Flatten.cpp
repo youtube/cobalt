@@ -6,6 +6,7 @@
  */
 #include "src/gpu/graphite/sparse_strips/Flatten.h"
 
+#include "src/base/SkVx.h"
 #include "src/gpu/graphite/sparse_strips/Polyline.h"
 
 namespace skgpu::graphite {
@@ -32,8 +33,8 @@ struct FlattenParams {
 
 SK_ALWAYS_INLINE double approx_parabola_integral(double x) {
     constexpr double kD = 0.67;
-    constexpr double kD_pow4 = kD * kD * kD * kD;
-    return x / ( 1.0 - kD + std::sqrt(std::sqrt(kD_pow4 + 0.25 * x * x)));
+    constexpr double kDPow4 = kD * kD * kD * kD;
+    return x / ( 1.0 - kD + std::sqrt(std::sqrt(kDPow4 + 0.25 * x * x)));
 }
 
 SK_ALWAYS_INLINE double approx_parabola_inv_integral(double x) {
@@ -192,6 +193,28 @@ SK_ALWAYS_INLINE SkPoint eval_cubic_scalar(const SkPoint pts[4], float t) {
            pts[3] * (t2 * t);
 }
 
+template <int N>
+SK_ALWAYS_INLINE bool is_completely_culled(const SkPoint pts[N], float width, float height) {
+    bool top = true;
+    bool right = true;
+    bool bottom = true;
+    for (int i = 0; i < N; ++i) {
+        top    &= (pts[i].fY < 0.0f);
+        right  &= (pts[i].fX > width);
+        bottom &= (pts[i].fY > height);
+    }
+    return top || right || bottom;
+}
+
+template <int N>
+SK_ALWAYS_INLINE bool is_completely_left(const SkPoint pts[N]) {
+    bool left = true;
+    for (int i = 0; i < N; ++i) {
+        left &= (pts[i].fX < 0.0f);
+    }
+    return left;
+}
+
 SK_ALWAYS_INLINE bool is_within_dist_sq(SkPoint p, SkPoint a, SkPoint b, float kErrTolerance) {
     SkPoint ab = b - a;
     SkPoint ap = p - a;
@@ -209,6 +232,46 @@ SK_ALWAYS_INLINE bool is_within_dist_sq(SkPoint p, SkPoint a, SkPoint b, float k
     // Lagrange's identity: apSq*lenSq - tNum*tNum == cross^2
     float cross = SkPoint::CrossProduct(ap, ab);
     return (cross * cross) <= (kErrTolerance * lenSq);
+}
+
+// SIMD constants for convenience
+static const skvx::float4 kIotaLo(0.0f, 0.0f, 2.0f, 2.0f);
+static const skvx::float4 kIotaHi(1.0f, 1.0f, 3.0f, 3.0f);
+static const skvx::float8 kIota = skvx::join(kIotaLo, kIotaHi);
+static const skvx::float8 kIota2 =
+        skvx::join(skvx::float4(0.0f, 0.0f, 1.0f, 1.0f), skvx::float4(2.0f, 2.0f, 3.0f, 3.0f));
+
+SK_ALWAYS_INLINE skvx::float8 splat_pt_simd(SkPoint pt) {
+    skvx::float4 xyxy(pt.fX, pt.fY, pt.fX, pt.fY);
+    return skvx::join(xyxy, xyxy);
+}
+
+SK_ALWAYS_INLINE skvx::float4 approx_parabola_integral_simd(skvx::float4 x) {
+    constexpr float kD = 0.67f;
+    constexpr float kDPow4 = kD * kD * kD * kD;
+    skvx::float4 x2 = x * x;
+    skvx::float4 temp =
+            skvx::sqrt(skvx::sqrt(skvx::fma(x2, skvx::float4(0.25f), skvx::float4(kDPow4))));
+    skvx::float4 denom = temp + (1.0f - kD);
+
+    return x / denom;
+}
+
+SK_ALWAYS_INLINE skvx::float8 approx_parabola_inv_integral_simd(skvx::float8 x) {
+    constexpr float kB = 0.39f;
+    constexpr float kOneMinusB = 1.0f - kB;
+    constexpr float kB2 = kB * kB;
+
+    skvx::float8 x2 = x * x;
+    skvx::float8 temp = skvx::sqrt(skvx::fma(x2, skvx::float8(0.25f), skvx::float8(kB2)));
+    skvx::float8 factor = temp + kOneMinusB;
+
+    return x * factor;
+}
+
+SK_ALWAYS_INLINE skvx::int4 is_finite_simd(skvx::float4 x) {
+    // x is guaranteed positive area/length, no abs() needed to clear sign bit
+    return sk_bit_cast<skvx::int4>(x) < skvx::int4(0x7f800000);
 }
 
 template <bool kIsIdentity,
@@ -340,8 +403,8 @@ SK_ALWAYS_INLINE void Flatten::flattenQuadScalar(const SkPoint pts[3], Polyline*
 }
 
 SK_ALWAYS_INLINE uint32_t Flatten::flattenCubicScalar(const SkPoint pts[4]) {
-    uint32_t nQuads = estimate_num_quads_from_cubic(pts);
-    fContext.fNumQuads = nQuads;
+    uint32_t numQuads = estimate_num_quads_from_cubic(pts);
+    fContext.fNumQuads = numQuads;
     static constexpr float kHalfOverN[kMaxQuadsFromCubic + 1] = {
         0.0f,
         0.5f/1.0f, 0.5f/2.0f, 0.5f/3.0f, 0.5f/4.0f,
@@ -349,11 +412,11 @@ SK_ALWAYS_INLINE uint32_t Flatten::flattenCubicScalar(const SkPoint pts[4]) {
         0.5f/9.0f, 0.5f/10.f, 0.5f/11.f, 0.5f/12.f,
         0.5f/13.f, 0.5f/14.f, 0.5f/15.f, 0.5f/16.f
     };
-    float dt = kHalfOverN[nQuads];
+    float dt = kHalfOverN[numQuads];
 
     float curvatureIntegralSum = 0.0f;
 
-    for (uint32_t i = 0; i < nQuads; ++i) {
+    for (uint32_t i = 0; i < numQuads; ++i) {
         float t0 = (2 * i) * dt;
         float t1 = (2 * i + 1) * dt;
         float t2 = (2 * i + 2) * dt;
@@ -368,7 +431,7 @@ SK_ALWAYS_INLINE uint32_t Flatten::flattenCubicScalar(const SkPoint pts[4]) {
         fContext.fEvenPts[i + 1] = p2;
 
         SkPoint quad[3] = {p0, p1, p2};
-        FlattenParams params = estimate_lines_from_quad(quad, kSqrtQuadTolerance);
+        FlattenParams params = estimate_lines_from_quad(quad, kSqrtQuadFromCubicTol);
 
         fContext.fA0[i] = params.fA0;
         fContext.fDa[i] = params.fDa;
@@ -393,7 +456,7 @@ SK_ALWAYS_INLINE uint32_t Flatten::flattenCubicScalar(const SkPoint pts[4]) {
     float x0Base = 0.0f;
 
     // Flatten each quad produced by the cubic.
-    for (uint32_t i = 0; i < nQuads; ++i) {
+    for (uint32_t i = 0; i < numQuads; ++i) {
         cumulativeCurvature += fContext.fCurvatureIntegral[i];
         float thisN = cumulativeCurvature * stepRecip;
         float thisNNext = 1.0f + std::floor(thisN);
@@ -427,39 +490,288 @@ SK_ALWAYS_INLINE uint32_t Flatten::flattenCubicScalar(const SkPoint pts[4]) {
         lastN = static_cast<uint32_t>(thisNNext);
     }
 
-    fContext.fFlattenedCubics[numSegments] = fContext.fEvenPts[nQuads];
+    fContext.fFlattenedCubics[numSegments] = fContext.fEvenPts[numQuads];
     return numSegments + 1;
 }
 
-[[maybe_unused]]
-SK_ALWAYS_INLINE void Flatten::flattenQuadSimd() {
-    // Stub
+SK_ALWAYS_INLINE void Flatten::flattenQuadSimd(const SkPoint pts[3], Polyline* polyline) {
+    FlattenParams params = estimate_lines_from_quad(pts, kSqrtQuadTolerance);
+    uint32_t numSegments = std::max(1u, static_cast<uint32_t>(
+            std::ceil(0.5 / kSqrtQuadTolerance * params.fCurvatureIntegral)));
+
+    float step = 1.0f / numSegments;
+
+    skvx::float8 p0 = splat_pt_simd(pts[0]);
+    skvx::float8 p1 = splat_pt_simd(pts[1]);
+    skvx::float8 p2 = splat_pt_simd(pts[2]);
+
+    skvx::float8 A = skvx::fma(p1, skvx::float8(-2.0f), p0) + p2;
+    skvx::float8 B = (p1 - p0) * 2.0f;
+    skvx::float8 C = p0;
+
+    skvx::float8 vDa = skvx::float8(static_cast<float>(params.fDa));
+    skvx::float8 vA0 = skvx::float8(static_cast<float>(params.fA0));
+    skvx::float8 vU0 = skvx::float8(static_cast<float>(params.fU0));
+    skvx::float8 vUScale = skvx::float8(static_cast<float>(params.fUScale));
+
+    float out[8];
+    for (uint32_t i = 1; i < numSegments; i += 4) {
+        skvx::float8 x = (kIota2 + skvx::float8(static_cast<float>(i))) * step;
+
+        skvx::float8 a = skvx::fma(vDa, x, vA0);
+        skvx::float8 u = approx_parabola_inv_integral_simd(a);
+        skvx::float8 t = (u - vU0) * vUScale;
+
+        skvx::float8 p = skvx::fma(skvx::fma(A, t, B), t, C);
+        p.store(out);
+
+        // The first point is always valid if we entered the loop
+        polyline->appendPoint({out[0], out[1]});
+        // Conditionally append the tail results
+        if (i + 1 < numSegments) polyline->appendPoint({out[2], out[3]});
+        if (i + 2 < numSegments) polyline->appendPoint({out[4], out[5]});
+        if (i + 3 < numSegments) polyline->appendPoint({out[6], out[7]});
+    }
+
+    // Always append the exact endpoint
+    polyline->appendPoint(pts[2]);
 }
 
-[[maybe_unused]]
-SK_ALWAYS_INLINE void Flatten::evalCubicsSimd() {
-    // Stub
+SK_ALWAYS_INLINE void Flatten::evalCubicsSimd(const SkPoint pts[4], uint32_t numQuads) {
+    fContext.fNumQuads = numQuads;
+    float dt = 0.5f / numQuads;
+
+    skvx::float8 p0 = splat_pt_simd(pts[0]);
+    skvx::float8 p1 = splat_pt_simd(pts[1]);
+    skvx::float8 p2 = splat_pt_simd(pts[2]);
+    skvx::float8 p3 = splat_pt_simd(pts[3]);
+
+    skvx::float8 A = skvx::fma(p1 - p2, skvx::float8(3.0f), p3 - p0);
+    skvx::float8 B = skvx::fma(p1, skvx::float8(-2.0f), p0 + p2) * 3.0f;
+    skvx::float8 C = (p1 - p0) * 3.0f;
+    skvx::float8 D = p0;
+
+    skvx::float8 step = kIota * dt;
+    skvx::float8 t = step;
+    skvx::float8 tInc(4.0f * dt);
+
+    float* evenPts = reinterpret_cast<float*>(fContext.fEvenPts.data());
+    float* oddPts = reinterpret_cast<float*>(fContext.fOddPts.data());
+
+    uint32_t loopCount = (numQuads + 1) / 2;
+    for (uint32_t i = 0; i < loopCount; ++i) {
+        skvx::float8 evaluated = skvx::fma(skvx::fma(skvx::fma(A, t, B), t, C), t, D);
+        evaluated.lo.store(evenPts + i * 4);
+        evaluated.hi.store(oddPts + i * 4);
+        t = t + tInc;
+    }
+
+    p3.store(evenPts + numQuads * 2);
 }
 
-[[maybe_unused]]
 SK_ALWAYS_INLINE void Flatten::estimateLinesFromQuadSimd() {
-    // Stub
+    uint32_t numQuads = fContext.fNumQuads;
+    const float* evenPts = reinterpret_cast<const float*>(fContext.fEvenPts.data());
+    float* oddPts = reinterpret_cast<float*>(fContext.fOddPts.data());
+
+    uint32_t chunks = (numQuads + 3) / 4;
+    for (uint32_t i = 0; i < chunks; ++i) {
+        skvx::float8 p0 = skvx::float8::Load(evenPts + i * 8);
+        skvx::float8 pOneHalf = skvx::float8::Load(oddPts + i * 8);
+        skvx::float8 p2 = skvx::float8::Load(evenPts + i * 8 + 2);
+
+        skvx::float8 p1 = skvx::fma(pOneHalf, skvx::float8(2.0f), (p0 + p2) * -0.5f);
+        p1.store(oddPts + i * 8);
+
+        skvx::float8 d01 = p1 - p0;
+        skvx::float8 d12 = p2 - p1;
+
+        skvx::float4 d01x = skvx::shuffle<0, 2, 4, 6>(d01);
+        skvx::float4 d01y = skvx::shuffle<1, 3, 5, 7>(d01);
+        skvx::float4 d12x = skvx::shuffle<0, 2, 4, 6>(d12);
+        skvx::float4 d12y = skvx::shuffle<1, 3, 5, 7>(d12);
+
+        skvx::float4 ddx = d01x - d12x;
+        skvx::float4 ddy = d01y - d12y;
+
+        skvx::float4 cross = (d01x + d12x) * ddy - (d01y + d12y) * ddx;
+        skvx::float4 absCross = skvx::abs(cross);
+        skvx::int4 collinearMask = skvx::cast<int32_t>(absCross < kEpsilonF);
+        skvx::float4 invCross = 1.0f / cross;
+
+        skvx::float4 x0 = skvx::fma(d01x, ddx, d01y * ddy) * invCross;
+        skvx::float4 x2 = skvx::fma(d12x, ddx, d12y * ddy) * invCross;
+        skvx::float4 ddSq = skvx::fma(ddx, ddx, ddy * ddy);
+        skvx::float4 ddHypot = skvx::sqrt(ddSq);
+        skvx::float4 scale = (cross * cross) / (ddHypot * ddSq);
+
+        skvx::float4 a0 = approx_parabola_integral_simd(x0);
+        skvx::float4 a2 = approx_parabola_integral_simd(x2);
+        skvx::float4 da = a2 - a0;
+        skvx::float4 absDa = skvx::abs(da);
+        skvx::float4 sqrtScale = skvx::sqrt(scale);
+
+        skvx::int4 signX0 = sk_bit_cast<skvx::int4>(x0) & 0x80000000;
+        skvx::int4 signX2 = sk_bit_cast<skvx::int4>(x2) & 0x80000000;
+        skvx::int4 mask = (signX0 == signX2);
+
+        skvx::float4 nonCusp = absDa * sqrtScale;
+        skvx::float4 xMin = static_cast<float>(kSqrtQuadFromCubicTol) / sqrtScale;
+        skvx::float4 approxInt = approx_parabola_integral_simd(xMin);
+        skvx::float4 cusp = (static_cast<float>(kSqrtQuadFromCubicTol) * absDa) / approxInt;
+
+        skvx::float4 valRaw = skvx::if_then_else(mask, nonCusp, cusp);
+        valRaw = skvx::if_then_else(collinearMask, skvx::float4(0.0f), valRaw);
+        skvx::int4 finiteMask = is_finite_simd(valRaw);
+        skvx::float4 val = skvx::if_then_else(finiteMask, valRaw, skvx::float4(0.0f));
+
+        skvx::float8 u0U2 = approx_parabola_inv_integral_simd(skvx::join(a0, a2));
+        skvx::float4 u0 = u0U2.lo;
+        skvx::float4 u2 = u0U2.hi;
+        skvx::float4 uScale = 1.0f / (u2 - u0);
+        u0 = skvx::if_then_else(collinearMask, skvx::float4(0.0f), u0);
+        uScale = skvx::if_then_else(collinearMask, skvx::float4(1.0f), uScale);
+
+        a0.store(fContext.fA0.data() + i * 4);
+        da.store(fContext.fDa.data() + i * 4);
+        u0.store(fContext.fU0.data() + i * 4);
+        uScale.store(fContext.fUScale.data() + i * 4);
+        val.store(fContext.fCurvatureIntegral.data() + i * 4);
+    }
 }
 
-[[maybe_unused]]
-SK_ALWAYS_INLINE void Flatten::outputLinesFromQuadSimd() {
-    // Stub
+SK_ALWAYS_INLINE void Flatten::outputLinesFromQuadSimd(
+        uint32_t quadIdx, float x0, float dx, uint32_t numSegments, uint32_t startIdx) {
+    skvx::float8 p0 = splat_pt_simd(fContext.fEvenPts[quadIdx]);
+    skvx::float8 p1 = splat_pt_simd(fContext.fOddPts[quadIdx]);
+    skvx::float8 p2 = splat_pt_simd(fContext.fEvenPts[quadIdx + 1]);
+
+    skvx::float8 x = skvx::fma(kIota2, skvx::float8(dx), skvx::float8(x0));
+    skvx::float8 da(fContext.fDa[quadIdx]);
+    skvx::float8 a = skvx::fma(x, da, skvx::float8(fContext.fA0[quadIdx]));
+    skvx::float8 aInc(4.0f * dx * fContext.fDa[quadIdx]);
+    skvx::float8 uScale(fContext.fUScale[quadIdx]);
+    skvx::float8 u0(fContext.fU0[quadIdx]);
+
+    skvx::float8 A = skvx::fma(p1, skvx::float8(-2.0f), p0) + p2;
+    skvx::float8 B = (p1 - p0) * 2.0f;
+    skvx::float8 C = p0;
+
+    uint32_t chunks = (numSegments + 3) / 4;
+    for (uint32_t j = 0; j < chunks; ++j) {
+        skvx::float8 u = approx_parabola_inv_integral_simd(a);
+        skvx::float8 t = (u - u0) * uScale;
+        skvx::float8 p = skvx::fma(skvx::fma(A, t, B), t, C);
+
+        p.store(fContext.fFlattenedCubics.data() + startIdx + j * 4);
+        a = a + aInc;
+    }
 }
 
-[[maybe_unused]]
-uint32_t Flatten::flattenCubicSimd() {
-    // Stub
-    return 0;
+uint32_t Flatten::flattenCubicSimd(const SkPoint pts[4]) {
+    uint32_t numQuads = estimate_num_quads_from_cubic(pts);
+    this->evalCubicsSimd(pts, numQuads);
+    this->estimateLinesFromQuadSimd();
+
+    float curvatureIntegralSum = 0.0f;
+    for (uint32_t i = 0; i < numQuads; ++i) {
+        float val = std::max(fContext.fCurvatureIntegral[i], static_cast<float>(kEpsilonF));
+        fContext.fCurvatureIntegral[i] = val;
+        curvatureIntegralSum += val;
+    }
+
+    uint32_t numSegments = std::max<uint32_t>(
+            1,
+            static_cast<uint32_t>(std::ceil(0.5f * curvatureIntegralSum / kSqrtQuadFromCubicTol)));
+    uint32_t targetLen = numSegments + 4;
+    fContext.fFlattenedCubics.resize(targetLen);
+
+    float step = curvatureIntegralSum / numSegments;
+    float stepRecip = 1.0f / step;
+    float cumulativeCurvature = 0.0f;
+    uint32_t lastN = 0;
+    float x0Base = 0.0f;
+
+    for (uint32_t i = 0; i < numQuads; ++i) {
+        float val = fContext.fCurvatureIntegral[i];
+        cumulativeCurvature += val;
+        float thisN = cumulativeCurvature * stepRecip;
+        float thisNNext = 1.0f + std::floor(thisN);
+        uint32_t dn = static_cast<uint32_t>(thisNNext) - lastN;
+
+        if (dn > 0) {
+            float dx = step / val;
+            float x0 = x0Base * dx;
+            this->outputLinesFromQuadSimd(i, x0, dx, dn, lastN);
+        }
+        x0Base = thisNNext - thisN;
+        lastN = static_cast<uint32_t>(thisNNext);
+    }
+
+    fContext.fFlattenedCubics[numSegments] = fContext.fEvenPts[numQuads];
+    return numSegments + 1;
 }
 
 void Flatten::processPathsSimd(
         const SkPath& path, const SkMatrix& ctm, float width, float height, Polyline* polyline) {
-    // Stub
+    fContext.fFlattenedCubics.clear();
+
+    auto processQuad = [this, width, height, polyline](const SkPoint pts[3]) {
+        skvx::float4 X(pts[0].fX, pts[1].fX, pts[2].fX, pts[2].fX); // Duplicate last pt
+        skvx::float4 Y(pts[0].fY, pts[1].fY, pts[2].fY, pts[2].fY);
+        if (skvx::all(X > width) || skvx::all(Y < 0.0f) || skvx::all(Y > height)) {
+            return;
+        }
+        if (skvx::all(X < 0.0f) ||
+            is_within_dist_sq(pts[1], pts[0], pts[2], kQuadSubdivThreshold)) {
+            polyline->appendPoint(pts[2]);
+        } else {
+            // Note: testing shows that the scalar function is *slightly* faster here, probably
+            // because most quads don't produce enough segments to make simd worth it.
+            this->flattenQuadScalar(pts, polyline);
+        }
+    };
+
+    // TODO (thomsmit): this could probably simd-fied a little more.
+    auto processConic = [this, width, height, polyline](const SkPoint pts[3], float weight) {
+        skvx::float4 X(pts[0].fX, pts[1].fX, pts[2].fX, pts[2].fX); // Duplicate last pt
+        skvx::float4 Y(pts[0].fY, pts[1].fY, pts[2].fY, pts[2].fY);
+        if (skvx::all(X > width) || skvx::all(Y < 0.0f) || skvx::all(Y > height)) {
+            return;
+        }
+        if (skvx::all(X < 0.0f) ||
+            is_within_dist_sq(pts[1], pts[0], pts[2], kQuadSubdivThreshold)) {
+            polyline->appendPoint(pts[2]);
+        } else {
+            const SkPoint* quadPts = fConicToQuad.computeQuads(pts, weight, kQuadErrTolerance);
+            int quadCount = fConicToQuad.countQuads();
+            for (int i = 0; i < quadCount; ++i) {
+                this->flattenQuadSimd(&quadPts[i * 2], polyline);
+            }
+        }
+    };
+
+    auto processCubic = [this, width, height, polyline](const SkPoint pts[4]) {
+        skvx::float4 X(pts[0].fX, pts[1].fX, pts[2].fX, pts[3].fX);
+        skvx::float4 Y(pts[0].fY, pts[1].fY, pts[2].fY, pts[3].fY);
+        if (skvx::all(X > width) || skvx::all(Y < 0.0f) || skvx::all(Y > height)) {
+            return;
+        }
+        if (skvx::all(X < 0.0f) ||
+            (is_within_dist_sq(pts[1], pts[0], pts[3], kCubicSubdivThreshold) &&
+             is_within_dist_sq(pts[2], pts[0], pts[3], kCubicSubdivThreshold))) {
+            polyline->appendPoint(pts[3]);
+        } else {
+            uint32_t numSegments = this->flattenCubicSimd(pts);
+            polyline->appendPoints(SkSpan(fContext.fFlattenedCubics.data() + 1, numSegments - 1));
+        }
+    };
+
+    if (ctm.isIdentity()) {
+        processPathsImpl<true>(path, ctm, polyline, processQuad, processConic, processCubic);
+    } else {
+        processPathsImpl<false>(path, ctm, polyline, processQuad, processConic, processCubic);
+    }
 }
 
 void Flatten::processPathsScalar(
@@ -467,50 +779,52 @@ void Flatten::processPathsScalar(
     fContext.fFlattenedCubics.clear();
 
     auto processQuad = [this, width, height, polyline](const SkPoint pts[3]) {
-        // Is the quad completely outside of the viewport?
-        bool culled = (pts[0].fX > width && pts[1].fX > width && pts[2].fX > width) ||
-                      (pts[0].fX < 0.0f && pts[1].fX < 0.0f && pts[2].fX < 0.0f) ||
-                      (pts[0].fY > height && pts[1].fY > height && pts[2].fY > height) ||
-                      (pts[0].fY < 0.0f && pts[1].fY < 0.0f && pts[2].fY < 0.0f);
-        // Is the quad sufficiently similar to a line?
-        bool isLine = is_within_dist_sq(pts[1], pts[0], pts[2], kQuadSubdivThreshold);
-        if (culled || isLine) {
+        if (is_completely_culled<3>(pts, width, height)) {
+            // If the quad is completely top, right, or bottom of the viewport, cull.
+            return;
+        }
+        if (is_completely_left<3>(pts) ||
+            is_within_dist_sq(pts[1], pts[0], pts[2], kQuadSubdivThreshold)) {
+            // If the quad is visually a line or completely left of the viewport, simplify.
             polyline->appendPoint(pts[2]);
         } else {
             this->flattenQuadScalar(pts, polyline);
         }
     };
 
-    auto processConic = [this, &processQuad](const SkPoint pts[3], float weight) {
-        const SkPoint* quadPts = fConicToQuad.computeQuads(pts, weight, kQuadErrTolerance);
-        int quadCount = fConicToQuad.countQuads();
-
-        for (int i = 0; i < quadCount; ++i) {
-            processQuad(&quadPts[i * 2]);
+    auto processConic = [this, width, height, polyline](const SkPoint pts[3], float weight) {
+        if (is_completely_culled<3>(pts, width, height)) {
+            // If the conic is completely top, right, or bottom of the viewport, cull.
+            return;
+        }
+        if (is_completely_left<3>(pts) ||
+            is_within_dist_sq(pts[1], pts[0], pts[2], kQuadSubdivThreshold)) {
+            // If the conic is visually a line or completely left of the viewport, simplify.
+            // Note: A low weight can produce a visually flat conic even if the control point is far
+            // away, causing a false negative. This is acceptable as we fall back to subdivision.
+            polyline->appendPoint(pts[2]);
+        } else {
+            const SkPoint* quadPts = fConicToQuad.computeQuads(pts, weight, kQuadErrTolerance);
+            int quadCount = fConicToQuad.countQuads();
+            for (int i = 0; i < quadCount; ++i) {
+                this->flattenQuadScalar(&quadPts[i * 2], polyline);
+            }
         }
     };
 
     auto processCubic = [this, width, height, polyline](const SkPoint pts[4]) {
-        // Is the cubic completely outside of the viewport?
-        bool culled =
-                (pts[0].fX > width && pts[1].fX > width && pts[2].fX > width &&
-                 pts[3].fX > width) ||
-                (pts[0].fX < 0.0f && pts[1].fX < 0.0f && pts[2].fX < 0.0f && pts[3].fX < 0.0f) ||
-                (pts[0].fY > height && pts[1].fY > height && pts[2].fY > height &&
-                 pts[3].fY > height) ||
-                (pts[0].fY < 0.0f && pts[1].fY < 0.0f && pts[2].fY < 0.0f && pts[3].fY < 0.0f);
-        // Is the cubic sufficiently similar to a line?
-        bool isLine =
-                (is_within_dist_sq(pts[1], pts[0], pts[3], kCubicSubdivThreshold) &&
-                 is_within_dist_sq(pts[2], pts[0], pts[3], kCubicSubdivThreshold));
-
-        if (culled || isLine) {
+        if (is_completely_culled<4>(pts, width, height)) {
+            // If the cubic is completely top, right, or bottom of the viewport, cull.
+            return;
+        }
+        if (is_completely_left<4>(pts) ||
+            (is_within_dist_sq(pts[1], pts[0], pts[3], kCubicSubdivThreshold) &&
+             is_within_dist_sq(pts[2], pts[0], pts[3], kCubicSubdivThreshold))) {
+            // If the cubic is visually a line or completely left of the viewport, simplify.
             polyline->appendPoint(pts[3]);
         } else {
             uint32_t numSegments = this->flattenCubicScalar(pts);
-            for (uint32_t i = 1; i < numSegments; ++i) {
-                polyline->appendPoint(fContext.fFlattenedCubics[i]);
-            }
+            polyline->appendPoints(SkSpan(fContext.fFlattenedCubics.data() + 1, numSegments - 1));
         }
     };
 

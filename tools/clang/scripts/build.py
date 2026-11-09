@@ -237,13 +237,28 @@ def GitRevert(git_repository, commit):
 
 
 def GetLatestLLVMCommit():
-  """Get the latest commit hash in the LLVM monorepo."""
-  main = json.loads(
-      urllib.request.urlopen('https://chromium.googlesource.com/external/' +
-                             'github.com/llvm/llvm-project/' +
-                             '+/refs/heads/main?format=JSON').read().decode(
-                                 "utf-8").replace(")]}'", ""))
-  return main['commit']
+  """Get the latest commit hash in the LLVM monorepo. If the fetch fails,
+     retry several times after a short delay."""
+  max_tries = 5
+  delay_seconds = 1
+  for i in range(max_tries):
+    try:
+      main = json.loads(
+          urllib.request.urlopen('https://chromium.googlesource.com/external/' +
+                                 'github.com/llvm/llvm-project/' +
+                                 '+/refs/heads/main?format=JSON').read().decode(
+                                     "utf-8").replace(")]}'", ""))
+      return main['commit']
+    except urllib.error.URLError as e:
+      # If this was the last try then re-raise, otherwise loop again.
+      if i >= max_tries - 1:
+        raise e
+
+      print(
+          f"GetLatestLLVMCommit failed: {e.reason} (attempt {i + 1}/{max_tries}). Retrying in {delay_seconds}s..."
+      )
+      time.sleep(delay_seconds)
+      delay_seconds *= 2
 
 
 def GetCommitDescription(commit):
@@ -1452,7 +1467,7 @@ def main():
         target_triple = 'armv7'
       api_level = '21'
       if target_arch == 'riscv64':
-        api_level = '35'
+        api_level = '36'
       target_triple += '-linux-android' + api_level
       android_cflags = [
           '--sysroot=%s/sysroot' % toolchain_dir,

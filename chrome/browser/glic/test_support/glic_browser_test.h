@@ -27,6 +27,7 @@
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_side_panel_coordinator.h"
 #include "chrome/browser/glic/service/glic_instance_coordinator_impl.h"
 #include "chrome/browser/glic/service/glic_instance_impl.h"
 #include "chrome/browser/glic/test_support/glic_test_environment.h"
@@ -48,6 +49,7 @@
 #endif
 
 #if defined(TOOLKIT_VIEWS)
+#include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "ui/views/test/mock_activation_controller.h"
 #endif
 
@@ -114,6 +116,18 @@ template <typename Trigger>
   return false;
 }
 
+[[nodiscard]] inline TestResult<> WaitForSidePanelState(
+    tabs::TabInterface* tab,
+    GlicSidePanelCoordinator::State expected_state) {
+  auto* side_panel_coordinator = GlicSidePanelCoordinator::GetForTab(tab);
+  if (!side_panel_coordinator) {
+    return base::unexpected("GlicSidePanelCoordinator not found for tab");
+  }
+  return RunUntilEqual([&]() { return side_panel_coordinator->state(); },
+                       expected_state,
+                       "Timeout waiting for side panel state to match");
+}
+
 class GlicInstanceImpl;
 
 template <typename T>
@@ -150,6 +164,9 @@ class GlicBrowserTestMixin : public T {
 #if defined(USE_MOCK_ACTIVATION_CONTROLLER)
     activation_controller_ =
         std::make_unique<views::test::MockActivationController>();
+#endif
+#if defined(TOOLKIT_VIEWS)
+    SidePanelCoordinator::From(GetBrowser())->DisableAnimationsForTesting();
 #endif
 
     CHECK(glic_test_environment_.SetupEmbeddedTestServers(

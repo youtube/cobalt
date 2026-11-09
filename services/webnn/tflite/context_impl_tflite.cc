@@ -143,13 +143,10 @@ void ContextImplTflite::DidCreateWeightsFile(
         constant_tensor_operands,
     CreateGraphImplCallback callback,
     base::File weights_file) {
-  if (!weights_file.IsValid()) {
-    std::move(callback).Run(base::unexpected(
-        mojom::Error::New(mojom::Error::Code::kUnknownError,
-                          "Failed to create temporary file to save weights.")));
-    return;
-  }
-
+  // An invalid `weights_file` here means the browser declined to create a
+  // temporary file (for example, because the profile is incognito) or the
+  // creation failed. In either case, fall back to keeping the weights
+  // embedded in the in-memory Flatbuffer model.
   GraphImplTflite::CreateAndBuild(std::move(receiver), std::move(graph_info),
                                   std::move(compute_resource_info),
                                   std::move(constant_operands),
@@ -183,6 +180,13 @@ ContextImplTflite::CreateTensorFromSharedImageImpl(
 
 std::string_view ContextImplTflite::GetBackendName() const {
   return "TensorFlow Lite";
+}
+
+std::vector<mojom::WebNNExecutionProviderDetailsPtr>
+ContextImplTflite::GetExecutionProvidersInfo() const {
+  // TensorFlow Lite does not have the concept of execution providers, so we
+  // return an empty list.
+  return {};
 }
 
 }  // namespace webnn::tflite

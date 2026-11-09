@@ -2477,6 +2477,8 @@ class BodyGen {
       case GenericKind::kStringViewWtf8:
       case GenericKind::kStringViewWtf16:
       case GenericKind::kStringViewIter:
+      case GenericKind::kWaitqueue:
+      case GenericKind::kNoWaitqueue:
         return type;
     }
   }
@@ -4106,6 +4108,8 @@ class BodyGen {
       case GenericKind::kStringViewWtf8:
       case GenericKind::kStringViewWtf16:
       case GenericKind::kStringViewIter:
+      case GenericKind::kWaitqueue:
+      case GenericKind::kNoWaitqueue:
         UNIMPLEMENTED();
       case GenericKind::kVoid:
       case GenericKind::kTop:
@@ -4945,8 +4949,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
   switch (type.kind()) {
     case kI8:
     case kI16:
-    case kI32:
-    case kWaitQueue: {
+    case kI32: {
       if (range.size() == 0 || recursion_depth >= kMaxRecursionDepth) {
         return WasmInitExpr(int32_t{0});
       }
@@ -5114,6 +5117,8 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
         case GenericKind::kExn:
         case GenericKind::kCont:
         case GenericKind::kString:
+        case GenericKind::kWaitqueue:
+        case GenericKind::kNoWaitqueue:
         case GenericKind::kStringViewWtf8:
         case GenericKind::kStringViewWtf16:
         case GenericKind::kStringViewIter:

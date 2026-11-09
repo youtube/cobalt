@@ -59,7 +59,9 @@ constexpr size_t kV8MaxWasmTables = 100'000;
 constexpr size_t kV8MaxWasmMemories = 100'000;
 
 // GC proposal.
+// LINT.IfChange(WasmMaxStructFields)
 constexpr size_t kV8MaxWasmStructFields = 10'000;
+// LINT.ThenChange(/test/mjsunit/wasm/large-struct.js:WasmMaxStructFields)
 constexpr uint32_t kV8MaxRttSubtypingDepth = 63;
 constexpr size_t kV8MaxWasmArrayNewFixedLength = 10'000;
 

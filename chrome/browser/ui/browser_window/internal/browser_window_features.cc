@@ -17,6 +17,8 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/collaboration/collaboration_service_factory.h"
 #include "chrome/browser/commerce/shopping_service_factory.h"
+#include "chrome/browser/content_settings/cookie_settings_factory.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_controller.h"
 #include "chrome/browser/contextual_cueing/features.h"
 #include "chrome/browser/contextual_tasks/active_task_context_provider_impl.h"
@@ -66,6 +68,7 @@
 #include "chrome/browser/ui/extensions/mv2_disabled_dialog_controller.h"
 #include "chrome/browser/ui/find_bar/find_bar.h"
 #include "chrome/browser/ui/find_bar/find_bar_controller.h"
+#include "chrome/browser/ui/fullscreen/browser_window_fullscreen_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
 #include "chrome/browser/ui/omnibox/ai_mode_page_action_controller.h"
 #include "chrome/browser/ui/performance_controls/memory_saver_bubble_controller.h"
@@ -86,6 +89,8 @@
 #include "chrome/browser/ui/tabs/split_view_iph_controller.h"
 #include "chrome/browser/ui/tabs/tab_group_deletion_dialog_controller.h"
 #include "chrome/browser/ui/tabs/tab_list_bridge.h"
+#include "chrome/browser/ui/tabs/tab_strip_api/controllers/tab_strip_ui_controller_impl.h"
+#include "chrome/browser/ui/tabs/tab_strip_api/controllers/tab_strip_ui_controller_injector_impl.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_model_impl/tab_strip_model_injector.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service_feature.h"
 #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
@@ -97,6 +102,7 @@
 #include "chrome/browser/ui/toolbar/chrome_labs/chrome_labs_utils.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/tab_search_toolbar_button_controller.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/unload_controller.h"
 #include "chrome/browser/ui/views/animations/side_panel_animations.h"
 #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
 #include "chrome/browser/ui/views/color_provider_browser_helper.h"
@@ -165,6 +171,8 @@
 #include "components/commerce/core/commerce_feature_list.h"
 #include "components/commerce/core/feature_utils.h"
 #include "components/commerce/core/shopping_service.h"
+#include "components/content_settings/browser/ui/cookie_controls_controller.h"
+#include "components/content_settings/core/browser/cookie_settings.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/desktop_to_mobile_promos/features.h"
 #include "components/feature_engagement/public/feature_constants.h"
@@ -266,6 +274,9 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
   app_browser_controller_ =
       GetUserDataFactory().CreateInstanceWithFactoryMethod(
           *browser, &web_app::MaybeCreateAppBrowserController, browser);
+
+  fullscreen_controller_ =
+      std::make_unique<BrowserWindowFullscreenController>(*browser);
 
   browser_actions_ = std::make_unique<BrowserActions>(browser);
 
@@ -393,10 +404,12 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 
   tab_strip_service_feature_ = std::make_unique<TabStripServiceFeature>(
       std::make_unique<tabs_api::tab_strip_model::TabStripModelInjector>(
-          browser, tab_strip_model_),
-      std::make_unique<
-          tabs_api::tab_strip_model::TabStripModelExperimentalInjector>(
           browser, tab_strip_model_));
+
+  tab_strip_ui_controller_ =
+      std::make_unique<tabs_api::TabStripUIControllerImpl>(
+          std::make_unique<tabs_api::TabStripUIControllerInjectorImpl>(
+              browser, tab_strip_model_));
 
   memory_saver_bubble_controller_ =
       std::make_unique<memory_saver::MemorySaverBubbleController>(browser);
@@ -404,6 +417,15 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
   translate_bubble_controller_ =
       GetUserDataFactory().CreateInstance<TranslateBubbleController>(
           *browser, browser, browser_actions_->root_action_item());
+
+  cookie_controls_controller_ =
+      std::make_unique<content_settings::CookieControlsController>(
+          CookieSettingsFactory::GetForProfile(profile),
+          profile->IsOffTheRecord() ? CookieSettingsFactory::GetForProfile(
+                                          profile->GetOriginalProfile())
+                                    : nullptr,
+          HostContentSettingsMapFactory::GetForProfile(profile),
+          profile->IsIncognitoProfile());
 
   cookie_controls_bubble_coordinator_ =
       GetUserDataFactory().CreateInstance<CookieControlsBubbleCoordinator>(
@@ -535,6 +557,8 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
           *browser, browser);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
+  unload_controller_ = std::make_unique<UnloadController>(browser);
+
   // Initialize embedder features last.
   embedder_browser_window_features_ =
       GetUserDataFactory().CreateInstance<EmbedderBrowserWindowFeatures>(
@@ -545,7 +569,8 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
   desktop_browser_window_capabilities_ =
       GetUserDataFactory().CreateInstance<DesktopBrowserWindowCapabilities>(
-          *browser, browser, browser->window(),
+          *browser, browser_window_modal_dialog_delegate_.get(),
+          unload_controller_.get(), browser->window(),
           browser->GetUnownedUserDataHost());
 
   if (WebUIBrowserWindow* webui_browser_window =
@@ -813,9 +838,9 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
   // TODO(crbug.com/346148554): Do not create a SidePanelCoordinator for most
   // browser.h types
   // Conceptually, SidePanelCoordinator handles the "model" whereas
-  // BrowserView::contents_height_side_panel_ handles the "ui". When we stop
+  // BrowserView::side_panel_ handles the "ui". When we stop
   // making this for most browser.h types, we should also stop making the
-  // contents_height_side_panel_.
+  // side_panel_.
   side_panel_coordinator_ =
       GetUserDataFactory().CreateInstance<SidePanelCoordinator>(*browser_,
                                                                 browser_view);
@@ -834,6 +859,10 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
         GetUserDataFactory().CreateInstance<CommentsSidePanelCoordinator>(
             *browser_view->browser(), browser_view->browser());
   }
+
+  immersive_mode_controller_ =
+      GetUserDataFactory().CreateInstanceWithFactoryMethod(
+          *browser_, &chrome::CreateImmersiveModeController, browser_view);
 
   if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks)) {
     contextual_tasks_active_task_context_provider_ =
@@ -876,10 +905,6 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
   extension_side_panel_manager_ =
       std::make_unique<extensions::ExtensionSidePanelManager>(
           browser_view->browser(), side_panel_registry_.get());
-
-  immersive_mode_controller_ =
-      GetUserDataFactory().CreateInstanceWithFactoryMethod(
-          *browser_, &chrome::CreateImmersiveModeController, browser_view);
 
   if (browser_view->GetIsNormalType()) {
     glic::GlicKeyedService* glic_service =

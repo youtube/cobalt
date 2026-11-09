@@ -56,6 +56,103 @@ def angle_win_parent_builder(**kwargs):
     ci.builder(**kwargs)
 
 angle_linux_parent_builder(
+    name = "angle-android-arm-builder-dbg",
+    description_html = "Compiles debug ANGLE test binaries for Android/arm",
+    schedule = "triggered",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2_android",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.DEBUG,
+            target_arch = builder_config.target_arch.ARM,
+            target_bits = 32,
+            target_platform = builder_config.target_platform.ANDROID,
+        ),
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "android_clang",
+            "android_static_analysis",
+            "arm",
+            "component",
+            "debug",
+            "opencl",
+        ],
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "compile|android|arm",
+        short_name = "dbg",
+    ),
+)
+
+angle_linux_parent_builder(
+    name = "angle-android-arm-builder-rel",
+    description_html = "Compiles release ANGLE test binaries for Android/arm",
+    schedule = "triggered",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2_android",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.ARM,
+            target_bits = 32,
+            target_platform = builder_config.target_platform.ANDROID,
+        ),
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "android_clang",
+            "android_static_analysis",
+            "arm",
+            "capture",
+            "component",
+            "opencl",
+            "release_with_dchecks",
+        ],
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "compile|android|arm",
+        short_name = "rel",
+    ),
+)
+
+angle_linux_parent_builder(
+    name = "angle-android-arm64-builder-dbg",
+    description_html = "Compiles debug ANGLE test binaries for Android/arm64",
+    schedule = "triggered",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2_android",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.DEBUG,
+            target_arch = builder_config.target_arch.ARM,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.ANDROID,
+        ),
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "android_clang",
+            "android_static_analysis",
+            "arm64",
+            "component",
+            "debug",
+            "opencl",
+        ],
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "compile|android|arm64",
+        short_name = "dbg",
+    ),
+)
+
+angle_linux_parent_builder(
     name = "angle-android-arm64-builder-rel",
     description_html = "Compiles release ANGLE test binaries for Android/arm64",
     schedule = "triggered",
@@ -85,6 +182,42 @@ angle_linux_parent_builder(
     console_view_entry = consoles.console_view_entry(
         category = "compile|android|arm64",
         short_name = "rel",
+    ),
+)
+
+angle_linux_parent_builder(
+    name = "angle-linux-x64-builder-asan",
+    description_html = ("Compiles release ANGLE test binaries for Linux/x64 " +
+                        "with ASan, LSan, and UBSan enabled"),
+    schedule = "triggered",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.LINUX,
+        ),
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "asan",
+            "component",
+            "linux_clang",
+            "lsan",
+            "opencl",
+            "release_with_dchecks",
+            "smoke_traces",
+            "ubsan",
+            "x64",
+        ],
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "compile|linux|x64",
+        short_name = "asn",
     ),
 )
 
@@ -151,6 +284,38 @@ angle_linux_parent_builder(
     ),
 )
 
+angle_linux_parent_builder(
+    name = "angle-linux-x64-builder-tsan",
+    description_html = "Compiles release ANGLE test binaries for Linux/x64 with TSan enabled",
+    schedule = "triggered",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.LINUX,
+        ),
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "component",
+            "linux_clang",
+            "opencl",
+            "release_with_dchecks",
+            "tsan",
+            "x64",
+        ],
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "compile|linux|x64",
+        short_name = "tsn",
+    ),
+)
+
 angle_mac_parent_builder(
     name = "angle-mac-arm64-builder-rel",
     description_html = "Compiles release ANGLE test binaries for Mac/arm64",
@@ -210,6 +375,38 @@ angle_mac_parent_builder(
     console_view_entry = consoles.console_view_entry(
         category = "compile|mac|x64",
         short_name = "rel",
+    ),
+)
+
+angle_win_parent_builder(
+    name = "angle-win-x64-builder-perf",
+    description_html = "Compiles release ANGLE perf test binaries for Win/x64",
+    schedule = "triggered",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.WIN,
+        ),
+        perf_isolate_upload = True,
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "component",
+            "dcheck_off",
+            "release",
+            "win_clang",
+            "x64",
+        ],
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "compile|win|x64",
+        short_name = "prf",
     ),
 )
 
@@ -527,6 +724,31 @@ ci.thin_tester(
 )
 
 ci.thin_tester(
+    name = "angle-linux-x64-sws-asan",
+    description_html = ("Tests release ANGLE on Linux/x64 with SwiftShader " +
+                        "with ASan, LSan, and UBsan enabled"),
+    parent = "angle-linux-x64-builder-asan",
+    builder_spec = builder_config.builder_spec(
+        execution_mode = builder_config.execution_mode.TEST,
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.LINUX,
+        ),
+        run_tests_serially = True,
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "test|linux|x64|asan",
+        short_name = "sws",
+    ),
+)
+
+ci.thin_tester(
     name = "angle-linux-x64-sws-rel",
     description_html = "Tests release ANGLE on Linux/x64 with SwiftShader",
     parent = "angle-linux-x64-builder-rel",
@@ -546,6 +768,30 @@ ci.thin_tester(
     ),
     console_view_entry = consoles.console_view_entry(
         category = "test|linux|x64|rel",
+        short_name = "sws",
+    ),
+)
+
+ci.thin_tester(
+    name = "angle-linux-x64-sws-tsan",
+    description_html = "Tests release ANGLE on Linux/x64 with SwiftShader with TSan enabled",
+    parent = "angle-linux-x64-builder-tsan",
+    builder_spec = builder_config.builder_spec(
+        execution_mode = builder_config.execution_mode.TEST,
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.LINUX,
+        ),
+        run_tests_serially = True,
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "test|linux|x64|tsan",
         short_name = "sws",
     ),
 )
@@ -725,6 +971,30 @@ ci.thin_tester(
 )
 
 ci.thin_tester(
+    name = "angle-win-x64-intel-uhd630-perf",
+    description_html = "Perf tests release ANGLE on Win/x64 on Intel UHD 630 GPUs",
+    parent = "angle-win-x64-builder-perf",
+    builder_spec = builder_config.builder_spec(
+        execution_mode = builder_config.execution_mode.TEST,
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.WIN,
+        ),
+        run_tests_serially = True,
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "test|win|x64|perf",
+        short_name = "630",
+    ),
+)
+
+ci.thin_tester(
     name = "angle-win-x64-intel-uhd630-rel",
     description_html = "Tests release ANGLE on Win/x64 on Intel UHD 630 GPUs",
     parent = "angle-win-x64-builder-rel",
@@ -796,6 +1066,30 @@ ci.thin_tester(
     #     short_name = "1660",
     # ),
     list_view = "exp",
+)
+
+ci.thin_tester(
+    name = "angle-win-x64-nvidia-gtx1660-perf",
+    description_html = "Perf tests release ANGLE on Win/x64 on NVIDIA GTX 1660 GPUs",
+    parent = "angle-win-x64-builder-perf",
+    builder_spec = builder_config.builder_spec(
+        execution_mode = builder_config.execution_mode.TEST,
+        gclient_config = builder_config.gclient_config(
+            config = "angle_v2",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "angle_v2_clang",
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.INTEL,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.WIN,
+        ),
+        run_tests_serially = True,
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "test|win|x64|perf",
+        short_name = "1660",
+    ),
 )
 
 ci.thin_tester(

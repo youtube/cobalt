@@ -177,7 +177,7 @@
     "exclusive_tests": "ALL",
     "args": [
       "--attribution-reporting-debug-mode",
-      "--enable-features=AggregationServiceMultipleCloudProviders:allowlist/https%3A%2F%2Fweb-platform%2Etest%3A8444%2Chttps%3A%2F%2Fwww1%2Eweb-platform%2Etest%3A8444,FencedFramesLocalUnpartitionedDataAccess,ExemptUrlFromNetworkRevocationForTesting",
+      "--enable-features=AggregationServiceMultipleCloudProviders:allowlist/https%3A%2F%2Fweb-platform%2Etest%3A8444%2Chttps%3A%2F%2Fwww1%2Eweb-platform%2Etest%3A8444,FencedFramesLocalUnpartitionedDataAccess",
       "--enable-blink-features=FencedFramesDefaultMode"
     ],
     "expires": "Jul 2, 2026"
@@ -1033,22 +1033,6 @@
     "expires": "Dec 1, 2026"
   },
   {
-    "prefix": "event-timing-strict-order-disabled",
-    "owners": [
-      "mmocny@chromium.org"
-    ],
-    "platforms": [
-      "Linux"
-    ],
-    "bases": [
-      "external/wpt/event-timing"
-    ],
-    "args": [
-      "--disable-features=EventTimingReportingInStrictOrderOnly"
-    ],
-    "expires": "Dec 1, 2026"
-  },
-  {
     "prefix": "event-timing-navigation-events",
     "owners": ["mmocny@chromium.org"],
     "platforms": ["Linux", "Mac", "Win"],
@@ -1271,7 +1255,7 @@
       "http/tests/inspector-protocol/fenced-frame"
     ],
     "args": [
-      "--enable-features=PrivacySandboxAdsAPIsOverride,Fledge,AdInterestGroupAPI,FencedFramesEnforceFocus,FencedFramesLocalUnpartitionedDataAccess,ExemptUrlFromNetworkRevocationForTesting,FencedFramesCrossOriginEventReportingAllTraffic,FencedFramesReportEventHeaderChanges,FencedFramesSrcPermissionsPolicy,FencedFramesCrossOriginAutomaticBeaconData",
+      "--enable-features=PrivacySandboxAdsAPIsOverride,Fledge,AdInterestGroupAPI,FencedFramesEnforceFocus,FencedFramesLocalUnpartitionedDataAccess,FencedFramesCrossOriginEventReportingAllTraffic,FencedFramesReportEventHeaderChanges,FencedFramesSrcPermissionsPolicy,FencedFramesCrossOriginAutomaticBeaconData",
       "--enable-blink-features=FencedFramesDefaultMode"
     ],
     "expires": "Jan 9, 2027"
@@ -1299,7 +1283,7 @@
       "wpt_internal/fenced_frame"
     ],
     "args": [
-      "--enable-features=PrivacySandboxAdsAPIsOverride,Fledge,AdInterestGroupAPI,FencedFramesEnforceFocus,FencedFramesLocalUnpartitionedDataAccess,ExemptUrlFromNetworkRevocationForTesting,FencedFramesCrossOriginEventReportingAllTraffic,FencedFramesReportEventHeaderChanges,FencedFramesDefaultMode"
+      "--enable-features=PrivacySandboxAdsAPIsOverride,Fledge,AdInterestGroupAPI,FencedFramesEnforceFocus,FencedFramesLocalUnpartitionedDataAccess,FencedFramesCrossOriginEventReportingAllTraffic,FencedFramesReportEventHeaderChanges,FencedFramesDefaultMode"
     ],
     "expires": "Jan 9, 2027"
   },
@@ -2419,27 +2403,6 @@
     ]
   },
   {
-    "prefix": "overscroll-behavior-all-scroll-containers",
-    "platforms": [
-      "Linux",
-      "Mac",
-      "Win"
-    ],
-    "bases": [
-      "external/wpt/css/css-overscroll-behavior/overscroll-behavior-without-overflow.html",
-      "fast/scroll-behavior/overscroll-behavior.html"
-    ],
-    "exclusive_tests": "ALL",
-    "args": [
-      "--enable-features=OverscrollBehaviorRespectedOnAllScrollContainers"
-    ],
-    "owners": [
-      "perryuwang@gmail.com",
-      "flackr@chromium.org"
-    ],
-    "expires": "Jan 1, 2026"
-  },
-  {
     "prefix": "parakeet",
     "owners": [
       "brandm@microsoft.com"
@@ -2770,7 +2733,7 @@
     "args": [
       "--enable-privacy-sandbox-ads-apis",
       "--private-aggregation-developer-mode",
-      "--enable-features=FencedFramesDefaultMode,AggregationServiceMultipleCloudProviders:allowlist/https%3A%2F%2Fweb-platform%2Etest%3A8444%2Chttps%3A%2F%2Fwww1%2Eweb-platform%2Etest%3A8444%2Chttps%3A%2F%2F127.0.0.1%3A8443,PrivateAggregationApiBundledEnhancements,PrivateAggregationApiMultipleCloudProviders,PrivateAggregationApiContributionMerging,PrivateAggregationApiMaxContributions,PrivateAggregationApiErrorReporting,FencedFramesLocalUnpartitionedDataAccess,ExemptUrlFromNetworkRevocationForTesting"
+      "--enable-features=FencedFramesDefaultMode,AggregationServiceMultipleCloudProviders:allowlist/https%3A%2F%2Fweb-platform%2Etest%3A8444%2Chttps%3A%2F%2Fwww1%2Eweb-platform%2Etest%3A8444%2Chttps%3A%2F%2F127.0.0.1%3A8443,PrivateAggregationApiBundledEnhancements,PrivateAggregationApiMultipleCloudProviders,PrivateAggregationApiContributionMerging,PrivateAggregationApiMaxContributions,PrivateAggregationApiErrorReporting,FencedFramesLocalUnpartitionedDataAccess"
     ],
     "owners": [
       "alexmt@chromium.org",
@@ -4372,10 +4335,15 @@
       "webexposed",
       "compositing/filters",
       "external/wpt/soft-navigation-heuristics/smoke/tentative/lcp.html",
-      "wpt_internal/performance-timeline/performance-user-timing-mark-feature-usage.html"
+      "wpt_internal/performance-timeline/performance-user-timing-mark-feature-usage.html",
+      "wpt_internal/wasm/custom_descriptors_feature.any.js",
+      "wpt_internal/origin_trials/webmcp/webmcp-origin-trial-disabled.https.html",
+      "wpt_internal/origin_trials/webmcp/webmcp-origin-trial-enabled.https.html"
     ],
     "exclusive_tests": [
-      "media/stable"
+      "media/stable",
+      "wpt_internal/origin_trials/webmcp/webmcp-origin-trial-disabled.https.html",
+      "wpt_internal/origin_trials/webmcp/webmcp-origin-trial-enabled.https.html"
     ],
     "args": [
       "--stable-release-mode",
@@ -6367,6 +6335,41 @@
     "expires": "Jan 1, 2027"
   },
   {
+    "prefix": "prevent-svg-filter-paint",
+    "owners": [
+      "arichiv@chromium.org",
+      "pdr@chromium.org"
+    ],
+    "platforms": [
+      "Android",
+      "ChromeOS",
+      "Linux",
+      "Mac",
+      "Webview",
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/svg/styling/svg-filter-render-local-frame.tentative.https.html",
+      "external/wpt/svg/styling/svg-filter-render-remote-frame-in-local-frame.tentative.https.html",
+      "external/wpt/svg/styling/svg-filter-render-remote-frame.tentative.sub.https.html",
+      "external/wpt/svg/styling/svg-filter-render-web-plugin.tentative.https.html",
+      "http/tests/inspector-protocol/issues/deprecation-prevent-svg-filter-paint.js",
+      "wpt_internal/svg"
+    ],
+    "exclusive_tests": [
+      "external/wpt/svg/styling/svg-filter-render-local-frame.tentative.https.html",
+      "external/wpt/svg/styling/svg-filter-render-remote-frame-in-local-frame.tentative.https.html",
+      "external/wpt/svg/styling/svg-filter-render-remote-frame.tentative.sub.https.html",
+      "external/wpt/svg/styling/svg-filter-render-web-plugin.tentative.https.html",
+      "http/tests/inspector-protocol/issues/deprecation-prevent-svg-filter-paint.js",
+      "wpt_internal/svg/svg-filter-render.sub.https.html"
+    ],
+    "args": [
+      "--enable-features=PreventSvgFilterPaint:PreventSvgFilterPaintOnRemoteFrame/true/PreventSvgFilterPaintOnWebPlugin/true"
+    ],
+    "expires": "Nov 1, 2026"
+  },
+  {
     "prefix": "popover-hint-new-behavior-disabled",
     "platforms": ["Linux", "Mac", "Win"],
     "bases": [
@@ -6380,5 +6383,21 @@
     "owners": [
       "masonf@chromium.org"
     ]
+  },
+  {
+    "prefix": "webmcp-kill-switch",
+    "platforms": ["Linux", "Mac", "Win"],
+    "bases": [
+      "wpt_internal/origin_trials/webmcp/webmcp-origin-trial-kill-switch.https.html"
+    ],
+    "exclusive_tests": "ALL",
+    "args": [
+      "--stable-release-mode",
+      "--disable-features=WebMCP"
+    ],
+    "owners": [
+      "dom@chromium.org"
+    ],
+    "expires": "never"
   }
 ]

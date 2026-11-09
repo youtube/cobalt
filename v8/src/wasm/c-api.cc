@@ -35,6 +35,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/flags/flags.h"
 #include "src/objects/call-site-info-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/managed-inl.h"
 #include "src/wasm/leb-helper.h"
@@ -43,7 +44,7 @@
 #include "src/wasm/wasm-arguments.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
 #include "third_party/wasm-api/wasm.h"
@@ -1738,7 +1739,6 @@ void PushArgs(const i::wasm::CanonicalSig* sig, const vec<Val>& args,
       case i::wasm::kI8:
       case i::wasm::kI16:
       case i::wasm::kF16:
-      case i::wasm::kWaitQueue:
       case i::wasm::kVoid:
       case i::wasm::kTop:
       case i::wasm::kBottom:
@@ -1780,7 +1780,6 @@ void PopArgs(const i::wasm::CanonicalSig* sig, vec<Val>& results,
       case i::wasm::kI8:
       case i::wasm::kI16:
       case i::wasm::kF16:
-      case i::wasm::kWaitQueue:
       case i::wasm::kVoid:
       case i::wasm::kTop:
       case i::wasm::kBottom:
@@ -2082,7 +2081,6 @@ WASM_EXPORT auto Global::get() const -> Val {
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kF16:
-    case i::wasm::kWaitQueue:
     case i::wasm::kVoid:
     case i::wasm::kTop:
     case i::wasm::kBottom:

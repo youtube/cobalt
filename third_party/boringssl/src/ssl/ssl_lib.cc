@@ -1368,8 +1368,17 @@ uint32_t SSL_clear_mode(SSL *ssl, uint32_t mode) {
 
 uint32_t SSL_get_mode(const SSL *ssl) { return ssl->mode; }
 
+void SSL_CTX_set1_buffer_pool(SSL_CTX *ctx, CRYPTO_BUFFER_POOL *pool) {
+  ctx->pool = UpRef(pool);
+}
+
 void SSL_CTX_set0_buffer_pool(SSL_CTX *ctx, CRYPTO_BUFFER_POOL *pool) {
-  ctx->pool = pool;
+  // Historically, |CRYPTO_BUFFER_POOL| was not reference-counted and this
+  // function saved a non-owning pointer, expecting the caller to maintain a
+  // lifetime relationship between the two objects. Now that pools are
+  // reference-counted, the compatible behavior is to treat it as set0 rather
+  // than ownership-transfering.
+  return SSL_CTX_set1_buffer_pool(ctx, pool);
 }
 
 int SSL_get_tls_unique(const SSL *ssl, uint8_t *out, size_t *out_len,

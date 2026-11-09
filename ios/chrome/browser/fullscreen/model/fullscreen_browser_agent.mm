@@ -133,6 +133,12 @@ void FullscreenBrowserAgent::NotifyObserversOfUpdatedState(
   for (auto& observer : observers_) {
     observer.WillUpdateState(this);
   }
+
+  // Apply keyboard height as overlapping.
+  if (keyboard_obscured_inset_ > 0) {
+    insets_.bottom = std::max(insets_.bottom, keyboard_obscured_inset_);
+  }
+
   updating_insets_ = false;
 
   if (!UIEdgeInsetsEqualToEdgeInsets(old_insets, insets_)) {
@@ -196,6 +202,13 @@ void FullscreenBrowserAgent::InvalidateInsetRange() {
   for (auto& observer : observers_) {
     observer.WillUpdateObscuredInsetRange(this);
   }
+
+  // Apply keyboard height as overlapping.
+  if (keyboard_obscured_inset_ > 0) {
+    min_insets_.bottom = std::max(min_insets_.bottom, keyboard_obscured_inset_);
+    max_insets_.bottom = std::max(max_insets_.bottom, keyboard_obscured_inset_);
+  }
+
   updating_obscured_insets_ = false;
 
   for (auto& observer : observers_) {
@@ -210,22 +223,38 @@ void FullscreenBrowserAgent::AddObscuredInsetRange(UIRectEdge edge,
                                                    CGFloat min,
                                                    CGFloat max) {
   CHECK(updating_obscured_insets_);
-  CHECK(edge == UIRectEdgeTop || edge == UIRectEdgeBottom);
   if (edge == UIRectEdgeTop) {
     min_insets_.top += min;
     max_insets_.top += max;
   } else if (edge == UIRectEdgeBottom) {
     min_insets_.bottom += min;
     max_insets_.bottom += max;
+  } else if (edge == UIRectEdgeLeft) {
+    min_insets_.left += min;
+    max_insets_.left += max;
+  } else if (edge == UIRectEdgeRight) {
+    min_insets_.right += min;
+    max_insets_.right += max;
   }
 }
 
 void FullscreenBrowserAgent::AddObscuredInset(UIRectEdge edge, CGFloat amount) {
   CHECK(updating_insets_);
-  CHECK(edge == UIRectEdgeTop || edge == UIRectEdgeBottom);
   if (edge == UIRectEdgeTop) {
     insets_.top += amount;
   } else if (edge == UIRectEdgeBottom) {
     insets_.bottom += amount;
+  } else if (edge == UIRectEdgeLeft) {
+    insets_.left += amount;
+  } else if (edge == UIRectEdgeRight) {
+    insets_.right += amount;
   }
+}
+
+void FullscreenBrowserAgent::SetKeyboardObscuredInset(CGFloat inset) {
+  if (keyboard_obscured_inset_ == inset) {
+    return;
+  }
+  keyboard_obscured_inset_ = inset;
+  InvalidateInsetRange();
 }

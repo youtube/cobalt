@@ -22,6 +22,7 @@
 #include "api/dtls_transport_interface.h"
 #include "api/rtc_error.h"
 #include "api/scoped_refptr.h"
+#include "api/task_queue/task_queue_base.h"
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/packet_transport_internal.h"
 #include "rtc_base/buffer.h"
@@ -157,7 +158,7 @@ class DtlsTransportInternal : public PacketTransportInternal {
   }
 
  protected:
-  DtlsTransportInternal();
+  explicit DtlsTransportInternal(TaskQueueBase* attached_queue = nullptr);
 
  private:
   CallbackList<const SSLHandshakeError> dtls_handshake_error_callback_list_;

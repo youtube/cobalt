@@ -145,7 +145,7 @@ function privacySandboxPrefSetterToTrueExpectErrorAndControlled(prefName) {
 }
 
 chrome.test.sendMessage('ready', function(message) {
-  if (message != 'run test') {
+  if (message !== 'run test') {
     return;
   }
   chrome.test.getConfig(function(config) {
@@ -205,7 +205,7 @@ chrome.test.sendMessage('ready', function(message) {
       },
       // Set the WebRTCIPHhandlingPolicy and verify it in the get function.
       function testWebRTCIPHandlingPolicy() {
-        if (pn.webRTCIPHandlingPolicy == undefined) {
+        if (pn.webRTCIPHandlingPolicy === undefined) {
           chrome.test.callbackPass();
           return;
         }
@@ -241,7 +241,7 @@ chrome.test.sendMessage('ready', function(message) {
               expect(
                   {
                     value: false,
-                    levelOfControl: 'controlled_by_this_extension'
+                    levelOfControl: 'controlled_by_this_extension',
                   },
                   'autofillAddressEnabled should be disabled.'));
 
@@ -250,7 +250,7 @@ chrome.test.sendMessage('ready', function(message) {
               expect(
                   {
                     value: false,
-                    levelOfControl: 'controlled_by_this_extension'
+                    levelOfControl: 'controlled_by_this_extension',
                   },
                   'autofillCreditCardEnabled should be disabled.'));
 
@@ -260,7 +260,7 @@ chrome.test.sendMessage('ready', function(message) {
                 expect(
                     {
                       value: true,
-                      levelOfControl: 'controlled_by_this_extension'
+                      levelOfControl: 'controlled_by_this_extension',
                     },
                     'autofillAddressEnabled should be enabled.'));
 
@@ -269,7 +269,7 @@ chrome.test.sendMessage('ready', function(message) {
                 expect(
                     {
                       value: true,
-                      levelOfControl: 'controlled_by_this_extension'
+                      levelOfControl: 'controlled_by_this_extension',
                     },
                     'autofillCreditCardEnabled should be enabled.'));
           });

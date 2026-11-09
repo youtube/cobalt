@@ -2550,7 +2550,7 @@ TNode<PropertyArray> AccessorAssembler::ExtendPropertiesBackingStore(
   TVARIABLE(IntPtrT, var_length);
 
   TNode<Object> properties =
-      LoadObjectField(object, JSObject::kPropertiesOrHashOffset);
+      LoadObjectField(object, offsetof(JSObject, properties_or_hash_));
 
   Label if_smi_hash(this), if_property_array(this), extend_store(this);
   Branch(TaggedIsSmi(properties), &if_smi_hash, &if_property_array);
@@ -2618,7 +2618,8 @@ TNode<PropertyArray> AccessorAssembler::ExtendPropertiesBackingStore(
         Word32Or(var_encoded_hash.value(), new_capacity_int32);
     StoreObjectField(new_properties, offsetof(PropertyArray, length_and_hash_),
                      SmiFromInt32(new_length_and_hash_int32));
-    StoreObjectField(object, JSObject::kPropertiesOrHashOffset, new_properties);
+    StoreObjectField(object, offsetof(JSObject, properties_or_hash_),
+                     new_properties);
     Comment("] Extend storage");
     Goto(&done);
     BIND(&done);

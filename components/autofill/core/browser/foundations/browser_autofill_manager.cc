@@ -59,6 +59,7 @@
 #include "base/types/zip.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
+#include "components/accessibility_annotator/core/accessibility_annotator_types.h"
 #include "components/autofill/core/browser/autofill_browser_util.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/autofill_trigger_source.h"
@@ -132,6 +133,7 @@
 #include "components/autofill/core/browser/single_field_fillers/payments/merchant_promo_code_manager.h"
 #include "components/autofill/core/browser/studies/autofill_experiments.h"
 #include "components/autofill/core/browser/suggestions/addresses/address_suggestion_generator.h"
+#include "components/autofill/core/browser/suggestions/at_memory/at_memory_nudge_generator.h"
 #include "components/autofill/core/browser/suggestions/autofill_ai/autofill_ai_suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/compose/compose_suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/one_time_passwords/otp_suggestion_generator.h"
@@ -185,6 +187,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/image/image.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -337,7 +340,10 @@ FillDataType GetEventTypeFromSingleFieldSuggestionType(SuggestionType type) {
     case SuggestionType::kOneTimePasswordEntry:
     case SuggestionType::kLoadingThrobber:
     case SuggestionType::kAtMemorySearchResult:
+    case SuggestionType::kAtMemoryInactivityNudge:
     case SuggestionType::kBnplFootnote:
+    case SuggestionType::kAutocompleteAtMemoryButton:
+    case SuggestionType::kOpenGemini:
       NOTREACHED();
   }
   NOTREACHED();
@@ -441,6 +447,7 @@ bool IsTriggerSourceOnlyRelevantForCompose(
     case AutofillSuggestionTriggerSource::kGlic:
     case AutofillSuggestionTriggerSource::kAtMemory:
     case AutofillSuggestionTriggerSource::kAtMemoryContextMenu:
+    case AutofillSuggestionTriggerSource::kAtMemoryInactivityNudge:
       return false;
   }
 }
@@ -545,6 +552,8 @@ FillingProductSet GetFillingProductsToSuggest(
     case kAtMemory:
     case kAtMemoryContextMenu:
       return {FillingProduct::kAtMemory};
+    case kAtMemoryInactivityNudge:
+      return {FillingProduct::kNone};
   }
 }
 
@@ -697,6 +706,7 @@ bool IsManagementFooterOption(const Suggestion& suggestion) {
     case SuggestionType::kManageIban:
     case SuggestionType::kManageLoyaltyCard:
     case SuggestionType::kWebauthnSignInWithAnotherDevice:
+    case SuggestionType::kOpenGemini:
       return true;
     case SuggestionType::kAutocompleteEntry:
     case SuggestionType::kAddressEntry:
@@ -740,10 +750,12 @@ bool IsManagementFooterOption(const Suggestion& suggestion) {
     case SuggestionType::kDevtoolsTestAddressEntry:
     case SuggestionType::kDevtoolsTestAddressByCountry:
     case SuggestionType::kAtMemorySearchResult:
+    case SuggestionType::kAtMemoryInactivityNudge:
     case SuggestionType::kFillAutofillAi:
     case SuggestionType::kPendingStateSignin:
     case SuggestionType::kLoadingThrobber:
     case SuggestionType::kBnplFootnote:
+    case SuggestionType::kAutocompleteAtMemoryButton:
       return false;
   }
 }
@@ -1169,11 +1181,23 @@ void BrowserAutofillManager::OnAskForValuesToFillImpl(
     autofill_field->set_was_focused(true);
   }
 
+  if (trigger_source ==
+          AutofillSuggestionTriggerSource::kAtMemoryInactivityNudge &&
+      client().GetSessionIdForCurrentAutofillSuggestions().has_value()) {
+    return;
+  }
+
   const FormFieldData& field = CHECK_DEREF(form.FindFieldByGlobalId(field_id));
   external_delegate_->OnQuery(form, field, caret_bounds, trigger_source,
                               /*update_datalist=*/true);
 
   if (IsAtMemoryTriggerSource(trigger_source)) {
+    // Do not show the pop up at all for non eligible profiles.
+    if (client().GetAccessibilityAnnotatorEnablementState() ==
+        accessibility_annotator::RemoteAnnotatorEnablementState::
+            kDisabledNotEligible) {
+      return;
+    }
     // Show empty suggestions with a search bar to start the flow.
     external_delegate_->OnSuggestionsReturned(field_id, {});
     return;
@@ -1198,9 +1222,8 @@ void BrowserAutofillManager::OnAskForValuesToFillImpl(
           suggestion_generators_.size(),
           base::BindOnce(
               &BrowserAutofillManager::OnIndividualSuggestionsGenerated,
-              weak_ptr_factory_.GetWeakPtr(), form.global_id(),
-              field.global_id(), trigger_source, context,
-              suggestion_generation_start_time));
+              weak_ptr_factory_.GetWeakPtr(), form, field, trigger_source,
+              context, suggestion_generation_start_time));
 
   for (const std::unique_ptr<SuggestionGenerator>& suggestion_generator :
        suggestion_generators_) {
@@ -1211,8 +1234,8 @@ void BrowserAutofillManager::OnAskForValuesToFillImpl(
 }
 
 void BrowserAutofillManager::OnIndividualSuggestionsGenerated(
-    const FormGlobalId& form_id,
-    const FieldGlobalId& field_id,
+    const FormData& form,
+    const FormFieldData& field,
     AutofillSuggestionTriggerSource trigger_source,
     SuggestionsContext context,
     base::TimeTicks suggestion_generation_start_time,
@@ -1230,8 +1253,8 @@ void BrowserAutofillManager::OnIndividualSuggestionsGenerated(
   // still need to offer Autocomplete.
   // TODO(crbug.com/433224307): Consider early returning here when the cache
   // starts storing all forms and fields.
-  std::ignore = GetCachedFormAndField(form_id, field_id, &form_structure,
-                                      &autofill_field);
+  std::ignore = GetCachedFormAndField(form.global_id(), field.global_id(),
+                                      &form_structure, &autofill_field);
 
   base::flat_map<SuggestionDataSource, std::vector<Suggestion>> all_suggestions(
       std::move(returned_suggestions));
@@ -1291,8 +1314,20 @@ void BrowserAutofillManager::OnIndividualSuggestionsGenerated(
   auto passkey_suggestions =
       prioritized_suggestions.extract(FillingProduct::kPasskey);
 
+  // TODO(crbug.com/409962888): Consider moving the TTF logic to
+  // `OnGenerateSuggestionsComplete()` when the old suggestion generation logic
+  // is removed.
   auto on_generate_suggestions_complete =
       [&](std::vector<Suggestion> suggestions) {
+        if (TryToShowTouchToFillSuggestions(form, field, autofill_field,
+                                            suggestions, trigger_source)) {
+          OnGenerateSuggestionsComplete(
+              form.global_id(), field.global_id(), trigger_source, context,
+              suggestion_generation_start_time,
+              /*show_suggestions=*/false, suggestions);
+          return;
+        }
+
         // Handle passkeys separately, since they can merge with every
         // suggestion.
         if (!passkey_suggestions.empty()) {
@@ -1300,8 +1335,9 @@ void BrowserAutofillManager::OnIndividualSuggestionsGenerated(
           MergePasskeysAndExistingSuggestions(
               suggestions, std::move(passkey_suggestions.mapped()[0]));
         }
-        OnGenerateSuggestionsComplete(form_id, field_id, trigger_source,
-                                      context, suggestion_generation_start_time,
+        OnGenerateSuggestionsComplete(form.global_id(), field.global_id(),
+                                      trigger_source, context,
+                                      suggestion_generation_start_time,
                                       /*show_suggestions=*/true, suggestions);
       };
 
@@ -1320,6 +1356,37 @@ void BrowserAutofillManager::OnIndividualSuggestionsGenerated(
   // combination during prioritization.
   CHECK_EQ(prioritized_suggestions.size(), 1u);
   on_generate_suggestions_complete(prioritized_suggestions.begin()->second);
+}
+
+bool BrowserAutofillManager::TryToShowTouchToFillSuggestions(
+    const FormData& form,
+    const FormFieldData& trigger_field,
+    const AutofillField* trigger_autofill_field,
+    const std::vector<Suggestion>& suggestions,
+    AutofillSuggestionTriggerSource trigger_source) {
+  if (!touch_to_fill_delegate_) {
+    return false;
+  }
+
+  if (touch_to_fill_delegate_->IsShowingTouchToFill()) {
+    return true;
+  }
+
+  // Touch to fill is not shown if other address suggestions are available
+  // for EMAIL_OR_LOYALTY_MEMBERSHIP_ID fields.
+  if (trigger_autofill_field &&
+      trigger_autofill_field->Type().GetLoyaltyCardType() ==
+          EMAIL_OR_LOYALTY_MEMBERSHIP_ID &&
+      std::ranges::any_of(suggestions, [](const Suggestion& suggestion) {
+        return GetFillingProductFromSuggestionType(suggestion.type) ==
+               FillingProduct::kAddress;
+      })) {
+    return false;
+  }
+
+  return trigger_source ==
+             AutofillSuggestionTriggerSource::kFormControlElementClicked &&
+         touch_to_fill_delegate_->TryToShowTouchToFill(form, trigger_field);
 }
 
 std::vector<Suggestion> BrowserAutofillManager::MergeWithAddressSuggestions(
@@ -1462,22 +1529,8 @@ void BrowserAutofillManager::GenerateSuggestionsAndMaybeShowUIPhase2(
     return;
   }
 
-  // Touch to fill is not shown if other address suggestions are available for
-  // EMAIL_OR_LOYALTY_MEMBERSHIP_ID fields.
-  const bool has_address_suggestions_on_email_or_loyalty_card_field =
-      autofill_field &&
-      autofill_field->Type().GetLoyaltyCardType() ==
-          EMAIL_OR_LOYALTY_MEMBERSHIP_ID &&
-      std::ranges::any_of(suggestions, [](const Suggestion& suggestion) {
-        return GetFillingProductFromSuggestionType(suggestion.type) ==
-               FillingProduct::kAddress;
-      });
-  if (touch_to_fill_delegate_ &&
-      (touch_to_fill_delegate_->IsShowingTouchToFill() ||
-       (trigger_source ==
-            AutofillSuggestionTriggerSource::kFormControlElementClicked &&
-        !has_address_suggestions_on_email_or_loyalty_card_field &&
-        touch_to_fill_delegate_->TryToShowTouchToFill(form, field)))) {
+  if (TryToShowTouchToFillSuggestions(form, field, autofill_field, suggestions,
+                                      trigger_source)) {
     std::move(callback).Run(/*show_suggestions=*/false, std::move(suggestions));
     return;
   }
@@ -2151,7 +2204,7 @@ void BrowserAutofillManager::RequestRefillImpl(const FillId& fill_id) {
 
 void BrowserAutofillManager::DidShowSuggestions(
     base::span<const Suggestion> suggestions,
-    const FormData& form,
+    const FormGlobalId& form_id,
     const FieldGlobalId& field_id,
     AutofillExternalDelegate::UpdateSuggestionsCallback
         update_suggestions_callback) {
@@ -2171,7 +2224,7 @@ void BrowserAutofillManager::DidShowSuggestions(
   FormStructure* form_structure = nullptr;
   AutofillField* autofill_field = nullptr;
   const bool has_cached_form_and_field = GetCachedFormAndField(
-      form.global_id(), field_id, &form_structure, &autofill_field);
+      form_id, field_id, &form_structure, &autofill_field);
 
   if (AutofillAiManager* ai_manager = client().GetAutofillAiManager();
       ai_manager && has_cached_form_and_field &&
@@ -3076,6 +3129,15 @@ std::vector<Suggestion> BrowserAutofillManager::GetAvailableSuggestions(
     return {};
   }
 
+  // TODO(crbug.com/489659527): This currently overrides Autofill suggestions if
+  // suggestions were presented to the user after typing started. Fix that.
+  if (trigger_source ==
+      AutofillSuggestionTriggerSource::kAtMemoryInactivityNudge) {
+    // TODO(crbug.com/489659527): Localize the string.
+    return {Suggestion(u"Try searching in Chrome Memory",
+                       SuggestionType::kAtMemoryInactivityNudge)};
+  }
+
   std::vector<Suggestion> suggestions;
   switch (context.filling_product) {
     case FillingProduct::kAddress:
@@ -3351,6 +3413,12 @@ void BrowserAutofillManager::InitializeSuggestionGenerators(
   suggestion_generators_.clear();
   const FillingProductSet relevant_filling_products =
       GetFillingProductsToSuggest(trigger_source);
+
+  if (trigger_source ==
+      AutofillSuggestionTriggerSource::kAtMemoryInactivityNudge) {
+    suggestion_generators_.push_back(
+        std::make_unique<AtMemoryNudgeGenerator>());
+  }
 
   if (relevant_filling_products.contains(FillingProduct::kAutofillAi)) {
     suggestion_generators_.push_back(

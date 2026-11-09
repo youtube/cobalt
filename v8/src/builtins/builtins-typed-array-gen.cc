@@ -47,7 +47,7 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
   TNode<JSArrayBuffer> buffer = UncheckedCast<JSArrayBuffer>(
       Allocate(JSArrayBuffer::kSizeWithEmbedderFields));
   StoreMapNoWriteBarrier(buffer, map);
-  StoreObjectFieldNoWriteBarrier(buffer, JSArray::kPropertiesOrHashOffset,
+  StoreObjectFieldNoWriteBarrier(buffer, offsetof(JSArray, properties_or_hash_),
                                  empty_fixed_array);
   StoreObjectFieldNoWriteBarrier(buffer, JSArray::kElementsOffset,
                                  empty_fixed_array);

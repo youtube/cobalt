@@ -181,6 +181,15 @@ void JSIteratorZipHelper::set_padding(Tagged<FixedArray> value,
   padding_.store(this, value, mode);
 }
 
+Tagged<FixedArray> JSIteratorZipKeyedHelper::keys() const {
+  return keys_.load();
+}
+
+void JSIteratorZipKeyedHelper::set_keys(Tagged<FixedArray> value,
+                                        WriteBarrierMode mode) {
+  keys_.store(this, value, mode);
+}
+
 }  // namespace internal
 }  // namespace v8
 

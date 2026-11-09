@@ -25,6 +25,7 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_language_model_create_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_language_model_message.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_language_model_message_content.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_language_model_sampling_mode.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_language_model_tool_call.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_union_language_model_message_value.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_union_language_model_prompt.h"
@@ -53,6 +54,7 @@
 #include "third_party/blink/renderer/platform/audio/audio_bus.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/bindings/to_blink_string.h"
+#include "third_party/blink/renderer/platform/bindings/v8_throw_exception.h"
 #include "third_party/blink/renderer/platform/blob/blob_data.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
@@ -105,8 +107,13 @@ void RejectResolver(ScriptPromiseResolverBase* resolver,
 
 // Logs (mojo converted) prompt message metrics.
 void LogPromptMessageMetrics(
+    ExecutionContext* execution_context,
     const Vector<mojom::blink::AILanguageModelPromptPtr>& prompts) {
+  bool has_prefix = false;
   for (const auto& prompt : prompts) {
+    if (prompt->is_prefix) {
+      has_prefix = true;
+    }
     std::string prefix =
         base::StrCat({AIMetrics::GetAIAPIUsageMetricName(
                           AIMetrics::AISessionType::kLanguageModel),
@@ -125,6 +132,10 @@ void LogPromptMessageMetrics(
       }
     }
   }
+  if (has_prefix && execution_context) {
+    UseCounter::Count(execution_context,
+                      WebFeature::kLanguageModel_Prompt_Prefix);
+  }
 }
 
 // Logs create option metrics.
@@ -135,6 +146,17 @@ void LogCreateOptionMetrics(
       base::StrCat({AIMetrics::GetAIAPIUsageMetricName(
                         AIMetrics::AISessionType::kLanguageModel),
                     ".", function_name});
+
+  AIMetrics::LanguageModelCreateOptionsType options_type =
+      AIMetrics::LanguageModelCreateOptionsType::kNoParams;
+  if (create_options.hasSamplingMode()) {
+    options_type = AIMetrics::LanguageModelCreateOptionsType::kSamplingMode;
+  } else if (create_options.hasTopK() || create_options.hasTemperature()) {
+    options_type = AIMetrics::LanguageModelCreateOptionsType::kRawParams;
+  }
+  base::UmaHistogramEnumeration(base::StrCat({prefix, ".OptionsType"}),
+                                options_type);
+
   // TODO(crbug.com/496663356): Only log when params are supported, not ignored?
   if (create_options.hasTopK()) {
     base::UmaHistogramCounts1000(base::StrCat({prefix, ".TopK"}),
@@ -146,6 +168,12 @@ void LogCreateOptionMetrics(
     base::UmaHistogramCustomCounts(
         base::StrCat({prefix, ".TemperatureX1000"}),
         static_cast<int>(create_options.temperature() * 1000.0f), 1, 2000, 200);
+  }
+
+  if (create_options.hasSamplingMode()) {
+    base::UmaHistogramEnumeration(
+        base::StrCat({prefix, ".SamplingMode"}),
+        ConvertSamplingModeToMojo(create_options.samplingMode()));
   }
   // Logs metrics for a list of expected inputs or outputs.
   auto log_expected_metrics =
@@ -218,6 +246,10 @@ class CloneLanguageModelClient
     }
 
     CHECK(info);
+    if (language_model_->samplingMode().has_value()) {
+      info->sampling_mode =
+          ConvertSamplingModeToMojo(*language_model_->samplingMode());
+    }
     LanguageModel* cloned_language_model = MakeGarbageCollected<LanguageModel>(
         language_model_->GetExecutionContext(),
         std::move(language_model_remote), language_model_->GetTaskRunner(),
@@ -293,7 +325,7 @@ class AppendClient : public GarbageCollected<AppendClient>,
           complete_callback,
       base::RepeatingClosure overflow_callback,
       Vector<mojom::blink::AILanguageModelPromptPtr> input) {
-    LogPromptMessageMetrics(input);
+    LogPromptMessageMetrics(ExecutionContext::From(script_state), input);
     MakeGarbageCollected<AppendClient>(
         std::move(script_state), std::move(language_model), std::move(resolver),
         std::move(input), std::move(signal), std::move(complete_callback),
@@ -504,10 +536,25 @@ ScriptPromise<LanguageModel> LanguageModel::create(
   }
 
   CHECK(options);
+
   AbortSignal* signal = options->getSignalOr(nullptr);
   if (signal && signal->aborted()) {
     resolver->Reject(signal->reason(script_state));
     return promise;
+  }
+
+  if (options && options->hasSamplingMode() &&
+      (options->hasTemperature() || options->hasTopK())) {
+    // TODO(crbug.com/502214118): Merge this check into
+    // ResolveSamplingParamsOption.
+    exception_state.ThrowTypeError(
+        kExceptionMessageSamplingModeAndParamsConflict);
+    return EmptyPromise();
+  }
+
+  std::optional<mojom::blink::AILanguageModelSamplingMode> sampling_mode;
+  if (options->hasSamplingMode()) {
+    sampling_mode = ConvertSamplingModeToMojo(options->samplingMode());
   }
 
   auto sampling_params_or_exception =
@@ -530,7 +577,8 @@ ScriptPromise<LanguageModel> LanguageModel::create(
   }
 
   MakeGarbageCollected<LanguageModelCreateClient>(
-      resolver, options, std::move(sampling_params_or_exception.value()));
+      resolver, options, std::move(sampling_params_or_exception.value()),
+      sampling_mode);
   return promise;
 }
 
@@ -562,6 +610,16 @@ ScriptPromise<V8Availability> LanguageModel::availability(
   }
 
   LogCreateOptionMetrics(*options, "availability");
+
+  if (options && options->hasSamplingMode() &&
+      (options->hasTemperature() || options->hasTopK())) {
+    // TODO(crbug.com/502214118): Merge this check into
+    // ResolveSamplingParamsOption.
+    exception_state.ThrowTypeError(
+        kExceptionMessageSamplingModeAndParamsConflict);
+    return EmptyPromise();
+  }
+
   auto sampling_params_or_exception =
       ResolveSamplingParamsOption(options, execution_context);
   if (!sampling_params_or_exception.has_value()) {
@@ -602,10 +660,16 @@ void LanguageModel::ExecuteAvailability(
 
   Vector<mojom::blink::AILanguageModelPromptPtr> initial_prompts;
   Vector<mojom::blink::AILanguageModelToolDeclarationPtr> tools;
+  std::optional<mojom::blink::AILanguageModelSamplingMode> sampling_mode;
+  if (options && options->hasSamplingMode()) {
+    sampling_mode = ConvertSamplingModeToMojo(options->samplingMode());
+  }
+
   ai_manager_remote->CanCreateLanguageModel(
       mojom::blink::AILanguageModelCreateOptions::New(
           std::move(resolved_sampling_params), std::move(initial_prompts),
-          std::move(expected_in), std::move(expected_out), std::move(tools)),
+          std::move(expected_in), std::move(expected_out), std::move(tools),
+          sampling_mode),
       std::move(callback));
 }
 
@@ -748,7 +812,12 @@ void LanguageModel::ExecutePrompt(
     mojo::PendingRemote<mojom::blink::ModelStreamingResponder>
         pending_responder,
     Vector<mojom::blink::AILanguageModelPromptPtr> prompts) {
-  LogPromptMessageMetrics(prompts);
+  ExecutionContext* execution_context = ExecutionContext::From(script_state);
+  LogPromptMessageMetrics(execution_context, prompts);
+  if (constraint) {
+    UseCounter::Count(execution_context,
+                      WebFeature::kLanguageModel_Prompt_ResponseConstraint);
+  }
   if (!language_model_remote_) {
     if (std::holds_alternative<ScriptPromiseResolverBase*>(
             resolver_or_stream)) {

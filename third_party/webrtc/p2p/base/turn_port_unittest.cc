@@ -9,6 +9,8 @@
  */
 #include "p2p/base/turn_port.h"
 
+#include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <list>
@@ -739,7 +741,7 @@ class TurnPortTest : public ::testing::Test, public TurnPort::CallbacksForTest {
 
     ByteBufferWriter buf;
     msg->Write(&buf);
-    conn1->Send(buf.Data(), buf.Length(), options);
+    conn1->Send(buf.DataView(), options);
 
     // Now restore the password before continuing.
     conn1->set_remote_password_for_test(pwd);
@@ -801,13 +803,12 @@ class TurnPortTest : public ::testing::Test, public TurnPort::CallbacksForTest {
     // Send some data.
     size_t num_packets = 256;
     for (size_t i = 0; i < num_packets; ++i) {
-      unsigned char buf[256] = {0};
-      for (size_t j = 0; j < i + 1; ++j) {
-        buf[j] = 0xFF - static_cast<unsigned char>(j);
-      }
+      std::array<uint8_t, 256> buf;
+      uint8_t val = 0xFF;
+      std::generate(buf.begin(), buf.begin() + i + 1, [&val] { return val--; });
       options.ect_1 = (i % 2 == 0);
-      conn1->Send(buf, i + 1, options);
-      conn2->Send(buf, i + 1, options);
+      conn1->Send(std::span(buf).first(i + 1), options);
+      conn2->Send(std::span(buf).first(i + 1), options);
       time_controller_.AdvanceTime(kSimulatedRtt);
     }
 
@@ -878,8 +879,9 @@ class TurnPortTest : public ::testing::Test, public TurnPort::CallbacksForTest {
         IsRtcOk());
 
     // Send some data from Udp to TurnPort.
-    unsigned char buf[256] = {0};
-    conn2->Send(buf, sizeof(buf), options);
+    std::array<uint8_t, 256> buf;
+    buf.fill(0);
+    conn2->Send(buf, options);
 
     // Now release the TurnPort allocation.
     // This will send a REFRESH with lifetime 0 to server.
@@ -917,7 +919,7 @@ class TurnPortTest : public ::testing::Test, public TurnPort::CallbacksForTest {
   std::unique_ptr<TurnPortTestVirtualSocketServer> ss_;
   GlobalSimulatedTimeController time_controller_;
   const Environment env_;
-  webrtc::Thread* main_;
+  Thread* main_;
   std::unique_ptr<AsyncPacketSocket> socket_;
   TestTurnServer turn_server_;
   std::unique_ptr<TurnPort> turn_port_;
@@ -1693,8 +1695,8 @@ TEST_F(TurnPortTest, TestChannelBindGetErrorResponse) {
   // Tell the TURN server to reject all bind requests from now on.
   turn_server_.server()->set_reject_bind_requests(true);
 
-  std::string data = "ABC";
-  conn1->Send(data.data(), data.length(), options);
+  auto data = std::to_array<uint8_t>({'A', 'B', 'C'});
+  conn1->Send(data, options);
 
   EXPECT_THAT(
       WaitUntil([&] { return CheckConnectionFailedAndPruned(conn1); }, IsTrue(),
@@ -1708,7 +1710,7 @@ TEST_F(TurnPortTest, TestChannelBindGetErrorResponse) {
         // received unchanneled, not channeled.
         udp_packets_.emplace_back(packet);
       });
-  conn1->Send(data.data(), data.length(), options);
+  conn1->Send(data, options);
   EXPECT_THAT(WaitUntil([&] { return !udp_packets_.empty(); }, IsTrue(),
                         {.timeout = kSimulatedRtt, .clock = &time_controller_}),
               IsRtcOk());
@@ -2247,12 +2249,11 @@ TEST_P(TurnPortIPAddressTypeMetricsTest, TestIPAddressTypeMetrics) {
   metrics::Reset();
 
   SetDnsResolverExpectations(
-      [](webrtc::MockAsyncDnsResolver* resolver,
-         webrtc::MockAsyncDnsResolverResult* resolver_result) {
+      [](MockAsyncDnsResolver* resolver,
+         MockAsyncDnsResolverResult* resolver_result) {
         EXPECT_CALL(*resolver, Start(SocketAddress("localhost", 5000),
                                      /*family=*/AF_INET, _))
-            .WillOnce([](const webrtc::SocketAddress& /* addr */,
-                         int /* family */,
+            .WillOnce([](const SocketAddress& /* addr */, int /* family */,
                          absl::AnyInvocable<void()> callback) { callback(); });
         EXPECT_CALL(*resolver, result)
             .WillRepeatedly(ReturnPointee(resolver_result));

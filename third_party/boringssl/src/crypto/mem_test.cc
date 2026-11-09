@@ -227,6 +227,32 @@ TEST(VectorTest, AppendSimpleType) {
   }
 }
 
+TEST(VectorTest, AppendMoveSimpleType) {
+  Vector<size_t> vec;
+  ASSERT_TRUE(vec.empty());
+
+  // Append-move through the initial capacity and small growth cases.
+  for (size_t i = 0; i < 32; i++) {
+    size_t in[2] = {2 * i, 2 * i + 1};
+    ASSERT_TRUE(vec.AppendMove(in));
+  }
+  EXPECT_EQ(vec.size(), 64u);
+  for (size_t i = 0; i < 64; i++) {
+    EXPECT_EQ(vec[i], i);
+  }
+
+  // Append-move a large buffer to test when we more than double the capacity.
+  size_t buf[512];
+  for (size_t i = 0; i < std::size(buf); i++) {
+    buf[i] = 64 + i;
+  }
+  ASSERT_TRUE(vec.AppendMove(buf));
+  EXPECT_EQ(vec.size(), 512u + 64u);
+  for (size_t i = 0; i < 512u + 64u; i++) {
+    EXPECT_EQ(vec[i], i);
+  }
+}
+
 TEST(VectorTest, AppendComplexType) {
   Vector<std::shared_ptr<size_t>> vec;
   ASSERT_TRUE(vec.empty());
@@ -248,6 +274,40 @@ TEST(VectorTest, AppendComplexType) {
     buf[i] = std::make_shared<size_t>(64 + i);
   }
   ASSERT_TRUE(vec.Append(buf));
+  EXPECT_EQ(vec.size(), 512u + 64u);
+  for (size_t i = 0; i < 512u + 64u; i++) {
+    EXPECT_EQ(*vec[i], i);
+  }
+}
+
+TEST(VectorTest, AppendMoveComplexType) {
+  Vector<std::unique_ptr<size_t>> vec;
+  ASSERT_TRUE(vec.empty());
+
+  // Append through the initial capacity and small growth cases.
+  for (size_t i = 0; i < 32; i++) {
+    std::unique_ptr<size_t> in[2] = {std::make_unique<size_t>(2 * i),
+                                     std::make_unique<size_t>(2 * i + 1)};
+    ASSERT_TRUE(vec.AppendMove(in));
+    // Should have moved from the source.
+    EXPECT_EQ(in[0], nullptr);
+    EXPECT_EQ(in[1], nullptr);
+  }
+  EXPECT_EQ(vec.size(), 64u);
+  for (size_t i = 0; i < 64; i++) {
+    EXPECT_EQ(*vec[i], i);
+  }
+
+  // Append a large buffer to test when we more than double the capacity.
+  std::unique_ptr<size_t> buf[512];
+  for (size_t i = 0; i < std::size(buf); i++) {
+    buf[i] = std::make_unique<size_t>(64 + i);
+  }
+  ASSERT_TRUE(vec.AppendMove(buf));
+  for (const auto &ptr : buf) {
+    // Should have moved from the source.
+    EXPECT_EQ(ptr, nullptr);
+  }
   EXPECT_EQ(vec.size(), 512u + 64u);
   for (size_t i = 0; i < 512u + 64u; i++) {
     EXPECT_EQ(*vec[i], i);

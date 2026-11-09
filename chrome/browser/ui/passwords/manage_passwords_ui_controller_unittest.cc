@@ -31,12 +31,12 @@
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/hats/mock_trust_safety_sentiment_service.h"
 #include "chrome/browser/ui/hats/trust_safety_sentiment_service_factory.h"
+#include "chrome/browser/ui/page_actions/test_support/mock_page_action_controller.h"
 #include "chrome/browser/ui/passwords/credential_leak_dialog_controller.h"
 #include "chrome/browser/ui/passwords/credential_manager_dialog_controller.h"
 #include "chrome/browser/ui/passwords/password_dialog_prompts.h"
 #include "chrome/browser/ui/passwords/passwords_model_delegate.h"
 #include "chrome/browser/ui/views/frame/test_with_browser_view.h"
-#include "chrome/browser/ui/views/page_action/test_support/mock_page_action_controller.h"
 #include "chrome/browser/ui/views/passwords/manage_passwords_page_action_controller.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/affiliations/core/browser/mock_affiliation_service.h"
@@ -54,6 +54,7 @@
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
 #include "components/password_manager/core/browser/password_store/interactions_stats.h"
 #include "components/password_manager/core/browser/password_store/mock_password_store_interface.h"
+#include "components/password_manager/core/browser/password_store/password_form_converters.h"
 #include "components/password_manager/core/browser/stub_password_manager_client.h"
 #include "components/password_manager/core/browser/undo_password_change_controller.h"
 #include "components/password_manager/core/common/password_manager_features.h"
@@ -780,7 +781,8 @@ TEST_P(ManagePasswordsUIControllerTest, BlocklistedElsewhere) {
 
   test_local_form().blocked_by_user = true;
   password_manager::PasswordStoreChange change(
-      password_manager::PasswordStoreChange::ADD, test_local_form());
+      password_manager::PasswordStoreChange::ADD,
+      password_manager::FromPasswordForm(test_local_form()));
   password_manager::PasswordStoreChangeList list(1, change);
   controller()->OnLoginsChanged(/*unused source store:*/ nullptr, list);
 
@@ -1850,7 +1852,8 @@ TEST_P(ManagePasswordsUIControllerTest, OpenSafeStateBubble) {
   results.push_back(submitted_form());
   EXPECT_CALL(*controller(), OnUpdateBubbleAndIconVisibility());
   post_save_helper->OnGetPasswordStoreResultsOrErrorFrom(
-      client().GetProfilePasswordStore(), std::move(results));
+      client().GetProfilePasswordStore(),
+      password_manager::FromPasswordForms(std::move(results)));
   WaitForPasswordStore();
 
   EXPECT_TRUE(controller()->opened_automatic_bubble());
@@ -1897,7 +1900,8 @@ TEST_P(ManagePasswordsUIControllerTest, OpenMoreToFixBubble) {
   controller()->OnBubbleHidden();
   EXPECT_CALL(*controller(), OnUpdateBubbleAndIconVisibility());
   post_save_helper->OnGetPasswordStoreResultsOrErrorFrom(
-      client().GetProfilePasswordStore(), expected_forms);
+      client().GetProfilePasswordStore(),
+      password_manager::FromPasswordForms(expected_forms));
   WaitForPasswordStore();
 
   EXPECT_TRUE(controller()->opened_automatic_bubble());

@@ -10,6 +10,7 @@
 #include "src/common/globals.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/free-space.h"
+#include "src/objects/heap-number.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/maybe-object.h"

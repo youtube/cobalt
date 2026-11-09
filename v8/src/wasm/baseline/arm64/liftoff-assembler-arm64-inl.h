@@ -1433,8 +1433,14 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   }
 
   if (v8_flags.disable_write_barriers) return;
-  // Emit the write barrier.
+
+  // We only need a write barrier if the CAS was successful.
+  // The AtomicCompareExchange above leaves the condition flags from the
+  // final comparison (either from {casal} or the manual {Cmp} in the loop).
   Label exit;
+  B(ne, &exit);
+
+  // Emit the write barrier.
   JumpIfSmi(new_value.gp(), &exit);
   CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
                 kZero, &exit);
@@ -1684,6 +1690,17 @@ void LiftoffAssembler::emit_i32_shri(Register dst, Register src,
 void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
   Add(dst.gp().X(), lhs.gp().X(), rhs.gp().X());
+}
+
+void LiftoffAssembler::emit_i64_add128(Register dst_low, Register dst_high,
+                                       Register al, Register ah, Register bl,
+                                       Register bh) {
+  DCHECK_NE(dst_low, ah);
+  DCHECK_NE(dst_low, bh);
+  DCHECK_NE(dst_low, dst_high);
+
+  Adds(dst_low.X(), al.X(), bl.X());
+  Adc(dst_high.X(), ah.X(), bh.X());
 }
 
 void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,

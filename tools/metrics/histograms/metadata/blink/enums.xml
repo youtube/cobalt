@@ -5990,7 +5990,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5375" label="AriaLabeledByAlternativeSpelling"/>
   <int value="5376" label="OBSOLETE_CanvasTextNg"/>
   <int value="5377" label="DOMWindowOpenPopup"/>
-  <int value="5378" label="FencedFrameDisableUntrustedNetwork"/>
+  <int value="5378" label="OBSOLETE_FencedFrameDisableUntrustedNetwork"/>
   <int value="5379" label="FencedFrameNotifyEvent"/>
   <int value="5380" label="OBSOLETE_SharedStorageGetInFencedFrame"/>
   <int value="5381" label="OBSOLETE_Translator_MeasureInputUsage_Method"/>
@@ -6522,6 +6522,20 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5878" label="ElementInternalsWithBehaviors"/>
   <int value="5879" label="HTMLSubmitButtonBehaviorUsage"/>
   <int value="5880" label="ElementInternalsBehaviorsAccess"/>
+  <int value="5881" label="CSSURLRequestModifierCrossOrigin"/>
+  <int value="5882" label="CSSURLRequestModifierIntegrity"/>
+  <int value="5883" label="CSSURLRequestModifierReferrerPolicy"/>
+  <int value="5884" label="PreventSvgFilterPaint"/>
+  <int value="5885" label="LanguageModel_Prompt_ResponseConstraint"/>
+  <int value="5886" label="LanguageModel_Prompt_Prefix"/>
+  <int value="5887" label="CapabilityElementIsValid"/>
+  <int value="5888" label="CapabilityElementInvalidReason"/>
+  <int value="5889" label="CapabilityElementInitialPermissionStatus"/>
+  <int value="5890" label="CapabilityElementPermissionStatus"/>
+  <int value="5891" label="CapabilityElementOnPromptAction"/>
+  <int value="5892" label="CapabilityElementOnPromptDismiss"/>
+  <int value="5893" label="CapabilityElementOnValidationStatusChange"/>
+  <int value="5894" label="InputParsedParentSelectNoOptions"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -6678,6 +6692,7 @@ Called by update_permissions_policy_enum.py.-->
   <int value="143" label="ManualText"/>
   <int value="144" label="LocalNetwork"/>
   <int value="145" label="LoopbackNetwork"/>
+  <int value="146" label="Tools"/>
 </enum>
 
 <!-- LINT.IfChange(FedCmAccountChooserResult) -->
@@ -7123,6 +7138,7 @@ Called by update_permissions_policy_enum.py.-->
   <int value="50" label="ConfigNotMatchingType"/>
   <int value="51" label="LoginPopupClosedWithoutSignin"/>
   <int value="52" label="SuppressedBySegmentationPlatform"/>
+  <int value="53" label="SuccessUsingRedirectTo"/>
 </enum>
 
 <!-- LINT.ThenChange(//content/browser/webid/metrics.h:RequestIdTokenStatus) -->
@@ -7223,6 +7239,30 @@ Called by update_permissions_policy_enum.py.-->
              received"/>
   <int value="7"
       label="Token not received and error received and continue_on received"/>
+  <int value="8"
+      label="Token received and error not received and continue_on not
+             received and redirect_to received"/>
+  <int value="9"
+      label="Token received and error received and continue_on not received
+             and redirect_to received"/>
+  <int value="10"
+      label="Token not received and error not received and continue_on not
+             received and redirect_to received"/>
+  <int value="11"
+      label="Token not received and error received and continue_on not
+             received and redirect_to received"/>
+  <int value="12"
+      label="Token received and error not received and continue_on received
+             and redirect_to received"/>
+  <int value="13"
+      label="Token received and error received and continue_on received and
+             redirect_to received"/>
+  <int value="14"
+      label="Token not received and error not received and continue_on
+             received and redirect_to received"/>
+  <int value="15"
+      label="Token not received and error received and continue_on received
+             and redirect_to received"/>
 </enum>
 
 <!-- LINT.ThenChange(//content/browser/webid/idp_network_request_manager.h:FedCmTokenResponseType) -->
@@ -7308,29 +7348,6 @@ Called by update_permissions_policy_enum.py.-->
       label="Supports-Loading-Mode response header 'fenced-frame' not
              opted-in"/>
 </enum>
-
-<!-- LINT.IfChange(FencedFrameDisableUntrustedNetworkOutcome) -->
-
-<enum name="FencedFrameDisableUntrustedNetworkOutcome">
-  <int value="0" label="Network disabled and promise resolved"/>
-  <int value="1" label="Document not fully active"/>
-  <int value="2" label="Not allowed to disable network"/>
-</enum>
-
-<!-- LINT.ThenChange(//third_party/blink/public/common/fenced_frame/fenced_frame_utils.h:DisableUntrustedNetworkOutcome) -->
-
-<!-- LINT.IfChange(FencedFrameNotifyEventOutcome) -->
-
-<enum name="FencedFrameNotifyEventOutcome">
-  <int value="0" label="Success"/>
-  <int value="1" label="Document not active"/>
-  <int value="2" label="Not called from a fenced frame root"/>
-  <int value="3" label="Invalid event passed in"/>
-  <int value="4" label="Unsupported event type passed in"/>
-  <int value="5" label="No transient user activation"/>
-</enum>
-
-<!-- LINT.ThenChange(//third_party/blink/public/common/fenced_frame/fenced_frame_utils.h:NotifyEventOutcome) -->
 
 <!-- LINT.IfChange(FirstCookieRequest) -->
 

@@ -9,10 +9,10 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.text.TextWatcher;
 import android.view.View;
-import android.view.View.OnClickListener;
 import android.view.View.OnDragListener;
 import android.view.ViewGroup;
 
+import androidx.annotation.Px;
 import androidx.annotation.StyleRes;
 
 import org.chromium.build.annotations.NullMarked;
@@ -21,7 +21,9 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.feed.FeedSurfaceScrollDelegate;
 import org.chromium.chrome.browser.lens.LensEntryPoint;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
-import org.chromium.chrome.browser.omnibox.status.StatusProperties;
+import org.chromium.chrome.browser.ntp.NewTabPageManager;
+import org.chromium.chrome.browser.omnibox.status.StatusProperties.StatusIconResource;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -34,9 +36,9 @@ import java.util.function.Supplier;
  * and updating the model accordingly.
  */
 @NullMarked
-public class SearchBoxCoordinator {
+public class SearchBoxCoordinator implements NtpSearchBox {
     private final PropertyModel mModel;
-    private final ViewGroup mView;
+    private final SearchBoxContainerView mView;
     private final SearchBoxMediator mMediator;
     private final boolean mIsIncognito;
     private final WindowAndroid mWindowAndroid;
@@ -47,146 +49,141 @@ public class SearchBoxCoordinator {
             boolean isTablet,
             ActivityLifecycleDispatcher activityLifecycleDispatcher,
             boolean isIncognito,
-            WindowAndroid windowAndroid) {
+            WindowAndroid windowAndroid,
+            NewTabPageManager newTabPageManager,
+            Profile profile) {
         mModel = new PropertyModel(SearchBoxProperties.ALL_KEYS);
-        mView = parent.findViewById(R.id.search_box);
+        mView = (SearchBoxContainerView) parent.findViewById(R.id.search_box);
         mMediator =
                 new SearchBoxMediator(
-                        context, mModel, mView, isTablet, activityLifecycleDispatcher);
+                        context,
+                        mModel,
+                        mView,
+                        isTablet,
+                        activityLifecycleDispatcher,
+                        newTabPageManager,
+                        isIncognito,
+                        windowAndroid,
+                        profile);
         mIsIncognito = isIncognito;
         mWindowAndroid = windowAndroid;
     }
 
+    @Override
     public View getView() {
         return mView;
     }
 
+    @Override
     public void destroy() {
         mMediator.onDestroy();
     }
 
+    @Override
     public void setAlpha(float alpha) {
         mModel.set(SearchBoxProperties.ALPHA, alpha);
     }
 
+    @Override
     public void setSearchText(String text) {
         mModel.set(SearchBoxProperties.SEARCH_TEXT, text);
     }
 
-    public void setSearchBoxClickListener(OnClickListener listener) {
-        mMediator.setSearchBoxClickListener(listener);
-    }
-
+    @Override
     public void setSearchBoxDragListener(OnDragListener listener) {
         mMediator.setSearchBoxDragListener(listener);
     }
 
+    @Override
     public void setSearchBoxTextWatcher(TextWatcher textWatcher) {
         mModel.set(SearchBoxProperties.SEARCH_BOX_TEXT_WATCHER, textWatcher);
     }
 
+    @Override
     public void setVoiceSearchButtonVisibility(boolean visible) {
         mModel.set(SearchBoxProperties.VOICE_SEARCH_VISIBILITY, visible);
     }
 
-    public void addVoiceSearchButtonClickListener(OnClickListener listener) {
-        mMediator.addVoiceSearchButtonClickListener(listener);
+    @Override
+    public void setIsFuseboxEligible(boolean isEligible) {
+        mMediator.setIsFuseboxEligible(isEligible);
     }
 
+    @Override
     public void setLensButtonVisibility(boolean visible) {
         mModel.set(SearchBoxProperties.LENS_VISIBILITY, visible);
     }
 
-    public void addLensButtonClickListener(OnClickListener listener) {
-        mMediator.addLensButtonClickListener(listener);
-    }
-
+    @Override
     public boolean isLensEnabled(@LensEntryPoint int lensEntryPoint) {
         return mMediator.isLensEnabled(
                 lensEntryPoint, mIsIncognito, DeviceFormFactor.isWindowOnTablet(mWindowAndroid));
     }
 
-    public void startLens(@LensEntryPoint int lensEntryPoint) {
-        mMediator.startLens(lensEntryPoint, mWindowAndroid, mIsIncognito);
-    }
-
-    public void setHeight(int height) {
+    @Override
+    public void setHeight(@Px int height) {
         mMediator.setHeight(height);
     }
 
-    public void setTopMargin(int topMargin) {
+    @Override
+    public void setTopMargin(@Px int topMargin) {
         mMediator.setTopMargin(topMargin);
     }
 
-    public void setEndPadding(int endPadding) {
+    @Override
+    public void setEndPadding(@Px int endPadding) {
         mMediator.setEndPadding(endPadding);
     }
 
+    @Override
     public void setSearchBoxTextAppearance(@StyleRes int resId) {
         mMediator.setSearchBoxTextAppearance(resId);
     }
 
+    @Override
     public void enableSearchBoxEditText(boolean enabled) {
         mMediator.enableSearchBoxEditText(enabled);
     }
 
+    @Override
     public void setSearchBoxHintText(@Nullable String hint) {
         mMediator.setSearchBoxHintText(hint);
     }
 
-    public void setSearchEngineIcon(StatusProperties.@Nullable StatusIconResource icon) {
+    @Override
+    public void setSearchEngineIcon(@Nullable StatusIconResource icon) {
         mMediator.setSearchEngineIcon(icon);
     }
 
+    @Override
     public void applyWhiteBackground(boolean apply) {
         mMediator.applyWhiteBackground(apply);
     }
 
-    /**
-     * Calculates the percentage (between 0 and 1) of the transition from the search box to the
-     * omnibox at the top of the New Tab Page, which is determined by the amount of scrolling and
-     * the position of the search box.
-     *
-     * @return the transition percentage
-     */
+    @Override
     public float getToolbarTransitionPercentage(
             FeedSurfaceScrollDelegate scrollDelegate,
             @Nullable Supplier<Integer> tabStripHeightSupplier,
-            int currentNtpFakeSearchBoxTransitionStartOffset) {
+            @Px int currentNtpFakeSearchBoxTransitionStartOffset) {
         return mMediator.getToolbarTransitionPercentage(
                 scrollDelegate,
                 tabStripHeightSupplier,
                 currentNtpFakeSearchBoxTransitionStartOffset);
     }
 
-    /**
-     * Get the bounds of the search box in relation to the top level {@code parentView}.
-     *
-     * @param bounds The current drawing location of the search box.
-     * @param translation The translation applied to the search box by the parent view hierarchy up
-     *     to the {@code parentView}.
-     * @param parentView The top level parent view used to translate search box bounds.
-     * @param scrollDelegate The scroll delegate for NTP.
-     * @param searchBoxBoundsVerticalInset Vertical inset to add to the top and bottom of the search
-     *     box bounds. May be 0 if no inset should be applied.
-     */
+    @Override
     public void getSearchBoxBounds(
             Rect bounds,
             Point translation,
             View parentView,
             FeedSurfaceScrollDelegate scrollDelegate,
-            int searchBoxBoundsVerticalInset) {
+            @Px int searchBoxBoundsVerticalInset) {
         mMediator.getSearchBoxBounds(
                 bounds, translation, parentView, scrollDelegate, searchBoxBoundsVerticalInset);
     }
 
-    /**
-     * Called in onMeasure() to set the width of the search box. Note: we don't call
-     * setLayoutParams() to prevent a second pass of onMeasure().
-     *
-     * @param widthPx The width of the search box in pixels.
-     */
-    public void setLayoutWidth(int widthPx) {
+    @Override
+    public void setLayoutWidth(@Px int widthPx) {
         ViewGroup.MarginLayoutParams marginLayoutParams =
                 (ViewGroup.MarginLayoutParams) mView.getLayoutParams();
         if (marginLayoutParams.width != widthPx

@@ -178,6 +178,13 @@ chromium-metrics-reviews@google.com.
   <variant name="WriteEntryDataAndMetadata"/>
 </variants>
 
+<variants name="SqlSharedCacheIndexDatabaseMethod">
+  <variant name="DeleteByDbId"/>
+  <variant name="GetDbIdByNetworkIsolationKey"/>
+  <variant name="GetIsolationKeyStringByDbId"/>
+  <variant name="Initialize"/>
+</variants>
+
 <!-- LINT.IfChange(StreamSocketCloseReason) -->
 
 <variants name="StreamSocketCloseReason">
@@ -7996,6 +8003,27 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Net.SocketPosix.DoReadDuration" units="microseconds"
+    expires_after="2026-10-08">
+  <owner>pasko@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    The time it takes to execute SocketPosix::DoRead. Emitted at the end of
+    DoRead. Subsampled to 1/1000.
+
+    A few words on Rationale. This histogram can be used as an exemplary task
+    duration on the network thread. Sometimes it will take several milliseconds
+    to do a socket read due to OS state, like thrashing, or just randomly
+    descheduling the task from the CPU. This DoReadDuration will show how often
+    these events happen across the fleet. Regardless of its slowness in the
+    field, the assumption is that the read duration cannot be realistically
+    improved in the app. In other words, this duration is 'good enough' for any
+    task on this thread. This will be a useful baseline when compared to
+    duration of other tasks on the network thread, such as
+    OnHandshakeIOCompleteDuration.
+  </summary>
+</histogram>
+
 <histogram name="Net.SocketUnchangeableReceiveBuffer" units="Bytes"
     expires_after="2027-02-02">
   <owner>dschinazi@chromium.org</owner>
@@ -8097,7 +8125,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SpdySession.AlpsDecoderStatus.Bypassed"
-    enum="AlpsDecoderError" expires_after="2026-10-11">
+    enum="AlpsDecoderError" expires_after="2026-11-03">
   <owner>arichiv@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -8502,6 +8530,32 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Net.SqlSharedCacheIndexDatabase.{Method}.Result"
+    enum="SqlSharedCacheIndexDatabaseResult" expires_after="2026-10-20">
+  <owner>horo@chromium.org</owner>
+  <owner>net-dev@chromium.org</owner>
+  <summary>The result of {Method} in SqlSharedCacheIndexDatabase.</summary>
+  <token key="Method" variants="SqlSharedCacheIndexDatabaseMethod"/>
+</histogram>
+
+<histogram name="Net.SqlSharedCacheIndexDatabase.{Method}.{TimeType}"
+    units="microseconds" expires_after="2026-10-20">
+  <owner>horo@chromium.org</owner>
+  <owner>net-dev@chromium.org</owner>
+  <summary>
+    The processing time of {Method} in SqlSharedCacheIndexDatabase. Recorded on
+    {TimeType}.
+
+    The histogram is not reported on Windows machines without high resolution
+    clocks.
+  </summary>
+  <token key="Method" variants="SqlSharedCacheIndexDatabaseMethod"/>
+  <token key="TimeType">
+    <variant name="FailureTime" summary="failure"/>
+    <variant name="SuccessTime" summary="success"/>
+  </token>
+</histogram>
+
 <histogram name="Net.SSL.ECHResult" enum="SSLECHResult"
     expires_after="2026-05-03">
   <owner>davidben@chromium.org</owner>
@@ -8789,7 +8843,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.TCPSocket.PortReuseTimeWindows2.{IPType}.{Result}"
-    units="ms" expires_after="2026-10-11">
+    units="ms" expires_after="2026-11-03">
   <owner>arichiv@chromium.org</owner>
   <owner>awillia@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
@@ -8824,7 +8878,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.TcpSocketPoolLimitRandomization.Error"
-    enum="SocketPoolAdditionalCapacityError" expires_after="2026-06-15">
+    enum="SocketPoolAdditionalCapacityError" expires_after="2026-11-03">
   <owner>arichiv@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
   <summary>
@@ -8840,7 +8894,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.TcpSocketPoolLimitRandomization.Probability.{Action}"
-    units="%" expires_after="2026-10-25">
+    units="%" expires_after="2026-11-03">
   <owner>arichiv@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
   <summary>
@@ -8856,7 +8910,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.TcpSocketPoolLimitRandomization.Transition.{Action}.{PastState}To{NextState}"
-    units="sockets" expires_after="2026-10-25">
+    units="sockets" expires_after="2026-11-03">
   <owner>arichiv@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
   <summary>

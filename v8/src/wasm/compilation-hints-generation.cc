@@ -36,8 +36,14 @@ void EmitCompilationHintsToBuffer(ZoneBuffer& buffer,
       wasm::WasmCodeRefScope code_ref_scope;
       wasm::WasmCode* code = native_module->GetCode(func_index);
       if (code) {
-        // No tierup when generating compilation hints.
-        DCHECK(code->is_liftoff());
+        if (!code->is_liftoff()) {
+          PrintF(
+              "You're holding it wrong! Don't call "
+              "%%GenerateWasmCompilationHints after triggering tier-up!\n");
+          // Adapted version of "CrashUnlessFuzzing".
+          CHECK(v8_flags.fuzzing);
+          return;
+        }
         // The function was compiled; emit a compilation-priority hint.
         num_functions++;
         buffer.write_u32v(func_index);

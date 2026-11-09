@@ -317,5 +317,16 @@ TEST(CallbackList, RemoveMiddleFromSend) {
 
 #pragma clang diagnostic pop
 
+TEST(CallbackList, ConstructorSingleSubscriberWithTagTest) {
+  int removal_tag;
+  int accumulator = 0;
+  CallbackList<> c(&removal_tag, [&accumulator] { accumulator += 10; });
+  c.Send();
+  EXPECT_EQ(accumulator, 10);
+  c.RemoveReceivers(&removal_tag);
+  c.Send();
+  EXPECT_EQ(accumulator, 10);  // No change after removal.
+}
+
 }  // namespace
 }  // namespace webrtc

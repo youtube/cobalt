@@ -77,6 +77,7 @@
 #include "third_party/blink/renderer/core/animation/timing_input.h"
 #include "third_party/blink/renderer/core/css/container_query_data.h"
 #include "third_party/blink/renderer/core/css/container_query_evaluator.h"
+#include "third_party/blink/renderer/core/css/container_query_list.h"
 #include "third_party/blink/renderer/core/css/css_identifier_value.h"
 #include "third_party/blink/renderer/core/css/css_markup.h"
 #include "third_party/blink/renderer/core/css/css_numeric_literal_value.h"
@@ -88,6 +89,7 @@
 #include "third_party/blink/renderer/core/css/cssom/inline_style_property_map.h"
 #include "third_party/blink/renderer/core/css/native_paint_image_generator.h"
 #include "third_party/blink/renderer/core/css/out_of_flow_data.h"
+#include "third_party/blink/renderer/core/css/parser/container_query_parser.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser.h"
 #include "third_party/blink/renderer/core/css/parser/css_selector_parser.h"
 #include "third_party/blink/renderer/core/css/post_style_update_scope.h"
@@ -1175,6 +1177,9 @@ Node* Element::Clone(Document& factory,
       cloned_shadow_root.SetKeepCustomElementRegistryNull(
           shadow_root->ShouldKeepCustomElementRegistryNull());
 
+      // TODO(crbug.com/448174611): Re-process the shadowrootadoptedstylesheets
+      // attribute value on the cloned shadow root.
+
       // 6.6 If the clone children flag is set, then for each child child of
       // node’s shadow root, in tree order: append the result of cloning child
       // with document and the clone children flag set, to copy’s shadow root.
@@ -1807,7 +1812,6 @@ InterestInvokerTargetData& Element::EnsureInterestInvokerTargetData() {
   return UnpackAndRefresh(EnsureRareData().EnsureInterestInvokerTargetData());
 }
 InterestInvokerTargetData* Element::GetInterestInvokerTargetData() const {
-  CHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
   if (const ElementRareDataVector* data = RareData()) {
     return data->GetInterestInvokerTargetData();
   }
@@ -1899,7 +1903,6 @@ bool ShouldContinueWithInterest(Element& invoker,
 }  // namespace
 
 bool Element::InterestGained(Element* target, InterestState state) {
-  CHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
   CHECK_NE(state, InterestState::kNoInterest);
   if (!ShouldContinueWithInterest(*this, target, state)) {
     return false;
@@ -1975,8 +1978,6 @@ bool Element::InterestGained(Element* target, InterestState state) {
 bool Element::InterestLost(Element* target,
                            InterestLostCancelable cancelable,
                            InterestLostPopoverBehavior behavior) {
-  CHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
-
   if (!ShouldContinueWithInterest(*this, target, InterestState::kNoInterest)) {
     return false;
   }
@@ -2024,10 +2025,6 @@ bool Element::InterestLost(Element* target,
 
 void Element::HandlePointerEventsForInterestFor(
     const AtomicString& event_type) {
-  if (!RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled()) {
-    CHECK(!RuntimeEnabledFeatures::MenuElementsEnabled());
-    return;
-  }
   if (event_type == event_type_names::kPointerover) {
     HandleInterestForHoverOrFocus(InterestSource::kHover);
   } else {
@@ -2037,9 +2034,8 @@ void Element::HandlePointerEventsForInterestFor(
 }
 
 void Element::DefaultEventHandler(Event& event) {
-  if (RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled() &&
-      (InterestForElement() || SourceInterestInvoker() ||
-       GetInterestState() != InterestState::kNoInterest)) [[unlikely]] {
+  if (InterestForElement() || SourceInterestInvoker() ||
+      GetInterestState() != InterestState::kNoInterest) [[unlikely]] {
     // Handle new `interestfor` activation via keyboard or long-press.
     String type = event.type();
     if (auto* focus_event = DynamicTo<FocusEvent>(event);
@@ -3494,6 +3490,17 @@ DOMRect* Element::GetBoundingClientRectForBinding() {
   return GetBoundingClientRect();
 }
 
+ContainerQueryList* Element::matchContainer(const String& query) {
+  CSSParserContext* context =
+      MakeGarbageCollected<CSSParserContext>(GetDocument());
+  ContainerQueryParser parser(*context);
+  auto* conditional = parser.ParseCondition(query);
+  auto* container_query = MakeGarbageCollected<ContainerQuery>(
+      ContainerSelector(AtomicString(), conditional), conditional);
+  return MakeGarbageCollected<ContainerQueryList>(
+      GetDocument().GetExecutionContext(), container_query, this);
+}
+
 const AtomicString& Element::computedRole() {
   Document& document = GetDocument();
   if (!document.IsActive() || !document.View()) {
@@ -3898,8 +3905,7 @@ void Element::AttributeChanged(const AttributeModificationParams& params) {
 
   if (IsElementReflectionAttribute(name)) {
     SynchronizeContentAttributeAndElementReference(name);
-    if (name == html_names::kInterestforAttr &&
-        RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled()) {
+    if (name == html_names::kInterestforAttr) {
       UseCounter::Count(GetDocument(), WebFeature::kInterestFor);
       if (!params.old_value.IsNull()) {
         // We are changing the value of the `interestfor` attribute, so
@@ -4411,14 +4417,12 @@ void Element::RemovedFrom(ContainerNode& insertion_point) {
       // The element being removed is an interest invoker - move it to the
       // no-interest state and cancel any pending interest tasks.
       if (invoker_data->GetInterestState() != InterestState::kNoInterest) {
-        DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
         ChangeInterestState(invoker_data->ActiveInterestTarget(),
                             InterestState::kNoInterest);
       }
     }
     if (InterestInvokerTargetData* target_data =
             data->GetInterestInvokerTargetData()) [[unlikely]] {
-      DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
       if (Element* invoker = target_data->interestInvoker();
           invoker &&
           invoker->GetInterestState() != InterestState::kNoInterest &&
@@ -5927,10 +5931,10 @@ void Element::RebuildLayoutTree(WhitespaceAttacher& whitespace_attacher) {
     RebuildTransitionLayoutTree(*child_attacher);
     RebuildOverscrollAreaLayoutTree(*child_attacher);
     if (has_pseudo_elements) {
+      RebuildPseudoElementLayoutTree(kPseudoIdInterestButton, *child_attacher);
       RebuildPseudoElementLayoutTree(kPseudoIdAfter, *child_attacher);
       RebuildPseudoElementLayoutTree(kPseudoIdExpandIcon, *child_attacher);
       RebuildPseudoElementLayoutTree(kPseudoIdPickerIcon, *child_attacher);
-      RebuildPseudoElementLayoutTree(kPseudoIdInterestButton, *child_attacher);
     }
     if (GetShadowRoot()) {
       RebuildShadowRootLayoutTree(*child_attacher);
@@ -7390,6 +7394,19 @@ HTMLSubmitButtonBehavior* Element::SubmitBehavior() const {
                    : nullptr;
 }
 
+void Element::SetActivatedSubmit(bool flag) {
+  if (auto* behavior = SubmitBehavior()) {
+    behavior->SetActivatedSubmit(flag);
+  }
+}
+
+bool Element::IsActivatedSubmit() const {
+  if (const auto* behavior = SubmitBehavior()) {
+    return behavior->IsActivatedSubmit();
+  }
+  return false;
+}
+
 bool Element::CanAttachShadowRoot() const {
   const AtomicString& local_name = localName();
   // Checking IsCustomElement() here is just an optimization
@@ -8623,13 +8640,11 @@ bool Element::IsKeyboardFocusableScroller(
 }
 
 void Element::ShowInterestNow() {
-  DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
   InterestGained(InterestForElement(), InterestState::kExplicitInterest);
 }
 
 void Element::LoseInterestNow(InterestLostCancelable cancelable,
                               InterestLostPopoverBehavior behavior) {
-  DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
   Element* target = InterestForElement();
   DCHECK_EQ(GetInvokerData()->ActiveInterestTarget(), target);
   DCHECK_NE(GetInterestState(), InterestState::kNoInterest);
@@ -12566,11 +12581,6 @@ void Element::ScheduleInterestLostTask() {
 }
 
 Element* Element::InterestForElement() const {
-  if (!RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
-          GetDocument().GetExecutionContext())) {
-    return nullptr;
-  }
-
   Element* target =
       GetElementAttributeResolvingReferenceTarget(html_names::kInterestforAttr);
 
@@ -12600,9 +12610,6 @@ Element* Element::InterestForElement() const {
 }
 
 Element* Element::SourceInterestInvoker() const {
-  if (!RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled()) {
-    return nullptr;
-  }
   InterestInvokerTargetData* target_data = GetInterestInvokerTargetData();
   if (!target_data) {
     return nullptr;
@@ -12622,9 +12629,6 @@ Element* Element::SourceInterestInvoker() const {
 }
 
 Element::InterestState Element::GetInterestState() {
-  if (!RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled()) {
-    return InterestState::kNoInterest;
-  }
   auto* invoker_data = GetInvokerData();
   if (!invoker_data) {
     return InterestState::kNoInterest;
@@ -12637,7 +12641,6 @@ namespace {
 void AllSourceInterestInvokersRecursive(
     Element& target,
     HeapLinkedHashSet<Member<Element>>& sources) {
-  DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
   if (Element* upstream = target.SourceInterestInvoker();
       upstream && !sources.Contains(upstream)) {
     DCHECK_NE(&target, upstream);
@@ -12674,7 +12677,6 @@ HeapLinkedHashSet<Member<Element>> AllSourceInterestInvokers(Element& target) {
 //    the element gaining focus. Because the ancestor chain is not automatically
 //    notified, this function must walk the ancestors manually.
 void Element::HandleInterestForHoverOrFocus(InterestSource source) {
-  DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
   if (!IsInTreeScope() || !GetDocument().IsActive()) {
     return;
   }
@@ -12686,7 +12688,6 @@ void Element::HandleInterestForHoverOrFocus(InterestSource source) {
 }
 
 void Element::ScheduleInterestChangesIfNeeded(InterestSource source) {
-  DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
   InvokerData* invoker_data = GetInvokerData();
   Element* upstream_invoker = SourceInterestInvoker();
   InvokerData* upstream_data =

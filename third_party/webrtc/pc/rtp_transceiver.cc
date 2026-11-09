@@ -70,6 +70,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/crypto_random.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/network_route.h"
 #include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/thread.h"
 
@@ -464,8 +465,7 @@ void RtpTransceiver::CreateChannel(
     const AudioOptions& audio_options,
     const VideoOptions& video_options,
     VideoBitrateAllocatorFactory* video_bitrate_allocator_factory,
-    absl::AnyInvocable<RtpTransportInternal*(absl::string_view) &&>
-        transport_lookup,
+    absl::AnyInvocable<RtpTransportInternal*() &&> transport_lookup,
     ScopedOperationsBatcher& worker_tasks,
     ScopedOperationsBatcher& network_tasks) {
   RTC_DCHECK_RUN_ON(thread_);
@@ -562,18 +562,11 @@ void RtpTransceiver::CreateChannel(
       [this, transport_lookup = std::move(transport_lookup)]() mutable
           -> RTCErrorOr<ScopedOperationsBatcher::FinalizerTask> {
         RTC_DCHECK_RUN_ON(context()->network_thread());
-        auto* channel = channel_.get();
-        RTC_DCHECK(channel);
-        RtpTransportInternal* transport =
-            std::move(transport_lookup)(channel->mid());
-        if (!channel->SetRtpTransport(transport)) {
-          return RTCError::InvalidParameter()
-                 << "Invalid transport for mid=" << channel->mid();
+        auto result = InitializeOnNetworkThread(std::move(transport_lookup));
+        if (!result.ok()) {
+          return result.MoveError();
         }
-        std::optional<std::string> transport_name;
-        if (transport) {
-          transport_name = transport->transport_name();
-        }
+        std::optional<std::string> transport_name = std::move(result.value());
         return ScopedOperationsBatcher::FinalizerTask(
             [this, transport_name = std::move(transport_name)]() mutable {
               RTC_DCHECK_RUN_ON(thread_);
@@ -584,8 +577,7 @@ void RtpTransceiver::CreateChannel(
 
 RTCError RtpTransceiver::SetChannelForTest(
     std::unique_ptr<ChannelInterface> channel,
-    absl::AnyInvocable<RtpTransportInternal*(const std::string&) &&>
-        transport_lookup) {
+    absl::AnyInvocable<RtpTransportInternal*() &&> transport_lookup) {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(channel);
   RTC_DCHECK(transport_lookup);
@@ -614,16 +606,12 @@ RTCError RtpTransceiver::SetChannelForTest(
   std::optional<std::string> transport_name;
   RTCError err = context()->network_thread()->BlockingCall(
       [&, flag = signaling_thread_safety_, channel = channel_.get()]() {
-        RtpTransportInternal* transport =
-            std::move(transport_lookup)(channel->mid());
-        if (!channel->SetRtpTransport(transport)) {
-          return RTCError::InvalidParameter()
-                 << "Invalid transport for mid=" << channel->mid();
+        RTC_DCHECK_RUN_ON(context()->network_thread());
+        auto result = InitializeOnNetworkThread(std::move(transport_lookup));
+        if (result.ok()) {
+          transport_name = std::move(result.value());
         }
-        if (transport) {
-          transport_name = transport->transport_name();
-        }
-        return RTCError::OK();
+        return result.MoveError();
       });
 
   if (err.ok()) {
@@ -650,9 +638,11 @@ absl::AnyInvocable<void() &&> RtpTransceiver::GetClearChannelNetworkTask() {
   signaling_thread_safety_ = nullptr;
 
   ChannelInterface* channel = channel_.get();
-  return [channel, flag = network_thread_safety_] {
+  return [this, channel, flag = network_thread_safety_] {
+    RTC_DCHECK_RUN_ON(context()->network_thread());
     flag->SetNotAlive();
     channel->SetRtpTransport(nullptr);
+    ClearRtpTransportState();
   };
 }
 
@@ -1377,11 +1367,80 @@ void RtpTransceiver::OnNegotiationUpdate(
   }
 }
 
-bool RtpTransceiver::SetChannelRtpTransport(
-    RtpTransportInternal* rtp_transport) {
+bool RtpTransceiver::SetRtpTransport(RtpTransportInternal* transport) {
   RTC_DCHECK_RUN_ON(context()->network_thread());
   RTC_DCHECK(channel_);
-  return channel_->SetRtpTransport(rtp_transport);
+
+  if (transport == rtp_transport_) {
+    return true;
+  }
+
+  ClearRtpTransportState();
+
+  if (!channel_->SetRtpTransport(transport)) {
+    return false;
+  }
+
+  SetRtpTransportState(transport);
+  return true;
+}
+
+void RtpTransceiver::ClearRtpTransportState() {
+  RTC_DCHECK_RUN_ON(context()->network_thread());
+  if (rtp_transport_) {
+    rtp_transport_->UnsubscribeNetworkRouteChanged(this);
+    rtp_transport_ = nullptr;
+  }
+}
+
+void RtpTransceiver::SetRtpTransportState(RtpTransportInternal* transport) {
+  RTC_DCHECK_RUN_ON(context()->network_thread());
+  RTC_DCHECK(!rtp_transport_);
+  rtp_transport_ = transport;
+  if (rtp_transport_) {
+    // Safe to capture raw pointer to channel because we unsubscribe on the
+    // network thread (via GetClearChannelNetworkTask) before the channel is
+    // destroyed on the worker thread (via GetDeleteChannelWorkerTask).
+    // Capturing raw pointer avoids reading `channel_` member on the network
+    // thread, which races with signaling thread moving it during teardown.
+    rtp_transport_->SubscribeNetworkRouteChanged(
+        this,
+        [this, channel = channel_.get()](std::optional<NetworkRoute> route) {
+          RTC_DCHECK_RUN_ON(context()->network_thread());
+          OnNetworkRouteChanged(channel, route);
+        });
+  }
+}
+
+RTCErrorOr<std::optional<std::string>>
+RtpTransceiver::InitializeOnNetworkThread(
+    absl::AnyInvocable<RtpTransportInternal*() &&> transport_lookup) {
+  RTC_DCHECK_RUN_ON(context()->network_thread());
+  RTC_DCHECK(!rtp_transport_);
+  RTC_DCHECK(channel_);
+  RtpTransportInternal* transport = std::move(transport_lookup)();
+  if (!SetRtpTransport(transport)) {
+    return RTCError::InvalidParameter()
+           << "Invalid transport for mid=" << channel_->mid();
+  }
+
+  std::optional<std::string> transport_name;
+  if (transport) {
+    transport_name = transport->transport_name();
+  }
+  return transport_name;
+}
+
+void RtpTransceiver::OnNetworkRouteChanged(
+    ChannelInterface* channel,
+    std::optional<NetworkRoute> network_route) {
+  RTC_DCHECK_RUN_ON(context()->network_thread());
+  if (channel && rtp_transport_) {
+    RTC_LOG(LS_INFO) << "Network route changed for mid=" << channel->mid();
+    channel->media_send_channel()->OnNetworkRouteChanged(
+        rtp_transport_->transport_name(),
+        network_route.value_or(NetworkRoute()));
+  }
 }
 
 void RtpTransceiver::SetChannelLocalContent(

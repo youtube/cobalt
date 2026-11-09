@@ -25,6 +25,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.Set;
 
 /**
  * Coordinator class for UI layers in the bottom browser controls. This class manages the relative
@@ -207,8 +208,15 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
      * Checks whether there are any layers that are currently visible besides the specified type.
      */
     public boolean hasVisibleLayersOtherThan(@LayerType int typeToExclude) {
+        return hasVisibleLayersOtherThan(Set.of(typeToExclude));
+    }
+
+    /**
+     * Checks whether there are any layers that are currently visible besides the specified types.
+     */
+    public boolean hasVisibleLayersOtherThan(Set<Integer> typesToExclude) {
         for (int layerType : STACK_ORDER) {
-            if (typeToExclude == layerType) continue;
+            if (typesToExclude.contains(layerType)) continue;
 
             if (mLayerVisibilities.get(layerType)) return true;
         }
@@ -218,6 +226,16 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
     /** Returns whether the layer of the given type is visible. */
     public boolean isLayerVisible(@LayerType int layerType) {
         return mLayers.get(layerType) != null && mLayerVisibilities.get(layerType);
+    }
+
+    /** Returns whether the specified layer is the topmost visible layer. */
+    public boolean isTopmostVisibleLayer(@LayerType int layerType) {
+        for (int type : STACK_ORDER) {
+            if (mLayerVisibilities.get(type)) {
+                return type == layerType;
+            }
+        }
+        return false;
     }
 
     /** Returns the calculated total height of all visible layers. */

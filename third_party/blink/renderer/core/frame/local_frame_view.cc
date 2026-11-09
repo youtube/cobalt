@@ -189,6 +189,7 @@
 #include "third_party/blink/renderer/platform/widget/frame_widget.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
+#include "third_party/perfetto/include/perfetto/tracing/track_event_args.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/cursor/cursor.h"
 #include "ui/base/cursor/mojom/cursor_type.mojom-blink.h"
@@ -719,9 +720,11 @@ void LocalFrameView::PerformLayout() {
     }
   }
 
-  TRACE_EVENT_OBJECT_SNAPSHOT_WITH_ID(
-      TRACE_DISABLED_BY_DEFAULT("blink.debug.layout.trees"), "LayoutTree", this,
-      TracedLayoutObject::Create(*GetLayoutView(), false));
+  TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("blink.debug.layout.trees"),
+                      "LayoutTree:layout_snapshot",
+                      perfetto::Flow::FromPointer(this, "LocalFrameView"),
+                      "snapshot",
+                      TracedLayoutObject::Create(*GetLayoutView(), false));
 
   gfx::Size old_size(Size());
 
@@ -1406,6 +1409,12 @@ void LocalFrameView::DynamicViewportUnitsChanged() {
     GetFrame().GetDocument()->DynamicViewportUnitsChanged();
 }
 
+void LocalFrameView::LargeViewportUnitsChanged() {
+  if (Document* document = GetFrame().GetDocument()) {
+    document->MarkViewportUnitsDirty();
+  }
+}
+
 bool LocalFrameView::ShouldSetCursor() const {
   Page* page = GetFrame().GetPage();
   return page && page->IsPageVisible() &&
@@ -1842,9 +1851,11 @@ void LocalFrameView::PerformPostLayoutTasks(bool visual_viewport_size_changed) {
   DCHECK(!IsInPerformLayout());
   TRACE_EVENT0("blink,benchmark", "LocalFrameView::performPostLayoutTasks");
 
-  TRACE_EVENT_OBJECT_SNAPSHOT_WITH_ID(
-      TRACE_DISABLED_BY_DEFAULT("blink.debug.layout.trees"), "LayoutTree", this,
-      TracedLayoutObject::Create(*GetLayoutView(), true));
+  TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("blink.debug.layout.trees"),
+                      "LayoutTree:post_layout_snapshot",
+                      perfetto::Flow::FromPointer(this, "LocalFrameView"),
+                      "snapshot",
+                      TracedLayoutObject::Create(*GetLayoutView(), true));
   layout_count_for_testing_++;
   Document* document = GetFrame().GetDocument();
   DCHECK(document);
@@ -2719,16 +2730,6 @@ bool LocalFrameView::ShouldDeferLayoutSnap() const {
   return false;
 }
 
-void LocalFrameView::EnqueueScrollSnapChangingFromImplIfNecessary() {
-  ForAllNonThrottledLocalFrameViews([](LocalFrameView& frame_view) {
-    for (const auto& area : frame_view.scrollable_areas_.Values()) {
-      if (area->ScrollsOverflow()) {
-        area->EnqueueScrollSnapChangingEventFromImplIfNeeded();
-      }
-    }
-  });
-}
-
 bool LocalFrameView::RunStyleAndLayoutLifecyclePhases(
     DocumentLifecycle::LifecycleState target_state) {
   TRACE_EVENT0("blink,benchmark",
@@ -2757,9 +2758,6 @@ bool LocalFrameView::RunStyleAndLayoutLifecyclePhases(
   });
 
   ExecutePendingSnapUpdates();
-
-  // Fire scrollsnapchanging events based on the new layout if necessary.
-  EnqueueScrollSnapChangingFromImplIfNecessary();
 
   ExecutePendingScrollMarkerSelectionUpdates();
 

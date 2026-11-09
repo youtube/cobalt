@@ -1203,4 +1203,16 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_FINAL_WITH_SUPERTYPE(supertype, ...) \
   kWasmSubtypeFinalCode, 1, supertype, __VA_ARGS__
 
+// Shared-everything definitions.
+#define WASM_SHARED_REF_NULL(type_encoding) \
+  kExprRefNull, kSharedFlagCode, ToByte(type_encoding)
+#define WASM_SHARED_REF_CAST(ref, type_encoding) \
+  ref, WASM_GC_OP(kExprRefCast), kSharedFlagCode, ToByte(type_encoding)
+#define WASM_SHARED_REF_CAST_NULL(ref, type_encoding) \
+  ref, WASM_GC_OP(kExprRefCastNull), kSharedFlagCode, ToByte(type_encoding)
+#define WASM_SHARED_REF_TEST(ref, type_encoding) \
+  ref, WASM_GC_OP(kExprRefTest), kSharedFlagCode, ToByte(type_encoding)
+#define WASM_SHARED_REF_TEST_NULL(ref, type_encoding) \
+  ref, WASM_GC_OP(kExprRefTestNull), kSharedFlagCode, ToByte(type_encoding)
+
 #endif  // V8_WASM_MACRO_GEN_H_

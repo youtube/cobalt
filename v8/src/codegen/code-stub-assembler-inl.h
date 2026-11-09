@@ -113,7 +113,7 @@ TNode<Object> CodeStubAssembler::FastCloneJSObject(
   // must be either an Smi, or a PropertyArray.
   Comment("FastCloneJSObject: cloning properties");
   TNode<Object> source_properties =
-      LoadObjectField(object, JSObject::kPropertiesOrHashOffset);
+      LoadObjectField(object, offsetof(JSObject, properties_or_hash_));
   {
     GotoIf(TaggedIsSmi(source_properties), &done_copy_properties);
     GotoIf(IsEmptyFixedArray(source_properties), &done_copy_properties);

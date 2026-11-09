@@ -354,8 +354,8 @@ std::optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
         return {};
       }
     } else {
-      Tagged<Object> raw_properties_or_hash =
-          holder.object()->raw_properties_or_hash(cage_base, kRelaxedLoad);
+      Tagged<JSReceiver::PropertiesOrHash> raw_properties_or_hash =
+          holder.object()->raw_properties_or_hash(kRelaxedLoad);
       // Ensure that the object is safe to inspect.
       if (broker->ObjectMayBeUninitialized(raw_properties_or_hash)) {
         return {};
@@ -1069,24 +1069,30 @@ class JSGlobalProxyData : public JSObjectData {
       : JSObjectData(broker, storage, instance_type, object, kind) {}
 };
 
-#define DEFINE_IS(Name)                                                \
-  bool ObjectData::Is##Name() const {                                  \
-    if (should_access_heap()) {                                        \
-      return i::Is##Name(*object());                                   \
-    }                                                                  \
-    if (is_smi()) return false;                                        \
-    auto ho_data = static_cast<const HeapObjectData*>(this);           \
-    InstanceType data_instance_type = ho_data->data_instance_type();   \
-    /* Make sure HeapObjectData subclass has matching type. */         \
-    if (!InstanceTypeChecker::Is##Name(data_instance_type)) {          \
-      return false;                                                    \
-    }                                                                  \
-    /* Check if object()'s map's instance_type matches. */             \
-    InstanceType instance_type = ho_data->GetMapInstanceType();        \
-    /* As long as Maps are background serialized, the heap object's */ \
-    /* instance type should match the HeapObjectData subclass. */      \
-    DCHECK_EQ(data_instance_type, instance_type);                      \
-    return InstanceTypeChecker::Is##Name(instance_type);               \
+#define DEFINE_IS(Name)                                                   \
+  bool ObjectData::Is##Name() const {                                     \
+    if (should_access_heap()) {                                           \
+      return i::Is##Name(*object());                                      \
+    }                                                                     \
+    if (is_smi()) return false;                                           \
+    auto ho_data = static_cast<const HeapObjectData*>(this);              \
+    InstanceType data_instance_type = ho_data->data_instance_type();      \
+    /* Make sure HeapObjectData subclass has matching type. */            \
+    if (!InstanceTypeChecker::Is##Name(data_instance_type)) {             \
+      return false;                                                       \
+    }                                                                     \
+    /* Check if object()'s map's instance_type matches. */                \
+    InstanceType instance_type = ho_data->GetMapInstanceType();           \
+    /* As long as Maps are background serialized, the heap object's */    \
+    /* instance type should match the HeapObjectData subclass. */         \
+    /* This transition is safe because when a typed array is detached, */ \
+    /* its map changes and calls NotifyLeafMapLayoutChange, which */      \
+    /* invalidates StableMapDependency on the original map. Any */        \
+    /* optimized code relying on the old map will be deoptimized. */      \
+    DCHECK(data_instance_type == instance_type ||                         \
+           (data_instance_type == JS_TYPED_ARRAY_TYPE &&                  \
+            instance_type == JS_DETACHED_TYPED_ARRAY_TYPE));              \
+    return InstanceTypeChecker::Is##Name(instance_type);                  \
   }
 HEAP_BROKER_OBJECT_LIST(DEFINE_IS)
 #undef DEFINE_IS

@@ -4,6 +4,7 @@
 # found in the LICENSE file.
 import json
 import subprocess
+import tempfile
 import time
 import sys
 import os
@@ -121,6 +122,55 @@ class ReviewMonitor:
         except Exception:
             return None
 
+    def get_all_try_results(self):
+        """Fetches try results for all patchsets and aggregates them."""
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            temp_path = f.name
+
+        try:
+            cmd = [
+                'vpython3', self.gerrit_client, 'rawapi',
+                f'--host={self.host}', '--method', 'GET', '--path',
+                f'/changes/{self.issue_id}/?o=ALL_REVISIONS', '--json_file',
+                temp_path, '--accept_status', '200'
+            ]
+            out, code = run_command(cmd)
+            if code != 0:
+                print(f"❌ Failed to query Gerrit for revisions: {out}")
+                return self.get_try_results()
+
+            with open(temp_path, 'r') as f:
+                data = json.load(f)
+
+            revisions = data.get('revisions', {})
+            patchsets = sorted(
+                [int(r.get('_number')) for r in revisions.values()])
+        except Exception as e:
+            print(f"❌ Failed to parse Gerrit response: {e}")
+            return self.get_try_results()
+        finally:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
+        all_results = []
+        for ps in patchsets:
+            cmd = [
+                'git', 'cl', 'try-results', '--issue', self.issue_id, '--json',
+                '-'
+            ]
+            cmd.extend(['--patchset', str(ps)])
+            stdout, code = run_command(cmd)
+            if code == 0:
+                try:
+                    all_results.extend(json.loads(stdout))
+                except Exception as e:
+                    print(f"⚠️ Failed to parse results for patchset {ps}: {e}")
+            else:
+                print(
+                    f"⚠️ Failed to fetch results for patchset {ps}, code {code}"
+                )
+        return all_results
+
     def parse_results(self, results: list[dict]) -> ParseResult:
         """Parses the raw JSON results from git cl try-results."""
         if not results:
@@ -130,34 +180,79 @@ class ReviewMonitor:
                                failed_builders=[])
 
         # Group by builder to handle retries: keep only the latest result for
-        # each
-        latest_jobs = {}
+        # the newest patchset for each builder
+        builder_patchsets = {}  # {builder_name: {patchset_number: job}}
         for job in results:
             name = job.get('builder', {}).get('builder')
             if not name:
                 raise ValueError(f"Job result missing builder name: {job}")
 
-            create_time = job.get('createTime', '')
-            if name not in latest_jobs or create_time > latest_jobs[name].get(
-                    'createTime', ''):
-                latest_jobs[name] = job
+            tags = job.get('tags', [])
+            patchset = None
+            for tag in tags:
+                if tag.get('key') == 'buildset':
+                    val = tag.get('value', '')
+                    match = re.search(r"patch/gerrit/[^/]+/\d+/(\d+)$", val)
+                    if match:
+                        try:
+                            patchset = int(match.group(1))
+                        except ValueError:
+                            pass
+                    break
+
+            if patchset is None:
+                # Fallback to self.patchset or 0 if not found in tags
+                patchset = int(self.patchset) if self.patchset else 0
+
+            if name not in builder_patchsets:
+                builder_patchsets[name] = {}
+
+            if (patchset not in builder_patchsets[name]
+                    or job.get('createTime', '')
+                    > builder_patchsets[name][patchset].get('createTime', '')):
+                builder_patchsets[name][patchset] = job
+
+        latest_jobs = {}
+        for name, ps_jobs in builder_patchsets.items():
+            max_ps = max(ps_jobs.keys())
+            latest_jobs[name] = (ps_jobs[max_ps], max_ps)
 
         total = len(latest_jobs)
         success = []
         running = []
         failed = []
 
-        for name, job in latest_jobs.items():
+        ignored = []
+        for name, (job, ps) in latest_jobs.items():
             status = job.get('status')
+
+            # Identify if it is a CQ job
+            tags = job.get('tags', [])
+            is_cq = False
+            is_experimental = False
+            for tag in tags:
+                key = tag.get('key', '')
+                val = tag.get('value', '')
+                if key == 'user_agent' and val == 'cq':
+                    is_cq = True
+                elif key.startswith('cq_'):
+                    is_cq = True
+                    if key == 'cq_experimental' and val == 'true':
+                        is_experimental = True
+
             if status == 'SUCCESS':
                 success.append(name)
             elif status in ['STARTED', 'SCHEDULED', 'PENDING']:
                 running.append(name)
             else:
-                failed.append(name)
+                if is_cq and not is_experimental:
+                    failed.append(f"{name} (PS {ps})")
+                else:
+                    ignored.append(f"{name} (PS {ps})")
 
         stats = (f"Success: {len(success)}/{total} | "
-                 f"Pending: {len(running)} | Failed: {len(failed)}")
+                 f"Pending: {len(running)} | Failed: {len(failed)} | "
+                 f"Ignored: {len(ignored)}")
 
         if running:
             return ParseResult(finished=False,
@@ -234,7 +329,6 @@ class ReviewMonitor:
                                  ignorable_msgs=["already ready for review"])
 
     def get_cq_label(self):
-        import tempfile
         with tempfile.NamedTemporaryFile(delete=False) as f:
             temp_path = f.name
 
@@ -309,7 +403,7 @@ class ReviewMonitor:
                           "hours. Stopping monitoring.")
                     sys.exit(1)
 
-                results = self.get_try_results()
+                results = self.get_all_try_results()
                 res = self.parse_results(results)
 
                 elapsed = str(timedelta(seconds=elapsed_total_seconds))
@@ -353,11 +447,10 @@ class ReviewMonitor:
                                     f"[{elapsed}] {res.stats} | "
                                     "CQ still active, waiting for retries...")
                         else:
-                            msg = (
-                                f"[CL {self.issue_id} PS {self.patchset}] "
-                                f"({self.issue_url}) "
-                                f"CQ failed on: {', '.join(res.failed_builders)}"
-                            )
+                            msg = (f"[CL {self.issue_id} PS {self.patchset}] "
+                                   f"({self.issue_url}) "
+                                   f"CQ failed on: "
+                                   f"{', '.join(res.failed_builders)}")
                             print(f"\n\n🛑 {msg}")
 
                 if res.finished:

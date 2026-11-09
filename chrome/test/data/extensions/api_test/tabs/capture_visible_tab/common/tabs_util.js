@@ -32,7 +32,7 @@ function waitForAllTabs(callback) {
       let ready = true;
       for (const i in windows) {
         for (const j in windows[i].tabs) {
-          if (windows[i].tabs[j].status != 'complete') {
+          if (windows[i].tabs[j].status !== 'complete') {
             ready = false;
             break;
           }
@@ -83,8 +83,10 @@ function getPixels(imgUrl, windowRect, callbackFn) {
         const pixelColors = [];
         for (let i = 0, n = imageData.length; i < n; i += 4) {
           pixelColors.push([
-            imageData[i + 0], imageData[i + 1], imageData[i + 2],
-            imageData[i + 3]
+            imageData[i + 0],
+            imageData[i + 1],
+            imageData[i + 2],
+            imageData[i + 3],
           ].join(','));
         }
 
@@ -98,7 +100,7 @@ function testPixelsAreExpectedColor(imgUrl, windowRect, expectedColor) {
   getPixels(imgUrl, windowRect, function(pixelColors) {
     const badPixels = [];
     for (let i = 0, ie = pixelColors.length; i < ie; ++i) {
-      if (pixelColors[i] != expectedColor) {
+      if (pixelColors[i] !== expectedColor) {
         badPixels.push({i: i, color: pixelColors[i]});
       }
     }
@@ -117,7 +119,7 @@ function countPixelsWithColors(imgUrl, windowRect, expectedColors, callback) {
   getPixels(imgUrl, windowRect, function(pixelColors) {
     for (let i = 0, ie = pixelColors.length; i < ie; ++i) {
       const colorIdx = expectedColors.indexOf(pixelColors[i]);
-      if (colorIdx != -1) {
+      if (colorIdx !== -1) {
         colorCounts[colorIdx]++;
       }
     }

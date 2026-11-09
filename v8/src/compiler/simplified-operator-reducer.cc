@@ -176,6 +176,16 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
+    case IrOpcode::kCheckedInt32ToUint64: {
+      Int32Matcher m(node->InputAt(0));
+      if (m.HasResolvedValue() && m.ResolvedValue() >= 0) {
+        Node* value =
+            jsgraph()->Uint64Constant(static_cast<uint64_t>(m.ResolvedValue()));
+        ReplaceWithValue(node, value);
+        return Replace(value);
+      }
+      break;
+    }
     case IrOpcode::kCheckedFloat64ToUint64: {
       Float64Matcher m(node->InputAt(0));
       if (m.HasResolvedValue() && IsUint64Double(m.ScalarValue())) {

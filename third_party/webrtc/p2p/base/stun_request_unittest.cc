@@ -12,7 +12,9 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <span>
 #include <string>
 #include <utility>
 
@@ -49,8 +51,8 @@ class StunRequestTest : public ::testing::Test {
       : time_controller_(Timestamp::Seconds(12345)),
         env_(CreateTestEnvironment({.time = &time_controller_})),
         manager_(time_controller_.GetMainThread(),
-                 [this](const void* data, size_t size, StunRequest* request) {
-                   OnSendPacket(data, size, request);
+                 [this](std::span<const uint8_t> data, StunRequest* request) {
+                   OnSendPacket(data, request);
                  }),
         request_count_(0),
         response_(nullptr),
@@ -60,7 +62,7 @@ class StunRequestTest : public ::testing::Test {
 
   std::unique_ptr<StunRequestThunker> CreateStunRequest();
 
-  void OnSendPacket(const void* data, size_t size, StunRequest* req) {
+  void OnSendPacket(std::span<const uint8_t> data, StunRequest* req) {
     request_count_++;
   }
 

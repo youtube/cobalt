@@ -13,6 +13,7 @@ import org.chromium.base.ObserverList;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
 
@@ -50,6 +51,14 @@ public class GlicKeyedServiceImpl implements GlicKeyedService {
     }
 
     @Override
+    public boolean invokeWithAutoSubmit(Tab tab, String text, int invocationSource) {
+        if (mNativePtr == 0) return false;
+
+        return GlicKeyedServiceImplJni.get()
+                .invokeWithAutoSubmit(mNativePtr, tab, text, invocationSource);
+    }
+
+    @Override
     public boolean isPanelShowingForBrowser(long browserWindowPtr) {
         if (mNativePtr == 0) return false;
         return GlicKeyedServiceImplJni.get().isPanelShowingForBrowser(mNativePtr, browserWindowPtr);
@@ -83,9 +92,9 @@ public class GlicKeyedServiceImpl implements GlicKeyedService {
     }
 
     @CalledByNative
-    private void onGlobalShowHide(boolean isOpened) {
+    private void onGlobalShowHide() {
         for (GlobalShowHideObserver observer : mObservers) {
-            observer.onGlobalShowHide(isOpened);
+            observer.onGlobalShowHide();
         }
     }
 
@@ -114,6 +123,12 @@ public class GlicKeyedServiceImpl implements GlicKeyedService {
                 long browserWindowPtr,
                 boolean preventClose,
                 @JniType("Profile*") Profile profile,
+                int source);
+
+        boolean invokeWithAutoSubmit(
+                long nativeGlicKeyedServiceAndroid,
+                @JniType("TabAndroid*") Tab tab,
+                @JniType("std::string") String text,
                 int source);
 
         boolean isPanelShowingForBrowser(long nativeGlicKeyedServiceAndroid, long browserWindowPtr);

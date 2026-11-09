@@ -19,6 +19,10 @@
 #include "src/objects/shared-function-info-inl.h"
 #include "src/strings/string-builder-inl.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8::internal {
 
 V8_EXPORT_PRIVATE constexpr Tagged<Smi>

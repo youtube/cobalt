@@ -758,6 +758,8 @@ LoadModelResult OnDeviceModelExecutor::Init(
       ml::QueryDeviceInfo(*chrome_ml_, /*log_histogram=*/false);
   if (params->backend_type == ml::ModelBackendType::kGpuBackend &&
       device_info.gpu_blocked_reason != GpuBlockedReason::kNotBlocked) {
+    LOG(ERROR) << "GPU blocked for on-device model. Reason: "
+               << static_cast<int>(device_info.gpu_blocked_reason);
     return LoadModelResult::kGpuBlocked;
   }
   on_device_model::ModelAssets assets = std::move(params->assets);
@@ -775,7 +777,8 @@ LoadModelResult OnDeviceModelExecutor::Init(
     data.model_path = weights_path_str.data();
     data.sentencepiece_model_path = sp_model_path_str.data();
   }
-  // TODO(crbug.com/400998489): Cache files are experimental for now.
+  // TODO(crbug.com/461547475): Determine whether weight caches should be used
+  // for GPU or just CPU only.
   data.cache_file = params->backend_type == ml::ModelBackendType::kCpuBackend &&
                             assets.cache.IsValid()
                         ? assets.cache.TakePlatformFile()
@@ -808,8 +811,11 @@ LoadModelResult OnDeviceModelExecutor::Init(
                                           reinterpret_cast<uintptr_t>(this),
                                           OnDeviceModelExecutor::Schedule);
   model_task_runner_->PostTask(FROM_HERE, std::move(on_complete));
-  return (model_ != 0) ? LoadModelResult::kSuccess
-                       : LoadModelResult::kFailedToLoadLibrary;
+  if (model_ == 0) {
+    LOG(ERROR) << "SessionCreateModel failed.";
+    return LoadModelResult::kFailedToLoadLibrary;
+  }
+  return LoadModelResult::kSuccess;
 }
 
 // static

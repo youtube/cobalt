@@ -2422,6 +2422,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
     kUint64ToInt64,
     kFloat64ToInt32,
     kFloat64ToUint32,
+    kInt32ToUint64,
     kFloat64ToUint64,
     kFloat64ToAdditiveSafeInteger,
     kFloat64ToInt64,
@@ -2444,6 +2445,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
       case Kind::kInt64ToAdditiveSafeInteger:
       case Kind::kFloat64ToAdditiveSafeInteger:
       case Kind::kFloat64ToInt64:
+      case Kind::kInt32ToUint64:
       case Kind::kFloat64ToUint64:
         return RepVector<RegisterRepresentation::Word64()>();
       case Kind::kFloat64NotHole:
@@ -2455,6 +2457,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     switch (kind) {
       case Kind::kUint32ToInt32:
+      case Kind::kInt32ToUint64:
         return MaybeRepVector<MaybeRegisterRepresentation::Word32()>();
       case Kind::kInt64ToInt32:
       case Kind::kInt64ToAdditiveSafeInteger:
@@ -7683,13 +7686,20 @@ struct ProcessWasmArgumentOp : FixedArityOperationT<2, ProcessWasmArgumentOp> {
 
 struct AnyConvertExternOp : FixedArityOperationT<1, AnyConvertExternOp> {
   SharedFlag is_shared;
+  bool is_nullable;
 
   static constexpr OpEffects effects =
       SmiValuesAre31Bits() ? OpEffects().CanReadMemory()
                            : OpEffects().CanReadMemory().CanAllocate();
 
-  explicit AnyConvertExternOp(V<Object> object, SharedFlag is_shared)
-      : Base(object), is_shared(is_shared) {}
+  explicit AnyConvertExternOp(V<Object> object, SharedFlag is_shared,
+                              bool is_nullable)
+      : Base(object), is_shared(is_shared), is_nullable(is_nullable) {}
+
+  void PrintOptions(std::ostream& os) const {
+    os << "[" << (is_shared == SharedFlag::kYes ? "shared" : "non-shared")
+       << ", " << (is_nullable ? "nullable" : "non-nullable") << "]";
+  }
 
   V<Object> object() const { return Base::input<Object>(0); }
 
@@ -7702,13 +7712,20 @@ struct AnyConvertExternOp : FixedArityOperationT<1, AnyConvertExternOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  auto options() const { return std::tuple(is_shared); }
+  auto options() const { return std::tuple(is_shared, is_nullable); }
 };
 
 struct ExternConvertAnyOp : FixedArityOperationT<1, ExternConvertAnyOp> {
+  bool is_nullable;
+
   static constexpr OpEffects effects = OpEffects();
 
-  explicit ExternConvertAnyOp(V<Object> object) : Base(object) {}
+  explicit ExternConvertAnyOp(V<Object> object, bool is_nullable)
+      : Base(object), is_nullable(is_nullable) {}
+
+  void PrintOptions(std::ostream& os) const {
+    os << "[" << (is_nullable ? "nullable" : "non-nullable") << "]";
+  }
 
   V<Object> object() const { return Base::input<Object>(0); }
 
@@ -7721,8 +7738,7 @@ struct ExternConvertAnyOp : FixedArityOperationT<1, ExternConvertAnyOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-
-  auto options() const { return std::tuple(); }
+  auto options() const { return std::tuple(is_nullable); }
 };
 
 struct StructGetOp : OperationT<StructGetOp> {
@@ -8005,7 +8021,6 @@ struct StructAtomicRMWOp : OperationT<StructAtomicRMWOp> {
     DCHECK_LT(field_index, type->field_count());
     DCHECK(type->field(field_index) == wasm::kWasmI32 ||
            type->field(field_index) == wasm::kWasmI64 ||
-           type->field(field_index) == wasm::kWasmWaitQueue ||
            (type->field(field_index).is_ref() &&
             (bin_op == BinOp::kExchange || bin_op == BinOp::kCompareExchange)));
     DCHECK_EQ(bin_op == BinOp::kCompareExchange, expected().valid());
@@ -9918,6 +9933,7 @@ std::ostream& operator<<(std::ostream& os, Simd256TernaryOp::Kind kind);
   V(I16x16)                              \
   V(I32x8)                               \
   V(I64x4)                               \
+  V(F16x16)                              \
   V(F32x8)                               \
   V(F64x4)
 
@@ -9945,6 +9961,7 @@ struct Simd256SplatOp : FixedArityOperationT<1, Simd256SplatOp> {
         return MaybeRepVector<RegisterRepresentation::Word32()>();
       case Kind::kI64x4:
         return MaybeRepVector<RegisterRepresentation::Word64()>();
+      case Kind::kF16x16:
       case Kind::kF32x8:
         return MaybeRepVector<RegisterRepresentation::Float32()>();
       case Kind::kF64x4:

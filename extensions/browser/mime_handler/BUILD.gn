@@ -3,11 +3,14 @@
 # found in the LICENSE file.
 
 import("//extensions/buildflags/buildflags.gni")
+import("//pdf/features.gni")
 
-assert(enable_extensions_core)
+assert(enable_extensions && !is_android)
 
 source_set("mime_handler") {
   sources = [
+    "generic_mime_handler_stream_delegate.cc",
+    "generic_mime_handler_stream_delegate.h",
     "mime_handler_stream_delegate.cc",
     "mime_handler_stream_delegate.h",
     "mime_handler_stream_manager.cc",
@@ -45,17 +48,54 @@ source_set("mime_handler_registry") {
   ]
 }
 
-source_set("mime_handler_registry_unittest") {
-  testonly = true
-  sources = [ "mime_handler_registry_unittest.cc" ]
+source_set("mime_handler_page") {
+  sources = [
+    "mime_handler_page.cc",
+    "mime_handler_page.h",
+  ]
+  public_deps = [
+    "//base",
+    "//url",
+  ]
   deps = [
+    "//content/public/browser",
+    "//content/public/common",
+    "//content/public/common:buildflags",
+    "//pdf:buildflags",
+    "//skia",
+  ]
+  if (enable_pdf) {
+    deps += [
+      "//components/resources:components_resources_grit",
+      "//ui/base",
+    ]
+  }
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "mime_handler_registry_unittest.cc",
+    "mime_handler_stream_delegate_unittest.cc",
+    "mime_handler_stream_manager_unittest.cc",
+  ]
+  deps = [
+    ":mime_handler",
     ":mime_handler_registry",
+    ":stream_container",
+    ":test_helpers",
+    "//base",
     "//base/test:test_support",
     "//components/version_info",
+    "//content/public/browser",
+    "//content/test:test_support",
     "//extensions:test_support",
     "//extensions/browser",
     "//extensions/common",
+    "//testing/gmock",
     "//testing/gtest",
+    "//third_party/blink/public/mojom:mojom_platform_headers",
+    "//url",
   ]
 }
 

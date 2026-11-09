@@ -1960,7 +1960,7 @@ constexpr int WasmTypeInfo::SizeFor(int supertypes_length) {
 // WasmObject is the abstract base for Wasm GC data ref types (WasmStruct and
 // WasmArray). It carries no fields of its own; subclasses lay out their
 // payload directly after the JSReceiver header.
-V8_OBJECT class WasmObject : public JSReceiverLayout {
+V8_OBJECT class WasmObject : public JSReceiver {
  public:
   static const int kHeaderSize;
 
@@ -2003,12 +2003,6 @@ V8_OBJECT class WasmStruct : public WasmObject {
   V8_EXPORT_PRIVATE wasm::WasmValue GetFieldValue(uint32_t field_index);
   inline void SetTaggedFieldValue(int raw_offset, Tagged<Object> value,
                                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-  // {raw_field_offset} does not include {WasmStruct::kHeaderSize},
-  // {wasm::kWaitQueueManagedOffset}, or {kHeapObjectTag}.
-  static void AllocateWaitQueue(Isolate* isolate,
-                                DirectHandle<WasmStruct> struct_value,
-                                int32_t raw_field_offset);
 
   DECL_PRINTER(WasmStruct)
   DECL_VERIFIER(WasmStruct)
@@ -2226,6 +2220,66 @@ inline constexpr int WasmStackObject::kStackOffset =
     offsetof(WasmStackObject, stack_);
 inline constexpr int WasmStackObject::kHeaderSize = sizeof(WasmStackObject);
 inline constexpr int WasmStackObject::kSize = sizeof(WasmStackObject);
+
+V8_OBJECT class WasmFastApiCallData : public HeapObjectLayout {
+ public:
+  inline Tagged<HeapObject> signature() const;
+  inline void set_signature(Tagged<HeapObject> value,
+                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Object> callback_data() const;
+  inline void set_callback_data(Tagged<Object> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<MaybeObject> cached_map() const;
+  inline void set_cached_map(Tagged<MaybeObject> value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  DECL_PRINTER(WasmFastApiCallData)
+  DECL_VERIFIER(WasmFastApiCallData)
+
+  class BodyDescriptor;
+
+  static constexpr int SizeFor() { return sizeof(WasmFastApiCallData); }
+
+  static const int kSignatureOffset;
+  static const int kCallbackDataOffset;
+  static const int kCachedMapOffset;
+
+  TaggedMember<HeapObject> signature_;
+  TaggedMember<Object> callback_data_;
+  TaggedMember<MaybeObject> cached_map_;
+} V8_OBJECT_END;
+
+inline constexpr int WasmFastApiCallData::kSignatureOffset =
+    offsetof(WasmFastApiCallData, signature_);
+inline constexpr int WasmFastApiCallData::kCallbackDataOffset =
+    offsetof(WasmFastApiCallData, callback_data_);
+inline constexpr int WasmFastApiCallData::kCachedMapOffset =
+    offsetof(WasmFastApiCallData, cached_map_);
+
+V8_OBJECT class WasmStringViewIter : public HeapObjectLayout {
+ public:
+  inline Tagged<String> string() const;
+  inline void set_string(Tagged<String> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline uint32_t offset() const;
+  inline void set_offset(uint32_t value);
+
+  DECL_PRINTER(WasmStringViewIter)
+  DECL_VERIFIER(WasmStringViewIter)
+
+  class BodyDescriptor;
+
+  static constexpr int SizeFor() { return sizeof(WasmStringViewIter); }
+
+  TaggedMember<String> string_;
+  uint32_t offset_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif  // TAGGED_SIZE_8_BYTES
+} V8_OBJECT_END;
 
 V8_OBJECT class WasmNull : public HeapObjectLayout {
  public:

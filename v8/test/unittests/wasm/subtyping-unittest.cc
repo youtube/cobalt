@@ -205,9 +205,8 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 2);
   }
 
-  constexpr ValueType numeric_types[] = {kWasmI32, kWasmI64,      kWasmF32,
-                                         kWasmF64, kWasmS128,     kWasmI8,
-                                         kWasmI16, kWasmWaitQueue};
+  constexpr ValueType numeric_types[] = {
+      kWasmI32, kWasmI64, kWasmF32, kWasmF64, kWasmS128, kWasmI8, kWasmI16};
   constexpr ValueType ref_types[] = {
       kWasmFuncRef,
       kWasmEqRef,
@@ -226,6 +225,8 @@ TEST_F(WasmSubtypingTest, Subtyping) {
       kWasmRefNullExternString,
       kWasmContRef,
       kWasmNullContRef,
+      kWasmWaitqueueRef,
+      kWasmNullWaitqueueRef,
       refNullS(0),             // struct
       refS(0),                 // struct
       refNullS(0).AsExact(),   // exact struct
@@ -322,13 +323,15 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     const bool is_any_cont = ref_type == kWasmContRef ||
                              ref_type == kWasmNullContRef || is_defined_cont;
     const bool is_exn = ref_type == kWasmExnRef || ref_type == kWasmNullExnRef;
+    const bool is_waitqueue =
+        ref_type == kWasmWaitqueueRef || ref_type == kWasmNullWaitqueueRef;
     SCOPED_TRACE("ref_type: " + ref_type.name());
     // Concrete reference types, i31ref, structref and arrayref are subtypes
     // of eqref, externref/funcref/anyref/exnref/functions are not.
     SUBTYPE_IFF(ref_type, kWasmEqRef,
                 ref_type != kWasmAnyRef && !is_any_func && !is_extern &&
                     !is_string_view && ref_type != kWasmStringRef && !is_exn &&
-                    !is_any_cont);
+                    !is_any_cont && !is_waitqueue);
     // Struct types are subtypes of structref.
     SUBTYPE_IFF(ref_type, kWasmStructRef,
                 ref_type == kWasmStructRef || ref_type == kWasmNullRef ||
@@ -341,11 +344,11 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     SUBTYPE_IFF(ref_type, kWasmFuncRef, is_any_func);
     // Each reference type is a subtype of itself.
     SUBTYPE(ref_type, ref_type);
-    // Each non-func, non-extern, non-string-view, non-string-iter reference
-    // type is a subtype of anyref.
+    // Each non-func, non-extern, non-exn, non-waitqueue, non-string-view,
+    // non-cont reference type is a subtype of anyref.
     SUBTYPE_IFF(ref_type, kWasmAnyRef,
-                !is_any_func && !is_extern && !is_string_view && !is_exn &&
-                    !is_any_cont);
+                !is_any_func && !is_extern && !is_exn && !is_waitqueue &&
+                    !is_string_view && !is_any_cont);
     // Only anyref is a supertype of anyref.
     SUBTYPE_IFF(kWasmAnyRef, ref_type, ref_type == kWasmAnyRef);
     // Only externref and nullexternref are subtypes of externref.
@@ -356,7 +359,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     // nullref.
     SUBTYPE_IFF(kWasmNullRef, ref_type,
                 ref_type.is_nullable() && !is_any_func && !is_extern &&
-                    !is_exn && !is_any_cont);
+                    !is_exn && !is_any_cont && !is_waitqueue);
     // Only nullref is a subtype of nullref.
     SUBTYPE_IFF(ref_type, kWasmNullRef, ref_type == kWasmNullRef);
     // Only nullable funcs are supertypes of nofunc.
@@ -364,6 +367,11 @@ TEST_F(WasmSubtypingTest, Subtyping) {
                 ref_type.is_nullable() && is_any_func);
     // Only nullfuncref is a subtype of nullfuncref.
     SUBTYPE_IFF(ref_type, kWasmNullFuncRef, ref_type == kWasmNullFuncRef);
+    // Only waitqueue and nullwaitqueue are subtypes of waitqueue.
+    SUBTYPE_IFF(ref_type, kWasmWaitqueueRef, is_waitqueue);
+    // Only nullwaitqueue is a subtype of nullwaitqueue.
+    SUBTYPE_IFF(ref_type, kWasmNullWaitqueueRef,
+                ref_type == kWasmNullWaitqueueRef);
 
     // Make sure symmetric relations are symmetric.
     for (ValueType ref_type2 : ref_types) {
@@ -562,23 +570,21 @@ TEST_F(WasmSubtypingTest, Subtyping) {
                inexact_type == refF(11) || inexact_type == refNullF(11) ||
                type == kWasmExternRef || type == kWasmNullExternRef ||
                type == kWasmRefNullExternString || type == kWasmContRef ||
-               type == kWasmNullContRef || inexact_type == refNullC(44) ||
+               type == kWasmNullContRef || type == kWasmExnRef ||
+               type == kWasmNullExnRef || type == kWasmWaitqueueRef ||
+               type == kWasmNullWaitqueueRef || inexact_type == refNullC(44) ||
                inexact_type == refC(44)) {
       // func, cont and extern types don't share the same type hierarchy as
       // anyref.
+      UNION(type, kWasmAnyRef, kWasmTop);
       INTERSECTION(type, kWasmAnyRef, kWasmBottom);
     } else {
-      bool is_exn = type == kWasmExnRef || type == kWasmNullExnRef;
-      UNION(kWasmAnyRef, type, is_exn ? kWasmTop : kWasmAnyRef);
-      INTERSECTION(kWasmAnyRef, type, is_exn ? kWasmBottom : type);
+      UNION(kWasmAnyRef, type, kWasmAnyRef);
+      INTERSECTION(kWasmAnyRef, type, type);
       UNION(kWasmAnyRef.AsNonNull(), type,
-            is_exn               ? kWasmTop
-            : type.is_nullable() ? kWasmAnyRef
-                                 : kWasmAnyRef.AsNonNull());
+            type.is_nullable() ? kWasmAnyRef : kWasmAnyRef.AsNonNull());
       INTERSECTION(kWasmAnyRef.AsNonNull(), type,
-                   is_exn                 ? kWasmBottom
-                   : type != kWasmNullRef ? type.AsNonNull()
-                                          : kWasmBottom);
+                   type != kWasmNullRef ? type.AsNonNull() : kWasmBottom);
     }
   }
 
@@ -639,6 +645,8 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   UNION(kWasmStringViewWtf8, kWasmAnyRef, kWasmTop);
   UNION(kWasmStringViewWtf16, kWasmAnyRef, kWasmTop);
   UNION(kWasmNullFuncRef, kWasmEqRef, kWasmTop);
+  UNION(kWasmWaitqueueRef, kWasmNullWaitqueueRef, kWasmWaitqueueRef);
+  UNION(kWasmWaitqueueRef, kRefAnyShared, kWasmTop);
 
   INTERSECTION(kWasmExternRef, kWasmEqRef, kWasmBottom);
   INTERSECTION(kWasmExternRef, kWasmStructRef, kWasmBottom);
@@ -665,6 +673,8 @@ TEST_F(WasmSubtypingTest, Subtyping) {
                kWasmRefNullExternString);
   INTERSECTION(kWasmRefNullExternString, kWasmExternRef.AsNonNull(),
                kWasmRefNullExternString.AsNonNull());
+  INTERSECTION(kWasmWaitqueueRef, kWasmNullWaitqueueRef, kWasmNullWaitqueueRef);
+  INTERSECTION(kWasmWaitqueueRef, kRefAnyShared, kWasmBottom);
 
   INTERSECTION(kWasmFuncRef, kWasmEqRef, kWasmBottom);
   INTERSECTION(kWasmFuncRef, kWasmStructRef, kWasmBottom);

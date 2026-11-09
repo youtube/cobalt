@@ -35,10 +35,9 @@
 #include "build/android_buildflags.h"
 #include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
 #include "components/services/storage/public/mojom/service_worker_database.mojom-forward.h"
+#include "content/browser/back_forward_cache/back_forward_cache_can_store_document_result.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/child_process_security_policy_impl.h"
-#include "content/browser/storage_partition_impl.h"
-#include "content/browser/renderer_host/back_forward_cache_can_store_document_result.h"
 #include "content/browser/renderer_host/local_network_access_util.h"
 #include "content/browser/service_worker/payment_handler_support.h"
 #include "content/browser/service_worker/service_worker_client.h"
@@ -55,6 +54,7 @@
 #if !BUILDFLAG(IS_COBALT)
 #include "content/browser/service_worker/service_worker_usb_delegate_observer.h"
 #endif
+#include "content/browser/storage_partition_impl.h"
 #include "content/common/content_navigation_policy.h"
 #include "content/common/features.h"
 #include "content/public/browser/browser_thread.h"
@@ -539,10 +539,10 @@ void ServiceWorkerVersion::set_has_usb_event_handlers(
 
 void ServiceWorkerVersion::StartWorker(ServiceWorkerMetrics::EventType purpose,
                                        StatusCallback callback) {
-  TRACE_EVENT_INSTANT2(
-      "ServiceWorker", "ServiceWorkerVersion::StartWorker (instant)",
-      TRACE_EVENT_SCOPE_THREAD, "Script", script_url_.spec(), "Purpose",
-      ServiceWorkerMetrics::EventTypeToString(purpose));
+  TRACE_EVENT_INSTANT("ServiceWorker",
+                      "ServiceWorkerVersion::StartWorker (instant)", "Script",
+                      script_url_.spec(), "Purpose",
+                      ServiceWorkerMetrics::EventTypeToString(purpose));
 
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   const bool is_browser_startup_complete =
@@ -592,10 +592,9 @@ void ServiceWorkerVersion::StartWorker(ServiceWorkerMetrics::EventType purpose,
 }
 
 void ServiceWorkerVersion::StopWorker(base::OnceClosure callback) {
-  TRACE_EVENT_INSTANT2("ServiceWorker",
-                       "ServiceWorkerVersion::StopWorker (instant)",
-                       TRACE_EVENT_SCOPE_THREAD, "Script", script_url_.spec(),
-                       "Status", VersionStatusToString(status_));
+  TRACE_EVENT_INSTANT(
+      "ServiceWorker", "ServiceWorkerVersion::StopWorker (instant)", "Script",
+      script_url_.spec(), "Status", VersionStatusToString(status_));
 
   switch (running_status()) {
     case blink::EmbeddedWorkerStatus::kStarting:

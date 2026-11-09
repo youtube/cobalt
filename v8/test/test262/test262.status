@@ -957,9 +957,6 @@
 ####
 # import test262@bc5c6fe5bc9c82f031058e3bbe16bf3937a81fc5
 [ALWAYS, {
-  # New tests for Iterator.zipKeyed
-  'built-ins/Iterator/zipKeyed/*': [SKIP],
-
   # Tests that need Unicode 17.0 data
   # b/464064844
   'built-ins/RegExp/property-escapes/generated/Alphabetic': [FAIL],

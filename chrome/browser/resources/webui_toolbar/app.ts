@@ -28,7 +28,6 @@ import {SplitTabActiveLocation} from './toolbar_ui_api_data_model.mojom-webui.js
 // handles 2 at most now.
 import {
   LhsChipIdentifier,
-  OmniboxActionName,
   OmniboxTextColor,
   SecurityChipIcon,
 } from './toolbar_ui_api_data_model.mojom-webui.js';
@@ -42,7 +41,6 @@ export {
   LhsChipIdentifier,
   LocationBarElement,
   LocationIconElement,
-  OmniboxActionName,
   OmniboxTextColor,
   ReadonlyOmniboxElement,
   SecurityChipIcon,
@@ -135,6 +133,7 @@ export class ToolbarAppElement extends CrLitElement {
     locationBarState: {
       omniboxViewState: {
         textPieces: [],
+        inlineAutocompletion: '',
         selection: null,
         textIsUrl: false,
       },
@@ -150,8 +149,10 @@ export class ToolbarAppElement extends CrLitElement {
           text: '',
           isClickable: false,
           isTextDangerous: false,
+          isVisible: true,
         },
         activityIndicators: [],
+        permissionDashboard: null,
       },
     },
     layoutConstantsVersion: 0,
@@ -167,6 +168,12 @@ export class ToolbarAppElement extends CrLitElement {
 
   constructor() {
     super();
+    this.addEventListener('contextmenu', e => {
+      // Suppress the default browser context menu (which includes "Inspect") to
+      // align with native toolbar behavior. Any elements that require a
+      // custom context menu are responsible for triggering their own menus.
+      e.preventDefault();
+    });
     this.browserProxy_ = BrowserProxyImpl.getInstance();
     this.metricsRecorder_ = new MetricsRecorder(this.browserProxy_);
     this.trackedElementManager_ = TrackedElementManager.getInstance();

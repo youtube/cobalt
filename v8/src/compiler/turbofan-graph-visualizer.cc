@@ -27,11 +27,12 @@
 #include "src/compiler/schedule.h"
 #include "src/compiler/turbofan-graph.h"
 #include "src/objects/script-inl.h"
-#include "src/objects/shared-function-info.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/utils/ostreams.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-disassembler.h"
+#include "src/wasm/wasm-objects-inl.h"
 #endif
 
 namespace v8 {

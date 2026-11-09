@@ -15,6 +15,15 @@
 use bssl_x509::keys::PrivateKeyAlgorithm;
 
 use super::*;
+use crate::{
+    credentials::{
+        PskHash,
+        TlsCredential, //
+    },
+    tests::{
+        create_mock_pipe, //
+    },
+};
 
 #[test]
 fn parse_none() {
@@ -135,12 +144,8 @@ lTU7GxRvRinKa52GnUNLqxkmTTcFegGMevICfN7JUaUTDiEQGGJ6jNw=
     ));
 }
 
-#[cfg(feature = "tokio_net")]
-#[tokio::test]
-async fn psk_tls13_handshake() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    use crate::credentials::{PskHash, TlsCredential};
-    use crate::io::tokio::TokioIo;
-
+#[test]
+fn psk_tls13_handshake() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let _ = tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
         .try_init();
@@ -160,29 +165,33 @@ async fn psk_tls13_handshake() -> Result<(), Box<dyn std::error::Error + Send + 
     let server_ctx = server_ctx.build();
     let client_ctx = client_ctx.build();
 
-    let (client_io, server_io) = tokio::io::duplex(1024);
+    let (client_socket, server_socket, mut executor) = create_mock_pipe();
 
     let mut client_conn = client_ctx.new_client_connection(None)?.build();
     let mut server_conn = server_ctx.new_server_connection(None)?.build();
 
-    client_conn.set_io(TokioIo(client_io))?;
-    server_conn.set_io(TokioIo(server_io))?;
+    client_conn.set_io(client_socket)?;
+    server_conn.set_io(server_socket)?;
 
-    let client_task = tokio::spawn(async move {
-        let mut in_handshake = client_conn.in_handshake().unwrap();
-        in_handshake.async_handshake().await?;
-        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-    });
+    let test_future = async {
+        let client_handshake = async {
+            let mut in_handshake = client_conn.in_handshake().unwrap();
+            in_handshake.async_handshake().await?;
+            Ok::<(), crate::errors::Error>(())
+        };
 
-    let server_task = tokio::spawn(async move {
-        let mut in_handshake = server_conn.in_handshake().unwrap();
-        in_handshake.async_handshake().await?;
-        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-    });
+        let server_handshake = async {
+            let mut in_handshake = server_conn.in_handshake().unwrap();
+            in_handshake.async_handshake().await?;
+            Ok::<(), crate::errors::Error>(())
+        };
 
-    let (client_task, server_task) = tokio::try_join!(client_task, server_task)?;
-    client_task?;
-    server_task?;
+        futures::future::try_join(client_handshake, server_handshake).await?;
+        Ok::<(), crate::errors::Error>(())
+    };
+
+    executor.run(test_future)?;
+
     Ok(())
 }
 

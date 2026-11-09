@@ -332,6 +332,10 @@ std::unique_ptr<AssemblerBuffer> NewAssemblerBuffer(int size);
 
 class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
  public:
+  static constexpr int kMaximalBufferSize = 512 * MB;
+
+  enum class BufferGrowthStrategy { kDouble, kDoubleCapped1MB };
+
   AssemblerBase(const AssemblerOptions& options,
                 std::unique_ptr<AssemblerBuffer>);
   virtual ~AssemblerBase();
@@ -409,6 +413,8 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     pc_ = nullptr;
     return buffer;
   }
+
+  int ComputeNewBufferSize(BufferGrowthStrategy strategy);
 
   // This function is called when code generation is aborted, so that
   // the assembler could clean up internal data structures.

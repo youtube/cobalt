@@ -15,9 +15,6 @@
 #include "base/task/sequenced_task_runner_helpers.h"
 #include "base/task/task_runner.h"
 
-namespace actor {
-class PageStabilityMonitor;
-}  // namespace actor
 namespace blink {
 class LowPrecisionTimer;
 class PaintTiming;
@@ -37,6 +34,9 @@ class AudioInputStreamStarboard;
 #endif // BUILDFLAG(IS_STARBOARD)
 class FakeAudioWorker;
 }  // namespace media
+namespace page_content_annotations {
+class PageStabilityMonitor;
+}  // namespace page_content_annotations
 namespace viz {
 class ExternalBeginFrameSourceWin;
 }  // namespace viz
@@ -69,7 +69,6 @@ class PostDelayedTaskPassKey {
   // Avoid =default to disallow creation by uniform initialization.
   PostDelayedTaskPassKey() = default;
 
-  friend class actor::PageStabilityMonitor;
   friend class base::internal::DelayTimerBase;
   friend class base::internal::DelayedTaskManager;
   friend class base::DeadlineTimer;
@@ -81,6 +80,7 @@ class PostDelayedTaskPassKey {
   friend class blink::TimerBasedTickProvider;
   friend class blink::WebRtcTaskQueue;
   friend class PostDelayedTaskPassKeyForTesting;
+  friend class page_content_annotations::PageStabilityMonitor;
   friend class webrtc::ThreadWrapper;
   friend class media::AlsaPcmOutputStream;
   friend class media::AlsaPcmInputStream;
@@ -350,22 +350,6 @@ class BASE_EXPORT SequencedTaskRunner : public TaskRunner {
   // b) The current thread has a SingleThreadTaskRunner::CurrentDefaultHandle
   //    (which includes any thread that runs a MessagePump).
   [[nodiscard]] static bool HasCurrentDefault();
-
-  // Returns a SequencedTaskRunner for the current task. If possible, the
-  // task runner will schedule tasks with BEST_EFFORT TaskPriority. If not, it
-  // returns the same value as GetCurrentDefault(). See the comments on
-  // HasCurrentBestEffort() for more details.
-  [[nodiscard]] static scoped_refptr<SequencedTaskRunner>
-  GetCurrentBestEffort();
-
-  // Returns true if the current task is running on a sequence that multiplexes
-  // multiple task queues (eg. BrowserThread::UI). If so, GetCurrentBestEffort()
-  // will return the task runner for the lowest-priority task queue. Otherwise
-  // it will call GetCurrentDefault(). So if this and GetCurrentDefault() both
-  // return false, it's not safe to call GetCurrentBestEffort().
-  // TODO(crbug.com/441949788): It would also be possible to return true on a
-  // non-multiplexing sequence that only runs BEST_EFFORT tasks. Implement this.
-  [[nodiscard]] static bool HasCurrentBestEffort();
 
   class BASE_EXPORT CurrentDefaultHandle {
    public:

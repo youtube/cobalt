@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/containers/circular_deque.h"
 #include "base/containers/lru_cache.h"
@@ -18,6 +19,7 @@
 #include "base/threading/sequence_bound.h"
 #include "base/types/optional_ref.h"
 #include "base/values.h"
+#include "components/accessibility_annotator/core/content_annotator/content_annotations_data.h"
 #include "components/accessibility_annotator/core/data_models/entity_types.h"
 #include "components/accessibility_annotator/core/storage/accessibility_annotation_sync_bridge.h"
 #include "components/accessibility_annotator/core/storage/accessibility_annotator_backend.h"
@@ -79,7 +81,24 @@ class AccessibilityAnnotatorBackendImpl
   void RemoveContentAnnotationsCacheData(
       base::span<const history::VisitID> visit_ids) override;
   void ClearContentAnnotationsCache() override;
-  base::Value GetDebugUICacheData() const override;
+  void GetAnnotationsForDebugUI(
+      base::OnceCallback<void(base::Value)> callback) override;
+  void AddContentAnnotation(history::VisitID visit_id,
+                            ContentAnnotationsData data,
+                            base::OnceCallback<void(bool)> callback) override;
+  void GetContentAnnotation(
+      history::VisitID visit_id,
+      base::OnceCallback<void(std::optional<ContentAnnotationsData>)> callback)
+      override;
+  void GetAllContentAnnotations(
+      base::OnceCallback<void(
+          std::vector<std::pair<history::VisitID, ContentAnnotationsData>>)>
+          callback) override;
+  void DeleteContentAnnotations(
+      std::vector<history::VisitID> visit_ids,
+      base::OnceCallback<void(bool)> callback) override;
+  void ClearAllContentAnnotations(
+      base::OnceCallback<void(bool)> callback) override;
 
   const base::circular_deque<optimization_guide::proto::ContentAnnotation>&
   GetMergedMultipageAnnotationsForTesting() const {
@@ -112,9 +131,20 @@ class AccessibilityAnnotatorBackendImpl
       override;
 
  private:
+  // State of the database initialization.
+  enum class DbState {
+    kUninitialized,
+    kInitializing,
+    kReady,
+    kFailed,
+  };
+
   // Called in the backend constructor if the encryptor is available.
   // Initializes the database.
   void OnInitWithEncryptor(os_crypt_async::Encryptor encryptor);
+
+  // Called when the database initialization completes.
+  void OnDatabaseInitialized(bool success);
 
   // Performs a lookback through recent pages with the same tab and eTLD+1 to
   // join annotations that span across multiple pages. The function merges
@@ -132,11 +162,47 @@ class AccessibilityAnnotatorBackendImpl
       const optimization_guide::proto::StructuredData& source_structured_data,
       optimization_guide::proto::StructuredData* target_structured_data);
 
+  // Called when a content annotation is added to the database to notify
+  // observers.
+  void OnContentAnnotationAdded(history::VisitID visit_id,
+                                ContentAnnotationsData data,
+                                base::OnceCallback<void(bool)> callback,
+                                bool success);
+
+  // Called when content annotations are deleted from the database to notify
+  // observers.
+  void OnContentAnnotationsDeleted(base::OnceCallback<void(bool)> callback,
+                                   std::vector<history::VisitID> visit_ids);
+
+  // Called when content annotations are cleared from the database to notify
+  // observers.
+  void OnContentAnnotationsCleared(base::OnceCallback<void(bool)> callback,
+                                   bool success);
+
+  // Formats a single `ContentAnnotationsData` entry into a `base::Value`.
+  base::Value FormatContentAnnotationsDataForDebugUI(
+      history::VisitID visit_id,
+      const ContentAnnotationsData& data) const;
+
+  // Callback for `GetAllContentAnnotations` when used by the debug UI.
+  void OnGetAllContentAnnotationsForDebugUI(
+      base::OnceCallback<void(base::Value)> callback,
+      std::vector<std::pair<history::VisitID, ContentAnnotationsData>>
+          all_annotations);
+
   const base::FilePath db_path_;
   base::SequenceBound<AccessibilityAnnotatorDatabase> db_;
+
+  DbState db_state_ = DbState::kUninitialized;
+  // Queue of operations that were called before the database was ready, to be
+  // executed once the database is initialized.
+  std::vector<base::OnceClosure> queued_operations_;
+
   std::unique_ptr<AccessibilityAnnotationSyncBridge>
       accessibility_annotation_sync_bridge_;
 
+  // TODO(crbug.com/496384941): Once the DebugUI reads from the persistent
+  // database, the cache and its related functions should be cleaned up.
   // Stores annotations keyed by the visit ID they are associated with. The
   // cache size is `kContentAnnotatorMaxCacheAnnotations`. When the cache is
   // full, the least recently used entry is evicted.

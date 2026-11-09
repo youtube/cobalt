@@ -69,6 +69,7 @@ var skipWeakSymbols = []*regexp.Regexp{
 	// Symbols on Windows.
 	regexp.MustCompile(`.*<lambda.*`),                                   // Lambda classes
 	regexp.MustCompile(`.*@std(@.*)?$`),                                 // std::
+	regexp.MustCompile(`.*@stdext(@.*)?$`),                              // stdext::
 	regexp.MustCompile(`^(.*\?\?)?__local_stdio_printf_options(@.*)?$`), // stdio
 	regexp.MustCompile(`^(.*\?\?)?gai_strerrorA(@.*)?$`),                // gai_strerrorA()
 	regexp.MustCompile(`^RtlSecureZeroMemory$`),                         // RtlSecureZeroMemory()

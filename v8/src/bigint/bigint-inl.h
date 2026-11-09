@@ -831,6 +831,35 @@ inline digit_t MultiplySchoolbook(RWDigits Z, Digits X, Digits Y) {
   return top;
 }
 
+// For the needs of {CachedMod}, computes product digits in columns
+// [start_position, X.len() + Y.len()). Lower columns are skipped, so
+// inbound carries are dropped and the result is approximate: the
+// accumulated error is bounded by 2 * B^(start_position + 1).
+ALWAYS_INLINE void MultiplySpecialHigh(RWDigits Z, Digits X, Digits Y,
+                                       uint32_t start_position) {
+  DCHECK(X.len() >= Y.len());
+  DCHECK(Y.len() >= 1);
+  // The shrinking-phase formula below requires {i >= Y.len() - 1}.
+  DCHECK(start_position >= Y.len() - 1);
+  DCHECK(Z.len() >= X.len() + Y.len());
+
+  digit_t next = 0, next_carry = 0, carry = 0;
+  uint32_t loop_end = X.len() + Y.len() - 2;
+  uint32_t i = start_position;
+  for (; i <= loop_end; i++) {
+    uint32_t max_y_index = Y.len() - 1;
+    uint32_t min_x_index = i - max_y_index;
+    uint32_t max_x_index = std::min(i, X.len() - 1);
+    digit_t zi = digit_add2(next, carry, &carry);
+    next = next_carry + carry;
+    carry = 0;
+    next_carry = 0;
+    BODY(min_x_index, max_x_index);
+  }
+  Z[i] = digit_add2(next, carry, &carry);
+  DCHECK(carry == 0);
+}
+
 // For the needs of {CachedMod}, computes only the low Z.len() digits of X*Y.
 ALWAYS_INLINE void MultiplySpecialLow(RWDigits Z, Digits X, Digits Y) {
   DCHECK(Y.len() >= 1);
@@ -1013,10 +1042,15 @@ ALWAYS_INLINE digit_t Processor::CachedMod(RWDigits& R, Digits& A) {
   scratch.set_len(scratch_space);
 
   // Perform multiplication with inverse to get an estimated quotient.
+  // Q lives at offset 2n; only columns [2n - 2, ...) are needed to
+  // recover it. The two skipped columns of carry leave Q at most 1
+  // below the true quotient; the correction loop further down recovers
+  // the off-by-one.
+  uint32_t start_position = 2 * n - 2;
   if (A.len() >= inv.len()) {
-    MultiplySchoolbook(scratch, A, inv);
+    MultiplySpecialHigh(scratch, A, inv, start_position);
   } else {
-    MultiplySchoolbook(scratch, inv, A);
+    MultiplySpecialHigh(scratch, inv, A, start_position);
   }
   Digits Q = scratch + 2 * n;
 

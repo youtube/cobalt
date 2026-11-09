@@ -660,7 +660,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   V8_TLS_DECLARE_GETTER(TryGetCurrent, Isolate*, g_current_isolate_)
 
   // Returns the isolate inside which the current thread is running.
-  V8_INLINE static Isolate* Current();
+  V8_INLINE static Isolate* Current() {
+    Isolate* isolate = TryGetCurrent();
+    DCHECK_NOT_NULL(isolate);
+    return isolate;
+  }
   static void SetCurrent(Isolate* isolate);
 
   inline bool IsCurrent() const;
@@ -961,13 +965,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   DirectHandle<String> StackTraceString();
   // Stores a stack trace in a stack-allocated temporary buffer which will
   // end up in the minidump for debugging purposes.
-  V8_NOINLINE void PushStackTraceAndDie(
+  [[noreturn]] V8_NOINLINE void PushStackTraceAndDie(
       void* ptr1 = nullptr, void* ptr2 = nullptr, void* ptr3 = nullptr,
       void* ptr4 = nullptr, void* ptr5 = nullptr, void* ptr6 = nullptr);
   // Similar to the above but without collecting the stack trace.
-  V8_NOINLINE void PushParamsAndDie(void* ptr1 = nullptr, void* ptr2 = nullptr,
-                                    void* ptr3 = nullptr, void* ptr4 = nullptr,
-                                    void* ptr5 = nullptr, void* ptr6 = nullptr);
+  [[noreturn]] V8_NOINLINE void PushParamsAndDie(
+      void* ptr1 = nullptr, void* ptr2 = nullptr, void* ptr3 = nullptr,
+      void* ptr4 = nullptr, void* ptr5 = nullptr, void* ptr6 = nullptr);
   // Like PushStackTraceAndDie but uses DumpWithoutCrashing to continue
   // execution.
   V8_NOINLINE void PushStackTraceAndContinue(

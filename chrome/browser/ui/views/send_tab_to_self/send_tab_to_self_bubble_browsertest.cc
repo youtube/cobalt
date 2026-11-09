@@ -10,10 +10,12 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_bubble_controller.h"
+#include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_bubble_view.h"
 #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_toolbar_bubble_controller.h"
 #include "chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h"
@@ -24,20 +26,26 @@
 #include "ui/events/base_event_utils.h"
 #include "ui/gfx/image/image_unittest_util.h"
 #include "ui/views/layout/animating_layout_manager_test_util.h"
+#include "ui/views/view_class_properties.h"
 
 namespace send_tab_to_self {
 
 namespace {
 
-class TestSendTabToSelfBubbleController : public SendTabToSelfBubbleController {
+class StubSendTabToSelfBubbleController : public SendTabToSelfBubbleController {
  public:
-  explicit TestSendTabToSelfBubbleController(content::WebContents* web_contents)
+  explicit StubSendTabToSelfBubbleController(content::WebContents* web_contents)
       : SendTabToSelfBubbleController(web_contents) {}
-  ~TestSendTabToSelfBubbleController() override = default;
+  ~StubSendTabToSelfBubbleController() override = default;
 
   std::optional<send_tab_to_self::EntryPointDisplayReason>
   GetEntryPointDisplayReason() override {
-    return send_tab_to_self::EntryPointDisplayReason::kOfferFeature;
+    return reason_;
+  }
+
+  void SetEntryPointDisplayReason(
+      std::optional<send_tab_to_self::EntryPointDisplayReason> reason) {
+    reason_ = reason;
   }
 
   std::vector<TargetDeviceInfo> GetValidDevices() override {
@@ -62,6 +70,10 @@ class TestSendTabToSelfBubbleController : public SendTabToSelfBubbleController {
     info.account_image = gfx::Image(gfx::test::CreateImageSkia(96, 96));
     return info;
   }
+
+ private:
+  std::optional<send_tab_to_self::EntryPointDisplayReason> reason_ =
+      send_tab_to_self::EntryPointDisplayReason::kOfferFeature;
 };
 
 }  // namespace
@@ -73,28 +85,41 @@ class SendTabToSelfBubbleTest : public DialogBrowserTest {
   SendTabToSelfBubbleTest(const SendTabToSelfBubbleTest&) = delete;
   SendTabToSelfBubbleTest& operator=(const SendTabToSelfBubbleTest&) = delete;
 
-  // DialogBrowserTest:
-  void ShowUi(const std::string& name) override {
+  void SetUpOnMainThread() override {
+    DialogBrowserTest::SetUpOnMainThread();
+
     content::WebContents* web_contents =
         browser()->tab_strip_model()->GetActiveWebContents();
-    web_contents->SetUserData(
-        TestSendTabToSelfBubbleController::UserDataKey(),
-        std::make_unique<TestSendTabToSelfBubbleController>(web_contents));
-
-    if (name == "ShowDeviceList") {
-      send_tab_to_self::SendTabToSelfToolbarBubbleController::From(browser())
-          ->ShowDevicePickerBubble(web_contents);
-    } else if (name == "ShowSigninPromo") {
-      send_tab_to_self::SendTabToSelfToolbarBubbleController::From(browser())
-          ->ShowPromoBubble(web_contents,
-                            /*show_signin_button=*/true);
-    } else {
-      DCHECK_EQ(name, "ShowNoTargetDevicePromo");
-      send_tab_to_self::SendTabToSelfToolbarBubbleController::From(browser())
-          ->ShowPromoBubble(web_contents,
-                            /*show_signin_button=*/false);
-    }
+    std::unique_ptr<StubSendTabToSelfBubbleController> controller =
+        std::make_unique<StubSendTabToSelfBubbleController>(web_contents);
+    controller_ = controller.get();
+    web_contents->SetUserData(StubSendTabToSelfBubbleController::UserDataKey(),
+                              std::move(controller));
   }
+
+  void TearDownOnMainThread() override {
+    controller_ = nullptr;
+    DialogBrowserTest::TearDownOnMainThread();
+  }
+
+  // DialogBrowserTest:
+  void ShowUi(const std::string& name) override {
+    if (name == "ShowDeviceList") {
+      controller_->SetEntryPointDisplayReason(
+          send_tab_to_self::EntryPointDisplayReason::kOfferFeature);
+    } else if (name == "ShowSigninPromo") {
+      controller_->SetEntryPointDisplayReason(
+          send_tab_to_self::EntryPointDisplayReason::kOfferSignIn);
+    } else {
+      CHECK_EQ(name, "ShowNoTargetDevicePromo");
+      controller_->SetEntryPointDisplayReason(
+          send_tab_to_self::EntryPointDisplayReason::kInformNoTargetDevice);
+    }
+    controller_->ShowBubble();
+  }
+
+ protected:
+  raw_ptr<StubSendTabToSelfBubbleController> controller_ = nullptr;
 };
 
 // TODO(crbug.com/40927205): Flakily fails on some Windows builders.
@@ -120,16 +145,25 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfBubbleTest,
   ShowAndVerifyUi();
 }
 
-IN_PROC_BROWSER_TEST_F(SendTabToSelfBubbleTest,
-                       BubbleTriggersCorrectlyWhenPinned) {
-  content::WebContents* web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
-  std::unique_ptr<TestSendTabToSelfBubbleController> unique_controller =
-      std::make_unique<TestSendTabToSelfBubbleController>(web_contents);
-  TestSendTabToSelfBubbleController* controller = unique_controller.get();
-  web_contents->SetUserData(TestSendTabToSelfBubbleController::UserDataKey(),
-                            std::move(unique_controller));
+class SendTabToSelfBubbleParameterizedTest
+    : public SendTabToSelfBubbleTest,
+      public testing::WithParamInterface<EntryPointDisplayReason> {
+ public:
+  void SetUpOnMainThread() override {
+    SendTabToSelfBubbleTest::SetUpOnMainThread();
+    controller_->SetEntryPointDisplayReason(GetParam());
+  }
+};
 
+INSTANTIATE_TEST_SUITE_P(
+    ,
+    SendTabToSelfBubbleParameterizedTest,
+    testing::Values(EntryPointDisplayReason::kOfferFeature,
+                    EntryPointDisplayReason::kOfferSignIn,
+                    EntryPointDisplayReason::kInformNoTargetDevice));
+
+IN_PROC_BROWSER_TEST_P(SendTabToSelfBubbleParameterizedTest,
+                       BubbleTriggersCorrectlyWhenPinned) {
   // Pin send tab to self to the toolbar.
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   actions::ActionItem* browser_action_item =
@@ -138,8 +172,6 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfBubbleTest,
       kActionSendTabToSelf, browser_action_item);
   action_item->SetEnabled(true);
   action_item->SetVisible(true);
-  CHECK(!features::IsWebUIPinnedToolbarActionsEnabled())
-      << "Test needs modification to support WebUIPinnedToolbarActions";
   PinnedToolbarActionsContainer* container =
       static_cast<PinnedToolbarActionsContainer*>(
           browser_view->toolbar_button_provider()->GetPinnedToolbarActions());
@@ -159,6 +191,8 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfBubbleTest,
     }
   }
   EXPECT_NE(send_tab_to_self_button, nullptr);
+  EXPECT_EQ(send_tab_to_self_button->GetProperty(views::kElementIdentifierKey),
+            kPinnedToolbarActionSendTabToSelfElementId);
 
   // Simulate triggering the bubble and confirm it is shown.
   ui::MouseEvent press_event(ui::EventType::kMousePressed, gfx::Point(),
@@ -167,14 +201,63 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfBubbleTest,
   ui::MouseEvent release_event(ui::EventType::kMouseReleased, gfx::Point(),
                                gfx::Point(), ui::EventTimeForNow(),
                                ui::EF_LEFT_MOUSE_BUTTON, 0);
-  controller->ShowBubble();
-  EXPECT_TRUE(controller->IsBubbleShown());
+  controller_->ShowBubble();
+  EXPECT_TRUE(controller_->IsBubbleShown());
 
   // Confirm execution is skipped for the next mouse release.
   send_tab_to_self_button->OnMousePressed(press_event);
   EXPECT_TRUE(send_tab_to_self_button->ShouldSkipExecutionForTesting());
   send_tab_to_self_button->OnMouseReleased(release_event);
   EXPECT_FALSE(send_tab_to_self_button->ShouldSkipExecutionForTesting());
+}
+
+IN_PROC_BROWSER_TEST_P(SendTabToSelfBubbleParameterizedTest,
+                       BubbleTriggersCorrectlyWhenNotPinned) {
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  PinnedToolbarActionsContainer* container =
+      static_cast<PinnedToolbarActionsContainer*>(
+          browser_view->toolbar_button_provider()->GetPinnedToolbarActions());
+
+  // Ensure it is not pinned or popped out.
+  ASSERT_FALSE(container->IsActionPinnedOrPoppedOut(kActionSendTabToSelf));
+
+  // Trigger the bubble.
+  controller_->ShowBubble();
+  EXPECT_TRUE(controller_->IsBubbleShown());
+
+  // Confirm it is now popped out.
+  EXPECT_TRUE(container->IsActionPoppedOut(kActionSendTabToSelf));
+
+  // Find the send tab to self button.
+  PinnedActionToolbarButton* send_tab_to_self_button =
+      container->GetButtonFor(kActionSendTabToSelf);
+  ASSERT_TRUE(send_tab_to_self_button);
+  EXPECT_TRUE(send_tab_to_self_button->GetVisible());
+
+  // Confirm the bubble is anchored to the button.
+  auto* bubble_delegate = controller_->send_tab_to_self_bubble_view();
+  EXPECT_EQ(bubble_delegate->GetAnchorView(), send_tab_to_self_button);
+  EXPECT_EQ(send_tab_to_self_button->GetProperty(views::kElementIdentifierKey),
+            kPinnedToolbarActionSendTabToSelfElementId);
+
+  // Close the bubble.
+  bubble_delegate->GetWidget()->CloseNow();
+  EXPECT_FALSE(controller_->IsBubbleShown());
+
+  // Confirm it is no longer popped out.
+  EXPECT_FALSE(container->IsActionPoppedOut(kActionSendTabToSelf));
+}
+
+IN_PROC_BROWSER_TEST_P(SendTabToSelfBubbleParameterizedTest,
+                       ShowBubbleMultipleTimes) {
+  // Call ShowBubble multiple times. The early return prevents re-creation.
+  controller_->ShowBubble();
+  SendTabToSelfBubbleView* first_view =
+      controller_->send_tab_to_self_bubble_view();
+  EXPECT_TRUE(first_view);
+
+  controller_->ShowBubble();
+  EXPECT_EQ(first_view, controller_->send_tab_to_self_bubble_view());
 }
 
 }  // namespace send_tab_to_self

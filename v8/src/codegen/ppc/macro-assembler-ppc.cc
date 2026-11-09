@@ -109,7 +109,9 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register scratch1,
   return bytes;
 }
 
-void MacroAssembler::GetLabelAddress(Register dest, Label* target) {
+void MacroAssembler::GetLabelAddress(Register dest, Label* target,
+                                     Register scratch) {
+  CHECK_NE(dest, scratch);
   BlockTrampolinePoolScope block_trampoline_pool(this);
 
   // This should be just a
@@ -129,9 +131,12 @@ void MacroAssembler::GetLabelAddress(Register dest, Label* target) {
   int current_instr_code_object_relative_offset =
       pc_offset() + kPcLoadDelta +
       (InstructionStream::kHeaderSize - kHeapObjectTag);
-  LoadPC(r0);
-  AddS64(dest, r0, dest);
-  SubS64(dest, dest, Operand(current_instr_code_object_relative_offset));
+  LoadPC(scratch);
+  AddS64(dest, scratch, dest);
+  // TODO(miladfarca): Use subi once scratch register usage is refactored
+  // and r0 can't be used as scratch or dest.
+  mov(scratch, Operand(current_instr_code_object_relative_offset));
+  SubS64(dest, dest, scratch);
 }
 
 void MacroAssembler::Jump(Register target) {
@@ -238,17 +243,17 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
 }
 
 void MacroAssembler::Jump(const ExternalReference& reference) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  Move(scratch, reference);
+  // ELFv2 ABI requires r12 to hold the callee address at the global entry
+  // point so the function can compute its TOC pointer. Use ip (r12)
+  // directly instead of acquiring a scratch register.
+  Move(ip, reference);
   if (ABI_USES_FUNCTION_DESCRIPTORS) {
     // AIX uses a function descriptor. When calling C code be
     // aware of this descriptor and pick up values from it.
-    LoadU64(ToRegister(ABI_TOC_REGISTER),
-            MemOperand(scratch, kSystemPointerSize));
-    LoadU64(scratch, MemOperand(scratch, 0));
+    LoadU64(ToRegister(ABI_TOC_REGISTER), MemOperand(ip, kSystemPointerSize));
+    LoadU64(ip, MemOperand(ip, 0));
   }
-  Jump(scratch);
+  Jump(ip);
 }
 
 void MacroAssembler::Call(Register target) {
@@ -2264,45 +2269,35 @@ int MacroAssembler::CallCFunction(ExternalReference function,
                                   int num_reg_arguments,
                                   int num_double_arguments,
                                   SetIsolateDataSlots set_isolate_data_slots,
-                                  bool has_function_descriptor) {
+                                  bool has_function_descriptor,
+                                  Label* return_label) {
   Move(ip, function);
   return CallCFunction(ip, num_reg_arguments, num_double_arguments,
-                       set_isolate_data_slots, has_function_descriptor);
+                       set_isolate_data_slots, has_function_descriptor,
+                       return_label);
 }
 
 int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
                                   int num_double_arguments,
                                   SetIsolateDataSlots set_isolate_data_slots,
-                                  bool has_function_descriptor) {
+                                  bool has_function_descriptor,
+                                  Label* return_label) {
   ASM_CODE_COMMENT(this);
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
 
-  Label start_call;
-  Register pc_scratch = r11;
-  DCHECK(!AreAliased(pc_scratch, function));
-  LoadPC(pc_scratch);
-  bind(&start_call);
-  int start_pc_offset = pc_offset();
-  // We are going to patch this instruction after emitting
-  // Call, using a zero offset here as placeholder for now.
-  // patch_pc_address assumes `addi` is used here to
-  // add the offset to pc.
-  addi(pc_scratch, pc_scratch, Operand::Zero());
+  Label get_pc;
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // Save the frame pointer and PC so that the stack layout remains iterable,
     // even without an ExitFrame which normally exists between JS and C frames.
-    Register scratch = r8;
-    Push(scratch);
-    mflr(scratch);
+    DCHECK(!AreAliased(r0, r26, function));
+    GetLabelAddress(r0, &get_pc, r26);
     CHECK(root_array_available());
-    StoreU64(pc_scratch,
+    StoreU64(r0,
              ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerPC));
     StoreU64(fp,
              ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
-    mtlr(scratch);
-    Pop(scratch);
   }
 
   Register dest = function;
@@ -2325,10 +2320,8 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     BlockTrampolinePoolScope block_trampoline_pool(this);
     Call(dest);
     call_pc_offset = pc_offset();
-    int offset_since_start_call = SizeOfCodeGeneratedSince(&start_call);
-    // Here we are going to patch the `addi` instruction above to use the
-    // correct offset.
-    patch_pc_address(pc_scratch, start_pc_offset, offset_since_start_call);
+    bind(&get_pc);
+    if (return_label) bind(return_label);
 
     int before_offset = pc_offset();
     int stack_passed_arguments =
@@ -2360,16 +2353,18 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
 
 int MacroAssembler::CallCFunction(ExternalReference function, int num_arguments,
                                   SetIsolateDataSlots set_isolate_data_slots,
-                                  bool has_function_descriptor) {
+                                  bool has_function_descriptor,
+                                  Label* return_label) {
   return CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
-                       has_function_descriptor);
+                       has_function_descriptor, return_label);
 }
 
 int MacroAssembler::CallCFunction(Register function, int num_arguments,
                                   SetIsolateDataSlots set_isolate_data_slots,
-                                  bool has_function_descriptor) {
+                                  bool has_function_descriptor,
+                                  Label* return_label) {
   return CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
-                       has_function_descriptor);
+                       has_function_descriptor, return_label);
 }
 
 void MacroAssembler::CheckPageFlag(
@@ -4857,9 +4852,11 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   // currently being generated) is immovable or that the callee function cannot
   // trigger GC, since the callee function will return to it.
 
-  static constexpr int after_call_offset = 4 * kInstrSize;
-  Label start_call;
+  Label return_label;
   Register dest = target;
+  Register scratch = r7;
+  DCHECK(!AreAliased(r0, scratch, target));
+  GetLabelAddress(scratch, &return_label, r0);
 
   if (ABI_USES_FUNCTION_DESCRIPTORS) {
     // AIX/PPC64BE Linux uses a function descriptor. When calling C code be
@@ -4873,13 +4870,11 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
     dest = ip;
   }
 
-  LoadPC(r7);
-  bind(&start_call);
-  addi(r7, r7, Operand(after_call_offset));
-  StoreU64(r7, MemOperand(sp, kStackFrameExtraParamSlot * kSystemPointerSize));
-  Call(dest);
+  StoreU64(scratch,
+           MemOperand(sp, kStackFrameExtraParamSlot * kSystemPointerSize));
 
-  DCHECK_EQ(after_call_offset, SizeOfCodeGeneratedSince(&start_call));
+  Call(dest);
+  bind(&return_label);
 }
 
 void MacroAssembler::AssertNotDeoptimized(Register scratch) {
@@ -5245,7 +5240,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
 void MacroAssembler::Switch(Register scratch, Register value,
                             int case_value_base, Label** labels,
                             int num_labels) {
-  Label fallthrough;
+  Label fallthrough, jump_table;
   if (case_value_base != 0) {
     SubS64(value, value, Operand(case_value_base), r0);
   }
@@ -5256,13 +5251,12 @@ void MacroAssembler::Switch(Register scratch, Register value,
   ShiftLeftU32(value, value, Operand(entry_size_log2));
 
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(this);
-  // offset = size of (addi, add, mtctr, bctr)
-  constexpr int offset = 16;
-  LoadPC(scratch);
-  addi(scratch, scratch, Operand(offset));
+  DCHECK(!AreAliased(scratch, value, r0));
+  GetLabelAddress(scratch, &jump_table, r0);
   add(scratch, scratch, value);
   Jump(scratch);
 
+  bind(&jump_table);
   for (int i = 0; i < num_labels; ++i) {
     b(labels[i]);
   }

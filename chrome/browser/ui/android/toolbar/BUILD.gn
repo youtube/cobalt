@@ -15,11 +15,33 @@ android_library("variation_utils_java") {
   deps = [
     "//chrome/browser/flags:java",
     "//third_party/androidx:androidx_annotation_annotation_java",
+    "//ui/android:ui_no_recycler_view_java",
   ]
 }
 
 generate_jni("adaptive_jni_headers") {
   sources = [ "java/src/org/chromium/chrome/browser/toolbar/adaptive/AdaptiveToolbarBridge.java" ]
+}
+
+android_library("adaptive_features_java") {
+  sources = [ "java/src/org/chromium/chrome/browser/toolbar/adaptive/AdaptiveToolbarFeatures.java" ]
+  deps = [
+    "//base:base_java",
+    "//chrome/browser/actor/android:java",
+    "//chrome/browser/flags:java",
+    "//chrome/browser/glic:public_java",
+    "//chrome/browser/preferences:java",
+    "//chrome/browser/profiles/android:java",
+    "//chrome/browser/readaloud/android:features_java",
+    "//chrome/browser/ui/android/bottombar:config_java",
+    "//chrome/browser/ui/side_panel/android:java",
+    "//components/prefs/android:java",
+    "//components/user_prefs/android:java",
+    "//content/public/android:content_full_java",
+    "//third_party/androidx:androidx_annotation_annotation_java",
+    "//ui/android:ui_no_recycler_view_java",
+  ]
+  srcjar_deps = [ "//chrome/browser/ui:adaptive_toolbar_enums_java" ]
 }
 
 android_library("optional_button_java") {
@@ -29,7 +51,6 @@ android_library("optional_button_java") {
     "java/src/org/chromium/chrome/browser/toolbar/adaptive/AdaptiveToolbarBehavior.java",
     "java/src/org/chromium/chrome/browser/toolbar/adaptive/AdaptiveToolbarBridge.java",
     "java/src/org/chromium/chrome/browser/toolbar/adaptive/AdaptiveToolbarButtonController.java",
-    "java/src/org/chromium/chrome/browser/toolbar/adaptive/AdaptiveToolbarFeatures.java",
     "java/src/org/chromium/chrome/browser/toolbar/adaptive/AdaptiveToolbarPrefs.java",
     "java/src/org/chromium/chrome/browser/toolbar/adaptive/AdaptiveToolbarStatePredictor.java",
     "java/src/org/chromium/chrome/browser/toolbar/adaptive/AdaptiveToolbarStats.java",
@@ -52,6 +73,7 @@ android_library("optional_button_java") {
     "java/src/org/chromium/chrome/browser/toolbar/optional_button/ShrinkTransition.java",
   ]
   deps = [
+    ":adaptive_features_java",
     ":java_resources",
     "//base:base_java",
     "//build/android:build_java",
@@ -96,10 +118,7 @@ android_library("optional_button_java") {
     "//ui/android:ui_no_recycler_view_java",
     "//url:url_java",
   ]
-  srcjar_deps = [
-    ":adaptive_jni_headers",
-    "//chrome/browser/ui:adaptive_toolbar_enums_java",
-  ]
+  srcjar_deps = [ ":adaptive_jni_headers" ]
   resources_package = "org.chromium.chrome.browser.toolbar"
 }
 
@@ -117,7 +136,6 @@ android_library("core_java") {
     "java/src/org/chromium/chrome/browser/toolbar/TabSwitcherButtonProperties.java",
     "java/src/org/chromium/chrome/browser/toolbar/TabSwitcherButtonView.java",
     "java/src/org/chromium/chrome/browser/toolbar/TabSwitcherButtonViewBinder.java",
-    "java/src/org/chromium/chrome/browser/toolbar/TabSwitcherDrawable.java",
     "java/src/org/chromium/chrome/browser/toolbar/ToolbarCaptureType.java",
     "java/src/org/chromium/chrome/browser/toolbar/ToolbarDataProvider.java",
     "java/src/org/chromium/chrome/browser/toolbar/ToolbarFeatures.java",
@@ -207,6 +225,7 @@ android_library("core_java") {
   ]
 
   deps = [
+    ":adaptive_features_java",
     ":java_resources",
     ":optional_button_java",
     ":variation_utils_java",
@@ -246,7 +265,9 @@ android_library("core_java") {
     "//chrome/browser/tab:java",
     "//chrome/browser/tab_ui/android:java",
     "//chrome/browser/tabmodel:java",
+    "//chrome/browser/ui/android/actions:java",
     "//chrome/browser/ui/android/appmenu:java",
+    "//chrome/browser/ui/android/bars_common:java",
     "//chrome/browser/ui/android/desktop_windowing:java",
     "//chrome/browser/ui/android/edge_to_edge:java",
     "//chrome/browser/ui/android/extensions:java",
@@ -345,13 +366,11 @@ android_resources("java_resources") {
   sources = [
     "java/res/drawable-hdpi/badge_update_dark.png",
     "java/res/drawable-hdpi/badge_update_light.png",
-    "java/res/drawable-hdpi/btn_tabswitcher_modern.png",
     "java/res/drawable-hdpi/incognito_small.png",
     "java/res/drawable-hdpi/modern_location_bar.9.png",
     "java/res/drawable-hdpi/popup_bg_bottom.9.png",
     "java/res/drawable-mdpi/badge_update_dark.png",
     "java/res/drawable-mdpi/badge_update_light.png",
-    "java/res/drawable-mdpi/btn_tabswitcher_modern.png",
     "java/res/drawable-mdpi/incognito_small.png",
     "java/res/drawable-mdpi/modern_location_bar.9.png",
     "java/res/drawable-mdpi/popup_bg_bottom.9.png",
@@ -359,19 +378,16 @@ android_resources("java_resources") {
     "java/res/drawable-v31/menu_bg_bottom_tinted.xml",
     "java/res/drawable-xhdpi/badge_update_dark.png",
     "java/res/drawable-xhdpi/badge_update_light.png",
-    "java/res/drawable-xhdpi/btn_tabswitcher_modern.png",
     "java/res/drawable-xhdpi/incognito_small.png",
     "java/res/drawable-xhdpi/modern_location_bar.9.png",
     "java/res/drawable-xhdpi/popup_bg_bottom.9.png",
     "java/res/drawable-xxhdpi/badge_update_dark.png",
     "java/res/drawable-xxhdpi/badge_update_light.png",
-    "java/res/drawable-xxhdpi/btn_tabswitcher_modern.png",
     "java/res/drawable-xxhdpi/incognito_small.png",
     "java/res/drawable-xxhdpi/modern_location_bar.9.png",
     "java/res/drawable-xxhdpi/popup_bg_bottom.9.png",
     "java/res/drawable-xxxhdpi/badge_update_dark.png",
     "java/res/drawable-xxxhdpi/badge_update_light.png",
-    "java/res/drawable-xxxhdpi/btn_tabswitcher_modern.png",
     "java/res/drawable-xxxhdpi/incognito_small.png",
     "java/res/drawable-xxxhdpi/popup_bg_bottom.9.png",
     "java/res/drawable/home_surface_search_box_background.xml",
@@ -418,7 +434,7 @@ android_resources("java_resources") {
 
   deps = [
     "//chrome/app:java_strings_grd",
-    "//chrome/browser/ui/android/actions:java_resources",
+    "//chrome/browser/ui/android/bars_common:java_resources",
     "//chrome/browser/ui/android/strings:ui_strings_grd",
     "//chrome/browser/ui/android/theme:java_resources",
     "//components/browser_ui/styles/android:java_resources",
@@ -472,6 +488,7 @@ robolectric_library("junit") {
   ]
 
   deps = [
+    ":adaptive_features_java",
     ":java",
     ":java_resources",
     ":optional_button_java",
@@ -503,6 +520,7 @@ robolectric_library("junit") {
     "//chrome/browser/tab:java",
     "//chrome/browser/tab_ui/android:java",
     "//chrome/browser/tabmodel:java",
+    "//chrome/browser/ui/android/actions:java",
     "//chrome/browser/ui/android/appmenu:java",
     "//chrome/browser/ui/android/desktop_windowing:java",
     "//chrome/browser/ui/android/edge_to_edge:java",

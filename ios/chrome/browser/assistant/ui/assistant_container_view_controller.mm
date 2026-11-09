@@ -208,19 +208,17 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
            (id<UIViewControllerTransitionCoordinator>)coordinator {
   [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
 
+  AssistantContainerDetent detentBeforeRotation = _activeDetent.value();
+
   __weak __typeof(self) weakSelf = self;
   [coordinator
       animateAlongsideTransition:^(
           id<UIViewControllerTransitionCoordinatorContext> context) {
-        __typeof(self) strongSelf = weakSelf;
-        if (!strongSelf) {
-          return;
-        }
-        if (strongSelf->_hasAppeared) {
-          [strongSelf updateHeightConstraint];
-        }
+        // Do nothing here to avoid snapping during transition.
       }
-                      completion:nil];
+      completion:^(id<UIViewControllerTransitionCoordinatorContext> context) {
+        [weakSelf completeOrientationTransitionWithDetent:detentBeforeRotation];
+      }];
 }
 
 - (void)viewDidAppear:(BOOL)animated {
@@ -445,6 +443,14 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
 
 #pragma mark - Private
 
+// Completes the orientation transition by animating to the active detent.
+- (void)completeOrientationTransitionWithDetent:
+    (AssistantContainerDetent)detent {
+  [self animateToDetent:detent
+               duration:kAssistantSheetSpringDuration
+                  curve:UIViewAnimationCurveEaseInOut];
+}
+
 // Resumes all the previously paused scroll views.
 - (void)resumeAllScrollViews {
   for (UIScrollView* (^scrollViewProvider)() in _disabledScrollViews) {
@@ -602,21 +608,26 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
   _assistantContainerView.grabberButton.enabled = YES;
 }
 
-// Handles the tap on the grabber button to toggle container size.
+// Handles the tap on the grabber button to cycle through detents.
 - (void)handleGrabberButtonTapped:(UIButton*)sender {
   if (self.isAnimating) {
     return;
   }
 
-  AssistantContainerDetent minDetent = self.detents.front();
-  AssistantContainerDetent maxDetent = self.detents.back();
+  std::vector<AssistantContainerDetent> currentDetents = self.detents;
 
-  if (minDetent == maxDetent) {
-    return;
+  AssistantContainerDetent currentDetent =
+      _activeDetent.value_or(currentDetents.front());
+  auto it =
+      std::find(currentDetents.begin(), currentDetents.end(), currentDetent);
+
+  size_t nextIndex = 0;
+  if (it != currentDetents.end()) {
+    size_t currentIndex = std::distance(currentDetents.begin(), it);
+    nextIndex = (currentIndex + 1) % currentDetents.size();
   }
 
-  AssistantContainerDetent targetDetent =
-      _activeDetent.value() == maxDetent ? minDetent : maxDetent;
+  AssistantContainerDetent targetDetent = currentDetents[nextIndex];
 
   [self animateToDetent:targetDetent
                duration:kAssistantSheetSpringDuration
@@ -743,6 +754,9 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
 - (void)handlePanGestureEnded:(UIPanGestureRecognizer*)gesture {
   CHECK(gesture == _headerPanGesture);
 
+  // Lock interaction and prevent height recalculations immediately.
+  self.isAnimating = YES;
+
   [self resumeAllScrollViews];
   _isDraggingContainer = NO;
 
@@ -760,15 +774,35 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
 
   [self notifyDelegateOfDetentChangeIfNeeded:targetDetent];
 
-  // Current height from visual frame (approximate start of animation).
+  [self animateSnapToTargetHeight:targetHeight gestureVelocity:velocity];
+}
+
+// Calculates spring velocity and triggers the snap animation.
+- (void)animateSnapToTargetHeight:(NSInteger)targetHeight
+                  gestureVelocity:(CGPoint)velocity {
   CGFloat currentFrameHeight = self.view.frame.size.height;
   CGFloat distance = targetHeight - currentFrameHeight;
+
+  // If the distance is very small, skip the animation to prevent UIKit from
+  // skipping the completion block and leaving isAnimating stuck at YES.
+  if (ABS(distance) <= 1.0) {
+    [self.view layoutIfNeeded];
+    self.isAnimating = NO;
+    return;
+  }
+
   CGFloat springVelocity = 0.0;
 
   // Invert velocity so positive values indicate upward expansion.
   CGFloat containerVelocity = -velocity.y;
 
-  if (ABS(distance) > 1.0) {
+  // If the velocity direction is opposite to the distance direction (e.g.,
+  // moving away from the target during an overshoot), set springVelocity to 0
+  // to ensure a smooth settle without wild bouncing.
+  if ((distance > 0 && containerVelocity < 0) ||
+      (distance < 0 && containerVelocity > 0)) {
+    springVelocity = 0;
+  } else if (ABS(distance) > 1.0) {
     springVelocity = containerVelocity / distance;
   }
 
@@ -808,6 +842,7 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
   // If we are currently dragging, do not interfere with the constraint.
   if (_headerPanGesture.state == UIGestureRecognizerStateBegan ||
       _headerPanGesture.state == UIGestureRecognizerStateChanged ||
+      _headerPanGesture.state == UIGestureRecognizerStateEnded ||
       self.isAnimating) {
     return;
   }
@@ -821,8 +856,6 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
   NSInteger maxHeight = [self effectiveMaxHeight];
   NSInteger minHeight = [self effectiveMinHeight];
 
-  // If detents are available, use them to determine the target height.
-  // We snap to the nearest detent.
   NSInteger currentHeight = round(_heightConstraint.constant);
   NSInteger nearestDetentValue = 0;
   NSInteger minDistance = NSIntegerMax;
@@ -1005,6 +1038,7 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
   [view setNeedsLayout];
 
   [self updateDetentHeights];
+
   if (_activeDetent.has_value()) {
     _heightConstraint.constant = _detentHeights[_activeDetent.value()];
   }
@@ -1022,19 +1056,22 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
   CGFloat targetHeight = _heightConstraint.constant;
   CGFloat targetPercentage = [self expandPercentageForHeight:targetHeight];
 
+  self.isAnimating = YES;
+
   __weak __typeof(self) weakSelf = self;
 
   [UIView animateWithDuration:kAssistantSheetSpringDuration
-                        delay:0
-       usingSpringWithDamping:kAssistantSheetSpringDamping
-        initialSpringVelocity:velocity
-                      options:UIViewAnimationOptionCurveEaseOut |
-                              UIViewAnimationOptionBeginFromCurrentState
-                   animations:^{
-                     [weakSelf executeAlongsideAnimationWithPercentage:
-                                   targetPercentage];
-                   }
-                   completion:nil];
+      delay:0
+      usingSpringWithDamping:kAssistantSheetSpringDamping
+      initialSpringVelocity:velocity
+      options:UIViewAnimationOptionCurveEaseOut |
+              UIViewAnimationOptionBeginFromCurrentState
+      animations:^{
+        [weakSelf executeAlongsideAnimationWithPercentage:targetPercentage];
+      }
+      completion:^(BOOL finished) {
+        weakSelf.isAnimating = NO;
+      }];
 }
 
 // Recomputes and caches the heights for all active detents.

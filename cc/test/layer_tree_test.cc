@@ -32,10 +32,10 @@
 #include "cc/raster/raster_buffer_provider.h"
 #include "cc/test/animation_test_common.h"
 #include "cc/test/fake_compositor_frame_reporting_controller.h"
-#include "cc/test/fake_layer_tree_host_client.h"
+#include "cc/test/fake_layer_tree_host_delegate.h"
 #include "cc/test/test_layer_tree_frame_sink.h"
 #include "cc/trees/client_layer_tree_host_impl.h"
-#include "cc/trees/layer_tree_host_client.h"
+#include "cc/trees/layer_tree_host_delegate.h"
 #include "cc/trees/layer_tree_host_impl.h"
 #include "cc/trees/layer_tree_host_single_thread_client.h"
 #include "cc/trees/layer_tree_impl.h"
@@ -170,14 +170,14 @@ class LayerTreeHostImplForTesting : public ClientLayerTreeHostImpl {
   static std::unique_ptr<LayerTreeHostImplForTesting> Create(
       TestHooks* test_hooks,
       const LayerTreeSettings& settings,
-      LayerTreeHostImplClient* host_impl_client,
+      LayerTreeHostImplDelegate* host_impl_delegate,
       LayerTreeHostSchedulingClient* scheduling_client,
       TaskRunnerProvider* task_runner_provider,
       TaskGraphRunner* task_graph_runner,
       RenderingStatsInstrumentation* stats_instrumentation,
       scoped_refptr<base::SequencedTaskRunner> image_worker_task_runner) {
     return base::WrapUnique(new LayerTreeHostImplForTesting(
-        test_hooks, settings, host_impl_client, scheduling_client,
+        test_hooks, settings, host_impl_delegate, scheduling_client,
         task_runner_provider, task_graph_runner, stats_instrumentation,
         std::move(image_worker_task_runner)));
   }
@@ -186,7 +186,7 @@ class LayerTreeHostImplForTesting : public ClientLayerTreeHostImpl {
   LayerTreeHostImplForTesting(
       TestHooks* test_hooks,
       const LayerTreeSettings& settings,
-      LayerTreeHostImplClient* host_impl_client,
+      LayerTreeHostImplDelegate* host_impl_delegate,
       LayerTreeHostSchedulingClient* scheduling_client,
       TaskRunnerProvider* task_runner_provider,
       TaskGraphRunner* task_graph_runner,
@@ -194,7 +194,7 @@ class LayerTreeHostImplForTesting : public ClientLayerTreeHostImpl {
       scoped_refptr<base::SequencedTaskRunner> image_worker_task_runner)
       : ClientLayerTreeHostImpl(
             settings,
-            host_impl_client,
+            host_impl_delegate,
             task_runner_provider,
             stats_instrumentation,
             task_graph_runner,
@@ -231,7 +231,7 @@ class LayerTreeHostImplForTesting : public ClientLayerTreeHostImpl {
       const viz::BeginFrameArgs& args,
       bool next_bmf,
       bool scroll_and_viewport_changes_synced) override {
-    LayerTreeHostImpl::BeginMainFrameAborted(
+    ClientLayerTreeHostImpl::BeginMainFrameAborted(
         reason, std::move(swap_promises), args, next_bmf,
         scroll_and_viewport_changes_synced);
     test_hooks_->BeginMainFrameAbortedOnThread(
@@ -241,26 +241,27 @@ class LayerTreeHostImplForTesting : public ClientLayerTreeHostImpl {
   void ReadyToCommit(bool scroll_and_viewport_changes_synced,
                      const BeginMainFrameMetrics* begin_main_frame_metrics,
                      bool commit_timeout) override {
-    LayerTreeHostImpl::ReadyToCommit(scroll_and_viewport_changes_synced,
-                                     begin_main_frame_metrics, commit_timeout);
+    ClientLayerTreeHostImpl::ReadyToCommit(scroll_and_viewport_changes_synced,
+                                           begin_main_frame_metrics,
+                                           commit_timeout);
     test_hooks_->ReadyToCommitOnThread(this);
   }
 
   void BeginCommit(int source_frame_number,
                    BeginMainFrameTraceId trace_id) override {
-    LayerTreeHostImpl::BeginCommit(source_frame_number, trace_id);
+    ClientLayerTreeHostImpl::BeginCommit(source_frame_number, trace_id);
     test_hooks_->BeginCommitOnThread(this);
   }
 
   void CommitComplete() override {
     test_hooks_->WillCommitCompleteOnThread(this);
-    LayerTreeHostImpl::CommitComplete();
+    ClientLayerTreeHostImpl::CommitComplete();
     test_hooks_->CommitCompleteOnThread(this);
   }
 
   bool PrepareTiles() override {
     test_hooks_->WillPrepareTilesOnThread(this);
-    return LayerTreeHostImpl::PrepareTiles();
+    return ClientLayerTreeHostImpl::PrepareTiles();
   }
 
   DrawResult PrepareToDraw(FrameData* frame, bool expects_to_draw) override {
@@ -336,7 +337,7 @@ class LayerTreeHostImplForTesting : public ClientLayerTreeHostImpl {
 
   void ActivateSyncTree() override {
     test_hooks_->WillActivateTreeOnThread(this);
-    LayerTreeHostImpl::ActivateSyncTree();
+    ClientLayerTreeHostImpl::ActivateSyncTree();
     DCHECK(!pending_tree());
     test_hooks_->DidActivateTreeOnThread(this);
   }
@@ -383,12 +384,12 @@ class LayerTreeHostImplForTesting : public ClientLayerTreeHostImpl {
   }
 
   void InvalidateContentOnImplSide() override {
-    LayerTreeHostImpl::InvalidateContentOnImplSide();
+    ClientLayerTreeHostImpl::InvalidateContentOnImplSide();
     test_hooks_->DidInvalidateContentOnImplSide(this);
   }
 
   void InvalidateLayerTreeFrameSink(bool needs_redraw) override {
-    LayerTreeHostImpl::InvalidateLayerTreeFrameSink(needs_redraw);
+    ClientLayerTreeHostImpl::InvalidateLayerTreeFrameSink(needs_redraw);
     test_hooks_->DidInvalidateLayerTreeFrameSink(this);
   }
 
@@ -425,15 +426,15 @@ class LayerTreeHostImplForTesting : public ClientLayerTreeHostImpl {
 };
 
 // Implementation of LayerTreeHost callback interface.
-class LayerTreeHostClientForTesting : public LayerTreeHostClient,
-                                      public LayerTreeHostSchedulingClient,
-                                      public LayerTreeHostSingleThreadClient {
+class LayerTreeHostDelegateForTesting : public LayerTreeHostDelegate,
+                                        public LayerTreeHostSchedulingClient,
+                                        public LayerTreeHostSingleThreadClient {
  public:
-  static std::unique_ptr<LayerTreeHostClientForTesting> Create(
+  static std::unique_ptr<LayerTreeHostDelegateForTesting> Create(
       TestHooks* test_hooks) {
-    return base::WrapUnique(new LayerTreeHostClientForTesting(test_hooks));
+    return base::WrapUnique(new LayerTreeHostDelegateForTesting(test_hooks));
   }
-  ~LayerTreeHostClientForTesting() override = default;
+  ~LayerTreeHostDelegateForTesting() override = default;
 
   void WillBeginMainFrame() override { test_hooks_->WillBeginMainFrame(); }
 
@@ -522,7 +523,7 @@ class LayerTreeHostClientForTesting : public LayerTreeHostClient,
   }
 
  private:
-  explicit LayerTreeHostClientForTesting(TestHooks* test_hooks)
+  explicit LayerTreeHostDelegateForTesting(TestHooks* test_hooks)
       : test_hooks_(test_hooks) {}
 
   raw_ptr<TestHooks> test_hooks_;
@@ -534,7 +535,7 @@ class LayerTreeHostForTesting : public LayerTreeHost {
   static std::unique_ptr<LayerTreeHostForTesting> Create(
       TestHooks* test_hooks,
       CompositorMode mode,
-      LayerTreeHostClient* client,
+      LayerTreeHostDelegate* client,
       LayerTreeHostSchedulingClient* scheduling_client,
       LayerTreeHostSingleThreadClient* single_thread_client,
       TaskGraphRunner* task_graph_runner,
@@ -576,7 +577,7 @@ class LayerTreeHostForTesting : public LayerTreeHost {
   }
 
   std::unique_ptr<ClientLayerTreeHostImpl> CreateLayerTreeHostImplInternal(
-      LayerTreeHostImplClient* host_impl_client,
+      LayerTreeHostImplDelegate* host_impl_delegate,
       MutatorHost*,
       const LayerTreeSettings& settings,
       TaskRunnerProvider* task_runner_provider,
@@ -590,7 +591,7 @@ class LayerTreeHostForTesting : public LayerTreeHost {
       override {
     std::unique_ptr<ClientLayerTreeHostImpl> host_impl =
         LayerTreeHostImplForTesting::Create(
-            test_hooks_, settings, host_impl_client, scheduling_client,
+            test_hooks_, settings, host_impl_delegate, scheduling_client,
             task_runner_provider, task_graph_runner,
             rendering_stats_instrumentation, image_worker_task_runner);
 
@@ -959,7 +960,7 @@ void LayerTreeTest::WillBeginTest() {
 }
 
 void LayerTreeTest::DoBeginTest() {
-  client_ = LayerTreeHostClientForTesting::Create(this);
+  client_ = LayerTreeHostDelegateForTesting::Create(this);
 
   DCHECK(!impl_thread_ || impl_thread_->task_runner().get());
 

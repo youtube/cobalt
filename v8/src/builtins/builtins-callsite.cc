@@ -6,8 +6,13 @@
 #include "src/builtins/builtins.h"
 #include "src/logging/counters.h"
 #include "src/objects/call-site-info-inl.h"
+#include "src/objects/contexts-inl.h"
+#include "src/objects/js-function-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/roots/roots-inl.h"
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {

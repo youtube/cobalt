@@ -9,7 +9,6 @@
 #include "src/strings/char-predicates.h"
 
 #include "unicode/uchar.h"
-#include "unicode/urename.h"
 
 namespace v8 {
 namespace internal {

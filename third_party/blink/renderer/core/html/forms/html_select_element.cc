@@ -48,6 +48,7 @@
 #include "third_party/blink/renderer/core/dom/node_lists_node_data.h"
 #include "third_party/blink/renderer/core/dom/node_traversal.h"
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
+#include "third_party/blink/renderer/core/execution_context/agent.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/html/forms/form_controller.h"
 #include "third_party/blink/renderer/core/html/forms/form_data.h"
@@ -469,13 +470,14 @@ LayoutObject* HTMLSelectElement::CreateLayoutObject(
     UseCounter::Count(GetDocument(), WebFeature::kVerticalFormControls);
   }
 
+  if (SupportsBaseAppearance(style.EffectiveAppearance())) {
+    // Don't hard code the layout object type for customizable select. The UA
+    // stylesheet has flex or block in it and authors should be able to change
+    // it if they want.
+    return HTMLFormControlElementWithState::CreateLayoutObject(style);
+  }
+
   if (UsesMenuList()) {
-    if (SupportsBaseAppearance(style.EffectiveAppearance())) {
-      // Don't hard code the layout object type for customizable select. The UA
-      // stylesheet has flex in it and authors should be able to change it if
-      // they want.
-      return HTMLFormControlElementWithState::CreateLayoutObject(style);
-    }
     return MakeGarbageCollected<LayoutFlexibleBox>(this);
   }
   return MakeGarbageCollected<LayoutBlockFlow>(this);
@@ -758,10 +760,15 @@ void HTMLSelectElement::ResetToDefaultSelection(ResetReason reason) {
   if (!last_selected_option && size_ <= 1 &&
       (!first_enabled_option ||
        (first_enabled_option && !first_enabled_option->Selected()))) {
-    SelectOption(first_enabled_option,
-                 reason == kResetReasonSelectedOptionRemoved
-                     ? 0
-                     : kDeselectOtherOptionsFlag);
+    SelectOptionFlags flags = 0;
+    if (reason == kResetReasonSelectedOptionRemoved) {
+      flags = kDontUpdateSelectedcontentFlag;
+    } else if (reason == kResetReasonOptionInsertedOrRemoved) {
+      flags = kDeselectOtherOptionsFlag | kDontUpdateSelectedcontentFlag;
+    } else {
+      flags = kDeselectOtherOptionsFlag;
+    }
+    SelectOption(first_enabled_option, flags);
     last_selected_option = first_enabled_option;
     did_change = true;
   }
@@ -876,7 +883,8 @@ void HTMLSelectElement::OptionInserted(HTMLOptionElement& option,
   DCHECK_EQ(option.OwnerSelectElement(), this);
   SetRecalcListItems();
   if (option_is_selected) {
-    SelectOption(&option, IsMultiple() ? 0 : kDeselectOtherOptionsFlag);
+    SelectOption(&option, kDontUpdateSelectedcontentFlag |
+                              (IsMultiple() ? 0 : kDeselectOtherOptionsFlag));
   } else if (!last_on_change_option_) {
     // The newly added option is not selected and we do not already have a
     // selected option. We should re-run the selection algorithm if there is a
@@ -890,11 +898,13 @@ void HTMLSelectElement::OptionInserted(HTMLOptionElement& option,
     //
     // https://html.spec.whatwg.org/multipage/form-elements.html#selectedness-setting-algorithm
     if (size_ <= 1 && !option.IsDisabledFormControl()) {
-      ResetToDefaultSelection();
+      ResetToDefaultSelection(kResetReasonOptionInsertedOrRemoved);
     }
   }
   SetNeedsValidityCheck();
   select_type_->ClearLastOnChangeSelection();
+
+  was_option_inserted_ = true;
 
   if (!GetDocument().IsActive())
     return;
@@ -906,19 +916,34 @@ void HTMLSelectElement::OptionInserted(HTMLOptionElement& option,
       .SelectFieldOptionsChanged(*this);
 }
 
+void HTMLSelectElement::UpdateAllSelectedcontents() {
+  if (IsMultiple()) {
+    UpdateAllSelectedcontentsMultiple();
+  } else if (!descendant_selectedcontents_.IsEmpty()) {
+    // Calling SelectedOption may be expensive, so we should avoid doing it
+    // unless there are actually any selectedcontent elements to update. Using
+    // last_on_change_option_ would probably be better, but I'm not sure if it's
+    // guaranteed to be up to date here.
+    UpdateAllSelectedcontentsSingle(SelectedOption());
+  }
+}
+
 void HTMLSelectElement::OptionRemoved(HTMLOptionElement& option) {
   SetRecalcListItems();
-  if (IsMultiple()) {
-    // ResetToDefaultSelection early-outs for select multiple, so we need to
-    // manually update the selectedcontent element here.
-    if (option.Selected()) {
-      UpdateAllSelectedcontentsMultiple();
-    }
-  } else {
+
+  if (option.Selected() &&
+      !descendant_selectedcontents_.IsEmpty() &&
+      RuntimeEnabledFeatures::SelectedcontentSpecEnabled()) {
+    GetDocument().GetAgent().event_loop()->EnqueueMicrotask(
+        BindOnce(&HTMLSelectElement::UpdateAllSelectedcontents,
+                 WrapWeakPersistent(this)));
+  }
+
+  if (!IsMultiple()) {
     if (option.Selected()) {
       ResetToDefaultSelection(kResetReasonSelectedOptionRemoved);
     } else if (!last_on_change_option_) {
-      ResetToDefaultSelection();
+      ResetToDefaultSelection(kResetReasonOptionInsertedOrRemoved);
     }
   }
   if (last_on_change_option_ == &option)
@@ -983,10 +1008,13 @@ void HTMLSelectElement::SelectOption(HTMLOptionElement* element,
   if (flags & kDeselectOtherOptionsFlag)
     should_update_popup |= DeselectItemsWithoutValidation(element);
 
-  if (IsMultiple()) {
-    UpdateAllSelectedcontentsMultiple();
-  } else {
-    UpdateAllSelectedcontentsSingle(element);
+  if (!RuntimeEnabledFeatures::SelectedcontentSpecEnabled() ||
+      !(flags & kDontUpdateSelectedcontentFlag)) {
+    if (IsMultiple()) {
+      UpdateAllSelectedcontentsMultiple();
+    } else {
+      UpdateAllSelectedcontentsSingle(element);
+    }
   }
 
   // Note that DidSelectOption fires change events, which can invoke script
@@ -1983,6 +2011,14 @@ void HTMLSelectElement::UpdateAllSelectedcontentsSingle(
   DCHECK_EQ(selected_option, SelectedOption());
 
   if (RuntimeEnabledFeatures::SelectedcontentSpecEnabled()) {
+    // Selectedcontent elements should not be updated during insertion or
+    // removal steps for security reasons, and these script and event
+    // dispatching checks should correspond to those cases.
+    DCHECK(!ScriptForbiddenScope::IsScriptForbidden());
+#if DCHECK_IS_ON()
+    DCHECK(!EventDispatchForbiddenScope::IsEventDispatchForbidden());
+#endif
+
     VectorOf<HTMLSelectedContentElement> enabled_selectedcontents;
     for (HTMLSelectedContentElement* selectedcontent :
          descendant_selectedcontents_) {

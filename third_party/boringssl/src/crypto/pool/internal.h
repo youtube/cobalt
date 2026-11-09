@@ -68,11 +68,10 @@ class CryptoBuffer : public crypto_buffer_st {
 
 DEFINE_LHASH_OF(CryptoBuffer)
 
-class CryptoBufferPool : public crypto_buffer_pool_st {
+class CryptoBufferPool : public crypto_buffer_pool_st,
+                         public RefCounted<CryptoBufferPool> {
  public:
-  static constexpr bool kAllowUniquePtr = true;
   CryptoBufferPool();
-  ~CryptoBufferPool();
 
   // Hash returns the hash of |data|.
   uint32_t Hash(Span<const uint8_t> data) const;
@@ -85,6 +84,10 @@ class CryptoBufferPool : public crypto_buffer_pool_st {
   UniquePtr<CryptoBufferPoolHandle> handle_;
   LHASH_OF(CryptoBuffer) *bufs_ = nullptr;
   uint64_t hash_key_[2];
+
+ private:
+  friend RefCounted;
+  ~CryptoBufferPool();
 };
 
 BSSL_NAMESPACE_END

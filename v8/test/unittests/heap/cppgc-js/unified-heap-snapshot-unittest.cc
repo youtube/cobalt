@@ -470,10 +470,11 @@ TEST_F(UnifiedHeapSnapshotTest, RetainingNamedThroughUnnamed) {
   EXPECT_TRUE(ContainsRetainingPath(
       *snapshot, {kExpectedGCRootsName, kExpectedCppRootsName,
                   cppgc::NameProvider::kHiddenName, GetExpectedName<GCed>()}));
-  CheckSize(snapshot, cppgc::NameProvider::kHiddenName, 0);
+  CheckSize(snapshot, cppgc::NameProvider::kHiddenName,
+            GetCppSize(base_without_name.Get()));
   CheckSize(snapshot, GetExpectedName<GCed>(),
             GetCppSize(base_without_name->next.Get()));
-  EXPECT_EQ(GetCppSize(base_without_name.Get()), GetExtraNativeBytes(snapshot));
+  EXPECT_EQ(0u, GetExtraNativeBytes(snapshot));
 }
 
 TEST_F(UnifiedHeapSnapshotTest, PendingCallStack) {
@@ -504,10 +505,9 @@ TEST_F(UnifiedHeapSnapshotTest, PendingCallStack) {
       *snapshot, {kExpectedGCRootsName, kExpectedCppRootsName,
                   cppgc::NameProvider::kHiddenName,
                   cppgc::NameProvider::kHiddenName, GetExpectedName<GCed>()}));
-  CheckSize(snapshot, cppgc::NameProvider::kHiddenName, 0);
+  CheckSize(snapshot, cppgc::NameProvider::kHiddenName, GetCppSize(first));
   CheckSize(snapshot, GetExpectedName<GCed>(), GetCppSize(third));
-  EXPECT_EQ(GetCppSize(first) + GetCppSize(second),
-            GetExtraNativeBytes(snapshot));
+  EXPECT_EQ(0u, GetExtraNativeBytes(snapshot));
 }
 
 TEST_F(UnifiedHeapSnapshotTest, ReferenceToFinishedSCC) {
@@ -666,12 +666,8 @@ void WithUnifiedHeapSnapshot<TMixin>::TestMergedWrapperNode(
        // GCedWithJSRef is merged into MergedObject, replacing its name.
        "NextObject"}));
   const size_t js_size = Utils::OpenDirectHandle(*wrapper_object)->Size();
-  if (snapshot_mode == v8::HeapProfiler::HeapSnapshotMode::kExposeInternals) {
-    const size_t cpp_size = GetCppSize(gc_w_js_ref.Get());
-    CheckSize(snapshot, kExpectedName, cpp_size + js_size);
-  } else {
-    CheckSize(snapshot, kExpectedName, js_size);
-  }
+  const size_t cpp_size = GetCppSize(gc_w_js_ref.Get());
+  CheckSize(snapshot, kExpectedName, cpp_size + js_size);
 }
 
 TEST_F(UnifiedHeapSnapshotTest, MergedWrapperNodeWithInternalDetails) {

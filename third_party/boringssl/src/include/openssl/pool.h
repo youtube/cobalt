@@ -50,8 +50,14 @@ DEFINE_STACK_OF(CRYPTO_BUFFER)
 // NULL on error.
 OPENSSL_EXPORT CRYPTO_BUFFER_POOL* CRYPTO_BUFFER_POOL_new(void);
 
-// CRYPTO_BUFFER_POOL_free frees |pool|, which must be empty.
+// CRYPTO_BUFFER_POOL_free decrements the reference count of |pool| and frees it
+// if the reference count drops to zero.
 OPENSSL_EXPORT void CRYPTO_BUFFER_POOL_free(CRYPTO_BUFFER_POOL *pool);
+
+// CRYPTO_BUFFER_POOL_up_ref increments the reference count of |pool| and
+// returns one. It does not mutate |pool| for thread-safety purposes and may be
+// used concurrently.
+OPENSSL_EXPORT int CRYPTO_BUFFER_POOL_up_ref(CRYPTO_BUFFER_POOL *pool);
 
 // CRYPTO_BUFFER_new returns a |CRYPTO_BUFFER| containing a copy of |data|, or
 // else NULL on error. If |pool| is not NULL then the returned value may be a
@@ -113,6 +119,7 @@ extern "C++" {
 BSSL_NAMESPACE_BEGIN
 
 BORINGSSL_MAKE_DELETER(CRYPTO_BUFFER_POOL, CRYPTO_BUFFER_POOL_free)
+BORINGSSL_MAKE_UP_REF(CRYPTO_BUFFER_POOL, CRYPTO_BUFFER_POOL_up_ref)
 BORINGSSL_MAKE_DELETER(CRYPTO_BUFFER, CRYPTO_BUFFER_free)
 BORINGSSL_MAKE_UP_REF(CRYPTO_BUFFER, CRYPTO_BUFFER_up_ref)
 

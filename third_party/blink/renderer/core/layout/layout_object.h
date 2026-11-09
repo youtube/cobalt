@@ -1050,18 +1050,6 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
     return IsTableCell() || IsLayoutTableCol() || IsTableCaption() ||
            IsTableRow() || IsTableSection();
   }
-  inline bool IsCheckContent() const;
-  inline bool IsBeforeContent() const;
-  inline bool IsAfterContent() const;
-  inline bool IsMarkerContent() const;
-  inline bool IsScrollButtonContent() const;
-  inline bool IsScrollMarkerContent() const;
-  inline bool IsScrollButtonOrMarkerContent() const;
-  inline bool IsBeforeOrAfterContent() const;
-  inline bool IsInterestButtonContent() const;
-  static inline bool IsAfterContent(const LayoutObject* obj) {
-    return obj && obj->IsAfterContent();
-  }
 
   bool IsOverscrollAreaParent() const {
     NOT_DESTROYED();
@@ -3657,10 +3645,6 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   // |SetShouldInvalidateSelection| on all selected children.
   void InvalidateSelectedChildrenOnStyleChange();
 
-  // Returns `true` if the LayoutObject is for the specified pseudo-element
-  // type.
-  inline bool IsPseudoElementContent(PseudoId pseudo_id) const;
-
   // It's unclear why Clang doesn't inline this.
   ALWAYS_INLINE
   StyleDifference AdjustStyleDifference(StyleDifference) const;
@@ -4244,74 +4228,6 @@ struct ThreadingTrait<T> {
 // Allow equality comparisons of LayoutObjects by reference or pointer,
 // interchangeably.
 DEFINE_COMPARISON_OPERATORS_WITH_REFERENCES(LayoutObject)
-
-inline bool LayoutObject::IsPseudoElementContent(PseudoId pseudo_id) const {
-  NOT_DESTROYED();
-  if (StyleRef().StyleType() != pseudo_id) {
-    return false;
-  }
-  // Text nodes don't have their own styles, so ignore the style on a text node.
-  if (IsText() && !IsBR()) {
-    return false;
-  }
-  return true;
-}
-
-inline bool LayoutObject::IsCheckContent() const {
-  NOT_DESTROYED();
-  return IsPseudoElementContent(kPseudoIdCheckMark);
-}
-
-inline bool LayoutObject::IsBeforeContent() const {
-  NOT_DESTROYED();
-  return IsPseudoElementContent(kPseudoIdBefore);
-}
-
-inline bool LayoutObject::IsAfterContent() const {
-  NOT_DESTROYED();
-  return IsPseudoElementContent(kPseudoIdAfter);
-}
-
-inline bool LayoutObject::IsMarkerContent() const {
-  NOT_DESTROYED();
-  return IsPseudoElementContent(kPseudoIdMarker);
-}
-
-inline bool LayoutObject::IsScrollButtonContent() const {
-  NOT_DESTROYED();
-  if (StyleRef().StyleType() != kPseudoIdScrollButton &&
-      StyleRef().StyleType() != kPseudoIdScrollButtonBlockStart &&
-      StyleRef().StyleType() != kPseudoIdScrollButtonInlineStart &&
-      StyleRef().StyleType() != kPseudoIdScrollButtonInlineEnd &&
-      StyleRef().StyleType() != kPseudoIdScrollButtonBlockEnd) {
-    return false;
-  }
-  // Text nodes don't have their own styles, so ignore the style on a text node.
-  if (IsText() && !IsBR()) {
-    return false;
-  }
-  return true;
-}
-
-inline bool LayoutObject::IsScrollMarkerContent() const {
-  NOT_DESTROYED();
-  return IsPseudoElementContent(kPseudoIdScrollMarker);
-}
-
-inline bool LayoutObject::IsScrollButtonOrMarkerContent() const {
-  NOT_DESTROYED();
-  return IsScrollButtonContent() || IsScrollMarkerContent();
-}
-
-inline bool LayoutObject::IsInterestButtonContent() const {
-  NOT_DESTROYED();
-  return IsPseudoElementContent(kPseudoIdInterestButton);
-}
-
-inline bool LayoutObject::IsBeforeOrAfterContent() const {
-  NOT_DESTROYED();
-  return IsBeforeContent() || IsAfterContent();
-}
 
 inline void LayoutObject::ClearNeedsLayoutWithoutPaintInvalidation() {
   NOT_DESTROYED();

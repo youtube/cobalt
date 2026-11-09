@@ -82,6 +82,8 @@ class WasmLoweringReducer : public Next {
         if (null_check_strategy_ == NullCheckStrategy::kExplicit ||
             wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), type.AsNonShared(),
                               module_) ||
+            wasm::IsSubtypeOf(wasm::kWasmExnRef.AsNonNull(), type.AsNonShared(),
+                              module_) ||
             !type.use_wasm_null()) {
           __ TrapIf(__ IsNull(object, type), frame_state, trap_id);
         } else {
@@ -89,6 +91,9 @@ class WasmLoweringReducer : public Next {
           static_assert(WasmStruct::kHeaderSize > kTaggedSize);
           static_assert(WasmArray::kHeaderSize > kTaggedSize);
           static_assert(WasmInternalFunction::kHeaderSize > kTaggedSize);
+          // Waitqueues are represented as Managed.
+          static_assert(sizeof(Managed<FutexManagedObjectWaitList>) >
+                        kTaggedSize);
           __ Load(object, LoadOp::Kind::TrapOnNull().Immutable(),
                   MemoryRepresentation::Int32(), kTaggedSize);
         }
@@ -126,7 +131,8 @@ class WasmLoweringReducer : public Next {
     }
   }
 
-  V<Object> REDUCE(AnyConvertExtern)(V<Object> object, SharedFlag is_shared) {
+  V<Object> REDUCE(AnyConvertExtern)(V<Object> object, SharedFlag is_shared,
+                                     bool is_nullable) {
     Label<Object> end_label(&Asm());
     Label<> null_label(&Asm());
     Label<> smi_label(&Asm());
@@ -136,14 +142,18 @@ class WasmLoweringReducer : public Next {
     constexpr int32_t kInt31MaxValue = 0x3fffffff;
     constexpr int32_t kInt31MinValue = -kInt31MaxValue - 1;
 
-    GOTO_IF(__ IsNull(object, wasm::kWasmExternRef), null_label);
+    if (is_nullable) {
+      GOTO_IF(__ IsNull(object, wasm::kWasmExternRef), null_label);
+    }
     GOTO_IF(__ IsSmi(object), smi_label);
     GOTO_IF(__ HasInstanceType(object, HEAP_NUMBER_TYPE), heap_number_label);
     // For anything else, just pass through the value.
     GOTO(end_label, object);
 
-    BIND(null_label);
-    GOTO(end_label, __ Null(wasm::kWasmAnyRef));
+    if (is_nullable) {
+      BIND(null_label);
+      GOTO(end_label, __ Null(wasm::kWasmAnyRef));
+    }
 
     // Canonicalize SMI.
     BIND(smi_label);
@@ -162,30 +172,14 @@ class WasmLoweringReducer : public Next {
 
       BIND(convert_to_heap_number_label);
       V<Object> heap_number;
-      if (!__ data()->is_wasm()) {
-        // We are in the JS pipeline (i.e. Wasm-in-JS inlining). Wasm nodes
-        // are compiled within the JS compiler, so there is no Wasm jump table.
-        // We use regular builtin calls instead.
-        Isolate* isolate = __ data() -> isolate();
-        DCHECK_NOT_NULL(isolate);
-        heap_number =
-            is_shared == SharedFlag::kYes
-                ? __ template CallBuiltin<deprecated::BuiltinCallDescriptor::
-                                              WasmInt32ToSharedHeapNumber>(
-                      isolate, {int_value})
-                : __ template CallBuiltin<
-                      deprecated::BuiltinCallDescriptor::WasmInt32ToHeapNumber>(
-                      isolate, {int_value});
-      } else {
-        heap_number =
-            is_shared == SharedFlag::kYes
-                ? __ template WasmCallBuiltinThroughJumptable<
-                      deprecated::BuiltinCallDescriptor::
-                          WasmInt32ToSharedHeapNumber>({int_value})
-                : __ template WasmCallBuiltinThroughJumptable<
-                      deprecated::BuiltinCallDescriptor::WasmInt32ToHeapNumber>(
-                      {int_value});
-      }
+      heap_number =
+          is_shared == SharedFlag::kYes
+              ? __ template CallWasmBuiltin<deprecated::BuiltinCallDescriptor::
+                                                WasmInt32ToSharedHeapNumber>(
+                    {int_value})
+              : __ template CallWasmBuiltin<
+                    deprecated::BuiltinCallDescriptor::WasmInt32ToHeapNumber>(
+                    {int_value});
       GOTO(end_label, heap_number);
     }
 
@@ -228,12 +222,15 @@ class WasmLoweringReducer : public Next {
     return result;
   }
 
-  V<Object> REDUCE(ExternConvertAny)(V<Object> object) {
-    Label<Object> end(&Asm());
-    GOTO_IF_NOT(__ IsNull(object, wasm::kWasmAnyRef), end, object);
-    GOTO(end, __ Null(wasm::kWasmExternRef));
-    BIND(end, result);
-    return result;
+  V<Object> REDUCE(ExternConvertAny)(V<Object> object, bool is_nullable) {
+    if (is_nullable) {
+      Label<Object> end(&Asm());
+      GOTO_IF_NOT(__ IsNull(object, wasm::kWasmAnyRef), end, object);
+      GOTO(end, __ Null(wasm::kWasmExternRef));
+      BIND(end, result);
+      return result;
+    }
+    return object;
   }
 
   V<Object> REDUCE(WasmTypeAnnotation)(V<Object> value, wasm::ValueType type) {
@@ -521,7 +518,8 @@ class WasmLoweringReducer : public Next {
           shared_ == SharedFlag::kNo &&
           module_->function_is_shared(function_index) == SharedFlag::kYes;
 
-      V<WasmFuncRef> from_builtin = __ template WasmCallBuiltinThroughJumptable<
+      V<WasmFuncRef> from_builtin;
+      from_builtin = __ template CallWasmBuiltin<
           deprecated::BuiltinCallDescriptor::WasmRefFunc>(
           {__ Word32Constant(function_index),
            __ Word32Constant(extract_shared_data ? 1 : 0)});
@@ -690,8 +688,6 @@ class WasmLoweringReducer : public Next {
         return MemoryRepresentation::Float64();
       case wasm::kS128:
         return MemoryRepresentation::Simd128();
-      case wasm::kWaitQueue:
-        return MemoryRepresentation::Int32();
       case wasm::kRef:
       case wasm::kRefNull:
         return MemoryRepresentation::AnyTagged();

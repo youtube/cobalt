@@ -339,7 +339,7 @@ class ExceptionHandlerInfo;
   V(Int32ToUint8Clamped)                                              \
   V(Uint32ToUint8Clamped)                                             \
   V(Float64ToUint8Clamped)                                            \
-  V(CheckedNumberToUint8Clamped)                                      \
+  V(CheckedNumberOrOddballToUint8Clamped)                             \
   V(Int32CountLeadingZeros)                                           \
   V(TaggedCountLeadingZeros)                                          \
   V(Float64CountLeadingZeros)                                         \
@@ -3913,10 +3913,11 @@ class Float64ToUint8Clamped
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
 
-class CheckedNumberToUint8Clamped
-    : public FixedInputValueNodeT<1, CheckedNumberToUint8Clamped> {
+class CheckedNumberOrOddballToUint8Clamped
+    : public FixedInputValueNodeT<1, CheckedNumberOrOddballToUint8Clamped> {
  public:
-  explicit CheckedNumberToUint8Clamped(uint64_t bitfield) : Base(bitfield) {}
+  explicit CheckedNumberOrOddballToUint8Clamped(uint64_t bitfield)
+      : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::Int32();
@@ -5811,8 +5812,8 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
 };
 
 struct VirtualJSReceiverShape : VirtualHeapObjectShape {
-#define FIELD_LIST(V)                                        \
-  V(properties_or_hash, JSReceiver::kPropertiesOrHashOffset, \
+#define FIELD_LIST(V)                                              \
+  V(properties_or_hash, offsetof(JSReceiver, properties_or_hash_), \
     vobj::FieldType::kTagged)
   DEF_SHAPE(VirtualHeapObjectShape, FIELD_LIST);
 #undef FIELD_LIST

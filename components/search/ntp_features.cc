@@ -46,6 +46,12 @@ BASE_FEATURE(kCustomizeChromeWallpaperSearchButton,
 BASE_FEATURE(kCustomizeChromeWallpaperSearchInspirationCard,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// If enabled, the EnergyEffect for Realbox will be shown.
+BASE_FEATURE(kEnergyEffect, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, the EnergyEffect animation for Realbox will be shown.
+BASE_FEATURE(kEnergyEffectAnimation, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, NTP "realbox" will be themed for CR23. Includes realbox
 // matching omnibox theme and increased realbox shadow.
 BASE_FEATURE(kRealboxCr23Theming,
@@ -193,6 +199,9 @@ BASE_FEATURE(kNtpMicrosoftAuthenticationModule,
 // If enabled, the features of NTP Next (AI action chips etc.) will be shown.
 BASE_FEATURE(kNtpNextFeatures, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, the Canvas action chip will be shown.
+BASE_FEATURE(kNtpNextCanvasChip, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, the OGB loader will request for the async bar parts payload type.
 BASE_FEATURE(kNtpOneGoogleBarAsyncBarParts, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -216,7 +225,7 @@ BASE_FEATURE(kNtpFeatureOptimizationModuleRemoval,
 
 // If enabled, stale shortcuts will be auto-removed from the NTP.
 BASE_FEATURE(kNtpFeatureOptimizationShortcutsRemoval,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, the dismiss module buttons will be removed from the NTP modules.
 BASE_FEATURE(kNtpFeatureOptimizationDismissModulesRemoval,
@@ -310,10 +319,6 @@ const base::FeatureParam<bool> kNtpNextShowStaticRecentTabChipParam(
     &ntp_features::kNtpNextFeatures,
     "NtpNextShowStaticRecentTabChipParam",
     true);
-const base::FeatureParam<bool> kNtpNextEnableCanvasChipParam(
-    &ntp_features::kNtpNextFeatures,
-    "NtpNextEnableCanvasChipParam",
-    false);
 const base::FeatureParam<bool> kNtpNextShowDismissalUIParam(
     &ntp_features::kNtpNextFeatures,
     "NtpNextShowDismissalUIParam",

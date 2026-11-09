@@ -467,7 +467,19 @@ void AddAiStrings(content::WebUIDataSource* html_source) {
        IDS_STS_SETTINGS_OPTION_1_NEVER_SHARE_THESE_SITES},
       {"stsSettingsOption1SitesAddedHereWontBeReferencedV2",
        IDS_STS_SETTINGS_OPTION_1_SITES_ADDED_HERE_WONT_BE_REFERENCED_V2},
-  };
+
+      // Suggestions strings.
+      {"aiSuggestionsLabel", IDS_CONTEXTUAL_CUEING_SETTINGS_PAGE_TITLE},
+      {"aiSuggestionsSublabel", IDS_CONTEXTUAL_CUEING_SETTINGS_PAGE_SUBLABEL},
+      {"aiSuggestionsToggleLabel", IDS_CONTEXTUAL_CUEING_SETTINGS_TOGGLE_LABEL},
+      {"aiSuggestionsToggleSublabel",
+       IDS_CONTEXTUAL_CUEING_SETTINGS_TOGGLE_SUBLABEL},
+      {"aiSuggestionsWhenOn1", IDS_CONTEXTUAL_CUEING_SETTINGS_WHEN_ON_1},
+      {"aiSuggestionsWhenOn2", IDS_CONTEXTUAL_CUEING_SETTINGS_WHEN_ON_2},
+      {"aiSuggestionsConsider1", IDS_CONTEXTUAL_CUEING_SETTINGS_CONSIDER_1},
+      {"aiSuggestionsConsider2", IDS_CONTEXTUAL_CUEING_SETTINGS_CONSIDER_2},
+      {"aiSuggestionsConsider2Link",
+       IDS_CONTEXTUAL_CUEING_SETTINGS_CONSIDER_2_LINK}};
   html_source->AddLocalizedStrings(kLocalizedStrings);
 
   html_source->AddString("aiPageMainManagedLearnMoreUrl",
@@ -1683,7 +1695,9 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
       {"walletablePassDetectionToConsiderDataUsage",
        IDS_SETTINGS_WALLETABLE_PASS_DETECTION_TO_CONSIDER_DATA_USAGE},
       {"walletablePassDetectionToConsiderDataStorage",
-       IDS_SETTINGS_WALLETABLE_PASS_DETECTION_TO_CONSIDER_DATA_STORAGE}};
+       IDS_SETTINGS_WALLETABLE_PASS_DETECTION_TO_CONSIDER_DATA_STORAGE},
+      {"autofillAiSaveOrUpdateLocalEntitySourceNotice",
+       IDS_AUTOFILL_AI_SAVE_OR_UPDATE_LOCAL_ENTITY_SOURCE_NOTICE}};
 
   html_source->AddString("manageAddressesUrl",
                          autofill::payments::GetManageAddressesUrl().spec());
@@ -1729,9 +1743,6 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
                           CheckDeviceAuthAvailability(web_contents));
 
   html_source->AddBoolean("cvcStorageAvailable", true);
-
-  html_source->AddBoolean("autofillCardBenefitsAvailable",
-                          payments_data.IsCardBenefitsFeatureEnabled());
 
   bool is_mandatory_reauth_feature_flag_enabled = false;
 
@@ -2882,6 +2893,12 @@ void AddSearchStrings(content::WebUIDataSource* html_source, Profile* profile) {
       {"searchKeyboardKeyTitle", IDS_SETTINGS_SEARCH_KEYBOARD_KEY_TITLE},
       {"searchKeyboardKeyDescription",
        IDS_SETTINGS_SEARCH_KEYBOARD_KEY_DESCRIPTION},
+      {"controlledByExtensionTitle",
+       IDS_SETTINGS_CONTROLLED_BY_EXTENSION_TITLE},
+      {"controlledByExtensionWithDisableOption",
+       IDS_SETTINGS_CONTROLLED_BY_EXTENSION_WITH_DISABLE_AND_MANAGE_OPTION},
+      {"controlledByExtensionWithoutDisableOption",
+       IDS_SETTINGS_CONTROLLED_BY_EXTENSION_WITH_MANAGE_OPTION},
   };
   html_source->AddLocalizedStrings(kLocalizedStrings);
   html_source->AddString("searchExplanationLearnMoreURL",

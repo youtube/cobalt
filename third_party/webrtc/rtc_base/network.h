@@ -126,6 +126,13 @@ class RTC_EXPORT NetworkManager : public DefaultLocalAddressProvider,
                                   public MdnsResponderProvider {
  public:
   NetworkManager() = default;
+  // NetworksChangedCallback joins the removal tag and the callable.
+  struct NetworksChangedCallback {
+    const void* removal_tag;
+    absl::AnyInvocable<void()> callback;
+  };
+
+  explicit NetworkManager(NetworksChangedCallback callback);
   // This enum indicates whether adapter enumeration is allowed.
   enum EnumerationPermission {
     ENUMERATION_ALLOWED,  // Adapter enumeration is allowed. Getting 0 network
@@ -480,6 +487,7 @@ class RTC_EXPORT Network {
 class RTC_EXPORT NetworkManagerBase : public NetworkManager {
  public:
   NetworkManagerBase();
+  explicit NetworkManagerBase(NetworksChangedCallback callback);
 
   std::vector<const Network*> GetNetworks() const override;
   std::vector<const Network*> GetAnyAddressNetworks() override;
@@ -553,6 +561,12 @@ class RTC_EXPORT BasicNetworkManager : public NetworkManagerBase,
   BasicNetworkManager(
       const Environment& env,
       SocketFactory* absl_nonnull socket_factory,
+      NetworkMonitorFactory* absl_nullable network_monitor_factory = nullptr);
+
+  BasicNetworkManager(
+      const Environment& env,
+      SocketFactory* absl_nonnull socket_factory,
+      NetworksChangedCallback callback,
       NetworkMonitorFactory* absl_nullable network_monitor_factory = nullptr);
 
   ~BasicNetworkManager() override;

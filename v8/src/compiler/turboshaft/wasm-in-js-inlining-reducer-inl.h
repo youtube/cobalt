@@ -15,16 +15,13 @@
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/wasm-assembler-helpers.h"
-#include "src/heap/factory-inl.h"
-#include "src/objects/instance-type-inl.h"
+#include "src/compiler/turboshaft/wasm-wrappers-inl.h"
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/turboshaft-graph-interface-inl.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes-inl.h"
-#include "src/wasm/wasm-subtyping.h"
-#include "src/wasm/wrappers-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -47,7 +44,7 @@ class WasmInJSInliningReducer : public Next {
   // recovered by REDUCE_INPUT_GRAPH(Call) which has direct access to the input
   // graph CallOp and its arguments.
   V<Object> REDUCE(ProcessWasmArgument)(V<Object> value,
-                                        V<turboshaft::FrameState> frame_state) {
+                                        V<FrameState> frame_state) {
     // TODO(493307329): It would be cleaner to let the ProcessWasmArgument
     // actually perform the argument conversion, and get rid of the weird logic
     // in REDUCE_INPUT_GRAPH(Call). The ProcessWasmArgument should lower to the
@@ -79,13 +76,11 @@ class WasmInJSInliningReducer : public Next {
     return Next::ReduceInputGraphCall(ig_index, op);
   }
 
-  V<Any> REDUCE(Call)(V<CallTarget> callee,
-                      OptionalV<turboshaft::FrameState> frame_state,
+  V<Any> REDUCE(Call)(V<CallTarget> callee, OptionalV<FrameState> frame_state,
                       base::Vector<const OpIndex> arguments,
                       const TSCallDescriptor* descriptor, OpEffects effects) {
     // Consume the caller frame state stashed by REDUCE_INPUT_GRAPH(Call).
-    OptionalV<turboshaft::FrameState> caller_frame_state =
-        pending_caller_frame_state_;
+    OptionalV<FrameState> caller_frame_state = pending_caller_frame_state_;
     pending_caller_frame_state_ = {};
 
     if (descriptor->js_wasm_call_parameters) {
@@ -121,7 +116,7 @@ class WasmInJSInliningReducer : public Next {
         int inlining_id = __ data() -> info()->AddInlinedFunction(
             descriptor->js_wasm_call_parameters->shared_fct_info().object(),
             Handle<BytecodeArray>(), call_pos);
-        V<turboshaft::FrameState> wasm_inlined_frame_state =
+        V<FrameState> wasm_inlined_frame_state =
             CreateWasmInlinedIntoJSFrameState(
                 js_context, frame_state.value(),
                 descriptor->js_wasm_call_parameters->shared_fct_info());
@@ -138,10 +133,10 @@ class WasmInJSInliningReducer : public Next {
       const wasm::CanonicalSig* sig =
           wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_id);
       constexpr bool kInliningIntoJs = true;
-      using GraphBuilder = wasm::WasmWrapperTSGraphBuilder<assembler_t>;
+      using GraphBuilder = WasmWrapperTSGraphBuilder<assembler_t>;
       GraphBuilder builder(Asm().phase_zone(), Asm(), sig, kInliningIntoJs,
                            inlined_function_data);
-      V<turboshaft::FrameState> continuation_frame_state =
+      V<FrameState> continuation_frame_state =
           CreateJSWasmCallBuiltinContinuationFrameState(
               js_context, frame_state.value(), sig);
       // When inlining into JS, pass the caller frame state (a pre-call Maglev
@@ -169,7 +164,7 @@ class WasmInJSInliningReducer : public Next {
   WasmBodyInliningResult TryInlineWasmBody(
       const WasmInlinedFunctionData& inlined_data,
       base::Vector<const OpIndex> arguments,
-      compiler::LazyDeoptOnThrow lazy_deopt_on_throw);
+      LazyDeoptOnThrow lazy_deopt_on_throw);
 
   void set_current_wasm_source_position(SourcePosition pos) {
     current_wasm_source_position_ = pos;
@@ -183,40 +178,21 @@ class WasmInJSInliningReducer : public Next {
   }
 
  private:
-  V<turboshaft::FrameState> CreateWasmInlinedIntoJSFrameState(
-      V<Context> js_context, V<turboshaft::FrameState> outer_frame_state,
+  V<FrameState> CreateWasmInlinedIntoJSFrameState(
+      V<Context> js_context, V<FrameState> outer_frame_state,
       SharedFunctionInfoRef shared_function_info);
-  V<turboshaft::FrameState> CreateJSWasmCallBuiltinContinuationFrameState(
-      V<Context> js_context, V<turboshaft::FrameState> outer_frame_state,
+  V<FrameState> CreateJSWasmCallBuiltinContinuationFrameState(
+      V<Context> js_context, V<FrameState> outer_frame_state,
       const wasm::CanonicalSig* signature);
 
   // Caller frame state set by REDUCE_INPUT_GRAPH(Call), consumed by the
   // immediately following REDUCE(Call) within the same ReduceInputGraphCall
   // invocation (crbug.com/493307329).
-  OptionalV<turboshaft::FrameState> pending_caller_frame_state_;
+  OptionalV<FrameState> pending_caller_frame_state_;
 
   SourcePosition current_wasm_source_position_ = SourcePosition::Unknown();
 };
 
-using wasm::ArrayIndexImmediate;
-using wasm::BranchTableImmediate;
-using wasm::CallFunctionImmediate;
-using wasm::CallIndirectImmediate;
-using wasm::FieldImmediate;
-using wasm::GlobalIndexImmediate;
-using wasm::IndexImmediate;
-using wasm::MemoryAccessImmediate;
-using wasm::MemoryCopyImmediate;
-using wasm::MemoryIndexImmediate;
-using wasm::MemoryInitImmediate;
-using wasm::Simd128Immediate;
-using wasm::SimdLaneImmediate;
-using wasm::StringConstImmediate;
-using wasm::StructIndexImmediate;
-using wasm::TableCopyImmediate;
-using wasm::TableIndexImmediate;
-using wasm::TableInitImmediate;
-using wasm::TagIndexImmediate;
 using wasm::ValueType;
 using wasm::WasmOpcode;
 
@@ -252,8 +228,7 @@ class WasmInJsInliningInterface {
   WasmInJsInliningInterface(Assembler& assembler,
                             base::Vector<const OpIndex> arguments,
                             V<WasmTrustedInstanceData> trusted_instance_data,
-                            V<turboshaft::FrameState> frame_state,
-                            int inlining_id)
+                            V<FrameState> frame_state, int inlining_id)
       : asm_(assembler),
         locals_(assembler.phase_zone()),
         arguments_(arguments),
@@ -377,9 +352,10 @@ class WasmInJsInliningInterface {
         // ref.is_null. See `function-body-decoder-impl.h`
         return __ Word32Equal(__ IsNull(arg, input_type), 0);
       case wasm::kExprAnyConvertExtern:
-        return __ AnyConvertExtern(arg, input_type.is_shared());
+        return __ AnyConvertExtern(arg, input_type.is_shared(),
+                                   input_type.is_nullable());
       case wasm::kExprExternConvertAny:
-        return __ ExternConvertAny(arg);
+        return __ ExternConvertAny(arg, input_type.is_nullable());
 
       // We currently don't support operations that:
       // - could trap,
@@ -652,6 +628,10 @@ class WasmInJsInliningInterface {
     result->op = __ Word32Constant(value);
   }
 
+  void I64Const(FullDecoder* decoder, Value* result, int64_t value) {
+    result->op = __ Word64Constant(value);
+  }
+
   void F32Const(FullDecoder* decoder, Value* result, float value) {
     result->op = __ Float32Constant(value);
   }
@@ -660,31 +640,38 @@ class WasmInJsInliningInterface {
     result->op = __ Float64Constant(value);
   }
 
-  // TODO(dlehmann,353475584): Support more of these simple constants.
-  BAILOUT_WASM_OP(I64Const)
-  BAILOUT_WASM_OP(RefNull)
-  BAILOUT_WASM_OP(RefFunc)
-  BAILOUT_WASM_OP(RefAsNonNull)
+  void RefNull(FullDecoder* decoder, ValueType type, Value* result) {
+    result->op = __ Null(type);
+  }
+
+  void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
+    result->op = __ WasmRefFunc(trusted_instance_data_, function_index);
+  }
+
+  void RefAsNonNull(FullDecoder* decoder, const Value& arg, Value* result) {
+    result->op = __ AssertNotNull(arg.get<Object>(), frame_state_, arg.type,
+                                  TrapId::kTrapNullDereference);
+  }
 
   void Drop(FullDecoder* decoder) {}
 
   void LocalGet(FullDecoder* decoder, Value* result,
-                const IndexImmediate& imm) {
+                const wasm::IndexImmediate& imm) {
     result->op = locals_[imm.index];
   }
 
   void LocalSet(FullDecoder* decoder, const Value& value,
-                const IndexImmediate& imm) {
+                const wasm::IndexImmediate& imm) {
     locals_[imm.index] = value.op;
   }
 
   void LocalTee(FullDecoder* decoder, const Value& value, Value* result,
-                const IndexImmediate& imm) {
+                const wasm::IndexImmediate& imm) {
     locals_[imm.index] = result->op = value.op;
   }
 
   void GlobalGet(FullDecoder* decoder, Value* result,
-                 const GlobalIndexImmediate& imm) {
+                 const wasm::GlobalIndexImmediate& imm) {
     SharedFlag shared = decoder->module_->globals[imm.index].shared;
     if (shared == SharedFlag::kYes) {
       return Bailout(decoder);
@@ -693,7 +680,7 @@ class WasmInJsInliningInterface {
   }
 
   void GlobalSet(FullDecoder* decoder, const Value& value,
-                 const GlobalIndexImmediate& imm) {
+                 const wasm::GlobalIndexImmediate& imm) {
     SharedFlag shared = decoder->module_->globals[imm.index].shared;
     if (shared == SharedFlag::kYes) {
       return Bailout(decoder);
@@ -726,7 +713,7 @@ class WasmInJsInliningInterface {
   }
 
   void Trap(FullDecoder* decoder, wasm::TrapReason reason) {
-    __ WasmTrap(frame_state_, compiler::GetTrapIdForTrap(reason));
+    __ WasmTrap(frame_state_, GetTrapIdForTrap(reason));
 
     // Once we support control-flow in the inlinee, we can't just set the
     // result here, since other blocks / instructions could follow.
@@ -750,28 +737,28 @@ class WasmInJsInliningInterface {
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_object,
-                 const FieldImmediate& field, bool is_signed, Value* result) {
+                 const wasm::FieldImmediate& field, bool is_signed,
+                 Value* result) {
     result->op = __ StructGet(
         struct_object.get<WasmStructNullable>(), frame_state_,
         field.struct_imm.struct_type, field.struct_imm.index,
         field.field_imm.index, is_signed,
-        struct_object.type.is_nullable() ? compiler::kWithNullCheck
-                                         : compiler::kWithoutNullCheck,
+        struct_object.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck,
         {});
   }
 
   void StructSet(FullDecoder* decoder, const Value& struct_object,
-                 const FieldImmediate& field, const Value& field_value) {
-    __ StructSet(struct_object.get<WasmStructNullable>(), frame_state_,
-                 field_value.op, field.struct_imm.struct_type,
-                 field.struct_imm.index, field.field_imm.index,
-                 struct_object.type.is_nullable() ? compiler::kWithNullCheck
-                                                  : compiler::kWithoutNullCheck,
-                 {}, wasm::FieldImmediateToWriteBarrier(field));
+                 const wasm::FieldImmediate& field, const Value& field_value) {
+    __ StructSet(
+        struct_object.get<WasmStructNullable>(), frame_state_, field_value.op,
+        field.struct_imm.struct_type, field.struct_imm.index,
+        field.field_imm.index,
+        struct_object.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck,
+        {}, wasm::FieldImmediateToWriteBarrier(field));
   }
 
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
-                const ArrayIndexImmediate& imm, const Value& index,
+                const wasm::ArrayIndexImmediate& imm, const Value& index,
                 bool is_signed, Value* result) {
     auto array_value = array_obj.get<WasmArrayNullable>();
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type,
@@ -781,7 +768,7 @@ class WasmInJsInliningInterface {
   }
 
   void ArraySet(FullDecoder* decoder, const Value& array_obj,
-                const ArrayIndexImmediate& imm, const Value& index,
+                const wasm::ArrayIndexImmediate& imm, const Value& index,
                 const Value& value) {
     auto array_value = array_obj.get<WasmArrayNullable>();
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type,
@@ -794,8 +781,7 @@ class WasmInJsInliningInterface {
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
     result->op = __ ArrayLength(
         array_obj.get<WasmArrayNullable>(), frame_state_,
-        array_obj.type.is_nullable() ? compiler::kWithNullCheck
-                                     : compiler::kWithoutNullCheck);
+        array_obj.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck);
   }
 
   V<FixedArray> managed_object_maps() {
@@ -909,7 +895,8 @@ class WasmInJsInliningInterface {
   BAILOUT_WASM_OP(StructAtomicRMW)
   BAILOUT_WASM_OP(StructAtomicCompareExchange)
   BAILOUT_WASM_OP(StructWait)
-  BAILOUT_WASM_OP(StructNotify)
+  BAILOUT_WASM_OP(WaitqueueNotify)
+  BAILOUT_WASM_OP(WaitqueueNew)
 
   BAILOUT_WASM_OP(ArrayAtomicRMW)
   BAILOUT_WASM_OP(ArrayAtomicCompareExchange)
@@ -1207,9 +1194,8 @@ WasmInJSInliningReducer<Next>::CreateWasmInlinedIntoJSFrameState(
   FrameStateData::Builder builder;
   builder.AddParentFrameState(outer_frame_state);
   // Closure.
-  builder.AddInput(
-      MachineType::AnyTagged(),
-      __ HeapConstant(__ data()->isolate()->factory()->undefined_value()));
+  builder.AddInput(MachineType::AnyTagged(),
+                   __ template LoadRoot<RootIndex::kUndefinedValue>());
   builder.AddInput(MachineType::AnyTagged(), js_context);
   // Dummy param, probably for accumulator in Ignition.
   builder.AddUnusedRegister();
@@ -1242,9 +1228,8 @@ WasmInJSInliningReducer<Next>::CreateJSWasmCallBuiltinContinuationFrameState(
   FrameStateData::Builder builder;
   builder.AddParentFrameState(outer_frame_state);
   // Closure
-  builder.AddInput(
-      MachineType::AnyTagged(),
-      __ HeapConstant(__ data()->isolate()->factory()->undefined_value()));
+  builder.AddInput(MachineType::AnyTagged(),
+                   __ template LoadRoot<RootIndex::kUndefinedValue>());
   builder.AddInput(MachineType::AnyTagged(), js_context);
 
   constexpr bool kInlined = true;

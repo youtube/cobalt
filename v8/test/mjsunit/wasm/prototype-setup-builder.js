@@ -57,16 +57,21 @@ class WasmOnePrototypeConfigBuilder {
 
   // name: string
   // kind: one of kWasmMethod, kWasmGetter, kWasmSetter
-  // func: a WasmFunctionBuilder
+  // func: a WasmFunctionBuilder, or (imported) function index.
   addMethod(name, kind, func) {
     if (kind !== kWasmMethod && kind != kWasmGetter && kind != kWasmSetter) {
       throw new Error(
           "{kind} should be one of kWasmMethod, kWasmGetter, kWasmSetter");
     }
-    if (!(func instanceof WasmFunctionBuilder)) {
+    let func_index;
+    if (func instanceof WasmFunctionBuilder) {
+      func_index = func.index;
+    } else if ((func >>> 0) === func) {
+      func_index = func;
+    } else {
       throw new Error("{func} should be a WasmFunctionBuilder instance");
     }
-    this.methods.push({name, kind, func});
+    this.methods.push({name, kind, func_index});
     return this;
   }
 }
@@ -149,7 +154,7 @@ class WasmPrototypeSetupBuilder {
       for (let method of config.methods) {
         data.push(method.kind);
         data.push(...StringToArray(method.name));
-        functions.push(method.func.index);
+        functions.push(method.func_index);
       }
       data.push(...wasmSignedLeb(config.parent));
     }

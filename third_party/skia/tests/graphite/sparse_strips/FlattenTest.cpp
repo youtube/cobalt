@@ -404,45 +404,62 @@ template <FlattenMode kMode> class FlattenTestRunner {
         const float kViewW = 100.0f;
         const float kViewH = 100.0f;
 
-        auto checkCull = [&](const SkPath& path, bool expectCulled, const char* testName) {
+        enum class Expect {
+            kCulled,      // Completely dropped: Start pt + NaN (2 points)
+            kSimplified,  // Left side simplification: Start pt + End pt + Close pt + NaN (4 points)
+            kSubdivided   // Intersects viewport: Subdivided curve (> 4 points)
+        };
+
+        auto checkPath = [&](const SkPath& path, Expect expect, const char* testName) {
             Flatten flattener;
             Polyline polyline;
             flattener.processPaths<kMode>(path, SkMatrix(), kViewW, kViewH, &polyline);
 
-            const int kCulledPointSize = 4;
+            int count = polyline.points().size();
 
-            if (expectCulled) {
+            if (expect == Expect::kCulled) {
                 REPORTER_ASSERT(
                         reporter,
-                        polyline.points().size() == kCulledPointSize,
-                        "[%s] Expected curve to be culled/simplified to 1 line, got %d points",
+                        count == 2,
+                        "[%s] Expected curve to be entirely culled (2 points), got %d points",
                         testName,
-                        polyline.points().size());
+                        count);
+            } else if (expect == Expect::kSimplified) {
+                REPORTER_ASSERT(
+                        reporter,
+                        count == 4,
+                        "[%s] Expected curve to be simplified to 1 line (4 points), got %d points",
+                        testName,
+                        count);
             } else {
-                REPORTER_ASSERT(
-                        reporter,
-                        polyline.points().size() > kCulledPointSize,
-                        "[%s] Expected curve to cross viewport and be subdivided, got %d points",
-                        testName,
-                        polyline.points().size());
+                REPORTER_ASSERT(reporter,
+                                count > 4,
+                                "[%s] Expected curve to cross viewport and be subdivided (>4 "
+                                "points), got %d points",
+                                testName,
+                                count);
             }
         };
 
-        checkCull(SkPathBuilder().moveTo(10, -20).quadTo(50, -80, 90, -20).detach(),
-                  true,
+        checkPath(SkPathBuilder().moveTo(10, -20).quadTo(50, -80, 90, -20).detach(),
+                  Expect::kCulled,
                   "Cull_Top");
-        checkCull(SkPathBuilder().moveTo(10, 120).cubicTo(30, 180, 70, 180, 90, 120).detach(),
-                  true,
+
+        checkPath(SkPathBuilder().moveTo(10, 120).cubicTo(30, 180, 70, 180, 90, 120).detach(),
+                  Expect::kCulled,
                   "Cull_Bottom");
-        checkCull(SkPathBuilder().moveTo(120, 10).quadTo(180, 50, 120, 90).detach(),
-                  true,
+
+        checkPath(SkPathBuilder().moveTo(120, 10).quadTo(180, 50, 120, 90).detach(),
+                  Expect::kCulled,
                   "Cull_Right");
-        checkCull(SkPathBuilder().moveTo(-20, -20).quadTo(120, -20, 120, 120).detach(),
-                  false,
-                  "Crosses_Viewport");
-        checkCull(SkPathBuilder().moveTo(-50, 10).cubicTo(-20, 30, -20, 70, -50, 90).detach(),
-                  true,
+
+        checkPath(SkPathBuilder().moveTo(-50, 10).cubicTo(-20, 30, -20, 70, -50, 90).detach(),
+                  Expect::kSimplified,
                   "Simplify_Left");
+
+        checkPath(SkPathBuilder().moveTo(-20, -20).quadTo(120, -20, 120, 120).detach(),
+                  Expect::kSubdivided,
+                  "Crosses_Viewport");
     }
 
     static void TestTrickyStrokes(skiatest::Reporter* reporter) {
@@ -613,6 +630,10 @@ public:
 
 DEF_TEST(SparseStrips_Flatten_Scalar, reporter) {
     skgpu::graphite::FlattenTestRunner<FlattenMode::kScalar>::RunAll(reporter);
+}
+
+DEF_TEST(SparseStrips_Flatten_SIMD, reporter) {
+    skgpu::graphite::FlattenTestRunner<FlattenMode::kSimd>::RunAll(reporter);
 }
 
 }  // namespace skgpu::graphite

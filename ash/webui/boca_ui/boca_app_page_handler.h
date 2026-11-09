@@ -15,7 +15,6 @@
 #include "ash/webui/boca_ui/provider/content_settings_handler.h"
 #include "ash/webui/boca_ui/provider/network_info_provider.h"
 #include "ash/webui/boca_ui/provider/tab_info_collector.h"
-#include "ash/webui/boca_ui/webview_auth_handler.h"
 #include "base/containers/queue.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
@@ -31,7 +30,6 @@
 #include "chromeos/ash/components/boca/spotlight/spotlight_constants.h"
 #include "chromeos/ash/components/boca/spotlight/spotlight_service.h"
 #include "components/account_id/account_id.h"
-#include "components/sessions/core/session_id.h"
 #include "content/public/browser/web_ui.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -55,7 +53,6 @@ class BocaAppHandler : public mojom::PageHandler,
       mojo::PendingReceiver<mojom::PageHandler> receiver,
       mojo::PendingRemote<mojom::Page> remote,
       content::WebUI* webui,
-      std::unique_ptr<WebviewAuthHandler> auth_handler,
       std::unique_ptr<ClassroomPageHandlerImpl> classroom_client_impl,
       std::unique_ptr<ContentSettingsHandler> content_settings_handler,
       OnTaskSystemWebAppManager* system_web_app_manager,
@@ -72,7 +69,6 @@ class BocaAppHandler : public mojom::PageHandler,
                                              SetFloatModeCallback callback);
 
   // mojom::PageHandler:
-  void AuthenticateWebview(AuthenticateWebviewCallback callback) override;
   void GetWindowsTabsList(GetWindowsTabsListCallback callback) override;
   void ListCourses(ListCoursesCallback callback) override;
   void ListStudents(const std::string& course_id,
@@ -116,8 +112,6 @@ class BocaAppHandler : public mojom::PageHandler,
                          mojom::Permission permission,
                          mojom::PermissionSetting setting,
                          SetSitePermissionCallback callback) override;
-  void CloseTab(const SessionID::id_type tab_id,
-                CloseTabCallback callback) override;
   void OpenFeedbackDialog(OpenFeedbackDialogCallback callback) override;
   void RefreshWorkbook(RefreshWorkbookCallback callback) override;
   void GetSpeechRecognitionInstallationStatus(
@@ -184,9 +178,6 @@ class BocaAppHandler : public mojom::PageHandler,
 
   // For testing.
   void SetSpotlightServiceForTesting(std::unique_ptr<SpotlightService> service);
-  WebviewAuthHandler* GetWebviewAuthHandlerForTesting() {
-    return auth_handler_.get();
-  }
   void SetPrefForTesting(PrefService* pref_service) {
     pref_service_ = pref_service;
   }
@@ -296,7 +287,6 @@ class BocaAppHandler : public mojom::PageHandler,
   const bool is_producer_;
   std::string base_url_;
   TabInfoCollector tab_info_collector_;
-  std::unique_ptr<WebviewAuthHandler> auth_handler_;
   std::unique_ptr<ClassroomPageHandlerImpl> class_room_page_handler_;
   const std::unique_ptr<ContentSettingsHandler> content_settings_handler_;
   // Update session requests should run in sequence to avoid race conditions

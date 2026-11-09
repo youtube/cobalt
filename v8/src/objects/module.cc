@@ -17,7 +17,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/module-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/object-predicates-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/source-text-module.h"
 #include "src/objects/synthetic-module-inl.h"

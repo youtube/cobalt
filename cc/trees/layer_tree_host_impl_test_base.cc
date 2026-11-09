@@ -24,33 +24,9 @@ namespace cc {
 
 using ScrollThread = InputHandler::ScrollThread;
 
-namespace {
-class TestVizLayerTreeHostImpl : public LayerTreeHostImpl {
- public:
-  static std::unique_ptr<LayerTreeHostImpl> Create(
-      const LayerTreeSettings& settings,
-      LayerTreeHostImplClient* client,
-      TaskRunnerProvider* task_runner_provider,
-      RenderingStatsInstrumentation* rendering_stats_instrumentation,
-      TaskGraphRunner* task_graph_runner,
-      std::unique_ptr<MutatorHost> mutator_host,
-      RasterDarkModeFilter* dark_mode_filter,
-      int id,
-      scoped_refptr<base::SequencedTaskRunner> image_worker_task_runner,
-      LayerTreeHostSchedulingClient* scheduling_client) {
-    CHECK(settings.trees_in_viz_in_viz_process);
-    return base::WrapUnique(new TestVizLayerTreeHostImpl(
-        settings, client, task_runner_provider, rendering_stats_instrumentation,
-        task_graph_runner, std::move(mutator_host), dark_mode_filter, id,
-        std::move(image_worker_task_runner), scheduling_client));
-  }
-  using LayerTreeHostImpl::LayerTreeHostImpl;
-  ~TestVizLayerTreeHostImpl() override = default;
-};
-}  // namespace
 std::unique_ptr<LayerTreeHostImpl> CreateLayerTreeHostImplForTesting(
     const LayerTreeSettings& settings,
-    LayerTreeHostImplClient* client,
+    LayerTreeHostImplDelegate* delegate,
     TaskRunnerProvider* task_runner_provider,
     RenderingStatsInstrumentation* rendering_stats_instrumentation,
     TaskGraphRunner* task_graph_runner,
@@ -61,12 +37,13 @@ std::unique_ptr<LayerTreeHostImpl> CreateLayerTreeHostImplForTesting(
     LayerTreeHostSchedulingClient* scheduling_client) {
   if (settings.trees_in_viz_in_viz_process) {
     return TestVizLayerTreeHostImpl::Create(
-        settings, client, task_runner_provider, rendering_stats_instrumentation,
-        task_graph_runner, std::move(mutator_host), dark_mode_filter, id,
+        settings, delegate, task_runner_provider,
+        rendering_stats_instrumentation, task_graph_runner,
+        std::move(mutator_host), dark_mode_filter, id,
         std::move(image_worker_task_runner), scheduling_client);
   }
   return ClientLayerTreeHostImpl::Create(
-      settings, client, task_runner_provider, rendering_stats_instrumentation,
+      settings, delegate, task_runner_provider, rendering_stats_instrumentation,
       task_graph_runner, std::move(mutator_host), dark_mode_filter, id,
       std::move(image_worker_task_runner), scheduling_client);
 }
@@ -179,7 +156,8 @@ void LayerTreeHostImplTestBase::EnsureSyncTree() {
 }
 
 void LayerTreeHostImplTestBase::CreatePendingTree() {
-  host_impl_->CreatePendingTree();
+  // TODO(496580137): Move this to ClientLayerTreeHostImpl specific tests.
+  static_cast<ClientLayerTreeHostImpl*>(host_impl_.get())->CreatePendingTree();
   LayerTreeImpl* pending_tree = host_impl_->pending_tree();
   pending_tree->SetDeviceViewportRect(
       host_impl_->active_tree()->GetDeviceViewport());
@@ -203,7 +181,8 @@ void LayerTreeHostImplTestBase::OnCanDrawStateChanged(bool can_draw) {
 }
 void LayerTreeHostImplTestBase::NotifyReadyToActivate() {
   did_notify_ready_to_activate_ = true;
-  host_impl_->ActivateSyncTree();
+  // TODO(496580137): Move this to ClientLayerTreeHostImpl specific tests.
+  static_cast<ClientLayerTreeHostImpl*>(host_impl_.get())->ActivateSyncTree();
 }
 bool LayerTreeHostImplTestBase::IsReadyToActivate() {
   // in NotifyReadyToActivate(), call ActivateSyncTree() directly

@@ -18,6 +18,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/glic/host/glic_web_client_access.h"
 #include "chrome/browser/glic/host/host.h"
+#include "chrome/browser/glic/public/context/glic_sharing_manager.h"
 #include "chrome/browser/glic/public/glic_close_options.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_instance.h"
@@ -50,7 +51,6 @@ class GlicWidget;
 class GlicInstanceCoordinator {
  public:
   using StateObserver = PanelStateObserver;
-  using PanelStateContext = ::glic::PanelStateContext;
   GlicInstanceCoordinator(const GlicInstanceCoordinator&) = delete;
   GlicInstanceCoordinator& operator=(const GlicInstanceCoordinator&) = delete;
   GlicInstanceCoordinator() = default;
@@ -66,6 +66,13 @@ class GlicInstanceCoordinator {
   virtual std::vector<ConversationInfo> GetRecentlyActiveInstances(
       size_t limit) = 0;
 
+  virtual bool IsTabPinnedToAnyInstance(
+      const tabs::TabHandle& tab_handle) const = 0;
+
+  virtual void UnpinTabsFromAllInstances(
+      base::span<const tabs::TabHandle> tab_handles,
+      GlicUnpinTrigger trigger) = 0;
+
   // Show, summon, or activate the panel if needed, or close it if it's already
   // active and prevent_close is false.
   virtual void Toggle(
@@ -73,7 +80,6 @@ class GlicInstanceCoordinator {
       bool prevent_close,
       mojom::InvocationSource source,
       std::optional<std::string> deprecated_prompt_suggestion,
-      bool deprecated_auto_send,
       std::optional<std::string> deprecated_conversation_id) = 0;
 
   // Readies glic to show.
@@ -110,8 +116,6 @@ class GlicInstanceCoordinator {
   // Reloads the glic web contents or the FRE's web contents (depending on
   // which is currently visible).
   virtual void Reload(content::RenderFrameHost* render_frame_host) = 0;
-
-  virtual Profile* profile() = 0;
 
   using ActiveInstanceChangedCallback =
       base::RepeatingCallback<void(GlicInstance* new_instance)>;

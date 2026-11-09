@@ -223,18 +223,47 @@ cr-button#entrypoint:focus {
   }
 }
 
+cr-icon-button {
+  border-radius: var(--cr-composebox-entrypoint-border-radius, 50%);
+}
+
 #entrypoint {
   --cr-button-disabled-text-color:
       var(--color-composebox-context-entrypoint-text-disabled);
   --cr-button-text-color: var(--color-composebox-file-chip-text);
   --cr-hover-background-color:
       var(--cr-icon-button-hover-background-color);
+  --cr-icon-button-height: var(
+      --cr-composebox-entrypoint-height, var(--cr-icon-button-size));
   --cr-icon-button-margin-start: 6px;
+  --cr-icon-button-width: var(
+      --cr-composebox-entrypoint-width, var(--cr-icon-button-size));
   --icon-block-padding-small: 10px;
   border: initial;
   gap: 4px;
   position: relative;
   z-index: 5;
+}
+
+#entrypoint:not(:hover) {
+  background-color:
+      var(--cr-composebox-entrypoint-background-color, transparent);
+}
+
+:host([is-oblong-shape_]) cr-icon-button#entrypoint {
+  border-radius: 100px;
+  /* This line handles specific margin spacing for the oblong shape in omnibox
+     and the composebox. */
+  margin-inline-start: var(--contextual-entrypoint-oblong-margin-inline-start, 0);
+  padding-inline: 4px;
+}
+
+:host([apply-context-button-background]) #entrypoint {
+  --cr-composebox-entrypoint-background-color: var(--color-composebox-context-entrypoint-hover-background);
+  --cr-icon-button-hover-background-color: color-mix(
+      in srgb,
+      var(--color-composebox-context-entrypoint-hover-background),
+      var(--color-searchbox-results-foreground) 10%);
 }
 
 :host([has-popup-focus]) #entrypoint {

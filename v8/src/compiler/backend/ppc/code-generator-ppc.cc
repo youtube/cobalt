@@ -1039,20 +1039,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       has_function_descriptor =
           (fp_param_field & kHasFunctionDescriptorBitMask) != 0;
 #endif
+      Label return_location;
 #if V8_ENABLE_WEBASSEMBLY
-      Label start_call;
-      int start_pc_offset = 0;
-      bool isWasmCapiFunction =
-          linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
-      if (isWasmCapiFunction) {
-        __ LoadPC(kScratchReg);
-        __ bind(&start_call);
-        start_pc_offset = __ pc_offset();
-        // We are going to patch this instruction after emitting
-        // CallCFunction, using a zero offset here as placeholder for now.
-        // patch_pc_address assumes `addi` is used here to
-        // add the offset to pc.
-        __ addi(kScratchReg, kScratchReg, Operand::Zero());
+      if (linkage()->GetIncomingDescriptor()->IsWasmCapiFunction()) {
+        // Put the return address in a stack slot.
+        __ GetLabelAddress(kScratchReg, &return_location, r0);
         __ StoreU64(kScratchReg,
                     MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
         set_isolate_data_slots = SetIsolateDataSlots::kNo;
@@ -1061,24 +1052,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int pc_offset;
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
-        pc_offset =
-            __ CallCFunction(ref, num_gp_parameters, num_fp_parameters,
-                             set_isolate_data_slots, has_function_descriptor);
+        pc_offset = __ CallCFunction(ref, num_gp_parameters, num_fp_parameters,
+                                     set_isolate_data_slots,
+                                     has_function_descriptor, &return_location);
       } else {
         Register func = i.InputRegister(0);
-        pc_offset =
-            __ CallCFunction(func, num_gp_parameters, num_fp_parameters,
-                             set_isolate_data_slots, has_function_descriptor);
+        pc_offset = __ CallCFunction(func, num_gp_parameters, num_fp_parameters,
+                                     set_isolate_data_slots,
+                                     has_function_descriptor, &return_location);
       }
-#if V8_ENABLE_WEBASSEMBLY
-      if (isWasmCapiFunction) {
-        int offset_since_start_call = pc_offset - start_pc_offset;
-        // Here we are going to patch the `addi` instruction above to use the
-        // correct offset.
-        __ patch_pc_address(kScratchReg, start_pc_offset,
-                            offset_since_start_call);
-      }
-#endif  // V8_ENABLE_WEBASSEMBLY
       RecordSafepoint(instr->reference_map(), pc_offset);
 
       if (instr->HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)) {
@@ -2143,7 +2125,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           this, object, offset, value, ip, kScratchReg,
           RecordWriteMode::kValueIsAny, DetermineStubCallMode(),
           &unwinding_info_writer_);
+      __ bne(ool->exit());
       __ JumpIfSmi(value, ool->exit());
+
       __ CheckPageFlag(object, kScratchReg,
                        MemoryChunk::kPointersFromHereAreInterestingMask, ne,
                        ool->entry());

@@ -120,7 +120,6 @@ extern class ObjectTemplateInfo extends TemplateInfoWithProperties {
 }
 
 @cppObjectLayoutDefinition
-@generateBodyDescriptor
 extern class DictionaryTemplateInfo extends TemplateInfo {
   property_names: FixedArray;
 }

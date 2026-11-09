@@ -1251,9 +1251,9 @@ static enum ssl_hs_wait_t do_read_client_certificate(SSL_HANDSHAKE *hs) {
   } else {
     assert(hs->peer_cert_type == TLSEXT_cert_type_x509);
     hs->new_session->peer_cert_type = TLSEXT_cert_type_x509;
-    parse_ok =
-        ssl_parse_cert_chain(&alert, &hs->new_session->certs, &hs->peer_pubkey,
-                             out_sha256, &certificate_msg, ssl->ctx->pool);
+    parse_ok = ssl_parse_cert_chain(&alert, &hs->new_session->certs,
+                                    &hs->peer_pubkey, out_sha256,
+                                    &certificate_msg, ssl->ctx->pool.get());
   }
 
   if (!parse_ok) {

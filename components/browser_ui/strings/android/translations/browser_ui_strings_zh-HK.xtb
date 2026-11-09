@@ -37,6 +37,7 @@
 <translation id="1384959399684842514">已暫停下載</translation>
 <translation id="1396327438254055134">允許網站使用 V8 優化工具。</translation>
 <translation id="1409338233051621926">㩒一下 [應用程式] 同 [預設應用程式]</translation>
+<translation id="1414315029670184034">不允許網站使用攝錄機</translation>
 <translation id="1415402041810619267">縮短咗網址</translation>
 <translation id="1415855080660575082">讓 Chrome 與你的裝置分享最近使用的分頁，並在裝置應用程式清單和搜尋結果中顯示。你可以在 Chrome 設定中開啟或關閉此功能。</translation>
 <translation id="1420688843103859429">用兩指在觸控板上滑動，即可瀏覽上一個或下一個頁面</translation>
@@ -80,7 +81,6 @@
 <translation id="1781533683087883868">關閉「閱讀模式」連結</translation>
 <translation id="1785415724048343560">建議勾選，以獲得最佳體驗</translation>
 <translation id="1796588414813960292">需要使用音訊的功能將無法運作</translation>
-<translation id="1799920918471566157">Chrome 提示</translation>
 <translation id="1816835383954230954">啟用之後可以提高 Chrome 執行速度，用 JavaScript 嘅功能應該會正常運作。閂咗之後效能會降低，不過 V8 防範攻擊嘅能力會提高。</translation>
 <translation id="1818308510395330587">如要讓 <ph name="APP_NAME" /> 使用 AR，請一併在 <ph name="BEGIN_LINK" />Android 設定<ph name="END_LINK" />中開啟相機。</translation>
 <translation id="1822318649925991542">切換位置以自訂瀏覽體驗</translation>
@@ -99,6 +99,7 @@
 <translation id="1985247341569771101">開咗之後，網站可以使用裝置嘅動作感應器。閂咗之後，網站唔可以使用動作感應器。</translation>
 <translation id="1985716030964443178">此操作會將清單中的所有網站重設為預設縮放等級</translation>
 <translation id="1989112275319619282">瀏覽</translation>
+<translation id="1991370806334788445">請嘗試允許使用第三方 Cookie，這代表瀏覽保護程度較低，但網站功能較易正常運作。</translation>
 <translation id="1994173015038366702">網站網址</translation>
 <translation id="1994558116414798016">Lexend 字型</translation>
 <translation id="2004697686368036666">部分網站的功能可能會無法正常運作</translation>
@@ -164,6 +165,7 @@
 <translation id="257931822824936280">已展開 - 點擊即可收合。</translation>
 <translation id="2586657967955657006">剪貼簿</translation>
 <translation id="2588271083332682494">分頁群組助你保持條理</translation>
+<translation id="2592917252160773942">網站可以要求取用鏡頭</translation>
 <translation id="2597457036804169544">不要為網站套用深色主題</translation>
 <translation id="2606760465469169465">自動驗證</translation>
 <translation id="2621115761605608342">允許特定網站執行 JavaScript。</translation>
@@ -360,6 +362,7 @@
 <translation id="4635969503923889910">不允許網站使用 NFC 裝置</translation>
 <translation id="4644713492825682049">刪除並重設</translation>
 <translation id="4645575059429386691">由您的家長管理</translation>
+<translation id="4651224148644053314">更多顏色和選項</translation>
 <translation id="4652266463001779298">不允許</translation>
 <translation id="4655846733459137112">輕按 [是]，下次登入時就能輕鬆取用此密碼</translation>
 <translation id="4663373278480897665">已允許使用相機</translation>
@@ -742,7 +745,6 @@
 <translation id="8676374126336081632">清除輸入</translation>
 <translation id="8681886425883659911">已在網站上封鎖已知的滋擾性或誤導廣告。</translation>
 <translation id="868929229000858085">搜尋您的聯絡人</translation>
-<translation id="8707904142362025782">網站可以要求使用攝錄機</translation>
 <translation id="8712637175834984815">我知道了</translation>
 <translation id="8715862698998036666">從頂端拖曳並從左側或右側輕掃，即可離開全螢幕。</translation>
 <translation id="8716050156658570300">網站可以要求使用動作和光線感應器</translation>

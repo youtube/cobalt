@@ -22,10 +22,8 @@ use bssl_crypto::FfiSlice;
 
 use crate::errors::{PkiError, X509Error};
 
-/// This method catches panics before they cross language boundary.
 #[must_use]
-#[inline]
-pub(crate) fn maybe_panic<T>(work: impl FnOnce() -> T) -> T {
+pub(crate) fn abort_on_panic<T>(work: impl FnOnce() -> T) -> T {
     let assert_unwind_safe = core::panic::AssertUnwindSafe(work);
     let call = move || {
         let core::panic::AssertUnwindSafe(work) = { assert_unwind_safe };

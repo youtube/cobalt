@@ -203,6 +203,22 @@ int HTMLTextAreaElement::scrollHeight() {
       .Round();
 }
 
+double HTMLTextAreaElement::scrollLeft() {
+  if (RuntimeEnabledFeatures::TextAreaScrollTopPreviewEnabled() &&
+      !SuggestedValue().empty()) {
+    return 0;
+  }
+  return TextControlElement::scrollLeft();
+}
+
+double HTMLTextAreaElement::scrollTop() {
+  if (RuntimeEnabledFeatures::TextAreaScrollTopPreviewEnabled() &&
+      !SuggestedValue().empty()) {
+    return 0;
+  }
+  return TextControlElement::scrollTop();
+}
+
 void HTMLTextAreaElement::ChildrenChanged(const ChildrenChange& change) {
   HTMLElement::ChildrenChanged(change);
   if (is_dirty_)

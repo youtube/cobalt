@@ -92,7 +92,7 @@ class Host : public GlicSharingManagerProvider {
   class InstanceDelegate {
    public:
     virtual ~InstanceDelegate() = default;
-    virtual tabs::TabInterface* CreateTab(
+    virtual void CreateTab(
         const ::GURL& url,
         bool open_in_background,
         const std::optional<int32_t>& window_id,
@@ -246,10 +246,7 @@ class Host : public GlicSharingManagerProvider {
   void OnWebContentsNavigated();
 
   // Creates the web contents that will own the Glic WebUI.
-  // `initially_hidden` value is only relevant when
-  // `kGlicGuestContentsVisibilityState` flag is enabled, otherwise the default
-  // value is used (i.e. false).
-  void CreateContents(bool initially_hidden);
+  void CreateContents();
 
   // Signals the glic WebUI that the glic window will be shown soon.
   void NotifyWindowIntentToShow();
@@ -442,7 +439,7 @@ class Host : public GlicSharingManagerProvider {
 
   // Register a handler to observe experimental triggering related updates.
   // The callback informs if the registration operations was successful or not.
-  virtual void getExperimentalTriggeringUpdates(
+  virtual void GetExperimentalTriggeringUpdates(
       mojo::PendingRemote<mojom::ExperimentalTriggeringUpdatesHandler> handler,
       base::OnceCallback<void(bool)> success_status_callback);
 
@@ -461,7 +458,6 @@ class Host : public GlicSharingManagerProvider {
   void WebUIPageHandlerRemoved(GlicPageHandler* page_handler);
 
  private:
-
   void InvokeInternal(mojom::InvokeOptionsPtr options,
                       base::OnceClosure callback);
 

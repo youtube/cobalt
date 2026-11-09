@@ -44,7 +44,7 @@ class StunRequestManager {
  public:
   StunRequestManager(
       TaskQueueBase* thread,
-      std::function<void(const void*, size_t, StunRequest*)> send_packet);
+      std::function<void(std::span<const uint8_t>, StunRequest*)> send_packet);
   ~StunRequestManager();
 
   // Starts sending the given request (perhaps after a delay).
@@ -79,7 +79,7 @@ class StunRequestManager {
 
   TaskQueueBase* network_thread() const { return thread_; }
 
-  void SendPacket(const void* data, size_t size, StunRequest* request);
+  void SendPacket(std::span<const uint8_t> data, StunRequest* request);
 
  private:
   typedef std::map<std::string, std::unique_ptr<StunRequest>, std::less<>>
@@ -87,7 +87,8 @@ class StunRequestManager {
 
   TaskQueueBase* const thread_;
   RequestMap requests_ RTC_GUARDED_BY(thread_);
-  const std::function<void(const void*, size_t, StunRequest*)> send_packet_;
+  const std::function<void(std::span<const uint8_t>, StunRequest*)>
+      send_packet_;
 };
 
 // Represents an individual request to be sent.  The STUN message can either be

@@ -54,8 +54,7 @@ suite('SearchPageTests', function() {
   let metrics: MetricsTracker;
 
   setup(function() {
-    loadTimeData.overrideValues(
-        {searchSettingsUpdate: false, isEeaChoiceCountry: false});
+    loadTimeData.overrideValues({searchSettingsUpdate: false});
     resetRouterForTesting();
 
     metrics = fakeMetricsPrivate();
@@ -161,6 +160,10 @@ suite('SearchPageTests', function() {
     assertTrue(
         !!page.shadowRoot!.querySelector('extension-controlled-indicator'));
     assertFalse(!!page.shadowRoot!.querySelector('cr-policy-pref-indicator'));
+
+    // The extension controlled message is not shown.
+    assertFalse(
+        !!page.shadowRoot!.querySelector('extension-controlled-message'));
   });
 
   test('ControlledByPolicy', async function() {
@@ -235,8 +238,7 @@ suite('SearchPageWithSearchSettingsUpdateEnabledTests', function() {
   let metrics: MetricsTracker;
 
   setup(async function() {
-    loadTimeData.overrideValues(
-        {searchSettingsUpdate: true, isEeaChoiceCountry: false});
+    loadTimeData.overrideValues({searchSettingsUpdate: true});
     resetRouterForTesting();
 
     metrics = fakeMetricsPrivate();
@@ -289,4 +291,31 @@ suite('SearchPageWithSearchSettingsUpdateEnabledTests', function() {
             categorizedTemplateUrls.activeSiteShortcuts[1]!.id,
             searchEngineListDialog.searchEngines[1]!.id);
       });
+
+  test('ControlledByExtension', function() {
+    const openSearchEngineListButton =
+        page.shadowRoot!.querySelector<HTMLButtonElement>('#openDialogButton')!;
+    assertFalse(openSearchEngineListButton.disabled);
+    assertFalse(
+        !!page.shadowRoot!.querySelector('extension-controlled-message'));
+
+    page.set('prefs.default_search_provider_data.template_url_data', {
+      controlledBy: chrome.settingsPrivate.ControlledBy.EXTENSION,
+      controlledByName: 'fake extension name',
+      enforcement: chrome.settingsPrivate.Enforcement.ENFORCED,
+      extensionId: 'fake extension id',
+      extensionCanBeDisabled: true,
+      value: {},
+    });
+    flush();
+
+    assertTrue(openSearchEngineListButton['disabled']);
+    assertTrue(
+        !!page.shadowRoot!.querySelector('extension-controlled-message'));
+    assertFalse(!!page.shadowRoot!.querySelector('cr-policy-pref-indicator'));
+
+    // The extension controlled indicator is not shown.
+    assertFalse(
+        !!page.shadowRoot!.querySelector('extension-controlled-indicator'));
+  });
 });

@@ -1127,7 +1127,18 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   }
 
   if (v8_flags.disable_write_barriers) return;
+  Label done;
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // TODO(429142815): WriteBarrier builtins currently require a sandbox mode
+  // switch, so more code is emitted and we need far jumps here. Once the
+  // builtins run in sandboxed mode, we can again always use near jumps.
+  Label::Distance distance = Label::kFar;
+#else
+  Label::Distance distance = Label::kNear;
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  j(not_equal, &done, distance);
   EmitWriteBarrier(dst_addr, dst_op, new_value_for_write_barrier, pinned);
+  bind(&done);
 }
 
 void LiftoffAssembler::AtomicFence() { mfence(); }
@@ -1660,6 +1671,30 @@ void LiftoffAssembler::emit_i64_mul_wide_s() {
 
 void LiftoffAssembler::emit_i64_mul_wide_u() {
   liftoff::EmitI64MulWide<&Assembler::mulq>(this);
+}
+
+void LiftoffAssembler::emit_i64_add128(Register dst_low, Register dst_high,
+                                       Register al, Register ah, Register bl,
+                                       Register bh) {
+  DCHECK_NE(dst_low, ah);
+  DCHECK_NE(dst_low, bh);
+  DCHECK_NE(dst_low, dst_high);
+  if (dst_low == al) {
+    addq(dst_low, bl);
+  } else if (dst_low == bl) {
+    addq(dst_low, al);
+  } else {
+    movq(dst_low, al);
+    addq(dst_low, bl);
+  }
+  if (dst_high == ah) {
+    adcq(dst_high, bh);
+  } else if (dst_high == bh) {
+    adcq(dst_high, ah);
+  } else {
+    movq(dst_high, ah);
+    adcq(dst_high, bh);
+  }
 }
 
 void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,

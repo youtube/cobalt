@@ -416,6 +416,17 @@ class Vector {
     return true;
   }
 
+  // AppendMove moves the contents of |in| and appends them to the array. It
+  // returns true on success and false on allocation error.
+  [[nodiscard]] bool AppendMove(Span<T> in) {
+    if (!MaybeGrow(in.size())) {
+      return false;
+    }
+    std::uninitialized_move(in.begin(), in.end(), data_ + size_);
+    size_ += in.size();
+    return true;
+  }
+
   // EraseIf removes all elements that satisfy the predicate |pred|.
   template <typename Pred>
   void EraseIf(Pred pred) {

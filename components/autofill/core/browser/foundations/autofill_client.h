@@ -88,6 +88,7 @@ enum class Channel;
 
 namespace accessibility_annotator {
 class AccessibilityQueryService;
+enum class RemoteAnnotatorEnablementState;
 }
 
 namespace metrics {
@@ -423,6 +424,10 @@ class AutofillClient {
   virtual accessibility_annotator::AccessibilityQueryService*
   GetAccessibilityQueryService();
 
+  // Returns the enablement state of the Accessibility Annotator.
+  virtual accessibility_annotator::RemoteAnnotatorEnablementState
+  GetAccessibilityAnnotatorEnablementState() const;
+
   // Returns the `PasswordManagerDelegate` responsible to provide
   // password suggestions for the given `field_id`.
   virtual PasswordManagerDelegate* GetPasswordManagerDelegate(
@@ -531,6 +536,9 @@ class AutofillClient {
   virtual SuggestionUiSessionId ShowAutofillSuggestions(
       const PopupOpenArgs& open_args,
       base::WeakPtr<AutofillSuggestionDelegate> delegate) = 0;
+
+  // Opens Gemini in the sidebar with the given prompt pre-filled.
+  virtual void OpenGeminiInSidebar(const std::u16string& prompt);
 
   // Update the data list values shown by the Autofill suggestions, if visible.
   virtual void UpdateAutofillDataListValues(

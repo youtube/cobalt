@@ -14,6 +14,7 @@ import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -352,7 +353,7 @@ public class ExtensionsMenuMediatorTest {
         mBridgeCaptor.getValue().onActionIconUpdated(entryIndexB);
 
         // Verify icon in site permissions page is unchanged.
-        verify(mSitePermissionsPropertyModel, org.mockito.Mockito.never())
+        verify(mSitePermissionsPropertyModel, never())
                 .set(eq(SitePermissionsPageProperties.EXTENSION_ICON), any());
     }
 
@@ -591,7 +592,7 @@ public class ExtensionsMenuMediatorTest {
         mBridgeCaptor.getValue().onActionUpdated(1);
 
         // Verify name in site permissions page is unchanged.
-        verify(mSitePermissionsPropertyModel, org.mockito.Mockito.never())
+        verify(mSitePermissionsPropertyModel, never())
                 .set(eq(SitePermissionsPageProperties.EXTENSION_NAME), any());
     }
 
@@ -665,6 +666,8 @@ public class ExtensionsMenuMediatorTest {
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_VISIBLE, true);
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_CHECKED, true);
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.SITE_SETTINGS_LABEL, "test_label");
+        verify(mMenuPropertyModel)
+                .set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_TOOLTIP, "tooltip");
 
         clearInvocations(mMenuPropertyModel);
 
@@ -683,6 +686,8 @@ public class ExtensionsMenuMediatorTest {
                 .set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_CHECKED, false);
         verify(mMenuPropertyModel)
                 .set(ExtensionsMenuProperties.SITE_SETTINGS_LABEL, "test_label_2");
+        verify(mMenuPropertyModel)
+                .set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_TOOLTIP, "tooltip");
 
         clearInvocations(mMenuPropertyModel);
 
@@ -702,6 +707,8 @@ public class ExtensionsMenuMediatorTest {
                 .set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_CHECKED, false);
         verify(mMenuPropertyModel)
                 .set(ExtensionsMenuProperties.SITE_SETTINGS_LABEL, "test_label_3");
+        verify(mMenuPropertyModel)
+                .set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_TOOLTIP, "tooltip");
     }
 
     @Test
@@ -731,7 +738,7 @@ public class ExtensionsMenuMediatorTest {
 
         mMenuMediator.onHostAccessRequestAdded("id1");
 
-        verify(mMenuPropertyModel, org.mockito.Mockito.never())
+        verify(mMenuPropertyModel, never())
                 .set(eq(ExtensionsMenuProperties.HOST_ACCESS_REQUESTS), any());
     }
 
@@ -770,6 +777,59 @@ public class ExtensionsMenuMediatorTest {
         mMenuMediator.onHostAccessRequestsCleared();
 
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.HOST_ACCESS_REQUESTS, requests);
+    }
+
+    @Test
+    public void testOnShowHostAccessRequestsInToolbarChanged_SitePermissionsPage() {
+        // Mock being on the site permissions page for "id_a".
+        when(mMenuPropertyModel.get(ExtensionsMenuProperties.CURRENT_PAGE))
+                .thenReturn(ExtensionsMenuProperties.Page.SITE_PERMISSIONS);
+        when(mSitePermissionsPropertyModel.get(SitePermissionsPageProperties.EXTENSION_ID))
+                .thenReturn("id1");
+
+        // Mock the site permissions state returned by bridge.
+        ExtensionsMenuTypes.ExtensionSitePermissionsState sitePermissionsState =
+                ExtensionTestUtils.createExtensionSitePermissionsState("Extension A", null);
+        when(mExtensionsMenuBridgeJniMock.getExtensionSitePermissionsState(anyLong(), eq("id1")))
+                .thenReturn(sitePermissionsState);
+
+        // Call the method.
+        mMenuMediator.onShowHostAccessRequestsInToolbarChanged("id1");
+
+        // Verify that updateSitePermissionsPage was called (by verifying side effects, e.g. setting
+        // name).
+        verify(mSitePermissionsPropertyModel)
+                .set(SitePermissionsPageProperties.EXTENSION_NAME, "Extension A");
+    }
+
+    @Test
+    public void testOnShowHostAccessRequestsInToolbarChanged_WrongPage() {
+        // Mock being on the main page.
+        when(mMenuPropertyModel.get(ExtensionsMenuProperties.CURRENT_PAGE))
+                .thenReturn(ExtensionsMenuProperties.Page.MAIN);
+
+        // Call the method.
+        mMenuMediator.onShowHostAccessRequestsInToolbarChanged("id1");
+
+        // Verify that getExtensionSitePermissionsState was never called.
+        verify(mExtensionsMenuBridgeJniMock, never())
+                .getExtensionSitePermissionsState(anyLong(), any());
+    }
+
+    @Test
+    public void testOnShowHostAccessRequestsInToolbarChanged_WrongExtension() {
+        // Mock being on the site permissions page for "id2".
+        when(mMenuPropertyModel.get(ExtensionsMenuProperties.CURRENT_PAGE))
+                .thenReturn(ExtensionsMenuProperties.Page.SITE_PERMISSIONS);
+        when(mSitePermissionsPropertyModel.get(SitePermissionsPageProperties.EXTENSION_ID))
+                .thenReturn("id2");
+
+        // Call the method.
+        mMenuMediator.onShowHostAccessRequestsInToolbarChanged("id1");
+
+        // Verify that getExtensionSitePermissionsState was never called for "id1".
+        verify(mExtensionsMenuBridgeJniMock, never())
+                .getExtensionSitePermissionsState(anyLong(), eq("id1"));
     }
 
     @Test

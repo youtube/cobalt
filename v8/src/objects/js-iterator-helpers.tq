@@ -71,3 +71,8 @@ extern class JSIteratorZipHelper extends JSIteratorHelper {
   active_count: Smi;
   padding: FixedArray;
 }
+
+@cppObjectLayoutDefinition
+extern class JSIteratorZipKeyedHelper extends JSIteratorZipHelper {
+  keys: FixedArray;
+}

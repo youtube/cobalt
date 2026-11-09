@@ -212,7 +212,8 @@ std::vector<SdpVideoFormat> ObjCVideoEncoderFactory::GetImplementations()
 
 VideoEncoderFactory::CodecSupport ObjCVideoEncoderFactory::QueryCodecSupport(
     const SdpVideoFormat &format,
-    std::optional<std::string> scalability_mode) const {
+    std::optional<std::string> scalability_mode,
+    std::optional<Resolution> resolution) const {
   if ([encoder_factory_ respondsToSelector:@selector(queryCodecSupport:
                                                        scalabilityMode:)]) {
     RTC_OBJC_TYPE(RTCVideoCodecInfo) *info = [[RTC_OBJC_TYPE(RTCVideoCodecInfo)
@@ -229,7 +230,8 @@ VideoEncoderFactory::CodecSupport ObjCVideoEncoderFactory::QueryCodecSupport(
   }
 
   // Use default implementation.
-  return VideoEncoderFactory::QueryCodecSupport(format, scalability_mode);
+  return VideoEncoderFactory::QueryCodecSupport(
+      format, scalability_mode, resolution);
 }
 
 std::unique_ptr<VideoEncoder> ObjCVideoEncoderFactory::Create(

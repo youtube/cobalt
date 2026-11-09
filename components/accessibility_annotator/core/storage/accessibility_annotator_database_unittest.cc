@@ -142,7 +142,7 @@ TEST_F(AccessibilityAnnotatorDatabaseTest,
   EXPECT_FALSE(db_->AddContentAnnotation(visit_id, CreateTestData()));
   EXPECT_FALSE(db_->GetContentAnnotation(visit_id).has_value());
   EXPECT_TRUE(db_->GetAllContentAnnotations().empty());
-  EXPECT_FALSE(db_->DeleteContentAnnotations({visit_id}));
+  EXPECT_TRUE(db_->DeleteContentAnnotations({visit_id}).empty());
   EXPECT_FALSE(db_->ClearAllContentAnnotations());
 }
 
@@ -194,8 +194,8 @@ TEST_F(AccessibilityAnnotatorDatabaseTest, GetAndClearAllContentAnnotations) {
   std::vector<std::pair<history::VisitID, ContentAnnotationsData>>
       all_annotations = db_->GetAllContentAnnotations();
   ASSERT_EQ(all_annotations.size(), 2u);
-  EXPECT_EQ(all_annotations[0].first, visit_id_1);
-  EXPECT_EQ(all_annotations[1].first, visit_id_2);
+  EXPECT_EQ(all_annotations[0].first, visit_id_2);
+  EXPECT_EQ(all_annotations[1].first, visit_id_1);
 
   // Clear all content annotations from the database successfully.
   EXPECT_TRUE(db_->ClearAllContentAnnotations());
@@ -220,8 +220,9 @@ TEST_F(AccessibilityAnnotatorDatabaseTest, DeleteContentAnnotations) {
   // Verify that the content annotations are present in the database.
   EXPECT_EQ(db_->GetAllContentAnnotations().size(), 3u);
 
-  // Delete multiple content annotations.
-  EXPECT_TRUE(db_->DeleteContentAnnotations({visit_id_1, visit_id_2}));
+  // Delete multiple content annotations, including one that doesn't exist.
+  EXPECT_THAT(db_->DeleteContentAnnotations({visit_id_1, visit_id_2, 999}),
+              testing::UnorderedElementsAre(visit_id_1, visit_id_2));
 
   // Verify that the content annotations are deleted from the database and the
   // expected content annotation remains.

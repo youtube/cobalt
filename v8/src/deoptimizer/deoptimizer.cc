@@ -43,6 +43,7 @@
 #include "src/wasm/wasm-deopt-data.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
+#include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
@@ -178,13 +179,9 @@ class FrameWriter {
 
   void PushTranslatedValue(const TranslatedFrame::iterator& iterator,
                            const char* debug_hint = "") {
-    Tagged<Object> obj = iterator->GetRawValue();
-    PushRawObject(obj, debug_hint);
-    if (trace_scope_ != nullptr) {
-      PrintF(trace_scope_->file(), " (input #%d)\n", iterator.input_index());
-    }
-    deoptimizer_->QueueValueForMaterialization(output_address(top_offset_), obj,
-                                               iterator);
+    CHECK_GE(top_offset_, kSystemPointerSize);
+    top_offset_ -= kSystemPointerSize;
+    WriteTranslatedValueAt(top_offset_, iterator, debug_hint);
   }
 
   void PushFeedbackVectorForMaterialization(
@@ -198,14 +195,18 @@ class FrameWriter {
 
   void PushStackJSArguments(TranslatedFrame::iterator& iterator,
                             int parameters_count) {
-    std::vector<TranslatedFrame::iterator> parameters;
-    parameters.reserve(parameters_count);
+    // Walk values forward (receiver first, argN last) and write each into its
+    // destination slot. The layout matches a reverse-push: receiver lands at
+    // the lowest offset and argN at the highest. This avoids buffering
+    // iterators in a temporary vector.
+    CHECK_GE(top_offset_, parameters_count * kSystemPointerSize);
+    const unsigned final_top_offset =
+        top_offset_ - parameters_count * kSystemPointerSize;
     for (int i = 0; i < parameters_count; ++i, ++iterator) {
-      parameters.push_back(iterator);
+      const unsigned slot_offset = final_top_offset + i * kSystemPointerSize;
+      WriteTranslatedValueAt(slot_offset, iterator, "stack parameter");
     }
-    for (auto& parameter : base::Reversed(parameters)) {
-      PushTranslatedValue(parameter, "stack parameter");
-    }
+    top_offset_ = final_top_offset;
   }
 
   unsigned top_offset() const { return top_offset_; }
@@ -223,6 +224,19 @@ class FrameWriter {
     Address output_address =
         static_cast<Address>(frame_->GetTop()) + output_offset;
     return output_address;
+  }
+
+  void WriteTranslatedValueAt(unsigned offset,
+                              const TranslatedFrame::iterator& iterator,
+                              const char* debug_hint) {
+    Tagged<Object> obj = iterator->GetRawValue();
+    frame_->SetFrameSlot(offset, obj.ptr());
+    if (trace_scope_ != nullptr) {
+      DebugPrintOutputObject(obj, offset, debug_hint);
+      PrintF(trace_scope_->file(), " (input #%d)\n", iterator.input_index());
+    }
+    deoptimizer_->QueueValueForMaterialization(output_address(offset), obj,
+                                               iterator);
   }
 
   void DebugPrintOutputValue(intptr_t value, const char* debug_hint = "") {
@@ -461,7 +475,7 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
 void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
-  TRACE_EVENT0("v8", "V8.DeoptimizeCode");
+  TRACE_EVENT("v8", "V8.DeoptimizeCode");
   TraceDeoptAll(isolate);
   isolate->AbortConcurrentOptimization(BlockingBehavior::kBlock);
 
@@ -484,7 +498,7 @@ void Deoptimizer::DeoptimizeFunction(Tagged<JSFunction> function,
   Isolate* isolate = Isolate::Current();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
-  TRACE_EVENT0("v8", "V8.DeoptimizeCode");
+  TRACE_EVENT("v8", "V8.DeoptimizeCode");
   function->ResetIfCodeFlushed(isolate);
   if (code.is_null()) code = function->code(isolate);
 
@@ -502,7 +516,7 @@ void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> function) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
-  TRACE_EVENT0("v8", "V8.DeoptimizeAllOptimizedCodeWithFunction");
+  TRACE_EVENT("v8", "V8.DeoptimizeAllOptimizedCodeWithFunction");
 
   // Wait for ongoing compilation jobs to complete and finalize them. If we
   // aborted ongoing jobs, we would risk aborting unrelated jobs, and if we're

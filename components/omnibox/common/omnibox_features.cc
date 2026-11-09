@@ -178,6 +178,10 @@ BASE_FEATURE(kHideAimEntrypointOnUserInput,
              "OmniboxHideAimEntrypointOnUserInput",
              DISABLED);
 
+// Hides the AIM entrypoint in the Omnibox when the default suggestion is a URL.
+// Only used on desktop platforms.
+BASE_FEATURE(kHideAimEntrypointForUrlSuggestions, DISABLED);
+
 // When enabled, AI mode will remove verbatim suggestions from the suggestions
 // list.
 BASE_FEATURE(kAIMSuppressVerbatimMatch, ENABLED);
@@ -260,7 +264,7 @@ BASE_FEATURE(kOmniboxTouchDownTriggerForPrefetch, enable_if(IS_ANDROID));
 BASE_FEATURE(kOmniboxSiteSearch, DISABLED);
 
 // Enables additional site search providers for the Site search Starter Pack.
-BASE_FEATURE(kStarterPackExpansion, enable_if(!IS_ANDROID && !IS_IOS));
+BASE_FEATURE(kStarterPackExpansion, enable_if(!IS_IOS));
 
 // Enables an informational IPH message at the bottom of the Omnibox directing
 // users to certain starter pack engines.
@@ -276,7 +280,7 @@ BASE_FEATURE(kAblateSearchProviderWarmup, DISABLED);
 BASE_FEATURE(kReportApplicationLanguageInSearchRequest, ENABLED);
 
 // When enabled, appends the invocation source parameter to search URLs.
-BASE_FEATURE(kOmniboxAppendInvocationSource, ENABLED);
+BASE_FEATURE(kOmniboxAppendInvocationSource, DISABLED);
 
 // Enable asynchronous Omnibox/Suggest view inflation.
 BASE_FEATURE(kOmniboxAsyncViewInflation, DISABLED);
@@ -300,6 +304,11 @@ BASE_FEATURE(kOmniboxItemDecoration, DISABLED);
 
 // When the first suggestion is a url, the favicon is shown in the status view.
 BASE_FEATURE(kExactMatchFavicons, DISABLED);
+
+// If enabled, the omnibox will use the short suggest path.
+BASE_FEATURE(kUseShortSuggestPathV1,
+             "OmniboxUseShortSuggestPathV1",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // The features below allow tuning number of suggestions offered to users in
 // specific contexts. These features are default enabled and are used to control
@@ -360,12 +369,41 @@ BASE_FEATURE(kComposeboxDriveContextMenuOption, DISABLED);
 // zero-suggest.
 BASE_FEATURE(kComposeboxVerbatimMatchZeroSuggest, ENABLED);
 
+// Whether to disable warmup requests for the composebox.
+BASE_FEATURE(kDisableComposeboxWarmupRequests, DISABLED);
+
 // Enables passthrough params to be sent to the AIM eligibility service.
 BASE_FEATURE(kAimUrlInterceptPassthrough, DISABLED);
 
 BASE_FEATURE(kOmniboxDebugLogs, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kThinkingModelIconUpdate, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Kill switch - Enables voice search coherence across composeboxes in NTP,
+// cobrowsing, omnibox:
+//  - Submit and stop buttons in voice search mode.
+//  - New voice recording animation.
+//  - New metrics for voice search across composeboxes.
+//  - No live transcription below the new recording animation.
+BASE_FEATURE(kVoiceSearchCoherenceComposeboxes,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enables voice search live experiment for NTP searchbox, (arm 1):
+//  - Submit and stop buttons in voice search mode.
+//  - New voice recording animation.
+//  - New metrics for voice search across searchbox.
+//  - NO live transcription below the new recording animation.
+BASE_FEATURE(kVoiceSearchCoherenceSearchbox, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables voice search live experiment for NTP searchbox, (arm 2):
+//  - Submit and stop buttons in voice search mode.
+//  - New voice recording animation.
+//  - New metrics for voice search for NTP searchbox.
+//  - DIFF: adds live transcription below the new recording animation.
+const base::FeatureParam<bool>
+    kVoiceSearchCoherenceSearchboxWithLiveTranscription{
+        &kVoiceSearchCoherenceSearchbox,
+        "VoiceSearchCoherenceSearchboxWithLiveTranscription", false};
 
 #if BUILDFLAG(IS_ANDROID)
 // Accelerates time from cold start to focused Omnibox on low-end devices,
@@ -418,6 +456,7 @@ static int64_t JNI_OmniboxFeatureMap_GetNativeMap(JNIEnv* env) {
       &kOmniboxMobileParityUpdateV2,
       &kOmniboxXGeoPermissionGranularity,
       &kPlatformAgnosticXGeo,
+      &kInlineLocationSignaling,
       &kOmniboxSiteSearch,
       &kOmniboxMultimodalInput,
       &kAndroidDesktopAimGate,
@@ -439,6 +478,10 @@ static int64_t JNI_OmniboxFeatureMap_GetNativeMap(JNIEnv* env) {
 // implementation. On Android, enabling this flag will disable the legacy Java
 // implementation.
 BASE_FEATURE(kPlatformAgnosticXGeo, DISABLED);
+
+// If enabled, Inline Location Signaling is enabled gating all development
+// and experimentation for the feature.
+BASE_FEATURE(kInlineLocationSignaling, DISABLED);
 
 // Note: no new flags beyond this point.
 

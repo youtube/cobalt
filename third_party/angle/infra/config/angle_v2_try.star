@@ -41,7 +41,7 @@ try_.defaults.set(
 
 def apply_cq_builder_defaults(kwargs):
     kwargs.setdefault("max_concurrent_builds", 4)
-    kwargs.setdefault("cq_settings", try_.cq_settings())
+    kwargs.setdefault("cq_settings", try_.cq_settings(on_default_cq = True))
     return kwargs
 
 def apply_linux_cq_builder_defaults(kwargs):
@@ -102,6 +102,33 @@ def angle_win_functional_cq_tester(**kwargs):
 ## Functional testers
 
 angle_linux_functional_cq_tester(
+    name = "angle-cq-android-arm-dbg",
+    description_html = "Compiles all debug ANGLE targets for Android/arm. Blocks CL submission.",
+    mirrors = [
+        "ci/angle-android-arm-builder-dbg",
+    ],
+    gn_args = "ci/angle-android-arm-builder-dbg",
+)
+
+angle_linux_functional_cq_tester(
+    name = "angle-cq-android-arm-rel",
+    description_html = "Compiles all debug ANGLE targets for Android/arm. Blocks CL submission.",
+    mirrors = [
+        "ci/angle-android-arm-builder-rel",
+    ],
+    gn_args = "ci/angle-android-arm-builder-rel",
+)
+
+angle_linux_functional_cq_tester(
+    name = "angle-cq-android-arm64-dbg",
+    description_html = "Compiles all debug ANGLE targets for Android/arm64. Blocks CL submission.",
+    mirrors = [
+        "ci/angle-android-arm64-builder-dbg",
+    ],
+    gn_args = "ci/angle-android-arm64-builder-dbg",
+)
+
+angle_linux_functional_cq_tester(
     name = "angle-cq-android-arm64-rel",
     description_html = "Tests release ANGLE on Android/arm64 on multiple hardware configs. Blocks CL submission.",
     mirrors = [
@@ -110,6 +137,18 @@ angle_linux_functional_cq_tester(
         "ci/angle-android-arm64-google-pixel6-rel",
     ],
     gn_args = "ci/angle-android-arm64-builder-rel",
+)
+
+angle_linux_functional_cq_tester(
+    name = "angle-cq-linux-x64-asan",
+    description_html = ("Tests release ANGLE on Linux/x64 on multiple " +
+                        "hardware configs with ASan, LSan, and UBSan " +
+                        "enabled. Blocks CL submission."),
+    mirrors = [
+        "ci/angle-linux-x64-builder-asan",
+        "ci/angle-linux-x64-sws-asan",
+    ],
+    gn_args = "ci/angle-linux-x64-builder-asan",
 )
 
 angle_linux_functional_cq_tester(
@@ -131,6 +170,17 @@ angle_linux_functional_cq_tester(
         "ci/angle-linux-x64-sws-rel",
     ],
     gn_args = "ci/angle-linux-x64-builder-rel",
+)
+
+angle_linux_functional_cq_tester(
+    name = "angle-cq-linux-x64-tsan",
+    description_html = ("Tests release ANGLE on Linux/x64 on multiple hardware configs with TSan " +
+                        "enabled. Blocks CL submission."),
+    mirrors = [
+        "ci/angle-linux-x64-builder-tsan",
+        "ci/angle-linux-x64-sws-tsan",
+    ],
+    gn_args = "ci/angle-linux-x64-builder-tsan",
 )
 
 angle_mac_functional_cq_tester(

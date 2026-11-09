@@ -37,6 +37,8 @@ class BackingStore;
 class FutexWaitList;
 #if V8_ENABLE_WEBASSEMBLY
 class FutexManagedObjectWaitList;
+template <class CppType>
+class Managed;
 #endif
 
 class Isolate;
@@ -240,6 +242,7 @@ class FutexEmulation : public AllStatic {
 #if V8_ENABLE_WEBASSEMBLY
   V8_EXPORT_PRIVATE static Tagged<Object> WaitWasmManagedObject(
       Isolate* isolate, Tagged<HeapObject> object, int32_t offset,
+      Tagged<Managed<FutexManagedObjectWaitList>> waitqueue,
       int32_t expected_value, int64_t rel_timeout_ns);
 #endif
 
@@ -253,9 +256,8 @@ class FutexEmulation : public AllStatic {
   // Variant 2: Pass raw |addr| (used for WebAssembly atomic.notify).
   static int Wake(void* addr, uint32_t num_waiters_to_wake);
 #if V8_ENABLE_WEBASSEMBLY
-  // Variant 3: Pass an object and offset (used for WebAssembly struct.notify).
-  static int Wake(Address raw_object, int32_t offset,
-                  uint32_t num_waiters_to_wake);
+  // Variant 3: Pass a waitqueue (used for WebAssembly waitqueue.notify).
+  static int Wake(Address raw_waitqueue, uint32_t num_waiters_to_wake);
 #endif
 
   // Called before |isolate| dies. Removes async waiters owned by |isolate|.

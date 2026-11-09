@@ -2840,6 +2840,37 @@ chromium-metrics-reviews@google.com.
   <summary>Result of key signature verification from the policy data.</summary>
 </histogram>
 
+<histogram name="Enterprise.LocalAuthFactorsPolicy.ForcedReauth" enum="Boolean"
+    expires_after="2026-12-31">
+  <owner>fahadmansoor@google.com</owner>
+  <owner>chromeos-commercial-identity@google.com</owner>
+  <summary>
+    Recorded whenever the local auth factors policy is evaluated to determine if
+    online reauth should be forced. Recorded as true if forced, and false
+    otherwise.
+  </summary>
+</histogram>
+
+<histogram name="Enterprise.LocalAuthFactorsPolicy.LocalAuthFactorChanged"
+    enum="LocalAuthFactorType" expires_after="2026-12-31">
+  <owner>fahadmansoor@google.com</owner>
+  <owner>chromeos-commercial-identity@google.com</owner>
+  <summary>
+    Recorded whenever a local auth factor (PIN or local password) is changed for
+    a user under the local auth factors policy. Tracks which factor was changed.
+  </summary>
+</histogram>
+
+<histogram name="Enterprise.LocalAuthFactorsPolicy.PasswordComplexity"
+    enum="LocalAuthFactorsComplexity" expires_after="2026-12-31">
+  <owner>fahadmansoor@google.com</owner>
+  <owner>chromeos-commercial-identity@google.com</owner>
+  <summary>
+    Recorded whenever the password complexity policy is updated. Tracks the
+    enforced complexity level.
+  </summary>
+</histogram>
+
 <histogram name="Enterprise.LoginApiCleanup.{CleanupHandler}.Success"
     enum="BooleanSuccess" expires_after="2026-11-17">
   <owner>mpetrisor@chromium.org</owner>
@@ -3074,7 +3105,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.PlatformAuth.GetAuthData.Count" units="count"
-    expires_after="2026-06-01">
+    expires_after="2026-10-28">
   <owner>igorruvinov@chromium.org</owner>
   <owner>zmin@chromium.org</owner>
   <summary>
@@ -3084,7 +3115,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.PlatformAuth.GetAuthData.FailureHresult"
-    enum="Hresult" expires_after="2026-06-01">
+    enum="Hresult" expires_after="2026-10-28">
   <owner>igorruvinov@chromium.org</owner>
   <owner>zmin@chromium.org</owner>
   <summary>
@@ -3095,7 +3126,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.PlatformAuth.GetAuthData.{Result}Time" units="ms"
-    expires_after="2026-06-01">
+    expires_after="2026-10-28">
   <owner>igorruvinov@chromium.org</owner>
   <owner>zmin@chromium.org</owner>
   <summary>
@@ -3293,7 +3324,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.ProfileAffiliation.IsAffiliated" enum="Boolean"
-    expires_after="2026-08-02">
+    expires_after="2026-11-01">
   <owner>igorruvinov@chromium.org</owner>
   <owner>cbe-magic@google.com</owner>
   <summary>
@@ -3303,7 +3334,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.ProfileAffiliation.UnaffiliatedReason"
-    enum="EnterpriseProfileUnaffiliatedReason" expires_after="2026-05-31">
+    enum="EnterpriseProfileUnaffiliatedReason" expires_after="2026-11-01">
   <owner>igorruvinov@chromium.org</owner>
   <owner>cbe-magic@google.com</owner>
   <summary>
@@ -3410,6 +3441,26 @@ chromium-metrics-reviews@google.com.
     next chrome run. This metric tracks the recorded session length on an
     enrolled device rounded down to the nearest 10-minute bucket and capped at
     24 hours.
+  </summary>
+</histogram>
+
+<histogram name="Enterprise.RemoveLocalAuthFactorsScreen.Shown" enum="Boolean"
+    expires_after="2026-12-31">
+  <owner>fahadmansoor@google.com</owner>
+  <owner>chromeos-commercial-identity@google.com</owner>
+  <summary>
+    Recorded whenever the RemoveLocalAuthFactors screen is shown to the user.
+  </summary>
+</histogram>
+
+<histogram name="Enterprise.RemoveLocalAuthFactorsScreen.Success"
+    enum="Boolean" expires_after="2026-12-31">
+  <owner>fahadmansoor@google.com</owner>
+  <owner>chromeos-commercial-identity@google.com</owner>
+  <summary>
+    Tracks the result of the local auth factor removal process. Recorded as true
+    when all local auth factors are successfully removed, and false if any part
+    of the removal process fails.
   </summary>
 </histogram>
 

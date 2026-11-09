@@ -2855,16 +2855,6 @@ class ModuleDecoderImpl : public Decoder {
       case kI16Code:
         consume_bytes(1, " i16", tracer_);
         return kWasmI16;
-      case kWaitQueueCode:
-        if (V8_UNLIKELY(!enabled_features_.has_shared())) {
-          error(
-              "invalid storage type 'waitqueue', enable with "
-              "--experimental-wasm-shared");
-          consume_bytes(1, " waitqueue", tracer_);
-          return kWasmBottom;
-        }
-        consume_bytes(1, " waitqueue", tracer_);
-        return kWasmWaitQueue;
       default:
         // It is not a packed type, so it has to be a value type.
         return consume_value_type();
@@ -2930,10 +2920,6 @@ class ModuleDecoderImpl : public Decoder {
 
   const ArrayType* consume_array() {
     ValueType element_type = consume_storage_type();
-    if (V8_UNLIKELY(element_type == kWasmWaitQueue)) {
-      error("arrays of waitqueue not supported yet");
-      return nullptr;
-    }
     bool mutability = consume_mutability();
     if (tracer_) tracer_->NextLine();
     if (V8_UNLIKELY(failed())) return nullptr;

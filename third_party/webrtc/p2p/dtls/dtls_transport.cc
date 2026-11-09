@@ -271,7 +271,7 @@ DtlsTransportInternalImpl::DtlsTransportInternalImpl(
           [this](bool success) { CompleteDtlsInStun(success); }) {
   RTC_DCHECK(ice_transport_);
   ConnectToIceTransport();
-  dtls_in_stun_ = env_.field_trials().IsEnabled("WebRTC-IceHandshakeDtls");
+  dtls_in_stun_ = ice_transport_->internal()->config().dtls_handshake_in_stun;
 }
 
 DtlsTransportInternalImpl::DtlsTransportInternalImpl(

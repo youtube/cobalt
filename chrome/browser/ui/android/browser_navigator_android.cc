@@ -2,18 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/ui/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
 
+#include "base/feature_list.h"
 #include "base/notimplemented.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
-#include "chrome/browser/ui/browser_navigator_params_utils.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params_utils.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_controller.h"
@@ -23,8 +25,27 @@
 
 namespace {
 
-// Returns true if NavigateParams are valid, false otherwise.
-bool ValidNavigateParams(NavigateParams* params) {
+bool WindowCanOpenTabs(const NavigateParams& params) {
+  if (!params.browser) {
+    return false;
+  }
+
+  if (params.browser->GetType() == BrowserWindowInterface::TYPE_NORMAL) {
+    return true;
+  }
+
+  // If an empty popup is provided, we create our new tab inside this popup,
+  // otherwise we say that tabs cannot be created in the popup window.
+  // Note: An empty popup probably should not exist, but it is possible and
+  // handled in browser_navigator.cc so we handle it here also.
+  TabListInterface* tab_list = TabListInterface::From(params.browser);
+  return tab_list && tab_list->GetTabCount() == 0;
+}
+
+// Adjusts the given `NavigateParams` to ensure all its fields are consistent.
+// Returns true if all fields in `NavigateParams` can be adjusted to a valid and
+// consistent state so that the navigation can start. Otherwise, return false.
+bool AdjustNavigateParams(NavigateParams* params) {
   // TODO (crbug.com/441594986) Confirm this is correct.
   DCHECK(params->browser);
   DCHECK(!params->navigated_or_inserted_contents);
@@ -56,10 +77,52 @@ bool ValidNavigateParams(NavigateParams* params) {
     params->disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
   }
 
+  // Adjust tabstrip_add_types based on the finalized disposition.
+  if (params->disposition == WindowOpenDisposition::NEW_BACKGROUND_TAB) {
+    params->tabstrip_add_types &= ~AddTabTypes::ADD_ACTIVE;
+  }
+
+  if (params->disposition == WindowOpenDisposition::NEW_FOREGROUND_TAB ||
+      params->disposition == WindowOpenDisposition::NEW_WINDOW ||
+      params->disposition == WindowOpenDisposition::NEW_POPUP) {
+    params->tabstrip_add_types |= AddTabTypes::ADD_ACTIVE;
+  }
+
+  if (params->tabstrip_index != -1) {
+    params->tabstrip_add_types |= AddTabTypes::ADD_FORCE_INDEX;
+  }
+
   // Pre-fill navigated_or_inserted_contents. This is used as a flag
   // downstream to determine if contents_to_insert was provided.
   if (params->contents_to_insert) {
     params->navigated_or_inserted_contents = params->contents_to_insert.get();
+  }
+
+  // After this point, only these dispositions still may need adjustment.
+  if (params->disposition != WindowOpenDisposition::NEW_BACKGROUND_TAB &&
+      params->disposition != WindowOpenDisposition::NEW_FOREGROUND_TAB) {
+    return true;
+  }
+
+  // Locate a fallback browser if the current window is disallowed from opening
+  // new tabs (e.g. it is a popup or app browser window).
+  if (!WindowCanOpenTabs(*params)) {
+    // The new tab will be opened in a different window and will be in the
+    // foreground.
+    if (params->disposition == WindowOpenDisposition::NEW_BACKGROUND_TAB) {
+      params->disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+    }
+
+    // Try to find a suitable fallback browser.
+    auto* collection =
+        ProfileBrowserCollection::GetForProfile(params->initiating_profile);
+    params->browser = collection ? collection->FindTabbedBrowser() : nullptr;
+    // If no suitable fallback browser exists, create a new one.
+    // This is designed to fail on the subsequent check in synchronous
+    // Navigate().
+    if (!params->browser) {
+      params->disposition = WindowOpenDisposition::NEW_WINDOW;
+    }
   }
 
   return true;
@@ -233,9 +296,13 @@ tabs::TabInterface* CreateNewTab(NavigateParams* params) {
   // Parent tab is set to nullptr to avoid adjacency overrides when
   // launching from the Omnibox (where we always append to the end).
   TabAndroid* parent = nullptr;
+  bool should_inherit_opener =
+      (params->tabstrip_add_types & AddTabTypes::ADD_INHERIT_OPENER) ||
+      params->user_gesture;
 
   if (params->source_contents &&
-      launch_type != TabModel::TabLaunchType::FROM_OMNIBOX) {
+      launch_type != TabModel::TabLaunchType::FROM_OMNIBOX &&
+      should_inherit_opener) {
     parent = TabAndroid::FromWebContents(params->source_contents);
   }
 
@@ -250,9 +317,10 @@ tabs::TabInterface* CreateNewTab(NavigateParams* params) {
   }
 
   // Create a new tab.
-  tabs::TabInterface* new_tab = tab_model->CreateTab(
-      parent, std::move(web_contents), params->tabstrip_index, launch_type,
-      /*should_pin=*/false);
+  bool should_pin = (params->tabstrip_add_types & AddTabTypes::ADD_PINNED) != 0;
+  tabs::TabInterface* new_tab =
+      tab_model->CreateTab(parent, std::move(web_contents),
+                           params->tabstrip_index, launch_type, should_pin);
 
   // Early out if Java tab creation failed.
   if (!new_tab || !new_tab->GetContents()) {
@@ -260,7 +328,7 @@ tabs::TabInterface* CreateNewTab(NavigateParams* params) {
   }
 
   // Bring the new tab to the foreground if necessary.
-  if (params->disposition != WindowOpenDisposition::NEW_BACKGROUND_TAB) {
+  if (params->tabstrip_add_types & AddTabTypes::ADD_ACTIVE) {
     tab_model->ActivateTab(new_tab->GetHandle());
   }
 
@@ -390,7 +458,7 @@ void GetTabAndPerformNavigationAsync(
 }  // end namespace
 
 base::WeakPtr<content::NavigationHandle> Navigate(NavigateParams* params) {
-  if (!ValidNavigateParams(params)) {
+  if (!AdjustNavigateParams(params)) {
     return nullptr;
   }
 
@@ -415,7 +483,7 @@ base::WeakPtr<content::NavigationHandle> Navigate(NavigateParams* params) {
 void Navigate(NavigateParams* params,
               base::OnceCallback<void(base::WeakPtr<content::NavigationHandle>)>
                   callback) {
-  if (!ValidNavigateParams(params)) {
+  if (!AdjustNavigateParams(params)) {
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), nullptr));
     return;

@@ -7,7 +7,7 @@
 #include "base/run_loop.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_timeouts.h"
-#include "base/test/test_trace_processor.h"
+#include "base/test/tracing/test_trace_processor.h"
 #include "components/input/features.h"
 #include "components/input/utils.h"
 #include "content/public/browser/web_contents.h"
@@ -217,6 +217,24 @@ IN_PROC_BROWSER_TEST_F(RenderWidgetHostViewAndroidFluidResizeBrowserTest,
     // Confirmed no pending visual properties update.
     EXPECT_FALSE(view->visual_properties_update_pending_);
   }
+}
+
+using TextSizeAdjustAndroidBrowserTest = ContentBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(TextSizeAdjustAndroidBrowserTest, AffectsFontSize) {
+  const char kHtml[] = R"HTML(
+    data:text/html,
+    <!DOCTYPE html>
+    <body style="font-size: 16px;">
+      <div id="textSizeAdjust" style="text-size-adjust: 150%;">Hello world</div>
+    </body>
+  )HTML";
+
+  EXPECT_TRUE(NavigateToURL(shell(), GURL(kHtml)));
+
+  EXPECT_EQ(24, EvalJs(shell(),
+                       "parseFloat(getComputedStyle(document.getElementById('"
+                       "textSizeAdjust')).fontSize)"));
 }
 
 }  // namespace content

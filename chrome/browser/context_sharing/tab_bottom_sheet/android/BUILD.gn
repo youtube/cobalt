@@ -133,6 +133,7 @@ robolectric_library("junit") {
   ]
   deps = [
     ":java",
+    ":java_resources",
     "//base:base_java",
     "//base:base_java_test_support",
     "//base:base_junit_test_support",
@@ -147,6 +148,7 @@ robolectric_library("junit") {
     "//components/thin_webview:java",
     "//content/public/android:content_java",
     "//third_party/androidx:androidx_test_core_java",
+    "//third_party/androidx:androidx_test_ext_junit_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/google-truth:google_truth_java",
     "//third_party/junit",
@@ -162,6 +164,7 @@ android_library("javatests") {
   sources = [ "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetManagerTest.java" ]
   deps = [
     ":java",
+    ":java_resources",
     ":manager_public_java",
     "//base:base_java",
     "//base:base_java_test_support",
@@ -191,5 +194,24 @@ android_library("javatests") {
     "//third_party/mockito:mockito_java",
     "//ui/android:ui_java",
     "//url:url_java",
+  ]
+}
+
+source_set("browser_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = [
+    "tab_bottom_sheet_browsertest.cc",
+    "tab_bottom_sheet_test_feature.cc",
+    "tab_bottom_sheet_test_feature.h",
+  ]
+  deps = [
+    ":android",
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/tab_list",
+    "//chrome/test:test_support",
+    "//content/test:test_support",
+    "//testing/gtest",
   ]
 }

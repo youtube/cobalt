@@ -4982,6 +4982,62 @@ TEST(CpuProfileJSONSerialization) {
             ->Value() > 0);
 }
 
+TEST(CpuProfileJSONSerializationWithEscapedStrings) {
+  i::v8_flags.allow_natives_syntax = true;
+  LocalContext env;
+  v8::HandleScope scope(env.isolate());
+
+  // Script URL contains JSON-special characters: double-quote and backslash.
+  const char* origin_url = "test/\"quoted\"/\\path.js";
+  v8::Local<v8::Script> script = CompileWithOrigin(
+      "%NeverOptimizeFunction(foo);\n"
+      "function foo() {\n"
+      "  var n = 0;\n"
+      "  for (var i = 0; i < 1e5; i++) n += i;\n"
+      "  return n;\n"
+      "}\n",
+      origin_url, false);
+  CHECK(!script.IsEmpty());
+  script->Run(env.local()).ToLocalChecked();
+
+  v8::Local<v8::Function> foo = GetFunction(env.local(), "foo");
+
+  ProfilerHelper helper(env.local());
+  v8::CpuProfile* profile = helper.Run(foo, nullptr, 0, 1000);
+
+  // Walk the profile tree to confirm a node with the special URL exists.
+  bool found_special_url = false;
+  std::vector<const v8::CpuProfileNode*> stack;
+  stack.push_back(profile->GetTopDownRoot());
+  while (!stack.empty()) {
+    const v8::CpuProfileNode* node = stack.back();
+    stack.pop_back();
+    if (strcmp(node->GetScriptResourceNameStr(), origin_url) == 0) {
+      found_special_url = true;
+      break;
+    }
+    for (int i = 0; i < node->GetChildrenCount(); i++) {
+      stack.push_back(node->GetChild(i));
+    }
+  }
+  CHECK(found_special_url);
+
+  // If the escaping is broken, json parse will fail
+  TestJSONStream stream;
+  profile->Serialize(&stream, v8::CpuProfile::kJSON);
+  profile->Delete();
+  CHECK_GT(stream.size(), 0);
+  CHECK_EQ(1, stream.eos_signaled());
+  auto json = base::OwnedVector<char>::NewForOverwrite(stream.size());
+  stream.WriteTo(json.as_vector());
+
+  OneByteResource* json_res = new OneByteResource(json.as_vector());
+  v8::Local<v8::String> json_string =
+      v8::String::NewExternalOneByte(env.isolate(), json_res).ToLocalChecked();
+  v8::Local<v8::Context> context = v8::Context::New(env.isolate());
+  v8::JSON::Parse(context, json_string).ToLocalChecked();
+}
+
 }  // namespace test_cpu_profiler
 }  // namespace internal
 }  // namespace v8

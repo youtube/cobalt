@@ -74,6 +74,7 @@ BASE_DECLARE_FEATURE(kOmniboxWebUIDetachWebContentsOnHide);
 // popup).
 BASE_DECLARE_FEATURE(kAiModeOmniboxEntryPoint);
 BASE_DECLARE_FEATURE(kHideAimEntrypointOnUserInput);
+BASE_DECLARE_FEATURE(kHideAimEntrypointForUrlSuggestions);
 BASE_DECLARE_FEATURE(kOmniboxMultimodalInput);
 BASE_DECLARE_FEATURE(kAndroidDesktopAimGate);
 
@@ -121,6 +122,9 @@ BASE_DECLARE_FEATURE(kOmniboxXGeoPermissionGranularity);
 BASE_DECLARE_FEATURE(kOmniboxItemDecoration);
 BASE_DECLARE_FEATURE(kExactMatchFavicons);
 
+// Whether to use short suggest path.
+BASE_DECLARE_FEATURE(kUseShortSuggestPathV1);
+
 // Omnibox suggestions tuning
 BASE_DECLARE_FEATURE(kNumNtpZpsRecentSearches);
 BASE_DECLARE_FEATURE(kNumNtpZpsTrendingSearches);
@@ -165,6 +169,9 @@ BASE_DECLARE_FEATURE(kComposeboxDriveContextMenuOption);
 // zero-suggest.
 BASE_DECLARE_FEATURE(kComposeboxVerbatimMatchZeroSuggest);
 
+// Whether to disable warmup requests for the composebox.
+BASE_DECLARE_FEATURE(kDisableComposeboxWarmupRequests);
+
 // A flag that allows params from experiment configs to be passed through to
 // the AIM eligibility service to control aspects of URL interception.
 BASE_DECLARE_FEATURE(kAimUrlInterceptPassthrough);
@@ -177,6 +184,12 @@ BASE_DECLARE_FEATURE(kOmniboxDebugLogs);
 // Feature flag to enable the "Astrophotography Mode" (Sparkles) icon for the
 // Thinking Pro model when multiple Pro models are available.
 BASE_DECLARE_FEATURE(kThinkingModelIconUpdate);
+
+BASE_DECLARE_FEATURE(kVoiceSearchCoherenceComposeboxes);
+BASE_DECLARE_FEATURE(kVoiceSearchCoherenceSearchbox);
+
+extern const base::FeatureParam<bool>
+    kVoiceSearchCoherenceSearchboxWithLiveTranscription;
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_DECLARE_FEATURE(kDiagnostics);
@@ -192,6 +205,10 @@ BASE_DECLARE_FEATURE(kResetSuggestionsScroll);
 // If enabled, X-Geo headers are sent for all search navigations on all
 // platforms.
 BASE_DECLARE_FEATURE(kPlatformAgnosticXGeo);
+
+// If enabled, Inline Location Signaling is enabled gating all development
+// and experimentation for the feature.
+BASE_DECLARE_FEATURE(kInlineLocationSignaling);
 
 // Note: no new flags beyond this point.
 

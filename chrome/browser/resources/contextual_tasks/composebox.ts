@@ -17,8 +17,8 @@ import {assert} from '//resources/js/assert.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import type {AutocompleteMatch, AutocompleteResult, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
-import type {InputState, ToolMode} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
-import {InputType} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
+import type {InputState} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
+import {InputType, ToolMode} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
@@ -27,7 +27,7 @@ import {WindowOpenDisposition} from 'chrome://resources/mojo/ui/base/mojom/windo
 import {getCss} from './composebox.css.js';
 import {getHtml} from './composebox.html.js';
 import {IconType} from './contextual_tasks.mojom-webui.js';
-import type {PageHandlerInterface} from './contextual_tasks.mojom-webui.js';
+import type {InjectedInput, PageHandlerInterface} from './contextual_tasks.mojom-webui.js';
 import {BrowserProxyImpl} from './contextual_tasks_browser_proxy.js';
 
 const ICON_TYPE_TO_NAME: {[id: number]: string} = {
@@ -37,6 +37,7 @@ const ICON_TYPE_TO_NAME: {[id: number]: string} = {
   [IconType.kImage]: 'image',
   [IconType.kDrivePdf]: 'drivePdf',
   [IconType.kCheck]: 'check',
+  [IconType.kInvertedFormatQuoteFilled]: 'invertedQuoteFilled',
 };
 
 function recordVoiceSearchAction(voiceSearchState: VoiceSearchState) {
@@ -134,17 +135,23 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
         type: Boolean,
         reflect: true,
       },
+      inToolMode_: {
+        type: Boolean,
+        reflect: true,
+      },
       selectedMatchIndex_: {type: Number},
       enableFileHint_: {type: Boolean},
       lensButtonDisabled_: {type: Boolean},
       isCanvasQuerySubmitted: {type: Boolean},
       caretAnimationsEnabled_: {type: Boolean},
       energyEffectEnabled_: {type: Boolean, reflect: true},
+      energyEffectAnimationEnabled_: {type: Boolean, reflect: true},
     };
   }
 
   accessor enableNativeZeroStateSuggestions: boolean = false;
   accessor inNlm: boolean = false;
+  accessor inToolMode_: boolean = false;
   accessor isZeroState: boolean = false;
   accessor isSidePanel: boolean = false;
   accessor isLensOverlayShowing: boolean = false;
@@ -181,6 +188,7 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
   private contextualTasksHandler_: PageHandlerInterface;
   private searchboxCallbackRouter_: SearchboxPageCallbackRouter;
   private searchboxListenerIds_: number[] = [];
+  private shouldSubmitAfterUpload_: boolean = false;
   // Tracks the resize of the composebox to provide height updates.
   private resizeObserver_: ResizeObserver|null = null;
   // Glif animation should trigger when:
@@ -194,6 +202,11 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
   protected accessor caretAnimationsEnabled_: boolean =
       loadTimeData.getBoolean('caretAnimationEnabled');
   protected accessor energyEffectEnabled_: boolean =
+      loadTimeData.getBoolean('energyEffectEnabled');
+  // The use of energyEffectEnabled to set energyEffectAnimationEnabled_ is
+  // intentional. This is to align the gating properties for energy effects
+  // across all surfaces (= Nextbox, Omnibox, and Realbox).
+  protected accessor energyEffectAnimationEnabled_: boolean =
       loadTimeData.getBoolean('energyEffectEnabled');
 
   constructor() {
@@ -218,6 +231,15 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
       if (!this.isZeroState) {
         composebox.animationState = GlowAnimationState.NONE;
       }
+      this.eventTracker_.add(
+          composebox, 'can-submit-files-and-input-changed',
+          (e: CustomEvent<{canSubmitFilesAndInput: boolean}>) => {
+            if (e.detail.canSubmitFilesAndInput &&
+                this.shouldSubmitAfterUpload_) {
+              this.shouldSubmitAfterUpload_ = false;
+              composebox.submitQuery();
+            }
+          });
       this.eventTracker_.add(composebox, 'composebox-focus-in', () => {
         this.isComposeboxFocused_ = true;
       });
@@ -388,6 +410,7 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
   }
 
   protected onInputStateChanged_(e: CustomEvent<{inputState: InputState}>) {
+    this.inToolMode_ = this.inputState?.activeTool !== ToolMode.kUnspecified;
     const disabledTypes = e.detail.inputState?.disabledInputTypes || [];
     if (disabledTypes.includes(InputType.kLensImage)) {
       this.pageHandler_.closeLensOverlayFromWebUI(
@@ -488,19 +511,33 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
     this.pageHandler_.handleFileUpload(false);
   }
 
-  injectInput(
-      title: string, thumbnail: string, fileToken: UnguessableToken,
-      supportsUnimodal: boolean) {
-    this.$.composebox.injectInput(
-        title, thumbnail, fileToken, supportsUnimodal);
-  }
+  async injectInput(input: InjectedInput) {
+    if (input.fileToken) {
+      const iconId = input.iconId;
+      const thumbnail = input.thumbnail ?
+          ('chrome://image?url=' + encodeURIComponent(input.thumbnail)) :
+          '';
+      this.$.composebox.injectInput(
+          input.title ?? '', thumbnail, input.fileToken, input.supportsUnimodal,
+          iconId !== IconType.kUnspecified ?
+              ICON_TYPE_TO_NAME[iconId as number] :
+              undefined);
+    }
 
-  injectInputWithIcon(
-      title: string, iconId: IconType, fileToken: UnguessableToken,
-      supportsUnimodal: boolean) {
-    this.$.composebox.injectInput(
-        title, '', fileToken, supportsUnimodal,
-        ICON_TYPE_TO_NAME[iconId as number] ?? 'unspecified');
+    if (input.queryText !== undefined && input.queryText !== null) {
+      this.$.composebox.setInputProgrammatically(
+          input.queryText, input.submitAfterInjection);
+    }
+    // Wait for update so composebox can properly uppdate its input.
+    await this.$.composebox.updateComplete;
+
+    if (input.submitAfterInjection) {
+      if (!this.$.composebox.canSubmitFilesAndInput) {
+        this.shouldSubmitAfterUpload_ = true;
+        return;
+      }
+      this.$.composebox.submitQuery();
+    }
   }
 
   deleteFile(fileToken: UnguessableToken) {

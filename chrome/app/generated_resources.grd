@@ -3585,6 +3585,22 @@ are declared in tools/grit/grit_args.gni.
       <message name="IDS_INSTALL_PWA_DIALOG_ORIGIN_LABEL" desc="The label in front of the origin of the site that is installing the web app.">
         from: <ph name="APP_ORIGIN">$1<ex>example.com</ex></ph>
       </message>
+       <!-- Install dialog resources for Windows specific behavior. They cannot be guarded by expr="is_win", because these resources need to be compiled for screenshot testing. -->
+      <message name="IDS_WEB_APP_INSTALL_ADD_TO_START_MENU" desc="Installer option text for the new install dialog for web apps, signifying that a shortcut will be added to the Start Menu on Windows">
+        Adding to Start Menu
+      </message>
+      <message name="IDS_WEB_APP_INSTALL_CHROME_APPS_LOCATION" desc="Installer option text signifying where inside the Start Menu the web app shortcut will be created on Windows.">
+        Chrome Apps &gt; <ph name="APP_NAME">$1<ex>AppName</ex></ph>
+      </message>
+      <message name="IDS_WEB_APP_INSTALL_CREATE_DESKTOP_SHORTCUT" desc="Label of the checkbox to add a shortcut to the desktop after installing the web app.">
+        Add desktop shortcut
+      </message>
+      <message name="IDS_WEB_APP_INSTALL_PIN_TO_TASKBAR" desc="Label of the checkbox to pin an installed web app shortcut to taskbar.">
+        Pin to Taskbar
+      </message>
+      <message name="IDS_WEB_APP_INSTALL_LAUNCHER" desc="Label for the ChromeOS Launcher icon in the install options view.">
+        Launcher
+      </message>
 
       <message name="IDS_BOOKMARK_APP_AX_BUBBLE_NAME_LABEL" desc="Text preceding the name of a bookmark app, read by spoken feedback.">
         Shortcut name
@@ -4200,9 +4216,6 @@ are declared in tools/grit/grit_args.gni.
       </message>
       <message name="IDS_JS_OPTIMIZATION_BUBBLE_POLICY_BODY" desc="Body text for the JavaScript optimization bubble when disabled by enterprise policy.">
         JavaScript optimization is off for this site.
-      </message>
-      <message name="IDS_JS_OPTIMIZATION_BUBBLE_BODY_NON_POLICY_BODY" desc="Body text for the JavaScript optimization bubble when disabled for other reasons.">
-        JavaScript optimization is off for this site. Enable for better performance.
       </message>
      <if expr="not use_titlecase">
       <message name="IDS_JS_OPTIMIZATION_BUBBLE_ENABLE_BUTTON" desc="Button text to enable JavaScript optimization for the current site.">
@@ -5885,7 +5898,36 @@ are declared in tools/grit/grit_args.gni.
         <message name="IDS_EXTENSIONS_HAS_ACCESS_TO_SITE" desc="The message shown on mouseover when an extension currently can run on a specific site.">
           Has access to this site
         </message>
-
+        <message name="IDS_EXTENSIONS_REQUEST_ACCESS_BUTTON_TOOLTIP_SINGLE_EXTENSION" desc="The tooltip text of the request access button that appears on the toolbar when an extension requests access to the site">
+          Click to allow "<ph name="EXTENSIONS_REQUESTING_ACCESS">$1<ex>Extension A</ex></ph>" on <ph name="ORIGIN">$2<ex>google.com</ex></ph>
+        </message>
+        <message name="IDS_EXTENSIONS_TOOLBAR_ACTION_HOVER_CARD_TITLE_HAS_ACCESS" desc="The title in the card that shows up on mouse hover of a toolbar action when extension has access to the current site.">
+          Allowed to read &amp; change
+        </message>
+        <message name="IDS_EXTENSIONS_TOOLBAR_ACTION_HOVER_CARD_TITLE_BLOCKED_ACCESS" desc="The title in the card that shows up on mouse hover of a toolbar action when the extension cannot access the current site.">
+          Not allowed to read &amp; change
+        </message>
+        <message name="IDS_EXTENSIONS_TOOLBAR_ACTION_HOVER_CARD_TITLE_REQUESTS_ACCESS" desc="The title in the card that shows up on mouse hover of a toolbar action when the extension requests access to the current site.">
+          Requesting to read &amp; change
+        </message>
+        <message name="IDS_EXTENSIONS_TOOLBAR_ACTION_HOVER_CARD_DESCRIPTION_ALL_EXTENSIONS_ALLOWED_ACCESS" desc="The description in the card that shows up on mouse hover of a toolbar action when all extensions have access to the current site.">
+          All extensions can read &amp; change <ph name="HOST">$1<ex>google.com</ex></ph>
+        </message>
+        <message name="IDS_EXTENSIONS_TOOLBAR_ACTION_HOVER_CARD_DESCRIPTION_ALL_EXTENSIONS_BLOCKED_ACCESS" desc="The description in the card that shows up on mouse hover of a toolbar action when all extensions cannot access the current site.">
+          You blocked all extensions from <ph name="HOST">$1<ex>google.com</ex></ph>
+        </message>
+         <message name="IDS_EXTENSIONS_TOOLBAR_ACTION_HOVER_CARD_DESCRIPTION_EXTENSION_HAS_ACCESS" desc="The description in the card that shows up on mouse hover of a toolbar action when the extension has access to the current site.">
+          This extension can read and change <ph name="HOST">$1<ex>google.com</ex></ph>
+        </message>
+        <message name="IDS_EXTENSIONS_TOOLBAR_ACTION_HOVER_CARD_DESCRIPTION_EXTENSION_REQUESTS_ACCESS" desc="The description in the card that shows up on mouse hover of a toolbar action when the extension requests access to the current site.">
+          Click this extension's icon to read and change <ph name="HOST">$1<ex>google.com</ex></ph>
+        </message>
+        <message name="IDS_EXTENSIONS_TOOLBAR_ACTION_HOVER_CARD_POLICY_LABEL_PINNED_TEXT" desc="The text in the card that shows up on mouse hover of a toolbar action when extension was pinned by the administrator.">
+          Pinned by your administrator
+        </message>
+        <message name="IDS_EXTENSIONS_TOOLBAR_ACTION_HOVER_CARD_POLICY_LABEL_INSTALLED_TEXT" desc="The text in the card that shows up on mouse hover of a toolbar action when extension was installed by the administrator.">
+          Installed by your administrator
+        </message>
         <if expr="not use_titlecase">
           <message name="IDS_EXTENSIONS_CONTEXT_MENU_SITE_PERMISSIONS" desc="The label in an extension's context menu for the submenu specifying the extension site permissions (sentence case).">
             Site permissions
@@ -6036,38 +6078,7 @@ are declared in tools/grit/grit_args.gni.
         </if>
       </if>
       <if expr="enable_extensions">
-        <message name="IDS_EXTENSIONS_REQUEST_ACCESS_BUTTON_TOOLTIP_SINGLE_EXTENSION" desc="The tooltip text of the request access button that appears on the toolbar when an extension requests access to the site">
-          Click to allow "<ph name="EXTENSIONS_REQUESTING_ACCESS">$1<ex>Extension A</ex></ph>" on <ph name="ORIGIN">$2<ex>google.com</ex></ph>
-        </message>
-        <message name="IDS_EXTENSIONS_TOOLBAR_ACTION_HOVER_CARD_TITLE_HAS_ACCESS" desc="The title in the card that shows up on mouse hover of a toolbar action when extension has access to the current site.">
-          Allowed to read &amp; change
-        </message>
-        <message name="IDS_EXTENSIONS_TOOLBAR_ACTION_HOVER_CARD_TITLE_BLOCKED_ACCESS" desc="The title in the card that shows up on mouse hover of a toolbar action when the extension cannot access the current site.">
-          Not allowed to read &amp; change
-        </message>
-        <message name="IDS_EXTENSIONS_TOOLBAR_ACTION_HOVER_CARD_TITLE_REQUESTS_ACCESS" desc="The title in the card that shows up on mouse hover of a toolbar action when the extension requests access to the current site.">
-          Requesting to read &amp; change
-        </message>
-        <message name="IDS_EXTENSIONS_TOOLBAR_ACTION_HOVER_CARD_DESCRIPTION_ALL_EXTENSIONS_ALLOWED_ACCESS" desc="The description in the card that shows up on mouse hover of a toolbar action when all extensions have access to the current site.">
-          All extensions can read &amp; change <ph name="HOST">$1<ex>google.com</ex></ph>
-        </message>
-        <message name="IDS_EXTENSIONS_TOOLBAR_ACTION_HOVER_CARD_DESCRIPTION_ALL_EXTENSIONS_BLOCKED_ACCESS" desc="The description in the card that shows up on mouse hover of a toolbar action when all extensions cannot access the current site.">
-          You blocked all extensions from <ph name="HOST">$1<ex>google.com</ex></ph>
-        </message>
-         <message name="IDS_EXTENSIONS_TOOLBAR_ACTION_HOVER_CARD_DESCRIPTION_EXTENSION_HAS_ACCESS" desc="The description in the card that shows up on mouse hover of a toolbar action when the extension has access to the current site.">
-          This extension can read and change <ph name="HOST">$1<ex>google.com</ex></ph>
-        </message>
-        <message name="IDS_EXTENSIONS_TOOLBAR_ACTION_HOVER_CARD_DESCRIPTION_EXTENSION_REQUESTS_ACCESS" desc="The description in the card that shows up on mouse hover of a toolbar action when the extension requests access to the current site.">
-          Click this extension's icon to read and change <ph name="HOST">$1<ex>google.com</ex></ph>
-        </message>
-        <message name="IDS_EXTENSIONS_TOOLBAR_ACTION_HOVER_CARD_POLICY_LABEL_PINNED_TEXT" desc="The text in the card that shows up on mouse hover of a toolbar action when extension was pinned by the administrator.">
-          Pinned by your administrator
-        </message>
-        <message name="IDS_EXTENSIONS_TOOLBAR_ACTION_HOVER_CARD_POLICY_LABEL_INSTALLED_TEXT" desc="The text in the card that shows up on mouse hover of a toolbar action when extension was installed by the administrator.">
-          Installed by your administrator
-        </message>
-
-        <if expr="not use_titlecase">
+       <if expr="not use_titlecase">
           <message name="IDS_EXTENSIONS_DISABLE" desc="The link for disabling an extension (sentence case).">
             Disable
           </message>
@@ -6382,16 +6393,16 @@ Keep your key file in a safe place. You will need it to create new versions of y
         Change back to <ph name="OLD_SEARCH_PROVIDER">$1<ex>DuckDuckGo</ex></ph>?
       </message>
       <message name="IDS_EXTENSION_SEARCH_OVERRIDDEN_DIALOG_TITLE_EXPLICIT_CHOICE" desc="The title of the dialog informing the user that the default search engine has been overridden by an extension, and presenting an explicit choice on whether to use the new or previous search providers.">
-        Confirm your default search engine
+        Confirm the default search engine you want
       </message>
       <message name="IDS_EXTENSION_SEARCH_OVERRIDDEN_DIALOG_BODY_GENERIC" desc="The body of the dialog informing the user that the default search engine has been overridden by an extension, indicating which extension now controls it.">
         The "<ph name="EXTENSION_NAME">$2<ex>Some New Search</ex></ph>" extension changed search to use <ph name="SEARCH_PROVIDER_DOMAIN">$1<ex>google.com</ex></ph>
       </message>
       <message name="IDS_EXTENSION_SEARCH_OVERRIDDEN_DIALOG_BODY_EXPLICIT_CHOICE" desc="The title of the dialog informing the user that the default search engine has been overridden by an extension, and presenting an explicit choice on whether to use the new or previous search providers.">
-        The extension "<ph name="EXTENSION_NAME">$1<ex>Some Extension</ex></ph>" attempted to change your search engine to <ph name="SEARCH_PROVIDER">$2<ex>DuckDuckGo</ex></ph>. Confirm your preference below
+        The extension "<ph name="EXTENSION_NAME">$1<ex>Some Extension</ex></ph>" changed your settings
       </message>
       <message name="IDS_EXTENSION_SEARCH_OVERRIDDEN_DIALOG_RECENT_CHANGE" desc="Describes why a new search provider (added by an extension) is listed as an option for which search to use.">
-        Recently changed to by <ph name="EXTENSION_NAME">$1<ex>Some Extension</ex></ph>
+        Changed to this by extension
       </message>
       <message name="IDS_EXTENSION_SEARCH_OVERRIDDEN_DIALOG_PREVIOUS_CHOICE" desc="Describes why the previous search provider is being presented as an option for which search to use.">
         Your previous choice
@@ -7590,6 +7601,10 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_WEBUI_OMNIBOX_COMPOSE_LENS_OVERLAY"
         desc="The name of the Lens overlay command in the content area context menu">
         Search with Google Lens
+      </message>
+      <message name="IDS_WEBUI_OMNIBOX_COMPOSE_ASK_ABOUT_YOUR_TABS"
+        desc="Label for a button that guides the user to composebox's context menu using a suggestion like label.">
+        Ask about your tabs
       </message>
 
 
@@ -12246,28 +12261,6 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
         </message>
       </if>
 
-      <!-- WebUI Tab Strip -->
-      <if expr="enable_webui_tab_strip">
-        <message name="IDS_TOOLTIP_WEBUI_TAB_STRIP_TAB_COUNTER" desc="The tooltip for the button which toggles the tab strip. It counts the number of open tabs. [ICU Syntax]">
-          {NUM_OPEN_TABS, plural, =1 {# open tab, press to toggle tab strip} other {# open tabs, press to toggle tab strip}}
-        </message>
-        <if expr="not use_titlecase">
-          <message name="IDS_WEBUI_TAB_STRIP_TAB_COUNTER_CXMENU_NEW_TAB" desc="The label of a context menu item used to create a new tab and switch to it.">
-            New tab
-          </message>
-          <message name="IDS_WEBUI_TAB_STRIP_TAB_COUNTER_CXMENU_CLOSE_TAB" desc="The label of a context menu item used to close the current tab.">
-            Close tab
-          </message>
-        </if>
-        <if expr="use_titlecase">
-          <message name="IDS_WEBUI_TAB_STRIP_TAB_COUNTER_CXMENU_NEW_TAB" desc="The label of a context menu item used to create a new tab and switch to it.">
-            New Tab
-          </message>
-          <message name="IDS_WEBUI_TAB_STRIP_TAB_COUNTER_CXMENU_CLOSE_TAB" desc="The label of a context menu item used to close the current tab.">
-            Close Tab
-          </message>
-        </if>
-      </if>
 
       <!-- Side By Side -->
       <message name="IDS_ACCNAME_SPLIT_TABS_RESIZE" desc="Screen reader announcement when the side by side resize handle is focused.">
@@ -13703,6 +13696,9 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
       <!-- Settings related strings not specific to chrome://settings.
            (Settings specific strings are in settings_strings.grdp).
            Not necessary on Android that uses native UI in settings unless extensions are enabled. -->
+        <message name="IDS_CONTROLLED_SETTING_POLICY" desc="Text displayed in the controlled settings bubble when a setting's value is managed by policy.">
+          This setting is managed by your administrator.
+        </message>
       <if expr="not is_android or enable_extensions_core">
         <message name="IDS_TOOLBAR_INFORM_SET_HOME_PAGE" desc="The confirmation message when dropping a link on the Home toolbar button">
            Your home page has been set.
@@ -13713,9 +13709,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
           Extensions
         </message>
 
-        <message name="IDS_CONTROLLED_SETTING_POLICY" desc="Text displayed in the controlled settings bubble when a setting's value is managed by policy.">
-          This setting is managed by your administrator.
-        </message>
+
         <message name="IDS_CONTROLLED_SETTING_EXTENSION" desc="Text displayed in the controlled settings bubble when a setting's value is enforced by an extension.">
           This setting is enforced by the "<ph name="NAME">$1<ex>Google Cast</ex></ph>" extension.
         </message>
@@ -14659,6 +14653,10 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
       <message name="IDS_FUSEBOX_VOICE_SEARCH_TRANSCRIBING"
         desc="Text shown as needed while the speech recognition service is transcribing the user's voice input.">
         Transcribing...
+      </message>
+      <message name="IDS_FUSEBOX_VOICE_SEARCH_STOP_TITLE"
+        desc="Accessibility text shown for the stop button's title.">
+        Stop
       </message>
 
       <if expr="not use_titlecase">
@@ -18242,12 +18240,6 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_WEBAUTHN_SIGN_IN_AGAIN_DESCRIPTION" desc="The second line in a button that is shown when Sync is 'paused' and the user is trying to sign in with or create a passkey. Sync 'paused' is a state where the user has opted in to Sync, but their sign-in status has expired and they need to sign in again to restore it. Tapping this button closes the passkey window and opens a new tab where the user can sign in to Google. Note that the English string only just fits within the allocated space. Longer strings will be elided at the end.">
         To use passkeys saved in your Google Account
       </message>
-      <message name="IDS_WEBAUTHN_GPM_INCOGNITO_CREATE_TITLE" desc="The title of a dialog that is shown when a user is creating a Google Password Manager passkey while browsing in Incognito mode. The title is asking the user to confirm that they want to perform the action, while suggesting that the new passkey will exist outside of Incognito mode.">
-        Save this passkey outside Incognito?
-      </message>
-      <message name="IDS_WEBAUTHN_GPM_INCOGNITO_CREATE_DESC" desc="The description of a dialog that is shown when a user is creating a Google Password Manager passkey while browsing in Incognito mode. It is explaining to the user that the passkey will continue to exist in the password manager outside of Incognito mode.">
-        This passkey will be saved to your password manager. Anyone with access to it will be able to use this passkey.
-      </message>
       <message name="IDS_WEBAUTHN_GPM_PIN_OPTION_NUMBERS" desc="A label on the pin options dropdown menu that allows to choose a Google Password Manager pin with digits only.">
         Numbers
       </message>
@@ -19716,6 +19708,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_PDF_GLIC_SUMMARIZE_TOOLTIP" desc="Tooltip for the button to summarize PDFs with Gemini.">
         Summarize with Gemini
       </message>
+      <message name="IDS_PDF_GLIC_SUMMARIZE_PROMPT" desc="Prompt sent to Gemini to summarize a PDF document.">
+        Summarize this document
+      </message>
     </if>
 
     <!-- Protected content identifiers permission -->
@@ -19747,7 +19742,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
     </if>
 
     <!-- New Tab Page browser feature promotions. -->
-    <if expr="not is_android">
+    <if expr="enable_webui_ntp">
       <message name="IDS_NTP_PROMO_DISMISS" desc="Text shown on the menu option to dismiss a New Tab Page promo.">
         Don't show this promo
       </message>
@@ -20190,6 +20185,10 @@ Please help our engineers fix this problem. Tell us what happened right before y
     <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_SENDING_BUTTON_LABEL" desc="Dialog button label while unsafe-site-report is sending to Google">
       Sending...
     </message>
+    <message name="IDS_REPORT_UNSAFE_SITE_CONFIRMATION_TOAST" desc="Message confirmation after unsafe-site-report sends to Google">
+      Report sent
+    </message>
+
 
     <!-- Indigo -->
     <if expr="not is_android">

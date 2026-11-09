@@ -45,6 +45,7 @@
 #include "src/objects/script.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
+#include "src/objects/sort-state.h"
 #include "src/objects/source-text-module.h"
 #include "src/objects/string.h"
 #include "src/objects/synthetic-module.h"
@@ -419,7 +420,8 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
 #undef ALLOCATE_AND_SET_ROOT
 
     // Then, initialise the initial maps.
-    InitializePartialMap(isolate(), meta_map, meta_map, MAP_TYPE, Map::kSize);
+    InitializePartialMap(isolate(), meta_map, meta_map, MAP_TYPE,
+                         kVariableSizeSentinel);
     InitializePartialMap(isolate(), undefined_map, meta_map, ODDBALL_TYPE,
                          sizeof(Undefined));
     InitializePartialMap(isolate(), null_map, meta_map, ODDBALL_TYPE,
@@ -730,18 +732,45 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
       roots_table()[entry.index] = map.ptr();
     }
 
-#define TORQUE_ALLOCATE_MAP(NAME, Name, name) \
-  ALLOCATE_MAP(NAME, Name::SizeFor(), name)
-    TORQUE_DEFINED_FIXED_INSTANCE_TYPE_LIST(TORQUE_ALLOCATE_MAP);
-#undef TORQUE_ALLOCATE_MAP
-
-#define TORQUE_ALLOCATE_VARSIZE_MAP(NAME, Name, name)                   \
-  /* The DescriptorArray map is pre-allocated and initialized above. */ \
-  if (NAME != DESCRIPTOR_ARRAY_TYPE) {                                  \
-    ALLOCATE_VARSIZE_MAP(NAME, name)                                    \
-  }
-    TORQUE_DEFINED_VARSIZE_INSTANCE_TYPE_LIST(TORQUE_ALLOCATE_VARSIZE_MAP);
-#undef TORQUE_ALLOCATE_VARSIZE_MAP
+    // The DescriptorArray map is pre-allocated and initialized above.
+    ALLOCATE_VARSIZE_MAP(STRONG_DESCRIPTOR_ARRAY_TYPE, strong_descriptor_array)
+    ALLOCATE_VARSIZE_MAP(TURBOSHAFT_WORD32_SET_TYPE_TYPE,
+                         turboshaft_word32set_type)
+    ALLOCATE_VARSIZE_MAP(TURBOSHAFT_WORD64_SET_TYPE_TYPE,
+                         turboshaft_word64set_type)
+    ALLOCATE_VARSIZE_MAP(TURBOSHAFT_FLOAT64_SET_TYPE_TYPE,
+                         turboshaft_float64set_type)
+    ALLOCATE_MAP(ON_HEAP_BASIC_BLOCK_PROFILER_DATA_TYPE,
+                 OnHeapBasicBlockProfilerData::SizeFor(),
+                 on_heap_basic_block_profiler_data)
+    ALLOCATE_MAP(TURBOFAN_BITSET_TYPE_TYPE, TurbofanBitsetType::SizeFor(),
+                 turbofan_bitset_type)
+    ALLOCATE_MAP(TURBOFAN_UNION_TYPE_TYPE, TurbofanUnionType::SizeFor(),
+                 turbofan_union_type)
+    ALLOCATE_MAP(TURBOFAN_RANGE_TYPE_TYPE, TurbofanRangeType::SizeFor(),
+                 turbofan_range_type)
+    ALLOCATE_MAP(TURBOFAN_HEAP_CONSTANT_TYPE_TYPE,
+                 TurbofanHeapConstantType::SizeFor(),
+                 turbofan_heap_constant_type)
+    ALLOCATE_MAP(TURBOFAN_OTHER_NUMBER_CONSTANT_TYPE_TYPE,
+                 TurbofanOtherNumberConstantType::SizeFor(),
+                 turbofan_other_number_constant_type)
+    ALLOCATE_MAP(TURBOSHAFT_WORD32_RANGE_TYPE_TYPE,
+                 TurboshaftWord32RangeType::SizeFor(),
+                 turboshaft_word32range_type)
+    ALLOCATE_MAP(TURBOSHAFT_WORD64_RANGE_TYPE_TYPE,
+                 TurboshaftWord64RangeType::SizeFor(),
+                 turboshaft_word64range_type)
+    ALLOCATE_MAP(TURBOSHAFT_FLOAT64_RANGE_TYPE_TYPE,
+                 TurboshaftFloat64RangeType::SizeFor(),
+                 turboshaft_float64range_type)
+    ALLOCATE_MAP(SORT_STATE_TYPE, SortState::SizeFor(), sort_state)
+#if V8_ENABLE_WEBASSEMBLY
+    ALLOCATE_MAP(WASM_FAST_API_CALL_DATA_TYPE, WasmFastApiCallData::SizeFor(),
+                 wasm_fast_api_call_data)
+    ALLOCATE_MAP(WASM_STRING_VIEW_ITER_TYPE, WasmStringViewIter::SizeFor(),
+                 wasm_string_view_iter)
+#endif  // V8_ENABLE_WEBASSEMBLY
 
     ALLOCATE_VARSIZE_MAP(ORDERED_HASH_MAP_TYPE, ordered_hash_map)
     ALLOCATE_VARSIZE_MAP(ORDERED_HASH_SET_TYPE, ordered_hash_set)

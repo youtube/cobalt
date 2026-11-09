@@ -910,6 +910,11 @@ TEST(ASN1Test, SetBit) {
   ASSERT_TRUE(ASN1_BIT_STRING_set_bit(val.get(), 100, 0));
   TestSerialize(val.get(), i2d_ASN1_BIT_STRING, kBitString1);
 
+  // Negative bits do not exist.
+  EXPECT_FALSE(ASN1_BIT_STRING_set_bit(val.get(), -1, 0));
+  EXPECT_FALSE(ASN1_BIT_STRING_set_bit(val.get(), -1, 1));
+  ERR_clear_error();
+
   // Bits may be set beyond the end of the string.
   ASSERT_TRUE(ASN1_BIT_STRING_set_bit(val.get(), 63, 1));
   static const uint8_t kBitStringLong[] = {0x03, 0x09, 0x00, 0x80, 0x00, 0x00,

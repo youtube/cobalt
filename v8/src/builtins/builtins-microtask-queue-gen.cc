@@ -37,16 +37,13 @@ class MicrotaskQueueBuiltinsAssembler : public CodeStubAssembler {
                                            TNode<IntPtrT> start,
                                            TNode<IntPtrT> index);
 
-  void PrepareForContext(TNode<Context> microtask_context,
-                         TNode<IntPtrT> baseline_entered_context_count,
-                         Label* bailout);
+  void PrepareForContext(TNode<Context> microtask_context, Label* bailout);
   void RunSingleMicrotask(TNode<Context> current_context,
-                          TNode<IntPtrT> baseline_entered_context_count,
                           TNode<Microtask> microtask);
   void IncrementFinishedMicrotaskCount(TNode<RawPtrT> microtask_queue);
 
   TNode<Context> GetCurrentContext();
-  void SetCurrentContext(TNode<Union<Context, Smi>> context);
+  void SetCurrentContext(TNode<Context> context);
 
   TNode<IntPtrT> GetEnteredContextCount();
   void EnterContext(TNode<Context> native_context);
@@ -114,48 +111,15 @@ TNode<IntPtrT> MicrotaskQueueBuiltinsAssembler::CalculateRingBufferOffset(
 }
 
 void MicrotaskQueueBuiltinsAssembler::PrepareForContext(
-    TNode<Context> native_context,
-    TNode<IntPtrT> baseline_entered_context_count, Label* bailout) {
+    TNode<Context> native_context, Label* bailout) {
   CSA_DCHECK(this, IsNativeContext(native_context));
 
   // Skip the microtask execution if the associated context is shutdown.
   GotoIf(WordEqual(GetMicrotaskQueue(native_context), IntPtrConstant(0)),
          bailout);
 
-  Label done_context(this);
-  TNode<Context> current_active_context = GetCurrentContext();
-  // Fast path: if the context is already active, we don't need to do anything.
-  // This optimization is described in the beginning of
-  // MicrotaskQueue::RunMicrotasks().
-  GotoIf(TaggedEqual(native_context, current_active_context), &done_context);
-
-  // Slow path: context switch required.
-  // Rewind to the baseline before entering the new context.
-  RewindEnteredContext(baseline_entered_context_count);
   EnterContext(native_context);
   SetCurrentContext(native_context);
-  Goto(&done_context);
-
-  BIND(&done_context);
-  if constexpr (DEBUG_BOOL) {
-    // Postcondition: entered_contexts_.back() == native_context, i.e. the
-    // context the microtask is about to run in is visible to API callers.
-    auto ref = ExternalReference::handle_scope_implementer_address(isolate());
-    TNode<RawPtrT> hsi = Load<RawPtrT>(ExternalConstant(ref));
-    using ContextStack = DetachableVector<Context>;
-    TNode<IntPtrT> size_offset =
-        IntPtrConstant(HandleScopeImplementer::kEnteredContextsOffset +
-                       ContextStack::kSizeOffset);
-    TNode<IntPtrT> data_offset =
-        IntPtrConstant(HandleScopeImplementer::kEnteredContextsOffset +
-                       ContextStack::kDataOffset);
-    TNode<IntPtrT> size = Load<IntPtrT>(hsi, size_offset);
-    CSA_CHECK(this, IntPtrGreaterThan(size, IntPtrConstant(0)));
-    TNode<RawPtrT> data = Load<RawPtrT>(hsi, data_offset);
-    TNode<Object> back = LoadFullTagged(
-        data, TimesSystemPointerSize(IntPtrSub(size, IntPtrConstant(1))));
-    CSA_CHECK(this, TaggedEqual(back, native_context));
-  }
 }
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
@@ -180,12 +144,12 @@ void MicrotaskQueueBuiltinsAssembler::ClearContinuationPreservedEmbedderData() {
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
 void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
-    TNode<Context> current_context,
-    TNode<IntPtrT> baseline_entered_context_count, TNode<Microtask> microtask) {
+    TNode<Context> current_context, TNode<Microtask> microtask) {
   CSA_DCHECK(this, TaggedIsNotSmi(microtask));
   CSA_DCHECK(this, Word32BinaryNot(IsExecutionTerminating()));
 
   StoreRoot(RootIndex::kCurrentMicrotask, microtask);
+  TNode<IntPtrT> saved_entered_context_count = GetEnteredContextCount();
   TNode<Map> microtask_map = LoadMap(microtask);
   TNode<Uint16T> microtask_type = LoadMapInstanceType(microtask_map);
 
@@ -193,7 +157,8 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
       is_promise_fulfill_reaction_job(this),
       is_promise_reject_reaction_job(this),
       is_promise_resolve_thenable_job(this), is_async_resume(this),
-      is_unreachable(this, Label::kDeferred), done(this);
+      is_unreachable(this, Label::kDeferred),
+      rewind_entered_context_and_done(this), done(this);
 
   int32_t case_values[] = {CALLABLE_TASK_TYPE,
                            CALLBACK_TASK_TYPE,
@@ -216,7 +181,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     // Enter the context of the {microtask}.
     TNode<NativeContext> microtask_context = LoadObjectField<NativeContext>(
         microtask, offsetof(CallableTask, context_));
-    PrepareForContext(microtask_context, baseline_entered_context_count, &done);
+    PrepareForContext(microtask_context, &done);
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     SetupContinuationPreservedEmbedderData(microtask);
@@ -235,14 +200,14 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     ClearContinuationPreservedEmbedderData();
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
-    Goto(&done);
+    Goto(&rewind_entered_context_and_done);
 
     BIND(&if_exception);
     {
       // Report unhandled microtask exceptions in respective native context.
       CallRuntime(Runtime::kReportMessageFromMicrotask, microtask_context,
                   var_exception.value());
-      Goto(&done);
+      Goto(&rewind_entered_context_and_done);
     }
   }
 
@@ -253,13 +218,8 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     const TNode<Object> microtask_data =
         LoadObjectField(microtask, offsetof(CallbackTask, data_));
 
-    // C++ microtasks expect the ambient context.
-    RewindEnteredContext(baseline_entered_context_count);
-    SetCurrentContext(current_context);
-
-    // For C++ microtasks we can use an arbitrary context, but
+    // For C++ microtasks the current context is kind or random, however
     // setting it to NoContext currently breaks things on Blink side.
-    // Therefore we use the current context.
     TNode<Context> microtask_context = current_context;
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
@@ -287,11 +247,6 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     ClearContinuationPreservedEmbedderData();
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
-    // Reset to NoContext to ensure subsequent tasks set up context stack. This
-    // is part of the context caching optimization described in the beginning
-    // of MicrotaskQueue::RunMicrotasks().
-    SetCurrentContext(NoContextConstant());
-
     Goto(&done);
   }
 
@@ -301,7 +256,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     TNode<NativeContext> microtask_context =
         LoadNativeContext(LoadObjectField<Context>(
             microtask, offsetof(PromiseResolveThenableJobTask, context_)));
-    PrepareForContext(microtask_context, baseline_entered_context_count, &done);
+    PrepareForContext(microtask_context, &done);
 
     const TNode<Object> promise_to_resolve = LoadObjectField(
         microtask,
@@ -333,14 +288,14 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     ClearContinuationPreservedEmbedderData();
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
-    Goto(&done);
+    Goto(&rewind_entered_context_and_done);
 
     BIND(&if_exception);
     {
       // Report unhandled microtask exceptions in respective native context.
       CallRuntime(Runtime::kReportMessageFromMicrotask, microtask_context,
                   var_exception.value());
-      Goto(&done);
+      Goto(&rewind_entered_context_and_done);
     }
   }
 
@@ -350,7 +305,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     TNode<NativeContext> microtask_context =
         LoadNativeContext(LoadObjectField<Context>(
             microtask, offsetof(PromiseReactionJobTask, context_)));
-    PrepareForContext(microtask_context, baseline_entered_context_count, &done);
+    PrepareForContext(microtask_context, &done);
 
     const TNode<Object> argument =
         LoadObjectField(microtask, offsetof(PromiseReactionJobTask, argument_));
@@ -383,14 +338,14 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     ClearContinuationPreservedEmbedderData();
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
-    Goto(&done);
+    Goto(&rewind_entered_context_and_done);
 
     BIND(&if_exception);
     {
       // Report unhandled microtask exceptions in respective native context.
       CallRuntime(Runtime::kReportMessageFromMicrotask, microtask_context,
                   var_exception.value());
-      Goto(&done);
+      Goto(&rewind_entered_context_and_done);
     }
   }
 
@@ -400,7 +355,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     TNode<NativeContext> microtask_context =
         LoadNativeContext(LoadObjectField<Context>(
             microtask, offsetof(PromiseReactionJobTask, context_)));
-    PrepareForContext(microtask_context, baseline_entered_context_count, &done);
+    PrepareForContext(microtask_context, &done);
 
     const TNode<Object> argument =
         LoadObjectField(microtask, offsetof(PromiseReactionJobTask, argument_));
@@ -433,14 +388,14 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     ClearContinuationPreservedEmbedderData();
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
-    Goto(&done);
+    Goto(&rewind_entered_context_and_done);
 
     BIND(&if_exception);
     {
       // Report unhandled microtask exceptions in respective native context.
       CallRuntime(Runtime::kReportMessageFromMicrotask, microtask_context,
                   var_exception.value());
-      Goto(&done);
+      Goto(&rewind_entered_context_and_done);
     }
   }
 
@@ -457,7 +412,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
 
     TNode<NativeContext> microtask_context =
         GetCreationContextUnchecked(generator);
-    PrepareForContext(microtask_context, baseline_entered_context_count, &done);
+    PrepareForContext(microtask_context, &done);
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     SetupContinuationPreservedEmbedderData(microtask);
@@ -503,18 +458,25 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     ClearContinuationPreservedEmbedderData();
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-    Goto(&done);
+    Goto(&rewind_entered_context_and_done);
 
     BIND(&if_exception);
     {
       CallRuntime(Runtime::kReportMessageFromMicrotask, microtask_context,
                   var_exception.value());
-      Goto(&done);
+      Goto(&rewind_entered_context_and_done);
     }
   }
 
   BIND(&is_unreachable);
   Unreachable();
+
+  BIND(&rewind_entered_context_and_done);
+  {
+    RewindEnteredContext(saved_entered_context_count);
+    SetCurrentContext(current_context);
+    Goto(&done);
+  }
 
   BIND(&done);
 }
@@ -538,7 +500,7 @@ TNode<Context> MicrotaskQueueBuiltinsAssembler::GetCurrentContext() {
 }
 
 void MicrotaskQueueBuiltinsAssembler::SetCurrentContext(
-    TNode<Union<Context, Smi>> context) {
+    TNode<Context> context) {
   StoreFullTaggedNoWriteBarrier(IsolateField(IsolateFieldId::kContext),
                                 context);
 }
@@ -615,6 +577,7 @@ void MicrotaskQueueBuiltinsAssembler::RewindEnteredContext(
 
   if (DEBUG_BOOL) {
     TNode<IntPtrT> size = Load<IntPtrT>(hsi, size_offset);
+    CSA_CHECK(this, IntPtrLessThan(IntPtrConstant(0), size));
     CSA_CHECK(this, IntPtrLessThanOrEqual(saved_entered_context_count, size));
   }
 
@@ -807,19 +770,6 @@ TF_BUILTIN(GlobalQueueMicrotask, MicrotaskQueueBuiltinsAssembler) {
 TF_BUILTIN(RunMicrotasks, MicrotaskQueueBuiltinsAssembler) {
   // Load the current context from the isolate.
   TNode<Context> current_context = GetCurrentContext();
-  TNode<IntPtrT> baseline_entered_context_count = GetEnteredContextCount();
-
-  // For each microtask we have to load its context, but most microtasks have
-  // the same context. Therefore we check at the beginning of a microtask if the
-  // right context is already loaded. If so, we use it, otherwise we unload the
-  // old context and load a new context. When RunMicrotasks is called, we don't
-  // know for sure if the current context was loaded completely. Therefore we
-  // save the current context and set the context to kNoContext. This guarantees
-  // that that first microtask always loads its context. C++ microtasks don't
-  // bring their own context, they have to run with the context RunMicrotasks
-  // was called with. Therefore we load the original context to run the C++
-  // microtask, and load kNoContext again afterwards.
-  SetCurrentContext(NoContextConstant());
 
   auto microtask_queue =
       UncheckedParameter<RawPtrT>(Descriptor::kMicrotaskQueue);
@@ -851,8 +801,7 @@ TF_BUILTIN(RunMicrotasks, MicrotaskQueueBuiltinsAssembler) {
   SetMicrotaskQueueSize(microtask_queue, new_size);
   SetMicrotaskQueueStart(microtask_queue, new_start);
 
-  RunSingleMicrotask(current_context, baseline_entered_context_count,
-                     microtask);
+  RunSingleMicrotask(current_context, microtask);
   IncrementFinishedMicrotaskCount(microtask_queue);
   Goto(&loop);
 
@@ -860,9 +809,6 @@ TF_BUILTIN(RunMicrotasks, MicrotaskQueueBuiltinsAssembler) {
   {
     // Reset the "current microtask" on the isolate.
     StoreRoot(RootIndex::kCurrentMicrotask, UndefinedConstant());
-    // Restore the original context and rewind.
-    RewindEnteredContext(baseline_entered_context_count);
-    SetCurrentContext(current_context);
     Return(UndefinedConstant());
   }
 }

@@ -44,13 +44,15 @@ constexpr uint16_t kNetworkCostSlice = -2;
 
 // Aliases for correct wrap-around with network slice cost.
 constexpr uint16_t kNetworkCostCellular5GSlice =  // 248
-    kNetworkCostCellular5G + kNetworkCostSlice;
+    static_cast<uint16_t>(kNetworkCostCellular5G + kNetworkCostSlice);
 constexpr uint16_t kNetworkCostCellular5GVpnSlice =  // 249
-    kNetworkCostCellular5G + kNetworkCostVpn + kNetworkCostSlice;
+    static_cast<uint16_t>(kNetworkCostCellular5G + kNetworkCostVpn +
+                          kNetworkCostSlice);
 constexpr uint16_t kNetworkCostCellularSlice =  // 898
-    kNetworkCostCellular + kNetworkCostSlice;
+    static_cast<uint16_t>(kNetworkCostCellular + kNetworkCostSlice);
 constexpr uint16_t kNetworkCostCellularVpnSlice =  // 899
-    kNetworkCostCellular + kNetworkCostVpn + kNetworkCostSlice;
+    static_cast<uint16_t>(kNetworkCostCellular + kNetworkCostVpn +
+                          kNetworkCostSlice);
 
 // alias
 constexpr uint16_t kNetworkCostHigh = kNetworkCostCellular;

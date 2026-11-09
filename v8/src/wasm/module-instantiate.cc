@@ -18,6 +18,7 @@
 #include "src/logging/metrics.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/descriptor-array-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/managed.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/torque-defined-classes.h"
@@ -2163,7 +2164,6 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     case kI8:
     case kI16:
     case kF16:
-    case kWaitQueue:
       UNREACHABLE();
   }
 

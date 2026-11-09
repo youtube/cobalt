@@ -45,9 +45,7 @@ class EmbedderNode : public v8::EmbedderGraph::Node {
  public:
   EmbedderNode(const HeapObjectHeader* header_address,
                cppgc::internal::HeapObjectName name, size_t size)
-      : header_address_(header_address),
-        name_(name.value),
-        size_(name.name_was_hidden ? 0 : size) {}
+      : header_address_(header_address), name_(name.value), size_(size) {}
   ~EmbedderNode() override = default;
 
   const char* Name() final { return name_; }
@@ -478,10 +476,7 @@ class CppGraphBuilderImpl final {
     EmbedderNode* node = static_cast<EmbedderNode*>(
         graph_.AddNode(std::unique_ptr<v8::EmbedderGraph::Node>{
             new EmbedderNode(&header, header.GetName(), size)}));
-    size_t node_size = node->SizeInBytes();
-    if (size > node_size) {
-      graph_.AddNativeSize(size - node_size);
-    }
+    DCHECK_EQ(node->SizeInBytes(), size);
     return node;
   }
 

@@ -69,7 +69,8 @@ class FakeDtlsTransport : public DtlsTransportInternal {
         });
   }
   explicit FakeDtlsTransport(std::unique_ptr<FakeIceTransportInternal> ice)
-      : owned_ice_transport_(std::move(ice)),
+      : DtlsTransportInternal(ice->network_thread()),
+        owned_ice_transport_(std::move(ice)),
         transport_name_(owned_ice_transport_->transport_name()),
         component_(owned_ice_transport_->component()),
         dtls_fingerprint_("", std::span<const uint8_t>()) {

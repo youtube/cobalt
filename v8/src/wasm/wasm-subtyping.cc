@@ -161,7 +161,9 @@ StandardType UpcastToStandardType(ValueTypeBase type) {
   /* exnref hierarchy */                                                       \
   V(NoExn, Exn)                                                                \
   /* cont hierarchy */                                                         \
-  V(NoCont, Cont)
+  V(NoCont, Cont)                                                              \
+  /* waitqueue hierarchy */                                                    \
+  V(NoWaitqueue, Waitqueue)
 
 static constexpr uint32_t kNumStandardTypes =
     value_type_impl::kNumberOfStandardTypes;
@@ -400,8 +402,8 @@ std::optional<bool> IsSubtypeOf_CommonImpl(ValueTypeBase subtype,
                                            ValueTypeBase supertype) {
   DCHECK(!subtype.is_numeric() && !supertype.is_numeric());
 
-  if (subtype.is_shared() != supertype.is_shared()) return false;
   if (subtype.is_bottom()) return true;
+  if (subtype.is_shared() != supertype.is_shared()) return false;
   if (supertype.has_index()) {
     if (subtype.has_index()) {
       // Only exact types can possibly be subtypes of other exact types.

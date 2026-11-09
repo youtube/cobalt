@@ -149,6 +149,7 @@ ScreenCaptureNotificationUiBrowserTest.*
 SearchEngineChoiceUIPixelTest.*
 SecurePaymentConfirmationDialogViewTest.InvokeUi_*
 *SendTabToSelfBubbleTest.*
+SendTabToSelfInteractiveUiTest.*
 SendTabToSelfToolbarIconControllerInteractiveUiTest.*
 SessionCrashedBubbleViewTest.*
 SettingsOverriddenExplicitChoiceDialogInteractiveUiTest.*
@@ -169,6 +170,7 @@ TabSearchBubbleUIBrowserTest.*
 *TailoredSecurityDesktopDialogManagerTest.InvokeUi_*
 TranslateBubbleVisualTest.InvokeUi_*
 UpdateRecommendedDialogTest.*
+VerticalTabStripTopContainerInteractiveUiTest.PixelTest*
 *WatermarkBrowserTest.*
 *WatermarkTestPageBrowserTest.*
 *WatermarkTestPageDynamicBrowserTest.*

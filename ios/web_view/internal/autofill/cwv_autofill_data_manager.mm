@@ -14,6 +14,7 @@
 #import "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #import "components/autofill/core/browser/data_manager/personal_data_manager_observer.h"
 #import "components/password_manager/core/browser/password_manager_util.h"
+#import "components/password_manager/core/browser/password_store/password_form_converters.h"
 #import "components/password_manager/core/browser/password_store/password_store_change.h"
 #import "components/password_manager/core/browser/password_store/password_store_consumer.h"
 #import "components/password_manager/core/browser/password_store/password_store_interface.h"
@@ -92,26 +93,27 @@ class WebViewPasswordStoreConsumer
   explicit WebViewPasswordStoreConsumer(CWVAutofillDataManager* data_manager)
       : data_manager_(data_manager) {}
 
-  void OnGetPasswordStoreResults(
-      std::vector<std::unique_ptr<password_manager::PasswordForm>> results)
-      override {
+  void OnGetPasswordStoreResultsOrErrorFrom(
+      password_manager::PasswordStoreInterface* store,
+      password_manager::LoginsResultOrError results_or_error) override {
+    if (std::holds_alternative<password_manager::PasswordStoreBackendError>(
+            results_or_error)) {
+      [data_manager_ handlePasswordStoreResults:@[]];
+      return;
+    }
+    auto results =
+        std::get<password_manager::LoginsResult>(std::move(results_or_error));
+
     BOOL isAffiliationsEnabled = [data_manager_ isPasswordAffiliationEnabled];
 
-    // Move forms to a regular vector.
-    PasswordFormList forms;
-    forms.reserve(results.size());
+    NSMutableArray<CWVPassword*>* passwords = [NSMutableArray array];
     for (auto& form : results) {
-      forms.push_back(*form);
+      CWVPassword* password =
+          [[CWVPassword alloc] initWithPasswordForm:ToPasswordForm(form)
+                               isAffiliationEnabled:isAffiliationsEnabled];
+      [passwords addObject:password];
     }
-
-      NSMutableArray<CWVPassword*>* passwords = [NSMutableArray array];
-      for (auto& form : results) {
-        CWVPassword* password =
-            [[CWVPassword alloc] initWithPasswordForm:*form
-                                 isAffiliationEnabled:isAffiliationsEnabled];
-        [passwords addObject:password];
-      }
-      [data_manager_ handlePasswordStoreResults:passwords];
+    [data_manager_ handlePasswordStoreResults:passwords];
   }
 
   base::WeakPtr<password_manager::PasswordStoreConsumer> GetWeakPtr() {
@@ -137,12 +139,12 @@ class WebViewPasswordStoreObserver
     NSMutableArray* updated = [NSMutableArray array];
     NSMutableArray* removed = [NSMutableArray array];
     for (const password_manager::PasswordStoreChange& change : changes) {
-      if (change.form().blocked_by_user) {
+      if (change.credential().blocked_by_user) {
         continue;
       }
-      CWVPassword* password =
-          [[CWVPassword alloc] initWithPasswordForm:change.form()
-                               isAffiliationEnabled:isAffiliationsEnabled];
+      CWVPassword* password = [[CWVPassword alloc]
+          initWithPasswordForm:ToPasswordForm(change.credential())
+          isAffiliationEnabled:isAffiliationsEnabled];
       switch (change.type()) {
         case password_manager::PasswordStoreChange::ADD:
           [added addObject:password];

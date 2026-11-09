@@ -4001,21 +4001,15 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
   HeapType immutable_struct_type = builder.AddStruct({F(kWasmI32, false)});
   ModuleTypeIndex immutable_struct_type_index =
       immutable_struct_type.ref_index();
-  HeapType struct_waitqueue_type =
-      builder.AddStruct({F(kWasmWaitQueue, false)});
-  ModuleTypeIndex struct_waitqueue_type_index =
-      struct_waitqueue_type.ref_index();
   uint8_t field_index = 0;
 
   ValueType struct_type = ValueType::Ref(struct_heaptype);
   ValueType reps_i_r[] = {kWasmI32, struct_type};
   ValueType reps_f_r[] = {kWasmF32, struct_type};
-  ValueType reps_i_w[] = {kWasmI32, ValueType::Ref(struct_waitqueue_type)};
   const FunctionSig sig_i_r(1, 1, reps_i_r);
   const FunctionSig sig_v_r(0, 1, &struct_type);
   const FunctionSig sig_r_v(1, 0, &struct_type);
   const FunctionSig sig_f_r(1, 1, reps_f_r);
-  const FunctionSig sig_i_w(1, 1, reps_i_w);
 
   /** struct.new **/
   ExpectValidates(&sig_r_v, {WASM_STRUCT_NEW(struct_type_index, WASM_I32V(0))});
@@ -4108,20 +4102,6 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
       {WASM_STRUCT_GET_U(struct_type_index, field_index, WASM_LOCAL_GET(0))},
       kAppendEnd,
       "struct.get_u: Field 0 of type 0 has type i32. Use struct.get instead.");
-
-  ExpectFailure(&sig_i_w,
-                {WASM_STRUCT_GET_S(struct_waitqueue_type_index, field_index,
-                                   WASM_LOCAL_GET(0))},
-                kAppendEnd,
-                "struct.get_s: Field 0 of type 3 has type waitqueue. Use "
-                "struct.get instead.");
-
-  ExpectFailure(&sig_i_w,
-                {WASM_STRUCT_GET_U(struct_waitqueue_type_index, field_index,
-                                   WASM_LOCAL_GET(0))},
-                kAppendEnd,
-                "struct.get_u: Field 0 of type 3 has type waitqueue. Use "
-                "struct.get instead.");
 }
 
 TEST_F(FunctionBodyDecoderTest, GCArray) {
@@ -7118,6 +7098,58 @@ TEST_F(FunctionBodyDecoderTest, MemoryOrder) {
                                WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
         kAppendEnd, error);
   }
+}
+
+TEST_F(FunctionBodyDecoderTest, Waitqueue) {
+  WASM_FEATURE_SCOPE(shared);
+
+  HeapType struct_heaptype =
+      builder.AddStruct({F(kWasmI32, true)}, kNoSuperType, SharedFlag::kYes);
+  ModuleTypeIndex struct_type_index = struct_heaptype.ref_index();
+
+  ExpectFailure(&impl::kSig_v_v,
+                {WASM_SHARED_REF_CAST_NULL(WASM_SHARED_REF_NULL(kAnyRefCode),
+                                           kWaitqueueRefCode),
+                 WASM_DROP},
+                kAppendEnd, "Invalid types for ref.cast null");
+
+  ExpectFailure(&impl::kSig_v_v,
+                {WASM_SHARED_REF_CAST_NULL(
+                     WASM_SHARED_REF_NULL(kWaitqueueRefCode), kAnyRefCode),
+                 WASM_DROP},
+                kAppendEnd, "Invalid types for ref.cast null");
+
+  ExpectFailure(&impl::kSig_i_v,
+                {WASM_SHARED_REF_TEST_NULL(WASM_SHARED_REF_NULL(kAnyRefCode),
+                                           kWaitqueueRefCode)},
+                kAppendEnd, "Invalid types for ref.test null");
+
+  ExpectFailure(&impl::kSig_i_v,
+                {WASM_SHARED_REF_TEST_NULL(
+                    WASM_SHARED_REF_NULL(kWaitqueueRefCode), kAnyRefCode)},
+                kAppendEnd, "Invalid types for ref.test null");
+
+  ExpectFailure(&impl::kSig_v_v,
+                {WASM_SHARED_REF_CAST_NULL(WASM_REF_NULL(struct_type_index),
+                                           kWaitqueueRefCode),
+                 WASM_DROP},
+                kAppendEnd, "Invalid types for ref.cast null");
+
+  ExpectFailure(
+      &impl::kSig_v_v,
+      {WASM_REF_CAST_NULL(WASM_REF_NULL(kWaitqueueRefCode), struct_type_index),
+       WASM_DROP},
+      kAppendEnd, "Invalid types for ref.cast null");
+
+  ExpectFailure(&impl::kSig_i_v,
+                {WASM_SHARED_REF_TEST_NULL(WASM_REF_NULL(struct_type_index),
+                                           kWaitqueueRefCode)},
+                kAppendEnd, "Invalid types for ref.test null");
+
+  ExpectFailure(
+      &impl::kSig_i_v,
+      {WASM_REF_TEST_NULL(WASM_REF_NULL(kWaitqueueRefCode), struct_type_index)},
+      kAppendEnd, "Invalid types for ref.test null");
 }
 
 #undef B1

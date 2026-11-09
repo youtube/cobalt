@@ -791,8 +791,15 @@ void GPMEnclaveController::OnKeysStored() {
     return;
   }
 
+  if (enclave_manager_->IsReady()) {
+    // This can happen if some other process made the enclave ready while the
+    // recovery screen was being shown. We have to start again as we don't know
+    // if we need to create a PIN or not.
+    RefreshStateAndRepeatOperation();
+    return;
+  }
+
   CHECK(enclave_manager_->has_pending_keys());
-  CHECK(!enclave_manager_->IsReady());
   store_keys_lock_.reset();
 
   if ((pin_metadata_.has_value() && pin_metadata_->usable_pin_metadata) ||
@@ -1045,11 +1052,6 @@ void GPMEnclaveController::OnGPMCreationSelected() {
   // Reset after each GPM selection to ensure correct metric emission.
   model_->in_onboarding_flow = false;
 
-  if (model_->is_off_the_record && !off_the_record_confirmed_) {
-    model_->SetStep(Step::kGPMConfirmOffTheRecordCreate);
-    return;
-  }
-
   if (account_state_ != AccountState::kLoading) {
     // `kLoading` will call `OnGPMCreationSelected` again, therefore we don't
     // emit in these states.
@@ -1273,12 +1275,6 @@ void GPMEnclaveController::OnGPMCreationConfirmed() {
         NOTREACHED();
     }
   }
-}
-
-void GPMEnclaveController::OnGPMConfirmOffTheRecordCreate() {
-  CHECK_EQ(model_->step(), Step::kGPMConfirmOffTheRecordCreate);
-  off_the_record_confirmed_ = true;
-  OnGPMCreationSelected();
 }
 
 void GPMEnclaveController::OnGPMPinEntered(const std::u16string& pin) {

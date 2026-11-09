@@ -11,7 +11,6 @@ extern class FixedArrayBase extends HeapObject {
 }
 
 @cppObjectLayoutDefinition
-@generateBodyDescriptor
 extern class FixedArray extends FixedArrayBase {
   objects[length]: Object;
 }

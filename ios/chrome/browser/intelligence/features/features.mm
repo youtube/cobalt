@@ -4,7 +4,10 @@
 
 #import "ios/chrome/browser/intelligence/features/features.h"
 
+#import <algorithm>
+#import <array>
 #import <optional>
+#import <string_view>
 
 #import "base/check.h"
 #import "base/metrics/field_trial_params.h"
@@ -33,29 +36,50 @@ BASE_FEATURE(kPageActionMenu, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGeminiKillSwitch, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Default enabled countries and locales for PageActionMenu, matching Bluebird
+// in chrome/browser/glic/public/glic_enabling.cc. All locales have been
+// converted to lower case with '-' where it's applicable.
+constexpr std::array<std::string_view, 4> kDefaultEnabledCountries = {
+    "us", "ca", "nz", "in"};
+
+constexpr std::array<std::string_view, 51> kDefaultEnabledLocales = {
+    "af", "am",     "bg",    "bn",    "ca",    "cs",    "da",    "de", "el",
+    "es", "es-419", "et",    "fi",    "fil",   "fr",    "gu",    "hi", "hr",
+    "hu", "id",     "it",    "ja",    "kn",    "ko",    "lt",    "lv", "ml",
+    "mr", "ms",     "nl",    "no",    "pl",    "pt-br", "pt-pt", "ro", "ru",
+    "sk", "sl",     "sr",    "sv",    "sw",    "ta",    "te",    "th", "tr",
+    "uk", "vi",     "zh-cn", "zh-tw", "en-gb", "en-us"};
+
 const char kPageActionMenuDirectEntryPointParam[] =
     "PageActionMenuDirectEntryPoint";
 
 bool IsPageActionMenuEnabled() {
   // Checks the killswtich, allowing to disable the feature for any user
   // including those in launched locales.
-  bool is_killswitch_enabled = base::FeatureList::IsEnabled(kGeminiKillSwitch);
-  if (is_killswitch_enabled) {
+  if (base::FeatureList::IsEnabled(kGeminiKillSwitch)) {
     return false;
   }
 
-  // Launched in en-US. Checks for the country (US) and locale (en-US).
+  // Checks if enabled for country and locale.
   variations::VariationsService* variations_service =
       GetApplicationContext()->GetVariationsService();
-  bool is_launched_country =
-      variations_service &&
-      base::ToLowerASCII(variations_service->GetStoredPermanentCountry()) ==
-          "us";
+  std::string country =
+      variations_service
+          ? base::ToLowerASCII(variations_service->GetStoredPermanentCountry())
+          : "";
 
   ApplicationLocaleStorage* locale_storage =
       GetApplicationContext()->GetApplicationLocaleStorage();
+  std::string locale =
+      locale_storage ? base::ToLowerASCII(locale_storage->Get()) : "";
+
+  std::string normalized_locale;
+  base::ReplaceChars(locale, "_", "-", &normalized_locale);
+
+  bool is_launched_country =
+      std::ranges::contains(kDefaultEnabledCountries, country);
   bool is_launched_locale =
-      locale_storage && base::ToLowerASCII(locale_storage->Get()) == "en-us";
+      std::ranges::contains(kDefaultEnabledLocales, normalized_locale);
 
   if (is_launched_country && is_launched_locale) {
     return true;
@@ -395,15 +419,6 @@ bool IsPageContextExtractorRefactoredEnabled() {
   return base::FeatureList::IsEnabled(kPageContextExtractorRefactored);
 }
 
-BASE_FEATURE(kGeminiRefactoredFRE, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsGeminiRefactoredFREEnabled() {
-  if (!IsPageActionMenuEnabled()) {
-    return false;
-  }
-  return base::FeatureList::IsEnabled(kGeminiRefactoredFRE);
-}
-
 BASE_FEATURE(kGeminiUpdatedEligibility, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiUpdatedEligibilityEnabled() {
@@ -416,7 +431,7 @@ bool IsGeminiUpdatedEligibilityEnabled() {
 BASE_FEATURE(kGeminiImageRemixTool, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiImageRemixToolEnabled() {
-  if (!IsPageActionMenuEnabled() || !IsGeminiRefactoredFREEnabled()) {
+  if (!IsPageActionMenuEnabled()) {
     return false;
   }
   return base::FeatureList::IsEnabled(kGeminiImageRemixTool);
@@ -570,8 +585,35 @@ BASE_FEATURE_PARAM(std::string,
                    "DisabledTools",
                    "");
 
+const char kActorToolsPageStabilityParam[] = "PageStabilityEnabled";
+
+BASE_FEATURE_PARAM(bool,
+                   kPageStabilityEnabled,
+                   &kActorTools,
+                   kActorToolsPageStabilityParam,
+                   false);
+
+// This mirrors the desktop equivalent at:
+// https://source.chromium.org/chromium/chromium/src/+/main:chrome/common/chrome_features.cc;l=317;drc=b8690fd8da7ae2367f4060dbb4bb35a43adcebed
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kObservationDelayTimeout,
+                   &kActorTools,
+                   base::Seconds(10));
+
 bool IsActorEnabled() {
   return base::FeatureList::IsEnabled(kActorTools);
+}
+
+bool IsPageStabilityEnabled() {
+  return kPageStabilityEnabled.Get();
+}
+
+base::TimeDelta GetActorObservationDelayTimeout() {
+  // This CHECK is safe since this param is only accessed by the page stability
+  // logic for the ActorTools feature.
+  // TODO(crbug.com/498991756): remove when the feature is launched.
+  CHECK(IsPageStabilityEnabled());
+  return kObservationDelayTimeout.Get();
 }
 
 bool IsToolDisabled(optimization_guide::proto::Action::ActionCase tool) {
@@ -640,20 +682,16 @@ int GetModelBasedPageClassificationExecutionRate() {
   return kModelBasedPageClassificationExecutionRateFeatureParam.Get();
 }
 
-BASE_FEATURE(kPageActionMenuIcon, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kPageActionMenuIcon, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const char kPageActionMenuIconParams[] = "PageActionMenuIconParams";
 
 PageActionMenuIconVariations GetPageActionMenuIcon() {
-  int param = base::GetFieldTrialParamByFeatureAsInt(
-      kPageActionMenuIcon, kPageActionMenuIconParams, 0);
-  if (param == 1) {
-    return PageActionMenuIconVariations::kSparkles1;
-  }
-  if (param == 2) {
+  if (@available(iOS 26, *)) {
     return PageActionMenuIconVariations::kSparkles2;
+  } else {
+    return PageActionMenuIconVariations::kDefault;
   }
-  return PageActionMenuIconVariations::kDefault;
 }
 
 BASE_FEATURE(kGeminiBackendMigration, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -749,9 +787,27 @@ bool IsGeminiMultiTabContextEnabled() {
   return base::FeatureList::IsEnabled(kGeminiMultiTabContext);
 }
 
+BASE_FEATURE(kGeminiScreenContextMigration, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiScreenContextMigrationEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
+  return base::FeatureList::IsEnabled(kGeminiScreenContextMigration);
+}
+
 BASE_FEATURE(kAppStoreInAppEvents, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsAppStoreInAppEventsEnabled() {
   return IsPageActionMenuEnabled() &&
          base::FeatureList::IsEnabled(kAppStoreInAppEvents);
+}
+
+BASE_FEATURE(kGeneralizedGeminiEntryFlow, base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool IsGeneralizedGeminiEntryFlowEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
+  return base::FeatureList::IsEnabled(kGeneralizedGeminiEntryFlow);
 }

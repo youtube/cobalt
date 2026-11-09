@@ -3749,6 +3749,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       } else if (vec_len == kV256) {
         switch (lane_size) {
+          case LaneSize::kL16: {
+            // F16x16Splat
+            CpuFeatureScope f16c_scope(masm(), F16C);
+            CpuFeatureScope avx2_scope(masm(), AVX2);
+            __ vcvtps2ph(i.OutputDoubleRegister(0), i.InputDoubleRegister(0),
+                         0);
+            __ vpbroadcastw(i.OutputSimd256Register(),
+                            i.OutputDoubleRegister(0));
+            break;
+          }
           case LaneSize::kL32: {
             // F32x8Splat
             __ F32x8Splat(i.OutputSimd256Register(), i.InputFloatRegister(0));
@@ -6776,7 +6786,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         SetupSimdImmediateInRegister(masm(), mask1, tmp_simd);
         __ Pshufb(kScratchDoubleReg, tmp_simd);
         uint32_t mask2[4] = {};
-        if (instr->InputAt(1)->IsSimd128Register()) {
+        if (instr->InputAt(1)->CanBeSimd128Register()) {
           XMMRegister src1 = i.InputSimd128Register(1);
           if (src1 != dst) __ Movdqa(dst, src1);
         } else {
@@ -7417,10 +7427,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
 
       if (v8_flags.disable_write_barriers) break;
+
       // Emit write barrier.
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, i.MemoryOperand(2), written_value, scratch0, scratch1,
           RecordWriteMode::kValueIsAny, DetermineStubCallMode());
+      __ j(not_equal, ool->exit());
       __ JumpIfSmi(written_value, ool->exit());
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
       __ CheckPageFlag(object, scratch0, MemoryChunk::kIncrementalMarking,

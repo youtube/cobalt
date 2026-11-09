@@ -7,6 +7,7 @@
 #include <climits>
 
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/rand_util.h"
 #include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/context_sharing/tab_bottom_sheet/android/tab_bottom_sheet_bridge.h"
@@ -24,6 +25,9 @@ GlicSidePanelCoordinatorAndroid::GlicSidePanelCoordinatorAndroid(
   will_deactivate_subscription_ = tab_->RegisterWillDeactivate(
       base::BindRepeating(&GlicSidePanelCoordinatorAndroid::OnTabWillDeactivate,
                           base::Unretained(this)));
+  will_detach_subscription_ = tab_->RegisterWillDetach(
+      base::BindRepeating(&GlicSidePanelCoordinatorAndroid::OnTabWillDetach,
+                          base::Unretained(this)));
 
   bridge_ = std::make_unique<context_sharing::TabBottomSheetBridge>(
       this, tab, context_sharing::TabBottomSheetClientType::kGlic);
@@ -31,20 +35,8 @@ GlicSidePanelCoordinatorAndroid::GlicSidePanelCoordinatorAndroid(
 
 GlicSidePanelCoordinatorAndroid::~GlicSidePanelCoordinatorAndroid() = default;
 
-void GlicSidePanelCoordinatorAndroid::Show(bool suppress_animations) {
-  Show(suppress_animations,
-       /* starts_expanded= */ pending_starts_expanded_state_);
-}
-
-void GlicSidePanelCoordinatorAndroid::Show(bool suppress_animations,
-                                           bool starts_expanded) {
-  if (IsShowing()) {
-    return;
-  }
-
-  if (!web_contents_) {
-    SetState(State::kBackgrounded);
-    pending_starts_expanded_state_ = starts_expanded;
+void GlicSidePanelCoordinatorAndroid::Show(const ShowOptions& options) {
+  if (state_ == State::kShown) {
     return;
   }
 
@@ -53,11 +45,16 @@ void GlicSidePanelCoordinatorAndroid::Show(bool suppress_animations,
     return;
   }
 
-  bridge_->SetWebContents(web_contents_.get());
-  bool shown = bridge_->Show(!suppress_animations, starts_expanded);
-  pending_starts_expanded_state_ = true;
+  bool shown = bridge_->Show(
+      /*animate=*/!options.suppress_animations,
+      /*starts_expanded=*/options.initial_state ==
+          ShowOptions::InitialState::kExpanded);
   if (shown) {
-    SetState(State::kShown);
+    if (options.initial_state == ShowOptions::InitialState::kExpanded) {
+      SetState(State::kShown);
+    } else {
+      SetState(State::kPeek);
+    }
   } else {
     // If the sheet failed to show (e.g. due to being suppressed by a
     // TokenHolder, or placed in a queue behind a higher priority sheet), the
@@ -99,6 +96,10 @@ GlicSidePanelCoordinator::State GlicSidePanelCoordinatorAndroid::state() {
   return state_;
 }
 
+bool GlicSidePanelCoordinatorAndroid::SupportsPeek() const {
+  return true;
+}
+
 base::CallbackListSubscription
 GlicSidePanelCoordinatorAndroid::AddStateCallback(
     base::RepeatingCallback<void(State state)> callback) {
@@ -127,8 +128,10 @@ void GlicSidePanelCoordinatorAndroid::OnTabDidActivate(
     return;
   }
 
-  // If we are not closed (e.g. backgrounded), show the panel in peek state.
-  Show(/*suppress_animations=*/true, /* starts_expanded= */ false);
+  ShowOptions options;
+  options.suppress_animations = true;
+  options.initial_state = ShowOptions::InitialState::kPeeked;
+  Show(options);
 }
 
 void GlicSidePanelCoordinatorAndroid::OnTabWillDeactivate(
@@ -141,6 +144,21 @@ void GlicSidePanelCoordinatorAndroid::OnTabWillDeactivate(
   bridge_->Close(/* animate= */ false);
 }
 
+void GlicSidePanelCoordinatorAndroid::OnTabWillDetach(
+    tabs::TabInterface* tab,
+    tabs::TabInterface::DetachReason detach_reason) {
+  // If the tab was deleted, set the state to backgrounded in case the
+  // deletion is undone.
+  // This can happen if the user closes the tab in the tab switcher, causing the
+  // bottom sheet to appear for the next active tab.
+  if (detach_reason == tabs::TabInterface::DetachReason::kDelete) {
+    if (state_ != State::kClosed) {
+      SetState(State::kBackgrounded);
+      bridge_->Close(/* animate= */ false);
+    }
+  }
+}
+
 void GlicSidePanelCoordinatorAndroid::OnClosed() {
   if (state_ == State::kBackgrounded) {
     return;
@@ -150,6 +168,8 @@ void GlicSidePanelCoordinatorAndroid::OnClosed() {
 
 void GlicSidePanelCoordinatorAndroid::OnSuppressed() {}
 
-void GlicSidePanelCoordinatorAndroid::OnOpened(bool is_expanded) {}
+void GlicSidePanelCoordinatorAndroid::OnOpened(bool is_expanded) {
+  SetState(is_expanded ? State::kShown : State::kPeek);
+}
 
 }  // namespace glic

@@ -130,7 +130,6 @@ public class ToolbarPhone extends ToolbarLayout
     public static final int URL_FOCUS_CHANGE_ANIMATION_DURATION_MS = 225;
     private static final int URL_FOCUS_TOOLBAR_BUTTONS_DURATION_MS = 100;
     private static final int URL_CLEAR_FOCUS_TABSTACK_DELAY_MS = 200;
-    private static final int URL_CLEAR_FOCUS_MENU_DELAY_MS = 250;
 
     public static final int BUTTON_TRANSITION_DURATION_MS = 225;
 
@@ -479,6 +478,10 @@ public class ToolbarPhone extends ToolbarLayout
                                 mLocationBarBackgroundBounds, mVisualState);
                         updateLocationBarBackgroundViewBounds();
                     });
+        }
+
+        if (mButtonData != null) {
+            updateOptionalButton(mButtonData);
         }
     }
 
@@ -1687,14 +1690,18 @@ public class ToolbarPhone extends ToolbarLayout
         }
 
         // Draw the tab stack button and associated text if necessary.
-        if (getTabSwitcherButtonCoordinator() != null && mUrlExpansionFraction != 1f) {
+        ToggleTabStackButtonCoordinator tabSwitcherButtonCoordinator =
+                getTabSwitcherButtonCoordinator();
+        if (tabSwitcherButtonCoordinator != null
+                && tabSwitcherButtonCoordinator.isVisible()
+                && mUrlExpansionFraction != 1f) {
             // Draw the tab stack button image.
-            getTabSwitcherButtonCoordinator().draw(mToolbarButtonsContainer, canvas);
+            tabSwitcherButtonCoordinator.draw(mToolbarButtonsContainer, canvas);
         }
 
         // Draw the menu button if necessary.
         final MenuButtonCoordinator menuButtonCoordinator = getMenuButtonCoordinator();
-        if (menuButtonCoordinator != null) {
+        if (menuButtonCoordinator != null && menuButtonCoordinator.isVisible()) {
             menuButtonCoordinator.drawTabSwitcherAnimationOverlay(
                     mToolbarButtonsContainer, canvas, rgbAlpha);
         }
@@ -2080,7 +2087,8 @@ public class ToolbarPhone extends ToolbarLayout
     @Override
     public void updateButtonVisibility() {
         boolean shouldModifyToolbarButtons =
-                ToolbarVariationUtils.shouldModifyToolbarButtons(isNtpVisualState(mVisualState));
+                ToolbarVariationUtils.shouldModifyToolbarButtons(
+                        getContext(), isNtpVisualState(mVisualState));
         boolean hideHomeButton =
                 !mIsHomeButtonEnabled
                         || (shouldModifyToolbarButtons
@@ -2105,7 +2113,7 @@ public class ToolbarPhone extends ToolbarLayout
     }
 
     private boolean shouldShowBackButtonOutside() {
-        return ToolbarVariationUtils.isNewToolbarUiEnabled()
+        return ToolbarVariationUtils.isToolbarUiRefactorEnabled(getContext())
                 && !ToolbarVariationUtils.shouldBackButtonBeInOmnibox()
                 && !isLocationBarShownInNtp()
                 && !urlHasFocus();
@@ -2276,10 +2284,6 @@ public class ToolbarPhone extends ToolbarLayout
         animator.setInterpolator(Interpolators.FAST_OUT_SLOW_IN_INTERPOLATOR);
         animators.add(animator);
 
-        mLocationBar
-                .getPhoneCoordinator()
-                .populateFadeAnimation(animators, 0, URL_FOCUS_CHANGE_ANIMATION_DURATION_MS, 0);
-
         float density = getContext().getResources().getDisplayMetrics().density;
         boolean isRtl = getLayoutDirection() == LAYOUT_DIRECTION_RTL;
         float toolbarButtonTranslationX =
@@ -2363,14 +2367,6 @@ public class ToolbarPhone extends ToolbarLayout
             animator.setInterpolator(Interpolators.FAST_OUT_SLOW_IN_INTERPOLATOR);
             animators.add(animator);
         }
-
-        mLocationBar
-                .getPhoneCoordinator()
-                .populateFadeAnimation(
-                        animators,
-                        URL_FOCUS_TOOLBAR_BUTTONS_DURATION_MS,
-                        URL_CLEAR_FOCUS_MENU_DELAY_MS,
-                        1);
 
         if (isLocationBarShownInNtp() && mNtpSearchBoxScrollFraction == 0f) return;
 
@@ -3348,6 +3344,7 @@ public class ToolbarPhone extends ToolbarLayout
         mLocationBar.updateVisualsForState();
 
         updateMenuButtonVisibility();
+        updateOptionalButton(mButtonData);
         TraceEvent.end("ToolbarPhone.updateVisualsForLocationBarState");
     }
 
@@ -3376,6 +3373,11 @@ public class ToolbarPhone extends ToolbarLayout
     }
 
     private void initializeOptionalButton() {
+        // TODO(crbug.com/506984216): Once ToolbarVariationUtils.isNewToolbarUiEnabled() is launched
+        // it should be safe to remove the optional button from the NTP if the identity disc is
+        // ported to a dedicated button. SigninFeatureMap.sSigninLevelUpButton.isEnabled() already
+        // does this, so it is free if both features are enabled.
+
         if (mOptionalButtonCoordinator == null) {
             ViewStub optionalButtonStub = findViewById(R.id.optional_button_stub);
 
@@ -3538,18 +3540,33 @@ public class ToolbarPhone extends ToolbarLayout
     @SuppressWarnings("NullAway")
     protected void updateOptionalButton(@Nullable ButtonData buttonData) {
         mButtonData = buttonData;
+        // The toolbar button is migrated to the location bar on phones when not on the NTP.
+        if (ToolbarVariationUtils.isToolbarUiRefactorEnabled(getContext())
+                && !isNtpVisualState(mVisualState)) {
+            if (mLocationBar != null) {
+                mLocationBar.updateOptionalButton(buttonData);
+            }
+            // Hide the toolbar optional button since we are going to show the location bar optional
+            // button.
+            hideToolbarOptionalButton();
+            return;
+        }
 
+        if (mLocationBar != null) {
+            // When on the NTP or when the feature is disabled, we should hide the location bar
+            // optional button.
+            mLocationBar.hideOptionalButton();
+        }
+
+        // TODO(crbug.com/506984216): See comment in #initializeOptionalButton for details about
+        // when the remainder of this method can be removed.
+
+        // The optional button remains in the toolbar for NTP for the identity disc.
         if (mOptionalButtonCoordinator == null) {
             initializeOptionalButton();
         }
 
-        // The optional button is not shown on the NTP so unconditionally hide it if the new
-        // toolbar UI is enabled.
-        if (ToolbarVariationUtils.isNewToolbarUiEnabled()) {
-            hideOptionalButton();
-        } else {
-            mOptionalButtonCoordinator.updateButton(buttonData, isIncognitoBranded());
-        }
+        mOptionalButtonCoordinator.updateButton(buttonData, isIncognitoBranded());
     }
 
     @Override
@@ -3562,7 +3579,8 @@ public class ToolbarPhone extends ToolbarLayout
     @Override
     public void updateMenuButtonVisibility() {
         boolean shouldModifyToolbarButtons =
-                ToolbarVariationUtils.shouldModifyToolbarButtons(isNtpVisualState(mVisualState));
+                ToolbarVariationUtils.shouldModifyToolbarButtons(
+                        getContext(), isNtpVisualState(mVisualState));
         boolean showAppMenu =
                 !shouldModifyToolbarButtons || ToolbarVariationUtils.shouldAppMenuBeInToolbar();
 
@@ -3575,6 +3593,16 @@ public class ToolbarPhone extends ToolbarLayout
     @Override
     protected void hideOptionalButton() {
         mButtonData = null;
+
+        if (ToolbarVariationUtils.isToolbarUiRefactorEnabled(getContext())
+                && mLocationBar != null) {
+            mLocationBar.hideOptionalButton();
+        }
+
+        hideToolbarOptionalButton();
+    }
+
+    private void hideToolbarOptionalButton() {
         if (mOptionalButtonCoordinator == null
                 || mOptionalButtonCoordinator.getViewVisibility() == View.GONE
                 || mLayoutLocationBarWithoutExtraButton) {

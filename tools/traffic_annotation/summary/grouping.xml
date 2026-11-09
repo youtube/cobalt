@@ -191,7 +191,6 @@ after discussions on the right group.
       <annotation id="websocket_basic_stream"/>
       <annotation id="websocket_stream"/>
       <annotation id="security_key_socket"/>
-      <annotation id="ssl_hmac_channel_authenticator"/>
       <annotation id="stream_packet_socket"/>
       <annotation id="certificate_verifier_url_loader"/>
       <annotation id="webrtc_peer_connection"/>
@@ -395,14 +394,15 @@ after discussions on the right group.
       <annotation id="skills_service_loader"/>
       <annotation id="skills_model_execution"/>
       <annotation id="settings_overridden_dialog_icon_fetcher"/>
-      <annotation id="indigo_alpha_generate"/>
-      <annotation id="indigo_alpha_status"/>
       <annotation id="devtools_gca_service"/>
       <annotation id="actor_login_permission_service"/>
       <annotation id="fetch_email_one_time_token"/>
       <annotation id="multistep_filter_server_requests"/>
       <annotation id="glic_private_api_prompt_fetcher"/>
       <annotation id="finds_model_execution"/>
+      <annotation id="device_management_enrollment"/>
+      <annotation id="device_management_reporting"/>
+      <annotation id="device_management_remote_commands"/>
     </sender>
   </group>
   <group name="Admin Features" hidden="true">

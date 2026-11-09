@@ -18,10 +18,11 @@
 
 namespace record_replay {
 
-// Manages the SQLite database for record/replay capabilities.
+// Manages the relational SQLite database for record/replay recordings,
+// activity annotations, and activity data.
 //
-// SQLite allows structured queries here, e.g. to eventually query recordings
-// for a given category without holding all data in memory.
+// SQLite allows structured queries, such as retrieving all annotations for a
+// given site or managing data overrides independently of shareable intent.
 class CapabilitiesDatabase {
  public:
   CapabilitiesDatabase();
@@ -45,6 +46,12 @@ class CapabilitiesDatabase {
                               ActivityAnnotation annotation,
                               std::string target_url,
                               std::optional<int64_t> recording_id);
+
+  // Checks if the "ActivityAnnotations" table is empty.
+  bool IsActivityAnnotationsTableEmpty();
+
+  // Reads JSON and seeds the database if empty.
+  void MaybeSeedAnnotationsFromJson(const std::string& json_string);
 
   // Retrieves the annotation for a given ID, if it exists.
   std::optional<ActivityAnnotation> GetActivityAnnotation(

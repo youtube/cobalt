@@ -349,15 +349,17 @@ pub fn collect_crate_files(
 ) -> Result<(VendoredCrate, CrateFiles)> {
     let mut files = CrateFiles::new();
 
+    #[derive(Debug)]
     struct RootDir {
         path: PathBuf,
         collect: CollectCrateFiles,
     }
 
-    let mut root_dirs = Vec::new();
-    if let Some(lib_target) = p.lib_target.as_ref() {
-        let lib_root = lib_target.root.parent().expect("lib target has no directory in its path");
-        root_dirs.push(RootDir { path: lib_root.to_owned(), collect: CollectCrateFiles::Internal });
+    let add_extra_root_dirs = |root_dirs: &mut Vec<RootDir>, crate_root: &Path| {
+        root_dirs.push(RootDir {
+            path: crate_root.join("**/*.rs"),
+            collect: CollectCrateFiles::Internal,
+        });
 
         let mut extend_root_dirs = |entry_getter: &dyn Fn(&CrateConfig) -> &Vec<PathBuf>,
                                     collect_kind| {
@@ -365,32 +367,42 @@ pub fn collect_crate_files(
                 config
                     .get_combined_set(&p.package_name, &p.version, entry_getter)
                     .into_iter()
-                    .map(|path| RootDir { path: lib_root.join(path), collect: collect_kind }),
+                    .map(|path| RootDir { path: crate_root.join(path), collect: collect_kind }),
             );
         };
-        extend_root_dirs(&|cfg| &cfg.extra_src_roots, CollectCrateFiles::ExternalSourcesAndInputs);
-        extend_root_dirs(&|cfg| &cfg.extra_input_roots, CollectCrateFiles::ExternalInputsOnly);
         extend_root_dirs(
-            &|cfg| &cfg.extra_build_script_src_roots,
-            CollectCrateFiles::BuildScriptExternalSourcesAndInputs,
+            &|cfg| &cfg.extra_input_roots,
+            CollectCrateFiles::ExternalSourcesAndInputs,
         );
         extend_root_dirs(
             &|cfg| &cfg.extra_build_script_input_roots,
-            CollectCrateFiles::BuildScriptExternalInputsOnly,
+            CollectCrateFiles::BuildScriptExternalSourcesAndInputs,
         );
         extend_root_dirs(&|cfg| &cfg.native_libs_roots, CollectCrateFiles::LibsOnly);
+    };
+
+    let mut root_dirs = Vec::new();
+    if let Some(lib_target) = p.lib_target.as_ref() {
+        let lib_root = lib_target.root.parent().expect("lib target has no directory in its path");
+        add_extra_root_dirs(&mut root_dirs, lib_root);
     }
     if include_targets == IncludeCrateTargets::LibAndBin {
         for bin in &p.bin_targets {
             let bin_root = bin.root.parent().expect("bin target has no directory in its path");
-            root_dirs
-                .push(RootDir { path: bin_root.to_owned(), collect: CollectCrateFiles::Internal });
+            add_extra_root_dirs(&mut root_dirs, bin_root);
         }
     }
 
     for root_dir in root_dirs {
+        use CollectCrateFiles::*;
+        let target_list = match root_dir.collect {
+            Internal => &mut files.sources,
+            ExternalSourcesAndInputs => &mut files.inputs,
+            BuildScriptExternalSourcesAndInputs => &mut files.build_script_inputs,
+            LibsOnly => &mut files.native_libs,
+        };
         recurse_crate_files(&root_dir.path, &mut |filepath| {
-            collect_crate_file(&mut files, root_dir.collect, filepath)
+            target_list.push(filepath.to_owned());
         })
         .with_context(|| {
             format!(
@@ -438,7 +450,7 @@ pub fn collect_std_vendored_crates(vendor_path: &Path) -> Result<Vec<VendoredCra
     Ok(crates)
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum CollectCrateFiles {
     /// Collect .rs files and store them as `sources` and other files as
     /// `inputs`. These are part of the crate directly.
@@ -447,12 +459,8 @@ enum CollectCrateFiles {
     /// include!()'d into the crate, and store them as `inputs`. These are not
     /// directly part of the crate.
     ExternalSourcesAndInputs,
-    /// Like ExternalSourcesAndInputs but excludes .rs files.
-    ExternalInputsOnly,
     /// Like `ExternalSourcesAndInputs` but for build scripts.
     BuildScriptExternalSourcesAndInputs,
-    /// Like `ExternalInputsOnly` but for build scripts.
-    BuildScriptExternalInputsOnly,
     /// Collect .lib files and store them as `native_libs`. These can be
     /// depended on by the crate through `#[link]` directives.
     LibsOnly,
@@ -463,12 +471,8 @@ impl CollectCrateFiles {
         use CollectCrateFiles::*;
         match self {
             Internal => "crate metadata and sources",
-            ExternalSourcesAndInputs => "`extra_src_roots` entry in `gnrt_config.toml`",
-            ExternalInputsOnly => "`extra_input_roots` entry in `gnrt_config.toml`",
+            ExternalSourcesAndInputs => "`extra_input_roots` entry in `gnrt_config.toml`",
             BuildScriptExternalSourcesAndInputs => {
-                "`extra_build_script_src_roots` entry in `gnrt_config.toml`"
-            }
-            BuildScriptExternalInputsOnly => {
                 "`extra_build_script_input_roots` entry in `gnrt_config.toml`"
             }
             LibsOnly => "`native_libs_roots` entry in `gnrt_config.toml`",
@@ -476,80 +480,50 @@ impl CollectCrateFiles {
     }
 }
 
-// Adds a `filepath` to `CrateFiles` depending on the type of file and the
-// `mode` of collection.
-fn collect_crate_file(files: &mut CrateFiles, mode: CollectCrateFiles, filepath: &Path) {
-    use CollectCrateFiles::*;
-    match filepath.extension().and_then(std::ffi::OsStr::to_str) {
-        Some("rs") => match mode {
-            Internal => files.sources.push(filepath.to_owned()),
-            ExternalSourcesAndInputs => files.inputs.push(filepath.to_owned()),
-            ExternalInputsOnly => (),
-            BuildScriptExternalSourcesAndInputs => {
-                files.build_script_inputs.push(filepath.to_owned())
-            }
-            BuildScriptExternalInputsOnly => (),
-            LibsOnly => (),
-        },
-        // md: Markdown files are commonly include!()'d into source code as docs.
-        // h: cxxbridge_cmd include!()'s its .h file into it.
-        // json: json files are include!()'d into source code in the wycheproof crate
-        // data: .rs.data files used by ICU4X
-        // dat: zoneinfo.dat file from jiff-tzdb
-        // res: zoneinfo64.res from zoneinfo64
-        Some("md") | Some("h") | Some("json") | Some("data") | Some("dat") | Some("res") => {
-            match mode {
-                Internal | ExternalSourcesAndInputs | ExternalInputsOnly => {
-                    files.inputs.push(filepath.to_owned())
-                }
-                BuildScriptExternalSourcesAndInputs | BuildScriptExternalInputsOnly => {
-                    files.build_script_inputs.push(filepath.to_owned())
-                }
-                LibsOnly => (),
-            }
-        }
-        Some("lib") if mode == LibsOnly => files.native_libs.push(filepath.to_owned()),
-        _ => (),
-    };
-}
-
 /// Recursively visits all files under `path` and calls `f` on each one.
 ///
 /// The `path` may be a single file or a directory.
 pub fn recurse_crate_files(path: &Path, f: &mut dyn FnMut(&Path)) -> Result<()> {
-    fn recurse(path: &Path, root: &Path, f: &mut dyn FnMut(&Path)) -> Result<()> {
-        let meta = std::fs::metadata(path)
-            .with_context(|| format!("Couldn't read metadata of `{}`", path.display()))?;
-        if !meta.is_dir() {
-            // Working locally can produce files in tree that should not be considered, and
-            // which are not part of the git repository.
-            //
-            // * `.devcontainer/` may contain .md files such as a README.md that are never
-            //   part of the build.
-            // * `.vscode/` may contain .md files such as a README.md generated there.
-            // * `target/` may contain .rs files generated by build scripts when compiling
-            //   the crate with cargo or rust-analyzer.
-            //
-            // Ideally we should just include files that are listed in `git ls-files`.
-            const SKIP_PREFIXES: [&str; 3] = [".devcontainer", ".vscode", "target"];
-            for skip in SKIP_PREFIXES {
-                if path.starts_with(root.join(Path::new(skip))) {
-                    return Ok(());
-                }
-            }
-            f(path)
-        } else {
-            let context =
-                || format!("Couldn't read contents of the directory at `{}`", path.display(),);
-            for r in std::fs::read_dir(path).with_context(context)? {
-                let entry = r.with_context(context)?;
-                let path = entry.path();
-                recurse(&path, root, f)?;
-            }
+    let glob = {
+        let path = if path.is_dir() { path.join("**/*") } else { path.to_owned() };
+        let Some(path) = path.to_str() else { bail!("Non-UTF8 path: {}", path.display()) };
+        glob::glob(path)?
+    };
+    for filepath in glob {
+        let filepath = filepath?;
+        if !filepath.is_file() {
+            continue;
         }
-        Ok(())
+
+        // Working locally can produce files in tree that should not be considered, and
+        // which are not part of the git repository.
+        //
+        // * `.devcontainer/` may contain .md files such as a README.md that are never
+        //   part of the build.
+        // * `.vscode/` may contain .md files such as a README.md generated there.
+        // * `target/` may contain .rs files generated by build scripts when compiling
+        //   the crate with cargo or rust-analyzer.
+        //
+        // Ideally we should just include files that are listed in `git ls-files`.
+        const DIRS_TO_SKIP: [&str; 3] = [".devcontainer", ".vscode", "target"];
+        let should_skip = filepath
+            .components()
+            .filter_map(|component| {
+                use std::path::Component::*;
+                match component {
+                    Normal(component) => Some(component),
+                    Prefix(_) | RootDir | CurDir | ParentDir => None,
+                }
+            })
+            .any(|comp| DIRS_TO_SKIP.iter().any(|dir_to_skip| *dir_to_skip == comp));
+        if should_skip {
+            continue;
+        }
+
+        f(&filepath)
     }
-    recurse(path, path, f)
+
+    Ok(())
 }
 
 /// Get a crate's ID and parsed manifest from its path. Returns `Ok(None)` if
@@ -638,5 +612,172 @@ mod tests {
         assert_eq!(Epoch::from_version_req_str("0.1.0"), new_minor(1));
         assert_eq!(Epoch::from_version_req_str("1.0.0"), new_major(1));
         assert_eq!(Epoch::from_version_req_str("2.3.0"), new_major(2));
+    }
+
+    struct CollectCrateFilesTestCaseBuilder {
+        temp_dir: tempfile::TempDir,
+        package: deps::Package,
+        config: BuildConfig,
+    }
+
+    impl CollectCrateFilesTestCaseBuilder {
+        /// Creates new test case builder.  Initially the crate directory only
+        /// contains `src/lib.rs` and the test uses the default, empty
+        /// `gnrt_config.toml`.
+        fn new() -> Self {
+            let temp_dir = tempfile::tempdir().unwrap();
+            let src_dir = temp_dir.path().join("src");
+            fs::create_dir(&src_dir).unwrap();
+            let lib_file = src_dir.join("lib.rs");
+            fs::write(&lib_file, "").unwrap();
+
+            let package = deps::Package {
+                package_name: "test_crate".to_string(),
+                version: semver::Version::new(1, 2, 3),
+                description: None,
+                authors: vec![],
+                edition: "2021".to_string(),
+                repository: None,
+                dependencies: vec![],
+                build_dependencies: vec![],
+                dependency_kinds: std::collections::HashMap::new(),
+                lib_target: Some(deps::LibTarget { root: lib_file, lib_type: deps::LibType::Rlib }),
+                bin_targets: vec![],
+                build_script: None,
+                group: crate::group::Group::Safe,
+                is_local: true,
+                is_toplevel_dep: false,
+            };
+
+            Self { temp_dir, package, config: BuildConfig::default() }
+        }
+
+        fn add_file(&self, path: &str) {
+            let full_path = self.temp_dir.path().join(path);
+            fs::write(full_path, "").unwrap();
+        }
+
+        fn add_dir(&self, path: &str) {
+            let full_path = self.temp_dir.path().join(path);
+            fs::create_dir_all(full_path).unwrap();
+        }
+
+        fn set_config(&mut self, gnrt_config: &str) {
+            self.config = toml::de::from_str(gnrt_config).unwrap();
+        }
+
+        fn build_and_run_test(self) -> (Vec<String>, Vec<String>) {
+            let (_crate_id, crate_files) =
+                collect_crate_files(&self.package, &self.config, IncludeCrateTargets::LibOnly)
+                    .unwrap();
+
+            let root = self.temp_dir.path().canonicalize().unwrap();
+            let make_relative = |path: &Path| -> String {
+                let canon_path = path.canonicalize().unwrap();
+                canon_path.strip_prefix(&root).unwrap().to_str().unwrap().to_string()
+            };
+
+            let sources = crate_files.sources.iter().map(|p| make_relative(p)).collect();
+            let inputs = crate_files.inputs.iter().map(|p| make_relative(p)).collect();
+
+            (sources, inputs)
+        }
+    }
+
+    #[test]
+    fn test_collect_crate_files_without_gnrt() {
+        let builder = CollectCrateFilesTestCaseBuilder::new();
+        builder.add_file("src/submodule.rs");
+        builder.add_file("src/submodule.md");
+        builder.add_file("src/submodule.dat");
+        builder.add_file("README.md");
+
+        let (sources, inputs) = builder.build_and_run_test();
+
+        assert_eq!(&sources, &["src/lib.rs", "src/submodule.rs"]);
+        assert!(inputs.is_empty());
+    }
+
+    #[test]
+    fn test_collect_crate_files_with_extra_inputs_specifying_md_file() {
+        let mut builder = CollectCrateFilesTestCaseBuilder::new();
+        builder.add_file("README.md");
+        builder.set_config(
+            r#"
+            [crate.test_crate]
+            extra_input_roots = ['../README.md']
+            "#,
+        );
+
+        let (sources, inputs) = builder.build_and_run_test();
+
+        assert_eq!(&sources, &["src/lib.rs"]);
+        assert_eq!(&inputs, &["README.md"]);
+    }
+
+    #[test]
+    fn test_collect_crate_files_with_extra_inputs_specifying_dir() {
+        let mut builder = CollectCrateFilesTestCaseBuilder::new();
+        builder.add_dir("dir");
+        builder.add_file("dir/a.md");
+        builder.add_file("dir/b.md");
+        builder.add_file("dir/l.lib"); // Should be skipped.
+        builder.add_file("dir/x.rs");
+        builder.set_config(
+            r#"
+            [crate.test_crate]
+            extra_input_roots = ['../dir']
+            "#,
+        );
+
+        let (sources, inputs) = builder.build_and_run_test();
+
+        assert_eq!(&sources, &["src/lib.rs"]);
+        assert_eq!(&inputs, &["dir/a.md", "dir/b.md", "dir/l.lib", "dir/x.rs"]);
+    }
+
+    #[test]
+    fn test_collect_crate_files_with_extra_inputs_specifying_simple_wildcard() {
+        let mut builder = CollectCrateFilesTestCaseBuilder::new();
+        builder.add_dir("dir");
+        builder.add_file("dir/a.md");
+        builder.add_file("dir/b.md");
+        builder.add_file("dir/x.txt");
+        builder.set_config(
+            r#"
+            [crate.test_crate]
+            extra_input_roots = ['../dir/*.md']
+            "#,
+        );
+
+        let (sources, inputs) = builder.build_and_run_test();
+
+        assert_eq!(&sources, &["src/lib.rs"]);
+        assert_eq!(&inputs, &["dir/a.md", "dir/b.md"]);
+    }
+
+    #[test]
+    fn test_collect_crate_files_with_extra_inputs_specifying_deep_wildcard() {
+        let mut builder = CollectCrateFilesTestCaseBuilder::new();
+        builder.add_dir("dir");
+        builder.add_dir("dir/foo");
+        builder.add_dir("dir/bar");
+        builder.add_file("dir/dir.md");
+        builder.add_file("dir/dir.txt");
+        builder.add_file("dir/foo/foo.md");
+        builder.add_file("dir/foo/foo.txt");
+        builder.add_file("dir/bar/bar.md");
+        builder.add_file("dir/bar/bar.txt");
+        builder.set_config(
+            r#"
+            [crate.test_crate]
+            extra_input_roots = ['../dir/**/*.md']
+            "#,
+        );
+
+        let (sources, inputs) = builder.build_and_run_test();
+
+        assert_eq!(&sources, &["src/lib.rs"]);
+        assert_eq!(&inputs, &["dir/bar/bar.md", "dir/dir.md", "dir/foo/foo.md"]);
     }
 }

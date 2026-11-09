@@ -131,7 +131,8 @@ public class ContextualTasksFusebox {
                         snackbarManager,
                         bottomContainer,
                         /* omniboxChipManager= */ null,
-                        /* scrimHandler= */ null);
+                        /* scrimHandler= */ null,
+                        /* userEducationHelper= */ null);
         mLocationBarCoordinator.setUrlBarFocusable(true);
         mLocationBarCoordinator.setShouldShowMicButtonWhenUnfocused(true);
         mLocationBarCoordinator.setShouldShowLensButtonWhenUnfocused(true);
@@ -167,7 +168,8 @@ public class ContextualTasksFusebox {
         if (bridge == null) {
             loadUrlCallback.onResult(url);
         } else {
-            bridge.submitQueryToAimPage(url);
+            String rawQueryText = mLocationBarCoordinator.getUrlBarData().displayText.toString();
+            bridge.submitQueryToAimPage(rawQueryText);
             mLocationBarCoordinator.setOmniboxEditingText("");
         }
         return true;

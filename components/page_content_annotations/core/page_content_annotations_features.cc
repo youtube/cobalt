@@ -118,6 +118,9 @@ BASE_FEATURE(kAnnotatedPageContentExtraction,
 BASE_FEATURE(kAnnotatedPageContentNonSalientFiltering,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kAnnotatedPageContentPDFTextExtraction,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 const base::FeatureParam<bool> kAnnotatedPageContentExcludeAdRelatedParam{
     &kAnnotatedPageContentNonSalientFiltering, "exclude_ad_related", false};
 
@@ -136,6 +139,34 @@ const base::FeatureParam<bool> kPageContentCacheEnableScreenshot{
 
 const base::FeatureParam<bool> kPageContentCacheUseUserEngagement{
     &kPageContentCache, "page_content_cache_use_user_engagement", false};
+
+BASE_FEATURE(kPageSettledMonitor, base::FEATURE_ENABLED_BY_DEFAULT);
+
+const base::FeatureParam<base::TimeDelta> kPageStabilityTimeout{
+    &kPageSettledMonitor, "page-stability-timeout", base::Seconds(4)};
+
+const base::FeatureParam<base::TimeDelta> kPageStabilityMinWait{
+    &kPageSettledMonitor, "page-stability-min-wait", base::Seconds(1)};
+
+const base::FeatureParam<base::TimeDelta> kPaintStabilityInitialPaintTimeout{
+    &kPageSettledMonitor, "paint-stability-initial-paint-timeout",
+    base::Seconds(1)};
+
+const base::FeatureParam<base::TimeDelta> kPaintStabilitySubsequentPaintTimeout{
+    &kPageSettledMonitor, "paint-stability-subsequent-paint-timeout",
+    base::Seconds(1)};
+
+const base::FeatureParam<base::TimeDelta> kObservationDelayTimeout{
+    &kPageSettledMonitor, "observation-delay-timeout", base::Seconds(10)};
+
+const base::FeatureParam<base::TimeDelta> kObservationDelayLcp{
+    &kPageSettledMonitor, "observation-delay-lcp", base::Seconds(1)};
+
+BASE_FEATURE(kPageSettledMonitorExcludeAdFrameLoading,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kPageSettledMonitorSkipAwaitVisualStateForHiddenTabs,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 base::TimeDelta PCAServiceWaitForTitleDelayDuration() {
   return base::Milliseconds(GetFieldTrialParamByFeatureAsInt(

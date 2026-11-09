@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -69,6 +70,7 @@
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
+#include "test/testsupport/file_utils.h"
 
 #ifdef WEBRTC_ANDROID
 #include "pc/test/android_test_initializer.h"
@@ -762,7 +764,14 @@ TEST(PeerConnectionFactoryDependenciesTest,
 
   scoped_refptr<PeerConnectionFactoryInterface> pcf =
       CreateModularPeerConnectionFactory(std::move(pcf_dependencies));
-  pcf->StartAecDump(nullptr, 24'242);
+  // Provide a valid file to avoid triggering the null pointer guard.
+  // The AEC dump machinery takes ownership of the file and closes it.
+  std::string temp_filename =
+      test::TempFilename(test::OutputPath(), "aec_dump");
+  pcf->StartAecDump(fopen(temp_filename.c_str(), "wb"), 24'242);
+  // Destroy the PCF to ensure the file is closed before attempting removal.
+  pcf = nullptr;
+  test::RemoveFile(temp_filename);
 }
 
 TEST(PeerConnectionFactoryDependenciesTest, RepeatMediaEngineInitialization) {

@@ -181,6 +181,7 @@ namespace internal {
   V(JSIteratorFlatMapHelper)                    \
   V(JSIteratorConcatHelper)                     \
   V(JSIteratorZipHelper)                        \
+  V(JSIteratorZipKeyedHelper)                   \
   V(JSMap)                                      \
   V(JSMapIterator)                              \
   V(JSMessageObject)                            \
@@ -229,6 +230,7 @@ namespace internal {
   V(ObjectTemplateInfo)                         \
   V(ObjectTwoHashTable)                         \
   V(Oddball)                                    \
+  V(OnHeapBasicBlockProfilerData)               \
   V(Hole)                                       \
   V(OrderedHashMap)                             \
   V(OrderedHashSet)                             \
@@ -249,6 +251,7 @@ namespace internal {
   V(SmallOrderedHashMap)                        \
   V(SmallOrderedHashSet)                        \
   V(SmallOrderedNameDictionary)                 \
+  V(SortState)                                  \
   V(SourceTextModule)                           \
   V(SourceTextModuleInfo)                       \
   V(StoreHandler)                               \
@@ -283,6 +286,7 @@ namespace internal {
   V(TurboshaftWord64Type)                       \
   IF_WASM(V, WasmArray)                         \
   IF_WASM(V, WasmExceptionPackage)              \
+  IF_WASM(V, WasmFastApiCallData)               \
   IF_WASM(V, WasmFuncRef)                       \
   IF_WASM(V, WasmGlobalObject)                  \
   IF_WASM(V, WasmInstanceObject)                \
@@ -292,6 +296,7 @@ namespace internal {
   IF_WASM(V, WasmNull)                          \
   IF_WASM(V, WasmObject)                        \
   IF_WASM(V, WasmResumeData)                    \
+  IF_WASM(V, WasmStringViewIter)                \
   IF_WASM(V, WasmStruct)                        \
   IF_WASM(V, WasmSuspendingObject)              \
   IF_WASM(V, WasmContinuationObject)            \
@@ -301,7 +306,6 @@ namespace internal {
   IF_WASM(V, WasmTypeInfo)                      \
   IF_WASM(V, WasmValueObject)                   \
   V(WeakCell)                                   \
-  TORQUE_DEFINED_CLASS_LIST(V)                  \
   SIMPLE_HEAP_OBJECT_LIST1(V)
 // clang-format off
 // LINT.ThenChange(/src/objects/map.cc:get_visitor_id, /src/objects/js-objects.cc:get_header_size, /src/compiler/turbofan-types.cc:bitset_type_lub)
@@ -320,7 +324,9 @@ namespace internal {
   V(HandlerTable)                   \
   V(JSContextExtensionObject)       \
   V(JSError)                        \
+  V(JSInterceptorMap)               \
   V(MapCache)                       \
+  V(ExtendedMap)                    \
   V(MetaMap)                        \
   V(NumberWrapper)                  \
   V(OSROptimizedCodeCache)          \

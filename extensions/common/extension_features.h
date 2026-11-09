@@ -81,6 +81,7 @@ BASE_DECLARE_FEATURE(kApiGlicAccessFromGoogleWebpage);
 extern const base::FeatureParam<std::string> kProdPromptEndpointUrlParam;
 extern const base::FeatureParam<std::string> kGlicInvokeApiOAuth2ScopeParam;
 extern const base::FeatureParam<bool> kGlicRequireConsentForInvokeParam;
+extern const base::FeatureParam<bool> kGlicOpenNewTabInForegroundParam;
 
 // Controls the availability of the new `proxyOverrideRulesPrivate` API.
 BASE_DECLARE_FEATURE(kApiProxyOverrideRulesPrivate);
@@ -162,6 +163,10 @@ BASE_DECLARE_FEATURE(kAllowLegacyMV2Extensions);
 // the 'registerProtocolHandler' Web API, defined in the Custom Handlers
 // section of the HTML specification.
 BASE_DECLARE_FEATURE(kExtensionProtocolHandlers);
+
+// Enables extension support for the "tab" context menu, allowing extensions
+// to add custom items when right-clicking a tab.
+BASE_DECLARE_FEATURE(kExtensionTabContextMenu);
 
 // If enabled, only manifest v3 extensions is allowed while v2 will be disabled.
 // Note that this feature is now only checked by `ExtensionManagement` which

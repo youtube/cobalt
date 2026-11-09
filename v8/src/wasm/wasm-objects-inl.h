@@ -17,16 +17,11 @@
 #include "src/base/memory.h"
 #include "src/common/ptr-compr.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/contexts-inl.h"
+#include "src/objects/casting.h"
 #include "src/objects/foreign.h"
-#include "src/objects/heap-number.h"
-#include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/js-function-inl.h"
-#include "src/objects/js-objects-inl.h"
+#include "src/objects/heap-number-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/managed.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/oddball-inl.h"
-#include "src/objects/script-inl.h"
 #include "src/objects/trusted-pointer-inl.h"
 #include "src/roots/roots.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -1279,8 +1274,7 @@ DirectHandle<Object> WasmObject::ReadValueAt(Isolate* isolate,
       int16_t value = base::Memory<int16_t>(field_address);
       return direct_handle(Smi::FromInt(value), isolate);
     }
-    case wasm::kI32:
-    case wasm::kWaitQueue: {
+    case wasm::kI32: {
       int32_t value = base::Memory<int32_t>(field_address);
       return isolate->factory()->NewNumberFromInt(value);
     }
@@ -1527,6 +1521,36 @@ void WasmSuspendingObject::set_callable(Tagged<JSReceiver> value,
                                         WriteBarrierMode mode) {
   callable_.store(this, value, mode);
 }
+
+Tagged<HeapObject> WasmFastApiCallData::signature() const {
+  return signature_.load();
+}
+void WasmFastApiCallData::set_signature(Tagged<HeapObject> value,
+                                        WriteBarrierMode mode) {
+  signature_.store(this, value, mode);
+}
+Tagged<Object> WasmFastApiCallData::callback_data() const {
+  return callback_data_.load();
+}
+void WasmFastApiCallData::set_callback_data(Tagged<Object> value,
+                                            WriteBarrierMode mode) {
+  callback_data_.store(this, value, mode);
+}
+Tagged<MaybeObject> WasmFastApiCallData::cached_map() const {
+  return cached_map_.load();
+}
+void WasmFastApiCallData::set_cached_map(Tagged<MaybeObject> value,
+                                         WriteBarrierMode mode) {
+  cached_map_.store(this, value, mode);
+}
+
+Tagged<String> WasmStringViewIter::string() const { return string_.load(); }
+void WasmStringViewIter::set_string(Tagged<String> value,
+                                    WriteBarrierMode mode) {
+  string_.store(this, value, mode);
+}
+uint32_t WasmStringViewIter::offset() const { return offset_; }
+void WasmStringViewIter::set_offset(uint32_t value) { offset_ = value; }
 
 #include "src/objects/object-macros-undef.h"
 

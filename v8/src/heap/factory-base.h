@@ -61,18 +61,6 @@ enum class NumberCacheMode { kIgnore, kSetOnly, kBoth };
 using FixedInt32Array = FixedIntegerArrayBase<int32_t, ByteArray>;
 using FixedUInt32Array = FixedIntegerArrayBase<uint32_t, ByteArray>;
 
-// Putting Torque-generated definitions in a superclass allows to shadow them
-// easily when they shouldn't be used and to reference them when they happen to
-// have the same signature.
-template <typename Impl>
-class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) TorqueGeneratedFactory {
- private:
-  FactoryBase<Impl>* factory() { return static_cast<FactoryBase<Impl>*>(this); }
-
- public:
-#include "torque-generated/factory.inc"
-};
-
 struct NewCodeOptions {
   CodeKind kind;
   Builtin builtin;
@@ -99,7 +87,7 @@ struct NewCodeOptions {
 };
 
 template <typename Impl>
-class FactoryBase : public TorqueGeneratedFactory<Impl> {
+class FactoryBase {
  public:
   Handle<Code> NewCode(const NewCodeOptions& options);
 
@@ -478,7 +466,6 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
                                  AllocationAlignment alignment = kTaggedAligned,
                                  AllocationHint hint = AllocationHint());
 
-  friend TorqueGeneratedFactory<Impl>;
   template <class Derived, class Shape, class Super>
   friend class TaggedArrayBase;
   template <class Derived, class Shape, class Super>

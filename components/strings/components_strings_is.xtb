@@ -22,6 +22,7 @@
 <translation id="1036348656032585052">Slökkva</translation>
 <translation id="1036436692654972538">Vistað í tækinu þínu</translation>
 <translation id="1036881361735705143">Umslag: C4</translation>
+<translation id="1038106730571050514">Sýna tillögur</translation>
 <translation id="1038168778161626396">Aðeins dulrita</translation>
 <translation id="1038842779957582377">óþekkt heiti</translation>
 <translation id="1041998700806130099">Skilaboð vinnslublaðs</translation>
@@ -152,6 +153,7 @@ Ef þú gerir það ekki loka persónuverndarstillingar þínar á þennan aðga
 <translation id="1228893227497259893">Rangt auðkenni einingar</translation>
 <translation id="1230244617745022071"><ph name="SOURCE" /> (greint sjálfvirkt)</translation>
 <translation id="1232569758102978740">Ónefnt</translation>
+<translation id="1234539281285007945"><ph name="FIELD_1" /> er áskilið</translation>
 <translation id="1236081509407217141">Viltu leyfa VR?</translation>
 <translation id="1236689197410206751">AfterPay</translation>
 <translation id="1240347957665416060">Heiti tækisins þíns</translation>
@@ -472,6 +474,7 @@ Ef þú gerir það ekki loka persónuverndarstillingar þínar á þennan aðga
 <translation id="1721424275792716183">* Reiturinn má ekki vera auður</translation>
 <translation id="1723636263173393300">Þessi regla á ekki að innihalda fleiri en <ph name="MAX_ITEMS_LIMIT" /> flýtileiðir.</translation>
 <translation id="1725591448053514783">Umslag: You 6</translation>
+<translation id="172754119609519423"><ph name="FIELD_1" />, <ph name="FIELD_2" /> eða <ph name="FIELD_3" /> er áskilið</translation>
 <translation id="1727613060316725209">Vottorðið er gilt</translation>
 <translation id="1728677426644403582">Þú ert að skoða uppruna vefsíðu</translation>
 <translation id="173080396488393970">Þessi kortategund er ekki studd</translation>
@@ -627,6 +630,7 @@ Ef þú gerir það ekki loka persónuverndarstillingar þínar á þennan aðga
 <translation id="1979156660928743046">Upplýsingar um efni</translation>
 <translation id="1987486584747170374">Leitirnar þínar, bestu samsvaranirnar og efnið á síðum þeirra eru send til Google. Þessi gögn verða ekki notuð af mannlegum yfirlesurum til að bæta gervigreind. Fyrirtækið þitt getur breytt þessum stillingum hvenær sem er.</translation>
 <translation id="1988881251331415125">Ef stafsetningin er rétt skaltu <ph name="BEGIN_LINK" />prófa að keyra bilanaleit á tengigetu<ph name="END_LINK" />.</translation>
+<translation id="1991370806334788445">Prófaðu að leyfa fótspor þriðju aðila, það þýðir minni vernd við vefskoðun en líklegra er að eiginleikar vefsvæðisins virki sem skyldi.</translation>
 <translation id="1992331125980284532">JIS B3</translation>
 <translation id="1997484222658892567"><ph name="URL" /> vill fá að geyma mikið magn gagna varanlega í tölvunni þinni</translation>
 <translation id="1997774360448418989">Pappír (þunnur)</translation>
@@ -1432,6 +1436,7 @@ Farðu í <ph name="BEGIN_LINK" />greiðslustillingar<ph name="END_LINK" /> til 
 <translation id="3220264767789936523">Formlegur klæðnaður</translation>
 <translation id="3223287115535306850">Hleðslutákn forritaræsingar</translation>
 <translation id="3223425961342298674">Staðsetning ekki leyfð</translation>
+<translation id="3225277284238802910"><ph name="FIELD_1" /> eða <ph name="FIELD_2" /> er áskilið</translation>
 <translation id="3225319735946384299">Kóðaundirritun</translation>
 <translation id="3225919329040284222">Þjónninn framvísaði vottorði sem samsvarar ekki innbyggðum væntingum. Þessar væntingar eru hafðar með fyrir tiltekin mjög örugg vefsvæði í því skyni að vernda þig.</translation>
 <translation id="3226128629678568754">Ýttu á endurnýjunarhnappinn til að endursenda gögnin sem þarf til að hlaða síðuna.</translation>
@@ -2129,7 +2134,6 @@ Farðu í <ph name="BEGIN_LINK" />greiðslustillingar<ph name="END_LINK" /> til 
 <translation id="4282280603030594840">Ökutækjakaup</translation>
 <translation id="4282346679996504092">Slökkt hefur verið á tilkynningum fyrir þessa vöru og bókamerkið fjarlægt</translation>
 <translation id="4284885181066817063">Lokað af <ph name="DOMAIN" /></translation>
-<translation id="4285498937028063278">Losa</translation>
 <translation id="4288101205645068104">Eyða ökutæki</translation>
 <translation id="4290920330097335010">Aldrei leyfa</translation>
 <translation id="4297502707443874121">Smámynd síðu <ph name="THUMBNAIL_PAGE" /></translation>
@@ -2156,6 +2160,7 @@ Farðu í <ph name="BEGIN_LINK" />greiðslustillingar<ph name="END_LINK" /> til 
 <translation id="4318312030194671742">Samsetningarþjónusta málunarforskoðunar</translation>
 <translation id="4318566738941496689">Heiti tækisins og vistfang netkerfis</translation>
 <translation id="4320119221194966055">Persónuleg lán</translation>
+<translation id="432088302786119211">{COUNT,plural, =1{Tengill móttekinn frá <ph name="DEVICE_NAME" />}one{# tengill móttekinn frá <ph name="DEVICE_NAME" />}other{# tenglar mótteknir frá <ph name="DEVICE_NAME" />}}</translation>
 <translation id="4325600325087822253">Bakki 17</translation>
 <translation id="4325863107915753736">Mistókst að finna greinina</translation>
 <translation id="4326324639298822553">Athugaðu gildistímann og reyndu aftur</translation>
@@ -2216,7 +2221,6 @@ Farðu í <ph name="BEGIN_LINK" />greiðslustillingar<ph name="END_LINK" /> til 
 <translation id="4419287616181386201">Hægt er að eyða aðgangsorðum í umsjónarstillingum þeirra</translation>
 <translation id="4424024547088906515">Þessi þjónn gat ekki sannað að hann væri <ph name="DOMAIN" />; Chrome treystir ekki öryggisvottorðinu hans. Þetta kann að orsakast af vanstillingu eða tölvuþrjóti sem komist hefur inn í tenginguna.</translation>
 <translation id="4425750422187370446">Íþróttafatnaður</translation>
-<translation id="443008484043213881">Verkfæri</translation>
 <translation id="443121186588148776">Raðtengi</translation>
 <translation id="4432688616882109544"><ph name="HOST_NAME" /> samþykkti ekki innskráningarvottorðið þitt eða það var ekki gefið upp.</translation>
 <translation id="4432792777822557199">Síður á málinu „<ph name="SOURCE_LANGUAGE" />“ verða héðan í frá þýddar yfir á eftirfarandi tungumál: <ph name="TARGET_LANGUAGE" /></translation>
@@ -2602,7 +2606,6 @@ Farðu í <ph name="BEGIN_LINK" />greiðslustillingar<ph name="END_LINK" /> til 
 <translation id="5056587122125565772">Búa til mynd</translation>
 <translation id="505757197798929356">Gefðu upp ástæðu opnunar (áskilið)</translation>
 <translation id="5058282932481719070">nánar um ítarlega sjálfvirka útfyllingu í stillingum</translation>
-<translation id="5060419232449737386">Stillingar skjátexta</translation>
 <translation id="5061227663725596739">Áttirðu við <ph name="LOOKALIKE_DOMAIN" />?</translation>
 <translation id="5066056036849835175">Prentferill</translation>
 <translation id="5068524481479508725">A10</translation>
@@ -2971,6 +2974,7 @@ Farðu í <ph name="BEGIN_LINK" />greiðslustillingar<ph name="END_LINK" /> til 
 <translation id="5600044805561809264">Þú getur auðveldlega spurt spurninga um flipana sem þú deilir á meðan þú vafrar.</translation>
 <translation id="5603469469737324249"><ph name="ISSUER_1_NAME" /> eða <ph name="ISSUER_2_NAME" /></translation>
 <translation id="560412284261940334">Stjórnun er ekki studd</translation>
+<translation id="5604254791550001355">Breyta skipun</translation>
 <translation id="560431066250575003">{HOURS,plural, =1{Virk(ur) fyrir einni klukkustund}one{Virk(ur) fyrir # klukkustund}other{Virk(ur) fyrir # klukkustundum}}</translation>
 <translation id="5605249000617390290">Nánar um verðrakningu</translation>
 <translation id="5605670050355397069">Kladdi</translation>
@@ -3402,6 +3406,7 @@ Farðu í <ph name="BEGIN_LINK" />greiðslustillingar<ph name="END_LINK" /> til 
 <translation id="6293309776179964942">JIS B5</translation>
 <translation id="6295618774959045776">CVC:</translation>
 <translation id="629730747756840877">Reikningur</translation>
+<translation id="6299098428775578517">Stillingar tillagna</translation>
 <translation id="6300452962057769623">{0,plural, =0{Tækið verður endurræst núna}=1{Tækið verður endurræst eftir 1 sekúndu}one{Tækið verður endurræst eftir # sekúndu}other{Tækið verður endurræst eftir # sekúndur}}</translation>
 <translation id="6301104306974789820">Fá tilkynningar fyrir verðvöktun</translation>
 <translation id="6302546952464230349">Sýna upplýsingar um <ph name="PERMISSION_NAME" />-heimild</translation>
@@ -3563,7 +3568,6 @@ Farðu í <ph name="BEGIN_LINK" />greiðslustillingar<ph name="END_LINK" /> til 
 <translation id="6518133107902771759">Staðfesta</translation>
 <translation id="6519885440226079262">Getur beðið um að fá að rekja handahreyfingarnar þínar</translation>
 <translation id="6520026037299163656">Vefforrit og nettengd verkfæri</translation>
-<translation id="65203098586853226">Þýðir úr <ph name="SOURCE" /> yfir á <ph name="TARGET" /></translation>
 <translation id="6520509611422418552"><ph name="MEMBER_FIRST_NAME" /> tók þátt í flipahópnum „<ph name="GROUP_NAME" />“</translation>
 <translation id="6521745193039995384">Ekki virk</translation>
 <translation id="6522682797352430154">Klassísk tónlist</translation>
@@ -4163,7 +4167,6 @@ Farðu í <ph name="BEGIN_LINK" />greiðslustillingar<ph name="END_LINK" /> til 
 <translation id="7455452752247248289">Tækni fyrir stórfyrirtæki</translation>
 <translation id="745640750744109667">A0x3</translation>
 <translation id="7457071735008326060">Vöru- og húsbílar</translation>
-<translation id="7461924472993315131">Festa</translation>
 <translation id="7463068149674892185">Ekki er mælt með þessari aðgerð</translation>
 <translation id="746329643760972486">MacOS</translation>
 <translation id="746412105358554870">Fínstilling og öryggi JavaScript</translation>
@@ -4625,7 +4628,6 @@ Farðu í <ph name="BEGIN_LINK" />greiðslustillingar<ph name="END_LINK" /> til 
 <translation id="8175796834047840627">Chrome býður þér að vista kortin þín á Google-reikningnum vegna þess að þú ert innskráð(ur). Þú getur breytt þessu í stillingunum.</translation>
 <translation id="8176440868214972690">Stjórnandi tækisins hefur sent einhverjar upplýsingar á eftirfarandi vefsvæði, á borð við stillingar og reglur.</translation>
 <translation id="817820454357658398">Hreinlætisvörur fyrir konur</translation>
-<translation id="8182470873445638343"><ph name="BEGIN_BOLD" />Efni frá greiðslusíðunni er deilt með Google til að bjóða upp á þessa valkosti.<ph name="END_BOLD" /> Greiðsluáætlanir eru háðar gjaldgengi. Farðu í <ph name="BEGIN_LINK" />greiðslustillingar<ph name="END_LINK" /> til að fela valkosti greiðslufrests</translation>
 <translation id="818254048113802060">{0,plural, =1{Lokað var á <ph name="FILE_NAME" /> vegna efnis}one{Lokað var á <ph name="FILE_COUNT" /> skrá vegna efnis}other{Lokað var á <ph name="FILE_COUNT" /> skrár vegna efnis}}</translation>
 <translation id="8183800802493617952">Fjölskylduvænir leikir og afþreying</translation>
 <translation id="8184538546369750125">Nota altækt sjálfgildi (leyfa)</translation>
@@ -4669,7 +4671,6 @@ Farðu í <ph name="BEGIN_LINK" />greiðslustillingar<ph name="END_LINK" /> til 
 <translation id="8246482227229072868">Hringir</translation>
 <translation id="8248406213705193919">Vista kortið á öruggan hátt?</translation>
 <translation id="8249296373107784235">Hætta</translation>
-<translation id="824968735947741546"><ph name="SOURCE" /> (greind sjálfkrafa) þýdd yfir á <ph name="TARGET" /></translation>
 <translation id="8250094606476360498">Þetta heimilisfang er vistað í þessu tæki eins og stendur. Til að nota það í Google-vörum skaltu vista það á Google-reikningnum þínum: <ph name="ACCOUNT" />.</translation>
 <translation id="8250533425540303610">Setur upp: <ph name="LANGUAGE" />…</translation>
 <translation id="8251493595871259082">Fylltu heimilisfangið þitt út með minni innslætti</translation>
@@ -4982,6 +4983,7 @@ Farðu í <ph name="BEGIN_LINK" />greiðslustillingar<ph name="END_LINK" /> til 
 <translation id="8758529215314160755">Þú getur breytt nafninu <ph name="BEGIN_LINK" />á Google-reikningnum þínum<ph name="END_LINK" />: <ph name="ACCOUNT" />.</translation>
 <translation id="8759274551635299824">Kortið er útrunnið</translation>
 <translation id="87601671197631245">Þetta vefsvæði notar úrelta öryggisstillingu sem gæti sett upplýsingarnar þínar í hættu (til dæmis aðgangsorð, skilaboð eða kreditkort) þegar þær eru sendar til vefsvæðisins.</translation>
+<translation id="8763676559028782284">{COUNT,plural, =1{Tengill sendur úr <ph name="DEVICE_NAME" />}one{# tengill sendur úr <ph name="DEVICE_NAME" />}other{# tenglar sendir úr <ph name="DEVICE_NAME" />}}</translation>
 <translation id="8763927697961133303">USB-tæki</translation>
 <translation id="8763986294015493060">Loka öllum huliðsgluggum sem eru opnir</translation>
 <translation id="8766943070169463815">Sannvottunarsíða fyrir skilríki öruggrar greiðslu var opnuð</translation>

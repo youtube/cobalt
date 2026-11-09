@@ -38,7 +38,7 @@
 #include "extensions/common/extension_urls.h"
 #include "extensions/common/extensions_client.h"
 #include "extensions/common/manifest.h"
-#include "extensions/common/manifest_url_handlers.h"
+#include "extensions/common/manifest_handlers/manifest_url_handlers.h"
 #include "extensions/common/switches.h"
 #include "net/base/backoff_entry.h"
 
@@ -238,7 +238,7 @@ void ChromeContentVerifierDelegate::VerifyFailed(
 
     // If a non-webstore extension has no computed hashes for content
     // verification, leave it as is for now.
-    // See https://crbug.com/40625642#c22 for more details.
+    // See https://crbug.com/40625642#comment23 for more details.
     // TODO(crbug.com/40669814): Schedule the extension for reinstall.
     if (!info.is_from_webstore) {
       if (!would_be_reinstalled_ids_.contains(extension_id)) {

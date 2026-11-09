@@ -5,12 +5,8 @@
 #include "third_party/blink/renderer/core/paint/paint_property_tree_builder_test.h"
 
 #include "base/compiler_specific.h"
-#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "cc/test/fake_layer_tree_host_client.h"
-#if BUILDFLAG(IS_COBALT)
-#include "third_party/blink/public/common/features.h"
-#endif  // BUILDFLAG(IS_COBALT)
+#include "cc/test/fake_layer_tree_host_delegate.h"
 #include "cc/trees/effect_node.h"
 #include "cc/trees/scroll_node.h"
 #include "cc/trees/transform_node.h"
@@ -32,6 +28,11 @@
 #include "third_party/blink/renderer/platform/testing/testing_platform_support.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "ui/gfx/geometry/test/geometry_util.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/test/scoped_feature_list.h"
+#include "third_party/blink/public/common/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
 
 namespace blink {
 

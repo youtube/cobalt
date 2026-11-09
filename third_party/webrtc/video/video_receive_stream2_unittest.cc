@@ -26,6 +26,7 @@
 #include "api/metronome/test/fake_metronome.h"
 #include "api/rtp_packet_info.h"
 #include "api/rtp_packet_infos.h"
+#include "api/scoped_refptr.h"
 #include "api/test/mock_video_decoder.h"
 #include "api/test/mock_video_decoder_factory.h"
 #include "api/test/time_controller.h"
@@ -33,8 +34,11 @@
 #include "api/units/frequency.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "api/video/corruption_detection/frame_instrumentation_data.h"
+#include "api/video/i420_buffer.h"
 #include "api/video/recordable_encoded_frame.h"
 #include "api/video/test/video_frame_matchers.h"
+#include "api/video/video_content_type.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_type.h"
 #include "api/video/video_rotation.h"
@@ -43,6 +47,7 @@
 #include "api/video_codecs/sdp_video_format.h"
 #include "call/rtp_stream_receiver_controller.h"
 #include "call/video_receive_stream.h"
+#include "common_video/include/corruption_score_calculator.h"
 #include "common_video/test/utilities.h"
 #include "media/engine/fake_webrtc_call.h"
 #include "modules/pacing/packet_router.h"
@@ -50,6 +55,7 @@
 #include "modules/video_coding/nack_requester.h"
 #include "rtc_base/logging.h"
 #include "system_wrappers/include/clock.h"
+#include "test/create_test_field_trials.h"
 #include "test/fake_decoder.h"
 #include "test/fake_encoded_frame.h"
 #include "test/gmock.h"
@@ -566,6 +572,117 @@ TEST_P(VideoReceiveStream2Test, LazyDecoderCreationCodecSwitch) {
 
   // Make sure the decoder thread had a chance to run.
   time_controller_.AdvanceTime(TimeDelta::Millis(100));
+}
+
+TEST_P(VideoReceiveStream2Test, CalculateCorruptionScoreSync) {
+  video_receive_stream_->Start();
+
+  constexpr uint32_t kRtpTimestamp = 12345;
+  auto test_frame = test::FakeFrameBuilder()
+                        .Id(0)
+                        .PayloadType(kH264PayloadType)
+                        .Time(kRtpTimestamp)
+                        .AsLast()
+                        .Build();
+
+  FrameInstrumentationData data;
+  data.SetSequenceIndex(1);
+  data.SetStdDev(1.0);
+  data.SetLumaErrorThreshold(5);
+  data.SetChromaErrorThreshold(3);
+  data.SetSampleValues(std::vector<double>{0.5, 0.6});
+
+  test_frame->SetFrameInstrumentationData(data);
+
+  EXPECT_CALL(mock_decoder_, Decode(_, _)).WillOnce(DefaultDecodeAction());
+
+  video_receive_stream_->OnCompleteFrame(std::move(test_frame));
+
+  time_controller_.AdvanceTime(TimeDelta::Zero());
+
+  VideoReceiveStreamInterface::Stats stats = video_receive_stream_->GetStats();
+  EXPECT_EQ(stats.corruption_score_count, 1u);
+}
+
+TEST_P(VideoReceiveStream2Test, CalculateCorruptionScoreAsync) {
+  env_ = CreateEnvironment(
+      CreateTestFieldTrialsPtr("WebRTC-CorruptionDetectionFrameSelector/"
+                               "asynchronous_evaluation:true/"),
+      time_controller_.CreateTaskQueueFactory(), time_controller_.GetClock());
+  RecreateReceiveStream();
+
+  video_receive_stream_->Start();
+
+  constexpr uint32_t kRtpTimestamp = 12345;
+  auto test_frame = test::FakeFrameBuilder()
+                        .Id(0)
+                        .PayloadType(kH264PayloadType)
+                        .Time(kRtpTimestamp)
+                        .AsLast()
+                        .Build();
+
+  FrameInstrumentationData data;
+  data.SetSequenceIndex(1);
+  data.SetStdDev(1.0);
+  data.SetLumaErrorThreshold(5);
+  data.SetChromaErrorThreshold(3);
+  data.SetSampleValues(std::vector<double>{0.5, 0.6});
+
+  test_frame->SetFrameInstrumentationData(data);
+
+  EXPECT_CALL(mock_decoder_, Decode(_, _)).WillOnce(DefaultDecodeAction());
+
+  video_receive_stream_->OnCompleteFrame(std::move(test_frame));
+
+  time_controller_.AdvanceTime(TimeDelta::Millis(10));
+
+  VideoReceiveStreamInterface::Stats stats = video_receive_stream_->GetStats();
+  EXPECT_EQ(stats.corruption_score_count, 1u);
+}
+
+TEST_P(VideoReceiveStream2Test,
+       CalculateCorruptionScoreDropsFramesWhenQueueFull) {
+  env_ = CreateEnvironment(
+      CreateTestFieldTrialsPtr("WebRTC-CorruptionDetectionFrameSelector/"
+                               "asynchronous_evaluation:true/"),
+      time_controller_.CreateTaskQueueFactory(), time_controller_.GetClock());
+  RecreateReceiveStream();
+
+  video_receive_stream_->Start();
+
+  // Create a dummy frame.
+  scoped_refptr<I420Buffer> buffer = I420Buffer::Create(320, 240);
+  I420Buffer::SetBlack(buffer.get());
+  VideoFrame frame = VideoFrame::Builder()
+                         .set_video_frame_buffer(buffer)
+                         .set_rotation(kVideoRotation_0)
+                         .set_timestamp_ms(0)
+                         .build();
+
+  FrameInstrumentationData data;
+  data.SetSequenceIndex(1);
+  data.SetStdDev(1.0);
+  data.SetLumaErrorThreshold(5);
+  data.SetChromaErrorThreshold(3);
+  data.SetSampleValues(std::vector<double>{0.5, 0.6});
+
+  CorruptionScoreCalculator* calculator = video_receive_stream_.get();
+
+  // Call it 3 times in a row. The counter should increment on the calling
+  // thread (test thread) before tasks are run on the post_decode_queue_.
+  // Limit is 2, so the 3rd call should be discarded.
+  calculator->CalculateCorruptionScore(frame, data,
+                                       VideoContentType::UNSPECIFIED);
+  calculator->CalculateCorruptionScore(frame, data,
+                                       VideoContentType::UNSPECIFIED);
+  calculator->CalculateCorruptionScore(frame, data,
+                                       VideoContentType::UNSPECIFIED);
+
+  // Advance time to let tasks run.
+  time_controller_.AdvanceTime(TimeDelta::Millis(100));
+
+  VideoReceiveStreamInterface::Stats stats = video_receive_stream_->GetStats();
+  EXPECT_EQ(stats.corruption_score_count, 2u);
 }
 
 TEST_P(VideoReceiveStream2Test, PassesNtpTime) {

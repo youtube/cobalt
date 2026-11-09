@@ -624,6 +624,13 @@ class PABackedSandboxedArrayBufferAllocator::Impl final {
     opts.backup_ref_ptr = partition_alloc::PartitionOptions::kDisabled;
     opts.use_configurable_pool = partition_alloc::PartitionOptions::kAllowed;
     partition_.init(std::move(opts));
+
+    // Also adjust the limits for dirty bytes and slot span ring size in the
+    // ArrayBuffer partition root assuming we are running foregrounded.
+    constexpr int kForegroundMaxEmptySlotSpansDirtyBytesShift = 2;
+    partition_.root()->AdjustSlotSpanRing(
+        partition_alloc::internal::kMaxEmptySlotSpanRingSize,
+        kForegroundMaxEmptySlotSpansDirtyBytesShift);
   }
 
   Impl(const Impl&) = delete;

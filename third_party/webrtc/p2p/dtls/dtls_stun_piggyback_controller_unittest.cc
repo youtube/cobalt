@@ -89,8 +89,7 @@ std::unique_ptr<StunByteStringAttribute> WrapInStun(IceAttributeType type,
 std::unique_ptr<StunByteStringAttribute> WrapInStun(
     IceAttributeType type,
     const std::vector<uint8_t>& data) {
-  return std::make_unique<StunByteStringAttribute>(type, data.data(),
-                                                   data.size());
+  return std::make_unique<StunByteStringAttribute>(type, data);
 }
 
 std::unique_ptr<StunByteStringAttribute> WrapInStun(

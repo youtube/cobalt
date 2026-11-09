@@ -1582,9 +1582,14 @@ bool WasmRevecAnalyzer::DecideVectorize() {
         for (size_t i = start; i < nodes.size(); i++) {
           if (i > 0 && nodes[i] == nodes[0]) continue;
           for (OpIndex use : use_map_->uses(nodes[i])) {
-            if (!GetPackNode(use) || GetPackNode(use)->is_force_packing()) {
+            const Operation& use_op = graph_.Get(use);
+            const PackNode* use_pnode = GetPackNode(use);
+            if (!use_pnode || use_pnode->is_force_packing() ||
+                // Packed sign-extension unary/binary ops still use SIMD128
+                // inputs that need an extract node.
+                IsSignExtensionOp(use_op)) {
               TRACE("External use edge: (%d:%s) -> (%d:%s)\n", use.id(),
-                    OpcodeName(graph_.Get(use).opcode), nodes[i].id(),
+                    OpcodeName(use_op.opcode), nodes[i].id(),
                     OpcodeName(graph_.Get(nodes[i]).opcode));
               ++cost;
 

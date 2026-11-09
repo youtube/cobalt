@@ -10,7 +10,7 @@
 #include "base/functional/callback.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "cc/trees/layer_tree_host_client.h"
+#include "cc/trees/layer_tree_host_delegate.h"
 #include "cc/trees/paint_holding_reason.h"
 
 namespace viz {

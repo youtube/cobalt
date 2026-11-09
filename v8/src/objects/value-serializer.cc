@@ -1032,6 +1032,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
       } else {
         WriteVarint(
             static_cast<uint8_t>(WasmMemoryArrayBufferTag::kFixedLength));
+        WriteVarint<size_t>(array_buffer->byte_length());
       }
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2179,8 +2180,13 @@ MaybeDirectHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
             isolate_->factory()->array_buffer_wasm_memory_symbol(),
             wasm_memory_obj)
             .Check();
-      } else if (resizable_subtag !=
+      } else if (resizable_subtag ==
                  static_cast<uint8_t>(WasmMemoryArrayBufferTag::kFixedLength)) {
+        size_t byte_length;
+        if (!ReadVarint<size_t>().To(&byte_length)) return {};
+        if (byte_length > array_buffer->byte_length()) return {};
+        array_buffer->set_byte_length(byte_length);
+      } else {
         return {};
       }
     }

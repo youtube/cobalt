@@ -39,6 +39,7 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/download/download_display.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
+#include "chrome/browser/ui/page_actions/page_action_properties_provider.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/view_ids.h"
@@ -54,7 +55,6 @@
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
 #include "chrome/browser/ui/views/infobars/infobar_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_controller.h"
-#include "chrome/browser/ui/views/page_action/page_action_properties_provider.h"
 #include "chrome/browser/ui/views/page_action/page_action_view.h"
 #include "chrome/browser/ui/views/toolbar/app_menu_control.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h"
@@ -201,7 +201,7 @@ content::EvalJsResult EvalDisplayStateChange(
             reject('window.$1() resolved, but ' +
             '`display-state: $2` not matched.');
           }
-        }).catch(() => reject('window.$1() rejected.'));
+        }).catch((e) => reject('window.$1() rejected: ' + e.message));
       });)";
   return content::EvalJs(
       execution_target,
@@ -2217,6 +2217,7 @@ class WebAppFrameToolbarBrowserTest_AdditionalWindowingControls
   WebAppFrameToolbarBrowserTest_AdditionalWindowingControls() {
     scoped_feature_list_.InitWithFeatures(
         {blink::features::kDesktopPWAsAdditionalWindowingControls,
+         blink::features::kDesktopPWAsAdditionalWindowingControlsOnMove,
          blink::features::kDesktopPWAsTabStrip},
         {});
   }
@@ -2386,6 +2387,27 @@ class WebAppFrameToolbarBrowserTest_AdditionalWindowingControls
   base::ScopedTempDir temp_dir_;
   GURL second_page_url_;
 };
+
+IN_PROC_BROWSER_TEST_F(
+    WebAppFrameToolbarBrowserTest_AdditionalWindowingControls,
+    APIRejectedInBrowserMode) {
+  InstallAndLaunchWebApp();
+  helper()->GrantWindowManagementPermission();
+
+  auto* app_browser = helper()->app_browser();
+
+  // Switch to browser mode
+  ui_test_utils::BrowserDestroyedObserver observer(app_browser);
+  chrome::ExecuteCommand(app_browser, IDC_OPEN_IN_CHROME);
+  observer.Wait();
+
+  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
+
+  EXPECT_THAT(EvalDisplayStateChange(web_contents, "maximize", "maximized"),
+              content::EvalJsResult::ErrorIs(testing::AllOf(
+                  testing::HasSubstr("window.maximize() rejected"),
+                  testing::HasSubstr("API is only supported in web apps."))));
+}
 
 IN_PROC_BROWSER_TEST_F(
     WebAppFrameToolbarBrowserTest_AdditionalWindowingControls,
@@ -3580,4 +3602,29 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarUninstallButtonTest,
   WebAppToolbarButtonContainer* toolbar_right_container =
       helper()->web_app_frame_toolbar()->get_right_container_for_testing();
   EXPECT_EQ(toolbar_right_container->uninstall_button(), nullptr);
+}
+
+IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarUninstallButtonTest,
+                       VisibleOnReparent) {
+  const GURL app_url("https://test.org");
+  EXPECT_TRUE(ui_test_utils::NavigateToURL(browser(), app_url));
+
+  // Install the app without launching it.
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  auto web_app_info =
+      web_app::WebAppInstallInfo::CreateWithStartUrlForTesting(app_url);
+  web_app_info->scope = app_url;
+  web_app_info->title = u"test app";
+  webapps::AppId app_id = web_app::test::InstallWebApp(browser()->profile(),
+                                                       std::move(web_app_info));
+
+  // Reparent the web contents into an app window, so that it gets treated as
+  // a first launch, and the uninstall button shows up.
+  helper()->ReparentWebContentsIntoAppBrowserAndWait(contents, app_id);
+
+  WebAppToolbarButtonContainer* toolbar_right_container =
+      helper()->web_app_frame_toolbar()->get_right_container_for_testing();
+  EXPECT_NE(toolbar_right_container->uninstall_button(), nullptr);
+  EXPECT_TRUE(toolbar_right_container->uninstall_button()->GetVisible());
 }

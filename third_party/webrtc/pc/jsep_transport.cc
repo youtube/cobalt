@@ -439,6 +439,7 @@ RTCError JsepTransport::NegotiateAndSetDtlsParameters(
   // between future SetRemote/SetLocal invocations and new transport
   // creation, we have the negotiation state saved until a new
   // negotiation happens.
+
   RTC_DCHECK(rtp_dtls_transport());
   RTCError error = SetNegotiatedDtlsParameters(
       rtp_dtls_transport(), negotiated_dtls_role, remote_fingerprint.get());
@@ -450,6 +451,20 @@ RTCError JsepTransport::NegotiateAndSetDtlsParameters(
     error = SetNegotiatedDtlsParameters(
         rtcp_dtls_transport(), negotiated_dtls_role, remote_fingerprint.get());
   }
+
+  bool dtls_in_stun =
+      local_description_->transport_desc.HasOption(ICE_OPTION_GOOG_SPED_V1);
+
+  IceConfig config = rtp_dtls_transport()->ice_transport()->config();
+  config.dtls_handshake_in_stun = dtls_in_stun;
+  rtp_dtls_transport()->ice_transport()->SetIceConfig(config);
+
+  if (rtcp_dtls_transport()) {
+    IceConfig rtcp_config = rtcp_dtls_transport()->ice_transport()->config();
+    rtcp_config.dtls_handshake_in_stun = dtls_in_stun;
+    rtcp_dtls_transport()->ice_transport()->SetIceConfig(rtcp_config);
+  }
+
   return error;
 }
 

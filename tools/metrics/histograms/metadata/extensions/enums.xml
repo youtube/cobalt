@@ -90,6 +90,12 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="kRequestContentScript"/>
 </enum>
 
+<enum name="DeclarativeNetRequestRedirectType">
+  <int value="0" label="Non-MainFrame Redirects"/>
+  <int value="1" label="MainFrame DSE Redirects"/>
+  <int value="2" label="Other MainFrame Redirects"/>
+</enum>
+
 <enum name="ExtensionActionInvocationSource">
   <int value="0" label="Keyboard Shortcut"/>
   <int value="1" label="Toolbar Button"/>
@@ -2893,6 +2899,9 @@ Called by update_extension_histograms.py.-->
   <int value="1961" label="GLICPRIVATE_GETSTATE"/>
   <int value="1962" label="ACCESSIBILITY_PRIVATE_INSTALLTENJI"/>
   <int value="1963" label="GLICPRIVATE_INVOKE"/>
+  <int value="1964" label="INDIGOPRIVATE_READYTORENDER"/>
+  <int value="1965" label="MIMEHANDLER_GETSTREAMINFO"/>
+  <int value="1966" label="INDIGOPRIVATE_GETORIGINALIMAGE"/>
 </enum>
 
 <!-- LINT.ThenChange(//extensions/browser/extension_function_histogram_value.h:HistogramValue) -->
@@ -3181,7 +3190,7 @@ Called by update_extension_permission.py.-->
   <int value="160" label="kWebrtcAudioPrivate"/>
   <int value="161" label="kWebrtcDesktopCapturePrivate"/>
   <int value="162" label="kWebrtcLoggingPrivate"/>
-  <int value="163" label="kWebstorePrivate"/>
+  <int value="163" label="kDeleted_WebstorePrivate"/>
   <int value="164" label="kDeleted_WebstoreWidgetPrivate"/>
   <int value="165" label="kWebView"/>
   <int value="166" label="kWindowShape"/>
@@ -3285,6 +3294,7 @@ Called by update_extension_permission.py.-->
   <int value="264" label="kProxyOverrideRulesPrivate"/>
   <int value="265" label="kGlicPrivate"/>
   <int value="266" label="kGlicPrivateInvoke"/>
+  <int value="267" label="kIndigoPrivate"/>
 </enum>
 
 <enum name="ExtensionPolicyReinstallReason">

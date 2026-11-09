@@ -2114,27 +2114,28 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
       __ MakeDeferredCode(
           [](MaglevAssembler* masm, Register object, Register result_reg,
              ZoneLabelRef done, CheckedObjectToIndex* node) {
-            MaglevAssembler::TemporaryRegisterScope temps(masm);
-            Register map = temps.AcquireScratch();
-            Label check_string;
-            __ LoadMapForCompare(map, object);
-            __ JumpIfNotRoot(
-                map, RootIndex::kHeapNumberMap, &check_string,
-                v8_flags.deopt_every_n_times > 0 ? Label::kFar : Label::kNear);
             {
-              DoubleRegister number_value = temps.AcquireDouble();
-              __ LoadHeapNumberValue(number_value, object);
-              __ TryChangeFloat64ToIndex(
-                  result_reg, number_value, *done,
-                  __ GetDeoptLabel(node, DeoptimizeReason::kNotInt32));
+              MaglevAssembler::TemporaryRegisterScope temps(masm);
+              Register map = temps.AcquireScratch();
+              Label check_string;
+              __ LoadMapForCompare(map, object);
+              __ JumpIfNotRoot(map, RootIndex::kHeapNumberMap, &check_string,
+                               v8_flags.deopt_every_n_times > 0 ? Label::kFar
+                                                                : Label::kNear);
+              {
+                DoubleRegister number_value = temps.AcquireDouble();
+                __ LoadHeapNumberValue(number_value, object);
+                __ TryChangeFloat64ToIndex(
+                    result_reg, number_value, *done,
+                    __ GetDeoptLabel(node, DeoptimizeReason::kNotInt32));
+              }
+              __ bind(&check_string);
+              // The IC will go generic if it encounters something other than a
+              // Number or String key.
+              __ JumpIfStringMap(
+                  map, __ GetDeoptLabel(node, DeoptimizeReason::kNotInt32),
+                  Label::kFar, false);
             }
-            __ bind(&check_string);
-            // The IC will go generic if it encounters something other than a
-            // Number or String key.
-            __ JumpIfStringMap(
-                map, __ GetDeoptLabel(node, DeoptimizeReason::kNotInt32),
-                Label::kFar, false);
-            // map is clobbered after this call.
 
             {
               // TODO(verwaest): Load the cached number from the string hash.
@@ -3194,7 +3195,8 @@ void LoadTaggedFieldByFieldIndex::GenerateCode(MaglevAssembler* masm,
               // Load the property array.
               __ LoadTaggedField(
                   property_array,
-                  FieldMemOperand(object, JSObject::kPropertiesOrHashOffset));
+                  FieldMemOperand(object,
+                                  offsetof(JSObject, properties_or_hash_)));
 
               // See giant comment above. No need to sign extend, negate will
               // handle it.
@@ -3261,7 +3263,7 @@ void LoadTaggedFieldByFieldIndex::GenerateCode(MaglevAssembler* masm,
       // Load the property array.
       __ LoadTaggedField(
           property_array,
-          FieldMemOperand(object, JSObject::kPropertiesOrHashOffset));
+          FieldMemOperand(object, offsetof(JSObject, properties_or_hash_)));
 
       // See giant comment above. No need to sign extend, negate will handle it.
       __ NegateInt32(field_index);
@@ -5016,7 +5018,8 @@ void ExtendPropertiesBackingStore::GenerateCode(MaglevAssembler* masm,
     // The object might still have a hash, stored in properties_or_hash. If
     // properties_or_hash is a SMI, then it's the hash. It can also be an empty
     // PropertyArray.
-    __ LoadTaggedField(scratch, object, JSObject::kPropertiesOrHashOffset);
+    __ LoadTaggedField(scratch, object,
+                       offsetof(JSObject, properties_or_hash_));
 
     Label done;
     __ JumpIfSmi(scratch, &done);
@@ -5048,8 +5051,8 @@ void ExtendPropertiesBackingStore::GenerateCode(MaglevAssembler* masm,
     snapshot.live_tagged_registers.set(new_property_array);
 
     __ StoreTaggedFieldWithWriteBarrier(
-        object, JSObject::kPropertiesOrHashOffset, new_property_array, snapshot,
-        MaglevAssembler::kValueIsDecompressed,
+        object, offsetof(JSObject, properties_or_hash_), new_property_array,
+        snapshot, MaglevAssembler::kValueIsDecompressed,
         MaglevAssembler::kValueCannotBeSmi);
   }
   if (result_reg != new_property_array) {
@@ -6641,18 +6644,16 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
-void CheckedNumberToUint8Clamped::SetValueLocationConstraints() {
+void CheckedNumberOrOddballToUint8Clamped::SetValueLocationConstraints() {
   UseRegister(ValueInput());
   DefineSameAsFirst(this);
-  set_temporaries_needed(1);
   set_double_temporaries_needed(1);
 }
-void CheckedNumberToUint8Clamped::GenerateCode(MaglevAssembler* masm,
-                                               const ProcessingState& state) {
+void CheckedNumberOrOddballToUint8Clamped::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
   Register value = ToRegister(ValueInput());
   Register result_reg = ToRegister(result());
   MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
   DoubleRegister double_value = temps.AcquireDouble();
   Label is_not_smi, min, max, done;
   // Check if Smi.
@@ -6664,13 +6665,17 @@ void CheckedNumberToUint8Clamped::GenerateCode(MaglevAssembler* masm,
   __ CompareInt32AndJumpIf(value, 255, kGreaterThanEqual, &max);
   __ Jump(&done);
   __ bind(&is_not_smi);
-  // Check if HeapNumber, deopt otherwise.
-  __ CompareMapWithRootAndEmitEagerDeoptIf(value, RootIndex::kHeapNumberMap,
-                                           scratch, kNotEqual,
-                                           DeoptimizeReason::kNotANumber, this);
-  // If heap number, get double value.
-  __ LoadHeapNumberValue(double_value, value);
-  // Clamp.
+  // Check if HeapNumber or Oddball, deopt otherwise.
+  Label* deopt_label =
+      __ GetDeoptLabel(this, DeoptimizeReason::kNotANumberOrOddball);
+  JumpToFailIfNotHeapNumberOrOddball(
+      masm, value, TaggedToFloat64ConversionType::kNumberOrOddball,
+      deopt_label);
+  // ToNumber of an oddball reads its to_number_raw field, which lives at the
+  // same offset as HeapNumber::value_, so the same load works for both.
+  __ LoadHeapNumberOrOddballValue(double_value, value);
+  // Clamp. Note: ToUint8Clamped maps NaN (e.g. ToNumber(undefined)) to 0 via
+  // the min path.
   __ ToUint8Clamped(value, double_value, &min, &max, &done);
   __ bind(&min);
   __ Move(result_reg, 0);

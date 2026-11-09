@@ -215,6 +215,42 @@ int CBS_get_until_first(CBS *cbs, CBS *out, uint8_t c) {
   return CBS_get_bytes(cbs, out, split - CBS_data(cbs));
 }
 
+int CBS_get_until_first_of(CBS *cbs, CBS *out, const char *chars) {
+  size_t pos = 0;
+  while (pos < CBS_len(cbs)) {
+    uint8_t c = CBS_data(cbs)[pos];
+    // Special-case for \0 characters. We don't want to match on a null byte,
+    // even though strchr will happily return the \0 at the end of `chars`.
+    if (!c || !strchr(chars, c)) {
+      pos++;
+    } else {
+      break;
+    }
+  }
+  if (pos == CBS_len(cbs)) {
+    return 0;
+  }
+  return CBS_get_bytes(cbs, out, pos);
+}
+
+int CBS_get_until_first_not_of(CBS *cbs, CBS *out, const char *chars) {
+  size_t pos = 0;
+  while (pos < CBS_len(cbs)) {
+    uint8_t c = CBS_data(cbs)[pos];
+    // Special-case for \0 characters. We don't want to match on a null byte,
+    // even though strchr will happily return the \0 at the end of `chars`.
+    if (c && strchr(chars, c)) {
+      pos++;
+    } else {
+      break;
+    }
+  }
+  if (pos == CBS_len(cbs)) {
+    return 0;
+  }
+  return CBS_get_bytes(cbs, out, pos);
+}
+
 int CBS_get_u64_decimal(CBS *cbs, uint64_t *out) {
   uint64_t v = 0;
   int seen_digit = 0;

@@ -39,6 +39,7 @@
 #include "src/base/fpu.h"
 #include "src/base/hashing.h"
 #include "src/base/logging.h"
+#include "src/base/macros.h"
 #include "src/base/platform/memory.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
@@ -123,6 +124,7 @@
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-js.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -569,6 +571,7 @@ std::unordered_set<size_t> Shell::wasm_serialized_bytes_hashes_;
 Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
 bool check_d8_flag_contradictions = true;
+bool exit_on_flag_contradictions = false;
 ShellOptions Shell::options;
 base::OnceType Shell::quit_once_ = V8_ONCE_INIT;
 
@@ -1101,8 +1104,9 @@ std::string GetWorkingDirectory() {
 
 // Returns the directory part of path, without the trailing '/'.
 std::string DirName(const std::string& path) {
-  if (path.starts_with(kDataURLPrefix)) return GetWorkingDirectory();
-  DCHECK(IsAbsolutePath(path));
+  if (!IsAbsolutePath(path)) {
+    return GetWorkingDirectory();
+  }
   size_t last_slash = path.find_last_of('/');
   DCHECK(last_slash != std::string::npos);
   return path.substr(0, last_slash);
@@ -4364,9 +4368,30 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   return global_template;
 }
 
+void Shell::ChangeDirectoryCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
+  if (info.Length() != 1) {
+    isolate->ThrowError("chdir() takes one argument");
+    return;
+  }
+  String::Utf8Value directory(isolate, info[0]);
+  if (*directory == nullptr) {
+    isolate->ThrowError("os.chdir(): String conversion of argument failed.");
+    return;
+  }
+  if (!Shell::ChangeWorkingDirectory(*directory, /*print_error=*/false)) {
+    isolate->ThrowError("os.chdir(): Failed to change directory");
+    return;
+  }
+}
+
 Local<ObjectTemplate> Shell::CreateOSTemplate(Isolate* isolate) {
   Local<ObjectTemplate> os_template = ObjectTemplate::New(isolate);
   AddOSMethods(isolate, os_template);
+  os_template->Set(isolate, "chdir",
+                   FunctionTemplate::New(isolate, ChangeDirectoryCallback));
   os_template->Set(isolate, "name",
                    v8::String::NewFromUtf8Literal(isolate, V8_TARGET_OS_STRING),
                    PropertyAttribute::ReadOnly);
@@ -4490,6 +4515,8 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
                        FunctionTemplate::New(isolate, Shell::ReadFile));
     file_template->Set(isolate, "execute",
                        FunctionTemplate::New(isolate, Shell::ExecuteFile));
+    file_template->Set(isolate, "exists",
+                       FunctionTemplate::New(isolate, Shell::FileExists));
 #if V8_TARGET_OS_LINUX && V8_ENABLE_WEBASSEMBLY
     if (i::v8_flags.experimental_wasm_memory_control) {
       file_template->Set(
@@ -5211,9 +5238,11 @@ V8_NOINLINE void FuzzerMonitor::UndefinedBehavior() {
 V8_NOINLINE void FuzzerMonitor::UseAfterFree() {
   // Use-after-free caught by ASAN.
 #if defined(__clang__)  // GCC-12 detects this at compile time!
+  START_IGNORE_LIFETIME_SAFETY_WARNINGS();
   std::vector<bool>* storage = new std::vector<bool>(3);
   delete storage;
   USE(storage->at(1));
+  END_IGNORE_LIFETIME_SAFETY_WARNINGS();
 #endif
 }
 
@@ -5773,6 +5802,13 @@ bool SourceGroup::Execute(Isolate* isolate) {
 #endif  // V8_FUZZILLI
   for (int i = begin_offset_; i < end_offset_; ++i) {
     const char* arg = argv_[i];
+    if (arg == nullptr) continue;
+    // When we hit -C, switch to the new CWD and stay there
+    if (i == Shell::options.post_filtering_cwd_index) {
+      Shell::ChangeWorkingDirectory(Shell::options.cwd);
+      continue;
+    }
+
     if (strcmp(arg, "-e") == 0 && i + 1 < end_offset_) {
       // Execute argument given to -e option directly.
       HandleScope handle_scope(isolate);
@@ -6356,40 +6392,7 @@ void Worker::Close(const v8::FunctionCallbackInfo<v8::Value>& info) {
   worker->Terminate();
 }
 
-#ifdef V8_TARGET_OS_WIN
-// Enable support for unicode filename path on windows.
-// We first convert ansi encoded argv[i] to utf16 encoded, and then
-// convert utf16 encoded to utf8 encoded with setting the argv[i]
-// to the utf8 encoded arg. We allocate memory for the utf8 encoded
-// arg, and we will free it and reset it to nullptr after using
-// the filename path arg. And because Execute may be called multiple
-// times, we need to free the allocated unicode filename when exit.
 
-// Save the allocated utf8 filenames, and we will free them when exit.
-std::vector<char*> utf8_filenames;
-#include <shellapi.h>
-// Convert utf-16 encoded string to utf-8 encoded.
-char* ConvertUtf16StringToUtf8(const wchar_t* str) {
-  // On Windows wchar_t must be a 16-bit value.
-  static_assert(sizeof(wchar_t) == 2, "wrong wchar_t size");
-  int len =
-      WideCharToMultiByte(CP_UTF8, 0, str, -1, nullptr, 0, nullptr, FALSE);
-  DCHECK_LT(0, len);
-  char* utf8_str = new char[len];
-  utf8_filenames.push_back(utf8_str);
-  WideCharToMultiByte(CP_UTF8, 0, str, -1, utf8_str, len, nullptr, FALSE);
-  return utf8_str;
-}
-
-// Convert ansi encoded argv[i] to utf8 encoded.
-void PreProcessUnicodeFilenameArg(char* argv[], int i) {
-  int argc;
-  wchar_t** wargv = CommandLineToArgvW(GetCommandLineW(), &argc);
-  argv[i] = ConvertUtf16StringToUtf8(wargv[i]);
-  LocalFree(wargv);
-}
-
-#endif
 
 namespace {
 
@@ -6437,7 +6440,6 @@ bool FlagWithArgMatches(const char (&flag)[N], char** flag_value, int argc,
 bool Shell::SetOptions(int argc, char* argv[]) {
   options.d8_path = argv[0];
   bool disallow_unsafe_flags = false;
-  bool exit_on_flag_contradictions = false;
   bool flag_processing_mode_explicitly_set = false;
   for (int i = 0; i < argc; i++) {
     char* flag_value = nullptr;
@@ -6496,13 +6498,20 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       // Ignore any -f flags for compatibility with other stand-alone
       // JavaScript engines.
       continue;
+    } else if (FlagWithArgMatches("-C", &flag_value, argc, argv, &i,
+                                  /*keep_flag=*/true)) {
+      if (options.cwd.WasSpecified()) {
+        FATAL("Only one -C option is allowed.");
+      }
+      options.cwd = flag_value;
+      if (flag_value == argv[i]) {
+        // Clear the separate path arg to simplify late -C checks.
+        argv[i] = nullptr;
+      }
     } else if (FlagMatches("--ignore-unhandled-promises", &argv[i])) {
       options.ignore_unhandled_promises = true;
     } else if (FlagMatches("--isolate", &argv[i], /*keep_flag=*/true)) {
-      // Bundles and isolates together are not supported.
-      if (!options.bundle) {
-        options.num_isolates++;
-      }
+      options.num_isolates++;
     } else if (FlagMatches("--throws", &argv[i])) {
       options.expected_to_throw = true;
     } else if (FlagMatches("--no-fail", &argv[i])) {
@@ -6624,8 +6633,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.max_serializer_memory = atoi(flag_value) * i::MB;
     } else if (FlagMatches("--bundle", &argv[i])) {
       options.bundle = true;
-      // Bundles and isolates together are not supported.
-      options.num_isolates = 1;
 #ifdef V8_FUZZILLI
     } else if (FlagMatches("--fuzzilli-enable-builtins-coverage", &argv[i])) {
       options.fuzzilli_enable_builtins_coverage = true;
@@ -6663,7 +6670,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.flush_denormals = true;
     } else {
 #ifdef V8_TARGET_OS_WIN
-      PreProcessUnicodeFilenameArg(argv, i);
+      Shell::PreProcessUnicodeFilenameArg(argv, i);
 #endif
     }
   }
@@ -6676,15 +6683,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
           if (!flag.WasSpecified()) {
             return;
           }
-          base::OS::PrintError(
+          ReportFlagError(
               "Command-line provided flag --%s is prohibited by "
-              "--disallow-unsafe-flags.\n",
+              "--disallow-unsafe-flags",
               flag.name());
-          if (exit_on_flag_contradictions) {
-            base::OS::ExitProcess(-1);
-          } else {
-            base::OS::Abort();
-          }
         };  // NOLINT(readability/braces)
     // The --disallow-unsafe-flags is meant to block known unsafe configurations
     // and mitigate spurious reports due invalid flag combinations/values. To
@@ -6725,7 +6727,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       " <file>...]\n\n"
       "  -e        execute a string in V8\n"
       "  --shell   run an interactive JavaScript shell\n"
-      "  --module  execute a file as a JavaScript module\n";
+      "  --module  execute a file as a JavaScript module\n"
+      "  -C        set the current working directory before executing "
+      "subsequent files\n";
   using HelpOptions = i::FlagList::HelpOptions;
   i::v8_flags.flag_processing_mode = "abort-on-error";
   static constexpr char kStandaloneD8ShellFlag[] = "--is_standalone_d8_shell";
@@ -6754,7 +6758,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   current->Begin(argv, 1);
   for (int i = 1; i < argc; i++) {
     const char* str = argv[i];
-    if (strcmp(str, "--isolate") == 0) {
+    if (strcmp(str, "-C") == 0 || strncmp(str, "-C=", 3) == 0) {
+      options.post_filtering_cwd_index = i;
+      continue;
+    } else if (strcmp(str, "--isolate") == 0) {
       current->End(i);
       current++;
       current->Begin(argv, i + 1);
@@ -6780,7 +6787,9 @@ int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
   for (int i = 1; i < options.num_isolates; ++i) {
-    options.isolate_sources[i].StartExecuteInThread();
+    if (!options.bundle) {
+      options.isolate_sources[i].StartExecuteInThread();
+    }
   }
 
   // The Context object, created inside RunMainIsolate, is used after the method
@@ -6795,10 +6804,12 @@ int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
   i_isolate->main_thread_local_heap()->ExecuteMainThreadWhileParked(
       [last_run](const i::ParkedScope& parked) {
         for (int i = 1; i < options.num_isolates; ++i) {
-          if (last_run) {
-            options.isolate_sources[i].JoinThread(parked);
-          } else {
-            options.isolate_sources[i].WaitForThread(parked);
+          if (!options.bundle) {
+            if (last_run) {
+              options.isolate_sources[i].JoinThread(parked);
+            } else {
+              options.isolate_sources[i].WaitForThread(parked);
+            }
           }
         }
         WaitForRunningWorkers(parked);
@@ -7474,7 +7485,10 @@ int Shell::Main(int argc, char* argv[]) {
         options.apply_priority ? v8::platform::PriorityMode::kApply
                                : v8::platform::PriorityMode::kDontApply);
   }
+  // The platform is owned by wrapper platform despite the `std::move` below.
+  START_IGNORE_LIFETIME_SAFETY_WARNINGS()
   g_default_platform = g_platform.get();
+  END_IGNORE_LIFETIME_SAFETY_WARNINGS()
   if (i::v8_flags.predictable) {
     g_platform = MakePredictablePlatform(std::move(g_platform));
   }
@@ -7612,7 +7626,8 @@ int Shell::Main(int argc, char* argv[]) {
 #ifdef V8_SANDBOX_TRAP_FUZZER_AVAILABLE
       i::SandboxTrapFuzzer::Enable();
 #else
-      FATAL("Trap-based sandbox fuzzing is not available on this platform.");
+      printf("Trap-based sandbox fuzzing is not available on this platform.");
+      base::OS::ExitProcess(1);
 #endif
     }
 
@@ -7800,15 +7815,11 @@ int Shell::Main(int argc, char* argv[]) {
   if (options.trace_enabled) {
     tracing_controller->StopTracing();
   }
+  g_default_platform = nullptr;
   g_platform.reset();
 
 #ifdef V8_TARGET_OS_WIN
-  // We need to free the allocated utf8 filenames in
-  // PreProcessUnicodeFilenameArg.
-  for (char* utf8_str : utf8_filenames) {
-    delete[] utf8_str;
-  }
-  utf8_filenames.clear();
+  Shell::FreeUnicodeFilenameArgs();
 #endif
 
   Shell::array_buffer_allocator = nullptr;

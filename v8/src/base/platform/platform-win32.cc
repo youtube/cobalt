@@ -610,7 +610,7 @@ static void VPrintHelper(FILE* stream, const char* format, va_list args) {
 }
 
 // Convert utf-8 encoded string to utf-16 encoded.
-static std::wstring ConvertUtf8StringToUtf16(const char* str) {
+std::wstring OS::ConvertUtf8StringToUtf16(const char* str) {
   // On Windows wchar_t must be a 16-bit value.
   static_assert(sizeof(wchar_t) == 2, "wrong wchar_t size");
   std::wstring utf16_str;

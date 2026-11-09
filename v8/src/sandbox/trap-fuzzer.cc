@@ -76,6 +76,9 @@ void SandboxTrapFuzzer::Enable() {
   if (enabled_) return;
   enabled_ = true;
   CHECK(SandboxHardwareSupport::IsActive());
+  CHECK_WITH_MSG(v8_flags.single_threaded,
+                 "ERROR: Trap-based sandbox fuzzer requires --single-threaded. "
+                 "See crbug.com/506943333.\n");
 
   if (!SandboxTesting::IsEnabled()) {
     printf(

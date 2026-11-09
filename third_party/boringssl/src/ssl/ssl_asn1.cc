@@ -838,7 +838,7 @@ SSL_SESSION *SSL_SESSION_from_bytes(const uint8_t *in, size_t in_len,
   CBS cbs;
   CBS_init(&cbs, in, in_len);
   UniquePtr<SSL_SESSION> ret =
-      SSL_SESSION_parse(&cbs, ctx->x509_method, ctx->pool);
+      SSL_SESSION_parse(&cbs, ctx->x509_method, ctx->pool.get());
   if (!ret) {
     return nullptr;
   }

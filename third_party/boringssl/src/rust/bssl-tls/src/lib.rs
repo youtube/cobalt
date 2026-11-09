@@ -44,9 +44,13 @@ pub mod errors;
 mod ffi;
 pub mod io;
 mod methods;
+pub mod sessions;
 #[macro_use]
 #[doc(hidden)]
 mod macros;
+#[cfg(test)]
+#[cfg(feature = "std")]
+mod tests;
 
 pub use ffi::ReceiveBuffer;
 

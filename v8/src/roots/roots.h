@@ -226,6 +226,25 @@ class RootVisitor;
   V(Map, js_shared_array_map, JSSharedArrayMap)                                \
   V(Map, js_atomics_mutex_map, JSAtomicsMutexMap)                              \
   V(Map, js_atomics_condition_map, JSAtomicsConditionMap)                      \
+  V(Map, descriptor_array_map, DescriptorArrayMap)                             \
+  V(Map, strong_descriptor_array_map, StrongDescriptorArrayMap)                \
+  V(Map, on_heap_basic_block_profiler_data_map,                                \
+    OnHeapBasicBlockProfilerDataMap)                                           \
+  V(Map, turbofan_bitset_type_map, TurbofanBitsetTypeMap)                      \
+  V(Map, turbofan_union_type_map, TurbofanUnionTypeMap)                        \
+  V(Map, turbofan_range_type_map, TurbofanRangeTypeMap)                        \
+  V(Map, turbofan_heap_constant_type_map, TurbofanHeapConstantTypeMap)         \
+  V(Map, turbofan_other_number_constant_type_map,                              \
+    TurbofanOtherNumberConstantTypeMap)                                        \
+  V(Map, turboshaft_word32range_type_map, TurboshaftWord32RangeTypeMap)        \
+  V(Map, turboshaft_word32set_type_map, TurboshaftWord32SetTypeMap)            \
+  V(Map, turboshaft_word64range_type_map, TurboshaftWord64RangeTypeMap)        \
+  V(Map, turboshaft_word64set_type_map, TurboshaftWord64SetTypeMap)            \
+  V(Map, turboshaft_float64range_type_map, TurboshaftFloat64RangeTypeMap)      \
+  V(Map, turboshaft_float64set_type_map, TurboshaftFloat64SetTypeMap)          \
+  V(Map, sort_state_map, SortStateMap)                                         \
+  IF_WASM(V, Map, wasm_fast_api_call_data_map, WasmFastApiCallDataMap)         \
+  IF_WASM(V, Map, wasm_string_view_iter_map, WasmStringViewIterMap)            \
   /* Canonical empty values */                                                 \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(ObjectBoilerplateDescription, empty_object_boilerplate_description,        \
@@ -491,7 +510,6 @@ class RootVisitor;
   PUBLIC_SYMBOL_ROOT_LIST(V)                     \
   WELL_KNOWN_SYMBOL_ROOT_LIST(V)                 \
   STRUCT_MAPS_LIST(V)                            \
-  TORQUE_DEFINED_MAP_ROOT_LIST(V)                \
   ALLOCATION_SITE_MAPS_LIST(V)                   \
   NAME_FOR_PROTECTOR_ROOT_LIST(V)                \
   DATA_HANDLER_MAPS_LIST(V)                      \
@@ -763,7 +781,7 @@ class ReadOnlyRoots {
 #undef ROOT_ACCESSOR
 
   V8_INLINE bool IsNameForProtector(Tagged<HeapObject> object) const;
-  V8_INLINE void VerifyNameForProtectorsPages() const;
+  void VerifyNameForProtectorsPages() const;
 #ifdef DEBUG
   void VerifyNameForProtectors();
   void VerifyTypes();

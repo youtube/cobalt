@@ -773,12 +773,9 @@ void Assembler::GrowBuffer(int needed) {
 
   // Compute new buffer size.
   int old_size = buffer_->size();
-  int new_size = std::min(2 * old_size, old_size + 1 * MB);
+  int new_size = ComputeNewBufferSize(BufferGrowthStrategy::kDoubleCapped1MB);
   int space = buffer_space() + (new_size - old_size);
   new_size += (space < needed) ? needed - space : 0;
-
-  // Some internal data structures overflow for very large buffers,
-  // they must ensure that kMaximalBufferSize is not too large.
   if (new_size > kMaximalBufferSize) {
     V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
   }

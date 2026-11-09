@@ -29,17 +29,31 @@
 //       ...
 //     } V8_OBJECT_END;
 //
+//     V8_ABSTRACT_OBJECT class AbstractFoo : public Base {
+//       ...
+//       // unused padding used in subclasses.
+//     } V8_OBJECT_END;
+//
 // These macros are to enable packing down to 4-byte alignment (i.e. int32
 // alignment, since we have int32 fields), and to add warnings which ensure that
-// there is no unwanted within-object padding.
+// there is no unwanted within-object padding. When defining an abstract class,
+// it might be useful to enable packing down to 1-byte alignment to let the
+// subclasses utilize the unused padding in the base class appropriately, use
+// V8_ABSTRACT_OBJECT instead of V8_OBJECT in that case.
 #if V8_CC_GNU
 #define V8_OBJECT_PUSH                                                    \
   _Pragma("pack(push)") _Pragma("pack(4)") _Pragma("GCC diagnostic push") \
+      _Pragma("GCC diagnostic error \"-Wpadded\"")
+#define V8_ABSTRACT_OBJECT_PUSH                                           \
+  _Pragma("pack(push)") _Pragma("pack(1)") _Pragma("GCC diagnostic push") \
       _Pragma("GCC diagnostic error \"-Wpadded\"")
 #define V8_OBJECT_POP _Pragma("pack(pop)") _Pragma("GCC diagnostic pop")
 #elif V8_CC_MSVC
 #define V8_OBJECT_PUSH                                           \
   __pragma(pack(push)) __pragma(pack(4)) __pragma(warning(push)) \
+      __pragma(warning(default : 4820))
+#define V8_ABSTRACT_OBJECT_PUSH                                  \
+  __pragma(pack(push)) __pragma(pack(1)) __pragma(warning(push)) \
       __pragma(warning(default : 4820))
 #define V8_OBJECT_POP __pragma(pack(pop)) __pragma(warning(pop))
 #else
@@ -47,6 +61,7 @@
 #endif
 
 #define V8_OBJECT V8_OBJECT_PUSH
+#define V8_ABSTRACT_OBJECT V8_ABSTRACT_OBJECT_PUSH
 // Compilers wants the pragmas to be a new statement, but we prefer to have
 // V8_OBJECT_END look like part of the definition. Insert a semicolon before the
 // pragma to make the compilers happy, and use static_assert(true) to swallow

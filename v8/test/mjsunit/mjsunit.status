@@ -174,6 +174,7 @@
   'regress/regress-7558019': [PASS, SLOW],
   'regress/regress-499721612': [PASS, SLOW],
   'regress/regress-498010834': [PASS, SLOW],
+  'regress/regress-crbug-503557995-b': [PASS, ['mode != release or simulator_run', SKIP]],
   'regress/wasm/regress-810973': [PASS, SLOW],
   'sealed-array-reduce': [PASS, SLOW],
   'string-replace-gc': [PASS, SLOW],
@@ -979,6 +980,7 @@
   'compiler/fast-api-attributes': [SKIP],
   'compiler/fast-api-interface-types': [SKIP],
   'compiler/fast-api-deopt': [SKIP],
+  'regress/regress-505551322': [SKIP],
   'compiler/regress-crbug-1201011': [SKIP],
   'compiler/regress-crbug-1201057': [SKIP],
   'compiler/regress-crbug-1201082': [SKIP],
@@ -1634,6 +1636,9 @@
   # we cannot run several variants of d8-os simultaneously, since all of them
   # get the same random seed and would generate the same directory name.
   'd8/d8-os': [SKIP],
+
+  # Fails due to CWD changes in arguments processing.
+  'd8/cwd/working_dir': [SKIP],
 
   # Runs flakily OOM because multiple isolates are involved which create many
   # wasm memories each. Before running OOM on a wasm memory allocation we
@@ -2506,6 +2511,7 @@
   'regress/wasm/regress-398439335': [SKIP],
   'regress/wasm/regress-450694568': [SKIP],
   'regress/wasm/regress-504612573': [SKIP],
+  'regress/wasm/regress-504711585': [SKIP],
   'regress/wasm/regress-crbug-1338980': [SKIP],
   'regress/wasm/regress-crbug-1355070': [SKIP],
   'regress/wasm/regress-crbug-1356718': [SKIP],
@@ -2641,6 +2647,7 @@
   # Tests that include types only supported on x64/arm64.
   'compiler/fast-api-sequences-x64': [SKIP],
   'compiler/fast-api-annotations': [SKIP],
+  'regress/regress-505551322': [SKIP],
 }],  # arch != x64 and arch != arm64 and arch != loong64 and arch != mips64 and arch != riscv64'
 
 ##############################################################################
@@ -2710,6 +2717,9 @@
 
   # TODO(v8:14581): Re-enable this once turboshaft frontend is done.
   'turbolev/*': [SKIP],
+
+  # Cannot open trace file 'v8_trace.json' for writing: Permission denied.
+  'd8_trace': [SKIP],
 }], # variant == google3_nociu or variant == google3_icu
 
 # Specific failures for no_icu builds
@@ -2819,6 +2829,7 @@
   'wasm/fast-api-calls-with-wellknown-imports*': [SKIP],
   'regress/wasm/regress-368086282': [SKIP],
   'regress/wasm/regress-438770394': [SKIP],
+  'regress/regress-505551322': [SKIP],
   'regress/regress-366323469': [FAIL],
   'regress/regress-366635361': [FAIL],
   # Maglev doesn't specialise the IsBeingInterpreted runtime func.
@@ -3052,6 +3063,8 @@
   # JSON.parse with --shared-string-table is not supported on background
   # threads right now.
   'shared-memory/regress-crbug-1395117': [SKIP],
+  # Fails due to CWD changes in arguments processing.
+  'd8/cwd/working_dir': [SKIP],
 }],  # variant == code_serializer
 
 ##############################################################################

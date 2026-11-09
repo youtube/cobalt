@@ -49,7 +49,6 @@
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/network/sent_packet.h"
-#include "rtc_base/network_route.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/strings/string_format.h"
 #include "rtc_base/thread.h"
@@ -245,10 +244,6 @@ bool BaseChannel::ConnectToRtpTransport_n(RtpTransportInternal* rtp_transport) {
   rtp_transport_ = rtp_transport;
   rtp_transport_->SubscribeReadyToSend(
       this, [this](bool ready) { OnTransportReadyToSend(ready); });
-  rtp_transport_->SubscribeNetworkRouteChanged(
-      this, [this](std::optional<NetworkRoute> route) {
-        OnNetworkRouteChanged(route);
-      });
   rtp_transport_->SubscribeWritableState(
       this, [this](bool state) { OnWritableState(state); });
   rtp_transport_->SubscribeSentPacket(
@@ -262,7 +257,6 @@ void BaseChannel::DisconnectFromRtpTransport_n() {
   RTC_DCHECK(media_send_channel());
   rtp_transport_->UnregisterRtpDemuxerSink(this);
   rtp_transport_->UnsubscribeReadyToSend(this);
-  rtp_transport_->UnsubscribeNetworkRouteChanged(this);
   rtp_transport_->UnsubscribeWritableState(this);
   rtp_transport_->UnsubscribeSentPacket(this);
   rtp_transport_ = nullptr;
@@ -392,24 +386,6 @@ void BaseChannel::OnWritableState(bool writable) {
   } else {
     ChannelNotWritable_n();
   }
-}
-
-void BaseChannel::OnNetworkRouteChanged(
-    std::optional<NetworkRoute> network_route) {
-  RTC_DCHECK_RUN_ON(network_thread());
-  RTC_DCHECK(network_initialized());
-
-  RTC_LOG(LS_INFO) << "Network route changed for " << ToString();
-
-  NetworkRoute new_route;
-  if (network_route) {
-    new_route = *(network_route);
-  }
-  // Note: When the RTCP-muxing is not enabled, RTCP transport and RTP transport
-  // use the same transport name and MediaChannel::OnNetworkRouteChanged cannot
-  // work correctly. Intentionally leave it broken to simplify the code and
-  // encourage the users to stop using non-muxing RTCP.
-  media_send_channel()->OnNetworkRouteChanged(transport_name(), new_route);
 }
 
 void BaseChannel::OnTransportReadyToSend(bool ready) {

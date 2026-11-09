@@ -557,7 +557,9 @@ RTCError RtpSenderBase::SetParametersInternal(const RtpParameters& parameters,
                  input_parameters = std::move(input_parameters)]() mutable {
                   RTC_DCHECK_RUN_ON(signaling_thread_);
                   if (error.ok()) {
-                    init_parameters_ = std::move(input_parameters);
+                    if (ssrc_ == 0) {
+                      init_parameters_ = std::move(input_parameters);
+                    }
                     cached_parameters_ = *fetched_parameters;
                   }
                   std::move(callback)(std::move(error));
@@ -590,7 +592,9 @@ RTCError RtpSenderBase::SetParametersInternal(const RtpParameters& parameters,
     done_event.Wait(Event::kForever);
     if (blocking_error.ok()) {
       cached_parameters_ = std::move(*blocking_applied_parameters);
-      init_parameters_ = *cached_parameters_;
+      if (ssrc_ == 0) {
+        init_parameters_ = *cached_parameters_;
+      }
     }
     return blocking_error;
   }

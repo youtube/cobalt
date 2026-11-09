@@ -33,6 +33,7 @@
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/base/signin_metrics.h"
 #include "components/signin/public/base/signin_pref_names.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/accounts_in_cookie_jar_info.h"
 #include "components/signin/public/identity_manager/set_accounts_in_cookie_result.h"
 #include "google_apis/credentials_mode.h"
@@ -790,6 +791,10 @@ GaiaCookieManagerService::GetCookieManagerForPartition() {
   return signin_client_->GetCookieManager();
 }
 
+signin::PartitionSuffix GaiaCookieManagerService::GetPartitionSuffix() const {
+  return signin::PartitionSuffix::kDefault;
+}
+
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 std::unique_ptr<signin::BoundSessionOAuthMultiLoginDelegate>
 GaiaCookieManagerService::
@@ -799,6 +804,10 @@ GaiaCookieManagerService::
 
 network::mojom::DeviceBoundSessionManager*
 GaiaCookieManagerService::GetDeviceBoundSessionManagerForPartition() {
+  if (!base::FeatureList::IsEnabled(
+          switches::kEnableOAuthMultiloginStandardCookiesBinding)) {
+    return nullptr;
+  }
   return signin_client_->GetDeviceBoundSessionManager();
 }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)

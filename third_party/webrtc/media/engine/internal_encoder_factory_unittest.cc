@@ -95,20 +95,25 @@ TEST(InternalEncoderFactoryTest, H265IsNotEnabled) {
 TEST(InternalEncoderFactoryTest, QueryCodecSupportWithScalabilityMode) {
   InternalEncoderFactory factory;
   // VP8 and VP9 supported for singles spatial layers.
-  EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::VP8(), "L1T2"),
-              Support(kSupported));
-  EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::VP9Profile0(), "L1T3"),
+  EXPECT_THAT(
+      factory.QueryCodecSupport(SdpVideoFormat::VP8(), "L1T2", std::nullopt),
+      Support(kSupported));
+  EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::VP9Profile0(), "L1T3",
+                                        std::nullopt),
               Support(kVp9Enabled ? kSupported : kUnsupported));
 
   // VP9 support for spatial layers.
-  EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::VP9Profile0(), "L3T3"),
+  EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::VP9Profile0(), "L3T3",
+                                        std::nullopt),
               Support(kVp9Enabled ? kSupported : kUnsupported));
 
   // Invalid scalability modes even though VP8 and H264 are supported.
-  EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::H264(), "L2T2"),
-              Support(kUnsupported));
-  EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::VP8(), "L3T3"),
-              Support(kUnsupported));
+  EXPECT_THAT(
+      factory.QueryCodecSupport(SdpVideoFormat::H264(), "L2T2", std::nullopt),
+      Support(kUnsupported));
+  EXPECT_THAT(
+      factory.QueryCodecSupport(SdpVideoFormat::VP8(), "L3T3", std::nullopt),
+      Support(kUnsupported));
 }
 
 #if defined(RTC_USE_LIBAOM_AV1_ENCODER)
@@ -123,23 +128,27 @@ TEST(InternalEncoderFactoryTest, Av1) {
 TEST(InternalEncoderFactoryTest, QueryCodecSupportNoScalabilityModeAv1) {
   InternalEncoderFactory factory;
   EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::AV1Profile0(),
-                                        /*scalability_mode=*/std::nullopt),
+                                        /*scalability_mode=*/std::nullopt,
+                                        std::nullopt),
               Support(kSupported));
 }
 
 TEST(InternalEncoderFactoryTest, QueryCodecSupportNoScalabilityMode) {
   InternalEncoderFactory factory;
   EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::VP8(),
-                                        /*scalability_mode=*/std::nullopt),
+                                        /*scalability_mode=*/std::nullopt,
+                                        std::nullopt),
               Support(kSupported));
   EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::VP9Profile0(),
-                                        /*scalability_mode=*/std::nullopt),
+                                        /*scalability_mode=*/std::nullopt,
+                                        std::nullopt),
               Support(kVp9Enabled ? kSupported : kUnsupported));
 }
 
 TEST(InternalEncoderFactoryTest, QueryCodecSupportWithScalabilityModeAv1) {
   InternalEncoderFactory factory;
-  EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::AV1Profile0(), "L2T1"),
+  EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::AV1Profile0(), "L2T1",
+                                        std::nullopt),
               Support(kSupported));
 }
 #endif  // defined(RTC_USE_LIBAOM_AV1_ENCODER)

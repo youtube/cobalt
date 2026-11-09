@@ -312,35 +312,6 @@ TF_BUILTIN(ResumeGeneratorBaseline, GeneratorBuiltinsAssembler) {
   Return(LoadJSGeneratorObjectInputOrDebugPos(generator));
 }
 
-TF_BUILTIN(GeneratorNextLazyDeoptContinuation, GeneratorBuiltinsAssembler) {
-  auto generator = Parameter<JSGeneratorObject>(Descriptor::kGenerator);
-  auto result = Parameter<Object>(Descriptor::kResult);
-  auto context = Parameter<Context>(Descriptor::kContext);
-
-  // If the generator is not suspended (i.e., its state is 'executing'),
-  // close it and wrap the return value in IteratorResult.
-  TNode<Smi> result_continuation = LoadObjectField<Smi>(
-      generator, offsetof(JSGeneratorObject, continuation_));
-  TNode<Smi> closed = SmiConstant(JSGeneratorObject::kGeneratorClosed);
-  TNode<Smi> executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
-
-  Label if_final_return(this);
-  GotoIf(SmiEqual(result_continuation, executing), &if_final_return);
-
-  // If yielded, just return the result.
-  Return(result);
-
-  BIND(&if_final_return);
-  {
-    // Close the generator.
-    StoreObjectFieldNoWriteBarrier(
-        generator, offsetof(JSGeneratorObject, continuation_), closed);
-    // Return the wrapped result.
-    Return(CallBuiltin(Builtin::kCreateIterResultObject, context, result,
-                       TrueConstant()));
-  }
-}
-
 #include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal

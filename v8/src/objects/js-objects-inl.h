@@ -139,10 +139,23 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate,
   return true;
 }
 
-ACCESSORS(JSReceiver, raw_properties_or_hash, Tagged<Object>,
-          kPropertiesOrHashOffset)
-RELAXED_ACCESSORS(JSReceiver, raw_properties_or_hash, Tagged<Object>,
-                  kPropertiesOrHashOffset)
+Tagged<JSReceiver::PropertiesOrHash> JSReceiver::raw_properties_or_hash()
+    const {
+  return properties_or_hash_.load();
+}
+void JSReceiver::set_raw_properties_or_hash(Tagged<PropertiesOrHash> value,
+                                            WriteBarrierMode mode) {
+  properties_or_hash_.store(this, value, mode);
+}
+Tagged<JSReceiver::PropertiesOrHash> JSReceiver::raw_properties_or_hash(
+    RelaxedLoadTag tag) const {
+  return properties_or_hash_.Relaxed_Load();
+}
+void JSReceiver::set_raw_properties_or_hash(Tagged<PropertiesOrHash> value,
+                                            RelaxedStoreTag,
+                                            WriteBarrierMode mode) {
+  properties_or_hash_.Relaxed_Store(this, value, mode);
+}
 
 void JSObject::EnsureCanContainHeapObjectElements(
     Isolate* isolate, DirectHandle<JSObject> object) {
@@ -586,114 +599,6 @@ Tagged<Object> JSObject::InObjectPropertyAtOffset(int offset) {
   DCHECK_GE(offset, GetInObjectPropertyOffset(0));
   DCHECK_LT(offset, Size());
   return TaggedField<Object>::load(*this, offset);
-}
-
-Tagged<Object> JSReceiverLayout::raw_properties_or_hash() const {
-  return Cast<JSReceiver>(this)->raw_properties_or_hash();
-}
-Tagged<Object> JSReceiverLayout::raw_properties_or_hash(
-    PtrComprCageBase cage_base) const {
-  return Cast<JSReceiver>(this)->raw_properties_or_hash(cage_base);
-}
-Tagged<Object> JSReceiverLayout::raw_properties_or_hash(
-    RelaxedLoadTag tag) const {
-  return Cast<JSReceiver>(this)->raw_properties_or_hash(tag);
-}
-Tagged<Object> JSReceiverLayout::raw_properties_or_hash(
-    PtrComprCageBase cage_base, RelaxedLoadTag tag) const {
-  return Cast<JSReceiver>(this)->raw_properties_or_hash(cage_base, tag);
-}
-
-void JSReceiverLayout::set_raw_properties_or_hash(Tagged<Object> value,
-                                                  WriteBarrierMode mode) {
-  Cast<JSReceiver>(this)->set_raw_properties_or_hash(value, mode);
-}
-
-void JSReceiverLayout::set_raw_properties_or_hash(Tagged<Object> value,
-                                                  RelaxedStoreTag tag,
-                                                  WriteBarrierMode mode) {
-  Cast<JSReceiver>(this)->set_raw_properties_or_hash(value, tag, mode);
-}
-
-void JSReceiverLayout::SetProperties(Tagged<HeapObject> properties) {
-  Cast<JSReceiver>(this)->SetProperties(properties);
-}
-
-// static
-Maybe<bool> JSReceiverLayout::OrdinaryDefineOwnProperty(
-    Isolate* isolate, DirectHandle<JSObject> object, DirectHandle<Object> key,
-    PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw) {
-  return JSReceiver::OrdinaryDefineOwnProperty(isolate, object, key, desc,
-                                               should_throw);
-}
-
-// static
-Maybe<bool> JSReceiverLayout::IsCompatiblePropertyDescriptor(
-    Isolate* isolate, bool extensible, PropertyDescriptor* desc,
-    PropertyDescriptor* current, DirectHandle<Name> property_name,
-    Maybe<ShouldThrow> should_throw) {
-  return JSReceiver::IsCompatiblePropertyDescriptor(
-      isolate, extensible, desc, current, property_name, should_throw);
-}
-
-// static
-Maybe<bool> JSReceiverLayout::GetOwnPropertyDescriptor(
-    Isolate* isolate, DirectHandle<JSReceiver> object, DirectHandle<Object> key,
-    PropertyDescriptor* desc) {
-  return JSReceiver::GetOwnPropertyDescriptor(isolate, object, key, desc);
-}
-
-bool JSReceiverLayout::HasFastProperties() const {
-  return Cast<JSReceiver>(this)->HasFastProperties();
-}
-bool JSReceiverLayout::HasFastProperties(PtrComprCageBase cage_base) const {
-  return Cast<JSReceiver>(this)->HasFastProperties(cage_base);
-}
-
-Tagged<Object> JSReceiverLayout::GetIdentityHash() {
-  return Cast<JSReceiver>(this)->GetIdentityHash();
-}
-Tagged<Smi> JSReceiverLayout::GetOrCreateIdentityHash(Isolate* isolate) {
-  return Cast<JSReceiver>(this)->GetOrCreateIdentityHash(isolate);
-}
-
-Tagged<PropertyArray> JSReceiverLayout::property_array() const {
-  return Cast<JSReceiver>(this)->property_array();
-}
-Tagged<PropertyArray> JSReceiverLayout::property_array(
-    PtrComprCageBase cage_base) const {
-  return Cast<JSReceiver>(this)->property_array(cage_base);
-}
-
-Tagged<NameDictionary> JSReceiverLayout::property_dictionary() const {
-  return Cast<JSReceiver>(this)->property_dictionary();
-}
-Tagged<NameDictionary> JSReceiverLayout::property_dictionary(
-    PtrComprCageBase cage_base) const {
-  return Cast<JSReceiver>(this)->property_dictionary(cage_base);
-}
-
-Tagged<SwissNameDictionary> JSReceiverLayout::property_dictionary_swiss()
-    const {
-  return Cast<JSReceiver>(this)->property_dictionary_swiss();
-}
-Tagged<SwissNameDictionary> JSReceiverLayout::property_dictionary_swiss(
-    PtrComprCageBase cage_base) const {
-  return Cast<JSReceiver>(this)->property_dictionary_swiss(cage_base);
-}
-
-void JSReceiverLayout::initialize_properties(Isolate* isolate) {
-  Cast<JSReceiver>(this)->initialize_properties(isolate);
-}
-
-std::optional<Tagged<NativeContext>> JSReceiverLayout::GetCreationContext()
-    const {
-  return Cast<JSReceiver>(this)->GetCreationContext();
-}
-
-MaybeDirectHandle<NativeContext> JSReceiverLayout::GetCreationContext(
-    Isolate* isolate) const {
-  return Cast<JSReceiver>(this)->GetCreationContext(isolate);
 }
 
 Tagged<Object> JSObject::InObjectPropertyPutAtIndex(int index,
@@ -1171,25 +1076,25 @@ void JSReceiver::initialize_properties(Isolate* isolate) {
       roots.empty_ordered_property_dictionary()));
   if (map(isolate)->is_dictionary_map()) {
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      WRITE_FIELD(*this, kPropertiesOrHashOffset,
-                  roots.empty_swiss_property_dictionary());
+      properties_or_hash_.store_no_write_barrier(
+          roots.empty_swiss_property_dictionary());
     } else {
-      WRITE_FIELD(*this, kPropertiesOrHashOffset,
-                  roots.empty_property_dictionary());
+      properties_or_hash_.store_no_write_barrier(
+          roots.empty_property_dictionary());
     }
   } else {
-    WRITE_FIELD(*this, kPropertiesOrHashOffset, roots.empty_fixed_array());
+    properties_or_hash_.store_no_write_barrier(roots.empty_fixed_array());
   }
 }
 
 DEF_GETTER(JSReceiver, HasFastProperties, bool) {
-  Tagged<Object> raw_properties_or_hash_obj =
-      raw_properties_or_hash(cage_base, kRelaxedLoad);
-  DCHECK(IsSmi(raw_properties_or_hash_obj) ||
-         ((IsGlobalDictionary(raw_properties_or_hash_obj, cage_base) ||
-           IsPropertyDictionary(raw_properties_or_hash_obj, cage_base)) ==
+  Tagged<JSReceiver::PropertiesOrHash> properties_or_hash_obj =
+      raw_properties_or_hash(kRelaxedLoad);
+  DCHECK(IsSmi(properties_or_hash_obj) ||
+         ((IsGlobalDictionary(properties_or_hash_obj, cage_base) ||
+           IsPropertyDictionary(properties_or_hash_obj, cage_base)) ==
           map(cage_base)->is_dictionary_map()));
-  USE(raw_properties_or_hash_obj);
+  USE(properties_or_hash_obj);
   return !map(cage_base)->is_dictionary_map();
 }
 
@@ -1198,7 +1103,7 @@ DEF_GETTER(JSReceiver, property_dictionary, Tagged<NameDictionary>) {
   DCHECK(!HasFastProperties(cage_base));
   DCHECK(!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL);
 
-  Tagged<Object> prop = raw_properties_or_hash(cage_base);
+  Tagged<JSReceiver::PropertiesOrHash> prop = raw_properties_or_hash();
   if (IsSmi(prop)) {
     return GetReadOnlyRoots().empty_property_dictionary();
   }
@@ -1210,7 +1115,7 @@ DEF_GETTER(JSReceiver, property_dictionary_swiss, Tagged<SwissNameDictionary>) {
   DCHECK(!HasFastProperties(cage_base));
   DCHECK(V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL);
 
-  Tagged<Object> prop = raw_properties_or_hash(cage_base);
+  Tagged<JSReceiver::PropertiesOrHash> prop = raw_properties_or_hash();
   if (IsSmi(prop)) {
     return GetReadOnlyRoots().empty_swiss_property_dictionary();
   }
@@ -1221,7 +1126,7 @@ DEF_GETTER(JSReceiver, property_dictionary_swiss, Tagged<SwissNameDictionary>) {
 // the heap from this.
 DEF_GETTER(JSReceiver, property_array, Tagged<PropertyArray>) {
   DCHECK(HasFastProperties(cage_base));
-  Tagged<Object> prop = raw_properties_or_hash(cage_base);
+  Tagged<JSReceiver::PropertiesOrHash> prop = raw_properties_or_hash();
   if (IsSmi(prop) || prop == GetReadOnlyRoots().empty_fixed_array()) {
     return GetReadOnlyRoots().empty_property_array();
   }

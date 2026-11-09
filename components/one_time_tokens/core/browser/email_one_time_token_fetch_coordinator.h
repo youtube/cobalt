@@ -27,7 +27,8 @@ class EmailOneTimeTokenFetchCoordinator {
 
     // Called when the coordinator authorizes a network request to be sent.
     virtual void OnCanSendNetworkRequest(
-        const OneTimeTokenBackendNotification& notification) = 0;
+        const OneTimeTokenBackendNotification& notification,
+        base::TimeTicks trigger_time) = 0;
   };
 
   explicit EmailOneTimeTokenFetchCoordinator(Delegate& delegate);
@@ -49,11 +50,16 @@ class EmailOneTimeTokenFetchCoordinator {
  private:
   void ProcessQueue();
 
+  struct QueuedNotification {
+    OneTimeTokenBackendNotification notification;
+    base::TimeTicks entry_time;
+  };
+
   const raw_ref<Delegate> delegate_;
 
   // A queue of notifications waiting to be processed when the number of active
   // requests is below kMaxConcurrentRequests.
-  std::deque<OneTimeTokenBackendNotification> pending_queue_;
+  std::deque<QueuedNotification> pending_queue_;
 
   // The notifications currently undergoing a network fetch, keyed by their
   // unique encrypted_message_reference.

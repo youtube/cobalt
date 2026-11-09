@@ -56,6 +56,7 @@ export class LocationIconElement extends CrLitElement {
     text: '',
     isClickable: false,
     isTextDangerous: false,
+    isVisible: true,
   };
 
   accessor clickable: boolean = false;
@@ -127,7 +128,7 @@ export class LocationIconElement extends CrLitElement {
   }
 
   protected onPointerdown_(e: PointerEvent) {
-    if (this.clickable && e.button === 0) {
+    if (this.clickable && (e.button === 0 || e.button === 2)) {
       BrowserProxyImpl.getInstance().toolbarUIHandler.onLhsChipMousePressed(
           LhsChipIdentifier.kLocationIcon);
     }

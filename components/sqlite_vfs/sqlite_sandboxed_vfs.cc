@@ -150,6 +150,16 @@ SqliteSandboxedVfsDelegate::GetPathAccess(const base::FilePath& file_path) {
     return std::nullopt;
   }
 
+  // SQLite truncates files to zero length rather than deleting them in various
+  // places (e.g., the main journal file when using journal_mode=TRUNCATE). To
+  // accommodate this, the built-in VFSes all treat a zero-length file as if it
+  // does not exist. The same must be done here. One side-effect of not doing
+  // this is that the SQLite pager will treat the presence of an empty
+  // write-ahead log file as an indication that the database is in WAL mode.
+  if (it->second->GetFile().GetLength() == 0) {
+    return std::nullopt;
+  }
+
   // The files will never be received without read access.
   // Write access is conditional on the file being opened for write.
   return sql::SandboxedVfs::PathAccessInfo{
@@ -178,7 +188,7 @@ void SqliteSandboxedVfsDelegate::UnregisterSandboxedFiles(
   num_erased = sandboxed_files_map_.erase(
       sqlite_vfs_file_set.GetJournalVirtualFilePath());
   CHECK_EQ(num_erased, 1U);
-  if (sqlite_vfs_file_set.wal_journal_mode()) {
+  if (sqlite_vfs_file_set.has_wal_file()) {
     num_erased = sandboxed_files_map_.erase(
         sqlite_vfs_file_set.GetWalJournalVirtualFilePath());
     CHECK_EQ(num_erased, 1U);
@@ -199,7 +209,7 @@ SqliteSandboxedVfsDelegate::RegisterSandboxedFiles(
       sqlite_vfs_file_set.GetJournalVirtualFilePath(),
       sqlite_vfs_file_set.GetSandboxedJournalFile());
   CHECK(inserted);
-  if (sqlite_vfs_file_set.wal_journal_mode()) {
+  if (sqlite_vfs_file_set.has_wal_file()) {
     std::tie(it, inserted) = sandboxed_files_map_.emplace(
         sqlite_vfs_file_set.GetWalJournalVirtualFilePath(),
         sqlite_vfs_file_set.GetSandboxedWalJournalFile());

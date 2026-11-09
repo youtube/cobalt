@@ -1933,16 +1933,6 @@
         "Upload-Perf-Win11-Clang-NUC11TZi5-GPU-IntelIrisXe-x86_64-Release-All-Vulkan"
       ]
     },
-    "Perf-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-ANGLE": {
-      "tasks": [
-        "Upload-Perf-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-ANGLE"
-      ]
-    },
-    "Perf-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-Graphite_Dawn_D3D11": {
-      "tasks": [
-        "Upload-Perf-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-Graphite_Dawn_D3D11"
-      ]
-    },
     "Perf-Win11-Clang-NUC6i5SYK-GPU-IntelIris540-x86_64-Release-All-ANGLE": {
       "tasks": [
         "Upload-Perf-Win11-Clang-NUC6i5SYK-GPU-IntelIris540-x86_64-Release-All-ANGLE"
@@ -3521,21 +3511,6 @@
     "Test-Win11-Clang-NUC11TZi5-GPU-IntelIrisXe-x86_64-Release-All-Vulkan": {
       "tasks": [
         "Upload-Test-Win11-Clang-NUC11TZi5-GPU-IntelIrisXe-x86_64-Release-All-Vulkan"
-      ]
-    },
-    "Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Debug-All-Graphite_Dawn_D3D11": {
-      "tasks": [
-        "Upload-Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Debug-All-Graphite_Dawn_D3D11"
-      ]
-    },
-    "Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-ANGLE": {
-      "tasks": [
-        "Upload-Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-ANGLE"
-      ]
-    },
-    "Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-Graphite_Dawn_D3D11": {
-      "tasks": [
-        "Upload-Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-Graphite_Dawn_D3D11"
       ]
     },
     "Test-Win11-Clang-NUC6i5SYK-GPU-IntelIris540-x86_64-Debug-All-ANGLE": {
@@ -27393,7 +27368,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         }
       ],
       "command": [
@@ -33474,7 +33449,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -33567,7 +33542,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -33660,7 +33635,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -33753,7 +33728,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -33846,7 +33821,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -33939,7 +33914,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -34032,7 +34007,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -34125,7 +34100,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -34218,7 +34193,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -34311,7 +34286,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -34404,7 +34379,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -34497,7 +34472,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -34590,7 +34565,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -34683,7 +34658,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -34776,7 +34751,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -34869,7 +34844,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -34962,7 +34937,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -35055,7 +35030,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -35148,7 +35123,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -35241,7 +35216,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -35334,7 +35309,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -35427,7 +35402,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -35525,7 +35500,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -35617,7 +35592,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -35709,7 +35684,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -35801,7 +35776,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -35893,7 +35868,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -35985,7 +35960,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -36082,7 +36057,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -36174,7 +36149,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -36267,7 +36242,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -36360,7 +36335,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -36458,7 +36433,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -36560,7 +36535,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -36662,7 +36637,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -36759,7 +36734,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -36866,7 +36841,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -36968,7 +36943,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -37060,7 +37035,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -37152,7 +37127,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -37244,7 +37219,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -37336,7 +37311,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -37430,7 +37405,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -37522,7 +37497,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -37614,7 +37589,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -37706,7 +37681,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -37798,7 +37773,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -37890,7 +37865,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -37982,7 +37957,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -38074,7 +38049,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -38097,190 +38072,6 @@
       ],
       "dimensions": [
         "gpu:8086:9a49-31.0.101.5333",
-        "os:Windows-11-26100",
-        "pool:Skia"
-      ],
-      "environment": {
-        "RECIPES_USE_PY3": "true",
-        "VPYTHON_LOG_TRACE": "1"
-      },
-      "env_prefixes": {
-        "PATH": [
-          "cipd_bin_packages",
-          "cipd_bin_packages/bin",
-          "cipd_bin_packages/cpython3",
-          "cipd_bin_packages/cpython3/bin"
-        ],
-        "VPYTHON_DEFAULT_SPEC": [
-          "skia/.vpython3"
-        ],
-        "VPYTHON_VIRTUALENV_ROOT": [
-          "cache/vpython3"
-        ]
-      },
-      "execution_timeout_ns": 14400000000000,
-      "expiration_ns": 72000000000000,
-      "extra_tags": {
-        "log_location": "logdog://logs.chromium.org/skia/${SWARMING_TASK_ID}/+/annotations"
-      },
-      "io_timeout_ns": 14400000000000,
-      "max_attempts": 2,
-      "outputs": [
-        "perf"
-      ]
-    },
-    "Perf-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-ANGLE": {
-      "caches": [
-        {
-          "name": "vpython3",
-          "path": "cache/vpython3"
-        }
-      ],
-      "casSpec": "perf",
-      "cipd_packages": [
-        {
-          "name": "infra/3pp/tools/cpython3/${platform}",
-          "path": "cipd_bin_packages/cpython3",
-          "version": "version:3@3.11.9.chromium.36"
-        },
-        {
-          "name": "infra/tools/luci-auth/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:052f30c112efd1fdf903976424aebfaee124ba54"
-        },
-        {
-          "name": "infra/tools/luci/kitchen/${platform}",
-          "path": ".",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "infra/tools/luci/vpython3/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "skia/bots/skimage",
-          "path": "skimage",
-          "version": "version:47"
-        },
-        {
-          "name": "skia/bots/skp",
-          "path": "skp",
-          "version": "version:562"
-        },
-        {
-          "name": "skia/bots/svg",
-          "path": "svg",
-          "version": "version:14"
-        }
-      ],
-      "command": [
-        "cipd_bin_packages/vpython3${EXECUTABLE_SUFFIX}",
-        "-u",
-        "skia/infra/bots/run_recipe.py",
-        "${ISOLATED_OUTDIR}",
-        "perf",
-        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Perf-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-ANGLE\",\"do_upload\":\"true\",\"nanobench_flags\":\"[\\\"nanobench\\\",\\\"--pre_log\\\",\\\"--gpuStatsDump\\\",\\\"true\\\",\\\"--nocpu\\\",\\\"--config\\\",\\\"angle_d3d11_es2\\\",\\\"angle_d3d11_es3\\\",\\\"--internalSamples\\\",\\\"8\\\",\\\"--match\\\",\\\"~inc0.gif\\\",\\\"~inc1.gif\\\",\\\"~incInterlaced.gif\\\",\\\"~inc0.jpg\\\",\\\"~incGray.jpg\\\",\\\"~inc0.wbmp\\\",\\\"~inc1.wbmp\\\",\\\"~inc0.webp\\\",\\\"~inc1.webp\\\",\\\"~inc0.ico\\\",\\\"~inc1.ico\\\",\\\"~inc0.png\\\",\\\"~inc1.png\\\",\\\"~inc2.png\\\",\\\"~inc12.png\\\",\\\"~inc13.png\\\",\\\"~inc14.png\\\",\\\"~inc0.webp\\\",\\\"~inc1.webp\\\",\\\"--key\\\",\\\"arch\\\",\\\"x86_64\\\",\\\"compiler\\\",\\\"Clang\\\",\\\"cpu_or_gpu\\\",\\\"GPU\\\",\\\"cpu_or_gpu_value\\\",\\\"IntelIris6100\\\",\\\"extra_config\\\",\\\"ANGLE\\\",\\\"model\\\",\\\"NUC5i7RYH\\\",\\\"os\\\",\\\"Win11\\\"]\",\"nanobench_properties\":\"{\\\"gitHash\\\":\\\"<(REVISION)\\\",\\\"issue\\\":\\\"<(ISSUE)\\\",\\\"patch_storage\\\":\\\"<(PATCH_STORAGE)\\\",\\\"patchset\\\":\\\"<(PATCHSET)\\\",\\\"swarming_bot_id\\\":\\\"${SWARMING_BOT_ID}\\\",\\\"swarming_task_id\\\":\\\"${SWARMING_TASK_ID}\\\"}\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"resources\":\"true\",\"revision\":\"<(REVISION)\",\"skps\":\"true\",\"svgs\":\"true\",\"swarm_out_dir\":\"perf\",\"task_id\":\"<(TASK_ID)\"}",
-        "skia"
-      ],
-      "dependencies": [
-        "Build-Win-Clang-x86_64-Release-ANGLE",
-        "Housekeeper-PerCommit-BundleRecipes"
-      ],
-      "dimensions": [
-        "gpu:8086:162b-20.19.15.5171",
-        "os:Windows-11-26100",
-        "pool:Skia"
-      ],
-      "environment": {
-        "RECIPES_USE_PY3": "true",
-        "VPYTHON_LOG_TRACE": "1"
-      },
-      "env_prefixes": {
-        "PATH": [
-          "cipd_bin_packages",
-          "cipd_bin_packages/bin",
-          "cipd_bin_packages/cpython3",
-          "cipd_bin_packages/cpython3/bin"
-        ],
-        "VPYTHON_DEFAULT_SPEC": [
-          "skia/.vpython3"
-        ],
-        "VPYTHON_VIRTUALENV_ROOT": [
-          "cache/vpython3"
-        ]
-      },
-      "execution_timeout_ns": 14400000000000,
-      "expiration_ns": 72000000000000,
-      "extra_tags": {
-        "log_location": "logdog://logs.chromium.org/skia/${SWARMING_TASK_ID}/+/annotations"
-      },
-      "io_timeout_ns": 14400000000000,
-      "max_attempts": 2,
-      "outputs": [
-        "perf"
-      ]
-    },
-    "Perf-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-Graphite_Dawn_D3D11": {
-      "caches": [
-        {
-          "name": "vpython3",
-          "path": "cache/vpython3"
-        }
-      ],
-      "casSpec": "perf",
-      "cipd_packages": [
-        {
-          "name": "infra/3pp/tools/cpython3/${platform}",
-          "path": "cipd_bin_packages/cpython3",
-          "version": "version:3@3.11.9.chromium.36"
-        },
-        {
-          "name": "infra/tools/luci-auth/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:052f30c112efd1fdf903976424aebfaee124ba54"
-        },
-        {
-          "name": "infra/tools/luci/kitchen/${platform}",
-          "path": ".",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "infra/tools/luci/vpython3/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "skia/bots/skimage",
-          "path": "skimage",
-          "version": "version:47"
-        },
-        {
-          "name": "skia/bots/skp",
-          "path": "skp",
-          "version": "version:562"
-        },
-        {
-          "name": "skia/bots/svg",
-          "path": "svg",
-          "version": "version:14"
-        }
-      ],
-      "command": [
-        "cipd_bin_packages/vpython3${EXECUTABLE_SUFFIX}",
-        "-u",
-        "skia/infra/bots/run_recipe.py",
-        "${ISOLATED_OUTDIR}",
-        "perf",
-        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Perf-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-Graphite_Dawn_D3D11\",\"do_upload\":\"true\",\"nanobench_flags\":\"[\\\"nanobench\\\",\\\"--pre_log\\\",\\\"--gpuStatsDump\\\",\\\"true\\\",\\\"--nocpu\\\",\\\"--config\\\",\\\"grdawn_d3d11\\\",\\\"--internalSamples\\\",\\\"4\\\",\\\"--match\\\",\\\"~inc0.gif\\\",\\\"~inc1.gif\\\",\\\"~incInterlaced.gif\\\",\\\"~inc0.jpg\\\",\\\"~incGray.jpg\\\",\\\"~inc0.wbmp\\\",\\\"~inc1.wbmp\\\",\\\"~inc0.webp\\\",\\\"~inc1.webp\\\",\\\"~inc0.ico\\\",\\\"~inc1.ico\\\",\\\"~inc0.png\\\",\\\"~inc1.png\\\",\\\"~inc2.png\\\",\\\"~inc12.png\\\",\\\"~inc13.png\\\",\\\"~inc14.png\\\",\\\"~inc0.webp\\\",\\\"~inc1.webp\\\",\\\"--key\\\",\\\"arch\\\",\\\"x86_64\\\",\\\"compiler\\\",\\\"Clang\\\",\\\"cpu_or_gpu\\\",\\\"GPU\\\",\\\"cpu_or_gpu_value\\\",\\\"IntelIris6100\\\",\\\"extra_config\\\",\\\"Graphite_Dawn_D3D11\\\",\\\"model\\\",\\\"NUC5i7RYH\\\",\\\"os\\\",\\\"Win11\\\"]\",\"nanobench_properties\":\"{\\\"gitHash\\\":\\\"<(REVISION)\\\",\\\"issue\\\":\\\"<(ISSUE)\\\",\\\"patch_storage\\\":\\\"<(PATCH_STORAGE)\\\",\\\"patchset\\\":\\\"<(PATCHSET)\\\",\\\"swarming_bot_id\\\":\\\"${SWARMING_BOT_ID}\\\",\\\"swarming_task_id\\\":\\\"${SWARMING_TASK_ID}\\\"}\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"resources\":\"true\",\"revision\":\"<(REVISION)\",\"skps\":\"true\",\"svgs\":\"true\",\"swarm_out_dir\":\"perf\",\"task_id\":\"<(TASK_ID)\"}",
-        "skia"
-      ],
-      "dependencies": [
-        "Build-Win-Clang-x86_64-Release-Graphite_Dawn_D3D11",
-        "Housekeeper-PerCommit-BundleRecipes"
-      ],
-      "dimensions": [
-        "gpu:8086:162b-20.19.15.5171",
         "os:Windows-11-26100",
         "pool:Skia"
       ],
@@ -38350,7 +38141,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -38442,7 +38233,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -38534,7 +38325,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -38626,7 +38417,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -38718,7 +38509,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -38810,7 +38601,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -38902,7 +38693,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -38994,7 +38785,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -39086,7 +38877,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -39178,7 +38969,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -39270,7 +39061,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -39362,7 +39153,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -39454,7 +39245,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -39546,7 +39337,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -39638,7 +39429,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -39730,7 +39521,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -39822,7 +39613,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -39914,7 +39705,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -40006,7 +39797,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -40098,7 +39889,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -40190,7 +39981,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -40282,7 +40073,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -40374,7 +40165,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -40466,7 +40257,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -40558,7 +40349,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -40650,7 +40441,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -40742,7 +40533,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -40834,7 +40625,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -41470,7 +41261,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -41567,7 +41358,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -41664,7 +41455,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -41761,7 +41552,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -51430,7 +51221,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -51530,7 +51321,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -51630,7 +51421,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -51730,7 +51521,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -51830,7 +51621,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -51930,7 +51721,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -52030,7 +51821,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -52130,7 +51921,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -52230,7 +52021,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -52330,7 +52121,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -52430,7 +52221,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -52535,7 +52326,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/skparagraph",
@@ -52640,7 +52431,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -52740,7 +52531,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -52840,7 +52631,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -52940,7 +52731,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -53040,7 +52831,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -53140,7 +52931,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -53240,7 +53031,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -53340,7 +53131,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -53440,7 +53231,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/skparagraph",
@@ -53545,7 +53336,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/skparagraph",
@@ -53650,7 +53441,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -53745,7 +53536,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -53838,7 +53629,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -53936,7 +53727,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -54036,7 +53827,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -54136,7 +53927,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -54236,7 +54027,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/skparagraph",
@@ -54341,7 +54132,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -54441,7 +54232,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -54541,7 +54332,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -54641,7 +54432,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -54741,7 +54532,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -54836,7 +54627,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -54929,7 +54720,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -55032,7 +54823,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/skparagraph",
@@ -55137,7 +54928,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -55237,7 +55028,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -55337,7 +55128,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -55437,7 +55228,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -55537,7 +55328,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -55637,7 +55428,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -55737,7 +55528,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -55837,7 +55628,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/skparagraph",
@@ -55942,7 +55733,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/skparagraph",
@@ -56047,7 +55838,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -56142,7 +55933,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -56235,7 +56026,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -56328,7 +56119,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -56426,7 +56217,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -56526,7 +56317,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -56626,7 +56417,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -56726,7 +56517,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/skparagraph",
@@ -56831,7 +56622,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -56931,7 +56722,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -57031,7 +56822,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -57131,7 +56922,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -57231,7 +57022,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -57326,7 +57117,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -57419,7 +57210,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -57522,7 +57313,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -57626,7 +57417,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -57725,7 +57516,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -57825,7 +57616,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -57925,7 +57716,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -58023,7 +57814,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -58123,7 +57914,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -58223,7 +58014,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -58321,7 +58112,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -58419,7 +58210,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/skparagraph",
@@ -58529,7 +58320,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/skparagraph",
@@ -58639,7 +58430,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/skparagraph",
@@ -58834,7 +58625,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -58934,7 +58725,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -59034,7 +58825,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -59134,7 +58925,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -59234,7 +59025,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -59334,7 +59125,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -59434,7 +59225,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -59534,7 +59325,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -59634,7 +59425,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -59734,7 +59525,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -59834,7 +59625,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -59932,7 +59723,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -60032,7 +59823,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -60132,7 +59923,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -60232,7 +60023,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -60332,7 +60123,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -60431,7 +60222,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -60530,7 +60321,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -60630,7 +60421,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -60730,7 +60521,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -60830,7 +60621,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -60930,7 +60721,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -61030,7 +60821,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -61130,7 +60921,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/skparagraph",
@@ -61234,7 +61025,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -61333,7 +61124,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -61432,7 +61223,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -61536,7 +61327,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -61640,7 +61431,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -61744,7 +61535,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -61838,7 +61629,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -61940,7 +61731,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -62039,7 +61830,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -62143,7 +61934,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -62247,7 +62038,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -62341,7 +62132,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -62438,7 +62229,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -62542,7 +62333,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -62641,7 +62432,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -62746,7 +62537,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -62855,7 +62646,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -62962,7 +62753,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -63071,7 +62862,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -63178,7 +62969,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -63285,7 +63076,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -63387,7 +63178,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -63491,7 +63282,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -63593,7 +63384,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -63702,7 +63493,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -63806,7 +63597,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -63910,7 +63701,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -64019,7 +63810,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -64289,7 +64080,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -64381,7 +64172,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -64473,7 +64264,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -64565,7 +64356,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -64657,7 +64448,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -64671,7 +64462,7 @@
         "skia/infra/bots/run_recipe.py",
         "${ISOLATED_OUTDIR}",
         "test",
-        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Test-Win11-Clang-Dell3930-GPU-GTX1660-x86_64-Debug-All-ANGLE\",\"dm_flags\":\"[\\\"dm\\\",\\\"--nameByHash\\\",\\\"--key\\\",\\\"arch\\\",\\\"x86_64\\\",\\\"compiler\\\",\\\"Clang\\\",\\\"configuration\\\",\\\"Debug\\\",\\\"cpu_or_gpu\\\",\\\"GPU\\\",\\\"cpu_or_gpu_value\\\",\\\"GTX1660\\\",\\\"extra_config\\\",\\\"ANGLE\\\",\\\"model\\\",\\\"Dell3930\\\",\\\"os\\\",\\\"Win11\\\",\\\"style\\\",\\\"default\\\",\\\"--randomProcessorTest\\\",\\\"--nocpu\\\",\\\"--config\\\",\\\"angle_d3d11_es3\\\",\\\"angle_d3d11_es3_msaa4\\\",\\\"angle_d3d11_es3_dmsaa\\\",\\\"--src\\\",\\\"tests\\\",\\\"gm\\\",\\\"image\\\",\\\"colorImage\\\",\\\"svg\\\",\\\"--skip\\\",\\\"_\\\",\\\"svg\\\",\\\"_\\\",\\\"svgparse_\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"Skottie_Shaper_CTStrict\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2-16.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgba32abf.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24prof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24lprof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"8bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"4bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"32bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"24bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"testimgari.jpg\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle8-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle4-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"error\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced1.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced2.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced3.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".arw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".cr2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".dng\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nrw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".orf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".raf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".rw2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".pef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".srw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ARW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".CR2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".DNG\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NRW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ORF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RAF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RW2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".PEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".SRW\\\",\\\"--match\\\",\\\"~BlurMaskBiggerThanDest\\\",\\\"--nonativeFonts\\\",\\\"--verbose\\\"]\",\"dm_properties\":\"{\\\"buildbucket_build_id\\\":\\\"<(BUILDBUCKET_BUILD_ID)\\\",\\\"builder\\\":\\\"Test-Win11-Clang-Dell3930-GPU-GTX1660-x86_64-Debug-All-ANGLE\\\",\\\"gitHash\\\":\\\"<(REVISION)\\\",\\\"issue\\\":\\\"<(ISSUE)\\\",\\\"patch_storage\\\":\\\"<(PATCH_STORAGE)\\\",\\\"patchset\\\":\\\"<(PATCHSET)\\\",\\\"swarming_bot_id\\\":\\\"${SWARMING_BOT_ID}\\\",\\\"swarming_task_id\\\":\\\"${SWARMING_TASK_ID}\\\",\\\"task_id\\\":\\\"<(TASK_ID)\\\"}\",\"do_upload\":\"true\",\"gold_hashes_url\":\"https://gold.skia.org/json/v1/hashes\",\"images\":\"true\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"resources\":\"true\",\"revision\":\"<(REVISION)\",\"skps\":\"true\",\"svgs\":\"true\",\"swarm_out_dir\":\"test\",\"task_id\":\"<(TASK_ID)\"}",
+        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Test-Win11-Clang-Dell3930-GPU-GTX1660-x86_64-Debug-All-ANGLE\",\"dm_flags\":\"[\\\"dm\\\",\\\"--nameByHash\\\",\\\"--key\\\",\\\"arch\\\",\\\"x86_64\\\",\\\"compiler\\\",\\\"Clang\\\",\\\"configuration\\\",\\\"Debug\\\",\\\"cpu_or_gpu\\\",\\\"GPU\\\",\\\"cpu_or_gpu_value\\\",\\\"GTX1660\\\",\\\"extra_config\\\",\\\"ANGLE\\\",\\\"model\\\",\\\"Dell3930\\\",\\\"os\\\",\\\"Win11\\\",\\\"style\\\",\\\"default\\\",\\\"--randomProcessorTest\\\",\\\"--nocpu\\\",\\\"--config\\\",\\\"angle_d3d11_es3\\\",\\\"angle_d3d11_es3_msaa4\\\",\\\"angle_d3d11_es3_dmsaa\\\",\\\"--src\\\",\\\"tests\\\",\\\"gm\\\",\\\"image\\\",\\\"colorImage\\\",\\\"svg\\\",\\\"--skip\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"SkSLReturnsValueOnEveryPathES3_Ganesh\\\",\\\"_\\\",\\\"svg\\\",\\\"_\\\",\\\"svgparse_\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"Skottie_Shaper_CTStrict\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2-16.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgba32abf.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24prof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24lprof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"8bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"4bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"32bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"24bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"testimgari.jpg\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle8-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle4-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"error\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced1.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced2.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced3.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".arw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".cr2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".dng\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nrw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".orf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".raf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".rw2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".pef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".srw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ARW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".CR2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".DNG\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NRW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ORF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RAF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RW2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".PEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".SRW\\\",\\\"--match\\\",\\\"~BlurMaskBiggerThanDest\\\",\\\"--nonativeFonts\\\",\\\"--verbose\\\"]\",\"dm_properties\":\"{\\\"buildbucket_build_id\\\":\\\"<(BUILDBUCKET_BUILD_ID)\\\",\\\"builder\\\":\\\"Test-Win11-Clang-Dell3930-GPU-GTX1660-x86_64-Debug-All-ANGLE\\\",\\\"gitHash\\\":\\\"<(REVISION)\\\",\\\"issue\\\":\\\"<(ISSUE)\\\",\\\"patch_storage\\\":\\\"<(PATCH_STORAGE)\\\",\\\"patchset\\\":\\\"<(PATCHSET)\\\",\\\"swarming_bot_id\\\":\\\"${SWARMING_BOT_ID}\\\",\\\"swarming_task_id\\\":\\\"${SWARMING_TASK_ID}\\\",\\\"task_id\\\":\\\"<(TASK_ID)\\\"}\",\"do_upload\":\"true\",\"gold_hashes_url\":\"https://gold.skia.org/json/v1/hashes\",\"images\":\"true\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"resources\":\"true\",\"revision\":\"<(REVISION)\",\"skps\":\"true\",\"svgs\":\"true\",\"swarm_out_dir\":\"test\",\"task_id\":\"<(TASK_ID)\"}",
         "skia"
       ],
       "dependencies": [
@@ -64749,7 +64540,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -64841,7 +64632,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -64933,7 +64724,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -65025,7 +64816,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -65117,7 +64908,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -65131,7 +64922,7 @@
         "skia/infra/bots/run_recipe.py",
         "${ISOLATED_OUTDIR}",
         "test",
-        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Test-Win11-Clang-Dell3930-GPU-GTX1660-x86_64-Release-All-ANGLE\",\"dm_flags\":\"[\\\"dm\\\",\\\"--nameByHash\\\",\\\"--key\\\",\\\"arch\\\",\\\"x86_64\\\",\\\"compiler\\\",\\\"Clang\\\",\\\"configuration\\\",\\\"Release\\\",\\\"cpu_or_gpu\\\",\\\"GPU\\\",\\\"cpu_or_gpu_value\\\",\\\"GTX1660\\\",\\\"extra_config\\\",\\\"ANGLE\\\",\\\"model\\\",\\\"Dell3930\\\",\\\"os\\\",\\\"Win11\\\",\\\"style\\\",\\\"default\\\",\\\"--randomProcessorTest\\\",\\\"--nocpu\\\",\\\"--config\\\",\\\"angle_d3d11_es3\\\",\\\"angle_d3d11_es3_msaa4\\\",\\\"angle_d3d11_es3_dmsaa\\\",\\\"--src\\\",\\\"tests\\\",\\\"gm\\\",\\\"image\\\",\\\"colorImage\\\",\\\"svg\\\",\\\"--skip\\\",\\\"_\\\",\\\"svg\\\",\\\"_\\\",\\\"svgparse_\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"Skottie_Shaper_CTStrict\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2-16.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgba32abf.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24prof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24lprof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"8bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"4bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"32bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"24bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"testimgari.jpg\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle8-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle4-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"error\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced1.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced2.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced3.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".arw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".cr2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".dng\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nrw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".orf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".raf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".rw2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".pef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".srw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ARW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".CR2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".DNG\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NRW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ORF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RAF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RW2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".PEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".SRW\\\",\\\"--match\\\",\\\"~BlurMaskBiggerThanDest\\\",\\\"--nonativeFonts\\\",\\\"--verbose\\\"]\",\"dm_properties\":\"{\\\"buildbucket_build_id\\\":\\\"<(BUILDBUCKET_BUILD_ID)\\\",\\\"builder\\\":\\\"Test-Win11-Clang-Dell3930-GPU-GTX1660-x86_64-Release-All-ANGLE\\\",\\\"gitHash\\\":\\\"<(REVISION)\\\",\\\"issue\\\":\\\"<(ISSUE)\\\",\\\"patch_storage\\\":\\\"<(PATCH_STORAGE)\\\",\\\"patchset\\\":\\\"<(PATCHSET)\\\",\\\"swarming_bot_id\\\":\\\"${SWARMING_BOT_ID}\\\",\\\"swarming_task_id\\\":\\\"${SWARMING_TASK_ID}\\\",\\\"task_id\\\":\\\"<(TASK_ID)\\\"}\",\"do_upload\":\"true\",\"gold_hashes_url\":\"https://gold.skia.org/json/v1/hashes\",\"images\":\"true\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"resources\":\"true\",\"revision\":\"<(REVISION)\",\"skps\":\"true\",\"svgs\":\"true\",\"swarm_out_dir\":\"test\",\"task_id\":\"<(TASK_ID)\"}",
+        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Test-Win11-Clang-Dell3930-GPU-GTX1660-x86_64-Release-All-ANGLE\",\"dm_flags\":\"[\\\"dm\\\",\\\"--nameByHash\\\",\\\"--key\\\",\\\"arch\\\",\\\"x86_64\\\",\\\"compiler\\\",\\\"Clang\\\",\\\"configuration\\\",\\\"Release\\\",\\\"cpu_or_gpu\\\",\\\"GPU\\\",\\\"cpu_or_gpu_value\\\",\\\"GTX1660\\\",\\\"extra_config\\\",\\\"ANGLE\\\",\\\"model\\\",\\\"Dell3930\\\",\\\"os\\\",\\\"Win11\\\",\\\"style\\\",\\\"default\\\",\\\"--randomProcessorTest\\\",\\\"--nocpu\\\",\\\"--config\\\",\\\"angle_d3d11_es3\\\",\\\"angle_d3d11_es3_msaa4\\\",\\\"angle_d3d11_es3_dmsaa\\\",\\\"--src\\\",\\\"tests\\\",\\\"gm\\\",\\\"image\\\",\\\"colorImage\\\",\\\"svg\\\",\\\"--skip\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"SkSLReturnsValueOnEveryPathES3_Ganesh\\\",\\\"_\\\",\\\"svg\\\",\\\"_\\\",\\\"svgparse_\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"Skottie_Shaper_CTStrict\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2-16.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgba32abf.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24prof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24lprof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"8bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"4bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"32bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"24bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"testimgari.jpg\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle8-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle4-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"error\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced1.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced2.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced3.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".arw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".cr2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".dng\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nrw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".orf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".raf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".rw2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".pef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".srw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ARW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".CR2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".DNG\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NRW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ORF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RAF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RW2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".PEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".SRW\\\",\\\"--match\\\",\\\"~BlurMaskBiggerThanDest\\\",\\\"--nonativeFonts\\\",\\\"--verbose\\\"]\",\"dm_properties\":\"{\\\"buildbucket_build_id\\\":\\\"<(BUILDBUCKET_BUILD_ID)\\\",\\\"builder\\\":\\\"Test-Win11-Clang-Dell3930-GPU-GTX1660-x86_64-Release-All-ANGLE\\\",\\\"gitHash\\\":\\\"<(REVISION)\\\",\\\"issue\\\":\\\"<(ISSUE)\\\",\\\"patch_storage\\\":\\\"<(PATCH_STORAGE)\\\",\\\"patchset\\\":\\\"<(PATCHSET)\\\",\\\"swarming_bot_id\\\":\\\"${SWARMING_BOT_ID}\\\",\\\"swarming_task_id\\\":\\\"${SWARMING_TASK_ID}\\\",\\\"task_id\\\":\\\"<(TASK_ID)\\\"}\",\"do_upload\":\"true\",\"gold_hashes_url\":\"https://gold.skia.org/json/v1/hashes\",\"images\":\"true\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"resources\":\"true\",\"revision\":\"<(REVISION)\",\"skps\":\"true\",\"svgs\":\"true\",\"swarm_out_dir\":\"test\",\"task_id\":\"<(TASK_ID)\"}",
         "skia"
       ],
       "dependencies": [
@@ -65209,7 +65000,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -65301,7 +65092,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -65393,7 +65184,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -65485,7 +65276,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -65577,7 +65368,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -65671,7 +65462,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -65765,7 +65556,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -65859,7 +65650,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -65953,7 +65744,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/skparagraph",
@@ -66057,7 +65848,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/skparagraph",
@@ -66156,7 +65947,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -66250,7 +66041,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -66342,7 +66133,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -66356,7 +66147,7 @@
         "skia/infra/bots/run_recipe.py",
         "${ISOLATED_OUTDIR}",
         "test",
-        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Test-Win11-Clang-Golo-GPU-QuadroP400-x86_64-Debug-All-ANGLE\",\"dm_flags\":\"[\\\"dm\\\",\\\"--nameByHash\\\",\\\"--key\\\",\\\"arch\\\",\\\"x86_64\\\",\\\"compiler\\\",\\\"Clang\\\",\\\"configuration\\\",\\\"Debug\\\",\\\"cpu_or_gpu\\\",\\\"GPU\\\",\\\"cpu_or_gpu_value\\\",\\\"QuadroP400\\\",\\\"extra_config\\\",\\\"ANGLE\\\",\\\"model\\\",\\\"Golo\\\",\\\"os\\\",\\\"Win11\\\",\\\"style\\\",\\\"default\\\",\\\"--randomProcessorTest\\\",\\\"--nocpu\\\",\\\"--config\\\",\\\"angle_d3d11_es3\\\",\\\"angle_d3d11_es3_msaa4\\\",\\\"angle_d3d11_es3_dmsaa\\\",\\\"--src\\\",\\\"tests\\\",\\\"gm\\\",\\\"image\\\",\\\"colorImage\\\",\\\"svg\\\",\\\"--skip\\\",\\\"_\\\",\\\"svg\\\",\\\"_\\\",\\\"svgparse_\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"Skottie_Shaper_CTStrict\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2-16.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgba32abf.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24prof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24lprof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"8bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"4bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"32bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"24bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"testimgari.jpg\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle8-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle4-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"error\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced1.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced2.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced3.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".arw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".cr2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".dng\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nrw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".orf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".raf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".rw2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".pef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".srw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ARW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".CR2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".DNG\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NRW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ORF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RAF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RW2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".PEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".SRW\\\",\\\"--match\\\",\\\"~BlurMaskBiggerThanDest\\\",\\\"--nonativeFonts\\\",\\\"--verbose\\\"]\",\"dm_properties\":\"{\\\"buildbucket_build_id\\\":\\\"<(BUILDBUCKET_BUILD_ID)\\\",\\\"builder\\\":\\\"Test-Win11-Clang-Golo-GPU-QuadroP400-x86_64-Debug-All-ANGLE\\\",\\\"gitHash\\\":\\\"<(REVISION)\\\",\\\"issue\\\":\\\"<(ISSUE)\\\",\\\"patch_storage\\\":\\\"<(PATCH_STORAGE)\\\",\\\"patchset\\\":\\\"<(PATCHSET)\\\",\\\"swarming_bot_id\\\":\\\"${SWARMING_BOT_ID}\\\",\\\"swarming_task_id\\\":\\\"${SWARMING_TASK_ID}\\\",\\\"task_id\\\":\\\"<(TASK_ID)\\\"}\",\"do_upload\":\"true\",\"gold_hashes_url\":\"https://gold.skia.org/json/v1/hashes\",\"images\":\"true\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"resources\":\"true\",\"revision\":\"<(REVISION)\",\"skps\":\"true\",\"svgs\":\"true\",\"swarm_out_dir\":\"test\",\"task_id\":\"<(TASK_ID)\"}",
+        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Test-Win11-Clang-Golo-GPU-QuadroP400-x86_64-Debug-All-ANGLE\",\"dm_flags\":\"[\\\"dm\\\",\\\"--nameByHash\\\",\\\"--key\\\",\\\"arch\\\",\\\"x86_64\\\",\\\"compiler\\\",\\\"Clang\\\",\\\"configuration\\\",\\\"Debug\\\",\\\"cpu_or_gpu\\\",\\\"GPU\\\",\\\"cpu_or_gpu_value\\\",\\\"QuadroP400\\\",\\\"extra_config\\\",\\\"ANGLE\\\",\\\"model\\\",\\\"Golo\\\",\\\"os\\\",\\\"Win11\\\",\\\"style\\\",\\\"default\\\",\\\"--randomProcessorTest\\\",\\\"--nocpu\\\",\\\"--config\\\",\\\"angle_d3d11_es3\\\",\\\"angle_d3d11_es3_msaa4\\\",\\\"angle_d3d11_es3_dmsaa\\\",\\\"--src\\\",\\\"tests\\\",\\\"gm\\\",\\\"image\\\",\\\"colorImage\\\",\\\"svg\\\",\\\"--skip\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"SkSLReturnsValueOnEveryPathES3_Ganesh\\\",\\\"_\\\",\\\"svg\\\",\\\"_\\\",\\\"svgparse_\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"Skottie_Shaper_CTStrict\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2-16.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgba32abf.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24prof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24lprof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"8bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"4bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"32bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"24bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"testimgari.jpg\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle8-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle4-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"error\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced1.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced2.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced3.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".arw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".cr2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".dng\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nrw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".orf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".raf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".rw2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".pef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".srw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ARW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".CR2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".DNG\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NRW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ORF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RAF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RW2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".PEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".SRW\\\",\\\"--match\\\",\\\"~BlurMaskBiggerThanDest\\\",\\\"--nonativeFonts\\\",\\\"--verbose\\\"]\",\"dm_properties\":\"{\\\"buildbucket_build_id\\\":\\\"<(BUILDBUCKET_BUILD_ID)\\\",\\\"builder\\\":\\\"Test-Win11-Clang-Golo-GPU-QuadroP400-x86_64-Debug-All-ANGLE\\\",\\\"gitHash\\\":\\\"<(REVISION)\\\",\\\"issue\\\":\\\"<(ISSUE)\\\",\\\"patch_storage\\\":\\\"<(PATCH_STORAGE)\\\",\\\"patchset\\\":\\\"<(PATCHSET)\\\",\\\"swarming_bot_id\\\":\\\"${SWARMING_BOT_ID}\\\",\\\"swarming_task_id\\\":\\\"${SWARMING_TASK_ID}\\\",\\\"task_id\\\":\\\"<(TASK_ID)\\\"}\",\"do_upload\":\"true\",\"gold_hashes_url\":\"https://gold.skia.org/json/v1/hashes\",\"images\":\"true\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"resources\":\"true\",\"revision\":\"<(REVISION)\",\"skps\":\"true\",\"svgs\":\"true\",\"swarm_out_dir\":\"test\",\"task_id\":\"<(TASK_ID)\"}",
         "skia"
       ],
       "dependencies": [
@@ -66434,7 +66225,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -66526,7 +66317,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -66618,7 +66409,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -66710,7 +66501,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -66802,7 +66593,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -66894,7 +66685,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -66908,7 +66699,7 @@
         "skia/infra/bots/run_recipe.py",
         "${ISOLATED_OUTDIR}",
         "test",
-        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Test-Win11-Clang-Golo-GPU-QuadroP400-x86_64-Release-All-ANGLE\",\"dm_flags\":\"[\\\"dm\\\",\\\"--nameByHash\\\",\\\"--key\\\",\\\"arch\\\",\\\"x86_64\\\",\\\"compiler\\\",\\\"Clang\\\",\\\"configuration\\\",\\\"Release\\\",\\\"cpu_or_gpu\\\",\\\"GPU\\\",\\\"cpu_or_gpu_value\\\",\\\"QuadroP400\\\",\\\"extra_config\\\",\\\"ANGLE\\\",\\\"model\\\",\\\"Golo\\\",\\\"os\\\",\\\"Win11\\\",\\\"style\\\",\\\"default\\\",\\\"--randomProcessorTest\\\",\\\"--nocpu\\\",\\\"--config\\\",\\\"angle_d3d11_es3\\\",\\\"angle_d3d11_es3_msaa4\\\",\\\"angle_d3d11_es3_dmsaa\\\",\\\"--src\\\",\\\"tests\\\",\\\"gm\\\",\\\"image\\\",\\\"colorImage\\\",\\\"svg\\\",\\\"--skip\\\",\\\"_\\\",\\\"svg\\\",\\\"_\\\",\\\"svgparse_\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"Skottie_Shaper_CTStrict\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2-16.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgba32abf.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24prof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24lprof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"8bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"4bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"32bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"24bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"testimgari.jpg\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle8-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle4-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"error\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced1.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced2.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced3.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".arw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".cr2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".dng\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nrw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".orf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".raf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".rw2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".pef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".srw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ARW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".CR2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".DNG\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NRW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ORF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RAF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RW2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".PEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".SRW\\\",\\\"--match\\\",\\\"~BlurMaskBiggerThanDest\\\",\\\"--nonativeFonts\\\",\\\"--verbose\\\"]\",\"dm_properties\":\"{\\\"buildbucket_build_id\\\":\\\"<(BUILDBUCKET_BUILD_ID)\\\",\\\"builder\\\":\\\"Test-Win11-Clang-Golo-GPU-QuadroP400-x86_64-Release-All-ANGLE\\\",\\\"gitHash\\\":\\\"<(REVISION)\\\",\\\"issue\\\":\\\"<(ISSUE)\\\",\\\"patch_storage\\\":\\\"<(PATCH_STORAGE)\\\",\\\"patchset\\\":\\\"<(PATCHSET)\\\",\\\"swarming_bot_id\\\":\\\"${SWARMING_BOT_ID}\\\",\\\"swarming_task_id\\\":\\\"${SWARMING_TASK_ID}\\\",\\\"task_id\\\":\\\"<(TASK_ID)\\\"}\",\"do_upload\":\"true\",\"gold_hashes_url\":\"https://gold.skia.org/json/v1/hashes\",\"images\":\"true\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"resources\":\"true\",\"revision\":\"<(REVISION)\",\"skps\":\"true\",\"svgs\":\"true\",\"swarm_out_dir\":\"test\",\"task_id\":\"<(TASK_ID)\"}",
+        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Test-Win11-Clang-Golo-GPU-QuadroP400-x86_64-Release-All-ANGLE\",\"dm_flags\":\"[\\\"dm\\\",\\\"--nameByHash\\\",\\\"--key\\\",\\\"arch\\\",\\\"x86_64\\\",\\\"compiler\\\",\\\"Clang\\\",\\\"configuration\\\",\\\"Release\\\",\\\"cpu_or_gpu\\\",\\\"GPU\\\",\\\"cpu_or_gpu_value\\\",\\\"QuadroP400\\\",\\\"extra_config\\\",\\\"ANGLE\\\",\\\"model\\\",\\\"Golo\\\",\\\"os\\\",\\\"Win11\\\",\\\"style\\\",\\\"default\\\",\\\"--randomProcessorTest\\\",\\\"--nocpu\\\",\\\"--config\\\",\\\"angle_d3d11_es3\\\",\\\"angle_d3d11_es3_msaa4\\\",\\\"angle_d3d11_es3_dmsaa\\\",\\\"--src\\\",\\\"tests\\\",\\\"gm\\\",\\\"image\\\",\\\"colorImage\\\",\\\"svg\\\",\\\"--skip\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"SkSLReturnsValueOnEveryPathES3_Ganesh\\\",\\\"_\\\",\\\"svg\\\",\\\"_\\\",\\\"svgparse_\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"Skottie_Shaper_CTStrict\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2-16.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgba32abf.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24prof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24lprof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"8bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"4bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"32bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"24bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"testimgari.jpg\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle8-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle4-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"error\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced1.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced2.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced3.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".arw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".cr2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".dng\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nrw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".orf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".raf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".rw2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".pef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".srw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ARW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".CR2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".DNG\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NRW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ORF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RAF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RW2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".PEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".SRW\\\",\\\"--match\\\",\\\"~BlurMaskBiggerThanDest\\\",\\\"--nonativeFonts\\\",\\\"--verbose\\\"]\",\"dm_properties\":\"{\\\"buildbucket_build_id\\\":\\\"<(BUILDBUCKET_BUILD_ID)\\\",\\\"builder\\\":\\\"Test-Win11-Clang-Golo-GPU-QuadroP400-x86_64-Release-All-ANGLE\\\",\\\"gitHash\\\":\\\"<(REVISION)\\\",\\\"issue\\\":\\\"<(ISSUE)\\\",\\\"patch_storage\\\":\\\"<(PATCH_STORAGE)\\\",\\\"patchset\\\":\\\"<(PATCHSET)\\\",\\\"swarming_bot_id\\\":\\\"${SWARMING_BOT_ID}\\\",\\\"swarming_task_id\\\":\\\"${SWARMING_TASK_ID}\\\",\\\"task_id\\\":\\\"<(TASK_ID)\\\"}\",\"do_upload\":\"true\",\"gold_hashes_url\":\"https://gold.skia.org/json/v1/hashes\",\"images\":\"true\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"resources\":\"true\",\"revision\":\"<(REVISION)\",\"skps\":\"true\",\"svgs\":\"true\",\"swarm_out_dir\":\"test\",\"task_id\":\"<(TASK_ID)\"}",
         "skia"
       ],
       "dependencies": [
@@ -66986,7 +66777,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -67078,7 +66869,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -67170,7 +66961,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -67262,7 +67053,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -67354,7 +67145,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -67446,7 +67237,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -67538,7 +67329,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -67630,7 +67421,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -67722,7 +67513,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -67814,7 +67605,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -67906,7 +67697,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -67998,7 +67789,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -68021,282 +67812,6 @@
       ],
       "dimensions": [
         "gpu:8086:9a49-31.0.101.5333",
-        "os:Windows-11-26100",
-        "pool:Skia"
-      ],
-      "environment": {
-        "RECIPES_USE_PY3": "true",
-        "VPYTHON_LOG_TRACE": "1"
-      },
-      "env_prefixes": {
-        "PATH": [
-          "cipd_bin_packages",
-          "cipd_bin_packages/bin",
-          "cipd_bin_packages/cpython3",
-          "cipd_bin_packages/cpython3/bin"
-        ],
-        "VPYTHON_DEFAULT_SPEC": [
-          "skia/.vpython3"
-        ],
-        "VPYTHON_VIRTUALENV_ROOT": [
-          "cache/vpython3"
-        ]
-      },
-      "execution_timeout_ns": 14400000000000,
-      "expiration_ns": 72000000000000,
-      "extra_tags": {
-        "log_location": "logdog://logs.chromium.org/skia/${SWARMING_TASK_ID}/+/annotations"
-      },
-      "io_timeout_ns": 14400000000000,
-      "max_attempts": 2,
-      "outputs": [
-        "test"
-      ]
-    },
-    "Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Debug-All-Graphite_Dawn_D3D11": {
-      "caches": [
-        {
-          "name": "vpython3",
-          "path": "cache/vpython3"
-        }
-      ],
-      "casSpec": "test",
-      "cipd_packages": [
-        {
-          "name": "infra/3pp/tools/cpython3/${platform}",
-          "path": "cipd_bin_packages/cpython3",
-          "version": "version:3@3.11.9.chromium.36"
-        },
-        {
-          "name": "infra/tools/luci-auth/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:052f30c112efd1fdf903976424aebfaee124ba54"
-        },
-        {
-          "name": "infra/tools/luci/kitchen/${platform}",
-          "path": ".",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "infra/tools/luci/vpython3/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "skia/bots/skimage",
-          "path": "skimage",
-          "version": "version:47"
-        },
-        {
-          "name": "skia/bots/skp",
-          "path": "skp",
-          "version": "version:562"
-        },
-        {
-          "name": "skia/bots/svg",
-          "path": "svg",
-          "version": "version:14"
-        }
-      ],
-      "command": [
-        "cipd_bin_packages/vpython3${EXECUTABLE_SUFFIX}",
-        "-u",
-        "skia/infra/bots/run_recipe.py",
-        "${ISOLATED_OUTDIR}",
-        "test",
-        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Debug-All-Graphite_Dawn_D3D11\",\"dm_flags\":\"[\\\"dm\\\",\\\"--nameByHash\\\",\\\"--key\\\",\\\"arch\\\",\\\"x86_64\\\",\\\"compiler\\\",\\\"Clang\\\",\\\"configuration\\\",\\\"Debug\\\",\\\"cpu_or_gpu\\\",\\\"GPU\\\",\\\"cpu_or_gpu_value\\\",\\\"IntelIris6100\\\",\\\"extra_config\\\",\\\"Graphite_Dawn_D3D11\\\",\\\"model\\\",\\\"NUC5i7RYH\\\",\\\"os\\\",\\\"Win11\\\",\\\"style\\\",\\\"default\\\",\\\"--randomProcessorTest\\\",\\\"--nocpu\\\",\\\"--nogpu\\\",\\\"--internalMSAATileSize\\\",\\\"256\\\",\\\"--config\\\",\\\"grdawn_d3d11\\\",\\\"--src\\\",\\\"tests\\\",\\\"gm\\\",\\\"--skip\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"PaintParamsKeyTestReduced\\\",\\\"_\\\",\\\"gm\\\",\\\"_\\\",\\\"runtime_intrinsics_matrix\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"BackendTextureTest\\\",\\\"_\\\",\\\"svg\\\",\\\"_\\\",\\\"svgparse_\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"Skottie_Shaper_CTStrict\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2-16.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgba32abf.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24prof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24lprof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"8bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"4bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"32bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"24bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"testimgari.jpg\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle8-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle4-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"error\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced1.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced2.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced3.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".arw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".cr2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".dng\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nrw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".orf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".raf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".rw2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".pef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".srw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ARW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".CR2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".DNG\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NRW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ORF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RAF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RW2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".PEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".SRW\\\",\\\"--match\\\",\\\"~^verylarge_picture_image$\\\",\\\"~^verylargebitmap$\\\",\\\"~^path_huge_aa$\\\",\\\"~^fast_constraint_red_is_allowed$\\\",\\\"~^strict_constraint_batch_no_red_allowed$\\\",\\\"~^strict_constraint_no_red_allowed$\\\",\\\"~async_rescale_and_read\\\",\\\"--nonativeFonts\\\",\\\"--verbose\\\"]\",\"dm_properties\":\"{\\\"buildbucket_build_id\\\":\\\"<(BUILDBUCKET_BUILD_ID)\\\",\\\"builder\\\":\\\"Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Debug-All-Graphite_Dawn_D3D11\\\",\\\"gitHash\\\":\\\"<(REVISION)\\\",\\\"issue\\\":\\\"<(ISSUE)\\\",\\\"patch_storage\\\":\\\"<(PATCH_STORAGE)\\\",\\\"patchset\\\":\\\"<(PATCHSET)\\\",\\\"swarming_bot_id\\\":\\\"${SWARMING_BOT_ID}\\\",\\\"swarming_task_id\\\":\\\"${SWARMING_TASK_ID}\\\",\\\"task_id\\\":\\\"<(TASK_ID)\\\"}\",\"do_upload\":\"true\",\"gold_hashes_url\":\"https://gold.skia.org/json/v1/hashes\",\"images\":\"true\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"resources\":\"true\",\"revision\":\"<(REVISION)\",\"skps\":\"true\",\"svgs\":\"true\",\"swarm_out_dir\":\"test\",\"task_id\":\"<(TASK_ID)\"}",
-        "skia"
-      ],
-      "dependencies": [
-        "Build-Win-Clang-x86_64-Debug-Graphite_Dawn_D3D11",
-        "Housekeeper-PerCommit-BundleRecipes"
-      ],
-      "dimensions": [
-        "gpu:8086:162b-20.19.15.5171",
-        "os:Windows-11-26100",
-        "pool:Skia"
-      ],
-      "environment": {
-        "RECIPES_USE_PY3": "true",
-        "VPYTHON_LOG_TRACE": "1"
-      },
-      "env_prefixes": {
-        "PATH": [
-          "cipd_bin_packages",
-          "cipd_bin_packages/bin",
-          "cipd_bin_packages/cpython3",
-          "cipd_bin_packages/cpython3/bin"
-        ],
-        "VPYTHON_DEFAULT_SPEC": [
-          "skia/.vpython3"
-        ],
-        "VPYTHON_VIRTUALENV_ROOT": [
-          "cache/vpython3"
-        ]
-      },
-      "execution_timeout_ns": 14400000000000,
-      "expiration_ns": 72000000000000,
-      "extra_tags": {
-        "log_location": "logdog://logs.chromium.org/skia/${SWARMING_TASK_ID}/+/annotations"
-      },
-      "io_timeout_ns": 14400000000000,
-      "max_attempts": 2,
-      "outputs": [
-        "test"
-      ]
-    },
-    "Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-ANGLE": {
-      "caches": [
-        {
-          "name": "vpython3",
-          "path": "cache/vpython3"
-        }
-      ],
-      "casSpec": "test",
-      "cipd_packages": [
-        {
-          "name": "infra/3pp/tools/cpython3/${platform}",
-          "path": "cipd_bin_packages/cpython3",
-          "version": "version:3@3.11.9.chromium.36"
-        },
-        {
-          "name": "infra/tools/luci-auth/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:052f30c112efd1fdf903976424aebfaee124ba54"
-        },
-        {
-          "name": "infra/tools/luci/kitchen/${platform}",
-          "path": ".",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "infra/tools/luci/vpython3/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "skia/bots/skimage",
-          "path": "skimage",
-          "version": "version:47"
-        },
-        {
-          "name": "skia/bots/skp",
-          "path": "skp",
-          "version": "version:562"
-        },
-        {
-          "name": "skia/bots/svg",
-          "path": "svg",
-          "version": "version:14"
-        }
-      ],
-      "command": [
-        "cipd_bin_packages/vpython3${EXECUTABLE_SUFFIX}",
-        "-u",
-        "skia/infra/bots/run_recipe.py",
-        "${ISOLATED_OUTDIR}",
-        "test",
-        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-ANGLE\",\"dm_flags\":\"[\\\"dm\\\",\\\"--nameByHash\\\",\\\"--key\\\",\\\"arch\\\",\\\"x86_64\\\",\\\"compiler\\\",\\\"Clang\\\",\\\"configuration\\\",\\\"Release\\\",\\\"cpu_or_gpu\\\",\\\"GPU\\\",\\\"cpu_or_gpu_value\\\",\\\"IntelIris6100\\\",\\\"extra_config\\\",\\\"ANGLE\\\",\\\"model\\\",\\\"NUC5i7RYH\\\",\\\"os\\\",\\\"Win11\\\",\\\"style\\\",\\\"default\\\",\\\"--randomProcessorTest\\\",\\\"--nocpu\\\",\\\"--config\\\",\\\"angle_d3d11_es3\\\",\\\"--src\\\",\\\"tests\\\",\\\"gm\\\",\\\"image\\\",\\\"colorImage\\\",\\\"svg\\\",\\\"--skip\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"ProcessorCloneTest\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"FilterResult\\\",\\\"_\\\",\\\"svg\\\",\\\"_\\\",\\\"svgparse_\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"Skottie_Shaper_CTStrict\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2-16.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgba32abf.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24prof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24lprof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"8bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"4bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"32bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"24bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"testimgari.jpg\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle8-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle4-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"error\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced1.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced2.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced3.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".arw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".cr2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".dng\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nrw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".orf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".raf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".rw2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".pef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".srw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ARW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".CR2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".DNG\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NRW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ORF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RAF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RW2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".PEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".SRW\\\",\\\"--match\\\",\\\"~BlurMaskBiggerThanDest\\\",\\\"~^ProcessorOptimizationValidationTest$\\\",\\\"--nonativeFonts\\\",\\\"--verbose\\\"]\",\"dm_properties\":\"{\\\"buildbucket_build_id\\\":\\\"<(BUILDBUCKET_BUILD_ID)\\\",\\\"builder\\\":\\\"Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-ANGLE\\\",\\\"gitHash\\\":\\\"<(REVISION)\\\",\\\"issue\\\":\\\"<(ISSUE)\\\",\\\"patch_storage\\\":\\\"<(PATCH_STORAGE)\\\",\\\"patchset\\\":\\\"<(PATCHSET)\\\",\\\"swarming_bot_id\\\":\\\"${SWARMING_BOT_ID}\\\",\\\"swarming_task_id\\\":\\\"${SWARMING_TASK_ID}\\\",\\\"task_id\\\":\\\"<(TASK_ID)\\\"}\",\"do_upload\":\"true\",\"gold_hashes_url\":\"https://gold.skia.org/json/v1/hashes\",\"images\":\"true\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"resources\":\"true\",\"revision\":\"<(REVISION)\",\"skps\":\"true\",\"svgs\":\"true\",\"swarm_out_dir\":\"test\",\"task_id\":\"<(TASK_ID)\"}",
-        "skia"
-      ],
-      "dependencies": [
-        "Build-Win-Clang-x86_64-Release-ANGLE",
-        "Housekeeper-PerCommit-BundleRecipes"
-      ],
-      "dimensions": [
-        "gpu:8086:162b-20.19.15.5171",
-        "os:Windows-11-26100",
-        "pool:Skia"
-      ],
-      "environment": {
-        "RECIPES_USE_PY3": "true",
-        "VPYTHON_LOG_TRACE": "1"
-      },
-      "env_prefixes": {
-        "PATH": [
-          "cipd_bin_packages",
-          "cipd_bin_packages/bin",
-          "cipd_bin_packages/cpython3",
-          "cipd_bin_packages/cpython3/bin"
-        ],
-        "VPYTHON_DEFAULT_SPEC": [
-          "skia/.vpython3"
-        ],
-        "VPYTHON_VIRTUALENV_ROOT": [
-          "cache/vpython3"
-        ]
-      },
-      "execution_timeout_ns": 14400000000000,
-      "expiration_ns": 72000000000000,
-      "extra_tags": {
-        "log_location": "logdog://logs.chromium.org/skia/${SWARMING_TASK_ID}/+/annotations"
-      },
-      "io_timeout_ns": 14400000000000,
-      "max_attempts": 2,
-      "outputs": [
-        "test"
-      ]
-    },
-    "Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-Graphite_Dawn_D3D11": {
-      "caches": [
-        {
-          "name": "vpython3",
-          "path": "cache/vpython3"
-        }
-      ],
-      "casSpec": "test",
-      "cipd_packages": [
-        {
-          "name": "infra/3pp/tools/cpython3/${platform}",
-          "path": "cipd_bin_packages/cpython3",
-          "version": "version:3@3.11.9.chromium.36"
-        },
-        {
-          "name": "infra/tools/luci-auth/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:052f30c112efd1fdf903976424aebfaee124ba54"
-        },
-        {
-          "name": "infra/tools/luci/kitchen/${platform}",
-          "path": ".",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "infra/tools/luci/vpython3/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "skia/bots/skimage",
-          "path": "skimage",
-          "version": "version:47"
-        },
-        {
-          "name": "skia/bots/skp",
-          "path": "skp",
-          "version": "version:562"
-        },
-        {
-          "name": "skia/bots/svg",
-          "path": "svg",
-          "version": "version:14"
-        }
-      ],
-      "command": [
-        "cipd_bin_packages/vpython3${EXECUTABLE_SUFFIX}",
-        "-u",
-        "skia/infra/bots/run_recipe.py",
-        "${ISOLATED_OUTDIR}",
-        "test",
-        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-Graphite_Dawn_D3D11\",\"dm_flags\":\"[\\\"dm\\\",\\\"--nameByHash\\\",\\\"--key\\\",\\\"arch\\\",\\\"x86_64\\\",\\\"compiler\\\",\\\"Clang\\\",\\\"configuration\\\",\\\"Release\\\",\\\"cpu_or_gpu\\\",\\\"GPU\\\",\\\"cpu_or_gpu_value\\\",\\\"IntelIris6100\\\",\\\"extra_config\\\",\\\"Graphite_Dawn_D3D11\\\",\\\"model\\\",\\\"NUC5i7RYH\\\",\\\"os\\\",\\\"Win11\\\",\\\"style\\\",\\\"default\\\",\\\"--randomProcessorTest\\\",\\\"--nocpu\\\",\\\"--nogpu\\\",\\\"--internalMSAATileSize\\\",\\\"256\\\",\\\"--config\\\",\\\"grdawn_d3d11\\\",\\\"--src\\\",\\\"tests\\\",\\\"gm\\\",\\\"--skip\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"PaintParamsKeyTestReduced\\\",\\\"_\\\",\\\"gm\\\",\\\"_\\\",\\\"runtime_intrinsics_matrix\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"BackendTextureTest\\\",\\\"_\\\",\\\"svg\\\",\\\"_\\\",\\\"svgparse_\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"Skottie_Shaper_CTStrict\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2-16.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgba32abf.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24prof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24lprof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"8bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"4bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"32bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"24bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"testimgari.jpg\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle8-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle4-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"error\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced1.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced2.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced3.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".arw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".cr2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".dng\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nrw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".orf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".raf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".rw2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".pef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".srw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ARW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".CR2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".DNG\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NRW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ORF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RAF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RW2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".PEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".SRW\\\",\\\"--match\\\",\\\"~^verylarge_picture_image$\\\",\\\"~^verylargebitmap$\\\",\\\"~^path_huge_aa$\\\",\\\"~^fast_constraint_red_is_allowed$\\\",\\\"~^strict_constraint_batch_no_red_allowed$\\\",\\\"~^strict_constraint_no_red_allowed$\\\",\\\"~async_rescale_and_read\\\",\\\"--nonativeFonts\\\",\\\"--verbose\\\"]\",\"dm_properties\":\"{\\\"buildbucket_build_id\\\":\\\"<(BUILDBUCKET_BUILD_ID)\\\",\\\"builder\\\":\\\"Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-Graphite_Dawn_D3D11\\\",\\\"gitHash\\\":\\\"<(REVISION)\\\",\\\"issue\\\":\\\"<(ISSUE)\\\",\\\"patch_storage\\\":\\\"<(PATCH_STORAGE)\\\",\\\"patchset\\\":\\\"<(PATCHSET)\\\",\\\"swarming_bot_id\\\":\\\"${SWARMING_BOT_ID}\\\",\\\"swarming_task_id\\\":\\\"${SWARMING_TASK_ID}\\\",\\\"task_id\\\":\\\"<(TASK_ID)\\\"}\",\"do_upload\":\"true\",\"gold_hashes_url\":\"https://gold.skia.org/json/v1/hashes\",\"images\":\"true\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"resources\":\"true\",\"revision\":\"<(REVISION)\",\"skps\":\"true\",\"svgs\":\"true\",\"swarm_out_dir\":\"test\",\"task_id\":\"<(TASK_ID)\"}",
-        "skia"
-      ],
-      "dependencies": [
-        "Build-Win-Clang-x86_64-Release-Graphite_Dawn_D3D11",
-        "Housekeeper-PerCommit-BundleRecipes"
-      ],
-      "dimensions": [
-        "gpu:8086:162b-20.19.15.5171",
         "os:Windows-11-26100",
         "pool:Skia"
       ],
@@ -68366,7 +67881,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -68458,7 +67973,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -68550,7 +68065,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -68642,7 +68157,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -68734,7 +68249,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -68826,7 +68341,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -68918,7 +68433,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -69010,7 +68525,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -69102,7 +68617,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -69194,7 +68709,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/skparagraph",
@@ -69291,7 +68806,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -69383,7 +68898,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -69475,7 +68990,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -69489,7 +69004,7 @@
         "skia/infra/bots/run_recipe.py",
         "${ISOLATED_OUTDIR}",
         "test",
-        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Test-Win11-Clang-NUC9i7QN-GPU-RTX3060-x86_64-Debug-All-ANGLE\",\"dm_flags\":\"[\\\"dm\\\",\\\"--nameByHash\\\",\\\"--key\\\",\\\"arch\\\",\\\"x86_64\\\",\\\"compiler\\\",\\\"Clang\\\",\\\"configuration\\\",\\\"Debug\\\",\\\"cpu_or_gpu\\\",\\\"GPU\\\",\\\"cpu_or_gpu_value\\\",\\\"RTX3060\\\",\\\"extra_config\\\",\\\"ANGLE\\\",\\\"model\\\",\\\"NUC9i7QN\\\",\\\"os\\\",\\\"Win11\\\",\\\"style\\\",\\\"default\\\",\\\"--randomProcessorTest\\\",\\\"--nocpu\\\",\\\"--config\\\",\\\"angle_d3d11_es3\\\",\\\"angle_d3d11_es3_msaa4\\\",\\\"angle_d3d11_es3_dmsaa\\\",\\\"--src\\\",\\\"tests\\\",\\\"gm\\\",\\\"image\\\",\\\"colorImage\\\",\\\"svg\\\",\\\"--skip\\\",\\\"_\\\",\\\"svg\\\",\\\"_\\\",\\\"svgparse_\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"Skottie_Shaper_CTStrict\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2-16.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgba32abf.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24prof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24lprof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"8bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"4bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"32bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"24bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"testimgari.jpg\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle8-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle4-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"error\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced1.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced2.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced3.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".arw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".cr2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".dng\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nrw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".orf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".raf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".rw2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".pef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".srw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ARW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".CR2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".DNG\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NRW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ORF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RAF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RW2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".PEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".SRW\\\",\\\"--match\\\",\\\"~BlurMaskBiggerThanDest\\\",\\\"--nonativeFonts\\\",\\\"--verbose\\\"]\",\"dm_properties\":\"{\\\"buildbucket_build_id\\\":\\\"<(BUILDBUCKET_BUILD_ID)\\\",\\\"builder\\\":\\\"Test-Win11-Clang-NUC9i7QN-GPU-RTX3060-x86_64-Debug-All-ANGLE\\\",\\\"gitHash\\\":\\\"<(REVISION)\\\",\\\"issue\\\":\\\"<(ISSUE)\\\",\\\"patch_storage\\\":\\\"<(PATCH_STORAGE)\\\",\\\"patchset\\\":\\\"<(PATCHSET)\\\",\\\"swarming_bot_id\\\":\\\"${SWARMING_BOT_ID}\\\",\\\"swarming_task_id\\\":\\\"${SWARMING_TASK_ID}\\\",\\\"task_id\\\":\\\"<(TASK_ID)\\\"}\",\"do_upload\":\"true\",\"gold_hashes_url\":\"https://gold.skia.org/json/v1/hashes\",\"images\":\"true\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"resources\":\"true\",\"revision\":\"<(REVISION)\",\"skps\":\"true\",\"svgs\":\"true\",\"swarm_out_dir\":\"test\",\"task_id\":\"<(TASK_ID)\"}",
+        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Test-Win11-Clang-NUC9i7QN-GPU-RTX3060-x86_64-Debug-All-ANGLE\",\"dm_flags\":\"[\\\"dm\\\",\\\"--nameByHash\\\",\\\"--key\\\",\\\"arch\\\",\\\"x86_64\\\",\\\"compiler\\\",\\\"Clang\\\",\\\"configuration\\\",\\\"Debug\\\",\\\"cpu_or_gpu\\\",\\\"GPU\\\",\\\"cpu_or_gpu_value\\\",\\\"RTX3060\\\",\\\"extra_config\\\",\\\"ANGLE\\\",\\\"model\\\",\\\"NUC9i7QN\\\",\\\"os\\\",\\\"Win11\\\",\\\"style\\\",\\\"default\\\",\\\"--randomProcessorTest\\\",\\\"--nocpu\\\",\\\"--config\\\",\\\"angle_d3d11_es3\\\",\\\"angle_d3d11_es3_msaa4\\\",\\\"angle_d3d11_es3_dmsaa\\\",\\\"--src\\\",\\\"tests\\\",\\\"gm\\\",\\\"image\\\",\\\"colorImage\\\",\\\"svg\\\",\\\"--skip\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"SkSLReturnsValueOnEveryPathES3_Ganesh\\\",\\\"_\\\",\\\"svg\\\",\\\"_\\\",\\\"svgparse_\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"Skottie_Shaper_CTStrict\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2-16.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgba32abf.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24prof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24lprof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"8bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"4bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"32bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"24bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"testimgari.jpg\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle8-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle4-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"error\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced1.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced2.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced3.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".arw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".cr2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".dng\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nrw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".orf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".raf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".rw2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".pef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".srw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ARW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".CR2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".DNG\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NRW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ORF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RAF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RW2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".PEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".SRW\\\",\\\"--match\\\",\\\"~BlurMaskBiggerThanDest\\\",\\\"--nonativeFonts\\\",\\\"--verbose\\\"]\",\"dm_properties\":\"{\\\"buildbucket_build_id\\\":\\\"<(BUILDBUCKET_BUILD_ID)\\\",\\\"builder\\\":\\\"Test-Win11-Clang-NUC9i7QN-GPU-RTX3060-x86_64-Debug-All-ANGLE\\\",\\\"gitHash\\\":\\\"<(REVISION)\\\",\\\"issue\\\":\\\"<(ISSUE)\\\",\\\"patch_storage\\\":\\\"<(PATCH_STORAGE)\\\",\\\"patchset\\\":\\\"<(PATCHSET)\\\",\\\"swarming_bot_id\\\":\\\"${SWARMING_BOT_ID}\\\",\\\"swarming_task_id\\\":\\\"${SWARMING_TASK_ID}\\\",\\\"task_id\\\":\\\"<(TASK_ID)\\\"}\",\"do_upload\":\"true\",\"gold_hashes_url\":\"https://gold.skia.org/json/v1/hashes\",\"images\":\"true\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"resources\":\"true\",\"revision\":\"<(REVISION)\",\"skps\":\"true\",\"svgs\":\"true\",\"swarm_out_dir\":\"test\",\"task_id\":\"<(TASK_ID)\"}",
         "skia"
       ],
       "dependencies": [
@@ -69567,7 +69082,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -69659,7 +69174,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -69751,7 +69266,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -69843,7 +69358,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -69935,7 +69450,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -70027,7 +69542,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -70119,7 +69634,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -70133,7 +69648,7 @@
         "skia/infra/bots/run_recipe.py",
         "${ISOLATED_OUTDIR}",
         "test",
-        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Test-Win11-Clang-NUC9i7QN-GPU-RTX3060-x86_64-Release-All-ANGLE\",\"dm_flags\":\"[\\\"dm\\\",\\\"--nameByHash\\\",\\\"--key\\\",\\\"arch\\\",\\\"x86_64\\\",\\\"compiler\\\",\\\"Clang\\\",\\\"configuration\\\",\\\"Release\\\",\\\"cpu_or_gpu\\\",\\\"GPU\\\",\\\"cpu_or_gpu_value\\\",\\\"RTX3060\\\",\\\"extra_config\\\",\\\"ANGLE\\\",\\\"model\\\",\\\"NUC9i7QN\\\",\\\"os\\\",\\\"Win11\\\",\\\"style\\\",\\\"default\\\",\\\"--randomProcessorTest\\\",\\\"--nocpu\\\",\\\"--config\\\",\\\"angle_d3d11_es3\\\",\\\"angle_d3d11_es3_msaa4\\\",\\\"angle_d3d11_es3_dmsaa\\\",\\\"--src\\\",\\\"tests\\\",\\\"gm\\\",\\\"image\\\",\\\"colorImage\\\",\\\"svg\\\",\\\"--skip\\\",\\\"_\\\",\\\"svg\\\",\\\"_\\\",\\\"svgparse_\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"Skottie_Shaper_CTStrict\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2-16.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgba32abf.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24prof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24lprof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"8bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"4bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"32bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"24bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"testimgari.jpg\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle8-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle4-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"error\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced1.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced2.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced3.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".arw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".cr2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".dng\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nrw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".orf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".raf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".rw2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".pef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".srw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ARW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".CR2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".DNG\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NRW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ORF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RAF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RW2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".PEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".SRW\\\",\\\"--match\\\",\\\"~BlurMaskBiggerThanDest\\\",\\\"--nonativeFonts\\\",\\\"--verbose\\\"]\",\"dm_properties\":\"{\\\"buildbucket_build_id\\\":\\\"<(BUILDBUCKET_BUILD_ID)\\\",\\\"builder\\\":\\\"Test-Win11-Clang-NUC9i7QN-GPU-RTX3060-x86_64-Release-All-ANGLE\\\",\\\"gitHash\\\":\\\"<(REVISION)\\\",\\\"issue\\\":\\\"<(ISSUE)\\\",\\\"patch_storage\\\":\\\"<(PATCH_STORAGE)\\\",\\\"patchset\\\":\\\"<(PATCHSET)\\\",\\\"swarming_bot_id\\\":\\\"${SWARMING_BOT_ID}\\\",\\\"swarming_task_id\\\":\\\"${SWARMING_TASK_ID}\\\",\\\"task_id\\\":\\\"<(TASK_ID)\\\"}\",\"do_upload\":\"true\",\"gold_hashes_url\":\"https://gold.skia.org/json/v1/hashes\",\"images\":\"true\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"resources\":\"true\",\"revision\":\"<(REVISION)\",\"skps\":\"true\",\"svgs\":\"true\",\"swarm_out_dir\":\"test\",\"task_id\":\"<(TASK_ID)\"}",
+        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Test-Win11-Clang-NUC9i7QN-GPU-RTX3060-x86_64-Release-All-ANGLE\",\"dm_flags\":\"[\\\"dm\\\",\\\"--nameByHash\\\",\\\"--key\\\",\\\"arch\\\",\\\"x86_64\\\",\\\"compiler\\\",\\\"Clang\\\",\\\"configuration\\\",\\\"Release\\\",\\\"cpu_or_gpu\\\",\\\"GPU\\\",\\\"cpu_or_gpu_value\\\",\\\"RTX3060\\\",\\\"extra_config\\\",\\\"ANGLE\\\",\\\"model\\\",\\\"NUC9i7QN\\\",\\\"os\\\",\\\"Win11\\\",\\\"style\\\",\\\"default\\\",\\\"--randomProcessorTest\\\",\\\"--nocpu\\\",\\\"--config\\\",\\\"angle_d3d11_es3\\\",\\\"angle_d3d11_es3_msaa4\\\",\\\"angle_d3d11_es3_dmsaa\\\",\\\"--src\\\",\\\"tests\\\",\\\"gm\\\",\\\"image\\\",\\\"colorImage\\\",\\\"svg\\\",\\\"--skip\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"SkSLReturnsValueOnEveryPathES3_Ganesh\\\",\\\"_\\\",\\\"svg\\\",\\\"_\\\",\\\"svgparse_\\\",\\\"_\\\",\\\"test\\\",\\\"_\\\",\\\"Skottie_Shaper_CTStrict\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"pal8os2v2-16.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgba32abf.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24prof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rgb24lprof.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"8bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"4bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"32bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"24bpp-pixeldata-cropped.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"testimgari.jpg\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle8-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"rle4-height-negative.bmp\\\",\\\"_\\\",\\\"image\\\",\\\"gen_platf\\\",\\\"error\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced1.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced2.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\"interlaced3.png\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".arw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".cr2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".dng\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".nrw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".orf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".raf\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".rw2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".pef\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".srw\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ARW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".CR2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".DNG\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".NRW\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".ORF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RAF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".RW2\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".PEF\\\",\\\"_\\\",\\\"image\\\",\\\"_\\\",\\\".SRW\\\",\\\"--match\\\",\\\"~BlurMaskBiggerThanDest\\\",\\\"--nonativeFonts\\\",\\\"--verbose\\\"]\",\"dm_properties\":\"{\\\"buildbucket_build_id\\\":\\\"<(BUILDBUCKET_BUILD_ID)\\\",\\\"builder\\\":\\\"Test-Win11-Clang-NUC9i7QN-GPU-RTX3060-x86_64-Release-All-ANGLE\\\",\\\"gitHash\\\":\\\"<(REVISION)\\\",\\\"issue\\\":\\\"<(ISSUE)\\\",\\\"patch_storage\\\":\\\"<(PATCH_STORAGE)\\\",\\\"patchset\\\":\\\"<(PATCHSET)\\\",\\\"swarming_bot_id\\\":\\\"${SWARMING_BOT_ID}\\\",\\\"swarming_task_id\\\":\\\"${SWARMING_TASK_ID}\\\",\\\"task_id\\\":\\\"<(TASK_ID)\\\"}\",\"do_upload\":\"true\",\"gold_hashes_url\":\"https://gold.skia.org/json/v1/hashes\",\"images\":\"true\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"resources\":\"true\",\"revision\":\"<(REVISION)\",\"skps\":\"true\",\"svgs\":\"true\",\"swarm_out_dir\":\"test\",\"task_id\":\"<(TASK_ID)\"}",
         "skia"
       ],
       "dependencies": [
@@ -70211,7 +69726,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -70303,7 +69818,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -70395,7 +69910,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -70487,7 +70002,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -70579,7 +70094,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -70671,7 +70186,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -70763,7 +70278,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -70855,7 +70370,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -70947,7 +70462,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -71039,7 +70554,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -71131,7 +70646,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -71223,7 +70738,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -71315,7 +70830,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -71407,7 +70922,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -71499,7 +71014,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -71591,7 +71106,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -71683,7 +71198,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -71775,7 +71290,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -71867,7 +71382,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -71959,7 +71474,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -72051,7 +71566,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -72143,7 +71658,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -72235,7 +71750,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -72327,7 +71842,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -72421,7 +71936,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -72515,7 +72030,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -72609,7 +72124,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -72703,7 +72218,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -72795,7 +72310,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -72887,7 +72402,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -72979,7 +72494,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -73071,7 +72586,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -73163,7 +72678,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -73255,7 +72770,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -73347,7 +72862,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -73439,7 +72954,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -73531,7 +73046,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -73623,7 +73138,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -73715,7 +73230,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -73807,7 +73322,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -73899,7 +73414,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -75152,7 +74667,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -75255,7 +74770,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -75358,7 +74873,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -75461,7 +74976,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -75564,7 +75079,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -75667,7 +75182,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -75770,7 +75285,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -75873,7 +75388,7 @@
         {
           "name": "skia/bots/skp",
           "path": "skp",
-          "version": "version:562"
+          "version": "version:563"
         },
         {
           "name": "skia/bots/svg",
@@ -85524,170 +85039,6 @@
       "max_attempts": 2,
       "service_account": "skia-external-nano-uploader@skia-swarming-bots.iam.gserviceaccount.com"
     },
-    "Upload-Perf-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-ANGLE": {
-      "caches": [
-        {
-          "name": "vpython3",
-          "path": "cache/vpython3"
-        }
-      ],
-      "casSpec": "run-recipe",
-      "cipd_packages": [
-        {
-          "name": "infra/3pp/tools/cpython3/${platform}",
-          "path": "cipd_bin_packages/cpython3",
-          "version": "version:3@3.11.9.chromium.36"
-        },
-        {
-          "name": "infra/tools/luci-auth/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:052f30c112efd1fdf903976424aebfaee124ba54"
-        },
-        {
-          "name": "infra/tools/luci/kitchen/${platform}",
-          "path": ".",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "infra/tools/luci/vpython3/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "skia/bots/gsutil",
-          "path": "gsutil",
-          "version": "version:0"
-        }
-      ],
-      "command": [
-        "cipd_bin_packages/vpython3${EXECUTABLE_SUFFIX}",
-        "-u",
-        "skia/infra/bots/run_recipe.py",
-        "${ISOLATED_OUTDIR}",
-        "upload_nano_results",
-        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Perf-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-ANGLE\",\"gs_bucket\":\"skia-perf\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"revision\":\"<(REVISION)\",\"swarm_out_dir\":\"output_ignored\",\"task_id\":\"<(TASK_ID)\"}",
-        "skia"
-      ],
-      "dependencies": [
-        "Housekeeper-PerCommit-BundleRecipes",
-        "Perf-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-ANGLE"
-      ],
-      "dimensions": [
-        "cpu:x86-64-Haswell_GCE",
-        "gpu:none",
-        "machine_type:n1-highmem-2",
-        "os:Ubuntu-24.04",
-        "pool:Skia"
-      ],
-      "environment": {
-        "RECIPES_USE_PY3": "true",
-        "VPYTHON_LOG_TRACE": "1"
-      },
-      "env_prefixes": {
-        "PATH": [
-          "cipd_bin_packages",
-          "cipd_bin_packages/bin",
-          "cipd_bin_packages/cpython3",
-          "cipd_bin_packages/cpython3/bin",
-          "gsutil/gsutil"
-        ],
-        "VPYTHON_DEFAULT_SPEC": [
-          "skia/.vpython3"
-        ],
-        "VPYTHON_VIRTUALENV_ROOT": [
-          "cache/vpython3"
-        ]
-      },
-      "execution_timeout_ns": 3600000000000,
-      "extra_tags": {
-        "log_location": "logdog://logs.chromium.org/skia/${SWARMING_TASK_ID}/+/annotations"
-      },
-      "io_timeout_ns": 3600000000000,
-      "max_attempts": 2,
-      "service_account": "skia-external-nano-uploader@skia-swarming-bots.iam.gserviceaccount.com"
-    },
-    "Upload-Perf-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-Graphite_Dawn_D3D11": {
-      "caches": [
-        {
-          "name": "vpython3",
-          "path": "cache/vpython3"
-        }
-      ],
-      "casSpec": "run-recipe",
-      "cipd_packages": [
-        {
-          "name": "infra/3pp/tools/cpython3/${platform}",
-          "path": "cipd_bin_packages/cpython3",
-          "version": "version:3@3.11.9.chromium.36"
-        },
-        {
-          "name": "infra/tools/luci-auth/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:052f30c112efd1fdf903976424aebfaee124ba54"
-        },
-        {
-          "name": "infra/tools/luci/kitchen/${platform}",
-          "path": ".",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "infra/tools/luci/vpython3/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "skia/bots/gsutil",
-          "path": "gsutil",
-          "version": "version:0"
-        }
-      ],
-      "command": [
-        "cipd_bin_packages/vpython3${EXECUTABLE_SUFFIX}",
-        "-u",
-        "skia/infra/bots/run_recipe.py",
-        "${ISOLATED_OUTDIR}",
-        "upload_nano_results",
-        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Perf-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-Graphite_Dawn_D3D11\",\"gs_bucket\":\"skia-perf\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"revision\":\"<(REVISION)\",\"swarm_out_dir\":\"output_ignored\",\"task_id\":\"<(TASK_ID)\"}",
-        "skia"
-      ],
-      "dependencies": [
-        "Housekeeper-PerCommit-BundleRecipes",
-        "Perf-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-Graphite_Dawn_D3D11"
-      ],
-      "dimensions": [
-        "cpu:x86-64-Haswell_GCE",
-        "gpu:none",
-        "machine_type:n1-highmem-2",
-        "os:Ubuntu-24.04",
-        "pool:Skia"
-      ],
-      "environment": {
-        "RECIPES_USE_PY3": "true",
-        "VPYTHON_LOG_TRACE": "1"
-      },
-      "env_prefixes": {
-        "PATH": [
-          "cipd_bin_packages",
-          "cipd_bin_packages/bin",
-          "cipd_bin_packages/cpython3",
-          "cipd_bin_packages/cpython3/bin",
-          "gsutil/gsutil"
-        ],
-        "VPYTHON_DEFAULT_SPEC": [
-          "skia/.vpython3"
-        ],
-        "VPYTHON_VIRTUALENV_ROOT": [
-          "cache/vpython3"
-        ]
-      },
-      "execution_timeout_ns": 3600000000000,
-      "extra_tags": {
-        "log_location": "logdog://logs.chromium.org/skia/${SWARMING_TASK_ID}/+/annotations"
-      },
-      "io_timeout_ns": 3600000000000,
-      "max_attempts": 2,
-      "service_account": "skia-external-nano-uploader@skia-swarming-bots.iam.gserviceaccount.com"
-    },
     "Upload-Perf-Win11-Clang-NUC6i5SYK-GPU-IntelIris540-x86_64-Release-All-ANGLE": {
       "caches": [
         {
@@ -91803,252 +91154,6 @@
       "dependencies": [
         "Housekeeper-PerCommit-BundleRecipes",
         "Test-Win11-Clang-NUC11TZi5-GPU-IntelIrisXe-x86_64-Release-All-Vulkan"
-      ],
-      "dimensions": [
-        "cpu:x86-64-Haswell_GCE",
-        "gpu:none",
-        "machine_type:n1-highmem-2",
-        "os:Ubuntu-24.04",
-        "pool:Skia"
-      ],
-      "environment": {
-        "RECIPES_USE_PY3": "true",
-        "VPYTHON_LOG_TRACE": "1"
-      },
-      "env_prefixes": {
-        "PATH": [
-          "cipd_bin_packages",
-          "cipd_bin_packages/bin",
-          "cipd_bin_packages/cpython3",
-          "cipd_bin_packages/cpython3/bin",
-          "gsutil/gsutil"
-        ],
-        "VPYTHON_DEFAULT_SPEC": [
-          "skia/.vpython3"
-        ],
-        "VPYTHON_VIRTUALENV_ROOT": [
-          "cache/vpython3"
-        ]
-      },
-      "execution_timeout_ns": 3600000000000,
-      "extra_tags": {
-        "log_location": "logdog://logs.chromium.org/skia/${SWARMING_TASK_ID}/+/annotations"
-      },
-      "io_timeout_ns": 3600000000000,
-      "max_attempts": 2,
-      "service_account": "skia-external-gm-uploader@skia-swarming-bots.iam.gserviceaccount.com"
-    },
-    "Upload-Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Debug-All-Graphite_Dawn_D3D11": {
-      "caches": [
-        {
-          "name": "vpython3",
-          "path": "cache/vpython3"
-        }
-      ],
-      "casSpec": "run-recipe",
-      "cipd_packages": [
-        {
-          "name": "infra/3pp/tools/cpython3/${platform}",
-          "path": "cipd_bin_packages/cpython3",
-          "version": "version:3@3.11.9.chromium.36"
-        },
-        {
-          "name": "infra/tools/luci-auth/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:052f30c112efd1fdf903976424aebfaee124ba54"
-        },
-        {
-          "name": "infra/tools/luci/kitchen/${platform}",
-          "path": ".",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "infra/tools/luci/vpython3/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "skia/bots/gsutil",
-          "path": "gsutil",
-          "version": "version:0"
-        }
-      ],
-      "command": [
-        "cipd_bin_packages/vpython3${EXECUTABLE_SUFFIX}",
-        "-u",
-        "skia/infra/bots/run_recipe.py",
-        "${ISOLATED_OUTDIR}",
-        "upload_dm_results",
-        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Debug-All-Graphite_Dawn_D3D11\",\"gs_bucket\":\"skia-infra-gm\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"revision\":\"<(REVISION)\",\"swarm_out_dir\":\"output_ignored\",\"task_id\":\"<(TASK_ID)\"}",
-        "skia"
-      ],
-      "dependencies": [
-        "Housekeeper-PerCommit-BundleRecipes",
-        "Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Debug-All-Graphite_Dawn_D3D11"
-      ],
-      "dimensions": [
-        "cpu:x86-64-Haswell_GCE",
-        "gpu:none",
-        "machine_type:n1-highmem-2",
-        "os:Ubuntu-24.04",
-        "pool:Skia"
-      ],
-      "environment": {
-        "RECIPES_USE_PY3": "true",
-        "VPYTHON_LOG_TRACE": "1"
-      },
-      "env_prefixes": {
-        "PATH": [
-          "cipd_bin_packages",
-          "cipd_bin_packages/bin",
-          "cipd_bin_packages/cpython3",
-          "cipd_bin_packages/cpython3/bin",
-          "gsutil/gsutil"
-        ],
-        "VPYTHON_DEFAULT_SPEC": [
-          "skia/.vpython3"
-        ],
-        "VPYTHON_VIRTUALENV_ROOT": [
-          "cache/vpython3"
-        ]
-      },
-      "execution_timeout_ns": 3600000000000,
-      "extra_tags": {
-        "log_location": "logdog://logs.chromium.org/skia/${SWARMING_TASK_ID}/+/annotations"
-      },
-      "io_timeout_ns": 3600000000000,
-      "max_attempts": 2,
-      "service_account": "skia-external-gm-uploader@skia-swarming-bots.iam.gserviceaccount.com"
-    },
-    "Upload-Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-ANGLE": {
-      "caches": [
-        {
-          "name": "vpython3",
-          "path": "cache/vpython3"
-        }
-      ],
-      "casSpec": "run-recipe",
-      "cipd_packages": [
-        {
-          "name": "infra/3pp/tools/cpython3/${platform}",
-          "path": "cipd_bin_packages/cpython3",
-          "version": "version:3@3.11.9.chromium.36"
-        },
-        {
-          "name": "infra/tools/luci-auth/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:052f30c112efd1fdf903976424aebfaee124ba54"
-        },
-        {
-          "name": "infra/tools/luci/kitchen/${platform}",
-          "path": ".",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "infra/tools/luci/vpython3/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "skia/bots/gsutil",
-          "path": "gsutil",
-          "version": "version:0"
-        }
-      ],
-      "command": [
-        "cipd_bin_packages/vpython3${EXECUTABLE_SUFFIX}",
-        "-u",
-        "skia/infra/bots/run_recipe.py",
-        "${ISOLATED_OUTDIR}",
-        "upload_dm_results",
-        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-ANGLE\",\"gs_bucket\":\"skia-infra-gm\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"revision\":\"<(REVISION)\",\"swarm_out_dir\":\"output_ignored\",\"task_id\":\"<(TASK_ID)\"}",
-        "skia"
-      ],
-      "dependencies": [
-        "Housekeeper-PerCommit-BundleRecipes",
-        "Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-ANGLE"
-      ],
-      "dimensions": [
-        "cpu:x86-64-Haswell_GCE",
-        "gpu:none",
-        "machine_type:n1-highmem-2",
-        "os:Ubuntu-24.04",
-        "pool:Skia"
-      ],
-      "environment": {
-        "RECIPES_USE_PY3": "true",
-        "VPYTHON_LOG_TRACE": "1"
-      },
-      "env_prefixes": {
-        "PATH": [
-          "cipd_bin_packages",
-          "cipd_bin_packages/bin",
-          "cipd_bin_packages/cpython3",
-          "cipd_bin_packages/cpython3/bin",
-          "gsutil/gsutil"
-        ],
-        "VPYTHON_DEFAULT_SPEC": [
-          "skia/.vpython3"
-        ],
-        "VPYTHON_VIRTUALENV_ROOT": [
-          "cache/vpython3"
-        ]
-      },
-      "execution_timeout_ns": 3600000000000,
-      "extra_tags": {
-        "log_location": "logdog://logs.chromium.org/skia/${SWARMING_TASK_ID}/+/annotations"
-      },
-      "io_timeout_ns": 3600000000000,
-      "max_attempts": 2,
-      "service_account": "skia-external-gm-uploader@skia-swarming-bots.iam.gserviceaccount.com"
-    },
-    "Upload-Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-Graphite_Dawn_D3D11": {
-      "caches": [
-        {
-          "name": "vpython3",
-          "path": "cache/vpython3"
-        }
-      ],
-      "casSpec": "run-recipe",
-      "cipd_packages": [
-        {
-          "name": "infra/3pp/tools/cpython3/${platform}",
-          "path": "cipd_bin_packages/cpython3",
-          "version": "version:3@3.11.9.chromium.36"
-        },
-        {
-          "name": "infra/tools/luci-auth/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:052f30c112efd1fdf903976424aebfaee124ba54"
-        },
-        {
-          "name": "infra/tools/luci/kitchen/${platform}",
-          "path": ".",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "infra/tools/luci/vpython3/${platform}",
-          "path": "cipd_bin_packages",
-          "version": "git_revision:b2fad5ab18774b86d84aa867287bfb4f2394893b"
-        },
-        {
-          "name": "skia/bots/gsutil",
-          "path": "gsutil",
-          "version": "version:0"
-        }
-      ],
-      "command": [
-        "cipd_bin_packages/vpython3${EXECUTABLE_SUFFIX}",
-        "-u",
-        "skia/infra/bots/run_recipe.py",
-        "${ISOLATED_OUTDIR}",
-        "upload_dm_results",
-        "{\"$kitchen\":{\"devshell\":true,\"git_auth\":true},\"buildbucket_build_id\":\"<(BUILDBUCKET_BUILD_ID)\",\"buildername\":\"Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-Graphite_Dawn_D3D11\",\"gs_bucket\":\"skia-infra-gm\",\"patch_issue\":\"<(ISSUE_INT)\",\"patch_ref\":\"<(PATCH_REF)\",\"patch_repo\":\"<(PATCH_REPO)\",\"patch_set\":\"<(PATCHSET_INT)\",\"patch_storage\":\"<(PATCH_STORAGE)\",\"repository\":\"<(REPO)\",\"revision\":\"<(REVISION)\",\"swarm_out_dir\":\"output_ignored\",\"task_id\":\"<(TASK_ID)\"}",
-        "skia"
-      ],
-      "dependencies": [
-        "Housekeeper-PerCommit-BundleRecipes",
-        "Test-Win11-Clang-NUC5i7RYH-GPU-IntelIris6100-x86_64-Release-All-Graphite_Dawn_D3D11"
       ],
       "dimensions": [
         "cpu:x86-64-Haswell_GCE",

@@ -12,45 +12,50 @@
 #import "ios/chrome/browser/composebox/public/composebox_entrypoint.h"
 #import "ios/chrome/browser/composebox/public/composebox_mode.h"
 #import "ios/chrome/browser/composebox/public/composebox_model_option.h"
+#import "ios/chrome/browser/composebox/shared/coordinator/composebox_picker_image_result.h"
 #import "ios/web/public/web_state_id.h"
 
-/// An item representing an image and its identifier.
-@interface ComposeboxImageItem : NSObject
+@class ComposeboxAttachmentSelection;
 
-/// The image object.
-@property(nonatomic, strong) UIImage* image;
-/// The asset identifier, used for deduplication.
-@property(nonatomic, copy) NSString* assetID;
-
-@end
-
-/// Parameters used to focus and initialize the composebox with specific state.
+// Parameters used to focus and initialize the composebox with specific state.
 @interface ComposeboxFocusParams : NSObject
 
-/// The initial query to pre-fill the omnibox.
+// The initial query to pre-fill the omnibox.
 @property(nonatomic, copy) NSString* query;
 
-/// The entrypoint that triggered the composebox.
+// The entrypoint that triggered the composebox.
 @property(nonatomic, readonly) ComposeboxEntrypoint entrypoint;
 
-/// The initial mode to force the composebox into.
-@property(nonatomic, assign) ComposeboxMode initialMode;
+// The initial tool mode.
+@property(nonatomic, readonly) ComposeboxMode toolMode;
 
-/// Initial images to attach.
-@property(nonatomic, copy) NSArray<ComposeboxImageItem*>* initialImages;
+// The initial model mode.
+@property(nonatomic, readonly) ComposeboxModelOption modelMode;
 
-/// Initial files to attach.
-@property(nonatomic, copy) NSArray<NSURL*>* initialFiles;
+// The initial attachments to preload.
+@property(nonatomic, readonly) ComposeboxAttachmentSelection* attachmentList;
 
 /// Initial tab identifiers to attach.
-@property(nonatomic, assign) std::set<web::WebStateID> initialTabIDs;
+@property(nonatomic, assign) std::set<web::WebStateID>
+    initialSelectedWebStateIDs;
+@property(nonatomic, assign) std::set<web::WebStateID> initialCachedWebStateIDs;
+
+// Whether there are initial tab IDs set.
+@property(nonatomic, readonly) BOOL hasInitialTabIDs;
 
 /// The initial model option to force the composebox into.
 @property(nonatomic, assign) ComposeboxModelOption initialModelOption;
 
 /// Initializes a new instance with the given entrypoint.
 - (instancetype)initWithEntrypoint:(ComposeboxEntrypoint)entrypoint
+                             query:(NSString*)query
+                          toolMode:(ComposeboxMode)toolMode
+                         modelMode:(ComposeboxModelOption)modelMode
+                    attachmentList:
+                        (ComposeboxAttachmentSelection*)attachmentList
     NS_DESIGNATED_INITIALIZER;
+
+- (instancetype)initWithEntrypoint:(ComposeboxEntrypoint)entrypoint;
 
 - (instancetype)init NS_UNAVAILABLE;
 

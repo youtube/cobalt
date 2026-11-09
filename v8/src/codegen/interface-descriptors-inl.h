@@ -620,11 +620,6 @@ constexpr auto SingleParameterOnStackDescriptor::registers() {
 }
 
 // static
-constexpr auto GeneratorNextLazyDeoptContinuationDescriptor::registers() {
-  return RegisterArray();
-}
-
-// static
 constexpr auto AsyncFunctionStackParameterDescriptor::registers() {
   return RegisterArray();
 }

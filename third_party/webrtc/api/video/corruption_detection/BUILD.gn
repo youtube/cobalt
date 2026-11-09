@@ -150,6 +150,7 @@ if (rtc_include_tests) {
       "..:video_rtp_headers",
       "../..:scoped_refptr",
       "../../../test:test_support",
+      "../../../video/corruption_detection:halton_frame_sampler",
     ]
   }
 }

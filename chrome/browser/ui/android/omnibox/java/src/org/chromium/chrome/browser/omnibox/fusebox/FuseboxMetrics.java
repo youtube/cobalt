@@ -17,7 +17,6 @@ import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.PopupButton
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.omnibox.AutocompleteRequestType;
-import org.chromium.components.omnibox.ToolModeProto.ToolMode;
 import org.chromium.components.omnibox.ToolModeUtils;
 import org.chromium.ui.modelutil.PropertyModel;
 
@@ -65,6 +64,7 @@ public class FuseboxMetrics {
         FuseboxAttachmentButtonType.GALLERY,
         FuseboxAttachmentButtonType.FILES,
         FuseboxAttachmentButtonType.CLIPBOARD,
+        FuseboxAttachmentButtonType.SUGGESTED_TAB,
         FuseboxAttachmentButtonType.COUNT
     })
     @Retention(RetentionPolicy.SOURCE)
@@ -75,7 +75,8 @@ public class FuseboxMetrics {
         int GALLERY = 3;
         int FILES = 4;
         int CLIPBOARD = 5;
-        int COUNT = 6;
+        int SUGGESTED_TAB = 6;
+        int COUNT = 7;
     }
 
     // LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:FuseboxAttachmentButtonType)
@@ -103,17 +104,13 @@ public class FuseboxMetrics {
                     notifyAttachmentButtonShown(buttonType);
                 }
             }
-            if (model.get(FuseboxProperties.POPUP_TOOL_AI_MODE_VISIBLE)) {
-                notifyToolButtonShown(ToolMode.TOOL_MODE_UNSPECIFIED_VALUE);
-            }
-            if (model.get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_VISIBLE)) {
-                notifyToolButtonShown(ToolMode.TOOL_MODE_IMAGE_GEN_VALUE);
-            }
-            if (model.get(FuseboxProperties.POPUP_TOOL_DEEP_SEARCH_VISIBLE)) {
-                notifyToolButtonShown(ToolMode.TOOL_MODE_DEEP_SEARCH_VALUE);
-            }
-            if (model.get(FuseboxProperties.POPUP_TOOL_CANVAS_VISIBLE)) {
-                notifyToolButtonShown(ToolMode.TOOL_MODE_CANVAS_VALUE);
+            List<PopupButtonData> toolButtons =
+                    model.get(FuseboxProperties.POPUP_TOOL_BUTTON_DATA_LIST);
+            if (toolButtons != null) {
+                for (PopupButtonData buttonData : toolButtons) {
+                    assert buttonData.type == PopupButtonType.TOOL;
+                    notifyToolButtonShown(buttonData.protoId);
+                }
             }
             List<PopupButtonData> popupButtons =
                     model.get(FuseboxProperties.POPUP_MODEL_BUTTON_DATA_LIST);
@@ -132,7 +129,7 @@ public class FuseboxMetrics {
         mAttachmentsPopupButtonUsedInSession = true;
     }
 
-    private void notifyAttachmentButtonShown(@FuseboxAttachmentButtonType int attachmentType) {
+    void notifyAttachmentButtonShown(@FuseboxAttachmentButtonType int attachmentType) {
         RecordHistogram.recordEnumeratedHistogram(
                 "Omnibox.MobileFusebox.AttachmentButtonShown",
                 attachmentType,
@@ -230,6 +227,7 @@ public class FuseboxMetrics {
             case FuseboxAttachmentButtonType.GALLERY -> "Gallery";
             case FuseboxAttachmentButtonType.FILES -> "Files";
             case FuseboxAttachmentButtonType.CLIPBOARD -> "Clipboard";
+            case FuseboxAttachmentButtonType.SUGGESTED_TAB -> "SuggestedTab";
             default -> "";
         };
     }

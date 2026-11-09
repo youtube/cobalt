@@ -293,9 +293,50 @@ void WasmShuffleAnalyzer::ProcessLaneMemory(
   demanded_byte_analysis_.AddOp(lane_op, DemandedBytes::All());
 }
 
+// Searches for a contiguous window of size `shuffle_in_demanded` within
+// `shuffle` such that all elements in the window are sourced from the range
+// `[lower_limit, upper_limit]`, and all elements outside of the window are
+// sourced outside of this range. Returns the starting index of the window if it
+// exists. Example of what would be accepted with lower and upper limits of 0
+// and 15, respectively are: [ 9 ] [ 8, 9 ] [ 2, 3, 4, 5 ]. [ 5, 4, 3, 2 ] [ 3,
+// 2, 5, 4 ] [ 3, 3, 3, 3 ] [ 0, 2, 4, 6, 8, 10, 12, 14 ] In these cases, we
+// also have to ensure that there's not another instance of a value 0-15 in the
+// shuffle.
+std::optional<uint8_t> GetFirstIndex(const uint8_t* shuffle,
+                                     uint8_t lower_limit, uint8_t upper_limit,
+                                     DemandedBytes shuffle_in_demanded,
+                                     DemandedBytes shuffle_out_demanded) {
+  DCHECK_LE(shuffle_in_demanded.bytes(), kSimd128HalfSize);
+  DCHECK_LE(shuffle_out_demanded.bytes(), kSimd128Size);
+
+  if (shuffle_in_demanded.bytes() > shuffle_out_demanded.bytes()) return {};
+
+  auto in_range = [&lower_limit, &upper_limit](uint8_t i) {
+    return i >= lower_limit && i <= upper_limit;
+  };
+
+  // Sliding window, of shuffle_in_demanded.bytes(), over shuffle[0, N-1],
+  // inclusive. Stop once a full window would exceed bounds.
+  for (unsigned i = 0;
+       i + shuffle_in_demanded.bytes() <= shuffle_out_demanded.bytes(); ++i) {
+    const uint8_t* first = shuffle + i;
+    // Test for a valid range in shuffle_in_demanded_bytes, with no other
+    // instances of in_range.
+    if (std::all_of(first, first + shuffle_in_demanded.bytes(), in_range) &&
+        std::none_of(first + shuffle_in_demanded.bytes(),
+                     shuffle + shuffle_out_demanded.bytes(), in_range) &&
+        std::none_of(shuffle, first, in_range)) {
+      return i;
+    }
+  }
+  return {};
+}
+
 bool WasmShuffleAnalyzer::ProcessShuffleOfShuffle(
     const Simd128ShuffleOp& shuffle_in, const Simd128ShuffleOp& shuffle_out,
     uint8_t lower_limit, uint8_t upper_limit) {
+  TRACE("Shuffling ShuffleOp %d with lower (%d) and upper (%d)\n",
+        input_graph().Index(shuffle_in).id(), lower_limit, upper_limit);
   // Suppose we have two 16-byte shuffles:
   // |---a1---|---b3---|--------|--------|  shuffle_in = (a, b)
   //
@@ -315,99 +356,59 @@ bool WasmShuffleAnalyzer::ProcessShuffleOfShuffle(
   // |---a1---|---b3---|---c?---|---c?---|  shuffle_out = (shuffle_in, c)
   //
 
-  struct ShuffleHelper {
-    const uint8_t* shuffle;
+  DemandedBytes shuffle_out_demanded = GetDemandedBytes(&shuffle_out);
+  std::array<DemandedBytes, 4> shuffle_in_demanded_bytes = {
+      DemandedBytes::Low(8), DemandedBytes::Low(4), DemandedBytes::Low(2),
+      DemandedBytes::Low(1)};
+  for (auto shuffle_in_demanded : shuffle_in_demanded_bytes) {
+    if (auto maybe_shuffle_out_begin =
+            GetFirstIndex(shuffle_out.shuffle, lower_limit, upper_limit,
+                          shuffle_in_demanded, shuffle_out_demanded)) {
+      // The incoming shuffle can be reduced because, at least a part of, it
+      // defines a consecutive part of shuffle_out.
+      const uint8_t shuffle_out_begin = maybe_shuffle_out_begin.value();
+      const uint8_t* window_begin = shuffle_out.shuffle + shuffle_out_begin;
+      const uint8_t* window_end = window_begin + shuffle_in_demanded.bytes();
+      const uint8_t shuffle_in_begin =
+          *std::min_element(window_begin, window_end);
+      const uint8_t shuffle_in_max =
+          *std::max_element(window_begin, window_end);
 
-    explicit ShuffleHelper(const uint8_t* shuffle) : shuffle(shuffle) {}
+      // Calculate the span of used indices and calculate the demanded bytes
+      // from it.
+      const uint8_t span = shuffle_in_max - shuffle_in_begin + 1;
+      shuffle_in_demanded = DemandedBytes::LowFromTotalBytes(span);
 
-    const uint8_t* begin() const { return shuffle; }
+      if (shuffle_in_demanded.IsAll()) continue;
 
-    const uint8_t* midpoint() const { return shuffle + kSimd128HalfSize; }
+      const uint8_t shuffle_in_end =
+          shuffle_in_begin + shuffle_in_demanded.bytes() - 1;
 
-    const uint8_t* end() const { return shuffle + kSimd128Size; }
-
-    // Test whether the low half of the shuffle is within the inclusive range.
-    bool all_low_half(uint8_t lower_limit, uint8_t upper_limit) {
-      return std::all_of(begin(), midpoint(),
-                         [lower_limit, upper_limit](uint8_t i) {
-                           return i >= lower_limit && i <= upper_limit;
-                         });
-    }
-    // Test whether the high half of the shuffle is within the inclusive range.
-    bool all_high_half(uint8_t lower_limit, uint8_t upper_limit) {
-      return std::all_of(midpoint(), end(),
-                         [lower_limit, upper_limit](uint8_t i) {
-                           return i >= lower_limit && i <= upper_limit;
-                         });
-    }
-    // Test whether none of the low half of the shuffle contains bytes within
-    // the inclusive range.
-    bool none_low_half(uint8_t lower_limit, uint8_t upper_limit) {
-      return std::none_of(begin(), midpoint(),
-                          [lower_limit, upper_limit](uint8_t i) {
-                            return i >= lower_limit && i <= upper_limit;
-                          });
-    }
-    // Test whether none of the high half of the shuffle contains bytes within
-    // the inclusive range.
-    bool none_high_half(uint8_t lower_limit, uint8_t upper_limit) {
-      return std::none_of(midpoint(), end(),
-                          [lower_limit, upper_limit](uint8_t i) {
-                            return i >= lower_limit && i <= upper_limit;
-                          });
-    }
-
-    bool shuffle_into_low_half(uint8_t lower_limit, uint8_t upper_limit) {
-      return all_low_half(lower_limit, upper_limit) &&
-             none_high_half(lower_limit, upper_limit);
-    }
-
-    bool shuffle_into_high_half(uint8_t lower_limit, uint8_t upper_limit) {
-      return all_high_half(lower_limit, upper_limit) &&
-             none_low_half(lower_limit, upper_limit);
-    }
-  };
-
-  ShuffleHelper view(shuffle_out.shuffle);
-  DCHECK(!(view.shuffle_into_low_half(lower_limit, upper_limit) &&
-           view.shuffle_into_high_half(lower_limit, upper_limit)));
-
-  // lower_ and upper_limit are set from the caller depending on whether we're
-  // examining the left or right operand of shuffle. So, here we check if
-  // shuffle_op is being exclusively shuffled into the low or high half using
-  // either the lower and upper limits of {0,15} or {16,31}.
-
-  if (view.shuffle_into_low_half(lower_limit, upper_limit)) {
-    if (view.all_low_half(lower_limit + kSimd128HalfSize, upper_limit)) {
-      // The low half of the result shuffle is sourced only from the high half
-      // of the input shuffle_op.
-      demanded_byte_analysis_.RecordOp(shuffle_in,
-                                       DemandedBytes::Low<kSimd128HalfSize>());
-      shift_shuffles_.push_back(&shuffle_in);
-      low_half_shuffles_.push_back(&shuffle_out);
-      return true;
-    } else if (view.all_low_half(lower_limit, upper_limit - kSimd128HalfSize)) {
-      // The low half of the result shuffle is sourced only from the low half
-      // of the input shuffle.
-      demanded_byte_analysis_.RecordOp(shuffle_in,
-                                       DemandedBytes::Low<kSimd128HalfSize>());
-      return true;
-    }
-  } else if (view.shuffle_into_high_half(lower_limit, upper_limit)) {
-    if (view.all_high_half(lower_limit + kSimd128HalfSize, upper_limit)) {
-      // The high half of the result shuffle is sourced only from the high half
-      // of input shuffle.
-      demanded_byte_analysis_.RecordOp(shuffle_in,
-                                       DemandedBytes::Low<kSimd128HalfSize>());
-      shift_shuffles_.push_back(&shuffle_in);
-      high_half_shuffles_.push_back(&shuffle_out);
-      return true;
-    } else if (view.all_high_half(lower_limit,
-                                  upper_limit - kSimd128HalfSize)) {
-      // The high half of the result shuffle is sourced only from the low half
-      // of input shuffle.
-      demanded_byte_analysis_.RecordOp(shuffle_in,
-                                       DemandedBytes::Low<kSimd128HalfSize>());
+      TRACE("Can reduce shuffle to a size of %d, with the LSB %d\n",
+            shuffle_in_demanded.bytes(), shuffle_in_begin);
+      // If shuffle_in_begin isn't 0 or 16, which would be the LSB of the left
+      // or right input, the shuffles will need modifying.
+      if (shuffle_in_begin % kSimd128Size) {
+        TRACE("Need to shift ShuffleOp %d elements %d - %d down to LSBs\n",
+              input_graph().Index(shuffle_in).id(), shuffle_in_begin,
+              shuffle_in_end);
+        TRACE("Need to modify ShuffleOp %d to read from %d\n",
+              input_graph().Index(shuffle_out).id(), shuffle_out_begin);
+        // shuffle_in needs to write the selected shuffle_in_demanded_bytes of
+        // bytes into its LSBs.
+        shuffles_to_shift_.emplace_back(&shuffle_in,
+                                        shuffle_in_begin % kSimd128Size,
+                                        shuffle_in_end % kSimd128Size + 1);
+        // shuffle_out.shuffle will need to be updated to read the modified
+        // shuffle_in.
+        ptrdiff_t window_size = window_end - window_begin;
+        DCHECK_LT(window_size, kSimd128Size);
+        shuffles_to_read_shifted_.emplace_back(&shuffle_out, shuffle_out_begin,
+                                               shuffle_out_begin + window_size,
+                                               shuffle_in_begin);
+      }
+      // shuffle_in will be reduced.
+      demanded_byte_analysis_.RecordOp(shuffle_in, shuffle_in_demanded);
       return true;
     }
   }

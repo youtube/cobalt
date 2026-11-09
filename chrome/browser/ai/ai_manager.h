@@ -6,7 +6,9 @@
 #define CHROME_BROWSER_AI_AI_MANAGER_H_
 
 #include <optional>
+#include <string>
 
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
@@ -22,6 +24,7 @@
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_observer.h"
 #include "content/public/browser/weak_document_ptr.h"
+#include "mojo/public/cpp/base/proto_wrapper.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
@@ -108,7 +111,17 @@ class AIManager : public base::SupportsUserData::Data,
   void CanCreateSession(optimization_guide::mojom::OnDeviceFeature capability,
                         on_device_model::Capabilities capabilities,
                         CanCreateLanguageModelCallback callback);
-
+  void CanCreateSession(const std::string& use_case_string,
+                        on_device_model::Capabilities capabilities,
+                        CanCreateLanguageModelCallback callback);
+  // Check whether optimization guide supports the feature matching `capability`
+  // and uses the configuration specified by `FeatureConfigProto`; yields a
+  // result to `callback`.
+  template <typename FeatureConfigProto>
+  void CanCreateSessionWithConfig(
+      optimization_guide::mojom::OnDeviceFeature capability,
+      on_device_model::Capabilities capabilities,
+      CanCreateLanguageModelCallback callback);
 
   // Returns true if `options` uses only `supported` languages, false otherwise.
   // Logs errors and warnings and initializes empty output languages as needed.
@@ -120,6 +133,24 @@ class AIManager : public base::SupportsUserData::Data,
       const base::flat_set<std::string>& default_supported);
 
  private:
+  // Called when the summarizer configuration is fetched to check if a session
+  // can be created.
+  void OnGetSummarizerConfigForCanCreate(
+      blink::mojom::AISummarizerCreateOptionsPtr options,
+      CanCreateSummarizerCallback callback,
+      std::optional<mojo_base::ProtoWrapper> config_wrapper);
+  // Called when the summarizer configuration is fetched to create a session.
+  void OnGetSummarizerConfigForCreate(
+      mojo::PendingRemote<blink::mojom::AIManagerCreateSummarizerClient> client,
+      blink::mojom::AISummarizerCreateOptionsPtr options,
+      std::optional<mojo_base::ProtoWrapper> config_wrapper);
+
+  base::OnceCallback<void(std::unique_ptr<optimization_guide::OnDeviceSession>)>
+  CreateSummarizerSessionCallback(
+      blink::mojom::AISummarizerCreateOptionsPtr options,
+      mojo::PendingRemote<blink::mojom::AIManagerCreateSummarizerClient>
+          client);
+
   // Checks if features are allowed by enterprise policy and user preferences.
   // Returns `std::nullopt` if the checks pass, otherwise a failing result.
   std::optional<blink::mojom::ModelAvailabilityCheckResult>
@@ -136,6 +167,10 @@ class AIManager : public base::SupportsUserData::Data,
 
   void OnModelPathValidationComplete(const base::FilePath& model_path,
                                      bool is_valid_path);
+
+  // Validates the overridden on-device model path if one is configured via
+  // switch.
+  void StartModelPathValidationIfOverrideSet();
 
   // Creates an `AILanguageModel`, as a new session. Clones are created
   // internally within the `AILanguageModel` object.
@@ -160,6 +195,12 @@ class AIManager : public base::SupportsUserData::Data,
       std::optional<optimization_guide::mojom::ModelUnavailableReason> reason,
       std::optional<optimization_guide::mojom::ModelNotSupportedDetailedReason>
           detailed_reason);
+
+  template <typename FeatureConfigProto>
+  void FinishCanCreateSessionWithConfig(
+      on_device_model::Capabilities capabilities,
+      CanCreateLanguageModelCallback callback,
+      std::optional<mojo_base::ProtoWrapper> wrapper);
 
   template <typename ContextBoundObjectType,
             typename ContextBoundObjectReceiverInterface,

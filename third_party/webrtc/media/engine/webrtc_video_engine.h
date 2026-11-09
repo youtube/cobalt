@@ -685,6 +685,7 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
     VideoReceiveStreamInterface::Config config_;
     FlexfecReceiveStream::Config flexfec_config_;
     FlexfecReceiveStream* flexfec_stream_;
+    std::optional<VideoReceiveStreamInterface::Stats> previous_stats_;
 
     Mutex sink_lock_;
     VideoSinkInterface<VideoFrame>* sink_ RTC_GUARDED_BY(sink_lock_);

@@ -5,16 +5,20 @@
 const notifications = chrome.notifications;
 
 function arrayEquals(a, b) {
-  if (a === b)
+  if (a === b) {
     return true;
-  if (a == null || b == null)
+  }
+  if (a == null || b == null) {
     return false;
-  if (a.length !== b.length)
+  }
+  if (a.length !== b.length) {
     return false;
+  }
 
   for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i])
+    if (a[i] !== b[i]) {
       return false;
+    }
   }
   return true;
 }
@@ -26,7 +30,7 @@ function create(id, options) {
         reject(new Error('Unable to create notification'));
         return;
       }
-      console.log(`Created with id: ${id}`);
+      console.info(`Created with id: ${id}`);
       resolve(id);
       return;
     });
@@ -40,7 +44,7 @@ function update(id, options) {
         reject(new Error('Unable to update notification'));
         return;
       }
-      console.log('Updated id: ', id);
+      console.info('Updated id: ', id);
       resolve(ok);
       return;
     });
@@ -95,7 +99,7 @@ function succeedTest(testName) {
           chrome.test.succeed(testName);
         },
         function(error) {
-          console.log(
+          console.info(
               'Unknown error in clearAll: ' + JSON.stringify(arguments));
         });
   };
@@ -108,7 +112,7 @@ function failTest(testName) {
           chrome.test.fail(testName);
         },
         function(error) {
-          console.log(
+          console.info(
               'Unknown error in clearAll: ' + JSON.stringify(error.message));
         });
   };
@@ -116,7 +120,7 @@ function failTest(testName) {
 
 function testPartialUpdate() {
   const testName = 'testPartialUpdate';
-  console.log(`Starting ${testName}`);
+  console.info(`Starting ${testName}`);
   const succeed = succeedTest(testName);
   const fail = failTest(testName);
 

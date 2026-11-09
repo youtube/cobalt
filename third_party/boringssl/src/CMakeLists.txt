@@ -488,14 +488,17 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
   endif()
 
   # Clang 12's -Wframe-larger-than reportedly does not work in clang-cl. See
-  # https://crbug.com/boringssl/709. Clang 13 includes the following fix, which
-  # may be related. Speculatively gate on Clang 13. That corresponds to
+  # https://crbug.com/42290587. Clang 13 includes the following fix, which may
+  # be related. Speculatively gate on Clang 13. That corresponds to
   # AppleClang 13.1.6.
   # https://github.com/llvm/llvm-project/commit/6aaf4fa2885600b0e31042071ad06f78218ab0f2
-  if((CMAKE_C_COMPILER_ID STREQUAL "Clang" AND
-      CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "13.0.0") OR
-     (CMAKE_C_COMPILER_ID STREQUAL "AppleClang" AND
-      CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "13.1.6"))
+  #
+  # Only enable this warning in release builds.
+  if(CMAKE_BUILD_TYPE MATCHES "[rR][eE][lL]" AND
+     ((CMAKE_C_COMPILER_ID STREQUAL "Clang" AND
+       CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "13.0.0") OR
+      (CMAKE_C_COMPILER_ID STREQUAL "AppleClang" AND
+       CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "13.1.6")))
     list(APPEND C_CXX_WARNINGS -Wframe-larger-than=25344)
   endif()
 
@@ -736,6 +739,7 @@ if(BUILD_TESTING)
   add_executable(ssl_test ${SSL_TEST_SOURCES})
   target_link_libraries(ssl_test test_support_lib boringssl_gtest ssl crypto)
   add_dependencies(boringssl_all_tests ssl_test)
+
   add_executable(decrepit_test ${DECREPIT_TEST_SOURCES})
   target_link_libraries(decrepit_test test_support_lib boringssl_gtest
                         decrepit ssl crypto)
@@ -752,10 +756,8 @@ if(BUILD_TESTING)
   add_executable(jitter_deltas util/fipstools/entropy/jitter_deltas.cc)
   target_link_libraries(jitter_deltas crypto)
 
-  if(BUILD_TESTING)
-    add_executable(bssl_bench ${BENCH_SOURCES})
-    target_link_libraries(bssl_bench ssl pki crypto benchmark::benchmark)
-  endif()
+  add_executable(bssl_bench ${BENCH_SOURCES})
+  target_link_libraries(bssl_bench ssl pki crypto benchmark::benchmark)
 endif()
 
 if(FIPS)

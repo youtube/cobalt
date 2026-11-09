@@ -1320,6 +1320,9 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[contextual_tasks::kContextualTasksSiteExclusions] =
       settings_api::PrefType::kDictionary;
+  (*s_allowlist)[optimization_guide::prefs::GetSettingEnabledPrefName(
+      optimization_guide::UserVisibleFeatureKey::kContextualCueing)] =
+      settings_api::PrefType::kNumber;
 
   // AI enterprise prefs
   (*s_allowlist)
@@ -1339,9 +1342,12 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   (*s_allowlist)[optimization_guide::prefs::
                      kAutofillPredictionImprovementsEnterprisePolicyAllowed] =
       settings_api::PrefType::kNumber;
+  (*s_allowlist)
+      [optimization_guide::prefs::kContextualCueingEnterprisePolicyAllowed] =
+          settings_api::PrefType::kNumber;
 
   // Glic prefs
-  if (glic::GlicEnabling::IsEnabledByFlags()) {
+  if (glic::GlicEnabling::IsEnabledByGlobalCriteria()) {
     (*s_allowlist)[glic::prefs::kGlicPinnedToTabstrip] =
         settings_api::PrefType::kBoolean;
     (*s_allowlist)[glic::prefs::kGlicLauncherEnabled] =

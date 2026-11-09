@@ -21,8 +21,7 @@
 #include "chrome/browser/feature_engagement/tracker_factory.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
@@ -51,8 +50,8 @@
 #include "ui/base/webui/resource_path.h"
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-#include "chrome/browser/ui/browser_navigator.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "net/base/url_util.h"
 #endif
 
@@ -926,7 +925,8 @@ void UserEducationInternalsPageHandlerImpl::LaunchWhatsNewStaging() {
                                        "staging", "true");
   NavigateParams params(profile_, url, ui::PAGE_TRANSITION_TYPED);
   params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
-  params.browser = chrome::FindBrowserWithTab(web_ui_->GetWebContents());
+  params.browser = GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+      web_ui_->GetWebContents());
   Navigate(&params);
 #endif
 }

@@ -546,11 +546,11 @@ bool SSL_apply_handback(SSL *ssl, Span<const uint8_t> handback) {
   SSL_HANDSHAKE *const hs = s3->hs.get();
   if (!session_reused || type == handback_tls13) {
     hs->new_session =
-        SSL_SESSION_parse(&seq, ssl->ctx->x509_method, ssl->ctx->pool);
+        SSL_SESSION_parse(&seq, ssl->ctx->x509_method, ssl->ctx->pool.get());
     session = hs->new_session.get();
   } else {
     ssl->session =
-        SSL_SESSION_parse(&seq, ssl->ctx->x509_method, ssl->ctx->pool);
+        SSL_SESSION_parse(&seq, ssl->ctx->x509_method, ssl->ctx->pool.get());
     session = ssl->session.get();
   }
 

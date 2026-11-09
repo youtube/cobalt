@@ -1302,9 +1302,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   VfpRegList scratch_vfp_register_list_;
 
  private:
-  // Avoid overflows for displacements etc.
-  static const int kMaximalBufferSize = 512 * MB;
-
   // Constant pool generation
   // Pools are emitted in the instruction stream, preferably after unconditional
   // jumps or after returns from functions (in dead code locations).

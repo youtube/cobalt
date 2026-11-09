@@ -719,8 +719,7 @@ void LayoutObject::AddChild(LayoutObject* new_child,
     LayoutObject* table = nullptr;
     LayoutObject* after_child =
         before_child ? before_child->PreviousSibling() : children->LastChild();
-    if (after_child && after_child->IsAnonymous() && after_child->IsTable() &&
-        !after_child->IsBeforeContent()) {
+    if (after_child && after_child->IsAnonymous() && after_child->IsTable()) {
       table = after_child;
     } else {
       table = LayoutTable::CreateAnonymousWithParent(*this);
@@ -3799,7 +3798,7 @@ PhysicalOffset LayoutObject::OffsetFromOverscrollContainer(
   // scroll of all overscroll areas, and each individual overscroll area is
   // shifted by each one before it.
   wtf_size_t affecting_overscroll_areas =
-      IsPseudoElementContent(kPseudoIdOverscrollAreaParent)
+      IsOverscrollAreaParent()
           ? overscroll_areas.Find(
                 &To<PseudoElement>(GetNode())->UltimateOriginatingElement())
           : overscroll_areas.size();
@@ -4047,7 +4046,6 @@ void LayoutObject::WillBeRemovedFromTree() {
   }
 
   if (LocalFrameView* frame_view = GetFrameView()) {
-    frame_view->GetPaintTimingDetector().LayoutObjectWillBeDestroyed(*this);
     frame_view->SetIntersectionObservationState(LocalFrameView::kDesired);
   }
 }
@@ -4218,16 +4216,36 @@ Node* LayoutObject::NodeForHitTest() const {
   if (Node* node = GetNode())
     return node;
 
-  // If we hit the anonymous layoutObjects inside generated content we should
+  const LayoutObject* parent = Parent();
+  if (!parent) {
+    return nullptr;
+  }
+
+  // If we hit the anonymous layout-objects within generated content we should
   // actually hit the generated content so walk up to the PseudoElement.
-  if (const LayoutObject* parent = Parent()) {
-    if (parent->IsBeforeOrAfterContent() || parent->IsMarkerContent() ||
-        parent->IsScrollButtonOrMarkerContent() ||
-        parent->IsInterestButtonContent() ||
-        parent->StyleRef().StyleType() == kPseudoIdFirstLetter) {
-      for (; parent; parent = parent->Parent()) {
-        if (Node* node = parent->GetNode())
-          return node;
+  const bool use_parent_node = ([&]() {
+    switch (parent->StyleRef().StyleType()) {
+      case kPseudoIdAfter:
+      case kPseudoIdBefore:
+      case kPseudoIdFirstLetter:
+      case kPseudoIdInterestButton:
+      case kPseudoIdMarker:
+      case kPseudoIdScrollButton:
+      case kPseudoIdScrollButtonBlockStart:
+      case kPseudoIdScrollButtonInlineStart:
+      case kPseudoIdScrollButtonInlineEnd:
+      case kPseudoIdScrollButtonBlockEnd:
+      case kPseudoIdScrollMarker:
+        return true;
+      default:
+        return false;
+    }
+  })();
+
+  if (use_parent_node) {
+    for (; parent; parent = parent->Parent()) {
+      if (Node* node = parent->GetNode()) {
+        return node;
       }
     }
   }
@@ -4273,15 +4291,17 @@ const ComputedStyle* LayoutObject::FirstLineStyleWithoutFallback() const {
   NOT_DESTROYED();
   DCHECK(GetDocument().GetStyleEngine().UsesFirstLineRules());
 
-  // Normal markers don't use ::first-line styles in Chromium, so be consistent
-  // and return null for content markers. This may need to change depending on
-  // https://github.com/w3c/csswg-drafts/issues/4506
-  if (IsMarkerContent())
-    return nullptr;
   if (IsText()) {
     if (!Parent())
       return nullptr;
     return Parent()->FirstLineStyleWithoutFallback();
+  }
+
+  // Normal markers don't use ::first-line styles in Chromium, so be consistent
+  // and return null for content markers. This may need to change depending on
+  // https://github.com/w3c/csswg-drafts/issues/4506
+  if (StyleRef().StyleType() == kPseudoIdMarker) {
+    return nullptr;
   }
 
   if (BehavesLikeBlockContainer()) {

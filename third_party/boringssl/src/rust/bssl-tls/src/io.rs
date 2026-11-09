@@ -49,9 +49,7 @@ use crate::{
 pub mod stdio;
 /// Synchronous I/O adapters.
 pub mod sync_io;
-/// Tokio-based async I/O adapters.
-#[cfg(feature = "tokio_net")]
-pub mod tokio;
+
 #[cfg(all(unix, feature = "std"))]
 pub mod unix;
 

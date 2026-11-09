@@ -11,6 +11,7 @@
 #include "media/engine/internal_decoder_factory.h"
 
 #include <memory>
+#include <optional>
 
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
@@ -129,21 +130,26 @@ TEST(InternalDecoderFactoryTest, Av1Profile1_Dav1dDecoderTrialEnabled) {
 TEST(InternalDecoderFactoryTest, QueryCodecSupportNoReferenceScaling) {
   InternalDecoderFactory factory;
   EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::VP8(),
-                                        /*reference_scaling=*/false),
+                                        /*reference_scaling=*/false,
+                                        /*resolution=*/std::nullopt),
               Support(kSupported));
   EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::VP9Profile0(),
-                                        /*reference_scaling=*/false),
+                                        /*reference_scaling=*/false,
+                                        /*resolution=*/std::nullopt),
               Support(kVp9Enabled ? kSupported : kUnsupported));
   EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::VP9Profile1(),
-                                        /*reference_scaling=*/false),
+                                        /*reference_scaling=*/false,
+                                        /*resolution=*/std::nullopt),
               Support(kVp9Enabled ? kSupported : kUnsupported));
 
 #if defined(RTC_DAV1D_IN_INTERNAL_DECODER_FACTORY)
   EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::AV1Profile0(),
-                                        /*reference_scaling=*/false),
+                                        /*reference_scaling=*/false,
+                                        /*resolution=*/std::nullopt),
               Support(kSupported));
   EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::AV1Profile1(),
-                                        /*reference_scaling=*/false),
+                                        /*reference_scaling=*/false,
+                                        /*resolution=*/std::nullopt),
               Support(kSupported));
 
 #endif
@@ -159,34 +165,40 @@ TEST(InternalDecoderFactoryTest, QueryCodecSupportH264Profiles) {
   // subsets of High Predictive 4:4:4.
   EXPECT_THAT(
       factory.QueryCodecSupport(
-          SdpVideoFormat("H264", {{"profile-level-id", "42e01f"}}), false),
+          SdpVideoFormat("H264", {{"profile-level-id", "42e01f"}}), false,
+          /*resolution=*/std::nullopt),
       Support(h264_support));
   EXPECT_THAT(
       factory.QueryCodecSupport(
-          SdpVideoFormat("H264", {{"profile-level-id", "42001f"}}), false),
+          SdpVideoFormat("H264", {{"profile-level-id", "42001f"}}), false,
+          /*resolution=*/std::nullopt),
       Support(h264_support));
   EXPECT_THAT(
       factory.QueryCodecSupport(
-          SdpVideoFormat("H264", {{"profile-level-id", "4d001f"}}), false),
+          SdpVideoFormat("H264", {{"profile-level-id", "4d001f"}}), false,
+          /*resolution=*/std::nullopt),
       Support(h264_support));
   EXPECT_THAT(
       factory.QueryCodecSupport(
-          SdpVideoFormat("H264", {{"profile-level-id", "640c1f"}}), false),
+          SdpVideoFormat("H264", {{"profile-level-id", "640c1f"}}), false,
+          /*resolution=*/std::nullopt),
       Support(h264_support));
   EXPECT_THAT(
       factory.QueryCodecSupport(
-          SdpVideoFormat("H264", {{"profile-level-id", "64001f"}}), false),
+          SdpVideoFormat("H264", {{"profile-level-id", "64001f"}}), false,
+          /*resolution=*/std::nullopt),
       Support(h264_support));
 
   EXPECT_THAT(
       factory.QueryCodecSupport(
-          SdpVideoFormat("H264", {{"profile-level-id", "ff0000"}}), false),
+          SdpVideoFormat("H264", {{"profile-level-id", "ff0000"}}), false,
+          /*resolution=*/std::nullopt),
       Support(kUnsupported));
 
   EXPECT_THAT(factory.QueryCodecSupport(
                   SdpVideoFormat("H264", {{"profile-level-id", "42e01f"},
                                           {"packetization-mode", "2"}}),
-                  false),
+                  false, /*resolution=*/std::nullopt),
               Support(kUnsupported));
 }
 
@@ -194,20 +206,24 @@ TEST(InternalDecoderFactoryTest, QueryCodecSupportReferenceScaling) {
   InternalDecoderFactory factory;
   // VP9 and AV1 support for spatial layers.
   EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::VP9Profile0(),
-                                        /*reference_scaling=*/true),
+                                        /*reference_scaling=*/true,
+                                        /*resolution=*/std::nullopt),
               Support(kVp9Enabled ? kSupported : kUnsupported));
 #if defined(RTC_DAV1D_IN_INTERNAL_DECODER_FACTORY)
   EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::AV1Profile0(),
-                                        /*reference_scaling=*/true),
+                                        /*reference_scaling=*/true,
+                                        /*resolution=*/std::nullopt),
               Support(kSupported));
 #endif
 
   // Invalid config even though VP8 and H264 are supported.
   EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::H264(),
-                                        /*reference_scaling=*/true),
+                                        /*reference_scaling=*/true,
+                                        /*resolution=*/std::nullopt),
               Support(kUnsupported));
   EXPECT_THAT(factory.QueryCodecSupport(SdpVideoFormat::VP8(),
-                                        /*reference_scaling=*/true),
+                                        /*reference_scaling=*/true,
+                                        /*resolution=*/std::nullopt),
               Support(kUnsupported));
 }
 

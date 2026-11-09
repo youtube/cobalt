@@ -102,10 +102,6 @@ static crash_reporter::CrashKeyString<32> crash_key_stream_count(
 static crash_reporter::CrashKeyString<32> crash_key_ongoing_content_navigations(
     "mime-handler-ongoing-content-navigations");
 
-// Extension navigation crash key.
-static crash_reporter::CrashKeyString<256> crash_key_did_finish_navigation_url(
-    "mime-handler-did-finish-navigation-url");
-
 // Content navigation crash keys.
 static crash_reporter::CrashKeyString<6> crash_key_did_start_navigation(
     "mime-handler-did-start-navigation");
@@ -446,6 +442,21 @@ void MimeHandlerStreamManager::ReadyToCommitNavigation(
     return;
   }
 
+  // Extension frame navigation: when the extension frame (child of the
+  // embedder) navigates to the handler URL, dispatch to the delegate.
+  // The default implementation is a no-op; subclasses can override to
+  // hook into the extension frame's ReadyToCommit.
+  if (auto* parent_host = navigation_handle->GetParentFrame()) {
+    if (auto* stream_info = GetClaimedStreamInfo(parent_host);
+        stream_info && stream_info->DidExtensionStartNavigation() &&
+        stream_info->extension_host_frame_tree_node_id() ==
+            navigation_handle->GetFrameTreeNodeId()) {
+      stream_info->delegate()->OnExtensionFrameReadyToCommit(navigation_handle,
+                                                             stream_info);
+      return;
+    }
+  }
+
   // The initial load notification for the URL being served in the embedder
   // host. The `embedder_host` should claim the unclaimed `StreamInfo`. This
   // should replace any existing `StreamInfo` objects related to
@@ -503,10 +514,6 @@ void MimeHandlerStreamManager::DidFinishNavigation(
             navigation_handle->GetFrameTreeNodeId() &&
         navigation_handle->HasCommitted() &&
         !navigation_handle->IsErrorPage()) {
-      // TODO(crbug.com/432497344, crbug.com/479589477): Remove debugging data.
-      crash_reporter::ScopedCrashKeyString
-          scoped_crash_key_did_finish_navigation_url(
-              &crash_key_did_finish_navigation_url, url.spec());
       stream_info->SetDidExtensionFinishNavigation();
       stream_info->delegate()->OnExtensionFrameFinished(navigation_handle,
                                                         stream_info);

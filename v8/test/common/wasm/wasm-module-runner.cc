@@ -13,7 +13,7 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
 
@@ -68,7 +68,6 @@ DirectHandleVector<Object> MakeDefaultArguments(Isolate* isolate,
       case kI8:
       case kI16:
       case kF16:
-      case kWaitQueue:
       case kVoid:
       case kTop:
       case kBottom:

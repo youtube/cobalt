@@ -11,7 +11,6 @@
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/objects/casting.h"
-#include "src/objects/dictionary-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-objects-inl.h"
@@ -20,7 +19,6 @@
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
-#include "src/objects/shared-function-info.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

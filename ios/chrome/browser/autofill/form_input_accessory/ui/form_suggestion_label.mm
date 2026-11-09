@@ -294,7 +294,10 @@ bool IsPasswordSuggestion(FormSuggestion* suggestion) {
     case SuggestionType::kOneTimePasswordEntry:
     case SuggestionType::kLoadingThrobber:
     case SuggestionType::kAtMemorySearchResult:
+    case SuggestionType::kAtMemoryInactivityNudge:
     case SuggestionType::kBnplFootnote:
+    case SuggestionType::kAutocompleteAtMemoryButton:
+    case SuggestionType::kOpenGemini:
       return false;
   }
   NOTREACHED();

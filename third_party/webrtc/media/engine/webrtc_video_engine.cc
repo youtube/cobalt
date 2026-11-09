@@ -495,7 +495,7 @@ bool IsScalabilityModeSupportedByCodec(const Codec& codec,
                                        const VideoSendStream::Config& config) {
   return config.encoder_settings.encoder_factory
       ->QueryCodecSupport(SdpVideoFormat(codec.name, codec.params),
-                          scalability_mode)
+                          scalability_mode, std::nullopt)
       .is_supported;
 }
 
@@ -3529,6 +3529,7 @@ WebRtcVideoReceiveChannel::WebRtcVideoReceiveStream::WebRtcVideoReceiveStream(
 WebRtcVideoReceiveChannel::WebRtcVideoReceiveStream::
     ~WebRtcVideoReceiveStream() {
   call_->DestroyVideoReceiveStream(stream_);
+  previous_stats_ = std::nullopt;
   if (flexfec_stream_)
     call_->DestroyFlexfecReceiveStream(flexfec_stream_);
 }
@@ -3721,6 +3722,7 @@ void WebRtcVideoReceiveChannel::WebRtcVideoReceiveStream::
         /*generate_key_frame=*/false);
     call_->DestroyVideoReceiveStream(stream_);
     stream_ = nullptr;
+    previous_stats_ = std::nullopt;
   }
 
   if (flexfec_stream_) {
@@ -3972,7 +3974,10 @@ WebRtcVideoReceiveChannel::WebRtcVideoReceiveStream::GetVideoReceiverInfo(
   // present if DLRR is enabled.
 
   if (log_stats)
-    RTC_LOG(LS_INFO) << stats.ToString(env_.clock().TimeInMilliseconds());
+    RTC_LOG(LS_INFO) << stats.ToString(env_.clock().TimeInMilliseconds(),
+                                       previous_stats_);
+
+  previous_stats_ = stats;
 
   return info;
 }

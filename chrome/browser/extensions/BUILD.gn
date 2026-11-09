@@ -509,6 +509,7 @@ source_set("extensions") {
     "//chrome/browser/favicon",
     "//chrome/browser/gcm",
     "//chrome/browser/google",
+    "//chrome/browser/history",
     "//chrome/browser/image_fetcher",
     "//chrome/browser/infobars",
     "//chrome/browser/lifetime:termination_notification",
@@ -538,13 +539,13 @@ source_set("extensions") {
     "//chrome/browser/tab_group_sync:factories",
     "//chrome/browser/tab_list",
     "//chrome/browser/ui:browser_element_identifiers",
-    "//chrome/browser/ui:browser_navigator_params_headers",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/autofill",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/browser_window:create_browser_window",
     "//chrome/browser/ui/dialogs",
     "//chrome/browser/ui/extensions",
+    "//chrome/browser/ui/navigator",
     "//chrome/browser/ui/prefs",
     "//chrome/browser/ui/safety_hub",
     "//chrome/browser/ui/select_file_policy",
@@ -608,8 +609,6 @@ source_set("extensions") {
     "//extensions/browser/api/storage:settings_observer",
     "//extensions/browser/api/system_display:display_info_provider",
     "//extensions/browser/forced_extensions",
-    "//extensions/browser/mime_handler",
-    "//extensions/browser/mime_handler:stream_container",
     "//extensions/browser/updater",
     "//extensions/common",
     "//extensions/strings",
@@ -655,6 +654,7 @@ source_set("extensions") {
       "api/management/chrome_management_api_delegate_android.cc",
       "api/tabs/tabs_event_router_platform_delegate_android.cc",
       "api/tabs/tabs_event_router_platform_delegate_android.h",
+      "api/tabs/windows_util_android.cc",
       "extension_disabled_ui_android.cc",
       "extension_error_ui_android.cc",
       "extension_error_ui_android.h",
@@ -682,6 +682,8 @@ source_set("extensions") {
       "//chrome/browser/ui/interaction",
       "//chrome/browser/ui/user_education",
       "//chrome/browser/ui/web_applications:launch_utils",
+      "//extensions/browser/mime_handler",
+      "//extensions/browser/mime_handler:stream_container",
     ]
   }
 
@@ -1690,6 +1692,7 @@ source_set("chrome_extensions_browser_client") {
     "//chrome/browser/profiles:profile_manager",
     "//chrome/browser/profiles/keep_alive",
     "//chrome/browser/safe_browsing",
+    "//chrome/browser/search_engines",
     "//chrome/browser/task_manager",
     "//chrome/browser/ui",
     "//chrome/browser/usb",
@@ -1828,6 +1831,7 @@ source_set("unit_tests") {
     "event_router_forwarder_unittest.cc",
     "extension_action_icon_factory_unittest.cc",
     "extension_action_runner_unittest.cc",
+    "extension_commands_global_registry_unittest.cc",
     "extension_error_controller_unittest.cc",
     "extension_garbage_collector_unittest.cc",
     "extension_install_prompt_unittest.cc",
@@ -1839,7 +1843,9 @@ source_set("unit_tests") {
     "extension_protocols_unittest.cc",
     "extension_safety_check_utils_unittest.cc",
     "extension_service_unittest.cc",
+    "extension_special_storage_policy_unittest.cc",
     "extension_tab_util_unittest.cc",
+    "extension_telemetry_service_verdict_handler_unittest.cc",
     "extension_url_overrides_unittest.cc",
     "extension_user_script_loader_unittest.cc",
     "extension_util_unittest.cc",
@@ -1857,6 +1863,7 @@ source_set("unit_tests") {
     "permission_message_combinations_unittest.cc",
     "permission_messages_unittest.cc",
     "permissions/active_tab_unittest.cc",
+    "permissions/host_access_requests_helper_unittest.cc",
     "permissions/permissions_manager_unittest.cc",
     "permissions/permissions_updater_unittest.cc",
     "permissions/scripting_permissions_modifier_unittest.cc",
@@ -1904,6 +1911,7 @@ source_set("unit_tests") {
     "//chrome/browser/policy:test_support",
     "//chrome/browser/prefs",
     "//chrome/browser/resources:component_extension_resources_grit",
+    "//chrome/browser/search_engines",
     "//chrome/browser/supervised_user:test_support",
     "//chrome/browser/sync",
     "//chrome/browser/ui/extensions",
@@ -1915,6 +1923,7 @@ source_set("unit_tests") {
     "//components/policy/core/common:test_support",
     "//components/prefs:test_support",
     "//components/proxy_config",
+    "//components/search_engines",
     "//components/signin/public/identity_manager:test_support",
     "//components/sync:test_support",
     "//components/sync_preferences:test_support",
@@ -1936,6 +1945,7 @@ source_set("unit_tests") {
     "//services/service_manager/public/cpp/test:test_support",
     "//testing/gmock",
     "//testing/gtest",
+    "//ui/base/accelerators/global_accelerator_listener",
     "//ui/display:test_support",
   ]
 
@@ -1995,15 +2005,11 @@ source_set("unit_tests") {
       "context_menu_matcher_unittest.cc",
       "error_console/error_console_unittest.cc",
       "extension_allowlist_unittest.cc",
-      "extension_commands_global_registry_unittest.cc",
       "extension_error_ui_default_unittest.cc",
-      "extension_special_storage_policy_unittest.cc",
-      "extension_telemetry_service_verdict_handler_unittest.cc",
       "initial_external_extension_loader_unittest.cc",
       "manifest_v2_experiment_manager_unittest.cc",
       "menu_manager_unittest.cc",
       "mv2_deprecation_impact_checker_unittest.cc",
-      "permissions/host_access_requests_helper_unittest.cc",
       "preinstalled_apps_unittest.cc",
       "safe_browsing_verdict_handler_unittest.cc",
       "update_install_gate_unittest.cc",
@@ -2035,12 +2041,18 @@ source_set("unit_tests") {
       "//components/sync_bookmarks",
       "//components/webauthn/core/browser:test_support",
       "//extensions/browser:webstore_installer",
-      "//ui/base/accelerators/global_accelerator_listener",
       "//ui/base/clipboard:clipboard_test_support",
     ]
 
     if (is_win) {
       sources += [ "external_registry_loader_win_unittest.cc" ]
+    }
+
+    if (is_win || is_mac || is_linux) {
+      sources += [
+        # Batch upload is only available on Windows, Mac and Linux.
+        "sync/extension_local_data_batch_uploader_unittest.cc",
+      ]
     }
 
     if (is_chromeos) {

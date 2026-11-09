@@ -534,8 +534,7 @@ void SynchronousCompositorHost::OnCompositorFrameTransitionDirectiveProcessed(
 }
 
 void SynchronousCompositorHost::DidPresentCompositorFrames(
-    viz::FrameTimingDetailsMap timing_details,
-    uint32_t frame_token) {
+    viz::FrameTimingDetailsMap timing_details) {
   timing_details_.insert(timing_details.begin(), timing_details.end());
   if (!timing_details_.empty())
     AddBeginFrameRequest(BEGIN_FRAME);
@@ -765,9 +764,8 @@ void SynchronousCompositorHost::SendBeginFrame(viz::BeginFrameArgs args) {
     // case renderer receives no back pressure so reduce the frequency of begin
     // frames to avoid unnecessary work.
     if (num_begin_frames_to_skip_) {
-      TRACE_EVENT_INSTANT0("cc",
-                           "SynchronousCompositorHost::SendBeginFrame_skipped",
-                           TRACE_EVENT_SCOPE_THREAD);
+      TRACE_EVENT_INSTANT("cc",
+                          "SynchronousCompositorHost::SendBeginFrame_skipped");
       num_begin_frames_to_skip_--;
       return;
     } else {

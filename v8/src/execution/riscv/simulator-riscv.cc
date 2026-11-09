@@ -502,13 +502,13 @@ struct type_sew_t<128> {
 
 #define VI_WIDE_CHECK_COMMON                     \
   CHECK_LE(rvv_vflmul(), 4);                     \
-  CHECK_LE(rvv_vsew() * 2, kRvvELEN);            \
+  CHECK_LE(rvv_sew() * 2, kRvvELEN);             \
   require_align(rvv_vd_reg(), rvv_vflmul() * 2); \
   require_vm;
 
 #define VI_NARROW_CHECK_COMMON                    \
   CHECK_LE(rvv_vflmul(), 4);                      \
-  CHECK_LE(rvv_vsew() * 2, kRvvELEN);             \
+  CHECK_LE(rvv_sew() * 2, kRvvELEN);              \
   require_align(rvv_vs2_reg(), rvv_vflmul() * 2); \
   require_align(rvv_vd_reg(), rvv_vflmul());      \
   require_vm;

@@ -162,8 +162,8 @@ std::optional<int64_t> VideoStreamBufferController::InsertFrame(
     if (!metadata.delayed_by_retransmission && metadata.receive_time &&
         (field_trials_.IsDisabled("WebRTC-IncomingTimestampOnMarkerBitOnly") ||
          metadata.is_last_spatial_layer)) {
-      timing_->IncomingTimestamp(metadata.rtp_timestamp,
-                                 *metadata.receive_time);
+      timing_->OnCompleteTemporalUnit(metadata.rtp_timestamp,
+                                      *metadata.receive_time);
     }
     if (complete_units < buffer_->GetTotalNumberOfContinuousTemporalUnits()) {
       stats_proxy_->OnCompleteFrame(metadata.is_keyframe, metadata.size,
@@ -252,7 +252,7 @@ void VideoStreamBufferController::OnFrameReady(
                                        superframe_size);
     }
 
-    timing_->SetJitterDelay(jitter_estimator_.GetEstimate());
+    timing_->SetMinimumDelay(jitter_estimator_.GetEstimate());
     timing_->UpdateCurrentDelay(render_time, now);
   } else {
     jitter_estimator_.FrameNacked();

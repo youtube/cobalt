@@ -744,7 +744,7 @@ TNode<HeapObject> CollectionsBuiltinsAssembler::AllocateJSCollectionIterator(
   const TNode<HeapObject> iterator =
       AllocateInNewSpace(IteratorType::kHeaderSize);
   StoreMapNoWriteBarrier(iterator, iterator_map);
-  StoreObjectFieldRoot(iterator, IteratorType::kPropertiesOrHashOffset,
+  StoreObjectFieldRoot(iterator, offsetof(IteratorType, properties_or_hash_),
                        RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(iterator, IteratorType::kElementsOffset,
                        RootIndex::kEmptyFixedArray);

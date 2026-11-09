@@ -264,8 +264,9 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
     /**
      * @return The currently active WebContents being used by the Toolbar.
      */
+    @Override
     @CalledByNative
-    private @Nullable WebContents getActiveWebContents() {
+    public @Nullable WebContents getWebContents() {
         if (!hasTab()) return null;
         return mTab.getWebContents();
     }
@@ -793,7 +794,7 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
         boolean isShowingHttpsFirstWarning =
                 ChromeFeatureList.isEnabled(ChromeFeatureList.HTTPS_FIRST_DIALOG_UI)
                         && SecurityStateModel.isHttpsOnlyModeUpgradedForWebContents(
-                                getActiveWebContents());
+                                getWebContents());
 
         return SecurityStatusIcon.getSecurityIconResource(
                 securityLevel,

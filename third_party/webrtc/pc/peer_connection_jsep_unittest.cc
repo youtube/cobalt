@@ -2352,6 +2352,69 @@ TEST_F(PeerConnectionJsepTest,
   EXPECT_TRUE(callee->CreateOfferAndSetAsLocal());
 }
 
+TEST_F(PeerConnectionJsepTest, RollbackFollowedByAddTrack) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  RtpTransceiverInit init;
+  init.direction = RtpTransceiverDirection::kSendRecv;
+  RtpEncodingParameters encoding;
+  encoding.rid = "hi";
+  init.send_encodings.push_back(encoding);
+  caller->AddTransceiver(MediaType::VIDEO, init);
+
+  auto video_track = caller->CreateVideoTrack("v");
+  caller->pc()->GetTransceivers()[0]->sender()->SetTrack(video_track.get());
+
+  ASSERT_TRUE(caller->ExchangeOfferAnswerWith(callee.get()));
+
+  ASSERT_EQ(caller->pc()->GetTransceivers().size(), 1u);
+
+  // Create and apply local offer.
+  ASSERT_TRUE(caller->CreateOfferAndSetAsLocal());
+
+  // Rollback.
+  ASSERT_TRUE(caller->SetLocalDescription(caller->CreateRollback()));
+
+  // Add track to the video transceiver.
+  auto video_track2 = caller->CreateVideoTrack("v2");
+  caller->pc()->GetTransceivers()[0]->sender()->SetTrack(video_track2.get());
+
+  // Verify no crash and operation succeeds.
+  EXPECT_TRUE(caller->CreateOfferAndSetAsLocal());
+}
+
+TEST_F(PeerConnectionJsepTest, RollbackAfterSetParametersDoesNotStopAudio) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+  caller->AddAudioTrack("a");
+  ASSERT_TRUE(caller->ExchangeOfferAnswerWith(callee.get()));
+
+  ASSERT_EQ(caller->pc()->GetTransceivers().size(), 1u);
+  auto transceiver = caller->pc()->GetTransceivers()[0];
+
+  auto params = transceiver->sender()->GetParameters();
+  ASSERT_FALSE(params.encodings.empty());
+  EXPECT_NE(params.encodings[0].ssrc, std::nullopt);
+
+  // Verify init_send_encodings are empty BEFORE SetParameters.
+  EXPECT_TRUE(transceiver->sender()->init_send_encodings().empty());
+  EXPECT_EQ(transceiver->sender()->SetParameters(params).type(),
+            RTCErrorType::NONE);
+
+  // Verify that init_send_encodings are empty because no initial encodings were
+  // provided during transceiver creation.
+  EXPECT_TRUE(transceiver->sender()->init_send_encodings().empty());
+
+  ASSERT_TRUE(caller->CreateOfferAndSetAsLocal());
+
+  ASSERT_TRUE(caller->SetLocalDescription(caller->CreateRollback()));
+
+  EXPECT_FALSE(transceiver->stopping());
+  EXPECT_EQ(transceiver->receiver()->track()->state(),
+            MediaStreamTrackInterface::kLive);
+}
+
 TEST_F(PeerConnectionJsepTest, RollbackRemoteDataChannelThenAddDataChannel) {
   auto caller = CreatePeerConnection();
   auto callee = CreatePeerConnection();

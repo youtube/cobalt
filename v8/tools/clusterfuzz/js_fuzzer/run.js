@@ -48,7 +48,8 @@ function main() {
     .version('0.0.1')
     .option('-i, --input_dir <path>', 'Input directory.')
     .option('-o, --output_dir <path>', 'Output directory.')
-    .option('-n, --no_of_files <n>', 'Output directory.', parseInt)
+    .option('-n, --no_of_files <n>', 'Number of testcases to generate.',
+      parseInt)
     .option('-c, --mutate_corpus <name>', 'Mutate single files in a corpus.')
     .option('-e, --extra_strict', 'Additionally parse files in strict mode.')
     .option('-m, --mutate <path>', 'Mutate a file and output results.')

@@ -508,6 +508,12 @@ bssl_macros::bssl_enum! {
         RsaPssRsaeSha512 = bssl_sys::SSL_SIGN_RSA_PSS_RSAE_SHA512 as u16,
         /// IANA entry `ed25519`
         Ed25519 = bssl_sys::SSL_SIGN_ED25519 as u16,
+        /// IANA entry `ML-DSA-44`
+        Mldsa44 = bssl_sys::SSL_SIGN_ML_DSA_44 as u16,
+        /// IANA entry `ML-DSA-65`
+        Mldsa65 = bssl_sys::SSL_SIGN_ML_DSA_65 as u16,
+        /// IANA entry `ML-DSA-87`
+        Mldsa87 = bssl_sys::SSL_SIGN_ML_DSA_87 as u16,
     }
 }
 

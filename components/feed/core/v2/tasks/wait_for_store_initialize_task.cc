@@ -32,9 +32,6 @@ void WaitForStoreInitializeTask::OnStoreInitialized() {
   store_->ReadStartupData(
       base::BindOnce(&WaitForStoreInitializeTask::ReadStartupDataDone,
                      weak_ptr_factory_.GetWeakPtr()));
-  store_->ReadWebFeedStartupData(
-      base::BindOnce(&WaitForStoreInitializeTask::WebFeedStartupDataDone,
-                     weak_ptr_factory_.GetWeakPtr()));
 }
 
 void WaitForStoreInitializeTask::ReadStartupDataDone(
@@ -45,24 +42,8 @@ void WaitForStoreInitializeTask::ReadStartupDataDone(
                                     weak_ptr_factory_.GetWeakPtr()));
     return;
   }
-  // Single Web Feed Data is actively pruned and does not need to persist across
-  // startups, and is being removed proactively here in the case that there
-  // wasn't a chance to clean it up before the previous shutdown.
-  const auto orig_size = startup_data.stream_data.size();
-  std::erase_if(startup_data.stream_data, [&](const feedstore::StreamData& e) {
-    return feedstore::StreamTypeFromKey(e.stream_key()).IsSingleWebFeed();
-  });
-
   result_.startup_data = std::move(startup_data);
-
-  if (result_.startup_data.stream_data.size() != orig_size) {
-    store_->ClearAllStreamData(
-        StreamKind::kSingleWebFeed,
-        base::BindOnce(&WaitForStoreInitializeTask::ClearAllDone,
-                       weak_ptr_factory_.GetWeakPtr()));
-  } else {
-    MaybeUpgradeStreamSchema();
-  }
+  MaybeUpgradeStreamSchema();
 }
 
 void WaitForStoreInitializeTask::ClearAllDone(bool clear_ok) {
@@ -96,17 +77,9 @@ void WaitForStoreInitializeTask::UpgradeDone(feedstore::Metadata metadata) {
   Done();
 }
 
-void WaitForStoreInitializeTask::WebFeedStartupDataDone(
-    FeedStore::WebFeedStartupData data) {
-  result_.web_feed_startup_data = std::move(data);
-  Done();
-}
-
 void WaitForStoreInitializeTask::Done() {
-  if (++done_count_ == 2) {
     std::move(callback_).Run(std::move(result_));
     TaskComplete();
-  }
 }
 
 }  // namespace feed

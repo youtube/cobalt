@@ -1323,28 +1323,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="IOS.DefaultBrowserPromo.DaysSinceLastPromoInteraction"
-    units="count" expires_after="2026-10-16">
-  <owner>gayane@google.com</owner>
-  <owner>bling-mony-pod@google.com</owner>
-  <summary>
-    Represents number of days since last default browser promo was displayed.
-    This includes full screen and non-modal promo and default browser promo in
-    FRE. Recorded before every full screen promo displayed.
-  </summary>
-</histogram>
-
-<histogram name="IOS.DefaultBrowserPromo.GenericPromoDisplayCount"
-    units="count" expires_after="2026-10-16">
-  <owner>gayane@google.com</owner>
-  <owner>bling-mony-pod@google.com</owner>
-  <summary>
-    Represents number of generic default browser promos displayed to the user.
-    This includes all video promo options. Recorded before every full screen
-    promo displayed.
-  </summary>
-</histogram>
-
 <histogram name="IOS.DefaultBrowserPromo.NonModal.OnScreenTime" units="ms"
     expires_after="2026-10-16">
   <owner>rkgibson@google.com</owner>
@@ -1409,17 +1387,6 @@ chromium-metrics-reviews@google.com.
   <owner>rkgibson@google.com</owner>
   <owner>bling-mony-pod@google.com</owner>
   <summary>The default browser promo type shown to the user.</summary>
-</histogram>
-
-<histogram name="IOS.DefaultBrowserPromo.TailoredPromoDisplayCount"
-    units="count" expires_after="2026-10-16">
-  <owner>gayane@google.com</owner>
-  <owner>gujen@google.com</owner>
-  <owner>bling-mony-pod@google.com</owner>
-  <summary>
-    Represents number of tailored default browser promos displayed to the user.
-    Recorded before every full screen promo displayed.
-  </summary>
 </histogram>
 
 <histogram name="IOS.DefaultBrowserSettingsPageUsage{Source}"
@@ -1657,6 +1624,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="IOS.Desktop.Promo.TotalImpressionsLimitHit" enum="Boolean"
+    expires_after="2026-11-01">
+  <owner>hiramahmood@google.com</owner>
+  <owner>bling-pandamonium@google.com</owner>
+  <summary>
+    Records whether the total impressions limit across all Desktop to iOS promos
+    was hit. Recorded when checking if a promo is allowed to be shown.
+  </summary>
+</histogram>
+
 <histogram name="IOS.Desktop.{PromoType}.Shown"
     enum="DesktopIOSPromoImpression" expires_after="2026-10-25">
   <owner>nicolasmacbeth@google.com</owner>
@@ -1827,6 +1804,30 @@ chromium-metrics-reviews@google.com.
   <summary>Status of the enhanced calendar response.</summary>
 </histogram>
 
+<histogram name="IOS.Enterprise.DataProtection.ScreenshotBlock.Lookup.Success"
+    enum="Boolean" expires_after="2026-10-29">
+  <owner>dmytriievd@google.com</owner>
+  <owner>eic@google.com</owner>
+  <owner>bling-enterprise@google.com</owner>
+  <summary>
+    Logs whether a real-time lookup for screenshot protection on iOS succeeded
+    or failed. Recorded from the DataProtectionTabHelper when a lookup result is
+    received.
+  </summary>
+</histogram>
+
+<histogram name="IOS.Enterprise.DataProtection.ScreenshotBlock.Source"
+    enum="IOSDataProtectionScreenshotBlockSource" expires_after="2026-10-29">
+  <owner>dmytriievd@google.com</owner>
+  <owner>eic@google.com</owner>
+  <owner>bling-enterprise@google.com</owner>
+  <summary>
+    Logs the source (Data Controls or Real-time Lookup) of a screenshot block on
+    iOS. Recorded from the DataProtectionTabHelper when a blocked verdict is
+    returned for a navigated URL.
+  </summary>
+</histogram>
+
 <histogram name="IOS.ExperienceKitCalendar.Present"
     enum="ExperienceKitCalendarTypes" expires_after="2026-10-18">
   <owner>olivierrobin@chromium.org</owner>
@@ -1957,6 +1958,29 @@ chromium-metrics-reviews@google.com.
   <owner>erahmaoui@google.com</owner>
   <owner>bling-team@google.com</owner>
   <summary>Report the outcome of searching once per file picker flow.</summary>
+</histogram>
+
+<histogram name="IOS.FilePicker.Drive.SignIn.Result"
+    enum="IOSFilePickerDriveSignInResult" expires_after="2027-04-17">
+  <owner>qpubert@google.com</owner>
+  <owner>josephlanza@google.com</owner>
+  <owner>bling-squid-squad@google.com</owner>
+  <summary>
+    Logged when the sign-in coordinator for the Drive File Picker returns the
+    result of the sign in attempt.
+  </summary>
+</histogram>
+
+<histogram name="IOS.FilePicker.Drive.SignIn.Status"
+    enum="IOSFilePickerDriveSignInStatus" expires_after="2027-04-17">
+  <owner>qpubert@google.com</owner>
+  <owner>josephlanza@google.com</owner>
+  <owner>bling-squid-squad@google.com</owner>
+  <summary>
+    Logged when the user attempts to access the Drive File Picker, indicating
+    the sign-in status of the user e.g. signed-in, signed-out without account,
+    signed-out with account on device.
+  </summary>
 </histogram>
 
 <histogram name="IOS.FilePicker.Drive.Sorting" enum="IOSFilePickerDriveSorting"
@@ -2700,6 +2724,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="IOS.Gemini.LocationBarBadgeUpdateSuccess" enum="Boolean"
+    expires_after="2027-04-30">
+  <owner>joemerramos@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <summary>
+    Records whether a location bar badge update operation was successfully
+    dispatched.
+  </summary>
+</histogram>
+
 <histogram name="IOS.Gemini.PageAvailability" enum="IOSGeminiPageAvailability"
     expires_after="2027-03-25">
   <owner>joemerramos@google.com</owner>
@@ -2894,6 +2928,16 @@ chromium-metrics-reviews@google.com.
     <variant name="WithPrompt"
         summary="Sessions where the user submitted at least one prompt"/>
   </token>
+</histogram>
+
+<histogram name="IOS.Gemini.SignInRequiredSnackbarShown"
+    enum="IOSGeminiEntryPoint" expires_after="2026-11-01">
+  <owner>joemerramos@chromium.org</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <summary>
+    Records the entry point source from which Gemini was triggered on a page
+    when the sign-in required snackbar is shown.
+  </summary>
 </histogram>
 
 <histogram name="IOS.Gemini.StartupTime.{FirstRunBool}" units="ms"
@@ -3838,9 +3882,6 @@ chromium-metrics-reviews@google.com.
     <variant name="PriceDrop"
         summary="a price drop is shown on Tab Resumption, if a price drop
                  exists for the URL"/>
-    <variant name="PriceTracking"
-        summary="the user can price track the tab resumption URL, if it is
-                 price trackable"/>
     <variant name="Regular"
         summary="regular Tab Resumption is shown with no variation"/>
   </token>
@@ -5419,10 +5460,11 @@ chromium-metrics-reviews@google.com.
   <owner>bling-mony-pod@google.com</owner>
   <summary>
     Records the total number of days during which the client was active in a
-    lookback window of {Days} days. A client is considered active on a given day
-    if it emitted either Session.IsActive=Active or any value to
-    Session.TotalDuration. Recorded the first time a session starts or ends per
-    calendar day (based on current local time).
+    lookback window of {Days} days ending on the day before the current. A
+    client is considered active on a given day if it emitted either
+    Session.IsActive=Active or any value to Session.TotalDuration. Recorded the
+    first time a session starts or ends per calendar day (based on current local
+    time).
   </summary>
   <token key="Days">
     <variant name="7"/>
@@ -7547,6 +7589,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="IOS.Translate.PDF.OpenedFromTranslatedPage"
+    enum="BooleanAvailable" expires_after="2026-12-10">
+  <owner>erahmaoui@google.com</owner>
+  <owner>bling-team@google.com</owner>
+  <summary>
+    Logs whether a PDF was opened from an already translated page. Emitted at
+    each navigation.
+  </summary>
+</histogram>
+
 <histogram name="IOS.TrendingQueries" enum="TrendingQueryIndex"
     expires_after="2023-07-24">
   <owner>thegreenfrog@chromium.org</owner>
@@ -7727,6 +7779,17 @@ chromium-metrics-reviews@google.com.
     accepted/denied multiple files as selection. Logged when an &quot;Open
     Panel&quot; event is triggered by the web page which does not agree with the
     &quot;Choose File&quot; event as to whether multiple files can be selected.
+  </summary>
+</histogram>
+
+<histogram name="IOS.Web.JSMessaging.ScriptMessageConversion.Duration"
+    units="microseconds" expires_after="2026-10-30">
+  <owner>danieltwhite@google.com</owner>
+  <owner>bling-fundamentals@google.com</owner>
+  <summary>
+    The time it takes to convert a WKScriptMessage object to be converted to a
+    web::ScriptMessage object. This metrics is only collected on clients with
+    high-resolution clocks.
   </summary>
 </histogram>
 
@@ -8095,6 +8158,35 @@ chromium-metrics-reviews@google.com.
     taps on the credit card button in manual fallback. Warning: this histogram
     was expired from 2023-12-10 to 2024-4-15; data may be missing.
   </summary>
+</histogram>
+
+<histogram name="UserInterfaceStyle.CurrentlyUsed" enum="IOSUserInterfaceStyle"
+    expires_after="2027-04-29">
+  <owner>qpubert@google.com</owner>
+  <owner>bling-squid-squad@google.com</owner>
+  <summary>
+    The currently used interface style (light or dark). Recorded when the app
+    becomes active and when the style changes while the app is in the
+    foreground.
+  </summary>
+</histogram>
+
+<histogram name="UserInterfaceStyle.CurrentlyUsed.{TimeOfDay}"
+    enum="IOSUserInterfaceStyle" expires_after="2027-04-29">
+  <owner>qpubert@google.com</owner>
+  <owner>bling-squid-squad@google.com</owner>
+  <summary>
+    The currently used interface style (light or dark) during the specified time
+    of day. Recorded when the app becomes active and when the style changes
+    while the app is in the foreground. The time used for bucketing is based on
+    the device's local time.
+  </summary>
+  <token key="TimeOfDay">
+    <variant name="6AMToNoon"/>
+    <variant name="6PMToMidnight"/>
+    <variant name="MidnightTo6AM"/>
+    <variant name="NoonTo6PM"/>
+  </token>
 </histogram>
 
 </histograms>

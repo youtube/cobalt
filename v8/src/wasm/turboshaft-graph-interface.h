@@ -47,11 +47,6 @@ V8_EXPORT_PRIVATE void BuildTSGraph(
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
     WasmFunctionCoverageData* coverage_data);
 
-void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
-                      compiler::turboshaft::Graph& graph,
-                      const wasm::CanonicalSig* sig, WrapperCompilationInfo,
-                      DirectHandle<JSReceiver> callable = {});
-
 // Base class for the decoder graph builder interface and for the wrapper
 // builder.
 template <typename Assembler>

@@ -18,7 +18,7 @@ import {OneShotTimer} from '../../timer.js';
 import type {PostMessageRequestHandler, PostMessageRouter, ResponseExtras} from './../post_message_transport.js';
 import {createBidirectionalPostMessageTransport, newSenderId} from './../post_message_transport.js';
 import type {PostMessageRequestReceiver, PostMessageRequestSender} from './../post_message_transport.js';
-import {HOST_REQUEST_TYPES, requestTypeToHistogramSuffix} from './../request_types.js';
+import {getHostRequestHistogramInfo, HOST_REQUEST_TYPES} from './../request_types.js';
 import {urlFromClient} from './conversions.js';
 import {GatedSender} from './gated_sender.js';
 import {HostMessageHandler, TabDataHandlerSet, TabFaviconHandlerSet} from './host_from_client.js';
@@ -69,6 +69,9 @@ export interface ApiHostEmbedder {
   // when triggered from the browser.
   webClientReady(): void;
   webClientWarmed(): void;
+
+  // Returns the current zoom level of the webview.
+  getZoom(): Promise<number>;
 }
 
 
@@ -124,8 +127,8 @@ export class GlicApiCommunicator implements PostMessageRequestHandler {
   }
 
   // PostMessageRequestHandler impl.
-  handleRawRequest(type: string, payload: any, extras: ResponseExtras):
-      Promise<{payload: any}|undefined> {
+  handleRawRequest(type: string, payload: unknown, extras: ResponseExtras):
+      Promise<{payload: unknown}|undefined> {
     this.stopBootstrapPing();
 
     if (type === 'glicBrowserWebClientCreated') {
@@ -203,13 +206,14 @@ export class GlicApiHost implements PostMessageRequestHandler {
   captureRegionObserver?: CaptureRegionObserverImpl;
   tabDataHandlerSet: TabDataHandlerSet;
   tabFaviconHandlerSet: TabFaviconHandlerSet;
+  private isSubscribedToZoomLevel = false;
   private experimentalTriggeringUpdatesHandler =
       new Map<number, ExperimentalTriggeringUpdatesHandlerRemote>();
   private nextExperimentalTriggeringUpdateHandlerId = 0;
 
   constructor(
       private browserProxy: BrowserProxy, communicator: GlicApiCommunicator,
-      embedder: ApiHostEmbedder) {
+      private embedder: ApiHostEmbedder) {
     this.sender = new GatedSender(communicator.postMessageSender);
     this.handler = new WebClientHandlerRemote();
     this.handler.onConnectionError.addListener(() => {
@@ -271,6 +275,28 @@ export class GlicApiHost implements PostMessageRequestHandler {
       return false;
     }
     return !this.panelIsActive && this.enableApiActivationGating;
+  }
+
+  async subscribeToZoomLevel() {
+    this.isSubscribedToZoomLevel = true;
+    try {
+      const zoomFactor = await this.embedder.getZoom();
+      this.sender.sendLatestWhenActive(
+          'glicWebClientNotifyZoomLevelChanged', {zoomFactor});
+    } catch (e) {
+      console.warn('Failed to get initial zoom level', e);
+    }
+  }
+
+  unsubscribeFromZoomLevel() {
+    this.isSubscribedToZoomLevel = false;
+  }
+
+  onZoomLevelChanged(zoomFactor: number) {
+    if (this.isSubscribedToZoomLevel) {
+      this.sender.sendLatestWhenActive(
+          'glicWebClientNotifyZoomLevelChanged', {zoomFactor});
+    }
   }
 
   setIsInvoking(isInvoking: boolean) {
@@ -471,9 +497,14 @@ export class GlicApiHost implements PostMessageRequestHandler {
   }
 
   // PostMessageRequestHandler implementation.
-  async handleRawRequest(type: string, payload: any, extras: ResponseExtras):
-      Promise<{payload: any}|undefined> {
-    const handlerFunction = (this.messageHandler as any)[type];
+  async handleRawRequest(
+      type: string, payload: unknown,
+      extras: ResponseExtras): Promise<{payload: unknown}|undefined> {
+    type HandlerFunction = (payload: unknown, extras: ResponseExtras) =>
+        Promise<{payload: unknown}>;
+    type IndexableMessageHandler = Record<string, HandlerFunction>;
+    const handlerFunction =
+        (this.messageHandler as unknown as IndexableMessageHandler)[type]!;
     if (typeof handlerFunction !== 'function') {
       console.warn(`GlicApiHost: Unknown message type ${type}`);
       return;
@@ -490,7 +521,7 @@ export class GlicApiHost implements PostMessageRequestHandler {
         Object.hasOwn(BACKGROUND_RESPONSES, type)) {
       const backgroundResponse =
           BACKGROUND_RESPONSES[type as keyof typeof BACKGROUND_RESPONSES] as
-          HostBackgroundResponse<any>;
+          HostBackgroundResponse<unknown>;
       if (Object.hasOwn(backgroundResponse, 'throws')) {
         const friendlyName =
             type.replaceAll(/^glicBrowser|^glicWebClient/g, '');
@@ -500,21 +531,27 @@ export class GlicApiHost implements PostMessageRequestHandler {
         console.warn(`Using background request behavior for ${type}`);
       }
       if (Object.hasOwn(backgroundResponse, 'does')) {
-        response = await (backgroundResponse as HostBackgroundResponseDoes<any>)
-                       .does();
+        response =
+            await (backgroundResponse as HostBackgroundResponseDoes<unknown>)
+                .does();
       } else {
         response =
-            (backgroundResponse as HostBackgroundResponseReturns<any>).returns;
+            (backgroundResponse as HostBackgroundResponseReturns<unknown>)
+                .returns;
       }
     } else {
+      // Request is not gated, so call the handler directly.
+      const startTime = performance.now();
       response =
           await handlerFunction.call(this.messageHandler, payload, extras);
+      if (response) {
+        // Report latency metric for handled requests that return a response.
+        const latency = performance.now() - startTime;
+        this.reportLatency(type, latency);
+      }
     }
-    if (!response) {
-      // Not all request types require a return value.
-      return;
-    }
-    return {payload: response};
+    // Not all request types require a return value.
+    return response ? {payload: response} : undefined;
   }
 
   onRequestReceived(type: string): void {
@@ -535,33 +572,28 @@ export class GlicApiHost implements PostMessageRequestHandler {
   }
 
   reportRequestCountEvent(requestType: string, event: GlicRequestEvent) {
-    const histogramSuffix = requestTypeToHistogramSuffix(requestType);
-    if (histogramSuffix === undefined) {
-      return;
-    }
-    const requestTypeNumber: number|undefined =
-        (HOST_REQUEST_TYPES as any)[histogramSuffix];
-    if (!requestTypeNumber) {
+    const histogramInfo = getHostRequestHistogramInfo(requestType);
+    if (histogramInfo === undefined) {
       return;
     }
     chrome.histograms.recordEnumerationValue(
-        `Glic.Api.RequestCounts.${histogramSuffix}`, event,
+        `Glic.Api.RequestCounts.${histogramInfo.name}`, event,
         GlicRequestEvent.MAX_VALUE + 1);
 
     switch (event) {
       case GlicRequestEvent.REQUEST_HANDLER_EXCEPTION:
         chrome.histograms.recordEnumerationValue(
-            `Glic.Api.StatusCounts.Error`, requestTypeNumber,
+            `Glic.Api.StatusCounts.Error`, histogramInfo.id,
             HOST_REQUEST_TYPES.MAX_VALUE + 1);
         break;
       case GlicRequestEvent.REQUEST_RECEIVED_WHILE_INACTIVE:
         chrome.histograms.recordEnumerationValue(
-            `Glic.Api.StatusCounts.Inactive`, requestTypeNumber,
+            `Glic.Api.StatusCounts.Inactive`, histogramInfo.id,
             HOST_REQUEST_TYPES.MAX_VALUE + 1);
         break;
       case GlicRequestEvent.REQUEST_RECEIVED:
         chrome.histograms.recordEnumerationValue(
-            `Glic.Api.StatusCounts.Received`, requestTypeNumber,
+            `Glic.Api.StatusCounts.Received`, histogramInfo.id,
             HOST_REQUEST_TYPES.MAX_VALUE + 1);
         break;
       default:
@@ -583,6 +615,16 @@ export class GlicApiHost implements PostMessageRequestHandler {
 
   deleteExperimentalTriggeringUpdatesHandler(observationId: number): void {
     this.experimentalTriggeringUpdatesHandler.delete(observationId);
+  }
+
+  reportLatency(requestType: string, latencyMs: number) {
+    const histogramInfo = getHostRequestHistogramInfo(requestType);
+    if (histogramInfo === undefined) {
+      return;
+    }
+    chrome.histograms.recordTime(
+        `Glic.Api.RequestHostLatency.${histogramInfo.name}`,
+        Math.round(latencyMs));
   }
 }
 

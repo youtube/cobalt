@@ -22,6 +22,7 @@ document.body.appendChild(textbox);
 function getTestAnnotation(textBoxRect: TextBoxRect): TextAnnotation {
   return {
     id: 0,
+    isEdited: false,
     mojoTextInfo: new ArrayBuffer(0),
     newTypefaces: [],
     pageIndex: 0,
@@ -1034,7 +1035,32 @@ chrome.test.runTests([
     chrome.test.succeed();
   },
 
-  async function testDelete() {
+
+  async function testDeleteWithBackspaceKey() {
+    viewport.setZoom(1.0);
+
+    // Initialize to a 100x100 box at 55, 10 with some text content. Use
+    // "Backspace" to clear all the content, which will trigger a message since
+    // this is for an existing annotation.
+    initializeBox(100, 100, 55, 10, true);
+    await microtasksFinished();
+    chrome.test.assertFalse(textbox.hidden);
+    chrome.test.assertTrue(isVisible(textbox));
+    mockPlugin.clearMessages();
+    keyDownOn(textbox, 0, [], 'Backspace');
+    await microtasksFinished();
+    chrome.test.assertTrue(textbox.hidden);
+    chrome.test.assertFalse(isVisible(textbox));
+
+    const testAnnotation = getTestAnnotation(
+        {locationX: 0, locationY: 7, height: 100, width: 100});
+    testAnnotation.text = '';
+    verifyFinishTextAnnotationMessage(testAnnotation);
+
+    chrome.test.succeed();
+  },
+
+  async function testDeleteWithDeleteKey() {
     viewport.setZoom(1.0);
 
     // Initialize to a 100x100 box at 55, 10 with some text content. Use

@@ -10,7 +10,6 @@ extern class JSProxy extends JSReceiver {
   @if(TAGGED_SIZE_8_BYTES) padding: uint32;
 }
 
-@doNotGenerateCppClass
 extern shape JSProxyRevocableResult extends JSObject {
   proxy: JSAny;
   revoke: JSAny;

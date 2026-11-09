@@ -25,9 +25,9 @@ usage = """Usage: %prog [OPTION]... $D8_BIN [D8_OPTION]... [FILE]
 This script runs linux-perf with custom V8 logging to get support to resolve
 JS function names.
 
-The perf data is written to OUT_DIR separate by renderer process.
+The perf data is written to OUT_DIR separate by process.
 
-See https://v8.dev/docs/linux-perf for more detailed instructions.
+See docs/linux-perf.md for more detailed instructions.
 See $D8_BIN --help for more flags/options
 """
 parser = optparse.OptionParser(usage=usage)

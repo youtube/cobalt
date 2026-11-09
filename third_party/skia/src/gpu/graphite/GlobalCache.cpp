@@ -43,7 +43,7 @@ constexpr int kGlobalComputePipelineCacheSizeLimit = 256;
 
 #else
 // TODO: find a good value for these limits
-constexpr int kGlobalGraphicsPipelineCacheSizeLimit = 256;
+constexpr int kGlobalGraphicsPipelineCacheSizeLimit = 512;
 constexpr int kGlobalComputePipelineCacheSizeLimit = 256;
 #endif
 

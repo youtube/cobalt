@@ -1419,16 +1419,13 @@ Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
     a.Allocate(size, AllocationType::kYoung, Type::Any());
     a.Store(AccessBuilder::ForMap(), map);
     // Initialize FixedArray fields.
-#if TAGGED_SIZE_8_BYTES
-#if V8_TARGET_BIG_ENDIAN
-#error "TODO(375937549): Implement storing length+padding on big endian arch"
-#endif  // V8_TARGET_BIG_ENDIAN
+#if TAGGED_SIZE_8_BYTES && !V8_TARGET_BIG_ENDIAN
     a.Store(AccessBuilder::ForFixedArrayLength(),
             jsgraph()->Uint64Constant(length));
 #else
     a.Store(AccessBuilder::ForFixedArrayLength(),
             jsgraph()->Uint32Constant(length));
-#endif  // TAGGED_SIZE_8_BYTES
+#endif  // TAGGED_SIZE_8_BYTES && !V8_TARGET_BIG_ENDIAN
     // Initialize HashTable fields.
     a.Store(AccessBuilder::ForHashTableBaseNumberOfElements(),
             jsgraph()->SmiConstant(0));

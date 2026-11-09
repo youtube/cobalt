@@ -926,6 +926,36 @@ class TurboshaftGraphBuildingInterface
   void WideOp4(FullDecoder* decoder, WasmOpcode opcode, const Value& al,
                const Value& ah, const Value& bl, const Value& bh,
                Value* result_low, Value* result_high) {
+#if V8_TARGET_ARCH_IA32
+    if (opcode == kExprI64Add128) {
+      // Possible future ops that might want to reuse the wide op stack buffer
+      // might need other sizes.
+      static_assert(4 * kInt64Size <= kWideOpsStackBufferSize);
+      V<WordPtr> stack_slot = GetWideOpsStackBuffer();
+
+      __ Store(stack_slot, bh.get<Word64>(), StoreOp::Kind::RawAligned(),
+               MemoryRepresentation::Uint64(), compiler::kNoWriteBarrier, 0);
+      __ Store(stack_slot, bl.get<Word64>(), StoreOp::Kind::RawAligned(),
+               MemoryRepresentation::Uint64(), compiler::kNoWriteBarrier,
+               kInt64Size);
+      __ Store(stack_slot, ah.get<Word64>(), StoreOp::Kind::RawAligned(),
+               MemoryRepresentation::Uint64(), compiler::kNoWriteBarrier,
+               2 * kInt64Size);
+      __ Store(stack_slot, al.get<Word64>(), StoreOp::Kind::RawAligned(),
+               MemoryRepresentation::Uint64(), compiler::kNoWriteBarrier,
+               3 * kInt64Size);
+
+      MachineType reps[]{MachineType::Pointer()};
+      MachineSignature sig(0, 1, reps);
+      CallC(&sig, ExternalReference::wasm_int128_add(), stack_slot);
+
+      result_low->op = __ Load(stack_slot, LoadOp::Kind::RawAligned(),
+                               MemoryRepresentation::Uint64(), 3 * kInt64Size);
+      result_high->op = __ Load(stack_slot, LoadOp::Kind::RawAligned(),
+                                MemoryRepresentation::Uint64(), 2 * kInt64Size);
+      return;
+    }
+#endif
     V<compiler::turboshaft::Word64Pair> op;
     switch (opcode) {
       case kExprI64Add128:
@@ -3718,7 +3748,6 @@ class TurboshaftGraphBuildingInterface
         case kI8:
         case kI16:
         case kF16:
-        case kWaitQueue:
         case kVoid:
         case kTop:
         case kBottom:
@@ -5327,8 +5356,9 @@ class TurboshaftGraphBuildingInterface
   }
 
   void StructWait(FullDecoder* decoder, const Value& struct_obj,
-                  const FieldImmediate& imm, const Value& expected_value,
-                  const Value& timeout_ns, Value* result) {
+                  const FieldImmediate& imm, const Value& waitqueue,
+                  const Value& expected_value, const Value& timeout_ns,
+                  Value* result) {
     // Null check happens within the builtin.
     result->op = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmManagedObjectWait>(
@@ -5337,30 +5367,31 @@ class TurboshaftGraphBuildingInterface
          __ Word32Constant(
              WasmStruct::kHeaderSize +
              imm.struct_imm.struct_type->field_offset(imm.field_imm.index)),
-         expected_value.op,
+         expected_value.op, waitqueue.op,
          BuildChangeInt64ToBigInt(timeout_ns.get<Word64>(),
                                   StubCallMode::kCallWasmRuntimeStub)});
   }
 
-  void StructNotify(FullDecoder* decoder, const Value& struct_obj,
-                    const FieldImmediate& imm, const Value& max_waiters,
-                    Value* result) {
+  void WaitqueueNotify(FullDecoder* decoder, const Value& waitqueue,
+                       const Value& max_waiters, Value* result) {
     // Use an explicit null check. This instruction is not performance critical.
     if (!v8_flags.experimental_wasm_skip_null_checks &&
-        struct_obj.type.is_nullable()) {
-      __ TrapIf(__ IsNull(struct_obj.get<Object>(), wasm::kWasmAnyRef),
+        waitqueue.type.is_nullable()) {
+      __ TrapIf(__ IsNull(waitqueue.get<Object>(), wasm::kWasmAnyRef),
                 TrapId::kTrapNullDereference);
     }
     auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
-                   .Params(MachineType::Pointer(), MachineType::Int32(),
-                           MachineType::Int32());
-    result->op = CallC(
-        &sig, ExternalReference::wasm_managed_object_notify(),
-        {__ BitcastHeapObjectToWordPtr(struct_obj.get<HeapObject>()),
-         __ Word32Constant(
-             WasmStruct::kHeaderSize +
-             imm.struct_imm.struct_type->field_offset(imm.field_imm.index)),
-         max_waiters.op});
+                   .Params(MachineType::Pointer(), MachineType::Int32());
+    result->op =
+        CallC(&sig, ExternalReference::wasm_waitqueue_notify(),
+              {__ BitcastHeapObjectToWordPtr(waitqueue.get<HeapObject>()),
+               max_waiters.op});
+  }
+
+  void WaitqueueNew(FullDecoder* decoder, Value* result) {
+    result->op =
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmWaitqueueNew>(
+            decoder, {});
   }
 
   void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
@@ -5560,7 +5591,6 @@ class TurboshaftGraphBuildingInterface
         case wasm::kI64:
         case wasm::kI8:
         case wasm::kI16:
-        case wasm::kWaitQueue:
           array_copy_max_loop_length = 20;
           break;
         case wasm::kF16:  // TODO(irezvov): verify the threshold for F16.
@@ -7753,9 +7783,10 @@ class TurboshaftGraphBuildingInterface
         // as a sentinel for the negation of ref.is_null.
         return __ Word32Equal(__ IsNull(arg, input_type), 0);
       case kExprAnyConvertExtern:
-        return __ AnyConvertExtern(arg, input_type.is_shared());
+        return __ AnyConvertExtern(arg, input_type.is_shared(),
+                                   input_type.is_nullable());
       case kExprExternConvertAny:
-        return __ ExternConvertAny(arg);
+        return __ ExternConvertAny(arg, input_type.is_nullable());
       default:
         UNREACHABLE();
     }
@@ -8977,7 +9008,6 @@ class TurboshaftGraphBuildingInterface
         case kI8:
         case kI16:
         case kF16:
-        case kWaitQueue:
         case kVoid:
         case kTop:
         case kBottom:
@@ -9179,25 +9209,6 @@ class TurboshaftGraphBuildingInterface
                    in_old_space && field_is_ref && has_nondefault_args
                        ? kFullWriteBarrier
                        : kNoWriteBarrier);
-      // We have to allocate the Managed part of waitqueue after finishing
-      // initialization of the fresh struct object. Therefore we initialize it
-      // with 0 here.
-      if (imm.struct_type->field(i) == kWasmWaitQueue) {
-        __ Store(struct_value, __ SmiConstant(Smi::FromInt(0)),
-                 StoreOp::Kind::TaggedBase(),
-                 MemoryRepresentation::TaggedSigned(),
-                 compiler::kNoWriteBarrier,
-                 WasmStruct::kHeaderSize + imm.struct_type->field_offset(i) +
-                     kWaitQueueManagedOffset);
-      }
-    }
-    for (uint32_t i = 0; i < imm.struct_type->field_count(); ++i) {
-      if (imm.struct_type->field(i) == kWasmWaitQueue) {
-        CallBuiltinThroughJumptable<
-            BuiltinCallDescriptor::WasmAllocateWaitQueue>(
-            decoder, {struct_value,
-                      __ Word32Constant(imm.struct_type->field_offset(i))});
-      }
     }
     // If this assert fails then initialization of padding field might be
     // necessary.
@@ -9268,7 +9279,6 @@ class TurboshaftGraphBuildingInterface
       case wasm::kI64:
       case wasm::kF32:
       case wasm::kF64:
-      case wasm::kWaitQueue:
       case wasm::kRefNull:
       case wasm::kRef:
         break;
@@ -9754,6 +9764,17 @@ class TurboshaftGraphBuildingInterface
 
   std::optional<bool> deopts_enabled_;
   OptionalV<FrameState> parent_frame_state_;
+  OptionalV<WordPtr> wide_ops_stack_buffer_;
+  static constexpr int kWideOpsStackBufferSize = 4 * kInt64Size;
+
+  V<WordPtr> GetWideOpsStackBuffer() {
+    if (!wide_ops_stack_buffer_.has_value()) {
+      wide_ops_stack_buffer_ =
+          __ StackSlot(kWideOpsStackBufferSize, kInt64Size);
+    }
+    return wide_ops_stack_buffer_.value();
+  }
+
 #ifdef DEBUG
   const int graph_generation_bit_ = __ output_graph().generation_mod2();
 #else

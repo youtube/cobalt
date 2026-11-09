@@ -734,7 +734,7 @@ bool WasmCustomDescriptorsEnabledCallback(v8::Local<v8::Context> context) {
   if (!execution_context) {
     return false;
   }
-  return RuntimeEnabledFeatures::WebAssemblyCustomDescriptorsEnabled(
+  return RuntimeEnabledFeatures::WebAssemblyCustomDescriptorsV2Enabled(
       execution_context);
 }
 
@@ -877,9 +877,9 @@ std::ostream& operator<<(std::ostream& os, const PrintV8OOM& oom_details) {
 }
 
 void EmitDevToolsEvent(v8::Isolate* isolate) {
-  TRACE_EVENT_INSTANT1(
-      TRACE_DISABLED_BY_DEFAULT("devtools.timeline"), "UpdateCounters",
-      TRACE_EVENT_SCOPE_THREAD, "data", [&](perfetto::TracedValue context) {
+  TRACE_EVENT_INSTANT(
+      TRACE_DISABLED_BY_DEFAULT("devtools.timeline"), "UpdateCounters", "data",
+      [&](perfetto::TracedValue context) {
         inspector_update_counters_event::Data(std::move(context), isolate);
       });
 }

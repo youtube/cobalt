@@ -38,6 +38,7 @@ BASE_DECLARE_FEATURE(kToolbarGlowUp);
 BASE_DECLARE_FEATURE(kRoundedIcons);
 BASE_DECLARE_FEATURE(kMenuSimplification);
 BASE_DECLARE_FEATURE(kTabGroupColorRefresh);
+BASE_DECLARE_FEATURE(kWebuiRefresh2026);
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 
@@ -220,12 +221,6 @@ BASE_DECLARE_FEATURE(kTearOffWebAppTabOpensWebAppWindow);
 BASE_DECLARE_FEATURE(kThreeButtonPasswordSaveDialog);
 #endif
 
-// Enables a side panel that occupies the vertical space from the top of the
-// toolbar to the bottom of the browser. This is taller than the default side
-// panel, which occupies the space from the top of the WebContents to the bottom
-// of the browser.
-BASE_DECLARE_FEATURE(kToolbarHeightSidePanel);
-
 // Feature which uses a flyover animation for animating side panels (and
 // expansion/contraction of the Vertical Tab Strip).
 //
@@ -286,6 +281,8 @@ BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationSavePayments);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationLensOverlayHomework);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationBookmarkStar);
 
+BASE_DECLARE_FEATURE(kPageActionsPrioritySelector);
+
 // Determines whether the "save password" page action displays different UI if
 // the user has said to never save passwords for that site.
 BASE_DECLARE_FEATURE(kSavePasswordsContextualUi);
@@ -301,6 +298,9 @@ BASE_DECLARE_FEATURE(kByDateHistoryInSidePanel);
 // If enabled, the "Tabs from other devices" side panel will be available.
 BASE_DECLARE_FEATURE(kTabsFromOtherDevicesSidePanel);
 
+// If enabled, the "Tabs from other devices" toolbar button will be pinned by
+// default.
+BASE_DECLARE_FEATURE(kTabsFromOtherDevicesSidePanelPinnedByDefault);
 
 #if !BUILDFLAG(IS_ANDROID)
 // Controls whether to add new tabs to active tab group or to the end of the
@@ -316,6 +316,8 @@ bool IsWebUIHomeButtonEnabled();
 bool IsWebUIBackForwardButtonEnabled();
 
 bool IsWebUIPinnedToolbarActionsEnabled();
+
+bool IsWebUIExtensionsContainerEnabled();
 
 bool IsWebUISplitTabsButtonEnabled();
 

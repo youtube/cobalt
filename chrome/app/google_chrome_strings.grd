@@ -1147,7 +1147,7 @@ Google Chrome is unable to recover your settings.
 
       <!-- Signin Search AI Mode promo -->
       <message name="IDS_AI_SIGNIN_PROMO_SUBTITLE" desc="The message shown in a sign-in promo bubble that is shown to users not signed-in to the browser when they click in an AI Mode Search result link.">
-        To ask AI Mode about your tab without leaving the page, sign in to Chrome. You'll also get your passwords and more on all your devices.
+        You can keep chatting with AI Mode without switching tabs. To get started, sign in to Chrome. You'll also get your passwords and more on all your devices.
       </message>
       <message name="IDS_AI_SIGNIN_PROMO_AVATAR_PILL_TEXT" translateable="false" meaning="Text shown on the expanded avatar pill when the Signin Search AI Bubble promo is shown to the user">
         Sign in to Chrome?
@@ -3287,6 +3287,12 @@ Google Chrome is unable to recover your settings.
       </message>
       <message name="IDS_INDIGO_TEXT_LAYER_STEP_3" desc="The text for step 3 of the Indigo text layer." translateable="false">
         Loading (3/3)...
+      </message>
+
+      <!-- JS optimizations bubble -->
+      <message name="IDS_JS_OPTIMIZATION_BUBBLE_BODY_NON_POLICY_BODY" desc="Body text for the JavaScript optimization bubble when disabled for other reasons.">
+        Chrome turns off JavaScript optimization when you visit a site for the first time.&#xA;
+If this page isn’t working as expected, try allowing optimization.
       </message>
     </messages>
   </release>

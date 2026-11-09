@@ -180,6 +180,7 @@ DEFINE_VARIATION_PARAM(kIPHShoppingListMenuItemFeature,
                        "IPH_ShoppingListMenuItem");
 DEFINE_VARIATION_PARAM(kIPHShoppingListSaveFlowFeature,
                        "IPH_ShoppingListSaveFlow");
+DEFINE_VARIATION_PARAM(kIPHSiteControlsFeature, "IPH_SiteControls");
 DEFINE_VARIATION_PARAM(kIPHTabGroupCreationDialogSyncTextFeature,
                        "IPH_TabGroupCreationDialogSyncText");
 DEFINE_VARIATION_PARAM(kIPHTabGroupsDragAndDropFeature,
@@ -372,6 +373,7 @@ DEFINE_VARIATION_PARAM(kIPHiOSGeminiFullscreenPromoFeature,
                        "IPH_iOSGeminiFullscreenPromoFeature");
 DEFINE_VARIATION_PARAM(kIPHiOSGeminiImageRemixFeature,
                        "IPH_iOSGeminiImageRemixFeature");
+DEFINE_VARIATION_PARAM(kIPHiOSNewIAPromoFeature, "IPH_iOSNewIAPromoFeature");
 DEFINE_VARIATION_PARAM(kIPHiOSPinMostVisitedSiteFeature,
                        "IPH_iOSPinMostVisitedSiteFeature");
 #endif  // BUILDFLAG(IS_IOS)
@@ -402,8 +404,6 @@ DEFINE_VARIATION_PARAM(kIPHExplicitBrowserSigninPreferenceRememberedFeature,
 DEFINE_VARIATION_PARAM(kIPHGlicPromoFeature, "IPH_GlicPromo");
 DEFINE_VARIATION_PARAM(kIPHGlicTrustFirstOnboardingShortcutSnoozePromoFeature,
                        "IPH_GlicTrustFirstOnboardingShortcutSnoozePromo");
-DEFINE_VARIATION_PARAM(kIPHGlicTrustFirstOnboardingShortcutToastPromoFeature,
-                       "IPH_GlicTrustFirstOnboardingShortcutToastPromo");
 DEFINE_VARIATION_PARAM(kIPHGlicTryItFeature, "IPH_GlicTryIt");
 DEFINE_VARIATION_PARAM(kIPHHistorySearchFeature, "IPH_HistorySearch");
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -585,8 +585,8 @@ DEFINE_VARIATION_PARAM(kIPHResumptionRailFeature, "IPH_ResumptionRail");
 #endif  // !BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_WIN)
-DEFINE_VARIATION_PARAM(kIPHSearchExtensionSideloadFeature,
-                       "IPH_SearchExtensionSideloadFeature");
+DEFINE_VARIATION_PARAM(kIPHSearchPromotionFeature,
+                       "IPH_SearchPromotionFeature");
 #endif  // BUILDFLAG(IS_WIN)
 
 // Defines the array of which features should be listed in the chrome://flags
@@ -680,6 +680,7 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHSharingHubWebnotesStylizeFeature),
         VARIATION_ENTRY(kIPHShoppingListMenuItemFeature),
         VARIATION_ENTRY(kIPHShoppingListSaveFlowFeature),
+        VARIATION_ENTRY(kIPHSiteControlsFeature),
         VARIATION_ENTRY(kIPHTabGroupCreationDialogSyncTextFeature),
         VARIATION_ENTRY(kIPHTabGroupsDragAndDropFeature),
         VARIATION_ENTRY(kIPHTabGroupShareNoticeFeature),
@@ -742,6 +743,7 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHiOSLensKeyboardFeature),
         VARIATION_ENTRY(kIPHiOSLensOverlayEntrypointTipFeature),
         VARIATION_ENTRY(kIPHiOSLensOverlayEscapeHatchTipFeature),
+        VARIATION_ENTRY(kIPHiOSNewIAPromoFeature),
         VARIATION_ENTRY(kIPHiOSOverflowMenuCustomizationFeature),
         VARIATION_ENTRY(kIPHIOSPageActionMenu),
         VARIATION_ENTRY(kIPHiOSPinMostVisitedSiteFeature),
@@ -801,7 +803,6 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHExplicitBrowserSigninPreferenceRememberedFeature),
         VARIATION_ENTRY(kIPHGlicPromoFeature),
         VARIATION_ENTRY(kIPHGlicTrustFirstOnboardingShortcutSnoozePromoFeature),
-        VARIATION_ENTRY(kIPHGlicTrustFirstOnboardingShortcutToastPromoFeature),
         VARIATION_ENTRY(kIPHGlicTryItFeature),
         VARIATION_ENTRY(kIPHGMCCastStartStopFeature),
         VARIATION_ENTRY(kIPHGMCLocalMediaCastingFeature),
@@ -884,7 +885,7 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(IS_WIN)
-        VARIATION_ENTRY(kIPHSearchExtensionSideloadFeature),
+        VARIATION_ENTRY(kIPHSearchPromotionFeature),
 #endif  // BUILDFLAG(IS_WIN)
 
         // clang-format on

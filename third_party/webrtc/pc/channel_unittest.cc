@@ -40,7 +40,6 @@
 #include "media/base/rid_description.h"
 #include "media/base/stream_params.h"
 #include "p2p/base/candidate_pair_interface.h"
-#include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/packet_transport_internal.h"
 #include "p2p/dtls/dtls_transport_internal.h"
@@ -54,7 +53,6 @@
 #include "rtc_base/buffer.h"
 #include "rtc_base/byte_order.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/network_route.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/ssl_identity.h"
@@ -1088,69 +1086,6 @@ class ChannelTest : public ::testing::Test {
     EXPECT_TRUE(media_send_channel1_impl()->sending());
   }
 
-  // Tests that when the transport channel signals a candidate pair change
-  // event, the media channel will receive a call on the network route change.
-  void TestNetworkRouteChanges() {
-    static constexpr uint16_t kLocalNetId = 1;
-    static constexpr uint16_t kRemoteNetId = 2;
-    static constexpr int kLastPacketId = 100;
-    // Ipv4(20) + UDP(8).
-    static constexpr int kTransportOverheadPerPacket = 28;
-    static constexpr int kSrtpOverheadPerPacket = 10;
-
-    CreateChannels(DTLS, DTLS);
-    SendInitiate();
-
-    typename T::MediaSendChannel* media_send_channel1_impl =
-        this->media_send_channel1_impl();
-    ASSERT_TRUE(media_send_channel1_impl);
-
-    // Need to wait for the threads before calling
-    // `set_num_network_route_changes` because the network route would be set
-    // when creating the channel.
-    WaitForThreads();
-    media_send_channel1_impl->set_num_network_route_changes(0);
-    SendTask(network_thread_, [this] {
-      webrtc::NetworkRoute network_route;
-      // The transport channel becomes disconnected.
-      fake_rtp_dtls_transport1_->ice_transport()->NotifyNetworkRouteChanged(
-          std::optional<webrtc::NetworkRoute>(network_route));
-    });
-    WaitForThreads();
-    EXPECT_EQ(1, media_send_channel1_impl->num_network_route_changes());
-    EXPECT_FALSE(media_send_channel1_impl->last_network_route().connected);
-    media_send_channel1_impl->set_num_network_route_changes(0);
-
-    SendTask(network_thread_, [this] {
-      webrtc::NetworkRoute network_route;
-      network_route.connected = true;
-      network_route.local =
-          webrtc::RouteEndpoint::CreateWithNetworkId(kLocalNetId);
-      network_route.remote =
-          webrtc::RouteEndpoint::CreateWithNetworkId(kRemoteNetId);
-      network_route.last_sent_packet_id = kLastPacketId;
-      network_route.packet_overhead = kTransportOverheadPerPacket;
-      // The transport channel becomes connected.
-      fake_rtp_dtls_transport1_->ice_transport()->NotifyNetworkRouteChanged(
-
-          std::optional<webrtc::NetworkRoute>(network_route));
-    });
-    WaitForThreads();
-    EXPECT_EQ(1, media_send_channel1_impl->num_network_route_changes());
-    EXPECT_TRUE(media_send_channel1_impl->last_network_route().connected);
-    EXPECT_EQ(
-        kLocalNetId,
-        media_send_channel1_impl->last_network_route().local.network_id());
-    EXPECT_EQ(
-        kRemoteNetId,
-        media_send_channel1_impl->last_network_route().remote.network_id());
-    EXPECT_EQ(
-        kLastPacketId,
-        media_send_channel1_impl->last_network_route().last_sent_packet_id);
-    EXPECT_EQ(kTransportOverheadPerPacket + kSrtpOverheadPerPacket,
-              media_send_channel1_impl->transport_overhead_per_packet());
-  }
-
   // Test setting up a call.
   void TestCallSetup() {
     CreateChannels(0, 0);
@@ -1901,10 +1836,6 @@ TEST_F(VoiceChannelSingleThreadTest, TestMediaContentDirection) {
   Base::TestMediaContentDirection();
 }
 
-TEST_F(VoiceChannelSingleThreadTest, TestNetworkRouteChanges) {
-  Base::TestNetworkRouteChanges();
-}
-
 TEST_F(VoiceChannelSingleThreadTest, TestCallSetup) {
   Base::TestCallSetup();
 }
@@ -2067,10 +1998,6 @@ TEST_F(VoiceChannelDoubleThreadTest, TestMediaContentDirection) {
   Base::TestMediaContentDirection();
 }
 
-TEST_F(VoiceChannelDoubleThreadTest, TestNetworkRouteChanges) {
-  Base::TestNetworkRouteChanges();
-}
-
 TEST_F(VoiceChannelDoubleThreadTest, TestCallSetup) {
   Base::TestCallSetup();
 }
@@ -2200,10 +2127,6 @@ TEST_F(VideoChannelSingleThreadTest, TestPlayoutAndSendingStates) {
 
 TEST_F(VideoChannelSingleThreadTest, TestMediaContentDirection) {
   Base::TestMediaContentDirection();
-}
-
-TEST_F(VideoChannelSingleThreadTest, TestNetworkRouteChanges) {
-  Base::TestNetworkRouteChanges();
 }
 
 TEST_F(VideoChannelSingleThreadTest, TestCallSetup) {
@@ -2652,10 +2575,6 @@ TEST_F(VideoChannelDoubleThreadTest, TestPlayoutAndSendingStates) {
 
 TEST_F(VideoChannelDoubleThreadTest, TestMediaContentDirection) {
   Base::TestMediaContentDirection();
-}
-
-TEST_F(VideoChannelDoubleThreadTest, TestNetworkRouteChanges) {
-  Base::TestNetworkRouteChanges();
 }
 
 TEST_F(VideoChannelDoubleThreadTest, TestCallSetup) {

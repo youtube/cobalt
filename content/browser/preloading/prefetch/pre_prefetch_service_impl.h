@@ -45,6 +45,21 @@ struct PrePrefetchPreCalculatedHeadersKey {
   }
 };
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(PrePrefetchStartResult)
+enum class PrePrefetchStartResult {
+  // PrePrefetch has been successfully started.
+  kStarted = 0,
+  // PrePrefetch failed because the `URLLoaderFactory` was disconnected.
+  kFailedURLLoaderFactoryDisconnected = 1,
+  // PrePrefetch failed because the requested origin did not match the
+  // pre-calculated headers cache.
+  kFailedPreCalculatedHeadersNotMatched = 2,
+  kMaxValue = kFailedPreCalculatedHeadersNotMatched,
+};
+// LINT.ThenChange(//tools/metrics/histograms/enums.xml:PrePrefetchStartResult)
+
 // Responsible for starting PrePrefetches based on an associated
 // `BrowserContext` given via ctor.
 //
@@ -76,7 +91,7 @@ class CONTENT_EXPORT PrePrefetchServiceImpl : public PrePrefetchService {
   // runner's execution.
   [[nodiscard]] std::unique_ptr<PrePrefetchHandle> StartPrePrefetchRequest(
       const GURL& url,
-      const std::string& embedder_histogram_suffix,
+      const std::string& histogram_suffix,
       bool javascript_enabled,
       std::optional<net::HttpNoVarySearchData> no_vary_search_hint,
       std::optional<PrefetchPriority> priority,
@@ -96,14 +111,15 @@ class CONTENT_EXPORT PrePrefetchServiceImpl : public PrePrefetchService {
   static void SetURLLoaderFactoryForTesting(
       network::SharedURLLoaderFactory* url_loader_factory);
 
+  // Prohibits `URLLoaderFactory` refresh for testing.
+  static void SetShouldProhibitURLLoaderFactoryRefreshForTesting(
+      bool should_prohibit);
+
  private:
   [[nodiscard]] std::unique_ptr<PrePrefetchHandle>
   StartPrePrefetchRequestInternal(
       std::unique_ptr<const PrefetchRequest> prefetch_request);
 
-  PrefetchUpdateHeadersParams PreCalculatePrePrefetchHeadersOnUI(
-      BrowserContext* browser_context,
-      const PrePrefetchPreCalculatedHeadersKey& key) const;
 
   // This is UI-thread bound, and must not be dereferenced during this
   // `PrePrefetchServiceCore` sequence.

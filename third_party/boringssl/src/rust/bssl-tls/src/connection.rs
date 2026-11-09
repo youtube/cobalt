@@ -41,7 +41,8 @@ use crate::{
         Error,
         TlsRetryReason, //
     },
-    io::IoStatus, //
+    io::IoStatus,
+    sessions::TlsSession, //
 };
 
 mod credentials;
@@ -126,6 +127,15 @@ where
         unsafe {
             // Safety: the validity of the handle `ptr` is witnessed by `self`.
             bssl_sys::SSL_set_mode(ptr, ConnectionMode::MODE_NO_SESSION_CREATION.bits());
+        }
+        self
+    }
+
+    /// Set the session for resumption.
+    pub fn with_session(&mut self, session: &TlsSession) -> &mut Self {
+        unsafe {
+            // Safety: self.ptr and session.0 are valid.
+            bssl_sys::SSL_set_session(self.ptr.as_ptr(), session.0.as_ptr());
         }
         self
     }

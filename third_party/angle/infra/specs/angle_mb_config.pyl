@@ -21,17 +21,10 @@
   # this dict to look up which config to use for a given bot.
   'builder_groups': {
     'angle': {
-      'android-arm-compile': 'angle_remoteexec_android_arm_release_bot',
-      'android-arm-dbg-compile': 'angle_remoteexec_android_arm_debug_bot',
-      'android-arm64-dbg-compile': 'angle_remoteexec_android_arm64_debug_bot',
       'android-pixel4-perf': 'angle_remoteexec_android_perf_bot',
       'android-pixel6-perf': 'angle_remoteexec_android_perf_bot',
-      'linux-asan-test': 'angle_asan_lsan_ubsan_bot',
-      'linux-exp-asan-test': 'angle_asan_lsan_ubsan_bot',
-      'linux-exp-tsan-test': 'angle_tsan_bot',
       'linux-intel-uhd630-perf': 'angle_remoteexec_perf_bot',
       'linux-nvidia-gtx1660-perf': 'angle_remoteexec_perf_bot',
-      'linux-tsan-test': 'angle_tsan_bot',
       'linux-ubsan-test': 'angle_ubsan_bot',
       'mac-dbg-compile': 'angle_remoteexec_x64_debug_bot',
       'win-asan-test': 'angle_asan_bot',
@@ -55,20 +48,15 @@
   # bots all using the 'release_bot' config).
   'configs': {
     'angle_asan_bot': ['angle', 'opencl', 'remoteexec', 'asan', 'release'],
-    'angle_asan_lsan_ubsan_bot': ['angle', 'opencl', 'openclcts', 'remoteexec', 'asan', 'lsan', 'ubsan', 'release', 'smoke_traces'],
     'angle_non_clang_debug_bot': ['angle', 'non_clang', 'debug'],
     'angle_non_clang_release_bot': ['angle', 'non_clang', 'release'],
     'angle_non_clang_x86_debug_bot': ['angle', 'non_clang', 'x86', 'debug'],
     'angle_non_clang_x86_release_bot': ['angle', 'non_clang', 'x86', 'release'],
-    'angle_remoteexec_android_arm64_debug_bot': ['angle', 'opencl', 'openclcts', 'remoteexec', 'android', 'arm64', 'debug'],
-    'angle_remoteexec_android_arm_debug_bot': ['angle', 'opencl', 'openclcts', 'remoteexec', 'android', 'arm', 'debug'],
-    'angle_remoteexec_android_arm_release_bot': ['angle', 'opencl', 'openclcts', 'remoteexec', 'android', 'arm', 'release'],
     'angle_remoteexec_android_perf_bot': ['angle', 'remoteexec', 'android', 'arm64', 'perf'],
     'angle_remoteexec_debug_bot': ['angle', 'opencl', 'remoteexec', 'debug'],
     'angle_remoteexec_perf_bot': ['angle', 'remoteexec', 'perf'],
     'angle_remoteexec_x64_debug_bot': ['angle', 'remoteexec', 'x64', 'debug'],
     'angle_remoteexec_x86_debug_bot': ['angle', 'opencl', 'remoteexec', 'x86', 'debug'],
-    'angle_tsan_bot': ['angle', 'opencl', 'openclcts', 'remoteexec', 'tsan', 'release'],
     'angle_ubsan_bot': ['angle', 'opencl', 'openclcts', 'remoteexec', 'ubsan', 'release'],
     'angle_winuwp_non_clang_debug_bot': ['angle', 'winuwp', 'non_clang', 'debug'],
     'angle_winuwp_non_clang_release_bot': ['angle', 'winuwp', 'non_clang', 'release'],
@@ -83,9 +71,6 @@
     'angle': {
       'gn_args': 'is_component_build=true',
     },
-    'arm': {
-      'gn_args': 'target_cpu="arm"',
-    },
     'arm64': {
       'gn_args': 'target_cpu="arm64"',
     },
@@ -94,9 +79,6 @@
     },
     'debug': {
       'gn_args': 'is_debug=true',
-    },
-    'lsan': {
-      'gn_args': 'is_lsan=true',
     },
     'non_clang': {
       'gn_args': 'is_clang=false treat_warnings_as_errors=false use_custom_libcxx=false',
@@ -115,13 +97,6 @@
     },
     'remoteexec': {
       'gn_args': 'use_remoteexec=true use_reclient=false use_siso=true',
-    },
-    'smoke_traces': {
-      # Reason for inclusion: antutu_refinery:benchmark asphalt_9_2024:custom aztec_ruins_high:benchmark balatro:custom basemark_gpu:benchmark batman_telltale:custom dead_cells:custom diablo_immortal:custom dota_underlords:custon genshin_impact:unity grand_mountain_adventure:custom honkai_star_rail:unity manhattan_31:benchmark minecraft_bedrock:custom, ni_no_kuni:unreal slingshot_test1:benchmark sonic_the_hedgehog:gles1 tessellation:benchmark tower_of_fantasy:unreal warcraft_rumble:unity
-      'gn_args': 'angle_restricted_traces=["antutu_refinery", "asphalt_9_2024", "aztec_ruins_high", "balatro", "basemark_gpu", "batman_telltale", "dead_cells", "diablo_immortal", "dota_underlords", "genshin_impact", "grand_mountain_adventure", "honkai_star_rail", "manhattan_31", "minecraft_bedrock", "ni_no_kuni", "slingshot_test1", "sonic_the_hedgehog", "tessellation", "tower_of_fantasy", "warcraft_rumble"]'
-    },
-    'tsan': {
-      'gn_args': 'is_tsan=true',
     },
     'ubsan': {
       'gn_args': 'is_ubsan=true',

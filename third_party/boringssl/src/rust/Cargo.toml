@@ -5,6 +5,7 @@ members = [
   "bssl-rustls-adapters",
   "bssl-sys",
   "bssl-tls",
+  "bssl-tls-tokio",
   "bssl-x509",
 ]
 resolver = "3"

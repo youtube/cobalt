@@ -328,6 +328,7 @@ enum class IsolateFieldId : uint8_t;
   IF_WASM(V, wasm_word32_ror, "wasm::word32_ror")                              \
   IF_WASM(V, wasm_word64_rol, "wasm::word64_rol")                              \
   IF_WASM(V, wasm_word64_ror, "wasm::word64_ror")                              \
+  IF_WASM(V, wasm_int128_add, "wasm::wasm_int128_add_wrapper")                 \
   IF_WASM(V, wasm_word64_ctz, "wasm::word64_ctz")                              \
   IF_WASM(V, wasm_word64_popcnt, "wasm::word64_popcnt")                        \
   IF_WASM(V, wasm_f64x2_ceil, "wasm::f64x2_ceil_wrapper")                      \
@@ -377,7 +378,7 @@ enum class IsolateFieldId : uint8_t;
   IF_WASM(V, wasm_array_fill, "wasm::array_fill")                              \
   IF_WASM(V, wasm_string_to_f64, "wasm_string_to_f64")                         \
   IF_WASM(V, wasm_atomic_notify, "wasm_atomic_notify")                         \
-  IF_WASM(V, wasm_managed_object_notify, "wasm_managed_object_notify")         \
+  IF_WASM(V, wasm_waitqueue_notify, "wasm_waitqueue_notify")                   \
   IF_WASM(V, wasm_WebAssemblyCompile, "wasm::WebAssemblyCompile")              \
   IF_WASM(V, wasm_WebAssemblyException, "wasm::WebAssemblyException")          \
   IF_WASM(V, wasm_WebAssemblyExceptionGetArg,                                  \

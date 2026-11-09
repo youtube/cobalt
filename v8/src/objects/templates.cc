@@ -223,7 +223,8 @@ DirectHandle<JSObject> CreateSlowJSObjectWithProperties(
   DirectHandle<JSObject> object = isolate->factory()->NewSlowJSObjectFromMap(
       isolate->slow_object_with_object_prototype_map(), num_properties_set,
       AllocationType::kYoung);
-  Handle<Object> properties = handle(object->raw_properties_or_hash(), isolate);
+  Handle<PropertyDictionary> properties = handle(
+      Cast<PropertyDictionary>(object->raw_properties_or_hash()), isolate);
   for (int i = 0; i < static_cast<int>(property_values.size()); ++i) {
     Local<Value> property_value;
     if (!property_values[i].ToLocal(&property_value)) {
@@ -231,7 +232,7 @@ DirectHandle<JSObject> CreateSlowJSObjectWithProperties(
     }
     properties =
         PropertyDictionary::Add(
-            isolate, Cast<PropertyDictionary>(properties),
+            isolate, properties,
             Cast<String>(handle(property_names->get(i), isolate)),
             Utils::OpenDirectHandle(*property_value), PropertyDetails::Empty())
             .ToHandleChecked();

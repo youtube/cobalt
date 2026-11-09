@@ -16,9 +16,9 @@ use core::{
     marker::PhantomData,
     mem::MaybeUninit,
     ptr::{
+        NonNull,
         null,
         null_mut, //
-        NonNull,
     },
     slice::{
         from_raw_parts,

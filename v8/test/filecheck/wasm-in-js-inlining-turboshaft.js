@@ -17,6 +17,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 d8.file.execute("test/mjsunit/mjsunit.js");
 
 const builder = new WasmModuleBuilder();
+const funcVoid = builder.addFunction('func_void', kSig_v_v).addBody([]).exportFunc();
+const globalFuncRef = builder.addGlobal(kWasmFuncRef, true, false).exportAs('globalFuncRef');
 const array = builder.addArray(kWasmI32);
 const struct = builder.addStruct([makeField(kWasmI32, true)]);
 const array8 = builder.addArray(kWasmI8);
@@ -76,6 +78,15 @@ addTestcase('f32Const', kSig_f_v, [], [...wasmF32Const(42.0)]);
 // CHECK: Considering Wasm function [{{[0-9]+}}] f64Const of module {{.*}} for inlining
 // CHECK-NEXT: - inlining Wasm function
 addTestcase('f64Const', kSig_d_v, [], [...wasmF64Const(42.0)]);
+// CHECK: Considering Wasm function [{{[0-9]+}}] i64Const of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+// Use large constant to potentially test int64 lowering on 32-bit platforms in the future.
+const kValueExceedingI32 = 0x80000000n;
+addTestcase('i64Const', makeSig([], [kWasmI64]), [], [...wasmI64Const(kValueExceedingI32)]);
+
+// CHECK: Considering Wasm function [{{[0-9]+}}] refNull of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addTestcase('refNull', makeSig([], [kWasmExternRef]), [], [kExprRefNull, kExternRefCode]);
 
 function addUnaryTestcase(op, wasmSignature, wasmArgument) {
   addTestcase(op, wasmSignature, [wasmArgument], [
@@ -440,6 +451,32 @@ addTestcase('refTestAlwaysSucceedsButNull', kSig_i_v, [], [
   kExprGlobalGet, globalNullArray.index,
   kGCPrefix, kExprRefTest, array,
 ]);
+
+// CHECK: Considering Wasm function [{{[0-9]+}}] refAsNonNull of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addTestcase('refAsNonNull', makeSig([kWasmExternRef], [kWasmExternRef]), [{}], [
+  kExprLocalGet, 0,
+  kExprRefAsNonNull,
+]);
+
+// CHECK: Considering Wasm function [{{[0-9]+}}] refFuncNonNull of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addTestcase('refFuncNonNull', makeSig([], [kWasmI32]), [], [
+  kExprRefFunc, funcVoid.index,
+  kExprRefIsNull,
+]);
+
+// CHECK: Considering Wasm function [{{[0-9]+}}] refFuncGlobal of module {{.*}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+addTestcase('refFuncGlobal', kSig_v_v, [], [
+  kExprRefFunc, funcVoid.index,
+  kExprGlobalSet, globalFuncRef.index,
+], (wasmExports) => {
+  return function js_refFuncGlobal() {
+    wasmExports.refFuncGlobal();
+    assertEquals('function', typeof wasmExports.globalFuncRef.value);
+  };
+});
 
 const globalAnyRef = builder.addGlobal(kWasmAnyRef, true, false);
 

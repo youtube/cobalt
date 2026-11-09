@@ -55,7 +55,6 @@ Certaines fonctionnalités ne seront peut-être pas disponibles et les modificat
 <translation id="1594928384848033697">Chromium souhaite supprimer vos données du gestionnaire de mots de passe. Tapez votre mot de passe Windows pour autoriser la suppression.</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{Votre administrateur exige que vous relanciez Chromium pour appliquer une mise à jour}=1{Votre administrateur exige que vous relanciez Chromium pour appliquer une mise à jour. Votre fenêtre de navigation privée ne sera pas rouverte.}one{Votre administrateur exige que vous relanciez Chromium pour appliquer une mise à jour. Votre fenêtre de navigation privée ne sera pas rouverte.}other{Votre administrateur exige que vous relanciez Chromium pour appliquer une mise à jour. Vos # fenêtres de navigation privée ne seront pas rouvertes.}}</translation>
 <translation id="1625909126243026060">Passer en revue les principaux paramètres de confidentialité et de sécurité dans Chromium</translation>
-<translation id="1639380494700489405">Pour poser des questions au mode IA sur votre onglet sans quitter la page, connectez-vous à Chromium. Vous obtiendrez également vos mots de passe et bien plus encore sur tous vos appareils.</translation>
 <translation id="1640672724030957280">Téléchargement en cours…</translation>
 <translation id="1680687534629375545">Poser des questions à la recherche d'images à propos de cette page</translation>
 <translation id="1708414395296835197">Vous pouvez utiliser Chromium chaque fois que vous cliquez sur des liens dans des messages, des documents et d'autres applis. Il sera également épinglé à votre barre des tâches.</translation>
@@ -218,6 +217,7 @@ Les signets, l'historique et les mots de passe enregistrés ne seront pas touch�
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="3185330573522821672">Personnaliser votre nouveau profil Chromium</translation>
+<translation id="3189205223539394158">Vous pouvez continuer à clavarder avec le mode IA sans changer d'onglet. Pour commencer, connectez-vous à Chromium. Vous obtiendrez également vos mots de passe et bien plus encore sur tous vos appareils.</translation>
 <translation id="3224847870593914902">Pour retirer votre compte Google de Chromium, déconnectez-vous de Chromium sur la page Paramètres</translation>
 <translation id="3234316605225071811">Plus tard, Chromium pourrait vous demander si vous voulez utiliser les renseignements enregistrés pour remplir automatiquement les formulaires à votre place.</translation>
 <translation id="3258596308407688501">Chromium ne peut pas lire et écrire dans son répertoire de données :

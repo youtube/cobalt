@@ -517,7 +517,9 @@ webrtc_fuzzer_test("stun_parser_fuzzer") {
 webrtc_fuzzer_test("stun_validator_fuzzer") {
   sources = [ "stun_validator_fuzzer.cc" ]
   deps = [
+    ":fuzz_data_helper",
     "../../api/transport:stun_types",
+    "../../rtc_base:span_helpers",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
   seed_corpus = "corpora/stun-corpus"

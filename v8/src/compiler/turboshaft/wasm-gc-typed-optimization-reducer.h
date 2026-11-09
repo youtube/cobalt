@@ -81,6 +81,8 @@ class WasmGCTypeAnalyzer {
   void ProcessAssertNotNull(const AssertNotNullOp& type_cast);
   void ProcessNull(const NullOp& null);
   void ProcessIsNull(const IsNullOp& is_null);
+  void ProcessAnyConvertExtern(const AnyConvertExternOp& any_convert_extern);
+  void ProcessExternConvertAny(const ExternConvertAnyOp& extern_convert_any);
   void ProcessParameter(const ParameterOp& parameter);
   void ProcessStructGet(const StructGetOp& struct_get);
   void ProcessStructSet(const StructSetOp& struct_set);
@@ -515,11 +517,56 @@ class WasmGCTypedOptimizationReducer : public Next {
     goto no_change;
   }
 
+  V<Object> REDUCE_INPUT_GRAPH(AnyConvertExtern)(
+      V<Object> op_idx, const AnyConvertExternOp& any_convert_extern) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceInputGraphAnyConvertExtern(op_idx, any_convert_extern);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    const wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    AssertType(any_convert_extern.object(), type);
+
+    if (type.is_uninhabited()) {
+      __ Unreachable();
+      return OpIndex::Invalid();
+    }
+
+    if (any_convert_extern.is_nullable && type.is_non_nullable()) {
+      return __ AnyConvertExtern(__ MapToNewGraph(any_convert_extern.object()),
+                                 any_convert_extern.is_shared, false);
+    }
+    goto no_change;
+  }
+
+  V<Object> REDUCE_INPUT_GRAPH(ExternConvertAny)(
+      V<Object> op_idx, const ExternConvertAnyOp& extern_convert_any) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceInputGraphExternConvertAny(op_idx, extern_convert_any);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    const wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    AssertType(extern_convert_any.object(), type);
+
+    if (type.is_uninhabited()) {
+      __ Unreachable();
+      return OpIndex::Invalid();
+    }
+
+    if (extern_convert_any.is_nullable && type.is_non_nullable()) {
+      return __ ExternConvertAny(__ MapToNewGraph(extern_convert_any.object()),
+                                 false);
+    }
+    goto no_change;
+  }
+
   // TODO(14108): This isn't a type optimization and doesn't fit well into this
   // reducer.
-  V<Object> REDUCE(AnyConvertExtern)(V<Object> object, SharedFlag is_shared) {
+  V<Object> REDUCE(AnyConvertExtern)(V<Object> object, SharedFlag is_shared,
+                                     bool is_nullable) {
     LABEL_BLOCK(no_change) {
-      return Next::ReduceAnyConvertExtern(object, is_shared);
+      return Next::ReduceAnyConvertExtern(object, is_shared, is_nullable);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 

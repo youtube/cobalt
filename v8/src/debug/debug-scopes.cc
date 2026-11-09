@@ -1051,17 +1051,28 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
       // suspended generators. We'd need to read the arguments out from the
       // suspended generator rather than from an activation as
       // FunctionGetArguments does.
-      if (frame_inspector_ != nullptr && !closure_scope_->is_arrow_scope() &&
-          (closure_scope_->arguments() == nullptr ||
-           IsOptimizedOut(*frame_inspector_->GetExpression(
-                              closure_scope_->arguments()->index()),
-                          isolate_))) {
+      if (frame_inspector_ != nullptr && !closure_scope_->is_arrow_scope()) {
+        Variable* arguments_var = closure_scope_->arguments();
+        bool arguments_optimized_out = arguments_var == nullptr;
         JavaScriptFrame* frame = GetFrame();
-        Handle<JSObject> arguments = Accessors::FunctionGetArguments(
-            frame, frame_inspector_->inlined_frame_index());
-        if (visitor(isolate_->factory()->arguments_string(), arguments,
-                    scope_type))
-          return;
+        if (!arguments_optimized_out &&
+            arguments_var->location() == VariableLocation::LOCAL) {
+          int index = arguments_var->index();
+          if (frame->is_unoptimized()) {
+            CHECK_GE(index, 0);
+            CHECK_LT(index, frame->ComputeExpressionsCount());
+          }
+          arguments_optimized_out =
+              IsOptimizedOut(*frame_inspector_->GetExpression(index), isolate_);
+        }
+
+        if (arguments_optimized_out) {
+          Handle<JSObject> arguments = Accessors::FunctionGetArguments(
+              frame, frame_inspector_->inlined_frame_index());
+          if (visitor(isolate_->factory()->arguments_string(), arguments,
+                      scope_type))
+            return;
+        }
       }
     }
   } else {
@@ -1201,8 +1212,13 @@ bool ScopeIterator::SetContextExtensionValue(DirectHandle<String> variable_name,
 
 bool ScopeIterator::SetContextVariableValue(DirectHandle<String> variable_name,
                                             DirectHandle<Object> new_value) {
-  int slot_index = context_->scope_info()->ContextSlotIndex(*variable_name);
+  VariableLookupResult lookup_result;
+  int slot_index =
+      context_->scope_info()->ContextSlotIndex(*variable_name, &lookup_result);
   if (slot_index < 0) return false;
+  if (IsPrivateMethodOrAccessorVariableMode(lookup_result.mode)) {
+    return false;
+  }
   Context::Set(context_, slot_index, new_value, isolate_);
   return true;
 }

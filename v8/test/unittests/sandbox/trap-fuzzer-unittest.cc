@@ -8,6 +8,7 @@
 #include "src/sandbox/sandbox-malloc.h"
 #include "src/sandbox/sandbox.h"
 #include "src/sandbox/testing.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/test-utils.h"
 
 #ifdef V8_SANDBOX_TRAP_FUZZER_AVAILABLE
@@ -15,7 +16,17 @@
 namespace v8 {
 namespace internal {
 
-class SandboxTrapFuzzerTest : public TestWithContext {};
+class SandboxTrapFuzzerTest : public TestWithContext {
+ public:
+  SandboxTrapFuzzerTest()
+      : TestWithContext(),
+        // The trap fuzzer is not thread-safe and requires --single-threaded.
+        // See crbug.com/506943333.
+        single_threaded_(&v8_flags.single_threaded, true) {}
+
+ private:
+  FlagScope<bool> single_threaded_;
+};
 
 TEST_F(SandboxTrapFuzzerTest, Basic) {
   if (!SandboxHardwareSupport::IsActive()) GTEST_SKIP();

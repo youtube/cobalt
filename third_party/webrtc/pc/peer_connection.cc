@@ -3107,7 +3107,7 @@ bool PeerConnection::OnTransportChanged(
          rtp_manager()->transceivers()->UnsafeList()) {
       auto internal = transceiver->internal();
       if (internal->HasChannel() && internal->mid() == mid) {
-        ret = internal->SetChannelRtpTransport(rtp_transport);
+        ret = internal->SetRtpTransport(rtp_transport);
       }
     }
   }

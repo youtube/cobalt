@@ -3666,7 +3666,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, Operand(offset), new_value, mode,
           DetermineStubCallMode(), &unwinding_info_writer_);
+      __ b(ne, ool->exit());
       __ JumpIfSmi(new_value, ool->exit());
+
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
       __ bind(ool->exit());

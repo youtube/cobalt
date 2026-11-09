@@ -1,6 +1,7 @@
 # Copyright 2014 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+import("//build/config/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 
 import("//testing/libfuzzer/fuzzer_test.gni")
@@ -670,6 +671,18 @@ source_set("unit_tests") {
   }
   if (is_android) {
     deps += [ "//components/policy/android:test_jni_headers" ]
+  }
+
+  if (use_blink) {
+    deps += [
+      "//content/public/browser",
+      "//content/test:test_support",
+    ]
+  } else {
+    deps += [
+      "//ios/web/public/test",
+      "//ios/web/public/thread",
+    ]
   }
 
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and

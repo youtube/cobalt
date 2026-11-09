@@ -223,12 +223,16 @@ GlicCookieSynchronizer::GetCookieManagerForPartition() {
   return GetStoragePartition()->GetCookieManagerForBrowserProcess();
 }
 
+signin::PartitionSuffix GlicCookieSynchronizer::GetPartitionSuffix() const {
+  return signin::PartitionSuffix::kGlic;
+}
+
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 network::mojom::DeviceBoundSessionManager*
 GlicCookieSynchronizer::GetDeviceBoundSessionManagerForPartition() {
   if (!base::FeatureList::IsEnabled(
           switches::
-              kEnableOAuthMultiloginStandardCookiesBindingForGlicPartition)) {
+              kEnableOAuthMultiloginStandardCookiesBindingForSecondaryPartitions)) {
     return nullptr;
   }
   return GetStoragePartition()->GetDeviceBoundSessionManager();

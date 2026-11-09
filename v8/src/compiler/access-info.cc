@@ -26,6 +26,11 @@
 #include "src/objects/struct-inl.h"
 #include "src/objects/templates.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/value-type.h"
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8 {
 namespace internal {
 namespace compiler {

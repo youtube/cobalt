@@ -868,7 +868,8 @@ void JSAPIObjectWithEmbedderSlotsPrintHeader(std::ostream& os,
 void JSObjectPrintBody(std::ostream& os, Tagged<JSObject> obj,
                        bool print_elements = true) {
   os << "\n - properties: ";
-  Tagged<Object> properties_or_hash = obj->raw_properties_or_hash(kRelaxedLoad);
+  Tagged<JSReceiver::PropertiesOrHash> properties_or_hash =
+      obj->raw_properties_or_hash(kRelaxedLoad);
   if (!IsSmi(properties_or_hash)) {
     os << Brief(properties_or_hash);
   }
@@ -2532,12 +2533,23 @@ void JSIteratorConcatHelper::JSIteratorConcatHelperPrint(std::ostream& os) {
   JSObjectPrintBody(os, this);
 }
 
-void JSIteratorZipHelper::JSIteratorZipHelperPrint(std::ostream& os) {
-  JSIteratorHelperPrintHeader(os, "JSIteratorZipHelper");
+void JSIteratorZipHelper::JSIteratorZipHelperPrintHeader(
+    std::ostream& os, const char* helper_name) {
+  JSIteratorHelperPrintHeader(os, helper_name);
   os << "\n - underlying_iterators: " << Brief(underlying_iterators());
   os << "\n - mode: " << mode();
   os << "\n - active_count: " << active_count();
   os << "\n - padding: " << Brief(padding());
+}
+
+void JSIteratorZipHelper::JSIteratorZipHelperPrint(std::ostream& os) {
+  JSIteratorZipHelperPrintHeader(os, "JSIteratorZipHelper");
+  JSObjectPrintBody(os, this);
+}
+
+void JSIteratorZipKeyedHelper::JSIteratorZipKeyedHelperPrint(std::ostream& os) {
+  JSIteratorZipHelperPrintHeader(os, "JSIteratorZipKeyedHelper");
+  os << "\n - keys: " << Brief(keys());
   JSObjectPrintBody(os, this);
 }
 
@@ -3158,7 +3170,54 @@ void TurbofanOtherNumberConstantType::TurbofanOtherNumberConstantTypePrint(
   os << "\n";
 }
 
+void SortState::SortStatePrint(std::ostream& os) {
+  PrintHeader(os, "SortState");
+  os << "\n - receiver: " << Brief(receiver_.load());
+  os << "\n - initial_receiver_map: " << Brief(initial_receiver_map_.load());
+  os << "\n - initial_receiver_length: "
+     << Brief(initial_receiver_length_.load());
+  os << "\n - user_cmp_fn: " << Brief(user_cmp_fn_.load());
+  os << "\n - is_reset_to_generic: " << Brief(is_reset_to_generic_.load());
+  os << "\n - min_gallop: " << Brief(min_gallop_.load());
+  os << "\n - pending_runs_size: " << Brief(pending_runs_size_.load());
+  os << "\n - pending_runs: " << Brief(pending_runs_.load());
+  os << "\n - pending_powers: " << Brief(pending_powers_.load());
+  os << "\n - work_array: " << Brief(work_array_.load());
+  os << "\n - temp_array: " << Brief(temp_array_.load());
+  os << "\n - sort_length: " << Brief(sort_length_.load());
+  os << "\n - number_of_undefined: " << Brief(number_of_undefined_.load());
+  os << "\n";
+}
+
+void OnHeapBasicBlockProfilerData::OnHeapBasicBlockProfilerDataPrint(
+    std::ostream& os) {
+  PrintHeader(os, "OnHeapBasicBlockProfilerData");
+  os << "\n - block_ids: " << Brief(block_ids());
+  os << "\n - counts: " << Brief(counts());
+  os << "\n - branches: " << Brief(branches());
+  os << "\n - name: " << Brief(name());
+  os << "\n - schedule: " << Brief(schedule());
+  os << "\n - code: " << Brief(code());
+  os << "\n - hash: " << Brief(hash());
+  os << "\n";
+}
+
 #if V8_ENABLE_WEBASSEMBLY
+void WasmFastApiCallData::WasmFastApiCallDataPrint(std::ostream& os) {
+  PrintHeader(os, "WasmFastApiCallData");
+  os << "\n - signature: " << Brief(signature());
+  os << "\n - callback_data: " << Brief(callback_data());
+  os << "\n - cached_map: " << Brief(cached_map());
+  os << "\n";
+}
+
+void WasmStringViewIter::WasmStringViewIterPrint(std::ostream& os) {
+  PrintHeader(os, "WasmStringViewIter");
+  os << "\n - string: " << Brief(string());
+  os << "\n - offset: " << offset();
+  os << "\n";
+}
+
 void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {
   PrintHeader(os, "AsmWasmData");
   os << "\n - native module: " << Brief(managed_native_module());
@@ -3201,18 +3260,6 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
       case wasm::kI32:
         os << base::ReadUnalignedValue<int32_t>(field_address);
         break;
-      case wasm::kWaitQueue: {
-        os << base::ReadUnalignedValue<int32_t>(field_address) << ", ";
-        Tagged_t raw = base::ReadUnalignedValue<Tagged_t>(
-            field_address + wasm::kWaitQueueManagedOffset);
-#if V8_COMPRESS_POINTERS
-        Address obj = V8HeapCompressionScheme::DecompressTagged(raw);
-#else
-        Address obj = raw;
-#endif
-        os << Brief(Tagged<Object>(obj));
-        break;
-      }
       case wasm::kI64:
         os << base::ReadUnalignedValue<int64_t>(field_address);
         break;
@@ -3274,7 +3321,6 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
   Address data_ptr = ptr() + WasmArray::kHeaderSize - kHeapObjectTag;
   switch (element_type.kind()) {
     case wasm::kI32:
-    case wasm::kWaitQueue:
       PrintTypedArrayElements(os, reinterpret_cast<int32_t*>(data_ptr), len,
                               true);
       break;
@@ -4270,11 +4316,15 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
   switch (instance_type) {
     case MAP_TYPE: {
       Tagged<Map> map = Cast<Map>(*this);
-      if (IsMetaMapMap(map)) {
+      if (IsMetaMap(map)) {
         // This is one of the meta maps, print only relevant fields.
         os << "<MetaMap (" << Brief(map->native_context_or_null()) << ")>";
       } else {
-        os << "<Map";
+        if (map->is_extended_map()) {
+          os << "<ExtendedMap";
+        } else {
+          os << "<Map";
+        }
         if (map->instance_size() != kVariableSizeSentinel) {
           os << "[" << map->instance_size() << "]";
         }
@@ -4694,16 +4744,22 @@ void Map::PrintMapDetails(std::ostream& os) {
 }
 
 void Map::MapPrint(std::ostream& os) {
-  bool is_meta_map = IsMetaMapMap(this);
+  bool is_meta_map = IsMetaMap(this);
+  bool is_extended_map = IsExtendedMap(this);
 #if V8_ENABLE_WEBASSEMBLY
   bool is_wasm_map = IsWasmObjectMap(this);
 #else
   constexpr bool is_wasm_map = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
 #ifdef OBJECT_PRINT
-  PrintHeader(os, is_meta_map ? "MetaMap" : "Map");
+  PrintHeader(os, is_meta_map       ? "MetaMap"
+                  : is_extended_map ? "ExtendedMap"
+                                    : "Map");
 #else
-  os << (is_meta_map ? "MetaMap=" : "Map=") << reinterpret_cast<void*>(ptr());
+  os << (is_meta_map       ? "MetaMap="
+         : is_extended_map ? "ExtendedMap="
+                           : "Map=")
+     << reinterpret_cast<void*>(ptr());
 #endif
   os << "\n - type: " << instance_type();
   if (is_meta_map) {
@@ -4800,6 +4856,25 @@ void Map::MapPrint(std::ostream& os) {
   }
   os << "\n - dependent code: " << Brief(dependent_code());
   os << "\n - construction counter: " << construction_counter();
+
+  if (is_extended_map) {
+    Tagged<ExtendedMap> map_ex = UncheckedCast<ExtendedMap>(this);
+    os << "\n -------";
+    os << "\n - extended map kind: " << map_ex->map_kind();
+    os << "\n - extended map size: " << map_ex->map_size();
+    switch (map_ex->map_kind()) {
+      case ExtendedMapKind::kJSInterceptorMap: {
+        Tagged<JSInterceptorMap> js_interceptor_map =
+            UncheckedCast<JSInterceptorMap>(map_ex);
+        os << "\n - named_interceptor: "
+           << Brief(js_interceptor_map->named_interceptor());
+        os << "\n - indexed_interceptor: "
+           << Brief(js_interceptor_map->indexed_interceptor());
+        break;
+      }
+    }
+  }
+
   os << "\n";
 }
 

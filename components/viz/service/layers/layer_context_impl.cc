@@ -1063,11 +1063,16 @@ base::expected<void, std::string> UpdateViewportPropertyIds(
   if (!IsOptionalPropertyTreeIndexValid(scroll_tree, update.inner_scroll)) {
     return base::unexpected("Invalid inner_scroll");
   }
-  if (update.inner_scroll == cc::kInvalidPropertyNodeId &&
-      (update.outer_clip != cc::kInvalidPropertyNodeId ||
-       update.outer_scroll != cc::kInvalidPropertyNodeId)) {
-    return base::unexpected(
-        "Cannot set outer_clip or outer_scroll without valid inner_scroll");
+  if (update.inner_scroll == cc::kInvalidPropertyNodeId) {
+    if (update.outer_clip != cc::kInvalidPropertyNodeId ||
+        update.outer_scroll != cc::kInvalidPropertyNodeId) {
+      return base::unexpected(
+          "Cannot set outer_clip or outer_scroll without valid inner_scroll");
+    }
+  } else {
+    if (update.outer_scroll == cc::kInvalidPropertyNodeId) {
+      return base::unexpected("Must set outer_scroll if inner_scroll is set");
+    }
   }
   if (!IsOptionalPropertyTreeIndexValid(clip_tree, update.outer_clip)) {
     return base::unexpected("Invalid outer_clip");
@@ -1075,6 +1080,7 @@ base::expected<void, std::string> UpdateViewportPropertyIds(
   if (!IsOptionalPropertyTreeIndexValid(scroll_tree, update.outer_scroll)) {
     return base::unexpected("Invalid outer_scroll");
   }
+
   layers.SetViewportPropertyIds(cc::ViewportPropertyIds{
       .overscroll_elasticity_transform = update.overscroll_elasticity_transform,
       .page_scale_transform = update.page_scale_transform,
@@ -1249,6 +1255,10 @@ DeserializeTimingFunction(mojom::TimingFunction& wire) {
       }
       if (points.empty()) {
         return gfx::LinearTimingFunction::Create();
+      }
+      if (points.size() < 2) {
+        return base::unexpected(
+            "Invalid number of points: must be at least 2 for LinearTiming");
       }
       return gfx::LinearTimingFunction::Create(std::move(points));
     }
@@ -2002,6 +2012,9 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
   host_impl_->set_next_frame_token_from_client(update->next_frame_token);
 
   for (const auto& latency : update->latency_info) {
+    if (latency.terminated()) {
+      return base::unexpected("Received already-terminated LatencyInfo");
+    }
     layers.QueuePinnedSwapPromise(
         std::make_unique<cc::LatencyInfoSwapPromise>(latency));
   }

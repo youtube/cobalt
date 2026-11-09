@@ -550,7 +550,7 @@ angle::Result TextureGL::setSubImagePaddingWorkaround(const gl::Context *context
         {
             // Do not include skipBytes in the last image pixel start offset as it will be done by
             // the driver
-            GLint lastImageOffset          = (area.depth - 1) * imageBytes;
+            size_t lastImageOffset         = (area.depth - 1) * imageBytes;
             const GLubyte *lastImagePixels = pixels + lastImageOffset;
             ANGLE_GL_TRY(context, functions->texSubImage3D(
                                       ToGLenum(target), static_cast<GLint>(level), area.x, area.y,
@@ -561,7 +561,7 @@ angle::Result TextureGL::setSubImagePaddingWorkaround(const gl::Context *context
         // Upload the last row of the last slice "manually"
         ANGLE_TRY(stateManager->setPixelUnpackState(context, directUnpack));
 
-        GLint lastRowOffset =
+        size_t lastRowOffset =
             skipBytes + (area.depth - 1) * imageBytes + (area.height - 1) * rowBytes;
         const GLubyte *lastRowPixels = pixels + lastRowOffset;
         ANGLE_GL_TRY(context,
@@ -584,7 +584,7 @@ angle::Result TextureGL::setSubImagePaddingWorkaround(const gl::Context *context
         // Upload the last row "manually"
         ANGLE_TRY(stateManager->setPixelUnpackState(context, directUnpack));
 
-        GLint lastRowOffset          = skipBytes + (area.height - 1) * rowBytes;
+        size_t lastRowOffset         = skipBytes + (area.height - 1) * rowBytes;
         const GLubyte *lastRowPixels = pixels + lastRowOffset;
         ANGLE_GL_TRY(context, functions->texSubImage2D(ToGLenum(target), static_cast<GLint>(level),
                                                        area.x, area.y + area.height - 1, area.width,
@@ -749,7 +749,7 @@ angle::Result TextureGL::copyImage(const gl::Context *context,
         angle::CheckedNumeric<size_t> checkedBufferSize = angle::base::CheckMul(
             angle::base::CheckMul(sourceArea.width, sourceArea.height), pixelBytes);
         ANGLE_CHECK_GL_MATH(contextGL, checkedBufferSize.IsValid());
-        angle::MemoryBuffer *zero;
+        const angle::MemoryBuffer *zero;
         ANGLE_CHECK_GL_ALLOC(contextGL,
                              context->getZeroFilledBuffer(checkedBufferSize.ValueOrDie(), &zero));
 
@@ -2523,7 +2523,7 @@ angle::Result TextureGL::initializeContents(const gl::Context *context,
         ANGLE_CHECK_GL_MATH(contextGL,
                             internalFormatInfo.computeCompressedImageSize(desc.size, &imageSize));
 
-        angle::MemoryBuffer *zero;
+        const angle::MemoryBuffer *zero;
         ANGLE_CHECK_GL_ALLOC(contextGL, context->getZeroFilledBuffer(imageSize, &zero));
 
         // WebGL spec requires that zero data is uploaded to compressed textures even if it might
@@ -2554,7 +2554,7 @@ angle::Result TextureGL::initializeContents(const gl::Context *context,
                                            nativeSubImageFormat.type, desc.size, unpackState,
                                            nativegl::UseTexImage3D(getType()), &imageSize));
 
-        angle::MemoryBuffer *zero;
+        const angle::MemoryBuffer *zero;
         ANGLE_CHECK_GL_ALLOC(contextGL, context->getZeroFilledBuffer(imageSize, &zero));
 
         if (nativegl::UseTexImage2D(getType()))

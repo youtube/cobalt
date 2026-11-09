@@ -85,15 +85,14 @@ std::unique_ptr<test::FakeEncodedFrame> WithReceiveTimeFromRtpTimestamp(
 class VCMTimingTest : public VCMTiming {
  public:
   using VCMTiming::VCMTiming;
-  void IncomingTimestamp(uint32_t rtp_timestamp,
-                         Timestamp last_packet_time) override {
-    IncomingTimestampMocked(rtp_timestamp, last_packet_time);
-    VCMTiming::IncomingTimestamp(rtp_timestamp, last_packet_time);
+  void OnCompleteTemporalUnit(uint32_t rtp_timestamp, Timestamp now) override {
+    OnCompleteTemporalUnitMocked(rtp_timestamp, now);
+    VCMTiming::OnCompleteTemporalUnit(rtp_timestamp, now);
   }
 
   MOCK_METHOD(void,
-              IncomingTimestampMocked,
-              (uint32_t rtp_timestamp, Timestamp last_packet_time),
+              OnCompleteTemporalUnitMocked,
+              (uint32_t rtp_timestamp, Timestamp now),
               ());
 };
 
@@ -925,7 +924,7 @@ class IncomingTimestampVideoStreamBufferControllerTest
 TEST_P(IncomingTimestampVideoStreamBufferControllerTest,
        IncomingTimestampOnMarkerBitOnly) {
   StartNextDecodeForceKeyframe();
-  EXPECT_CALL(timing_, IncomingTimestampMocked)
+  EXPECT_CALL(timing_, OnCompleteTemporalUnitMocked)
       .Times(field_trials_.IsDisabled("WebRTC-IncomingTimestampOnMarkerBitOnly")
                  ? 3
                  : 1);

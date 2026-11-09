@@ -57,6 +57,11 @@ const base::FeatureParam<bool> kGlicRequireConsentForInvokeParam(
     "glic_require_consent_for_invoke",
     false);
 
+const base::FeatureParam<bool> kGlicOpenNewTabInForegroundParam(
+    &kApiGlicAccessFromGoogleWebpage,
+    "glic_open_new_tab_in_foreground",
+    true);
+
 BASE_FEATURE(kApiProxyOverrideRulesPrivate, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kApiRuntimeGetPlatformInfoNaClArch,
@@ -129,6 +134,8 @@ const base::FeatureParam<std::string> kExtensionManifestV2ExceptionListParam(
 BASE_FEATURE(kAllowLegacyMV2Extensions, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionProtocolHandlers, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kExtensionTabContextMenu, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionsManifestV3Only, base::FEATURE_DISABLED_BY_DEFAULT);
 

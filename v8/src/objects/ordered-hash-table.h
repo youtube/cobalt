@@ -416,8 +416,38 @@ class V8_EXPORT_PRIVATE OrderedHashMap
 //    [44] : empty
 //    [45] : empty
 //
-template <class Derived>
-class SmallOrderedHashTable : public HeapObject {
+// Non-templated public-facing class so Torque (and ad-hoc C++ usage)
+// can reference a concrete `SmallOrderedHashTable` type. The shared
+// implementation -- methods using Derived-specific constants -- lives
+// on the CRTP SmallOrderedHashTableImpl<Derived> below.
+V8_OBJECT class SmallOrderedHashTable : public HeapObjectLayout {
+ public:
+  static const int kMinCapacity = 4;
+  static const uint8_t kNotFound = 0xFF;
+
+  // We use the value 255 to indicate kNotFound for chain and bucket
+  // values, which means that this value can't be used a valid
+  // index.
+  static const int kMaxCapacity = 254;
+  static_assert(kMaxCapacity < kNotFound);
+
+  // The load factor is used to derive the number of buckets from
+  // capacity during Allocation. We also depend on this to calaculate
+  // the capacity from number of buckets after allocation. If we
+  // decide to change kLoadFactor to something other than 2, capacity
+  // should be stored as another field of this object.
+  static const int kLoadFactor = 2;
+
+  // Our growth strategy involves doubling the capacity until we reach
+  // kMaxCapacity, but since the kMaxCapacity is always less than 256,
+  // we will never fully utilize this table. We special case for 256,
+  // by changing the new capacity to be kMaxCapacity in
+  // SmallOrderedHashTable::Grow.
+  static const int kGrowthHack = 256;
+} V8_OBJECT_END;
+
+V8_OBJECT template <class Derived>
+class SmallOrderedHashTableImpl : public SmallOrderedHashTable {
  public:
   // Offset points to a relative location in the table
   using Offset = int;
@@ -477,20 +507,21 @@ class SmallOrderedHashTable : public HeapObject {
 
   // Returns the number elements that are present in the table.
   int NumberOfElements() const {
-    int nof_elements = getByte(NumberOfElementsOffset(), 0);
+    int nof_elements = static_cast<const Derived*>(this)->number_of_elements_;
     DCHECK_LE(nof_elements, Capacity());
-
     return nof_elements;
   }
 
   int NumberOfDeletedElements() const {
-    int nof_deleted_elements = getByte(NumberOfDeletedElementsOffset(), 0);
+    int nof_deleted_elements =
+        static_cast<const Derived*>(this)->number_of_deleted_elements_;
     DCHECK_LE(nof_deleted_elements, Capacity());
-
     return nof_deleted_elements;
   }
 
-  int NumberOfBuckets() const { return getByte(NumberOfBucketsOffset(), 0); }
+  int NumberOfBuckets() const {
+    return static_cast<const Derived*>(this)->number_of_buckets_;
+  }
 
   V8_INLINE Tagged<Object> KeyAt(InternalIndex entry) const;
 
@@ -499,29 +530,6 @@ class SmallOrderedHashTable : public HeapObject {
   }
 
   DECL_VERIFIER(SmallOrderedHashTable)
-
-  static const int kMinCapacity = 4;
-  static const uint8_t kNotFound = 0xFF;
-
-  // We use the value 255 to indicate kNotFound for chain and bucket
-  // values, which means that this value can't be used a valid
-  // index.
-  static const int kMaxCapacity = 254;
-  static_assert(kMaxCapacity < kNotFound);
-
-  // The load factor is used to derive the number of buckets from
-  // capacity during Allocation. We also depend on this to calaculate
-  // the capacity from number of buckets after allocation. If we
-  // decide to change kLoadFactor to something other than 2, capacity
-  // should be stored as another field of this object.
-  static const int kLoadFactor = 2;
-
-  // Our growth strategy involves doubling the capacity until we reach
-  // kMaxCapacity, but since the kMaxCapacity is always less than 256,
-  // we will never fully utilize this table. We special case for 256,
-  // by changing the new capacity to be kMaxCapacity in
-  // SmallOrderedHashTable::Grow.
-  static const int kGrowthHack = 256;
 
  protected:
   static Handle<Derived> Rehash(Isolate* isolate, Handle<Derived> table,
@@ -586,19 +594,21 @@ class SmallOrderedHashTable : public HeapObject {
     return entry;
   }
 
-  void SetNumberOfBuckets(int num) { setByte(NumberOfBucketsOffset(), 0, num); }
+  void SetNumberOfBuckets(int num) {
+    static_cast<Derived*>(this)->number_of_buckets_ = num;
+  }
 
   void SetNumberOfElements(int num) {
     DCHECK_LE(static_cast<unsigned>(num), Capacity());
-    setByte(NumberOfElementsOffset(), 0, num);
+    static_cast<Derived*>(this)->number_of_elements_ = num;
   }
 
   void SetNumberOfDeletedElements(int num) {
     DCHECK_LE(static_cast<unsigned>(num), Capacity());
-    setByte(NumberOfDeletedElementsOffset(), 0, num);
+    static_cast<Derived*>(this)->number_of_deleted_elements_ = num;
   }
 
-  static constexpr Offset PrefixOffset() { return kHeaderSize; }
+  static constexpr Offset PrefixOffset() { return sizeof(HeapObjectLayout); }
 
   static constexpr Offset NumberOfElementsOffset() {
     return PrefixOffset() + (Derived::kPrefixSize * kTaggedSize);
@@ -661,11 +671,10 @@ class SmallOrderedHashTable : public HeapObject {
   friend class OrderedHashSetHandler;
   friend class OrderedNameDictionaryHandler;
   friend class CodeStubAssembler;
+} V8_OBJECT_END;
 
-  OBJECT_CONSTRUCTORS(SmallOrderedHashTable, HeapObject);
-};
-
-class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
+V8_OBJECT class SmallOrderedHashSet
+    : public SmallOrderedHashTableImpl<SmallOrderedHashSet> {
  public:
   DECL_PRINTER(SmallOrderedHashSet)
   EXPORT_DECL_VERIFIER(SmallOrderedHashSet)
@@ -690,14 +699,24 @@ class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
   static Handle<SmallOrderedHashSet> Rehash(Isolate* isolate,
                                             Handle<SmallOrderedHashSet> table,
                                             int new_capacity);
-  OBJECT_CONSTRUCTORS(SmallOrderedHashSet,
-                      SmallOrderedHashTable<SmallOrderedHashSet>);
-};
+
+ public:
+  uint8_t number_of_elements_;
+  uint8_t number_of_deleted_elements_;
+  uint8_t number_of_buckets_;
+#if TAGGED_SIZE_8_BYTES
+  uint8_t padding_[5];
+#else
+  uint8_t padding_[1];
+#endif
+  FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, data_table);
+} V8_OBJECT_END;
 
 static_assert(kSmallOrderedHashSetMinCapacity ==
               SmallOrderedHashSet::kMinCapacity);
 
-class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
+V8_OBJECT class SmallOrderedHashMap
+    : public SmallOrderedHashTableImpl<SmallOrderedHashMap> {
  public:
   DECL_PRINTER(SmallOrderedHashMap)
   EXPORT_DECL_VERIFIER(SmallOrderedHashMap)
@@ -724,9 +743,17 @@ class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
                                             Handle<SmallOrderedHashMap> table,
                                             int new_capacity);
 
-  OBJECT_CONSTRUCTORS(SmallOrderedHashMap,
-                      SmallOrderedHashTable<SmallOrderedHashMap>);
-};
+ public:
+  uint8_t number_of_elements_;
+  uint8_t number_of_deleted_elements_;
+  uint8_t number_of_buckets_;
+#if TAGGED_SIZE_8_BYTES
+  uint8_t padding_[5];
+#else
+  uint8_t padding_[1];
+#endif
+  FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, data_table);
+} V8_OBJECT_END;
 
 static_assert(kSmallOrderedHashMapMinCapacity ==
               SmallOrderedHashMap::kMinCapacity);
@@ -748,7 +775,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) OrderedHashTableHandler {
 
   // TODO(gsathya): Move this to OrderedHashTable
   static const int OrderedHashTableMinSize =
-      SmallOrderedHashTable<SmallTable>::kGrowthHack << 1;
+      SmallOrderedHashTableImpl<SmallTable>::kGrowthHack << 1;
 };
 
 extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
@@ -904,8 +931,8 @@ class V8_EXPORT_PRIVATE OrderedNameDictionaryHandler
       Isolate* isolate, DirectHandle<SmallOrderedNameDictionary> table);
 };
 
-class SmallOrderedNameDictionary
-    : public SmallOrderedHashTable<SmallOrderedNameDictionary> {
+V8_OBJECT class SmallOrderedNameDictionary
+    : public SmallOrderedHashTableImpl<SmallOrderedNameDictionary> {
  public:
   DECL_PRINTER(SmallOrderedNameDictionary)
   DECL_VERIFIER(SmallOrderedNameDictionary)
@@ -954,9 +981,23 @@ class SmallOrderedNameDictionary
   static inline DirectHandle<Map> GetMap(RootsTable& roots);
   static inline bool Is(DirectHandle<HeapObject> table);
 
-  OBJECT_CONSTRUCTORS(SmallOrderedNameDictionary,
-                      SmallOrderedHashTable<SmallOrderedNameDictionary>);
-};
+ public:
+  int32_t hash_;
+#if TAGGED_SIZE_8_BYTES
+  int32_t padding_0_;
+#else
+  char padding_0_[0];
+#endif
+  uint8_t number_of_elements_;
+  uint8_t number_of_deleted_elements_;
+  uint8_t number_of_buckets_;
+#if TAGGED_SIZE_8_BYTES
+  uint8_t padding_1_[5];
+#else
+  uint8_t padding_1_[1];
+#endif
+  FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, data_table);
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

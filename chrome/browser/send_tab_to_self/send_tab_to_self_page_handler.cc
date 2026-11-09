@@ -263,16 +263,10 @@ void SendTabToSelfPageHandler::SendFinalizedRequest(
   SendTabToSelfModel* model =
       SendTabToSelfSyncServiceFactory::GetForProfile(profile)
           ->GetSendTabToSelfModel();
-  if (!model->IsReady()) {
-    std::move(request.commit_confirmation)
-        .Run(SendTabToSelfResult::kFailureModelNotReady);
-    return;
-  }
-
-  model->AddEntry(request.url, request.title, request.target_device_guid,
-                  std::move(request.page_context),
-                  std::move(request.navigation_history),
-                  std::move(request.commit_confirmation));
+  model->SendEntry(request.url, request.title, request.target_device_guid,
+                   std::move(request.page_context),
+                   std::move(request.navigation_history),
+                   std::move(request.commit_confirmation));
 }
 
 base::TimeDelta SendTabToSelfPageHandler::GetSelectorGenerationTimeout() const {

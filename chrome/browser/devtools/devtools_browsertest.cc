@@ -2103,7 +2103,8 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // TODO(crbug.com/41495883): Re-enable on linux.
-// TODO(crbug.com/405219356): Enable the test on Android.
+// TODO(crbug.com/405219356, crbug.com/406406862): Enable the test on Android.
+// This requires the support of DevTools in a web app window.
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
 #define MAYBE_CanInspectExtensionOffscreenDoc \
   DISABLED_CanInspectExtensionOffscreenDoc
@@ -2956,16 +2957,8 @@ IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
   ASSERT_TRUE(DevToolsWindow::FindDevToolsWindow(agent_host.get()));
 }
 
-// TODO(crbug.com/405219356): Enable on Android.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_ExtensionConnectionClosedOnPolicyChange \
-  DISABLED_ExtensionConnectionClosedOnPolicyChange
-#else
-#define MAYBE_ExtensionConnectionClosedOnPolicyChange \
-  ExtensionConnectionClosedOnPolicyChange
-#endif
 IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
-                       MAYBE_ExtensionConnectionClosedOnPolicyChange) {
+                       ExtensionConnectionClosedOnPolicyChange) {
   AllowDevTools(browser_window_interface());
   content::WebContents* web_contents = nullptr;
   ASSERT_NO_FATAL_FAILURE(PolicyInstallExtensionAndOpen(&web_contents));
@@ -2982,7 +2975,8 @@ IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
   EXPECT_FALSE(DevToolsWindow::FindDevToolsWindow(agent_host.get()));
 }
 
-// TODO(crbug.com/405219356): Enable on Android.
+// TODO(crbug.com/405219356, crbug.com/406406862): Enable on Android.
+// This requires the support of DevTools in a web app window.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_ClosedAfterNavigationToExtension \
   DISABLED_ClosedAfterNavigationToExtension
@@ -3032,16 +3026,8 @@ IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
   ASSERT_TRUE(DevToolsWindow::FindDevToolsWindow(agent_host.get()));
 }
 
-// TODO(crbug.com/405219356): Enable on Android.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_BlockDevToolsOnRestrictedExtensionErrorPage \
-  DISABLED_BlockDevToolsOnRestrictedExtensionErrorPage
-#else
-#define MAYBE_BlockDevToolsOnRestrictedExtensionErrorPage \
-  BlockDevToolsOnRestrictedExtensionErrorPage
-#endif
 IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
-                       MAYBE_BlockDevToolsOnRestrictedExtensionErrorPage) {
+                       BlockDevToolsOnRestrictedExtensionErrorPage) {
   // 1. Setup: Load a "force-installed" extension.
   std::string extension_id;
   ASSERT_NO_FATAL_FAILURE(InstallExtensionWithLocation(
@@ -3070,16 +3056,8 @@ IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
   EXPECT_FALSE(DevToolsWindow::FindDevToolsWindow(agent_host.get()));
 }
 
-// TODO(crbug.com/405219356): Enable on Android.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_AllowDevToolsOnRegularExtensionErrorPage \
-  DISABLED_AllowDevToolsOnRegularExtensionErrorPage
-#else
-#define MAYBE_AllowDevToolsOnRegularExtensionErrorPage \
-  AllowDevToolsOnRegularExtensionErrorPage
-#endif
 IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
-                       MAYBE_AllowDevToolsOnRegularExtensionErrorPage) {
+                       AllowDevToolsOnRegularExtensionErrorPage) {
   // 1. Setup: Load a regular extension.
   std::string extension_id;
   ASSERT_NO_FATAL_FAILURE(
@@ -3102,16 +3080,8 @@ IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
   EXPECT_TRUE(DevToolsWindow::AllowDevToolsFor(profile(), web_contents));
 }
 
-// TODO(crbug.com/405219356): Enable on Android.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_BlockDevToolsOnRestrictedExtensionServiceWorker \
-  DISABLED_BlockDevToolsOnRestrictedExtensionServiceWorker
-#else
-#define MAYBE_BlockDevToolsOnRestrictedExtensionServiceWorker \
-  BlockDevToolsOnRestrictedExtensionServiceWorker
-#endif
 IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
-                       MAYBE_BlockDevToolsOnRestrictedExtensionServiceWorker) {
+                       BlockDevToolsOnRestrictedExtensionServiceWorker) {
   // 1. Setup: Load a "force-installed" extension with a service worker.
   base::ScopedAllowBlockingForTesting allow_blocking;
   base::ScopedTempDir temp_dir;
@@ -3155,16 +3125,8 @@ IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
   EXPECT_FALSE(sw_host->AttachClient(&client));
 }
 
-// TODO(crbug.com/405219356): Enable on Android.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_BlockDevToolsOnRestrictedExtensionDevToolsPage \
-  DISABLED_BlockDevToolsOnRestrictedExtensionDevToolsPage
-#else
-#define MAYBE_BlockDevToolsOnRestrictedExtensionDevToolsPage \
-  BlockDevToolsOnRestrictedExtensionDevToolsPage
-#endif
 IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
-                       MAYBE_BlockDevToolsOnRestrictedExtensionDevToolsPage) {
+                       BlockDevToolsOnRestrictedExtensionDevToolsPage) {
   // 1. Setup: Load a "force-installed" extension with a devtools_page.
   base::ScopedAllowBlockingForTesting allow_blocking;
   base::ScopedTempDir temp_dir;
@@ -3417,8 +3379,8 @@ IN_PROC_BROWSER_TEST_F(DevToolsTest, MAYBE_TestOpenInNewTabFilter) {
   const std::string self_filesystem_url =
       base::StringPrintf("filesystem:%s", test_url.c_str());
 
-  // Pairs include a URL string and boolean whether it should be allowed.
-  std::vector<std::pair<const std::string, const std::string>> tests = {
+  // Pairs include a URL string and expected URL string after filtering.
+  std::vector<std::pair<std::string, std::string>> tests = {
       {test_url, test_url},
       {"data:,foo", "data:,foo"},
       {"about://inspect", "about:blank"},
@@ -3438,18 +3400,55 @@ IN_PROC_BROWSER_TEST_F(DevToolsTest, MAYBE_TestOpenInNewTabFilter) {
 
   TabStripModel* tabs = browser()->tab_strip_model();
   int i = 0;
-  for (const std::pair<const std::string, const std::string>& pair : tests) {
+  for (const auto& pair : tests) {
     bindings_delegate_->OpenInNewTab(pair.first);
     i++;
 
     std::string opened_url = tabs->GetWebContentsAt(i)->GetVisibleURL().spec();
-    SCOPED_TRACE(
-        base::StringPrintf("while testing URL: %s", pair.first.c_str()));
-    EXPECT_EQ(opened_url, pair.second);
+    EXPECT_EQ(opened_url, pair.second) << " while testing URL: " << pair.first;
   }
 
   CloseDevToolsWindow();
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+IN_PROC_BROWSER_TEST_F(DevToolsTest, TestOpenInNewTabFilterHardening) {
+  OpenDevToolsWindow(kDebuggerTestPage, false);
+
+  content::WebContents* main_web_contents =
+      DevToolsWindowTesting::Get(window_)->main_web_contents();
+  DevToolsUIBindings* bindings =
+      DevToolsUIBindings::ForWebContents(main_web_contents);
+  ASSERT_TRUE(bindings);
+
+  // Cast to the Embedder Message Dispatcher Delegate to access OpenInNewTab
+  auto* embedder_delegate =
+      static_cast<DevToolsEmbedderMessageDispatcher::Delegate*>(bindings);
+
+  std::string test_url =
+      embedded_test_server()->GetURL(kDebuggerTestPage).spec();
+
+  // Pairs include a URL string and expected URL string after filtering.
+  std::vector<std::pair<std::string, std::string>> tests = {
+      {test_url, test_url},
+      {"chrome://settings", "about:blank"},
+      {"chrome://inspect", "about:blank"},
+      {"file:///", "about:blank"},
+  };
+
+  TabStripModel* tabs = browser()->tab_strip_model();
+  int i = 0;
+  for (const auto& pair : tests) {
+    embedder_delegate->OpenInNewTab(pair.first);
+    i++;
+
+    std::string opened_url = tabs->GetWebContentsAt(i)->GetVisibleURL().spec();
+    EXPECT_EQ(opened_url, pair.second) << " while testing URL: " << pair.first;
+  }
+
+  CloseDevToolsWindow();
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 IN_PROC_BROWSER_TEST_F(DevToolsTest, TestOpenSearchResultsInNewTab) {
   OpenDevToolsWindow(kDebuggerTestPage, false);
