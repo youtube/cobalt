@@ -2113,12 +2113,10 @@ class CONTENT_EXPORT RenderFrameHostImpl
 #if !BUILDFLAG(IS_COBALT)
   void BindSerialService(
       mojo::PendingReceiver<blink::mojom::SerialService> receiver);
-<<<<<<< HEAD
+#endif
+
   void BindModelContextHost(
       mojo::PendingReceiver<blink::mojom::ModelContextHost> receiver);
-=======
-#endif
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 #if BUILDFLAG(IS_CHROMEOS)
   void GetSmartCardService(

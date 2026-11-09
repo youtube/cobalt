@@ -34,7 +34,8 @@ std::unique_ptr<VideoEncoder> InternalEncoderFactory::Create(
 
 VideoEncoderFactory::CodecSupport InternalEncoderFactory::QueryCodecSupport(
     const SdpVideoFormat& format,
-    std::optional<std::string> scalability_mode) const {
+    std::optional<std::string> scalability_mode,
+    std::optional<Resolution> resolution) const {
   return VideoEncoderFactory::CodecSupport{.is_supported = false};
 }
 

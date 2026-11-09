@@ -349,16 +349,16 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
 
   // Copy the color space below.
   sb_media_color_metadata.primaries =
-      static_cast<SbMediaPrimaryId>(color_space.primaries);
+      static_cast<SbMediaPrimaryId>(color_space.primaries());
   sb_media_color_metadata.transfer =
-      static_cast<SbMediaTransferId>(color_space.transfer);
+      static_cast<SbMediaTransferId>(color_space.transfer());
   sb_media_color_metadata.matrix =
-      static_cast<SbMediaMatrixId>(color_space.matrix);
+      static_cast<SbMediaMatrixId>(color_space.matrix());
 
   sb_media_color_metadata.range =
-      static_cast<SbMediaRangeId>(color_space.range);
+      static_cast<SbMediaRangeId>(color_space.range());
   // TODO(b/230915942): Revisit to see if we have to support custom primary id.
-  // if (sb_media_color_metadata.primaries == kSbMediaPrimaryIdCustom) {
+  // if (sb_media_color_metadata.primaries() == kSbMediaPrimaryIdCustom) {
   //   const float* custom_primary_matrix = color_space.custom_primary_matrix();
   //   memcpy(sb_media_color_metadata.custom_primary_matrix,
   //          custom_primary_matrix,

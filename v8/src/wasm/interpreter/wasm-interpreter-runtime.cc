@@ -739,7 +739,7 @@ WasmInterpreterRuntime::HandleException(uint32_t* sp,
               isolate_, catch_handler.catch_block_index, exception);
           isolate_->clear_exception();
           return WasmInterpreterThread::HANDLED;
-        } else if (IsWasmExceptionPackage(*exception, isolate_)) {
+        } else if (IsWasmExceptionPackage(*exception)) {
           // The exception was thrown by Wasm code and it's wrapped in a
           // WasmExceptionPackage.
           DirectHandle<Object> caught_tag =
@@ -2140,7 +2140,7 @@ void WasmInterpreterRuntime::CallWasmToJSBuiltin(
     } while (TryCast(*js_function, &js_proxy));
   }
 
-  if (!IsJSFunction(*js_function, isolate_)) {
+  if (!IsJSFunction(*js_function)) {
     AllowHeapAllocation allow_gc;
 
     isolate->set_exception(*isolate_->factory()->NewTypeError(
@@ -2660,7 +2660,7 @@ bool WasmInterpreterRuntime::SubtypeCheck(const WasmRef obj,
     if (obj_type == kWasmExternRef || obj_type == kWasmNullExternRef) {
       if (i::IsNull(*obj, isolate_)) return null_succeeds;
     } else {
-      if (i::IsWasmNull(*obj, isolate_)) return null_succeeds;
+      if (i::IsWasmNull(*obj)) return null_succeeds;
     }
   }
 

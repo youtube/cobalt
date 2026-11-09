@@ -50,26 +50,19 @@ GrShaderCache::GrShaderCache(size_t max_cache_size_bytes, Client* client)
       current_max_size_bytes_(max_cache_size_bytes),
       store_(Store::NO_AUTO_EVICT),
       client_(client),
-<<<<<<< HEAD
       memory_consumer_registration_(
           "GrShaderCache",
           std::nullopt,  // TODO(crbug.com/489671163): Add traits..
           this,
           base::AsyncMemoryConsumerRegistration::CheckUnregister::kEnabled,
           base::AsyncMemoryConsumerRegistration::CheckRegistryExists::
-              kDisabled) {
-=======
-      memory_pressure_listener_registration_(
-          FROM_HERE,
-          base::MemoryPressureListenerTag::kGrShaderCache,
-          this)
+              kDisabled)
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
       ,
       defer_disk_writes_(
           base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache))
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 {
->>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (base::SingleThreadTaskRunner::HasCurrentDefault()) {
     base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
         this, "GrShaderCache",

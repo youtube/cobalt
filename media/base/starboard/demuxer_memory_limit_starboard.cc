@@ -46,8 +46,8 @@ int GetBitsPerPixel(const VideoDecoderConfig& video_config) {
   } else if (video_config.codec() == VideoCodec::kAV1) {
     const VideoColorSpace& color_space = video_config.color_space_info();
 
-    if (color_space.primaries >= VideoColorSpace::PrimaryID::BT2020 ||
-        color_space.transfer >= VideoColorSpace::TransferID::BT2020_10) {
+    if (color_space.primaries() >= VideoColorSpace::PrimaryID::BT2020 ||
+        color_space.transfer() >= VideoColorSpace::TransferID::BT2020_10) {
       is_hdr = true;
     }
   }

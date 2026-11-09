@@ -4304,13 +4304,13 @@ void MediaStreamManager::OnCaptureConfigurationChanged(
   }
 }
 
-#if !BUILDFLAG(IS_COBALT) || BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 void MediaStreamManager::OpenNativeScreenCapturePicker(
     DesktopMediaID::Type type,
     base::OnceCallback<void(DesktopMediaID::Id)> created_callback,
     base::OnceCallback<void(webrtc::DesktopCapturer::Source)> picker_callback,
     base::OnceCallback<void()> cancel_callback,
     base::OnceCallback<void()> error_callback) {
+#if !BUILDFLAG(IS_COBALT) || BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   base::OnceCallback<void(DesktopMediaID::Id)> stop_audio_callback =
@@ -4323,8 +4323,12 @@ void MediaStreamManager::OpenNativeScreenCapturePicker(
       type, std::move(created_callback), std::move(picker_callback),
       std::move(cancel_callback), std::move(error_callback),
       std::move(stop_audio_callback));
+#else
+  std::move(error_callback).Run();
+#endif
 }
 
+#if !BUILDFLAG(IS_COBALT) || BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 void MediaStreamManager::StopAudioForPickerSessionId(
     DesktopMediaID::Id picker_session_id) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
