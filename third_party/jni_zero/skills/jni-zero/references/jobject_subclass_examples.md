@@ -76,9 +76,6 @@ return ScopedJavaLocalRef<jobject>();
 ```cpp
 return nullptr;
 ```
-<<<<<<< HEAD
-=======
-
 ## 5. Replacing Unsafe Manual JNI Get method call with Safe Helpers
 
 **Before:**
@@ -146,4 +143,3 @@ ScopedJavaLocalRef<jbyteArray> ToScopedJavaByteArray(JNIEnv* env, std::string_vi
   return base::android::ToJavaByteArray(env, data);
 }
 ```
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
