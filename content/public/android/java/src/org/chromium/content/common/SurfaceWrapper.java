@@ -115,9 +115,21 @@ public class SurfaceWrapper implements Parcelable {
                 writeInputTokenToParcel(out);
             }
         } else {
-            // Ignore flags so that SurfaceControl won't call release().
-            assumeNonNull(mSurfaceControl);
-            mSurfaceControl.writeToParcel(out, 0);
+            // NEW GUARD: SurfaceControl#writeToParcel is API 29 (Android Q). mSurfaceControl
+            // can only be non-null via the SurfaceWrapper(SurfaceControl) constructor, which is
+            // already @RequiresApi(Q), so this branch is structurally unreachable below Q. The
+            // explicit check states that invariant in a form lint can verify, since
+            // writeToParcel is a Parcelable override and cannot carry @RequiresApi itself.
+            // Nothing to restore; never guarded here, including at min SDK 24.
+            //
+            // WARNING: upstream has no guard here, because upstream's floor is API 29.
+            // A roll that rewrites this code will drop the guard silently.
+            assert Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // Ignore flags so that SurfaceControl won't call release().
+                assumeNonNull(mSurfaceControl);
+                mSurfaceControl.writeToParcel(out, 0);
+            }
         }
     }
 
@@ -168,6 +180,10 @@ public class SurfaceWrapper implements Parcelable {
                         SurfaceControl surfaceControl = SurfaceControl.CREATOR.createFromParcel(in);
                         return new SurfaceWrapper(surfaceControl);
                     } else {
+                        // Structurally unreachable: a parcel with wrapsSurface == false can
+                        // only be produced by writeToParcel above, which requires a non-null
+                        // mSurfaceControl and therefore API 29. Both ends run the same app, so
+                        // on an API 28 device no such parcel can exist.
                         throw new RuntimeException("not reached");
                     }
                 }

@@ -1195,7 +1195,11 @@ public class VideoCaptureCamera2 extends VideoCapture {
                 TraceEvent.scoped("VideoCaptureCamera2.createPreviewObjectsAndStartPreview")) {
             // Create an ImageReader and plug a thread looper into it to have
             // readback take place on its own thread.
-            if (mUseHardwareBuffers) {
+            // The SDK_INT check is redundant with mUseHardwareBuffers (already
+            // gated at the setter) but is what lint keys on: the 5-arg
+            // newInstance with usage flags is API 29+, and lint cannot see the
+            // field is already SDK-gated.
+            if (mUseHardwareBuffers && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 mImageReader =
                         ImageReader.newInstance(
                                 mCaptureFormat.getWidth(),
@@ -1834,7 +1838,12 @@ public class VideoCaptureCamera2 extends VideoCapture {
         mIsExternalCamera = facing == CameraCharacteristics.LENS_FACING_EXTERNAL;
 
         mEnableFaceDetection = enableFaceDetection;
-        mUseHardwareBuffers = useHardwareBuffers;
+        // NEW GUARD: HardwareBuffer-backed ImageReader (the 5-arg newInstance
+        // with usage flags) is API 29+, with no pre-29 way to request those
+        // usages. Disable the whole path below API 29 so min SDK 28 falls back
+        // to CPU readback.
+        mUseHardwareBuffers =
+                useHardwareBuffers && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q;
 
         if (enableBackgroundMediaCapturing && mInteractiveStateReceiver == null) {
             mInteractiveStateReceiver =
@@ -1854,7 +1863,6 @@ public class VideoCaptureCamera2 extends VideoCapture {
             ContextUtils.registerProtectedBroadcastReceiver(
                     ContextUtils.getApplicationContext(), mInteractiveStateReceiver, filter);
         }
-
         return true;
     }
 

@@ -1181,9 +1181,16 @@ bool AHardwareBufferImageBackingFactory::CopyNativeBufferToSharedMemoryAsync(
 
   AHardwareBuffer_Planes planes;
   int fence = -1;
-  int ret = AHardwareBuffer_lockPlanes(hardware_buffer,
-                                       AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN,
-                                       fence, nullptr, &planes);
+  // AHardwareBuffer_lockPlanes is API 29+; Cobalt targets Android P (API 28).
+  // Guard the call so clang's -Wunguarded-availability is satisfied; on older
+  // platforms ret stays nonzero and the readback fails gracefully (callers
+  // handle a false return).
+  int ret = -1;
+  if (__builtin_available(android 29, *)) {
+    ret = AHardwareBuffer_lockPlanes(hardware_buffer,
+                                     AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN,
+                                     fence, nullptr, &planes);
+  }
   if (ret != 0) {
     return false;
   }
