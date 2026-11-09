@@ -59,19 +59,13 @@ base::OnceClosure PuffOperation(
       base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE |
           base::File::FLAG_WIN_EXCLUSIVE_WRITE,
       output_hash, puffin::P_OK, patch_file, protocol_request::kEventPuff,
-<<<<<<< HEAD
-      is_foreground, std::move(callback))
-      ->Operation(
-          base::BindOnce(&Patcher::PatchPuffPatch, patcher, is_foreground));
-=======
       is_foreground,
 #if BUILDFLAG(IS_STARBOARD)
       patch_operation_result,
 #endif  // BUILDFLAG(IS_STARBOARD)
       std::move(callback))
-      ->Operation(base::BindOnce(&Patcher::PatchPuffPatch, patcher));
+      ->Operation(base::BindOnce(&Patcher::PatchPuffPatch, patcher, is_foreground));
 #endif  // defined(IN_MEMORY_UPDATES)
->>>>>>> parent of a4c6069869a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return base::DoNothing();
 }
 

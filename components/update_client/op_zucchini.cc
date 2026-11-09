@@ -60,19 +60,13 @@ base::OnceClosure ZucchiniOperation(
           base::File::FLAG_WIN_SHARE_DELETE |
           base::File::FLAG_CAN_DELETE_ON_CLOSE,
       output_hash, 0, patch_file, protocol_request::kEventZucchini,
-<<<<<<< HEAD
-      is_foreground, std::move(callback))
-      ->Operation(
-          base::BindOnce(&Patcher::PatchZucchini, patcher, is_foreground));
-=======
       is_foreground,
 #if BUILDFLAG(IS_STARBOARD)
       patch_operation_result,
 #endif  // BUILDFLAG(IS_STARBOARD)
       std::move(callback))
-      ->Operation(base::BindOnce(&Patcher::PatchZucchini, patcher));
+      ->Operation(base::BindOnce(&Patcher::PatchZucchini, patcher, is_foreground));
 #endif  // defined(IN_MEMORY_UPDATES)
->>>>>>> parent of a4c6069869a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return base::DoNothing();
 }
 
