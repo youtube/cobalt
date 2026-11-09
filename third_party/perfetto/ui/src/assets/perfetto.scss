@@ -1,0 +1,41 @@
+// Copyright (C) 2018 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+@import "typefaces";
+@import "common";
+@import "home_page";
+@import "sidebar";
+@import "topbar";
+@import "details";
+@import "statusbar";
+@import "cookie_consent";
+@import "perf_monitor";
+@import "help_modal";
+@import "theme_provider";
+
+// Components - keep these sorted alphabetically
+@import "components/aggregation_adapter";
+@import "components/datagrid";
+@import "components/distribution_panel";
+@import "components/json_settings_editor";
+@import "components/pivot_table";
+@import "components/query_history";
+@import "components/query_table";
+
+// Widgets
+@import "widgets.scss";
+
+// Auto generated imports
+@import "../gen/all_plugins";
+@import "../gen/all_core_plugins";
