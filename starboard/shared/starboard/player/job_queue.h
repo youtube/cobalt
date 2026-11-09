@@ -310,7 +310,9 @@ class JobQueue {
 
   bool BelongsToCurrentThread() const;
 
-  bool optimizations_enabled() const { return optimizations_enabled_; }
+  bool optimizations_enabled_for_testing() const {
+    return optimizations_enabled_;
+  }
 
  private:
 #if ENABLE_JOB_QUEUE_PROFILING

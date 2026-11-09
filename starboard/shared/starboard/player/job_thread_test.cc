@@ -55,7 +55,8 @@ class JobThreadTest : public ::testing::TestWithParam<bool> {
 
 TEST_P(JobThreadTest, UsesRequestedOptimizations) {
   auto job_thread = JobThread::Create("JobThreadTests");
-  EXPECT_EQ(job_thread->job_queue()->optimizations_enabled(), GetParam());
+  EXPECT_EQ(job_thread->job_queue()->optimizations_enabled_for_testing(),
+            GetParam());
   job_thread->Stop();
 }
 

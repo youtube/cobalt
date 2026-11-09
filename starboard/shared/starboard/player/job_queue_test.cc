@@ -48,7 +48,7 @@ class JobQueueTest : public ::testing::TestWithParam<bool> {
 };
 
 TEST_P(JobQueueTest, UsesRequestedOptimizations) {
-  EXPECT_EQ(job_queue_.optimizations_enabled(), GetParam());
+  EXPECT_EQ(job_queue_.optimizations_enabled_for_testing(), GetParam());
 }
 
 TEST_P(JobQueueTest, OwnedScheduledJobsAreExecutedInOrder) {
