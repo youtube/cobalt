@@ -133,10 +133,16 @@ void AdaptiveAudioDecoder::WriteEndOfStream() {
   SB_DCHECK(!stream_ended_);
   SB_DCHECK(output_cb_);
   SB_DCHECK(error_cb_);
-  SB_DCHECK(!flushing());
-  SB_DCHECK(!pending_consumed_cb_);
 
   stream_ended_ = true;
+  if (flushing()) {
+    // End of stream arrived before `pending_input_buffers_` were passed to the
+    // new decoder. Write it to the new decoder after them.
+    return;
+  }
+
+  SB_DCHECK(!pending_consumed_cb_);
+
   if (first_input_written_) {
     audio_decoder_->WriteEndOfStream();
   } else {
@@ -256,8 +262,12 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     if (flushing()) {
       SB_DCHECK(audio_decoder_);
       TeardownAudioDecoder();
+      const bool stream_ended = std::exchange(stream_ended_, false);
       InputBuffers input_buffers = std::exchange(pending_input_buffers_, {});
       Decode(input_buffers, std::exchange(pending_consumed_cb_, nullptr));
+      if (stream_ended && audio_decoder_) {
+        WriteEndOfStream();
+      }
     } else {
       SB_DCHECK(stream_ended_);
       decoded_audios_.push(std::move(*decoded_audio));
