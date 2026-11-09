@@ -11,6 +11,7 @@ import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
+import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -58,7 +59,12 @@ public class ContainmentViewStyler {
     public static Drawable createInteractiveRoundedDrawable(
             Context context, float topRadius, float bottomRadius, int color) {
         // Create a background that changes color when hovered.
-        float hoverAlpha = context.getResources().getFloat(R.dimen.containment_item_hover_alpha);
+        // Resources#getFloat is API 29+; read the float dimension via TypedValue
+        // to stay compatible with Android P (API 28).
+        TypedValue hoverAlphaValue = new TypedValue();
+        context.getResources()
+                .getValue(R.dimen.containment_item_hover_alpha, hoverAlphaValue, true);
+        float hoverAlpha = hoverAlphaValue.getFloat();
         int hoverTint =
                 ColorUtils.setAlphaComponent(
                         SemanticColorUtils.getDefaultTextColor(context), (int) (255 * hoverAlpha));

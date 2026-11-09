@@ -56,4 +56,26 @@
   <issue id="PrivateApi" severity="ignore"/>
   <issue id="UnclosedTrace" severity="ignore"/>
   <issue id="SupportAnnotationUsage" severity="ignore"/>
+
+  <!--
+    Translated-string / plural / typography findings on upstream Chromium string
+    resources (chrome/browser/ui/android/strings and friends, many locales) that
+    Cobalt pulls into the APK but does not author or translate. A roll that
+    refreshes the string catalogs flips thousands of these at once; they are not
+    Cobalt API-level issues and are not actionable by us.
+  -->
+  <issue id="ImpliedQuantity" severity="ignore"/>
+  <issue id="UnusedQuantity" severity="ignore"/>
+  <issue id="MissingQuantity" severity="ignore"/>
+  <issue id="PluralsCandidate" severity="ignore"/>
+  <issue id="StringFormatInvalid" severity="ignore"/>
+  <issue id="StringFormatMatches" severity="ignore"/>
+  <issue id="TypographyDashes" severity="ignore"/>
+  <issue id="TypographyEllipsis" severity="ignore"/>
+  <issue id="MissingDefaultResource" severity="ignore"/>
+
+  <!-- Java/layout perf hints on upstream code paths (cosmetic, upstream). -->
+  <issue id="NotifyDataSetChanged" severity="ignore"/>
+  <issue id="Recycle" severity="ignore"/>
+  <issue id="Overdraw" severity="ignore"/>
 </lint>
