@@ -653,11 +653,9 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 BASE_FEATURE(kRestrictForbiddenSecurityHeaders,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-<<<<<<< HEAD
 BASE_FEATURE(kDeclarativePerformanceObserver,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-=======
 #if BUILDFLAG(IS_COBALT)
 BASE_FEATURE(kCobaltDynamicMojoPipeSizing,
              "CobaltDynamicMojoPipeSizing",
@@ -684,6 +682,4 @@ BASE_FEATURE(kCobaltContentLengthAwareMojoPipeSizing,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_COBALT)
-
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace network::features
