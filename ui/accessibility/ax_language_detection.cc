@@ -13,7 +13,9 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/trace_event/trace_event.h"
-#include "third_party/cld_3/src/src/nnet_language_identifier.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "third_party/cld_3/src/src/nnet_language_identifier.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/accessibility_switches.h"
 #include "ui/accessibility/ax_enums.mojom.h"
@@ -210,20 +212,11 @@ void AXLanguageInfoStats::ClearMetrics() {
 }
 
 AXLanguageDetectionManager::AXLanguageDetectionManager(AXTree* tree)
-<<<<<<< HEAD
     : tree_(tree) {}
-=======
-#if !BUILDFLAG(IS_COBALT)
-    : short_text_language_identifier_(kShortTextIdentifierMinByteLength,
-                                      kShortTextIdentifierMaxByteLength),
-      tree_(tree) {}
-#else
-    : tree_(tree) {}
-#endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of a4c6069869a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 AXLanguageDetectionManager::~AXLanguageDetectionManager() = default;
 
+#if !BUILDFLAG(IS_COBALT)
 chrome_lang_id::NNetLanguageIdentifier&
 AXLanguageDetectionManager::GetLanguageIdentifier() {
   if (!language_identifier_) {
@@ -243,6 +236,7 @@ AXLanguageDetectionManager::GetShortTextLanguageIdentifier() {
   }
   return *short_text_language_identifier_;
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 bool AXLanguageDetectionManager::IsStaticLanguageDetectionEnabled() {
   // Static language detection can be enabled by either:
