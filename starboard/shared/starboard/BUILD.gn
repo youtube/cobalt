@@ -22,9 +22,10 @@ static_library("feature_list") {
     "features_extension.h",
   ]
 
-  public_deps = [ "//starboard/extension:feature_config_header" ]
-
-  deps = [ "//starboard/common" ]
+  deps = [
+    "//starboard/common",
+    "//starboard/extension:feature_config_header",
+  ]
 }
 
 source_set("features_test_util") {
@@ -38,6 +39,7 @@ source_set("features_test_util") {
   deps = [
     ":feature_list",
     "//starboard/common",
+    "//starboard/extension:feature_config_header",
   ]
 }
 
