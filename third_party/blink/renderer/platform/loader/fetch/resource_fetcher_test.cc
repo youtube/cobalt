@@ -1528,7 +1528,7 @@ class ResourceFetcherStrongReferenceThresholdTest : public ResourceFetcherTest {
   // encoded length (103 bytes for `kTestResourceFilename`)
 =======
   // encoded length (103 bytes for `kTestResourcefilename`)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   static constexpr size_t kMockResourceSizeLowerBound = 3700 + 103;
   static constexpr size_t kMockResourceSizeUpperBound = 5200 + 103;
 

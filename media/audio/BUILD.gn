@@ -560,7 +560,7 @@ source_set("unit_tests") {
     }
   }
 
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (use_cras) {
     sources += [
       "cras/audio_manager_cras_base_unittest.cc",

@@ -132,7 +132,7 @@ wgpu::TextureFormat AsDawnType(const viz::SharedImageFormat& format) {
   }
 }
 #endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 bool IsContextProviderValid() {
   base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper =
@@ -182,7 +182,7 @@ void BaseRenderingContext2D::ResetInternal() {
     webgpu_access_texture_ = nullptr;
   }
 #endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 CanvasRenderingContext2DSettings* BaseRenderingContext2D::getContextAttributes()
@@ -753,7 +753,7 @@ void BaseRenderingContext2D::Trace(Visitor* visitor) const {
 #if !BUILDFLAG(IS_COBALT)
   visitor->Trace(webgpu_access_texture_);
 #endif
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   CanvasRenderingContext::Trace(visitor);
   Canvas2DRecorderContext::Trace(visitor);
 }
@@ -1580,7 +1580,7 @@ void BaseRenderingContext2D::transferBackFromGPUTexture(
 }
 #endif  // !BUILDFLAG(IS_COBALT)
 
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 int BaseRenderingContext2D::LayerCount() const {
   return Canvas2DRecorderContext::LayerCount();
 }

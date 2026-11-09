@@ -2594,7 +2594,7 @@ void HTMLMediaElement::ProgressEventTimerFired() {
       UpdateLayoutObject();
     }
 #else
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     UpdateLayoutObject();
 #endif  // BUILDFLAG(IS_COBALT)
   } else if (!media_source_attachment_ &&

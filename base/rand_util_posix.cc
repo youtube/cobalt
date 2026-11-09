@@ -21,7 +21,7 @@
     !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "third_party/lss/linux_syscall_support.h"
 #elif BUILDFLAG(IS_MAC)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 // TODO(crbug.com/40641285): Waiting for this header to appear in the iOS SDK.
 // (See below.)
 #include <sys/random.h>
@@ -132,7 +132,7 @@ void RandBytesInternal(span<uint8_t> output, bool avoid_allocation) {
   const int urandom_fd = GetUrandomFD();
   const bool success = ReadFromFD(urandom_fd, as_writable_chars(output));
   CHECK(success);
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 }  // namespace

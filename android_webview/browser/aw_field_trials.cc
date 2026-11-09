@@ -89,7 +89,7 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
       ::features::kDefaultPassthroughCommandDecoder);
 #endif
 
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // HDR does not support webview yet. See crbug.com/1493153 for an explanation.
   aw_feature_overrides.DisableFeature(ui::kAndroidHDR);
 

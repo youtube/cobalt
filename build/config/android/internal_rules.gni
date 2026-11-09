@@ -223,7 +223,7 @@ template("write_build_config") {
   if (current_toolchain == android_toolchain) {
     # Ensure targets match naming patterns so that __assetres, __header, __host,
     # and __validate targets work properly.
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     if (filter_exclude([ _type ], _java_resource_types) == []) {
       if (filter_exclude([ _target_label ], java_resource_patterns) != []) {
         assert(false, "Invalid java resource target name: $_target_label")

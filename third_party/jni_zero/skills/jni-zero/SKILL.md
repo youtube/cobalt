@@ -138,4 +138,4 @@ autoninja -C {OUTPUT_DIR} ../../path/to/foo.cc^ ../../path/to/Foo.java^
 *Note: Use the specified `OUTPUT_DIR` (typically `out/Default` or `out/Debug`).*
 =======
 *Note: Use the specified `OUTPUT_DIR` (typically `out/Default` or `out/Debug`).*
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

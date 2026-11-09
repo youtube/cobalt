@@ -49,7 +49,7 @@
 #if !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/bindings/modules/v8/v8_canvas_2d_gpu_transfer_option.h"  // nogncheck
 #endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "third_party/blink/renderer/bindings/modules/v8/v8_canvas_fill_rule.h"
 #if !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_texture_format.h"  // nogncheck

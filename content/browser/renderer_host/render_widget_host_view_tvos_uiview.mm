@@ -198,7 +198,7 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
     // the controller provides its own input events.
     if (![self addExistingControllers]) {
       [self addSwipeAndPanGestureRecognizers];
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
 #else
     [self addSwipeAndPanGestureRecognizers];
@@ -382,7 +382,7 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
 <<<<<<< HEAD
 =======
     _selectWillShowKeyboard = NO;
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   } else if (type == blink::WebInputEvent::Type::kKeyUp) {
     if (_selectWillShowKeyboard) {
       _selectWillShowKeyboard = NO;
@@ -407,7 +407,7 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
              withType:(blink::WebInputEvent::Type)type {
   // If any of `presses` is not handled, set `needToHandleInFramework`.
   BOOL needToHandleInFramework = NO;
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   for (UIPress* press in presses) {
     RemoteButton button = remoteButtonFromPressType(press.type);
     if (type == blink::WebInputEvent::Type::kKeyUp) {
@@ -430,7 +430,7 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
     if (![self sendKeyEventWithRemoteButton:button eventType:type]) {
       [unhandled addObject:press];
 =======
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       continue;
     }
     needToHandleInFramework |= ![self sendKeyEventWithRemoteButton:button

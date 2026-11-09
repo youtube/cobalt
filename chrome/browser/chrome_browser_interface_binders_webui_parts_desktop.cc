@@ -538,7 +538,7 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
   }
 =======
 #if !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (base::FeatureList::IsEnabled(
           optimization_guide::features::kOptimizationGuideOnDeviceModel)) {
     RegisterWebUIControllerInterfaceBinder<

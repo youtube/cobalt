@@ -18,7 +18,7 @@
 #include "base/feature_list.h"
 =======
 #include "base/command_line.h"
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
@@ -33,7 +33,7 @@
 #include "cc/base/features.h"
 =======
 #include "cc/base/switches.h"
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "components/viz/client/client_resource_provider.h"
 #include "components/viz/common/gpu/raster_context_provider.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
@@ -501,7 +501,7 @@ void ResourcePool::UpdateTracingCounters() {
                                          std::memory_order_relaxed);
   }
 #endif
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void ResourcePool::OnResourceReleased(size_t unique_id,

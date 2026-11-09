@@ -109,7 +109,7 @@ const int kDefaultConnectionAtRiskOfLossSeconds = 60;
 #else
 const int kDefaultConnectionAtRiskOfLossSeconds = 10;
 #endif
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 const int kHungIntervalSeconds = 10;
 
 // Default initial value for HTTP/2 SETTINGS.

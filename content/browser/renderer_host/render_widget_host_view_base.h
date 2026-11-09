@@ -151,7 +151,7 @@ class CONTENT_EXPORT RenderWidgetHostViewBase
   // page will appear smaller.
   void SetAllowAutomaticViewBoundsUpdates(bool allowed) override {}
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_IOS_TVOS)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // RenderWidgetHostViewInput implementation
   base::WeakPtr<input::RenderWidgetHostViewInput> GetInputWeakPtr() override;
