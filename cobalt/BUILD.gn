@@ -77,7 +77,7 @@ group("gn_all") {
     deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util($native_toolchain)" ]
   } else if (is_ios) {
     deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util($host_toolchain)" ]
-  } else if (is_android) {
+  } else if (is_androidtv) {
     deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util" ]
   }
 }
