@@ -343,7 +343,6 @@ class CONTENT_EXPORT RenderWidgetHostView {
   // Tells the View if it should use default deadline policy when resizing.
   virtual void SetShouldUseDefaultDeadlineOnResize(bool enable) = 0;
 
-<<<<<<< HEAD
   // Forces a specified deadline for the next surface embedding. If the optional
   // has a value, overrides the embedding deadline to the specified duration
   // (unit: frames). If set to std::nullopt, clears any active override and
@@ -352,7 +351,7 @@ class CONTENT_EXPORT RenderWidgetHostView {
       std::optional<uint32_t> deadline_in_frames) {}
 
   virtual std::optional<uint32_t> GetForceSpecifiedDeadlineForTesting();
-=======
+
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_IOS_TVOS)
   // Whether to prevent UpdateFrameBounds() from updating the reported view
   // bounds. This is required when displaying the native search bar, otherwise
@@ -360,7 +359,6 @@ class CONTENT_EXPORT RenderWidgetHostView {
   // page will appear smaller.
   virtual void SetAllowAutomaticViewBoundsUpdates(bool allowed) = 0;
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_IOS_TVOS)
->>>>>>> parent of a4c6069869a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 }  // namespace content
