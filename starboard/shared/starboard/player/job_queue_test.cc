@@ -14,12 +14,14 @@
 
 #include "starboard/shared/starboard/player/job_queue.h"
 
-#include <unistd.h>
-
 #include <atomic>
+#include <chrono>
 #include <memory>
+#include <utility>
 #include <vector>
 
+#include "starboard/common/monotonic_clock.h"
+#include "starboard/testing/fake_monotonic_clock.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -30,7 +32,7 @@ namespace {
 using ::testing::ElementsAre;
 
 // Require at least millisecond-level precision.
-const int64_t kPrecisionUsec = 1000;
+constexpr auto kPrecision = std::chrono::milliseconds(1);
 
 class JobQueueTest : public ::testing::Test {
  public:
@@ -42,21 +44,58 @@ class JobQueueTest : public ::testing::Test {
 };
 
 TEST_F(JobQueueTest, OwnedScheduledJobsAreExecutedInOrder) {
-  std::vector<int> values;
-  job_owner_.Schedule([&]() { values.push_back(1); });
-  job_owner_.Schedule([&]() { values.push_back(2); });
-  job_owner_.Schedule([&]() { values.push_back(3); });
-  job_owner_.Schedule([&]() { values.push_back(4); }, 1 * kPrecisionUsec);
-  job_owner_.Schedule([&]() { values.push_back(5); }, 1 * kPrecisionUsec);
-  job_owner_.Schedule([&]() { values.push_back(6); }, 1 * kPrecisionUsec);
-  job_owner_.Schedule([&]() { values.push_back(7); }, 2 * kPrecisionUsec);
-  job_owner_.Schedule([&]() { values.push_back(8); }, 3 * kPrecisionUsec);
+  testing::FakeMonotonicClock clock;
+  JobQueue job_queue(&clock);
+  JobQueue::JobOwner job_owner(&job_queue);
 
-  // Sleep past the last scheduled job.
-  usleep(4 * kPrecisionUsec);
-  job_queue_.RunUntilIdle();
+  std::vector<int> values;
+  job_owner.Schedule([&]() { values.push_back(1); });
+  job_owner.Schedule([&]() { values.push_back(2); });
+  job_owner.Schedule([&]() { values.push_back(3); });
+  job_owner.Schedule([&]() { values.push_back(4); }, 1 * kPrecision);
+  job_owner.Schedule([&]() { values.push_back(5); }, 1 * kPrecision);
+  job_owner.Schedule([&]() { values.push_back(6); }, 1 * kPrecision);
+  job_owner.Schedule([&]() { values.push_back(7); }, 2 * kPrecision);
+  job_owner.Schedule([&]() { values.push_back(8); }, 3 * kPrecision);
+
+  clock.Advance(4 * kPrecision);
+  job_queue.RunUntilIdle();
 
   EXPECT_THAT(values, ElementsAre(1, 2, 3, 4, 5, 6, 7, 8));
+}
+
+TEST_F(JobQueueTest, DelayedJobsExecuteAtExactDeadlinesWithFakeClock) {
+  testing::FakeMonotonicClock clock;
+  JobQueue job_queue(&clock);
+
+  std::vector<int> values;
+  job_queue.Schedule([&]() { values.push_back(1); });
+  job_queue.Schedule([&]() { values.push_back(2); },
+                     std::chrono::milliseconds(100));
+  auto canceled_token = job_queue.Schedule([&]() { values.push_back(99); },
+                                           std::chrono::seconds(5));
+  job_queue.Schedule([&]() { values.push_back(3); }, std::chrono::seconds(5));
+  job_queue.Schedule([&]() { values.push_back(4); }, std::chrono::seconds(10));
+
+  job_queue.RunUntilIdle();
+  EXPECT_THAT(values, ElementsAre(1));
+
+  clock.Advance(std::chrono::milliseconds(99));
+  job_queue.RunUntilIdle();
+  EXPECT_THAT(values, ElementsAre(1));
+
+  clock.Advance(std::chrono::milliseconds(1));
+  job_queue.RunUntilIdle();
+  EXPECT_THAT(values, ElementsAre(1, 2));
+
+  job_queue.RemoveJobByToken(&canceled_token);
+  clock.Advance(std::chrono::seconds(5));
+  job_queue.RunUntilIdle();
+  EXPECT_THAT(values, ElementsAre(1, 2, 3));
+
+  clock.Advance(std::chrono::seconds(5));
+  job_queue.RunUntilIdle();
+  EXPECT_THAT(values, ElementsAre(1, 2, 3, 4));
 }
 
 TEST_F(JobQueueTest, OwnedJobsAreRemovedWhenOwnerGoesOutOfScope) {
@@ -112,12 +151,12 @@ TEST_F(JobQueueTest, RemovedJobsAreRemoved) {
 }
 
 TEST_F(JobQueueTest, RunUntilStoppedExecutesAllRemainingJobs) {
-  int64_t start = CurrentMonotonicTime();
+  const MonotonicTimestamp start = MonotonicClock::now();
   std::atomic_bool job_1 = {false}, job_2 = {false}, job_3 = {false};
   job_queue_.Schedule([&job_1]() { job_1 = true; });
-  job_queue_.Schedule([&job_2]() { job_2 = true; }, 1 * kPrecisionUsec);
-  job_queue_.Schedule([&job_3]() { job_3 = true; }, 2 * kPrecisionUsec);
-  job_queue_.Schedule([&]() { job_queue_.StopSoon(); }, 3 * kPrecisionUsec);
+  job_queue_.Schedule([&job_2]() { job_2 = true; }, 1 * kPrecision);
+  job_queue_.Schedule([&job_3]() { job_3 = true; }, 2 * kPrecision);
+  job_queue_.Schedule([&]() { job_queue_.StopSoon(); }, 3 * kPrecision);
 
   job_queue_.RunUntilIdle();
   // Job 1 should have been executed.
@@ -130,7 +169,7 @@ TEST_F(JobQueueTest, RunUntilStoppedExecutesAllRemainingJobs) {
   EXPECT_TRUE(job_3);
 
   // Time passed should at least be as long as the delay of the last job.
-  EXPECT_GE(CurrentMonotonicTime() - start, 3 * kPrecisionUsec);
+  EXPECT_GE(MonotonicClock::now() - start, 3 * kPrecision);
 }
 
 TEST_F(JobQueueTest, JobsAreMovedAndNotCopied) {

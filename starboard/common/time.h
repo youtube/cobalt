@@ -19,6 +19,8 @@
 
 namespace starboard {
 
+// Deprecated: Prefer MonotonicClock / GetSystemMonotonicClock() in
+// "starboard/common/monotonic_clock.h".
 // A convenience helper to get the current Monotonic time in microseconds.
 int64_t CurrentMonotonicTime();
 

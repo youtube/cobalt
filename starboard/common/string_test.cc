@@ -14,6 +14,8 @@
 
 #include "starboard/common/string.h"
 
+#include <chrono>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -205,6 +207,19 @@ TEST(StringTest, ToString_Generic) {
   EXPECT_EQ("3.14", ToString(3.14));
   EXPECT_EQ("test", ToString("test"));
   EXPECT_EQ("test", ToString(std::string("test")));
+}
+
+TEST(StringTest, ToString_ChronoDuration) {
+  EXPECT_EQ("500ns", ToString(std::chrono::nanoseconds(500)));
+  EXPECT_EQ("250us", ToString(std::chrono::microseconds(250)));
+  EXPECT_EQ("42ms", ToString(std::chrono::milliseconds(42)));
+  EXPECT_EQ("10s", ToString(std::chrono::seconds(10)));
+  EXPECT_EQ("3min", ToString(std::chrono::minutes(3)));
+  EXPECT_EQ("2h", ToString(std::chrono::hours(2)));
+
+  std::optional<std::chrono::microseconds> opt_us =
+      std::chrono::microseconds(125);
+  EXPECT_EQ("125us", ToString(opt_us));
 }
 
 }  // namespace

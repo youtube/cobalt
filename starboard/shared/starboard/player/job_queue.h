@@ -15,8 +15,10 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 
+#include <chrono>
 #include <condition_variable>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
@@ -28,7 +30,7 @@
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-#include "starboard/common/time.h"
+#include "starboard/common/monotonic_clock.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
@@ -236,8 +238,12 @@ class JobQueue {
       return job_queue_->BelongsToCurrentThread();
     }
 
+    JobToken Schedule(Job job, std::chrono::microseconds delay) {
+      return job_queue_->Schedule(std::move(job), this, delay);
+    }
+
     JobToken Schedule(Job job, int64_t delay_usec = 0) {
-      return job_queue_->Schedule(std::move(job), this, delay_usec);
+      return Schedule(std::move(job), std::chrono::microseconds(delay_usec));
     }
 
     void RemoveJobByToken(JobToken* job_token) {
@@ -273,9 +279,10 @@ class JobQueue {
     JobQueue* job_queue_;
   };
 
-  JobQueue();
+  explicit JobQueue(const MonotonicClock* clock = GetSystemMonotonicClock());
   ~JobQueue();
 
+  JobToken Schedule(Job job, std::chrono::microseconds delay);
   JobToken Schedule(Job job, int64_t delay_usec = 0);
   void ScheduleAndWait(Job job);
   void RemoveJobByToken(JobToken* job_token);
@@ -293,7 +300,7 @@ class JobQueue {
  private:
 #if ENABLE_JOB_QUEUE_PROFILING
   // Reset the max value periodically to catch all local peaks.
-  static const int64_t kProfileResetIntervalUsec = 1'000'000;  // 1 second
+  static constexpr auto kProfileResetInterval = std::chrono::seconds(1);
   static const int kProfileStackDepth = 10;
 #endif  // ENABLE_JOB_QUEUE_PROFILING
 
@@ -306,9 +313,9 @@ class JobQueue {
     int stack_size;
 #endif  // ENABLE_JOB_QUEUE_PROFILING
   };
-  typedef std::multimap<int64_t, JobRecord> TimeToJobRecordMap;
+  using TimeToJobRecordMap = std::multimap<MonotonicTimestamp, JobRecord>;
 
-  JobToken Schedule(Job job, JobOwner* owner, int64_t delay_usec);
+  JobToken Schedule(Job job, JobOwner* owner, std::chrono::microseconds delay);
   void RemoveJobsByOwner(JobOwner* owner);
   // Return true if a job is run, otherwise return false.  When there is no job
   // ready to run currently and |wait_for_next_job| is true, the function will
@@ -317,6 +324,7 @@ class JobQueue {
   // be run.
   bool TryToRunOneJob(bool wait_for_next_job);
 
+  const MonotonicClock* const clock_;
   ThreadChecker thread_checker_;
   std::mutex mutex_;
   std::condition_variable condition_;
@@ -324,9 +332,9 @@ class JobQueue {
   bool stopped_ = false;
 
 #if ENABLE_JOB_QUEUE_PROFILING
-  int64_t last_reset_time_ = CurrentMonotonicTime();
+  MonotonicTimestamp last_reset_time_;
   JobRecord job_record_with_max_interval_;
-  int64_t max_job_interval_ = 0;
+  std::chrono::microseconds max_job_interval_{0};
   int jobs_processed_ = 0;
   int wait_times_ = 0;
 #endif  // ENABLE_JOB_QUEUE_PROFILING
