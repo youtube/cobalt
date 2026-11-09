@@ -52,7 +52,8 @@ enum class SplashCacheClearResult {
   kNoCachedFiles = 0,
   // All the cached splash assets found were deleted.
   kCleared = 1,
-  // Failed to delete some cached splash assets.
+  // Failed to look up or delete some cached splash assets, so some may still
+  // be cached.
   kFailed = 2,
   kMaxValue = kFailed,
 };
@@ -64,6 +65,13 @@ enum class SplashCacheClearResult {
 // be called on the UI thread.
 void ClearCachedSplashFiles(
     BrowserContext* browser_context,
+    const std::string& splash_domain,
+    base::OnceClosure done_callback = base::DoNothing());
+
+// Same as above, with the CacheStorage of the splash domain, e.g., a fake one
+// in tests.
+void ClearCachedSplashFiles(
+    mojo::PendingRemote<blink::mojom::CacheStorage> cache_storage,
     const std::string& splash_domain,
     base::OnceClosure done_callback = base::DoNothing());
 

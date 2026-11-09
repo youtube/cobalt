@@ -95,12 +95,13 @@ namespace {
 // CacheStorageControl it binds.
 class SplashCacheCleaner {
  public:
-  static void Start(BrowserContext* browser_context,
-                    const std::string& splash_domain,
-                    base::OnceClosure done_callback) {
+  static void Start(
+      mojo::PendingRemote<blink::mojom::CacheStorage> cache_storage,
+      const std::string& splash_domain,
+      base::OnceClosure done_callback) {
     auto* cleaner =
         new SplashCacheCleaner(splash_domain, std::move(done_callback));
-    cleaner->Clean(browser_context);
+    cleaner->Clean(std::move(cache_storage));
   }
 
   SplashCacheCleaner(const SplashCacheCleaner&) = delete;
@@ -115,9 +116,8 @@ class SplashCacheCleaner {
 
   ~SplashCacheCleaner() = default;
 
-  void Clean(BrowserContext* browser_context) {
-    BindSplashCacheStorage(browser_context, splash_domain_,
-                           cache_storage_remote_.BindNewPipeAndPassReceiver());
+  void Clean(mojo::PendingRemote<blink::mojom::CacheStorage> cache_storage) {
+    cache_storage_remote_.Bind(std::move(cache_storage));
     cache_storage_remote_.set_disconnect_handler(
         base::BindOnce(&SplashCacheCleaner::Finish, weak_factory_.GetWeakPtr(),
                        SplashCacheClearResult::kFailed));
@@ -153,15 +153,24 @@ class SplashCacheCleaner {
                  const std::string& entry,
                  base::OnceClosure on_matched,
                  blink::mojom::MatchResultPtr result) {
-    if (result->is_response()) {
+    if (!result->is_status()) {
       entries_to_delete_[cache_name].push_back(entry);
+    } else if (result->get_status() !=
+                   blink::mojom::CacheStorageError::kErrorNotFound &&
+               result->get_status() !=
+                   blink::mojom::CacheStorageError::kErrorCacheNameNotFound) {
+      // Not a miss, e.g., a storage error, so the entry may still be cached.
+      // Like H5vccSchemeURLLoader::OnCacheMatched(), only these two errors are
+      // misses.
+      has_failure_ = true;
     }
     std::move(on_matched).Run();
   }
 
   void OnMatchesDone() {
     if (entries_to_delete_.empty()) {
-      Finish(SplashCacheClearResult::kNoCachedFiles);
+      Finish(has_failure_ ? SplashCacheClearResult::kFailed
+                          : SplashCacheClearResult::kNoCachedFiles);
       return;
     }
 
@@ -201,7 +210,8 @@ class SplashCacheCleaner {
       auto operation = blink::mojom::BatchOperation::New();
       operation->operation_type = blink::mojom::OperationType::kDelete;
       operation->request = CreateSplashRequest(splash_domain_, entry);
-      operation->match_options = blink::mojom::CacheQueryOptions::New();
+      // Same options as Match(), so that it deletes the entry that was found.
+      operation->match_options = CreateSplashQueryOptions();
 
       std::vector<blink::mojom::BatchOperationPtr> operations;
       operations.push_back(std::move(operation));
@@ -258,7 +268,18 @@ void ClearCachedSplashFiles(BrowserContext* browser_context,
                             base::OnceClosure done_callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   CHECK(browser_context);
-  SplashCacheCleaner::Start(browser_context, splash_domain,
+  mojo::PendingRemote<blink::mojom::CacheStorage> cache_storage;
+  BindSplashCacheStorage(browser_context, splash_domain,
+                         cache_storage.InitWithNewPipeAndPassReceiver());
+  ClearCachedSplashFiles(std::move(cache_storage), splash_domain,
+                         std::move(done_callback));
+}
+
+void ClearCachedSplashFiles(
+    mojo::PendingRemote<blink::mojom::CacheStorage> cache_storage,
+    const std::string& splash_domain,
+    base::OnceClosure done_callback) {
+  SplashCacheCleaner::Start(std::move(cache_storage), splash_domain,
                             std::move(done_callback));
 }
 
