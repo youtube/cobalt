@@ -25,13 +25,6 @@
 
 namespace starboard {
 
-template <typename T>
-T ResetAndReturn(T* t) {
-  T result(std::move(*t));
-  *t = T();
-  return result;
-}
-
 AdaptiveAudioDecoder::AdaptiveAudioDecoder(
     JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
@@ -91,8 +84,7 @@ void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
   SB_DCHECK(!stream_ended_);
   SB_DCHECK(output_cb_);
   SB_DCHECK(error_cb_);
-  SB_DCHECK(!flushing_);
-  SB_DCHECK(pending_input_buffers_.empty());
+  SB_DCHECK(!flushing());
   SB_DCHECK(!pending_consumed_cb_);
   SB_CHECK(!input_buffers.empty());
   SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeAudio);
@@ -118,7 +110,6 @@ void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
   if (IsAudioSampleInfoSubstantiallyDifferent(
           input_audio_stream_info_,
           input_buffers.front()->audio_stream_info())) {
-    flushing_ = true;
     pending_input_buffers_ = input_buffers;
     pending_consumed_cb_ = consumed_cb;
     audio_decoder_->WriteEndOfStream();
@@ -142,7 +133,7 @@ void AdaptiveAudioDecoder::WriteEndOfStream() {
   SB_DCHECK(!stream_ended_);
   SB_DCHECK(output_cb_);
   SB_DCHECK(error_cb_);
-  SB_DCHECK(pending_input_buffers_.empty());
+  SB_DCHECK(!flushing());
   SB_DCHECK(!pending_consumed_cb_);
 
   stream_ended_ = true;
@@ -262,12 +253,11 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
         Schedule(output_cb_);
       }
     }
-    if (flushing_) {
+    if (flushing()) {
       SB_DCHECK(audio_decoder_);
       TeardownAudioDecoder();
-      flushing_ = false;
-      InputBuffers input_buffers = std::move(pending_input_buffers_);
-      Decode(input_buffers, ResetAndReturn(&pending_consumed_cb_));
+      InputBuffers input_buffers = std::exchange(pending_input_buffers_, {});
+      Decode(input_buffers, std::exchange(pending_consumed_cb_, nullptr));
     } else {
       SB_DCHECK(stream_ended_);
       decoded_audios_.push(std::move(*decoded_audio));
@@ -318,7 +308,6 @@ void AdaptiveAudioDecoder::ResetInternal() {
   }
   pending_input_buffers_.clear();
   pending_consumed_cb_ = nullptr;
-  flushing_ = false;
   stream_ended_ = false;
   first_output_received_ = false;
   first_input_written_ = false;
