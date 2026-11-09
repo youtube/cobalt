@@ -21,6 +21,7 @@
     "CobaltMetricsBrowserTest.PeriodicRecordsMemoryMetrics",
     "CobaltMetricsBrowserTest.RecordsMemoryMetrics",
     "CommitNavigationRaceBrowserTest.*",
+    "CustomMimeTypeBrowserTest.CanPlayType_MapsSupportTypeAndForwardsRawMime",
     "DeferSpeculativeRFHCreationTest.NavigateWithPendingCommit",
     "DocumentPolicyBrowserTest.FragmentAnchorEnabledByDocumentPolicy",
     "DocumentPolicyBrowserTest.ScrollRestorationDisabledByDocumentPolicy",

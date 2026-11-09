@@ -16,6 +16,7 @@ import("//build/linux/strip_binary.gni")
 import("//build/toolchain/toolchain.gni")
 import("//cobalt/build/locales.gni")
 import("//cobalt/build/modular_executable.gni")
+import("//starboard/build/buildflags.gni")
 import("//testing/test.gni")
 import("//ui/base/ui_features.gni")
 
@@ -52,10 +53,11 @@ group("gn_all") {
     deps += [
       "//starboard/benchmark",
 
-      # Built so that the SbPlayer benchmarks keep compiling wherever benchmarks
-      # are enabled. Intentionally not listed in
+      # Built so that the Starboard benchmarks keep compiling wherever
+      # benchmarks are enabled. Intentionally not listed in
       # cobalt/build/testing/targets/*/test_targets.json, so they are not run
       # automatically.
+      "//starboard/benchmark:media_benchmarks",
       "//starboard/benchmark:player_benchmarks",
     ]
   }
@@ -526,6 +528,10 @@ test("cobalt_unittests") {
 
   if (is_starboard || is_androidtv) {
     deps += [ "//cobalt/browser/h5vcc_native_stability" ]
+  }
+
+  if (use_starboard_media) {
+    deps += [ "//cobalt/media/service:unit_tests" ]
   }
 
   if (is_starboard) {

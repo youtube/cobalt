@@ -22,6 +22,7 @@
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "net/base/features.h"
 #include "net/base/ip_address.h"
 #include "net/base/privacy_mode.h"
@@ -3340,5 +3341,61 @@ TEST_F(HttpServerPropertiesManagerTest, PrivacyMode) {
                 kQuicServerId, PRIVACY_MODE_ENABLED_PARTITIONED_STATE_ALLOWED,
                 NetworkAnonymizationKey()));
 }
+
+#if BUILDFLAG(IS_COBALT)
+// Verifies that FlushWriteProperties() (used by Cobalt when the app is paused,
+// before the 60 s coalescing timer fires) skips writing before the initial pref
+// load, reports flushed=false when nothing is queued, and immediately persists
+// a queued update with flushed=true.
+TEST_F(HttpServerPropertiesManagerTest, FlushWriteProperties) {
+  bool callback_invoked = false;
+  bool was_flushed = true;
+  auto make_callback = [&callback_invoked, &was_flushed]() {
+    callback_invoked = false;
+    return base::BindOnce(
+        [](bool* invoked, bool* flushed_out, bool flushed) {
+          *invoked = true;
+          *flushed_out = flushed;
+        },
+        &callback_invoked, &was_flushed);
+  };
+
+  // 1. Before the prefs have loaded, nothing may be written (it would clobber
+  // the stored properties); the callback is posted with flushed=false.
+  http_server_props_->FlushWriteProperties(make_callback());
+  EXPECT_FALSE(callback_invoked);
+  EXPECT_EQ(0, pref_delegate_->GetAndClearNumPrefUpdates());
+  base::RunLoop().RunUntilIdle();
+  EXPECT_TRUE(callback_invoked);
+  EXPECT_FALSE(was_flushed);
+
+  InitializePrefs();
+
+  // 2. Initialized with no queued update: the properties are written, but
+  // flushed=false since nothing was waiting on the timer.
+  http_server_props_->FlushWriteProperties(make_callback());
+  EXPECT_EQ(1, pref_delegate_->GetAndClearNumPrefUpdates());
+  EXPECT_FALSE(callback_invoked);
+  std::move(pref_delegate_->GetSetPropertiesCallback()).Run();
+  EXPECT_TRUE(callback_invoked);
+  EXPECT_FALSE(was_flushed);
+
+  // 3. A queued update: the timer is stopped, the properties are written
+  // immediately, and flushed=true.
+  url::SchemeHostPort spdy_server("https", "mail.google.com", 443);
+  http_server_props_->SetSupportsSpdy(spdy_server, NetworkAnonymizationKey(),
+                                      true);
+  EXPECT_EQ(1u, GetPendingMainThreadTaskCount());
+  http_server_props_->FlushWriteProperties(make_callback());
+  EXPECT_EQ(0u, GetPendingMainThreadTaskCount());
+  EXPECT_EQ(1, pref_delegate_->GetAndClearNumPrefUpdates());
+  EXPECT_FALSE(callback_invoked);
+  std::move(pref_delegate_->GetSetPropertiesCallback()).Run();
+  EXPECT_TRUE(callback_invoked);
+  EXPECT_TRUE(was_flushed);
+  EXPECT_TRUE(http_server_props_->SupportsRequestPriority(
+      spdy_server, NetworkAnonymizationKey()));
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace net

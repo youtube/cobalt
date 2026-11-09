@@ -536,50 +536,19 @@ TimeDelta StarboardRenderer::GetMediaTime() {
     return base::Microseconds(0);
   }
 
-  uint32_t video_frames_decoded, video_frames_dropped;
-  uint64_t audio_bytes_decoded, video_bytes_decoded;
-  TimeDelta media_time, duration;
-  SbPlayerBridge::PlayerInfo info{&video_frames_decoded, &video_frames_dropped,
-                                  &audio_bytes_decoded,  &video_bytes_decoded,
-                                  &media_time,           &duration};
+  const SbPlayerBridge::PlayerInfo info = player_bridge_->GetInfo();
+  TimeDelta media_time = info.media_time;
 
-  player_bridge_->GetInfo(&info);
-
-  // Report dropped frames since we have the info anyway.
-  PipelineStatistics statistics;
-
-  statistics.audio_bytes_decoded = audio_bytes_decoded;
-  statistics.video_bytes_decoded = video_bytes_decoded;
-
-  if (video_frames_decoded > last_video_frames_decoded_) {
-    statistics.video_frames_decoded =
-        video_frames_decoded - last_video_frames_decoded_;
-    last_video_frames_decoded_ = video_frames_decoded;
-  }
-
-  if (video_frames_dropped > last_video_frames_dropped_) {
-    statistics.video_frames_dropped =
-        video_frames_dropped - last_video_frames_dropped_;
-    last_video_frames_dropped_ = video_frames_dropped;
-  }
-
-  if (statistics.video_frames_decoded > 0 ||
-      statistics.video_frames_dropped > 0) {
-    // TODO(b/375273093): Refine frame drops reporting, and double check
-    //                    whether we should report more statistics, and/or
-    //                    reduce the frequency of reporting.
-    task_runner_->PostTask(
-        FROM_HERE, base::BindOnce(&StarboardRenderer::OnStatisticsUpdate,
-                                  weak_factory_.GetWeakPtr(), statistics));
-  }
+  // Report statistics since we have the info anyway.
+  UpdateStatistics(info.statistics);
 #if BUILDFLAG(IS_IOS_TVOS)
   if (IsUrlPlayer()) {
     UpdateUrlPlayerVideoResolution();
 
-    if (duration_change_cb_ && duration != kNoTimestamp &&
-        duration != last_duration_) {
-      last_duration_ = duration;
-      duration_change_cb_.Run(duration);
+    if (duration_change_cb_ && info.duration != kNoTimestamp &&
+        info.duration != last_duration_) {
+      last_duration_ = info.duration;
+      duration_change_cb_.Run(info.duration);
     }
 
     // Polling buffered ranges on every media-time update may affect
@@ -645,17 +614,23 @@ void StarboardRenderer::SetStarboardRendererCallbacks(
 #endif  // BUILDFLAG(IS_ANDROID)
 }
 
-void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
+void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect,
+                                              int z_index) {
   CHECK(task_runner_->RunsTasksInCurrentSequence());
-  if (output_rect_ == output_rect) {
+  const bool output_rect_changed = output_rect_ != output_rect;
+  if (!output_rect_changed && z_index_ == z_index) {
     return;
   }
 
   output_rect_ = output_rect;
+  z_index_ = z_index;
 
 #if BUILDFLAG(IS_ANDROID)
-  if (overlay_ && output_rect_) {
-    overlay_->ScheduleLayout(*output_rect_);
+  if (overlay_) {
+    // AndroidOverlay has no z-order, so only forward changes of the rect.
+    if (output_rect_changed) {
+      overlay_->ScheduleLayout(*output_rect_);
+    }
     return;
   }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -851,6 +826,10 @@ void StarboardRenderer::CreatePlayerBridge() {
   // number of active players.
   player_bridge_.reset();
 
+  // Statistics are computed as deltas against the counters of the current
+  // SbPlayerBridge, so reset the baseline whenever a new bridge is created.
+  last_reported_statistics_ = {};
+
 #if BUILDFLAG(IS_IOS_TVOS)
   if (IsUrlPlayer()) {
     player_bridge_.reset(new SbPlayerBridge(
@@ -949,11 +928,11 @@ void StarboardRenderer::CreatePlayerBridge() {
 }
 
 void StarboardRenderer::ApplyPendingBounds() {
-  if (!player_bridge_ || !output_rect_) {
+  if (!player_bridge_ || !z_index_ || !output_rect_) {
     return;
   }
 
-  player_bridge_->SetBounds(*output_rect_);
+  player_bridge_->SetBounds(*z_index_, *output_rect_);
 }
 
 void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
@@ -1091,6 +1070,51 @@ void StarboardRenderer::OnDemuxerStreamRead(
   } else if (status == DemuxerStream::kError) {
     state_ = STATE_ERROR;
     NotifyError(PIPELINE_ERROR_READ);
+  }
+}
+
+void StarboardRenderer::UpdateStatistics(
+    const SbPlayerBridge::PlayerStatistics& totals) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  PipelineStatistics statistics;
+
+  // RendererClient::OnStatisticsUpdate() expects deltas since the last call,
+  // while SbPlayerBridge::GetInfo() returns running totals.
+  auto& last = last_reported_statistics_;
+  if (totals.total_audio_bytes_decoded > last.total_audio_bytes_decoded) {
+    statistics.audio_bytes_decoded =
+        totals.total_audio_bytes_decoded - last.total_audio_bytes_decoded;
+    last.total_audio_bytes_decoded = totals.total_audio_bytes_decoded;
+  }
+
+  if (totals.total_video_bytes_decoded > last.total_video_bytes_decoded) {
+    statistics.video_bytes_decoded =
+        totals.total_video_bytes_decoded - last.total_video_bytes_decoded;
+    last.total_video_bytes_decoded = totals.total_video_bytes_decoded;
+  }
+
+  if (totals.total_video_frames_decoded > last.total_video_frames_decoded) {
+    statistics.video_frames_decoded =
+        totals.total_video_frames_decoded - last.total_video_frames_decoded;
+    last.total_video_frames_decoded = totals.total_video_frames_decoded;
+  }
+
+  if (totals.total_video_frames_dropped > last.total_video_frames_dropped) {
+    statistics.video_frames_dropped =
+        totals.total_video_frames_dropped - last.total_video_frames_dropped;
+    last.total_video_frames_dropped = totals.total_video_frames_dropped;
+  }
+
+  if (statistics.audio_bytes_decoded > 0 ||
+      statistics.video_bytes_decoded > 0 ||
+      statistics.video_frames_decoded > 0 ||
+      statistics.video_frames_dropped > 0) {
+    // TODO(b/375273093): Report final statistics at end of stream, and double
+    // check whether we should change the reporting frequency.
+    task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&StarboardRenderer::OnStatisticsUpdate,
+                                  weak_factory_.GetWeakPtr(), statistics));
   }
 }
 

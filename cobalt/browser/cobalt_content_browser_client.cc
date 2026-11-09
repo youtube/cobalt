@@ -83,8 +83,10 @@
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "net/ssl/ssl_cipher_suite_names.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
+#include "services/network/public/mojom/ssl_config.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "starboard/configuration_constants.h"
 #include "storage/browser/quota/quota_device_info_helper.h"
@@ -92,6 +94,7 @@
 #include "storage/browser/quota/quota_settings.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
+#include "third_party/boringssl/src/include/openssl/ssl.h"
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
@@ -233,6 +236,12 @@ static jboolean JNI_CobaltContentBrowserClient_IsFreezeOnBackgroundEnabled(
 static jint JNI_CobaltContentBrowserClient_GetFreezeOnBackgroundDelayMs(
     JNIEnv*) {
   return std::max(0, features::kCobaltFreezeOnBackgroundDelayMs.Get());
+}
+
+static jboolean
+JNI_CobaltContentBrowserClient_IsPlatformServicesOffUiThreadEnabled(JNIEnv*) {
+  return base::FeatureList::IsEnabled(
+      features::kCobaltPlatformServicesOffUiThread);
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -594,6 +603,7 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   // per-site basis.
   network_context_params->require_network_anonymization_key = true;
 
+  ConfigureSSLConfig(network_context_params);
   PopulateCobaltExtraRequestHeaders(network_context_params);
 }
 
@@ -604,6 +614,35 @@ bool CobaltContentBrowserClient::AllowCompressionDictionaryTransport(
   }
   return content::ShellContentBrowserClient::
       AllowCompressionDictionaryTransport(context);
+}
+
+// static
+void CobaltContentBrowserClient::ConfigureSSLConfig(
+    network::mojom::NetworkContextParams* network_context_params) {
+  if (!network_context_params->initial_ssl_config) {
+    network_context_params->initial_ssl_config =
+        network::mojom::SSLConfig::New();
+  }
+  // Disable TLS 1.2 cipher suites classified as obsolete and disallowed on
+  // HTTP/2 by net::IsTLSCipherSuiteAllowedByHTTP2() (static RSA key exchange
+  // without forward secrecy and non-AEAD CBC-mode ciphers).
+  static const base::NoDestructor<std::vector<uint16_t>> kDisabledCipherSuites(
+      []() {
+        std::vector<uint16_t> disabled;
+        bssl::UniquePtr<SSL_CTX> ssl_ctx(SSL_CTX_new(TLS_method()));
+        if (ssl_ctx) {
+          for (const SSL_CIPHER* cipher : SSL_CTX_get_ciphers(ssl_ctx.get())) {
+            const uint16_t id = SSL_CIPHER_get_protocol_id(cipher);
+            if (!net::IsTLSCipherSuiteAllowedByHTTP2(id)) {
+              disabled.push_back(id);
+            }
+          }
+        }
+        return disabled;
+      }());
+  network_context_params->initial_ssl_config->disabled_cipher_suites.insert(
+      network_context_params->initial_ssl_config->disabled_cipher_suites.end(),
+      kDisabledCipherSuites->begin(), kDisabledCipherSuites->end());
 }
 
 // static
@@ -750,6 +789,28 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorageOnPause() {
                             timer->Elapsed());
       },
       std::move(start_time)));
+  // Experiment (b/576795220): also persist HttpServerProperties (Alt-Svc,
+  // broken-QUIC marks), which is otherwise written on a 60 s timer that a
+  // background kill does not honor. This lives here rather than in
+  // DispatchBlur() so that both the Activity (DispatchBlur) and the Starboard
+  // (AppEventRunner::DoBlur) lifecycle paths reach it; platform targeting is
+  // left to the Finch study.
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltFlushHttpServerPropertiesOnPause)) {
+    FlushHttpServerProperties(base::BindOnce(
+        [](std::unique_ptr<base::ElapsedTimer> timer, bool flushed) {
+          UMA_HISTOGRAM_BOOLEAN(
+              "Cobalt.Storage.OnPause.HttpServerPropertiesFlushed", flushed);
+          // Only time real writes; a no-op flush would record ~0 ms and hide
+          // the tail.
+          if (flushed) {
+            UMA_HISTOGRAM_TIMES(
+                "Cobalt.Storage.OnPause.HttpServerPropertiesFlushDuration",
+                timer->Elapsed());
+          }
+        },
+        std::make_unique<base::ElapsedTimer>()));
+  }
 }
 
 void CobaltContentBrowserClient::DispatchBlur() {
@@ -803,23 +864,25 @@ void CobaltContentBrowserClient::OnSbWindowDestroyed(SbWindow window) {
 #endif
 }
 
-void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
-    base::OnceClosure callback) {
+content::StoragePartition*
+CobaltContentBrowserClient::GetPrimaryStoragePartition() {
   if (!web_contents_observer_) {
-    std::move(callback).Run();
-    return;
+    return nullptr;
   }
   auto* web_contents = web_contents_observer_->web_contents();
   if (!web_contents) {
-    std::move(callback).Run();
-    return;
+    return nullptr;
   }
   content::RenderFrameHost* rfh = web_contents->GetPrimaryMainFrame();
   if (!rfh) {
-    std::move(callback).Run();
-    return;
+    return nullptr;
   }
-  auto* storage_partition = rfh->GetStoragePartition();
+  return rfh->GetStoragePartition();
+}
+
+void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
+    base::OnceClosure callback) {
+  content::StoragePartition* storage_partition = GetPrimaryStoragePartition();
   if (!storage_partition) {
     std::move(callback).Run();
     return;
@@ -833,6 +896,22 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
   }
   // Flushes cookies; invokes callback upon SQLite commit completion.
   cookie_manager->FlushCookieStore(std::move(callback));
+}
+
+void CobaltContentBrowserClient::FlushHttpServerProperties(
+    base::OnceCallback<void(bool flushed)> callback) {
+  content::StoragePartition* storage_partition = GetPrimaryStoragePartition();
+  if (!storage_partition) {
+    std::move(callback).Run(/*flushed=*/false);
+    return;
+  }
+  network::mojom::NetworkContext* network_context =
+      storage_partition->GetNetworkContext();
+  if (!network_context) {
+    std::move(callback).Run(/*flushed=*/false);
+    return;
+  }
+  network_context->FlushHttpServerProperties(std::move(callback));
 }
 
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(

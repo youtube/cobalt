@@ -70,6 +70,8 @@ class FakeAudioTrack : public AudioTrack {
   void simulate_device_change(AudioDeviceChange change);
   void simulate_device_change(bool changed);
   void set_underrun_count(int count);
+  void set_start_threshold(int start_threshold);
+  void simulate_track_recreation(int start_threshold);
   void set_write_error(int error_code);
 
  private:

@@ -595,7 +595,8 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
-<histogram name="Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.{ExitReason}"
+<histogram
+    name="Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.{ExitReason}"
     units="milestone" expires_after="2027-10-01">
   <owner>avvall@google.com</owner>
   <owner>cobalt-memory-team@google.com</owner>
@@ -606,7 +607,8 @@ Always run the pretty print utility on this file after editing:
   <token key="ExitReason" variants="AndroidExitReasonToken"/>
 </histogram>
 
-<histogram name="Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.{ExitReason}"
+<histogram
+    name="Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.{ExitReason}"
     enum="Boolean" expires_after="2027-10-01">
   <owner>avvall@google.com</owner>
   <owner>cobalt-memory-team@google.com</owner>
@@ -746,54 +748,6 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Startup.MilestoneDuration.{Milestone}" units="ms"
-    expires_after="never">
-  <owner>avvall@google.com</owner>
-  <summary>
-    Measures the duration in milliseconds taken for startup milestone
-    {Milestone} since the previous milestone.
-  </summary>
-  <token key="Milestone">
-    <variant name="ActivityOnDestroy"/>
-    <variant name="ActivityOnPause"/>
-    <variant name="ActivityOnResume"/>
-    <variant name="ActivityOnStart"/>
-    <variant name="ActivityOnStop"/>
-    <variant name="ActivityWindowConfigured"/>
-    <variant name="ApplicationAndroidInitialize"/>
-    <variant name="DidFinishNavigation"/>
-    <variant name="DidStartNavigation"/>
-    <variant name="JavaActivityCreated"/>
-    <variant name="MainDelegateBasicStartupComplete"/>
-    <variant name="MainDelegatePostEarlyInitialization"/>
-    <variant name="MainDelegatePreSandboxStartup"/>
-    <variant name="PlatformErrorRaised"/>
-    <variant name="PostLibraryLoaderInit"/>
-    <variant name="PostStarboardBridgeInit"/>
-    <variant name="PreCreateThreads"/>
-    <variant name="PreLibraryLoaderInit"/>
-    <variant name="PreStarboardBridgeInit"/>
-    <variant name="ShellCreateWindowNoSplash"/>
-    <variant name="ShellCreateWindowWithSplash"/>
-    <variant name="ShellDidFinishLoad"/>
-    <variant name="ShellDidFinishNavigationNonSplash"/>
-    <variant name="ShellDidStartLoading"/>
-    <variant name="ShellDidStartNavigationNonSplash"/>
-    <variant name="ShellDocumentElementAvailable"/>
-    <variant name="ShellRenderFrameCreated"/>
-    <variant name="SplashObserverDidFailLoad"/>
-    <variant name="SplashObserverDidFinishNavigation"/>
-    <variant name="SplashObserverDidStartLoading"/>
-    <variant name="SplashObserverDidStartNavigation"/>
-    <variant name="StarboardBridgeNativeInit"/>
-    <variant name="StartupGuardObserverDidFailLoad"/>
-    <variant name="StartupGuardObserverDidFinishNavigation"/>
-    <variant name="StartupGuardObserverDidRedirectNavigation"/>
-    <variant name="StartupGuardObserverDidStartLoading"/>
-    <variant name="StartupGuardObserverDidStartNavigation"/>
-  </token>
-</histogram>
-
 <histogram name="Cobalt.Startup.MilestoneReached" enum="CobaltStartupMilestone"
     expires_after="never">
   <owner>avvall@google.com</owner>
@@ -820,7 +774,7 @@ Always run the pretty print utility on this file after editing:
     is created, to when {Event}. That's the earliest point in native code that
     all platforms share, so earlier startup work isn't included, e.g., process
     launch, the Android Activity startup and native library loading (see
-    Cobalt.Startup.MilestoneDuration.*), or the Evergreen loader app loading the
+    Cobalt.Startup.TimeToMilestone.*), or the Evergreen loader app loading the
     Cobalt library (see Cobalt.LoaderApp.ElfLoadDuration). The splash content is
     shown when the image is painted or the video starts playing, and ends when
     the video reaches its end or the image splash screen closes itself. The main
@@ -854,6 +808,66 @@ Always run the pretty print utility on this file after editing:
     <variant name="Image" summary="The splash screen showed an image."/>
     <variant name="NoSplash" summary="No splash screen was shown."/>
     <variant name="Video" summary="The splash screen played a video."/>
+  </token>
+</histogram>
+
+<histogram name="Cobalt.Startup.TimeToMilestone.{Milestone}" units="ms"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <owner>avvall@google.com</owner>
+  <summary>
+    Time from the start of the Android process
+    (android.os.Process.getStartElapsedRealtime()) to the first time the
+    StartupGuard startup milestone {Milestone} is reached. Recorded at most once
+    per milestone per process, and only for the first Activity created in the
+    process: recording stops once a second Activity is created. Every milestone
+    shares the same origin, so samples are comparable across milestones even
+    though the concurrent startup sequences (Activity lifecycle, native
+    initialization, main and splash WebContents, navigation observers) reach
+    them in a nondeterministic order; the difference between two milestones'
+    averages is the average span between them. Samples of 3 minutes or more land
+    in the overflow bucket. Android only. Replaces
+    Cobalt.Startup.MilestoneDuration.{Milestone}, which measured the time since
+    whichever milestone happened to be recorded last.
+  </summary>
+  <token key="Milestone">
+    <variant name="ActivityWindowConfigured"/>
+    <variant name="ApplicationAndroidInitialize"/>
+    <variant name="DidFinishNavigation"/>
+    <variant name="DidStartNavigation"/>
+    <variant name="JavaActivityCreated"/>
+    <variant name="MainDelegateBasicStartupComplete"/>
+    <variant name="MainDelegatePostEarlyInitialization"/>
+    <variant name="MainDelegatePreSandboxStartup"/>
+    <variant name="PlatformErrorRaised"/>
+    <variant name="PostActivityOnCreate"/>
+    <variant name="PostActivityOnResume"/>
+    <variant name="PostActivityOnStart"/>
+    <variant name="PostLibraryLoaderInit"/>
+    <variant name="PostStarboardBridgeInit"/>
+    <variant name="PreActivityOnResume"/>
+    <variant name="PreActivityOnStart"/>
+    <variant name="PreCreateThreads"/>
+    <variant name="PreLibraryLoaderInit"/>
+    <variant name="PreStarboardBridgeInit"/>
+    <variant name="ShellCreateWindowNoSplash"/>
+    <variant name="ShellCreateWindowWithSplash"/>
+    <variant name="ShellDidFinishLoad"/>
+    <variant name="ShellDidFinishNavigationNonSplash"/>
+    <variant name="ShellDidStartLoading"/>
+    <variant name="ShellDidStartNavigationNonSplash"/>
+    <variant name="ShellDocumentElementAvailable"/>
+    <variant name="ShellRenderFrameCreated"/>
+    <variant name="SplashObserverDidFailLoad"/>
+    <variant name="SplashObserverDidFinishNavigation"/>
+    <variant name="SplashObserverDidStartLoading"/>
+    <variant name="SplashObserverDidStartNavigation"/>
+    <variant name="StarboardBridgeNativeInit"/>
+    <variant name="StartupGuardObserverDidFailLoad"/>
+    <variant name="StartupGuardObserverDidFinishNavigation"/>
+    <variant name="StartupGuardObserverDidRedirectNavigation"/>
+    <variant name="StartupGuardObserverDidStartLoading"/>
+    <variant name="StartupGuardObserverDidStartNavigation"/>
   </token>
 </histogram>
 
@@ -1013,6 +1027,29 @@ Always run the pretty print utility on this file after editing:
     here, with its disk writes captured by
     `Cobalt.Storage.Cookie.CommitDuration` and
     `Cobalt.Storage.LocalStorage.CommitDuration`.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.OnPause.HttpServerPropertiesFlushDuration"
+    units="ms" expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the time it takes to write HttpServerProperties to disk when the app
+    pauses and CobaltFlushHttpServerPropertiesOnPause is enabled. Recorded only
+    when an update was pending and therefore actually written; pauses where
+    nothing was pending are counted in
+    Cobalt.Storage.OnPause.HttpServerPropertiesFlushed instead.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.OnPause.HttpServerPropertiesFlushed"
+    enum="Boolean" expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records, for each app pause with CobaltFlushHttpServerPropertiesOnPause
+    enabled, whether HttpServerProperties had an update pending that was written
+    to disk by the pause flush. The true/false ratio shows how often the 60 s
+    write-coalescing timer would have lost state to a background kill.
   </summary>
 </histogram>
 

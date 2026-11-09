@@ -568,12 +568,13 @@ StarboardRendererWrapper::GetGpuFactory() {
 
 void StarboardRendererWrapper::OnVideoGeometryChange(
     const gfx::RectF& rect_f,
-    gfx::OverlayTransform /* transform */) {
+    gfx::OverlayTransform /* transform */,
+    int32_t z_index) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Use gfx::ToEnclosedRect() to align with `NotifyOverlayPromotion()`
   // in //components/viz/service/display/overlay_processor_android.cc.
   gfx::Rect new_bounds = gfx::ToEnclosedRect(rect_f);
-  GetRenderer()->OnVideoGeometryChange(new_bounds);
+  GetRenderer()->OnVideoGeometryChange(new_bounds, z_index);
 }
 
 void StarboardRendererWrapper::ContinueInitialization(
