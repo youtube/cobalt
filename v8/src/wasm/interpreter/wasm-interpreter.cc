@@ -14,6 +14,7 @@
 #include "src/builtins/builtins.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/heap-write-barrier.h"
+#include "src/objects/object-macros.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/decoder.h"
@@ -23,9 +24,6 @@
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/zone/zone.h"
-
-// Include this after all other object headers.
-#include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
@@ -5701,7 +5699,7 @@ class Handlers : public HandlersBase {
           case kRef:
           case kRefNull: {
             DirectHandle<Object> ref = pop<WasmRef>(sp, code, wasm_runtime);
-            if (IsWasmNull(*ref)) {
+            if (IsWasmNull(*ref, isolate)) {
               ref = direct_handle(ReadOnlyRoots(isolate).null_value(), isolate);
             }
             encoded_values->set(encoded_index++, *ref);

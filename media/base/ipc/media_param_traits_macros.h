@@ -42,10 +42,6 @@
 // not `COMPONENT_EXPORT(MEDIA)`.
 #undef IPC_MESSAGE_EXPORT
 #define IPC_MESSAGE_EXPORT
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/base/starboard/ipc_param_traits.h"
-#include "media/base/starboard/starboard_renderer_config.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // Enum traits.
 
@@ -171,17 +167,5 @@ IPC_STRUCT_TRAITS_BEGIN(media::SubsampleEntry)
   IPC_STRUCT_TRAITS_MEMBER(clear_bytes)
   IPC_STRUCT_TRAITS_MEMBER(cypher_bytes)
 IPC_STRUCT_TRAITS_END()
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig)
-  IPC_STRUCT_TRAITS_MEMBER(overlay_plane_id)
-  IPC_STRUCT_TRAITS_MEMBER(audio_write_duration_local)
-  IPC_STRUCT_TRAITS_MEMBER(audio_write_duration_remote)
-  IPC_STRUCT_TRAITS_MEMBER(max_video_capabilities)
-  IPC_STRUCT_TRAITS_MEMBER(max_video_resolution)
-  IPC_STRUCT_TRAITS_MEMBER(experimental_features)
-  IPC_STRUCT_TRAITS_MEMBER(viewport_size)
-IPC_STRUCT_TRAITS_END()
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #endif  // MEDIA_BASE_IPC_MEDIA_PARAM_TRAITS_MACROS_H_

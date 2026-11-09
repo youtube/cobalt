@@ -27,10 +27,6 @@ blink_platform_sources("media_final") {
   deps = [ "//third_party/blink/renderer/platform:allow_discouraged_type" ]
 }
 
-if (is_cobalt) {
-  import("//starboard/build/buildflags.gni")
-}
-
 component("media") {
   visibility = [
     # Note: this is here because web_media_player_impl_unittest.cc needs core
@@ -116,12 +112,6 @@ component("media") {
     "//third_party/blink/renderer/platform",
     "//third_party/blink/renderer/platform:allow_discouraged_type",
   ]
-
-  if (is_cobalt && use_starboard_media) {
-    deps += [
-      "//starboard:starboard_group",
-    ]
-  }
 }
 
 source_set("unit_tests") {

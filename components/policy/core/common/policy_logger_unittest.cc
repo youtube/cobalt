@@ -9,21 +9,20 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_mock_time_task_runner.h"
-#include "build/blink_buildflags.h"
 #include "build/build_config.h"
 #include "components/policy/core/common/features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
-#if BUILDFLAG(USE_BLINK)
-#include "content/public/browser/browser_task_traits.h"    // nogncheck
-#include "content/public/browser/browser_thread.h"         // nogncheck
-#include "content/public/test/browser_task_environment.h"  // nogncheck
+#if !BUILDFLAG(IS_IOS)
+#include "content/public/browser/browser_task_traits.h"
+#include "content/public/browser/browser_thread.h"
+#include "content/public/test/browser_task_environment.h"
 #else
-#include "ios/web/public/test/web_task_environment.h"  // nogncheck
-#include "ios/web/public/thread/web_task_traits.h"     // nogncheck
-#include "ios/web/public/thread/web_thread.h"          // nogncheck
+#include "ios/web/public/test/web_task_environment.h"
+#include "ios/web/public/thread/web_task_traits.h"
+#include "ios/web/public/thread/web_thread.h"
 #endif
 
 using testing::_;
@@ -31,12 +30,12 @@ using testing::ElementsAre;
 using testing::Eq;
 using testing::Property;
 
-#if BUILDFLAG(USE_BLINK)
-using content::GetIOThreadTaskRunner;
-using content::GetUIThreadTaskRunner;
+#if BUILDFLAG(IS_IOS)
+  using web::GetUIThreadTaskRunner;
+  using web::GetIOThreadTaskRunner;
 #else
-using web::GetIOThreadTaskRunner;
-using web::GetUIThreadTaskRunner;
+  using content::GetUIThreadTaskRunner;
+  using content::GetIOThreadTaskRunner;
 #endif
 
 namespace policy {
@@ -66,11 +65,11 @@ class PolicyLoggerTest : public PlatformTest {
 
   base::test::ScopedFeatureList scoped_feature_list_;
 
-#if BUILDFLAG(USE_BLINK)
-  content::BrowserTaskEnvironment task_environment_{
+#if BUILDFLAG(IS_IOS)
+  web::WebTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 #else
-  web::WebTaskEnvironment task_environment_{
+  content::BrowserTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 #endif
 };
