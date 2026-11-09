@@ -547,20 +547,9 @@ source_set("unit_tests") {
     weak_frameworks = [ "ScreenCaptureKit.framework" ]  # macOS 13.0
   }
 
-<<<<<<< HEAD
-=======
-  if (is_chromeos || is_castos || is_cast_android) {
-    sources += [
-      "flac_audio_handler_unittest.cc",
-      "test_data.h",
-    ]
-    
-    if (is_cobalt) {
-      sources -= [ "flac_audio_handler_unittest.cc" ]
-    }
+  if (is_cobalt) {
+    sources -= [ "flac_audio_handler_unittest.cc" ]
   }
-
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (use_cras) {
     sources += [
       "cras/audio_manager_cras_base_unittest.cc",
