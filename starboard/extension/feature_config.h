@@ -107,6 +107,13 @@ STARBOARD_FEATURE(kAreaBasedVideoBufferBudget,
                   "AreaBasedVideoBufferBudget",
                   false)
 
+// Wait briefly on the background PlayerWorker thread for an outgoing player to
+// release the shared punch-out VideoSurface during rapid <video> swaps instead
+// of immediately failing SbPlayerCreate / AcquireVideoSurface.
+STARBOARD_FEATURE(kCobaltWaitForVideoSurfaceRelease,
+                  "CobaltWaitForVideoSurfaceRelease",
+                  false)
+
 // Set the following variable to true to enable av1 startup optimization.
 STARBOARD_FEATURE(kEnableAv1StartupOptimization,
                   "EnableAv1StartupOptimization",
@@ -251,6 +258,15 @@ FEATURE_PARAM_LIST_START
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 
 #if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+// Maximum duration in milliseconds that VideoSurfaceHolder::AcquireVideoSurface
+// waits for an outgoing player to release the shared VideoSurface when
+// kCobaltWaitForVideoSurfaceRelease is enabled.
+STARBOARD_FEATURE_PARAM(int,
+                        kCobaltWaitForVideoSurfaceReleaseTimeoutMs,
+                        kCobaltWaitForVideoSurfaceRelease,
+                        "CobaltWaitForVideoSurfaceRelease_timeout_ms",
+                        500)
+
 // By default, Cobalt restarts MediaCodec after stops/flushes during
 // Reset()/Flush(). Set the following variable to > 0 to force it to
 // wait during Reset()/Flush().
