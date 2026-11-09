@@ -46,7 +46,7 @@ namespace starboard {
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
 using jni_zero::AttachCurrentThread;
-using jni_zero::JavaParamRef;
+using jni_zero::JavaRef;
 using jni_zero::ScopedJavaGlobalRef;
 using jni_zero::ScopedJavaLocalRef;
 
@@ -97,8 +97,8 @@ void JNI_CobaltSystemConfigChangeReceiver_DateTimeConfigurationChanged(
 
 ScopedJavaLocalRef<jstring> JNI_HTMLMediaElementExtension_CanPlayType(
     JNIEnv* env,
-    const JavaParamRef<jstring>& j_mime_type,
-    const JavaParamRef<jstring>& j_key_system) {
+    const JavaRef<jstring>& j_mime_type,
+    const JavaRef<jstring>& j_key_system) {
   std::string mime_type, key_system;
   if (j_mime_type) {
     mime_type = ConvertJavaStringToUTF8(env, j_mime_type);

@@ -20,13 +20,13 @@
 #include "cobalt/android/jni_headers/StarboardFeatureList_jni.h"
 
 using base::android::ConvertJavaStringToUTF8;
-using jni_zero::JavaParamRef;
+using jni_zero::JavaRef;
 
 namespace starboard::features {
 
 static jboolean JNI_StarboardFeatureList_IsEnabled(
     JNIEnv* env,
-    const JavaParamRef<jstring>& jfeature_name) {
+    const JavaRef<jstring>& jfeature_name) {
   std::string feature_name = ConvertJavaStringToUTF8(env, jfeature_name);
   return FeatureList::IsEnabledByName(feature_name);
 }

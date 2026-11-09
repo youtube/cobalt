@@ -104,11 +104,11 @@ class MediaDrmBridge {
 
   void OnSessionMessage(JNIEnv* env,
                         jint ticket,
-                        const jni_zero::JavaParamRef<jbyteArray>& session_id,
+                        const jni_zero::JavaRef<jbyteArray>& session_id,
                         jint request_type,
-                        const jni_zero::JavaParamRef<jbyteArray>& message);
+                        const jni_zero::JavaRef<jbyteArray>& message);
   void OnKeyStatusChange(JNIEnv* env,
-                         const jni_zero::JavaParamRef<jbyteArray>& session_id,
+                         const jni_zero::JavaRef<jbyteArray>& session_id,
                          const std::vector<DrmKeyStatusInfo>& key_information);
 
   static bool IsWidevineSupported(JNIEnv* env);

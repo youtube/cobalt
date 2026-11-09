@@ -97,7 +97,7 @@ class MediaCodecBridge : public MediaCodec {
       JNIEnv* env,
       jboolean is_recoverable,
       jboolean is_transient,
-      const jni_zero::JavaParamRef<jstring>& diagnostic_info);
+      const jni_zero::JavaRef<jstring>& diagnostic_info);
   void OnMediaCodecInputBufferAvailable(JNIEnv* env, jint buffer_index);
   void OnMediaCodecOutputBufferAvailable(JNIEnv* env,
                                          jint buffer_index,

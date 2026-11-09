@@ -35,7 +35,7 @@
 namespace starboard {
 
 using jni_zero::AttachCurrentThread;
-using jni_zero::JavaParamRef;
+using jni_zero::JavaRef;
 
 namespace {
 
@@ -147,7 +147,7 @@ void ClearNativeWindow(void* raw_context) {
 
 void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     JNIEnv* env,
-    const JavaParamRef<jobject>& surface) {
+    const JavaRef<jobject>& surface) {
   std::lock_guard lock(*GetViewSurfaceMutex());
   if (g_video_surface_holder) {
     g_video_surface_holder->OnSurfaceDestroyed();

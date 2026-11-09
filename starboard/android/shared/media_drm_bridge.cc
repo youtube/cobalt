@@ -37,7 +37,7 @@ using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaByteArrayToString;
 using base::android::ToJavaByteArray;
 using jni_zero::AttachCurrentThread;
-using jni_zero::JavaParamRef;
+using jni_zero::JavaRef;
 using jni_zero::ScopedJavaLocalRef;
 
 using DrmOperationResult = MediaDrmBridge::OperationResult;
@@ -222,9 +222,9 @@ std::optional<std::string_view> MediaDrmBridge::GetMetrics() {
 void MediaDrmBridge::OnSessionMessage(
     JNIEnv* env,
     jint ticket,
-    const JavaParamRef<jbyteArray>& session_id,
+    const JavaRef<jbyteArray>& session_id,
     jint request_type,
-    const JavaParamRef<jbyteArray>& message) {
+    const JavaRef<jbyteArray>& message) {
   host_->OnSessionUpdate(
       ticket, ToSbDrmSessionRequestType(static_cast<RequestType>(request_type)),
       JavaByteArrayToString(env, session_id),
@@ -233,7 +233,7 @@ void MediaDrmBridge::OnSessionMessage(
 
 void MediaDrmBridge::OnKeyStatusChange(
     JNIEnv* env,
-    const JavaParamRef<jbyteArray>& session_id,
+    const JavaRef<jbyteArray>& session_id,
     const std::vector<DrmKeyStatusInfo>& key_statuses) {
   std::string session_id_bytes = JavaByteArrayToString(env, session_id);
 

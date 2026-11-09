@@ -45,7 +45,7 @@ using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
 using jni_zero::AttachCurrentThread;
 using jni_zero::GetClass;
-using jni_zero::JavaParamRef;
+using jni_zero::JavaRef;
 using jni_zero::ScopedJavaGlobalRef;
 using jni_zero::ScopedJavaLocalRef;
 
@@ -68,7 +68,7 @@ std::vector<std::string> GetArgs() {
 
 jboolean JNI_BaseStarboardBridge_InitJNI(
     JNIEnv* env,
-    const JavaParamRef<jobject>& j_starboard_bridge) {
+    const JavaRef<jobject>& j_starboard_bridge) {
   SB_CHECK(env);
 
   // Initialize the singleton instance of StarboardBridge
@@ -84,10 +84,10 @@ jlong JNI_BaseStarboardBridge_CurrentMonotonicTime(JNIEnv* env) {
 
 jlong JNI_BaseStarboardBridge_StartNativeStarboard(
     JNIEnv* env,
-    const JavaParamRef<jobject>& j_asset_manager,
-    const JavaParamRef<jstring>& j_files_dir,
-    const JavaParamRef<jstring>& j_cache_dir,
-    const JavaParamRef<jstring>& j_native_library_dir) {
+    const JavaRef<jobject>& j_asset_manager,
+    const JavaRef<jstring>& j_files_dir,
+    const JavaRef<jstring>& j_cache_dir,
+    const JavaRef<jstring>& j_native_library_dir) {
   pthread_mutex_lock(&g_native_app_init_mutex);
   if (g_native_app_instance == nullptr) {
     auto command_line = std::make_unique<CommandLine>(GetArgs());
@@ -123,7 +123,7 @@ void JNI_BaseStarboardBridge_InitializePlatformAudioSink(JNIEnv* env) {
 }
 
 void JNI_BaseStarboardBridge_HandleDeepLink(JNIEnv* env,
-                                            const JavaParamRef<jstring>& jurl,
+                                            const JavaRef<jstring>& jurl,
                                             jboolean applicationStarted) {
   const std::string& url = ConvertJavaStringToUTF8(env, jurl);
 
@@ -180,7 +180,7 @@ void JNI_BaseStarboardBridge_SetAndroidPlayServicesVersion(JNIEnv* env,
 
 void JNI_BaseStarboardBridge_SetAndroidBuildFingerprint(
     JNIEnv* env,
-    const JavaParamRef<jstring>& fingerprint) {
+    const JavaRef<jstring>& fingerprint) {
   // TODO(b/492704919): Android TV shouldn't call into Cobalt here. Remove this.
 #if !BUILDFLAG(IS_STARBOARD)
   auto header_value_provider =
@@ -193,7 +193,7 @@ void JNI_BaseStarboardBridge_SetAndroidBuildFingerprint(
 
 void JNI_BaseStarboardBridge_SetYoutubeCertificationScope(
     JNIEnv* env,
-    const JavaParamRef<jstring>& certScope) {
+    const JavaRef<jstring>& certScope) {
   // TODO(b/492704919): Android TV shouldn't call into Cobalt here. Remove this.
 #if !BUILDFLAG(IS_STARBOARD)
   auto header_value_provider =

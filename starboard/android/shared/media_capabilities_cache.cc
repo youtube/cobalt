@@ -46,7 +46,7 @@ using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
 using features::FeatureList;
 using jni_zero::AttachCurrentThread;
-using jni_zero::JavaParamRef;
+using jni_zero::JavaRef;
 using jni_zero::ScopedJavaGlobalRef;
 using jni_zero::ScopedJavaLocalRef;
 
@@ -59,7 +59,7 @@ const jint HDR_TYPE_HDR10_PLUS = 4;
 const char SECURE_DECODER_SUFFIX[] = ".secure";
 
 Range ConvertJavaRangeToRange(JNIEnv* env, jobject j_range) {
-  const auto j_range_ref = JavaParamRef<jobject>::CreateLeaky(env, j_range);
+  const auto j_range_ref = JavaRef<jobject>::CreateLeaky(env, j_range);
   return Range(Java_MediaCodecUtil_getRangeLower(env, j_range_ref),
                Java_MediaCodecUtil_getRangeUpper(env, j_range_ref));
 }
