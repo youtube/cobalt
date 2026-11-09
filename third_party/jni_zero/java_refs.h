@@ -26,17 +26,6 @@
 #include "third_party/jni_zero/jni_export.h"
 #include "third_party/jni_zero/logging.h"
 
-<<<<<<< HEAD
-=======
-#if !defined(JNI_ZERO_ENABLE_COMPAT_API)
-#if BUILDFLAG(IS_COBALT)
-#define JNI_ZERO_ENABLE_COMPAT_API 1
-#else
-#define JNI_ZERO_ENABLE_COMPAT_API 0
-#endif  // BUILDFLAG(IS_COBALT)
-#endif  // !defined(JNI_ZERO_ENABLE_COMPAT_API)
-
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 // Forward declaration of template class that contains @CalledByNative methods.
 // Must live in a custom / unique namespace to ensure it doesn't collide with
 // namespaces used from @JniType strings.
@@ -399,14 +388,10 @@ class JavaRef : public JavaRef<jobject> {
   // Create a JavaRef that is not automatically released. Used for JNI
   // parameters (which should not be released).
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   static JavaRef<T> CreateLeaky(JNIEnv* env, U obj) {
     return JavaRef<T>(env, obj);
   }
@@ -488,14 +473,10 @@ class JavaRef<internal::_JObjectArray<T>*> : public JavaRef<jobjectArray> {
   }
 
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<JArray<T>, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<JArray<T>, U>
+    requires internal::IsConvertibleJObject<JArray<T>, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   static JavaRef<JArray<T>> CreateLeaky(JNIEnv* env, U obj) {
     return JavaRef<internal::_JObjectArray<T>*>(env, obj);
   }
@@ -508,14 +489,10 @@ class JavaRef<internal::_JObjectArray<T>*> : public JavaRef<jobjectArray> {
   }
 
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   void Set(JNIEnv* env, int32_t index, const JavaRef<U>& value) const {
     env->SetObjectArrayElement(this->obj(), index, value.obj());
   }
@@ -550,14 +527,10 @@ class ScopedJavaLocalRef : public JavaRef<T> {
   // This should only be used by JNI helper functions, or in cases where code
   // must call JNIEnv methods directly.
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   static ScopedJavaLocalRef Adopt(JNIEnv* env, U obj) {
     return ScopedJavaLocalRef(env, obj);
   }
@@ -573,14 +546,10 @@ class ScopedJavaLocalRef : public JavaRef<T> {
 
   // Copy conversion constructor.
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   ScopedJavaLocalRef(const ScopedJavaLocalRef<U>& other) : env_(other.env_) {
     JavaRef<jobject>::SetNewLocalRef(env_, other.obj());
   }
@@ -593,41 +562,29 @@ class ScopedJavaLocalRef : public JavaRef<T> {
 
   // Move conversion constructor.
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   ScopedJavaLocalRef(ScopedJavaLocalRef<U>&& other) : env_(other.env_) {
     JavaRef<jobject>::steal(std::move(other));
   }
 
   // Constructor for other JavaRef types.
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   explicit ScopedJavaLocalRef(const JavaRef<U>& other) {
     Reset(other);
   }
 
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   ScopedJavaLocalRef(JNIEnv* env, const JavaRef<U>& other) {
     Reset(other);
   }
@@ -648,14 +605,10 @@ class ScopedJavaLocalRef : public JavaRef<T> {
 
   // Copy conversion assignment.
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   ScopedJavaLocalRef& operator=(const ScopedJavaLocalRef<U>& other) {
     Reset(other);
     return *this;
@@ -663,14 +616,10 @@ class ScopedJavaLocalRef : public JavaRef<T> {
 
   // Move assignment.
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   ScopedJavaLocalRef& operator=(ScopedJavaLocalRef<U>&& other) {
     env_ = other.env_;
     Reset();
@@ -680,14 +629,10 @@ class ScopedJavaLocalRef : public JavaRef<T> {
 
   // Assignment for other JavaRef types.
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   ScopedJavaLocalRef& operator=(const JavaRef<U>& other) {
     Reset(other);
     return *this;
@@ -696,14 +641,10 @@ class ScopedJavaLocalRef : public JavaRef<T> {
   void Reset() { JavaRef<jobject>::ResetLocalRef(env_); }
 
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   void Reset(const ScopedJavaLocalRef<U>& other) {
     // We can copy over env_ here as |other| instance must be from the same
     // thread as |this| local ref. (See class comment for multi-threading
@@ -712,14 +653,10 @@ class ScopedJavaLocalRef : public JavaRef<T> {
   }
 
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   void Reset(const JavaRef<U>& other) {
     // If |env_| was not yet set (is still null) it will be attached to the
     // current thread in SetNewLocalRef().
@@ -781,14 +718,10 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
 
   // Copy conversion constructor.
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   ScopedJavaGlobalRef(const ScopedJavaGlobalRef<U>& other) {
     Reset(other);
   }
@@ -801,41 +734,29 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
 
   // Move conversion constructor.
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   ScopedJavaGlobalRef(ScopedJavaGlobalRef<U>&& other) {
     JavaRef<T>::steal(std::move(other));
   }
 
   // Conversion constructor for other JavaRef types.
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   explicit ScopedJavaGlobalRef(const JavaRef<U>& other) {
     Reset(other);
   }
 
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   ScopedJavaGlobalRef(JNIEnv* env, const JavaRef<U>& other) {
     JavaRef<T>::SetNewGlobalRef(env, other.obj());
   }
@@ -856,14 +777,10 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
 
   // Copy conversion assignment.
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   ScopedJavaGlobalRef& operator=(const ScopedJavaGlobalRef<U>& other) {
     Reset(other);
     return *this;
@@ -871,14 +788,10 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
 
   // Move assignment.
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   ScopedJavaGlobalRef& operator=(ScopedJavaGlobalRef<U>&& other) {
     Reset();
     JavaRef<T>::steal(std::move(other));
@@ -887,14 +800,10 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
 
   // Assignment for other JavaRef types.
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   ScopedJavaGlobalRef& operator=(const JavaRef<U>& other) {
     Reset(other);
     return *this;
@@ -903,40 +812,28 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
   void Reset() { JavaRef<T>::ResetGlobalRef(); }
 
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   void Reset(const ScopedJavaGlobalRef<U>& other) {
     Reset(nullptr, other);
   }
 
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   void Reset(const JavaRef<U>& other) {
     Reset(nullptr, other);
   }
 
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   void Reset(JNIEnv* env, const JavaRef<U>& other) {
     JavaRef<T>::SetNewGlobalRef(env, other.obj());
   }
@@ -1013,14 +910,10 @@ class JNI_ZERO_COMPONENT_BUILD_EXPORT LeakedJavaGlobalRef : public JavaRef<T> {
   void Reset() { JavaRef<T>::ResetGlobalRef(); }
 
   template <typename U>
-<<<<<<< HEAD
-    requires internal::IsConvertibleJObject<T, U>
-=======
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   void Reset(JNIEnv* env, const JavaRef<U>& j_object) {
     Reset();
     JavaRef<T>::SetNewGlobalRef(env, j_object.obj());
@@ -1085,16 +978,8 @@ inline ScopedJavaLocalRef<T> JavaRef<internal::_JObjectArray<T>*>::Get(
   return jni_zero::AdoptRef(env, static_cast<T>(obj));
 }
 
-<<<<<<< HEAD
-=======
-#if JNI_ZERO_ENABLE_COMPAT_API
-template <typename T>
-using JavaParamRef = JavaRef<T>;
-#endif
-
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 // Identity overload for FromJniType when the destination type is already a
 // JavaRef.
 template <typename T>
