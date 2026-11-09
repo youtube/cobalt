@@ -119,8 +119,8 @@ class DISCARDABLE_MEMORY_EXPORT DiscardableSharedMemoryManager
     // |size| is the segment's mapped size at allocation. A lazily mapped
     // segment is unmapped while live, and memory()->mapped_size() returns 0
     // once unmapped, so the size is stored here. It is used to subtract the
-    // same amount from |bytes_allocated_| on release, to map the segment again
-    // for purging, and to report the segment in memory dumps.
+    // same amount from |bytes_allocated_| on release, and to map the segment
+    // again for purging.
     MemorySegment(std::unique_ptr<base::DiscardableSharedMemory> memory,
                   size_t size);
 #endif  // BUILDFLAG(IS_COBALT)

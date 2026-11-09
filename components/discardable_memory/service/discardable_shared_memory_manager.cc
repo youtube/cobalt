@@ -530,10 +530,10 @@ void DiscardableSharedMemoryManager::AllocateLockedDiscardableSharedMemory(
 
   *shared_memory_region = memory->DuplicateRegion();
 #if BUILDFLAG(IS_COBALT)
+  // The amount added to |bytes_allocated_| above, which ReleaseSegment()
+  // subtracts. Read it before Unmap(), after which mapped_size() returns 0.
+  const size_t accounted_size = memory->mapped_size();
   if (IsLazyMappingEnabled()) {
-    // ReleaseSegment() subtracts |size|, which must match what was added to
-    // |bytes_allocated_| above.
-    DCHECK_EQ(size, memory->mapped_size());
     // Drop our mapping; the client maps the segment. Keep the file descriptor
     // so the segment can be mapped again to purge it.
     memory->Unmap();
@@ -542,7 +542,7 @@ void DiscardableSharedMemoryManager::AllocateLockedDiscardableSharedMemory(
     memory->Close();
   }
   scoped_refptr<MemorySegment> segment(
-      new MemorySegment(std::move(memory), size));
+      new MemorySegment(std::move(memory), accounted_size));
 #else
   // Close file descriptor to avoid running out.
   memory->Close();
@@ -659,12 +659,13 @@ void DiscardableSharedMemoryManager::ReduceMemoryUsageUntilWithinLimit(
       bool mapped_for_purge = false;
       if (!memory->mapped_size()) {
         if (!memory->Map(segment->size())) {
-          // Purging needs the mapping. Put the segment back and stop, since
-          // its usage time is unchanged and it would be picked again.
+          // Map() fails: update timestamp and move segment to the back of
+          // the heap so it doesn't block other segments.
+          memory->set_last_known_usage(current_time);
           segments_.push_back(segment.get());
           std::push_heap(segments_.begin(), segments_.end(),
                          CompareMemoryUsageTime);
-          break;
+          continue;
         }
         mapped_for_purge = true;
       }
