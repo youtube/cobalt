@@ -28,16 +28,16 @@
 #include "util/fuchsia/traits.h"
 #endif
 
-#if !defined(__cpp_lib_to_underlying)
+#if BUILDFLAG(IS_COBALT) && !defined(__cpp_lib_to_underlying)
 #include "base/types/cxx23_to_underlying.h"
-#endif  // !defined(__cpp_lib_to_underlying)
+#endif  // BUILDFLAG(IS_COBALT) && !defined(__cpp_lib_to_underlying)
 
 namespace crashpad {
 
 namespace {
 
 void UnsetIfNotValidTriState(TriState* value) {
-#if !defined(__cpp_lib_to_underlying)
+#if BUILDFLAG(IS_COBALT) && !defined(__cpp_lib_to_underlying)
   switch (base::to_underlying(*value)) {
     case base::to_underlying(TriState::kUnset):
     case base::to_underlying(TriState::kEnabled):
@@ -53,7 +53,7 @@ void UnsetIfNotValidTriState(TriState* value) {
       return;
   }
   LOG(WARNING) << "Unsetting invalid TriState " << std::to_underlying(*value);
-#endif  // !defined(__cpp_lib_to_underlying)
+#endif  // BUILDFLAG(IS_COBALT) && !defined(__cpp_lib_to_underlying)
   *value = TriState::kUnset;
 }
 
