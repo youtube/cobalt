@@ -56,14 +56,9 @@ void JobQueue::EnableOptimizations() {
   g_enable_optimizations.store(true, std::memory_order_release);
 }
 
-JobQueue::ScopedOptimizationsForTesting::ScopedOptimizationsForTesting(
-    bool enabled)
-    : previous_value_(
-          g_enable_optimizations.exchange(enabled, std::memory_order_acq_rel)) {
-}
-
-JobQueue::ScopedOptimizationsForTesting::~ScopedOptimizationsForTesting() {
-  g_enable_optimizations.store(previous_value_, std::memory_order_release);
+// static
+bool JobQueue::SetOptimizationsEnabledForTesting(bool enabled) {
+  return g_enable_optimizations.exchange(enabled, std::memory_order_acq_rel);
 }
 
 JobQueue::JobToken JobQueue::Schedule(Job job, int64_t delay_usec /*= 0*/) {
@@ -319,8 +314,8 @@ void JobQueue::RemoveJobsByOwner(JobOwner* owner) {
 
 void JobQueue::WaitForJobsOptimized(std::unique_lock<std::mutex>& lock,
                                     std::optional<int64_t> delay_usec) {
-  SB_DCHECK(lock.owns_lock());
-  SB_DCHECK(!worker_waiting_);
+  SB_CHECK(lock.owns_lock());
+  SB_CHECK(!worker_waiting_);
 
   // No predicate: the caller re-examines the queue after every return, so
   // spurious wake ups are harmless.
@@ -340,8 +335,8 @@ void JobQueue::WaitForJobsOptimized(std::unique_lock<std::mutex>& lock,
 bool JobQueue::TakeNextJobOptimized(std::unique_lock<std::mutex>& lock,
                                     bool wait_for_next_job,
                                     JobRecord* job_record) {
-  SB_DCHECK(optimizations_enabled_);
-  SB_DCHECK(lock.owns_lock());
+  SB_CHECK(optimizations_enabled_);
+  SB_CHECK(lock.owns_lock());
 
   for (;;) {
     if (stopped_) {

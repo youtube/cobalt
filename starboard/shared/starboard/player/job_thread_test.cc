@@ -26,6 +26,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/player/job_queue.h"
+#include "starboard/shared/starboard/player/job_queue_test_util.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -49,7 +50,7 @@ class JobThreadTest : public ::testing::TestWithParam<bool> {
   JobThreadTest() : scoped_optimizations_(GetParam()) {}
 
  private:
-  JobQueue::ScopedOptimizationsForTesting scoped_optimizations_;
+  ScopedJobQueueOptimizationsForTesting scoped_optimizations_;
 };
 
 TEST_P(JobThreadTest, UsesRequestedOptimizations) {

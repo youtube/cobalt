@@ -20,6 +20,7 @@
 #include <memory>
 #include <vector>
 
+#include "starboard/shared/starboard/player/job_queue_test_util.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -41,7 +42,7 @@ class JobQueueTest : public ::testing::TestWithParam<bool> {
 
   // Declared before |job_queue_| so that the switch is set when the queue is
   // constructed.
-  JobQueue::ScopedOptimizationsForTesting scoped_optimizations_;
+  ScopedJobQueueOptimizationsForTesting scoped_optimizations_;
   JobQueue job_queue_;
   JobQueue::JobOwner job_owner_;
 };

@@ -286,23 +286,6 @@ class JobQueue {
     JobQueue* job_queue_;
   };
 
-  // Sets the optimizations switch for the JobQueues constructed during its
-  // lifetime and restores the previous value when destroyed, so that tests
-  // can cover both code paths.
-  class ScopedOptimizationsForTesting {
-   public:
-    explicit ScopedOptimizationsForTesting(bool enabled);
-    ~ScopedOptimizationsForTesting();
-
-    ScopedOptimizationsForTesting(const ScopedOptimizationsForTesting&) =
-        delete;
-    ScopedOptimizationsForTesting& operator=(
-        const ScopedOptimizationsForTesting&) = delete;
-
-   private:
-    const bool previous_value_;
-  };
-
   JobQueue();
   ~JobQueue();
 
@@ -311,6 +294,7 @@ class JobQueue {
   // "Media.EnableTrivialOptimizations" experimental feature is set, see
   // experimental_features.cc.
   static void EnableOptimizations();
+  static bool SetOptimizationsEnabledForTesting(bool enabled);
 
   JobToken Schedule(Job job, int64_t delay_usec = 0);
   void ScheduleAndWait(Job job);

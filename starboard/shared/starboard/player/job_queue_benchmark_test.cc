@@ -37,6 +37,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/player/job_queue.h"
+#include "starboard/shared/starboard/player/job_queue_test_util.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -145,7 +146,7 @@ class JobQueueBenchmark : public ::testing::TestWithParam<bool> {
 
  private:
   // Sets the switch for the JobQueues and JobThreads created by the tests.
-  JobQueue::ScopedOptimizationsForTesting scoped_optimizations_;
+  ScopedJobQueueOptimizationsForTesting scoped_optimizations_;
 };
 
 // Schedule a burst of immediate jobs on the current thread's queue and then run
