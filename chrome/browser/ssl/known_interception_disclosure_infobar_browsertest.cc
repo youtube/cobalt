@@ -30,7 +30,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "components/infobars/content/content_infobar_manager.h"
+#include "components/infobars/content/content_infobar_manager.h"  // nogncheck
 #include "components/infobars/core/confirm_infobar_delegate.h"
 #include "components/infobars/core/infobar.h"
 #endif
