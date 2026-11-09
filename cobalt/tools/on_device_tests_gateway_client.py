@@ -66,6 +66,7 @@ _DEPS_ARCH_MAP = {
     'rdk': '/data/test/',
 }
 _GCS_ARCHIVE_DEVICE_FAMILIES = ('rdk',)
+_MAX_SHARDS = 10
 
 
 class OnDeviceTestsGatewayClient:
@@ -241,15 +242,16 @@ def _parse_num_shards(target_data: Dict[str, Any], test_target: str) -> int:
   raw_shards = target_data.get('shards')
   if raw_shards is None:
     return 1
-  if isinstance(raw_shards, bool):
+  if isinstance(raw_shards, (bool, float)):
     raise ValueError(f'Invalid shards value for {test_target}: {raw_shards}')
   try:
     num_shards = int(raw_shards)
   except (TypeError, ValueError) as exc:
     raise ValueError(
         f'Invalid shards value for {test_target}: {raw_shards}') from exc
-  if num_shards < 1:
-    raise ValueError(f'shards must be >= 1 for {test_target}, got {num_shards}')
+  if not 1 <= num_shards <= _MAX_SHARDS:
+    raise ValueError(f'shards for {test_target} must be between 1 and '
+                     f'{_MAX_SHARDS}, got {num_shards}')
   return num_shards
 
 
@@ -267,14 +269,12 @@ def _has_shard_retry_filter(filter_json_dir: Optional[str], target_name: str,
 def _shard_cmd_args(test_type: str, shard_index: int,
                     num_shards: int) -> List[str]:
   """Builds test runner sharding flags for a shard."""
-  if test_type == 'browser_test':
-    return [
-        f'--test-launcher-shard-index={shard_index}',
-        f'--test-launcher-total-shards={num_shards}',
-    ]
+  if test_type != 'browser_test':
+    raise ValueError(
+        f'Sharding is only supported for browser_test targets, got {test_type}')
   return [
-      f'--gtest_shard_index={shard_index}',
-      f'--gtest_total_shards={num_shards}',
+      f'--test-launcher-shard-index={shard_index}',
+      f'--test-launcher-total-shards={num_shards}',
   ]
 
 
@@ -311,6 +311,10 @@ def process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       target_name = test_target.split(':')[-1]
       if 'cobalt_browsertests' in target_name:
         test_type = 'browser_test'
+      if num_shards > 1 and test_type != 'browser_test':
+        raise ValueError(
+            f'Sharding is only supported for browser_test targets, got '
+            f'{test_type} for {test_target}')
       dir_on_device = _DIR_ON_DEV_MAP.get(args.device_family, '')
       files = _unit_test_files(args, target_name)
 
@@ -405,6 +409,11 @@ def process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       if isinstance(target_data, dict):
         test_target = target_data.get('target', '')
         target_test_attempts = str(target_data.get('test_attempts', '') or '')
+        num_shards = _parse_num_shards(target_data, test_target)
+        if num_shards > 1:
+          raise ValueError(
+              f'Sharding is only supported for browser_test targets, got '
+              f'{test_type} for {test_target}')
       else:
         test_target = target_data
         target_test_attempts = ''

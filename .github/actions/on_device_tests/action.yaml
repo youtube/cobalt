@@ -146,6 +146,11 @@ runs:
         for entry in "${test_target_entries[@]}"; do
           test_target_with_path=$(echo "${entry}" | jq -r '.target')
           shards=$(echo "${entry}" | jq -r '.shards')
+          if ! [[ "${shards}" =~ ^[0-9]+$ ]] || (( shards < 1 || shards > 10 )); then
+            echo "::error::Invalid shards value (${shards}) for ${test_target_with_path}; expected integer in 1..10."
+            target_failed=1
+            continue
+          fi
           test_target=${test_target_with_path#*:}
           test_filter=$(python3 cobalt/devinfra/github/test_filter.py \
               --filter-dir "${FILTER_DIR}" \

@@ -281,36 +281,71 @@ class ProcessTestRequestsTest(unittest.TestCase):
     self.assertIn('--test-launcher-shard-index=3', shard3_cmd)
     self.assertIn('--test-launcher-total-shards=4', shard3_cmd)
 
-  def test_sharded_unit_test_uses_gtest_shard_flags(self):
-    self._write_filter(
-        'cobalt_unittests_1_filter.json',
-        {
-            'failing_tests': [],
-            'tests_to_run': ['UnitSuite.FailedCase']
-        },
-    )
+  def test_sharded_browser_test_supports_max_shards(self):
     args = self._make_args([{
-        'target': 'cobalt:cobalt_unittests',
-        'shards': 2,
+        'target': 'cobalt/testing/browser_tests:cobalt_browsertests',
+        'shards': 10,
     }])
 
     requests = process_test_requests(args)
 
-    self.assertEqual(len(requests), 2)
-    self.assertEqual(requests[0]['test_type'], 'unit_test')
-    self.assertIn('--gtest_shard_index=0', requests[0]['test_cmd_args'][0])
-    self.assertIn('--gtest_total_shards=2', requests[0]['test_cmd_args'][0])
-    self.assertNotIn('--test-launcher-shard-index',
-                     requests[0]['test_cmd_args'][0])
+    self.assertEqual(len(requests), 10)
+    for shard_idx, req in enumerate(requests):
+      self.assertEqual(req['test_type'], 'browser_test')
+      self.assertEqual(
+          req['test_target'],
+          'cobalt/testing/browser_tests:cobalt_browsertests '
+          f'(shard {shard_idx} of 10)',
+      )
+      self.assertIn(
+          'gcs_result_path=gs://cobalt-unittest-storage/results/arm/123/1/'
+          f'shard_{shard_idx}',
+          req['params'],
+      )
+      cmd_line = req['test_cmd_args'][0]
+      self.assertIn(f'--test-launcher-shard-index={shard_idx}', cmd_line)
+      self.assertIn('--test-launcher-total-shards=10', cmd_line)
 
-    # Shard 1 has an explicit retry list, so shard flags are omitted.
-    self.assertIn('--gtest_filter=UnitSuite.FailedCase',
-                  requests[1]['test_cmd_args'][0])
-    self.assertNotIn('--gtest_shard_index', requests[1]['test_cmd_args'][0])
-    self.assertNotIn('--gtest_total_shards', requests[1]['test_cmd_args'][0])
+    explicit_browser_args = self._make_args(
+        [{
+            'target': 'cobalt/testing/browser_tests:custom_browser_suite',
+            'shards': 4,
+        }],
+        test_type='browser_test',
+    )
+    explicit_requests = process_test_requests(explicit_browser_args)
+    self.assertEqual(len(explicit_requests), 4)
+    self.assertEqual(explicit_requests[0]['test_type'], 'browser_test')
+    self.assertIn('--test-launcher-shard-index=0',
+                  explicit_requests[0]['test_cmd_args'][0])
+    self.assertIn('--test-launcher-total-shards=4',
+                  explicit_requests[0]['test_cmd_args'][0])
+
+  def test_sharded_non_browser_test_raises_value_error(self):
+    unit_args = self._make_args([{
+        'target': 'cobalt:cobalt_unittests',
+        'shards': 2,
+    }])
+    with self.assertRaises(ValueError):
+      process_test_requests(unit_args)
+
+    e2e_args = self._make_args(
+        [{
+            'target': 'e2e_suite',
+            'shards': 2,
+        }],
+        test_type='e2e_test',
+        cobalt_path='test-artifacts/android-arm',
+    )
+    with self.assertRaises(ValueError):
+      process_test_requests(e2e_args)
+
+    with self.assertRaises(ValueError):
+      # pylint: disable=protected-access
+      on_device_tests_gateway_client._shard_cmd_args('unit_test', 0, 2)
 
   def test_invalid_shards_raises_value_error(self):
-    for bad_shards in (0, -2, 'invalid', True):
+    for bad_shards in (0, -2, 11, 100, 1.5, 'invalid', True, False):
       with self.subTest(shards=bad_shards):
         args = self._make_args([{
             'target': 'cobalt/testing/browser_tests:cobalt_browsertests',
