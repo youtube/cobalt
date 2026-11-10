@@ -169,11 +169,17 @@ bool ParseVideoInfo(const MimeType& mime_type,
     video_info->transfer_id = transfer_id_from_eotf;
   }
 
+  // Besides true/false, `decode-to-texture` takes "protected". Builds that
+  // predate it reject the value, so a page can probe for it.
+  const bool protected_decode_to_texture =
+      mime_type.GetParamStringValue(kMimeParamDecodeToTexture, "") ==
+      "protected";
   if (!mime_type.ValidateIntParameter(kMimeParamWidth) ||
       !mime_type.ValidateIntParameter(kMimeParamHeight) ||
       !mime_type.ValidateFloatParameter(kMimeParamFramerate) ||
       !mime_type.ValidateIntParameter(kMimeParamBitrate) ||
-      !mime_type.ValidateBoolParameter(kMimeParamDecodeToTexture)) {
+      (!protected_decode_to_texture &&
+       !mime_type.ValidateBoolParameter(kMimeParamDecodeToTexture))) {
     return false;
   }
 
@@ -185,7 +191,10 @@ bool ParseVideoInfo(const MimeType& mime_type,
   video_info->fps = std::round(framerate);
   video_info->bitrate = mime_type.GetParamIntValue(kMimeParamBitrate, 0);
   video_info->decode_to_texture_required =
+      protected_decode_to_texture ||
       mime_type.GetParamBoolValue(kMimeParamDecodeToTexture, false);
+  video_info->protected_decode_to_texture_required =
+      protected_decode_to_texture;
 
   return video_info->frame_width >= 0 && video_info->frame_height >= 0 &&
          video_info->fps >= 0 && video_info->bitrate >= 0;

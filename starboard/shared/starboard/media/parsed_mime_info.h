@@ -45,6 +45,9 @@ class ParsedMimeInfo {
     int fps;
     int bitrate;
     bool decode_to_texture_required;
+    // `decode-to-texture=protected`: decode-to-texture from a secure decoder,
+    // rendered by the embedder on a protected GL context.
+    bool protected_decode_to_texture_required = false;
   };
 
   static std::optional<ParsedMimeInfo> Create(const std::string& mime_string);

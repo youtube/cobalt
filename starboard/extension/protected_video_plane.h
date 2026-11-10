@@ -72,8 +72,10 @@ typedef struct StarboardExtensionProtectedVideoPlaneApi {
 
   // Process-wide capability: when true, the embedder can render decode
   // targets of secure decoders, so players that require a secure decoder may
-  // use kSbPlayerOutputModeDecodeToTexture. Must be set before
-  // SbPlayerGetPreferredOutputMode() is queried for the player.
+  // use kSbPlayerOutputModeDecodeToTexture, and
+  // SbMediaCanPlayMimeAndKeySystem() may support `decode-to-texture=protected`.
+  // The embedder sets it once its GPU is initialized, from the GPU's actual
+  // protected-content support; it is false until then.
   void (*SetProtectedDecodeToTextureEnabled)(bool enabled);
 
   // Returns the ANativeWindow* of the punch-out video plane with a reference

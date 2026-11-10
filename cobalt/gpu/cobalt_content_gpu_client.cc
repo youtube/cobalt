@@ -18,13 +18,66 @@
 
 #include "base/memory/ptr_util.h"
 #include "base/task/single_thread_task_runner.h"
+#include "build/build_config.h"
 #include "cobalt/browser/memory_ablation.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "components/viz/service/display/starboard/video_geometry_setter.h"
 #include "content/public/child/child_thread.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/feature_list.h"                          // nogncheck
+#include "gpu/ipc/service/gpu_channel_manager.h"        // nogncheck
+#include "media/base/media_switches.h"                  // nogncheck
+#include "starboard/extension/protected_video_plane.h"  // nogncheck
+#include "starboard/system.h"                           // nogncheck
+#include "ui/gfx/extension_set.h"                       // nogncheck
+#include "ui/gl/gl_bindings.h"                          // nogncheck
+#include "ui/gl/gl_display.h"                           // nogncheck
+#include "ui/gl/gl_utils.h"                             // nogncheck
+#endif                                                  // BUILDFLAG(IS_ANDROID)
+
 namespace cobalt {
+
+#if BUILDFLAG(IS_ANDROID)
+namespace {
+
+// Whether this GPU can create the protected contexts and window surfaces of
+// protected WebGL (see GLES2CommandBufferStub::Initialize()). Known without
+// creating one, which would take the video window.
+bool CanCreateProtectedContexts(gpu::GpuChannelManager* channel_manager) {
+  if (!channel_manager->gpu_preferences().use_passthrough_cmd_decoder) {
+    return false;
+  }
+  gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
+  if (!display || !display->IsInitialized() ||
+      !display->IsEGLSurfacelessContextSupported()) {
+    return false;
+  }
+  const char* extensions =
+      eglQueryString(display->GetDisplay(), EGL_EXTENSIONS);
+  return extensions && gfx::HasExtension(gfx::MakeExtensionSet(extensions),
+                                         "EGL_EXT_protected_content");
+}
+
+// Tells Starboard whether secure decoders may decode to texture. This also
+// answers `decode-to-texture=protected` in MediaSource.isTypeSupported(), so
+// a page can tell before playback whether protected WebGL will work.
+void UpdateProtectedDecodeToTexture(gpu::GpuChannelManager* channel_manager) {
+  const auto* api =
+      static_cast<const StarboardExtensionProtectedVideoPlaneApi*>(
+          SbSystemGetExtension(kStarboardExtensionProtectedVideoPlaneName));
+  if (!api) {
+    return;
+  }
+  const bool enabled =
+      base::FeatureList::IsEnabled(::media::kCobaltProtectedWebGL) &&
+      CanCreateProtectedContexts(channel_manager);
+  api->SetProtectedDecodeToTextureEnabled(enabled);
+}
+
+}  // namespace
+#endif  // BUILDFLAG(IS_ANDROID)
 
 CobaltContentGpuClient::CobaltContentGpuClient()
     : video_geometry_setter_service_(
@@ -38,6 +91,9 @@ CobaltContentGpuClient::~CobaltContentGpuClient() = default;
 void CobaltContentGpuClient::GpuServiceInitialized(
     gpu::GpuChannelManager* channel_manager) {
   MaybeApplyGpuMemoryAblation(channel_manager);
+#if BUILDFLAG(IS_ANDROID)
+  UpdateProtectedDecodeToTexture(channel_manager);
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 void CobaltContentGpuClient::PostCompositorThreadCreated(

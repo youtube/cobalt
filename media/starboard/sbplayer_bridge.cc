@@ -21,7 +21,6 @@
 
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
-#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
@@ -31,7 +30,6 @@
 #include "base/task/bind_post_task.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
-#include "media/base/media_switches.h"
 #include "media/base/starboard/experimental_features.h"
 #include "media/base/timestamp_constants.h"
 #include "media/starboard/buildflags.h"
@@ -43,8 +41,6 @@
 #include "starboard/configuration.h"
 #include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/extension/player_settings.h"
-#include "starboard/extension/protected_video_plane.h"
-#include "starboard/system.h"
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
 #include "cobalt/base/statistics.h"
@@ -302,17 +298,6 @@ SbPlayerBridge::SbPlayerBridge(
   if (video_config.IsValidConfig()) {
     UpdateVideoConfig(video_config);
     SendColorSpaceHistogram();
-  }
-
-  // Lets secure-decoder streams negotiate decode-to-texture. Must run before
-  // ComputeSbPlayerOutputMode() queries SbPlayerGetPreferredOutputMode().
-  if (base::FeatureList::IsEnabled(kCobaltProtectedWebGL)) {
-    if (const auto* api =
-            static_cast<const StarboardExtensionProtectedVideoPlaneApi*>(
-                SbSystemGetExtension(
-                    kStarboardExtensionProtectedVideoPlaneName))) {
-      api->SetProtectedDecodeToTextureEnabled(true);
-    }
   }
 
   output_mode_ = ComputeSbPlayerOutputMode(default_output_mode);
@@ -1502,7 +1487,8 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
     DCHECK(video_stream_info_.max_video_capabilities);
 
     // Set the `default_output_mode` to `kSbPlayerOutputModeDecodeToTexture` if
-    // any of the mime associated with it has `decode-to-texture=true` set.
+    // any of the mime associated with it has `decode-to-texture=true` (or
+    // `=protected`) set.
     // TODO(b/232559177): Make the check below more flexible, to work with
     //                    other well formed inputs (e.g. with extra space).
     const bool force_decode_to_texture =
@@ -1510,8 +1496,11 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
     bool is_decode_to_texture_preferred =
         force_decode_to_texture ||
         strstr(video_stream_info_.mime, "decode-to-texture=true") ||
+        strstr(video_stream_info_.mime, "decode-to-texture=protected") ||
         strstr(video_stream_info_.max_video_capabilities,
-               "decode-to-texture=true");
+               "decode-to-texture=true") ||
+        strstr(video_stream_info_.max_video_capabilities,
+               "decode-to-texture=protected");
 
     if (is_decode_to_texture_preferred) {
       LOG(INFO) << "Setting `default_output_mode` from \""

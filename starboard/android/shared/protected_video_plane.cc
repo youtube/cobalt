@@ -20,6 +20,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/no_destructor.h"
+#include "starboard/shared/starboard/media/mime_supportability_cache.h"
 
 namespace starboard {
 
@@ -60,7 +61,10 @@ HookRegistry& GetHookRegistry() {
 void SetProtectedDecodeToTextureEnabled(bool enabled) {
   SB_LOG(INFO) << "Protected decode-to-texture "
                << (enabled ? "enabled" : "disabled");
-  g_protected_dtt_enabled.store(enabled);
+  if (g_protected_dtt_enabled.exchange(enabled) != enabled) {
+    // Answers to `decode-to-texture=protected` depend on this.
+    MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
+  }
 }
 
 void SetDecodeTargetTextureHooks(

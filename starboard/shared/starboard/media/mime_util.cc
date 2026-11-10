@@ -21,12 +21,14 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
+#include "starboard/extension/protected_video_plane.h"
 #include "starboard/log.h"
 #include "starboard/shared/starboard/media/key_system_supportability_cache.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/media/parsed_mime_info.h"
+#include "starboard/system.h"
 
 namespace starboard {
 
@@ -160,6 +162,13 @@ bool IsSupportedVideoCodec(const ParsedMimeInfo& mime_info) {
       break;
     case kSbMediaVideoCodecAv2:
       return false;
+  }
+
+  // Only platforms with the ProtectedVideoPlane extension can render secure
+  // decode-to-texture; their MediaIsVideoSupported() decides the rest.
+  if (video_info.protected_decode_to_texture_required &&
+      !SbSystemGetExtension(kStarboardExtensionProtectedVideoPlaneName)) {
+    return false;
   }
 
   std::string cryptoblockformat =
