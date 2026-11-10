@@ -129,7 +129,7 @@ BASE_DECLARE_FEATURE(kSplashScreenConfig);
 // to the splash screen as the "timeout" query param (in ms), and the built-in
 // splash screen stays up until then instead of closing when its animation
 // ends. Values need a unit, e.g., "3s" or "2500ms".
-// Locally: --enable-features=SplashScreenConfig:timeout/3s
+// Locally: --enable-features=SplashScreenConfig:SplashScreenConfig_timeout/3s
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSplashScreenTimeoutParam);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
