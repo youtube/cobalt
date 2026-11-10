@@ -125,7 +125,6 @@ template("modular_apk") {
       ":$_assets_target",
       "//cobalt/aosp:cobalt_apk_java",
       "//cobalt/aosp:copy_libcpp_shared",
-      "//third_party/crashpad/crashpad/handler:crashpad_handler_named_as_so($native_toolchain)",
     ]
 
     if (_testonly) {
@@ -135,14 +134,17 @@ template("modular_apk") {
       ]
     }
 
-    loadable_modules = [
-      "$root_build_dir/libc++_shared.so",
-      "$root_build_dir/native_target/libcrashpad_handler.so",
-    ]
+    loadable_modules = [ "$root_build_dir/libc++_shared.so" ]
     shared_libraries = [ _loader ]
 
     srcjar_deps =
         [ get_label_info(_loader, "label_no_toolchain") + "__jni_registration" ]
+
+    if (use_evergreen) {
+      deps += [ "//third_party/crashpad/crashpad/handler:crashpad_handler_named_as_so($native_toolchain)" ]
+      loadable_modules +=
+          [ "$root_build_dir/native_target/libcrashpad_handler.so" ]
+    }
   }
 
   # For test apks, generate a bin/run_<name>_loader wrapper so upstream
