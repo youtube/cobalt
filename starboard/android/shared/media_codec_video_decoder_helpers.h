@@ -29,8 +29,11 @@ namespace starboard {
 
 class ExperimentalFeatures;
 
+// Returns true if the software video decoder should be used. An empty
+// `max_video_capabilities` indicates the primary player.
 bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
-                               const std::string& max_video_capabilities);
+                               const std::string& max_video_capabilities,
+                               bool has_drm);
 
 std::optional<Size> ParseMaxResolution(
     const std::string& max_video_capabilities,

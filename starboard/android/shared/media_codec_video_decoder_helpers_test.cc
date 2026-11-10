@@ -31,35 +31,94 @@ TEST(MediaCodecVideoDecoderHelpersTest, IsSoftwareDecoderRequired) {
   ExperimentalFeatures default_features;
 
   // Blank capabilities
-  EXPECT_FALSE(IsSoftwareDecoderRequired(default_features, ""));
+  EXPECT_FALSE(IsSoftwareDecoderRequired(default_features, "",
+                                         /*has_drm=*/false));
+  EXPECT_FALSE(IsSoftwareDecoderRequired(default_features, "",
+                                         /*has_drm=*/true));
 
   // Low resolution + low fps (should trigger fallback to software)
   EXPECT_TRUE(IsSoftwareDecoderRequired(default_features,
-                                        "width=432; height=240; framerate=15"));
+                                        "width=432; height=240; framerate=15",
+                                        /*has_drm=*/true));
 
   // High resolution (should trigger hardware)
   EXPECT_FALSE(IsSoftwareDecoderRequired(
-      default_features, "width=1920; height=1080; framerate=30"));
+      default_features, "width=1920; height=1080; framerate=30",
+      /*has_drm=*/true));
+  EXPECT_FALSE(IsSoftwareDecoderRequired(
+      default_features, "width=1920; height=1080; framerate=30",
+      /*has_drm=*/false));
 
   // Forced via experimental features (regardless of capabilities)
   ExperimentalFeatures::Map map_with_sw_decoder;
   map_with_sw_decoder[std::string(kMediaForceSoftwareVideoDecoder.key())] =
       static_cast<int64_t>(1);
   ExperimentalFeatures features_with_sw_decoder(map_with_sw_decoder);
-  EXPECT_TRUE(IsSoftwareDecoderRequired(features_with_sw_decoder, ""));
-  EXPECT_TRUE(IsSoftwareDecoderRequired(
-      features_with_sw_decoder, "width=1920; height=1080; framerate=30"));
+  EXPECT_TRUE(IsSoftwareDecoderRequired(features_with_sw_decoder, "",
+                                        /*has_drm=*/false));
+  EXPECT_TRUE(IsSoftwareDecoderRequired(features_with_sw_decoder,
+                                        "width=1920; height=1080; framerate=30",
+                                        /*has_drm=*/true));
 
   // Disabled via experimental features (falls back to capabilities check)
   ExperimentalFeatures::Map map_without_sw_decoder;
   map_without_sw_decoder[std::string(kMediaForceSoftwareVideoDecoder.key())] =
       static_cast<int64_t>(0);
   ExperimentalFeatures features_without_sw_decoder(map_without_sw_decoder);
-  EXPECT_FALSE(IsSoftwareDecoderRequired(features_without_sw_decoder, ""));
+  EXPECT_FALSE(IsSoftwareDecoderRequired(features_without_sw_decoder, "",
+                                         /*has_drm=*/false));
   EXPECT_FALSE(IsSoftwareDecoderRequired(
-      features_without_sw_decoder, "width=1920; height=1080; framerate=30"));
+      features_without_sw_decoder, "width=1920; height=1080; framerate=30",
+      /*has_drm=*/true));
+  EXPECT_FALSE(IsSoftwareDecoderRequired(
+      features_without_sw_decoder, "width=1920; height=1080; framerate=30",
+      /*has_drm=*/false));
   EXPECT_TRUE(IsSoftwareDecoderRequired(features_without_sw_decoder,
-                                        "width=432; height=240; framerate=15"));
+                                        "width=432; height=240; framerate=15",
+                                        /*has_drm=*/true));
+}
+
+TEST(MediaCodecVideoDecoderHelpersTest,
+     IsSoftwareDecoderRequiredForSecondaryVideoWithoutDrm) {
+  ExperimentalFeatures default_features;
+
+  // Up to 720p (in either orientation) and 30 fps.
+  EXPECT_TRUE(IsSoftwareDecoderRequired(default_features,
+                                        "width=1280; height=720; framerate=30",
+                                        /*has_drm=*/false));
+  EXPECT_TRUE(IsSoftwareDecoderRequired(default_features,
+                                        "width=720; height=1280; framerate=24",
+                                        /*has_drm=*/false));
+  EXPECT_TRUE(IsSoftwareDecoderRequired(default_features,
+                                        "width=640; height=360; framerate=30",
+                                        /*has_drm=*/false));
+  EXPECT_TRUE(IsSoftwareDecoderRequired(
+      default_features, "width=1280; height=720; framerate=29.97",
+      /*has_drm=*/false));
+  EXPECT_TRUE(IsSoftwareDecoderRequired(default_features,
+                                        "width=1280; height=720",
+                                        /*has_drm=*/false));
+
+  // Larger than 720p, faster than 30 fps, or no dimensions.
+  EXPECT_FALSE(IsSoftwareDecoderRequired(
+      default_features, "width=1920; height=1080; framerate=30",
+      /*has_drm=*/false));
+  EXPECT_FALSE(IsSoftwareDecoderRequired(default_features,
+                                         "width=720; height=1280; framerate=60",
+                                         /*has_drm=*/false));
+  EXPECT_FALSE(IsSoftwareDecoderRequired(
+      default_features, "width=1280; height=720; framerate=59.94",
+      /*has_drm=*/false));
+  EXPECT_FALSE(IsSoftwareDecoderRequired(default_features,
+                                         "width=1280; height=720; framerate=31",
+                                         /*has_drm=*/false));
+  EXPECT_FALSE(IsSoftwareDecoderRequired(default_features, "framerate=30",
+                                         /*has_drm=*/false));
+
+  // With DRM.
+  EXPECT_FALSE(IsSoftwareDecoderRequired(default_features,
+                                         "width=720; height=1280; framerate=24",
+                                         /*has_drm=*/true));
 }
 
 TEST(MediaCodecVideoDecoderHelpersTest, ParseMaxResolution) {

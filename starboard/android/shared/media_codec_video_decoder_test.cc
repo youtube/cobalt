@@ -246,7 +246,8 @@ TEST_F(MediaCodecVideoDecoderTest,
 
   // Initializing codec with oversized initial stream resolution should
   // dynamically update max_video_size_.
-  CreateDecoder("width=1280; height=720", &oversized_info);
+  // framerate=60 keeps the hardware decoder.
+  CreateDecoder("width=1280; height=720; framerate=60", &oversized_info);
 
   FakeMediaCodec* fake_codec = GetFakeVideoCodec();
   ASSERT_NE(fake_codec, nullptr);
@@ -260,7 +261,8 @@ TEST_F(
 
   // Create decoder configured with max_video_capabilities="width=1280;
   // height=720".
-  CreateDecoder("width=1280; height=720", &initial_info);
+  // framerate=60 keeps the hardware decoder.
+  CreateDecoder("width=1280; height=720; framerate=60", &initial_info);
 
   SbPlayerError reported_error = kSbPlayerErrorDecode;
   bool error_called = false;

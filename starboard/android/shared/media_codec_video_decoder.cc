@@ -310,9 +310,10 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
           ParseMaxResolution(stream_config.max_video_resolution,
                              "max_video_resolution",
                              stream_config.video_stream_info.frame_size))),
-      require_software_codec_(
-          IsSoftwareDecoderRequired(pipeline_config.experimental_features,
-                                    stream_config.max_video_capabilities)),
+      require_software_codec_(IsSoftwareDecoderRequired(
+          pipeline_config.experimental_features,
+          stream_config.max_video_capabilities,
+          /*has_drm=*/SbDrmSystemIsValid(stream_config.drm_system))),
       tunnel_mode_audio_session_id_(tunnel_mode_config.audio_session_id),
       max_video_input_size_(pipeline_config.max_input_size),
       use_dual_threads_(pipeline_config.use_dual_threads),

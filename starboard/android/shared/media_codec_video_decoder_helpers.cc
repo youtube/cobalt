@@ -27,7 +27,8 @@
 namespace starboard {
 
 bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
-                               const std::string& max_video_capabilities) {
+                               const std::string& max_video_capabilities,
+                               bool has_drm) {
   if (features.GetBool(kMediaForceSoftwareVideoDecoder)) {
     SB_LOG(INFO) << "Use software decoder as `kMediaForceSoftwareVideoDecoder` "
                  << "is set in experimental features.";
@@ -46,11 +47,26 @@ bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
     return false;
   }
 
-  bool is_low_resolution =
-      mime_type->GetParamIntValue(kMimeParamWidth, Resolution::k1080p.width) <=
-          432 &&
-      mime_type->GetParamIntValue(kMimeParamHeight,
-                                  Resolution::k1080p.height) <= 240;
+  const int width =
+      mime_type->GetParamIntValue(kMimeParamWidth, Resolution::k1080p.width);
+  const int height =
+      mime_type->GetParamIntValue(kMimeParamHeight, Resolution::k1080p.height);
+  const float framerate =
+      mime_type->GetParamFloatValue(kMimeParamFramerate, 30.f);
+
+  // Clear secondary players up to 720p and 30 fps use the software decoder, so
+  // they don't compete with the primary player for the hardware decoder.
+  if (!has_drm &&
+      width * height <= Resolution::k720p.width * Resolution::k720p.height &&
+      framerate <= 30) {
+    SB_LOG(INFO) << "Use software decoder for secondary player without DRM ("
+                 << width << "x" << height << "@" << framerate << ").";
+    return true;
+  }
+
+  // Otherwise, only low resolution and low fps playbacks use the software
+  // decoder.
+  bool is_low_resolution = width <= 432 && height <= 240;
   bool is_low_fps = mime_type->GetParamIntValue(kMimeParamFramerate, 30) <= 15;
 
   if (!is_low_resolution || !is_low_fps) {
