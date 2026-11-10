@@ -267,7 +267,7 @@ class JobQueue {
     enum DetachedState { kDetached };
 
     explicit JobOwner(DetachedState detached_state) : job_queue_(nullptr) {
-      SB_DCHECK_EQ(detached_state, kDetached);
+      SB_CHECK_EQ(detached_state, kDetached);
     }
 
     // Note that this operation is not thread safe.  It is the caller's
@@ -275,7 +275,7 @@ class JobQueue {
     // This is used to associate a JobQueue with a JobOwner that was constructed
     // in a detached state (e.g. with JobOwner(kDetached)).
     void Attach(JobQueue* job_queue) {
-      SB_DCHECK_EQ(job_queue_, nullptr);
+      SB_CHECK_EQ(job_queue_, nullptr);
       SB_CHECK(job_queue);
       job_queue_ = job_queue;
     }
