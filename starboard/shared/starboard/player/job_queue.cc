@@ -214,7 +214,8 @@ bool JobQueue::BelongsToCurrentThread() const {
 JobQueue::JobToken JobQueue::Schedule(Job job,
                                       JobOwner* owner,
                                       int64_t delay_usec) {
-  SB_DCHECK(job);
+  SB_CHECK(job);
+  // TODO(b/435425692): Replace with SB_CHECK_GE once safety is confirmed.
   SB_DCHECK_GE(delay_usec, 0);
 
   std::unique_lock lock(mutex_);
@@ -279,7 +280,7 @@ JobQueue::JobToken JobQueue::Schedule(Job job,
 
 void JobQueue::RemoveJobsByOwner(JobOwner* owner) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(owner);
+  SB_CHECK(owner);
 
   if (optimizations_enabled_) {
     std::lock_guard lock(mutex_);

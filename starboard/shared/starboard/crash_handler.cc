@@ -18,7 +18,6 @@
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-#include "starboard/crashpad_wrapper/wrapper.h"
 #include "starboard/extension/crash_handler.h"
 
 namespace starboard {

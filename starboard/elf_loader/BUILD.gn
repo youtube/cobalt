@@ -109,12 +109,12 @@ if (current_toolchain == starboard_toolchain) {
         [ "//starboard/content/ssl:copy_ssl_certificates($default_toolchain)" ]
 
     if (is_android) {
-      deps += [ "//starboard/android/shared:test_support" ]
+      deps += [ "//starboard/shared/starboard:features_test_util" ]
     } else {
       data_deps += [ "//starboard/content/fonts:copy_font_data" ]
     }
 
-    if (use_crashpad) {
+    if (use_evergreen) {
       deps += [ "//starboard/crashpad_wrapper" ]
     } else {
       deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]

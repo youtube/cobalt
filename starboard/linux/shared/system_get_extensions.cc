@@ -42,7 +42,7 @@
 #include "starboard/linux/shared/platform_service.h"
 #include "starboard/shared/starboard/crash_handler.h"
 #include "starboard/shared/starboard/native_stability.h"
-#endif
+#endif  // BUILDFLAG(USE_EVERGREEN)
 
 const void* SbSystemGetExtension(const char* name) {
 #if BUILDFLAG(IS_STARBOARD)
@@ -72,7 +72,7 @@ const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
     return starboard::GetPlatformServiceApiLinux();
   }
-#endif
+#endif  // BUILDFLAG(USE_EVERGREEN)
   if (strcmp(name, kCobaltExtensionMemoryMappedFileName) == 0) {
     return starboard::GetMemoryMappedFileApi();
   }
