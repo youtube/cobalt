@@ -22,10 +22,6 @@
 
 #include "build/build_config.h"
 
-#if !defined(OFFICIAL_BUILD)
-#include <dlfcn.h>
-#endif  // !defined(OFFICIAL_BUILD)
-
 #include <errno.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
@@ -36,7 +32,6 @@
 #include <sched.h>
 #include <signal.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -439,20 +434,6 @@ const void* ExportedSymbols::Lookup(const char* name) {
 
   // Not an error, as it could be a weak symbol.
   SB_DLOG(WARNING) << "Failed to retrieve the address of '" << name << "'.";
-#if !defined(OFFICIAL_BUILD)
-  // Do not resolve __cxa_thread_atexit_impl from the host C library via dlsym.
-  // Host implementations (such as Android Bionic) require dso_handle to match a
-  // host-linker soinfo, which does not exist for modules mapped by elf_loader.
-  // Returning nullptr resolves the weak symbol in libc++abi to 0 so libc++abi
-  // uses its self-contained pthread_key fallback (matching OFFICIAL_BUILD).
-  if (strcmp(name, "__cxa_thread_atexit_impl") == 0) {
-    return nullptr;
-  }
-  address = dlsym(RTLD_DEFAULT, name);
-  if (address == nullptr) {
-    SB_LOG(ERROR) << "Fallback dlsym failed for '" << name << "'.";
-  }
-#endif  // !defined(OFFICIAL_BUILD)
   return address;
 }
 
