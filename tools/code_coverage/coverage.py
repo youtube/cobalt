@@ -985,10 +985,8 @@ def _GetBinaryPathForWebTests():
     assert False, 'This platform is not supported for web tests.'
 
 
-<<<<<<< HEAD
 @telemetry_utils.tracer.start_as_current_span(
-    'coverage.py._GenerateCoverageReport')
-=======
+    'coverage.py._GetComponentMappings')
 def _GetComponentMappings(component_mappings_file):
   """Returns a dictionary of component mappings.
 
@@ -1015,7 +1013,8 @@ def _GetComponentMappings(component_mappings_file):
     return json.load(urllib.request.urlopen(COMPONENT_MAPPING_URL))
 
 
->>>>>>> parent of a4c6069869a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+@telemetry_utils.tracer.start_as_current_span(
+    'coverage.py._GenerateCoverageReport')
 def _GenerateCoverageReport(args, binary_paths, profdata_file_path,
                             absolute_filter_paths):
   """Generate the coverage report in the supported format."""
