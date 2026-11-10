@@ -30,7 +30,7 @@ SupportsUserData::Data* SupportsUserData::GetUserData(const void* key) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // Avoid null keys; they are too vulnerable to collision.
   DCHECK(key);
-  return absl::visit(
+  return std::visit(
       [key](const auto& map) -> Data* {
         auto found = map.find(key);
         if (found != map.end()) {
@@ -46,7 +46,7 @@ std::unique_ptr<SupportsUserData::Data> SupportsUserData::TakeUserData(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // Null keys are too vulnerable to collision.
   CHECK(key);
-  return absl::visit(
+  return std::visit(
       [key](auto& map) -> std::unique_ptr<SupportsUserData::Data> {
         auto found = map.find(key);
         if (found != map.end()) {
@@ -66,7 +66,7 @@ void SupportsUserData::SetUserData(const void* key,
   // Avoid null keys; they are too vulnerable to collision.
   DCHECK(key);
   if (data.get()) {
-    absl::visit([key, &data](auto& map) { map[key] = std::move(data); },
+    std::visit([key, &data](auto& map) { map[key] = std::move(data); },
                 user_data_);
   } else {
     RemoveUserData(key);
@@ -75,7 +75,7 @@ void SupportsUserData::SetUserData(const void* key,
 
 void SupportsUserData::RemoveUserData(const void* key) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  absl::visit(
+  std::visit(
       [key](auto& map) {
         auto it = map.find(key);
         if (it != map.end()) {
@@ -102,7 +102,7 @@ void SupportsUserData::DetachFromSequence() {
 }
 
 void SupportsUserData::CloneDataFrom(const SupportsUserData& other) {
-  absl::visit(
+  std::visit(
       [this](const auto& other_map) {
         for (const auto& data_pair : other_map) {
           auto cloned_data = data_pair.second->Clone();
@@ -115,7 +115,7 @@ void SupportsUserData::CloneDataFrom(const SupportsUserData& other) {
 }
 
 SupportsUserData::~SupportsUserData() {
-  if (!absl::visit([](const auto& map) { return map.empty(); }, user_data_)) {
+  if (!std::visit([](const auto& map) { return map.empty(); }, user_data_)) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   }
   MapVariants local_user_data;
@@ -127,7 +127,7 @@ SupportsUserData::~SupportsUserData() {
 
 void SupportsUserData::ClearAllUserData() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  absl::visit([](auto& map) { map.clear(); }, user_data_);
+  std::visit([](auto& map) { map.clear(); }, user_data_);
 }
 
 }  // namespace base

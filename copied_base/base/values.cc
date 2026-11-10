@@ -108,7 +108,7 @@ class Value::CloningHelper {
   // Returns a new Value object using the contents of the |storage| variant.
   template <typename Storage>
   static Value Clone(const Storage& storage) {
-    return absl::visit(
+    return std::visit(
         [](const auto& member) {
           const auto& value = UnwrapReference(member);
           using T = std::decay_t<decltype(value)>;
@@ -245,31 +245,31 @@ absl::optional<double> Value::GetIfDouble() const {
 }
 
 const std::string* Value::GetIfString() const {
-  return absl::get_if<std::string>(&data_);
+  return std::get_if<std::string>(&data_);
 }
 
 std::string* Value::GetIfString() {
-  return absl::get_if<std::string>(&data_);
+  return std::get_if<std::string>(&data_);
 }
 
 const Value::BlobStorage* Value::GetIfBlob() const {
-  return absl::get_if<BlobStorage>(&data_);
+  return std::get_if<BlobStorage>(&data_);
 }
 
 const Value::Dict* Value::GetIfDict() const {
-  return absl::get_if<Dict>(&data_);
+  return std::get_if<Dict>(&data_);
 }
 
 Value::Dict* Value::GetIfDict() {
-  return absl::get_if<Dict>(&data_);
+  return std::get_if<Dict>(&data_);
 }
 
 const Value::List* Value::GetIfList() const {
-  return absl::get_if<List>(&data_);
+  return std::get_if<List>(&data_);
 }
 
 Value::List* Value::GetIfList() {
-  return absl::get_if<List>(&data_);
+  return std::get_if<List>(&data_);
 }
 
 bool Value::GetBool() const {
