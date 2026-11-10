@@ -257,15 +257,9 @@ def CompileAssetCatalog(output, target_os, target_environment, product_type,
             asset_name, asset_type = os.path.splitext(file_or_dir_name)
 
             # If the asset is either an app icon or a brand asset, and the
-<<<<<<< HEAD
             # caller has specified an app icon to use, then skip this asset as
             # it will be included in the app icon set. Otherwise, add the asset
             # to the command-line.
-=======
-            # caller has specified an app icon to use, then skip this asset
-            # as it will be included in the app icon set. Otherwise, add the
-            # asset to the command-line.
->>>>>>> parent of a4c6069869a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
             if asset_type in (APP_ICON_ASSET_TYPE, BRAND_ASSETS_TYPE):
                 if app_icon:
                     continue
