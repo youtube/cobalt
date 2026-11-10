@@ -24,6 +24,7 @@
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
 #include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
@@ -122,8 +123,12 @@ class SplashCacheCleaner {
         base::BindOnce(&SplashCacheCleaner::Finish, weak_factory_.GetWeakPtr(),
                        SplashCacheClearResult::kFailed));
 
-    const std::u16string kCacheNames[] = {kDefaultSplashCacheName,
-                                          kMusicSplashCacheName};
+    const std::u16string kCacheNames[] = {
+        base::ASCIIToUTF16(kDefaultSplashCacheName),
+        base::ASCIIToUTF16(kMusicSplashCacheName)};
+    // TODO(cobalt, b/576340659): Delete every "/splash*" entry, including
+    // "splash_policy.wasm", once Cobalt reads them for the WebAssembly policy.
+    // Until then, these are all the cached entries that Cobalt reads.
     const std::string kEntries[] = {"splash.webm", "splash.png"};
 
     // Checks for the entries with Match(), which runs as a shared operation

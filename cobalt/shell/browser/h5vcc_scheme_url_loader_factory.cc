@@ -166,7 +166,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     BindSplashCacheStorage(browser_context_, splash_domain_,
                            cache_storage_remote_.BindNewPipeAndPassReceiver());
 
-    std::u16string cache_name = kDefaultSplashCacheName;
+    std::u16string cache_name = base::ASCIIToUTF16(kDefaultSplashCacheName);
     std::string cache_param;
     if (net::GetValueForKeyInQuery(url_, "cache", &cache_param)) {
       cache_name = base::UTF8ToUTF16(cache_param);

@@ -48,6 +48,7 @@
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
 #endif
 #include "cobalt/shell/browser/shell_javascript_dialog_manager.h"
+#include "cobalt/shell/browser/splash_cache.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/shell/embedded_resources/embedded_js.h"
@@ -606,7 +607,8 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
   }
   if (link_url.is_valid()) {
     if (IsDeepLinkTopic(link_url, kMusicTopic)) {
-      topic = kMusicTopic;
+      // The splash screen reads and Cobalt clears the cache of this name.
+      topic = kMusicSplashCacheName;
     }
   }
   Shell* shell = CreateShell(
