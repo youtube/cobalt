@@ -19,7 +19,6 @@
 #include <fcntl.h>
 #include <stdarg.h>
 #include <stdint.h>
-#include <signal.h>
 #include <sys/ioctl.h>
 #include <sys/random.h>
 #include <sys/uio.h>

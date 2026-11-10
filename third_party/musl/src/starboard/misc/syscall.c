@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <errno.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
