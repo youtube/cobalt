@@ -4375,6 +4375,12 @@ deps = {
       self.assertIsNone(auth_for("chromium-review.googlesource.com"))
       self.assertIsNone(auth_for("example.com"))
     self.assertEqual(creds.is_applicable.call_count, 2)
+    # Creating the authenticator itself fails (e.g. broken luci-auth setup).
+    with mock.patch.object(
+        upstream_cl.gerrit_util,
+        "GitCredsAuthenticator",
+        side_effect=RuntimeError("bad setup")):
+      self.assertIsNone(auth_for("skia.googlesource.com"))
 
   def test_commit_messages_and_report_include_upstream_refs(self):
     ref = "https://crrev.com/c/7695593 (16777dd52227 Remove tflite option)"

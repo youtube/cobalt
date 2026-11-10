@@ -121,8 +121,8 @@ def _gitiles_authenticator(host: str) -> Any:
     authenticator = None
     name = host.removesuffix(".googlesource.com")
     if name != host and not name.endswith("-review"):
-      creds = gerrit_util.GitCredsAuthenticator()
       try:
+        creds = gerrit_util.GitCredsAuthenticator()
         if creds.is_applicable(gerrit_host=f"{name}-review.googlesource.com"):
           authenticator = creds
       except Exception as e:  # pylint: disable=broad-exception-caught
