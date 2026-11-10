@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_BENCHMARK_MEDIA_AUDIO_SINK_AUDIO_SINK_BENCHMARK_HELPER_H_
-#define STARBOARD_BENCHMARK_MEDIA_AUDIO_SINK_AUDIO_SINK_BENCHMARK_HELPER_H_
+#ifndef STARBOARD_BENCHMARK_AUDIO_SINK_AUDIO_SINK_BENCHMARK_HELPER_H_
+#define STARBOARD_BENCHMARK_AUDIO_SINK_AUDIO_SINK_BENCHMARK_HELPER_H_
 
 #include <cstdint>
 #include <vector>
@@ -93,4 +93,4 @@ void AudioSinkBenchmarkConsumeFramesFunc(int frames_consumed, void* context);
 
 }  // namespace starboard
 
-#endif  // STARBOARD_BENCHMARK_MEDIA_AUDIO_SINK_AUDIO_SINK_BENCHMARK_HELPER_H_
+#endif  // STARBOARD_BENCHMARK_AUDIO_SINK_AUDIO_SINK_BENCHMARK_HELPER_H_

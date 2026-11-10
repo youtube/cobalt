@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/benchmark/media/audio_sink/audio_sink_benchmark_helper.h"
+#include "starboard/benchmark/audio_sink/audio_sink_benchmark_helper.h"
 
 #include <cstddef>
 
