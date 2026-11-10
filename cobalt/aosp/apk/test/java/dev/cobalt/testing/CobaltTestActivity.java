@@ -52,9 +52,9 @@ public class CobaltTestActivity extends MainActivity {
   }
 
   @Override
-  protected void onDestroy() {
+  public void finishAndRemoveTask() {
     mReporter.testRunFinished(Process.myPid());
-    super.onDestroy();
+    super.finishAndRemoveTask();
   }
 
   @Override
