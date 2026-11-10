@@ -185,6 +185,12 @@
     "test_type": "gtest"
   },
   {
+    "target": "ui/gl:gl_unittests_loader",
+    "executable": "out/evergreen-x64_devel/gl_unittests_loader.py",
+    "runs_on": "host",
+    "test_type": "gtest"
+  },
+  {
     "target": "ui/ozone:ozone_unittests_loader",
     "executable": "out/evergreen-x64_devel/ozone_unittests_loader.py",
     "runs_on": "host",
