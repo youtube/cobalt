@@ -14,7 +14,8 @@ and fix commit messages), this module:
    upstream commits in the roll that touched it; each commit's `Reviewed-on:`
    line is its CL. Requests go through depot_tools' `gerrit_util`, which
    authenticates like `git cl` (in CI, via the cookie file `gob_auth` sets
-   up) so they are not throttled as anonymous traffic.
+   up; off corp, via `git credential-luci login`) so they are not throttled
+   or redirected to a sign-in page as anonymous traffic.
 """
 
 import base64
@@ -101,18 +102,47 @@ class _RollRange:
 # In-process caches keyed by repo_path / (repo_path, rel_path).
 _ROLL_RANGE_CACHE: Dict[str, Optional[_RollRange]] = {}
 _CL_CACHE: Dict[Tuple[str, str], List[UpstreamCL]] = {}
+# Gitiles host -> authenticator to use, or None to let gerrit_util choose.
+_AUTH_CACHE: Dict[str, Any] = {}
+
+
+def _gitiles_authenticator(host: str) -> Any:
+  """The `git credential-luci login` authenticator for `host`, if it applies.
+
+  gerrit_util uses that login only for a host where the user has an account,
+  which it checks with `https://<host>/accounts/self`. Gitiles hosts have no
+  accounts API (404), so off corp machines (no SSO) every Gitiles request
+  went out anonymously and was redirected to a sign-in page. Check the
+  account on the matching Gerrit host instead; the token is valid on Gitiles
+  too. Returns None, so that gerrit_util chooses (SSO, GCE, LUCI context, the
+  CI cookie file), when that login does not apply.
+  """
+  if host not in _AUTH_CACHE:
+    authenticator = None
+    name = host.removesuffix(".googlesource.com")
+    if name != host and not name.endswith("-review"):
+      creds = gerrit_util.GitCredsAuthenticator()
+      try:
+        if creds.is_applicable(gerrit_host=f"{name}-review.googlesource.com"):
+          authenticator = creds
+      except Exception as e:  # pylint: disable=broad-exception-caught
+        log.debug("git-credential-luci check for %s failed: %s", host, e)
+    _AUTH_CACHE[host] = authenticator
+  return _AUTH_CACHE[host]
 
 
 def _gerrit_json(host: str, path: str) -> Any:
   """GETs JSON from a Gerrit or Gitiles `host` via `gerrit_util`.
 
-  `gerrit_util` picks the credentials the same way `git cl` does (LUCI, GCE,
-  the `http.cookiefile` that `gob_auth` sets in CI, or SSO), retries 429 and
+  Credentials are the `git credential-luci login` (see _gitiles_authenticator)
+  or whatever `gerrit_util` picks the same way `git cl` does (LUCI, GCE, the
+  `http.cookiefile` that `gob_auth` sets in CI, or SSO). It retries 429 and
   5xx with backoff, and sends an anonymous request when no credentials apply.
   Returns None if the request fails.
   """
   try:
-    conn = gerrit_util.CreateHttpConn(host, path, timeout=30)
+    conn = gerrit_util.CreateHttpConn(
+        host, path, timeout=30, authenticator=_gitiles_authenticator(host))
     return gerrit_util.ReadHttpJsonResponse(conn)
   except Exception as e:  # pylint: disable=broad-exception-caught
     log.warning("Gerrit request to %s/%s failed: %s", host, path, e)
@@ -358,7 +388,8 @@ def _gitiles_text(host: str, path: str) -> Optional[str]:
   Returns None if the request fails.
   """
   try:
-    conn = gerrit_util.CreateHttpConn(host, path, timeout=30)
+    conn = gerrit_util.CreateHttpConn(
+        host, path, timeout=30, authenticator=_gitiles_authenticator(host))
     body = gerrit_util.ReadHttpResponse(conn).read()
     return base64.b64decode(body).decode("utf-8", errors="replace")
   except Exception as e:  # pylint: disable=broad-exception-caught
@@ -469,3 +500,4 @@ def clear_caches() -> None:
   """Clears in-process caches (used by unit tests)."""
   _ROLL_RANGE_CACHE.clear()
   _CL_CACHE.clear()
+  _AUTH_CACHE.clear()
