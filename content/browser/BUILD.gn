@@ -4011,7 +4011,7 @@ group("for_content_tests") {
         "//cobalt:cobalt_unittests__apk__java",
         "//cobalt:cobalt_unittests__apk__java__dex",
         "//cobalt:cobalt_unittests__apk__java__header",
-        "//cobalt:cobalt_unittests__apk__java__validate",
+        "//cobalt:cobalt_unittests__apk__java__validate_deps",
         "//cobalt:cobalt_unittests__library",
         "//cobalt:cobalt_unittests__library__jni_registration__native_sources",
       ]

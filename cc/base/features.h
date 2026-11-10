@@ -293,11 +293,10 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kBrowserControlsScrollSnapAnimation);
 // crbug.com/451833352.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSelectionEdgeVisibilityUsesFullEdge);
 
-<<<<<<< HEAD
 // When enabled, ResourcePool will prioritize exact size matches when reusing
 // resources.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kResourcePoolPreferExactSizeReuse);
-=======
+
 #if BUILDFLAG(IS_COBALT)
 // Enables periodic emission of tile texture memory metrics (Memory.GPU.TileMemory and Memory.GPU.TileMemory.Peak).
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltTileMemoryMetrics);
@@ -306,7 +305,6 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltTileMemoryMetrics);
 CC_BASE_EXPORT extern const base::FeatureParam<base::TimeDelta>
     kCobaltTileMemoryMetricsInterval;
 #endif
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace features
 

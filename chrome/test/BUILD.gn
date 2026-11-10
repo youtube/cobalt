@@ -1630,6 +1630,17 @@ source_set("platform_browser_tests") {
     ]
   }
 
+  # Upstream gets these dependencies from the enable_devtools_frontend block
+  # below, which Cobalt disables, but
+  # known_interception_disclosure_infobar_browsertest.cc and
+  # management_apitest.cc need them too.
+  if (is_cobalt) {
+    deps += [ "//components/infobars/content" ]
+    if (enable_extensions) {
+      deps += [ "//chrome/browser/apps/app_service" ]
+    }
+  }
+
   if (enable_extensions_core) {
     sources += [
       "../browser/extensions/all_urls_apitest.cc",
@@ -1825,7 +1836,6 @@ source_set("platform_browser_tests") {
       "//components/bookmarks/managed",
       "//components/embedder_support",
       "//components/enterprise/browser/promotion",
-      "//components/infobars/content",
       "//components/javascript_dialogs",
       "//components/media_device_salt",
       "//components/privacy_sandbox:privacy_sandbox_settings_headers",

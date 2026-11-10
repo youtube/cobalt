@@ -2143,19 +2143,15 @@ test("content_browsertests") {
     deps += [ "//components/variations" ]
   }
 
-<<<<<<< HEAD
+  if (is_cobalt) {
+    deps -= [ "//device/bluetooth:mocks" ]
+  }
+
   data_deps = [
     "//content/shell:pak",
     "//mojo/public/js:bindings_lite",
     "//url/mojom:url_mojom_scheme_host_port_js_data_deps",
   ]
-=======
-  if (is_cobalt) {
-    deps -= [ "//device/bluetooth:mocks" ]
-  }
-
-  data_deps = [ "//content/shell:pak" ]
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   data = [
     "data/",

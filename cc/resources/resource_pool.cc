@@ -14,11 +14,8 @@
 #include <utility>
 
 #include "base/atomic_sequence_num.h"
-<<<<<<< HEAD
-#include "base/feature_list.h"
-=======
 #include "base/command_line.h"
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#include "base/feature_list.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
@@ -29,11 +26,8 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "cc/base/container_util.h"
-<<<<<<< HEAD
 #include "cc/base/features.h"
-=======
 #include "cc/base/switches.h"
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "components/viz/client/client_resource_provider.h"
 #include "components/viz/common/gpu/raster_context_provider.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
@@ -47,7 +41,6 @@
 
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
-#include "cc/base/features.h"
 #endif
 
 using base::trace_event::MemoryAllocatorDump;
@@ -481,14 +474,7 @@ void ResourcePool::OnBackingAllocated(PoolResource* resource) {
       std::max(peak_total_memory_usage_bytes_, total_memory_usage_bytes_);
   if (resource->state() == PoolResource::kUnused)
     unused_memory_usage_bytes_ += size;
-<<<<<<< HEAD
   UpdateTracingCounters();
-}
-
-void ResourcePool::UpdateTracingCounters() {
-  TRACE_COUNTER("cc", total_memory_track_, total_memory_usage_bytes_);
-  TRACE_COUNTER("cc", in_use_memory_track_, memory_usage_bytes());
-=======
 #if BUILDFLAG(IS_COBALT)
   peak_memory_usage_bytes_ =
       std::max(peak_memory_usage_bytes_, total_memory_usage_bytes_);
@@ -501,7 +487,11 @@ void ResourcePool::UpdateTracingCounters() {
                                          std::memory_order_relaxed);
   }
 #endif
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+}
+
+void ResourcePool::UpdateTracingCounters() {
+  TRACE_COUNTER("cc", total_memory_track_, total_memory_usage_bytes_);
+  TRACE_COUNTER("cc", in_use_memory_track_, memory_usage_bytes());
 }
 
 void ResourcePool::OnResourceReleased(size_t unique_id,

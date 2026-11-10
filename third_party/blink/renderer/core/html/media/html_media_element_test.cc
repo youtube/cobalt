@@ -161,9 +161,6 @@ class MockWebMediaPlayer : public EmptyWebMediaPlayer {
                                  CorsMode cors_mode,
                                  bool is_cache_disabled));
   MOCK_CONST_METHOD0(DidLazyLoad, bool());
-#if BUILDFLAG(IS_COBALT)
-  MOCK_METHOD0(DidLoadingProgress, bool());
-#endif  // BUILDFLAG(IS_COBALT)
 
   MOCK_METHOD0(GetSrcAfterRedirects, GURL());
 };

@@ -835,7 +835,6 @@ TEST_F(ResourcePoolTest, InvalidResource) {
   resource_pool_->ReleaseResource(std::move(resource));
 }
 
-<<<<<<< HEAD
 TEST_F(ResourcePoolTest, NotifyOfViewportSizeChangeDisabled) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndDisableFeature(kInvalidateResourcesOnSizeChange);
@@ -982,7 +981,6 @@ TEST_F(ResourcePoolTest, PeakMetrics) {
   EXPECT_EQ(0u, resource_pool_->GetTotalResourceCountForTesting());
 }
 
-=======
 #if BUILDFLAG(IS_COBALT)
 TEST_F(ResourcePoolTest, TileMemoryAndPeakMetrics) {
   base::HistogramTester histogram_tester;
@@ -1125,5 +1123,4 @@ TEST_F(ResourcePoolTest, TileMemoryMetricsDisabled) {
 }
 #endif
 
->>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace cc
