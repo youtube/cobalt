@@ -84,7 +84,7 @@ void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
   SB_DCHECK(!stream_ended_);
   SB_DCHECK(output_cb_);
   SB_DCHECK(error_cb_);
-  SB_DCHECK(!flushing());
+  SB_CHECK(!flushing());
   SB_DCHECK(!pending_consumed_cb_);
   SB_CHECK(!input_buffers.empty());
   SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeAudio);
@@ -141,7 +141,7 @@ void AdaptiveAudioDecoder::WriteEndOfStream() {
     return;
   }
 
-  SB_DCHECK(!pending_consumed_cb_);
+  SB_CHECK(!pending_consumed_cb_);
 
   if (first_input_written_) {
     audio_decoder_->WriteEndOfStream();
