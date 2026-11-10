@@ -19,6 +19,7 @@
 #include <fcntl.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <signal.h>
 #include <sys/ioctl.h>
 #include <sys/random.h>
 #include <sys/uio.h>
@@ -57,6 +58,7 @@
 #define SYS_unlinkat SYS_unlinkat
 #define SYS_fstatat SYS_fstatat
 #define SYS_getrandom SYS_getrandom
+#define SYS_sigaltstack SYS_sigaltstack
 
 // For Starboard builds, the syscall SYS_foo names are not mapped to numbers,
 // allowing these wrappers to use the SYS_foo syscall name.
@@ -76,6 +78,7 @@
 #define libc_wrapper_SYS_openat(fildes, pathname, flags, mode) openat(fildes, pathname, flags, mode)
 #define libc_wrapper_SYS_unlinkat(fildes, pathname, flag) unlinkat(fildes, pathname, flag)
 #define libc_wrapper_SYS_getrandom(buf, bufsize, flags) getrandom(buf, bufsize, flags)
+#define libc_wrapper_SYS_sigaltstack(ss, old_ss) sigaltstack(ss, old_ss)
 
 // Redirection wrappers.
 #define libc_wrapper_SYS_lstat(pathname, statbuf) fstatat(AT_FDCWD, pathname, statbuf, AT_SYMLINK_NOFOLLOW)
