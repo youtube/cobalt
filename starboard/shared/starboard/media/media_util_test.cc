@@ -259,6 +259,9 @@ TEST(MediaUtilTest, Is8BitSDRVideo) {
   EXPECT_TRUE(Is8BitSDRVideo(8, kSbMediaPrimaryIdSmpte170M,
                              kSbMediaTransferIdSmpte170M,
                              kSbMediaMatrixIdSmpte170M));
+  EXPECT_TRUE(Is8BitSDRVideo(8, kSbMediaPrimaryIdBt470Bg,
+                             kSbMediaTransferIdBt709,
+                             kSbMediaMatrixIdSmpte170M));
 
   EXPECT_FALSE(Is8BitSDRVideo(10, kSbMediaPrimaryIdBt709,
                               kSbMediaTransferIdBt709, kSbMediaMatrixIdBt709));
@@ -283,6 +286,8 @@ TEST(MediaUtilTest, IsSDRColor) {
                          kSbMediaMatrixIdUnspecified));
   EXPECT_TRUE(IsSDRColor(kSbMediaPrimaryIdSmpte170M,
                          kSbMediaTransferIdSmpte170M,
+                         kSbMediaMatrixIdSmpte170M));
+  EXPECT_TRUE(IsSDRColor(kSbMediaPrimaryIdBt470Bg, kSbMediaTransferIdBt709,
                          kSbMediaMatrixIdSmpte170M));
 
   EXPECT_FALSE(IsSDRColor(kSbMediaPrimaryIdBt2020, kSbMediaTransferIdBt709,

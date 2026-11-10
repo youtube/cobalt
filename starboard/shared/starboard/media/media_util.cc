@@ -237,6 +237,7 @@ bool IsSDRColor(SbMediaPrimaryId primary_id,
                 SbMediaMatrixId matrix_id) {
   if (primary_id != kSbMediaPrimaryIdBt709 &&
       primary_id != kSbMediaPrimaryIdUnspecified &&
+      primary_id != kSbMediaPrimaryIdBt470Bg &&
       primary_id != kSbMediaPrimaryIdSmpte170M) {
     return false;
   }
