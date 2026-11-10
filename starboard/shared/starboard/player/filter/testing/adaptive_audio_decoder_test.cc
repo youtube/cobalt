@@ -129,8 +129,10 @@ class AdaptiveAudioDecoderTest
     }
   }
 
-  void WriteEndOfStream() {
-    ASSERT_NO_FATAL_FAILURE(WaitAndProcessUntilAcceptInput());
+  void WriteEndOfStream(bool wait_for_consumed = true) {
+    if (wait_for_consumed) {
+      ASSERT_NO_FATAL_FAILURE(WaitAndProcessUntilAcceptInput());
+    }
     audio_decoder_->WriteEndOfStream();
   }
 
@@ -366,6 +368,27 @@ TEST_P(AdaptiveAudioDecoderTest, MultipleInput) {
   // sample difference in output due to integer conversion. The total difference
   // should not exceed the length of |dmp_readers_|.
   AssertExpectedAndOutputFramesMatch(expected_output_frames);
+}
+
+// End of stream written before the input that changes the config is consumed
+// has to reach the new decoder after that input.
+TEST_P(AdaptiveAudioDecoderTest, EndOfStreamDuringConfigChange) {
+  const size_t count = dmp_readers_.size();
+  if (count < 2 || !IsAudioSampleInfoSubstantiallyDifferent(
+                       dmp_readers_[count - 2]->audio_stream_info(),
+                       dmp_readers_[count - 1]->audio_stream_info())) {
+    GTEST_SKIP() << "The last input doesn't change the config.";
+  }
+
+  // Skip buffer 0, as in the tests above. Use a different buffer for each file,
+  // so that consecutive inputs don't share a timestamp.
+  size_t buffer_index = 1;
+  for (auto& dmp_reader : dmp_readers_) {
+    ASSERT_NO_FATAL_FAILURE(WaitAndProcessUntilAcceptInput());
+    ASSERT_NO_FATAL_FAILURE(WriteSingleInput(dmp_reader.get(), buffer_index++));
+  }
+  ASSERT_NO_FATAL_FAILURE(WriteEndOfStream(/*wait_for_consumed=*/false));
+  ASSERT_NO_FATAL_FAILURE(DrainOutputs());
 }
 
 vector<vector<const char*>> GetSupportedTests() {
