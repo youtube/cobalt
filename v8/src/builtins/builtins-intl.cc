@@ -80,6 +80,10 @@ BUILTIN(StringPrototypeLocaleCompareIntl) {
     DCHECK(isolate->has_exception());
     return ReadOnlyRoots(isolate).exception();
   }
+  // The localeCompare inline fast path (StringLocaleCompareIntlOp) types
+  // the result as kMinusOneOrZeroOrOne; keep this in sync with ICU's
+  // UCollationResult enum.
+  DCHECK(result.value() == -1 || result.value() == 0 || result.value() == 1);
   return Smi::FromInt(result.value());
 }
 
@@ -1238,8 +1242,11 @@ BUILTIN(CollatorInternalCompare) {
   // 7. Return CompareStrings(collator, X, Y).
   Managed<icu::Collator>::Ptr icu_collator = collator->icu_collator()->ptr();
   CHECK_NOT_NULL(icu_collator);
-  return Smi::FromInt(
-      Intl::CompareStrings(isolate, *icu_collator, string_x, string_y));
+  int result = Intl::CompareStrings(isolate, *icu_collator, string_x, string_y);
+  // See StringPrototypeLocaleCompareIntl: the inline fast path relies on
+  // ICU's UCollationResult enum range {-1, 0, 1}.
+  DCHECK(result == -1 || result == 0 || result == 1);
+  return Smi::FromInt(result);
 }
 
 // https://tc39.es/ecma402/#sec-%segmentiteratorprototype%.next

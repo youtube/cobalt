@@ -341,6 +341,23 @@ TEST_F(OnDeviceModelServiceControllerTest, BaseModelExecutionSuccess) {
       "OptimizationGuide.ModelExecution.OnDeviceModelEligibilityReason.Compose",
       OnDeviceModelEligibilityReason::kSuccess, 1);
 
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.ModelExecution."
+      "OnDeviceFirstResponseTime.Compose",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.ModelExecution."
+      "OnDeviceResponseCompleteTime.Compose",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.ModelExecution."
+      "OnDeviceResponseCompleteTokens.Compose",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.ModelExecution."
+      "OnDeviceResponseTokensTimeToNextToken.Compose",
+      1);
+
   // If we destroy all sessions and wait long enough, everything should idle out
   // and the service should get terminated.
   session.reset();
@@ -432,6 +449,47 @@ TEST_F(OnDeviceModelServiceControllerTest, CacheWeightExecutionSuccess) {
                                   base::Seconds(1));
   task_environment_.RunUntilIdle();
   EXPECT_FALSE(broker_.launcher().is_service_running());
+}
+
+TEST_F(OnDeviceModelServiceControllerTest,
+       ShaderCacheExecutionSuccessWithFastestInferenceGpuModel) {
+  base::test::ScopedFeatureList feature_list;
+  // TODO(crbug.com/461547475): GPU cache flag is experimental for now, remove
+  // once it's no longer needed.
+  feature_list.InitWithFeaturesAndParameters(
+      {{features::kOptimizationGuideOnDeviceModel,
+        {{"on_device_model_topk", "1"}, {"on_device_model_temperature", "0"}}},
+       {on_device_model::features::kOnDeviceModelGpuCache, {}}},
+      {});
+
+  broker_.InstallBaseModel(std::make_unique<FakeBaseModelAsset>(
+      std::vector<proto::OnDeviceModelPerformanceHint>{
+          proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_FASTEST_INFERENCE},
+      FakeBaseModelAsset::Content{
+          .shader_cache_data = "0xcafebabe",
+      }));
+  Initialize(InitializeParams{
+      .base_model_content = std::nullopt,
+      .safety = &standard_assets_.safety,
+      .language = &standard_assets_.language,
+      .adaptations = {&standard_assets_.compose},
+  });
+  auto session = CreateSession(SessionConfigParams{});
+  ASSERT_TRUE(session);
+  session->ExecuteModel(PageUrlRequest("foo"),
+                        response_.GetStreamingCallback());
+  ASSERT_TRUE(response_.GetFinalStatus());
+  EXPECT_EQ(*response_.value(),
+            "Fastest inference"
+            "Shader cache data: 0xcafebabe"
+            "execute:foo max:1024");
+  // Destroy the session and run until the service is no longer running.
+  session.reset();
+  task_environment_.FastForwardBy(features::GetOnDeviceModelIdleTimeout() +
+                                  base::Seconds(1));
+  EXPECT_TRUE(broker_.launcher().did_launch_service());
+  EXPECT_TRUE(base::test::RunUntil(
+      [&]() { return !broker_.launcher().is_service_running(); }));
 }
 
 TEST_F(OnDeviceModelServiceControllerTest, AdaptationModelExecutionSuccess) {
@@ -1853,6 +1911,65 @@ TEST_F(SessionImplTest, DetectsRepeatsAndCancelsResponse) {
   histogram_tester.ExpectUniqueSample(
       "OptimizationGuide.ModelExecution.OnDeviceExecuteModelResult.Compose",
       ExecuteModelResult::kResponseHadRepeats, 1);
+}
+
+TEST_F(SessionImplTest, ExcusedFeaturesIgnoreRepeats) {
+  // Mark kProofreaderApi as used so the model is eligible.
+  model_execution::prefs::RecordFeatureUsage(
+      &broker_.local_state(), mojom::OnDeviceFeature::kProofreaderApi);
+
+  base::HistogramTester histogram_tester;
+  FakeAdaptationAsset proofreader_asset({.config = [] {
+    auto cfg = UnsafeComposeConfig();
+    cfg.set_feature(proto::MODEL_EXECUTION_FEATURE_PROOFREADER_API);
+    return cfg;
+  }()});
+  Initialize({
+      .base_model_content = standard_assets_.base_model_content,
+      .adaptations = {&proofreader_asset},
+  });
+
+  const std::vector<std::string> expected_responses = {
+      "some text",
+      " some more repeating text",
+      " some more repeating text",
+      " more stuff",
+  };
+  broker_.service_settings().set_execute_result(expected_responses);
+
+  auto session = CreateSession(mojom::OnDeviceFeature::kProofreaderApi,
+                               SessionConfigParams{});
+  ASSERT_TRUE(session);
+  session->ExecuteModel(UserInputRequest("foo"),
+                        response_.GetStreamingCallback());
+  EXPECT_TRUE(response_.GetFinalStatus());
+
+  EXPECT_TRUE(response_.value());
+  EXPECT_FALSE(response_.error());
+
+  EXPECT_EQ(*response_.value(), ConcatResponses(expected_responses));
+  EXPECT_THAT(response_.partials(), ElementsAreArray(expected_responses));
+
+  ASSERT_TRUE(response_.model_execution_info());
+  EXPECT_GT(response_.model_execution_info()
+                ->on_device_model_execution_info()
+                .execution_infos_size(),
+            0);
+  EXPECT_FALSE(response_.model_execution_info()
+                   ->on_device_model_execution_info()
+                   .execution_infos(0)
+                   .response()
+                   .on_device_model_service_response()
+                   .has_repeats());
+
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.ModelExecution.OnDeviceExecuteModelResult."
+      "ProofreaderApi",
+      ExecuteModelResult::kUsedOnDevice, 1);
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.ModelExecution.OnDeviceResponseHasRepeats."
+      "ProofreaderApi",
+      false, 1);
 }
 
 TEST_F(SessionImplTest, DetectsRepeatsAcrossResponses) {

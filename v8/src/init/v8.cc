@@ -151,7 +151,7 @@ base::AbortMode ChooseAbortMode() {
     // they may otherwise hide issues.
     return base::AbortMode::kExitWithFailureAndIgnoreDcheckFailures;
   }
-  if (v8_flags.sandbox_testing) {
+  if (v8_flags.sandbox_testing && !v8_flags.run_as_sandbox_security_poc) {
     // Similar to the above case, but here we want to exit with a status
     // indicating success (e.g. zero on unix). This is useful for example for
     // sandbox regression tests, which should "pass" if they crash in a
@@ -219,7 +219,8 @@ void V8::Initialize() {
 
 #ifdef V8_ENABLE_SANDBOX
   // If enabled, the sandbox must be initialized first.
-  Sandbox::InitializeDefaultOncePerProcess(GetPlatformVirtualAddressSpace());
+  Sandbox::InitializeDefaultOncePerProcess(GetCurrentPlatform(),
+                                           GetPlatformVirtualAddressSpace());
   CHECK_EQ(kSandboxSize, Sandbox::current()->size());
 
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API

@@ -22,8 +22,8 @@ use crate::{
     check_tls_error,
     config::ConfigurationError,
     connection::{
+        TlsConnection,
         TlsConnectionBuilder,
-        TlsConnectionRef,
         methods::HasTlsConnectionMethod, //
     },
     context::HasBasicIo,
@@ -39,7 +39,7 @@ use crate::{
 /// # Transport configurations
 ///
 /// These are the methods to configure the underlying IO drivers and transport configurations.
-impl<R, M> TlsConnectionRef<R, M>
+impl<R, M> TlsConnection<R, M>
 where
     M: HasBasicIo + HasTlsConnectionMethod,
 {
@@ -52,8 +52,7 @@ where
             // Safety: the `bio` pointer has been sanitised and `self.0` is still valid.
             bssl_sys::SSL_set_bio(self.ptr(), bio.ptr(), bio.ptr());
         }
-        let methods = self.get_connection_methods();
-        methods.bio = Some(bio);
+        self.get_connection_methods().bio = Some(bio);
         Ok(self)
     }
 
@@ -74,8 +73,7 @@ where
             // Safety: the `bio` pointer has been sanitised and `self.0` is still valid.
             bssl_sys::SSL_set_bio(self.ptr(), bio.ptr(), bio.ptr());
         }
-        let methods = self.get_connection_methods();
-        methods.bio = Some(bio);
+        self.get_connection_methods().bio = Some(bio);
         Ok(self)
     }
 

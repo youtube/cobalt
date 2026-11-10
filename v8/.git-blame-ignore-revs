@@ -127,3 +127,6 @@ ec06bb6ce5641cf65e400ec55b7421f87d04b999
 
 # Simplify variants flags
 0476eb39b3c58671720d3ef78730821a5b7d93fa
+
+# clang-tidy readability-braces-around-statements
+32d567d072a1a62e894619d8e13485aed3889382

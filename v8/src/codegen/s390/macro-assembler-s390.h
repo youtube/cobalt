@@ -1614,13 +1614,13 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // sets the flags and leaves the object type in the type_reg register.
   template <bool use_unsigned_cmp = false>
   void CompareInstanceType(Register map, Register type_reg, InstanceType type) {
-    static_assert(Map::kInstanceTypeOffset < 4096);
+    static_assert(offsetof(Map, instance_type_) < 4096);
     static_assert(LAST_TYPE <= 0xFFFF);
     if (use_unsigned_cmp) {
-      LoadU16(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+      LoadU16(type_reg, FieldMemOperand(map, offsetof(Map, instance_type_)));
       CmpU64(type_reg, Operand(type));
     } else {
-      LoadS16(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+      LoadS16(type_reg, FieldMemOperand(map, offsetof(Map, instance_type_)));
       CmpS64(type_reg, Operand(type));
     }
   }

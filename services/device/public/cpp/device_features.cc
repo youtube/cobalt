@@ -27,6 +27,10 @@ BASE_FEATURE(kSerialPortConnected,
 #endif  // !BUILDFLAG(IS_ANDROID)
 );
 
+// Avoid triggering the macOS Bluetooth permission prompt when
+// navigator.serial.getPorts() is called and permission is undetermined.
+BASE_FEATURE(kAvoidBluetoothPromptInGetPorts, base::FEATURE_ENABLED_BY_DEFAULT);
+
 // This feature allows to dynamically introduce an additional list of devices
 // blocked by WebUSB via a Finch parameter. This parameter should be specified
 // in the Finch configuration to manage the list of blocked devices.
@@ -66,6 +70,11 @@ BASE_FEATURE(kSafeUsbDeviceHandleWinClose, base::FEATURE_ENABLED_BY_DEFAULT);
 // are not deleted until the kernel has signaled completion, even if the
 // connection is closed.
 BASE_FEATURE(kSafeHidConnectionWinClose, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// When enabled, SerialPortImpl will ensure that shared memory buffers backing
+// pending OVERLAPPED requests are not unmapped until the kernel has signaled
+// completion, even if the port is closed.
+BASE_FEATURE(kSafeSerialPortImplWinClose, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Defines a feature parameter for the `kWinSystemLocationPermission` feature.
 // This parameter controls the polling interval (in milliseconds) for checking

@@ -696,6 +696,13 @@ static bool CheckHandshakeProperties(SSL *ssl, bool is_resume,
     return false;
   }
 
+  if (config->expect_server_sent_requested_padding !=
+      !!SSL_server_sent_requested_padding(ssl)) {
+    fprintf(stderr, "Server padding was %smatched, but wanted opposite.\n",
+            SSL_server_sent_requested_padding(ssl) ? "" : "not ");
+    return false;
+  }
+
   if ((config->expect_hrr && !SSL_used_hello_retry_request(ssl)) ||
       (config->expect_no_hrr && SSL_used_hello_retry_request(ssl))) {
     fprintf(stderr, "Got %sHRR, but wanted opposite.\n",

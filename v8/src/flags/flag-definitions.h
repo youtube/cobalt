@@ -997,6 +997,9 @@ DEFINE_NEG_IMPLICATION(jitless, always_sparkplug)
 DEFINE_NEG_IMPLICATION(jitless, maglev)
 #endif  // V8_ENABLE_MAGLEV
 DEFINE_NEG_IMPLICATION(jitless, turbolev)
+DEFINE_NEG_IMPLICATION(jitless, turbolev_future)
+DEFINE_NEG_IMPLICATION(jitless, turboshaft_wasm_in_js_inlining)
+DEFINE_NEG_IMPLICATION(jitless, turbolev_inline_js_wasm_wrappers)
 // Doesn't work without an executable code space.
 DEFINE_NEG_IMPLICATION(jitless, interpreted_frames_native_stack)
 
@@ -1009,6 +1012,11 @@ DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turbofan)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turboshaft)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, maglev)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turbolev)
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, turbolev_future)
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers,
+                       turboshaft_wasm_in_js_inlining)
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers,
+                       turbolev_inline_js_wasm_wrappers)
 #if V8_ENABLE_WEBASSEMBLY
 // Disable optimizing Wasm compilers. Wasm code must execute with Liftoff.
 DEFINE_IMPLICATION(disable_optimizing_compilers, liftoff)
@@ -1740,12 +1748,8 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "TurboFan). Only the Wasm code is inlined in Turboshaft, the JS-to-Wasm "
     "wrappers are still inlined in TurboFan. For controlling whether to inline "
     "at all, see --turbo-inline-js-wasm-calls.")
-// Can't use Turboshaft Wasm-in-JS inlining without the Turboshaft JavaScript
-// pipeline. Note however, that this feature is independent of the Turboshaft
-// Wasm pipeline (since the inlinee gets compiled with the JS pipeline).
-DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining, turboshaft)
-// The Wasm-in-JS body inlining also depends on the Turbolev-based JS-to-Wasm
-// wrapper inlining.
+// The Wasm-in-JS body inlining depends on the Turbolev-based JS-to-Wasm wrapper
+// inlining. Thus both require Turbolev and don't do anything without that.
 DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining,
                    turbolev_inline_js_wasm_wrappers)
 // Both are staged behind --turbolev-future.
@@ -1755,7 +1759,6 @@ DEFINE_EXPERIMENTAL_FEATURE(
     turbolev_inline_js_wasm_wrappers,
     "inline JS-to-Wasm wrappers via Turboshaft/Turbolev.")
 DEFINE_IMPLICATION(turbolev_future, turbolev_inline_js_wasm_wrappers)
-DEFINE_IMPLICATION(turbolev_inline_js_wasm_wrappers, turbolev)
 
 DEFINE_BOOL(turboshaft_load_elimination, true,
             "enable Turboshaft's low-level load elimination for JS")
@@ -1832,25 +1835,27 @@ DEFINE_UINT64(turboshaft_opt_bisect_break, std::numeric_limits<uint64_t>::max(),
 DEFINE_BOOL(turboshaft_verify_reductions, false,
             "check that turboshaft reductions are correct with respect to "
             "inferred types")
-DEFINE_BOOL(turboshaft_trace_typing, false,
-            "print typing steps of turboshaft type inference")
-DEFINE_BOOL(turboshaft_trace_reduction, false,
-            "trace individual Turboshaft reduction steps")
-DEFINE_BOOL(turboshaft_trace_intermediate_reductions, false,
-            "trace intermediate Turboshaft reduction steps")
-DEFINE_BOOL(turboshaft_trace_emitted, false,
-            "trace emitted Turboshaft instructions")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_typing,
+                      "print typing steps of turboshaft type inference")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_reduction,
+                      "trace individual Turboshaft reduction steps")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_intermediate_reductions,
+                      "trace intermediate Turboshaft reduction steps")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_emitted,
+                      "trace emitted Turboshaft instructions")
 DEFINE_WEAK_IMPLICATION(turboshaft_trace_intermediate_reductions,
                         turboshaft_trace_reduction)
-DEFINE_BOOL(turboshaft_trace_unrolling, false,
-            "trace Turboshaft's loop unrolling reducer")
-DEFINE_BOOL(turboshaft_trace_peeling, false,
-            "trace Turboshaft's loop peeling reducer")
-DEFINE_BOOL(turboshaft_trace_load_elimination, false,
-            "trace Turboshaft's late load elimination")
-DEFINE_BOOL(turboshaft_trace_if_else_to_switch, false,
-            "trace Turboshaft's if-else to switch reducer")
-DEFINE_BOOL(turboshaft_trace_gvn, false, "trace Turboshaft's GVN reducer")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_unrolling,
+                      "trace Turboshaft's loop unrolling reducer")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_peeling,
+                      "trace Turboshaft's loop peeling reducer")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_load_elimination,
+                      "trace Turboshaft's late load elimination")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_store_store_elimination,
+                      "trace Turboshaft's store store elimination")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_if_else_to_switch,
+                      "trace Turboshaft's if-else to switch reducer")
+DEFINE_DEVELOPER_FLAG(turboshaft_trace_gvn, "trace Turboshaft's GVN reducer")
 
 DEFINE_DEVELOPER_FLAG(
     trace_turbolev_graph_building,
@@ -1871,6 +1876,8 @@ DEFINE_BOOL_READONLY(turboshaft_trace_intermediate_reductions, false,
                      "trace intermediate Turboshaft reduction steps")
 DEFINE_BOOL_READONLY(turboshaft_trace_load_elimination, false,
                      "trace Turboshaft's late load elimination")
+DEFINE_BOOL_READONLY(turboshaft_trace_store_store_elimination, false,
+                     "trace Turboshaft's store store elimination")
 DEFINE_BOOL_READONLY(turboshaft_trace_if_else_to_switch, false,
                      "trace Turboshaft's if-else to switch reducer")
 DEFINE_BOOL_READONLY(verify_turboshaft, false,
@@ -2026,8 +2033,8 @@ DEFINE_BOOL(
     experimental_wasm_pgo_from_file, false,
     "experimental: read and use Wasm PGO data from a local file (for testing)")
 
-DEFINE_BOOL(validate_asm, true,
-            "validate asm.js modules and translate them to Wasm")
+DEFINE_BOOL(validate_asm, false,
+            "validate asm.js modules and translate them to Wasm (deprecated)")
 // Directly interpret asm.js code as regular JavaScript code.
 // asm.js validation is disabled since it triggers wasm code generation.
 DEFINE_NEG_IMPLICATION(jitless, validate_asm)
@@ -2410,8 +2417,10 @@ DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_dynamic_tiering)
 DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_lazy_compilation)
 DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_lazy_compilation)
 // --single-threaded implies --no-wasm-tier-up.
-DEFINE_NEG_IMPLICATION(wasm_generate_compilation_hints, single_threaded)
-DEFINE_NEG_IMPLICATION(trace_wasm_generate_compilation_hints, single_threaded)
+DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(wasm_generate_compilation_hints,
+                                      single_threaded)
+DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(trace_wasm_generate_compilation_hints,
+                                      single_threaded)
 // Wasm compilation hints generation is incompatible with features that are not
 // implemented in liftoff yet.
 DEFINE_NEG_IMPLICATION(wasm_generate_compilation_hints,
@@ -2729,13 +2738,13 @@ DEFINE_BOOL(flush_baseline_code, false,
 DEFINE_BOOL(flush_bytecode, true,
             "flush of bytecode when it has not been executed recently")
 DEFINE_INT(bytecode_old_age, 6, "number of gcs before we flush code")
-DEFINE_BOOL(flush_code_based_on_time, false,
+DEFINE_BOOL(flush_code_based_on_time, true,
             "Use time-base code flushing instead of age.")
 DEFINE_IMPLICATION(flush_code_based_on_time, late_heap_limit_check)
 DEFINE_BOOL(flush_code_based_on_tab_visibility, false,
             "Flush code when tab goes into the background.")
 DEFINE_IMPLICATION(flush_code_based_on_tab_visibility, late_heap_limit_check)
-DEFINE_INT(bytecode_old_time, 30, "number of seconds before we flush code")
+DEFINE_INT(bytecode_old_time, 180, "number of seconds before we flush code")
 DEFINE_BOOL(stress_flush_code, false, "stress code flushing")
 DEFINE_WEAK_IMPLICATION(stress_flush_code, flush_baseline_code)
 DEFINE_DEVELOPER_FLAG(trace_flush_code, "trace bytecode flushing")
@@ -3240,10 +3249,10 @@ DEFINE_BOOL(super_ic, true, "use an IC for super property loads")
 
 DEFINE_EXPERIMENTAL_FEATURE(mega_dom_ic, "use MegaDOM IC state for API objects")
 
-DEFINE_EXPERIMENTAL_FEATURE(
-    homomorphic_ic,
-    "use Homomorphic IC state for same-handler highly polymorphic ICs")
+DEFINE_BOOL(homomorphic_ic, false,
+            "use Homomorphic IC state for same-handler highly polymorphic ICs")
 DEFINE_UINT(homomorphic_ic_count, 8, "local cache size in homomorphic ICs")
+DEFINE_IMPLICATION(future, homomorphic_ic)
 
 // objects.cc
 DEFINE_DEVELOPER_FLAG(trace_prototype_users,
@@ -3637,11 +3646,6 @@ DEFINE_BOOL(verify_bytecode_full, DEBUG_BOOL,
 DEFINE_NEG_IMPLICATION(verify_bytecode_full, verify_bytecode_light)
 DEFINE_NEG_IMPLICATION(verify_bytecode_light, verify_bytecode_full)
 
-// Fuzzing and sandbox testing modes enable full bytecode verification.
-DEFINE_IMPLICATION(fuzzing, verify_bytecode_full)
-DEFINE_IMPLICATION(sandbox_fuzzing, verify_bytecode_full)
-DEFINE_IMPLICATION(sandbox_testing, verify_bytecode_full)
-
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
 DEFINE_BOOL(expose_memory_corruption_api, false,
             "Exposes the memory corruption API. Set automatically by "
@@ -3654,8 +3658,8 @@ DEFINE_BOOL_READONLY(expose_memory_corruption_api, false,
                      "--sandbox-testing and --sandbox-fuzzing.")
 #endif
 
-DEFINE_EXPERIMENTAL_FEATURE(sandbox_prohibit_insecure_mode,
-                            "Prohibits an insecure sandbox setup.")
+DEFINE_BOOL(sandbox_prohibit_insecure_mode, false,
+            "Prohibits an insecure sandbox setup.")
 
 #if defined(V8_OS_AIX) && defined(COMPONENT_BUILD)
 // FreezeFlags relies on mprotect() method, which does not work by default on
@@ -3817,7 +3821,9 @@ DEFINE_BOOL(multi_mapped_mock_allocator, false,
 DEFINE_BOOL(gdbjit, false, "enable GDBJIT interface")
 DEFINE_BOOL(gdbjit_full, false, "enable GDBJIT interface for all code objects")
 DEFINE_BOOL(gdbjit_dump, false, "dump elf objects with debug info to disk")
-DEFINE_BOOL(maglev_gdbjit, true, "enable GDBJIT line info for Maglev graph")
+#ifdef ENABLE_GDB_JIT_INTERFACE
+DEFINE_BOOL(maglev_gdbjit, false, "enable GDBJIT line info for Maglev graph")
+#endif
 DEFINE_BOOL(torque_dwarf, false, "enable DWARF line info for Torque files")
 DEFINE_STRING(gdbjit_dump_filter, "",
               "dump only objects containing this substring")
@@ -3826,6 +3832,8 @@ DEFINE_STRING(gdbjit_dump_filter, "",
 DEFINE_IMPLICATION(gdbjit_full, gdbjit)
 DEFINE_IMPLICATION(gdbjit_dump, gdbjit)
 DEFINE_WEAK_IMPLICATION(gdbjit, gdbjit_full)
+DEFINE_IMPLICATION(maglev_gdbjit, gdbjit)
+DEFINE_WEAK_IMPLICATION(gdbjit, maglev_gdbjit)
 #endif
 DEFINE_NEG_IMPLICATION(gdbjit, compact_code_space)
 

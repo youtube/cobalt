@@ -56,7 +56,7 @@ struct VariableLookupResult {
 
 // This object provides quick access to scope info details for runtime
 // routines.
-V8_OBJECT class ScopeInfo : public HeapObjectLayout {
+V8_OBJECT class ScopeInfo : public HeapObject {
  public:
   DEFINE_TORQUE_GENERATED_SCOPE_FLAGS()
 
@@ -433,16 +433,7 @@ V8_OBJECT class ScopeInfo : public HeapObjectLayout {
   // Hash based on position info and flags. Falls back to flags + local count.
   V8_EXPORT_PRIVATE uint32_t Hash();
 
-  // Back-compat offset constants (defined out-of-line below the class).
-  // These are used by compiler, code generator, and other callers that
-  // predate the HeapObjectLayout port.
-  // TODO(jgruber): Replace callers with offsetof(ScopeInfo, foo_) and
-  // remove these.
-  static const int kFlagsOffset;
   static const int kFlagsOffsetEnd;
-  static const int kParameterCountOffset;
-  static const int kContextLocalCountOffset;
-  static const int kPositionInfoOffset;
   static const int kPositionInfoOffsetEnd;
   static const int kHeaderSize;
   static const int kModuleVariableCountOffset;
@@ -450,7 +441,6 @@ V8_OBJECT class ScopeInfo : public HeapObjectLayout {
   // Offset of the first tagged slot. Everything from here to the end of
   // the object (fixed TaggedMember<Smi> header fields + variable-part
   // tail) is the GC-visible tagged region visited by BodyDescriptor.
-  static const int kFirstTaggedSlotOffset;
   // Number of fixed TaggedMember<Smi> header slots
   // (parameter_count_..position_info_end_) that sit between the non-tagged
   // flags/padding and the variable-part tail (data[]).
@@ -538,26 +528,16 @@ V8_OBJECT class ScopeInfo : public HeapObjectLayout {
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, data);
 } V8_OBJECT_END;
 
-// Back-compat offset constants. Defined here because `offsetof` on a
-// not-yet-complete class cannot appear inside the class body.
-inline constexpr int ScopeInfo::kFlagsOffset = offsetof(ScopeInfo, flags_);
-inline constexpr int ScopeInfo::kParameterCountOffset =
-    offsetof(ScopeInfo, parameter_count_);
-inline constexpr int ScopeInfo::kContextLocalCountOffset =
-    offsetof(ScopeInfo, context_local_count_);
-inline constexpr int ScopeInfo::kPositionInfoOffset =
-    offsetof(ScopeInfo, position_info_start_);
 inline constexpr int ScopeInfo::kHeaderSize = OFFSET_OF_DATA_START(ScopeInfo);
 // ModuleVariableCount is the first slot of the variable tail (data[0]).
 inline constexpr int ScopeInfo::kModuleVariableCountOffset =
     OFFSET_OF_DATA_START(ScopeInfo);
 
-inline constexpr int ScopeInfo::kFirstTaggedSlotOffset =
-    offsetof(ScopeInfo, parameter_count_);
 // Derived from the C++ layout so adding/removing a TaggedMember<Smi>
 // header field keeps this in sync automatically.
 inline constexpr int ScopeInfo::kFixedTaggedHeaderSlotCount =
-    (OFFSET_OF_DATA_START(ScopeInfo) - kFirstTaggedSlotOffset) / kTaggedSize;
+    (OFFSET_OF_DATA_START(ScopeInfo) - offsetof(ScopeInfo, parameter_count_)) /
+    kTaggedSize;
 
 inline constexpr int ScopeInfo::SizeFor(int length) {
   return OffsetOfElementAt(length);

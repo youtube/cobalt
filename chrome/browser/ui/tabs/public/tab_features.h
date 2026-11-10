@@ -41,6 +41,7 @@ class QwacWebContentsObserver;
 class ManagePasswordsPageActionController;
 class BookmarkBarPreloadPipelineManager;
 class NewTabPagePreloadPipelineManager;
+class SearchPromotionNavigationObserver;
 
 namespace skills {
 class SkillsUiTabControllerInterface;
@@ -56,6 +57,7 @@ class ContentAnnotatorTabHelper;
 
 namespace autofill {
 class BubbleManager;
+class OmniboxAutofillPageActionController;
 }  // namespace autofill
 
 namespace actor {
@@ -230,10 +232,6 @@ class TabFeatures {
     return commerce_ui_tab_helper_.get();
   }
 
-  contextual_tasks::ContextualTasksTabVisitTracker*
-  contextual_tasks_tab_visit_tracker() {
-    return contextual_tasks_tab_visit_tracker_.get();
-  }
 
   extensions::ExtensionSidePanelManager* extension_side_panel_manager() {
     return extension_side_panel_manager_.get();
@@ -291,10 +289,6 @@ class TabFeatures {
     return record_replay_client_.get();
   }
 #endif
-
-  lens::TabContextualizationController* tab_contextualization_controller() {
-    return tab_contextualization_controller_.get();
-  }
 
   PwaInstallPageActionController* pwa_install_page_action_controller() {
     return pwa_install_page_action_controller_.get();
@@ -535,6 +529,10 @@ class TabFeatures {
 
   std::unique_ptr<autofill::BubbleManager> autofill_bubble_manager_;
 
+  // Responsible for managing the "Autofill payment" page action.
+  std::unique_ptr<autofill::OmniboxAutofillPageActionController>
+      omnibox_autofill_page_action_controller_;
+
   std::unique_ptr<AskBeforeHttpDialogController>
       ask_before_http_dialog_controller_;
 
@@ -578,6 +576,11 @@ class TabFeatures {
   std::unique_ptr<enterprise_reporting::SaasUsageNavigationObserver>
       saas_usage_navigation_observer_;
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+
+#if BUILDFLAG(IS_WIN)
+  std::unique_ptr<SearchPromotionNavigationObserver>
+      search_promotion_navigation_observer_;
+#endif
 
   std::unique_ptr<accessibility_annotator::ContentAnnotatorTabHelper>
       content_annotator_tab_helper_;

@@ -14,7 +14,6 @@
 #include <map>
 #include <memory>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -1375,7 +1374,7 @@ class WebRtcSdpTest : public ::testing::Test {
     EXPECT_EQ(cd1->streams(), cd2->streams());
 
     // extmap-allow-mixed
-    EXPECT_EQ(cd1->extmap_allow_mixed_enum(), cd2->extmap_allow_mixed_enum());
+    EXPECT_EQ(cd1->extmap_allow_mixed_level(), cd2->extmap_allow_mixed_level());
 
     // extmap
     ASSERT_EQ(cd1->rtp_header_extensions().size(),
@@ -1856,8 +1855,8 @@ class WebRtcSdpTest : public ::testing::Test {
         "a=rtpmap:105 telephone-event/8000\r\n"
         "a=fmtp:105 0-15,66,70\r\n"
         "a=fmtp:111 ";
-    std::ostringstream os;
-    os << "minptime=" << params.min_ptime << "; stereo=" << params.stereo
+    StringBuilder sb;
+    sb << "minptime=" << params.min_ptime << "; stereo=" << params.stereo
        << "; sprop-stereo=" << params.sprop_stereo
        << "; useinbandfec=" << params.useinband
        << "; maxaveragebitrate=" << params.maxaveragebitrate
@@ -1867,17 +1866,15 @@ class WebRtcSdpTest : public ::testing::Test {
        << "\r\n"
           "a=maxptime:"
        << params.max_ptime << "\r\n";
-    sdp += os.str();
+    sdp += sb.Release();
 
-    os.clear();
-    os.str("");
     // Pl type 100 preferred.
-    os << "m=video 9 RTP/SAVPF 99 95 96\r\n"
-          "a=rtpmap:96 VP9/90000\r\n"  // out-of-order wrt the m= line.
-          "a=rtpmap:99 VP8/90000\r\n"
-          "a=rtpmap:95 RTX/90000\r\n"
-          "a=fmtp:95 apt=99;\r\n";
-    sdp += os.str();
+    sdp +=
+        "m=video 9 RTP/SAVPF 99 95 96\r\n"
+        "a=rtpmap:96 VP9/90000\r\n"  // out-of-order wrt the m= line.
+        "a=rtpmap:99 VP8/90000\r\n"
+        "a=rtpmap:95 RTX/90000\r\n"
+        "a=fmtp:95 apt=99;\r\n";
 
     // Deserialize
     SdpParseError error;
@@ -1949,18 +1946,18 @@ class WebRtcSdpTest : public ::testing::Test {
         "a=rtcp-fb:101 nack\r\n"
         "a=rtcp-fb:101 nack pli\r\n"
         "a=rtcp-fb:101 goog-remb\r\n";
-    std::ostringstream os;
-    os << sdp_session_and_audio;
-    os << "a=rtcp-fb:" << (use_wildcard ? "*" : "111") << " nack\r\n";
+    StringBuilder sb;
+    sb << sdp_session_and_audio;
+    sb << "a=rtcp-fb:" << (use_wildcard ? "*" : "111") << " nack\r\n";
     if (use_ccfb) {
-      os << "a=rtcp-fb:" << (use_wildcard ? "*" : "111") << " ack ccfb\r\n";
+      sb << "a=rtcp-fb:" << (use_wildcard ? "*" : "111") << " ack ccfb\r\n";
     }
-    os << sdp_video;
-    os << "a=rtcp-fb:" << (use_wildcard ? "*" : "101") << " ccm fir\r\n";
+    sb << sdp_video;
+    sb << "a=rtcp-fb:" << (use_wildcard ? "*" : "101") << " ccm fir\r\n";
     if (use_ccfb) {
-      os << "a=rtcp-fb:" << (use_wildcard ? "*" : "101") << " ack ccfb\r\n";
+      sb << "a=rtcp-fb:" << (use_wildcard ? "*" : "101") << " ack ccfb\r\n";
     }
-    std::string sdp = os.str();
+    std::string sdp = sb.Release();
     // Deserialize
     SdpParseError error;
     jdesc_output = SdpDeserialize(sdp, &error);
@@ -2234,8 +2231,10 @@ TEST_F(WebRtcSdpTest, SerializeMediaContentDescriptionWithExtmapAllowMixed) {
   MediaContentDescription* audio_desc =
       jdesc_->description()->GetContentDescriptionByName(kAudioContentName);
   ASSERT_THAT(audio_desc, NotNull());
-  video_desc->set_extmap_allow_mixed_enum(MediaContentDescription::kMedia);
-  audio_desc->set_extmap_allow_mixed_enum(MediaContentDescription::kMedia);
+  video_desc->set_extmap_allow_mixed_level(
+      MediaContentDescription::AttributeLevel::kMedia);
+  audio_desc->set_extmap_allow_mixed_level(
+      MediaContentDescription::AttributeLevel::kMedia);
   TestSerialize(jdesc_);
 }
 
@@ -2622,8 +2621,10 @@ TEST_F(WebRtcSdpTest, DeserializeMediaContentDescriptionWithExtmapAllowMixed) {
   MediaContentDescription* audio_desc =
       jdesc_->description()->GetContentDescriptionByName(kAudioContentName);
   ASSERT_THAT(audio_desc, NotNull());
-  video_desc->set_extmap_allow_mixed_enum(MediaContentDescription::kMedia);
-  audio_desc->set_extmap_allow_mixed_enum(MediaContentDescription::kMedia);
+  video_desc->set_extmap_allow_mixed_level(
+      MediaContentDescription::AttributeLevel::kMedia);
+  audio_desc->set_extmap_allow_mixed_level(
+      MediaContentDescription::AttributeLevel::kMedia);
 
   std::string sdp_with_extmap_allow_mixed = kSdpFullString;
   InjectAfter("a=mid:audio_content_name\r\n", kExtmapAllowMixed,

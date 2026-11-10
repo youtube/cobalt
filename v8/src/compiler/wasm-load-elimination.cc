@@ -443,8 +443,7 @@ Reduction WasmLoadElimination::ReduceOtherNode(Node* node) {
   // can turn sequential strings into thin strings, or move characters
   // off-heap). Currently, that can only happen in JS, so from Wasm's point
   // of view only in calls.
-  return UpdateState(node, IrOpcode::IsCallOpcode(node->opcode()) &&
-                                   !node->op()->HasProperty(Operator::kNoWrite)
+  return UpdateState(node, !node->op()->HasProperty(Operator::kNoWrite)
                                ? zone()->New<AbstractState>(
                                      HalfState(zone()), state->immutable_state)
                                : state);
@@ -550,8 +549,7 @@ WasmLoadElimination::AbstractState const* WasmLoadElimination::ComputeLoopState(
         } else {
           // TODO(manoskouk): DCHECK
         }
-      } else if (IrOpcode::IsCallOpcode(current->opcode()) &&
-                 !current->op()->HasProperty(Operator::kNoWrite)) {
+      } else if (!current->op()->HasProperty(Operator::kNoWrite)) {
         return zone()->New<AbstractState>(HalfState(zone()),
                                           state->immutable_state);
       }

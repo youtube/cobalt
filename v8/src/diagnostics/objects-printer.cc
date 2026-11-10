@@ -223,12 +223,11 @@ namespace {
 
 void PrintHeapObjectHeaderWithoutMap(Tagged<HeapObject> object,
                                      std::ostream& os, const char* id) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase();
   os << reinterpret_cast<void*>(object.ptr()) << ": [";
   if (id != nullptr) {
     os << id;
   } else {
-    os << object->map(cage_base)->instance_type();
+    os << object->map()->instance_type();
   }
   os << "]";
   if (ReadOnlyHeap::Contains(object)) {
@@ -267,25 +266,18 @@ void PrintDictionaryContents(std::ostream& os, Tagged<T> dict) {
 }
 }  // namespace
 
-void HeapObjectLayout::PrintHeader(std::ostream& os, const char* id) {
-  Tagged<HeapObject>(this)->PrintHeader(os, id);
-}
-
 void HeapObject::PrintHeader(std::ostream& os, const char* id) {
-  PrintHeapObjectHeaderWithoutMap(*this, os, id);
-  PtrComprCageBase cage_base = GetPtrComprCageBase();
-  if (!IsMetaMap(*this)) {
-    os << "\n - map: " << Brief(map(cage_base));
+  PrintHeapObjectHeaderWithoutMap(this, os, id);
+  if (!IsMetaMap(this)) {
+    os << "\n - map: " << Brief(map());
   }
 }
 
 void HeapObject::HeapObjectPrint(std::ostream& os) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase();
-
-  InstanceType instance_type = map(cage_base)->instance_type();
+  InstanceType instance_type = map()->instance_type();
 
   if (instance_type < FIRST_NONSTRING_TYPE) {
-    Cast<String>(*this)->StringPrint(os);
+    Cast<String>(this)->StringPrint(os);
     os << "\n";
     return;
   }
@@ -294,7 +286,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
   // them below since we only print the objects, but such an object will
   // quickly lead to out-of-sandbox segfaults and so fuzzers will complain.
   if (InstanceTypeChecker::IsTrustedObject(instance_type) &&
-      !OutsideSandboxOrInReadonlySpace(*this)) {
+      !OutsideSandboxOrInReadonlySpace(this)) {
     os << "<Invalid TrustedObject (outside trusted space)>\n";
     return;
   }
@@ -309,52 +301,52 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case MODULE_CONTEXT_TYPE:
     case SCRIPT_CONTEXT_TYPE:
     case WITH_CONTEXT_TYPE:
-      Cast<Context>(*this)->ContextPrint(os);
+      Cast<Context>(this)->ContextPrint(os);
       break;
     case NATIVE_CONTEXT_TYPE:
-      Cast<NativeContext>(*this)->NativeContextPrint(os);
+      Cast<NativeContext>(this)->NativeContextPrint(os);
       break;
     case HASH_TABLE_TYPE:
-      Cast<ObjectHashTable>(*this)->ObjectHashTablePrint(os);
+      Cast<ObjectHashTable>(this)->ObjectHashTablePrint(os);
       break;
     case DOUBLE_STRING_CACHE_TYPE:
-      Cast<DoubleStringCache>(*this)->DoubleStringCachePrint(os);
+      Cast<DoubleStringCache>(this)->DoubleStringCachePrint(os);
       break;
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
-      Cast<NameToIndexHashTable>(*this)->NameToIndexHashTablePrint(os);
+      Cast<NameToIndexHashTable>(this)->NameToIndexHashTablePrint(os);
       break;
     case REGISTERED_SYMBOL_TABLE_TYPE:
-      Cast<RegisteredSymbolTable>(*this)->RegisteredSymbolTablePrint(os);
+      Cast<RegisteredSymbolTable>(this)->RegisteredSymbolTablePrint(os);
       break;
     case ORDERED_HASH_MAP_TYPE:
-      Cast<OrderedHashMap>(*this)->OrderedHashMapPrint(os);
+      Cast<OrderedHashMap>(this)->OrderedHashMapPrint(os);
       break;
     case ORDERED_HASH_SET_TYPE:
-      Cast<OrderedHashSet>(*this)->OrderedHashSetPrint(os);
+      Cast<OrderedHashSet>(this)->OrderedHashSetPrint(os);
       break;
     case ORDERED_NAME_DICTIONARY_TYPE:
-      Cast<OrderedNameDictionary>(*this)->OrderedNameDictionaryPrint(os);
+      Cast<OrderedNameDictionary>(this)->OrderedNameDictionaryPrint(os);
       break;
     case NAME_DICTIONARY_TYPE:
-      Cast<NameDictionary>(*this)->NameDictionaryPrint(os);
+      Cast<NameDictionary>(this)->NameDictionaryPrint(os);
       break;
     case GLOBAL_DICTIONARY_TYPE:
-      Cast<GlobalDictionary>(*this)->GlobalDictionaryPrint(os);
+      Cast<GlobalDictionary>(this)->GlobalDictionaryPrint(os);
       break;
     case SIMPLE_NAME_DICTIONARY_TYPE:
-      Cast<FixedArray>(*this)->FixedArrayPrint(os);
+      Cast<FixedArray>(this)->FixedArrayPrint(os);
       break;
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
-      Cast<FixedArray>(*this)->FixedArrayPrint(os);
+      Cast<FixedArray>(this)->FixedArrayPrint(os);
       break;
     case NUMBER_DICTIONARY_TYPE:
-      Cast<NumberDictionary>(*this)->NumberDictionaryPrint(os);
+      Cast<NumberDictionary>(this)->NumberDictionaryPrint(os);
       break;
     case EPHEMERON_HASH_TABLE_TYPE:
-      Cast<EphemeronHashTable>(*this)->EphemeronHashTablePrint(os);
+      Cast<EphemeronHashTable>(this)->EphemeronHashTablePrint(os);
       break;
     case TRANSITION_ARRAY_TYPE:
-      Cast<TransitionArray>(*this)->TransitionArrayPrint(os);
+      Cast<TransitionArray>(this)->TransitionArrayPrint(os);
       break;
     case FILLER_TYPE:
       os << "filler";
@@ -373,48 +365,48 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
     case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
-      Cast<JSObject>(*this)->JSObjectPrint(os);
+      Cast<JSObject>(this)->JSObjectPrint(os);
       break;
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_TRUSTED_INSTANCE_DATA_TYPE:
-      TrustedCast<WasmTrustedInstanceData>(*this)->WasmTrustedInstanceDataPrint(
+      TrustedCast<WasmTrustedInstanceData>(this)->WasmTrustedInstanceDataPrint(
           os);
       break;
     case WASM_DISPATCH_TABLE_TYPE:
-      TrustedCast<WasmDispatchTable>(*this)->WasmDispatchTablePrint(os);
+      TrustedCast<WasmDispatchTable>(this)->WasmDispatchTablePrint(os);
       break;
     case WASM_DISPATCH_TABLE_FOR_IMPORTS_TYPE:
-      TrustedCast<WasmDispatchTableForImports>(*this)
+      TrustedCast<WasmDispatchTableForImports>(this)
           ->WasmDispatchTableForImportsPrint(os);
       break;
     case WASM_VALUE_OBJECT_TYPE:
-      Cast<WasmValueObject>(*this)->WasmValueObjectPrint(os);
+      Cast<WasmValueObject>(this)->WasmValueObjectPrint(os);
       break;
     case WASM_EXCEPTION_PACKAGE_TYPE:
-      Cast<WasmExceptionPackage>(*this)->WasmExceptionPackagePrint(os);
+      Cast<WasmExceptionPackage>(this)->WasmExceptionPackagePrint(os);
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case INSTRUCTION_STREAM_TYPE:
-      TrustedCast<InstructionStream>(*this)->InstructionStreamPrint(os);
+      TrustedCast<InstructionStream>(this)->InstructionStreamPrint(os);
       break;
     case CODE_TYPE:
-      TrustedCast<Code>(*this)->CodePrint(os);
+      TrustedCast<Code>(this)->CodePrint(os);
       break;
     case CODE_WRAPPER_TYPE:
-      Cast<CodeWrapper>(*this)->CodeWrapperPrint(os);
+      Cast<CodeWrapper>(this)->CodeWrapperPrint(os);
       break;
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
     case JS_SET_VALUE_ITERATOR_TYPE:
-      Cast<JSSetIterator>(*this)->JSSetIteratorPrint(os);
+      Cast<JSSetIterator>(this)->JSSetIteratorPrint(os);
       break;
     case JS_MAP_KEY_ITERATOR_TYPE:
     case JS_MAP_KEY_VALUE_ITERATOR_TYPE:
     case JS_MAP_VALUE_ITERATOR_TYPE:
-      Cast<JSMapIterator>(*this)->JSMapIteratorPrint(os);
+      Cast<JSMapIterator>(this)->JSMapIteratorPrint(os);
       break;
-#define MAKE_TORQUE_CASE(Name, TYPE)           \
-  case TYPE:                                   \
-    TrustedCast<Name>(*this)->Name##Print(os); \
+#define MAKE_TORQUE_CASE(Name, TYPE)          \
+  case TYPE:                                  \
+    TrustedCast<Name>(this)->Name##Print(os); \
     break;
       // Every class that has its fields defined in a .tq file and corresponds
       // to exactly one InstanceType value is included in the following list.
@@ -423,31 +415,31 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
 #undef MAKE_TORQUE_CASE
 
     case HOLE_TYPE:
-      Cast<Hole>(*this)->HolePrint(os);
+      Cast<Hole>(this)->HolePrint(os);
       break;
     case TUPLE2_TYPE:
-      Cast<Tuple2>(*this)->Tuple2Print(os);
+      Cast<Tuple2>(this)->Tuple2Print(os);
       break;
     case CLASS_POSITIONS_TYPE:
-      Cast<ClassPositions>(*this)->ClassPositionsPrint(os);
+      Cast<ClassPositions>(this)->ClassPositionsPrint(os);
       break;
     case ACCESSOR_PAIR_TYPE:
-      Cast<AccessorPair>(*this)->AccessorPairPrint(os);
+      Cast<AccessorPair>(this)->AccessorPairPrint(os);
       break;
     case ALLOCATION_SITE_TYPE:
-      Cast<AllocationSite>(*this)->AllocationSitePrint(os);
+      Cast<AllocationSite>(this)->AllocationSitePrint(os);
       break;
     case LOAD_HANDLER_TYPE:
-      Cast<LoadHandler>(*this)->LoadHandlerPrint(os);
+      Cast<LoadHandler>(this)->LoadHandlerPrint(os);
       break;
     case STORE_HANDLER_TYPE:
-      Cast<StoreHandler>(*this)->StoreHandlerPrint(os);
+      Cast<StoreHandler>(this)->StoreHandlerPrint(os);
       break;
     case BIG_INT_BASE_TYPE:
-      Cast<BigIntBase>(*this)->BigIntBasePrint(os);
+      Cast<BigIntBase>(this)->BigIntBasePrint(os);
       break;
     case FREE_SPACE_TYPE:
-      Cast<FreeSpace>(*this)->FreeSpacePrint(os);
+      Cast<FreeSpace>(this)->FreeSpacePrint(os);
       break;
     case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:
@@ -457,7 +449,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
   case TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE:
       TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTORS_SWITCH)
 #undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
-      Cast<JSFunction>(*this)->JSFunctionPrint(os);
+      Cast<JSFunction>(this)->JSFunctionPrint(os);
       break;
     case INTERNALIZED_TWO_BYTE_STRING_TYPE:
     case EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE:
@@ -537,8 +529,7 @@ void FreeSpace::FreeSpacePrint(std::ostream& os) {
 
 bool JSObject::PrintProperties(std::ostream& os) {
   if (HasFastProperties()) {
-    Tagged<DescriptorArray> descs =
-        map()->instance_descriptors(Isolate::Current());
+    Tagged<DescriptorArray> descs = map()->instance_descriptors();
     for (InternalIndex i : map()->IterateOwnDescriptors()) {
       os << "\n    ";
       descs->GetKey(i)->NamePrint(os);
@@ -558,7 +549,7 @@ bool JSObject::PrintProperties(std::ostream& os) {
       details.PrintAsFastTo(os, PropertyDetails::kForProperties);
     }
     return map()->NumberOfOwnDescriptors() > 0;
-  } else if (IsJSGlobalObject(*this)) {
+  } else if (IsJSGlobalObject(this)) {
     PrintDictionaryContents(
         os, Cast<JSGlobalObject>(this)->global_dictionary(kAcquireLoad));
   } else if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
@@ -862,7 +853,7 @@ void JSAPIObjectWithEmbedderSlotsPrintHeader(std::ostream& os,
   JSObjectPrintHeader(os, obj, id);
   os << "\n - cpp_heap_wrappable: "
      << obj->ReadField<uint32_t>(
-            JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
+            offsetof(JSAPIObjectWithEmbedderSlots, cpp_heap_wrappable_));
 }
 
 void JSObjectPrintBody(std::ostream& os, Tagged<JSObject> obj,
@@ -925,8 +916,8 @@ void JSExternalObject::JSExternalObjectPrint(std::ostream& os) {
 void CppHeapExternalObject::CppHeapExternalObjectPrint(std::ostream& os) {
   if (i::Isolate* isolate = i::Isolate::TryGetCurrent()) {
     os << "\n - cpp_heap_wrappable: "
-       << CppHeapObjectWrapper(*this).GetCppHeapWrappable(isolate,
-                                                          kAnyCppHeapPointer);
+       << CppHeapObjectWrapper(this).GetCppHeapWrappable(isolate,
+                                                         kAnyCppHeapPointer);
   } else {
     os << "\n - cpp_heap_wrappable: <object>";
   }
@@ -1025,12 +1016,12 @@ void JSPromise::JSPromisePrint(std::ostream& os) {
 }
 
 void JSRegExp::JSRegExpPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSRegExp");
+  JSObjectPrintHeader(os, this, "JSRegExp");
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   os << "\n - data: " << Brief(data(isolate));
   FlagsBuffer buffer;
   os << "\n - flags: " << JSRegExp::FlagsToString(flags(), &buffer);
-  JSObjectPrintBody(os, *this);
+  JSObjectPrintBody(os, this);
 }
 
 void RegExpData::RegExpDataPrint(std::ostream& os) {
@@ -1359,7 +1350,7 @@ void AccessorInfo::AccessorInfoPrint(std::ostream& os) {
      << SideEffectType2String(setter_side_effect_type());
   os << "\n - initial_attributes: " << initial_property_attributes();
   Isolate* isolate;
-  if (GetIsolateFromHeapObject(*this, &isolate)) {
+  if (GetIsolateFromHeapObject(this, &isolate)) {
     os << "\n - getter: " << AS_PTR(getter(isolate));
     if (USE_SIMULATOR_BOOL) {
       os << "\n - getter (redirected): " << AS_PTR(getter_raw(isolate));
@@ -1509,7 +1500,7 @@ void DictionaryTemplateInfo::DictionaryTemplateInfoPrint(std::ostream& os) {
 
 #if V8_ENABLE_WEBASSEMBLY
 void WasmTableObject::WasmTableObjectPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "WasmTableObject");
+  JSObjectPrintHeader(os, this, "WasmTableObject");
   os << "\n - entries: " << Brief(entries());
   os << "\n - current_length: " << current_length();
   os << "\n - maximum_length: " << Brief(maximum_length());
@@ -1523,30 +1514,30 @@ void WasmTableObject::WasmTableObjectPrint(std::ostream& os) {
     os << "\n - trusted_data: " << Brief(trusted_data(isolate));
   }
   os << "\n - address_type: " << static_cast<int>(address_type());
-  JSObjectPrintBody(os, *this);
+  JSObjectPrintBody(os, this);
 }
 
 void WasmMemoryMapDescriptor::WasmMemoryMapDescriptorPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "WasmMemoryMapDescriptor");
+  JSObjectPrintHeader(os, this, "WasmMemoryMapDescriptor");
   os << "\n - memory: " << Brief(memory());
   os << "\n - file_descriptor: " << file_descriptor();
   os << "\n - offset: " << offset();
   os << "\n - size: " << size();
-  JSObjectPrintBody(os, *this);
+  JSObjectPrintBody(os, this);
 }
 
 void WasmMemoryObject::WasmMemoryObjectPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "WasmMemoryObject");
+  JSObjectPrintHeader(os, this, "WasmMemoryObject");
   os << "\n - array_buffer: " << Brief(array_buffer());
   os << "\n - managed_backing_store: " << Brief(managed_backing_store());
   os << "\n - maximum_pages: " << maximum_pages();
   os << "\n - instances: " << Brief(instances());
   os << "\n - address_type: " << static_cast<int>(address_type());
-  JSObjectPrintBody(os, *this);
+  JSObjectPrintBody(os, this);
 }
 
 void WasmTagObject::WasmTagObjectPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "WasmTagObject");
+  JSObjectPrintHeader(os, this, "WasmTagObject");
   os << "\n - tag: " << Brief(tag());
   os << "\n - canonical_type_index: " << canonical_type_index();
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
@@ -1555,7 +1546,7 @@ void WasmTagObject::WasmTagObjectPrint(std::ostream& os) {
   } else {
     os << "\n - trusted_data: <empty>";
   }
-  JSObjectPrintBody(os, *this);
+  JSObjectPrintBody(os, this);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1571,7 +1562,7 @@ void Context::PrintContextWithHeader(std::ostream& os, const char* type) {
   os << "\n - length: " << length();
   os << "\n - elements:";
   PrintFixedArrayElements<Context>(
-      os, *this, static_cast<uint32_t>(length()),
+      os, this, static_cast<uint32_t>(length()),
       [](Tagged<Context> xs, uint32_t i) {
         return Cast<Object>(xs->get(i, kRelaxedLoad));
       });
@@ -2047,7 +2038,7 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {
 }
 
 void FeedbackVector::FeedbackSlotPrint(std::ostream& os, FeedbackSlot slot) {
-  FeedbackNexus nexus(Isolate::Current(), *this, slot);
+  FeedbackNexus nexus(Isolate::Current(), this, slot);
   nexus.Print(os);
 }
 
@@ -2377,9 +2368,9 @@ void JSShadowRealm::JSShadowRealmPrint(std::ostream& os) {
 }
 
 void JSWrappedFunction::JSWrappedFunctionPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSWrappedFunction");
+  JSObjectPrintHeader(os, this, "JSWrappedFunction");
   os << "\n - wrapped_target_function: " << Brief(wrapped_target_function());
-  JSObjectPrintBody(os, *this);
+  JSObjectPrintBody(os, this);
 }
 
 void JSFinalizationRegistry::JSFinalizationRegistryPrint(std::ostream& os) {
@@ -2566,7 +2557,7 @@ void JSWeakSet::JSWeakSetPrint(std::ostream& os) {
 }
 
 void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {
-  JSAPIObjectWithEmbedderSlotsPrintHeader(os, *this, "JSArrayBuffer");
+  JSAPIObjectWithEmbedderSlotsPrintHeader(os, this, "JSArrayBuffer");
   os << "\n - backing_store: " << backing_store();
   os << "\n - byte_length: " << GetByteLength();
   os << "\n - max_byte_length: " << max_byte_length();
@@ -2588,11 +2579,11 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {
   if (was_detached()) os << "\n - detached";
   if (is_shared()) os << "\n - shared";
   if (is_resizable_by_js()) os << "\n - resizable_by_js";
-  JSObjectPrintBody(os, *this, !was_detached());
+  JSObjectPrintBody(os, this, !was_detached());
 }
 
 void JSDetachedTypedArray::JSDetachedTypedArrayPrint(std::ostream& os) {
-  JSAPIObjectWithEmbedderSlotsPrintHeader(os, *this, "JSDetachedTypedArray");
+  JSAPIObjectWithEmbedderSlotsPrintHeader(os, this, "JSDetachedTypedArray");
   os << "\n - buffer: " << Brief(buffer());
   os << "\n - byte_offset: " << byte_offset();
   if (byte_length() != 0) {
@@ -2609,11 +2600,11 @@ void JSDetachedTypedArray::JSDetachedTypedArrayPrint(std::ostream& os) {
     os << "\n <invalid buffer>\n";
     return;
   }
-  JSObjectPrintBody(os, *this, false);
+  JSObjectPrintBody(os, this, false);
 }
 
 void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {
-  JSAPIObjectWithEmbedderSlotsPrintHeader(os, *this, "JSTypedArray");
+  JSAPIObjectWithEmbedderSlotsPrintHeader(os, this, "JSTypedArray");
   os << "\n - buffer: " << Brief(buffer());
   os << "\n - byte_offset: " << byte_offset();
   os << "\n - byte_length: " << byte_length();
@@ -2631,7 +2622,7 @@ void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {
   if (WasDetached()) os << "\n - detached";
   if (is_length_tracking()) os << "\n - length-tracking";
   if (is_backed_by_rab()) os << "\n - backed-by-rab";
-  JSObjectPrintBody(os, *this, !WasDetached());
+  JSObjectPrintBody(os, this, !WasDetached());
 }
 
 void JSArrayIterator::JSArrayIteratorPrint(std::ostream& os) {  // NOLING
@@ -2643,7 +2634,7 @@ void JSArrayIterator::JSArrayIteratorPrint(std::ostream& os) {  // NOLING
 }
 
 void JSDataView::JSDataViewPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSDataView");
+  JSObjectPrintHeader(os, this, "JSDataView");
   os << "\n - buffer =" << Brief(buffer());
   os << "\n - byte_offset: " << byte_offset();
   os << "\n - byte_length: " << byte_length();
@@ -2652,11 +2643,11 @@ void JSDataView::JSDataViewPrint(std::ostream& os) {
     return;
   }
   if (WasDetached()) os << "\n - detached";
-  JSObjectPrintBody(os, *this, !WasDetached());
+  JSObjectPrintBody(os, this, !WasDetached());
 }
 
 void JSRabGsabDataView::JSRabGsabDataViewPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSRabGsabDataView");
+  JSObjectPrintHeader(os, this, "JSRabGsabDataView");
   os << "\n - buffer =" << Brief(buffer());
   os << "\n - byte_offset: " << byte_offset();
   os << "\n - byte_length: " << byte_length();
@@ -2667,15 +2658,15 @@ void JSRabGsabDataView::JSRabGsabDataViewPrint(std::ostream& os) {
     return;
   }
   if (WasDetached()) os << "\n - detached";
-  JSObjectPrintBody(os, *this, !WasDetached());
+  JSObjectPrintBody(os, this, !WasDetached());
 }
 
 void JSBoundFunction::JSBoundFunctionPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSBoundFunction");
+  JSObjectPrintHeader(os, this, "JSBoundFunction");
   os << "\n - bound_target_function: " << Brief(bound_target_function());
   os << "\n - bound_this: " << Brief(bound_this());
   os << "\n - bound_arguments: " << Brief(bound_arguments());
-  JSObjectPrintBody(os, *this);
+  JSObjectPrintBody(os, this);
 }
 
 void JSFunction::JSFunctionPrint(std::ostream& os) {
@@ -2873,8 +2864,8 @@ void InterpreterData::InterpreterDataPrint(std::ostream& os) {
 }
 
 void JSGlobalProxy::JSGlobalProxyPrint(std::ostream& os) {
-  JSAPIObjectWithEmbedderSlotsPrintHeader(os, *this, "JSGlobalProxy");
-  JSObjectPrintBody(os, *this);
+  JSAPIObjectWithEmbedderSlotsPrintHeader(os, this, "JSGlobalProxy");
+  JSObjectPrintBody(os, this);
 }
 
 void JSGlobalObject::JSGlobalObjectPrint(std::ostream& os) {
@@ -3062,16 +3053,16 @@ void SourceTextModule::SourceTextModulePrint(std::ostream& os) {
 }
 
 void JSModuleNamespace::JSModuleNamespacePrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSModuleNamespace");
+  JSObjectPrintHeader(os, this, "JSModuleNamespace");
   os << "\n - module: " << Brief(module());
-  JSObjectPrintBody(os, *this);
+  JSObjectPrintBody(os, this);
 }
 
 void JSDeferredModuleNamespace::JSDeferredModuleNamespacePrint(
     std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSDeferredModuleNamespace");
+  JSObjectPrintHeader(os, this, "JSDeferredModuleNamespace");
   os << "\n - deferred module: " << Brief(module());
-  JSObjectPrintBody(os, *this);
+  JSObjectPrintBody(os, this);
 }
 
 void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {
@@ -3221,7 +3212,7 @@ void WasmStringViewIter::WasmStringViewIterPrint(std::ostream& os) {
 void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {
   PrintHeader(os, "AsmWasmData");
   os << "\n - native module: " << Brief(managed_native_module());
-  os << "\n - uses bitset: " << uses_bitset()->value();
+  os << "\n - uses bitset: " << uses_bitset();
   os << "\n";
 }
 
@@ -3356,7 +3347,7 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
            i < std::min(this->length(), kWasmArrayMaximumPrintedElements);
            i++) {
         os << "\n   " << static_cast<int>(i) << " - "
-           << Brief(TaggedField<Object>::load(*this, this->element_offset(i)));
+           << Brief(TaggedField<Object>::load(this, this->element_offset(i)));
       }
       if (this->length() > kWasmArrayMaximumPrintedElements) os << "\n   ...";
       break;
@@ -3426,11 +3417,11 @@ void WasmStackObject::WasmStackObjectPrint(std::ostream& os) {
 
 void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
-  JSObjectPrintHeader(os, *this, "WasmInstanceObject");
+  JSObjectPrintHeader(os, this, "WasmInstanceObject");
   os << "\n - trusted_data: " << Brief(trusted_data(isolate));
   os << "\n - module_object: " << Brief(module_object());
   os << "\n - exports_object: " << Brief(exports_object());
-  JSObjectPrintBody(os, *this);
+  JSObjectPrintBody(os, this);
   os << "\n";
 }
 
@@ -3787,9 +3778,10 @@ void StoreHandler::StoreHandlerPrint(std::ostream& os) {
 
 void AllocationSite::AllocationSitePrint(std::ostream& os) {
   PrintHeader(os, "AllocationSite");
-  if (this->HasWeakNext())
+  if (this->HasWeakNext()) {
     os << "\n - weak_next: "
        << Brief(Cast<AllocationSiteWithWeakNext>(this)->weak_next());
+  }
   os << "\n - dependent code: " << Brief(dependent_code());
   os << "\n - nested site: " << Brief(nested_site());
   os << "\n - memento found count: "
@@ -4172,16 +4164,18 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
   }
   if (ClassScopeHasPrivateBrand()) os << "\n - class scope has private brand";
   if (HasSavedClassVariable()) os << "\n - has saved class variable";
-  if (CanOnlyAccessFixedFormalParameters())
+  if (CanOnlyAccessFixedFormalParameters()) {
     os << "\n - can only access fixed formal parameters";
+  }
   if (HasFunctionName()) {
     os << "\n - function name(" << FunctionVariableBits::decode(flags) << "): ";
     ShortPrint(FunctionName(), os);
   }
   if (IsAsmModule()) os << "\n - asm module";
   if (HasSimpleParameters()) os << "\n - simple parameters";
-  if (PrivateNameLookupSkipsOuterClass())
+  if (PrivateNameLookupSkipsOuterClass()) {
     os << "\n - private name lookup skips outer class";
+  }
   os << "\n - function kind: " << function_kind();
   if (HasOuterScopeInfo()) {
     os << "\n - outer scope info: " << Brief(OuterScopeInfo());
@@ -4273,7 +4267,7 @@ void HeapNumber::HeapNumberPrint(std::ostream& os) {
 
 #endif  // OBJECT_PRINT
 
-void HeapObject::Print() { Print(*this); }
+void HeapObject::Print() { Print(this); }
 
 // static
 void HeapObject::Print(Tagged<Object> obj) { v8::internal::Print(obj); }
@@ -4284,38 +4278,37 @@ void HeapObject::Print(Tagged<Object> obj, std::ostream& os) {
 }
 
 void HeapObject::HeapObjectShortPrint(std::ostream& os) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase();
   os << AsHex::Address(this->ptr()) << " ";
 
-  if (IsString(*this, cage_base)) {
+  if (IsString(this)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
-    Cast<String>(*this)->StringShortPrint(&accumulator);
+    Cast<String>(this)->StringShortPrint(&accumulator);
     os << accumulator.ToCString().get();
     return;
   }
-  if (IsJSObject(*this, cage_base)) {
+  if (IsJSObject(this)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
-    Cast<JSObject>(*this)->JSObjectShortPrint(&accumulator);
+    Cast<JSObject>(this)->JSObjectShortPrint(&accumulator);
     os << accumulator.ToCString().get();
     return;
   }
 
-  InstanceType instance_type = map(cage_base)->instance_type();
+  InstanceType instance_type = map()->instance_type();
 
   // Skip invalid trusted objects. Technically it'd be fine to still handle
   // them below since we only print the objects, but such an object will
   // quickly lead to out-of-sandbox segfaults and so fuzzers will complain.
   if (InstanceTypeChecker::IsTrustedObject(instance_type) &&
-      !OutsideSandboxOrInReadonlySpace(*this)) {
+      !OutsideSandboxOrInReadonlySpace(this)) {
     os << "<Invalid TrustedObject (outside trusted space)>\n";
     return;
   }
 
   switch (instance_type) {
     case MAP_TYPE: {
-      Tagged<Map> map = Cast<Map>(*this);
+      Tagged<Map> map = Cast<Map>(this);
       if (IsMetaMap(map)) {
         // This is one of the meta maps, print only relevant fields.
         os << "<MetaMap (" << Brief(map->native_context_or_null()) << ")>";
@@ -4341,122 +4334,122 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << "<AwaitContext generator= ";
       HeapStringAllocator allocator;
       StringStream accumulator(&allocator);
-      ShortPrint(Cast<Context>(*this)->extension(), &accumulator);
+      ShortPrint(Cast<Context>(this)->extension(), &accumulator);
       os << accumulator.ToCString().get();
       os << '>';
       break;
     }
     case BLOCK_CONTEXT_TYPE:
-      os << "<BlockContext[" << Cast<Context>(*this)->length() << "]>";
+      os << "<BlockContext[" << Cast<Context>(this)->length() << "]>";
       break;
     case CATCH_CONTEXT_TYPE:
-      os << "<CatchContext[" << Cast<Context>(*this)->length() << "]>";
+      os << "<CatchContext[" << Cast<Context>(this)->length() << "]>";
       break;
     case DEBUG_EVALUATE_CONTEXT_TYPE:
-      os << "<DebugEvaluateContext[" << Cast<Context>(*this)->length() << "]>";
+      os << "<DebugEvaluateContext[" << Cast<Context>(this)->length() << "]>";
       break;
     case EVAL_CONTEXT_TYPE:
-      os << "<EvalContext[" << Cast<Context>(*this)->length() << "]>";
+      os << "<EvalContext[" << Cast<Context>(this)->length() << "]>";
       break;
     case FUNCTION_CONTEXT_TYPE:
-      os << "<FunctionContext[" << Cast<Context>(*this)->length() << "]>";
+      os << "<FunctionContext[" << Cast<Context>(this)->length() << "]>";
       break;
     case MODULE_CONTEXT_TYPE:
-      os << "<ModuleContext[" << Cast<Context>(*this)->length() << "]>";
+      os << "<ModuleContext[" << Cast<Context>(this)->length() << "]>";
       break;
     case NATIVE_CONTEXT_TYPE:
-      os << "<NativeContext[" << Cast<Context>(*this)->length() << "]>";
+      os << "<NativeContext[" << Cast<Context>(this)->length() << "]>";
       break;
     case SCRIPT_CONTEXT_TYPE:
-      os << "<ScriptContext[" << Cast<Context>(*this)->length() << "]>";
+      os << "<ScriptContext[" << Cast<Context>(this)->length() << "]>";
       break;
     case WITH_CONTEXT_TYPE:
-      os << "<WithContext[" << Cast<Context>(*this)->length() << "]>";
+      os << "<WithContext[" << Cast<Context>(this)->length() << "]>";
       break;
     case SCRIPT_CONTEXT_TABLE_TYPE:
       os << "<ScriptContextTable["
-         << Cast<ScriptContextTable>(*this)->capacity().value() << "]>";
+         << Cast<ScriptContextTable>(this)->capacity().value() << "]>";
       break;
     case HASH_TABLE_TYPE:
-      os << "<HashTable[" << Cast<FixedArray>(*this)->length() << "]>";
+      os << "<HashTable[" << Cast<FixedArray>(this)->length() << "]>";
       break;
     case ORDERED_HASH_MAP_TYPE:
-      os << "<OrderedHashMap[" << Cast<FixedArray>(*this)->length() << "]>";
+      os << "<OrderedHashMap[" << Cast<FixedArray>(this)->length() << "]>";
       break;
     case ORDERED_HASH_SET_TYPE:
-      os << "<OrderedHashSet[" << Cast<FixedArray>(*this)->length() << "]>";
+      os << "<OrderedHashSet[" << Cast<FixedArray>(this)->length() << "]>";
       break;
     case ORDERED_NAME_DICTIONARY_TYPE:
-      os << "<OrderedNameDictionary[" << Cast<FixedArray>(*this)->length()
+      os << "<OrderedNameDictionary[" << Cast<FixedArray>(this)->length()
          << "]>";
       break;
     case NAME_DICTIONARY_TYPE:
-      os << "<NameDictionary[" << Cast<FixedArray>(*this)->length() << "]>";
+      os << "<NameDictionary[" << Cast<FixedArray>(this)->length() << "]>";
       break;
     case SWISS_NAME_DICTIONARY_TYPE:
       os << "<SwissNameDictionary["
-         << Cast<SwissNameDictionary>(*this)->Capacity() << "]>";
+         << Cast<SwissNameDictionary>(this)->Capacity() << "]>";
       break;
     case GLOBAL_DICTIONARY_TYPE:
-      os << "<GlobalDictionary[" << Cast<FixedArray>(*this)->length() << "]>";
+      os << "<GlobalDictionary[" << Cast<FixedArray>(this)->length() << "]>";
       break;
     case NUMBER_DICTIONARY_TYPE:
-      os << "<NumberDictionary[" << Cast<FixedArray>(*this)->length() << "]>";
+      os << "<NumberDictionary[" << Cast<FixedArray>(this)->length() << "]>";
       break;
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
-      os << "<SimpleNumberDictionary[" << Cast<FixedArray>(*this)->length()
+      os << "<SimpleNumberDictionary[" << Cast<FixedArray>(this)->length()
          << "]>";
       break;
     case FIXED_ARRAY_TYPE:
-      os << "<FixedArray[" << Cast<FixedArray>(*this)->length() << "]>";
+      os << "<FixedArray[" << Cast<FixedArray>(this)->length() << "]>";
       break;
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
       os << "<ObjectBoilerplateDescription["
-         << Cast<ObjectBoilerplateDescription>(*this)->capacity() << "]>";
+         << Cast<ObjectBoilerplateDescription>(this)->capacity() << "]>";
       break;
     case FIXED_DOUBLE_ARRAY_TYPE:
-      os << "<FixedDoubleArray[" << Cast<FixedDoubleArray>(*this)->length()
+      os << "<FixedDoubleArray[" << Cast<FixedDoubleArray>(this)->length()
          << "]>";
       break;
     case BYTE_ARRAY_TYPE:
-      os << "<ByteArray[" << Cast<ByteArray>(*this)->length() << "]>";
+      os << "<ByteArray[" << Cast<ByteArray>(this)->length() << "]>";
       break;
     case BYTECODE_ARRAY_TYPE:
-      os << "<BytecodeArray[" << TrustedCast<BytecodeArray>(*this)->length()
+      os << "<BytecodeArray[" << TrustedCast<BytecodeArray>(this)->length()
          << "]>";
       break;
     case DESCRIPTOR_ARRAY_TYPE:
       os << "<DescriptorArray["
-         << Cast<DescriptorArray>(*this)->number_of_descriptors() << "]>";
+         << Cast<DescriptorArray>(this)->number_of_descriptors() << "]>";
       break;
     case WEAK_FIXED_ARRAY_TYPE:
-      os << "<WeakFixedArray[" << Cast<WeakFixedArray>(*this)->length() << "]>";
+      os << "<WeakFixedArray[" << Cast<WeakFixedArray>(this)->length() << "]>";
       break;
     case TRUSTED_FIXED_ARRAY_TYPE:
       os << "<TrustedFixedArray["
-         << TrustedCast<TrustedFixedArray>(*this)->length() << "]>";
+         << TrustedCast<TrustedFixedArray>(this)->length() << "]>";
       break;
     case TRUSTED_WEAK_FIXED_ARRAY_TYPE:
       os << "<TrustedWeakFixedArray["
-         << TrustedCast<TrustedWeakFixedArray>(*this)->length() << "]>";
+         << TrustedCast<TrustedWeakFixedArray>(this)->length() << "]>";
       break;
     case PROTECTED_FIXED_ARRAY_TYPE:
       os << "<ProtectedFixedArray["
-         << TrustedCast<ProtectedFixedArray>(*this)->length() << "]>";
+         << TrustedCast<ProtectedFixedArray>(this)->length() << "]>";
       break;
     case PROTECTED_WEAK_FIXED_ARRAY_TYPE:
       os << "<ProtectedWeakFixedArray["
-         << TrustedCast<ProtectedWeakFixedArray>(*this)->length() << "]>";
+         << TrustedCast<ProtectedWeakFixedArray>(this)->length() << "]>";
       break;
     case TRANSITION_ARRAY_TYPE:
-      os << "<TransitionArray[" << Cast<TransitionArray>(*this)->length()
+      os << "<TransitionArray[" << Cast<TransitionArray>(this)->length()
          << "]>";
       break;
     case PROPERTY_ARRAY_TYPE:
-      os << "<PropertyArray[" << Cast<PropertyArray>(*this)->length() << "]>";
+      os << "<PropertyArray[" << Cast<PropertyArray>(this)->length() << "]>";
       break;
     case CONTEXT_CELL_TYPE: {
-      auto cell = Cast<ContextCell>(*this);
+      auto cell = Cast<ContextCell>(this);
       os << "<ContextCell[" << cell->state();
       switch (cell->state()) {
         case ContextCell::kConst:
@@ -4494,17 +4487,17 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
     }
     case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
       os << "<ClosureFeedbackCellArray["
-         << Cast<ClosureFeedbackCellArray>(*this)->length() << "]>";
+         << Cast<ClosureFeedbackCellArray>(this)->length() << "]>";
       break;
     case FEEDBACK_VECTOR_TYPE:
-      os << "<FeedbackVector[" << Cast<FeedbackVector>(*this)->length() << "]>";
+      os << "<FeedbackVector[" << Cast<FeedbackVector>(this)->length() << "]>";
       break;
     case FREE_SPACE_TYPE:
-      os << "<FreeSpace[" << Cast<FreeSpace>(*this)->size(kRelaxedLoad) << "]>";
+      os << "<FreeSpace[" << Cast<FreeSpace>(this)->size(kRelaxedLoad) << "]>";
       break;
 
     case PREPARSE_DATA_TYPE: {
-      Tagged<PreparseData> data = Cast<PreparseData>(*this);
+      Tagged<PreparseData> data = Cast<PreparseData>(this);
       os << "<PreparseData[data=" << data->data_length()
          << " children=" << data->children_length() << "]>";
       break;
@@ -4512,7 +4505,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
 
     case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE: {
       Tagged<UncompiledDataWithoutPreparseData> data =
-          TrustedCast<UncompiledDataWithoutPreparseData>(*this);
+          TrustedCast<UncompiledDataWithoutPreparseData>(this);
       os << "<UncompiledDataWithoutPreparseData (" << data->start_position()
          << ", " << data->end_position() << ")]>";
       break;
@@ -4520,7 +4513,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
 
     case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE: {
       Tagged<UncompiledDataWithPreparseData> data =
-          TrustedCast<UncompiledDataWithPreparseData>(*this);
+          TrustedCast<UncompiledDataWithPreparseData>(this);
       os << "<UncompiledDataWithPreparseData (" << data->start_position()
          << ", " << data->end_position()
          << ") preparsed=" << Brief(data->preparse_data()) << ">";
@@ -4528,7 +4521,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
     }
 
     case SHARED_FUNCTION_INFO_TYPE: {
-      Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(*this);
+      Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(this);
       std::unique_ptr<char[]> debug_name = shared->DebugNameCStr();
       if (debug_name[0] != '\0') {
         os << "<SharedFunctionInfo " << debug_name.get() << ">";
@@ -4540,11 +4533,11 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
     case JS_MESSAGE_OBJECT_TYPE:
       os << "<JSMessageObject>";
       break;
-#define MAKE_STRUCT_CASE(TYPE, Name, name)    \
-  case TYPE:                                  \
-    os << "<" #Name;                          \
-    Cast<Name>(*this)->BriefPrintDetails(os); \
-    os << ">";                                \
+#define MAKE_STRUCT_CASE(TYPE, Name, name)   \
+  case TYPE:                                 \
+    os << "<" #Name;                         \
+    Cast<Name>(this)->BriefPrintDetails(os); \
+    os << ">";                               \
     break;
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
@@ -4553,14 +4546,14 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     }
     case SCOPE_INFO_TYPE: {
-      Tagged<ScopeInfo> scope = Cast<ScopeInfo>(*this);
+      Tagged<ScopeInfo> scope = Cast<ScopeInfo>(this);
       os << "<ScopeInfo";
       if (!scope->IsEmpty()) os << " " << scope->scope_type();
       os << ">";
       break;
     }
     case CODE_TYPE: {
-      Tagged<Code> code = TrustedCast<Code>(*this);
+      Tagged<Code> code = TrustedCast<Code>(this);
       os << "<Code " << CodeKindToString(code->kind());
       if (code->is_builtin()) {
         os << " " << Builtins::name(code->builtin_id());
@@ -4570,7 +4563,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
     }
     case HOLE_TYPE: {
 #define PRINT_HOLE(Type, Value, _) \
-  if (Is##Type(*this)) {           \
+  if (Is##Type(this)) {            \
     os << "<" #Value ">";          \
     break;                         \
   }
@@ -4579,7 +4572,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       UNREACHABLE();
     }
     case INSTRUCTION_STREAM_TYPE: {
-      Tagged<InstructionStream> istream = TrustedCast<InstructionStream>(*this);
+      Tagged<InstructionStream> istream = TrustedCast<InstructionStream>(this);
       Tagged<Code> code = istream->code(kAcquireLoad);
       os << "<InstructionStream " << CodeKindToString(code->kind());
       if (code->is_builtin()) {
@@ -4589,35 +4582,35 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     }
     case ODDBALL_TYPE: {
-      if (IsUndefined(*this)) {
+      if (IsUndefined(this)) {
         os << "<undefined>";
-      } else if (IsNull(*this)) {
+      } else if (IsNull(this)) {
         os << "<null>";
-      } else if (IsTrue(*this)) {
+      } else if (IsTrue(this)) {
         os << "<true>";
-      } else if (IsFalse(*this)) {
+      } else if (IsFalse(this)) {
         os << "<false>";
       } else {
         os << "<Odd Oddball: ";
-        os << Cast<Oddball>(*this)->to_string()->ToCString().get();
+        os << Cast<Oddball>(this)->to_string()->ToCString().get();
         os << ">";
       }
       break;
     }
     case SYMBOL_TYPE: {
-      Tagged<Symbol> symbol = Cast<Symbol>(*this);
+      Tagged<Symbol> symbol = Cast<Symbol>(this);
       symbol->SymbolShortPrint(os);
       break;
     }
     case HEAP_NUMBER_TYPE: {
       os << "<HeapNumber ";
-      Cast<HeapNumber>(*this)->HeapNumberShortPrint(os);
+      Cast<HeapNumber>(this)->HeapNumberShortPrint(os);
       os << ">";
       break;
     }
     case BIGINT_TYPE: {
       os << "<BigInt ";
-      Cast<BigInt>(*this)->BigIntBaseShortPrint(os);
+      Cast<BigInt>(this)->BigIntBaseShortPrint(os);
       os << ">";
       break;
     }
@@ -4631,13 +4624,13 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << "<Cell value= ";
       HeapStringAllocator allocator;
       StringStream accumulator(&allocator);
-      ShortPrint(Cast<Cell>(*this)->maybe_value(), &accumulator);
+      ShortPrint(Cast<Cell>(this)->maybe_value(), &accumulator);
       os << accumulator.ToCString().get();
       os << '>';
       break;
     }
     case PROPERTY_CELL_TYPE: {
-      Tagged<PropertyCell> cell = Cast<PropertyCell>(*this);
+      Tagged<PropertyCell> cell = Cast<PropertyCell>(this);
       os << "<PropertyCell name=";
       ShortPrint(cell->name(), os);
       os << " value=";
@@ -4649,7 +4642,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     }
     case ACCESSOR_INFO_TYPE: {
-      Tagged<AccessorInfo> info = Cast<AccessorInfo>(*this);
+      Tagged<AccessorInfo> info = Cast<AccessorInfo>(this);
       os << "<AccessorInfo ";
       os << "name= " << Brief(info->name());
       os << ", data= " << Brief(info->data());
@@ -4657,10 +4650,10 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     }
     case FUNCTION_TEMPLATE_INFO_TYPE: {
-      Tagged<FunctionTemplateInfo> info = Cast<FunctionTemplateInfo>(*this);
+      Tagged<FunctionTemplateInfo> info = Cast<FunctionTemplateInfo>(this);
       os << "<FunctionTemplateInfo ";
       Isolate* isolate;
-      if (GetIsolateFromHeapObject(*this, &isolate)) {
+      if (GetIsolateFromHeapObject(this, &isolate)) {
         os << "callback= " << reinterpret_cast<void*>(info->callback(isolate));
       } else {
         os << "callback= " << kUnavailableString;
@@ -4677,11 +4670,11 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_DISPATCH_TABLE_TYPE:
       os << "<WasmDispatchTable["
-         << TrustedCast<WasmDispatchTable>(*this)->length() << "]>";
+         << TrustedCast<WasmDispatchTable>(this)->length() << "]>";
       break;
     case WASM_DISPATCH_TABLE_FOR_IMPORTS_TYPE:
       os << "<WasmDispatchTableForImports["
-         << TrustedCast<WasmDispatchTableForImports>(*this)->length() << "]>";
+         << TrustedCast<WasmDispatchTableForImports>(this)->length() << "]>";
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:
@@ -5078,8 +5071,7 @@ void TransitionsAccessor::PrintTransitionTree(
           DCHECK(!IsSpecialTransition(ReadOnlyRoots(isolate_), key));
           os << "to ";
           InternalIndex descriptor = target->LastAdded();
-          Tagged<DescriptorArray> descriptors =
-              target->instance_descriptors(isolate_);
+          Tagged<DescriptorArray> descriptors = target->instance_descriptors();
           descriptors->PrintDescriptorDetails(os, descriptor,
                                               PropertyDetails::kForTransitions);
         }
@@ -5349,8 +5341,7 @@ V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_TransitionTree(
 #if defined(DEBUG) || defined(OBJECT_PRINT)
     i::Tagged<i::Map> map = i::UncheckedCast<i::Map>(o);
     i::TransitionsAccessor transitions(
-        i::Isolate::Current(),
-        start_at_root ? map->FindRootMap(GetPtrComprCageBase(map)) : map);
+        i::Isolate::Current(), start_at_root ? map->FindRootMap() : map);
     transitions.PrintTransitionTree();
 #endif
   }

@@ -29,8 +29,9 @@ size_t hash_value(OutputFrameStateCombine const& sc) {
 }
 
 std::ostream& operator<<(std::ostream& os, OutputFrameStateCombine const& sc) {
-  if (sc.parameter_ == OutputFrameStateCombine::kInvalidIndex)
+  if (sc.parameter_ == OutputFrameStateCombine::kInvalidIndex) {
     return os << "Ignore";
+  }
   return os << "PokeAt(" << sc.parameter_ << ")";
 }
 

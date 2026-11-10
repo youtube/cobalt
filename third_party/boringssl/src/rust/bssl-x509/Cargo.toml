@@ -20,5 +20,3 @@ default = ["std"]
 # `std` depends on the Rust `std` crate, but adds some useful trait impls if
 # available.
 std = ["bssl-crypto/std"]
-# `mlalgs` enables ML-KEM and ML-DSA support. This requires Rust 1.82.
-mlalgs = ["bssl-crypto/mlalgs"]

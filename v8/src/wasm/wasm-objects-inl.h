@@ -16,12 +16,18 @@
 
 #include "src/base/memory.h"
 #include "src/common/ptr-compr.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/casting.h"
+#include "src/objects/fixed-array-inl.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/managed.h"
+#include "src/objects/object-predicates-inl.h"
+#include "src/objects/slots-inl.h"
+#include "src/objects/tagged-field-inl.h"
+#include "src/objects/trusted-object-inl.h"
 #include "src/objects/trusted-pointer-inl.h"
 #include "src/roots/roots.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -39,20 +45,19 @@ namespace v8::internal {
 
 #include "torque-generated/src/wasm/wasm-objects-tq-inl.inc"
 
-#define OPTIONAL_ACCESSORS(holder, name, type, offset)       \
-  DEF_GETTER(holder, has_##name, bool) {                     \
-    Tagged<Object> value =                                   \
-        TaggedField<Object, offset>::load(cage_base, *this); \
-    return !IsUndefined(value);                              \
-  }                                                          \
+#define OPTIONAL_ACCESSORS(holder, name, type, offset)                         \
+  DEF_GETTER(holder, has_##name, bool) {                                       \
+    Tagged<Object> value = TaggedField<Object, offset>::load(cage_base, this); \
+    return !IsUndefined(value);                                                \
+  }                                                                            \
   ACCESSORS_CHECKED2(holder, name, type, offset, !IsUndefined(value), true)
 
-#define PRIMITIVE_ACCESSORS(holder, name, type, offset)               \
-  type holder::name() const {                                         \
-    return ReadMaybeUnalignedValue<type>(FIELD_ADDR(*this, offset));  \
-  }                                                                   \
-  void holder::set_##name(type value) {                               \
-    WriteMaybeUnalignedValue<type>(FIELD_ADDR(*this, offset), value); \
+#define PRIMITIVE_ACCESSORS(holder, name, type, offset)              \
+  type holder::name() const {                                        \
+    return ReadMaybeUnalignedValue<type>(FIELD_ADDR(this, offset));  \
+  }                                                                  \
+  void holder::set_##name(type value) {                              \
+    WriteMaybeUnalignedValue<type>(FIELD_ADDR(this, offset), value); \
   }
 
 // WasmModuleObject
@@ -187,7 +192,7 @@ bool WasmGlobalObject::has_trusted_data() const {
 bool WasmGlobalObject::has_trusted_data_unpublished(
     IsolateForSandbox isolate) const {
   return TrustedPointerField::IsTrustedPointerFieldUnpublished(
-      Tagged<HeapObject>(this), kTrustedDataOffset,
+      Tagged<HeapObject>(this), offsetof(WasmGlobalObject, trusted_data_),
       kWasmTrustedInstanceDataIndirectPointerTag, isolate);
 }
 void WasmGlobalObject::clear_trusted_data() { trusted_data_.clear(this); }
@@ -291,72 +296,58 @@ PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, memory0_start, uint8_t*,
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, memory0_size, size_t,
                     kMemory0SizeOffset)
 // ACCESSORS/OPTIONAL_ACCESSORS/PROTECTED_POINTER_ACCESSORS all use
-// CONDITIONAL_*_WRITE_BARRIER(*this, ...) which expands to (object)->... —
-// arrow access that fails for HeapObjectLayout value types.  Spell out the
+// CONDITIONAL_*_WRITE_BARRIER(this, ...) which expands to (object)->... —
+// arrow access that fails for HeapObject value types.  Spell out the
 // impls manually using *Tagged<WasmTrustedInstanceData>(this) instead.
 
 // Tagged field accessors (replaces ACCESSORS).
 #define WTI_TAGGED_ACCESSORS(name, type, offset)                             \
   type WasmTrustedInstanceData::name() const {                               \
-    PtrComprCageBase cage_base = GetPtrComprCageBase(*this);                 \
-    return name(cage_base);                                                  \
-  }                                                                          \
-  type WasmTrustedInstanceData::name(PtrComprCageBase cage_base) const {     \
-    return TaggedField<type, offset>::load(cage_base, *this);                \
+    return TaggedField<type, offset>::load(this);                            \
   }                                                                          \
   void WasmTrustedInstanceData::set_##name(type value,                       \
                                            WriteBarrierMode mode) {          \
-    TaggedField<type, offset>::store(*this, value);                          \
+    TaggedField<type, offset>::store(this, value);                           \
     CONDITIONAL_WRITE_BARRIER(Tagged<WasmTrustedInstanceData>(this), offset, \
                               value, mode);                                  \
   }
 
 // Optional tagged field accessors (replaces OPTIONAL_ACCESSORS).
-#define WTI_OPTIONAL_TAGGED_ACCESSORS(name, type, offset)                      \
-  bool WasmTrustedInstanceData::has_##name() const {                           \
-    PtrComprCageBase cage_base = GetPtrComprCageBase(*this);                   \
-    return has_##name(cage_base);                                              \
-  }                                                                            \
-  bool WasmTrustedInstanceData::has_##name(PtrComprCageBase cage_base) const { \
-    Tagged<Object> value =                                                     \
-        TaggedField<Object, offset>::load(cage_base, *this);                   \
-    return !IsUndefined(value);                                                \
-  }                                                                            \
-  type WasmTrustedInstanceData::name() const {                                 \
-    PtrComprCageBase cage_base = GetPtrComprCageBase(*this);                   \
-    return name(cage_base);                                                    \
-  }                                                                            \
-  type WasmTrustedInstanceData::name(PtrComprCageBase cage_base) const {       \
-    DCHECK(has_##name(cage_base));                                             \
-    return TaggedField<type, offset>::load(cage_base, *this);                  \
-  }                                                                            \
-  void WasmTrustedInstanceData::set_##name(type value,                         \
-                                           WriteBarrierMode mode) {            \
-    TaggedField<type, offset>::store(*this, value);                            \
-    CONDITIONAL_WRITE_BARRIER(Tagged<WasmTrustedInstanceData>(this), offset,   \
-                              value, mode);                                    \
+#define WTI_OPTIONAL_TAGGED_ACCESSORS(name, type, offset)                    \
+  bool WasmTrustedInstanceData::has_##name() const {                         \
+    Tagged<Object> value = TaggedField<Object, offset>::load(this);          \
+    return !IsUndefined(value);                                              \
+  }                                                                          \
+  type WasmTrustedInstanceData::name() const {                               \
+    DCHECK(has_##name());                                                    \
+    return TaggedField<type, offset>::load(this);                            \
+  }                                                                          \
+  void WasmTrustedInstanceData::set_##name(type value,                       \
+                                           WriteBarrierMode mode) {          \
+    TaggedField<type, offset>::store(this, value);                           \
+    CONDITIONAL_WRITE_BARRIER(Tagged<WasmTrustedInstanceData>(this), offset, \
+                              value, mode);                                  \
   }
 
 // Protected pointer accessors (replaces PROTECTED_POINTER_ACCESSORS).
 // PROTECTED_POINTER_ACCESSORS requires a TrustedObject base; spell out
 // the impls manually now that WasmTrustedInstanceData derives from
 // ExposedTrustedObject.
-#define WTI_PROTECTED_POINTER_ACCESSORS(name, type, offset)           \
-  Tagged<type> WasmTrustedInstanceData::name() const {                \
-    DCHECK(has_##name());                                             \
-    return ReadProtectedPointerField<type>(offset);                   \
-  }                                                                   \
-  void WasmTrustedInstanceData::set_##name(Tagged<type> value,        \
-                                           WriteBarrierMode mode) {   \
-    WriteProtectedPointerField(offset, value);                        \
-    CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(                      \
-        *Tagged<WasmTrustedInstanceData>(this), offset, value, mode); \
-  }                                                                   \
-  bool WasmTrustedInstanceData::has_##name() const {                  \
-    return !IsProtectedPointerFieldEmpty(offset);                     \
-  }                                                                   \
-  void WasmTrustedInstanceData::clear_##name() {                      \
-    ClearProtectedPointerField(offset);                               \
+#define WTI_PROTECTED_POINTER_ACCESSORS(name, type, offset)                 \
+  Tagged<type> WasmTrustedInstanceData::name() const {                      \
+    DCHECK(has_##name());                                                   \
+    return ReadProtectedPointerField<type>(offset);                         \
+  }                                                                         \
+  void WasmTrustedInstanceData::set_##name(Tagged<type> value,              \
+                                           WriteBarrierMode mode) {         \
+    WriteProtectedPointerField(offset, value);                              \
+    CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(this, offset, value, mode); \
+  }                                                                         \
+  bool WasmTrustedInstanceData::has_##name() const {                        \
+    return !IsProtectedPointerFieldEmpty(offset);                           \
+  }                                                                         \
+  void WasmTrustedInstanceData::clear_##name() {                            \
+    ClearProtectedPointerField(offset);                                     \
   }
 
 WTI_PROTECTED_POINTER_ACCESSORS(managed_native_module,
@@ -489,7 +480,7 @@ bool WasmInstanceObject::has_trusted_data() const {
 bool WasmInstanceObject::has_trusted_data_unpublished(
     IsolateForSandbox isolate) const {
   return TrustedPointerField::IsTrustedPointerFieldUnpublished(
-      Tagged<HeapObject>(this), kTrustedDataOffset,
+      Tagged<HeapObject>(this), offsetof(WasmInstanceObject, trusted_data_),
       kWasmTrustedInstanceDataIndirectPointerTag, isolate);
 }
 void WasmInstanceObject::clear_trusted_data() { trusted_data_.clear(this); }
@@ -527,8 +518,8 @@ ImportedFunctionEntry::ImportedFunctionEntry(
 // WasmDispatchTable
 
 // TODO(jgruber): Spelled out (not PROTECTED_POINTER_ACCESSORS) because the
-// macro expands to CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*this, ...),
-// which is not valid on a V8_OBJECT / HeapObjectLayout holder. The macro
+// macro expands to CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(this, ...),
+// which is not valid on a V8_OBJECT / HeapObject holder. The macro
 // needs a Tagged<T>-wrapped self; spell the accessors out until the barrier
 // macro is updated.
 Tagged<TrustedManaged<WasmDispatchTableData>>
@@ -541,8 +532,7 @@ void WasmDispatchTable::set_protected_offheap_data(
     Tagged<TrustedManaged<WasmDispatchTableData>> value,
     WriteBarrierMode mode) {
   WriteProtectedPointerField(kProtectedOffheapDataOffset, value);
-  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*Tagged<WasmDispatchTable>(this),
-                                              kProtectedOffheapDataOffset,
+  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(this, kProtectedOffheapDataOffset,
                                               value, mode);
 }
 bool WasmDispatchTable::has_protected_offheap_data() const {
@@ -553,7 +543,7 @@ void WasmDispatchTable::clear_protected_offheap_data() {
 }
 // TODO(jgruber): See the WasmDispatchTable block above:
 // PROTECTED_POINTER_ACCESSORS expands to
-// CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*this, ...) which does not
+// CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(this, ...) which does not
 // work on a V8_OBJECT holder; spell the accessors out until the barrier
 // macro is updated.
 Tagged<TrustedManaged<WasmDispatchTableData>>
@@ -566,9 +556,8 @@ void WasmDispatchTableForImports::set_protected_offheap_data(
     Tagged<TrustedManaged<WasmDispatchTableData>> value,
     WriteBarrierMode mode) {
   WriteProtectedPointerField(kProtectedOffheapDataOffset, value);
-  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(
-      *Tagged<WasmDispatchTableForImports>(this), kProtectedOffheapDataOffset,
-      value, mode);
+  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(this, kProtectedOffheapDataOffset,
+                                              value, mode);
 }
 bool WasmDispatchTableForImports::has_protected_offheap_data() const {
   return !IsProtectedPointerFieldEmpty(kProtectedOffheapDataOffset);
@@ -594,8 +583,8 @@ Tagged<ProtectedWeakFixedArray> WasmDispatchTable::protected_uses() const {
 void WasmDispatchTable::set_protected_uses(
     Tagged<ProtectedWeakFixedArray> value, WriteBarrierMode mode) {
   WriteProtectedPointerField(kProtectedUsesOffset, value);
-  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(
-      *Tagged<WasmDispatchTable>(this), kProtectedUsesOffset, value, mode);
+  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(this, kProtectedUsesOffset, value,
+                                              mode);
 }
 bool WasmDispatchTable::has_protected_uses() const {
   return !IsProtectedPointerFieldEmpty(kProtectedUsesOffset);
@@ -614,10 +603,10 @@ void WasmDispatchTable::set_table_type(wasm::CanonicalValueType type) {
 }
 
 int WasmDispatchTable::length(AcquireLoadTag) const {
-  return ACQUIRE_READ_INT32_FIELD(*this, kLengthOffset);
+  return ACQUIRE_READ_INT32_FIELD(this, kLengthOffset);
 }
 int WasmDispatchTableForImports::length(AcquireLoadTag) const {
-  return ACQUIRE_READ_INT32_FIELD(*this, kLengthOffset);
+  return ACQUIRE_READ_INT32_FIELD(this, kLengthOffset);
 }
 
 int WasmDispatchTable::length() const { return ReadField<int>(kLengthOffset); }
@@ -1095,7 +1084,7 @@ bool WasmTableObject::has_trusted_data() const {
 bool WasmTableObject::has_trusted_data_unpublished(
     IsolateForSandbox isolate) const {
   return TrustedPointerField::IsTrustedPointerFieldUnpublished(
-      Tagged<HeapObject>(this), kTrustedDataOffset,
+      Tagged<HeapObject>(this), offsetof(WasmTableObject, trusted_data_),
       kWasmTrustedInstanceDataIndirectPointerTag, isolate);
 }
 void WasmTableObject::clear_trusted_data() { trusted_data_.clear(this); }
@@ -1122,7 +1111,8 @@ bool WasmTableObject::has_trusted_dispatch_table() const {
 bool WasmTableObject::has_trusted_dispatch_table_unpublished(
     IsolateForSandbox isolate) const {
   return TrustedPointerField::IsTrustedPointerFieldUnpublished(
-      Tagged<HeapObject>(this), kTrustedDispatchTableOffset,
+      Tagged<HeapObject>(this),
+      offsetof(WasmTableObject, trusted_dispatch_table_),
       kWasmDispatchTableIndirectPointerTag, isolate);
 }
 void WasmTableObject::clear_trusted_dispatch_table() {
@@ -1352,8 +1342,8 @@ void WasmStruct::SetTaggedFieldValue(int raw_offset, Tagged<Object> value,
 }
 
 Tagged<Map> WasmStruct::described_rtt() const {
-  Tagged<Map> value = TaggedField<Map, kHeaderSize>::load(
-      GetPtrComprCageBase(Tagged<WasmStruct>(this)), Tagged<WasmStruct>(this));
+  Tagged<Map> value =
+      TaggedField<Map, kHeaderSize>::load(Tagged<WasmStruct>(this));
   DCHECK(GcSafeType(map())->is_descriptor());
   return value;
 }
@@ -1451,7 +1441,8 @@ void WasmSuspenderObject::set_stack(IsolateForSandbox isolate,
 }
 
 EXTERNAL_POINTER_ACCESSORS(WasmStackObject, stack, wasm::StackMemory*,
-                           kStackOffset, kWasmStackMemoryTag)
+                           offsetof(WasmStackObject, stack_),
+                           kWasmStackMemoryTag)
 
 // WasmTagObject
 Tagged<HeapObject> WasmTagObject::tag() const { return tag_.load(); }
@@ -1488,7 +1479,7 @@ bool WasmTagObject::has_trusted_data() const {
 bool WasmTagObject::has_trusted_data_unpublished(
     IsolateForSandbox isolate) const {
   return TrustedPointerField::IsTrustedPointerFieldUnpublished(
-      Tagged<HeapObject>(this), kTrustedDataOffset,
+      Tagged<HeapObject>(this), offsetof(WasmTagObject, trusted_data_),
       kWasmTrustedInstanceDataIndirectPointerTag, isolate);
 }
 void WasmTagObject::clear_trusted_data() { trusted_data_.clear(this); }
@@ -1498,20 +1489,26 @@ void WasmExceptionTag::set_index(int value) {
   index_.store(this, Smi::FromInt(value));
 }
 
-Tagged<Managed<wasm::NativeModule>> AsmWasmData::managed_native_module() const {
+// AsmWasmData
+Tagged<TrustedManaged<wasm::NativeModule>> AsmWasmData::managed_native_module()
+    const {
+  DCHECK(has_managed_native_module());
   return managed_native_module_.load();
 }
 void AsmWasmData::set_managed_native_module(
-    Tagged<Managed<wasm::NativeModule>> value, WriteBarrierMode mode) {
+    Tagged<TrustedManaged<wasm::NativeModule>> value, WriteBarrierMode mode) {
   managed_native_module_.store(this, value, mode);
 }
-
-Tagged<HeapNumber> AsmWasmData::uses_bitset() const {
-  return uses_bitset_.load();
+bool AsmWasmData::has_managed_native_module() const {
+  return !managed_native_module_.load().is_null();
 }
-void AsmWasmData::set_uses_bitset(Tagged<HeapNumber> value,
-                                  WriteBarrierMode mode) {
-  uses_bitset_.store(this, value, mode);
+void AsmWasmData::clear_managed_native_module() {
+  managed_native_module_.store(this, {}, SKIP_WRITE_BARRIER);
+}
+
+uint64_t AsmWasmData::uses_bitset() const { return uses_bitset_.value(); }
+void AsmWasmData::set_uses_bitset(uint64_t value) {
+  uses_bitset_.set_value(value);
 }
 
 Tagged<JSReceiver> WasmSuspendingObject::callable() const {

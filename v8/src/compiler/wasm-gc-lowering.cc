@@ -171,7 +171,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
       Node* supertypes_length =
           gasm_.BuildChangeSmiToIntPtr(gasm_.LoadImmutableFromObject(
               MachineType::TaggedSigned(), type_info,
-              WasmTypeInfo::kSupertypesLengthOffset - kHeapObjectTag));
+              offsetof(WasmTypeInfo, supertypes_length_) - kHeapObjectTag));
       gasm_.GotoIfNot(gasm_.UintLessThan(gasm_.IntPtrConstant(rtt_depth),
                                          supertypes_length),
                       &end_label, BranchHint::kTrue, gasm_.Int32Constant(0));
@@ -342,7 +342,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
       Node* supertypes_length =
           gasm_.BuildChangeSmiToIntPtr(gasm_.LoadImmutableFromObject(
               MachineType::TaggedSigned(), type_info,
-              WasmTypeInfo::kSupertypesLengthOffset - kHeapObjectTag));
+              offsetof(WasmTypeInfo, supertypes_length_) - kHeapObjectTag));
       gasm_.TrapUnless(gasm_.UintLessThan(gasm_.IntPtrConstant(rtt_depth),
                                           supertypes_length),
                        TrapId::kTrapIllegalCast);
@@ -801,14 +801,14 @@ Reduction WasmGCLowering::ReduceWasmArrayLength(Node* node) {
   bool use_null_trap =
       null_check_strategy_ == NullCheckStrategy::kTrapHandler &&
       null_check == kWithNullCheck;
-  Node* length =
-      use_null_trap
-          ? gasm_.LoadTrapOnNull(
-                MachineType::Uint32(), object,
-                gasm_.IntPtrConstant(WasmArray::kLengthOffset - kHeapObjectTag))
-          : gasm_.LoadImmutableFromObject(
-                MachineType::Uint32(), object,
-                WasmArray::kLengthOffset - kHeapObjectTag);
+  Node* length = use_null_trap
+                     ? gasm_.LoadTrapOnNull(
+                           MachineType::Uint32(), object,
+                           gasm_.IntPtrConstant(offsetof(WasmArray, length_) -
+                                                kHeapObjectTag))
+                     : gasm_.LoadImmutableFromObject(
+                           MachineType::Uint32(), object,
+                           offsetof(WasmArray, length_) - kHeapObjectTag);
   if (use_null_trap) {
     UpdateSourcePosition(length, node);
   }
@@ -828,7 +828,7 @@ Reduction WasmGCLowering::ReduceWasmArrayInitializeLength(Node* node) {
 
   Node* set_length = gasm_.InitializeImmutableInObject(
       ObjectAccess{MachineType::Uint32(), kNoWriteBarrier}, object,
-      WasmArray::kLengthOffset - kHeapObjectTag, length);
+      offsetof(WasmArray, length_) - kHeapObjectTag, length);
 
   return Replace(set_length);
 }

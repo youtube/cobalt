@@ -92,7 +92,7 @@ unsigned OpcodeLength(const uint8_t* pc, const uint8_t* end) {
   return WasmDecoder<Decoder::NoValidationTag>::OpcodeLength(&decoder, pc);
 }
 
-bool CheckHardwareSupportsSimd() { return CpuFeatures::SupportsWasmSimd128(); }
+bool CheckHardwareSupportsSimd() { return CpuFeatures::SupportsSimd128(); }
 
 BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, uint32_t num_locals,
                                            const uint8_t* start,

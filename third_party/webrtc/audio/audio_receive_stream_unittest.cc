@@ -147,6 +147,8 @@ struct ConfigHelper {
         .WillRepeatedly([](const std::map<int, SdpAudioFormat>& codecs) {
           EXPECT_THAT(codecs, ::testing::IsEmpty());
         });
+    EXPECT_CALL(*channel_receive_, remote_ssrc)
+        .WillRepeatedly(Return(kRemoteSsrc));
 
     stream_config_.rtp.remote_ssrc = kRemoteSsrc;
     stream_config_.rtp.nack.rtp_history_ms = 300;

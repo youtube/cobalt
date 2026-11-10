@@ -7,6 +7,8 @@
 
 #include <stdint.h>
 
+#include <map>
+#include <string>
 #include <vector>
 
 #include "pdf/mojom/pdf.mojom.h"
@@ -24,6 +26,8 @@ enum class TextTypeface {
   kSansSerif = 0,
   kSerif = 1,
   kMonospace = 2,
+  kFirst = kSansSerif,
+  kLast = kMonospace,
 };
 
 // These values are persisted in PDFs as integers. Do not change the assigned
@@ -32,7 +36,12 @@ enum class TextAlignment {
   kLeft = 0,
   kCenter = 1,
   kRight = 2,
+  kFirst = kLeft,
+  kLast = kRight,
 };
+
+std::string TextTypefaceToString(TextTypeface typeface);
+std::string TextAlignmentToString(TextAlignment alignment);
 
 struct InkTextBoxAttributes {
   InkTextBoxAttributes(gfx::RectF rect,
@@ -42,7 +51,12 @@ struct InkTextBoxAttributes {
                        TextAlignment alignment,
                        int orientation,
                        bool is_bold,
-                       bool is_italic);
+                       bool is_italic,
+                       const std::string& text);
+  InkTextBoxAttributes(const InkTextBoxAttributes&) = delete;
+  InkTextBoxAttributes& operator=(const InkTextBoxAttributes&) = delete;
+  InkTextBoxAttributes(InkTextBoxAttributes&&) noexcept;
+  InkTextBoxAttributes& operator=(InkTextBoxAttributes&&) noexcept;
   ~InkTextBoxAttributes();
 
   // `rect` is in CSS screen coordinates.
@@ -55,14 +69,36 @@ struct InkTextBoxAttributes {
   int orientation;
   bool is_bold;
   bool is_italic;
+  std::string text;
 };
 
+// Holds metadata and reconstructed contents for a textbox extracted from marked
+// page streams.
+struct InkTextBox {
+  InkTextBox(int id, InkTextBoxAttributes attributes);
+  InkTextBox(const InkTextBox&) = delete;
+  InkTextBox& operator=(const InkTextBox&) = delete;
+  InkTextBox(InkTextBox&&) noexcept;
+  InkTextBox& operator=(InkTextBox&&) noexcept;
+  ~InkTextBox();
+
+  // The unique textbox identifier read directly from the PDF's marked content
+  // parameter (`TextboxId`), binding text object fragments together.
+  int id;
+
+  InkTextBoxAttributes attributes;
+};
+
+// Key: 0-based page index.
+// Value: Vector of textboxes on that page.
+using DocumentInkTextBoxesMap = std::map<int, std::vector<InkTextBox>>;
+
 struct InkTextInfo {
-  InkTextInfo(FontId,
-              std::vector<uint32_t>,
-              std::vector<gfx::Vector2dF>,
-              gfx::RectF,
-              bool);
+  InkTextInfo(FontId font_id,
+              std::vector<uint32_t> glyphs,
+              std::vector<float> glyph_positions,
+              gfx::RectF location,
+              bool is_horizontal);
   InkTextInfo(InkTextInfo&&) noexcept;
   InkTextInfo& operator=(InkTextInfo&&) noexcept;
   ~InkTextInfo();
@@ -73,7 +109,10 @@ struct InkTextInfo {
 
   FontId font_id;
   std::vector<uint32_t> glyphs;
-  std::vector<gfx::Vector2dF> glyph_positions;
+  // Positions relative to the origin of the `location` rect in CSS pixels.
+  // if is_horizontal is true, x-axis, if false, y-axis.
+  std::vector<float> glyph_positions;
+  // In CSS pixels. Based on top left of screen origin.
   gfx::RectF location;
   bool is_horizontal;
 };

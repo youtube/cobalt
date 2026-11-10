@@ -64,8 +64,9 @@ std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectCommon(
       std::make_unique<protocol::Array<protocol::Runtime::CallFrame>>();
   for (const std::shared_ptr<StackFrame>& frame : frames) {
     V8InspectorClient* client = nullptr;
-    if (debugger && debugger->inspector())
+    if (debugger && debugger->inspector()) {
       client = debugger->inspector()->client();
+    }
     inspectorFrames->emplace_back(frame->buildInspectorObject(client));
   }
   std::unique_ptr<protocol::Runtime::StackTrace> stackTrace =
@@ -421,8 +422,9 @@ std::shared_ptr<AsyncStackTrace> AsyncStackTrace::capture(
                              &externalParent);
   }
 
-  if (frames.empty() && !asyncParent && externalParent.IsInvalid())
+  if (frames.empty() && !asyncParent && externalParent.IsInvalid()) {
     return nullptr;
+  }
 
   if (asyncParent && frames.empty() &&
       (asyncParent->m_description == description || description.isEmpty())) {

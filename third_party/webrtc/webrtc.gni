@@ -310,8 +310,8 @@ declare_args() {
   # Set this to true to disable webrtc metrics.
   rtc_disable_metrics = false
 
-  # Enables an experimental rust version of base64 for building and testing.
-  rtc_rusty_base64 = false
+  # Allows for rust targets.
+  rtc_rust = true
 
   # Enables PSNR calculation for video getStats.
   rtc_video_psnr = true
@@ -362,6 +362,11 @@ if (is_mac || is_ios) {
 
 if (build_with_chromium) {
   rtc_use_perfetto = true
+}
+
+if (rtc_rust) {
+  import("//build/config/rust.gni")
+  import("//build/rust/rust_static_library.gni")
 }
 
 # Global public configuration that should be applied to all WebRTC targets. You
@@ -1341,6 +1346,9 @@ template("rtc_cc_test") {
     if (defined(invoker.data_deps)) {
       data_deps = invoker.data_deps
     }
+    if (defined(invoker.shard_timeout)) {
+      shard_timeout = invoker.shard_timeout
+    }
   }
 }
 
@@ -1355,6 +1363,11 @@ template("rtc_cc_test") {
 #   tests: List of rtc_cc_test targets to include in this suite.
 #   deps: Additional dependencies (e.g. groups of tests).
 template("rtc_test_suite") {
+  if (defined(invoker.testonly)) {
+    testonly = invoker.testonly
+  } else {
+    testonly = true
+  }
   _suite_name = target_name
 
   # This checks that all of the tests strings listed are an rtc_cc_test by
@@ -1373,7 +1386,7 @@ template("rtc_test_suite") {
     _check_target = "${_suite_name}_${_safe_label}_check"
 
     generated_file(_check_target) {
-      testonly = true
+      testonly = testonly
       outputs = [ _output_file ]
       data_keys = [ "rtc_cc_test" ]
       output_conversion = "json"
@@ -1393,7 +1406,7 @@ template("rtc_test_suite") {
              "json")
 
   action("${_suite_name}_verify_metadata") {
-    testonly = true
+    testonly = testonly
     script = "//tools_webrtc/verify_test_suite_metadata.py"
     inputs = [ "$target_gen_dir/${_suite_name}_metadata_map.json" ]
     outputs = [ "$target_gen_dir/${_suite_name}_metadata.stamp" ]
@@ -1404,16 +1417,159 @@ template("rtc_test_suite") {
     deps = _metadata_check_deps
   }
 
-  rtc_test(_suite_name) {
-    forward_variables_from(invoker, "*", [ "tests" ])
+  assert(!defined(invoker.deps), "rtc_test_suite does not allow deps")
 
-    if (!defined(deps)) {
-      deps = []
+  # TODO(webrtc:498394143): Infer shard_timeout for the suite based on the
+  # individual test timeouts if shard_timeouts are still required.
+  rtc_test(_suite_name) {
+    testonly = true
+    deps = invoker.tests
+    deps += [ ":${_suite_name}_verify_metadata" ]
+    if (defined(invoker.shard_timeout)) {
+      shard_timeout = invoker.shard_timeout
     }
+  }
+}
+
+# Defines a Rust library.
+#
+# This template wraps rust_static_library from Chromium, restricting the
+# arguments to a safe subset.
+template("rtc_rust_library") {
+  assert(
+      !defined(invoker.crate_name),
+      "Custom crate_name is not allowed in WebRTC. Use webrtc::import! instead.")
+  assert(
+      !defined(invoker.cxx_bindings),
+      "cxx_bindings are not allowed in rtc_rust_library. Use rtc_rust_cxx_bridge instead.")
+  rust_static_library(target_name) {
+    forward_variables_from(invoker,
+                           "*",
+                           [
+                             "deps",
+                             "rustenv",
+                           ])
+
+    rustenv = [ "WEBRTC_GN_PREFIX=$webrtc_root" ]
+    if (defined(invoker.rustenv)) {
+      rustenv += invoker.rustenv
+    }
+
+    deps = [ "$webrtc_root/rust/webrtc_import" ]
     if (defined(invoker.deps)) {
       deps += invoker.deps
     }
-    deps += invoker.tests
-    deps += [ ":${_suite_name}_verify_metadata" ]
+
+    build_native_rust_unit_tests = false
+  }
+}
+
+# Defines a Rust unit test.
+template("rtc_rust_unittest") {
+  if (can_build_rust_unit_tests) {
+    assert(
+        !defined(invoker.crate_name),
+        "Custom crate_name is not allowed in WebRTC. Use webrtc::import! instead.")
+    rust_unit_test(target_name) {
+      forward_variables_from(invoker,
+                             "*",
+                             [
+                               "deps",
+                               "rustenv",
+                             ])
+
+      rustenv = [ "WEBRTC_GN_PREFIX=$webrtc_root" ]
+      if (defined(invoker.rustenv)) {
+        rustenv += invoker.rustenv
+      }
+
+      deps = [ "$webrtc_root/rust/webrtc_import" ]
+      if (defined(invoker.deps)) {
+        deps += invoker.deps
+      }
+    }
+  } else {
+    group(target_name) {
+      testonly = true
+      not_needed(invoker, "*")
+    }
+  }
+}
+
+# Defines a Rust CXX bridge.
+#
+# This template wraps rust_static_library but takes a single `source` file
+# instead of a list of sources, enforcing the pattern of one bridge per target.
+template("rtc_rust_cxx_bridge") {
+  assert(defined(invoker.source), "source must be specified")
+  assert(!defined(invoker.sources), "Use source instead of sources")
+
+  # Explicitly assert that //build/rust:cxx_rustdeps is listed in deps.
+  assert(defined(invoker.deps) &&
+             filter_labels_include(invoker.deps,
+                                   [ "//build/rust:cxx_rustdeps" ]) != [],
+         "rtc_rust_cxx_bridge requires //build/rust:cxx_rustdeps in deps.")
+  assert(
+      !defined(invoker.crate_name),
+      "Custom crate_name is not allowed in WebRTC. Use webrtc::import! instead.")
+
+  rust_static_library(target_name) {
+    forward_variables_from(invoker,
+                           [
+                             "allow_unsafe",
+                             "features",
+                             "edition",
+                             "crate_root",
+                             "testonly",
+                             "visibility",
+                             "deps",
+                           ])
+    rustenv = [ "WEBRTC_GN_PREFIX=$webrtc_root" ]
+    if (defined(invoker.rustenv)) {
+      rustenv += invoker.rustenv
+    }
+    if (!defined(deps)) {
+      deps = []
+    }
+    deps += [ "$webrtc_root/rust/webrtc_import" ]
+    if (!defined(crate_root)) {
+      crate_root = invoker.source
+    }
+    sources = [ invoker.source ]
+    cxx_bindings = [ invoker.source ]
+
+    # WebRTC and Abseil include paths/defines are explicitly populated so that
+    # auto-generated bridge C++ source files (.cc) can safely locate required
+    # headers during compilation, and propagate header visibility cleanly via public_configs.
+    if (defined(invoker.configs)) {
+      configs += invoker.configs
+    }
+    configs += [
+      rtc_common_inherited_config,
+      absl_include_config,
+      absl_define_config,
+    ]
+    public_configs = [
+      rtc_common_inherited_config,
+      absl_include_config,
+      absl_define_config,
+    ]
+    if (defined(invoker.public_configs)) {
+      public_configs += invoker.public_configs
+    }
+  }
+}
+
+# Defines a suite of Rust unit tests.
+template("rtc_rust_test_suite") {
+  if (can_build_rust_unit_tests) {
+    rust_unit_tests_group(target_name) {
+      forward_variables_from(invoker, "*")
+    }
+  } else {
+    group(target_name) {
+      testonly = true
+      not_needed(invoker, "*")
+    }
   }
 }

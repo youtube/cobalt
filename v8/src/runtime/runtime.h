@@ -653,7 +653,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(SetPriorityBestEffort, 0, 1)                                         \
   F(SetPriorityUserVisible, 0, 1)                                        \
   F(SetPriorityUserBlocking, 0, 1)                                       \
-  F(OptimizeMaglevOnNextCall, 1, 1)                                      \
+  F(OptimizeMaglevOnNextCall, -1, 1)                                     \
   F(OptimizeFunctionOnNextCall, -1, 1)                                   \
   F(OptimizeOsr, -1, 1)                                                  \
   F(PrepareFunctionForOptimization, -1, 1)                               \
@@ -703,7 +703,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(TypedArraySortFast, 1, 1)
 
 #if V8_ENABLE_DRUMBRAKE
-#define FOR_EACH_INTRINSIC_WASM_DRUMBRAKE(F, I) F(WasmRunInterpreter, 4, 1)
+#define FOR_EACH_INTRINSIC_WASM_DRUMBRAKE(F, I) F(WasmRunInterpreter, 5, 1)
 #else
 #define FOR_EACH_INTRINSIC_WASM_DRUMBRAKE(F, I)
 #endif  // V8_ENABLE_DRUMBRAKE

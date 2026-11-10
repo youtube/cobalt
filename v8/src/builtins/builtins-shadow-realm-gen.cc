@@ -52,8 +52,8 @@ TNode<JSObject> ShadowRealmBuiltinsAssembler::AllocateJSWrappedFunction(
       native_context, Context::WRAPPED_FUNCTION_MAP_INDEX));
   TNode<JSObject> wrapped = AllocateJSObjectFromMap(map);
   StoreObjectFieldNoWriteBarrier(
-      wrapped, JSWrappedFunction::kWrappedTargetFunctionOffset, target);
-  StoreObjectFieldNoWriteBarrier(wrapped, JSWrappedFunction::kContextOffset,
+      wrapped, offsetof(JSWrappedFunction, wrapped_target_function_), target);
+  StoreObjectFieldNoWriteBarrier(wrapped, offsetof(JSWrappedFunction, context_),
                                  context);
   return wrapped;
 }
@@ -140,8 +140,9 @@ TF_BUILTIN(ShadowRealmGetWrappedValue, ShadowRealmBuiltinsAssembler) {
   // wrapped function won't cause a side effect in the creation realm.
   // Unwrap here to avoid nested unwrapping at the call site.
   TNode<JSWrappedFunction> target_wrapped_function = CAST(value);
-  target = LoadObjectField(target_wrapped_function,
-                           JSWrappedFunction::kWrappedTargetFunctionOffset);
+  target =
+      LoadObjectField(target_wrapped_function,
+                      offsetof(JSWrappedFunction, wrapped_target_function_));
   Goto(&wrap);
 
   BIND(&wrap);
@@ -229,13 +230,13 @@ TF_BUILTIN(CallWrappedFunction, ShadowRealmBuiltinsAssembler) {
 
   // 1. Let target be F.[[WrappedTargetFunction]].
   TNode<JSReceiver> target = CAST(LoadObjectField(
-      wrapped_function, JSWrappedFunction::kWrappedTargetFunctionOffset));
+      wrapped_function, offsetof(JSWrappedFunction, wrapped_target_function_)));
   // 2. Assert: IsCallable(target) is true.
   CSA_DCHECK(this, IsCallable(target));
 
   // 4. Let callerRealm be ? GetFunctionRealm(F).
   TNode<Context> caller_context = LoadObjectField<Context>(
-      wrapped_function, JSWrappedFunction::kContextOffset);
+      wrapped_function, offsetof(JSWrappedFunction, context_));
   // 3. Let targetRealm be ? GetFunctionRealm(target).
   TNode<Context> target_context =
       GetFunctionRealm(caller_context, target, &target_not_callable);

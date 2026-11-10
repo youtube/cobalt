@@ -605,13 +605,9 @@ TEST(TrustTokenTest, PSTV1VOPRFTestVector3) {
 #endif  // BORINGSSL_SHARED_LIBRARY
 
 static std::vector<const TRUST_TOKEN_METHOD *> AllMethods() {
-  return {
-    TRUST_TOKEN_experiment_v1(),
-    TRUST_TOKEN_experiment_v2_voprf(),
-    TRUST_TOKEN_experiment_v2_pmb(),
-    TRUST_TOKEN_pst_v1_voprf(),
-    TRUST_TOKEN_pst_v1_pmb()
-  };
+  return {TRUST_TOKEN_experiment_v1(), TRUST_TOKEN_experiment_v2_voprf(),
+          TRUST_TOKEN_experiment_v2_pmb(), TRUST_TOKEN_pst_v1_voprf(),
+          TRUST_TOKEN_pst_v1_pmb()};
 }
 
 class TrustTokenProtocolTestBase : public ::testing::Test {
@@ -690,6 +686,21 @@ class TrustTokenProtocolTest
 INSTANTIATE_TEST_SUITE_P(TrustTokenAllProtocolTest, TrustTokenProtocolTest,
                          testing::Combine(testing::ValuesIn(AllMethods()),
                                           testing::Bool()));
+
+TEST_P(TrustTokenProtocolTest, MetadataKeySize) {
+  ASSERT_NO_FATAL_FAILURE(SetupContexts());
+
+  uint8_t md_key[64];
+  RAND_bytes(md_key, sizeof(md_key));
+  EXPECT_TRUE(TRUST_TOKEN_ISSUER_set_metadata_key(issuer.get(), md_key,
+                                                  sizeof(md_key)));
+  EXPECT_TRUE(TRUST_TOKEN_ISSUER_set_metadata_key(issuer.get(), md_key, 33));
+  EXPECT_TRUE(TRUST_TOKEN_ISSUER_set_metadata_key(issuer.get(), md_key, 32));
+  EXPECT_FALSE(TRUST_TOKEN_ISSUER_set_metadata_key(issuer.get(), md_key, 31));
+  EXPECT_FALSE(TRUST_TOKEN_ISSUER_set_metadata_key(issuer.get(), md_key, 16));
+  EXPECT_FALSE(TRUST_TOKEN_ISSUER_set_metadata_key(issuer.get(), md_key, 1));
+  EXPECT_FALSE(TRUST_TOKEN_ISSUER_set_metadata_key(issuer.get(), md_key, 0));
+}
 
 TEST_P(TrustTokenProtocolTest, InvalidToken) {
   ASSERT_NO_FATAL_FAILURE(SetupContexts());

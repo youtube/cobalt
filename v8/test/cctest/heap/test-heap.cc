@@ -199,12 +199,10 @@ static void CheckNumber(Isolate* isolate, double value, const char* string) {
 void CheckEmbeddedObjectsAreEqual(Isolate* isolate, DirectHandle<Code> lhs,
                                   DirectHandle<Code> rhs) {
   int mode_mask = RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT);
-  PtrComprCageBase cage_base(isolate);
   RelocIterator lhs_it(*lhs, mode_mask);
   RelocIterator rhs_it(*rhs, mode_mask);
   while (!lhs_it.done() && !rhs_it.done()) {
-    CHECK_EQ(lhs_it.rinfo()->target_object(cage_base),
-             rhs_it.rinfo()->target_object(cage_base));
+    CHECK_EQ(lhs_it.rinfo()->target_object(), rhs_it.rinfo()->target_object());
 
     lhs_it.next();
     rhs_it.next();
@@ -220,8 +218,6 @@ static void CheckGcSafeFindCodeForInnerPointer(Isolate* isolate) {
 
   __ nop();  // supported on all architectures
 
-  PtrComprCageBase cage_base(isolate);
-
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   DirectHandle<InstructionStream> code(
@@ -229,12 +225,12 @@ static void CheckGcSafeFindCodeForInnerPointer(Isolate* isolate) {
           .Build()
           ->instruction_stream(),
       isolate);
-  CHECK(IsInstructionStream(*code, cage_base));
+  CHECK(IsInstructionStream(*code));
 
   Tagged<HeapObject> obj = Cast<HeapObject>(*code);
   Address obj_addr = obj.address();
 
-  for (int i = 0; i < obj->Size(cage_base); i += kTaggedSize) {
+  for (int i = 0; i < obj->Size(); i += kTaggedSize) {
     Tagged<Code> lookup_result =
         isolate->heap()->FindCodeForInnerPointer(obj_addr + i);
     CHECK_EQ(*code, lookup_result->instruction_stream());
@@ -247,7 +243,7 @@ static void CheckGcSafeFindCodeForInnerPointer(Isolate* isolate) {
       isolate);
   Tagged<HeapObject> obj_copy = Cast<HeapObject>(*copy);
   Tagged<Code> not_right = isolate->heap()->FindCodeForInnerPointer(
-      obj_copy.address() + obj_copy->Size(cage_base) / 2);
+      obj_copy.address() + obj_copy->Size() / 2);
   CHECK_NE(not_right->instruction_stream(), *code);
   CHECK_EQ(not_right->instruction_stream(), *copy);
 }
@@ -2016,8 +2012,9 @@ TEST(TestInternalWeakLists) {
   // and hence are incompatible with this test case.
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation)
+      v8_flags.stress_concurrent_allocation) {
     return;
+  }
   v8_flags.retain_maps_for_n_gc = 0;
 
   static const int kNumTestContexts = 10;
@@ -2467,13 +2464,12 @@ TEST(TestSizeOfObjectsVsHeapObjectIteratorPrecision) {
   // are correct.
   CcTest::heap()->DisableInlineAllocation();
   HeapObjectIterator iterator(CcTest::heap());
-  PtrComprCageBase cage_base(CcTest::i_isolate());
   intptr_t size_of_objects_1 = CcTest::heap()->SizeOfObjects();
   intptr_t size_of_objects_2 = 0;
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (!IsFreeSpace(obj, cage_base)) {
-      size_of_objects_2 += obj->Size(cage_base);
+    if (!IsFreeSpace(obj)) {
+      size_of_objects_2 += obj->Size();
     }
   }
   // Delta must be within 5% of the larger result.
@@ -3070,8 +3066,9 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
   if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode)
+      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
     return;
+  }
   v8::HandleScope scope(CcTest::isolate());
   ManualGCScope manual_gc_scope;
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
@@ -3308,8 +3305,9 @@ TEST(OptimizedAllocationArrayLiterals) {
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
-      v8_flags.stress_incremental_marking)
+      v8_flags.stress_incremental_marking) {
     return;
+  }
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   v8::Local<v8::Value> res = CompileRun(
@@ -3992,8 +3990,9 @@ TEST(Regress169928) {
   // and hence are incompatible with this test case.
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.minor_ms)
+      v8_flags.minor_ms) {
     return;
+  }
 
   // Prepare the environment
   CompileRun(
@@ -5774,8 +5773,9 @@ HEAP_TEST(Regress587004) {
 }
 
 HEAP_TEST(Regress589413) {
-  if (!v8_flags.incremental_marking || v8_flags.stress_concurrent_allocation)
+  if (!v8_flags.incremental_marking || v8_flags.stress_concurrent_allocation) {
     return;
+  }
   v8_flags.stress_compaction = true;
   ManualGCScope manual_gc_scope;
   heap::ManualEvacuationCandidatesSelectionScope
@@ -6814,8 +6814,9 @@ UNINITIALIZED_TEST(OutOfMemory) {
 UNINITIALIZED_TEST(OutOfMemoryIneffectiveGC) {
   if (!v8_flags.detect_ineffective_gcs_near_heap_limit) return;
   if (v8_flags.stress_incremental_marking ||
-      v8_flags.stress_concurrent_allocation)
+      v8_flags.stress_concurrent_allocation) {
     return;
+  }
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) return;
 #endif

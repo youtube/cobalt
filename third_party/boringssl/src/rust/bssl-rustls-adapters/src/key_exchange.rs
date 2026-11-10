@@ -19,10 +19,6 @@
 //! - [ECDH_P256] for elliptic curve based Diffie-Hellman ECDH-P256
 //! - [ECDH_P384] for elliptic curve based Diffie-Hellman ECDH-P384
 //! - [X25519] for X25519
-//!
-//! If `mlalgs` feature is enabled, we also support the following post-quantum hybrid key exchange
-//! groups, for TLS 1.3.
-//!
 //! - [X25519MLKEM768] for X25519MLKEM768
 
 use alloc::{
@@ -38,9 +34,7 @@ use rustls::{
     crypto::{ActiveKeyExchange, SharedSecret, SupportedKxGroup},
 };
 
-#[cfg(feature = "mlalgs")]
 mod mlkem;
-#[cfg(feature = "mlalgs")]
 pub use mlkem::X25519MLKEM768;
 
 /// Elliptic Curve Diffie-Hellman key exchange group

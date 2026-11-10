@@ -81,12 +81,6 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   aw_feature_overrides.DisableFeature(
       blink::features::kEnforceNoopenerOnBlobURLNavigation);
 
-#if BUILDFLAG(ENABLE_VALIDATING_COMMAND_DECODER)
-  // Disable the passthrough on WebView.
-  aw_feature_overrides.DisableFeature(
-      ::features::kDefaultPassthroughCommandDecoder);
-#endif
-
   // HDR does not support webview yet. See crbug.com/1493153 for an explanation.
   aw_feature_overrides.DisableFeature(ui::kAndroidHDR);
 
@@ -296,8 +290,6 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   // policy currently blocks iframes from using it. crbug.com/442879527
   aw_feature_overrides.DisableFeature(
       network::features::kLocalNetworkAccessChecks);
-  aw_feature_overrides.DisableFeature(
-      network::features::kLocalNetworkAccessChecksSplitPermissions);
 
   // Disable background media for WebView, until we have consensus on long-term
   // behavior crbug.com/453706851

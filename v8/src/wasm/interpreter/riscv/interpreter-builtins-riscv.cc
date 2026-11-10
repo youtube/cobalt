@@ -150,24 +150,31 @@ void Builtins::Generate_WasmInterpreterEntry(MacroAssembler* masm) {
   //  a6: array_start
   //  a5: function_index
   //  a4: result_start
+  //  a3: ref_params_array
   auto regs = RegisterAllocator::WithAllocatableGeneralRegisters();
 
   DEFINE_PINNED(wasm_instance, a7);
   DEFINE_PINNED(array_start, a6);
   DEFINE_PINNED(function_index, a5);
   DEFINE_PINNED(result_start, a4);
+  DEFINE_PINNED(ref_params_array, a3);
 
   // Set up the stackframe:
   //
-  // fp-0x10  Marker(StackFrame::WASM_INTERPRETER_ENTRY)
+  // fp-0x18  ref_params_array  (GC-scanned)
+  // fp-0x10  wasm_instance     (GC-scanned)
+  // fp-0x08  Marker(StackFrame::WASM_INTERPRETER_ENTRY)
   // fp       Old fp
-  // fp_0x08  ra
+  // fp+0x08  ra
   __ EnterFrame(StackFrame::WASM_INTERPRETER_ENTRY);
 
-  // Push args
-  __ Push(kWasmImplicitArgRegister, function_index, array_start, result_start);
+  // Push args. kWasmImplicitArgRegister at fp-16 and ref_params_array at
+  // fp-24 are GC-scanned by WasmInterpreterEntryFrame::Iterate.
+  __ Push(kWasmImplicitArgRegister, ref_params_array, function_index,
+          array_start);
+  __ Push(result_start);
   __ Move(kWasmImplicitArgRegister, zero_reg);
-  __ CallRuntime(Runtime::kWasmRunInterpreter, 4);
+  __ CallRuntime(Runtime::kWasmRunInterpreter, 5);
 
   // Deconstruct the stack frame.
   __ LeaveFrame(StackFrame::WASM_INTERPRETER_ENTRY);
@@ -184,13 +191,13 @@ void LoadWasmInstanceFromFunctionData(MacroAssembler* masm,
   __ DecompressProtected(
       trusted_instance_data,
       MemOperand(function_data,
-                 WasmExportedFunctionData::kProtectedInstanceDataOffset -
+                 offsetof(WasmExportedFunctionData, protected_instance_data_) -
                      kHeapObjectTag));
 #else
   __ LoadTaggedField(
       trusted_instance_data,
       MemOperand(function_data,
-                 WasmExportedFunctionData::kProtectedInstanceDataOffset -
+                 offsetof(WasmExportedFunctionData, protected_instance_data_) -
                      kHeapObjectTag));
 #endif
   __ LoadTaggedField(
@@ -206,13 +213,13 @@ void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
   Register shared_function_info = closure;
   __ LoadTaggedField(
       shared_function_info,
-      FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+      FieldMemOperand(closure, offsetof(JSFunction, shared_function_info_)));
   closure = no_reg;
   __ LoadTrustedPointerField(
       function_data,
       FieldMemOperand(shared_function_info,
-                      SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kWasmFunctionDataIndirectPointerTag);
+                      offsetof(SharedFunctionInfo, trusted_function_data_)),
+      kWasmExportedFunctionDataIndirectPointerTag);
   shared_function_info = no_reg;
 
   LoadWasmInstanceFromFunctionData(masm, function_data, wasm_instance);
@@ -236,7 +243,7 @@ void LoadValueTypesArray(MacroAssembler* masm, Register function_data,
   __ LoadTaggedField(
       signature_data,
       FieldMemOperand(function_data,
-                      WasmExportedFunctionData::kPackedArgsSizeOffset));
+                      offsetof(WasmExportedFunctionData, packed_args_size_)));
   __ SmiToInt32(signature_data);
 
   Register internal_function = valuetypes_array_ptr;
@@ -244,12 +251,12 @@ void LoadValueTypesArray(MacroAssembler* masm, Register function_data,
       internal_function,
       MemOperand(
           function_data,
-          WasmExportedFunctionData::kProtectedInternalOffset - kHeapObjectTag));
+          offsetof(WasmFunctionData, protected_internal_) - kHeapObjectTag));
 
   Register signature = internal_function;
-  __ LoadWord(signature,
-              MemOperand(internal_function,
-                         WasmInternalFunction::kSigOffset - kHeapObjectTag));
+  __ LoadWord(signature, MemOperand(internal_function,
+                                    offsetof(WasmInternalFunction, sig_) -
+                                        kHeapObjectTag));
   LoadFromSignature(masm, valuetypes_array_ptr, return_count, param_count);
 }
 
@@ -322,6 +329,7 @@ void Builtins::Generate_JSToWasmInterpreterWrapperAsm(MacroAssembler* masm) {
     // return values of the wasm function. If `result_size` is an odd number, we
     // have to add `1` to preserve stack pointer alignment.
     __ AddWord(result_size, result_size, 1);
+    __ And(result_size, result_size, Operand(-2));  // clear bit 0 to align
     __ SllWord(result_size, result_size, kSystemPointerSizeLog2);
     __ SubWord(sp, sp, Operand(result_size));
   }
@@ -333,9 +341,18 @@ void Builtins::Generate_JSToWasmInterpreterWrapperAsm(MacroAssembler* masm) {
           wrapper_buffer,
           JSToWasmWrapperFrameConstants::kWrapperBufferStackReturnBufferStart));
   __ Push(params_start, wrapper_buffer);
+  // Load the FixedArray of converted reference parameters (or Undefined)
+  // from the wrapper buffer into a3, which WasmInterpreterEntry will
+  // forward to Runtime_WasmRunInterpreter.
+  DEFINE_PINNED(ref_params_array, a3);
+  __ LoadWord(
+      ref_params_array,
+      MemOperand(
+          wrapper_buffer,
+          WasmInterpreterWrapperConstants::kWrapperBufferRefParamsArray));
   __ Call(BUILTIN_CODE(masm->isolate(), WasmInterpreterEntry),
           RelocInfo::CODE_TARGET);
-  __ Pop(wrapper_buffer, params_start);
+  __ Pop(params_start, wrapper_buffer);
   regs.ResetExcept(wasm_instance, wrapper_buffer);
   // The wrapper_buffer has to be in a2 as the correct parameter register.
   regs.Reserve(kReturnRegister0, kReturnRegister1, a2);
@@ -458,7 +475,7 @@ void Builtins::Generate_WasmInterpreterCWasmEntry(MacroAssembler* masm) {
   __ Push(handler);
 
   // Set this new handler as the current one.
-  __ StoreWord(sp, MemOperand(centry_fp_address));
+  __ StoreWord(sp, __ AsMemOperand(IsolateFieldId::kHandler));
 
   // Invoke the JS function through the GenericWasmToJSInterpreterWrapper.
   __ Call(BUILTIN_CODE(masm->isolate(), GenericWasmToJSInterpreterWrapper),
@@ -563,15 +580,16 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
                  WasmToJSInterpreterFrameConstants::kGCScanSlotLimitOffset));
 
   DEFINE_REG(shared_function_info);
-  __ LoadTaggedField(shared_function_info,
-                     FieldMemOperand(target_js_function,
-                                     JSFunction::kSharedFunctionInfoOffset));
+  __ LoadTaggedField(
+      shared_function_info,
+      FieldMemOperand(target_js_function,
+                      offsetof(JSFunction, shared_function_info_)));
 
   // Set the context of the function; the call has to run in the function
   // context.
   DEFINE_PINNED(context, cp);
-  __ LoadTaggedField(
-      context, FieldMemOperand(target_js_function, JSFunction::kContextOffset));
+  __ LoadTaggedField(context, FieldMemOperand(target_js_function,
+                                              offsetof(JSFunction, context_)));
   __ StoreWord(context, MemOperand(fp, kContextOffset));
 
   // Load global receiver if sloppy else use undefined.
@@ -580,7 +598,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   DEFINE_REG(receiver);
   DEFINE_REG(flags);
   __ LoadWord(flags, FieldMemOperand(shared_function_info,
-                                     SharedFunctionInfo::kFlagsOffset));
+                                     offsetof(SharedFunctionInfo, flags_)));
   __ Branch(&receiver_undefined, ne, flags,
             Operand(SharedFunctionInfo::IsNativeBit::kMask |
                     SharedFunctionInfo::IsStrictBit::kMask));
@@ -676,7 +694,12 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
 
     __ bind(&loop_copy_param_ref);
     __ Lw(valuetype, MemOperand(valuetypes_array_ptr, 0));
-    __ Branch(&load_ref_param, ne, valuetype, Operand(1));
+    // Test bit 0 (reference type indicator): valuetype & 1
+    {
+      Register tmp = scratch;
+      __ And(tmp, valuetype, Operand(1));
+      __ Branch(&load_ref_param, ne, tmp, Operand(zero_reg));
+    }
 
     // Initialize non-ref type slots to zero since they can be visited by GC
     // when converting wasm numbers into heap numbers.
@@ -762,9 +785,14 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
     __ SmiTag(param);
   } else {
     // Double the return value to test if it can be a Smi.
-    __ Add32(scratch, param, Operand(param));
-    // If there was overflow, convert the return value to a HeapNumber.
-    __ Branch(&convert_param, lt, scratch, Operand(0));
+    // Overflow detection: (doubled XOR param) < 0
+    Register doubled = scratch;
+    Register sign_diff = t0;  // temporary register for XOR result
+    __ Add32(doubled, param, Operand(param));
+    __ Xor(sign_diff, doubled, param);
+    // If overflow occurred (sign changed), convert the return value to a
+    // HeapNumber.
+    __ Branch(&convert_param, lt, sign_diff, Operand(zero_reg));
     // If there was no overflow, we can convert to Smi.
     __ SmiTag(param);
   }
@@ -782,7 +810,11 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
 
   // Skip Ref params. We already copied reference params in the first loop.
   __ bind(&check_ref_param);
-  __ Branch(&convert_param, eq, valuetype, Operand(1));
+  {
+    Register tmp = scratch;
+    __ And(tmp, valuetype, Operand(1));
+    __ Branch(&convert_param, eq, tmp, Operand(zero_reg));
+  }
 
   __ bind(&skip_ref_param);
   __ AddWord(param_index, param_index, Operand(1));
@@ -1030,7 +1062,12 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ Branch(&return_kWasmF64, eq, valuetype,
             Operand(wasm::kWasmF64.raw_bit_field()));
 
-  __ Branch(&return_kWasmRef, ne, valuetype, Operand(1));
+  // Test bit 0 (reference type indicator): valuetype & 1
+  {
+    Register tmp = scratch;
+    __ And(tmp, valuetype, Operand(1));
+    __ Branch(&return_kWasmRef, ne, tmp, Operand(zero_reg));
+  }
 
   // Invalid type. JavaScript cannot return Simd results to WebAssembly.
   __ DebugBreak();
@@ -1147,7 +1184,12 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ bind(&copy_return_if_ref);
   __ Lw(valuetype, MemOperand(valuetypes_array_ptr, 0));
 
-  __ Branch(&copy_return_ref, ne, valuetype, Operand(1));
+  // Test bit 0 (reference type indicator): valuetype & 1
+  {
+    Register tmp = scratch;
+    __ And(tmp, valuetype, Operand(1));
+    __ Branch(&copy_return_ref, ne, tmp, Operand(zero_reg));
+  }
 
   Label inc_result_32bit;
   __ Branch(&inc_result_32bit, eq, valuetype,

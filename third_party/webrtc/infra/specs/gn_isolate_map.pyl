@@ -120,6 +120,10 @@
     "label": "//:rtc_unittests",
     "type": "console_test_launcher",
   },
+  "rust_tests": {
+    "label": "//:rust_tests",
+    "type": "generated_script",
+  },
   "sdk_framework_unittests": {
     "label": "//sdk:sdk_framework_unittests",
     "type": "console_test_launcher",

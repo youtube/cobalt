@@ -3113,6 +3113,8 @@ source_set("browser") {
         "media/capture/capture_util_mac.mm",
         "media/capture/desktop_capture_device_mac.cc",
         "media/capture/desktop_capture_device_mac.h",
+        "media/capture/desktop_capture_util_mac.h",
+        "media/capture/desktop_capture_util_mac.mm",
         "media/capture/io_surface_capture_device_base_mac.cc",
         "media/capture/io_surface_capture_device_base_mac.h",
         "media/capture/mouse_cursor_overlay_controller_mac.mm",
@@ -4009,7 +4011,7 @@ group("for_content_tests") {
         "//cobalt:cobalt_unittests__apk__java",
         "//cobalt:cobalt_unittests__apk__java__dex",
         "//cobalt:cobalt_unittests__apk__java__header",
-        "//cobalt:cobalt_unittests__apk__java__validate",
+        "//cobalt:cobalt_unittests__apk__java__validate_deps",
         "//cobalt:cobalt_unittests__library",
         "//cobalt:cobalt_unittests__library__jni_registration__native_sources",
       ]

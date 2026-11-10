@@ -225,8 +225,9 @@ Response ensureContext(V8InspectorImpl* inspector, int contextGroupId,
     *contextId = executionContextId.value();
   } else if (uniqueContextId.has_value()) {
     internal::V8DebuggerId uniqueId(uniqueContextId.value());
-    if (!uniqueId.isValid())
+    if (!uniqueId.isValid()) {
       return Response::InvalidParams("invalid uniqueContextId");
+    }
     int id = inspector->resolveUniqueContextId(uniqueId);
     if (!id) return Response::InvalidParams("uniqueContextId not found");
     *contextId = id;
@@ -234,8 +235,9 @@ Response ensureContext(V8InspectorImpl* inspector, int contextGroupId,
     v8::HandleScope handles(inspector->isolate());
     v8::Local<v8::Context> defaultContext =
         inspector->client()->ensureDefaultContextInGroup(contextGroupId);
-    if (defaultContext.IsEmpty())
+    if (defaultContext.IsEmpty()) {
       return Response::ServerError("Cannot find default execution context");
+    }
     *contextId = InspectedContext::contextId(defaultContext);
   }
 
@@ -589,8 +591,9 @@ Response V8RuntimeAgentImpl::getProperties(
   scope.ignoreExceptionsAndMuteConsole();
   v8::MicrotasksScope microtasks_scope(scope.context(),
                                        v8::MicrotasksScope::kRunMicrotasks);
-  if (!scope.object()->IsObject())
+  if (!scope.object()->IsObject()) {
     return Response::ServerError("Value with given id is not an object");
+  }
 
   v8::Local<v8::Object> object = scope.object().As<v8::Object>();
 
@@ -615,10 +618,12 @@ Response V8RuntimeAgentImpl::getProperties(
       object, scope.objectGroupName(), accessorPropertiesOnly.value_or(false),
       &internalPropertiesProtocolArray, &privatePropertiesProtocolArray);
   if (!response.IsSuccess()) return response;
-  if (!internalPropertiesProtocolArray->empty())
+  if (!internalPropertiesProtocolArray->empty()) {
     *internalProperties = std::move(internalPropertiesProtocolArray);
-  if (!privatePropertiesProtocolArray->empty())
+  }
+  if (!privatePropertiesProtocolArray->empty()) {
     *privateProperties = std::move(privatePropertiesProtocolArray);
+  }
   return Response::Success();
 }
 
@@ -883,8 +888,9 @@ void V8RuntimeAgentImpl::terminateExecution(
 namespace {
 protocol::DictionaryValue* getOrCreateDictionary(
     protocol::DictionaryValue* dict, const String16& key) {
-  if (protocol::DictionaryValue* bindings = dict->getObject(key))
+  if (protocol::DictionaryValue* bindings = dict->getObject(key)) {
     return bindings;
+  }
   dict->setObject(key, protocol::DictionaryValue::create());
   return dict->getObject(key);
 }
@@ -933,8 +939,9 @@ Response V8RuntimeAgentImpl::addBinding(
       m_session->contextGroupId(),
       [&name, &executionContextName, this](InspectedContext* context) {
         if (executionContextName.has_value() &&
-            executionContextName.value() != context->humanReadableName())
+            executionContextName.value() != context->humanReadableName()) {
           return;
+        }
         addBinding(context, name);
       });
   return Response::Success();
@@ -1017,8 +1024,9 @@ Response V8RuntimeAgentImpl::getExceptionDetails(
   if (!response.IsSuccess()) return response;
 
   const v8::Local<v8::Value> error = scope.object();
-  if (!error->IsNativeError())
+  if (!error->IsNativeError()) {
     return Response::ServerError("errorObjectId is not a JS error object");
+  }
 
   const v8::Local<v8::Message> message =
       v8::debug::CreateMessageFromException(m_inspector->isolate(), error);
@@ -1079,18 +1087,22 @@ void V8RuntimeAgentImpl::addBindings(InspectedContext* context) {
 }
 
 void V8RuntimeAgentImpl::restore() {
-  if (!m_state->booleanProperty(V8RuntimeAgentImplState::runtimeEnabled, false))
+  if (!m_state->booleanProperty(V8RuntimeAgentImplState::runtimeEnabled,
+                                false)) {
     return;
+  }
   m_frontend.executionContextsCleared();
   enable();
   if (m_state->booleanProperty(
-          V8RuntimeAgentImplState::customObjectFormatterEnabled, false))
+          V8RuntimeAgentImplState::customObjectFormatterEnabled, false)) {
     m_session->setCustomObjectFormatterEnabled(true);
+  }
 
   int size;
   if (m_state->getInteger(V8RuntimeAgentImplState::maxCallStackSizeToCapture,
-                          &size))
+                          &size)) {
     m_inspector->debugger()->setMaxCallStackSizeToCapture(this, size);
+  }
 
   m_inspector->forEachContext(
       m_session->contextGroupId(),
@@ -1192,9 +1204,10 @@ void V8RuntimeAgentImpl::reportExecutionContextDestroyed(
 void V8RuntimeAgentImpl::inspect(
     std::unique_ptr<protocol::Runtime::RemoteObject> objectToInspect,
     std::unique_ptr<protocol::DictionaryValue> hints, int executionContextId) {
-  if (m_enabled)
+  if (m_enabled) {
     m_frontend.inspectRequested(std::move(objectToInspect), std::move(hints),
                                 executionContextId);
+  }
 }
 
 void V8RuntimeAgentImpl::messageAdded(V8ConsoleMessage* message) {

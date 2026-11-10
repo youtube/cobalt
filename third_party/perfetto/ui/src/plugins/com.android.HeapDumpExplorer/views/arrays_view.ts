@@ -28,6 +28,8 @@ import {
   countRenderer,
   shortClassName,
   RowCounter,
+  COL_INFO,
+  colHeader,
 } from '../components';
 import {dumpFilterSql, type HeapDump} from '../queries';
 
@@ -63,7 +65,7 @@ function makeUiSchema(navigate: NavFn): SchemaRegistry {
           return m(
             'button',
             {
-              class: 'ah-link',
+              class: 'pf-hde-link',
               onclick: () => navigate('object', {id, label: display}),
             },
             display,
@@ -75,12 +77,14 @@ function makeUiSchema(navigate: NavFn): SchemaRegistry {
         columnType: 'text',
       },
       self_size: {
-        title: 'Shallow',
+        title: colHeader('Shallow', COL_INFO.shallow),
+        titleString: 'Shallow',
         columnType: 'quantitative',
         cellRenderer: sizeRenderer,
       },
       native_size: {
-        title: 'Native',
+        title: colHeader('Native', COL_INFO.shallowNative),
+        titleString: 'Native',
         columnType: 'quantitative',
         cellRenderer: sizeRenderer,
       },
@@ -152,8 +156,8 @@ function ArraysView(): m.Component<ArraysViewAttrs> {
 
       if (!dataSource) return null;
 
-      return m('div', {class: 'ah-view-content'}, [
-        m('h2', {class: 'ah-view-heading'}, counter.heading('Arrays')),
+      return m('div', {class: 'pf-hde-view-content'}, [
+        m('h2', {class: 'pf-hde-view-heading'}, counter.heading('Arrays')),
         m(DataGrid, {
           schema: makeUiSchema(navigate),
           rootSchema: 'query',

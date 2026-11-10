@@ -88,14 +88,6 @@ V8_OBJECT class JSV8BreakIterator : public JSObject {
   DECL_PRINTER(JSV8BreakIterator)
   DECL_VERIFIER(JSV8BreakIterator)
 
-  // Back-compat offset/size constants.
-  static const int kLocaleOffset;
-  static const int kIcuIteratorWithTextOffset;
-  static const int kBoundAdoptTextOffset;
-  static const int kBoundFirstOffset;
-  static const int kBoundNextOffset;
-  static const int kBoundCurrentOffset;
-  static const int kBoundBreakTypeOffset;
   static const int kHeaderSize;
 
  public:
@@ -108,20 +100,6 @@ V8_OBJECT class JSV8BreakIterator : public JSObject {
   TaggedMember<UnionOf<Undefined, JSFunction>> bound_break_type_;
 } V8_OBJECT_END;
 
-inline constexpr int JSV8BreakIterator::kLocaleOffset =
-    offsetof(JSV8BreakIterator, locale_);
-inline constexpr int JSV8BreakIterator::kIcuIteratorWithTextOffset =
-    offsetof(JSV8BreakIterator, icu_iterator_with_text_);
-inline constexpr int JSV8BreakIterator::kBoundAdoptTextOffset =
-    offsetof(JSV8BreakIterator, bound_adopt_text_);
-inline constexpr int JSV8BreakIterator::kBoundFirstOffset =
-    offsetof(JSV8BreakIterator, bound_first_);
-inline constexpr int JSV8BreakIterator::kBoundNextOffset =
-    offsetof(JSV8BreakIterator, bound_next_);
-inline constexpr int JSV8BreakIterator::kBoundCurrentOffset =
-    offsetof(JSV8BreakIterator, bound_current_);
-inline constexpr int JSV8BreakIterator::kBoundBreakTypeOffset =
-    offsetof(JSV8BreakIterator, bound_break_type_);
 inline constexpr int JSV8BreakIterator::kHeaderSize = sizeof(JSV8BreakIterator);
 
 }  // namespace internal

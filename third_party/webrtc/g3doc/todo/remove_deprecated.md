@@ -32,17 +32,24 @@ current removal cycle:
 3. **Internal Audit:** Run `git grep <SymbolName>` in the WebRTC repository.
    Discard any symbols that still have internal call-sites (these must be
    migrated first). Discard the oldest symbols first.
-4. **Downstream Audit (CodeSearch):** For each matured symbol, perform broad
-   searches in downstream projects (outside `third_party/webrtc`).
-   - **External Usage:** `cs "content:<SymbolName> -file:stable/webrtc"`
-   - **Search Optimization:** To minimize false positives with common names
-     (like `kPlanB` or `local_ssrc`), prioritize searching for qualified usage
-     (e.g., `cs "content:SdpSemantics::kPlanB"` or `cs "content:::kPlanB"`) or
-     structural access (e.g., `cs "content:.local_ssrc"`) before performing
-     broad searches for the bare symbol name.
-   - *Note:* Pay special attention to virtual methods. If a symbol is overridden
-     in a downstream project, removing it from the WebRTC base class will break
-     the downstream build.
+4. **Downstream Audit (CodeSearch):** For each matured symbol, perform
+   high-precision searches in downstream projects (outside
+   `third_party/webrtc`).
+   - **Reference Check:** Use the `usage:` filter with the fully qualified name
+     (including the `webrtc::` namespace) to find semantic references.
+     - *Example:*
+       `cs "usage:webrtc::PeerConnectionInterface::kPlanB -file:stable/webrtc"`
+   - **Override Check (Virtual Methods):** For virtual methods, use the `func:`
+     filter to identify if the symbol is overridden in downstream
+     implementations.
+     - *Example:* `cs "func:InsertEmptyPacket -file:stable/webrtc"`
+   - **Broad Audit (Fallback):** Only use `content:` if semantic filters are
+     inconclusive, and combine with negative filters to reduce noise.
+     - *Example:*
+       `cs "content:InitRandom -file:stable/webrtc -file:test -file:mock"`
+   - *Note:* A symbol is only a candidate for removal if **all** high-precision
+     searches return zero results in downstream projects. Skip any symbol found
+     in active downstream dependencies that are not confirmed mirrors.
 5. **Iteration Stop:** Continue the audit process until exactly **10 symbols**
    have been confirmed to have zero results. Once 10 are found, stop the search.
 6. **Documentation:** List the 10 selected symbols, their locations, and their

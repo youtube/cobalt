@@ -11,6 +11,8 @@
 #include "call/payload_type_picker.h"
 
 #include <algorithm>
+#include <array>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -97,34 +99,42 @@ bool CodecPrefersLowerRange(const Codec& codec) {
   return false;
 }
 
-RTCErrorOr<PayloadType> FindFreePayloadType(const Codec& codec,
-                                            flat_set<PayloadType> seen_pt) {
+RTCErrorOr<PayloadType> FindFreePayloadType(
+    const Codec& codec,
+    const flat_set<PayloadType>& seen_pt,
+    bool pick_from_top_of_range) {
   // Prefer to use lower range for codecs that can handle it.
   bool prefer_lower_range = CodecPrefersLowerRange(codec);
-  if (prefer_lower_range) {
-    for (auto i = kFirstDynamicPayloadTypeLowerRange;
-         i <= kLastDynamicPayloadTypeLowerRange; i++) {
-      if (seen_pt.count(PayloadType(i)) == 0) {
-        return PayloadType(i);
+
+  struct Range {
+    int first;
+    int last;
+  };
+  const Range lower = {kFirstDynamicPayloadTypeLowerRange,
+                       kLastDynamicPayloadTypeLowerRange};
+  const Range upper = {kFirstDynamicPayloadTypeUpperRange,
+                       kLastDynamicPayloadTypeUpperRange};
+
+  const auto search_order = (pick_from_top_of_range || !prefer_lower_range)
+                                ? std::array{upper, lower}
+                                : std::array{lower, upper};
+
+  for (const auto& range : search_order) {
+    if (pick_from_top_of_range) {
+      for (auto i = range.last; i >= range.first; --i) {
+        if (!seen_pt.contains(PayloadType(i))) {
+          return PayloadType(i);
+        }
+      }
+    } else {
+      for (auto i = range.first; i <= range.last; ++i) {
+        if (!seen_pt.contains(PayloadType(i))) {
+          return PayloadType(i);
+        }
       }
     }
   }
-  for (auto i = kFirstDynamicPayloadTypeUpperRange;
-       i <= kLastDynamicPayloadTypeUpperRange; i++) {
-    if (seen_pt.count(PayloadType(i)) == 0) {
-      return PayloadType(i);
-    }
-  }
-  // If the upper range is full, we do lower range also for codecs
-  // that prefer the upper range.
-  if (!prefer_lower_range) {
-    for (auto i = kFirstDynamicPayloadTypeLowerRange;
-         i <= kLastDynamicPayloadTypeLowerRange; i++) {
-      if (seen_pt.count(PayloadType(i)) == 0) {
-        return PayloadType(i);
-      }
-    }
-  }
+
   if (prefer_lower_range) {
     return RTCError(RTCErrorType::RESOURCE_EXHAUSTED,
                     "All available dynamic PTs have been assigned");
@@ -201,32 +211,38 @@ PayloadTypePicker::PayloadTypePicker() {
 
 RTCErrorOr<PayloadType> PayloadTypePicker::SuggestMapping(
     Codec codec,
-    const PayloadTypeRecorder* excluder) {
+    const PayloadTypeRecorder* excluder,
+    bool pick_from_top_of_range) {
   // Test compatibility: If the codec contains a PT, and it is free, use it.
   // This saves having to rewrite tests that set the codec ID themselves.
   // Codecs with unassigned IDs should have -1 as their id.
   if (codec.id >= 0 && codec.id <= kLastDynamicPayloadTypeUpperRange &&
-      seen_payload_types_.count(PayloadType(codec.id)) == 0) {
+      seen_payload_types_.count(codec.id.value()) == 0) {
     AddMapping(PayloadType(codec.id), codec);
     return PayloadType(codec.id);
   }
   // The first matching entry is returned, unless excluder
   // maps it to something different.
+  auto relaxed_comparator = [](PayloadType a, PayloadType b) {
+    return a == b || a == PayloadType::NotSet() || b == PayloadType::NotSet();
+  };
   for (const MapEntry& entry : entries_) {
-    if (MatchesWithReferenceAttributes(entry.codec(), codec)) {
+    if (MatchesWithReferenceAttributesAndComparator(entry.codec(), codec,
+                                                    relaxed_comparator)) {
       if (excluder) {
         auto result = excluder->LookupCodec(entry.payload_type());
-        if (result.ok() &&
-            !MatchesWithReferenceAttributes(result.value(), codec)) {
+        if (result.ok() && !MatchesWithReferenceAttributesAndComparator(
+                               result.value(), codec, relaxed_comparator)) {
           continue;
         }
       }
+      AddMapping(entry.payload_type(), codec);
       return entry.payload_type();
     }
   }
   // Assign the first free payload type.
   RTCErrorOr<PayloadType> found_pt =
-      FindFreePayloadType(codec, seen_payload_types_);
+      FindFreePayloadType(codec, seen_payload_types_, pick_from_top_of_range);
   if (found_pt.ok()) {
     AddMapping(found_pt.value(), codec);
   }
@@ -243,15 +259,28 @@ RTCError PayloadTypePicker::AddMapping(PayloadType payload_type, Codec codec) {
     }
   }
   entries_.emplace_back(MapEntry(payload_type, codec));
+  // Add the mapping to "seen" if it is not already present.
   seen_payload_types_.emplace(payload_type);
   return RTCError::OK();
+}
+
+std::optional<Codec> PayloadTypePicker::LookupCodec(
+    PayloadType payload_type) const {
+  std::optional<Codec> result;
+  for (const auto& entry : entries_) {
+    if (entry.payload_type() == payload_type) {
+      // If there are multiple matches, the last one wins.
+      result = entry.codec();
+    }
+  }
+  return result;
 }
 
 RTCError PayloadTypeRecorder::AddMapping(PayloadType payload_type,
                                          Codec codec) {
   auto existing_codec_it = payload_type_to_codec_.find(payload_type);
   if (existing_codec_it != payload_type_to_codec_.end() &&
-      !MatchesWithCodecRules(codec, existing_codec_it->second)) {
+      !MatchesWithReferenceAttributes(codec, existing_codec_it->second)) {
     // Redefinition attempted.
     if (disallow_redefinition_level_ > 0) {
       if (accepted_definitions_.count(payload_type) > 0) {

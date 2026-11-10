@@ -57,7 +57,7 @@ class BackgroundThread final : public v8::base::Thread {
       DirectHandle<JSArray> x = handles_[i];
       DirectHandle<FixedArrayBase> elements =
           local_heap.NewPersistentHandle(x->elements(kRelaxedLoad));
-      ElementsKind elements_kind = x->map(isolate)->elements_kind();
+      ElementsKind elements_kind = x->map()->elements_kind();
 
       // Mirroring the conditions in JSArrayRef::GetOwnCowElement.
       if (!IsSmiOrObjectElementsKind(elements_kind)) continue;

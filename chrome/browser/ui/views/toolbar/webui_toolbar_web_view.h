@@ -52,7 +52,12 @@ class WebUIToolbarControlDelegate {
   virtual chrome::BrowserCommandController* GetCommandController() = 0;
   virtual views::View* GetView() = 0;
 
-  // Indicate preferred size of a toolbar control has changed.
+  // Announces an alert to accessibility screen readers.
+  virtual void AnnounceAlert(const std::u16string& announcement) = 0;
+
+  // Indicate preferred size of a toolbar control has changed. This results in
+  // synchronously fully recalculating layout to see if anything needs to be
+  // changed, so should only be called when something actually changed.
   virtual void OnPreferredSizeChanged() = 0;
 
   // Indicates a toolbar control's state has changed.
@@ -212,6 +217,7 @@ class WebUIToolbarWebView
   BrowserWindowInterface* GetBrowser() override;
   chrome::BrowserCommandController* GetCommandController() override;
   views::View* GetView() override;
+  void AnnounceAlert(const std::u16string& announcement) override;
   void OnPreferredSizeChanged() override;
   void OnReloadControlStateChanged(
       toolbar_ui_api::mojom::ReloadControlStatePtr state) override;

@@ -403,6 +403,12 @@ class WasmInterpreterWrapperConstants : public JSToWasmWrapperFrameConstants {
   static constexpr int kImplicitArgOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
   // Tagged pointer to a JS Array for result values.
   static constexpr int kResultArrayOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
+
+  // Offset in the wrapper buffer where the Torque builtin stores the
+  // FixedArray of converted reference parameters (or Undefined if none).
+  // Aliases kWrapperBufferGPReturnRegister2, which is unused by the
+  // interpreter path.
+  static constexpr size_t kWrapperBufferRefParamsArray = 48;
 };
 #endif  // V8_ENABLE_DRUMBRAKE
 #endif  // V8_ENABLE_WEBASSEMBLY

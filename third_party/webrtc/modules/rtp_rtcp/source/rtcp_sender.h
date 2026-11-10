@@ -74,6 +74,11 @@ class RTCPSender final {
     absl::AnyInvocable<void(TimeDelta)> schedule_next_rtcp_send_evaluation;
 
     TimeDelta rtcp_report_interval;
+
+    // Initial RTCP status. Defaults to kOff to preserve backward compatibility
+    // with raw low-level RTCPSender tests and usages that assume the sender
+    // starts with RTCP disabled until explicitly configured.
+    RtcpMode rtcp_mode = RtcpMode::kOff;
     ReceiveStatisticsProvider* receive_statistics = nullptr;
     RtcpPacketTypeCounterObserver* rtcp_packet_type_counter_observer = nullptr;
   };

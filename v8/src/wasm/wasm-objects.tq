@@ -14,6 +14,9 @@ type PodArrayOfWasmValueType extends ByteArray
 type ManagedWasmNativeModule extends Foreign
     constexpr 'Managed<wasm::NativeModule>';
 @useParentTypeChecker
+type TrustedManagedWasmNativeModule extends TrustedForeign
+    constexpr 'TrustedManaged<wasm::NativeModule>';
+@useParentTypeChecker
 type ManagedBackingStore extends Foreign
     constexpr 'Managed<BackingStore>';
 
@@ -305,9 +308,9 @@ extern class WasmTagObject extends JSObject {
 type WasmExportedFunction extends JSFunction;
 
 @cppObjectLayoutDefinition
-extern class AsmWasmData extends Struct {
-  managed_native_module: ManagedWasmNativeModule;
-  uses_bitset: HeapNumber;
+extern class AsmWasmData extends ExposedTrustedObject {
+  managed_native_module: ProtectedPointer<TrustedManagedWasmNativeModule>;
+  uses_bitset: uint64;
 }
 
 @cppObjectLayoutDefinition

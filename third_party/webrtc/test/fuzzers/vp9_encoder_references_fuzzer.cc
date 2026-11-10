@@ -88,6 +88,10 @@ class FrameValidator : public EncodedImageCallback {
     return Result(Result::OK);
   }
 
+  void OnFrameDropped(uint32_t rtp_timestamp,
+                      int spatial_id,
+                      bool is_end_of_temporal_unit) override {}
+
  private:
   // With 4 spatial layers and patterns up to 8 pictures, it should be enough to
   // keep the last 32 frames to validate dependencies.

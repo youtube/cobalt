@@ -516,9 +516,10 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
     TestCharacterStream(one_byte_source, uc16_stream.get(), length, start, end);
 
     // This avoids the GC from trying to free a stack allocated resource.
-    if (IsExternalString(*uc16_string))
+    if (IsExternalString(*uc16_string)) {
       i::Cast<i::ExternalTwoByteString>(uc16_string)
           ->SetResource(isolate, nullptr);
+    }
   }
 
   // 1-byte external string
@@ -536,9 +537,10 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
     TestCharacterStream(one_byte_source, one_byte_stream.get(), length, start,
                         end);
     // This avoids the GC from trying to free a stack allocated resource.
-    if (IsExternalString(*ext_one_byte_string))
+    if (IsExternalString(*ext_one_byte_string)) {
       i::Cast<i::ExternalOneByteString>(ext_one_byte_string)
           ->SetResource(isolate, nullptr);
+    }
   }
 
   // 1-byte generic i::String
@@ -921,9 +923,10 @@ TEST_F(ScannerStreamsTest, CloneCharacterStreams) {
     TestCloneCharacterStream(one_byte_source, uc16_stream.get(), length);
 
     // This avoids the GC from trying to free a stack allocated resource.
-    if (IsExternalString(*uc16_string))
+    if (IsExternalString(*uc16_string)) {
       i::Cast<i::ExternalTwoByteString>(uc16_string)
           ->SetResource(i_isolate(), nullptr);
+    }
   }
 
   // 1-byte external string
@@ -940,9 +943,10 @@ TEST_F(ScannerStreamsTest, CloneCharacterStreams) {
         i::ScannerStream::For(i_isolate(), ext_one_byte_string, 0, length));
     TestCloneCharacterStream(one_byte_source, one_byte_stream.get(), length);
     // This avoids the GC from trying to free a stack allocated resource.
-    if (IsExternalString(*ext_one_byte_string))
+    if (IsExternalString(*ext_one_byte_string)) {
       i::Cast<i::ExternalOneByteString>(ext_one_byte_string)
           ->SetResource(i_isolate(), nullptr);
+    }
   }
 
   // Relocatable streams are't clonable.

@@ -41,7 +41,7 @@ void AlwaysSharedSpaceJSObject::PrepareMapNoEnumerableProperties(
 void AlwaysSharedSpaceJSObject::PrepareMapNoEnumerableProperties(
     Isolate* isolate, Tagged<Map> map, Tagged<DescriptorArray> descriptors) {
   PrepareMapCommon(map);
-  map->InitializeDescriptors(isolate, *descriptors);
+  map->InitializeDescriptors(descriptors);
   DCHECK_EQ(0, map->NumberOfEnumerableProperties());
   map->SetEnumLength(0);
 }
@@ -53,7 +53,7 @@ void AlwaysSharedSpaceJSObject::PrepareMapWithEnumerableProperties(
   PrepareMapCommon(*map);
   // Shared objects with enumerable own properties need to pre-create the enum
   // cache, as creating it lazily is racy.
-  map->InitializeDescriptors(isolate, *descriptors);
+  map->InitializeDescriptors(*descriptors);
   FastKeyAccumulator::InitializeFastPropertyEnumCache(
       isolate, map, enum_length, AllocationType::kSharedOld);
   DCHECK_EQ(enum_length, map->EnumLength());
@@ -311,7 +311,7 @@ bool JSSharedStruct::IsRegistryKeyDescriptor(Isolate* isolate,
                                              Tagged<Map> instance_map,
                                              InternalIndex i) {
   DCHECK(IsJSSharedStructMap(instance_map));
-  return instance_map->instance_descriptors(isolate)->GetKey(i) ==
+  return instance_map->instance_descriptors()->GetKey(i) ==
          ReadOnlyRoots(isolate).shared_struct_map_registry_key_symbol();
 }
 
@@ -328,7 +328,7 @@ bool JSSharedStruct::IsElementsTemplateDescriptor(Isolate* isolate,
                                                   Tagged<Map> instance_map,
                                                   InternalIndex i) {
   DCHECK(IsJSSharedStructMap(instance_map));
-  return instance_map->instance_descriptors(isolate)->GetKey(i) ==
+  return instance_map->instance_descriptors()->GetKey(i) ==
          ReadOnlyRoots(isolate).shared_struct_map_elements_template_symbol();
 }
 
@@ -344,9 +344,8 @@ class SharedStructTypeRegistry::Data : public OffHeapHashTableBase<Data> {
   static uint32_t Hash(PtrComprCageBase cage_base, Tagged<Object> key) {
     // Registry keys, if present, store them at the first descriptor. All maps
     // in the registry have registry keys.
-    return Cast<String>(
-               Cast<Map>(key)->instance_descriptors(cage_base)->GetStrongValue(
-                   InternalIndex(0)))
+    return Cast<String>(Cast<Map>(key)->instance_descriptors()->GetStrongValue(
+                            InternalIndex(0)))
         ->hash();
   }
 
@@ -428,7 +427,7 @@ MaybeDirectHandle<Map> SharedStructTypeRegistry::CheckIfEntryMatches(
   }
 
   Tagged<DescriptorArray> existing_descriptors =
-      existing_map->instance_descriptors(isolate);
+      existing_map->instance_descriptors();
   auto field_names_iter = field_names.begin();
   for (InternalIndex i : existing_map->IterateOwnDescriptors()) {
     if (JSSharedStruct::IsElementsTemplateDescriptor(isolate, existing_map,

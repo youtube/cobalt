@@ -73,9 +73,6 @@ V8_OBJECT class JSBoundFunction
                                        DirectHandle<JSBoundFunction> function);
 
   static const int kHeaderSize;
-  static const int kBoundTargetFunctionOffset;
-  static const int kBoundThisOffset;
-  static const int kBoundArgumentsOffset;
 
  public:
   TaggedMember<JSCallable> bound_target_function_;
@@ -84,12 +81,6 @@ V8_OBJECT class JSBoundFunction
 } V8_OBJECT_END;
 
 inline constexpr int JSBoundFunction::kHeaderSize = sizeof(JSBoundFunction);
-inline constexpr int JSBoundFunction::kBoundTargetFunctionOffset =
-    offsetof(JSBoundFunction, bound_target_function_);
-inline constexpr int JSBoundFunction::kBoundThisOffset =
-    offsetof(JSBoundFunction, bound_this_);
-inline constexpr int JSBoundFunction::kBoundArgumentsOffset =
-    offsetof(JSBoundFunction, bound_arguments_);
 
 // JSWrappedFunction describes a wrapped function exotic object.
 V8_OBJECT class JSWrappedFunction
@@ -122,8 +113,6 @@ V8_OBJECT class JSWrappedFunction
       Isolate* isolate, DirectHandle<JSWrappedFunction> function);
 
   static const int kHeaderSize;
-  static const int kWrappedTargetFunctionOffset;
-  static const int kContextOffset;
 
  public:
   TaggedMember<JSCallable> wrapped_target_function_;
@@ -131,10 +120,6 @@ V8_OBJECT class JSWrappedFunction
 } V8_OBJECT_END;
 
 inline constexpr int JSWrappedFunction::kHeaderSize = sizeof(JSWrappedFunction);
-inline constexpr int JSWrappedFunction::kWrappedTargetFunctionOffset =
-    offsetof(JSWrappedFunction, wrapped_target_function_);
-inline constexpr int JSWrappedFunction::kContextOffset =
-    offsetof(JSWrappedFunction, context_);
 
 enum class BudgetModification { kReduce, kRaise, kReset };
 
@@ -489,17 +474,10 @@ V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
   // info.
   CodeKinds GetAvailableCodeKinds(IsolateForSandbox isolate) const;
 
-  // Backward-compat offset constants. JSFunction doesn't have a fixed header
-  // size; use JSFunctionWithoutPrototype::kHeaderSize or
-  // JSFunctionWithPrototype::kHeaderSize instead.
-  static const int kDispatchHandleOffset;
 #if TAGGED_SIZE_8_BYTES
   static const int kPaddingOffset;
   static const int kPaddingOffsetEnd;
 #endif
-  static const int kSharedFunctionInfoOffset;
-  static const int kContextOffset;
-  static const int kFeedbackCellOffset;
 
  private:
   inline void UpdateCodeImpl(Isolate* isolate, Tagged<Code> code,
@@ -532,20 +510,12 @@ V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
   TaggedMember<FeedbackCell> feedback_cell_;
 } V8_OBJECT_END;
 
-inline constexpr int JSFunction::kDispatchHandleOffset =
-    offsetof(JSFunction, dispatch_handle_);
 #if TAGGED_SIZE_8_BYTES
 inline constexpr int JSFunction::kPaddingOffset =
     offsetof(JSFunction, padding_);
 inline constexpr int JSFunction::kPaddingOffsetEnd =
     offsetof(JSFunction, padding_) + sizeof(uint32_t) - 1;
 #endif
-inline constexpr int JSFunction::kSharedFunctionInfoOffset =
-    offsetof(JSFunction, shared_function_info_);
-inline constexpr int JSFunction::kContextOffset =
-    offsetof(JSFunction, context_);
-inline constexpr int JSFunction::kFeedbackCellOffset =
-    offsetof(JSFunction, feedback_cell_);
 
 // Defines layout of JavaScript functions without prototype.
 V8_OBJECT class JSFunctionWithoutPrototype : public JSFunction {
@@ -571,7 +541,6 @@ V8_OBJECT class JSFunctionWithPrototype : public JSFunction {
   DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map,
                                  Tagged<UnionOf<JSPrototype, Map, TheHole>>)
 
-  static const int kPrototypeOrInitialMapOffset;
   DECL_PRINTER(JSFunctionWithPrototype)
   DECL_VERIFIER(JSFunctionWithPrototype)
 
@@ -583,8 +552,6 @@ inline constexpr int JSFunctionWithPrototype::kHeaderSize =
     sizeof(JSFunctionWithPrototype);
 inline constexpr int JSFunctionWithPrototype::kMinSize =
     sizeof(JSFunctionWithPrototype);
-inline constexpr int JSFunctionWithPrototype::kPrototypeOrInitialMapOffset =
-    offsetof(JSFunctionWithPrototype, prototype_or_initial_map_);
 
 }  // namespace v8::internal
 

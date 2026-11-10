@@ -54,6 +54,7 @@
 #include "third_party/omnibox_proto/searchbox_config.pb.h"
 #include "third_party/omnibox_proto/tool_config.pb.h"
 #include "third_party/omnibox_proto/tool_mode.pb.h"
+#include "ui/base/unowned_user_data/unowned_user_data_host.h"
 #include "ui/base/webui/web_ui_util.h"
 
 class SearchboxHandlerTest : public ::testing::Test {
@@ -123,12 +124,22 @@ class RealboxHandlerTest : public SearchboxHandlerTest {
   content::RenderViewHostTestEnabler test_render_host_factories_;
   std::unique_ptr<content::WebContents> web_contents_;
   std::unique_ptr<RealboxHandler> handler_;
+  testing::NiceMock<MockBrowserWindowInterface> browser_window_interface_;
+  ui::UnownedUserDataHost unowned_user_data_host_;
 
   void SetUp() override {
     SearchboxHandlerTest::SetUp();
 
     web_contents_ =
         content::WebContentsTester::CreateTestWebContents(profile(), nullptr);
+
+    ON_CALL(browser_window_interface_, GetProfile())
+        .WillByDefault(testing::Return(profile()));
+    ON_CALL(browser_window_interface_, GetUnownedUserDataHost())
+        .WillByDefault(testing::ReturnRef(unowned_user_data_host_));
+    webui::SetBrowserWindowInterface(web_contents_.get(),
+                                     &browser_window_interface_);
+
     handler_ = std::make_unique<RealboxHandler>(
         mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
         page_.BindAndGetRemote(), profile(), web_contents_.get(),
@@ -139,6 +150,7 @@ class RealboxHandlerTest : public SearchboxHandlerTest {
   }
 
   void TearDown() override {
+    webui::SetBrowserWindowInterface(web_contents_.get(), nullptr);
     SearchboxHandlerTest::TearDown();
     handler_.reset();
   }
@@ -148,6 +160,22 @@ TEST_F(RealboxHandlerTest, RealboxLensVariationsContainsVariations) {
   base::DictValue strings = SearchboxHandler::GetWebUIDataSourceDict(profile());
 
   EXPECT_EQ("CGQ", *strings.FindString("searchboxLensVariations"));
+}
+
+TEST_F(RealboxHandlerTest, ShouldShowDriveDisclaimer) {
+  base::test::TestFuture<bool> future;
+  handler_->ShouldShowDriveDisclaimer(future.GetCallback());
+  EXPECT_FALSE(future.Take());
+}
+
+TEST_F(RealboxHandlerTest, OnDriveUploadClicked) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(omnibox::kComposeboxDriveContextMenuOption);
+
+  base::test::TestFuture<searchbox::mojom::DriveUploadResponsePtr> future;
+  handler_->OnDriveUploadClicked(future.GetCallback());
+  auto response = future.Take();
+  EXPECT_TRUE(response);
 }
 
 TEST_F(RealboxHandlerTest, AutocompleteController_Start) {
@@ -561,6 +589,8 @@ class WebuiOmniboxHandlerTest : public SearchboxHandlerTest {
     popup_view_ =
         std::make_unique<FakeOmniboxPopupView>(omnibox_controller_.get());
     omnibox_controller_->edit_model()->set_popup_view(popup_view_.get());
+
+    EXPECT_CALL(page_, AutocompleteResultChanged(testing::_)).Times(1);
 
     handler_ = std::make_unique<WebuiOmniboxHandler>(
         mojo::PendingReceiver<searchbox::mojom::PageHandler>(),

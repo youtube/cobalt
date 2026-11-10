@@ -117,9 +117,7 @@ IN_PROC_BROWSER_TEST_F(InfoBarViewBrowserTest,
 
 class InfoBarRefreshViewBrowserTest : public InProcessBrowserTest {
  public:
-  InfoBarRefreshViewBrowserTest() {
-    feature_list.InitAndEnableFeature(features::kInfobarRefresh);
-  }
+  InfoBarRefreshViewBrowserTest() = default;
 
  protected:
   infobars::ContentInfoBarManager* infobar_manager() {
@@ -131,9 +129,6 @@ class InfoBarRefreshViewBrowserTest : public InProcessBrowserTest {
     return BrowserView::GetBrowserViewForBrowser(browser())
         ->infobar_container();
   }
-
- private:
-  base::test::ScopedFeatureList feature_list;
 };
 
 IN_PROC_BROWSER_TEST_F(InfoBarRefreshViewBrowserTest,
@@ -147,12 +142,12 @@ IN_PROC_BROWSER_TEST_F(InfoBarRefreshViewBrowserTest,
       ThemeServiceFactory::GetForProfile(browser()->profile());
   EXPECT_NE(SK_ColorGREEN, theme_service->GetUserColor());
   test::ThemeServiceChangedWaiter waiter(theme_service);
-  const SkColor expected_bg = color_provider->GetColor(ui::kColorSysSurface2);
+  const SkColor expected_bg = color_provider->GetColor(kColorInfoBarBackground);
 
   theme_service->SetUserColor(SK_ColorGREEN);
   waiter.WaitForThemeChanged();
 
   EXPECT_EQ(SK_ColorGREEN, theme_service->GetUserColor());
   EXPECT_NE(expected_bg,
-            infobar_view->GetColorProvider()->GetColor(ui::kColorSysSurface2));
+            infobar_view->GetColorProvider()->GetColor(kColorInfoBarBackground));
 }

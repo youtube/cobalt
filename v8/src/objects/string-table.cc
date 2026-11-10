@@ -184,8 +184,16 @@ int StringTable::NumberOfElements() const {
 // InternalizedStringKey carries a string/internalized-string object as key.
 class InternalizedStringKey final : public StringTableKey {
  public:
-  explicit InternalizedStringKey(DirectHandle<String> string, uint32_t hash)
-      : StringTableKey(hash, string->length()), string_(string) {
+  // `known_one_byte_content` is set by callers that just hashed `string` and
+  // observed via the hasher's IsOnly8Bit pass that the content fits in one
+  // byte. Used to canonicalize a 2-byte representation source string to a
+  // 1-byte internalized copy without a second content scan; false is always
+  // safe.
+  InternalizedStringKey(DirectHandle<String> string, uint32_t hash,
+                        bool known_one_byte_content = false)
+      : StringTableKey(hash, string->length()),
+        string_(string),
+        known_one_byte_content_(known_one_byte_content) {
     DCHECK_NE(0, length());
     // When sharing the string table, it's possible that another thread already
     // internalized the key, in which case StringTable::LookupKey will perform a
@@ -204,7 +212,7 @@ class InternalizedStringKey final : public StringTableKey {
   void PrepareForInsertion(Isolate* isolate) {
     StringTransitionStrategy strategy =
         isolate->factory()->ComputeInternalizationStrategyForString(
-            string_, &maybe_internalized_map_);
+            string_, &maybe_internalized_map_, known_one_byte_content_);
     switch (strategy) {
       case StringTransitionStrategy::kCopy:
         break;
@@ -241,12 +249,17 @@ class InternalizedStringKey final : public StringTableKey {
       internalized_string_ =
           isolate->factory()->InternalizeExternalString<ExternalOneByteString>(
               string_);
-    } else if (can_move_resource && shape.IsExternalTwoByte()) {
+    } else if (can_move_resource && shape.IsExternalTwoByte() &&
+               !known_one_byte_content_) {
       // Shared external strings are always in-place internalizable.
       // If this assumption is invalidated in the future, make sure that we
       // fully initialize (copy contents) for shared external strings, as the
       // original string is not transitioned to a ThinString (setting the
       // resource) immediately.
+      // External two-byte strings whose content fits in one byte fall through
+      // to NewInternalizedStringImpl below, which allocates a SeqOneByteString.
+      // The original external resource stays alive on the source string until
+      // it is migrated by MakeThin.
       DCHECK(!shape.IsShared());
       internalized_string_ =
           isolate->factory()->InternalizeExternalString<ExternalTwoByteString>(
@@ -254,7 +267,7 @@ class InternalizedStringKey final : public StringTableKey {
     } else {
       // Otherwise allocate a new internalized string.
       internalized_string_ = isolate->factory()->NewInternalizedStringImpl(
-          string_, length(), raw_hash_field());
+          string_, length(), raw_hash_field(), known_one_byte_content_);
     }
   }
 
@@ -295,6 +308,7 @@ class InternalizedStringKey final : public StringTableKey {
   // equality checks in case of hash collisions.
   MaybeDirectHandle<InternalizedString> internalized_string_;
   MaybeDirectHandle<Map> maybe_internalized_map_;
+  bool known_one_byte_content_;
 };
 
 namespace {
@@ -391,10 +405,17 @@ DirectHandle<InternalizedString> StringTable::LookupString(
           isolate->string_forwarding_table()->GetForwardString(isolate, index),
           isolate);
     } else {
+      // Capture whether the hasher's IsOnly8Bit pass observed all-one-byte
+      // content, so the table key can ask for a canonicalized one-byte
+      // internalized copy without a second scan. Only meaningful if we run
+      // the hasher here; for already-hashed strings or strings hashed via a
+      // forwarding-table lookup the value stays false and we fall back to
+      // map-keyed encoding.
+      bool one_byte_content = false;
       if (!Name::IsHashFieldComputed(raw_hash_field)) {
-        raw_hash_field = flat_string->EnsureRawHash();
+        raw_hash_field = flat_string->EnsureRawHash(&one_byte_content);
       }
-      InternalizedStringKey key(flat_string, raw_hash_field);
+      InternalizedStringKey key(flat_string, raw_hash_field, one_byte_content);
       result = LookupKey(isolate, &key);
     }
   }
@@ -403,6 +424,22 @@ DirectHandle<InternalizedString> StringTable::LookupString(
     SetInternalizedReference(isolate, *string, *result);
   }
   return result;
+}
+
+bool StringTable::HasString(Isolate* isolate, DirectHandle<String> string) {
+  DirectHandle<InternalizedString> result;
+  DirectHandle<String> flat_string =
+      String::Flatten(isolate, indirect_handle(string, isolate));
+  if (TryCast<InternalizedString>(flat_string, &result)) return true;
+
+  uint32_t raw_hash_field = flat_string->raw_hash_field(kAcquireLoad);
+  if (String::IsInternalizedForwardingIndex(raw_hash_field)) return true;
+
+  if (!Name::IsHashFieldComputed(raw_hash_field)) {
+    raw_hash_field = flat_string->EnsureRawHash();
+  }
+  InternalizedStringKey key(flat_string, raw_hash_field);
+  return TryLookupKey(isolate, &key).has_value();
 }
 
 template <typename StringTableKey, typename IsolateT>
@@ -567,15 +604,17 @@ template <typename Char>
 class CharBuffer {
  public:
   void Reset(size_t length) {
-    if (length >= kInlinedBufferSize)
+    if (length >= kInlinedBufferSize) {
       outofline_ = std::make_unique<Char[]>(length);
+    }
   }
 
   Char* Data() {
-    if (outofline_)
+    if (outofline_) {
       return outofline_.get();
-    else
+    } else {
       return inlined_;
+    }
   }
 
  private:
@@ -618,7 +657,7 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(
   const Char* chars;
 
   SharedStringAccessGuardIfNeeded access_guard(isolate);
-  if (IsConsString(source, isolate)) {
+  if (IsConsString(source)) {
     DCHECK(!source->IsFlat());
     buffer.Reset(length);
     String::WriteToFlat(source, buffer.Data(), 0, length, access_guard);
@@ -631,7 +670,13 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(
     raw_hash_field =
         StringHasher::HashSequentialString<Char>(chars, length, seed);
   }
-  // TODO(verwaest): Internalize to one-byte when possible.
+  // Note: this is a lookup-only function. When `Char` is uint16_t but the
+  // content is all-ASCII, lookups still hit existing one-byte entries via
+  // cross-encoding equality in SequentialStringKey::IsMatch. On a miss we
+  // return kNotFound; the caller falls back to StringTable::LookupString,
+  // which threads the hasher's IsOnly8Bit answer down to
+  // NewInternalizedStringImpl so the new entry is allocated as a one-byte
+  // internalized string when the content fits.
   SequentialStringKey<Char> key(raw_hash_field,
                                 base::Vector<const Char>(chars, length));
 

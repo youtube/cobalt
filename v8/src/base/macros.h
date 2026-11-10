@@ -522,6 +522,27 @@ bool is_inbounds(float_t v) {
 #define IF_WASM(V, ...)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#if V8_ENABLE_WEBASSEMBLY
+#define V8_ENABLE_SIMD128 1
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+#define V8_ENABLE_SIMD256 1
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+#if V8_ENABLE_SIMD128
+#define IF_SIMD128(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_SIMD128(V, ...)
+#endif  // V8_ENABLE_SIMD128
+
+#if V8_ENABLE_SIMD256
+// 256 bit simd cannot be enabled without 128 bit simd.
+static_assert(V8_ENABLE_SIMD128);
+#define IF_SIMD256(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_SIMD256(V, ...)
+#endif  // V8_ENABLE_SIMD256
+
 #ifdef V8_ENABLE_DRUMBRAKE
 #define IF_WASM_DRUMBRAKE(V, ...) EXPAND(V(__VA_ARGS__))
 #else

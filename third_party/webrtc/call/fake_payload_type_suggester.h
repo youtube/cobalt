@@ -11,6 +11,12 @@
 #ifndef CALL_FAKE_PAYLOAD_TYPE_SUGGESTER_H_
 #define CALL_FAKE_PAYLOAD_TYPE_SUGGESTER_H_
 
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+
+#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "api/payload_type.h"
 #include "api/rtc_error.h"
@@ -18,23 +24,68 @@
 #include "call/payload_type.h"
 #include "call/payload_type_picker.h"
 #include "media/base/codec.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/containers/flat_map.h"
 
 namespace webrtc {
+
 // Fake payload type suggester, for use in tests.
 // It uses a real PayloadTypePicker in order to do consistent PT
-// assignment.
+// assignment. It keeps per-mid recorders, but has only one PT suggester.
 class FakePayloadTypeSuggester : public PayloadTypeSuggester {
  public:
-  RTCErrorOr<PayloadType> SuggestPayloadType(absl::string_view mid,
-                                             const Codec& codec) override {
-    // Ignores mid argument.
-    return pt_picker_.SuggestMapping(codec, nullptr);
+  RTCErrorOr<PayloadType> SuggestPayloadType(
+      absl::string_view mid,
+      const Codec& codec,
+      bool pick_from_top_of_range = false) override {
+    PayloadTypeRecorder& recorder = LookupRecorder(mid);
+    if (pick_from_top_of_range) {
+      RTCErrorOr<PayloadType> result =
+          MaybeAddMapping(mid, codec, recorder, pick_from_top_of_range);
+      if (result.ok()) {
+        return result;
+      }
+    }
+    RTCErrorOr<PayloadType> current_pt = recorder.LookupPayloadType(codec);
+    if (current_pt.ok()) {
+      return current_pt;
+    }
+    auto it = fallback_suggestions_.find(
+        std::make_pair(std::string(mid), codec.name));
+    if (it != fallback_suggestions_.end()) {
+      return it->second;
+    }
+    RTCErrorOr<PayloadType> result =
+        MaybeAddMapping(mid, codec, recorder, pick_from_top_of_range);
+    if (result.ok()) {
+      return result;
+    }
+    // There's only one PT picker, but multiple recorders.
+    RTCErrorOr<PayloadType> suggested_result =
+        pt_picker_.SuggestMapping(codec, &recorder, pick_from_top_of_range);
+    if (suggested_result.ok()) {
+      recorder.AddMapping(suggested_result.value(), codec);
+    }
+    return suggested_result;
   }
-  RTCError AddLocalMapping(absl::string_view,
+
+  // This function is used in tests that make assumptions on what
+  // payload types are assigned. It is a temporary measure until
+  // those tests can be redesigned.
+  void SetSuggestion(absl::string_view mid,
+                     const std::string& codec_name,
+                     PayloadType suggestion) {
+    fallback_suggestions_[std::make_pair(std::string(mid), codec_name)] =
+        suggestion;
+  }
+
+  RTCError AddLocalMapping(absl::string_view mid,
                            PayloadType payload_type,
                            const Codec& codec) override {
-    return RTCError::OK();
+    LookupRecorder(mid).AddMapping(payload_type, codec);
+    return pt_picker_.AddMapping(payload_type, codec);
   }
+
   RTCErrorOr<int> SuggestRtpHeaderExtensionId(
       absl::string_view mid,
       const RtpExtension& extension,
@@ -50,8 +101,59 @@ class FakePayloadTypeSuggester : public PayloadTypeSuggester {
   }
 
  private:
+  RTCErrorOr<PayloadType> MaybeAddMapping(absl::string_view mid,
+                                          const Codec& codec,
+                                          PayloadTypeRecorder& recorder,
+                                          bool pick_from_top_of_range) {
+    if (codec.id.IsSet()) {
+      if (!IsPayloadTypeConflict(mid, codec.id, codec.name,
+                                 pick_from_top_of_range)) {
+        pt_picker_.AddMapping(codec.id, codec);
+        recorder.AddMapping(codec.id, codec);
+        return codec.id;
+      }
+    }
+    return RTCError(RTCErrorType::INVALID_PARAMETER);
+  }
+
+  bool IsPayloadTypeConflict(absl::string_view mid,
+                             PayloadType payload_type,
+                             const std::string& codec_name,
+                             bool pick_from_top_of_range) const {
+    for (const auto& kv : recorders_) {
+      auto existing = kv.second->LookupCodec(payload_type);
+      if (existing.ok()) {
+        if (!absl::EqualsIgnoreCase(existing.value().name, codec_name)) {
+          return true;
+        }
+      }
+    }
+    // Also check the global picker
+    auto global_existing = pt_picker_.LookupCodec(payload_type);
+    if (global_existing &&
+        !absl::EqualsIgnoreCase(global_existing->name, codec_name)) {
+      return true;
+    }
+    return false;
+  }
+
+  PayloadTypeRecorder& LookupRecorder(absl::string_view mid) {
+    RTC_CHECK(!mid.empty());
+    auto it = recorders_.find(mid);
+    if (it == recorders_.end()) {
+      it = recorders_
+               .emplace(std::string(mid),
+                        std::make_unique<PayloadTypeRecorder>(pt_picker_))
+               .first;
+    }
+    return *it->second;
+  }
+
   PayloadTypePicker pt_picker_;
   RtpHeaderExtensionPicker rtp_extension_picker_;
+  flat_map<std::pair<std::string, std::string>, PayloadType>
+      fallback_suggestions_;
+  flat_map<std::string, std::unique_ptr<PayloadTypeRecorder>> recorders_;
 };
 
 }  // namespace webrtc

@@ -10,7 +10,6 @@
 namespace media {
 
 enum class VaapiStatusCode : StatusCodeType {
-  kOk = 0,
   kBadContext = 1,
   kNoBuffer = 2,
   kNoBufferHandle = 3,
@@ -25,6 +24,7 @@ enum class VaapiStatusCode : StatusCodeType {
   kBadImageSize = 12,
   kNoTexture = 13,
   kUnsupportedProfile = 14,
+  kFailedToExportSurface = 15,
 };
 
 struct VaapiStatusTraits {

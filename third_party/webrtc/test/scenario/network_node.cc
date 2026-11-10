@@ -18,6 +18,7 @@
 #include "absl/cleanup/cleanup.h"
 #include "api/call/transport.h"
 #include "api/sequence_checker.h"
+#include "api/task_queue/task_queue_base.h"
 #include "api/test/network_emulation/network_emulation_interfaces.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
@@ -34,6 +35,7 @@
 #include "rtc_base/socket_address.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/task_queue_for_test.h"
 #include "system_wrappers/include/clock.h"
 #include "test/network/network_emulation.h"
 #include "test/network/simulated_network.h"
@@ -111,7 +113,8 @@ bool NetworkNodeTransport::SendRtp(std::span<const uint8_t> packet,
   sent_packet.send_time_ms = send_time_ms;
   sent_packet.info.packet_size_bytes = packet.size();
   sent_packet.info.packet_type = PacketType::kData;
-  sender_call_->OnSentPacket(sent_packet);
+  TaskQueueBase* network_thread = sender_call_->network_thread();
+  SendTask(network_thread, [&]() { sender_call_->OnSentPacket(sent_packet); });
 
   MutexLock lock(&mutex_);
   if (!endpoint_)

@@ -104,9 +104,8 @@ Descriptor Descriptor::DataField(
 Descriptor Descriptor::DataConstant(DirectHandle<Name> key,
                                     DirectHandle<Object> value,
                                     PropertyAttributes attributes) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*key);
-  auto [representation, constness] = Object::OptimalRepresentation(
-      *value, PropertyConstness::kConst, cage_base);
+  auto [representation, constness] =
+      Object::OptimalRepresentation(*value, PropertyConstness::kConst);
   return Descriptor(key, MaybeObjectDirectHandle(value), PropertyKind::kData,
                     attributes, PropertyLocation::kDescriptor, constness,
                     representation, 0, false);

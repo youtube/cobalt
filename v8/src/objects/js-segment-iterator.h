@@ -68,10 +68,6 @@ V8_OBJECT class JSSegmentIterator : public JSObject {
   static_assert(GranularityBits::is_valid(JSSegmenter::Granularity::WORD));
   static_assert(GranularityBits::is_valid(JSSegmenter::Granularity::SENTENCE));
 
-  // Back-compat offset/size constants.
-  static const int kIcuIteratorWithTextOffset;
-  static const int kRawStringOffset;
-  static const int kFlagsOffset;
   static const int kHeaderSize;
 
  public:
@@ -80,12 +76,6 @@ V8_OBJECT class JSSegmentIterator : public JSObject {
   TaggedMember<Smi> flags_;
 } V8_OBJECT_END;
 
-inline constexpr int JSSegmentIterator::kIcuIteratorWithTextOffset =
-    offsetof(JSSegmentIterator, icu_iterator_with_text_);
-inline constexpr int JSSegmentIterator::kRawStringOffset =
-    offsetof(JSSegmentIterator, raw_string_);
-inline constexpr int JSSegmentIterator::kFlagsOffset =
-    offsetof(JSSegmentIterator, flags_);
 inline constexpr int JSSegmentIterator::kHeaderSize = sizeof(JSSegmentIterator);
 
 V8_OBJECT class JSSegmentDataObject : public JSObject {
@@ -104,10 +94,6 @@ V8_OBJECT class JSSegmentDataObject : public JSObject {
 
   DECL_VERIFIER(JSSegmentDataObject)
 
-  // Back-compat offset/size constants.
-  static const int kSegmentOffset;
-  static const int kIndexOffset;
-  static const int kInputOffset;
   static const int kHeaderSize;
 
  public:
@@ -116,12 +102,6 @@ V8_OBJECT class JSSegmentDataObject : public JSObject {
   TaggedMember<String> input_;
 } V8_OBJECT_END;
 
-inline constexpr int JSSegmentDataObject::kSegmentOffset =
-    offsetof(JSSegmentDataObject, segment_);
-inline constexpr int JSSegmentDataObject::kIndexOffset =
-    offsetof(JSSegmentDataObject, index_);
-inline constexpr int JSSegmentDataObject::kInputOffset =
-    offsetof(JSSegmentDataObject, input_);
 inline constexpr int JSSegmentDataObject::kHeaderSize =
     sizeof(JSSegmentDataObject);
 
@@ -133,16 +113,12 @@ V8_OBJECT class JSSegmentDataObjectWithIsWordLike : public JSSegmentDataObject {
 
   DECL_VERIFIER(JSSegmentDataObjectWithIsWordLike)
 
-  // Back-compat offset/size constants.
-  static const int kIsWordLikeOffset;
   static const int kHeaderSize;
 
  public:
   TaggedMember<Boolean> is_word_like_;
 } V8_OBJECT_END;
 
-inline constexpr int JSSegmentDataObjectWithIsWordLike::kIsWordLikeOffset =
-    offsetof(JSSegmentDataObjectWithIsWordLike, is_word_like_);
 inline constexpr int JSSegmentDataObjectWithIsWordLike::kHeaderSize =
     sizeof(JSSegmentDataObjectWithIsWordLike);
 

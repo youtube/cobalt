@@ -182,7 +182,6 @@
 <translation id="2933336679234709858">Teie andmed on krüpteeritud teie parooliga. Chromiumi andmete kasutamiseks ja salvestamiseks oma Google’i kontole sisestage parool.</translation>
 <translation id="2945997411976714835">Installimisviga: installiprotsessi käivitamine ebaõnnestus.</translation>
 <translation id="2948852018303413228">iOS-i Chromium võimaldab paroole salvestada ja saitidel kiiremini sisse logida</translation>
-<translation id="2966959524256557996">Lisage uus Chromiumi profiil, et hoida järjehoidjad, paroolid ja seaded lahus.</translation>
 <translation id="2970426615109535079">Teie organisatsioon haldab Chromiumi</translation>
 <translation id="2977470724722393594">Chromium on ajakohane</translation>
 <translation id="2977506796191543575">Kui sait üritab teie parooli varastada või laadite alla kahjuliku faili, võib Chromium saata URL-id ja lehe sisu osad teenusele Google'i ohutu sirvimine.</translation>
@@ -260,7 +259,6 @@
 <translation id="3788675262216168505">Halda Chromiumi profiile</translation>
 <translation id="3790262771324122253">Vaadake, miks Chromium mõned allalaadimised blokeerib</translation>
 <translation id="379589255253486813">Chromium annab teile teada, kui midagi tuleb üle vaadata</translation>
-<translation id="3798048725356732506">Chromiumi profiilid aitavad teil oma elu eri osi eraldada. Lisage uus profiil kohe.</translation>
 <translation id="3802055581630249637">Chromium eellaadib lehed, mida tõenäoliselt külastada soovite, et need laaditaks avamisel kiiremini</translation>
 <translation id="3810973564298564668">Halda</translation>
 <translation id="3823384748599722168">Salvestatud paroolide kasutamiseks skannige QR-kood, laadige alla Chromium iOS-ile ja logige sisse oma Google’i kontole.</translation>
@@ -357,7 +355,6 @@
 <translation id="4724676981607797757">Installimine ebaõnnestus toetamata protokolli vea tõttu.</translation>
 <translation id="4746050847053251315">Kas väljuda Chromiumist ikkagi?</translation>
 <translation id="4748217263233248895">Äsja rakendati Chromiumi spetsiaalne turvavärskendus. Taaskäivitage brauser, misjärel teie vahelehed taastatakse.</translation>
-<translation id="4759645701210484457">Küsige Chromiumilt</translation>
 <translation id="4771701986670315895">Te pole hiljuti külastanud. Chromium eemaldas load <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ja veel <ph name="COUNT" />.</translation>
 <translation id="4788777615168560705">Chromium ei saa teie paroole kontrollida. Proovige uuesti 24 tunni pärast või <ph name="BEGIN_LINK" />kontrollige oma Google'i kontol paroole<ph name="END_LINK" />.</translation>
 <translation id="479167709087336770">See kasutab sama õigekirjakontrolli, mida kasutatakse Google'i otsingus. Brauseris sisestatav tekst saadetakse Google'ile. Seda käitumist saab seadetes alati muuta.</translation>
@@ -410,6 +407,9 @@
 <translation id="5524890928877629608">otsinguala vasak ülanurk: <ph name="LEFT" />% vasakul, <ph name="TOP" />% üleval</translation>
 <translation id="5527463683072221100">Ava PDF-id Chromiumis</translation>
 <translation id="5536164441519929134">Küsige<ph name="LINE_BREAK" />selle vahelehe kohta</translation>
+<translation id="555970465369471303">Turvalisuse huvides lülitab Chromium JavaScripti optimeerimise välja, kui külastate saiti esimest korda.
+
+Kui see leht ei tööta ootuspäraselt, proovige optimeerimine lubada.</translation>
 <translation id="5579324208890605088">Käivitamisel ilmnes viga: käitage installiprogrammi tavakasutajana, mitte administraatorina.</translation>
 <translation id="5580770360767802657">Kasutage vaikimisi Chromiumit ja laske see kinnitada</translation>
 <translation id="5596627076506792578">Rohkem valikuid</translation>
@@ -421,7 +421,6 @@
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5698481217667032250">Kuva Chromium selles keeles</translation>
 <translation id="569897634095159764">Internetiga ei õnnestu ühendust luua. Puhverserver nõuab autentimist.</translation>
-<translation id="5713518899297503106">Chromiumi profiilid võimaldavad teil isiklikku ja tööalast sirvimist lahus hoida. Lisage uus profiil kohe.</translation>
 <translation id="5768371961535086509">Chromium vabastab inaktiivsete vahelehtede mälu. See annab aktiivsetele vahelehtedele ja muudele rakendustele rohkem arvutiressursse ja tagab Chromiumi kiiruse. Teie inaktiivsed vahelehed muutuvad automaatselt aktiivseks niipea, kui nendele naasete. <ph name="BEGIN_LINK" />Lisateave mälusäästja kohta<ph name="END_LINK" /></translation>
 <translation id="5775198138441669627">Kui unustasite parooli või soovite seda seadet muuta, <ph name="SETTINGS_LINK" /> oma kontol Chromiumi andmed</translation>
 <translation id="5800158606660203929">Kohandage ja hallake Chromiumi. Määrake Chromium vaikebrauseriks.</translation>
@@ -524,7 +523,6 @@
 <translation id="6676384891291319759">Pääs Internetti</translation>
 <translation id="668175097507315160">Chromium OS ei saanud sisselogimisvea tõttu teie andmeid sünkroonida.</translation>
 <translation id="6691132793308828750">Eemalda selle rakenduse andmed Chromiumist</translation>
-<translation id="6692797197837897398">Chromium annab teile suurema kontrolli nähtavate reklaamide üle ja piirab teavet, mida saidid teile isikupärastatud reklaamide näitamisel saavad teie kohta õppida</translation>
 <translation id="6709350901466051922">Chromium vajab selle saidi puhul mikrofoni kasutamise luba</translation>
 <translation id="6712881677154121168">Allalaadimisviga: <ph name="DOWNLOAD_ERROR" />.</translation>
 <translation id="6717134281241384636">Teie profiili ei saa kasutada, kuna see pärineb Chromiumi uuemast versioonist.
@@ -716,7 +714,6 @@ Chromium ei saa teie seadeid taastada.</translation>
 <translation id="8704119203788522458">See on teie Chromium</translation>
 <translation id="8712637175834984815">Selge</translation>
 <translation id="8719993436687031146">Kas logida Chromiumi sisse?</translation>
-<translation id="8745263398357414606">Hoidke kõike Chromiumis</translation>
 <translation id="8747073452963259673">otsinguala vasak alanurk: <ph name="LEFT" />% vasakul, <ph name="BOTTOM" />% all</translation>
 <translation id="878572486461146056">Installimisviga: teie võrguadministraator on kehtestanud rühmareegli, mis takistab installimist: <ph name="INSTALL_ERROR" /></translation>
 <translation id="8796602469536043152">Chromium vajab selle saidi puhul luba, et teie kaamerale ja mikrofonile juurde pääseda</translation>

@@ -12,7 +12,7 @@
 #include "test/unittests/compiler/backend/turboshaft-instruction-selector-unittest.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/simd-shuffle.h"
+#include "src/compiler/backend/simd-shuffle.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8::internal::compiler::turboshaft {
@@ -2123,7 +2123,25 @@ TEST_F(TurboshaftInstructionSelectorTest,
   ASSERT_EQ(2U, s[0]->OutputCount());
 }
 
-TEST_F(TurboshaftInstructionSelectorTest, Word64Add128) {
+struct AddOrSub128 {
+  Word64AddSub128BinopOp::Kind kind;
+  ArchOpcode expected;
+};
+
+std::ostream& operator<<(std::ostream& os, const AddOrSub128& op) {
+  return os << (op.kind == Word64AddSub128BinopOp::Kind::kAdd ? "Add" : "Sub");
+}
+
+using TurboshaftInstructionSelectorAddSub128Test =
+    TurboshaftInstructionSelectorTestWithParam<AddOrSub128>;
+
+const AddOrSub128 kAddOrSub128[] = {
+    {Word64AddSub128BinopOp::Kind::kAdd, kX64Add128},
+    {Word64AddSub128BinopOp::Kind::kSub, kX64Sub128},
+};
+
+TEST_P(TurboshaftInstructionSelectorAddSub128Test, Word64AddSub128) {
+  const AddOrSub128 param = GetParam();
   StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
                   MachineType::Uint64(), MachineType::Uint64(),
                   MachineType::Uint64());
@@ -2131,29 +2149,30 @@ TEST_F(TurboshaftInstructionSelectorTest, Word64Add128) {
   V<Word64> p1 = m.Parameter<Word64>(1);
   V<Word64> p2 = m.Parameter<Word64>(2);
   V<Word64> p3 = m.Parameter<Word64>(3);
-  V<Word64Pair> add = m.Add128(p0, p1, p2, p3);
-  OpIndex high = m.Projection(add, 1);
+  V<Word64Pair> res = m.Word64AddSub128Binop(p0, p1, p2, p3, param.kind);
+  OpIndex high = m.Projection(res, 1);
   m.Return(high);
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kX64Add128, s[0]->arch_opcode());
+  EXPECT_EQ(param.expected, s[0]->arch_opcode());
   ASSERT_EQ(4U, s[0]->InputCount());
   ASSERT_EQ(2U, s[0]->OutputCount());
 }
 
-TEST_F(TurboshaftInstructionSelectorTest, Word64Add128Aliasing) {
+TEST_P(TurboshaftInstructionSelectorAddSub128Test, Word64AddSub128Aliasing) {
+  const AddOrSub128 param = GetParam();
   {
     StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
                     MachineType::Uint64());
     V<Word64> p0 = m.Parameter<Word64>(0);
     V<Word64> p1 = m.Parameter<Word64>(1);
     // a_high == a_low
-    V<Word64Pair> add = m.Add128(p0, p0, p1, p1);
-    OpIndex high = m.Projection(add, 1);
+    V<Word64Pair> res = m.Word64AddSub128Binop(p0, p0, p1, p1, param.kind);
+    OpIndex high = m.Projection(res, 1);
     m.Return(high);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kX64Add128, s[0]->arch_opcode());
+    EXPECT_EQ(param.expected, s[0]->arch_opcode());
     // Confirm that input 0 and input 2 are the same virtual register.
     EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(2)));
     // Confirm that output 0 is tied to input 0.
@@ -2168,12 +2187,12 @@ TEST_F(TurboshaftInstructionSelectorTest, Word64Add128Aliasing) {
     V<Word64> p1 = m.Parameter<Word64>(1);
     // b_high == a_low. Since b_high is used after a_low is modified (via
     // the tied output 0), it must be in a unique register.
-    V<Word64Pair> add = m.Add128(p0, p1, p1, p0);
-    OpIndex high = m.Projection(add, 1);
+    V<Word64Pair> res = m.Word64AddSub128Binop(p0, p1, p1, p0, param.kind);
+    OpIndex high = m.Projection(res, 1);
     m.Return(high);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kX64Add128, s[0]->arch_opcode());
+    EXPECT_EQ(param.expected, s[0]->arch_opcode());
     // b_high is Input 3.
     EXPECT_FALSE(UnallocatedOperand::cast(s[0]->InputAt(3))->IsUsedAtStart());
   }
@@ -2187,36 +2206,40 @@ TEST_F(TurboshaftInstructionSelectorTest, Word64Add128Aliasing) {
     // unique because it aliases output 0 which is modified before the
     // carry-addition uses b_high.
     V<Word64> b_high = m.Load(MachineType::Uint64(), a_low, m.Int64Constant(8));
-    V<Word64Pair> add = m.Add128(a_low, a_high, b_low, b_high);
-    OpIndex high = m.Projection(add, 1);
+    V<Word64Pair> res =
+        m.Word64AddSub128Binop(a_low, a_high, b_low, b_high, param.kind);
+    OpIndex high = m.Projection(res, 1);
     m.Return(high);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kX64Add128, s[0]->arch_opcode());
+    EXPECT_EQ(param.expected, s[0]->arch_opcode());
     // b_high memory operand components start at input 3.
     EXPECT_FALSE(UnallocatedOperand::cast(s[0]->InputAt(3))->IsUsedAtStart());
     EXPECT_FALSE(UnallocatedOperand::cast(s[0]->InputAt(4))->IsUsedAtStart());
   }
 }
 
-TEST_F(TurboshaftInstructionSelectorTest, Word64Add128Immediate) {
+TEST_P(TurboshaftInstructionSelectorAddSub128Test, Word64AddSub128Immediate) {
+  const AddOrSub128 param = GetParam();
   StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
                   MachineType::Uint64());
   V<Word64> p0 = m.Parameter<Word64>(0);
   V<Word64> p1 = m.Parameter<Word64>(1);
-  V<Word64Pair> add =
-      m.Add128(p0, p1, m.Int64Constant(42), m.Int64Constant(100));
-  OpIndex high = m.Projection(add, 1);
+  V<Word64Pair> res = m.Word64AddSub128Binop(p0, p1, m.Int64Constant(42),
+                                             m.Int64Constant(100), param.kind);
+  OpIndex high = m.Projection(res, 1);
   m.Return(high);
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kX64Add128, s[0]->arch_opcode());
+  EXPECT_EQ(param.expected, s[0]->arch_opcode());
   ASSERT_EQ(4U, s[0]->InputCount());
   EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
   EXPECT_TRUE(s[0]->InputAt(3)->IsImmediate());
 }
 
-TEST_F(TurboshaftInstructionSelectorTest, Word64Add128WithMemoryOperandHigh) {
+TEST_P(TurboshaftInstructionSelectorAddSub128Test,
+       Word64AddSub128WithMemoryOperandHigh) {
+  const AddOrSub128 param = GetParam();
   StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
                   MachineType::Uint64(), MachineType::Uint64(),
                   MachineType::Pointer());
@@ -2225,18 +2248,20 @@ TEST_F(TurboshaftInstructionSelectorTest, Word64Add128WithMemoryOperandHigh) {
   V<Word64> p2 = m.Parameter<Word64>(2);
   V<Word64> p3 = m.Parameter<Word64>(3);  // base address
   V<Word64> load = m.Load(MachineType::Uint64(), p3);
-  V<Word64Pair> add = m.Add128(p0, p1, p2, load);
-  OpIndex high = m.Projection(add, 1);
+  V<Word64Pair> res = m.Word64AddSub128Binop(p0, p1, p2, load, param.kind);
+  OpIndex high = m.Projection(res, 1);
   m.Return(high);
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kX64Add128, s[0]->arch_opcode());
+  EXPECT_EQ(param.expected, s[0]->arch_opcode());
   AddressingMode mode =
       static_cast<AddressingMode>(MiscField::decode(s[0]->opcode()));
   EXPECT_EQ(kMode_MR, mode);
 }
 
-TEST_F(TurboshaftInstructionSelectorTest, Word64Add128WithBothMemoryOperands) {
+TEST_P(TurboshaftInstructionSelectorAddSub128Test,
+       Word64AddSub128WithBothMemoryOperands) {
+  const AddOrSub128 param = GetParam();
   StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
                   MachineType::Uint64(), MachineType::Pointer());
   V<Word64> p0 = m.Parameter<Word64>(0);
@@ -2246,18 +2271,23 @@ TEST_F(TurboshaftInstructionSelectorTest, Word64Add128WithBothMemoryOperands) {
       m.LoadImmutable(MachineType::Uint64(), p3, m.Int64Constant(0));
   V<Word64> load_high =
       m.LoadImmutable(MachineType::Uint64(), p3, m.Int64Constant(8));
-  V<Word64Pair> add = m.Add128(p0, load_low, p2, load_high);
-  OpIndex high = m.Projection(add, 1);
+  V<Word64Pair> res =
+      m.Word64AddSub128Binop(p0, load_low, p2, load_high, param.kind);
+  OpIndex high = m.Projection(res, 1);
   m.Return(high);
   Stream s = m.Build();
   ASSERT_EQ(2U, s.size());
   EXPECT_EQ(kX64Movq, s[0]->arch_opcode());
-  EXPECT_EQ(kX64Add128, s[1]->arch_opcode());
+  EXPECT_EQ(param.expected, s[1]->arch_opcode());
   EXPECT_EQ(kMode_None, s[1]->addressing_mode());
   AddressingMode mode =
       static_cast<AddressingMode>(MiscField::decode(s[1]->opcode()));
   EXPECT_EQ(kMode_MR1, mode);
 }
+
+INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
+                         TurboshaftInstructionSelectorAddSub128Test,
+                         ::testing::ValuesIn(kAddOrSub128));
 
 #if V8_ENABLE_WEBASSEMBLY
 // -----------------------------------------------------------------------------

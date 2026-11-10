@@ -540,8 +540,9 @@ TEST_F(HeapTest, OptimizedAllocationAlwaysInNewSpace) {
   v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
   if (!isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
-      v8_flags.stress_incremental_marking)
+      v8_flags.stress_incremental_marking) {
     return;
+  }
   v8::Isolate* iso = reinterpret_cast<v8::Isolate*>(isolate());
   ManualGCScope manual_gc_scope(isolate());
   v8::HandleScope scope(iso);
@@ -591,8 +592,9 @@ static size_t GetRememberedSetSize(Isolate* isolate, Tagged<HeapObject> obj) {
 
 TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
   if (v8_flags.single_generation || v8_flags.stress_incremental_marking ||
-      v8_flags.scavenger_chaos_mode)
+      v8_flags.scavenger_chaos_mode) {
     return;
+  }
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.scavenger_precise_object_pinning = false;
   ManualGCScope manual_gc_scope(isolate());

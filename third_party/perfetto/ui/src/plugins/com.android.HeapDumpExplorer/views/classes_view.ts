@@ -25,6 +25,8 @@ import {
   sizeRenderer,
   countRenderer,
   RowCounter,
+  COL_INFO,
+  colHeader,
 } from '../components';
 import * as queries from '../queries';
 import {dumpFilterSql, type HeapDump} from '../queries';
@@ -65,7 +67,7 @@ function makeUiSchema(navigate: NavFn): SchemaRegistry {
           m(
             'button',
             {
-              class: 'ah-link',
+              class: 'pf-hde-link',
               onclick: () => navigate('objects', {cls: String(value)}),
             },
             String(value),
@@ -77,27 +79,32 @@ function makeUiSchema(navigate: NavFn): SchemaRegistry {
         cellRenderer: countRenderer,
       },
       shallow: {
-        title: 'Shallow',
+        title: colHeader('Shallow', COL_INFO.shallow),
+        titleString: 'Shallow',
         columnType: 'quantitative',
         cellRenderer: sizeRenderer,
       },
       native_shallow: {
-        title: 'Shallow Native',
+        title: colHeader('Shallow Native', COL_INFO.shallowNative),
+        titleString: 'Shallow Native',
         columnType: 'quantitative',
         cellRenderer: sizeRenderer,
       },
       retained: {
-        title: 'Retained',
+        title: colHeader('Retained', COL_INFO.retained),
+        titleString: 'Retained',
         columnType: 'quantitative',
         cellRenderer: sizeRenderer,
       },
       retained_native: {
-        title: 'Retained Native',
+        title: colHeader('Retained Native', COL_INFO.retainedNative),
+        titleString: 'Retained Native',
         columnType: 'quantitative',
         cellRenderer: sizeRenderer,
       },
       retained_count: {
-        title: 'Retained #',
+        title: colHeader('Retained #', COL_INFO.retainedCount),
+        titleString: 'Retained #',
         columnType: 'quantitative',
         cellRenderer: countRenderer,
       },
@@ -160,8 +167,8 @@ function ClassesView(): m.Component<ClassesViewAttrs> {
 
       if (!dataSource) return null;
 
-      return m('div', {class: 'ah-view-content'}, [
-        m('h2', {class: 'ah-view-heading'}, counter.heading('Classes')),
+      return m('div', {class: 'pf-hde-view-content'}, [
+        m('h2', {class: 'pf-hde-view-heading'}, counter.heading('Classes')),
         m(DataGrid, {
           schema: makeUiSchema(navigate),
           rootSchema: 'query',

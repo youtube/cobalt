@@ -31,7 +31,8 @@ DelayBasedCongestionControl::DelayBasedCongestionControl(
 }
 
 void DelayBasedCongestionControl::OnTransportPacketsFeedback(
-    const TransportPacketsFeedback& msg) {
+    const TransportPacketsFeedback& msg,
+    bool alr) {
   if (msg.PacketsWithFeedback().empty()) {
     return;
   }
@@ -57,7 +58,7 @@ void DelayBasedCongestionControl::OnTransportPacketsFeedback(
           received_packets.back().arrival_time_offset.value_or(
               TimeDelta::Zero()),
       TimeDelta::Zero());
-  UpdateSmoothedRtt(rtt_sample);
+  UpdateSmoothedRtt(rtt_sample, alr);
 
   TimeDelta min_queue_delay = min_one_way_delay - min_base_delay();
   if (min_queue_delay > params_.queue_delay_drain_threshold.Get()) {
@@ -116,15 +117,14 @@ void DelayBasedCongestionControl::UpdateLatencyDifferenceAverage(
                    2 * params_.latency_diff_threshold.Get());
 }
 
-void DelayBasedCongestionControl::UpdateSmoothedRtt(TimeDelta rtt_sample) {
+void DelayBasedCongestionControl::UpdateSmoothedRtt(TimeDelta rtt_sample,
+                                                    bool alr) {
   RTC_DCHECK(rtt_sample >= TimeDelta::Zero());
   if (last_smoothed_rtt_.IsZero()) {
     last_smoothed_rtt_ = rtt_sample;
   } else {
-    double g = params_.smoothed_rtt_avg_g_up.Get();
-    if (rtt_sample < last_smoothed_rtt_) {
-      g = params_.smoothed_rtt_avg_g_down.Get();
-    }
+    double g = alr ? params_.smoothed_rtt_avg_in_alr_g.Get()
+                   : params_.smoothed_rtt_avg_g.Get();
     last_smoothed_rtt_ = rtt_sample * g + last_smoothed_rtt_ * (1.0 - g);
   }
 }

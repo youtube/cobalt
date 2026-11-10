@@ -74,10 +74,11 @@ TEST_F(HeapSnapshotTest, PositionOnSharedFunctionInfo) {
   const HeapEntry* lazy = nullptr;
   for (const HeapEntry& entry : snapshot->entries()) {
     if (entry.type() == HeapEntry::kClosure) {
-      if (strcmp(entry.name(), "compiled") == 0)
+      if (strcmp(entry.name(), "compiled") == 0) {
         compiled = &entry;
-      else if (strcmp(entry.name(), "lazy") == 0)
+      } else if (strcmp(entry.name(), "lazy") == 0) {
         lazy = &entry;
+      }
     }
   }
   CHECK_NOT_NULL(compiled);
@@ -168,10 +169,11 @@ TEST_F(HeapSnapshotTest, ScopeInfoProperties) {
   const HeapEntry* f_closure = nullptr;
   for (const HeapEntry& entry : snapshot->entries()) {
     if (entry.type() == HeapEntry::kClosure) {
-      if (strcmp(entry.name(), "g_func") == 0)
+      if (strcmp(entry.name(), "g_func") == 0) {
         g_closure = &entry;
-      else if (strcmp(entry.name(), "f_func") == 0)
+      } else if (strcmp(entry.name(), "f_func") == 0) {
         f_closure = &entry;
+      }
     }
   }
   ASSERT_NE(nullptr, g_closure);
@@ -407,4 +409,79 @@ TEST_F(HeapSnapshotTest, StringProperties) {
   EXPECT_EQ(HeapEntry::kSlicedString, sliced->type());
   EXPECT_TRUE(HasNamedEdge(*sliced, "parent"));
 }
+
+TEST_F(HeapSnapshotTest, ScriptName) {
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Context> context = v8_context();
+
+  // 1. Anonymous script
+  RunJS("const anonymous_script_var = 1;");
+
+  // 2. Named script
+  v8::Local<v8::String> source = NewString("const named_script_var = 2;");
+  v8::Local<v8::String> origin_url = NewString("foo.js");
+  v8::Local<v8::Script> v8_script =
+      CompileWithOrigin(source, origin_url, false);
+  std::ignore = v8_script->Run(context);
+
+  // Extract the internal Script object for the named script.
+  i::Handle<i::JSFunction> fun = v8::Utils::OpenHandle(*v8_script);
+  Tagged<Object> script_obj = fun->shared()->script();
+  ASSERT_TRUE(IsScript(script_obj));
+  Tagged<Script> script = Cast<Script>(script_obj);
+
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  // Verify the named Script entry in the snapshot.
+  const HeapEntry* entry = GetEntryFor(i_isolate(), snapshot, script);
+  ASSERT_NE(nullptr, entry);
+  EXPECT_EQ(HeapEntry::kCode, entry->type());
+  EXPECT_STREQ("system / Script / foo.js", entry->name());
+
+  // Verify that at least one anonymous Script entry exists.
+  const HeapEntry* anonymous_entry =
+      GetEntryByName(snapshot, "system / Script");
+  ASSERT_NE(nullptr, anonymous_entry);
+  EXPECT_EQ(HeapEntry::kCode, anonymous_entry->type());
+}
+
+TEST_F(HeapSnapshotTest, LongScriptName) {
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Context> context = v8_context();
+
+  // Set string limit to unlimited to allow very long names.
+  v8_flags.heap_snapshot_string_limit = 0;
+  // Re-initialize StringsStorage to pick up the new flag value.
+  i_isolate()->heap()->heap_profiler()->DeleteAllSnapshots();
+
+  // Create a 5000-character script name.
+  std::string long_name_str(5000, 'a');
+  v8::Local<v8::String> source = NewString("const long_script_var = 3;");
+  v8::Local<v8::String> origin_url = NewString(long_name_str.c_str());
+  v8::Local<v8::Script> v8_script =
+      CompileWithOrigin(source, origin_url, false);
+  std::ignore = v8_script->Run(context);
+
+  // Extract the internal Script object.
+  i::Handle<i::JSFunction> fun = v8::Utils::OpenHandle(*v8_script);
+  Tagged<Object> script_obj = fun->shared()->script();
+  ASSERT_TRUE(IsScript(script_obj));
+  Tagged<Script> script = Cast<Script>(script_obj);
+
+  HeapSnapshot* snapshot = TakeHeapSnapshot();
+
+  // Verify the Script entry in the snapshot.
+  const HeapEntry* entry = GetEntryFor(i_isolate(), snapshot, script);
+  ASSERT_NE(nullptr, entry);
+  EXPECT_EQ(HeapEntry::kCode, entry->type());
+
+  // The name should start with the prefix, but be truncated to 4095 characters.
+  std::string expected_prefix = "system / Script / ";
+  EXPECT_EQ(0, strncmp(entry->name(), expected_prefix.c_str(),
+                       expected_prefix.length()));
+  EXPECT_EQ(4095u, strlen(entry->name()));
+  // It should NOT be the raw format string.
+  EXPECT_STRNE("%s / %s", entry->name());
+}
+
 }  // namespace v8::internal

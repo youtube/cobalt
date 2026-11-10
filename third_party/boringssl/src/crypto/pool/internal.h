@@ -53,13 +53,13 @@ class CryptoBuffer : public crypto_buffer_st {
   // Instead of subclassing RefCounted<T>, implement refcounting by hand.
   // CryptoBuffer's refcounting must synchronize with CryptoBufferPool.
   static constexpr bool kAllowRefCountedUniquePtr = true;
-  void UpRefInternal();
+  void UpRefInternal() const;
   void DecRefInternal();
 
   UniquePtr<CryptoBufferPoolHandle> pool_handle_;
   uint8_t *data_ = nullptr;
   size_t len_ = 0;
-  CRYPTO_refcount_t references_ = 1;
+  mutable CRYPTO_refcount_t references_ = 1;
   bool data_is_static_ = false;
 
  private:

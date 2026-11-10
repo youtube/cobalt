@@ -23,7 +23,13 @@
 
 import("//build/config/linux/pkg_config.gni")
 import("//build/config/sanitizers/sanitizers.gni")
+import("//testing/test.gni")
 import("webrtc.gni")
+
+if (rtc_rust) {
+  import("//build/rust/rust_unit_tests_group.gni")
+}
+
 if (rtc_enable_protobuf) {
   import("//third_party/protobuf/proto_library.gni")
 }
@@ -88,11 +94,14 @@ if (!build_with_chromium) {
       }
 
       # TODO(bugs.webrtc.org/430260876): Remove once rust links with libwebrtc.
-      if (!is_asan && !rtc_rusty_base64) {
+      if (!is_asan) {
         # Do not build :webrtc_lib_link_test because lld complains on some OS
         # (e.g. when target_os = "mac") when is_asan=true. For more details,
         # see bugs.webrtc.org/11027#c5.
         deps += [ ":webrtc_lib_link_test" ]
+      }
+      if (rtc_rust) {
+        deps += [ ":rust_tests" ]
       }
       if (is_ios) {
         deps += [
@@ -590,7 +599,7 @@ if (!build_with_chromium) {
 
   # TODO(bugs.webrtc.org/430260876): Compile webrtc lib with rust once toolchain
   # is working.
-  if (rtc_include_tests && !is_asan && !rtc_rusty_base64) {
+  if (rtc_include_tests && !is_asan) {
     rtc_executable("webrtc_lib_link_test") {
       testonly = true
 
@@ -750,7 +759,6 @@ if (rtc_include_tests && !build_with_chromium) {
   }
 
   rtc_test_suite("webrtc_nonparallel_tests") {
-    testonly = true
     tests = [
       "rtc_base:cpu_time_unittest",
       "rtc_base:file_rotating_stream_unittest",
@@ -758,9 +766,6 @@ if (rtc_include_tests && !build_with_chromium) {
       "rtc_base:physical_socket_server_unittest",
       "rtc_base:socket_address_unittest",
     ]
-    if (is_android) {
-      shard_timeout = 900
-    }
   }
 
   rtc_test("voip_unittests") {
@@ -773,6 +778,16 @@ if (rtc_include_tests && !build_with_chromium) {
       "audio/voip/test:audio_ingress_unittests",
       "audio/voip/test:voip_core_unittests",
     ]
+  }
+
+  if (rtc_rust) {
+    rtc_rust_test_suite("rust_tests") {
+      testonly = true
+      deps = [
+        "api/units:units_rust_unit_tests",
+        "rust/webrtc_import:tests",
+      ]
+    }
   }
 }
 

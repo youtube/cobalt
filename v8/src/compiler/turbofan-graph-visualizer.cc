@@ -1121,10 +1121,12 @@ std::ostream& operator<<(
       // Record the minimum and maximum positions observed within this
       // TopLevelLiveRange
       for (const UseInterval& interval : child->intervals()) {
-        if (interval.start().value() < instruction_range[0])
+        if (interval.start().value() < instruction_range[0]) {
           instruction_range[0] = interval.start().value();
-        if (interval.end().value() > instruction_range[1])
+        }
+        if (interval.end().value() > instruction_range[1]) {
           instruction_range[1] = interval.end().value();
+        }
       }
     }
   }

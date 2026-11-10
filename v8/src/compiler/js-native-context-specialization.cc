@@ -1046,8 +1046,9 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     // conditions hold.
     if ((property_details.IsConfigurable() || !property_details.IsReadOnly()) &&
         property_details.cell_type() != PropertyCellType::kConstant &&
-        property_details.cell_type() != PropertyCellType::kUndefined)
+        property_details.cell_type() != PropertyCellType::kUndefined) {
       return NoChange();
+    }
   }
 
   // Ensure that {key} matches the specified {name} (if {key} is given).
@@ -1808,13 +1809,22 @@ Reduction JSNativeContextSpecialization::ReduceHomomorphicAccess(
     Node* node, Node* value, HomomorphicPropertyAccessFeedback const& feedback,
     AccessMode access_mode, Node* key) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
-         node->opcode() == IrOpcode::kJSLoadProperty);
+         node->opcode() == IrOpcode::kJSLoadProperty ||
+         node->opcode() == IrOpcode::kJSLoadNamedFromSuper);
   if (access_mode != AccessMode::kLoad) return NoChange();
 
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  Node* lookup_start_object = NodeProperties::GetValueInput(node, 0);
+  Node* lookup_start_object;
+  if (node->opcode() == IrOpcode::kJSLoadNamedFromSuper) {
+    DCHECK(v8_flags.super_ic);
+    JSLoadNamedFromSuperNode n(node);
+    lookup_start_object = effect =
+        BuildLoadPrototypeFromObject(n.home_object(), effect, control);
+  } else {
+    lookup_start_object = NodeProperties::GetValueInput(node, 0);
+  }
 
   Tagged<Smi> handler = feedback.handler();
   bool is_inobject = LoadHandler::IsInobjectBits::decode(handler.value());
@@ -1868,12 +1878,30 @@ Reduction JSNativeContextSpecialization::ReduceHomomorphicAccess(
         holder, effect, control);
   }
 
+  FieldAccess field_access =
+      AccessBuilder::ForJSObjectOffset(kTaggedSize * offset_in_words);
+  if (is_double) {
+    field_access.type = Type::OtherInternal();
+  }
   Node* result = effect = graph()->NewNode(
-      simplified()->LoadField(
-          AccessBuilder::ForJSObjectOffset(kTaggedSize * offset_in_words)),
-      holder, effect, control);
+      simplified()->LoadField(field_access), holder, effect, control);
 
   if (is_double) {
+    // With in-place field representation changes it is possible that this is
+    // no longer a heap number without map transitions (generalized from Double
+    // to Tagged in-place). So we need to verify the loaded value is a heap
+    // number.
+    result = effect = graph()->NewNode(simplified()->CheckHeapObject(), result,
+                                       effect, control);
+    Node* map = effect =
+        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                         result, effect, control);
+    Node* is_heap_number = graph()->NewNode(simplified()->ReferenceEqual(), map,
+                                            jsgraph()->HeapNumberMapConstant());
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kNotAHeapNumber),
+        is_heap_number, effect, control);
+
     result = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForHeapNumberValue()), result,
         effect, control);
@@ -3401,8 +3429,9 @@ JSNativeContextSpecialization::ReduceJSDefineKeyedOwnPropertyInLiteral(
   NumberMatcher mflags(n.flags());
   CHECK(mflags.HasResolvedValue());
   DefineKeyedOwnPropertyInLiteralFlags cflags(mflags.ResolvedValue());
-  if (cflags & DefineKeyedOwnPropertyInLiteralFlag::kSetFunctionName)
+  if (cflags & DefineKeyedOwnPropertyInLiteralFlag::kSetFunctionName) {
     return NoChange();
+  }
 
   return ReducePropertyAccess(node, n.name(), std::nullopt, n.value(),
                               FeedbackSource(p.feedback()),
@@ -3571,9 +3600,9 @@ JSNativeContextSpecialization::BuildElementAccess(
                 simplified()->LoadField(
                     AccessBuilder::ForJSArrayLength(elements_kind)),
                 receiver, effect, control)
-          : graph()->NewNode(
-                simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
-                elements, effect, control);
+          : graph()->NewNode(simplified()->LoadField(
+                                 AccessBuilder::ForFixedArrayLengthLegacy()),
+                             elements, effect, control);
 
   // Check if we might need to grow the {elements} backing store.
   if (keyed_mode.IsStore() && StoreModeCanGrow(keyed_mode.store_mode())) {
@@ -3855,7 +3884,7 @@ JSNativeContextSpecialization::BuildElementAccess(
     } else if (StoreModeCanGrow(keyed_mode.store_mode())) {
       // Determine the length of the {elements} backing store.
       Node* elements_length = effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
+          simplified()->LoadField(AccessBuilder::ForFixedArrayLengthLegacy()),
           elements, effect, control);
 
       // Validate the {index} depending on holeyness:

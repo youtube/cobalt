@@ -136,15 +136,30 @@ class HeapEntry {
             SnapshotObjectId id, size_t self_size, unsigned trace_node_id);
 
   HeapSnapshot* snapshot() { return snapshot_; }
-  Type type() const { return static_cast<Type>(type_); }
-  void set_type(Type type) { type_ = static_cast<unsigned>(type); }
+  Type type() const {
+    return static_cast<Type>(TypeField::decode(type_and_index_));
+  }
+  void set_type(Type type) {
+    type_and_index_ =
+        TypeField::update(type_and_index_, static_cast<unsigned>(type));
+  }
   const char* name() const { return name_; }
   void set_name(const char* name) { name_ = name; }
   SnapshotObjectId id() const { return id_; }
+#ifdef V8_TARGET_ARCH_64_BIT
+  size_t self_size() const {
+    return SelfSizeField::decode(self_size_and_detachedness_);
+  }
+  void add_self_size(size_t size) {
+    self_size_and_detachedness_ = SelfSizeField::update(
+        self_size_and_detachedness_, self_size() + size);
+  }
+#else
   size_t self_size() const { return self_size_; }
   void add_self_size(size_t size) { self_size_ += size; }
+#endif
   unsigned trace_node_id() const { return trace_node_id_; }
-  int index() const { return index_; }
+  int index() const { return IndexField::decode(type_and_index_); }
   V8_EXPORT_PRIVATE int children_count() const;
   int set_children_index(int index);
   void add_child(HeapGraphEdge* edge);
@@ -153,9 +168,20 @@ class HeapEntry {
   Isolate* isolate() const;
 
   void set_detachedness(v8::EmbedderGraph::Node::Detachedness value) {
+#ifdef V8_TARGET_ARCH_64_BIT
+    self_size_and_detachedness_ = DetachednessField::update(
+        self_size_and_detachedness_, static_cast<uint8_t>(value));
+#else
     detachedness_ = static_cast<uint8_t>(value);
+#endif
   }
-  uint8_t detachedness() const { return detachedness_; }
+  uint8_t detachedness() const {
+#ifdef V8_TARGET_ARCH_64_BIT
+    return DetachednessField::decode(self_size_and_detachedness_);
+#else
+    return detachedness_;
+#endif
+  }
 
   enum ReferenceVerification {
     // Verify that the reference can be found via marking, if verification is
@@ -201,8 +227,9 @@ class HeapEntry {
   const char* TypeAsString() const;
 
   static_assert(kNumTypes <= 1 << 4);
-  unsigned type_ : 4;
-  unsigned index_ : 28;  // Supports up to ~250M objects.
+  using TypeField = base::BitField<unsigned, 0, 4, uint32_t>;
+  using IndexField = TypeField::Next<unsigned, 28>;
+  uint32_t type_and_index_;
   union {
     // The count is used during the snapshot build phase,
     // then it gets converted into the index by the |FillChildren| function.
@@ -210,11 +237,13 @@ class HeapEntry {
     unsigned children_end_index_;
   };
 #ifdef V8_TARGET_ARCH_64_BIT
-  size_t self_size_ : 48;
+  using SelfSizeField = base::BitField64<size_t, 0, 48>;
+  using DetachednessField = SelfSizeField::Next<uint8_t, 8>;
+  uint64_t self_size_and_detachedness_;
 #else   // !V8_TARGET_ARCH_64_BIT
   size_t self_size_;
-#endif  // !V8_TARGET_ARCH_64_BIT
   uint8_t detachedness_ = 0;
+#endif  // !V8_TARGET_ARCH_64_BIT
   HeapSnapshot* snapshot_;
   const char* name_;
   SnapshotObjectId id_;
@@ -230,7 +259,6 @@ class HeapEntry {
 class HeapSnapshot {
  public:
   HeapSnapshot(HeapProfiler* profiler,
-               v8::HeapProfiler::HeapSnapshotMode snapshot_mode,
                v8::HeapProfiler::NumericsMode numerics_mode);
   HeapSnapshot(const HeapSnapshot&) = delete;
   HeapSnapshot& operator=(const HeapSnapshot&) = delete;
@@ -258,10 +286,6 @@ class HeapSnapshot {
   bool capture_numeric_value() const {
     return numerics_mode_ ==
            v8::HeapProfiler::NumericsMode::kExposeNumericValues;
-  }
-  bool expose_internals() const {
-    return snapshot_mode_ ==
-           v8::HeapProfiler::HeapSnapshotMode::kExposeInternals;
   }
   size_t extra_native_bytes() const { return extra_native_bytes_; }
   void set_extra_native_bytes(size_t bytes) { extra_native_bytes_ = bytes; }
@@ -303,7 +327,6 @@ class HeapSnapshot {
       entries_by_id_cache_;
   std::vector<EntrySourceLocation> locations_;
   SnapshotObjectId max_snapshot_js_object_id_ = -1;
-  v8::HeapProfiler::HeapSnapshotMode snapshot_mode_;
   v8::HeapProfiler::NumericsMode numerics_mode_;
   size_t extra_native_bytes_ = 0;
 

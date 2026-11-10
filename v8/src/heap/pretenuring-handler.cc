@@ -34,8 +34,9 @@ double GetPretenuringRatioThreshold(size_t new_space_capacity) {
   static constexpr double kMinorMSPretenureMaxRatio = 0.8;
   static constexpr double kMinorMSMinCapacity = 16 * MB;
   if (!v8_flags.minor_ms) return kScavengerPretenureRatio;
-  if (new_space_capacity <= kMinorMSMinCapacity)
+  if (new_space_capacity <= kMinorMSMinCapacity) {
     return kMinorMSPretenureMaxRatio;
+  }
   // When capacity is 64MB, the pretenuring ratio would be 0.2.
   return kMinorMSPretenureMaxRatio * kMinorMSMinCapacity / new_space_capacity;
 }

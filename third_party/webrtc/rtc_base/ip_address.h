@@ -231,7 +231,7 @@ int IPAddressPrecedence(const IPAddress& ip);
 // Returns 'ip' truncated to be 'length' bits long.
 RTC_EXPORT IPAddress TruncateIP(const IPAddress& ip, int length);
 
-IPAddress GetLoopbackIP(int family);
+RTC_EXPORT IPAddress GetLoopbackIP(int family);
 IPAddress GetAnyIP(int family);
 
 // Returns the number of contiguously set bits, counting from the MSB in network

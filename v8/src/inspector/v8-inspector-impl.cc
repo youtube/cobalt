@@ -98,8 +98,9 @@ v8::MaybeLocal<v8::Value> V8InspectorImpl::compileAndRunInternalScript(
     v8::Local<v8::Context> context, v8::Local<v8::String> source) {
   v8::Local<v8::UnboundScript> unboundScript;
   if (!v8::debug::CompileInspectorScript(m_isolate, source)
-           .ToLocal(&unboundScript))
+           .ToLocal(&unboundScript)) {
     return v8::MaybeLocal<v8::Value>();
+  }
   v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Context::Scope contextScope(context);
@@ -126,13 +127,14 @@ void V8InspectorImpl::unmuteExceptions(int contextGroupId) {
 V8ConsoleMessageStorage* V8InspectorImpl::ensureConsoleMessageStorage(
     int contextGroupId) {
   auto storageIt = m_consoleStorageMap.find(contextGroupId);
-  if (storageIt == m_consoleStorageMap.end())
+  if (storageIt == m_consoleStorageMap.end()) {
     storageIt = m_consoleStorageMap
                     .insert(std::make_pair(
                         contextGroupId,
                         std::unique_ptr<V8ConsoleMessageStorage>(
                             new V8ConsoleMessageStorage(this, contextGroupId))))
                     .first;
+  }
   return storageIt->second.get();
 }
 
@@ -283,12 +285,13 @@ void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
       std::make_pair(context->uniqueId().pair(), contextId));
 
   auto contextIt = m_contexts.find(info.contextGroupId);
-  if (contextIt == m_contexts.end())
+  if (contextIt == m_contexts.end()) {
     contextIt = m_contexts
                     .insert(std::make_pair(
                         info.contextGroupId,
                         std::unique_ptr<ContextByIdMap>(new ContextByIdMap())))
                     .first;
+  }
   const auto& contextById = contextIt->second;
 
   DCHECK(contextById->find(contextId) == contextById->cend());
@@ -310,8 +313,9 @@ void V8InspectorImpl::contextCollected(int groupId, int contextId) {
   m_contextIdToGroupIdMap.erase(contextId);
 
   auto storageIt = m_consoleStorageMap.find(groupId);
-  if (storageIt != m_consoleStorageMap.end())
+  if (storageIt != m_consoleStorageMap.end()) {
     storageIt->second->contextDestroyed(contextId);
+  }
 
   std::shared_ptr<InspectedContext> inspectedContext =
       getContext(groupId, contextId);
@@ -330,8 +334,9 @@ void V8InspectorImpl::resetContextGroup(int contextGroupId) {
   auto contextsIt = m_contexts.find(contextGroupId);
   // Context might have been removed already by discardContextScript()
   if (contextsIt != m_contexts.end()) {
-    for (const auto& map_entry : *contextsIt->second)
+    for (const auto& map_entry : *contextsIt->second) {
       m_uniqueIdToContextId.erase(map_entry.second->uniqueId().pair());
+    }
     m_contexts.erase(contextsIt);
   }
   forEachSession(contextGroupId,
@@ -564,9 +569,10 @@ bool V8InspectorImpl::associateExceptionData(v8::Local<v8::Context>,
   v8::TryCatch tryCatch(m_isolate);
   v8::Context::Scope contextScope(context);
   v8::HandleScope handles(m_isolate);
-  if (m_exceptionMetaData.IsEmpty())
+  if (m_exceptionMetaData.IsEmpty()) {
     m_exceptionMetaData.Reset(m_isolate,
                               v8::debug::EphemeronTable::New(m_isolate));
+  }
 
   v8::Local<v8::debug::EphemeronTable> map = m_exceptionMetaData.Get(m_isolate);
   v8::MaybeLocal<v8::Value> entry = map->Get(m_isolate, exception);
@@ -598,8 +604,9 @@ v8::MaybeLocal<v8::Object> V8InspectorImpl::getAssociatedExceptionData(
   v8::Local<v8::debug::EphemeronTable> map = m_exceptionMetaData.Get(m_isolate);
   auto entry = map->Get(m_isolate, exception);
   v8::Local<v8::Value> object;
-  if (!entry.ToLocal(&object) || !object->IsObject())
+  if (!entry.ToLocal(&object) || !object->IsObject()) {
     return v8::MaybeLocal<v8::Object>();
+  }
   return scope.Escape(object.As<v8::Object>());
 }
 

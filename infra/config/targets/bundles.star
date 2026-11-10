@@ -130,7 +130,7 @@ targets.bundle(
     per_test_modifications = {
         "chrome_public_test_apk_tablet": targets.mixin(
             swarming = targets.swarming(
-                shards = 2,
+                shards = 3,
             ),
         ),
     },
@@ -643,6 +643,23 @@ targets.bundle(
             args = [
                 "--platform=android",
             ],
+        ),
+    },
+)
+
+targets.bundle(
+    name = "android_leakcanary_tests",
+    targets = [
+        "chrome_public_test_apk",
+    ],
+    per_test_modifications = {
+        "chrome_public_test_apk": targets.mixin(
+            args = [
+                "--enable-leak-checks",
+            ],
+            swarming = targets.swarming(
+                shards = 75,
+            ),
         ),
     },
 )
@@ -2276,24 +2293,13 @@ targets.bundle(
 )
 
 targets.bundle(
-    name = "chromium_web_tests_graphite_isolated_scripts",
+    name = "chromium_web_tests_surface_embed_isolated_scripts",
     targets = [
-        "graphite_enabled_blink_web_tests",
-        "graphite_enabled_blink_wpt_tests",
-        "graphite_enabled_headless_shell_wpt_tests",
+        "surface_embed_chrome_wpt_tests",
     ],
     per_test_modifications = {
-        "graphite_enabled_blink_web_tests": targets.mixin(
-            swarming = targets.swarming(
-                shards = 2,
-            ),
-        ),
-        "graphite_enabled_blink_wpt_tests": targets.mixin(
-            swarming = targets.swarming(
-                shards = 1,
-            ),
-        ),
-        "graphite_enabled_headless_shell_wpt_tests": targets.mixin(
+        "surface_embed_chrome_wpt_tests": targets.mixin(
+            ci_only = True,
             swarming = targets.swarming(
                 shards = 7,
             ),
@@ -5953,7 +5959,6 @@ targets.bundle(
     targets = [
         "absl_hardening_tests",
         "accessibility_unittests",
-        "app_shell_unittests",
         "base_unittests",
         "blink_heap_unittests",
         "blink_platform_unittests",
@@ -6184,7 +6189,6 @@ targets.bundle(
     name = "non_android_chromium_gtests_no_nacl",
     targets = [
         "accessibility_unittests",
-        "app_shell_unittests",
         "blink_fuzzer_unittests",
         "browser_tests",
         "chrome_app_unittests",
@@ -6694,6 +6698,36 @@ targets.bundle(
 )
 
 targets.bundle(
+    name = "trees_in_viz_disabled_tests_android",
+    targets = [
+        "cc_unittests",
+        "viz_unittests",
+        "content_browsertests",
+        "android_browsertests",
+    ],
+    mixins = [
+        targets.mixin(
+            args = ["--disable-features=TreesInViz"],
+        ),
+    ],
+)
+
+targets.bundle(
+    name = "trees_in_viz_disabled_tests_chromeos",
+    targets = [
+        "cc_unittests",
+        "viz_unittests",
+        "content_browsertests",
+        "browser_tests",
+    ],
+    mixins = [
+        targets.mixin(
+            args = ["--disable-features=TreesInViz"],
+        ),
+    ],
+)
+
+targets.bundle(
     name = "trees_in_viz_enabled_tests",
     targets = [
         "cc_unittests",
@@ -6719,36 +6753,6 @@ targets.bundle(
             args = ["--enable-features=TreesInViz"],
         ),
     },
-)
-
-targets.bundle(
-    name = "trees_in_viz_enabled_tests_android",
-    targets = [
-        "cc_unittests",
-        "viz_unittests",
-        "content_browsertests",
-        "android_browsertests",
-    ],
-    mixins = [
-        targets.mixin(
-            args = ["--enable-features=TreesInViz"],
-        ),
-    ],
-)
-
-targets.bundle(
-    name = "trees_in_viz_enabled_tests_chromeos",
-    targets = [
-        "cc_unittests",
-        "viz_unittests",
-        "content_browsertests",
-        "browser_tests",
-    ],
-    mixins = [
-        targets.mixin(
-            args = ["--enable-features=TreesInViz"],
-        ),
-    ],
 )
 
 targets.bundle(

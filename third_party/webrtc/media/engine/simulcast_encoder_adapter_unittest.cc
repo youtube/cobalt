@@ -2717,6 +2717,45 @@ TEST_F(TestSimulcastEncoderAdapterFake, PopulatesScalabilityModeOfSubcodecs) {
             ScalabilityMode::kL1T3);
 }
 
+TEST_F(TestSimulcastEncoderAdapterFake,
+       ScalabilityModeWithInactiveFirstStream) {
+  SimulcastTestFixtureImpl::DefaultSettings(
+      &codec_, static_cast<const int*>(kTestTemporalLayerProfile),
+      kVideoCodecVP8);
+  codec_.numberOfSimulcastStreams = 2;
+  codec_.SetScalabilityMode(ScalabilityMode::kL1T3);
+
+  codec_.simulcastStream[0].numberOfTemporalLayers = 3;
+  codec_.simulcastStream[0].active = false;
+  codec_.simulcastStream[1].numberOfTemporalLayers = 2;
+  codec_.simulcastStream[1].active = true;
+
+  EXPECT_EQ(0, adapter_->InitEncode(&codec_, kSettings));
+
+  // Only one encoder should be created for the active stream.
+  ASSERT_EQ(1u, helper_->factory()->encoders().size());
+
+  // The encoder should be configured with L1T2, matching the active stream.
+  EXPECT_EQ(helper_->factory()->encoders()[0]->codec().GetScalabilityMode(),
+            ScalabilityMode::kL1T2);
+
+  // Verify rate allocation.
+  VideoBitrateAllocation allocation;
+  allocation.SetBitrate(0, 0, 0);       // Stream 0 inactive
+  allocation.SetBitrate(1, 0, 100000);  // Stream 1, temporal 0
+  allocation.SetBitrate(1, 1, 200000);  // Stream 1, temporal 1
+
+  adapter_->SetRates(VideoEncoder::RateControlParameters(allocation, 30.0));
+
+  std::vector<MockVideoEncoder*> encoders = helper_->factory()->encoders();
+  ASSERT_EQ(1u, encoders.size());
+
+  // The active encoder should get the allocation for stream 1 mapped to its own
+  // spatial layer 0.
+  EXPECT_EQ(100000u, encoders[0]->last_set_rates().bitrate.GetBitrate(0, 0));
+  EXPECT_EQ(200000u, encoders[0]->last_set_rates().bitrate.GetBitrate(0, 1));
+}
+
 // In the case of mixed-codec simulcast, verify whether each encoder is created
 // with the specified video format.
 TEST_F(TestSimulcastEncoderAdapterFake, InitEncodeForMixedCodec) {

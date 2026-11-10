@@ -1349,6 +1349,30 @@ TEST_F(RtpDemuxerTest, PacketWithMidAndUnknownRsidIsNotRoutedByPayloadType) {
   EXPECT_FALSE(demuxer_.OnRtpPacket(*packet));
 }
 
+TEST_F(RtpDemuxerTest, IsEmptyMatchesSinksPresence) {
+  EXPECT_TRUE(demuxer_.IsEmpty());
+
+  MockRtpPacketSink sink;
+  constexpr uint32_t ssrc = 101;
+  EXPECT_TRUE(AddSinkOnlySsrc(ssrc, &sink));
+  EXPECT_FALSE(demuxer_.IsEmpty());
+
+  EXPECT_TRUE(RemoveSink(&sink));
+  EXPECT_TRUE(demuxer_.IsEmpty());
+}
+
+TEST_F(RtpDemuxerTest, ResolveSinkReturnsCorrectSink) {
+  constexpr uint32_t ssrc = 101;
+  MockRtpPacketSink sink;
+  EXPECT_TRUE(AddSinkOnlySsrc(ssrc, &sink));
+
+  auto packet = CreatePacketWithSsrc(ssrc);
+  EXPECT_EQ(demuxer_.ResolveSink(*packet), &sink);
+
+  auto unknown_packet = CreatePacketWithSsrc(ssrc + 1);
+  EXPECT_EQ(demuxer_.ResolveSink(*unknown_packet), nullptr);
+}
+
 #if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
 
 TEST_F(RtpDemuxerDeathTest, MidMustNotExceedMaximumLength) {

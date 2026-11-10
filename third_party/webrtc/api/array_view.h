@@ -14,15 +14,19 @@
 #include <cstddef>
 #include <span>
 
+#include "absl/base/macros.h"
+
 namespace webrtc {
 
-template <typename T, size_t extent = std::dynamic_extent>
-using ArrayView = std::span<T, extent>;
+// A parameter pack of extents is used to ensure that ArrayView<T> inlines to
+// span<T>, but only 0 or 1 extent is supported.
+template <typename T, size_t... extent>
+using ArrayView ABSL_DEPRECATE_AND_INLINE() = std::span<T, extent...>;
 
-// TODO: bugs.webrtc.org/439801349 - deprecate when unused by WebRTC
 template <typename T>
-inline ArrayView<T> MakeArrayView(T* data, size_t size) {
-  return ArrayView<T>(data, size);
+ABSL_DEPRECATE_AND_INLINE()
+inline std::span<T> MakeArrayView(T* data, size_t size) {
+  return std::span(data, size);
 }
 
 }  //  namespace webrtc

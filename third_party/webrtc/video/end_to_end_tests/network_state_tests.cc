@@ -113,7 +113,9 @@ void NetworkStateEndToEndTest::VerifyNewVideoSendStreamsRespectNetworkState(
   SendTask(task_queue(), [this, network_to_bring_up, &encoder_factory,
                           transport]() {
     CreateSenderCall();
-    sender_call_->SignalChannelNetworkState(network_to_bring_up, kNetworkUp);
+    network_thread()->BlockingCall([this, network_to_bring_up]() {
+      sender_call_->SignalChannelNetworkState(network_to_bring_up, kNetworkUp);
+    });
 
     CreateSendConfig(1, 0, 0, transport);
     GetVideoSendConfig()->encoder_settings.encoder_factory = &encoder_factory;
@@ -139,7 +141,10 @@ void NetworkStateEndToEndTest::VerifyNewVideoReceiveStreamsRespectNetworkState(
     Transport* transport) {
   SendTask(task_queue(), [this, network_to_bring_up, transport]() {
     CreateCalls();
-    receiver_call_->SignalChannelNetworkState(network_to_bring_up, kNetworkUp);
+    network_thread()->BlockingCall([this, network_to_bring_up]() {
+      receiver_call_->SignalChannelNetworkState(network_to_bring_up,
+                                                kNetworkUp);
+    });
     CreateSendTransport(BuiltInNetworkBehaviorConfig(),
                         /*observer=*/nullptr);
 
@@ -173,10 +178,10 @@ TEST_F(NetworkStateEndToEndTest, RespectsNetworkState) {
   static const int kNumAcceptedDowntimeRtcp = 1;
   class NetworkStateTest : public test::EndToEndTest, public test::FakeEncoder {
    public:
-    explicit NetworkStateTest(const Environment& env, TaskQueueBase* task_queue)
+    explicit NetworkStateTest(const Environment& env, Thread* network_thread)
         : EndToEndTest(test::VideoTestConstants::kDefaultTimeout),
           FakeEncoder(env),
-          e2e_test_task_queue_(task_queue),
+          network_thread_(network_thread),
           task_queue_(env.task_queue_factory().CreateTaskQueue(
               "NetworkStateTest",
               TaskQueueFactory::Priority::kNormal)),
@@ -235,7 +240,7 @@ TEST_F(NetworkStateEndToEndTest, RespectsNetworkState) {
     void SignalChannelNetworkState(Call* call,
                                    MediaType media_type,
                                    NetworkState network_state) {
-      SendTask(e2e_test_task_queue_, [call, media_type, network_state] {
+      network_thread_->BlockingCall([call, media_type, network_state] {
         call->SignalChannelNetworkState(media_type, network_state);
       });
     }
@@ -363,7 +368,7 @@ TEST_F(NetworkStateEndToEndTest, RespectsNetworkState) {
       }
     }
 
-    TaskQueueBase* const e2e_test_task_queue_;
+    Thread* const network_thread_;
     std::unique_ptr<TaskQueueBase, TaskQueueDeleter> task_queue_;
     Mutex test_mutex_;
     Event encoded_frames_;
@@ -377,7 +382,7 @@ TEST_F(NetworkStateEndToEndTest, RespectsNetworkState) {
     int sender_rtcp_ RTC_GUARDED_BY(test_mutex_);
     int receiver_rtcp_ RTC_GUARDED_BY(test_mutex_);
     int down_frames_ RTC_GUARDED_BY(test_mutex_);
-  } test(env(), task_queue());
+  } test(env(), network_thread());
 
   RunBaseTest(&test);
 }

@@ -31,6 +31,7 @@ class WasmSuspenderObject;
 class WasmFunctionData;
 class WasmExportedFunctionData;
 class WasmCapiFunctionData;
+class AsmWasmData;
 
 template <typename T, IndirectPointerTagRange kTagRange>
 class TrustedPointerMember;
@@ -54,7 +55,8 @@ namespace detail {
   IF_WASM(V, kWasmFunctionDataIndirectPointerTagRange, WasmFunctionData)    \
   IF_WASM(V, kWasmExportedFunctionDataIndirectPointerTag,                   \
           WasmExportedFunctionData)                                         \
-  IF_WASM(V, kWasmCapiFunctionDataIndirectPointerTag, WasmCapiFunctionData)
+  IF_WASM(V, kWasmCapiFunctionDataIndirectPointerTag, WasmCapiFunctionData) \
+  IF_WASM(V, kAsmWasmDataIndirectPointerTag, AsmWasmData)
 
 template <IndirectPointerTagRange tag_range>
 struct TrustedPointerType {
@@ -126,11 +128,10 @@ class TrustedPointerField {
                                               size_t offset, ReleaseStoreTag);
 };
 
-// TrustedPointerMember is a type wrapping a trusted pointer for
-// HeapObjectLayout objects.
+// TrustedPointerMember is a type wrapping a trusted pointer.
 //
-// This is a HeapObjectLayout version of TrustedPointerField, similar to
-// TaggedMember vs. TaggedField.
+// This is a member version of TrustedPointerField, similar to TaggedMember vs.
+// TaggedField.
 //
 // TODO(leszeks): Remove TrustedPointerField (and update these comments) when
 // all objects are ported.
@@ -148,21 +149,20 @@ class TrustedPointerMember
 
   inline Tagged<T> load(IsolateForSandbox isolate) const;
   inline Tagged<Object> load_maybe_empty(IsolateForSandbox isolate) const;
-  inline void store(HeapObjectLayout* host, Tagged<T> value,
+  inline void store(HeapObject* host, Tagged<T> value,
                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void store_no_write_barrier(HeapObjectLayout* host, Tagged<T> value);
+  inline void store_no_write_barrier(HeapObject* host, Tagged<T> value);
 
   inline Tagged<T> Acquire_Load(IsolateForSandbox isolate) const;
   inline Tagged<Object> Acquire_Load_maybe_empty(
       IsolateForSandbox isolate) const;
-  inline void Release_Store(HeapObjectLayout* host, Tagged<T> value,
+  inline void Release_Store(HeapObject* host, Tagged<T> value,
                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void Release_Store_no_write_barrier(HeapObjectLayout* host,
-                                             Tagged<T> value);
+  inline void Release_Store_no_write_barrier(HeapObject* host, Tagged<T> value);
 
   inline bool is_empty() const;
   inline bool is_unpublished(IsolateForSandbox isolate) const;
-  inline void clear(HeapObjectLayout* host);
+  inline void clear(HeapObject* host);
 
  private:
 #ifdef V8_ENABLE_SANDBOX

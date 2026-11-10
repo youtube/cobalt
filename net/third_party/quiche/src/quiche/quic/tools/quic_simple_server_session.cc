@@ -69,14 +69,6 @@ QuicSpdyStream* QuicSimpleServerSession::CreateIncomingStream(QuicStreamId id) {
   return stream;
 }
 
-QuicSpdyStream* QuicSimpleServerSession::CreateIncomingStream(
-    PendingStream* pending) {
-  QuicSpdyStream* stream =
-      new QuicSimpleServerStream(*pending, this, quic_simple_server_backend_);
-  ActivateStream(absl::WrapUnique(stream));
-  return stream;
-}
-
 QuicSpdyStream* QuicSimpleServerSession::CreateOutgoingBidirectionalStream() {
   if (!WillNegotiateWebTransport()) {
     QUIC_BUG(QuicSimpleServerSession CreateOutgoingBidirectionalStream without
@@ -98,7 +90,10 @@ QuicSpdyStream* QuicSimpleServerSession::CreateOutgoingBidirectionalStream() {
 QuicStream* QuicSimpleServerSession::ProcessBidirectionalPendingStream(
     PendingStream& pending) {
   QUICHE_DCHECK(IsEncryptionEstablished());
-  return CreateIncomingStream(&pending);
+  QuicSpdyStream* stream =
+      new QuicSimpleServerStream(pending, this, quic_simple_server_backend_);
+  ActivateStream(absl::WrapUnique(stream));
+  return stream;
 }
 
 }  // namespace quic

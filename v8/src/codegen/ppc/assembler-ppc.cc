@@ -57,13 +57,13 @@ static CpuFeatureSet CpuFeaturesImpliedByCompiler() {
   return answer;
 }
 
-bool CpuFeatures::SupportsWasmSimd128() {
-#if V8_ENABLE_WEBASSEMBLY
+bool CpuFeatures::SupportsSimd128() {
+#if V8_ENABLE_SIMD128
   DCHECK(CpuFeatures::IsSupported(PPC_9_PLUS));
   return true;
 #else
   return false;
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_SIMD128
 }
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
@@ -114,7 +114,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // This variable is only used for certain archs to query SupportWasmSimd128()
   // at runtime in builtins using an extern ref. Other callers should use
   // CpuFeatures::SupportWasmSimd128().
-  CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
+  CpuFeatures::supports_simd_128_ = CpuFeatures::SupportsSimd128();
 }
 
 void CpuFeatures::PrintTarget() {
@@ -384,8 +384,7 @@ enum {
   kUnboundMovLabelOffsetOpcode = 0 << 26,
   kUnboundAddLabelOffsetOpcode = 1 << 26,
   kUnboundAddLabelLongOffsetOpcode = 2 << 26,
-  kUnboundMovLabelAddrOpcode = 3 << 26,
-  kUnboundJumpTableEntryOpcode = 4 << 26
+  kUnboundJumpTableEntryOpcode = 3 << 26
 };
 
 int Assembler::target_at(int pos) {
@@ -405,7 +404,6 @@ int Assembler::target_at(int pos) {
     case kUnboundMovLabelOffsetOpcode:
     case kUnboundAddLabelOffsetOpcode:
     case kUnboundAddLabelLongOffsetOpcode:
-    case kUnboundMovLabelAddrOpcode:
     case kUnboundJumpTableEntryOpcode:
       link = SIGN_EXT_IMM26(instr & kImm26Mask);
       link <<= 2;
@@ -482,16 +480,6 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
       if (opcode == kUnboundAddLabelLongOffsetOpcode) patcher.nop();
       break;
     }
-    case kUnboundMovLabelAddrOpcode: {
-      // Load the address of the label in a register.
-      Register dst = Register::from_code(instr_at(pos + kInstrSize));
-      PatchingAssembler patcher(options(),
-                                reinterpret_cast<uint8_t*>(buffer_start_ + pos),
-                                kMovInstructionsNoConstantPool);
-      // Keep internal references relative until EmitRelocations.
-      patcher.bitwise_mov(dst, target_pos);
-      break;
-    }
     case kUnboundJumpTableEntryOpcode: {
       PatchingAssembler patcher(options(),
                                 reinterpret_cast<uint8_t*>(buffer_start_ + pos),
@@ -518,7 +506,6 @@ int Assembler::max_reach_from(int pos) {
       return 16;
     case kUnboundMovLabelOffsetOpcode:
     case kUnboundAddLabelOffsetOpcode:
-    case kUnboundMovLabelAddrOpcode:
     case kUnboundJumpTableEntryOpcode:
       return 0;  // no limit on reach
   }
@@ -1504,35 +1491,6 @@ void Assembler::add_label_offset(Register dst, Register base, Label* label,
   }
 }
 
-void Assembler::mov_label_addr(Register dst, Label* label) {
-  CheckBuffer();
-  RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-  int position = link(label);
-  if (label->is_bound()) {
-    // Keep internal references relative until EmitRelocations.
-    bitwise_mov(dst, position);
-  } else {
-    // Encode internal reference to unbound label. We use a dummy opcode
-    // such that it won't collide with any opcode that might appear in the
-    // label's chain.  Encode the destination register in the 2nd instruction.
-    int link = position - pc_offset();
-    DCHECK_EQ(0, link & 3);
-    link >>= 2;
-    DCHECK(is_int26(link));
-
-    // When the label is bound, these instructions will be patched
-    // with a multi-instruction mov sequence that will load the
-    // destination register with the address of the label.
-    //
-    // target_at extracts the link and target_at_put patches the instructions.
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    emit(kUnboundMovLabelAddrOpcode | (link & kImm26Mask));
-    emit(dst.code());
-    DCHECK_GE(kMovInstructionsNoConstantPool, 2);
-    for (int i = 0; i < kMovInstructionsNoConstantPool - 2; i++) nop();
-  }
-}
-
 void Assembler::emit_label_addr(Label* label) {
   CheckBuffer();
   RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
@@ -2195,7 +2153,7 @@ PatchingAssembler::~PatchingAssembler() {
   DCHECK_EQ(reloc_info_writer.pos(), buffer_start_ + buffer_->size());
 }
 
-RegList Assembler::DefaultTmpList() { return {r26, ip}; }
+RegList Assembler::DefaultTmpList() { return {r26, r11}; }
 DoubleRegList Assembler::DefaultFPTmpList() {
   return {kScratchDoubleReg, kDoubleRegZero};
 }

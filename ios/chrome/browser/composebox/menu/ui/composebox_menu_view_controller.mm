@@ -8,16 +8,22 @@
 
 #import "ios/chrome/browser/composebox/menu/ui/composebox_menu_attachment_cell.h"
 #import "ios/chrome/browser/composebox/menu/ui/composebox_menu_attachment_view.h"
+#import "ios/chrome/browser/composebox/menu/ui/composebox_menu_header_view.h"
 #import "ios/chrome/browser/composebox/menu/ui/composebox_menu_item.h"
+#import "ios/chrome/browser/composebox/menu/ui/composebox_menu_list_cell.h"
 #import "ios/chrome/browser/composebox/menu/ui/composebox_menu_section.h"
+#import "ios/chrome/browser/composebox/menu/ui/composebox_menu_separator_footer.h"
 #import "ios/chrome/browser/composebox/public/composebox_mode.h"
 #import "ios/chrome/browser/composebox/public/composebox_model_option.h"
+#import "ios/chrome/browser/composebox/shared/ui/composebox_ui_constants.h"
 #import "ios/chrome/browser/composebox/ui/composebox_strings.h"
 #import "ios/chrome/browser/composebox/ui/composebox_ui_input_state.h"
 #import "ios/chrome/browser/composebox/ui/composebox_ui_util.h"
+#import "ios/chrome/browser/keyboard/ui_bundled/UIKeyCommand+Chrome.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
+#import "ios/chrome/common/ui/util/ui_util.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util.h"
 
@@ -25,6 +31,9 @@ namespace {
 
 // The estimated height of the attachments group.
 const CGFloat kAttachmentGroupEstimatedHeight = 80.0f;
+
+// The width of the sheet in landscape.
+const CGFloat kLandscapeSheetWidth = 400.0f;
 
 // The top padding for the collection view.
 const CGFloat kCollectionViewTopPadding = 20.0f;
@@ -36,17 +45,7 @@ const CGFloat kAttachmentItemSpacing = 6.0f;
 const NSDirectionalEdgeInsets kListSectionInsets = {0, 16.0, 20.0, 16.0};
 
 // Insets for the attachments section.
-const NSDirectionalEdgeInsets kAttachmentSectionInsets = {16.0, 16.0, 8.0,
-                                                          16.0};
-
-// Leading constant for the header label.
-const CGFloat kHeaderLabelLeadingPadding = 15.0f;
-
-// Vertical constant for the header label.
-const CGFloat kHeaderLabelVerticalPadding = 10.0f;
-
-// Font size for the header label.
-const CGFloat kHeaderLabelFontSize = 16.0f;
+const NSDirectionalEdgeInsets kAttachmentSectionInsets = {6.0, 16.0, 8.0, 16.0};
 
 // Vertical padding for the separator.
 const CGFloat kSeparatorVerticalPadding = 10.0f;
@@ -58,6 +57,8 @@ const CGFloat kSeparatorHeight = 1.0f;
 std::optional<ComposeboxAttachmentOption> AttachmentOptionForMenuItemType(
     ComposeboxMenuItemType type) {
   switch (type) {
+    case ComposeboxMenuItemType::kCurrentTab:
+      return ComposeboxAttachmentOption::kCurrentTab;
     case ComposeboxMenuItemType::kAttachmentTabs:
       return ComposeboxAttachmentOption::kTab;
     case ComposeboxMenuItemType::kAttachmentCamera:
@@ -114,8 +115,9 @@ ComposeboxMenuItemType MenuItemTypeForModel(ComposeboxModelOption option) {
     case ComposeboxModelOption::kAuto:
       return ComposeboxMenuItemType::kModelAuto;
     case ComposeboxModelOption::kThinking:
-    case ComposeboxModelOption::kThinkingNoGenUI:
       return ComposeboxMenuItemType::kModelThinking;
+    case ComposeboxModelOption::kThinkingNoGenUI:
+      return ComposeboxMenuItemType::kModelThinkingNoGenUI;
     case ComposeboxModelOption::kNone:
       return ComposeboxMenuItemType::kUnknown;
   }
@@ -139,30 +141,7 @@ UIImage* IconForModel(ComposeboxModelOption option) {
 
 }  // namespace
 
-@interface ComposeboxMenuSeparatorFooter : UICollectionReusableView
-@end
 
-@implementation ComposeboxMenuSeparatorFooter
-
-- (instancetype)initWithFrame:(CGRect)frame {
-  self = [super initWithFrame:frame];
-  if (self) {
-    UIView* separator = [[UIView alloc] init];
-    separator.backgroundColor = [UIColor colorNamed:kSeparatorColor];
-    separator.translatesAutoresizingMaskIntoConstraints = NO;
-    [self addSubview:separator];
-
-    [NSLayoutConstraint activateConstraints:@[
-      [separator.leadingAnchor constraintEqualToAnchor:self.leadingAnchor],
-      [separator.trailingAnchor constraintEqualToAnchor:self.trailingAnchor],
-      [separator.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
-      [separator.heightAnchor constraintEqualToConstant:kSeparatorHeight],
-    ]];
-  }
-  return self;
-}
-
-@end
 
 @interface ComposeboxMenuViewController () <UICollectionViewDelegate>
 @end
@@ -181,11 +160,21 @@ UIImage* IconForModel(ComposeboxModelOption option) {
 
 - (void)viewDidLoad {
   [super viewDidLoad];
-  self.view.backgroundColor = [UIColor colorNamed:kPrimaryBackgroundColor];
+  self.view.backgroundColor =
+      [UIColor colorNamed:kGroupedPrimaryBackgroundColor];
 
   [self setUpCollectionView];
   [self setUpDataSource];
   [self applySnapshot];
+}
+
+- (void)viewDidAppear:(BOOL)animated {
+  [super viewDidAppear:animated];
+
+  __weak __typeof(self) weakSelf = self;
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [weakSelf focusFirstMenuItem];
+  });
 }
 
 - (CGSize)preferredContentSize {
@@ -193,6 +182,26 @@ UIImage* IconForModel(ComposeboxModelOption option) {
   [self.view layoutIfNeeded];
   size.height =
       _collectionView.contentSize.height + _collectionView.contentInset.top;
+
+  if ([UIDevice currentDevice].userInterfaceIdiom !=
+      UIUserInterfaceIdiomPhone) {
+    return size;
+  }
+  // Width is controlled by preferredControlSize on phones (see.
+  // widthFollowsPreferredContentSizeWhenEdgeAttached).
+
+  BOOL isLandscape =
+      self.traitCollection.verticalSizeClass == UIUserInterfaceSizeClassCompact;
+  if (isLandscape) {
+    CGFloat baseWidth = size.width > 0 ? size.width : kLandscapeSheetWidth;
+    size.width =
+        baseWidth < kLandscapeSheetWidth ? baseWidth : kLandscapeSheetWidth;
+  } else {
+    // Portrait fallback: use full width if not specified.
+    if (size.width == 0) {
+      size.width = self.view.bounds.size.width;
+    }
+  }
   return size;
 }
 
@@ -288,7 +297,7 @@ UIImage* IconForModel(ComposeboxModelOption option) {
   _collectionView.translatesAutoresizingMaskIntoConstraints = NO;
   _collectionView.delegate = self;
   _collectionView.backgroundColor =
-      [UIColor colorNamed:kPrimaryBackgroundColor];
+      [UIColor colorNamed:kGroupedPrimaryBackgroundColor];
   _collectionView.showsVerticalScrollIndicator = NO;
   _collectionView.showsHorizontalScrollIndicator = NO;
   _collectionView.contentInsetAdjustmentBehavior =
@@ -334,13 +343,15 @@ UIImage* IconForModel(ComposeboxModelOption option) {
     CGFloat availableWidth = containerWidth - kAttachmentSectionInsets.leading -
                              kAttachmentSectionInsets.trailing;
     CGFloat totalSpacing = (itemsCount - 1) * kAttachmentItemSpacing;
-    CGFloat itemWidth = (availableWidth - totalSpacing) / itemsCount;
+    CGFloat itemWidth =
+        AlignValueToPixel((availableWidth - totalSpacing) / itemsCount);
 
     NSCollectionLayoutSize* itemSize = [NSCollectionLayoutSize
         sizeWithWidthDimension:[NSCollectionLayoutDimension
                                    absoluteDimension:itemWidth]
-               heightDimension:[NSCollectionLayoutDimension
-                                   fractionalHeightDimension:1.0]];
+               heightDimension:
+                   [NSCollectionLayoutDimension
+                       estimatedDimension:kAttachmentGroupEstimatedHeight]];
 
     NSCollectionLayoutItem* item =
         [NSCollectionLayoutItem itemWithLayoutSize:itemSize];
@@ -385,7 +396,8 @@ UIImage* IconForModel(ComposeboxModelOption option) {
         [[UICollectionLayoutListConfiguration alloc]
             initWithAppearance:UICollectionLayoutListAppearanceInsetGrouped];
     listConfig.headerMode = UICollectionLayoutListHeaderModeSupplementary;
-    listConfig.backgroundColor = [UIColor colorNamed:kPrimaryBackgroundColor];
+    listConfig.backgroundColor =
+        [UIColor colorNamed:kGroupedPrimaryBackgroundColor];
     NSCollectionLayoutSection* section = [NSCollectionLayoutSection
         sectionWithListConfiguration:listConfig
                    layoutEnvironment:layoutEnvironment];
@@ -396,8 +408,33 @@ UIImage* IconForModel(ComposeboxModelOption option) {
 
 #pragma mark - Private
 
+// Focuses the first item in the menu for accessibility.
+- (void)focusFirstMenuItem {
+  if ([_collectionView numberOfItemsInSection:0] > 0) {
+    NSIndexPath* firstIndexPath = [NSIndexPath indexPathForItem:0 inSection:0];
+    UICollectionViewCell* cell =
+        [_collectionView cellForItemAtIndexPath:firstIndexPath];
+    if (cell) {
+      UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification,
+                                      cell);
+    } else {
+      UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification,
+                                      _collectionView);
+    }
+  }
+}
+
 - (NSArray<ComposeboxMenuItem*>*)availableAttachmentItems {
   CHECK(_inputState);
+  ComposeboxMenuItem* currentTabItem = [[ComposeboxMenuItem alloc]
+      initWithTitle:l10n_util::GetNSString(
+                        IDS_IOS_COMPOSEBOX_MENU_CURRENT_TAB_ACTION)
+              image:DefaultSymbolWithPointSize(kGlobeSymbol,
+                                               kSymbolActionPointSize)
+               type:ComposeboxMenuItemType::kCurrentTab
+           disabled:[_inputState isAttachmentDisabled:
+                                     ComposeboxAttachmentOption::kCurrentTab]
+            favicon:_inputState.currentTabFavicon];
   ComposeboxMenuItem* tabsItem = [[ComposeboxMenuItem alloc]
       initWithTitle:l10n_util::GetNSString(IDS_IOS_COMPOSEBOX_SELECT_TAB_ACTION)
               image:DefaultSymbolWithPointSize(kNewTabGroupActionSymbol,
@@ -427,7 +464,7 @@ UIImage* IconForModel(ComposeboxModelOption option) {
            disabled:[_inputState isAttachmentDisabled:
                                      ComposeboxAttachmentOption::kFile]];
 
-  return @[ tabsItem, cameraItem, galleryItem, filesItem ];
+  return @[ currentTabItem, tabsItem, cameraItem, galleryItem, filesItem ];
 }
 
 #pragma mark - UICollectionViewDelegate
@@ -441,6 +478,12 @@ UIImage* IconForModel(ComposeboxModelOption option) {
     return;
   }
 
+  // Ignore taps on already selected models.
+  if (_inputState.activeModel != ComposeboxModelOption::kNone &&
+      item.type == MenuItemTypeForModel(_inputState.activeModel)) {
+    return;
+  }
+
   [self.mutator handleItemPickedWithType:item.type];
 }
 
@@ -451,8 +494,8 @@ UIImage* IconForModel(ComposeboxModelOption option) {
 
   UICollectionViewCellRegistration* listCellRegistration =
       [UICollectionViewCellRegistration
-          registrationWithCellClass:[UICollectionViewListCell class]
-               configurationHandler:^(UICollectionViewListCell* cell,
+          registrationWithCellClass:[ComposeboxMenuListCell class]
+               configurationHandler:^(ComposeboxMenuListCell* cell,
                                       NSIndexPath* indexPath,
                                       ComposeboxMenuItem* item) {
                  [weakSelf configureListCell:cell
@@ -471,14 +514,17 @@ UIImage* IconForModel(ComposeboxModelOption option) {
 
   UICollectionViewSupplementaryRegistration* headerRegistration =
       [UICollectionViewSupplementaryRegistration
-          registrationWithSupplementaryClass:[UICollectionReusableView class]
+          registrationWithSupplementaryClass:[ComposeboxMenuHeaderView class]
                                  elementKind:
                                      UICollectionElementKindSectionHeader
-                        configurationHandler:^(UICollectionReusableView* view,
+                        configurationHandler:^(ComposeboxMenuHeaderView* view,
                                                NSString* elementKind,
                                                NSIndexPath* indexPath) {
-                          [weakSelf configureHeaderView:view
-                                            atIndexPath:indexPath];
+                          __strong __typeof(weakSelf) strongSelf = weakSelf;
+                          if (strongSelf) {
+                            view.label.text =
+                                strongSelf->_sections[indexPath.section].title;
+                          }
                         }];
 
   UICollectionViewSupplementaryRegistration* footerRegistration =
@@ -560,13 +606,14 @@ UIImage* IconForModel(ComposeboxModelOption option) {
 
 #pragma mark - Private Configuration Helpers
 
-- (void)configureListCell:(UICollectionViewListCell*)cell
+- (void)configureListCell:(ComposeboxMenuListCell*)cell
               atIndexPath:(NSIndexPath*)indexPath
                  withItem:(ComposeboxMenuItem*)item {
   UIListContentConfiguration* configuration =
       [cell defaultContentConfiguration];
   configuration.text = item.title;
   configuration.image = item.image;
+  cell.accessibilityLabel = item.title;
 
   if (item.disabled) {
     configuration.textProperties.color =
@@ -574,11 +621,15 @@ UIImage* IconForModel(ComposeboxModelOption option) {
     configuration.imageProperties.tintColor =
         [UIColor colorNamed:kTextSecondaryColor];
     cell.userInteractionEnabled = NO;
+    cell.accessibilityTraits |= UIAccessibilityTraitNotEnabled;
+    cell.isAccessibilityElement = YES;
   } else {
     configuration.textProperties.color = [UIColor colorNamed:kTextPrimaryColor];
     configuration.imageProperties.tintColor =
         [UIColor colorNamed:kTextPrimaryColor];
     cell.userInteractionEnabled = YES;
+    cell.accessibilityTraits &= ~UIAccessibilityTraitNotEnabled;
+    cell.isAccessibilityElement = YES;
   }
 
   cell.contentConfiguration = configuration;
@@ -586,7 +637,7 @@ UIImage* IconForModel(ComposeboxModelOption option) {
   UIBackgroundConfiguration* backgroundConfiguration =
       [UIBackgroundConfiguration listCellConfiguration];
   backgroundConfiguration.backgroundColor =
-      [UIColor colorNamed:kSecondaryBackgroundColor];
+      [UIColor colorNamed:kGroupedSecondaryBackgroundColor];
   cell.backgroundConfiguration = backgroundConfiguration;
 
   BOOL isSelected = NO;
@@ -602,31 +653,28 @@ UIImage* IconForModel(ComposeboxModelOption option) {
     UICellAccessoryCheckmark* checkmark =
         [[UICellAccessoryCheckmark alloc] init];
     cell.accessories = @[ checkmark ];
+    cell.accessibilityTraits |= UIAccessibilityTraitSelected;
   } else {
     cell.accessories = @[];
+    cell.accessibilityTraits &= ~UIAccessibilityTraitSelected;
   }
+  cell.accessibilityIdentifier =
+      AccessibilityIdentifierForMenuItemType(item.type);
+}
+#pragma mark - UIResponder
+
+// To always be able to register key commands via -keyCommands, the VC must be
+// able to become first responder.
+- (BOOL)canBecomeFirstResponder {
+  return YES;
 }
 
+- (NSArray*)keyCommands {
+  return @[ UIKeyCommand.cr_close ];
+}
 
-- (void)configureHeaderView:(UICollectionReusableView*)view
-                atIndexPath:(NSIndexPath*)indexPath {
-  UILabel* label = [[UILabel alloc] init];
-  label.font = [UIFont systemFontOfSize:kHeaderLabelFontSize
-                                 weight:UIFontWeightBold];
-  label.textColor = [UIColor colorNamed:kTextPrimaryColor];
-  label.translatesAutoresizingMaskIntoConstraints = NO;
-  label.text = _sections[indexPath.section].title;
-
-  [view addSubview:label];
-
-  [NSLayoutConstraint activateConstraints:@[
-    [label.leadingAnchor constraintEqualToAnchor:view.leadingAnchor
-                                        constant:kHeaderLabelLeadingPadding],
-    [label.topAnchor constraintEqualToAnchor:view.topAnchor
-                                    constant:kHeaderLabelVerticalPadding],
-    [label.bottomAnchor constraintEqualToAnchor:view.bottomAnchor
-                                       constant:-kHeaderLabelVerticalPadding],
-  ]];
+- (void)keyCommand_close {
+  [self.delegate composeboxMenuViewControllerDidRequestClose:self];
 }
 
 @end

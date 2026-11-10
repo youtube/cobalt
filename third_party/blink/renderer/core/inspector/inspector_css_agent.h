@@ -177,6 +177,7 @@ class CORE_EXPORT InspectorCSSAgent final
   void SetCoverageEnabled(bool);
   void WillChangeStyleElement(Element*);
   void DidMutateStyleSheet(CSSStyleSheet* css_style_sheet);
+  void DidInvalidateStyleAttr(Element* element);
   void GetTextPosition(wtf_size_t offset,
                        const String* text,
                        TextPosition* result);
@@ -277,6 +278,11 @@ class CORE_EXPORT InspectorCSSAgent final
       const String& text,
       std::unique_ptr<protocol::CSS::CSSMedia>*) override;
   protocol::Response setContainerQueryText(
+      const String& style_sheet_id,
+      std::unique_ptr<protocol::CSS::SourceRange>,
+      const String& text,
+      std::unique_ptr<protocol::CSS::CSSContainerQuery>*) override;
+  protocol::Response setContainerQueryConditionText(
       const String& style_sheet_id,
       std::unique_ptr<protocol::CSS::SourceRange>,
       const String& text,
@@ -424,6 +430,8 @@ class CORE_EXPORT InspectorCSSAgent final
       std::unique_ptr<protocol::Array<protocol::CSS::CSSPropertyRegistration>>>
   CustomPropertiesForNode(Element* element);
   std::unique_ptr<protocol::Array<protocol::CSS::CSSAtRule>>
+  CounterAtRulesForElement(Element* element);
+  std::unique_ptr<protocol::Array<protocol::CSS::CSSAtRule>>
   FontAtRulesForNodes(HeapVector<Member<Element>>& elements);
 
   // If the |animating_element| is a pseudo-element, then |element| is a
@@ -545,6 +553,7 @@ class CORE_EXPORT InspectorCSSAgent final
   void DidAddDocument(Document*) override;
   void WillRemoveDOMNode(Node*) override;
   void DidModifyDOMAttr(Element*) override;
+  void InvalidateInlineStyleCacheForElement(Element&);
 
   // InspectorStyleSheet::Listener implementation
   void StyleSheetChanged(InspectorStyleSheetBase*) override;

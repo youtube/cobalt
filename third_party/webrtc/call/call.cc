@@ -295,8 +295,8 @@ class Call final : public webrtc::Call,
     ~ReceiveStats();
 
     void AddReceivedRtcpBytes(int bytes);
-    void AddReceivedAudioBytes(int bytes, webrtc::Timestamp arrival_time);
-    void AddReceivedVideoBytes(int bytes, webrtc::Timestamp arrival_time);
+    void AddReceivedAudioBytes(int bytes, Timestamp arrival_time);
+    void AddReceivedVideoBytes(int bytes, Timestamp arrival_time);
 
    private:
     RTC_NO_UNIQUE_ADDRESS SequenceChecker sequence_checker_;
@@ -346,6 +346,8 @@ class Call final : public webrtc::Call,
 
   void DeliverRtcp(MediaType media_type, CopyOnWriteBuffer packet)
       RTC_RUN_ON(network_thread_);
+
+  void DeliverRtcpPacket_w(CopyOnWriteBuffer packet);
 
   void DeliverRtpPacket_w(MediaType media_type,
                           RtpPacketReceived packet,
@@ -435,9 +437,9 @@ class Call final : public webrtc::Call,
   RtpPayloadStateMap suspended_video_payload_states_
       RTC_GUARDED_BY(worker_thread_);
 
+  ReceiveStats receive_stats_ RTC_GUARDED_BY(network_thread_);
   // TODO(bugs.webrtc.org/11993) ready to move stats access to the network
   // thread.
-  ReceiveStats receive_stats_ RTC_GUARDED_BY(worker_thread_);
   SendStats send_stats_ RTC_GUARDED_BY(send_transport_sequence_checker_);
   // `last_bandwidth_bps_` and `configured_max_padding_bitrate_bps_` being
   // atomic avoids a PostTask. The variables are used for stats gathering.
@@ -471,11 +473,8 @@ class Call final : public webrtc::Call,
 
   bool is_started_ RTC_GUARDED_BY(worker_thread_) = false;
 
-  // Sequence checker for outgoing network traffic. Could be the network thread.
-  // Could also be a pacer owned thread or TQ such as the TaskQueueSender.
-  RTC_NO_UNIQUE_ADDRESS SequenceChecker sent_packet_sequence_checker_;
   std::optional<SentPacketInfo> last_sent_packet_
-      RTC_GUARDED_BY(sent_packet_sequence_checker_);
+      RTC_GUARDED_BY(network_thread_);
   // Declared last since it will issue callbacks from a task queue. Declaring it
   // last ensures that it is destroyed first and any running tasks are finished.
   const std::unique_ptr<RtpTransportControllerSendInterface> transport_send_;
@@ -533,7 +532,7 @@ void Call::ReceiveStats::AddReceivedRtcpBytes(int bytes) {
 }
 
 void Call::ReceiveStats::AddReceivedAudioBytes(int bytes,
-                                               webrtc::Timestamp arrival_time) {
+                                               Timestamp arrival_time) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   received_bytes_per_second_counter_.Add(bytes);
   received_audio_bytes_per_second_counter_.Add(bytes);
@@ -543,7 +542,7 @@ void Call::ReceiveStats::AddReceivedAudioBytes(int bytes,
 }
 
 void Call::ReceiveStats::AddReceivedVideoBytes(int bytes,
-                                               webrtc::Timestamp arrival_time) {
+                                               Timestamp arrival_time) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   received_bytes_per_second_counter_.Add(bytes);
   received_video_bytes_per_second_counter_.Add(bytes);
@@ -553,7 +552,12 @@ void Call::ReceiveStats::AddReceivedVideoBytes(int bytes,
 }
 
 Call::ReceiveStats::~ReceiveStats() {
-  RTC_DCHECK_RUN_ON(&sequence_checker_);
+  // Destruction is allowed to happen on a different thread than
+  // `sequence_checker_` represents. It is guaranteed that no more calls will
+  // arrive from the network thread because all receive streams must be
+  // unregistered and destroyed before `Call` is destroyed, and the transport
+  // layer (PeerConnection) stops packet delivery before tearing down `Call`.
+
   if (first_received_rtp_audio_timestamp_) {
     RTC_HISTOGRAM_COUNTS_100000(
         "WebRTC.Call.TimeReceivingAudioRtpPacketsInSeconds",
@@ -707,7 +711,6 @@ Call::Call(CallConfig config,
 
   receive_11993_checker_.Detach();
   send_transport_sequence_checker_.Detach();
-  sent_packet_sequence_checker_.Detach();
 
   // Do not remove this call; it is here to convince the compiler that the
   // WebRTC source timestamp string needs to be in the final binary.
@@ -746,6 +749,8 @@ Call::~Call() {
   RTC_CHECK(video_send_streams_.empty());
   RTC_CHECK(audio_receive_streams_.empty());
   RTC_CHECK(video_receive_streams_.empty());
+  RTC_CHECK(audio_receiver_controller_.IsEmpty());
+  RTC_CHECK(video_receiver_controller_.IsEmpty());
 
   receive_side_cc_periodic_task_.Stop();
   elastic_bandwidth_allocation_task_.Stop();
@@ -1238,7 +1243,7 @@ void Call::OnUpdateSyncGroup(webrtc::AudioReceiveStreamInterface& stream,
 }
 
 void Call::OnSentPacket(const SentPacketInfo& sent_packet) {
-  RTC_DCHECK_RUN_ON(&sent_packet_sequence_checker_);
+  RTC_DCHECK_RUN_ON(network_thread_);
   // When bundling is in effect, multiple senders may be sharing the same
   // transport. It means every |sent_packet| will be multiply notified from
   // different channels, WebRtcVoiceMediaChannel or WebRtcVideoChannel. Record
@@ -1251,13 +1256,6 @@ void Call::OnSentPacket(const SentPacketInfo& sent_packet) {
     return;
   }
   last_sent_packet_ = sent_packet;
-
-  // In production and with most tests, this method will be called on the
-  // network thread. However some test classes such as DirectTransport don't
-  // incorporate a network thread. This means that tests for RtpSenderEgress
-  // and ModuleRtpRtcpImpl2 that use DirectTransport, will call this method
-  // on a ProcessThread. This is alright as is since we forward the call to
-  // implementations that either just do a PostTask or use locking.
   video_send_delay_stats_->OnSentPacket(sent_packet.packet_id,
                                         env_.clock().CurrentTime());
   transport_send_->OnSentPacket(sent_packet);
@@ -1340,11 +1338,23 @@ void Call::ConfigureSync(absl::string_view sync_group) {
 }
 
 void Call::DeliverRtcpPacket(CopyOnWriteBuffer packet) {
-  RTC_DCHECK_RUN_ON(worker_thread_);
+  RTC_DCHECK_RUN_ON(network_thread_);
   RTC_DCHECK(IsRtcpPacket(packet));
+  receive_stats_.AddReceivedRtcpBytes(static_cast<int>(packet.size()));
+  if (!worker_thread_->IsCurrent()) {
+    worker_thread_->PostTask(SafeTask(
+        task_safety_.flag(), [this, packet = std::move(packet)]() mutable {
+          DeliverRtcpPacket_w(std::move(packet));
+        }));
+  } else {
+    DeliverRtcpPacket_w(std::move(packet));
+  }
+}
+
+void Call::DeliverRtcpPacket_w(CopyOnWriteBuffer packet) {
+  RTC_DCHECK_RUN_ON(worker_thread_);
   TRACE_EVENT0("webrtc", "Call::DeliverRtcp");
 
-  receive_stats_.AddReceivedRtcpBytes(static_cast<int>(packet.size()));
   bool rtcp_delivered = false;
   std::span<const uint8_t> packet_view(packet.cdata(), packet.size());
   for (VideoReceiveStream2* stream : video_receive_streams_) {
@@ -1385,6 +1395,14 @@ void Call::DeliverRtpPacket(
     packet_time_us = receive_time_calculator_->ReconcileReceiveTimes(
         packet_time_us, TimeUTCMicros(), env_.clock().TimeInMicroseconds());
     packet.set_arrival_time(Timestamp::Micros(packet_time_us));
+  }
+
+  int length = static_cast<int>(packet.size());
+  if (media_type == MediaType::AUDIO) {
+    receive_stats_.AddReceivedAudioBytes(length, packet.arrival_time());
+  }
+  if (media_type == MediaType::VIDEO) {
+    receive_stats_.AddReceivedVideoBytes(length, packet.arrival_time());
   }
 
   if (worker_thread_->IsCurrent()) {
@@ -1441,16 +1459,6 @@ void Call::DeliverRtpPacket_w(
       RTC_LOG(LS_INFO) << "Failed to demux packet " << packet.Ssrc();
       return;
     }
-  }
-
-  // RateCounters expect input parameter as int, save it as int,
-  // instead of converting each time it is passed to RateCounter::Add below.
-  int length = static_cast<int>(packet.size());
-  if (media_type == MediaType::AUDIO) {
-    receive_stats_.AddReceivedAudioBytes(length, packet.arrival_time());
-  }
-  if (media_type == MediaType::VIDEO) {
-    receive_stats_.AddReceivedVideoBytes(length, packet.arrival_time());
   }
 }
 

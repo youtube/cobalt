@@ -652,6 +652,7 @@ FUNCTION_REFERENCE(wasm_word32_ror, wasm::word32_ror_wrapper)
 FUNCTION_REFERENCE(wasm_word64_rol, wasm::word64_rol_wrapper)
 FUNCTION_REFERENCE(wasm_word64_ror, wasm::word64_ror_wrapper)
 FUNCTION_REFERENCE(wasm_int128_add, wasm::wasm_int128_add_wrapper)
+FUNCTION_REFERENCE(wasm_int128_sub, wasm::wasm_int128_sub_wrapper)
 FUNCTION_REFERENCE(wasm_f64x2_ceil, wasm::f64x2_ceil_wrapper)
 FUNCTION_REFERENCE(wasm_f64x2_floor, wasm::f64x2_floor_wrapper)
 FUNCTION_REFERENCE(wasm_f64x2_trunc, wasm::f64x2_trunc_wrapper)
@@ -994,9 +995,9 @@ ExternalReference::address_of_wasm_f64x2_convert_low_i32x4_u_int_mask() {
       reinterpret_cast<Address>(&wasm_f64x2_convert_low_i32x4_u_int_mask));
 }
 
-ExternalReference ExternalReference::supports_wasm_simd_128_address() {
+ExternalReference ExternalReference::supports_simd_128_address() {
   return ExternalReference(
-      reinterpret_cast<Address>(&CpuFeatures::supports_wasm_simd_128_));
+      reinterpret_cast<Address>(&CpuFeatures::supports_simd_128_));
 }
 
 ExternalReference ExternalReference::address_of_wasm_double_2_power_52() {
@@ -1307,7 +1308,8 @@ ExternalReference ExternalReference::printf_function() {
   return ExternalReference(Redirect(FUNCTION_ADDR(std::printf)));
 }
 
-FUNCTION_REFERENCE(refill_math_random, MathRandom::RefillCache)
+FUNCTION_REFERENCE(initialize_and_maybe_refill_math_random,
+                   MathRandom::InitializeAndMaybeRefillCache)
 
 template <typename SubjectChar, typename PatternChar>
 ExternalReference ExternalReference::search_string_raw() {
@@ -1452,8 +1454,8 @@ static size_t NameDictionaryLookupForwardedStringWithHandle(Isolate* isolate,
   ReadOnlyRoots roots(isolate);
   uint32_t hash = key->hash();
   InternalIndex entry = mode == kFindExisting
-                            ? dict->FindEntry(isolate, roots, key, hash)
-                            : dict->FindInsertionEntry(isolate, roots, hash);
+                            ? dict->FindEntry(roots, key, hash)
+                            : dict->FindInsertionEntry(roots, hash);
   return entry.raw_value();
 }
 
@@ -1488,8 +1490,8 @@ static size_t NameDictionaryLookupForwardedString(Isolate* isolate,
   ReadOnlyRoots roots(isolate);
   uint32_t hash = key->hash();
   InternalIndex entry = mode == kFindExisting
-                            ? dict->FindEntry(isolate, roots, key, hash)
-                            : dict->FindInsertionEntry(isolate, roots, hash);
+                            ? dict->FindEntry(roots, key, hash)
+                            : dict->FindInsertionEntry(roots, hash);
   return entry.raw_value();
 }
 

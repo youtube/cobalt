@@ -195,13 +195,6 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
     UNREACHABLE();
   }
 
-  // Back-compat offset/size constants.
-  static const int kViewsOrDetachKeyOffset;
-  static const int kRawByteLengthOffset;
-  static const int kRawMaxByteLengthOffset;
-  static const int kBackingStoreOffset;
-  static const int kExtensionOffset;
-  static const int kBitFieldOffset;
 #if TAGGED_SIZE_8_BYTES
   static const int kOptionalPaddingOffset;
   static const int kOptionalPaddingOffsetEnd;
@@ -245,18 +238,6 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
 #endif
 } V8_OBJECT_END;
 
-inline constexpr int JSArrayBuffer::kViewsOrDetachKeyOffset =
-    offsetof(JSArrayBuffer, views_or_detach_key_);
-inline constexpr int JSArrayBuffer::kRawByteLengthOffset =
-    offsetof(JSArrayBuffer, raw_byte_length_);
-inline constexpr int JSArrayBuffer::kRawMaxByteLengthOffset =
-    offsetof(JSArrayBuffer, raw_max_byte_length_);
-inline constexpr int JSArrayBuffer::kBackingStoreOffset =
-    offsetof(JSArrayBuffer, backing_store_);
-inline constexpr int JSArrayBuffer::kExtensionOffset =
-    offsetof(JSArrayBuffer, extension_);
-inline constexpr int JSArrayBuffer::kBitFieldOffset =
-    offsetof(JSArrayBuffer, bit_field_);
 #if TAGGED_SIZE_8_BYTES
 inline constexpr int JSArrayBuffer::kOptionalPaddingOffset =
     offsetof(JSArrayBuffer, optional_padding_);
@@ -444,11 +425,6 @@ V8_OBJECT class JSArrayBufferView : public JSAPIObjectWithEmbedderSlots {
 
   class BodyDescriptor;
 
-  // Back-compat offset/size constants.
-  static const int kBufferOffset;
-  static const int kBitFieldOffset;
-  static const int kRawByteOffsetOffset;
-  static const int kRawByteLengthOffset;
   static const int kHeaderSize;
 
  public:
@@ -461,18 +437,12 @@ V8_OBJECT class JSArrayBufferView : public JSAPIObjectWithEmbedderSlots {
   UnalignedValueMember<uintptr_t> raw_byte_length_;
 } V8_OBJECT_END;
 
-inline constexpr int JSArrayBufferView::kBufferOffset =
-    offsetof(JSArrayBufferView, buffer_);
-inline constexpr int JSArrayBufferView::kBitFieldOffset =
-    offsetof(JSArrayBufferView, bit_field_);
-inline constexpr int JSArrayBufferView::kRawByteOffsetOffset =
-    offsetof(JSArrayBufferView, raw_byte_offset_);
-inline constexpr int JSArrayBufferView::kRawByteLengthOffset =
-    offsetof(JSArrayBufferView, raw_byte_length_);
 inline constexpr int JSArrayBufferView::kHeaderSize = sizeof(JSArrayBufferView);
 
-static_assert(IsAligned(JSArrayBufferView::kRawByteOffsetOffset, kUIntptrSize));
-static_assert(IsAligned(JSArrayBufferView::kRawByteLengthOffset, kUIntptrSize));
+static_assert(IsAligned(offsetof(JSArrayBufferView, raw_byte_offset_),
+                        kUIntptrSize));
+static_assert(IsAligned(offsetof(JSArrayBufferView, raw_byte_length_),
+                        kUIntptrSize));
 
 V8_OBJECT class JSTypedArray : public JSArrayBufferView {
  public:
@@ -579,10 +549,6 @@ V8_OBJECT class JSTypedArray : public JSArrayBufferView {
   static inline void MarkDetached(DirectHandle<JSTypedArray> array,
                                   Isolate* isolate);
 
-  // Back-compat offset/size constants.
-  static const int kRawLengthOffset;
-  static const int kExternalPointerOffset;
-  static const int kBasePointerOffset;
   static const int kHeaderSize;
   static const int kSizeWithEmbedderFields;
   static constexpr bool kContainsEmbedderFields =
@@ -610,12 +576,6 @@ V8_OBJECT class JSTypedArray : public JSArrayBufferView {
   TaggedMember<Object> base_pointer_;
 } V8_OBJECT_END;
 
-inline constexpr int JSTypedArray::kRawLengthOffset =
-    offsetof(JSTypedArray, raw_length_);
-inline constexpr int JSTypedArray::kExternalPointerOffset =
-    offsetof(JSTypedArray, external_pointer_);
-inline constexpr int JSTypedArray::kBasePointerOffset =
-    offsetof(JSTypedArray, base_pointer_);
 inline constexpr int JSTypedArray::kHeaderSize = sizeof(JSTypedArray);
 inline constexpr int JSTypedArray::kSizeWithEmbedderFields =
     JSTypedArray::kHeaderSize +
@@ -640,8 +600,6 @@ V8_OBJECT class JSDataViewOrRabGsabDataView : public JSArrayBufferView {
 
   class BodyDescriptor;
 
-  // Back-compat offset/size constants.
-  static const int kDataPointerOffset;
   static const int kHeaderSize;
   static const int kSizeWithEmbedderFields;
   static constexpr bool kContainsEmbedderFields =
@@ -651,8 +609,6 @@ V8_OBJECT class JSDataViewOrRabGsabDataView : public JSArrayBufferView {
   UnalignedValueMember<Address> data_pointer_;
 } V8_OBJECT_END;
 
-inline constexpr int JSDataViewOrRabGsabDataView::kDataPointerOffset =
-    offsetof(JSDataViewOrRabGsabDataView, data_pointer_);
 inline constexpr int JSDataViewOrRabGsabDataView::kHeaderSize =
     sizeof(JSDataViewOrRabGsabDataView);
 inline constexpr int JSDataViewOrRabGsabDataView::kSizeWithEmbedderFields =

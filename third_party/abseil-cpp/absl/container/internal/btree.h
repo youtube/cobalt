@@ -53,11 +53,13 @@
 #include <functional>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <string>
 #include <type_traits>
 #include <utility>
 
 #include "absl/base/config.h"
+#include "absl/base/internal/hardening.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
@@ -1200,12 +1202,16 @@ class btree_iterator : private btree_iterator_generation_info {
 
   // Accessors for the key/value the iterator is pointing at.
   reference operator*() const {
-    ABSL_HARDENING_ASSERT(node_ != nullptr);
+    absl::base_internal::HardeningAssertNonNull(node_);
     assert_valid_generation(node_);
-    ABSL_HARDENING_ASSERT(position_ >= node_->start());
+    absl::base_internal::HardeningAssertGE(position_,
+                                           static_cast<int>(node_->start()));
     if (position_ >= node_->finish()) {
-      ABSL_HARDENING_ASSERT(!IsEndIterator() && "Dereferencing end() iterator");
-      ABSL_HARDENING_ASSERT(position_ < node_->finish());
+      // If this assertion fails, we have tried to dereference an end()
+      // iterator.
+      absl::base_internal::HardeningAssert(!IsEndIterator());
+      absl::base_internal::HardeningAssertLT(position_,
+                                             static_cast<int>(node_->finish()));
     }
     return node_->value(static_cast<field_type>(position_));
   }
@@ -1262,10 +1268,11 @@ class btree_iterator : private btree_iterator_generation_info {
         position_(other.position_) {}
 
   bool Equals(const const_iterator other) const {
-    ABSL_HARDENING_ASSERT(((node_ == nullptr && other.node_ == nullptr) ||
-                           (node_ != nullptr && other.node_ != nullptr)) &&
-                          "Comparing default-constructed iterator with "
-                          "non-default-constructed iterator.");
+    absl::base_internal::HardeningAssert(
+        ((node_ == nullptr && other.node_ == nullptr) ||
+         (node_ != nullptr && other.node_ != nullptr)) &&
+        "Comparing default-constructed iterator with "
+        "non-default-constructed iterator.");
     // Note: we use assert instead of ABSL_HARDENING_ASSERT here because this
     // changes the complexity of Equals from O(1) to O(log(N) + log(M)) where
     // N/M are sizes of the containers containing node_/other.node_.
@@ -2221,7 +2228,7 @@ btree_iterator<N, R, P> &btree_iterator<N, R, P>::increment_n_slow(
           node = node->parent();
         }
         if (position == node->finish()) {
-          ABSL_HARDENING_ASSERT(n == 0);
+          absl::base_internal::HardeningAssert(n == 0);
           return *this = save;
         }
       }
@@ -2258,7 +2265,8 @@ btree_iterator<N, R, P> &btree_iterator<N, R, P>::decrement_n_slow(
           position = node->position() - 1;
           node = node->parent();
         }
-        ABSL_HARDENING_ASSERT(position >= node->start());
+        absl::base_internal::HardeningAssertGE(position,
+                                               static_cast<int>(node->start()));
       }
     } else {
       --n;
@@ -2489,7 +2497,7 @@ auto btree<P>::operator=(const btree &other) -> btree & {
     clear();
 
     *mutable_key_comp() = other.key_comp();
-    if (absl::allocator_traits<
+    if (std::allocator_traits<
             allocator_type>::propagate_on_container_copy_assignment::value) {
       *mutable_allocator() = other.allocator();
     }
@@ -2505,7 +2513,7 @@ auto btree<P>::operator=(btree &&other) noexcept -> btree & {
     clear();
 
     using std::swap;
-    if (absl::allocator_traits<
+    if (std::allocator_traits<
             allocator_type>::propagate_on_container_move_assignment::value) {
       swap(root_, other.root_);
       // Note: `rightmost_` also contains the allocator and the key comparator.
@@ -2681,7 +2689,7 @@ void btree<P>::clear() {
 template <typename P>
 void btree<P>::swap(btree &other) {
   using std::swap;
-  if (absl::allocator_traits<
+  if (std::allocator_traits<
           allocator_type>::propagate_on_container_swap::value) {
     // Note: `rightmost_` also contains the allocator and the key comparator.
     swap(rightmost_, other.rightmost_);

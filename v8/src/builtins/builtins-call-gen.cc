@@ -255,7 +255,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     // Try to extract the elements from a JSArray object.
     var_elements = LoadElements(js_object);
     var_length = Unsigned(
-        LoadAndUntagToWord32ObjectField(js_object, JSArray::kLengthOffset));
+        LoadAndUntagToWord32ObjectField(js_object, offsetof(JSArray, length_)));
 
     // Holey arrays and double backing stores need special treatment.
     static_assert(PACKED_SMI_ELEMENTS == 0);
@@ -466,7 +466,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
   BIND(&if_smiorobject);
   {
     TNode<Int32T> length = LoadAndUntagToWord32ObjectField(
-        var_js_array.value(), JSArray::kLengthOffset);
+        var_js_array.value(), offsetof(JSArray, length_));
     TNode<FixedArrayBase> elements = var_elements.value();
     CSA_DCHECK(this, Uint32LessThanOrEqual(
                          length, Uint32Constant(FixedArray::kMaxLength)));
@@ -483,7 +483,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
   BIND(&if_double);
   {
     TNode<Uint32T> length = Unsigned(LoadAndUntagToWord32ObjectField(
-        var_js_array.value(), JSArray::kLengthOffset));
+        var_js_array.value(), offsetof(JSArray, length_)));
     GotoIf(Word32Equal(length, Int32Constant(0)), &if_smiorobject);
     CallOrConstructDoubleVarargs(target, new_target, CAST(var_elements.value()),
                                  length, args_count, context,
@@ -620,9 +620,9 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
       // {var_template} variable), and see if that is a HeapObject.
       // If it's a Smi then it is non-instance prototype on some
       // initial map, which cannot be the case for API instances.
-      TNode<Object> constructor =
-          LoadObjectField(var_template.value(),
-                          Map::kConstructorOrBackPointerOrNativeContextOffset);
+      TNode<Object> constructor = LoadObjectField(
+          var_template.value(),
+          offsetof(Map, constructor_or_back_pointer_or_native_context_));
       GotoIf(TaggedIsSmi(constructor), &holder_next);
 
       // Now there are three cases for {constructor} that we care
@@ -654,7 +654,8 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
       // will be ruled out automatically by the template loop below.
       TNode<SharedFunctionInfo> template_shared =
           LoadObjectField<SharedFunctionInfo>(
-              var_template.value(), JSFunction::kSharedFunctionInfoOffset);
+              var_template.value(),
+              offsetof(JSFunction, shared_function_info_));
       TNode<Object> template_data =
           LoadSharedFunctionInfoUntrustedFunctionData(template_shared);
       GotoIf(TaggedIsSmi(template_data), &holder_next);

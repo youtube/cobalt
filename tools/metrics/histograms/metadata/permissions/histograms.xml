@@ -140,8 +140,6 @@ chromium-metrics-reviews@google.com.
   <variant name=".KeyboardLock" summary="Keyboard lock permission"/>
   <variant name=".LocalFonts" summary="Local fonts permission"/>
   <variant name=".LocalNetwork" summary="Local network permission"/>
-  <variant name=".LocalNetworkAccess"
-      summary="Local network access permission"/>
   <variant name=".LoopbackNetwork" summary="Loopback network permission"/>
   <variant name=".MidiSysEx" summary="Midi SysEx permission"/>
   <variant name=".MultipleDownload" summary="Multiple downloads permission"/>
@@ -321,7 +319,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Action.WithDisposition.{DispositionType}"
-    enum="PermissionAction" expires_after="2026-08-30">
+    enum="PermissionAction" expires_after="2026-11-08">
   <owner>andypaicu@chromium.org</owner>
   <owner>engedy@chromium.org</owner>
   <owner>hkamila@chromium.org</owner>
@@ -560,7 +558,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.AutoBlocker.EmbargoStatus"
-    enum="PermissionEmbargoStatus" expires_after="2026-08-30">
+    enum="PermissionEmbargoStatus" expires_after="2026-11-01">
   <owner>engedy@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -713,7 +711,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.CrowdDeny.PreloadData.NotificationUxQuality"
-    enum="CrowdDenyNotificationUxQuality" expires_after="2026-08-30">
+    enum="CrowdDenyNotificationUxQuality" expires_after="2026-11-01">
   <owner>andypaicu@chromium.org</owner>
   <owner>engedy@chromium.org</owner>
   <owner>hkamila@chromium.org</owner>
@@ -757,7 +755,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.DSE.EffectiveSetting.Geolocation.Accuracy"
-    enum="GeolocationAccuracy" expires_after="2026-09-01">
+    enum="GeolocationAccuracy" expires_after="2026-11-01">
   <owner>antoniosartori@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -1444,7 +1442,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Prompt.Accepted{PermissionRequestGesture}"
-    enum="PermissionRequestType" expires_after="2026-09-06">
+    enum="PermissionRequestType" expires_after="2026-11-08">
   <owner>engedy@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -1619,7 +1617,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Prompt.Notifications.EnabledAppLevel"
-    enum="Boolean" expires_after="2026-06-21">
+    enum="Boolean" expires_after="2026-11-12">
   <owner>engedy@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -1632,7 +1630,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.Prompt.Shown{PermissionRequestGesture}"
-    enum="PermissionRequestType" expires_after="2026-08-30">
+    enum="PermissionRequestType" expires_after="2026-11-08">
   <owner>engedy@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -1813,7 +1811,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Permissions.Prompt.{PermissionType}.{Disposition}.Ignored.DidShowBubble"
-    enum="Boolean" expires_after="2026-06-24">
+    enum="Boolean" expires_after="2026-11-12">
   <owner>elklm@chromium.org</owner>
   <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
   <summary>
@@ -2196,7 +2194,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Permissions.WindowManagementApi.Android.Allowed"
-    enum="BooleanAllowed" expires_after="2026-08-30">
+    enum="BooleanAllowed" expires_after="2026-11-01">
   <owner>renkens@google.com</owner>
   <owner>lt-web-apps-team@google.com</owner>
   <summary>

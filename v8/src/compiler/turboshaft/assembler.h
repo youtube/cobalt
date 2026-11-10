@@ -2621,7 +2621,7 @@ class AssemblerOpInterface : public Next {
       return TruncateWord64ToWord32(input);
     } else {
       DCHECK_EQ(WordPtr::bits, Word32::bits);
-      return V<Word32>::Cast(resolve(input));
+      return V<Word32>::CastIfNeeded(resolve(input));
     }
   }
   V<WordPtr> ChangeInt32ToIntPtr(ConstOrV<Word32> input) {
@@ -2629,7 +2629,7 @@ class AssemblerOpInterface : public Next {
       return ChangeInt32ToInt64(input);
     } else {
       DCHECK_EQ(WordPtr::bits, Word32::bits);
-      return V<WordPtr>::Cast(resolve(input));
+      return V<WordPtr>::CastIfNeeded(resolve(input));
     }
   }
   V<WordPtr> ChangeUint32ToUintPtr(V<Word32> input) {
@@ -2637,14 +2637,14 @@ class AssemblerOpInterface : public Next {
       return ChangeUint32ToUint64(input);
     } else {
       DCHECK_EQ(WordPtr::bits, Word32::bits);
-      return V<WordPtr>::Cast(input);
+      return V<WordPtr>::CastIfNeeded(input);
     }
   }
 
   V<Word64> ChangeIntPtrToInt64(V<WordPtr> input) {
     if constexpr (Is64()) {
       DCHECK_EQ(WordPtr::bits, Word64::bits);
-      return V<Word64>::Cast(input);
+      return V<Word64>::CastIfNeeded(input);
     } else {
       return ChangeInt32ToInt64(input);
     }
@@ -2653,7 +2653,7 @@ class AssemblerOpInterface : public Next {
   V<Word64> ChangeUintPtrToUint64(V<WordPtr> input) {
     if constexpr (Is64()) {
       DCHECK_EQ(WordPtr::bits, Word64::bits);
-      return V<Word64>::Cast(input);
+      return V<Word64>::CastIfNeeded(input);
     } else {
       return ChangeUint32ToUint64(input);
     }
@@ -2945,42 +2945,30 @@ class AssemblerOpInterface : public Next {
   }
 
   // Load a trusted (indirect) pointer. Returns Smi or ExposedTrustedObject.
-  V<Object> LoadTrustedPointer(V<HeapObject> base, OptionalV<Word32> index,
-                               LoadOp::Kind kind,
-                               IndirectPointerTagRange tag_range,
-                               int offset = 0) {
+  V<Object> LoadTrustedPointer(V<HeapObject> base, LoadOp::Kind kind,
+                               IndirectPointerTagRange tag_range, int offset) {
 #if V8_ENABLE_SANDBOX
     static_assert(COMPRESS_POINTERS_BOOL);
-    V<Word32> handle =
-        Load(base, index, kind, MemoryRepresentation::Uint32(), offset);
     V<WordPtr> table =
         Load(LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
              MemoryRepresentation::UintPtr(),
              IsolateData::trusted_pointer_table_offset() +
                  Internals::kExternalEntityTableBasePointerOffset);
-    return LoadTrustedPointer(table, handle, kind.is_immutable, tag_range);
+    return LoadTrustedPointer(base, table, kind, tag_range, offset);
 #else
-    return Load(base, index, kind, MemoryRepresentation::TaggedPointer(),
-                offset);
+    return Load(base, kind, MemoryRepresentation::TaggedPointer(), offset);
 #endif  // V8_ENABLE_SANDBOX
   }
 
 #if V8_ENABLE_SANDBOX
-  V<Object> LoadTrustedPointer(V<WordPtr> table, V<Word32> handle,
-                               bool is_immutable,
-                               IndirectPointerTagRange tag_range) {
-    return ReduceIfReachableLoadTrustedPointer(table, handle, is_immutable,
-                                               tag_range);
+  V<Object> LoadTrustedPointer(V<HeapObject> base, V<WordPtr> table,
+                               LoadOp::Kind kind,
+                               IndirectPointerTagRange tag_range,
+                               int32_t offset) {
+    return ReduceIfReachableLoadTrustedPointer(base, table, kind, tag_range,
+                                               offset);
   }
 #endif
-
-  // Load a trusted (indirect) pointer. Returns Smi or ExposedTrustedObject.
-  V<Object> LoadTrustedPointer(V<HeapObject> base, LoadOp::Kind kind,
-                               IndirectPointerTagRange tag_range,
-                               int offset = 0) {
-    return LoadTrustedPointer(base, OpIndex::Invalid(), kind, tag_range,
-                              offset);
-  }
 
   V<WordPtr> LoadExternalPointerFromObject(V<Object> object, int offset,
                                            ExternalPointerTag tag) {
@@ -3202,14 +3190,14 @@ class AssemblerOpInterface : public Next {
     V<Rep> value = Load(object, kind, rep, access.offset);
 #ifdef V8_ENABLE_SANDBOX
     if (is_sandboxed_external) {
-      value = V<Rep>::Cast(LoadExternalPointer(V<Word32>::Cast(value),
-                                               access.external_pointer_tag));
+      value = V<Rep>::CastIfNeeded(LoadExternalPointer(
+          V<Word32>::CastIfNeeded(value), access.external_pointer_tag));
     }
     if (access.is_bounded_size_access) {
       DCHECK(!is_sandboxed_external);
-      value = V<Rep>::Cast(ShiftRightLogical(V<WordPtr>::Cast(value),
-                                             kBoundedSizeShift,
-                                             WordRepresentation::WordPtr()));
+      value = V<Rep>::CastIfNeeded(
+          ShiftRightLogical(V<WordPtr>::CastIfNeeded(value), kBoundedSizeShift,
+                            WordRepresentation::WordPtr()));
     }
 #endif  // V8_ENABLE_SANDBOX
     return value;
@@ -3914,7 +3902,7 @@ class AssemblerOpInterface : public Next {
     arguments.push_back(context);
     Isolate* isolate = Asm().data()->isolate();
     DCHECK_NOT_NULL(isolate);
-    return result_t::Cast(CallBuiltinImpl(
+    return result_t::CastIfNeeded(CallBuiltinImpl(
         isolate, Desc::kFunction, frame_state, base::VectorOf(arguments),
         Desc::Create(StubCallMode::kCallCodeObject,
                      Asm().output_graph().graph_zone(), lazy_deopt_on_throw,
@@ -3942,7 +3930,7 @@ class AssemblerOpInterface : public Next {
                           Asm().output_graph().graph_zone()),
              Desc::kEffects);
     if constexpr (requires { result_t::Cast(result); }) {
-      return result_t::Cast(result);
+      return result_t::CastIfNeeded(result);
     } else {
       return result;
     }
@@ -3961,12 +3949,12 @@ class AssemblerOpInterface : public Next {
     auto arguments = builtin::ArgumentsToVector(args);
     arguments.push_back(context);
     V<WordPtr> call_target = RelocatableWasmBuiltinCallTarget(Desc::kFunction);
-    return result_t::Cast(Call(call_target,
-                               OptionalV<turboshaft::FrameState>::Nullopt(),
-                               base::VectorOf(arguments),
-                               Desc::Create(StubCallMode::kCallWasmRuntimeStub,
-                                            Asm().output_graph().graph_zone()),
-                               Desc::kEffects));
+    return result_t::CastIfNeeded(
+        Call(call_target, OptionalV<turboshaft::FrameState>::Nullopt(),
+             base::VectorOf(arguments),
+             Desc::Create(StubCallMode::kCallWasmRuntimeStub,
+                          Asm().output_graph().graph_zone()),
+             Desc::kEffects));
   }
 
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -4001,8 +3989,9 @@ class AssemblerOpInterface : public Next {
     const TSCallDescriptor* desc =
         Desc::Create(actual_argument_count, Asm().output_graph().graph_zone(),
                      lazy_deopt_on_throw, !compiling_builtins);
-    return returns_t::Cast(Call(CEntryStubConstant(isolate, result_size),
-                                frame_state, base::VectorOf(arguments), desc));
+    return returns_t::CastIfNeeded(
+        Call(CEntryStubConstant(isolate, result_size), frame_state,
+             base::VectorOf(arguments), desc));
   }
 
   template <typename Desc>
@@ -4287,7 +4276,7 @@ class AssemblerOpInterface : public Next {
   }
   template <typename... Ts>
   V<turboshaft::Tuple<Ts...>> MakeTuple(V<Ts>... indices) {
-    std::initializer_list<V<Any>> inputs{V<Any>::Cast(indices)...};
+    std::initializer_list<V<Any>> inputs{V<Any>::CastIfNeeded(indices)...};
     return V<turboshaft::Tuple<Ts...>>::Cast(MakeTuple(base::VectorOf(inputs)));
   }
   // TODO(chromium:331100916): Remove this overload once everything is properly
@@ -4306,14 +4295,15 @@ class AssemblerOpInterface : public Next {
     static_assert(v_traits<element_t>::rep != nullrep,
                   "Representation for Projection cannot be inferred. Use "
                   "overload with explicit Representation argument.");
-    return V<element_t>::Cast(Projection(tuple, Index, V<element_t>::rep));
+    return V<element_t>::CastIfNeeded(
+        Projection(tuple, Index, V<element_t>::rep));
   }
   template <uint16_t Index, typename... Ts>
   auto Projection(V<turboshaft::Tuple<Ts...>> tuple,
                   RegisterRepresentation rep) {
     using element_t = base::nth_type_t<Index, Ts...>;
     DCHECK(V<element_t>::allows_representation(rep));
-    return V<element_t>::Cast(Projection(tuple, Index, rep));
+    return V<element_t>::CastIfNeeded(Projection(tuple, Index, rep));
   }
   OpIndex CheckTurboshaftTypeOf(OpIndex input, RegisterRepresentation rep,
                                 Type expected_type, bool successful) {
@@ -4763,9 +4753,23 @@ class AssemblerOpInterface : public Next {
                                             right_high, kind);
   }
 
+  V<Word64Pair> Word64AddSub128Binop(V<Word64> left_low, V<Word64> left_high,
+                                     V<Word64> right_low, V<Word64> right_high,
+                                     Word64AddSub128BinopOp::Kind kind) {
+    return ReduceIfReachableWord64AddSub128Binop(left_low, left_high, right_low,
+                                                 right_high, kind);
+  }
+
   V<Word64Pair> Add128(V<Word64> a_low, V<Word64> a_high, V<Word64> b_low,
                        V<Word64> b_high) {
-    return ReduceIfReachableWord64Add128(a_low, a_high, b_low, b_high);
+    return Word64AddSub128Binop(a_low, a_high, b_low, b_high,
+                                Word64AddSub128BinopOp::Kind::kAdd);
+  }
+
+  V<Word64Pair> Sub128(V<Word64> a_low, V<Word64> a_high, V<Word64> b_low,
+                       V<Word64> b_high) {
+    return Word64AddSub128Binop(a_low, a_high, b_low, b_high,
+                                Word64AddSub128BinopOp::Kind::kSub);
   }
 
   V<Word64Pair> Word64MulWide(V<Word64> left, V<Word64> right,
@@ -4803,6 +4807,16 @@ class AssemblerOpInterface : public Next {
                                   V<Context> context) {
     return StringToCaseIntl(string, frame_state, context,
                             StringToCaseIntlOp::Kind::kUpper);
+  }
+  V<Smi> StringLocaleCompareIntl(V<JSFunction> locale_compare_fn,
+                                 V<Object> left, V<Object> right,
+                                 V<StringOrUndefined> locales,
+                                 V<turboshaft::FrameState> frame_state,
+                                 V<Context> context,
+                                 LazyDeoptOnThrow lazy_deopt_on_throw) {
+    return ReduceIfReachableStringLocaleCompareIntl(
+        locale_compare_fn, left, right, locales, frame_state, context,
+        lazy_deopt_on_throw);
   }
 #endif  // V8_INTL_SUPPORT
 
@@ -5043,6 +5057,10 @@ class AssemblerOpInterface : public Next {
     return FindOrderedHashEntry(
         table, key,
         FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntryForInt32Key);
+  }
+
+  V<Object> WeakCollectionGet(V<JSWeakCollection> receiver, V<Object> key) {
+    return ReduceIfReachableWeakCollectionGet(receiver, key);
   }
 
   template <RootIndex index>
@@ -5336,6 +5354,9 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableStringPrepareForGetCodeUnit(string);
   }
 
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+#ifdef V8_ENABLE_SIMD128
   V<Simd128> Simd128Constant(const uint8_t value[kSimd128Size]) {
     return ReduceIfReachableSimd128Constant(value);
   }
@@ -5423,7 +5444,7 @@ class AssemblerOpInterface : public Next {
   }
 
   // SIMD256
-#if V8_ENABLE_WASM_SIMD256_REVEC
+#if V8_ENABLE_SIMD256
   V<Simd256> Simd256Constant(const uint8_t value[kSimd256Size]) {
     return ReduceIfReachableSimd256Constant(value);
   }
@@ -5445,8 +5466,8 @@ class AssemblerOpInterface : public Next {
   }
 
   V<Simd256> Simd256Unary(V<Simd128> input, Simd256UnaryOp::Kind kind) {
-    DCHECK_GE(kind, Simd256UnaryOp::Kind::kFirstSignExtensionOp);
-    DCHECK_LE(kind, Simd256UnaryOp::Kind::kLastSignExtensionOp);
+    DCHECK_GE(kind, Simd256UnaryOp::Kind::kFirstExtensionOp);
+    DCHECK_LE(kind, Simd256UnaryOp::Kind::kLastExtensionOp);
     return ReduceIfReachableSimd256Unary(input, kind);
   }
 
@@ -5457,8 +5478,8 @@ class AssemblerOpInterface : public Next {
 
   V<Simd256> Simd256Binop(V<Simd128> left, V<Simd128> right,
                           Simd256BinopOp::Kind kind) {
-    DCHECK_GE(kind, Simd256BinopOp::Kind::kFirstSignExtensionOp);
-    DCHECK_LE(kind, Simd256BinopOp::Kind::kLastSignExtensionOp);
+    DCHECK_GE(kind, Simd256BinopOp::Kind::kFirstExtensionOp);
+    DCHECK_LE(kind, Simd256BinopOp::Kind::kLastExtensionOp);
     return ReduceIfReachableSimd256Binop(left, right, kind);
   }
 
@@ -5495,8 +5516,10 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableSimd256Unpack(left, right, kind);
   }
 #endif  // V8_TARGET_ARCH_X64
-#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif  // V8_ENABLE_SIMD256
+#endif  // V8_ENABLE_SIMD128
 
+#ifdef V8_ENABLE_WEBASSEMBLY
   V<WasmTrustedInstanceData> WasmInstanceDataParameter() {
     return Parameter(wasm::kWasmInstanceDataParameterIndex,
                      RegisterRepresentation::Tagged());

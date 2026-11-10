@@ -10,14 +10,15 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "content/browser/bluetooth/bluetooth_adapter_factory_wrapper.h"
 #include "content/browser/bluetooth/bluetooth_allowed_devices.h"
+#include "content/browser/bluetooth/bluetooth_blocklist.h"
 #include "content/browser/bluetooth/web_bluetooth_pairing_manager.h"
 #include "content/public/browser/bluetooth_delegate.h"
 #include "content/public/common/content_client.h"
@@ -1032,6 +1033,24 @@ TEST_F(WebBluetoothServiceImplTest, DeferredStartNotifySession) {
   }
 }
 
+TEST_F(WebBluetoothServiceImplTest, StartNotificationsBlocklisted) {
+  RegisterTestCharacteristic();
+  FakeBluetoothCharacteristic& test_characteristic =
+      battery_device_bundle().characteristic();
+
+  BluetoothBlocklist::Get().Add(test_characteristic.GetUUID(),
+                                BluetoothBlocklist::Value::EXCLUDE_READS);
+
+  base::test::TestFuture<WebBluetoothResult> future;
+  service_ptr_->RemoteCharacteristicStartNotifications(
+      test_characteristic.GetIdentifier(),
+      BindCharacteristicClientAndPassRemote(), future.GetCallback());
+
+  EXPECT_EQ(future.Get(), WebBluetoothResult::BLOCKLISTED_READ);
+
+  BluetoothBlocklist::Get().ResetToDefaultValuesForTest();
+}
+
 TEST_F(WebBluetoothServiceImplTest, DeviceGattServicesDiscoveryTimeout) {
   const auto battery_device_id = AddTestDevice(battery_device_bundle());
 
@@ -1158,6 +1177,30 @@ TEST_F(WebBluetoothServiceImplTest, TwoWatchAdvertisementsReqFail) {
 
   EXPECT_EQ(future1.Get(), WebBluetoothResult::NO_BLUETOOTH_ADAPTER);
   EXPECT_EQ(future2.Get(), WebBluetoothResult::NO_BLUETOOTH_ADAPTER);
+}
+
+TEST_F(WebBluetoothServiceImplTest,
+       WatchAdvertisementsReqAbortedWhenTabHidden) {
+  TestFuture<WebBluetoothResult> future;
+
+  const auto battery_device_id = AddTestDevice(battery_device_bundle());
+
+  mojo::PendingAssociatedRemote<blink::mojom::WebBluetoothAdvertisementClient>
+      client_remote;
+
+  battery_device_bundle().advertisement_client().BindReceiver(
+      client_remote.InitWithNewEndpointAndPassReceiver());
+
+  // Install SUCCESS result for StartScanWithFilter
+  adapter_->SetStartScanWithFilterResult(
+      device::UMABluetoothDiscoverySessionOutcome::SUCCESS);
+
+  service_ptr_->WatchAdvertisementsForDevice(
+      battery_device_id, std::move(client_remote), future.GetCallback());
+
+  contents()->SetVisibilityAndNotifyObservers(Visibility::HIDDEN);
+
+  EXPECT_EQ(future.Get(), WebBluetoothResult::WATCH_ADVERTISEMENTS_ABORTED);
 }
 
 TEST_F(WebBluetoothServiceImplTest,

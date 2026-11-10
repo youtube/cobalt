@@ -127,24 +127,6 @@ const char* StreamTypeToString(VideoSendStream::StreamStats::StreamType type) {
   return nullptr;
 }
 
-void AddDefaultFeedbackParams(Codec* codec, const FieldTrialsView& trials) {
-  // Don't add any feedback params for RED and ULPFEC.
-  if (codec->name == kRedCodecName || codec->name == kUlpfecCodecName)
-    return;
-  codec->AddFeedbackParam(FeedbackParam(kRtcpFbParamRemb, kParamValueEmpty));
-  codec->AddFeedbackParam(
-      FeedbackParam(kRtcpFbParamTransportCc, kParamValueEmpty));
-  // Don't add any more feedback params for FLEXFEC.
-  if (codec->name == kFlexfecCodecName)
-    return;
-  codec->AddFeedbackParam(FeedbackParam(kRtcpFbParamCcm, kRtcpFbCcmParamFir));
-  codec->AddFeedbackParam(FeedbackParam(kRtcpFbParamNack, kParamValueEmpty));
-  codec->AddFeedbackParam(FeedbackParam(kRtcpFbParamNack, kRtcpFbNackParamPli));
-  if (codec->name == kVp8CodecName &&
-      trials.IsEnabled("WebRTC-RtcpLossNotification")) {
-    codec->AddFeedbackParam(FeedbackParam(kRtcpFbParamLntf, kParamValueEmpty));
-  }
-}
 
 // Get the default set of supported codecs.
 // is_decoder_factory is needed to keep track of the implict assumption that any
@@ -857,6 +839,22 @@ std::vector<Codec> WebRtcVideoEngine::LegacyRecvCodecs(bool include_rtx) const {
   return GetPayloadTypesAndDefaultCodecs(decoder_factory_.get(),
                                          /*is_decoder_factory=*/true,
                                          include_rtx, trials_);
+}
+
+std::vector<SdpVideoFormat> WebRtcVideoEngine::GetSupportedFormats(
+    bool is_decoder) const {
+  std::vector<SdpVideoFormat> formats;
+  if (is_decoder) {
+    formats = GetDefaultSupportedFormats(decoder_factory_.get(),
+                                         /*is_decoder_factory=*/true, trials_);
+  } else {
+    formats = GetDefaultSupportedFormats(encoder_factory_.get(),
+                                         /*is_decoder_factory=*/false, trials_);
+  }
+  if (!formats.empty()) {
+    formats.push_back(SdpVideoFormat(kRtxCodecName));
+  }
+  return formats;
 }
 
 std::vector<RtpHeaderExtensionCapability>

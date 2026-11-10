@@ -1524,7 +1524,7 @@ class ResourceFetcherStrongReferenceThresholdTest : public ResourceFetcherTest {
  public:
   // Upper and lower bound for the size of a resource. The actual size is the
   // sum of overhead (between 3700 and 5200 bytes, varies by platform) and
-  // encoded length (103 bytes for `kTestResourcefilename`)
+  // encoded length (103 bytes for `kTestResourceFilename`)
   static constexpr size_t kMockResourceSizeLowerBound = 3700 + 103;
   static constexpr size_t kMockResourceSizeUpperBound = 5200 + 103;
 

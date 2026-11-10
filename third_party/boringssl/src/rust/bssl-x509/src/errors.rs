@@ -14,7 +14,7 @@
 
 //! X.509 certificate verification errors.
 
-use core::ffi::{CStr, c_char};
+use core::ffi::{c_char, CStr};
 use core::fmt::{self, Debug, Display};
 
 use bssl_macros::bssl_enum;
@@ -282,6 +282,8 @@ bssl_enum! {
         UnsupportedEncryption = bssl_sys::PEM_R_UNSUPPORTED_ENCRYPTION as i32,
         /// `PEM_R_UNSUPPORTED_PROC_TYPE_VERSION`
         UnsupportedProcTypeVersion = bssl_sys::PEM_R_UNSUPPORTED_PROC_TYPE_VERSION as i32,
+        /// `PEM_R_NO_DATA`
+        NoData = bssl_sys::PEM_R_NO_DATA as i32,
     }
 }
 

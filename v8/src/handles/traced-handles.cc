@@ -390,14 +390,15 @@ class ParallelWeakHandlesProcessor {
 
     void Run(JobDelegate* delegate) override {
       if (delegate->IsJoiningThread()) {
-        TRACE_GC_WITH_FLOW(derived_.heap()->tracer(), Derived::kMainThreadScope,
-                           derived_.trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
+        TRACE_GC_WITH_FLOW(
+            derived_.heap()->tracer(), Derived::kMainThreadScope,
+            perfetto::TerminatingFlow::ProcessScoped(derived_.trace_id_));
         RunImpl</*IsMainThread=*/true>(delegate);
       } else {
-        TRACE_GC_EPOCH_WITH_FLOW(derived_.heap()->tracer(),
-                                 Derived::kBackgroundThreadScope,
-                                 ThreadKind::kBackground, derived_.trace_id_,
-                                 TRACE_EVENT_FLAG_FLOW_IN);
+        TRACE_GC_EPOCH_WITH_FLOW(
+            derived_.heap()->tracer(), Derived::kBackgroundThreadScope,
+            ThreadKind::kBackground,
+            perfetto::TerminatingFlow::ProcessScoped(derived_.trace_id_));
         RunImpl</*IsMainThread=*/false>(delegate);
       }
     }
@@ -463,8 +464,8 @@ class ParallelWeakHandlesProcessor {
                   heap_->tracer()->CurrentEpoch()) {}
 
   void Run() {
-    TRACE_GC_NOTE_WITH_FLOW(Derived::kStartNote, trace_id(),
-                            TRACE_EVENT_FLAG_FLOW_OUT);
+    TRACE_GC_NOTE_WITH_FLOW(Derived::kStartNote,
+                            perfetto::Flow::ProcessScoped(trace_id()));
     V8::GetCurrentPlatform()
         ->CreateJob(v8::TaskPriority::kUserBlocking,
                     std::make_unique<Job>(static_cast<Derived&>(*this)))
@@ -795,14 +796,16 @@ namespace {
 Tagged<Object> MarkObject(Tagged<Object> obj, TracedNode& node,
                           TracedHandles::MarkMode mark_mode) {
   if (mark_mode == TracedHandles::MarkMode::kOnlyYoung &&
-      !node.is_in_young_list())
+      !node.is_in_young_list()) {
     return Smi::zero();
+  }
   node.set_markbit();
   // Being in the young list, the node may still point to an old object, in
   // which case we want to keep the node marked, but not follow the reference.
   if (mark_mode == TracedHandles::MarkMode::kOnlyYoung &&
-      !HeapLayout::InYoungGeneration(obj))
+      !HeapLayout::InYoungGeneration(obj)) {
     return Smi::zero();
+  }
   return obj;
 }
 }  // namespace

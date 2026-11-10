@@ -506,25 +506,11 @@ PermissionDescriptorPtr ParsePermissionDescriptor(
     case V8PermissionName::Enum::kLocalNetworkAccess:
       return CreatePermissionDescriptor(PermissionName::LOCAL_NETWORK_ACCESS);
 
-    case V8PermissionName::Enum::kLocalNetwork: {
-      if (!RuntimeEnabledFeatures::
-              LocalNetworkAccessSplitPermissionsEnabled()) {
-        exception_state.ThrowTypeError(
-            "Local Network Access Split permissions are not enabled.");
-        return nullptr;
-      }
+    case V8PermissionName::Enum::kLocalNetwork:
       return CreatePermissionDescriptor(PermissionName::LOCAL_NETWORK);
-    }
 
-    case V8PermissionName::Enum::kLoopbackNetwork: {
-      if (!RuntimeEnabledFeatures::
-              LocalNetworkAccessSplitPermissionsEnabled()) {
-        exception_state.ThrowTypeError(
-            "Local Network Access Split permissions are not enabled.");
-        return nullptr;
-      }
+    case V8PermissionName::Enum::kLoopbackNetwork:
       return CreatePermissionDescriptor(PermissionName::LOOPBACK_NETWORK);
-    }
   }
 
   return nullptr;

@@ -10,7 +10,7 @@
 #import "ios/chrome/browser/composebox/menu/ui/composebox_menu_item_type.h"
 
 // Represents a menu item in the Composebox menu.
-@interface ComposeboxMenuItem : NSObject
+@interface ComposeboxMenuItem : NSObject <NSCopying>
 
 // The composebox menu item title.
 @property(nonatomic, copy, readonly) NSString* title;
@@ -20,6 +20,17 @@
 @property(nonatomic, assign, readonly) ComposeboxMenuItemType type;
 // Whether the composebox menu item is disabled.
 @property(nonatomic, readonly, getter=isDisabled) BOOL disabled;
+// The composebox menu item favicon.
+@property(nonatomic, strong, readonly) UIImage* favicon;
+
+- (BOOL)isEqual:(id)object;
+- (NSUInteger)hash;
+
+- (instancetype)initWithTitle:(NSString*)title
+                        image:(UIImage*)image
+                         type:(ComposeboxMenuItemType)type
+                     disabled:(BOOL)disabled
+                      favicon:(UIImage*)favicon;
 
 - (instancetype)initWithTitle:(NSString*)title
                         image:(UIImage*)image
@@ -34,5 +45,8 @@
 - (BOOL)isAttachmentType;
 
 @end
+
+// Returns the accessibility identifier for the given menu item type.
+NSString* AccessibilityIdentifierForMenuItemType(ComposeboxMenuItemType type);
 
 #endif  // IOS_CHROME_BROWSER_COMPOSEBOX_MENU_UI_COMPOSEBOX_MENU_ITEM_H_

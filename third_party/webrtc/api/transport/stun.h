@@ -555,10 +555,6 @@ class StunByteStringAttribute : public StunAttribute {
   // Use this function for values that are not text.
   std::span<uint8_t> array_view() const { return std::span(bytes_, length()); }
 
-  [[deprecated]] std::string GetString() const {
-    return std::string(reinterpret_cast<const char*>(bytes_), length());
-  }
-
   std::optional<std::vector<uint32_t>> GetUInt32Vector() const;
 
   void CopyBytes(std::span<const uint8_t> bytes);

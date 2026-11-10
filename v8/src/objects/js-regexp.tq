@@ -79,8 +79,8 @@ extern operator '.lastIndex' macro RegExpBuiltinsAssembler::FastLoadLastIndex(
 extern operator '.lastIndex=' macro RegExpBuiltinsAssembler::FastStoreLastIndex(
     FastJSRegExp, Smi): void;
 
-const kJSRegExpRegExpDataOffset:
-    constexpr int31 generates 'JSRegExp::kDataOffset';
+const kJSRegExpRegExpDataOffset: constexpr int31
+    generates 'static_cast<int>(offsetof(JSRegExp, data_))';
 const kRegExpDataIndirectPointerTag:
     constexpr uint64 generates 'kRegExpDataIndirectPointerTag';
 

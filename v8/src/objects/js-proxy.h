@@ -129,11 +129,6 @@ V8_OBJECT class JSProxy : public JSReceiver {
 
   static constexpr int kIsRevocableBit = IsRevocableBit::encode(true);
 
-  // Defined out-of-line below the class so `offsetof` / `sizeof` on the
-  // still-incomplete type can appear in an initializer.
-  static const int kTargetOffset;
-  static const int kHandlerOffset;
-  static const int kFlagsOffset;
 #if TAGGED_SIZE_8_BYTES
   static const int kPaddingOffset;
 #endif
@@ -149,9 +144,6 @@ V8_OBJECT class JSProxy : public JSReceiver {
 #endif
 } V8_OBJECT_END;
 
-inline constexpr int JSProxy::kTargetOffset = offsetof(JSProxy, target_);
-inline constexpr int JSProxy::kHandlerOffset = offsetof(JSProxy, handler_);
-inline constexpr int JSProxy::kFlagsOffset = offsetof(JSProxy, flags_);
 #if TAGGED_SIZE_8_BYTES
 inline constexpr int JSProxy::kPaddingOffset = offsetof(JSProxy, padding_);
 #endif
@@ -162,8 +154,8 @@ inline constexpr int JSProxy::kSize = JSProxy::kHeaderSize;
 // JSProxy::target is a Javascript value which cannot be confused with an
 // elements backing store is exploited by loading from this offset from an
 // unknown JSReceiver.
-static_assert(static_cast<int>(JSObject::kElementsOffset) ==
-              static_cast<int>(JSProxy::kTargetOffset));
+static_assert(static_cast<int>(offsetof(JSObject, elements_)) ==
+              static_cast<int>(offsetof(JSProxy, target_)));
 
 // JSProxyRevocableResult is just a JSObject with a specific initial map.
 // This initial map adds in-object properties for "proxy" and "revoke".

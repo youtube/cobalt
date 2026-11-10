@@ -380,8 +380,9 @@ Signature TypeVisitor::MakeSignature(const CallableDeclaration* declaration) {
     definition_vector.push_back(def);
   }
   std::optional<std::string> arguments_variable;
-  if (declaration->parameters.has_varargs)
+  if (declaration->parameters.has_varargs) {
     arguments_variable = declaration->parameters.arguments_variable;
+  }
   Signature result{declaration->parameters.names,
                    arguments_variable,
                    {ComputeTypeVector(declaration->parameters.types),

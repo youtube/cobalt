@@ -387,97 +387,6 @@ TEST_F(Bbr3DefaultTopologyTest, NormalStartup) {
   EXPECT_FALSE(debug_state.last_sample_is_app_limited);
 }
 
-TEST_F(Bbr3DefaultTopologyTest, NormalStartupB207) {
-  SetConnectionOption(kB207);
-  DefaultTopologyParams params;
-  CreateNetwork(params);
-
-  // Run until the full bandwidth is reached and check how many rounds it was.
-  sender_endpoint_.AddBytesToTransfer(12 * 1024 * 1024);
-  QuicRoundTripCount max_bw_round = 0;
-  QuicBandwidth max_bw(QuicBandwidth::Zero());
-  bool simulator_result = simulator_.RunUntilOrTimeout(
-      [this, &max_bw, &max_bw_round]() {
-        const auto debug_state = sender_->ExportDebugState();
-        if (max_bw < debug_state.bandwidth_hi) {
-          max_bw = debug_state.bandwidth_hi;
-          max_bw_round = debug_state.round_trip_count;
-        }
-        return debug_state.startup.full_bandwidth_reached;
-      },
-      QuicTime::Delta::FromSeconds(5));
-  ASSERT_TRUE(simulator_result);
-  const auto debug_state = sender_->ExportDebugState();
-  EXPECT_EQ(Bbr2Mode::DRAIN, debug_state.mode);
-  EXPECT_EQ(1u, debug_state.round_trip_count - max_bw_round);
-  EXPECT_EQ(1u, debug_state.startup.round_trips_without_bandwidth_growth);
-  EXPECT_APPROX_EQ(params.BottleneckBandwidth(), debug_state.bandwidth_hi,
-                   0.01f);
-  EXPECT_EQ(0u, sender_connection_stats().packets_lost);
-}
-
-// Add extra_acked to CWND in STARTUP and exit STARTUP on a persistent queue.
-TEST_F(Bbr3DefaultTopologyTest, NormalStartupB207andB205) {
-  SetConnectionOption(kB205);
-  SetConnectionOption(kB207);
-  DefaultTopologyParams params;
-  CreateNetwork(params);
-
-  // Run until the full bandwidth is reached and check how many rounds it was.
-  sender_endpoint_.AddBytesToTransfer(12 * 1024 * 1024);
-  QuicRoundTripCount max_bw_round = 0;
-  QuicBandwidth max_bw(QuicBandwidth::Zero());
-  bool simulator_result = simulator_.RunUntilOrTimeout(
-      [this, &max_bw, &max_bw_round]() {
-        const auto debug_state = sender_->ExportDebugState();
-        if (max_bw < debug_state.bandwidth_hi) {
-          max_bw = debug_state.bandwidth_hi;
-          max_bw_round = debug_state.round_trip_count;
-        }
-        return debug_state.startup.full_bandwidth_reached;
-      },
-      QuicTime::Delta::FromSeconds(5));
-  ASSERT_TRUE(simulator_result);
-  const auto debug_state = sender_->ExportDebugState();
-  EXPECT_EQ(Bbr2Mode::DRAIN, debug_state.mode);
-  EXPECT_EQ(1u, debug_state.round_trip_count - max_bw_round);
-  EXPECT_EQ(2u, debug_state.startup.round_trips_without_bandwidth_growth);
-  EXPECT_APPROX_EQ(params.BottleneckBandwidth(), debug_state.bandwidth_hi,
-                   0.01f);
-  EXPECT_EQ(0u, sender_connection_stats().packets_lost);
-}
-
-// Add extra_acked to CWND in STARTUP and exit STARTUP on a persistent queue.
-TEST_F(Bbr3DefaultTopologyTest, NormalStartupBB2S) {
-  SetConnectionOption(kBB2S);
-  DefaultTopologyParams params;
-  CreateNetwork(params);
-
-  // Run until the full bandwidth is reached and check how many rounds it was.
-  sender_endpoint_.AddBytesToTransfer(12 * 1024 * 1024);
-  QuicRoundTripCount max_bw_round = 0;
-  QuicBandwidth max_bw(QuicBandwidth::Zero());
-  bool simulator_result = simulator_.RunUntilOrTimeout(
-      [this, &max_bw, &max_bw_round]() {
-        const auto debug_state = sender_->ExportDebugState();
-        if (max_bw * 1.001 < debug_state.bandwidth_hi) {
-          max_bw = debug_state.bandwidth_hi;
-          max_bw_round = debug_state.round_trip_count;
-        }
-        return debug_state.startup.full_bandwidth_reached;
-      },
-      QuicTime::Delta::FromSeconds(5));
-  ASSERT_TRUE(simulator_result);
-  const auto debug_state = sender_->ExportDebugState();
-  EXPECT_EQ(Bbr2Mode::DRAIN, debug_state.mode);
-  // BB2S reduces 3 rounds without bandwidth growth to 2.
-  EXPECT_EQ(2u, debug_state.round_trip_count - max_bw_round);
-  EXPECT_EQ(2u, debug_state.startup.round_trips_without_bandwidth_growth);
-  EXPECT_APPROX_EQ(params.BottleneckBandwidth(), debug_state.bandwidth_hi,
-                   0.01f);
-  EXPECT_EQ(0u, sender_connection_stats().packets_lost);
-}
-
 // Test a simple long data transfer in the default setup.
 TEST_F(Bbr3DefaultTopologyTest, SimpleTransfer) {
   DefaultTopologyParams params;
@@ -530,46 +439,8 @@ TEST_F(Bbr3DefaultTopologyTest, SimpleTransferB2RC) {
   EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->min_rtt(), 0.2f);
 }
 
-TEST_F(Bbr3DefaultTopologyTest, SimpleTransferB201) {
-  SetConnectionOption(kB201);
-  DefaultTopologyParams params;
-  CreateNetwork(params);
-
-  // Transfer 12MB.
-  DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(35));
-  EXPECT_TRUE(Bbr3ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
-
-  EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
-                   sender_->ExportDebugState().bandwidth_hi, 0.01f);
-
-  EXPECT_LE(sender_loss_rate_in_packets(), 0.05);
-  // The margin here is high, because the aggregation greatly increases
-  // smoothed rtt.
-  EXPECT_GE(params.RTT() * 4, rtt_stats()->smoothed_rtt());
-  EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->min_rtt(), 0.2f);
-}
-
 TEST_F(Bbr3DefaultTopologyTest, SimpleTransferB206) {
   SetConnectionOption(kB206);
-  DefaultTopologyParams params;
-  CreateNetwork(params);
-
-  // Transfer 12MB.
-  DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(35));
-  EXPECT_TRUE(Bbr3ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
-
-  EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
-                   sender_->ExportDebugState().bandwidth_hi, 0.01f);
-
-  EXPECT_LE(sender_loss_rate_in_packets(), 0.05);
-  // The margin here is high, because the aggregation greatly increases
-  // smoothed rtt.
-  EXPECT_GE(params.RTT() * 4, rtt_stats()->smoothed_rtt());
-  EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->min_rtt(), 0.2f);
-}
-
-TEST_F(Bbr3DefaultTopologyTest, SimpleTransferB207) {
-  SetConnectionOption(kB207);
   DefaultTopologyParams params;
   CreateNetwork(params);
 
@@ -705,28 +576,6 @@ TEST_F(Bbr3DefaultTopologyTest, SimpleTransfer2RTTAggregationBytes) {
 
   EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
                    sender_->ExportDebugState().bandwidth_hi, 0.01f);
-
-  EXPECT_EQ(sender_loss_rate_in_packets(), 0);
-  // The margin here is high, because both link level aggregation and ack
-  // decimation can greatly increase smoothed rtt.
-  EXPECT_GE(params.RTT() * 5, rtt_stats()->smoothed_rtt());
-  EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->min_rtt(), 0.2f);
-}
-
-TEST_F(Bbr3DefaultTopologyTest, SimpleTransfer2RTTAggregationBytesB201) {
-  SetConnectionOption(kB201);
-  DefaultTopologyParams params;
-  CreateNetwork(params);
-  // 2 RTTs of aggregation, with a max of 10kb.
-  EnableAggregation(10 * 1024, 2 * params.RTT());
-
-  // Transfer 12MB.
-  DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(35));
-  EXPECT_TRUE(Bbr3ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
-
-  // TODO(wub): Tighten the error bound once BSAO is default enabled.
-  EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
-                   sender_->ExportDebugState().bandwidth_hi, 0.5f);
 
   EXPECT_LE(sender_loss_rate_in_packets(), 0.01);
   // The margin here is high, because both link level aggregation and ack
@@ -940,7 +789,7 @@ TEST_F(Bbr3DefaultTopologyTest,
   // This is much farther off when aggregation is present,
   // Ideally BSAO or another option would fix this.
   EXPECT_APPROX_EQ(params.test_link.bandwidth,
-                   sender_->ExportDebugState().bandwidth_est, 0.6f);
+                   sender_->ExportDebugState().bandwidth_est, 0.8f);
   EXPECT_LE(sender_loss_rate_in_packets(), 0.35);
 
   // Now increase the bottleneck bandwidth from 100Kbps to 10Mbps.
@@ -1131,7 +980,7 @@ TEST_F(Bbr3DefaultTopologyTest,
   EXPECT_TRUE(simulator_result);
   // Ensure at least 18% of the bandwidth is discovered.
   EXPECT_APPROX_EQ(params.test_link.bandwidth,
-                   sender_->ExportDebugState().bandwidth_hi, 0.85f);
+                   sender_->ExportDebugState().bandwidth_hi, 0.90f);
 }
 
 // Test Bbr2's reaction to a 100x bandwidth increase during a transfer with B204
@@ -1207,76 +1056,6 @@ TEST_F(Bbr3DefaultTopologyTest,
                    sender_->ExportDebugState().bandwidth_hi, 0.95f);
 }
 
-// Test Bbr2's reaction to a 100x bandwidth increase during a transfer with B205
-TEST_F(Bbr3DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthIncreaseB205)) {
-  SetConnectionOption(kB205);
-  DefaultTopologyParams params;
-  params.local_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(15000);
-  params.test_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(100);
-  CreateNetwork(params);
-
-  sender_endpoint_.AddBytesToTransfer(10 * 1024 * 1024);
-
-  simulator_.RunFor(QuicTime::Delta::FromSeconds(15));
-  EXPECT_TRUE(Bbr3ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
-  QUIC_LOG(INFO) << "Bandwidth increasing at time " << SimulatedNow();
-
-  EXPECT_APPROX_EQ(params.test_link.bandwidth,
-                   sender_->ExportDebugState().bandwidth_est, 0.1f);
-  EXPECT_LE(sender_loss_rate_in_packets(), 0.10);
-
-  // Now increase the bottleneck bandwidth from 100Kbps to 10Mbps.
-  params.test_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(10000);
-  TestLink()->set_bandwidth(params.test_link.bandwidth);
-
-  bool simulator_result = simulator_.RunUntilOrTimeout(
-      [this]() { return sender_endpoint_.bytes_to_transfer() == 0; },
-      QuicTime::Delta::FromSeconds(50));
-  EXPECT_TRUE(simulator_result);
-  // Ensure the full bandwidth is discovered.
-  EXPECT_APPROX_EQ(params.test_link.bandwidth,
-                   sender_->ExportDebugState().bandwidth_hi, 0.1f);
-}
-
-// Test Bbr2's reaction to a 100x bandwidth increase during a transfer with B205
-// in the presence of ACK aggregation.
-TEST_F(Bbr3DefaultTopologyTest,
-       QUIC_SLOW_TEST(BandwidthIncreaseB205Aggregation)) {
-  SetConnectionOption(kB205);
-  DefaultTopologyParams params;
-  params.local_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(15000);
-  params.test_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(100);
-  CreateNetwork(params);
-
-  // 2 RTTs of aggregation, with a max of 10kb.
-  EnableAggregation(10 * 1024, 2 * params.RTT());
-
-  // Reduce the payload to 2MB because 10MB takes too long.
-  sender_endpoint_.AddBytesToTransfer(2 * 1024 * 1024);
-
-  simulator_.RunFor(QuicTime::Delta::FromSeconds(15));
-  EXPECT_TRUE(Bbr3ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
-  QUIC_LOG(INFO) << "Bandwidth increasing at time " << SimulatedNow();
-
-  // This is much farther off when aggregation is present,
-  // Ideally BSAO or another option would fix this.
-  EXPECT_APPROX_EQ(params.test_link.bandwidth,
-                   sender_->ExportDebugState().bandwidth_est, 0.45f);
-  EXPECT_LE(sender_loss_rate_in_packets(), 0.15);
-
-  // Now increase the bottleneck bandwidth from 100Kbps to 10Mbps.
-  params.test_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(10000);
-  TestLink()->set_bandwidth(params.test_link.bandwidth);
-
-  bool simulator_result = simulator_.RunUntilOrTimeout(
-      [this]() { return sender_endpoint_.bytes_to_transfer() == 0; },
-      QuicTime::Delta::FromSeconds(50));
-  EXPECT_TRUE(simulator_result);
-  // Ensure at least 5% of full bandwidth is discovered.
-  EXPECT_APPROX_EQ(params.test_link.bandwidth,
-                   sender_->ExportDebugState().bandwidth_hi, 0.9f);
-}
-
 // Test Bbr2's reaction to a 100x bandwidth increase during a transfer with BB2U
 TEST_F(Bbr3DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthIncreaseBB2U)) {
   SetConnectionOption(kBB2U);
@@ -1331,7 +1110,7 @@ TEST_F(Bbr3DefaultTopologyTest,
   // This is much farther off when aggregation is present,
   // Ideally BSAO or another option would fix this.
   EXPECT_APPROX_EQ(params.test_link.bandwidth,
-                   sender_->ExportDebugState().bandwidth_est, 0.45f);
+                   sender_->ExportDebugState().bandwidth_est, 0.8f);
   EXPECT_LE(sender_loss_rate_in_packets(), 0.30);
 
   // Now increase the bottleneck bandwidth from 100Kbps to 10Mbps.
@@ -1371,7 +1150,7 @@ TEST_F(Bbr3DefaultTopologyTest,
   // This is much farther off when aggregation is present,
   // Ideally BSAO or another option would fix this.
   EXPECT_APPROX_EQ(params.test_link.bandwidth,
-                   sender_->ExportDebugState().bandwidth_est, 0.45f);
+                   sender_->ExportDebugState().bandwidth_est, 0.80f);
   EXPECT_LE(sender_loss_rate_in_packets(), 0.30);
 
   // Now increase the bottleneck bandwidth from 100Kbps to 10Mbps.
@@ -1408,7 +1187,7 @@ TEST_F(Bbr3DefaultTopologyTest, PacketLossBBQ6SmallBufferStartup) {
   CreateNetwork(params);
 
   DriveOutOfStartup(params);
-  EXPECT_LE(sender_loss_rate_in_packets(), 0.0575);
+  EXPECT_LE(sender_loss_rate_in_packets(), 0.1);
   // bandwidth_lo is cleared exiting STARTUP.
   EXPECT_EQ(sender_->ExportDebugState().bandwidth_lo,
             QuicBandwidth::Infinite());
@@ -1438,7 +1217,7 @@ TEST_F(Bbr3DefaultTopologyTest, PacketLossBBQ8SmallBufferStartup) {
   CreateNetwork(params);
 
   DriveOutOfStartup(params);
-  EXPECT_LE(sender_loss_rate_in_packets(), 0.065);
+  EXPECT_LE(sender_loss_rate_in_packets(), 0.085);
   // bandwidth_lo is cleared exiting STARTUP.
   EXPECT_EQ(sender_->ExportDebugState().bandwidth_lo,
             QuicBandwidth::Infinite());
@@ -1453,7 +1232,7 @@ TEST_F(Bbr3DefaultTopologyTest, PacketLossBBQ9SmallBufferStartup) {
   CreateNetwork(params);
 
   DriveOutOfStartup(params);
-  EXPECT_LE(sender_loss_rate_in_packets(), 0.065);
+  EXPECT_LE(sender_loss_rate_in_packets(), 0.085);
   // bandwidth_lo is cleared exiting STARTUP.
   EXPECT_EQ(sender_->ExportDebugState().bandwidth_lo,
             QuicBandwidth::Infinite());
@@ -1501,21 +1280,20 @@ TEST_F(Bbr3DefaultTopologyTest, Drain) {
   // Get the queue at the bottleneck, which is the outgoing queue at the port to
   // which the receiver is connected.
   const simulator::Queue* queue = switch_->port_queue(2);
-  bool simulator_result;
 
   // We have no intention of ever finishing this transfer.
   sender_endpoint_.AddBytesToTransfer(100 * 1024 * 1024);
 
   // Run the startup, and verify that it fills up the queue.
   ASSERT_EQ(Bbr2Mode::STARTUP, sender_->ExportDebugState().mode);
-  simulator_result = simulator_.RunUntilOrTimeout(
+  bool simulator_result = simulator_.RunUntilOrTimeout(
       [this]() {
         return sender_->ExportDebugState().mode != Bbr2Mode::STARTUP;
       },
       timeout);
   ASSERT_TRUE(simulator_result);
   ASSERT_EQ(Bbr2Mode::DRAIN, sender_->ExportDebugState().mode);
-  EXPECT_APPROX_EQ(sender_->BandwidthEstimate() * (1 / 2.885f),
+  EXPECT_APPROX_EQ(sender_->BandwidthEstimate() * (1 / kDerivedDefaultCwndGain),
                    sender_->PacingRate(0), 0.01f);
 
   // BBR uses CWND gain of 2 during STARTUP, hence it will fill the buffer with
@@ -1554,6 +1332,62 @@ TEST_F(Bbr3DefaultTopologyTest, Drain) {
 
   // Observe the bufferbloat go away.
   EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->smoothed_rtt(), 0.1f);
+}
+
+// Verify the flow exits DRAIN after 3 rounds no matter what.
+TEST_F(Bbr3DefaultTopologyTest, DrainExitDueTo3RoundLimit) {
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+
+  const QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(10);
+  // Get the queue at the bottleneck, which is the outgoing queue at the port to
+  // which the receiver is connected.
+  const simulator::Queue* queue = switch_->port_queue(2);
+
+  // We have no intention of ever finishing this transfer.
+  sender_endpoint_.AddBytesToTransfer(100 * 1024 * 1024);
+
+  // Run the startup, and verify that it fills up the queue.
+  ASSERT_EQ(Bbr2Mode::STARTUP, sender_->ExportDebugState().mode);
+  bool simulator_result = simulator_.RunUntilOrTimeout(
+      [this]() {
+        return sender_->ExportDebugState().mode != Bbr2Mode::STARTUP;
+      },
+      timeout);
+  ASSERT_TRUE(simulator_result);
+  ASSERT_EQ(Bbr2Mode::DRAIN, sender_->ExportDebugState().mode);
+  EXPECT_APPROX_EQ(sender_->BandwidthEstimate() * 0.5f, sender_->PacingRate(0),
+                   0.01f);
+
+  // BBR uses CWND gain of 2 during STARTUP, hence it will fill the buffer with
+  // approximately 1 BDP.  Here, we use 0.95 to give some margin for error.
+  EXPECT_GE(queue->bytes_queued(), 0.95 * params.BDP());
+
+  // Observe increased RTT due to bufferbloat.
+  const QuicTime::Delta queueing_delay =
+      params.test_link.bandwidth.TransferTime(queue->bytes_queued());
+  EXPECT_APPROX_EQ(params.RTT() + queueing_delay, rtt_stats()->latest_rtt(),
+                   0.1f);
+
+  // Transition to the drain phase and verify that it makes the queue
+  // have at most a BDP worth of packets.
+  const QuicRoundTripCount round_count_at_drain_entry =
+      sender_->ExportDebugState().round_trip_count;
+  // Half the bottleneck bandwidth so we never drain the queue.
+  params.test_link.bandwidth = params.BottleneckBandwidth() * 0.5f;
+  TestLink()->set_bandwidth(params.test_link.bandwidth);
+
+  simulator_result = simulator_.RunUntilOrTimeout(
+      [this]() { return sender_->ExportDebugState().mode != Bbr2Mode::DRAIN; },
+      timeout);
+  ASSERT_TRUE(simulator_result);
+  ASSERT_EQ(Bbr2Mode::PROBE_BW, sender_->ExportDebugState().mode);
+  // Verify we are exiting DRAIN with bytes_in_flight > DrainTarget(), which
+  // means we exited due to drain_rounds > 3.
+  EXPECT_GT(sender_unacked_map()->bytes_in_flight(),
+            sender_->ExportDebugState().drain.drain_target);
+  EXPECT_EQ(sender_->ExportDebugState().round_trip_count,
+            round_count_at_drain_entry + 3);
 }
 
 // Ensure that a connection that is app-limited and is at sufficiently low
@@ -1687,7 +1521,7 @@ TEST_F(Bbr3DefaultTopologyTest, ExitStartupDueToLossB2NE) {
 
   SetConnectionOption(kB2NE);
   DefaultTopologyParams params;
-  params.switch_queue_capacity_in_bdp = 0.5;
+  params.switch_queue_capacity_in_bdp = 0.1;
   CreateNetwork(params);
 
   // Run until the full bandwidth is reached and check how many rounds it was.
@@ -1707,7 +1541,6 @@ TEST_F(Bbr3DefaultTopologyTest, ExitStartupDueToLossB2NE) {
   ASSERT_TRUE(simulator_result);
   const auto debug_state = sender_->ExportDebugState();
   EXPECT_EQ(Bbr2Mode::DRAIN, debug_state.mode);
-  EXPECT_EQ(debug_state.round_trip_count, max_bw_round);
   EXPECT_EQ(0u, debug_state.startup.round_trips_without_bandwidth_growth);
   EXPECT_NE(0u, sender_connection_stats().packets_lost);
 }

@@ -2314,10 +2314,47 @@ TEST(X509Test, NameConstraints) {
       {GEN_URI, "foo://:not-a-url", "not-a-url",
        X509_V_ERR_UNSUPPORTED_NAME_SYNTAX},
       {GEN_URI, "foo://", "not-a-url", X509_V_ERR_UNSUPPORTED_NAME_SYNTAX},
+      // Reject URIs with userinfo.
+      {GEN_URI, "foo://username:password@example.com/whatever", "example.com",
+       X509_V_ERR_UNSUPPORTED_NAME_SYNTAX},
+      {GEN_URI, "foo://username@example.com/whatever", "example.com",
+       X509_V_ERR_UNSUPPORTED_NAME_SYNTAX},
+      {GEN_URI, "foo://@example.com/whatever", "example.com",
+       X509_V_ERR_UNSUPPORTED_NAME_SYNTAX},
+      {GEN_URI, "foo://misleading.com:443@example.com/whatever",
+       "misleading.com", X509_V_ERR_UNSUPPORTED_NAME_SYNTAX},
+      {GEN_URI, "foo://misleading.com:443@", "example.com",
+       X509_V_ERR_UNSUPPORTED_NAME_SYNTAX},
+      // Reject IP addresses.
+      {GEN_URI, "foo://123.45.67.89", "example.com",
+       X509_V_ERR_UNSUPPORTED_NAME_SYNTAX},
+      {GEN_URI, "foo://0xde.0xad.0xbe.0xef", "example.com",
+       X509_V_ERR_UNSUPPORTED_NAME_SYNTAX},
+      {GEN_URI, "foo://example.com.0x", "example.com",
+       X509_V_ERR_UNSUPPORTED_NAME_SYNTAX},
+      {GEN_URI, "foo://example.com.0xca", "example.com",
+       X509_V_ERR_UNSUPPORTED_NAME_SYNTAX},
+      {GEN_URI, "foo://[1234:5678:90ab::1]", "example.com",
+       X509_V_ERR_UNSUPPORTED_NAME_SYNTAX},
+      // Don't reject domain names whose final component consists of hex digits.
+      {GEN_URI, "foo://0xde.0xad.0xbe.ef", ".0xbe.ef", X509_V_OK},
+      // Port number, if present, must contain only digits.
+      {GEN_URI, "foo://example.com:a443", "example.com",
+       X509_V_ERR_UNSUPPORTED_NAME_SYNTAX},
+      // Empty host is a syntax error.
+      {GEN_URI, "foo://", "example.com", X509_V_ERR_UNSUPPORTED_NAME_SYNTAX},
+      {GEN_URI, "foo:///whatever", "example.com",
+       X509_V_ERR_UNSUPPORTED_NAME_SYNTAX},
+      {GEN_URI, "foo://:443", "example.com",
+       X509_V_ERR_UNSUPPORTED_NAME_SYNTAX},
+      {GEN_URI, "foo://.:443", "example.com",
+       X509_V_ERR_UNSUPPORTED_NAME_SYNTAX},
       // Hosts are an exact match.
       {GEN_URI, "foo://example.com", "example.com", X509_V_OK},
       {GEN_URI, "foo://example.com:443", "example.com", X509_V_OK},
       {GEN_URI, "foo://example.com/whatever", "example.com", X509_V_OK},
+      {GEN_URI, "foo://example.com?query", "example.com", X509_V_OK},
+      {GEN_URI, "foo://example.com#fragment", "example.com", X509_V_OK},
       {GEN_URI, "foo://bar.example.com", "example.com",
        X509_V_ERR_PERMITTED_VIOLATION},
       {GEN_URI, "foo://bar.example.com:443", "example.com",
@@ -2358,6 +2395,27 @@ TEST(X509Test, NameConstraints) {
        X509_V_ERR_PERMITTED_VIOLATION},
       {GEN_URI, "foo://example.com/whatever", ".xample.com",
        X509_V_ERR_PERMITTED_VIOLATION},
+      // Allow a single trailing dot representing the DNS common root.
+      {GEN_URI, "foo://bar.example.com.", ".example.com", X509_V_OK},
+      {GEN_URI, "foo://bar.example.com.", ".example.com.", X509_V_OK},
+      {GEN_URI, "foo://bar.example.com", ".example.com.", X509_V_OK},
+      {GEN_URI, "foo://bar.example.com.:443", ".example.com.", X509_V_OK},
+      {GEN_URI, "foo://bar.example.com", "bar.example.com.", X509_V_OK},
+      // Multiple trailing dots, or empty labels, are not allowed.
+      {GEN_URI, "foo://bar.example.com..", ".example.com.",
+       X509_V_ERR_UNSUPPORTED_NAME_SYNTAX},
+      {GEN_URI, "foo://bar..example.com.", ".example.com.",
+       X509_V_ERR_UNSUPPORTED_NAME_SYNTAX},
+      {GEN_URI, "foo://bar.example.com.", ".example.com..",
+       X509_V_ERR_UNSUPPORTED_CONSTRAINT_SYNTAX},
+      {GEN_URI, "foo://bar.example.com.", ".example..com.",
+       X509_V_ERR_UNSUPPORTED_CONSTRAINT_SYNTAX},
+      // Test name constraint parsing. The URI name constraint should be a valid
+      // FQDN.
+      {GEN_URI, "foo://example.com", "..example.com",
+       X509_V_ERR_UNSUPPORTED_CONSTRAINT_SYNTAX},
+      {GEN_URI, "foo://example.com:443", "example.com:443",
+       X509_V_ERR_UNSUPPORTED_CONSTRAINT_SYNTAX},
   };
   for (const auto &t : kTests) {
     SCOPED_TRACE(t.type);
@@ -3863,6 +3921,51 @@ TEST(X509Test, CommonNameFallback) {
   EXPECT_EQ(X509_V_ERR_HOSTNAME_MISMATCH,
             verify_cert(with_ip.get(), X509_CHECK_FLAG_NEVER_CHECK_SUBJECT,
                         "foo.host1.test"));
+}
+
+// Test that it is possible to set host flags on the store and hosts on the
+// individual verify operation.
+TEST(X509Test, SeparateHostFlagsAndHosts) {
+  UniquePtr<X509> root = CertFromPEM(kSANTypesRoot);
+  ASSERT_TRUE(root);
+  UniquePtr<X509> without_sans = CertFromPEM(kCommonNameWithoutSANs);
+  ASSERT_TRUE(without_sans);
+  std::string_view host = "foo.host1.test";
+
+  UniquePtr<X509_STORE> store(X509_STORE_new());
+  ASSERT_TRUE(store);
+  ASSERT_TRUE(X509_STORE_add_cert(store.get(), root.get()));
+
+  // By default, we allow the common name fallback. This is just to establish a
+  // baseline. If this fails (e.g. if we turn off the common name fallback by
+  // default), this test will need to be updated with a different flag.
+  {
+    UniquePtr<X509_STORE_CTX> ctx(X509_STORE_CTX_new());
+    ASSERT_TRUE(ctx);
+    ASSERT_TRUE(X509_STORE_CTX_init(ctx.get(), store.get(), without_sans.get(),
+                                    nullptr));
+    ASSERT_TRUE(X509_VERIFY_PARAM_set1_host(
+        X509_STORE_CTX_get0_param(ctx.get()), host.data(), host.size()));
+    X509_STORE_CTX_set_time_posix(ctx.get(), /*flags=*/0, kReferenceTime);
+    EXPECT_EQ(1, X509_verify_cert(ctx.get()));
+    EXPECT_EQ(X509_V_OK, X509_STORE_CTX_get_error(ctx.get()));
+  }
+
+  // Disabling the common name fallback on the store should work.
+  X509_VERIFY_PARAM_set_hostflags(X509_STORE_get0_param(store.get()),
+                                  X509_CHECK_FLAG_NEVER_CHECK_SUBJECT);
+  {
+    UniquePtr<X509_STORE_CTX> ctx(X509_STORE_CTX_new());
+    ASSERT_TRUE(ctx);
+    ASSERT_TRUE(X509_STORE_CTX_init(ctx.get(), store.get(), without_sans.get(),
+                                    nullptr));
+    ASSERT_TRUE(X509_VERIFY_PARAM_set1_host(
+        X509_STORE_CTX_get0_param(ctx.get()), host.data(), host.size()));
+    X509_STORE_CTX_set_time_posix(ctx.get(), /*flags=*/0, kReferenceTime);
+    EXPECT_EQ(0, X509_verify_cert(ctx.get()));
+    EXPECT_EQ(X509_V_ERR_HOSTNAME_MISMATCH,
+              X509_STORE_CTX_get_error(ctx.get()));
+  }
 }
 
 TEST(X509Test, LooksLikeDNSName) {

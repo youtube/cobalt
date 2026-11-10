@@ -9,6 +9,8 @@ extern builtin JSToWasmInterpreterWrapperAsm(
     RawPtr<intptr>, WasmExportedFunctionData, JSAny): JSAny;
 const kWasmS128Type:
     constexpr uint32 generates 'wasm::kWasmS128.raw_bit_field()';
+const kWrapperBufferRefParamsArray: constexpr intptr
+    generates 'WasmInterpreterWrapperConstants::kWrapperBufferRefParamsArray';
 
 
 macro NewInterpreterReturnSlotAllocator(): ReturnSlotAllocator {
@@ -131,9 +133,7 @@ transitioning javascript builtin JSToWasmInterpreterWrapper(
   // updated by the GC. Therefore references are not allowed to be stored in the
   // `paramBuffer` when a GC may get triggered. This requirement is satisfied by
   // storing converted reference parameters not immediately in the `paramBuffer`
-  // but in `convertedTagged`. Only when the last parameter has been converted
-  // an no GC can be triggered anymore do reference parameters get copied from
-  // `convertedTagged` into `paramBuffer.
+  // but in `convertedTagged`.
   let paramBuffer: &intptr;
   let paramBufferSize: intptr;
 
@@ -253,20 +253,6 @@ transitioning javascript builtin JSToWasmInterpreterWrapper(
           JSToWasmObject(context, paramType, param);
     }
   }
-  // TODO(ahaas): Ideally we would enter a `DisallowGarbageCollection` scope
-  // here and leave it in the assembly builtin just before we call to wasm.
-  if (hasRefParam) {
-    // Iterate over all parameters again and handle all those with ref types.
-    for (let paramIndex: intptr = 0; paramIndex < paramCount; paramIndex++) {
-      const paramType = *paramTypes.UncheckedAtIndex(paramIndex);
-      if ((paramType & kValueTypeIsRefBit) != 0) {
-        const param =
-            UnsafeCast<FixedArray>(convertedTagged).objects[paramIndex];
-        let toRef = locationAllocator.GetStackSlot();
-        *toRef = BitcastTaggedToWord(param);
-      }
-    }
-  }
   const paramStart = paramBuffer.GCUnsafeRawPtr();
   const paramEnd = locationAllocator.GetStackEnd();
   locationAllocator.CheckBufferOverflow();
@@ -291,6 +277,12 @@ transitioning javascript builtin JSToWasmInterpreterWrapper(
   *GetRefAt<RawPtr<intptr>>(wrapperBuffer, kWrapperBufferParamStart) =
       paramStart;
   *GetRefAt<RawPtr>(wrapperBuffer, kWrapperBufferParamEnd) = paramEnd;
+  // Reference parameters are kept in `convertedTagged` (a GC-visible
+  // FixedArray) and passed to the runtime via the wrapper buffer, rather
+  // than being copied into the GC-invisible `paramBuffer`.
+  const refParamsForRuntime: Object = hasRefParam ? convertedTagged : Undefined;
+  *GetRefAt<intptr>(wrapperBuffer, kWrapperBufferRefParamsArray) =
+      BitcastTaggedToWord(refParamsForRuntime);
 
   // `resultArray` gets passed separately as parameter to make it GC-safe. It
   // gets passed over the stack so that it gets scanned by the GC as part of

@@ -4,16 +4,31 @@
 
 #include "chrome/browser/indigo/indigo_image_replacement.h"
 
+#include "chrome/browser/indigo/indigo_image_replacement_manager.h"
+
 namespace indigo {
 
 IndigoImageReplacement::IndigoImageReplacement(
-    mojo::Remote<blink::mojom::ImageReplacement> remote)
-    : remote_(std::move(remote)) {}
+    IndigoImageReplacementManager* manager,
+    mojo::Remote<blink::mojom::ImageReplacement> remote,
+    bool is_primary)
+    : manager_(manager), remote_(std::move(remote)), is_primary_(is_primary) {}
 
 IndigoImageReplacement::IndigoImageReplacement(IndigoImageReplacement&&) =
     default;
 
-IndigoImageReplacement::~IndigoImageReplacement() = default;
+IndigoImageReplacement::~IndigoImageReplacement() {
+  if (pending_replacement_image_callback_) {
+    std::move(pending_replacement_image_callback_).Run(GURL());
+  }
+}
+
+void IndigoImageReplacement::ReplacementImageURLReady() {
+  if (pending_replacement_image_callback_) {
+    std::move(pending_replacement_image_callback_)
+        .Run(manager_->generated_image_url());
+  }
+}
 
 void IndigoImageReplacement::ReplacementFrameAttached(
     content::FrameTreeNodeId frame_tree_node_id,
@@ -30,6 +45,19 @@ void IndigoImageReplacement::OnReadyToRender() {
 
 std::vector<uint8_t> IndigoImageReplacement::TakeOriginalImageWebpBytes() {
   return std::move(original_image_webp_bytes_);
+}
+
+const GURL& IndigoImageReplacement::GetReplacementImageURL() const {
+  return manager_->generated_image_url();
+}
+
+bool IndigoImageReplacement::SetPendingReplacementImageCallback(
+    base::OnceCallback<void(const GURL&)> callback) {
+  if (!pending_replacement_image_callback_.is_null()) {
+    return false;
+  }
+  pending_replacement_image_callback_ = std::move(callback);
+  return true;
 }
 
 }  // namespace indigo

@@ -64,6 +64,9 @@ class V8_EXPORT_PRIVATE StringTable {
   DirectHandle<InternalizedString> LookupString(Isolate* isolate,
                                                 DirectHandle<String> key);
 
+  // Returns true if the string is already in the string table.
+  bool HasString(Isolate* isolate, DirectHandle<String> key);
+
   // Find string in the string table, using the given key. If the string is not
   // there yet, it is created (by the key) and added. The return value is the
   // string found.

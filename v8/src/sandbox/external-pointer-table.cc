@@ -129,8 +129,9 @@ uint32_t ExternalPointerTable::EvacuateAndSweepAndCompact(Space* space,
     FreelistHead empty_freelist;
     from_space->freelist_head_.store(empty_freelist, std::memory_order_relaxed);
 
-    for (Address field : from_space->invalidated_fields_)
+    for (Address field : from_space->invalidated_fields_) {
       space->invalidated_fields_.push_back(field);
+    }
     from_space->ClearInvalidatedFields();
   }
 

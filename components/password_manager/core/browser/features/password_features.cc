@@ -29,8 +29,6 @@ BASE_FEATURE(kActorLoginPermissionsUi, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if !BUILDFLAG(IS_IOS)
 BASE_FEATURE(kActorLoginQualityLogs, base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kActorLoginSameSiteIframeSupport,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -53,9 +51,6 @@ const base::FeatureParam<base::TimeDelta> kAwaitPageStabilityTimeout = {
     &kAwaitPageStabilityForPasswordChange, "stability_timeout",
     base::Seconds(5)};
 
-// TODO: crbug.com/399124614 - Clean up in M151.
-BASE_FEATURE(kAutofillReintroduceHybridPasskeyDropdownItem,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 BASE_FEATURE(kRetryCapturePageContent, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -199,9 +194,6 @@ BASE_FEATURE(kSkipUndecryptablePasswords,
 );
 
 BASE_FEATURE(kTriggerPasswordResyncWhenUndecryptablePasswordsDetected,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kUseActionablesForImprovedPasswordChange,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kUseDetachedWidget, base::FEATURE_ENABLED_BY_DEFAULT);

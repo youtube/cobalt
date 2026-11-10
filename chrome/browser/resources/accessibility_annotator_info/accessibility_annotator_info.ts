@@ -3,14 +3,19 @@
 // found in the LICENSE file.
 
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
+import '/strings.m.js';
 
+import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {getCss} from './accessibility_annotator_info.css.js';
 import {getHtml} from './accessibility_annotator_info.html.js';
 import {AccessibilityAnnotatorInfoBrowserProxy} from './browser_proxy.js';
 
-export class AccessibilityAnnotatorInfoElement extends CrLitElement {
+const AccessibilityAnnotatorInfoElementBase = I18nMixinLit(CrLitElement);
+
+export class AccessibilityAnnotatorInfoElement extends
+    AccessibilityAnnotatorInfoElementBase {
   static get is() {
     return 'accessibility-annotator-info';
   }
@@ -49,6 +54,15 @@ export class AccessibilityAnnotatorInfoElement extends CrLitElement {
   protected onManageSettingsClick_() {
     AccessibilityAnnotatorInfoBrowserProxy.getInstance()
         .handler.onManageSettingsClicked();
+  }
+
+  protected onLearnMoreClick_(e: Event) {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'A') {
+      e.preventDefault();
+      AccessibilityAnnotatorInfoBrowserProxy.getInstance()
+          .handler.onLearnMoreClicked();
+    }
   }
 
   protected onGotItClick_() {

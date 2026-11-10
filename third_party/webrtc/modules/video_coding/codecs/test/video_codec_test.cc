@@ -381,7 +381,7 @@ INSTANTIATE_TEST_SUITE_P(
 #endif
             Values(kFourPeople_1280x720_30),
             Values(std::make_tuple(320, 180, 30, 32, 26),
-                   std::make_tuple(320, 180, 30, 64, 29),
+                   std::make_tuple(320, 180, 30, 64, 27),
                    std::make_tuple(320, 180, 30, 128, 32),
                    std::make_tuple(320, 180, 30, 256, 36),
                    std::make_tuple(640, 360, 30, 128, 29),

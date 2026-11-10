@@ -16,8 +16,7 @@ namespace v8::internal {
 // static
 Tagged<Map> TransitionsAccessor::GetSimpleTransition(Isolate* isolate,
                                                      DirectHandle<Map> map) {
-  Tagged<MaybeObject> raw_transitions =
-      map->raw_transitions(isolate, kAcquireLoad);
+  Tagged<MaybeObject> raw_transitions = map->raw_transitions(kAcquireLoad);
   switch (GetEncoding(isolate, raw_transitions)) {
     case kWeakRef:
       return Cast<Map>(raw_transitions.GetHeapObjectAssumeWeak());
@@ -73,7 +72,7 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, DirectHandle<Map> map,
     if (flag == SIMPLE_PROPERTY_TRANSITION) {
       Tagged<Name> key = GetSimpleTransitionKey(simple_transition);
       PropertyDetails old_details =
-          simple_transition->GetLastDescriptorDetails(isolate);
+          simple_transition->GetLastDescriptorDetails();
       PropertyDetails new_details = GetTargetDetails(*name, *target);
       if (key->Equals(*name) && old_details.kind() == new_details.kind() &&
           old_details.attributes() == new_details.attributes()) {
@@ -291,7 +290,7 @@ MaybeHandle<Map> TransitionsAccessor::FindTransitionToField(
   Tagged<Map> target = SearchTransition(*name, PropertyKind::kData, NONE);
   if (target.is_null()) return MaybeHandle<Map>();
 #ifdef DEBUG
-  PropertyDetails details = target->GetLastDescriptorDetails(isolate_);
+  PropertyDetails details = target->GetLastDescriptorDetails();
   DCHECK_EQ(NONE, details.attributes());
   DCHECK_EQ(PropertyKind::kData, details.kind());
   DCHECK_EQ(PropertyLocation::kField, details.location());
@@ -334,8 +333,7 @@ void TransitionsAccessor::ForEachTransitionTo(
 bool TransitionsAccessor::CanHaveMoreTransitions(Isolate* isolate,
                                                  DirectHandle<Map> map) {
   if (map->is_dictionary_map()) return false;
-  Tagged<MaybeObject> raw_transitions =
-      map->raw_transitions(isolate, kAcquireLoad);
+  Tagged<MaybeObject> raw_transitions = map->raw_transitions(kAcquireLoad);
   if (GetEncoding(isolate, raw_transitions) == kFullTransitionArray) {
     return GetTransitionArray(isolate, raw_transitions)
                ->number_of_transitions() < kMaxNumberOfTransitions;
@@ -430,8 +428,9 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
   // Don't cache prototype transition if this map is either shared, or a map of
   // a prototype.
   if (map->is_prototype_map()) return false;
-  if (map->is_dictionary_map() || !v8_flags.cache_prototype_transitions)
+  if (map->is_dictionary_map() || !v8_flags.cache_prototype_transitions) {
     return false;
+  }
 
   const uint32_t header = TransitionArray::kProtoTransitionHeaderSize;
 
@@ -452,8 +451,9 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
           TransitionArray::CompactPrototypeTransitionArray(isolate, *cache);
     }
     if (!compacted) {
-      if (capacity == TransitionArray::kMaxCachedPrototypeTransitions)
+      if (capacity == TransitionArray::kMaxCachedPrototypeTransitions) {
         return false;
+      }
 
       cache = TransitionArray::GrowPrototypeTransitionArray(
           cache, 2 * transitions, isolate);
@@ -500,8 +500,7 @@ std::optional<Tagged<Map>> TransitionsAccessor::GetPrototypeTransition(
 // static
 Tagged<WeakFixedArray> TransitionsAccessor::GetPrototypeTransitions(
     Isolate* isolate, Tagged<Map> map) {
-  Tagged<MaybeObject> raw_transitions =
-      map->raw_transitions(isolate, kAcquireLoad);
+  Tagged<MaybeObject> raw_transitions = map->raw_transitions(kAcquireLoad);
   if (GetEncoding(isolate, raw_transitions) != kFullTransitionArray) {
     return ReadOnlyRoots(isolate).empty_weak_fixed_array();
   }
@@ -596,22 +595,21 @@ void TransitionsAccessor::SetPrototypeTransitions(
     Isolate* isolate, DirectHandle<Map> map,
     DirectHandle<WeakFixedArray> proto_transitions) {
   EnsureHasFullTransitionArray(isolate, map);
-  GetTransitionArray(isolate, map->raw_transitions(isolate, kAcquireLoad))
+  GetTransitionArray(isolate, map->raw_transitions(kAcquireLoad))
       ->SetPrototypeTransitions(*proto_transitions);
 }
 
 // static
 void TransitionsAccessor::EnsureHasFullTransitionArray(Isolate* isolate,
                                                        DirectHandle<Map> map) {
-  Encoding encoding =
-      GetEncoding(isolate, map->raw_transitions(isolate, kAcquireLoad));
+  Encoding encoding = GetEncoding(isolate, map->raw_transitions(kAcquireLoad));
   if (encoding == kFullTransitionArray) return;
   uint32_t nof =
       (encoding == kUninitialized || encoding == kMigrationTarget) ? 0 : 1;
   DirectHandle<TransitionArray> result =
       isolate->factory()->NewTransitionArray(nof);
   // Reload encoding after possible GC.
-  encoding = GetEncoding(isolate, map->raw_transitions(isolate, kAcquireLoad));
+  encoding = GetEncoding(isolate, map->raw_transitions(kAcquireLoad));
   if (nof == 1) {
     if (encoding == kUninitialized) {
       // If allocation caused GC and cleared the target, trim the new array.
@@ -642,7 +640,7 @@ void TransitionsAccessor::TraverseTransitionTreeInternal(
     callback(current_map);
 
     Tagged<MaybeObject> raw_transitions =
-        current_map->raw_transitions(isolate_, kAcquireLoad);
+        current_map->raw_transitions(kAcquireLoad);
     Encoding encoding = GetEncoding(isolate_, raw_transitions);
 
     switch (encoding) {
@@ -697,8 +695,7 @@ void TransitionsAccessor::CheckNewTransitionsAreConsistent(
   for (int i = 0; i < old_transitions->number_of_transitions(); i++) {
     Tagged<Map> target;
     if (old_transitions->GetTargetIfExists(i, isolate, &target)) {
-      if (target->instance_descriptors(isolate) ==
-          map->instance_descriptors(isolate)) {
+      if (target->instance_descriptors() == map->instance_descriptors()) {
         Tagged<Name> key = old_transitions->GetKey(i);
         int new_target_index;
         if (IsSpecialTransition(roots, key)) {

@@ -30,8 +30,10 @@ class PayloadTypeSuggester {
   // Media section is indicated by MID.
   // The function will either return a PT already in use on the connection
   // or a newly suggested one.
-  virtual RTCErrorOr<PayloadType> SuggestPayloadType(absl::string_view mid,
-                                                     const Codec& codec) = 0;
+  virtual RTCErrorOr<PayloadType> SuggestPayloadType(
+      absl::string_view mid,
+      const Codec& codec,
+      bool pick_from_top_of_range = false) = 0;
   // Register a payload type as mapped to a specific codec for this MID
   // at this time.
   virtual RTCError AddLocalMapping(absl::string_view mid,

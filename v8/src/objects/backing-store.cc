@@ -892,10 +892,11 @@ void GlobalBackingStoreRegistry::AddSharedWasmMemoryObject(
     if (isolates[i] == isolate) return;
     if (isolates[i] == nullptr) free_entry = static_cast<int>(i);
   }
-  if (free_entry >= 0)
+  if (free_entry >= 0) {
     isolates[free_entry] = isolate;
-  else
+  } else {
     isolates.push_back(isolate);
+  }
 }
 
 void GlobalBackingStoreRegistry::BroadcastSharedWasmMemoryGrow(

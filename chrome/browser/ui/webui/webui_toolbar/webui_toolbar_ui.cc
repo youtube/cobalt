@@ -12,7 +12,6 @@
 #include "base/strings/strcat.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -37,6 +36,7 @@
 #include "components/browser_apis/browser_controls/browser_controls_api.mojom.h"
 #include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api.mojom.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/user_education/webui/help_bubble_handler.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
@@ -154,6 +154,13 @@ void WebUIToolbarUI::BindInterface(
   }
 }
 
+void WebUIToolbarUI::BindInterface(
+    mojo::PendingReceiver<help_bubble::mojom::HelpBubbleHandlerFactory>
+        receiver) {
+  help_bubble_service_.reset();
+  help_bubble_service_.Bind(std::move(receiver));
+}
+
 void WebUIToolbarUI::OnNavigationControlsStateChanged(
     const toolbar_ui_api::mojom::NavigationControlsState& state) {
   if (toolbar_ui_service_) {
@@ -229,6 +236,11 @@ void WebUIToolbarUI::WebUIRenderFrameCreated(
   }
 }
 
+content::WebUIController::DisplayDisposition
+WebUIToolbarUI::GetDisplayDisposition() const {
+  return content::WebUIController::DisplayDisposition::kUIElement;
+}
+
 void WebUIToolbarUI::PopulateLocalResourceLoaderConfig(
     blink::mojom::LocalResourceLoaderConfig* config,
     const url::Origin& requesting_origin) {
@@ -239,6 +251,14 @@ void WebUIToolbarUI::PopulateLocalResourceLoaderConfig(
       config, requesting_origin, web_ui()->GetWebContents());
 
   WebUIToolbarLayoutCssHelper::PopulateLocalResourceLoaderConfig(config);
+}
+
+void WebUIToolbarUI::CreateHelpBubbleHandler(
+    mojo::PendingRemote<help_bubble::mojom::HelpBubbleClient> client,
+    mojo::PendingReceiver<help_bubble::mojom::HelpBubbleHandler> handler) {
+  help_bubble_handler_ = std::make_unique<user_education::HelpBubbleHandler>(
+      std::move(handler), std::move(client), this,
+      GetKnownElementIdentifiers());
 }
 
 const std::vector<ui::ElementIdentifier>

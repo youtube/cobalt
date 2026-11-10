@@ -173,8 +173,29 @@ function testSub128() {
     kExprLocalGet, 2, kExprLocalGet, 3,
     kNumericPrefix, kExprI64Sub128,
   ]);
-  assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-    /sub128.*Wide arithmetic opcodes are not yet implemented./);
+  let instance;
+  try {
+    instance = builder.instantiate();
+  } catch (e) {
+    if (e instanceof WebAssembly.CompileError &&
+      e.message.includes("Wide arithmetic opcodes are not yet implemented")) {
+      console.log("sub128 not implemented on this architecture/compiler.");
+      return;
+    }
+    throw e;
+  }
+  let sub128 = instance.exports.sub128;
+  // Order of args a_lo, a_hi, b_lo, b_hi
+  assertEquals([0n, 0n], sub128(0n, 0n, 0n, 0n));
+  assertEquals([2n, 0n], sub128(5n, 0n, 3n, 0n));
+  assertEquals([0n, 2n], sub128(0n, 5n, 0n, 3n));
+  assertEquals([0n, 1n], sub128(0n, 1n, 0n, 0n));
+  assertEquals([-1n, 0n], sub128(-1n, 0n, 0n, 0n));
+  assertEquals([-1n, 0n], sub128(0n, 1n, 1n, 0n));
+  assertEquals([-5n, 0n], sub128(5n, 1n, 10n, 0n));
+  assertEquals([-1n, 0x7fffffffffffffffn],
+    sub128(0n, -0x8000000000000000n, 1n, 0n)
+  );
 }
 
 function testMulWideS() {

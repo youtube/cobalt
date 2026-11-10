@@ -88,7 +88,6 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/sequence_number_util.h"
 #include "rtc_base/strings/string_builder.h"
-#include "rtc_base/thread.h"
 #include "system_wrappers/include/ntp_time.h"
 #include "video/buffered_frame_decryptor.h"
 
@@ -127,7 +126,8 @@ std::unique_ptr<ModuleRtpRtcpImpl2> CreateRtpRtcpModule(
     RtcpPacketTypeCounterObserver* rtcp_packet_type_counter_observer,
     RtcpCnameCallback* rtcp_cname_callback,
     PacketRouter* packet_router,
-    bool non_sender_rtt_measurement) {
+    bool non_sender_rtt_measurement,
+    std::optional<uint32_t> remote_ssrc) {
   RtpRtcpInterface::Configuration configuration;
   configuration.audio = false;
   configuration.receiver_only = true;
@@ -138,6 +138,8 @@ std::unique_ptr<ModuleRtpRtcpImpl2> CreateRtpRtcpModule(
       rtcp_packet_type_counter_observer;
   configuration.rtcp_cname_callback = rtcp_cname_callback;
   configuration.non_sender_rtt_measurement = non_sender_rtt_measurement;
+  configuration.rtcp_mode = RtcpMode::kCompound;
+  configuration.remote_ssrc = remote_ssrc;
 
   auto rtp_rtcp = ModuleRtpRtcpImpl2::CreateReceiveModule(
       env, configuration, [packet_router]() {
@@ -148,7 +150,6 @@ std::unique_ptr<ModuleRtpRtcpImpl2> CreateRtpRtcpModule(
           return kFallbackRtcpSsrcForVideo;
         }
       });
-  rtp_rtcp->SetRTCPStatus(RtcpMode::kCompound);
 
   return rtp_rtcp;
 }
@@ -318,7 +319,8 @@ RtpVideoStreamReceiver2::RtpVideoStreamReceiver2(
           rtcp_packet_type_counter_observer,
           rtcp_cname_callback,
           packet_router,
-          config_.rtp.rtcp_xr.receiver_reference_time_report)),
+          config_.rtp.rtcp_xr.receiver_reference_time_report,
+          config->rtp.remote_ssrc)),
       nack_periodic_processor_(nack_periodic_processor),
       complete_frame_callback_(complete_frame_callback),
       keyframe_request_method_(config_.rtp.keyframe_method),
@@ -350,7 +352,6 @@ RtpVideoStreamReceiver2::RtpVideoStreamReceiver2(
          "reserved for internal usage.";
 
   rtp_rtcp_->SetRTCPStatus(config_.rtp.rtcp_mode);
-  rtp_rtcp_->SetRemoteSSRC(config_.rtp.remote_ssrc);
 
   if (config_.rtp.nack.rtp_history_ms > 0) {
     rtp_receive_statistics_->SetMaxReorderingThreshold(config_.rtp.remote_ssrc,
@@ -379,7 +380,7 @@ RtpVideoStreamReceiver2::RtpVideoStreamReceiver2(
     frame_transformer_delegate_ =
         make_ref_counted<RtpVideoStreamReceiverFrameTransformerDelegate>(
             this, &env_.clock(), std::move(frame_transformer),
-            Thread::Current(), config_.rtp.remote_ssrc);
+            TaskQueueBase::Current(), config_.rtp.remote_ssrc);
     frame_transformer_delegate_->Init();
   }
 }
@@ -1034,8 +1035,8 @@ void RtpVideoStreamReceiver2::SetDepacketizerToDecoderFrameTransformer(
   RTC_DCHECK_RUN_ON(&worker_task_checker_);
   frame_transformer_delegate_ =
       make_ref_counted<RtpVideoStreamReceiverFrameTransformerDelegate>(
-          this, &env_.clock(), std::move(frame_transformer), Thread::Current(),
-          config_.rtp.remote_ssrc);
+          this, &env_.clock(), std::move(frame_transformer),
+          TaskQueueBase::Current(), config_.rtp.remote_ssrc);
   frame_transformer_delegate_->Init();
 }
 

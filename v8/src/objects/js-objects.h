@@ -46,7 +46,7 @@ class Null;
 
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
-V8_OBJECT class JSReceiver : public HeapObjectLayout {
+V8_OBJECT class JSReceiver : public HeapObject {
  public:
   using Properties =
       UnionOf<SwissNameDictionary, FixedArrayBase, PropertyArray>;
@@ -383,13 +383,9 @@ V8_OBJECT class JSReceiver : public HeapObjectLayout {
 // caching.
 V8_OBJECT class JSObject : public JSReceiver {
  public:
-  // Back-compat offset/size constants. Defined out-of-line below so they
-  // can use sizeof(JSObject) / offsetof(JSObject, ...) once the class is
-  // complete.
-  static const int kElementsOffset;
   static const int kEndOfStrongFieldsOffset;
   static const int kHeaderSize;
-  static constexpr int kMapOffset = HeapObject::kMapOffset;
+  static constexpr int kMapOffset = offsetof(HeapObject, map_);
 
   // Mirror the JSReceiver::IntegrityLevel type alias so method signatures
   // that take `IntegrityLevel` parameters can be declared on JSObject.
@@ -420,8 +416,7 @@ V8_OBJECT class JSObject : public JSReceiver {
   // acquire/release semantics ever become necessary, the default setter should
   // be reverted to non-atomic behavior, and setters with explicit tags
   // introduced and used when required.
-  Tagged<FixedArrayBase> elements(PtrComprCageBase cage_base,
-                                  AcquireLoadTag tag) const = delete;
+  Tagged<FixedArrayBase> elements(AcquireLoadTag tag) const = delete;
   void set_elements(Tagged<FixedArrayBase> value, ReleaseStoreTag tag,
                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER) = delete;
 
@@ -579,10 +574,9 @@ V8_OBJECT class JSObject : public JSReceiver {
 
   // Sets the property value in a normalized object given (key, value, details).
   // Handles the special representation of JS global objects.
-  static void SetNormalizedProperty(DirectHandle<JSObject> object,
-                                    DirectHandle<Name> name,
-                                    DirectHandle<Object> value,
-                                    PropertyDetails details);
+  static V8_WARN_UNUSED_RESULT Maybe<bool> SetNormalizedProperty(
+      DirectHandle<JSObject> object, DirectHandle<Name> name,
+      DirectHandle<Object> value, PropertyDetails details);
   static void SetNormalizedElement(DirectHandle<JSObject> object,
                                    uint32_t index, DirectHandle<Object> value,
                                    PropertyDetails details);
@@ -815,12 +809,7 @@ V8_OBJECT class JSObject : public JSReceiver {
                                             FieldIndex index,
                                             SeqCstAccessTag tag);
   inline Tagged<JSAny> RawFastPropertyAt(FieldIndex index) const;
-  inline Tagged<JSAny> RawFastPropertyAt(PtrComprCageBase cage_base,
-                                         FieldIndex index) const;
   inline Tagged<JSAny> RawFastPropertyAt(FieldIndex index,
-                                         SeqCstAccessTag tag) const;
-  inline Tagged<JSAny> RawFastPropertyAt(PtrComprCageBase cage_base,
-                                         FieldIndex index,
                                          SeqCstAccessTag tag) const;
 
   // See comment in the body of the method to understand the conditions
@@ -828,8 +817,7 @@ V8_OBJECT class JSObject : public JSReceiver {
   // provides against invalid reads from another thread during object
   // mutation.
   inline std::optional<Tagged<Object>> RawInobjectPropertyAt(
-      PtrComprCageBase cage_base, Tagged<Map> original_map,
-      FieldIndex index) const;
+      Tagged<Map> original_map, FieldIndex index) const;
 
   inline void FastPropertyAtPut(FieldIndex index, Tagged<Object> value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -950,8 +938,7 @@ V8_OBJECT class JSObject : public JSReceiver {
   // If a GC was caused while constructing this object, the elements pointer
   // may point to a one pointer filler map. The object won't be rooted, but
   // our heap verification code could stumble across it.
-  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine(
-      PtrComprCageBase cage_base) const;
+  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine() const;
 #endif
 
   Tagged<Object> SlowReverseLookup(Tagged<Object> value);
@@ -1045,9 +1032,8 @@ V8_OBJECT class JSObject : public JSReceiver {
   TaggedMember<FixedArrayBase> elements_;
 } V8_OBJECT_END;
 
-inline constexpr int JSObject::kElementsOffset = offsetof(JSObject, elements_);
 inline constexpr int JSObject::kEndOfStrongFieldsOffset =
-    JSObject::kElementsOffset + kTaggedSize;
+    offsetof(JSObject, elements_) + kTaggedSize;
 inline constexpr int JSObject::kHeaderSize = sizeof(JSObject);
 
 inline constexpr int JSObject::kMaxInObjectProperties =
@@ -1064,7 +1050,7 @@ inline constexpr int JSObject::kMaxJSApiObjectEmbedderFields =
      kCppHeapPointerSlotSize) /
     kEmbedderDataSlotSize;
 
-static_assert(JSObject::kElementsOffset == sizeof(JSReceiver));
+static_assert(offsetof(JSObject, elements_) == sizeof(JSReceiver));
 static_assert(JSObject::kHeaderSize == Internals::kJSObjectHeaderSize);
 static_assert(JSObject::kMaxInObjectProperties <= kMaxNumberOfDescriptors);
 static_assert(JSObject::kHeaderSize + JSObject::kMaxEmbedderFields *
@@ -1096,15 +1082,12 @@ V8_OBJECT class JSAPIObjectWithEmbedderSlots : public JSObject {
  public:
   class BodyDescriptor;
 
-  static const int kCppHeapWrappableOffset;
   static const int kHeaderSize;
 
  public:
   CppHeapPointerMember cpp_heap_wrappable_;
 } V8_OBJECT_END;
 
-inline constexpr int JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset =
-    offsetof(JSAPIObjectWithEmbedderSlots, cpp_heap_wrappable_);
 inline constexpr int JSAPIObjectWithEmbedderSlots::kHeaderSize =
     sizeof(JSAPIObjectWithEmbedderSlots);
 
@@ -1130,15 +1113,12 @@ static_assert(JSCustomElementsObject::kHeaderSize == JSObject::kHeaderSize);
 // static_assert in cpp-heap-object-wrapper.h).
 V8_OBJECT class JSSpecialObject : public JSCustomElementsObject {
  public:
-  static const int kCppHeapWrappableOffset;
   static const int kHeaderSize;
 
  public:
   CppHeapPointerMember cpp_heap_wrappable_;
 } V8_OBJECT_END;
 
-inline constexpr int JSSpecialObject::kCppHeapWrappableOffset =
-    offsetof(JSSpecialObject, cpp_heap_wrappable_);
 inline constexpr int JSSpecialObject::kHeaderSize = sizeof(JSSpecialObject);
 
 // The set of tags that a JSExternalObject's value may carry. Any user-
@@ -1278,8 +1258,6 @@ V8_OBJECT class JSGlobalObject : public JSSpecialObject {
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<GlobalDictionary> global_dictionary(AcquireLoadTag) const;
-  inline Tagged<GlobalDictionary> global_dictionary(PtrComprCageBase cage_base,
-                                                    AcquireLoadTag) const;
   inline void set_global_dictionary(
       Tagged<GlobalDictionary> value, ReleaseStoreTag,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -1296,9 +1274,6 @@ V8_OBJECT class JSGlobalObject : public JSSpecialObject {
   DECL_PRINTER(JSGlobalObject)
   DECL_VERIFIER(JSGlobalObject)
 
-  // Back-compat offset/size constants.
-  static const int kGlobalProxyOffset;
-  static const int kGlobalProxyForApiOffset;
   static const int kHeaderSize;
 
  public:
@@ -1306,10 +1281,6 @@ V8_OBJECT class JSGlobalObject : public JSSpecialObject {
   TaggedMember<JSGlobalProxy> global_proxy_for_api_;
 } V8_OBJECT_END;
 
-inline constexpr int JSGlobalObject::kGlobalProxyOffset =
-    offsetof(JSGlobalObject, global_proxy_);
-inline constexpr int JSGlobalObject::kGlobalProxyForApiOffset =
-    offsetof(JSGlobalObject, global_proxy_for_api_);
 inline constexpr int JSGlobalObject::kHeaderSize = sizeof(JSGlobalObject);
 
 // Representation for JS Wrapper objects, String, Number, Boolean, etc.

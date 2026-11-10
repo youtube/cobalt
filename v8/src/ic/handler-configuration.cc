@@ -330,7 +330,7 @@ MaybeObjectHandle StoreHandler::StoreOwnTransition(Isolate* isolate,
   if (!is_dictionary_map) {
     InternalIndex descriptor = transition_map->LastAdded();
     DirectHandle<DescriptorArray> descriptors(
-        transition_map->instance_descriptors(isolate), isolate);
+        transition_map->instance_descriptors(), isolate);
     PropertyDetails details = descriptors->GetDetails(descriptor);
     if (descriptors->GetKey(descriptor)->IsAnyPrivate()) {
       DCHECK_EQ(DONT_ENUM, details.attributes());
@@ -366,7 +366,7 @@ MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
   if (!is_dictionary_map) {
     InternalIndex descriptor = transition_map->LastAdded();
     DirectHandle<DescriptorArray> descriptors(
-        transition_map->instance_descriptors(isolate), isolate);
+        transition_map->instance_descriptors(), isolate);
     // Private fields must be added via StoreOwnTransition handler.
     DCHECK(!descriptors->GetKey(descriptor)->IsAnyPrivateName());
     PropertyDetails details = descriptors->GetDetails(descriptor);

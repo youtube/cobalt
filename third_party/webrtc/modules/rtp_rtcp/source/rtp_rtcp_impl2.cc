@@ -109,6 +109,7 @@ ModuleRtpRtcpImpl2::ModuleRtpRtcpImpl2(
                    ? TimeDelta::Millis(configuration.rtcp_report_interval_ms)
                    : (configuration.audio ? TimeDelta::Seconds(5)
                                           : TimeDelta::Seconds(1)),
+           .rtcp_mode = configuration.rtcp_mode,
            .receive_statistics = configuration.receive_statistics,
            .rtcp_packet_type_counter_observer =
                configuration.rtcp_packet_type_counter_observer}),
@@ -127,6 +128,10 @@ ModuleRtpRtcpImpl2::ModuleRtpRtcpImpl2(
         rtp_sender_->packet_generator.TimestampOffset());
     rtp_sender_->packet_sender.SetTimestampOffset(
         rtp_sender_->packet_generator.TimestampOffset());
+  }
+
+  if (configuration.remote_ssrc.has_value()) {
+    SetRemoteSSRC(*configuration.remote_ssrc);
   }
 
   // Set default packet size limit.

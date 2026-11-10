@@ -12,7 +12,7 @@ import static org.chromium.ui.listmenu.ListMenuItemProperties.KEY_LISTENER;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.TITLE;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.TITLE_ID;
 import static org.chromium.ui.listmenu.ListMenuSubmenuItemProperties.IS_EXPANDED;
-import static org.chromium.ui.listmenu.ListMenuSubmenuItemProperties.SUBMENU_ITEMS;
+import static org.chromium.ui.listmenu.ListMenuSubmenuItemProperties.SUBMENU_PROVIDER;
 
 import android.content.Context;
 import android.content.res.ColorStateList;
@@ -27,7 +27,6 @@ import android.widget.ListView;
 
 import androidx.annotation.AttrRes;
 import androidx.annotation.ColorRes;
-import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.widget.CompoundButtonCompat;
 import androidx.core.widget.ImageViewCompat;
 
@@ -50,6 +49,7 @@ import org.chromium.ui.util.AttrUtils;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 
 @NullMarked
 public class ListMenuUtils {
@@ -119,20 +119,6 @@ public class ListMenuUtils {
         return item.model != null
                 && item.model.containsKey(CLICK_LISTENER)
                 && item.model.get(CLICK_LISTENER) != null;
-    }
-
-    /**
-     * Constructs a {@link ModelList} containing the submenu items of a given parent item.
-     *
-     * @param item The parent {@link ListItem} that contains the submenu.
-     * @return A new {@link ModelList} populated with the children of the given item.
-     */
-    public static ModelList getModelListSubtree(ListItem item) {
-        ModelList modelList = new ModelList();
-        for (ListItem listItem : item.model.get(SUBMENU_ITEMS)) {
-            modelList.add(listItem);
-        }
-        return modelList;
     }
 
     /**
@@ -243,8 +229,8 @@ public class ListMenuUtils {
         }
 
         @Override
-        public WritableObjectPropertyKey<List<ListItem>> getSubmenuItemsKey() {
-            return SUBMENU_ITEMS;
+        public WritableObjectPropertyKey<Supplier<List<ListItem>>> getSubmenuProviderKey() {
+            return SUBMENU_PROVIDER;
         }
 
         @Override
@@ -287,7 +273,7 @@ public class ListMenuUtils {
     public static void applyTintToAllIcons(View view, @ColorRes int colorResId) {
         ColorStateList tintList =
                 colorResId != Resources.ID_NULL
-                        ? AppCompatResources.getColorStateList(view.getContext(), colorResId)
+                        ? view.getContext().getColorStateList(colorResId)
                         : null;
         applyTintToAllIcons(view, tintList);
     }

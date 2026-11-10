@@ -2454,7 +2454,7 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   // Perhaps we've got cached baseline code?
   Label maybe_osr_because_baseline(this);
   TNode<SharedFunctionInfo> sfi = LoadObjectField<SharedFunctionInfo>(
-      LoadFunctionClosure(), JSFunction::kSharedFunctionInfoOffset);
+      LoadFunctionClosure(), offsetof(JSFunction, shared_function_info_));
   GotoIfSharedFunctionInfoHasBaselineCode(sfi, &maybe_osr_because_baseline);
   Goto(&ok);
 
@@ -2816,7 +2816,7 @@ IGNITION_HANDLER(GetTemplateObject, InterpreterAssembler) {
   TNode<Context> context = GetContext();
   TNode<JSFunction> closure = LoadFunctionClosure();
   TNode<SharedFunctionInfo> shared_info = LoadObjectField<SharedFunctionInfo>(
-      closure, JSFunction::kSharedFunctionInfoOffset);
+      closure, offsetof(JSFunction, shared_function_info_));
   TNode<Object> description = LoadConstantPoolEntryAtOperandIndex(0);
   TNode<UintPtrT> slot = BytecodeOperandFeedbackSlot(1);
   TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
@@ -2974,9 +2974,9 @@ IGNITION_HANDLER(CreateMappedArguments, InterpreterAssembler) {
   // TODO(rmcilroy): Remove this check when FastNewSloppyArgumentsStub supports
   // duplicate parameters.
   TNode<SharedFunctionInfo> shared_info = LoadObjectField<SharedFunctionInfo>(
-      closure, JSFunction::kSharedFunctionInfoOffset);
-  TNode<Uint32T> flags =
-      LoadObjectField<Uint32T>(shared_info, SharedFunctionInfo::kFlagsOffset);
+      closure, offsetof(JSFunction, shared_function_info_));
+  TNode<Uint32T> flags = LoadObjectField<Uint32T>(
+      shared_info, offsetof(SharedFunctionInfo, flags_));
   TNode<BoolT> has_duplicate_parameters =
       IsSetWord32<SharedFunctionInfo::HasDuplicateParametersBit>(flags);
   Branch(has_duplicate_parameters, &if_duplicate_parameters,
@@ -3346,24 +3346,17 @@ IGNITION_HANDLER(ForInStep, InterpreterAssembler) {
 
 // ForOfNext <object> <next> <value_done> <call_slot>
 //
-// Get the next value and done of the iterable.
+// Get the next value of the iterable, or TheHole if done.
 IGNITION_HANDLER(ForOfNext, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Object> next = LoadRegisterAtOperandIndex(1);
   TNode<Context> context = GetContext();
   TNode<Union<FeedbackVector, Undefined>> feedback_vector =
       LoadFeedbackVector();
-  TNode<UintPtrT> call_slot = BytecodeOperandFeedbackSlot(3);
+  TNode<UintPtrT> call_slot = BytecodeOperandFeedbackSlot(2);
 
-  auto [value, done_value] =
-      ForOfNextHelper(context, object, next, feedback_vector, call_slot);
-  StoreRegisterPairAtOperandIndex(value, done_value, 2);
-  // To avoid special logic in the deoptimizer to re-materialize the value in
-  // the accumulator, we clobber the accumulator after the iterator.next call.
-  // It doesn't really matter what we write to the accumulator here, since we
-  // restore to the correct value on the outside. Storing the result means we
-  // don't need to keep unnecessary state alive across the callstub.
-  ClobberAccumulator(value);
+  SetAccumulator(
+      ForOfNextHelper(context, object, next, feedback_vector, call_slot));
   Dispatch();
 }
 

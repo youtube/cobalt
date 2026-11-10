@@ -122,7 +122,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifierBase {
   }
   void VisitEmbeddedPointer(Tagged<InstructionStream> host,
                             RelocInfo* rinfo) override {
-    VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
+    VerifyHeapObjectImpl(rinfo->target_object());
   }
   void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
     VerifyPointersImpl(start, end);
@@ -205,17 +205,20 @@ void YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::
     MergeAndDeleteRememberedSets() {
   DCHECK(IsAcquired());
   if (slots_type_ == SlotsType::kRegularSlots) {
-    if (slot_set_)
+    if (slot_set_) {
       RememberedSet<OLD_TO_NEW>::MergeAndDelete(chunk_, std::move(*slot_set_));
-    if (background_slot_set_)
+    }
+    if (background_slot_set_) {
       RememberedSet<OLD_TO_NEW_BACKGROUND>::MergeAndDelete(
           chunk_, std::move(*background_slot_set_));
+    }
   } else {
     DCHECK_EQ(slots_type_, SlotsType::kTypedSlots);
     DCHECK_NULL(background_slot_set_);
-    if (typed_slot_set_)
+    if (typed_slot_set_) {
       RememberedSet<OLD_TO_NEW>::MergeAndDeleteTyped(
           chunk_, std::move(*typed_slot_set_));
+    }
   }
 }
 
@@ -228,8 +231,9 @@ void YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::
   } else {
     DCHECK_EQ(slots_type_, SlotsType::kTypedSlots);
     DCHECK_NULL(background_slot_set_);
-    if (typed_slot_set_)
+    if (typed_slot_set_) {
       RememberedSet<OLD_TO_NEW>::DeleteTyped(std::move(*typed_slot_set_));
+    }
   }
 }
 
@@ -701,9 +705,10 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
     StartMarking(false);
   } else {
     auto* incremental_marking = heap_->incremental_marking();
-    TRACE_GC_WITH_FLOW(
-        heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_FINISH_INCREMENTAL,
-        incremental_marking->current_trace_id(), TRACE_EVENT_FLAG_FLOW_IN);
+    TRACE_GC_WITH_FLOW(heap_->tracer(),
+                       GCTracer::Scope::MINOR_MS_MARK_FINISH_INCREMENTAL,
+                       perfetto::TerminatingFlow::ProcessScoped(
+                           incremental_marking->current_trace_id()));
     DCHECK(incremental_marking->IsMinorMarking());
     DCHECK(v8_flags.concurrent_minor_ms_marking);
     incremental_marking->Stop();
@@ -783,7 +788,7 @@ void MinorMarkSweepCollector::DrainMarkingWorklist() {
 
     Tagged<HeapObject> heap_object;
     while (marking_worklists_local->Pop(&heap_object)) {
-      DCHECK(!IsFreeSpaceOrFiller(heap_object, cage_base));
+      DCHECK(!IsFreeSpaceOrFiller(heap_object));
       DCHECK(IsHeapObject(heap_object));
       DCHECK(heap_->Contains(heap_object));
       DCHECK(!marking_state_->IsUnmarked(heap_object));
@@ -1041,8 +1046,8 @@ void MinorMarkSweepCollector::Sweep() {
 
   TRACE_GC_WITH_FLOW(
       heap_->tracer(), GCTracer::Scope::MINOR_MS_SWEEP,
-      sweeper_->GetTraceIdForFlowEvent(GCTracer::Scope::MINOR_MS_SWEEP),
-      TRACE_EVENT_FLAG_FLOW_OUT);
+      perfetto::Flow::ProcessScoped(
+          sweeper_->GetTraceIdForFlowEvent(GCTracer::Scope::MINOR_MS_SWEEP)));
 
   if (v8_flags.sticky_mark_bits) {
     StartSweepNewSpaceWithStickyBits();
@@ -1076,8 +1081,9 @@ void MinorMarkSweepCollector::Sweep() {
 void MinorMarkSweepCollector::RequestGC() {
   if (is_in_atomic_pause()) return;
   DCHECK(v8_flags.concurrent_minor_ms_marking);
-  if (gc_finalization_requested_.exchange(true, std::memory_order_relaxed))
+  if (gc_finalization_requested_.exchange(true, std::memory_order_relaxed)) {
     return;
+  }
   heap_->isolate()->stack_guard()->RequestGC();
 }
 }  // namespace internal

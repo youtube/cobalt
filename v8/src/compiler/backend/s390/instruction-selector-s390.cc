@@ -122,7 +122,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64(InstructionSelector* selector,
     return result;
   } else if (op.Is<WordBinopOp>()) {
     UNIMPLEMENTED();
-#ifdef V8_ENABLE_WEBASSEMBLY
+#ifdef V8_ENABLE_SIMD128
   } else if (const Simd128LaneMemoryOp* lane_op =
                  op.TryCast<Simd128LaneMemoryOp>()) {
     result.base = lane_op->base();
@@ -140,7 +140,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64(InstructionSelector* selector,
     result.displacement = 0;
     DCHECK(!load_transform->load_kind.tagged_base);
     return result;
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_SIMD128
   }
   return std::nullopt;
 }
@@ -3051,7 +3051,7 @@ F16_OP_LIST(VISIT_F16_OP)
 #undef F16_OP_LIST
 #undef SIMD_TYPES
 
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
 void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
   uint8_t shuffle[kSimd128Size];
   bool is_swizzle;
@@ -3074,10 +3074,10 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
   }
   Emit(kS390_I8x16Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
        g.UseRegister(input1),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 4)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 8)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 12)));
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle_remapped)),
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle_remapped + 4)),
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle_remapped + 8)),
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle_remapped + 12)));
 }
 
 void InstructionSelector::VisitI8x16Swizzle(OpIndex node) {
@@ -3095,6 +3095,12 @@ void InstructionSelector::VisitI8x16Swizzle(OpIndex node) {
        g.UseUniqueRegister(binop.input(1)));
 }
 
+#else
+void InstructionSelector::VisitI8x16Shuffle(OpIndex node) { UNREACHABLE(); }
+void InstructionSelector::VisitI8x16Swizzle(OpIndex node) { UNREACHABLE(); }
+#endif  // V8_ENABLE_SIMD128
+
+#if V8_ENABLE_WEBASSEMBLY
 void InstructionSelector::VisitSetStackPointer(OpIndex node) {
   OperandGenerator g(this);
   const SetStackPointerOp& op = Cast<SetStackPointerOp>(node);
@@ -3103,9 +3109,6 @@ void InstructionSelector::VisitSetStackPointer(OpIndex node) {
   Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
 }
 
-#else
-void InstructionSelector::VisitI8x16Shuffle(OpIndex node) { UNREACHABLE(); }
-void InstructionSelector::VisitI8x16Swizzle(OpIndex node) { UNREACHABLE(); }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 // This is a replica of SimdShuffle::Pack4Lanes. However, above function will
@@ -3339,6 +3342,8 @@ void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
 }
 
 void InstructionSelector::VisitUint64Add128(OpIndex node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitUint64Sub128(OpIndex node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
                                                         int first_input_index,

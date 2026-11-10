@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <openssl/base.h>
 #include <openssl/ssl.h>
 
 #include <assert.h>
@@ -127,11 +128,6 @@ SSLCredential::~SSLCredential() {
   CRYPTO_free_ex_data(&g_ex_data_class, &ex_data);
 }
 
-static CRYPTO_BUFFER *buffer_up_ref(const CRYPTO_BUFFER *buffer) {
-  CRYPTO_BUFFER_up_ref(const_cast<CRYPTO_BUFFER *>(buffer));
-  return const_cast<CRYPTO_BUFFER *>(buffer);
-}
-
 UniquePtr<SSLCredential> SSLCredential::Dup() const {
   assert(type == SSLCredentialType::kX509);
   UniquePtr<SSLCredential> ret = MakeUnique<SSLCredential>(type);
@@ -147,8 +143,8 @@ UniquePtr<SSLCredential> SSLCredential::Dup() const {
   }
 
   if (chain) {
-    ret->chain.reset(sk_CRYPTO_BUFFER_deep_copy(chain.get(), buffer_up_ref,
-                                                CRYPTO_BUFFER_free));
+    ret->chain.reset(sk_CRYPTO_BUFFER_deep_copy(
+        chain.get(), CRYPTO_BUFFER_dup_ref, CRYPTO_BUFFER_free));
     if (!ret->chain) {
       return nullptr;
     }
@@ -411,6 +407,14 @@ void SSL_CREDENTIAL_up_ref(SSL_CREDENTIAL *cred) {
   FromOpaque(cred)->UpRefInternal();
 }
 
+SSL_CREDENTIAL *SSL_CREDENTIAL_dup_ref(const SSL_CREDENTIAL *cred) {
+  // Safety: we do not mutate the internal state of |cred| other than the
+  // ref-count atomic variable.
+  auto *cred_impl = FromOpaque(const_cast<SSL_CREDENTIAL *>(cred));
+  cred_impl->UpRefInternal();
+  return const_cast<SSL_CREDENTIAL *>(cred);
+}
+
 void SSL_CREDENTIAL_free(SSL_CREDENTIAL *cred) {
   if (cred != nullptr) {
     FromOpaque(cred)->DecRefInternal();
@@ -654,7 +658,7 @@ SSL_CREDENTIAL *SSL_CREDENTIAL_new_spake2plusv1_server(
   return cred.release();
 }
 
-int SSL_CTX_add1_credential(SSL_CTX *ctx, SSL_CREDENTIAL *cred) {
+int SSL_CTX_add1_credential(SSL_CTX *ctx, const SSL_CREDENTIAL *cred) {
   auto *cred_impl = FromOpaque(cred);
   if (!cred_impl->IsComplete()) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -663,7 +667,7 @@ int SSL_CTX_add1_credential(SSL_CTX *ctx, SSL_CREDENTIAL *cred) {
   return ctx->cert->credentials.Push(UpRef(cred_impl));
 }
 
-int SSL_add1_credential(SSL *ssl, SSL_CREDENTIAL *cred) {
+int SSL_add1_credential(SSL *ssl, const SSL_CREDENTIAL *cred) {
   auto *cred_impl = FromOpaque(cred);
   if (ssl->config == nullptr) {
     return 0;

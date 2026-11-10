@@ -252,7 +252,7 @@ class WasmLoweringReducer : public Next {
       V<Map> map = __ LoadMapField(object);
       return __ Load(map, LoadOp::Kind::TaggedBase().Immutable(),
                      MemoryRepresentation::TaggedPointer(),
-                     Map::kInstanceDescriptorsOffset);
+                     offsetof(Map, instance_descriptors_));
     }
 
     // TODO(mliedtke): Get rid of the requires_aligned_access by aligning
@@ -440,7 +440,7 @@ class WasmLoweringReducer : public Next {
                                  : LoadOp::Kind::TaggedBase().Immutable();
 
     return __ Load(array, load_kind, RepresentationFor(wasm::kWasmI32, true),
-                   WasmArray::kLengthOffset);
+                   offsetof(WasmArray, length_));
   }
 
   V<WasmArray> REDUCE(WasmAllocateArray)(V<Map> rtt, V<Word32> length,
@@ -889,7 +889,7 @@ class WasmLoweringReducer : public Next {
   V<Object> LoadImmediateSuperRTT(V<Map> map) {
     return __ Load(map, LoadOp::Kind::TaggedBase().Immutable(),
                    MemoryRepresentation::TaggedPointer(),
-                   Map::kImmediateSupertypeOffset);
+                   offsetof(Map, dependent_code_));
   }
 
   V<Object> ReduceWasmTypeCastRtt(V<Object> object, OptionalV<Map> rtt,
@@ -964,7 +964,7 @@ class WasmLoweringReducer : public Next {
         V<Word32> supertypes_length = __ UntagSmi(
             __ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
                     MemoryRepresentation::TaggedSigned(),
-                    WasmTypeInfo::kSupertypesLengthOffset));
+                    offsetof(WasmTypeInfo, supertypes_length_)));
         __ TrapIfNot(__ Uint32LessThan(rtt_depth, supertypes_length),
                      frame_state, TrapId::kTrapIllegalCast);
       }
@@ -1047,7 +1047,7 @@ class WasmLoweringReducer : public Next {
         V<Word32> supertypes_length = __ UntagSmi(
             __ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
                     MemoryRepresentation::TaggedSigned(),
-                    WasmTypeInfo::kSupertypesLengthOffset));
+                    offsetof(WasmTypeInfo, supertypes_length_)));
         GOTO_IF_NOT(LIKELY(__ Uint32LessThan(rtt_depth, supertypes_length)),
                     end_label, 0);
       }
@@ -1148,7 +1148,7 @@ class WasmLoweringReducer : public Next {
   }
 
   V<Object> LoadWasmTypeInfo(V<Map> map) {
-    int offset = Map::kConstructorOrBackPointerOrNativeContextOffset;
+    int offset = offsetof(Map, constructor_or_back_pointer_or_native_context_);
     return __ Load(map, LoadOp::Kind::TaggedBase().Immutable(),
                    MemoryRepresentation::TaggedPointer(), offset);
   }

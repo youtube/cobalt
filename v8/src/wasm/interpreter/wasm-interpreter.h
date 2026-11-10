@@ -1337,11 +1337,39 @@ struct WasmInstruction {
       uint32_t dst_table_index;
       uint32_t src_table_index;
     } table_copy;
-    uint8_t simd_lane : 4;
+    struct SimdLane {
+      using LaneField = base::BitField<uint8_t, 0, 4, uint8_t>;
+
+      SimdLane() : value_(0) {}
+
+      uint8_t lane() const { return LaneField::decode(value_); }
+      void set_lane(uint8_t v) { value_ = LaneField::encode(v); }
+
+      uint8_t value_;
+    } simd_lane;
     struct SimdLaneLoad {
-      uint8_t lane : 4;
-      uint32_t memory_index : 28;
-      uint64_t offset : 48;
+      using LaneField = base::BitField<uint8_t, 0, 4, uint32_t>;
+      using MemoryIndexField = LaneField::Next<uint32_t, 28>;
+      using OffsetField = base::BitField64<uint64_t, 0, 48>;
+
+      SimdLaneLoad() : lane_and_memory_index_(0), offset_field_(0) {}
+
+      uint8_t lane() const { return LaneField::decode(lane_and_memory_index_); }
+      uint32_t memory_index() const {
+        return MemoryIndexField::decode(lane_and_memory_index_);
+      }
+      uint64_t offset() const { return OffsetField::decode(offset_field_); }
+      void set_lane(uint8_t v) {
+        lane_and_memory_index_ = LaneField::update(lane_and_memory_index_, v);
+      }
+      void set_memory_index(uint32_t v) {
+        lane_and_memory_index_ =
+            MemoryIndexField::update(lane_and_memory_index_, v);
+      }
+      void set_offset(uint64_t v) { offset_field_ = OffsetField::encode(v); }
+
+      uint32_t lane_and_memory_index_;
+      uint64_t offset_field_;
     } simd_loadstore_lane;
     struct MemoryInit {
       uint32_t memory_index;

@@ -37,6 +37,7 @@ import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.password_manager.GmsUpdateLauncher;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.regional_capabilities.RegionalCapabilitiesServiceFactory;
@@ -145,6 +146,9 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
     @VisibleForTesting
     public static final String PREF_ACCOUNT_SECTION_SETTINGS_TOGGLE =
             "account_section_settings_toggle";
+
+    @VisibleForTesting
+    public static final String PREF_ACCOUNT_SECTION_THEMES_TOGGLE = "account_section_themes_toggle";
 
     @VisibleForTesting
     public static final String PREF_GOOGLE_ACTIVITY_CONTROLS = "google_activity_controls";
@@ -332,7 +336,7 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
 
     private void setupCentralAccountCardPreference(Profile profile) {
         CentralAccountCardPreference centralAccountCardPreference =
-                (CentralAccountCardPreference) findPreference(PREF_CENTRAL_ACCOUNT_CARD_PREFERENCE);
+                findPreference(PREF_CENTRAL_ACCOUNT_CARD_PREFERENCE);
         IdentityManager identityManager = getIdentityManager(profile);
         centralAccountCardPreference.initialize(
                 assumeNonNull(identityManager.getPrimaryAccountInfo()),
@@ -342,13 +346,12 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
 
     private void setupIdentityErrorCardPreference(Profile profile) {
         IdentityErrorCardPreference identityErrorCardPreference =
-                (IdentityErrorCardPreference) findPreference(PREF_IDENTITY_ERROR_CARD_PREFERENCE);
+                findPreference(PREF_IDENTITY_ERROR_CARD_PREFERENCE);
         identityErrorCardPreference.initialize(profile, this);
     }
 
     private void setupBatchUploadCardPreference(Profile profile) {
-        mBatchUploadCardPreference =
-                (BatchUploadCardPreference) findPreference(PREF_BATCH_UPLOAD_CARD_PREFERENCE);
+        mBatchUploadCardPreference = findPreference(PREF_BATCH_UPLOAD_CARD_PREFERENCE);
         mBatchUploadCardPreference.initialize(
                 getActivity(),
                 profile,
@@ -375,16 +378,16 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
 
         // HISTORY and TABS are bundled in the same switch in the new settings panel.
         ChromeSwitchPreference historyAndTabsToggle =
-                (ChromeSwitchPreference) findPreference(PREF_ACCOUNT_SECTION_HISTORY_TOGGLE);
+                findPreference(PREF_ACCOUNT_SECTION_HISTORY_TOGGLE);
         mSyncTypeSwitchPreferencesMap.put(UserSelectableType.HISTORY, historyAndTabsToggle);
         mSyncTypeSwitchPreferencesMap.put(UserSelectableType.TABS, historyAndTabsToggle);
         historyAndTabsToggle.setViewId(R.id.history_and_tabs_toggle);
 
         ChromeSwitchPreference passwordsToggle =
-                (ChromeSwitchPreference) findPreference(PREF_ACCOUNT_SECTION_PASSWORDS_TOGGLE);
+                findPreference(PREF_ACCOUNT_SECTION_PASSWORDS_TOGGLE);
         mSyncTypeSwitchPreferencesMap.put(UserSelectableType.PASSWORDS, passwordsToggle);
         ChromeSwitchPreference paymentsToggle =
-                (ChromeSwitchPreference) findPreference(PREF_ACCOUNT_SECTION_PAYMENTS_TOGGLE);
+                findPreference(PREF_ACCOUNT_SECTION_PAYMENTS_TOGGLE);
         paymentsToggle.setTitle(R.string.account_section_payments_and_info_toggle);
         mSyncTypeSwitchPreferencesMap.put(UserSelectableType.PAYMENTS, paymentsToggle);
         mSyncTypeSwitchPreferencesMap.put(
@@ -394,6 +397,13 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
                 UserSelectableType.READING_LIST,
                 findPreference(PREF_ACCOUNT_SECTION_READING_LIST_TOGGLE));
 
+        ChromeSwitchPreference themesToggle = findPreference(PREF_ACCOUNT_SECTION_THEMES_TOGGLE);
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_THEME_SYNC)) {
+            mSyncTypeSwitchPreferencesMap.put(UserSelectableType.THEMES, themesToggle);
+        } else {
+            themesToggle.setVisible(false);
+        }
+
         mSyncTypeSwitchPreferencesMap
                 .values()
                 .forEach(pref -> pref.setOnPreferenceChangeListener(this));
@@ -401,7 +411,7 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
 
     private void setupSyncDisabledByAdministrator() {
         ChromeBasePreference settingsSyncDisabledByAdministrator =
-                (ChromeBasePreference) findPreference(PREF_SETTINGS_SYNC_DISABLED_BY_ADMINISTRATOR);
+                findPreference(PREF_SETTINGS_SYNC_DISABLED_BY_ADMINISTRATOR);
         settingsSyncDisabledByAdministrator.setDividerAllowedAbove(false);
         settingsSyncDisabledByAdministrator.setVisible(true);
     }
@@ -429,7 +439,7 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
     }
 
     private void setupSignOutPreference(Profile profile) {
-        mSignOutPreference = (SignoutButtonPreference) findPreference(PREF_SIGN_OUT);
+        mSignOutPreference = findPreference(PREF_SIGN_OUT);
         if (!shouldShowSignOutPref(profile)) {
             mSignOutPreference.setVisible(false);
         } else {
@@ -893,6 +903,10 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
                     var frag = ManageSyncSettings.class.getName();
                     if (!shouldShowExtensionsItem(profile)) {
                         indexData.removeEntryForKey(frag, PREF_ACCOUNT_SECTION_EXTENSIONS_TOGGLE);
+                    }
+                    if (!ChromeFeatureList.isEnabled(
+                            ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_THEME_SYNC)) {
+                        indexData.removeEntryForKey(frag, PREF_ACCOUNT_SECTION_THEMES_TOGGLE);
                     }
                     if (!shouldShowSignOutPref(profile)) {
                         indexData.removeEntryForKey(frag, PREF_SIGN_OUT);

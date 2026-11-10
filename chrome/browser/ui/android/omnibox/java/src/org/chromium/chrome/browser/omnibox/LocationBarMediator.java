@@ -24,6 +24,7 @@ import android.util.Range;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnKeyListener;
+import android.view.inputmethod.EditorInfo;
 import android.widget.TextView;
 
 import androidx.annotation.DrawableRes;
@@ -366,6 +367,7 @@ class LocationBarMediator
                 .getFuseboxStateSupplier()
                 .addSyncObserverAndPostIfNonNull(
                         mCallbackController.makeCancelable(this::onFuseboxStateChanged));
+        mFuseboxCoordinator.setOnInteractionCompletedCallback(this::onFuseboxInteractionCompleted);
         mOmniboxChipManager = omniboxChipManager;
     }
 
@@ -717,6 +719,12 @@ class LocationBarMediator
         }
 
         String text = info.getText();
+
+        if (text.startsWith(" ")) {
+            // Don't trigger site search if leading by spaces.
+            return false;
+        }
+
         // Check if a single space character was added (either by pure insertion or by replacing
         // selection with a single space).
         // This is the primary condition for site-search activation.
@@ -734,7 +742,7 @@ class LocationBarMediator
             return false;
         }
 
-        if (textBeforeSpace.trim().contains(" ")) {
+        if (textBeforeSpace.contains(" ")) {
             // Multiple words before space. We only trigger site search if the user typed a space
             // after a single word (e.g. keywords + space). If there are multiple words, it is
             // likely a normal query.
@@ -1067,7 +1075,7 @@ class LocationBarMediator
         mPageZoomIndicatorCoordinator.show(webContents);
     }
 
-    /* package */ void setAddToHomescreenCoordinatorForTesting( // IN-TEST
+    /* package */ void setAddToHomescreenCoordinatorForTesting(
             AddToHomescreenCoordinator addToHomescreenCoordinator) {
         mAddToHomescreenCoordinatorForTesting = addToHomescreenCoordinator;
     }
@@ -1178,6 +1186,11 @@ class LocationBarMediator
         // This guarantees that any calls to onSuggestionsChanged() will see the correct
         // mCurrentInput instance.
         mCurrentInput = session.getAutocompleteInput();
+        // If the session is already in a specialized mode (e.g. IMAGE_GENERATION), we preserve it.
+        // Otherwise, we apply the default request type for the current page.
+        if (mCurrentInput.getRequestType() == AutocompleteRequestType.SEARCH) {
+            mCurrentInput.setRequestType(mLocationBarDataProvider.getDefaultRequestType());
+        }
 
         session.activate(
                 mContext,
@@ -1253,12 +1266,20 @@ class LocationBarMediator
     private void endInputInternal() {
         if (mAutocompleteCoordinator == null || mCurrentInput == null) return;
         mAutocompleteCoordinator.endInput();
-        mFuseboxCoordinator.endInput();
+
         mStatusCoordinator.endInput();
+
         if (mScrimHandler != null) mScrimHandler.setVisibility(false);
         mCurrentInput.getRequestTypeSupplier().removeObserver(mAutocompleteRequestTypeObserver);
         FuseboxSessionState state = FuseboxSessionState.from(mLocationBarDataProvider);
-        if (state != null) state.deactivate();
+        if (state != null) {
+            state.deactivate();
+            // Only for Contextual Tasks, we skip ending the Fusebox input to allow it to stay warm
+            // in compact mode.
+            if (!state.isContextualTasksState()) {
+                mFuseboxCoordinator.endInput();
+            }
+        }
 
         mCurrentInput = null;
         // The hint text depends on mCurrentInput, nulling it may change the outcome.
@@ -1763,6 +1784,25 @@ class LocationBarMediator
         mLocationBarLayout.onFuseboxStateChanged(state);
     }
 
+    private void onFuseboxInteractionCompleted(boolean actionTaken) {
+        AutocompleteInput currentInput = mCurrentInput;
+        if (currentInput == null
+                || currentInput.getAutocompleteState() != AutocompleteState.STANDBY_NO_FOCUS) {
+            return;
+        }
+
+        if (actionTaken) {
+            currentInput.setAutocompleteState(AutocompleteState.ENABLED);
+            currentInput.setFocusReason(OmniboxFocusReason.FAKE_BOX_TAP);
+            beginOrResumeInput(/* activateNewSession= */ false);
+            requestUrlFocus();
+        } else {
+            // When no action is taken, just end the input session since the omnibox won't be
+            // focused.
+            endInput();
+        }
+    }
+
     private void updateNavigateButtonVisibility() {
         // TODO(crbug.com/464003589): Update the hasTextOrAttachments to include
         // getAttachmentsPresentSupplier check.
@@ -2054,6 +2094,18 @@ class LocationBarMediator
             if (mAutocompleteCoordinator != null
                     && mAutocompleteCoordinator.handleKeyEvent(keyCode, event)) {
                 return true;
+            } else if (KeyNavigationUtil.isEnter(event) && !hasAutocompleteController()) {
+                // This path is specific to Contextual Tasks where suggestions are disabled.
+                // The overriding URL loading delegate in ContextualTasksFusebox will handle this
+                // and send it to the ComposeboxQueryControllerBridge where the query text will be
+                // extracted and sent to the AIM page.
+                loadUrl(
+                        new OmniboxLoadUrlParams.Builder(
+                                        mUrlCoordinator.getTextWithAutocomplete(),
+                                        PageTransition.TYPED)
+                                .setInputStartTimestamp(event.getEventTime())
+                                .build());
+                return true;
             } else if ((!isRtl && KeyNavigationUtil.isGoRight(event))
                     || (isRtl && KeyNavigationUtil.isGoLeft(event))) {
                 // Ensures URL bar doesn't lose focus, when RIGHT or LEFT (RTL) key is pressed while
@@ -2065,7 +2117,18 @@ class LocationBarMediator
                 if (mCurrentInput != null
                         && mCurrentInput.getSiteSearchData() != null
                         && TextUtils.isEmpty(mUrlCoordinator.getTextWithoutAutocomplete())) {
+                    // When in zero prefix keyword mode, pressing backspace should remove current
+                    // site search data and restore the keyword as user input.
+                    var siteSearchData = mCurrentInput.getSiteSearchData();
+                    String searchText =
+                            siteSearchData.enteredViaSpace
+                                    ? siteSearchData.keyword + " "
+                                    : siteSearchData.keyword;
                     mCurrentInput.setSiteSearchData(null);
+                    mUrlCoordinator.setUrlBarData(
+                            UrlBarData.forNonUrlText(searchText),
+                            UrlBar.ScrollType.NO_SCROLL,
+                            UrlBarData.SELECT_END);
                     return true;
                 }
             }
@@ -2240,7 +2303,7 @@ class LocationBarMediator
 
         if (mUrlHasFocus && mUrlFocusedWithoutAnimations) {
             handleUrlFocusAnimation(true);
-        } else {
+        } else if (input.getAutocompleteState() != AutocompleteState.STANDBY_NO_FOCUS) {
             requestUrlFocus();
         }
 
@@ -2254,7 +2317,9 @@ class LocationBarMediator
     @Override
     public void endInput() {
         endInputInternal();
-        mUrlCoordinator.clearFocus();
+        if (mUrlHasFocus) {
+            mUrlCoordinator.clearFocus();
+        }
     }
 
     @Override
@@ -2275,6 +2340,11 @@ class LocationBarMediator
     @Override
     public boolean isUrlBarFocused() {
         return mUrlHasFocus;
+    }
+
+    private boolean hasAutocompleteController() {
+        return mAutocompleteCoordinator != null
+                && mAutocompleteCoordinator.hasAutocompleteController();
     }
 
     /** {@see OmniboxStub#loadUrlFromVoice(GURL)} */
@@ -2333,6 +2403,23 @@ class LocationBarMediator
     @Override
     public void onFocusByTouch() {
         recordOmniboxFocusReason(OmniboxFocusReason.OMNIBOX_TAP);
+    }
+
+    @Override
+    public void onEditorAction(int actionCode) {
+        // For contextual tasks, autocomplete is disabled and unavailable to handle keyboard
+        // actions, so we have to handle them here.
+        if (hasAutocompleteController()) return;
+
+        if (actionCode == EditorInfo.IME_ACTION_GO
+                || actionCode == EditorInfo.IME_ACTION_SEARCH
+                || actionCode == EditorInfo.IME_ACTION_SEND
+                || actionCode == EditorInfo.IME_ACTION_DONE) {
+            loadUrl(
+                    new OmniboxLoadUrlParams.Builder(
+                                    mUrlCoordinator.getTextWithAutocomplete(), PageTransition.TYPED)
+                            .build());
+        }
     }
 
     @Override
@@ -2506,8 +2593,9 @@ class LocationBarMediator
         @AutocompleteRequestType
         int requestType =
                 mCurrentInput == null
-                        ? AutocompleteRequestType.SEARCH
+                        ? mLocationBarDataProvider.getDefaultRequestType()
                         : mCurrentInput.getRequestType();
+
         FuseboxSessionState fuseboxSessionState = null;
         if (OmniboxFeatures.sShowModelPicker.getValue()) {
             fuseboxSessionState = FuseboxSessionState.from(mLocationBarDataProvider);

@@ -45,8 +45,7 @@ struct CastTraits;
 class Oddball;
 
 template <typename T>
-concept NotGCedType = !std::is_base_of_v<HeapObject, T> &&
-                      !std::is_base_of_v<HeapObjectLayout, T>;
+concept NotGCedType = !std::is_base_of_v<HeapObject, T>;
 
 // `Is<T>(value)` checks whether `value` is a tagged object of type `T`.
 template <typename T, typename U>
@@ -329,61 +328,36 @@ inline Holder<To> Cast(Holder<From> value,
       "      Tagged<Trusted> t = SbxCast<Trusted>(obj);\n"
       "* TrustedCast if correct by construction (or other deprecated usage)\n"
       "      Tagged<Trusted> t = "
-      "TrustedCast<Trusted>(obj->ReadTrustedPointerField<kTrustedTag>(...);\n");
+      "TrustedCast<Trusted>(TrustedPointerField::ReadTrustedPointerField<"
+      "kTrustedTag>(obj, ...));\n");
   return TrustedCast<To>(value, loc);
 }
 
 // TODO(leszeks): Figure out a way to make these cast to actual pointers rather
 // than Tagged.
 template <typename To, typename From>
-  requires std::is_base_of_v<HeapObjectLayout, From>
+  requires std::is_base_of_v<HeapObject, From>
 inline Tagged<To> UncheckedCast(const From* value) {
   return UncheckedCast<To>(Tagged(value));
 }
 template <typename To, typename From>
-  requires std::is_base_of_v<HeapObjectLayout, From>
+  requires std::is_base_of_v<HeapObject, From>
 inline Tagged<To> TrustedCast(const From* value) {
   return TrustedCast<To>(Tagged(value));
 }
 template <typename To, typename From>
-  requires std::is_base_of_v<HeapObjectLayout, From>
+  requires std::is_base_of_v<HeapObject, From>
 inline Tagged<To> CheckedCast(const From* value) {
   return CheckedCast<To>(Tagged(value));
 }
 template <typename To, typename From>
-  requires std::is_base_of_v<HeapObjectLayout, From>
+  requires std::is_base_of_v<HeapObject, From>
 inline Tagged<To> SbxCast(const From* value) {
   return SbxCast<To>(Tagged(value));
 }
 template <typename To, typename From>
-  requires std::is_base_of_v<HeapObjectLayout, From>
+  requires std::is_base_of_v<HeapObject, From>
 inline Tagged<To> Cast(const From* value,
-                       SourceLocation loc = SourceLocation::CurrentIfDebug()) {
-  return Cast<To>(Tagged(value), loc);
-}
-template <typename To, typename From>
-  requires(std::is_base_of_v<HeapObject, From>)
-inline Tagged<To> UncheckedCast(From value) {
-  return UncheckedCast<To>(Tagged(value));
-}
-template <typename To, typename From>
-  requires(std::is_base_of_v<HeapObject, From>)
-inline Tagged<To> TrustedCast(From value) {
-  return TrustedCast<To>(Tagged(value));
-}
-template <typename To, typename From>
-  requires(std::is_base_of_v<HeapObject, From>)
-inline Tagged<To> CheckedCast(From value) {
-  return CheckedCast<To>(Tagged(value));
-}
-template <typename To, typename From>
-  requires(std::is_base_of_v<HeapObject, From>)
-inline Tagged<To> SbxCast(From value) {
-  return SbxCast<To>(Tagged(value));
-}
-template <typename To, typename From>
-  requires(std::is_base_of_v<HeapObject, From>)
-inline Tagged<To> Cast(From value,
                        SourceLocation loc = SourceLocation::CurrentIfDebug()) {
   return Cast<To>(Tagged(value), loc);
 }
@@ -461,6 +435,16 @@ struct CastTraits<Weak<T>> {
       // Can't cast weak to non-weak.
       return false;
     }
+  }
+};
+
+template <typename... T>
+struct CastTraits<Union<T...>> {
+  static inline bool AllowFrom(Tagged<Object> value) {
+    return (Is<T>(value) || ...);
+  }
+  static inline bool AllowFrom(Tagged<HeapObject> value) {
+    return (Is<T>(value) || ...);
   }
 };
 

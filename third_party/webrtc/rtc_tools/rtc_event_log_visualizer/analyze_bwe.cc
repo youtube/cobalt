@@ -685,10 +685,15 @@ void CreateScreamSimulationBitrateGraph(const ParsedRtcEventLog& parsed_log,
   TimeSeries target_rate_series("Target rate", LineStyle::kStep);
   TimeSeries pacing_rate_series("Pacing rate", LineStyle::kStep);
   TimeSeries send_rate_series("Send rate", LineStyle::kStep);
+  IntervalSeries app_limited_series("Application limited", "#5092fc",
+                                    IntervalSeries::kHorizontal);
 
   LogScreamSimulation simulation({.rate_window = config.window_duration_},
                                  config.env_);
   simulation.ProcessEventsInLog(parsed_log);
+
+  bool previously_app_limited = false;
+  float app_limited_start_time = 0;
 
   for (const LogScreamSimulation::State& state : simulation.updates()) {
     target_rate_series.points.emplace_back(config.GetCallTimeSec(state.time),
@@ -697,10 +702,25 @@ void CreateScreamSimulationBitrateGraph(const ParsedRtcEventLog& parsed_log,
                                            state.pacing_rate.bps() / 1000);
     send_rate_series.points.emplace_back(config.GetCallTimeSec(state.time),
                                          state.send_rate.bps() / 1000);
+    if (state.is_application_limited && !previously_app_limited) {
+      app_limited_start_time = config.GetCallTimeSec(state.time);
+      previously_app_limited = true;
+    } else if (!state.is_application_limited && previously_app_limited) {
+      app_limited_series.intervals.emplace_back(
+          app_limited_start_time, config.GetCallTimeSec(state.time));
+      previously_app_limited = false;
+    }
   }
+
+  if (previously_app_limited) {
+    app_limited_series.intervals.emplace_back(app_limited_start_time,
+                                              config.CallEndTimeSec());
+  }
+
   plot->AppendTimeSeries(std::move(target_rate_series));
   plot->AppendTimeSeries(std::move(pacing_rate_series));
   plot->AppendTimeSeries(std::move(send_rate_series));
+  plot->AppendIntervalSeries(std::move(app_limited_series));
 
   plot->SetXAxis(config.CallBeginTimeSec(), config.CallEndTimeSec(), "Time (s)",
                  kLeftMargin, kRightMargin);

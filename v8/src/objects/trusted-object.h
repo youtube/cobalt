@@ -30,7 +30,7 @@ namespace internal {
 // would be unsafe: an attacker could corrupt any (direct) pointer to these
 // objects stored inside the sandbox. However, ExposedTrustedObject can be
 // referenced via indirect pointers, which guarantee memory-safe access.
-V8_OBJECT class TrustedObject : public HeapObjectLayout {
+V8_OBJECT class TrustedObject : public HeapObject {
  public:
   DECL_VERIFIER(TrustedObject)
 
@@ -65,7 +65,7 @@ V8_OBJECT class TrustedObject : public HeapObjectLayout {
 #endif
 
   // Back-compat alias: TrustedObject adds no fields on top of HeapObject.
-  static constexpr int kHeaderSize = sizeof(HeapObjectLayout);
+  static constexpr int kHeaderSize = sizeof(HeapObject);
 } V8_OBJECT_END;
 
 // A trusted object that can safely be referenced from untrusted objects.
@@ -142,20 +142,22 @@ V8_OBJECT class ExposedTrustedObject : public TrustedObject {
   // which this object can be referenced from inside the sandbox.
   inline IndirectPointerHandle self_indirect_pointer_handle() const;
 
+#if V8_ENABLE_SANDBOX
+  inline void InitSelfIndirectPointerField(
+      std::atomic<IndirectPointerHandle>* field_ptr, IsolateForSandbox isolate,
+      TrustedPointerPublishingScope* opt_publishing_scope);
+#endif  // V8_ENABLE_SANDBOX
+
   DECL_VERIFIER(ExposedTrustedObject)
 
-  // Back-compat offset/size constants. Defined after the member declarations
-  // using offsetof / sizeof so the collapse doesn't churn call sites that
-  // reference e.g. `ExposedTrustedObject::kSelfIndirectPointerOffset` or
-  // `ExposedTrustedObject::kHeaderSize`.
 #ifdef V8_ENABLE_SANDBOX
-  static const int kSelfIndirectPointerOffset;
 #endif  // V8_ENABLE_SANDBOX
   static const int kHeaderSize;
 
  private:
   friend class TorqueGeneratedExposedTrustedObjectAsserts;
 
+ public:
 #ifdef V8_ENABLE_SANDBOX
   // The 'self' indirect pointer is only available when the sandbox is enabled.
   // Otherwise, these objects are referenced through direct pointers.
@@ -164,8 +166,6 @@ V8_OBJECT class ExposedTrustedObject : public TrustedObject {
 } V8_OBJECT_END;
 
 #ifdef V8_ENABLE_SANDBOX
-inline constexpr int ExposedTrustedObject::kSelfIndirectPointerOffset =
-    offsetof(ExposedTrustedObject, self_indirect_pointer_);
 #endif  // V8_ENABLE_SANDBOX
 inline constexpr int ExposedTrustedObject::kHeaderSize =
     sizeof(ExposedTrustedObject);

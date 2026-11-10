@@ -20,6 +20,7 @@
 #include "src/objects/abstract-code-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/feedback-vector-inl.h"
+#include "src/objects/function-kind.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/hole.h"
 #include "src/objects/instance-type-inl.h"
@@ -143,10 +144,6 @@ Tagged<NameOrScopeInfoT> SharedFunctionInfo::name_or_scope_info(
     AcquireLoadTag) const {
   return name_or_scope_info_.Acquire_Load();
 }
-Tagged<NameOrScopeInfoT> SharedFunctionInfo::name_or_scope_info(
-    PtrComprCageBase, AcquireLoadTag tag) const {
-  return name_or_scope_info(tag);
-}
 void SharedFunctionInfo::set_name_or_scope_info(Tagged<NameOrScopeInfoT> value,
                                                 ReleaseStoreTag,
                                                 WriteBarrierMode mode) {
@@ -206,9 +203,10 @@ bool SharedFunctionInfo::HasUntrustedData() const { return !HasTrustedData(); }
 template <typename T, IndirectPointerTagRange tag_range>
 Tagged<T> SharedFunctionInfo::GetTrustedData(IsolateForSandbox isolate) const {
   static_assert(tag_range != kAllIndirectPointerTags);
-  return Cast<T>(
-      Tagged<HeapObject>(this)->template ReadTrustedPointerField<tag_range>(
-          kTrustedFunctionDataOffset, isolate, kAcquireLoad));
+  return Cast<T>(TrustedPointerField::ReadTrustedPointerField<tag_range>(
+      Tagged<HeapObject>(this),
+      offsetof(SharedFunctionInfo, trusted_function_data_), isolate,
+      kAcquireLoad));
 }
 
 Tagged<Object> SharedFunctionInfo::GetUntrustedData() const {
@@ -216,11 +214,7 @@ Tagged<Object> SharedFunctionInfo::GetUntrustedData() const {
 }
 
 DEF_GETTER(SharedFunctionInfo, script, Tagged<HeapObject>) {
-  return script(cage_base, kAcquireLoad);
-}
-Tagged<HeapObject> SharedFunctionInfo::script(PtrComprCageBase,
-                                              AcquireLoadTag tag) const {
-  return script(tag);
+  return script(kAcquireLoad);
 }
 bool SharedFunctionInfo::has_script(AcquireLoadTag tag) const {
   return IsScript(script(tag));
@@ -229,11 +223,6 @@ bool SharedFunctionInfo::has_script(AcquireLoadTag tag) const {
 Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>
 SharedFunctionInfo::outer_scope_info_or_feedback_metadata() const {
   return outer_scope_info_or_feedback_metadata_.load();
-}
-Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>
-SharedFunctionInfo::outer_scope_info_or_feedback_metadata(
-    PtrComprCageBase) const {
-  return outer_scope_info_or_feedback_metadata();
 }
 void SharedFunctionInfo::set_outer_scope_info_or_feedback_metadata(
     Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>> value,
@@ -245,11 +234,6 @@ Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>
 SharedFunctionInfo::raw_outer_scope_info_or_feedback_metadata() const {
   return outer_scope_info_or_feedback_metadata();
 }
-Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>
-SharedFunctionInfo::raw_outer_scope_info_or_feedback_metadata(
-    PtrComprCageBase cage_base) const {
-  return outer_scope_info_or_feedback_metadata(cage_base);
-}
 void SharedFunctionInfo::set_raw_outer_scope_info_or_feedback_metadata(
     Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>> value,
     WriteBarrierMode mode) {
@@ -260,18 +244,9 @@ SharedFunctionInfo::raw_outer_scope_info_or_feedback_metadata(
     AcquireLoadTag) const {
   return outer_scope_info_or_feedback_metadata_.Acquire_Load();
 }
-Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>
-SharedFunctionInfo::raw_outer_scope_info_or_feedback_metadata(
-    PtrComprCageBase cage_base, AcquireLoadTag tag) const {
-  return raw_outer_scope_info_or_feedback_metadata(tag);
-}
 
 Tagged<Object> SharedFunctionInfo::untrusted_function_data() const {
   return untrusted_function_data_.load();
-}
-Tagged<Object> SharedFunctionInfo::untrusted_function_data(
-    PtrComprCageBase) const {
-  return untrusted_function_data();
 }
 void SharedFunctionInfo::set_untrusted_function_data(Tagged<Object> value,
                                                      WriteBarrierMode mode) {
@@ -417,7 +392,7 @@ bool SharedFunctionInfo::needs_script_context() const {
 Tagged<AbstractCode> SharedFunctionInfo::abstract_code(Isolate* isolate) {
   // TODO(v8:11429): Decide if this return bytecode or baseline code, when the
   // latter is present.
-  if (HasBytecodeArray(isolate)) {
+  if (HasBytecodeArray()) {
     return Cast<AbstractCode>(GetBytecodeArray(isolate));
   } else {
     return Cast<AbstractCode>(GetCode(isolate));
@@ -675,22 +650,21 @@ void SharedFunctionInfo::DontAdaptArguments() {
 }
 
 DEF_ACQUIRE_GETTER(SharedFunctionInfo, scope_info, Tagged<ScopeInfo>) {
-  Tagged<Object> maybe_scope_info = name_or_scope_info(cage_base, kAcquireLoad);
-  if (IsScopeInfo(maybe_scope_info, cage_base)) {
+  Tagged<Object> maybe_scope_info = name_or_scope_info(tag);
+  if (IsScopeInfo(maybe_scope_info)) {
     return Cast<ScopeInfo>(maybe_scope_info);
   }
   return GetReadOnlyRoots().empty_scope_info();
 }
 
 DEF_GETTER(SharedFunctionInfo, scope_info, Tagged<ScopeInfo>) {
-  return scope_info(cage_base, kAcquireLoad);
+  return scope_info(kAcquireLoad);
 }
 
 Tagged<ScopeInfo> SharedFunctionInfo::EarlyScopeInfo(AcquireLoadTag tag) {
   // Keep in sync with the scope_info getter above.
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  Tagged<Object> maybe_scope_info = name_or_scope_info(cage_base, tag);
-  if (IsScopeInfo(maybe_scope_info, cage_base)) {
+  Tagged<Object> maybe_scope_info = name_or_scope_info(tag);
+  if (IsScopeInfo(maybe_scope_info)) {
     return Cast<ScopeInfo>(maybe_scope_info);
   }
   return EarlyGetReadOnlyRoots().empty_scope_info();
@@ -733,7 +707,7 @@ DEF_GETTER(SharedFunctionInfo, outer_scope_info,
   DCHECK(!is_compiled());
   DCHECK(!HasFeedbackMetadata());
   return Cast<UnionOf<ScopeInfo, TheHole>>(
-      raw_outer_scope_info_or_feedback_metadata(cage_base));
+      raw_outer_scope_info_or_feedback_metadata());
 }
 
 bool SharedFunctionInfo::HasOuterScopeInfo() const {
@@ -781,17 +755,11 @@ bool SharedFunctionInfo::HasFeedbackMetadata(AcquireLoadTag tag) const {
 
 DEF_GETTER(SharedFunctionInfo, feedback_metadata, Tagged<FeedbackMetadata>) {
   DCHECK(HasFeedbackMetadata());
-  return Cast<FeedbackMetadata>(
-      raw_outer_scope_info_or_feedback_metadata(cage_base));
+  return Cast<FeedbackMetadata>(raw_outer_scope_info_or_feedback_metadata());
 }
 
 Tagged<FeedbackMetadata> SharedFunctionInfo::feedback_metadata(
     AcquireLoadTag) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return feedback_metadata(cage_base, kAcquireLoad);
-}
-Tagged<FeedbackMetadata> SharedFunctionInfo::feedback_metadata(
-    PtrComprCageBase cage_base, AcquireLoadTag) const {
   Tagged<FeedbackMetadata> value = Cast<FeedbackMetadata>(
       outer_scope_info_or_feedback_metadata_.Acquire_Load());
   DCHECK(HasFeedbackMetadata(kAcquireLoad));
@@ -811,7 +779,7 @@ bool SharedFunctionInfo::is_compiled() const {
 
 template <typename IsolateT>
 IsCompiledScope SharedFunctionInfo::is_compiled_scope(IsolateT* isolate) const {
-  return IsCompiledScope(*this, isolate);
+  return IsCompiledScope(this, isolate);
 }
 
 IsCompiledScope::IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
@@ -918,11 +886,7 @@ DEF_GETTER(SharedFunctionInfo, HasBytecodeArray, bool) {
       GetTrustedData(GetCurrentIsolateForSandbox());
   // If the SFI has no trusted data, GetTrustedData() will return Smi::zero().
   if (IsSmi(data)) return false;
-  InstanceType instance_type =
-      Cast<HeapObject>(data)->map(cage_base)->instance_type();
-  return InstanceTypeChecker::IsBytecodeArray(instance_type) ||
-         InstanceTypeChecker::IsInterpreterData(instance_type) ||
-         InstanceTypeChecker::IsCode(instance_type);
+  return IsBytecodeArray(data) || IsInterpreterData(data) || IsCode(data);
 }
 
 template <typename IsolateT>
@@ -962,17 +926,6 @@ Tagged<BytecodeArray> SharedFunctionInfo::GetActiveBytecodeArray(
   }
   if (Tagged<BytecodeArray> bytecode_array; TryCast(data, &bytecode_array)) {
     return bytecode_array;
-  }
-  if (!Is<InterpreterData>(data)) {
-    // See https://crbug.com/442277757
-    InstanceType type = static_cast<InstanceType>(-1);
-    if (Is<HeapObject>(data)) {
-      type = Cast<HeapObject>(data)->map()->instance_type();
-    }
-    isolate->PushStackTraceAndDie(
-        reinterpret_cast<void*>(data.ptr()),
-        reinterpret_cast<void*>(GetTrustedData(isolate).ptr()),
-        reinterpret_cast<void*>(type));
   }
   return SbxCast<InterpreterData>(data)->bytecode_array();
 }
@@ -1047,7 +1000,7 @@ DEF_GETTER(SharedFunctionInfo, HasBaselineCode, bool) {
 }
 
 DEF_ACQUIRE_GETTER(SharedFunctionInfo, baseline_code, Tagged<Code>) {
-  DCHECK(HasBaselineCode(cage_base));
+  DCHECK(HasBaselineCode());
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   auto code = GetTrustedData<Code, kCodeIndirectPointerTag>(isolate);
   SBXCHECK_EQ(code->kind(), CodeKind::BASELINE);
@@ -1071,7 +1024,7 @@ void SharedFunctionInfo::FlushBaselineCode() {
 
 #if V8_ENABLE_WEBASSEMBLY
 bool SharedFunctionInfo::HasAsmWasmData() const {
-  return IsAsmWasmData(GetUntrustedData());
+  return IsAsmWasmData(GetTrustedData(GetCurrentIsolateForSandbox()));
 }
 
 bool SharedFunctionInfo::HasWasmFunctionData(IsolateForSandbox isolate) const {
@@ -1094,14 +1047,15 @@ bool SharedFunctionInfo::HasWasmResumeData() const {
 
 DEF_GETTER(SharedFunctionInfo, asm_wasm_data, Tagged<AsmWasmData>) {
   DCHECK(HasAsmWasmData());
-  return Cast<AsmWasmData>(GetUntrustedData());
+  return GetTrustedData<AsmWasmData, kAsmWasmDataIndirectPointerTag>(
+      GetCurrentIsolateForSandbox());
 }
 
 void SharedFunctionInfo::set_asm_wasm_data(Tagged<AsmWasmData> data,
                                            WriteBarrierMode mode) {
   DCHECK(GetUntrustedData() == Smi::FromEnum(Builtin::kCompileLazy) ||
          HasUncompiledData(GetCurrentIsolateForSandbox()) || HasAsmWasmData());
-  SetUntrustedData(data, mode);
+  SetTrustedData(data, mode);
 }
 
 DEF_GETTER(SharedFunctionInfo, wasm_function_data, Tagged<WasmFunctionData>) {
@@ -1296,13 +1250,26 @@ bool SharedFunctionInfo::IsSubjectToDebugging() const {
   return IsUserJavaScript();
 }
 
-bool SharedFunctionInfo::CanDiscardCompiled() const {
-#if V8_ENABLE_WEBASSEMBLY
-  if (HasAsmWasmData()) return true;
-#endif  // V8_ENABLE_WEBASSEMBLY
-  return HasBytecodeArray() ||
-         HasUncompiledDataWithPreparseData(GetCurrentIsolateForSandbox()) ||
-         HasBaselineCode();
+bool SharedFunctionInfo::CanDiscardCompiled(
+    Tagged<DiscardableData>* out_data) const {
+  Tagged<Union<Smi, TrustedObject>> data =
+      GetTrustedData(GetCurrentIsolateForSandbox());
+
+  // If the SFI has no trusted data, GetTrustedData() will return Smi::zero().
+  if (IsSmi(data)) {
+    return false;
+  }
+
+  Tagged<DiscardableData> discardable_data;
+  if (!TryCast(data, &discardable_data)) return false;
+  DCHECK_IMPLIES(
+      IsCode(discardable_data),
+      TrustedCast<Code>(discardable_data)->kind() == CodeKind::BASELINE);
+
+  if (out_data != nullptr) {
+    *out_data = discardable_data;
+  }
+  return true;
 }
 
 bool SharedFunctionInfo::is_class_constructor() const {

@@ -29,16 +29,19 @@ void Builtins::Generate_WasmInterpreterEntry(MacroAssembler* masm) {
   Register function_index = r12;
   Register array_start = r15;
   Register result_start = rax;
+  Register ref_params_array = rbx;
 
   // Set up the stackframe.
   __ EnterFrame(StackFrame::WASM_INTERPRETER_ENTRY);
 
+  // Push tagged values first so they are contiguous for GC scanning.
   __ pushq(wasm_instance);
+  __ pushq(ref_params_array);
   __ pushq(function_index);
   __ pushq(array_start);
   __ pushq(result_start);
   __ Move(wasm_instance, 0);
-  __ CallRuntime(Runtime::kWasmRunInterpreter, 4);
+  __ CallRuntime(Runtime::kWasmRunInterpreter, 5);
 
   // Deconstruct the stack frame.
   __ LeaveFrame(StackFrame::WASM_INTERPRETER_ENTRY);
@@ -55,13 +58,13 @@ void LoadWasmInstanceFromFunctionData(MacroAssembler* masm,
   __ DecompressProtected(
       trusted_instance_data,
       MemOperand(function_data,
-                 WasmExportedFunctionData::kProtectedInstanceDataOffset -
+                 offsetof(WasmExportedFunctionData, protected_instance_data_) -
                      kHeapObjectTag));
 #else
   __ LoadTaggedField(
       trusted_instance_data,
       MemOperand(function_data,
-                 WasmExportedFunctionData::kProtectedInstanceDataOffset -
+                 offsetof(WasmExportedFunctionData, protected_instance_data_) -
                      kHeapObjectTag));
 #endif
   __ LoadTaggedField(wasm_instance,
@@ -77,12 +80,12 @@ void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
   Register shared_function_info = closure;
   __ LoadTaggedField(
       shared_function_info,
-      FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+      FieldMemOperand(closure, offsetof(JSFunction, shared_function_info_)));
   closure = no_reg;
   __ LoadTrustedPointerField(
       function_data,
       FieldOperand(shared_function_info,
-                   SharedFunctionInfo::kTrustedFunctionDataOffset),
+                   offsetof(SharedFunctionInfo, trusted_function_data_)),
       kWasmExportedFunctionDataIndirectPointerTag, kScratchRegister);
 
   shared_function_info = no_reg;
@@ -108,7 +111,7 @@ void LoadValueTypesArray(MacroAssembler* masm, Register function_data,
   __ LoadTaggedField(
       signature_data,
       FieldOperand(function_data,
-                   WasmExportedFunctionData::kPackedArgsSizeOffset));
+                   offsetof(WasmExportedFunctionData, packed_args_size_)));
   __ SmiToInt32(signature_data);
 
   Register internal_function = valuetypes_array_ptr;
@@ -116,12 +119,12 @@ void LoadValueTypesArray(MacroAssembler* masm, Register function_data,
       internal_function,
       MemOperand(
           function_data,
-          WasmExportedFunctionData::kProtectedInternalOffset - kHeapObjectTag));
+          offsetof(WasmFunctionData, protected_internal_) - kHeapObjectTag));
 
   Register signature = internal_function;
   __ movq(signature,
           MemOperand(internal_function,
-                     WasmInternalFunction::kSigOffset - kHeapObjectTag));
+                     offsetof(WasmInternalFunction, sig_) - kHeapObjectTag));
   LoadFromSignature(masm, valuetypes_array_ptr, return_count, param_count);
 }
 
@@ -177,6 +180,14 @@ void Builtins::Generate_JSToWasmInterpreterWrapperAsm(MacroAssembler* masm) {
   __ Move(
       MemOperand(rbp, WasmInterpreterWrapperConstants::kGCScanSlotCountOffset),
       0);
+  // Load the FixedArray of converted reference parameters (or Undefined)
+  // from the wrapper buffer into rbx, which WasmInterpreterEntry will
+  // forward to Runtime_WasmRunInterpreter.
+  Register ref_params_array = rbx;
+  __ movq(ref_params_array,
+          MemOperand(
+              wrapper_buffer,
+              WasmInterpreterWrapperConstants::kWrapperBufferRefParamsArray));
   // -------------------------------------------
   // Call the Wasm function.
   // -------------------------------------------
@@ -465,15 +476,16 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ movq(callable, r8);  // Callable passed in r8.
 
   Register shared_function_info = r15;
-  __ LoadTaggedField(shared_function_info,
-                     FieldMemOperand(target_js_function,
-                                     JSFunction::kSharedFunctionInfoOffset));
+  __ LoadTaggedField(
+      shared_function_info,
+      FieldMemOperand(target_js_function,
+                      offsetof(JSFunction, shared_function_info_)));
 
   // Set the context of the function; the call has to run in the function
   // context.
   Register context = rsi;
-  __ LoadTaggedField(
-      context, FieldOperand(target_js_function, JSFunction::kContextOffset));
+  __ LoadTaggedField(context, FieldOperand(target_js_function,
+                                           offsetof(JSFunction, context_)));
   target_js_function = no_reg;
 
   // Store context to be retrieved after the call.
@@ -484,8 +496,8 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   Label calculate_js_function_arity;
   Register receiver = r11;
   Register flags = rbx;
-  __ movl(flags,
-          FieldOperand(shared_function_info, SharedFunctionInfo::kFlagsOffset));
+  __ movl(flags, FieldOperand(shared_function_info,
+                              offsetof(SharedFunctionInfo, flags_)));
   __ testq(flags, Immediate(SharedFunctionInfo::IsNativeBit::kMask |
                             SharedFunctionInfo::IsStrictBit::kMask));
   flags = no_reg;
@@ -938,7 +950,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ jmp(&finish_param_conversion);
 
   __ bind(&param_kWasmF32);
-  __ Movsd(xmm0,
+  __ Movss(xmm0,
            MemOperand(packed_args, current_param_slot_offset, times_1, 0));
   __ Call(BUILTIN_CODE(masm->isolate(), WasmFloat32ToNumber),
           RelocInfo::CODE_TARGET);

@@ -728,8 +728,9 @@ const MemoryChunk* MemoryAllocator::LookupChunkContainingAddressInSafepoint(
     DCHECK_LE(large_page_chunk->address(), addr);
     // This code can run from the shared heap isolate and the slot may point
     // into a client heap isolate, so ignore the isolate check.
-    if (large_page_chunk->MetadataNoIsolateCheck()->Contains(addr))
+    if (large_page_chunk->MetadataNoIsolateCheck()->Contains(addr)) {
       return large_page_chunk;
+    }
   }
   // Not found in any page.
   return nullptr;

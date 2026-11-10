@@ -65,8 +65,9 @@ AllocationResult MainAllocator::AllocateFastAligned(
   }
   Tagged<HeapObject> obj = HeapObject::FromAddress(
       allocation_info().IncrementTop(aligned_size_in_bytes.value()));
-  if (result_aligned_size_in_bytes)
+  if (result_aligned_size_in_bytes) {
     *result_aligned_size_in_bytes = aligned_size_in_bytes;
+  }
 
   if (filler_size > 0) {
     obj = space_heap()->PrecedeWithFiller(obj, filler_size);

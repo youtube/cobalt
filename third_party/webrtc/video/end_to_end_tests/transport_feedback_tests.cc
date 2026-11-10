@@ -19,7 +19,6 @@
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
 #include "api/rtp_parameters.h"
-#include "api/task_queue/task_queue_base.h"
 #include "api/test/simulated_network.h"
 #include "api/transport/bitrate_settings.h"
 #include "api/units/time_delta.h"
@@ -37,6 +36,7 @@
 #include "rtc_base/event.h"
 #include "rtc_base/numerics/sequence_number_unwrapper.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 #include "test/call_test.h"
 #include "test/direct_transport.h"
@@ -68,14 +68,14 @@ TEST(TransportFeedbackMultiStreamTest, AssignsTransportSequenceNumbers) {
    public:
     RtpExtensionHeaderObserver(
         const Environment& env,
-        TaskQueueBase* task_queue,
+        Thread* network_thread,
         Call* sender_call,
         const std::map<uint32_t, uint32_t>& ssrc_map,
         const std::map<uint8_t, MediaType>& payload_type_map,
         std::span<const RtpExtension> audio_extensions,
         std::span<const RtpExtension> video_extensions)
         : DirectTransport(env,
-                          task_queue,
+                          network_thread,
                           std::make_unique<FakeNetworkPipe>(
                               &env.clock(),
                               std::make_unique<SimulatedNetwork>(
@@ -238,7 +238,7 @@ TEST(TransportFeedbackMultiStreamTest, AssignsTransportSequenceNumbers) {
 
     std::unique_ptr<test::DirectTransport> CreateSendTransport(
         const Environment& env,
-        TaskQueueBase* task_queue,
+        Thread* network_thread,
         Call* sender_call) override {
       std::map<uint8_t, MediaType> payload_type_map =
           MultiStreamTester::payload_type_map_;
@@ -249,8 +249,8 @@ TEST(TransportFeedbackMultiStreamTest, AssignsTransportSequenceNumbers) {
           RtpExtension(RtpExtension::kTransportSequenceNumberUri,
                        kTransportSequenceNumberExtensionId)};
       auto observer = std::make_unique<RtpExtensionHeaderObserver>(
-          env, task_queue, sender_call, rtx_to_media_ssrcs_, payload_type_map,
-          extensions, extensions);
+          env, network_thread, sender_call, rtx_to_media_ssrcs_,
+          payload_type_map, extensions, extensions);
       observer_ = observer.get();
       return observer;
     }

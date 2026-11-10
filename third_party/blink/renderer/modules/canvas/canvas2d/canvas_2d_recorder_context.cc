@@ -34,21 +34,16 @@
 #include "cc/paint/paint_flags.h"
 #include "cc/paint/paint_image.h"
 #include "cc/paint/record_paint_canvas.h"
-#include "cc/paint/refcounted_buffer.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
 #include "media/base/video_frame.h"
 #include "build/buildflag.h"
 #include "media/base/video_frame_metadata.h"
 #include "media/base/video_transformation.h"
 #include "third_party/blink/public/common/features.h"
-#include "third_party/blink/public/mojom/frame/color_scheme.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/native_value_traits_impl.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_object_objectarray_string.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_begin_layer_options.h"
-#if !BUILDFLAG(IS_COBALT)
-#include "third_party/blink/renderer/bindings/modules/v8/v8_canvas_2d_gpu_transfer_option.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/bindings/modules/v8/v8_canvas_fill_rule.h"
 #if !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_texture_format.h"  // nogncheck

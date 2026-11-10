@@ -1394,13 +1394,6 @@ TEST_P(TlsServerHandshakerTest,
   TransportParameters server_params;
   std::string error_details;
   server_params.perspective = quic::Perspective::IS_SERVER;
-  server_params.legacy_version_information =
-      TransportParameters::LegacyVersionInformation();
-  server_params.legacy_version_information.value().supported_versions =
-      quic::CreateQuicVersionLabelVector(
-          quic::ParsedQuicVersionVector{version});
-  server_params.legacy_version_information.value().version =
-      quic::CreateQuicVersionLabel(version);
   server_params.version_information = TransportParameters::VersionInformation();
   server_params.version_information.value().chosen_version =
       quic::CreateQuicVersionLabel(version);

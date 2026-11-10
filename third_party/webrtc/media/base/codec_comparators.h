@@ -14,6 +14,8 @@
 #include <optional>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
+#include "api/payload_type.h"
 #include "api/rtp_parameters.h"
 #include "media/base/codec.h"
 
@@ -26,6 +28,11 @@ bool MatchesWithCodecRules(const Codec& left_codec, const Codec& codec);
 // fmtp line, as used with RED and RTX "codecs".
 bool MatchesWithReferenceAttributes(const Codec& left_codec,
                                     const Codec& right_codec);
+
+bool MatchesWithReferenceAttributesAndComparator(
+    const Codec& codec_to_match,
+    const Codec& potential_match,
+    absl::AnyInvocable<bool(PayloadType, PayloadType)> reference_comparator);
 
 // Finds a codec in `codecs2` that matches `codec_to_match`, which is
 // a member of `codecs1`. If `codec_to_match` is an RED or RTX codec, both

@@ -32,30 +32,28 @@ namespace internal {
 
 // Forward declarations.
 class AliasedArgumentsEntry;
-class ObjectBoilerplateDescription;
+class ArrayBoilerplateDescription;
 class BasicBlockProfilerData;
 class BreakPoint;
 class BreakPointInfo;
 class CallableTask;
 class CallbackTask;
 class CallSiteInfo;
-class Expression;
-class EmbedderDataArray;
-class ArrayBoilerplateDescription;
 class CoverageInfo;
 class DebugInfo;
 class DeoptimizationData;
 class DeoptimizationLiteralArray;
 class DictionaryTemplateInfo;
+class EmbedderDataArray;
 class EnumCache;
+class Expression;
 class FreshlyAllocatedBigInt;
 class FunctionTemplateInfo;
 class Isolate;
 class JSArrayBufferView;
+class JSAsyncDisposableStack;
 class JSDataView;
 class JSDisposableStackBase;
-class JSSyncDisposableStack;
-class JSAsyncDisposableStack;
 class JSGeneratorObject;
 class JSMap;
 class JSMapIterator;
@@ -64,10 +62,12 @@ class JSPromise;
 class JSProxy;
 class JSSet;
 class JSSetIterator;
+class JSSyncDisposableStack;
 class JSTypedArray;
 class JSWeakMap;
 class LoadHandler;
 class NativeContext;
+class ObjectBoilerplateDescription;
 class PromiseResolveThenableJobTask;
 class RegExpMatchInfo;
 class ScriptContextTable;
@@ -76,10 +76,12 @@ class Signature;
 class SourceTextModule;
 class StackFrameInfo;
 class StackTraceInfo;
-class StringSet;
 class StoreHandler;
+class StringSet;
 class SyntheticModule;
 class TemplateObjectDescription;
+template <typename T>
+class TrustedManaged;
 class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 
@@ -387,8 +389,13 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   DirectHandle<JSStringIterator> NewJSStringIterator(Handle<String> string);
 
+  // `known_one_byte_content` indicates that the caller (typically the
+  // string-table lookup path that just hashed `string`) knows the content
+  // fits in one byte; the impl then allocates a SeqOneByteString even when
+  // `string`'s representation is two-byte. False is always safe.
   DirectHandle<InternalizedString> NewInternalizedStringImpl(
-      DirectHandle<String> string, int len, uint32_t hash_field);
+      DirectHandle<String> string, int len, uint32_t hash_field,
+      bool known_one_byte_content = false);
 
   // Compute the internalization strategy for the input string.
   //
@@ -399,10 +406,14 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Internalized strings return kAlreadyTransitioned.
   //
   // All other strings are internalized by flattening and copying and return
-  // kCopy.
+  // kCopy. `known_one_byte_content` forces kCopy for two-byte rep strings
+  // whose content fits in one byte, so NewInternalizedStringImpl can
+  // allocate a one-byte internalized copy instead of locking in the wider
+  // representation via an in-place map swap.
   V8_WARN_UNUSED_RESULT StringTransitionStrategy
   ComputeInternalizationStrategyForString(
-      DirectHandle<String> string, MaybeDirectHandle<Map>* internalized_map);
+      DirectHandle<String> string, MaybeDirectHandle<Map>* internalized_map,
+      bool known_one_byte_content = false);
 
   // Creates an internalized copy of an external string. |string| must be
   // of type StringClass.
@@ -621,6 +632,13 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<Map> NewContextfulMap(
       DirectHandle<NativeContext> native_context, InstanceType type,
       int instance_size,
+      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
+      int inobject_properties = 0,
+      AllocationType allocation_type = AllocationType::kMap);
+
+  DirectHandle<ExtendedMap> NewContextfulMap(
+      DirectHandle<NativeContext> native_context, ExtendedMapKind map_kind,
+      InstanceType type, int instance_size,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
       int inobject_properties = 0,
       AllocationType allocation_type = AllocationType::kMap);
@@ -852,6 +870,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       const wasm::CanonicalSig* sig, SharedFlag shared);
   DirectHandle<WasmImportData> NewWasmImportData(
       DirectHandle<WasmImportData> ref, SharedFlag shared);
+  Handle<AsmWasmData> NewAsmWasmData(
+      DirectHandle<TrustedManaged<wasm::NativeModule>> managed_native_module,
+      uint64_t uses_bitset);
 
   DirectHandle<WasmFastApiCallData> NewWasmFastApiCallData(
       DirectHandle<HeapObject> signature, DirectHandle<Object> callback_data);
@@ -1324,7 +1345,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     }
 
     inline CodeBuilder& set_interpreter_data(
-        Handle<TrustedObject> interpreter_data);
+        Handle<UnionOf<BytecodeArray, InterpreterData>> interpreter_data);
 
     CodeBuilder& set_is_context_specialized() {
       DCHECK(!CodeKindIsUnoptimizedJSFunction(kind_));
@@ -1375,7 +1396,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     MaybeHandle<TrustedByteArray> bytecode_offset_table_;
     MaybeHandle<TrustedByteArray> source_position_table_;
     MaybeHandle<DeoptimizationData> deoptimization_data_;
-    MaybeHandle<TrustedObject> interpreter_data_;
+    MaybeHandle<UnionOf<BytecodeArray, InterpreterData>> interpreter_data_;
     BasicBlockProfilerData* profiler_data_ = nullptr;
     bool is_context_specialized_ = false;
     bool is_turbofanned_ = false;

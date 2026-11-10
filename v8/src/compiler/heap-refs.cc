@@ -220,10 +220,12 @@ ZoneVector<CFunctionInfoWithDetails> GetCFunctionsWithSignatures(
   const uint32_t len = function_overloads->ulength().value();
   ZoneVector<CFunctionInfoWithDetails> c_functions_with_signatures(len, zone);
   for (uint32_t i = 0; i < len; i++) {
-    auto overload =
-        Cast<Managed<CFunctionWithSignature>>(function_overloads->get(i))
-            ->raw(no_gc);
-    c_functions_with_signatures[i] = {overload->address, overload->signature};
+    const CFunction* c_function = reinterpret_cast<const CFunction*>(
+        Cast<Foreign>(function_overloads->get(i))
+            ->foreign_address<kCFunctionTag>());
+    c_functions_with_signatures[i] = {
+        reinterpret_cast<Address>(c_function->GetAddress()),
+        c_function->GetTypeInfo()};
   }
   return c_functions_with_signatures;
 }
@@ -332,22 +334,19 @@ std::optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
   std::optional<Tagged<Object>> constant;
   {
     DisallowGarbageCollection no_gc;
-    PtrComprCageBase cage_base = broker->cage_base();
-
     // This check to ensure the live map is the same as the cached map to
     // to protect us against reads outside the bounds of the heap. This could
     // happen if the Ref was created in a prior GC epoch, and the object
     // shrunk in size. It might end up at the edge of a heap boundary. If
     // we see that the map is the same in this GC epoch, we are safe.
-    Tagged<Map> map = holder.object()->map(cage_base, kAcquireLoad);
+    Tagged<Map> map = holder.object()->map(kAcquireLoad);
     if (*holder.map(broker).object() != map) {
       TRACE_BROKER_MISSING(broker, "Map changed for " << holder);
       return {};
     }
 
     if (field_index.is_inobject()) {
-      constant =
-          holder.object()->RawInobjectPropertyAt(cage_base, map, field_index);
+      constant = holder.object()->RawInobjectPropertyAt(map, field_index);
       if (!constant.has_value()) {
         TRACE_BROKER_MISSING(
             broker, "Constant field in " << holder << " is unsafe to read");
@@ -360,7 +359,7 @@ std::optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
       if (broker->ObjectMayBeUninitialized(raw_properties_or_hash)) {
         return {};
       }
-      if (!IsPropertyArray(raw_properties_or_hash, cage_base)) {
+      if (!IsPropertyArray(raw_properties_or_hash)) {
         TRACE_BROKER_MISSING(
             broker,
             "Expected PropertyArray for backing store in " << holder << ".");
@@ -438,7 +437,7 @@ V8_NOINLINE
 #endif
 size_t RacyReadJSTypedArrayLength(Tagged<JSTypedArray> object) {
   Address field_address =
-      object->address() + JSArrayBufferView::kRawByteLengthOffset;
+      object->address() + offsetof(JSArrayBufferView, raw_byte_length_);
 #ifdef V8_ENABLE_SANDBOX
   size_t raw_value = base::ReadUnalignedValue<size_t>(field_address);
   return raw_value >> kBoundedSizeShift;
@@ -740,7 +739,8 @@ void JSFunctionData::Cache(JSHeapBroker* broker) {
         // have initial maps in RO space, which can be accessed directly.
         initial_map_ = prototype_or_initial_map_;
 
-        MapRef initial_map_ref = TryMakeRef<Map>(broker, initial_map_).value();
+        MapRef initial_map_ref =
+            TryMakeRefFromData<Map>(broker, initial_map_).value();
         if (initial_map_ref.IsInobjectSlackTrackingInProgress()) {
           initial_map_instance_size_with_min_slack_ =
               InstanceSizeWithMinSlack(broker, initial_map_ref);
@@ -868,8 +868,7 @@ HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
   // object graph is such that we end up retrieving ourselves from the RefsMap
   // in the recursive GetOrCreateData call, then we'll see uninitialized data
   // for the map_ field. To avoid this, initialize it to nullptr first.
-  map_ = broker->GetOrCreateData(object->map(broker->cage_base(), kAcquireLoad),
-                                 kAssumeMemoryFence);
+  map_ = broker->GetOrCreateData(object->map(kAcquireLoad), kAssumeMemoryFence);
   CHECK_IMPLIES(broker->mode() == JSHeapBroker::kSerialized,
                 kind == kBackgroundSerializedHeapObject);
 }
@@ -947,7 +946,7 @@ bool IsReadOnlyLengthDescriptor(JSHeapBroker* broker, MapRef jsarray_map) {
   DCHECK(!jsarray_map.is_dictionary_map());
   DescriptorArrayRef descriptors = jsarray_map.instance_descriptors(broker);
   static_assert(
-      JSArray::kLengthOffset == JSObject::kHeaderSize,
+      offsetof(JSArray, length_) == JSObject::kHeaderSize,
       "The length should be the first property on the descriptor array");
   InternalIndex offset(0);
   return descriptors.GetPropertyDetails(offset).IsReadOnly();
@@ -1443,8 +1442,7 @@ OptionalObjectRef JSObjectRef::RawInobjectPropertyAt(JSHeapBroker* broker,
   Handle<Object> value;
   {
     DisallowGarbageCollection no_gc;
-    PtrComprCageBase cage_base = broker->cage_base();
-    Tagged<Map> current_map = object()->map(cage_base, kAcquireLoad);
+    Tagged<Map> current_map = object()->map(kAcquireLoad);
 
     // If the map changed in some prior GC epoch, our {index} could be
     // outside the valid bounds of the cached map.
@@ -1454,7 +1452,7 @@ OptionalObjectRef JSObjectRef::RawInobjectPropertyAt(JSHeapBroker* broker,
     }
 
     std::optional<Tagged<Object>> maybe_value =
-        object()->RawInobjectPropertyAt(cage_base, current_map, index);
+        object()->RawInobjectPropertyAt(current_map, index);
     if (!maybe_value.has_value()) {
       TRACE_BROKER_MISSING(broker,
                            "Unable to safely read property in " << *this);
@@ -1508,8 +1506,8 @@ MapRef MapRef::FindFieldOwner(JSHeapBroker* broker,
   // TODO(solanes, v8:7790): Consider caching the result of the field owner on
   // the descriptor array. It would be useful for same map as well as any
   // other map sharing that descriptor array.
-  return MakeRefAssumeMemoryFence(
-      broker, object()->FindFieldOwner(broker->cage_base(), descriptor_index));
+  return MakeRefAssumeMemoryFence(broker,
+                                  object()->FindFieldOwner(descriptor_index));
 }
 
 OptionalObjectRef StringRef::GetCharAsStringOrUndefined(JSHeapBroker* broker,
@@ -1943,9 +1941,8 @@ OptionalObjectRef MapRef::GetStrongValue(JSHeapBroker* broker,
 }
 
 DescriptorArrayRef MapRef::instance_descriptors(JSHeapBroker* broker) const {
-  return MakeRefAssumeMemoryFence(
-      broker,
-      object()->instance_descriptors(broker->cage_base(), kAcquireLoad));
+  return MakeRefAssumeMemoryFence(broker,
+                                  object()->instance_descriptors(kAcquireLoad));
 }
 
 HeapObjectRef MapRef::prototype(JSHeapBroker* broker) const {
@@ -1955,8 +1952,7 @@ HeapObjectRef MapRef::prototype(JSHeapBroker* broker) const {
 
 MapRef MapRef::FindRootMap(JSHeapBroker* broker) const {
   // TODO(solanes, v8:7790): Consider caching the result of the root map.
-  return MakeRefAssumeMemoryFence(broker,
-                                  object()->FindRootMap(broker->cage_base()));
+  return MakeRefAssumeMemoryFence(broker, object()->FindRootMap());
 }
 
 OptionalObjectRef MapRef::GetConstructor(JSHeapBroker* broker) const {
@@ -2407,9 +2403,7 @@ OptionalObjectRef Tuple2Ref::value2(JSHeapBroker* broker) const {
 }
 
 OptionalMapRef HeapObjectRef::map_direct_read(JSHeapBroker* broker) const {
-  PtrComprCageBase cage_base = broker->cage_base();
-  return TryMakeRef(broker, object()->map(cage_base, kAcquireLoad),
-                    kAssumeMemoryFence);
+  return TryMakeRef(broker, object()->map(kAcquireLoad), kAssumeMemoryFence);
 }
 
 namespace {
@@ -2435,7 +2429,7 @@ OddballType GetOddballType(Isolate* isolate, Tagged<Map> map) {
 
 HeapObjectType HeapObjectRef::GetHeapObjectType(JSHeapBroker* broker) const {
   if (data_->should_access_heap()) {
-    Tagged<Map> map = Cast<HeapObject>(object())->map(broker->cage_base());
+    Tagged<Map> map = Cast<HeapObject>(object())->map();
     HeapObjectType::Flags flags(0);
     if (map->is_undetectable()) flags |= HeapObjectType::kUndetectable;
     if (map->is_callable()) flags |= HeapObjectType::kCallable;

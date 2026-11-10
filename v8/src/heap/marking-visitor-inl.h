@@ -82,9 +82,9 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
   }
   // TODO(chromium:1495151): Remove after diagnosing.
   if (V8_UNLIKELY(!MemoryChunk::FromHeapObject(heap_object)->IsMarking() &&
-                  IsFreeSpaceOrFiller(
-                      heap_object, ObjectVisitorWithCageBases::cage_base()))) {
+                  IsFreeSpaceOrFiller(heap_object))) {
     heap_->isolate()->PushParamsAndDie(
+        "marking non-marking free space or filler",
         reinterpret_cast<void*>(host->map().ptr()),
         reinterpret_cast<void*>(host->address()),
         reinterpret_cast<void*>(slot.address()),
@@ -196,8 +196,7 @@ template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitEmbeddedPointer(
     Tagged<InstructionStream> host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
-  Tagged<HeapObject> object =
-      rinfo->target_object(ObjectVisitorWithCageBases::cage_base());
+  Tagged<HeapObject> object = rinfo->target_object();
   const auto target_worklist = MarkingHelper::ShouldMarkObject(heap_, object);
   if (!target_worklist) {
     return;
@@ -469,17 +468,16 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
     VisitIndirectPointer(
         shared_info,
         shared_info->RawIndirectPointerField(
-            SharedFunctionInfo::kTrustedFunctionDataOffset,
+            offsetof(SharedFunctionInfo, trusted_function_data_),
             SharedFunctionInfo::kTrustedDataIndirectPointerRange),
         IndirectPointerMode::kStrong);
 #else
-    VisitPointer(
-        shared_info,
-        shared_info->RawField(SharedFunctionInfo::kTrustedFunctionDataOffset));
+    VisitPointer(shared_info, shared_info->RawField(offsetof(
+                                  SharedFunctionInfo, trusted_function_data_)));
 #endif
     VisitPointer(shared_info,
                  shared_info->RawField(
-                     SharedFunctionInfo::kUntrustedFunctionDataOffset));
+                     offsetof(SharedFunctionInfo, untrusted_function_data_)));
   } else if (!IsByteCodeFlushingEnabled(code_flush_mode_)) {
     // If bytecode flushing is disabled but baseline code flushing is enabled
     // then we have to visit the bytecode but not the baseline code.
@@ -508,11 +506,13 @@ bool MarkingVisitorBase<ConcreteVisitor>::HasBytecodeArrayForFlushing(
     return false;
   }
 
-  // Get a snapshot of the function data field, and if it is a bytecode array,
-  // check if it is old. Note, this is done this way since this function can be
-  // called by the concurrent marker.
-  Tagged<Object> data = sfi->GetTrustedData(heap_->isolate());
-  if (IsCode(data)) {
+  // Get a snapshot of the function data field if it is discardable. Note, this
+  // is done this way since this function can be called by the concurrent
+  // marker.
+  Tagged<SharedFunctionInfo::DiscardableData> data;
+  if (!sfi->CanDiscardCompiled(&data)) return false;
+
+  if (Is<Code>(data)) {
     Tagged<Code> baseline_code = TrustedCast<Code>(data);
     DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
     // If baseline code flushing isn't enabled and we have baseline data on SFI
@@ -525,6 +525,7 @@ bool MarkingVisitorBase<ConcreteVisitor>::HasBytecodeArrayForFlushing(
     return false;
   }
 
+  // TODO(leszeks): Support flushing of InterpreterData.
   return IsBytecodeArray(data);
 }
 
@@ -590,8 +591,8 @@ bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushBaselineCode(
   // called on a concurrent thread. JSFunction itself should be fully
   // initialized here but the SharedFunctionInfo, InstructionStream objects may
   // not be initialized. We read using acquire loads to defend against that.
-  Tagged<Object> maybe_shared =
-      ACQUIRE_READ_FIELD(js_function, JSFunction::kSharedFunctionInfoOffset);
+  Tagged<Object> maybe_shared = ACQUIRE_READ_FIELD(
+      js_function, offsetof(JSFunction, shared_function_info_));
   if (!IsSharedFunctionInfo(maybe_shared)) return false;
 
   // See crbug.com/v8/11972 for more details on acquire / release semantics for
@@ -866,8 +867,9 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorArray(
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(
     Tagged<Map> map) {
-  if (!concrete_visitor()->CanUpdateValuesInHeap() || !map->CanTransition())
+  if (!concrete_visitor()->CanUpdateValuesInHeap() || !map->CanTransition()) {
     return;
+  }
 
   // Maps that can transition share their descriptor arrays and require
   // special visiting logic to avoid memory leaks.
@@ -877,8 +879,8 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(
   // slot holding the descriptor array will be implicitly recorded when the
   // pointer fields of this map are visited.
   Tagged<Object> maybe_descriptors =
-      TaggedField<Object, Map::kInstanceDescriptorsOffset>::Acquire_Load(
-          heap_->isolate(), map);
+      TaggedField<Object, offsetof(Map, instance_descriptors_)>::Acquire_Load(
+          map);
 
   // If the descriptors are a Smi, then this Map is in the process of being
   // deserialized, and doesn't yet have an initialized descriptor field.

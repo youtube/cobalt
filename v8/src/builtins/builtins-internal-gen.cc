@@ -38,10 +38,10 @@ TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {
 
   // Load the {object}s elements.
   TNode<FixedArrayBase> source =
-      CAST(LoadObjectField(js_object, JSObject::kElementsOffset));
+      CAST(LoadObjectField(js_object, offsetof(JSObject, elements_)));
   TNode<FixedArrayBase> target =
       CloneFixedArray(source, ExtractFixedArrayFlag::kFixedArrays);
-  StoreObjectField(js_object, JSObject::kElementsOffset, target);
+  StoreObjectField(js_object, offsetof(JSObject, elements_), target);
   Return(target);
 }
 
@@ -98,8 +98,8 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
       ExternalConstant(ExternalReference::debug_break_at_entry_function());
   TNode<ExternalReference> isolate_ptr =
       ExternalConstant(ExternalReference::isolate_address());
-  TNode<SharedFunctionInfo> shared =
-      CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
+  TNode<SharedFunctionInfo> shared = CAST(
+      LoadObjectField(function, offsetof(JSFunction, shared_function_info_)));
   TNode<Object> result =
       CAST(CallCFunction(f, MachineType::AnyTagged(),
                          std::make_pair(MachineType::Pointer(), isolate_ptr),

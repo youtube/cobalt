@@ -100,32 +100,32 @@ cq_group = luci.cq_group(
     watch = cq.refset(REPO_URL, refs = ["refs/heads/.+"]),
     retry_config = cq.RETRY_ALL_FAILURES,
     post_actions = [
-      # Vote +1 on Presubmit-BoringSSL-Verified for successful dry runs.
-      cq.post_action_gerrit_label_votes(
-        name = "presubmit-verification-success",
-        conditions = [
-          cq.post_action_triggering_condition(
-            mode = cq.MODE_DRY_RUN,
-            statuses = [cq.STATUS_SUCCEEDED],
-          )
-        ],
-        labels = {
-          "Presubmit-BoringSSL-Verified": 1,
-        },
-      ),
-      # Vote -1 on Presubmit-BoringSSL-Verified for failed dry runs.
-      cq.post_action_gerrit_label_votes(
-        name = "presubmit-verification-failure",
-        conditions = [
-          cq.post_action_triggering_condition(
-            mode = cq.MODE_DRY_RUN,
-            statuses = [cq.STATUS_FAILED],
-          )
-        ],
-        labels = {
-          "Presubmit-BoringSSL-Verified": -1,
-        },
-      ),
+        # Vote +1 on Presubmit-BoringSSL-Verified for successful dry runs.
+        cq.post_action_gerrit_label_votes(
+            name = "presubmit-verification-success",
+            conditions = [
+                cq.post_action_triggering_condition(
+                    mode = cq.MODE_DRY_RUN,
+                    statuses = [cq.STATUS_SUCCEEDED],
+                ),
+            ],
+            labels = {
+                "Presubmit-BoringSSL-Verified": 1,
+            },
+        ),
+        # Vote -1 on Presubmit-BoringSSL-Verified for failed dry runs.
+        cq.post_action_gerrit_label_votes(
+            name = "presubmit-verification-failure",
+            conditions = [
+                cq.post_action_triggering_condition(
+                    mode = cq.MODE_DRY_RUN,
+                    statuses = [cq.STATUS_FAILED],
+                ),
+            ],
+            labels = {
+                "Presubmit-BoringSSL-Verified": -1,
+            },
+        ),
     ],
 )
 
@@ -150,6 +150,16 @@ notifier = luci.notifier(
 DEFAULT_TIMEOUT = 30 * time.minute
 
 def get_category(name, host, properties):
+    """Derives the category for a builder.
+
+    Args:
+      name: The name of the builder.
+      host: The host configuration.
+      properties: The properties passed to the recipe.
+
+    Returns:
+      A string representing the category.
+    """
     cmake_args = properties.get("cmake_args", {})
 
     # Android and iOS are always cross compiles.
@@ -157,7 +167,6 @@ def get_category(name, host, properties):
         os = "android"
     elif cmake_args.get("CMAKE_OSX_SYSROOT") == "iphoneos":
         os = "ios"
-    # Otherwise same as host.
     elif "Mac" in host["dimensions"]["os"]:
         os = "mac"
     elif "Windows" in host["dimensions"]["os"]:
@@ -189,18 +198,14 @@ def get_category(name, host, properties):
         arch = "arm64"
     elif cmake_args.get("ANDROID_ABI") == "riscv64":
         arch = "riscv64"
-    # macOS: arch comes from CMAKE_OSX_ARCHITECTURES.
     elif cmake_args.get("CMAKE_OSX_ARCHITECTURES") == "arm64":
         arch = "arm64"
-    # Linux: arch comes from CMAKE_SYSTEM_PROCESSOR, or current running.
     elif cmake_args.get("CMAKE_SYSTEM_PROCESSOR") == "x86":
         arch = "x86"
-    # Windows: arch comes from msvc_target.
     elif properties.get("msvc_target") == "x86":
         arch = "x86"
     elif properties.get("msvc_target") == "arm64":
         arch = "arm64"
-    # Otherwise: same as host.
     elif host["dimensions"]["cpu"] == "arm64":
         arch = "arm64"
     else:
@@ -214,7 +219,16 @@ def get_category(name, host, properties):
 
     return category
 
-def get_short_name(name, host, properties):
+def get_short_name(name, properties):
+    """Derives the short name for a builder.
+
+    Args:
+      name: The name of the builder.
+      properties: The properties passed to the recipe.
+
+    Returns:
+      A string representing the short name.
+    """
     cmake_args = properties.get("cmake_args", {})
     tags = []
     untags = []  # Redundant tags to not include.
@@ -270,7 +284,7 @@ def get_short_name(name, host, properties):
 
     # Optimization.
     if not "Rel" in cmake_args.get("CMAKE_BUILD_TYPE", ""):
-        tags.append("dbg");
+        tags.append("dbg")
 
     for t in untags:
         if t not in tags:
@@ -279,7 +293,6 @@ def get_short_name(name, host, properties):
     if not tags:
         return "rel"
     return "".join(tags)
-
 
 ci_catnames_seen = {}
 
@@ -308,7 +321,7 @@ def ci_builder(
     if category == None:
         category = get_category(name, host, properties)
     if short_name == None:
-        short_name = get_short_name(name, host, properties)
+        short_name = get_short_name(name, properties)
     combined = (category if category else "") + "|" + short_name
     if combined in ci_catnames_seen:
         fail(name + ": same category " + category + " and short name " + short_name + " as build " + ci_catnames_seen[combined])
@@ -450,7 +463,8 @@ def cq_builders(
             recipe = recipe,
             cq_enabled = cq_enabled,
             execution_timeout = execution_timeout,
-            properties = compile_only(properties))
+            properties = compile_only(properties),
+        )
 
 def both_builders(
         name,
@@ -499,7 +513,8 @@ def both_builders(
         cq_enabled = cq_enabled,
         cq_compile_only = cq_compile_only,
         execution_timeout = execution_timeout,
-        properties = properties)
+        properties = properties,
+    )
 
 LINUX_HOST = {
     "dimensions": {
@@ -782,7 +797,8 @@ both_builders(
 )
 
 both_builders(
-    "docs", LINUX_HOST,
+    "docs",
+    LINUX_HOST,
     recipe = "boringssl_docs",
     category = "doc",
     short_name = "doc",
@@ -1155,6 +1171,7 @@ both_builders(
         "prefixed_symbols": True,
     }),
 )
+
 both_builders(
     "linux_bazel",
     LINUX_HOST,
@@ -1231,6 +1248,19 @@ both_builders(
     cq_compile_only = WIN_HOST,  # Reduce CQ cycle times.
     properties = {
         "msvc_target": "x86",
+    },
+)
+
+both_builders(
+    "win32_vs2022",
+    WIN_HOST,
+    cq_enabled = False,
+    short_name = "vs22",
+    properties = {
+        "msvc_target": "x86",
+        "gclient_vars": {
+            "windows_sdk_version": "uploaded:2024-01-11",
+        },
     },
 )
 both_builders(
@@ -1347,6 +1377,19 @@ both_builders(
     cq_compile_only = WIN_HOST,  # Reduce CQ cycle times.
     properties = {
         "msvc_target": "x64",
+    },
+)
+
+both_builders(
+    "win64_vs2022",
+    WIN_HOST,
+    cq_enabled = False,
+    short_name = "vs22",
+    properties = {
+        "msvc_target": "x64",
+        "gclient_vars": {
+            "windows_sdk_version": "uploaded:2024-01-11",
+        },
     },
 )
 

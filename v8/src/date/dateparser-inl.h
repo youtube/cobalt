@@ -107,8 +107,9 @@ bool DateParser::Parse(Isolate* isolate, base::Vector<Char> str, double* out) {
         // finalizing time.
         DateToken peek = scanner.Peek();
         if (!peek.IsEndOfInput() && !peek.IsWhiteSpace() &&
-            !peek.IsKeywordZ() && !peek.IsAsciiSign())
+            !peek.IsKeywordZ() && !peek.IsAsciiSign()) {
           return false;
+        }
       } else {
         if (!day.Add(n)) return false;
         scanner.SkipSymbol('-');
@@ -226,10 +227,11 @@ bool DateParser::InputReader<Char>::SkipParentheses() {
   if (ch_ != '(') return false;
   int balance = 0;
   do {
-    if (ch_ == ')')
+    if (ch_ == ')') {
       --balance;
-    else if (ch_ == '(')
+    } else if (ch_ == '(') {
       ++balance;
+    }
     Next();
   } while (balance > 0 && ch_);
   return true;
@@ -260,13 +262,15 @@ DateParser::DateToken DateParser::ParseES5DateTime(
   }
   if (scanner->SkipSymbol('-')) {
     if (!scanner->Peek().IsFixedLengthNumber(2) ||
-        !DayComposer::IsMonth(scanner->Peek().number()))
+        !DayComposer::IsMonth(scanner->Peek().number())) {
       return scanner->Next();
+    }
     day->Add(scanner->Next().number());
     if (scanner->SkipSymbol('-')) {
       if (!scanner->Peek().IsFixedLengthNumber(2) ||
-          !DayComposer::IsDay(scanner->Peek().number()))
+          !DayComposer::IsDay(scanner->Peek().number())) {
         return scanner->Next();
+      }
       day->Add(scanner->Next().number());
     }
   }

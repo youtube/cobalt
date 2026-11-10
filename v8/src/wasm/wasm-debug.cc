@@ -768,15 +768,22 @@ class DebugInfoImpl {
     DCHECK_EQ(frame->function_index(), new_code->index());
     DCHECK_EQ(frame->native_module(), new_code->native_module());
     DCHECK(frame->wasm_code()->is_liftoff());
+
+    // Only OSR-patch frames that are already running debugging code. The frame
+    // layout of non-debugging Liftoff code is *not* identical to debugging
+    // Liftoff code (debugging code spills register-held operand-stack slots in
+    // OOL stubs and reserves a strictly larger frame), so resuming a
+    // non-debugging frame in debugging code can write below SP and corrupt the
+    // tagged-slot map.
+    if (!frame->wasm_code()->for_debugging()) return;
+
     Address new_pc = FindNewPC(frame, new_code, frame->generated_code_offset(),
                                return_location);
 #ifdef DEBUG
     int old_position = frame->position();
 #endif
 #if V8_TARGET_ARCH_X64
-    if (frame->wasm_code()->for_debugging()) {
-      base::Memory<Address>(frame->fp() - kOSRTargetOffset) = new_pc;
-    }
+    base::Memory<Address>(frame->fp() - kOSRTargetOffset) = new_pc;
 #else
     PointerAuthentication::ReplacePC(frame->pc_address(), new_pc,
                                      kSystemPointerSize,
@@ -919,6 +926,26 @@ size_t DebugInfo::EstimateCurrentMemoryConsumption() const {
 
 namespace {
 
+bool EnsureFunctionValidated(const wasm::NativeModule* native_module,
+                             int func_index, Zone* zone) {
+  const wasm::WasmModule* module = native_module->module();
+  if (V8_LIKELY(module->function_was_validated(func_index))) return true;
+
+  const wasm::WasmFunction& func = module->functions[func_index];
+  const uint8_t* module_start = native_module->wire_bytes().begin();
+  wasm::WasmDetectedFeatures unused_detected_features;
+  wasm::FunctionBody body{func.sig, func.code.offset(),
+                          module_start + func.code.offset(),
+                          module_start + func.code.end_offset(),
+                          module->type(func.sig_index).is_shared};
+  wasm::DecodeResult validation_result =
+      wasm::ValidateFunctionBody(zone, native_module->enabled_features(),
+                                 module, &unused_detected_features, body);
+  if (V8_UNLIKELY(validation_result.failed())) return false;
+  module->set_function_validated(func_index);
+  return true;
+}
+
 // Return the next breakable position at or after {offset_in_func} in function
 // {func_index}, or 0 if there is none.
 // Note that 0 is never a breakable position in wasm, since the first byte
@@ -926,6 +953,10 @@ namespace {
 int FindNextBreakablePosition(wasm::NativeModule* native_module, int func_index,
                               int offset_in_func) {
   Zone zone{wasm::GetWasmEngine()->allocator(), ZONE_NAME};
+  if (V8_UNLIKELY(!EnsureFunctionValidated(native_module, func_index, &zone))) {
+    return 0;
+  }
+
   wasm::BodyLocalDecls locals;
   const uint8_t* module_start = native_module->wire_bytes().begin();
   const wasm::WasmFunction& func =
@@ -1192,8 +1223,9 @@ void WasmScript::AddBreakpointToInfo(DirectHandle<Script> script, int position,
         2 * breakpoint_infos_len, AllocationType::kOld);
     script->set_wasm_breakpoint_infos(*new_breakpoint_infos);
     // Copy over the entries [0, insert_pos).
-    for (int i = 0; i < insert_pos; ++i)
+    for (int i = 0; i < insert_pos; ++i) {
       new_breakpoint_infos->set(i, breakpoint_infos->get(i));
+    }
   }
 
   // Move elements [insert_pos, ...] up by one.
@@ -1226,8 +1258,9 @@ bool WasmScript::GetPossibleBreakpoints(
   if (start.GetLineNumber() != 0 || start.GetColumnNumber() < 0 ||
       (!end.IsEmpty() &&
        (end.GetLineNumber() != 0 || end.GetColumnNumber() < 0 ||
-        end.GetColumnNumber() < start.GetColumnNumber())))
+        end.GetColumnNumber() < start.GetColumnNumber()))) {
     return false;
+  }
 
   // start_func_index, start_offset and end_func_index is inclusive.
   // end_offset is exclusive.
@@ -1252,8 +1285,9 @@ bool WasmScript::GetPossibleBreakpoints(
   }
 
   if (start_func_index == end_func_index &&
-      start_offset > functions[end_func_index].code.end_offset())
+      start_offset > functions[end_func_index].code.end_offset()) {
     return false;
+  }
   Zone zone{wasm::GetWasmEngine()->allocator(), ZONE_NAME};
   const uint8_t* module_start = native_module->wire_bytes().begin();
 
@@ -1261,6 +1295,10 @@ bool WasmScript::GetPossibleBreakpoints(
        ++func_idx) {
     const wasm::WasmFunction& func = functions[func_idx];
     if (func.code.length() == 0) continue;
+
+    if (V8_UNLIKELY(!EnsureFunctionValidated(native_module, func_idx, &zone))) {
+      return false;
+    }
 
     wasm::BodyLocalDecls locals;
     wasm::BytecodeIterator iterator(module_start + func.code.offset(),
@@ -1314,8 +1352,9 @@ MaybeDirectHandle<FixedArray> WasmScript::CheckBreakPoints(
                                             isolate);
   int insert_pos =
       FindBreakpointInfoInsertPos(isolate, breakpoint_infos, position);
-  if (insert_pos >= static_cast<int>(breakpoint_infos->ulength().value()))
+  if (insert_pos >= static_cast<int>(breakpoint_infos->ulength().value())) {
     return {};
+  }
 
   DirectHandle<Object> maybe_breakpoint_info(breakpoint_infos->get(insert_pos),
                                              isolate);

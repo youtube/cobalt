@@ -8,6 +8,7 @@
 #include "src/codegen/arm64/macro-assembler-arm64-inl.h"
 #include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/interface-descriptors-inl.h"
+#include "src/common/globals.h"
 #include "src/compiler/linkage.h"
 #include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
@@ -1344,31 +1345,23 @@ void LiftoffAssembler::AtomicCompareExchange(
       case StoreType::kI64Store8:
       case StoreType::kI32Store8:
         DCHECK_NULL(trapping_load_pc);
-        if (result.gp() != expected.gp()) {
-          mov(result.gp().W(), expected.gp().W());
-        }
+        mov(result.gp().W(), expected.gp().W());
         casalb(result.gp().W(), new_value.gp().W(), MemOperand(actual_addr));
         break;
       case StoreType::kI64Store16:
       case StoreType::kI32Store16:
         DCHECK_NULL(trapping_load_pc);
-        if (result.gp() != expected.gp()) {
-          mov(result.gp().W(), expected.gp().W());
-        }
+        mov(result.gp().W(), expected.gp().W());
         casalh(result.gp().W(), new_value.gp().W(), MemOperand(actual_addr));
         break;
       case StoreType::kI64Store32:
       case StoreType::kI32Store:
-        if (result.gp() != expected.gp()) {
-          mov(result.gp().W(), expected.gp().W());
-        }
+        mov(result.gp().W(), expected.gp().W());
         if (trapping_load_pc) *trapping_load_pc = pc_offset();
         casal(result.gp().W(), new_value.gp().W(), MemOperand(actual_addr));
         break;
       case StoreType::kI64Store:
-        if (result.gp() != expected.gp()) {
-          mov(result.gp().X(), expected.gp().X());
-        }
+        mov(result.gp().X(), expected.gp().X());
         if (trapping_load_pc) *trapping_load_pc = pc_offset();
         casal(result.gp().X(), new_value.gp().X(), MemOperand(actual_addr));
         break;
@@ -1423,40 +1416,65 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     uint32_t* trapping_load_pc, LiftoffRegList pinned) {
-  AtomicCompareExchange(
-      dst_addr, offset_reg, offset_imm, expected, new_value, result,
-      COMPRESS_POINTERS_BOOL ? StoreType::kI32Store : StoreType::kI64Store,
-      trapping_load_pc, false);
+  // The result register may not alias with any of the inputs as the CAS
+  // instruction overwrites it in the loop.
+  DCHECK(!LiftoffRegList(dst_addr, expected, new_value).has(result));
+  DCHECK(offset_reg == no_reg || offset_reg != result.gp());
+
+  UseScratchRegisterScope temps(this);
+  Register actual_addr = liftoff::CalculateActualAddress(
+      this, temps, dst_addr, offset_reg, offset_imm);
+  Register output_reg =
+      COMPRESS_POINTERS_BOOL ? result.gp().W() : result.gp().X();
+  Register expected_reg =
+      COMPRESS_POINTERS_BOOL ? expected.gp().W() : expected.gp().X();
+  Register new_value_reg =
+      COMPRESS_POINTERS_BOOL ? new_value.gp().W() : new_value.gp().X();
+  Extend extend = COMPRESS_POINTERS_BOOL ? UXTW : UXTX;
+
+  Label done;
+  if (CpuFeatures::IsSupported(LSE)) {
+    CpuFeatureScope scope(this, LSE);
+    mov(output_reg, expected_reg);
+    if (trapping_load_pc) *trapping_load_pc = pc_offset();
+    casal(output_reg, new_value_reg, MemOperand(actual_addr));
+    Cmp(output_reg, Operand(expected_reg, extend));
+    B(ne, &done);
+  } else {
+    UseScratchRegisterScope temps_store_result(this);
+    Register store_result = temps_store_result.AcquireW();
+    Label retry;
+    Bind(&retry);
+    if (trapping_load_pc) *trapping_load_pc = pc_offset();
+    ldaxr(output_reg, actual_addr);
+    Cmp(output_reg, Operand(expected_reg, extend));
+    B(ne, &done);
+    stlxr(store_result.W(), new_value_reg, actual_addr);
+    Cbnz(store_result.W(), &retry);
+  }
+
+  if (!v8_flags.disable_write_barriers) {
+    JumpIfSmi(new_value.gp(), &done);
+    CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
+                  kZero, &done);
+    CheckPageFlag(new_value.gp(),
+                  MemoryChunk::kPointersToHereAreInterestingMask, kZero, &done);
+    Operand offset_op = offset_reg.is_valid() ? Operand(offset_reg.W(), UXTW)
+                                              : Operand(offset_imm);
+    if (offset_reg.is_valid() && offset_imm) {
+      Register effective_offset = temps.AcquireX();
+      Add(effective_offset.W(), offset_reg.W(), offset_imm);
+      offset_op = effective_offset;
+    }
+    CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
+                                     StubCallMode::kCallWasmRuntimeStub);
+  }
+
+  Bind(&done);
 
   if constexpr (COMPRESS_POINTERS_BOOL) {
     add(result.gp().X(), result.gp().X(), kPtrComprCageBaseRegister);
   }
-
-  if (v8_flags.disable_write_barriers) return;
-
-  // We only need a write barrier if the CAS was successful.
-  // The AtomicCompareExchange above leaves the condition flags from the
-  // final comparison (either from {casal} or the manual {Cmp} in the loop).
-  Label exit;
-  B(ne, &exit);
-
-  // Emit the write barrier.
-  JumpIfSmi(new_value.gp(), &exit);
-  CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
-                kZero, &exit);
-  CheckPageFlag(new_value.gp(), MemoryChunk::kPointersToHereAreInterestingMask,
-                kZero, &exit);
-  UseScratchRegisterScope temps(this);
-  Operand offset_op = offset_reg.is_valid() ? Operand(offset_reg.W(), UXTW)
-                                            : Operand(offset_imm);
-  if (offset_reg.is_valid() && offset_imm) {
-    Register effective_offset = temps.AcquireX();
-    Add(effective_offset.W(), offset_reg.W(), offset_imm);
-    offset_op = effective_offset;
-  }
-  CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
-                                   StubCallMode::kCallWasmRuntimeStub);
-  bind(&exit);
 }
 
 void LiftoffAssembler::AtomicFence() { Dmb(InnerShareable, BarrierAll); }
@@ -1701,6 +1719,17 @@ void LiftoffAssembler::emit_i64_add128(Register dst_low, Register dst_high,
 
   Adds(dst_low.X(), al.X(), bl.X());
   Adc(dst_high.X(), ah.X(), bh.X());
+}
+
+void LiftoffAssembler::emit_i64_sub128(Register dst_low, Register dst_high,
+                                       Register al, Register ah, Register bl,
+                                       Register bh) {
+  DCHECK_NE(dst_low, ah);
+  DCHECK_NE(dst_low, bh);
+  DCHECK_NE(dst_low, dst_high);
+
+  Subs(dst_low.X(), al.X(), bl.X());
+  Sbc(dst_high.X(), ah.X(), bh.X());
 }
 
 void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,

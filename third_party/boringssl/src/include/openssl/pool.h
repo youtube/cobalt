@@ -15,7 +15,7 @@
 #ifndef OPENSSL_HEADER_POOL_H
 #define OPENSSL_HEADER_POOL_H
 
-#include <openssl/base.h>   // IWYU pragma: export
+#include <openssl/base.h>  // IWYU pragma: export
 
 #include <openssl/stack.h>
 
@@ -48,7 +48,7 @@ DEFINE_STACK_OF(CRYPTO_BUFFER)
 
 // CRYPTO_BUFFER_POOL_new returns a freshly allocated |CRYPTO_BUFFER_POOL| or
 // NULL on error.
-OPENSSL_EXPORT CRYPTO_BUFFER_POOL* CRYPTO_BUFFER_POOL_new(void);
+OPENSSL_EXPORT CRYPTO_BUFFER_POOL *CRYPTO_BUFFER_POOL_new(void);
 
 // CRYPTO_BUFFER_POOL_free decrements the reference count of |pool| and frees it
 // if the reference count drops to zero.
@@ -99,6 +99,11 @@ OPENSSL_EXPORT void CRYPTO_BUFFER_free(CRYPTO_BUFFER *buf);
 // CRYPTO_BUFFER_up_ref increments the reference count of |buf| and returns
 // one.
 OPENSSL_EXPORT int CRYPTO_BUFFER_up_ref(CRYPTO_BUFFER *buf);
+
+// CRYPTO_BUFFER_dup_ref increments the reference count of |buf| and returns
+// |buf|. The caller must call |CRYPTO_BUFFER_free| on the result to release the
+// reference.
+OPENSSL_EXPORT CRYPTO_BUFFER *CRYPTO_BUFFER_dup_ref(const CRYPTO_BUFFER *buf);
 
 // CRYPTO_BUFFER_data returns a pointer to the data contained in |buf|.
 OPENSSL_EXPORT const uint8_t *CRYPTO_BUFFER_data(const CRYPTO_BUFFER *buf);

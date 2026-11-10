@@ -3470,6 +3470,22 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     arithmetic_op(0x1b, dst, src, size);
   }
 
+  void emit_sbb(Register dst, Immediate src, int size) {
+    immediate_arithmetic_op(0x3, dst, src, size);
+  }
+
+  void emit_sbb(Register dst, Operand src, int size) {
+    arithmetic_op(0x1b, dst, src, size);
+  }
+
+  void emit_sbb(Operand dst, Register src, int size) {
+    arithmetic_op(0x19, src, dst, size);
+  }
+
+  void emit_sbb(Operand dst, Immediate src, int size) {
+    immediate_arithmetic_op(0x3, dst, src, size);
+  }
+
   void emit_sub(Register dst, Register src, int size) {
     arithmetic_op(0x2B, dst, src, size);
   }

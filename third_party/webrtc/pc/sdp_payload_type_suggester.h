@@ -37,9 +37,16 @@ class SdpPayloadTypeSuggester : public PayloadTypeSuggester {
   explicit SdpPayloadTypeSuggester(
       PeerConnectionInterface::BundlePolicy bundle_policy)
       : bundle_manager_(bundle_policy) {}
+  SdpPayloadTypeSuggester(const SdpPayloadTypeSuggester&) = delete;
+  SdpPayloadTypeSuggester& operator=(const SdpPayloadTypeSuggester&) = delete;
+  SdpPayloadTypeSuggester(SdpPayloadTypeSuggester&&) = delete;
+  SdpPayloadTypeSuggester& operator=(SdpPayloadTypeSuggester&&) = delete;
+
   // Implementation of PayloadTypeSuggester
-  RTCErrorOr<PayloadType> SuggestPayloadType(absl::string_view mid,
-                                             const Codec& codec) override;
+  RTCErrorOr<PayloadType> SuggestPayloadType(
+      absl::string_view mid,
+      const Codec& codec,
+      bool pick_from_top_of_range = false) override;
   RTCError AddLocalMapping(absl::string_view mid,
                            PayloadType payload_type,
                            const Codec& codec) override;

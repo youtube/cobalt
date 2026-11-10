@@ -11,8 +11,8 @@ Chromium checkout rather than the V8 directory.
 
 ## Path Rules
 
--   When executing from `chromium/v8`, the build directory is located one level
-    up at `../out/`.
--   Adjust any relative binary or test runner paths accordingly.
-    -   **Incorrect:** `out/x64.debug/d8`
-    -   **Correct:** `../out/x64.debug/d8`
+- When executing from `chromium/v8`, the build directory is located one level up
+  at `../out/`.
+- Adjust any relative binary or test runner paths accordingly.
+  - **Incorrect:** `out/x64.debug/d8`
+  - **Correct:** `../out/x64.debug/d8`

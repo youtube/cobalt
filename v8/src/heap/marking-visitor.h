@@ -108,7 +108,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
 
   // ObjectVisitor overrides.
   void VisitMapPointer(Tagged<HeapObject> host) final {
-    Tagged<Map> map = host->map(ObjectVisitorWithCageBases::cage_base());
+    Tagged<Map> map = host->map();
     ProcessStrongHeapObject(host, host->map_slot(), map);
   }
   V8_INLINE void VisitPointer(Tagged<HeapObject> host, ObjectSlot p) final {

@@ -11,6 +11,7 @@ android_library("java") {
   ]
 
   sources = [
+    "android/java/src/org/chromium/chrome/browser/ui/side_ui/SideUiContainerTransition.java",
     "android/java/src/org/chromium/chrome/browser/ui/side_ui/SideUiCoordinatorFactory.java",
     "android/java/src/org/chromium/chrome/browser/ui/side_ui/SideUiCoordinatorImpl.java",
   ]
@@ -20,11 +21,13 @@ android_library("java") {
     "//base:supplier_java",
     "//base:tasks_java",
     "//build/android:build_java",
+    "//chrome/browser/android/lifecycle:java",
     "//chrome/browser/flags:java",
     "//chrome/browser/ui/side_panel/android:java",
     "//chrome/browser/ui/side_ui/public:java",
     "//components/cached_flags:java",
     "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/androidx:androidx_window_window_java",
     "//ui/android:ui_no_recycler_view_java",
   ]
 }
@@ -38,11 +41,14 @@ robolectric_library("junit") {
     "//base:base_java",
     "//base:base_java_test_support",
     "//base:base_junit_test_support",
+    "//chrome/browser/android/lifecycle:java",
     "//chrome/browser/ui/side_ui/public:java",
     "//chrome/browser/ui/side_ui/public:java_resources",
     "//chrome/browser/ui/side_ui/test/android:test_support_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/junit",
     "//third_party/mockito:mockito_java",
+    "//ui/android:ui_java_test_support",
+    "//ui/android:ui_no_recycler_view_java",
   ]
 }

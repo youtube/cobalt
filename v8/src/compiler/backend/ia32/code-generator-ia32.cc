@@ -818,7 +818,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register func = i.InputRegister(0);
       if (v8_flags.debug_code) {
         // Check the function's context matches the context argument.
-        __ cmp(esi, FieldOperand(func, JSFunction::kContextOffset));
+        __ cmp(esi, FieldOperand(func, offsetof(JSFunction, context_)));
         __ Assert(equal, AbortReason::kWrongFunctionContext);
       }
       uint32_t num_arguments =

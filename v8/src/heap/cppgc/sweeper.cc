@@ -246,8 +246,9 @@ using SpaceStates = std::vector<SweepingState>;
 void StickyUnmark(HeapObjectHeader* header, StickyBits sticky_bits) {
 #if defined(CPPGC_YOUNG_GENERATION)
   // Young generation in Oilpan uses sticky mark bits.
-  if (sticky_bits == StickyBits::kDisabled)
+  if (sticky_bits == StickyBits::kDisabled) {
     header->Unmark<AccessMode::kAtomic>();
+  }
 #else   // !defined(CPPGC_YOUNG_GENERATION)
   header->Unmark<AccessMode::kAtomic>();
 #endif  // !defined(CPPGC_YOUNG_GENERATION)

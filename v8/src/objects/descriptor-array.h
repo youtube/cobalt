@@ -86,7 +86,7 @@ V8_OBJECT class EnumCache : public Struct {
 // The "value" fields store either values or field types. A field type is either
 // FieldType::None(), FieldType::Any() or a weak reference to a Map. All other
 // references are strong.
-V8_OBJECT class DescriptorArray : public HeapObjectLayout {
+V8_OBJECT class DescriptorArray : public HeapObject {
  public:
   // Do linear search for small arrays, and for searches in the background
   // thread.
@@ -234,13 +234,6 @@ V8_OBJECT class DescriptorArray : public HeapObjectLayout {
   static const int kEntryDetailsOffset = kEntryDetailsIndex * kTaggedSize;
   static const int kEntryValueOffset = kEntryValueIndex * kTaggedSize;
 
-  // Back-compat offset constants. Defined out-of-line because `offsetof` /
-  // `sizeof` on DescriptorArray cannot appear inside its own class body.
-  static const int kNumberOfAllDescriptorsOffset;
-  static const int kNumberOfDescriptorsOffset;
-  static const int kRawGcStateOffset;
-  static const int kFlagsOffset;
-  static const int kEnumCacheOffset;
   static const int kHeaderSize;
   static const int kDescriptorsOffset;
 
@@ -344,18 +337,6 @@ static_assert(offsetof(DescriptorArray::Entry, details) ==
 static_assert(offsetof(DescriptorArray::Entry, value) ==
               DescriptorArray::kEntryValueOffset);
 
-// Back-compat offset constants. Defined here because `offsetof` / `sizeof`
-// on a not-yet-complete class cannot appear inside the class body.
-inline constexpr int DescriptorArray::kNumberOfAllDescriptorsOffset =
-    offsetof(DescriptorArray, number_of_all_descriptors_);
-inline constexpr int DescriptorArray::kNumberOfDescriptorsOffset =
-    offsetof(DescriptorArray, number_of_descriptors_);
-inline constexpr int DescriptorArray::kRawGcStateOffset =
-    offsetof(DescriptorArray, raw_gc_state_);
-inline constexpr int DescriptorArray::kFlagsOffset =
-    offsetof(DescriptorArray, flags_);
-inline constexpr int DescriptorArray::kEnumCacheOffset =
-    offsetof(DescriptorArray, enum_cache_);
 inline constexpr int DescriptorArray::kHeaderSize =
     OFFSET_OF_DATA_START(DescriptorArray);
 inline constexpr int DescriptorArray::kDescriptorsOffset =
@@ -377,14 +358,13 @@ static_assert(alignof(std::atomic<uint16_t>) == 2);
 static_assert(sizeof(std::atomic<uint32_t>) == 4);
 static_assert(alignof(std::atomic<uint32_t>) == 4);
 static_assert(offsetof(DescriptorArray, number_of_all_descriptors_) ==
-              HeapObject::kHeaderSize);
+              sizeof(HeapObject));
 static_assert(offsetof(DescriptorArray, number_of_descriptors_) ==
-              HeapObject::kHeaderSize + sizeof(uint16_t));
+              sizeof(HeapObject) + sizeof(uint16_t));
 static_assert(offsetof(DescriptorArray, raw_gc_state_) ==
-              HeapObject::kHeaderSize + 2 * sizeof(uint16_t));
-static_assert(offsetof(DescriptorArray, flags_) == HeapObject::kHeaderSize +
-                                                       2 * sizeof(uint16_t) +
-                                                       sizeof(uint32_t));
+              sizeof(HeapObject) + 2 * sizeof(uint16_t));
+static_assert(offsetof(DescriptorArray, flags_) ==
+              sizeof(HeapObject) + 2 * sizeof(uint16_t) + sizeof(uint32_t));
 
 // A DescriptorArray where all values are held strongly. Bodyless subclass with
 // identical layout and BodyDescriptor. The distinct instance type routes to

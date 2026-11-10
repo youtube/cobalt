@@ -188,13 +188,6 @@ bool QuicSpdyClientSession::ShouldCreateIncomingStream(QuicStreamId id) {
   return true;
 }
 
-QuicSpdyStream* QuicSpdyClientSession::CreateIncomingStream(
-    PendingStream* pending) {
-  QuicSpdyStream* stream = new QuicSpdyClientStream(*pending, this);
-  ActivateStream(absl::WrapUnique(stream));
-  return stream;
-}
-
 QuicSpdyStream* QuicSpdyClientSession::CreateIncomingStream(QuicStreamId id) {
   if (!ShouldCreateIncomingStream(id)) {
     return nullptr;

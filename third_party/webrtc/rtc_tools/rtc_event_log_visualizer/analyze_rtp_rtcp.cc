@@ -462,15 +462,22 @@ void CreateEcnFeedbackGraph(Plot* plot,
   TimeSeries ect_1("ECN capable", LineStyle::kBar, PointStyle::kHighlight);
   TimeSeries ce("Congestion experienced", LineStyle::kBar,
                 PointStyle::kHighlight);
+  TimeSeries reported_lost("Reported lost", LineStyle::kBar,
+                           PointStyle::kHighlight);
 
   for (const LoggedRtcpCongestionControlFeedback& feedback :
        parsed_log.congestion_feedback(direction)) {
     int ect_1_count = 0;
     int not_ect_count = 0;
     int ce_count = 0;
+    int reported_lost_count = 0;
 
     for (const rtcp::CongestionControlFeedback::PacketInfo& info :
          feedback.congestion_feedback.packets()) {
+      if (!info.received()) {
+        ++reported_lost_count;
+        continue;
+      }
       switch (info.ecn) {
         case EcnMarking::kNotEct:
           ++not_ect_count;
@@ -491,11 +498,14 @@ void CreateEcnFeedbackGraph(Plot* plot,
     not_ect.points.emplace_back(config.GetCallTimeSec(feedback.timestamp),
                                 not_ect_count);
     ce.points.emplace_back(config.GetCallTimeSec(feedback.timestamp), ce_count);
+    reported_lost.points.emplace_back(config.GetCallTimeSec(feedback.timestamp),
+                                      reported_lost_count);
   }
 
   plot->AppendTimeSeriesIfNotEmpty(std::move(ect_1));
   plot->AppendTimeSeriesIfNotEmpty(std::move(not_ect));
   plot->AppendTimeSeriesIfNotEmpty(std::move(ce));
+  plot->AppendTimeSeriesIfNotEmpty(std::move(reported_lost));
 
   plot->SetXAxis(config.CallBeginTimeSec(), config.CallEndTimeSec(), "Time (s)",
                  kLeftMargin, kRightMargin);

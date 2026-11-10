@@ -23,6 +23,7 @@
 #include "api/rtp_packet_infos.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
+#include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "api/video/encoded_image.h"
@@ -32,7 +33,6 @@
 #include "modules/rtp_rtcp/source/frame_object.h"
 #include "modules/rtp_rtcp/source/rtp_video_header.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/thread.h"
 #include "system_wrappers/include/clock.h"
 #include "system_wrappers/include/ntp_time.h"
 
@@ -135,11 +135,11 @@ RtpVideoStreamReceiverFrameTransformerDelegate::
         RtpVideoFrameReceiver* receiver,
         Clock* clock,
         scoped_refptr<FrameTransformerInterface> frame_transformer,
-        Thread* network_thread,
+        TaskQueueBase* task_queue,
         uint32_t ssrc)
     : receiver_(receiver),
       frame_transformer_(std::move(frame_transformer)),
-      network_thread_(network_thread),
+      network_thread_(task_queue),
       ssrc_(ssrc),
       clock_(clock) {}
 

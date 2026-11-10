@@ -51,7 +51,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.Background.TotalDuration" units="ms"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -223,7 +223,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Session.LockedDuration.Restartability.{SmartRestartDuration}"
+<histogram
+    name="Session.LockedDuration.RestartabilityV2.{SmartRestartDuration}"
     enum="SmartRestartability" expires_after="2026-10-01">
   <owner>victortan@chromium.org</owner>
   <owner>chrome-analysis-team@google.com</owner>
@@ -234,6 +235,9 @@ chromium-metrics-reviews@google.com.
 
     The value is recorded as a bitmask of SmartRestartBlockReason flags. This
     histogram is sliced by the duration the OS was in the Locked state.
+
+    V2: Uses refined logic for 'Unsaved form data' requiring both user
+    interaction and a beforeunload handler.
   </summary>
   <token key="SmartRestartDuration">
     <variant name="1To5Min"/>
@@ -1085,7 +1089,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
-    name="Session.ZeroWindowDuration.Restartability.{SmartRestartDuration}"
+    name="Session.ZeroWindowDuration.RestartabilityV2.{SmartRestartDuration}"
     enum="SmartRestartability" expires_after="2026-10-01">
   <owner>victortan@chromium.org</owner>
   <owner>chrome-analysis-team@google.com</owner>
@@ -1097,6 +1101,9 @@ chromium-metrics-reviews@google.com.
     The value is recorded as a bitmask of SmartRestartBlockReason flags. This
     histogram is sliced by the duration the browser was in the Zero Window
     state.
+
+    V2: Uses refined logic for 'Unsaved form data' requiring both user
+    interaction and a beforeunload handler.
   </summary>
   <token key="SmartRestartDuration">
     <variant name="1To5Min"/>
@@ -1120,7 +1127,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SessionRestore.ForegroundTabFirstPaint4.FinishReason"
-    enum="SessionRestoreFinishReason" expires_after="2026-08-30">
+    enum="SessionRestoreFinishReason" expires_after="2026-11-01">
   <owner>joenotcharles@google.com</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -1161,7 +1168,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SessionRestore.InfoBar.TurnOffFromRestart"
-    enum="SessionRestoreInfoBarAction" expires_after="2026-09-01">
+    enum="SessionRestoreInfoBarAction" expires_after="2026-11-01">
   <owner>musalmaan@chromium.org</owner>
   <owner>koretadaniel@chromium.org</owner>
   <summary>
@@ -1171,7 +1178,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SessionRestore.InfoBar.TurnOnSessionRestore"
-    enum="SessionRestoreInfoBarAction" expires_after="2026-09-01">
+    enum="SessionRestoreInfoBarAction" expires_after="2026-11-01">
   <owner>musalmaan@chromium.org</owner>
   <owner>koretadaniel@chromium.org</owner>
   <summary>
@@ -1181,7 +1188,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SessionRestore.PageStateOldVersions" units="version"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>creis@chromium.org</owner>
   <owner>chrome-security-architecture@google.com</owner>
   <summary>
@@ -1228,45 +1235,6 @@ chromium-metrics-reviews@google.com.
     Recorded when SessionService is shutdown (which generally corresponds to
     when chrome is shutdown). The count is the number of times a write error
     happened at a time when it could not immediately be handled.
-  </summary>
-</histogram>
-
-<histogram
-    name="SessionStorageContext.CachePurgedInKB{DOMStorageCachePurgeReason}"
-    units="KB" expires_after="2024-12-01">
-  <owner>ayui@chromium.org</owner>
-  <owner>chrome-owp-storage@google.com</owner>
-  <summary>
-    Total size of the HTML5 SessionStorage browser-side cache purged in KB,
-    recorded when memory pressure signal is triggered or cache size hit the
-    limits.
-
-    Warning: Histogram expired between M95-M110. Data may be missing.
-    {DOMStorageCachePurgeReason}
-  </summary>
-  <token key="DOMStorageCachePurgeReason">
-    <variant name=""/>
-    <variant name=".AggressivePurgeTriggered"
-        summary="Aggressive purge was triggered on memory pressure."/>
-    <variant name=".AreaCountLimitExceeded"
-        summary="Storage areas count exceeded limit."/>
-    <variant name=".InactiveOnLowEndDevice"
-        summary="Inactive areas found in low end device."/>
-    <variant name=".ModeratePurgeTriggered"
-        summary="Moderate purge was triggered on memory pressure."/>
-    <variant name=".SizeLimitExceeded" summary="Cache size exceeded limit."/>
-  </token>
-</histogram>
-
-<histogram name="SessionStorageContext.CacheSizeInKB" units="KB"
-    expires_after="2024-12-01">
-  <owner>ayui@chromium.org</owner>
-  <owner>chrome-owp-storage@google.com</owner>
-  <summary>
-    Total size of the HTML5 SessionStorage databases in KB in the browser-side
-    cache. Recorded each time a new database is opened in memory.
-
-    Warning: Histogram expired between M95-M110. Data may be missing.
   </summary>
 </histogram>
 

@@ -45,8 +45,11 @@ enum class AppBarAssistantButtonState {
 // Enables or disables the buttons.
 - (void)setButtonsEnabled:(BOOL)enabled;
 
-// Sets the assistant button state.
-- (void)setAssistantButtonState:(AppBarAssistantButtonState)state;
+// Sets the assistant button state, whether it is highlighted, and whether it is
+// enabled.
+- (void)setAssistantButtonState:(AppBarAssistantButtonState)state
+                    highlighted:(BOOL)highlighted
+                        enabled:(BOOL)enabled;
 
 // Sets whether the incognito mode is active.
 - (void)setIncognito:(BOOL)incognito;

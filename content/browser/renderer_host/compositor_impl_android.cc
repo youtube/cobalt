@@ -479,6 +479,16 @@ void CompositorImpl::SetNeedsComposite() {
   host_->SetNeedsAnimate();
 }
 
+void CompositorImpl::SetDrawPaused(bool paused) {
+  if (draw_paused_ == paused) {
+    return;
+  }
+  draw_paused_ = paused;
+  if (display_private_) {
+    display_private_->SetDisplayVisible(!draw_paused_);
+  }
+}
+
 void CompositorImpl::MaybeCompositeNow() {
   host_->MaybeCompositeNow();
 }
@@ -832,7 +842,7 @@ void CompositorImpl::InitializeVizLayerTreeFrameSink(
 
   display_private_->SetSwapCompletionCallbackEnabled(
       enable_swap_completion_callbacks_);
-  display_private_->SetDisplayVisible(true);
+  display_private_->SetDisplayVisible(!draw_paused_);
   display_private_->Resize(size_);
   display_private_->SetDisplayColorSpaces(display_color_spaces_);
   display_private_->SetSupportedRefreshRates(

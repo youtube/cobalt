@@ -549,7 +549,7 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
     return LoadField<FixedArrayBase>(AccessBuilder::ForJSObjectElements(), o);
   }
   TNode<Smi> LoadFixedArrayBaseLength(TNode<FixedArrayBase> o) {
-    return LoadField<Smi>(AccessBuilder::ForFixedArrayLength(), o);
+    return LoadField<Smi>(AccessBuilder::ForFixedArrayLengthLegacy(), o);
   }
 
   TNode<Boolean> HoleCheck(ElementsKind kind, TNode<Object> v) {
@@ -1635,26 +1635,35 @@ struct SortFrameStateParams {
   FrameState outer_frame_state;
   TNode<Object> receiver;
   TNode<Object> comparefn;
+  TNode<Object> temp_array;
+  TNode<Object> original_length;
 };
 
-// Deopt frame states for the inlined sort.  The sort operates on a temp
-// array copy so the receiver is unmodified — just restart the generic sort.
-FrameState SortNoopEagerFrameState(const SortFrameStateParams& params) {
-  Node* checkpoint_params[] = {params.receiver, params.comparefn};
+// Deopt frame states for the inlined sort.  Continuations feed the
+// temp_array snapshot to the generic PowerSort tail, preserving the spec's
+// _items_ snapshot semantics across deopts (ECMA-262 23.1.3.30).
+FrameState SortContinueFromSnapshotEagerFrameState(
+    const SortFrameStateParams& params) {
+  Node* checkpoint_params[] = {params.receiver, params.comparefn,
+                               params.temp_array, params.original_length};
   return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared,
-      Builtin::kArraySortNoopEagerDeoptContinuation, params.target,
-      params.context, checkpoint_params, arraysize(checkpoint_params),
-      params.outer_frame_state, ContinuationFrameStateMode::EAGER);
+      Builtin::kArraySortContinueFromSnapshotEagerDeoptContinuation,
+      params.target, params.context, checkpoint_params,
+      arraysize(checkpoint_params), params.outer_frame_state,
+      ContinuationFrameStateMode::EAGER);
 }
 
-FrameState SortNoopLazyFrameState(const SortFrameStateParams& params) {
-  Node* checkpoint_params[] = {params.receiver, params.comparefn};
+FrameState SortContinueFromSnapshotLazyFrameState(
+    const SortFrameStateParams& params) {
+  Node* checkpoint_params[] = {params.receiver, params.comparefn,
+                               params.temp_array, params.original_length};
   return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared,
-      Builtin::kArraySortNoopLazyDeoptContinuation, params.target,
-      params.context, checkpoint_params, arraysize(checkpoint_params),
-      params.outer_frame_state, ContinuationFrameStateMode::LAZY);
+      Builtin::kArraySortContinueFromSnapshotLazyDeoptContinuation,
+      params.target, params.context, checkpoint_params,
+      arraysize(checkpoint_params), params.outer_frame_state,
+      ContinuationFrameStateMode::LAZY);
 }
 
 // ---- Array.prototype.forEach
@@ -1745,20 +1754,23 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeSort(
   // Inline a small insertion sort directly into the Turbofan graph.
   //
   // Fast path (length <= kMaxInlineSortLength):
-  //   1. Copy receiver's elements into a temporary FixedArray.
-  //   2. Insertion-sort the temp array, calling comparefn for each comparison.
+  //   1. Copy receiver's elements into a temporary FixedArray (the spec's
+  //      _items_ snapshot per ECMA-262 23.1.3.30).
+  //   2. Insertion-sort the temp array, calling comparefn for each
+  //      comparison.  After each shift, restore the pivot to temp_array[j]
+  //      so that the array remains a valid permutation of the original
+  //      elements at every cmp call boundary.
   //   3. Copy sorted elements back into the receiver.
-  //   Using a temp array matches the spec's SortIndexedProperties snapshot
-  //   semantics: comparefn side effects on the receiver do not affect the
-  //   sort order and are overwritten by the copy-back.
   //
   // Slow path (length > kMaxInlineSortLength):
   //   Call Array.prototype.sort with kDisallowSpeculation to prevent
   //   re-reduction.
   //
-  // On any deopt the kArraySortNoopLazy/EagerDeoptContinuation builtins
-  // restart the generic sort (the receiver is unmodified since the sort
-  // operates on a temp copy).
+  // On any deopt the ArraySortContinueFromSnapshot{Eager,Lazy}DeoptContinuation
+  // builtins hand temp_array + the original length to the generic PowerSort
+  // tail.  This preserves the spec's snapshot semantics across deopts:
+  // comparefn side effects on the receiver are overwritten by the writeback
+  // and never leak into the final result.
   static constexpr int32_t kMaxInlineSortSize = JSArray::kMaxInlineSortLength;
 
   FrameState outer_frame_state = FrameStateInput();
@@ -1769,15 +1781,11 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeSort(
 
   TNode<Number> original_length = LoadJSArrayLength(receiver, kind);
 
-  SortFrameStateParams frame_state_params{
-      jsgraph(),         shared,   context,  target,
-      outer_frame_state, receiver, comparefn};
-
   // Branch: fast path vs slow path.
   auto slow_label = MakeDeferredLabel();
   auto done_label = MakeLabel();
 
-  // length > kMaxInlineSortSize → slow path.
+  // length > kMaxInlineSortSize -> slow path.
   GotoIf(NumberLessThan(NumberConstant(kMaxInlineSortSize), original_length),
          &slow_label);
 
@@ -1796,11 +1804,26 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeSort(
         TNode<FixedArray>::UncheckedCast(ab.Finish());
     InitializeEffectControl(temp_array, control());
 
+    // Deopt frame state params: temp_array (the snapshot) and original_length
+    // are threaded through every continuation point so the continuation
+    // builtin can hand the snapshot to the generic PowerSort tail.
+    SortFrameStateParams frame_state_params{
+        jsgraph(), shared,    context,    target,         outer_frame_state,
+        receiver,  comparefn, temp_array, original_length};
+
     // Copy-in: temp_array[k] = elements[k] for k in [0, length).
     // No CheckBounds needed: k in [0, length) and the receiver's length is
     // original_length (no callbacks have run yet).
     auto element_access = AccessBuilder::ForFixedArrayElement(kind);
     TNode<FixedArrayBase> elements = LoadElements(receiver);
+    // For PACKED_ELEMENTS the receiver may contain Undefined values, which
+    // CompareArrayElements (ECMA-262 23.1.3.30) special-cases by sorting to
+    // the end without invoking the comparator -- semantics the inlined
+    // insertion sort cannot implement.  Deopt during the copy-in if we see
+    // any; the deopt resumes at the .sort call site and the generic builtin
+    // (which compacts Undefineds before sorting) handles it correctly.
+    // PACKED_SMI_ELEMENTS cannot hold Undefined, so the check is omitted.
+    const bool check_undefined = !IsSmiElementsKind(kind);
     ForZeroUntil(original_length).Do([&](TNode<Number> k) {
       if (!v8_flags.turbo_loop_variable) {
         // Without loop variable analysis, Turbofan's typer is unable to
@@ -1810,6 +1833,10 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeSort(
         k = TNode<Number>::UncheckedCast(TypeGuard(Type::UnsignedSmall(), k));
       }
       TNode<Object> element = LoadElement<Object>(element_access, elements, k);
+      if (check_undefined) {
+        CheckIf(BooleanNot(IsUndefined(element)),
+                DeoptimizeReason::kHoleOrUndefined, feedback());
+      }
       StoreElement(element_access, temp_array, k, element);
     });
 
@@ -1840,7 +1867,7 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeSort(
       TNode<Object> pivot = LoadElement<Object>(element_access, temp_array, i);
 
       // Inner loop: j = i-1 downto 0.
-      auto inner_exit = MakeDeferredLabel(MachineRepresentation::kTagged);
+      auto inner_exit = MakeDeferredLabel();
       {
         GraphAssembler::LoopScope<MachineRepresentation::kTagged> inner_scope(
             this);
@@ -1862,7 +1889,7 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeSort(
 
         // Exit when j < 0 (pivot belongs at index 0).
         GotoIf(NumberLessThan(j, ZeroConstant()), &inner_exit,
-               BranchHint::kNone, j);
+               BranchHint::kNone);
 
         // Load elem = temp_array[j].
         TNode<Object> elem = LoadElement<Object>(element_access, temp_array, j);
@@ -1870,35 +1897,36 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeSort(
         TNode<Object> comparefn_this = UndefinedConstant();
         TNode<Object> cmp_result =
             JSCall2(comparefn, comparefn_this, pivot, elem,
-                    SortNoopLazyFrameState(frame_state_params));
+                    SortContinueFromSnapshotLazyFrameState(frame_state_params));
 
         // Re-establish dominating frame state after JSCall for
         // SpeculativeToNumber below.  Hoisting this Checkpoint out of the
         // loop is unsafe: the JSCall's effect chain wipes the dominating
         // frame state, and Turboshaft's graph builder DCHECKs that a
         // dominating frame state exists for SpeculativeToNumber.
-        Checkpoint(SortNoopEagerFrameState(frame_state_params));
+        Checkpoint(SortContinueFromSnapshotEagerFrameState(frame_state_params));
 
         // Convert comparefn result to a number.
         TNode<Number> cmp_num = SpeculativeToNumber(cmp_result);
 
         // If cmp >= 0: insertion point found; exit.
-        GotoIfNot(NumberLessThan(cmp_num, ZeroConstant()), &inner_exit, j);
+        GotoIfNot(NumberLessThan(cmp_num, ZeroConstant()), &inner_exit);
 
         // cmp < 0: shift elem right: temp_array[j+1] = elem.
         TNode<Number> gap = NumberAdd(j, OneConstant());
         StoreElement(element_access, temp_array, gap, elem);
+
+        // Store pivot at temp_array[j] to keep temp_array a valid
+        // permutation of the original elements at every cmp call boundary.
+        // The next iteration reads temp_array[j-1], so overwriting [j] is
+        // benign; on inner-loop exit pivot is at temp_array[j_exit + 1].
+        StoreElement(element_access, temp_array, j, pivot);
 
         // j--
         Goto(inner_header, NumberAdd(j, NumberConstant(-1)));
       }  // ~inner LoopScope
 
       Bind(&inner_exit);
-      TNode<Number> final_j = inner_exit.PhiAt<Number>(0);
-      TNode<Number> insertion_point = NumberAdd(final_j, OneConstant());
-
-      // temp_array[insertion_point] = pivot.
-      StoreElement(element_access, temp_array, insertion_point, pivot);
 
       // i++
       Goto(outer_header, NumberAdd(i, OneConstant()));
@@ -1909,11 +1937,11 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeSort(
     // Guard: comparefn side effects may have changed the receiver's map or
     // length.  Check once here before the copy-back (the sort loop only
     // touches the temp array, so in-loop checks are unnecessary).
-    Checkpoint(SortNoopEagerFrameState(frame_state_params));
+    Checkpoint(SortContinueFromSnapshotEagerFrameState(frame_state_params));
     MaybeInsertMapChecks(inference, has_stability_dependency);
     TNode<Number> current_length = LoadJSArrayLength(receiver, kind);
     CheckIf(NumberEqual(current_length, original_length),
-            DeoptimizeReason::kArrayLengthChanged);
+            DeoptimizeReason::kArrayLengthChanged, feedback());
 
     // Re-load the elements pointer: comparefn may have grown/shrunk the
     // backing store via push/pop, replacing receiver.elements.  The map and
@@ -4765,16 +4793,16 @@ JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
       case IrOpcode::kLoadField: {
         DCHECK_EQ(arguments_list, user->InputAt(0));
         FieldAccess const& access = FieldAccessOf(user->op());
-        if (access.offset == JSArray::kLengthOffset) {
+        if (access.offset == offsetof(JSArray, length_)) {
           // Ignore uses for arguments#length.
           static_assert(
-              static_cast<int>(JSArray::kLengthOffset) ==
+              static_cast<int>(offsetof(JSArray, length_)) ==
               static_cast<int>(JSStrictArgumentsObject::kLengthOffset));
           static_assert(
-              static_cast<int>(JSArray::kLengthOffset) ==
+              static_cast<int>(offsetof(JSArray, length_)) ==
               static_cast<int>(JSSloppyArgumentsObject::kLengthOffset));
           continue;
-        } else if (access.offset == JSObject::kElementsOffset) {
+        } else if (access.offset == offsetof(JSObject, elements_)) {
           // Ignore safe uses for arguments#elements.
           if (IsSafeArgumentsElements(user)) continue;
         }
@@ -5608,6 +5636,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceMapPrototypeGet(node);
     case Builtin::kMapPrototypeHas:
       return ReduceMapPrototypeHas(node);
+    case Builtin::kWeakMapPrototypeGet:
+      return ReduceWeakMapPrototypeGet(node);
     case Builtin::kSetPrototypeHas:
       return ReduceSetPrototypeHas(node);
     case Builtin::kRegExpPrototypeTest:
@@ -7754,11 +7784,14 @@ Reduction JSCallReducer::ReduceStringPrototypeToLowerCaseIntl(Node* node) {
 
   Node* receiver = effect = graph()->NewNode(
       simplified()->CheckString(p.feedback()), n.receiver(), effect, control);
-  Node* value = effect = control =
-      graph()->NewNode(simplified()->StringToLowerCaseIntl(), receiver,
-                       frame_state, n.context(), effect, control);
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
+  node->ReplaceInput(0, receiver);
+  node->ReplaceInput(1, frame_state);
+  node->ReplaceInput(2, n.context());
+  node->ReplaceInput(3, effect);
+  node->ReplaceInput(4, control);
+  node->TrimInputCount(5);
+  NodeProperties::ChangeOp(node, simplified()->StringToLowerCaseIntl());
+  return Changed(node);
 }
 
 Reduction JSCallReducer::ReduceStringPrototypeToUpperCaseIntl(Node* node) {
@@ -7773,11 +7806,14 @@ Reduction JSCallReducer::ReduceStringPrototypeToUpperCaseIntl(Node* node) {
 
   Node* receiver = effect = graph()->NewNode(
       simplified()->CheckString(p.feedback()), n.receiver(), effect, control);
-  Node* value = effect = control =
-      graph()->NewNode(simplified()->StringToUpperCaseIntl(), receiver,
-                       frame_state, n.context(), effect, control);
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
+  node->ReplaceInput(0, receiver);
+  node->ReplaceInput(1, frame_state);
+  node->ReplaceInput(2, n.context());
+  node->ReplaceInput(3, effect);
+  node->ReplaceInput(4, control);
+  node->TrimInputCount(5);
+  NodeProperties::ChangeOp(node, simplified()->StringToUpperCaseIntl());
+  return Changed(node);
 }
 
 #endif  // V8_INTL_SUPPORT
@@ -7892,24 +7928,20 @@ Reduction JSCallReducer::ReduceStringPrototypeLocaleCompareIntl(Node* node) {
     }
   }
 
-  Callable callable =
-      Builtins::CallableFor(isolate(), Builtin::kStringFastLocaleCompare);
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(),
-      callable.descriptor().GetStackParameterCount(),
-      CallDescriptor::kNeedsFrameState);
+  // Reshape the JSCall's value inputs to match StringLocaleCompareIntl's
+  // input layout (target, receiver, compareString, locales, context,
+  // frame_state), then swap the operator in place. In-place rewrite
+  // preserves any IfException edge attached to the JSCall.
   node->RemoveInput(n.FeedbackVectorIndex());
   if (n.ArgumentCount() == 3) {
-    node->RemoveInput(n.ArgumentIndex(2));
+    node->RemoveInput(n.ArgumentIndex(2));  // drop options
   } else if (n.ArgumentCount() == 1) {
     node->InsertInput(graph()->zone(), n.LastArgumentIndex() + 1,
-                      jsgraph()->UndefinedConstant());
+                      jsgraph()->UndefinedConstant());  // pad locales
   } else {
     DCHECK_EQ(2, n.ArgumentCount());
   }
-  node->InsertInput(graph()->zone(), 0,
-                    jsgraph()->HeapConstantNoHole(callable.code()));
-  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
+  NodeProperties::ChangeOp(node, simplified()->StringLocaleCompareIntl());
   return Changed(node);
 }
 #endif  // V8_INTL_SUPPORT
@@ -8712,6 +8744,26 @@ Reduction JSCallReducer::ReduceNumberIsNaN(Node* node) {
   Node* input = n.Argument(0);
   Node* value = graph()->NewNode(simplified()->ObjectIsNaN(), input);
   ReplaceWithValue(node, value);
+  return Replace(value);
+}
+
+Reduction JSCallReducer::ReduceWeakMapPrototypeGet(Node* node) {
+  JSCallNode n(node);
+  if (n.ArgumentCount() != 1) return NoChange();
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Effect effect{NodeProperties::GetEffectInput(node)};
+  Control control{NodeProperties::GetControlInput(node)};
+  Node* key = NodeProperties::GetValueInput(node, 2);
+
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps() ||
+      !inference.AllOfInstanceTypesAre(JS_WEAK_MAP_TYPE)) {
+    return NoChange();
+  }
+
+  Node* value = effect = graph()->NewNode(simplified()->WeakCollectionGet(),
+                                          receiver, key, effect, control);
+  ReplaceWithValue(node, value, effect, control);
   return Replace(value);
 }
 

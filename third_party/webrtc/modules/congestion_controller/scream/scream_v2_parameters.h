@@ -29,8 +29,8 @@ struct ScreamV2Parameters {
   FieldTrialParameter<double> l4s_avg_g_down;
 
   // Exponentially Weighted Moving Average (EWMA) factor for smoothed rtt.
-  FieldTrialParameter<double> smoothed_rtt_avg_g_up;
-  FieldTrialParameter<double> smoothed_rtt_avg_g_down;
+  FieldTrialParameter<double> smoothed_rtt_avg_g;
+  FieldTrialParameter<double> smoothed_rtt_avg_in_alr_g;
 
   // Maximum Segment Size (MSS)
   // Size of the largest data segment that a sender is able to transmit. I.e
@@ -135,6 +135,10 @@ struct ScreamV2Parameters {
   // bursts.
   FieldTrialParameter<TimeDelta>
       allow_large_pacing_bursts_after_congestion_time;
+
+  // Enable application-limited (ALR) state tracking.
+  // In ALR, reference window can not increase, and RTT is updated slower.
+  FieldTrialParameter<bool> enable_alr;
 };
 
 }  // namespace webrtc

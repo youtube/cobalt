@@ -225,7 +225,7 @@ void PerfJitLogger::LogRecordedBuffer(
     size_t length) {
   DisallowGarbageCollection no_gc;
   if (v8_flags.perf_basic_prof_only_functions) {
-    CodeKind code_kind = abstract_code->kind(isolate_);
+    CodeKind code_kind = abstract_code->kind();
     if (!CodeKindIsJSFunction(code_kind)) {
       return;
     }

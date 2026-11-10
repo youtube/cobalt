@@ -232,26 +232,113 @@ TEST(BIOTest, SocketConnect) {
              ntohs(addr.ToIPv4().sin_port));
   }
 
-  // Connect to it with a connect BIO.
-  UniquePtr<BIO> bio(BIO_new_connect(hostname));
-  ASSERT_TRUE(bio);
+  // Using a connect BIO implicitly connects to it.
+  {
+    // Connect to it with a connect BIO.
+    UniquePtr<BIO> bio(BIO_new_connect(hostname));
+    ASSERT_TRUE(bio);
 
-  // Write a test message to the BIO. This is assumed to be smaller than the
-  // transport buffer.
-  ASSERT_EQ(static_cast<int>(sizeof(kTestMessage)),
-            BIO_write(bio.get(), kTestMessage, sizeof(kTestMessage)))
-      << LastSocketError();
+    // Write a test message to the BIO. This is assumed to be smaller than the
+    // transport buffer.
+    ASSERT_EQ(static_cast<int>(sizeof(kTestMessage)),
+              BIO_write(bio.get(), kTestMessage, sizeof(kTestMessage)))
+        << LastSocketError();
 
-  // Accept the socket.
-  OwnedSocket sock(accept(listening_sock.get(), addr.addr_mut(), &addr.len));
-  ASSERT_TRUE(sock.is_valid()) << LastSocketError();
+    // Accept the socket.
+    OwnedSocket sock(accept(listening_sock.get(), addr.addr_mut(), &addr.len));
+    ASSERT_TRUE(sock.is_valid()) << LastSocketError();
 
-  // Check the same message is read back out.
-  char buf[sizeof(kTestMessage)];
-  ASSERT_EQ(static_cast<int>(sizeof(kTestMessage)),
-            recv(sock.get(), buf, sizeof(buf), 0))
-      << LastSocketError();
-  EXPECT_EQ(Bytes(kTestMessage, sizeof(kTestMessage)), Bytes(buf, sizeof(buf)));
+    // Check the same message is read back out.
+    char buf[sizeof(kTestMessage)];
+    ASSERT_EQ(static_cast<int>(sizeof(kTestMessage)),
+              recv(sock.get(), buf, sizeof(buf), 0))
+        << LastSocketError();
+    EXPECT_EQ(Bytes(kTestMessage, sizeof(kTestMessage)),
+              Bytes(buf, sizeof(buf)));
+  }
+
+  // Explicitly connect to the BIO first.
+  {
+    UniquePtr<BIO> bio(BIO_new_connect(hostname));
+    ASSERT_TRUE(bio);
+
+    ASSERT_EQ(1, BIO_do_connect(bio.get())) << LastSocketError();
+    ASSERT_EQ(static_cast<int>(sizeof(kTestMessage)),
+              BIO_write(bio.get(), kTestMessage, sizeof(kTestMessage)))
+        << LastSocketError();
+
+    // Accept and read.
+    OwnedSocket sock(accept(listening_sock.get(), addr.addr_mut(), &addr.len));
+    ASSERT_TRUE(sock.is_valid()) << LastSocketError();
+    char buf[sizeof(kTestMessage)];
+    ASSERT_EQ(static_cast<int>(sizeof(kTestMessage)),
+              recv(sock.get(), buf, sizeof(buf), 0))
+        << LastSocketError();
+    EXPECT_EQ(Bytes(kTestMessage, sizeof(kTestMessage)),
+              Bytes(buf, sizeof(buf)));
+  }
+
+  // Connect in non-blocking mode.
+  {
+    UniquePtr<BIO> bio(BIO_new_connect(hostname));
+    ASSERT_TRUE(bio);
+    ASSERT_EQ(1, BIO_set_nbio(bio.get(), 1));
+
+    ASSERT_EQ(-1, BIO_do_connect(bio.get()));
+    EXPECT_TRUE(BIO_should_retry(bio.get()));
+    EXPECT_TRUE(BIO_should_io_special(bio.get()));
+    EXPECT_EQ(BIO_RR_CONNECT, BIO_get_retry_reason(bio.get()));
+
+    // Wait for the underlying socket to become writable and try again.
+    int fd = BIO_get_fd(bio.get(), nullptr);
+    ASSERT_GT(fd, -1);
+    ASSERT_TRUE(WaitForSocket(static_cast<Socket>(fd), WaitType::kWrite));
+    ASSERT_EQ(1, BIO_do_connect(bio.get()));
+
+    ASSERT_EQ(static_cast<int>(sizeof(kTestMessage)),
+              BIO_write(bio.get(), kTestMessage, sizeof(kTestMessage)))
+        << LastSocketError();
+
+    // Accept and read.
+    OwnedSocket sock(accept(listening_sock.get(), addr.addr_mut(), &addr.len));
+    ASSERT_TRUE(sock.is_valid()) << LastSocketError();
+    char buf[sizeof(kTestMessage)];
+    ASSERT_EQ(static_cast<int>(sizeof(kTestMessage)),
+              recv(sock.get(), buf, sizeof(buf), 0))
+        << LastSocketError();
+    EXPECT_EQ(Bytes(kTestMessage, sizeof(kTestMessage)),
+              Bytes(buf, sizeof(buf)));
+  }
+
+  // Implicitly connect in non-blocking mode.
+  {
+    UniquePtr<BIO> bio(BIO_new_connect(hostname));
+    ASSERT_TRUE(bio);
+    ASSERT_EQ(1, BIO_set_nbio(bio.get(), 1));
+
+    ASSERT_EQ(-1, BIO_write(bio.get(), kTestMessage, sizeof(kTestMessage)));
+    EXPECT_TRUE(BIO_should_retry(bio.get()));
+    EXPECT_TRUE(BIO_should_io_special(bio.get()));
+    EXPECT_EQ(BIO_RR_CONNECT, BIO_get_retry_reason(bio.get()));
+
+    // Wait for the underlying socket to become writable and try again.
+    int fd = BIO_get_fd(bio.get(), nullptr);
+    ASSERT_GT(fd, -1);
+    ASSERT_TRUE(WaitForSocket(static_cast<Socket>(fd), WaitType::kWrite));
+    ASSERT_EQ(static_cast<int>(sizeof(kTestMessage)),
+              BIO_write(bio.get(), kTestMessage, sizeof(kTestMessage)))
+        << LastSocketError();
+
+    // Accept and read.
+    OwnedSocket sock(accept(listening_sock.get(), addr.addr_mut(), &addr.len));
+    ASSERT_TRUE(sock.is_valid()) << LastSocketError();
+    char buf[sizeof(kTestMessage)];
+    ASSERT_EQ(static_cast<int>(sizeof(kTestMessage)),
+              recv(sock.get(), buf, sizeof(buf), 0))
+        << LastSocketError();
+    EXPECT_EQ(Bytes(kTestMessage, sizeof(kTestMessage)),
+              Bytes(buf, sizeof(buf)));
+  }
 }
 
 TEST(BIOTest, SocketNonBlocking) {

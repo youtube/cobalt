@@ -6899,8 +6899,9 @@ v8::Intercepted DatabaseGetter(Local<Name> name,
 v8::Intercepted DatabaseSetter(Local<Name> name, Local<Value> value,
                                const v8::PropertyCallbackInfo<Boolean>& info) {
   auto context = info.GetIsolate()->GetCurrentContext();
-  if (name->Equals(context, v8_str("db")).FromJust())
+  if (name->Equals(context, v8_str("db")).FromJust()) {
     return v8::Intercepted::kNo;
+  }
 
   // Side effects are allowed only when the property is present or throws.
   ApiTestFuzzer::Fuzz();

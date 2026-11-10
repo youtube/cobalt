@@ -343,35 +343,6 @@ angle::Result CopyTextureContentsToStagingBuffer(ContextMtl *contextMtl,
     return angle::Result::Continue;
 }
 
-angle::Result CopyCompressedTextureContentsToStagingBuffer(ContextMtl *contextMtl,
-                                                           const angle::Format &textureAngleFormat,
-                                                           const MTLSize &regionSizeInBlocks,
-                                                           const uint8_t *data,
-                                                           size_t bytesPerBlockRow,
-                                                           size_t bytesPer2DImage,
-                                                           size_t *bufferRowPitchOut,
-                                                           size_t *buffer2DImageSizeOut,
-                                                           mtl::BufferRef *bufferOut)
-{
-    size_t stagingBufferRowPitch    = bytesPerBlockRow;
-    size_t stagingBuffer2DImageSize = bytesPer2DImage;
-    size_t stagingBufferSize        = stagingBuffer2DImageSize * regionSizeInBlocks.depth;
-    mtl::BufferRef stagingBuffer;
-    ANGLE_TRY(mtl::Buffer::MakeBuffer(contextMtl, stagingBufferSize, &stagingBuffer));
-
-    uint8_t *pdst = stagingBuffer->map(contextMtl).data();
-    CopyTextureData(regionSizeInBlocks, bytesPerBlockRow, bytesPer2DImage, data,
-                    stagingBufferRowPitch, stagingBuffer2DImageSize, pdst);
-
-    stagingBuffer->unmap(contextMtl);
-
-    *bufferOut            = stagingBuffer;
-    *bufferRowPitchOut    = stagingBufferRowPitch;
-    *buffer2DImageSizeOut = stagingBuffer2DImageSize;
-
-    return angle::Result::Continue;
-}
-
 angle::Result SaturateDepth(ContextMtl *contextMtl,
                             mtl::BufferRef srcBuffer,
                             mtl::BufferRef dstBuffer,
@@ -575,6 +546,7 @@ angle::Result UploadTextureContentsWithStagingBuffer(ContextMtl *contextMtl,
                                                      const mtl::TextureRef &texture)
 {
     ASSERT(texture && texture->valid());
+    ASSERT(!textureAngleFormat.isBlock);
 
     angle::FormatID stagingBufferFormatID   = textureAngleFormat.id;
     const angle::Format &angleStagingFormat = angle::Format::Get(stagingBufferFormatID);
@@ -582,32 +554,10 @@ angle::Result UploadTextureContentsWithStagingBuffer(ContextMtl *contextMtl,
     size_t stagingBufferRowPitch;
     size_t stagingBuffer2DImageSize;
     mtl::BufferRef stagingBuffer;
+    ANGLE_TRY(CopyTextureContentsToStagingBuffer(
+        contextMtl, angleStagingFormat, region.size, data, bytesPerRow, bytesPer2DImage,
+        &stagingBufferRowPitch, &stagingBuffer2DImageSize, &stagingBuffer));
 
-    // Block-compressed formats need a bit of massaging for copy.
-    if (textureAngleFormat.isBlock)
-    {
-        GLenum internalFormat         = textureAngleFormat.glInternalFormat;
-        const gl::InternalFormat &fmt = gl::GetSizedInternalFormatInfo(internalFormat);
-        MTLRegion newRegion           = region;
-        bytesPerRow =
-            (region.size.width + fmt.compressedBlockWidth - 1) / fmt.compressedBlockWidth * 16;
-        bytesPer2DImage = (region.size.height + fmt.compressedBlockHeight - 1) /
-                          fmt.compressedBlockHeight * bytesPerRow;
-        newRegion.size.width =
-            (region.size.width + fmt.compressedBlockWidth - 1) / fmt.compressedBlockWidth;
-        newRegion.size.height =
-            (region.size.height + fmt.compressedBlockHeight - 1) / fmt.compressedBlockHeight;
-        ANGLE_TRY(CopyCompressedTextureContentsToStagingBuffer(
-            contextMtl, angleStagingFormat, newRegion.size, data, bytesPerRow, bytesPer2DImage,
-            &stagingBufferRowPitch, &stagingBuffer2DImageSize, &stagingBuffer));
-    }
-    // Copy to staging buffer before uploading to texture.
-    else
-    {
-        ANGLE_TRY(CopyTextureContentsToStagingBuffer(
-            contextMtl, angleStagingFormat, region.size, data, bytesPerRow, bytesPer2DImage,
-            &stagingBufferRowPitch, &stagingBuffer2DImageSize, &stagingBuffer));
-    }
     mtl::BlitCommandEncoder *encoder =
         GetBlitCommandEncoderForResources(contextMtl, {stagingBuffer.get(), texture.get()});
 
@@ -959,10 +909,30 @@ void TextureMtl::deallocateNativeStorage(bool keepImages, bool keepSamplerStateA
     }
 }
 
-angle::Result TextureMtl::ensureNativeStorageCreated(const gl::Context *context)
+angle::Result TextureMtl::ensureNativeStorageCreated(const gl::Context *context, bool keepImages)
 {
+    auto clearImagesAssociatedWithStorage = [&]() {
+        ASSERT(mNativeTextureStorage);
+        GLuint mips      = mState.getMipmapMaxLevel() - mState.getEffectiveBaseLevel() + 1;
+        int numCubeFaces = static_cast<int>(mNativeTextureStorage->cubeFaces());
+        for (int face = 0; face < numCubeFaces; ++face)
+        {
+            for (mtl::MipmapNativeLevel actualMip = mtl::kZeroNativeMipLevel;
+                 actualMip.get() < mips; ++actualMip)
+            {
+                GLuint imageMipLevel = mNativeTextureStorage->getGLLevel(actualMip);
+                mTexImageDefs[face][imageMipLevel].image = nullptr;
+            }
+        }
+    };
+
     if (mNativeTextureStorage)
     {
+        // Storage exists, deallocate images associated with the storage.
+        if (!keepImages)
+        {
+            clearImagesAssociatedWithStorage();
+        }
         return angle::Result::Continue;
     }
 
@@ -1013,6 +983,11 @@ angle::Result TextureMtl::ensureNativeStorageCreated(const gl::Context *context)
                 imageToTransfer = nullptr;
             }
         }
+    }
+
+    if (!keepImages)
+    {
+        clearImagesAssociatedWithStorage();
     }
 
     return angle::Result::Continue;
@@ -1520,7 +1495,8 @@ angle::Result TextureMtl::copyImage(const gl::Context *context,
 
     gl::Extents fbSize = source->getReadColorAttachment()->getSize();
     gl::Rectangle fbRect(0, 0, fbSize.width, fbSize.height);
-    if (context->isWebGL() && !fbRect.encloses(sourceArea))
+    if ((context->isWebGL() || context->isRobustResourceInitEnabled()) &&
+        !fbRect.encloses(sourceArea))
     {
         ANGLE_TRY(initializeContents(context, GL_NONE, index));
     }
@@ -1686,7 +1662,7 @@ angle::Result TextureMtl::setImageExternal(const gl::Context *context,
 
 angle::Result TextureMtl::generateMipmap(const gl::Context *context)
 {
-    ANGLE_TRY(ensureNativeStorageCreated(context));
+    ANGLE_TRY(ensureNativeStorageCreated(context, false));
 
     ContextMtl *contextMtl = mtl::GetImpl(context);
     if (!mViewFromBaseToMaxLevel)
@@ -1859,7 +1835,7 @@ angle::Result TextureMtl::getAttachmentRenderTarget(const gl::Context *context,
                                                     GLsizei samples,
                                                     FramebufferAttachmentRenderTarget **rtOut)
 {
-    ANGLE_TRY(ensureNativeStorageCreated(context));
+    ANGLE_TRY(ensureNativeStorageCreated(context, true));
 
     ContextMtl *contextMtl = mtl::GetImpl(context);
     ANGLE_CHECK(contextMtl, mNativeTextureStorage, gl::err::kInternalError, GL_INVALID_OPERATION);
@@ -1920,7 +1896,7 @@ angle::Result TextureMtl::syncState(const gl::Context *context,
         }
     }
 
-    ANGLE_TRY(ensureNativeStorageCreated(context));
+    ANGLE_TRY(ensureNativeStorageCreated(context, true));
     ANGLE_TRY(ensureSamplerStateCreated(context));
 
     return angle::Result::Continue;

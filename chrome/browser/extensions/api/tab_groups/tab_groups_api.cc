@@ -49,6 +49,7 @@ constexpr char kCannotMoveGroupIntoMiddleOfOtherGroupError[] =
     "Cannot move the group to an index that is in the middle of another group.";
 constexpr char kCannotMoveGroupIntoMiddleOfPinnedTabsError[] =
     "Cannot move the group to an index that is in the middle of pinned tabs.";
+constexpr char kFailedToMoveGroupError[] = "Failed to move group.";
 
 // Returns true if a group could be moved into the |target_index| of the given
 // |tab_strip|. Sets the |error| string otherwise.
@@ -334,6 +335,7 @@ ExtensionFunction::ResponseAction TabGroupsMoveFunction::Run() {
   if (cross_window) {
     // Cross window group moves are asynchronous on Android. OnTabGroupCreated()
     // will be called later when the group is created in the new window.
+    AddRef();  // Balanced in OnTabGroupCreated().
     return RespondLater();
   }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -504,8 +506,11 @@ bool TabGroupsMoveFunction::MoveTabGroupBetweenBrowsers(
 
   // Pausing Saved Tab Groups is handled in TabListBridge on Win/Mac/Linux and
   // in MultiInstanceManagerApi31 on Android.
-  source_tab_list->MoveTabGroupToWindow(group, target_browser->GetSessionID(),
-                                        new_index);
+  if (!source_tab_list->MoveTabGroupToWindow(
+          group, target_browser->GetSessionID(), new_index)) {
+    *error = kFailedToMoveGroupError;
+    return false;
+  }
 
   return true;
 }
@@ -517,6 +522,8 @@ void TabGroupsMoveFunction::OnTabGroupCreated(tab_groups::TabGroupId group_id) {
   auto group_object = ExtensionTabUtil::CreateTabGroupObject(group_id);
   CHECK(group_object);
   Respond(ArgumentList(api::tab_groups::Get::Results::Create(*group_object)));
+
+  Release();  // Balanced in MoveGroup().
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 

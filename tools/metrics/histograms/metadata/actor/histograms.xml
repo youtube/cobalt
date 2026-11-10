@@ -50,6 +50,7 @@ chromium-metrics-reviews@google.com.
   <variant name="PreviousChat" summary="User selected a previous chat."/>
   <variant name="Shutdown" summary="Chrome was being shut down."/>
   <variant name="TabDetached" summary="The acting tab was closed."/>
+  <variant name="UserNavigatedAway" summary="User manually navigated away."/>
 </variants>
 
 <!-- LINT.ThenChange(//chrome/browser/actor/actor_task.h:StoppedReason) -->
@@ -381,6 +382,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Actor.NavigationGating.DarkLaunchConfirmationRequestLatency"
+    units="ms" expires_after="2026-10-04">
+  <owner>masnoble@google.com</owner>
+  <owner>dylancutler@google.com</owner>
+  <summary>
+    Records the latency of the dark launch navigation confirmation request.
+    Recorded when the browser receives the response from the confirmation
+    request in dark launch mode.
+  </summary>
+</histogram>
+
 <histogram name="Actor.NavigationGating.GatingDecision2" enum="GatingDecision"
     expires_after="2026-08-23">
   <owner>tquintanilla@google.com</owner>
@@ -497,6 +509,26 @@ chromium-metrics-reviews@google.com.
     Measures the total time from when Wait() is called until the observation
     delay completes. Not recorded for timeouts.
   </summary>
+</histogram>
+
+<histogram
+    name="Actor.PageContext.APC.Comparison.{Source}.IsIdenticalToPreviousFetch"
+    enum="Boolean" expires_after="2026-11-03">
+  <owner>linnan@google.com</owner>
+  <owner>shivanisha@google.com</owner>
+  <owner>chrome-synapse-team@google.com</owner>
+  <summary>
+    Recorded when a new Annotated Page Content (APC) is fetched by {Source}.
+    Compares the new APC with the immediately preceding fetch from ANY source
+    (e.g. Actor or Glic) and records whether they are identical.
+
+    This is used to evaluate the potential benefit of a shared APC cache between
+    different features.
+  </summary>
+  <token key="Source">
+    <variant name="Actor"/>
+    <variant name="Glic"/>
+  </token>
 </histogram>
 
 <histogram name="Actor.PageContext.APC.Duration" units="ms"

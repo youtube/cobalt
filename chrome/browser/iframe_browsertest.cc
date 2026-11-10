@@ -4,6 +4,8 @@
 
 #include "base/files/file_path.h"
 #include "base/strings/utf_string_conversions.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/chrome_test_utils.h"
@@ -43,11 +45,8 @@ IN_PROC_BROWSER_TEST_F(IFrameTest, InEmptyFrame) {
 // Test for https://crbug.com/41259523. It ensures that file chooser triggered
 // by an iframe, which is destroyed before the chooser is closed, does not
 // result in a use-after-free condition.
-//
-// Note: This test is disabled temporarily to track down a memory leak reported
-// by the ASan bots. It will be enabled once the root cause is found.
-// TODO(crbug.com/40904458): Re-enable this test
-#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER)
+// TODO(crbug.com/500416901, crbug.com/40904458): Fix and re-enable this test.
+#if defined(MEMORY_SANITIZER) && BUILDFLAG(IS_LINUX)
 #define MAYBE_FileChooserInDestroyedSubframe \
   DISABLED_FileChooserInDestroyedSubframe
 #else

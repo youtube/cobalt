@@ -691,6 +691,14 @@ V8_INLINE constexpr bool IsBaselineTrampolineBuiltin(Builtin builtin_id) {
           builtin_id == Builtin::kBaselineOutOfLinePrologueDeopt);
 }
 
+V8_INLINE constexpr bool IsMonomorphicLoadICHandler(Builtin builtin_id) {
+  static_assert(Builtin::kFirstLoadICHandler ==
+                Builtin::kLoadICUninitializedBaseline);
+  static_assert(Builtin::kLastLoadICHandler == Builtin::kLoadICGenericBaseline);
+  return builtin_id > Builtin::kFirstLoadICHandler &&
+         builtin_id < Builtin::kLastLoadICHandler;
+}
+
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
 #define DEFINE_TYPED_OP_CHECKER(Name, LowerBound, UpperBound)           \
   V8_INLINE constexpr bool IsTyped##Name##Builtin(Builtin builtin_id) { \

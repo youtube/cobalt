@@ -2201,13 +2201,15 @@ TEST_P(RTCStatsCollectorTest, CollectRTCPeerConnectionStats) {
     EXPECT_EQ(expected, report->Get("P")->cast_to<RTCPeerConnectionStats>());
   }
 
+  ScopedTaskSafety signaling_safety;
+
   FakeDataChannelController controller(pc_->network_thread());
   scoped_refptr<SctpDataChannel> dummy_channel_a = SctpDataChannel::Create(
       controller.weak_ptr(), "DummyChannelA", false, InternalDataChannelInit(),
-      Thread::Current(), Thread::Current());
+      signaling_safety.flag(), Thread::Current(), Thread::Current());
   scoped_refptr<SctpDataChannel> dummy_channel_b = SctpDataChannel::Create(
       controller.weak_ptr(), "DummyChannelB", false, InternalDataChannelInit(),
-      Thread::Current(), Thread::Current());
+      signaling_safety.flag(), Thread::Current(), Thread::Current());
 
   stats_->stats_collector().OnSctpDataChannelStateChanged(
       dummy_channel_a->internal_id(), DataChannelInterface::DataState::kOpen);

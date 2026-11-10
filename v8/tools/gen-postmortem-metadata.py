@@ -384,7 +384,7 @@ consts_misc = [
     },
     {
         'name': 'class_Map__instance_descriptors_offset',
-        'value': 'Map::kInstanceDescriptorsOffset'
+        'value': 'offsetof(Map, instance_descriptors_)'
     },
     {
         'name': 'off_fp_context_or_frame_type',

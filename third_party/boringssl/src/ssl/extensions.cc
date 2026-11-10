@@ -21,8 +21,8 @@
 
 #include <algorithm>
 #include <optional>
-#include <variant>
 #include <utility>
+#include <variant>
 
 #include <openssl/aead.h>
 #include <openssl/bytestring.h>
@@ -2123,8 +2123,7 @@ std::optional<SSLOfferedPSKs> ssl_ext_pre_shared_key_parse_clienthello(
   }
 
   // We should have run out of identities and binders at the same time.
-  if (CBS_len(&copy.identities) != 0 ||
-      CBS_len(&copy.binders) != 0) {
+  if (CBS_len(&copy.identities) != 0 || CBS_len(&copy.binders) != 0) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_PSK_IDENTITY_BINDER_COUNT_MISMATCH);
     *out_alert = SSL_AD_ILLEGAL_PARAMETER;
     return std::nullopt;
@@ -2821,6 +2820,102 @@ static bool ext_certificate_authorities_parse_clienthello(SSL_HANDSHAKE *hs,
   return true;
 }
 
+// Server Padding extension.
+//
+// Adds empty bytes to EncryptedExtensions for TLS 1.3 connections that request
+// it.
+
+// Limit max padding to 16k.
+constexpr uint16_t kMaxServerPadding = 16 * 1024;
+
+static bool ext_server_padding_add_clienthello(const SSL_HANDSHAKE *hs,
+                                               CBB *out, CBB *out_compressible,
+                                               ssl_client_hello_type_t type) {
+  if (!hs->config->server_padding_request.has_value()) {
+    return true;
+  }
+
+  CBB contents;
+  if (!CBB_add_u16(out_compressible, TLSEXT_TYPE_server_padding) ||
+      !CBB_add_u16_length_prefixed(out_compressible, &contents) ||
+      !CBB_add_u16(&contents, hs->config->server_padding_request.value()) ||
+      !CBB_flush(out_compressible)) {
+    return false;
+  }
+
+  return true;
+}
+
+static bool ext_server_padding_parse_clienthello(SSL_HANDSHAKE *hs,
+                                                 uint8_t *out_alert,
+                                                 CBS *contents) {
+  if (contents == nullptr) {
+    return true;
+  }
+
+  if (ssl_protocol_version(hs->ssl) < TLS1_3_VERSION) {
+    return true;
+  }
+
+  uint16_t padding_requested;
+  if (!CBS_get_u16(contents, &padding_requested) || CBS_len(contents) != 0) {
+    *out_alert = SSL_AD_DECODE_ERROR;
+    OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
+    return false;
+  }
+
+  hs->client_requested_server_padding_size = padding_requested;
+  return true;
+}
+
+static bool ext_server_padding_add_serverhello(SSL_HANDSHAKE *hs, CBB *out) {
+  SSL *const ssl = hs->ssl;
+  if (ssl_protocol_version(ssl) < TLS1_3_VERSION ||
+      !hs->client_requested_server_padding_size ||
+      !hs->config->server_padding_enabled) {
+    return true;
+  }
+
+  // Limit max padding; if a client requests more than this, don't return any
+  // padding.
+  uint16_t padding_len = hs->client_requested_server_padding_size.value();
+  if (padding_len > kMaxServerPadding) {
+    return true;
+  }
+
+  CBB contents;
+  if (!CBB_add_u16(out, TLSEXT_TYPE_server_padding) ||
+      !CBB_add_u16_length_prefixed(out, &contents) ||
+      !CBB_add_zeros(&contents, padding_len) || !CBB_flush(out)) {
+    return false;
+  }
+
+  return true;
+}
+
+static bool ext_server_padding_parse_serverhello(SSL_HANDSHAKE *hs,
+                                                 uint8_t *out_alert,
+                                                 CBS *contents) {
+  if (contents == nullptr) {
+    return true;
+  }
+
+  if (ssl_protocol_version(hs->ssl) < TLS1_3_VERSION ||
+      !hs->config->server_padding_request) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_UNEXPECTED_EXTENSION);
+    *out_alert = SSL_AD_UNSUPPORTED_EXTENSION;
+    return false;
+  }
+
+  if (hs->config->server_padding_request.value() != CBS_len(contents)) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
+    *out_alert = SSL_AD_DECODE_ERROR;
+    return false;
+  }
+
+  hs->ssl->s3->server_sent_requested_padding = true;
+  return true;
+}
 
 // Trust Anchor Identifiers
 //
@@ -2894,6 +2989,15 @@ static bool ext_trust_anchors_add_serverhello(SSL_HANDSHAKE *hs, CBB *out) {
       !CBB_add_u16_length_prefixed(&contents, &list)) {
     return false;
   }
+
+  // Use the caller-provided list if they overrode it.
+  if (!hs->config->cert->available_trust_anchors.empty()) {
+    return CBB_add_bytes(&list,
+                         hs->config->cert->available_trust_anchors.data(),
+                         hs->config->cert->available_trust_anchors.size()) &&
+           CBB_flush(out);
+  }
+
   for (const auto &cred : hs->config->cert->credentials) {
     if (!cred->trust_anchor_id.empty()) {
       uint16_t unused_sigalg;
@@ -4168,6 +4272,13 @@ static const struct tls_extension kExtensions[] = {
         // during credential selection.
         ignore_parse_clienthello,
         ext_server_cert_type_add_serverhello,
+    },
+    {
+        TLSEXT_TYPE_server_padding,
+        ext_server_padding_add_clienthello,
+        ext_server_padding_parse_serverhello,
+        ext_server_padding_parse_clienthello,
+        ext_server_padding_add_serverhello,
     },
 };
 

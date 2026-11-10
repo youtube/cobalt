@@ -153,9 +153,6 @@ V8_OBJECT class JSArray : public JSObject {
   // Min. stack size for detecting an Array.prototype.join() call cycle.
   static const uint32_t kMinJoinStackSize = 2;
 
-  // Defined out-of-line below the class so `offsetof` / `sizeof` on the
-  // still-incomplete type can appear in an initializer.
-  static const int kLengthOffset;
   static const int kHeaderSize;
   static const int kInitialMaxFastElementArray;
 
@@ -163,7 +160,6 @@ V8_OBJECT class JSArray : public JSObject {
   TaggedMember<Number> length_;
 } V8_OBJECT_END;
 
-inline constexpr int JSArray::kLengthOffset = offsetof(JSArray, length_);
 inline constexpr int JSArray::kHeaderSize = sizeof(JSArray);
 inline constexpr int JSArray::kInitialMaxFastElementArray =
     (kMaxRegularHeapObjectSize - static_cast<int>(sizeof(FixedArray)) -
@@ -213,11 +209,6 @@ V8_OBJECT class TemplateLiteralObject : public JSArray {
   inline int slot_id() const;
   inline void set_slot_id(int value);
 
-  // Defined out-of-line below the class so `offsetof` / `sizeof` on the
-  // still-incomplete type can appear in an initializer.
-  static const int kRawOffset;
-  static const int kFunctionLiteralIdOffset;
-  static const int kSlotIdOffset;
   static const int kHeaderSize;
 
  public:
@@ -226,12 +217,6 @@ V8_OBJECT class TemplateLiteralObject : public JSArray {
   TaggedMember<Smi> slot_id_;
 } V8_OBJECT_END;
 
-inline constexpr int TemplateLiteralObject::kRawOffset =
-    offsetof(TemplateLiteralObject, raw_);
-inline constexpr int TemplateLiteralObject::kFunctionLiteralIdOffset =
-    offsetof(TemplateLiteralObject, function_literal_id_);
-inline constexpr int TemplateLiteralObject::kSlotIdOffset =
-    offsetof(TemplateLiteralObject, slot_id_);
 inline constexpr int TemplateLiteralObject::kHeaderSize =
     sizeof(TemplateLiteralObject);
 

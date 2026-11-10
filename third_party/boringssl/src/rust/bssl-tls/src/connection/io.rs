@@ -28,6 +28,7 @@ use core::{
 use crate::{
     ReceiveBuffer,
     connection::{
+        TlsConnection,
         lifecycle::ShutdownStatus,
         methods::HasTlsConnectionMethod, //
     },
@@ -44,9 +45,7 @@ use crate::{
     io::IoStatus, //
 };
 
-use super::TlsConnectionRef;
-
-impl<R, M> TlsConnectionRef<R, M>
+impl<R, M> TlsConnection<R, M>
 where
     M: HasTlsConnectionMethod,
 {
@@ -185,7 +184,7 @@ where
 }
 
 /// Async I/O
-impl<R, M> TlsConnectionRef<R, M>
+impl<R, M> TlsConnection<R, M>
 where
     M: HasTlsConnectionMethod,
 {
@@ -200,14 +199,14 @@ where
     }
 }
 
-impl<R, M> TlsConnectionRef<R, M>
+impl<R, M> TlsConnection<R, M>
 where
     M: HasTlsConnectionMethod + HasBasicIo,
 {
     fn do_async_io(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-        sync_op: impl FnOnce(&mut TlsConnectionRef<R, M>) -> Result<IoStatus, Error>,
+        sync_op: impl FnOnce(&mut TlsConnection<R, M>) -> Result<IoStatus, Error>,
     ) -> Result<Option<IoStatus>, Error> {
         self.set_waker(cx.waker());
 

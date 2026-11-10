@@ -104,7 +104,7 @@ class ObjectBoilerplateDescription
 
   class BodyDescriptor;
 
-  static constexpr uint32_t kLengthOffset = HeapObject::kHeaderSize;
+  static constexpr uint32_t kLengthOffset = sizeof(HeapObject);
   static constexpr uint32_t kHeaderSize =
       kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kApiInt32Size);
 

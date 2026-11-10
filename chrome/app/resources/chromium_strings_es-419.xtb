@@ -182,7 +182,6 @@
 <translation id="2933336679234709858">Tus datos se encriptan con tu frase de contraseña. Ingrésala para usar y guardar datos de Chromium en tu Cuenta de Google.</translation>
 <translation id="2945997411976714835">Error de instalación: No se pudo iniciar el proceso del instalador.</translation>
 <translation id="2948852018303413228">Accede más rápido a los sitios con las contraseñas guardadas de Chromium en iOS</translation>
-<translation id="2966959524256557996">Agrega un nuevo perfil de Chromium para mantener separados los favoritos, las contraseñas y la configuración.</translation>
 <translation id="2970426615109535079">Tu organización administra Chromium</translation>
 <translation id="2977470724722393594">Chromium está actualizado.</translation>
 <translation id="2977506796191543575">Si un sitio intenta robar tu contraseña, o cuando descargas un archivo dañino, es posible que Chromium también envíe las URL, con partes del contenido de la página, a la Navegación segura.</translation>
@@ -258,7 +257,6 @@
 <translation id="3788675262216168505">Administrar perfiles de Chromium</translation>
 <translation id="3790262771324122253">Descubre por qué Chromium bloquea algunas descargas</translation>
 <translation id="379589255253486813">Chromium te avisará si hay algo que debas revisar</translation>
-<translation id="3798048725356732506">Los perfiles de Chromium te ayudan a separar diferentes aspectos de tu vida. Agrega un perfil nuevo ahora.</translation>
 <translation id="3802055581630249637">Chromium precarga las páginas que probablemente visites para que se carguen más rápido cuando lo hagas</translation>
 <translation id="3810973564298564668">Administrar</translation>
 <translation id="3823384748599722168">Para usar tus contraseñas guardadas, sigue el código QR, descarga Chromium para iOS y accede a tu Cuenta de Google</translation>
@@ -355,7 +353,6 @@
 <translation id="4724676981607797757">No se pudo completar la instalación debido a un error de protocolo no compatible.</translation>
 <translation id="4746050847053251315">¿Deseas salir de Chromium de todos modos?</translation>
 <translation id="4748217263233248895">Se acaba de instalar una actualización de seguridad especial para Chromium. Reinícialo ahora (se restablecerán tus pestañas).</translation>
-<translation id="4759645701210484457">Preguntarle a Chromium</translation>
 <translation id="4771701986670315895">No lo visitaste recientemente. Chromium quitó los permisos de <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> y <ph name="COUNT" /> más.</translation>
 <translation id="4788777615168560705">Chromium no puede revisar las contraseñas. Vuelve a intentarlo dentro de 24 horas o <ph name="BEGIN_LINK" />revisa las contraseñas en tu Cuenta de Google<ph name="END_LINK" />.</translation>
 <translation id="479167709087336770">Se usará el mismo corrector ortográfico que se emplea en la Búsqueda de Google. El texto que escribes en el navegador se envía a Google. Puedes modificar este comportamiento en la configuración en cualquier momento.</translation>
@@ -408,6 +405,9 @@
 <translation id="5524890928877629608">esquina superior izquierda del área de búsqueda: izquierda <ph name="LEFT" />%, superior <ph name="TOP" />%</translation>
 <translation id="5527463683072221100">Abrir archivos PDF en Chromium</translation>
 <translation id="5536164441519929134">Pregunta<ph name="LINE_BREAK" />sobre esta pestaña</translation>
+<translation id="555970465369471303">Por motivos de seguridad, Chromium desactiva la optimización de JavaScript cuando visitas un sitio por primera vez.
+
+Si esta página no funciona como debería, intenta permitir la optimización.</translation>
 <translation id="5579324208890605088">Error de inicio: Ejecuta el instalador como usuario normal, no como administrador.</translation>
 <translation id="5580770360767802657">Usa Chromium de forma predeterminada y fíjalo</translation>
 <translation id="5596627076506792578">Más opciones</translation>
@@ -419,7 +419,6 @@
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5698481217667032250">Mostrar Chromium en este idioma</translation>
 <translation id="569897634095159764">No se puede conectar a Internet. El servidor proxy requiere autenticación.</translation>
-<translation id="5713518899297503106">Los perfiles de Chromium te permiten mantener separadas la navegación personal y la laboral. Agrega un perfil nuevo ahora.</translation>
 <translation id="5768371961535086509">Chromium libera memoria de las pestañas inactivas. Esto brinda más recursos informáticos a las pestañas activas y a otras apps, y permite que Chromium siga funcionando rápido. Las pestañas inactivas se vuelven a activar automáticamente cuando regresas a ellas. <ph name="BEGIN_LINK" />Obtén más información sobre el Ahorro de memoria<ph name="END_LINK" /></translation>
 <translation id="5775198138441669627">Si olvidaste tu frase de contraseña o quieres cambiar este parámetro de configuración, <ph name="SETTINGS_LINK" /> los datos de Chromium de tu cuenta</translation>
 <translation id="5800158606660203929">Personaliza y controla Chromium. Establece Chromium como navegador predeterminado.</translation>
@@ -522,7 +521,6 @@
 <translation id="6676384891291319759">Acceder a Internet</translation>
 <translation id="668175097507315160">Chromium OS no pudo sincronizar los datos porque se produjo un error de acceso.</translation>
 <translation id="6691132793308828750">Quitar los datos de esta app de Chromium</translation>
-<translation id="6692797197837897398">Chromium te otorga más control sobre los anuncios que ves y limita la información que pueden obtener los sitios sobre ti cuando te muestran anuncios personalizados</translation>
 <translation id="6709350901466051922">Chromium necesita permiso de acceso al micrófono para este sitio.</translation>
 <translation id="6712881677154121168">Error de descarga: <ph name="DOWNLOAD_ERROR" />.</translation>
 <translation id="6717134281241384636">Tu perfil no se puede utilizar porque proviene de una versión más actualizada de Chromium. Es posible que algunas características no estén disponibles. Especifica un directorio de perfil diferente o utiliza una versión más reciente de Chromium.</translation>
@@ -710,7 +708,6 @@ No se pueden guardar nuevos favoritos en tu cuenta hasta que borres algunos. Si 
 <translation id="8704119203788522458">Este es tu Chromium</translation>
 <translation id="8712637175834984815">Entendido</translation>
 <translation id="8719993436687031146">¿Quieres acceder a Chromium?</translation>
-<translation id="8745263398357414606">Guarda todo en Chromium</translation>
 <translation id="8747073452963259673">esquina inferior izquierda del área de búsqueda: izquierda <ph name="LEFT" />%, inferior <ph name="BOTTOM" />%</translation>
 <translation id="878572486461146056">Error de instalación: El administrador de red aplicó una política de grupo que impide la instalación (<ph name="INSTALL_ERROR" />).</translation>
 <translation id="8796602469536043152">Chromium necesita permiso para acceder a tu cámara y micrófono para este sitio</translation>

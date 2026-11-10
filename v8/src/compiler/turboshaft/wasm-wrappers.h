@@ -202,7 +202,8 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
 
   OpIndex LoadInstanceType(V<Map> map) {
     return __ Load(map, LoadOp::Kind::TaggedBase().Immutable(),
-                   MemoryRepresentation::Uint16(), Map::kInstanceTypeOffset);
+                   MemoryRepresentation::Uint16(),
+                   offsetof(Map, instance_type_));
   }
 
   OpIndex BuildCheckString(OpIndex input, OpIndex js_context,
@@ -568,7 +569,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   V<SharedFunctionInfo> LoadSharedFunctionInfo(V<Object> js_function) {
     return __ Load(js_function, LoadOp::Kind::TaggedBase(),
                    MemoryRepresentation::TaggedPointer(),
-                   JSFunction::kSharedFunctionInfoOffset);
+                   offsetof(JSFunction, shared_function_info_));
   }
 
   OpIndex BuildReceiverNode(OpIndex callable_node, OpIndex native_context,
@@ -578,7 +579,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         LoadSharedFunctionInfo(callable_node);
     OpIndex flags = __ Load(shared_function_info, LoadOp::Kind::TaggedBase(),
                             MemoryRepresentation::Int32(),
-                            SharedFunctionInfo::kFlagsOffset);
+                            offsetof(SharedFunctionInfo, flags_));
     OpIndex strict_check = __ Word32BitwiseAnd(
         flags, __ Word32Constant(SharedFunctionInfo::IsNativeBit::kMask |
                                  SharedFunctionInfo::IsStrictBit::kMask));
@@ -597,7 +598,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   V<Context> LoadContextFromJSFunction(V<JSFunction> js_function) {
     return __ Load(js_function, LoadOp::Kind::TaggedBase(),
                    MemoryRepresentation::TaggedPointer(),
-                   JSFunction::kContextOffset);
+                   offsetof(JSFunction, context_));
   }
 
   V<Object> BuildSuspend(V<Object> value, V<Object> import_data,
@@ -610,7 +611,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
 
     OpIndex native_context = __ Load(import_data, LoadOp::Kind::TaggedBase(),
                                      MemoryRepresentation::TaggedPointer(),
-                                     WasmImportData::kNativeContextOffset);
+                                     offsetof(WasmImportData, native_context_));
 
     OpIndex promise_ctor = __ LoadFixedArrayElement(
         native_context, Context::PROMISE_FUNCTION_INDEX);
@@ -626,10 +627,10 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
 
     V<Object> on_fulfilled = __ Load(suspender, LoadOp::Kind::TaggedBase(),
                                      MemoryRepresentation::TaggedPointer(),
-                                     WasmSuspenderObject::kResumeOffset);
+                                     offsetof(WasmSuspenderObject, resume_));
     V<Object> on_rejected = __ Load(suspender, LoadOp::Kind::TaggedBase(),
                                     MemoryRepresentation::TaggedPointer(),
-                                    WasmSuspenderObject::kRejectOffset);
+                                    offsetof(WasmSuspenderObject, reject_));
 
     OpIndex promise_then =
         this->GetBuiltinPointerTarget(Builtin::kPerformPromiseThen);
@@ -688,10 +689,10 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
     V<WasmInternalFunction> internal =
         V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
             function_data, LoadOp::Kind::TaggedBase().Immutable(),
-            WasmFunctionData::kProtectedInternalOffset));
+            offsetof(WasmFunctionData, protected_internal_)));
     V<Word32> code_pointer = __ Load(
         internal, LoadOp::Kind::TaggedBase(), MemoryRepresentation::Uint32(),
-        WasmInternalFunction::kRawCallTargetOffset);
+        offsetof(WasmInternalFunction, raw_call_target_));
     constexpr size_t entry_size_log2 =
         std::bit_width(sizeof(wasm::WasmCodePointerTableEntry)) - 1;
     return __ Load(

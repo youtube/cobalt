@@ -12,6 +12,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/objects/casting.h"
 #include "src/objects/maybe-object-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/tagged.h"
 
 namespace v8 {

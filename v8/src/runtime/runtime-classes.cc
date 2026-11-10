@@ -325,7 +325,7 @@ bool AddDescriptorsByTemplate(
           value = GetMethodWithSharedName(isolate, args, value);
         }
         auto [representation, constness] =
-            Object::OptimalRepresentation(value, details.constness(), isolate);
+            Object::OptimalRepresentation(value, details.constness());
         details = details.CopyWithRepresentation(representation)
                       .CopyWithConstness(constness);
       } else {
@@ -369,7 +369,7 @@ bool AddDescriptorsByTemplate(
 
   UpdateProtectors(isolate, receiver, descriptors_template);
 
-  map->InitializeDescriptors(isolate, *descriptors);
+  map->InitializeDescriptors(*descriptors);
   if (elements_dictionary->NumberOfElements() > 0) {
     if (!SubstituteValues<NumberDictionary>(isolate, elements_dictionary,
                                             args)) {
@@ -568,8 +568,7 @@ bool InitClassConstructor(Isolate* isolate,
                                     args);
   } else {
     map->set_is_dictionary_map(true);
-    map->InitializeDescriptors(isolate,
-                               ReadOnlyRoots(isolate).empty_descriptor_array());
+    map->InitializeDescriptors(ReadOnlyRoots(isolate).empty_descriptor_array());
     map->set_is_migration_target(false);
     map->set_may_have_interesting_properties(true);
     map->set_construction_counter(Map::kNoSlackTracking);

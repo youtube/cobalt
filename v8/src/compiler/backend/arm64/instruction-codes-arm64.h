@@ -27,10 +27,10 @@ namespace compiler {
   V(Arm64LdrshW)                                           \
   V(Arm64Ldrsw)                                            \
   V(Arm64LdrW)                                             \
-  IF_WASM(V, Arm64LoadLane)                                \
-  IF_WASM(V, Arm64LoadSplat)                               \
-  IF_WASM(V, Arm64StoreLane)                               \
-  IF_WASM(V, Arm64S128LoadPairDeinterleave)                \
+  IF_SIMD128(V, Arm64LoadLane)                             \
+  IF_SIMD128(V, Arm64LoadSplat)                            \
+  IF_SIMD128(V, Arm64StoreLane)                            \
+  IF_SIMD128(V, Arm64S128LoadPairDeinterleave)             \
   V(Arm64Str)                                              \
   V(Arm64StrPair)                                          \
   V(Arm64Strb)                                             \
@@ -205,6 +205,8 @@ namespace compiler {
   TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(V) \
   V(Arm64Add)                                        \
   V(Arm64Add32)                                      \
+  V(Arm64Add128)                                     \
+  V(Arm64Sub128)                                     \
   V(Arm64And)                                        \
   V(Arm64And32)                                      \
   V(Arm64Bic)                                        \
@@ -381,7 +383,7 @@ namespace compiler {
   V(Arm64Word64AtomicXorUint64)                      \
   V(Arm64Word64AtomicExchangeUint64)                 \
   V(Arm64Word64AtomicCompareExchangeUint64)          \
-  IF_WASM(TARGET_ARCH_SIMD_OPCODE_LIST, V)           \
+  IF_SIMD128(TARGET_ARCH_SIMD_OPCODE_LIST, V)        \
   IF_WASM(V, Arm64Cpy)                               \
   IF_WASM(V, Arm64Set)
 

@@ -289,7 +289,8 @@ enum ContextLookupFlags {
   V(MAP_VALUE_ITERATOR_MAP_INDEX, Map, map_value_iterator_map)                 \
   V(MATH_RANDOM_INDEX_INDEX, Smi, math_random_index)                           \
   V(MATH_RANDOM_STATE_INDEX, ByteArray, math_random_state)                     \
-  V(MATH_RANDOM_CACHE_INDEX, FixedDoubleArray, math_random_cache)              \
+  V(MATH_RANDOM_CACHE_INDEX, (UnionOf<Undefined, FixedDoubleArray>),           \
+    math_random_cache)                                                         \
   V(NORMALIZED_MAP_CACHE_INDEX, Object, normalized_map_cache)                  \
   V(NUMBER_FUNCTION_INDEX, JSFunction, number_function)                        \
   V(OBJECT_FUNCTION_INDEX, JSFunction, object_function)                        \
@@ -493,7 +494,7 @@ enum ContextLookupFlags {
 // Script contexts from all top-level scripts are gathered in
 // ScriptContextTable.
 
-V8_OBJECT class Context : public HeapObjectLayout {
+V8_OBJECT class Context : public HeapObject {
  public:
   inline int length() const;
   inline void set_length(int value);
@@ -518,10 +519,6 @@ V8_OBJECT class Context : public HeapObjectLayout {
                                     DirectHandle<Object> new_value,
                                     Isolate* isolate);
 
-  // Back-compat offset constants. Defined out-of-line below the class so
-  // they can use `offsetof(Context, ...)` / `OFFSET_OF_DATA_START(Context)`
-  // (which require the type to be complete).
-  static const int kLengthOffset;
   static const int kElementsOffset;
   static const int kHeaderSize;
   static const int kScopeInfoOffset;
@@ -749,10 +746,6 @@ V8_OBJECT class Context : public HeapObjectLayout {
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, elements);
 } V8_OBJECT_END;
 
-// Back-compat offset constants. Defined here because `offsetof` /
-// `OFFSET_OF_DATA_START` on a not-yet-complete class cannot appear inside
-// the class body.
-inline constexpr int Context::kLengthOffset = offsetof(Context, length_);
 inline constexpr int Context::kElementsOffset = OFFSET_OF_DATA_START(Context);
 inline constexpr int Context::kHeaderSize = Context::kElementsOffset;
 inline constexpr int Context::kScopeInfoOffset = Context::kElementsOffset;
@@ -918,14 +911,14 @@ class ScriptContextTable
 
   class BodyDescriptor;
 
-  static constexpr uint32_t kCapacityOffset = HeapObject::kHeaderSize;
+  static constexpr uint32_t kCapacityOffset = sizeof(HeapObject);
   static constexpr uint32_t kLengthOffset = kCapacityOffset + kApiInt32Size;
   static constexpr uint32_t kHeaderSize = kLengthOffset + kApiInt32Size;
 };
 
 using ContextField = Context::Field;
 
-V8_OBJECT class ContextCell : public HeapObjectLayout {
+V8_OBJECT class ContextCell : public HeapObject {
  public:
   enum State : int32_t {
     kConst = 0,

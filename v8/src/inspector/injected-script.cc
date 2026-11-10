@@ -374,12 +374,14 @@ class InjectedScript::ProtocolPromiseHandler {
                                     response);
       return;
     }
-    if (stack)
+    if (stack) {
       exceptionDetails->setStackTrace(
           stack->buildInspectorObjectImpl(m_inspector->debugger()));
-    if (stack && !stack->isEmpty())
+    }
+    if (stack && !stack->isEmpty()) {
       exceptionDetails->setScriptId(
           String16::fromInteger(stack->topScriptId()));
+    }
     EvaluateCallback::sendSuccess(m_callback, scope.injectedScript(),
                                   std::move(wrappedValue),
                                   std::move(exceptionDetails));
@@ -792,8 +794,9 @@ void InjectedScript::deleteEvaluateCallback(
 Response InjectedScript::findObject(const RemoteObjectId& objectId,
                                     v8::Local<v8::Value>* outObject) const {
   auto it = m_idToWrappedObject.find(objectId.id());
-  if (it == m_idToWrappedObject.end())
+  if (it == m_idToWrappedObject.end()) {
     return Response::ServerError("Could not find object with given id");
+  }
   *outObject = it->second.Get(m_context->isolate());
   return Response::Success();
 }
@@ -818,8 +821,9 @@ void InjectedScript::setCustomObjectFormatterEnabled(bool enabled) {
 }
 
 v8::Local<v8::Value> InjectedScript::lastEvaluationResult() const {
-  if (m_lastEvaluationResult.IsEmpty())
+  if (m_lastEvaluationResult.IsEmpty()) {
     return v8::Undefined(m_context->isolate());
+  }
   return m_lastEvaluationResult.Get(m_context->isolate());
 }
 
@@ -858,10 +862,11 @@ Response InjectedScript::resolveCallArgument(
     } else {
       String16 unserializableValue = callArgument->getUnserializableValue("");
       // Protect against potential identifier resolution for NaN and Infinity.
-      if (isResolvableNumberLike(unserializableValue))
+      if (isResolvableNumberLike(unserializableValue)) {
         value = "Number(\"" + unserializableValue + "\")";
-      else
+      } else {
         value = unserializableValue;
+      }
     }
     if (!m_context->inspector()
              ->compileAndRunInternalScript(
@@ -1050,8 +1055,9 @@ v8::debug::ExceptionBreakState InjectedScript::Scope::setPauseOnExceptionsState(
   if (!m_inspector->debugger()->enabled()) return newState;
   v8::debug::ExceptionBreakState presentState =
       m_inspector->debugger()->getPauseOnExceptionsState();
-  if (presentState != newState)
+  if (presentState != newState) {
     m_inspector->debugger()->setPauseOnExceptionsState(newState);
+  }
   return presentState;
 }
 

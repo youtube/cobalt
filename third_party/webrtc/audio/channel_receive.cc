@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "api/audio/audio_device.h"
 #include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
@@ -111,6 +112,31 @@ std::unique_ptr<NetEq> CreateNetEq(
     return neteq_factory->Create(env, config, std::move(decoder_factory));
   }
   return DefaultNetEqFactory().Create(env, config, std::move(decoder_factory));
+}
+
+std::unique_ptr<ModuleRtpRtcpImpl2> CreateRtpRtcpModule(
+    const Environment& env,
+    ReceiveStatistics* receive_statistics,
+    Transport* rtcp_send_transport,
+    RtcpPacketTypeCounterObserver* rtcp_packet_type_counter_observer,
+    bool enable_non_sender_rtt,
+    uint32_t remote_ssrc,
+    absl::AnyInvocable<uint32_t() const> fallback_ssrc_callback) {
+  RtpRtcpInterface::Configuration configuration = {
+      .audio = true,
+      .receiver_only = true,
+      .receive_statistics = receive_statistics,
+      .outgoing_transport = rtcp_send_transport,
+      .rtcp_packet_type_counter_observer = rtcp_packet_type_counter_observer,
+      .rtcp_mode = RtcpMode::kCompound,
+      .remote_ssrc = remote_ssrc,
+      .non_sender_rtt_measurement = enable_non_sender_rtt,
+  };
+
+  std::unique_ptr<ModuleRtpRtcpImpl2> rtp_rtcp =
+      ModuleRtpRtcpImpl2::CreateReceiveModule(
+          env, configuration, std::move(fallback_ssrc_callback));
+  return rtp_rtcp;
 }
 
 class ChannelReceive : public ChannelReceiveInterface,
@@ -206,6 +232,8 @@ class ChannelReceive : public ChannelReceiveInterface,
   void SetFrameDecryptor(
       scoped_refptr<FrameDecryptorInterface> frame_decryptor) override;
 
+  uint32_t remote_ssrc() const override;
+
   void RtcpPacketTypesCounterUpdated(
       uint32_t ssrc,
       const RtcpPacketTypeCounter& packet_counter) override;
@@ -250,8 +278,8 @@ class ChannelReceive : public ChannelReceiveInterface,
   // Indexed by payload type.
   std::map<uint8_t, int> payload_type_frequencies_;
 
-  std::unique_ptr<ReceiveStatistics> rtp_receive_statistics_;
-  std::unique_ptr<ModuleRtpRtcpImpl2> rtp_rtcp_;
+  const std::unique_ptr<ReceiveStatistics> rtp_receive_statistics_;
+  const std::unique_ptr<ModuleRtpRtcpImpl2> rtp_rtcp_;
   const uint32_t remote_ssrc_;
   SourceTracker source_tracker_ RTC_GUARDED_BY(&worker_thread_checker_);
 
@@ -295,7 +323,7 @@ class ChannelReceive : public ChannelReceiveInterface,
   // frame.
   int64_t capture_start_ntp_time_ms_ RTC_GUARDED_BY(ts_stats_lock_);
 
-  AudioDeviceModule* audio_device_module_;
+  AudioDeviceModule* const audio_device_module_;
   std::atomic<float> output_gain_;
 
   PacketRouter* packet_router_ = nullptr;
@@ -305,7 +333,7 @@ class ChannelReceive : public ChannelReceiveInterface,
   // E2EE Audio Frame Decryption
   scoped_refptr<FrameDecryptorInterface> frame_decryptor_
       RTC_GUARDED_BY(worker_thread_checker_);
-  CryptoOptions crypto_options_;
+  const CryptoOptions crypto_options_;
 
   AbsoluteCaptureTimeInterpolator absolute_capture_time_interpolator_
       RTC_GUARDED_BY(worker_thread_checker_);
@@ -561,6 +589,20 @@ ChannelReceive::ChannelReceive(
     : env_(env),
       worker_thread_(TaskQueueBase::Current()),
       rtp_receive_statistics_(ReceiveStatistics::Create(&env_.clock())),
+      rtp_rtcp_(CreateRtpRtcpModule(
+          env,
+          rtp_receive_statistics_.get(),
+          rtcp_send_transport,
+          this,
+          enable_non_sender_rtt,
+          remote_ssrc,
+          [this] {
+            if (packet_router_ == nullptr) {
+              return kFallbackRtcpSsrcForAudio;
+            }
+            return packet_router_->SsrcOfFirstSender().value_or(
+                kFallbackRtcpSsrcForAudio);
+          })),
       remote_ssrc_(remote_ssrc),
       source_tracker_(&env_.clock()),
       neteq_(CreateNetEq(neteq_factory,
@@ -581,29 +623,9 @@ ChannelReceive::ChannelReceive(
   RTC_DCHECK(audio_device_module);
 
   rtp_receive_statistics_->EnableRetransmitDetection(remote_ssrc_, true);
-  RtpRtcpInterface::Configuration configuration;
-  configuration.audio = true;
-  configuration.receiver_only = true;
-  configuration.outgoing_transport = rtcp_send_transport;
-  configuration.receive_statistics = rtp_receive_statistics_.get();
-  configuration.rtcp_packet_type_counter_observer = this;
-  configuration.non_sender_rtt_measurement = enable_non_sender_rtt;
 
   if (frame_transformer)
     InitFrameTransformerDelegate(std::move(frame_transformer));
-
-  rtp_rtcp_ =
-      ModuleRtpRtcpImpl2::CreateReceiveModule(env_, configuration, [this] {
-        if (packet_router_ == nullptr) {
-          return kFallbackRtcpSsrcForAudio;
-        }
-        return packet_router_->SsrcOfFirstSender().value_or(
-            kFallbackRtcpSsrcForAudio);
-      });
-  rtp_rtcp_->SetRemoteSSRC(remote_ssrc_);
-
-  // Ensure that RTCP is enabled for the created channel.
-  rtp_rtcp_->SetRTCPStatus(RtcpMode::kCompound);
 }
 
 ChannelReceive::~ChannelReceive() {
@@ -636,6 +658,10 @@ void ChannelReceive::StopPlayout() {
   if (nack_tracker_) {
     nack_tracker_->Reset();
   }
+}
+
+uint32_t ChannelReceive::remote_ssrc() const {
+  return remote_ssrc_;
 }
 
 std::optional<std::pair<int, SdpAudioFormat>> ChannelReceive::GetReceiveCodec()

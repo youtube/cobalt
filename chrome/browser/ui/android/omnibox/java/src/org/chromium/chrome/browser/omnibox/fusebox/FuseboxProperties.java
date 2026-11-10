@@ -232,8 +232,8 @@ class FuseboxProperties {
     public static final WritableObjectPropertyKey<String> POPUP_TOOL_HEADER_TEXT =
             new WritableObjectPropertyKey<>();
 
-    /** Whether to show the dedicated AIMode button directly in the Fusebox. */
-    public static final WritableBooleanPropertyKey SHOW_DEDICATED_MODE_BUTTON =
+    /** Whether to show the request type button. */
+    public static final WritableBooleanPropertyKey SHOW_REQUEST_TYPE_BUTTON =
             new WritableBooleanPropertyKey();
 
     public static final PropertyKey[] ALL_KEYS = {
@@ -274,7 +274,7 @@ class FuseboxProperties {
         POPUP_TOOL_DIVIDER_VISIBLE,
         POPUP_TOOL_HEADER_TEXT,
         POPUP_TOOL_HEADER_VISIBLE,
-        SHOW_DEDICATED_MODE_BUTTON
+        SHOW_REQUEST_TYPE_BUTTON
         // go/keep-sorted end
     };
 }

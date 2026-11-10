@@ -925,13 +925,12 @@ void HWNDMessageHandler::ClearNativeFocus() {
 }
 
 void HWNDMessageHandler::SetCapture() {
-  // We may need to change this to !HasCapture() || release_capture_errno_ to
-  // avoid checking when the call to `::ReleaseCapture` below fails.
-  // Logging release_capture_errno_ will tell us if the DCHECK below is caused
-  // by ::ReleaseCapture failing.
-  DCHECK(!HasCapture()) << " release capture error = "
-                        << logging::SystemErrorCodeToString(
-                               release_capture_errno_);
+  if (HasCapture()) {
+    DCHECK_EQ(release_capture_errno_, 0u)
+        << " release capture error = "
+        << logging::SystemErrorCodeToString(release_capture_errno_);
+    return;
+  }
   ::SetCapture(hwnd());
 }
 
@@ -2084,19 +2083,8 @@ void HWNDMessageHandler::OnGetMinMaxInfo(MINMAXINFO* minmax_info) {
   // Add the native frame border size to the minimum and maximum size if the
   // view reports its size as the client size.
   if (delegate_->WidgetSizeIsClientSize()) {
-    RECT client_rect, window_rect;
-    ::GetClientRect(hwnd(), &client_rect);
-    ::GetWindowRect(hwnd(), &window_rect);
-    CR_DEFLATE_RECT(&window_rect, &client_rect);
-    min_window_size.Enlarge(window_rect.right - window_rect.left,
-                            window_rect.bottom - window_rect.top);
-    // Either axis may be zero, so enlarge them independently.
-    if (max_window_size.width()) {
-      max_window_size.Enlarge(window_rect.right - window_rect.left, 0);
-    }
-    if (max_window_size.height()) {
-      max_window_size.Enlarge(0, window_rect.bottom - window_rect.top);
-    }
+    InflateClientSizeConstraintsInPixels(hwnd(), min_window_size,
+                                         max_window_size);
   }
   minmax_info->ptMinTrackSize.x = min_window_size.width();
   minmax_info->ptMinTrackSize.y = min_window_size.height();
@@ -3366,6 +3354,24 @@ LRESULT HWNDMessageHandler::HandleMouseEventInternal(UINT message,
                     l_param,
                     static_cast<DWORD>(message_time),
                     {CR_GET_X_LPARAM(l_param), CR_GET_Y_LPARAM(l_param)}};
+  // Windows generates these events even if the mouse does not leave the window
+  // when the mouse is crossing between Client area and Non Client area.
+  // Do not map these events to kMouseExited in that case, because the mouse is
+  // not exiting the window.
+  if (message == WM_MOUSELEAVE || message == WM_NCMOUSELEAVE) {
+    // These messages do not have location information.
+    POINT cursor_pos;
+    ::GetCursorPos(&cursor_pos);
+    HWND hwnd_at_position = ::WindowFromPoint(cursor_pos);
+    // Do not generate the kMouseExit if the mouse is still on the window.
+    if (hwnd() == hwnd_at_position || ::IsChild(hwnd(), hwnd_at_position)) {
+      return 0;
+    }
+
+    msg.pt.x = cursor_pos.x;
+    msg.pt.y = cursor_pos.y;
+  }
+
   ui::MouseEvent event(msg);
   if (IsSynthesizedMouseMessage(message, message_time, l_param)) {
     event.SetFlags(event.flags() | ui::EF_FROM_TOUCH);
@@ -3885,6 +3891,11 @@ void HWNDMessageHandler::SizeWindowToAspectRatio(UINT param,
   delegate_->GetMinMaxSize(&min_window_size, &max_window_size);
   min_window_size = delegate_->DIPToScreenSize(min_window_size);
   max_window_size = delegate_->DIPToScreenSize(max_window_size);
+
+  if (delegate_->WidgetSizeIsClientSize()) {
+    InflateClientSizeConstraintsInPixels(hwnd(), min_window_size,
+                                         max_window_size);
+  }
 
   std::optional<gfx::Size> max_size_param;
   if (!max_window_size.IsEmpty()) {

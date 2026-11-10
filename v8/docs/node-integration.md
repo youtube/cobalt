@@ -37,7 +37,7 @@ Node.js is also set up as a `DEPS` dependency of node-ci. You may want to apply 
 
 Fork [V8’s Node.js repository on GitHub](https://github.com/v8/node/) (click the fork button) unless you already did previously.
 
-Add your both your fork and V8’s fork as remotes to the existing checkout:
+Add both your fork and V8’s fork as remotes to the existing checkout:
 
 ```bash
 cd node

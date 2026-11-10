@@ -22,6 +22,7 @@
 #include "chrome/browser/enterprise/reporting/legacy_tech/legacy_tech_report_policy_handler.h"
 #include "chrome/browser/first_party_sets/first_party_sets_overrides_policy_handler.h"
 #include "chrome/browser/glic/gemini_act_on_web_settings_policy_handler.h"
+#include "chrome/browser/glic/gemini_experimental_triggering_settings_policy_handler.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/media/webrtc/capture_policy_utils.h"
 #include "chrome/browser/net/disk_cache_dir_policy_handler.h"
@@ -85,6 +86,7 @@
 #include "components/enterprise/data_controls/core/browser/data_controls_policy_handler.h"
 #include "components/enterprise/data_controls/core/browser/prefs.h"
 #include "components/enterprise/device_trust/prefs.h"
+#include "components/enterprise/isolated_mode/prefs.h"
 #include "components/feed/core/shared_prefs/pref_names.h"
 #include "components/history/core/common/pref_names.h"
 #include "components/history_clusters/core/history_clusters_prefs.h"
@@ -305,7 +307,7 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     prefs::kComponentUpdatesEnabled,
     base::Value::Type::BOOLEAN },
   { key::kCpuPerformanceTierOverride,
-    prefs::kCpuPerformanceTierPolicyOverride,
+    prefs::kCpuPerformanceTierOverride,
     base::Value::Type::INTEGER },
   { key::kDataURLWhitespacePreservationEnabled,
     prefs::kDataURLWhitespacePreservationEnabled,
@@ -486,6 +488,12 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kMaxConnectionsPerProxyForWebSocket,
     prefs::kMaxConnectionsPerProxyForWebSocket,
     base::Value::Type::INTEGER },
+  { key::kAllowSocketPoolSizeRandomizationForProxies,
+    prefs::kAllowSocketPoolSizeRandomizationForProxies,
+    base::Value::Type::BOOLEAN },
+  { key::kIsolatedModeSettings,
+    enterprise_isolated_mode::kEnterpriseIsolatedModeSettings,
+    base::Value::Type::INTEGER },
 // Policies for all platforms - End
 #if BUILDFLAG(IS_ANDROID)
   { key::kAccessibilityPerformanceFilteringAllowed,
@@ -622,6 +630,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kDefaultDirectSocketsSetting,
     prefs::kManagedDefaultDirectSocketsSetting,
     base::Value::Type::INTEGER },
+  { key::kDefaultSubAppsWithoutPromptsSetting,
+    prefs::kManagedDefaultSubAppsWithoutPromptsSetting,
+    base::Value::Type::INTEGER },
 #if BUILDFLAG(IS_CHROMEOS)
   {  key::kDefaultSmartCardConnectSetting,
     prefs::kManagedDefaultSmartCardConnectSetting,
@@ -643,6 +654,12 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     base::Value::Type::LIST },
   { key::kDirectSocketsPrivateNetworkAccessBlockedForUrls,
     prefs::kManagedDirectSocketsPrivateNetworkAccessBlockedForUrls,
+    base::Value::Type::LIST },
+  { key::kSubAppsWithoutPromptsAllowedForOrigins,
+    prefs::kManagedSubAppsWithoutPromptsAllowedForOrigins,
+    base::Value::Type::LIST },
+  { key::kSubAppsWithoutPromptsBlockedForOrigins,
+    prefs::kManagedSubAppsWithoutPromptsBlockedForOrigins,
     base::Value::Type::LIST },
   { key::kDefaultControlledFrameSetting,
     prefs::kManagedDefaultControlledFrameSetting,
@@ -3593,6 +3610,13 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
   handlers->AddHandler(std::make_unique<GenAiDefaultSettingsPolicyHandler>(
       std::vector<GenAiDefaultSettingsPolicyHandler::GenAiPolicyDetails>(
           gen_ai_default_policies)));
+#if !BUILDFLAG(IS_ANDROID)
+  handlers->AddHandler(std::make_unique<
+                       GeminiExperimentalTriggeringSettingsPolicyHandler>(
+      std::make_unique<GenAiDefaultSettingsPolicyHandler>(
+          std::vector<GenAiDefaultSettingsPolicyHandler::GenAiPolicyDetails>(
+              gen_ai_default_policies))));
+#endif
   handlers->AddHandler(std::make_unique<GeminiActOnWebSettingsPolicyHandler>(
       std::make_unique<GenAiDefaultSettingsPolicyHandler>(
           std::move(gen_ai_default_policies))));

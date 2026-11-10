@@ -181,8 +181,9 @@ PreParser::PreParseResult PreParser::PreParseFunction(
       if (inner_scope->FinalizeBlockScope() != nullptr) {
         const AstRawString* conflict = inner_scope->FindVariableDeclaredIn(
             function_scope, VariableMode::kLastLexicalVariableMode);
-        if (conflict != nullptr)
+        if (conflict != nullptr) {
           ReportVarRedeclarationIn(conflict, inner_scope);
+        }
       }
     }
   }

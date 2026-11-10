@@ -160,8 +160,9 @@ void InspectorIsolateData::RegisterModule(v8::Local<v8::Context> context,
                                           std::vector<uint16_t> name,
                                           v8::ScriptCompiler::Source* source) {
   v8::Local<v8::Module> module;
-  if (!v8::ScriptCompiler::CompileModule(isolate(), source).ToLocal(&module))
+  if (!v8::ScriptCompiler::CompileModule(isolate(), source).ToLocal(&module)) {
     return;
+  }
   if (!module
            ->InstantiateModule(context,
                                &InspectorIsolateData::ModuleResolveCallback)
@@ -229,8 +230,9 @@ void InspectorIsolateData::SendMessage(
     int session_id, const v8_inspector::StringView& message) {
   v8::SealHandleScope seal_handle_scope(isolate());
   auto it = sessions_.find(session_id);
-  if (it != sessions_.end())
+  if (it != sessions_.end()) {
     it->second->v8_session()->dispatchProtocolMessage(message);
+  }
 }
 
 void InspectorIsolateData::BreakProgram(
@@ -239,8 +241,9 @@ void InspectorIsolateData::BreakProgram(
   v8::SealHandleScope seal_handle_scope(isolate());
   for (int session_id : GetSessionIds(context_group_id)) {
     auto it = sessions_.find(session_id);
-    if (it != sessions_.end())
+    if (it != sessions_.end()) {
       it->second->v8_session()->breakProgram(reason, details);
+    }
   }
 }
 
@@ -256,8 +259,9 @@ void InspectorIsolateData::SchedulePauseOnNextStatement(
   v8::SealHandleScope seal_handle_scope(isolate());
   for (int session_id : GetSessionIds(context_group_id)) {
     auto it = sessions_.find(session_id);
-    if (it != sessions_.end())
+    if (it != sessions_.end()) {
       it->second->v8_session()->schedulePauseOnNextStatement(reason, details);
+    }
   }
 }
 
@@ -265,8 +269,9 @@ void InspectorIsolateData::CancelPauseOnNextStatement(int context_group_id) {
   v8::SealHandleScope seal_handle_scope(isolate());
   for (int session_id : GetSessionIds(context_group_id)) {
     auto it = sessions_.find(session_id);
-    if (it != sessions_.end())
+    if (it != sessions_.end()) {
       it->second->v8_session()->cancelPauseOnNextStatement();
+    }
   }
 }
 
@@ -341,8 +346,9 @@ int InspectorIsolateData::HandleMessage(v8::Local<v8::Message> message,
   }
   int line_number = message->GetLineNumber(context).FromMaybe(0);
   int column_number = 0;
-  if (message->GetStartColumn(context).IsJust())
+  if (message->GetStartColumn(context).IsJust()) {
     column_number = message->GetStartColumn(context).FromJust() + 1;
+  }
 
   v8_inspector::StringView detailed_message;
   std::vector<uint16_t> message_text_string = ToVector(isolate, message->Get());
@@ -437,8 +443,9 @@ void InspectorIsolateData::FreeContext(v8::Local<v8::Context> context) {
 std::vector<int> InspectorIsolateData::GetSessionIds(int context_group_id) {
   std::vector<int> result;
   for (auto& it : sessions_) {
-    if (it.second->context_group_id() == context_group_id)
+    if (it.second->context_group_id() == context_group_id) {
       result.push_back(it.first);
+    }
   }
   return result;
 }

@@ -92,10 +92,10 @@ bool OSHasAPXFSupport() {
 
 }  // namespace
 
-bool CpuFeatures::SupportsWasmSimd128() {
-#if V8_ENABLE_WEBASSEMBLY
+bool CpuFeatures::SupportsSimd128() {
+#if V8_ENABLE_SIMD128
   if (IsSupported(SSE4_1)) return true;
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_SIMD128
   return false;
 }
 
@@ -193,8 +193,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   } else if (strcmp(v8_flags.mcpu, "atom") == 0) {
     SetSupported(INTEL_ATOM);
   }
-  if (cpu.has_intel_jcc_erratum() && v8_flags.intel_jcc_erratum_mitigation)
+  if (cpu.has_intel_jcc_erratum() && v8_flags.intel_jcc_erratum_mitigation) {
     SetSupported(INTEL_JCC_ERRATUM_MITIGATION);
+  }
 #ifdef V8_ENABLE_APX_F
   if (cpu.has_apx_f() && cpu.has_osxsave() && OSHasAPXFSupport())
     SetSupported(APX_F);
@@ -211,8 +212,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (!v8_flags.enable_avx || !IsSupported(SSE4_2)) SetUnsupported(AVX);
   if (!v8_flags.enable_avx2 || !IsSupported(AVX)) SetUnsupported(AVX2);
   if (!v8_flags.enable_avx_vnni || !IsSupported(AVX)) SetUnsupported(AVX_VNNI);
-  if (!v8_flags.enable_avx_vnni_int8 || !IsSupported(AVX))
+  if (!v8_flags.enable_avx_vnni_int8 || !IsSupported(AVX)) {
     SetUnsupported(AVX_VNNI_INT8);
+  }
   if (!v8_flags.enable_fma3 || !IsSupported(AVX)) SetUnsupported(FMA3);
   if (!v8_flags.enable_f16c || !IsSupported(AVX)) SetUnsupported(F16C);
 #ifdef V8_ENABLE_APX_F
@@ -223,7 +225,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // This variable is only used for certain archs to query SupportWasmSimd128()
   // at runtime in builtins using an extern ref. Other callers should use
   // CpuFeatures::SupportWasmSimd128().
-  CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
+  CpuFeatures::supports_simd_128_ = CpuFeatures::SupportsSimd128();
 
   if (cpu.has_cetss()) SetSupported(CETSS);
   // The static variable is used for codegen of certain CETSS instructions.
@@ -373,8 +375,9 @@ bool ConstPool::TryRecordEntry(intptr_t data, RelocInfo::Mode mode) {
   // Currently, partial constant pool only handles the following kinds of
   // RelocInfo.
   if (mode != RelocInfo::NO_INFO && mode != RelocInfo::EXTERNAL_REFERENCE &&
-      mode != RelocInfo::OFF_HEAP_TARGET)
+      mode != RelocInfo::OFF_HEAP_TARGET) {
     return false;
+  }
 
   uint64_t raw_data = static_cast<uint64_t>(data);
   int offset = assm_->pc_offset();

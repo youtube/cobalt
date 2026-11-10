@@ -32,6 +32,7 @@ import ClassesView from './views/classes_view';
 import StringsView from './views/strings_view';
 import ArraysView from './views/arrays_view';
 import FlamegraphObjectsView from './views/flamegraph_objects_view';
+import FlamegraphView from './views/flamegraph_view';
 import type {HeapDumpExplorerSession} from './session';
 
 interface HeapDumpPageAttrs {
@@ -110,11 +111,38 @@ function buildTabs(
   overview: OverviewData,
 ): TabsTab[] {
   const {engine, trace, navigateWithTabs, clearNavParam} = session;
+  const hideExplanationSetting = session.hideDefaultChangedHint;
+  const hideHint = hideExplanationSetting.get();
   const tabs: TabsTab[] = [
     {
       key: 'overview',
       title: 'Overview',
-      content: m(OverviewView, {overview, navigate: navigateWithTabs}),
+      content: m(OverviewView, {
+        overview,
+        activeDump,
+        navigate: navigateWithTabs,
+        showDefaultChangedHint: session.autoNavigated && !hideHint,
+        onBackToTimeline: () => trace.navigate('#!/viewer'),
+        onDismissDefaultChangedHint: () => hideExplanationSetting.set(true),
+      }),
+    },
+    {
+      key: 'flamegraph',
+      title: 'Flamegraph',
+      content: m(FlamegraphView, {
+        trace,
+        upid: activeDump.upid,
+        ts: Time.fromRaw(activeDump.ts),
+        state: session.flamegraphPanelState,
+        onStateChange: session.setFlamegraphPanelState,
+        onShowObjects: (pathHashes, isDominator) =>
+          session.openFlamegraph({
+            pathHashes,
+            isDominator,
+            upid: activeDump.upid,
+            ts: activeDump.ts,
+          }),
+      }),
     },
     {
       key: 'classes',
@@ -193,8 +221,8 @@ function buildTabs(
       key: fgTabKey(fg.id),
       title:
         fg.count !== null
-          ? `Flamegraph (${fg.count.toLocaleString()})`
-          : 'Flamegraph',
+          ? `Flamegraph objects (${fg.count.toLocaleString()})`
+          : 'Flamegraph objects',
       closeButton: true,
       content: m(FlamegraphObjectsView, {
         engine,
@@ -216,6 +244,7 @@ function buildTabs(
         activeDump,
         heaps: overview.heaps,
         navigate: navigateWithTabs,
+        openFlamegraphPivotedAt: session.openFlamegraphPivotedAt,
         params: {id: obj.objId},
       }),
     });
@@ -237,8 +266,8 @@ function renderDumpSelector(session: HeapDumpExplorerSession): m.Children {
 
   return m(
     'div',
-    {class: 'ah-dump-selector'},
-    m('span', {class: 'ah-dump-selector__label'}, 'Heap dump:'),
+    {class: 'pf-hde-dump-selector'},
+    m('span', {class: 'pf-hde-dump-selector__label'}, 'Heap dump:'),
     m(
       PopupMenu,
       {
@@ -287,9 +316,9 @@ export class HeapDumpPage implements m.ClassComponent<HeapDumpPageAttrs> {
     if (active === null || overview === null) {
       return m(
         'div',
-        {class: 'ah-page'},
+        {class: 'pf-hde-page'},
         renderDumpSelector(session),
-        m('div', {class: 'ah-loading'}, m(Spinner, {easing: true})),
+        m('div', {class: 'pf-hde-loading'}, m(Spinner, {easing: true})),
       );
     }
 
@@ -299,11 +328,11 @@ export class HeapDumpPage implements m.ClassComponent<HeapDumpPageAttrs> {
 
     return m(
       'div',
-      {class: 'ah-page'},
+      {class: 'pf-hde-page'},
       renderDumpSelector(session),
       m(
         'main',
-        {class: 'ah-main'},
+        {class: 'pf-hde-main'},
         m(Tabs, {
           key: tabsKey,
           tabs: buildTabs(session, active, session.nav, overview),

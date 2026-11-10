@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "base/gtest_prod_util.h"
-#include "third_party/blink/renderer/platform/graphics/dark_mode_settings.h"
 #include "third_party/blink/renderer/platform/graphics/dark_mode_types.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/skia/include/core/SkPixmap.h"
@@ -40,6 +39,14 @@ class PLATFORM_EXPORT DarkModeImageClassifier {
     // background.
     float transparency_ratio;
     float background_ratio;
+
+    // Ratio of high luminance pixels to all sampled pixels in the image.
+    float high_luminance_ratio;
+
+    // Ratio of highly saturated (vivid) pixels to all sampled pixels in the
+    // image. Used to detect images dominated by vivid flat colors whose
+    // colors carry meaning and should be preserved rather than inverted.
+    float saturated_pixel_ratio;
   };
 
   DarkModeResult Classify(const SkPixmap& pixmap, const SkIRect& src) const;

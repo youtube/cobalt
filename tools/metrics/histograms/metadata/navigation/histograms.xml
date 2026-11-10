@@ -219,7 +219,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="BackForwardCache.AllSites.HistoryNavigationOutcome.BlocklistedFeature"
-    enum="WebSchedulerTrackedFeature" expires_after="2026-08-30">
+    enum="WebSchedulerTrackedFeature" expires_after="2026-11-01">
   <owner>fergal@chromium.org</owner>
   <owner>bfcache-dev@chromium.org</owner>
   <summary>
@@ -273,7 +273,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="BackForwardCache.AllSites.HistoryNavigationOutcome.NotRestoredReason"
-    enum="BackForwardCacheNotRestoredReason" expires_after="2026-08-30">
+    enum="BackForwardCacheNotRestoredReason" expires_after="2026-11-01">
   <owner>fergal@chromium.org</owner>
   <owner>bfcache-dev@chromium.org</owner>
   <summary>
@@ -449,7 +449,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BackForwardCache.HistoryNavigationOutcome.BlocklistedFeature"
-    enum="WebSchedulerTrackedFeature" expires_after="2026-08-30">
+    enum="WebSchedulerTrackedFeature" expires_after="2026-11-01">
   <owner>fergal@chromium.org</owner>
   <owner>bfcache-dev@chromium.org</owner>
   <summary>
@@ -485,7 +485,7 @@ chromium-metrics-reviews@google.com.
 <histogram
     name="BackForwardCache.HistoryNavigationOutcome.DisabledForRenderFrameHostReason2"
     enum="BackForwardCacheDisabledForRenderFrameHostReason2"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>fergal@chromium.org</owner>
   <owner>bfcache-dev@chromium.org</owner>
   <summary>
@@ -1068,6 +1068,22 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Navigation.CSPEmbeddedEnforcement.Outcome"
+    enum="NavigationCSPEmbeddedEnforcementOutcome" expires_after="2027-04-22">
+  <owner>mkwst@chromium.org</owner>
+  <owner>chrome-security@google.com</owner>
+  <summary>
+    The outcome of Content Security Policy Embedded Enforcement (CSPEE) during
+    navigation. Recorded for every navigation that has a required CSP set by its
+    embedder (via the 'csp' attribute).
+
+    Possible outcomes include allowing the navigation because it's a local
+    scheme, because the 'Allow-CSP-From' header was present and valid, because
+    the frame's own CSP subsumed the required policy, or blocking the navigation
+    entirely.
+  </summary>
+</histogram>
+
 <histogram name="Navigation.DeferSpeculativeRFHAction"
     enum="DeferSpeculativeRFHAction" expires_after="2026-04-12">
   <owner>gjc@google.com</owner>
@@ -1308,6 +1324,7 @@ chromium-metrics-reviews@google.com.
 <histogram
     name="Navigation.GestureTransition.IgnoredInputCount.{Reason}.{Position}"
     units="count" expires_after="2026-06-21">
+  <owner>acondor@google.com</owner>
   <owner>liuwilliam@google.com</owner>
   <owner>baranerf@google.com</owner>
   <owner>chrome-seamless-core@google.com</owner>
@@ -1342,6 +1359,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Navigation.GestureTransition.ScreenshotCacheSize" units="MB"
     expires_after="2026-10-18">
+  <owner>acondor@google.com</owner>
   <owner>liuwilliam@google.com</owner>
   <owner>baranerf@google.com</owner>
   <owner>chrome-seamless-core@google.com</owner>
@@ -1375,7 +1393,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.GetFrameHostForNavigation" units="ms"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>rakina@chromium.org</owner>
   <owner>chrome-security-architecture@google.com</owner>
   <summary>
@@ -1701,7 +1719,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.MainFrameProfileType2" enum="BrowserProfileType"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>dullweber@chromium.org</owner>
   <owner>chrome-privacy-core@google.com</owner>
   <summary>
@@ -2666,7 +2684,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.StartAdjustment.LegacyPostTask.Negative" units="ms"
-    expires_after="2026-05-10">
+    expires_after="2026-09-13">
   <owner>creis@chromium.org</owner>
   <owner>alexmos@chromium.org</owner>
   <summary>
@@ -3862,7 +3880,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Prerender.Experimental.FoundReusePrerenderHost" enum="Boolean"
-    expires_after="2026-09-06">
+    expires_after="2026-11-08">
   <owner>gjc@google.com</owner>
   <owner>chrome-prerendering@google.com</owner>
   <owner>chrome-loading@google.com</owner>
@@ -4072,7 +4090,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prerender.Experimental.ReusePrerenderHost.PrerenderHostCount.Failed"
-    units="count" expires_after="2026-09-06">
+    units="count" expires_after="2026-11-08">
   <owner>suzukikeita@google.com</owner>
   <owner>gjc@google.com</owner>
   <owner>chrome-prerendering@google.com</owner>

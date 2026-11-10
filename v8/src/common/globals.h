@@ -790,7 +790,7 @@ constexpr bool StaticStringsEqual(const char* s1, const char* s2) {
   }
 }
 
-#if COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 constexpr size_t kContiguousReadOnlyReservationSize =
     V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB * MB;
 // Bound the worst case consumption of contiguous RO space across the various
@@ -819,8 +819,7 @@ static_assert(base::bits::IsPowerOfTwo(kContiguousReadOnlyReservationSize));
 // ```
 constexpr Address kContiguousReadOnlySpaceMask =
     (kPtrComprCageBaseAlignment - 1) ^ (kContiguousReadOnlyReservationSize - 1);
-
-#endif  // COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
+#endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 
 // -----------------------------------------------------------------------------
 // Declarations for use in both the preparser and the rest of V8.
@@ -2791,10 +2790,6 @@ enum class CachedTieringDecision : int32_t {
   kEarlyTurbofan,
   kNormal,
 };
-
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
-#define V8_ENABLE_SPARKPLUG_PLUS
-#endif
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
 #define IF_SPARKPLUG_PLUS(V, ...) EXPAND(V(__VA_ARGS__))

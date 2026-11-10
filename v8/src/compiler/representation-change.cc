@@ -225,6 +225,7 @@ Node* RepresentationChanger::GetRepresentationFor(
       // be fixed for all other type checks.
       (output_rep != MachineRepresentation::kWord32 &&
        (use_info.type_check() != TypeCheckKind::kAdditiveSafeInteger &&
+        use_info.type_check() != TypeCheckKind::kUnsigned64 &&
         !TypeCheckIsBigInt(use_info.type_check())))) {
     if (use_info.representation() == output_rep) {
       // Representations are the same. That's a no-op.
@@ -1515,6 +1516,8 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
         op = simplified()->CheckedInt64ToAdditiveSafeInteger(
             use_info.feedback());
       }
+    } else if (use_info.type_check() == TypeCheckKind::kUnsigned64) {
+      op = simplified()->CheckedInt64ToUint64(use_info.feedback());
     } else if (TypeCheckIsBigInt(use_info.type_check())) {
       if (output_type.Is(Type::UnsignedBigInt64()) &&
           use_info.type_check() == TypeCheckKind::kBigInt64) {

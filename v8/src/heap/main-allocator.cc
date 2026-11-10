@@ -558,8 +558,9 @@ bool PagedNewSpaceAllocatorPolicy::WaitForSweepingForAllocation(
   // This method should be called only when there are no more pages for main
   // thread to sweep.
   DCHECK(space_heap()->sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
-  if (!v8_flags.concurrent_sweeping || !space_heap()->sweeping_in_progress())
+  if (!v8_flags.concurrent_sweeping || !space_heap()->sweeping_in_progress()) {
     return false;
+  }
   Sweeper* sweeper = space_heap()->sweeper();
   if (!sweeper->AreMinorSweeperTasksRunning() &&
       !sweeper->ShouldRefillFreelistForSpace(NEW_SPACE)) {
@@ -605,8 +606,9 @@ bool PagedNewSpaceAllocatorPolicy::TryAllocatePage(int size_in_bytes,
                                                    AllocationOrigin origin) {
   if (IsPagedNewSpaceAtFullCapacity(space_) &&
       !space_->heap()->ShouldExpandYoungGenerationOnSlowAllocation(
-          NormalPage::kPageSize))
+          NormalPage::kPageSize)) {
     return false;
+  }
   if (!space_->paged_space()->AllocatePage()) return false;
   return paged_space_allocator_policy_->TryAllocationFromFreeList(size_in_bytes,
                                                                   origin);
@@ -684,8 +686,10 @@ bool PagedSpaceAllocatorPolicy::RefillLab(int size_in_bytes,
       space_->RefillFreeList();
 
       // Retry the free list allocation.
-      if (TryAllocationFromFreeList(static_cast<size_t>(size_in_bytes), origin))
+      if (TryAllocationFromFreeList(static_cast<size_t>(size_in_bytes),
+                                    origin)) {
         return true;
+      }
     }
 
     static constexpr int kMaxPagesToSweep = 1;
@@ -715,8 +719,10 @@ bool PagedSpaceAllocatorPolicy::RefillLab(int size_in_bytes,
       DCHECK_IMPLIES(v8_flags.black_allocated_pages,
                      !page->is_black_allocated());
       space_->AddPage(page);
-      if (TryAllocationFromFreeList(static_cast<size_t>(size_in_bytes), origin))
+      if (TryAllocationFromFreeList(static_cast<size_t>(size_in_bytes),
+                                    origin)) {
         return true;
+      }
     }
   }
 
@@ -760,10 +766,12 @@ bool PagedSpaceAllocatorPolicy::TryExpandAndAllocate(size_t size_in_bytes,
 }
 
 bool PagedSpaceAllocatorPolicy::ContributeToSweeping(uint32_t max_pages) {
-  if (!space_heap()->sweeping_in_progress_for_space(allocator_->identity()))
+  if (!space_heap()->sweeping_in_progress_for_space(allocator_->identity())) {
     return false;
-  if (space_heap()->sweeper()->IsSweepingDoneForSpace(allocator_->identity()))
+  }
+  if (space_heap()->sweeper()->IsSweepingDoneForSpace(allocator_->identity())) {
     return false;
+  }
 
   const bool is_main_thread =
       allocator_->is_main_thread() ||
@@ -775,8 +783,9 @@ bool PagedSpaceAllocatorPolicy::ContributeToSweeping(uint32_t max_pages) {
 
   TRACE_GC_EPOCH_WITH_FLOW(
       isolate_heap()->tracer(), sweeping_scope_id, sweeping_scope_kind,
-      isolate_heap()->sweeper()->GetTraceIdForFlowEvent(sweeping_scope_id),
-      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+      perfetto::Flow::ProcessScoped(
+          isolate_heap()->sweeper()->GetTraceIdForFlowEvent(
+              sweeping_scope_id)));
   // Cleanup invalidated old-to-new refs for compaction space in the
   // final atomic pause.
   Sweeper::SweepingMode sweeping_mode =

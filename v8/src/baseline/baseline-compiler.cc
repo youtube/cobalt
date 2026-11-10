@@ -493,8 +493,9 @@ void BaselineCompiler::LoadFeedbackVector(Register output) {
 
 void BaselineCompiler::LoadClosureFeedbackArray(Register output) {
   LoadFeedbackVector(output);
-  __ LoadTaggedField(output, output,
-                     FeedbackVector::kClosureFeedbackCellArrayOffset);
+  __ LoadTaggedField(
+      output, output,
+      offsetof(::v8::internal::FeedbackVector, closure_feedback_cell_array_));
 }
 
 void BaselineCompiler::SelectBooleanConstant(
@@ -1871,7 +1872,7 @@ void BaselineCompiler::VisitTestUndetectable() {
 
   Register map_bit_field = kInterpreterAccumulatorRegister;
   __ LoadMap(map_bit_field, kInterpreterAccumulatorRegister);
-  __ LoadWord8Field(map_bit_field, map_bit_field, Map::kBitFieldOffset);
+  __ LoadWord8Field(map_bit_field, map_bit_field, offsetof(Map, bit_field_));
   __ TestAndBranch(map_bit_field, Map::Bits1::IsUndetectableBit::kMask, kZero,
                    &not_undetectable, Label::kNear);
 
@@ -1994,7 +1995,8 @@ void BaselineCompiler::VisitTestTypeOf() {
       // All other undetectable maps are typeof undefined.
       Register map_bit_field = kInterpreterAccumulatorRegister;
       __ LoadMap(map_bit_field, kInterpreterAccumulatorRegister);
-      __ LoadWord8Field(map_bit_field, map_bit_field, Map::kBitFieldOffset);
+      __ LoadWord8Field(map_bit_field, map_bit_field,
+                        offsetof(Map, bit_field_));
       __ TestAndBranch(map_bit_field, Map::Bits1::IsUndetectableBit::kMask,
                        kZero, &not_undetectable, Label::kNear);
 
@@ -2014,7 +2016,8 @@ void BaselineCompiler::VisitTestTypeOf() {
       // Check if the map is callable but not undetectable.
       Register map_bit_field = kInterpreterAccumulatorRegister;
       __ LoadMap(map_bit_field, kInterpreterAccumulatorRegister);
-      __ LoadWord8Field(map_bit_field, map_bit_field, Map::kBitFieldOffset);
+      __ LoadWord8Field(map_bit_field, map_bit_field,
+                        offsetof(Map, bit_field_));
       __ TestAndBranch(map_bit_field, Map::Bits1::IsCallableBit::kMask, kZero,
                        &not_callable, Label::kNear);
       __ TestAndBranch(map_bit_field, Map::Bits1::IsUndetectableBit::kMask,
@@ -2046,7 +2049,7 @@ void BaselineCompiler::VisitTestTypeOf() {
 
       // If the map is undetectable or callable, return false.
       Register map_bit_field = kInterpreterAccumulatorRegister;
-      __ LoadWord8Field(map_bit_field, map, Map::kBitFieldOffset);
+      __ LoadWord8Field(map_bit_field, map, offsetof(Map, bit_field_));
       __ TestAndBranch(map_bit_field,
                        Map::Bits1::IsUndetectableBit::kMask |
                            Map::Bits1::IsCallableBit::kMask,
@@ -2273,7 +2276,7 @@ void BaselineCompiler::VisitJumpLoop() {
     osr_state = temps.AcquireScratch();
     LoadFeedbackVector(feedback_vector);
     __ LoadWord8Field(osr_state, feedback_vector,
-                      FeedbackVector::kOsrStateOffset);
+                      offsetof(::v8::internal::FeedbackVector, osr_state_));
     static_assert(FeedbackVector::MaybeHasMaglevOsrCodeBit::encode(true) >
                   FeedbackVector::kMaxOsrUrgency);
     static_assert(FeedbackVector::MaybeHasTurbofanOsrCodeBit::encode(true) >
@@ -2571,7 +2574,7 @@ void BaselineCompiler::VisitThrowIfNotSuperConstructor() {
   LoadRegister(reg, 0);
   Register map_bit_field = scratch_scope.AcquireScratch();
   __ LoadMap(map_bit_field, reg);
-  __ LoadWord8Field(map_bit_field, map_bit_field, Map::kBitFieldOffset);
+  __ LoadWord8Field(map_bit_field, map_bit_field, offsetof(Map, bit_field_));
   __ TestAndBranch(map_bit_field, Map::Bits1::IsConstructorBit::kMask, kNotZero,
                    &done, Label::kNear);
 
@@ -2658,14 +2661,10 @@ void BaselineCompiler::VisitForOfNext() {
   Register next = scratch_scope.AcquireScratch();
   __ LoadRegister(object, RegisterOperand(0));
   __ LoadRegister(next, RegisterOperand(1));
-  // Pass the output register slot as an argument, so that the builtin
-  // is responsible for writing into the slots.
-  Register out_reg_address = scratch_scope.AcquireScratch();
-  basm_.RegisterFrameAddress(RegisterOperand(2), out_reg_address);
+
   CallBuiltin<Builtin::kForOfNextBaseline>(object,                 // object
                                            next,                   // next
-                                           out_reg_address,        // out_reg
-                                           FeedbackSlotAsSmi(3));  // call_slot
+                                           FeedbackSlotAsSmi(2));  // call_slot
 }
 
 void BaselineCompiler::VisitGetIterator() {

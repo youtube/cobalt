@@ -32,14 +32,6 @@
       }
     }
   },
-  'crosshatch': {
-    'swarming': {
-      'dimensions': {
-        'device_type': 'crosshatch',
-        'os': 'Android'
-      }
-    }
-  },
   'fuchsia-gtest-output': {
     'args': [
       '--test-launcher-summary-output=${ISOLATED_OUTDIR}/gtest_output.json',
@@ -131,6 +123,15 @@
   'out_dir_arg': {
     'args': ['--out-dir', '${ISOLATED_OUTDIR}']
   },
+  'panther_on_14': {
+    'swarming': {
+      'dimensions': {
+        'device_type': 'panther',
+        'device_os': 'AP2A.240705.004',
+        'os': 'Android'
+      }
+    }
+  },
   'perf-output': {
     'args': [
       '--isolated-script-test-perf-output=${ISOLATED_OUTDIR}/perftest-output.pb'
@@ -214,14 +215,6 @@
     'swarming': {
       'hard_timeout': 10800,
       'io_timeout': 10800
-    }
-  },
-  'walleye': {
-    'swarming': {
-      'dimensions': {
-        'device_type': 'walleye',
-        'os': 'Android'
-      }
     }
   },
   'webrtc-xctest': {

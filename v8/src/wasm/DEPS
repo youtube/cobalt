@@ -46,10 +46,15 @@ specific_include_rules = {
     # The LiftoffAssembler needs to know CallDescriptors.
     "+src/compiler/linkage.h",
   ],
+  "liftoff-assembler-(x64|ia32|s390|ppc)-inl\.h": [
+    # The LiftoffAssembler needs to know CallDescriptors.
+    "+src/compiler/backend/simd-shuffle.h",
+  ],
   "liftoff-compiler\.cc": [
     "-src/compiler",
     "+src/compiler/access-builder.h",
     "+src/compiler/wasm-compiler.h",
+    "+src/compiler/backend/simd-shuffle.h",
   ],
   "liftoff-compiler\.h": [
     "-src/compiler",
@@ -58,9 +63,4 @@ specific_include_rules = {
   "module-instantiate\.cc": [
     "+src/compiler/fast-api-calls.h",
   ],
-  "simd-shuffle\.h": [
-    "+src/compiler/backend/instruction-codes.h",
-  ],
-
-
 }

@@ -70,6 +70,27 @@ OPENSSL_EXPORT void BORINGSSL_keccak_absorb(struct BORINGSSL_keccak_st *ctx,
 OPENSSL_EXPORT void BORINGSSL_keccak_squeeze(struct BORINGSSL_keccak_st *ctx,
                                              uint8_t *out, size_t out_len);
 
+#if defined(__has_attribute)
+#if __has_attribute(vector_size)
+#define HAVE_KECCAK_X2
+#endif  // vector_size
+#endif  // __has_attribute
+
+#if defined(HAVE_KECCAK_X2)
+// BORINGSSL_keccak_squeeze_x2 performs BORINGSSL_keccak_squeeze in parallel
+// with two same-length outputs. The contexts must be in equivalent state (i.e.
+// same config, same amount of bytes absorbed and squeezed).
+OPENSSL_EXPORT void BORINGSSL_keccak_squeeze_x2(
+    struct BORINGSSL_keccak_st ctx[2], uint8_t *outs[2], size_t out_len);
+
+// BORINGSSL_keccak_short_x2 performs BORINGSSL_keccak in parallel on two
+// same-length strings with same-length outputs. |in_len| must be less than 72
+// (or actually |rate_bytes|).
+OPENSSL_EXPORT void BORINGSSL_keccak_short_x2(
+    uint8_t *outs[2], size_t out_len, const uint8_t *ins[2], size_t in_len,
+    enum boringssl_keccak_config_t config);
+#endif
+
 BSSL_NAMESPACE_END
 
 #endif  // OPENSSL_HEADER_CRYPTO_FIPSMODULE_KECCAK_INTERNAL_H

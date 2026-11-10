@@ -8,11 +8,6 @@
 //    clang-format -i -style=chromium filename
 // DO NOT EDIT!
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 // It is included by gles2_cmd_decoder_unittest_2.cc
 #ifndef GPU_COMMAND_BUFFER_SERVICE_GLES2_CMD_DECODER_UNITTEST_2_AUTOGEN_H_
 #define GPU_COMMAND_BUFFER_SERVICE_GLES2_CMD_DECODER_UNITTEST_2_AUTOGEN_H_
@@ -28,8 +23,8 @@ TEST_P(GLES2DecoderTest2, GetProgramInfoLogValidArgs) {
   CommonDecoder::Bucket* bucket = decoder_->GetBucket(kBucketId);
   ASSERT_TRUE(bucket != nullptr);
   EXPECT_EQ(strlen(kInfo) + 1, bucket->size());
-  EXPECT_EQ(0,
-            memcmp(bucket->GetData(0, bucket->size()), kInfo, bucket->size()));
+  EXPECT_EQ(0, UNSAFE_TODO(memcmp(bucket->GetData(0, bucket->size()), kInfo,
+                                  bucket->size())));
   EXPECT_EQ(GL_NO_ERROR, GetGLError());
 }
 
@@ -710,7 +705,8 @@ TEST_P(GLES2DecoderTest2, ShaderSourceBucketInvalidHeader) {
       -1,
   };
   for (size_t ii = 0; ii < std::size(kTests); ++ii) {
-    SetBucketAsCStrings(kBucketId, 1, kSource, kTests[ii], kValidStrEnd);
+    SetBucketAsCStrings(kBucketId, 1, kSource, UNSAFE_TODO(kTests[ii]),
+                        kValidStrEnd);
     cmds::ShaderSourceBucket cmd;
     cmd.Init(client_shader_id_, kBucketId);
     EXPECT_EQ(error::kInvalidArguments, ExecuteCmd(cmd));
@@ -916,7 +912,8 @@ TEST_P(GLES3DecoderTest2, TransformFeedbackVaryingsBucketInvalidHeader) {
       -1,
   };
   for (size_t ii = 0; ii < std::size(kTests); ++ii) {
-    SetBucketAsCStrings(kBucketId, 1, kSource, kTests[ii], kValidStrEnd);
+    SetBucketAsCStrings(kBucketId, 1, kSource, UNSAFE_TODO(kTests[ii]),
+                        kValidStrEnd);
     cmds::TransformFeedbackVaryingsBucket cmd;
     cmd.Init(client_program_id_, kBucketId, GL_INTERLEAVED_ATTRIBS);
     EXPECT_EQ(error::kInvalidArguments, ExecuteCmd(cmd));

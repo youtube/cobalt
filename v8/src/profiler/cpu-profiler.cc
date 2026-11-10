@@ -188,8 +188,9 @@ void ProfilerEventsProcessor::AddSample(TickSample sample) {
 void ProfilerEventsProcessor::StopSynchronously() {
   bool expected = true;
   if (!running_.compare_exchange_strong(expected, false,
-                                        std::memory_order_relaxed))
+                                        std::memory_order_relaxed)) {
     return;
+  }
   {
     base::MutexGuard guard(&running_mutex_);
     running_cond_.NotifyOne();

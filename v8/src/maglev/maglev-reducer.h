@@ -6,9 +6,11 @@
 #define V8_MAGLEV_MAGLEV_REDUCER_H_
 
 #include <algorithm>
+#include <initializer_list>
 #include <utility>
 
 #include "src/base/logging.h"
+#include "src/base/memcopy.h"
 #include "src/codegen/source-position.h"
 #include "src/compiler/feedback-source.h"
 #include "src/deoptimizer/deoptimize-reason.h"
@@ -25,6 +27,7 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+struct MaglevCallSiteInfo;
 class ReduceResult;
 class V8_NODISCARD MaybeReduceResult {
  public:
@@ -234,6 +237,236 @@ template <typename BaseT>
 concept ReducerBaseHasTracing = requires(BaseT* b) { b->is_tracing(); };
 
 enum class UseReprHintRecording { kRecord, kDoNotRecord };
+
+// CallArguments encapsulates the arguments of a JS-level call so that
+// reducer code can read them uniformly regardless of where they came from.
+//
+// Two storage modes:
+//   * kOwned: a SmallVector of ValueNode* owned by this object. Used at
+//     bytecode-build time when arguments are gathered from a register list,
+//     synthesised, or copied. Mutating helpers (set_receiver, PopReceiver,
+//     PopSpread, PopArrayLikeArgument, ResizeDefaultArguments) operate on
+//     this storage.
+//   * kNodeView: a non-owning view over the input array of an existing
+//     call node. No allocation. Used at graph-optimizer time when reducing
+//     an existing Call / CallKnownBuiltin. Read-only; mutating helpers
+//     DCHECK-fail.
+class CallArguments {
+ public:
+  enum Mode {
+    kDefault,
+    kWithSpread,
+    kWithArrayLike,
+  };
+
+  // === Owned constructors. ===
+  CallArguments(ConvertReceiverMode receiver_mode,
+                interpreter::RegisterList reglist,
+                const InterpreterFrameState& frame, Mode mode = kDefault)
+      : receiver_mode_(receiver_mode),
+        mode_(mode),
+        storage_(Storage::kOwned),
+        args_(reglist.register_count()) {
+    for (int i = 0; i < reglist.register_count(); i++) {
+      args_[i] = frame.get(reglist[i]);
+    }
+    DCHECK_IMPLIES(args_.size() == 0,
+                   receiver_mode == ConvertReceiverMode::kNullOrUndefined);
+    DCHECK_IMPLIES(mode == kWithArrayLike,
+                   receiver_mode == ConvertReceiverMode::kAny);
+    DCHECK_IMPLIES(mode == kWithArrayLike, args_.size() == 2);
+  }
+
+  explicit CallArguments(ConvertReceiverMode receiver_mode)
+      : receiver_mode_(receiver_mode),
+        mode_(kDefault),
+        storage_(Storage::kOwned),
+        args_() {
+    DCHECK_EQ(receiver_mode, ConvertReceiverMode::kNullOrUndefined);
+  }
+
+  CallArguments(ConvertReceiverMode receiver_mode,
+                std::initializer_list<ValueNode*> args, Mode mode = kDefault)
+      : receiver_mode_(receiver_mode),
+        mode_(mode),
+        storage_(Storage::kOwned),
+        args_(args) {
+    DCHECK_IMPLIES(mode != kDefault,
+                   receiver_mode == ConvertReceiverMode::kAny);
+    DCHECK_IMPLIES(mode == kWithArrayLike, args_.size() == 2);
+    CheckArgumentsAreNotConversionNodes();
+  }
+
+  CallArguments(ConvertReceiverMode receiver_mode,
+                base::SmallVector<ValueNode*, 8>&& args, Mode mode = kDefault)
+      : receiver_mode_(receiver_mode),
+        mode_(mode),
+        storage_(Storage::kOwned),
+        args_(std::move(args)) {
+    DCHECK_IMPLIES(mode != kDefault,
+                   receiver_mode == ConvertReceiverMode::kAny);
+    DCHECK_IMPLIES(mode == kWithArrayLike, args_.size() == 2);
+    CheckArgumentsAreNotConversionNodes();
+  }
+
+  explicit CallArguments(Call* call)
+      : receiver_mode_(call->receiver_mode()),
+        mode_(kDefault),
+        storage_(Storage::kNodeView),
+        node_view_call_(call),
+        node_view_args_start_(Call::kFixedInputCount + 1),
+        node_view_args_count_(call->num_args() - 1),
+        node_view_receiver_(receiver_mode_ ==
+                                    ConvertReceiverMode::kNullOrUndefined
+                                ? nullptr
+                                : call->arg(0).node()) {
+    DCHECK_GE(call->num_args(), 1);  // Always at least the receiver slot.
+  }
+
+  explicit CallArguments(CallKnownBuiltin* call)
+      : receiver_mode_(ConvertReceiverMode::kNotNullOrUndefined),
+        mode_(kDefault),
+        storage_(Storage::kNodeView),
+        node_view_call_(call),
+        node_view_args_start_(CallKnownBuiltin::kFixedInputCount),
+        node_view_args_count_(call->num_args()),
+        node_view_receiver_(call->ReceiverInput().node()) {}
+
+  ValueNode* receiver() const {
+    if (storage_ == Storage::kNodeView) return node_view_receiver_;
+    if (receiver_mode_ == ConvertReceiverMode::kNullOrUndefined) {
+      return nullptr;
+    }
+    return args_[0];
+  }
+
+  size_t count() const {
+    if (storage_ == Storage::kNodeView) return node_view_args_count_;
+    DCHECK_LE(index_offset(), args_.size());
+    return args_.size() - index_offset();
+  }
+
+  size_t count_with_receiver() const { return count() + 1; }
+
+  ValueNode* operator[](size_t i) const {
+    if (storage_ == Storage::kNodeView) {
+      if (i >= static_cast<size_t>(node_view_args_count_)) return nullptr;
+      return node_view_call_->input(node_view_args_start_ + static_cast<int>(i))
+          .node();
+    }
+    i += index_offset();
+    if (i >= args_.size()) return nullptr;
+    return args_[i];
+  }
+
+  Mode mode() const { return mode_; }
+  ConvertReceiverMode receiver_mode() const { return receiver_mode_; }
+
+  ValueNode* array_like_argument() {
+    DCHECK_EQ(mode_, kWithArrayLike);
+    DCHECK_GT(count(), 0);
+    return (*this)[count() - 1];
+  }
+
+  ValueNode* spread() {
+    DCHECK_EQ(mode_, kWithSpread);
+    DCHECK_GT(count(), 0);
+    return (*this)[count() - 1];
+  }
+
+  ValueNode** begin() {
+    DCHECK_EQ(storage_, Storage::kOwned);
+    return args_.begin() + index_offset();
+  }
+  const ValueNode* const* begin() const {
+    DCHECK_EQ(storage_, Storage::kOwned);
+    return args_.begin() + index_offset();
+  }
+  ValueNode** end() {
+    DCHECK_EQ(storage_, Storage::kOwned);
+    return args_.end();
+  }
+  const ValueNode* const* end() const {
+    DCHECK_EQ(storage_, Storage::kOwned);
+    return args_.end();
+  }
+
+  void set_receiver(ValueNode* receiver) {
+    DCHECK_EQ(storage_, Storage::kOwned);
+    if (receiver_mode_ == ConvertReceiverMode::kNullOrUndefined) {
+      args_.insert(args_.data(), receiver);
+      receiver_mode_ = ConvertReceiverMode::kAny;
+    } else {
+      DCHECK(!receiver->is_conversion());
+      args_[0] = receiver;
+    }
+  }
+
+  void PopArrayLikeArgument() {
+    DCHECK_EQ(storage_, Storage::kOwned);
+    DCHECK_EQ(mode_, kWithArrayLike);
+    DCHECK_GT(count(), 0);
+    args_.pop_back();
+  }
+
+  void PopSpread() {
+    DCHECK_EQ(storage_, Storage::kOwned);
+    DCHECK_EQ(mode_, kWithSpread);
+    DCHECK_GT(count(), 0);
+    args_.pop_back();
+  }
+
+  void ResizeDefaultArguments(size_t new_count) {
+    DCHECK_EQ(storage_, Storage::kOwned);
+    DCHECK_EQ(mode_, kDefault);
+    DCHECK_GT(count(), new_count);
+    args_.resize(new_count + index_offset());
+    DCHECK_EQ(count(), new_count);
+  }
+
+  void PopReceiver(ConvertReceiverMode new_receiver_mode) {
+    DCHECK_EQ(storage_, Storage::kOwned);
+    DCHECK_NE(receiver_mode_, ConvertReceiverMode::kNullOrUndefined);
+    DCHECK_NE(new_receiver_mode, ConvertReceiverMode::kNullOrUndefined);
+    DCHECK_GT(args_.size(), 0);  // We have at least a receiver to pop!
+    size_t new_args_size_in_bytes = (args_.size() - 1) * sizeof(args_[0]);
+    MemMove(args_.data(), args_.data() + 1, new_args_size_in_bytes);
+    args_.pop_back();
+
+    // If there is no non-receiver argument to become the new receiver,
+    // consider the new receiver to be known undefined.
+    receiver_mode_ = args_.empty() ? ConvertReceiverMode::kNullOrUndefined
+                                   : new_receiver_mode;
+  }
+
+ private:
+  enum class Storage { kOwned, kNodeView };
+
+  ConvertReceiverMode receiver_mode_;
+  Mode mode_;
+  Storage storage_;
+  // Owned-mode storage. Empty in kNodeView mode.
+  base::SmallVector<ValueNode*, 8> args_;
+  // Node-view-mode storage. Unused in kOwned mode.
+  NodeBase* node_view_call_ = nullptr;
+  int node_view_args_start_ = 0;
+  int node_view_args_count_ = 0;
+  ValueNode* node_view_receiver_ = nullptr;
+
+  int index_offset() const {
+    return receiver_mode_ == ConvertReceiverMode::kNullOrUndefined ? 0 : 1;
+  }
+
+  void CheckArgumentsAreNotConversionNodes() {
+#ifdef DEBUG
+    // Arguments can leak to the interpreter frame if the call is inlined,
+    // conversions should be stored in known_node_aspects/NodeInfo.
+    for (ValueNode* arg : args_) {
+      DCHECK(!arg->is_conversion());
+    }
+#endif  // DEBUG
+  }
+};
 
 class BasicBlockPosition {
  public:
@@ -561,6 +794,28 @@ class MaglevReducer {
     current_speculation_feedback_ = feedback_source;
   }
 
+  SpeculationMode current_speculation_mode() const {
+    return current_speculation_mode_;
+  }
+  void set_current_speculation_mode(SpeculationMode mode) {
+    current_speculation_mode_ = mode;
+  }
+  bool CanSpeculateCall() const {
+    return current_speculation_mode_ == SpeculationMode::kAllowSpeculation;
+  }
+  bool CanSpeculateCall(
+      std::initializer_list<SpeculationMode> supported_modes) const {
+    return CanSpeculateCall() ||
+           std::find(supported_modes.begin(), supported_modes.end(),
+                     current_speculation_mode_) != supported_modes.end();
+  }
+
+  MaybeReduceResult TryReduceMathSqrt(compiler::JSFunctionRef target,
+                                      CallArguments& args);
+  MaybeReduceResult TryReduceBuiltin(
+      Builtin builtin_id, compiler::JSFunctionRef target, CallArguments& args,
+      const compiler::FeedbackSource& feedback_source);
+
   void FlushNodesToBlock();
 
   void SetNewNodePosition(BasicBlockPosition position) {
@@ -597,6 +852,10 @@ class MaglevReducer {
     return std::prev(it_upper)->second;
   }
 #endif  // DEBUG
+
+  void PushInlineCandidate(MaglevCallSiteInfo* call_site) {
+    graph()->inlineable_calls().push(call_site);
+  }
 
   SmiConstant* GetSmiConstant(int constant) const {
     return graph()->GetSmiConstant(constant);
@@ -637,6 +896,14 @@ class MaglevReducer {
   }
 
   ValueNode* GetNumberConstant(double constant);
+
+  bool IsTheHoleConstant(ValueNode* node);
+  ReduceResult GetConvertReceiver(compiler::SharedFunctionInfoRef shared,
+                                  ValueNode* receiver,
+                                  ConvertReceiverMode mode);
+  bool CanInlineCall(const MaglevCompilationUnit* current_unit,
+                     compiler::SharedFunctionInfoRef shared,
+                     float call_frequency);
 
   ReduceResult BuildCheckedSmiSizedInt32(ValueNode* input);
 
@@ -833,6 +1100,8 @@ class MaglevReducer {
   ZoneVector<Node*> new_nodes_at_end_;
 
   compiler::FeedbackSource current_speculation_feedback_ = {};
+  SpeculationMode current_speculation_mode_ =
+      SpeculationMode::kDisallowSpeculation;
 };
 
 }  // namespace maglev

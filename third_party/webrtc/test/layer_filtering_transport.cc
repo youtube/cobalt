@@ -21,7 +21,6 @@
 #include "api/environment/environment.h"
 #include "api/media_types.h"
 #include "api/rtp_parameters.h"
-#include "api/task_queue/task_queue_base.h"
 #include "api/video/video_codec_type.h"
 #include "call/call.h"
 #include "call/simulated_packet_receiver.h"
@@ -33,6 +32,7 @@
 #include "modules/video_coding/codecs/vp8/include/vp8_globals.h"
 #include "modules/video_coding/codecs/vp9/include/vp9_globals.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/thread.h"
 #include "test/direct_transport.h"
 
 namespace webrtc {
@@ -40,7 +40,7 @@ namespace test {
 
 LayerFilteringTransport::LayerFilteringTransport(
     const Environment& env,
-    TaskQueueBase* task_queue,
+    Thread* network_thread,
     std::unique_ptr<SimulatedPacketReceiverInterface> pipe,
     Call* send_call,
     uint8_t vp8_video_payload_type,
@@ -53,7 +53,7 @@ LayerFilteringTransport::LayerFilteringTransport(
     std::span<const RtpExtension> audio_extensions,
     std::span<const RtpExtension> video_extensions)
     : DirectTransport(env,
-                      task_queue,
+                      network_thread,
                       std::move(pipe),
                       send_call,
                       payload_type_map,
@@ -71,7 +71,7 @@ LayerFilteringTransport::LayerFilteringTransport(
 
 LayerFilteringTransport::LayerFilteringTransport(
     const Environment& env,
-    TaskQueueBase* task_queue,
+    Thread* network_thread,
     std::unique_ptr<SimulatedPacketReceiverInterface> pipe,
     Call* send_call,
     uint8_t vp8_video_payload_type,
@@ -82,7 +82,7 @@ LayerFilteringTransport::LayerFilteringTransport(
     std::span<const RtpExtension> audio_extensions,
     std::span<const RtpExtension> video_extensions)
     : LayerFilteringTransport(env,
-                              task_queue,
+                              network_thread,
                               std::move(pipe),
                               send_call,
                               vp8_video_payload_type,

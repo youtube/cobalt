@@ -87,8 +87,9 @@ class OutputStreamWriter {
   void WriteChunk() {
     if (aborted_) return;
     if (stream_->WriteAsciiChunk(chunk_.begin(), chunk_pos_) ==
-        v8::OutputStream::kAbort)
+        v8::OutputStream::kAbort) {
       aborted_ = true;
+    }
     chunk_pos_ = 0;
   }
 

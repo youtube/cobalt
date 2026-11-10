@@ -493,8 +493,9 @@ void CodeGenerator::AssembleArchBinarySearchSwitchRange(
 #endif  // V8_TARGET_ARCH_X64/V8_TARGET_ARCH_RISCV64
 
 void CodeGenerator::AssembleArchJump(RpoNumber target) {
-  if (!IsNextInAssemblyOrder(target))
+  if (!IsNextInAssemblyOrder(target)) {
     AssembleArchJumpRegardlessOfAssemblyOrder(target);
+  }
 }
 
 base::OwnedVector<uint8_t> CodeGenerator::GetSourcePositionTable() {

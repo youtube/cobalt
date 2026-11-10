@@ -26,6 +26,7 @@
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/objects/js-interceptor-map-inl.h"
 #include "src/objects/keys.h"
 #include "src/objects/lookup-inl.h"
 #include "src/objects/primitive-heap-object.h"
@@ -46,17 +47,8 @@ namespace v8::internal {
 
 Tagged<FixedArrayBase> JSObject::elements() const { return elements_.load(); }
 
-Tagged<FixedArrayBase> JSObject::elements(PtrComprCageBase) const {
-  return elements();
-}
-
 Tagged<FixedArrayBase> JSObject::elements(RelaxedLoadTag) const {
   return elements_.Relaxed_Load();
-}
-
-Tagged<FixedArrayBase> JSObject::elements(PtrComprCageBase,
-                                          RelaxedLoadTag tag) const {
-  return elements(tag);
 }
 
 void JSObject::set_elements(Tagged<FixedArrayBase> value,
@@ -302,11 +294,11 @@ void JSObject::initialize_elements() {
 }
 
 DEF_GETTER(JSObject, GetIndexedInterceptor, Tagged<InterceptorInfo>) {
-  return map(cage_base)->GetIndexedInterceptor();
+  return map()->GetIndexedInterceptor();
 }
 
 DEF_GETTER(JSObject, GetNamedInterceptor, Tagged<InterceptorInfo>) {
-  return map(cage_base)->GetNamedInterceptor();
+  return map()->GetNamedInterceptor();
 }
 
 // static
@@ -376,15 +368,15 @@ int JSObject::GetEmbedderFieldOffset(int index) {
 }
 
 Tagged<Object> JSObject::GetEmbedderField(int index) {
-  return EmbedderDataSlot(Tagged(*this), index).load_tagged();
+  return EmbedderDataSlot(this, index).load_tagged();
 }
 
 void JSObject::SetEmbedderField(int index, Tagged<Object> value) {
-  EmbedderDataSlot::store_tagged(Tagged(*this), index, value);
+  EmbedderDataSlot::store_tagged(this, index, value);
 }
 
 void JSObject::SetEmbedderField(int index, Tagged<Smi> value) {
-  EmbedderDataSlot(Tagged(*this), index).store_smi(value);
+  EmbedderDataSlot(this, index).store_smi(value);
 }
 
 // static
@@ -401,10 +393,6 @@ bool JSObject::IsDroppableApiObject() const {
 // Access fast-case object properties at index. The use of these routines
 // is needed to correctly distinguish between properties stored in-object and
 // properties stored in the properties array.
-Tagged<JSAny> JSObject::RawFastPropertyAt(FieldIndex index) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return RawFastPropertyAt(cage_base, index);
-}
 
 // Type system violation: the declared return type Tagged<JSAny> is incorrect.
 // Property slots can also hold non-JSAny values such as the Hole sentinel
@@ -416,39 +404,31 @@ Tagged<JSAny> JSObject::RawFastPropertyAt(FieldIndex index) const {
 // Tagged<UnionOf<JSAny, Hole, ClassPositions, AccessorPair, AccessorInfo>>
 // (or Tagged<Object>) and update the ~50 callers to Cast<JSAny> (or
 // whatever narrower type they actually expect) at the use site.
-Tagged<JSAny> JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
-                                          FieldIndex index) const {
+Tagged<JSAny> JSObject::RawFastPropertyAt(FieldIndex index) const {
   if (index.is_inobject()) {
-    return TaggedField<JSAny>::Relaxed_Load(cage_base, *this, index.offset());
+    return TaggedField<JSAny>::Relaxed_Load(this, index.offset());
   } else {
-    return UncheckedCast<JSAny>(property_array(cage_base)->get(
-        cage_base, index.outobject_array_index()));
+    return UncheckedCast<JSAny>(
+        property_array()->get(index.outobject_array_index()));
   }
 }
 
 // The SeqCst versions of RawFastPropertyAt are used for atomically accessing
 // shared struct fields.
-Tagged<JSAny> JSObject::RawFastPropertyAt(FieldIndex index,
-                                          SeqCstAccessTag tag) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return RawFastPropertyAt(cage_base, index, tag);
-}
 
 // See the TODO(jgruber) on the non-SeqCst overload above.
-Tagged<JSAny> JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
-                                          FieldIndex index,
+Tagged<JSAny> JSObject::RawFastPropertyAt(FieldIndex index,
                                           SeqCstAccessTag tag) const {
   if (index.is_inobject()) {
-    return TaggedField<JSAny>::SeqCst_Load(cage_base, *this, index.offset());
+    return TaggedField<JSAny>::SeqCst_Load(this, index.offset());
   } else {
-    return UncheckedCast<JSAny>(property_array(cage_base)->get(
-        cage_base, index.outobject_array_index(), tag));
+    return UncheckedCast<JSAny>(
+        property_array()->get(index.outobject_array_index(), tag));
   }
 }
 
 std::optional<Tagged<Object>> JSObject::RawInobjectPropertyAt(
-    PtrComprCageBase cage_base, Tagged<Map> original_map,
-    FieldIndex index) const {
+    Tagged<Map> original_map, FieldIndex index) const {
   CHECK(index.is_inobject());
 
   // This method implements a "snapshot" protocol to protect against reading out
@@ -477,8 +457,8 @@ std::optional<Tagged<Object>> JSObject::RawInobjectPropertyAt(
   // value, but it will be within the bounds of the objects instance size as
   // given by the map and it will be a valid Smi or object pointer.
   Tagged<Object> maybe_tagged_object =
-      TaggedField<Object>::Acquire_Load(cage_base, *this, index.offset());
-  if (original_map != map(cage_base, kAcquireLoad)) return {};
+      TaggedField<Object>::Acquire_Load(this, index.offset());
+  if (original_map != map(kAcquireLoad)) return {};
   return maybe_tagged_object;
 }
 
@@ -487,8 +467,8 @@ void JSObject::RawFastInobjectPropertyAtPut(FieldIndex index,
                                             WriteBarrierMode mode) {
   DCHECK(index.is_inobject());
   int offset = index.offset();
-  RELAXED_WRITE_FIELD(*this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+  RELAXED_WRITE_FIELD(this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
 }
 
 void JSObject::RawFastInobjectPropertyAtPut(FieldIndex index,
@@ -496,8 +476,8 @@ void JSObject::RawFastInobjectPropertyAtPut(FieldIndex index,
                                             SeqCstAccessTag tag) {
   DCHECK(index.is_inobject());
   DCHECK(IsShared(value));
-  SEQ_CST_WRITE_FIELD(*this, index.offset(), value);
-  CONDITIONAL_WRITE_BARRIER(*this, index.offset(), value, UPDATE_WRITE_BARRIER);
+  SEQ_CST_WRITE_FIELD(this, index.offset(), value);
+  CONDITIONAL_WRITE_BARRIER(this, index.offset(), value, UPDATE_WRITE_BARRIER);
 }
 
 void JSObject::FastPropertyAtPut(FieldIndex index, Tagged<Object> value,
@@ -553,8 +533,8 @@ Tagged<Object> JSObject::RawFastInobjectPropertyAtSwap(FieldIndex index,
   DCHECK(index.is_inobject());
   DCHECK(IsShared(value));
   int offset = index.offset();
-  Tagged<Object> old_value = SEQ_CST_SWAP_FIELD(*this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, offset, value, UPDATE_WRITE_BARRIER);
+  Tagged<Object> old_value = SEQ_CST_SWAP_FIELD(this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(this, offset, value, UPDATE_WRITE_BARRIER);
   return old_value;
 }
 
@@ -573,9 +553,9 @@ Tagged<Object> JSObject::RawFastInobjectPropertyAtCompareAndSwap(
   DCHECK(index.is_inobject());
   DCHECK(IsShared(value));
   Tagged<Object> previous_value =
-      SEQ_CST_COMPARE_AND_SWAP_FIELD(*this, index.offset(), expected, value);
+      SEQ_CST_COMPARE_AND_SWAP_FIELD(this, index.offset(), expected, value);
   if (previous_value == expected) {
-    CONDITIONAL_WRITE_BARRIER(*this, index.offset(), value,
+    CONDITIONAL_WRITE_BARRIER(this, index.offset(), value,
                               UPDATE_WRITE_BARRIER);
   }
   return previous_value;
@@ -598,7 +578,7 @@ int JSObject::GetInObjectPropertyOffset(int index) {
 Tagged<Object> JSObject::InObjectPropertyAtOffset(int offset) {
   DCHECK_GE(offset, GetInObjectPropertyOffset(0));
   DCHECK_LT(offset, Size());
-  return TaggedField<Object>::load(*this, offset);
+  return TaggedField<Object>::load(this, offset);
 }
 
 Tagged<Object> JSObject::InObjectPropertyPutAtIndex(int index,
@@ -614,8 +594,8 @@ Tagged<Object> JSObject::InObjectPropertyPutAtOffset(int offset,
                                                      WriteBarrierMode mode) {
   DCHECK_GE(offset, GetInObjectPropertyOffset(0));
   DCHECK_LT(offset, Size());
-  WRITE_FIELD(*this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+  WRITE_FIELD(this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
   return value;
 }
 
@@ -646,9 +626,9 @@ void JSObject::InitializeBody(Tagged<Map> map, int start_offset,
         // Unfortunately, this currently results in performance regressions.
         while (current_offset < end_offset) {
 #if V8_STATIC_ROOTS_BOOL
-          RELAXED_WRITE_UINT32_FIELD(*this, current_offset, filler);
+          RELAXED_WRITE_UINT32_FIELD(this, current_offset, filler);
 #else   // !STATIC_ROOTS_BOOL
-          WRITE_FIELD(*this, current_offset, filler);
+          WRITE_FIELD(this, current_offset, filler);
 #endif  // !STATIC_ROOTS_BOOL
           current_offset += kTaggedSize;
         }
@@ -669,8 +649,8 @@ void JSObject::InitializeBody(Tagged<Map> map, int start_offset,
     DCHECK_EQ(current_offset, embedder_field_start);
     for (int i = 0; i < GetEmbedderFieldCount(map); i++) {
       // TODO(v8): consider initializing embedded data slots with Smi::zero().
-      EmbedderDataSlot(Tagged<JSObject>(*this), i)
-          .Initialize(GetReadOnlyRoots().undefined_value());
+      EmbedderDataSlot(this, i).Initialize(
+          GetReadOnlyRoots().undefined_value());
       current_offset += kEmbedderDataSlotSize;
     }
   }
@@ -897,122 +877,122 @@ void JSMessageObject::set_stack_trace(
 }
 
 DEF_GETTER(JSObject, GetElementsKind, ElementsKind) {
-  ElementsKind kind = map(cage_base)->elements_kind();
+  ElementsKind kind = map()->elements_kind();
 #if VERIFY_HEAP && DEBUG
   Tagged<FixedArrayBase> fixed_array = UncheckedCast<FixedArrayBase>(
-      TaggedField<HeapObject, kElementsOffset>::load(cage_base, *this));
+      TaggedField<HeapObject, offsetof(JSObject, elements_)>::load(this));
 
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
-  if (ElementsAreSafeToExamine(cage_base)) {
+  if (ElementsAreSafeToExamine()) {
     Tagged<Map> map = fixed_array->map();
     if (IsSmiOrObjectElementsKind(kind)) {
       CHECK(map == GetReadOnlyRoots().fixed_array_map() ||
             map == GetReadOnlyRoots().fixed_cow_array_map());
     } else if (IsDoubleElementsKind(kind)) {
-      CHECK(IsFixedDoubleArray(fixed_array, cage_base) ||
+      CHECK(IsFixedDoubleArray(fixed_array) ||
             fixed_array == GetReadOnlyRoots().empty_fixed_array());
     } else if (kind == DICTIONARY_ELEMENTS) {
-      CHECK(IsFixedArray(fixed_array, cage_base));
-      CHECK(IsNumberDictionary(fixed_array, cage_base));
+      CHECK(IsFixedArray(fixed_array));
+      CHECK(IsNumberDictionary(fixed_array));
     } else {
       CHECK(kind > DICTIONARY_ELEMENTS || IsAnyNonextensibleElementsKind(kind));
     }
     CHECK_IMPLIES(IsSloppyArgumentsElementsKind(kind),
-                  IsSloppyArgumentsElements(elements(cage_base)));
+                  IsSloppyArgumentsElements(elements()));
   }
 #endif
   return kind;
 }
 
 DEF_GETTER(JSObject, GetElementsAccessor, ElementsAccessor*) {
-  return ElementsAccessor::ForKind(GetElementsKind(cage_base));
+  return ElementsAccessor::ForKind(GetElementsKind());
 }
 
 DEF_GETTER(JSObject, HasObjectElements, bool) {
-  return IsObjectElementsKind(GetElementsKind(cage_base));
+  return IsObjectElementsKind(GetElementsKind());
 }
 
 DEF_GETTER(JSObject, HasSmiElements, bool) {
-  return IsSmiElementsKind(GetElementsKind(cage_base));
+  return IsSmiElementsKind(GetElementsKind());
 }
 
 DEF_GETTER(JSObject, HasSmiOrObjectElements, bool) {
-  return IsSmiOrObjectElementsKind(GetElementsKind(cage_base));
+  return IsSmiOrObjectElementsKind(GetElementsKind());
 }
 
 DEF_GETTER(JSObject, HasDoubleElements, bool) {
-  return IsDoubleElementsKind(GetElementsKind(cage_base));
+  return IsDoubleElementsKind(GetElementsKind());
 }
 
 DEF_GETTER(JSObject, HasHoleyElements, bool) {
-  return IsHoleyElementsKind(GetElementsKind(cage_base));
+  return IsHoleyElementsKind(GetElementsKind());
 }
 
 DEF_GETTER(JSObject, HasFastElements, bool) {
-  return IsFastElementsKind(GetElementsKind(cage_base));
+  return IsFastElementsKind(GetElementsKind());
 }
 
 DEF_GETTER(JSObject, HasFastPackedElements, bool) {
-  return IsFastPackedElementsKind(GetElementsKind(cage_base));
+  return IsFastPackedElementsKind(GetElementsKind());
 }
 
 DEF_GETTER(JSObject, HasDictionaryElements, bool) {
-  return IsDictionaryElementsKind(GetElementsKind(cage_base));
+  return IsDictionaryElementsKind(GetElementsKind());
 }
 
 DEF_GETTER(JSObject, HasPackedElements, bool) {
-  return GetElementsKind(cage_base) == PACKED_ELEMENTS;
+  return GetElementsKind() == PACKED_ELEMENTS;
 }
 
 DEF_GETTER(JSObject, HasAnyNonextensibleElements, bool) {
-  return IsAnyNonextensibleElementsKind(GetElementsKind(cage_base));
+  return IsAnyNonextensibleElementsKind(GetElementsKind());
 }
 
 DEF_GETTER(JSObject, HasSealedElements, bool) {
-  return IsSealedElementsKind(GetElementsKind(cage_base));
+  return IsSealedElementsKind(GetElementsKind());
 }
 
 DEF_GETTER(JSObject, HasSharedArrayElements, bool) {
-  return GetElementsKind(cage_base) == SHARED_ARRAY_ELEMENTS;
+  return GetElementsKind() == SHARED_ARRAY_ELEMENTS;
 }
 
 DEF_GETTER(JSObject, HasNonextensibleElements, bool) {
-  return IsNonextensibleElementsKind(GetElementsKind(cage_base));
+  return IsNonextensibleElementsKind(GetElementsKind());
 }
 
 DEF_GETTER(JSObject, HasFastArgumentsElements, bool) {
-  return IsFastArgumentsElementsKind(GetElementsKind(cage_base));
+  return IsFastArgumentsElementsKind(GetElementsKind());
 }
 
 DEF_GETTER(JSObject, HasSlowArgumentsElements, bool) {
-  return IsSlowArgumentsElementsKind(GetElementsKind(cage_base));
+  return IsSlowArgumentsElementsKind(GetElementsKind());
 }
 
 DEF_GETTER(JSObject, HasSloppyArgumentsElements, bool) {
-  return IsSloppyArgumentsElementsKind(GetElementsKind(cage_base));
+  return IsSloppyArgumentsElementsKind(GetElementsKind());
 }
 
 DEF_GETTER(JSObject, HasStringWrapperElements, bool) {
-  return IsStringWrapperElementsKind(GetElementsKind(cage_base));
+  return IsStringWrapperElementsKind(GetElementsKind());
 }
 
 DEF_GETTER(JSObject, HasFastStringWrapperElements, bool) {
-  return GetElementsKind(cage_base) == FAST_STRING_WRAPPER_ELEMENTS;
+  return GetElementsKind() == FAST_STRING_WRAPPER_ELEMENTS;
 }
 
 DEF_GETTER(JSObject, HasSlowStringWrapperElements, bool) {
-  return GetElementsKind(cage_base) == SLOW_STRING_WRAPPER_ELEMENTS;
+  return GetElementsKind() == SLOW_STRING_WRAPPER_ELEMENTS;
 }
 
 DEF_GETTER(JSObject, HasTypedArrayOrRabGsabTypedArrayElements, bool) {
-  DCHECK(!elements(cage_base).is_null());
-  return map(cage_base)->has_typed_array_or_rab_gsab_typed_array_elements();
+  DCHECK(!elements().is_null());
+  return map()->has_typed_array_or_rab_gsab_typed_array_elements();
 }
 
-#define FIXED_TYPED_ELEMENTS_CHECK(Type, type, TYPE, ctype)    \
-  DEF_GETTER(JSObject, HasFixed##Type##Elements, bool) {       \
-    return map(cage_base)->elements_kind() == TYPE##_ELEMENTS; \
+#define FIXED_TYPED_ELEMENTS_CHECK(Type, type, TYPE, ctype) \
+  DEF_GETTER(JSObject, HasFixed##Type##Elements, bool) {    \
+    return map()->elements_kind() == TYPE##_ELEMENTS;       \
   }
 
 TYPED_ARRAYS(FIXED_TYPED_ELEMENTS_CHECK)
@@ -1020,11 +1000,11 @@ TYPED_ARRAYS(FIXED_TYPED_ELEMENTS_CHECK)
 #undef FIXED_TYPED_ELEMENTS_CHECK
 
 DEF_GETTER(JSObject, HasNamedInterceptor, bool) {
-  return map(cage_base)->has_named_interceptor();
+  return map()->has_named_interceptor();
 }
 
 DEF_GETTER(JSObject, HasIndexedInterceptor, bool) {
-  return map(cage_base)->has_indexed_interceptor();
+  return map()->has_indexed_interceptor();
 }
 
 Tagged<JSGlobalProxy> JSGlobalObject::global_proxy() const {
@@ -1048,10 +1028,6 @@ Tagged<GlobalDictionary> JSGlobalObject::global_dictionary(
   DCHECK(!HasFastProperties());
   return Cast<GlobalDictionary>(properties_or_hash_.Acquire_Load());
 }
-Tagged<GlobalDictionary> JSGlobalObject::global_dictionary(
-    PtrComprCageBase cage_base, AcquireLoadTag tag) const {
-  return global_dictionary(tag);
-}
 void JSGlobalObject::set_global_dictionary(Tagged<GlobalDictionary> value,
                                            ReleaseStoreTag,
                                            WriteBarrierMode mode) {
@@ -1063,9 +1039,8 @@ Tagged<HeapObject> JSGlobalObject::raw_global_proxy() const {
 }
 
 DEF_GETTER(JSObject, element_dictionary, Tagged<NumberDictionary>) {
-  DCHECK(HasDictionaryElements(cage_base) ||
-         HasSlowStringWrapperElements(cage_base));
-  return Cast<NumberDictionary>(elements(cage_base));
+  DCHECK(HasDictionaryElements() || HasSlowStringWrapperElements());
+  return Cast<NumberDictionary>(elements());
 }
 
 void JSReceiver::initialize_properties(Isolate* isolate) {
@@ -1074,7 +1049,7 @@ void JSReceiver::initialize_properties(Isolate* isolate) {
   DCHECK(!HeapLayout::InYoungGeneration(roots.empty_property_dictionary()));
   DCHECK(!HeapLayout::InYoungGeneration(
       roots.empty_ordered_property_dictionary()));
-  if (map(isolate)->is_dictionary_map()) {
+  if (map()->is_dictionary_map()) {
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       properties_or_hash_.store_no_write_barrier(
           roots.empty_swiss_property_dictionary());
@@ -1091,16 +1066,16 @@ DEF_GETTER(JSReceiver, HasFastProperties, bool) {
   Tagged<JSReceiver::PropertiesOrHash> properties_or_hash_obj =
       raw_properties_or_hash(kRelaxedLoad);
   DCHECK(IsSmi(properties_or_hash_obj) ||
-         ((IsGlobalDictionary(properties_or_hash_obj, cage_base) ||
-           IsPropertyDictionary(properties_or_hash_obj, cage_base)) ==
-          map(cage_base)->is_dictionary_map()));
+         ((IsGlobalDictionary(properties_or_hash_obj) ||
+           IsPropertyDictionary(properties_or_hash_obj)) ==
+          map()->is_dictionary_map()));
   USE(properties_or_hash_obj);
-  return !map(cage_base)->is_dictionary_map();
+  return !map()->is_dictionary_map();
 }
 
 DEF_GETTER(JSReceiver, property_dictionary, Tagged<NameDictionary>) {
-  DCHECK(!IsJSGlobalObject(*this, cage_base));
-  DCHECK(!HasFastProperties(cage_base));
+  DCHECK(!IsJSGlobalObject(this));
+  DCHECK(!HasFastProperties());
   DCHECK(!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL);
 
   Tagged<JSReceiver::PropertiesOrHash> prop = raw_properties_or_hash();
@@ -1111,8 +1086,8 @@ DEF_GETTER(JSReceiver, property_dictionary, Tagged<NameDictionary>) {
 }
 
 DEF_GETTER(JSReceiver, property_dictionary_swiss, Tagged<SwissNameDictionary>) {
-  DCHECK(!IsJSGlobalObject(*this, cage_base));
-  DCHECK(!HasFastProperties(cage_base));
+  DCHECK(!IsJSGlobalObject(this));
+  DCHECK(!HasFastProperties());
   DCHECK(V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL);
 
   Tagged<JSReceiver::PropertiesOrHash> prop = raw_properties_or_hash();
@@ -1125,7 +1100,7 @@ DEF_GETTER(JSReceiver, property_dictionary_swiss, Tagged<SwissNameDictionary>) {
 // TODO(gsathya): Pass isolate directly to this function and access
 // the heap from this.
 DEF_GETTER(JSReceiver, property_array, Tagged<PropertyArray>) {
-  DCHECK(HasFastProperties(cage_base));
+  DCHECK(HasFastProperties());
   Tagged<JSReceiver::PropertiesOrHash> prop = raw_properties_or_hash();
   if (IsSmi(prop) || prop == GetReadOnlyRoots().empty_fixed_array()) {
     return GetReadOnlyRoots().empty_property_array();
@@ -1236,7 +1211,7 @@ Tagged<NativeContext> JSGlobalObject::native_context() {
 }
 
 bool JSGlobalObject::IsDetached() {
-  return global_proxy()->IsDetachedFrom(*this);
+  return global_proxy()->IsDetachedFrom(this);
 }
 
 bool JSGlobalProxy::IsDetachedFrom(Tagged<JSGlobalObject> global) const {

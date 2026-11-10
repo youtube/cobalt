@@ -43,6 +43,7 @@ source_set("payments") {
     ]
     public_deps += [
       "//chrome/browser/touch_to_fill/autofill/android:public",
+      "//chrome/browser/ui/android/autofill/payments",
       "//components/autofill/android:autofill_core_browser_java_enums",
       "//components/messages/android",
     ]
@@ -50,6 +51,7 @@ source_set("payments") {
     sources += [
       "desktop_bnpl_ui_delegate.h",
       "desktop_payments_window_manager.h",
+      "omnibox_autofill_page_action_controller.h",
       "webauthn_dialog.h",
       "webauthn_dialog_controller.h",
       "webauthn_dialog_controller_impl.h",
@@ -62,6 +64,7 @@ source_set("payments") {
       "//chrome/browser/ui/webauthn",
       "//components/autofill/core/browser:legal_message_line",
       "//components/signin/public/identity_manager",
+      "//ui/base/unowned_user_data",
       "//ui/gfx",
       "//url",
     ]
@@ -131,6 +134,8 @@ source_set("impl") {
       "//chrome/browser/profiles:profile",
       "//chrome/browser/touch_to_fill/autofill/android",
       "//chrome/browser/touch_to_fill/autofill/android:impl",
+      "//chrome/browser/ui/android/autofill",
+      "//chrome/browser/ui/android/autofill/payments",
       "//chrome/browser/ui/android/tab_model",
       "//chrome/browser/ui/browser_window",
       "//components/infobars/core",
@@ -142,6 +147,7 @@ source_set("impl") {
     sources += [
       "desktop_bnpl_ui_delegate.cc",
       "desktop_payments_window_manager.cc",
+      "omnibox_autofill_page_action_controller.cc",
       "webauthn_dialog_controller_impl.cc",
       "webauthn_dialog_model.cc",
     ]
@@ -281,6 +287,7 @@ source_set("unit_tests") {
       "//chrome/browser/autofill:test_support",
       "//chrome/browser/keyboard_accessory/test_utils/android",
       "//chrome/browser/touch_to_fill/autofill/android:test_support",
+      "//chrome/browser/ui/android/autofill",
       "//chrome/browser/ui/android/tab_model:test_support",
       "//components/autofill/android:autofill_core_browser_java_enums",
       "//components/autofill/content/browser:test_support",
@@ -294,6 +301,7 @@ source_set("unit_tests") {
       "iban_bubble_controller_impl_unittest.cc",
       "mandatory_reauth_bubble_controller_impl_unittest.cc",
       "offer_notification_bubble_controller_impl_unittest.cc",
+      "omnibox_autofill_page_action_controller_unittest.cc",
       "save_card_bubble_controller_impl_unittest.cc",
       "virtual_card_enroll_bubble_controller_impl_unittest.cc",
     ]
@@ -305,7 +313,9 @@ source_set("unit_tests") {
       "//chrome/browser/ui:test_support",
       "//chrome/browser/ui/hats",
       "//chrome/browser/ui/hats:test_support",
+      "//chrome/browser/ui/page_action:test_support",
       "//components/commerce/core:feature_list",
+      "//components/tabs:test_support",
       "//content/test:test_support",
       "//ui/gfx",
       "//ui/gfx:test_support",
@@ -327,6 +337,7 @@ source_set("test_support") {
 
   if (is_android) {
     sources += [ "android_payments_window_manager_test_api.h" ]
+    public_deps += [ "//chrome/browser/ui/android/autofill" ]
   } else {
     sources += [ "desktop_payments_window_manager_test_api.h" ]
   }

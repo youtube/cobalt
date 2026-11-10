@@ -2127,8 +2127,7 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
   error = UpdateSessionState(type, CS_LOCAL, local_description()->description(),
                              bundle_groups_by_mid);
   if (!error.ok()) {
-    RTC_LOG(LS_ERROR) << error.message() << " (" << type << ")";
-    return error;
+    return LOG_ERROR(error);
   }
 
   // Now that we have a local description, we can push down remote candidates.
@@ -4663,7 +4662,7 @@ void SdpOfferAnswerHandler::GetOptionsForOffer(
   session_options->use_obsolete_sctp_sdp =
       offer_answer_options.use_obsolete_sctp_sdp;
   // draft-hancke-tsvwg-snap.
-  session_options->use_sctp_snap = pc_->trials().IsEnabled("WebRTC-Sctp-Snap");
+  session_options->use_sctp_snap = pc_->configuration()->enable_sctp_snap;
 }
 
 void SdpOfferAnswerHandler::GetOptionsForPlanBOffer(
@@ -4948,7 +4947,7 @@ void SdpOfferAnswerHandler::GetOptionsForAnswer(
   session_options->crypto_options = pc_->GetCryptoOptions();
   session_options->pooled_ice_credentials = cached_pooled_ice_credentials_;
   // draft-hancke-tsvwg-snap.
-  session_options->use_sctp_snap = pc_->trials().IsEnabled("WebRTC-Sctp-Snap");
+  session_options->use_sctp_snap = pc_->configuration()->enable_sctp_snap;
 }
 
 void SdpOfferAnswerHandler::GetOptionsForPlanBAnswer(

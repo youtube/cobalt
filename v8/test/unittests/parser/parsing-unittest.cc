@@ -356,8 +356,9 @@ class ParsingTest : public TestWithContextAndZone {
       base::EnumSet<ParserFlag> flags;
       for (size_t flag_index = 0; flag_index < varying_flags_length;
            ++flag_index) {
-        if ((bits & (1 << flag_index)) != 0)
+        if ((bits & (1 << flag_index)) != 0) {
           flags.Add(varying_flags[flag_index]);
+        }
       }
       for (size_t flag_index = 0; flag_index < always_true_flags_length;
            ++flag_index) {

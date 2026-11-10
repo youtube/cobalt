@@ -131,8 +131,9 @@ uint32_t CompilationCacheShape::EvalHash(Tagged<String> source,
 uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
                                               Tagged<Object> object) {
   // Eval: The key field contains the hash as a Number.
-  if (IsNumber(object))
+  if (IsNumber(object)) {
     return static_cast<uint32_t>(Object::NumberValue(object));
+  }
 
   // Code: The key field contains the SFI key.
   if (IsSharedFunctionInfo(object)) {

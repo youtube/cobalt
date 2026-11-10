@@ -1106,7 +1106,19 @@ void HighlightPainter::ClipToPartRect(const LineRelativeRect& part_rect) {
   if (fragment_item_.IsSvgText()) [[unlikely]] {
     clip_rect = TextDecorationPainter::ExpandRectForSVGDecorations(part_rect);
   } else {
-    clip_rect.Offset(0, fragment_item_.InkOverflowRect().Y());
+    const auto used_font = fragment_item_.GetUsedFont();
+    float scale = used_font.ScalingFactor();
+    if (scale != 1.0f) {
+      float unscaled_ascent =
+          used_font.PrimaryFont()->GetFontMetrics().FloatAscent();
+      float local_y_scaled = fragment_item_.InkOverflowRect().Y().ToFloat();
+      float offset_y =
+          local_y_scaled / scale - unscaled_ascent * (1.0f - scale);
+      clip_rect.set_y(clip_rect.y() + offset_y);
+      clip_rect.set_height(clip_rect.height() / scale);
+    } else {
+      clip_rect.Offset(0, fragment_item_.InkOverflowRect().Y());
+    }
   }
   paint_info_.context.Clip(clip_rect);
 }
@@ -1152,7 +1164,10 @@ void HighlightPainter::PaintDecorationsExceptLineThrough(
     // Paint the decoration over the range of the originating fragment or active
     // highlight, but clip it to the range of the part.
     const LineRelativeRect decoration_rect =
-        LineRelativeWorldRect(decoration.range);
+        (decoration.type == HighlightLayerType::kOriginating &&
+         originating_decoration_rect_)
+            ? *originating_decoration_rect_
+            : LineRelativeWorldRect(decoration.range);
 
     std::optional<TextDecorationInfo> decoration_info{};
     decoration_painter_.UpdateDecorationInfo(decoration_info, fragment_item_,
@@ -1208,7 +1223,10 @@ void HighlightPainter::PaintDecorationsOnlyLineThrough(
     // Paint the decoration over the range of the originating fragment or active
     // highlight, but clip it to the range of the part.
     const LineRelativeRect decoration_rect =
-        LineRelativeWorldRect(decoration.range);
+        (decoration.type == HighlightLayerType::kOriginating &&
+         originating_decoration_rect_)
+            ? *originating_decoration_rect_
+            : LineRelativeWorldRect(decoration.range);
 
     std::optional<TextDecorationInfo> decoration_info{};
     decoration_painter_.UpdateDecorationInfo(decoration_info, fragment_item_,

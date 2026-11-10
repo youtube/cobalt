@@ -446,6 +446,10 @@ class Intl {
   static const uint8_t* AsciiCollationWeightsL3();
   static const int kAsciiCollationWeightsLength;
 
+  // Maximum min(left.length, right.length) for which the localeCompare
+  // ASCII fast path is inlined; longer inputs go straight to the builtin.
+  static constexpr int kInlineLocaleCompareMaxMinLength = 32;
+
   static Tagged<String> ConvertOneByteToLower(Tagged<String> src,
                                               Tagged<String> dst);
 

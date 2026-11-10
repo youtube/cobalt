@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 
+#include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
@@ -128,6 +129,11 @@ class WebAuthFlow : public content::WebContentsObserver,
   // Returns nullptr if the InfoBar is not displayed.
   base::WeakPtr<WebAuthFlowInfoBarDelegate> GetInfoBarDelegateForTesting();
 
+#if BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
+  void SetWindowCreatedCallbackForTesting(
+      base::OnceCallback<void(BrowserWindowInterface*)> callback);
+#endif
+
  private:
   // WebContentsObserver implementation.
   void DidStopLoading() override;
@@ -148,10 +154,6 @@ class WebAuthFlow : public content::WebContentsObserver,
 
   void MaybeStartTimeout();
   void OnTimeout();
-
-#if BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
-  void OnBrowserWindowInterfaceInitialized(BrowserWindowInterface* browser);
-#endif
 
   // Displays the auth page in a popup window if that is possible.
   //
@@ -196,7 +198,8 @@ class WebAuthFlow : public content::WebContentsObserver,
   bool initial_url_loaded_ = false;
   base::ScopedObservation<Profile, ProfileObserver> profile_observation_{this};
 #if BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
-  base::WeakPtrFactory<WebAuthFlow> weak_factory_{this};
+  base::OnceCallback<void(BrowserWindowInterface*)>
+      window_created_callback_for_testing_;
 #endif
 };
 

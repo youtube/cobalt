@@ -665,8 +665,8 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kArrayFindIndexLoopAfterCallbackLazyDeoptContinuation:
     case Builtin::kArrayForEachLoopEagerDeoptContinuation:
     case Builtin::kArrayForEachLoopLazyDeoptContinuation:
-    case Builtin::kArraySortNoopEagerDeoptContinuation:
-    case Builtin::kArraySortNoopLazyDeoptContinuation:
+    case Builtin::kArraySortContinueFromSnapshotEagerDeoptContinuation:
+    case Builtin::kArraySortContinueFromSnapshotLazyDeoptContinuation:
     case Builtin::kArrayMapPreLoopLazyDeoptContinuation:
     case Builtin::kArrayMapLoopEagerDeoptContinuation:
     case Builtin::kArrayMapLoopLazyDeoptContinuation:

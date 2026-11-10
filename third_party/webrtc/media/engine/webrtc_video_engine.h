@@ -126,6 +126,16 @@ class WebRtcVideoEngine : public VideoEngineInterface {
   std::vector<Codec> LegacySendCodecs(bool include_rtx) const override;
   std::vector<Codec> LegacyRecvCodecs(bool include_rtx) const override;
 
+  VideoEncoderFactory* encoder_factory() const override {
+    return encoder_factory_.get();
+  }
+  VideoDecoderFactory* decoder_factory() const override {
+    return decoder_factory_.get();
+  }
+
+  std::vector<SdpVideoFormat> GetSupportedFormats(
+      bool is_decoder) const override;
+
   std::vector<RtpHeaderExtensionCapability> GetRtpHeaderExtensions(
       /* optional field trials from PeerConnection that override those from
          PeerConnectionFactory */

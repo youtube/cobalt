@@ -1512,7 +1512,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
 #ifndef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   Move(kJavaScriptCallDispatchHandleRegister.W(),
        FieldMemOperand(kJavaScriptCallTargetRegister,
-                       JSFunction::kDispatchHandleOffset));
+                       offsetof(JSFunction, dispatch_handle_)));
 #endif
   // We jump through x17 here because for Branch Identification (BTI) we use
   // "Call" (`bti c`) rather than "Jump" (`bti j`) landing pads for tail-called
@@ -1627,7 +1627,7 @@ void MacroAssembler::AssertConstructor(Register object) {
   Register temp = temps.AcquireX();
 
   LoadMap(temp, object);
-  Ldrb(temp, FieldMemOperand(temp, Map::kBitFieldOffset));
+  Ldrb(temp, FieldMemOperand(temp, offsetof(Map, bit_field_)));
   Tst(temp, Operand(Map::Bits1::IsConstructorBit::kMask));
 
   Check(ne, AbortReason::kOperandIsNotAConstructor);
@@ -2479,7 +2479,7 @@ void MacroAssembler::CallJSFunction(Register function_object,
   Register scratch = x21;
 
   Ldr(dispatch_handle.W(),
-      FieldMemOperand(function_object, JSFunction::kDispatchHandleOffset));
+      FieldMemOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
   LoadEntrypointAndParameterCountFromJSDispatchTable(code, parameter_count,
                                                      dispatch_handle, scratch);
   // Force a safe crash if the parameter count doesn't match.
@@ -2830,7 +2830,8 @@ void MacroAssembler::InvokeFunction(
   DCHECK_EQ(function, x1);
 
   // Set up the context.
-  LoadTaggedField(cp, FieldMemOperand(function, JSFunction::kContextOffset));
+  LoadTaggedField(cp,
+                  FieldMemOperand(function, offsetof(JSFunction, context_)));
 
   InvokeFunctionCode(function, no_reg, actual_parameter_count, type,
                      argument_adaption_mode);
@@ -2847,7 +2848,8 @@ void MacroAssembler::InvokeFunctionWithNewTarget(
   // (See FullCodeGenerator::Generate().)
   DCHECK_EQ(function, x1);
 
-  LoadTaggedField(cp, FieldMemOperand(function, JSFunction::kContextOffset));
+  LoadTaggedField(cp,
+                  FieldMemOperand(function, offsetof(JSFunction, context_)));
 
   InvokeFunctionCode(function, new_target, actual_parameter_count, type);
 }
@@ -2863,7 +2865,7 @@ void MacroAssembler::InvokeFunctionCode(
 
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
   Ldr(dispatch_handle.W(),
-      FieldMemOperand(function, JSFunction::kDispatchHandleOffset));
+      FieldMemOperand(function, offsetof(JSFunction, dispatch_handle_)));
 
   // On function call, call into the debugger if necessary.
   Label debug_hook, continue_after_hook;
@@ -3364,17 +3366,17 @@ void MacroAssembler::JumpIfIsInRange(Register value, Register scratch,
 
 void MacroAssembler::LoadCompressedMap(Register dst, Register object) {
   ASM_CODE_COMMENT(this);
-  Ldr(dst.W(), FieldMemOperand(object, HeapObject::kMapOffset));
+  Ldr(dst.W(), FieldMemOperand(object, offsetof(HeapObject, map_)));
 }
 
 void MacroAssembler::LoadMap(Register dst, Register object) {
   ASM_CODE_COMMENT(this);
-  LoadTaggedField(dst, FieldMemOperand(object, HeapObject::kMapOffset));
+  LoadTaggedField(dst, FieldMemOperand(object, offsetof(HeapObject, map_)));
 }
 
 void MacroAssembler::LoadFeedbackCell(Register dst, Register closure) {
-  LoadTaggedField(dst,
-                  FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
+  LoadTaggedField(
+      dst, FieldMemOperand(closure, offsetof(JSFunction, feedback_cell_)));
 }
 
 void MacroAssembler::LoadFeedbackVectorFromCell(Register dst,
@@ -3386,8 +3388,8 @@ void MacroAssembler::LoadFeedbackVectorFromCell(Register dst,
       dst, FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)));
 
   // Check if feedback vector is valid.
-  LoadTaggedField(scratch, FieldMemOperand(dst, HeapObject::kMapOffset));
-  Ldrh(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  LoadTaggedField(scratch, FieldMemOperand(dst, offsetof(HeapObject, map_)));
+  Ldrh(scratch, FieldMemOperand(scratch, offsetof(Map, instance_type_)));
   Cmp(scratch, FEEDBACK_VECTOR_TYPE);
   B(eq, &done);
 
@@ -3423,7 +3425,7 @@ void MacroAssembler::LoadInterpreterDataInterpreterTrampoline(
 void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
                                          InstanceType type) {
   ASM_CODE_COMMENT(this);
-  Ldrh(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  Ldrh(type_reg, FieldMemOperand(map, offsetof(Map, instance_type_)));
   Cmp(type_reg, type);
 }
 
@@ -3435,14 +3437,14 @@ void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
   DCHECK_LT(lower_limit, higher_limit);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
-  Ldrh(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  Ldrh(type_reg, FieldMemOperand(map, offsetof(Map, instance_type_)));
   CompareRange(type_reg, scratch, lower_limit, higher_limit);
 }
 
 void MacroAssembler::LoadElementsKindFromMap(Register result, Register map) {
   ASM_CODE_COMMENT(this);
   // Load the map's "bit field 2".
-  Ldrb(result, FieldMemOperand(map, Map::kBitField2Offset));
+  Ldrb(result, FieldMemOperand(map, offsetof(Map, bit_field2_)));
   // Retrieve elements_kind from bit field 2.
   DecodeField<Map::Bits2::ElementsKindBits>(result);
 }
@@ -3965,7 +3967,7 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
   }
 #else
   LoadMap(scratch, destination);
-  Ldrh(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  Ldrh(scratch, FieldMemOperand(scratch, offsetof(Map, instance_type_)));
   for (auto& [type, label] : cases) {
     if (V8_ENABLE_SANDBOX_BOOL && type == CODE_TYPE) {
       continue;
@@ -4012,8 +4014,8 @@ void MacroAssembler::StoreIndirectPointerField(Register value,
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
-  Ldr(scratch.W(),
-      FieldMemOperand(value, ExposedTrustedObject::kSelfIndirectPointerOffset));
+  Ldr(scratch.W(), FieldMemOperand(value, offsetof(ExposedTrustedObject,
+                                                   self_indirect_pointer_)));
   Str(scratch.W(), dst_field_operand);
 #else
   UNREACHABLE();
@@ -4470,8 +4472,9 @@ void MacroAssembler::Abort(AbortReason reason) {
 void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   LoadMap(dst, cp);
   LoadTaggedField(
-      dst, FieldMemOperand(
-               dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
+      dst,
+      FieldMemOperand(
+          dst, offsetof(Map, constructor_or_back_pointer_or_native_context_)));
   LoadTaggedField(dst, MemOperand(dst, Context::SlotOffset(index)));
 }
 

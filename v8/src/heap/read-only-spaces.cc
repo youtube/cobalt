@@ -258,7 +258,7 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
         return obj;
       }
     }
-    return HeapObject();
+    return {};
   }
 
   Address cur_addr_;  // Current iteration point.
@@ -448,7 +448,7 @@ Tagged<HeapObject> ReadOnlySpace::TryAllocateLinearlyAligned(
   int filler_size = Heap::GetFillToAlign(current_top, alignment);
 
   Address new_top = current_top + filler_size + size_in_bytes;
-  if (new_top > limit_) return HeapObject();
+  if (new_top > limit_) return {};
 
   // Allocation always occurs in the last chunk for RO_SPACE.
   BasePage* chunk = pages_.back();

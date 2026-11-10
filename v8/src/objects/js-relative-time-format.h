@@ -96,11 +96,6 @@ V8_OBJECT class JSRelativeTimeFormat : public JSObject {
   DECL_PRINTER(JSRelativeTimeFormat)
   DECL_VERIFIER(JSRelativeTimeFormat)
 
-  // Back-compat offset/size constants.
-  static const int kLocaleOffset;
-  static const int kNumberingSystemOffset;
-  static const int kIcuFormatterOffset;
-  static const int kFlagsOffset;
   static const int kHeaderSize;
 
  public:
@@ -110,14 +105,6 @@ V8_OBJECT class JSRelativeTimeFormat : public JSObject {
   TaggedMember<Smi> flags_;
 } V8_OBJECT_END;
 
-inline constexpr int JSRelativeTimeFormat::kLocaleOffset =
-    offsetof(JSRelativeTimeFormat, locale_);
-inline constexpr int JSRelativeTimeFormat::kNumberingSystemOffset =
-    offsetof(JSRelativeTimeFormat, numberingSystem_);
-inline constexpr int JSRelativeTimeFormat::kIcuFormatterOffset =
-    offsetof(JSRelativeTimeFormat, icu_formatter_);
-inline constexpr int JSRelativeTimeFormat::kFlagsOffset =
-    offsetof(JSRelativeTimeFormat, flags_);
 inline constexpr int JSRelativeTimeFormat::kHeaderSize =
     sizeof(JSRelativeTimeFormat);
 

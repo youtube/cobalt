@@ -1031,6 +1031,8 @@ rtc_library("direct_transport") {
     "../rtc_base:checks",
     "../rtc_base:copy_on_write_buffer",
     "../rtc_base:macromagic",
+    "../rtc_base:task_queue_for_test",
+    "../rtc_base:threading",
     "../rtc_base:timeutils",
     "../rtc_base/network:sent_packet",
     "../rtc_base/synchronization:mutex",

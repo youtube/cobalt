@@ -104,8 +104,9 @@ void StringStream::Add(base::Vector<const char> format,
     // Skip over the whole control character sequence until the
     // format element type
     temp[format_length++] = format[offset++];
-    while (offset < format.length() && IsControlChar(format[offset]))
+    while (offset < format.length() && IsControlChar(format[offset])) {
       temp[format_length++] = format[offset++];
+    }
     if (offset >= format.length()) return;
     char type = format[offset];
     temp[format_length++] = type;
@@ -122,8 +123,9 @@ void StringStream::Add(base::Vector<const char> format,
       case 'w': {
         DCHECK_EQ(FmtElm::LC_STR, current.type_);
         base::Vector<const base::uc16> value = *current.data_.u_lc_str_;
-        for (int i = 0; i < value.length(); i++)
+        for (int i = 0; i < value.length(); i++) {
           Put(static_cast<char>(value[i]));
+        }
         break;
       }
       case 'o': {
@@ -304,7 +306,7 @@ void StringStream::PrintUsingMap(Isolate* isolate, Tagged<JSObject> js_object) {
   Tagged<Map> map = js_object->map();
   if (map->is_dictionary_map()) return;
 
-  Tagged<DescriptorArray> descs = map->instance_descriptors(isolate);
+  Tagged<DescriptorArray> descs = map->instance_descriptors();
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descs->GetDetails(i);
     if (details.location() == PropertyLocation::kField) {

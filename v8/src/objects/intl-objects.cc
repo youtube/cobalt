@@ -954,8 +954,9 @@ MaybeDirectHandle<String> Intl::StringLocaleConvertCase(
     Isolate* isolate, DirectHandle<String> s, bool to_upper,
     DirectHandle<Object> locales) {
   std::vector<std::string> requested_locales;
-  if (!CanonicalizeLocaleList(isolate, locales, true).To(&requested_locales))
+  if (!CanonicalizeLocaleList(isolate, locales, true).To(&requested_locales)) {
     return {};
+  }
   std::string_view requested_locale = requested_locales.empty()
                                           ? isolate->DefaultLocale()
                                           : requested_locales[0];
@@ -1161,6 +1162,22 @@ constexpr uint8_t kCollationWeightsL3[256] = {
 constexpr int kCollationWeightsLength = arraysize(kCollationWeightsL1);
 static_assert(kCollationWeightsLength == arraysize(kCollationWeightsL3));
 // clang-format on
+
+// The inlined localeCompare fast path bails on a byte >= 128 in the
+// byte-equality prefix loop, rather than entering L1 weight lookup. This is
+// sound only as long as kCollationWeightsL1[i] == 0 for all i >= 128, in
+// which case the Torque path also bails (via the weight==0 check). If
+// non-zero L1 weights are ever introduced for high-byte indices, the
+// inlined fast path must be updated to match.
+static_assert(
+    []() constexpr {
+      for (int i = 128; i < kCollationWeightsLength; ++i) {
+        if (kCollationWeightsL1[i] != 0) return false;
+      }
+      return true;
+    }(),
+    "kCollationWeightsL1 entries with index >= 128 must be 0; the inlined "
+    "ASCII localeCompare fast path depends on this invariant.");
 
 // Converts the result of lhs vs. rhs comparison to UCollationResult.
 constexpr UCollationResult ToUCollationResult(uint32_t lhs, uint32_t rhs) {

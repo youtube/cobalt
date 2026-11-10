@@ -9,8 +9,10 @@ import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
@@ -28,7 +30,6 @@ import android.view.ViewStub;
 import android.widget.FrameLayout;
 
 import androidx.annotation.ColorInt;
-import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.test.core.app.ActivityScenario.ActivityAction;
@@ -45,9 +46,11 @@ import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
+import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Callback;
 import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Criteria;
@@ -65,6 +68,7 @@ import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider
 import org.chromium.chrome.browser.browser_controls.TopControlsStacker;
 import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
+import org.chromium.chrome.browser.layouts.CompositorModelChangeProcessor;
 import org.chromium.chrome.browser.layouts.LayoutManager;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.page_image_service.ImageServiceBridgeJni;
@@ -73,6 +77,9 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
 import org.chromium.chrome.browser.ui.favicon.FaviconHelperJni;
+import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.SideUiSpecs;
+import org.chromium.chrome.browser.ui.side_ui.SideUiObserver;
+import org.chromium.chrome.browser.ui.side_ui.SideUiStateProvider;
 import org.chromium.components.bookmarks.BookmarkId;
 import org.chromium.components.browser_ui.widget.CoordinatorLayoutForPointer;
 import org.chromium.ui.base.TestActivity;
@@ -103,6 +110,7 @@ public class BookmarkBarCoordinatorTest {
 
     @Mock private ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     @Mock private LayoutManager mLayoutManager;
+    @Mock private CompositorModelChangeProcessor mChangeProcessor;
     @Mock private Runnable mLayoutManagerRequestUpdate;
     @Mock private FullscreenManager mFullscreenManager;
     @Mock private ResourceManager mResourceManager;
@@ -117,18 +125,24 @@ public class BookmarkBarCoordinatorTest {
     @Mock private BookmarkManagerOpener mBookmarkManagerOpener;
     @Mock private TopControlsStacker mTopControlsStacker;
     @Mock private TopUiThemeColorProvider mTopUiThemeColorProvider;
+    @Mock private SideUiStateProvider mSideUiStateProvider;
 
+    private ShadowLooper mShadowLooper;
     private BookmarkBarCoordinator mCoordinator;
     private BookmarkId mDesktopFolderId;
     private RecyclerView mItemsContainer;
     private FakeBookmarkModel mModel;
     private FrameLayout mOverflowButton;
     private SettableMonotonicObservableSupplier<Profile> mProfileSupplier;
+    private final OneshotSupplierImpl<SideUiStateProvider> mSideUiStateProviderSupplier =
+            new OneshotSupplierImpl<>();
     private BookmarkBar mView;
     private FrameLayout mContentContainer;
 
     @Before
     public void setUp() {
+        mShadowLooper = ShadowLooper.shadowMainLooper();
+
         mModel = FakeBookmarkModel.createModel();
         mDesktopFolderId = mModel.getDesktopFolderId();
         mProfileSupplier = ObservableSuppliers.createMonotonic(mProfile);
@@ -138,6 +152,8 @@ public class BookmarkBarCoordinatorTest {
         when(mFaviconHelperJni.init()).thenReturn(1L);
         when(mResourceManager.getBitmapDynamicResourceLoader()).thenReturn(mDynamicResourceLoader);
 
+        setupLayoutManagerMock();
+
         BookmarkModel.setInstanceForTesting(mModel);
         FaviconHelperJni.setInstanceForTesting(mFaviconHelperJni);
         ImageServiceBridgeJni.setInstanceForTesting(mImageServiceBridgeJni);
@@ -145,12 +161,17 @@ public class BookmarkBarCoordinatorTest {
         onActivity(this::createCoordinator);
     }
 
-    private @NonNull BookmarkId addItemToDesktopFolder(@NonNull String title) {
+    @SuppressWarnings("unchecked") // Raw CompositorModelChangeProcessor mock.
+    private void setupLayoutManagerMock() {
+        when(mLayoutManager.createCompositorMCP(any(), any(), any())).thenReturn(mChangeProcessor);
+    }
+
+    private BookmarkId addItemToDesktopFolder(String title) {
         final int index = mModel.getChildCount(mDesktopFolderId);
         return mModel.addBookmark(mDesktopFolderId, index, title, GURL.emptyGURL());
     }
 
-    private void assertItemRenderedAtIndex(@NonNull BookmarkId itemId, int index) {
+    private void assertItemRenderedAtIndex(BookmarkId itemId, int index) {
         final var item = mModel.getBookmarkById(itemId);
         assertNotNull(item);
 
@@ -164,7 +185,7 @@ public class BookmarkBarCoordinatorTest {
         Criteria.checkThat(mItemsContainer.getChildCount(), equalTo(count));
     }
 
-    private void createCoordinator(@NonNull Activity activity) {
+    private void createCoordinator(Activity activity) {
         final var contentView = new CoordinatorLayoutForPointer(activity, /* attrs= */ null);
         activity.setContentView(contentView);
 
@@ -195,7 +216,8 @@ public class BookmarkBarCoordinatorTest {
                         ObservableSuppliers.createNonNull(mBookmarkManagerOpener),
                         mTopControlsStacker,
                         ObservableSuppliers.alwaysNull(),
-                        mTopUiThemeColorProvider);
+                        mTopUiThemeColorProvider,
+                        mSideUiStateProviderSupplier);
 
         assertNotNull("Verify view stub inflation during construction.", mView);
 
@@ -206,19 +228,19 @@ public class BookmarkBarCoordinatorTest {
         assertNotNull("Verify overflow button existence.", mOverflowButton);
     }
 
-    private void moveItemToDesktopFolderAtIndex(@NonNull BookmarkId itemId, int index) {
+    private void moveItemToDesktopFolderAtIndex(BookmarkId itemId, int index) {
         mModel.moveBookmark(itemId, mDesktopFolderId, index);
     }
 
-    private void removeItem(@NonNull BookmarkId itemId) {
+    private void removeItem(BookmarkId itemId) {
         mModel.deleteBookmark(itemId);
     }
 
-    private void setItemTitle(@NonNull BookmarkId itemId, @Nullable String title) {
+    private void setItemTitle(BookmarkId itemId, @Nullable String title) {
         mModel.setBookmarkTitle(itemId, title);
     }
 
-    private @NonNull List<BookmarkId> setItemsWithinDesktopFolder(@NonNull List<String> titles) {
+    private List<BookmarkId> setItemsWithinDesktopFolder(List<String> titles) {
         final List<BookmarkId> itemIds = new ArrayList<>();
         mModel.performExtensiveBookmarkChanges(
                 () -> {
@@ -228,7 +250,7 @@ public class BookmarkBarCoordinatorTest {
         return itemIds;
     }
 
-    private void onActivity(@NonNull ActivityAction<TestActivity> callback) {
+    private void onActivity(ActivityAction<TestActivity> callback) {
         mActivityScenarioRule.getScenario().onActivity(callback);
     }
 
@@ -534,10 +556,11 @@ public class BookmarkBarCoordinatorTest {
     @Test
     @SmallTest
     public void testUpdateBackgroundColor_SetsModelProperties_Incognito() {
-        PropertyModel bookmarBarModel = mCoordinator.getModelForTesting();
+        PropertyModel bookmarkBarModel = mCoordinator.getModelForTesting();
 
         when(mCurrentTab.isIncognito()).thenReturn(true);
-        when(mTopUiThemeColorProvider.getSceneLayerBackground(mCurrentTab)).thenReturn(Color.BLACK);
+        when(mTopUiThemeColorProvider.getToolbarBackgroundColor(mCurrentTab))
+                .thenReturn(Color.BLACK);
 
         // The expected colors in incognito.
         @ColorInt
@@ -545,8 +568,7 @@ public class BookmarkBarCoordinatorTest {
                 ContextCompat.getColor(mView.getContext(), R.color.divider_color_light);
 
         ColorStateList expectedLightTint =
-                ContextCompat.getColorStateList(
-                        mView.getContext(), R.color.default_icon_color_light_tint_list);
+                mView.getContext().getColorStateList(R.color.default_icon_color_light_tint_list);
 
         mCoordinator.updateBackgroundColor(mCurrentTab);
 
@@ -554,25 +576,26 @@ public class BookmarkBarCoordinatorTest {
         assertEquals(
                 "Hairline color should be set to the dark divider color.",
                 expectedDarkHairline,
-                bookmarBarModel.get(BookmarkBarProperties.HAIRLINE_COLOR));
+                bookmarkBarModel.get(BookmarkBarProperties.HAIRLINE_COLOR));
         assertEquals(
                 "Divider color should be set to the dark divider color.",
                 expectedDarkHairline,
-                bookmarBarModel.get(BookmarkBarProperties.DIVIDER_COLOR));
+                bookmarkBarModel.get(BookmarkBarProperties.DIVIDER_COLOR));
         assertEquals(
                 "Overflow tint should be set to the light tint.",
                 expectedLightTint,
-                bookmarBarModel.get(BookmarkBarProperties.OVERFLOW_BUTTON_TINT_LIST));
+                bookmarkBarModel.get(BookmarkBarProperties.OVERFLOW_BUTTON_TINT_LIST));
     }
 
     @Test
     @SmallTest
     public void testUpdateBackgroundColor_SetsModelProperties_RegularLightTheme() {
-        PropertyModel bookmarBarModel = mCoordinator.getModelForTesting();
+        PropertyModel bookmarkBarModel = mCoordinator.getModelForTesting();
 
         // Simulate being on a regular light theme tab (BrandedColorScheme.APP_DEFAULT).
         when(mCurrentTab.isIncognito()).thenReturn(false);
-        when(mTopUiThemeColorProvider.getSceneLayerBackground(mCurrentTab)).thenReturn(Color.WHITE);
+        when(mTopUiThemeColorProvider.getToolbarBackgroundColor(mCurrentTab))
+                .thenReturn(Color.WHITE);
 
         // The expected colors for the regular light theme.
         @ColorInt
@@ -580,24 +603,23 @@ public class BookmarkBarCoordinatorTest {
                 ThemeUtils.getToolbarHairlineColor(
                         mView.getContext(), Color.WHITE, /* isIncognito= */ false);
         ColorStateList expectedDarkTint =
-                ContextCompat.getColorStateList(
-                        mView.getContext(), R.color.default_icon_color_tint_list);
+                mView.getContext().getColorStateList(R.color.default_icon_color_tint_list);
 
         mCoordinator.updateBackgroundColor(mCurrentTab);
 
-        // Verify the the colors for the regular light theme mode.
+        // Verify the colors for the regular light theme mode.
         assertEquals(
                 "Hairline color should be set for regular light theme.",
                 expectedDarkHairline,
-                bookmarBarModel.get(BookmarkBarProperties.HAIRLINE_COLOR));
+                bookmarkBarModel.get(BookmarkBarProperties.HAIRLINE_COLOR));
         assertEquals(
                 "Divider color should be set for regular light theme.",
                 expectedDarkHairline,
-                bookmarBarModel.get(BookmarkBarProperties.DIVIDER_COLOR));
+                bookmarkBarModel.get(BookmarkBarProperties.DIVIDER_COLOR));
         assertEquals(
                 "Overflow tint should be set for regular light theme.",
                 expectedDarkTint,
-                bookmarBarModel.get(BookmarkBarProperties.OVERFLOW_BUTTON_TINT_LIST));
+                bookmarkBarModel.get(BookmarkBarProperties.OVERFLOW_BUTTON_TINT_LIST));
     }
 
     @Test
@@ -624,5 +646,44 @@ public class BookmarkBarCoordinatorTest {
                 mCoordinator
                         .getBookmarkBarSceneLayerModelForTesting()
                         .get(BookmarkBarSceneLayerProperties.OFFSET_TAG));
+    }
+
+    @Test
+    @SmallTest
+    public void testSideUiObserver_AddAndRemove() {
+        mSideUiStateProviderSupplier.set(mSideUiStateProvider);
+        mShadowLooper.idle();
+
+        ArgumentCaptor<SideUiObserver> observerCaptor =
+                ArgumentCaptor.forClass(SideUiObserver.class);
+        verify(mSideUiStateProvider).addObserver(observerCaptor.capture());
+
+        mCoordinator.destroy();
+        verify(mSideUiStateProvider).removeObserver(observerCaptor.getValue());
+    }
+
+    @Test
+    @SmallTest
+    public void testSideUiObserver_MarginUpdates() {
+        MarginLayoutParams params = (MarginLayoutParams) mView.getLayoutParams();
+        int initialStartMargin = params.getMarginStart();
+        int initialEndMargin = params.getMarginEnd();
+        int initialWidth = mView.getWidth();
+
+        mSideUiStateProviderSupplier.set(mSideUiStateProvider);
+        mShadowLooper.idle();
+
+        ArgumentCaptor<SideUiObserver> observerCaptor =
+                ArgumentCaptor.forClass(SideUiObserver.class);
+        verify(mSideUiStateProvider).addObserver(observerCaptor.capture());
+        SideUiObserver observer = observerCaptor.getValue();
+
+        SideUiSpecs specs = new SideUiSpecs(100, 200);
+        observer.onSideUiSpecsChanged(specs);
+
+        params = (MarginLayoutParams) mView.getLayoutParams();
+        assertNotEquals(initialStartMargin, params.getMarginStart());
+        assertNotEquals(initialEndMargin, params.getMarginEnd());
+        assertNotEquals(initialWidth, mView.getWidth());
     }
 }

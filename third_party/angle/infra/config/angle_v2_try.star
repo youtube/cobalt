@@ -194,6 +194,15 @@ angle_mac_functional_cq_tester(
 )
 
 angle_mac_functional_cq_tester(
+    name = "angle-cq-mac-x64-dbg",
+    description_html = "Compiles all debug ANGLE targets for Mac/x64. Blocks CL submission.",
+    mirrors = [
+        "ci/angle-mac-x64-builder-dbg",
+    ],
+    gn_args = "ci/angle-mac-x64-builder-dbg",
+)
+
+angle_mac_functional_cq_tester(
     name = "angle-cq-mac-x64-rel",
     description_html = "Tests release ANGLE on Mac/x64 on multiple hardware configs. Blocks CL submission.",
     mirrors = [
@@ -253,6 +262,10 @@ def angle_linux_trace_tester(**kwargs):
     kwargs = apply_trace_tester_defaults(kwargs)
     angle_linux_functional_cq_tester(**kwargs)
 
+def angle_win_trace_tester(**kwargs):
+    kwargs = apply_trace_tester_defaults(kwargs)
+    angle_win_functional_cq_tester(**kwargs)
+
 ## Trace testers
 
 angle_linux_trace_tester(
@@ -265,6 +278,18 @@ angle_linux_trace_tester(
         "run_trace_tests": True,
     },
     gn_args = "ci/angle-linux-x64-trace",
+)
+
+angle_win_trace_tester(
+    name = "angle-cq-win-x64-trace",
+    description_html = "Runs ANGLE GLES trace tests on Windows/x64 with SwiftShader. Blocks CL submission.",
+    mirrors = [
+        "ci/angle-win-x64-trace",
+    ],
+    properties = {
+        "run_trace_tests": True,
+    },
+    gn_args = "ci/angle-win-x64-trace",
 )
 
 ################################################################################

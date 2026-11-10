@@ -6006,16 +6006,14 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
     // -
     // VK_PIPELINE_DEPTH_STENCIL_STATE_CREATE_RASTERIZATION_ORDER_ATTACHMENT_STENCIL_ACCESS_BIT_EXT
     //
-    // But the check for framebuffer fetch is not accurate enough and those bits can have great
-    // impact on Qualcomm (it only affects the open source driver because the proprietary driver
-    // does not expose the extension).  Let's disable it on Qualcomm.
-    //
-    // https://issuetracker.google.com/issues/255837430
     ANGLE_FEATURE_CONDITION(
         &mFeatures, supportsRasterizationOrderAttachmentAccess,
-        !isQualcomm &&
-            mRasterizationOrderAttachmentAccessFeatures.rasterizationOrderColorAttachmentAccess ==
-                VK_TRUE);
+        mRasterizationOrderAttachmentAccessFeatures.rasterizationOrderColorAttachmentAccess ==
+            VK_TRUE);
+
+    ANGLE_FEATURE_CONDITION(
+        &mFeatures, addFramebufferFetchBarrierOnUseMidRenderPass,
+        mFeatures.supportsRasterizationOrderAttachmentAccess.enabled && isQualcomm);
 
     // The VK_EXT_surface_maintenance1 and VK_EXT_swapchain_maintenance1 extensions are used for a
     // variety of improvements:
@@ -6170,12 +6168,13 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
     //
     // On Pixel devices, the issues have been fixed since r44, but on others since r44p1.
     //
-    // Regressions have been detected using r46 on older architectures though
+    // Regressions have been detected using r46 on older architectures, which are fixed in r51.
     // http://issuetracker.google.com/336411904
     const bool isARMExtendedDynamicStateBuggy =
         isARMProprietary &&
         (driverVersion < angle::VersionTriple(44, 1, 0) ||
-         (isMaliJobManagerBasedGPU && driverVersion >= angle::VersionTriple(46, 0, 0)));
+         (isMaliJobManagerBasedGPU && driverVersion >= angle::VersionTriple(46, 0, 0) &&
+          driverVersion < angle::VersionTriple(51, 0, 0)));
 
     // Vertex input binding stride is buggy for Windows/Intel drivers before 100.9684.
     const bool isVertexInputBindingStrideBuggy =
@@ -6760,10 +6759,10 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
         &mFeatures, supportsShaderNonSemanticInfo,
         ExtensionFound(VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME, deviceExtensionNames));
 
-    // Don't expose these 2 extensions on Samsung devices -
-    // 1. ANGLE_rgbx_internal_format
-    // 2. GL_APPLE_clip_distance
-    ANGLE_FEATURE_CONDITION(&mFeatures, supportsAngleRgbxInternalFormat, !isSamsung);
+    // Unconditionally enable GL_ANGLE_rgbx_internal_format extension
+    ANGLE_FEATURE_CONDITION(&mFeatures, supportsAngleRgbxInternalFormat, true);
+
+    // Don't expose GL_APPLE_clip_distance on Samsung devices
     ANGLE_FEATURE_CONDITION(&mFeatures, supportsAppleClipDistance, !isSamsung);
 
     // Force enable sample usage for AHB images for Samsung

@@ -66,7 +66,6 @@ class QUIC_EXPORT_PRIVATE QboneSessionBase : public QuicSession {
   QuicCryptoStream* GetMutableCryptoStream() override;
   const QuicCryptoStream* GetCryptoStream() const override;
   QuicStream* CreateIncomingStream(QuicStreamId id) override;
-  QuicStream* CreateIncomingStream(PendingStream* pending) override;
   bool ShouldKeepConnectionAlive() const override;
 
   bool MaybeIncreaseLargestPeerStreamId(const QuicStreamId stream_id) override {

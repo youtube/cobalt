@@ -12,8 +12,8 @@ relevant prompts using the `@` syntax. For example:
 @agents/prompts/common.md
 ```
 
-You can confirm that prompts were successfully imported by running the `/memory
-show` command in gemini-cli.
+You can confirm that prompts were successfully imported by running the
+`/memory show` command in gemini-cli.
 
 ## Known problems
 
@@ -23,5 +23,6 @@ https://github.com/google-gemini/gemini-cli/issues/4098.
 
 ## Contributing
 
-Changes to `common.md`  should be done *carefully* as it's meant to be used broadly.
-Use the `template/` directory to add new prompts that you want to share.
+Changes to `common.md` should be done *carefully* as it's meant to be used
+broadly. Use the `template/` directory to add new prompts that you want to
+share.

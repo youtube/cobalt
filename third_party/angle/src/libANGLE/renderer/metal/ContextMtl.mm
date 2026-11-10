@@ -784,6 +784,7 @@ angle::Result ContextMtl::drawElementsImpl(const gl::Context *context,
 
     size_t provokingVertexAdditionalOffset = 0;
 
+    gl::PrimitiveMode originalMode = mode;
     if (requiresIndexRewrite(context->getState(), mode))
     {
         // Line strips and triangle strips are rewritten to flat line arrays and tri arrays.
@@ -801,8 +802,10 @@ angle::Result ContextMtl::drawElementsImpl(const gl::Context *context,
     // indices.
     // It's safe to use idxBuffer in this case, as it will contain the same count and restart ranges
     // as drawIdxBuffer.
-    const std::vector<DrawCommandRange> drawCommands = mVertexArray->getDrawIndices(
-        context, type, convertedType, mode, idxBuffer, convertedCounti32, convertedOffset);
+    const std::vector<DrawCommandRange> drawCommands =
+        mVertexArray->getDrawIndices(context, type, convertedType, originalMode, mode, idxBuffer,
+                                     (uint32_t)count, convertedOffset);
+
     bool isNoOp = false;
     ANGLE_TRY(setupDraw(context, 0, count, instances, type, indices, false, &isNoOp));
     if (!isNoOp)
@@ -1518,7 +1521,7 @@ FenceNVImpl *ContextMtl::createFenceNV()
 {
     return new FenceNVMtl();
 }
-SyncImpl *ContextMtl::createSync()
+SyncImpl *ContextMtl::createSync(const gl::Context *)
 {
     return new SyncMtl();
 }
@@ -2717,7 +2720,7 @@ angle::Result ContextMtl::handleDirtyActiveTextures(const gl::Context *context)
         TextureMtl *textureMtl = mtl::GetImpl(texture);
 
         // Make sure texture's image definitions will be transferred to GPU.
-        ANGLE_TRY(textureMtl->ensureNativeStorageCreated(context));
+        ANGLE_TRY(textureMtl->ensureNativeStorageCreated(context, true));
 
         // The binding of this texture will be done by ProgramMtl.
         return angle::Result::Continue;

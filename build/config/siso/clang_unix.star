@@ -319,10 +319,6 @@ def __rules(ctx):
         {
             "name": "clang/alink/llvm-ar",
             "action": "(.*_)?alink",
-            "inputs": [
-                # TODO: crbug.com/316267242 - Add inputs to GN config.
-                "third_party/llvm-build/Release+Asserts/bin/llvm-ar",
-            ],
             "exclude_input_patterns": [
                 "*.cc",
                 "*.h",
@@ -346,7 +342,6 @@ def __rules(ctx):
                 "*.h",
                 "*.js",
                 "*.pak",
-                "*.py",
                 "*.stamp",
             ],
             "remote": config.get(ctx, "remote-link"),
@@ -363,7 +358,6 @@ def __rules(ctx):
                 "*.h",
                 "*.js",
                 "*.pak",
-                "*.py",
                 "*.stamp",
             ],
             "remote": config.get(ctx, "remote-link"),
@@ -380,7 +374,6 @@ def __rules(ctx):
                 "*.info",
                 "*.js",
                 "*.pak",
-                "*.py",
                 "*.stamp",
             ],
             "remote": config.get(ctx, "remote-link"),

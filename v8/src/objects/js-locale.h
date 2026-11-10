@@ -101,17 +101,12 @@ V8_OBJECT class JSLocale : public JSObject {
   DECL_PRINTER(JSLocale)
   DECL_VERIFIER(JSLocale)
 
-  // Back-compat offset/size constants; defined after the member
-  // declarations so legacy callers keep compiling unchanged.
-  static const int kIcuLocaleOffset;
   static const int kHeaderSize;
 
  public:
   TaggedMember<Foreign> icu_locale_;
 } V8_OBJECT_END;
 
-inline constexpr int JSLocale::kIcuLocaleOffset =
-    offsetof(JSLocale, icu_locale_);
 inline constexpr int JSLocale::kHeaderSize = sizeof(JSLocale);
 
 }  // namespace internal

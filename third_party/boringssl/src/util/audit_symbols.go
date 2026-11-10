@@ -87,6 +87,8 @@ var skipWeakSymbols = []*regexp.Regexp{
 	regexp.MustCompile(`^snprintf$`),                                    // snprintf()
 	regexp.MustCompile(`^vsnprintf$`),                                   // vsnprintf()
 	regexp.MustCompile(`^\?\?_R[0-4].*$`),                               // RTTI
+	regexp.MustCompile(`^_Avx2WmemEnabledWeakValue$`),                   // MSVC 14.50+ CRT
+	regexp.MustCompile(`^time$`),                                        // MSVC 14.50+ CRT
 
 	// Symbols in the FIPS module.
 	// They are provided for tooling only and should not be read internally.

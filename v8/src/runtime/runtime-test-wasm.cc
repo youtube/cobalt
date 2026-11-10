@@ -187,8 +187,9 @@ RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
     for (int entry_index = 0; entry_index < table_size; ++entry_index) {
       WasmCodePointer target = table->target(entry_index);
       if (target != wasm::kInvalidWasmCodePointer &&
-          cpt->EntrypointEqualTo(target, wrapper_entry))
+          cpt->EntrypointEqualTo(target, wrapper_entry)) {
         ++result;
+      }
     }
   }
   return Smi::FromInt(result);
@@ -202,8 +203,9 @@ RUNTIME_FUNCTION(Runtime_HasUnoptimizedWasmToJSWrapper) {
   }
   Tagged<JSFunction> function = Cast<JSFunction>(args[0]);
   Tagged<SharedFunctionInfo> sfi = function->shared();
-  if (!sfi->HasWasmFunctionData(isolate))
+  if (!sfi->HasWasmFunctionData(isolate)) {
     return isolate->heap()->ToBoolean(false);
+  }
   Tagged<WasmFunctionData> func_data = sfi->wasm_function_data();
   WasmCodePointer call_target = func_data->internal()->call_target();
 
@@ -557,7 +559,7 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
       // can't handle.
       if (IsByteArray(*value) ||  // Probably a stringview_wtf8.
           IsWasmContinuationObject(*value) || IsWasmExceptionPackage(*value) ||
-          IsWasmStringViewIter(*value)) {
+          IsWasmStringViewIter(*value) || IsForeign(*value)) {
         return CrashUnlessFuzzing(isolate);
       }
       value = wasm::WasmToJSObject(isolate, value);
@@ -680,8 +682,8 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   // Find the caller wasm frame.
   wasm::WasmCodeRefScope wasm_code_ref_scope;
   DebuggableStackFrameIterator it(isolate);
-  DCHECK(!it.done());
-  DCHECK(it.is_wasm());
+  CHECK(!it.done());
+  CHECK(it.is_wasm());
 #if V8_ENABLE_DRUMBRAKE
   DCHECK(!it.is_wasm_interpreter_entry());
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -850,8 +852,8 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
   const wasm::WasmModule* module = module_object->native_module()->module();
   wasm::WasmValue value(int64_t{0x7AADF00DBAADF00D});
   wasm::ModuleTypeIndex type_index{0};
-  Tagged<Map> map = Tagged<Map>::cast(
-      instance->trusted_data(isolate)->managed_object_maps()->get(
+  Tagged<Map> map =
+      Cast<Map>(instance->trusted_data(isolate)->managed_object_maps()->get(
           type_index.index));
   if (is_struct) {
     const wasm::StructType* struct_type = module->struct_type(type_index);

@@ -21,12 +21,14 @@
 #include "api/environment/environment.h"
 #include "api/media_types.h"
 #include "api/rtp_parameters.h"
+#include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_base.h"
 #include "call/call.h"
 #include "call/simulated_packet_receiver.h"
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/task_utils/repeating_task.h"
+#include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 #include "system_wrappers/include/clock.h"
 
@@ -61,7 +63,7 @@ class DirectTransport : public Transport {
                   std::span<const RtpExtension> video_extensions);
 
   DirectTransport(const Environment& env,
-                  TaskQueueBase* task_queue,
+                  Thread* network_thread,
                   std::unique_ptr<SimulatedPacketReceiverInterface> pipe,
                   Call* send_call,
                   const std::map<uint8_t, MediaType>& payload_type_map,
@@ -96,7 +98,7 @@ class DirectTransport : public Transport {
   Clock& clock_;
   Call* const send_call_;
 
-  TaskQueueBase* const task_queue_;
+  TaskQueueBase* const network_thread_;
 
   Mutex process_lock_;
   RepeatingTaskHandle next_process_task_ RTC_GUARDED_BY(&process_lock_);
@@ -105,6 +107,8 @@ class DirectTransport : public Transport {
   const std::unique_ptr<SimulatedPacketReceiverInterface> fake_network_;
   const RtpHeaderExtensionMap audio_extensions_;
   const RtpHeaderExtensionMap video_extensions_;
+
+  SequenceChecker worker_thread_checker_;
 };
 }  // namespace test
 }  // namespace webrtc

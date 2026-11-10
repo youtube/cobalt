@@ -383,6 +383,24 @@ void wasm_int128_add_wrapper(Address data) {
   ptr[3] = rl;
 }
 
+void wasm_int128_sub_wrapper(Address data) {
+  // Implemented for 32-bit platforms, where __uint128_t is not available.
+  uint64_t* ptr = reinterpret_cast<uint64_t*>(data);
+
+  uint64_t bh = ptr[0];
+  uint64_t bl = ptr[1];
+  uint64_t ah = ptr[2];
+  uint64_t al = ptr[3];
+
+  uint64_t rl = al - bl;
+  bool borrow = (al < bl);
+  uint64_t rh = ah - bh - (borrow ? 1 : 0);
+
+  // Overwrite slots for Operand A.
+  ptr[2] = rh;
+  ptr[3] = rl;
+}
+
 void float64_pow_wrapper(Address data) {
   double x = ReadUnalignedValue<double>(data);
   double y = ReadUnalignedValue<double>(data + sizeof(x));

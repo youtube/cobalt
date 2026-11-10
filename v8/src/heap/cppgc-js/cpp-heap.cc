@@ -500,8 +500,9 @@ Isolate* CppHeap::MetricRecorderAdapter::GetIsolate() const {
 v8::metrics::Recorder::ContextId CppHeap::MetricRecorderAdapter::GetContextId()
     const {
   DCHECK_NOT_NULL(GetIsolate());
-  if (GetIsolate()->context().is_null())
+  if (GetIsolate()->context().is_null()) {
     return v8::metrics::Recorder::ContextId::Empty();
+  }
   HandleScope scope(GetIsolate());
   return GetIsolate()->GetOrRegisterRecorderContextId(
       GetIsolate()->native_context());
@@ -729,8 +730,9 @@ CppHeap::MarkingType CppHeap::SelectMarkingType() const {
   // For now, force atomic marking for minor collections.
   if (*collection_type_ == CollectionType::kMinor) return MarkingType::kAtomic;
 
-  if (IsForceGC(current_gc_flags_) && !force_incremental_marking_for_testing_)
+  if (IsForceGC(current_gc_flags_) && !force_incremental_marking_for_testing_) {
     return MarkingType::kAtomic;
+  }
 
   const MarkingType marking_type = marking_support();
 
@@ -788,10 +790,11 @@ void CppHeap::InitializeMarking(
   // Check that previous cycle metrics for the same collection type have been
   // reported.
   if (GetMetricRecorder()) {
-    if (collection_type == CollectionType::kMajor)
+    if (collection_type == CollectionType::kMajor) {
       DCHECK(!GetMetricRecorder()->FullGCMetricsReportPending());
-    else
+    } else {
       DCHECK(!GetMetricRecorder()->YoungGCMetricsReportPending());
+    }
   }
 
 #if defined(CPPGC_YOUNG_GENERATION)

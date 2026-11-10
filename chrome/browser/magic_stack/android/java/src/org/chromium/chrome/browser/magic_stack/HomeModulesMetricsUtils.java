@@ -10,8 +10,10 @@ import static org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType.
 import static org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType.DEFAULT_BROWSER_PROMO;
 import static org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType.DEPRECATED_EDUCATIONAL_TIP;
 import static org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType.DEPRECATED_TAB_RESUMPTION;
+import static org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType.DEPRECATED_TIPS_NOTIFICATIONS_PROMO;
 import static org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType.ENHANCED_SAFE_BROWSING_PROMO;
 import static org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType.HISTORY_SYNC_PROMO;
+import static org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType.NTP_THEME_PROMO;
 import static org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType.PASSWORD_CHECKUP_PROMO;
 import static org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType.PRICE_CHANGE;
 import static org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType.QUICK_DELETE_PROMO;
@@ -23,7 +25,6 @@ import static org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType.
 import static org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType.SINGLE_TAB;
 import static org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType.TAB_GROUP_PROMO;
 import static org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType.TAB_GROUP_SYNC_PROMO;
-import static org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType.TIPS_NOTIFICATIONS_PROMO;
 
 import androidx.annotation.VisibleForTesting;
 
@@ -135,10 +136,10 @@ public class HomeModulesMetricsUtils {
                 return "TabGroupSyncPromo";
             case QUICK_DELETE_PROMO:
                 return "QuickDeletePromo";
+            case NTP_THEME_PROMO:
+                return "NtpThemePromo";
             case HISTORY_SYNC_PROMO:
                 return "HistorySyncPromo";
-            case TIPS_NOTIFICATIONS_PROMO:
-                return "TipsNotificationsPromo";
             case ENHANCED_SAFE_BROWSING_PROMO:
                 return "EnhancedSafeBrowsingPromo";
             case ADDRESS_BAR_PLACEMENT_PROMO:
@@ -179,8 +180,6 @@ public class HomeModulesMetricsUtils {
                 return QUICK_DELETE_PROMO;
             case "HistorySyncPromo":
                 return HISTORY_SYNC_PROMO;
-            case "TipsNotificationsPromo":
-                return TIPS_NOTIFICATIONS_PROMO;
             case "EnhancedSafeBrowsingPromo":
                 return ENHANCED_SAFE_BROWSING_PROMO;
             case "AddressBarPlacementPromo":
@@ -195,6 +194,8 @@ public class HomeModulesMetricsUtils {
                 return PASSWORD_CHECKUP_PROMO;
             case "SetupListCelebratoryPromo":
                 return SETUP_LIST_CELEBRATORY_PROMO;
+            case "NtpThemePromo":
+                return NTP_THEME_PROMO;
             default:
                 Log.i(TAG, "Module type %s not supported!", label);
                 return ModuleType.NUM_ENTRIES;
@@ -206,7 +207,8 @@ public class HomeModulesMetricsUtils {
         HashSet<Integer> set = new HashSet<>();
         for (@ModuleType int moduleType = 0; moduleType < ModuleType.NUM_ENTRIES; moduleType++) {
             if (moduleType == DEPRECATED_EDUCATIONAL_TIP
-                    || moduleType == DEPRECATED_TAB_RESUMPTION) {
+                    || moduleType == DEPRECATED_TAB_RESUMPTION
+                    || moduleType == DEPRECATED_TIPS_NOTIFICATIONS_PROMO) {
                 continue;
             }
             set.add(moduleType);

@@ -107,8 +107,8 @@ public class CoBrowseViews {
      */
     public void attachPeekView(View peekView) {
         ViewGroup peekContainer = mContainerView.findViewById(R.id.actor_control_container);
+        peekContainer.removeAllViews();
         detachFromParent(peekView);
-        assert peekContainer.getChildCount() == 0;
         mPeekView = peekView;
         peekContainer.addView(mPeekView);
     }
@@ -140,6 +140,18 @@ public class CoBrowseViews {
                 detachFromParent(newView);
                 webUiContainer.addView(newView);
             }
+        }
+    }
+
+    void setIgnoreClearFocus(boolean ignoreClearFocus) {
+        if (mWebUi != null) {
+            mWebUi.setIgnoreClearFocus(ignoreClearFocus);
+        }
+    }
+
+    void setAllowFullscreenIme(boolean allow) {
+        if (mWebUi != null) {
+            mWebUi.setAllowFullscreenIme(allow);
         }
     }
 

@@ -78,7 +78,7 @@ enum class CreateSourcePositions { kNo, kYes };
 // +-------------------------------+
 // | Inner PreparseData N          |
 // +-------------------------------+
-V8_OBJECT class PreparseData : public HeapObjectLayout {
+V8_OBJECT class PreparseData : public HeapObject {
  public:
   int32_t data_length() const { return data_length_; }
   void set_data_length(int32_t value) { data_length_ = value; }
@@ -259,7 +259,7 @@ using NameOrScopeInfoT = UnionOf<Smi, String, ScopeInfo>;
 
 // SharedFunctionInfo describes the JSFunction information that can be
 // shared by multiple instances of the function.
-V8_OBJECT class SharedFunctionInfo : public HeapObjectLayout {
+V8_OBJECT class SharedFunctionInfo : public HeapObject {
  public:
   DEFINE_TORQUE_GENERATED_SHARED_FUNCTION_INFO_FLAGS()
   DEFINE_TORQUE_GENERATED_SHARED_FUNCTION_INFO_FLAGS2()
@@ -269,15 +269,11 @@ V8_OBJECT class SharedFunctionInfo : public HeapObjectLayout {
   // field declarations. Other accessors are declared further below with
   // the existing DECL_* macros.
   inline Tagged<Object> untrusted_function_data() const;
-  inline Tagged<Object> untrusted_function_data(
-      PtrComprCageBase cage_base) const;
   inline void set_untrusted_function_data(
       Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>
   outer_scope_info_or_feedback_metadata() const;
-  inline Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>>
-  outer_scope_info_or_feedback_metadata(PtrComprCageBase cage_base) const;
   inline void set_outer_scope_info_or_feedback_metadata(
       Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -594,7 +590,6 @@ V8_OBJECT class SharedFunctionInfo : public HeapObjectLayout {
   // TODO(jgruber): Remove these overloads and pass the kAcquireLoad tag
   // explicitly.
   inline Tagged<HeapObject> script() const;
-  inline Tagged<HeapObject> script(PtrComprCageBase cage_base) const;
   inline bool has_script(AcquireLoadTag tag) const;
 
   // True if the underlying script was parsed and compiled in REPL mode.
@@ -732,9 +727,15 @@ V8_OBJECT class SharedFunctionInfo : public HeapObjectLayout {
   // Whether this function is defined in user-provided JavaScript code.
   inline bool IsUserJavaScript() const;
 
-  // True if one can flush compiled code from this function, in such a way that
-  // it can later be re-compiled.
-  inline bool CanDiscardCompiled() const;
+#if V8_ENABLE_WEBASSEMBLY
+  using DiscardableData = UnionOf<BytecodeArray, InterpreterData, Code,
+                                  UncompiledDataWithPreparseData, AsmWasmData>;
+#else
+  using DiscardableData = UnionOf<BytecodeArray, InterpreterData, Code,
+                                  UncompiledDataWithPreparseData>;
+#endif
+  inline bool CanDiscardCompiled(
+      Tagged<DiscardableData>* out_data = nullptr) const;
 
   // Flush compiled data from this function, setting it back to CompileLazy and
   // clearing any compiled metadata.
@@ -872,25 +873,6 @@ V8_OBJECT class SharedFunctionInfo : public HeapObjectLayout {
   static const uint16_t kFunctionTokenOutOfRange = static_cast<uint16_t>(-1);
   static_assert(kMaximumFunctionTokenOffset + 1 == kFunctionTokenOutOfRange);
 
-  // Back-compat layout constants. Defined out-of-line below the class using
-  // offsetof() / sizeof() so external call sites (builtins, compiler, CSA,
-  // serializer) keep compiling against SharedFunctionInfo::kXxxOffset.
-  static const int kTrustedFunctionDataOffset;
-  static const int kUntrustedFunctionDataOffset;
-  static const int kNameOrScopeInfoOffset;
-  static const int kOuterScopeInfoOrFeedbackMetadataOffset;
-  static const int kScriptOffset;
-  static const int kLengthOffset;
-  static const int kFormalParameterCountOffset;
-  static const int kFunctionTokenOffsetOffset;
-  static const int kExpectedNofPropertiesOffset;
-  static const int kFlags2Offset;
-  static const int kFlagsOffset;
-  static const int kFunctionLiteralIdOffset;
-  static const int kUniqueIdOffset;
-  static const int kAgeOffset;
-  static const int kFeedbackSlotOffset;
-  static const int kStartOfStrongFieldsOffset;
   static const int kEndOfStrongFieldsOffset;
   static const int kSize;
   static const int kHeaderSize;
@@ -955,6 +937,7 @@ V8_OBJECT class SharedFunctionInfo : public HeapObjectLayout {
 
   inline Tagged<BytecodeArray> GetBytecodeArrayInternal(Isolate* isolate) const;
 
+ public:
   // trusted_function_data may point at any concrete ExposedTrustedObject, so
   // the indirect-pointer tag range covers all trusted tags.
   TrustedPointerMember<ExposedTrustedObject, kAllIndirectPointerTags>
@@ -976,41 +959,6 @@ V8_OBJECT class SharedFunctionInfo : public HeapObjectLayout {
   std::atomic<uint16_t> feedback_slot_;
 } V8_OBJECT_END;
 
-// Back-compat layout constants. Defined here because offsetof()/sizeof() on
-// a not-yet-complete class cannot appear inside the class body.
-inline constexpr int SharedFunctionInfo::kTrustedFunctionDataOffset =
-    offsetof(SharedFunctionInfo, trusted_function_data_);
-inline constexpr int SharedFunctionInfo::kUntrustedFunctionDataOffset =
-    offsetof(SharedFunctionInfo, untrusted_function_data_);
-inline constexpr int SharedFunctionInfo::kNameOrScopeInfoOffset =
-    offsetof(SharedFunctionInfo, name_or_scope_info_);
-inline constexpr int
-    SharedFunctionInfo::kOuterScopeInfoOrFeedbackMetadataOffset =
-        offsetof(SharedFunctionInfo, outer_scope_info_or_feedback_metadata_);
-inline constexpr int SharedFunctionInfo::kScriptOffset =
-    offsetof(SharedFunctionInfo, script_);
-inline constexpr int SharedFunctionInfo::kLengthOffset =
-    offsetof(SharedFunctionInfo, length_);
-inline constexpr int SharedFunctionInfo::kFormalParameterCountOffset =
-    offsetof(SharedFunctionInfo, formal_parameter_count_);
-inline constexpr int SharedFunctionInfo::kFunctionTokenOffsetOffset =
-    offsetof(SharedFunctionInfo, function_token_offset_);
-inline constexpr int SharedFunctionInfo::kExpectedNofPropertiesOffset =
-    offsetof(SharedFunctionInfo, expected_nof_properties_);
-inline constexpr int SharedFunctionInfo::kFlags2Offset =
-    offsetof(SharedFunctionInfo, flags2_);
-inline constexpr int SharedFunctionInfo::kFlagsOffset =
-    offsetof(SharedFunctionInfo, flags_);
-inline constexpr int SharedFunctionInfo::kFunctionLiteralIdOffset =
-    offsetof(SharedFunctionInfo, function_literal_id_);
-inline constexpr int SharedFunctionInfo::kUniqueIdOffset =
-    offsetof(SharedFunctionInfo, unique_id_);
-inline constexpr int SharedFunctionInfo::kAgeOffset =
-    offsetof(SharedFunctionInfo, age_);
-inline constexpr int SharedFunctionInfo::kFeedbackSlotOffset =
-    offsetof(SharedFunctionInfo, feedback_slot_);
-inline constexpr int SharedFunctionInfo::kStartOfStrongFieldsOffset =
-    offsetof(SharedFunctionInfo, untrusted_function_data_);
 inline constexpr int SharedFunctionInfo::kEndOfStrongFieldsOffset =
     offsetof(SharedFunctionInfo, script_) + kTaggedSize;
 inline constexpr int SharedFunctionInfo::kSize = sizeof(SharedFunctionInfo);
@@ -1031,8 +979,6 @@ V8_OBJECT class SharedFunctionInfoWrapper : public TrustedObject {
   DECL_PRINTER(SharedFunctionInfoWrapper)
   DECL_VERIFIER(SharedFunctionInfoWrapper)
 
-  // Back-compat offset/size constants.
-  static const int kSharedInfoOffset;
   static const int kHeaderSize;
   static const int kSize;
 
@@ -1040,8 +986,6 @@ V8_OBJECT class SharedFunctionInfoWrapper : public TrustedObject {
   TaggedMember<SharedFunctionInfo> shared_info_;
 } V8_OBJECT_END;
 
-inline constexpr int SharedFunctionInfoWrapper::kSharedInfoOffset =
-    offsetof(SharedFunctionInfoWrapper, shared_info_);
 inline constexpr int SharedFunctionInfoWrapper::kHeaderSize =
     sizeof(SharedFunctionInfoWrapper);
 inline constexpr int SharedFunctionInfoWrapper::kSize =
@@ -1104,7 +1048,7 @@ class V8_NODISCARD IsBaselineCompiledScope {
 
 std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v);
 
-V8_OBJECT class OnHeapBasicBlockProfilerData : public HeapObjectLayout {
+V8_OBJECT class OnHeapBasicBlockProfilerData : public HeapObject {
  public:
   inline Tagged<ByteArray> block_ids() const;
   inline void set_block_ids(Tagged<ByteArray> value,

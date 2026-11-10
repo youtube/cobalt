@@ -162,6 +162,7 @@ INSTANTIATE_TEST_SUITE_P(
 IN_PROC_BROWSER_TEST_P(
     ScreenshotBackendMultiSourcePageContextFetcherBrowserTest,
     TakesScreenshot) {
+  base::HistogramTester histograms;
   GURL url = embedded_https_test_server().GetURL("/empty.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 
@@ -211,6 +212,8 @@ IN_PROC_BROWSER_TEST_P(
                           // TODO(b/438825957): add test coverage for the output
                           // of the CopyFromSurface screenshot.
                           _));
+  histograms.ExpectUniqueSample("Glic.PageContextFetcher.ScreenshotRedacted",
+                                false, 1);
 }
 
 class ScreenshotTimeoutMultiSourcePageContextFetcherBrowserTest
@@ -221,6 +224,7 @@ class ScreenshotTimeoutMultiSourcePageContextFetcherBrowserTest
         {kGlicTabScreenshotExperiment,
          {
              {"screenshot_timeout_ms", "1us"},
+             {"screenshot_timeout_allowance_ms", "10s"},
          }},
     };
     std::vector<base::test::FeatureRef> disabled_features;
@@ -233,15 +237,9 @@ class ScreenshotTimeoutMultiSourcePageContextFetcherBrowserTest
   base::test::ScopedFeatureList features_;
 };
 
-// TODO(https://crbug.com/478727457): flaky timeouts
-#if BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER)
-#define MAYBE_TakesScreenshot DISABLED_TakesScreenshot
-#else
-#define MAYBE_TakesScreenshot TakesScreenshot
-#endif
 IN_PROC_BROWSER_TEST_F(
     ScreenshotTimeoutMultiSourcePageContextFetcherBrowserTest,
-    MAYBE_TakesScreenshot) {
+    TakesScreenshot) {
   GURL url = embedded_https_test_server().GetURL("/empty.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 
@@ -264,12 +262,16 @@ IN_PROC_BROWSER_TEST_F(
     if (result->screenshot_result.has_value()) {
       continue;
     }
+    if (histograms.GetBucketCount("Glic.PageContextFetcher.GetScreenshotError",
+                                  content::CopyFromSurfaceError::kTimeout) ==
+        0) {
+      continue;
+    }
     histograms.ExpectUniqueSample("Glic.PageContextFetcher.GetScreenshotError",
                                   content::CopyFromSurfaceError::kTimeout, 1);
     break;
   }
 }
-#undef MAYBE_TakesScreenshot
 
 class RedactingMultiSourcePageContextFetcherBrowserTest
     : public MultiSourcePageContextFetcherBrowserTest {
@@ -302,6 +304,7 @@ class RedactingMultiSourcePageContextFetcherBrowserTest
 
 IN_PROC_BROWSER_TEST_F(RedactingMultiSourcePageContextFetcherBrowserTest,
                        TakesScreenshot_SameOriginIframeNoRedaction) {
+  base::HistogramTester histograms;
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser(), GetURL(kHostA, "/iframe.html")));
 
@@ -338,10 +341,13 @@ IN_PROC_BROWSER_TEST_F(RedactingMultiSourcePageContextFetcherBrowserTest,
   EXPECT_FALSE(bitmap.empty());
   EXPECT_THAT(bitmap.getColor(10, 10),
               IsColorWithinTolerance(SK_ColorRED, 0x20));
+  histograms.ExpectUniqueSample("Glic.PageContextFetcher.ScreenshotRedacted",
+                                false, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(RedactingMultiSourcePageContextFetcherBrowserTest,
                        TakesScreenshot_CrossOriginSameSiteIframeNoRedaction) {
+  base::HistogramTester histograms;
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser(), GetURL(kHostA, "/iframe.html")));
 
@@ -378,10 +384,13 @@ IN_PROC_BROWSER_TEST_F(RedactingMultiSourcePageContextFetcherBrowserTest,
   EXPECT_FALSE(bitmap.empty());
   EXPECT_THAT(bitmap.getColor(10, 10),
               IsColorWithinTolerance(SK_ColorRED, 0x20));
+  histograms.ExpectUniqueSample("Glic.PageContextFetcher.ScreenshotRedacted",
+                                false, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(RedactingMultiSourcePageContextFetcherBrowserTest,
                        TakesScreenshot_CrossSiteIframeRedacted) {
+  base::HistogramTester histograms;
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser(), GetURL(kHostA, "/iframe.html")));
 
@@ -418,6 +427,8 @@ IN_PROC_BROWSER_TEST_F(RedactingMultiSourcePageContextFetcherBrowserTest,
   EXPECT_FALSE(bitmap.empty());
   EXPECT_THAT(bitmap.getColor(10, 10),
               IsColorWithinTolerance(SK_ColorBLACK, 0x20));
+  histograms.ExpectUniqueSample("Glic.PageContextFetcher.ScreenshotRedacted",
+                                false, 1);
 }
 
 // Test class that sets png params and validates pngs are returned.
@@ -444,6 +455,7 @@ class PngMultiSourcePageContextFetcherBrowserTest
 // Tests that the mimetype returned is png and image decodes correctly.
 IN_PROC_BROWSER_TEST_F(PngMultiSourcePageContextFetcherBrowserTest,
                        TakesScreenshot_Png) {
+  base::HistogramTester histograms;
   GURL url = embedded_https_test_server().GetURL("/empty.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 
@@ -474,6 +486,8 @@ IN_PROC_BROWSER_TEST_F(PngMultiSourcePageContextFetcherBrowserTest,
 
   EXPECT_FALSE(bitmap.isNull());
   EXPECT_FALSE(bitmap.empty());
+  histograms.ExpectUniqueSample("Glic.PageContextFetcher.ScreenshotRedacted",
+                                false, 1);
 }
 
 // Test class that sets webp params and validates webps are returned.
@@ -500,6 +514,7 @@ class WebpMultiSourcePageContextFetcherBrowserTest
 // Tests that the mimetype returned is webp and image decodes correctly.
 IN_PROC_BROWSER_TEST_F(WebpMultiSourcePageContextFetcherBrowserTest,
                        TakesScreenshot_Webp) {
+  base::HistogramTester histograms;
   GURL url = embedded_https_test_server().GetURL("/empty.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 
@@ -525,6 +540,8 @@ IN_PROC_BROWSER_TEST_F(WebpMultiSourcePageContextFetcherBrowserTest,
   EXPECT_FALSE(screenshot.dimensions.IsZero());
   ASSERT_GT(screenshot.screenshot_data.size(), 0);
   ASSERT_EQ(screenshot.mime_type, "image/webp");
+  histograms.ExpectUniqueSample("Glic.PageContextFetcher.ScreenshotRedacted",
+                                false, 1);
 }
 
 class PasswordRedactionMultiSourcePageContextFetcherBrowserTest
@@ -561,6 +578,7 @@ class PasswordRedactionMultiSourcePageContextFetcherBrowserTest
 IN_PROC_BROWSER_TEST_F(
     PasswordRedactionMultiSourcePageContextFetcherBrowserTest,
     BasicRedaction) {
+  base::HistogramTester histograms;
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
                                            GetURL(kHostA, "/password.html")));
 
@@ -592,11 +610,14 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_FALSE(bitmap.empty());
   EXPECT_THAT(bitmap.getColor(10, 10),
               IsColorWithinTolerance(SK_ColorRED, 0x20));
+  histograms.ExpectUniqueSample("Glic.PageContextFetcher.ScreenshotRedacted",
+                                true, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(
     PasswordRedactionMultiSourcePageContextFetcherBrowserTest,
     DISABLED_BasicRedactionInIframe) {
+  base::HistogramTester histograms;
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(),
       GetURL(kHostA, "/password_in_iframe.html?domain=/cross-site/b.test/")));
@@ -647,6 +668,8 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_FALSE(bitmap.empty());
   EXPECT_THAT(bitmap.getColor(120, 120),
               IsColorWithinTolerance(SK_ColorRED, 0x20));
+  histograms.ExpectUniqueSample("Glic.PageContextFetcher.ScreenshotRedacted",
+                                true, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -696,6 +719,8 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_FALSE(bitmap.empty());
   EXPECT_THAT(bitmap.getColor(10, 10),
               IsColorWithinTolerance(SK_ColorRED, 0x20));
+  histograms.ExpectUniqueSample("Glic.PageContextFetcher.ScreenshotRedacted",
+                                true, 1);
 }
 
 class SensitivePaymentRedactionMultiSourcePageContextFetcherBrowserTest
@@ -735,6 +760,7 @@ class SensitivePaymentRedactionMultiSourcePageContextFetcherBrowserTest
 IN_PROC_BROWSER_TEST_F(
     SensitivePaymentRedactionMultiSourcePageContextFetcherBrowserTest,
     BasicRedaction) {
+  base::HistogramTester histograms;
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GetURL(kHostA, "/optimization_guide/credit_card.html")));
 
@@ -770,11 +796,14 @@ IN_PROC_BROWSER_TEST_F(
   // cc-exp at (0, 110) size 100x100.
   EXPECT_THAT(bitmap.getColor(10, 120),
               IsColorWithinTolerance(SK_ColorRED, 0x20));
+  histograms.ExpectUniqueSample("Glic.PageContextFetcher.ScreenshotRedacted",
+                                true, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(
     SensitivePaymentRedactionMultiSourcePageContextFetcherBrowserTest,
     BasicRedactionInIframe) {
+  base::HistogramTester histograms;
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(),
       GetURL(kHostA,
@@ -831,6 +860,8 @@ IN_PROC_BROWSER_TEST_F(
   // cc-exp
   EXPECT_THAT(bitmap.getColor(120, 240),
               IsColorWithinTolerance(SK_ColorRED, 0x20));
+  histograms.ExpectUniqueSample("Glic.PageContextFetcher.ScreenshotRedacted",
+                                true, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -884,10 +915,13 @@ IN_PROC_BROWSER_TEST_F(
   // cc-exp at (0, 110) size 100x100.
   EXPECT_THAT(bitmap.getColor(10, 120),
               IsColorWithinTolerance(SK_ColorRED, 0x20));
+  histograms.ExpectUniqueSample("Glic.PageContextFetcher.ScreenshotRedacted",
+                                true, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(MultiSourcePageContextFetcherBrowserTest,
                        TakesScreenshot_PngWithDimensions) {
+  base::HistogramTester histograms;
   GURL url = embedded_https_test_server().GetURL("/empty.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 
@@ -923,6 +957,8 @@ IN_PROC_BROWSER_TEST_F(MultiSourcePageContextFetcherBrowserTest,
   SkBitmap bitmap = gfx::PNGCodec::Decode(screenshot.screenshot_data);
   EXPECT_FALSE(bitmap.isNull());
   EXPECT_FALSE(bitmap.empty());
+  histograms.ExpectUniqueSample("Glic.PageContextFetcher.ScreenshotRedacted",
+                                false, 1);
 }
 
 class ElementCSSRedactionMultiSourcePageContextFetcherBrowserTest
@@ -958,6 +994,7 @@ class ElementCSSRedactionMultiSourcePageContextFetcherBrowserTest
 IN_PROC_BROWSER_TEST_F(
     ElementCSSRedactionMultiSourcePageContextFetcherBrowserTest,
     BasicRedaction) {
+  base::HistogramTester histograms;
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(),
       GetURL(kHostA,
@@ -987,6 +1024,8 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_FALSE(bitmap.empty());
   EXPECT_THAT(bitmap.getColor(10, 10),
               IsColorWithinTolerance(SK_ColorRED, 0x20));
+  histograms.ExpectUniqueSample("Glic.PageContextFetcher.ScreenshotRedacted",
+                                true, 1);
 }
 
 }  // namespace page_content_annotations

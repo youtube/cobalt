@@ -19,10 +19,10 @@
 #include "api/environment/environment.h"
 #include "api/media_types.h"
 #include "api/rtp_parameters.h"
-#include "api/task_queue/task_queue_base.h"
 #include "call/call.h"
 #include "call/simulated_packet_receiver.h"
 #include "modules/rtp_rtcp/source/video_rtp_depacketizer.h"
+#include "rtc_base/thread.h"
 #include "test/direct_transport.h"
 
 namespace webrtc {
@@ -33,7 +33,7 @@ class LayerFilteringTransport : public test::DirectTransport {
  public:
   LayerFilteringTransport(
       const Environment& env,
-      TaskQueueBase* task_queue,
+      Thread* network_thread,
       std::unique_ptr<SimulatedPacketReceiverInterface> pipe,
       Call* send_call,
       uint8_t vp8_video_payload_type,
@@ -47,7 +47,7 @@ class LayerFilteringTransport : public test::DirectTransport {
       std::span<const RtpExtension> video_extensions);
   LayerFilteringTransport(
       const Environment& env,
-      TaskQueueBase* task_queue,
+      Thread* network_thread,
       std::unique_ptr<SimulatedPacketReceiverInterface> pipe,
       Call* send_call,
       uint8_t vp8_video_payload_type,

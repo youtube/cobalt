@@ -96,7 +96,6 @@
 <translation id="2018528049276128029">‏בכל פרופיל מאוחסנים נתוני Chrome משלו כמו סימניות, היסטוריה, סיסמאות ועוד</translation>
 <translation id="2018879682492276940">ההתקנה נכשלה. יש לנסות שוב.</translation>
 <translation id="2024959665595762054">‏כדי להשתמש בנתוני Chrome ולשמור אותם בחשבון Google, עליך לאמת את הזהות שלך</translation>
-<translation id="2026377840141807639">‏פרופילים ב-Chrome מאפשרים לך להפריד בין הגלישה האישית לבין הגלישה בעבודה. אפשר להוסיף פרופיל חדש עכשיו.</translation>
 <translation id="2034233344106846793">‏‫Chrome משדרג חיבורים לא מאובטחים ל-HTTPS באופן אוטומטי כשאפשר</translation>
 <translation id="2039417478970545937">הגדרות.</translation>
 <translation id="2066690553719545730">‏תמיד להציג את מצב AI</translation>
@@ -119,7 +118,6 @@
 <translation id="2174917724755363426">ההתקנה לא הושלמה. להמשיך בביטול?</translation>
 <translation id="2186206192313702726">Google Lens</translation>
 <translation id="2190166659037789668">השגיאה בבדיקת העדכון: <ph name="UPDATE_CHECK_ERROR" />.</translation>
-<translation id="2199691482078155239">‏ב-Chrome יש לך יותר שליטה במודעות שמוצגות לך, וחלות הגבלות על המידע עליך שהאתרים יכולים לקבל בהצגת מודעות בהתאמה אישית</translation>
 <translation id="2216543877350048334">‏כדי להסיר את החשבון שלך ב-Google מ-Chrome, צריך לצאת מהחשבון</translation>
 <translation id="2236949375853147973">הפעילות שלי</translation>
 <translation id="22791603784558743">‏סגירת Gemini ב-Chrome פיתוח</translation>
@@ -146,6 +144,9 @@
 <translation id="2569974318947988067">‏Chrome ינסה לשדרג את הניווטים ל-HTTPS</translation>
 <translation id="2571392474191184472">‏הארגון שלך מנהל את Chrome</translation>
 <translation id="2574930892358684005">‏המשתמש <ph name="EXISTING_USER" /> כבר מחובר לפרופיל Chrome הזה. כדי להפריד בין פעילויות גלישה, Chrome יכול ליצור עבורך פרופיל משלך.</translation>
+<translation id="2575799939951057838">‏אם נכנסת לאתר בפעם הראשונה, Chrome משבית את האופטימיזציה של JavaScript מטעמי אבטחה.
+
+אם הדף הזה לא פועל כמו שצריך, כדאי להפעיל את האופטימיזציה.</translation>
 <translation id="2580411288591421699">‏אין אפשרות להתקין את אותה גרסת Google Chrome הפועלת כעת. יש לסגור את Google Chrome ולנסות שוב.</translation>
 <translation id="2586406160782125153">‏הפעולה תמחק את נתוני הגלישה מהמכשיר. כדי לאחזר את הנתונים מאוחר יותר, יש להיכנס אל Chrome עם <ph name="USER_EMAIL" />.</translation>
 <translation id="259935314519650377">שמירת מנהל ההתקנה שהורד במטמון נכשלה. השגיאה: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
@@ -448,7 +449,6 @@
 <translation id="5736850870166430177">‏אם באתר כלשהו מתבצע ניסיון לגנוב את הסיסמה שלך, או אם המערכת מזהה הורדה של קובץ מזיק, Chrome עשוי גם לשלוח כתובות URL לבדיקה באמצעות 'גלישה בטוחה'. הנתונים שנשלחים לבדיקה כוללים ביטים מתוכן של דפים</translation>
 <translation id="5756509061973259733">‏כבר קיים במכשיר פרופיל Chrome עם החשבון הזה.</translation>
 <translation id="5759947850379142561">‏אפשר לבחור טקסט או תמונה לחיפוש באמצעות Google Lens או ללחוץ על Escape כדי לצאת מ-Google Lens</translation>
-<translation id="5762867845020858790">‏אפשר להוסיף פרופיל חדש ב-Chrome כדי להפריד בין הסימניות, הסיסמאות וההגדרות.</translation>
 <translation id="5779427581965287859">‏הגדרת Chrome כדפדפן ברירת המחדל והצמדה שלו לסרגל האפליקציות</translation>
 <translation id="5795887333006832406">‏<ph name="PAGE_TITLE" /> - Google Chrome בגרסת Canary</translation>
 <translation id="5804318322022881572">‏לא ניתן היה להפעיל את Chrome. יש לנסות שוב.</translation>
@@ -562,7 +562,6 @@
 <translation id="6800285125190089494">‏רוצה להיכנס מהר יותר לאתרים? כדאי להשתמש בסיסמאות שמורות ב-Chrome ב-iOS</translation>
 <translation id="6831043979455480757">תרגום</translation>
 <translation id="683440813066116847">‏כלל נכנס עבור הגרסה הניסיונית של Google Chrome על מנת לאפשר תנועת mDNS.</translation>
-<translation id="6841242485723266823">‏פרופילים ב-Chrome עוזרים להפריד בין חלקים שונים בחיים שלך. אפשר להוסיף פרופיל חדש עכשיו.</translation>
 <translation id="684888714667046800">לא ניתן להתחבר לאינטרנט. אם משתמשים בחומת אש, צריך לוודא ש-<ph name="PRODUCT_EXE_NAME" /> ברשימת ההיתרים.</translation>
 <translation id="6859580922007887573">צריך ללחוץ כדי להמשיך</translation>
 <translation id="6877155553248388166">‏הפינה הימנית התחתונה של אזור החיפוש: ‎<ph name="RIGHT" />%‎ מימין, ‎<ph name="BOTTOM" />%‎ מלמטה</translation>
@@ -652,7 +651,6 @@
 <translation id="7655472416356262023">‏הסרת החשבון מ-Chrome</translation>
 <translation id="7658239707568436148">ביטול</translation>
 <translation id="7670287553302121848">‏נדרש אימות מחדש לחשבון Chrome</translation>
-<translation id="7675756456029023637">‏שואלים את Chrome</translation>
 <translation id="769538538642757151">‏Chrome יעדכן אותך אם יש משהו שצריך לבדוק</translation>
 <translation id="769906121737764913">‏סגירת Gemini ב-Chrome בטא</translation>
 <translation id="7716950018788545737">המשימות הסתיימו.</translation>
@@ -754,7 +752,6 @@
 <translation id="8625237574518804553">{0,plural, =1{‏Chrome יופעל מחדש בעוד דקה}one{‏Chrome יופעל מחדש בעוד # דקות}two{‏Chrome יופעל מחדש בעוד # דקות}other{‏Chrome יופעל מחדש בעוד # דקות}}</translation>
 <translation id="8637932705841171563">‏כדי לשתף את החלון, צריך לאפשר הקלטת מסך ב-Chrome בקטע "הגדרות המערכת"</translation>
 <translation id="8641606876632989680">‏אם מערכת Chrome תזהה שנכנסת עם סיסמה שנחשפה, היא תתריע לך על כך</translation>
-<translation id="8647930742055103497">‏הכל נשאר ב-Chrome</translation>
 <translation id="8656634243791296665">‏פתיחת Gemini ב-Chrome פיתוח</translation>
 <translation id="8669527147644353129">Google Chrome Helper</translation>
 <translation id="8679801911857917785">‏הגדרה זו גם קובעת איזה דף מוצג כשמפעילים את Chrome.</translation>

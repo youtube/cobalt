@@ -56,8 +56,7 @@ void JSObjectFuzzingPrintInternalIndexRange(Tagged<JSObject> obj,
   Isolate* isolate = Isolate::Current();
 
   HandleScope scope(isolate);
-  Tagged<DescriptorArray> descriptors =
-      obj->map()->instance_descriptors(isolate);
+  Tagged<DescriptorArray> descriptors = obj->map()->instance_descriptors();
 
   std::optional<Tagged<NameDictionary>> dict;
   std::optional<ReadOnlyRoots> roots;
@@ -69,8 +68,8 @@ void JSObjectFuzzingPrintInternalIndexRange(Tagged<JSObject> obj,
       indices.push_back(i);
     }
   } else {
-    CHECK(!IsJSGlobalObject(*obj));
-    CHECK(!IsJSGlobalProxy(*obj));
+    CHECK(!IsJSGlobalObject(obj));
+    CHECK(!IsJSGlobalProxy(obj));
     roots = GetReadOnlyRoots();
     dict = obj->property_dictionary();
     // We want to print out the properties in the same order they'd be in e.g.,
@@ -178,7 +177,7 @@ void JSObjectFuzzingPrintDictProperties(Tagged<JSObject> obj,
 
 void JSObjectFuzzingPrintPrototype(Tagged<Map> map, StringStream* accumulator,
                                    int depth) {
-  Tagged<HeapObject> proto = Tagged<HeapObject>::cast(map->prototype());
+  Tagged<HeapObject> proto = Cast<HeapObject>(map->prototype());
 
   // This is to avoid printing Object.prototype
   if (proto->map()->instance_type() == JS_OBJECT_PROTOTYPE_TYPE) {
@@ -286,7 +285,7 @@ void JSObjectFuzzingPrintElements(Tagged<JSObject> obj,
       sorted.reserve(dict->NumberOfElements());
 
       for (InternalIndex i : dict->IterateEntries()) {
-        Tagged<Object> key = dict->KeyAt(isolate, i);
+        Tagged<Object> key = dict->KeyAt(i);
         if (!dict->IsKey(roots, key)) continue;
         int index = Object::NumberValue(Cast<Number>(key));
         sorted.push_back({index, i});
@@ -380,15 +379,14 @@ void JSObjectFuzzingPrint(Tagged<JSObject> obj, int depth,
 
 void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
                             std::ostream& os) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase();
-  if (IsString(obj, cage_base)) {
+  if (IsString(obj)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
     FuzzingStringShortPrint(Cast<String>(obj), &accumulator);
     os << accumulator.ToCString().get();
     return;
   }
-  if (IsJSObject(obj, cage_base)) {
+  if (IsJSObject(obj)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
     JSObjectFuzzingPrint(Cast<JSObject>(obj), depth, &accumulator);
@@ -396,7 +394,7 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
     return;
   }
 
-  InstanceType instance_type = obj->map(cage_base)->instance_type();
+  InstanceType instance_type = obj->map()->instance_type();
 
   // Skip invalid trusted objects. Technically it'd be fine to still handle
   // them below since we only print the objects, but such an object will
@@ -562,7 +560,7 @@ std::string DifferentialFuzzingPrint(Tagged<Object> obj, int depth) {
     double number = Cast<HeapNumber>(obj)->value();
     os << DoubleToStringView(number, buffer);
   } else {
-    HeapObjectFuzzingPrint(Tagged<HeapObject>::cast(obj), depth, os);
+    HeapObjectFuzzingPrint(Cast<HeapObject>(obj), depth, os);
   }
   return os.str();
 }

@@ -247,6 +247,7 @@ struct TestConfig {
   std::optional<bool> expect_peer_match_trust_anchor;
   std::optional<std::vector<uint8_t>> expect_peer_available_trust_anchors;
   std::optional<std::vector<uint8_t>> requested_trust_anchors;
+  std::vector<uint8_t> available_trust_anchors;
   std::optional<int> expect_selected_credential;
   std::vector<CredentialConfig> credentials;
   int private_key_delay_ms = 0;
@@ -257,6 +258,9 @@ struct TestConfig {
   std::vector<uint8_t> available_client_cert_types;
   std::optional<uint8_t> expect_peer_certificate_type;
   std::vector<uint8_t> expect_peer_rpk_sha256;
+  std::optional<uint16_t> request_server_padding;
+  bool expect_server_sent_requested_padding = false;
+  bool server_supports_padding = false;
 
   std::vector<const char *> handshaker_args;
 

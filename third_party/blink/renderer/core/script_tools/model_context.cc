@@ -36,6 +36,7 @@
 #include "third_party/blink/renderer/platform/scheduler/public/task_attribution_tracker.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
+#include "third_party/blink/renderer/platform/wtf/text/ascii_ctype.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
@@ -87,6 +88,20 @@ String ValidateAndStringifyObject(ScriptState* script_state,
   }
 
   return result;
+}
+
+bool IsValidToolName(const String& name) {
+  if (name.empty() || name.length() > 128) {
+    return false;
+  }
+  for (wtf_size_t i = 0; i < name.length(); ++i) {
+    UChar c = name[i];
+    if (!IsAsciiAlphanumeric(c) && c != '_' && c != '-' && c != '.') {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 ScriptObject JSONStringToScriptObject(ScriptState* script_state,
@@ -269,9 +284,9 @@ void ModelContext::registerTool(ScriptState* script_state,
     return;
   }
 
-  if (!tool->name() || tool->name().empty()) {
+  if (!IsValidToolName(tool->name())) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "Tool name is required");
+                                      "Invalid tool name");
     return;
   }
 
@@ -315,6 +330,9 @@ void ModelContext::registerTool(ScriptState* script_state,
   script_tool->name = tool->name();
   script_tool->description = tool->description();
   script_tool->input_schema = input_schema;
+  // TODO(https://crbug.com/509568047): Stop setting these two members.
+  script_tool->tool_owner_frame_token = document_->GetFrame()->GetFrameToken();
+  script_tool->origin = document_->GetExecutionContext()->GetSecurityOrigin();
 
   Vector<scoped_refptr<const SecurityOrigin>> exposed_origins;
   if (options && options->hasExposedTo()) {
@@ -461,13 +479,24 @@ bool ModelContext::CancelTool(const base::UnguessableToken& invocation_id) {
 }
 
 void ModelContext::GetCrossDocumentScriptToolResult(
+    const base::UnguessableToken& invocation_id,
     CrossDocumentScriptToolResultCallback result_callback) {
   if (document_->HasFinishedParsing()) {
-    std::move(result_callback).Run(ComputeScriptToolResult(*document_));
+    String result = ComputeScriptToolResult(*document_);
+    probe::WebMCPToolResponded(document_, result, invocation_id);
+    std::move(result_callback).Run(result);
     return;
   }
 
-  cross_document_result_callbacks_.push_back(std::move(result_callback));
+  cross_document_result_callbacks_.push_back(blink::BindOnce(
+      [](CrossDocumentScriptToolResultCallback original_callback,
+         const base::UnguessableToken& invocation_id, Document* document,
+         String result) {
+        probe::WebMCPToolResponded(document, result, invocation_id);
+        std::move(original_callback).Run(result);
+      },
+      std::move(result_callback), invocation_id,
+      WrapPersistent(document_.Get())));
 }
 
 void ModelContext::DidFinishParsing() {
@@ -626,6 +655,8 @@ void ModelContext::RegisterDeclarativeTool(
     return;
   }
 
+  // TODO(https://crbug.com/509983792): Surface an error if the tool's name is
+  // not valid.
   UseCounter::Count(document_,
                     WebFeature::kModelContextRegisterDeclarativeTool);
 
@@ -633,6 +664,9 @@ void ModelContext::RegisterDeclarativeTool(
   script_tool->name = name;
   script_tool->description = description;
   script_tool->input_schema = "{}";  // For now
+  // TODO(https://crbug.com/509568047): Stop setting these two members.
+  script_tool->tool_owner_frame_token = document_->GetFrame()->GetFrameToken();
+  script_tool->origin = document_->GetExecutionContext()->GetSecurityOrigin();
 
   auto* tool_data = MakeGarbageCollected<ToolData>(
       base::PassKey<ModelContext>(), std::move(script_tool), declarative_tool);
@@ -729,6 +763,27 @@ void ModelContext::NotifyToolChange() {
   OnToolChange(/*force=*/true);
 }
 
+void ModelContext::ExecuteScriptTool(const String& name,
+                                     const String& input_arguments,
+                                     ExecuteScriptToolCallback callback) {
+  // TODO(http://b/485810761): Pass `invocation_id` up from the browser, instead
+  // of generating it in the renderer.
+  ExecuteTool(
+      /*invocation_id=*/base::UnguessableToken::Create(), name, input_arguments,
+      /*signal=*/nullptr,
+      blink::BindOnce(
+          [](ExecuteScriptToolCallback callback,
+             base::expected<String, ScriptToolError> result) {
+            if (result.has_value()) {
+              std::move(callback).Run(result.value(), true);
+            } else {
+              std::move(callback).Run(GetToolErrorMessage(result.error()),
+                                      false);
+            }
+          },
+          std::move(callback)));
+}
+
 HeapVector<Member<const ToolData>> ModelContext::ListTools() const {
   HeapVector<Member<const ToolData>> tools;
   tools.ReserveInitialCapacity(tool_map_.size());
@@ -801,10 +856,132 @@ void ModelContext::OnGetScriptToolsCompleted(
     if (!t->input_schema.IsNull()) {
       result->setInputSchema(t->input_schema);
     }
+    if (t->annotations) {
+      auto* annotations = ToolAnnotations::Create();
+      annotations->setReadOnlyHint(t->annotations->read_only);
+      annotations->setUntrustedContentHint(t->annotations->untrusted_content);
+      result->setAnnotations(annotations);
+    }
+
+    Frame* frame = Frame::ResolveFrame(t->tool_owner_frame_token);
+    // If we can't resolve the token into a concrete frame, that means the
+    // document could have been discarded by the time the response IPC comes
+    // back to the renderer. In that case, the tool is unusable from our
+    // perspective, so exclude it from `registered_tools`.
+    if (!frame) {
+      continue;
+    }
+
+    result->setWindow(frame->DomWindow());
+    result->setOrigin(t->origin->ToString());
     registered_tools.push_back(result);
   }
 
   resolver->Resolve(registered_tools);
+}
+
+ScriptPromise<IDLNullable<IDLString>> ModelContext::executeTool(
+    ScriptState* script_state,
+    RegisteredTool* tool,
+    String input_arguments,
+    const ExecuteToolOptions* options) {
+  if (!document_->IsActive()) {
+    return ScriptPromise<IDLNullable<IDLString>>::RejectWithDOMException(
+        script_state,
+        MakeGarbageCollected<DOMException>(DOMExceptionCode::kInvalidStateError,
+                                           "The document is not active."));
+  }
+
+  auto* resolver =
+      MakeGarbageCollected<ScriptPromiseResolver<IDLNullable<IDLString>>>(
+          script_state);
+  ScriptPromise promise = resolver->Promise();
+
+  if (!ExecutionContext::From(script_state)
+           ->IsFeatureEnabled(
+               network::mojom::PermissionsPolicyFeature::kTools)) {
+    resolver->RejectWithSecurityError(kPermissionPolicyNotEnabledError,
+                                      kPermissionPolicyNotEnabledError);
+    return promise;
+  }
+
+  DOMWindow* window = tool->window();
+  // `window` is always non-null, but its frame might be missing if the document
+  // was detached or discarded in the gap between tool retrieval and tool
+  // execution.
+  CHECK(window);
+
+  Frame* target_frame = window->GetFrame();
+  if (!target_frame) {
+    resolver->RejectWithDOMException(DOMExceptionCode::kInvalidStateError,
+                                     "Target frame is detached.");
+    return promise;
+  }
+  blink::FrameToken frame_token = target_frame->GetFrameToken();
+
+  // Because the document is active, we know `local_frame` is non-null.
+  LocalFrame* local_frame = document_->GetFrame();
+  CHECK(local_frame);
+
+  std::unique_ptr<ScopedAbortState> scoped_abort_state;
+  if (options && options->hasSignal()) {
+    AbortSignal* signal = options->signal();
+    if (signal->aborted()) {
+      resolver->RejectWithDOMException(DOMExceptionCode::kAbortError,
+                                       "Execution cancelled.");
+      return promise;
+    }
+
+    auto* handle = signal->AddAlgorithm(BindOnce(
+        [](ScriptPromiseResolver<IDLNullable<IDLString>>* resolver,
+           ScriptState* script_state, AbortSignal* signal) {
+          if (resolver->GetScriptState() &&
+              resolver->GetScriptState()->ContextIsValid()) {
+            resolver->Reject(signal->reason(script_state));
+          }
+        },
+        WrapPersistent(resolver), WrapPersistent(script_state),
+        WrapPersistent(signal)));
+
+    scoped_abort_state = std::make_unique<ScopedAbortState>(signal, handle);
+  }
+
+  model_context_host_remote_->ExecuteRemoteScriptTool(
+      frame_token, SecurityOrigin::CreateFromString(tool->origin()),
+      tool->name(), input_arguments,
+      blink::BindOnce(
+          [](ModelContext* self,
+             ScriptPromiseResolver<IDLNullable<IDLString>>* resolver,
+             std::unique_ptr<ScopedAbortState> abort_state,
+             const String& result, bool success) {
+            if (self) {
+              self->OnExecuteScriptToolCompleted(resolver, result, success);
+            }
+          },
+          WrapWeakPersistent(this), WrapPersistent(resolver),
+          std::move(scoped_abort_state)));
+  return promise;
+}
+
+void ModelContext::OnExecuteScriptToolCompleted(
+    ScriptPromiseResolver<IDLNullable<IDLString>>* resolver,
+    const String& result,
+    bool success) {
+  // For the execution result to have been received from the browser process
+  // over mojo, the frame/Document that sent the execution must not be detached,
+  // and the same goes for the `resolver` that is tied to those objects.
+  CHECK(resolver->GetScriptState() &&
+        resolver->GetScriptState()->ContextIsValid());
+
+  // `result` is either the result or the error string, so we can use it
+  // unconditionally below.
+  if (success) {
+    resolver->Resolve(result);
+  } else {
+    // TODO(https://crbug.com/509555636): Support more granular execution error
+    // reasons.
+    resolver->RejectWithDOMException(DOMExceptionCode::kUnknownError, result);
+  }
 }
 
 void ModelContext::Trace(Visitor* visitor) const {

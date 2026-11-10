@@ -47,7 +47,7 @@ class PayloadType : public StrongAlias<class PayloadTypeTag, int> {
   // Factory function for the NotSet value. This should be the only way
   // to create a value outside the valid range.
   static constexpr PayloadType NotSet() { return PayloadType(Internal{}, -1); }
-  bool Valid(bool rtcp_mux = false) {
+  bool Valid(bool rtcp_mux = false) const {
     // A payload type is a 7-bit value in the RTP header, so max = 127.
     // If RTCP multiplexing is used, the numbers from 64 to 95 are reserved
     // for RTCP packets.
@@ -60,7 +60,7 @@ class PayloadType : public StrongAlias<class PayloadTypeTag, int> {
   static bool IsValid(PayloadType id, bool rtcp_mux) {
     return id.Valid(rtcp_mux);
   }
-  bool IsSet() { return value() >= 0; }
+  bool IsSet() const { return value() >= 0; }
 
  private:
   class Internal {};

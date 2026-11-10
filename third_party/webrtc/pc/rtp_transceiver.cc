@@ -1369,7 +1369,10 @@ void RtpTransceiver::OnNegotiationUpdate(
 
 bool RtpTransceiver::SetRtpTransport(RtpTransportInternal* transport) {
   RTC_DCHECK_RUN_ON(context()->network_thread());
-  RTC_DCHECK(channel_);
+
+  if (!channel_) {
+    return true;
+  }
 
   if (transport == rtp_transport_) {
     return true;

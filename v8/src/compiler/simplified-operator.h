@@ -171,9 +171,9 @@ struct FieldAccess {
             maybe_initializing_or_transitioning_store),
         is_immutable(is_immutable) {
     DCHECK_GE(offset, 0);
-    DCHECK_IMPLIES(
-        machine_type.IsMapWord(),
-        offset == HeapObject::kMapOffset && base_is_tagged != kUntaggedBase);
+    DCHECK_IMPLIES(machine_type.IsMapWord(),
+                   offset == offsetof(HeapObject, map_) &&
+                       base_is_tagged != kUntaggedBase);
     DCHECK_IMPLIES(machine_type.IsMapWord(),
                    (write_barrier_kind == kMapWriteBarrier ||
                     write_barrier_kind == kNoWriteBarrier ||
@@ -1010,12 +1010,16 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringWrapperLength();
   const Operator* StringToLowerCaseIntl();
   const Operator* StringToUpperCaseIntl();
+  const Operator* StringLocaleCompareIntl();
   const Operator* StringSubstring();
 
   const Operator* TypedArrayLength(ElementsKind elements_kind);
 
   const Operator* FindOrderedHashMapEntryForInt32Key();
   const Operator* FindOrderedCollectionEntry(CollectionKind collection_kind);
+
+  // WeakMap.prototype.get lowering. Inputs: receiver (JSWeakCollection), key.
+  const Operator* WeakCollectionGet();
 
   const Operator* SpeculativeToNumber(NumberOperationHint hint,
                                       const FeedbackSource& feedback);
@@ -1122,6 +1126,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedInt64ToAdditiveSafeInteger(
       const FeedbackSource& feedback);
   const Operator* CheckedInt64ToTaggedSigned(const FeedbackSource& feedback);
+  const Operator* CheckedInt64ToUint64(const FeedbackSource& feedback);
   const Operator* CheckedTaggedSignedToInt32(const FeedbackSource& feedback);
   const Operator* CheckedTaggedToFloat64(CheckTaggedInputMode,
                                          const FeedbackSource& feedback);

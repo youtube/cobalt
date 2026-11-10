@@ -91,6 +91,14 @@ BASE_DECLARE_FEATURE(kContextualTasksBackButtonExpandsSidePanel);
 // Enables lazy fetching of cluster info for multimodal queries.
 BASE_DECLARE_FEATURE(kContextualTasksLazyFetchClusterInfo);
 
+// Enables the use of APC comparison for webpages in the recontextualization
+// flow.
+BASE_DECLARE_FEATURE(kContextualTasksWebpageApcComparison);
+
+// Enables the Java implementation of the Contextual Tasks Fusebox. Android
+// only.
+BASE_DECLARE_FEATURE(kContextualTasksJavaFusebox);
+
 bool GetIsContextualTasksUpdateModeOnNavigationEnabled();
 
 bool GetIsContextualTasksPdfCitationsEnabled();
@@ -309,6 +317,9 @@ extern bool IsRoundedClipPathEnabled();
 // Returns whether the pin button in toolbar is enabled.
 extern bool IsContextualTasksPinButtonInToolbarEnabled();
 
+// Returns whether the webpage APC comparison is enabled.
+extern bool GetIsWebpageApcComparisonEnabled();
+
 namespace flag_descriptions {
 
 extern const char kContextualTasksName[];
@@ -319,6 +330,8 @@ extern const char kContextualTasksContextName[];
 extern const char kContextualTasksContextDescription[];
 extern const char kContextualTasksSuggestionsEnabledName[];
 extern const char kContextualTasksSuggestionsEnabledDescription[];
+extern const char kContextualTasksJavaFuseboxName[];
+extern const char kContextualTasksJavaFuseboxDescription[];
 extern const char kContextualTasksBackButtonExpandsSidePanelName[];
 extern const char kContextualTasksBackButtonExpandsSidePanelDescription[];
 

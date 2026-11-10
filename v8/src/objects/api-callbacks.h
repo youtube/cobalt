@@ -29,7 +29,7 @@ class StructBodyDescriptor;
 // If the accessor in the prototype has the READ_ONLY property attribute, then
 // a new value is added to the derived object when the property is set.
 // This shadows the accessor in the prototype.
-V8_OBJECT class AccessorInfo : public HeapObjectLayout {
+V8_OBJECT class AccessorInfo : public HeapObject {
  public:
   inline Tagged<Object> data() const;
   inline void set_data(Tagged<Object> value,
@@ -88,12 +88,6 @@ V8_OBJECT class AccessorInfo : public HeapObjectLayout {
 
   class BodyDescriptor;
 
-  // Back-compat offset/size constants.
-  static const int kDataOffset;
-  static const int kNameOffset;
-  static const int kGetterOffset;
-  static const int kSetterOffset;
-  static const int kFlagsOffset;
   static const int kOptionalPaddingOffset;
   static const int kOptionalPaddingOffsetEnd;
   static const int kEndOfStrongFieldsOffset;
@@ -116,22 +110,14 @@ V8_OBJECT class AccessorInfo : public HeapObjectLayout {
 #endif  // TAGGED_SIZE_8_BYTES
 } V8_OBJECT_END;
 
-inline constexpr int AccessorInfo::kDataOffset = offsetof(AccessorInfo, data_);
-inline constexpr int AccessorInfo::kNameOffset = offsetof(AccessorInfo, name_);
-inline constexpr int AccessorInfo::kGetterOffset =
-    offsetof(AccessorInfo, getter_);
-inline constexpr int AccessorInfo::kSetterOffset =
-    offsetof(AccessorInfo, setter_);
-inline constexpr int AccessorInfo::kFlagsOffset =
-    offsetof(AccessorInfo, flags_);
 inline constexpr int AccessorInfo::kOptionalPaddingOffset =
-    AccessorInfo::kFlagsOffset + sizeof(uint32_t);
+    offsetof(AccessorInfo, flags_) + sizeof(uint32_t);
 inline constexpr int AccessorInfo::kOptionalPaddingOffsetEnd =
     TAGGED_SIZE_8_BYTES
         ? AccessorInfo::kOptionalPaddingOffset + sizeof(uint32_t) - 1
         : AccessorInfo::kOptionalPaddingOffset - 1;
 inline constexpr int AccessorInfo::kEndOfStrongFieldsOffset =
-    AccessorInfo::kGetterOffset;
+    offsetof(AccessorInfo, getter_);
 inline constexpr int AccessorInfo::kSize = sizeof(AccessorInfo);
 
 V8_OBJECT class AccessCheckInfo : public Struct {
@@ -190,7 +176,7 @@ V8_OBJECT class AccessCheckInfo : public Struct {
   COMMON_INTERCEPTOR_INFO_CALLBACK_LIST(V)        \
   V(IndexOf, index_of)
 
-V8_OBJECT class InterceptorInfo : public HeapObjectLayout {
+V8_OBJECT class InterceptorInfo : public HeapObject {
  public:
   inline Tagged<Object> data() const;
   inline void set_data(Tagged<Object> value,
@@ -268,19 +254,8 @@ V8_OBJECT class InterceptorInfo : public HeapObjectLayout {
 
   class BodyDescriptor;
 
-  // Back-compat offset/size constants.
-  static const int kDataOffset;
-  static const int kFlagsOffset;
   static const int kOptionalPaddingOffset;
   static const int kOptionalPaddingOffsetEnd;
-  static const int kGetterOffset;
-  static const int kSetterOffset;
-  static const int kQueryOffset;
-  static const int kDescriptorOffset;
-  static const int kDeleterOffset;
-  static const int kEnumeratorOffset;
-  static const int kDefinerOffset;
-  static const int kIndexOfOffset;
   static const int kEndOfStrongFieldsOffset;
   static const int kIndexOfOffsetEnd;
   static const int kSize;
@@ -307,36 +282,16 @@ V8_OBJECT class InterceptorInfo : public HeapObjectLayout {
   ExternalPointerMember<kApiIndexedPropertyIndexOfCallbackTag> index_of_;
 } V8_OBJECT_END;
 
-inline constexpr int InterceptorInfo::kDataOffset =
-    offsetof(InterceptorInfo, data_);
-inline constexpr int InterceptorInfo::kFlagsOffset =
-    offsetof(InterceptorInfo, flags_);
 inline constexpr int InterceptorInfo::kOptionalPaddingOffset =
-    InterceptorInfo::kFlagsOffset + sizeof(uint32_t);
+    offsetof(InterceptorInfo, flags_) + sizeof(uint32_t);
 inline constexpr int InterceptorInfo::kOptionalPaddingOffsetEnd =
     TAGGED_SIZE_8_BYTES
         ? InterceptorInfo::kOptionalPaddingOffset + sizeof(uint32_t) - 1
         : InterceptorInfo::kOptionalPaddingOffset - 1;
-inline constexpr int InterceptorInfo::kGetterOffset =
-    offsetof(InterceptorInfo, getter_);
-inline constexpr int InterceptorInfo::kSetterOffset =
-    offsetof(InterceptorInfo, setter_);
-inline constexpr int InterceptorInfo::kQueryOffset =
-    offsetof(InterceptorInfo, query_);
-inline constexpr int InterceptorInfo::kDescriptorOffset =
-    offsetof(InterceptorInfo, descriptor_);
-inline constexpr int InterceptorInfo::kDeleterOffset =
-    offsetof(InterceptorInfo, deleter_);
-inline constexpr int InterceptorInfo::kEnumeratorOffset =
-    offsetof(InterceptorInfo, enumerator_);
-inline constexpr int InterceptorInfo::kDefinerOffset =
-    offsetof(InterceptorInfo, definer_);
-inline constexpr int InterceptorInfo::kIndexOfOffset =
-    offsetof(InterceptorInfo, index_of_);
 inline constexpr int InterceptorInfo::kEndOfStrongFieldsOffset =
-    InterceptorInfo::kFlagsOffset;
+    offsetof(InterceptorInfo, flags_);
 inline constexpr int InterceptorInfo::kIndexOfOffsetEnd =
-    InterceptorInfo::kIndexOfOffset +
+    offsetof(InterceptorInfo, index_of_) +
     sizeof(ExternalPointerMember<kApiIndexedPropertyIndexOfCallbackTag>) - 1;
 inline constexpr int InterceptorInfo::kSize = sizeof(InterceptorInfo);
 

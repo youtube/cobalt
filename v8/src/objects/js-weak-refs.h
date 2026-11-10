@@ -107,14 +107,6 @@ V8_OBJECT class JSFinalizationRegistry : public JSObject {
   // Bitfields in flags.
   DEFINE_TORQUE_GENERATED_FINALIZATION_REGISTRY_FLAGS()
 
-  // Back-compat offset/size constants.
-  static const int kNativeContextOffset;
-  static const int kCleanupOffset;
-  static const int kActiveCellsOffset;
-  static const int kClearedCellsOffset;
-  static const int kKeyMapOffset;
-  static const int kNextDirtyOffset;
-  static const int kFlagsOffset;
   static const int kHeaderSize;
 
  public:
@@ -130,25 +122,11 @@ V8_OBJECT class JSFinalizationRegistry : public JSObject {
   friend class TorqueGeneratedJSFinalizationRegistryAsserts;
 } V8_OBJECT_END;
 
-inline constexpr int JSFinalizationRegistry::kNativeContextOffset =
-    offsetof(JSFinalizationRegistry, native_context_);
-inline constexpr int JSFinalizationRegistry::kCleanupOffset =
-    offsetof(JSFinalizationRegistry, cleanup_);
-inline constexpr int JSFinalizationRegistry::kActiveCellsOffset =
-    offsetof(JSFinalizationRegistry, active_cells_);
-inline constexpr int JSFinalizationRegistry::kClearedCellsOffset =
-    offsetof(JSFinalizationRegistry, cleared_cells_);
-inline constexpr int JSFinalizationRegistry::kKeyMapOffset =
-    offsetof(JSFinalizationRegistry, key_map_);
-inline constexpr int JSFinalizationRegistry::kNextDirtyOffset =
-    offsetof(JSFinalizationRegistry, next_dirty_);
-inline constexpr int JSFinalizationRegistry::kFlagsOffset =
-    offsetof(JSFinalizationRegistry, flags_);
 inline constexpr int JSFinalizationRegistry::kHeaderSize =
     sizeof(JSFinalizationRegistry);
 
 // Internal object for storing weak references in JSFinalizationRegistry.
-V8_OBJECT class WeakCell : public HeapObjectLayout {
+V8_OBJECT class WeakCell : public HeapObject {
  public:
   inline Tagged<JSFinalizationRegistry> finalization_registry() const;
   inline void set_finalization_registry(

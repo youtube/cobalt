@@ -70,7 +70,7 @@ void CompilationCacheScript::Age() {
 
   for (InternalIndex entry : table->IterateEntries()) {
     Tagged<Object> key;
-    if (!table->ToKey(isolate(), entry, &key)) continue;
+    if (!table->ToKey(entry, &key)) continue;
     DCHECK(IsWeakFixedArray(key));
 
     Tagged<Object> value = table->PrimaryValueAt(entry);
@@ -93,7 +93,7 @@ void CompilationCacheEval::Age() {
 
   for (InternalIndex entry : table->IterateEntries()) {
     Tagged<Object> key;
-    if (!table->ToKey(isolate(), entry, &key)) continue;
+    if (!table->ToKey(entry, &key)) continue;
 
     DCHECK(IsFixedArray(key));
     // The ageing mechanism for eval caches.

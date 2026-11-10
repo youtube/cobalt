@@ -343,7 +343,7 @@ void DataChannelController::OnDataChannelOpenMessage(
     scoped_refptr<SctpDataChannel> channel,
     bool ready_to_send) {
   channel_usage_ = DataChannelUsage::kInUse;
-  auto proxy = SctpDataChannel::CreateProxy(channel, signaling_safety_.flag());
+  auto proxy = SctpDataChannel::CreateProxy(channel);
 
   pc_->RunWithObserver([&](auto observer) { observer->OnDataChannel(proxy); });
   pc_->NoteDataAddedEvent();
@@ -408,7 +408,7 @@ DataChannelController::CreateDataChannel(absl::string_view label,
 
   scoped_refptr<SctpDataChannel> channel = SctpDataChannel::Create(
       weak_factory_.GetWeakPtr(), label, data_channel_transport_ != nullptr,
-      config, signaling_thread(), network_thread());
+      config, signaling_safety_.flag(), signaling_thread(), network_thread());
   RTC_DCHECK(channel);
 
   // If we have an id already, notify the transport.
@@ -465,8 +465,7 @@ DataChannelController::InternalCreateDataChannelWithProxy(
     return ret.MoveError();
 
   channel_usage_ = DataChannelUsage::kInUse;
-  return SctpDataChannel::CreateProxy(ret.MoveValue(),
-                                      signaling_safety_.flag());
+  return SctpDataChannel::CreateProxy(ret.MoveValue());
 }
 
 void DataChannelController::AllocateSctpSids(SSLRole role) {

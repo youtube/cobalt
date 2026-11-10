@@ -193,7 +193,7 @@ static int conn_state(BIO *bio, BIO_CONNECT *c) {
                       c->them_length);
         if (ret < 0) {
           if (bio_socket_should_retry(ret)) {
-            BIO_set_flags(bio, (BIO_FLAGS_IO_SPECIAL | BIO_FLAGS_SHOULD_RETRY));
+            BIO_set_retry_special(bio);
             c->state = BIO_CONN_S_BLOCKED_CONNECT;
             BIO_set_retry_reason(bio, BIO_RR_CONNECT);
           } else {
@@ -212,7 +212,7 @@ static int conn_state(BIO *bio, BIO_CONNECT *c) {
         i = bio_sock_error(FromOpaque(bio)->num);
         if (i) {
           if (bio_socket_should_retry(ret)) {
-            BIO_set_flags(bio, (BIO_FLAGS_IO_SPECIAL | BIO_FLAGS_SHOULD_RETRY));
+            BIO_set_retry_special(bio);
             c->state = BIO_CONN_S_BLOCKED_CONNECT;
             BIO_set_retry_reason(bio, BIO_RR_CONNECT);
             ret = -1;

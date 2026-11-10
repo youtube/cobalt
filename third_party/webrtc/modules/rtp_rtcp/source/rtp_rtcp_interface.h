@@ -98,6 +98,11 @@ class RtpRtcpInterface : public RtcpFeedbackSenderInterface {
 
     int rtcp_report_interval_ms = 0;
 
+    // Initial RTCP status. Defaults to kCompound to ensure that all high-level
+    // media streams (which commonly assume active RTCP by default) have RTCP
+    // enabled immediately upon construction.
+    RtcpMode rtcp_mode = RtcpMode::kCompound;
+
     // Update network2 instead of pacer_exit field of video timing extension.
     bool populate_network2_timestamp = false;
 
@@ -122,6 +127,7 @@ class RtpRtcpInterface : public RtcpFeedbackSenderInterface {
     // FlexFec SSRC is fetched from `flexfec_sender`.
     uint32_t local_media_ssrc = 0;
     std::optional<uint32_t> rtx_send_ssrc;
+    std::optional<uint32_t> remote_ssrc;
 
     bool need_rtp_packet_infos = false;
 

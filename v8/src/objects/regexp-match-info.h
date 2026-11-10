@@ -88,7 +88,7 @@ V8_OBJECT class RegExpMatchInfo
   class BodyDescriptor;
 
   static constexpr uint32_t kMinCapacity = 2;
-  static constexpr uint32_t kLengthOffset = HeapObject::kHeaderSize;
+  static constexpr uint32_t kLengthOffset = sizeof(HeapObject);
   static constexpr uint32_t kHeaderSize =
       kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kApiInt32Size);
 } V8_OBJECT_END;

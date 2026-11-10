@@ -85,7 +85,7 @@ TEST(REGRESS_1088273) {
   // mjsunit test. We do not have I64x2Mul lowering yet, so this will cause a
   // crash on arch that don't support SIMD 128 and require lowering, thus
   // explicitly skip them.
-  if (!CpuFeatures::SupportsWasmSimd128()) return;
+  if (!CpuFeatures::SupportsSimd128()) return;
 
   WasmRunner<int32_t> r(TestExecutionTier::kLiftoff);
   TestSignatures sigs;

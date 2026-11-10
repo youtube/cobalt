@@ -13,7 +13,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/intent_picker_bubble_view.h"
@@ -438,20 +437,12 @@ IN_PROC_BROWSER_TEST_F(WebInstallCurrentDocumentBrowserTest,
 using WebInstallNotSupportedDialogBrowserTest =
     WebInstallCurrentDocumentBrowserTest;
 
-// TODO(crbug.com/506988874): This test is flaky or fails on several platforms.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_NotSupportedDialogInIncognito_CurrentDocument \
-  NotSupportedDialogInIncognito_CurrentDocument
-#else
-#define MAYBE_NotSupportedDialogInIncognito_CurrentDocument \
-  DISABLED_NotSupportedDialogInIncognito_CurrentDocument
-#endif
 IN_PROC_BROWSER_TEST_F(WebInstallNotSupportedDialogBrowserTest,
-                       MAYBE_NotSupportedDialogInIncognito_CurrentDocument) {
+                       NotSupportedDialogInIncognito_CurrentDocument) {
   // Open incognito window and navigate to a valid URL.
   GURL test_url = embedded_https_test_server().GetURL("/simple.html");
-  Browser* incognito_browser =
-      OpenURLOffTheRecord(browser()->profile(), test_url);
+  Browser* incognito_browser = CreateIncognitoBrowser();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(incognito_browser, test_url));
 
   views::NamedWidgetShownWaiter widget_waiter(
       views::test::AnyWidgetTestPasskey{}, "WebAppInstallNotSupportedDialog");
@@ -502,20 +493,12 @@ IN_PROC_BROWSER_TEST_F(WebInstallNotSupportedDialogBrowserTest,
                                1);
 }
 
-// TODO(crbug.com/506988874): This test is flaky or fails on several platforms.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_NotSupportedDialogInIncognito_BackgroundDocument \
-  NotSupportedDialogInIncognito_BackgroundDocument
-#else
-#define MAYBE_NotSupportedDialogInIncognito_BackgroundDocument \
-  DISABLED_NotSupportedDialogInIncognito_BackgroundDocument
-#endif
 IN_PROC_BROWSER_TEST_F(WebInstallNotSupportedDialogBrowserTest,
-                       MAYBE_NotSupportedDialogInIncognito_BackgroundDocument) {
+                       NotSupportedDialogInIncognito_BackgroundDocument) {
   // Open incognito window and navigate to a valid URL.
   GURL test_url = embedded_https_test_server().GetURL("/simple.html");
-  Browser* incognito_browser =
-      OpenURLOffTheRecord(browser()->profile(), test_url);
+  Browser* incognito_browser = CreateIncognitoBrowser();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(incognito_browser, test_url));
 
   const GURL background_doc_install_url = embedded_https_test_server().GetURL(
       "/banners/manifest_with_id_test_page.html");
@@ -588,20 +571,12 @@ IN_PROC_BROWSER_TEST_F(WebInstallNotSupportedDialogBrowserTest,
             ukm::SourceIdType::APP_ID);
 }
 
-// TODO(crbug.com/506988874): This test is flaky or fails on several platforms.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_NotSupportedDialogAfterTabSwitching \
-  NotSupportedDialogAfterTabSwitching
-#else
-#define MAYBE_NotSupportedDialogAfterTabSwitching \
-  DISABLED_NotSupportedDialogAfterTabSwitching
-#endif
 IN_PROC_BROWSER_TEST_F(WebInstallNotSupportedDialogBrowserTest,
-                       MAYBE_NotSupportedDialogAfterTabSwitching) {
+                       NotSupportedDialogAfterTabSwitching) {
   // Open incognito window and navigate to a valid URL.
   GURL test_url = embedded_https_test_server().GetURL("/simple.html");
-  Browser* incognito_browser =
-      OpenURLOffTheRecord(browser()->profile(), test_url);
+  Browser* incognito_browser = CreateIncognitoBrowser();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(incognito_browser, test_url));
 
   views::NamedWidgetShownWaiter widget_waiter(
       views::test::AnyWidgetTestPasskey{}, "WebAppInstallNotSupportedDialog");

@@ -207,8 +207,9 @@ WriteBarrierModeScope GetWriteBarrierMode(
     Tagged<FixedArrayBase> elements, ElementsKind kind,
     const DisallowGarbageCollection& promise) {
   if (IsSmiElementsKind(kind)) return WriteBarrierModeScope(SKIP_WRITE_BARRIER);
-  if (IsDoubleElementsKind(kind))
+  if (IsDoubleElementsKind(kind)) {
     return WriteBarrierModeScope(SKIP_WRITE_BARRIER);
+  }
   return elements->GetWriteBarrierMode(promise);
 }
 
@@ -1675,7 +1676,7 @@ class DictionaryElementsAccessor
           // Find last non-deletable element in range of elements to be
           // deleted and adjust range accordingly.
           for (InternalIndex entry : dict->IterateEntries()) {
-            Tagged<Object> index = dict->KeyAt(isolate, entry);
+            Tagged<Object> index = dict->KeyAt(entry);
             if (dict->IsKey(roots, index)) {
               uint32_t number =
                   static_cast<uint32_t>(Object::NumberValue(index));
@@ -1694,7 +1695,7 @@ class DictionaryElementsAccessor
           // Remove elements that should be deleted.
           int removed_entries = 0;
           for (InternalIndex entry : dict->IterateEntries()) {
-            Tagged<Object> index = dict->KeyAt(isolate, entry);
+            Tagged<Object> index = dict->KeyAt(entry);
             if (dict->IsKey(roots, index)) {
               uint32_t number =
                   static_cast<uint32_t>(Object::NumberValue(index));
@@ -1739,10 +1740,9 @@ class DictionaryElementsAccessor
     DisallowGarbageCollection no_gc;
     Tagged<NumberDictionary> dict = Cast<NumberDictionary>(backing_store);
     if (!dict->requires_slow_elements()) return false;
-    PtrComprCageBase cage_base = GetPtrComprCageBase(holder);
     ReadOnlyRoots roots = GetReadOnlyRoots();
     for (InternalIndex i : dict->IterateEntries()) {
-      Tagged<Object> key = dict->KeyAt(cage_base, i);
+      Tagged<Object> key = dict->KeyAt(i);
       if (!dict->IsKey(roots, key)) continue;
       PropertyDetails details = dict->DetailsAt(i);
       if (details.kind() == PropertyKind::kAccessor) return true;
@@ -1826,12 +1826,28 @@ class DictionaryElementsAccessor
             ? JSObject::NormalizeElements(isolate, object)
             : direct_handle(Cast<NumberDictionary>(object->elements()),
                             isolate);
+    // If the dictionary needs to grow, use TryEnsureCapacity to avoid a
+    // fatal OOM crash in HashTable::New if the maximum table capacity would
+    // be exceeded.  After this, Add's internal EnsureCapacity is a no-op.
+    // To avoid slowing down the common case we inline the check for whether
+    // the dictionary needs to grow or shrink.
+    if (V8_UNLIKELY(!dictionary->HasSufficientCapacityToAdd(1))) {
+      DirectHandle<NumberDictionary> grown;
+      if (!NumberDictionary::TryEnsureCapacity(isolate, dictionary)
+               .To(&grown)) {
+        THROW_NEW_ERROR_RETURN_VALUE(
+            isolate, NewRangeError(MessageTemplate::kInvalidArrayLength),
+            Nothing<bool>());
+      }
+      object->set_elements(*grown);
+      dictionary = grown;
+    }
     DirectHandle<NumberDictionary> new_dictionary =
         NumberDictionary::Add(isolate, dictionary, index, value, details);
-    new_dictionary->UpdateMaxNumberKey(index, object);
-    if (attributes != NONE) object->RequireSlowElements(*new_dictionary);
-    if (dictionary.is_identical_to(new_dictionary)) return Just(true);
-    object->set_elements(*new_dictionary);
+    DCHECK(dictionary.is_identical_to(new_dictionary));
+    USE(new_dictionary);
+    dictionary->UpdateMaxNumberKey(index, object);
+    if (attributes != NONE) object->RequireSlowElements(*dictionary);
     return Just(true);
   }
 
@@ -1839,7 +1855,7 @@ class DictionaryElementsAccessor
                            InternalIndex entry) {
     DisallowGarbageCollection no_gc;
     Tagged<NumberDictionary> dict = Cast<NumberDictionary>(store);
-    Tagged<Object> index = dict->KeyAt(isolate, entry);
+    Tagged<Object> index = dict->KeyAt(entry);
     return !IsTheHole(index, isolate);
   }
 
@@ -1889,7 +1905,7 @@ class DictionaryElementsAccessor
                                      InternalIndex entry,
                                      PropertyFilter filter) {
     DisallowGarbageCollection no_gc;
-    Tagged<Object> raw_key = dictionary->KeyAt(isolate, entry);
+    Tagged<Object> raw_key = dictionary->KeyAt(entry);
     if (!dictionary->IsKey(ReadOnlyRoots(isolate), raw_key)) return kMaxUInt32;
     return FilterKey(dictionary, entry, raw_key, filter);
   }
@@ -1907,7 +1923,7 @@ class DictionaryElementsAccessor
     ReadOnlyRoots roots(isolate);
     for (InternalIndex i : dictionary->IterateEntries()) {
       AllowGarbageCollection allow_gc;
-      Tagged<Object> raw_key = dictionary->KeyAt(isolate, i);
+      Tagged<Object> raw_key = dictionary->KeyAt(i);
       if (!dictionary->IsKey(roots, raw_key)) continue;
       uint32_t key = FilterKey(dictionary, i, raw_key, filter);
       if (key == kMaxUInt32) {
@@ -1953,9 +1969,9 @@ class DictionaryElementsAccessor
         Cast<NumberDictionary>(receiver->elements()), isolate);
     ReadOnlyRoots roots(isolate);
     for (InternalIndex i : dictionary->IterateEntries()) {
-      Tagged<Object> k = dictionary->KeyAt(isolate, i);
+      Tagged<Object> k = dictionary->KeyAt(i);
       if (!dictionary->IsKey(roots, k)) continue;
-      Tagged<Object> value = dictionary->ValueAt(isolate, i);
+      Tagged<Object> value = dictionary->ValueAt(i);
       DCHECK(!IsTheHole(value, isolate));
       DCHECK(!IsAccessorPair(value));
       DCHECK(!IsAccessorInfo(value));
@@ -1979,7 +1995,7 @@ class DictionaryElementsAccessor
     // must be accessed in order via the slow path.
     bool found = false;
     for (InternalIndex i : dictionary->IterateEntries()) {
-      Tagged<Object> k = dictionary->KeyAt(isolate, i);
+      Tagged<Object> k = dictionary->KeyAt(i);
       if (k == the_hole) continue;
       if (k == undefined) continue;
 
@@ -1994,7 +2010,7 @@ class DictionaryElementsAccessor
         // access getters out of order
         return false;
       } else if (!found) {
-        Tagged<Object> element_k = dictionary->ValueAt(isolate, i);
+        Tagged<Object> element_k = dictionary->ValueAt(i);
         if (Object::SameValueZero(*value, element_k)) found = true;
       }
     }
@@ -5282,8 +5298,9 @@ class SloppyArgumentsElementsAccessor
     uint32_t length = elements->ulength().value();
 
     for (uint32_t i = 0; i < length; ++i) {
-      if (IsTheHole(elements->mapped_entries(i, kRelaxedLoad), isolate))
+      if (IsTheHole(elements->mapped_entries(i, kRelaxedLoad), isolate)) {
         continue;
+      }
       if (convert == GetKeysConversion::kConvertToString) {
         DirectHandle<String> index_string =
             isolate->factory()->Uint32ToString(i);

@@ -177,17 +177,20 @@ class ConsoleHelper {
   }
 
   v8::MaybeLocal<v8::Object> firstArgAsObject() {
-    if (m_info.Length() < 1 || !m_info[0]->IsObject())
+    if (m_info.Length() < 1 || !m_info[0]->IsObject()) {
       return v8::MaybeLocal<v8::Object>();
+    }
     return m_info[0].As<v8::Object>();
   }
 
   v8::MaybeLocal<v8::Function> firstArgAsFunction() {
-    if (m_info.Length() < 1 || !m_info[0]->IsFunction())
+    if (m_info.Length() < 1 || !m_info[0]->IsFunction()) {
       return v8::MaybeLocal<v8::Function>();
+    }
     v8::Local<v8::Function> func = m_info[0].As<v8::Function>();
-    while (func->GetBoundFunction()->IsFunction())
+    while (func->GetBoundFunction()->IsFunction()) {
       func = func->GetBoundFunction().As<v8::Function>();
+    }
     return func;
   }
 
@@ -210,8 +213,9 @@ void createBoundFunctionProperty(
   v8::Local<v8::Function> func;
   if (!v8::Function::New(context, callback, data, 0,
                          v8::ConstructorBehavior::kThrow, side_effect_type)
-           .ToLocal(&func))
+           .ToLocal(&func)) {
     return;
+  }
   func->SetName(funcName);
   createDataProperty(context, console, funcName, func);
 }
@@ -362,8 +366,9 @@ void V8Console::Assert(const v8::debug::ConsoleCallArguments& info,
   v8::Isolate* isolate = m_inspector->isolate();
   v8::LocalVector<v8::Value> arguments(isolate);
   for (int i = 1; i < info.Length(); ++i) arguments.push_back(info[i]);
-  if (info.Length() < 2)
+  if (info.Length() < 2) {
     arguments.push_back(toV8String(isolate, String16("console.assert")));
+  }
   helper.reportCall(ConsoleAPIType::kAssert,
                     {arguments.begin(), arguments.end()});
   m_inspector->debugger()->breakProgramOnAssert(helper.groupId());
@@ -475,8 +480,9 @@ void V8Console::memoryGetterCallback(
   if (!m_inspector->client()
            ->memoryInfo(info.GetIsolate(),
                         info.GetIsolate()->GetCurrentContext())
-           .ToLocal(&memoryValue))
+           .ToLocal(&memoryValue)) {
     return;
+  }
   info.GetReturnValue().Set(memoryValue);
 }
 
@@ -628,8 +634,9 @@ void V8Console::keysCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
   v8::Local<v8::Object> obj;
   if (!helper.firstArgAsObject().ToLocal(&obj)) return;
   v8::Local<v8::Array> names;
-  if (!obj->GetOwnPropertyNames(isolate->GetCurrentContext()).ToLocal(&names))
+  if (!obj->GetOwnPropertyNames(isolate->GetCurrentContext()).ToLocal(&names)) {
     return;
+  }
   info.GetReturnValue().Set(names);
 }
 
@@ -704,16 +711,18 @@ void V8Console::monitorFunctionCallback(
   v8::Local<v8::Function> function;
   if (!helper.firstArgAsFunction().ToLocal(&function)) return;
   v8::Local<v8::Value> name = function->GetName();
-  if (!name->IsString() || !name.As<v8::String>()->Length())
+  if (!name->IsString() || !name.As<v8::String>()->Length()) {
     name = function->GetInferredName();
+  }
   String16 functionName =
       toProtocolStringWithTypeCheck(info.GetIsolate(), name);
   String16Builder builder;
   builder.append("console.log(\"function ");
-  if (functionName.isEmpty())
+  if (functionName.isEmpty()) {
     builder.append("(anonymous function)");
-  else
+  } else {
     builder.append(functionName);
+  }
   builder.append(
       " called\" + (typeof arguments !== \"undefined\" && arguments.length > 0 "
       "? \" with arguments: \" + Array.prototype.join.call(arguments, \", \") "
@@ -830,10 +839,11 @@ void V8Console::inspectedObject(const v8::FunctionCallbackInfo<v8::Value>& info,
   if (V8InspectorSessionImpl* session = helper.session(sessionId)) {
     V8InspectorSession::Inspectable* object = session->inspectedObject(num);
     v8::Isolate* isolate = info.GetIsolate();
-    if (object)
+    if (object) {
       info.GetReturnValue().Set(object->get(isolate->GetCurrentContext()));
-    else
+    } else {
       info.GetReturnValue().Set(v8::Undefined(isolate));
+    }
   }
 }
 
@@ -973,8 +983,9 @@ void V8Console::CommandLineAPIScope::accessorGetterCallback(
                                    v8::MicrotasksScope::kDoNotRunMicrotasks);
     if (value.As<v8::Function>()
             ->Call(context, scope->commandLineAPI(), 0, nullptr)
-            .ToLocal(&value))
+            .ToLocal(&value)) {
       info.GetReturnValue().Set(value);
+    }
   } else {
     info.GetReturnValue().Set(value);
   }
@@ -988,8 +999,11 @@ void V8Console::CommandLineAPIScope::accessorSetterCallback(
   if (scope == nullptr) return;
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
   if (!info.Holder()->Delete(context, name).FromMaybe(false)) return;
-  if (!info.Holder()->CreateDataProperty(context, name, value).FromMaybe(false))
+  if (!info.Holder()
+           ->CreateDataProperty(context, name, value)
+           .FromMaybe(false)) {
     return;
+  }
 
   v8::Local<v8::PrimitiveArray> methods = scope->installedMethods();
   for (int i = 0; i < methods->Length(); ++i) {

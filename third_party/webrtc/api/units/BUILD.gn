@@ -109,3 +109,98 @@ if (rtc_include_tests) {
     ]
   }
 }
+
+if (rtc_rust) {
+  rtc_rust_library("time_delta_ffi_rust") {
+    crate_root = "time_delta_ffi.rs"
+    sources = [ "time_delta_ffi.rs" ]
+    deps = [
+      ":time_delta",
+      ":time_delta_rs",
+      "//build/rust:cxx_rustdeps",
+    ]
+  }
+  rtc_rust_cxx_bridge("time_delta_ffi") {
+    source = "time_delta_ffi.rs"
+    deps = [
+      ":time_delta",
+      ":time_delta_ffi_rust",
+      ":time_delta_rs",
+      "//build/rust:cxx_rustdeps",
+    ]
+  }
+
+  rtc_rust_library("time_delta_rs") {
+    allow_unsafe = true
+    crate_root = "time_delta.rs"
+    sources = [ "time_delta.rs" ]
+    deps = [
+      ":time_delta",
+      "//build/rust:cxx_rustdeps",
+    ]
+  }
+
+  rtc_rust_library("timestamp_ffi_rust") {
+    allow_unsafe = true
+    crate_root = "timestamp_ffi.rs"
+    sources = [ "timestamp_ffi.rs" ]
+    deps = [
+      ":timestamp",
+      ":timestamp_rs",
+      "//build/rust:cxx_rustdeps",
+    ]
+  }
+
+  rtc_rust_cxx_bridge("timestamp_ffi") {
+    source = "timestamp_ffi.rs"
+    deps = [
+      ":timestamp",
+      ":timestamp_ffi_rust",
+      ":timestamp_rs",
+      "//build/rust:cxx_rustdeps",
+    ]
+  }
+
+  rtc_rust_library("timestamp_rs") {
+    allow_unsafe = true
+    crate_root = "timestamp.rs"
+    sources = [ "timestamp.rs" ]
+    deps = [
+      ":time_delta_rs",
+      ":timestamp",
+      "//build/rust:cxx_rustdeps",
+    ]
+  }
+
+  if (rtc_include_tests) {
+    rtc_rust_unittest("time_delta_rs_unittests") {
+      allow_unsafe = true
+      crate_root = "time_delta.rs"
+      sources = [ "time_delta.rs" ]
+      deps = [
+        ":time_delta",
+        "//build/rust:cxx_cppdeps",
+        "//build/rust:cxx_rustdeps",
+      ]
+    }
+
+    rtc_rust_unittest("timestamp_rs_unittests") {
+      allow_unsafe = true
+      crate_root = "timestamp.rs"
+      sources = [ "timestamp.rs" ]
+      deps = [
+        ":time_delta_rs",
+        ":timestamp",
+        "//build/rust:cxx_cppdeps",
+        "//build/rust:cxx_rustdeps",
+      ]
+    }
+
+    rtc_rust_test_suite("units_rust_unit_tests") {
+      deps = [
+        ":time_delta_rs_unittests",
+        ":timestamp_rs_unittests",
+      ]
+    }
+  }
+}

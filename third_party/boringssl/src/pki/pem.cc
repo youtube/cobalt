@@ -16,6 +16,7 @@
 #include "string_util.h"
 
 #include <array>
+#include <limits>
 #include <string_view>
 
 namespace {
@@ -81,10 +82,26 @@ bool PEMTokenizer::GetNext() {
       pos_ = footer_pos + it->footer.size();
       block_type_ = it->type;
 
+      // Arbitrarily limit PEM data to INT_MAX / 2 bytes, which "ought to be
+      // enough for anyone". Hardens against possible integer overflows
+      // downstream.
+      if (footer_pos - data_begin > static_cast<std::string_view::size_type>(
+                                        std::numeric_limits<int>::max() / 2)) {
+        return false;
+      }
+
+      // Remove whitespace from the base64 data.
       std::string_view encoded =
           str_.substr(data_begin, footer_pos - data_begin);
-      if (!string_util::Base64Decode(
-              string_util::CollapseWhitespaceASCII(encoded, true), &data_)) {
+      std::string trimmed;
+      trimmed.reserve(encoded.size());
+      for (char c : encoded) {
+        if (c != '\n' && c != '\r' && c != ' ' && c != '\t') {
+          trimmed.push_back(c);
+        }
+      }
+
+      if (!string_util::Base64Decode(trimmed, &data_)) {
         // The most likely cause for a decode failure is a datatype that
         // includes PEM headers, which are not supported.
         break;

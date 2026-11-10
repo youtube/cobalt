@@ -52,6 +52,10 @@ class AudioInput {
 
   virtual int32_t EnableBuiltInAEC(bool enable) = 0;
   virtual int32_t EnableBuiltInNS(bool enable) = 0;
+
+  // Populates the audio input specific fields of the provided stats object.
+  // Returns true if any statistics were updated.
+  virtual bool GetStats(AudioDeviceModule::Stats* stats) const { return false; }
 };
 
 class AudioOutput {
@@ -72,8 +76,28 @@ class AudioOutput {
   virtual std::optional<uint32_t> MinSpeakerVolume() const = 0;
   virtual void AttachAudioBuffer(AudioDeviceBuffer* audioBuffer) = 0;
   virtual int GetPlayoutUnderrunCount() = 0;
+  // Deprecated. Use GetStats(AudioDeviceModule::Stats*) instead.
   virtual std::optional<AudioDeviceModule::Stats> GetStats() const {
     return std::nullopt;
+  }
+  // Populates the audio output specific fields of the provided stats object.
+  // Returns true if any statistics were updated.
+  virtual bool GetStats(AudioDeviceModule::Stats* stats) const {
+    if (!stats) {
+      return false;
+    }
+    std::optional<AudioDeviceModule::Stats> output_stats = GetStats();
+    if (output_stats) {
+      stats->synthesized_samples_duration_s =
+          output_stats->synthesized_samples_duration_s;
+      stats->synthesized_samples_events =
+          output_stats->synthesized_samples_events;
+      stats->total_samples_duration_s = output_stats->total_samples_duration_s;
+      stats->total_playout_delay_s = output_stats->total_playout_delay_s;
+      stats->total_samples_count = output_stats->total_samples_count;
+      return true;
+    }
+    return false;
   }
 };
 

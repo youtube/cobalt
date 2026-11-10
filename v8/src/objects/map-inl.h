@@ -11,7 +11,6 @@
 #include "src/common/globals.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/api-callbacks-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/dependent-code.h"
 #include "src/objects/descriptor-array-inl.h"
@@ -21,6 +20,7 @@
 #include "src/objects/hole.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-function-inl.h"
+#include "src/objects/js-interceptor-map.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/object-predicates-inl.h"
@@ -164,84 +164,11 @@ void Map::init_prototype_and_constructor_or_back_pointer_during_bootstrap(
   prototype_.store(this, UncheckedCast<JSPrototype>(null), SKIP_WRITE_BARRIER);
 }
 
-// PtrComprCageBase forwarding overloads. The cage_base parameter is a no-op
-// for HeapObjectLayout subclasses since fields are accessed via direct memory
-// reads (no decompression hint needed). These exist so that callers continue
-// to work without per-call-site changes.
-#if V8_ENABLE_WEBASSEMBLY
-Tagged<DescriptorArray> Map::instance_descriptors(PtrComprCageBase) const {
-  return instance_descriptors();
-}
-Tagged<UnionOf<DescriptorArray, WasmStruct>> Map::custom_descriptor(
-    PtrComprCageBase) const {
-  return custom_descriptor();
-}
-Tagged<Map> Map::immediate_supertype_map(PtrComprCageBase) const {
-  return immediate_supertype_map();
-}
-Tagged<WasmTypeInfo> Map::wasm_type_info(PtrComprCageBase) const {
-  return wasm_type_info();
-}
-#else
-Tagged<DescriptorArray> Map::instance_descriptors(PtrComprCageBase) const {
-  return instance_descriptors();
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
-Tagged<DescriptorArray> Map::instance_descriptors(PtrComprCageBase,
-                                                  AcquireLoadTag tag) const {
-  return instance_descriptors(tag);
-}
-Tagged<Map::RawTransitionsT> Map::raw_transitions(PtrComprCageBase) const {
-  return raw_transitions();
-}
-Tagged<Map::RawTransitionsT> Map::raw_transitions(PtrComprCageBase,
-                                                  AcquireLoadTag tag) const {
-  return raw_transitions(tag);
-}
-Tagged<JSPrototype> Map::prototype(PtrComprCageBase) const {
-  return prototype();
-}
-Tagged<UnionOf<Smi, PrototypeInfo, PrototypeSharedClosureInfo>>
-Map::prototype_info(PtrComprCageBase) const {
-  return prototype_info();
-}
-Tagged<UnionOf<Smi, PrototypeInfo, PrototypeSharedClosureInfo>>
-Map::prototype_info(PtrComprCageBase, AcquireLoadTag tag) const {
-  return prototype_info(tag);
-}
-Tagged<DependentCode> Map::dependent_code(PtrComprCageBase) const {
-  return dependent_code();
-}
-Tagged<UnionOf<Smi, Cell>> Map::prototype_validity_cell(
-    PtrComprCageBase, RelaxedLoadTag tag) const {
-  return prototype_validity_cell(tag);
-}
-Tagged<Object> Map::constructor_or_back_pointer(PtrComprCageBase) const {
-  return constructor_or_back_pointer();
-}
-Tagged<Object> Map::constructor_or_back_pointer(PtrComprCageBase,
-                                                RelaxedLoadTag tag) const {
-  return constructor_or_back_pointer(tag);
-}
-Tagged<NativeContext> Map::native_context(PtrComprCageBase) const {
-  return native_context();
-}
-Tagged<Object> Map::native_context_or_null(PtrComprCageBase) const {
-  return native_context_or_null();
-}
-Tagged<Object> Map::raw_native_context_or_null(PtrComprCageBase) const {
-  return raw_native_context_or_null();
-}
-
 // constructor_or_back_pointer_or_native_context / transitions_or_prototype_info
 // are direct-field accessors (separate from the type-narrowing
 // constructor_or_back_pointer / native_context / etc. above).
 Tagged<Object> Map::constructor_or_back_pointer_or_native_context() const {
   return constructor_or_back_pointer_or_native_context_.load();
-}
-Tagged<Object> Map::constructor_or_back_pointer_or_native_context(
-    PtrComprCageBase) const {
-  return constructor_or_back_pointer_or_native_context();
 }
 void Map::set_constructor_or_back_pointer_or_native_context(
     Tagged<Object> value, WriteBarrierMode mode) {
@@ -249,9 +176,6 @@ void Map::set_constructor_or_back_pointer_or_native_context(
 }
 Tagged<Object> Map::transitions_or_prototype_info() const {
   return UncheckedCast<Object>(transitions_or_prototype_info_.load());
-}
-Tagged<Object> Map::transitions_or_prototype_info(PtrComprCageBase) const {
-  return transitions_or_prototype_info();
 }
 void Map::set_transitions_or_prototype_info(Tagged<Object> value,
                                             WriteBarrierMode mode) {
@@ -311,17 +235,7 @@ BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_properties,
 BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, construction_counter,
                     Map::Bits3::ConstructionCounterBits)
 
-Tagged<InterceptorInfo> Map::GetNamedInterceptor() const {
-  DCHECK(has_named_interceptor());
-  Tagged<FunctionTemplateInfo> info = GetFunctionTemplateInfo();
-  return Cast<InterceptorInfo>(info->GetNamedPropertyHandler());
-}
 
-Tagged<InterceptorInfo> Map::GetIndexedInterceptor() const {
-  DCHECK(has_indexed_interceptor());
-  Tagged<FunctionTemplateInfo> info = GetFunctionTemplateInfo();
-  return Cast<InterceptorInfo>(info->GetIndexedPropertyHandler());
-}
 
 // static
 bool Map::IsMostGeneralFieldType(Representation representation,
@@ -385,12 +299,12 @@ bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
   return external > limit;
 }
 
-Tagged<Name> Map::GetLastDescriptorName(Isolate* isolate) const {
-  return instance_descriptors(isolate)->GetKey(LastAdded());
+Tagged<Name> Map::GetLastDescriptorName() const {
+  return instance_descriptors()->GetKey(LastAdded());
 }
 
-PropertyDetails Map::GetLastDescriptorDetails(Isolate* isolate) const {
-  return instance_descriptors(isolate)->GetDetails(LastAdded());
+PropertyDetails Map::GetLastDescriptorDetails() const {
+  return instance_descriptors()->GetDetails(LastAdded());
 }
 
 InternalIndex Map::LastAdded() const {
@@ -554,6 +468,7 @@ int Map::AllocatedSize() const {
   if (is_extended_map()) [[unlikely]] {
     // This is an extended map, figure out its size from the extended map kind.
     Tagged<ExtendedMap> self = UncheckedCast<ExtendedMap>(this);
+    DCHECK_LE(ExtendedMap::kMinimumSize, self->map_size());
     return self->map_size();
   }
   // This is either a meta map or a regular map. Currently they have the same
@@ -995,16 +910,13 @@ bool IsPrimitiveMap(Tagged<Map> map) {
   return map->instance_type() <= LAST_PRIMITIVE_HEAP_OBJECT_TYPE;
 }
 
-void Map::UpdateDescriptors(Isolate* isolate,
-                            Tagged<DescriptorArray> descriptors,
+void Map::UpdateDescriptors(Tagged<DescriptorArray> descriptors,
                             int number_of_own_descriptors) {
-  SetInstanceDescriptors(isolate, descriptors, number_of_own_descriptors);
+  SetInstanceDescriptors(descriptors, number_of_own_descriptors);
 }
 
-void Map::InitializeDescriptors(Isolate* isolate,
-                                Tagged<DescriptorArray> descriptors) {
-  SetInstanceDescriptors(isolate, descriptors,
-                         descriptors->number_of_descriptors());
+void Map::InitializeDescriptors(Tagged<DescriptorArray> descriptors) {
+  SetInstanceDescriptors(descriptors, descriptors->number_of_descriptors());
 }
 
 void Map::clear_padding() {
@@ -1014,7 +926,7 @@ void Map::clear_padding() {
 }
 
 void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
-  Tagged<DescriptorArray> descriptors = instance_descriptors(isolate);
+  Tagged<DescriptorArray> descriptors = instance_descriptors();
   int number_of_own_descriptors = NumberOfOwnDescriptors();
   DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
   {
@@ -1051,29 +963,27 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
 }
 
 // static
-bool Map::ConcurrentIsHeapObjectWithMap(PtrComprCageBase cage_base,
-                                        Tagged<Object> object,
+bool Map::ConcurrentIsHeapObjectWithMap(Tagged<Object> object,
                                         Tagged<Map> meta_map) {
   if (!IsHeapObject(object)) return false;
   Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
-  return heap_object->map(cage_base) == meta_map;
+  return heap_object->map() == meta_map;
 }
 
 Tagged<HeapObject> Map::GetBackPointer() const {
   Tagged<Map> back_pointer;
-  if (TryGetBackPointer(GetPtrComprCageBase(this), &back_pointer)) {
+  if (TryGetBackPointer(&back_pointer)) {
     return back_pointer;
   }
   return GetReadOnlyRoots().undefined_value();
 }
 
-bool Map::TryGetBackPointer(PtrComprCageBase cage_base,
-                            Tagged<Map>* back_pointer) const {
-  Tagged<Object> object = constructor_or_back_pointer(cage_base, kRelaxedLoad);
+bool Map::TryGetBackPointer(Tagged<Map>* back_pointer) const {
+  Tagged<Object> object = constructor_or_back_pointer(kRelaxedLoad);
   // We don't expect maps from another native context in the transition tree,
   // so just compare object's map against current map's meta map.
   Tagged<Map> meta_map = map();
-  if (ConcurrentIsHeapObjectWithMap(cage_base, object, meta_map)) {
+  if (ConcurrentIsHeapObjectWithMap(object, meta_map)) {
     DCHECK(IsMap(object));
     // Sanity check - only contextful maps can transition.
     DCHECK(IsNativeContext(meta_map->native_context_or_null()));
@@ -1251,14 +1161,12 @@ bool Map::BelongsToSameNativeContextAs(Tagged<Context> context) const {
 }
 
 Tagged<Object> Map::GetConstructorRaw() const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(this);
   Tagged<Object> maybe_constructor = constructor_or_back_pointer();
   // Follow any back pointers.
   // We don't expect maps from another native context in the transition tree,
   // so just compare object's map against current map's meta map.
   Tagged<Map> meta_map = map();
-  while (
-      ConcurrentIsHeapObjectWithMap(cage_base, maybe_constructor, meta_map)) {
+  while (ConcurrentIsHeapObjectWithMap(maybe_constructor, meta_map)) {
     DCHECK(IsMap(maybe_constructor));
     // Sanity check - only contextful maps can transition.
     DCHECK(IsNativeContext(meta_map->native_context_or_null()));
@@ -1293,14 +1201,13 @@ Tagged<Object> Map::GetConstructor() const {
   return maybe_constructor;
 }
 
-Tagged<Object> Map::TryGetConstructor(PtrComprCageBase cage_base,
-                                      int max_steps) {
-  Tagged<Object> maybe_constructor = constructor_or_back_pointer(cage_base);
+Tagged<Object> Map::TryGetConstructor(int max_steps) {
+  Tagged<Object> maybe_constructor = constructor_or_back_pointer();
   // Follow any back pointers.
-  while (IsMap(maybe_constructor, cage_base)) {
+  while (IsMap(maybe_constructor)) {
     if (max_steps-- == 0) return Smi::FromInt(0);
     maybe_constructor =
-        Cast<Map>(maybe_constructor)->constructor_or_back_pointer(cage_base);
+        Cast<Map>(maybe_constructor)->constructor_or_back_pointer();
   }
   if (IsTuple2(maybe_constructor)) {
     // Get constructor from the {constructor, non-instance_prototype} tuple.
@@ -1417,27 +1324,7 @@ void ExtendedMap::set_map_kind_and_size(ExtendedMapKind kind,
   set_relaxed_bit_field_ex(field);
 }
 
-Tagged<InterceptorInfo> JSInterceptorMap::named_interceptor() const {
-  return named_interceptor_.load();
-}
-void JSInterceptorMap::set_named_interceptor(
-    Tagged<InterceptorInfo> interceptor_info, WriteBarrierMode mode) {
-  DCHECK(interceptor_info->is_named());
-  named_interceptor_.store(this, interceptor_info, mode);
-}
 
-Tagged<InterceptorInfo> JSInterceptorMap::indexed_interceptor() const {
-  return indexed_interceptor_.load();
-}
-void JSInterceptorMap::set_indexed_interceptor(
-    Tagged<InterceptorInfo> interceptor_info, WriteBarrierMode mode) {
-  DCHECK(!interceptor_info->is_named());
-  indexed_interceptor_.store(this, interceptor_info, mode);
-}
-
-void JSInterceptorMap::clear_extended_padding() {
-  memset(extended_padding_, 0, sizeof(extended_padding_));
-}
 
 int NormalizedMapCache::GetIndex(Isolate* isolate, Tagged<Map> map,
                                  Tagged<HeapObject> prototype) {
@@ -1446,7 +1333,7 @@ int NormalizedMapCache::GetIndex(Isolate* isolate, Tagged<Map> map,
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsNormalizedMapCache) {
-  if (!IsWeakFixedArray(obj, cage_base)) return false;
+  if (!IsWeakFixedArray(obj)) return false;
   if (Cast<WeakFixedArray>(obj)->ulength().value() !=
       NormalizedMapCache::kEntries) {
     return false;

@@ -8,7 +8,6 @@ import "chromeos/components/in_session_auth/mojom/in_session_auth.mojom";
 import "chromeos/components/payments/mojom/payment_app.mojom";
 import "chromeos/components/sensors/mojom/cros_sensor_service.mojom";
 import "chromeos/crosapi/mojom/account_manager.mojom";
-import "chromeos/crosapi/mojom/document_scan.mojom";
 import "chromeos/crosapi/mojom/local_printer.mojom";
 import "chromeos/crosapi/mojom/probe_service.mojom";
 import "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom";
@@ -83,12 +82,7 @@ interface Crosapi {
   // BindDiagnosticsService@99 was removed.
   // BindDigitalGoodsFactory@79 was removed.
   // BindDlp@64 was removed.
-
-  // Binds the DocumentScan interface, which allows Lacros to get scanner access
-  // via Ash Chrome.
-  // Added in M104.
-  [MinVersion=77] BindDocumentScan@80(pending_receiver<DocumentScan> receiver);
-
+  // BindDocumentScan@80 was removed.
   // BindDownloadController@33 was removed.
   // BindDriveIntegrationService@34 was removed.
   // BindEchoPrivate@74 was removed.
@@ -223,12 +217,7 @@ interface Crosapi {
   [MinVersion=127] BindTelemetryManagementService@129(
     pending_receiver<TelemetryManagementService> receiver);
 
-  // Binds the telemetry probe service to allow Lacros request telemetry data
-  // from Ash.
-  // Added in M106.
-  [MinVersion=93] BindTelemetryProbeService@97(
-      pending_receiver<crosapi.mojom.TelemetryProbeService> receiver);
-
+  // BindTelemetryProbeService@97 was removed.
   // BindTestController@14 was removed.
   // BindTimeZoneService@65 was removed.
   // BindTts@58 was removed.

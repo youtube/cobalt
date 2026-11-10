@@ -140,24 +140,24 @@ class SctpSidAllocator {
 //    OnClosingProcedureComplete callback and transition to kClosed.
 class SctpDataChannel : public DataChannelInterface {
  public:
+  // The `controller_safety` flag is used for the ObserverAdapter callback proxy
+  // which delivers callbacks on the `signaling_thread` but must not deliver
+  // such callbacks after the peerconnection has been closed. The data
+  // controller will update the flag when closed, which will cancel any pending
+  // event notifications.
   static scoped_refptr<SctpDataChannel> Create(
       WeakPtr<SctpDataChannelControllerInterface> controller,
       absl::string_view label,
       bool connected_to_transport,
       const InternalDataChannelInit& config,
+      scoped_refptr<PendingTaskSafetyFlag> controller_safety,
       Thread* signaling_thread,
       Thread* network_thread);
 
   // Instantiates an API proxy for a SctpDataChannel instance that will be
   // handed out to external callers.
-  // The `signaling_safety` flag is used for the ObserverAdapter callback proxy
-  // which delivers callbacks on the signaling thread but must not deliver such
-  // callbacks after the peerconnection has been closed. The data controller
-  // will update the flag when closed, which will cancel any pending event
-  // notifications.
   static scoped_refptr<DataChannelInterface> CreateProxy(
-      scoped_refptr<SctpDataChannel> channel,
-      scoped_refptr<PendingTaskSafetyFlag> signaling_safety);
+      scoped_refptr<SctpDataChannel> channel);
 
   void RegisterObserver(DataChannelObserver* observer) override;
   void UnregisterObserver() override;
@@ -244,6 +244,7 @@ class SctpDataChannel : public DataChannelInterface {
                   WeakPtr<SctpDataChannelControllerInterface> controller,
                   absl::string_view label,
                   bool connected_to_transport,
+                  scoped_refptr<PendingTaskSafetyFlag> controller_safety,
                   Thread* signaling_thread,
                   Thread* network_thread);
   ~SctpDataChannel() override;
@@ -273,7 +274,7 @@ class SctpDataChannel : public DataChannelInterface {
       RTC_RUN_ON(network_thread_);
 
   bool connected_to_transport() const RTC_RUN_ON(network_thread_) {
-    return network_safety_->alive();
+    return connected_to_transport_;
   }
   void MaybeSendOnBufferedAmountChanged() RTC_RUN_ON(network_thread_);
 
@@ -306,9 +307,9 @@ class SctpDataChannel : public DataChannelInterface {
       kHandshakeInit;
   // Did we already start the graceful SCTP closing procedure?
   bool started_closing_procedure_ RTC_GUARDED_BY(network_thread_) = false;
+  bool connected_to_transport_ RTC_GUARDED_BY(network_thread_) = false;
   PacketQueue queued_received_data_ RTC_GUARDED_BY(network_thread_);
-  scoped_refptr<PendingTaskSafetyFlag> network_safety_ =
-      PendingTaskSafetyFlag::CreateDetachedInactive();
+  scoped_refptr<PendingTaskSafetyFlag> controller_safety_;
 };
 
 }  // namespace webrtc

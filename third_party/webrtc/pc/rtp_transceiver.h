@@ -399,8 +399,7 @@ class RtpTransceiver : public RtpTransceiverInterface {
 
   // Wrappers for ChannelInterface
   bool HasChannel() const {
-    // Accessed from multiple threads.
-    // See https://issues.webrtc.org/475126742
+    RTC_DCHECK_RUN_ON(thread_);
     return channel_ != nullptr;
   }
 

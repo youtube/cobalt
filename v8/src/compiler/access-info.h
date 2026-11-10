@@ -85,6 +85,7 @@ class PropertyAccessInfo final {
     kNotFound,
     kDataField,
     kFastDataConstant,
+    kDictionaryDataField,
     kDictionaryProtoDataConstant,
     kFastAccessorConstant,
     kDictionaryProtoAccessorConstant,
@@ -119,6 +120,10 @@ class PropertyAccessInfo final {
                                                 MapRef receiver_map);
   static PropertyAccessInfo TypedArrayLength(Zone* zone, MapRef receiver_map);
   static PropertyAccessInfo Invalid(Zone* zone);
+  static PropertyAccessInfo DictionaryDataField(Zone* zone, MapRef receiver_map,
+                                                OptionalJSObjectRef holder,
+                                                InternalIndex dict_index,
+                                                NameRef name);
   static PropertyAccessInfo DictionaryProtoDataConstant(
       Zone* zone, MapRef receiver_map, JSObjectRef holder,
       InternalIndex dict_index, NameRef name);
@@ -142,6 +147,7 @@ class PropertyAccessInfo final {
   bool IsStringLength() const { return kind() == kStringLength; }
   bool IsStringWrapperLength() const { return kind() == kStringWrapperLength; }
   bool IsTypedArrayLength() const { return kind() == kTypedArrayLength; }
+  bool IsDictionaryDataField() const { return kind() == kDictionaryDataField; }
   bool IsDictionaryProtoDataConstant() const {
     return kind() == kDictionaryProtoDataConstant;
   }
@@ -151,7 +157,8 @@ class PropertyAccessInfo final {
 
   bool HasTransitionMap() const { return transition_map().has_value(); }
   bool HasDictionaryHolder() const {
-    return kind_ == kDictionaryProtoDataConstant ||
+    return kind_ == kDictionaryDataField ||
+           kind_ == kDictionaryProtoDataConstant ||
            kind_ == kDictionaryProtoAccessorConstant;
   }
   ConstFieldInfo GetConstFieldInfo() const;
@@ -264,8 +271,9 @@ class AccessInfoFactory final {
       ElementAccessFeedback const& feedback,
       ZoneVector<ElementAccessInfo>* access_infos) const;
 
-  PropertyAccessInfo ComputePropertyAccessInfo(MapRef map, NameRef name,
-                                               AccessMode access_mode) const;
+  PropertyAccessInfo ComputePropertyAccessInfo(
+      MapRef map, NameRef name, AccessMode access_mode,
+      OptionalObjectRef handler = OptionalObjectRef()) const;
 
   PropertyAccessInfo ComputeDictionaryProtoAccessInfo(
       MapRef receiver_map, NameRef name, JSObjectRef holder,

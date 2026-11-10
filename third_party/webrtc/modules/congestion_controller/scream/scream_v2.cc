@@ -94,9 +94,15 @@ void ScreamV2::OnTransportPacketsFeedback(const TransportPacketsFeedback& msg) {
   max_data_in_flight_this_rtt_ =
       std::max(max_data_in_flight_this_rtt_, msg.data_in_flight);
 
-  delay_based_congestion_control_.OnTransportPacketsFeedback(msg);
+  if (params_.enable_alr.Get()) {
+    is_application_limited_ = max_allowed_ref_window() < ref_window_;
+  }
 
-  UpdateFeedbackHoldTime(msg);
+  delay_based_congestion_control_.OnTransportPacketsFeedback(
+      msg, is_application_limited_);
+  if (!is_application_limited_) {
+    UpdateFeedbackHoldTime(msg);
+  }
 
   if (!first_feedback_processed_) {
     ref_window_ =

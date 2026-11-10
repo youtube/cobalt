@@ -179,8 +179,8 @@ void SessionDescription::AddContent(
 void SessionDescription::AddContent(ContentInfo&& content) {
   if (extmap_allow_mixed()) {
     // Mixed support on session level overrides setting on media level.
-    content.media_description()->set_extmap_allow_mixed_enum(
-        MediaContentDescription::kSession);
+    content.media_description()->set_extmap_allow_mixed_level(
+        MediaContentDescription::AttributeLevel::kSession);
   }
   contents_.push_back(std::move(content));
 }

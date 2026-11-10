@@ -20,7 +20,9 @@
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_attach_helper.h"
+#include "extensions/browser/mime_handler/mime_handler_body_cache.h"
 #include "extensions/browser/mime_handler/mime_handler_page.h"
+#include "extensions/browser/mime_handler/mime_handler_stream_manager.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/manifest_handlers/mime_types_handler.h"
@@ -120,8 +122,31 @@ void PluginResponseInterceptorURLLoaderThrottle::WillProcessResponse(
     return;
   }
 
-  std::string extension_id = PluginUtils::GetExtensionIdForMimeType(
-      web_contents->GetBrowserContext(), response_head->mime_type);
+  const bool embedded =
+      request_destination_ != network::mojom::RequestDestination::kDocument;
+
+  std::string extension_id;
+  if (response_head->mime_type == pdf::kPDFMimeType) {
+    // A generic MIME handler extension called
+    // chrome.mimeHandler.abortAndFallbackToNativeHandler() on a prior
+    // navigation for this embedder frame. Peek (not consume) at the
+    // fallback mark so the aborted extension does not re-claim its own
+    // response across the whole redirect chain -- the mark is cleared in
+    // `DidFinishNavigation()` once the re-fetch settles. Route the
+    // application/pdf response to the user agent's built-in PDF viewer.
+    auto* stream_manager =
+        extensions::mime_handler::MimeHandlerStreamManager::FromWebContents(
+            web_contents);
+    if (stream_manager &&
+        stream_manager->IsPendingNativeFallback(frame_tree_node_id_)) {
+      extension_id = extension_misc::kPdfExtensionId;
+    }
+  }
+
+  if (extension_id.empty()) {
+    extension_id = PluginUtils::GetExtensionIdForMimeType(
+        web_contents->GetBrowserContext(), response_head->mime_type, embedded);
+  }
 
   if (extension_id.empty()) {
     return;
@@ -167,7 +192,7 @@ void PluginResponseInterceptorURLLoaderThrottle::WillProcessResponse(
           extensions::ExtensionRegistry::Get(web_contents->GetBrowserContext())
               ->enabled_extensions()
               .GetByID(extension_id)) {
-    if (MimeTypesHandler* handler = MimeTypesHandler::GetHandler(extension)) {
+    if (const MimeTypesHandler* handler = MimeTypesHandler::Get(*extension)) {
       is_for_generic_mime_handler = !handler->IsPluginExtension();
     }
   }
@@ -257,17 +282,32 @@ void PluginResponseInterceptorURLLoaderThrottle::WillProcessResponse(
   transferrable_loader->url_loader_client = std::move(original_client);
   transferrable_loader->head = std::move(deep_copied_response);
   transferrable_loader->head->intercepted_by_plugin = true;
-  transferrable_loader->body = std::move(consumer_handle);
 
-  bool embedded =
-      request_destination_ != network::mojom::RequestDestination::kDocument;
+  // For generic MIME handlers, buffer the response body in memory while
+  // forwarding the bytes to the handler, so a later
+  // chrome.mimeHandler.abortAndFallbackToNativeHandler() call can hand the
+  // cached bytes back on reload and skip re-reading the response body from
+  // the network pipe. Built-in PDF (is_for_oopif_pdf) does not call the
+  // fallback API, so skip the cost there. On forwarding-pipe creation
+  // failure the original source handle is returned via `forwarding_pipe`,
+  // so the body is never lost.
+  scoped_refptr<extensions::MimeHandlerBodyCache> body_cache;
+  if (is_for_generic_mime_handler) {
+    mojo::ScopedDataPipeConsumerHandle forwarding_pipe;
+    body_cache = extensions::MimeHandlerBodyCache::Create(
+        std::move(consumer_handle), &forwarding_pipe);
+    transferrable_loader->body = std::move(forwarding_pipe);
+  } else {
+    transferrable_loader->body = std::move(consumer_handle);
+  }
+
   content::GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE,
       base::BindOnce(
           &extensions::mime_handlers::SendExecuteMimeTypeHandlerEvent,
           extension_id, stream_id, embedded, frame_tree_node_id_,
           std::move(transferrable_loader), response_url, internal_id,
-          original_mime_type));
+          original_mime_type, std::move(body_cache)));
 
   if (use_oopif_path) {
     // Schedule `ResumeLoad()` for after the SendExecuteMimeTypeHandlerEvent()

@@ -3424,3 +3424,51 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let result = instance.exports.test();
   assertEquals(11, result);
 })();
+
+// Test the always-succeeds br_on_cast optimization.
+// When casting from (ref null T) to (ref T) where T is any struct, the
+// validator proves the type check always succeeds (for non-null values).
+// Spec semantics: null -> cast fails -> fall through; non-null -> cast
+// succeeds -> branch.
+(function testBrOnCastAlwaysSucceedsNullable() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const struct = builder.addStruct([makeField(kWasmI32, true)]);
+
+  // Base PoC test: catch the null case trap.
+  builder.addFunction('test', makeSig([wasmRefNullType(struct)], [kWasmI32]))
+    .exportFunc()
+    .addBody([
+      kExprBlock, kWasmRef, struct,
+        kExprLocalGet, 0,
+        ...wasmBrOnCast(0, wasmRefNullType(struct), wasmRefType(struct)),
+        kExprDrop,
+        kExprI32Const, 0,
+        kExprReturn,
+      kExprEnd,
+      kGCPrefix, kExprStructGet, struct, 0,
+    ]);
+
+  // Create struct with custom field value to distinguish code paths.
+  builder.addFunction('make_with_value', makeSig([kWasmI32], [wasmRefType(struct)]))
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStructNew, struct,
+    ]);
+
+  const inst = builder.instantiate();
+
+  // Test the null case: catches the inverted condition manifesting as a trap
+  // test(null) -> 0 (falls through).
+  try {
+    assertEquals(0, inst.exports.test(null), "test(null) should fall through and return 0");
+  } catch (e) {
+    fail("test(null) trapped! Inverted br_on_cast condition not fixed. Error: " + e.message);
+  }
+
+  // Test non-null with value 99: distinguishes the inverted condition for
+  // non-null: test(obj_with_99) -> 99 (branches: correct path!).
+  assertEquals(99, inst.exports.test(inst.exports.make_with_value(99)),
+               "test(non_null_obj_with_99) should branch and return 99");
+})();

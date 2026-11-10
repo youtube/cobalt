@@ -116,18 +116,6 @@ extern class ExtendedMap extends Map {
   // Leaves kTaggedSize-1 unused bytes, they will be used by subclasses.
 }
 
-// Extended map for interceptor objects, it caches named and indexed
-// InterceptorInfo objects in the Map for faster access.
-@cppObjectLayoutDefinition
-@hasSameInstanceTypeAsParent
-@doNotGenerateCast
-extern class JSInterceptorMap extends ExtendedMap {
-  @ifnot(TAGGED_SIZE_8_BYTES) extended_padding[3]: uint8;
-  @if(TAGGED_SIZE_8_BYTES) extended_padding[7]: uint8;
-  named_interceptor: InterceptorInfo;
-  indexed_interceptor: InterceptorInfo;
-}
-
 @export
 macro LoadMapPrototypeInfo(m: Map): PrototypeInfo labels HasNoPrototypeInfo {
   return m.PrototypeInfo() otherwise HasNoPrototypeInfo;

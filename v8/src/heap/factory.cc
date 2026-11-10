@@ -472,6 +472,9 @@ MaybeHandle<FixedArray> Factory::TryNewFixedArray(
                                    SKIP_WRITE_BARRIER);
   Tagged<FixedArray> array = Cast<FixedArray>(result);
   array->set_length(length);
+#if TAGGED_SIZE_8_BYTES
+  array->clear_optional_padding();
+#endif  // TAGGED_SIZE_8_BYTES
   MemsetTagged(array->RawFieldOfFirstElement(), *undefined_value(), length);
   return handle(array, isolate());
 }
@@ -1228,8 +1231,11 @@ MaybeDirectHandle<String> Factory::NewStringFromTwoByteLittleEndian(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 DirectHandle<InternalizedString> Factory::NewInternalizedStringImpl(
-    DirectHandle<String> string, int len, uint32_t hash_field) {
-  if (string->IsOneByteRepresentation()) {
+    DirectHandle<String> string, int len, uint32_t hash_field,
+    bool known_one_byte_content) {
+  const bool one_byte =
+      string->IsOneByteRepresentation() || known_one_byte_content;
+  if (one_byte) {
     DirectHandle<SeqOneByteString> result =
         AllocateRawOneByteInternalizedString(len, hash_field);
     DisallowGarbageCollection no_gc;
@@ -1245,7 +1251,8 @@ DirectHandle<InternalizedString> Factory::NewInternalizedStringImpl(
 }
 
 StringTransitionStrategy Factory::ComputeInternalizationStrategyForString(
-    DirectHandle<String> string, MaybeDirectHandle<Map>* internalized_map) {
+    DirectHandle<String> string, MaybeDirectHandle<Map>* internalized_map,
+    bool known_one_byte_content) {
   // The serializer requires internalized strings to be in ReadOnlySpace s.t.
   // other objects referencing the string can be allocated in RO space
   // themselves.
@@ -1277,6 +1284,14 @@ StringTransitionStrategy Factory::ComputeInternalizationStrategyForString(
   Tagged<Map> map = string->map();
   *internalized_map = GetInPlaceInternalizedStringMap(map);
   if (!internalized_map->is_null()) {
+    // The map says 2-byte but the caller verified the content fits in one
+    // byte; fall back to kCopy so NewInternalizedStringImpl can allocate a
+    // one-byte internalized string. Otherwise the in-place map swap would
+    // lock the wider representation in for the lifetime of the intern entry.
+    if (known_one_byte_content && !InstanceTypeChecker::IsOneByteString(map)) {
+      *internalized_map = MaybeDirectHandle<Map>();
+      return StringTransitionStrategy::kCopy;
+    }
     return StringTransitionStrategy::kInPlace;
   }
   if (InstanceTypeChecker::IsInternalizedString(map)) {
@@ -2184,6 +2199,19 @@ DirectHandle<WasmImportData> Factory::NewWasmImportData(
                            import_data->sig(), shared);
 }
 
+Handle<AsmWasmData> Factory::NewAsmWasmData(
+    DirectHandle<TrustedManaged<wasm::NativeModule>> managed_native_module,
+    uint64_t uses_bitset) {
+  Tagged<AsmWasmData> result = TrustedCast<AsmWasmData>(
+      AllocateRawWithImmortalMap(sizeof(AsmWasmData), AllocationType::kTrusted,
+                                 read_only_roots().asm_wasm_data_map()));
+  DisallowGarbageCollection no_gc;
+  result->InitAndPublish(isolate());
+  result->set_managed_native_module(*managed_native_module);
+  result->set_uses_bitset(uses_bitset);
+  return handle(result, isolate());
+}
+
 DirectHandle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
     DirectHandle<HeapObject> signature, DirectHandle<Object> callback_data) {
   Tagged<Map> map = *wasm_fast_api_call_data_map();
@@ -2736,8 +2764,8 @@ Tagged<Map> Factory::InitializeMap(Tagged<Map> map, InstanceType type,
                    ReadOnlyHeap::Contains(map));
     // Shared space JS objects have fixed layout and can have RO maps. No other
     // JS objects have RO maps.
-    DCHECK_IMPLIES(!IsMaybeReadOnlyJSObjectMap(*map) &&
-                       !IsAlwaysSharedSpaceJSObjectMap(*map),
+    DCHECK_IMPLIES(!IsMaybeReadOnlyJSObjectMap(map) &&
+                       !IsAlwaysSharedSpaceJSObjectMap(map),
                    !ReadOnlyHeap::Contains(map));
     map->SetInObjectPropertiesStartInWords(instance_size / kTaggedSize -
                                            inobject_properties);
@@ -2754,7 +2782,7 @@ Tagged<Map> Factory::InitializeMap(Tagged<Map> map, InstanceType type,
                           SKIP_WRITE_BARRIER);
   map->set_raw_transitions(Smi::zero(), SKIP_WRITE_BARRIER);
   map->SetInObjectUnusedPropertyFields(inobject_properties);
-  map->SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0,
+  map->SetInstanceDescriptors(roots.empty_descriptor_array(), 0,
                               SKIP_WRITE_BARRIER);
   // Must be called only after |instance_type| and |instance_size| are set.
   map->set_visitor_id(Map::GetVisitorId(map));
@@ -2802,11 +2830,11 @@ DirectHandle<Map> Factory::NewMapWithMetaMap(DirectHandle<Map> meta_map,
 }
 
 DirectHandle<ExtendedMap> Factory::NewExtendedMapWithMetaMap(
-    DirectHandle<Map> meta_map, ExtendedMapKind kind, InstanceType type,
+    DirectHandle<Map> meta_map, ExtendedMapKind map_kind, InstanceType type,
     int instance_size, ElementsKind elements_kind, int inobject_properties,
     AllocationType allocation_type) {
   DCHECK_EQ(*meta_map, meta_map->map());
-  int map_size = ExtendedMapSizeForKind(kind);
+  int map_size = ExtendedMapSizeForKind(map_kind);
   DCHECK_GE(map_size, ExtendedMap::kMinimumSize);
   auto meta_map_provider = [meta_map] {
     // Use given meta map.
@@ -2816,7 +2844,7 @@ DirectHandle<ExtendedMap> Factory::NewExtendedMapWithMetaMap(
       NewMapImpl(meta_map_provider, map_size, type, instance_size,
                  elements_kind, inobject_properties, allocation_type));
   map->set_is_extended_map(true);
-  map->set_map_kind_and_size(kind, map_size);
+  map->set_map_kind_and_size(map_kind, map_size);
   return map;
 }
 
@@ -2854,6 +2882,29 @@ DirectHandle<Map> Factory::NewContextfulMap(
   DirectHandle<Map> map =
       NewMapImpl(meta_map_provider, Map::kSize, type, instance_size,
                  elements_kind, inobject_properties, allocation_type);
+  return map;
+}
+
+DirectHandle<ExtendedMap> Factory::NewContextfulMap(
+    DirectHandle<NativeContext> native_context, ExtendedMapKind map_kind,
+    InstanceType type, int instance_size, ElementsKind elements_kind,
+    int inobject_properties, AllocationType allocation_type) {
+  DCHECK(InstanceTypeChecker::IsNativeContextSpecific(type) ||
+#if V8_ENABLE_WEBASSEMBLY
+         InstanceTypeChecker::IsWasmStruct(type) ||
+#endif  // V8_ENABLE_WEBASSEMBLY
+         InstanceTypeChecker::IsMap(type));
+  int map_size = ExtendedMapSizeForKind(map_kind);
+  DCHECK_GE(map_size, ExtendedMap::kMinimumSize);
+  auto meta_map_provider = [native_context] {
+    // Tie new map to given native context.
+    return native_context->meta_map();
+  };
+  DirectHandle<ExtendedMap> map = UncheckedCast<ExtendedMap>(
+      NewMapImpl(meta_map_provider, map_size, type, instance_size,
+                 elements_kind, inobject_properties, allocation_type));
+  map->set_is_extended_map(true);
+  map->set_map_kind_and_size(map_kind, map_size);
   return map;
 }
 
@@ -3011,6 +3062,9 @@ namespace {
 template <typename T>
 void initialize_length(Tagged<T> array, uint32_t length) {
   array->set_length(length);
+#if TAGGED_SIZE_8_BYTES
+  array->clear_optional_padding();
+#endif  // TAGGED_SIZE_8_BYTES
 }
 
 template <>
@@ -3175,6 +3229,9 @@ Handle<FixedArray> Factory::CopyFixedArrayUpTo(DirectHandle<FixedArray> array,
                                         SKIP_WRITE_BARRIER);
   Tagged<FixedArray> result = Cast<FixedArray>(heap_object);
   result->set_length(new_len);
+#if TAGGED_SIZE_8_BYTES
+  result->clear_optional_padding();
+#endif  // TAGGED_SIZE_8_BYTES
   // Copy the content.
   WriteBarrierModeScope mode = result->GetWriteBarrierMode(no_gc);
   result->CopyElements(isolate(), 0, *array, 0, new_len, *mode);
@@ -3379,7 +3436,7 @@ DirectHandle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(
       code->code_comments_offset(),
       code->jump_table_info_offset(),
       code->unwinding_info_offset(),
-      MaybeHandle<TrustedObject>{},
+      MaybeHandle<UnionOf<BytecodeArray, InterpreterData>>{},
       MaybeHandle<DeoptimizationData>{},
       /*bytecode_offset_table=*/MaybeHandle<TrustedByteArray>{},
       /*source_position_table=*/MaybeHandle<TrustedByteArray>{},
@@ -3484,8 +3541,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
 
   // The global object might be created from an object template with accessors.
   // Fill these accessors into the dictionary.
-  DirectHandle<DescriptorArray> descs(map->instance_descriptors(isolate()),
-                                      isolate());
+  DirectHandle<DescriptorArray> descs(map->instance_descriptors(), isolate());
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descs->GetDetails(i);
     // Only accessors are expected.
@@ -3575,7 +3631,7 @@ void Factory::InitializeJSObjectBody(Tagged<JSObject> obj, Tagged<Map> map,
   bool in_progress = map->IsInobjectSlackTrackingInProgress();
   obj->InitializeBody(map, start_offset, in_progress, new_js_object_type);
   if (in_progress) {
-    map->FindRootMap(isolate())->InobjectSlackTrackingStep(isolate());
+    map->FindRootMap()->InobjectSlackTrackingStep(isolate());
   }
 }
 
@@ -4899,8 +4955,7 @@ DirectHandle<Map> Factory::CreateSloppyFunctionMap(
     map->AppendDescriptor(isolate(), &d);
   }
   DCHECK_EQ(inobject_properties_count, field_index);
-  DCHECK_EQ(
-      0, map->instance_descriptors(isolate())->number_of_slack_descriptors());
+  DCHECK_EQ(0, map->instance_descriptors()->number_of_slack_descriptors());
   LOG(isolate(), MapDetails(*map));
   return map;
 }
@@ -4986,8 +5041,7 @@ DirectHandle<Map> Factory::CreateStrictFunctionMap(
     map->AppendDescriptor(isolate(), &d);
   }
   DCHECK_EQ(inobject_properties_count, field_index);
-  DCHECK_EQ(
-      0, map->instance_descriptors(isolate())->number_of_slack_descriptors());
+  DCHECK_EQ(0, map->instance_descriptors()->number_of_slack_descriptors());
   LOG(isolate(), MapDetails(*map));
   return map;
 }

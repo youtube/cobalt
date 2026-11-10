@@ -1541,17 +1541,17 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
   //   return;
   // }
   // uint8_t offset;
-  // if (wasm::SimdShuffle::TryMatchConcat(shuffle, &offset)) {
+  // if (SimdShuffle::TryMatchConcat(shuffle, &offset)) {
   //   Emit(kRiscvS8x16Concat, g.DefineSameAsFirst(node),
   //   g.UseRegister(input1),
   //        g.UseRegister(input0), g.UseImmediate(offset));
   //   return;
   // }
-  // if (wasm::SimdShuffle::TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
+  // if (SimdShuffle::TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
   //   Emit(kRiscvS32x4Shuffle, g.DefineAsRegister(node),
   //   g.UseRegister(input0),
   //        g.UseRegister(input1),
-  //        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle32x4)));
+  //        g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle32x4)));
   //   return;
   // }
   InstructionCode opcode = kRiscvI8x16Shuffle;
@@ -1560,10 +1560,10 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
   opcode |= EncodeRegisterConstraint(
       RiscvRegisterConstraint::kNoDestinationSourceOverlap);
   Emit(opcode, g.DefineAsRegister(node), input0_reg, input1_reg,
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 4)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 8)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 12)));
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle)),
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle + 4)),
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle + 8)),
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle + 12)));
 }
 
 void InstructionSelector::VisitI8x16Swizzle(OpIndex node) {

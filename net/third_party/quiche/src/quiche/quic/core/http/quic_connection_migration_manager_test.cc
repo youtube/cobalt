@@ -287,9 +287,6 @@ class TestStream : public QuicSpdyStream {
   TestStream(QuicStreamId id, QuicSpdySession* session, StreamType type)
       : QuicSpdyStream(id, session, type) {}
 
-  TestStream(PendingStream& pending, QuicSpdySession* session)
-      : QuicSpdyStream(pending, session) {}
-
   void OnBodyAvailable() override {}
 
   MOCK_METHOD(void, OnCanWrite, (), (override));
@@ -396,12 +393,6 @@ class TestQuicSpdyClientSessionWithMigration
         id, this,
         test::DetermineStreamType(id, connection()->version(), perspective(),
                                   /*is_incoming=*/true, BIDIRECTIONAL));
-    ActivateStream(absl::WrapUnique(stream));
-    return stream;
-  }
-
-  TestStream* CreateIncomingStream(PendingStream* pending) override {
-    TestStream* stream = new TestStream(*pending, this);
     ActivateStream(absl::WrapUnique(stream));
     return stream;
   }

@@ -20,8 +20,7 @@ bool CachedTemplateMatches(Isolate* isolate,
                            Tagged<NativeContext> native_context,
                            Tagged<JSArray> entry, int function_literal_id,
                            int slot_id, DisallowGarbageCollection& no_gc) {
-  if (native_context->is_js_array_template_literal_object_map(
-          entry->map(isolate))) {
+  if (native_context->is_js_array_template_literal_object_map(entry->map())) {
     Tagged<TemplateLiteralObject> template_object =
         Cast<TemplateLiteralObject>(entry);
     return template_object->function_literal_id() == function_literal_id &&
@@ -52,8 +51,7 @@ DirectHandle<JSArray> TemplateObjectDescription::GetTemplateObject(
   int function_literal_id = shared_info->function_literal_id(kRelaxedLoad);
 
   // Check the template weakmap to see if the template object already exists.
-  DirectHandle<Script> script(Cast<Script>(shared_info->script(isolate)),
-                              isolate);
+  DirectHandle<Script> script(Cast<Script>(shared_info->script()), isolate);
   int32_t hash =
       EphemeronHashTable::TodoShape::Hash(ReadOnlyRoots(isolate), script);
   MaybeDirectHandle<ArrayList> maybe_cached_templates;
@@ -67,7 +65,7 @@ DirectHandle<JSArray> TemplateObjectDescription::GetTemplateObject(
     Tagged<EphemeronHashTable> template_weakmap =
         Cast<EphemeronHashTable>(native_context->template_weakmap());
     Tagged<Object> cached_templates_lookup =
-        template_weakmap->Lookup(isolate, script, hash);
+        template_weakmap->Lookup(script, hash);
     if (!IsTheHole(cached_templates_lookup, roots)) {
       Tagged<ArrayList> cached_templates =
           Cast<ArrayList>(cached_templates_lookup);
@@ -126,7 +124,7 @@ DirectHandle<JSArray> TemplateObjectDescription::GetTemplateObject(
   // Check that the list is in the appropriate location on the weakmap, and
   // that the appropriate entry is in the right location in this list.
   DCHECK_EQ(Cast<EphemeronHashTable>(native_context->template_weakmap())
-                ->Lookup(isolate, script, hash),
+                ->Lookup(script, hash),
             *cached_templates);
   DCHECK_EQ(cached_templates->get(cached_templates->ulength().value() - 1),
             *template_object);

@@ -3272,8 +3272,9 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
   TypeVector specialization_types =
       TypeVisitor::ComputeTypeVector(expr->callee->generic_arguments);
   bool has_template_arguments = !specialization_types.empty();
-  for (Expression* arg : expr->arguments)
+  for (Expression* arg : expr->arguments) {
     arguments.parameters.push_back(Visit(arg));
+  }
   arguments.labels = LabelsFromIdentifiers(expr->labels);
   if (!has_template_arguments && name.namespace_qualification.empty() &&
       TryLookupLocalValue(name.name)) {
@@ -3347,8 +3348,9 @@ VisitResult ImplementationVisitor::Visit(IntrinsicCallExpression* expr) {
   Arguments arguments;
   TypeVector specialization_types =
       TypeVisitor::ComputeTypeVector(expr->generic_arguments);
-  for (Expression* arg : expr->arguments)
+  for (Expression* arg : expr->arguments) {
     arguments.parameters.push_back(Visit(arg));
+  }
   return scope.Yield(
       GenerateCall(expr->name->value, arguments, specialization_types, false));
 }
@@ -3496,8 +3498,9 @@ std::string ImplementationVisitor::ExternalParameterName(
 bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
                            size_t label_count) {
   auto i = sig.parameter_types.types.begin() + sig.implicit_count;
-  if ((sig.parameter_types.types.size() - sig.implicit_count) > types.size())
+  if ((sig.parameter_types.types.size() - sig.implicit_count) > types.size()) {
     return false;
+  }
   if (sig.labels.size() != label_count) return false;
   for (auto current : types) {
     if (i == sig.parameter_types.types.end()) {
@@ -3593,8 +3596,9 @@ void ImplementationVisitor::Visit(Declarable* declarable,
       &GlobalContext::GeneratedPerFile(file ? *file
                                             : declarable->Position().source));
   if (Callable* callable = Callable::DynamicCast(declarable)) {
-    if (!callable->ShouldGenerateExternalCode(output_type_))
+    if (!callable->ShouldGenerateExternalCode(output_type_)) {
       CurrentFileStreams::Get() = nullptr;
+    }
   }
   switch (declarable->kind()) {
     case Declarable::kExternMacro:
@@ -4069,13 +4073,6 @@ class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
     std::string parent_name = use_templates ? "P" : parent->name();
 
     if (type->IsLayoutDefinedInCpp()) {
-      // TODO(leszeks): Hacked in support for some classes (e.g.
-      // HeapObject) being mirrored by a *Layout class. Remove once
-      // everything is ported to layout classes.
-      if (parent_name == "HeapObject") {
-        parent_name += "Layout";
-      }
-
       return "sizeof(" + parent_name + ")";
     }
 

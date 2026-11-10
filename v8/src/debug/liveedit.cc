@@ -872,8 +872,9 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   std::vector<FunctionLiteral*> literals;
   std::map<uint32_t, std::vector<uint32_t>> eval_calls;
   if (!ParseScript(isolate, script, &parse_info, outer_scope_info, false,
-                   &literals, &eval_calls, result))
+                   &literals, &eval_calls, result)) {
     return;
+  }
 
   Handle<Script> new_script =
       isolate->factory()->CloneScript(script, new_source);

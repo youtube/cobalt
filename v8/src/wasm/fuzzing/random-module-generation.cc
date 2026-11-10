@@ -3959,8 +3959,9 @@ class BodyGen {
         // Try generating one of the alternatives and continue to the rest of
         // the methods in case it fails.
         if (random >= arrays_.size()) {
-          if (GenerateOneOf(alternatives_other, type, data, nullability))
+          if (GenerateOneOf(alternatives_other, type, data, nullability)) {
             return;
+          }
           random = data->get<uint8_t>() % arrays_.size();
         }
         ModuleTypeIndex index = arrays_[random];

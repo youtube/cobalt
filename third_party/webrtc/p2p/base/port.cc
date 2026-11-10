@@ -1067,6 +1067,7 @@ void Port::OnRequestLocalNetworkAccessPermission(
   if (it == permission_queries_.end()) {
     RTC_LOG(LS_ERROR) << "Unexpected LocalNetworkAccessPermission return";
     RTC_DCHECK_NOTREACHED();
+    return;
   }
 
   permission_queries_.erase(it);

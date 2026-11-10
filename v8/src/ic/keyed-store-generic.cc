@@ -393,7 +393,7 @@ void KeyedStoreGenericAssembler::MaybeUpdateLengthAndReturn(
     UpdateLength update_length) {
   if (update_length != kDontChangeLength) {
     TNode<Smi> new_length = SmiTag(Signed(IntPtrAdd(index, IntPtrConstant(1))));
-    StoreObjectFieldNoWriteBarrier(receiver, JSArray::kLengthOffset,
+    StoreObjectFieldNoWriteBarrier(receiver, offsetof(JSArray, length_),
                                    new_length);
   }
   Return(value);
@@ -860,8 +860,8 @@ TNode<Map> KeyedStoreGenericAssembler::FindCandidateStoreICTransitionMapHandler(
   Label simple_transition(this), transition_array(this),
       found_handler_candidate(this);
 
-  TNode<MaybeObject> maybe_handler =
-      LoadMaybeWeakObjectField(map, Map::kTransitionsOrPrototypeInfoOffset);
+  TNode<MaybeObject> maybe_handler = LoadMaybeWeakObjectField(
+      map, offsetof(Map, transitions_or_prototype_info_));
 
   // Smi -> slow,
   // Cleared weak reference -> slow

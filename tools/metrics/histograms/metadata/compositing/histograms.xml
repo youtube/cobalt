@@ -103,8 +103,30 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Compositing.BeginMainFrame.BMFReason1" units="reasons"
+    expires_after="2026-08-30">
+  <owner>thiabaud@google.com</owner>
+  <owner>jonross@chromium.org</owner>
+  <summary>
+    Records the reason(s) for which we triggered a BeginMainFrame. Recorded when
+    the BeginMainFrame is run. The value recorded is a bitset of the enum
+    |BeginMainFrameReason|, with all the reasons the current BeginMainFrame was
+    triggered.
+  </summary>
+</histogram>
+
+<histogram name="Compositing.BeginMainFrame.BMFReason1.NoUpdate"
+    units="reasons" expires_after="2026-08-30">
+  <owner>thiabaud@google.com</owner>
+  <owner>jonross@chromium.org</owner>
+  <summary>
+    Same as &quot;Compositing.BeginMainFrame.BMFReason1&quot;, but only recorded
+    if the BeginMainFrame finishes with no updates.
+  </summary>
+</histogram>
+
 <histogram name="Compositing.BeginMainFrame.MainResult"
-    enum="BeginMainFrameMainResult" expires_after="2026-08-30">
+    enum="BeginMainFrameMainResult" expires_after="2026-11-01">
   <owner>lizeb@chromium.org</owner>
   <owner>jonross@chromium.org</owner>
   <summary>
@@ -114,7 +136,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.BeginMainFrame.TimeUs" units="microseconds"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>lizeb@chromium.org</owner>
   <owner>jonross@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -126,7 +148,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.BeginMainFrame.TimeUs.NoUpdate"
-    units="microseconds" expires_after="2026-08-30">
+    units="microseconds" expires_after="2026-11-01">
   <owner>lizeb@chromium.org</owner>
   <owner>jonross@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -288,7 +310,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.DirectRenderer.PartialSwap.TotalDamage" units="%"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>vasilyt@chromium.org</owner>
   <owner>petermcneeley@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
@@ -303,7 +325,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.DirectRenderer.RenderPassDrawnRectMatch"
-    enum="Boolean" expires_after="2026-08-30">
+    enum="Boolean" expires_after="2026-11-01">
   <owner>petermcneeley@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -551,6 +573,26 @@ chromium-metrics-reviews@google.com.
   <token key="DPI" variants="LCDTextDisallowedReasonDPI"/>
 </histogram>
 
+<histogram name="Compositing.ResourcePool.PeakMemoryUsage" units="MB"
+    expires_after="2027-05-08">
+  <owner>lizeb@chromium.org</owner>
+  <owner>chrome-gpu-memory@google.com</owner>
+  <summary>
+    The maximum memory usage of the ResourcePool during its lifetime. Recorded
+    when the ResourcePool is destroyed.
+  </summary>
+</histogram>
+
+<histogram name="Compositing.ResourcePool.PeakResourceCount" units="resources"
+    expires_after="2027-05-08">
+  <owner>lizeb@chromium.org</owner>
+  <owner>chrome-gpu-memory@google.com</owner>
+  <summary>
+    The maximum number of resources in the ResourcePool during its lifetime.
+    Recorded when the ResourcePool is destroyed.
+  </summary>
+</histogram>
+
 <histogram name="Compositing.Scheduler.DeadlineMode"
     enum="BeginImplFrameDeadlineMode" expires_after="2026-10-04">
   <owner>lizeb@chromium.org</owner>
@@ -649,7 +691,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.TileManager.LimitWhenNotEnoughMemory.Browser"
-    units="MB" expires_after="2026-08-30">
+    units="MB" expires_after="2026-11-01">
   <owner>lizeb@chromium.org</owner>
   <owner>chrome-gpu-memory@google.com</owner>
   <summary>
@@ -744,7 +786,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CompositorLatency2{InteractionType}.{StageType}"
-    units="microseconds" expires_after="2026-08-30">
+    units="microseconds" expires_after="2026-11-08">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -863,7 +905,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Graphics.Smoothness.CheckerboardingNeedRaster4.AllSequences"
-    units="%" expires_after="2026-08-30">
+    units="%" expires_after="2026-11-01">
   <owner>wangxianzhu@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1179,7 +1221,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Graphics.Smoothness.PercentDroppedFrames4.AllSequences"
-    units="%" expires_after="2026-08-30">
+    units="%" expires_after="2026-11-01">
   <owner>jonross@chromium.org</owner>
   <owner>gaiko@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>

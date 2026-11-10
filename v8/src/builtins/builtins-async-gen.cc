@@ -35,7 +35,7 @@ TNode<Context> AsyncBuiltinsAssembler::AllocateAwaitContext(
       native_context, Context::AWAIT_CONTEXT_MAP_INDEX));
   StoreMapNoWriteBarrier(await_context, map);
   StoreObjectFieldNoWriteBarrier(
-      await_context, Context::kLengthOffset,
+      await_context, offsetof(Context, length_),
       SmiConstant(Context::MIN_CONTEXT_EXTENDED_SLOTS));
   const TNode<Object> empty_scope_info =
       LoadContextElementNoCell(native_context, Context::SCOPE_INFO_INDEX);

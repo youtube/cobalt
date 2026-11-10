@@ -28,5 +28,3 @@ features = ["ring"]
 
 [features]
 default = []
-# `mlalgs` enables ML-KEM and ML-DSA support. This requires Rust 1.82.
-mlalgs = ["bssl-crypto/mlalgs"]

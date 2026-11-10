@@ -635,7 +635,7 @@ L$_aes_hw_ccm64_encrypt_blocks_begin:
 	movdqa	xmm2,xmm7
 	lea	edx,[32+ecx*1+edx]
 	sub	ebx,ecx
-db	102,15,56,0,253
+	pshufb	xmm7,xmm5
 L$031ccm64_enc_outer:
 	movups	xmm0,[ebp]
 	mov	ecx,ebx
@@ -664,7 +664,7 @@ L$032ccm64_enc2_loop:
 	xorps	xmm6,xmm2
 	movdqa	xmm2,xmm7
 	movups	[edi],xmm6
-db	102,15,56,0,213
+	pshufb	xmm2,xmm5
 	lea	edi,[16+edi]
 	jnz	NEAR L$031ccm64_enc_outer
 	mov	esp,DWORD [48+esp]
@@ -718,7 +718,7 @@ L$_aes_hw_ccm64_decrypt_blocks_begin:
 	movdqa	xmm2,xmm7
 	mov	ebp,edx
 	mov	ebx,ecx
-db	102,15,56,0,253
+	pshufb	xmm7,xmm5
 	movups	xmm0,[edx]
 	movups	xmm1,[16+edx]
 	lea	edx,[32+edx]
@@ -745,7 +745,7 @@ L$034ccm64_dec_outer:
 	movdqa	xmm2,xmm7
 	movups	[edi],xmm6
 	lea	edi,[16+edi]
-db	102,15,56,0,213
+	pshufb	xmm2,xmm5
 	sub	eax,1
 	jz	NEAR L$035ccm64_dec_break
 	movups	xmm0,[ebp]
@@ -846,29 +846,29 @@ L$038pic_for_function_hit:
 	mov	DWORD [20+esp],ecx
 	mov	DWORD [24+esp],ecx
 	mov	DWORD [28+esp],ebp
-db	102,15,58,22,251,3
-db	102,15,58,34,253,3
+	pextrd	ebx,xmm7,3
+	pinsrd	xmm7,ebp,3
 	mov	ecx,DWORD [240+edx]
 	bswap	ebx
 	pxor	xmm0,xmm0
 	pxor	xmm1,xmm1
 	movdqa	xmm2,[esp]
-db	102,15,58,34,195,0
+	pinsrd	xmm0,ebx,0
 	lea	ebp,[3+ebx]
-db	102,15,58,34,205,0
+	pinsrd	xmm1,ebp,0
 	inc	ebx
-db	102,15,58,34,195,1
+	pinsrd	xmm0,ebx,1
 	inc	ebp
-db	102,15,58,34,205,1
+	pinsrd	xmm1,ebp,1
 	inc	ebx
-db	102,15,58,34,195,2
+	pinsrd	xmm0,ebx,2
 	inc	ebp
-db	102,15,58,34,205,2
+	pinsrd	xmm1,ebp,2
 	movdqa	[48+esp],xmm0
-db	102,15,56,0,194
+	pshufb	xmm0,xmm2
 	movdqu	xmm6,[edx]
 	movdqa	[64+esp],xmm1
-db	102,15,56,0,202
+	pshufb	xmm1,xmm2
 	pshufd	xmm2,xmm0,192
 	pshufd	xmm3,xmm0,128
 	cmp	eax,6
@@ -925,12 +925,12 @@ L$041ctr32_loop6:
 	movups	xmm3,[80+esi]
 	lea	esi,[96+esi]
 	movdqa	[48+esp],xmm0
-db	102,15,56,0,194
+	pshufb	xmm0,xmm2
 	xorps	xmm6,xmm4
 	movups	[48+edi],xmm5
 	xorps	xmm7,xmm3
 	movdqa	[64+esp],xmm1
-db	102,15,56,0,202
+	pshufb	xmm1,xmm2
 	movups	[64+edi],xmm6
 	pshufd	xmm2,xmm0,192
 	movups	[80+edi],xmm7
@@ -2299,7 +2299,7 @@ L$11410rounds_alt:
 	movdqa	xmm2,xmm0
 	movdqu	[edx-16],xmm0
 L$115loop_key128:
-db	102,15,56,0,197
+	pshufb	xmm0,xmm5
 	aesenclast	xmm0,xmm4
 	pslld	xmm4,1
 	lea	edx,[16+edx]
@@ -2316,7 +2316,7 @@ db	102,15,56,0,197
 	dec	ecx
 	jnz	NEAR L$115loop_key128
 	movdqa	xmm4,[48+ebx]
-db	102,15,56,0,197
+	pshufb	xmm0,xmm5
 	aesenclast	xmm0,xmm4
 	pslld	xmm4,1
 	movdqa	xmm3,xmm2
@@ -2329,7 +2329,7 @@ db	102,15,56,0,197
 	pxor	xmm0,xmm2
 	movdqu	[edx],xmm0
 	movdqa	xmm2,xmm0
-db	102,15,56,0,197
+	pshufb	xmm0,xmm5
 	aesenclast	xmm0,xmm4
 	movdqa	xmm3,xmm2
 	pslldq	xmm2,4
@@ -2353,7 +2353,7 @@ L$11212rounds_alt:
 L$117loop_key192:
 	movq	[edx],xmm2
 	movdqa	xmm1,xmm2
-db	102,15,56,0,213
+	pshufb	xmm2,xmm5
 	aesenclast	xmm2,xmm4
 	pslld	xmm4,1
 	lea	edx,[24+edx]
@@ -2387,7 +2387,7 @@ L$11114rounds_alt:
 	movdqa	xmm1,xmm2
 	movdqu	[edx-16],xmm2
 L$118loop_key256:
-db	102,15,56,0,213
+	pshufb	xmm2,xmm5
 	aesenclast	xmm2,xmm4
 	movdqa	xmm3,xmm0
 	pslldq	xmm0,4

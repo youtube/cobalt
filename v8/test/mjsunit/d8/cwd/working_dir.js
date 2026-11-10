@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Resources: test/mjsunit/d8/cwd/working_dir_helper.js.skip
+// Resources: test/mjsunit/d8/cwd/working_dir_test.js.skip
+
 // Flags: --quiet-load -C test/mjsunit/d8/cwd working_dir_test.js.skip
 
 // When existing the current test file, the cwd has not been modified yet,

@@ -82,7 +82,7 @@ class CVDisplayLinkMac : public DisplayLinkMac {
   // This is called by VSyncCallbackMac's destructor.
   void UnregisterCallback(VSyncCallbackMac* callback);
 
-  // Ensures that the Viz.ExternalBeginFrameSourceMac.DisplayLink.Create
+  // Ensures that the Viz.ExternalBeginFrameSourceMac.DisplayLink.Create2
   // histogram is recorded only once per display within
   // CVDisplayLinkMac::GetForDisplay().
   static void TryRecordDisplayLinkCreation(CGDirectDisplayID display_id,
@@ -100,11 +100,6 @@ class CVDisplayLinkMac : public DisplayLinkMac {
 
   // Each VSyncCallbackMac holds a reference to `this`.
   std::set<VSyncCallbackMac*> callbacks_;
-
-  // The number of consecutive DisplayLink VSyncs received after zero
-  // |callbacks_|. DisplayLink will be stopped after |kMaxExtraVSyncs| is
-  // reached. It's guarded by |globals.lock|.
-  int consecutive_vsyncs_with_no_callbacks_ = 0;
 
   // The task runner for the thread on which this is called and on which all
   // callbacks will be made.

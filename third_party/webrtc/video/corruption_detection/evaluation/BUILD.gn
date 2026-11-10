@@ -212,7 +212,12 @@ if (rtc_include_tests) {
       "../../../test:test_support",
       "//third_party/abseil-cpp/absl/strings:string_view",
     ]
-    data = [ "../../../resources/ConferenceMotion_1280_720_50.yuv" ]
+
+    if (is_ios) {
+      deps += [ "../../../resources:webrtc_perf_tests_bundle_data" ]
+    } else {
+      deps += [ "../../../resources:webrtc_perf_tests_data" ]
+    }
   }
 
   rtc_library("utils_unittest") {
@@ -232,7 +237,6 @@ if (rtc_include_tests) {
   rtc_library("webrtc_picture_pair_provider_unittest") {
     testonly = true
     sources = [ "webrtc_picture_pair_provider_unittest.cc" ]
-    data = [ "../../../resources/ConferenceMotion_1280_720_50.yuv" ]
     deps = [
       ":picture_pair_provider",
       ":utils",
@@ -265,9 +269,14 @@ if (rtc_include_tests) {
       "../../../video/corruption_detection/evaluation:test_clip",
       "//third_party/abseil-cpp/absl/strings:string_view",
     ]
+    if (is_ios) {
+      deps += [ "../../../resources:webrtc_perf_tests_bundle_data" ]
+    } else {
+      deps += [ "../../../resources:webrtc_perf_tests_data" ]
+    }
   }
 
-  rtc_library("corruption_detection_eval_tests") {
+  rtc_cc_test("corruption_detection_eval_unittests") {
     testonly = true
     sources = []
     deps = [

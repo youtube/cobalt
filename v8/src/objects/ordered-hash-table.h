@@ -420,7 +420,7 @@ class V8_EXPORT_PRIVATE OrderedHashMap
 // can reference a concrete `SmallOrderedHashTable` type. The shared
 // implementation -- methods using Derived-specific constants -- lives
 // on the CRTP SmallOrderedHashTableImpl<Derived> below.
-V8_OBJECT class SmallOrderedHashTable : public HeapObjectLayout {
+V8_OBJECT class SmallOrderedHashTable : public HeapObject {
  public:
   static const int kMinCapacity = 4;
   static const uint8_t kNotFound = 0xFF;
@@ -608,7 +608,7 @@ class SmallOrderedHashTableImpl : public SmallOrderedHashTable {
     static_cast<Derived*>(this)->number_of_deleted_elements_ = num;
   }
 
-  static constexpr Offset PrefixOffset() { return sizeof(HeapObjectLayout); }
+  static constexpr Offset PrefixOffset() { return sizeof(HeapObject); }
 
   static constexpr Offset NumberOfElementsOffset() {
     return PrefixOffset() + (Derived::kPrefixSize * kTaggedSize);

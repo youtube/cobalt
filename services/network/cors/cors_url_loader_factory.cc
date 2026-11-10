@@ -28,6 +28,7 @@
 #include "net/shared_dictionary/shared_dictionary_isolation_key.h"
 #include "net/url_request/url_request_context.h"
 #include "services/network/cors/cors_url_loader.h"
+#include "services/network/cors/cors_util.h"
 #include "services/network/cors/preflight_controller.h"
 #include "services/network/network_service.h"
 #include "services/network/prefetch_matching_url_loader_factory.h"
@@ -428,7 +429,7 @@ void CorsURLLoaderFactory::CreateLoaderAndStart(
 
   // Check if the initiator's network access has been restricted.
   if (network_restrictions_id_.has_value() &&
-      !context_->IsNetworkForNonceAndUrlAllowed(
+      !context_->IsNetworkForNetworkRestrictionsIdAndUrlAllowed(
           *network_restrictions_id_, resource_request.url,
           isolation_info_ptr->network_anonymization_key())) {
     // TODO(crbug.com/447954811): Perhaps change to a new error code and
@@ -851,7 +852,9 @@ bool CorsURLLoaderFactory::IsValidRequest(
     return false;
   }
 
-  if (!process_id_.is_browser() &&
+  const bool allow_unsafe_headers = cors::ShouldAllowUnsafeHeaders(
+      *origin_access_list_, request.request_initiator, request.url);
+  if (!process_id_.is_browser() && !allow_unsafe_headers &&
       ContainsForbiddenSecurityHeader(request.headers)) {
     mojo::ReportBadMessage(
         "CorsURLLoaderFactory: Forbidden Sec- header from renderer");

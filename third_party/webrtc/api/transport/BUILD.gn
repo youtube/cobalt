@@ -173,12 +173,14 @@ if (rtc_include_tests) {
       ":stun_types",
       "../../rtc_base:byte_buffer",
       "../../rtc_base:byte_order",
+      "../../rtc_base:checks",
       "../../rtc_base:ip_address",
       "../../rtc_base:socket_address",
       "../../rtc_base:span_helpers",
       "../../system_wrappers:metrics",
       "../../test:test_support",
       "//testing/gtest",
+      "//third_party/abseil-cpp/absl/strings:string_view",
     ]
   }
 }

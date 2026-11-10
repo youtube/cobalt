@@ -79,10 +79,6 @@ V8_OBJECT class JSSegments : public JSObject {
   static_assert(GranularityBits::is_valid(JSSegmenter::Granularity::WORD));
   static_assert(GranularityBits::is_valid(JSSegmenter::Granularity::SENTENCE));
 
-  // Back-compat offset/size constants.
-  static const int kIcuIteratorWithTextOffset;
-  static const int kRawStringOffset;
-  static const int kFlagsOffset;
   static const int kHeaderSize;
 
  public:
@@ -91,11 +87,6 @@ V8_OBJECT class JSSegments : public JSObject {
   TaggedMember<Smi> flags_;
 } V8_OBJECT_END;
 
-inline constexpr int JSSegments::kIcuIteratorWithTextOffset =
-    offsetof(JSSegments, icu_iterator_with_text_);
-inline constexpr int JSSegments::kRawStringOffset =
-    offsetof(JSSegments, raw_string_);
-inline constexpr int JSSegments::kFlagsOffset = offsetof(JSSegments, flags_);
 inline constexpr int JSSegments::kHeaderSize = sizeof(JSSegments);
 
 }  // namespace internal

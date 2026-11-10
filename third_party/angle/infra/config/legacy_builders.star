@@ -308,7 +308,6 @@ luci.builder(
 )
 
 # name, clang, debug, cpu, uwp, trace_tests
-angle_builder("mac-dbg-compile", cpu = "x64")
 angle_builder("win-asan-test", cpu = "x64")
 angle_builder("win-dbg-compile", cpu = "x64")
 angle_builder("win-msvc-compile", cpu = "x64")
@@ -319,14 +318,10 @@ angle_builder("win-x86-dbg-compile", cpu = "x86")
 angle_builder("winuwp-compile", cpu = "x64")
 angle_builder("winuwp-dbg-compile", cpu = "x64")
 
-angle_builder("win-trace", cpu = "x64")
-
 angle_builder("android-pixel4-perf", cpu = "arm64")
 angle_builder("android-pixel6-perf", cpu = "arm64")
 angle_builder("linux-intel-uhd630-perf", cpu = "x64")
 angle_builder("linux-nvidia-gtx1660-perf", cpu = "x64")
-angle_builder("win10-intel-uhd630-perf", cpu = "x64")
-angle_builder("win10-nvidia-gtx1660-perf", cpu = "x64")
 
 # CQ
 

@@ -1112,6 +1112,44 @@ TEST_F(SdpMungingTest, AudioSsrc) {
       ElementsAre(Pair(SdpMungingType::kSsrcs, 1)));
 }
 
+TEST_F(SdpMungingTest, MsidStream) {
+  auto pc = CreatePeerConnection();
+  pc->AddAudioTrack("audio_track", {"stream"});
+
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
+  auto& contents = offer->description()->contents();
+  ASSERT_THAT(contents, SizeIs(1));
+  auto* media_description = contents[0].media_description();
+  ASSERT_THAT(media_description, Not(IsNull()));
+  ASSERT_THAT(media_description->streams(), SizeIs(1));
+  media_description->mutable_streams()[0].set_stream_ids({"munged"});
+
+  RTCError error;
+  EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kMsidStream, 1)));
+}
+
+TEST_F(SdpMungingTest, MsidTrack) {
+  auto pc = CreatePeerConnection();
+  pc->AddAudioTrack("audio_track", {"stream"});
+
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
+  auto& contents = offer->description()->contents();
+  ASSERT_THAT(contents, SizeIs(1));
+  auto* media_description = contents[0].media_description();
+  ASSERT_THAT(media_description, Not(IsNull()));
+  ASSERT_THAT(media_description->streams(), SizeIs(1));
+  media_description->mutable_streams()[0].id = "mungedtrack";
+
+  RTCError error;
+  EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kMsidTrack, 1)));
+}
+
 TEST_F(SdpMungingTest, HeaderExtensionAdded) {
   auto pc = CreatePeerConnection();
   pc->AddVideoTrack("video_track", {});

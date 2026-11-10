@@ -16,20 +16,22 @@ export function getHtml(this: OmniboxAimAppElement) {
 <div id="content">
   ${this.composeboxForkEnabled_ ? html`
   <cr-omnibox-composebox searchbox-next-enabled id="composebox"
-      searchbox-layout-mode="${this.getSearchboxLayoutMode_()}">
+      searchbox-layout-mode="${this.getSearchboxLayoutMode_()}"
+      @context-menu-entrypoint-click="${this.onContextMenuEntrypointClick_}">
   </cr-omnibox-composebox>` : html`
   <cr-composebox id="composebox" searchbox-next-enabled
       .submitButtonIconType="${SubmitButtonIconType.FORWARD}"
       searchbox-layout-mode="${this.getSearchboxLayoutMode_()}"
       ?disable-caret-color-animation="${!this.caretAnimationsEnabled_}"
       ?disable-composebox-animation="${this.disableComposeboxAnimation_}"
-      disable-voice-search-animation
+      .disableVoiceSearchAnimation="${this.disableVoiceSearchAnimation_}"
       @context-menu-entrypoint-click="${this.onContextMenuEntrypointClick_}"
       @close-composebox="${this.onCloseComposebox_}"
       @composebox-submit="${this.onComposeboxSubmit_}"
       .showMenuOnClick="${false}"
       .shouldShowGhostFiles="${true}"
       .showVoiceSearch="${true}"
+      .usePecApi="${this.usePecApi_}"
       entrypoint-name="Omnibox">
   </cr-composebox>`}
 </div>

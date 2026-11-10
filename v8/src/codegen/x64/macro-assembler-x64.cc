@@ -271,18 +271,20 @@ void MacroAssembler::CompareRoot(Operand with, RootIndex index) {
 
 void MacroAssembler::LoadCompressedMap(Register destination, Register object) {
   CHECK(COMPRESS_POINTERS_BOOL);
-  mov_tagged(destination, FieldOperand(object, HeapObject::kMapOffset));
+  mov_tagged(destination, FieldOperand(object, offsetof(HeapObject, map_)));
 }
 
 void MacroAssembler::LoadMap(Register destination, Register object) {
-  LoadTaggedField(destination, FieldOperand(object, HeapObject::kMapOffset));
+  LoadTaggedField(destination,
+                  FieldOperand(object, offsetof(HeapObject, map_)));
 #ifdef V8_MAP_PACKING
   UnpackMapWord(destination);
 #endif
 }
 
 void MacroAssembler::LoadFeedbackCell(Register dst, Register closure) {
-  LoadTaggedField(dst, FieldOperand(closure, JSFunction::kFeedbackCellOffset));
+  LoadTaggedField(dst,
+                  FieldOperand(closure, offsetof(JSFunction, feedback_cell_)));
 }
 
 void MacroAssembler::LoadFeedbackVectorFromCell(Register dst,
@@ -880,8 +882,8 @@ void MacroAssembler::LoadIndirectPointerField(Register destination,
 void MacroAssembler::StoreIndirectPointerField(Operand dst_field_operand,
                                                Register value) {
 #ifdef V8_ENABLE_SANDBOX
-  movl(kScratchRegister,
-       FieldOperand(value, ExposedTrustedObject::kSelfIndirectPointerOffset));
+  movl(kScratchRegister, FieldOperand(value, offsetof(ExposedTrustedObject,
+                                                      self_indirect_pointer_)));
   movl(dst_field_operand, kScratchRegister);
 #else
   UNREACHABLE();
@@ -1528,7 +1530,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
 #ifndef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   movl(kJavaScriptCallDispatchHandleRegister,
        FieldOperand(kJavaScriptCallTargetRegister,
-                    JSFunction::kDispatchHandleOffset));
+                    offsetof(JSFunction, dispatch_handle_)));
 #endif
   LoadEntrypointFromJSDispatchTable(rcx, kJavaScriptCallDispatchHandleRegister);
   DCHECK_EQ(jump_mode, JumpMode::kJump);
@@ -3566,7 +3568,8 @@ void MacroAssembler::CallJSFunction(Register function_object,
                                     uint16_t argument_count) {
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
   static_assert(kJavaScriptCallDispatchHandleRegister == r15, "ABI mismatch");
-  movl(r15, FieldOperand(function_object, JSFunction::kDispatchHandleOffset));
+  movl(r15,
+       FieldOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
   LoadEntrypointAndParameterCountFromJSDispatchTable(rcx, rbx, r15);
   // Force a safe crash if the parameter count doesn't match.
   // TODO(412398354): to avoid this runtime check, we should switch all
@@ -4015,7 +4018,7 @@ void MacroAssembler::CmpObjectType(Register heap_object, InstanceType type,
 }
 
 void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
-  cmpw(FieldOperand(map, Map::kInstanceTypeOffset), Immediate(type));
+  cmpw(FieldOperand(map, offsetof(Map, instance_type_)), Immediate(type));
 }
 
 void MacroAssembler::CmpInstanceTypeRange(Register map,
@@ -4023,7 +4026,7 @@ void MacroAssembler::CmpInstanceTypeRange(Register map,
                                           InstanceType lower_limit,
                                           InstanceType higher_limit) {
   DCHECK_LT(lower_limit, higher_limit);
-  movzxwl(instance_type_out, FieldOperand(map, Map::kInstanceTypeOffset));
+  movzxwl(instance_type_out, FieldOperand(map, offsetof(Map, instance_type_)));
   CompareRange(instance_type_out, lower_limit, higher_limit);
 }
 
@@ -4145,7 +4148,7 @@ void MacroAssembler::AssertConstructor(Register object) {
   Check(not_equal, AbortReason::kOperandIsASmiAndNotAConstructor);
   Push(object);
   LoadMap(object, object);
-  testb(FieldOperand(object, Map::kBitFieldOffset),
+  testb(FieldOperand(object, offsetof(Map, bit_field_)),
         Immediate(Map::Bits1::IsConstructorBit::kMask));
   Pop(object);
   Check(not_zero, AbortReason::kOperandIsNotAConstructor);
@@ -4320,7 +4323,7 @@ void MacroAssembler::InvokeFunction(
     InvokeType type, ArgumentAdaptionMode argument_adaption_mode) {
   ASM_CODE_COMMENT(this);
   DCHECK_EQ(function, rdi);
-  LoadTaggedField(rsi, FieldOperand(function, JSFunction::kContextOffset));
+  LoadTaggedField(rsi, FieldOperand(function, offsetof(JSFunction, context_)));
   InvokeFunctionCode(rdi, new_target, actual_parameter_count, type,
                      argument_adaption_mode);
 }
@@ -4336,7 +4339,7 @@ void MacroAssembler::InvokeFunctionCode(
 
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
   movl(dispatch_handle,
-       FieldOperand(function, JSFunction::kDispatchHandleOffset));
+       FieldOperand(function, offsetof(JSFunction, dispatch_handle_)));
 
   AssertFunction(function);
 
@@ -4670,7 +4673,8 @@ void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   LoadMap(dst, rsi);
   LoadTaggedField(
       dst,
-      FieldOperand(dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
+      FieldOperand(
+          dst, offsetof(Map, constructor_or_back_pointer_or_native_context_)));
   // Load value from native context.
   LoadTaggedField(dst, Operand(dst, Context::SlotOffset(index)));
 }

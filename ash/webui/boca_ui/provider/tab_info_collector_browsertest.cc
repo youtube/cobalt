@@ -10,10 +10,9 @@
 #include "ash/shell.h"
 #include "ash/webui/boca_ui/mojom/boca.mojom.h"
 #include "base/test/bind.h"
-#include "base/test/test_future.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/browser/web_ui.h"
@@ -99,7 +98,7 @@ class TabInfoCollectorProducerTest : public TabInfoCollectorTest {
 
 IN_PROC_BROWSER_TEST_F(TabInfoCollectorProducerTest,
                        GetTabListForProducerNonEmptyWindow) {
-  ASSERT_EQ(1u, chrome::GetTotalBrowserCount());
+  ASSERT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
 
   // Create browser 1 and navigate to url1 and then url2
   CreateBrowser({GURL(kTabUrl1), GURL(kTabUrl2)});
@@ -110,9 +109,7 @@ IN_PROC_BROWSER_TEST_F(TabInfoCollectorProducerTest,
   // Create browser 3 and navigate to url4
   CreateBrowser({GURL(kTabUrl4)});
 
-  base::test::TestFuture<std::vector<mojom::WindowPtr>> future;
-  tab_info_collector()->GetWindowTabInfo(future.GetCallback());
-  auto window_list = future.Take();
+  auto window_list = tab_info_collector()->GetWindowTabInfo();
 
   // Start with 1 existing window.
   ASSERT_EQ(4u, window_list.size());
@@ -143,11 +140,9 @@ IN_PROC_BROWSER_TEST_F(TabInfoCollectorProducerTest,
                        GetTabListForProducerEmptyWindow) {
   // Close the browser and verify that all browser windows are closed.
   CloseBrowserSynchronously(browser());
-  ASSERT_EQ(0u, chrome::GetTotalBrowserCount());
+  ASSERT_EQ(0u, GlobalBrowserCollection::GetInstance()->GetSize());
 
-  base::test::TestFuture<std::vector<mojom::WindowPtr>> future;
-  tab_info_collector()->GetWindowTabInfo(future.GetCallback());
-  auto window_list = future.Take();
+  auto window_list = tab_info_collector()->GetWindowTabInfo();
 
   EXPECT_EQ(0u, window_list.size());
 }
@@ -155,26 +150,22 @@ IN_PROC_BROWSER_TEST_F(TabInfoCollectorProducerTest,
 IN_PROC_BROWSER_TEST_F(TabInfoCollectorProducerTest,
                        GetTabListForProducerIncognitoWindow) {
   CreateIncognitoBrowser(ProfileManager::GetActiveUserProfile());
-  ASSERT_EQ(2u, chrome::GetTotalBrowserCount());
+  ASSERT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
 
-  base::test::TestFuture<std::vector<mojom::WindowPtr>> future;
-  tab_info_collector()->GetWindowTabInfo(future.GetCallback());
-  auto window_list = future.Take();
+  auto window_list = tab_info_collector()->GetWindowTabInfo();
 
   EXPECT_EQ(1u, window_list.size());
 }
 
 IN_PROC_BROWSER_TEST_F(TabInfoCollectorConsumerTest,
                        GetTabListForTargetWindow) {
-  ASSERT_EQ(1u, chrome::GetTotalBrowserCount());
+  ASSERT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
   views::AnyWidgetObserver observer(views::test::AnyWidgetTestPasskey{});
   observer.set_shown_callback(
       base::BindLambdaForTesting([&](views::Widget* widget) {
         auto* window = widget->GetNativeWindow();
-        base::test::TestFuture<std::vector<mojom::WindowPtr>> future;
-        tab_info_collector()->GetWindowTabInfoForTarget(window,
-                                                        future.GetCallback());
-        auto window_list = future.Take();
+        auto window_list =
+            tab_info_collector()->GetWindowTabInfoForTarget(window);
 
         // Only target window should be recorded.
         ASSERT_EQ(1u, window_list.size());

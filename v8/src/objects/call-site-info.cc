@@ -429,7 +429,7 @@ Tagged<PrimitiveHeapObject> InferMethodNameFromFastObject(
     Tagged<PrimitiveHeapObject> name) {
   ReadOnlyRoots roots(isolate);
   Tagged<Map> map = receiver->map();
-  Tagged<DescriptorArray> descriptors = map->instance_descriptors(isolate);
+  Tagged<DescriptorArray> descriptors = map->instance_descriptors();
   for (auto i : map->IterateOwnDescriptors()) {
     Tagged<PrimitiveHeapObject> key = descriptors->GetKey(i);
     if (IsSymbol(key)) continue;
@@ -439,7 +439,7 @@ Tagged<PrimitiveHeapObject> InferMethodNameFromFastObject(
     if (details.location() == PropertyLocation::kField) {
       auto field_index = FieldIndex::ForDetails(map, details);
       if (field_index.is_double()) continue;
-      value = receiver->RawFastPropertyAt(isolate, field_index);
+      value = receiver->RawFastPropertyAt(field_index);
     } else {
       value = descriptors->GetStrongValue(i);
     }

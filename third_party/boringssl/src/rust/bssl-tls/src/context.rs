@@ -14,10 +14,7 @@
 
 //! TLS context builder and context type
 
-use alloc::{
-    boxed::Box,
-    sync::Arc, //
-};
+use alloc::boxed::Box;
 use core::{
     marker::PhantomData,
     mem::forget,
@@ -80,7 +77,6 @@ impl HasBasicIo for DtlsMode {}
 /// This generic governs the kind of [`TlsConnection`] that can be constructed.
 pub struct TlsContextBuilder<Mode = TlsMode> {
     ptr: NonNull<bssl_sys::SSL_CTX>,
-    cert_cache: Option<Arc<CertificateCache>>,
     _p: PhantomData<fn() -> Mode>,
 }
 
@@ -103,7 +99,6 @@ where
         };
         let this = TlsContextBuilder {
             ptr,
-            cert_cache: None,
             _p: PhantomData,
         };
         let rc = unsafe {
@@ -147,24 +142,17 @@ where
     M: HasTlsContextMethod,
 {
     /// Builds and returns the configured TLS context.
-    pub fn build(mut self) -> TlsContext<M> {
-        let TlsContextBuilder {
-            ptr,
-            ref mut cert_cache,
-            ..
-        } = self;
-        let cert_cache = cert_cache.take();
+    pub fn build(self) -> TlsContext<M> {
+        let ptr = self.ptr;
         // We must disarm the drop activated by the builder and pass on the ownership.
         // Now `self` has no destructors to call.
         forget(self);
         TlsContext {
             ptr,
-            cert_cache,
             _p: PhantomData,
         }
     }
 
-    #[allow(unused)]
     fn get_context_methods(&mut self) -> &mut methods::RustContextMethods<M> {
         let methods = unsafe {
             // Safety: the validity of the handle `self.0` is witnessed by `self`.
@@ -380,9 +368,9 @@ impl<M> Drop for TlsContextBuilder<M> {
 }
 
 /// A TLS context that is finalised and can be shared across connections
+#[repr(transparent)]
 pub struct TlsContext<M = TlsMode> {
     ptr: NonNull<bssl_sys::SSL_CTX>,
-    cert_cache: Option<Arc<CertificateCache>>,
     _p: PhantomData<fn() -> M>,
 }
 
@@ -430,7 +418,7 @@ where
             // Safety: the connection is still valid here
             bssl_sys::SSL_set_connect_state(conn.as_ptr());
         }
-        let mut builder = TlsConnectionBuilder::from_ssl(conn, self.cert_cache.clone());
+        let mut builder = TlsConnectionBuilder::from_ssl(conn);
         // The safe default is that the client should perform at least
         // some certification verification.
         builder.with_certificate_verification_mode(
@@ -449,10 +437,7 @@ where
             // Safety: the connection is still valid here
             bssl_sys::SSL_set_accept_state(conn.as_ptr());
         }
-        Ok(TlsConnectionBuilder::from_ssl(
-            conn,
-            self.cert_cache.clone(),
-        ))
+        Ok(TlsConnectionBuilder::from_ssl(conn))
     }
 
     /// Expose the fully built BoringSSL's `SSL_CTX` pointer.
@@ -498,7 +483,6 @@ impl<M> Clone for TlsContext<M> {
         }
         TlsContext {
             ptr: self.ptr,
-            cert_cache: self.cert_cache.clone(),
             _p: PhantomData,
         }
     }
@@ -530,7 +514,17 @@ impl Drop for CertificateCache {
     fn drop(&mut self) {
         unsafe {
             // Safety: the validity of `self.0` is witnessed by `self`
-            bssl_sys::CRYPTO_BUFFER_POOL_free(self.0.as_ptr());
+            bssl_sys::CRYPTO_BUFFER_POOL_free(self.ptr());
         }
+    }
+}
+
+impl Clone for CertificateCache {
+    fn clone(&self) -> Self {
+        unsafe {
+            // Safety: the validity of `self.0` is witnessed by `self`
+            bssl_sys::CRYPTO_BUFFER_POOL_up_ref(self.ptr());
+        }
+        Self(self.0)
     }
 }

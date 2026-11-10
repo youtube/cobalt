@@ -39,18 +39,18 @@ constexpr bool is_android = !!BUILDFLAG(IS_ANDROID);
 #if BUILDFLAG(IS_ANDROID)
 constexpr char kChromeUINewTabHost[] = "newtab";
 // Returns true if the given `tab` is a chrome newtab page.
-bool IsNewTabPage(const TabMatcher::TabWrapper tab) {
-  if (tab.url.GetScheme() != content::kChromeUIScheme &&
-      tab.url.GetScheme() != content::kChromeNativeScheme) {
+bool IsNewTabPage(const TabMatcher::TabWrapper& tab) {
+  if (tab.url.scheme() != content::kChromeUIScheme &&
+      tab.url.scheme() != content::kChromeNativeScheme) {
     return false;
   }
-  return tab.url.GetHost() == kChromeUINewTabHost;
+  return tab.url.host() == kChromeUINewTabHost;
 }
 #endif
 
 int Score(const AutocompleteInput& input,
           const query_parser::QueryNodeVector& input_query_nodes,
-          const TabMatcher::TabWrapper tab) {
+          const TabMatcher::TabWrapper& tab) {
 #if BUILDFLAG(IS_ANDROID)
   // For Hub Search, remove both ZPS and search suggestions that involve open
   // chrome new tab pages. This is done by returning a score of 0 for all such
@@ -175,7 +175,7 @@ void OpenTabProvider::Start(const AutocompleteInput& input,
   // If there were no open tab results found, and we're in keyword mode,
   // generate a NULL_RESULT_MESSAGE suggestion to keep the user in keyword mode
   // and display a no results message.
-  if (adjusted_input.InKeywordMode() && matches_.empty() && template_url) {
+  if (adjusted_input.in_keyword_mode() && matches_.empty() && template_url) {
     matches_.push_back(
         CreateNullResultMessageMatch(adjusted_input, template_url));
   }
@@ -229,7 +229,7 @@ AutocompleteMatch OpenTabProvider::CreateOpenTabMatch(
       description_terms, match.description.size(), ACMatchClassification::MATCH,
       ACMatchClassification::NONE);
 
-  if (input.InKeywordMode()) {
+  if (input.in_keyword_mode()) {
     match.from_keyword = true;
   }
 

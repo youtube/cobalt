@@ -60,7 +60,8 @@ UniquePtr<CERT> ssl_cert_dup(CERT *cert) {
   // |legacy_credential| is mutable, so it must be copied. We cannot simply
   // bump the reference count.
   ret->legacy_credential = cert->legacy_credential->Dup();
-  if (ret->legacy_credential == nullptr) {
+  if (ret->legacy_credential == nullptr ||
+      !ret->available_trust_anchors.CopyFrom(cert->available_trust_anchors)) {
     return nullptr;
   }
 

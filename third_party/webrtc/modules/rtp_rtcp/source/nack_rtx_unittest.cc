@@ -153,6 +153,7 @@ class RtpRtcpRtxNackTest : public ::testing::Test {
     configuration.retransmission_rate_limiter = &retransmission_rate_limiter_;
     configuration.local_media_ssrc = kTestSsrc;
     configuration.rtx_send_ssrc = kTestRtxSsrc;
+    configuration.rtcp_mode = RtcpMode::kCompound;
     rtp_rtcp_module_ =
         ModuleRtpRtcpImpl2::CreateSendModule(env_, configuration);
     RTPSenderVideo::Config video_config;
@@ -160,7 +161,6 @@ class RtpRtcpRtxNackTest : public ::testing::Test {
     video_config.rtp_sender = rtp_rtcp_module_->RtpSender();
     video_config.field_trials = &env_.field_trials();
     rtp_sender_video_ = std::make_unique<RTPSenderVideo>(video_config);
-    rtp_rtcp_module_->SetRTCPStatus(RtcpMode::kCompound);
     rtp_rtcp_module_->SetStorePacketsStatus(true, 600);
     EXPECT_EQ(0, rtp_rtcp_module_->SetSendingStatus(true));
     rtp_rtcp_module_->SetSequenceNumber(kTestSequenceNumber);

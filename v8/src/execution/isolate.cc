@@ -403,12 +403,13 @@ void Isolate::SetEmbeddedBlob(const uint8_t* code, uint32_t code_size,
         PrintF(
             "Warning: Embedded blob code section checksum verification failed, "
             "but debugger is attached. Skipping.\n");
-      } else
+      } else {
         FATAL(
             "Embedded blob code section checksum verification failed. This "
             "indicates that the embedded blob has been modified since "
             "compilation time. A common cause is a debugging breakpoint set "
             "within builtin code.");
+      }
     }
   }
 #endif  // DEBUG
@@ -756,9 +757,10 @@ DirectHandle<String> Isolate::StackTraceString() {
   }
 }
 
-[[noreturn]] void Isolate::PushStackTraceAndDie(void* ptr1, void* ptr2,
-                                                void* ptr3, void* ptr4,
-                                                void* ptr5, void* ptr6) {
+[[noreturn]] void Isolate::PushStackTraceAndDie(const char* reason, void* ptr1,
+                                                void* ptr2, void* ptr3,
+                                                void* ptr4, void* ptr5,
+                                                void* ptr6) {
   static std::atomic<bool> recursive{false};
   if (recursive.exchange(true)) IMMEDIATE_CRASH();
 
@@ -777,12 +779,18 @@ DirectHandle<String> Isolate::StackTraceString() {
       "\n\n#\n# Safely terminating process due to hitting "
       "Isolate::PushStackTraceAndDie\n#\n");
 
+  // Give the embedder a chance to handle the fatal error.
+  FatalErrorCallback callback = exception_behavior();
+  if (callback) {
+    callback("Isolate::PushStackTraceAndDie", reason);
+  }
+
   base::OS::Abort();
 }
 
-[[noreturn]] void Isolate::PushParamsAndDie(void* ptr1, void* ptr2, void* ptr3,
-                                            void* ptr4, void* ptr5,
-                                            void* ptr6) {
+[[noreturn]] void Isolate::PushParamsAndDie(const char* reason, void* ptr1,
+                                            void* ptr2, void* ptr3, void* ptr4,
+                                            void* ptr5, void* ptr6) {
   StackTraceFailureMessage message(
       this, StackTraceFailureMessage::kDontIncludeStackTrace,
       {ptr1, ptr2, ptr3, ptr4, ptr5, ptr6});
@@ -794,6 +802,12 @@ DirectHandle<String> Isolate::StackTraceString() {
   v8::base::OS::PrintError(
       "\n\n#\n# Safely terminating process due to hitting "
       "Isolate::PushParamsAndDie\n#\n");
+
+  // Give the embedder a chance to handle the fatal error.
+  FatalErrorCallback callback = exception_behavior();
+  if (callback) {
+    callback("Isolate::PushParamsAndDie", reason);
+  }
 
   base::OS::Abort();
 }
@@ -3197,7 +3211,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
           // return address of the fast call. If so, then we tell the
           // deoptimizer of the exception and just return the Deoptimization
           // Entry. Otherwise we iterate the stack further to find a handler.
-          HandlerTable table(caller_code->UnsafeCastToCode());
+          HandlerTable table(TrustedCast<Code>(caller_code));
           int handler_offset = table.LookupReturn(caller_offset);
           if (handler_offset < 0) {
             // No handler was registered for the fast call. The stack iteration
@@ -3327,14 +3341,13 @@ HandlerTable::CatchPrediction PredictException(const FrameSummary& summary,
     // for exception handling.
     return HandlerTable::UNCAUGHT;
   }
-  PtrComprCageBase cage_base(isolate);
   DirectHandle<AbstractCode> code = summary.AsJavaScript().abstract_code();
-  if (code->kind(cage_base) == CodeKind::BUILTIN) {
+  if (code->kind() == CodeKind::BUILTIN) {
     return CatchPredictionFor(code->GetCode()->builtin_id());
   }
 
   // Must have been constructed from a bytecode array.
-  CHECK_EQ(CodeKind::INTERPRETED_FUNCTION, code->kind(cage_base));
+  CHECK_EQ(CodeKind::INTERPRETED_FUNCTION, code->kind());
   return PredictExceptionFromBytecode(code->GetBytecodeArray(),
                                       summary.code_offset());
 }
@@ -3393,7 +3406,7 @@ Isolate::CatchType PredictExceptionCatchAtFrame(
     }
 
     case StackFrame::STUB: {
-      Tagged<Code> code = *frame->LookupCode();
+      Tagged<Code> code = frame->LookupCode();
       if (code->kind() != CodeKind::BUILTIN || !code->has_handler_table() ||
           !code->is_turbofanned()) {
         break;
@@ -3403,7 +3416,7 @@ Isolate::CatchType PredictExceptionCatchAtFrame(
     }
 
     case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH: {
-      Tagged<Code> code = *frame->LookupCode();
+      Tagged<Code> code = frame->LookupCode();
       return ToCatchType(CatchPredictionFor(code->builtin_id()));
     }
 
@@ -4171,7 +4184,7 @@ bool Isolate::WalkCallStackAndPromiseTree(
       if (summary.IsJavaScript()) {
         const auto& info = summary.AsJavaScript().function()->shared();
         if (info->IsSubjectToDebugging()) {
-          callback({*info, false});
+          callback({info, false});
           debuggable = true;
         }
       }
@@ -6433,8 +6446,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   clear_pending_message();
 
   // Quiet the heap NaN if needed on target platform.
-  if (!create_heap_objects)
+  if (!create_heap_objects) {
     Assembler::QuietNaN(ReadOnlyRoots(this).nan_value());
+  }
 
   if (v8_flags.trace_turbo) {
     // Create an empty file.
@@ -6851,7 +6865,7 @@ void Isolate::IncreaseDateCacheStampAndInvalidateProtector() {
 
 Isolate::KnownPrototype Isolate::IsArrayOrObjectOrStringPrototype(
     Tagged<JSObject> object) {
-  Tagged<Map> metamap = object->map(this)->map(this);
+  Tagged<Map> metamap = object->map()->map();
   Tagged<NativeContext> native_context = metamap->native_context();
   if (native_context->initial_object_prototype() == object) {
     return KnownPrototype::kObject;
@@ -6865,7 +6879,7 @@ Isolate::KnownPrototype Isolate::IsArrayOrObjectOrStringPrototype(
 
 bool Isolate::IsInCreationContext(Tagged<JSObject> object, uint32_t index) {
   DisallowGarbageCollection no_gc;
-  Tagged<Map> metamap = object->map(this)->map(this);
+  Tagged<Map> metamap = object->map()->map();
   // Filter out native-context independent objects.
   if (metamap == ReadOnlyRoots(this).meta_map()) return false;
   Tagged<NativeContext> native_context = metamap->native_context();
@@ -8190,8 +8204,9 @@ v8::metrics::Recorder::ContextId Isolate::GetOrRegisterRecorderContextId(
 MaybeLocal<v8::Context> Isolate::GetContextFromRecorderContextId(
     v8::metrics::Recorder::ContextId id) {
   auto result = recorder_context_id_map_.find(id.id_);
-  if (result == recorder_context_id_map_.end() || result->second.IsEmpty())
+  if (result == recorder_context_id_map_.end() || result->second.IsEmpty()) {
     return MaybeLocal<v8::Context>();
+  }
   return result->second.Get(reinterpret_cast<v8::Isolate*>(this));
 }
 
@@ -8289,7 +8304,7 @@ void Isolate::LocalsBlockListCacheRehash() {
   if (IsEphemeronHashTable(heap()->locals_block_list_cache())) {
     Tagged<EphemeronHashTable> cache =
         Cast<EphemeronHashTable>(heap()->locals_block_list_cache());
-    cache->Rehash(this);
+    cache->Rehash();
   }
 }
 void Isolate::LocalsBlockListCacheSet(

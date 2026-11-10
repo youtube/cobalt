@@ -169,7 +169,7 @@ void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
   ScratchRegisterScope temps(this);
   Register type = temps.AcquireScratch();
   __ LoadMap(map, object);
-  __ LoadU16(type, FieldMemOperand(map, Map::kInstanceTypeOffset), r0);
+  __ LoadU16(type, FieldMemOperand(map, offsetof(Map, instance_type_)), r0);
   JumpIf(cc, type, Operand(instance_type), target);
 }
 
@@ -182,7 +182,7 @@ void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
   if (v8_flags.debug_code) {
     __ AssertMap(map);
   }
-  __ LoadU16(type, FieldMemOperand(map, Map::kInstanceTypeOffset), r0);
+  __ LoadU16(type, FieldMemOperand(map, offsetof(Map, instance_type_)), r0);
   JumpIf(cc, type, Operand(instance_type), target);
 }
 
@@ -607,7 +607,8 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   // Ensure to emit the constant pool first if necessary.
   int entry_size_log2 = 3;
   __ ShiftLeftU32(reg, reg, Operand(entry_size_log2));
-  __ mov_label_addr(ip, &jump_table);
+  DCHECK_NE(reg, r0);
+  __ GetLabelAddress(ip, &jump_table, r0);
   __ AddS64(reg, reg, ip);
   __ Jump(reg);
   __ b(&fallthrough);

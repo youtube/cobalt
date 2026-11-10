@@ -1517,9 +1517,13 @@ void WidgetBase::ImeSetComposition(
   }
 
   ImeEventGuard guard(weak_ptr_factory_.GetWeakPtr());
-  if (!frame_widget->SetComposition(text, ime_text_spans, replacement_range,
-                                    selection_start, selection_end,
-                                    ime_state)) {
+  bool success =
+      frame_widget->SetComposition(text, ime_text_spans, replacement_range,
+                                   selection_start, selection_end, ime_state);
+  if (!guard.IsValid()) {
+    return;
+  }
+  if (!success) {
     // If we failed to set the composition text, then we need to let the browser
     // process to cancel the input method's ongoing composition session, to make
     // sure we are in a consistent state.
@@ -1551,6 +1555,9 @@ void WidgetBase::ImeCommitText(const String& text,
   input_handler_.set_handling_input_event(true);
   frame_widget->CommitText(text, ime_text_spans, replacement_range,
                            relative_cursor_pos);
+  if (!guard.IsValid()) {
+    return;
+  }
   input_handler_.set_handling_input_event(false);
   UpdateCompositionInfo(false /* not an immediate request */);
 }
@@ -1570,6 +1577,9 @@ void WidgetBase::ImeFinishComposingText(bool keep_selection) {
   ImeEventGuard guard(weak_ptr_factory_.GetWeakPtr());
   input_handler_.set_handling_input_event(true);
   frame_widget->FinishComposingText(keep_selection);
+  if (!guard.IsValid()) {
+    return;
+  }
   input_handler_.set_handling_input_event(false);
   UpdateCompositionInfo(false /* not an immediate request */);
 }
@@ -1648,7 +1658,8 @@ void WidgetBase::OnImeEventGuardFinish(ImeEventGuard* guard) {
 #endif
 }
 
-void WidgetBase::RequestAnimationAfterDelay(const base::TimeDelta& delay,
+void WidgetBase::RequestAnimationAfterDelay(cc::BeginMainFrameReason reason,
+                                            const base::TimeDelta& delay,
                                             bool urgent) {
   if (delay.is_zero()) {
     // See the comment in MainThreadEventQueue::QueueEvent() explaining why we
@@ -1657,7 +1668,7 @@ void WidgetBase::RequestAnimationAfterDelay(const base::TimeDelta& delay,
         input_handler_.handling_input_event() &&
         ::features::IsEligibleForThrottleMainFrameTo60Hz() &&
         base::FeatureList::IsEnabled(features::kUrgentMainFrameForInput);
-    client_->ScheduleAnimation(urgent || urgent_for_input);
+    client_->ScheduleAnimation(reason, urgent || urgent_for_input);
     return;
   }
 

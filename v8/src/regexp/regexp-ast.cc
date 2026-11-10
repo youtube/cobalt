@@ -121,8 +121,9 @@ bool Disjunction::IsCertainlyAnchoredAtStart(int budget) {
   if (budget < 0) return false;
   ZoneList<Tree*>* alternatives = this->alternatives();
   for (int i = 0; i < alternatives->length(); i++) {
-    if (!alternatives->at(i)->IsCertainlyAnchoredAtStart(budget - 1))
+    if (!alternatives->at(i)->IsCertainlyAnchoredAtStart(budget - 1)) {
       return false;
+    }
   }
   return true;
 }

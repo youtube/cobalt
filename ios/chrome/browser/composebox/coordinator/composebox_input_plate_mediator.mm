@@ -67,9 +67,9 @@
 #import "ios/chrome/browser/composebox/public/composebox_model_option.h"
 #import "ios/chrome/browser/composebox/public/features.h"
 #import "ios/chrome/browser/composebox/shared/coordinator/composebox_picker_image_result.h"
+#import "ios/chrome/browser/composebox/shared/metrics/composebox_metrics_recorder.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_item.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_item_collection.h"
-#import "ios/chrome/browser/composebox/ui/composebox_metrics_recorder.h"
 #import "ios/chrome/browser/composebox/ui/composebox_strings.h"
 #import "ios/chrome/browser/composebox/ui/composebox_ui_input_state.h"
 #import "ios/chrome/browser/favicon/model/favicon_loader.h"
@@ -201,6 +201,16 @@ std::vector<lens::MimeType> MimeTypesFromCollection(
   }
 
   return types;
+}
+
+// Returns the default image encoding options.
+// TODO(crbug.com/40280872): Plumb encoding options from a central config.
+lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
+  lens::ImageEncodingOptions image_options;
+  image_options.max_width = 1024;
+  image_options.max_height = 1024;
+  image_options.compression_quality = 80;
+  return image_options;
 }
 
 }  // namespace
@@ -529,10 +539,8 @@ std::vector<lens::MimeType> MimeTypesFromCollection(
               completion:stopAccessScopedResourcesIfNeeded];
   }
 
-  if (!attachments.tabIDs.empty()) {
-    [self attachSelectedTabsWithWebStateIDs:attachments.tabIDs
-                          cachedWebStateIDs:attachments.cachedWebStateIDs];
-  }
+  [self attachSelectedTabsWithWebStateIDs:attachments.tabIDs
+                        cachedWebStateIDs:attachments.cachedWebStateIDs];
 }
 
 #pragma mark - ComposeboxInputPlateMutator
@@ -761,13 +769,6 @@ std::vector<lens::MimeType> MimeTypesFromCollection(
              explicitUserAction:explicitUserAction];
 }
 
-- (void)setSearchboxConfig:(const omnibox::SearchboxConfig*)searchboxConfig {
-  if (!_contextualSearchSession || !searchboxConfig) {
-    return;
-  }
-  [_stateManager setSearchboxConfig:*searchboxConfig];
-}
-
 - (void)setOmniboxFocused:(bool)focused {
   if (_omniboxFocused == focused) {
     return;
@@ -973,15 +974,9 @@ std::vector<lens::MimeType> MimeTypesFromCollection(
     item.serverToken = serverToken;
   }
 
-  // TODO(crbug.com/40280872): Plumb encoding options from a central config.
-  lens::ImageEncodingOptions image_options;
-  image_options.max_width = 1024;
-  image_options.max_height = 1024;
-  image_options.compression_quality = 80;
-
   if (_contextualSearchSession) {
     _contextualSearchSession->StartTabContextUploadFlow(
-        serverToken, std::move(inputData), image_options);
+        serverToken, std::move(inputData), GetDefaultImageEncodingOptions());
   }
 
   [self notifyContextChanged];
@@ -1403,17 +1398,14 @@ std::vector<lens::MimeType> MimeTypesFromCollection(
                             [self currentAutocompleteRequestType]];
   [self.metricsRecorder
       recordAttachCountAtSubmission:_items.tabsCount
-                            forType:ComposeboxInputItemType::
-                                        kComposeboxInputItemTypeTab];
+                            forType:ComposeboxMetricsAttachmentType::kTab];
   [self.metricsRecorder
       recordAttachCountAtSubmission:_items.imagesCount
-                            forType:ComposeboxInputItemType::
-                                        kComposeboxInputItemTypeImage];
+                            forType:ComposeboxMetricsAttachmentType::kImage];
   // Raw file is used as the metric type is the same for raw files and PDFs.
   [self.metricsRecorder
       recordAttachCountAtSubmission:_items.filesCount
-                            forType:ComposeboxInputItemType::
-                                        kComposeboxInputItemTypeRawFile];
+                            forType:ComposeboxMetricsAttachmentType::kRawFile];
   [_stateManager recordInputStateOnSubmission];
 }
 
@@ -1582,12 +1574,6 @@ std::vector<lens::MimeType> MimeTypesFromCollection(
     return;
   }
 
-  // TODO(crbug.com/40280872): Plumb encoding options from a central config.
-  lens::ImageEncodingOptions image_options;
-  image_options.max_width = 1024;
-  image_options.max_height = 1024;
-  image_options.compression_quality = 80;
-
   // UIImagePNGRepresentation is an expensive operation. We execute this on a
   // background thread to prevent blocking the UI, especially during batch
   // processing.
@@ -1598,7 +1584,7 @@ std::vector<lens::MimeType> MimeTypesFromCollection(
       base::BindOnce(^(NSData* data) {
         [weakSelf handleImageUploadWithData:data
                           forItemIdentifier:identifier
-                                    options:image_options];
+                                    options:GetDefaultImageEncodingOptions()];
       }));
 }
 
@@ -1671,10 +1657,24 @@ std::vector<lens::MimeType> MimeTypesFromCollection(
     // that it can listen to all file upload events.
     [self onFileContextAdded:serverToken forIdentifier:identifier];
     std::string fileName = base::SysNSStringToUTF8(item.title);
+    std::string mimeType;
+    if (item.type == ComposeboxInputItemType::kComposeboxInputItemTypeRawFile) {
+      mimeType = "application/octet-stream";
+      if (item.fileURL) {
+        UTType* contentType = nil;
+        [item.fileURL getResourceValue:&contentType
+                                forKey:NSURLContentTypeKey
+                                 error:nil];
+        if (contentType.preferredMIMEType) {
+          mimeType = base::SysNSStringToUTF8(contentType.preferredMIMEType);
+        }
+      }
+    } else {
+      mimeType = kAdobePortableDocumentFormatMimeType;
+    }
     _contextualSearchSession->StartFileContextUploadFlow(
-        serverToken, fileName, kAdobePortableDocumentFormatMimeType,
-        std::move(buffer),
-        /*image_options=*/std::nullopt);
+        serverToken, fileName, mimeType, std::move(buffer),
+        GetDefaultImageEncodingOptions());
     [self notifyContextChanged];
   }
 

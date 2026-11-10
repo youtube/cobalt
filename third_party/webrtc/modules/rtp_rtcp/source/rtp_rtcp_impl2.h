@@ -354,6 +354,8 @@ class ModuleRtpRtcpImpl2 final : public RtpRtcpInterface,
   RTC_NO_UNIQUE_ADDRESS SequenceChecker rtcp_module_checker_;
   // TODO: issues.webrtc.org/48665180 - figure out why these are different.
 
+  RTC_NO_UNIQUE_ADDRESS ScopedTaskSafety task_safety_;
+
   // The function for getting the right SSRC for sending RTCP reports
   // Must outlive rtcp_sender_, so placed before it.
   absl::AnyInvocable<uint32_t() const> recv_ssrc_callback_
@@ -376,8 +378,6 @@ class ModuleRtpRtcpImpl2 final : public RtpRtcpInterface,
   // The processed RTT from RtcpRttStats.
   mutable Mutex mutex_rtt_;
   int64_t rtt_ms_ RTC_GUARDED_BY(mutex_rtt_);
-
-  RTC_NO_UNIQUE_ADDRESS ScopedTaskSafety task_safety_;
 };
 
 }  // namespace webrtc

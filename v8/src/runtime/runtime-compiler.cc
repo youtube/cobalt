@@ -37,7 +37,7 @@ void LogExecution(Isolate* isolate, DirectHandle<JSFunction> function) {
   DisallowGarbageCollection no_gc;
   Tagged<SharedFunctionInfo> raw_sfi = *sfi;
   std::string event_name = "first-execution";
-  CodeKind kind = function->abstract_code(isolate)->kind(isolate);
+  CodeKind kind = function->abstract_code(isolate)->kind();
   // Not adding "-interpreter" for tooling backwards compatibility.
   if (kind != CodeKind::INTERPRETED_FUNCTION) {
     event_name += "-";

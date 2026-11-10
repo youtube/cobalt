@@ -607,6 +607,9 @@
 	path = agents/internal
 	url = https://chrome-internal.googlesource.com/chrome/agents-internal
 	gclient-condition = checkout_src_internal or checkout_src_internal_infra
+[submodule "agents/shared"]
+	path = agents/shared
+	url = https://chromium.googlesource.com/chromium/agents
 [submodule "third_party/android_prebuilts/build_tools"]
 	path = third_party/android_prebuilts/build_tools
 	url = https://android.googlesource.com/platform/prebuilts/build-tools
@@ -651,6 +654,10 @@
 	path = chrome/browser/glic/e2e_test/internal
 	url = https://chrome-internal.googlesource.com/chrome/browser/glic/test/internal
 	gclient-condition = checkout_glic_e2e_tests
+[submodule "chrome/browser/indigo/resources/internal"]
+	path = chrome/browser/indigo/resources/internal
+	url = https://chrome-internal.googlesource.com/chrome/browser/indigo/resources/internal
+	gclient-condition = checkout_src_internal
 [submodule "chrome/browser/google/linkdoctor_internal"]
 	path = chrome/browser/google/linkdoctor_internal
 	url = https://chrome-internal.googlesource.com/chrome/linkdoctor

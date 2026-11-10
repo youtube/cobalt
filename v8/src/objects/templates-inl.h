@@ -437,7 +437,7 @@ MaybeHandle<Object> TemplateInfo::ProbeInstantiationsCache(
   ReadOnlyRoots roots(isolate);
   // Instead of detouring via Object::GetHash() load the hash directly.
   uint32_t hash = info->GetHash();
-  InternalIndex entry = cache->FindEntry(isolate, roots, info, hash);
+  InternalIndex entry = cache->FindEntry(roots, info, hash);
   if (entry.is_found()) {
     return handle(cache->ValueAt(entry), isolate);
   }

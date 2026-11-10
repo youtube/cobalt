@@ -94,11 +94,6 @@ QuicStream* QboneSessionBase::CreateIncomingStream(QuicStreamId id) {
   return ActivateDataStream(CreateDataStream(id));
 }
 
-QuicStream* QboneSessionBase::CreateIncomingStream(PendingStream* /*pending*/) {
-  QUICHE_NOTREACHED();
-  return nullptr;
-}
-
 bool QboneSessionBase::ShouldKeepConnectionAlive() const {
   // QBONE connections stay alive until they're explicitly closed.
   return true;

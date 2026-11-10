@@ -27,9 +27,10 @@ namespace internal {
 
 // Make sure that Api can read Data value from both AccessorInfo and
 // InterceptorInfo without checking the type.
-static_assert(Internals::kCallbackInfoDataOffset == AccessorInfo::kDataOffset);
 static_assert(Internals::kCallbackInfoDataOffset ==
-              InterceptorInfo::kDataOffset);
+              offsetof(AccessorInfo, data_));
+static_assert(Internals::kCallbackInfoDataOffset ==
+              offsetof(InterceptorInfo, data_));
 
 Tagged<UnionOf<Foreign, Smi, Undefined>> AccessCheckInfo::callback() const {
   return callback_.load();
@@ -88,11 +89,11 @@ uint32_t InterceptorInfo::flags() const { return flags_; }
 void InterceptorInfo::set_flags(uint32_t value) { flags_ = value; }
 
 REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(
-    AccessorInfo, getter, Address, kGetterOffset, kAccessorInfoGetterTag,
-    ExternalReference::DIRECT_GETTER_CALL)
+    AccessorInfo, getter, Address, offsetof(AccessorInfo, getter_),
+    kAccessorInfoGetterTag, ExternalReference::DIRECT_GETTER_CALL)
 
 EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(AccessorInfo, setter, Address,
-                                                kSetterOffset,
+                                                offsetof(AccessorInfo, setter_),
                                                 kAccessorInfoSetterTag)
 
 bool AccessorInfo::has_getter(Isolate* isolate) {
@@ -160,67 +161,71 @@ bool InterceptorInfo::has_index_of() const { return has_indexed_index_of(); }
 #undef INTERCEPTOR_INFO_HAS_GETTER
 
 LAZY_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
-    InterceptorInfo, named_getter, Address, kGetterOffset,
+    InterceptorInfo, named_getter, Address, offsetof(InterceptorInfo, getter_),
     kApiNamedPropertyGetterCallbackTag, ExternalReference::DIRECT_GETTER_CALL,
     is_named(), is_named() && (value != kNullAddress))
 LAZY_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
-    InterceptorInfo, named_setter, Address, kSetterOffset,
+    InterceptorInfo, named_setter, Address, offsetof(InterceptorInfo, setter_),
     kApiNamedPropertySetterCallbackTag, ExternalReference::DIRECT_SETTER_CALL,
     is_named(), is_named() && (value != kNullAddress))
 LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
-    InterceptorInfo, named_query, Address, kQueryOffset,
+    InterceptorInfo, named_query, Address, offsetof(InterceptorInfo, query_),
     kApiNamedPropertyQueryCallbackTag, is_named(),
     is_named() && (value != kNullAddress))
 LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
-    InterceptorInfo, named_descriptor, Address, kDescriptorOffset,
+    InterceptorInfo, named_descriptor, Address,
+    offsetof(InterceptorInfo, descriptor_),
     kApiNamedPropertyDescriptorCallbackTag, is_named(),
     is_named() && (value != kNullAddress))
 LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
-    InterceptorInfo, named_deleter, Address, kDeleterOffset,
-    kApiNamedPropertyDeleterCallbackTag, is_named(),
-    is_named() && (value != kNullAddress))
+    InterceptorInfo, named_deleter, Address,
+    offsetof(InterceptorInfo, deleter_), kApiNamedPropertyDeleterCallbackTag,
+    is_named(), is_named() && (value != kNullAddress))
 LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
-    InterceptorInfo, named_enumerator, Address, kEnumeratorOffset,
+    InterceptorInfo, named_enumerator, Address,
+    offsetof(InterceptorInfo, enumerator_),
     kApiNamedPropertyEnumeratorCallbackTag, is_named(),
     is_named() && (value != kNullAddress))
 LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
-    InterceptorInfo, named_definer, Address, kDefinerOffset,
-    kApiNamedPropertyDefinerCallbackTag, is_named(),
-    is_named() && (value != kNullAddress))
+    InterceptorInfo, named_definer, Address,
+    offsetof(InterceptorInfo, definer_), kApiNamedPropertyDefinerCallbackTag,
+    is_named(), is_named() && (value != kNullAddress))
 
 LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
-    InterceptorInfo, indexed_getter, Address, kGetterOffset,
-    kApiIndexedPropertyGetterCallbackTag, !is_named(),
-    !is_named() && (value != kNullAddress))
+    InterceptorInfo, indexed_getter, Address,
+    offsetof(InterceptorInfo, getter_), kApiIndexedPropertyGetterCallbackTag,
+    !is_named(), !is_named() && (value != kNullAddress))
 LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
-    InterceptorInfo, indexed_setter, Address, kSetterOffset,
-    kApiIndexedPropertySetterCallbackTag, !is_named(),
-    !is_named() && (value != kNullAddress))
+    InterceptorInfo, indexed_setter, Address,
+    offsetof(InterceptorInfo, setter_), kApiIndexedPropertySetterCallbackTag,
+    !is_named(), !is_named() && (value != kNullAddress))
 LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
-    InterceptorInfo, indexed_query, Address, kQueryOffset,
+    InterceptorInfo, indexed_query, Address, offsetof(InterceptorInfo, query_),
     kApiIndexedPropertyQueryCallbackTag, !is_named(),
     !is_named() && (value != kNullAddress))
 LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
-    InterceptorInfo, indexed_descriptor, Address, kDescriptorOffset,
+    InterceptorInfo, indexed_descriptor, Address,
+    offsetof(InterceptorInfo, descriptor_),
     kApiIndexedPropertyDescriptorCallbackTag, !is_named(),
     !is_named() && (value != kNullAddress))
 LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
-    InterceptorInfo, indexed_deleter, Address, kDeleterOffset,
-    kApiIndexedPropertyDeleterCallbackTag, !is_named(),
-    !is_named() && (value != kNullAddress))
+    InterceptorInfo, indexed_deleter, Address,
+    offsetof(InterceptorInfo, deleter_), kApiIndexedPropertyDeleterCallbackTag,
+    !is_named(), !is_named() && (value != kNullAddress))
 LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
-    InterceptorInfo, indexed_enumerator, Address, kEnumeratorOffset,
+    InterceptorInfo, indexed_enumerator, Address,
+    offsetof(InterceptorInfo, enumerator_),
     kApiIndexedPropertyEnumeratorCallbackTag, !is_named(),
     !is_named() && (value != kNullAddress))
 LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
-    InterceptorInfo, indexed_definer, Address, kDefinerOffset,
-    kApiIndexedPropertyDefinerCallbackTag, !is_named(),
-    !is_named() && (value != kNullAddress))
+    InterceptorInfo, indexed_definer, Address,
+    offsetof(InterceptorInfo, definer_), kApiIndexedPropertyDefinerCallbackTag,
+    !is_named(), !is_named() && (value != kNullAddress))
 
 LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
-    InterceptorInfo, indexed_index_of, Address, kIndexOfOffset,
-    kApiIndexedPropertyIndexOfCallbackTag, !is_named(),
-    !is_named() && (value != kNullAddress))
+    InterceptorInfo, indexed_index_of, Address,
+    offsetof(InterceptorInfo, index_of_), kApiIndexedPropertyIndexOfCallbackTag,
+    !is_named(), !is_named() && (value != kNullAddress))
 
 BOOL_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
                CanInterceptSymbolsBit::kShift)

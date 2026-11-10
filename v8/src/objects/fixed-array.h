@@ -103,9 +103,9 @@ using TaggedArrayHeader = typename TaggedArrayHeaderHelper<Shape, Super>::type;
 
 // Derived: must not have any fields - extra fields can be specified in the
 // Shap using V8_ARRAY_EXTRA_FIELDS.
-V8_OBJECT template <class Derived, class ShapeT, class Super = HeapObjectLayout>
+V8_OBJECT template <class Derived, class ShapeT, class Super = HeapObject>
 class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
-  static_assert(std::is_base_of_v<HeapObjectLayout, Super>);
+  static_assert(std::is_base_of_v<HeapObject, Super>);
   using ElementT = typename ShapeT::ElementT;
 
   static_assert(sizeof(TaggedMember<ElementT>) == kTaggedSize);
@@ -410,9 +410,9 @@ class FixedArrayExact final : public FixedArray {
 // elements backing stores and should not be part of the common FixedArray
 // hierarchy.
 V8_OBJECT
-class FixedArrayBase : public detail::ArrayHeaderBase<HeapObjectLayout, true> {
+class FixedArrayBase : public detail::ArrayHeaderBase<HeapObject, true> {
  public:
-  static constexpr int kLengthOffset = HeapObject::kHeaderSize;
+  static constexpr int kLengthOffset = sizeof(HeapObject);
 #if TAGGED_SIZE_8_BYTES
   static constexpr uint32_t kPaddingOffset = kLengthOffset + kUInt32Size;
   static constexpr uint32_t kHeaderSize = kPaddingOffset + kUInt32Size;
@@ -430,9 +430,9 @@ class FixedArrayBase : public detail::ArrayHeaderBase<HeapObjectLayout, true> {
 } V8_OBJECT_END;
 
 V8_OBJECT
-template <class Derived, class ShapeT, class Super = HeapObjectLayout>
+template <class Derived, class ShapeT, class Super = HeapObject>
 class PrimitiveArrayBase : public detail::ArrayHeaderBase<Super, true> {
-  static_assert(std::is_base_of_v<HeapObjectLayout, Super>);
+  static_assert(std::is_base_of_v<HeapObject, Super>);
 
   using ElementT = typename ShapeT::ElementT;
   static_assert(!is_subtype_v<ElementT, Object>);
@@ -575,7 +575,7 @@ V8_OBJECT class WeakFixedArray
 
   class BodyDescriptor;
 
-  static constexpr uint32_t kLengthOffset = HeapObject::kHeaderSize;
+  static constexpr uint32_t kLengthOffset = sizeof(HeapObject);
   static constexpr uint32_t kHeaderSize =
       kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kUInt32Size);
   static_assert(sizeof(Super::Header) == kHeaderSize);
@@ -612,7 +612,7 @@ V8_OBJECT class WeakHomomorphicFixedArray
 
   class BodyDescriptor;
 
-  static constexpr uint32_t kLengthOffset = HeapObject::kHeaderSize;
+  static constexpr uint32_t kLengthOffset = sizeof(HeapObject);
   static constexpr uint32_t kHeaderSize =
       kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kUInt32Size);
   static_assert(sizeof(Super::Header) == kHeaderSize);
@@ -790,7 +790,7 @@ V8_OBJECT class WeakArrayList
 
   class Iterator;
 
-  static constexpr uint32_t kCapacityOffset = HeapObject::kHeaderSize;
+  static constexpr uint32_t kCapacityOffset = sizeof(HeapObject);
   static constexpr uint32_t kLengthOffset = kCapacityOffset + kUInt32Size;
   static constexpr uint32_t kHeaderSize = kLengthOffset + kUInt32Size;
   static_assert(sizeof(Super::Header) == kHeaderSize);
@@ -867,7 +867,7 @@ V8_OBJECT class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
 
   class BodyDescriptor;
 
-  static constexpr uint32_t kCapacityOffset = HeapObject::kHeaderSize;
+  static constexpr uint32_t kCapacityOffset = sizeof(HeapObject);
   static constexpr uint32_t kLengthOffset = kCapacityOffset + kUInt32Size;
   static constexpr uint32_t kHeaderSize = kLengthOffset + kUInt32Size;
   static_assert(sizeof(Super::Header) == kHeaderSize);

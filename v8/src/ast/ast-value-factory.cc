@@ -158,25 +158,29 @@ int AstRawString::Compare(const AstRawString* lhs, const AstRawString* rhs) {
     if (rhs->is_one_byte()) {
       if (int result = CompareCharsUnsigned(
               reinterpret_cast<const uint8_t*>(lhs_data),
-              reinterpret_cast<const uint8_t*>(rhs_data), length))
+              reinterpret_cast<const uint8_t*>(rhs_data), length)) {
         return result;
+      }
     } else {
       if (int result = CompareCharsUnsigned(
               reinterpret_cast<const uint8_t*>(lhs_data),
-              reinterpret_cast<const uint16_t*>(rhs_data), length))
+              reinterpret_cast<const uint16_t*>(rhs_data), length)) {
         return result;
+      }
     }
   } else {
     if (rhs->is_one_byte()) {
       if (int result = CompareCharsUnsigned(
               reinterpret_cast<const uint16_t*>(lhs_data),
-              reinterpret_cast<const uint8_t*>(rhs_data), length))
+              reinterpret_cast<const uint8_t*>(rhs_data), length)) {
         return result;
+      }
     } else {
       if (int result = CompareCharsUnsigned(
               reinterpret_cast<const uint16_t*>(lhs_data),
-              reinterpret_cast<const uint16_t*>(rhs_data), length))
+              reinterpret_cast<const uint16_t*>(rhs_data), length)) {
         return result;
+      }
     }
   }
 

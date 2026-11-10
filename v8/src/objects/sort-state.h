@@ -22,7 +22,7 @@ namespace v8::internal {
 // SortState's fields are accessed exclusively from Torque-generated code
 // (third_party/v8/builtins/array-sort.tq and src/builtins/array-to-sorted.tq);
 // no C++ accessors are needed.
-V8_OBJECT class SortState : public HeapObjectLayout {
+V8_OBJECT class SortState : public HeapObject {
  public:
   DECL_PRINTER(SortState)
   DECL_VERIFIER(SortState)

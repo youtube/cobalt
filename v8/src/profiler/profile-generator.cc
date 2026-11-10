@@ -346,8 +346,9 @@ CpuProfileNode::SourceType ProfileNode::source_type() const {
       entry_ == CodeEntry::root_entry()) {
     return CpuProfileNode::kInternal;
   }
-  if (entry_ == CodeEntry::unresolved_entry())
+  if (entry_ == CodeEntry::unresolved_entry()) {
     return CpuProfileNode::kUnresolved;
+  }
 
   // Otherwise, resolve based on logger tag.
   switch (entry_->code_tag()) {
@@ -429,10 +430,11 @@ void ProfileNode::Print(int indent) const {
   base::OS::Print("%5u %*s %s:%d:%d %d %d #%d", self_ticks_, indent, "",
                   entry_->name(), line_and_column.line, line_and_column.column,
                   source_type(), entry_->script_id(), id());
-  if (entry_->resource_name()[0] != '\0')
+  if (entry_->resource_name()[0] != '\0') {
     base::OS::Print(" %s:%d:%d", entry_->resource_name(),
                     entry_->line_and_column().line,
                     entry_->line_and_column().column);
+  }
   base::OS::Print("\n");
   for (const CpuProfileDeoptInfo& info : deopt_infos_) {
     base::OS::Print(
@@ -814,8 +816,9 @@ void FlattenNodesTree(const v8::CpuProfileNode* node,
                       std::vector<const v8::CpuProfileNode*>* nodes) {
   nodes->emplace_back(node);
   const int childrenCount = node->GetChildrenCount();
-  for (int i = 0; i < childrenCount; i++)
+  for (int i = 0; i < childrenCount; i++) {
     FlattenNodesTree(node->GetChild(i), nodes);
+  }
 }
 
 }  // namespace

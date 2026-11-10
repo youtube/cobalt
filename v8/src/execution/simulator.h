@@ -192,9 +192,16 @@ class GeneratedCode {
 #if V8_OS_ZOS
     // z/OS ABI requires function descriptors (FD). Artificially create a pseudo
     // FD to ensure correct dispatch to generated code.
-    void* function_desc[2] = {0, reinterpret_cast<void*>(fn_ptr_)};
-    asm volatile(" stg 5,%0 " : "=m"(function_desc[0])::"r5");
-    Signature* fn = reinterpret_cast<Signature*>(function_desc);
+    extern void ZosFuncForJSEnv();
+    typedef struct {
+      void* env;
+      void* addr;
+    } FuncDesc;
+    volatile FuncDesc func_desc;
+    func_desc.env = (reinterpret_cast<FuncDesc*>(&ZosFuncForJSEnv))->env;
+    func_desc.addr = reinterpret_cast<void*>(fn_ptr_);
+    Signature* fn;
+    asm volatile(" " : "=a"(fn) : "0"(&func_desc) : "memory");
     return fn(args...);
 #else
     // AIX ABI requires function descriptors (FD).  Artificially create a pseudo

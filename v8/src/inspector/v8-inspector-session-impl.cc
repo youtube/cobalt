@@ -54,10 +54,11 @@ Status ConvertToCBOR(StringView state, std::vector<uint8_t>* cbor) {
 std::unique_ptr<protocol::DictionaryValue> ParseState(StringView state) {
   std::vector<uint8_t> converted;
   span<uint8_t> cbor;
-  if (IsCBORMessage(state))
+  if (IsCBORMessage(state)) {
     cbor = span<uint8_t>(state.characters8(), state.length());
-  else if (ConvertToCBOR(state, &converted).ok())
+  } else if (ConvertToCBOR(state, &converted).ok()) {
     cbor = SpanFrom(converted);
+  }
   if (!cbor.empty()) {
     std::unique_ptr<protocol::Value> value =
         protocol::Value::parseBinary(cbor.data(), cbor.size());
@@ -232,13 +233,15 @@ Response V8InspectorSessionImpl::findInjectedScript(
   injectedScript = nullptr;
   std::shared_ptr<InspectedContext> context =
       m_inspector->getContext(m_contextGroupId, contextId);
-  if (!context)
+  if (!context) {
     return Response::ServerError("Cannot find context with specified id");
+  }
   injectedScript = context->getInjectedScript(m_sessionId);
   if (!injectedScript) {
     injectedScript = context->createInjectedScript(m_sessionId);
-    if (m_customObjectFormatterEnabled)
+    if (m_customObjectFormatterEnabled) {
       injectedScript->setCustomObjectFormatterEnabled(true);
+    }
   }
   if (inspectedContext) *inspectedContext = context;
   return Response::Success();
@@ -247,8 +250,9 @@ Response V8InspectorSessionImpl::findInjectedScript(
 Response V8InspectorSessionImpl::findInjectedScript(
     RemoteObjectIdBase* objectId, InjectedScript*& injectedScript,
     std::shared_ptr<InspectedContext>* inspectedContext) {
-  if (objectId->isolateId() != m_inspector->isolateId())
+  if (objectId->isolateId() != m_inspector->isolateId()) {
     return Response::ServerError("Cannot find context with specified id");
+  }
   return findInjectedScript(objectId->contextId(), injectedScript,
                             inspectedContext);
 }
@@ -280,8 +284,9 @@ bool V8InspectorSessionImpl::unwrapObject(
     }
     return false;
   }
-  if (objectGroup)
+  if (objectGroup) {
     *objectGroup = StringBufferFrom(std::move(objectGroupString));
+  }
   return true;
 }
 
@@ -346,8 +351,9 @@ void V8InspectorSessionImpl::setCustomObjectFormatterEnabled(bool enabled) {
   m_inspector->forEachContext(
       m_contextGroupId, [&enabled, &sessionId](InspectedContext* context) {
         InjectedScript* injectedScript = context->getInjectedScript(sessionId);
-        if (injectedScript)
+        if (injectedScript) {
           injectedScript->setCustomObjectFormatterEnabled(enabled);
+        }
       });
 }
 
@@ -406,8 +412,9 @@ V8InspectorSessionImpl::supportedDomains() {
   std::vector<std::unique_ptr<protocol::Schema::Domain>> domains =
       supportedDomainsImpl();
   std::vector<std::unique_ptr<protocol::Schema::API::Domain>> result;
-  for (size_t i = 0; i < domains.size(); ++i)
+  for (size_t i = 0; i < domains.size(); ++i) {
     result.push_back(std::move(domains[i]));
+  }
   return result;
 }
 
@@ -440,8 +447,9 @@ V8InspectorSessionImpl::supportedDomainsImpl() {
 void V8InspectorSessionImpl::addInspectedObject(
     std::unique_ptr<V8InspectorSession::Inspectable> inspectable) {
   m_inspectedObjects.insert(m_inspectedObjects.begin(), std::move(inspectable));
-  if (m_inspectedObjects.size() > kInspectedObjectBufferSize)
+  if (m_inspectedObjects.size() > kInspectedObjectBufferSize) {
     m_inspectedObjects.resize(kInspectedObjectBufferSize);
+  }
 }
 
 V8InspectorSession::Inspectable* V8InspectorSessionImpl::inspectedObject(
@@ -492,8 +500,9 @@ V8InspectorSessionImpl::searchInTextByLines(StringView text, StringView query,
       searchInTextByLinesImpl(m_inspector, toString16(text), toString16(query),
                               caseSensitive, isRegex);
   std::vector<std::unique_ptr<protocol::Debugger::API::SearchMatch>> result;
-  for (size_t i = 0; i < matches.size(); ++i)
+  for (size_t i = 0; i < matches.size(); ++i) {
     result.push_back(std::move(matches[i]));
+  }
   return result;
 }
 

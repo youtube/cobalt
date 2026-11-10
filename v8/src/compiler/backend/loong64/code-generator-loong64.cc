@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/interface-descriptors-inl.h"
@@ -15,6 +16,10 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/heap/mutable-page.h"
+#include "src/objects/code-inl.h"
+#include "src/objects/js-function-inl.h"
+#include "src/objects/shared-function-info-inl.h"
+#include "src/sandbox/js-dispatch-table-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -588,22 +593,19 @@ LSXSize LaneSizeToLSXSize(LaneSize size) {
   } while (0)
 
 // TODO(LOONG_dev): remove second dbar?
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(load_linked,                  \
-                                                 store_conditional)            \
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(                              \
+    load_linked, store_conditional, expect_value, new_value, result_value)     \
   do {                                                                         \
     Label compareExchange;                                                     \
     Label exit;                                                                \
-    __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
     __ dbar(0);                                                                \
     __ bind(&compareExchange);                                                 \
-    __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0),      \
-                   &trap_pc);                                                  \
+    __ load_linked(result_value, MemOperand(i.TempRegister(0), 0), &trap_pc);  \
     RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);              \
-    __ BranchShort(&exit, ne, i.InputRegister(2),                              \
-                   Operand(i.OutputRegister(0)));                              \
-    __ mov(i.TempRegister(2), i.InputRegister(3));                             \
-    __ store_conditional(i.TempRegister(2), MemOperand(i.TempRegister(0), 0)); \
-    __ BranchShort(&compareExchange, eq, i.TempRegister(2),                    \
+    __ BranchShort(&exit, ne, expect_value, Operand(result_value));            \
+    __ mov(i.TempRegister(1), new_value);                                      \
+    __ store_conditional(i.TempRegister(1), MemOperand(i.TempRegister(0), 0)); \
+    __ BranchShort(&compareExchange, eq, i.TempRegister(1),                    \
                    Operand(zero_reg));                                         \
     __ bind(&exit);                                                            \
     __ dbar(0);                                                                \
@@ -765,12 +767,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   int trap_pc;
   switch (arch_opcode) {
     case kArchCallCodeObject: {
+      CodeEntrypointTag tag =
+          i.InputCodeEntrypointTag(instr->CodeEnrypointTagInputIndex());
       if (instr->InputAt(0)->IsImmediate()) {
-        __ Call(i.InputCode(0), RelocInfo::CODE_TARGET);
+        Handle<Code> code = i.InputCode(0);
+        // TODO(ishell, http://crbug.com/435630464): move this check to
+        // MacroAssembler::Call().
+        SBXCHECK_EQ(code->entrypoint_tag(), tag);
+        __ Call(code, RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
-        CodeEntrypointTag tag =
-            i.InputCodeEntrypointTag(instr->CodeEnrypointTagInputIndex());
         DCHECK_IMPLIES(
             instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
@@ -832,12 +838,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
     case kArchTailCallCodeObject: {
+      CodeEntrypointTag tag =
+          i.InputCodeEntrypointTag(instr->CodeEnrypointTagInputIndex());
       if (instr->InputAt(0)->IsImmediate()) {
-        __ Jump(i.InputCode(0), RelocInfo::CODE_TARGET);
+        Handle<Code> code = i.InputCode(0);
+        // TODO(ishell, http://crbug.com/435630464): move this check to
+        // MacroAssembler::Jump().
+        SBXCHECK_EQ(code->entrypoint_tag(), tag);
+        __ Jump(code, RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
-        CodeEntrypointTag tag =
-            i.InputCodeEntrypointTag(instr->CodeEnrypointTagInputIndex());
         DCHECK_IMPLIES(
             instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
@@ -897,8 +907,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           UseScratchRegisterScope temps(masm());
           Register scratch = temps.Acquire();
           // Check the function's context matches the context argument.
-          __ LoadTaggedField(scratch,
-                             FieldMemOperand(func, JSFunction::kContextOffset));
+          __ LoadTaggedField(
+              scratch, FieldMemOperand(func, offsetof(JSFunction, context_)));
           __ Assert(eq, AbortReason::kWrongFunctionContext, cp,
                     Operand(scratch));
         }
@@ -2277,8 +2287,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicCompareExchangeWord32:
       switch (AtomicWidthField::decode(opcode)) {
         case AtomicWidth::kWord32:
-          __ slli_w(i.InputRegister(2), i.InputRegister(2), 0);
-          ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_w, Sc_w);
+          // ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER use temp0, temp1.
+          __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
+          __ slli_w(i.TempRegister(2), i.InputRegister(2), 0);
+          ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(
+              Ll_w, Sc_w, i.TempRegister(2), i.InputRegister(3),
+              i.OutputRegister(0));
           break;
         case AtomicWidth::kWord64:
           ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll_d, Sc_d, false, 32,
@@ -2287,20 +2301,39 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kLoong64Word64AtomicCompareExchangeUint64:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_d, Sc_d);
+      // ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER use temp0, temp1.
+      __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_d, Sc_d, i.InputRegister(2),
+                                               i.InputRegister(3),
+                                               i.OutputRegister(0));
       break;
     case kAtomicCompareExchangeWithWriteBarrier: {
+      UseScratchRegisterScope temps(masm());
+      Register temp = temps.Acquire();
+      Register expect_reg = no_reg;
+      Register result_reg = no_reg;
       if constexpr (COMPRESS_POINTERS_BOOL) {
-        __ slli_w(i.InputRegister(2), i.InputRegister(2), 0);
-        ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_w, Sc_w);
+        // ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER use temp0, temp1.
+        __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
+        __ slli_w(i.TempRegister(2), i.InputRegister(2), 0);
+        ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_w, Sc_w, i.TempRegister(2),
+                                                 i.InputRegister(3), temp);
         // Contrary to x64, the instruction sequence we emit on loong64 always
         // writes an uncompressed value into the output register, so we can
         // unconditionally decompress it.
-        __ Bstrpick_d(i.OutputRegister(), i.OutputRegister(), 31, 0);
-        __ add_d(i.OutputRegister(), i.OutputRegister(),
+        __ Bstrpick_d(i.OutputRegister(), temp, 31, 0);
+        __ add_d(i.OutputRegister(), i.OutputRegister(0),
                  kPtrComprCageBaseRegister);
+        expect_reg = i.TempRegister(2);
+        result_reg = temp;
       } else {
-        ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_d, Sc_d);
+        // ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER use temp0, temp1.
+        __ add_d(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
+        ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll_d, Sc_d, i.InputRegister(2),
+                                                 i.InputRegister(3),
+                                                 i.OutputRegister(0));
+        expect_reg = i.InputRegister(2);
+        result_reg = i.OutputRegister(0);
       }
       if (v8_flags.disable_write_barriers) break;
       // Emit the write barrier.
@@ -2310,7 +2343,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, Operand(offset), new_value,
           RecordWriteMode::kValueIsAny, DetermineStubCallMode());
+      __ BranchShort(ool->exit(), ne, expect_reg, Operand(result_reg));
       __ JumpIfSmi(new_value, ool->exit());
+
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
       __ bind(ool->exit());
@@ -4809,6 +4844,16 @@ void CodeGenerator::AssembleConstructFrame() {
     // remaining stack slots.
     __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
+#ifdef V8_ENABLE_SANDBOX_BOOL
+    UseScratchRegisterScope temps(masm());
+    uint32_t expected_frame_size =
+        static_cast<uint32_t>(osr_helper()->UnoptimizedFrameSlots()) *
+            kSystemPointerSize +
+        StandardFrameConstants::kFixedFrameSizeFromFp;
+    Register scratch = temps.Acquire();
+    __ Add_d(scratch, sp, expected_frame_size);
+    __ SbxCheck(eq, AbortReason::kOsrUnexpectedStackSize, scratch, Operand(fp));
+#endif  // V8_ENABLE_SANDBOX_BOOL
     required_slots -= osr_helper()->UnoptimizedFrameSlots();
   }
 

@@ -1712,6 +1712,7 @@ INSTANTIATE_TEST_SUITE_P(
     TurboshaftInstructionSelectorBranchIfOverflowTest,
     ::testing::ValuesIn(kOverflowBinaryOperationsForBranchFusion));
 
+#if V8_ENABLE_SIMD128
 TEST_F(TurboshaftInstructionSelectorTest, wasmSimdOrnTest) {
   // NOT node on the left
   {
@@ -1781,6 +1782,8 @@ TEST_F(TurboshaftInstructionSelectorTest, wasmSimdOrnTest) {
     EXPECT_EQ(s.ToVreg(not_op), s.ToVreg(s[2]->InputAt(1)));
   }
 }
+
+#endif  // V8_ENABLE_SIMD128
 
 TEST_F(TurboshaftInstructionSelectorTest, Word64MulWideSigned) {
   StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),

@@ -117,6 +117,12 @@ if (is_ios || is_mac) {
       "../rtc_base:checks",
       "../rtc_base:logging",
     ]
+
+    frameworks = [ "AVFoundation.framework" ]
+    if (is_ios) {
+      frameworks += [ "UIKit.framework" ]
+    }
+
     configs += [
       "..:common_objc",
       ":used_from_extension",
@@ -294,6 +300,7 @@ if (is_ios || is_mac) {
           ":videocapture_objc",
           ":videoframebuffer_objc",
         ]
+        frameworks = [ "UIKit.framework" ]
       }
 
       rtc_library("audio_device") {
@@ -488,7 +495,10 @@ if (is_ios || is_mac) {
 
       public_configs = [ ":common_config_objc" ]
 
-      frameworks = [ "AudioToolbox.framework" ]
+      frameworks = [
+        "AudioToolbox.framework",
+        "Foundation.framework",
+      ]
 
       deps = [ ":base_objc" ]
     }
@@ -643,6 +653,7 @@ if (is_ios || is_mac) {
           "objc/components/renderer/metal/RTCMTLVideoView.h",
           "objc/components/renderer/metal/RTCMTLVideoView.m",
         ]
+        frameworks += [ "UIKit.framework" ]
       }
       if (is_mac) {
         sources += [
@@ -767,6 +778,7 @@ if (is_ios || is_mac) {
       if (rtc_include_dav1d_in_internal_decoder_factory) {
         deps += [ ":dav1d_decoder" ]
       }
+      frameworks = [ "Foundation.framework" ]
     }
 
     rtc_library("vpx_codec_constants") {
@@ -878,6 +890,7 @@ if (is_ios || is_mac) {
         ":helpers_objc",
         ":media_constraints",
       ]
+      frameworks = [ "Foundation.framework" ]
     }
 
     # TODO(bugs.webrtc.org/9627): Remove, targets should depend on base_objc.
@@ -1776,6 +1789,7 @@ if (is_ios || is_mac) {
         "../rtc_base:checks",
         "../rtc_base:logging",
       ]
+      frameworks = [ "VideoToolbox.framework" ]
     }
 
     rtc_library("videotoolbox_objc") {

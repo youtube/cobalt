@@ -49,6 +49,17 @@ RtpStreamReceiverController::CreateReceiver(uint32_t ssrc,
   return std::make_unique<Receiver>(this, ssrc, sink);
 }
 
+bool RtpStreamReceiverController::IsEmpty() const {
+  RTC_DCHECK_RUN_ON(&demuxer_sequence_);
+  return demuxer_.IsEmpty();
+}
+
+RtpPacketSinkInterface* RtpStreamReceiverController::ResolveSink(
+    const RtpPacketReceived& packet) {
+  RTC_DCHECK_RUN_ON(&demuxer_sequence_);
+  return demuxer_.ResolveSink(packet);
+}
+
 bool RtpStreamReceiverController::OnRtpPacket(const RtpPacketReceived& packet) {
   RTC_DCHECK_RUN_ON(&demuxer_sequence_);
   return demuxer_.OnRtpPacket(packet);

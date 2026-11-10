@@ -135,6 +135,7 @@ should be able to be added at any place in this file.
 
 <variants name="ContextualSearchContextState">
   <variant name="WithContextNoText" summary="with context but no typed text"/>
+  <variant name="WithDriveContext" summary="with drive context"/>
   <variant name="WithNonTabContext"
       summary="with non-tab context (e.g. files)"/>
   <variant name="WithoutContext" summary="without any context"/>
@@ -193,6 +194,8 @@ should be able to be added at any place in this file.
   <variant name="" summary="aggregated"/>
   <variant name="ActorAddTab"
       summary="Daisy chaining initiated from Actor creating a new tab."/>
+  <variant name="Bookmark"
+      summary="Daisy chaining initiated from opening a bookmark."/>
   <variant name="GlicContents"
       summary="Daisy chaining initiated from clicking a link in the Glic Host
                UI."/>
@@ -502,6 +505,8 @@ should be able to be added at any place in this file.
       summary="For iOSFeedSwipeStaticFeature feature"/>
   <variant name="_iOSGeminiContextualCueChip"
       summary="For Gemini contextual cue chip feature."/>
+  <variant name="_iOSGeminiExternalAppStoreEvent"
+      summary="For the Gemini external App Store event IPH feature."/>
   <variant name="_iOSGeminiFullscreenPromoFeature"
       summary="For iOSGeminiFullscreenPromoFeature feature"/>
   <variant name="_iOSGeminiImageRemix"
@@ -782,6 +787,8 @@ should be able to be added at any place in this file.
   <variant name="_SignInBenefitsNewSignin"
       summary="For sign-in benefits IPH feature."/>
   <variant name="_SiteControls" summary="For SiteControls IPH feature."/>
+  <variant name="_SmartTabSharingFeature"
+      summary="For Smart Tab Sharing feature."/>
   <variant name="_SupervisedUserProfileSignin"
       summary="For displaying the supervised user sign-in IPH."/>
   <variant name="_TabAudioMuting" summary="For TabAudioMuting feature."/>
@@ -15030,6 +15037,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.CloseWithEsc">
+  <obsolete>Feature removed May 2026.</obsolete>
   <owner>birnie@google.com</owner>
   <description>
     User pressed the Escape key to close the Glic First Run Experience dialog.
@@ -15569,6 +15577,16 @@ should be able to be added at any place in this file.
   <owner>birnie@google.com</owner>
   <owner>perrier@google.com</owner>
   <description>The Glic instance WebUI is warmed.</description>
+</action>
+
+<action name="Glic.Onboarding.OptInImpression">
+  <owner>dewittj@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <owner>basiaz@google.com</owner>
+  <description>
+    The Glic web client has signalled that an onboarding flow has been shown,
+    and the instance is ready and visible.
+  </description>
 </action>
 
 <action name="Glic.Pinned">
@@ -16261,6 +16279,24 @@ should be able to be added at any place in this file.
   <owner>wychen@chromium.org</owner>
   <description>
     User undoes closed group that was closed from grid tab switcher.
+  </description>
+</action>
+
+<action name="HandoffDataRequested">
+  <owner>zheliooo@google.com</owner>
+  <owner>clank-large-form-factors@google.com</owner>
+  <description>
+    Recorded on the sender device when the Android OS requests Handoff data (the
+    active URL) from Chrome.
+  </description>
+</action>
+
+<action name="HandoffDisabled">
+  <owner>zheliooo@google.com</owner>
+  <owner>clank-large-form-factors@google.com</owner>
+  <description>
+    Recorded when Handoff is disabled (e.g. switched to incognito, tab becomes
+    null, or policy disallowed).
   </description>
 </action>
 
@@ -28488,6 +28524,11 @@ should be able to be added at any place in this file.
   <description>User pressed the back icon in the app menu.</description>
 </action>
 
+<action name="MobileMenuBookmarkThisPage">
+  <owner>massan@google.com</owner>
+  <description>User pressed 'Bookmark this page' in the app menu.</description>
+</action>
+
 <action name="MobileMenuChromeWebstore">
   <owner>massan@google.com</owner>
   <description>User opened the Chrome Webstore from the app menu.</description>
@@ -29025,6 +29066,11 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileMenuShowReadingList">
+  <owner>massan@google.com</owner>
+  <description>User pressed 'Show reading list' in the app menu.</description>
+</action>
+
 <action name="MobileMenuSiteInformation">
   <owner>gambard@chromium.org</owner>
   <description>User pressed 'Site Information' in the app menu.</description>
@@ -29088,6 +29134,13 @@ should be able to be added at any place in this file.
 <action name="MobileMenuTextZoom">
   <owner>rkgibson@google.com</owner>
   <description>User pressed 'Zoom Text' in the app menu</description>
+</action>
+
+<action name="MobileMenuToggleBookmarksBar">
+  <owner>massan@google.com</owner>
+  <description>
+    User pressed 'Show / Hide bookmarks bar' in the app menu.
+  </description>
 </action>
 
 <action name="MobileMenuToolbarMenuTriggered">
@@ -39766,6 +39819,7 @@ should be able to be added at any place in this file.
   <token key="ActionType">
     <variant name="" summary="aggregated"/>
     <variant name=".AvatarButton" summary="Avatar(profile) button"/>
+    <variant name=".BatterySaverButton" summary="Battery Saver button"/>
     <variant name=".ChromeLabsButton" summary="Chrome Labs button"/>
     <variant name=".DownloadButton" summary="Download button"/>
     <variant name=".ExtensionsMenuButton" summary="Extensions button"/>

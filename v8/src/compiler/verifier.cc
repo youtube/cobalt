@@ -902,7 +902,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
 
     case IrOpcode::kJSForOfNext:
-      CheckTypeIs(node, Type::Tuple(Type::Any(), Type::Any(), zone));
+      CheckTypeIs(node, Type::Any());
       break;
 
     case IrOpcode::kJSLoadMessage:
@@ -1287,6 +1287,13 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::String());
       CheckTypeIs(node, Type::String());
       break;
+    case IrOpcode::kStringLocaleCompareIntl:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckValueInputIs(node, 1, Type::Any());
+      CheckValueInputIs(node, 2, Type::Any());
+      CheckValueInputIs(node, 3, Type::Any());
+      CheckTypeIs(node, Type::Number());
+      break;
     case IrOpcode::kStringSubstring:
       CheckValueInputIs(node, 0, Type::String());
       CheckValueInputIs(node, 1, Type::SignedSmall());
@@ -1370,6 +1377,11 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kFindOrderedHashSetEntry:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::SignedSmall());
+      break;
+    case IrOpcode::kWeakCollectionGet:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckValueInputIs(node, 1, Type::Any());
+      CheckTypeIs(node, Type::Any());
       break;
     case IrOpcode::kArgumentsLength:
     case IrOpcode::kRestLength:
@@ -1680,6 +1692,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckedFloat64ToAdditiveSafeInteger:
     case IrOpcode::kCheckedFloat64ToInt64:
     case IrOpcode::kCheckedInt32ToUint64:
+    case IrOpcode::kCheckedInt64ToUint64:
     case IrOpcode::kCheckedFloat64ToUint64:
     case IrOpcode::kCheckedTaggedSignedToInt32:
     case IrOpcode::kCheckedTaggedToInt32:
@@ -2126,7 +2139,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
 
 #define SIMD_MACHINE_OP_CASE(Name) case IrOpcode::k##Name:
       MACHINE_SIMD128_OP_LIST(SIMD_MACHINE_OP_CASE)
-      IF_WASM(MACHINE_SIMD256_OP_LIST, SIMD_MACHINE_OP_CASE)
+      IF_SIMD256(MACHINE_SIMD256_OP_LIST, SIMD_MACHINE_OP_CASE)
 #undef SIMD_MACHINE_OP_CASE
 
       // TODO(rossberg): Check.

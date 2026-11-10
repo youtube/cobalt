@@ -184,6 +184,14 @@ extern const base::FeatureParam<bool> kEnableCustomizeMVTTip;
 // The control param for the Recent Tabs tip.
 extern const base::FeatureParam<bool> kEnableRecentTabsTip;
 
+// Feature flag for New Tab Page Customization V2.
+BASE_DECLARE_FEATURE(kNewTabPageCustomizationV2);
+extern const base::FeatureParam<int> kNewTabPageCustomizationV2IphMaxImpression;
+extern const base::FeatureParam<int>
+    kNewTabPageCustomizationV2IphDisplayIntervalDays;
+// Parameter to control whether the New Tab Page theme promo should be shown.
+extern const base::FeatureParam<bool> kNewTabPageCustomizationV2ShowPromo;
+
 }  // namespace segmentation_platform::features
 
 #endif  // COMPONENTS_SEGMENTATION_PLATFORM_PUBLIC_FEATURES_H_

@@ -99,9 +99,6 @@ V8_OBJECT class JSDisplayNames : public JSObject {
   DECL_PRINTER(JSDisplayNames)
   DECL_VERIFIER(JSDisplayNames)
 
-  // Back-compat offset/size constants.
-  static const int kInternalOffset;
-  static const int kFlagsOffset;
   static const int kHeaderSize;
 
  public:
@@ -109,10 +106,6 @@ V8_OBJECT class JSDisplayNames : public JSObject {
   TaggedMember<Smi> flags_;
 } V8_OBJECT_END;
 
-inline constexpr int JSDisplayNames::kInternalOffset =
-    offsetof(JSDisplayNames, internal_);
-inline constexpr int JSDisplayNames::kFlagsOffset =
-    offsetof(JSDisplayNames, flags_);
 inline constexpr int JSDisplayNames::kHeaderSize = sizeof(JSDisplayNames);
 
 }  // namespace internal

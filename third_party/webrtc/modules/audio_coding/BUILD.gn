@@ -1138,6 +1138,7 @@ if (rtc_include_tests) {
         "../../test:test_support",
         "//testing/gtest",
         "//third_party/abseil-cpp/absl/flags:flag",
+        "//third_party/abseil-cpp/absl/strings",
         "//third_party/abseil-cpp/absl/strings:string_view",
       ]
     }

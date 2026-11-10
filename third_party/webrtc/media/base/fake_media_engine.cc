@@ -37,6 +37,7 @@
 #include "api/video/video_bitrate_allocator_factory.h"
 #include "api/video/video_sink_interface.h"
 #include "api/video/video_source_interface.h"
+#include "api/video_codecs/sdp_video_format.h"
 #include "call/audio_state.h"
 #include "call/call.h"
 #include "media/base/audio_source.h"
@@ -678,7 +679,10 @@ void FakeVoiceEngine::SetRtpHeaderExtensions(
   header_extensions_ = std::move(header_extensions);
 }
 
-FakeVideoEngine::FakeVideoEngine() : capture_(false) {
+FakeVideoEngine::FakeVideoEngine()
+    : encoder_factory_(std::make_unique<FakeVideoEncoderFactory>(this)),
+      decoder_factory_(std::make_unique<FakeVideoDecoderFactory>(this)),
+      capture_(false) {
   // Add a fake video codec. Note that the name must not be "" as there are
   // sanity checks against that.
   send_codecs_.push_back(CreateVideoCodec(111, "fake_video_codec"));
@@ -731,6 +735,15 @@ std::vector<Codec> FakeVideoEngine::LegacySendCodecs(bool use_rtx) const {
 
 std::vector<Codec> FakeVideoEngine::LegacyRecvCodecs(bool /* use_rtx */) const {
   return recv_codecs_;
+}
+
+std::vector<SdpVideoFormat> FakeVideoEngine::GetSupportedFormats(
+    bool is_decoder) const {
+  if (is_decoder) {
+    return decoder_factory_->GetSupportedFormats();
+  } else {
+    return encoder_factory_->GetSupportedFormats();
+  }
 }
 
 void FakeVideoEngine::SetSendCodecs(const std::vector<Codec>& codecs) {

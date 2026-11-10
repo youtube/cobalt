@@ -492,6 +492,24 @@ class ImmediatesPrinter {
   }
 
   void MemoryAccess(MemoryAccessImmediate& imm) {
+    if (imm.mem_index != 0) {
+      out_ << " ";
+      names()->PrintMemoryName(out_, imm.mem_index);
+    }
+    if (WasmOpcodes::ExtractPrefix(owner_->current_opcode_) == kAtomicPrefix) {
+      switch (imm.memory_order) {
+        case AtomicMemoryOrder::kAcqRel:
+          out_ << " acqrel";
+          break;
+        case AtomicMemoryOrder::kSeqCst:
+          // This is the default. Skip printing it, so that existing operations
+          // are disassembled in the same way as before.
+          break;
+        default:
+          out_ << " INVALID(" << static_cast<int>(imm.memory_order) << ')';
+          break;
+      }
+    }
     if (imm.offset != 0) out_ << " offset=" << imm.offset;
     if (imm.alignment != GetDefaultAlignment(owner_->current_opcode_)) {
       out_ << " align=" << (1u << imm.alignment);
@@ -556,7 +574,8 @@ class ImmediatesPrinter {
 
   void MemoryIndex(MemoryIndexImmediate& imm) {
     if (imm.index == 0) return;
-    out_ << " " << imm.index;
+    out_ << " ";
+    names()->PrintMemoryName(out_, imm.index);
   }
 
   void DataSegmentIndex(IndexImmediate& imm) {

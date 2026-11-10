@@ -56,15 +56,30 @@ struct AccessibilityTextRunInfo;
 // Wrapper around a page from the document.
 class PDFiumPage {
  public:
-  class ScopedUnloadPreventer {
+  // Prevents FPDF_PAGE unloading.
+  class ScopedPageUnloadPreventer {
    public:
-    explicit ScopedUnloadPreventer(PDFiumPage* page);
-    ScopedUnloadPreventer(const ScopedUnloadPreventer& that);
-    ScopedUnloadPreventer& operator=(const ScopedUnloadPreventer& that);
-    ~ScopedUnloadPreventer();
+    explicit ScopedPageUnloadPreventer(PDFiumPage* page);
+    ScopedPageUnloadPreventer(const ScopedPageUnloadPreventer& that);
+    ScopedPageUnloadPreventer& operator=(const ScopedPageUnloadPreventer& that);
+    ~ScopedPageUnloadPreventer();
 
    private:
     raw_ptr<PDFiumPage> page_;
+  };
+
+  // Prevents FPDF_TEXTPAGE unloading.
+  class ScopedTextPageUnloadPreventer {
+   public:
+    explicit ScopedTextPageUnloadPreventer(PDFiumPage* page);
+    ScopedTextPageUnloadPreventer(const ScopedTextPageUnloadPreventer&) =
+        delete;
+    ScopedTextPageUnloadPreventer& operator=(
+        const ScopedTextPageUnloadPreventer&) = delete;
+    ~ScopedTextPageUnloadPreventer();
+
+   private:
+    const raw_ptr<PDFiumPage> page_;
   };
 
   PDFiumPage(PDFiumEngine* engine, uint32_t i);
@@ -73,8 +88,9 @@ class PDFiumPage {
   PDFiumPage(PDFiumPage&& that);
   ~PDFiumPage();
 
-  // Unloads the PDFium data for this page from memory.
-  void Unload();
+  // Unloads the PDFium data for this page from memory. Returns true if the
+  // unload happened, or false if an unload preventer blocked it.
+  bool Unload();
 
   // Gets the FPDF_PAGE for this page, loading and parsing it if necessary.
   FPDF_PAGE GetPage();
@@ -152,8 +168,8 @@ class PDFiumPage {
   // any text to the page or not.
   bool IsPageSearchified() const;
 
-  // Returns if the page can be unloaded.
-  bool PageCanBeUnloaded() const;
+  // Returns if it is safe to call `ReloadTextPage()`.
+  bool CanReloadTextPage() const;
 #endif  // BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
 
   // For all the highlights on the page, get their underlying text ranges and
@@ -520,7 +536,8 @@ class PDFiumPage {
   ScopedFPDFPage page_;
   ScopedFPDFTextPage text_page_;
   uint32_t index_;
-  int preventing_unload_count_ = 0;
+  int preventing_page_unload_count_ = 0;
+  int preventing_text_page_unload_count_ = 0;
   gfx::Rect rect_;
   bool calculated_text_runs_ = false;
   MarkedContentIdToTextRunInfoMap marked_content_id_to_text_runs_map_;

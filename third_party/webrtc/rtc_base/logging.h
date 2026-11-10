@@ -54,8 +54,8 @@
 #include <memory>
 #include <optional>
 #include <span>
-#include <sstream>  // no-presubmit-check TODO(webrtc:8982)
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -314,13 +314,16 @@ enum class LogArgType : int8_t {
   kLongDouble,
   kCharP,
   kStdString,
-  kStringView,
+  kStringView,  // absl::string_view
   kVoidP,
   kLogMetadata,
   kLogMetadataErr,
 #ifdef WEBRTC_ANDROID
   kLogMetadataTag,
+#else
+  kReserved,
 #endif
+  kStdStringView,  // std::string_view, for downstream compatibility.
 };
 
 // Wrapper for log arguments. Only ever make values of this type with the
@@ -381,6 +384,18 @@ inline Val<LogArgType::kStringView, const absl::string_view*> MakeVal(
   return {&x};
 }
 
+// `std::string_view` must be supported separately from `absl::string_view`
+// because they are distinct types on certain toolchains (e.g., Android NDKs),
+// and this separate overload prevents dangling references across implicit
+// conversions.
+template <typename T>
+  requires(std::is_same_v<T, std::string_view> &&
+           !std::is_same_v<T, absl::string_view>)
+inline Val<LogArgType::kStdStringView, const std::string_view*> MakeVal(
+    const T& x) {
+  return {&x};
+}
+
 inline Val<LogArgType::kVoidP, const void*> MakeVal(const void* x) {
   return {x};
 }
@@ -411,29 +426,11 @@ inline Val<LogArgType::kLogMetadataTag, LogMetadataTag> MakeVal(
 }
 #endif
 
-template <typename T,
-          std::enable_if_t<absl::HasAbslStringify<T>::value>* = nullptr>
+template <typename T>
+  requires(absl::HasAbslStringify<T>::value &&
+           !std::is_same_v<std::decay_t<T>, std::string_view>)
 ToStringVal MakeVal(const T& x) {
   return {absl::StrCat(x)};
-}
-
-// Handle arbitrary types other than the above by falling back to stringstream.
-// TODO(bugs.webrtc.org/9278): Get rid of this overload when callers don't need
-// it anymore. No in-tree caller does, but some external callers still do.
-template <typename T,
-          typename T1 = std::decay_t<T>,
-          std::enable_if_t<std::is_class<T1>::value &&               //
-                           !std::is_same<T1, std::string>::value &&  //
-                           !std::is_same<T1, LogMetadata>::value &&  //
-                           !absl::HasAbslStringify<T1>::value &&
-#ifdef WEBRTC_ANDROID
-                           !std::is_same<T1, LogMetadataTag>::value &&  //
-#endif
-                           !std::is_same<T1, LogMetadataErr>::value>* = nullptr>
-ToStringVal MakeVal(const T& x) {
-  std::ostringstream os;  // no-presubmit-check TODO(webrtc:8982)
-  os << x;
-  return {os.str()};
 }
 
 #if RTC_LOG_ENABLED()
@@ -817,6 +814,5 @@ inline const char* AdaptString(const std::string& str) {
 #endif
 
 }  // namespace webrtc
-
 
 #endif  // RTC_BASE_LOGGING_H_

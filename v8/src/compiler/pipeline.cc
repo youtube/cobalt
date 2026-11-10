@@ -656,7 +656,7 @@ bool CheckNoDeprecatedMaps(DirectHandle<Code> code, Isolate* isolate) {
   int mode_mask = RelocInfo::EmbeddedObjectModeMask();
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-    Tagged<HeapObject> obj = it.rinfo()->target_object(isolate);
+    Tagged<HeapObject> obj = it.rinfo()->target_object();
     if (Tagged<Map> map; TryCast<Map>(obj, &map) && map->is_deprecated()) {
       return false;
     }

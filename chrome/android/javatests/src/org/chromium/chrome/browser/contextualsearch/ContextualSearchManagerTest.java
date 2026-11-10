@@ -56,7 +56,6 @@ import org.chromium.base.test.util.UserActionTester;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.app.ChromeActivity;
-import org.chromium.chrome.browser.compositor.overlay_panel.OverlayPanel.PanelState;
 import org.chromium.chrome.browser.compositor.overlay_panel.contextualsearch.ContextualSearchBarControl;
 import org.chromium.chrome.browser.compositor.overlay_panel.contextualsearch.ContextualSearchImageControl;
 import org.chromium.chrome.browser.compositor.overlay_panel.contextualsearch.ContextualSearchPanel;
@@ -68,6 +67,7 @@ import org.chromium.chrome.browser.firstrun.FirstRunStatus;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.layouts.animation.CompositorAnimationHandler;
+import org.chromium.chrome.browser.overlay_panel.PanelState;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.tab.Tab;
@@ -96,6 +96,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+@DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511287853
 // TODO(donnd): Create class with limited API to encapsulate the internals of simulations.
 
 /** Tests the Contextual Search Manager using instrumentation tests. */

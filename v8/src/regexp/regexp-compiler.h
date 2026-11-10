@@ -7,6 +7,7 @@
 
 #include <bitset>
 
+#include "src/base/bit-field.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
 #include "src/regexp/regexp-flags.h"
@@ -263,13 +264,13 @@ class Trace {
  public:
   // A value for a property that is either known to be true, known to be false,
   // or not known.
-  enum TriBool { UNKNOWN = -1, FALSE_VALUE = 0, TRUE_VALUE = 1 };
+  enum TriBool { FALSE_VALUE = 0, TRUE_VALUE = 1, UNKNOWN = 2 };
 
   Trace()
       : cp_offset_(0),
         flush_budget_(100),  // Note: this is a 16 bit field.
-        at_start_(UNKNOWN),
-        has_any_actions_(false),
+        flags_(AtStartField::encode(UNKNOWN) |
+               HasAnyActionsField::encode(false)),
         action_(nullptr),
         backtrack_(nullptr),
         special_loop_state_(nullptr),
@@ -280,8 +281,7 @@ class Trace {
   Trace(const Trace& other) V8_NOEXCEPT
       : cp_offset_(other.cp_offset_),
         flush_budget_(other.flush_budget_),
-        at_start_(other.at_start_),
-        has_any_actions_(other.has_any_actions_),
+        flags_(other.flags_),
         action_(nullptr),
         backtrack_(other.backtrack_),
         special_loop_state_(other.special_loop_state_),
@@ -315,7 +315,7 @@ class Trace {
   int cp_offset() const { return cp_offset_; }
 
   // Does any trace in the chain have an action?
-  bool has_any_actions() const { return has_any_actions_; }
+  bool has_any_actions() const { return HasAnyActionsField::decode(flags_); }
   // Does this particular trace object have an action?
   bool has_action() const { return action_ != nullptr; }
   ActionNode* action() const { return action_; }
@@ -330,12 +330,14 @@ class Trace {
   // a trivial trace is recorded in a label in the node so that gotos can be
   // generated to that code.
   bool is_trivial() const {
-    return backtrack_ == nullptr && !has_any_actions_ && cp_offset_ == 0 &&
+    return backtrack_ == nullptr && !has_any_actions() && cp_offset_ == 0 &&
            characters_preloaded_ == 0 && bound_checked_up_to_ == 0 &&
-           quick_check_performed_.characters() == 0 && at_start_ == UNKNOWN;
+           quick_check_performed_.characters() == 0 && at_start() == UNKNOWN;
   }
-  TriBool at_start() const { return at_start_; }
-  void set_at_start(TriBool at_start) { at_start_ = at_start; }
+  TriBool at_start() const { return AtStartField::decode(flags_); }
+  void set_at_start(TriBool at_start) {
+    flags_ = AtStartField::update(flags_, at_start);
+  }
   Label* backtrack() const { return backtrack_; }
   SpecialLoopState* special_loop_state() const { return special_loop_state_; }
   int characters_preloaded() const { return characters_preloaded_; }
@@ -352,7 +354,7 @@ class Trace {
   void add_action(ActionNode* new_action) {
     DCHECK(action_ == nullptr);  // Otherwise we lose an action.
     action_ = new_action;
-    has_any_actions_ = true;
+    flags_ = HasAnyActionsField::update(flags_, true);
   }
   void set_backtrack(Label* backtrack) { backtrack_ = backtrack; }
   void set_special_loop_state(SpecialLoopState* state) {
@@ -417,10 +419,14 @@ class Trace {
                                 const DynamicBitSet& registers_to_clear);
   void ScanDeferredActions(Trace* top, int reg, RegisterFlushInfo* info);
 
+  // Whether we are at the start of the string.
+  using AtStartField = base::BitField<TriBool, 0, 2>;
+  // Whether any trace in the chain has an action.
+  using HasAnyActionsField = AtStartField::Next<bool, 1>;
+
   int cp_offset_;
   uint16_t flush_budget_;
-  TriBool at_start_ : 8;      // Whether we are at the start of the string.
-  bool has_any_actions_ : 8;  // Whether any trace in the chain has an action.
+  uint32_t flags_;
   ActionNode* action_;
   Label* backtrack_;
   SpecialLoopState* special_loop_state_;

@@ -28,6 +28,7 @@ include_rules = [
   "+ios/chrome/browser/intents/model",
   "+ios/chrome/browser/lens/ui_bundled",
   "+ios/chrome/browser/lens_overlay/model/lens_overlay_tab_helper.h",
+  "+ios/chrome/browser/level_up/model",
   "+ios/chrome/browser/main/model",
   "+ios/chrome/browser/main/ui",
   "+ios/chrome/browser/main/ui_bundled",

@@ -23,9 +23,14 @@ import androidx.appcompat.content.res.AppCompatResources;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JniType;
 
+import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.autofill.R;
+import org.chromium.chrome.browser.autofill.editors.autofill_ai.EntityEditorCoordinator;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.components.autofill.autofill_ai.EntityInstance;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
@@ -41,23 +46,27 @@ import java.util.List;
 
 /** Prompt that asks users to confirm saving an entity imported from a form submission. */
 @NullMarked
-public class AutofillAiSaveUpdateEntityPrompt {
+public class AutofillAiSaveUpdateEntityPrompt implements EntityEditorCoordinator.Delegate {
     private final AutofillAiSaveUpdateEntityPromptController mController;
     private final ModalDialogManager mModalDialogManager;
     private final Context mContext;
     private final PropertyModel mDialogModel;
     private final View mDialogView;
+    private EntityEditorCoordinator mEntityEditor;
+    private boolean mEditorClosingPending;
 
     /** Save prompt to confirm saving an entity imported from a form submission. */
     public AutofillAiSaveUpdateEntityPrompt(
             AutofillAiSaveUpdateEntityPromptController controller,
             ModalDialogManager modalDialogManager,
-            Context context) {
+            Activity activity,
+            Profile profile,
+            EntityInstance entityInstance) {
         mController = controller;
         mModalDialogManager = modalDialogManager;
-        mContext = context;
+        mContext = activity;
 
-        LayoutInflater inflater = LayoutInflater.from(mContext);
+        LayoutInflater inflater = LayoutInflater.from(activity);
         mDialogView = inflater.inflate(R.layout.autofill_ai_save_entity_prompt, null);
 
         PropertyModel.Builder builder =
@@ -71,6 +80,14 @@ public class AutofillAiSaveUpdateEntityPrompt {
                                 ModalDialogProperties.ButtonStyles.PRIMARY_FILLED_NEGATIVE_OUTLINE)
                         .with(ModalDialogProperties.CUSTOM_VIEW, mDialogView);
         mDialogModel = builder.build();
+        mEntityEditor = new EntityEditorCoordinator(activity, this, profile, entityInstance);
+    }
+
+    @Override
+    public void onDone(
+            EntityInstance entityInstance, int descriptionStringId, int acceptButtonStringId) {
+        // TODO: crbug.com/509798874 - Send the updated entity instance to C++.
+        mEditorClosingPending = true;
     }
 
     /** Shows the dialog for saving an address. */
@@ -89,12 +106,16 @@ public class AutofillAiSaveUpdateEntityPrompt {
      */
     @CalledByNative
     private static @Nullable AutofillAiSaveUpdateEntityPrompt create(
-            WindowAndroid windowAndroid, AutofillAiSaveUpdateEntityPromptController controller) {
+            WindowAndroid windowAndroid,
+            AutofillAiSaveUpdateEntityPromptController controller,
+            Profile browserProfile,
+            @JniType("autofill::EntityInstanceAndroid") EntityInstance entityInstance) {
         @Nullable Activity activity = windowAndroid.getActivity().get();
         @Nullable ModalDialogManager modalDialogManager = windowAndroid.getModalDialogManager();
         if (activity == null || modalDialogManager == null) return null;
 
-        return new AutofillAiSaveUpdateEntityPrompt(controller, modalDialogManager, activity);
+        return new AutofillAiSaveUpdateEntityPrompt(
+                controller, modalDialogManager, activity, browserProfile, entityInstance);
     }
 
     /**
@@ -130,21 +151,55 @@ public class AutofillAiSaveUpdateEntityPrompt {
         LinearLayout attributeList = mDialogView.findViewById(R.id.autofill_ai_attribute_infos);
         attributeList.removeAllViews();
 
-        for (EntityAttributeUpdateDetails updateDetails : updateDetailsList) {
-            LayoutInflater inflater = LayoutInflater.from(mContext);
-            View attributeInfo = inflater.inflate(R.layout.autofill_ai_attribute_info, null);
+        if (updateDetailsList.isEmpty()) {
+            return;
+        }
+        int startIndex = 0;
+        LayoutInflater inflater = LayoutInflater.from(mContext);
+        if (ChromeFeatureList.isEnabled(
+                ChromeFeatureList.AUTOFILL_AI_EDIT_ENTITIES_FROM_SAVE_UPDATE_PROMPT)) {
+            startIndex = 1;
+            View attributeInfoWithEditButton =
+                    inflater.inflate(
+                            R.layout.autofill_ai_attribute_info_with_edit_button,
+                            attributeList,
+                            /* attachToRoot= */ false);
+            attributeList.addView(attributeInfoWithEditButton);
+            setAttributeDetails(
+                    attributeInfoWithEditButton, updateDetailsList.get(0), isUpdatePrompt);
 
-            TextView attributeName = attributeInfo.findViewById(R.id.attribute_name);
-            TextView attributeValue = attributeInfo.findViewById(R.id.attribute_value);
+            attributeInfoWithEditButton
+                    .findViewById(R.id.edit_button)
+                    .setOnClickListener(
+                            v -> {
+                                mEditorClosingPending = false;
+                                mEntityEditor.showEditorDialog();
+                            });
+        }
 
-            attributeName.setText(updateDetails.getAttributeName());
-            attributeValue.setText(updateDetails.getAttributeValue());
-
-            if (isUpdatePrompt) {
-                setBadgeAndAxLabelsInUpdatePrompt(attributeInfo, updateDetails);
-            }
-
+        for (int i = startIndex; i < updateDetailsList.size(); i++) {
+            View attributeInfo =
+                    inflater.inflate(
+                            R.layout.autofill_ai_attribute_info,
+                            attributeList,
+                            /* attachToRoot= */ false);
             attributeList.addView(attributeInfo);
+            setAttributeDetails(attributeInfo, updateDetailsList.get(i), isUpdatePrompt);
+        }
+    }
+
+    private void setAttributeDetails(
+            View attributeInfo,
+            EntityAttributeUpdateDetails updateDetails,
+            boolean isUpdatePrompt) {
+        TextView attributeName = attributeInfo.findViewById(R.id.attribute_name);
+        TextView attributeValue = attributeInfo.findViewById(R.id.attribute_value);
+
+        attributeName.setText(updateDetails.getAttributeName());
+        attributeValue.setText(updateDetails.getAttributeValue());
+
+        if (isUpdatePrompt) {
+            setBadgeAndAxLabelsInUpdatePrompt(attributeInfo, updateDetails);
         }
     }
 
@@ -255,6 +310,13 @@ public class AutofillAiSaveUpdateEntityPrompt {
     @CalledByNative
     @VisibleForTesting
     void dismiss() {
+        // The user can close the editor by clicking the "Cancel" or back button. This starts an
+        // exit animation which dismissed the editor. The prompt stays displayed during this period.
+        // The native side can try to dismiss the prompt during the time frame. Do not dismiss the
+        // editor again in this case.
+        if (!mEditorClosingPending && mEntityEditor.isShowing()) {
+            mEntityEditor.dismiss();
+        }
         mModalDialogManager.dismissDialog(mDialogModel, DialogDismissalCause.DISMISSED_BY_NATIVE);
     }
 
@@ -272,6 +334,12 @@ public class AutofillAiSaveUpdateEntityPrompt {
                 break;
         }
         mController.onPromptDismissed();
+    }
+
+    void setEntityEditorForTesting(EntityEditorCoordinator entityEditor) {
+        EntityEditorCoordinator oldValue = mEntityEditor;
+        mEntityEditor = entityEditor;
+        ResettersForTesting.register(() -> mEntityEditor = oldValue);
     }
 
     View getDialogViewForTesting() {

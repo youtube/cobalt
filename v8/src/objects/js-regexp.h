@@ -145,9 +145,6 @@ V8_OBJECT class JSRegExp : public JSObject {
 
   class BodyDescriptor;
 
-  // Back-compat offset / size constants.
-  static const int kDataOffset;
-  static const int kFlagsOffset;
   static const int kHeaderSize;
 
  private:
@@ -159,8 +156,6 @@ V8_OBJECT class JSRegExp : public JSObject {
   TaggedMember<Object> flags_;
 } V8_OBJECT_END;
 
-inline constexpr int JSRegExp::kDataOffset = offsetof(JSRegExp, data_);
-inline constexpr int JSRegExp::kFlagsOffset = offsetof(JSRegExp, flags_);
 inline constexpr int JSRegExp::kHeaderSize = sizeof(JSRegExp);
 inline constexpr int JSRegExp::kLastIndexOffset = kHeaderSize;
 inline constexpr int JSRegExp::kSize =

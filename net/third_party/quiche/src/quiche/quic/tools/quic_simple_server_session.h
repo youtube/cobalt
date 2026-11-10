@@ -53,7 +53,6 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
  protected:
   // QuicSession methods:
   QuicSpdyStream* CreateIncomingStream(QuicStreamId id) override;
-  QuicSpdyStream* CreateIncomingStream(PendingStream* pending) override;
   QuicSpdyStream* CreateOutgoingBidirectionalStream() override;
 
   // QuicServerSessionBaseMethod:

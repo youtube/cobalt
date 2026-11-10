@@ -20,6 +20,7 @@
 #include "chrome/browser/contextual_tasks/active_task_context_provider.h"
 #include "chrome/browser/contextual_tasks/contextual_search_session_finder.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_auto_suggestion_manager.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_composebox_handler.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_composebox_handler_interface.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_internals_page_handler.h"
@@ -39,10 +40,11 @@
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
-#include "chrome/browser/ui/webui/sanitized_image/sanitized_image_source.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
@@ -60,6 +62,7 @@
 #include "components/lens/lens_features.h"
 #include "components/lens/lens_overlay_invocation_source.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
+#include "components/omnibox/common/composebox_features.h"
 #include "components/omnibox/common/logger.h"
 #include "components/prefs/pref_service.h"
 #include "components/sessions/content/session_tab_helper.h"
@@ -84,15 +87,16 @@
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "third_party/blink/public/mojom/css/preferred_color_scheme.mojom.h"
 #include "third_party/lens_server_proto/aim_communication.pb.h"
+#include "ui/base/device_form_factor.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/webui/webui_util.h"
 
 #if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/contextual_tasks/contextual_tasks_composebox_handler.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.h"
+#include "chrome/browser/ui/webui/sanitized_image/sanitized_image_source.h"  // nogncheck
+#include "chrome/browser/ui/views/user_education/browser_help_bubble.h"
 #include "components/omnibox/browser/searchbox.mojom-forward.h"
 #include "components/zoom/zoom_controller.h"  // nogncheck
 #endif
@@ -169,6 +173,9 @@ void UpdateDarkModePreferenceFromUrl(content::WebContents* wc,
   }
 }
 }  // namespace
+
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(ContextualTasksUI,
+                                      kSmartTabSharingMenuItemElementId);
 
 void AddDefaultZeroStateStrings(content::WebUIDataSource* source) {
   source->AddString("friendlyZeroStateTitle",
@@ -277,6 +284,18 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
                   web_ui->GetWebContents()->GetBrowserContext()))) {
   Profile* profile = Profile::FromWebUI(web_ui);
 
+#if !BUILDFLAG(IS_ANDROID)
+  // This hints the IPH system to use the webui help bubble factory. It is
+  // necessary to avoid floating a Views bubble when side paneled (cobrowse)
+  // because the webui modal dialog can only work well with a help bubble
+  // when it is part of the dialog's DOM in the browser "top layer".
+  ForceWebUIHelpBubbles::CreateForWebContents(web_ui->GetWebContents());
+  if (auto* forced =
+          ForceWebUIHelpBubbles::FromWebContents(web_ui->GetWebContents())) {
+    forced->SetForceWebUIForAnchors({kSmartTabSharingMenuItemElementId});
+  }
+#endif
+
   // In MPArch, a single webcontents is used to host multiple frame trees rather
   // than having a separate webcontents for each. In that case there's no need
   // to wait for a webcontents to be created as they all live in the same one
@@ -323,7 +342,6 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
     base::Uuid task_id = base::Uuid::ParseLowercase(task_id_str);
     if (task_id.is_valid()) {
       task_id_ = task_id;
-      ui_service_->OnWebUIReady(task_id, web_ui->GetWebContents());
     }
   }
 
@@ -499,6 +517,9 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   source->AddBoolean("hideMenuOnAiPageEnabled",
                      base::FeatureList::IsEnabled(
                          contextual_tasks::kContextualTasksHideMenuOnAiPage));
+  source->AddBoolean(
+      "contextManagementInComposeboxEnabled",
+      base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox));
 
   source->AddString(
       "composeboxSource",
@@ -530,6 +551,9 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   // Preload the serialized handshake message so it doesn't have to be fetched
   // at runtime.
   source->AddString("handshakeMessage", GetEncodedHandshakeMessage());
+
+  source->AddBoolean("isSmallDeviceFormFactor",
+                     ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE);
 
   // Force a host for any URL opened in the embedded page. If empty, no change
   // is made to the URL.
@@ -648,11 +672,6 @@ void ContextualTasksUI::SetThreadId(std::optional<std::string> id) {
   PushTaskDetailsToPage();
 }
 
-void ContextualTasksUI::SetThreadTurnId(std::optional<std::string> id) {
-  thread_turn_id_ = id;
-  PushTaskDetailsToPage();
-}
-
 const std::optional<std::string>& ContextualTasksUI::GetThreadTitle() {
   return thread_title_;
 }
@@ -734,6 +753,11 @@ bool ContextualTasksUI::IsInitComplete() {
 }
 
 void ContextualTasksUI::OnInitComplete() {
+  if (task_id_) {
+    ui_service_->OnWebUIReady(GetBrowser(), *task_id_,
+                              web_ui()->GetWebContents());
+  }
+
   for (auto& observer : observers_) {
     observer.OnInitComplete();
   }
@@ -797,11 +821,28 @@ void ContextualTasksUI::BindInterface(
       std::move(pending_receiver));
 }
 
+#if !BUILDFLAG(IS_ANDROID)
+void ContextualTasksUI::BindInterface(
+    mojo::PendingReceiver<help_bubble::mojom::HelpBubbleHandlerFactory>
+        pending_receiver) {
+  help_bubble_factory_receiver_.reset();
+  help_bubble_factory_receiver_.Bind(std::move(pending_receiver));
+}
+
+void ContextualTasksUI::CreateHelpBubbleHandler(
+    mojo::PendingRemote<help_bubble::mojom::HelpBubbleClient> client,
+    mojo::PendingReceiver<help_bubble::mojom::HelpBubbleHandler> handler) {
+  help_bubble_handler_ = std::make_unique<user_education::HelpBubbleHandler>(
+      std::move(handler), std::move(client), this,
+      std::vector<ui::ElementIdentifier>{kSmartTabSharingMenuItemElementId});
+}
+#endif
+
 bool ContextualTasksUIConfig::IsWebUIEnabled(
     content::BrowserContext* browser_context) {
-  // Check if the user should have landed on the WebUI via an entry point. If
-  // not, refuse to load the WebUI to prevent a broken experience.
-  return base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks);
+  // Disable for OTR profiles.
+  return base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks) &&
+         !browser_context->IsOffTheRecord();
 }
 
 bool ContextualTasksUIConfig::ShouldCrashOnJavascriptErrorInDevelopmentBuild()
@@ -815,7 +856,6 @@ ContextualTasksUIConfig::CreateWebUIController(content::WebUI* web_ui,
   return std::make_unique<ContextualTasksUI>(web_ui);
 }
 
-#if !BUILDFLAG(IS_ANDROID)
 void ContextualTasksUI::BindInterface(
     mojo::PendingReceiver<composebox::mojom::PageHandlerFactory>
         pending_receiver) {
@@ -847,7 +887,6 @@ void ContextualTasksUI::CreatePageHandler(
   composebox_handler_->UpdateSuggestedTabContext(
       auto_suggestion_manager_->GetCurrentSuggestion());
 }
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 contextual_search::ContextualSearchSessionHandle*
 ContextualTasksUI::GetOrCreateContextualSessionHandle() {
@@ -930,14 +969,12 @@ void ContextualTasksUI::SetComposeboxHandler(
   composebox_handler_ = handler;
 }
 
-#if !BUILDFLAG(IS_ANDROID)
 void ContextualTasksUI::SetComposeboxHandlerForTesting(  // IN-TEST
     std::unique_ptr<contextual_tasks::ContextualTasksComposeboxHandlerInterface>
         handler) {
   owned_composebox_handler_ = std::move(handler);
   SetComposeboxHandler(owned_composebox_handler_.get());
 }
-#endif
 
 void ContextualTasksUI::MoveTaskUiToNewTab() {
   auto* browser = GetBrowser();
@@ -1390,7 +1427,6 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
     base::Uuid new_task_id = task.GetTaskId();
     task_info_delegate_->SetTaskId(new_task_id);
     task_info_delegate_->SetThreadId(std::nullopt);
-    task_info_delegate_->SetThreadTurnId(std::nullopt);
     task_info_delegate_->SetThreadTitle(std::nullopt);
 
     task_info_delegate_->PrepareForTaskChange();
@@ -1484,7 +1520,6 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
       task_info_delegate_->GetTaskId().value(),
       contextual_tasks::ThreadType::kAiMode, url_thread_id, mstk,
       task_info_delegate_->GetThreadTitle());
-  task_info_delegate_->SetThreadTurnId(mstk);
 
   if (task_changed) {
     OMNIBOX_LOG("embedded_page_nav")

@@ -158,7 +158,6 @@ fn all_key_agreement_algorithms() {
         super::key_exchange::ECDH_P256,
         super::key_exchange::ECDH_P384,
         super::key_exchange::X25519,
-        #[cfg(feature = "mlalgs")]
         super::key_exchange::X25519MLKEM768,
     ] {
         test_cipher_suite(

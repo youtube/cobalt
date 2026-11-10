@@ -32,7 +32,6 @@
 #include "chrome/browser/sessions/tab_restore_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
@@ -1111,7 +1110,8 @@ class HostedAppProcessModelTest : public HostedOrWebAppTest {
   GURL GetSiteForURL(content::BrowserContext* browser_context,
                      const GURL& url) {
     return content::SiteInstance::CreateForURL(browser_context, url)
-        ->GetSiteURL();
+        ->GetSecurityPrincipal()
+        .GetDeprecatedSiteURL();
   }
 
  protected:
@@ -1537,10 +1537,17 @@ IN_PROC_BROWSER_TEST_P(HostedAppProcessModelTest,
   // URL with a valid host that corresponds to the app's ID.
   EXPECT_TRUE(
       process_map_->Contains(main_frame->GetProcess()->GetDeprecatedID()));
-  EXPECT_FALSE(main_frame->GetSiteInstance()->GetSiteURL().is_empty());
+  EXPECT_FALSE(main_frame->GetSiteInstance()
+                   ->GetSecurityPrincipal()
+                   .GetDeprecatedSiteURL()
+                   .is_empty());
   EXPECT_TRUE(main_frame->GetSiteInstance()->GetSecurityPrincipal().SchemeIs(
       extensions::kExtensionScheme));
-  EXPECT_EQ(main_frame->GetSiteInstance()->GetSiteURL().GetHost(), app_id_);
+  EXPECT_EQ(main_frame->GetSiteInstance()
+                ->GetSecurityPrincipal()
+                .GetDeprecatedSiteURL()
+                .GetHost(),
+            app_id_);
 }
 
 class HostedAppProcessModelFencedFrameTest : public HostedAppProcessModelTest {
@@ -1603,8 +1610,10 @@ IN_PROC_BROWSER_TEST_P(HostedAppProcessModelFencedFrameTest,
 
   // Check that the app loaded properly.
   RenderFrameHost* app = web_contents->GetPrimaryMainFrame();
-  EXPECT_EQ(extensions::kExtensionScheme,
-            app->GetSiteInstance()->GetSiteURL().GetScheme());
+  EXPECT_EQ(extensions::kExtensionScheme, app->GetSiteInstance()
+                                              ->GetSecurityPrincipal()
+                                              .GetDeprecatedSiteURL()
+                                              .GetScheme());
   GURL app_site =
       GetSiteForURL(app_browser_->profile(), app->GetLastCommittedURL());
   EXPECT_EQ(extensions::kExtensionScheme, app_site.GetScheme());
@@ -1672,8 +1681,10 @@ IN_PROC_BROWSER_TEST_P(HostedAppIsolatedOriginTest,
   // Check that the app loaded properly. Even though its URL is from an
   // isolated origin (isolated.com), it should go into an app process.
   RenderFrameHost* app = web_contents->GetPrimaryMainFrame();
-  EXPECT_EQ(extensions::kExtensionScheme,
-            app->GetSiteInstance()->GetSiteURL().GetScheme());
+  EXPECT_EQ(extensions::kExtensionScheme, app->GetSiteInstance()
+                                              ->GetSecurityPrincipal()
+                                              .GetDeprecatedSiteURL()
+                                              .GetScheme());
   GURL app_site =
       GetSiteForURL(app_browser_->profile(), app->GetLastCommittedURL());
   EXPECT_EQ(extensions::kExtensionScheme, app_site.GetScheme());
@@ -1754,8 +1765,10 @@ IN_PROC_BROWSER_TEST_P(HostedAppIsolatedOriginTest,
   // The app URL should have loaded in an app process.
   RenderFrameHost* app = web_contents->GetPrimaryMainFrame();
   EXPECT_TRUE(process_map_->Contains(app->GetProcess()->GetDeprecatedID()));
-  EXPECT_EQ(extensions::kExtensionScheme,
-            app->GetSiteInstance()->GetSiteURL().GetScheme());
+  EXPECT_EQ(extensions::kExtensionScheme, app->GetSiteInstance()
+                                              ->GetSecurityPrincipal()
+                                              .GetDeprecatedSiteURL()
+                                              .GetScheme());
   int first_app_process_id = app->GetProcess()->GetDeprecatedID();
 
   // Creating a subframe on unisolated.com should not be allowed to share the

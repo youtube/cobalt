@@ -511,7 +511,7 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
         Node* const object = GetValueInput(effect, 0);
         FieldAccess const& access = FieldAccessOf(effect->op());
         if (access.base_is_tagged == kTaggedBase &&
-            access.offset == HeapObject::kMapOffset) {
+            access.offset == offsetof(HeapObject, map_)) {
           if (IsSame(receiver, object)) {
             Node* const value = GetValueInput(effect, 1);
             HeapObjectMatcher m2(value);

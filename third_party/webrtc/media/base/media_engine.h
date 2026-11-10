@@ -28,6 +28,9 @@
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
 #include "api/video/video_bitrate_allocator_factory.h"
+#include "api/video_codecs/sdp_video_format.h"
+#include "api/video_codecs/video_decoder_factory.h"
+#include "api/video_codecs/video_encoder_factory.h"
 #include "call/audio_state.h"
 #include "media/base/codec.h"
 #include "media/base/media_channel.h"
@@ -116,12 +119,6 @@ class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface {
   // reassigned.
   // This function is being moved to CodecVendor
   // TODO: https://issues.webrtc.org/360058654 - remove when all users updated.
-  [[deprecated]] inline const std::vector<Codec>& send_codecs() const {
-    return LegacySendCodecs();
-  }
-  [[deprecated]] inline const std::vector<Codec>& recv_codecs() const {
-    return LegacyRecvCodecs();
-  }
   virtual const std::vector<Codec>& LegacySendCodecs() const = 0;
   virtual const std::vector<Codec>& LegacyRecvCodecs() const = 0;
 
@@ -169,23 +166,17 @@ class VideoEngineInterface : public RtpHeaderExtensionQueryInterface {
   // reassigned.
   // This functionality is being moved to the CodecVendor class.
   // TODO: https://issues.webrtc.org/360058654 - deprecate and remove.
-  [[deprecated]] inline std::vector<Codec> send_codecs() const {
-    return LegacySendCodecs();
-  }
-  [[deprecated]] inline std::vector<Codec> recv_codecs() const {
-    return LegacyRecvCodecs();
-  }
   virtual std::vector<Codec> LegacySendCodecs() const = 0;
   virtual std::vector<Codec> LegacyRecvCodecs() const = 0;
   // As above, but if include_rtx is false, don't include RTX codecs.
-  [[deprecated]] inline std::vector<Codec> send_codecs(bool include_rtx) const {
-    return LegacySendCodecs(include_rtx);
-  }
   virtual std::vector<Codec> LegacySendCodecs(bool include_rtx) const = 0;
   virtual std::vector<Codec> LegacyRecvCodecs(bool include_rtx) const = 0;
-  [[deprecated]] inline std::vector<Codec> recv_codecs(bool include_rtx) const {
-    return LegacyRecvCodecs(include_rtx);
-  }
+
+  virtual VideoEncoderFactory* encoder_factory() const = 0;
+  virtual VideoDecoderFactory* decoder_factory() const = 0;
+
+  virtual std::vector<SdpVideoFormat> GetSupportedFormats(
+      bool is_decoder) const = 0;
 };
 
 // MediaEngineInterface is an abstraction of a media engine which can be

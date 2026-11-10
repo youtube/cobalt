@@ -50,9 +50,19 @@ GDB JIT Compilation Interface is currently excluded from the compilation by defa
 
 To check that you have enabled GDB JIT integration correctly try setting a breakpoint on `__jit_debug_register_code`. This function is invoked to notify GDB about new code objects.
 
+## Maglev IR Debugging
+
+When using the Maglev compiler, you can enable IR-level debugging in GDB. This feature dumps the Maglev graph representation to a text file during compilation and maps the generated machine code positions to line numbers in this text file.
+
+To use this:
+1. Enable GDB JIT integration (see [Enabling GDB JIT Compilation Interface](#enabling-gdb-jit-compilation-interface)).
+2. Run V8 with `--maglev-gdbjit` (enabled by default).
+
+During compilation, V8 will dump the Maglev graph to a file named `maglev-<function_name>-<optimization_id>.mgl` in the current directory. In GDB, when you debug Maglev-optimized code, the stack frames will map to line numbers in this `.mgl` file, allowing you to see which Maglev IR nodes correspond to the executed machine instructions.
+
 ## Known limitations
 
-- GDB side of JIT Interface currently (as of GDB 7.2) does not handle registration of code objects very effectively. Each next registration takes more time: with 500 registered objects each next registration takes more than 50ms, with 1000 registered code objects - more than 300 ms. This problem was [reported to GDB developers](https://sourceware.org/ml/gdb/2011-01/msg00002.html) but currently there is no solution available. To reduce pressure on GDB current implementation of GDB JIT integration operates in two modes: _default_ and _full_ (enabled by `--gdbjit-full` flag). In _default_ mode V8 notifies GDB only about code objects that have source information attached (this usually includes all user scripts). In _full_ - about all generated code objects (stubs, ICs, trampolines).
+- GDB side of JIT Interface currently (as of GDB 7.2) does not handle registration of code objects very effectively. Each next registration takes more time: with 500 registered objects each next registration takes more than 50ms, with 1000 registered code objects - more than 300 ms. This problem was [reported to GDB developers](https://sourceware.org/ml/gdb/2011-01/msg00002.html) but currently there is no solution available. To reduce pressure on GDB current implementation of GDB JIT integration operates in two modes: _default_ and _full_ (enabled by `--gdbjit-full` flag). By default, `--gdbjit` weakly implies `--gdbjit-full`, so V8 operates in _full_ mode unless `--no-gdbjit-full` is explicitly passed. In _default_ mode V8 notifies GDB only about code objects that have source information attached (this usually includes all user scripts). In _full_ - about all generated code objects (stubs, ICs, trampolines).
 
 - On x64 GDB is unable to properly unwind stack without `.eh_frame` section ([Issue 1053](https://bugs.chromium.org/p/v8/issues/detail?id=1053))
 

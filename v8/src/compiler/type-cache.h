@@ -61,6 +61,7 @@ class V8_EXPORT_PRIVATE TypeCache final {
   Type const kTenOrUndefined =
       Type::Union(kSingletonTen, Type::Undefined(), zone());
   Type const kMinusOneOrZero = CreateRange(-1.0, 0.0);
+  Type const kMinusOneOrZeroOrOne = CreateRange(-1.0, 1.0);
   Type const kMinusOneToOneOrMinusZeroOrNaN = Type::Union(
       Type::Union(CreateRange(-1.0, 1.0), Type::MinusZero(), zone()),
       Type::NaN(), zone());

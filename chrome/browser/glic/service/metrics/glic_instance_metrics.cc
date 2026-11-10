@@ -25,6 +25,7 @@
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/service/glic_instance_helper.h"
 #include "chrome/browser/glic/service/glic_state_tracker.h"
+#include "chrome/browser/glic/service/metrics/glic_instance_helper_metrics.h"
 #include "chrome/browser/glic/service/metrics/glic_metrics_session_manager.h"
 #include "chrome/browser/glic/service/metrics/metrics_types.h"
 #include "chrome/common/chrome_features.h"
@@ -118,6 +119,25 @@ GlicInstanceMetrics::GlicInstanceMetrics(
 
 GlicInstanceMetrics::~GlicInstanceMetrics() {
   OnInstanceDestroyed();
+}
+
+void GlicInstanceMetrics::OnOptinImpression() {
+  if (!base::FeatureList::IsEnabled(features::kGlicOptInImpressionMetrics)) {
+    return;
+  }
+  is_opt_in_pending_ = true;
+  MaybeRecordOptInImpression();
+}
+
+void GlicInstanceMetrics::MaybeRecordOptInImpression() {
+  if (!is_opt_in_pending_ ||
+      !base::FeatureList::IsEnabled(features::kGlicOptInImpressionMetrics) ||
+      !is_client_ready_ || !visibility_tracker_->state()) {
+    return;
+  }
+  base::RecordAction(
+      base::UserMetricsAction("Glic.Onboarding.OptInImpression"));
+  is_opt_in_pending_ = false;
 }
 
 void GlicInstanceMetrics::OnGlicScrollAttempt() {
@@ -268,6 +288,7 @@ void GlicInstanceMetrics::OnVisibilityChanged(bool is_visible) {
     OnInstanceHidden();
   }
   visibility_tracker_->OnStateChanged(is_visible);
+  MaybeRecordOptInImpression();
 }
 
 void GlicInstanceMetrics::OnBind() {
@@ -397,9 +418,19 @@ void GlicInstanceMetrics::OnFloatyClosed() {
         GlicInstanceMetricsError::kFloatyClosedWithoutOpen);
     return;
   }
-  base::UmaHistogramCustomTimes("Glic.Instance.Floaty.OpenDuration",
-                                base::TimeTicks::Now() - floaty_open_time_,
+  base::TimeDelta duration = base::TimeTicks::Now() - floaty_open_time_;
+  base::UmaHistogramCustomTimes("Glic.Instance.Floaty.OpenDuration", duration,
                                 base::Milliseconds(1), base::Hours(1), 50);
+  if (!first_floaty_close_recorded_) {
+    first_floaty_close_recorded_ = true;
+    mojom::InvocationSource source = initial_invocation_source_.value_or(
+        mojom::InvocationSource::kUnsupported);
+    base::UmaHistogramCustomTimes(
+        base::StrCat({"Glic.InvocationSource.",
+                      GetInvocationSourceString(source),
+                      ".FloatyFirstOpenDuration"}),
+        duration, base::Milliseconds(1), base::Hours(1), 50);
+  }
   floaty_open_time_ = base::TimeTicks();
 }
 
@@ -427,9 +458,10 @@ void GlicInstanceMetrics::OnSidePanelClosed(
     return;
   }
 
+  base::TimeDelta duration = base::TimeTicks::Now() - it->second;
   base::UmaHistogramCustomTimes("Glic.Instance.SidePanel.OpenDuration",
-                                base::TimeTicks::Now() - it->second,
-                                base::Milliseconds(1), base::Hours(1), 50);
+                                duration, base::Milliseconds(1), base::Hours(1),
+                                50);
 
   if (!first_side_panel_close_recorded_) {
     first_side_panel_close_recorded_ = true;
@@ -439,8 +471,7 @@ void GlicInstanceMetrics::OnSidePanelClosed(
         base::StrCat({"Glic.InvocationSource.",
                       GetInvocationSourceString(source),
                       ".SidePanelFirstOpenDuration"}),
-        base::TimeTicks::Now() - it->second, base::Milliseconds(1),
-        base::Hours(1), 50);
+        duration, base::Milliseconds(1), base::Hours(1), 50);
   }
   side_panel_open_times_.erase(it);
 }
@@ -466,9 +497,10 @@ void GlicInstanceMetrics::OnUnbindEmbedder(EmbedderKey key) {
     tabs::TabHandle tab_handle = tab->GetHandle();
     auto it = side_panel_open_times_.find(tab_handle);
     if (it != side_panel_open_times_.end()) {
+      base::TimeDelta duration = base::TimeTicks::Now() - it->second;
       base::UmaHistogramCustomTimes("Glic.Instance.SidePanel.OpenDuration",
-                                    base::TimeTicks::Now() - it->second,
-                                    base::Milliseconds(1), base::Hours(1), 50);
+                                    duration, base::Milliseconds(1),
+                                    base::Hours(1), 50);
       if (!first_side_panel_close_recorded_) {
         first_side_panel_close_recorded_ = true;
         mojom::InvocationSource source = initial_invocation_source_.value_or(
@@ -477,8 +509,7 @@ void GlicInstanceMetrics::OnUnbindEmbedder(EmbedderKey key) {
             base::StrCat({"Glic.InvocationSource.",
                           GetInvocationSourceString(source),
                           ".SidePanelFirstOpenDuration"}),
-            base::TimeTicks::Now() - it->second, base::Milliseconds(1),
-            base::Hours(1), 50);
+            duration, base::Milliseconds(1), base::Hours(1), 50);
       }
       side_panel_open_times_.erase(it);
 
@@ -490,6 +521,24 @@ void GlicInstanceMetrics::OnUnbindEmbedder(EmbedderKey key) {
     tab_depths_.erase(tab_handle);
     if (bound_tab_count_ > 0) {
       bound_tab_count_--;
+    }
+  } else {
+    if (!floaty_open_time_.is_null()) {
+      base::TimeDelta duration = base::TimeTicks::Now() - floaty_open_time_;
+      base::UmaHistogramCustomTimes("Glic.Instance.Floaty.OpenDuration",
+                                    duration, base::Milliseconds(1),
+                                    base::Hours(1), 50);
+      if (!first_floaty_close_recorded_) {
+        first_floaty_close_recorded_ = true;
+        mojom::InvocationSource source = initial_invocation_source_.value_or(
+            mojom::InvocationSource::kUnsupported);
+        base::UmaHistogramCustomTimes(
+            base::StrCat({"Glic.InvocationSource.",
+                          GetInvocationSourceString(source),
+                          ".FloatyFirstOpenDuration"}),
+            duration, base::Milliseconds(1), base::Hours(1), 50);
+      }
+      floaty_open_time_ = base::TimeTicks();
     }
   }
 }
@@ -745,6 +794,9 @@ void GlicInstanceMetrics::OnWebUiStateChanged(mojom::WebUiState state) {
 }
 
 void GlicInstanceMetrics::OnClientReady(EmbedderType type) {
+  is_client_ready_ = true;
+  MaybeRecordOptInImpression();
+
   if (invocation_start_time_.is_null()) {
     return;
   }

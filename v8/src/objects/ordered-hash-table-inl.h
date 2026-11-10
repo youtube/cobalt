@@ -34,7 +34,7 @@ Tagged<Object> SmallOrderedHashTableImpl<Derived>::KeyAt(
     InternalIndex entry) const {
   DCHECK_LT(entry.as_int(), Capacity());
   Offset entry_offset = GetDataEntryOffset(entry.as_int(), Derived::kKeyIndex);
-  return TaggedField<Object>::load(*this, entry_offset);
+  return TaggedField<Object>::load(this, entry_offset);
 }
 
 template <class Derived>
@@ -43,7 +43,7 @@ Tagged<Object> SmallOrderedHashTableImpl<Derived>::GetDataEntry(
   DCHECK_LT(entry, Capacity());
   DCHECK_LE(static_cast<unsigned>(relative_index), Derived::kEntrySize);
   Offset entry_offset = GetDataEntryOffset(entry, relative_index);
-  return TaggedField<Object>::load(*this, entry_offset);
+  return TaggedField<Object>::load(this, entry_offset);
 }
 
 Handle<Map> OrderedHashSet::GetMap(RootsTable& roots) {
@@ -172,8 +172,8 @@ void SmallOrderedHashTableImpl<Derived>::SetDataEntry(int entry,
                                                       Tagged<Object> value) {
   DCHECK_NE(kNotFound, entry);
   int entry_offset = GetDataEntryOffset(entry, relative_index);
-  RELAXED_WRITE_FIELD(*this, entry_offset, value);
-  WRITE_BARRIER(*this, entry_offset, value);
+  RELAXED_WRITE_FIELD(this, entry_offset, value);
+  WRITE_BARRIER(this, entry_offset, value);
 }
 
 template <class Derived, class TableType>

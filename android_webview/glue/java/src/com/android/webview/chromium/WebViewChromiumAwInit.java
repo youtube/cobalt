@@ -372,6 +372,7 @@ public class WebViewChromiumAwInit {
         CallSite.GET_DEFAULT_COOKIE_MANAGER,
         CallSite.GET_PROFILE_STORE,
         CallSite.WEBVIEW_INSTANCE_GET_SETTINGS,
+        CallSite.WEBVIEW_INSTANCE_GET_AW_CONTENTS,
         CallSite.COUNT,
     })
     public @interface CallSite {
@@ -485,8 +486,9 @@ public class WebViewChromiumAwInit {
         int GET_DEFAULT_COOKIE_MANAGER = 107;
         int GET_PROFILE_STORE = 108;
         int WEBVIEW_INSTANCE_GET_SETTINGS = 109;
+        int WEBVIEW_INSTANCE_GET_AW_CONTENTS = 110;
         // Remember to update WebViewStartupCallSite in enums.xml when adding new values here.
-        int COUNT = 110;
+        int COUNT = 111;
     };
 
     // LINT.ThenChange(//tools/metrics/histograms/metadata/android/enums.xml:WebViewStartupCallSite)
@@ -734,12 +736,10 @@ public class WebViewChromiumAwInit {
                         AwDarkMode.enableSimplifiedDarkMode();
                     }
 
-                    if (AwBrowserProcess.shouldDeferGmsCalls()) {
-                        AwBrowserProcess.maybeEnableSafeBrowsingFromGms();
-                        AwBrowserProcess.setupSupervisedUser();
-                        AwBrowserProcess.handleMinidumpsAndSetMetricsConsent(
-                                /* updateMetricsConsent= */ true);
-                    }
+                    AwBrowserProcess.maybeEnableSafeBrowsingFromGms();
+                    AwBrowserProcess.setupSupervisedUser();
+                    AwBrowserProcess.handleMinidumpsAndSetMetricsConsent(
+                            /* updateMetricsConsent= */ true);
 
                     AwBrowserProcess.postBackgroundTasks(
                             mFactory.isSafeModeEnabled(), mFactory.getWebViewPrefs());
@@ -824,9 +824,7 @@ public class WebViewChromiumAwInit {
     private void runImmediateTaskAfterBrowserProcessInit() {
         // TODO(crbug.com/332706093): See if this can be moved before loading native.
         AwClassPreloader.preloadClasses();
-        if (!AwBrowserProcess.shouldDeferGmsCalls()) {
-            AwBrowserProcess.handleMinidumpsAndSetMetricsConsent(/* updateMetricsConsent= */ true);
-        }
+
         AwBrowserProcess.doNetworkInitializations(ContextUtils.getApplicationContext());
     }
 

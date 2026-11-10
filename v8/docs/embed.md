@@ -225,7 +225,7 @@ void XGetter(v8::Local<v8::String> property,
 }
 
 void XSetter(v8::Local<v8::String> property, v8::Local<v8::Value> value,
-             const v8::PropertyCallbackInfo<void>& info) {
+             const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
   x = value->Int32Value(context).ToChecked();
 }
@@ -305,7 +305,7 @@ void GetPointX(v8::Local<v8::String> property,
 }
 
 void SetPointX(v8::Local<v8::String> property, v8::Local<v8::Value> value,
-               const v8::PropertyCallbackInfo<void>& info) {
+               const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   v8::Local<v8::Object> self = info.Holder();
   v8::Local<v8::External> wrap =
       v8::Local<v8::External>::Cast(self->GetInternalField(0));

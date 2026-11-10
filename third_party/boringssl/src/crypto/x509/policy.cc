@@ -337,7 +337,7 @@ std::optional<X509PolicyLevel> process_policy_mappings(const X509 *cert,
             continue;
           }
           auto new_node = X509PolicyNode::Create(mapping->issuerDomainPolicy);
-          if (!new_node) {
+          if (!new_node.has_value()) {
             return std::nullopt;
           }
           new_node->mapped = true;
@@ -406,7 +406,7 @@ std::optional<X509PolicyLevel> process_policy_mappings(const X509 *cert,
     if (next_nodes.empty() || OBJ_cmp(next_nodes.back().policy.get(),
                                       mapping->subjectDomainPolicy) != 0) {
       auto new_node = X509PolicyNode::Create(mapping->subjectDomainPolicy);
-      if (!new_node || !next_nodes.Push(*std::move(new_node))) {
+      if (!new_node.has_value() || !next_nodes.Push(*std::move(new_node))) {
         return std::nullopt;
       }
     }

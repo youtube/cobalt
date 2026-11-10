@@ -23,7 +23,6 @@
 #include "modules/video_coding/timing/decode_time_percentile_filter.h"
 #include "modules/video_coding/timing/timestamp_extrapolator.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "system_wrappers/include/clock.h"
@@ -31,8 +30,7 @@
 namespace webrtc {
 namespace {
 
-// Default pacing that is used for the low-latency renderer path.
-constexpr TimeDelta kZeroPlayoutDelayDefaultMinPacing = TimeDelta::Millis(8);
+// Maximum `max_playout_delay` for a stream to use low-latency rendering.
 constexpr TimeDelta kLowLatencyStreamMaxPlayoutDelayThreshold =
     TimeDelta::Millis(500);
 
@@ -58,7 +56,7 @@ void VCMTiming::VideoDelayTimings::Reset() {
   estimated_max_decode_time = TimeDelta::Zero();
   render_delay = kDefaultRenderDelay;
   min_playout_delay = TimeDelta::Zero();
-  target_delay = TimeDelta::Zero();
+  stats_target_delay = TimeDelta::Zero();
   current_delay = TimeDelta::Zero();
 }
 
@@ -68,9 +66,8 @@ TimeDelta VCMTiming::VideoDelayTimings::TargetDelay() const {
 }
 
 TimeDelta VCMTiming::VideoDelayTimings::StatsTargetDelay() const {
-  TimeDelta stats_target_delay =
-      TargetDelay() - (estimated_max_decode_time + render_delay);
-  return std::max(TimeDelta::Zero(), stats_target_delay);
+  TimeDelta delay = TargetDelay() - (estimated_max_decode_time + render_delay);
+  return std::max(TimeDelta::Zero(), delay);
 }
 
 bool VCMTiming::VideoDelayTimings::UseLowLatencyRendering() const {
@@ -83,13 +80,7 @@ VCMTiming::VCMTiming(Clock* clock, const FieldTrialsView& field_trials)
       ts_extrapolator_(
           std::make_unique<TimestampExtrapolator>(clock_->CurrentTime(),
                                                   field_trials)),
-      decode_time_filter_(std::make_unique<DecodeTimePercentileFilter>()),
-      zero_playout_delay_min_pacing_("min_pacing",
-                                     kZeroPlayoutDelayDefaultMinPacing),
-      last_decode_scheduled_(Timestamp::Zero()) {
-  ParseFieldTrial({&zero_playout_delay_min_pacing_},
-                  field_trials.Lookup("WebRTC-ZeroPlayoutDelay"));
-}
+      decode_time_filter_(std::make_unique<DecodeTimePercentileFilter>()) {}
 
 void VCMTiming::Reset() {
   MutexLock lock(&mutex_);
@@ -184,39 +175,6 @@ Timestamp VCMTiming::RenderTime(uint32_t rtp_timestamp, Timestamp now) const {
                                   timings_.max_playout_delay);
 }
 
-void VCMTiming::SetLastDecodeScheduledTimestamp(
-    Timestamp last_decode_scheduled) {
-  MutexLock lock(&mutex_);
-  last_decode_scheduled_ = last_decode_scheduled;
-}
-
-TimeDelta VCMTiming::MaxWaitingTime(Timestamp render_time,
-                                    Timestamp now,
-                                    bool too_many_frames_queued) const {
-  MutexLock lock(&mutex_);
-
-  if (render_time.IsZero() && zero_playout_delay_min_pacing_->us() > 0 &&
-      timings_.min_playout_delay.IsZero() &&
-      timings_.max_playout_delay > TimeDelta::Zero()) {
-    // `render_time` == 0 indicates that the frame should be decoded and
-    // rendered as soon as possible. However, the decoder can be choked if too
-    // many frames are sent at once. Therefore, limit the interframe delay to
-    // `zero_playout_delay_min_pacing_` unless too many frames are queued in
-    // which case the frames are sent to the decoder at once.
-    if (too_many_frames_queued) {
-      return TimeDelta::Zero();
-    }
-    Timestamp earliest_next_decode_start_time =
-        last_decode_scheduled_ + zero_playout_delay_min_pacing_;
-    TimeDelta max_wait_time = now >= earliest_next_decode_start_time
-                                  ? TimeDelta::Zero()
-                                  : earliest_next_decode_start_time - now;
-    return max_wait_time;
-  }
-  return render_time - now - timings_.estimated_max_decode_time -
-         timings_.render_delay;
-}
-
 TimeDelta VCMTiming::TargetVideoDelay() const {
   MutexLock lock(&mutex_);
   return timings_.TargetDelay();
@@ -225,7 +183,7 @@ TimeDelta VCMTiming::TargetVideoDelay() const {
 VCMTiming::VideoDelayTimings VCMTiming::GetTimings() const {
   MutexLock lock(&mutex_);
   VideoDelayTimings timings = timings_;
-  timings.target_delay = timings_.StatsTargetDelay();
+  timings.stats_target_delay = timings_.StatsTargetDelay();
   return timings;
 }
 

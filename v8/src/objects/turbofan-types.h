@@ -29,7 +29,7 @@ class TurbofanTypeHighBits {
   DEFINE_TORQUE_GENERATED_TURBOFAN_TYPE_HIGH_BITS()
 };
 
-V8_OBJECT class TurbofanType : public HeapObjectLayout {
+V8_OBJECT class TurbofanType : public HeapObject {
 } V8_OBJECT_END;
 
 V8_OBJECT class TurbofanBitsetType : public TurbofanType {

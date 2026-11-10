@@ -147,7 +147,7 @@ int bssl::x509_print_rsa_pss_params(BIO *bp, const X509_ALGOR *sigalg,
   assert(OBJ_obj2nid(sigalg->algorithm) == NID_rsassaPss);
   rsa_pss_params_t params;
   if (!rsa_pss_decode(sigalg, &params)) {
-    return BIO_puts(bp, " (INVALID PSS PARAMETERS)\n") <= 0;
+    return BIO_puts(bp, " (INVALID PSS PARAMETERS)\n") > 0;
   }
 
   const char *hash_str = nullptr;

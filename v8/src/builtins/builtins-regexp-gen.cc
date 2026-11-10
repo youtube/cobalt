@@ -218,7 +218,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
 
   // Load flags and check if the result object needs to have indices.
   const TNode<Smi> flags =
-      CAST(LoadObjectField(regexp, JSRegExp::kFlagsOffset));
+      CAST(LoadObjectField(regexp, offsetof(JSRegExp, flags_)));
   const TNode<BoolT> has_indices = IsSetSmi(flags, JSRegExp::kHasIndices);
   TNode<FixedArray> result_elements;
   TNode<JSRegExpResult> result =
@@ -272,7 +272,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     // not have any named captures to minimize performance impact.
 
     TNode<RegExpData> data =
-        LoadRegExpDataFromObject(regexp, JSRegExp::kDataOffset);
+        LoadRegExpDataFromObject(regexp, offsetof(JSRegExp, data_));
 
     // We reach this point only if captures exist, implying that the assigned
     // regexp engine must be able to handle captures.
@@ -569,7 +569,7 @@ TNode<RegExpMatchInfo> RegExpBuiltinsAssembler::RegExpExecInternal_Single(
   Label out(this), not_matched(this);
   TVARIABLE(RegExpMatchInfo, var_result);
   TNode<RegExpData> data =
-      LoadRegExpDataFromObject(regexp, JSRegExp::kDataOffset);
+      LoadRegExpDataFromObject(regexp, offsetof(JSRegExp, data_));
   TNode<Smi> register_count_per_match =
       RegistersForCaptureCount(LoadCaptureCount(data));
   // Allocate space for one match.
@@ -626,7 +626,7 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
     TNode<RawPtrT> result_offsets_vector,
     TNode<Int32T> result_offsets_vector_length) {
   CSA_DCHECK(this, TaggedEqual(data, LoadRegExpDataFromObject(
-                                         regexp, JSRegExp::kDataOffset)));
+                                         regexp, offsetof(JSRegExp, data_))));
 
   ToDirectStringAssembler to_direct(state(), string);
 
@@ -1164,7 +1164,7 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
   CSA_DCHECK(this, TaggedIsPositiveSmi(last_index));
 
   TNode<RegExpData> data =
-      LoadRegExpDataFromObject(regexp, JSRegExp::kDataOffset);
+      LoadRegExpDataFromObject(regexp, offsetof(JSRegExp, data_));
   CSA_SBXCHECK(this, HasInstanceType(data, ATOM_REG_EXP_DATA_TYPE));
 
   // Callers ensure that last_index is in-bounds.
@@ -1241,7 +1241,7 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
     // Refer to JSRegExp's flag property on the fast-path.
     CSA_DCHECK(this, IsJSRegExp(CAST(regexp)));
     const TNode<Smi> flags_smi =
-        CAST(LoadObjectField(CAST(regexp), JSRegExp::kFlagsOffset));
+        CAST(LoadObjectField(CAST(regexp), offsetof(JSRegExp, flags_)));
     var_flags = SmiUntag(flags_smi);
 
 #define CASE_FOR_FLAG(Lower, Camel, ...)                                \
@@ -1427,7 +1427,7 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
     BIND(&if_patternisfastregexp);
     {
       TNode<RegExpData> data =
-          LoadRegExpDataFromObject(CAST(pattern), JSRegExp::kDataOffset);
+          LoadRegExpDataFromObject(CAST(pattern), offsetof(JSRegExp, data_));
       TNode<JSAny> source =
           LoadObjectField<String>(data, offsetof(RegExpData, original_source_));
       var_pattern = source;
@@ -1497,7 +1497,7 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
 
   // Clear data field, as a GC can be triggered before it is initialized with a
   // correct trusted pointer handle.
-  ClearTrustedPointerField(var_regexp.value(), JSRegExp::kDataOffset);
+  ClearTrustedPointerField(var_regexp.value(), offsetof(JSRegExp, data_));
 
   const TNode<Object> result = RegExpInitialize(
       context, var_regexp.value(), var_pattern.value(), var_flags.value());
@@ -1546,7 +1546,7 @@ TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
     const TNode<JSRegExp> pattern = CAST(maybe_pattern);
     const TNode<String> new_flags = FlagsGetter(context, pattern, true);
     const TNode<RegExpData> data =
-        LoadRegExpDataFromObject(pattern, JSRegExp::kDataOffset);
+        LoadRegExpDataFromObject(pattern, offsetof(JSRegExp, data_));
     const TNode<Object> new_pattern =
         LoadObjectField<String>(data, offsetof(RegExpData, original_source_));
 
@@ -1565,7 +1565,7 @@ TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
 // Fast-path implementation for flag checks on an unmodified JSRegExp instance.
 TNode<BoolT> RegExpBuiltinsAssembler::FastFlagGetter(TNode<JSRegExp> regexp,
                                                      JSRegExp::Flag flag) {
-  TNode<Smi> flags = CAST(LoadObjectField(regexp, JSRegExp::kFlagsOffset));
+  TNode<Smi> flags = CAST(LoadObjectField(regexp, offsetof(JSRegExp, flags_)));
   TNode<Smi> mask = SmiConstant(flag);
   return ReinterpretCast<BoolT>(SmiToInt32(
       SmiShr(SmiAnd(flags, mask),
@@ -1709,7 +1709,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
   // forcing the engine to return after each match. This is necessary due to
   // the specialized AdvanceStringIndex logic below.
   TNode<RegExpData> data =
-      LoadRegExpDataFromObject(regexp, JSRegExp::kDataOffset);
+      LoadRegExpDataFromObject(regexp, offsetof(JSRegExp, data_));
   TNode<Smi> capture_count = LoadCaptureCount(data);
   TNode<Smi> register_count_per_match = RegistersForCaptureCount(capture_count);
   TNode<RawPtrT> result_offsets_vector;

@@ -319,16 +319,16 @@ inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
   DCHECK_NE(data_pointer, object);
   LoadExternalPointerField(
       data_pointer,
-      FieldMemOperand(object, JSTypedArray::kExternalPointerOffset));
+      FieldMemOperand(object, offsetof(JSTypedArray, external_pointer_)));
   if (JSTypedArray::kMaxSizeInHeap == 0) return;
   TemporaryRegisterScope temps(this);
   Register base = temps.AcquireScratch();
   if (COMPRESS_POINTERS_BOOL) {
-    LoadU32(base, FieldMemOperand(object, JSTypedArray::kBasePointerOffset),
-            r0);
+    LoadU32(base,
+            FieldMemOperand(object, offsetof(JSTypedArray, base_pointer_)), r0);
   } else {
-    LoadU64(base, FieldMemOperand(object, JSTypedArray::kBasePointerOffset),
-            r0);
+    LoadU64(base,
+            FieldMemOperand(object, offsetof(JSTypedArray, base_pointer_)), r0);
   }
   AddS64(data_pointer, data_pointer, base);
 }
@@ -818,9 +818,9 @@ inline void MaglevAssembler::DeoptIfBufferNotValid(Register array,
   // loop if we deopt here.
   CHECK_NE(scratch, r0);
   LoadTaggedField(scratch,
-                  FieldMemOperand(array, JSArrayBufferView::kBufferOffset));
-  LoadU32(scratch, FieldMemOperand(scratch, JSArrayBuffer::kBitFieldOffset),
-          r0);
+                  FieldMemOperand(array, offsetof(JSArrayBufferView, buffer_)));
+  LoadU32(scratch,
+          FieldMemOperand(scratch, offsetof(JSArrayBuffer, bit_field_)), r0);
   AndU32(scratch, scratch, Operand(JSArrayBuffer::NotValidMask(mode)), r0,
          SetRC);
   EmitEagerDeoptIf(ne, DeoptimizeReason::kArrayBufferWasDetached, node);
@@ -833,7 +833,7 @@ inline void MaglevAssembler::LoadByte(Register dst, MemOperand src) {
 inline Condition MaglevAssembler::IsCallableAndNotUndetectable(
     Register map, Register scratch) {
   CHECK_NE(scratch, r0);
-  LoadU8(scratch, FieldMemOperand(map, Map::kBitFieldOffset), r0);
+  LoadU8(scratch, FieldMemOperand(map, offsetof(Map, bit_field_)), r0);
   AndU32(scratch, scratch,
          Operand(Map::Bits1::IsUndetectableBit::kMask |
                  Map::Bits1::IsCallableBit::kMask),
@@ -844,7 +844,7 @@ inline Condition MaglevAssembler::IsCallableAndNotUndetectable(
 
 inline Condition MaglevAssembler::IsNotCallableNorUndetactable(
     Register map, Register scratch) {
-  LoadU8(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
+  LoadU8(scratch, FieldMemOperand(map, offsetof(Map, bit_field_)));
   AndU32(scratch, scratch,
          Operand(Map::Bits1::IsUndetectableBit::kMask |
                  Map::Bits1::IsCallableBit::kMask),
@@ -857,7 +857,7 @@ inline void MaglevAssembler::LoadInstanceType(Register instance_type,
                                               Register heap_object) {
   LoadMap(instance_type, heap_object);
   LoadU16(instance_type,
-          FieldMemOperand(instance_type, Map::kInstanceTypeOffset));
+          FieldMemOperand(instance_type, offsetof(Map, instance_type_)));
 }
 
 inline void MaglevAssembler::JumpIfObjectType(Register heap_object,

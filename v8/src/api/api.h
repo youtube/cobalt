@@ -336,8 +336,9 @@ class HandleScopeImplementer {
 
     ~EnteredContextRewindScope() {
       DCHECK_LE(saved_entered_context_count_, hsi_->EnteredContextCount());
-      while (saved_entered_context_count_ < hsi_->EnteredContextCount())
+      while (saved_entered_context_count_ < hsi_->EnteredContextCount()) {
         hsi_->LeaveContext();
+      }
     }
 
    private:
@@ -532,7 +533,7 @@ v8::Intercepted InvokeNamedInterceptorGetterCallback(
 // in case debugger enabled the side-effects checking mode.
 v8::Intercepted InvokeNamedInterceptorSetterCallback(
     v8::Local<v8::Name> property, v8::Local<v8::Value> value,
-    const v8::PropertyCallbackInfo<void>& info);
+    const v8::PropertyCallbackInfo<v8::Boolean>& info);
 
 // This is a wrapper function called from CallApiCallback builtin when profiling
 // or side-effect checking is enabled. It's supposed to set up the runtime

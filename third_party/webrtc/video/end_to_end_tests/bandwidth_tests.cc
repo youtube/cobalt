@@ -253,11 +253,11 @@ TEST_F(BandwidthEndToEndTest, RembWithSendSideBwe) {
       config.receiver_only = true;
       config.outgoing_transport = to_sender;
       config.retransmission_rate_limiter = &retransmission_rate_limiter_;
+      config.rtcp_mode = RtcpMode::kReducedSize;
+      config.remote_ssrc = remb_sender_remote_ssrc_;
 
       rtp_rtcp_ = ModuleRtpRtcpImpl2::CreateReceiveModule(
           env_, config, [&] { return kFallbackRtcpSsrcForVideo; });
-      rtp_rtcp_->SetRemoteSSRC(remb_sender_remote_ssrc_);
-      rtp_rtcp_->SetRTCPStatus(RtcpMode::kReducedSize);
     }
 
     void PollStats() {

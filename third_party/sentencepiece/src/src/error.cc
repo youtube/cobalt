@@ -15,38 +15,7 @@
 #include <cstring>
 
 #include "common.h"
-#include "init.h"
 #include "sentencepiece_processor.h"
 
 namespace sentencepiece {
-namespace error {
-int gTestCounter = 0;
-
-void Abort() {
-  if (GetTestCounter() == 1) {
-    SetTestCounter(2);
-  } else {
-    std::cerr << "Program terminated with an unrecoverable error." << std::endl;
-    ShutdownLibrary();
-    exit(-1);
-  }
-}
-
-void Exit(int code) {
-  if (GetTestCounter() == 1) {
-    SetTestCounter(2);
-  } else {
-    ShutdownLibrary();
-    exit(code);
-  }
-}
-
-void SetTestCounter(int c) {
-  gTestCounter = c;
-}
-bool GetTestCounter() {
-  return gTestCounter;
-}
-}  // namespace error
-
 }  // namespace sentencepiece

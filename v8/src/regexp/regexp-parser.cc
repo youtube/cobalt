@@ -1954,8 +1954,9 @@ namespace {
 
 bool IsExactPropertyAlias(const char* property_name, UProperty property) {
   const char* short_name = u_getPropertyName(property, U_SHORT_PROPERTY_NAME);
-  if (short_name != nullptr && strcmp(property_name, short_name) == 0)
+  if (short_name != nullptr && strcmp(property_name, short_name) == 0) {
     return true;
+  }
   for (int i = 0;; i++) {
     const char* long_name = u_getPropertyName(
         property, static_cast<UPropertyNameChoice>(U_LONG_PROPERTY_NAME + i));

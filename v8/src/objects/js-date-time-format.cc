@@ -2308,8 +2308,9 @@ std::unique_ptr<icu::DateIntervalFormat> LazyCreateDateIntervalFormat(
     DisallowGarbageCollection no_gc;
     icu::DateIntervalFormat* icu_format =
         date_time_format->icu_date_interval_format()->raw(no_gc);
-    if (icu_format)
+    if (icu_format) {
       return std::unique_ptr<icu::DateIntervalFormat>(icu_format->clone());
+    }
   }
   UErrorCode status = U_ZERO_ERROR;
 

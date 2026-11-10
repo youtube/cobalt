@@ -1169,6 +1169,8 @@ void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
 
 void InstructionSelector::VisitUint64Add128(OpIndex node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitUint64Sub128(OpIndex node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitUint32MulHigh(OpIndex node) {
   PPCOperandGenerator g(this);
   const WordBinopOp& op = Cast<WordBinopOp>(node);
@@ -2626,7 +2628,7 @@ F16_OP_LIST(VISIT_F16_OP)
 #undef F16_OP_LIST
 #undef SIMD_TYPES
 
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
 void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
   uint8_t shuffle[kSimd128Size];
   bool is_swizzle;
@@ -2649,12 +2651,17 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
   }
   Emit(kPPC_I8x16Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
        g.UseRegister(input1),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 4)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 8)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 12)));
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle_remapped)),
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle_remapped + 4)),
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle_remapped + 8)),
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle_remapped + 12)));
 }
 
+#else
+void InstructionSelector::VisitI8x16Shuffle(OpIndex node) { UNREACHABLE(); }
+#endif  // V8_ENABLE_SIMD128
+
+#if V8_ENABLE_WEBASSEMBLY
 void InstructionSelector::VisitSetStackPointer(OpIndex node) {
   OperandGenerator g(this);
   const SetStackPointerOp& op = Cast<SetStackPointerOp>(node);
@@ -2663,8 +2670,6 @@ void InstructionSelector::VisitSetStackPointer(OpIndex node) {
   Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
 }
 
-#else
-void InstructionSelector::VisitI8x16Shuffle(OpIndex node) { UNREACHABLE(); }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelector::VisitS128Zero(OpIndex node) {

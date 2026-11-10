@@ -574,8 +574,8 @@ bool CanFastSerializeJSArray(Isolate* isolate, Tagged<JSArray> object) {
   // If the no elements protector is intact, Array.prototype and
   // Object.prototype are guaranteed to not have elements in any native context.
   if (!Protectors::IsNoElementsIntact(isolate)) return false;
-  Tagged<Map> map = object->map(isolate);
-  Tagged<NativeContext> native_context = map->map(isolate)->native_context();
+  Tagged<Map> map = object->map();
+  Tagged<NativeContext> native_context = map->map()->native_context();
   Tagged<HeapObject> proto = map->prototype();
   return native_context->GetNoCell(Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ==
          proto;
@@ -968,10 +968,9 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<JSAny> object,
   }
 
   DirectHandle<JSAny> initial_value = object;
-  PtrComprCageBase cage_base(isolate_);
   if (!IsSmi(*object)) {
     InstanceType instance_type =
-        Cast<HeapObject>(*object)->map(cage_base)->instance_type();
+        Cast<HeapObject>(*object)->map()->instance_type();
     if ((InstanceTypeChecker::IsJSReceiver(instance_type) &&
          MayHaveInterestingProperties(isolate_, Cast<JSReceiver>(*object))) ||
         InstanceTypeChecker::IsBigInt(instance_type)) {
@@ -997,7 +996,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<JSAny> object,
   }
 
   InstanceType instance_type =
-      Cast<HeapObject>(*object)->map(cage_base)->instance_type();
+      Cast<HeapObject>(*object)->map()->instance_type();
   switch (instance_type) {
     case HEAP_NUMBER_TYPE:
       if (deferred_string_key) SerializeDeferredKey(comma, key);
@@ -1077,7 +1076,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<JSAny> object,
         // If we ever leak an internal object that is not a JSReceiver it could
         // end up here and lead to a type confusion.
         CHECK(IsJSReceiver(*object));
-        if (IsCallable(Cast<HeapObject>(*object), cage_base)) return UNCHANGED;
+        if (IsCallable(Cast<HeapObject>(*object))) return UNCHANGED;
         // Go to slow path for global proxy and objects requiring access checks.
         if (deferred_string_key) SerializeDeferredKey(comma, key);
         if (InstanceTypeChecker::IsJSProxy(instance_type)) {
@@ -1354,7 +1353,6 @@ JsonStringifier::Result JsonStringifier::SerializeArrayLikeSlow(
 
 JsonStringifier::Result JsonStringifier::SerializeJSObject(
     Handle<JSObject> object, Handle<Object> key) {
-  PtrComprCageBase cage_base(isolate_);
   HandleScope handle_scope(isolate_);
 
   if (!property_list_.is_null() ||
@@ -1375,7 +1373,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
   DCHECK(!object->HasIndexedInterceptor());
   DCHECK(!object->HasNamedInterceptor());
 
-  DirectHandle<Map> map(object->map(cage_base), isolate_);
+  DirectHandle<Map> map(object->map(), isolate_);
   if (map->NumberOfOwnDescriptors() == 0) {
     AppendCStringLiteral("{}");
     return SUCCESS;
@@ -1391,18 +1389,17 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
     PropertyDetails details = PropertyDetails::Empty();
     {
       DisallowGarbageCollection no_gc;
-      Tagged<DescriptorArray> descriptors =
-          map->instance_descriptors(cage_base);
+      Tagged<DescriptorArray> descriptors = map->instance_descriptors();
       Tagged<Name> name = descriptors->GetKey(i);
       // TODO(rossberg): Should this throw?
-      if (!IsString(name, cage_base)) continue;
+      if (!IsString(name)) continue;
       key_name = handle(Cast<String>(name), isolate_);
       details = descriptors->GetDetails(i);
     }
     if (details.IsDontEnum()) continue;
     Handle<JSAny> property;
     if (details.location() == PropertyLocation::kField &&
-        *map == object->map(cage_base)) {
+        *map == object->map()) {
       DCHECK_EQ(PropertyKind::kData, details.kind());
       FieldIndex field_index = FieldIndex::ForDetails(*map, details);
       if (replacer_function_.is_null()) {
@@ -3332,8 +3329,9 @@ bool FastJsonStringifier<Char>::CheckCycle() {
   for (uint32_t i = 0; i < stack_.size(); i++) {
     ContinuationRecord rec = stack_[i];
     if (rec.type() == ContinuationRecord::kObjectKey ||
-        rec.type() == ContinuationRecord::kSimpleObject)
+        rec.type() == ContinuationRecord::kSimpleObject) {
       continue;
+    }
     Tagged<Object> obj = rec.object();
     if (V8_UNLIKELY(set.find(obj.ptr()) != set.end())) {
       return true;

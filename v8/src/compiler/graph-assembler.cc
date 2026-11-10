@@ -361,8 +361,9 @@ Node* GraphAssembler::PackMapWord(TNode<Map> map) {
 #endif
 
 TNode<Map> GraphAssembler::LoadMap(Node* object) {
-  Node* map_word = Load(MachineType::TaggedPointer(), object,
-                        HeapObject::kMapOffset - kHeapObjectTag);
+  Node* map_word =
+      Load(MachineType::TaggedPointer(), object,
+           static_cast<int>(offsetof(HeapObject, map_)) - kHeapObjectTag);
 #ifdef V8_MAP_PACKING
   return UnpackMapWord(map_word);
 #else

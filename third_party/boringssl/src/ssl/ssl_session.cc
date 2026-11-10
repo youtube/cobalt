@@ -93,12 +93,8 @@ UniquePtr<SSL_SESSION> SSL_SESSION_dup(const SSL_SESSION *session,
   }
   new_session->peer_cert_type = session->peer_cert_type;
   if (session->certs != nullptr) {
-    auto buf_up_ref = [](const CRYPTO_BUFFER *buf) {
-      CRYPTO_BUFFER_up_ref(const_cast<CRYPTO_BUFFER *>(buf));
-      return const_cast<CRYPTO_BUFFER *>(buf);
-    };
     new_session->certs.reset(sk_CRYPTO_BUFFER_deep_copy(
-        session->certs.get(), buf_up_ref, CRYPTO_BUFFER_free));
+        session->certs.get(), CRYPTO_BUFFER_dup_ref, CRYPTO_BUFFER_free));
     if (new_session->certs == nullptr) {
       return nullptr;
     }

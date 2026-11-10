@@ -1349,6 +1349,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<UintPtrT> ChangeFloat64ToUintPtr(TNode<Float64T> value);
   // Same in the opposite direction.
   TNode<Float64T> ChangeUintPtrToFloat64(TNode<UintPtrT> value);
+  TNode<Float64T> ChangeUint64ToFloat64(TNode<Uint64T> value);
 
   // Changes an intptr_t to a double, e.g. for storing an element index
   // outside Smi range in a HeapNumber. Lossless on 32-bit,

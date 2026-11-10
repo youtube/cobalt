@@ -40,8 +40,9 @@ class RecordingVisitor final : public RootVisitor {
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override {
     for (FullObjectSlot current = start; current != end; ++current) {
-      for (int i = 0; i < kNumberOfObjects; ++i)
+      for (int i = 0; i < kNumberOfObjects; ++i) {
         if ((*current).ptr() == the_object_[i].ptr()) found_[i] = true;
+      }
     }
   }
 
@@ -91,8 +92,9 @@ class RecordingVisitor final : public RootVisitor {
                                                uint32_t size) {
     Assembler assm(isolate->allocator(), AssemblerOptions{});
 
-    for (uint32_t i = 0; i < size; ++i)
+    for (uint32_t i = 0; i < size; ++i) {
       assm.nop();  // supported on all architectures
+    }
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);

@@ -28,12 +28,10 @@ import org.chromium.chrome.browser.bookmarks.BookmarkManagerOpenerImpl;
 import org.chromium.chrome.browser.bookmarks.BookmarkModel;
 import org.chromium.chrome.browser.bookmarks.BookmarkUtils;
 import org.chromium.chrome.browser.document.ChromeLauncherActivity;
-import org.chromium.chrome.browser.download.ChromeDownloadDelegate;
 import org.chromium.chrome.browser.download.DownloadUtils;
 import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ActivityType;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceOrchestratorFactory;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
@@ -135,8 +133,7 @@ public class TabContextMenuItemDelegate implements ContextMenuItemDelegate {
 
     @Override
     public boolean startDownload(GURL url, boolean isLink) {
-        return !isLink
-                || !ChromeDownloadDelegate.from(mTab).shouldInterceptContextMenuDownload(url);
+        return true;
     }
 
     @Override
@@ -415,8 +412,7 @@ public class TabContextMenuItemDelegate implements ContextMenuItemDelegate {
                 mTab.getProfile(),
                 /* canPromoteToNewTab= */ mActivityType == ActivityType.TABBED
                         || mActivityType == ActivityType.CUSTOM_TAB,
-                /* shouldHaveContextMenu= */ ChromeFeatureList.isEnabled(
-                        ChromeFeatureList.ENABLE_CONTEXT_MENU_FOR_PREVIEW_TAB),
+                /* shouldHaveContextMenu= */ true,
                 initiatorOrigin);
     }
 

@@ -1785,8 +1785,9 @@ Node* JSTypedLowering::BuildGetModuleCell(Node* node) {
         module_type.AsHeapConstant()->Ref().AsSourceTextModule();
     OptionalCellRef cell_constant =
         module_constant.GetCell(broker(), cell_index);
-    if (cell_constant.has_value())
+    if (cell_constant.has_value()) {
       return jsgraph()->ConstantNoHole(*cell_constant, broker());
+    }
   }
 
   FieldAccess field_access;
@@ -2442,7 +2443,7 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
         // The {enumerator} is the FixedArray with the keys to iterate.
         cache_array_false = enumerator;
         cache_length_false = efalse = graph()->NewNode(
-            simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
+            simplified()->LoadField(AccessBuilder::ForFixedArrayLengthLegacy()),
             cache_array_false, efalse, if_fixed_array);
       }
 

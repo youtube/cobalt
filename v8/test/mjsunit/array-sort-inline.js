@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --maglev
 
 // Tests for the compiler-inlined insertion sort of Array.prototype.sort.
 // Both Maglev and Turbofan inline a small insertion sort for PACKED arrays
@@ -750,4 +750,241 @@ function optWith(fn, ...args) {
   // We just want to exercise the path without crashing.
   opt(f);
   f();
+})();
+
+
+// =========================================================================
+// 20. Spec compliance: deopts during cmp must preserve permutation invariant
+// =========================================================================
+//
+// ECMA-262 23.1.3.30: Array.prototype.sort takes a snapshot of the
+// receiver's elements into _items_, sorts _items_ via comparefn, then
+// writes _items_ back to the receiver.  Mutations of the receiver
+// performed by comparefn are overwritten by the writeback, so the final
+// array is always a permutation of the original elements.
+//
+// The inlined sort copies elements into a temp array before any cmp call.
+// If a deopt fires during cmp, the deopt continuation must hand that
+// snapshot to the generic sort -- re-reading the (possibly mutated)
+// receiver would let cmp's side effects leak into the final result.
+
+// Each test drives optimization with PrepareForOptimization+OptimizeOnNextCall
+// on both `f` and `cmp` (so that cmp is inlined into f and the sort reduction
+// fires), then triggers a deopt during cmp via the polymorphic-load technique
+// or %DeoptimizeFunction.  All tests assert the ECMA-262 23.1.3.30 invariant:
+// the final array is a permutation of the original elements.
+
+// Polymorphic load: monomorphic on Smi map at warmup; flipping `mode` makes
+// the IC miss, which is enough to deopt the surrounding optimized code.
+const ic_obj_smi = { x: 1 };
+const ic_obj_dbl = { x: 1.5 };
+let deopt_mode = 0;
+function readICX() {
+  return (deopt_mode === 0 ? ic_obj_smi : ic_obj_dbl).x;
+}
+
+// Returns true iff `arr` is a permutation of `original` (multiset equal).
+function isPermutation(arr, original) {
+  if (arr.length !== original.length) return false;
+  const a = arr.slice(), b = original.slice();
+  a.sort((x, y) => (x < y ? -1 : x > y ? 1 : 0));
+  b.sort((x, y) => (x < y ? -1 : x > y ? 1 : 0));
+  for (let i = 0; i < a.length; ++i) if (a[i] !== b[i]) return false;
+  return true;
+}
+%NeverOptimizeFunction(isPermutation);
+
+// cmp mutates arr[0] on every call.  After flipping deopt_mode, the IC miss
+// inside cmp's call to readICX deopts the outer optimized f mid-sort.  The
+// final array must remain a permutation of the original; the mutation value
+// must not appear in the result.
+(function TestDeoptCmpKeepsPermutation() {
+  let arr;
+  function cmp(a, b) { arr[0] = 99; return a - b + readICX() - readICX(); }
+  function f() {
+    arr = [3, 1, 2];
+    arr.sort(cmp);
+    return arr;
+  }
+  %PrepareFunctionForOptimization(cmp);
+  %PrepareFunctionForOptimization(f);
+  deopt_mode = 0;
+  f(); f();
+  %OptimizeFunctionOnNextCall(f);
+  %OptimizeFunctionOnNextCall(cmp);
+  deopt_mode = 1;
+  f();
+  assertTrue(isPermutation(arr, [3, 1, 2]),
+              "got " + JSON.stringify(arr));
+  assertEquals(-1, arr.indexOf(99),
+                "value 99 must not leak; got " + JSON.stringify(arr));
+})();
+
+// Worst-case reverse-sorted input forces every shift in the inner loop, so
+// many cmp calls happen with temp_array mid-shift (pivot in register only).
+// The deopt continuation must recover from any of these states.  The
+// counter delays the polymorphic-load deopt to cmp call #N >= 3, so the
+// deopt fires inside outer iter i=2's inner loop AFTER a shift has run
+// (the "pivot-loss" state in the absence of the pivot-restore fix).
+let pivot_loss_counter = 0;
+(function TestDeoptCmpKeepsPermutationLong() {
+  let arr;
+  function cmp(a, b) {
+    pivot_loss_counter++;
+    arr[0] = 999;
+    let k = 0;
+    // Trigger the polymorphic-load deopt only on cmp call #3 onward.  For
+    // input [5,4,3,2,1] the call schedule is:
+    //   #1: iter i=1, j=0  (pre-shift)
+    //   #2: iter i=2, j=1  (pre-shift in this outer iter)
+    //   #3: iter i=2, j=0  (POST-shift -- pivot only in register pre-fix)
+    if (pivot_loss_counter >= 3) k = readICX();
+    return a - b + k - k;
+  }
+  function f() {
+    pivot_loss_counter = 0;
+    arr = [5, 4, 3, 2, 1];
+    arr.sort(cmp);
+    return arr;
+  }
+  %PrepareFunctionForOptimization(cmp);
+  %PrepareFunctionForOptimization(f);
+  deopt_mode = 0;
+  f(); f();
+  %OptimizeFunctionOnNextCall(f);
+  %OptimizeFunctionOnNextCall(cmp);
+  deopt_mode = 1;
+  f();
+  assertTrue(isPermutation(arr, [5, 4, 3, 2, 1]),
+              "got " + JSON.stringify(arr));
+  assertEquals(-1, arr.indexOf(999),
+                "value 999 must not leak; got " + JSON.stringify(arr));
+})();
+
+// String value introduced by cmp must not appear in the result -- a leak
+// is detectable by type alone (the original array contains only numbers).
+(function TestDeoptCmpLeakedStringDoesNotAppear() {
+  let arr;
+  function cmp(a, b) {
+    arr[1] = "INVADER";
+    return a - b + readICX() - readICX();
+  }
+  function f() {
+    arr = [3, 1, 2];
+    arr.sort(cmp);
+    return arr;
+  }
+  %PrepareFunctionForOptimization(cmp);
+  %PrepareFunctionForOptimization(f);
+  deopt_mode = 0;
+  f(); f();
+  %OptimizeFunctionOnNextCall(f);
+  %OptimizeFunctionOnNextCall(cmp);
+  deopt_mode = 1;
+  f();
+  for (let i = 0; i < arr.length; ++i) {
+    assertEquals("number", typeof arr[i],
+                  "non-number at " + i + ": " + JSON.stringify(arr));
+  }
+})();
+
+// cmp grows the receiver mid-sort.  Positions [0, originalLength) must be a
+// permutation of the snapshot; the pushed element may remain at its new
+// position depending on when the deopt fires.
+(function TestDeoptCmpGrowsReceiver() {
+  let arr;
+  function cmp(a, b) {
+    if (arr.length === 3) arr.push(100);
+    return a - b + readICX() - readICX();
+  }
+  function f() {
+    arr = [3, 1, 2];
+    arr.sort(cmp);
+    return arr;
+  }
+  %PrepareFunctionForOptimization(cmp);
+  %PrepareFunctionForOptimization(f);
+  deopt_mode = 0;
+  f(); f();
+  %OptimizeFunctionOnNextCall(f);
+  %OptimizeFunctionOnNextCall(cmp);
+  deopt_mode = 1;
+  f();
+  assertTrue(isPermutation(arr.slice(0, 3), [3, 1, 2]),
+              "positions 0..2 must be a permutation; got " +
+              JSON.stringify(arr));
+})();
+
+// cmp shrinks the receiver mid-sort.  The spec captures len at the start
+// of sort and writes that many elements back, re-extending the array if it
+// was truncated.
+(function TestDeoptCmpShrinksReceiver() {
+  let arr;
+  function cmp(a, b) {
+    if (arr.length === 4) arr.length = 1;
+    return a - b + readICX() - readICX();
+  }
+  function f() {
+    arr = [4, 3, 2, 1];
+    arr.sort(cmp);
+    return arr;
+  }
+  %PrepareFunctionForOptimization(cmp);
+  %PrepareFunctionForOptimization(f);
+  deopt_mode = 0;
+  f(); f();
+  %OptimizeFunctionOnNextCall(f);
+  %OptimizeFunctionOnNextCall(cmp);
+  deopt_mode = 1;
+  f();
+  assertTrue(isPermutation(arr.slice(0, 4), [4, 3, 2, 1]),
+              "positions 0..3 must be a permutation; got " +
+              JSON.stringify(arr));
+})();
+
+// PACKED_ELEMENTS containing Undefined: CompareArrayElements
+// (ECMA-262 23.1.3.30) requires Undefined values to sort to the end
+// without invoking the comparator.  The inlined insertion sort cannot
+// honor this special-case, so the reduction bails out at copy-in time
+// when an Undefined is detected.  The first call after tier-up deopts;
+// subsequent re-tiers do not re-inline the sort.
+(function TestUndefinedInPackedElementsBailsOut() {
+  let saw_undef_in_cmp = false;
+  function cmp(a, b) {
+    if (a === undefined || b === undefined) saw_undef_in_cmp = true;
+    return (a < b) ? -1 : (a > b) ? 1 : 0;
+  }
+  function f(arr) {
+    arr.sort(cmp);
+    return arr;
+  }
+  %PrepareFunctionForOptimization(cmp);
+  %PrepareFunctionForOptimization(f);
+  f(["c", "x", "a", "b"]);
+  f(["c", "x", "a", "b"]);
+  %OptimizeFunctionOnNextCall(f);
+  %OptimizeFunctionOnNextCall(cmp);
+  f(["c", "x", "a", "b"]);
+  assertOptimized(f);
+
+  saw_undef_in_cmp = false;
+  const arr = ["c", undefined, "a", "b"];
+  const result = f(arr);
+  assertEquals(4, result.length);
+  assertEquals("a", result[0]);
+  assertEquals("b", result[1]);
+  assertEquals("c", result[2]);
+  assertEquals(undefined, result[3]);
+  assertFalse(saw_undef_in_cmp,
+              "cmp must not be invoked with undefined arg");
+  assertUnoptimized(f);
+
+  // After the deopt the call IC is kDisallowSpeculation, so subsequent
+  // re-tiers must not re-inline the sort and must not re-deopt.
+  for (let i = 0; i < 3; ++i) {
+    %PrepareFunctionForOptimization(f);
+    %OptimizeFunctionOnNextCall(f);
+    f(["c", undefined, "a", "b"]);
+    assertOptimized(f, "f should stay optimized after retier #" + i);
+  }
 })();

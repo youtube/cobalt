@@ -23,8 +23,8 @@ extern builtin JSToWasmStressSwitchStacksAsm(
 
 extern macro UniqueIntPtrConstant(constexpr intptr): intptr;
 
-const kWasmExportedFunctionDataSignatureOffset:
-    constexpr int32 generates 'WasmExportedFunctionData::kSigOffset';
+const kWasmExportedFunctionDataSignatureOffset: constexpr int32
+    generates 'static_cast<int>(offsetof(WasmExportedFunctionData, sig_))';
 
 const kWasmReturnCountOffset:
     constexpr intptr generates 'wasm::FunctionSig::kReturnCountOffset';

@@ -29,7 +29,7 @@ void InspectorDOMDebuggerAgent::WillModifyDOMAttr(Element*,
 void InspectorDOMDebuggerAgent::CharacterDataModified(CharacterData*) {}
 void InspectorDOMDebuggerAgent::WillSendXMLHttpOrFetchNetworkRequest(
     const String&) {}
-void InspectorDOMDebuggerAgent::DidInvalidateStyleAttr(Node*) {}
+void InspectorDOMDebuggerAgent::DidInvalidateStyleAttr(Element*) {}
 void InspectorDOMDebuggerAgent::EventListenersInfoForTarget(
     v8::Isolate*,
     v8::Local<v8::Value>,

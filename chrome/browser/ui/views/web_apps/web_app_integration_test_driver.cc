@@ -874,6 +874,27 @@ class MenuButtonUpdateListener {
   base::test::TestFuture<void> menu_update_future_;
 };
 
+// Returns true if any browser window uses an off-the-record profile related
+// to `profile`. Inlined from the previous chrome::IsOffTheRecordBrowserInUse
+// helper in chrome/browser/ui/browser_finder.h.
+bool IsOffTheRecordBrowserInUse(Profile* profile) {
+  if (!profile) {
+    return false;
+  }
+
+  bool off_the_record_in_use = false;
+  GlobalBrowserCollection::GetInstance()->ForEach(
+      [&](BrowserWindowInterface* browser) {
+        Profile* window_profile = browser->GetProfile();
+        if (window_profile && window_profile->IsSameOrParent(profile) &&
+            window_profile->IsOffTheRecord()) {
+          off_the_record_in_use = true;
+        }
+        return !off_the_record_in_use;
+      });
+  return off_the_record_in_use;
+}
+
 }  // anonymous namespace
 
 BrowserState::BrowserState(
@@ -1813,13 +1834,18 @@ void WebAppIntegrationTestDriver::LaunchFileExpectDialog(
       target_contents = tab_added_waiter.Wait();
     }
     ASSERT_TRUE(target_contents);
-    auto url_matcher = base::BindRepeating([](const GURL& url) {
-      return base::EndsWith(url.path(), "foo_handler.html") ||
-             base::EndsWith(url.path(), "bar_handler.html");
-    });
-    test::WebAppPageWaiter page_waiter(target_contents);
-    page_waiter.ExpectUrlIf(url_matcher).ManifestOrLoadedNoManifest();
-    ASSERT_TRUE(page_waiter.WaitAndFlushCommands());
+
+    base::flat_set<GURL> valid_urls = {
+        delegate_->EmbeddedTestServer()->GetURL(
+            "/webapps_integration/file_handler/bar_handler.html"),
+        delegate_->EmbeddedTestServer()->GetURL(
+            "/webapps_integration/file_handler/foo_handler.html")
+
+    };
+    ASSERT_TRUE(test::WebAppPageWaiter(target_contents)
+                    .ExpectAnyUrl(valid_urls)
+                    .ManifestOrLoadedNoManifest()
+                    .WaitAndFlushCommands());
   }
 
   AfterStateChangeAction();
@@ -1865,18 +1891,22 @@ void WebAppIntegrationTestDriver::LaunchFileExpectNoDialog(
   bool is_denied = site_remember_deny_open_file_.contains(site);
   std::string expected_fallback_path = GetSiteConfiguration(site).relative_url;
 
-  auto url_matcher = base::BindRepeating(
-      [](bool is_denied, const std::string& fallback_path, const GURL& url) {
-        if (is_denied) {
-          return url.path() == fallback_path;
-        }
-        return base::EndsWith(url.path(), "foo_handler.html") ||
-               base::EndsWith(url.path(), "bar_handler.html");
-      },
-      is_denied, expected_fallback_path);
-  test::WebAppPageWaiter waiter(target_contents);
-  waiter.ExpectUrlIf(url_matcher).ManifestOrLoadedNoManifest();
-  ASSERT_TRUE(waiter.WaitAndFlushCommands());
+  base::flat_set<GURL> valid_urls;
+  if (is_denied) {
+    valid_urls = {
+        delegate_->EmbeddedTestServer()->GetURL(expected_fallback_path)};
+  } else {
+    valid_urls = {delegate_->EmbeddedTestServer()->GetURL(
+                      "/webapps_integration/file_handler/bar_handler.html"),
+                  delegate_->EmbeddedTestServer()->GetURL(
+                      "/webapps_integration/file_handler/foo_handler.html")
+
+    };
+  }
+  ASSERT_TRUE(test::WebAppPageWaiter(target_contents)
+                  .ExpectAnyUrl(valid_urls)
+                  .ManifestOrLoadedNoManifest()
+                  .WaitAndFlushCommands());
 
   AfterStateChangeAction();
 }
@@ -2381,7 +2411,7 @@ void WebAppIntegrationTestDriver::NavigateAppHome() {
   GURL app_home_url = GURL(chrome::kChromeUIAppsURL);
   WindowOpenDisposition win_disposition;
   content::TestNavigationObserver url_observer(app_home_url);
-  if (chrome::IsOffTheRecordBrowserInUse(browser()->profile())) {
+  if (IsOffTheRecordBrowserInUse(browser()->profile())) {
     win_disposition = WindowOpenDisposition::OFF_THE_RECORD;
     url_observer.StartWatchingNewWebContents();
   } else {
@@ -2672,7 +2702,8 @@ void WebAppIntegrationTestDriver::SwitchIncognitoProfile() {
   }
   BrowserAddedWaiter browser_added_waiter;
   CHECK(chrome::ExecuteCommand(browser(), IDC_NEW_INCOGNITO_WINDOW));
-  ASSERT_EQ(1U, chrome::GetIncognitoBrowserCount());
+  ASSERT_EQ(1U,
+            GlobalBrowserCollection::GetInstance()->GetIncognitoBrowserCount());
   browser_added_waiter.Wait();
   Browser* incognito_browser = browser_added_waiter.browser_added();
   ASSERT_TRUE(incognito_browser);

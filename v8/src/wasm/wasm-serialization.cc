@@ -927,6 +927,11 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
     lazy_functions_.push_back(fn_index);
     return {};
   }
+
+  // All other cases (kEagerFunction or actual code) mean that the function
+  // was already validated.
+  native_module_->module()->set_function_validated(fn_index);
+
   if (code_kind == kEagerFunction) {
     eager_functions_.push_back(fn_index);
     return {};
@@ -989,13 +994,6 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
       unpadded_binary_size, trapping_instructions, reloc_info, source_pos,
       inlining_pos, deopt_data, kind, tier, effect_handlers);
   unit.jump_tables = current_jump_tables_;
-  if (v8_flags.wasm_lazy_validation) {
-    // There can't be code for it if the function wasn't validated.
-    native_module_->module()->set_function_validated(fn_index);
-  }
-  // Without lazy validation all functions were validated when creating the
-  // (deserialized) module.
-  DCHECK(native_module_->module()->function_was_validated(fn_index));
   return unit;
 }
 

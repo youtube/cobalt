@@ -17,13 +17,14 @@
 #include "src/heap/memory-pool.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
+#include "src/init/v8.h"
 #include "src/sandbox/code-pointer-table-inl.h"
 #include "src/sandbox/sandbox.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/utils.h"
 
 #ifdef V8_ENABLE_PARTITION_ALLOC
-#include <partition_alloc/partition_alloc.h>
+#include "third_party/partition_alloc/src/partition_alloc/partition_alloc.h"
 #endif
 
 namespace v8 {
@@ -423,7 +424,8 @@ IsolateGroup* IsolateGroup::New() {
 
   IsolateGroup* group = new IsolateGroup;
 #ifdef V8_ENABLE_SANDBOX
-  Sandbox* sandbox = Sandbox::New(GetPlatformVirtualAddressSpace());
+  Sandbox* sandbox =
+      Sandbox::New(V8::GetCurrentPlatform(), GetPlatformVirtualAddressSpace());
   group->Initialize(false, sandbox);
 #else
   group->Initialize(false);

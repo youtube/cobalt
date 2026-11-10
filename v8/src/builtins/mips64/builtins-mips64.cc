@@ -164,8 +164,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   //  --        sp[4*kSystemPointerSize]: context
   // -----------------------------------
 
-  __ Ld(t2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-  __ lwu(t2, FieldMemOperand(t2, SharedFunctionInfo::kFlagsOffset));
+  __ Ld(t2, FieldMemOperand(a1, offsetof(JSFunction, shared_function_info_)));
+  __ lwu(t2, FieldMemOperand(t2, offsetof(SharedFunctionInfo, flags_)));
   __ DecodeField<SharedFunctionInfo::FunctionKindBits>(t2);
   __ JumpIfIsInRange(
       t2, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
@@ -316,8 +316,8 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
   Label done;
 
   Register data = bytecode;
-  __ Ld(data,
-        FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
+  __ Ld(data, FieldMemOperand(
+                  sfi, offsetof(SharedFunctionInfo, trusted_function_data_)));
   __ JumpIfSmi(data, is_unavailable);
 
   __ GetObjectType(data, scratch1, scratch1);
@@ -358,7 +358,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Load suspended function and context.
   __ Ld(a5, FieldMemOperand(a1, offsetof(JSGeneratorObject, function_)));
-  __ Ld(cp, FieldMemOperand(a5, JSFunction::kContextOffset));
+  __ Ld(cp, FieldMemOperand(a5, offsetof(JSFunction, context_)));
 
   // Flood function if we are stepping.
   Label prepare_step_in_if_stepping, prepare_step_in_suspended_generator;
@@ -392,7 +392,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
   Register code = kJavaScriptCallCodeStartRegister;
   __ Lw(dispatch_handle,
-        FieldMemOperand(a5, JSFunction::kDispatchHandleOffset));
+        FieldMemOperand(a5, offsetof(JSFunction, dispatch_handle_)));
   __ LoadEntrypointAndParameterCountFromJSDispatchTable(code, argc,
                                                         dispatch_handle, t3);
   // In case the formal parameter count is kDontAdaptArgumentsSentinel the
@@ -429,7 +429,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Underlying function needs to have bytecode available.
   if (v8_flags.debug_code) {
     Label is_baseline, is_unavailable, ok;
-    __ Ld(a3, FieldMemOperand(a5, JSFunction::kSharedFunctionInfoOffset));
+    __ Ld(a3, FieldMemOperand(a5, offsetof(JSFunction, shared_function_info_)));
     GetSharedFunctionInfoBytecodeOrBaseline(masm, a3, a3, t3, &is_baseline,
                                             &is_unavailable);
     __ jmp(&ok);
@@ -803,8 +803,8 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   // Get the size of the formal parameters + receiver (in bytes).
   __ Ld(params_size,
         MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
-  __ Lhu(params_size,
-         FieldMemOperand(params_size, BytecodeArray::kParameterSizeOffset));
+  __ Lhu(params_size, FieldMemOperand(params_size, offsetof(BytecodeArray,
+                                                            parameter_size_)));
 
   Register actual_params_size = scratch2;
   // Compute the size of the actual parameters + receiver (in bytes).
@@ -904,24 +904,24 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 namespace {
 
 void ResetSharedFunctionInfoAge(MacroAssembler* masm, Register sfi) {
-  __ Sh(zero_reg, FieldMemOperand(sfi, SharedFunctionInfo::kAgeOffset));
+  __ Sh(zero_reg, FieldMemOperand(sfi, offsetof(SharedFunctionInfo, age_)));
 }
 
 void ResetJSFunctionAge(MacroAssembler* masm, Register js_function,
                         Register scratch) {
-  __ Ld(scratch,
-        FieldMemOperand(js_function, JSFunction::kSharedFunctionInfoOffset));
+  __ Ld(scratch, FieldMemOperand(js_function,
+                                 offsetof(JSFunction, shared_function_info_)));
   ResetSharedFunctionInfoAge(masm, scratch);
 }
 
 void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
                                    Register feedback_vector, Register scratch) {
   DCHECK(!AreAliased(feedback_vector, scratch));
-  __ Lbu(scratch,
-         FieldMemOperand(feedback_vector, FeedbackVector::kOsrStateOffset));
+  __ Lbu(scratch, FieldMemOperand(feedback_vector,
+                                  offsetof(FeedbackVector, osr_state_)));
   __ And(scratch, scratch, Operand(~FeedbackVector::OsrUrgencyBits::kMask));
   __ Sb(scratch,
-        FieldMemOperand(feedback_vector, FeedbackVector::kOsrStateOffset));
+        FieldMemOperand(feedback_vector, offsetof(FeedbackVector, osr_state_)));
 }
 }  // namespace
 
@@ -937,7 +937,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   Register feedback_cell = temps.Acquire();
   Register feedback_vector = temps.Acquire();
   __ Ld(feedback_cell,
-        FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
+        FieldMemOperand(closure, offsetof(JSFunction, feedback_cell_)));
   __ Ld(feedback_vector,
         FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)));
   {
@@ -957,11 +957,11 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     Register invocation_count = temps.Acquire();
     __ Lw(invocation_count,
           FieldMemOperand(feedback_vector,
-                          FeedbackVector::kInvocationCountOffset));
+                          offsetof(FeedbackVector, invocation_count_)));
     __ Addu(invocation_count, invocation_count, Operand(1));
     __ Sw(invocation_count,
           FieldMemOperand(feedback_vector,
-                          FeedbackVector::kInvocationCountOffset));
+                          offsetof(FeedbackVector, invocation_count_)));
   }
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
@@ -1088,7 +1088,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // Get the bytecode array from the function object and load it into
   // kInterpreterBytecodeArrayRegister.
   Register sfi = a5;
-  __ Ld(sfi, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  __ Ld(sfi,
+        FieldMemOperand(closure, offsetof(JSFunction, shared_function_info_)));
   ResetSharedFunctionInfoAge(masm, sfi);
 
   // The bytecode array could have been flushed from the shared function info,
@@ -1112,10 +1113,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   ResetFeedbackVectorOsrUrgency(masm, feedback_vector, a5);
   // Increment invocation count for the function.
   __ Lw(a5, FieldMemOperand(feedback_vector,
-                            FeedbackVector::kInvocationCountOffset));
+                            offsetof(FeedbackVector, invocation_count_)));
   __ Addu(a5, a5, Operand(1));
   __ Sw(a5, FieldMemOperand(feedback_vector,
-                            FeedbackVector::kInvocationCountOffset));
+                            offsetof(FeedbackVector, invocation_count_)));
 
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // MANUAL indicates that the scope shouldn't actually generate code to set up
@@ -1145,7 +1146,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   {
     // Load frame size (word) from the BytecodeArray object.
     __ Lw(a5, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                              BytecodeArray::kFrameSizeOffset));
+                              offsetof(BytecodeArray, frame_size_)));
 
     // Do a stack check to ensure we don't go over the limit.
     __ Dsubu(a6, sp, Operand(a5));
@@ -1169,9 +1170,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // If the bytecode array has a valid incoming new target or generator object
   // register, initialize it with incoming value which was passed in r3.
   Label no_incoming_new_target_or_generator_register;
-  __ Lw(a5, FieldMemOperand(
-                kInterpreterBytecodeArrayRegister,
-                BytecodeArray::kIncomingNewTargetOrGeneratorRegisterOffset));
+  __ Lw(a5,
+        FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                        offsetof(BytecodeArray,
+                                 incoming_new_target_or_generator_register_)));
   __ Branch(&no_incoming_new_target_or_generator_register, eq, a5,
             Operand(zero_reg));
   __ Dlsa(a5, fp, a5, kSystemPointerSizeLog2);
@@ -1186,7 +1188,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ Lw(scratch1,
           FieldMemOperand(s1, offsetof(FeedbackCell, interrupt_budget_)));
     __ SmiUntag(scratch2, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                                          BytecodeArray::kLengthOffset));
+                                          offsetof(BytecodeArray, length_)));
     __ Subu(scratch1, scratch1, scratch2);
     __ Sw(scratch1,
           FieldMemOperand(s1, offsetof(FeedbackCell, interrupt_budget_)));
@@ -1537,7 +1539,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   // Check if target has a [[Construct]] internal method.
   Label non_constructor;
   __ LoadMap(a2, a1);
-  __ Lbu(a2, FieldMemOperand(a2, Map::kBitFieldOffset));
+  __ Lbu(a2, FieldMemOperand(a2, offsetof(Map, bit_field_)));
   __ And(a2, a2, Operand(Map::Bits1::IsConstructorBit::kMask));
   __ Branch(&non_constructor, eq, a2, Operand(zero_reg));
 
@@ -1561,8 +1563,8 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
 
   // Check if it is a builtin call.
   Label builtin_call;
-  __ Ld(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-  __ Lwu(a2, FieldMemOperand(a2, SharedFunctionInfo::kFlagsOffset));
+  __ Ld(a2, FieldMemOperand(a1, offsetof(JSFunction, shared_function_info_)));
+  __ Lwu(a2, FieldMemOperand(a2, offsetof(SharedFunctionInfo, flags_)));
   __ And(a5, a2, Operand(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
   __ Branch(&builtin_call, ne, a5, Operand(zero_reg));
 
@@ -1662,9 +1664,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // get the custom trampoline, otherwise grab the entry address of the global
   // trampoline.
   __ Ld(t0, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-  __ Ld(t0, FieldMemOperand(t0, JSFunction::kSharedFunctionInfoOffset));
-  __ Ld(t0,
-        FieldMemOperand(t0, SharedFunctionInfo::kTrustedFunctionDataOffset));
+  __ Ld(t0, FieldMemOperand(t0, offsetof(JSFunction, shared_function_info_)));
+  __ Ld(t0, FieldMemOperand(
+                t0, offsetof(SharedFunctionInfo, trusted_function_data_)));
   __ GetObjectType(t0, kInterpreterDispatchTableRegister,
                    kInterpreterDispatchTableRegister);
   __ Branch(&builtin_trampoline, ne, kInterpreterDispatchTableRegister,
@@ -1930,17 +1932,18 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
 
   // Check we are actually jumping to an OSR code object. This among other
   // things ensures that the object contains deoptimization data below.
-  __ Lwu(scratch, FieldMemOperand(maybe_target_code, Code::kOsrOffsetOffset));
-  __ Check(ne, AbortReason::kExpectedOsrCode, scratch,
-           Operand(BytecodeOffset::None().ToInt()));
+  // Keep scratch's sign-extension same with another operand.
+  __ Lw(scratch, FieldMemOperand(maybe_target_code, Code::kOsrOffsetOffset));
+  __ SbxCheck(ne, AbortReason::kExpectedOsrCode, scratch,
+              Operand(BytecodeOffset::None().ToInt()));
 
   // Check the target has a matching parameter count. This ensures that the OSR
   // code will correctly tear down our frame when leaving.
   __ Lhu(scratch,
          FieldMemOperand(maybe_target_code, Code::kParameterCountOffset));
   __ SmiUntag(expected_param_count);
-  __ Check(eq, AbortReason::kOsrUnexpectedStackSize, scratch,
-           Operand(expected_param_count));
+  __ SbxCheck(eq, AbortReason::kOsrUnexpectedStackSize, scratch,
+              Operand(expected_param_count));
 
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
@@ -2006,7 +2009,7 @@ static void GenerateCall(MacroAssembler* masm, Register argc, Register target,
   {
     Register flags = t1;
     DCHECK(!AreAliased(argc, target, flags));
-    __ Lbu(flags, FieldMemOperand(map, Map::kBitFieldOffset));
+    __ Lbu(flags, FieldMemOperand(map, offsetof(Map, bit_field_)));
     map = no_reg;
     __ And(flags, flags, Operand(Map::Bits1::IsCallableBit::kMask));
     __ Branch(&non_callable, eq, flags, Operand(zero_reg));
@@ -2406,8 +2409,8 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   if (mode == CallOrConstructMode::kConstruct) {
     Label new_target_constructor, new_target_not_constructor;
     __ JumpIfSmi(a3, &new_target_not_constructor);
-    __ ld(t1, FieldMemOperand(a3, HeapObject::kMapOffset));
-    __ lbu(t1, FieldMemOperand(t1, Map::kBitFieldOffset));
+    __ ld(t1, FieldMemOperand(a3, offsetof(HeapObject, map_)));
+    __ lbu(t1, FieldMemOperand(t1, offsetof(Map, bit_field_)));
     __ And(t1, t1, Operand(Map::Bits1::IsConstructorBit::kMask));
     __ Branch(&new_target_constructor, ne, t1, Operand(zero_reg));
     __ bind(&new_target_not_constructor);
@@ -2478,15 +2481,15 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // -----------------------------------
   __ AssertCallableFunction(a1);
 
-  __ Ld(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+  __ Ld(a2, FieldMemOperand(a1, offsetof(JSFunction, shared_function_info_)));
 
   // Enter the context of the function; ToObject has to run in the function
   // context, and we also need to take the global proxy from the function
   // context in case of conversion.
-  __ Ld(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
+  __ Ld(cp, FieldMemOperand(a1, offsetof(JSFunction, context_)));
   // We need to convert the receiver for non-native sloppy mode functions.
   Label done_convert;
-  __ Lwu(a3, FieldMemOperand(a2, SharedFunctionInfo::kFlagsOffset));
+  __ Lwu(a3, FieldMemOperand(a2, offsetof(SharedFunctionInfo, flags_)));
   __ And(kScratchReg, a3,
          Operand(SharedFunctionInfo::IsNativeBit::kMask |
                  SharedFunctionInfo::IsStrictBit::kMask));
@@ -2536,7 +2539,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
         __ Pop(a0, a1);
         __ SmiUntag(a0);
       }
-      __ Ld(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+      __ Ld(a2,
+            FieldMemOperand(a1, offsetof(JSFunction, shared_function_info_)));
       __ bind(&convert_receiver);
     }
     __ StoreReceiver(a3);
@@ -2562,12 +2566,12 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
 
   // Patch the receiver to [[BoundThis]].
   {
-    __ Ld(t0, FieldMemOperand(a1, JSBoundFunction::kBoundThisOffset));
+    __ Ld(t0, FieldMemOperand(a1, offsetof(JSBoundFunction, bound_this_)));
     __ StoreReceiver(t0);
   }
 
   // Load [[BoundArguments]] into a2 and length of that into a4.
-  __ Ld(a2, FieldMemOperand(a1, JSBoundFunction::kBoundArgumentsOffset));
+  __ Ld(a2, FieldMemOperand(a1, offsetof(JSBoundFunction, bound_arguments_)));
   __ Lwu(a4, FieldMemOperand(a2, offsetof(FixedArray, length_)));
 
   // ----------- S t a t e -------------
@@ -2619,7 +2623,8 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
   __ Push(t0);
 
   // Call the [[BoundTargetFunction]] via the Call builtin.
-  __ Ld(a1, FieldMemOperand(a1, JSBoundFunction::kBoundTargetFunctionOffset));
+  __ Ld(a1,
+        FieldMemOperand(a1, offsetof(JSBoundFunction, bound_target_function_)));
   __ TailCallBuiltin(Builtins::Call());
 }
 
@@ -2649,8 +2654,8 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   Label call_generic_stub;
 
   // Jump to JSBuiltinsConstructStub or JSConstructStubGeneric.
-  __ Ld(a4, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-  __ lwu(a4, FieldMemOperand(a4, SharedFunctionInfo::kFlagsOffset));
+  __ Ld(a4, FieldMemOperand(a1, offsetof(JSFunction, shared_function_info_)));
+  __ lwu(a4, FieldMemOperand(a4, offsetof(SharedFunctionInfo, flags_)));
   __ And(a4, a4, Operand(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
   __ Branch(&call_generic_stub, eq, a4, Operand(zero_reg));
 
@@ -2671,7 +2676,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
   __ AssertBoundFunction(a1);
 
   // Load [[BoundArguments]] into a2 and length of that into a4.
-  __ Ld(a2, FieldMemOperand(a1, JSBoundFunction::kBoundArgumentsOffset));
+  __ Ld(a2, FieldMemOperand(a1, offsetof(JSBoundFunction, bound_arguments_)));
   __ Lwu(a4, FieldMemOperand(a2, offsetof(FixedArray, length_)));
 
   // ----------- S t a t e -------------
@@ -2727,12 +2732,14 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
   {
     Label skip_load;
     __ Branch(&skip_load, ne, a1, Operand(a3));
-    __ Ld(a3, FieldMemOperand(a1, JSBoundFunction::kBoundTargetFunctionOffset));
+    __ Ld(a3, FieldMemOperand(
+                  a1, offsetof(JSBoundFunction, bound_target_function_)));
     __ bind(&skip_load);
   }
 
   // Construct the [[BoundTargetFunction]] via the Construct builtin.
-  __ Ld(a1, FieldMemOperand(a1, JSBoundFunction::kBoundTargetFunctionOffset));
+  __ Ld(a1,
+        FieldMemOperand(a1, offsetof(JSBoundFunction, bound_target_function_)));
   __ TailCallBuiltin(Builtin::kConstruct);
 }
 
@@ -2756,10 +2763,10 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ JumpIfSmi(target, &non_constructor);
 
   // Check if target has a [[Construct]] internal method.
-  __ ld(map, FieldMemOperand(target, HeapObject::kMapOffset));
+  __ ld(map, FieldMemOperand(target, offsetof(HeapObject, map_)));
   {
     Register flags = t3;
-    __ Lbu(flags, FieldMemOperand(map, Map::kBitFieldOffset));
+    __ Lbu(flags, FieldMemOperand(map, offsetof(Map, bit_field_)));
     __ And(flags, flags, Operand(Map::Bits1::IsConstructorBit::kMask));
     __ Branch(&non_constructor, eq, flags, Operand(zero_reg));
   }
@@ -2878,7 +2885,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
     // Check if machine has simd enabled, if so push vector registers. If not
     // then only push double registers.
     Label push_doubles, simd_pushed;
-    __ li(a1, ExternalReference::supports_wasm_simd_128_address());
+    __ li(a1, ExternalReference::supports_simd_128_address());
     // If > 0 then simd is available.
     __ Lbu(a1, MemOperand(a1));
     __ Branch(&push_doubles, le, a1, Operand(zero_reg));
@@ -2912,7 +2919,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   {
     // Restore registers.
     Label pop_doubles, simd_popped;
-    __ li(a1, ExternalReference::supports_wasm_simd_128_address());
+    __ li(a1, ExternalReference::supports_simd_128_address());
     // If > 0 then simd is available.
     __ Lbu(a1, MemOperand(a1));
     __ Branch(&pop_doubles, le, a1, Operand(zero_reg));
@@ -2954,7 +2961,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Check if machine has simd enabled, if so push vector registers. If not
     // then only push double registers.
     Label push_doubles, simd_pushed;
-    __ li(a1, ExternalReference::supports_wasm_simd_128_address());
+    __ li(a1, ExternalReference::supports_simd_128_address());
     // If > 0 then simd is available.
     __ Lbu(a1, MemOperand(a1));
     __ Branch(&push_doubles, le, a1, Operand(zero_reg));
@@ -2982,7 +2989,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
 
     // Restore registers.
     Label pop_doubles, simd_popped;
-    __ li(a1, ExternalReference::supports_wasm_simd_128_address());
+    __ li(a1, ExternalReference::supports_simd_128_address());
     // If > 0 then simd is available.
     __ Lbu(a1, MemOperand(a1));
     __ Branch(&pop_doubles, le, a1, Operand(zero_reg));
@@ -3614,17 +3621,17 @@ void Builtins::Generate_CallApiAccessorImpl(MacroAssembler* masm,
     if (for_setter) {
       thunk_ref = ER::invoke_named_interceptor_setter_callback();
       __ Ld(api_function_address,
-            FieldMemOperand(callback, InterceptorInfo::kSetterOffset));
+            FieldMemOperand(callback, offsetof(InterceptorInfo, setter_)));
     } else {
       thunk_ref = ER::invoke_named_interceptor_getter_callback();
       __ Ld(api_function_address,
-            FieldMemOperand(callback, InterceptorInfo::kGetterOffset));
+            FieldMemOperand(callback, offsetof(InterceptorInfo, getter_)));
     }
   } else {
     DCHECK(!for_setter);
     thunk_ref = ER::invoke_accessor_getter_callback();
     __ Ld(api_function_address,
-          FieldMemOperand(callback, AccessorInfo::kGetterOffset));
+          FieldMemOperand(callback, offsetof(AccessorInfo, getter_)));
   }
   callback = no_reg;
 
@@ -3697,7 +3704,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
 
-    __ li(scratch, ExternalReference::supports_wasm_simd_128_address());
+    __ li(scratch, ExternalReference::supports_simd_128_address());
     // If > 0 then simd is available.
     __ Lbu(scratch, MemOperand(scratch));
     __ Branch(&no_simd, le, scratch, Operand(zero_reg));
@@ -3794,7 +3801,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
 
-    __ li(scratch, ExternalReference::supports_wasm_simd_128_address());
+    __ li(scratch, ExternalReference::supports_simd_128_address());
     // If > 0 then simd is available.
     __ Lbu(scratch, MemOperand(scratch));
     __ Branch(&no_simd, le, scratch, Operand(zero_reg));
@@ -3896,7 +3903,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
 
-    __ li(scratch, ExternalReference::supports_wasm_simd_128_address());
+    __ li(scratch, ExternalReference::supports_simd_128_address());
     // If > 0 then simd is available.
     __ Lbu(scratch, MemOperand(scratch));
     __ Branch(&no_simd, le, scratch, Operand(zero_reg));
@@ -4025,13 +4032,12 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
   // Get the InstructionStream object from the shared function info.
   Register code_obj = s1;
   __ Ld(code_obj,
-        FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+        FieldMemOperand(closure, offsetof(JSFunction, shared_function_info_)));
 
   ResetSharedFunctionInfoAge(masm, code_obj);
 
-  __ Ld(code_obj,
-        FieldMemOperand(code_obj,
-                        SharedFunctionInfo::kTrustedFunctionDataOffset));
+  __ Ld(code_obj, FieldMemOperand(code_obj, offsetof(SharedFunctionInfo,
+                                                     trusted_function_data_)));
 
   // For OSR entry it is safe to assume we always have baseline code.
   if (v8_flags.debug_code) {
@@ -4044,7 +4050,7 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
   Register feedback_cell = a2;
   Register feedback_vector = t8;
   __ Ld(feedback_cell,
-        FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
+        FieldMemOperand(closure, offsetof(JSFunction, feedback_cell_)));
   __ Ld(feedback_vector,
         FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)));
 

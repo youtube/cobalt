@@ -7,7 +7,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/overflowing-math.h"
-#include "src/builtins/builtins.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/cpu-features.h"
@@ -28,9 +28,12 @@
 #include "src/execution/frame-constants.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/mutable-page.h"
-#include "src/objects/code-kind.h"
+#include "src/objects/code-inl.h"
+#include "src/objects/js-function-inl.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/objects/smi.h"
 #include "src/roots/roots-inl.h"
+#include "src/sandbox/js-dispatch-table-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-linkage.h"
@@ -814,9 +817,9 @@ Register GetTSANValueRegister(MacroAssembler* masm, Register value,
     // Indirect pointer fields contain an index to a pointer table entry, which
     // is obtained from the referenced object.
     Register value_reg = i.TempRegister(1);
-    masm->movl(
-        value_reg,
-        FieldOperand(value, ExposedTrustedObject::kSelfIndirectPointerOffset));
+    masm->movl(value_reg,
+               FieldOperand(value, offsetof(ExposedTrustedObject,
+                                            self_indirect_pointer_)));
     return value_reg;
   }
   return value;
@@ -840,8 +843,8 @@ Register GetTSANValueRegister<std::memory_order_relaxed>(
     // Indirect pointer fields contain an index to a pointer table entry, which
     // is obtained from the referenced object.
     masm->movl(value_reg,
-               FieldOperand(value_reg,
-                            ExposedTrustedObject::kSelfIndirectPointerOffset));
+               FieldOperand(value_reg, offsetof(ExposedTrustedObject,
+                                                self_indirect_pointer_)));
   }
   return value_reg;
 }
@@ -1053,6 +1056,41 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
   } else {                                        \
     __ asm_instr(dst, i.InputOperand(index++));   \
   }
+
+#define ASSEMBLE_BINOP_WIDE(asm_instr_low, asm_instr_high)               \
+  do {                                                                   \
+    Register low_out = i.OutputRegister(0);                              \
+    Register high_out = i.OutputRegister(1);                             \
+    DCHECK_EQ(low_out, i.InputRegister(0));                              \
+    size_t index = 1;                                                    \
+    if (HasAddressingMode(instr)) {                                      \
+      Operand b_low = i.MemoryOperand(&index);                           \
+      __ asm_instr_low(low_out, b_low);                                  \
+    } else {                                                             \
+      ASSEMBLE_RHS(asm_instr_low, low_out, index);                       \
+    }                                                                    \
+    DCHECK(HasRegisterInput(instr, index));                              \
+    Register a_high = i.InputRegister(index++);                          \
+    CHECK_NE(a_high, low_out);                                           \
+    AddressingMode b_high_mode =                                         \
+        static_cast<AddressingMode>(MiscField::decode(instr->opcode())); \
+    if (b_high_mode != kMode_None) {                                     \
+      Operand b_high = i.MemoryOperand(b_high_mode, &index);             \
+      __ asm_instr_high(high_out, b_high);                               \
+    } else {                                                             \
+      CHECK(!HasRegisterInput(instr, index) ||                           \
+            i.InputRegister(index) != low_out);                          \
+      if (HasRegisterInput(instr, index) &&                              \
+          i.InputRegister(index) == high_out) {                          \
+        __ asm_instr_high(high_out, a_high);                             \
+        index++;                                                         \
+      } else {                                                           \
+        __ Move(high_out, a_high);                                       \
+        ASSEMBLE_RHS(asm_instr_high, high_out, index);                   \
+      }                                                                  \
+    }                                                                    \
+    DCHECK_EQ(index, instr->InputCount());                               \
+  } while (false)
 
 #define ASSEMBLE_COMPARE(cmp_instr, test_instr)                    \
   do {                                                             \
@@ -1598,8 +1636,9 @@ bool ShouldClearOutputRegisterBeforeInstruction(CodeGenerator* g,
       Register reg = i.OutputRegister(instr->OutputCount() - 1);
       // Do not clear output register when it is also input register.
       for (size_t index = 0; index < instr->InputCount(); ++index) {
-        if (HasRegisterInput(instr, index) && reg == i.InputRegister(index))
+        if (HasRegisterInput(instr, index) && reg == i.InputRegister(index)) {
           return false;
+        }
       }
       return true;
     }
@@ -1798,7 +1837,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Register func = i.InputRegister(0);
         if (v8_flags.debug_code) {
           // Check the function's context matches the context argument.
-          __ cmp_tagged(rsi, FieldOperand(func, JSFunction::kContextOffset));
+          __ cmp_tagged(rsi,
+                        FieldOperand(func, offsetof(JSFunction, context_)));
           __ Assert(equal, AbortReason::kWrongFunctionContext);
         }
         __ CallJSFunction(func, num_arguments);
@@ -2250,45 +2290,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64Sub:
       ASSEMBLE_BINOP(subq);
       break;
-    case kX64Add128: {
-      // Inputs: a_low, b_low, a_high, b_high.
-      Register low_out = i.OutputRegister(0);
-      Register high_out = i.OutputRegister(1);
-      DCHECK_EQ(low_out, i.InputRegister(0));
-      size_t index = 1;
-      if (HasAddressingMode(instr)) {
-        Operand b_low = i.MemoryOperand(&index);
-        __ addq(low_out, b_low);
-      } else {
-        ASSEMBLE_RHS(addq, low_out, index);
-      }
-
-      DCHECK(HasRegisterInput(instr, index));
-      Register a_high = i.InputRegister(index++);
-      CHECK_NE(a_high, low_out);
-      AddressingMode b_high_mode =
-          static_cast<AddressingMode>(MiscField::decode(instr->opcode()));
-      if (b_high_mode != kMode_None) {
-        Operand b_high = i.MemoryOperand(b_high_mode, &index);
-        __ adcq(high_out, b_high);
-      } else {
-        // If b_high is a register, it must not alias with low_out.
-        CHECK(!HasRegisterInput(instr, index) ||
-              i.InputRegister(index) != low_out);
-        // Special case: if b_high happens to be a register and happens to
-        // equal {high_out}, skip unnecessary moves.
-        if (HasRegisterInput(instr, index) &&
-            i.InputRegister(index) == high_out) {
-          __ adcq(high_out, a_high);
-          index++;
-        } else {
-          __ Move(high_out, a_high);  // Possibly no-op.
-          ASSEMBLE_RHS(adcq, high_out, index);
-        }
-      }
-      DCHECK_EQ(index, instr->InputCount());
+    case kX64Add128:
+      ASSEMBLE_BINOP_WIDE(addq, adcq);
       break;
-    }
+    case kX64Sub128:
+      ASSEMBLE_BINOP_WIDE(subq, sbbq);
+      break;
     case kX64And32:
       ASSEMBLE_BINOP(andl);
       break;
@@ -7416,9 +7423,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
         __ lock();
         __ cmpxchgl(i.MemoryOperand(2), i.InputRegister(1));
-        // Decompress pointer if not yet decompressed. (It is already
-        // decompressed if the compared value matches the memory location.)
-        __ orq(i.OutputRegister(0), kPtrComprCageBaseRegister);
       } else {
         __ movq(written_value, i.InputRegister(1));
         RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
@@ -7426,25 +7430,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ cmpxchgq(i.MemoryOperand(2), i.InputRegister(1));
       }
 
-      if (v8_flags.disable_write_barriers) break;
-
       // Emit write barrier.
-      auto ool = zone()->New<OutOfLineRecordWrite>(
-          this, object, i.MemoryOperand(2), written_value, scratch0, scratch1,
-          RecordWriteMode::kValueIsAny, DetermineStubCallMode());
-      __ j(not_equal, ool->exit());
-      __ JumpIfSmi(written_value, ool->exit());
+      if (!v8_flags.disable_write_barriers) {
+        auto ool = zone()->New<OutOfLineRecordWrite>(
+            this, object, i.MemoryOperand(2), written_value, scratch0, scratch1,
+            RecordWriteMode::kValueIsAny, DetermineStubCallMode());
+        __ j(not_equal, ool->exit());
+        __ JumpIfSmi(written_value, ool->exit());
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
-      __ CheckPageFlag(object, scratch0, MemoryChunk::kIncrementalMarking,
-                       not_zero, ool->stub_call());
-      __ CheckMarkBit(object, scratch0, scratch1, carry, ool->entry());
+        __ CheckPageFlag(object, scratch0, MemoryChunk::kIncrementalMarking,
+                         not_zero, ool->stub_call());
+        __ CheckMarkBit(object, scratch0, scratch1, carry, ool->entry());
 #else   // !V8_ENABLE_STICKY_MARK_BITS_BOOL
-      static_assert(WriteBarrier::kUninterestingPagesCanBeSkipped);
-      __ CheckPageFlag(object, scratch0,
-                       MemoryChunk::kPointersFromHereAreInterestingMask,
-                       not_zero, ool->entry());
+        static_assert(WriteBarrier::kUninterestingPagesCanBeSkipped);
+        __ CheckPageFlag(object, scratch0,
+                         MemoryChunk::kPointersFromHereAreInterestingMask,
+                         not_zero, ool->entry());
 #endif  // !V8_ENABLE_STICKY_MARK_BITS_BOOL
-      __ bind(ool->exit());
+        __ bind(ool->exit());
+      }
+
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        // Decompress pointer if not yet decompressed. (It is already
+        // decompressed if the compared value matches the memory location.)
+        __ orq(i.OutputRegister(0), kPtrComprCageBaseRegister);
+      }
       break;
     }
     case kX64Word64AtomicExchangeUint64: {

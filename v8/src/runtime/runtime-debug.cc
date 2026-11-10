@@ -622,8 +622,9 @@ int ScriptLinePositionWithOffset(Isolate* isolate, DirectHandle<Script> script,
                                  int line, int offset) {
   if (line < 0 || offset < 0) return -1;
 
-  if (line == 0 || offset == 0)
+  if (line == 0 || offset == 0) {
     return ScriptLinePosition(isolate, script, line) + offset;
+  }
 
   Script::PositionInfo info;
   if (!Script::GetPositionInfo(script, offset, &info,

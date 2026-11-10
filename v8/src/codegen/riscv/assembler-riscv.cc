@@ -46,6 +46,11 @@
 
 namespace v8 {
 namespace internal {
+
+#ifdef CAN_USE_RVA23U64_INSTRUCTIONS
+static const CpuFeatureSet kRVA23U64 =
+    CpuFeatureSet{} | ZFA | ZBB | ZBS | ZBA | ZICOND;
+#endif
 // Get the CPU features enabled by the build. For cross compilation the
 // preprocessor symbols __riscv_f and __riscv_d
 // can be defined to enable FPU instructions when building the
@@ -59,6 +64,10 @@ constexpr CpuFeatureSet CpuFeaturesImpliedByCompiler() {
 #if (defined __riscv_vector) && (__riscv_v >= 1000000)
   features.Add(RISCV_SIMD);
 #endif  // def __riscv_vector && __riscv_v >= 1000000
+
+#ifdef CAN_USE_RVA23U64_INSTRUCTIONS
+  features.Add(kRVA23U64);
+#endif
 
 #if (defined __riscv_zba)
   features.Add(ZBA);
@@ -89,7 +98,6 @@ static CpuFeatureSet SimulatorFeatures() {
   features.Add(ZBA);
   features.Add(ZBB);
   features.Add(ZBS);
-  features.Add(ZFA);
   features.Add(ZICOND);
   features.Add(ZICFISS);
   features.Add(FPU);
@@ -99,7 +107,13 @@ static CpuFeatureSet SimulatorFeatures() {
 }
 #endif
 
-bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(RISCV_SIMD); }
+bool CpuFeatures::SupportsSimd128() {
+#if V8_ENABLE_SIMD128
+  return IsSupported(RISCV_SIMD);
+#else
+  return false;
+#endif  // V8_ENABLE_SIMD128
+}
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
@@ -140,13 +154,13 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // This variable is only used for certain archs to query SupportWasmSimd128()
   // at runtime in builtins using an extern ref. Other callers should use
   // CpuFeatures::SupportWasmSimd128().
-  CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
+  CpuFeatures::supports_simd_128_ = CpuFeatures::SupportsSimd128();
 }
 
 void CpuFeatures::PrintTarget() {}
 void CpuFeatures::PrintFeatures() {
-  printf("supports_wasm_simd_128=%d", CpuFeatures::SupportsWasmSimd128());
-  if (CpuFeatures::SupportsWasmSimd128()) {
+  printf("supports_simd_128=%d", CpuFeatures::SupportsSimd128());
+  if (CpuFeatures::SupportsSimd128()) {
     printf(", vlen=%u", CpuFeatures::vlen());
   }
   printf("\n");

@@ -45,8 +45,9 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
 ScopeIterator::~ScopeIterator() = default;
 
 DirectHandle<Object> ScopeIterator::GetFunctionDebugName() const {
-  if (!function_.is_null())
+  if (!function_.is_null()) {
     return JSFunction::GetDebugName(isolate_, function_);
+  }
 
   if (!IsNativeContext(*context_)) {
     DisallowGarbageCollection no_gc;
@@ -889,8 +890,9 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
             ? handle(context_->GetNoCell(this_var->index()), isolate_)
         : frame_inspector_ == nullptr ? handle(generator_->receiver(), isolate_)
                                       : frame_inspector_->GetReceiver();
-    if (visitor(isolate_->factory()->this_string(), receiver, scope_type))
+    if (visitor(isolate_->factory()->this_string(), receiver, scope_type)) {
       return true;
+    }
   }
 
   if (current_scope_->is_function_scope()) {
@@ -1043,8 +1045,9 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
       if (!closure_scope_->has_this_declaration() &&
           !closure_scope_->HasThisReference()) {
         if (visitor(isolate_->factory()->this_string(),
-                    isolate_->factory()->undefined_value(), scope_type))
+                    isolate_->factory()->undefined_value(), scope_type)) {
           return;
+        }
       }
       // Add |arguments| to the function scope even if it wasn't used.
       // Currently we don't yet support materializing the arguments object of
@@ -1070,8 +1073,9 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
           Handle<JSObject> arguments = Accessors::FunctionGetArguments(
               frame, frame_inspector_->inlined_frame_index());
           if (visitor(isolate_->factory()->arguments_string(), arguments,
-                      scope_type))
+                      scope_type)) {
             return;
+          }
         }
       }
     }

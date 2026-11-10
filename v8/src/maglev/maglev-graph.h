@@ -70,7 +70,7 @@ class Graph final : public ZoneObject {
         allocations_escape_map_(zone()),
         allocations_elide_map_(zone()),
         register_inputs_(),
-        constants_(zone()),
+        heap_constants_(zone()),
         trusted_constants_(zone()),
         inlined_functions_(zone()),
         inlining_tree_debug_info_(nullptr) {}
@@ -150,8 +150,9 @@ class Graph final : public ZoneObject {
   int total_nodes() const { return total_nodes_; }
   void increment_total_nodes() { total_nodes_++; }
 
-  compiler::ZoneRefMap<compiler::HeapObjectRef, Constant*>& constants() {
-    return constants_;
+  compiler::ZoneRefMap<compiler::HeapObjectRef, HeapConstant*>&
+  heap_constants() {
+    return heap_constants_;
   }
   ZoneMap<RootIndex, RootConstant*>& root() { return root_constants_; }
   ZoneMap<int, SmiConstant*>& smi() { return smi_constants_; }
@@ -165,7 +166,9 @@ class Graph final : public ZoneObject {
   ZoneMap<uint64_t, HoleyFloat64Constant*>& holey_float64() {
     return holey_float64_constants_;
   }
-  ZoneMap<uint64_t, Constant*>& heap_number() { return heap_number_constants_; }
+  ZoneMap<uint64_t, HeapConstant*>& heap_number() {
+    return heap_number_constants_;
+  }
   compiler::ZoneRefMap<compiler::HeapObjectRef, TrustedConstant*>&
   trusted_constants() {
     return trusted_constants_;
@@ -293,7 +296,7 @@ class Graph final : public ZoneObject {
                                    constant.get_bits());
   }
 
-  Constant* GetHeapNumberConstant(double constant);
+  HeapConstant* GetHeapNumberConstant(double constant);
 
   RootConstant* GetRootConstant(RootIndex index) {
     return GetOrAddNewConstantNode(root_constants_, index);
@@ -344,7 +347,7 @@ class Graph final : public ZoneObject {
   // Use the bits of the float as the key.
   ZoneMap<uint64_t, Float64Constant*> float64_constants_;
   ZoneMap<uint64_t, HoleyFloat64Constant*> holey_float64_constants_;
-  ZoneMap<uint64_t, Constant*> heap_number_constants_;
+  ZoneMap<uint64_t, HeapConstant*> heap_number_constants_;
   ZoneVector<ValueNode*> parameters_;
   ZoneAbslFlatHashSet<DeoptFrame*> eager_deopt_top_frames_;
   ZoneAbslFlatHashMap<DeoptFrame*, std::pair<interpreter::Register, int>>
@@ -353,7 +356,7 @@ class Graph final : public ZoneObject {
   ZoneMap<InlinedAllocation*, SmallAllocationVector> allocations_escape_map_;
   ZoneMap<InlinedAllocation*, SmallAllocationVector> allocations_elide_map_;
   RegList register_inputs_;
-  compiler::ZoneRefMap<compiler::HeapObjectRef, Constant*> constants_;
+  compiler::ZoneRefMap<compiler::HeapObjectRef, HeapConstant*> heap_constants_;
   compiler::ZoneRefMap<compiler::HeapObjectRef, TrustedConstant*>
       trusted_constants_;
   ZoneVector<OptimizedCompilationInfo::InlinedFunctionHolder>

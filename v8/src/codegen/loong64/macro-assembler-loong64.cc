@@ -58,17 +58,17 @@ int MacroAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
   bytes += list.Count() * kSystemPointerSize;
 
   if (fp_mode == SaveFPRegsMode::kSave) {
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
     bool generating_builtins =
         isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
-    if (generating_builtins || CpuFeatures::SupportsWasmSimd128()) {
+    if (generating_builtins || CpuFeatures::SupportsSimd128()) {
       bytes += kCallerSavedFPU.Count() * kSimd128Size;
     } else {
       bytes += kCallerSavedFPU.Count() * kDoubleSize;
     }
 #else
     bytes += kCallerSavedFPU.Count() * kDoubleSize;
-#endif
+#endif  // V8_ENABLE_SIMD128
   }
 
   return bytes;
@@ -85,7 +85,7 @@ int MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   bytes += list.Count() * kSystemPointerSize;
 
   if (fp_mode == SaveFPRegsMode::kSave) {
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
     bool generating_builtins =
         isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
     if (generating_builtins) {
@@ -93,7 +93,7 @@ int MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
 
-      li(scratch, ExternalReference::supports_wasm_simd_128_address());
+      li(scratch, ExternalReference::supports_simd_128_address());
       // If > 0 then simd is available.
       Ld_bu(scratch, MemOperand(scratch, 0));
       Branch(&no_simd, le, scratch, Operand(zero_reg));
@@ -113,7 +113,7 @@ int MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
       bind(&done);
       bytes += kCallerSavedFPU.Count() * kSimd128Size;
     } else {
-      if (CpuFeatures::SupportsWasmSimd128()) {
+      if (CpuFeatures::SupportsSimd128()) {
         MultiPushLSX(kCallerSavedFPU);
         bytes += kCallerSavedFPU.Count() * kSimd128Size;
       } else {
@@ -124,7 +124,7 @@ int MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 #else
     MultiPushFPU(kCallerSavedFPU);
     bytes += kCallerSavedFPU.Count() * kDoubleSize;
-#endif
+#endif  // V8_ENABLE_SIMD128
   }
   return bytes;
 }
@@ -134,7 +134,7 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   ASM_CODE_COMMENT(this);
   int bytes = 0;
   if (fp_mode == SaveFPRegsMode::kSave) {
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
     bool generating_builtins =
         isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
     if (generating_builtins) {
@@ -144,7 +144,7 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
 
-      li(scratch, ExternalReference::supports_wasm_simd_128_address());
+      li(scratch, ExternalReference::supports_simd_128_address());
       // If > 0 then simd is available.
       Ld_bu(scratch, MemOperand(scratch, 0));
       Branch(&no_simd, le, scratch, Operand(zero_reg));
@@ -164,7 +164,7 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
       bind(&done);
       bytes += kCallerSavedFPU.Count() * kSimd128Size;
     } else {
-      if (CpuFeatures::SupportsWasmSimd128()) {
+      if (CpuFeatures::SupportsSimd128()) {
         MultiPopLSX(kCallerSavedFPU);
         bytes += kCallerSavedFPU.Count() * kSimd128Size;
       } else {
@@ -175,7 +175,7 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 #else
     MultiPopFPU(kCallerSavedFPU);
     bytes += kCallerSavedFPU.Count() * kDoubleSize;
-#endif
+#endif  // V8_ENABLE_SIMD128
   }
 
   RegList exclusions = {exclusion1, exclusion2, exclusion3};
@@ -434,7 +434,7 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
   if (tag_range.Size() == 1) {
     // The common and simple case: we expect exactly one tag.
     static_assert(kExternalPointerShiftedTagMask == 0x7f);
-    bstrpick_d(scratch, destination, kExternalPointerTagShift + 7,
+    bstrpick_d(scratch, destination, kExternalPointerTagShift + 6,
                kExternalPointerTagShift);
     SbxCheck(eq, AbortReason::kExternalPointerTagMismatch, scratch,
              Operand(tag_range.first));
@@ -520,7 +520,7 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
   }
 #else
   LoadMap(scratch, destination);
-  Ld_hu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  Ld_hu(scratch, FieldMemOperand(scratch, offsetof(Map, instance_type_)));
   for (auto& [type, label] : cases) {
     if (V8_ENABLE_SANDBOX_BOOL && type == CODE_TYPE) {
       continue;
@@ -566,8 +566,8 @@ void MacroAssembler::StoreIndirectPointerField(Register value,
 #ifdef V8_ENABLE_SANDBOX
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  Ld_w(scratch, FieldMemOperand(
-                    value, ExposedTrustedObject::kSelfIndirectPointerOffset));
+  Ld_w(scratch, FieldMemOperand(value, offsetof(ExposedTrustedObject,
+                                                self_indirect_pointer_)));
   St_w(scratch, dst_field_operand, trap_pc);
 #else
   UNREACHABLE();
@@ -3502,9 +3502,9 @@ bool MacroAssembler::BranchShortOrFallback(Label* L, Condition cond,
         if (rk.is_reg() && rj.code() == rk.rm().code()) {
           // No code needs to be emitted.
         } else if (IsZero(rk)) {
-          if (L->is_bound() && !is_near(L, OffsetSize::kOffset26)) return false;
+          if (L->is_bound() && !is_near(L, OffsetSize::kOffset21)) return false;
           if (need_link) pcaddi(ra, 2);
-          offset = GetOffset(L, OffsetSize::kOffset26);
+          offset = GetOffset(L, OffsetSize::kOffset21);
           bnez(rj, offset);
         } else {
           if (L->is_bound() && !is_near(L, OffsetSize::kOffset16)) return false;
@@ -4396,7 +4396,8 @@ void MacroAssembler::InvokeFunction(
   DCHECK_EQ(function, a1);
 
   // Set up the context.
-  LoadTaggedField(cp, FieldMemOperand(function, JSFunction::kContextOffset));
+  LoadTaggedField(cp,
+                  FieldMemOperand(function, offsetof(JSFunction, context_)));
 
   InvokeFunctionCode(function, no_reg, actual_parameter_count, type,
                      argument_adaption_mode);
@@ -4413,7 +4414,8 @@ void MacroAssembler::InvokeFunctionWithNewTarget(
   // (See FullCodeGenerator::Generate().)
   DCHECK_EQ(function, a1);
 
-  LoadTaggedField(cp, FieldMemOperand(function, JSFunction::kContextOffset));
+  LoadTaggedField(cp,
+                  FieldMemOperand(function, offsetof(JSFunction, context_)));
 
   InvokeFunctionCode(function, new_target, actual_parameter_count, type);
 }
@@ -4429,7 +4431,7 @@ void MacroAssembler::InvokeFunctionCode(
 
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
   Ld_w(dispatch_handle,
-       FieldMemOperand(function, JSFunction::kDispatchHandleOffset));
+       FieldMemOperand(function, offsetof(JSFunction, dispatch_handle_)));
 
   // On function call, call into the debugger if necessary.
   Label debug_hook, continue_after_hook;
@@ -4515,13 +4517,13 @@ void MacroAssembler::GetObjectType(Register object, Register map,
                                    Register type_reg) {
   ASM_CODE_COMMENT(this);
   LoadMap(map, object);
-  Ld_hu(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  Ld_hu(type_reg, FieldMemOperand(map, offsetof(Map, instance_type_)));
 }
 
 void MacroAssembler::GetInstanceTypeRange(Register map, Register type_reg,
                                           InstanceType lower_limit,
                                           Register range) {
-  Ld_hu(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  Ld_hu(type_reg, FieldMemOperand(map, offsetof(Map, instance_type_)));
   if (lower_limit != 0 || type_reg != range) {
     Sub_d(range, type_reg, Operand(lower_limit));
   }
@@ -4821,17 +4823,18 @@ void MacroAssembler::Abort(AbortReason reason) {
 
 void MacroAssembler::LoadMap(Register destination, Register object) {
   ASM_CODE_COMMENT(this);
-  LoadTaggedField(destination, FieldMemOperand(object, HeapObject::kMapOffset));
+  LoadTaggedField(destination,
+                  FieldMemOperand(object, offsetof(HeapObject, map_)));
 }
 
 void MacroAssembler::LoadCompressedMap(Register dst, Register object) {
   ASM_CODE_COMMENT(this);
-  Ld_w(dst, FieldMemOperand(object, HeapObject::kMapOffset));
+  Ld_w(dst, FieldMemOperand(object, offsetof(HeapObject, map_)));
 }
 
 void MacroAssembler::LoadFeedbackCell(Register dst, Register closure) {
-  LoadTaggedField(dst,
-                  FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
+  LoadTaggedField(
+      dst, FieldMemOperand(closure, offsetof(JSFunction, feedback_cell_)));
 }
 
 void MacroAssembler::LoadFeedbackVectorFromCell(Register dst,
@@ -4843,8 +4846,8 @@ void MacroAssembler::LoadFeedbackVectorFromCell(Register dst,
       dst, FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)));
 
   // Check if feedback vector is valid.
-  LoadTaggedField(scratch, FieldMemOperand(dst, HeapObject::kMapOffset));
-  Ld_hu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  LoadTaggedField(scratch, FieldMemOperand(dst, offsetof(HeapObject, map_)));
+  Ld_hu(scratch, FieldMemOperand(scratch, offsetof(Map, instance_type_)));
   Branch(&done, eq, scratch, Operand(FEEDBACK_VECTOR_TYPE));
 
   // Not valid, load undefined.
@@ -4878,8 +4881,9 @@ void MacroAssembler::LoadInterpreterDataInterpreterTrampoline(
 void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   LoadMap(dst, cp);
   LoadTaggedField(
-      dst, FieldMemOperand(
-               dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
+      dst,
+      FieldMemOperand(
+          dst, offsetof(Map, constructor_or_back_pointer_or_native_context_)));
   LoadTaggedField(dst, MemOperand(dst, Context::SlotOffset(index)));
 }
 
@@ -5284,7 +5288,7 @@ void MacroAssembler::AssertConstructor(Register object) {
         Operand(zero_reg));
 
   LoadMap(scratch, object);
-  Ld_bu(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
+  Ld_bu(scratch, FieldMemOperand(scratch, offsetof(Map, bit_field_)));
   And(scratch, scratch, Operand(Map::Bits1::IsConstructorBit::kMask));
   Check(ne, AbortReason::kOperandIsNotAConstructor, scratch, Operand(zero_reg));
 }
@@ -5780,8 +5784,9 @@ void MacroAssembler::CallJSFunction(Register function_object,
   Register parameter_count = s1;
   Register scratch = s2;
 
-  Ld_w(dispatch_handle,
-       FieldMemOperand(function_object, JSFunction::kDispatchHandleOffset));
+  Ld_w(
+      dispatch_handle,
+      FieldMemOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
   LoadEntrypointAndParameterCountFromJSDispatchTable(code, parameter_count,
                                                      dispatch_handle, scratch);
 
@@ -5818,14 +5823,19 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 void MacroAssembler::ResolveWasmCodePointer(Register target,
                                             uint64_t signature_hash) {
   ASM_CODE_COMMENT(this);
-  ExternalReference global_jump_table =
-      ExternalReference::wasm_code_pointer_table();
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  li(scratch, global_jump_table);
+  li(scratch, ExternalReference::wasm_code_pointer_table());
 #ifdef V8_ENABLE_SANDBOX
-  static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 16);
-  Alsl_d(target, target, scratch, 4);
+  static constexpr int kNumRelevantBits =
+      base::bits::WhichPowerOfTwo(WasmCodePointer::kIndexSpaceSize);
+  static constexpr int kLeftShift =
+      base::bits::WhichPowerOfTwo(sizeof(wasm::WasmCodePointerTableEntry));
+  // Only keep `kNumRelevantBits` bits (to avoid OOB access to the table),
+  Bstrpick_d(target, target, kNumRelevantBits - 1, 0);
+  // Shift to multiply by `sizeof(WasmCodePointerTableEntry)`.
+  Alsl_d(target, target, scratch, kLeftShift);
+
   Ld_d(scratch,
        MemOperand(target, wasm::WasmCodePointerTable::kOffsetOfSignatureHash));
   bool has_second_tmp = temps.hasAvailable();
@@ -5859,14 +5869,20 @@ void MacroAssembler::CallWasmCodePointer(Register target,
 }
 
 void MacroAssembler::CallWasmCodePointerNoSignatureCheck(Register target) {
-  ExternalReference global_jump_table =
-      ExternalReference::wasm_code_pointer_table();
+  ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  li(scratch, global_jump_table);
-  constexpr unsigned int kEntrySizeLog2 =
-      std::bit_width(sizeof(wasm::WasmCodePointerTableEntry)) - 1;
-  Alsl_d(target, target, scratch, kEntrySizeLog2);
+  li(scratch, ExternalReference::wasm_code_pointer_table());
+
+  static constexpr int kNumRelevantBits =
+      base::bits::WhichPowerOfTwo(WasmCodePointer::kIndexSpaceSize);
+  static constexpr int kLeftShift =
+      base::bits::WhichPowerOfTwo(sizeof(wasm::WasmCodePointerTableEntry));
+  // Only keep `kNumRelevantBits` bits (to avoid OOB access to the table),
+  Bstrpick_d(target, target, kNumRelevantBits - 1, 0);
+  // Shift to multiply by `sizeof(WasmCodePointerTableEntry)`.
+  Alsl_d(target, target, scratch, kLeftShift);
+
   Ld_d(target, MemOperand(target, 0));
 
   Call(target);
@@ -5939,7 +5955,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
 #ifndef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   Ld_wu(kJavaScriptCallDispatchHandleRegister,
         FieldMemOperand(kJavaScriptCallTargetRegister,
-                        JSFunction::kDispatchHandleOffset));
+                        offsetof(JSFunction, dispatch_handle_)));
 #endif
   LoadEntrypointFromJSDispatchTable(a2, kJavaScriptCallDispatchHandleRegister,
                                     a5);

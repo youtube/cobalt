@@ -1832,6 +1832,11 @@ func (hs *serverHandshakeState) processClientExtensions(serverExtensions *server
 		}
 	}
 
+	// Server Padding Extension
+	if c.config.Bugs.SendServerPaddingLength != nil {
+		serverExtensions.serverPadding = c.config.Bugs.SendServerPaddingLength
+	}
+
 	return nil
 }
 

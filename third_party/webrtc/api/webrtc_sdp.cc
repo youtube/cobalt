@@ -1263,8 +1263,8 @@ void BuildRtpContentAttributes(const MediaContentDescription* media_desc,
   // The attribute MUST be either on session level or media level. We support
   // responding on both levels, however, we don't respond on media level if it's
   // set on session level.
-  if (media_desc->extmap_allow_mixed_enum() ==
-      MediaContentDescription::kMedia) {
+  if (media_desc->extmap_allow_mixed_level() ==
+      MediaContentDescription::AttributeLevel::kMedia) {
     InitAttrLine(kAttributeExtmapAllowMixed, &os);
     AddLine(os.str(), message);
   }
@@ -2799,8 +2799,8 @@ bool ParseContent(absl::string_view message,
       } else if (HasAttribute(*line, kAttributeSendRecv)) {
         media_desc->set_direction(RtpTransceiverDirection::kSendRecv);
       } else if (HasAttribute(*line, kAttributeExtmapAllowMixed)) {
-        media_desc->set_extmap_allow_mixed_enum(
-            MediaContentDescription::kMedia);
+        media_desc->set_extmap_allow_mixed_level(
+            MediaContentDescription::AttributeLevel::kMedia);
       } else if (HasAttribute(*line, kAttributeExtmap)) {
         RtpExtension extmap;
         if (!ParseExtmap(*line, &extmap, error)) {
@@ -3013,7 +3013,8 @@ std::unique_ptr<MediaContentDescription> ParseContentDescription(
     return nullptr;
   }
 
-  media_desc->set_extmap_allow_mixed_enum(MediaContentDescription::kNo);
+  media_desc->set_extmap_allow_mixed_level(
+      MediaContentDescription::AttributeLevel::kNone);
   if (!ParseContent(message, media_type, mline_index, protocol, payload_types,
                     pos, content_name, bundle_only, msid_signaling,
                     media_desc.get(), transport, candidates, error)) {

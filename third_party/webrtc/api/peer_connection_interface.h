@@ -694,6 +694,10 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
     // of the DcSctpOptions struct.
     int max_sctp_streams = kMaxSctpStreams;
 
+    // https://www.ietf.org/archive/id/draft-hancke-tsvwg-snap-00.html
+    // Option for origin trial / rollout.
+    bool enable_sctp_snap = false;
+
     //
     // Don't forget to update operator== if adding something.
     //

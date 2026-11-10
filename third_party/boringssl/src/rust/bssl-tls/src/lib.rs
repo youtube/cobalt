@@ -59,11 +59,14 @@ fn has_duplicates<T: Ord + Eq>(list: &[T]) -> bool {
     list.iter().any(|elem| !seen.insert(elem))
 }
 
-#[allow(unused)]
 pub(crate) trait Methods {
     /// Safety: `ssl` must outlive `'a` and it must be passed in from BoringSSL
     /// through vtable calls.
     unsafe extern "C" fn from_ssl<'a>(ssl: *mut bssl_sys::SSL) -> Option<&'a Self>;
+}
+
+pub(crate) trait VerifyCertificateMethods: Methods {
+    fn verify_certificate_methods(&self) -> Option<&dyn credentials::VerifyCertificate>;
 }
 
 #[inline]

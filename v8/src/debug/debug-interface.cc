@@ -197,8 +197,9 @@ MaybeLocal<Array> GetInternalProperties(Isolate* v8_isolate,
   EnterV8NoScriptNoExceptionScope api_scope(isolate);
   i::DirectHandle<i::Object> val = Utils::OpenDirectHandle(*value);
   i::DirectHandle<i::JSArray> result;
-  if (!i::Runtime::GetInternalProperties(isolate, val).ToHandle(&result))
+  if (!i::Runtime::GetInternalProperties(isolate, val).ToHandle(&result)) {
     return MaybeLocal<Array>();
+  }
   return Utils::ToLocal(result);
 }
 
@@ -1500,7 +1501,7 @@ MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
   i::DirectHandle<i::Object> maybeMessage =
       i::JSReceiver::GetDataProperty(isolate, promise, key);
 
-  if (!IsJSMessageObject(*maybeMessage, isolate)) return MaybeLocal<Message>();
+  if (!IsJSMessageObject(*maybeMessage)) return MaybeLocal<Message>();
   return ToApiHandle<Message>(i::Cast<i::JSMessageObject>(maybeMessage));
 }
 

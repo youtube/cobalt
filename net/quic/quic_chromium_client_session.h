@@ -696,6 +696,10 @@ class NET_EXPORT_PRIVATE QuicChromiumClientSession
   // Returns the session's connection migration mode.
   ConnectionMigrationMode connection_migration_mode() const;
 
+  // Returns true if the connection was ever used to create a stream,
+  // including cases where the stream creation failed.
+  bool was_ever_used_to_create_streams() const;
+
   // Waits for the handshake to be confirmed and invokes |callback| when
   // that happens. If the handshake has already been confirmed, returns OK.
   // If the connection has already been closed, returns a net error. If the
@@ -1012,8 +1016,6 @@ class NET_EXPORT_PRIVATE QuicChromiumClientSession
 
   QuicChromiumClientStream* CreateIncomingStream(
       quic::QuicStreamId id) override;
-  QuicChromiumClientStream* CreateIncomingStream(
-      quic::PendingStream* pending) override;
 
  private:
   friend class test::QuicChromiumClientSessionPeer;

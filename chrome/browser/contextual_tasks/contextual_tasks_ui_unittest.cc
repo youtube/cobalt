@@ -84,12 +84,6 @@ class MockTaskInfoDelegate : public TaskInfoDelegate {
 
   void SetThreadId(std::optional<std::string> id) override { thread_id_ = id; }
 
-  void SetThreadTurnId(std::optional<std::string> id) override {
-    turn_id_ = id;
-  }
-
-  const std::optional<std::string>& GetThreadTurnId() { return turn_id_; }
-
   const std::optional<std::string>& GetThreadTitle() override { return title_; }
 
   void SetThreadTitle(std::optional<std::string> title) override {
@@ -123,7 +117,6 @@ class MockTaskInfoDelegate : public TaskInfoDelegate {
  private:
   std::optional<base::Uuid> task_id_;
   std::optional<std::string> thread_id_;
-  std::optional<std::string> turn_id_;
   std::optional<std::string> title_;
   GURL url_;
   bool is_shown_in_tab_ = false;
@@ -630,7 +623,6 @@ TEST_F(ContextualTasksUiTest, TaskDetailsUpdated) {
 
   EXPECT_EQ(delegate.GetTaskId(), task_id);
   EXPECT_EQ(delegate.GetThreadId(), thread_id);
-  EXPECT_EQ(delegate.GetThreadTurnId(), turn_id);
 
   // Fake an updated turn
   GURL url2(kAiPageUrl);
@@ -646,7 +638,6 @@ TEST_F(ContextualTasksUiTest, TaskDetailsUpdated) {
 
   EXPECT_EQ(delegate.GetTaskId(), task_id);
   EXPECT_EQ(delegate.GetThreadId(), thread_id);
-  EXPECT_EQ(delegate.GetThreadTurnId(), turn_id2);
   observer.reset();
 }
 
@@ -977,7 +968,7 @@ TEST_F(ContextualTasksUiTest, SetComposeboxHandler) {
   controller.SetComposeboxHandler(nullptr);
 }
 
-TEST_F(ContextualTasksUiTest, OnWebUIReadyCalledOnConstruction) {
+TEST_F(ContextualTasksUiTest, OnWebUIReadyCalledOnInitComplete) {
   base::Uuid task_id = base::Uuid::GenerateRandomV4();
   GURL url(chrome::kChromeUIContextualTasksURL);
   url = net::AppendQueryParameter(url, kTaskQueryParam,
@@ -988,12 +979,23 @@ TEST_F(ContextualTasksUiTest, OnWebUIReadyCalledOnConstruction) {
   content::TestWebUI web_ui;
   web_ui.set_web_contents(embedded_web_contents_.get());
 
-  EXPECT_CALL(*service_for_nav_, OnWebUIReady(task_id, _)).Times(1);
+  ContextualTasksUI controller(&web_ui);
+
+  // The signal should NOT be sent upon construction.
+  EXPECT_CALL(*service_for_nav_, OnWebUIReady(_, _, _)).Times(0);
+  testing::Mock::VerifyAndClearExpectations(service_for_nav_);
+
+  // The signal SHOULD be sent upon CreatePageHandler (which calls
+  // OnInitComplete).
+  EXPECT_CALL(*service_for_nav_, OnWebUIReady(_, task_id, _)).Times(1);
   // Expect OnWebUIDestroyed when controller goes out of scope.
   EXPECT_CALL(*service_for_nav_, OnWebUIDestroyed(_, std::optional(task_id)))
       .Times(1);
 
-  ContextualTasksUI controller(&web_ui);
+  testing::NiceMock<MockContextualTasksPage> page;
+  mojo::PendingReceiver<mojom::PageHandler> handler_receiver;
+  controller.CreatePageHandler(page.BindAndGetRemote(),
+                               std::move(handler_receiver));
 }
 
 class MockMPArchNavigationHandle : public content::MockNavigationHandle {

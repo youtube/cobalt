@@ -105,7 +105,7 @@ build_webui("build") {
 
   ts_definitions = [
     "//tools/typescript/definitions/chrome_event.d.ts",
-    "//tools/typescript/definitions/metrics_private.d.ts",
+    "//tools/typescript/definitions/chrome_histograms.d.ts",
     "//tools/typescript/definitions/web_request.d.ts",
     "//tools/typescript/definitions/webview_tag.d.ts",
   ]
@@ -120,6 +120,7 @@ build_webui("build") {
   if (!is_android) {
     ts_deps += [
       "//ui/webui/resources/cr_components/composebox:build_ts",
+      "//ui/webui/resources/cr_components/help_bubble:build_ts",
       "//ui/webui/resources/cr_components/localized_link:build_ts",
       "//ui/webui/resources/cr_components/search:build_ts",
     ]

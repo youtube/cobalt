@@ -11,14 +11,13 @@ import android.app.Activity;
 import android.app.ActivityOptions;
 import android.app.PendingIntent;
 import android.app.RemoteAction;
-import android.app.SearchManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Rect;
 import android.os.Build;
 import android.os.Handler;
-import android.provider.Browser;
+import android.os.SystemClock;
 import android.text.TextUtils;
 import android.view.ActionMode;
 import android.view.HapticFeedbackConstants;
@@ -79,6 +78,7 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContents.UserDataFactory;
 import org.chromium.content_public.browser.selection.SelectionActionMenuDelegate;
 import org.chromium.content_public.browser.selection.SelectionDropdownMenuDelegate;
+import org.chromium.content_public.browser.selection.SelectionUtils;
 import org.chromium.content_public.common.ContentFeatures;
 import org.chromium.ui.base.Clipboard;
 import org.chromium.ui.base.DeviceFormFactor;
@@ -114,12 +114,6 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
                 TextSelectionCapabilitiesDelegate {
     private static final String TAG = "SelectionPopupCtlr"; // 20 char limit
     private static final boolean DEBUG = false;
-
-    /**
-     * Android Intent size limitations prevent sending over a megabyte of data. Limit
-     * query lengths to 100kB because other things may be added to the Intent.
-     */
-    private static final int MAX_SHARE_QUERY_LENGTH = 100000;
 
     // Default delay for reshowing the {@link ActionMode} after it has been
     // hidden. This avoids flickering issues if there are trailing rect
@@ -206,6 +200,7 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
     private boolean mUnselectAllOnDismiss;
     private String mLastSelectedText;
     private int mLastSelectionOffset;
+    private long mShowMenuStartTimeMs;
     private boolean mIsInHandleDragging;
 
     // Tracks whether a touch selection is currently active.
@@ -399,12 +394,6 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
         clearSelection();
     }
 
-    public static String sanitizeQuery(String query, int maxLength) {
-        if (TextUtils.isEmpty(query) || query.length() < maxLength) return query;
-        Log.w(TAG, "Truncating oversized query (" + query.length() + ").");
-        return query.substring(0, maxLength) + "…";
-    }
-
     // ViewAndroidDelegate.ContainerViewObserver
 
     @Override
@@ -547,6 +536,7 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
             int sourceType,
             RenderFrameHost renderFrameHost,
             MenuModelBridge menuModelBridge) {
+        mShowMenuStartTimeMs = SystemClock.elapsedRealtime();
         mMenuModelBridge = menuModelBridge;
         RecordHistogram.recordEnumeratedHistogram(
                 "Android.ShowSelectionMenuSourceType", sourceType, MenuSourceType.MAX_VALUE);
@@ -613,11 +603,31 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
         switch (menuType) {
             case SelectionMenuType.ACTION_MODE:
                 showActionModeOrClearOnFailure();
+                if (mShowMenuStartTimeMs > 0) {
+                    long duration = SystemClock.elapsedRealtime() - mShowMenuStartTimeMs;
+                    recordShowMenuTimeActionMode(duration);
+                    mShowMenuStartTimeMs = 0;
+                }
                 break;
             case SelectionMenuType.DROPDOWN:
                 createAndShowDropdownMenu();
+                if (mShowMenuStartTimeMs > 0) {
+                    long duration = SystemClock.elapsedRealtime() - mShowMenuStartTimeMs;
+                    recordShowMenuTimeDropdown(duration);
+                    mShowMenuStartTimeMs = 0;
+                }
                 break;
         }
+    }
+
+    private void recordShowMenuTimeActionMode(long durationMs) {
+        RecordHistogram.recordCustomTimesHistogram(
+                "Android.SelectionMenu.TimeToShowMenu.ActionMode", durationMs, 1, 2000, 50);
+    }
+
+    private void recordShowMenuTimeDropdown(long durationMs) {
+        RecordHistogram.recordCustomTimesHistogram(
+                "Android.SelectionMenu.TimeToShowMenu.Dropdown", durationMs, 1, 2000, 50);
     }
 
     /**
@@ -630,6 +640,7 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
     public void showActionModeOrClearOnFailure() {
         if (!isActionModeSupported()
                 || mView == null
+                || !mView.isAttachedToWindow()
                 || getMenuType() != SelectionMenuType.ACTION_MODE) {
             return;
         }
@@ -678,7 +689,8 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
             assumeNonNull(mCallback);
             SelectionMenuItem menuItem = delegate.getMinimalMenuItem(item);
             logSelectionAction(menuItem.groupId, menuItem.id);
-            boolean isSubmenuParent = item.containsKey(ListMenuSubmenuItemProperties.SUBMENU_ITEMS);
+            boolean isSubmenuParent =
+                    item.containsKey(ListMenuSubmenuItemProperties.SUBMENU_PROVIDER);
             View.OnClickListener clickListener = delegate.getClickListener(item);
             if (!mCallback.onDropdownItemClicked(menuItem, !isSubmenuParent)
                     && clickListener != null) {
@@ -1298,19 +1310,7 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
     public void share() {
         assumeNonNull(mContext);
         RecordUserAction.record(UMA_MOBILE_ACTION_MODE_SHARE);
-        String query = sanitizeQuery(getSelectedText(), MAX_SHARE_QUERY_LENGTH);
-        if (TextUtils.isEmpty(query)) return;
-
-        Intent send = new Intent(Intent.ACTION_SEND);
-        send.setType("text/plain");
-        send.putExtra(Intent.EXTRA_TEXT, query);
-        try {
-            Intent i = Intent.createChooser(send, mContext.getString(R.string.actionbar_share));
-            i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            mContext.startActivity(i);
-        } catch (android.content.ActivityNotFoundException ex) {
-            // If no app handles it, do nothing.
-        }
+        SelectionUtils.share(mContext, getSelectedText());
     }
 
     /** Perform a processText action (translating the text, for example). */
@@ -1319,7 +1319,9 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
         RecordUserAction.record("MobileActionMode.ProcessTextIntent");
 
         // Use MAX_SHARE_QUERY_LENGTH for the Intent 100k limitation.
-        String query = sanitizeQuery(getSelectedText(), MAX_SHARE_QUERY_LENGTH);
+        String query =
+                SelectionUtils.sanitizeQuery(
+                        getSelectedText(), SelectionUtils.MAX_SHARE_QUERY_LENGTH);
         if (TextUtils.isEmpty(query)) return;
 
         intent.putExtra(Intent.EXTRA_PROCESS_TEXT, query);
@@ -1350,19 +1352,7 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
     public void search() {
         assumeNonNull(mContext);
         RecordUserAction.record("MobileActionMode.WebSearch");
-        String query = sanitizeQuery(getSelectedText(), MAX_SEARCH_QUERY_LENGTH);
-        if (TextUtils.isEmpty(query)) return;
-
-        Intent i = new Intent(Intent.ACTION_WEB_SEARCH);
-        i.putExtra(SearchManager.EXTRA_NEW_SEARCH, true);
-        i.putExtra(SearchManager.QUERY, query);
-        i.putExtra(Browser.EXTRA_APPLICATION_ID, mContext.getPackageName());
-        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        try {
-            mContext.startActivity(i);
-        } catch (android.content.ActivityNotFoundException ex) {
-            // If no app handles it, do nothing.
-        }
+        SelectionUtils.webSearch(mContext, getSelectedText());
     }
 
     /**

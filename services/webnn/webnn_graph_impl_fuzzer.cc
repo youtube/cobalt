@@ -18,6 +18,7 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/span.h"
 #include "base/debug/asan_service.h"
+#include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
@@ -300,6 +301,18 @@ struct ScatterElementsParams {
   bool is_updates_constant;
 };
 
+struct PadParams {
+  OperandDataType data_type;
+  uint32_t rank;
+  std::array<uint32_t, 8> input_dims;
+  // Padding values for each dimension. Only first `rank` entries are used.
+  std::array<uint32_t, 8> beginning_padding;
+  std::array<uint32_t, 8> ending_padding;
+  mojom::PaddingMode::Tag mode;
+  float value;
+  bool is_input_constant;
+};
+
 SupportedDataTypes GetPool2dDataTypes(mojom::Pool2d::Kind pool2d_kind) {
   const auto& limits = GetContextPropertiesForTesting().data_type_limits;
   switch (pool2d_kind) {
@@ -343,10 +356,14 @@ auto AnyConv2dKind() {
       {mojom::Conv2d::Kind::kDirect, mojom::Conv2d::Kind::kTransposed});
 }
 
+constexpr auto kAllPool2dKinds = std::to_array<mojom::Pool2d::Kind>({
+    mojom::Pool2d::Kind::kMaxPool2d,
+    mojom::Pool2d::Kind::kAveragePool2d,
+    mojom::Pool2d::Kind::kL2Pool2d,
+});
+
 auto AnyPool2dKind() {
-  return fuzztest::ElementOf<mojom::Pool2d::Kind>(
-      {mojom::Pool2d::Kind::kMaxPool2d, mojom::Pool2d::Kind::kAveragePool2d,
-       mojom::Pool2d::Kind::kL2Pool2d});
+  return fuzztest::ElementOf<mojom::Pool2d::Kind>(kAllPool2dKinds);
 }
 
 auto AnyQuantizationKind() {
@@ -355,13 +372,21 @@ auto AnyQuantizationKind() {
                                                 QuantizationKind::kPerBlock});
 }
 
+constexpr auto kAllReduceKinds = std::to_array<mojom::Reduce::Kind>({
+    mojom::Reduce::Kind::kL1,
+    mojom::Reduce::Kind::kL2,
+    mojom::Reduce::Kind::kLogSum,
+    mojom::Reduce::Kind::kLogSumExp,
+    mojom::Reduce::Kind::kMax,
+    mojom::Reduce::Kind::kMean,
+    mojom::Reduce::Kind::kMin,
+    mojom::Reduce::Kind::kProduct,
+    mojom::Reduce::Kind::kSum,
+    mojom::Reduce::Kind::kSumSquare,
+});
+
 auto AnyReduceKind() {
-  return fuzztest::ElementOf<mojom::Reduce::Kind>(
-      {mojom::Reduce::Kind::kL1, mojom::Reduce::Kind::kL2,
-       mojom::Reduce::Kind::kLogSum, mojom::Reduce::Kind::kLogSumExp,
-       mojom::Reduce::Kind::kMax, mojom::Reduce::Kind::kMean,
-       mojom::Reduce::Kind::kMin, mojom::Reduce::Kind::kProduct,
-       mojom::Reduce::Kind::kSum, mojom::Reduce::Kind::kSumSquare});
+  return fuzztest::ElementOf<mojom::Reduce::Kind>(kAllReduceKinds);
 }
 
 auto AnyRoundingType() {
@@ -373,6 +398,12 @@ auto AnyOptionalOperandKind() {
   return fuzztest::ElementOf<OptionalOperandKind>(
       {OptionalOperandKind::kNone, OptionalOperandKind::kConstant,
        OptionalOperandKind::kInput});
+}
+
+auto AnyPaddingModeTag() {
+  return fuzztest::ElementOf<mojom::PaddingMode::Tag>(
+      {mojom::PaddingMode::Tag::kConstant, mojom::PaddingMode::Tag::kEdge,
+       mojom::PaddingMode::Tag::kReflection});
 }
 
 auto AnyRecurrentNetworkActivation() {
@@ -627,68 +658,6 @@ auto AnyGemmParams() {
   );
 }
 
-auto AnyPool2dParams() {
-  return fuzztest::FlatMap(
-      [](mojom::Pool2d::Kind pool2d_kind) {
-        return fuzztest::StructOf<Pool2dParams>(
-            AnyOperandDataTypeFor(GetPool2dDataTypes(pool2d_kind)),
-            fuzztest::Just(pool2d_kind), AnyRoundingType(),
-            AnyDimSize(),                // batch
-            AnyDimSize(),                // channels
-            AnyDimSize(),                // input_height
-            AnyDimSize(),                // input_width
-            AnyPadding2d(),              // padding
-            AnySize2d(),                 // window_dimensions
-            AnyStrides2d(),              // strides
-            AnyDilations2d(),            // dilations
-            fuzztest::Arbitrary<bool>()  // is_input_constant
-        );
-      },
-      AnyPool2dKind());
-}
-
-auto AnyQuantizationParams() {
-  return fuzztest::StructOf<QuantizationParams>(
-      AnyQuantizedDataType(), AnyQuantizationKind(),
-      fuzztest::InRange<uint32_t>(  // channel_block_size
-          1, std::numeric_limits<int16_t>::max()));
-}
-
-auto AnyReduceParams() {
-  return fuzztest::FlatMap(
-      [](mojom::Reduce::Kind reduce_kind) {
-        return fuzztest::StructOf<ReduceParams>(
-            AnyOperandDataTypeFor(GetReduceDataTypes(reduce_kind)),
-            fuzztest::Just(reduce_kind),
-            fuzztest::InRange<uint32_t>(1, 8),   // rank
-            fuzztest::ArrayOf<8>(AnyDimSize()),  // input_dims
-            fuzztest::InRange<uint32_t>(0, 8),   // num_axes
-            fuzztest::ArrayOf<8>(                // axes
-                fuzztest::InRange<uint32_t>(0, 7)),
-            fuzztest::Arbitrary<bool>(),  // keep_dimensions
-            fuzztest::Arbitrary<bool>()   // is_input_constant
-        );
-      },
-      AnyReduceKind());
-}
-
-auto AnyScatterElementsParams() {
-  const auto& limits = GetContextPropertiesForTesting().data_type_limits;
-  return fuzztest::StructOf<ScatterElementsParams>(
-      AnyOperandDataTypeFor(limits.scatter_elements_input.data_types),
-      AnyOperandDataTypeFor(limits.scatter_elements_indices.data_types),
-      fuzztest::InRange<uint32_t>(1, 8),   // rank
-      fuzztest::InRange<uint32_t>(0, 7),   // axis
-      fuzztest::ArrayOf<8>(AnyDimSize()),  // input_dims
-      AnyDimSize(),                        // indices_axis_dim_size
-      fuzztest::OneOf(fuzztest::InRange<int64_t>(-10, 10),
-                      fuzztest::Arbitrary<int64_t>()),  // indices_fill_value
-      fuzztest::Arbitrary<bool>(),                      // is_input_constant
-      fuzztest::Arbitrary<bool>(),                      // is_indices_constant
-      fuzztest::Arbitrary<bool>()                       // is_updates_constant
-  );
-}
-
 auto AnyLstmParams() {
   const auto& limits = GetContextPropertiesForTesting().data_type_limits;
   return fuzztest::StructOf<LstmParams>(
@@ -709,6 +678,91 @@ auto AnyLstmParams() {
       fuzztest::Arbitrary<bool>(),  // is_weight_constant
       fuzztest::Arbitrary<bool>(),  // is_recurrent_weight_constant
       fuzztest::ArrayOf<3>(AnyRecurrentNetworkActivation())  // activations
+  );
+}
+
+auto AnyPadParams() {
+  const auto& limits = GetContextPropertiesForTesting().data_type_limits;
+  return fuzztest::StructOf<PadParams>(
+      AnyOperandDataTypeFor(limits.pad_input.data_types),
+      fuzztest::InRange<uint32_t>(1, 8),         // rank
+      fuzztest::ArrayOf<8>(AnyDimSize()),        // input_dims
+      fuzztest::ArrayOf<8>(AnyDimSizeOrZero()),  // beginning_padding
+      fuzztest::ArrayOf<8>(AnyDimSizeOrZero()),  // ending_padding
+      AnyPaddingModeTag(),                       // mode
+      fuzztest::Arbitrary<float>(),              // value
+      fuzztest::Arbitrary<bool>()                // is_input_constant
+  );
+}
+
+auto AnyPool2dParams() {
+  SupportedDataTypes pool2d_data_types;
+  for (auto kind : kAllPool2dKinds) {
+    pool2d_data_types.PutAll(GetPool2dDataTypes(kind));
+  }
+
+  return fuzztest::Filter(
+      [](const Pool2dParams& params) {
+        return GetPool2dDataTypes(params.pool2d_kind).Has(params.data_type);
+      },
+      fuzztest::StructOf<Pool2dParams>(
+          AnyOperandDataTypeFor(pool2d_data_types), AnyPool2dKind(),
+          AnyRoundingType(),
+          AnyDimSize(),                // batch
+          AnyDimSize(),                // channels
+          AnyDimSize(),                // input_height
+          AnyDimSize(),                // input_width
+          AnyPadding2d(),              // padding
+          AnySize2d(),                 // window_dimensions
+          AnyStrides2d(),              // strides
+          AnyDilations2d(),            // dilations
+          fuzztest::Arbitrary<bool>()  // is_input_constant
+          ));
+}
+
+auto AnyQuantizationParams() {
+  return fuzztest::StructOf<QuantizationParams>(
+      AnyQuantizedDataType(), AnyQuantizationKind(),
+      fuzztest::InRange<uint32_t>(  // channel_block_size
+          1, std::numeric_limits<int16_t>::max()));
+}
+
+auto AnyReduceParams() {
+  SupportedDataTypes reduce_data_types;
+  for (auto kind : kAllReduceKinds) {
+    reduce_data_types.PutAll(GetReduceDataTypes(kind));
+  }
+
+  return fuzztest::Filter(
+      [](const ReduceParams& params) {
+        return GetReduceDataTypes(params.reduce_kind).Has(params.data_type);
+      },
+      fuzztest::StructOf<ReduceParams>(
+          AnyOperandDataTypeFor(reduce_data_types), AnyReduceKind(),
+          fuzztest::InRange<uint32_t>(1, 8),   // rank
+          fuzztest::ArrayOf<8>(AnyDimSize()),  // input_dims
+          fuzztest::InRange<uint32_t>(0, 8),   // num_axes
+          fuzztest::ArrayOf<8>(                // axes
+              fuzztest::InRange<uint32_t>(0, 7)),
+          fuzztest::Arbitrary<bool>(),  // keep_dimensions
+          fuzztest::Arbitrary<bool>()   // is_input_constant
+          ));
+}
+
+auto AnyScatterElementsParams() {
+  const auto& limits = GetContextPropertiesForTesting().data_type_limits;
+  return fuzztest::StructOf<ScatterElementsParams>(
+      AnyOperandDataTypeFor(limits.scatter_elements_input.data_types),
+      AnyOperandDataTypeFor(limits.scatter_elements_indices.data_types),
+      fuzztest::InRange<uint32_t>(1, 8),   // rank
+      fuzztest::InRange<uint32_t>(0, 7),   // axis
+      fuzztest::ArrayOf<8>(AnyDimSize()),  // input_dims
+      AnyDimSize(),                        // indices_axis_dim_size
+      fuzztest::OneOf(fuzztest::InRange<int64_t>(-10, 10),
+                      fuzztest::Arbitrary<int64_t>()),  // indices_fill_value
+      fuzztest::Arbitrary<bool>(),                      // is_input_constant
+      fuzztest::Arbitrary<bool>(),                      // is_indices_constant
+      fuzztest::Arbitrary<bool>()                       // is_updates_constant
   );
 }
 
@@ -968,63 +1022,6 @@ std::optional<Conv2dDescriptors> SetUpConv2dDescriptors(
   };
 }
 
-struct Pool2dDescriptors {
-  OperandDescriptor input_desc;
-  OperandDescriptor output_desc;
-};
-
-// Helper to set up Pool2dDescriptors. Returns nullopt if any validation fails.
-std::optional<Pool2dDescriptors> SetUpPool2dDescriptors(
-    const ContextProperties& context_properties,
-    Pool2dParams& params) {
-  InputOperandLayout input_layout = context_properties.input_operand_layout;
-
-#if BUILDFLAG(IS_LINUX)
-  // Pool2d does not support dilation for TFLite backend:
-  // https://source.chromium.org/chromium/chromium/src/+/4c1aaa2f981951e7e6f636df92fb89e48b642aa6:services/webnn/tflite/graph_builder_tflite.cc;l=7203
-  // TODO(crbug.com/498987226): Remove this restriction to increase test
-  // coverage.
-  params.dilations = {1, 1};
-#endif  // BUILDFLAG(IS_LINUX)
-
-  std::vector<uint32_t> input_dims;
-  switch (input_layout) {
-    case InputOperandLayout::kNchw: {
-      input_dims = {params.batch, params.channels, params.input_height,
-                    params.input_width};
-      break;
-    }
-    case InputOperandLayout::kNhwc: {
-      input_dims = {params.batch, params.input_height, params.input_width,
-                    params.channels};
-      break;
-    }
-  }
-
-  ASSIGN_OR_RETURN_NULLOPT(
-      auto input_desc,
-      OperandDescriptor::Create(context_properties, params.data_type,
-                                input_dims, ""));
-
-  Pool2dAttributes attr;
-  attr.window_dimensions = params.window_dimensions;
-  attr.padding = params.padding;
-  attr.strides = params.strides;
-  attr.dilations = params.dilations;
-  attr.layout = input_layout;
-  attr.rounding_type = params.rounding_type;
-
-  ASSIGN_OR_RETURN_NULLOPT(
-      auto output_desc,
-      ValidatePool2dAndInferOutput(context_properties, input_desc, attr,
-                                   FromMojoPool2dType(params.pool2d_kind)));
-
-  return Pool2dDescriptors{
-      .input_desc = std::move(input_desc),
-      .output_desc = std::move(output_desc),
-  };
-}
-
 struct GemmDescriptors {
   OperandDescriptor a_desc;
   OperandDescriptor b_desc;
@@ -1087,6 +1084,111 @@ std::optional<GemmDescriptors> SetUpGemmDescriptors(
       .a_desc = std::move(a_desc),
       .b_desc = std::move(b_desc),
       .c_desc = std::move(c_desc),
+      .output_desc = std::move(output_desc),
+  };
+}
+
+struct PadDescriptors {
+  OperandDescriptor input_desc;
+  OperandDescriptor output_desc;
+  std::vector<uint32_t> beginning_padding;
+  std::vector<uint32_t> ending_padding;
+};
+
+// Helper to set up PadDescriptors. Returns nullopt if any validation fails.
+std::optional<PadDescriptors> SetUpPadDescriptors(
+    const ContextProperties& context_properties,
+    const PadParams& params) {
+  std::vector<uint32_t> input_dims(params.input_dims.begin(),
+                                   params.input_dims.begin() + params.rank);
+
+  ASSIGN_OR_RETURN_NULLOPT(
+      auto input_desc,
+      OperandDescriptor::Create(context_properties, params.data_type,
+                                input_dims, ""));
+
+  std::vector<uint32_t> beginning_padding(
+      params.beginning_padding.begin(),
+      params.beginning_padding.begin() + params.rank);
+  std::vector<uint32_t> ending_padding(
+      params.ending_padding.begin(),
+      params.ending_padding.begin() + params.rank);
+  PaddingMode mode = FromMojoPaddingMode(params.mode);
+  // For reflection mode, padding[i] must be less than input_dims[i]. Clamp
+  // the padding values to satisfy this constraint.
+  if (mode == PaddingMode::kReflection) {
+    for (uint32_t i = 0; i < params.rank; ++i) {
+      beginning_padding[i] = beginning_padding[i] % input_dims[i];
+      ending_padding[i] = ending_padding[i] % input_dims[i];
+    }
+  }
+
+  ASSIGN_OR_RETURN_NULLOPT(
+      auto output_desc,
+      ValidatePadAndInferOutput(context_properties, input_desc,
+                                beginning_padding, ending_padding, mode, ""));
+
+  return PadDescriptors{
+      .input_desc = std::move(input_desc),
+      .output_desc = std::move(output_desc),
+      .beginning_padding = std::move(beginning_padding),
+      .ending_padding = std::move(ending_padding),
+  };
+}
+
+struct Pool2dDescriptors {
+  OperandDescriptor input_desc;
+  OperandDescriptor output_desc;
+};
+
+// Helper to set up Pool2dDescriptors. Returns nullopt if any validation fails.
+std::optional<Pool2dDescriptors> SetUpPool2dDescriptors(
+    const ContextProperties& context_properties,
+    Pool2dParams& params) {
+  InputOperandLayout input_layout = context_properties.input_operand_layout;
+
+#if BUILDFLAG(IS_LINUX)
+  // Pool2d does not support dilation for TFLite backend:
+  // https://source.chromium.org/chromium/chromium/src/+/4c1aaa2f981951e7e6f636df92fb89e48b642aa6:services/webnn/tflite/graph_builder_tflite.cc;l=7203
+  // TODO(crbug.com/498987226): Remove this restriction to increase test
+  // coverage.
+  params.dilations = {1, 1};
+#endif  // BUILDFLAG(IS_LINUX)
+
+  std::vector<uint32_t> input_dims;
+  switch (input_layout) {
+    case InputOperandLayout::kNchw: {
+      input_dims = {params.batch, params.channels, params.input_height,
+                    params.input_width};
+      break;
+    }
+    case InputOperandLayout::kNhwc: {
+      input_dims = {params.batch, params.input_height, params.input_width,
+                    params.channels};
+      break;
+    }
+  }
+
+  ASSIGN_OR_RETURN_NULLOPT(
+      auto input_desc,
+      OperandDescriptor::Create(context_properties, params.data_type,
+                                input_dims, ""));
+
+  Pool2dAttributes attr;
+  attr.window_dimensions = params.window_dimensions;
+  attr.padding = params.padding;
+  attr.strides = params.strides;
+  attr.dilations = params.dilations;
+  attr.layout = input_layout;
+  attr.rounding_type = params.rounding_type;
+
+  ASSIGN_OR_RETURN_NULLOPT(
+      auto output_desc,
+      ValidatePool2dAndInferOutput(context_properties, input_desc, attr,
+                                   FromMojoPool2dType(params.pool2d_kind)));
+
+  return Pool2dDescriptors{
+      .input_desc = std::move(input_desc),
       .output_desc = std::move(output_desc),
   };
 }
@@ -1162,7 +1264,16 @@ class GlobalFuzzEnvironment {
 
     mojo::core::Init();
 
-    webnn_test_environment_ = std::make_unique<WebNNTestEnvironment>();
+    // Currently only the ORT backend will call this callback when it encounters
+    // an inference failure, crash the process so the fuzzer can catch the
+    // error.
+    auto lose_all_contexts_callback = base::BindOnce([]() {
+      LOG(FATAL)
+          << "Lose all WebNN contexts, likely due to an inference failure.";
+    });
+    webnn_test_environment_ = std::make_unique<WebNNTestEnvironment>(
+        WebNNContextProviderImpl::WebNNStatus::kWebNNEnabled,
+        std::move(lose_all_contexts_callback));
 
     // Also increase the runloop timeout.
     runloop_timeout_ = std::make_unique<base::test::ScopedRunLoopTimeout>(
@@ -1270,6 +1381,7 @@ void BuildAndCompute(
 
   mojo::AssociatedRemote<mojom::WebNNGraph> graph_remote;
   graph_remote.Bind(std::move(create_graph_result.value()->graph_remote));
+  blink::WebNNGraphToken graph_token = create_graph_result.value()->graph_token;
 
   std::vector<std::pair<std::string, blink::WebNNTensorToken>>
       named_input_handles;
@@ -1289,7 +1401,8 @@ void BuildAndCompute(
         return std::make_pair(output.first, output.second.handle);
       });
 
-  graph_remote->Dispatch(named_input_handles, named_output_handles);
+  context_remote->Dispatch(graph_token, named_input_handles,
+                           named_output_handles);
 
   // Wait for the computation to complete.
   for (auto& output : named_output_remotes_and_handles) {
@@ -1366,10 +1479,9 @@ void WebNNGraphImplFuzzerBase::SetUp() {
 }
 
 void WebNNGraphImplFuzzerBase::TearDown() {
-  context_.reset();
-  EXPECT_TRUE(base::test::RunUntil([&]() { return true; }));
   // Give WebNNContext a chance to run disconnect.
-  provider_remote_.reset();
+  context_.reset();
+  GetGlobalFuzzEnvironment().GetWebNNTestEnvironment().RunUntilIdle();
 }
 
 mojo::AssociatedRemote<mojom::WebNNGraphBuilder>
@@ -1389,6 +1501,7 @@ class WebNNGraphImplFuzzerImpl
   void SingleOpGatherND(GatherNDParams params, uint8_t seed_for_data);
   void SingleOpGemm(GemmParams params, uint8_t seed_for_data);
   void SingleOpLstm(LstmParams params, uint8_t seed_for_data);
+  void SingleOpPad(PadParams params, uint8_t seed_for_data);
   void SingleOpPool2d(Pool2dParams params, uint8_t seed_for_data);
   void SingleOpReduce(ReduceParams params, uint8_t seed_for_data);
   void SingleOpScatterElements(ScatterElementsParams params,
@@ -1404,6 +1517,11 @@ class WebNNGraphImplFuzzerImpl
   void SubgraphDQGemmQ(GemmParams gemm_params,
                        QuantizationParams quantization_params,
                        uint8_t seed_for_data);
+  void SubgraphDQPadQ(PadParams pad_params,
+                      OperandDataType quantized_type,
+                      uint8_t seed_for_input,
+                      float seed_for_scale,
+                      uint8_t seed_for_zero_point);
   void SubgraphDQPool2dQ(Pool2dParams pool2d_params,
                          QuantizationParams quantization_params,
                          uint8_t seed_for_data);
@@ -1999,6 +2117,47 @@ void WebNNGraphImplFuzzerImpl<BaseFixture>::SingleOpLstm(
   builder.BuildLstm(input_id, weight_id, recurrent_weight_id,
                     std::move(output_operand_ids), params.steps,
                     params.hidden_size, lstm_attr);
+
+  if (!builder.IsValidGraphForTesting(this->context_properties())) {
+    return;
+  }
+  BuildAndCompute(this->context_, std::move(remote), builder.TakeGraphInfo(),
+                  std::move(named_inputs));
+
+  GetGlobalFuzzEnvironment().GetWebNNTestEnvironment().RunUntilIdle();
+}
+
+template <typename BaseFixture>
+void WebNNGraphImplFuzzerImpl<BaseFixture>::SingleOpPad(PadParams params,
+                                                        uint8_t seed_for_data) {
+  ASSIGN_OR_RETURN_VOID(
+      auto pad_descs, SetUpPadDescriptors(this->context_properties(), params));
+
+  mojo::AssociatedRemote<mojom::WebNNGraphBuilder> remote =
+      this->BindNewGraphBuilderRemote();
+  GraphInfoBuilder builder(remote);
+
+  OperandId input_id;
+  std::vector<uint8_t> input_data(pad_descs.input_desc.PackedByteLength(),
+                                  seed_for_data);
+
+  base::flat_map<std::string, base::span<const uint8_t>> named_inputs;
+  if (params.is_input_constant) {
+    input_id =
+        builder.BuildConstant(pad_descs.input_desc.shape(),
+                              pad_descs.input_desc.data_type(), input_data);
+  } else {
+    input_id = builder.BuildInput("input", pad_descs.input_desc.shape(),
+                                  pad_descs.input_desc.data_type());
+    named_inputs.insert({"input", input_data});
+  }
+
+  OperandId output_id =
+      builder.BuildOutput("output", pad_descs.output_desc.shape(),
+                          pad_descs.output_desc.data_type());
+
+  builder.BuildPad(input_id, output_id, pad_descs.beginning_padding,
+                   pad_descs.ending_padding, params.mode, params.value);
 
   if (!builder.IsValidGraphForTesting(this->context_properties())) {
     return;
@@ -2822,6 +2981,128 @@ void WebNNGraphImplFuzzerImpl<BaseFixture>::SubgraphDQGemmQ(
 }
 
 template <typename BaseFixture>
+void WebNNGraphImplFuzzerImpl<BaseFixture>::SubgraphDQPadQ(
+    PadParams pad_params,
+    OperandDataType quantized_type,
+    uint8_t seed_for_input,
+    float seed_for_scale,
+    uint8_t seed_for_zero_point) {
+  ASSIGN_OR_RETURN_VOID(
+      auto pad_descs,
+      SetUpPadDescriptors(this->context_properties(), pad_params));
+
+  // kPerTensor quantization is used to exercise the fusiable path for TFLite
+  // backend:
+  // https://source.chromium.org/chromium/chromium/src/+/main:services/webnn/tflite/graph_builder_tflite.cc;l=2201;drc=ec4ff4bae24916aaad3186ce4bc1339313b6fb5a
+  // TODO(crbug.com/498987226): Remove this restriction to increase test
+  // coverage.
+  QuantizationParams per_tensor_quantization_params{
+      .quantized_type = quantized_type,
+      .quantization_kind = QuantizationKind::kPerTensor,
+      .channel_block_size = 1};
+
+  auto input_scale_shape = ComputeQuantizationScaleShape(
+      pad_descs.input_desc.shape(), per_tensor_quantization_params);
+
+  ASSIGN_OR_RETURN_VOID(
+      auto input_dq_desc,
+      OperandDescriptor::Create(this->context_properties(), quantized_type,
+                                pad_descs.input_desc.shape(), ""));
+  ASSIGN_OR_RETURN_VOID(
+      auto input_scale_desc,
+      OperandDescriptor::Create(this->context_properties(),
+                                pad_params.data_type, input_scale_shape, ""));
+  ASSIGN_OR_RETURN_VOID(
+      auto input_zero_desc,
+      OperandDescriptor::Create(this->context_properties(), quantized_type,
+                                input_scale_shape, ""));
+
+  ASSIGN_OR_RETURN_VOID(auto input_desc_result,
+                        ValidateDequantizeLinearAndInferOutput(
+                            this->context_properties(), input_dq_desc,
+                            input_scale_desc, input_zero_desc, ""));
+
+  auto output_scale_shape = ComputeQuantizationScaleShape(
+      pad_descs.output_desc.shape(), per_tensor_quantization_params);
+
+  ASSIGN_OR_RETURN_VOID(
+      auto output_scale_desc,
+      OperandDescriptor::Create(this->context_properties(),
+                                pad_params.data_type, output_scale_shape, ""));
+  ASSIGN_OR_RETURN_VOID(
+      auto output_zero_desc,
+      OperandDescriptor::Create(this->context_properties(), quantized_type,
+                                output_scale_shape, ""));
+
+  ASSIGN_OR_RETURN_VOID(auto quantized_output_desc,
+                        ValidateQuantizeLinearAndInferOutput(
+                            this->context_properties(), pad_descs.output_desc,
+                            output_scale_desc, output_zero_desc, ""));
+
+  mojo::AssociatedRemote<mojom::WebNNGraphBuilder> remote =
+      this->BindNewGraphBuilderRemote();
+  GraphInfoBuilder builder(remote);
+
+  base::flat_map<std::string, base::span<const uint8_t>> named_inputs;
+  std::vector<uint8_t> input_dq_data(input_dq_desc.PackedByteLength(),
+                                     seed_for_input);
+  std::vector<float> input_scale_data(input_scale_desc.NumberOfElements(),
+                                      seed_for_scale);
+  std::vector<uint8_t> input_zero_data(input_zero_desc.PackedByteLength(),
+                                       seed_for_zero_point);
+
+  OperandId input_dq_id;
+  if (pad_params.is_input_constant) {
+    input_dq_id = builder.BuildConstant(
+        input_dq_desc.shape(), input_dq_desc.data_type(), input_dq_data);
+  } else {
+    input_dq_id = builder.BuildInput("input", input_dq_desc.shape(),
+                                     input_dq_desc.data_type());
+    named_inputs.insert({"input", input_dq_data});
+  }
+
+  OperandId input_scale_id =
+      BuildFloatConstant(builder, input_scale_desc, input_scale_data);
+  OperandId input_zero_id = builder.BuildConstant(
+      input_zero_desc.shape(), input_zero_desc.data_type(), input_zero_data);
+  OperandId pad_input_id = builder.BuildIntermediateOperand(
+      pad_descs.input_desc.shape(), pad_descs.input_desc.data_type());
+
+  builder.BuildDequantizeLinear(input_dq_id, input_scale_id, input_zero_id,
+                                pad_input_id);
+
+  OperandId pad_output_id = builder.BuildIntermediateOperand(
+      pad_descs.output_desc.shape(), pad_descs.output_desc.data_type());
+
+  builder.BuildPad(pad_input_id, pad_output_id, pad_descs.beginning_padding,
+                   pad_descs.ending_padding, pad_params.mode, pad_params.value);
+
+  std::vector<float> output_scale_data(output_scale_desc.NumberOfElements(),
+                                       seed_for_scale);
+  std::vector<uint8_t> output_zero_data(output_zero_desc.PackedByteLength(),
+                                        seed_for_zero_point);
+  OperandId output_scale_id =
+      BuildFloatConstant(builder, output_scale_desc, output_scale_data);
+  OperandId output_zero_id = builder.BuildConstant(
+      output_zero_desc.shape(), output_zero_desc.data_type(), output_zero_data);
+
+  OperandId quantize_output_id =
+      builder.BuildOutput("output", quantized_output_desc.shape(),
+                          quantized_output_desc.data_type());
+  builder.BuildQuantizeLinear(pad_output_id, output_scale_id, output_zero_id,
+                              quantize_output_id);
+
+  if (!builder.IsValidGraphForTesting(this->context_properties())) {
+    return;
+  }
+
+  BuildAndCompute(this->context_, std::move(remote), builder.TakeGraphInfo(),
+                  std::move(named_inputs));
+
+  GetGlobalFuzzEnvironment().GetWebNNTestEnvironment().RunUntilIdle();
+}
+
+template <typename BaseFixture>
 void WebNNGraphImplFuzzerImpl<BaseFixture>::SubgraphDQPool2dQ(
     Pool2dParams pool2d_params,
     QuantizationParams quantization_params,
@@ -3204,6 +3485,21 @@ WEBNN_FUZZ_TEST_F(
               },
               /*seed_for_data=*/1}}));
 
+WEBNN_FUZZ_TEST_F(
+    SingleOpPad,
+    .WithDomains(AnyPadParams(), fuzztest::Arbitrary<uint8_t>())
+        .WithSeeds({{PadParams{
+                         /*data_type=*/OperandDataType::kFloat32,
+                         /*rank=*/4,
+                         /*input_dims=*/{1, 3, 4, 4, 1, 1, 1, 1},
+                         /*beginning_padding=*/{0, 0, 1, 1, 0, 0, 0, 0},
+                         /*ending_padding=*/{0, 0, 1, 1, 0, 0, 0, 0},
+                         /*mode=*/mojom::PaddingMode::Tag::kConstant,
+                         /*value=*/0.0f,
+                         /*is_input_constant=*/false,
+                     },
+                     /*seed_for_data=*/1}}));
+
 WEBNN_FUZZ_TEST_F(SingleOpPool2d,
                   .WithDomains(AnyPool2dParams(),
                                fuzztest::Arbitrary<uint8_t>())
@@ -3330,6 +3626,29 @@ WEBNN_FUZZ_TEST_F(
                          // This is unused for per channel quantization.
                          /*channel_block_size=*/1},
                      /*seed_for_data=*/3}}));
+
+WEBNN_FUZZ_TEST_F(
+    SubgraphDQPadQ,
+    .WithDomains(AnyPadParams(),
+                 AnyQuantizedDataType(),
+                 /*seed_for_input=*/fuzztest::Arbitrary<uint8_t>(),
+                 /*seed_for_scale=*/
+                 fuzztest::ElementOf({0.125f, 0.25f, 0.5f, 1.0f, 2.0f}),
+                 /*seed_for_zero_point=*/fuzztest::Arbitrary<uint8_t>())
+        .WithSeeds({{PadParams{
+                         /*data_type=*/OperandDataType::kFloat32,
+                         /*rank=*/4,
+                         /*input_dims=*/{1, 3, 4, 4, 1, 1, 1, 1},
+                         /*beginning_padding=*/{0, 0, 1, 1, 0, 0, 0, 0},
+                         /*ending_padding=*/{0, 0, 1, 1, 0, 0, 0, 0},
+                         /*mode=*/mojom::PaddingMode::Tag::kConstant,
+                         /*value=*/0.0f,
+                         /*is_input_constant=*/false,
+                     },
+                     /*quantized_type=*/OperandDataType::kUint8,
+                     /*seed_for_input=*/2,
+                     /*seed_for_scale=*/0.25f,
+                     /*seed_for_zero_point=*/0}}));
 
 WEBNN_FUZZ_TEST_F(
     SubgraphDQPool2dQ,

@@ -30,8 +30,11 @@
 #include "third_party/webrtc/modules/desktop_capture/desktop_capture_types.h"
 
 namespace remoting {
+class IpcFifoBufferReader;
 
 class FakeInputInjector : public InputInjector {
+  class FifoBufferWriter;
+
  public:
   FakeInputInjector();
 
@@ -128,7 +131,8 @@ class FakeDesktopEnvironment : public DesktopEnvironment {
   void SetCapabilities(const std::string& capabilities) override;
   std::unique_ptr<RemoteWebAuthnStateChangeNotifier>
   CreateRemoteWebAuthnStateChangeNotifier() override;
-  std::unique_ptr<AudioInjector> CreateAudioInjector() override;
+  std::unique_ptr<AudioInjector> CreateAudioInjector(
+      std::unique_ptr<IpcFifoBufferReader> reader) override;
 
   base::WeakPtr<FakeInputInjector> last_input_injector() {
     return last_input_injector_;

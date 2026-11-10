@@ -52,9 +52,7 @@ V8_INLINE bool IsHeapObject(Tagged<Smi> obj) { return false; }
 
 V8_INLINE bool IsTaggedIndex(Tagged<Object> obj);
 
-#define IS_TYPE_FUNCTION_DECL(Type)            \
-  V8_INLINE bool Is##Type(Tagged<Object> obj); \
-  V8_INLINE bool Is##Type(Tagged<Object> obj, PtrComprCageBase cage_base);
+#define IS_TYPE_FUNCTION_DECL(Type) V8_INLINE bool Is##Type(Tagged<Object> obj);
 OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 IS_TYPE_FUNCTION_DECL(HashTableBase)
@@ -102,8 +100,7 @@ V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj);
 V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj);
 
 #define DECL_STRUCT_PREDICATE(NAME, Name, name) \
-  V8_INLINE bool Is##Name(Tagged<Object> obj);  \
-  V8_INLINE bool Is##Name(Tagged<Object> obj, PtrComprCageBase cage_base);
+  V8_INLINE bool Is##Name(Tagged<Object> obj);
 STRUCT_LIST(DECL_STRUCT_PREDICATE)
 #undef DECL_STRUCT_PREDICATE
 

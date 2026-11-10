@@ -8,6 +8,7 @@
 #include <optional>
 #include <ostream>
 
+#include "src/base/logging.h"
 #include "src/builtins/accessors.h"
 #include "src/common/globals.h"
 #include "src/compiler/compilation-dependencies.h"
@@ -16,6 +17,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/ic/call-optimization.h"
+#include "src/ic/handler-configuration-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/field-index-inl.h"
@@ -24,6 +26,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-details.h"
 #include "src/objects/struct-inl.h"
+#include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/templates.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -207,6 +210,14 @@ PropertyAccessInfo PropertyAccessInfo::TypedArrayLength(Zone* zone,
 }
 
 // static
+PropertyAccessInfo PropertyAccessInfo::DictionaryDataField(
+    Zone* zone, MapRef receiver_map, OptionalJSObjectRef holder,
+    InternalIndex dictionary_index, NameRef name) {
+  return PropertyAccessInfo(zone, kDictionaryDataField, holder,
+                            {{receiver_map}, zone}, dictionary_index, name);
+}
+
+// static
 PropertyAccessInfo PropertyAccessInfo::DictionaryProtoDataConstant(
     Zone* zone, MapRef receiver_map, JSObjectRef holder,
     InternalIndex dictionary_index, NameRef name) {
@@ -385,6 +396,13 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
       return true;
     }
 
+    case kDictionaryDataField: {
+      DCHECK_EQ(AccessMode::kLoad, access_mode);
+      if (dictionary_index_ != that->dictionary_index_) return false;
+      AppendVector(&lookup_start_object_maps_, that->lookup_start_object_maps_);
+      return true;
+    }
+
     case kNotFound:
     case kStringLength:
     case kStringWrapperLength: {
@@ -400,6 +418,7 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
     case kModuleExport:
       return false;
   }
+  UNREACHABLE();
 }
 
 ConstFieldInfo PropertyAccessInfo::GetConstFieldInfo() const {
@@ -764,8 +783,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
             Cast<JSModuleNamespace>(proto_info->module_namespace()));
     Handle<Cell> cell = broker->CanonicalPersistentHandle(
         Cast<Cell>(module_namespace->module()->exports()->Lookup(
-            isolate, name.object(),
-            Smi::ToInt(Object::GetHash(*name.object())))));
+            name.object(), Smi::ToInt(Object::GetHash(*name.object())))));
     if (IsAnyStore(access_mode)) {
       // https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-set-p-v-receiver
       // https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-defineownproperty-p-desc
@@ -847,7 +865,8 @@ PropertyAccessInfo AccessorAccessInfoHelper(
           TryMakeRef(broker, cached_property_name.value());
       if (cached_property_name_ref.has_value()) {
         PropertyAccessInfo access_info = ai_factory->ComputePropertyAccessInfo(
-            holder_map, cached_property_name_ref.value(), access_mode);
+            holder_map, cached_property_name_ref.value(), access_mode,
+            std::nullopt);
         if (!access_info.IsInvalid()) return access_info;
       }
     }
@@ -961,13 +980,34 @@ bool AccessInfoFactory::TryLoadPropertyDetails(
 }
 
 PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
-    MapRef map, NameRef name, AccessMode access_mode) const {
+    MapRef map, NameRef name, AccessMode access_mode,
+    OptionalObjectRef handler) const {
   CHECK(name.IsUniqueName());
 
   // Dictionary property const tracking is unsupported with concurrent inlining.
   CHECK(!V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
 
   JSHeapBroker::MapUpdaterGuardIfNeeded mumd_scope(broker());
+
+  if (map.is_dictionary_map() && access_mode == AccessMode::kLoad &&
+      handler.has_value() && handler->IsSmi()) {
+    if constexpr (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      auto smi_handler = Cast<Smi>(*handler->object());
+      if (LoadHandler::GetHandlerKind(smi_handler) ==
+          LoadHandler::Kind::kNormal) {
+        if (LoadHandler::IsDataPropertyBits::decode(smi_handler.value())) {
+          uint32_t index =
+              LoadHandler::DictionaryIndexBits::decode(smi_handler.value());
+          if (index != LoadHandler::DictionaryIndexBits::kMax) {
+            return PropertyAccessInfo::DictionaryDataField(
+                zone(), map, OptionalJSObjectRef(), InternalIndex(index), name);
+          }
+        }
+      }
+    } else {
+      UNREACHABLE();
+    }
+  }
 
   if (access_mode == AccessMode::kHas && !IsJSReceiverMap(*map.object())) {
     return Invalid();

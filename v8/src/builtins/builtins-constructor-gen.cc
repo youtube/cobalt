@@ -245,7 +245,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   // The calculation of |function_map_index| must be in sync with
   // SharedFunctionInfo::function_map_index().
   TNode<Uint32T> flags = LoadObjectField<Uint32T>(
-      shared_function_info, SharedFunctionInfo::kFlagsOffset);
+      shared_function_info, offsetof(SharedFunctionInfo, flags_));
   const TNode<IntPtrT> function_map_index = Signed(IntPtrAdd(
       DecodeWordFromWord32<SharedFunctionInfo::FunctionMapIndexBits>(flags),
       IntPtrConstant(Context::FIRST_FUNCTION_MAP_INDEX)));
@@ -271,7 +271,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   // Initialize the rest of the function.
   StoreObjectFieldRoot(result, offsetof(JSObject, properties_or_hash_),
                        RootIndex::kEmptyFixedArray);
-  StoreObjectFieldRoot(result, JSObject::kElementsOffset,
+  StoreObjectFieldRoot(result, offsetof(JSObject, elements_),
                        RootIndex::kEmptyFixedArray);
   {
     // Set function prototype if necessary.
@@ -279,25 +279,27 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
     Branch(IsJSFunctionWithPrototypeMap(function_map), &init_prototype, &done);
 
     BIND(&init_prototype);
-    StoreObjectFieldRoot(result,
-                         JSFunctionWithPrototype::kPrototypeOrInitialMapOffset,
-                         RootIndex::kTheHoleValue);
+    StoreObjectFieldRoot(
+        result, offsetof(JSFunctionWithPrototype, prototype_or_initial_map_),
+        RootIndex::kTheHoleValue);
     Goto(&done);
     BIND(&done);
   }
 
   static_assert(JSFunctionWithoutPrototype::kMinSize == 7 * kTaggedSize);
-  StoreObjectFieldNoWriteBarrier(result, JSFunction::kFeedbackCellOffset,
+  StoreObjectFieldNoWriteBarrier(result, offsetof(JSFunction, feedback_cell_),
                                  feedback_cell);
-  StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
+  StoreObjectFieldNoWriteBarrier(result,
+                                 offsetof(JSFunction, shared_function_info_),
                                  shared_function_info);
-  StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset, context);
+  StoreObjectFieldNoWriteBarrier(result, offsetof(JSFunction, context_),
+                                 context);
   TNode<JSDispatchHandleT> dispatch_handle = LoadObjectField<JSDispatchHandleT>(
       feedback_cell, offsetof(FeedbackCell, dispatch_handle_));
   CSA_DCHECK(this,
              Word32NotEqual(dispatch_handle,
                             Int32Constant(kNullJSDispatchHandle.value())));
-  StoreObjectFieldNoWriteBarrier(result, JSFunction::kDispatchHandleOffset,
+  StoreObjectFieldNoWriteBarrier(result, offsetof(JSFunction, dispatch_handle_),
                                  dispatch_handle);
   Return(result);
 }
@@ -352,7 +354,8 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
   // Fall back to runtime if the target differs from the new target's
   // initial map constructor.
   TNode<Object> new_target_constructor = LoadObjectField(
-      initial_map, Map::kConstructorOrBackPointerOrNativeContextOffset);
+      initial_map,
+      offsetof(Map, constructor_or_back_pointer_or_native_context_));
   GotoIf(TaggedNotEqual(target, new_target_constructor), call_runtime);
 
   TVARIABLE(HeapObject, properties);
@@ -404,7 +407,7 @@ TNode<Context> ConstructorBuiltinsAssembler::FastNewFunctionContext(
   TNode<IntPtrT> min_context_slots = IntPtrConstant(Context::MIN_CONTEXT_SLOTS);
   // TODO(ishell): for now, length also includes MIN_CONTEXT_SLOTS.
   TNode<IntPtrT> length = IntPtrAdd(slots_intptr, min_context_slots);
-  StoreObjectFieldNoWriteBarrier(function_context, Context::kLengthOffset,
+  StoreObjectFieldNoWriteBarrier(function_context, offsetof(Context, length_),
                                  SmiTag(length));
   StoreObjectFieldNoWriteBarrier(function_context, Context::kScopeInfoOffset,
                                  scope_info);
@@ -478,11 +481,11 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(
       CAST(LoadFeedbackVectorSlot(feedback_vector, slot));
   GotoIfNot(HasBoilerplate(literal_site), &call_runtime);
   {
-    static_assert(JSRegExp::kDataOffset == JSObject::kHeaderSize);
-    static_assert(JSRegExp::kFlagsOffset ==
-                  JSRegExp::kDataOffset + kTaggedSize);
+    static_assert(offsetof(JSRegExp, data_) == JSObject::kHeaderSize);
+    static_assert(offsetof(JSRegExp, flags_) ==
+                  offsetof(JSRegExp, data_) + kTaggedSize);
     static_assert(JSRegExp::kHeaderSize ==
-                  JSRegExp::kFlagsOffset + kTaggedSize);
+                  offsetof(JSRegExp, flags_) + kTaggedSize);
     static_assert(JSRegExp::kLastIndexOffset == JSRegExp::kHeaderSize);
     DCHECK_EQ(JSRegExp::Size(), JSRegExp::kLastIndexOffset + kTaggedSize);
 
@@ -499,15 +502,15 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(
     StoreObjectFieldRoot(new_object, offsetof(JSReceiver, properties_or_hash_),
                          RootIndex::kEmptyFixedArray);
     // Initialize JSObject fields.
-    StoreObjectFieldRoot(new_object, JSObject::kElementsOffset,
+    StoreObjectFieldRoot(new_object, offsetof(JSObject, elements_),
                          RootIndex::kEmptyFixedArray);
     // Initialize JSRegExp fields.
     StoreTrustedPointerField(
-        new_object, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag,
+        new_object, offsetof(JSRegExp, data_), kRegExpDataIndirectPointerTag,
         LoadTrustedPointerFromObject<kRegExpDataIndirectPointerTag>(
             boilerplate, offsetof(RegExpBoilerplateDescription, data_)));
     StoreObjectFieldNoWriteBarrier(
-        new_object, JSRegExp::kFlagsOffset,
+        new_object, offsetof(JSRegExp, flags_),
         LoadObjectField(boilerplate,
                         offsetof(RegExpBoilerplateDescription, flags_)));
     StoreObjectFieldNoWriteBarrier(
@@ -697,7 +700,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
     StoreMapNoWriteBarrier(copy, boilerplate_map);
     StoreObjectFieldNoWriteBarrier(
         copy, offsetof(JSObject, properties_or_hash_), var_properties.value());
-    StoreObjectFieldNoWriteBarrier(copy, JSObject::kElementsOffset,
+    StoreObjectFieldNoWriteBarrier(copy, offsetof(JSObject, elements_),
                                    var_elements.value());
   }
 

@@ -129,6 +129,8 @@ BASE_FEATURE(kAllowLCDTextWithFilter, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPreventDuplicateImageDecodes, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kResolveLargeImageDecodes, base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kInitImageDecodeLastUseTime, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enabled on Android, after a field trial showed improvements.
@@ -246,6 +248,9 @@ BASE_FEATURE_PARAM(double,
                    "fling_continuity_threshold_pixels",
                    0.2);
 
+BASE_FEATURE(kUseScrollIdToCalculateScrollJankV4FrameStages,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kManualBeginFrame, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kUnlockDuringGpuImageOperations, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -263,6 +268,9 @@ BASE_FEATURE(kBrowserControlsScrollSnapAnimation,
 
 BASE_FEATURE(kSelectionEdgeVisibilityUsesFullEdge,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kResourcePoolPreferExactSizeReuse,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_COBALT)
 BASE_FEATURE(kCobaltTileMemoryMetrics,

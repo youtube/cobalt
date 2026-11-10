@@ -31,11 +31,16 @@ use once_cell::sync::Lazy;
 
 use crate::{
     Methods,
+    VerifyCertificateMethods,
     abort_on_panic,
     context::{
         DtlsMode,
         QuicMode,
         TlsMode, //
+    },
+    credentials::{
+        VerifyCertificate,
+        VerifyCertificateTask, //
     },
     errors::TlsRetryReason,
     io::RustBioHandle,
@@ -46,6 +51,8 @@ use crate::{
 pub(super) struct RustConnectionMethods<Mode> {
     /// A handle to a `BIO` managed by this crate.
     pub bio: Option<RustBioHandle>,
+    /// Certificate verifier handle.
+    pub verify_certificate_methods: Option<Box<dyn VerifyCertificate>>,
     /// A mailbox to propagate IO retrying reasons.
     pub pending_reason: Option<TlsRetryReason>,
     _p: PhantomData<fn() -> Mode>,
@@ -55,6 +62,7 @@ impl<M> RustConnectionMethods<M> {
     pub fn new() -> Self {
         Self {
             bio: None,
+            verify_certificate_methods: None,
             pending_reason: None,
             _p: PhantomData,
         }
@@ -91,6 +99,12 @@ impl<Mode: HasTlsConnectionMethod> Methods for RustConnectionMethods<Mode> {
     }
 }
 
+impl<Mode: HasTlsConnectionMethod> VerifyCertificateMethods for RustConnectionMethods<Mode> {
+    fn verify_certificate_methods(&self) -> Option<&dyn VerifyCertificate> {
+        self.verify_certificate_methods.as_deref()
+    }
+}
+
 // NOTE(@xfding): the reason that we are not using the `register_ex_data` macro is because
 // declarative macros today cannot handle generics well enough.
 fn register_tls_connection_vtable<Mode: HasTlsConnectionMethod>() -> c_int {
@@ -114,7 +128,6 @@ fn register_tls_connection_vtable<Mode: HasTlsConnectionMethod>() -> c_int {
 /// Safety:
 /// - `ssl` must be a `SSL` object constructed by [`crate::connection::TlsConnection`].
 /// - `ssl` must be exclusively owned.
-#[allow(unused)] // This will be used in the following patch to support async I/O.
 pub(crate) unsafe fn waker_data_from_ssl(ssl: NonNull<bssl_sys::SSL>) -> Option<Waker> {
     unsafe {
         // Safety: `ssl` outlives `'a` and is constructed by `TlsConnection`.
@@ -132,6 +145,18 @@ pub(super) unsafe fn waker_data_ref_from_ssl<'a>(
     unsafe {
         // Safety: `ssl` outlives `'a` and is constructed by `TlsConnection`.
         <ExDataRegistration as ExData<Option<Waker>>>::get_mut(ssl)
+    }
+}
+
+/// Safety:
+/// - `ssl` must be constructed from `TlsConnection` and outlived by `'a`.
+/// - `ssl` must be exclusively owned.
+pub(crate) unsafe fn verify_cert_task_from_ssl<'a>(
+    ssl: NonNull<bssl_sys::SSL>,
+) -> &'a mut Option<Box<dyn VerifyCertificateTask>> {
+    unsafe {
+        // Safety: `ssl` outlives `'a` and is constructed by `TlsConnection`.
+        <ExDataRegistration as ExData<Option<Box<dyn VerifyCertificateTask>>>>::get_mut(ssl)
     }
 }
 
@@ -239,6 +264,7 @@ macro_rules! register_ex_data {
 }
 
 register_ex_data!(Option<Waker>);
+register_ex_data!(Option<Box<dyn VerifyCertificateTask>>);
 
 pub(crate) trait HasTlsConnectionMethod {
     fn registration() -> c_int;

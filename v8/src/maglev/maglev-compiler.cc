@@ -75,9 +75,15 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
   compiler::CurrentHeapBrokerScope current_broker(compilation_info->broker());
   Graph* graph = Graph::New(compilation_info);
 
-  if (V8_UNLIKELY(ALWAYS_MAGLEV_GRAPH_LABELLER_BOOL ||
-                  compilation_info->is_tracing_enabled() ||
-                  compilation_info->collect_source_positions())) {
+  bool enable_labeller = ALWAYS_MAGLEV_GRAPH_LABELLER_BOOL ||
+                         compilation_info->is_tracing_enabled() ||
+                         compilation_info->collect_source_positions() ||
+                         v8_flags.code_comments;
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  enable_labeller = enable_labeller || v8_flags.maglev_gdbjit;
+#endif
+
+  if (V8_UNLIKELY(enable_labeller)) {
     compilation_info->set_graph_labeller(new MaglevGraphLabeller());
     graph_labeller_scope.emplace(compilation_info->graph_labeller());
   }
@@ -203,10 +209,12 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                                                  &regalloc_info);
       PrintGraph(graph, v8_flags.print_maglev_graph,
                  "After register allocation", /* has_regalloc_data */ true);
+#ifdef ENABLE_GDB_JIT_INTERFACE
       if (v8_flags.gdbjit_full && v8_flags.maglev_gdbjit) {
         UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
         PrintGraphToFile(graph, true);
       }
+#endif
     }
   }
 

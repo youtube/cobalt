@@ -1420,10 +1420,10 @@ Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
     a.Store(AccessBuilder::ForMap(), map);
     // Initialize FixedArray fields.
 #if TAGGED_SIZE_8_BYTES && !V8_TARGET_BIG_ENDIAN
-    a.Store(AccessBuilder::ForFixedArrayLength(),
+    a.Store(AccessBuilder::ForFixedArrayLengthLegacy(),
             jsgraph()->Uint64Constant(length));
 #else
-    a.Store(AccessBuilder::ForFixedArrayLength(),
+    a.Store(AccessBuilder::ForFixedArrayLengthLegacy(),
             jsgraph()->Uint32Constant(length));
 #endif  // TAGGED_SIZE_8_BYTES && !V8_TARGET_BIG_ENDIAN
     // Initialize HashTable fields.
@@ -1758,8 +1758,8 @@ std::optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
   MapRef boilerplate_map = boilerplate.map(broker());
   // Protect against concurrent changes to the boilerplate object by checking
   // for an identical value at the end of the compilation.
-  dependencies()->DependOnObjectSlotValue(boilerplate, HeapObject::kMapOffset,
-                                          boilerplate_map);
+  dependencies()->DependOnObjectSlotValue(
+      boilerplate, offsetof(HeapObject, map_), boilerplate_map);
   {
     OptionalMapRef current_boilerplate_map =
         boilerplate.map_direct_read(broker());
@@ -1927,15 +1927,15 @@ std::optional<Node*> JSCreateLowering::TryAllocateFastLiteralElements(
   // Protect against concurrent changes to the boilerplate object by checking
   // for an identical value at the end of the compilation.
   dependencies()->DependOnObjectSlotValue(
-      boilerplate, JSObject::kElementsOffset, boilerplate_elements);
+      boilerplate, offsetof(JSObject, elements_), boilerplate_elements);
 
   // Empty or copy-on-write elements just store a constant.
   const uint32_t elements_length = boilerplate_elements.length();
   MapRef elements_map = boilerplate_elements.map(broker());
   // Protect against concurrent changes to the boilerplate object by checking
   // for an identical value at the end of the compilation.
-  dependencies()->DependOnObjectSlotValue(boilerplate_elements,
-                                          HeapObject::kMapOffset, elements_map);
+  dependencies()->DependOnObjectSlotValue(
+      boilerplate_elements, offsetof(HeapObject, map_), elements_map);
   if (boilerplate_elements.length() == 0 ||
       elements_map.IsFixedCowArrayMap(broker())) {
     if (allocation == AllocationType::kOld &&
@@ -1997,9 +1997,11 @@ Node* JSCreateLowering::AllocateLiteralRegExp(
       native_context().regexp_function(broker()).initial_map(broker());
 
   // Sanity check that JSRegExp object layout hasn't changed.
-  static_assert(JSRegExp::kDataOffset == JSObject::kHeaderSize);
-  static_assert(JSRegExp::kFlagsOffset == JSRegExp::kDataOffset + kTaggedSize);
-  static_assert(JSRegExp::kHeaderSize == JSRegExp::kFlagsOffset + kTaggedSize);
+  static_assert(offsetof(JSRegExp, data_) == JSObject::kHeaderSize);
+  static_assert(offsetof(JSRegExp, flags_) ==
+                offsetof(JSRegExp, data_) + kTaggedSize);
+  static_assert(JSRegExp::kHeaderSize ==
+                offsetof(JSRegExp, flags_) + kTaggedSize);
   static_assert(JSRegExp::kLastIndexOffset == JSRegExp::kHeaderSize);
   DCHECK_EQ(JSRegExp::Size(), JSRegExp::kLastIndexOffset + kTaggedSize);
 

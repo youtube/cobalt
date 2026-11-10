@@ -7,7 +7,21 @@ import {html} from '//resources/lit/v3_0/lit.rollup.js';
 import type {FeatureShowcaseAppElement} from './app.js';
 
 export function getHtml(this: FeatureShowcaseAppElement) {
-  return html`
-<h1>Feature Showcase</h1>
-<div id="example-div">${this.message_}</div>`;
+  // clang-format off
+  return html`<!--_html_template_start_-->
+<cr-view-manager id="viewManager">
+  ${this.hasStep_('example') ? html`
+      <feature-showcase-example-step id="example" slot="view"
+          @step-completed="${this.onStepCompleted_}">
+      </feature-showcase-example-step>
+  ` : ''}
+
+  ${this.hasStep_('default-browser') ? html`
+      <feature-showcase-default-browser-step id="default-browser" slot="view"
+          @step-completed="${this.onStepCompleted_}">
+      </feature-showcase-default-browser-step>
+  ` : ''}
+</cr-view-manager>
+<!--_html_template_end_-->`;
+  // clang-format on
 }

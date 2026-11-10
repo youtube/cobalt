@@ -245,6 +245,11 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    base::Milliseconds(3000));
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
+#if BUILDFLAG(IS_CHROMEOS)
+BASE_FEATURE(kChromeOsUseConsentLevelSigninForNewUsers,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 BASE_FEATURE(kCrossDeviceSignin, base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<std::string> kCrossDeviceSigninUrl{&kCrossDeviceSignin,
@@ -378,7 +383,7 @@ BASE_FEATURE(kEnablePreferencesAccountStorage,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kEnableSeamlessSignin, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kEnableSeamlessSignin, base::FEATURE_ENABLED_BY_DEFAULT);
 // Determines the sign-in promo UI that is shown when kEnableSeamlessSignin is
 // enabled.
 constexpr base::FeatureParam<SeamlessSigninPromoType>::Option
@@ -509,7 +514,6 @@ BASE_FEATURE(kGlicEligibilitySeparateAccountCapability,
 BASE_FEATURE(kHandleMdmErrorsForDasherAccounts,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-
 #if BUILDFLAG(IS_IOS)
 BASE_FEATURE(kIgnoreChromeManageAccountsInSubframes,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -547,26 +551,6 @@ BASE_FEATURE(kProfileCreationDeclineSigninCTAExperiment,
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kProfileDiscOnAllPages, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-BASE_FEATURE(kProfilePickerTextVariations, base::FEATURE_DISABLED_BY_DEFAULT);
-constexpr base::FeatureParam<ProfilePickerVariation>::Option
-    kProfilePickerVariations[] = {
-        {ProfilePickerVariation::kKeepWorkAndLifeSeparate,
-         "keep-work-and-life-separate"},
-        {ProfilePickerVariation::kGotAnotherGoogleAccount,
-         "got-another-google-account"},
-        {ProfilePickerVariation::kKeepTasksSeparate, "keep-tasks-separate"},
-        {ProfilePickerVariation::kSharingAComputer, "sharing-a-computer"},
-        {ProfilePickerVariation::kKeepEverythingInChrome,
-         "keep-everything-in-chrome"},
-};
-constexpr base::FeatureParam<ProfilePickerVariation>
-    kProfilePickerTextVariation{
-        &kProfilePickerTextVariations, "profile-picker-variation",
-        ProfilePickerVariation::kKeepWorkAndLifeSeparate,
-        &kProfilePickerVariations};
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 BASE_FEATURE(kProfilesReordering, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -690,13 +674,7 @@ BASE_FEATURE(kSyncEnableBookmarksInTransportMode,
              base::FEATURE_ENABLED_BY_DEFAULT
 #endif
 );
-BASE_FEATURE(kBookmarksMigrateUiChanges,
-#if BUILDFLAG(IS_CHROMEOS)
-             base::FEATURE_DISABLED_BY_DEFAULT
-#else
-             base::FEATURE_ENABLED_BY_DEFAULT
-#endif
-);
+BASE_FEATURE(kBookmarksMigrateUiChanges, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kUsePrimaryAndTonalButtonsForPromos,
              base::FEATURE_ENABLED_BY_DEFAULT);

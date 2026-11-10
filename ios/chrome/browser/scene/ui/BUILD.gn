@@ -27,8 +27,10 @@ source_set("ui") {
   deps = [
     ":constants",
     "//base",
+    "//components/strings",
     "//ios/chrome/app/strings:ios_strings",
     "//ios/chrome/browser/app_bar/ui",
+    "//ios/chrome/browser/app_bar/ui:constants",
     "//ios/chrome/browser/assistant/ui",
     "//ios/chrome/browser/bubble/ui_bundled",
     "//ios/chrome/browser/bubble/ui_bundled:bubble_view",

@@ -349,6 +349,13 @@ class AutocompleteMediator
     }
 
     /**
+     * @return Whether the mediator has an AutocompleteController.
+     */
+    public boolean hasAutocompleteController() {
+        return mAutocomplete != null;
+    }
+
+    /**
      * Retrieve the omnibox suggestion at the specified index. The index represents the ordering in
      * the underlying model. The index does not represent visibility due to the current scroll
      * position of the list.
@@ -547,6 +554,8 @@ class AutocompleteMediator
             mAnimationDriver.onOmniboxSessionStateChange(false);
         }
 
+        propagateOmniboxSessionStateChange(false);
+
         // Propagate the information about omnibox session state change to all the processors first.
         // Processors need this for accounting purposes.
         // The change information should be passed before Processors receive first
@@ -678,9 +687,12 @@ class AutocompleteMediator
      *     org.chromium.chrome.browser.omnibox.UrlFocusChangeListener#onUrlAnimationFinished(boolean)
      */
     void onUrlAnimationFinished() {
+        if (!isInInputSession()) {
+            return;
+        }
         // mAnimationDriver has the responsibility of calling propagateOmniboxSessionStateChange if
         // it's present and currently active.
-        if (isInInputSession() && mAnimationDriver.isAnimationEnabled()) {
+        if (mAnimationDriver.isAnimationEnabled()) {
             return;
         }
         propagateOmniboxSessionStateChange(true);
@@ -1211,7 +1223,10 @@ class AutocompleteMediator
 
             if (templateUrl == null) return false;
             SiteSearchData data =
-                    new SiteSearchData(templateUrl.getKeyword(), templateUrl.getShortName());
+                    new SiteSearchData(
+                            templateUrl.getKeyword(),
+                            templateUrl.getShortName(),
+                            /* enteredViaSpace= */ true);
             onKeywordModeEntered(data);
             return true;
         }
@@ -1232,12 +1247,12 @@ class AutocompleteMediator
         // false).
         // Otherwise, it might be the chip losing focus because the user started typing.
         if (mIgnoreOmniboxItemSelection && siteSearchData == null) return;
-        mIgnoreOmniboxItemSelection = true;
 
         // Prevent clearing the text from triggering a new autocomplete request.
         mAutocompleteInput.setAutocompleteState(AutocompleteState.STANDBY);
 
         if (siteSearchData != null) {
+            mIgnoreOmniboxItemSelection = true;
             // In keyword mode, the query string starts fresh/empty. The keyword is presented as a
             // UI chip outside the URL bar text input field.
             // Note: The order here is critical. The internal state and UI text must be cleared
@@ -1430,10 +1445,8 @@ class AutocompleteMediator
 
             if (OmniboxFeatures.sShowModelPicker.getValue()) {
                 @AutocompleteRequestType int requestType = mAutocompleteInput.getRequestType();
-                boolean isVerbatimMatch =
-                        type != OmniboxSuggestionType.SEARCH_WHAT_YOU_TYPED
-                                && type != OmniboxSuggestionType.URL_WHAT_YOU_TYPED;
-                if (isVerbatimMatch || ToolModeUtils.isConventionalRequest(requestType)) {
+                if (!suggestion.isWhatYouTyped()
+                        || ToolModeUtils.isConventionalRequest(requestType)) {
                     onUrlReady.onResult(url);
                 } else {
                     assert ToolModeUtils.isAimRequest(requestType);

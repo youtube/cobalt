@@ -13,7 +13,7 @@
 
 #include "src/common/assert-scope.h"
 #include "src/handles/persistent-handles.h"
-#include "src/heap/heap.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/main-allocator-inl.h"
 #include "src/heap/parked-scope.h"

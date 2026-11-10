@@ -108,21 +108,13 @@ void ExternalBeginFrameSourceMac::CreateDelayBasedTimeSourceIfNeeded() {
   }
 }
 
-// UpdateVSyncDisplay() is called only when using ExternalDisplayLinkMac which
-// is connected to a CADisplayLink created in the browser and there is a display
-// added/Removed or CADisplayLink error. For display additions and removals, the
-// sequence of calls between SetVSyncDisplayID() and
-// VSyncProviderMac::AddSupportedDisplayLinkId() is uncertain. Therefore,
-// UpdateVSyncDisplay() is called to guarantee that ExternalBeginFrameSourceMac
-// receives the displayLink for the current display.
-void ExternalBeginFrameSourceMac::UpdateVSyncDisplay() {
-  // Check whether the current display is still valid.
-  bool is_allowed = ui::DisplayLinkMac::IsDisplayLinkAllowed(display_id_);
-  if (is_allowed && display_link_mac_) {
-    return;
+// Forces an update of the DisplayLinkMac for the specified display. This is
+// called when the browser-side CADisplayLink state changes (e.g., becomes
+// valid or invalid) or when a display is added or removed.
+void ExternalBeginFrameSourceMac::UpdateVSyncDisplay(int64_t display_id) {
+  if (display_id_ == display_id) {
+    SetVSyncDisplayID(display_id_, /*force_update=*/true);
   }
-
-  SetVSyncDisplayID(display_id_, /*force_update=*/true);
 }
 
 void ExternalBeginFrameSourceMac::SetVSyncDisplayID(int64_t display_id,
@@ -138,9 +130,10 @@ void ExternalBeginFrameSourceMac::SetVSyncDisplayID(int64_t display_id,
   output_surface_->SetVSyncDisplayID(display_id, force_update);
 
   // Remove the current callback from display_link_mac_ or from the timer.
-  if (needs_begin_frames_) {
-    StopBeginFrame();
+  if (needs_begin_frames_ || vsync_callback_mac_) {
+    StopBeginFrame(/*force_stop=*/true);
   }
+  vsync_callback_keep_alive_counter_ = 0;
 
   // Remove the old DisplayLinkMac.
   display_link_mac_.reset();
@@ -219,7 +212,13 @@ void ExternalBeginFrameSourceMac::RefreshRateChangedOnSameDisplay() {
 }
 void ExternalBeginFrameSourceMac::StartBeginFrame() {
   if (display_link_mac_) {
-    DCHECK(!vsync_callback_mac_);
+    if (vsync_callback_mac_) {
+      // The callback is already registered and running (likely in keep-alive
+      // mode). Reset the counter and return.
+      vsync_callback_keep_alive_counter_ = 0;
+      return;
+    }
+    vsync_callback_keep_alive_counter_ = 0;
     // Request the callback to be called on the register thread.
     vsync_callback_mac_ = display_link_mac_->RegisterCallback(
         base::BindRepeating(&ExternalBeginFrameSourceMac::OnDisplayLinkCallback,
@@ -241,12 +240,17 @@ void ExternalBeginFrameSourceMac::StartBeginFrame() {
   time_source_->SetActive(/*active=*/true);
 }
 
-void ExternalBeginFrameSourceMac::StopBeginFrame() {
+void ExternalBeginFrameSourceMac::StopBeginFrame(bool force_stop) {
   if (display_link_mac_) {
     DCHECK(vsync_callback_mac_);
-    // Remove and unregister VSyncCallbackMac.
-    vsync_callback_mac_.reset();
     vsyncs_to_skip_ = 0;
+    // If not force_update, wait until the keep-alive counter has reached
+    // `kMaxKeepAliveCount` in `OnDisplayLinkCallback()`.
+    if (force_stop) {
+      // Remove and unregister VSyncCallbackMac immediately after display
+      // switch.
+      vsync_callback_mac_.reset();
+    }
     return;
   }
 
@@ -264,21 +268,26 @@ void ExternalBeginFrameSourceMac::OnNeedsBeginFrames(bool needs_begin_frames) {
   needs_begin_frames_ = needs_begin_frames;
   just_started_begin_frame_ = true;
 
-  // TODO: Try to prevent constant switching between callback register and
-  // unregister.
   if (needs_begin_frames_) {
     StartBeginFrame();
   } else {
-    StopBeginFrame();
+    StopBeginFrame(/*force_stop=*/false);
   }
 }
 
 // Called on the Viz thread.
 void ExternalBeginFrameSourceMac::OnDisplayLinkCallback(
     ui::VSyncParamsMac params) {
+  // If we have reached `kMaxKeepAliveCount` consecutive callbacks without
+  // needing a begin frame, stop the display link.
   if (!needs_begin_frames_) {
+    vsync_callback_keep_alive_counter_++;
+    if (vsync_callback_keep_alive_counter_ >= kMaxKeepAliveCount) {
+      vsync_callback_mac_.reset();
+    }
     return;
   }
+  vsync_callback_keep_alive_counter_ = 0;
 
   if (vsyncs_to_skip_ > 0) {
     TRACE_EVENT_INSTANT(

@@ -63,6 +63,7 @@ BIGNUM *BN_bin2bn(const uint8_t *in, size_t len, BIGNUM *ret) {
 
   if (len == 0) {
     ret->width = 0;
+    ret->neg = 0;
     return ret;
   }
 
@@ -105,6 +106,7 @@ BIGNUM *BN_lebin2bn(const uint8_t *in, size_t len, BIGNUM *ret) {
     return nullptr;
   }
   ret->width = (int)num_words;
+  ret->neg = 0;
 
   // Make sure the top bytes will be zeroed.
   ret->d[num_words - 1] = 0;
