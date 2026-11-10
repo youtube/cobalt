@@ -246,6 +246,7 @@ BASE_FEATURE(kCobaltCodeCacheOptimization,
              "CobaltCodeCacheOptimization",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+<<<<<<< HEAD
 // Finch flattens params across features into one namespace, so param names are
 // prefixed with the feature name (go/cobalt-finch-setup#naming-style-guide).
 BASE_FEATURE_PARAM(int,
@@ -259,6 +260,17 @@ BASE_FEATURE_PARAM(bool,
                    &kCobaltCodeCacheOptimization,
                    "CobaltCodeCacheOptimization_bypass_heat_check",
                    true);
+=======
+BASE_FEATURE(kCobaltHttpCacheQuota,
+             "CobaltHttpCacheQuota",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltMaxHttpCacheSizeBytes,
+                   &kCobaltHttpCacheQuota,
+                   "cobalt_http_cache_size_bytes",
+                   12582912);
+>>>>>>> 43c685c032c ([Cobalt] Add kCobaltHttpCacheQuota Finch knob for HTTP disk cache capacity (#13914))
 
 }  // namespace features
 }  // namespace cobalt
