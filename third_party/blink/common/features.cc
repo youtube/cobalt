@@ -494,6 +494,14 @@ BASE_FEATURE_PARAM(int,
                    &kCobaltV8MemorySaverOnMemoryPressure,
                    "hold_seconds",
                    300);
+// When true, only CRITICAL memory pressure turns on memory saver mode. By
+// default MODERATE does too, since memory saver mode is a preventive measure
+// that helps most before pressure becomes critical.
+BASE_FEATURE_PARAM(bool,
+                   kCobaltV8MemorySaverOnCriticalOnly,
+                   &kCobaltV8MemorySaverOnMemoryPressure,
+                   "critical_only",
+                   false);
 
 // Enables full memory cache eviction on critical memory pressure in Cobalt.
 BASE_FEATURE(kEvictMemoryCacheOnCriticalMemoryPressure,

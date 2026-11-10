@@ -80,6 +80,10 @@ void MemorySaverController::OnMemoryPressure(
   if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {
     return;
   }
+  if (features::kCobaltV8MemorySaverOnCriticalOnly.Get() &&
+      level != base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL) {
+    return;
+  }
   memory_pressure_active_ = true;
   UpdateMemorySaverMode();
   memory_pressure_hold_timer_.Start(
