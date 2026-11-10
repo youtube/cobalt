@@ -238,5 +238,15 @@ BASE_FEATURE(kCobaltFlushHttpServerPropertiesOnPause,
              "CobaltFlushHttpServerPropertiesOnPause",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCobaltHttpCacheQuota,
+             "CobaltHttpCacheQuota",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltMaxHttpCacheSizeBytes,
+                   &kCobaltHttpCacheQuota,
+                   "cobalt_http_cache_size_bytes",
+                   12582912);
+
 }  // namespace features
 }  // namespace cobalt

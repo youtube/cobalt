@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/cobalt_content_browser_client.h"
 
+#include <algorithm>
 #include <cstring>
 #include <optional>
 #include <string>
@@ -26,11 +27,13 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
@@ -45,6 +48,7 @@
 #include "cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.h"
 #include "cobalt/browser/h5vcc_platform_service/platform_service_impl.h"
 #include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/shell_test_support.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "components/services/storage/public/cpp/constants.h"
@@ -185,6 +189,178 @@ TEST_F(CobaltContentBrowserClientTest, ComputeDefaultHttpCacheSize) {
   // 3. Zero / unconfigured budget:
   EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(0), 0u);
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+TEST_F(CobaltContentBrowserClientTest,
+       ConfigureHttpCacheMaxSizeStarboardQuota) {
+  constexpr uint32_t kBudget24MiB = 24u * 1024 * 1024;
+  constexpr int kExpectedDefault11MiB = 11 * 1024 * 1024;  // 11534336
+
+  // 1. Budgeted Starboard platform (24 MiB -> 11 MiB default):
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndDisableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kBudget24MiB, params.get());
+    EXPECT_EQ(params->http_cache_max_size, kExpectedDefault11MiB);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kBudget24MiB, params.get());
+    EXPECT_EQ(params->http_cache_max_size, kExpectedDefault11MiB);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltHttpCacheQuota,
+        {{"cobalt_http_cache_size_bytes", "8388608"}});
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kBudget24MiB, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 8388608);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltHttpCacheQuota,
+        {{"cobalt_http_cache_size_bytes", "0"}});
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kBudget24MiB, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 1048576);
+  }
+
+  // 2. Unbudgeted / auto-sized Starboard platform (budget == 0):
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndDisableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, /*total_dir_budget_bytes=*/0, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 0);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, /*total_dir_budget_bytes=*/0, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 12582912);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltHttpCacheQuota,
+        {{"cobalt_http_cache_size_bytes", "2147483647"}});
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, /*total_dir_budget_bytes=*/0, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 1073741824);
+  }
+
+  // 3. In-memory profile and explicit --max-http-cache-size CLI override:
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/true, kBudget24MiB, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 0);
+  }
+  {
+    base::test::ScopedCommandLine scoped_command_line;
+    scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
+        switches::kMaxHttpCacheSize, "16777216");
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kBudget24MiB, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 16777216);
+  }
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_ANDROID)
+TEST_F(CobaltContentBrowserClientTest, ConfigureHttpCacheMaxSizeAndroidQuota) {
+  // 1. Disabled by default: Android baseline is 26214400 bytes (25 MiB).
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndDisableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kSbMaxSystemPathCacheDirectorySize, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 26214400);
+  }
+
+  // 2. Enabling kCobaltHttpCacheQuota configures 12582912 bytes (12 MiB).
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kSbMaxSystemPathCacheDirectorySize, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 12582912);
+  }
+
+  // 3. Custom cobalt_http_cache_size_bytes & [1048576, 1073741824] clamping.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltHttpCacheQuota,
+        {{"cobalt_http_cache_size_bytes", "10485760"}});
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kSbMaxSystemPathCacheDirectorySize, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 10485760);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltHttpCacheQuota,
+        {{"cobalt_http_cache_size_bytes", "0"}});
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kSbMaxSystemPathCacheDirectorySize, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 1048576);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltHttpCacheQuota,
+        {{"cobalt_http_cache_size_bytes", "2147483647"}});
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kSbMaxSystemPathCacheDirectorySize, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 1073741824);
+  }
+
+  // 4. In-memory profile and explicit --max-http-cache-size CLI override.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/true, kSbMaxSystemPathCacheDirectorySize, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 0);
+  }
+  {
+    base::test::ScopedCommandLine scoped_command_line;
+    scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
+        switches::kMaxHttpCacheSize, "16777216");
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kSbMaxSystemPathCacheDirectorySize, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 16777216);
+  }
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID)
 TEST_F(CobaltContentBrowserClientTest, ShaderDiskCacheDirectoriesUseDirCache) {

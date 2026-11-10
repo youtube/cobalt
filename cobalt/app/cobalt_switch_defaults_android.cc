@@ -73,8 +73,6 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        ::switches::autoplay::kNoUserGestureRequiredPolicy},
       // Set default raster threads to 2 for smoother performance.
       {::switches::kNumRasterThreads, "2"},
-      // Limit the HTTP disk cache to 25 MiB (25 * 1024 * 1024 bytes).
-      {switches::kMaxHttpCacheSize, "26214400"},
       {blink::switches::kJavaScriptFlags,
        // Disable decommitting pooled pages to prevent virtual memory
        // fragmentation.
