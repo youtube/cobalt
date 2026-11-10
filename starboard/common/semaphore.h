@@ -16,6 +16,7 @@
 #define STARBOARD_COMMON_SEMAPHORE_H_
 
 #include <condition_variable>
+#include <cstdint>
 #include <mutex>
 
 namespace starboard {
