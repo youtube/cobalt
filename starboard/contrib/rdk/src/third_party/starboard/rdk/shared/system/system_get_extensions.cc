@@ -33,7 +33,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/configuration.h"
-#include "starboard/extension/crash_handler.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/extension/memory_mapped_file.h"
@@ -46,14 +45,15 @@
 #include "third_party/starboard/rdk/shared/platform_service.h"
 #if BUILDFLAG(IS_STARBOARD)
 #include "starboard/elf_loader/evergreen_config.h"
-#include "starboard/shared/starboard/crash_handler.h"
 #include "starboard/shared/starboard/loader_app_metrics.h"
 #endif
 
 #if BUILDFLAG(USE_EVERGREEN)
+#include "starboard/extension/crash_handler.h"
 #include "starboard/extension/native_stability.h"
+#include "starboard/shared/starboard/crash_handler.h"
 #include "starboard/shared/starboard/native_stability.h"
-#endif
+#endif  // BUILDFLAG(USE_EVERGREEN)
 
 const void* SbSystemGetExtension(const char* name) {
 #if BUILDFLAG(IS_STARBOARD)
@@ -66,18 +66,18 @@ const void* SbSystemGetExtension(const char* name) {
       return ext;
     }
   }
-  if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
-    return starboard::GetCrashHandlerApi();
-  }
   if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
     return starboard::GetLoaderAppMetricsApi();
   }
-#endif
+#endif  // BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(USE_EVERGREEN)
+  if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
+    return starboard::GetCrashHandlerApi();
+  }
   if (strcmp(name, kStarboardExtensionNativeStabilityName) == 0) {
     return starboard::GetNativeStabilityApi();
   }
-#endif
+#endif  // BUILDFLAG(USE_EVERGREEN)
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
     return starboard::GetConfigurationApi();
   } else if (strcmp(name, kCobaltExtensionGraphicsName) == 0) {
