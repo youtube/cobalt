@@ -107,15 +107,19 @@ _AUTH_CACHE: Dict[str, Any] = {}
 
 
 def _gitiles_authenticator(host: str) -> Any:
-  """The `git credential-luci login` authenticator for `host`, if it applies.
+  """Returns the authenticator to use for requests to the Gitiles `host`.
 
-  gerrit_util uses that login only for a host where the user has an account,
-  which it checks with `https://<host>/accounts/self`. Gitiles hosts have no
-  accounts API (404), so off corp machines (no SSO) every Gitiles request
-  went out anonymously and was redirected to a sign-in page. Check the
-  account on the matching Gerrit host instead; the token is valid on Gitiles
-  too. Returns None, so that gerrit_util chooses (SSO, GCE, LUCI context, the
-  CI cookie file), when that login does not apply.
+  Machines without SSO log in with `git credential-luci login`. gerrit_util
+  uses that login only on hosts where the user has an account, and finds out
+  by requesting `https://<host>/accounts/self`. Gitiles hosts do not have the
+  account API, so gerrit_util never used the login there and sent the
+  requests anonymously.
+
+  This function checks the account on the matching Gerrit host instead (for
+  example chromium-review.googlesource.com for chromium.googlesource.com).
+  The same token also works on Gitiles. If the user has no such login, it
+  returns None and gerrit_util picks the credentials as before (SSO, GCE,
+  LUCI context or the CI cookie file).
   """
   if host not in _AUTH_CACHE:
     authenticator = None
@@ -134,11 +138,8 @@ def _gitiles_authenticator(host: str) -> Any:
 def _gerrit_json(host: str, path: str) -> Any:
   """GETs JSON from a Gerrit or Gitiles `host` via `gerrit_util`.
 
-  Credentials are the `git credential-luci login` (see _gitiles_authenticator)
-  or whatever `gerrit_util` picks the same way `git cl` does (LUCI, GCE, the
-  `http.cookiefile` that `gob_auth` sets in CI, or SSO). It retries 429 and
-  5xx with backoff, and sends an anonymous request when no credentials apply.
-  Returns None if the request fails.
+  The credentials come from _gitiles_authenticator(). gerrit_util retries
+  429 and 5xx errors with backoff. Returns None if the request fails.
   """
   try:
     conn = gerrit_util.CreateHttpConn(
