@@ -28,6 +28,7 @@
 #include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_contents.h"
 #include "net/cookies/canonical_cookie.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace migrate_storage_record {
@@ -141,6 +142,11 @@ struct MigrationState : public base::RefCountedThreadSafe<MigrationState> {
   friend class base::RefCountedThreadSafe<MigrationState>;
   ~MigrationState() = default;
 };
+
+// Returns the C25 Starboard storage record name for |url|: base64url (with
+// padding) of the URL with username/password/query/ref cleared. Identical to
+// C25's GetApplicationKey(); NOT the same as starboard::GetAppKey().
+std::string GetApplicationKey(const GURL& url);
 
 class MigrationManager {
  public:

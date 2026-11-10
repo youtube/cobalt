@@ -158,16 +158,6 @@ void WriteMigrationSentinelAsync(scoped_refptr<MigrationState> state) {
   base::UmaHistogramEnumeration(kSentinelWriteResultHistogram, result);
 }
 
-// Generates the Base64 encoded key used to look up the legacy Starboard storage
-// record for the given URL.
-std::string GetApplicationKey(const GURL& url) {
-  std::string encoded_url;
-  base::Base64UrlEncode(url_matcher::util::Normalize(url).spec(),
-                        base::Base64UrlEncodePolicy::INCLUDE_PADDING,
-                        &encoded_url);
-  return encoded_url;
-}
-
 // Deletes the C25 Starboard Storage Record file from disk.
 // Returns true if the deletion was successful or the record was already
 // invalid.
@@ -184,18 +174,14 @@ bool DeleteLegacyStorageRecord(starboard::StorageRecord* record) {
 
 // Deletes the legacy starboard storage files asynchronously.
 void DeleteLegacyStorageFilesAsync() {
-  // Logic extracted from the internal lambda.
-  GURL initial_url(
-      switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
-
-  if (initial_url.is_valid()) {
-    std::string partition_key = GetApplicationKey(initial_url);
-    auto record =
-        std::make_unique<starboard::StorageRecord>(partition_key.c_str());
-    DeleteLegacyStorageRecord(record.get());
-  }
-
-  // Also attempt to delete the fallback default record.
+  // Rollback PoC (option B): the named C25 record
+  // ~/.starboard.<GetApplicationKey(initial_url)>.storage is intentionally NOT
+  // deleted. LegacyStorageWriter keeps it as a minimal, always-current sign-in
+  // record that C25 can read after a rollback.
+  //
+  // The unnamed fallback record is still deleted so that C25 can never
+  // resurrect stale data from it (C25 reads it only when the named record is
+  // empty).
   auto fallback_record = std::make_unique<starboard::StorageRecord>();
   DeleteLegacyStorageRecord(fallback_record.get());
 }
@@ -440,6 +426,14 @@ std::vector<uint8_t> FormatStringForLocalStorage(const std::string& input) {
 }
 
 }  // namespace
+
+std::string GetApplicationKey(const GURL& url) {
+  std::string encoded_url;
+  base::Base64UrlEncode(url_matcher::util::Normalize(url).spec(),
+                        base::Base64UrlEncodePolicy::INCLUDE_PADDING,
+                        &encoded_url);
+  return encoded_url;
+}
 
 // static
 std::string MigrationManager::GetMigrationStatusUrlParameter() {

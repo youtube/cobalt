@@ -47,6 +47,7 @@
 #include "cobalt/browser/metrics/cobalt_storage_metrics_helper.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
+#include "cobalt/shell/browser/migrate_storage_record/legacy_storage_writer.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/common/shell_paths.h"
@@ -792,6 +793,12 @@ void CobaltBrowserMainParts::OnMigrationComplete() {
   CHECK(sequence_checker_.CalledOnValidSequence());
   LOG(INFO) << "Migration complete. Proceeding with deferred launchShell.";
   migration_finished_ = true;
+  // Rollback PoC (option B): start after the migration (import done, cleanup
+  // posted) on every launch. The writer takes an initial snapshot of the
+  // initial-URL origin's localStorage and writes the C25 record right away.
+  legacy_storage_writer_ =
+      migrate_storage_record::LegacyStorageWriter::CreateForInitialUrl(
+          browser_context()->GetDefaultStoragePartition());
   if (pending_task_) {
     std::move(pending_task_).Run();
   }
@@ -813,6 +820,10 @@ void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
 }
 
 void CobaltBrowserMainParts::PostMainMessageLoopRun() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // Must go before the base class resets the browser context. Posts a final
+  // BLOCK_SHUTDOWN write if one is pending.
+  legacy_storage_writer_.reset();
 #if BUILDFLAG(IS_ANDROID)
   android_os_signal_evaluator_.reset();
 #endif

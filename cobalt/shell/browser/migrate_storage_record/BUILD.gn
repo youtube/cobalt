@@ -8,6 +8,8 @@ proto_library("storage_proto") {
 
 source_set("migrate_storage_record") {
   sources = [
+    "legacy_storage_writer.cc",
+    "legacy_storage_writer.h",
     "migration_manager.cc",
     "migration_manager.h",
   ]
@@ -20,18 +22,22 @@ source_set("migrate_storage_record") {
     "//net",
     "//services/network/public/mojom:cookies_mojom",
     "//starboard/common",
-    "//third_party/blink/public/mojom:mojom_platform",
-    "//url",
   ]
   public_deps = [
     "//content/public/browser",
+    "//mojo/public/cpp/bindings",
     "//skia",
+    "//third_party/blink/public/mojom:mojom_platform",
+    "//url",
   ]
 }
 
 source_set("unittest") {
   testonly = true
-  sources = [ "migration_manager_unittest.cc" ]
+  sources = [
+    "legacy_storage_writer_unittest.cc",
+    "migration_manager_unittest.cc",
+  ]
   deps = [
     ":migrate_storage_record",
     ":storage_proto",

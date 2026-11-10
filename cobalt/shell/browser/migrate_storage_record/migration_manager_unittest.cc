@@ -14,19 +14,23 @@
 
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 
+#include <map>
 #include <numeric>
 #include <optional>
 
 #include "base/base_paths.h"
 #include "base/command_line.h"
 #include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/scoped_environment_variable_override.h"
 #include "base/test/scoped_command_line.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/shell/browser/migrate_storage_record/legacy_storage_writer.h"
 #include "cobalt/shell/browser/migrate_storage_record/storage.pb.h"
 #include "components/services/storage/public/mojom/local_storage_control.mojom.h"
 #include "content/public/browser/storage_partition.h"
@@ -530,6 +534,66 @@ TEST_F(MigrationManagerTest, LocalStorageTaskFailureTest) {
   run_loop.Run();
 
   EXPECT_EQ(InjectionResult::kError, state->local_storage_result.load());
+}
+
+// --- Rollback PoC (option B) ---
+
+TEST_F(MigrationManagerTest, GetApplicationKeyMatchesC25) {
+  // base64url("https://www.youtube.com/tv") with padding; query/ref ignored.
+  EXPECT_EQ("aHR0cHM6Ly93d3cueW91dHViZS5jb20vdHY=",
+            GetApplicationKey(GURL("https://www.youtube.com/tv")));
+  EXPECT_EQ("aHR0cHM6Ly93d3cueW91dHViZS5jb20vdHY=",
+            GetApplicationKey(GURL("https://www.youtube.com/tv?launch=x#r")));
+}
+
+TEST_F(MigrationManagerTest, LegacyStorageRecordRoundTripsThroughImporter) {
+  constexpr char kIds[] = "yt.leanback.default::available-identities";
+  constexpr char kLast[] = "yt.leanback.default::last-identity-used";
+  url::Origin origin = url::Origin::Create(GURL("https://www.youtube.com/tv"));
+  std::string record = SerializeLegacyStorageRecord(
+      origin, {{kIds, "{\"data\":{\"g\":1}}"}, {kLast, "{\"data\":\"g\"}"}});
+  ASSERT_EQ("SAV1", record.substr(0, 4));
+  cobalt::storage::Storage storage;
+  ASSERT_TRUE(storage.ParseFromString(record.substr(4)));
+
+  auto items = ToLocalStorageItems(origin, storage);
+  ASSERT_EQ(2u, items.size());
+  std::map<std::string, std::string> got;
+  for (const auto& item : items) {
+    got[item->first] = item->second;
+  }
+  EXPECT_EQ("{\"data\":{\"g\":1}}", got[kIds]);
+  EXPECT_EQ("{\"data\":\"g\"}", got[kLast]);
+}
+
+TEST_F(MigrationManagerTest, RunMigrationKeepsNamedRecordDeletesFallback) {
+  base::ScopedTempDir home;
+  ASSERT_TRUE(home.CreateUniqueTempDir());
+  base::ScopedEnvironmentVariableOverride home_override("HOME",
+                                                        home.GetPath().value());
+  base::test::ScopedCommandLine command_line;
+  const GURL url("https://127.0.0.1:8443/tv/");
+  command_line.GetProcessCommandLine()->AppendSwitchASCII(switches::kInitialURL,
+                                                          url.spec());
+
+  const base::FilePath named = home.GetPath().Append(
+      ".starboard." + GetApplicationKey(url) + ".storage");
+  const base::FilePath fallback = home.GetPath().Append(".starboard.storage");
+  ASSERT_TRUE(base::WriteFile(named, "SAV1"));
+  ASSERT_TRUE(base::WriteFile(fallback, "SAV1"));
+
+  MockStoragePartition partition;
+  base::RunLoop run_loop;
+  MigrationManager::RunMigration(
+      static_cast<content::StoragePartition*>(&partition),
+      run_loop.QuitClosure());
+  run_loop.Run();
+  task_environment().RunUntilIdle();  // Let the ThreadPool cleanup tasks run.
+
+  std::string contents;
+  EXPECT_TRUE(base::ReadFileToString(named, &contents));
+  EXPECT_EQ("SAV1", contents);
+  EXPECT_FALSE(base::PathExists(fallback));
 }
 
 }  // namespace migrate_storage_record

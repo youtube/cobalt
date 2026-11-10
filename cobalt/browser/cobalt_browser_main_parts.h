@@ -58,6 +58,10 @@ class CobaltMetricsServiceClient;
 class CobaltMetricsServicesManagerClient;
 class GlobalFeatures;
 
+namespace migrate_storage_record {
+class LegacyStorageWriter;
+}  // namespace migrate_storage_record
+
 // Cleans up legacy/orphaned cache directories ("Cache", "Code Cache",
 // "ShaderCache", "GrShaderCache") under |user_data_dir| using
 // disk_cache::CleanupDirectorySync() when
@@ -132,6 +136,10 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   std::unique_ptr<memory::AndroidOsSignalEvaluator>
       android_os_signal_evaluator_;
 #endif
+
+  // Rollback PoC (option B): keeps a minimal C25-readable sign-in record.
+  std::unique_ptr<migrate_storage_record::LegacyStorageWriter>
+      legacy_storage_writer_ GUARDED_BY_CONTEXT(sequence_checker_);
 
   base::WeakPtrFactory<CobaltBrowserMainParts> weak_ptr_factory_{this};
 };
