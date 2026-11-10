@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/core/paint/paint_property_tree_builder.h"
+#include "base/system/helium_knobs.h"
 
 #include <memory>
 
@@ -3789,7 +3790,9 @@ void PaintPropertyTreeBuilder::UpdateForSelf() {
     }
   }
 
-  if (Platform::Current()->IsLowEndDevice()) {
+  static const bool helium_trivial3d =
+      base::helium::IsLowEndFor("trivial3d");
+  if (Platform::Current()->IsLowEndDevice() || helium_trivial3d) {
 #if BUILDFLAG(IS_COBALT)
     if (!base::FeatureList::IsEnabled(
             features::kCobaltPreserveTrivial3DTransform)) {

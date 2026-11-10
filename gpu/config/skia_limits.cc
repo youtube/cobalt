@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "gpu/config/skia_limits.h"
+#include "base/system/helium_knobs.h"
 
 #include <inttypes.h>
 
@@ -92,7 +93,7 @@ void DetermineGrCacheLimitsFromAvailableMemory(
 
 // We can't call AmountOfPhysicalMemory under NACL, so leave the default.
 #if !BUILDFLAG(IS_NACL)
-  if (base::SysInfo::IsLowEndDevice()) {
+  if (base::helium::IsLowEndDeviceOr("skia_cache")) {
 #if BUILDFLAG(IS_COBALT)
     constexpr size_t kLowEndCobaltMaxResourceCacheBytes = 2 * 1024 * 1024;
     *max_resource_cache_bytes = kLowEndCobaltMaxResourceCacheBytes;
@@ -105,6 +106,13 @@ void DetermineGrCacheLimitsFromAvailableMemory(
     *max_resource_cache_bytes = GetMaxHighEndGaneshResourceCacheBytes();
   }
 #endif
+  // [PoC][Helium] Explicit sizes.
+  if (auto kb = base::helium::GetSize("skia_resource_cache_kb")) {
+    *max_resource_cache_bytes = static_cast<size_t>(*kb) * 1024;
+  }
+  if (auto kb = base::helium::GetSize("skia_glyph_cache_kb")) {
+    *max_glyph_cache_texture_bytes = static_cast<size_t>(*kb) * 1024;
+  }
 }
 
 void DefaultGrCacheLimitsForTests(size_t* max_resource_cache_bytes,

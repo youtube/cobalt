@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "content/child/blink_platform_impl.h"
+#include "base/system/helium_knobs.h"
 
 #include <math.h>
 
@@ -238,7 +239,11 @@ size_t BlinkPlatformImpl::MaxDecodedImageBytes() {
   const int kMB = 1024 * 1024;
   const int kMaxNumberOfBytesPerPixel = 4;
 #if BUILDFLAG(IS_ANDROID)
-  if (base::SysInfo::IsLowEndDevice()) {
+  // [PoC][Helium] Explicit size.
+  if (auto mb = base::helium::GetSize("max_decoded_image_mb")) {
+    return static_cast<size_t>(*mb) * kMB;
+  }
+  if (base::helium::IsLowEndDeviceOr("decode_limit")) {
     // Limit image decoded size to 3M pixels on low end devices.
     // 4 is maximum number of bytes per pixel.
     return 3 * kMB * kMaxNumberOfBytesPerPixel;

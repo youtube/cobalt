@@ -8,6 +8,7 @@
 #endif
 
 #include "gpu/command_buffer/service/shared_context_state.h"
+#include "base/system/helium_knobs.h"
 
 #include "base/debug/dump_without_crashing.h"
 #include "base/immediate_crash.h"
@@ -95,7 +96,7 @@ size_t MaxNumSkSurface() {
   static constexpr size_t kNormalMaxNumSkSurface = 16;
 #if BUILDFLAG(IS_ANDROID)
   static constexpr size_t kLowEndMaxNumSkSurface = 4;
-  if (base::SysInfo::IsLowEndDevice()) {
+  if (base::helium::IsLowEndDeviceOr("raster_buffers")) {
     return kLowEndMaxNumSkSurface;
   } else {
     return kNormalMaxNumSkSurface;
