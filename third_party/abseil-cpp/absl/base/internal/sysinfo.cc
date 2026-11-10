@@ -26,7 +26,7 @@
 #include <unistd.h>
 #endif
 
-#if defined(__linux__) || defined(STARBOARD)
+#ifdef __linux__
 #include <sys/syscall.h>
 #endif
 

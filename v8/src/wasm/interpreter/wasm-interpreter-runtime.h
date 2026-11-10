@@ -494,15 +494,7 @@ class WasmInterpreterRuntime {
 
 class V8_EXPORT_PRIVATE InterpreterHandle {
  public:
-  // Use a dedicated external-pointer tag so the in-sandbox Managed<> Foreign
-  // referencing this object can only be confused with another
-  // Managed<InterpreterHandle> (which is allowed -- "substitution-safe"), not
-  // with arbitrary kGenericManagedTag-tagged Managed objects. An attacker with
-  // in-sandbox writes must not be able to swap this Foreign's external pointer
-  // with one pointing at an unrelated C++ object, because InterpreterHandle
-  // owns out-of-sandbox resources (interpreter stack, bytecode storage, cached
-  // memory base pointers).
-  static constexpr ExternalPointerTag kManagedTag = kWasmInterpreterHandleTag;
+  static constexpr ExternalPointerTag kManagedTag = kGenericManagedTag;
 
   InterpreterHandle(Isolate* isolate, DirectHandle<Tuple2> interpreter_object);
 

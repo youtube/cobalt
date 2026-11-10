@@ -14,7 +14,6 @@
 #include <optional>
 #include <vector>
 
-#include "build/build_config.h"
 #include "absl/strings/match.h"
 #include "api/environment/environment.h"
 #include "api/video/resolution.h"
@@ -27,10 +26,8 @@
 #include "media/base/codec_comparators.h"
 #include "media/base/media_constants.h"
 #include "modules/video_coding/codecs/h264/include/h264.h"
-#if !(BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_STARBOARD_MEDIA))
-#include "modules/video_coding/codecs/vp8/include/vp8.h"  // nogncheck
-#include "modules/video_coding/codecs/vp9/include/vp9.h"  // nogncheck
-#endif
+#include "modules/video_coding/codecs/vp8/include/vp8.h"
+#include "modules/video_coding/codecs/vp9/include/vp9.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 
@@ -54,11 +51,9 @@ std::unique_ptr<VideoDecoder> CreateDav1dDecoder(const Environment& env) {
 std::vector<SdpVideoFormat> InternalDecoderFactory::GetSupportedFormats()
     const {
   std::vector<SdpVideoFormat> formats;
-#if !(BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_STARBOARD_MEDIA))
   formats.push_back(SdpVideoFormat::VP8());
   for (const SdpVideoFormat& format : SupportedVP9DecoderCodecs())
     formats.push_back(format);
-#endif
   for (const SdpVideoFormat& h264_format : SupportedH264DecoderCodecs())
     formats.push_back(h264_format);
 
@@ -112,12 +107,10 @@ std::unique_ptr<VideoDecoder> InternalDecoderFactory::Create(
     return nullptr;
   }
 
-#if !(BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_STARBOARD_MEDIA))
   if (absl::EqualsIgnoreCase(format.name, kVp8CodecName))
     return CreateVp8Decoder(env);
   if (absl::EqualsIgnoreCase(format.name, kVp9CodecName))
     return VP9Decoder::Create();
-#endif
   if (absl::EqualsIgnoreCase(format.name, kH264CodecName))
     return H264Decoder::Create();
 

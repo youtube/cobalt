@@ -13,11 +13,8 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_details_init.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_details_update.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_item.h"
-#include "build/buildflag.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_shipping_option.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "third_party/blink/renderer/bindings/modules/v8/v8_secure_payment_confirmation_request.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -97,7 +94,6 @@ class PaymentRequestV8TestingScope : public V8TestingScope {
   PaymentRequestV8TestingScope();
 };
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 const uint8_t kSecurePaymentConfirmationCredentialId[] = {
     0x63, 0x72, 0x65, 0x64, 0x65, 0x6E, 0x74, 0x69, 0x61, 0x6C};
 const uint8_t kSecurePaymentConfirmationChallenge[] = {
@@ -115,7 +111,6 @@ SecurePaymentConfirmationRequest* CreateSecurePaymentConfirmationRequest(
 
 HeapVector<Member<PaymentMethodData>>
 BuildSecurePaymentConfirmationMethodDataForTest(const V8TestingScope& scope);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 }  // namespace blink
 

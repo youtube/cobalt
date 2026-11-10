@@ -19,13 +19,9 @@
 #include "perfetto/base/build_config.h"
 #include "perfetto/base/compiler.h"
 
-#include "build/build_config.h"
-
 #if !PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
 #if PERFETTO_BUILDFLAG(PERFETTO_LOCAL_SYMBOLIZER)
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include <fts.h>
-#endif
 #include <sys/stat.h>
 #endif
 
@@ -35,7 +31,7 @@
 
 namespace perfetto {
 namespace profiling {
-#if PERFETTO_BUILDFLAG(PERFETTO_LOCAL_SYMBOLIZER) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if PERFETTO_BUILDFLAG(PERFETTO_LOCAL_SYMBOLIZER)
 bool WalkDirectories(std::vector<std::string> dirs, FileCallback fn) {
   std::vector<char*> dir_cstrs;
   dir_cstrs.reserve(dirs.size());

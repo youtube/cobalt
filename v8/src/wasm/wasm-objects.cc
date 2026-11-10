@@ -295,23 +295,13 @@ int WasmTableObject::Grow(Isolate* isolate, DirectHandle<WasmTableObject> table,
 
 #if V8_ENABLE_DRUMBRAKE
     if (v8_flags.wasm_jitless) {
-      // SANDBOX SAFETY: `UpdateIndirectCallTable` -> `GetOrCreateInterpreter*`
-      // can allocate (via `Managed::From` -> `NewForeign`) and trigger GC.
-      // `ProtectedWeakFixedArray` lives in trusted space, which *is* an
-      // evacuation candidate during mark-compact.
-      // In default V8 builds (`v8_enable_direct_handle = false`) conservative
-      // stack scanning is off and a raw `Tagged<>` on the C++ stack is not a
-      // known GC root, so it would become a stale pointer to freed/moved memory
-      // across the call.
-      // Wrap `uses` in a `DirectHandle` so its slot is tracked through GC.
-      DirectHandle<ProtectedWeakFixedArray> uses(
-          dispatch_table->protected_uses(), isolate);
-      int used_length = GetUsedLength(*uses);
+      Tagged<ProtectedWeakFixedArray> uses = dispatch_table->protected_uses();
+      int used_length = GetUsedLength(uses);
       for (int i = kReservedSlotOffset; i < used_length; i += 2) {
         if (uses->get(i).IsCleared()) continue;
-        Tagged<WasmTrustedInstanceData> instance = GetInstance(*uses, i);
+        Tagged<WasmTrustedInstanceData> instance = GetInstance(uses, i);
         if (instance->has_interpreter_object()) {
-          int table_index = GetTableIndex(*uses, i);
+          int table_index = GetTableIndex(uses, i);
           wasm::WasmInterpreterRuntime::UpdateIndirectCallTable(
               isolate, direct_handle(instance->instance_object(), isolate),
               table_index);
@@ -624,20 +614,13 @@ void WasmTableObject::UpdateDispatchTable(
           sig_id, target_func_index, WasmDispatchTable::kExistingEntry);
     }
 
-    Tagged<ProtectedWeakFixedArray> uses_raw = dispatch_table->protected_uses();
-    // SANDBOX SAFETY: see comment in `WasmTableObject::Grow` (above).
-    // `protected_uses` is a `ProtectedWeakFixedArray` in trusted space, which
-    // is an evacuation candidate during mark-compact; the call to
-    // `UpdateIndirectCallTable` may allocate and trigger GC. Without
-    // conservative stack scanning (the V8 default), a raw `Tagged<>` on
-    // the C++ stack would become stale, so we wrap it in a `DirectHandle`.
-    DirectHandle<ProtectedWeakFixedArray> uses(uses_raw, isolate);
-    int used_length = GetUsedLength(*uses);
+    Tagged<ProtectedWeakFixedArray> uses = dispatch_table->protected_uses();
+    int used_length = GetUsedLength(uses);
     for (int i = kReservedSlotOffset; i < used_length; i += 2) {
       if (uses->get(i).IsCleared()) continue;
-      Tagged<WasmTrustedInstanceData> instance = GetInstance(*uses, i);
+      Tagged<WasmTrustedInstanceData> instance = GetInstance(uses, i);
       if (instance->has_interpreter_object()) {
-        int table_index = GetTableIndex(*uses, i);
+        int table_index = GetTableIndex(uses, i);
         wasm::WasmInterpreterRuntime::UpdateIndirectCallTable(
             isolate, direct_handle(instance->instance_object(), isolate),
             table_index);
@@ -1200,8 +1183,7 @@ DirectHandle<JSArrayBuffer> WasmMemoryObject::ChangeArrayBufferResizability(
 
 MaybeDirectHandle<WasmMemoryMapDescriptor>
 WasmMemoryMapDescriptor::NewFromAnonymous(Isolate* isolate, size_t length) {
-// This method is used by experimental_wasm_memory_control and is not enabled by default.
-#if V8_TARGET_OS_LINUX && V8_OS_LINUX && !BUILDFLAG(IS_STARBOARD)
+#if V8_TARGET_OS_LINUX && V8_OS_LINUX
   CHECK(v8_flags.experimental_wasm_memory_control);
   DirectHandle<JSFunction> descriptor_ctor(
       isolate->native_context()->wasm_memory_map_descriptor_constructor(),
@@ -2453,22 +2435,16 @@ void WasmDispatchTable::Clear(
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless &&
       new_or_existing == WasmDispatchTable::kExistingEntry) {
-    // SANDBOX SAFETY: `ClearIndirectCallCacheEntry` ->
-    // `GetOrCreateInterpreter*` can allocate and trigger GC.
-    // `protected_uses` is a `ProtectedWeakFixedArray` in trusted space, which
-    // is an evacuation candidate during mark-compact. Without
-    // conservative stack scanning, a raw `Tagged<>` on the C++ stack is not a
-    // known GC root, so it would become a stale pointer if the array is moved.
-    // Wrap `uses` in a `DirectHandle` so its slot is tracked through GC.
+    DisallowGarbageCollection no_gc;
+    Tagged<ProtectedWeakFixedArray> uses = protected_uses();
+    int used_length = GetUsedLength(uses);
     Isolate* isolate = Isolate::Current();
-    DirectHandle<ProtectedWeakFixedArray> uses(protected_uses(), isolate);
-    int used_length = GetUsedLength(*uses);
     for (int i = kReservedSlotOffset; i < used_length; i += 2) {
       if (uses->get(i).IsCleared()) continue;
       Tagged<WasmTrustedInstanceData> non_shared_instance_data =
-          GetInstance(*uses, i);
+          GetInstance(uses, i);
       if (non_shared_instance_data->has_interpreter_object()) {
-        int table_index = GetTableIndex(*uses, i);
+        int table_index = GetTableIndex(uses, i);
         DirectHandle<WasmInstanceObject> instance_handle(
             non_shared_instance_data->instance_object(), isolate);
         wasm::WasmInterpreterRuntime::ClearIndirectCallCacheEntry(
