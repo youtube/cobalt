@@ -457,6 +457,56 @@ uint32_t CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(
   return total_dir_budget_bytes - kNonHttpReserveBytes;
 }
 
+// static
+void CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+    bool in_memory,
+    [[maybe_unused]] uint32_t total_dir_budget_bytes,
+    network::mojom::NetworkContextParams* network_context_params) {
+  if (!in_memory) {
+    constexpr int kMinHttpCacheQuotaBytes = 1048576;     // 1 MiB
+    constexpr int kMaxHttpCacheQuotaBytes = 1073741824;  // 1024 MiB
+
+#if BUILDFLAG(IS_ANDROID)
+    // Baseline default on Android is 25 MiB (26214400 bytes).
+    // When kCobaltHttpCacheQuota is enabled, Finch configures it (default:
+    // 12582912 bytes / 12 MiB).
+    constexpr int kDefaultAndroidHttpCacheSizeBytes = 26214400;
+    int http_cache_bytes = kDefaultAndroidHttpCacheSizeBytes;
+    if (base::FeatureList::IsEnabled(features::kCobaltHttpCacheQuota)) {
+      http_cache_bytes =
+          std::clamp(features::kCobaltMaxHttpCacheSizeBytes.Get(),
+                     kMinHttpCacheQuotaBytes, kMaxHttpCacheQuotaBytes);
+    }
+    network_context_params->http_cache_max_size = http_cache_bytes;
+#else
+    uint32_t http_cache_bytes =
+        ComputeDefaultHttpCacheSize(total_dir_budget_bytes);
+    if (base::FeatureList::IsEnabled(features::kCobaltHttpCacheQuota)) {
+      const uint32_t configured_bytes = static_cast<uint32_t>(
+          std::clamp(features::kCobaltMaxHttpCacheSizeBytes.Get(),
+                     kMinHttpCacheQuotaBytes, kMaxHttpCacheQuotaBytes));
+      http_cache_bytes = http_cache_bytes > 0
+                             ? std::min(http_cache_bytes, configured_bytes)
+                             : configured_bytes;
+    }
+    network_context_params->http_cache_max_size =
+        base::checked_cast<int>(http_cache_bytes);
+#endif
+  }
+
+  // Developer command-line override (only applies if explicitly passed).
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kMaxHttpCacheSize)) {
+    std::string size_str =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+            switches::kMaxHttpCacheSize);
+    int parsed_size = 0;
+    if (base::StringToInt(size_str, &parsed_size) && parsed_size >= 0) {
+      network_context_params->http_cache_max_size = parsed_size;
+    }
+  }
+}
+
 std::string CobaltContentBrowserClient::GetApplicationLocale() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_ANDROID)
@@ -537,15 +587,8 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
     network_context_params->file_paths->http_cache_directory =
         cache_path.Append(kCacheDirname);
 
-    base::FilePath base_user_data_dir;
-    if (context) {
-      base_user_data_dir = context->GetPath();
-    } else {
-      CHECK(base::PathService::Get(content::SHELL_DIR_USER_DATA,
-                                   &base_user_data_dir));
-    }
     base::FilePath user_data_dir =
-        base_user_data_dir.Append(relative_partition_path);
+        context->GetPath().Append(relative_partition_path);
     network_context_params->file_paths->data_directory =
         user_data_dir.Append(kNetworkDataDirname);
     network_context_params->file_paths->unsandboxed_data_path = user_data_dir;
@@ -571,49 +614,10 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
           ->sct_auditing_pending_reports_file_name =
           base::FilePath(kSCTAuditingPendingReportsFileName);
     }
-
-    constexpr int kMinHttpCacheQuotaBytes = 1048576;     // 1 MiB
-    constexpr int kMaxHttpCacheQuotaBytes = 1073741824;  // 1024 MiB
-
-#if BUILDFLAG(IS_ANDROID)
-    // Baseline default on Android is 25 MiB (26214400 bytes).
-    // When kCobaltHttpCacheQuota is enabled, Finch configures it (default:
-    // 12582912 bytes / 12 MiB).
-    constexpr int kDefaultAndroidHttpCacheSizeBytes = 26214400;
-    int http_cache_bytes = kDefaultAndroidHttpCacheSizeBytes;
-    if (base::FeatureList::IsEnabled(features::kCobaltHttpCacheQuota)) {
-      http_cache_bytes =
-          std::clamp(features::kCobaltMaxHttpCacheSizeBytes.Get(),
-                     kMinHttpCacheQuotaBytes, kMaxHttpCacheQuotaBytes);
-    }
-    network_context_params->http_cache_max_size = http_cache_bytes;
-#else
-    uint32_t http_cache_bytes =
-        ComputeDefaultHttpCacheSize(kSbMaxSystemPathCacheDirectorySize);
-    if (base::FeatureList::IsEnabled(features::kCobaltHttpCacheQuota)) {
-      const uint32_t configured_bytes = static_cast<uint32_t>(
-          std::clamp(features::kCobaltMaxHttpCacheSizeBytes.Get(),
-                     kMinHttpCacheQuotaBytes, kMaxHttpCacheQuotaBytes));
-      http_cache_bytes = http_cache_bytes > 0
-                             ? std::min(http_cache_bytes, configured_bytes)
-                             : configured_bytes;
-    }
-    network_context_params->http_cache_max_size =
-        base::checked_cast<int>(http_cache_bytes);
-#endif
   }
 
-  // Developer command-line override (only applies if explicitly passed).
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kMaxHttpCacheSize)) {
-    std::string size_str =
-        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-            switches::kMaxHttpCacheSize);
-    int parsed_size = 0;
-    if (base::StringToInt(size_str, &parsed_size) && parsed_size >= 0) {
-      network_context_params->http_cache_max_size = parsed_size;
-    }
-  }
+  ConfigureHttpCacheMaxSize(in_memory, kSbMaxSystemPathCacheDirectorySize,
+                            network_context_params);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   cobalt::browser::ConfigureProxyFromCommandLineIfNeeded(

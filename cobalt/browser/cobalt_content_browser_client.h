@@ -214,6 +214,14 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   // total cache directory budget.
   static uint32_t ComputeDefaultHttpCacheSize(uint32_t total_dir_budget_bytes);
 
+  // Populates `network_context_params->http_cache_max_size` using the platform
+  // default, `kCobaltHttpCacheQuota` Finch configuration, and any explicit
+  // `--max-http-cache-size` command-line override.
+  static void ConfigureHttpCacheMaxSize(
+      bool in_memory,
+      uint32_t total_dir_budget_bytes,
+      network::mojom::NetworkContextParams* network_context_params);
+
   // Populates `network_context_params->initial_ssl_config` with Cobalt's
   // disabled TLS cipher suites.
   static void ConfigureSSLConfig(
