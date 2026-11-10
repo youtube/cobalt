@@ -46,8 +46,7 @@ TEST(CobaltSwitchDefaultsAndroidTest, DefaultSwitchesApplied) {
   EXPECT_EQ("no-user-gesture-required",
             cmd_line.GetSwitchValueASCII(::switches::kAutoplayPolicy));
   EXPECT_EQ("2", cmd_line.GetSwitchValueASCII(::switches::kNumRasterThreads));
-  EXPECT_EQ("26214400",
-            cmd_line.GetSwitchValueASCII(switches::kMaxHttpCacheSize));
+  EXPECT_FALSE(cmd_line.HasSwitch(switches::kMaxHttpCacheSize));
   EXPECT_EQ("--no-decommit-pooled-pages,--no-concurrent-marking",
             cmd_line.GetSwitchValueASCII(blink::switches::kJavaScriptFlags));
   EXPECT_EQ("PreciseMemoryInfo",

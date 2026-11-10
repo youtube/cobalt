@@ -232,6 +232,15 @@ BASE_DECLARE_FEATURE(kCobaltStartupPreconnect);
 // not honor.
 BASE_DECLARE_FEATURE(kCobaltFlushHttpServerPropertiesOnPause);
 
+// Gates independent Finch/Mendel experimentation on Cobalt's on-disk HTTP cache
+// capacity (DIR_CACHE/Cache), decoupled from V8 code-cache optimizations. When
+// enabled, `cobalt_http_cache_size_bytes` (default: 12582912 bytes / 12 MiB,
+// clamped to [1048576, 1073741824]) overrides Android's 25 MiB default while
+// still honoring explicit developer `--max-http-cache-size` CLI overrides, and
+// caps Starboard's HTTP cache within `ComputeDefaultHttpCacheSize()`.
+BASE_DECLARE_FEATURE(kCobaltHttpCacheQuota);
+BASE_DECLARE_FEATURE_PARAM(int, kCobaltMaxHttpCacheSizeBytes);
+
 }  // namespace features
 }  // namespace cobalt
 
