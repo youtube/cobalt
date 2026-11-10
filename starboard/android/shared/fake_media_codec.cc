@@ -207,10 +207,16 @@ FakeMediaCodecFactory::CreateVideoMediaCodec(
         color_metadata ? std::make_optional(*color_metadata) : std::nullopt;
   }
   video_codec_create_count_++;
-  if (video_codec_creation_failures_remaining_ > 0) {
-    video_codec_creation_failures_remaining_--;
-    SB_LOG(INFO) << "[FakeMediaCodec] Simulating video codec creation failure";
-    return Failure("Simulated MediaCodec creation failure");
+  // Atomically consume one simulated failure, so concurrent callers can't
+  // both pass the check and over-decrement the counter.
+  int failures_remaining = video_codec_creation_failures_remaining_.load();
+  while (failures_remaining > 0) {
+    if (video_codec_creation_failures_remaining_.compare_exchange_weak(
+            failures_remaining, failures_remaining - 1)) {
+      SB_LOG(INFO)
+          << "[FakeMediaCodec] Simulating video codec creation failure";
+      return Failure("Simulated MediaCodec creation failure");
+    }
   }
   auto fake =
       std::make_unique<FakeMediaCodec>(handler, &last_created_video_codec_);

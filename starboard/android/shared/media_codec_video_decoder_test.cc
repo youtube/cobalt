@@ -631,6 +631,25 @@ TEST_F(MediaCodecVideoDecoderTest,
 }
 
 TEST_F(MediaCodecVideoDecoderTest,
+       BufferedInputsAreReleasedWhenCodecCreationRetriesAreExhausted) {
+  CreateDecoderWithCodecCreationRetries(/*codec_creation_retry_count=*/1,
+                                        /*codec_creation_failures=*/10);
+  InitializeDecoder();
+
+  scoped_refptr<InputBuffer> input_buffer =
+      CreateDummyVideoInputBuffer(0, 1024);
+  decoder_->WriteInputBuffers({input_buffer});
+  // The decoder holds a reference while the input is buffered for the retry.
+  EXPECT_FALSE(input_buffer->HasOneRef());
+
+  ASSERT_TRUE(PumpJobQueueUntil([this] { return error_called_.load(); },
+                                kRetryWaitTimeoutMs));
+  EXPECT_EQ(last_error_, kSbPlayerErrorDecode);
+  // Once no codec will be created, the decoder no longer holds the input.
+  EXPECT_TRUE(input_buffer->HasOneRef());
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
        EndOfStreamDuringPendingCodecCreationRetryIsForwarded) {
   CreateDecoderWithCodecCreationRetries(/*codec_creation_retry_count=*/3,
                                         /*codec_creation_failures=*/1);

@@ -995,8 +995,7 @@ MediaCodecVideoDecoder::TryInitializeCodec(
     codec_creation_retry_stream_info_ = video_stream_info;
     is_codec_creation_retry_pending_ = true;
     codec_creation_retry_job_token_ =
-        Schedule(std::bind(&MediaCodecVideoDecoder::RetryCodecCreation, this),
-                 delay_usec);
+        Schedule([this] { RetryCodecCreation(); }, delay_usec);
     return CodecInitStatus::kRetryScheduled;
   }
 
@@ -1014,9 +1013,8 @@ void MediaCodecVideoDecoder::RetryCodecCreation() {
     // This isn't expected as the retry job can only run after the job that
     // created this decoder and called Initialize() on it, but be defensive
     // and check back later without consuming retry budget.
-    codec_creation_retry_job_token_ =
-        Schedule(std::bind(&MediaCodecVideoDecoder::RetryCodecCreation, this),
-                 kCodecCreationRetryBaseDelayUsec);
+    codec_creation_retry_job_token_ = Schedule(
+        [this] { RetryCodecCreation(); }, kCodecCreationRetryBaseDelayUsec);
     return;
   }
   is_codec_creation_retry_pending_ = false;
@@ -1032,6 +1030,7 @@ void MediaCodecVideoDecoder::RetryCodecCreation() {
     SB_LOG(INFO) << "Video surface was destroyed, abandoning MediaCodec "
                  << "creation retry.";
     pending_end_of_stream_ = false;
+    pending_input_buffers_.clear();
     return;
   }
 
@@ -1065,6 +1064,7 @@ void MediaCodecVideoDecoder::RetryCodecCreation() {
                       " retries: " + error_message;
       SB_LOG(ERROR) << error_message;
       pending_end_of_stream_ = false;
+      pending_input_buffers_.clear();
       ReportError(kSbPlayerErrorDecode, error_message);
       break;
   }
@@ -1079,6 +1079,10 @@ void MediaCodecVideoDecoder::CancelPendingCodecCreationRetry() {
   RemoveJobByToken(&codec_creation_retry_job_token_);
   is_codec_creation_retry_pending_ = false;
   pending_end_of_stream_ = false;
+  // The buffered inputs won't be decoded without a Reset(), which would clear
+  // them anyway; release them now rather than holding them, e.g. while the app
+  // is suspended.
+  pending_input_buffers_.clear();
 }
 
 void MediaCodecVideoDecoder::BufferInputsForPendingCodec(
