@@ -124,8 +124,9 @@ BASE_DECLARE_FEATURE(kSplashScreenConfig);
 
 // How long after the splash screen starts Cobalt switches to the main
 // WebContents, once that has loaded (default: 1500ms). The splash screen starts
-// when its page finishes loading or, for a video, when the video starts
-// playing, within 2s. If SplashScreenConfig is enabled, it is also passed
+// when its image shows or its video starts playing, within
+// kSplashScreenContentWaitMaxDelay of its page finishing loading (see
+// SplashScreenContentWait). If SplashScreenConfig is enabled, it is also passed
 // to the splash screen as the "timeout" query param (in ms), and the built-in
 // splash screen stays up until then instead of closing when its animation
 // ends. Values need a unit, e.g., "3s" or "2500ms".
@@ -141,6 +142,28 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSplashScreenTimeoutParam);
 // --enable-features=SplashScreenConfig:url/http%3A%2F%2Fexample.com
 BASE_DECLARE_FEATURE_PARAM(std::string, kSplashScreenUrlParam);
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+
+// Makes the splash screen start when its content shows, i.e., when its image
+// is painted or its video starts playing, rather than when its page finishes
+// loading, which happens before that. Otherwise, e.g., while the main
+// WebContents keeps the renderer busy, a main WebContents that loads fast could
+// replace the splash screen before its content is ever seen. If disabled, the
+// splash screen starts when its page finishes loading.
+BASE_DECLARE_FEATURE(kSplashScreenContentWait);
+
+// How long after its page finishes loading the splash screen waits for its
+// content to show before it starts anyway, e.g., if its image is painted late
+// because the renderer is busy, or its video doesn't start (default: 2s). If
+// the built-in splash screen can't fetch or decode its image, it closes itself
+// instead, so this doesn't apply. Larger values let slow devices show the
+// content for the whole kSplashScreenTimeoutParam, but delay startup by up to
+// that much when the content doesn't show. If not positive, the splash screen
+// starts when its page finishes loading, as if SplashScreenContentWait were
+// disabled. Values need a unit, e.g., "3s" or "2500ms". The param name is
+// prefixed with the feature name (go/cobalt-finch-setup#naming-style-guide).
+// Locally:
+// --enable-features=SplashScreenContentWait:SplashScreenContentWait_max_delay/3s
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSplashScreenContentWaitMaxDelay);
 
 // Enables video Picture-in-Picture support.
 extern const base::Feature kEnablePictureInPicture;

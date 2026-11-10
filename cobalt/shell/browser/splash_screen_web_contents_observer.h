@@ -48,6 +48,17 @@ class SplashScreenWebContentsObserver : public WebContentsObserver {
 
   void DidFirstVisuallyNonEmptyPaint() override;
 
+  // Runs `on_first_contentful_paint` on the splash screen's first contentful
+  // paint, once it's on screen. For the image splash screen, that's when its
+  // image shows: its background, and its image while still transparent, aren't
+  // contentful. For the video splash screen, it's before the first frame.
+  void set_on_first_contentful_paint(
+      base::RepeatingClosure on_first_contentful_paint) {
+    on_first_contentful_paint_ = std::move(on_first_contentful_paint);
+  }
+
+  void OnFirstContentfulPaintInPrimaryMainFrame() override;
+
   // Runs `on_video_started` whenever a video starts playing in the splash
   // screen, i.e., once SbPlayer has prerolled it.
   void set_on_video_started(base::RepeatingClosure on_video_started) {
@@ -68,6 +79,7 @@ class SplashScreenWebContentsObserver : public WebContentsObserver {
 
   base::OnceClosure on_load_complete_;
   StartupEventCallback on_startup_event_;
+  base::RepeatingClosure on_first_contentful_paint_;
   base::RepeatingClosure on_video_started_;
 };
 
