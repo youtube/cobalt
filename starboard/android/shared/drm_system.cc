@@ -92,6 +92,32 @@ DrmSystem::DrmSystem(PassKey<DrmSystem>,
     return;
   }
   SB_LOG(INFO) << "Creating DrmSystem: key_system=" << key_system;
+
+  // Open the media crypto session up front, as Chromium's MediaDrmBridge does.
+  // A player may be created with this drm system before any session update
+  // request is generated, e.g. when MediaKeys are attached to clear content.
+  // Decoders hold every sample, including clear ones, until IsReady() is true,
+  // so without this such playback would stall.
+  const MediaDrmBridge::OperationResult result =
+      media_drm_bridge_->CreateMediaCryptoSession();
+  switch (result.status) {
+    case DRM_OPERATION_STATUS_SUCCESS:
+      // No decoder can be registered yet, so there is no need to call
+      // NotifyKeyStateChanged().
+      created_media_crypto_session_ = true;
+      break;
+    case DRM_OPERATION_STATUS_NOT_PROVISIONED:
+      // Expected on unprovisioned devices. The first session update request
+      // triggers provisioning and then creates the media crypto session.
+      SB_LOG(INFO) << "Device is not provisioned. Deferring media crypto "
+                      "session creation until the first session update "
+                      "request.";
+      break;
+    case DRM_OPERATION_STATUS_OPERATION_FAILED:
+    default:
+      SB_LOG(WARNING) << "Failed to create media crypto session: " << result;
+      break;
+  }
 }
 
 DrmSystem::~DrmSystem() {
