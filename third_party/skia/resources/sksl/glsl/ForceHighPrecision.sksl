@@ -1,9 +1,0 @@
-/*#pragma settings UsesPrecisionModifiers ForceHighPrecision*/
-
-uniform float unknownInput;
-
-void main() {
-    half x = half(unknownInput);
-    half4 y = half4(x);
-    sk_FragColor = y;
-}
