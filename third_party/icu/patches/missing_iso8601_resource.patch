@@ -1,0 +1,51 @@
+diff --git a/android/icudtl.dat b/android/icudtl.dat
+index 55ec28e3f..be1bafb11 100644
+Binary files a/android/icudtl.dat and b/android/icudtl.dat differ
+diff --git a/cast/icudtl.dat b/cast/icudtl.dat
+index e5285fcfc..e21352f4d 100644
+Binary files a/cast/icudtl.dat and b/cast/icudtl.dat differ
+diff --git a/chromecast_video/icudtl.dat b/chromecast_video/icudtl.dat
+index fbb985923..ee9b41b9f 100644
+Binary files a/chromecast_video/icudtl.dat and b/chromecast_video/icudtl.dat differ
+diff --git a/chromeos/icudtl.dat b/chromeos/icudtl.dat
+index 6197e70b1..a2b9fe170 100644
+Binary files a/chromeos/icudtl.dat and b/chromeos/icudtl.dat differ
+diff --git a/common/icudtb.dat b/common/icudtb.dat
+index b4e514f1e..98492b7db 100644
+Binary files a/common/icudtb.dat and b/common/icudtb.dat differ
+diff --git a/common/icudtl.dat b/common/icudtl.dat
+index 3cb1a3b82..783aedc0b 100644
+Binary files a/common/icudtl.dat and b/common/icudtl.dat differ
+diff --git a/ios/icudtl.dat b/ios/icudtl.dat
+index c8738b297..bc9d15a51 100644
+Binary files a/ios/icudtl.dat and b/ios/icudtl.dat differ
+diff --git a/source/data/misc/supplementalData.txt b/source/data/misc/supplementalData.txt
+index 5ab96abd6..643973bed 100644
+--- a/source/data/misc/supplementalData.txt
++++ b/source/data/misc/supplementalData.txt
+@@ -218,6 +218,25 @@ supplementalData:table(nofallback){
+             }
+             system{"lunar"}
+         }
++        iso8601{
++            eras{
++                0{
++                    end:intvector{
++                        0,
++                        12,
++                        31,
++                    }
++                }
++                1{
++                    start:intvector{
++                        1,
++                        1,
++                        1,
++                    }
++                }
++            }
++            system{"solar"}
++        }
+         japanese{
+             eras{
+                 0{

@@ -1,0 +1,44 @@
+// Copyright (C) 2025 Rivos Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Manually generated with bindings for an extra set of TracePacket fields.
+
+use crate::pb_msg;
+use crate::pb_msg_ext;
+use crate::protos::trace::generic_kernel::generic_gpu_frequency::*;
+use crate::protos::trace::gpu::gpu_counter_event::*;
+use crate::protos::trace::gpu::gpu_log::*;
+use crate::protos::trace::gpu::gpu_mem_event::*;
+use crate::protos::trace::gpu::gpu_render_stage_event::*;
+use crate::protos::trace::gpu::vulkan_api_event::*;
+use crate::protos::trace::gpu::vulkan_memory_event::*;
+use crate::protos::trace::system_info::gpu_info::*;
+
+use perfetto_sdk::protos::trace::trace_packet::TracePacket;
+
+pb_msg_ext!(TracePacket {
+    gpu_counter_event: GpuCounterEvent, msg, 52,
+    gpu_render_stage_event: GpuRenderStageEvent, msg, 53,
+    vulkan_memory_event: VulkanMemoryEvent, msg, 62,
+    gpu_log: GpuLog, msg, 63,
+    vulkan_api_event: VulkanApiEvent, msg, 65,
+    gpu_mem_total_event: GpuMemTotalEvent, msg, 71,
+    gpu_info: GpuInfo, msg, 128,
+    generic_gpu_frequency_event: GenericGpuFrequencyEvent, msg, 129,
+});
+
+/// Import this to use the extra `TracePacket` fields.
+pub mod prelude {
+    pub use super::TracePacketExt;
+}
