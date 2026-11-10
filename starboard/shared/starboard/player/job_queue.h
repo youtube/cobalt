@@ -15,8 +15,10 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 
+#include <atomic>
 #include <condition_variable>
 #include <cstddef>
+#include <deque>
 #include <functional>
 #include <map>
 #include <memory>
@@ -46,6 +48,17 @@ namespace starboard {
 // This class implements a job queue where jobs can be posted to it on any
 // thread and will be processed on one thread that this job queue is linked to.
 // A thread can only have one job queue.
+//
+// Jobs are run in the order of their scheduled time (i.e. the time Schedule()
+// is called plus the delay), and jobs with the same scheduled time are run in
+// the order they are scheduled.
+//
+// EnableOptimizations() enables a set of optimizations that don't change the
+// observable behavior of the queue but reduce its overhead (syscalls, heap
+// allocations and wake ups per job).  They are opt-in: the
+// original code path is used unless they are enabled, e.g. via an
+// experimental feature, and every JobQueue latches the switch when it is
+// constructed.  See the individual members for the details.
 class JobQueue {
  public:
   // A move-only type-erased wrapper for callables with signature void().
@@ -254,7 +267,7 @@ class JobQueue {
     enum DetachedState { kDetached };
 
     explicit JobOwner(DetachedState detached_state) : job_queue_(nullptr) {
-      SB_DCHECK_EQ(detached_state, kDetached);
+      SB_CHECK_EQ(detached_state, kDetached);
     }
 
     // Note that this operation is not thread safe.  It is the caller's
@@ -262,7 +275,7 @@ class JobQueue {
     // This is used to associate a JobQueue with a JobOwner that was constructed
     // in a detached state (e.g. with JobOwner(kDetached)).
     void Attach(JobQueue* job_queue) {
-      SB_DCHECK_EQ(job_queue_, nullptr);
+      SB_CHECK_EQ(job_queue_, nullptr);
       SB_CHECK(job_queue);
       job_queue_ = job_queue;
     }
@@ -275,6 +288,13 @@ class JobQueue {
 
   JobQueue();
   ~JobQueue();
+
+  // Enables the optimizations for all JobQueues constructed afterwards, the
+  // JobQueues that already exist are not affected.  Called when the
+  // "Media.EnableTrivialOptimizations" experimental feature is set, see
+  // experimental_features.cc.
+  static void EnableOptimizations();
+  static bool SetOptimizationsEnabledForTesting(bool enabled);
 
   JobToken Schedule(Job job, int64_t delay_usec = 0);
   void ScheduleAndWait(Job job);
@@ -290,6 +310,10 @@ class JobQueue {
 
   bool BelongsToCurrentThread() const;
 
+  bool optimizations_enabled_for_testing() const {
+    return optimizations_enabled_;
+  }
+
  private:
 #if ENABLE_JOB_QUEUE_PROFILING
   // Reset the max value periodically to catch all local peaks.
@@ -301,6 +325,10 @@ class JobQueue {
     JobToken job_token;
     Job job;
     JobOwner* owner;
+    // Only used when |optimizations_enabled_| is true, to order the jobs in
+    // |immediate_jobs_| against the delayed jobs in
+    // |time_to_job_record_map_|.
+    int64_t scheduled_time = 0;
 #if ENABLE_JOB_QUEUE_PROFILING
     void* stack[kProfileStackDepth];
     int stack_size;
@@ -316,12 +344,42 @@ class JobQueue {
   // set |wait_for_next_job| to true doesn't guarantee that one job will always
   // be run.
   bool TryToRunOneJob(bool wait_for_next_job);
+  // Used by TryToRunOneJob() when optimizations are enabled: picks the next
+  // job to run from |immediate_jobs_| and |time_to_job_record_map_|, waiting
+  // for it when |wait_for_next_job| is set.  Returns false when there is no job
+  // to run.  |mutex_| has to be held by |lock|.
+  bool TakeNextJobOptimized(std::unique_lock<std::mutex>& lock,
+                            bool wait_for_next_job,
+                            JobRecord* job_record);
+  // Waits on |condition_| for at most |delay_usec| when it is set, or until
+  // the worker is signaled.  |mutex_| has to be held by |lock|.
+  void WaitForJobsOptimized(std::unique_lock<std::mutex>& lock,
+                            std::optional<int64_t> delay_usec);
 
   ThreadChecker thread_checker_;
   std::mutex mutex_;
   std::condition_variable condition_;
   TimeToJobRecordMap time_to_job_record_map_;  // Guarded by |mutex_|.
-  bool stopped_ = false;
+  // Written with |mutex_| held.  With optimizations enabled, RunUntilStopped()
+  // reads it without the lock.
+  std::atomic<bool> stopped_{false};
+
+  const bool optimizations_enabled_;
+  // The members below are only used when |optimizations_enabled_| is true.
+  // Signaled when a job scheduled via ScheduleAndWait() is finished, or when
+  // the queue is stopped, so that the thread running the jobs is the only
+  // waiter of |condition_|.
+  std::condition_variable sync_condition_;
+  // The jobs scheduled without a delay, in the order they were scheduled,
+  // which is also the order of their scheduled times and tokens.  Keeping them
+  // separated from the delayed jobs in |time_to_job_record_map_| makes
+  // scheduling and dispatching them O(1) and avoids a heap allocation per job.
+  // Guarded by |mutex_|.
+  std::deque<JobRecord> immediate_jobs_;
+  // True while the thread running the jobs is waiting on |condition_|, so that
+  // Schedule() only signals it (a syscall) when it is actually waiting.
+  // Guarded by |mutex_|.
+  bool worker_waiting_ = false;
 
 #if ENABLE_JOB_QUEUE_PROFILING
   int64_t last_reset_time_ = CurrentMonotonicTime();

@@ -59,9 +59,11 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/isolation_info.h"
+#include "net/ssl/ssl_cipher_suite_names.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/cpp/url_loader_factory_builder.h"
 #include "services/network/public/mojom/network_context.mojom.h"
+#include "services/network/public/mojom/ssl_config.mojom.h"
 #include "sql/database.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/platform_service.h"
@@ -483,6 +485,34 @@ TEST_F(CobaltContentBrowserClientTest, GetCacheQuotaSettings_AsyncDispatch) {
   EXPECT_LE(
       settings->per_storage_key_quota,
       static_cast<int64_t>(settings->pool_size * kUsageRatioToStartEviction));
+}
+
+// Verifies that when Cobalt initializes its NetworkContext for HTTPS web app
+// navigation and media playback, ConfigureSSLConfig() populates
+// disabled_cipher_suites so the TLS ClientHello never advertises obsolete
+// static-RSA or CBC-mode cipher suites while keeping modern ECDHE AEAD suites
+// enabled.
+TEST_F(CobaltContentBrowserClientTest,
+       ConfigureNetworkContextParamsDisablesObsoleteCipherSuites) {
+  auto params = network::mojom::NetworkContextParams::New();
+  CobaltContentBrowserClient::ConfigureSSLConfig(params.get());
+
+  ASSERT_TRUE(params->initial_ssl_config);
+  const auto& disabled = params->initial_ssl_config->disabled_cipher_suites;
+  EXPECT_FALSE(disabled.empty());
+  for (uint16_t cipher_suite : disabled) {
+    EXPECT_FALSE(net::IsTLSCipherSuiteAllowedByHTTP2(cipher_suite));
+  }
+
+  // Static RSA (kRSA) and non-AEAD CBC-mode cipher suites must be disabled.
+  EXPECT_THAT(disabled, testing::IsSupersetOf(
+                            {0x002f, 0x0035, 0x009c, 0x009d, 0xc013, 0xc014}));
+
+  // Modern ECDHE AEAD cipher suites must not be disabled.
+  EXPECT_THAT(disabled, testing::Not(testing::Contains(0xc02b)));
+  EXPECT_THAT(disabled, testing::Not(testing::Contains(0xc02f)));
+  EXPECT_THAT(disabled, testing::Not(testing::Contains(0xcca8)));
+  EXPECT_THAT(disabled, testing::Not(testing::Contains(0xcca9)));
 }
 
 class CobaltContentBrowserClientHeaderTest

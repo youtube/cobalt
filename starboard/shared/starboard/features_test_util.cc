@@ -16,8 +16,7 @@
 
 #include <stdint.h>
 
-#include <iterator>
-
+#include "starboard/configuration.h"
 #include "starboard/extension/features.h"
 #include "starboard/shared/starboard/feature_list.h"
 #include "starboard/shared/starboard/features.h"
@@ -64,8 +63,8 @@ namespace {
 
 void InitializeStarboardFeatureListWithDefaults() {
   FeatureList::InitializeFeatureList(
-      kStarboardFeatures, std::size(kStarboardFeatures), kStarboardParams,
-      std::size(kStarboardParams));
+      kStarboardFeatures, SB_ARRAY_SIZE(kStarboardFeatures), kStarboardParams,
+      SB_ARRAY_SIZE(kStarboardParams));
 }
 
 }  // namespace starboard::features
