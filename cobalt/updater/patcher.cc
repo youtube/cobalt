@@ -25,7 +25,8 @@ class PatcherImpl : public update_client::Patcher {
  public:
   PatcherImpl() = default;
 
-  void PatchPuffPatch(base::File input_file,
+  void PatchPuffPatch(bool is_foreground,
+                      base::File input_file,
                       base::File patch_file,
                       base::File output_file,
                       PatchCompleteCallback callback) const override {
@@ -33,7 +34,8 @@ class PatcherImpl : public update_client::Patcher {
         std::move(input_file), std::move(patch_file), std::move(output_file)));
   }
 
-  void PatchZucchini(base::File old_file,
+  void PatchZucchini(bool is_foreground,
+                     base::File old_file,
                      base::File patch_file,
                      base::File destination_file,
                      PatchCompleteCallback callback) const override {
