@@ -27,6 +27,10 @@ template("android_clang_toolchain") {
       current_os = "android"
       use_debug_fission = false
       is_high_end_android = is_high_end_android_secondary_toolchain
+
+      # target_os stays linux, which would turn on the WebUI NTP. It needs the
+      # extensions system, which is off once current_os is android.
+      enable_webui_ntp = false
     }
 
     # Output linker map files for binary size analysis.
