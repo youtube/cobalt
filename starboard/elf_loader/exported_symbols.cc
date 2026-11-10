@@ -22,6 +22,10 @@
 
 #include "build/build_config.h"
 
+#if !defined(OFFICIAL_BUILD)
+#include <dlfcn.h>
+#endif  // !defined(OFFICIAL_BUILD)
+
 #include <errno.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
@@ -421,20 +425,31 @@ ExportedSymbols::ExportedSymbols() {
 
 }  // NOLINT
 
-const void* ExportedSymbols::Lookup(const char* name) {
+const void* ExportedSymbols::Lookup(const char* name, bool is_weak) const {
   if (!name) {
     return nullptr;
   }
-  const void* address = map_[name];
+  auto it = map_.find(name);
   // Any symbol that is not registered as part of the Starboard API in the
   // constructor of this class is a leak, and is an error.
-  if (address) {
-    return address;
+  if (it != map_.end()) {
+    return it->second;
   }
 
   // Not an error, as it could be a weak symbol.
   SB_DLOG(WARNING) << "Failed to retrieve the address of '" << name << "'.";
+  if (is_weak) {
+    return nullptr;
+  }
+#if !defined(OFFICIAL_BUILD)
+  const void* address = dlsym(RTLD_DEFAULT, name);
+  if (address == nullptr) {
+    SB_LOG(ERROR) << "Fallback dlsym failed for '" << name << "'.";
+  }
   return address;
+#else
+  return nullptr;
+#endif  // !defined(OFFICIAL_BUILD)
 }
 
 }  // namespace elf_loader

@@ -485,20 +485,134 @@ TEST_F(RelocationsTest, ApplyAllRelocationsReclaimsInteriorPages) {
   munmap(mapped, kMappingSize);
 }
 
+#if SB_IS(ARCH_ARM)
+constexpr Word kGlobDatRelocType = R_ARM_GLOB_DAT;
+#elif SB_IS(ARCH_ARM64)
+constexpr Word kGlobDatRelocType = R_AARCH64_GLOB_DAT;
+#elif SB_IS(ARCH_X86)
+constexpr Word kGlobDatRelocType = R_386_GLOB_DAT;
+#elif SB_IS(ARCH_X64)
+constexpr Word kGlobDatRelocType = R_X86_64_GLOB_DAT;
+#endif
+
+#if SB_SIZE_OF(POINTER) == 4
+Elf32_Word MakeRelocInfo(Elf32_Word sym, Elf32_Word type) {
+  return ELF32_R_INFO(sym, type);
+}
+#else
+Elf64_Xword MakeRelocInfo(Elf64_Word sym, Elf64_Word type) {
+  return ELF64_R_INFO(sym, type);
+}
+#endif
+
+struct WeakSymbolRelocationMemory {
+  Addr got_slots[2];
+  Word elf_hash[6];
+  Sym symbol_table[3];
+  char string_table[32];
+  rel_t relocs[2];
+  Dyn dynamic_table[6];
+};
+
 // When elf_loader loads an Evergreen guest binary (such as libcobalt.so during
-// app launch or browser tests), symbol relocation queries
-// ExportedSymbols::Lookup for required Starboard ABI functions and optional
-// weak runtime symbols (such as __cxa_thread_atexit_impl during thread_local
-// initialization). Verify that registered Starboard symbols resolve to non-null
-// addresses while null names and unregistered host C library symbols resolve to
-// nullptr so guest modules remain isolated to the Starboard ABI.
-TEST_F(RelocationsTest, LookupResolvesOnlyRegisteredStarboardSymbols) {
+// app launch or browser tests), ExportedSymbols::Lookup resolves Starboard ABI
+// symbols and handles unregistered references according to ELF binding:
+// optional weak runtime hooks (such as __cxa_thread_atexit_impl during
+// thread_local initialization) must resolve to nullptr rather than binding host
+// libc symbols via dlsym, whereas strong unregistered symbols (such as ASan
+// runtime symbols in non-official builds) fall back to host dlsym.
+TEST_F(RelocationsTest, LookupSkipsHostDlsymOnlyForUnregisteredWeakSymbols) {
+  const ExportedSymbols symbols;
+  EXPECT_NE(nullptr, symbols.Lookup("SbLog", /*is_weak=*/false));
+  EXPECT_NE(nullptr, symbols.Lookup("SbLog", /*is_weak=*/true));
+  EXPECT_EQ(nullptr, symbols.Lookup(nullptr, /*is_weak=*/false));
+  EXPECT_EQ(nullptr, symbols.Lookup(nullptr, /*is_weak=*/true));
+  EXPECT_EQ(nullptr,
+            symbols.Lookup("__cxa_thread_atexit_impl", /*is_weak=*/true));
+  EXPECT_EQ(nullptr, symbols.Lookup("dlsym", /*is_weak=*/true));
+#if !defined(OFFICIAL_BUILD)
+  EXPECT_NE(nullptr, symbols.Lookup("dlsym", /*is_weak=*/false));
+#else
+  EXPECT_EQ(nullptr, symbols.Lookup("dlsym", /*is_weak=*/false));
+#endif
+}
+
+// End-to-end relocation journey: when an Evergreen guest module contains both
+// an undefined STB_WEAK reference to an unregistered host symbol ("dlsym") and
+// an undefined STB_WEAK reference to a registered Starboard API ("SbLog"),
+// Relocations::ApplyAllRelocations resolves the unregistered weak symbol to 0
+// while resolving the registered Starboard symbol to its exported address, and
+// still resolves STB_GLOBAL unregistered symbols via dlsym in non-official
+// builds.
+TEST_F(RelocationsTest, ApplyAllRelocationsSkipsHostDlsymForWeakUndefined) {
+  WeakSymbolRelocationMemory mem;
+  std::memset(&mem, 0, sizeof(mem));
+  const Addr base = reinterpret_cast<Addr>(&mem);
+
+  mem.got_slots[0] = 0x1234u;
+  mem.got_slots[1] = 0u;
+
+  // Empty 1-bucket ELF hash table so DynamicSection::LookupByName reports
+  // neither symbol as defined inside the guest module.
+  mem.elf_hash[0] = 1;
+  mem.elf_hash[1] = 3;
+
+  std::memcpy(mem.string_table, "\0dlsym\0SbLog\0", 13);
+
+  // Symbol 1: undefined STB_WEAK "dlsym" (unregistered host symbol).
+  mem.symbol_table[1].st_name = 1;
+  mem.symbol_table[1].st_info = static_cast<unsigned char>(STB_WEAK << 4);
+  mem.symbol_table[1].st_shndx = SHN_UNDEF;
+
+  // Symbol 2: undefined STB_WEAK "SbLog" (registered Starboard symbol).
+  mem.symbol_table[2].st_name = 7;
+  mem.symbol_table[2].st_info = static_cast<unsigned char>(STB_WEAK << 4);
+  mem.symbol_table[2].st_shndx = SHN_UNDEF;
+
+  mem.relocs[0].r_offset = reinterpret_cast<Addr>(&mem.got_slots[0]) - base;
+  mem.relocs[0].r_info = MakeRelocInfo(1, kGlobDatRelocType);
+  mem.relocs[1].r_offset = reinterpret_cast<Addr>(&mem.got_slots[1]) - base;
+  mem.relocs[1].r_info = MakeRelocInfo(2, kGlobDatRelocType);
+
+  mem.dynamic_table[0].d_tag = DT_HASH;
+  mem.dynamic_table[0].d_un.d_ptr = reinterpret_cast<Addr>(mem.elf_hash) - base;
+  mem.dynamic_table[1].d_tag = DT_STRTAB;
+  mem.dynamic_table[1].d_un.d_ptr =
+      reinterpret_cast<Addr>(mem.string_table) - base;
+  mem.dynamic_table[2].d_tag = DT_SYMTAB;
+  mem.dynamic_table[2].d_un.d_ptr =
+      reinterpret_cast<Addr>(mem.symbol_table) - base;
+#if defined(USE_RELA)
+  mem.dynamic_table[3].d_tag = DT_RELA;
+  mem.dynamic_table[4].d_tag = DT_RELASZ;
+#else
+  mem.dynamic_table[3].d_tag = DT_REL;
+  mem.dynamic_table[4].d_tag = DT_RELSZ;
+#endif
+  mem.dynamic_table[3].d_un.d_ptr = reinterpret_cast<Addr>(mem.relocs) - base;
+  mem.dynamic_table[4].d_un.d_val = sizeof(mem.relocs);
+  mem.dynamic_table[5].d_tag = DT_NULL;
+
+  DynamicSection dyn_section(base, mem.dynamic_table, 6, 0);
+  ASSERT_TRUE(dyn_section.InitDynamicSection());
+
   ExportedSymbols symbols;
-  EXPECT_NE(nullptr, symbols.Lookup("SbLog"));
-  EXPECT_EQ(nullptr, symbols.Lookup(nullptr));
-  EXPECT_EQ(nullptr, symbols.Lookup("__cxa_thread_atexit_impl"));
-  EXPECT_EQ(nullptr, symbols.Lookup("dlsym"));
-  EXPECT_EQ(nullptr, symbols.Lookup("dlopen"));
+  Relocations relocs(base, &dyn_section, &symbols);
+  ASSERT_TRUE(relocs.InitRelocations());
+  ASSERT_TRUE(relocs.ApplyAllRelocations());
+
+  EXPECT_EQ(0u, mem.got_slots[0]);
+  EXPECT_EQ(reinterpret_cast<Addr>(symbols.Lookup("SbLog")), mem.got_slots[1]);
+
+  // Flip "dlsym" to STB_GLOBAL to verify strong symbol resolution behavior.
+  mem.symbol_table[1].st_info = static_cast<unsigned char>(STB_GLOBAL << 4);
+#if !defined(OFFICIAL_BUILD)
+  ASSERT_TRUE(relocs.ApplyAllRelocations());
+  EXPECT_EQ(reinterpret_cast<Addr>(symbols.Lookup("dlsym", /*is_weak=*/false)),
+            mem.got_slots[0]);
+#else
+  EXPECT_FALSE(relocs.ApplyAllRelocations());
+#endif
 }
 
 }  // namespace
