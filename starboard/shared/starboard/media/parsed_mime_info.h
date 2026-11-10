@@ -15,9 +15,12 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_PARSED_MIME_INFO_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_PARSED_MIME_INFO_H_
 
+#include <optional>
 #include <string>
 
 #include "starboard/common/log.h"
+#include "starboard/common/media.h"
+#include "starboard/common/size.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/mime_type.h"
@@ -33,18 +36,12 @@ class ParsedMimeInfo {
   };
 
   struct VideoCodecInfo {
-    SbMediaVideoCodec codec = kSbMediaVideoCodecNone;
-    int profile;
-    int level;
-    int bit_depth;
-    SbMediaPrimaryId primary_id;
-    SbMediaTransferId transfer_id;
-    SbMediaMatrixId matrix_id;
-    int frame_width;
-    int frame_height;
-    int fps;
-    int bitrate;
-    bool decode_to_texture_required;
+    // Information parsed from the codec string.
+    ParsedVideoCodec codec_info;
+    Size frame_size;
+    int fps = 0;
+    int bitrate = 0;
+    bool decode_to_texture_required = false;
   };
 
   static std::optional<ParsedMimeInfo> Create(const std::string& mime_string);
@@ -62,7 +59,7 @@ class ParsedMimeInfo {
   }
 
   bool has_video_info() const {
-    return video_info_.codec != kSbMediaVideoCodecNone;
+    return video_info_.codec_info.codec != kSbMediaVideoCodecNone;
   }
   // Extra information for video codec. Note that video_info() can only be
   // used when has_video_info() returns true.

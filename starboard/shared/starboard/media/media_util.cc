@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <optional>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
@@ -292,24 +293,15 @@ bool Is8BitSDRVideo(const char* mime) {
     return true;
   }
 
-  SbMediaVideoCodec video_codec;
-  int profile = -1;
-  int level = -1;
-  int bit_depth = 8;
-  SbMediaPrimaryId primary_id = kSbMediaPrimaryIdUnspecified;
-  SbMediaTransferId transfer_id = kSbMediaTransferIdUnspecified;
-  SbMediaMatrixId matrix_id = kSbMediaMatrixIdUnspecified;
-
-  if (!ParseVideoCodec(codecs[0].c_str(), &video_codec, &profile, &level,
-                       &bit_depth, &primary_id, &transfer_id, &matrix_id)) {
+  std::optional<ParsedVideoCodec> codec_info = ParseVideoCodec(codecs[0]);
+  if (!codec_info) {
     SB_LOG(WARNING) << "ParseVideoCodec() failed on mime: " << mime
                     << ", assuming sdr video.";
     return true;
   }
 
-  SB_DCHECK_NE(video_codec, kSbMediaVideoCodecNone);
-
-  return Is8BitSDRVideo(bit_depth, primary_id, transfer_id, matrix_id);
+  return Is8BitSDRVideo(codec_info->bit_depth, codec_info->primary_id,
+                        codec_info->transfer_id, codec_info->matrix_id);
 }
 
 int GetBytesPerSample(SbMediaAudioSampleType sample_type) {
