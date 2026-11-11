@@ -29,6 +29,10 @@ namespace starboard {
 
 namespace {
 
+bool StartsWith(std::string_view str, std::string_view prefix) {
+  return str.substr(0, prefix.size()) == prefix;
+}
+
 int hex_to_int(char hex) {
   if (hex >= '0' && hex <= '9') {
     return hex - '0';
@@ -44,10 +48,12 @@ int hex_to_int(char hex) {
 }
 
 // Read one digit hex from |str| and store into |output|. Return false if
-// the character is not a digit, return true otherwise.
+// |str| is empty or the character is not a hex digit, return true otherwise.
 template <typename T>
-bool ReadOneDigitHex(const char* str, T* output) {
-  SB_CHECK(str);
+bool ReadOneDigitHex(std::string_view str, T* output) {
+  if (str.empty()) {
+    return false;
+  }
 
   if (str[0] >= 'A' && str[0] <= 'F') {
     *output = static_cast<T>((str[0] - 'A' + 10));
@@ -70,28 +76,27 @@ bool ReadOneDigitHex(const char* str, T* output) {
 // string, and store into |output|. Return false if one of the character is not
 // a digit, return true otherwise.
 template <typename T>
-bool ReadDecimalUntilDot(const char* str, T* output) {
-  SB_CHECK(str);
-
+bool ReadDecimalUntilDot(std::string_view str, T* output) {
   *output = 0;
-  while (*str != 0 && *str != '.') {
-    if (!isdigit(*str)) {
+  for (char c : str) {
+    if (c == '.') {
+      break;
+    }
+    if (!isdigit(c)) {
       return false;
     }
-    *output = *output * 10 + (*str - '0');
-    ++str;
+    *output = *output * 10 + (c - '0');
   }
 
   return true;
 }
 
 // Read two digit decimal from |str| and store into |output|. Return false if
-// any character is not a digit, return true otherwise.
+// |str| has less than two characters or any of the first two characters is not
+// a digit, return true otherwise.
 template <typename T>
-bool ReadTwoDigitDecimal(const char* str, T* output) {
-  SB_CHECK(str);
-
-  if (!isdigit(str[0]) || !isdigit(str[1])) {
+bool ReadTwoDigitDecimal(std::string_view str, T* output) {
+  if (str.size() < 2 || !isdigit(str[0]) || !isdigit(str[1])) {
     return false;
   }
 
@@ -110,13 +115,11 @@ bool ReadTwoDigitDecimal(const char* str, T* output) {
 // For example, both "av01.0.05M.08" and "av01.0.05M.08****" match reference
 // "av01.0.05?.08", but "vp09.0.05M.08" or "vp09.0.05M.08." don't.
 // The function returns true when |format| matches |reference|.
-bool VerifyFormat(const char* format, const char* reference) {
-  auto format_size = strlen(format);
-  auto reference_size = strlen(reference);
-  if (format_size < reference_size) {
+bool VerifyFormat(std::string_view format, std::string_view reference) {
+  if (format.size() < reference.size()) {
     return false;
   }
-  for (size_t i = 0; i < reference_size; ++i) {
+  for (size_t i = 0; i < reference.size(); ++i) {
     if (isdigit(reference[i])) {
       if (!isdigit(format[i])) {
         return false;
@@ -133,16 +136,16 @@ bool VerifyFormat(const char* format, const char* reference) {
       return false;
     }
   }
-  if (format_size == reference_size) {
+  if (format.size() == reference.size()) {
     return true;
   }
-  return format[reference_size] != '.' && !isdigit(format[reference_size]);
+  return format[reference.size()] != '.' && !isdigit(format[reference.size()]);
 }
 
 // It works exactly the same as the above function, except that the size of
 // |format| has to be exactly the same as the size of |reference|.
-bool VerifyFormatStrictly(const char* format, const char* reference) {
-  if (strlen(format) != strlen(reference)) {
+bool VerifyFormatStrictly(std::string_view format, std::string_view reference) {
+  if (format.size() != reference.size()) {
     return false;
   }
   return VerifyFormat(format, reference);
@@ -155,7 +158,7 @@ bool VerifyFormatStrictly(const char* format, const char* reference) {
 // Note that the spec also supports of different chroma subsamplings but the
 // implementation always assume that it is 4:2:0 and returns std::nullopt when
 // it isn't.
-std::optional<ParsedVideoCodec> ParseAv1Info(std::string codec) {
+std::optional<ParsedVideoCodec> ParseAv1Info(std::string_view codec) {
   // The codec can only in one of the following formats:
   //   Full: av01.0.04M.10.0.110.09.16.09.0
   //   Short: av01.0.05M.08
@@ -163,22 +166,21 @@ std::optional<ParsedVideoCodec> ParseAv1Info(std::string codec) {
   // "0.110.01.01.01.0".
   // All fields are fixed size and leading zero cannot be omitted, so the
   // expected sizes are known.
-  const char kShortFormReference[] = "av01.0.05?.08";
-  const char kLongFormReference[] = "av01.0.04?.10.0.110.09.16.09.0";
-  const size_t kShortFormSize = strlen(kShortFormReference);
-  const size_t kLongFormSize = strlen(kLongFormReference);
+  constexpr std::string_view kShortFormReference = "av01.0.05?.08";
+  constexpr std::string_view kLongFormReference =
+      "av01.0.04?.10.0.110.09.16.09.0";
 
   // 1. Sanity check the format.
-  if (strncmp(codec.c_str(), "av01.", 5) != 0) {
+  if (!StartsWith(codec, "av01.")) {
     return std::nullopt;
   }
 
   ParsedVideoCodec info;
   info.codec = kSbMediaVideoCodecAv1;
-  if (VerifyFormat(codec.c_str(), kLongFormReference)) {
-    codec.resize(kLongFormSize);
-  } else if (VerifyFormat(codec.c_str(), kShortFormReference)) {
-    codec.resize(kShortFormSize);
+  if (VerifyFormat(codec, kLongFormReference)) {
+    codec = codec.substr(0, kLongFormReference.size());
+  } else if (VerifyFormat(codec, kShortFormReference)) {
+    codec = codec.substr(0, kShortFormReference.size());
   } else {
     return std::nullopt;
   }
@@ -192,7 +194,7 @@ std::optional<ParsedVideoCodec> ParseAv1Info(std::string codec) {
   // 3. Parse level, which is two digit value from 0 to 23, maps to level 2.0,
   //    2.1, 2.2, 2.3, 3.0, 3.1, 3.2, 3.3, ..., 7.0, 7.1, 7.2, 7.3.
   int level_value;
-  if (!ReadTwoDigitDecimal(codec.c_str() + 7, &level_value)) {
+  if (!ReadTwoDigitDecimal(codec.substr(7), &level_value)) {
     return std::nullopt;
   }
 
@@ -208,7 +210,7 @@ std::optional<ParsedVideoCodec> ParseAv1Info(std::string codec) {
   }
 
   // 5. Parse bit depth, which can be value 08, 10, or 12.
-  if (!ReadTwoDigitDecimal(codec.c_str() + 11, &info.bit_depth)) {
+  if (!ReadTwoDigitDecimal(codec.substr(11), &info.bit_depth)) {
     return std::nullopt;
   }
   if (info.bit_depth != 8 && info.bit_depth != 10 && info.bit_depth != 12) {
@@ -220,7 +222,7 @@ std::optional<ParsedVideoCodec> ParseAv1Info(std::string codec) {
   info.transfer_id = kSbMediaTransferIdBt709;
   info.matrix_id = kSbMediaMatrixIdBt709;
 
-  if (codec.size() == kShortFormSize) {
+  if (codec.size() == kShortFormReference.size()) {
     return info;
   }
 
@@ -232,13 +234,13 @@ std::optional<ParsedVideoCodec> ParseAv1Info(std::string codec) {
 
   // 8. Parse chroma subsampling, which we only support 110.
   // Note that this value is not returned.
-  if (strncmp(codec.c_str() + 16, "110", 3) != 0) {
+  if (codec.substr(16, 3) != "110") {
     return std::nullopt;
   }
 
   // 9. Parse color primaries, which can be 1 to 12, and 22 (EBU Tech. 3213-E).
   //    Note that 22 is not currently supported by Cobalt.
-  if (!ReadTwoDigitDecimal(codec.c_str() + 20, &info.primary_id)) {
+  if (!ReadTwoDigitDecimal(codec.substr(20), &info.primary_id)) {
     return std::nullopt;
   }
   SB_LOG_IF(WARNING, info.primary_id == 22)
@@ -249,7 +251,7 @@ std::optional<ParsedVideoCodec> ParseAv1Info(std::string codec) {
   }
 
   // 10. Parse transfer characteristics, which can be 0 to 18.
-  if (!ReadTwoDigitDecimal(codec.c_str() + 23, &info.transfer_id)) {
+  if (!ReadTwoDigitDecimal(codec.substr(23), &info.transfer_id)) {
     return std::nullopt;
   }
   if (info.transfer_id > 18) {
@@ -258,7 +260,7 @@ std::optional<ParsedVideoCodec> ParseAv1Info(std::string codec) {
 
   // 11. Parse matrix coefficients, which can be 0 to 14.
   //     Note that 12, 13, and 14 are not currently supported by Cobalt.
-  if (!ReadTwoDigitDecimal(codec.c_str() + 26, &info.matrix_id)) {
+  if (!ReadTwoDigitDecimal(codec.substr(26), &info.matrix_id)) {
     return std::nullopt;
   }
   if (info.matrix_id > 11) {
@@ -280,12 +282,12 @@ std::optional<ParsedVideoCodec> ParseAv1Info(std::string codec) {
 // Note that the leading codec is not necessarily to be "avc1" or "avc3" per
 // spec but this function only parses "avc1" and "avc3".  This function returns
 // std::nullopt when |codec| doesn't contain a valid codec string.
-std::optional<ParsedVideoCodec> ParseH264Info(const char* codec) {
-  if (strncmp(codec, "avc1.", 5) != 0 && strncmp(codec, "avc3.", 5) != 0) {
+std::optional<ParsedVideoCodec> ParseH264Info(std::string_view codec) {
+  if (!StartsWith(codec, "avc1.") && !StartsWith(codec, "avc3.")) {
     return std::nullopt;
   }
 
-  if (strlen(codec) != 11 || !isxdigit(codec[9]) || !isxdigit(codec[10])) {
+  if (codec.size() != 11 || !isxdigit(codec[9]) || !isxdigit(codec[10])) {
     return std::nullopt;
   }
 
@@ -308,22 +310,23 @@ std::optional<ParsedVideoCodec> ParseH264Info(const char* codec) {
 // 3.1, 120 mean level 4.
 // Please see the comment in the code for interactions between the various
 // parts.
-std::optional<ParsedVideoCodec> ParseH265Info(const char* codec) {
-  if (strncmp(codec, "hev1.", 5) != 0 && strncmp(codec, "hvc1.", 5) != 0) {
+std::optional<ParsedVideoCodec> ParseH265Info(std::string_view codec) {
+  if (!StartsWith(codec, "hev1.") && !StartsWith(codec, "hvc1.")) {
     return std::nullopt;
   }
 
   ParsedVideoCodec info;
   info.codec = kSbMediaVideoCodecH265;
 
-  codec += 5;
+  codec.remove_prefix(5);
 
   // Read profile space
-  if (codec[0] == 'A' || codec[0] == 'B' || codec[0] == 'C') {
-    ++codec;
+  if (!codec.empty() &&
+      (codec[0] == 'A' || codec[0] == 'B' || codec[0] == 'C')) {
+    codec.remove_prefix(1);
   }
 
-  if (strlen(codec) < 3) {
+  if (codec.size() < 3) {
     return std::nullopt;
   }
 
@@ -333,26 +336,26 @@ std::optional<ParsedVideoCodec> ParseH265Info(const char* codec) {
     if (!ReadDecimalUntilDot(codec, &general_profile_idc)) {
       return std::nullopt;
     }
-    codec += 2;
+    codec.remove_prefix(2);
   } else if (codec[2] == '.') {
     if (!ReadDecimalUntilDot(codec, &general_profile_idc)) {
       return std::nullopt;
     }
-    codec += 3;
+    codec.remove_prefix(3);
   } else {
     return std::nullopt;
   }
 
   // Read profile compatibility, up to 32 bits hex.
-  const char* dot = strchr(codec, '.');
-  if (dot == NULL || dot - codec == 0 || dot - codec > 8) {
+  const size_t dot = codec.find('.');
+  if (dot == std::string_view::npos || dot == 0 || dot > 8) {
     return std::nullopt;
   }
 
   uint32_t general_profile_compatibility_flags = 0;
   for (int i = 0; i < 9; ++i) {
     if (codec[0] == '.') {
-      ++codec;
+      codec.remove_prefix(1);
       break;
     }
     uint32_t hex = 0;
@@ -361,7 +364,7 @@ std::optional<ParsedVideoCodec> ParseH265Info(const char* codec) {
     }
     general_profile_compatibility_flags *= 16;
     general_profile_compatibility_flags += hex;
-    ++codec;
+    codec.remove_prefix(1);
   }
 
   info.profile = -1;
@@ -379,13 +382,13 @@ std::optional<ParsedVideoCodec> ParseH265Info(const char* codec) {
   }
 
   // Parse tier
-  if (codec[0] != 'L' && codec[0] != 'H') {
+  if (codec.empty() || (codec[0] != 'L' && codec[0] != 'H')) {
     return std::nullopt;
   }
-  ++codec;
+  codec.remove_prefix(1);
 
   // Parse level in 2 or 3 digits decimal.
-  if (strlen(codec) < 2) {
+  if (codec.size() < 2) {
     return std::nullopt;
   }
   if (!ReadDecimalUntilDot(codec, &info.level)) {
@@ -395,26 +398,27 @@ std::optional<ParsedVideoCodec> ParseH265Info(const char* codec) {
     return std::nullopt;
   }
   info.level /= 3;
-  if (codec[2] == 0 || codec[2] == '.') {
-    codec += 2;
-  } else if (codec[3] == 0 || codec[3] == '.') {
-    codec += 3;
+  if (codec.size() == 2 || codec[2] == '.') {
+    codec.remove_prefix(2);
+  } else if (codec.size() == 3 || codec[3] == '.') {
+    codec.remove_prefix(3);
   } else {
     return std::nullopt;
   }
 
   // Parse up to 6 constraint flags in the form of ".HH".
   for (int i = 0; i < 6; ++i) {
-    if (codec[0] == 0) {
+    if (codec.empty()) {
       return info;
     }
-    if (codec[0] != '.' || !isxdigit(codec[1]) || !isxdigit(codec[2])) {
+    if (codec.size() < 3 || codec[0] != '.' || !isxdigit(codec[1]) ||
+        !isxdigit(codec[2])) {
       return std::nullopt;
     }
-    codec += 3;
+    codec.remove_prefix(3);
   }
 
-  if (*codec != 0) {
+  if (!codec.empty()) {
     return std::nullopt;
   }
   return info;
@@ -428,7 +432,7 @@ std::optional<ParsedVideoCodec> ParseH265Info(const char* codec) {
 // Note that the spec also supports of different chroma subsamplings but the
 // implementation always assume that it is 4:2:0 and returns std::nullopt when
 // it isn't.
-std::optional<ParsedVideoCodec> ParseVp09Info(const char* codec) {
+std::optional<ParsedVideoCodec> ParseVp09Info(std::string_view codec) {
   // The codec can only in one of the following formats:
   //   Full: vp09.02.10.10.01.09.16.09.01
   //   Short: vp09.00.41.08
@@ -438,14 +442,13 @@ std::optional<ParsedVideoCodec> ParseVp09Info(const char* codec) {
   // "01.01.01.01.00".  When medium format is used, the omitted part is "00".
   // All fields are fixed size and leading zero cannot be omitted, so the
   // expected sizes are known.
-  const char kShortFormReference[] = "vp09.00.41.08";
-  const char kMediumFormReference[] = "vp09.02.10.10.01.09.16.09";
-  const char kLongFormReference[] = "vp09.02.10.10.01.09.16.09.01";
-  const size_t kShortFormSize = strlen(kShortFormReference);
-  const size_t kMediumFormSize = strlen(kMediumFormReference);
+  constexpr std::string_view kShortFormReference = "vp09.00.41.08";
+  constexpr std::string_view kMediumFormReference = "vp09.02.10.10.01.09.16.09";
+  constexpr std::string_view kLongFormReference =
+      "vp09.02.10.10.01.09.16.09.01";
 
   // 1. Sanity check the format.
-  if (strncmp(codec, "vp09.", 5) != 0) {
+  if (!StartsWith(codec, "vp09.")) {
     return std::nullopt;
   }
   if (!VerifyFormatStrictly(codec, kLongFormReference) &&
@@ -458,7 +461,7 @@ std::optional<ParsedVideoCodec> ParseVp09Info(const char* codec) {
   info.codec = kSbMediaVideoCodecVp9;
 
   // 2. Parse profile, which can only be 00, 01, 02, or 03.
-  if (!ReadTwoDigitDecimal(codec + 5, &info.profile)) {
+  if (!ReadTwoDigitDecimal(codec.substr(5), &info.profile)) {
     return std::nullopt;
   }
   if (info.profile < 0 || info.profile > 3) {
@@ -468,7 +471,7 @@ std::optional<ParsedVideoCodec> ParseVp09Info(const char* codec) {
   // 3. Parse level, which is two digit value in the following list:
   const int kLevels[] = {10, 11, 20, 21, 30, 31, 40,
                          41, 50, 51, 52, 60, 61, 62};
-  if (!ReadTwoDigitDecimal(codec + 8, &info.level)) {
+  if (!ReadTwoDigitDecimal(codec.substr(8), &info.level)) {
     return std::nullopt;
   }
   auto end = kLevels + SB_ARRAY_SIZE(kLevels);
@@ -477,7 +480,7 @@ std::optional<ParsedVideoCodec> ParseVp09Info(const char* codec) {
   }
 
   // 4. Parse bit depth, which can be value 08, 10, or 12.
-  if (!ReadTwoDigitDecimal(codec + 11, &info.bit_depth)) {
+  if (!ReadTwoDigitDecimal(codec.substr(11), &info.bit_depth)) {
     return std::nullopt;
   }
   if (info.bit_depth != 8 && info.bit_depth != 10 && info.bit_depth != 12) {
@@ -489,21 +492,21 @@ std::optional<ParsedVideoCodec> ParseVp09Info(const char* codec) {
   info.transfer_id = kSbMediaTransferIdBt709;
   info.matrix_id = kSbMediaMatrixIdBt709;
 
-  if (strlen(codec) == kShortFormSize) {
+  if (codec.size() == kShortFormReference.size()) {
     return info;
   }
 
   // 6. Parse chroma subsampling, which we only support 00 and 01.
   // Note that this value is not returned.
   int chroma;
-  if (!ReadTwoDigitDecimal(codec + 14, &chroma) ||
+  if (!ReadTwoDigitDecimal(codec.substr(14), &chroma) ||
       (chroma != 0 && chroma != 1)) {
     return std::nullopt;
   }
 
   // 7. Parse color primaries, which can be 1 to 12, and 22 (EBU Tech. 3213-E).
   //    Note that 22 is not currently supported by Cobalt.
-  if (!ReadTwoDigitDecimal(codec + 17, &info.primary_id)) {
+  if (!ReadTwoDigitDecimal(codec.substr(17), &info.primary_id)) {
     return std::nullopt;
   }
   if (info.primary_id < 1 || info.primary_id > 12) {
@@ -511,7 +514,7 @@ std::optional<ParsedVideoCodec> ParseVp09Info(const char* codec) {
   }
 
   // 8. Parse transfer characteristics, which can be 0 to 18.
-  if (!ReadTwoDigitDecimal(codec + 20, &info.transfer_id)) {
+  if (!ReadTwoDigitDecimal(codec.substr(20), &info.transfer_id)) {
     return std::nullopt;
   }
   if (info.transfer_id > 18) {
@@ -520,7 +523,7 @@ std::optional<ParsedVideoCodec> ParseVp09Info(const char* codec) {
 
   // 9. Parse matrix coefficients, which can be 0 to 14.
   //     Note that 12, 13, and 14 are not currently supported by Cobalt.
-  if (!ReadTwoDigitDecimal(codec + 23, &info.matrix_id)) {
+  if (!ReadTwoDigitDecimal(codec.substr(23), &info.matrix_id)) {
     return std::nullopt;
   }
   if (info.matrix_id > 11) {
@@ -528,13 +531,13 @@ std::optional<ParsedVideoCodec> ParseVp09Info(const char* codec) {
   }
 
   // 10. Return now if it is a well-formed medium form codec string.
-  if (strlen(codec) == kMediumFormSize) {
+  if (codec.size() == kMediumFormReference.size()) {
     return info;
   }
 
   // 11. Parse color range, which can only be 0 or 1.
   int color_range;
-  if (!ReadTwoDigitDecimal(codec + 26, &color_range)) {
+  if (!ReadTwoDigitDecimal(codec.substr(26), &color_range)) {
     return std::nullopt;
   }
   if (color_range != 0 && color_range != 1) {
@@ -547,31 +550,31 @@ std::optional<ParsedVideoCodec> ParseVp09Info(const char* codec) {
 
 // This function parses a vp9 codec in the form of "vp9", "vp9.0", "vp9.1",
 // "vp9.2", or "vp9.3".
-std::optional<ParsedVideoCodec> ParseVp9Info(const char* codec) {
+std::optional<ParsedVideoCodec> ParseVp9Info(std::string_view codec) {
   ParsedVideoCodec info;
   info.codec = kSbMediaVideoCodecVp9;
 
-  if (strcmp(codec, "vp9") == 0) {
+  if (codec == "vp9") {
     info.profile = -1;
     info.bit_depth = 8;
     return info;
   }
-  if (strcmp(codec, "vp9.0") == 0) {
+  if (codec == "vp9.0") {
     info.profile = 0;
     info.bit_depth = 8;
     return info;
   }
-  if (strcmp(codec, "vp9.1") == 0) {
+  if (codec == "vp9.1") {
     info.profile = 1;
     info.bit_depth = 8;
     return info;
   }
-  if (strcmp(codec, "vp9.2") == 0) {
+  if (codec == "vp9.2") {
     info.profile = 2;
     info.bit_depth = 10;
     return info;
   }
-  if (strcmp(codec, "vp9.3") == 0) {
+  if (codec == "vp9.3") {
     info.profile = 3;
     info.bit_depth = 10;
     return info;
@@ -813,35 +816,25 @@ const char* GetMediaAudioSampleTypeName(SbMediaAudioSampleType sample_type) {
   return "Invalid";
 }
 
-std::optional<ParsedVideoCodec> ParseVideoCodec(std::string_view codec_view) {
-  // The parsing helpers below rely on null termination, so parse a
-  // null-terminated copy. Most codec strings fit in the small string buffer,
-  // so this rarely allocates.
-  // TODO(b/571197241): Replace downstream code to use std::string_view, and
-  // remove this copy.
-  const std::string codec_storage(codec_view);
-  const char* codec_string = codec_storage.c_str();
-
-  if (strncmp(codec_string, "av01.", 5) == 0) {
+std::optional<ParsedVideoCodec> ParseVideoCodec(std::string_view codec_string) {
+  if (StartsWith(codec_string, "av01.")) {
     return ParseAv1Info(codec_string);
   }
-  if (strncmp(codec_string, "avc1.", 5) == 0 ||
-      strncmp(codec_string, "avc3.", 5) == 0) {
+  if (StartsWith(codec_string, "avc1.") || StartsWith(codec_string, "avc3.")) {
     return ParseH264Info(codec_string);
   }
-  if (strncmp(codec_string, "hev1.", 5) == 0 ||
-      strncmp(codec_string, "hvc1.", 5) == 0) {
+  if (StartsWith(codec_string, "hev1.") || StartsWith(codec_string, "hvc1.")) {
     return ParseH265Info(codec_string);
   }
-  if (strncmp(codec_string, "vp09.", 5) == 0) {
+  if (StartsWith(codec_string, "vp09.")) {
     return ParseVp09Info(codec_string);
   }
-  if (strncmp(codec_string, "vp8", 3) == 0) {
+  if (StartsWith(codec_string, "vp8")) {
     ParsedVideoCodec info;
     info.codec = kSbMediaVideoCodecVp8;
     return info;
   }
-  if (strncmp(codec_string, "vp9", 3) == 0) {
+  if (StartsWith(codec_string, "vp9")) {
     return ParseVp9Info(codec_string);
   }
 
