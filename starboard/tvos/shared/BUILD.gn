@@ -31,6 +31,7 @@ static_library("test_support") {
     ":starboard_platform",
     "//base",
     "//base/test:test_support",
+    "//starboard/shared/starboard:features_test_util",
   ]
 
   sources = [

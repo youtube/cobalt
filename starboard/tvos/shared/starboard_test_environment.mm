@@ -14,6 +14,7 @@
 
 #include "starboard/tvos/shared/starboard_test_environment.h"
 
+#include "starboard/shared/starboard/features_test_util.h"
 #import "starboard/tvos/shared/application_darwin.h"
 
 namespace starboard {
@@ -24,6 +25,7 @@ StarboardTestEnvironment::StarboardTestEnvironment(int argc, char** argv)
 StarboardTestEnvironment::~StarboardTestEnvironment() = default;
 
 void StarboardTestEnvironment::SetUp() {
+  features::InitializeStarboardFeatureListWithDefaults();
   application_darwin_ = std::make_unique<ApplicationDarwin>(
       std::make_unique<CommandLine>(command_line_));
 }
