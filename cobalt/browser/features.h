@@ -241,6 +241,23 @@ BASE_DECLARE_FEATURE(kCobaltFlushHttpServerPropertiesOnPause);
 BASE_DECLARE_FEATURE(kCobaltHttpCacheQuota);
 BASE_DECLARE_FEATURE_PARAM(int, kCobaltMaxHttpCacheSizeBytes);
 
+// Gates V8 JavaScript generated code cache optimizations:
+// 1. Raises `Code Cache/js` capacity via
+//    `CobaltCodeCacheOptimization_size_bytes` (default: 10485760 bytes /
+//    10 MiB, clamped to [1048576, 1073741824], while `Code Cache/wasm` stays
+//    capped at 1 MiB) so cold-start bytecode writes do not cross SimpleCache's
+//    90% eviction watermark, and updates Starboard's dynamic non-HTTP cache
+//    reserve in `ComputeDefaultHttpCacheSize()` accordingly.
+// 2. When `CobaltCodeCacheOptimization_bypass_heat_check` is true (default),
+//    sets `WebPreferences::v8_cache_options` to `kCodeWithoutHeatCheck` instead
+//    of `kDefault` so Launch #1 after install, cache clear, or weekly JS
+//    updates produces deferred bytecode (via Blink's existing
+//    `PostDelayedIdleTask` queue) for Launch #2 instead of waiting until
+//    Launch #3.
+BASE_DECLARE_FEATURE(kCobaltCodeCacheOptimization);
+BASE_DECLARE_FEATURE_PARAM(int, kCobaltGeneratedCodeCacheSizeBytes);
+BASE_DECLARE_FEATURE_PARAM(bool, kCobaltV8CodeCacheBypassHeatCheck);
+
 }  // namespace features
 }  // namespace cobalt
 
