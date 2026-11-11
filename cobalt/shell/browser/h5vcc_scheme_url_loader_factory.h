@@ -15,9 +15,14 @@
 #ifndef COBALT_SHELL_BROWSER_H5VCC_SCHEME_URL_LOADER_FACTORY_H_
 #define COBALT_SHELL_BROWSER_H5VCC_SCHEME_URL_LOADER_FACTORY_H_
 
+#include <stdint.h>
+
+#include <memory>
 #include <optional>
 #include <string>
 
+#include "base/containers/span.h"
+#include "cobalt/shell/browser/splash_cache_reader.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "content/public/browser/browser_context.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -25,23 +30,6 @@
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 
 namespace content {
-
-// An enum for UMA histogram to indicate the state of retrieving splash screen.
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class SplashScreenFetchedState {
-  kOkBuiltIn = 0,
-  kOkCache = 1,
-  kErrorOnCacheEmptyContent = 2,
-  kErrorOnCacheFileOversize = 3,
-  kErrorOnReadCache = 4,
-  kErrorOnResourceNotFound = 5,
-  // The built-in resource, without reading the cache, as
-  // kEnableCachedSplashFile is disabled. Unlike kOkBuiltIn, this isn't a
-  // cache miss.
-  kSkippedCachedAssets = 6,
-  kMaxValue = kSkippedCachedAssets,
-};
 
 // H5vccSchemeURLLoaderFactory is a URLLoaderFactory implementation that handles
 // requests for the custom kH5vccEmbeddedScheme. It is designed to serve
@@ -79,9 +67,14 @@ class H5vccSchemeURLLoaderFactory final
   void Clone(mojo::PendingReceiver<network::mojom::URLLoaderFactory> receiver)
       override;
 
-  // Whether to read the splash assets that the WebApp cached:
-  // kEnableCachedSplashFile, unless overridden for testing.
-  static bool IsCachedSplashFileEnabled();
+  // Returns the built-in resource `name`, e.g., "splash.webm", or an empty span
+  // if there's none. The data has static storage duration.
+  static base::span<const uint8_t> GetBuiltInResource(const std::string& name);
+
+  // Returns a reader of the splash screen resources that the WebApp cached,
+  // like this factory's, e.g., for the video played natively.
+  static std::unique_ptr<SplashCacheReader> CreateSplashCacheReader(
+      BrowserContext* browser_context);
 
   // Testing seam to inject a resource map.
   static void SetResourceMapForTesting(
@@ -89,19 +82,17 @@ class H5vccSchemeURLLoaderFactory final
   static void SetSplashDomainForTesting(
       const std::optional<std::string>& domain);
   static void SetSplashContentSizeForTesting(const std::optional<int>& size);
-  // Overrides kEnableCachedSplashFile, as browser tests can't override
-  // features once the browser starts. std::nullopt uses the feature.
-  static void SetCachedSplashFileEnabledForTesting(
-      const std::optional<bool>& enabled);
 
  private:
+  static std::string GetSplashDomain();
+  static uint64_t GetSplashContentSizeLimit();
+
   GeneratedResourceMap resource_map_;
   static const GeneratedResourceMap* resource_map_test_;
   std::string splash_domain_;
   uint64_t splash_content_size_limit_;
   static std::optional<std::string> global_splash_domain_test_;
   static std::optional<int> global_splash_content_size_test_;
-  static std::optional<bool> global_cached_splash_file_enabled_test_;
   BrowserContext* browser_context_;
 };
 

@@ -127,6 +127,17 @@ void ShellPlatformDelegate::UpdateContents(Shell* shell) {
       env, shell_data.java_object, shell->web_contents()->GetJavaWebContents());
 }
 
+void ShellPlatformDelegate::HideContentsForNativeSplash(Shell* shell) {
+  JNIEnv* env = AttachCurrentThread();
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+  if (shell_data.java_object.is_null()) {
+    return;
+  }
+
+  Java_Shell_hideWebContentsForNativeSplash(env, shell_data.java_object);
+}
+
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
                                              const gfx::Size& content_size) {
   shell->web_contents()->GetRenderWidgetHostView()->SetSize(content_size);

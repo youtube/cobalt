@@ -230,6 +230,17 @@ public class Shell {
     mContentViewRenderView.setCurrentWebContents(mWebContents);
   }
 
+  /**
+   * Proof of concept (DO NOT SUBMIT): while the native video splash screen plays without a splash
+   * screen WebContents, keeps the main WebContents out of the compositor, so that nothing draws
+   * over the punch-out video. {@link #updateNativeTabContents} shows it again.
+   */
+  @CalledByNative
+  private void hideWebContentsForNativeSplash() {
+    if (mContentViewRenderView == null) return;
+    mContentViewRenderView.setCurrentWebContents(null);
+  }
+
   public void onActivityVisible(boolean visible) {
     mIsActivityVisible = visible;
     if (mWebContents != null) {

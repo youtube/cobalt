@@ -1,0 +1,167 @@
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# WAMR (WebAssembly Micro Runtime), fast interpreter only: no AOT, JIT, WASI,
+# libc-builtin, threads or SIMD. Builds from src/, fetched by fetch_wamr.py.
+# See README.cobalt.md.
+
+# Fetches WAMR's source into src/ at gn time, if it isn't there yet, so that a
+# fresh checkout builds without a manual step. Needs network access the first
+# time. Proof of concept: a real import would check the source in or use DEPS.
+exec_script("fetch_wamr.py", [], "", [ "fetch_wamr.py" ])
+
+config("wamr_config") {
+  include_dirs = [ "src/core/iwasm/include" ]
+}
+
+config("wamr_internal_config") {
+  defines = [
+    "WASM_ENABLE_INTERP=1",
+    "WASM_ENABLE_FAST_INTERP=1",
+    "WASM_ENABLE_AOT=0",
+    "WASM_ENABLE_JIT=0",
+    "WASM_ENABLE_FAST_JIT=0",
+    "WASM_ENABLE_LIBC_BUILTIN=0",
+    "WASM_ENABLE_LIBC_WASI=0",
+    "WASM_ENABLE_SIMD=0",
+    "WASM_ENABLE_MULTI_MODULE=0",
+    "WASM_ENABLE_THREAD_MGR=0",
+    "WASM_ENABLE_SHARED_MEMORY=0",
+    "WASM_ENABLE_GC=0",
+    "WASM_ENABLE_MEMORY64=0",
+    "WASM_ENABLE_QUICK_AOT_ENTRY=0",
+    "WASM_ENABLE_DUMP_CALL_STACK=0",
+    "WASM_ENABLE_PERF_PROFILING=0",
+    "WASM_ENABLE_MEMORY_PROFILING=0",
+    "WASM_ENABLE_LOAD_CUSTOM_SECTION=0",
+    "WASM_ENABLE_CUSTOM_NAME_SECTION=0",
+    "WASM_ENABLE_SPEC_TEST=0",
+    "WASM_ENABLE_LOG=0",
+    "WASM_ENABLE_BULK_MEMORY=1",
+    "WASM_ENABLE_REF_TYPES=1",
+    "WASM_ENABLE_INSTRUCTION_METERING=1",
+
+    # Bounds checks in software: no guard-page signal handlers, which would
+    # compete with the crash handler, and no large address space reservations.
+    "WASM_DISABLE_HW_BOUND_CHECK=1",
+    "WASM_DISABLE_STACK_HW_BOUND_CHECK=1",
+    "BH_MALLOC=wasm_runtime_malloc",
+    "BH_FREE=wasm_runtime_free",
+  ]
+
+  if (is_android) {
+    defines += [ "BH_PLATFORM_ANDROID=1" ]
+  } else {
+    defines += [ "BH_PLATFORM_LINUX=1" ]
+  }
+
+  if (current_cpu == "arm") {
+    # Android armv7 uses the softfp calling convention (floats in core
+    # registers), which is WAMR's non-VFP target.
+    defines += [ "BUILD_TARGET_THUMB=1" ]
+  } else if (current_cpu == "arm64") {
+    defines += [ "BUILD_TARGET_AARCH64=1" ]
+  } else if (current_cpu == "x64") {
+    defines += [ "BUILD_TARGET_X86_64=1" ]
+  } else if (current_cpu == "x86") {
+    defines += [ "BUILD_TARGET_X86_32=1" ]
+  }
+
+  if (is_android) {
+    _platform = "android"
+  } else {
+    _platform = "linux"
+  }
+  include_dirs = [
+    "src/core/iwasm/include",
+    "src/core/iwasm/common",
+    "src/core/iwasm/interpreter",
+    "src/core/shared/utils",
+    "src/core/shared/utils/uncommon",
+    "src/core/shared/mem-alloc",
+    "src/core/shared/platform/include",
+    "src/core/shared/platform/$_platform",
+    "src/core/shared/platform/common/libc-util",
+  ]
+
+  cflags = [ "-Wno-everything" ]
+
+  # WAMR uses GNU extensions, e.g. `asm`.
+  cflags_c = [ "-std=gnu11" ]
+}
+
+static_library("wamr") {
+  sources = [
+    "src/core/iwasm/common/wasm_application.c",
+    "src/core/iwasm/common/wasm_blocking_op.c",
+    "src/core/iwasm/common/wasm_c_api.c",
+    "src/core/iwasm/common/wasm_exec_env.c",
+    "src/core/iwasm/common/wasm_loader_common.c",
+    "src/core/iwasm/common/wasm_memory.c",
+    "src/core/iwasm/common/wasm_native.c",
+    "src/core/iwasm/common/wasm_runtime_common.c",
+    "src/core/iwasm/interpreter/wasm_interp_fast.c",
+    "src/core/iwasm/interpreter/wasm_loader.c",
+    "src/core/iwasm/interpreter/wasm_runtime.c",
+    "src/core/shared/mem-alloc/ems/ems_alloc.c",
+    "src/core/shared/mem-alloc/ems/ems_gc.c",
+    "src/core/shared/mem-alloc/ems/ems_hmu.c",
+    "src/core/shared/mem-alloc/ems/ems_kfc.c",
+    "src/core/shared/mem-alloc/mem_alloc.c",
+
+    # os_mremap() without mremap(2), as WASM_HAVE_MREMAP isn't set.
+    "src/core/shared/platform/common/memory/mremap.c",
+    "src/core/shared/platform/common/posix/posix_blocking_op.c",
+    "src/core/shared/platform/common/posix/posix_clock.c",
+    "src/core/shared/platform/common/posix/posix_malloc.c",
+    "src/core/shared/platform/common/posix/posix_memmap.c",
+    "src/core/shared/platform/common/posix/posix_sleep.c",
+    "src/core/shared/platform/common/posix/posix_thread.c",
+    "src/core/shared/platform/common/posix/posix_time.c",
+    "src/core/shared/utils/bh_assert.c",
+    "src/core/shared/utils/bh_bitmap.c",
+    "src/core/shared/utils/bh_common.c",
+    "src/core/shared/utils/bh_hashmap.c",
+    "src/core/shared/utils/bh_leb128.c",
+    "src/core/shared/utils/bh_list.c",
+    "src/core/shared/utils/bh_log.c",
+    "src/core/shared/utils/bh_queue.c",
+    "src/core/shared/utils/bh_vector.c",
+    "src/core/shared/utils/runtime_timer.c",
+  ]
+
+  if (is_android) {
+    sources += [ "src/core/shared/platform/android/platform_init.c" ]
+    libs = [ "log" ]
+  } else {
+    sources += [ "src/core/shared/platform/linux/platform_init.c" ]
+  }
+
+  if (current_cpu == "arm") {
+    sources += [ "arch/invokeNative_thumb.S" ]
+  } else if (current_cpu == "arm64") {
+    sources += [ "arch/invokeNative_aarch64_simd.S" ]
+  } else if (current_cpu == "x64") {
+    sources += [ "arch/invokeNative_em64_simd.S" ]
+  } else if (current_cpu == "x86") {
+    sources += [ "arch/invokeNative_ia32.S" ]
+  }
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [
+    "//build/config/compiler:no_chromium_code",
+    ":wamr_internal_config",
+  ]
+  public_configs = [ ":wamr_config" ]
+}
