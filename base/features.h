@@ -20,6 +20,13 @@ namespace base::features {
 // TRIM_MEMORY_RUNNING_MODERATE signals as moderate memory pressure on Android.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltEnableModerateMemoryPressure);
 
+// When enabled, DiscardableSharedMemoryManager does not keep its own long-lived
+// mapping of each discardable segment. In single-process mode the client
+// already maps the segment in the same process, so this halves the virtual
+// address space used by discardable memory. The manager keeps the file
+// descriptor and maps a segment only briefly when purging it.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltDiscardableSingleMapping);
+
 // When enabled, image transfer cache entries bypass serialization and transfer
 // images directly to the GPU service thread in-process.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltInProcessImageTransferCache);

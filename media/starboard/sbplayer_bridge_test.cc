@@ -275,6 +275,70 @@ TEST_F(SbPlayerBridgeSideDataTest, AttributesSideDataToCorrectSampleInBatch) {
   EXPECT_EQ(captured_samples_[2].side_data, expected_third);
 }
 
+// Exercises the playback statistics reported by SbPlayerBridge::GetInfo().
+// Instantiated per test by GoogleTest and runs on the main test thread.
+class SbPlayerBridgeStatisticsTest : public testing::Test {
+ protected:
+  SbPlayer CreateBridge() {
+    SbPlayer player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
+    // SbPlayerBridge's constructor calls CreatePlayer() synchronously.
+    EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+        .WillOnce(Return(player));
+    const StarboardRendererConfig::ExperimentalFeatures experimental_features{};
+    bridge_ = std::make_unique<SbPlayerBridge>(
+        &mock_sbplayer_interface_, task_environment_.GetMainThreadTaskRunner(),
+        base::BindRepeating(
+            []() -> SbDecodeTargetGraphicsContextProvider* { return nullptr; }),
+        AudioDecoderConfig(), TestVideoConfig::Normal(), kSbWindowInvalid,
+        kSbDrmSystemInvalid, &host_,
+        /*allow_resume_after_suspend=*/false, kSbPlayerOutputModePunchOut,
+        /*max_video_capabilities=*/"",
+        /*max_video_resolution=*/"",
+        /*max_video_input_size=*/0, experimental_features
+#if BUILDFLAG(IS_ANDROID)
+        ,
+        /*surface_view=*/nullptr
+#endif  // BUILDFLAG(IS_ANDROID)
+    );
+    EXPECT_TRUE(bridge_->IsValid());
+    return player;
+  }
+
+  // Makes SbPlayerGetInfo() report |video_frames_decoded| for |player|.
+  void SetVideoFramesDecoded(SbPlayer player, int video_frames_decoded) {
+    EXPECT_CALL(mock_sbplayer_interface_, GetInfo(player, _))
+        .WillRepeatedly(Invoke([=](SbPlayer /*player*/, SbPlayerInfo* info) {
+          *info = SbPlayerInfo{};
+          info->total_video_frames = video_frames_decoded;
+          info->duration = SB_PLAYER_NO_DURATION;
+        }));
+  }
+
+  base::test::TaskEnvironment task_environment_;
+  NiceMock<MockSbPlayerInterface> mock_sbplayer_interface_;
+  FakeSbPlayerBridgeHost host_;
+  std::unique_ptr<SbPlayerBridge> bridge_;
+};
+
+// The SbPlayer created on Resume() restarts its counters at 0. The frames
+// counted by the SbPlayer destroyed on Suspend() must be kept, even when the
+// new SbPlayer's first reported value isn't lower than the old one's.
+TEST_F(SbPlayerBridgeStatisticsTest, FrameTotalsContinueAcrossSuspendResume) {
+  SbPlayer first_player = CreateBridge();
+  SetVideoFramesDecoded(first_player, 5);
+  EXPECT_EQ(bridge_->GetInfo().statistics.total_video_frames_decoded, 5u);
+
+  bridge_->Suspend();
+  EXPECT_EQ(bridge_->GetInfo().statistics.total_video_frames_decoded, 5u);
+
+  SbPlayer second_player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
+  EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+      .WillOnce(Return(second_player));
+  bridge_->Resume(kSbWindowInvalid);
+  SetVideoFramesDecoded(second_player, 12);
+  EXPECT_EQ(bridge_->GetInfo().statistics.total_video_frames_decoded, 17u);
+}
+
 }  // namespace
 
 }  // namespace media

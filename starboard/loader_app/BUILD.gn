@@ -73,7 +73,7 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard/elf_loader:sabi_string",
     ]
 
-    if (use_crashpad) {
+    if (use_evergreen) {
       deps += [ "//starboard/crashpad_wrapper" ]
     } else {
       deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
@@ -207,7 +207,7 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard/elf_loader:sabi_string",
     ]
 
-    if (use_crashpad) {
+    if (use_evergreen) {
       deps += [ "//starboard/crashpad_wrapper" ]
     } else {
       deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]

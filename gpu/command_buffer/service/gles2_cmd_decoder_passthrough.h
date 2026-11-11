@@ -576,19 +576,21 @@ class GPU_GLES2_EXPORT GLES2DecoderPassthroughImpl
     scoped_refptr<TexturePassthrough> texture;
   };
 
+#if BUILDFLAG(IS_COBALT)
+  static constexpr size_t kNumTextureTypes =
+      static_cast<size_t>(TextureTarget::kCount);
+  // Without ANGLE, GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS isn't capped, so
+  // Initialize() sizes bound_textures_ (one entry per texture unit) from it.
+  std::array<std::vector<BoundTexture>, kNumTextureTypes> bound_textures_;
+#else
   // Use a limit that is at least ANGLE's IMPLEMENTATION_MAX_ACTIVE_TEXTURES
   // constant
-#if BUILDFLAG(IS_COBALT)
-  // Increase kMaxTextureUnits from 64 to 96 to match hardware limits and prevent
-  // initialization failure of the passthrough command decoder.
-  static constexpr size_t kMaxTextureUnits = 96;
-#else
   static constexpr size_t kMaxTextureUnits = 64;
-#endif
   static constexpr size_t kNumTextureTypes =
       static_cast<size_t>(TextureTarget::kCount);
   std::array<std::array<BoundTexture, kMaxTextureUnits>, kNumTextureTypes>
       bound_textures_;
+#endif
 
   // State tracking of currently bound buffers
   base::flat_map<GLenum, GLuint> bound_buffers_;

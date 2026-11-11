@@ -38,6 +38,7 @@ namespace content {
 class BrowserMainParts;
 class RenderFrameHost;
 class RenderProcessHost;
+class StoragePartition;
 class WebContents;
 }  // namespace content
 
@@ -184,6 +185,10 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner)
       override;
 
+  // Returns the StoragePartition of the primary main frame, or nullptr if there
+  // is no WebContents yet.
+  content::StoragePartition* GetPrimaryStoragePartition();
+
   // Flushes dirty cookies and localStorage when backgrounding/exiting.
   // Note: the completion callback is invoked when the cookie store flush
   // completes; localStorage flush runs asynchronously on the background DB
@@ -192,6 +197,11 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   // Triggers FlushCookiesAndLocalStorage and records
   // Cobalt.Storage.OnPause.FlushDuration.
   void FlushCookiesAndLocalStorageOnPause();
+  // Writes HttpServerProperties to disk now and runs |callback| once it has
+  // been committed; |flushed| is true if an update was pending. See
+  // features::kCobaltFlushHttpServerPropertiesOnPause.
+  void FlushHttpServerProperties(
+      base::OnceCallback<void(bool flushed)> callback);
   void DispatchBlur();
   void DispatchFocus();
 
@@ -203,6 +213,19 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   // Computes the maximum HTTP cache size in bytes based on the platform's
   // total cache directory budget.
   static uint32_t ComputeDefaultHttpCacheSize(uint32_t total_dir_budget_bytes);
+
+  // Populates `network_context_params->http_cache_max_size` using the platform
+  // default, `kCobaltHttpCacheQuota` Finch configuration, and any explicit
+  // `--max-http-cache-size` command-line override.
+  static void ConfigureHttpCacheMaxSize(
+      bool in_memory,
+      uint32_t total_dir_budget_bytes,
+      network::mojom::NetworkContextParams* network_context_params);
+
+  // Populates `network_context_params->initial_ssl_config` with Cobalt's
+  // disabled TLS cipher suites.
+  static void ConfigureSSLConfig(
+      network::mojom::NetworkContextParams* network_context_params);
 
   // Populates `network_context_params->cobalt_extra_request_headers` from
   // `CobaltHeaderValueProvider` when `kCobaltSkipTrustedHeaderClient` is

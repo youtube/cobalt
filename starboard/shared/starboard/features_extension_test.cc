@@ -12,27 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/shared/starboard/features_extension.h"
+
 #include "starboard/extension/features.h"
 #include "starboard/shared/starboard/feature_list.h"
-#include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace {
 
 TEST(FeaturesExtensionTest, InitializeFeatures) {
-  const StarboardExtensionFeaturesApi* extension_api =
-      static_cast<const StarboardExtensionFeaturesApi*>(
-          SbSystemGetExtension(kStarboardExtensionFeaturesName));
+  const auto* extension_api =
+      static_cast<const StarboardExtensionFeaturesApi*>(GetFeaturesApi());
   ASSERT_NE(extension_api, nullptr);
   EXPECT_STREQ(extension_api->name, kStarboardExtensionFeaturesName);
   EXPECT_EQ(extension_api->version, 1u);
   ASSERT_NE(extension_api->InitializeStarboardFeatures, nullptr);
 
-  SbFeature test_feature = {"AndroidExtensionTestFeature", true};
+  SbFeature test_feature = {"ExtensionTestFeature", true};
 
   SbFeatureParam test_param;
-  test_param.feature_name = "AndroidExtensionTestFeature";
+  test_param.feature_name = "ExtensionTestFeature";
   test_param.param_name = "TestParam";
   test_param.type = SbFeatureParamTypeBool;
   test_param.value.bool_value = true;

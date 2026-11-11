@@ -1034,6 +1034,17 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   GLint num_texture_units = 0;
   api()->glGetIntegervFn(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
                          &num_texture_units);
+#if BUILDFLAG(IS_COBALT)
+  if (num_texture_units <= 0) {
+    Destroy(true);
+    LOG(ERROR) << "Invalid GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS ("
+               << num_texture_units << ").";
+    return gpu::ContextResult::kFatalFailure;
+  }
+  for (auto& bound_texture_type : bound_textures_) {
+    bound_texture_type.resize(num_texture_units);
+  }
+#else
   if (num_texture_units > static_cast<GLint>(kMaxTextureUnits)) {
     Destroy(true);
     LOG(ERROR) << "kMaxTextureUnits (" << kMaxTextureUnits
@@ -1041,6 +1052,7 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
                << num_texture_units << ").";
     return gpu::ContextResult::kFatalFailure;
   }
+#endif
 
   active_texture_unit_ = 0;
 
