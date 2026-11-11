@@ -119,6 +119,31 @@ extern const base::Feature kForceVideoSplashScreen;
 // Locally: --enable-features=EnableCachedSplashFile
 BASE_DECLARE_FEATURE(kEnableCachedSplashFile);
 
+// Shows a video as the splash screen, played by an SbPlayer that Cobalt drives
+// directly instead of through a <video> element and Media Source Extensions in
+// the splash screen WebContents, whose page then only shows a video hole that
+// the punch-out video shows through. Plays the same video as
+// ForceVideoSplashScreen, i.e., the one that the WebApp cached, with
+// EnableCachedSplashFile, or the built-in one, and takes precedence over it.
+// Where the platform doesn't play VP9 or punch-out, the image shows instead, as
+// with ForceVideoSplashScreen without VP9. If the video can't be played this
+// way otherwise, e.g., where Starboard media isn't used, or fails before its
+// first frame, the main WebContents shows right away instead.
+// Locally: --enable-features=NativeVideoSplashScreen
+BASE_DECLARE_FEATURE(kNativeVideoSplashScreen);
+
+// DO NOT SUBMIT: benchmark only. Has splash.html choose the splash screen's
+// asset with a WebAssembly policy (splash_policy.wasm), from the list of the
+// built-in assets and the ones that the WebApp cached, which Shell starts
+// listing when the splash screen starts (SplashAssetList). With
+// ForceVideoSplashScreen, the HTML video fetches the asset that the policy
+// chose; with NativeVideoSplashScreen, Shell waits for the policy's choice,
+// which splash.html reports through its title, and plays it. The policy
+// chooses the same asset as without it, so that only how the choice is made
+// differs.
+// Locally: --enable-features=SplashWasmPolicy
+BASE_DECLARE_FEATURE(kSplashWasmPolicy);
+
 // Enables overriding the splash screen configuration with the params below.
 BASE_DECLARE_FEATURE(kSplashScreenConfig);
 

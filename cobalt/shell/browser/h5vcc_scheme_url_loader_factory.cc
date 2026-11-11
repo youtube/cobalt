@@ -16,23 +16,26 @@
 
 #include <cstdint>
 #include <memory>
+#include <utility>
 
 #include "base/base64.h"
 #include "base/containers/contains.h"
 #include "base/containers/map_util.h"
 #include "base/containers/span.h"
 #include "base/feature_list.h"
-#include "base/metrics/histogram_macros.h"
+#include "base/functional/bind.h"
+#include "base/no_destructor.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
 #include "cobalt/browser/features.h"
-#include "cobalt/shell/browser/splash_cache.h"
+#include "cobalt/shell/browser/splash_asset_list.h"
+#include "cobalt/shell/browser/splash_cache_reader.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "content/public/browser/browser_context.h"
-#include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "mojo/public/cpp/system/data_pipe.h"
@@ -42,7 +45,6 @@
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
-#include "third_party/blink/public/mojom/cache_storage/cache_storage.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -54,15 +56,19 @@ using switches::kMaxSplashContentSize;
 
 namespace {
 const char kMimeTypeApplicationOctetStream[] = "application/octet-stream";
+const char kMimeTypeApplicationJson[] = "application/json";
 const char kMimeTypeImagePng[] = "image/png";
 const char kMimeTypeTextHtml[] = "text/html";
 const char kMimeTypeTextPlain[] = "text/plain";
 const char kMimeTypeVideoWebM[] = "video/webm";
+// DO NOT SUBMIT: benchmark only (cobalt::features::kSplashWasmPolicy). The
+// list of splash screen assets, from SplashAssetList.
+const char kSplashAssetListName[] = "splash_assets.json";
 
 // TODO - b/456482732: remove unsafe-inline.
 const char kH5vccContentSecurityPolicy[] =
     "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline'; "
+    "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; "
     "style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data: blob:; "
     "media-src 'self' data: blob: %s:; "
@@ -93,6 +99,19 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     // resources, so that callers can specify a different file for fallback.
     std::string resource_key = key;
 
+    if (key == kSplashAssetListName &&
+        base::FeatureList::IsEnabled(cobalt::features::kSplashWasmPolicy)) {
+      // DO NOT SUBMIT: benchmark only. The splash screen assets that
+      // splash.html's WebAssembly policy chooses from.
+      mime_type_ = kMimeTypeApplicationJson;
+      request_time_ = base::TimeTicks::Now();
+      SplashAssetList::Get(
+          browser_context_,
+          base::BindOnce(&H5vccSchemeURLLoader::OnSplashAssetList,
+                         weak_factory_.GetWeakPtr()));
+      return;
+    }
+
     // For html file, return from embedded resources.
     if (base::EndsWith(key, ".html", base::CompareCase::SENSITIVE)) {
       mime_type_ = kMimeTypeTextHtml;
@@ -107,10 +126,16 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     const bool is_splash_asset =
         (mime_type_ == kMimeTypeImagePng || mime_type_ == kMimeTypeVideoWebM) &&
         base::Contains(resource_map, key);
+    // DO NOT SUBMIT: benchmark only. The built-in asset that splash.html's
+    // WebAssembly policy chose, which is served without reading the cache.
+    std::string source;
+    const bool builtin_only =
+        is_splash_asset &&
+        net::GetValueForKeyInQuery(url_, "source", &source) &&
+        source == "builtin";
     // Whether to read the splash asset that the WebApp cached.
     const bool supports_splash_caching =
-        is_splash_asset &&
-        H5vccSchemeURLLoaderFactory::IsCachedSplashFileEnabled();
+        is_splash_asset && !builtin_only && IsCachedSplashFileEnabled();
 
     // For splash assets, override resource_key with "fallback" query param.
     // If requested key is not found in cache, or the cache isn't read, loader
@@ -132,12 +157,28 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     }
 
     if (supports_splash_caching && browser_context_) {
-      ReadSplashCache(key);
+      std::string cache_name;
+      cache_reader_ = std::make_unique<SplashCacheReader>(
+          browser_context_, splash_domain_, splash_content_size_limit_);
+      cache_reader_->Read(
+          key,
+          net::GetValueForKeyInQuery(url_, "cache", &cache_name)
+              ? base::UTF8ToUTF16(cache_name)
+              : std::u16string(kDefaultSplashCacheName),
+          base::BindOnce(&H5vccSchemeURLLoader::OnSplashCacheRead,
+                         weak_factory_.GetWeakPtr()));
       return;
     }
 
     if (content_.empty()) {
       SendNotFoundResponse(key);
+      return;
+    }
+
+    if (builtin_only) {
+      LOG(INFO) << "Serving the built-in " << resource_key
+                << " that the splash policy chose.";
+      SendResponse(SplashScreenFetchedState::kSkippedCachedAssets);
       return;
     }
 
@@ -163,80 +204,21 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   void SetPriority(net::RequestPriority priority,
                    int32_t intra_priority_value) override {}
 
-  void ReadSplashCache(const std::string& path) {
-    BindSplashCacheStorage(browser_context_, splash_domain_,
-                           cache_storage_remote_.BindNewPipeAndPassReceiver());
-
-    std::u16string cache_name = kDefaultSplashCacheName;
-    std::string cache_param;
-    if (net::GetValueForKeyInQuery(url_, "cache", &cache_param)) {
-      cache_name = base::UTF8ToUTF16(cache_param);
+  void OnSplashCacheRead(SplashScreenFetchedState state, std::string content) {
+    if (state == SplashScreenFetchedState::kOkCache) {
+      content_ = std::move(content);
     }
-
-    cache_storage_remote_->Match(
-        CreateSplashRequest(splash_domain_, path),
-        CreateSplashMatchOptions(cache_name),
-        false, /* in_related_fetch_event */
-        false, /* in_range_fetch_event */
-        0,     // trace_id
-        base::BindOnce(&H5vccSchemeURLLoader::OnCacheMatched,
-                       weak_factory_.GetWeakPtr(),
-                       base::UTF16ToUTF8(cache_name)));
+    // Otherwise, `content_` is the built-in resource, which the "fallback"
+    // query param may have chosen, e.g., the 480p video.
+    SendResponse(state);
   }
 
-  void OnCacheMatched(const std::string& cache_name,
-                      blink::mojom::MatchResultPtr result) {
-    if (!result->is_response()) {
-      const auto status = result->get_status();
-      SplashScreenFetchedState state =
-          SplashScreenFetchedState::kErrorOnReadCache;
-      // If the cache entry is not found, or the splash cache is not found in
-      // the cache entry, it's not an error of reading cache, but just a cache
-      // miss.
-      if (status == blink::mojom::CacheStorageError::kErrorCacheNameNotFound ||
-          status == blink::mojom::CacheStorageError::kErrorNotFound) {
-        state = SplashScreenFetchedState::kOkBuiltIn;
-      }
-      return DisconnectCacheAndSendFallback(
-          base::StringPrintf(
-              "Did not find splash video from cache %s, reason: %d",
-              cache_name.c_str(), static_cast<int>(status)),
-          state);
-    }
-    LOG(INFO) << "Found splash video in cache: " << cache_name;
-    auto& response = result->get_response();
-    if (!response->blob || response->blob->size == 0) {
-      return DisconnectCacheAndSendFallback(
-          base::StringPrintf(
-              "Splash video from %s is empty. Fallback to builtin.",
-              cache_name.c_str()),
-          SplashScreenFetchedState::kErrorOnCacheEmptyContent);
-    }
-    if (response->blob->size > splash_content_size_limit_) {
-      return DisconnectCacheAndSendFallback(
-          base::StringPrintf(
-              "Splash video from %s is too large. Fallback to builtin.",
-              cache_name.c_str()),
-          SplashScreenFetchedState::kErrorOnCacheFileOversize);
-    }
-    mojo::PendingRemote<blink::mojom::Blob> pending_blob_remote =
-        std::move(response->blob->blob);
-    blob_reader_ = std::make_unique<BlobReader>(
-        std::move(pending_blob_remote), splash_content_size_limit_,
-        base::BindOnce(&H5vccSchemeURLLoader::SendBlobContent,
-                       weak_factory_.GetWeakPtr(), response->blob->size));
-  }
-
-  void SendBlobContent(uint64_t expected_size, std::vector<uint8_t> content) {
-    if (content.size() != expected_size) {
-      return DisconnectCacheAndSendFallback(
-          "Failed to read splash cache. Fallback to builtin.",
-          SplashScreenFetchedState::kErrorOnReadCache);
-    }
-    DisconnectCacheStorage();
-    content_ = std::string(reinterpret_cast<const char*>(content.data()),
-                           content.size());
-    SendResponse(SplashScreenFetchedState::kOkCache);
+  void OnSplashAssetList(const std::string& json) {
+    LOG(INFO) << "NativeSplash: Sent the splash asset list after waiting "
+              << (base::TimeTicks::Now() - request_time_).InMilliseconds()
+              << "ms.";
+    content_ = json;
+    SendResponse();
   }
 
  private:
@@ -249,22 +231,9 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
                  net::HTTP_NOT_FOUND);
   }
 
-  void DisconnectCacheStorage() { cache_storage_remote_.reset(); }
-
-  void DisconnectCacheAndSendFallback(const std::string& message,
-                                      SplashScreenFetchedState state) {
-    if (state == SplashScreenFetchedState::kOkBuiltIn) {
-      LOG(INFO) << message;
-    } else {
-      LOG(ERROR) << message;
-    }
-    DisconnectCacheStorage();
-    SendResponse(state);
-  }
-
   void SendResponse(SplashScreenFetchedState state,
                     int http_status = net::HTTP_OK) {
-    UMA_HISTOGRAM_ENUMERATION("Cobalt.SplashScreen.FetchedFromCache", state);
+    RecordSplashScreenFetchedState(state);
     SendResponse(http_status);
   }
 
@@ -327,9 +296,9 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   }
 
   void OnClientDisconnected() {
-    // The client is gone, so the loader is about to be destroyed. Reset the
-    // remote to cancel any pending cache operations.
-    cache_storage_remote_.reset();
+    // The client is gone, so the loader is about to be destroyed. Cancel any
+    // pending cache operations.
+    cache_reader_.reset();
   }
 
   mojo::Remote<network::mojom::URLLoaderClient> client_;
@@ -338,9 +307,10 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   std::string splash_domain_;
   uint64_t splash_content_size_limit_;
   std::string mime_type_;
-  mojo::Remote<blink::mojom::CacheStorage> cache_storage_remote_;
+  std::unique_ptr<SplashCacheReader> cache_reader_;
   std::string content_;
-  std::unique_ptr<BlobReader> blob_reader_;
+  // When splash.html asked for the splash asset list.
+  base::TimeTicks request_time_;
   base::WeakPtrFactory<H5vccSchemeURLLoader> weak_factory_{this};
 };
 
@@ -348,19 +318,13 @@ std::optional<std::string>
     H5vccSchemeURLLoaderFactory::global_splash_domain_test_;
 std::optional<int>
     H5vccSchemeURLLoaderFactory::global_splash_content_size_test_;
-std::optional<bool>
-    H5vccSchemeURLLoaderFactory::global_cached_splash_file_enabled_test_;
 const GeneratedResourceMap* H5vccSchemeURLLoaderFactory::resource_map_test_ =
     nullptr;
 
 H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory(
     BrowserContext* browser_context)
-    : splash_domain_(url::Origin::Create(
-                         GURL(global_splash_domain_test_.value_or(kDefaultURL)))
-                         .GetURL()
-                         .spec()),
-      splash_content_size_limit_(
-          global_splash_content_size_test_.value_or(kMaxSplashContentSize)),
+    : splash_domain_(GetSplashDomain()),
+      splash_content_size_limit_(GetSplashContentSizeLimit()),
       browser_context_(browser_context) {
   if (resource_map_test_) {
     resource_map_ = *resource_map_test_;
@@ -370,6 +334,43 @@ H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory(
 }
 
 H5vccSchemeURLLoaderFactory::~H5vccSchemeURLLoaderFactory() = default;
+
+// static
+std::string H5vccSchemeURLLoaderFactory::GetSplashDomain() {
+  return url::Origin::Create(
+             GURL(global_splash_domain_test_.value_or(kDefaultURL)))
+      .GetURL()
+      .spec();
+}
+
+// static
+uint64_t H5vccSchemeURLLoaderFactory::GetSplashContentSizeLimit() {
+  return global_splash_content_size_test_.value_or(kMaxSplashContentSize);
+}
+
+// static
+std::unique_ptr<SplashCacheReader>
+H5vccSchemeURLLoaderFactory::CreateSplashCacheReader(
+    BrowserContext* browser_context) {
+  return std::make_unique<SplashCacheReader>(browser_context, GetSplashDomain(),
+                                             GetSplashContentSizeLimit());
+}
+
+// static
+base::span<const uint8_t> H5vccSchemeURLLoaderFactory::GetBuiltInResource(
+    const std::string& name) {
+  // Built from this file only, so that the embedded data isn't duplicated.
+  static const base::NoDestructor<GeneratedResourceMap> resource_map([] {
+    GeneratedResourceMap map;
+    LoaderEmbeddedResources::GenerateMap(map);
+    return map;
+  }());
+  const FileContents* contents = base::FindOrNull(*resource_map, name);
+  if (!contents || !contents->data || contents->size <= 0) {
+    return {};
+  }
+  return base::span(contents->data, static_cast<size_t>(contents->size));
+}
 
 void H5vccSchemeURLLoaderFactory::CreateLoaderAndStart(
     mojo::PendingReceiver<network::mojom::URLLoader> receiver,
@@ -392,15 +393,6 @@ void H5vccSchemeURLLoaderFactory::Clone(
       std::move(receiver));
 }
 
-// static
-bool H5vccSchemeURLLoaderFactory::IsCachedSplashFileEnabled() {
-  if (global_cached_splash_file_enabled_test_.has_value()) {
-    return *global_cached_splash_file_enabled_test_;
-  }
-  return base::FeatureList::IsEnabled(
-      cobalt::features::kEnableCachedSplashFile);
-}
-
 void H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(
     const GeneratedResourceMap* resource_map_test) {
   resource_map_test_ = resource_map_test;
@@ -414,11 +406,6 @@ void H5vccSchemeURLLoaderFactory::SetSplashDomainForTesting(
 void H5vccSchemeURLLoaderFactory::SetSplashContentSizeForTesting(
     const std::optional<int>& size) {
   global_splash_content_size_test_ = size;
-}
-
-void H5vccSchemeURLLoaderFactory::SetCachedSplashFileEnabledForTesting(
-    const std::optional<bool>& enabled) {
-  global_cached_splash_file_enabled_test_ = enabled;
 }
 
 }  // namespace content

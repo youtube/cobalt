@@ -15,6 +15,7 @@
 #include "cobalt/shell/browser/splash_screen_web_contents_observer.h"
 
 #include "cobalt/shell/browser/shell.h"
+#include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -78,6 +79,13 @@ void SplashScreenWebContentsObserver::DidFirstVisuallyNonEmptyPaint() {
   Shell::MaybeHideSystemSplashScreen();
 }
 
+void SplashScreenWebContentsObserver::PrimaryMainFrameWasResized(
+    bool width_changed) {
+  if (on_resized_) {
+    on_resized_.Run();
+  }
+}
+
 void SplashScreenWebContentsObserver::MediaStartedPlaying(
     const MediaPlayerInfo& video_type,
     const MediaPlayerId& id) {
@@ -96,6 +104,12 @@ void SplashScreenWebContentsObserver::MediaStoppedPlaying(
   if (video_type.has_video &&
       reason == WebContentsObserver::MediaStoppedReason::kReachedEndOfStream) {
     NotifyStartupEvent(SplashScreenMetrics::Event::kSplashVideoEnded);
+  }
+}
+
+void SplashScreenWebContentsObserver::TitleWasSet(NavigationEntry* entry) {
+  if (entry && on_title_set_) {
+    on_title_set_.Run(entry->GetTitle());
   }
 }
 

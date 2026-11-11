@@ -15,6 +15,7 @@
 #ifndef COBALT_SHELL_BROWSER_SPLASH_SCREEN_WEB_CONTENTS_OBSERVER_H_
 #define COBALT_SHELL_BROWSER_SPLASH_SCREEN_WEB_CONTENTS_OBSERVER_H_
 
+#include <string>
 #include <utility>
 
 #include "base/functional/callback.h"
@@ -47,12 +48,35 @@ class SplashScreenWebContentsObserver : public WebContentsObserver {
   void DidStopLoading() override;
 
   void DidFirstVisuallyNonEmptyPaint() override;
+  void PrimaryMainFrameWasResized(bool width_changed) override;
+
+  // Runs `on_load_complete` once a page has loaded, instead of the callback
+  // that the observer was created with, e.g., when the splash screen shows
+  // another page.
+  void set_on_load_complete(base::OnceClosure on_load_complete) {
+    on_load_complete_ = std::move(on_load_complete);
+  }
+
+  // Runs `on_resized` whenever the splash screen is resized.
+  void set_on_resized(base::RepeatingClosure on_resized) {
+    on_resized_ = std::move(on_resized);
+  }
 
   // Runs `on_video_started` whenever a video starts playing in the splash
   // screen, i.e., once SbPlayer has prerolled it.
   void set_on_video_started(base::RepeatingClosure on_video_started) {
     on_video_started_ = std::move(on_video_started);
   }
+
+  // DO NOT SUBMIT: benchmark only. Runs `on_title_set` with the title of the
+  // splash screen's page whenever it's set, e.g., when splash.html reports the
+  // choice of its WebAssembly policy (see cobalt::features::kSplashWasmPolicy).
+  void set_on_title_set(
+      base::RepeatingCallback<void(const std::u16string&)> on_title_set) {
+    on_title_set_ = std::move(on_title_set);
+  }
+
+  void TitleWasSet(NavigationEntry* entry) override;
 
   void MediaStartedPlaying(const MediaPlayerInfo& video_type,
                            const MediaPlayerId& id) override;
@@ -68,7 +92,9 @@ class SplashScreenWebContentsObserver : public WebContentsObserver {
 
   base::OnceClosure on_load_complete_;
   StartupEventCallback on_startup_event_;
+  base::RepeatingClosure on_resized_;
   base::RepeatingClosure on_video_started_;
+  base::RepeatingCallback<void(const std::u16string&)> on_title_set_;
 };
 
 }  // namespace content
