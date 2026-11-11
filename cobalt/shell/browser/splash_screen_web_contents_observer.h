@@ -47,6 +47,19 @@ class SplashScreenWebContentsObserver : public WebContentsObserver {
   void DidStopLoading() override;
 
   void DidFirstVisuallyNonEmptyPaint() override;
+  void PrimaryMainFrameWasResized(bool width_changed) override;
+
+  // Runs `on_load_complete` once a page has loaded, instead of the callback
+  // that the observer was created with, e.g., when the splash screen shows
+  // another page.
+  void set_on_load_complete(base::OnceClosure on_load_complete) {
+    on_load_complete_ = std::move(on_load_complete);
+  }
+
+  // Runs `on_resized` whenever the splash screen is resized.
+  void set_on_resized(base::RepeatingClosure on_resized) {
+    on_resized_ = std::move(on_resized);
+  }
 
   // Runs `on_video_started` whenever a video starts playing in the splash
   // screen, i.e., once SbPlayer has prerolled it.
@@ -68,6 +81,7 @@ class SplashScreenWebContentsObserver : public WebContentsObserver {
 
   base::OnceClosure on_load_complete_;
   StartupEventCallback on_startup_event_;
+  base::RepeatingClosure on_resized_;
   base::RepeatingClosure on_video_started_;
 };
 
