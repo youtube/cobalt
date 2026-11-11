@@ -219,7 +219,7 @@ constexpr int kDefaultTestWindowWidthDip = 800;
 constexpr int kDefaultTestWindowHeightDip = 600;
 #endif
 
-// Returns the URL to load as the splash screen: the SplashScreenConfig "url"
+// Returns the URL to load as the splash screen: the "SplashScreenConfig_url"
 // feature param if it's set to a valid URL (non-gold builds only), or the
 // built-in splash screen otherwise.
 // See cobalt::features::kSplashScreenUrlParam.

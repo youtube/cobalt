@@ -138,7 +138,7 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSplashScreenTimeoutParam);
 // The "force_image", "cache" and "timeout" query params are still appended.
 // Only available in non-gold builds; gold builds always use the built-in
 // splash screen. The value must be URL-encoded, e.g., for http://example.com:
-// --enable-features=SplashScreenConfig:url/http%3A%2F%2Fexample.com
+// --enable-features=SplashScreenConfig:SplashScreenConfig_url/http%3A%2F%2Fexample.com
 BASE_DECLARE_FEATURE_PARAM(std::string, kSplashScreenUrlParam);
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
