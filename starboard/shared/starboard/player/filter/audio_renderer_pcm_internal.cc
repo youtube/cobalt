@@ -305,9 +305,9 @@ MediaTimeInfo AudioRendererPcm::GetCurrentMediaTime() {
     info.is_playing = !paused_ && !seeking_;
     info.is_eos_played = IsEndOfStreamPlayed_Locked();
     info.is_underflow = underflow_;
+    info.playback_rate = playback_rate_;
 
     if (seeking_ || !decoder_sample_rate_) {
-      info.playback_rate = playback_rate_;
       info.media_time = seeking_to_time_;
       return info;
     }

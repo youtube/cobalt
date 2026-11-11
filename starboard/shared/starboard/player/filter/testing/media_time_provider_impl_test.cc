@@ -137,7 +137,6 @@ TEST_F(MediaTimeProviderImplTest, SetPlaybackRateWhilePlaying) {
   MediaTimeInfo info = media_time_provider_impl_.GetCurrentMediaTime();
   EXPECT_TRUE(AlmostEqual(info.media_time, kOneSecondInMicroseconds));
   EXPECT_EQ(info.playback_rate, 1.0);
-  EXPECT_EQ(info.playback_rate, 1.0);
 
   media_time_provider_impl_.SetPlaybackRate(2.0);
 
