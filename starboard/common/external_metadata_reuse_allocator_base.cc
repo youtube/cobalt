@@ -32,6 +32,9 @@ namespace {
 // to ensure that a zero sized allocation will return a non-zero sized block.
 const size_t kMinBlockSizeBytes = 16;
 
+// Number of allocations between attempts to decommit one pending idle block.
+constexpr int kDecommitCadence = 100;
+
 int ceil_power_2(int i) {
   SB_DCHECK_GE(i, 0);
 
@@ -175,7 +178,9 @@ void* ExternalMetadataReuseAllocatorBase::Allocate(size_t size,
   }
   void* user_address = AlignUp(allocated_block.address(), alignment);
   AddAllocatedBlock(user_address, allocated_block);
-  TryToDecommitOneBlock(/*cadence=*/100);
+  if (enable_decommit_on_idle_) {
+    TryToDecommitOneBlock(kDecommitCadence);
+  }
 
   return user_address;
 }
@@ -294,7 +299,8 @@ bool ExternalMetadataReuseAllocatorBase::TryFree(void* memory) {
 
   allocated_blocks_.erase(it);
 
-  if (enable_decommit_on_idle_ && total_allocated_ == 0) {
+  if ((enable_decommit_on_idle_ || enable_decommit_only_on_memory_pressure_) &&
+      total_allocated_ == 0) {
     free_blocks_.clear();
     ReclaimFallbackBlocks();
   }
@@ -329,7 +335,8 @@ ExternalMetadataReuseAllocatorBase::ExternalMetadataReuseAllocatorBase(
     size_t conservative_decommit_blocks,
     bool aggressive_decommit_on_suspend,
     bool memset_on_reclaim,
-    bool mark_as_cold_on_reclaim)
+    bool mark_as_cold_on_reclaim,
+    bool enable_decommit_only_on_memory_pressure)
     : ReuseAllocatorBase(fallback_allocator,
                          max_capacity,
                          retain_blocks,
@@ -338,7 +345,9 @@ ExternalMetadataReuseAllocatorBase::ExternalMetadataReuseAllocatorBase(
                          memset_on_reclaim,
                          mark_as_cold_on_reclaim),
       allocation_increment_(allocation_increment),
-      enable_decommit_on_idle_(enable_decommit_on_idle) {
+      enable_decommit_on_idle_(enable_decommit_on_idle),
+      enable_decommit_only_on_memory_pressure_(
+          enable_decommit_only_on_memory_pressure) {
   if (initial_capacity > 0) {
     FreeBlockSet::iterator iter = ExpandToFit(initial_capacity, kMinAlignment);
     SB_DCHECK(iter != free_blocks_.end());
