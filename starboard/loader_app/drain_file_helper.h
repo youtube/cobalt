@@ -15,6 +15,7 @@
 #ifndef STARBOARD_LOADER_APP_DRAIN_FILE_HELPER_H_
 #define STARBOARD_LOADER_APP_DRAIN_FILE_HELPER_H_
 
+#include <cstdint>
 #include <string>
 
 namespace loader_app {
