@@ -112,8 +112,6 @@ namespace content {
 
 namespace {
 
-constexpr char kMusicTopic[] = "music";
-
 // Helper function to check if a URL is a valid deep link for a specific topic.
 // It requires both a "launch" parameter and a matching "topic" parameter.
 bool IsDeepLinkTopic(const GURL& link_url, std::string_view target_topic) {
@@ -606,8 +604,7 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
         cobalt::switches::kInitialURL));
   }
   if (link_url.is_valid()) {
-    if (IsDeepLinkTopic(link_url, kMusicTopic)) {
-      // The splash screen reads and Cobalt clears the cache of this name.
+    if (IsDeepLinkTopic(link_url, kMusicSplashCacheName)) {
       topic = kMusicSplashCacheName;
     }
   }

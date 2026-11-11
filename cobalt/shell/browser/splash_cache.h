@@ -42,7 +42,7 @@ class BrowserContext;
 
 // The names of the caches where the WebApp caches the splash assets, for the
 // default and the music splash screens. Shell passes them to splash.html as the
-// "cache" param.
+// "cache" param. The music one is also the topic of the music deep links.
 inline constexpr std::string_view kDefaultSplashCacheName = "default";
 inline constexpr std::string_view kMusicSplashCacheName = "music";
 
