@@ -16,6 +16,7 @@ package dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
 
+import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaCodecInfo.CodecProfileLevel;
 import android.media.MediaCodecList;
@@ -23,6 +24,7 @@ import android.os.Build;
 import android.util.Range;
 import dev.cobalt.util.IsEmulator;
 import dev.cobalt.util.Log;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
@@ -490,6 +492,42 @@ public class MediaCodecUtil {
     return codecCapabilityInfos.toArray(array);
   }
 
+  /**
+   * Returns the name of the platform's default decoder for mimeType, if it isn't on the deny list
+   * and isn't a software decoder by its name, or "" otherwise.
+   *
+   * <p>Unlike getAllCodecCapabilityInfos(), this doesn't load every codec's capabilities:
+   * MediaCodec.createDecoderByType() picks the decoder from the platform's native codec list. It
+   * doesn't call MediaCodec.getCodecInfo() either: building a MediaCodecInfo waits for
+   * MediaCodecList's lock, which another thread may hold for most of a second while it loads the
+   * codec list, e.g., for MediaCapabilitiesCache. Whether the decoder supports the stream's size is
+   * left to its configuration. The decoder is released before this returns.
+   */
+  @CalledByNative
+  public static String findVideoDecoderDirectly(String mimeType) {
+    MediaCodec codec = null;
+    try {
+      codec = MediaCodec.createDecoderByType(mimeType);
+      String name = codec.getName();
+      if (!sIsVp9AllowListed && isCodecDenyListed(name)) {
+        Log.w(TAG, "Rejecting %s for %s: it's on the deny list.", name, mimeType);
+        return "";
+      }
+      if (isSoftwareDecoderName(name)) {
+        Log.w(TAG, "Rejecting %s for %s: it's a software decoder.", name, mimeType);
+        return "";
+      }
+      return name;
+    } catch (IOException | IllegalArgumentException | IllegalStateException e) {
+      Log.w(TAG, "Found no decoder for %s directly: %s", mimeType, e);
+      return "";
+    } finally {
+      if (codec != null) {
+        codec.release();
+      }
+    }
+  }
+
   /** Returns whether the codec is denylisted. */
   public static boolean isCodecDenyListed(String codecName) {
     return sVideoCodecDenyList.contains(codecName);
@@ -539,7 +577,12 @@ public class MediaCodecUtil {
         return true;
       }
     }
-    String name = codecInfo.getName().toLowerCase(Locale.ROOT);
+    return isSoftwareDecoderName(codecInfo.getName());
+  }
+
+  /** Return true if the decoder's name is a software decoder's. */
+  public static boolean isSoftwareDecoderName(String codecName) {
+    String name = codecName.toLowerCase(Locale.ROOT);
     // This is taken from libstagefright/OMXCodec.cpp for pre codec2.
     if (name.startsWith("omx.google.")) {
       return true;

@@ -33,6 +33,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/key_system_supportability_cache.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
@@ -457,6 +458,23 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
   return FindVideoDecoder(mime_type, must_support_secure, must_support_hdr,
                           require_software_codec, must_support_tunnel_mode,
                           Size(), /*bitrate=*/0, /*fps=*/0);
+}
+
+// static
+std::string MediaCapabilitiesCache::FindVideoDecoderDirectly(
+    const std::string& mime_type) {
+  JNIEnv* env = AttachCurrentThread();
+  const int64_t start_us = CurrentMonotonicTime();
+  ScopedJavaLocalRef<jstring> j_decoder_name =
+      Java_MediaCodecUtil_findVideoDecoderDirectly(
+          env, ConvertUTF8ToJavaString(env, mime_type));
+  std::string decoder_name =
+      j_decoder_name ? ConvertJavaStringToUTF8(env, j_decoder_name) : "";
+  SB_LOG(INFO) << "MediaCapabilitiesCache: found "
+               << (decoder_name.empty() ? "no decoder" : decoder_name)
+               << " directly for " << mime_type << " in "
+               << (CurrentMonotonicTime() - start_us) / 1000 << " ms.";
+  return decoder_name;
 }
 
 std::string MediaCapabilitiesCache::FindVideoDecoder(

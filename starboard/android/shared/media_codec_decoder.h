@@ -55,6 +55,8 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
     bool enable_trivial_optimizations = false;
     // Only has an effect when dual decoder threads are used.
     bool enable_codec_thread_improvements = false;
+    // See MediaCodec::VideoPlatformOptions::select_decoder_directly.
+    bool select_decoder_directly = false;
   };
 
   MediaCodec* media_codec() const { return media_codec_bridge_.get(); }

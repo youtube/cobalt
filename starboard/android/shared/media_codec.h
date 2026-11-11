@@ -89,6 +89,9 @@ class MediaCodec {
     bool enable_ndk_video = false;
     // True for video with more than 8 bits per channel.
     bool is_high_bit_depth = false;
+    // Takes the platform's default decoder for the MIME type instead of
+    // MediaCapabilitiesCache's choice; see kMediaSelectVideoDecoderDirectly.
+    bool select_decoder_directly = false;
   };
 
   static constexpr int32_t kBufferFlagCodecConfig = 2;

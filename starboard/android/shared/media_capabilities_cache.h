@@ -234,6 +234,14 @@ class MediaCapabilitiesCache {
                                bool require_software_codec,
                                bool must_support_tunnel_mode);
 
+  // Returns the platform's default decoder for |mime_type|, without loading
+  // the cache: the one that Android's MediaCodec.createDecoderByType() picks,
+  // if it isn't deny-listed and isn't a software decoder by its name. Returns
+  // "" otherwise. Whether it supports the stream is left to its configuration.
+  // Only for clear, SDR and non-tunneled streams. See
+  // kMediaSelectVideoDecoderDirectly.
+  static std::string FindVideoDecoderDirectly(const std::string& mime_type);
+
   bool IsEnabled() const { return is_enabled_; }
   void SetCacheEnabled(bool enabled) { is_enabled_ = enabled; }
   void SetAv1OptEnabled(bool enabled) { is_av1_opt_enabled_ = enabled; }
