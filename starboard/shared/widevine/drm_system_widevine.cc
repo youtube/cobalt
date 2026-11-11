@@ -337,11 +337,10 @@ void DrmSystemWidevine::UpdateSession(int ticket,
   if (!pending_generate_session_update_requests_.empty()) {
     status = ProcessServerCertificateResponse(str_key);
   } else {
-    std::string wvcdm_session_id;
-    bool succeeded =
-        SbDrmSessionIdToWvdmSessionId(sb_drm_session_id, &wvcdm_session_id);
-    SB_DCHECK(succeeded);
-    status = cdm_->update(wvcdm_session_id, str_key);
+    std::optional<std::string> wvcdm_session_id =
+        SbDrmSessionIdToWvdmSessionId(sb_drm_session_id);
+    SB_DCHECK(wvcdm_session_id.has_value());
+    status = cdm_->update(wvcdm_session_id.value_or(""), str_key);
     first_update_session_received_.store(true);
   }
   SB_DLOG(INFO) << "Update keys status " << status;
@@ -356,11 +355,9 @@ void DrmSystemWidevine::UpdateSession(int ticket,
 
 void DrmSystemWidevine::CloseSession(std::string_view sb_drm_session_id) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  std::string wvcdm_session_id;
-  bool succeeded =
-      SbDrmSessionIdToWvdmSessionId(sb_drm_session_id, &wvcdm_session_id);
-  if (succeeded) {
-    cdm_->close(wvcdm_session_id);
+  if (auto wvcdm_session_id =
+          SbDrmSessionIdToWvdmSessionId(sb_drm_session_id)) {
+    cdm_->close(*wvcdm_session_id);
   }
   session_closed_callback_(this, context_, sb_drm_session_id.data(),
                            static_cast<int>(sb_drm_session_id.size()));
@@ -706,17 +703,15 @@ std::string DrmSystemWidevine::WvdmSessionIdToSbDrmSessionId(
   return wvcdm_session_id;
 }
 
-bool DrmSystemWidevine::SbDrmSessionIdToWvdmSessionId(
-    std::string_view sb_drm_session_id,
-    std::string* wvcdm_session_id) {
-  SB_DCHECK(wvcdm_session_id);
-  const std::string str_sb_drm_session_id(sb_drm_session_id);
-  if (str_sb_drm_session_id == kFirstSbDrmSessionId) {
-    *wvcdm_session_id = first_wvcdm_session_id_;
-    return !first_wvcdm_session_id_.empty();
+std::optional<std::string> DrmSystemWidevine::SbDrmSessionIdToWvdmSessionId(
+    std::string_view sb_drm_session_id) const {
+  if (sb_drm_session_id == kFirstSbDrmSessionId) {
+    if (first_wvcdm_session_id_.empty()) {
+      return std::nullopt;
+    }
+    return first_wvcdm_session_id_;
   }
-  *wvcdm_session_id = str_sb_drm_session_id;
-  return true;
+  return std::string(sb_drm_session_id);
 }
 
 void DrmSystemWidevine::SendServerCertificateRequest(int ticket) {

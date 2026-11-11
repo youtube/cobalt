@@ -128,6 +128,27 @@ public class BaseStarboardBridge {
   private volatile boolean mApplicationStopped;
   private volatile boolean mApplicationStarted;
 
+  @VisibleForTesting
+  final CaptioningManager.CaptioningChangeListener mCaptioningChangeListener =
+      new CaptioningManager.CaptioningChangeListener() {
+        @Override
+        public void onEnabledChanged(boolean enabled) {
+          onCaptionSettingsChanged();
+        }
+
+        @Override
+        public void onUserStyleChanged(CaptioningManager.CaptionStyle userStyle) {
+          onCaptionSettingsChanged();
+        }
+
+        @Override
+        public void onFontScaleChanged(float fontScale) {
+          onCaptionSettingsChanged();
+        }
+      };
+
+  private boolean mCaptionListenerRegistered;
+
   private long mAppStartTimestamp = 0;
 
   private final Map<String, CobaltService.Factory> mCobaltServiceFactories =
@@ -238,6 +259,8 @@ public class BaseStarboardBridge {
     void setAndroidPlayServicesVersion(long version);
 
     void setYoutubeCertificationScope(String certScope);
+
+    void sendCaptionSettingsChangedEvent();
   }
 
   private static Boolean sActivityLifecycleCoordinationEnabledForTesting = null;
@@ -300,9 +323,11 @@ public class BaseStarboardBridge {
       // Only resume services and trigger foreground logic on 0 -> 1 started activity transition.
       if (activeActivityCount == 0) {
         beforeStartOrResume();
+        registerCaptionSettingsChangeListener();
       }
     } else {
       beforeStartOrResume();
+      registerCaptionSettingsChangeListener();
     }
   }
 
@@ -321,6 +346,7 @@ public class BaseStarboardBridge {
           mActivityHolder.set(null);
         }
         mSysConfigChangeReceiver.setForeground(false);
+        unregisterCaptionSettingsChangeListener();
       } else {
         if (mActivityHolder.get() == activity) {
           mActivityHolder.set(null);
@@ -334,6 +360,7 @@ public class BaseStarboardBridge {
       beforeSuspend();
       if (mActivityHolder.get() == activity) {
         mActivityHolder.set(null);
+        unregisterCaptionSettingsChangeListener();
       }
       mSysConfigChangeReceiver.setForeground(false);
     }
@@ -454,6 +481,7 @@ public class BaseStarboardBridge {
 
   protected void afterStopped() {
     mApplicationStopped = true;
+    unregisterCaptionSettingsChangeListener();
     mTtsHelper.shutdown();
     closeAllCobaltService();
     Activity activity = mActivityHolder.get();
@@ -600,6 +628,45 @@ public class BaseStarboardBridge {
     CaptioningManager cm =
         (CaptioningManager) mAppContext.getSystemService(Context.CAPTIONING_SERVICE);
     return new CaptionSettings(cm);
+  }
+
+  private void registerCaptionSettingsChangeListener() {
+    if (mCaptionListenerRegistered) {
+      return;
+    }
+    CaptioningManager cm =
+        (CaptioningManager) mAppContext.getSystemService(Context.CAPTIONING_SERVICE);
+    if (cm == null) {
+      return;
+    }
+    cm.addCaptioningChangeListener(mCaptioningChangeListener);
+    mCaptionListenerRegistered = true;
+    // Sync current state on foreground start/resume in case system caption settings changed while
+    // the app was stopped in the background.
+    onCaptionSettingsChanged();
+  }
+
+  private void unregisterCaptionSettingsChangeListener() {
+    if (!mCaptionListenerRegistered) {
+      return;
+    }
+    CaptioningManager cm =
+        (CaptioningManager) mAppContext.getSystemService(Context.CAPTIONING_SERVICE);
+    if (cm != null) {
+      cm.removeCaptioningChangeListener(mCaptioningChangeListener);
+    }
+    mCaptionListenerRegistered = false;
+  }
+
+  private void onCaptionSettingsChanged() {
+    if (mApplicationStarted && !mApplicationStopped) {
+      mNatives.sendCaptionSettingsChangedEvent();
+    }
+  }
+
+  @VisibleForTesting
+  boolean isCaptionListenerRegisteredForTesting() {
+    return mCaptionListenerRegistered;
   }
 
   /** Java-layer implementation of SbSystemGetLocaleId. */

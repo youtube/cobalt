@@ -28,9 +28,6 @@ extern const char kCrashpadVersionKey[];
 // The key name used in Crashpad for the product annotation.
 extern const char kCrashpadProductKey[];
 
-// The key name used in Crashpad for the user_agent_string annotation.
-extern const char kCrashpadUserAgentStringKey[];
-
 // The key name used in Crashpad for the cert_scope annotation.
 extern const char kCrashpadCertScopeKey[];
 

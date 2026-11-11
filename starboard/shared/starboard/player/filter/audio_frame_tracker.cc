@@ -93,7 +93,7 @@ int64_t AudioFrameTracker::GetTotalOriginalFrames() const {
 int64_t AudioFrameTracker::GetFutureFramesPlayedAdjustedToPlaybackRate(
     int number_of_frames,
     double* playback_rate) const {
-  SB_DCHECK(playback_rate);
+  SB_CHECK(playback_rate);
 
   if (frame_records_.empty()) {
     *playback_rate = last_playback_rate_;

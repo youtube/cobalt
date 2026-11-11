@@ -48,7 +48,7 @@ InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
   TryToAssignDrmSampleInfo(sample_info.drm_info);
   if (sample_info.side_data_count > 0) {
     SB_DCHECK_EQ(sample_info.side_data_count, 1);
-    SB_DCHECK(sample_info.side_data);
+    SB_CHECK(sample_info.side_data);
     SB_DCHECK_EQ(sample_info.side_data->type, kMatroskaBlockAdditional);
     SB_DCHECK(sample_info.side_data->data);
     // Make a copy anyway as it is possible to release |data_| earlier in

@@ -68,7 +68,9 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
       const std::string& process_type,
       content::MainFunctionParams main_function_params) override;
 
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   void PreSandboxStartup() override;
+#endif
 
   // Shutdown method that trigger the BrowserMainRunner shutdown.
   void Shutdown();

@@ -381,7 +381,7 @@ bool FfmpegAudioDecoderImpl<FFMPEG>::InitializeCodec() {
         audio_stream_info_.audio_specific_config.size();
     codec_context_->extradata = static_cast<uint8_t*>(ffmpeg_->av_malloc(
         codec_context_->extradata_size + kAvInputBufferPaddingSize));
-    SB_DCHECK(codec_context_->extradata);
+    SB_CHECK(codec_context_->extradata);
     memcpy(codec_context_->extradata,
            audio_stream_info_.audio_specific_config.data(),
            codec_context_->extradata_size);

@@ -49,7 +49,6 @@
 #if BUILDFLAG(IS_STARBOARD)
 #include "starboard/common/command_line.h"
 #include "starboard/common/paths.h"
-#include "starboard/crashpad_wrapper/wrapper.h"
 #include "starboard/elf_loader/elf_loader_constants.h"
 #endif
 

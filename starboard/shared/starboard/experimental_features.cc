@@ -21,6 +21,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/extension/experimental/experimental_features.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 
 namespace starboard {
 namespace {
@@ -59,6 +60,10 @@ void SetExperimentalFeaturesForCurrentThread(
   }
   auto& experimental_features = GetThreadLocalExperimentalFeatures();
   experimental_features = ExperimentalFeatures(std::move(map));
+
+  if (experimental_features->GetBool(kMediaEnableTrivialOptimizations)) {
+    JobQueue::EnableOptimizations();
+  }
 }
 
 const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread() {

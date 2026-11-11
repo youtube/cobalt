@@ -104,7 +104,7 @@ void* Send(CobaltExtensionPlatformService service,
            uint64_t length,
            uint64_t* output_length,
            bool* invalid_state) {
-  SB_DCHECK(service);
+  SB_CHECK(service);
   SB_DCHECK(output_length);
 
   const CobaltPlatformServiceApi* api =

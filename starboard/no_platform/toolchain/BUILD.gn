@@ -14,10 +14,24 @@
 
 import("//build/toolchain/gcc_toolchain.gni")
 
+# This platform only builds the Evergreen libcobalt.so. These toolchains are
+# defined so that `$starboard_toolchain` and `$native_toolchain` dependencies
+# in shared build files resolve. There is no Starboard implementation, so
+# nothing built with them is meant to run, and some targets might even fail to
+# build.
+
 clang_toolchain("starboard") {
   toolchain_args = {
     current_cpu = "x64"
     current_os = "linux"
     is_starboard = true
+  }
+}
+
+clang_toolchain("native_target") {
+  toolchain_args = {
+    current_cpu = "x64"
+    current_os = "linux"
+    is_starboard = false
   }
 }

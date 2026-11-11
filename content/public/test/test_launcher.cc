@@ -411,7 +411,17 @@ int LaunchTestsInternal(TestLauncherDelegate* launcher_delegate,
       }
     }
 #endif  // !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD)
+    // ShellMainDelegate::RunProcess leaks BrowserMainRunner on Starboard, so
+    // background browser/GPU/renderer threads continue running after
+    // RunTestSuite returns and still access the clients owned by
+    // content_main_delegate.
+    int test_suite_result = launcher_delegate->RunTestSuite(argc, argv);
+    std::ignore = content_main_delegate.release();
+    return test_suite_result;
+#else
     return launcher_delegate->RunTestSuite(argc, argv);
+#endif
   }
 
   // ICU must be initialized before any attempts to format times, e.g. for logs.

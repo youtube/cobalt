@@ -79,7 +79,7 @@ void* Send(PlatformServiceImpl* service,
            bool* invalid_state) {
   SB_DCHECK(service);
   SB_DCHECK(data);
-  SB_DCHECK(output_length);
+  SB_CHECK(output_length);
 
   // This bool flag is set to true if the data argument
   // is successfully parsed as a known web app request,

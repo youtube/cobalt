@@ -217,12 +217,12 @@ SbPlayerSampleInfo VideoDmpReader::GetPlayerSampleInfo(SbMediaType type,
 
   switch (type) {
     case kSbMediaTypeAudio: {
-      SB_DCHECK_LT(index, audio_access_units_.size());
+      SB_CHECK_LT(index, audio_access_units_.size());
       const AudioAccessUnit& audio_au = audio_access_units_[index];
       return ConvertToPlayerSampleInfo(audio_au);
     }
     case kSbMediaTypeVideo: {
-      SB_DCHECK_LT(index, video_access_units_.size());
+      SB_CHECK_LT(index, video_access_units_.size());
       const VideoAccessUnit& video_au = video_access_units_[index];
       return ConvertToPlayerSampleInfo(video_au);
     }
@@ -234,7 +234,7 @@ SbPlayerSampleInfo VideoDmpReader::GetPlayerSampleInfo(SbMediaType type,
 const AudioSampleInfo& VideoDmpReader::GetAudioSampleInfo(size_t index) {
   EnsureSampleLoaded(kSbMediaTypeAudio, index);
 
-  SB_DCHECK_LT(index, audio_access_units_.size());
+  SB_CHECK_LT(index, audio_access_units_.size());
   const AudioAccessUnit& au = audio_access_units_[index];
   return au.audio_sample_info();
 }

@@ -242,7 +242,7 @@ void De265VideoDecoder::ProcessDecodedImage(bool flushing) {
     widths[i] = de265_get_image_width(image, i);
     heights[i] = de265_get_image_height(image, i);
     planes[i] = de265_get_image_plane(image, i, strides + i);
-    SB_DCHECK(planes[i]);
+    SB_CHECK(planes[i]);
   }
 
   SB_DCHECK_EQ(widths[kYPlane], widths[kUPlane] * 2);

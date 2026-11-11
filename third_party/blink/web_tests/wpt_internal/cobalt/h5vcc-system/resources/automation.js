@@ -16,7 +16,7 @@ function h5vcc_system_tests(func, name, properties) {
 
     mockH5vccSystem.start();
     try {
-      await func(test, mockH5vccSystem);
+      await func(t, mockH5vccSystem);
     } finally {
       mockH5vccSystem.stop();
       mockH5vccSystem.reset();
