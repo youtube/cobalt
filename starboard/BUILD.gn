@@ -257,8 +257,8 @@ if (current_toolchain == starboard_toolchain) {
     if (sb_filter_based_player && !is_android) {
       deps += [ "//starboard/shared/starboard/player/filter/testing:player_filter_tests_sources" ]
     }
-    if (use_evergreen && use_crashpad) {
-      deps += [ "//starboard/crashpad_wrapper:crashpad_wrapper_test" ]
+    if (use_evergreen) {
+      deps += [ "//starboard/crashpad_wrapper:native_stability_reader_test" ]
     }
     if (is_starboard) {
       deps += [

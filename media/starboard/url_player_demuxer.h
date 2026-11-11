@@ -26,6 +26,7 @@
 #include "media/base/demuxer.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_export.h"
+#include "media/base/starboard/url_player_media_resource.h"
 #include "url/gurl.h"
 
 namespace media {
@@ -55,7 +56,8 @@ class MEDIA_EXPORT UrlPlayerDemuxerStream : public DemuxerStream {
 // Demuxer placeholder for URL player. Carries the media URL and exposes
 // placeholder streams required by the stream-based pipeline initialization.
 // Owned by PipelineImpl. Created and accessed on the media thread.
-class MEDIA_EXPORT UrlPlayerDemuxer : public Demuxer {
+class MEDIA_EXPORT UrlPlayerDemuxer : public Demuxer,
+                                      public UrlPlayerMediaResource {
  public:
   UrlPlayerDemuxer(scoped_refptr<base::SequencedTaskRunner> media_task_runner,
                    GURL url);
@@ -63,7 +65,7 @@ class MEDIA_EXPORT UrlPlayerDemuxer : public Demuxer {
 
   // MediaResource implementation.
   std::vector<DemuxerStream*> GetAllStreams() override;
-  GURL GetMediaUrl() const override;
+  UrlPlayerMediaResource* AsUrlPlayerMediaResource() override;
 
   // Demuxer implementation.
   std::string GetDisplayName() const override;
@@ -86,11 +88,12 @@ class MEDIA_EXPORT UrlPlayerDemuxer : public Demuxer {
                        TrackChangeCB change_completed_cb) override;
   void SetPlaybackRate(double rate) override;
 
-  // MediaResource overrides.
-  void ForwardDurationChangeToDemuxerHost(base::TimeDelta duration) override;
-  void ForwardBufferedTimeRangesToDemuxerHost(base::TimeDelta start,
-                                              base::TimeDelta length) override;
-  void ForwardEncryptedMediaInitData(
+  // UrlPlayerMediaResource implementation.
+  GURL GetMediaUrl() const override;
+  void OnPlatformDurationChange(base::TimeDelta duration) override;
+  void OnPlatformBufferedRangesChange(base::TimeDelta start,
+                                      base::TimeDelta length) override;
+  void OnPlatformEncryptedMediaInitData(
       EmeInitDataType init_data_type,
       const std::vector<uint8_t>& init_data) override;
   void SetEncryptedMediaInitDataCB(EncryptedMediaInitDataCB cb) override;

@@ -18,6 +18,7 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <string>
 #include <thread>
@@ -93,10 +94,9 @@ class ThrottledAudioTrack : public FakeAudioTrack {
       : FakeAudioTrack(channels, sampling_frequency_hz, sample_type),
         max_bytes_per_write_(max_bytes_per_write) {}
 
-  int WriteSample(Span<const uint8_t> buffer, int64_t sync_time) override {
+  int WriteSample(span<const uint8_t> buffer, int64_t sync_time) override {
     size_t bytes_to_write = std::min(buffer.size(), max_bytes_per_write_);
-    return FakeAudioTrack::WriteSample(MakeSpan(buffer.data(), bytes_to_write),
-                                       sync_time);
+    return FakeAudioTrack::WriteSample(buffer.first(bytes_to_write), sync_time);
   }
 
  private:
@@ -169,8 +169,11 @@ class AudioRendererPassthroughTest : public ::testing::Test {
     renderer_ = AudioRendererPassthrough::CreateForTesting(
         &job_queue_, audio_stream_info_, std::move(decoder),
         [this](SbMediaAudioCodingType, std::optional<SbMediaAudioSampleType>,
-               int, int, int, std::optional<int>,
-               bool) { return std::move(pending_audio_track_); });
+               int, int, int, std::optional<int> tunnel_mode_audio_session_id,
+               bool) {
+          EXPECT_EQ(tunnel_mode_audio_session_id, std::nullopt);
+          return std::move(pending_audio_track_);
+        });
     ASSERT_NE(renderer_, nullptr);
 
     renderer_->Initialize(
@@ -220,7 +223,8 @@ TEST_F(AudioRendererPassthroughTest, InitialState) {
   EXPECT_FALSE(renderer_->IsEndOfStreamWritten());
   EXPECT_FALSE(renderer_->IsEndOfStreamPlayed());
   EXPECT_TRUE(renderer_->CanAcceptMoreData());
-  EXPECT_EQ(renderer_->GetAudioWriteHead(), 0);
+  EXPECT_EQ(renderer_->GetAudioWriteHead(),
+            std::numeric_limits<int64_t>::max());
   EXPECT_EQ(renderer_->AdjustTimestampToAudioClock(12345), 12345);
 
   bool is_playing = true;
@@ -274,6 +278,39 @@ TEST_F(AudioRendererPassthroughTest, WriteSamplesAndConsume) {
 
   EXPECT_TRUE(WaitForCondition([&] { return renderer_->CanAcceptMoreData(); }));
   EXPECT_EQ(error_count_, 0);
+}
+
+TEST_F(AudioRendererPassthroughTest, TunnelModeAudioSessionId) {
+  constexpr int kTunnelModeAudioSessionId = 42;
+  auto decoder = std::make_unique<AudioDecoderPassthrough>(
+      audio_stream_info_.samples_per_second);
+
+  FakeAudioTrack* fake_audio_track = nullptr;
+  auto renderer = AudioRendererPassthrough::CreateForTesting(
+      &job_queue_, audio_stream_info_, std::move(decoder),
+      [&fake_audio_track](
+          SbMediaAudioCodingType, std::optional<SbMediaAudioSampleType>,
+          int channels, int sample_rate, int,
+          std::optional<int> tunnel_mode_audio_session_id, bool) {
+        auto track = std::make_unique<FakeAudioTrack>(
+            channels, sample_rate, kSbMediaAudioSampleTypeInt16Deprecated,
+            tunnel_mode_audio_session_id);
+        fake_audio_track = track.get();
+        return track;
+      },
+      kTunnelModeAudioSessionId);
+  ASSERT_NE(renderer, nullptr);
+
+  renderer->Initialize([](SbPlayerError, const std::string&) {}, [] {}, [] {});
+  renderer->WriteSamples({CreateInputBuffer(frame_, 0)});
+
+  ASSERT_TRUE(WaitForCondition([&] {
+    return fake_audio_track != nullptr &&
+           fake_audio_track->written_frames() > 0;
+  }));
+
+  EXPECT_EQ(fake_audio_track->tunnel_mode_audio_session_id(),
+            kTunnelModeAudioSessionId);
 }
 
 TEST_F(AudioRendererPassthroughTest, PrerollOnPartialWrite) {
@@ -366,6 +403,7 @@ TEST_F(AudioRendererPassthroughTest, EndOfStreamWithoutSamples) {
 
   EXPECT_TRUE(renderer_->IsEndOfStreamWritten());
   EXPECT_TRUE(renderer_->IsEndOfStreamPlayed());
+  EXPECT_EQ(prerolled_count_, 1);
   EXPECT_EQ(ended_count_, 1);
 }
 
@@ -387,6 +425,7 @@ TEST_F(AudioRendererPassthroughTest, DuplicateEndOfStream) {
   renderer_->WriteEndOfStream();
   renderer_->WriteEndOfStream();
 
+  EXPECT_EQ(prerolled_count_, 1);
   EXPECT_EQ(ended_count_, 1);
 }
 

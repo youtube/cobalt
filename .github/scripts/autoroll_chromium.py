@@ -219,7 +219,7 @@ def main():
 
   # Commits PR
   metadata = (date, author, '\n\n'.join(msgs))
-  autoroll_metadata = (args.autoroll_file, shas[-1])
+  autoroll_metadata = (args.autoroll_file, shas[-1], True)
 
   result, unmerged_files = chromium_cherry_pick(autoroll_start, shas, metadata,
                                                 autoroll_metadata)

@@ -69,6 +69,10 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   void OnDecoderOutput();
   void ResetInternal();
 
+  // Whether the decoder is being flushed for a config change, holding
+  // `pending_input_buffers_` for the new decoder.
+  bool flushing() const { return !pending_input_buffers_.empty(); }
+
   const uint32_t initial_samples_per_second_;
   const SbDrmSystem drm_system_;
   const AudioDecoderCreator audio_decoder_creator_;
@@ -87,7 +91,6 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   InputBuffers pending_input_buffers_;
   ConsumedCB pending_consumed_cb_;
   std::queue<DecodedAudio> decoded_audios_;
-  bool flushing_ = false;
   bool stream_ended_ = false;
   bool first_output_received_ = false;
   bool output_format_checked_ = false;

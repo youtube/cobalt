@@ -31,6 +31,7 @@
 #include "include/core/SkFont.h"
 #include "include/core/SkFontMetrics.h"
 #include "include/core/SkFontStyle.h"
+#include "include/core/SkRect.h"
 #include "include/core/SkStream.h"
 #include "include/core/SkString.h"
 #include "include/core/SkTypeface.h"
@@ -300,6 +301,77 @@ TEST_F(SkFontMgrCobaltTest, LimitedFontPackageLastResortFallbackSimulation) {
   SkString resolved_family;
   fallback_typeface->getFamilyName(&resolved_family);
   EXPECT_STREQ(resolved_family.c_str(), "sans-serif");
+}
+
+// Returns the bounds of the glyph for 'A' in |typeface|, with or without
+// synthetic bolding (SkFont::setEmbolden) requested.
+SkRect GetGlyphBounds(const sk_sp<SkTypeface>& typeface, bool embolden) {
+  SkFont font(typeface, 24.0f);
+  font.setEmbolden(embolden);
+  SkGlyphID glyph = font.unicharToGlyph('A');
+  EXPECT_GT(glyph, 0u);
+  SkRect bounds;
+  font.getBounds(&glyph, 1, &bounds, nullptr);
+  return bounds;
+}
+
+TEST_F(SkFontMgrCobaltTest, SyntheticBoldAppliesToRegularTypeface) {
+  sk_sp<SkTypeface> regular(
+      font_mgr_->matchFamilyStyle("sans-serif", SkFontStyle::Normal()));
+  ASSERT_TRUE(regular != nullptr);
+  ASSERT_FALSE(regular->isBold());
+
+  SkRect normal_bounds = GetGlyphBounds(regular, /*embolden=*/false);
+  SkRect emboldened_bounds = GetGlyphBounds(regular, /*embolden=*/true);
+  EXPECT_GT(emboldened_bounds.width(), normal_bounds.width());
+}
+
+TEST_F(SkFontMgrCobaltTest, SyntheticBoldIgnoredForBoldTypeface) {
+  sk_sp<SkTypeface> bold(
+      font_mgr_->matchFamilyStyle("sans-serif", SkFontStyle::Bold()));
+  ASSERT_TRUE(bold != nullptr);
+  ASSERT_TRUE(bold->isBold());
+
+  SkRect normal_bounds = GetGlyphBounds(bold, /*embolden=*/false);
+  SkRect emboldened_bounds = GetGlyphBounds(bold, /*embolden=*/true);
+  EXPECT_EQ(emboldened_bounds, normal_bounds);
+}
+
+TEST_F(SkFontMgrCobaltTest, SyntheticBoldIgnoredWhenDisabledInFontsXml) {
+  // A Regular typeface marked with `disable_synthetic_bolding` in fonts.xml,
+  // like NotoColorEmoji and DroidSansFallback, is never synthetically bolded.
+  base::ScopedTempDir temp_config_dir;
+  ASSERT_TRUE(temp_config_dir.CreateUniqueTempDir());
+
+  static constexpr char kFontsXml[] =
+      R"xml(<?xml version="1.0" encoding="utf-8"?>
+<familyset version="1">
+  <family name="sans-serif">
+    <font weight="400" style="normal" disable_synthetic_bolding="true">Roboto-Regular.woff2</font>
+  </family>
+</familyset>
+)xml";
+  ASSERT_TRUE(base::WriteFile(
+      temp_config_dir.GetPath().Append(FILE_PATH_LITERAL("fonts.xml")),
+      kFontsXml));
+
+  base::FilePath font_files_dir;
+  ASSERT_TRUE(base::PathService::Get(base::DIR_SYSTEM_FONTS, &font_files_dir));
+
+  skia_private::TArray<SkString, true> default_families;
+  default_families.push_back(SkString("sans-serif"));
+  auto font_mgr = sk_make_sp<SkFontMgr_Cobalt>(
+      temp_config_dir.GetPath().value().c_str(), font_files_dir.value().c_str(),
+      "", "", default_families);
+
+  sk_sp<SkTypeface> regular(
+      font_mgr->matchFamilyStyle("sans-serif", SkFontStyle::Normal()));
+  ASSERT_TRUE(regular != nullptr);
+  ASSERT_FALSE(regular->isBold());
+
+  SkRect normal_bounds = GetGlyphBounds(regular, /*embolden=*/false);
+  SkRect emboldened_bounds = GetGlyphBounds(regular, /*embolden=*/true);
+  EXPECT_EQ(emboldened_bounds, normal_bounds);
 }
 
 // Tests the CobaltMmapFontCache feature with font managers whose only font is

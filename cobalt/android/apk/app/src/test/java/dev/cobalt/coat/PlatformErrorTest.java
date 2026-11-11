@@ -1,11 +1,14 @@
 package dev.cobalt.coat;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.app.Activity;
 import android.app.Dialog;
@@ -30,6 +33,7 @@ public class PlatformErrorTest {
   private static final String TEST_URL = "https://www.youtube.com/tv";
   private static final int TEST_DATA = 0;
   private static final int RETRY_BUTTON_ID = 1;
+  private static final int NETWORK_SETTINGS_BUTTON_ID = 2;
   private static final int DISMISS_BUTTON_ID = 3;
 
   private PlatformError platformError;
@@ -107,6 +111,39 @@ public class PlatformErrorTest {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @Test
+  public void isRetryPending_isTrue_whileDialogIsShowing() {
+    Dialog mockDialog = mock(Dialog.class);
+    when(mockDialog.isShowing()).thenReturn(true);
+    platformError.setDialog(mockDialog);
+
+    assertTrue(platformError.isRetryPending());
+
+    // Network settings sets a positive response but leaves the dialog up.
+    platformError.onClick(null, NETWORK_SETTINGS_BUTTON_ID);
+    assertTrue(platformError.isRetryPending());
+  }
+
+  @Test
+  public void isRetryPending_isTrue_afterDismissButton() {
+    Dialog mockDialog = mock(Dialog.class);
+    platformError.setDialog(mockDialog);
+
+    platformError.onClick(null, DISMISS_BUTTON_ID);
+
+    assertTrue(platformError.isRetryPending());
+  }
+
+  @Test
+  public void isRetryPending_isFalse_afterRetry() {
+    Dialog mockDialog = mock(Dialog.class);
+    platformError.setDialog(mockDialog);
+
+    platformError.retry();
+
+    assertFalse(platformError.isRetryPending());
   }
 
   @Test

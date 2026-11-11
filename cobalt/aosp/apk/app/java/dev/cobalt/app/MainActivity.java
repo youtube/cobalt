@@ -27,11 +27,13 @@ import android.view.Window;
 import dev.cobalt.coat.BaseCobaltActivity;
 import dev.cobalt.coat.BaseStarboardBridge;
 import dev.cobalt.coat.CobaltService;
+import dev.cobalt.coat.StarboardBridge;
 import dev.cobalt.libraries.services.clientloginfo.ClientLogInfoModule;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
+import org.chromium.base.metrics.UmaRecorderHolder;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
@@ -43,7 +45,6 @@ import org.jni_zero.NativeMethods;
  */
 @JNINamespace("starboard")
 public class MainActivity extends BaseCobaltActivity {
-
   static {
     // Each aosp apk ships exactly one app loader under its natural name
     // via android_apk shared_libraries: libloader_app.so for the production
@@ -62,6 +63,10 @@ public class MainActivity extends BaseCobaltActivity {
     if (loadError != null) {
       throw loadError;
     }
+
+    // TODO(https://crbug.com/579280290): Discard Java UMA samples, which would otherwise fill up
+    // the cache and assert, until they can be forwarded to libcobalt.
+    UmaRecorderHolder.setNonNativeDelegate(new DiscardingUmaRecorder());
   }
 
   @NativeMethods
@@ -173,7 +178,8 @@ public class MainActivity extends BaseCobaltActivity {
           }
         });
 
-    setContentView(new VideoSurfaceView(this));
+    mVideoSurfaceView = new VideoSurfaceView(this);
+    setContentView(mVideoSurfaceView);
   }
 
   /**
@@ -251,7 +257,7 @@ public class MainActivity extends BaseCobaltActivity {
     Holder<Activity> activityHolder = new Holder<>();
     Holder<Service> serviceHolder = new Holder<>();
     BaseStarboardBridge bridge =
-        new BaseStarboardBridge(
+        new StarboardBridge(
             getApplicationContext(), activityHolder, serviceHolder, args, startDeepLink);
 
     CobaltService.Factory clientLogInfoFactory =

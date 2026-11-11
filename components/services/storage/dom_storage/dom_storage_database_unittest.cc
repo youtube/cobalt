@@ -16,7 +16,15 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
+#include "base/system/sys_info.h"
+#endif
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/leveldatabase/src/include/leveldb/write_batch.h"
@@ -428,5 +436,140 @@ TEST_F(StorageServiceDomStorageDatabaseTest, CopyPrefixed) {
                      MakeKeyValuePair(kTestPrefix1Key2, kTestValue3)}));
   });
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(StorageServiceDomStorageDatabaseTest,
+       CobaltCommitDurationExcludesInMemoryAndSessionStorage) {
+  base::ScopedTempDir temp_dir;
+  CHECK(temp_dir.CreateUniqueTempDir());
+
+  // 1. In-memory database commits must not record LocalStorage.CommitDuration.
+  {
+    base::HistogramTester histogram_tester;
+    base::SequenceBound<DomStorageDatabase> mem_db =
+        OpenInMemorySync("SessionStorageDatabase");
+    ASSERT_TRUE(mem_db);
+    DoSync(mem_db, [&](const DomStorageDatabase& db) {
+      leveldb::WriteBatch batch;
+      batch.Put("k", "v");
+      EXPECT_STATUS_OK(db.Commit(&batch));
+    });
+    histogram_tester.ExpectTotalCount(
+        "Cobalt.Storage.LocalStorage.CommitDuration", 0);
+    mem_db.SynchronouslyResetForTest();
+  }
+
+  // 2. On-disk Session Storage commits ("Session Storage") must not record
+  // LocalStorage.CommitDuration even when kCobaltStorageCleanup is disabled.
+  {
+    base::HistogramTester histogram_tester;
+    base::SequenceBound<DomStorageDatabase> session_db =
+        OpenDirectorySync(temp_dir.GetPath(), "Session Storage");
+    ASSERT_TRUE(session_db);
+    DoSync(session_db, [&](const DomStorageDatabase& db) {
+      leveldb::WriteBatch batch;
+      batch.Put("k", "v");
+      EXPECT_STATUS_OK(db.Commit(&batch));
+    });
+    histogram_tester.ExpectTotalCount(
+        "Cobalt.Storage.LocalStorage.CommitDuration", 0);
+    session_db.SynchronouslyResetForTest();
+  }
+
+  // 3. Persistent Local Storage commits ("leveldb") must record
+  // LocalStorage.CommitDuration.
+  {
+    base::HistogramTester histogram_tester;
+    base::SequenceBound<DomStorageDatabase> local_db =
+        OpenDirectorySync(temp_dir.GetPath(), "leveldb");
+    ASSERT_TRUE(local_db);
+    DoSync(local_db, [&](const DomStorageDatabase& db) {
+      leveldb::WriteBatch batch;
+      batch.Put("k", "v");
+      EXPECT_STATUS_OK(db.Commit(&batch));
+    });
+    histogram_tester.ExpectTotalCount(
+        "Cobalt.Storage.LocalStorage.CommitDuration", 1);
+    local_db.SynchronouslyResetForTest();
+  }
+}
+
+TEST_F(StorageServiceDomStorageDatabaseTest,
+       CobaltLocalStorageReuseLogsAndSkipEmptyCommitsEnabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      base::features::kCobaltLocalStorageReuseLogsAndSkipEmptyCommits);
+
+  base::ScopedTempDir temp_dir;
+  CHECK(temp_dir.CreateUniqueTempDir());
+
+  // 1. Persistent Local Storage ("leveldb") enables reuse_logs, keeps
+  // write_buffer_size = 64 KiB, and skips empty commits.
+  {
+    base::SequenceBound<DomStorageDatabase> local_db =
+        OpenDirectorySync(temp_dir.GetPath(), "leveldb");
+    ASSERT_TRUE(local_db);
+    DoSync(local_db, [&](const DomStorageDatabase& db) {
+      EXPECT_TRUE(db.options_for_testing().reuse_logs);
+      EXPECT_EQ(64u * 1024, db.options_for_testing().write_buffer_size);
+
+      // Empty commit should be skipped (not written to LevelDB).
+      leveldb::WriteBatch empty_batch;
+      EXPECT_STATUS_OK(db.Commit(&empty_batch));
+      EXPECT_EQ(0, db.total_commit_count_for_testing());
+
+      // Non-empty commit should be executed.
+      leveldb::WriteBatch batch;
+      batch.Put("k", "v");
+      EXPECT_STATUS_OK(db.Commit(&batch));
+      EXPECT_EQ(1, db.total_commit_count_for_testing());
+    });
+    local_db.SynchronouslyResetForTest();
+  }
+
+  // 2. Persistent Session Storage ("Session Storage") does not force
+  // reuse_logs = true even when the feature is enabled (it keeps the platform
+  // default).
+  const bool expected_default_reuse_logs =
+      !base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled();
+  {
+    base::SequenceBound<DomStorageDatabase> session_db =
+        OpenDirectorySync(temp_dir.GetPath(), "Session Storage");
+    ASSERT_TRUE(session_db);
+    DoSync(session_db, [&](const DomStorageDatabase& db) {
+      EXPECT_EQ(expected_default_reuse_logs, db.options_for_testing().reuse_logs);
+      EXPECT_EQ(64u * 1024, db.options_for_testing().write_buffer_size);
+    });
+    session_db.SynchronouslyResetForTest();
+  }
+}
+
+TEST_F(StorageServiceDomStorageDatabaseTest,
+       CobaltLocalStorageReuseLogsAndSkipEmptyCommitsDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      base::features::kCobaltLocalStorageReuseLogsAndSkipEmptyCommits);
+
+  base::ScopedTempDir temp_dir;
+  CHECK(temp_dir.CreateUniqueTempDir());
+
+  const bool expected_default_reuse_logs =
+      !base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled();
+
+  base::SequenceBound<DomStorageDatabase> local_db =
+      OpenDirectorySync(temp_dir.GetPath(), "leveldb");
+  ASSERT_TRUE(local_db);
+  DoSync(local_db, [&](const DomStorageDatabase& db) {
+    EXPECT_EQ(expected_default_reuse_logs, db.options_for_testing().reuse_logs);
+    EXPECT_EQ(64u * 1024, db.options_for_testing().write_buffer_size);
+
+    // Empty commit is not skipped when the feature is disabled.
+    leveldb::WriteBatch empty_batch;
+    EXPECT_STATUS_OK(db.Commit(&empty_batch));
+    EXPECT_EQ(1, db.total_commit_count_for_testing());
+  });
+  local_db.SynchronouslyResetForTest();
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace storage

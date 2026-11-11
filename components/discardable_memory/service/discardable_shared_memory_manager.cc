@@ -39,10 +39,23 @@
 #include "base/metrics/histogram_macros.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace discardable_memory {
 namespace {
 
 const int kInvalidUniqueClientID = -1;
+
+#if BUILDFLAG(IS_COBALT)
+// Whether the manager drops its own mapping of each segment and maps it only
+// when needed (see base::features::kCobaltDiscardableSingleMapping).
+bool IsLazyMappingEnabled() {
+  return base::FeatureList::IsEnabled(
+      base::features::kCobaltDiscardableSingleMapping);
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 // mojom::DiscardableSharedMemoryManager implementation. It contains the
 // |client_id_| which is not visible to client. We associate allocations with a
@@ -219,6 +232,13 @@ DiscardableSharedMemoryManager* g_instance = nullptr;
 DiscardableSharedMemoryManager::MemorySegment::MemorySegment(
     std::unique_ptr<base::DiscardableSharedMemory> memory)
     : memory_(std::move(memory)) {}
+
+#if BUILDFLAG(IS_COBALT)
+DiscardableSharedMemoryManager::MemorySegment::MemorySegment(
+    std::unique_ptr<base::DiscardableSharedMemory> memory,
+    size_t size)
+    : memory_(std::move(memory)), size_(size) {}
+#endif  // BUILDFLAG(IS_COBALT)
 
 DiscardableSharedMemoryManager::MemorySegment::~MemorySegment() = default;
 
@@ -416,8 +436,15 @@ void DiscardableSharedMemoryManager::ClientRemoved(int client_id) {
 
   size_t bytes_allocated_before_releasing_memory = bytes_allocated_;
 
-  for (auto& segment_it : it->second)
+  for (auto& segment_it : it->second) {
+#if BUILDFLAG(IS_COBALT)
+    if (IsLazyMappingEnabled()) {
+      ReleaseSegment(segment_it.second.get());
+      continue;
+    }
+#endif  // BUILDFLAG(IS_COBALT)
     ReleaseMemory(segment_it.second->memory());
+  }
 
   clients_.erase(it);
 
@@ -502,10 +529,26 @@ void DiscardableSharedMemoryManager::AllocateLockedDiscardableSharedMemory(
   BytesAllocatedChanged(bytes_allocated_);
 
   *shared_memory_region = memory->DuplicateRegion();
+#if BUILDFLAG(IS_COBALT)
+  // The amount added to |bytes_allocated_| above, which ReleaseSegment()
+  // subtracts. Read it before Unmap(), after which mapped_size() returns 0.
+  const size_t accounted_size = memory->mapped_size();
+  if (IsLazyMappingEnabled()) {
+    // Drop our mapping; the client maps the segment. Keep the file descriptor
+    // so the segment can be mapped again to purge it.
+    memory->Unmap();
+  } else {
+    // Fallback to original behavior if feature is disabled.
+    memory->Close();
+  }
+  scoped_refptr<MemorySegment> segment(
+      new MemorySegment(std::move(memory), accounted_size));
+#else
   // Close file descriptor to avoid running out.
   memory->Close();
 
   scoped_refptr<MemorySegment> segment(new MemorySegment(std::move(memory)));
+#endif  // BUILDFLAG(IS_COBALT)
   client_segments[id] = segment.get();
   segments_.push_back(segment.get());
   std::push_heap(segments_.begin(), segments_.end(), CompareMemoryUsageTime);
@@ -529,7 +572,15 @@ void DiscardableSharedMemoryManager::DeletedDiscardableSharedMemory(
 
   size_t bytes_allocated_before_releasing_memory = bytes_allocated_;
 
+#if BUILDFLAG(IS_COBALT)
+  if (IsLazyMappingEnabled()) {
+    ReleaseSegment(segment_it->second.get());
+  } else {
+    ReleaseMemory(segment_it->second->memory());
+  }
+#else
   ReleaseMemory(segment_it->second->memory());
+#endif  // BUILDFLAG(IS_COBALT)
 
   client_segments.erase(segment_it);
 
@@ -597,6 +648,45 @@ void DiscardableSharedMemoryManager::ReduceMemoryUsageUntilWithinLimit(
     // Simply drop the reference and continue if memory has already been
     // unmapped. This happens when a memory segment has been deleted by
     // the client.
+#if BUILDFLAG(IS_COBALT)
+    if (IsLazyMappingEnabled()) {
+      // Lazily mapped segments are unmapped while live, so track release
+      // explicitly instead of relying on the mapping.
+      if (segment->released())
+        continue;
+
+      base::DiscardableSharedMemory* memory = segment->memory();
+      bool mapped_for_purge = false;
+      if (!memory->mapped_size()) {
+        if (!memory->Map(segment->size())) {
+          // Map() fails: update timestamp and move segment to the back of
+          // the heap so it doesn't block other segments.
+          memory->set_last_known_usage(current_time);
+          segments_.push_back(segment.get());
+          std::push_heap(segments_.begin(), segments_.end(),
+                         CompareMemoryUsageTime);
+          continue;
+        }
+        mapped_for_purge = true;
+      }
+
+      // Attempt to purge LRU segment. When successful, released the memory.
+      if (memory->Purge(current_time)) {
+        ReleaseSegment(segment.get());
+        continue;
+      }
+
+      if (mapped_for_purge)
+        memory->Unmap();
+
+      // Add memory segment (with updated usage timestamp) back on heap after
+      // failed attempt to purge it.
+      segments_.push_back(segment.get());
+      std::push_heap(segments_.begin(), segments_.end(),
+                     CompareMemoryUsageTime);
+      continue;
+    }
+#endif  // BUILDFLAG(IS_COBALT)
     if (!segment->memory()->mapped_size())
       continue;
 
@@ -633,6 +723,30 @@ void DiscardableSharedMemoryManager::ReleaseMemory(
   memory->Unmap();
   memory->Close();
 }
+
+#if BUILDFLAG(IS_COBALT)
+void DiscardableSharedMemoryManager::ReleaseSegment(MemorySegment* segment) {
+  lock_.AssertAcquired();
+  DCHECK(IsLazyMappingEnabled());
+
+  if (segment->released()) {
+    return;
+  }
+  segment->set_released();
+
+  base::DiscardableSharedMemory* memory = segment->memory();
+  // Matches the mapped size added to |bytes_allocated_| on allocation.
+  const size_t size = segment->size();
+  DCHECK_GE(bytes_allocated_, size);
+  bytes_allocated_ -= size;
+
+  // Drop the mapping (if any) and the file descriptor (lazily mapped segments
+  // keep it open while live). The memory is released to the OS once the
+  // client no longer references it.
+  memory->Unmap();
+  memory->Close();
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 void DiscardableSharedMemoryManager::BytesAllocatedChanged(
     size_t new_bytes_allocated) const {

@@ -19,7 +19,6 @@
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
-#include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
@@ -96,10 +95,9 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       {::switches::kUseGL, "angle"},
       {::switches::kUseANGLE, "gles-egl"},
 #endif
-      // Use passthrough command decoder.
-      {::switches::kUseCmdDecoder, "passthrough"},
-      // Set the default size for the content shell/starboard window.
-      {::switches::kContentShellHostWindowSize, "1920x1080"},
+  // Do not set a default kContentShellHostWindowSize here so that
+  // SbWindowCreate() can use the Starboard platform's native window size
+  // unless explicitly overridden via --window-size.
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
       // Enable remote Devtools access.
       {::switches::kRemoteDebuggingPort, "9222"},

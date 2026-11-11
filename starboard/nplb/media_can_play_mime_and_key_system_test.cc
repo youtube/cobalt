@@ -293,9 +293,6 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
   params_4k.push_back(
       "video/mp4; codecs=\"av01.0.12M.08\"; width=3840; height=2160; "
       "framerate=30");
-  params_4k.push_back(
-      "video/mp4; codecs=\"av01.0.13M.10.0.110.09.16.09.0\"; width=3840; "
-      "height=2160; framerate=30");
   params_8k.push_back(
       "video/mp4; codecs=\"av01.0.16M.08\"; width=7680; height=4320; "
       "framerate=30");
@@ -322,7 +319,8 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
     EXPECT_TRUE(IsMimeAndKeySystemSupported(param, key_system));
   }
 
-  // For FHD and 4K devices, VP9 Profile 2 is only required if HDR is supported.
+  // For FHD and 4K devices, VP9 Profile 2 and AV1 HDR are only required if HDR
+  // is supported.
   if (device_type == kDeviceType4k) {
     const char* kVp9Profile2FhdMime =
         "video/webm; codecs=\"vp09.02.41.10.01.09.16.09.00\"; width=1920; "
@@ -332,6 +330,21 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
         "height=2160; framerate=30";
     EXPECT_EQ(SbMediaCanPlayMimeAndKeySystem(kVp9Profile2FhdMime, key_system),
               SbMediaCanPlayMimeAndKeySystem(kVp9Profile24kMime, key_system));
+    // tvOS does not support AV1 decoding. Exclude AV1-related MIME type test
+    // cases on tvOS.
+#if !BUILDFLAG(IS_IOS_TVOS)
+    const char* kAv1HdrFhdMime =
+        "video/mp4; codecs=\"av01.0.09M.10.0.110.09.16.09.0\"; width=1920; "
+        "height=1080; framerate=30";
+    const char* kAv1Hdr4kMime =
+        "video/mp4; codecs=\"av01.0.13M.10.0.110.09.16.09.0\"; width=3840; "
+        "height=2160; framerate=30";
+    EXPECT_EQ(SbMediaCanPlayMimeAndKeySystem(kAv1HdrFhdMime, key_system),
+              SbMediaCanPlayMimeAndKeySystem(kAv1Hdr4kMime, key_system));
+    // 4K devices that support HDR must support both VP9 Profile 2 and AV1 HDR.
+    EXPECT_EQ(SbMediaCanPlayMimeAndKeySystem(kVp9Profile24kMime, key_system),
+              SbMediaCanPlayMimeAndKeySystem(kAv1Hdr4kMime, key_system));
+#endif  // !BUILDFLAG(IS_IOS_TVOS)
   }
 
   // AAC-LC

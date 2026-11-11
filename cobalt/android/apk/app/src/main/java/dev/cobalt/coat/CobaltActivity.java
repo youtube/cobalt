@@ -28,8 +28,6 @@ import android.view.Display;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
-import android.view.ViewParent;
-import android.widget.FrameLayout;
 import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
@@ -59,7 +57,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.chromium.base.ActivityState;
+import org.chromium.base.ApplicationStatus;
+import org.chromium.base.BaseSwitches;
 import org.chromium.base.CommandLine;
+import org.chromium.base.FeatureList;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
@@ -93,10 +95,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   @SuppressWarnings("unused")
   private CobaltA11yHelper mA11yHelper;
 
-  private VideoSurfaceView mVideoSurfaceView;
-
-  private boolean mForceCreateNewVideoSurfaceView;
-
   private ShellManager mShellManager;
   private ActivityWindowAndroid mWindowAndroid;
   private Intent mLastSentIntent;
@@ -104,6 +102,10 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   private IntentRequestTracker mIntentRequestTracker;
   private Runnable mFreezeRunnable;
   private final Handler mHandler = new Handler(Looper.getMainLooper());
+
+  // Delay between visibility:hidden and the freeze event on NVIDIA Shield, which always freezes
+  // with a delay regardless of the CobaltFreezeOnBackground feature.
+  private static final long SHIELD_FREEZE_DELAY_MS = 1500L;
 
   private boolean mIsCobaltUsingAndroidOverlay;
 
@@ -187,7 +189,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       args.add("--remote-allow-origins=https://chrome-devtools-frontend.appspot.com");
     }
     appendMetaDataArgs(args, getActivityMetaData());
-    args.addAll(JavaSwitches.getExtraCommandLineArgs(getJavaSwitches()));
+    JavaSwitches.apply(getJavaSwitches(), args);
     appendIntentArgs(args);
     return args;
   }
@@ -226,7 +228,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
       RecordHistogram.recordBooleanHistogram("Cobalt.Android.ColdStart", true);
-      if (CommandLine.getInstance().hasSwitch("use-custom-android-fonts-xml")) {
+      if (CommandLine.getInstance().hasSwitch(BaseSwitches.USE_CUSTOM_ANDROID_FONTS_XML)) {
         FontUtil.copyFontsXml(getApplicationContext());
       }
       StarboardBridge starboardBridge = createStarboardBridge(getArgs(), mStartDeepLink);
@@ -459,6 +461,23 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @VisibleForTesting
   void setupStartupGuard() {
+    StartupGuard.getInstance()
+        .setObserver(
+            new StartupGuard.Observer() {
+              @Override
+              public void onMilestoneReached(int milestone) {
+                CobaltProcessStateSummary.onStartupMilestoneReached(
+                    milestone,
+                    StartupGuard.getInstance().getStartupStatus(),
+                    StartupGuard.getInstance().isArmed());
+              }
+
+              @Override
+              public void onArmedChanged(boolean armed) {
+                CobaltProcessStateSummary.onStartupGuardArmedChanged(
+                    armed, StartupGuard.getInstance().getStartupStatus());
+              }
+            });
     Map<String, String> switches = getJavaSwitches();
     if (switches.containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
       Log.i(TAG, "StartupGuard is disabled by Java switch.");
@@ -466,7 +485,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     }
 
     long timeout = DEFAULT_HANG_APP_CRASH_TIMEOUT_SECONDS;
-    String intervalStr = switches.get(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS);
+    // DISABLE_STARTUP_GUARD above is honored even in crash-streak safe mode, since disabling the
+    // watchdog cannot cause crashes. A custom interval can (e.g. one that is too short kills every
+    // launch), so ignore it in safe mode and use the default timeout.
+    String intervalStr =
+        JavaSwitches.shouldApplyExperimentConfigs()
+            ? switches.get(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS)
+            : null;
     if (intervalStr != null) {
       try {
         long parsedTimeout = Long.parseLong(intervalStr);
@@ -495,10 +520,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     setupStartupGuard();
     createContent(savedInstanceState);
-    if (!NetworkChangeNotifier.isInitialized()) {
-      NetworkChangeNotifier.init();
-      NetworkChangeNotifier.setAutoDetectConnectivityState(true);
-    }
+
+    NetworkChangeNotifier.init();
+    NetworkChangeNotifier.setAutoDetectConnectivityState(true);
     if (!sIsMemoryPressureInitialized) {
       MemoryPressureUma.initializeForBrowser();
       MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
@@ -513,7 +537,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     } else {
       Log.i(TAG, "Do not create VideoSurfaceView.");
     }
-    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_START);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.POST_ACTIVITY_ON_CREATE);
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
       mBackInvokedCallback = OnBackInvokedHelper.register(this);
@@ -573,16 +597,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onStart() {
-    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_RESUME);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.PRE_ACTIVITY_ON_START);
     if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
     }
     if (mIsCobaltUsingAndroidOverlay) {
       Log.i(TAG, "Use AndroidOverlay for Video SurfaceView.");
-    } else if (mForceCreateNewVideoSurfaceView) {
-      Log.w(TAG, "Force to create a new video surface.");
-      createNewSurfaceView();
     }
 
     DisplayUtil.cacheDefaultDisplay(this);
@@ -596,17 +617,15 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     super.onStart();
 
-    if (isNvidiaShield() && mFreezeRunnable != null) {
-      mHandler.removeCallbacks(mFreezeRunnable);
-      mFreezeRunnable = null;
-    }
+    // Cancel any freeze that was queued in onStop() but has not fired yet (e.g. the app was
+    // brought back to the foreground within the delay).
+    cancelPendingFreeze();
 
     if (useStarboardLifeCycle()) {
       AppEventBridge.handleRevealEvent(System.nanoTime() / 1000L);
     } else {
       WebContents webContents = getActiveWebContents();
-      if (webContents != null
-          && (isNvidiaShield() || getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE))) {
+      if (webContents != null && shouldFreezeOnBackground()) {
         // document.onresume event
         webContents.onResume();
       }
@@ -619,7 +638,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     }
     MemoryPressureMonitor.INSTANCE.enablePolling(false);
 
-    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_PAUSE);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.POST_ACTIVITY_ON_START);
   }
 
   @Override
@@ -644,35 +663,21 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     super.onStop();
 
     if (useStarboardLifeCycle()) {
-      if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
-        // If ENABLE_FREEZE is specified, fire freeze event immediately
-        AppEventBridge.handleFreezeEvent(stopTimestamp);
-      } else {
-        AppEventBridge.handleConcealEvent(stopTimestamp);
-      }
+      // Going to the background is Conceal in the Starboard lifecycle (see
+      // cobalt/doc/lifecycle.md). Freeze there is a blocking transition that releases SbPlayer and
+      // flushes storage ahead of a process suspend, so it is deliberately not driven by
+      // CobaltFreezeOnBackground, which only controls the lightweight page freeze below.
+      AppEventBridge.handleConcealEvent(stopTimestamp);
     } else {
       // visibility:hidden event
       updateShellActivityVisible(false);
       WebContents webContents = getActiveWebContents();
-      if (webContents != null) {
-        if (isNvidiaShield()) {
-          if (mFreezeRunnable != null) {
-            mHandler.removeCallbacks(mFreezeRunnable);
-          }
-          mFreezeRunnable =
-              new Runnable() {
-                @Override
-                public void run() {
-                  WebContents currentWebContents = getActiveWebContents();
-                  if (currentWebContents != null) {
-                    currentWebContents.onFreeze();
-                  }
-                  mFreezeRunnable = null;
-                }
-              };
-          mHandler.postDelayed(mFreezeRunnable, 1500);
-        } else if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE)) {
-          // If ENABLE_FREEZE is specified, fire freeze event immediately
+      if (webContents != null && shouldFreezeOnBackground()) {
+        long delayMs = getFreezeOnBackgroundDelayMs();
+        if (delayMs > 0) {
+          scheduleFreeze(delayMs);
+        } else {
+          // Fire freeze event immediately.
           webContents.onFreeze();
         }
       }
@@ -682,20 +687,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     // process is killed while the app is in the background.
     CobaltContentBrowserClient.flushCookiesAndLocalStorage();
 
-    if (VideoSurfaceView.getCurrentSurface() != null) {
-      mForceCreateNewVideoSurfaceView = true;
-    }
     MemoryPressureMonitor.INSTANCE.disablePolling();
-
-    // Set the SurfaceView to fullscreen.
-    View rootView = getWindow().getDecorView();
-    setVideoSurfaceBounds(0, 0, rootView.getWidth(), rootView.getHeight());
   }
 
   @Override
   protected void onResume() {
     super.onResume();
-    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_STOP);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.PRE_ACTIVITY_ON_RESUME);
     checkAndRetryOnNetworkOnline();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
@@ -707,7 +705,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     } else {
       CobaltContentBrowserClient.dispatchFocus();
     }
-    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_DESTROY);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.POST_ACTIVITY_ON_RESUME);
   }
 
   @Override
@@ -715,11 +713,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     unregisterNetworkRecoveryObserver();
     if (isNvidiaShield()) {
       unregisterDisplayListener();
-      if (mFreezeRunnable != null) {
-        mHandler.removeCallbacks(mFreezeRunnable);
-        mFreezeRunnable = null;
-      }
     }
+    cancelPendingFreeze();
     if (mShellManager != null) {
       mShellManager.destroy();
     }
@@ -736,6 +731,11 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   public void onSplashScreenHidden() {
     mHasHiddenSplashScreen = true;
     unregisterNetworkRecoveryObserver();
+  }
+
+  public void onPrimaryMainFrameNavigationStarted() {
+    mHasHiddenSplashScreen = false;
+    maybeRegisterNetworkRecoveryObserver();
   }
 
   private void maybeRegisterNetworkRecoveryObserver() {
@@ -764,9 +764,27 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     NetworkChangeNotifier.removeConnectionTypeObserver(mNetworkRecoveryObserver);
   }
 
+  /**
+   * Retries the startup URL load once the device is back online, if that load failed and hasn't
+   * been retried yet. Called on connection-type changes and on resume; does nothing unless the
+   * network error dialog has been raised and the activity is resumed.
+   */
   public void checkAndRetryOnNetworkOnline() {
     if (mHasHiddenSplashScreen) {
       unregisterNetworkRecoveryObserver();
+      return;
+    }
+    StarboardBridge bridge = getStarboardBridge();
+    PlatformError platformError = bridge != null ? bridge.getPlatformError() : null;
+    if (platformError == null || !platformError.isRetryPending()) {
+      return;
+    }
+    // Only retry while the activity is resumed. NetworkChangeNotifier re-registers its
+    // connectivity callback as soon as ApplicationStatus sees an activity become visible, so a
+    // change that happened while the app was in the background is reported from inside
+    // super.onStart(), before the WebContents is shown; a load started there leaves the app on a
+    // blank page (b/576591970). onResume() retries instead.
+    if (ApplicationStatus.getStateForActivity(this) != ActivityState.RESUMED) {
       return;
     }
     if (!NetworkChangeNotifier.isOnline()) {
@@ -784,14 +802,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     }
     mLastRetryTimestampMs = now;
 
-    StarboardBridge bridge = getStarboardBridge();
-    if (bridge != null && bridge.getPlatformError() != null) {
-      Log.i(TAG, "Network is online and platform error is active; retrying URL load.");
-      bridge.getPlatformError().retry();
-    } else {
-      Log.i(TAG, "Network is online and splash screen never hidden; reloading URL.");
-      reloadUrl(null);
-    }
+    Log.i(TAG, "Network is online and platform error is active; retrying URL load.");
+    platformError.retry();
   }
 
   /** Performs reload of the target/current URL or active WebContents. */
@@ -876,86 +888,88 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     return this.mJavaSwitches;
   }
 
+  /**
+   * Returns whether the Starboard lifecycle is in use.
+   *
+   * <p>Reads only the command-line switch, which C++ sets from the USE_STARBOARD_LIFECYCLE Java
+   * switch. Do not read the Java switch key directly: in crash-streak safe mode the key is still
+   * present but no experiment switches are applied, so native starts with the default lifecycle.
+   * Driving the Starboard lifecycle from Java in that state crashes the browser on every launch.
+   * All callers run after the native library is loaded, when CommandLine is native-backed.
+   */
   @Override
   public boolean useStarboardLifeCycle() {
-    return getJavaSwitches().containsKey(JavaSwitches.USE_STARBOARD_LIFECYCLE)
-        || (CommandLine.isInitialized()
-            && CommandLine.getInstance().hasSwitch(JavaSwitches.USE_STARBOARD_LIFECYCLE_SWITCH));
+    return CommandLine.isInitialized()
+        && CommandLine.getInstance().hasSwitch(JavaSwitches.USE_STARBOARD_LIFECYCLE_SWITCH);
+  }
+
+  /**
+   * Returns whether the CobaltFreezeOnBackground Finch feature is enabled. Finch state lives in
+   * native, so this is false until the native library and base::FeatureList are initialized.
+   */
+  @VisibleForTesting
+  protected boolean isFreezeOnBackgroundFeatureEnabled() {
+    return FeatureList.isNativeInitialized()
+        && CobaltContentBrowserClient.isFreezeOnBackgroundEnabled();
+  }
+
+  /**
+   * Returns whether the web app should receive a freeze event when the Activity is stopped. NVIDIA
+   * Shield always freezes (see {@link #SHIELD_FREEZE_DELAY_MS}); every other device follows the
+   * CobaltFreezeOnBackground Finch feature.
+   */
+  @VisibleForTesting
+  protected boolean shouldFreezeOnBackground() {
+    return isNvidiaShield() || isFreezeOnBackgroundFeatureEnabled();
+  }
+
+  /**
+   * Returns the delay in milliseconds between the hidden/conceal event and the freeze event. NVIDIA
+   * Shield always uses {@link #SHIELD_FREEZE_DELAY_MS} and ignores the Finch param; other devices
+   * use CobaltFreezeOnBackground_delay_ms, or 0 when the feature is disabled.
+   */
+  @VisibleForTesting
+  protected long getFreezeOnBackgroundDelayMs() {
+    if (isNvidiaShield()) {
+      return SHIELD_FREEZE_DELAY_MS;
+    }
+    if (!isFreezeOnBackgroundFeatureEnabled()) {
+      return 0L;
+    }
+    return Math.max(0, CobaltContentBrowserClient.getFreezeOnBackgroundDelayMs());
+  }
+
+  /** Queues the document freeze to run after {@code delayMs}, replacing any pending freeze. */
+  private void scheduleFreeze(long delayMs) {
+    cancelPendingFreeze();
+    mFreezeRunnable =
+        () -> {
+          mFreezeRunnable = null;
+          freezeActiveWebContents();
+        };
+    mHandler.postDelayed(mFreezeRunnable, delayMs);
+  }
+
+  /** Cancels a freeze queued by {@link #scheduleFreeze} that has not fired yet, if any. */
+  private void cancelPendingFreeze() {
+    if (mFreezeRunnable != null) {
+      mHandler.removeCallbacks(mFreezeRunnable);
+      mFreezeRunnable = null;
+    }
+  }
+
+  /** Dispatches the document freeze event to the active WebContents, if there still is one. */
+  private void freezeActiveWebContents() {
+    WebContents webContents = getActiveWebContents();
+    if (webContents != null) {
+      webContents.onFreeze();
+    }
   }
 
   @Override
   public void onRequestPermissionsResult(
       int requestCode, String[] permissions, int[] grantResults) {
     getStarboardBridge().onRequestPermissionsResult(requestCode, permissions, grantResults);
-  }
-
-  public void resetVideoSurface() {
-    if (mIsCobaltUsingAndroidOverlay) {
-      return;
-    }
-    runOnUiThread(
-        new Runnable() {
-          @Override
-          public void run() {
-            createNewSurfaceView();
-          }
-        });
-  }
-
-  public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
-    if (mIsCobaltUsingAndroidOverlay) {
-      return;
-    }
-    if (width == 0 || height == 0) {
-      // The SurfaceView should be covered by our UI layer in this case.
-      return;
-    }
-    runOnUiThread(
-        new Runnable() {
-          @Override
-          public void run() {
-            LayoutParams layoutParams = mVideoSurfaceView.getLayoutParams();
-            // Since mVideoSurfaceView is added directly to the Activity's content view, which is a
-            // FrameLayout, we expect its layout params to become FrameLayout.LayoutParams.
-            if (layoutParams instanceof FrameLayout.LayoutParams frameLayoutParams) {
-              frameLayoutParams.setMargins(x, y, x + width, y + height);
-            } else {
-              Log.w(
-                  TAG,
-                  "Unexpected video surface layout params class "
-                      + layoutParams.getClass().getName());
-            }
-            layoutParams.width = width;
-            layoutParams.height = height;
-            // Even though as a NativeActivity we're not using the Android UI framework, by setting
-            // the  layout params it will force a layout to be requested. That will cause the
-            // SurfaceView to position its underlying Surface to match the screen coordinates of
-            // where the view would be in a UI layout and to set the surface transform matrix to
-            // match the view's size.
-            mVideoSurfaceView.setLayoutParams(layoutParams);
-          }
-        });
-  }
-
-  private void createNewSurfaceView() {
-    if (mIsCobaltUsingAndroidOverlay) {
-      return;
-    }
-    ViewParent parent = mVideoSurfaceView.getParent();
-    if (parent instanceof FrameLayout frameLayout) {
-      int index = frameLayout.indexOfChild(mVideoSurfaceView);
-      frameLayout.removeView(mVideoSurfaceView);
-      Log.i(TAG, "removed mVideoSurfaceView at index:" + index);
-
-      mVideoSurfaceView = new VideoSurfaceView(this);
-      frameLayout.addView(
-          mVideoSurfaceView,
-          index,
-          new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-      Log.i(TAG, "inserted new mVideoSurfaceView at index:" + index);
-    } else {
-      Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
-    }
   }
 
   public void evaluateJavaScript(String jsCode) {
@@ -978,7 +992,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     }
   }
 
-  private static boolean isNvidiaShield() {
+  @VisibleForTesting
+  protected boolean isNvidiaShield() {
     return "NVIDIA".equalsIgnoreCase(Build.MANUFACTURER)
         || "NVIDIA".equalsIgnoreCase(Build.BRAND)
         || (Build.MODEL != null && Build.MODEL.toLowerCase(Locale.US).contains("shield"));

@@ -87,8 +87,8 @@ void ExternalMetadataReuseAllocatorBase::MemoryBlock::Allocate(
     MemoryBlock* allocated,
     MemoryBlock* free) const {
   SB_DCHECK_GE(fallback_allocation_index_, 0);
-  SB_DCHECK(allocated);
-  SB_DCHECK(free);
+  SB_CHECK(allocated);
+  SB_CHECK(free);
   SB_DCHECK(CanFulfill(request_size, alignment));
 
   // First we assume that the block is just enough to fulfill the allocation and

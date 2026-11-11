@@ -20,6 +20,7 @@
 
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/mime_param.h"
 #include "starboard/common/size.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
@@ -40,9 +41,8 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            int64_t bitrate,
                            int fps,
                            bool decode_to_texture_required) {
-  const bool must_support_hdr =
-      !IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id);
-  if (must_support_hdr &&
+  // 10-bit video with SDR color doesn't need an HDR display.
+  if (!IsSDRColor(primary_id, transfer_id, matrix_id) &&
       !MediaCapabilitiesCache::GetInstance()
            ->IsHDRTransferCharacteristicsSupported(transfer_id)) {
     return false;
@@ -54,11 +54,11 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
   if (mime_type) {
     // Allows for enabling tunneled playback. Disabled by default.
     // https://source.android.com/devices/tv/multimedia-tunneling
-    if (!mime_type->ValidateBoolParameter("tunnelmode")) {
+    if (!mime_type->ValidateBoolParameter(kMimeParamTunnelMode)) {
       return false;
     }
     must_support_tunnel_mode =
-        mime_type->GetParamBoolValue("tunnelmode", false);
+        mime_type->GetParamBoolValue(kMimeParamTunnelMode, false);
   }
 
   if (must_support_tunnel_mode && decode_to_texture_required) {
@@ -85,9 +85,14 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
   // requirement with the secure playback requirement.
   const bool require_secure_playback = must_support_tunnel_mode;
 
+  // 10-bit video still needs a decoder that handles 10-bit, even with SDR
+  // color. MediaCapabilitiesCache checks that through the decoder's HDR
+  // profiles.
+  const bool needs_hdr_capable_decoder =
+      !Is8BitSDRVideo(bit_depth, primary_id, transfer_id, matrix_id);
   return MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
-      mime, require_secure_playback, must_support_hdr, must_support_tunnel_mode,
-      Size(frame_width, frame_height), bitrate, fps);
+      mime, require_secure_playback, needs_hdr_capable_decoder,
+      must_support_tunnel_mode, Size(frame_width, frame_height), bitrate, fps);
 }
 
 }  // namespace starboard

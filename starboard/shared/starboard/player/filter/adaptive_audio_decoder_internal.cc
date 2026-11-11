@@ -25,13 +25,6 @@
 
 namespace starboard {
 
-template <typename T>
-T ResetAndReturn(T* t) {
-  T result(std::move(*t));
-  *t = T();
-  return result;
-}
-
 AdaptiveAudioDecoder::AdaptiveAudioDecoder(
     JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
@@ -91,17 +84,22 @@ void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
   SB_DCHECK(!stream_ended_);
   SB_DCHECK(output_cb_);
   SB_DCHECK(error_cb_);
-  SB_DCHECK(!flushing_);
-  SB_DCHECK(pending_input_buffers_.empty());
+  SB_CHECK(!flushing());
   SB_DCHECK(!pending_consumed_cb_);
-  SB_DCHECK(!input_buffers.empty());
+  SB_CHECK(!input_buffers.empty());
   SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeAudio);
   SB_DCHECK_NE(input_buffers.front()->audio_stream_info().codec,
                kSbMediaAudioCodecNone);
 
-  if (!first_input_written_) {
-    first_input_written_ = true;
+  if (audio_decoder_ && !first_input_written_ &&
+      IsAudioSampleInfoSubstantiallyDifferent(
+          input_audio_stream_info_,
+          input_buffers.front()->audio_stream_info())) {
+    // Like WriteEndOfStream(), don't wait on EOS from a decoder with no input
+    // since Reset(); there is nothing to drain, so swap it now.
+    TeardownAudioDecoder();
   }
+  first_input_written_ = true;
   if (!audio_decoder_) {
     InitializeAudioDecoder(input_buffers.front()->audio_stream_info());
     if (audio_decoder_) {
@@ -112,7 +110,6 @@ void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
   if (IsAudioSampleInfoSubstantiallyDifferent(
           input_audio_stream_info_,
           input_buffers.front()->audio_stream_info())) {
-    flushing_ = true;
     pending_input_buffers_ = input_buffers;
     pending_consumed_cb_ = consumed_cb;
     audio_decoder_->WriteEndOfStream();
@@ -136,10 +133,16 @@ void AdaptiveAudioDecoder::WriteEndOfStream() {
   SB_DCHECK(!stream_ended_);
   SB_DCHECK(output_cb_);
   SB_DCHECK(error_cb_);
-  SB_DCHECK(pending_input_buffers_.empty());
-  SB_DCHECK(!pending_consumed_cb_);
 
   stream_ended_ = true;
+  if (flushing()) {
+    // End of stream arrived before `pending_input_buffers_` were passed to the
+    // new decoder. Write it to the new decoder after them.
+    return;
+  }
+
+  SB_CHECK(!pending_consumed_cb_);
+
   if (first_input_written_) {
     audio_decoder_->WriteEndOfStream();
   } else {
@@ -256,12 +259,15 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
         Schedule(output_cb_);
       }
     }
-    if (flushing_) {
+    if (flushing()) {
       SB_DCHECK(audio_decoder_);
       TeardownAudioDecoder();
-      flushing_ = false;
-      InputBuffers input_buffers = std::move(pending_input_buffers_);
-      Decode(input_buffers, ResetAndReturn(&pending_consumed_cb_));
+      const bool stream_ended = std::exchange(stream_ended_, false);
+      InputBuffers input_buffers = std::exchange(pending_input_buffers_, {});
+      Decode(input_buffers, std::exchange(pending_consumed_cb_, nullptr));
+      if (stream_ended && audio_decoder_) {
+        WriteEndOfStream();
+      }
     } else {
       SB_DCHECK(stream_ended_);
       decoded_audios_.push(std::move(*decoded_audio));
@@ -312,7 +318,6 @@ void AdaptiveAudioDecoder::ResetInternal() {
   }
   pending_input_buffers_.clear();
   pending_consumed_cb_ = nullptr;
-  flushing_ = false;
   stream_ended_ = false;
   first_output_received_ = false;
   first_input_written_ = false;

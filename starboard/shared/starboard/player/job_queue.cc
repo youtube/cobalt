@@ -16,10 +16,24 @@
 
 #include <atomic>
 #include <chrono>
+#include <memory>
+#include <optional>
+#include <type_traits>
 
 #include "starboard/system.h"
 
 namespace starboard {
+
+namespace {
+
+constexpr bool kAreOptimizationsDefaultEnabled = false;
+
+static_assert(std::is_trivially_destructible<std::atomic<bool>>::value,
+              "g_enable_optimizations must be trivially destructible.");
+// Latched by every JobQueue in its constructor, see EnableOptimizations().
+std::atomic<bool> g_enable_optimizations{kAreOptimizationsDefaultEnabled};
+
+}  // namespace
 
 const JobQueue::JobToken JobQueue::JobToken::kUnscheduled =
     JobQueue::JobToken();
@@ -29,10 +43,22 @@ JobQueue::JobToken JobQueue::JobToken::Generate() {
   return JobToken(s_current_token.fetch_add(1, std::memory_order_relaxed) + 1);
 }
 
-JobQueue::JobQueue() = default;
+JobQueue::JobQueue()
+    : optimizations_enabled_(
+          g_enable_optimizations.load(std::memory_order_acquire)) {}
 
 JobQueue::~JobQueue() {
   StopSoon();
+}
+
+// static
+void JobQueue::EnableOptimizations() {
+  g_enable_optimizations.store(true, std::memory_order_release);
+}
+
+// static
+bool JobQueue::SetOptimizationsEnabledForTesting(bool enabled) {
+  return g_enable_optimizations.exchange(enabled, std::memory_order_acq_rel);
 }
 
 JobQueue::JobToken JobQueue::Schedule(Job job, int64_t delay_usec /*= 0*/) {
@@ -42,6 +68,30 @@ JobQueue::JobToken JobQueue::Schedule(Job job, int64_t delay_usec /*= 0*/) {
 void JobQueue::ScheduleAndWait(Job job) {
   // TODO: Allow calling from the JobQueue thread.
   SB_CHECK(!BelongsToCurrentThread());
+
+  if (optimizations_enabled_) {
+    // A single job runs the caller's job, destroys it (so its captures are
+    // gone before the caller is released, like with the original two jobs)
+    // and then signals its completion through a heap allocated flag, so it
+    // never accesses the caller's stack, even when this function returns
+    // early because the queue is stopped while the job is running.  The
+    // caller waits on |sync_condition_|, which keeps the worker the only
+    // waiter of |condition_| (see Schedule()).
+    auto finished = std::make_shared<bool>(false);
+    Schedule([this, finished, job = std::move(job)]() mutable {
+      job();
+      job = nullptr;
+      {
+        std::lock_guard lock(mutex_);
+        *finished = true;
+      }
+      sync_condition_.notify_all();
+    });
+
+    std::unique_lock lock(mutex_);
+    sync_condition_.wait(lock, [&] { return *finished || stopped_; });
+    return;
+  }
 
   Schedule(std::move(job));
 
@@ -66,6 +116,33 @@ void JobQueue::RemoveJobByToken(JobToken* job_token) {
     return;
   }
 
+  if (optimizations_enabled_) {
+    {
+      std::lock_guard lock(mutex_);
+      bool removed = false;
+      for (auto iter = immediate_jobs_.begin(); iter != immediate_jobs_.end();
+           ++iter) {
+        if (iter->job_token == *job_token) {
+          immediate_jobs_.erase(iter);
+          removed = true;
+          break;
+        }
+      }
+      if (!removed) {
+        for (TimeToJobRecordMap::iterator iter =
+                 time_to_job_record_map_.begin();
+             iter != time_to_job_record_map_.end(); ++iter) {
+          if (iter->second.job_token == *job_token) {
+            time_to_job_record_map_.erase(iter);
+            break;
+          }
+        }
+      }
+    }
+    job_token->Reset();
+    return;
+  }
+
   {
     std::lock_guard lock(mutex_);
     for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
@@ -80,6 +157,18 @@ void JobQueue::RemoveJobByToken(JobToken* job_token) {
 }
 
 void JobQueue::StopSoon() {
+  if (optimizations_enabled_) {
+    {
+      std::lock_guard lock(mutex_);
+      stopped_ = true;
+      immediate_jobs_.clear();
+      time_to_job_record_map_.clear();
+    }
+    condition_.notify_all();
+    sync_condition_.notify_all();
+    return;
+  }
+
   {
     std::lock_guard lock(mutex_);
     stopped_ = true;
@@ -90,6 +179,15 @@ void JobQueue::StopSoon() {
 
 void JobQueue::RunUntilStopped() {
   SB_CHECK(BelongsToCurrentThread());
+
+  if (optimizations_enabled_) {
+    // |stopped_| is atomic, so there is no need to take the lock for every job
+    // just to check it; TryToRunOneJob() checks it under the lock anyway.
+    while (!stopped_.load(std::memory_order_relaxed)) {
+      TryToRunOneJob(/*wait_for_next_job =*/true);
+    }
+    return;
+  }
 
   for (;;) {
     {
@@ -116,16 +214,18 @@ bool JobQueue::BelongsToCurrentThread() const {
 JobQueue::JobToken JobQueue::Schedule(Job job,
                                       JobOwner* owner,
                                       int64_t delay_usec) {
-  SB_DCHECK(job);
+  SB_CHECK(job);
+  // TODO(b/435425692): Replace with SB_CHECK_GE once safety is confirmed.
   SB_DCHECK_GE(delay_usec, 0);
 
-  std::lock_guard lock(mutex_);
+  std::unique_lock lock(mutex_);
   if (stopped_) {
     return JobToken::kUnscheduled;
   }
 
+  int64_t time_to_run_job = CurrentMonotonicTime() + delay_usec;
   JobToken job_token = JobToken::Generate();
-  JobRecord job_record = {job_token, std::move(job), owner};
+  JobRecord job_record = {job_token, std::move(job), owner, time_to_run_job};
 #if ENABLE_JOB_QUEUE_PROFILING
   if (kProfileStackDepth > 0) {
     job_record.stack_size =
@@ -133,20 +233,74 @@ JobQueue::JobToken JobQueue::Schedule(Job job,
   }
 #endif  // ENABLE_JOB_QUEUE_PROFILING
 
-  int64_t time_to_run_job = CurrentMonotonicTime() + delay_usec;
-  bool is_first_job = time_to_job_record_map_.empty() ||
-                      time_to_run_job < time_to_job_record_map_.begin()->first;
+  if (!optimizations_enabled_) {
+    bool is_first_job =
+        time_to_job_record_map_.empty() ||
+        time_to_run_job < time_to_job_record_map_.begin()->first;
 
-  time_to_job_record_map_.insert({time_to_run_job, std::move(job_record)});
-  if (is_first_job) {
-    condition_.notify_all();
+    time_to_job_record_map_.insert({time_to_run_job, std::move(job_record)});
+    if (is_first_job) {
+      condition_.notify_all();
+    }
+    return job_token;
+  }
+
+  // The worker only has to be woken up when it is actually waiting, which
+  // avoids a syscall for every job scheduled while it is busy (in particular
+  // for the jobs it schedules to itself).  It is signaled after the lock is
+  // released, so that it doesn't immediately block on the mutex still held by
+  // this thread.  The worker is the only waiter of |condition_|, as
+  // ScheduleAndWait() waits on |sync_condition_| when optimizations are
+  // enabled.
+  bool wake_worker;
+  if (delay_usec > 0) {
+    // The worker waits at most until the head of |time_to_job_record_map_|
+    // is due, so it only has to be woken up when the new job becomes the
+    // head.
+    const bool is_first_job =
+        time_to_job_record_map_.empty() ||
+        time_to_run_job < time_to_job_record_map_.begin()->first;
+    time_to_job_record_map_.insert({time_to_run_job, std::move(job_record)});
+    wake_worker = is_first_job && worker_waiting_;
+  } else {
+    // Jobs without a delay are kept in |immediate_jobs_|.  Scheduling them
+    // under the lock keeps the FIFO ordered by (scheduled time, token), which
+    // TakeNextJobOptimized() relies on to order them against the delayed
+    // jobs.  The worker never waits while such a job is pending, so it has to
+    // be woken up whenever it is waiting.
+    immediate_jobs_.push_back(std::move(job_record));
+    wake_worker = worker_waiting_;
+  }
+  lock.unlock();
+  if (wake_worker) {
+    condition_.notify_one();
   }
   return job_token;
 }
 
 void JobQueue::RemoveJobsByOwner(JobOwner* owner) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(owner);
+  SB_CHECK(owner);
+
+  if (optimizations_enabled_) {
+    std::lock_guard lock(mutex_);
+    for (auto iter = immediate_jobs_.begin(); iter != immediate_jobs_.end();) {
+      if (iter->owner == owner) {
+        iter = immediate_jobs_.erase(iter);
+      } else {
+        ++iter;
+      }
+    }
+    for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
+         iter != time_to_job_record_map_.end();) {
+      if (iter->second.owner == owner) {
+        iter = time_to_job_record_map_.erase(iter);
+      } else {
+        ++iter;
+      }
+    }
+    return;
+  }
 
   std::lock_guard lock(mutex_);
   for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
@@ -159,6 +313,88 @@ void JobQueue::RemoveJobsByOwner(JobOwner* owner) {
   }
 }
 
+void JobQueue::WaitForJobsOptimized(std::unique_lock<std::mutex>& lock,
+                                    std::optional<int64_t> delay_usec) {
+  SB_CHECK(lock.owns_lock());
+  SB_CHECK(!worker_waiting_);
+
+  // No predicate: the caller re-examines the queue after every return, so
+  // spurious wake ups are harmless.
+  worker_waiting_ = true;
+  if (delay_usec) {
+    condition_.wait_for(lock, std::chrono::microseconds(*delay_usec));
+  } else {
+    condition_.wait(lock);
+  }
+  worker_waiting_ = false;
+
+#if ENABLE_JOB_QUEUE_PROFILING
+  ++wait_times_;
+#endif  // ENABLE_JOB_QUEUE_PROFILING
+}
+
+bool JobQueue::TakeNextJobOptimized(std::unique_lock<std::mutex>& lock,
+                                    bool wait_for_next_job,
+                                    JobRecord* job_record) {
+  SB_CHECK(optimizations_enabled_);
+  SB_CHECK(lock.owns_lock());
+
+  for (;;) {
+    if (stopped_) {
+      return false;
+    }
+
+    JobRecord* immediate_job =
+        immediate_jobs_.empty() ? nullptr : &immediate_jobs_.front();
+    auto delayed_job = time_to_job_record_map_.begin();
+    const bool has_delayed_job = delayed_job != time_to_job_record_map_.end();
+
+    if (!immediate_job && !has_delayed_job) {
+      if (!wait_for_next_job) {
+        return false;
+      }
+      WaitForJobsOptimized(lock, std::nullopt);
+      continue;
+    }
+
+    // Run the job with the earliest (scheduled time, token).  Jobs without a
+    // delay are scheduled at the time Schedule() is called, so they are always
+    // ready to run, and when a delayed job is picked over one of them it is
+    // also ready to run.  Only when there is no job without a delay the picked
+    // delayed job may have to wait, which is the only case that needs the
+    // current time.
+    bool run_delayed_job = false;
+    if (has_delayed_job) {
+      if (immediate_job) {
+        const int64_t immediate_job_time = immediate_job->scheduled_time;
+        run_delayed_job = delayed_job->first < immediate_job_time ||
+                          (delayed_job->first == immediate_job_time &&
+                           *delayed_job->second.job_token.token_ <
+                               *immediate_job->job_token.token_);
+      } else {
+        run_delayed_job = true;
+        const int64_t delay_usec = delayed_job->first - CurrentMonotonicTime();
+        if (delay_usec > 0) {
+          if (!wait_for_next_job) {
+            return false;
+          }
+          WaitForJobsOptimized(lock, delay_usec);
+          continue;
+        }
+      }
+    }
+
+    if (run_delayed_job) {
+      *job_record = std::move(delayed_job->second);
+      time_to_job_record_map_.erase(delayed_job);
+    } else {
+      *job_record = std::move(*immediate_job);
+      immediate_jobs_.pop_front();
+    }
+    return true;
+  }
+}
+
 bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
   SB_CHECK(BelongsToCurrentThread());
 
@@ -166,54 +402,60 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
 
   {
     std::unique_lock lock(mutex_);
-    if (stopped_) {
-      return false;
-    }
-    if (time_to_job_record_map_.empty() && wait_for_next_job) {
-      condition_.wait(lock, [this] {
-        return stopped_ || !time_to_job_record_map_.empty();
-      });
-#if ENABLE_JOB_QUEUE_PROFILING
-      ++wait_times_;
-#endif  // ENABLE_JOB_QUEUE_PROFILING
-    }
-    if (time_to_job_record_map_.empty()) {
-      return false;
-    }
-    TimeToJobRecordMap::iterator first_delayed_job =
-        time_to_job_record_map_.begin();
-    int64_t delay_usec = first_delayed_job->first - CurrentMonotonicTime();
-    if (delay_usec > 0) {
-      if (wait_for_next_job) {
-        int64_t scheduled_time = first_delayed_job->first;
-        condition_.wait_for(
-            lock, std::chrono::microseconds(delay_usec),
-            [this, scheduled_time] {
-              return stopped_ || time_to_job_record_map_.empty() ||
-                     time_to_job_record_map_.begin()->first != scheduled_time;
-            });
+    if (optimizations_enabled_) {
+      if (!TakeNextJobOptimized(lock, wait_for_next_job, &job_record)) {
+        return false;
+      }
+    } else {
+      if (stopped_) {
+        return false;
+      }
+      if (time_to_job_record_map_.empty() && wait_for_next_job) {
+        condition_.wait(lock, [this] {
+          return stopped_ || !time_to_job_record_map_.empty();
+        });
 #if ENABLE_JOB_QUEUE_PROFILING
         ++wait_times_;
 #endif  // ENABLE_JOB_QUEUE_PROFILING
-        if (time_to_job_record_map_.empty()) {
-          return false;
-        }
-      } else {
+      }
+      if (time_to_job_record_map_.empty()) {
         return false;
       }
+      TimeToJobRecordMap::iterator first_delayed_job =
+          time_to_job_record_map_.begin();
+      int64_t delay_usec = first_delayed_job->first - CurrentMonotonicTime();
+      if (delay_usec > 0) {
+        if (wait_for_next_job) {
+          int64_t scheduled_time = first_delayed_job->first;
+          condition_.wait_for(
+              lock, std::chrono::microseconds(delay_usec),
+              [this, scheduled_time] {
+                return stopped_ || time_to_job_record_map_.empty() ||
+                       time_to_job_record_map_.begin()->first != scheduled_time;
+              });
+#if ENABLE_JOB_QUEUE_PROFILING
+          ++wait_times_;
+#endif  // ENABLE_JOB_QUEUE_PROFILING
+          if (time_to_job_record_map_.empty()) {
+            return false;
+          }
+        } else {
+          return false;
+        }
+      }
+      // Try to retrieve the job again as the job map can be altered during the
+      // wait.
+      first_delayed_job = time_to_job_record_map_.begin();
+      delay_usec = first_delayed_job->first - CurrentMonotonicTime();
+      if (delay_usec > 0) {
+        return false;
+      }
+      job_record = std::move(first_delayed_job->second);
+      time_to_job_record_map_.erase(first_delayed_job);
     }
-    // Try to retrieve the job again as the job map can be altered during the
-    // wait.
-    first_delayed_job = time_to_job_record_map_.begin();
-    delay_usec = first_delayed_job->first - CurrentMonotonicTime();
-    if (delay_usec > 0) {
-      return false;
-    }
-    job_record = std::move(first_delayed_job->second);
-    time_to_job_record_map_.erase(first_delayed_job);
   }
 
-  SB_DCHECK(job_record.job);
+  SB_CHECK(job_record.job);
 
 #if ENABLE_JOB_QUEUE_PROFILING
   int64_t start = CurrentMonotonicTime();
@@ -227,7 +469,10 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
   auto now = CurrentMonotonicTime();
   auto elapsed = now - start;
   if (elapsed > max_job_interval_) {
-    job_record_with_max_interval_ = job_record;
+    // Only the stack is logged, so don't keep the job (and whatever it
+    // captures) alive until a slower job comes along.
+    job_record.job = nullptr;
+    job_record_with_max_interval_ = std::move(job_record);
     max_job_interval_ = elapsed;
   }
   if (now - last_reset_time_ > kProfileResetIntervalUsec) {
@@ -235,16 +480,17 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
                  << " jobs processed, and waited for " << wait_times_
                  << " times since last reset on 0x" << this
                  << ", max job takes " << max_job_interval_;
-    for (int i = 0; i < job_record.stack_size; ++i) {
+    for (int i = 0; i < job_record_with_max_interval_.stack_size; ++i) {
       char function_name[1024];
       // Subtract one as return address of function may be in the next function
       // when a function is annotated as noreturn.
-      const void* call = static_cast<const char*>(job_record.stack[i]) - 1;
+      const void* call =
+          static_cast<const char*>(job_record_with_max_interval_.stack[i]) - 1;
       if (SbSystemSymbolize(call, function_name,
                             SB_ARRAY_SIZE_INT(function_name))) {
         SB_LOG(INFO) << "    " << function_name;
       } else {
-        SB_LOG(INFO) << "    " << job_record.stack[i];
+        SB_LOG(INFO) << "    " << job_record_with_max_interval_.stack[i];
       }
     }
     last_reset_time_ = now;

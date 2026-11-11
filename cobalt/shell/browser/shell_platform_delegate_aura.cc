@@ -17,8 +17,11 @@
 // clang-format on
 
 #include "base/containers/contains.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_platform_data_aura.h"
+#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/aura/env.h"
@@ -69,11 +72,24 @@ void ShellPlatformDelegate::CreatePlatformWindow(
 void ShellPlatformDelegate::CreatePlatformWindowInternal(
     Shell* shell,
     const gfx::Size& initial_size) {
+#if BUILDFLAG(IS_STARBOARD)
+  if (!platform_->aura) {
+    // Use initial_size when provided, falling back to default_window_size.
+    platform_->aura = std::make_unique<ShellPlatformDataAura>(
+        !initial_size.IsEmpty() ? initial_size
+                                : platform_->default_window_size);
+  }
+  // Resize the Aura window to the actual native Starboard window bounds
+  // queried via SbWindowGetSize() rather than overwriting it with initial_size.
+  platform_->aura->ResizeWindow(
+      platform_->aura->host()->GetBoundsInPixels().size());
+#else
   if (!platform_->aura) {
     platform_->aura =
         std::make_unique<ShellPlatformDataAura>(platform_->default_window_size);
   }
   platform_->aura->ResizeWindow(initial_size);
+#endif
 
   ShellData& shell_data = shell_data_map_.at(shell);
   shell_data.window = platform_->aura->host()->window();
@@ -101,6 +117,16 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   }
 
   content->Show();
+}
+
+bool ShellPlatformDelegate::HasPlatformWindow() const {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  if (!platform_ || !platform_->aura || !platform_->aura->host()) {
+    return false;
+  }
+  auto* host =
+      static_cast<aura::WindowTreeHostPlatform*>(platform_->aura->host());
+  return host->platform_window() && host->platform_window()->IsVisible();
 }
 
 void ShellPlatformDelegate::RevealShell(Shell* shell) {
@@ -140,11 +166,18 @@ void ShellPlatformDelegate::DidCreateOrAttachWebContents(
     Shell* shell,
     WebContents* web_contents) {
   if (!is_visible_) {
-    TrackPreviouslyVisibleWebContents(web_contents);
+    TrackWebContentsToReveal(web_contents);
   }
 }
 
 void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {}
+
+#if BUILDFLAG(IS_STARBOARD)
+void ShellPlatformDelegate::SetContentsOnReveal(Shell* shell) {
+  // The splash screen isn't shown here, so always show the main WebContents.
+  SetContents(shell);
+}
+#endif
 
 void ShellPlatformDelegate::UpdateContents(Shell* shell) {}
 

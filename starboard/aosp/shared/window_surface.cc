@@ -26,8 +26,6 @@ ANativeWindow* g_native_window = nullptr;
 }  // namespace
 
 namespace starboard {
-namespace android {
-namespace shared {
 
 void SetWindowSurface(ANativeWindow* window) {
   std::lock_guard<std::mutex> lock(g_window_mutex);
@@ -52,6 +50,4 @@ bool HasWindowSurface() {
   return g_native_window != nullptr;
 }
 
-}  // namespace shared
-}  // namespace android
 }  // namespace starboard

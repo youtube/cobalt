@@ -31,6 +31,32 @@ Always run the pretty print utility on this file after editing:
 
 <histograms>
 
+<variants name="AndroidExitReasonToken">
+  <variant name="AllExits" summary="aggregate across all exit reasons"/>
+  <variant name="Anr" summary="ANR (Application Not Responding)"/>
+  <variant name="Crash" summary="unhandled Java exception crash"/>
+  <variant name="CrashNative"
+      summary="native signal crash (SIGSEGV, SIGABRT, etc.)"/>
+  <variant name="DependencyDied"
+      summary="death of a required dependency process"/>
+  <variant name="ExcessiveResourceUsage"
+      summary="exceeded system resource limits"/>
+  <variant name="ExitSelf"
+      summary="process cleanly exited via exit() or System.exit()"/>
+  <variant name="Freezer" summary="killed by system app freezer"/>
+  <variant name="InitFailure" summary="failure during process initialization"/>
+  <variant name="LowMemory"
+      summary="killed by Android LMK (low memory killer)"/>
+  <variant name="Other" summary="other system-defined exit reason"/>
+  <variant name="PackageStateChange" summary="package disabled or modified"/>
+  <variant name="PackageUpdated" summary="application package was updated"/>
+  <variant name="PermissionChange" summary="runtime permissions changed"/>
+  <variant name="Signaled" summary="killed by an unhandled POSIX signal"/>
+  <variant name="UserRequested" summary="explicitly killed by user action"/>
+  <variant name="UserStopped"
+      summary="stopped as part of user session management"/>
+</variants>
+
 <histogram name="Android.MemoryPressureNotification{AndroidProcessType}"
     enum="Android.MemoryPressureNotification" expires_after="never">
   <owner>sideboard@google.com</owner>
@@ -371,20 +397,23 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Network.CumulativePlatformErrorRaised" units="count"
-    expires_after="never">
-  <owner>charleykim@google.com</owner>
+<histogram name="Cobalt.Media.LatencyTiming.SbAudioSinkCreate{Occurrence}"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of Starboard audio sink creation latency. -->
+
+  <owner>austinosagie@google.com</owner>
+  <owner>cobalt-media-team@google.com</owner>
   <summary>
-    Records the number of times a platform error was raised due to a navigation
-    timeout or other network error. This is logged every time RaisePlatformError
-    is called; each logged count is the cumulative number of times the error has
-    been raised. The actual number of sessions with a specific number of
-    platform errors raised can be raised by subtracting the values of counts
-    larger than said number. For example, sessions with 2 calls to
-    RaisePlatformError would be (count for 2 calls) - (count for 3 calls) - ...
-    (count for max calls). This value is reset to 0 on a successful
-    navigation/app load.
+    Wall-clock time taken by the SbAudioSinkCreate() Starboard call made by
+    CobaltAudioRendererSink (WebAudio / Chromium AudioRendererSink path). Every
+    call is recorded in exactly one variant. Recorded for {Occurrence}.
   </summary>
+  <token key="Occurrence">
+    <variant name="" summary="only the first call in the process"/>
+    <variant name=".Subsequent"
+        summary="every call after the first, e.g. from another AudioContext
+                 or Flush()"/>
+  </token>
 </histogram>
 
 <histogram name="Cobalt.Network.NavigationTimeout" enum="Boolean"
@@ -394,6 +423,23 @@ Always run the pretty print utility on this file after editing:
   <summary>
     Records whether a primary main frame navigation timed out before completion
     or failure. This is logged when the navigation timer fires.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Network.PlatformErrorCount" units="count"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records the number of times a platform error was raised due to a navigation
+    timeout or other network error. This is logged every time RaisePlatformError
+    is called; each logged count is the cumulative number of times the error has
+    been raised. The actual number of sessions with a specific number of
+    platform errors raised can be derived by subtracting the values of counts
+    larger than said number. For example, sessions with 2 calls to
+    RaisePlatformError would be (count for 2 calls) - (count for 3 calls) - ...
+    (count for max calls). This value is reset to 0 on a successful
+    navigation/app load.
   </summary>
 </histogram>
 
@@ -415,13 +461,174 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.PlatformService.Has.DurationUs" units="microseconds"
+    expires_after="never">
+<!-- expires-never: Core platform service IPC health metric. -->
+
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Wall-clock time in microseconds spent querying Starboard Has() for a
+    platform service. Recorded once per H5vccPlatformServiceManager::Has() call.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.PlatformService.Open.DurationUs" units="microseconds"
+    expires_after="never">
+<!-- expires-never: Core platform service IPC health metric. -->
+
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Wall-clock time in microseconds spent opening a Starboard platform service.
+    Recorded once per PlatformServiceImpl::OpenStarboardService() call.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.PlatformService.Open.Success" enum="Boolean"
+    expires_after="never">
+<!-- expires-never: Core platform service IPC health metric. -->
+
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Whether opening a Starboard platform service succeeded. Recorded once per
+    PlatformServiceImpl::OpenStarboardService() call.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.PlatformService.Send.DurationUs" units="microseconds"
+    expires_after="never">
+<!-- expires-never: Core platform service IPC health metric. -->
+
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Wall-clock time in microseconds spent executing a synchronous platform
+    service Send() call. Recorded once per PlatformServiceImpl::Send() call.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.PlatformService.Send.Status"
+    enum="PlatformServiceSendStatus" expires_after="never">
+<!-- expires-never: Core platform service IPC health metric. -->
+
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Outcome status of a PlatformServiceImpl::Send() call. Recorded once per
+    PlatformServiceImpl::Send() call.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.SplashScreen.ContentEndedBeforeSwitch.{SplashMode}"
+    enum="Boolean" expires_after="never">
+  <owner>borongchen@google.com</owner>
+  <summary>
+    Records whether the splash screen content ended before Cobalt switched to
+    the main WebContents: the video reached its end, or the image splash screen
+    closed itself. For the video splash screen, false means the video was cut
+    off. Recorded once per launch that shows a splash screen, when switching to
+    the main WebContents. Launches that start hidden or are concealed before the
+    switch aren't recorded.
+  </summary>
+  <token key="SplashMode">
+    <variant name="Image" summary="The splash screen showed an image."/>
+    <variant name="Video" summary="The splash screen played a video."/>
+  </token>
+</histogram>
+
 <histogram name="Cobalt.SplashScreen.FetchedFromCache"
     enum="SplashScreenFetchedState" expires_after="never">
   <owner>tasunny@google.com</owner>
   <summary>
     Records whether a splash screen resource was successfully retrieved from
     cache and indicates the reason when on error. This is recorded for every
-    splash screen request handled by h5vcc scheme loader.
+    splash screen request handled by h5vcc scheme loader. When the
+    EnableCachedSplashFile feature is disabled, e.g., by default or in Finch's
+    crash safe mode, the cache isn't read and the built-in resource is used,
+    which is recorded as &quot;Skipped: cached assets disabled&quot;, not as
+    &quot;Success: Content from builtin&quot;, which remains a cache miss.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.SplashScreen.SwitchTrigger.{SplashMode}"
+    enum="CobaltSplashScreenSwitchTrigger" expires_after="never">
+  <owner>borongchen@google.com</owner>
+  <summary>
+    Records what caused Cobalt to switch from the splash screen to the main
+    WebContents: the minimum splash screen duration elapsed, the splash screen
+    closed itself, or the main WebContents finished loading after the splash
+    screen was done. Recorded once per launch that shows a splash screen.
+    Launches that start hidden or are concealed before the switch aren't
+    recorded.
+  </summary>
+  <token key="SplashMode">
+    <variant name="Image" summary="The splash screen showed an image."/>
+    <variant name="Video" summary="The splash screen played a video."/>
+  </token>
+</histogram>
+
+<histogram name="Cobalt.SplashScreen.Time.{Interval}.{SplashMode}" units="ms"
+    expires_after="never">
+  <owner>borongchen@google.com</owner>
+  <summary>
+    Measures the {Interval}. The splash content is shown when the image is
+    painted or the video starts playing, and the switch is when Cobalt switches
+    from the splash screen to the main WebContents. Recorded once per launch
+    that shows a splash screen, when switching to the main WebContents. Launches
+    that start hidden or are concealed before the switch aren't recorded.
+  </summary>
+  <token key="Interval">
+    <variant name="ContentShownToSwitch"
+        summary="time from the splash content being shown to the switch"/>
+    <variant name="LoadedToContentShown"
+        summary="time from splash screen load to its content being shown"/>
+    <variant name="MainLoadedToSwitch"
+        summary="time from the main WebContents loading to the switch"/>
+    <variant name="PageLoad"
+        summary="time the splash screen page takes to load"/>
+  </token>
+  <token key="SplashMode">
+    <variant name="Image" summary="The splash screen showed an image."/>
+    <variant name="Video" summary="The splash screen played a video."/>
+  </token>
+</histogram>
+
+<histogram
+    name="Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.{ExitReason}"
+    units="milestone" expires_after="2027-10-01">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-memory-team@google.com</owner>
+  <summary>
+    The highest StartupGuard milestone reached in the prior session before
+    termination for processes ending with reason {ExitReason}.
+  </summary>
+  <token key="ExitReason" variants="AndroidExitReasonToken"/>
+</histogram>
+
+<histogram
+    name="Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.{ExitReason}"
+    enum="Boolean" expires_after="2027-10-01">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-memory-team@google.com</owner>
+  <summary>
+    Whether StartupGuard was actively armed (indicating termination during early
+    startup before startup completion/disarm) in the prior Cobalt session for
+    processes terminating with reason {ExitReason}.
+  </summary>
+  <token key="ExitReason" variants="AndroidExitReasonToken"/>
+</histogram>
+
+<histogram
+    name="Cobalt.Stability.Android.StartupGuardWatchdogKilled.HighestMilestone"
+    units="milestone" expires_after="2027-10-01">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-memory-team@google.com</owner>
+  <summary>
+    The highest StartupGuard milestone reached in the prior session before
+    Cobalt was forcefully crashed by its StartupGuard watchdog timer due to a
+    startup hang or timeout.
   </summary>
 </histogram>
 
@@ -434,6 +641,18 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Stability.Android.SystemExitReason.Deduplicated"
+    enum="Boolean" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records whether the latest historical Android ApplicationExitInfo returned
+    by ActivityManager on startup had already been logged in an earlier session
+    (true) and was therefore suppressed as a duplicate, or represents a newly
+    logged process exit (false). Recorded once per browser startup on Android R+
+    (API 30+) devices when a historical exit info entry is present.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Stability.Android.SystemExitReason.Foreground"
     enum="AndroidProcessExitReason" expires_after="never">
   <owner>avvall@google.com</owner>
@@ -442,6 +661,41 @@ Always run the pretty print utility on this file after editing:
     browser process when the process importance was foreground (&lt;=
     IMPORTANCE_FOREGROUND), recorded on startup for Android R+ (API 30+)
     devices.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Stability.Pma.StartupTotalSizeKB" units="KB"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records the total aggregate size (in kilobytes) of all persistent memory
+    allocator (.pma) files on disk in the stability metrics directory measured
+    at startup during background metrics cleanup.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Stability.ProcessStateSummary.FlushDurationUs"
+    units="microseconds" expires_after="2027-10-01">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-memory-team@google.com</owner>
+  <summary>
+    The wall-clock time in microseconds spent syncing the 16-byte process state
+    summary payload to the OS (via ActivityManager.setProcessStateSummary on
+    Android). Recorded outside the manager lock on every OS flush on clients
+    with high-resolution clocks.
+  </summary>
+</histogram>
+
+<histogram
+    name="Cobalt.Stability.ProcessStateSummary.PriorSessionReadDurationUs"
+    units="microseconds" expires_after="2027-10-01">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-memory-team@google.com</owner>
+  <summary>
+    The wall-clock time in microseconds spent querying the prior-session process
+    state summary and exit reason from the OS (via
+    ActivityManager.getHistoricalProcessExitReasons on Android R+) during
+    startup. Recorded on clients with high-resolution clocks.
   </summary>
 </histogram>
 
@@ -464,6 +718,26 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.StabilityMetrics.PriorPmaFileAction"
+    enum="CobaltStabilityPmaFileAction" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records the action taken for each prior-session .pma file encountered in the
+    BrowserStabilityMetrics directory during startup cleanup in
+    ClearOtherStabilityMetricsPmaFiles().
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StabilityMetrics.PriorPmaFilesMergedCount"
+    units="files" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records the number of prior-session BrowserStabilityMetrics .pma files whose
+    histogram deltas were merged into StatisticsRecorder during startup cleanup
+    in ClearOtherStabilityMetricsPmaFiles(). Recorded once per browser startup.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.StabilityMetrics.UsedKilobytes" units="KB"
     expires_after="never">
   <owner>avvall@google.com</owner>
@@ -474,19 +748,89 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Startup.MilestoneDuration.{Milestone}" units="ms"
+<histogram name="Cobalt.Startup.MilestoneReached" enum="CobaltStartupMilestone"
     expires_after="never">
   <owner>avvall@google.com</owner>
   <summary>
-    Measures the duration in milliseconds taken for startup milestone
-    {Milestone} since the previous milestone.
+    Records startup milestone markers reached during browser initialization and
+    initial navigation.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Startup.Time.NavigationDispatchToCommit" units="ms"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Measures the duration from DidStartNavigation to DidFinishNavigation
+    (commit) for the initial startup navigation in the primary main frame.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Startup.Timeline.{Event}.{SplashMode}" units="ms"
+    expires_after="never">
+  <owner>borongchen@google.com</owner>
+  <summary>
+    Measures the time from the start of the launch, when Cobalt's main delegate
+    is created, to when {Event}. That's the earliest point in native code that
+    all platforms share, so earlier startup work isn't included, e.g., process
+    launch, the Android Activity startup and native library loading (see
+    Cobalt.Startup.TimeToMilestone.*), or the Evergreen loader app loading the
+    Cobalt library (see Cobalt.LoaderApp.ElfLoadDuration). The splash content is
+    shown when the image is painted or the video starts playing, and ends when
+    the video reaches its end or the image splash screen closes itself. The main
+    WebContents becomes visible when Cobalt switches to it from the splash
+    screen, or at its first visually non-empty paint without a splash screen.
+    Recorded once per launch: with a splash screen, when switching to the main
+    WebContents; without one, once the main WebContents has painted and loaded.
+    MainReady is recorded when it happens, or when switching to the main
+    WebContents if it happens before that, so its SplashMode is final. Splash
+    screen events are only recorded when a splash screen is shown. Launches that
+    start hidden or are concealed before being recorded aren't recorded.
+  </summary>
+  <token key="Event">
+    <variant name="MainCommit"
+        summary="the main WebContents commits its first navigation"/>
+    <variant name="MainLoaded" summary="the main WebContents finishes loading"/>
+    <variant name="MainNavigationStart"
+        summary="the main WebContents starts its first navigation"/>
+    <variant name="MainReady"
+        summary="the main WebContents calls h5vcc.system.hideSplashScreen()"/>
+    <variant name="MainVisible" summary="the main WebContents becomes visible"/>
+    <variant name="SplashContentEnded" summary="the splash content ends"/>
+    <variant name="SplashContentShown" summary="the splash content is shown"/>
+    <variant name="SplashFirstPaint"
+        summary="the splash screen's first visually non-empty paint happens"/>
+    <variant name="SplashLoaded" summary="the splash screen finishes loading"/>
+    <variant name="SplashStart"
+        summary="Cobalt starts loading the splash screen"/>
+  </token>
+  <token key="SplashMode">
+    <variant name="Image" summary="The splash screen showed an image."/>
+    <variant name="NoSplash" summary="No splash screen was shown."/>
+    <variant name="Video" summary="The splash screen played a video."/>
+  </token>
+</histogram>
+
+<histogram name="Cobalt.Startup.TimeToMilestone.{Milestone}" units="ms"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <owner>avvall@google.com</owner>
+  <summary>
+    Time from the start of the Android process
+    (android.os.Process.getStartElapsedRealtime()) to the first time the
+    StartupGuard startup milestone {Milestone} is reached. Recorded at most once
+    per milestone per process, and only for the first Activity created in the
+    process: recording stops once a second Activity is created. Every milestone
+    shares the same origin, so samples are comparable across milestones even
+    though the concurrent startup sequences (Activity lifecycle, native
+    initialization, main and splash WebContents, navigation observers) reach
+    them in a nondeterministic order; the difference between two milestones'
+    averages is the average span between them. Samples of 3 minutes or more land
+    in the overflow bucket. Android only. Replaces
+    Cobalt.Startup.MilestoneDuration.{Milestone}, which measured the time since
+    whichever milestone happened to be recorded last.
   </summary>
   <token key="Milestone">
-    <variant name="ActivityOnDestroy"/>
-    <variant name="ActivityOnPause"/>
-    <variant name="ActivityOnResume"/>
-    <variant name="ActivityOnStart"/>
-    <variant name="ActivityOnStop"/>
     <variant name="ActivityWindowConfigured"/>
     <variant name="ApplicationAndroidInitialize"/>
     <variant name="DidFinishNavigation"/>
@@ -496,8 +840,13 @@ Always run the pretty print utility on this file after editing:
     <variant name="MainDelegatePostEarlyInitialization"/>
     <variant name="MainDelegatePreSandboxStartup"/>
     <variant name="PlatformErrorRaised"/>
+    <variant name="PostActivityOnCreate"/>
+    <variant name="PostActivityOnResume"/>
+    <variant name="PostActivityOnStart"/>
     <variant name="PostLibraryLoaderInit"/>
     <variant name="PostStarboardBridgeInit"/>
+    <variant name="PreActivityOnResume"/>
+    <variant name="PreActivityOnStart"/>
     <variant name="PreCreateThreads"/>
     <variant name="PreLibraryLoaderInit"/>
     <variant name="PreStarboardBridgeInit"/>
@@ -522,21 +871,15 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
-<histogram name="Cobalt.Startup.MilestoneReached" enum="CobaltStartupMilestone"
+<histogram name="Cobalt.Storage.Cookie.CommitDuration" units="ms"
     expires_after="never">
-  <owner>avvall@google.com</owner>
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
   <summary>
-    Records startup milestone markers reached during browser initialization and
-    initial navigation.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.Startup.Time.NavigationDispatchToCommit" units="ms"
-    expires_after="never">
-  <owner>avvall@google.com</owner>
-  <summary>
-    Measures the duration from DidStartNavigation to DidFinishNavigation
-    (commit) for the initial startup navigation in the primary main frame.
+    Records the total wall-clock time spent executing a batch commit (including
+    the SQLite transaction commit and disk sync) in
+    SQLitePersistentCookieStore::Backend::DoCommit() when at least one pending
+    cookie operation is present.
   </summary>
 </histogram>
 
@@ -573,6 +916,22 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Storage.DirCache.StartupTotalSizeKB" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total on-disk size in kilobytes of Cobalt's evictable cache
+    directory (base::DIR_CACHE), 10 seconds after browser startup, on a
+    BEST_EFFORT background thread. Recorded once per browser process launch; it
+    is not recorded again when Cobalt resumes from the background or is revealed
+    after a preload, so each sample represents one process launch. Because the
+    cache persists across launches, this mostly reflects the size left by
+    earlier sessions plus startup writes; launches that start with an empty
+    cache show up as low values.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Storage.Exit.CookieFlushDuration" units="ms"
     expires_after="never">
   <owner>charleykim@google.com</owner>
@@ -580,7 +939,9 @@ Always run the pretty print utility on this file after editing:
     Records the time it takes to flush cookies during a graceful application
     exit (e.g., via window.h5vcc.system.exit()). This helps to understand the
     performance of the operation and can serve as a health signal for the
-    storage backend.
+    storage backend. Note: during exit, storage flush is called 3 times
+    (`exit()` -&gt; `onPause`/`blur` -&gt; `onStop`/`visibilitychange`); this
+    metric times the 1st flush before `blur`/`visibilitychange` handlers run.
   </summary>
 </histogram>
 
@@ -596,14 +957,155 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Storage.OnPause.FlushDuration" units="ms"
+<histogram name="Cobalt.Storage.GpuShaderCache.ConfiguredMaxSizeKB" units="KB"
     expires_after="never">
+  <owner>haozheng@google.com</owner>
   <owner>charleykim@google.com</owner>
   <summary>
-    Records the time it takes to flush both cookies and local storage during the
-    onPause event on Android. This helps to understand if the operation
-    completes within the short window granted by the OS before the app is
-    killed.
+    Records the configured maximum on-disk size in kilobytes of the GPU shader
+    disk cache (`GetDefaultGpuDiskCacheSize() / 1024`) when a
+    `gpu::GpuDiskCache` instance is initialized in `gpu::GpuDiskCache::Init()`,
+    or 0 KB when the GPU shader disk cache is disabled.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.GpuShaderCache.LoadDuration" units="ms"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total wall-clock time spent iterating and preloading cached
+    shader blobs from the on-disk SimpleCache backend into memory in
+    gpu::GpuDiskCacheReadHelper::LoadCache().
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.GpuShaderCache.LoadedBytesKB" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total volume in kilobytes of shader blobs read from disk during
+    gpu::GpuDiskCacheReadHelper::LoadCache().
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.GpuShaderCache.LoadedEntriesCount"
+    units="entries" expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total number of shader cache entries read from disk during
+    gpu::GpuDiskCacheReadHelper::LoadCache().
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.LocalStorage.CommitDuration" units="ms"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total wall-clock time spent committing a persistent LocalStorage
+    LevelDB WriteBatch (including synchronous disk flush when options.sync is
+    enabled) in DomStorageDatabase::Commit(). Excludes in-memory and
+    SessionStorage databases.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.OnPause.FlushDuration" units="ms"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the time it takes for the cookie store flush to complete when the
+    application pauses/blurs (`DispatchBlur()` on Android and `DoBlur()` on
+    Starboard; `storage_partition-&gt;Flush()` schedules LocalStorage commits
+    asynchronously). Note: during a graceful exit, storage flush is called 3
+    times (`exit()` -&gt; `onPause`/`blur` -&gt; `onStop`/`visibilitychange`)
+    and timed twice (`Cobalt.Storage.Exit.CookieFlushDuration` on `exit()` and
+    this metric on `onPause`/`blur`); the 3rd flush in `onStop()` is untimed
+    here, with its disk writes captured by
+    `Cobalt.Storage.Cookie.CommitDuration` and
+    `Cobalt.Storage.LocalStorage.CommitDuration`.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.OnPause.HttpServerPropertiesFlushDuration"
+    units="ms" expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the time it takes to write HttpServerProperties to disk when the app
+    pauses and CobaltFlushHttpServerPropertiesOnPause is enabled. Recorded only
+    when an update was pending and therefore actually written; pauses where
+    nothing was pending are counted in
+    Cobalt.Storage.OnPause.HttpServerPropertiesFlushed instead.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.OnPause.HttpServerPropertiesFlushed"
+    enum="Boolean" expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records, for each app pause with CobaltFlushHttpServerPropertiesOnPause
+    enabled, whether HttpServerProperties had an update pending that was written
+    to disk by the pause flush. The true/false ratio shows how often the 60 s
+    write-coalescing timer would have lost state to a background kill.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.ProcessIo.StartupReadKB" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the cumulative block-layer kilobytes read from storage
+    (/proc/self/io read_bytes) by the browser process during the first 10
+    seconds after browser startup. Recorded once per browser process launch; it
+    is not recorded again when Cobalt resumes from the background. On platforms
+    that preload Cobalt, this window may fall entirely within the preload,
+    before the app is visible. Sampled before computing directory sizes so that
+    metadata stat() calls do not inflate the reading.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.ProcessIo.StartupWriteKB" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the cumulative block-layer kilobytes written to storage
+    (/proc/self/io write_bytes) by the browser process during the first 10
+    seconds after browser startup. Recorded once per browser process launch; it
+    is not recorded again when Cobalt resumes from the background. On platforms
+    that preload Cobalt, this window may fall entirely within the preload,
+    before the app is visible.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.ProcessIo.WriteRateKBPerMin" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the steady-state block-layer write rate in kilobytes per minute,
+    sampled every 5 minutes on a BEST_EFFORT background sequence from
+    /proc/self/io write_bytes deltas after the 10-second post-startup baseline.
+    Sampling continues for the life of the browser process, including while
+    Cobalt is in the background; if the OS freezes the process, the next sample
+    covers the longer interval.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.UserData.StartupTotalSizeKB" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total on-disk size in kilobytes of Cobalt's persistent user data
+    directory (content::SHELL_DIR_USER_DATA), 10 seconds after browser startup,
+    on a BEST_EFFORT background thread. Recorded once per browser process
+    launch; it is not recorded again when Cobalt resumes from the background or
+    is revealed after a preload, so each sample represents one process launch.
   </summary>
 </histogram>
 
@@ -869,6 +1371,16 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Memory.Experimental.Browser2.Small.Skia.SkGlyphCache"
+    units="KB" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-eng@google.com</owner>
+  <summary>
+    The size of the Skia glyph cache in the browser process. Recorded at regular
+    intervals when memory metrics are emitted.
+  </summary>
+</histogram>
+
 <histogram name="Memory.Experimental.Browser2.Stacks" units="MiB"
     expires_after="never">
   <owner>avvall@google.com</owner>
@@ -1029,6 +1541,24 @@ Always run the pretty print utility on this file after editing:
   <summary>
     Records total estimated memory allocation used for media output buffer by
     Android MediaCodec.
+  </summary>
+</histogram>
+
+<histogram name="Memory.SmapsCategorizer.CoalescedRequestsCount"
+    units="request" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records the number of concurrent /proc/self/smaps scan requests coalesced
+    into a single background scan pass in SmapsCategorizer::OnScanComplete().
+  </summary>
+</histogram>
+
+<histogram name="Memory.SmapsCategorizer.Reliability" enum="SmapsReliability"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records the outcome of scanning and parsing /proc/self/smaps in
+    SmapsCategorizer::ScanSmapsFile().
   </summary>
 </histogram>
 

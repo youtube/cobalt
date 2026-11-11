@@ -27,6 +27,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/thread_annotations.h"
 #include "base/trace_event/memory_dump_provider.h"
+#include "build/build_config.h"
 #include "components/discardable_memory/common/discardable_memory_export.h"
 #include "components/discardable_memory/public/mojom/discardable_shared_memory_manager.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -114,11 +115,28 @@ class DISCARDABLE_MEMORY_EXPORT DiscardableSharedMemoryManager
   class MemorySegment : public base::RefCountedThreadSafe<MemorySegment> {
    public:
     MemorySegment(std::unique_ptr<base::DiscardableSharedMemory> memory);
+#if BUILDFLAG(IS_COBALT)
+    // |size| is the segment's mapped size at allocation. A lazily mapped
+    // segment is unmapped while live, and memory()->mapped_size() returns 0
+    // once unmapped, so the size is stored here. It is used to subtract the
+    // same amount from |bytes_allocated_| on release, and to map the segment
+    // again for purging.
+    MemorySegment(std::unique_ptr<base::DiscardableSharedMemory> memory,
+                  size_t size);
+#endif  // BUILDFLAG(IS_COBALT)
 
     MemorySegment(const MemorySegment&) = delete;
     MemorySegment& operator=(const MemorySegment&) = delete;
 
     base::DiscardableSharedMemory* memory() const { return memory_.get(); }
+
+#if BUILDFLAG(IS_COBALT)
+    size_t size() const { return size_; }
+    // A lazily mapped segment is unmapped while live, so release is tracked
+    // explicitly instead of relying on the mapping.
+    bool released() const { return released_; }
+    void set_released() { released_ = true; }
+#endif  // BUILDFLAG(IS_COBALT)
 
    private:
     friend class base::RefCountedThreadSafe<MemorySegment>;
@@ -126,6 +144,10 @@ class DISCARDABLE_MEMORY_EXPORT DiscardableSharedMemoryManager
     ~MemorySegment();
 
     std::unique_ptr<base::DiscardableSharedMemory> memory_;
+#if BUILDFLAG(IS_COBALT)
+    size_t size_ = 0;
+    bool released_ = false;
+#endif  // BUILDFLAG(IS_COBALT)
   };
 
   static bool CompareMemoryUsageTime(const scoped_refptr<MemorySegment>& a,
@@ -152,6 +174,9 @@ class DISCARDABLE_MEMORY_EXPORT DiscardableSharedMemoryManager
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
   void ReleaseMemory(base::DiscardableSharedMemory* memory)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
+#if BUILDFLAG(IS_COBALT)
+  void ReleaseSegment(MemorySegment* segment) EXCLUSIVE_LOCKS_REQUIRED(lock_);
+#endif  // BUILDFLAG(IS_COBALT)
   void BytesAllocatedChanged(size_t new_bytes_allocated) const;
 
   // Virtual for tests.

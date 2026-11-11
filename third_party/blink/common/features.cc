@@ -458,12 +458,6 @@ BASE_FEATURE(kCobaltBypassHTMLPreloadScanner,
              "CobaltBypassHTMLPreloadScanner",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Bypasses Blink ResourceLoadScheduler queueing and throttling for subresources
-// in Cobalt, dispatching requests immediately.
-BASE_FEATURE(kCobaltBypassResourceLoadScheduler,
-             "CobaltBypassResourceLoadScheduler",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables preserving kTrivial3DTransform (e.g. translateZ(0)) on low-end
 // devices so that shelf tracks and carousels are promoted to dedicated
 // hardware-composited cc::PictureLayers rather than triggering CPU repaints.
@@ -472,6 +466,15 @@ BASE_FEATURE(kCobaltBypassResourceLoadScheduler,
 // enabled via Finch for experimentation.
 BASE_FEATURE(kCobaltPreserveTrivial3DTransform,
              "CobaltPreserveTrivial3DTransform",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Skips HTMLMediaElement work that only exists to support native media
+// controls, which Cobalt never shows (ShouldShowControls() is always false).
+// This includes creating MediaControlsImpl (shadow DOM, observers, and media
+// event listeners) and calling UpdateLayoutObject() from
+// ProgressEventTimerFired().
+BASE_FEATURE(kCobaltSkipHiddenMediaControlsWork,
+             "CobaltSkipHiddenMediaControlsWork",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables full memory cache eviction on critical memory pressure in Cobalt.

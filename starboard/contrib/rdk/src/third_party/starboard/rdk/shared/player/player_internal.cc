@@ -84,7 +84,7 @@ int Player::MaxNumberOfSamplesPerWrite() {
   return kMaxNumberOfSamplesPerWrite;
 }
 
-using ::starboard::IsSDRVideo;
+using ::starboard::Is8BitSDRVideo;
 // **************************** GST/GLIB Helpers **************************** //
 
 namespace {
@@ -707,9 +707,14 @@ struct MaxVideoCapabilities {
   }
 
   bool HasLowResolution() const {
-    return
-      width.has_value() && *width < 1920 &&
-      height.has_value() && *height < 1080;
+    if (!width.has_value() || !height.has_value()) {
+      return false;
+    }
+    // Compare orientation-agnostically so portrait streams are treated the
+    // same as their landscape equivalents.
+    const uint32_t long_edge = std::max(*width, *height);
+    const uint32_t short_edge = std::min(*width, *height);
+    return long_edge < 1920 && short_edge < 1080;
   }
 };
 
@@ -806,10 +811,10 @@ static void AddColorMetadataToGstCaps(GstCaps* caps, const SbMediaColorMetadata&
   if (color_metadata.bits_per_channel < 8) {
     return;
   }
-  if (IsSDRVideo(color_metadata.bits_per_channel,
-                 color_metadata.primaries,
-                 color_metadata.transfer,
-                 color_metadata.matrix)) {
+  if (Is8BitSDRVideo(color_metadata.bits_per_channel,
+                     color_metadata.primaries,
+                     color_metadata.transfer,
+                     color_metadata.matrix)) {
     return;
   }
 

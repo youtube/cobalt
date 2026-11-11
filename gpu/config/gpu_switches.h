@@ -5,6 +5,7 @@
 #ifndef GPU_CONFIG_GPU_SWITCHES_H_
 #define GPU_CONFIG_GPU_SWITCHES_H_
 
+#include "build/build_config.h"
 #include "gpu/gpu_export.h"
 
 namespace switches {
@@ -17,6 +18,10 @@ GPU_EXPORT extern const char kGpuDriverBugListTestGroup[];
 GPU_EXPORT extern const char kGpuPreferences[];
 GPU_EXPORT extern const char kIgnoreGpuBlocklist[];
 GPU_EXPORT extern const char kGpuDiskCacheSizeKB[];
+#if BUILDFLAG(IS_COBALT)
+GPU_EXPORT extern const char kGpuShaderDiskCacheGrOnly[];
+GPU_EXPORT extern const char kDisablePreloadGpuShaderDiskCache[];
+#endif  // BUILDFLAG(IS_COBALT)
 GPU_EXPORT extern const char kDisableGpuProcessForDX12InfoCollection[];
 GPU_EXPORT extern const char kEnableUnsafeWebGPU[];
 GPU_EXPORT extern const char kForceHighPerformanceGPU[];

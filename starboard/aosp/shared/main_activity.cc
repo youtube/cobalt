@@ -32,6 +32,7 @@
 #include "cobalt/aosp/jni_headers/MainActivity_jni.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/aosp/shared/application_aosp.h"
+#include "starboard/aosp/shared/chromium_switches.h"
 #include "starboard/aosp/shared/window_surface.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
@@ -40,6 +41,7 @@
 
 int main(int argc, char** argv);
 
+namespace starboard {
 namespace {
 
 // Cobalt normally runs main() on the process's main thread, which has a large
@@ -53,6 +55,21 @@ constexpr size_t kStarboardMainStackSize = 2 * 1024 * 1024;
 // surface. This blocks the Android UI thread, so it has to stay well under the
 // 5s ANR threshold.
 constexpr int64_t kSurfaceReleaseTimeoutUsec = 2'000'000;
+
+constexpr const char* kDefaultSwitches[] = {
+    // Don't use "/dev/shm" for shared memory; it does not exist on Android.
+    // With this switch it falls back to GetTempDir().
+    base_switches::kDisableDevShmUsage,
+    // With QUIC on, downloads that pause mid-transfer get dropped
+    // (b/532158865).
+    network_switches::kDisableQuic,
+};
+
+void AppendDefaultSwitches(std::vector<std::string>* args) {
+  for (const char* default_switch : kDefaultSwitches) {
+    args->push_back(std::string("--") + default_switch);
+  }
+}
 
 // The loader runs once per process, Android can destroy and re-create
 // MainActivity while keeping the process alive (configuration changes),
@@ -78,10 +95,8 @@ void* StarboardMain(void* /*context*/) {
 
   std::vector<std::string> args;
   args.push_back("cobalt_loader");
-  // Don't use "/dev/shm" for shared memory; it does not exist on Android.
-  // With this switch it falls back to GetTempDir().
-  args.push_back("--disable-dev-shm-usage");
-  starboard::StarboardBridge::GetInstance()->AppendArgs(env, &args);
+  AppendDefaultSwitches(&args);
+  StarboardBridge::GetInstance()->AppendArgs(env, &args);
 
   // For Android instrumentation test runs the runner provides a stdout file.
   // Redirect stdout/stderr to it.
@@ -132,8 +147,6 @@ void* StarboardMain(void* /*context*/) {
 
 }  // namespace
 
-namespace starboard {
-
 void JNI_MainActivity_StartLoader(JNIEnv* env) {
   if (g_loader_started.exchange(true)) {
     SB_LOG(WARNING)
@@ -161,7 +174,7 @@ jboolean JNI_MainActivity_IsLoaderStarted(JNIEnv* /*env*/) {
 }
 
 jboolean JNI_MainActivity_HasSurface(JNIEnv* /*env*/) {
-  return android::shared::HasWindowSurface();
+  return HasWindowSurface();
 }
 
 // MainActivity hands the Activity window's Surface to Starboard here.
@@ -171,7 +184,10 @@ void JNI_MainActivity_NativeOnSurfaceCreated(
   ANativeWindow* native_window = ANativeWindow_fromSurface(env, surface.obj());
   SB_LOG(INFO) << "cobalt_loader: Starboard surface created, native_window="
                << native_window;
-  starboard::android::shared::SetWindowSurface(native_window);
+  SetWindowSurface(native_window);
+  if (ApplicationAOSP* application = ApplicationAOSP::GetIfExists()) {
+    application->OnSurfaceCreated();
+  }
 }
 
 void JNI_MainActivity_NativeOnSurfaceDestroyed(JNIEnv*) {
@@ -179,15 +195,15 @@ void JNI_MainActivity_NativeOnSurfaceDestroyed(JNIEnv*) {
   ApplicationAOSP* application = ApplicationAOSP::GetIfExists();
   if (application == nullptr) {
     // Nothing is running yet, or it is already gone; just drop the surface.
-    starboard::android::shared::SetWindowSurface(nullptr);
+    SetWindowSurface(nullptr);
     return;
   }
-  int64_t start_usec = starboard::CurrentMonotonicTime();
+  int64_t start_usec = CurrentMonotonicTime();
   bool released =
       application->ReleaseWindowSurfaceAndWait(kSurfaceReleaseTimeoutUsec);
 
   SB_LOG(INFO) << "cobalt_loader: Starboard surface released after "
-               << (starboard::CurrentMonotonicTime() - start_usec) / 1000
+               << (CurrentMonotonicTime() - start_usec) / 1000
                << " ms, released=" << released;
 }
 

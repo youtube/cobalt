@@ -170,6 +170,8 @@ bool ElfLoaderImpl::Load(const char* name,
         SbSystemGetUsedCPUMemory());
   }
 
+  relocations_->DiscardRelocationPages();
+
   program_table_->PublishEvergreenInfo(name);
   SB_DLOG(INFO) << "Published Evergreen Info";
 

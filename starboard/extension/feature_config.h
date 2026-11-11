@@ -112,6 +112,9 @@ STARBOARD_FEATURE(kEnableAv1StartupOptimization,
                   "EnableAv1StartupOptimization",
                   false)
 
+// Enables the ExoPlayer-based SbPlayer for playback.
+STARBOARD_FEATURE(kEnableExoPlayer, "EnableExoPlayer", false)
+
 // By default, Cobalt destroys and recreates AudioTrack during Seek().
 // Set the following variable to true to force it to Flush() AudioTrack
 // during Seek().
@@ -140,12 +143,31 @@ STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
 // enabling tunnel mode on all playbacks.
 STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", false)
 
+// By default, when no max video size is provided, H264 MediaCodec is
+// configured with the decoder's maximum supported size as
+// KEY_MAX_WIDTH/KEY_MAX_HEIGHT. Set the following variable to true to cap it at
+// 1080p.
+STARBOARD_FEATURE(kLimitH264MaxVideoSizeTo1080p,
+                  "LimitH264MaxVideoSizeTo1080p",
+                  false)
+
 // Cobalt VideoRenderAlgorithm used to release video frames immediately after
 // playback starts. Set the following variable to true to make it release video
 // frames until the underlying audio sink actually starts.
 STARBOARD_FEATURE(kReleaseVideoFramesAfterAudioStarts,
                   "ReleaseVideoFramesAfterAudioStarts",
                   false)
+
+// When the AudioTrack playback head is stalled and its start threshold has
+// grown (e.g. after the platform recreated the track for a higher-latency
+// route), flush and re-feed the track or raise a capability changed error to
+// restart playback if the new threshold exceeds the sink buffer.
+// TODO: b/573043984 - Remove this flag (and
+// AudioTrackAudioSinkType::Options::restart_on_audio_threshold_growth) if no
+// regression is reported by 2026-12-31.
+STARBOARD_FEATURE(kRestartPlaybackOnAudioThresholdGrowth,
+                  "RestartPlaybackOnAudioThresholdGrowth",
+                  true)
 
 // By default, stub audio decoder is disabled.
 STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)

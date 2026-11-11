@@ -27,8 +27,6 @@ namespace starboard {
 
 class AudioOutputManager {
  public:
-  static void SetSeamlessAudioSwitching(bool enable);
-
   // Returns the singleton.
   static AudioOutputManager* GetInstance();
 

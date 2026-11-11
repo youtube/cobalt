@@ -50,6 +50,19 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="1" label="Is hung"/>
 </enum>
 
+<enum name="CobaltSplashScreenSwitchTrigger">
+  <int value="0" label="Minimum splash screen duration elapsed"/>
+  <int value="1" label="Splash screen closed itself"/>
+  <int value="2" label="Main WebContents finished loading"/>
+</enum>
+
+<enum name="CobaltStabilityPmaFileAction">
+  <int value="0" label="Merged and deleted"/>
+  <int value="1" label="Already marked deleted (skipped)"/>
+  <int value="2" label="Corrupt or unacceptable (deleted)"/>
+  <int value="3" label="Invalid file name or PID (deleted)"/>
+</enum>
+
 <enum name="CobaltStartupMilestone">
   <int value="1" label="JavaActivityCreated"/>
   <int value="2" label="PreLibraryLoaderInit"/>
@@ -59,11 +72,11 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="6" label="ApplicationAndroidInitialize"/>
   <int value="7" label="PostStarboardBridgeInit"/>
   <int value="8" label="ActivityWindowConfigured"/>
-  <int value="9" label="ActivityOnStart"/>
-  <int value="10" label="ActivityOnResume"/>
-  <int value="11" label="ActivityOnPause"/>
-  <int value="12" label="ActivityOnStop"/>
-  <int value="13" label="ActivityOnDestroy"/>
+  <int value="9" label="PostActivityOnCreate"/>
+  <int value="10" label="PreActivityOnStart"/>
+  <int value="11" label="PostActivityOnStart"/>
+  <int value="12" label="PreActivityOnResume"/>
+  <int value="13" label="PostActivityOnResume"/>
   <int value="14" label="MainDelegateBasicStartupComplete"/>
   <int value="15" label="MainDelegatePreSandboxStartup"/>
   <int value="16" label="MainDelegatePostEarlyInitialization"/>
@@ -132,6 +145,15 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="2" label="Exceeds Max Limit"/>
 </enum>
 
+<enum name="PlatformServiceSendStatus">
+  <int value="0" label="Success"/>
+  <int value="1" label="Message too large"/>
+  <int value="2" label="Extension not implemented"/>
+  <int value="3" label="Invalid service handle"/>
+  <int value="4" label="Starboard invalid state"/>
+  <int value="5" label="Null response data"/>
+</enum>
+
 <enum name="SentinelWriteResult">
   <int value="0" label="Success"/>
   <int value="1" label="Empty Path"/>
@@ -156,6 +178,13 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
       label="Load system image: Failed to initialize installation manager"/>
 </enum>
 
+<enum name="SmapsReliability">
+  <int value="0" label="Success"/>
+  <int value="1" label="Rollup missing"/>
+  <int value="2" label="Access denied"/>
+  <int value="3" label="Unreliable"/>
+</enum>
+
 <enum name="SplashScreenFetchedState">
   <int value="0" label="Success: Content from builtin"/>
   <int value="1" label="Success: Content from cache"/>
@@ -165,6 +194,7 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
       label="Error: Content from cache is too large, fallback to builtin."/>
   <int value="4" label="Error: Failed to read cache, fallback to builtin."/>
   <int value="5" label="Error: Builtin resource not found."/>
+  <int value="6" label="Skipped: cached assets disabled"/>
 </enum>
 
 <enum name="StorageInjectionResult">

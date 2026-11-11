@@ -26,7 +26,7 @@
 //                  the target yearly set.
 //
 //   purpose:       The purpose of this build, usually named after the reason
-//                  that a branch is cut.  On trunk it will be "master", and on
+//                  that a branch is cut.  On trunk it will be "main", and on
 //                  LTS branches for example it will be "lts".
 //
 //   minor version: The current update revision number (e.g. release number)
@@ -36,7 +36,7 @@
 //                  release is cut.
 //.
 
-#define COBALT_MAJOR_VERSION "27"
-#define COBALT_VERSION "27.master.0"
+#define COBALT_MAJOR_VERSION "28"
+#define COBALT_VERSION "28.main.0"
 
 #endif  // COBALT_VERSION_H_

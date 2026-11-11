@@ -42,7 +42,9 @@ TEST(PosixStatvfsTest, SunnyDay) {
   EXPECT_GT(buf.f_bsize, 0UL);
   EXPECT_GT(buf.f_frsize, 0UL);
   EXPECT_GT(buf.f_blocks, static_cast<fsblkcnt_t>(0));
-  EXPECT_GT(buf.f_files, static_cast<fsfilcnt_t>(0));
+  // POSIX does not require all filesystems to report a fixed total inode count
+  // (e.g., UBIFS and Btrfs report f_files == 0 and f_ffree == 0).
+  EXPECT_GE(buf.f_files, buf.f_ffree);
   EXPECT_GT(buf.f_namemax, 0UL);
 }
 
@@ -69,7 +71,9 @@ TEST(PosixStatvfsTest, UsageChanges) {
       << "statvfs (before) failed: " << strerror(errno);
 
   ASSERT_GT(buf_before.f_bavail, static_cast<fsblkcnt_t>(0));
-  ASSERT_GT(buf_before.f_ffree, static_cast<fsfilcnt_t>(0));
+  if (buf_before.f_files > 0) {
+    ASSERT_GT(buf_before.f_ffree, static_cast<fsfilcnt_t>(0));
+  }
 
   char temp_file_path[kSbFileMaxPath];
   int result = snprintf(temp_file_path, kSbFileMaxPath, "%s/statvfs_temp.tmp",

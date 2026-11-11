@@ -200,7 +200,7 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
       : playback_rate_changed_cb_(playback_rate_changed_cb) {}
 
   bool Render() {
-    SB_DCHECK(render_cb_);
+    SB_CHECK(render_cb_);
 
     rendered_ = false;
     render_cb_(std::bind(&Sink::DrawFrame, this, _1, _2));
@@ -210,7 +210,7 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
 
  private:
   void SetPlaybackRate(double playback_rate) override {
-    SB_DCHECK(playback_rate_changed_cb_);
+    SB_CHECK(playback_rate_changed_cb_);
     playback_rate_changed_cb_(playback_rate);
   }
 
@@ -343,6 +343,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       enable_trivial_optimizations_(
           pipeline_config.experimental_features.GetBool(
               kMediaEnableTrivialOptimizations)),
+      enable_codec_thread_improvements_(
+          pipeline_config.experimental_features.GetBool(
+              kMediaEnableCodecThreadImprovements)),
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
@@ -605,6 +608,15 @@ void MediaCodecVideoDecoder::WriteEndOfStream() {
     // return EOS frame directly.
     first_buffer_timestamp_ = 0;
     decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
+    // With no input written, the MediaCodec produces no output, so the output
+    // loop that normally drives Tick()/sink_->Render() never runs.
+    // VideoRendererImpl only fires its ended callback from within Render(), so
+    // tick the sink once here, otherwise the player never reaches
+    // kSbPlayerStateEndOfStream for a stream that receives EOS before any
+    // input.
+    if (sink_) {
+      sink_->Render();
+    }
     return;
   }
 
@@ -882,12 +894,17 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       video_stream_info.codec, video_stream_info.frame_size, max_video_size_,
       video_fps_, j_output_surface, drm_system_,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
+      video_stream_info.color_metadata.bits_per_channel > 8,
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
       max_video_input_size_, flush_delay_usec_, use_dual_threads_,
-      skip_video_frames_over_60_fps_, enable_ndk_video_,
-      enable_trivial_optimizations_);
+      MediaCodecDecoder::VideoExperimentalOptions{
+          /*skip_video_frames_over_60_fps=*/skip_video_frames_over_60_fps_,
+          /*enable_ndk_video=*/enable_ndk_video_,
+          /*enable_trivial_optimizations=*/enable_trivial_optimizations_,
+          /*enable_codec_thread_improvements=*/
+          enable_codec_thread_improvements_});
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {
@@ -1002,7 +1019,7 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
     MediaCodec* media_codec_bridge,
     const DequeueOutputResult& dequeue_output_result,
     int number_of_pending_inputs) {
-  SB_DCHECK(decoder_status_cb_);
+  SB_CHECK(decoder_status_cb_);
   SB_DCHECK_GE(dequeue_output_result.index, 0);
 
   bool is_end_of_stream =
@@ -1040,7 +1057,7 @@ void MediaCodecVideoDecoder::OnEndOfStreamWritten(
     return;
   }
 
-  SB_DCHECK(decoder_status_cb_);
+  SB_CHECK(decoder_status_cb_);
 
   // TODO: Refactor the VideoDecoder and the VideoRendererImpl to improve the
   //       handling of preroll and EOS for pure punchout decoders.
@@ -1050,7 +1067,7 @@ void MediaCodecVideoDecoder::OnEndOfStreamWritten(
 
 void MediaCodecVideoDecoder::RefreshOutputFormat(
     MediaCodec* media_codec_bridge) {
-  SB_DCHECK(media_codec_bridge);
+  SB_CHECK(media_codec_bridge);
   SB_DLOG(INFO) << "Output format changed, trying to dequeue again.";
 
   std::lock_guard lock(decode_target_mutex_);
@@ -1136,7 +1153,7 @@ void MediaCodecVideoDecoder::TryToSignalPrerollForTunnelMode() {
 
 void MediaCodecVideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
   SB_DCHECK(is_video_frame_tracker_enabled_);
-  SB_DCHECK(video_frame_tracker_);
+  SB_CHECK(video_frame_tracker_);
 
   video_frame_tracker_->OnFrameRendered(frame_timestamp);
 }

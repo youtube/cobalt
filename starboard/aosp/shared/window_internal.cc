@@ -26,7 +26,7 @@ ANativeWindow* RefreshWindowSurface(SbWindow window) {
   }
   // The Android UI thread can drop the last reference to the current surface
   // at any point so the window has to own one for as long as it points at it.
-  ANativeWindow* current = android::shared::AcquireWindowSurface();
+  ANativeWindow* current = AcquireWindowSurface();
 
   std::lock_guard<std::mutex> lock(window->mutex);
   if (current == window->native_window) {

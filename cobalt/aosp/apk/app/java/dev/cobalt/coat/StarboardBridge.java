@@ -20,10 +20,14 @@ import android.content.Context;
 import dev.cobalt.util.Holder;
 
 /**
- * TODO(https://crbug.com/534656433): Temporary StarboardBridge stub to fix a symbol resolution
- * error on BaseStarboardBridge and CobaltService.
+ * The AOSP StarboardBridge. It shows the platform error dialog, using the AOSP PlatformError.
+ *
+ * <p>TODO(b/534656433): Shared code such as CobaltService refers to StarboardBridge, the Android TV
+ * subclass, so AOSP has to provide a class with this name. Remove those references.
  */
 public class StarboardBridge extends BaseStarboardBridge {
+  // The latest platform error. It is raised again when an activity starts, if it is still pending.
+  private volatile PlatformError mPlatformError;
 
   public StarboardBridge(
       Context appContext,
@@ -32,5 +36,19 @@ public class StarboardBridge extends BaseStarboardBridge {
       String[] args,
       String startDeepLink) {
     super(appContext, activityHolder, serviceHolder, args, startDeepLink);
+  }
+
+  @Override
+  void raisePlatformError(int errorType, long data, String url, boolean disableDismiss) {
+    mPlatformError = new PlatformError(mActivityHolder, errorType, data, disableDismiss);
+    mPlatformError.raise();
+  }
+
+  @Override
+  protected void onActivityStart(Activity activity) {
+    super.onActivityStart(activity);
+    if (mPlatformError != null && mPlatformError.isPending()) {
+      mPlatformError.raise();
+    }
   }
 }

@@ -166,8 +166,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/audio_sink/audio_sink_is_audio_frame_storage_type_supported_interleaved_only.cc",
     "//starboard/shared/starboard/audio_sink/audio_sink_is_valid.cc",
     "//starboard/shared/starboard/audio_sink/stub_audio_sink_type.cc",
-    "//starboard/shared/starboard/crash_handler.cc",
-    "//starboard/shared/starboard/crash_handler.h",
     "//starboard/shared/starboard/drm/drm_close_session.cc",
     "//starboard/shared/starboard/drm/drm_generate_session_update_request.cc",
     "//starboard/shared/starboard/drm/drm_get_metrics.cc",
@@ -309,6 +307,8 @@ static_library("starboard_platform_sources") {
 
   if (use_evergreen) {
     sources += [
+      "//starboard/shared/starboard/crash_handler.cc",
+      "//starboard/shared/starboard/crash_handler.h",
       "//starboard/shared/starboard/native_stability.cc",
       "//starboard/shared/starboard/native_stability.h",
     ]

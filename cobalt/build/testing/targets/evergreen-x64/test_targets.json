@@ -37,6 +37,12 @@
     "test_type": "gtest"
   },
   {
+    "target": "components/memory_pressure:memory_pressure_unittests_loader",
+    "executable": "out/evergreen-x64_devel/memory_pressure_unittests_loader.py",
+    "runs_on": "host",
+    "test_type": "gtest"
+  },
+  {
     "target": "components/viz:viz_perftests_loader",
     "executable": "out/evergreen-x64_devel/viz_perftests_loader.py",
     "runs_on": "host",

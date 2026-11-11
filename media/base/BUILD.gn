@@ -505,6 +505,9 @@ source_set("base") {
         "platform_init_data_types.cc",
         "platform_init_data_types.h",
       ]
+      if (target_platform == "tvos") {
+        sources += [ "starboard/url_player_media_resource.h" ]
+      }
     }
   } else if (is_android) {
     sources += [ "demuxer_memory_limit_android.cc" ]

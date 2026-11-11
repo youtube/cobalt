@@ -39,6 +39,9 @@ jobs:
           path: src
           ref: ${{ matrix.branch.target }}
           fetch-depth: 1000
+          filter: blob:none
+          sparse-checkout: |
+            .github
           token: ${{ secrets.CHERRY_PICK_TOKEN }}
 
       - name: Prepare Cherry Pick Branch
