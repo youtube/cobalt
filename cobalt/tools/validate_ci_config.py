@@ -18,6 +18,8 @@ import json
 import os
 import unittest
 
+_MAX_SHARDS = 10
+
 
 class TestCIConfigConsistency(unittest.TestCase):
   """Checks consistency between test flags and targets in platform configs."""
@@ -25,6 +27,8 @@ class TestCIConfigConsistency(unittest.TestCase):
   def setUp(self):
     self.config_dir = os.path.join(
         os.path.dirname(__file__), '..', '..', '.github', 'config')
+    self.targets_dir = os.path.join(
+        os.path.dirname(__file__), '..', 'build', 'testing', 'targets')
 
   def _simulate_ci_logic(self, config):
     """Simulates the 'if' conditions in main.yaml.
@@ -104,6 +108,120 @@ class TestCIConfigConsistency(unittest.TestCase):
       self.assertFalse(
           ci_state['browser-test-results'],
           'Browser test results job must be skipped for android-arm')
+
+  def _validate_test_target_shards(self, entries, source_label):
+    """Validates optional per-target 'shards' fields in test_targets.json."""
+    self.assertIsInstance(
+        entries, list, f'{source_label}: test_targets.json root must be a list')
+    for idx, entry in enumerate(entries):
+      if not isinstance(entry, dict) or 'shards' not in entry:
+        continue
+      shards = entry['shards']
+      target = entry.get('target', '')
+      target_label = target or 'unnamed'
+      item_label = f'{source_label}[{idx}] ({target_label})'
+      self.assertTrue(
+          isinstance(shards, int) and not isinstance(shards, bool),
+          f'{item_label}: shards must be an int, got {shards!r}',
+      )
+      self.assertTrue(
+          1 <= shards <= _MAX_SHARDS,
+          f'{item_label}: shards must be between 1 and {_MAX_SHARDS}, '
+          f'got {shards}',
+      )
+      self.assertEqual(
+          entry.get('runs_on'),
+          'device',
+          f'{item_label}: shards is only supported for runs_on="device"',
+      )
+      target_name = target.split(':')[-1] if isinstance(target, str) else ''
+      self.assertIn(
+          'cobalt_browsertests',
+          target_name,
+          f'{item_label}: shards is only supported on cobalt_browsertests '
+          'targets',
+      )
+
+  def test_test_targets_shards_consistency(self):
+    """Verifies per-target shards config across all test_targets.json files."""
+    if not os.path.exists(self.targets_dir):
+      return
+    checked_files = 0
+    for platform_dir in sorted(os.listdir(self.targets_dir)):
+      path = os.path.join(self.targets_dir, platform_dir, 'test_targets.json')
+      if not os.path.isfile(path):
+        continue
+      with open(path, 'r', encoding='utf-8') as f:
+        entries = json.load(f)
+      self._validate_test_target_shards(entries,
+                                        f'{platform_dir}/test_targets.json')
+      checked_files += 1
+    self.assertGreater(checked_files, 0, 'Expected test_targets.json files')
+
+  def test_test_target_shards_validator_rejects_invalid_entries(self):
+    """Verifies shard validator catches invalid types, bounds, and targets."""
+    self._validate_test_target_shards(
+        [
+            {
+                'TODO': 'metadata entry without target'
+            },
+            {
+                'target': 'cobalt/testing/browser_tests:cobalt_browsertests',
+                'runs_on': 'device',
+                'test_type': 'gtest',
+                'shards': 1,
+            },
+            {
+                'target': 'cobalt/testing/browser_tests:cobalt_browsertests',
+                'runs_on': 'device',
+                'test_type': 'gtest',
+                'shards': 10,
+            },
+        ],
+        'valid_sample',
+    )
+
+    invalid_entries = [
+        {
+            'target': 'cobalt/testing/browser_tests:cobalt_browsertests',
+            'runs_on': 'device',
+            'shards': True,
+        },
+        {
+            'target': 'cobalt/testing/browser_tests:cobalt_browsertests',
+            'runs_on': 'device',
+            'shards': 1.5,
+        },
+        {
+            'target': 'cobalt/testing/browser_tests:cobalt_browsertests',
+            'runs_on': 'device',
+            'shards': '4',
+        },
+        {
+            'target': 'cobalt/testing/browser_tests:cobalt_browsertests',
+            'runs_on': 'device',
+            'shards': 0,
+        },
+        {
+            'target': 'cobalt/testing/browser_tests:cobalt_browsertests',
+            'runs_on': 'device',
+            'shards': 11,
+        },
+        {
+            'target': 'cobalt/testing/browser_tests:cobalt_browsertests',
+            'runs_on': 'host',
+            'shards': 4,
+        },
+        {
+            'target': 'cobalt:cobalt_unittests',
+            'runs_on': 'device',
+            'shards': 4,
+        },
+    ]
+    for bad_entry in invalid_entries:
+      with self.subTest(entry=bad_entry):
+        with self.assertRaises(AssertionError):
+          self._validate_test_target_shards([bad_entry], 'invalid_sample')
 
 
 if __name__ == '__main__':
