@@ -60,7 +60,11 @@ void DummySessionClosedFunc(SbDrmSystem drm_system,
                             const void* session_id,
                             int session_id_size);
 
-SbDrmSystem CreateDummyDrmSystem(const char* key_system);
+SbDrmSystem CreateDummyDrmSystem(
+    const char* key_system,
+    void* context = nullptr,
+    SbDrmSessionUpdateRequestFunc update_request_callback =
+        DummySessionUpdateRequestFunc);
 
 static const char* kKeySystems[] = {
     "com.widevine",
@@ -136,6 +140,10 @@ static constexpr uint8_t kWidevineCertificate[] = {
     0xf2, 0x1b, 0x83, 0xc7, 0x05, 0x85, 0x77, 0xb3, 0x87, 0x32, 0xcd, 0xda,
     0xbc, 0x6a, 0x6b, 0xed, 0x13, 0xfb, 0x0d, 0x49, 0xd3, 0x8a, 0x45, 0xeb,
     0x87, 0xa5, 0xf4};
+
+static constexpr int kInitialTicket = kSbDrmTicketInvalid + 1;
+
+static constexpr char kCencInitDataType[] = "cenc";
 
 // Widevine-specific CENC Initialization data.
 // https://www.w3.org/TR/eme-stream-mp4/

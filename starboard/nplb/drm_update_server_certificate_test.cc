@@ -29,7 +29,7 @@ TEST(SbDrmUpdateServerCertificateTest, RainyDay) {
     }
     const char kInvalidCertificate[] = "*Cobalt*";
     if (SbDrmIsServerCertificateUpdatable(drm_system)) {
-      SbDrmUpdateServerCertificate(drm_system, kSbDrmTicketInvalid + 1,
+      SbDrmUpdateServerCertificate(drm_system, kInitialTicket,
                                    kInvalidCertificate,
                                    strlen(kInvalidCertificate));
     }
