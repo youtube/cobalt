@@ -210,3 +210,4 @@ LogMessageVoidify::LogMessageVoidify() {}
 void LogMessageVoidify::operator&(std::ostream&) {}
 
 }  // namespace starboard
+// Test tvOS Impact (DO NOT MERGE).
