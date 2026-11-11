@@ -38,6 +38,11 @@
 #include "ui/gl/scoped_make_current.h"
 #include "ui/gl/sync_control_vsync_provider.h"
 
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+#include "base/feature_list.h"
+#include "ui/gfx/switches.h"
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+
 using ui::GetLastEGLErrorString;
 
 namespace gl {
@@ -949,6 +954,16 @@ gfx::VSyncProvider* NativeViewGLSurfaceEGL::GetVSyncProvider() {
   return vsync_provider_external_ ? vsync_provider_external_.get()
                                   : vsync_provider_internal_.get();
 }
+
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+int NativeViewGLSurfaceEGL::GetBufferCount() const {
+  if (!vsync_provider_external_ && !vsync_provider_internal_ &&
+      base::FeatureList::IsEnabled(::features::kCobaltBufferedSwapPacing)) {
+    return 3;
+  }
+  return GLSurfaceEGL::GetBufferCount();
+}
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
 
 void NativeViewGLSurfaceEGL::SetVSyncEnabled(bool enabled) {
   DCHECK(GLContext::GetCurrent() && GLContext::GetCurrent()->IsCurrent(this));

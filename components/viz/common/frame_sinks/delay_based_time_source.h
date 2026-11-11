@@ -13,6 +13,7 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "components/viz/common/viz_common_export.h"
+#include "build/build_config.h"
 
 namespace base {
 namespace trace_event {
@@ -56,6 +57,11 @@ class VIZ_COMMON_EXPORT DelayBasedTimeSource {
   // inactive.
   base::TimeTicks LastTickTime() const;
   base::TimeTicks NextTickTime() const;
+
+#if BUILDFLAG(IS_COBALT)
+  base::TimeTicks CurrentTimeTicks() const { return Now(); }
+  void ScheduleTickAt(base::TimeTicks target_tick_time);
+#endif  // BUILDFLAG(IS_COBALT)
 
   virtual void AsValueInto(base::trace_event::TracedValue* dict) const;
 
