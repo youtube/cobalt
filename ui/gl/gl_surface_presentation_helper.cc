@@ -17,12 +17,16 @@
 #include "ui/gl/gpu_timing.h"
 
 #if BUILDFLAG(IS_COBALT)
+#include <algorithm>
 #include <atomic>
+#include <vector>
 
+#include "base/feature_list.h"
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
 #include "base/task/thread_pool.h"
 #include "base/thread_annotations.h"
+#include "ui/gfx/switches.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_display.h"
 #include "ui/gl/gl_fence_egl.h"
@@ -177,6 +181,12 @@ bool GLSurfacePresentationHelper::GetFrameTimestampInfoIfAvailable(
     base::TimeTicks* writes_done,
     uint32_t* flags) {
 #if BUILDFLAG(IS_COBALT)
+  if (!frame.cached_gpu_done_timestamp.is_null()) {
+    *timestamp = frame.cached_gpu_done_timestamp;
+    *interval = vsync_interval_;
+    *flags = 0;
+    return true;
+  }
   DCHECK(frame.timer || frame.fence || frame.fence_wait_state ||
          egl_timestamp_client_);
 #else
@@ -293,6 +303,9 @@ GLSurfacePresentationHelper::GLSurfacePresentationHelper(
       vsync_interval_(interval) {}
 
 GLSurfacePresentationHelper::~GLSurfacePresentationHelper() {
+#if BUILDFLAG(IS_COBALT)
+  deferred_presentation_timer_.Stop();
+#endif  // BUILDFLAG(IS_COBALT)
   // Discard pending frames and run presentation callback with empty
   // PresentationFeedback.
   bool has_context = gl_context_ && gl_context_->IsCurrent(surface_);
@@ -320,6 +333,13 @@ void GLSurfacePresentationHelper::OnMakeCurrent(GLContext* context,
     return;
 
   surface_ = surface;
+#if BUILDFLAG(IS_COBALT)
+  deferred_presentation_timer_.Stop();
+  last_swap_ack_time_ = base::TimeTicks();
+  recent_swap_deltas_.clear();
+  estimated_vsync_interval_ = base::TimeDelta();
+  last_presented_timestamp_ = base::TimeTicks();
+#endif  // BUILDFLAG(IS_COBALT)
   // If context is changed, we assume SwapBuffers issued for previous context
   // will be discarded.
   if (gpu_timing_client_)
@@ -426,6 +446,11 @@ void GLSurfacePresentationHelper::PostSwapBuffers(gfx::SwapResult result) {
   auto& frame = pending_frames_.back();
   frame.result = result;
 #if BUILDFLAG(IS_COBALT)
+  if (result == gfx::SwapResult::SWAP_ACK && !egl_timestamp_client_ &&
+      !vsync_provider_ && vsync_interval_.is_zero() &&
+      base::FeatureList::IsEnabled(::features::kCobaltBufferedSwapPacing)) {
+    ObserveBlockingSwapCadence(CurrentTimeTicks());
+  }
   if (frame.fence_wait_state) {
     if (result != gfx::SwapResult::SWAP_ACK) {
       frame.fence_wait_state->CancelAndResetFence();
@@ -470,10 +495,11 @@ void GLSurfacePresentationHelper::CheckPendingFrames() {
     return;
 
 #if BUILDFLAG(IS_COBALT)
-  bool need_gl_context = egl_timestamp_client_ || gpu_timing_client_;
+  bool need_gl_context = egl_timestamp_client_ != nullptr;
   if (!need_gl_context) {
     for (const auto& frame : pending_frames_) {
-      if (!frame.fence_wait_state) {
+      if (frame.cached_gpu_done_timestamp.is_null() &&
+          (gpu_timing_client_ || !frame.fence_wait_state)) {
         need_gl_context = true;
         break;
       }
@@ -500,8 +526,13 @@ void GLSurfacePresentationHelper::CheckPendingFrames() {
     return;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  bool disjoint_occurred = need_gl_context && gpu_timing_client_ &&
+                           gpu_timing_client_->CheckAndResetTimerErrors();
+#else
   bool disjoint_occurred =
       gpu_timing_client_ && gpu_timing_client_->CheckAndResetTimerErrors();
+#endif  // BUILDFLAG(IS_COBALT)
   if (disjoint_occurred ||
       (!egl_timestamp_client_ && !gpu_timing_client_ && !gl_fence_supported_)) {
     // If EGLTimestamps, GPUTimer and GLFence are not available or disjoint
@@ -596,6 +627,40 @@ void GLSurfacePresentationHelper::CheckPendingFrames() {
     }
 #endif  // BUILDFLAG(IS_COBALT)
 
+#if BUILDFLAG(IS_COBALT)
+    if (!egl_timestamp_client_ && !vsync_provider_ &&
+        vsync_interval_.is_zero() &&
+        base::FeatureList::IsEnabled(::features::kCobaltBufferedSwapPacing)) {
+      const base::TimeDelta nominal_interval = EffectiveNominalVSyncInterval();
+      const base::TimeDelta max_cushion = nominal_interval * 2;
+      const base::TimeTicks gpu_done_ts = timestamp;
+      writes_done = gpu_done_ts;
+
+      if (!last_presented_timestamp_.is_null()) {
+        const base::TimeTicks next_slot =
+            last_presented_timestamp_ + nominal_interval;
+        if (gpu_done_ts < next_slot &&
+            next_slot - gpu_done_ts <= max_cushion) {
+          const base::TimeTicks now = CurrentTimeTicks();
+          if (next_slot > now && next_slot - now <= max_cushion) {
+            frame.cached_gpu_done_timestamp = gpu_done_ts;
+            if (frame.timer) {
+              frame.timer->Destroy(true /* has_context */);
+              frame.timer.reset();
+            }
+            ScheduleDeferredPresentationCheck(next_slot);
+            break;
+          }
+          if (next_slot <= now) {
+            timestamp = next_slot;
+          }
+        }
+      }
+      interval = nominal_interval;
+      last_presented_timestamp_ = timestamp;
+    }
+#endif  // BUILDFLAG(IS_COBALT)
+
     gfx::PresentationFeedback feedback(timestamp, interval, flags);
     feedback.writes_done_timestamp = writes_done;
     frame_presentation_callback(feedback);
@@ -608,7 +673,8 @@ void GLSurfacePresentationHelper::CheckPendingFrames() {
     gpu_timing_client_ = nullptr;
   }
 
-  if (!pending_frames_.empty() && !pending_frames_.front().fence_wait_state) {
+  if (!pending_frames_.empty() && !pending_frames_.front().fence_wait_state &&
+      !deferred_presentation_timer_.IsRunning()) {
     ScheduleCheckPendingFrames(true /* align_with_next_vsync */);
   }
 #else
@@ -618,6 +684,101 @@ void GLSurfacePresentationHelper::CheckPendingFrames() {
 }
 
 #if BUILDFLAG(IS_COBALT)
+void GLSurfacePresentationHelper::SetTickClockForTesting(
+    const base::TickClock* tick_clock) {
+  tick_clock_ = tick_clock;
+  deferred_presentation_timer_.Stop();
+}
+
+base::TimeTicks GLSurfacePresentationHelper::CurrentTimeTicks() const {
+  return tick_clock_ ? tick_clock_->NowTicks() : base::TimeTicks::Now();
+}
+
+base::TimeDelta GLSurfacePresentationHelper::EffectiveNominalVSyncInterval()
+    const {
+  if (!vsync_interval_.is_zero()) {
+    return vsync_interval_;
+  }
+  if (surface_ && !surface_->GetNominalVSyncInterval().is_zero()) {
+    return surface_->GetNominalVSyncInterval();
+  }
+  if (!estimated_vsync_interval_.is_zero()) {
+    return estimated_vsync_interval_;
+  }
+  return base::Seconds(1) / 60;
+}
+
+void GLSurfacePresentationHelper::ObserveBlockingSwapCadence(
+    base::TimeTicks swap_ack_time) {
+  if (surface_ && !surface_->GetNominalVSyncInterval().is_zero()) {
+    return;
+  }
+
+  constexpr size_t kCadenceWindowSize = 16;
+  constexpr base::TimeDelta kMinBlockingInterval = base::Microseconds(15200);
+  constexpr base::TimeDelta kMaxBlockingInterval = base::Microseconds(21500);
+  constexpr base::TimeDelta kMaxAllowedSpread = base::Milliseconds(2);
+  constexpr base::TimeDelta k50HzThreshold = base::Microseconds(18350);
+
+  if (!last_swap_ack_time_.is_null()) {
+    const base::TimeDelta swap_delta = swap_ack_time - last_swap_ack_time_;
+    if (swap_delta >= kMinBlockingInterval &&
+        swap_delta <= kMaxBlockingInterval) {
+      recent_swap_deltas_.push_back(swap_delta);
+      if (recent_swap_deltas_.size() > kCadenceWindowSize) {
+        recent_swap_deltas_.pop_front();
+      }
+      if (recent_swap_deltas_.size() == kCadenceWindowSize) {
+        std::vector<base::TimeDelta> sorted(recent_swap_deltas_.begin(),
+                                            recent_swap_deltas_.end());
+        std::sort(sorted.begin(), sorted.end());
+        if (sorted.back() - sorted.front() <= kMaxAllowedSpread) {
+          const base::TimeDelta median = sorted[kCadenceWindowSize / 2];
+          estimated_vsync_interval_ = (median >= k50HzThreshold)
+                                          ? base::Milliseconds(20)
+                                          : (base::Seconds(1) / 60);
+        }
+      }
+    } else {
+      recent_swap_deltas_.clear();
+    }
+  }
+  last_swap_ack_time_ = swap_ack_time;
+}
+
+void GLSurfacePresentationHelper::ScheduleDeferredPresentationCheck(
+    base::TimeTicks target_time) {
+  if (deferred_presentation_timer_.IsRunning()) {
+    return;
+  }
+  if (tick_clock_) {
+    const base::TimeTicks now = tick_clock_->NowTicks();
+    const base::TimeDelta delay =
+        target_time > now ? (target_time - now) : base::TimeDelta();
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(
+            &GLSurfacePresentationHelper::OnDeferredPresentationTimerFired,
+            weak_ptr_factory_.GetWeakPtr()),
+        delay);
+    return;
+  }
+  deferred_presentation_timer_.SetTaskRunner(
+      base::SingleThreadTaskRunner::GetCurrentDefault());
+  deferred_presentation_timer_.Start(
+      FROM_HERE, target_time,
+      base::BindOnce(
+          &GLSurfacePresentationHelper::OnDeferredPresentationTimerFired,
+          weak_ptr_factory_.GetWeakPtr()),
+      base::subtle::DelayPolicy::kPrecise);
+}
+
+void GLSurfacePresentationHelper::OnDeferredPresentationTimerFired() {
+  if (!pending_frames_.empty()) {
+    CheckPendingFrames();
+  }
+}
+
 void GLSurfacePresentationHelper::OnFenceWaitCompleted(
     scoped_refptr<FenceWaitState> fence_wait_state) {
   fence_wait_state->ResetFence();

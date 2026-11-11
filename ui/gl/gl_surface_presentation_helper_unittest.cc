@@ -16,7 +16,9 @@
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/simple_test_tick_clock.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -798,6 +800,196 @@ TEST_F(GLSurfacePresentationHelperTest,
   EXPECT_EQ(3, completion_order[1]);
   EXPECT_EQ(1, created_syncs_.load());
   EXPECT_EQ(1, destroyed_syncs_.load());
+}
+
+// Covers buffered TV UI animations where two fast 6 ms frames pre-fill the EGL
+// surface buffer queue followed by a 24 ms spike and a 50 ms genuine stall:
+// pre-buffered frames must defer callback delivery until their FIFO VSync slot
+// arrives (without calling MakeCurrent) and preserve writes_done_timestamp,
+// while genuine buffer queue underruns report the true >33 ms dropped interval.
+TEST_F(GLSurfacePresentationHelperTest,
+       SpacesPreBufferedFramesOntoMonotonicFIFOVSyncSlotsAndPreservesWritesDone) {
+  EXPECT_CALL(
+      *gl_, GetQueryiv(GL_TIMESTAMP_EXT, GL_QUERY_COUNTER_BITS_EXT, NotNull()))
+      .WillRepeatedly(DoAll(SetArgPointee<2>(64), Return()));
+  EXPECT_CALL(*gl_, GetIntegerv(GL_GPU_DISJOINT_EXT, NotNull()))
+      .WillRepeatedly(DoAll(SetArgPointee<1>(0), Return()));
+  EXPECT_CALL(*gl_, GenQueries(1, NotNull()))
+      .WillRepeatedly(
+          Invoke(&gpu_timing_fake_, &GPUTimingFake::FakeGLGenQueries));
+  EXPECT_CALL(*gl_, DeleteQueries(1, NotNull()))
+      .WillRepeatedly(
+          Invoke(&gpu_timing_fake_, &GPUTimingFake::FakeGLDeleteQueries));
+
+  int64_t gpu_ns = 1'000'000'000LL;
+  EXPECT_CALL(*gl_, QueryCounter(_, GL_TIMESTAMP_EXT)).Times(::testing::AnyNumber());
+  EXPECT_CALL(*gl_, GetQueryObjectuiv(_, GL_QUERY_RESULT_AVAILABLE, NotNull()))
+      .WillRepeatedly(DoAll(SetArgPointee<2>(1), Return()));
+  EXPECT_CALL(*gl_, GetInteger64v(GL_TIMESTAMP_EXT, NotNull()))
+      .WillRepeatedly(Invoke([&](GLenum, GLint64* data) { *data = gpu_ns; }));
+  EXPECT_CALL(*gl_, GetQueryObjectui64v(_, GL_QUERY_RESULT, NotNull()))
+      .WillRepeatedly(Invoke([&](GLuint, GLenum, GLuint64* params) {
+        *params = static_cast<GLuint64>(gpu_ns);
+      }));
+
+  base::SimpleTestTickClock test_clock;
+  test_clock.Advance(base::Seconds(1));
+  scoped_refptr<GPUTimingClient> timing_setup =
+      context_->CreateGPUTimingClient();
+  timing_setup->SetCpuTimeForTesting(
+      base::BindRepeating(&GPUTimingFake::GetFakeCPUTime));
+  gpu_timing_fake_.SetCurrentCPUTime(gpu_ns / 1000);
+
+  GLSurfacePresentationHelper helper(nullptr /* vsync_provider */);
+  helper.SetTickClockForTesting(&test_clock);
+  helper.OnMakeCurrent(context_.get(), surface_.get());
+
+  constexpr base::TimeTicks kOrigin = base::TimeTicks() + base::Seconds(1);
+  constexpr base::TimeDelta kVSync = base::Seconds(1) / 60;
+
+  // Frame 1 finishes at t = 1000 ms.
+  gfx::PresentationFeedback fb1;
+  {
+    base::RunLoop loop;
+    {
+      GLSurfacePresentationHelper::ScopedSwapBuffers swap(
+          &helper,
+          base::BindLambdaForTesting([&](const gfx::PresentationFeedback& fb) {
+            fb1 = fb;
+            loop.Quit();
+          }));
+    }
+    loop.Run();
+  }
+  EXPECT_EQ(kOrigin, fb1.timestamp);
+  EXPECT_EQ(kOrigin, fb1.writes_done_timestamp);
+  EXPECT_EQ(kVSync, fb1.interval);
+
+  // Frame 2 finishes rendering into a free back buffer 6 ms later (t = 1006 ms),
+  // ahead of its FIFO VSync slot at 1016.666 ms. Once the deferred callback
+  // runs at next_slot, timestamp must equal fb1.timestamp + kVSync (<= Now)
+  // while writes_done_timestamp preserves the 1006 ms GPU completion time.
+  gpu_ns += 6'000'000;
+  gpu_timing_fake_.SetCurrentCPUTime(gpu_ns / 1000);
+  test_clock.Advance(base::Milliseconds(6));
+  gfx::PresentationFeedback fb2;
+  bool fb2_ran = false;
+  base::RunLoop fb2_loop;
+  {
+    GLSurfacePresentationHelper::ScopedSwapBuffers swap(
+        &helper,
+        base::BindLambdaForTesting([&](const gfx::PresentationFeedback& fb) {
+          fb2 = fb;
+          fb2_ran = true;
+          fb2_loop.Quit();
+        }));
+  }
+  // Run immediate check: reads GPUTimer once and defers callback until
+  // next_slot because NowTicks() (1006 ms) < next_slot (1016.666 ms).
+  base::RunLoop().RunUntilIdle();
+  EXPECT_FALSE(fb2_ran);
+
+  const int make_current_before_deferred = context_->make_current_calls();
+  test_clock.Advance(kVSync - base::Milliseconds(6));
+  fb2_loop.Run();
+  ASSERT_TRUE(fb2_ran);
+  EXPECT_EQ(fb1.timestamp + kVSync, fb2.timestamp);
+  EXPECT_EQ(kOrigin + base::Milliseconds(6), fb2.writes_done_timestamp);
+  // Cached GPU completion must not rebind the GL context on deferred wakeup.
+  EXPECT_EQ(0, context_->make_current_calls() - make_current_before_deferred);
+
+  // Frame 3 spikes to 24 ms from 1006 ms -> 1030 ms (still beating its FIFO
+  // VSync slot at fb2.timestamp + kVSync = 1033.332 ms).
+  gpu_ns += 24'000'000;
+  gpu_timing_fake_.SetCurrentCPUTime(gpu_ns / 1000);
+  test_clock.SetNowTicks(kOrigin + base::Milliseconds(34));
+  gfx::PresentationFeedback fb3;
+  {
+    base::RunLoop loop;
+    {
+      GLSurfacePresentationHelper::ScopedSwapBuffers swap(
+          &helper,
+          base::BindLambdaForTesting([&](const gfx::PresentationFeedback& fb) {
+            fb3 = fb;
+            loop.Quit();
+          }));
+    }
+    loop.Run();
+  }
+  EXPECT_EQ(fb2.timestamp + kVSync, fb3.timestamp);
+  EXPECT_EQ(kOrigin + base::Milliseconds(30), fb3.writes_done_timestamp);
+
+  // Frame 4 stalls for 50 ms (1030 -> 1080 ms, missing the 1050 ms VSync slot):
+  // must report the real underrun timestamp rather than masking the drop.
+  gpu_ns += 50'000'000;
+  gpu_timing_fake_.SetCurrentCPUTime(gpu_ns / 1000);
+  test_clock.SetNowTicks(kOrigin + base::Milliseconds(80));
+  gfx::PresentationFeedback fb4;
+  {
+    base::RunLoop loop;
+    {
+      GLSurfacePresentationHelper::ScopedSwapBuffers swap(
+          &helper,
+          base::BindLambdaForTesting([&](const gfx::PresentationFeedback& fb) {
+            fb4 = fb;
+            loop.Quit();
+          }));
+    }
+    loop.Run();
+  }
+  EXPECT_EQ(kOrigin + base::Milliseconds(80), fb4.timestamp);
+  EXPECT_GT(fb4.timestamp - fb3.timestamp, base::Milliseconds(40));
+}
+
+// Covers 50 Hz PAL/European TV displays without a VSyncProvider: verifies both
+// runtime calibration from 16 consistent 20 ms full-queue PostSwapBuffers
+// intervals (Option B) and immediate override when the platform GLSurface
+// reports a nominal VSync interval (Option A).
+TEST_F(GLSurfacePresentationHelperTest,
+       Calibrates50HzNominalIntervalFromBlockingSwapCadenceAndPlatformSurface) {
+  context_->set_return_null_gpu_timing_client(true);
+
+  base::SimpleTestTickClock test_clock;
+  test_clock.Advance(base::Seconds(10));
+
+  GLSurfacePresentationHelper helper(nullptr /* vsync_provider */);
+  helper.SetTickClockForTesting(&test_clock);
+  helper.OnMakeCurrent(context_.get(), surface_.get());
+
+  gfx::PresentationFeedback last_fb;
+  // Issue 17 swaps spaced by 20 ms (16 inter-swap intervals at 50 Hz).
+  for (int i = 0; i < 17; ++i) {
+    base::RunLoop loop;
+    {
+      GLSurfacePresentationHelper::ScopedSwapBuffers swap(
+          &helper,
+          base::BindLambdaForTesting([&](const gfx::PresentationFeedback& fb) {
+            last_fb = fb;
+            loop.Quit();
+          }));
+    }
+    loop.Run();
+    test_clock.Advance(base::Milliseconds(20));
+  }
+  EXPECT_EQ(base::Milliseconds(20), last_fb.interval);
+
+  // If the platform GLSurface explicitly reports 60 Hz (Option A), it takes
+  // precedence immediately without waiting for swap-cadence calibration.
+  surface_->SetNominalVSyncInterval(base::Seconds(1) / 60);
+  {
+    base::RunLoop loop;
+    {
+      GLSurfacePresentationHelper::ScopedSwapBuffers swap(
+          &helper,
+          base::BindLambdaForTesting([&](const gfx::PresentationFeedback& fb) {
+            last_fb = fb;
+            loop.Quit();
+          }));
+    }
+    loop.Run();
+  }
+  EXPECT_EQ(base::Seconds(1) / 60, last_fb.interval);
+  surface_->SetNominalVSyncInterval(base::TimeDelta());
 }
 
 }  // namespace

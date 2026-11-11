@@ -332,6 +332,68 @@ class VIZ_COMMON_EXPORT BackToBackBeginFrameSource
   base::WeakPtrFactory<BackToBackBeginFrameSource> weak_factory_{this};
 };
 
+#if BUILDFLAG(IS_COBALT)
+// Paces BeginFrame dispatches off prior-frame completion to keep up to
+// |kMaxBufferedSwapFrames| back buffers pre-filled in a multi-buffered EGL
+// window surface while advancing |BeginFrameArgs::frame_time| in uniform VSync
+// steps within the past-anchored window [Now() - N * interval, Now()].
+//
+// Lifetime and ownership:
+// Owned by RootCompositorFrameSinkImpl on the Viz compositor thread for the
+// lifetime of the root frame sink (or instantiated directly on a single test
+// runner in unit tests). Owns its |DelayBasedTimeSource|.
+//
+// Threading model:
+// Single-threaded; all methods must be called on the sequence bound to the
+// underlying |DelayBasedTimeSource| task runner.
+class VIZ_COMMON_EXPORT BufferedSwapBeginFrameSource
+    : public SyntheticBeginFrameSource,
+      public DelayBasedTimeSourceClient {
+ public:
+  static constexpr int64_t kMaxBufferedSwapFrames = 2;
+
+  BufferedSwapBeginFrameSource(std::unique_ptr<DelayBasedTimeSource> time_source,
+                               uint32_t restart_id);
+
+  BufferedSwapBeginFrameSource(const BufferedSwapBeginFrameSource&) = delete;
+  BufferedSwapBeginFrameSource& operator=(const BufferedSwapBeginFrameSource&) =
+      delete;
+
+  ~BufferedSwapBeginFrameSource() override;
+
+  // BeginFrameSource implementation.
+  void AddObserver(BeginFrameObserver* obs) override;
+  void RemoveObserver(BeginFrameObserver* obs) override;
+  void DidFinishFrame(BeginFrameObserver* obs) override;
+  void OnGpuNoLongerBusy() override;
+
+  // SyntheticBeginFrameSource implementation.
+  void OnUpdateVSyncParameters(base::TimeTicks timebase,
+                               base::TimeDelta interval) override;
+  void SetMaxVrrInterval(
+      const std::optional<base::TimeDelta>& max_vrr_interval) override;
+
+  // DelayBasedTimeSourceClient implementation.
+  void OnTimerTick() override;
+
+ private:
+  base::TimeDelta EffectiveInterval() const;
+  base::TimeTicks ComputeNextFrameTime(base::TimeTicks now) const;
+  void ScheduleNextTick();
+
+  std::unique_ptr<DelayBasedTimeSource> time_source_;
+  base::flat_set<raw_ptr<BeginFrameObserver, CtnExperimental>> observers_;
+  base::flat_set<raw_ptr<BeginFrameObserver, CtnExperimental>>
+      pending_begin_frame_observers_;
+  uint64_t next_sequence_number_;
+  base::TimeDelta vsync_interval_ = BeginFrameArgs::DefaultInterval();
+  std::optional<base::TimeDelta> max_vrr_interval_ = std::nullopt;
+  base::TimeTicks last_frame_time_;
+  base::TimeTicks scheduled_frame_time_;
+  BeginFrameArgs last_begin_frame_args_;
+};
+#endif  // BUILDFLAG(IS_COBALT)
+
 // A frame source which is locked to an external parameters provides from a
 // vsync source and generates BeginFrameArgs for it.
 class VIZ_COMMON_EXPORT DelayBasedBeginFrameSource
