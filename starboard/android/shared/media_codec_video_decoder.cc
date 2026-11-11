@@ -871,9 +871,9 @@ MediaCodecVideoDecoder::PrepareOutputSurface() {
 
 Result<void> MediaCodecVideoDecoder::InitializeCodec(
     const VideoStreamInfo& video_stream_info,
-    const jni_zero::JavaRef<jobject>& output_surface) {
+    const jni_zero::JavaRef<jobject>& j_output_surface) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_CHECK(output_surface);
+  SB_CHECK(j_output_surface);
 
   if (needs_fps_to_initialize_codec_) {
     SB_DCHECK_GT(pending_input_buffers_.size(), 0u);
@@ -930,7 +930,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   auto result = MediaCodecDecoder::CreateForVideo(
       *media_codec_factory_, job_queue(), /*host=*/this,
       video_stream_info.codec, video_stream_info.frame_size, max_video_size_,
-      video_fps_, output_surface, drm_system_,
+      video_fps_, j_output_surface, drm_system_,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
       video_stream_info.color_metadata.bits_per_channel > 8,
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
@@ -973,14 +973,14 @@ MediaCodecVideoDecoder::TryInitializeCodec(
   SB_CHECK(BelongsToCurrentThread());
   SB_CHECK(!codec_creation_retry_.pending.has_value());
 
-  auto output_surface = PrepareOutputSurface();
-  if (!output_surface) {
+  auto j_output_surface = PrepareOutputSurface();
+  if (!j_output_surface) {
     // A missing surface or decode target isn't fixed by retrying.
     TeardownCodec();
-    return Unexpected(std::move(output_surface).error());
+    return Unexpected(std::move(j_output_surface).error());
   }
 
-  auto result = InitializeCodec(video_stream_info, *output_surface);
+  auto result = InitializeCodec(video_stream_info, *j_output_surface);
   if (result) {
     codec_creation_retry_.retries_left = codec_creation_retry_.max_retries;
     return CodecInitStatus::kInitialized;

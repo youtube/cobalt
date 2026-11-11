@@ -150,10 +150,10 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // Sets up the surface the codec renders to: the Android video surface in
   // punch-out mode, or a new decode target in decode-to-texture mode.
   Result<jni_zero::ScopedJavaLocalRef<jobject>> PrepareOutputSurface();
-  // Creates the platform MediaCodec rendering to |output_surface|.
+  // Creates the platform MediaCodec rendering to |j_output_surface|.
   Result<void> InitializeCodec(
       const VideoStreamInfo& video_stream_info,
-      const jni_zero::JavaRef<jobject>& output_surface);
+      const jni_zero::JavaRef<jobject>& j_output_surface);
   // Prepares the output surface and initializes the codec, tearing the codec
   // down on failure. A failure to create the MediaCodec itself is retried
   // later while retry budget remains, returning kRetryScheduled. Returns a
