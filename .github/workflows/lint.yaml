@@ -98,7 +98,9 @@ jobs:
             .pre-commit-config.yaml
             .clang-format
             .pylintrc
+            cobalt/build/testing/targets
             cobalt/precommit
+            cobalt/tools
       - name: Sparse checkout changed files
         run: |
           git diff --name-only HEAD~1 HEAD | git sparse-checkout add --stdin

@@ -66,6 +66,7 @@ _DEPS_ARCH_MAP = {
     'rdk': '/data/test/',
 }
 _GCS_ARCHIVE_DEVICE_FAMILIES = ('rdk',)
+_MAX_SHARDS = 10
 
 
 class OnDeviceTestsGatewayClient:
@@ -191,8 +192,13 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
     raise ValueError(f'Unsupported device family: {args.device_family}')
 
 
-def _unit_test_params(args: argparse.Namespace, target_name: str,
-                      dir_on_device: str) -> List[str]:
+def _unit_test_params(
+    args: argparse.Namespace,
+    target_name: str,
+    dir_on_device: str,
+    gcs_result_path: Optional[str] = None,
+    test_attempts: Optional[str] = None,
+) -> List[str]:
   """Builds the list of params for a unit test request."""
   runtime_deps = _DEPS_ARCH_MAP.get(args.device_family, '')
   params = [
@@ -201,22 +207,80 @@ def _unit_test_params(args: argparse.Namespace, target_name: str,
       f'gcs_result_filename={target_name}_testoutput.xml',
       f'gcs_log_filename={target_name}_log.txt',
   ]
-  if args.gcs_result_path:
-    params.append(f'gcs_result_path={args.gcs_result_path}')
-  if args.test_attempts:
+  resolved_gcs_result_path = (
+      gcs_result_path if gcs_result_path is not None else args.gcs_result_path)
+  if resolved_gcs_result_path:
+    params.append(f'gcs_result_path={resolved_gcs_result_path}')
+  effective_test_attempts = (
+      test_attempts if test_attempts is not None else args.test_attempts)
+  if effective_test_attempts:
     try:
-      if int(args.test_attempts) > 1:
+      if int(effective_test_attempts) > 1:
         # Must delete existing results when retries are enabled.
         params.append('gcs_delete_before_upload=true')
     except ValueError:
-      logging.warning('Invalid test_attempts value: %s', args.test_attempts)
+      logging.warning('Invalid test_attempts value: %s',
+                      effective_test_attempts)
 
   return params
 
 
-def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
+def _with_target_test_attempts(base_test_args: List[str],
+                               target_test_attempts: str) -> List[str]:
+  """Returns a copy of base_test_args with optional target test_attempts."""
+  if not target_test_attempts:
+    return list(base_test_args)
+  filtered_args = [
+      arg for arg in base_test_args if not arg.startswith('test_attempts=')
+  ]
+  filtered_args.append(f'test_attempts={target_test_attempts}')
+  return filtered_args
+
+
+def _parse_num_shards(target_data: Dict[str, Any], test_target: str) -> int:
+  """Parses and validates the optional per-target shard count."""
+  raw_shards = target_data.get('shards')
+  if raw_shards is None:
+    return 1
+  if isinstance(raw_shards, (bool, float)):
+    raise ValueError(f'Invalid shards value for {test_target}: {raw_shards}')
+  try:
+    num_shards = int(raw_shards)
+  except (TypeError, ValueError) as exc:
+    raise ValueError(
+        f'Invalid shards value for {test_target}: {raw_shards}') from exc
+  if not 1 <= num_shards <= _MAX_SHARDS:
+    raise ValueError(f'shards for {test_target} must be between 1 and '
+                     f'{_MAX_SHARDS}, got {num_shards}')
+  return num_shards
+
+
+def _has_shard_retry_filter(filter_json_dir: Optional[str], target_name: str,
+                            shard_index: int, gtest_filter: str) -> bool:
+  """Returns True when retrying explicit failed tests from a shard filter."""
+  if not filter_json_dir:
+    return False
+  shard_filter_file = os.path.join(filter_json_dir,
+                                   f'{target_name}_{shard_index}_filter.json')
+  return (os.path.exists(shard_filter_file) and
+          not gtest_filter.startswith('-') and gtest_filter != '*')
+
+
+def _shard_cmd_args(test_type: str, shard_index: int,
+                    num_shards: int) -> List[str]:
+  """Builds test runner sharding flags for a shard."""
+  if test_type != 'browser_test':
+    raise ValueError(
+        f'Sharding is only supported for browser_test targets, got {test_type}')
+  return [
+      f'--test-launcher-shard-index={shard_index}',
+      f'--test-launcher-total-shards={num_shards}',
+  ]
+
+
+def process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
   """Builds the list of test requests based on the test type."""
-  test_args, device_type, device_pool = _get_test_args_and_dimensions(args)
+  base_test_args, device_type, device_pool = _get_test_args_and_dimensions(args)
   test_requests = []
 
   try:
@@ -231,50 +295,130 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       if not device_type or not device_pool:
         raise ValueError('Dimensions not specified: device_type, device_pool')
       target_gtest_filter = ''
+      target_test_attempts = ''
+      num_shards = 1
       if isinstance(target_data, dict):
         test_target = target_data['target']
-        if test_attempts := target_data.get('test_attempts', ''):
-          test_args.append(f'test_attempts={test_attempts}')
+        target_test_attempts = str(target_data.get('test_attempts', '') or '')
         target_gtest_filter = target_data.get('gtest_filter', '')
+        num_shards = _parse_num_shards(target_data, test_target)
       else:
         test_target = target_data
-        if args.test_attempts:
-          test_args.append(f'test_attempts={args.test_attempts}')
+
+      target_test_args = _with_target_test_attempts(base_test_args,
+                                                    target_test_attempts)
+      effective_test_attempts = target_test_attempts or args.test_attempts
       target_name = test_target.split(':')[-1]
-      if args.gtest_filter:
-        gtest_filter = args.gtest_filter
-      elif target_gtest_filter:
-        gtest_filter = target_gtest_filter
-      else:
-        gtest_filter = get_gtest_filter(args.filter_json_dir, target_name)
-        if gtest_filter == '-*':
-          print(f'Skipping {target_name} due to test filter.')
-          continue
-      dir_on_device = _DIR_ON_DEV_MAP.get(args.device_family, '')
-      cmd_args = [
-          f'--gtest_output=xml:{dir_on_device}/{target_name}_testoutput.xml',
-          f'--gtest_filter={gtest_filter}',
-          '--single-process-tests',
-          '--num-retries=0',
-      ]
-      command_line_args = ' '.join(cmd_args)
-      test_cmd_args = [f'command_line_args={command_line_args}']
-      files = _unit_test_files(args, target_name)
-      params = _unit_test_params(args, target_name, dir_on_device)
       if 'cobalt_browsertests' in target_name:
         test_type = 'browser_test'
+      if num_shards > 1 and test_type != 'browser_test':
+        raise ValueError(
+            f'Sharding is only supported for browser_test targets, got '
+            f'{test_type} for {test_target}')
+      dir_on_device = _DIR_ON_DEV_MAP.get(args.device_family, '')
+      files = _unit_test_files(args, target_name)
+
+      if num_shards == 1:
+        if args.gtest_filter:
+          gtest_filter = args.gtest_filter
+        elif target_gtest_filter:
+          gtest_filter = target_gtest_filter
+        else:
+          gtest_filter = get_gtest_filter(args.filter_json_dir, target_name)
+          if gtest_filter == '-*':
+            print(f'Skipping {target_name} due to test filter.')
+            continue
+        cmd_args = [
+            f'--gtest_output=xml:{dir_on_device}/{target_name}_testoutput.xml',
+            f'--gtest_filter={gtest_filter}',
+            '--single-process-tests',
+            '--num-retries=0',
+        ]
+        command_line_args = ' '.join(cmd_args)
+        params = _unit_test_params(
+            args,
+            target_name,
+            dir_on_device,
+            test_attempts=effective_test_attempts,
+        )
+        test_requests.append({
+            'device_type': device_type,
+            'device_pool': device_pool,
+            'test_cmd_args': [f'command_line_args={command_line_args}'],
+            'test_args': list(target_test_args),
+            'files': list(files),
+            'params': params,
+            'test_target': test_target,
+            'test_type': test_type,
+        })
+      else:
+        base_result_path = (
+            args.gcs_result_path.rstrip('/') if args.gcs_result_path else '')
+        for shard_index in range(num_shards):
+          use_shard_retry_filter = False
+          if args.gtest_filter:
+            gtest_filter = args.gtest_filter
+          elif target_gtest_filter:
+            gtest_filter = target_gtest_filter
+          else:
+            gtest_filter = get_gtest_filter(args.filter_json_dir, target_name,
+                                            shard_index)
+            if gtest_filter == '-*':
+              print(f'Skipping {target_name} (shard {shard_index} of '
+                    f'{num_shards}) due to test filter.')
+              continue
+            use_shard_retry_filter = _has_shard_retry_filter(
+                args.filter_json_dir, target_name, shard_index, gtest_filter)
+
+          xml_path_on_device = f'{dir_on_device}/{target_name}_testoutput.xml'
+          cmd_args = [
+              f'--gtest_output=xml:{xml_path_on_device}',
+              f'--gtest_filter={gtest_filter}',
+              '--single-process-tests',
+              '--num-retries=0',
+          ]
+          if not use_shard_retry_filter:
+            cmd_args.extend(_shard_cmd_args(test_type, shard_index, num_shards))
+          command_line_args = ' '.join(cmd_args)
+
+          shard_gcs_result_path = (f'{base_result_path}/shard_{shard_index}'
+                                   if base_result_path else None)
+          params = _unit_test_params(
+              args,
+              target_name,
+              dir_on_device,
+              gcs_result_path=shard_gcs_result_path,
+              test_attempts=effective_test_attempts,
+          )
+          # Avoid '/' in the shard suffix because the gateway service derives
+          # the session display label via test_target.split('/')[-1].
+          shard_label = f'{test_target} (shard {shard_index} of {num_shards})'
+          test_requests.append({
+              'device_type': device_type,
+              'device_pool': device_pool,
+              'test_cmd_args': [f'command_line_args={command_line_args}'],
+              'test_args': list(target_test_args),
+              'files': list(files),
+              'params': params,
+              'test_target': shard_label,
+              'test_type': test_type,
+          })
+      continue
 
     elif test_type in ('e2e_test', 'yts_test', 'yts_wpt_test'):
       if isinstance(target_data, dict):
         test_target = target_data.get('target', '')
-        test_attempts = target_data.get('test_attempts', '')
+        target_test_attempts = str(target_data.get('test_attempts', '') or '')
+        num_shards = _parse_num_shards(target_data, test_target)
+        if num_shards > 1:
+          raise ValueError(
+              f'Sharding is only supported for browser_test targets, got '
+              f'{test_type} for {test_target}')
       else:
         test_target = target_data
-        test_attempts = ''
-      if test_attempts:
-        test_args.extend([f'test_attempts={test_attempts}'])
-      elif args.test_attempts:
-        test_args.extend([f'test_attempts={args.test_attempts}'])
+        target_test_attempts = ''
+      target_test_args = _with_target_test_attempts(base_test_args,
+                                                    target_test_attempts)
       test_cmd_args = []
       files = []
       if test_type == 'yts_wpt_test':
@@ -298,7 +442,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         'device_type': device_type,
         'device_pool': device_pool,
         'test_cmd_args': test_cmd_args,
-        'test_args': test_args,
+        'test_args': target_test_args,
         'files': files,
         'params': params,
         'test_target': test_target,
@@ -480,7 +624,7 @@ def main() -> int:
           raise ValueError(
               f'--filter_json_dir is required for {args.test_type}')
 
-      test_requests = _process_test_requests(args)
+      test_requests = process_test_requests(args)
       if not test_requests:
         print('No tests to run.')
         return 0
