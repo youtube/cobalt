@@ -27,21 +27,14 @@
 
 namespace starboard {
 
-bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
-                           const MimeType* mime_type,
-                           int profile,
-                           int level,
-                           int bit_depth,
-                           SbMediaPrimaryId primary_id,
-                           SbMediaTransferId transfer_id,
-                           SbMediaMatrixId matrix_id,
-                           int frame_width,
-                           int frame_height,
-                           int64_t bitrate,
-                           int fps,
-                           bool decode_to_texture_required) {
-  if (!Is8BitSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
-    if (bit_depth != 10 && bit_depth != 12) {
+bool MediaIsVideoSupported(const MimeType* mime_type,
+                           const VideoSupportQuery& query) {
+  const ParsedVideoCodec& codec_info = query.codec_info;
+  const SbMediaVideoCodec video_codec = codec_info.codec;
+
+  if (!Is8BitSDRVideo(codec_info.bit_depth, codec_info.primary_id,
+                      codec_info.transfer_id, codec_info.matrix_id)) {
+    if (codec_info.bit_depth != 10 && codec_info.bit_depth != 12) {
       return false;
     }
     if (video_codec != kSbMediaVideoCodecAv1 &&
@@ -51,7 +44,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
     }
   }
 
-  if (decode_to_texture_required) {
+  if (query.decode_to_texture_required) {
     bool has_gles_support = SbGetGlesInterface();
 
     if (!has_gles_support) {
@@ -71,8 +64,10 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
           (video_codec == kSbMediaVideoCodecH265 && is_de265_supported()) ||
           (video_codec == kSbMediaVideoCodecVp8) ||
           (video_codec == kSbMediaVideoCodecVp9)) &&
-         frame_width <= max_width && frame_height <= max_height &&
-         bitrate <= kSbMediaMaxVideoBitrateInBitsPerSecond && fps <= 60;
+         query.frame_size.width <= max_width &&
+         query.frame_size.height <= max_height &&
+         query.bitrate <= kSbMediaMaxVideoBitrateInBitsPerSecond &&
+         query.fps <= 60;
 }
 
 }  // namespace starboard

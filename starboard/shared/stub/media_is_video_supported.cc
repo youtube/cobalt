@@ -20,19 +20,8 @@
 
 namespace starboard {
 
-bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
-                           const MimeType* mime_type,
-                           int profile,
-                           int level,
-                           int bit_depth,
-                           SbMediaPrimaryId primary_id,
-                           SbMediaTransferId transfer_id,
-                           SbMediaMatrixId matrix_id,
-                           int frame_width,
-                           int frame_height,
-                           int64_t bitrate,
-                           int fps,
-                           bool decode_to_texture_required) {
+bool MediaIsVideoSupported(const MimeType* mime_type,
+                           const VideoSupportQuery& query) {
   return false;
 }
 

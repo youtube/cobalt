@@ -15,6 +15,10 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_SUPPORT_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_SUPPORT_INTERNAL_H_
 
+#include <cstdint>
+
+#include "starboard/common/media.h"
+#include "starboard/common/size.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -37,53 +41,51 @@ bool MediaIsKeySystemSupported(SbMediaVideoCodec video_codec,
                                SbMediaAudioCodec audio_codec,
                                const char* key_system);
 
-// Indicates whether a given combination of (|frame_width| x |frame_height|)
-// frames at |bitrate| and |fps| is supported on this platform with
-// |video_codec|. If |video_codec| is not supported under any condition, this
-// function returns |false|.
+// Describes the video stream checked by MediaIsVideoSupported().
+struct VideoSupportQuery {
+  // The video codec and the information parsed from the codec string.  The
+  // video codec is |codec_info.codec|, which must not be
+  // |kSbMediaVideoCodecNone|.  Other fields in |codec_info| keep their default
+  // values when they are unknown or not applicable:
+  // |profile|: The profile in the context of the video codec.  -1 when it is
+  //            unknown or not applicable.
+  // |level|: The level in the context of the video codec.  -1 when it is
+  //          unknown or not applicable.
+  // |bit_depth|: The color bit depth of the video.  It should be set to 8 for
+  //              SDR videos, and set to 10 or 12 for HDR videos.
+  // |primary_id|: The colour primaries of the video.  See definition for
+  //               |SbMediaPrimaryId| in `media.h` for more details.
+  //               |kSbMediaPrimaryIdUnspecified| when it is unknown.
+  // |transfer_id|: The transfer characteristics of the video.  See definition
+  //                for |SbMediaTransferId| in `media.h` for more details.
+  //                |kSbMediaTransferIdUnspecified| when it is unknown.
+  // |matrix_id|: The matrix coefficients of the video.  See definition for
+  //              |SbMediaMatrixId| in `media.h` for more details.
+  //              |kSbMediaMatrixIdUnspecified| when it is unknown.
+  ParsedVideoCodec codec_info;
+  // The frame size of the media content.  When its width or height is set to
+  // 0, it indicates that the frame width or height shouldn't be considered.
+  Size frame_size;
+  // The bitrate of the media content.  When set to 0, it indicates that the
+  // bitrate shouldn't be considered.
+  int64_t bitrate = 0;
+  // The number of frames per second in the media content.  When set to 0, it
+  // indicates that the fps shouldn't be considered.
+  int fps = 0;
+  // Whether or not the resulting video frames can be decoded and used as
+  // textures by the GPU.
+  bool decode_to_texture_required = false;
+};
+
+// Indicates whether the video stream described by |query| is supported on this
+// platform.  If |query.codec_info.codec| is not supported under any condition,
+// this function returns |false|.
 //
-// |video_codec|: The video codec used in the media content.
 // |mime_type|: The parsed mime type passed to the corresponding interface.
 //              Note that |mime_type| can be NULL.
-// |profile|: The profile in the context of |video_codec|.  It should be set to
-//            -1 when it is unknown or not applicable.
-// |level|: The level in the context of |video_codec|.  It should be set to -1
-//          when it is unknown or not applicable.
-// |bit_depth|: The color bit depth of the video.  It should be set to 8 for SDR
-//              videos, and set to 10 or 12 for HDR videos.
-// |primary_id|: The colour primaries of the video.  See definition for
-//               |SbMediaPrimaryId| in `media.h` for more details.  It should be
-//               set to |kSbMediaPrimaryIdUnspecified| when it is unknown.
-// |transfer_id|: The transfer characteristics of the video.  See definition
-//                for |SbMediaTransferId| in `media.h` for more details.  It
-//                should be set to |kSbMediaTransferIdUnspecified| when it is
-//                unknown.
-// |matrix_id|: The matrix coefficients of the video.  See definition for
-//                |SbMediaMatrixId| in `media.h` for more details.  It should be
-//                set to |kSbMediaMatrixIdUnspecified| when it is unknown.
-// |frame_width|: The frame width of the media content.  When set to 0, it
-//                indicates that the frame width shouldn't be considered.
-// |frame_height|: The frame height of the media content.  When set to 0, it
-//                indicates that the frame height shouldn't be considered.
-// |bitrate|: The bitrate of the media content.  When set to 0, it indicates
-//            that the bitrate shouldn't be considered.
-// |fps|: The number of frames per second in the media content.  When set to 0,
-//        it indicates that the fps shouldn't be considered.
-// |decode_to_texture_required|: Whether or not the resulting video frames can
-//                               be decoded and used as textures by the GPU.
-bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
-                           const MimeType* mime_type,
-                           int profile,
-                           int level,
-                           int bit_depth,
-                           SbMediaPrimaryId primary_id,
-                           SbMediaTransferId transfer_id,
-                           SbMediaMatrixId matrix_id,
-                           int frame_width,
-                           int frame_height,
-                           int64_t bitrate,
-                           int fps,
-                           bool decode_to_texture_required);
+// |query|: The video stream to check.  See |VideoSupportQuery| for details.
+bool MediaIsVideoSupported(const MimeType* mime_type,
+                           const VideoSupportQuery& query);
 
 // Indicates whether this platform supports |audio_codec| at |bitrate|.
 // If |audio_codec| is not supported under any condition, this function

@@ -28,23 +28,15 @@
 
 namespace starboard {
 
-bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
-                           const MimeType* mime_type,
-                           int profile,
-                           int level,
-                           int bit_depth,
-                           SbMediaPrimaryId primary_id,
-                           SbMediaTransferId transfer_id,
-                           SbMediaMatrixId matrix_id,
-                           int frame_width,
-                           int frame_height,
-                           int64_t bitrate,
-                           int fps,
-                           bool decode_to_texture_required) {
+bool MediaIsVideoSupported(const MimeType* mime_type,
+                           const VideoSupportQuery& query) {
+  const ParsedVideoCodec& codec_info = query.codec_info;
+
   // 10-bit video with SDR color doesn't need an HDR display.
-  if (!IsSDRColor(primary_id, transfer_id, matrix_id) &&
+  if (!IsSDRColor(codec_info.primary_id, codec_info.transfer_id,
+                  codec_info.matrix_id) &&
       !MediaCapabilitiesCache::GetInstance()
-           ->IsHDRTransferCharacteristicsSupported(transfer_id)) {
+           ->IsHDRTransferCharacteristicsSupported(codec_info.transfer_id)) {
     return false;
   }
   // While not necessarily true, for now we assume that all Android devices
@@ -61,7 +53,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
         mime_type->GetParamBoolValue(kMimeParamTunnelMode, false);
   }
 
-  if (must_support_tunnel_mode && decode_to_texture_required) {
+  if (must_support_tunnel_mode && query.decode_to_texture_required) {
     SB_LOG(WARNING) << "Tunnel mode is rejected because output mode decode to "
                        "texture is required but not supported.";
     return false;
@@ -74,7 +66,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
     return false;
   }
 
-  const char* mime = SupportedVideoCodecToMimeType(video_codec);
+  const char* mime = SupportedVideoCodecToMimeType(codec_info.codec);
   if (!mime) {
     return false;
   }
@@ -89,10 +81,11 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
   // color. MediaCapabilitiesCache checks that through the decoder's HDR
   // profiles.
   const bool needs_hdr_capable_decoder =
-      !Is8BitSDRVideo(bit_depth, primary_id, transfer_id, matrix_id);
+      !Is8BitSDRVideo(codec_info.bit_depth, codec_info.primary_id,
+                      codec_info.transfer_id, codec_info.matrix_id);
   return MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
       mime, require_secure_playback, needs_hdr_capable_decoder,
-      must_support_tunnel_mode, Size(frame_width, frame_height), bitrate, fps);
+      must_support_tunnel_mode, query.frame_size, query.bitrate, query.fps);
 }
 
 }  // namespace starboard
