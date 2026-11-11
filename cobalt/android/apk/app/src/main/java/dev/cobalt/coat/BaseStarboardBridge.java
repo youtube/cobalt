@@ -128,12 +128,35 @@ public class BaseStarboardBridge {
   private volatile boolean mApplicationStopped;
   private volatile boolean mApplicationStarted;
 
+  @VisibleForTesting
+  final CaptioningManager.CaptioningChangeListener mCaptioningChangeListener =
+      new CaptioningManager.CaptioningChangeListener() {
+        @Override
+        public void onEnabledChanged(boolean enabled) {
+          onCaptionSettingsChanged();
+        }
+
+        @Override
+        public void onUserStyleChanged(CaptioningManager.CaptionStyle userStyle) {
+          onCaptionSettingsChanged();
+        }
+
+        @Override
+        public void onFontScaleChanged(float fontScale) {
+          onCaptionSettingsChanged();
+        }
+      };
+
+  private boolean mCaptionListenerRegistered;
+
   private long mAppStartTimestamp = 0;
 
-  private final Map<String, CobaltService.Factory> mCobaltServiceFactories = new HashMap<>();
+  private final Map<String, CobaltService.Factory> mCobaltServiceFactories =
+      new ConcurrentHashMap<>();
   // Keyed by native pointer handle so multiple documents, iframes, or overlapping Activities
   // can open services with the same name without colliding or leaking on close.
   private final Map<Long, CobaltService> mCobaltServices = new ConcurrentHashMap<>();
+  private volatile Handler mServiceHandler;
 
   private static final String GOOGLE_PLAY_SERVICES_PACKAGE = "com.google.android.gms";
   private static final String AMATI_EXPERIENCE_FEATURE =
@@ -236,6 +259,8 @@ public class BaseStarboardBridge {
     void setAndroidPlayServicesVersion(long version);
 
     void setYoutubeCertificationScope(String certScope);
+
+    void sendCaptionSettingsChangedEvent();
   }
 
   private static Boolean sActivityLifecycleCoordinationEnabledForTesting = null;
@@ -298,9 +323,11 @@ public class BaseStarboardBridge {
       // Only resume services and trigger foreground logic on 0 -> 1 started activity transition.
       if (activeActivityCount == 0) {
         beforeStartOrResume();
+        registerCaptionSettingsChangeListener();
       }
     } else {
       beforeStartOrResume();
+      registerCaptionSettingsChangeListener();
     }
   }
 
@@ -319,6 +346,7 @@ public class BaseStarboardBridge {
           mActivityHolder.set(null);
         }
         mSysConfigChangeReceiver.setForeground(false);
+        unregisterCaptionSettingsChangeListener();
       } else {
         if (mActivityHolder.get() == activity) {
           mActivityHolder.set(null);
@@ -332,6 +360,7 @@ public class BaseStarboardBridge {
       beforeSuspend();
       if (mActivityHolder.get() == activity) {
         mActivityHolder.set(null);
+        unregisterCaptionSettingsChangeListener();
       }
       mSysConfigChangeReceiver.setForeground(false);
     }
@@ -408,33 +437,51 @@ public class BaseStarboardBridge {
     }
   }
 
+  // Native Mojo calls (has, open, send, close) are already bound to and invoked on the
+  // CobaltPlatformService thread in C++. Activity lifecycle hooks (beforeStartOrResume,
+  // beforeSuspend, closeAllCobaltService) originate on the UI thread in Java, so they post here to
+  // run on the same service thread.
+  private void runOnServiceThread(Runnable action) {
+    Handler handler = mServiceHandler;
+    if (handler != null && handler.getLooper() != Looper.myLooper()) {
+      if (!handler.post(action)) {
+        action.run();
+      }
+    } else {
+      action.run();
+    }
+  }
+
   protected void beforeStartOrResume() {
     Log.i(TAG, "Prepare to resume");
     // Bring our platform services to life before resuming so that they're ready to deal with
     // whatever the web app wants to do with them as part of its start/resume logic.
     for (CobaltService service : mCobaltServices.values()) {
-      service.beforeStartOrResume();
+      runOnServiceThread(service::beforeStartOrResume);
     }
     mAdvertisingId.refresh();
   }
 
   protected void beforeSuspend() {
-    try {
-      Log.i(TAG, "Prepare to suspend");
-      // We want the MediaSession to be deactivated immediately before suspending so that by
-      // the
-      // time, the launcher is visible our "Now Playing" card is already gone. Then Cobalt and
-      // the web app can take their time suspending after that.
-      for (CobaltService service : mCobaltServices.values()) {
-        service.beforeSuspend();
-      }
-    } catch (Throwable e) {
-      Log.i(TAG, "Caught exception in beforeSuspend: " + e.getMessage());
+    Log.i(TAG, "Prepare to suspend");
+    // We want the MediaSession to be deactivated immediately before suspending so that by the
+    // time the launcher is visible, our "Now Playing" card is already gone. Then Cobalt and the
+    // web app can take their time suspending after that.
+    for (CobaltService service : mCobaltServices.values()) {
+      runOnServiceThread(
+          () -> {
+            try {
+              service.beforeSuspend();
+            } catch (Throwable e) {
+              Log.i(TAG, "Caught exception in beforeSuspend: " + e.getMessage());
+            }
+          });
     }
   }
 
   protected void afterStopped() {
     mApplicationStopped = true;
+    unregisterCaptionSettingsChangeListener();
     mTtsHelper.shutdown();
     closeAllCobaltService();
     Activity activity = mActivityHolder.get();
@@ -581,6 +628,45 @@ public class BaseStarboardBridge {
     CaptioningManager cm =
         (CaptioningManager) mAppContext.getSystemService(Context.CAPTIONING_SERVICE);
     return new CaptionSettings(cm);
+  }
+
+  private void registerCaptionSettingsChangeListener() {
+    if (mCaptionListenerRegistered) {
+      return;
+    }
+    CaptioningManager cm =
+        (CaptioningManager) mAppContext.getSystemService(Context.CAPTIONING_SERVICE);
+    if (cm == null) {
+      return;
+    }
+    cm.addCaptioningChangeListener(mCaptioningChangeListener);
+    mCaptionListenerRegistered = true;
+    // Sync current state on foreground start/resume in case system caption settings changed while
+    // the app was stopped in the background.
+    onCaptionSettingsChanged();
+  }
+
+  private void unregisterCaptionSettingsChangeListener() {
+    if (!mCaptionListenerRegistered) {
+      return;
+    }
+    CaptioningManager cm =
+        (CaptioningManager) mAppContext.getSystemService(Context.CAPTIONING_SERVICE);
+    if (cm != null) {
+      cm.removeCaptioningChangeListener(mCaptioningChangeListener);
+    }
+    mCaptionListenerRegistered = false;
+  }
+
+  private void onCaptionSettingsChanged() {
+    if (mApplicationStarted && !mApplicationStopped) {
+      mNatives.sendCaptionSettingsChangedEvent();
+    }
+  }
+
+  @VisibleForTesting
+  boolean isCaptionListenerRegisteredForTesting() {
+    return mCaptionListenerRegistered;
   }
 
   /** Java-layer implementation of SbSystemGetLocaleId. */
@@ -942,6 +1028,11 @@ public class BaseStarboardBridge {
     }
     CobaltService service = factory.createCobaltService(nativeService);
     if (service != null) {
+      Looper myLooper = Looper.myLooper();
+      if (myLooper != null
+          && (mServiceHandler == null || mServiceHandler.getLooper() != myLooper)) {
+        mServiceHandler = new Handler(myLooper);
+      }
       service.setServiceName(serviceName);
       service.setNativeService(nativeService);
       onServiceCreated(service);
@@ -997,7 +1088,7 @@ public class BaseStarboardBridge {
   @CalledByNative
   public void closeAllCobaltService() {
     for (Long nativeService : new ArrayList<>(mCobaltServices.keySet())) {
-      closeCobaltService(nativeService);
+      runOnServiceThread(() -> closeCobaltService(nativeService));
     }
   }
 

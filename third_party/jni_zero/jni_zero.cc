@@ -25,10 +25,6 @@ jclass (*g_class_resolver)(JNIEnv*, const char*, const char*) = nullptr;
 
 void (*g_exception_handler_callback)(JNIEnv*) = nullptr;
 
-/* Cobalt specific hack to move Java classes to a custom namespace.
-   For every class org.chromium.foo moves them to cobalt.org.chromium.foo
-   This works around link-time conflicts when building the final
-   package against other Chromium release artifacts. */
 jclass GetClassInternal(JNIEnv* env,
                         const char* class_name,
                         const char* split_name) {

@@ -25,6 +25,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "build/build_config.h"
@@ -131,8 +132,8 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   int GetAndResetTicket(const std::string& sb_drm_session_id);
   std::string WvdmSessionIdToSbDrmSessionId(
       const std::string& wvcdm_session_id);
-  bool SbDrmSessionIdToWvdmSessionId(std::string_view sb_drm_session_id,
-                                     std::string* wvcdm_session_id);
+  std::optional<std::string> SbDrmSessionIdToWvdmSessionId(
+      std::string_view sb_drm_session_id) const;
 
   // Generates a special key message to ask for the server certificate.  When
   // the license server receives the request, it will send back the server

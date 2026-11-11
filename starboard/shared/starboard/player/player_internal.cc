@@ -82,8 +82,8 @@ void SbPlayerPrivateImpl::Seek(int64_t seek_to_time, int ticket) {
 
 void SbPlayerPrivateImpl::WriteSamples(const SbPlayerSampleInfo* sample_infos,
                                        int number_of_sample_infos) {
-  SB_DCHECK(sample_infos);
-  SB_DCHECK_GT(number_of_sample_infos, 0);
+  SB_CHECK(sample_infos);
+  SB_CHECK_GT(number_of_sample_infos, 0);
 
   InputBuffers input_buffers;
   input_buffers.reserve(number_of_sample_infos);
@@ -115,7 +115,7 @@ void SbPlayerPrivateImpl::SetBounds(int z_index, const Rect& rect) {
 }
 
 void SbPlayerPrivateImpl::GetInfo(SbPlayerInfo* out_player_info) {
-  SB_DCHECK(out_player_info);
+  SB_CHECK(out_player_info);
 
   std::lock_guard lock(mutex_);
   out_player_info->duration = SB_PLAYER_NO_DURATION;

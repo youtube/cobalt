@@ -123,8 +123,8 @@ std::string RemoveAttributeFromMime(const char* mime,
 void StripAndParseBitrate(const char* mime,
                           std::string* mime_without_bitrate,
                           int* bitrate) {
-  SB_DCHECK(mime_without_bitrate);
-  SB_DCHECK(bitrate);
+  SB_CHECK(mime_without_bitrate);
+  SB_CHECK(bitrate);
 
   std::string bitrate_string;
   *mime_without_bitrate =
@@ -153,7 +153,7 @@ SB_ONCE_INITIALIZE_FUNCTION(MimeSupportabilityCache,
 
 MimeSupportabilityCache::MimeSupportabilityResult
 MimeSupportabilityCache::GetMimeSupportability(const char* mime) {
-  SB_DCHECK(mime);
+  SB_CHECK(mime);
 
   // Strip the bitrate from mime string and check it separately.
   std::string mime_without_bitrate;

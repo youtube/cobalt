@@ -15,6 +15,7 @@
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 
 #include <memory>
+#include <optional>
 
 #include "base/base_paths.h"
 #include "base/check.h"
@@ -63,6 +64,16 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "cobalt/memory/android_os_signal_evaluator.h"
+#include "content/public/browser/browser_context.h"
+#include "content/public/browser/storage_partition.h"
+#include "content/public/common/content_switches.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "net/base/network_anonymization_key.h"
+#include "net/base/schemeful_site.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
+#include "services/network/public/mojom/fetch_api.mojom.h"
+#include "services/network/public/mojom/network_context.mojom.h"
+#include "url/gurl.h"
 #endif
 
 #if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
@@ -98,6 +109,7 @@
 #include "base/android/build_info.h"
 #include "base/android/jni_android.h"
 #include "cobalt/android/jni_headers/ProcessExitReasonHelper_jni.h"
+#include "cobalt/browser/metrics/cobalt_process_state_summary_manager.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -278,8 +290,18 @@ int64_t RecordPriorSessionExitReasons(bool deduplication_enabled,
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_ProcessExitReasonHelper_setDeduplicationEnabled(env,
                                                        deduplication_enabled);
-  return Java_ProcessExitReasonHelper_recordHistoricalProcessExitReason(
-      env, last_logged_timestamp_ms);
+  int64_t recorded_timestamp_ms =
+      Java_ProcessExitReasonHelper_recordHistoricalProcessExitReason(
+          env, last_logged_timestamp_ms);
+  int exit_reason = -1;
+  auto summary =
+      CobaltProcessStateSummaryManager::GetInstance()->GetPriorSessionSummary(
+          &exit_reason);
+  if (summary.has_value() &&
+      (exit_reason >= 0 || summary->startup_guard_triggered_kill)) {
+    EmitPriorSessionExitSummaryHistograms(exit_reason, *summary);
+  }
+  return recorded_timestamp_ms;
 }
 #endif
 
@@ -354,6 +376,52 @@ void RunDelayedStorageCleanup() {
   }
   DeleteUnusedChromiumStoragePaths(user_data_dir);
 }
+
+#if BUILDFLAG(IS_ANDROID)
+// Returns the URL the Java layer navigates to from ShellManager.launchShell():
+// the --url switch when present (forwarded from the Activity intent), otherwise
+// the default YouTube TV URL.
+GURL GetStartupUrlForPreconnect(const base::CommandLine& command_line) {
+  if (command_line.HasSwitch(::switches::kBrowserTest) &&
+      !command_line.HasSwitch(switches::kInitialURL)) {
+    return GURL();
+  }
+  return GURL(switches::GetInitialURL(command_line));
+}
+
+// Preconnects one socket to the startup URL origin so DNS resolution and the
+// TCP/TLS handshake overlap with the rest of browser startup.
+void PreconnectToStartupOrigin(content::BrowserContext* browser_context) {
+  if (!browser_context) {
+    return;
+  }
+  const GURL startup_url =
+      GetStartupUrlForPreconnect(*base::CommandLine::ForCurrentProcess());
+  if (!startup_url.is_valid() || !startup_url.SchemeIsHTTPOrHTTPS()) {
+    return;
+  }
+
+  network::mojom::NetworkContext* network_context =
+      browser_context->GetDefaultStoragePartition()->GetNetworkContext();
+  if (!network_context) {
+    return;
+  }
+
+  constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
+      net::DefineNetworkTrafficAnnotation(
+          "cobalt_startup_preconnect",
+          "Preconnects to the initial launch URL origin during Cobalt browser "
+          "startup.");
+  // PreconnectSockets() only uses the scheme, host and port of `startup_url`.
+  network_context->PreconnectSockets(
+      /*num_streams=*/1, startup_url, network::mojom::CredentialsMode::kInclude,
+      net::NetworkAnonymizationKey::CreateSameSite(
+          net::SchemefulSite(startup_url)),
+      net::MutableNetworkTrafficAnnotationTag(kTrafficAnnotation),
+      /*keepalive_config=*/std::nullopt,
+      /*observer_client=*/mojo::NullRemote());
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 
@@ -498,7 +566,13 @@ void CobaltBrowserMainParts::InitializeMessageLoopContext() {
   // invokes ShellManager.launchShell() which reaches C++ via JNI.
   // On Linux, we might need the base behavior.
   // go/chrobalt-pre-initialization-storage-migration-pipeline
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
+  // Experiment (b/576795062): warm up the connection to the startup URL origin
+  // while WebContents creation is still deferred.
+  if (base::FeatureList::IsEnabled(features::kCobaltStartupPreconnect)) {
+    PreconnectToStartupOrigin(browser_context());
+  }
+#else
   ShellBrowserMainParts::InitializeMessageLoopContext();
 #endif
 }
@@ -589,6 +663,7 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
                     GlobalFeatures::GetInstance()->metrics_local_state()) {
               local_state->SetInt64(kLastLoggedProcessExitTimestampMs,
                                     recorded_timestamp_ms);
+              local_state->CommitPendingWrite();
             }
           }
         }));

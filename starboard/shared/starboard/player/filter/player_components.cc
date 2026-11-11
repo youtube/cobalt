@@ -198,7 +198,7 @@ PlayerComponents::Factory::CreateComponents(
 
   if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
     SB_DCHECK(components.audio.decoder);
-    SB_DCHECK(components.audio.renderer_sink);
+    SB_CHECK(components.audio.renderer_sink);
 
     int max_cached_frames, min_frames_per_append;
     components.audio.renderer_sink->GetAudioRendererParams(

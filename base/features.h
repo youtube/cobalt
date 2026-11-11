@@ -20,6 +20,13 @@ namespace base::features {
 // TRIM_MEMORY_RUNNING_MODERATE signals as moderate memory pressure on Android.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltEnableModerateMemoryPressure);
 
+// When enabled, DiscardableSharedMemoryManager does not keep its own long-lived
+// mapping of each discardable segment. In single-process mode the client
+// already maps the segment in the same process, so this halves the virtual
+// address space used by discardable memory. The manager keeps the file
+// descriptor and maps a segment only briefly when purging it.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltDiscardableSingleMapping);
+
 // When enabled, image transfer cache entries bypass serialization and transfer
 // images directly to the GPU service thread in-process.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltInProcessImageTransferCache);
@@ -102,6 +109,23 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
 // experimentation (--enable-features=CobaltStorageCleanup).
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltStorageCleanup);
 
+// When enabled, skips queueing read-only cookie access timestamp updates
+// (COOKIE_UPDATEACCESS) to SQLite in
+// SQLitePersistentCookieStore::Backend::UpdateCookieAccessTime() so routine
+// HTTP cookie reads do not trigger Cobalt's 1-second background SQLite commit
+// (2 fsync()s per commit), while real cookie mutations (COOKIE_ADD and
+// COOKIE_DELETE) continue to batch and persist normally.
+// This is safe on Cobalt because:
+// 1. Web applications (e.g. Kabuki) never observe last_access_utc (HTTP Cookie
+//    headers only send name=value, and neither document.cookie nor h5vcc
+//    exposes cookie access timestamps).
+// 2. CookieMonster still updates LastAccessDate() in memory, COOKIE_ADD still
+//    writes last_access_utc on cookie creation/rotation, and persisted
+//    last_access_utc is only used by Chromium for LRU overflow eviction when a
+//    domain exceeds kDomainMaxCookies (180), whereas Cobalt holds < 20 cookies.
+// Disabled by default for Finch/Mendel A/B experimentation
+// (--enable-features=CobaltSkipCookieUpdateAccess).
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltSkipCookieUpdateAccess);
 // When enabled, optimizes LocalStorage LevelDB options (enabling reuse_logs
 // so cold-start DB::Open() reuses the existing write-ahead log without
 // synchronously compacting on open) and skips empty 0-mutation commits

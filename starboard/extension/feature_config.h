@@ -158,6 +158,17 @@ STARBOARD_FEATURE(kReleaseVideoFramesAfterAudioStarts,
                   "ReleaseVideoFramesAfterAudioStarts",
                   false)
 
+// When the AudioTrack playback head is stalled and its start threshold has
+// grown (e.g. after the platform recreated the track for a higher-latency
+// route), flush and re-feed the track or raise a capability changed error to
+// restart playback if the new threshold exceeds the sink buffer.
+// TODO: b/573043984 - Remove this flag (and
+// AudioTrackAudioSinkType::Options::restart_on_audio_threshold_growth) if no
+// regression is reported by 2026-12-31.
+STARBOARD_FEATURE(kRestartPlaybackOnAudioThresholdGrowth,
+                  "RestartPlaybackOnAudioThresholdGrowth",
+                  true)
+
 // By default, stub audio decoder is disabled.
 STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)
 

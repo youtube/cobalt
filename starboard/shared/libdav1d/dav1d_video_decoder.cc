@@ -37,7 +37,7 @@ constexpr int kMaxDecodedFrameWidth = 7680;
 constexpr int kMaxDecodedFrameHeight = 4320;
 
 void ReleaseInputBuffer(const uint8_t* buf, void* context) {
-  SB_DCHECK(context);
+  SB_CHECK(context);
   SB_DCHECK(buf);
 
   InputBuffer* input_buffer = static_cast<InputBuffer*>(context);
@@ -95,7 +95,7 @@ void Dav1dVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 
   if (!decoder_thread_) {
     decoder_thread_ = JobThread::Create("dav1d_video_decoder");
-    SB_DCHECK(decoder_thread_);
+    SB_CHECK(decoder_thread_);
   }
 
   const auto& input_buffer = input_buffers[0];
@@ -202,7 +202,7 @@ void Dav1dVideoDecoder::TeardownCodec() {
 void Dav1dVideoDecoder::DecodeOneBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
-  SB_DCHECK(input_buffer);
+  SB_CHECK(input_buffer);
 
   const auto& stream_info = input_buffer->video_stream_info();
   if (!dav1d_context_ || stream_info.frame_size != current_frame_size_) {

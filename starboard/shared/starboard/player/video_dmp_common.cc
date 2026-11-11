@@ -22,7 +22,7 @@ namespace starboard {
 
 #define DEFINE_READ_AS_INT32_FUNCTION(Type)                                \
   void Read(const ReadCB& read_cb, bool reverse_byte_order, Type* value) { \
-    SB_DCHECK(value);                                                      \
+    SB_CHECK(value);                                                       \
     int32_t int32_value;                                                   \
     Read(read_cb, &int32_value, sizeof(int32_value));                      \
     if (reverse_byte_order) {                                              \
@@ -34,7 +34,7 @@ namespace starboard {
 
 #define DEFINE_READ_AS_UINT32_FUNCTION(Type)                               \
   void Read(const ReadCB& read_cb, bool reverse_byte_order, Type* value) { \
-    SB_DCHECK(value);                                                      \
+    SB_CHECK(value);                                                       \
     uint32_t uint32_value;                                                 \
     Read(read_cb, &uint32_value, sizeof(uint32_value));                    \
     if (reverse_byte_order) {                                              \
@@ -88,7 +88,7 @@ void Write(const WriteCB& write_cb, const void* buffer, size_t size) {
 void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
           AudioSampleInfo* audio_sample_info) {
-  SB_DCHECK(audio_sample_info);
+  SB_CHECK(audio_sample_info);
 
   *audio_sample_info = AudioSampleInfo();
 
@@ -152,7 +152,7 @@ void Write(const WriteCB& write_cb,
 void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
           SbDrmSampleInfoWithSubSampleMapping* drm_sample_info) {
-  SB_DCHECK(drm_sample_info);
+  SB_CHECK(drm_sample_info);
 
   Read(read_cb, reverse_byte_order,
        &drm_sample_info->initialization_vector_size);
@@ -189,7 +189,7 @@ void Write(const WriteCB& write_cb, const SbDrmSampleInfo& drm_sample_info) {
 void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
           VideoSampleInfo* video_sample_info) {
-  SB_DCHECK(video_sample_info);
+  SB_CHECK(video_sample_info);
 
   *video_sample_info = VideoSampleInfo();
   VideoStreamInfo* video_stream_info = &video_sample_info->stream_info;

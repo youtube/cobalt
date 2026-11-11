@@ -45,7 +45,7 @@ int hex_to_int(char hex) {
 // the character is not a digit, return true otherwise.
 template <typename T>
 bool ReadOneDigitHex(const char* str, T* output) {
-  SB_DCHECK(str);
+  SB_CHECK(str);
 
   if (str[0] >= 'A' && str[0] <= 'F') {
     *output = static_cast<T>((str[0] - 'A' + 10));
@@ -69,7 +69,7 @@ bool ReadOneDigitHex(const char* str, T* output) {
 // a digit, return true otherwise.
 template <typename T>
 bool ReadDecimalUntilDot(const char* str, T* output) {
-  SB_DCHECK(str);
+  SB_CHECK(str);
 
   *output = 0;
   while (*str != 0 && *str != '.') {
@@ -87,7 +87,7 @@ bool ReadDecimalUntilDot(const char* str, T* output) {
 // any character is not a digit, return true otherwise.
 template <typename T>
 bool ReadTwoDigitDecimal(const char* str, T* output) {
-  SB_DCHECK(str);
+  SB_CHECK(str);
 
   if (!isdigit(str[0]) || !isdigit(str[1])) {
     return false;
@@ -817,14 +817,14 @@ bool ParseVideoCodec(const char* codec_string,
                      SbMediaPrimaryId* primary_id,
                      SbMediaTransferId* transfer_id,
                      SbMediaMatrixId* matrix_id) {
-  SB_DCHECK(codec_string);
-  SB_DCHECK(codec);
-  SB_DCHECK(profile);
-  SB_DCHECK(level);
-  SB_DCHECK(bit_depth);
-  SB_DCHECK(primary_id);
-  SB_DCHECK(transfer_id);
-  SB_DCHECK(matrix_id);
+  SB_CHECK(codec_string);
+  SB_CHECK(codec);
+  SB_CHECK(profile);
+  SB_CHECK(level);
+  SB_CHECK(bit_depth);
+  SB_CHECK(primary_id);
+  SB_CHECK(transfer_id);
+  SB_CHECK(matrix_id);
 
   *codec = kSbMediaVideoCodecNone;
   *profile = -1;

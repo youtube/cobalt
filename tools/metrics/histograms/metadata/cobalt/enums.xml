@@ -72,11 +72,11 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="6" label="ApplicationAndroidInitialize"/>
   <int value="7" label="PostStarboardBridgeInit"/>
   <int value="8" label="ActivityWindowConfigured"/>
-  <int value="9" label="ActivityOnStart"/>
-  <int value="10" label="ActivityOnResume"/>
-  <int value="11" label="ActivityOnPause"/>
-  <int value="12" label="ActivityOnStop"/>
-  <int value="13" label="ActivityOnDestroy"/>
+  <int value="9" label="PostActivityOnCreate"/>
+  <int value="10" label="PreActivityOnStart"/>
+  <int value="11" label="PostActivityOnStart"/>
+  <int value="12" label="PreActivityOnResume"/>
+  <int value="13" label="PostActivityOnResume"/>
   <int value="14" label="MainDelegateBasicStartupComplete"/>
   <int value="15" label="MainDelegatePreSandboxStartup"/>
   <int value="16" label="MainDelegatePostEarlyInitialization"/>
@@ -143,6 +143,15 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="0" label="Success"/>
   <int value="1" label="Allocation Failed (OOM)"/>
   <int value="2" label="Exceeds Max Limit"/>
+</enum>
+
+<enum name="PlatformServiceSendStatus">
+  <int value="0" label="Success"/>
+  <int value="1" label="Message too large"/>
+  <int value="2" label="Extension not implemented"/>
+  <int value="3" label="Invalid service handle"/>
+  <int value="4" label="Starboard invalid state"/>
+  <int value="5" label="Null response data"/>
 </enum>
 
 <enum name="SentinelWriteResult">

@@ -145,7 +145,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 #endif  // BUILDFLAG(IS_ANDROID)
   );
 
-  void OnVideoGeometryChange(const gfx::Rect& output_rect);
+  void OnVideoGeometryChange(const gfx::Rect& output_rect, int z_index);
   void OnSbWindowHandleReady(const uint64_t sb_window_handle);
 #if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
@@ -202,6 +202,10 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                            int max_buffers,
                            DemuxerStream::Status status,
                            DemuxerStream::DecoderBufferVector buffers);
+  // Computes PipelineStatistics deltas since the last call from the running
+  // totals reported by SbPlayerBridge::GetInfo(), and posts them to |client_|
+  // if anything changed.
+  void UpdateStatistics(const SbPlayerBridge::PlayerStatistics& totals);
   void OnStatisticsUpdate(const PipelineStatistics& stats);
 
   // SbPlayerBridge::Host implementation.
@@ -290,6 +294,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // The current overlay info, which possibly specifies an overlay to render to.
   OverlayInfo overlay_info_;
 
+  std::optional<int> z_index_;
   std::optional<gfx::Rect> output_rect_;
 
   // Temporary callback used for Initialize().
@@ -333,8 +338,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   double playback_rate_ = 0.;
   float volume_ = 1.0f;
 
-  uint32_t last_video_frames_decoded_ = 0;
-  uint32_t last_video_frames_dropped_ = 0;
+  // The totals from SbPlayerBridge as of the last call to UpdateStatistics().
+  SbPlayerBridge::PlayerStatistics last_reported_statistics_;
 
   SbWindow sb_window_ = kSbWindowInvalid;
 

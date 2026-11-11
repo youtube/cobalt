@@ -31,6 +31,8 @@ public class CobaltContentBrowserClient {
     boolean isFreezeOnBackgroundEnabled();
 
     int getFreezeOnBackgroundDelayMs();
+
+    boolean isPlatformServicesOffUiThreadEnabled();
   }
 
   public static void flushCookiesAndLocalStorage() {
@@ -59,5 +61,13 @@ public class CobaltContentBrowserClient {
    */
   public static int getFreezeOnBackgroundDelayMs() {
     return CobaltContentBrowserClientJni.get().getFreezeOnBackgroundDelayMs();
+  }
+
+  /**
+   * Returns whether the CobaltPlatformServicesOffUiThread Finch feature is enabled. Requires native
+   * to be initialized.
+   */
+  public static boolean isPlatformServicesOffUiThreadEnabled() {
+    return CobaltContentBrowserClientJni.get().isPlatformServicesOffUiThreadEnabled();
   }
 }

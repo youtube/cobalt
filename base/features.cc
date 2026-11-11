@@ -44,6 +44,10 @@ BASE_FEATURE(kCobaltEnableModerateMemoryPressure,
              "CobaltEnableModerateMemoryPressure",
              FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCobaltDiscardableSingleMapping,
+             "CobaltDiscardableSingleMapping",
+             FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kCobaltMemoryPressureCooldown,
              "CobaltMemoryPressureCooldown",
              FEATURE_DISABLED_BY_DEFAULT);
@@ -185,6 +189,10 @@ BASE_FEATURE_PARAM(int,
 
 BASE_FEATURE(kCobaltStorageCleanup,
              "CobaltStorageCleanup",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltSkipCookieUpdateAccess,
+             "CobaltSkipCookieUpdateAccess",
              FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCobaltLocalStorageReuseLogsAndSkipEmptyCommits,

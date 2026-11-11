@@ -6,6 +6,8 @@
 
 #include <utility>
 
+#include "base/containers/contains.h"
+#include "base/numerics/checked_math.h"
 #include "base/task/sequenced_task_runner.h"
 
 #define MAKE_SURE_ON_SEQUENCE(callback, ...)                                   \
@@ -69,21 +71,67 @@ void VideoGeometrySetterService::SubscribeToVideoGeometryChange(
       &VideoGeometrySetterService::OnVideoGeometryChangeClientGone,
       base::Unretained(this), overlay_plane_id));
   video_geometry_change_clients_[overlay_plane_id] = std::move(client);
+  sent_geometries_.erase(overlay_plane_id);
+
+  // The video hole may have been reported before the client subscribed.
+  MaybeNotifyClient(overlay_plane_id);
 
   std::move(callback).Run();
 }
 
-void VideoGeometrySetterService::SetVideoGeometry(
-    const gfx::RectF& rect_f,
-    gfx::OverlayTransform transform,
-    const base::UnguessableToken& overlay_plane_id) {
+void VideoGeometrySetterService::SetVideoGeometries(
+    std::vector<mojom::VideoHoleGeometryPtr> front_to_back) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  auto video_geometry_change_client =
-      video_geometry_change_clients_.find(overlay_plane_id);
-  if (video_geometry_change_client != video_geometry_change_clients_.end()) {
-    video_geometry_change_client->second->OnVideoGeometryChange(rect_f,
-                                                                transform);
+
+  std::vector<base::UnguessableToken> overlay_plane_ids;
+  overlay_plane_ids.reserve(front_to_back.size());
+  for (const auto& video_hole : front_to_back) {
+    overlay_plane_ids.push_back(video_hole->overlay_plane_id);
   }
+
+  if (overlay_plane_ids != last_front_to_back_) {
+    // Start above every z-index handed out so far, so that videos whose hole is
+    // missing from this frame stay below the ones that are present.
+    base::CheckedNumeric<int32_t> next_z_index = next_z_index_;
+    next_z_index += overlay_plane_ids.size();
+    next_z_index_ = next_z_index.ValueOrDie();
+    last_front_to_back_ = std::move(overlay_plane_ids);
+  }
+
+  // The front-most video hole gets the largest z-index, i.e., the last one
+  // handed out for the current order.
+  int32_t z_index = next_z_index_ - 1;
+  for (const auto& video_hole : front_to_back) {
+    latest_geometries_[video_hole->overlay_plane_id] = {
+        video_hole->rect_f, video_hole->transform, z_index--};
+    MaybeNotifyClient(video_hole->overlay_plane_id);
+  }
+
+  // Forget the holes that are gone and have no client to deliver them to.
+  base::EraseIf(latest_geometries_, [this](const auto& entry) {
+    return !video_geometry_change_clients_.contains(entry.first) &&
+           !base::Contains(last_front_to_back_, entry.first);
+  });
+}
+
+void VideoGeometrySetterService::MaybeNotifyClient(
+    const base::UnguessableToken& overlay_plane_id) {
+  auto client = video_geometry_change_clients_.find(overlay_plane_id);
+  auto latest = latest_geometries_.find(overlay_plane_id);
+  if (client == video_geometry_change_clients_.end() ||
+      latest == latest_geometries_.end()) {
+    return;
+  }
+
+  auto sent = sent_geometries_.find(overlay_plane_id);
+  if (sent != sent_geometries_.end() && sent->second == latest->second) {
+    return;
+  }
+
+  const Geometry& geometry = latest->second;
+  sent_geometries_[overlay_plane_id] = geometry;
+  client->second->OnVideoGeometryChange(geometry.rect_f, geometry.transform,
+                                        geometry.z_index);
 }
 
 // When a VideoGeometryChangeClient is gone, delete the corresponding entry in
@@ -92,6 +140,8 @@ void VideoGeometrySetterService::OnVideoGeometryChangeClientGone(
     const base::UnguessableToken overlay_plane_id) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   video_geometry_change_clients_.erase(overlay_plane_id);
+  sent_geometries_.erase(overlay_plane_id);
+  latest_geometries_.erase(overlay_plane_id);
 }
 
 }  // namespace media
