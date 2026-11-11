@@ -4,6 +4,8 @@
 
 #include "third_party/blink/renderer/controller/memory_saver_controller.h"
 
+#include <algorithm>
+
 #include "base/system/sys_info.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/core/workers/worker_backing_thread.h"
@@ -40,6 +42,9 @@ MemorySaverController::MemorySaverController() {
     memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
         FROM_HERE, WTF::BindRepeating(&MemorySaverController::OnMemoryPressure,
                                       WTF::Unretained(this)));
+    // Like |sample_timer_|, don't wake the device just to end the hold time.
+    memory_pressure_hold_timer_.SetTaskRunner(
+        scheduler->NonWakingTaskRunner());
   }
 #endif  // BUILDFLAG(IS_COBALT)
   if (base::SysInfo::AmountOfPhysicalMemory() >= 4000 * kMB) {
@@ -88,8 +93,9 @@ void MemorySaverController::OnMemoryPressure(
   UpdateMemorySaverMode();
   memory_pressure_hold_timer_.Start(
       FROM_HERE,
-      base::Seconds(features::kCobaltV8MemorySaverHoldSeconds.Get()), this,
-      &MemorySaverController::OnMemoryPressureHoldExpired);
+      base::Seconds(
+          std::max(0, features::kCobaltV8MemorySaverHoldSeconds.Get())),
+      this, &MemorySaverController::OnMemoryPressureHoldExpired);
 }
 
 void MemorySaverController::OnMemoryPressureHoldExpired() {
