@@ -101,10 +101,47 @@ DefaultMediaCodecFactory::CreateVideoMediaCodec(
   const bool must_support_tunnel_mode =
       platform_options.tunnel_mode_audio_session_id.has_value();
 
-  std::string decoder_name =
-      MediaCapabilitiesCache::GetInstance()->FindVideoDecoder(
-          mime, must_support_secure, needs_hdr_capable_decoder,
-          platform_options.require_software_codec, must_support_tunnel_mode);
+  std::string decoder_name;
+  if (platform_options.select_decoder_directly) {
+    if (must_support_secure || needs_hdr_capable_decoder ||
+        must_support_tunnel_mode || platform_options.require_software_codec) {
+      SB_LOG(WARNING) << "Not selecting the decoder directly: the stream needs "
+                         "a secure, HDR, tunnel mode or software decoder.";
+    } else {
+      // Skips MediaCapabilitiesCache, whose first lookup loads every codec's
+      // capabilities, and fails rather than fall back to it: the caller, e.g.,
+      // the native video splash screen, falls back to something else.
+      decoder_name = MediaCapabilitiesCache::FindVideoDecoderDirectly(mime);
+      if (decoder_name.empty()) {
+        return Failure(
+            FormatString("Failed to find a decoder directly: mime=%s", mime));
+      }
+      // Java's MediaCodecBridge builds the decoder's MediaCodecInfo, which
+      // waits for MediaCodecList's lock while another thread loads the codec
+      // list, e.g., for MediaCapabilitiesCache: creates the decoder with the
+      // NDK instead, where it can.
+      if (android_get_device_api_level() >= 28) {
+        auto ndk_bridge = NdkMediaCodec::Create(
+            video_codec, decoder_name, frame_size_hint, fps, max_frame_size,
+            handler, j_surface, j_media_crypto, color_metadata,
+            platform_options.enable_frame_renderer_listener,
+            platform_options.require_secured_decoder,
+            platform_options.require_software_codec,
+            platform_options.max_input_size);
+        if (ndk_bridge) {
+          return ndk_bridge;
+        }
+        return Failure(FormatString("Failed to create %s with the NDK",
+                                    decoder_name.c_str()));
+      }
+    }
+  }
+
+  if (decoder_name.empty()) {
+    decoder_name = MediaCapabilitiesCache::GetInstance()->FindVideoDecoder(
+        mime, must_support_secure, needs_hdr_capable_decoder,
+        platform_options.require_software_codec, must_support_tunnel_mode);
+  }
   if (decoder_name.empty() && needs_hdr_capable_decoder) {
     decoder_name = MediaCapabilitiesCache::GetInstance()->FindVideoDecoder(
         mime, must_support_secure, /*must_support_hdr=*/false,
@@ -203,7 +240,9 @@ std::ostream& operator<<(std::ostream& os,
             << ", require_software_codec="
             << ToString(options.require_software_codec)
             << ", tunnel_mode_audio_session_id="
-            << ToString(options.tunnel_mode_audio_session_id) << "}";
+            << ToString(options.tunnel_mode_audio_session_id)
+            << ", select_decoder_directly="
+            << ToString(options.select_decoder_directly) << "}";
 }
 
 }  // namespace starboard

@@ -236,6 +236,15 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaNdkVideo("Media.NdkVideo");
 inline constexpr ExperimentalFeatureKey<bool> kMediaPauseUsingAudioTrackState(
     "Media.PauseUsingAudioTrackState");
 
+// When set, Android's video decoder doesn't look up its decoder in
+// MediaCapabilitiesCache, whose first lookup loads every codec's capabilities:
+// it takes the platform's default decoder for the MIME type, if that decoder
+// isn't deny-listed or a software decoder by its name, creates it with the NDK
+// where it can, and fails otherwise. Only for clear, SDR and non-tunneled
+// streams, e.g., the native video splash screen's (b/584304367).
+inline constexpr ExperimentalFeatureKey<bool> kMediaSelectVideoDecoderDirectly(
+    "Media.SelectVideoDecoderDirectly");
+
 // When set, AudioRendererPcm only resamples decoded audio when its sample rate
 // has to change.  By default decoded audio that merely needs to be converted
 // to float32 for the time stretcher is also routed through the resampler at

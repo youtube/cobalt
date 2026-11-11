@@ -348,6 +348,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               kMediaEnableCodecThreadImprovements)),
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
+      select_decoder_directly_(pipeline_config.experimental_features.GetBool(
+          kMediaSelectVideoDecoderDirectly)),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
@@ -413,7 +415,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", is_video_frame_tracker_enabled="
                << ToString(is_video_frame_tracker_enabled_)
                << ", ignore_stale_rendered_frames_after_seek="
-               << ToString(ignore_stale_rendered_frames_after_seek_);
+               << ToString(ignore_stale_rendered_frames_after_seek_)
+               << ", select_decoder_directly="
+               << ToString(select_decoder_directly_);
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
@@ -904,7 +908,8 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
           /*enable_ndk_video=*/enable_ndk_video_,
           /*enable_trivial_optimizations=*/enable_trivial_optimizations_,
           /*enable_codec_thread_improvements=*/
-          enable_codec_thread_improvements_});
+          enable_codec_thread_improvements_,
+          /*select_decoder_directly=*/select_decoder_directly_});
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {

@@ -15,10 +15,14 @@
 #include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 
 #include <string>
+#include <utility>
 
+#include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "cobalt/shell/browser/splash_cache_reader.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
@@ -159,17 +163,16 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
     // is disabled by default. Browser tests can't override features once the
     // browser starts, e.g., with a ScopedFeatureList in
     // CreatedBrowserMainParts(), which fails a DCHECK on Android, so this
-    // overrides it in the factory before the browser starts. Otherwise, the
-    // feature's default applies.
-    H5vccSchemeURLLoaderFactory::SetCachedSplashFileEnabledForTesting(
+    // overrides it with SetCachedSplashFileEnabledForTesting() before the
+    // browser starts. Otherwise, the feature's default applies.
+    SetCachedSplashFileEnabledForTesting(
         enable_cached_splash_file_ ? std::optional<bool>(true) : std::nullopt);
     H5vccSchemeURLLoaderFactoryBrowserTest::SetUp();
   }
 
   void TearDown() override {
     H5vccSchemeURLLoaderFactoryBrowserTest::TearDown();
-    H5vccSchemeURLLoaderFactory::SetCachedSplashFileEnabledForTesting(
-        std::nullopt);
+    SetCachedSplashFileEnabledForTesting(std::nullopt);
   }
 
   // Verifies that the splash video is correctly loaded from the cache (or
@@ -503,6 +506,99 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheDisabledBrowserTest,
       /*content=*/"aaabbbccc", /*expected_content=*/"BUILTIN_SPLASH_480",
       /*expected_uma_state=*/
       SplashScreenFetchedState::kSkippedCachedAssets);
+}
+
+// The reader of the video played natively, with NativeVideoSplashScreen.
+class SplashCacheReaderBrowserTest
+    : public H5vccSchemeURLLoaderFactoryCacheBrowserTest {
+ public:
+  SplashCacheReaderBrowserTest() = default;
+
+  // Puts `content` as splash.webm in the cache `cache_name` of the splash
+  // domain.
+  void PutSplashVideoInCache(const std::string& cache_name,
+                             const std::string& content) {
+    ASSERT_TRUE(embedded_test_server()->Start());
+    H5vccSchemeURLLoaderFactory::SetSplashDomainForTesting(
+        embedded_test_server()->base_url().spec());
+    EXPECT_TRUE(
+        NavigateToURL(shell(), embedded_test_server()->GetURL("/title1.html")));
+    EXPECT_EQ("Success", EvalJs(shell(), base::StringPrintf(R"(
+      (async () => {
+        const cache = await caches.open('%s');
+        await cache.put('splash.webm',
+                        new Response(new Blob(['%s'], {type: 'video/webm'})));
+        return 'Success';
+      })();
+    )",
+                                                            cache_name.c_str(),
+                                                            content.c_str())));
+  }
+
+  // Reads splash.webm from the cache `cache_name`.
+  std::pair<SplashScreenFetchedState, std::string> ReadSplashVideo(
+      const std::u16string& cache_name) {
+    base::RunLoop run_loop;
+    std::pair<SplashScreenFetchedState, std::string> result;
+    std::unique_ptr<SplashCacheReader> reader =
+        H5vccSchemeURLLoaderFactory::CreateSplashCacheReader(
+            shell()->web_contents()->GetBrowserContext());
+    reader->Read("splash.webm", cache_name,
+                 base::BindLambdaForTesting(
+                     [&](SplashScreenFetchedState state, std::string content) {
+                       result = {state, std::move(content)};
+                       run_loop.Quit();
+                     }));
+    run_loop.Run();
+    return result;
+  }
+
+ protected:
+  explicit SplashCacheReaderBrowserTest(bool enable_cached_splash_file)
+      : H5vccSchemeURLLoaderFactoryCacheBrowserTest(enable_cached_splash_file) {
+  }
+};
+
+// As in Finch's crash safe mode, or with the kill switch.
+class SplashCacheReaderCacheDisabledBrowserTest
+    : public SplashCacheReaderBrowserTest {
+ public:
+  SplashCacheReaderCacheDisabledBrowserTest()
+      : SplashCacheReaderBrowserTest(/*enable_cached_splash_file=*/false) {}
+};
+
+IN_PROC_BROWSER_TEST_F(SplashCacheReaderBrowserTest, ReadsCachedVideo) {
+  PutSplashVideoInCache("music", "aaabbbccc");
+
+  EXPECT_EQ(
+      ReadSplashVideo(u"music"),
+      std::pair(SplashScreenFetchedState::kOkCache, std::string("aaabbbccc")));
+}
+
+IN_PROC_BROWSER_TEST_F(SplashCacheReaderBrowserTest, ReadsNothingIfNotCached) {
+  PutSplashVideoInCache("music", "aaabbbccc");
+
+  EXPECT_EQ(ReadSplashVideo(u"default"),
+            std::pair(SplashScreenFetchedState::kOkBuiltIn, std::string()));
+}
+
+IN_PROC_BROWSER_TEST_F(SplashCacheReaderBrowserTest, ReadsNothingIfTooLarge) {
+  H5vccSchemeURLLoaderFactory::SetSplashContentSizeForTesting(8);
+  PutSplashVideoInCache("default", "aaabbbccc");
+
+  EXPECT_EQ(ReadSplashVideo(u"default"),
+            std::pair(SplashScreenFetchedState::kErrorOnCacheFileOversize,
+                      std::string()));
+  H5vccSchemeURLLoaderFactory::SetSplashContentSizeForTesting(std::nullopt);
+}
+
+IN_PROC_BROWSER_TEST_F(SplashCacheReaderCacheDisabledBrowserTest,
+                       IgnoresCachedVideo) {
+  PutSplashVideoInCache("music", "aaabbbccc");
+
+  EXPECT_EQ(
+      ReadSplashVideo(u"music"),
+      std::pair(SplashScreenFetchedState::kSkippedCachedAssets, std::string()));
 }
 
 }  // namespace content

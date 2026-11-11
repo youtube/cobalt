@@ -139,6 +139,7 @@
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "content/renderer/media/cobalt/video_hole_web_media_player.h"
 #include "media/base/starboard/renderer_factory_traits.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -402,6 +403,17 @@ std::unique_ptr<blink::WebMediaPlayer> MediaFactory::CreateMediaPlayer(
   // Render thread may not exist in tests, returning nullptr if it does not.
   if (!render_thread)
     return nullptr;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Cobalt's built-in pages can punch a hole for video that Cobalt plays
+  // natively, e.g., the splash screen video.
+  if (auto video_hole_player = VideoHoleWebMediaPlayer::MaybeCreate(
+          url, web_frame, client,
+          render_frame_->GetTaskRunner(blink::TaskType::kInternalMedia),
+          render_thread->compositor_task_runner())) {
+    return video_hole_player;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // There may be many media elements on a page. Creating OS output streams for
   // each can be very expensive, so we create an audio output sink which can be
