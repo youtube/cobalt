@@ -265,7 +265,7 @@ def CompileAssetCatalog(output, target_os, target_environment, product_type,
             # caller has specified an app icon to use, then skip this asset
             # as it will be included in the app icon set. Otherwise, add the
             # asset to the command-line.
->>>>>>> parent of d044b617957 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4c6069869a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
             if asset_type in (APP_ICON_ASSET_TYPE, BRAND_ASSETS_TYPE):
                 if app_icon:
                     continue

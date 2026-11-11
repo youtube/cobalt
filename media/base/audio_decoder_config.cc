@@ -121,7 +121,7 @@ std::string AudioDecoderConfig::AsHumanReadableString() const {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     << ", mime_type: " << mime_type()
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of d044b617957 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4c6069869a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     << ", target_output_sample_format: "
     << SampleFormatToString(target_output_sample_format());
   return s.str();

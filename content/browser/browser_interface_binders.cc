@@ -1275,7 +1275,7 @@ void PopulateBinderMapWithContext(
                 std::move(receiver));
           }));
 #endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of d044b617957 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4c6069869a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   map->Add<blink::mojom::BackgroundFetchService>(
       &BackgroundFetchServiceImpl::CreateForFrame);
@@ -1573,7 +1573,7 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
           },
           base::Unretained(host)));
 #endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of d044b617957 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4c6069869a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void PopulateBinderMapWithContext(
@@ -1714,7 +1714,7 @@ void PopulateSharedWorkerBinders(SharedWorkerHost* host, mojo::BinderMap* map) {
           },
           base::Unretained(host)));
 #endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of d044b617957 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4c6069869a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 #if !BUILDFLAG(IS_ANDROID)
   map->Add<blink::mojom::DirectSocketsService>(base::BindRepeating(

@@ -231,7 +231,7 @@ class LocalDeviceEnvironment(environment.Environment):
           gboard_prefs.SetBoolean('enable_scribe', False)
           # Always show the soft keyboards.
           gboard_prefs.SetBoolean('pk_always_show_vk', True)
->>>>>>> parent of d044b617957 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4c6069869a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     self.parallel_devices.pMap(prepare_device)
 

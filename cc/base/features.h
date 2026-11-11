@@ -314,7 +314,7 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltTileMemoryMetrics);
 CC_BASE_EXPORT extern const base::FeatureParam<base::TimeDelta>
     kCobaltTileMemoryMetricsInterval;
 #endif
->>>>>>> parent of d044b617957 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4c6069869a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace features
 

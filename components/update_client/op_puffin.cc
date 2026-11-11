@@ -71,7 +71,7 @@ base::OnceClosure PuffOperation(
       std::move(callback))
       ->Operation(base::BindOnce(&Patcher::PatchPuffPatch, patcher));
 #endif  // defined(IN_MEMORY_UPDATES)
->>>>>>> parent of d044b617957 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4c6069869a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return base::DoNothing();
 }
 

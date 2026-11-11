@@ -19,7 +19,7 @@
 #if !BUILDFLAG(IS_COBALT)
 #include "third_party/cld_3/src/src/nnet_language_identifier.h"  // nogncheck
 #endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of d044b617957 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4c6069869a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "ui/accessibility/ax_enums.mojom-forward.h"
 #include "ui/accessibility/ax_export.h"
 #include "ui/accessibility/ax_tree_observer.h"
@@ -314,7 +314,7 @@ class AX_EXPORT AXLanguageDetectionManager {
   // used for detecting page-level languages.
 #if !BUILDFLAG(IS_COBALT)
   chrome_lang_id::NNetLanguageIdentifier language_identifier_;
->>>>>>> parent of d044b617957 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4c6069869a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // Lazy accessor for `short_text_language_identifier_`. Same rationale and
   // sequence requirements as GetLanguageIdentifier().
@@ -336,7 +336,7 @@ class AX_EXPORT AXLanguageDetectionManager {
 =======
   chrome_lang_id::NNetLanguageIdentifier short_text_language_identifier_;
 #endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of d044b617957 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of a4c6069869a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // The observer to support dynamic content language detection.
   std::unique_ptr<AXLanguageDetectionObserver> language_detection_observer_;
