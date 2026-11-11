@@ -4297,14 +4297,17 @@ deps = {
     gu = upstream_cl.gerrit_util
     with mock.patch.object(gu, "CreateHttpConn") as create, mock.patch.object(
         gu, "ReadHttpResponse",
-        return_value=io.StringIO("ZGlmZiAtLWdpdA==")) as read:
+        return_value=io.StringIO("ZGlmZiAtLWdpdA==")) as read, \
+        mock.patch.object(upstream_cl, "_gitiles_authenticator",
+                          return_value=None):
       res = upstream_cl._gitiles_text(  # pylint: disable=protected-access
           "chromium.googlesource.com", "chromium/src/+/abc%5E%21/?format=TEXT")
     self.assertEqual(res, "diff --git")
     create.assert_called_once_with(
         "chromium.googlesource.com",
         "chromium/src/+/abc%5E%21/?format=TEXT",
-        timeout=30)
+        timeout=30,
+        authenticator=None)
     read.assert_called_once_with(create.return_value)
 
     with mock.patch.object(
@@ -4318,15 +4321,18 @@ deps = {
   def test_gerrit_json_uses_gerrit_util_default_auth(self):
     gu = upstream_cl.gerrit_util
     with mock.patch.object(gu, "CreateHttpConn") as create, mock.patch.object(
-        gu, "ReadHttpJsonResponse", return_value={"ok": 1}) as read:
+        gu, "ReadHttpJsonResponse", return_value={"ok": 1}) as read, \
+        mock.patch.object(upstream_cl, "_gitiles_authenticator",
+                          return_value=None):
       res = upstream_cl._gerrit_json(  # pylint: disable=protected-access
           "chromium.googlesource.com", "chromium/src/+/HEAD?format=JSON")
     self.assertEqual(res, {"ok": 1})
-    # No authenticator passed: gerrit_util chooses it like `git cl` does.
+    # No authenticator: gerrit_util chooses it like `git cl` does.
     create.assert_called_once_with(
         "chromium.googlesource.com",
         "chromium/src/+/HEAD?format=JSON",
-        timeout=30)
+        timeout=30,
+        authenticator=None)
     read.assert_called_once_with(create.return_value)
 
     with mock.patch.object(
@@ -4336,6 +4342,45 @@ deps = {
       self.assertIsNone(
           upstream_cl._gerrit_json(  # pylint: disable=protected-access
               "chromium.googlesource.com", "x"))
+
+  def test_gitiles_uses_git_credential_luci_login_of_review_host(self):
+    """The login applies to Gitiles if the account exists on its Gerrit host.
+
+    Gitiles has no accounts API, so gerrit_util never applied the
+    `git credential-luci login` there and sent the request anonymously.
+    """
+    auth_for = upstream_cl._gitiles_authenticator  # pylint: disable=protected-access
+    creds = mock.MagicMock()
+    creds.is_applicable.return_value = True
+    with mock.patch.object(
+        upstream_cl.gerrit_util, "GitCredsAuthenticator", return_value=creds):
+      self.assertIs(auth_for("chromium.googlesource.com"), creds)
+      self.assertIs(auth_for("chromium.googlesource.com"), creds)
+    # Checked once, on the Gerrit host, then cached.
+    creds.is_applicable.assert_called_once_with(
+        gerrit_host="chromium-review.googlesource.com")
+
+  def test_gitiles_falls_back_to_gerrit_util_choice(self):
+    auth_for = upstream_cl._gitiles_authenticator  # pylint: disable=protected-access
+    creds = mock.MagicMock()
+    with mock.patch.object(
+        upstream_cl.gerrit_util, "GitCredsAuthenticator", return_value=creds):
+      # Not logged in (or no account on the Gerrit host).
+      creds.is_applicable.return_value = False
+      self.assertIsNone(auth_for("webrtc.googlesource.com"))
+      # git-credential-luci missing or failing.
+      creds.is_applicable.side_effect = RuntimeError("no luci-auth")
+      self.assertIsNone(auth_for("chromium.googlesource.com"))
+      # Gerrit hosts and other hosts are left to gerrit_util.
+      self.assertIsNone(auth_for("chromium-review.googlesource.com"))
+      self.assertIsNone(auth_for("example.com"))
+    self.assertEqual(creds.is_applicable.call_count, 2)
+    # Creating the authenticator itself fails (e.g. broken luci-auth setup).
+    with mock.patch.object(
+        upstream_cl.gerrit_util,
+        "GitCredsAuthenticator",
+        side_effect=RuntimeError("bad setup")):
+      self.assertIsNone(auth_for("skia.googlesource.com"))
 
   def test_commit_messages_and_report_include_upstream_refs(self):
     ref = "https://crrev.com/c/7695593 (16777dd52227 Remove tflite option)"
