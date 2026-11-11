@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "starboard/configuration_constants.h"
+#include "starboard/drm.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
@@ -64,6 +65,18 @@ std::string GetSbPlayerTestConfigName(
     ::testing::TestParamInfo<SbPlayerTestConfig> info);
 
 void SkipTestIfNotSupported(const SbPlayerTestConfig& config);
+
+bool IsWidevineKeySystem(const char* key_system);
+
+// Generates a session update request on a Widevine `drm_system`. Some platforms
+// decode no samples, clear ones included, until a session update request
+// succeeds.
+void GenerateWidevineSessionUpdateRequest(SbDrmSystem drm_system);
+
+// Returns false if the platform answers a session update request for the
+// Widevine `key_system` with an individualization request, as it does when the
+// device isn't provisioned.
+bool IsWidevineKeySystemProvisioned(const char* key_system);
 
 // Helper struct that stores data for valid codec transitions.
 struct TransitionSearchResult {

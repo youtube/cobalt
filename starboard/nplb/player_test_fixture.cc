@@ -463,11 +463,11 @@ void SbPlayerTestFixture::Initialize() {
 
   // Initialize drm system.
   if (!key_system_.empty()) {
-    drm_system_ = SbDrmCreateSystem(
-        key_system_.c_str(), NULL /* context */, DummySessionUpdateRequestFunc,
-        DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
-        DummyServerCertificateUpdatedFunc, DummySessionClosedFunc);
+    drm_system_ = CreateDummyDrmSystem(key_system_.c_str());
     SB_DCHECK(SbDrmSystemIsValid(drm_system_));
+    if (IsWidevineKeySystem(key_system_.c_str())) {
+      GenerateWidevineSessionUpdateRequest(drm_system_);
+    }
   }
 
   // Initialize player.
