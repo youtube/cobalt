@@ -802,14 +802,12 @@ void CobaltBrowserMainParts::OnMigrationComplete() {
 }
 
 void CobaltBrowserMainParts::MaybeClearCachedSplashFiles() {
-  // In Finch's crash safe mode, the cached splash assets may be what crashed
-  // Cobalt. Even if this launch doesn't read them, e.g., as
-  // kEnableCachedSplashFile is disabled by default, the next launches with the
-  // regular config would. So delete them, until the WebApp caches them again.
-  // This clears regardless of kEnableCachedSplashFile, as the cause of the
-  // crashes is unknown and clearing is cheap.
-  // TODO(b/576340659): Revisit once the cached splash assets prove stable in
-  // production.
+  // If bad cached splash assets crash Cobalt, the app cannot launch at all.
+  // Finch turns into crash safe mode but only lasts one launch, after which the
+  // regular config reads the same file again. So clear the cached splash assets
+  // in crash safe mode, whatever caused the crashes and regardless of
+  // kEnableCachedSplashFile, as clearing is cheap.
+  // TODO(b/576340659): Revisit this once the cached splash assets prove stable.
   if (!GlobalFeatures::GetInstance()
            ->experiment_config_manager()
            ->IsCrashSafeMode()) {
