@@ -23,10 +23,12 @@
 #include <string.h>
 
 #include <algorithm>
+#include <iterator>
 #include <optional>
 #include <vector>
 
 #include "base/containers/span.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
@@ -40,6 +42,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 #include "cobalt/shell/browser/splash_video_webm_indexer.h"
 #include "cobalt/shell/common/shell_switches.h"
@@ -102,8 +105,10 @@ gfx::Rect GetFullScreenBounds() {
 // Like SbPlayerBridge::CreatePlayer(): the platform reads the experimental
 // features of the thread that creates the player, which some platforms, e.g.,
 // Android, require. The splash screen plays before any H5vcc setting, so it
-// gets the defaults.
-void SetDefaultExperimentalFeaturesForCurrentThread() {
+// gets the defaults, plus, with NativeSplashDirectVideoDecoder, Starboard's
+// Media.SelectVideoDecoderDirectly: e.g., Android's player then takes the
+// platform's default decoder instead of MediaCapabilitiesCache's choice.
+void SetExperimentalFeaturesForCurrentThread(bool select_decoder_directly) {
   const auto* extension = static_cast<
       const StarboardExtensionExperimentalFeaturesConfigurationApi*>(
       SbSystemGetExtension(
@@ -115,8 +120,15 @@ void SetDefaultExperimentalFeaturesForCurrentThread() {
       !extension->SetExperimentalFeaturesForCurrentThread) {
     return;
   }
-  const StarboardExtensionExperimentalFeatures features = {/*entries=*/nullptr,
-                                                           /*entry_count=*/0};
+  static constexpr StarboardExperimentalFeatureEntry kSelectDecoderDirectly[] =
+      {{"Media.SelectVideoDecoderDirectly", 1}};
+  const StarboardExtensionExperimentalFeatures features =
+      select_decoder_directly
+          ? StarboardExtensionExperimentalFeatures{kSelectDecoderDirectly,
+                                                   std::size(
+                                                       kSelectDecoderDirectly)}
+          : StarboardExtensionExperimentalFeatures{/*entries=*/nullptr,
+                                                   /*entry_count=*/0};
   extension->SetExperimentalFeaturesForCurrentThread(&features);
 }
 
@@ -295,10 +307,12 @@ class NativeSplashVideoPlayer::Core {
        const gfx::Rect& bounds,
        Callbacks callbacks,
        scoped_refptr<base::RefCountedData<base::AtomicFlag>> stopped,
-       base::OnceClosure on_destroyed)
+       base::OnceClosure on_destroyed,
+       bool select_decoder_directly)
       : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
         stopped_(std::move(stopped)),
         on_destroyed_(std::move(on_destroyed)),
+        select_decoder_directly_(select_decoder_directly),
         videos_(std::move(videos)),
         window_(reinterpret_cast<SbWindow>(sb_window_handle)),
         bounds_(bounds),
@@ -332,6 +346,10 @@ class NativeSplashVideoPlayer::Core {
 
   void Start() {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    if (select_decoder_directly_) {
+      LOG(INFO) << "NativeSplash: Playing the splash screen video without "
+                   "querying the platform's media capabilities.";
+    }
     if (!ChooseVideo()) {
       // Unless the NativeSplashVideoPlayer is gone, e.g., on conceal.
       if (!stopped_->data.IsSet()) {
@@ -340,7 +358,7 @@ class NativeSplashVideoPlayer::Core {
       }
       return;
     }
-    SetDefaultExperimentalFeaturesForCurrentThread();
+    SetExperimentalFeaturesForCurrentThread(select_decoder_directly_);
     CreatePlayer();
   }
 
@@ -385,6 +403,12 @@ class NativeSplashVideoPlayer::Core {
                          &Core::PlayerErrorCB, this, GetDecodeTargetProvider());
     if (!SbPlayerIsValid(player_)) {
       LOG(ERROR) << "NativeSplash: SbPlayerCreate() failed.";
+      if (select_decoder_directly_) {
+        // Without the platform's media capabilities, a video that the platform
+        // doesn't play fails here instead of in ChooseVideo().
+        PlayNextVideo();
+        return;
+      }
       ReportError(Error::kCreateFailed);
       return;
     }
@@ -402,7 +426,9 @@ class NativeSplashVideoPlayer::Core {
   // Picks the next of `videos_` that the platform plays, like splash.html.
   // The platform's media capabilities can be slow to query the first time,
   // e.g., Android enumerates its codecs, so they're queried here rather than on
-  // the thread that creates the player, e.g., the main thread at startup.
+  // the thread that creates the player, e.g., the main thread at startup. With
+  // NativeSplashDirectVideoDecoder, they aren't queried: the next video is
+  // picked, and PlayNextVideo() moves on if the platform doesn't play it.
   bool ChooseVideo() {
     while (next_video_ < videos_.size()) {
       // The queries can take long, which a conceal would wait for.
@@ -426,8 +452,9 @@ class NativeSplashVideoPlayer::Core {
             base::StringPrintf("%s; width=%d; height=%d", kVp9Mime,
                                video.index.width, video.index.height);
       }
-      if (SbMediaCanPlayMimeAndKeySystem(video.required_mime.c_str(), "") ==
-          kSbMediaSupportTypeNotSupported) {
+      if (!select_decoder_directly_ &&
+          SbMediaCanPlayMimeAndKeySystem(video.required_mime.c_str(), "") ==
+              kSbMediaSupportTypeNotSupported) {
         if (cached) {
           LOG(WARNING) << "NativeSplash: The platform doesn't play the cached "
                           "splash screen video ("
@@ -453,26 +480,39 @@ class NativeSplashVideoPlayer::Core {
     return false;
   }
 
-  // Plays the built-in video instead of the one that the WebApp cached, which
-  // failed before its first frame: splash.html would only play it again.
+  // Plays the next video after the current one failed before its first frame:
+  // the built-in one instead of the one that the WebApp cached, which
+  // splash.html would only play again, or, with NativeSplashDirectVideoDecoder,
+  // the next one, which the platform may play.
   void PlayNextVideo() {
-    sbplayer_.Destroy(player_);
-    player_ = kSbPlayerInvalid;
+    if (SbPlayerIsValid(player_)) {
+      sbplayer_.Destroy(player_);
+      player_ = kSbPlayerInvalid;
+    }
     // Ignores the callbacks of the destroyed player still in flight.
     ++ticket_;
+    const bool was_cached = cached_;
     // The destroyed player no longer reads the frames.
     webm_ = {};
     std::string().swap(owned_webm_);
     next_frame_ = 0;
     end_of_stream_written_ = false;
     if (!ChooseVideo()) {
-      ReportError(Error::kPlaybackError);
+      // With NativeSplashDirectVideoDecoder, the platform plays none of the
+      // videos: the same as when ChooseVideo() finds none at the start.
+      ReportError(select_decoder_directly_ ? Error::kUnsupported
+                                           : Error::kPlaybackError);
       return;
     }
-    LOG(WARNING) << "NativeSplash: The cached splash screen video failed, "
-                    "playing the built-in one.";
-    if (callbacks_.on_cached_video_failed) {
-      std::move(callbacks_.on_cached_video_failed).Run();
+    if (was_cached) {
+      LOG(WARNING) << "NativeSplash: The cached splash screen video failed, "
+                      "playing the built-in one.";
+      if (callbacks_.on_cached_video_failed) {
+        std::move(callbacks_.on_cached_video_failed).Run();
+      }
+    } else {
+      LOG(WARNING) << "NativeSplash: The splash screen video failed, playing "
+                      "the next one.";
     }
     CreatePlayer();
   }
@@ -636,7 +676,7 @@ class NativeSplashVideoPlayer::Core {
       ReportError(Error::kPlaybackErrorAfterFirstFrame);
       return;
     }
-    if (cached_) {
+    if (cached_ || select_decoder_directly_) {
       PlayNextVideo();
       return;
     }
@@ -657,6 +697,9 @@ class NativeSplashVideoPlayer::Core {
   const scoped_refptr<base::RefCountedData<base::AtomicFlag>> stopped_;
   // Run once the SbPlayer, if any, is destroyed, on the player's sequence.
   base::OnceClosure on_destroyed_;
+  // NativeSplashDirectVideoDecoder: plays the videos in order without querying
+  // the platform, and the SbPlayer takes the platform's default decoder.
+  const bool select_decoder_directly_;
   // The candidates, in order: ChooseVideo() picks the next one that the
   // platform plays, as `webm_` and `index_`.
   std::vector<Video> videos_;
@@ -712,7 +755,9 @@ NativeSplashVideoPlayer::CreateForSplashScreen(const std::string& topic,
                                                Callbacks callbacks) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // The same choice as splash.html's: the cached video, then the 1080p video
-  // if the platform plays 4K VP9, and the 480p one otherwise.
+  // if the platform plays 4K VP9, and the 480p one otherwise. With
+  // NativeSplashDirectVideoDecoder, the same order, without the queries: the
+  // 1080p video unless the platform fails to play it.
   std::vector<Video> videos;
   if (!cached_webm.empty()) {
     videos.emplace_back().owned_webm = std::move(cached_webm);
@@ -777,7 +822,9 @@ NativeSplashVideoPlayer::CreateForVideos(std::vector<Video> videos,
           base::SingleThreadTaskRunnerThreadMode::DEDICATED),
       std::move(videos), sb_window_handle, bounds, std::move(core_callbacks),
       player->stopped_,
-      base::BindPostTaskToCurrentDefault(base::BindOnce(&OnCoreDestroyed)));
+      base::BindPostTaskToCurrentDefault(base::BindOnce(&OnCoreDestroyed)),
+      base::FeatureList::IsEnabled(
+          cobalt::features::kNativeSplashDirectVideoDecoder));
   player->core_.AsyncCall(&Core::Start);
   return player;
 }

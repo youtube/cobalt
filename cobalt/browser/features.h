@@ -132,6 +132,19 @@ BASE_DECLARE_FEATURE(kEnableCachedSplashFile);
 // Locally: --enable-features=NativeVideoSplashScreen
 BASE_DECLARE_FEATURE(kNativeVideoSplashScreen);
 
+// Proof of concept (b/584304367): with NativeVideoSplashScreen, the native
+// splash screen video doesn't wait for the platform's media capabilities, e.g.,
+// Android's MediaCapabilitiesCache, whose first query loads every codec's
+// capabilities. It plays its videos in order without querying the platform:
+// the cached one, the built-in one, then the built-in 480p one, if the previous
+// one fails before its first frame. Its SbPlayer takes the platform's default
+// VP9 decoder, if that decoder isn't deny-listed or a software decoder
+// (Starboard's Media.SelectVideoDecoderDirectly). If none plays, the splash
+// screen falls back as when the platform doesn't play VP9.
+// Locally:
+// --enable-features=NativeVideoSplashScreen,NativeSplashDirectVideoDecoder
+BASE_DECLARE_FEATURE(kNativeSplashDirectVideoDecoder);
+
 // Enables overriding the splash screen configuration with the params below.
 BASE_DECLARE_FEATURE(kSplashScreenConfig);
 
