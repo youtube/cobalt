@@ -231,6 +231,40 @@ BASE_DECLARE_FEATURE(kCobaltStabilityMetricsDeduplication);
 // first navigation starts.
 BASE_DECLARE_FEATURE(kCobaltStartupPreconnect);
 
+<<<<<<< HEAD
+=======
+// Also writes HttpServerProperties to disk when the app is paused, instead of
+// leaving it to its 60 s write-coalescing timer, which a background kill does
+// not honor.
+BASE_DECLARE_FEATURE(kCobaltFlushHttpServerPropertiesOnPause);
+
+// Gates independent Finch/Mendel experimentation on Cobalt's on-disk HTTP cache
+// capacity (DIR_CACHE/Cache), decoupled from V8 code-cache optimizations. When
+// enabled, `cobalt_http_cache_size_bytes` (default: 12582912 bytes / 12 MiB,
+// clamped to [1048576, 1073741824]) overrides Android's 25 MiB default while
+// still honoring explicit developer `--max-http-cache-size` CLI overrides, and
+// caps Starboard's HTTP cache within `ComputeDefaultHttpCacheSize()`.
+BASE_DECLARE_FEATURE(kCobaltHttpCacheQuota);
+BASE_DECLARE_FEATURE_PARAM(int, kCobaltMaxHttpCacheSizeBytes);
+
+// Gates V8 JavaScript generated code cache optimizations:
+// 1. Raises `Code Cache/js` capacity via
+//    `CobaltCodeCacheOptimization_size_bytes` (default: 10485760 bytes /
+//    10 MiB, clamped to [1048576, 1073741824], while `Code Cache/wasm` stays
+//    capped at 1 MiB) so cold-start bytecode writes do not cross SimpleCache's
+//    90% eviction watermark, and updates Starboard's dynamic non-HTTP cache
+//    reserve in `ComputeDefaultHttpCacheSize()` accordingly.
+// 2. When `CobaltCodeCacheOptimization_bypass_heat_check` is true (default),
+//    sets `WebPreferences::v8_cache_options` to `kCodeWithoutHeatCheck` instead
+//    of `kDefault` so Launch #1 after install, cache clear, or weekly JS
+//    updates produces deferred bytecode (via Blink's existing
+//    `PostDelayedIdleTask` queue) for Launch #2 instead of waiting until
+//    Launch #3.
+BASE_DECLARE_FEATURE(kCobaltCodeCacheOptimization);
+BASE_DECLARE_FEATURE_PARAM(int, kCobaltGeneratedCodeCacheSizeBytes);
+BASE_DECLARE_FEATURE_PARAM(bool, kCobaltV8CodeCacheBypassHeatCheck);
+
+>>>>>>> 7f869762b39 ([Cobalt] Optimize V8 Code Cache quota and first-launch bytecode caching (#13558))
 }  // namespace features
 }  // namespace cobalt
 
