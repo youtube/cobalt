@@ -16,15 +16,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
-<<<<<<< HEAD
 #if BUILDFLAG(USE_BLINK)
-=======
-<<<<<<< HEAD
-#if !BUILDFLAG(IS_IOS)
-=======
-#if BUILDFLAG(USE_BLINK)
->>>>>>> parent of fea2221de21 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
->>>>>>> parent of a4c6069869a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "content/public/browser/browser_task_traits.h"    // nogncheck
 #include "content/public/browser/browser_thread.h"         // nogncheck
 #include "content/public/test/browser_task_environment.h"  // nogncheck
