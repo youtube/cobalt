@@ -15,11 +15,35 @@
 #ifndef STARBOARD_BENCHMARK_AUDIO_SINK_AUDIO_SINK_BENCHMARK_HELPER_H_
 #define STARBOARD_BENCHMARK_AUDIO_SINK_AUDIO_SINK_BENCHMARK_HELPER_H_
 
+#include <chrono>
+#include <condition_variable>
 #include <cstdint>
+#include <mutex>
 #include <vector>
 
 #include "starboard/audio_sink.h"
 #include "starboard/media.h"
+
+// Applies |X| to every SbAudioSink configuration measured by the audio sink
+// benchmarks, as X(name, channels, sample_type, frequency). Each benchmark file
+// defines its own registration macro and expands this list once, so that all
+// SbAudioSink benchmarks cover the same configurations.
+//
+// The configurations cover the channel layouts (mono, stereo and 5.1), sample
+// types and sample rates that platforms commonly support.
+#define AUDIO_SINK_BENCHMARK_CONFIGS(X)                                     \
+  X(Mono_Int16_44100, 1, kSbMediaAudioSampleTypeInt16Deprecated, 44'100)    \
+  X(Mono_Int16_48000, 1, kSbMediaAudioSampleTypeInt16Deprecated, 48'000)    \
+  X(Mono_Float32_44100, 1, kSbMediaAudioSampleTypeFloat32, 44'100)          \
+  X(Mono_Float32_48000, 1, kSbMediaAudioSampleTypeFloat32, 48'000)          \
+  X(Stereo_Int16_44100, 2, kSbMediaAudioSampleTypeInt16Deprecated, 44'100)  \
+  X(Stereo_Int16_48000, 2, kSbMediaAudioSampleTypeInt16Deprecated, 48'000)  \
+  X(Stereo_Float32_44100, 2, kSbMediaAudioSampleTypeFloat32, 44'100)        \
+  X(Stereo_Float32_48000, 2, kSbMediaAudioSampleTypeFloat32, 48'000)        \
+  X(FiveOne_Int16_44100, 6, kSbMediaAudioSampleTypeInt16Deprecated, 44'100) \
+  X(FiveOne_Int16_48000, 6, kSbMediaAudioSampleTypeInt16Deprecated, 48'000) \
+  X(FiveOne_Float32_44100, 6, kSbMediaAudioSampleTypeFloat32, 44'100)       \
+  X(FiveOne_Float32_48000, 6, kSbMediaAudioSampleTypeFloat32, 48'000)
 
 namespace starboard {
 
@@ -90,6 +114,45 @@ void AudioSinkBenchmarkUpdateSourceStatusFunc(int* frames_in_buffer,
                                               bool* is_eos_reached,
                                               void* context);
 void AudioSinkBenchmarkConsumeFramesFunc(int frames_consumed, void* context);
+
+// Lets a benchmark wait until a sink's audio thread is running. Pass
+// UpdateSourceStatusFunc as the sink's update_source_status_func and this
+// object as its context. The audio thread calls that callback on every pass of
+// its loop once the sink is ready to play (e.g. on Linux, once the PulseAudio
+// stream is ready), and it reports the same empty, paused source as
+// AudioSinkBenchmarkUpdateSourceStatusFunc.
+//
+// Lifetime and ownership: Stack-owned by a benchmark function and must outlive
+// every SbAudioSink created with it until SbAudioSinkDestroy() returns.
+//
+// Threading model: UpdateSourceStatusFunc runs on the sink's audio thread (and
+// once inside SbAudioSinkCreate()); the other methods run on the benchmark
+// thread. |callback_count_| is guarded by |mutex_|.
+class AudioSinkBenchmarkThreadWaiter {
+ public:
+  AudioSinkBenchmarkThreadWaiter() = default;
+
+  AudioSinkBenchmarkThreadWaiter(const AudioSinkBenchmarkThreadWaiter&) =
+      delete;
+  AudioSinkBenchmarkThreadWaiter& operator=(
+      const AudioSinkBenchmarkThreadWaiter&) = delete;
+
+  // Call after SbAudioSinkCreate() returns. Blocks until the audio thread
+  // invokes the callback again, so that calls made during SbAudioSinkCreate()
+  // do not count. Returns false if that does not happen within |timeout|.
+  bool WaitForAudioThread(std::chrono::milliseconds timeout);
+
+  static void UpdateSourceStatusFunc(int* frames_in_buffer,
+                                     int* offset_in_frames,
+                                     bool* is_playing,
+                                     bool* is_eos_reached,
+                                     void* context);
+
+ private:
+  std::mutex mutex_;
+  std::condition_variable condition_;
+  int64_t callback_count_ = 0;
+};
 
 }  // namespace starboard
 
