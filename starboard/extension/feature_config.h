@@ -169,11 +169,11 @@ STARBOARD_FEATURE(kRestartPlaybackOnAudioThresholdGrowth,
                   "RestartPlaybackOnAudioThresholdGrowth",
                   true)
 
-// By default, Cobalt reports a decode error as soon as creating the platform
-// video MediaCodec fails. Set the following variable to true to retry the
-// creation up to |kVideoCodecCreationRetryCount| times while buffering inputs,
-// as the failure can be transient on devices whose vendor HAL releases the
-// previous codec asynchronously (b/581989550). The H5VCC setting
+// Android only. By default, Cobalt reports a decode error as soon as creating
+// the platform video MediaCodec fails. Set the following variable to true to
+// retry the creation up to |kVideoCodecCreationRetryCount| times while
+// buffering inputs, as the failure can be transient on devices whose vendor HAL
+// releases the previous codec asynchronously (b/581989550). The H5VCC setting
 // `Media.VideoCodecCreationRetryCount` takes precedence over this feature when
 // it is set to a non-zero value.
 STARBOARD_FEATURE(kRetryVideoCodecCreation, "RetryVideoCodecCreation", false)
@@ -274,8 +274,8 @@ STARBOARD_FEATURE_PARAM(STARBOARD_FEATURE_PARAM_TIME_TYPE,
                         "ResetDelayUsec",
                         base::Microseconds(0))
 
-// The number of times to retry creating the platform video MediaCodec when
-// |kRetryVideoCodecCreation| is enabled.
+// Android only. The number of times to retry creating the platform video
+// MediaCodec when |kRetryVideoCodecCreation| is enabled, capped at 10.
 STARBOARD_FEATURE_PARAM(int,
                         kVideoCodecCreationRetryCount,
                         kRetryVideoCodecCreation,

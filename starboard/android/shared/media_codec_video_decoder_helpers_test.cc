@@ -16,6 +16,7 @@
 
 #include <array>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <string>
 #include <utility>
@@ -106,6 +107,22 @@ TEST(MediaCodecVideoDecoderHelpersTest, GetVideoCodecCreationRetryCount) {
 
   // A negative feature param disables retries.
   EXPECT_EQ(GetVideoCodecCreationRetryCount(no_h5vcc_setting, -1), 0);
+
+  // The retry count is capped, whichever source it comes from.
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(no_h5vcc_setting,
+                                            kMaxVideoCodecCreationRetryCount),
+            kMaxVideoCodecCreationRetryCount);
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(
+                no_h5vcc_setting, kMaxVideoCodecCreationRetryCount + 1),
+            kMaxVideoCodecCreationRetryCount);
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(
+                h5vcc_setting(static_cast<int64_t>(1000)), std::nullopt),
+            kMaxVideoCodecCreationRetryCount);
+  EXPECT_EQ(
+      GetVideoCodecCreationRetryCount(
+          h5vcc_setting(static_cast<int64_t>(std::numeric_limits<int>::max())),
+          3),
+      kMaxVideoCodecCreationRetryCount);
 }
 
 TEST(MediaCodecVideoDecoderHelpersTest, ParseMaxResolution) {

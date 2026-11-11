@@ -541,10 +541,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       bool enable_flush_during_seek) {
     auto experimental_features = creation_parameters.experimental_features();
 
+    std::optional<int> feature_codec_creation_retry_count;
 #if !BUILDFLAG(IS_STARBOARD)
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();
-    std::optional<int> feature_codec_creation_retry_count;
     if (FeatureList::IsEnabled(features::kRetryVideoCodecCreation)) {
       feature_codec_creation_retry_count =
           features::kVideoCodecCreationRetryCount.Get();
@@ -552,9 +552,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 #else
     int64_t flush_delay_usec = 0;
     int64_t reset_delay_usec = 0;
-    std::optional<int> feature_codec_creation_retry_count;
 #endif
-    // The H5VCC setting takes precedence over the Starboard feature.
     const int codec_creation_retry_count = GetVideoCodecCreationRetryCount(
         experimental_features, feature_codec_creation_retry_count);
 

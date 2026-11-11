@@ -144,19 +144,22 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnFrameAvailable() override;
 
  private:
-  enum class CodecInitStatus { kInitialized, kRetryScheduled, kFailed };
+  // Outcome of a successful TryInitializeCodec() call.
+  enum class CodecInitStatus { kInitialized, kRetryScheduled };
 
-  // Attempt to initialize the codec. |is_retryable| is set to true only when
-  // the failure came from creating the platform MediaCodec, which can be
-  // transient (b/581989550), and not from e.g. a missing video surface.
-  Result<void> InitializeCodec(const VideoStreamInfo& video_stream_info,
-                               bool* is_retryable);
-  // Calls InitializeCodec(). On failure, tears the codec down and, when the
-  // failure is retryable and retry budget remains, schedules
-  // RetryCodecCreation() and returns kRetryScheduled. Returns kFailed with
-  // |error_message| set when the caller has to report the error.
-  CodecInitStatus TryInitializeCodec(const VideoStreamInfo& video_stream_info,
-                                     std::string* error_message);
+  // Sets up the surface the codec renders to: the Android video surface in
+  // punch-out mode, or a new decode target in decode-to-texture mode.
+  Result<jni_zero::ScopedJavaLocalRef<jobject>> PrepareOutputSurface();
+  // Creates the platform MediaCodec rendering to |output_surface|.
+  Result<void> InitializeCodec(
+      const VideoStreamInfo& video_stream_info,
+      const jni_zero::JavaRef<jobject>& output_surface);
+  // Prepares the output surface and initializes the codec, tearing the codec
+  // down on failure. A failure to create the MediaCodec itself is retried
+  // later while retry budget remains (b/581989550), returning
+  // kRetryScheduled. Returns a failure when the caller has to report an error.
+  Result<CodecInitStatus> TryInitializeCodec(
+      const VideoStreamInfo& video_stream_info);
   void RetryCodecCreation();
   void CancelPendingCodecCreationRetry();
   // Queues |input_buffers| into |pending_input_buffers_| while a codec

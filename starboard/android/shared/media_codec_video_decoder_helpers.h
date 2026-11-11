@@ -32,6 +32,11 @@ class ExperimentalFeatures;
 bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
                                const std::string& max_video_capabilities);
 
+// The maximum number of times MediaCodecVideoDecoder retries creating the
+// platform MediaCodec. With the 50ms linear backoff, the retries take at most
+// 50 + 100 + ... + 500ms = 2.75s before an error is reported.
+inline constexpr int kMaxVideoCodecCreationRetryCount = 10;
+
 // Returns how many times MediaCodecVideoDecoder retries creating the platform
 // MediaCodec after a failure (b/581989550). The H5VCC setting
 // `Media.VideoCodecCreationRetryCount` in |features| takes precedence whenever
@@ -41,6 +46,7 @@ bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
 // an int. |feature_retry_count| holds the `RetryCount` param of the
 // `RetryVideoCodecCreation` Starboard feature when that feature is enabled, and
 // std::nullopt otherwise. Returns 0 (retries disabled) when neither is set.
+// The result is capped at |kMaxVideoCodecCreationRetryCount|.
 int GetVideoCodecCreationRetryCount(const ExperimentalFeatures& features,
                                     std::optional<int> feature_retry_count);
 

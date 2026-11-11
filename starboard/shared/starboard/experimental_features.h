@@ -258,7 +258,7 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaSkipVideoFramesOver60Fps(
 // takes precedence over the `RetryVideoCodecCreation` Starboard feature: a
 // positive value is the retry count and a negative value disables retries. 0 is
 // the "unset" sentinel and defers to the Starboard feature, which is disabled
-// by default.
+// by default. The retry count is capped at 10.
 inline constexpr ExperimentalFeatureKey<int> kMediaVideoCodecCreationRetryCount(
     "Media.VideoCodecCreationRetryCount");
 
