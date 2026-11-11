@@ -14,6 +14,8 @@
 
 #import <AVFoundation/AVFoundation.h>
 
+#include <optional>
+
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
@@ -51,22 +53,15 @@ bool IsAudioCodecSupportedByUrlPlayer(const starboard::MimeType& mime_type,
 }
 
 bool IsVideoCodecSupportedByUrlPlayer(const std::string& codec) {
-  SbMediaVideoCodec video_codec;
-  int profile = -1;
-  int level = -1;
-  int bit_depth = 8;
-  SbMediaPrimaryId primary_id = kSbMediaPrimaryIdUnspecified;
-  SbMediaTransferId transfer_id = kSbMediaTransferIdUnspecified;
-  SbMediaMatrixId matrix_id = kSbMediaMatrixIdUnspecified;
-  if (!starboard::ParseVideoCodec(codec.c_str(), &video_codec, &profile, &level,
-                                  &bit_depth, &primary_id, &transfer_id,
-                                  &matrix_id)) {
+  std::optional<starboard::ParsedVideoCodec> codec_info =
+      starboard::ParseVideoCodec(codec);
+  if (!codec_info) {
     return false;
   }
-  if (video_codec == kSbMediaVideoCodecH264) {
+  if (codec_info->codec == kSbMediaVideoCodecH264) {
     return true;
   }
-  if (video_codec == kSbMediaVideoCodecVp9) {
+  if (codec_info->codec == kSbMediaVideoCodecVp9) {
     return starboard::PlaybackCapabilities::IsHwVp9Supported();
   }
   return false;

@@ -50,6 +50,7 @@
 #include "starboard/common/media.h"
 #include <optional>
 #include <sys/resource.h>
+#include "starboard/common/string.h"
 #include "starboard/common/thread.h"
 #include "starboard/common/time.h"
 #include "starboard/drm.h"
@@ -909,22 +910,13 @@ static void AddVideoMimeToGstCaps(GstCaps* caps, const char* mime) {
     gst_caps_set_simple (caps, "dovi-stream", G_TYPE_BOOLEAN, TRUE, NULL);
 
     // try parsing profile and level from codec string
-    SbMediaVideoCodec video_codec;
-    int profile = -1;
-    int level = -1;
-    int bit_depth = 8;
-    SbMediaPrimaryId primary_id = kSbMediaPrimaryIdUnspecified;
-    SbMediaTransferId transfer_id = kSbMediaTransferIdUnspecified;
-    SbMediaMatrixId matrix_id = kSbMediaMatrixIdUnspecified;
-
-    if (::starboard::ParseVideoCodec(codec_string, &video_codec, &profile, &level,
-                                     &bit_depth, &primary_id, &transfer_id, &matrix_id)) {
-      GST_DEBUG("Got video codec: %u, bit_depth: %d, profile: %d, level: %d.",
-                video_codec, bit_depth, profile, level);
+    if (auto codec_info = ::starboard::ParseVideoCodec(codec_string)) {
+      GST_DEBUG("Got video codec info: %s",
+                ::starboard::ToString(*codec_info).c_str());
       gst_caps_set_simple (
         caps,
-        "dv_profile", G_TYPE_INT, profile,
-        "dv_level",  G_TYPE_INT, level,
+        "dv_profile", G_TYPE_INT, codec_info->profile,
+        "dv_level",  G_TYPE_INT, codec_info->level,
         NULL);
     } else {
       GST_WARNING("Couldn't parse video codec info from mime type '%s'.", mime);
