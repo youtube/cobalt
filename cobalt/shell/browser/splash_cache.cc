@@ -126,7 +126,7 @@ class SplashCacheCleaner {
     const std::u16string kCacheNames[] = {
         base::ASCIIToUTF16(kDefaultSplashCacheName),
         base::ASCIIToUTF16(kMusicSplashCacheName)};
-    // TODO(cobalt, b/576340659): Delete every "/splash*" entry, including
+    // TODO(b/576340659): Delete every "/splash*" entry, including
     // "splash_policy.wasm", once Cobalt reads them for the WebAssembly policy.
     // Until then, these are all the cached entries that Cobalt reads.
     const std::string kEntries[] = {"splash.webm", "splash.png"};
