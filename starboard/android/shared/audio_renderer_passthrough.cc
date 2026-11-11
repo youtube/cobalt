@@ -697,6 +697,12 @@ void AudioRendererPassthrough::OnDecoderOutput() {
   }
 
   std::lock_guard scoped_lock(mutex_);
+  // Passthrough can't trim e/ac3 syncframes, so drop those that start before
+  // the seek target, instead of playing them all after a seek.
+  if (!decoded_audio->is_end_of_stream() &&
+      decoded_audio->timestamp() < seek_to_time_) {
+    return;
+  }
   decoded_audios_.push(std::move(*decoded_audio));
 }
 
