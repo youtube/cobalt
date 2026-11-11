@@ -370,7 +370,6 @@ class CORE_EXPORT WindowPerformance final : public Performance,
   // https://w3c.github.io/performance-timeline/
   PerformanceTimelineEntryIdGenerator navigation_id_generator_;
 
-<<<<<<< HEAD
   // Stashed destination URL of an in-flight outgoing non-same-document,
   // same-origin navigation. Promoted to `navigation_destination_url_` once
   // the navigation is past the point of being canceled.
@@ -379,11 +378,10 @@ class CORE_EXPORT WindowPerformance final : public Performance,
   // SpeculationData. Only set once the navigation is past the point of being
   // canceled (e.g. by beforeunload).
   KURL navigation_destination_url_;
-=======
+
 #if BUILDFLAG(IS_COBALT)
   base::TimeTicks last_cobalt_swap_end_;
 #endif
->>>>>>> parent of 818594f56dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 }  // namespace blink
