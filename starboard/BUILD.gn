@@ -248,6 +248,10 @@ if (current_toolchain == starboard_toolchain) {
       "//testing/gtest",
     ]
 
+    # TODO: b/fixme - Move these under is_starboard once those tests start
+    # running in CI again.
+    deps += [ "//starboard/testing/compiler_compliance" ]
+
     # On AOSP, the platform tests are built as a
     # standalone modular_executable, whose target only exists in the default
     # toolchain.

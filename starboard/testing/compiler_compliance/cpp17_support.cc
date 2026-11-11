@@ -66,12 +66,10 @@ constexpr int test_fallthrough(int n) {
   switch (n) {
     case 1:
       return 1;
-      break;
     case 2:
       [[fallthrough]];  // intentional fallthrough
     case 3:
       return 3;
-      break;
   }
 
   return 0;
