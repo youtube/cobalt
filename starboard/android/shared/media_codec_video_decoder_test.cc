@@ -678,6 +678,34 @@ TEST_F(MediaCodecVideoDecoderTest,
 }
 
 TEST_F(MediaCodecVideoDecoderTest,
+       EndOfStreamIsForwardedAcrossMultipleCodecCreationRetries) {
+  // The first retry fails too, so the end of stream latched during the first
+  // pending retry has to carry over to the second one.
+  CreateDecoderWithCodecCreationRetries(/*codec_creation_retry_count=*/3,
+                                        /*codec_creation_failures=*/2);
+  InitializeDecoder();
+
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(0, 1024)});
+  decoder_->WriteEndOfStream();
+
+  ASSERT_TRUE(PumpJobQueueUntil(
+      [this] { return fake_factory_->video_codec_create_count() == 3; },
+      kRetryWaitTimeoutMs));
+  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
+  ASSERT_NE(fake_codec, nullptr);
+
+  fake_codec->SimulateInputBufferAvailable(0);
+  fake_codec->SimulateInputBufferAvailable(1);
+  ASSERT_TRUE(fake_codec->WaitForInputQueue(2, 1000));
+  auto queued_inputs = fake_codec->ConsumeQueuedInputs();
+  ASSERT_EQ(queued_inputs.size(), 2U);
+  EXPECT_EQ(queued_inputs[0].flags & MediaCodec::kBufferFlagEndOfStream, 0);
+  EXPECT_NE(queued_inputs[1].flags & MediaCodec::kBufferFlagEndOfStream, 0);
+
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
        CodecCreationSucceedsAfterMultipleRetriesWithoutInput) {
   CreateDecoderWithCodecCreationRetries(/*codec_creation_retry_count=*/3,
                                         /*codec_creation_failures=*/2);

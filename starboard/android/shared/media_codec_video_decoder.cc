@@ -288,7 +288,7 @@ MediaCodecVideoDecoder::CreateInternal(
   }
   if (stream_config.video_stream_info.codec != kSbMediaVideoCodecAv1 &&
       !video_decoder->media_decoder_ &&
-      !video_decoder->is_codec_creation_retry_pending_) {
+      !video_decoder->codec_creation_retry_.pending) {
     return Failure(
         "Video decoder was not created, but no error message was provided.");
   }
@@ -363,9 +363,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               .Get(kMediaVideoDecoderInitialPrerollCount)
               .value_or(kInitialPrerollFrameCount)),
       number_of_preroll_frames_(initial_number_of_preroll_frames_),
-      max_codec_creation_retries_(
+      codec_creation_retry_(
           std::max(0, pipeline_config.codec_creation_retry_count)),
-      codec_creation_retries_left_(max_codec_creation_retries_),
       surface_texture_bridge_(
           output_mode_ == kSbPlayerOutputModeDecodeToTexture
               ? std::make_unique<VideoSurfaceTextureBridge>(this)
@@ -422,7 +421,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ToString(is_video_frame_tracker_enabled_)
                << ", ignore_stale_rendered_frames_after_seek="
                << ToString(ignore_stale_rendered_frames_after_seek_)
-               << ", codec creation retries=" << max_codec_creation_retries_;
+               << ", codec creation retries="
+               << codec_creation_retry_.max_retries;
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
@@ -471,7 +471,7 @@ void MediaCodecVideoDecoder::Initialize(
   // here. It is also null while a codec creation retry is pending; in that
   // case the retry calls Initialize() on the media decoder once it exists.
   if (!media_decoder_) {
-    SB_LOG_IF(INFO, !is_codec_creation_retry_pending_)
+    SB_LOG_IF(INFO, !codec_creation_retry_.pending)
         << "Trying to call Initialize() when media_decoder_ is null.";
     return;
   }
@@ -565,7 +565,7 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     // because we need to change the color metadata. Skip this when a codec
     // creation retry is already pending; the retry job will create it.
     if (!needs_fps_to_initialize_codec_ && !media_decoder_ &&
-        !is_codec_creation_retry_pending_) {
+        !codec_creation_retry_.pending) {
       if (auto status =
               TryInitializeCodec(input_buffers.front()->video_stream_info());
           !status) {
@@ -580,7 +580,7 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
 
   input_buffer_written_ += input_buffers.size();
 
-  if (is_codec_creation_retry_pending_) {
+  if (codec_creation_retry_.pending) {
     SB_CHECK(!media_decoder_);
     BufferInputsForPendingCodec(input_buffers);
     return;
@@ -639,11 +639,11 @@ void MediaCodecVideoDecoder::WriteEndOfStream() {
     return;
   }
 
-  if (is_codec_creation_retry_pending_) {
+  if (codec_creation_retry_.pending) {
     SB_CHECK(!media_decoder_);
     // The end of stream is forwarded by RetryCodecCreation() once the codec
     // has been created.
-    pending_end_of_stream_ = true;
+    codec_creation_retry_.pending->end_of_stream = true;
     return;
   }
 
@@ -662,7 +662,7 @@ void MediaCodecVideoDecoder::WriteEndOfStream() {
       return;
     }
     if (*status == CodecInitStatus::kRetryScheduled) {
-      pending_end_of_stream_ = true;
+      codec_creation_retry_.pending->end_of_stream = true;
       return;
     }
   }
@@ -971,7 +971,7 @@ Result<MediaCodecVideoDecoder::CodecInitStatus>
 MediaCodecVideoDecoder::TryInitializeCodec(
     const VideoStreamInfo& video_stream_info) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_CHECK(!is_codec_creation_retry_pending_);
+  SB_CHECK(!codec_creation_retry_.pending.has_value());
 
   auto output_surface = PrepareOutputSurface();
   if (!output_surface) {
@@ -982,31 +982,30 @@ MediaCodecVideoDecoder::TryInitializeCodec(
 
   auto result = InitializeCodec(video_stream_info, *output_surface);
   if (result) {
-    codec_creation_retries_left_ = max_codec_creation_retries_;
+    codec_creation_retry_.retries_left = codec_creation_retry_.max_retries;
     return CodecInitStatus::kInitialized;
   }
   TeardownCodec();
 
-  if (codec_creation_retries_left_ == 0) {
+  if (codec_creation_retry_.retries_left == 0) {
     return Unexpected(std::move(result).error());
   }
-  --codec_creation_retries_left_;
+  --codec_creation_retry_.retries_left;
   const int attempt =
-      max_codec_creation_retries_ - codec_creation_retries_left_;
+      codec_creation_retry_.max_retries - codec_creation_retry_.retries_left;
   const int64_t delay_usec = attempt * kCodecCreationRetryBaseDelayUsec;
   SB_LOG(WARNING) << "MediaCodec creation failed (" << result.error()
                   << "), retrying in " << delay_usec / 1000 << "ms, "
-                  << codec_creation_retries_left_ << " retries left.";
-  codec_creation_retry_stream_info_ = video_stream_info;
-  is_codec_creation_retry_pending_ = true;
-  codec_creation_retry_job_token_ =
-      Schedule([this] { RetryCodecCreation(); }, delay_usec);
+                  << codec_creation_retry_.retries_left << " retries left.";
+  codec_creation_retry_.pending = PendingCodecCreationRetry{
+      Schedule([this] { RetryCodecCreation(); }, delay_usec),
+      video_stream_info};
   return CodecInitStatus::kRetryScheduled;
 }
 
 void MediaCodecVideoDecoder::RetryCodecCreation() {
   SB_CHECK(BelongsToCurrentThread());
-  SB_CHECK(is_codec_creation_retry_pending_);
+  SB_CHECK(codec_creation_retry_.pending.has_value());
   SB_CHECK(!media_decoder_);
 
   if (!error_cb_) {
@@ -1014,11 +1013,13 @@ void MediaCodecVideoDecoder::RetryCodecCreation() {
     // This isn't expected as the retry job can only run after the job that
     // created this decoder and called Initialize() on it, but be defensive
     // and check back later without consuming retry budget.
-    codec_creation_retry_job_token_ = Schedule(
+    codec_creation_retry_.pending->job_token = Schedule(
         [this] { RetryCodecCreation(); }, kCodecCreationRetryBaseDelayUsec);
     return;
   }
-  is_codec_creation_retry_pending_ = false;
+  const PendingCodecCreationRetry retry =
+      std::move(*codec_creation_retry_.pending);
+  codec_creation_retry_.pending.reset();
 
   // A failed attempt releases the global video surface in TeardownCodec(), so
   // this decoder is no longer its holder and isn't notified through
@@ -1030,7 +1031,6 @@ void MediaCodecVideoDecoder::RetryCodecCreation() {
       !HasVideoSurface()) {
     SB_LOG(INFO) << "Video surface was destroyed, abandoning MediaCodec "
                  << "creation retry.";
-    pending_end_of_stream_ = false;
     pending_input_buffers_.clear();
     return;
   }
@@ -1040,7 +1040,7 @@ void MediaCodecVideoDecoder::RetryCodecCreation() {
   // input has arrived yet (constructor path), the codec is created without
   // color metadata as in the constructor; WriteInputBuffers() rebuilds it if
   // the first input turns out to be HDR.
-  VideoStreamInfo stream_info = codec_creation_retry_stream_info_;
+  VideoStreamInfo stream_info = retry.stream_info;
   if (!pending_input_buffers_.empty()) {
     stream_info = pending_input_buffers_.front()->video_stream_info();
     if (!IsIdentity(stream_info.color_metadata)) {
@@ -1050,40 +1050,44 @@ void MediaCodecVideoDecoder::RetryCodecCreation() {
 
   auto status = TryInitializeCodec(stream_info);
   if (!status) {
-    std::string error_message = "Failed to create MediaCodec after " +
-                                std::to_string(max_codec_creation_retries_) +
-                                " retries: " + status.error();
+    std::string error_message =
+        "Failed to create MediaCodec after " +
+        std::to_string(codec_creation_retry_.max_retries) +
+        " retries: " + status.error();
     SB_LOG(ERROR) << error_message;
-    pending_end_of_stream_ = false;
     pending_input_buffers_.clear();
     ReportError(kSbPlayerErrorDecode, error_message);
     return;
   }
-  if (*status == CodecInitStatus::kInitialized) {
-    SB_LOG(INFO) << "MediaCodec created successfully after retry.";
-    if (pending_end_of_stream_) {
-      pending_end_of_stream_ = false;
-      media_decoder_->WriteEndOfStream();
-    }
+  switch (*status) {
+    case CodecInitStatus::kInitialized:
+      SB_LOG(INFO) << "MediaCodec created successfully after retry.";
+      if (retry.end_of_stream) {
+        media_decoder_->WriteEndOfStream();
+      }
+      break;
+    case CodecInitStatus::kRetryScheduled:
+      // Carry a latched end of stream over to the next retry.
+      codec_creation_retry_.pending->end_of_stream = retry.end_of_stream;
+      break;
   }
 }
 
 void MediaCodecVideoDecoder::CancelPendingCodecCreationRetry() {
   SB_CHECK(BelongsToCurrentThread());
-  if (!is_codec_creation_retry_pending_) {
+  if (!codec_creation_retry_.pending) {
     return;
   }
   SB_LOG(INFO) << "Cancelling pending MediaCodec creation retry.";
-  RemoveJobByToken(&codec_creation_retry_job_token_);
-  is_codec_creation_retry_pending_ = false;
-  pending_end_of_stream_ = false;
+  RemoveJobByToken(&codec_creation_retry_.pending->job_token);
+  codec_creation_retry_.pending.reset();
   pending_input_buffers_.clear();
 }
 
 void MediaCodecVideoDecoder::BufferInputsForPendingCodec(
     const InputBuffers& input_buffers) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_CHECK(is_codec_creation_retry_pending_);
+  SB_CHECK(codec_creation_retry_.pending.has_value());
   SB_CHECK(!media_decoder_);
   SB_CHECK(!input_buffers.empty());
 
@@ -1433,9 +1437,8 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   // CancelPendingJobs() above dropped any scheduled codec creation retry. The
   // next WriteInputBuffers() starts a new initialization episode with a full
   // retry budget.
-  is_codec_creation_retry_pending_ = false;
-  pending_end_of_stream_ = false;
-  codec_creation_retries_left_ = max_codec_creation_retries_;
+  codec_creation_retry_.pending.reset();
+  codec_creation_retry_.retries_left = codec_creation_retry_.max_retries;
 
   // TODO(b/291959069): After flush |media_decoder_|, the output buffers
   // may have invalid frames. Reset |output_format_| to null here to skip max

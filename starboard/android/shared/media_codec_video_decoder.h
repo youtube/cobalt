@@ -312,20 +312,29 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const size_t initial_number_of_preroll_frames_;
   size_t number_of_preroll_frames_;
 
-  // Codec creation retry state, see b/581989550. The retry budget is reset on
-  // every successful codec creation and on Reset(), i.e. it applies per codec
-  // initialization episode.
-  const int max_codec_creation_retries_;
-  int codec_creation_retries_left_;
-  bool is_codec_creation_retry_pending_ = false;
-  JobQueue::JobToken codec_creation_retry_job_token_ =
-      JobQueue::JobToken::kUnscheduled;
-  // Stream info used by the last failed attempt, for retries that fire before
-  // any input buffer has arrived (constructor path).
-  VideoStreamInfo codec_creation_retry_stream_info_;
-  // Set when WriteEndOfStream() is called while a retry is pending. The end of
-  // stream is forwarded to the codec once it is created.
-  bool pending_end_of_stream_ = false;
+  // Codec creation retry state, see b/581989550.
+  struct PendingCodecCreationRetry {
+    JobQueue::JobToken job_token = JobQueue::JobToken::kUnscheduled;
+    // Stream info used by the failed attempt, for retries that fire before any
+    // input buffer has arrived (constructor path).
+    VideoStreamInfo stream_info;
+    // Set when WriteEndOfStream() is called while the retry is pending. The
+    // end of stream is forwarded to the codec once it is created.
+    bool end_of_stream = false;
+  };
+  struct CodecCreationRetryState {
+    explicit CodecCreationRetryState(int max_retries)
+        : max_retries(max_retries), retries_left(max_retries) {}
+
+    // 0 when retries are disabled.
+    const int max_retries;
+    // Reset on every successful codec creation and on Reset(), i.e. the
+    // budget applies per codec initialization episode.
+    int retries_left;
+    // Engaged while a retry is scheduled.
+    std::optional<PendingCodecCreationRetry> pending;
+  };
+  CodecCreationRetryState codec_creation_retry_;
 
   static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> CreateInternal(
       std::unique_ptr<MediaCodec::Factory> media_codec_factory,
