@@ -130,8 +130,8 @@ BASE_FEATURE(kSplashScreenConfig,
              "SplashScreenConfig",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Finch flattens params across features into one namespace, so the param name
-// is prefixed with the feature name (go/cobalt-finch-setup#naming-style-guide).
+// Finch flattens params across features into one namespace, so param names are
+// prefixed with the feature name (go/cobalt-finch-setup#naming-style-guide).
 BASE_FEATURE_PARAM(base::TimeDelta,
                    kSplashScreenTimeoutParam,
                    &kSplashScreenConfig,
@@ -142,7 +142,7 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 BASE_FEATURE_PARAM(std::string,
                    kSplashScreenUrlParam,
                    &kSplashScreenConfig,
-                   "url",
+                   "SplashScreenConfig_url",
                    "");
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
