@@ -26,6 +26,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_DOM_NODE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DOM_NODE_H_
 
+#include <array>
 #include <climits>
 #include <concepts>
 
@@ -316,6 +317,31 @@ class CORE_EXPORT Node : public EventTarget {
   Node* PseudoAwarePreviousSibling() const;
   Node* PseudoAwareFirstChild() const;
   Node* PseudoAwareLastChild() const;
+  // When changing the order of pseudos in this array, you might also need to
+  // change the order of pseudo-elements listed in
+  // Element::AttachSucceedingPseudoElements and
+  // Element::DetachSucceedingPseudoElements.
+  static constexpr std::array kElementChildPseudoOrder{
+      kPseudoIdScrollMarkerGroupBefore,
+      kPseudoIdMarker,
+      kPseudoIdColumn,  // special case: contains multiple items
+      kPseudoIdScrollMarker,
+      kPseudoIdScrollButtonBlockStart,
+      kPseudoIdScrollButtonInlineStart,
+      kPseudoIdScrollButtonInlineEnd,
+      kPseudoIdScrollButtonBlockEnd,
+      kPseudoIdOverscrollAreaParent,
+      kPseudoIdCheckMark,
+      kPseudoIdBefore,
+      kPseudoIdNone,  // special case: this means the regular children
+      kPseudoIdAfter,
+      kPseudoIdExpandIcon,
+      kPseudoIdPickerIcon,
+      kPseudoIdInterestButton,
+      kPseudoIdScrollMarkerGroupAfter,
+      kPseudoIdViewTransition,  // layout traversals special case this when it
+                                // is a child of the document
+  };
 
   const KURL& baseURI() const;
 

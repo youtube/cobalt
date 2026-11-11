@@ -634,6 +634,7 @@ source_set("web_applications") {
     "//services/network/public/cpp",
     "//services/preferences/public/cpp",
     "//skia",
+    "//third_party/abseil-cpp:absl",
     "//third_party/blink/public/common",
     "//ui/base",
     "//ui/base/idle",
@@ -970,6 +971,7 @@ source_set("web_applications_unit_tests") {
   sources = [
     "commands/add_validated_origin_associations_command_unittest.cc",
     "commands/app_migration_data_read_command_unittest.cc",
+    "commands/app_update_data_read_command_unittest.cc",
     "commands/apply_manifest_migration_command_unittest.cc",
     "commands/apply_pending_manifest_update_command_unittest.cc",
     "commands/clear_browsing_data_command_unittest.cc",
@@ -1347,6 +1349,7 @@ source_set("web_applications_browser_tests") {
     ":web_applications_test_support",
     "//base",
     "//chrome/app:command_ids",
+    "//chrome/browser:browser_process_platform_part",
     "//chrome/browser/apps/app_service",
     "//chrome/browser/apps/app_service:app_registry_cache_waiter",
     "//chrome/browser/apps/app_service:test_support",

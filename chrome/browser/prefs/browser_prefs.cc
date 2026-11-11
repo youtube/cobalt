@@ -123,6 +123,7 @@
 #include "components/enterprise/browser/promotion/promotion_prefs.h"
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/enterprise/connectors/core/connectors_prefs.h"
+#include "components/enterprise/isolated_mode/prefs.h"
 #include "components/feature_engagement/public/pref_names.h"
 #include "components/history_clusters/core/history_clusters_prefs.h"
 #include "components/image_fetcher/core/cache/image_cache.h"
@@ -156,6 +157,7 @@
 #include "components/performance_manager/public/user_tuning/prefs.h"
 #include "components/permissions/permission_hats_trigger_helper.h"
 #include "components/permissions/pref_names.h"
+#include "components/personal_context/core/personal_context_prefs.h"
 #include "components/policy/core/browser/browser_policy_connector.h"
 #include "components/policy/core/browser/url_list/url_blocklist_manager.h"
 #include "components/policy/core/common/local_test_policy_provider.h"
@@ -456,6 +458,7 @@
 #include "chrome/browser/upgrade_detector/upgrade_detector_chromeos.h"
 #include "chromeos/ash/components/audio/audio_devices_pref_handler_impl.h"
 #include "chromeos/ash/components/boca/babelorca/babel_orca_manager.h"
+#include "chromeos/ash/components/boca/gemini/gemini_status_fetcher.h"
 #include "chromeos/ash/components/boca/on_task/on_task_prefs.h"
 #include "chromeos/ash/components/carrier_lock/carrier_lock_manager.h"
 #include "chromeos/ash/components/demo_mode/utils/demo_session_utils.h"
@@ -987,11 +990,9 @@ constexpr char kSafeBrowsingModuleOpened[] =
 // Deprecated 04/2026.
 constexpr char kTpcdMetadataCohorts[] = "tpcd.metadata.cohorts";
 
-#if BUILDFLAG(IS_ANDROID)
 // Deprecated 04/2026.
 constexpr char kHasSeenWebFeed[] = "webfeed.has_seen_feed";
 constexpr char kLastBadgeAnimationTime[] = "webfeed.last_badge_animation_time";
-#endif  // BUILDFLAG(IS_ANDROID)
 
 // Deprecated 04/2026.
 inline constexpr char kPreallocatedAddressesVersion[] =
@@ -1005,10 +1006,16 @@ inline constexpr char kFirstPlusAddressCreationTime[] =
 inline constexpr char kLastPlusAddressFillingTime[] =
     "plus_addresses.last.filling.time";
 
-#if BUILDFLAG(IS_ANDROID)
 // Deprecated 05/2026.
 constexpr char kWebFeedContentOrder[] = "webfeed.content_order";
-#endif  // BUILDFLAG(IS_ANDROID)
+constexpr char kWebFeedsRequestSchedule[] = "webfeed.request_schedule";
+constexpr char kEnableWebFeedFollowIntroDebug[] =
+    "webfeed_follow_intro_debug.enable";
+constexpr char kLastSeenFeedType[] = "feedv2.last_seen_feed_type";
+
+// Deprecated 05/2026.
+constexpr char kShouldShowRemoteAnnotatorFirstRunInfo[] =
+    "accessibility_annotator.should_show_remote_annotator_first_run_info";
 
 // Register local state used only for migration (clearing or moving to a new
 // key).
@@ -1121,11 +1128,9 @@ void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
   // Deprecated 04/2026.
   registry->RegisterDictionaryPref(kTpcdMetadataCohorts);
 
-#if BUILDFLAG(IS_ANDROID)
   // Deprecated 04/2026.
   registry->RegisterBooleanPref(kHasSeenWebFeed, false);
   registry->RegisterTimePref(kLastBadgeAnimationTime, base::Time());
-#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 // Register prefs used only for migration (clearing or moving to a new key).
@@ -1389,10 +1394,14 @@ void RegisterProfilePrefsForMigration(
   registry->RegisterTimePref(kFirstPlusAddressCreationTime, base::Time());
   registry->RegisterTimePref(kLastPlusAddressFillingTime, base::Time());
 
-#if BUILDFLAG(IS_ANDROID)
   // Deprecated 05/2026.
   registry->RegisterIntegerPref(kWebFeedContentOrder, 0);
-#endif  // BUILDFLAG(IS_ANDROID)
+  registry->RegisterDictionaryPref(kWebFeedsRequestSchedule);
+  registry->RegisterBooleanPref(kEnableWebFeedFollowIntroDebug, false);
+  registry->RegisterIntegerPref(kLastSeenFeedType, 0);
+
+  // Deprecated 05/2026.
+  registry->RegisterBooleanPref(kShouldShowRemoteAnnotatorFirstRunInfo, true);
 }
 
 }  // namespace
@@ -1754,6 +1763,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   cross_device::RegisterProfilePrefs(registry);
   enterprise::RegisterIdentifiersProfilePrefs(registry);
   enterprise_connectors::RegisterProfilePrefs(registry);
+  enterprise_isolated_mode::RegisterProfilePrefs(registry);
   enterprise_promotion::RegisterProfilePrefs(registry);
   enterprise_reporting::RegisterProfilePrefs(registry);
   dom_distiller::DistilledPagePrefs::RegisterProfilePrefs(registry);
@@ -1801,6 +1811,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   prefetch::RegisterPredictionOptionsProfilePrefs(registry);
   PrefetchOriginDecider::RegisterPrefs(registry);
   PrefsTabHelper::RegisterProfilePrefs(registry, locale);
+  personal_context::prefs::RegisterProfilePrefs(registry);
   privacy_sandbox::RegisterProfilePrefs(registry);
   privacy_sandbox::PrivacySandboxNoticeStorage::RegisterProfilePrefs(registry);
   Profile::RegisterProfilePrefs(registry);
@@ -2093,6 +2104,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   ChromeMediaAppGuestUIDelegate::RegisterProfilePrefs(registry);
   ash::boca::RegisterOnTaskProfilePrefs(registry);
   ash::boca::BabelOrcaManager::RegisterProfilePrefs(registry);
+  ash::boca::GeminiStatusFetcher::RegisterProfilePrefs(registry);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_WIN)
@@ -2416,11 +2428,9 @@ void MigrateObsoleteLocalStatePrefs(PrefService* local_state) {
   tabs::MigrateHoverCardMemoryPref(local_state);
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_ANDROID)
   // Added 04/2026.
   local_state->ClearPref(kHasSeenWebFeed);
   local_state->ClearPref(kLastBadgeAnimationTime);
-#endif  // BUILDFLAG(IS_ANDROID)
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_LOCAL_STATE_PREFS
@@ -2703,9 +2713,6 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
   profile_prefs->ClearPref(kNtpContextMenuClickCount);
 
   // Added 03/2026.
-  privacy_sandbox::ClearAdPrivacyPrefs(profile_prefs);
-
-  // Added 03/2026.
   profile_prefs->ClearPref(kNtpPromoPrefLastSnoozed);
 
   // Added 04/2026.
@@ -2715,10 +2722,14 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
   profile_prefs->ClearPref(kFirstPlusAddressCreationTime);
   profile_prefs->ClearPref(kLastPlusAddressFillingTime);
 
-#if BUILDFLAG(IS_ANDROID)
   // Added 05/2026.
   profile_prefs->ClearPref(kWebFeedContentOrder);
-#endif  // BUILDFLAG(IS_ANDROID)
+  profile_prefs->ClearPref(kWebFeedsRequestSchedule);
+  profile_prefs->ClearPref(kEnableWebFeedFollowIntroDebug);
+  profile_prefs->ClearPref(kLastSeenFeedType);
+
+  // Added 05/2026.
+  profile_prefs->ClearPref(kShouldShowRemoteAnnotatorFirstRunInfo);
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_PROFILE_PREFS

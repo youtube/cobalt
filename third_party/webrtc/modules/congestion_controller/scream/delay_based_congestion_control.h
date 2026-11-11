@@ -31,7 +31,8 @@ class DelayBasedCongestionControl {
  public:
   explicit DelayBasedCongestionControl(ScreamV2Parameters params);
 
-  void OnTransportPacketsFeedback(const TransportPacketsFeedback& msg);
+  void OnTransportPacketsFeedback(const TransportPacketsFeedback& msg,
+                                  bool alr);
 
   // Set a limit on how much the reference window can be reduced due to
   // increased delay.
@@ -87,7 +88,7 @@ class DelayBasedCongestionControl {
   TimeDelta min_base_delay() const {
     return std::min(next_base_delay_, base_delay_history_.GetMin());
   }
-  void UpdateSmoothedRtt(TimeDelta rtt_sample);
+  void UpdateSmoothedRtt(TimeDelta rtt_sample, bool alr);
   void UpdateQueueDelayAverage(TimeDelta one_way_delay);
   void UpdateQueueDelayMinAverage(TimeDelta packet_qdelay);
   void UpdateLatencyDifferenceAverage(TimeDelta packet_latency_diff);
@@ -104,6 +105,7 @@ class DelayBasedCongestionControl {
 
   Timestamp min_queue_delay_above_threshold_start_ = Timestamp::MinusInfinity();
   TimeDelta last_smoothed_rtt_ = TimeDelta::Zero();
+
   Timestamp last_update_qdelay_avg_time_ = Timestamp::MinusInfinity();
   TimeDelta last_queue_delay_sample_ = TimeDelta::PlusInfinity();
   TimeDelta queue_delay_avg_ = TimeDelta::PlusInfinity();

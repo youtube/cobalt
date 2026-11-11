@@ -125,7 +125,7 @@ inline MapCompare::MapCompare(MaglevAssembler* masm, Register object,
 void MapCompare::Generate(Handle<Map> map, Condition cond, Label* if_true,
                           Label::Distance distance) {
   if (map_count_ == 1) {
-    masm_->Cmp(FieldOperand(object_, HeapObject::kMapOffset), map);
+    masm_->Cmp(FieldOperand(object_, offsetof(HeapObject, map_)), map);
     masm_->JumpIf(cond, if_true, distance);
   } else {
     masm_->CompareTaggedAndJumpIf(map_, map, cond, if_true, distance);
@@ -333,14 +333,15 @@ inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
                                                         Register object) {
   DCHECK_NE(data_pointer, object);
   LoadExternalPointerField(
-      data_pointer, FieldOperand(object, JSTypedArray::kExternalPointerOffset));
+      data_pointer,
+      FieldOperand(object, offsetof(JSTypedArray, external_pointer_)));
   if (JSTypedArray::kMaxSizeInHeap == 0) return;
 
   Register base = kScratchRegister;
   if (COMPRESS_POINTERS_BOOL) {
-    movl(base, FieldOperand(object, JSTypedArray::kBasePointerOffset));
+    movl(base, FieldOperand(object, offsetof(JSTypedArray, base_pointer_)));
   } else {
-    movq(base, FieldOperand(object, JSTypedArray::kBasePointerOffset));
+    movq(base, FieldOperand(object, offsetof(JSTypedArray, base_pointer_)));
   }
   addq(data_pointer, base);
 }
@@ -770,9 +771,9 @@ inline void MaglevAssembler::DeoptIfBufferNotValid(Register array,
   // A detached buffer leads to megamorphic feedback, so we won't have a deopt
   // loop if we deopt here.
   LoadTaggedField(scratch,
-                  FieldOperand(array, JSArrayBufferView::kBufferOffset));
+                  FieldOperand(array, offsetof(JSArrayBufferView, buffer_)));
   LoadTaggedField(scratch,
-                  FieldOperand(scratch, JSArrayBuffer::kBitFieldOffset));
+                  FieldOperand(scratch, offsetof(JSArrayBuffer, bit_field_)));
   testl(scratch, Immediate(JSArrayBuffer::NotValidMask(mode)));
   EmitEagerDeoptIf(not_zero, DeoptimizeReason::kArrayBufferWasDetached, node);
 }
@@ -783,7 +784,7 @@ inline void MaglevAssembler::LoadByte(Register dst, MemOperand src) {
 
 inline Condition MaglevAssembler::IsCallableAndNotUndetectable(
     Register map, Register scratch) {
-  movb(scratch, FieldOperand(map, Map::kBitFieldOffset));
+  movb(scratch, FieldOperand(map, offsetof(Map, bit_field_)));
   andl(scratch, Immediate(Map::Bits1::IsUndetectableBit::kMask |
                           Map::Bits1::IsCallableBit::kMask));
   cmpl(scratch, Immediate(Map::Bits1::IsCallableBit::kMask));
@@ -792,7 +793,7 @@ inline Condition MaglevAssembler::IsCallableAndNotUndetectable(
 
 inline Condition MaglevAssembler::IsNotCallableNorUndetactable(
     Register map, Register scratch) {
-  testb(FieldOperand(map, Map::kBitFieldOffset),
+  testb(FieldOperand(map, offsetof(Map, bit_field_)),
         Immediate(Map::Bits1::IsUndetectableBit::kMask |
                   Map::Bits1::IsCallableBit::kMask));
   return kEqual;
@@ -801,7 +802,8 @@ inline Condition MaglevAssembler::IsNotCallableNorUndetactable(
 inline void MaglevAssembler::LoadInstanceType(Register instance_type,
                                               Register heap_object) {
   LoadMap(instance_type, heap_object);
-  movzxwl(instance_type, FieldOperand(instance_type, Map::kInstanceTypeOffset));
+  movzxwl(instance_type,
+          FieldOperand(instance_type, offsetof(Map, instance_type_)));
 }
 
 inline void MaglevAssembler::JumpIfObjectType(Register heap_object,
@@ -921,7 +923,7 @@ inline void MaglevAssembler::CompareMapWithRoot(Register object,
                                                 RootIndex index,
                                                 Register scratch) {
   if (CanBeImmediate(index)) {
-    cmp_tagged(FieldOperand(object, HeapObject::kMapOffset),
+    cmp_tagged(FieldOperand(object, offsetof(HeapObject, map_)),
                Immediate(static_cast<uint32_t>(ReadOnlyRootPtr(index))));
     return;
   }

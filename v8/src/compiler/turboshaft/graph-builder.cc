@@ -104,6 +104,28 @@ struct GraphBuilder {
   AssemblerT& Asm() { return assembler; }
 
  private:
+  struct ThrowingScope {
+    GraphBuilder* builder;
+    BasicBlock* block;
+    bool is_final_control;
+    std::optional<AssemblerT::CatchScope> catch_scope;
+
+    ThrowingScope(GraphBuilder* builder, BasicBlock* block,
+                  bool is_final_control)
+        : builder(builder), block(block), is_final_control(is_final_control) {
+      if (is_final_control) {
+        Block* catch_block = builder->Map(block->SuccessorAt(1));
+        catch_scope.emplace(builder->assembler, catch_block);
+      }
+    }
+
+    ~ThrowingScope() {
+      if (is_final_control) {
+        builder->assembler.Goto(builder->Map(block->SuccessorAt(0)));
+      }
+    }
+  };
+
   template <typename T>
   V<T> Map(Node* old_node) {
     V<T> result = V<T>::Cast(op_mapping.Get(old_node));
@@ -593,14 +615,16 @@ OpIndex GraphBuilder::Process(
                                   V<Object>::Cast(right));
           } else if (left_is_tagged) {
             DCHECK((std::is_same_v<WordPtr, Word64>));
-            return __ Word64Equal(V<Word64>::Cast(__ BitcastTaggedToWordPtr(
-                                      V<Object>::Cast(left))),
-                                  V<Word64>::Cast(right));
+            return __ Word64Equal(
+                V<Word64>::CastIfNeeded(
+                    __ BitcastTaggedToWordPtr(V<Object>::Cast(left))),
+                V<Word64>::Cast(right));
           } else if (right_is_tagged) {
             DCHECK((std::is_same_v<WordPtr, Word64>));
-            return __ Word64Equal(V<Word64>::Cast(left),
-                                  V<Word64>::Cast(__ BitcastTaggedToWordPtr(
-                                      V<Object>::Cast(right))));
+            return __ Word64Equal(
+                V<Word64>::Cast(left),
+                V<Word64>::CastIfNeeded(
+                    __ BitcastTaggedToWordPtr(V<Object>::Cast(right))));
           }
         }
       }
@@ -1196,6 +1220,14 @@ OpIndex GraphBuilder::Process(
                               CheckForMinusZeroMode::kDontCheckForMinusZero,
                               params.feedback());
     }
+    case IrOpcode::kCheckedInt64ToUint64: {
+      DCHECK(dominating_frame_state.valid());
+      const CheckParameters& params = CheckParametersOf(node->op());
+      return __ ChangeOrDeopt(Map(node->InputAt(0)), dominating_frame_state,
+                              ChangeOrDeoptOp::Kind::kInt64ToUint64,
+                              CheckForMinusZeroMode::kDontCheckForMinusZero,
+                              params.feedback());
+    }
 
     case IrOpcode::kCheckedTaggedToInt32: {
       DCHECK(dominating_frame_state.valid());
@@ -1495,11 +1527,6 @@ OpIndex GraphBuilder::Process(
             node->InputAt(static_cast<int>(call_descriptor->InputCount()))};
         frame_state_idx = Map(frame_state);
       }
-      std::optional<decltype(assembler)::CatchScope> catch_scope;
-      if (is_final_control) {
-        Block* catch_block = Map(block->SuccessorAt(1));
-        catch_scope.emplace(assembler, catch_block);
-      }
       OpEffects effects =
           OpEffects().CanDependOnChecks().CanChangeControlFlow().CanDeopt();
       if ((call_descriptor->flags() & CallDescriptor::kNoAllocate) == 0) {
@@ -1511,16 +1538,9 @@ OpIndex GraphBuilder::Process(
       if (!op->HasProperty(Operator::kNoRead)) {
         effects = effects.CanReadMemory();
       }
-      OpIndex result =
-          __ Call(callee, frame_state_idx, base::VectorOf(arguments),
-                  ts_descriptor, effects);
-      if (is_final_control) {
-        // The `__ Call()` before has already created exceptional control flow
-        // and bound a new block for the success case. So we can just `Goto` the
-        // block that Turbofan designated as the `IfSuccess` successor.
-        __ Goto(Map(block->SuccessorAt(0)));
-      }
-      return result;
+      ThrowingScope throwing_scope(this, block, is_final_control);
+      return __ Call(callee, frame_state_idx, base::VectorOf(arguments),
+                     ts_descriptor, effects);
     }
 
     case IrOpcode::kTailCall: {
@@ -1967,15 +1987,33 @@ OpIndex GraphBuilder::Process(
       return __ StringCodePointAt(Map(node->InputAt(0)), Map(node->InputAt(1)));
 
 #ifdef V8_INTL_SUPPORT
-    case IrOpcode::kStringToLowerCaseIntl:
+    case IrOpcode::kStringToLowerCaseIntl: {
+      ThrowingScope throwing_scope(this, block, is_final_control);
       return __ StringToLowerCaseIntl(
           Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)));
-    case IrOpcode::kStringToUpperCaseIntl:
+    }
+    case IrOpcode::kStringToUpperCaseIntl: {
+      ThrowingScope throwing_scope(this, block, is_final_control);
       return __ StringToUpperCaseIntl(
           Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)));
+    }
+    case IrOpcode::kStringLocaleCompareIntl: {
+      V<JSFunction> locale_compare_fn = Map<JSFunction>(node->InputAt(0));
+      V<Object> left = Map<Object>(node->InputAt(1));
+      V<Object> right = Map<Object>(node->InputAt(2));
+      V<StringOrUndefined> locales = Map<StringOrUndefined>(node->InputAt(3));
+      V<Context> context = Map<Context>(node->InputAt(4));
+      V<turboshaft::FrameState> frame_state =
+          Map<turboshaft::FrameState>(node->InputAt(5));
+      ThrowingScope throwing_scope(this, block, is_final_control);
+      return __ StringLocaleCompareIntl(locale_compare_fn, left, right, locales,
+                                        frame_state, context,
+                                        LazyDeoptOnThrow::kNo);
+    }
 #else
     case IrOpcode::kStringToLowerCaseIntl:
     case IrOpcode::kStringToUpperCaseIntl:
+    case IrOpcode::kStringLocaleCompareIntl:
       UNREACHABLE();
 #endif  // V8_INTL_SUPPORT
 
@@ -2368,11 +2406,6 @@ OpIndex GraphBuilder::Process(
 #undef ELSE_UNREACHABLE
       };
 
-      std::optional<decltype(assembler)::CatchScope> catch_scope;
-      if (is_final_control) {
-        Block* catch_block = Map(block->SuccessorAt(1));
-        catch_scope.emplace(assembler, catch_block);
-      }
       // Prepare FastCallApiOp parameters.
       base::SmallVector<OpIndex, 16> arguments;
       for (int i = 0; i < c_arg_count; ++i) {
@@ -2398,6 +2431,7 @@ OpIndex GraphBuilder::Process(
       out_reps[1] = RegisterRepresentation::FromCTypeInfo(
           return_type, parameters->c_signature()->GetInt64Representation());
 
+      ThrowingScope throwing_scope(this, block, is_final_control);
       V<Tuple<Word32, Any>> fast_call_result =
           __ FastApiCall(frame_state, data_argument, context,
                          base::VectorOf(arguments), parameters, out_reps);
@@ -2426,13 +2460,7 @@ OpIndex GraphBuilder::Process(
             return_type.GetType(), fallback_result);
       }
       V<Any> value = __ GetVariable(result);
-      if (is_final_control) {
-        // The `__ FastApiCall()` before has already created exceptional control
-        // flow and bound a new block for the success case. So we can just
-        // `Goto` the block that Turbofan designated as the `IfSuccess`
-        // successor.
-        __ Goto(Map(block->SuccessorAt(0)));
-      }
+
       return value;
     }
 
@@ -2500,6 +2528,8 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kFindOrderedHashMapEntryForInt32Key:
       return __ FindOrderedHashMapEntryForInt32Key(Map(node->InputAt(0)),
                                                    Map(node->InputAt(1)));
+    case IrOpcode::kWeakCollectionGet:
+      return __ WeakCollectionGet(Map(node->InputAt(0)), Map(node->InputAt(1)));
 
     case IrOpcode::kBeginRegion:
       inside_region = true;

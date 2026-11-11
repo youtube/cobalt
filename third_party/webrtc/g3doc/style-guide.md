@@ -127,10 +127,10 @@ allow the callee to change the array size.
 For example,
 
 | instead of | use |
-|-------------------------------------|----------------------| |
-`const std::vector<T>&` | `std::span<const T>` | |
-`const T* ptr, size_t num_elements` | `std::span<const T>` | |
-`T* ptr, size_t num_elements` | `std::span<T>` |
+|-------------------------------------|----------------------|
+| `const std::vector<T>&` | `std::span<const T>` |
+| `const T* ptr, size_t num_elements` | `std::span<const T>` |
+| `T* ptr, size_t num_elements` | `std::span<T>` |
 
 See the [cpp reference][span] for more detailed docs.
 
@@ -268,11 +268,10 @@ configuration, only use the following [GN templates][gn-templ].
 
 | instead of | use |
 |------------------|-----------------------------------------------------------------------------------------|
-| `executable` | `rtc_executable` | | `shared_library` | `rtc_shared_library` |
-| `source_set` | `rtc_source_set` (only for header only libraries, for
-everything else use `rtc_library`)| | `static_library` | `rtc_static_library`
-(use `rtc_library` unless you really need `rtc_static_library`) | | `test` |
-`rtc_test` |
+| `executable` | `rtc_executable` `shared_library` | `rtc_shared_library` |
+| `source_set` | `rtc_source_set` (only for header only libraries, for everything else use `rtc_library`) |
+| `static_library` | `rtc_static_library` (use `rtc_library` unless you really need `rtc_static_library`) |
+| `test` | `rtc_test` |
 
 ### Target visibility and the native API
 

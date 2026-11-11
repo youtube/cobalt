@@ -55,8 +55,6 @@ BASE_FEATURE(kExtensionsCollapseMainMenu, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
-BASE_FEATURE(kInfobarRefresh, base::FEATURE_ENABLED_BY_DEFAULT);
-
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 // Shows an infobar on PDFs offering to become the default PDF viewer if Chrome
 // isn't the default already.
@@ -187,6 +185,8 @@ BASE_FEATURE(kTearOffWebAppTabOpensWebAppWindow,
 
 #if !BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kThreeButtonPasswordSaveDialog, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kPasswordSaveUpdateDropdownMenuExperiment,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 BASE_FEATURE(kSidePanelFlyoverAnimation,
@@ -206,6 +206,12 @@ BASE_FEATURE_PARAM(int,
                    &kSidePanelFlyoverAnimation,
                    "flyover_animation_duration_ms",
                    350);
+
+BASE_FEATURE_PARAM(bool,
+                   kSidePanelFlyoverUseDefaultDeadline,
+                   &kSidePanelFlyoverAnimation,
+                   "flyover_animation_use_default_deadline",
+                   false);
 
 // Enables enterprise profile badging for managed profiles on the toolbar avatar
 // and in the profile menu. On managed profiles, a building icon will be used as
@@ -341,6 +347,9 @@ BASE_FEATURE(kByDateHistoryInSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTabsFromOtherDevicesSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kTabsFromOtherDevicesSidePanelExcludeStableChannel,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kTabsFromOtherDevicesSidePanelPinnedByDefault,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -436,6 +445,9 @@ bool IsAndroidAnimatedProgressBarInBrowserEnabled() {
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
+// Note: This feature is meant for prototyping and takes shortcuts that mean it
+// cannot be put into production in its current state. Do not enable.
+// crbug.com/502801064
 BASE_FEATURE(kAiOverlayDialog, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(std::string,
                    kAiOverlayDialogApiKey,
@@ -467,5 +479,15 @@ BASE_FEATURE_PARAM(bool,
                    &kTabGroupsFocusing,
                    "tab_groups_focusing_default_to_focused",
                    false);
+
+BASE_FEATURE(kVerticalTabsGrabHandleRemoval, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If false, then the grab handle will only be removed when the vertical tab
+// strip is expanded.
+BASE_FEATURE_PARAM(bool,
+                   kVerticalTabsGrabHandleRemovalAlways,
+                   &kVerticalTabsGrabHandleRemoval,
+                   "vertical_tab_grab_handle_remove_always",
+                   true);
 
 }  // namespace features

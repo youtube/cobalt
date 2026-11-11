@@ -929,6 +929,7 @@ class MaglevGraphBuilder {
   V(FunctionPrototypeCall)                     \
   V(FunctionPrototypeHasInstance)              \
   V(MapPrototypeGet)                           \
+  V(WeakMapPrototypeGet)                       \
   V(ObjectPrototypeGetProto)                   \
   V(ObjectGetPrototypeOf)                      \
   V(ReflectGet)                                \
@@ -970,6 +971,17 @@ class MaglevGraphBuilder {
                                     CallArguments& args);
   MAGLEV_REDUCED_BUILTIN(DEFINE_BUILTIN_REDUCER)
 #undef DEFINE_BUILTIN_REDUCER
+
+  static constexpr bool IsReducibleBuiltin(Builtin builtin) {
+    switch (builtin) {
+#define CASE(Name, ...) case Builtin::k##Name:
+      MAGLEV_REDUCED_BUILTIN(CASE)
+#undef CASE
+      return true;
+      default:
+        return false;
+    }
+  }
 
   using InitialCallback = base::FunctionRef<ReduceResult(ValueNode*)>;
   using ProcessElementCallback =
@@ -1030,10 +1042,8 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryReduceGetIterator(ValueNode* receiver, int load_slot,
                                          int call_slot);
 
-  MaybeReduceResult TryReduceForOfNext(
-      ValueNode* iterator, ValueNode* next_method,
-      std::pair<interpreter::Register, interpreter::Register> result_pair,
-      int call_slot);
+  MaybeReduceResult TryReduceForOfNext(ValueNode* iterator,
+                                       ValueNode* next_method, int call_slot);
 
   MaybeReduceResult BuildCallSelf(ValueNode* context, ValueNode* function,
                                   ValueNode* new_target,
@@ -1068,8 +1078,7 @@ class MaglevGraphBuilder {
       JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
       compiler::FeedbackCellRef feedback_cell, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
-  bool CanInlineCall(compiler::SharedFunctionInfoRef shared,
-                     float call_frequency);
+
   bool IsFunctionCandidateForEagerInlining(
       compiler::SharedFunctionInfoRef shared, CallArguments& args);
   bool ShouldEagerInlineCall(compiler::SharedFunctionInfoRef shared,
@@ -1085,8 +1094,10 @@ class MaglevGraphBuilder {
       compiler::SharedFunctionInfoRef shared,
       compiler::FeedbackCellRef feedback_cell, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
-  ReduceResult BuildGenericCall(ValueNode* target, Call::TargetType target_type,
-                                const CallArguments& args);
+  ReduceResult BuildGenericCall(
+      ValueNode* target, Call::TargetType target_type,
+      const CallArguments& args,
+      const compiler::FeedbackSource& feedback_source = {});
   MaybeReduceResult TryReduceCallForConstant(
       compiler::JSFunctionRef target, CallArguments& args,
       const compiler::FeedbackSource& feedback_source =
@@ -1368,6 +1379,10 @@ class MaglevGraphBuilder {
   ReduceResult BuildLoadField(compiler::PropertyAccessInfo const& access_info,
                               ValueNode* lookup_start_object,
                               compiler::NameRef name);
+  MaybeReduceResult BuildLoadDictionaryField(
+      ValueNode* receiver, compiler::PropertyAccessInfo const& access_info,
+      ValueNode* lookup_start_object, compiler::NameRef name,
+      compiler::FeedbackSource const& feedback_source);
   MaybeReduceResult TryBuildStoreField(
       compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
       compiler::AccessMode access_mode, compiler::NameRef name);
@@ -1406,7 +1421,8 @@ class MaglevGraphBuilder {
 
   MaybeReduceResult TryBuildPropertyLoad(
       ValueNode* receiver, ValueNode* lookup_start_object,
-      compiler::NameRef name, compiler::PropertyAccessInfo const& access_info);
+      compiler::NameRef name, compiler::PropertyAccessInfo const& access_info,
+      compiler::FeedbackSource const& feedback_source);
   MaybeReduceResult TryBuildPropertyStore(
       ValueNode* receiver, ValueNode* lookup_start_object,
       compiler::NameRef name, compiler::PropertyAccessInfo const& access_info,
@@ -1414,7 +1430,8 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryBuildPropertyAccess(
       ValueNode* receiver, ValueNode* lookup_start_object,
       compiler::NameRef name, compiler::PropertyAccessInfo const& access_info,
-      compiler::AccessMode access_mode);
+      compiler::AccessMode access_mode,
+      compiler::FeedbackSource const& feedback_source);
   template <typename GenericAccessFunc>
   MaybeReduceResult TryBuildNamedAccess(
       ValueNode* receiver, ValueNode* lookup_start_object,
@@ -1488,6 +1505,7 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryBuildPolymorphicPropertyAccess(
       ValueNode* receiver, ValueNode* lookup_start_object,
       compiler::NamedAccessFeedback const& feedback,
+      compiler::FeedbackSource const& feedback_source,
       compiler::AccessMode access_mode,
       const ZoneVector<compiler::PropertyAccessInfo>& access_infos,
       GenericAccessFunc&& build_generic_access);
@@ -2063,8 +2081,6 @@ class MaglevGraphBuilder {
   compiler::OptionalScopeInfoRef accumulator_scope_info_;
 
   InterpreterFrameState current_interpreter_frame_;
-  SpeculationMode current_speculation_mode_ =
-      SpeculationMode::kDisallowSpeculation;
 
   ValueNode* inlined_new_target_ = nullptr;
 
@@ -2095,15 +2111,11 @@ class MaglevGraphBuilder {
   bool IsNodeCreatedForThisBytecode(ValueNode* node) const;
 #endif
 
-  bool CanSpeculateCall() const {
-    return current_speculation_mode_ == SpeculationMode::kAllowSpeculation;
-  }
+  bool CanSpeculateCall() const { return reducer_.CanSpeculateCall(); }
 
   bool CanSpeculateCall(
       std::initializer_list<SpeculationMode> supported_modes) const {
-    return CanSpeculateCall() ||
-           std::find(supported_modes.begin(), supported_modes.end(),
-                     current_speculation_mode_) != supported_modes.end();
+    return reducer_.CanSpeculateCall(supported_modes);
   }
 
   inline void MarkNodeDead(Node* node) {

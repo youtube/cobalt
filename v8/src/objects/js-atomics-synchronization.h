@@ -48,10 +48,6 @@ V8_OBJECT class JSSynchronizationPrimitive : public AlwaysSharedSpaceJSObject {
 
   inline void SetNullWaiterQueueHead();
 
-  // Defined out-of-line below the class so `offsetof` / `sizeof` on the
-  // still-incomplete type can appear in an initializer.
-  static const int kWaiterQueueHeadOffset;
-  static const int kStateOffset;
   static const int kEndOfTaggedFieldsOffset;
   static const int kHeaderSize;
 
@@ -118,10 +114,6 @@ V8_OBJECT class JSSynchronizationPrimitive : public AlwaysSharedSpaceJSObject {
   std::atomic<uint32_t> state_;
 } V8_OBJECT_END;
 
-inline constexpr int JSSynchronizationPrimitive::kWaiterQueueHeadOffset =
-    offsetof(JSSynchronizationPrimitive, waiter_queue_head_);
-inline constexpr int JSSynchronizationPrimitive::kStateOffset =
-    offsetof(JSSynchronizationPrimitive, state_);
 // Synchronization primitives only store raw data past JSObject; no tagged
 // fields beyond the inherited JSObject header.
 inline constexpr int JSSynchronizationPrimitive::kEndOfTaggedFieldsOffset =
@@ -297,14 +289,9 @@ V8_OBJECT class JSAtomicsMutex : public JSSynchronizationPrimitive {
  public:
   std::atomic<int32_t> owner_thread_id_;
 
-  // Defined out-of-line below the class so `offsetof` / `sizeof` on the
-  // still-incomplete type can appear in an initializer.
-  static const int kOwnerThreadIdOffset;
   static const int kHeaderSize;
 } V8_OBJECT_END;
 
-inline constexpr int JSAtomicsMutex::kOwnerThreadIdOffset =
-    offsetof(JSAtomicsMutex, owner_thread_id_);
 inline constexpr int JSAtomicsMutex::kHeaderSize = sizeof(JSAtomicsMutex);
 
 // A condition variable that is exposed to JS.

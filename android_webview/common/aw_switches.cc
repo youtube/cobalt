@@ -116,8 +116,9 @@ const char kStartupNonBlockingWebViewConstructor[] =
 const char kPostChromiumStartupInWebViewConstructor[] =
     "post-chromium-startup-in-webview-constructor";
 
-// Defers GMS calls during startup.
-const char kWebViewDeferStartupGmsCalls[] = "webview-defer-startup-gms-calls";
+// Certain static methods in SharedStatics do not trigger startup.
+const char kWebViewStaticMethodsNotTriggerStartup[] =
+    "webview-static-methods-not-trigger-startup";
 
 // Opts in WebView to GMSCore's bindService optimizations
 const char kWebViewOptInToGmsBindServiceOptimization[] =

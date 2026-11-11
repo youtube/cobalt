@@ -415,8 +415,9 @@ class AnyUseMarkingProcessor {
   void RemoveUseAndPushIfUnused(Input input) {
     ValueNode* input_node = input.node();
     if (input_node->properties().is_required_when_unused() &&
-        !input_node->Is<ArgumentsElements>())
+        !input_node->Is<ArgumentsElements>()) {
       return;
+    }
     input_node->remove_use();
     if (!input_node->is_used() && !input_node->unused_inputs_were_visited()) {
       input_node->mark_unused_inputs_visited();

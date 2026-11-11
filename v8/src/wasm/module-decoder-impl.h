@@ -2324,8 +2324,9 @@ class ModuleDecoderImpl : public Decoder {
   // Decodes a single function signature at {start}.
   const FunctionSig* DecodeFunctionSignatureForTesting(const uint8_t* start) {
     pc_ = start;
-    if (V8_UNLIKELY(!expect_u8("type form", kWasmFunctionTypeCode)))
+    if (V8_UNLIKELY(!expect_u8("type form", kWasmFunctionTypeCode))) {
       return nullptr;
+    }
     const FunctionSig* result = consume_sig();
     return ok() ? result : nullptr;
   }

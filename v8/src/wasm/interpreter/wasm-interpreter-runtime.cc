@@ -16,7 +16,7 @@
 #include "src/wasm/interpreter/wasm-interpreter-objects-inl.h"
 #include "src/wasm/interpreter/wasm-interpreter-runtime-inl.h"
 #include "src/wasm/wasm-arguments.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/wasm/wasm-subtyping.h"
 
@@ -72,21 +72,33 @@ Address FindInterpreterEntryFramePointer(Isolate* isolate) {
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(5, args.length());
   HandleScope scope(isolate);
   DirectHandle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
   DirectHandle<WasmTrustedInstanceData> trusted_data(
       instance->trusted_data(isolate), isolate);
-  int32_t func_index = NumberToInt32(args[1]);
-  DirectHandle<Object> arg_buffer_obj = args.at(2);
-  DirectHandle<Object> return_buffer_obj = args.at(3);
+  DirectHandle<Object> ref_param_array_obj = args.at(1);
+  int32_t func_index = NumberToInt32(args[2]);
+  DirectHandle<Object> arg_buffer_obj = args.at(3);
+  DirectHandle<Object> return_buffer_obj = args.at(4);
 
   // The arg buffer is the raw pointer to the caller's stack. It looks like a
   // Smi (lowest bit not set, as checked by IsSmi), but is no valid Smi. We just
   // cast it back to the raw pointer.
-  CHECK(!IsHeapObject(*arg_buffer_obj));
-  CHECK(IsSmi(*arg_buffer_obj));
+  SBXCHECK(IsSmi(*arg_buffer_obj));
   Address arg_buffer = (*arg_buffer_obj).ptr();
+  SBXCHECK_EQ(arg_buffer & (kSystemPointerSize - 1), 0);
+
+  // The return buffer follows the same raw-pointer-through-Smi contract as the
+  // argument buffer.
+  SBXCHECK(IsSmi(*return_buffer_obj));
+  Address return_buffer = (*return_buffer_obj).ptr();
+  SBXCHECK_EQ(return_buffer & (kSystemPointerSize - 1), 0);
+
+  // Reference parameters are either absent (Undefined) or provided as a
+  // GC-visible FixedArray.
+  SBXCHECK(IsUndefined(*ref_param_array_obj, isolate) ||
+           IsFixedArray(*ref_param_array_obj));
 
   // Reserve buffers for argument and return values.
   DCHECK_GT(trusted_data->module()->functions.size(), func_index);
@@ -162,18 +174,27 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
       }
     }
 
-    while (!ref_indices.empty()) {
-      DirectHandle<Object> ref(
-          base::ReadUnalignedValue<Tagged<Object>>(arg_buf_ptr), isolate);
       if (isolate->has_exception()) {
         interpreter_handle->ptr()->SetTrapFunctionIndex(func_index);
         return ReadOnlyRoots(isolate).exception();
       }
 
-      wasm_args[ref_indices.front()] = wasm::WasmValue(ref, wasm::kWasmAnyRef);
-      arg_buf_ptr += kSystemPointerSize;
-      ref_indices.pop();
-    }
+      if (!ref_indices.empty()) {
+        // Read reference parameters from the GC-visible FixedArray rather than
+        // from the GC-unsafe arg_buffer. The FixedArray was passed as a runtime
+        // argument and is properly tracked by the GC across safepoints.
+        SBXCHECK(IsFixedArray(*ref_param_array_obj));
+        DirectHandle<FixedArray> ref_array =
+            Cast<FixedArray>(ref_param_array_obj);
+        while (!ref_indices.empty()) {
+          int idx = ref_indices.front();
+          SBXCHECK_LT(static_cast<uint32_t>(idx),
+                      static_cast<uint32_t>(ref_array->length()));
+          DirectHandle<Object> ref(ref_array->get(idx), isolate);
+          wasm_args[idx] = wasm::WasmValue(ref, wasm::kWasmAnyRef);
+          ref_indices.pop();
+        }
+      }
 
     // Run the function in the interpreter. Note that neither the
     // {WasmInterpreterObject} nor the {InterpreterHandle} have to exist,
@@ -190,7 +211,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 
     // Copy return values from the vector of {WasmValue} into {arg_buffer}. This
     // also un-boxes reference types from handles into raw pointers.
-    arg_buf_ptr = (*return_buffer_obj).ptr();
+    arg_buf_ptr = return_buffer;
     for (int i = 0; i < num_returns; ++i) {
 #define CASE_RET_TYPE(type, ctype)                                           \
   case wasm::type:                                                           \
@@ -573,9 +594,12 @@ bool WasmInterpreterRuntime::MemoryFill(const uint8_t*& current_code,
 void WasmInterpreterRuntime::UnpackException(
     uint32_t* sp, const WasmTag& tag, DirectHandle<Object> exception_object,
     uint32_t first_param_slot_index, uint32_t first_param_ref_stack_index) {
-  DirectHandle<FixedArray> encoded_values =
-      TrustedCast<FixedArray>(WasmExceptionPackage::GetExceptionValues(
-          isolate_, TrustedCast<WasmExceptionPackage>(exception_object)));
+  DirectHandle<Object> values_obj = WasmExceptionPackage::GetExceptionValues(
+      isolate_, TrustedCast<WasmExceptionPackage>(exception_object));
+  SBXCHECK(IsFixedArray(*values_obj));
+  DirectHandle<FixedArray> encoded_values = Cast<FixedArray>(values_obj);
+  SBXCHECK_LE(WasmExceptionPackage::GetEncodedSize(module_, &tag),
+              static_cast<uint32_t>(encoded_values->length()));
   // Decode the exception values from the given exception package and push
   // them onto the operand stack. This encoding has to be in sync with other
   // backends so that exceptions can be passed between them.
@@ -650,7 +674,8 @@ void WasmInterpreterRuntime::UnpackException(
         UNREACHABLE();
     }
   }
-  DCHECK_EQ(WasmExceptionPackage::GetEncodedSize(module_, &tag), encoded_index);
+  SBXCHECK_EQ(WasmExceptionPackage::GetEncodedSize(module_, &tag),
+              encoded_index);
 }
 
 namespace {
@@ -1782,10 +1807,10 @@ WasmInterpreterRuntime::CheckIndirectCallSignature(uint32_t table_index,
         return IndirectCallCheck::kNull;
       }
 
-      Tagged<Map> rtt = Tagged<Map>::cast(isolate_->heap()
-                                              ->wasm_canonical_rtts()
-                                              ->get(real_sig_id.index)
-                                              .GetHeapObjectAssumeWeak());
+      Tagged<Map> rtt = Cast<Map>(isolate_->heap()
+                                      ->wasm_canonical_rtts()
+                                      ->get(real_sig_id.index)
+                                      .GetHeapObjectAssumeWeak());
       DirectHandle<Map> formal_rtt = RttCanon(sig_index);
       return SubtypeCheck(rtt, *formal_rtt, sig_index)
                  ? IndirectCallCheck::kValid
@@ -2209,56 +2234,109 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
   }
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
-  CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(
-      reinterpret_cast<const wasm::CanonicalSig*>(sig)));
-  uint32_t* p = sp + WasmBytecode::RetsSizeInSlots(sig);
-  for (size_t i = 0; i < sig->parameter_count(); ++i) {
-    switch (sig->GetParam(i).kind()) {
-      case kI32:
-        packer.Push(
-            base::ReadUnalignedValue<int32_t>(reinterpret_cast<Address>(p)));
-        p += sizeof(int32_t) / kSlotSize;
-        break;
-      case kI64:
-        packer.Push(
-            base::ReadUnalignedValue<int64_t>(reinterpret_cast<Address>(p)));
-        p += sizeof(int64_t) / kSlotSize;
-        break;
-      case kF32:
-        packer.Push(
-            base::ReadUnalignedValue<float>(reinterpret_cast<Address>(p)));
-        p += sizeof(float) / kSlotSize;
-        break;
-      case kF64:
-        packer.Push(
-            base::ReadUnalignedValue<double>(reinterpret_cast<Address>(p)));
-        p += sizeof(double) / kSlotSize;
-        break;
-      case kRef:
-      case kRefNull: {
-        DirectHandle<Object> ref =
-            base::ReadUnalignedValue<WasmRef>(reinterpret_cast<Address>(p));
-        ref = WasmToJSObject(ref);
-        packer.Push(*ref);
-        p += sizeof(WasmRef) / kSlotSize;
-        break;
+  DisallowHeapAllocation no_gc;
+
+  // PASS 1: Convert ref parameters to JS objects in a GC-rooted container.
+  // WasmToJSObject() may allocate and trigger GC (e.g. when creating external
+  // JSFunction wrappers for fresh funcrefs). We gather all refs here where
+  // allocations are safe, then pack them into the non-GC-scanned packer buffer
+  // in a second pass with no further allocations.
+  //
+  // Split into two sub-passes to guard against stale reads from stack_mem_
+  // if V8_ENABLE_DIRECT_HANDLE is ever enabled (DirectHandle would then store
+  // a raw Address not updated by GC; currently it is disabled in Chromium
+  // builds). First we read all WasmRefs out of stack_mem_ under
+  // DisallowHeapAllocation so GC cannot run between reads; then we call
+  // WasmToJSObject on each GC-rooted ref (GC now allowed).
+  DirectHandleVector<Object> ref_args(isolate_);
+  ref_args.reserve(sig->parameter_count());
+  {
+    // Collect all refs from stack_mem_ (outer DisallowHeapAllocation in
+    // effect).
+    uint32_t* p = sp + WasmBytecode::RetsSizeInSlots(sig);
+    for (size_t i = 0; i < sig->parameter_count(); ++i) {
+      switch (sig->GetParam(i).kind()) {
+        case kI32:
+          p += sizeof(int32_t) / kSlotSize;
+          break;
+        case kI64:
+          p += sizeof(int64_t) / kSlotSize;
+          break;
+        case kF32:
+          p += sizeof(float) / kSlotSize;
+          break;
+        case kF64:
+          p += sizeof(double) / kSlotSize;
+          break;
+        case kRef:
+        case kRefNull:
+          ref_args.push_back(
+              base::ReadUnalignedValue<WasmRef>(reinterpret_cast<Address>(p)));
+          p += sizeof(WasmRef) / kSlotSize;
+          break;
+        case kS128:
+        default:
+          UNREACHABLE();
       }
-      case kS128:
-      default:
-        UNREACHABLE();
+    }
+  }
+  {
+    // Convert gathered refs to JS objects (GC allowed; read only from
+    // GC-rooted ref_args, not from stack_mem_).
+    AllowHeapAllocation allow_gc;
+    for (DirectHandle<Object>& ref : ref_args) {
+      ref = WasmToJSObject(ref);
     }
   }
 
-  DCHECK_NOT_NULL(current_thread_);
-  current_thread_->StopExecutionTimer();
+  // PASS 2: Pack all parameters (primitives and converted refs) into the buffer
+  // and call the JS function.
+  CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(
+      reinterpret_cast<const wasm::CanonicalSig*>(sig)));
   {
-    // If there were Ref values passed as arguments they have already been read
-    // in BeginExecution(), so we can re-enable GC.
-    AllowHeapAllocation allow_gc;
+    size_t ref_idx = 0;
+    uint32_t* p = sp + WasmBytecode::RetsSizeInSlots(sig);
+    for (size_t i = 0; i < sig->parameter_count(); ++i) {
+      switch (sig->GetParam(i).kind()) {
+        case kI32:
+          packer.Push(
+              base::ReadUnalignedValue<int32_t>(reinterpret_cast<Address>(p)));
+          p += sizeof(int32_t) / kSlotSize;
+          break;
+        case kI64:
+          packer.Push(
+              base::ReadUnalignedValue<int64_t>(reinterpret_cast<Address>(p)));
+          p += sizeof(int64_t) / kSlotSize;
+          break;
+        case kF32:
+          packer.Push(
+              base::ReadUnalignedValue<float>(reinterpret_cast<Address>(p)));
+          p += sizeof(float) / kSlotSize;
+          break;
+        case kF64:
+          packer.Push(
+              base::ReadUnalignedValue<double>(reinterpret_cast<Address>(p)));
+          p += sizeof(double) / kSlotSize;
+          break;
+        case kRef:
+        case kRefNull:
+          packer.Push(*ref_args[ref_idx++]);
+          p += sizeof(WasmRef) / kSlotSize;
+          break;
+        case kS128:
+        default:
+          UNREACHABLE();
+      }
+    }
 
-    CallWasmToJSBuiltin(isolate_, object_ref, packer.argv(), sig);
+    DCHECK_NOT_NULL(current_thread_);
+    current_thread_->StopExecutionTimer();
+    {
+      AllowHeapAllocation allow_gc;
+      CallWasmToJSBuiltin(isolate_, object_ref, packer.argv(), sig);
+    }
+    current_thread_->StartExecutionTimer();
   }
-  current_thread_->StartExecutionTimer();
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
   if (v8_flags.trace_drumbrake_execution) {
@@ -2271,57 +2349,113 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
     return ExternalCallResult::EXTERNAL_EXCEPTION;
   }
 
-  // Push return values.
+  // Process return values.
   if (sig->return_count() > 0) {
     packer.Reset();
-    for (size_t i = 0; i < sig->return_count(); i++) {
-      switch (sig->GetReturn(i).kind()) {
-        case kI32:
-          base::WriteUnalignedValue<int32_t>(reinterpret_cast<Address>(sp),
-                                             packer.Pop<uint32_t>());
-          sp += sizeof(uint32_t) / kSlotSize;
-          break;
-        case kI64:
-          base::WriteUnalignedValue<uint64_t>(reinterpret_cast<Address>(sp),
-                                              packer.Pop<uint64_t>());
-          sp += sizeof(uint64_t) / kSlotSize;
-          break;
-        case kF32:
-          base::WriteUnalignedValue<float>(reinterpret_cast<Address>(sp),
-                                           packer.Pop<float>());
-          sp += sizeof(float) / kSlotSize;
-          break;
-        case kF64:
-          base::WriteUnalignedValue<double>(reinterpret_cast<Address>(sp),
-                                            packer.Pop<double>());
-          sp += sizeof(double) / kSlotSize;
-          break;
-        case kRef:
-        case kRefNull:
-          // TODO(paolosev@microsoft.com): Handle WasmNull case?
+
+    // PASS 1: Convert ref return values in a GC-rooted container.
+    // JSToWasmObject() may allocate and trigger GC. Split into two sub-passes
+    // for the same reason as the argument PASS 1: if V8_ENABLE_DIRECT_HANDLE
+    // were enabled, raw Address values in the packer buffer would not be
+    // GC-updated (currently disabled in Chromium builds). First, drain the
+    // packer into GC-rooted handles (no GC) before calling JSToWasmObject (GC
+    // allowed).
+    DirectHandleVector<Object> ref_returns(isolate_);
+    ref_returns.reserve(sig->return_count());
+    {
+      // Drain packer into ref_returns (outer DisallowHeapAllocation in effect).
+      for (size_t i = 0; i < sig->return_count(); i++) {
+        switch (sig->GetReturn(i).kind()) {
+          case kI32:
+            packer.Pop<uint32_t>();
+            break;
+          case kI64:
+            packer.Pop<uint64_t>();
+            break;
+          case kF32:
+            packer.Pop<float>();
+            break;
+          case kF64:
+            packer.Pop<double>();
+            break;
+          case kRef:
+          case kRefNull: {
 #ifdef V8_COMPRESS_POINTERS
-        {
-          Address address = packer.Pop<Address>();
-          DirectHandle<Object> ref(Tagged<Object>(address), isolate_);
-          if (sig->GetReturn(i).value_type_code() == wasm::kFuncRefCode &&
-              i::IsNull(*ref, isolate_)) {
-            ref = isolate_->factory()->wasm_null();
-          }
-          ref = JSToWasmObject(ref, sig->GetReturn(i));
-          if (isolate_->has_exception()) {
-            return ExternalCallResult::EXTERNAL_EXCEPTION;
-          }
-          base::WriteUnalignedValue<DirectHandle<Object>>(
-              reinterpret_cast<Address>(sp), ref);
-          sp += sizeof(WasmRef) / kSlotSize;
-        }
+            Address address = packer.Pop<Address>();
+            ref_returns.push_back(
+                DirectHandle<Object>(Tagged<Object>(address), isolate_));
 #else
-          CHECK(false);  // Not supported.
+            CHECK(false);  // Not supported.
 #endif  // V8_COMPRESS_POINTERS
-        break;
-        case kS128:
-        default:
-          UNREACHABLE();
+            break;
+          }
+          case kS128:
+          default:
+            UNREACHABLE();
+        }
+      }
+    }
+    {
+      // Call JSToWasmObject on each GC-rooted ref (GC allowed).
+      AllowHeapAllocation allow_gc;
+      size_t ref_idx = 0;
+      for (size_t i = 0; i < sig->return_count(); i++) {
+        if (sig->GetReturn(i).kind() != kRef &&
+            sig->GetReturn(i).kind() != kRefNull) {
+          continue;
+        }
+        DirectHandle<Object>& ref = ref_returns[ref_idx++];
+        if (sig->GetReturn(i).value_type_code() == wasm::kFuncRefCode &&
+            i::IsNull(*ref, isolate_)) {
+          ref = isolate_->factory()->wasm_null();
+        }
+        ref = JSToWasmObject(ref, sig->GetReturn(i));
+        if (isolate_->has_exception()) {
+          return ExternalCallResult::EXTERNAL_EXCEPTION;
+        }
+      }
+    }
+
+    // PASS 2: Write return values to the wasm stack with no allocations.
+    // Refs come from the rooted ref_returns container, primitives are read
+    // from re-scanning the packer buffer in the same order as PASS 1.
+    {
+      packer.Reset();
+      size_t ref_idx = 0;
+      for (size_t i = 0; i < sig->return_count(); i++) {
+        switch (sig->GetReturn(i).kind()) {
+          case kI32:
+            base::WriteUnalignedValue<int32_t>(reinterpret_cast<Address>(sp),
+                                               packer.Pop<uint32_t>());
+            sp += sizeof(uint32_t) / kSlotSize;
+            break;
+          case kI64:
+            base::WriteUnalignedValue<uint64_t>(reinterpret_cast<Address>(sp),
+                                                packer.Pop<uint64_t>());
+            sp += sizeof(uint64_t) / kSlotSize;
+            break;
+          case kF32:
+            base::WriteUnalignedValue<float>(reinterpret_cast<Address>(sp),
+                                             packer.Pop<float>());
+            sp += sizeof(float) / kSlotSize;
+            break;
+          case kF64:
+            base::WriteUnalignedValue<double>(reinterpret_cast<Address>(sp),
+                                              packer.Pop<double>());
+            sp += sizeof(double) / kSlotSize;
+            break;
+          case kRef:
+          case kRefNull:
+            packer
+                .Pop<Address>();  // Advance offset to stay in sync with PASS 1
+            *reinterpret_cast<DirectHandle<Object>*>(sp) =
+                ref_returns[ref_idx++];
+            sp += sizeof(WasmRef) / kSlotSize;
+            break;
+          case kS128:
+          default:
+            UNREACHABLE();
+        }
       }
     }
   }
@@ -2413,7 +2547,7 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalWasmFunction(
 }
 
 DirectHandle<Map> WasmInterpreterRuntime::RttCanon(uint32_t type_index) const {
-  bool type_is_shared =
+  const bool type_is_shared =
       module_->types[type_index].is_shared == SharedFlag::kYes;
   DirectHandle<WasmTrustedInstanceData> data =
       type_is_shared

@@ -140,7 +140,7 @@ static void VisitRR(InstructionSelector* selector, ArchOpcode opcode,
   selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
 static void VisitRRI(InstructionSelector* selector, ArchOpcode opcode,
                      OpIndex node) {
   Loong64OperandGenerator g(selector);
@@ -189,7 +189,7 @@ void VisitRRRR(InstructionSelector* selector, ArchOpcode opcode, OpIndex node) {
   selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.first()),
                  g.UseRegister(op.second()), g.UseRegister(op.third()));
 }
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_SIMD128
 
 void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, OpIndex node) {
   Loong64OperandGenerator g(selector);
@@ -439,7 +439,7 @@ void EmitLoad(InstructionSelector* selector, turboshaft::OpIndex node,
   }
 }
 
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
 namespace {
 InstructionOperand EmitAddBeforeS128LoadStore(InstructionSelector* selector,
                                               OpIndex node,
@@ -565,7 +565,7 @@ void InstructionSelector::VisitLoadTransform(OpIndex node) {
   }
   Emit(opcode, 1, outputs, 2, inputs);
 }
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_SIMD128
 
 namespace {
 
@@ -1048,6 +1048,8 @@ void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
 }
 
 void InstructionSelector::VisitUint64Add128(OpIndex node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitUint64Sub128(OpIndex node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitInt32Div(OpIndex node) {
   Loong64OperandGenerator g(this);
@@ -2068,7 +2070,7 @@ void VisitAtomicExchange(InstructionSelector* selector, OpIndex node,
     inputs[2] = g.UseUniqueRegister(value);
   }
   InstructionOperand outputs[1];
-  outputs[0] = g.UseUniqueRegister(node);
+  outputs[0] = g.DefineAsRegister(node);
   InstructionOperand temps[3];
   temps[0] = g.TempRegister();
   temps[1] = g.TempRegister();
@@ -2100,7 +2102,7 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
       has_write_barrier ? g.UseUniqueRegister(index) : g.UseRegister(index),
       g.UseUniqueRegister(old_value), g.UseUniqueRegister(new_value)};
   InstructionOperand outputs[1];
-  outputs[0] = g.UseUniqueRegister(node);
+  outputs[0] = g.DefineAsRegister(node);
   InstructionOperand temps[3];
   temps[0] = g.TempRegister();
   temps[1] = g.TempRegister();
@@ -2127,11 +2129,11 @@ void VisitAtomicBinop(InstructionSelector* selector, OpIndex node,
   AddressingMode addressing_mode = kMode_MRI;
   InstructionOperand inputs[3];
   size_t input_count = 0;
-  inputs[input_count++] = g.UseUniqueRegister(base);
-  inputs[input_count++] = g.UseUniqueRegister(index);
+  inputs[input_count++] = g.UseRegister(base);
+  inputs[input_count++] = g.UseRegister(index);
   inputs[input_count++] = g.UseUniqueRegister(value);
   InstructionOperand outputs[1];
-  outputs[0] = g.UseUniqueRegister(node);
+  outputs[0] = g.DefineAsRegister(node);
   InstructionOperand temps[4];
   temps[0] = g.TempRegister();
   temps[1] = g.TempRegister();
@@ -2732,7 +2734,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(OpIndex node) {
   UNREACHABLE();
 }
 
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
 
 #define SIMD_TYPE_LIST(V) \
   V(F64x2)                \
@@ -3114,7 +3116,6 @@ UNIMPLEMENTED_SIMD_FP16_OP_LIST(SIMD_VISIT_UNIMPL_FP16_OP)
 #undef SIMD_VISIT_UNIMPL_FP16_OP
 #undef UNIMPLEMENTED_SIMD_FP16_OP_LIST
 
-#if V8_ENABLE_WEBASSEMBLY
 namespace {
 
 struct ShuffleEntry {
@@ -3214,26 +3215,23 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
     return;
   }
 
-  if (wasm::SimdShuffle::TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
+  if (SimdShuffle::TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
     InstructionOperand temps2[] = {g.TempSimd128Register(),
                                    g.TempSimd128Register()};
     Emit(kLoong64S32x4Shuffle, g.DefineAsRegister(node),
          g.UseUniqueRegister(input0), g.UseUniqueRegister(input1),
-         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle32x4)),
+         g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle32x4)),
          arraysize(temps2), temps2);
     return;
   }
   Emit(kLoong64I8x16Shuffle, g.DefineAsRegister(node),
        g.UseUniqueRegister(input0), g.UseUniqueRegister(input1),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 4)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 8)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 12)),
-       arraysize(temps), temps);
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle)),
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle + 4)),
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle + 8)),
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle + 12)), arraysize(temps),
+       temps);
 }
-#else
-void InstructionSelector::VisitI8x16Shuffle(OpIndex node) { UNREACHABLE(); }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelector::VisitI8x16Swizzle(OpIndex node) {
   Loong64OperandGenerator g(this);
@@ -3246,13 +3244,6 @@ void InstructionSelector::VisitI8x16Swizzle(OpIndex node) {
   Emit(kLoong64I8x16Swizzle, g.DefineAsRegister(node),
        g.UseUniqueRegister(op.input(0)), g.UseUniqueRegister(op.input(1)),
        arraysize(temps), temps);
-}
-
-void InstructionSelector::VisitSetStackPointer(OpIndex node) {
-  OperandGenerator g(this);
-  const SetStackPointerOp& op = Cast<SetStackPointerOp>(node);
-  auto input = g.UseRegister(op.value());
-  Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
 }
 
 void InstructionSelector::VisitF32x4Pmin(OpIndex node) {
@@ -3314,6 +3305,15 @@ VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8S, LSXS16)
 VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8U, LSXU16)
 #undef VISIT_EXTADD_PAIRWISE
 
+#endif  // V8_ENABLE_SIMD128
+
+#if V8_ENABLE_WEBASSEMBLY
+void InstructionSelector::VisitSetStackPointer(OpIndex node) {
+  OperandGenerator g(this);
+  const SetStackPointerOp& op = Cast<SetStackPointerOp>(node);
+  auto input = g.UseRegister(op.value());
+  Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelector::VisitSignExtendWord8ToInt32(OpIndex node) {

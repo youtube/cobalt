@@ -18,6 +18,7 @@
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/containers/span.h"
+#include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
@@ -69,6 +70,7 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/device_event_log/device_event_log.h"
 #include "components/password_manager/core/browser/password_form.h"
+#include "components/password_manager/core/browser/password_store/password_form_converters.h"
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_service.h"
@@ -2494,7 +2496,8 @@ IN_PROC_BROWSER_TEST_F(EnclaveAuthenticatorBrowserTest, GpmEnclaveNeedsReauth) {
       identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
   signin::UpdatePersistentErrorOfRefreshTokenForAccount(
       identity_manager, account,
-      GoogleServiceAuthError(GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS));
+      GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
+          GoogleServiceAuthError::InvalidGaiaCredentialsReason::UNKNOWN));
 
   // Add a passkey to make sure it's not shown.
   AddTestPasskeyToModel();
@@ -2546,7 +2549,8 @@ IN_PROC_BROWSER_TEST_F(EnclaveAuthenticatorBrowserTest,
       identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
   signin::UpdatePersistentErrorOfRefreshTokenForAccount(
       identity_manager, account,
-      GoogleServiceAuthError(GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS));
+      GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
+          GoogleServiceAuthError::InvalidGaiaCredentialsReason::UNKNOWN));
 
   // Add a passkey to make sure it's not shown.
   AddTestPasskeyToModel();
@@ -2618,7 +2622,8 @@ IN_PROC_BROWSER_TEST_F(EnclaveAuthenticatorBrowserTest,
       identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
   signin::UpdatePersistentErrorOfRefreshTokenForAccount(
       identity_manager, account,
-      GoogleServiceAuthError(GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS));
+      GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
+          GoogleServiceAuthError::InvalidGaiaCredentialsReason::UNKNOWN));
 
   // Add a passkey to make sure it's not shown.
   AddTestPasskeyToModel();
@@ -4318,7 +4323,7 @@ class EnclaveAuthenticatorConditionalCreateBrowserTest
     saved_form.username_value = base::UTF8ToUTF16(std::string(kSyncEmail));
     saved_form.password_value = u"hunter1";
     saved_form.date_last_used = last_used;
-    password_store()->AddLogin(saved_form);
+    password_store()->AddLogin(password_manager::FromPasswordForm(saved_form));
   }
 
   sync_pb::WebauthnCredentialSpecifics InjectPasskey() {
@@ -4739,6 +4744,41 @@ IN_PROC_BROWSER_TEST_F(EnclaveAuthenticatorBrowserTest,
   // Ensure the large blob is redacted from logs.
   EXPECT_THAT(GetDeviceLog(),
               testing::HasSubstr("\"largeBlob\": \"[redacted]\""));
+}
+
+// Regression test for crbug.com/505059790.
+// Simulate MagicArch returning keys for the wrong user. This used to crash, now
+// it should result in a GPM error.
+IN_PROC_BROWSER_TEST_F(EnclaveAuthenticatorBrowserTest,
+                       RecoverSecurityDomainGaiaMismatchedFailure) {
+  SetTrustedVaultRecoverable();
+  EnableUVKeySupport();
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  content::DOMMessageQueue message_queue(web_contents);
+
+  content::ExecuteScriptAsync(web_contents, kMakeCredentialUvRequired);
+  delegate_observer()->WaitForUI();
+
+  model_observer()->SetStepToObserve(
+      AuthenticatorRequestDialogModel::Step::kGPMTrustThisComputerCreation);
+  model_observer()->WaitForStep();
+
+  model_observer()->SetStepToObserve(
+      AuthenticatorRequestDialogModel::Step::kGPMRecoverSecurityDomain);
+  dialog_model()->OnGPMTrustThisComputer();
+  model_observer()->WaitForStep();
+
+  model_observer()->SetStepToObserve(
+      AuthenticatorRequestDialogModel::Step::kGPMError);
+  auto store_keys_lock = enclave_manager().GetStoreKeysLock();
+  enclave_manager().StoreKeys(
+      GaiaId("mismatched_gaia_id"),
+      {trusted_vault::TrustedVaultKeyAndVersion(
+          base::ToVector(kSecurityDomainSecret), kSecretVersion)},
+      std::nullopt);
+  model_observer()->WaitForStep();
 }
 
 }  // namespace

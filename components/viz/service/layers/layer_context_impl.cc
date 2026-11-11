@@ -5,6 +5,7 @@
 #include "components/viz/service/layers/layer_context_impl.h"
 
 #include <algorithm>
+#include <limits>
 #include <memory>
 #include <string>
 #include <utility>
@@ -470,12 +471,21 @@ base::expected<void, std::string> UpdatePropertyTreeNode(
 }
 
 template <typename TreeType>
-bool ResizePropertyTree(TreeType& tree, uint32_t num_nodes) {
-  if (num_nodes == tree.nodes().size()) {
+base::expected<bool, std::string> ResizePropertyTree(TreeType& tree,
+                                                     uint32_t num_nodes) {
+  if (num_nodes < 1) {
+    return base::unexpected("Property tree size must be at least 1");
+  }
+
+  if (num_nodes > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
+    return base::unexpected("Property tree size too large");
+  }
+
+  if (static_cast<size_t>(num_nodes) == tree.nodes().size()) {
     return false;
   }
 
-  if (num_nodes < tree.nodes().size()) {
+  if (static_cast<size_t>(num_nodes) < tree.nodes().size()) {
     tree.RemoveNodes(tree.nodes().size() - num_nodes);
     return true;
   }
@@ -1599,7 +1609,7 @@ LayerContextImpl::LayerContextImpl(
           /*dark_mode_filter=*/nullptr,
           GenerateNextDisplayTreeId(),
           /*image_worker_task_runner=*/nullptr,
-          /*scheduling_client=*/nullptr)) {
+          /*scheduling_delegate=*/nullptr)) {
   if (receiver_pipe.is_valid() && client_pipe.is_valid()) {
     receiver_ = std::make_unique<mojo::AssociatedReceiver<mojom::LayerContext>>(
         this, std::move(receiver_pipe));
@@ -1885,16 +1895,20 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
   // themselves may index one or more other property tree nodes. These indices
   // need to be validated, and the dependency can be cyclic (e.g. scroll nodes
   // may index transform nodes and transform nodes may index scroll nodes).
-  const bool transform_size_changed = ResizePropertyTree(
-      property_trees.transform_tree_mutable(), update->num_transform_nodes);
-  const bool clip_size_changed = ResizePropertyTree(
-      property_trees.clip_tree_mutable(), update->num_clip_nodes);
+  ASSIGN_OR_RETURN(const bool transform_size_changed,
+                   ResizePropertyTree(property_trees.transform_tree_mutable(),
+                                      update->num_transform_nodes));
+  ASSIGN_OR_RETURN(const bool clip_size_changed,
+                   ResizePropertyTree(property_trees.clip_tree_mutable(),
+                                      update->num_clip_nodes));
   const bool effect_size_increased =
       update->num_effect_nodes > property_trees.effect_tree().nodes().size();
-  const bool effect_size_changed = ResizePropertyTree(
-      property_trees.effect_tree_mutable(), update->num_effect_nodes);
-  const bool scroll_size_changed = ResizePropertyTree(
-      property_trees.scroll_tree_mutable(), update->num_scroll_nodes);
+  ASSIGN_OR_RETURN(const bool effect_size_changed,
+                   ResizePropertyTree(property_trees.effect_tree_mutable(),
+                                      update->num_effect_nodes));
+  ASSIGN_OR_RETURN(const bool scroll_size_changed,
+                   ResizePropertyTree(property_trees.scroll_tree_mutable(),
+                                      update->num_scroll_nodes));
 
   // Transform tree properties need to update before its nodes are updated, as
   // the nodes may index properties on the tree itself (e.g. scroll
@@ -2011,6 +2025,9 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
   RETURN_IF_FALSE(update->next_frame_token > 0, "invalid frame token");
   host_impl_->set_next_frame_token_from_client(update->next_frame_token);
 
+  host_impl_->set_tracked_element_rects_from_client(
+      std::move(update->tracked_element_rects));
+
   for (const auto& latency : update->latency_info) {
     if (latency.terminated()) {
       return base::unexpected("Received already-terminated LatencyInfo");
@@ -2030,6 +2047,12 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
   } else {
     layers.clear_delegated_ink_metadata();
   }
+
+  if (update->screenshot_destination) {
+    host_impl_->SetScreenshotDestinationToken(
+        update->screenshot_destination->value());
+  }
+
   host_impl_->SetMayThrottleIfUndrawnFrames(
       update->may_throttle_if_undrawn_frames);
   host_impl_->set_viewport_mobile_optimized(

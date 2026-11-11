@@ -31,8 +31,8 @@ class EntropyProviders;
 // Trial and group names for the seed file experiment.
 const char kSeedFileTrial[] = "SeedFileTrial";
 const char kDefaultGroup[] = "Default";
-const char kControlGroup[] = "Control_V10";
-const char kSeedFilesGroup[] = "SeedFiles_V10";
+const char kControlGroup[] = "Control_V11";
+const char kSeedFilesGroup[] = "SeedFiles_V11";
 
 // A sentinel value that may be stored as the latest variations seed value in
 // to indicate that the latest seed is identical to the safe seed. Used to avoid
@@ -329,8 +329,9 @@ class COMPONENT_EXPORT(VARIATIONS) SeedReaderWriter
   // TODO(crbug.com/417138763): Remove this once the migration is complete.
   bool ReadOldSeedFile();
 
-  // Reads the seed data from local state.
-  void ReadSeedFromLocalState();
+  // Migrates the seed data from local state to a seed file. Returns true if the
+  // migration is successful.
+  bool MigrateFromLocalStateToSeedFile();
 
   // Reads the seed data and signature from the seed file and calls
   // `done_callback` with the result.
@@ -434,6 +435,11 @@ class COMPONENT_EXPORT(VARIATIONS) SeedReaderWriter
   // TODO(crbug.com/445615330): Remove this once we have verified that the
   // reason for the error is that the seed file is missing.
   bool check_missing_seed_file_ = false;
+
+  // Whether the client is migrating from local state or the old SeedFile to the
+  // new one. This is used to determine whether the old sources should be
+  // cleared.
+  bool migrating_from_old_source_ = false;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

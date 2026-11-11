@@ -3112,6 +3112,10 @@ AsyncStreamingProcessor::AsyncStreamingProcessor(AsyncCompileJob* job)
       compilation_unit_builder_(nullptr) {}
 
 AsyncStreamingProcessor::~AsyncStreamingProcessor() {
+  // We expect {OnAbort()} or {OnFinishedStream()} to be called before the
+  // destructor runs. Both invalidate the {validate_functions_job_handle_}.
+  CHECK_NULL(validate_functions_job_handle_);
+
   if (owns_cache_entry_) {
     GetWasmEngine()->StreamingCompilationFailed(
         prefix_hasher_.hash(), job_->enabled_features_, job_->compile_imports_);

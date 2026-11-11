@@ -586,6 +586,18 @@ bool IC::UpdateHomomorphicIC(const MaybeObjectDirectHandle& new_handler,
     // code, we should harden this path, e.g. with:
     //
     // DCHECK_NE(nexus()->GetFeedbackExtra(), new_smi_handler);
+    if (v8_flags.sparkplug_plus &&
+        caller_frame_type() == CallerFrameType::kBaseline) {
+      // The feedback is already homomorphic, but we missed in baseline.
+      // This means the baseline code was out of sync. We return true
+      // to trigger patching to homomorphic in SetCache.
+#ifdef DEBUG
+      Builtin current_builtin = GetCurrentBaselineBuiltin();
+      DCHECK(current_builtin == Builtin::kLoadICUninitializedBaseline ||
+             IsMonomorphicLoadICHandler(current_builtin));
+#endif
+      return true;
+    }
     return false;
   } else {
     CHECK_EQ(state(), RECOMPUTE_HANDLER);
@@ -735,6 +747,25 @@ bool IC::UpdatePolymorphicIC(DirectHandle<Name> name,
         // state, there we allow to migrate to a new handler.
         if (handler.is_identical_to(existing_handler) &&
             state() != RECOMPUTE_HANDLER) {
+          if (v8_flags.sparkplug_plus &&
+              caller_frame_type() == CallerFrameType::kBaseline) {
+            // The map/handler is already in the feedback, but we missed.
+            // This means the baseline code was out of sync. We return true
+            // to trigger patching to polymorphic in SetCache.
+#ifdef DEBUG
+            Builtin current_builtin = GetCurrentBaselineBuiltin();
+            DCHECK(current_builtin == Builtin::kLoadICUninitializedBaseline ||
+                   IsMonomorphicLoadICHandler(current_builtin));
+#endif
+            return true;
+          }
+          return false;
+        }
+
+        // If the receiver type is a dictionary map and the handler is
+        // different, it means the dictionary rehashed. Go MEGAMORPHIC to
+        // prevent deopt loops.
+        if (map->is_dictionary_map()) {
           return false;
         }
 
@@ -813,36 +844,51 @@ Builtin CalculatePatchingTarget(Builtin current_builtin, Builtin handler) {
 }  // namespace
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
+Builtin IC::GetCurrentBaselineBuiltin(Address* out_pc) const {
+  if (caller_frame_type() != CallerFrameType::kBaseline) {
+    return Builtin::kNoBuiltinId;
+  }
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+  if (!isolate()->is_short_builtin_calls_enabled()) {
+    return Builtin::kNoBuiltinId;
+  }
+  const Address entry = Isolate::c_entry_fp(isolate_->thread_local_top());
+  Address* pc_address =
+      reinterpret_cast<Address*>(entry + ExitFrameConstants::kCallerPCOffset);
+  Address pc =
+      StackFrame::ReadPC(pc_address) - Assembler::kCallTargetAddressOffset;
+  if (out_pc) *out_pc = pc;
+
+  Address current = Assembler::target_address_at(pc, kNullAddress);
+  Builtin current_builtin =
+      OffHeapInstructionStream::TryLookupCode(isolate_, current);
+  DCHECK_EQ(current, Builtins::EntryOf(current_builtin, isolate_));
+  return current_builtin;
+#else
+  return Builtin::kNoBuiltinId;
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+}
+
 void IC::MaybePatchCode(Builtin handler) {
   CHECK(v8_flags.sparkplug_plus);
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
   if (handler == Builtin::kIllegal) return;
-  if (!isolate()->is_short_builtin_calls_enabled()) return;
 
-  // Patch baseline code if it is from baseline frame.
-  if (caller_frame_type() == CallerFrameType::kBaseline) {
-    const Address entry = Isolate::c_entry_fp(isolate_->thread_local_top());
-    Address* pc_address =
-        reinterpret_cast<Address*>(entry + ExitFrameConstants::kCallerPCOffset);
-    Address pc =
-        StackFrame::ReadPC(pc_address) - Assembler::kCallTargetAddressOffset;
+  Address pc;
+  Builtin current_builtin = GetCurrentBaselineBuiltin(&pc);
+  if (current_builtin == Builtin::kNoBuiltinId) return;
+  if (current_builtin == Builtin::kLoadICGenericBaseline) return;
 
-    Address current = Assembler::target_address_at(pc, kNullAddress);
-    // TODO(chromium:429351411): Consider using a cache.
-    Builtin current_builtin =
-        OffHeapInstructionStream::TryLookupCode(isolate_, current);
-    DCHECK_EQ(current, Builtins::EntryOf(current_builtin, isolate_));
-    Builtin target_builtin = CalculatePatchingTarget(current_builtin, handler);
-    if (target_builtin == Builtin::kNoBuiltinId) return;
+  Builtin target_builtin = CalculatePatchingTarget(current_builtin, handler);
+  if (target_builtin == Builtin::kNoBuiltinId) return;
 
-    Address target = Builtins::EntryOf(target_builtin, isolate_);
-    WritableJitAllocation jit_allocation =
-        WritableJitAllocation::ForPatchableBaselineJIT(
-            pc, Assembler::kCallTargetAddressOffset);
-    Assembler::set_target_address_at(pc, kNullAddress, target, &jit_allocation,
-                                     FLUSH_ICACHE_IF_NEEDED);
-  }
+  Address target = Builtins::EntryOf(target_builtin, isolate_);
+  WritableJitAllocation jit_allocation =
+      WritableJitAllocation::ForPatchableBaselineJIT(
+          pc, Assembler::kCallTargetAddressOffset);
+  Assembler::set_target_address_at(pc, kNullAddress, target, &jit_allocation,
+                                   FLUSH_ICACHE_IF_NEEDED);
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 }
 
@@ -884,11 +930,43 @@ Builtin IC::GetHandlerPolymorphic() {
   return Builtin::kIllegal;
 }
 
+Builtin IC::GetHandlerHomomorphic() {
+  if (IsLoadIC()) {
+    return Builtin::kLoadICGenericBaseline;
+  }
+  return Builtin::kIllegal;
+}
+
 Builtin IC::GetHandlerMegamorphic() {
   if (IsLoadIC()) {
     return Builtin::kLoadICGenericBaseline;
   }
   return Builtin::kIllegal;
+}
+
+bool IC::TryHealMonomorphicIC(const MaybeObjectHandle& handler) {
+  if (!v8_flags.sparkplug_plus) return false;
+  if (caller_frame_type() != CallerFrameType::kBaseline) return false;
+
+  Tagged<Map> feedback_map = nexus()->GetFirstMap();
+  if (feedback_map.is_null()) return false;
+  if (feedback_map != *lookup_start_object_map()) return false;
+
+  MaybeObjectDirectHandle feedback_handler =
+      nexus()->FindHandlerForMap(lookup_start_object_map());
+  if (feedback_handler.is_null()) return false;
+  if (!feedback_handler.is_identical_to(handler)) return false;
+
+  Builtin current_builtin = GetCurrentBaselineBuiltin();
+  DCHECK(current_builtin == Builtin::kLoadICUninitializedBaseline ||
+         IsMonomorphicLoadICHandler(current_builtin));
+  if (current_builtin != Builtin::kLoadICUninitializedBaseline) return false;
+
+  // The map/handler is already in the feedback, but we missed in baseline.
+  // This means the baseline code was out of sync (still uninitialized).
+  // We patch it to the monomorphic handler.
+  MaybePatchCode(FeedbackNexus::ic_handler(*feedback_handler, kind()));
+  return true;
 }
 
 void IC::SetCache(DirectHandle<Name> name, Handle<Object> handler) {
@@ -916,6 +994,7 @@ void IC::SetCache(DirectHandle<Name> name, const MaybeObjectHandle& handler) {
         UpdateMonomorphicIC(handler, name);
         break;
       }
+      if (TryHealMonomorphicIC(handler)) break;
       if (UpdateOneMapManyNamesIC(name)) break;
       [[fallthrough]];
     case POLYMORPHIC:
@@ -928,7 +1007,12 @@ void IC::SetCache(DirectHandle<Name> name, const MaybeObjectHandle& handler) {
       if (UpdateMegaDOMIC(handler, name)) break;
       [[fallthrough]];
     case HOMOMORPHIC:
-      if (UpdateHomomorphicIC(handler, name)) break;
+      if (UpdateHomomorphicIC(handler, name)) {
+        if (v8_flags.sparkplug_plus) {
+          MaybePatchCode(GetHandlerHomomorphic());
+        }
+        break;
+      }
       if (!is_keyed() || state() == RECOMPUTE_HANDLER) {
         CopyICToMegamorphicCache(name);
       }
@@ -1112,7 +1196,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
         DirectHandle<ObjectHashTable> exports(
             Cast<JSModuleNamespace>(holder)->module()->exports(), isolate());
         InternalIndex entry =
-            exports->FindEntry(isolate(), roots, lookup->name(),
+            exports->FindEntry(roots, lookup->name(),
                                Smi::ToInt(Object::GetHash(*lookup->name())));
         // We found the accessor, so the entry must exist.
         DCHECK(entry.is_found());
@@ -1203,7 +1287,8 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
               MaybeObjectDirectHandle::Weak(lookup->GetPropertyCell())));
         }
         smi_handler =
-            LoadHandler::LoadNormal(isolate(), lookup->dictionary_entry());
+            LoadHandler::LoadNormal(isolate(), lookup->dictionary_entry(),
+                                    lookup->state() == LookupIterator::DATA);
 
         if (holder_is_lookup_start_object) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalDH);
@@ -1244,8 +1329,12 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
       DirectHandle<JSReceiver> holder = lookup->GetHolder<JSReceiver>();
       DCHECK_EQ(PropertyKind::kData, lookup->property_details().kind());
       Handle<Smi> smi_handler;
+      if (lookup->IsElement(*holder)) {
+        TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
+        return MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
+      }
       if (lookup->is_dictionary_holder()) {
-        if (IsJSGlobalObject(*holder, isolate())) {
+        if (IsJSGlobalObject(*holder)) {
           // TODO(verwaest): Also supporting the global object as receiver is a
           // workaround for code that leaks the global object.
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadGlobalDH);
@@ -1256,7 +1345,8 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
         }
 
         smi_handler =
-            LoadHandler::LoadNormal(isolate(), lookup->dictionary_entry());
+            LoadHandler::LoadNormal(isolate(), lookup->dictionary_entry(),
+                                    lookup->state() == LookupIterator::DATA);
         if (holder_is_lookup_start_object) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalDH);
           return MaybeObjectHandle(smi_handler);
@@ -1264,19 +1354,17 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
 
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalFromPrototypeDH);
 
-      } else if (lookup->IsElement(*holder)) {
-        TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
-        return MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
       } else {
         DCHECK_EQ(PropertyLocation::kField,
                   lookup->property_details().location());
-        DCHECK(IsJSObject(*holder, isolate()));
+        DCHECK(IsJSObject(*holder));
         FieldIndex field = lookup->GetFieldIndex();
         InternalIndex descriptor = lookup->GetFieldDescriptorIndex();
         smi_handler = LoadHandler::LoadField(isolate(), field, descriptor);
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
-        if (holder_is_lookup_start_object)
+        if (holder_is_lookup_start_object) {
           return MaybeObjectHandle(smi_handler);
+        }
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldFromPrototypeDH);
       }
       if (lookup->constness() == PropertyConstness::kConst &&
@@ -1996,7 +2084,7 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
                                   StoreOrigin store_origin) {
   // It should not be possible to call DefineOwnDataProperty in a
   // contextual store (indicated by IsJSGlobalObject()).
-  DCHECK(!IsJSGlobalObject(*it->GetReceiver(), it->isolate()));
+  DCHECK(!IsJSGlobalObject(*it->GetReceiver()));
 
   // Handle special cases that can't be handled by
   // DefineOwnPropertyIgnoreAttributes first.
@@ -2431,6 +2519,11 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       DCHECK(!IsAccessCheckNeeded(*receiver) || lookup->name()->IsAnyPrivate());
 
       DCHECK_EQ(PropertyKind::kData, lookup->property_details().kind());
+      // -------------- Elements (for TypedArrays) -------------
+      if (lookup->IsElement(*holder)) {
+        TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
+        return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
+      }
       if (lookup->is_dictionary_holder()) {
         if (IsJSGlobalObject(*holder)) {
           TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalDH);
@@ -2444,12 +2537,6 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 
         Handle<Smi> handler = StoreHandler::StoreNormal(isolate());
         return MaybeObjectHandle(handler);
-      }
-
-      // -------------- Elements (for TypedArrays) -------------
-      if (lookup->IsElement(*holder)) {
-        TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
-        return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
       }
 
       // -------------- Fields --------------
@@ -3734,7 +3821,7 @@ bool CanFastCloneObjectToObjectLiteral(DirectHandle<Map> source_map,
   DCHECK_EQ(target_map->GetConstructor(), *isolate->object_function());
   DCHECK_IMPLIES(
       !null_proto_literal,
-      *target_map->prototype() == *isolate->object_function_prototype());
+      target_map->prototype() == *isolate->object_function_prototype());
 
   // Ensure source and target have identical binary representation of properties
   // and elements as the IC relies on copying the raw bytes. This also excludes

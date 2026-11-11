@@ -170,7 +170,7 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
       has_float64_constant_input = true;
       input_reprs.Add(ValueRepresentation::kFloat64);
       untagging_kinds[i] = UntaggingKind::kKnownNumber;
-    } else if (Constant* constant = input->TryCast<Constant>()) {
+    } else if (HeapConstant* constant = input->TryCast<HeapConstant>()) {
       if (constant->object().IsHeapNumber()) {
         double value = constant->object().AsHeapNumber().value();
         if (IsInt32Double(value)) {
@@ -181,7 +181,7 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
         }
         untagging_kinds[i] = UntaggingKind::kHeapNumberConstant;
       } else {
-        // Not a Constant that we can untag.
+        // Not a HeapConstant that we can untag.
         // TODO(leszeks): Consider treating 'undefined' as a potential
         // HoleyFloat64.
         input_reprs.RemoveAll();
@@ -714,18 +714,18 @@ void MaglevPhiRepresentationSelector::UntagSmiConstantInput(
 
 void MaglevPhiRepresentationSelector::UntagConstantInput(
     Phi* phi, ValueRepresentation repr, bool truncating, int input_index,
-    const Constant* constant) {
+    const HeapConstant* constant) {
   const ValueNode* input = constant->Cast<ValueNode>();  // For easy tracing
   DCHECK(constant->object().IsHeapNumber());
   if (repr == ValueRepresentation::kFloat64) {
     TRACE_UNTAGGING(TRACE_INPUT_LABEL
-                    << ": Making Float64 instead of Constant");
+                    << ": Making Float64 instead of HeapConstant");
     phi->change_input(
         input_index,
         graph_->GetFloat64Constant(constant->object().AsHeapNumber().value()));
   } else if (repr == ValueRepresentation::kHoleyFloat64) {
     TRACE_UNTAGGING(TRACE_INPUT_LABEL
-                    << ": Making HoleyFloat64 instead of Constant");
+                    << ": Making HoleyFloat64 instead of HeapConstant");
     Float64 f64 = Float64::FromBits(
         base::double_to_uint64(constant->object().AsHeapNumber().value()));
     // We need to silence hole and undefined patterns as their
@@ -734,13 +734,14 @@ void MaglevPhiRepresentationSelector::UntagConstantInput(
     phi->change_input(input_index, graph_->GetHoleyFloat64Constant(f64));
   } else if (truncating) {
     TRACE_UNTAGGING(TRACE_INPUT_LABEL
-                    << ": Making TruncatedInt32 instead of Constant");
+                    << ": Making TruncatedInt32 instead of HeapConstant");
     DCHECK_EQ(repr, ValueRepresentation::kInt32);
     double value = constant->object().AsHeapNumber().value();
     int32_t truncated_value = DoubleToInt32(value);
     phi->change_input(input_index, graph_->GetInt32Constant(truncated_value));
   } else {
-    TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Making Int32 instead of Constant");
+    TRACE_UNTAGGING(TRACE_INPUT_LABEL
+                    << ": Making Int32 instead of HeapConstant");
     DCHECK_EQ(repr, ValueRepresentation::kInt32);
     double value = constant->object().AsHeapNumber().value();
     DCHECK(IsInt32Double(value));
@@ -979,7 +980,7 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
         break;
       case UntaggingKind::kHeapNumberConstant:
         UntagConstantInput(phi, repr, truncating, input_index,
-                           input->Cast<Constant>());
+                           input->Cast<HeapConstant>());
         break;
       case UntaggingKind::kConversion:
         DCHECK(input->is_conversion() || input->Is<ReturnedValue>());

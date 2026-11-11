@@ -340,6 +340,9 @@ class CONTENT_EXPORT RenderWidgetHostView {
   // Returns true if this view has a saved compositor frame.
   virtual bool HasSavedCompositorFrame() const = 0;
 
+  // Tells the View if it should use default deadline policy when resizing.
+  virtual void SetShouldUseDefaultDeadlineOnResize(bool enable) = 0;
+
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_IOS_TVOS)
   // Whether to prevent UpdateFrameBounds() from updating the reported view
   // bounds. This is required when displaying the native search bar, otherwise

@@ -15,22 +15,19 @@ namespace v8::internal {
 
 #include "torque-generated/src/objects/cpp-heap-external-object-tq.inc"
 
-V8_OBJECT class CppHeapExternalObject : public HeapObjectLayout {
+V8_OBJECT class CppHeapExternalObject : public HeapObject {
  public:
   DECL_PRINTER(CppHeapExternalObject)
   DECL_VERIFIER(CppHeapExternalObject)
 
   class BodyDescriptor;
 
-  static const int kCppHeapWrappableOffset;
   static const int kHeaderSize;
 
  public:
   CppHeapPointerMember cpp_heap_wrappable_;
 } V8_OBJECT_END;
 
-inline constexpr int CppHeapExternalObject::kCppHeapWrappableOffset =
-    offsetof(CppHeapExternalObject, cpp_heap_wrappable_);
 inline constexpr int CppHeapExternalObject::kHeaderSize =
     sizeof(CppHeapExternalObject);
 

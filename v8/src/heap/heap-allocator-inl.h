@@ -11,6 +11,7 @@
 #include "src/base/logging.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
+#include "src/heap/heap-inl.h"  // For MaxRegularHeapObjectSize().
 #include "src/heap/large-spaces.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/main-allocator-inl.h"
@@ -80,7 +81,7 @@ HeapAllocator::AllocateRaw(int size_in_bytes, AllocationOrigin origin,
   CHECK(AllowHeapAllocationInRelease::IsAllowed());
   DCHECK(local_heap_->IsRunning());
   // We need to have entered the isolate before allocating.
-  DCHECK_EQ(heap_->isolate(), Isolate::TryGetCurrent());
+  DCHECK_EQ(Isolate::FromHeap(heap_), Isolate::TryGetCurrent());
 #if DEBUG
   local_heap_->VerifyCurrent();
 #endif  // DEBUG

@@ -53,7 +53,7 @@
 #include "chrome/browser/ui/intent_picker_tab_helper.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
-#include "chrome/browser/ui/page_actions/page_action_properties_provider.h"
+#include "chrome/browser/ui/page_action/page_action_properties_provider.h"
 #include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/glic_actor_task_icon_manager_factory.h"
@@ -596,7 +596,6 @@ void ToolbarView::Init() {
     avatar_->SetVisible(show_avatar_toolbar_button);
   }
 
-
   overflow_button_ = AddChildView(std::make_unique<OverflowButton>());
   overflow_button_->SetVisible(false);
 
@@ -746,15 +745,12 @@ std::unique_ptr<glic::ToolbarGlicButton> ToolbarView::CreateGlicButton() {
   glic::GlicKeyedService* service =
       glic::GlicKeyedService::Get(browser_view_->GetProfile());
   std::u16string tooltip_text = l10n_util::GetStringUTF16(
-      service->IsWindowOrFreShowing() ? IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP_CLOSE
-                                      : IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP);
+      service->instance_coordinator().IsAnyPanelShowing()
+          ? IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP_CLOSE
+          : IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP);
   std::unique_ptr<glic::ToolbarGlicButton> glic_button =
       std::make_unique<glic::ToolbarGlicButton>(
           browser_view_->browser(),
-          base::BindRepeating(&ToolbarView::OnGlicButtonHovered,
-                              base::Unretained(this)),
-          base::BindRepeating(&ToolbarView::OnGlicButtonMouseDown,
-                              base::Unretained(this)),
           base::BindRepeating(&ToolbarView::OnGlicButtonAnimationEnded,
                               base::Unretained(this)),
           tooltip_text,
@@ -817,38 +813,6 @@ void ToolbarView::OnGlicButtonDismissed() {
   ExecuteHideToolbarNudge(glic_button_);
 }
 
-void ToolbarView::OnGlicButtonHovered() {
-  Profile* const profile = browser_view_->GetProfile();
-
-  glic::GlicKeyedService* glic_service =
-      glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile);
-  if (auto* instance =
-          glic_service->GetInstanceForActiveTab(browser_view_->browser())) {
-    instance->host().instance_delegate().PrepareForOpen();
-  }
-}
-
-void ToolbarView::OnGlicButtonMouseDown() {
-  Profile* const profile = browser_view_->GetProfile();
-  if (!glic::GlicEnabling::IsEnabledAndConsentForProfile(profile)) {
-    // Do not do this optimization if user has not consented to GLIC.
-    return;
-  }
-  auto* glic_service = glic::GlicKeyedService::Get(profile);
-
-  // TODO(crbug.com/445934142): Create the instance here so that suggestions can
-  // be fetched, but don't show it yet.
-  if (auto* instance =
-          glic_service->GetInstanceForActiveTab(browser_view_->browser())) {
-    // This prefetches the results and allows the underlying implementation to
-    // cache the results for future calls. Which is why the callback does
-    // nothing.
-    instance->host().instance_delegate().FetchZeroStateSuggestions(
-        /*is_first_run=*/false, /*supported_tools=*/std::nullopt,
-        base::DoNothing());
-  }
-}
-
 void ToolbarView::OnGlicButtonAnimationEnded() {
   // TODO(crbug.com/484389669): ToolbarGlicButton animations
   return;
@@ -882,25 +846,16 @@ bool ToolbarView::GetIsShowingGlicActorTaskIconNudge() {
   return glic_actor_task_icon_ && glic_actor_task_icon_->GetIsShowingNudge();
 }
 
-void ToolbarView::OnTriggerGlicNudgeUI(std::string label) {
+void ToolbarView::OnTriggerGlicNudgeUI(glic::NudgeParams params) {
   if (GetIsShowingGlicActorTaskIconNudge()) {
     return;
   }
 
   CHECK(glic_button_);
-  if (!label.empty()) {
-    glic_button_->SetNudgeLabel(label);
+  if (!params.label.empty()) {
+    glic_button_->SetNudgeLabel(std::move(params.label));
     ShowToolbarNudge(glic_button_);
   }
-}
-
-void ToolbarView::OnTriggerAnchoredMessage(
-    std::string label,
-    std::string anchored_message_text,
-    std::optional<std::string> prompt_suggestion) {
-  // ToolbarView does not support the page action framework path used by
-  // TabStripActionContainer. Fall back to the chip nudge.
-  OnTriggerGlicNudgeUI(std::move(label));
 }
 
 void ToolbarView::OnHideGlicNudgeUI() {
@@ -1469,11 +1424,6 @@ void ToolbarView::OnThemeChanged() {
   SchedulePaint();
 }
 
-void ToolbarView::NewTabButtonPressed(const ui::Event& event) {
-  chrome::NewTab(browser_view_->browser(),
-                 NewTabTypes::kNewTabButtonInToolbarForTouch);
-}
-
 bool ToolbarView::AcceleratorPressed(const ui::Accelerator& accelerator) {
   const views::View* focused_view = focus_manager()->GetFocusedView();
   if (focused_view && (focused_view->GetID() == VIEW_ID_OMNIBOX)) {
@@ -1734,31 +1684,38 @@ views::AccessiblePaneView* ToolbarView::GetAsAccessiblePaneView() {
   return this;
 }
 
-views::View* ToolbarView::GetAnchorView(
+views::BubbleAnchor ToolbarView::FindBubbleAnchor(
     std::optional<actions::ActionId> action_id) {
-  if (pinned_toolbar_actions_container_ && action_id.has_value() &&
-      pinned_toolbar_actions_container_->IsActionPinnedOrPoppedOut(
-          action_id.value())) {
-    return pinned_toolbar_actions_container_->GetButtonFor(action_id.value());
+  if (pinned_toolbar_actions_ && action_id.has_value() &&
+      pinned_toolbar_actions_->IsActionPinnedOrPoppedOut(action_id.value())) {
+    return pinned_toolbar_actions_->GetBubbleAnchor(action_id.value());
   }
 
-  return location_bar_view_;
+  return features::IsWebUILocationBarEnabled()
+             ? views::BubbleAnchor(location_bar_->GetAnchorOrNull())
+             : views::BubbleAnchor(location_bar_view_);
 }
 
 views::BubbleAnchor ToolbarView::GetBubbleAnchor(
     std::optional<actions::ActionId> action_id) {
-  if (views::View* view = GetAnchorView(action_id)) {
-    // In app windows the location bar view may exist but not be drawn. Avoid
-    // anchoring bubbles to a non-drawn view (e.g. on Ozone/Wayland) and always
-    // return a valid view anchor by falling back to the contents view.
-    if (!view->IsDrawn() && browser_view_) {
-      auto* top_container = browser_view_->top_container();
-      CHECK(top_container);
-      return views::BubbleAnchor(top_container);
-    }
-    return views::BubbleAnchor(view);
+  auto anchor = FindBubbleAnchor(action_id);
+  bool anchor_not_drawn;
+  if (views::View* view = anchor.GetIfView()) {
+    anchor_not_drawn = !view->IsDrawn();
+  } else {
+    anchor_not_drawn = (features::IsWebUILocationBarEnabled() ||
+                        features::IsWebUIPinnedToolbarActionsEnabled()) &&
+                       anchor.IsNull();
   }
-  return views::BubbleAnchor();
+  // In app windows the location bar view may exist but not be drawn. Avoid
+  // anchoring bubbles to a non-drawn view (e.g. on Ozone/Wayland) and always
+  // return a valid view anchor by falling back to the contents view.
+  if (anchor_not_drawn && browser_view_) {
+    auto* top_container = browser_view_->top_container();
+    CHECK(top_container);
+    return views::BubbleAnchor(top_container);
+  }
+  return anchor;
 }
 
 void ToolbarView::ZoomChangedForActiveTab(bool can_show_bubble) {

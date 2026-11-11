@@ -142,6 +142,9 @@ class QUICHE_EXPORT MasqueOhttpClient
     void SetDnsConfig(const MasqueConnectionPool::DnsConfig& dns_config) {
       dns_config_ = dns_config;
     }
+    void SetHandleGzipResponse(bool handle_gzip_response) {
+      handle_gzip_response_ = handle_gzip_response;
+    }
     absl::Status AddKeyFetchHeaders(
         const std::vector<std::string>& key_fetch_headers);
     void AddPerRequestConfig(const PerRequestConfig& per_request_config) {
@@ -165,6 +168,7 @@ class QUICHE_EXPORT MasqueOhttpClient
         const {
       return key_fetch_headers_;
     }
+    bool handle_gzip_response() const { return handle_gzip_response_; }
 
    private:
     std::string key_fetch_url_;
@@ -175,6 +179,7 @@ class QUICHE_EXPORT MasqueOhttpClient
     MasqueConnectionPool::DnsConfig dns_config_;
     std::vector<std::pair<std::string, std::string>> key_fetch_headers_;
     std::vector<PerRequestConfig> per_request_configs_;
+    bool handle_gzip_response_ = false;
   };
 
   class ResponseVisitor {

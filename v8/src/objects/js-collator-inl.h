@@ -12,6 +12,8 @@
 #include "src/objects/js-collator.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/objects/js-function.h"
+#include "src/objects/objects-inl.h"  // For CastTraits<Managed<T>>.
 #include "src/objects/tagged-field-inl.h"
 
 // Has to be the last include (doesn't have include guards):

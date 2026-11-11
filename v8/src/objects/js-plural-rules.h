@@ -89,11 +89,6 @@ V8_OBJECT class JSPluralRules : public JSObject {
 
   DECL_VERIFIER(JSPluralRules)
 
-  // Back-compat offset/size constants.
-  static const int kLocaleOffset;
-  static const int kFlagsOffset;
-  static const int kIcuPluralRulesOffset;
-  static const int kIcuNumberFormatterOffset;
   static const int kHeaderSize;
 
  public:
@@ -103,14 +98,6 @@ V8_OBJECT class JSPluralRules : public JSObject {
   TaggedMember<Foreign> icu_number_formatter_;
 } V8_OBJECT_END;
 
-inline constexpr int JSPluralRules::kLocaleOffset =
-    offsetof(JSPluralRules, locale_);
-inline constexpr int JSPluralRules::kFlagsOffset =
-    offsetof(JSPluralRules, flags_);
-inline constexpr int JSPluralRules::kIcuPluralRulesOffset =
-    offsetof(JSPluralRules, icu_plural_rules_);
-inline constexpr int JSPluralRules::kIcuNumberFormatterOffset =
-    offsetof(JSPluralRules, icu_number_formatter_);
 inline constexpr int JSPluralRules::kHeaderSize = sizeof(JSPluralRules);
 
 }  // namespace internal

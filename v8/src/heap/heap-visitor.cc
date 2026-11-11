@@ -93,7 +93,7 @@ struct WeakListVisitor<AllocationSiteWithWeakNext> {
 template <>
 struct WeakListVisitor<JSFinalizationRegistry> {
   static constexpr int kWeakNextOffset =
-      JSFinalizationRegistry::kNextDirtyOffset;
+      offsetof(JSFinalizationRegistry, next_dirty_);
 
   static void VisitLiveObject(Heap* heap, Tagged<JSFinalizationRegistry> obj) {
     heap->set_dirty_js_finalization_registries_list_tail(obj);

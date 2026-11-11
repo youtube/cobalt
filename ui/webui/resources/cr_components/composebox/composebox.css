@@ -117,6 +117,30 @@
   border-radius: var(--expanded-border-radius);
 }
 
+:host([energy-effect-animation-enabled]) {
+  /* Energy Effect Motion Curves */
+  --emphasized-accelerate-curve: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --standard-decelerate-curve: cubic-bezier(0, 0, 0, 1);
+
+  /* Energy Effect Box Shadow */
+  --box-shadow-energy-effect: 0 4px 18px -2px rgba(60, 64, 67, 0.12);
+  --box-shadow-energy-effect-no-alpha: 0 4px 18px -2px rgba(60, 64, 67, 0);
+  --box-shadow-animation-duration: 650ms;
+
+  position: relative;
+}
+
+:host([energy-effect-enabled])::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid
+    var(--color-composebox-input-plate-outline, rgba(240, 242, 245, 1));
+  border-radius: inherit;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
 #errorScrim {
   border-radius: inherit;
 }
@@ -134,7 +158,7 @@
 }
 
 :host([searchbox-next-enabled]) #composebox {
-  padding-bottom: 10px;
+  padding-bottom: var(--cr-composebox-padding-bottom, 10px);
 }
 
 search-animated-glow {
@@ -180,8 +204,105 @@ search-animated-glow {
   max-height: 254px;
 }
 
+:host([energy-effect-animation-enabled_][animation-state='expanding']) #composebox {
+  will-change: opacity;
+  animation: zero-state-composebox-fade-in 50ms
+      var(--emphasized-accelerate-curve) both;
+}
+
+@keyframes zero-state-composebox-fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 :host([is-collapsible][expanding_][show-file-carousel][carousel-on-top_]) #composebox {
   min-height: calc(136px + 52px);
+}
+
+:host([energy-effect-animation-enabled]) #composebox {
+  box-shadow: var(--box-shadow-energy-effect);
+}
+
+:host([energy-effect-animation-enabled][animation-state='expanding']) #composebox,
+:host([energy-effect-animation-enabled][animation-state='submitting']) #composebox {
+  animation: animateShadow var(--box-shadow-animation-duration) both;
+}
+
+:host([energy-effect-animation-enabled][animation-state='dragging']) #composebox {
+  box-shadow: none;
+}
+
+@keyframes animateShadow {
+  0% {
+    box-shadow: var(--box-shadow-energy-effect);
+    animation-timing-function: var(--standard-decelerate-curve);
+  }
+  9.8% {
+    box-shadow: var(--box-shadow-energy-effect-no-alpha);
+  }
+  19.7% {
+    animation-timing-function: var(--emphasized-accelerate-curve);
+    box-shadow: var(--box-shadow-energy-effect-no-alpha);
+  }
+  39.4% {
+    box-shadow: var(--box-shadow-energy-effect);
+  }
+  100% {
+    box-shadow: var(--box-shadow-energy-effect);
+  }
+}
+
+:host([energy-effect-animation-enabled][animation-state='expanding'])::after {
+  animation: animateBorder var(--box-shadow-animation-duration) both;
+}
+
+:host([energy-effect-animation-enabled][animation-state='submitting'])::after {
+  animation: animateBorderSubmitting var(--box-shadow-animation-duration) both;
+}
+
+:host([energy-effect-animation-enabled][animation-state='dragging'])::after {
+  display: none;
+}
+
+@keyframes animateBorder {
+  0% {
+    opacity: 1;
+    animation-timing-function: var(--standard-decelerate-curve);
+  }
+  9.8% {
+    opacity: 0;
+  }
+  19.7% {
+    animation-timing-function: var(--emphasized-accelerate-curve);
+    opacity: 0;
+  }
+  39.4% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes animateBorderSubmitting {
+  0% {
+    opacity: 1;
+    animation-timing-function: var(--standard-decelerate-curve);
+  }
+  25% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0;
+    animation-timing-function: var(--emphasized-accelerate-curve);
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 #inputContainer {
@@ -350,7 +471,7 @@ search-animated-glow {
 
 #voiceSearchButton {
   --cr-icon-button-fill-color: var(--color-composebox-font-light);
-  --cr-icon-button-hover-background-color: var(--color-composebox-context-entrypoint-hover-background);
+  --cr-icon-button-hover-background-color: var(--color-composebox-voice-button-hover-background);
   --cr-icon-button-margin-end: 0px;
   --cr-icon-button-margin-start: 0px;
   --cr-icon-button-size: 36px;
@@ -450,9 +571,19 @@ search-animated-glow {
 }
 
 :host([in-voice-search-mode]) #composebox {
+  block-size: fit-content;
+  min-block-size: 108px;
   opacity: 0;
   /* CANNOT be display: None since :host depends on its height. */
   visibility: hidden;
+}
+
+:host([in-voice-search-mode]) #inputContainer {
+  /* Ensure that the suggestions' height do not affect
+   * size of composebox, and thus voice container (which inherits
+   * from composebox).
+   */
+  display: none;
 }
 
 cr-composebox-voice-search {

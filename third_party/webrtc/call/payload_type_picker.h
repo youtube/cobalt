@@ -11,6 +11,7 @@
 #ifndef CALL_PAYLOAD_TYPE_PICKER_H_
 #define CALL_PAYLOAD_TYPE_PICKER_H_
 
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -39,8 +40,13 @@ class PayloadTypePicker final {
   // Suggest a payload type for the codec.
   // If the excluder maps it to something different, don't suggest it.
   RTCErrorOr<PayloadType> SuggestMapping(Codec codec,
-                                         const PayloadTypeRecorder* excluder);
+                                         const PayloadTypeRecorder* excluder,
+                                         bool pick_from_top_of_range = false);
   RTCError AddMapping(PayloadType payload_type, Codec codec);
+  std::optional<Codec> LookupCodec(PayloadType payload_type) const;
+  bool IsSeen(PayloadType payload_type) const {
+    return seen_payload_types_.contains(payload_type.value());
+  }
 
  private:
   class MapEntry final {

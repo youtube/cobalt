@@ -286,7 +286,7 @@ class Heap final {
     ~DevToolsTraceEventScope();
 
    private:
-    Heap* heap_;
+    [[maybe_unused]] Heap* heap_;
     const char* event_name_;
   };
 
@@ -1380,7 +1380,7 @@ class Heap final {
     survived_since_last_expansion_ += survived;
   }
 
-  V8_EXPORT_PRIVATE size_t NewSpaceAllocationCounter() const;
+  V8_EXPORT_PRIVATE uint64_t NewSpaceAllocationCounter() const;
 
   void SetNewSpaceAllocationCounterForTesting(size_t new_value) {
     new_space_allocation_counter_ = new_value;
@@ -1391,12 +1391,13 @@ class Heap final {
         OldGenerationAllocationCounter();
   }
 
-  size_t OldGenerationAllocationCounter() {
+  uint64_t OldGenerationAllocationCounter() {
     return old_generation_allocation_counter_at_last_gc_ +
            PromotedSinceLastGC();
   }
 
-  size_t EmbedderAllocationCounter() const;
+  uint64_t EmbedderAllocationCounter() const;
+  uint64_t ExternalAllocationCounter() const;
 
   // This should be used only for testing.
   void set_old_generation_allocation_counter_at_last_gc(size_t new_value) {
@@ -2319,12 +2320,17 @@ class Heap final {
   // This counter is increased before each GC and never reset.
   // To account for the bytes allocated since the last GC, use the
   // NewSpaceAllocationCounter() function.
-  size_t new_space_allocation_counter_ = 0;
+  uint64_t new_space_allocation_counter_ = 0;
 
   // This counter is increased before each GC and never reset. To
   // account for the bytes allocated since the last GC, use the
   // OldGenerationAllocationCounter() function.
-  size_t old_generation_allocation_counter_at_last_gc_ = 0;
+  uint64_t old_generation_allocation_counter_at_last_gc_ = 0;
+
+  // This counter is increased before each GC and never reset. To account for
+  // the bytes allocated since the last GC, use the ExternalAllocationCounter()
+  // function.
+  uint64_t external_allocation_counter_at_last_gc_ = 0;
 
   char trace_ring_buffer_[kTraceRingBufferSize];
 

@@ -661,6 +661,8 @@ class BaseTestRunner(object):
             '--sim-arm64-optional-features=all' in self.options.extra_flags,
         "byteorder":
             sys.byteorder,
+        "num_fuzzer":
+            False,
         "deopt_fuzzer":
             False,
         "device_type":

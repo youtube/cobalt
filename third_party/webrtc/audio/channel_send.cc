@@ -541,15 +541,13 @@ ChannelSend::ChannelSend(
   configuration.rtcp_report_interval_ms = rtcp_report_interval_ms;
   configuration.rtcp_packet_type_counter_observer = this;
   configuration.local_media_ssrc = ssrc;
+  configuration.rtcp_mode = RtcpMode::kCompound;
 
   rtp_rtcp_ = ModuleRtpRtcpImpl2::CreateSendModule(env_, configuration);
   rtp_rtcp_->SetSendingMediaStatus(false);
 
   rtp_sender_audio_ =
       std::make_unique<RTPSenderAudio>(&env_.clock(), rtp_rtcp_->RtpSender());
-
-  // Ensure that RTCP is enabled by default for the created channel.
-  rtp_rtcp_->SetRTCPStatus(RtcpMode::kCompound);
 
   int error = audio_coding_->RegisterTransportCallback(this);
   RTC_DCHECK_EQ(0, error);

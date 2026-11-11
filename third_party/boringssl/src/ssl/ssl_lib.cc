@@ -582,7 +582,8 @@ SSL_CONFIG::SSL_CONFIG(SSL *ssl_arg)
       jdk11_workaround(false),
       quic_use_legacy_codepoint(false),
       permute_extensions(false),
-      alps_use_new_codepoint(true) {
+      alps_use_new_codepoint(true),
+      server_padding_enabled(false) {
   assert(ssl);
 }
 
@@ -3643,6 +3644,29 @@ void SSL_get0_peer_available_trust_anchors(const SSL *ssl, const uint8_t **out,
   *out_len = ret.size();
 }
 
+int SSL_CTX_set1_available_trust_anchors(SSL_CTX *ctx, const uint8_t *ids,
+                                         size_t ids_len) {
+  auto span = Span(ids, ids_len);
+  if (span.empty() || !ssl_is_valid_trust_anchor_list(span)) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_INVALID_TRUST_ANCHOR_LIST);
+    return 0;
+  }
+  return ctx->cert->available_trust_anchors.CopyFrom(span);
+}
+
+int SSL_set1_available_trust_anchors(SSL *ssl, const uint8_t *ids,
+                                     size_t ids_len) {
+  if (!ssl->config) {
+    return 0;
+  }
+  auto span = Span(ids, ids_len);
+  if (span.empty() || !ssl_is_valid_trust_anchor_list(span)) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_INVALID_TRUST_ANCHOR_LIST);
+    return 0;
+  }
+  return ssl->config->cert->available_trust_anchors.CopyFrom(span);
+}
+
 int SSL_CTX_set1_requested_trust_anchors(SSL_CTX *ctx, const uint8_t *ids,
                                          size_t ids_len) {
   auto span = Span(ids, ids_len);
@@ -3751,4 +3775,24 @@ EVP_PKEY *SSL_get0_peer_rpk(const SSL *ssl) {
     return session->peer_raw_public_key.get();
   }
   return nullptr;
+}
+
+void SSL_set_server_padding_request(SSL *ssl, uint16_t num_bytes) {
+  if (!ssl->config) {
+    return;
+  }
+
+  ssl->config->server_padding_request = num_bytes;
+}
+
+void SSL_set_server_padding_enabled(SSL *ssl, int enabled) {
+  if (!ssl->config) {
+    return;
+  }
+
+  ssl->config->server_padding_enabled = enabled;
+}
+
+int SSL_server_sent_requested_padding(const SSL *ssl) {
+  return ssl->s3->server_sent_requested_padding;
 }

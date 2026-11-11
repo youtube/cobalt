@@ -55,6 +55,58 @@ static void KeccakFileTest(FileTest *t) {
   EXPECT_EQ(Bytes(shake128_expected), Bytes(shake128_output));
   EXPECT_EQ(Bytes(shake256_expected), Bytes(shake256_output));
 
+#if defined(HAVE_KECCAK_X2)
+  if (input.size() > 0 && input.size() < 72) {
+    uint8_t noise[72] = {static_cast<uint8_t>(~input[0]), 0};
+    const uint8_t *input_first[2] = {input.data(), noise};
+    const uint8_t *input_last[2] = {noise, input.data()};
+
+    uint8_t sha3_256_digest1[32];
+    uint8_t *sha3_256_digests[2] = {sha3_256_digest, sha3_256_digest1};
+    BORINGSSL_keccak_short_x2(sha3_256_digests, sizeof(sha3_256_digest),
+                              input_first, input.size(), boringssl_sha3_256);
+    EXPECT_EQ(Bytes(sha3_256_expected), Bytes(sha3_256_digest));
+    EXPECT_NE(Bytes(sha3_256_expected), Bytes(sha3_256_digest1));
+    BORINGSSL_keccak_short_x2(sha3_256_digests, sizeof(sha3_256_digest),
+                              input_last, input.size(), boringssl_sha3_256);
+    EXPECT_NE(Bytes(sha3_256_expected), Bytes(sha3_256_digest));
+    EXPECT_EQ(Bytes(sha3_256_expected), Bytes(sha3_256_digest1));
+
+    uint8_t sha3_512_digest1[64];
+    uint8_t *sha3_512_digests[2] = {sha3_512_digest, sha3_512_digest1};
+    BORINGSSL_keccak_short_x2(sha3_512_digests, sizeof(sha3_512_digest),
+                              input_first, input.size(), boringssl_sha3_512);
+    EXPECT_EQ(Bytes(sha3_512_expected), Bytes(sha3_512_digest));
+    EXPECT_NE(Bytes(sha3_512_expected), Bytes(sha3_512_digest1));
+    BORINGSSL_keccak_short_x2(sha3_512_digests, sizeof(sha3_512_digest),
+                              input_last, input.size(), boringssl_sha3_512);
+    EXPECT_NE(Bytes(sha3_512_expected), Bytes(sha3_512_digest));
+    EXPECT_EQ(Bytes(sha3_512_expected), Bytes(sha3_512_digest1));
+
+    uint8_t shake128_output1[512];
+    uint8_t *shake128_outputs[2] = {shake128_output, shake128_output1};
+    BORINGSSL_keccak_short_x2(shake128_outputs, sizeof(shake128_output),
+                              input_first, input.size(), boringssl_shake128);
+    EXPECT_EQ(Bytes(shake128_expected), Bytes(shake128_output));
+    EXPECT_NE(Bytes(shake128_expected), Bytes(shake128_output1));
+    BORINGSSL_keccak_short_x2(shake128_outputs, sizeof(shake128_output),
+                              input_last, input.size(), boringssl_shake128);
+    EXPECT_NE(Bytes(shake128_expected), Bytes(shake128_output));
+    EXPECT_EQ(Bytes(shake128_expected), Bytes(shake128_output1));
+
+    uint8_t shake256_output1[512];
+    uint8_t *shake256_outputs[2] = {shake256_output, shake256_output1};
+    BORINGSSL_keccak_short_x2(shake256_outputs, sizeof(shake256_output),
+                              input_first, input.size(), boringssl_shake256);
+    EXPECT_EQ(Bytes(shake256_expected), Bytes(shake256_output));
+    EXPECT_NE(Bytes(shake256_expected), Bytes(shake256_output1));
+    BORINGSSL_keccak_short_x2(shake256_outputs, sizeof(shake256_output),
+                              input_last, input.size(), boringssl_shake256);
+    EXPECT_NE(Bytes(shake256_expected), Bytes(shake256_output));
+    EXPECT_EQ(Bytes(shake256_expected), Bytes(shake256_output1));
+  }
+#endif
+
   struct BORINGSSL_keccak_st ctx;
 
   // Single-pass absorb/squeeze.

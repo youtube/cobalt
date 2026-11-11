@@ -69,11 +69,10 @@ const char* StringsStorage::AddOrDisposeString(char* str, size_t len) {
 }
 
 const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
-  base::Vector<char> str = base::Vector<char>::New(1024);
+  base::Vector<char> str = base::Vector<char>::New(4096);
   int len = base::VSNPrintF(str, format, args);
   if (len == -1) {
-    DeleteArray(str.begin());
-    return GetCopy(format);
+    return AddOrDisposeString(str.begin(), strlen(str.begin()));
   }
   return AddOrDisposeString(str.begin(), len);
 }

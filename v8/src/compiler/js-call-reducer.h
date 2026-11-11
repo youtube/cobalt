@@ -224,6 +224,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   Reduction ReduceMapPrototypeHas(Node* node);
   Reduction ReduceMapPrototypeGet(Node* node);
+  Reduction ReduceWeakMapPrototypeGet(Node* node);
   Reduction ReduceSetPrototypeHas(Node* node);
   Reduction ReduceCollectionPrototypeHas(Node* node,
                                          CollectionKind collection_kind);

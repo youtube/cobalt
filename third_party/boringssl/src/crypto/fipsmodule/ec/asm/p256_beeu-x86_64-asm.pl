@@ -148,9 +148,8 @@ ___
 $code.=<<___;
 .text
 
-.type beeu_mod_inverse_vartime,\@function
-.hidden beeu_mod_inverse_vartime
 .globl  beeu_mod_inverse_vartime
+.type beeu_mod_inverse_vartime,\@function
 .align 32
 beeu_mod_inverse_vartime:
 .cfi_startproc

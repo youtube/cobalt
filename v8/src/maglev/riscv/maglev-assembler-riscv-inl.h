@@ -494,14 +494,16 @@ inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
   DCHECK_NE(data_pointer, object);
   LoadExternalPointerField(
       data_pointer,
-      FieldMemOperand(object, JSTypedArray::kExternalPointerOffset));
+      FieldMemOperand(object, offsetof(JSTypedArray, external_pointer_)));
   if (JSTypedArray::kMaxSizeInHeap == 0) return;
   MaglevAssembler::TemporaryRegisterScope scope(this);
   Register base = scope.AcquireScratch();
   if (COMPRESS_POINTERS_BOOL) {
-    Load32U(base, FieldMemOperand(object, JSTypedArray::kBasePointerOffset));
+    Load32U(base,
+            FieldMemOperand(object, offsetof(JSTypedArray, base_pointer_)));
   } else {
-    LoadWord(base, FieldMemOperand(object, JSTypedArray::kBasePointerOffset));
+    LoadWord(base,
+             FieldMemOperand(object, offsetof(JSTypedArray, base_pointer_)));
   }
   Add64(data_pointer, data_pointer, base);
 }
@@ -1010,9 +1012,9 @@ inline void MaglevAssembler::DeoptIfBufferNotValid(Register array,
   // A detached buffer leads to megamorphic feedback, so we won't have a deopt
   // loop if we deopt here.
   LoadTaggedField(scratch,
-                  FieldMemOperand(array, JSArrayBufferView::kBufferOffset));
-  LoadTaggedField(scratch,
-                  FieldMemOperand(scratch, JSArrayBuffer::kBitFieldOffset));
+                  FieldMemOperand(array, offsetof(JSArrayBufferView, buffer_)));
+  LoadTaggedField(
+      scratch, FieldMemOperand(scratch, offsetof(JSArrayBuffer, bit_field_)));
   ZeroExtendWord(scratch, scratch);
   And(scratch, scratch, Operand(JSArrayBuffer::NotValidMask(mode)));
   Label* deopt_label =
@@ -1027,7 +1029,7 @@ inline void MaglevAssembler::LoadByte(Register dst, MemOperand src) {
 
 inline Condition MaglevAssembler::IsCallableAndNotUndetectable(
     Register map, Register scratch) {
-  Load32U(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
+  Load32U(scratch, FieldMemOperand(map, offsetof(Map, bit_field_)));
   And(scratch, scratch,
       Operand(Map::Bits1::IsUndetectableBit::kMask |
               Map::Bits1::IsCallableBit::kMask));
@@ -1040,7 +1042,7 @@ inline Condition MaglevAssembler::IsCallableAndNotUndetectable(
 
 inline Condition MaglevAssembler::IsNotCallableNorUndetactable(
     Register map, Register scratch) {
-  Load32U(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
+  Load32U(scratch, FieldMemOperand(map, offsetof(Map, bit_field_)));
 
   // NB: TestTypeOf=>Branch=>JumpIf expects the result of a comparison
   // in dedicated "flag" register
@@ -1054,7 +1056,8 @@ inline Condition MaglevAssembler::IsNotCallableNorUndetactable(
 inline void MaglevAssembler::LoadInstanceType(Register instance_type,
                                               Register heap_object) {
   LoadMap(instance_type, heap_object);
-  Lhu(instance_type, FieldMemOperand(instance_type, Map::kInstanceTypeOffset));
+  Lhu(instance_type,
+      FieldMemOperand(instance_type, offsetof(Map, instance_type_)));
 }
 
 inline void MaglevAssembler::CompareInstanceTypeAndJumpIf(
@@ -1062,7 +1065,7 @@ inline void MaglevAssembler::CompareInstanceTypeAndJumpIf(
     Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  Lhu(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  Lhu(scratch, FieldMemOperand(map, offsetof(Map, instance_type_)));
   // we could be out of scratch registers by this moment already, and Branch
   // with Immediate operand require one so use Sub and compare against x0 later,
   // saves a register. can be done only for signed comparisons
@@ -1090,7 +1093,7 @@ inline Condition MaglevAssembler::CompareInstanceTypeRange(
     Register map, Register instance_type_out, InstanceType lower_limit,
     InstanceType higher_limit) {
   DCHECK_LT(lower_limit, higher_limit);
-  Lhu(instance_type_out, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  Lhu(instance_type_out, FieldMemOperand(map, offsetof(Map, instance_type_)));
   Sub32(instance_type_out, instance_type_out, Operand(lower_limit));
   Register aflag = MaglevAssembler::GetFlagsRegister();
   // NB: JumpIf expects the result in dedicated "flag" register
@@ -1146,7 +1149,7 @@ inline void MaglevAssembler::JumpIfObjectTypeInRange(Register heap_object,
   TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
   LoadMap(scratch, heap_object);
-  Lhu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  Lhu(scratch, FieldMemOperand(scratch, offsetof(Map, instance_type_)));
   Sub32(scratch, scratch, Operand(lower_limit));
   MacroAssembler::Branch(target, kUnsignedLessThanEqual, scratch,
                          Operand(higher_limit - lower_limit));
@@ -1158,7 +1161,7 @@ inline void MaglevAssembler::JumpIfObjectTypeNotInRange(
   TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
   LoadMap(scratch, heap_object);
-  Lhu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  Lhu(scratch, FieldMemOperand(scratch, offsetof(Map, instance_type_)));
   Sub32(scratch, scratch, Operand(lower_limit));
   MacroAssembler::Branch(target, kUnsignedGreaterThan, scratch,
                          Operand(higher_limit - lower_limit));
@@ -1172,7 +1175,7 @@ inline void MaglevAssembler::AssertObjectTypeInRange(Register heap_object,
   TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
   LoadMap(scratch, heap_object);
-  Lhu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  Lhu(scratch, FieldMemOperand(scratch, offsetof(Map, instance_type_)));
   Sub32(scratch, scratch, Operand(lower_limit));
   MacroAssembler::Assert(kUnsignedLessThanEqual, reason, scratch,
                          Operand(higher_limit - lower_limit));
@@ -1186,7 +1189,7 @@ inline void MaglevAssembler::BranchOnObjectTypeInRange(
   TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
   LoadMap(scratch, heap_object);
-  Lhu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  Lhu(scratch, FieldMemOperand(scratch, offsetof(Map, instance_type_)));
   Sub32(scratch, scratch, Operand(lower_limit));
   constexpr Register flags_reg = MaglevAssembler::GetFlagsRegister();
   // if scratch <= (higher_limit - lower_limit) then flags_reg = 0 else
@@ -1327,7 +1330,7 @@ inline void MaglevAssembler::CompareInstanceTypeRangeAndEagerDeoptIf(
     InstanceType higher_limit, Condition cond, DeoptimizeReason reason,
     NodeT* node) {
   DCHECK_LT(lower_limit, higher_limit);
-  Lhu(instance_type_out, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  Lhu(instance_type_out, FieldMemOperand(map, offsetof(Map, instance_type_)));
   Sub32(instance_type_out, instance_type_out, Operand(lower_limit));
   DCHECK_EQ(cond, kUnsignedGreaterThan);
   Label* deopt_label = GetDeoptLabel(node, reason);

@@ -167,7 +167,6 @@ rtc_library("video") {
     "../rtc_base:safe_conversions",
     "../rtc_base:sample_counter",
     "../rtc_base:stringutils",
-    "../rtc_base:threading",
     "../rtc_base:timeutils",
     "../rtc_base/experiments:alr_experiment",
     "../rtc_base/experiments:corruption_detection_frame_selector_settings",
@@ -353,11 +352,13 @@ rtc_library("frame_decode_timing") {
     "frame_decode_timing.h",
   ]
   deps = [
+    "../api:field_trials_view",
     "../api/units:time_delta",
     "../api/units:timestamp",
     "../modules/video_coding/timing:timing_module",
     "../rtc_base:checks",
     "../rtc_base:logging",
+    "../rtc_base/experiments:field_trial_parser",
     "../system_wrappers",
   ]
 }
@@ -1400,6 +1401,7 @@ if (rtc_include_tests) {
       "../rtc_base:macromagic",
       "../rtc_base:rtc_event",
       "../rtc_base:rtc_numerics",
+      "../rtc_base:threading",
       "../rtc_base/synchronization:mutex",
       "../test:direct_transport",
       "../test:frame_generator_capturer",
@@ -1453,6 +1455,7 @@ if (rtc_include_tests) {
       ":video",
       "../api:field_trials",
       "../api:field_trials_view",
+      "../api/units:frequency",
       "../api/units:time_delta",
       "../api/units:timestamp",
       "../modules/video_coding/timing:timing_module",
@@ -2115,6 +2118,7 @@ if (rtc_include_tests) {
       "../media:rtc_internal_video_codecs",
       "../modules/video_coding:webrtc_vp8",
       "../rtc_base:task_queue_for_test",
+      "../rtc_base:threading",
       "../test:direct_transport",
       "../test:encoder_settings",
       "../test:frame_generator_capturer",
@@ -2213,6 +2217,8 @@ if (rtc_include_tests) {
       ":video_source_sink_controller_unittest",
       ":video_stream_buffer_controller_unittest",
       ":video_stream_encoder_unittest",
+      "corruption_detection:corruption_detection_unittests",
+      "corruption_detection/evaluation:corruption_detection_eval_unittests",
     ]
   }
 }

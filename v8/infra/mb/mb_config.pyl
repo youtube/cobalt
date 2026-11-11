@@ -1125,7 +1125,7 @@
       'gn_args': 'v8_dumpling=true '
                  'v8_enable_lazy_source_positions=false '
                  'v8_enable_partition_alloc=false '
-                 'v8_symbol_level=2',
+                 'v8_symbol_level=1',
     },
 
     'v8_enable_drumbrake': {

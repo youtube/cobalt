@@ -484,7 +484,7 @@ Maybe<bool> ValueSerializer::WriteObject(DirectHandle<Object> object) {
 
   DCHECK(IsHeapObject(*object));
   InstanceType instance_type =
-      Cast<HeapObject>(*object)->map(isolate_)->instance_type();
+      Cast<HeapObject>(*object)->map()->instance_type();
   switch (instance_type) {
     case ODDBALL_TYPE:
       WriteOddball(Cast<Oddball>(*object));
@@ -575,8 +575,9 @@ void ValueSerializer::WriteString(DirectHandle<String> string) {
     base::Vector<const base::uc16> chars = flat.ToUC16Vector();
     uint32_t byte_length = chars.length() * sizeof(base::uc16);
     // The existing reading code expects 16-byte strings to be aligned.
-    if ((buffer_size_ + 1 + BytesNeededForVarint(byte_length)) & 1)
+    if ((buffer_size_ + 1 + BytesNeededForVarint(byte_length)) & 1) {
       WriteTag(SerializationTag::kPadding);
+    }
     WriteTag(SerializationTag::kTwoByteString);
     WriteTwoByteString(chars);
   } else {
@@ -702,8 +703,8 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(
 
 Maybe<bool> ValueSerializer::WriteJSObject(DirectHandle<JSObject> object) {
   DCHECK(!IsCustomElementsReceiverMap(object->map()));
-  const bool can_serialize_fast = object->HasFastProperties(isolate_) &&
-                                  object->elements()->ulength().value() == 0;
+  const bool can_serialize_fast =
+      object->HasFastProperties() && object->elements()->ulength().value() == 0;
   if (!can_serialize_fast) return WriteJSObjectSlow(object);
 
   DirectHandle<Map> map(object->map(), isolate_);
@@ -714,11 +715,9 @@ Maybe<bool> ValueSerializer::WriteJSObject(DirectHandle<JSObject> object) {
   uint32_t properties_written = 0;
   bool map_changed = false;
   for (InternalIndex i : map->IterateOwnDescriptors()) {
-    DirectHandle<Name> key(map->instance_descriptors(isolate_)->GetKey(i),
-                           isolate_);
-    if (!IsString(*key, isolate_)) continue;
-    PropertyDetails details =
-        map->instance_descriptors(isolate_)->GetDetails(i);
+    DirectHandle<Name> key(map->instance_descriptors()->GetKey(i), isolate_);
+    if (!IsString(*key)) continue;
+    PropertyDetails details = map->instance_descriptors()->GetDetails(i);
     if (details.IsDontEnum()) continue;
 
     DirectHandle<Object> value;
@@ -765,7 +764,6 @@ Maybe<bool> ValueSerializer::WriteJSObjectSlow(DirectHandle<JSObject> object) {
 }
 
 Maybe<bool> ValueSerializer::WriteJSArray(DirectHandle<JSArray> array) {
-  PtrComprCageBase cage_base(isolate_);
   uint32_t length = 0;
   bool valid_length = Object::ToArrayLength(array->length(), &length);
   DCHECK(valid_length);
@@ -887,21 +885,20 @@ void ValueSerializer::WriteJSDate(Tagged<JSDate> date) {
 
 Maybe<bool> ValueSerializer::WriteJSPrimitiveWrapper(
     DirectHandle<JSPrimitiveWrapper> value) {
-  PtrComprCageBase cage_base(isolate_);
   {
     DisallowGarbageCollection no_gc;
     Tagged<Object> inner_value = value->value();
-    if (IsTrue(inner_value, isolate_)) {
+    if (IsTrue(inner_value)) {
       WriteTag(SerializationTag::kTrueObject);
-    } else if (IsFalse(inner_value, isolate_)) {
+    } else if (IsFalse(inner_value)) {
       WriteTag(SerializationTag::kFalseObject);
-    } else if (IsNumber(inner_value, cage_base)) {
+    } else if (IsNumber(inner_value)) {
       WriteTag(SerializationTag::kNumberObject);
       WriteDouble(Object::NumberValue(inner_value));
-    } else if (IsBigInt(inner_value, cage_base)) {
+    } else if (IsBigInt(inner_value)) {
       WriteTag(SerializationTag::kBigIntObject);
       WriteBigIntContents(Cast<BigInt>(inner_value));
-    } else if (IsString(inner_value, cage_base)) {
+    } else if (IsString(inner_value)) {
       WriteTag(SerializationTag::kStringObject);
       WriteString(direct_handle(Cast<String>(inner_value), isolate_));
     } else {
@@ -1312,8 +1309,7 @@ Maybe<uint32_t> ValueSerializer::WriteJSObjectPropertiesSlow(
 
 Maybe<bool> ValueSerializer::IsHostObject(DirectHandle<JSObject> js_object) {
   if (!has_custom_host_objects_) {
-    return Just<bool>(
-        JSObject::GetEmbedderFieldCount(js_object->map(isolate_)));
+    return Just<bool>(JSObject::GetEmbedderFieldCount(js_object->map()));
   }
   DCHECK_NOT_NULL(delegate_);
 
@@ -1673,8 +1669,9 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal() {
   switch (tag) {
     case SerializationTag::kVerifyObjectCount:
       // Read the count and ignore it.
-      if (ReadVarint<uint32_t>().IsNothing())
+      if (ReadVarint<uint32_t>().IsNothing()) {
         return MaybeDirectHandle<Object>();
+      }
       return ReadObject();
     case SerializationTag::kUndefined:
       return isolate_->factory()->undefined_value();
@@ -1788,7 +1785,7 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal() {
 MaybeDirectHandle<String> ValueDeserializer::ReadString() {
   if (version_ < 12) return ReadUtf8String();
   DirectHandle<Object> object;
-  if (!ReadObject().ToHandle(&object) || !IsString(*object, isolate_)) {
+  if (!ReadObject().ToHandle(&object) || !IsString(*object)) {
     return MaybeDirectHandle<String>();
   }
   return Cast<String>(object);
@@ -1997,8 +1994,9 @@ MaybeDirectHandle<JSPrimitiveWrapper> ValueDeserializer::ReadJSPrimitiveWrapper(
       break;
     case SerializationTag::kNumberObject: {
       double number;
-      if (!ReadDouble().To(&number))
+      if (!ReadDouble().To(&number)) {
         return MaybeDirectHandle<JSPrimitiveWrapper>();
+      }
       value = Cast<JSPrimitiveWrapper>(
           isolate_->factory()->NewJSObject(isolate_->number_function()));
       DirectHandle<Number> number_object =
@@ -2008,8 +2006,9 @@ MaybeDirectHandle<JSPrimitiveWrapper> ValueDeserializer::ReadJSPrimitiveWrapper(
     }
     case SerializationTag::kBigIntObject: {
       DirectHandle<BigInt> bigint;
-      if (!ReadBigInt().ToHandle(&bigint))
+      if (!ReadBigInt().ToHandle(&bigint)) {
         return MaybeDirectHandle<JSPrimitiveWrapper>();
+      }
       value = Cast<JSPrimitiveWrapper>(
           isolate_->factory()->NewJSObject(isolate_->bigint_function()));
       value->set_value(*bigint);
@@ -2017,8 +2016,9 @@ MaybeDirectHandle<JSPrimitiveWrapper> ValueDeserializer::ReadJSPrimitiveWrapper(
     }
     case SerializationTag::kStringObject: {
       DirectHandle<String> string;
-      if (!ReadString().ToHandle(&string))
+      if (!ReadString().ToHandle(&string)) {
         return MaybeDirectHandle<JSPrimitiveWrapper>();
+      }
       value = Cast<JSPrimitiveWrapper>(
           isolate_->factory()->NewJSObject(isolate_->string_function()));
       value->set_value(*string);
@@ -2170,7 +2170,7 @@ MaybeDirectHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
         array_buffer->set_byte_length(0);
         DirectHandle<Object> wasm_memory_obj;
         if (!ReadObject().ToHandle(&wasm_memory_obj)) return {};
-        if (!IsWasmMemoryObject(*wasm_memory_obj, isolate_)) return {};
+        if (!IsWasmMemoryObject(*wasm_memory_obj)) return {};
         // If the WasmMemoryObject was deserialized just now, it will have set
         // up the link from the ArrayBuffer already. If it was reused
         // (deserialized earlier), then we need to establish a link from this
@@ -2182,10 +2182,12 @@ MaybeDirectHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
             .Check();
       } else if (resizable_subtag ==
                  static_cast<uint8_t>(WasmMemoryArrayBufferTag::kFixedLength)) {
+        DCHECK(!array_buffer->is_resizable_by_js());
         size_t byte_length;
         if (!ReadVarint<size_t>().To(&byte_length)) return {};
         if (byte_length > array_buffer->byte_length()) return {};
         array_buffer->set_byte_length(byte_length);
+        array_buffer->set_max_byte_length(byte_length);
       } else {
         return {};
       }
@@ -2599,7 +2601,7 @@ static void CommitProperties(
 
 static bool IsValidObjectKey(Tagged<Object> value, Isolate* isolate) {
   if (IsSmi(value)) return true;
-  auto instance_type = Cast<HeapObject>(value)->map(isolate)->instance_type();
+  auto instance_type = Cast<HeapObject>(value)->map()->instance_type();
   return InstanceTypeChecker::IsName(instance_type) ||
          InstanceTypeChecker::IsHeapNumber(instance_type);
 }
@@ -2614,7 +2616,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
     bool transitioning = true;
     DirectHandle<Map> map(object->map(), isolate_);
     DCHECK(!map->is_dictionary_map());
-    DCHECK_EQ(0, map->instance_descriptors(isolate_)->number_of_descriptors());
+    DCHECK_EQ(0, map->instance_descriptors()->number_of_descriptors());
     DirectHandleVector<Object> properties(isolate_);
     properties.reserve(8);
 
@@ -2676,7 +2678,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
         if (!ReadObject().ToHandle(&key) || !IsValidObjectKey(*key, isolate_)) {
           return Nothing<uint32_t>();
         }
-        if (IsString(*key, isolate_)) {
+        if (IsString(*key)) {
           key = isolate_->factory()->InternalizeString(Cast<String>(key));
           // Don't reuse |transitions| because it could be stale.
           transitioning = TransitionsAccessor(isolate_, *map)
@@ -2701,13 +2703,12 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
         if (!target->is_dictionary_map()) {
           InternalIndex descriptor(properties.size());
           PropertyDetails details =
-              target->instance_descriptors(isolate_)->GetDetails(descriptor);
+              target->instance_descriptors()->GetDetails(descriptor);
           Representation expected_representation = details.representation();
           if (Object::FitsRepresentation(*value, expected_representation)) {
             if (expected_representation.IsHeapObject() &&
                 !FieldType::NowContains(
-                    target->instance_descriptors(isolate_)->GetFieldType(
-                        descriptor),
+                    target->instance_descriptors()->GetFieldType(descriptor),
                     value)) {
               DirectHandle<FieldType> value_type = Object::OptimalType(
                   *value, isolate_, expected_representation);
@@ -2716,8 +2717,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
                                           expected_representation, value_type);
             }
             DCHECK(FieldType::NowContains(
-                target->instance_descriptors(isolate_)->GetFieldType(
-                    descriptor),
+                target->instance_descriptors()->GetFieldType(descriptor),
                 value));
             properties.push_back(value);
             map = target;
@@ -2905,8 +2905,9 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
         return MaybeDirectHandle<Object>();
       }
       default:
-        if (!ReadObject().ToHandle(&new_object))
+        if (!ReadObject().ToHandle(&new_object)) {
           return MaybeDirectHandle<Object>();
+        }
         break;
     }
     stack.push_back(new_object);

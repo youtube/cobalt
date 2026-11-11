@@ -41,6 +41,7 @@
 #include "chrome/browser/ui/autofill/autofill_bubble_base.h"
 #include "chrome/browser/ui/autofill/payments/filled_card_information_bubble_controller_impl.h"
 #include "chrome/browser/ui/autofill/payments/mandatory_reauth_bubble_controller_impl.h"
+#include "chrome/browser/ui/autofill/payments/omnibox_autofill_page_action_controller.h"
 #include "chrome/browser/ui/autofill/payments/save_payment_icon_controller.h"
 #include "chrome/browser/ui/autofill/payments/virtual_card_enroll_bubble_controller_impl.h"
 #include "chrome/browser/ui/bookmarks/bookmark_utils.h"
@@ -59,7 +60,7 @@
 #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
 #include "chrome/browser/ui/lens/lens_string_utils.h"
 #include "chrome/browser/ui/omnibox/ai_mode_page_action_controller.h"
-#include "chrome/browser/ui/page_actions/page_action_triggers.h"
+#include "chrome/browser/ui/page_action/page_action_triggers.h"
 #include "chrome/browser/ui/passwords/manage_passwords_ui_controller.h"
 #include "chrome/browser/ui/passwords/passwords_model_delegate.h"
 #include "chrome/browser/ui/performance_controls/memory_saver_bubble_controller.h"
@@ -114,6 +115,7 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/collaboration/public/messaging/activity_log.h"
 #include "components/commerce/core/metrics/discounts_metric_collector.h"
 #include "components/content_settings/core/common/features.h"
@@ -564,13 +566,7 @@ void BrowserActions::InitializePageActionIconActions() {
             .SetTooltipText(l10n_util::GetStringUTF16(
                 IDS_JS_OPTIMIZATIONS_DISABLED_ICON_TOOLTIP))
             .SetImage(ui::ImageModel::FromVectorIcon(
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
                 vector_icons::kV8OffIcon,
-#else
-                // TODO(crbug.com/457422266): Figure out which icon to use for
-                // non-branded builds.
-                vector_icons::kCodeIcon,
-#endif
                 ui::kColorIcon, ui::SimpleMenuModel::kDefaultIconSize))
             .SetEnabled(true)
             .Build());
@@ -988,7 +984,7 @@ void BrowserActions::InitializeChromeMenuActions() {
               },
               bwi),
           kActionShowTranslate, IDS_SHOW_TRANSLATE, IDS_TOOLTIP_TRANSLATE,
-          kTranslateIcon)
+          vector_icons::kGTranslateIcon)
           .Build());
 
   root_action_item_->AddChild(
@@ -1655,6 +1651,31 @@ void BrowserActions::InitializeToolbarAndMiscActions() {
         actions::ActionItem::Builder()
             // Anchored message icon, strings and callback are set at cue time.
             .SetActionId(kActionAnchoredContextualCue)
+            .Build());
+  }
+
+  if (base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableOmniboxAutofill)) {
+    root_action_item_->AddChild(
+        actions::ActionItem::Builder(
+            base::BindRepeating(
+                [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                   actions::ActionInvocationContext context) {
+                  if (!bwi) {
+                    return;
+                  }
+                  auto* tab = bwi->GetActiveTabInterface();
+                  if (!tab) {
+                    return;
+                  }
+                  // TODO(crbug.com/490215251): Set the callback to display the
+                  // Autofill bubble.
+                },
+                bwi))
+            .SetActionId(kActionAutofillPayment)
+            .SetImage(
+                ui::ImageModel::FromVectorIcon(kCreditCardChromeRefreshIcon))
+            .SetText(l10n_util::GetStringUTF16(IDS_AUTOFILL_PAYMENT_TEXT))
             .Build());
   }
 }

@@ -46,6 +46,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/profiles/profile_colors_util.h"
 #include "chrome/browser/ui/signin/dice_migration_service.h"
@@ -262,8 +263,8 @@ class GuestStateProvider : public PrivateBaseStateProvider {
     // crbug.com/40169175.
     const int guest_window_count = 1;
 #else
-    const int guest_window_count =
-        static_cast<int>(chrome::GetGuestBrowserCount());
+    const int guest_window_count = static_cast<int>(
+        GlobalBrowserCollection::GetInstance()->GetGuestBrowserCount());
 #endif
     return l10n_util::GetPluralStringFUTF16(IDS_AVATAR_BUTTON_GUEST,
                                             guest_window_count);
@@ -306,8 +307,8 @@ class IncognitoStateProvider : public PrivateBaseStateProvider {
   std::u16string GetText() const override {
     return l10n_util::GetPluralStringFUTF16(
         IDS_AVATAR_BUTTON_INCOGNITO,
-        static_cast<int>(
-            chrome::GetOffTheRecordBrowsersActiveForProfile(&profile())));
+        static_cast<int>(ProfileBrowserCollection::GetForProfile(&profile())
+                             ->GetOffTheRecordBrowserCount()));
   }
 
   std::optional<SkColor> GetHighlightColor(
@@ -932,6 +933,19 @@ class PromoStateProviderCoordinator
                             ButtonState new_state) override {
     switch (new_state) {
       case ButtonState::kPromo:
+        CHECK(promo_type_.has_value());
+        // Ensure that the promo can still be shown if it is not already shown.
+        // It is possible that events not allowing the promo to show anymore
+        // happened before reaching `this` notification. E.g. clearing primary
+        // account triggering an update request through another StateProvider
+        // while `this` is active.
+        if (!IsPromoShowing() &&
+            !promo_manager_.ShouldShowPromo(promo_type_.value())) {
+          // Resets the coordinator.
+          Collapse();
+          return;
+        }
+
         PromoShown();
         return;
       case ButtonState::kUpgradeClientError:
@@ -1145,7 +1159,7 @@ class PromoStateProviderCoordinator
     if (!promo_type_.has_value()) {
       return;
     }
-    if (collapse_timer_.IsRunning()) {
+    if (IsPromoShowing()) {
       collapse_timer_.Stop();
     }
     before_promo_used_elapsed_timer_.reset();
@@ -1154,7 +1168,7 @@ class PromoStateProviderCoordinator
   }
 
   void PromoShown() {
-    if (collapse_timer_.IsRunning()) {
+    if (IsPromoShowing()) {
       // This prevents starting a new timer when the button state changes to
       // `kPromo` in the next browser window(s).
       return;
@@ -1207,6 +1221,8 @@ class PromoStateProviderCoordinator
   bool IsSignedIn() const {
     return identity_manager_->HasPrimaryAccount(signin::ConsentLevel::kSignin);
   }
+
+  bool IsPromoShowing() const { return collapse_timer_.IsRunning(); }
 
   const raw_ref<Profile> profile_;
   raw_ptr<signin::IdentityManager> identity_manager_;

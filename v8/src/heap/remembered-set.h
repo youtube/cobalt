@@ -353,7 +353,7 @@ class UpdateTypedSlotHelper {
                                                   WritableRelocInfo* rinfo,
                                                   Callback callback) {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
-    Tagged<HeapObject> old_target = rinfo->target_object(heap->isolate());
+    Tagged<HeapObject> old_target = rinfo->target_object();
     Tagged<HeapObject> new_target = old_target;
     SlotCallbackResult result = callback(FullMaybeObjectSlot(&new_target));
     DCHECK(!HasWeakHeapObjectTag(new_target));

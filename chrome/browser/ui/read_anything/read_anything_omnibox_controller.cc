@@ -7,7 +7,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "chrome/browser/dom_distiller/tab_utils.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
-#include "chrome/browser/ui/page_actions/page_action_controller.h"
+#include "chrome/browser/ui/page_action/page_action_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_enums.h"
 #include "chrome/browser/ui/read_anything/read_anything_side_panel_controller_utils.h"
@@ -75,7 +75,8 @@ void ReadAnythingOmniboxController::OnTabBackgrounded(tabs::TabInterface* tab) {
 
 void ReadAnythingOmniboxController::Activate(
     bool active,
-    std::optional<ReadAnythingOpenTrigger> open_trigger) {
+    std::optional<ReadAnythingOpenTrigger> open_trigger,
+    std::optional<base::TimeDelta> completed_session_duration) {
   if (active) {
     if (iph_response_timer_ && iph_response_timer_->IsRunning()) {
       iph_response_timer_->Stop();

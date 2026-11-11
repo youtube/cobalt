@@ -142,7 +142,6 @@
 <translation id="147982357559798527">បានប្ដូរ</translation>
 <translation id="1486096554574027028">ស្វែងរកពាក្យសម្ងាត់</translation>
 <translation id="1491277525950327607">ចុចពីរដង​ដើម្បី​បិទបើក​ការកំណត់</translation>
-<translation id="1491965206608166851">ចូលគណនី​ដោយប្រើ​កូដសម្ងាត់ និង​ពាក្យ​សម្ងាត់​ដែលអ្នក​បានរក្សាទុក​ពីកម្មវិធី​ណាមួយ</translation>
 <translation id="1492417797159476138">អ្នកបានរក្សាទុក​ឈ្មោះអ្នកប្រើប្រាស់​នេះសម្រាប់គេហទំព័រនេះ​រួចហើយ</translation>
 <translation id="1497590942294823549">ម៉ឺនុយ → កម្មវិធីគ្រប់គ្រងពាក្យសម្ងាត់</translation>
 <translation id="1498283581832036924">គណនី <ph name="WEBSITE" /> របស់​អ្នក​នឹង​មិន​ត្រូវ​បានលុប​ទេ</translation>
@@ -160,6 +159,7 @@
 <translation id="1524563461097350801">ទេ អរគុណ</translation>
 <translation id="1531038290222364269">បង្ហាញផ្ទាំង</translation>
 <translation id="1536390784834419204">បកប្រែ​ទំព័រ</translation>
+<translation id="1539535193627863227">រកមិនឃើញ​ពាក្យសម្ងាត់ ឬ​កូដសម្ងាត់​សម្រាប់​គេហទំព័រ​នេះទេ</translation>
 <translation id="1540800554400757039">អាសយដ្ឋាន 1</translation>
 <translation id="154312949627292154">បានទទួលផ្ទាំងដែលបើកពីឧបករណ៍ផ្សេងទៀតរបស់អ្នកពីអេក្រង់ចាក់សោ។</translation>
 <translation id="1545749641540134597">ស្កេនកូដ QR</translation>
@@ -201,6 +201,7 @@
 <translation id="1657011748321897393">ការចែករំលែកបានបរាជ័យ ពីព្រោះអ្នកមិនបានភ្ជាប់ទៅនឹងបណ្តាញទេ។</translation>
 <translation id="1668001730617725852">បើក​នៅ​ក្នុង​ក្រុមផ្ទាំង​ថ្មី</translation>
 <translation id="1670861525135254448">រក្សាទុក​ព័ត៌មានយានជំនិះ</translation>
+<translation id="1671568970992212376">រក្សាទុក​រូបថត​នៅក្នុង Google រូបថត​របស់អ្នក ដើម្បី​ចូលប្រើ​រូបថត​ទាំងនោះ​នៅពេលណា​ក៏បាន។</translation>
 <translation id="1674504678466460478"><ph name="SOURCE_LANGUAGE" /> ទៅ <ph name="TARGET_LANGUAGE" /></translation>
 <translation id="1678855624321223424">ផ្អែកលើ​គោលការណ៍​ស្ថាប័ន​របស់អ្នក ឯកសារនេះ​អាចមាន​ព័ត៌មាន​រសើប</translation>
 <translation id="168389590065701766">ឥឡូវនេះ អ្នក​អាចបើក Google Lens ពី​របារអាសយដ្ឋាន​របស់អ្នក និង​ស្វែងរក​អ្វីក៏បាន​ដែលអ្នក​មើលឃើញ</translation>
@@ -357,12 +358,10 @@
 <translation id="2199562093267256223">ការធ្វើ​បែបនេះ​នឹងលុប​ក្រុមនេះ​ចេញពី​គ្រប់ឧបករណ៍​ដែលបានចូលគណនី <ph name="USER_EMAIL" />។</translation>
 <translation id="2202084845446535117">គ្មានគណនីអ៊ីមែលទេ</translation>
 <translation id="2214453882118345682">រកទិញ បកប្រែ និង​សម្គាល់​អ្វីដែលអ្នក​មើលឃើញ​ដោយប្រើ​កាមេរ៉ា​របស់អ្នក។</translation>
-<translation id="2215819824168709130">លាក់​កាត "តាមដាន​តម្លៃ"</translation>
 <translation id="2216366330550244277">ចូល​ទៅកាន់​ទំព័រ​ផលិតផល</translation>
 <translation id="2219935992754556187">Chrome រក្សាសុវត្ថិភាព​ទិន្នន័យរសើប​របស់អ្នក​ដោយប្រើ Face ID</translation>
 <translation id="2220529011494928058">រាយការណ៍ពីបញ្ហា</translation>
 <translation id="2223461067862937305">បង្កើតកូដ QR</translation>
-<translation id="2225701818156393674">បានបញ្ចូល​ផលិតផល​ទៅក្នុង​បញ្ជី​ផលិតផល​ដែលបាន​តាមដាន​របស់អ្នក។</translation>
 <translation id="2230173723195178503">បាន​ផ្ទុក​គេហទំព័រ​</translation>
 <translation id="2236949375853147973">សកម្មភាព​របស់ខ្ញុំ</translation>
 <translation id="2237869114829007407">ទទួលបានទិដ្ឋភាពរួម និងព័ត៌មានស៊ីជម្រៅសំខាន់ៗសម្រាប់ទំព័រ ឬប្រធានបទណាមួយ</translation>
@@ -441,7 +440,6 @@
 <translation id="2493269659028026145">ចាក់សោ​ភ្លាមៗ​ដោយប្រើ <ph name="BIOMETRIC_AUTHENITCATION_TYPE" /></translation>
 <translation id="2496180316473517155">ប្រវត្តិរុករក</translation>
 <translation id="2496626742194544812">ចូលទៅ​ផ្ទាំង​ដំបូង</translation>
-<translation id="2497852260688568942">សមកាលកម្មបានបិទដោយអ្នកគ្រប់គ្រងរបស់អ្នក</translation>
 <translation id="2499505845365628575">អ្នកអាច​រកឃើញ​ប្រវត្តិ​រុករក​តាមអ៊ីនធឺណិត​ទាំងអស់​របស់អ្នក​បានពី<ph name="HISTORY_BUTTON_ACCESSIBILITY_LABEL" />។</translation>
 <translation id="2511117522375201202">អ្នកមាន​ពាក្យសម្ងាត់ដែល​រងការលុកលុយ <ph name="NUMBER_OF_PASSWORDS" /> ដែលអាច​ធ្វើឱ្យសុវត្ថិភាព​របស់អ្នក​ប្រឈមនឹង​ហានិភ័យ។</translation>
 <translation id="2513103768503127042">អ្នក​នឹងឃើញ​ក្រុមផ្ទាំង​របស់អ្នក​នៅទីនេះ</translation>
@@ -554,7 +552,6 @@
 <translation id="2902312830803030883">សកម្មភាព​ច្រើនទៀត</translation>
 <translation id="2904788871580817212">ការធ្លាក់ថ្លៃ​នៅលើ​ផ្ទាំង​ដែលអ្នកបើក​ពី <ph name="PREVIOUS_PRICE" /> មក <ph name="PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN" /></translation>
 <translation id="2905479111267140204">អ្នកមាន​ពាក្យសម្ងាត់​ដែលប្រើ​ឡើងវិញ <ph name="NUMBER_OF_PASSWORDS" /> ដែលអាច​ធ្វើឱ្យសុវត្ថិភាព​របស់អ្នក​ប្រឈមនឹង​ហានិភ័យ។</translation>
-<translation id="29153882450867370">លាក់ "តាមដាន​តម្លៃ"</translation>
 <translation id="291754862089661335">ដាក់លេខកូដ QR ឬបារកូដទៅក្នុងស៊ុមនេះ</translation>
 <translation id="2918688092312652908">សម្គាល់​ថា​មិន​ទាន់​អាន</translation>
 <translation id="2922210239002704889">ចូលទៅកាន់ទំព័រដើម ឬក្ដារចុចរបស់អ្នក</translation>
@@ -566,6 +563,7 @@
 <translation id="2969979262385602596">បានបរាជ័យក្នុងការចូល។ សូមព្យាយាមម្តងទៀតនៅពេលក្រោយ។</translation>
 <translation id="2975761176769946178">តម្រូវ​ឱ្យ​មាន URL</translation>
 <translation id="297667759942911166">សហការនៅក្នុងក្រុមផ្ទាំង</translation>
+<translation id="298696743524648170">ដើម្បីប្រើ Gemini ក្នុង Chrome សូម​ចូល Chrome ដោយប្រើ​គណនី Google របស់អ្នក</translation>
 <translation id="2987670534697681860">ផ្ទៀងផ្ទាត់​ថាជាអ្នក ដើម្បី​ចូលប្រើ​ពាក្យ​សម្ងាត់​ទាំងអស់​របស់អ្នក​នៅលើ​ឧបករណ៍​នេះ។</translation>
 <translation id="2989523299700148168">បាន​ចូល​ទៅ​កាន់​ថ្មីៗ</translation>
 <translation id="2989805286512600854">បើកនៅក្នុងផ្ទាំងថ្មី</translation>
@@ -598,6 +596,7 @@
 <translation id="3106258548858559536">បិទ​មុខងារអាន</translation>
 <translation id="3106690631878101882">លាក់ "បកប្រែ"</translation>
 <translation id="310900540163454140">លុប​ពាក្យសម្ងាត់​សម្រាប់ <ph name="WEBSITE" /> ឬ?</translation>
+<translation id="3109724472072898302">បានបង្រួមចូល</translation>
 <translation id="3112556859945124369">សម្គាល់…</translation>
 <translation id="3116695032231023709">រក្សាទុក​អត្តសញ្ញាណ​ប័ណ្ណ</translation>
 <translation id="3119874402040566234">អ្នកនឹងត្រូវបាននាំចេញពីគណនី ហើយទិន្នន័យរុករកនឹងត្រូវបានលុប</translation>
@@ -619,6 +618,7 @@
 <translation id="31652791196570636">ច្រានចោល</translation>
 <translation id="3167868116600277716">ព័ត៌មាន Discover</translation>
 <translation id="3169472444629675720">Discover</translation>
+<translation id="3172755898799085680">មិនអាច​ប្រើ Gemini នៅលើ​ទំព័រនេះ​បានទេ</translation>
 <translation id="3174662312949010067">អ្នកក៏អាចប្រើពាក្យសម្ងាត់ដែលបានរក្សាទុកនៅលើឧបករណ៍ផ្សេងទៀតរបស់អ្នកបានផងដែរ។</translation>
 <translation id="3177338796769255211">ចូលគណនី ដើម្បី​ទទួលបាន​ចំណាំ​របស់អ្នក និងអ្វីៗជាច្រើនទៀត​នៅលើ​ឧបករណ៍​ទាំងអស់​របស់អ្នក</translation>
 <translation id="3181954750937456830">មុខងាររុករក​ដោយ​សុវត្ថិភាព (ការពារអ្នក​ និងឧបករណ៍​របស់អ្នក​ពីគេហទំព័រ​គ្រោះថ្នាក់)</translation>
@@ -642,6 +642,7 @@
 <translation id="3245744387817103524">មិនអាច​រក្សាទុកការផ្លាស់ប្ដូររបស់អ្នក​បានទេ។</translation>
 <translation id="3254806613790954367">ផ្ទាំងដែលអ្នកបើកចុងក្រោយនៅលើគ្រប់ឧបករណ៍របស់អ្នក</translation>
 <translation id="325717987950204592">ចុច "ឯកជនភាព និង​សន្តិសុខ"</translation>
+<translation id="3259451381796379533">គណនីនេះ​នឹងមិន​ដំណើរការ​ជាមួយ Gemini ទេ។ សូមចូល​ដោយប្រើ​គណនី Google ផ្សេង។</translation>
 <translation id="3265736395246760288">ចូលគណនី​កាន់តែរហ័ស​ពីឧបករណ៍​ដែលអ្នកបាន​ធ្វើសមកាលកម្ម។</translation>
 <translation id="3272527697863656322">បោះបង់</translation>
 <translation id="3273510436356991673">ប្ដូរ​អេក្រង់ដើម​របស់អ្នក​តាមបំណង</translation>
@@ -763,6 +764,7 @@
 <translation id="372676576864368480">បំពេញ​លេខកាត​ដែលបញ្ចប់​ដោយ <ph name="LAST_DIGITS" /> ដោយ​ស្វ័យប្រវត្តិ</translation>
 <translation id="3738428049780661523">បាន​បង្កើតនៅថ្ងៃទី <ph name="DATE" /></translation>
 <translation id="3742498336182910186">របុំ​កាមេរ៉ា</translation>
+<translation id="3746269120925354434">បាន​រក្សាទុក​ព័ត៌មាន​ទៅ Google Wallet</translation>
 <translation id="3750225824417196283">ទំព័រផ្ទាំងឯកជនថ្មី</translation>
 <translation id="3751873026576444885">ឈប់​ស្វែងរក​នៅលើ​អេក្រង់​របស់អ្នក​ដោយប្រើ Google Lens</translation>
 <translation id="3753408171347588045">កំពុងតាមដាន​តម្លៃ</translation>
@@ -992,6 +994,7 @@
 <translation id="4552042254369397518">កំពុងចម្លង…</translation>
 <translation id="4553044860350038560">កូដសម្ងាត់ច្រើនទៀត</translation>
 <translation id="4564893319561643483">លាក់ "<ph name="TITLE" />"</translation>
+<translation id="456502772933839252">កំពុង​ចែករំលែក <ph name="PAGE_TITLE" /></translation>
 <translation id="4565377596337484307">លាក់​ពាក្យ​សម្ងាត់</translation>
 <translation id="4568230126482344545">លាក់ផ្ទាំង​ថ្មីៗ</translation>
 <translation id="4578835633387306383">បើក…</translation>
@@ -1076,7 +1079,6 @@
 <translation id="4824480232751123840">កម្រិតសំឡេង</translation>
 <translation id="4824497107140370669">{count,plural, =0{{domain}}=1{{domain} និង 1 ទៀត}other{{domain} និង {count} ទៀត}}</translation>
 <translation id="4826588772550366629">កាមេរ៉ា និង​មីក្រូហ្វូន</translation>
-<translation id="4828431027673677473">ផលិតផល​ដែល​ផ្អែកលើ​ចំណាប់​អារម្មណ៍​របស់អ្នក</translation>
 <translation id="4829420936835028285">កែ​ក្រុមផ្ទាំង</translation>
 <translation id="4833786495304741580">ផ្ញើស្ថិតិ​ប្រើប្រាស់ និង​របាយការណ៍អំពី​ការគាំង​ទៅ Google ដោយ​ស្វ័យប្រវត្តិ។</translation>
 <translation id="483689884442613745">រក្សាទុក…</translation>
@@ -1132,7 +1134,6 @@
 <translation id="4992255726304765516">ពណ៌ក្រុមផ្ទាំង<ph name="COLOR" /></translation>
 <translation id="5005498671520578047">ថតចម្លងពាក្យសម្ងាត់</translation>
 <translation id="5009127379503001909">បន្ត​រុករក</translation>
-<translation id="5012914568031465281">មិនអាច​តាមដានតម្លៃ​បានទេ។</translation>
 <translation id="5016205925109358554">Serif</translation>
 <translation id="5016420433031926653">ផ្ញើ​ទៅ <ph name="USER_EMAIL" /></translation>
 <translation id="5017529052065664584">15 នាទី​ចុងក្រោយ</translation>
@@ -1402,6 +1403,7 @@ Handoff ត្រូវបើកដំណើរការនៅក្នុងផ
 <translation id="5936065461722368675">បកប្រែ​ទំព័រ​ទាំងមូល</translation>
 <translation id="5937560539988385583">​បានបកប្រែទំព័រ</translation>
 <translation id="5938160824633642847">ឧបករណ៍​របស់អ្នក​ជិត​ពេញ​ហើយ។ សូម​បង្កើន​ទំហំ​ផ្ទុក​ រួច​ព្យាយាម​ម្តងទៀត។</translation>
+<translation id="5941711191222866238">បង្រួម</translation>
 <translation id="5944869793365969636">ស្កេន​កូដ QR</translation>
 <translation id="5948291296578561264">វា​អនុញ្ញាត​ឱ្យអ្នក​រក្សាទុក​រូបថត​ទៅក្នុងបណ្ណាល័យរូបថត​របស់អ្នក។</translation>
 <translation id="5948605885471592910">មើល និង​គ្រប់គ្រង​អ្វីគ្រប់យ៉ាង​ដែលអ្នក​បានបើក</translation>
@@ -1780,6 +1782,7 @@ Handoff ត្រូវបើកដំណើរការនៅក្នុងផ
 <translation id="7186568385131859684">គ្រប់គ្រងរបៀបដែលប្រវត្តិ​រុករក​តាមអ៊ីនធឺណិតត្រូវបានប្រើជាមួយទិន្នន័យផ្សេងទៀតរបស់អ្នកនៅលើសេវាកម្ម Google</translation>
 <translation id="719133302483559673">គ្រប់គ្រង​ចំណាប់អារម្មណ៍ និង​ចំណូលចិត្ត​របស់អ្នក។</translation>
 <translation id="7191382490098297347">រូបភាព​របុំ​កាមេរ៉ា</translation>
+<translation id="7203150201908454328">បានពង្រីក</translation>
 <translation id="7203496777391039568">ទិន្នន័យ​របស់​ស្ថាប័នអ្នក​មានលក្ខណៈ​ឯកជន និង​មានសុវត្ថិភាព</translation>
 <translation id="720399613139435155">ការបកប្រែមិនបានសម្រេចទេ</translation>
 <translation id="7204922488054642675">ព័ត៌មានដែលមានលក្ខណៈផ្ទាល់ខ្លួន</translation>
@@ -1864,6 +1867,7 @@ Handoff ត្រូវបើកដំណើរការនៅក្នុងផ
 <translation id="7498234416455752244">បន្ត​កែសម្រួល</translation>
 <translation id="7500244509706269886">បំពេញទម្រង់បែបបទដោយស្វ័យប្រវត្តិ</translation>
 <translation id="750493650310597496">បានជ្រើសរើស ០</translation>
+<translation id="7505402981231763928">អ្នកត្រូវ​ចូលគណនី ទើបអាច​ប្រើ Gemini បាន</translation>
 <translation id="7506817096924591340"><ph name="FILENAME" /> (<ph name="FILESIZE" />)។</translation>
 <translation id="7508728395076009983">ដើម្បីចាក់សោផ្ទាំងឯកជនរបស់អ្នក សូមរៀបចំ Touch ID, Face ID ឬលេខ​កូដ​សម្ងាត់។</translation>
 <translation id="750886945254958667">រក្សា​ក្រុមនេះ ដើម្បី​បញ្ចូលផ្ទាំង​នៅពេលក្រោយ ឬ​ចាកចេញ​ពីក្រុមនេះ ប្រសិនបើ​អ្នកលែងចង់​ចូលប្រើវា​ទៀតហើយ</translation>
@@ -1996,6 +2000,7 @@ Handoff ត្រូវបើកដំណើរការនៅក្នុងផ
 <translation id="7938254975914653459">FaceTime</translation>
 <translation id="7939856641500914040">លុប​ទិន្នន័យរុករក…</translation>
 <translation id="7941578031639087549">{count,plural, =1{បាន​បញ្ចូល​ទំព័រ​ទៅ​ក្នុង​បញ្ជី​អាន​របស់​អ្នក​នៅ​ក្នុង​គណនី {email} របស់​អ្នក}other{បានបញ្ចូល {count} ទំព័រទៅក្នុងបញ្ជីអានរបស់អ្នកនៅក្នុងគណនី {email} របស់អ្នក}}</translation>
+<translation id="7948579849190819732">ផ្ទាំង​បច្ចុប្បន្ន</translation>
 <translation id="7952353944614086413">ក្រុម និង​ផ្ទាំង​ដែលបើក​របស់អ្នក</translation>
 <translation id="7952670906562503188">អ្នក​ហៀបនឹង​លុបកូដសម្ងាត់ {passkey_count} ព្រមទាំង​បញ្ជីគេហទំព័រ និង​កម្មវិធី​ដែលអ្នក​បានជ្រើសរើស​មិនរក្សាទុក​ព័ត៌មានចូល​គណនី។ គណនី​ដែលអ្នក​បានបង្កើត​សម្រាប់​គេហទំព័រ និងកម្មវិធី​នឹងមិន​ត្រូវបាន​លុបឡើយ។</translation>
 <translation id="7958575506592576831">ព័ត៌មានសុវត្ថិភាពទំព័រ</translation>
@@ -2105,7 +2110,6 @@ Handoff ត្រូវបើកដំណើរការនៅក្នុងផ
 <translation id="828291969289324795">{count,plural, =1{បញ្ចូលផ្ទាំង​ទៅក្រុមថ្មី}other{បញ្ចូលផ្ទាំង​ទៅក្រុមថ្មី}}</translation>
 <translation id="8283172974887967105">កំណត់…</translation>
 <translation id="8289930144142009940">បានបិទ​ការជូនដំណឹង​អំពី <ph name="FEATURE_NAME" /></translation>
-<translation id="8290077367744012649">តាមដាន​តម្លៃ​ពីផ្ទាំង​របស់អ្នក</translation>
 <translation id="8292893224181644074">បាន​បញ្ចប់​ការទាញយក</translation>
 <translation id="8299417921174340354">ដើម្បី​ប្រើ​ពាក្យសម្ងាត់ អ្នកត្រូវតែ​កំណត់​លេខ​កូដ​សម្ងាត់​នៅលើ​ឧបករណ៍​របស់អ្នក​ជាមុន​សិន។</translation>
 <translation id="8307481894409578819">មិន​អាច​បង្ហោះឯកសារ​នេះ​បានទេ</translation>
@@ -2164,6 +2168,7 @@ Handoff ត្រូវបើកដំណើរការនៅក្នុងផ
 <translation id="8515534223594179607">Export Browsing Data</translation>
 <translation id="8522147671363140027">{count,plural, =1{ពាក្យសម្ងាត់ {count} និងធាតុផ្សេងទៀតត្រូវបានរក្សាទុកតែនៅលើឧបករណ៍នេះប៉ុណ្ណោះ។ ដើម្បីប្រើពួកវានៅលើឧបករណ៍ផ្សេងទៀតរបស់អ្នក សូមរក្សាទុកពួកវានៅក្នុងគណនី Google {email} របស់អ្នក។}other{ពាក្យសម្ងាត់ {count} និងធាតុផ្សេងទៀតត្រូវបានរក្សាទុកតែនៅលើឧបករណ៍នេះប៉ុណ្ណោះ។ ដើម្បីប្រើពួកវានៅលើឧបករណ៍ផ្សេងទៀតរបស់អ្នក សូមរក្សាទុកពួកវានៅក្នុងគណនី Google {email} របស់អ្នក។}}</translation>
 <translation id="8524799873541103884">ផ្ទាំង <ph name="INCOGNITO" /> <ph name="FIRST_VISIBLE_TAB" /> តាមរយៈ <ph name="LAST_VISIBLE_TAB" /> នៃ <ph name="NUMBER_OF_OPEN_TABS" /></translation>
+<translation id="8525306231823319788">ពេញអេក្រង់</translation>
 <translation id="8528009254289981965">បើក​តំណ​ពី​កម្មវិធី​ផ្សេងទៀត​នៅក្នុង​មុខងារ​ឯកជន</translation>
 <translation id="8529767659511976195">ថ្មី</translation>
 <translation id="8531572740963685410">PDF</translation>
@@ -2172,6 +2177,7 @@ Handoff ត្រូវបើកដំណើរការនៅក្នុងផ
 <translation id="8533670235862049797">ការរុករក​ដោយសុវត្ថិភាព​បានបើក</translation>
 <translation id="8534481786647257214">ការបង្ហោះតាម Google+ បានបញ្ចប់។</translation>
 <translation id="8535368836838588657">បង្ហាញពាក្យសម្ងាត់</translation>
+<translation id="8540426897269305488">ចូល​គណនី​ដោយប្រើ <ph name="CELL_ACCESSIBILITY_LABEL" /></translation>
 <translation id="8545276357312221485">ពិនិត្យមើលការកំណត់​កម្មវិធីរុករកតាមអ៊ីនធឺណិតលំនាំដើមរបស់អ្នក</translation>
 <translation id="854938212724803178">អ្នកមាន​ពាក្យសម្ងាត់ដែល​រងការលុកលុយ 1។ សូម​ដោះស្រាយ​បញ្ហានេះ​ឥឡូវ ដើម្បីរក្សា​សុវត្ថិភាព។</translation>
 <translation id="8551311254462607218">នៅក្នុង​របារអាសយដ្ឋាន សូម​ចុចលើ​រូបកាមេរ៉ា Google Lens</translation>
@@ -2284,7 +2290,6 @@ Handoff ត្រូវបើកដំណើរការនៅក្នុងផ
 <translation id="8879952635974818770">ខ្លឹមសារ​ដែលមានលក្ខណៈផ្ទាល់ខ្លួន</translation>
 <translation id="8887595428614802520">បិទក្រុម និងផ្ទាំងទាំងអស់</translation>
 <translation id="8888595487174963247">ដក​ការរំលឹក​ចេញ</translation>
-<translation id="8891031436559779793">អ្នកនឹង​ទទួលបាន​ការជូនដំណឹង ប្រសិនបើ​តម្លៃធ្លាក់ចុះ​នៅលើ​គេហទំព័រ​ណាមួយ។</translation>
 <translation id="8893208530912252670">វីដេអូ</translation>
 <translation id="8898822736010347272">បញ្ជូន URL នៃ​គេហទំព័រ​មួយចំនួន​ដែលអ្នក​ចូលមើល ព័ត៌មាន​ប្រព័ន្ធ​មួយចំនួន និង​ខ្លឹមសារ​ទំព័រ​មួយចំនួន​ទៅ Google ដើម្បីជួយ​ស្វែងរក​ការគំរាមកំហែង​ថ្មី និង​ការពារ​អ្នកគ្រប់គ្នា​នៅលើ​អ៊ីនធឺណិត​។</translation>
 <translation id="8900845556227858314">កម្មវិធីរុករក​តាម​អ៊ីនធឺណិត</translation>

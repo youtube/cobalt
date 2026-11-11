@@ -96,7 +96,6 @@
 <translation id="2018528049276128029">‏هرکدام از نمایه‌های Chrome دارای اطلاعات مختص خودش است (مثل نشانک‌ها، سابقه، گذرواژه‌ها، و غیره)</translation>
 <translation id="2018879682492276940">نصب تکمیل نشد. لطفاً دوباره امتحان کنید.</translation>
 <translation id="2024959665595762054">‏برای ذخیره کردن داده‌های Chrome در «حساب Google» خود و استفاده کردن از آن‌ها، هویتتان را درستی‌سنجی کنید</translation>
-<translation id="2026377840141807639">‏نمایه‌های Chrome به شما امکان می‌دهند فضای مرور شخصی و کاری را جدا نگه دارید. اکنون نمایه جدیدی اضافه کنید.</translation>
 <translation id="2034233344106846793">‏‫Chrome اتصال‌های ناامن را درصورت امکان به‌طور خودکار به HTTPS ارتقا می‌دهد</translation>
 <translation id="2039417478970545937">تنظیمات.</translation>
 <translation id="2066690553719545730">همیشه نشان دادن «حالت هوشواره‌ای»</translation>
@@ -119,7 +118,6 @@
 <translation id="2174917724755363426">نصب کامل نیست. مطمئنید می‌خواهید آن را لغو کنید؟</translation>
 <translation id="2186206192313702726">‏لنز Google</translation>
 <translation id="2190166659037789668">خطای بررسی به‌روزرسانی: <ph name="UPDATE_CHECK_ERROR" />.</translation>
-<translation id="2199691482078155239">‏‫Chrome به شما کمک می‌کند بر آگهی‌هایی که می‌بینید تسلط بیشتری داشته باشید و همچنین میزان اطلاعاتی را که سایت‌ها هنگام نمایش آگهی‌های شخصی‌سازی‌شده به شما درباره‌تان جمع‌آوری می‌کنند محدود می‌کند</translation>
 <translation id="2216543877350048334">‏برای برداشتن «حساب Google» خود از Chrome، از سیستم خارج شوید</translation>
 <translation id="2236949375853147973">فعالیت‌هایم</translation>
 <translation id="22791603784558743">‏بستن «Gemini در Chrome Dev»</translation>
@@ -146,6 +144,9 @@
 <translation id="2569974318947988067">‏Chrome سعی می‌کند پیمایش‌ها را به HTTPS ارتقا دهد</translation>
 <translation id="2571392474191184472">‏سازمان شما Chrome را مدیریت می‌کند</translation>
 <translation id="2574930892358684005">‏<ph name="EXISTING_USER" /> قبلاً به سیستم این نمایه Chrome وارد شده است. برای جدا نگه داشتن مرور، Chrome می‌تواند نمایه مختص خودتان را برایتان ایجاد کند.</translation>
+<translation id="2575799939951057838">‏برای حفظ امنیت، وقتی برای اولین‌بار از سایتی بازدید می‌کنید، Chrome «بهینه‌سازی جاوا اسکریپت» را خاموش می‌کند.
+
+اگر این صفحه طبق انتظار کار نمی‌کند، «بهینه‌سازی» را مجاز کنید.</translation>
 <translation id="2580411288591421699">‏نمی‌توان همان نسخه Google Chrome را که اکنون در حال اجراست نصب کرد. لطفاً Google Chrome را ببندید و دوباره سعی کنید.</translation>
 <translation id="2586406160782125153">‏این کار داده‌های محصول مرورتان را برای همیشه از این دستگاه حذف می‌کند. برای بازیابی داده‌هایتان در فرصتی دیگر، با <ph name="USER_EMAIL" /> وارد سیستم Chrome شوید.</translation>
 <translation id="259935314519650377">نصب‌کننده بارگیری‌شده در حافظه نهان ذخیره نشد. خطا: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
@@ -448,7 +449,6 @@
 <translation id="5736850870166430177">‏اگر سایتی تلاش کند گذرواژه شما را به‌سرقت ببرد، یا وقتی فایل مخربی بارگیری می‌کنید، Chrome ممکن است نشانی‌های وب را نیز به‌همراه بخش‌های کوچکی از محتوای صفحه، به «مرور ایمن» ارسال کند</translation>
 <translation id="5756509061973259733">‏درحال‌حاضر یک نمایه Chrome با این حساب در این دستگاه وجود دارد</translation>
 <translation id="5759947850379142561">‏نوشتار یا تصویری را برای جستجو کردن با «لنز Google» انتخاب کنید یا برای خارج شدن از «لنز Google»، کلید Escape را فشار دهید</translation>
-<translation id="5762867845020858790">‏نمایه Chrome جدیدی اضافه کنید تا نشانک‌ها، گذرواژه‌ها، و تنظیمات به‌صورت جداگانه نگهداری شوند.</translation>
 <translation id="5779427581965287859">‏‫Chrome را به‌عنوان پیش‌فرض تنظیم کنید و آن را به نوار وظیفه سنجاق کنید</translation>
 <translation id="5795887333006832406"><ph name="PAGE_TITLE" /> - Google Chrome Canary</translation>
 <translation id="5804318322022881572">‏Chrome راه‌اندازی نشد. دوباره امتحان کنید.</translation>
@@ -562,7 +562,6 @@
 <translation id="6800285125190089494">‏با گذرواژه‌های ذخیره‌شده برای Chrome در iOS، در سایت‌ها سریع‌تر به سیستم وارد شوید</translation>
 <translation id="6831043979455480757">ترجمه</translation>
 <translation id="683440813066116847">‏قانون ترافیک ورودی برای Google Chrome Canary به منظور اجازه به ترافیک mDNS .</translation>
-<translation id="6841242485723266823">‏نمایه‌های Chrome به شما کمک می‌کنند بخش‌های مختلف زندگی‌تان را از هم جدا کنید. اکنون نمایه جدیدی اضافه کنید.</translation>
 <translation id="684888714667046800">نمی‌توان به اینترنت متصل شد. اگر از دیوار آتش استفاده می‌کنید، لطفاً مطمئن شوید <ph name="PRODUCT_EXE_NAME" /> در فهرست مجازها باشد.</translation>
 <translation id="6859580922007887573">برای ادامه دادن، کلید «جهش» را فشار دهید</translation>
 <translation id="6877155553248388166">‏گوشه پایین سمت چپ ناحیه جستجو: ‎٪<ph name="RIGHT" /> سمت چپ، ‎٪<ph name="BOTTOM" /> پایین</translation>
@@ -651,7 +650,6 @@
 <translation id="7655472416356262023">‏برداشتن حساب از Chrome</translation>
 <translation id="7658239707568436148">لغو</translation>
 <translation id="7670287553302121848">‏حساب Chrome به اصالت‌سنجی مجدد نیاز دارد</translation>
-<translation id="7675756456029023637">‏پرسیدن از Chrome</translation>
 <translation id="769538538642757151">‏اگر موردی نیاز به بررسی داشته باشد، Chrome به شما اطلاع می‌دهد</translation>
 <translation id="769906121737764913">‏بستن «Gemini در Chrome نسخه بتا»</translation>
 <translation id="7716950018788545737">تکلیف(ها) پایان یافت.</translation>
@@ -753,7 +751,6 @@
 <translation id="8625237574518804553">{0,plural, =1{‏Chrome ‏۱ دقیقه دیگر راه‌اندازی مجدد می‌شود}one{‏Chrome ‏# دقیقه دیگر راه‌اندازی مجدد می‌شود}other{‏Chrome ‏# دقیقه دیگر راه‌اندازی مجدد می‌شود}}</translation>
 <translation id="8637932705841171563">‏برای هم‌رسانی پنجره، ضبط صفحه‌نمایش را در «تنظیمات سیستم» برای Chrome مجاز کنید</translation>
 <translation id="8641606876632989680">‏وقتی با گذرواژه‌ای لورفته به سیستم وارد شوید، Chrome به شما اطلاع می‌دهد</translation>
-<translation id="8647930742055103497">‏همه‌چیز را در Chrome نگه دارید</translation>
 <translation id="8656634243791296665">‏باز کردن «Gemini در Chrome Dev»</translation>
 <translation id="8669527147644353129">‏راهنمای Google Chrome</translation>
 <translation id="8679801911857917785">‏این برنامه همچنین صفحه‌ای را که هنگام راه‌اندازی Chrome نشان داده می‌شود، کنترل می‌کند.</translation>

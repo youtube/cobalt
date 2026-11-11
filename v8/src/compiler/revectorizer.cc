@@ -7,6 +7,7 @@
 #include "src/base/cpu/cpu.h"
 #include "src/base/logging.h"
 #include "src/compiler/all-nodes.h"
+#include "src/compiler/backend/simd-shuffle.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-observer.h"
@@ -14,7 +15,6 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/verifier.h"
 #include "src/execution/isolate-inl.h"
-#include "src/wasm/simd-shuffle.h"
 
 namespace v8 {
 namespace internal {
@@ -560,8 +560,9 @@ bool SLPTree::IsSideEffectFreeLoad(const ZoneVector<Node*>& node_group) {
   // We only allows Loads that are connected by effect edges.
   if (node_group[0] != node_group[1] &&
       NodeProperties::GetEffectInput(node_group[0]) != node_group[1] &&
-      NodeProperties::GetEffectInput(node_group[1]) != node_group[0])
+      NodeProperties::GetEffectInput(node_group[1]) != node_group[0]) {
     return false;
+  }
 
   std::stack<Node*> to_visit;
   std::unordered_set<Node*> visited;
@@ -775,9 +776,9 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
       if (IsSplat(node_group)) {
         const uint8_t* shuffle = S128ImmediateParameterOf(node0->op()).data();
         int index;
-        if ((wasm::SimdShuffle::TryMatchSplat<4>(shuffle, &index) &&
+        if ((SimdShuffle::TryMatchSplat<4>(shuffle, &index) &&
              node0->InputAt(index >> 2)->opcode() == IrOpcode::kTrappingLoad) ||
-            (wasm::SimdShuffle::TryMatchSplat<2>(shuffle, &index) &&
+            (SimdShuffle::TryMatchSplat<2>(shuffle, &index) &&
              node0->InputAt(index >> 1)->opcode() == IrOpcode::kTrappingLoad)) {
           PopStack();
           return NewPackNode(node_group);
@@ -950,10 +951,11 @@ void Revectorizer::SetEffectInput(PackNode* pnode, int index, Node*& input) {
     Node* node128 = nodes[i];
     PackNode* effect = GetPackNode(node128->InputAt(index));
     if (effect == pnode) continue;
-    if (effect)
+    if (effect) {
       pnode->SetOperand(index, effect);
-    else
+    } else {
       input = node128->InputAt(index);
+    }
     break;
   }
 }
@@ -1054,12 +1056,12 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
 
         // Match Splat and Revectorize to LoadSplat as AVX-256 does not support
         // shuffling across 128-bit lane.
-        if (wasm::SimdShuffle::TryMatchSplat<4>(shuffle, &index)) {
+        if (SimdShuffle::TryMatchSplat<4>(shuffle, &index)) {
           new_op = mcgraph_->machine()->LoadTransform(
               MemoryAccessKind::kTrapping,
               LoadTransformation::kS256Load32Splat);
           offset = index * 4;
-        } else if (wasm::SimdShuffle::TryMatchSplat<2>(shuffle, &index)) {
+        } else if (SimdShuffle::TryMatchSplat<2>(shuffle, &index)) {
           new_op = mcgraph_->machine()->LoadTransform(
               MemoryAccessKind::kTrapping,
               LoadTransformation::kS256Load64Splat);

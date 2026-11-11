@@ -2484,6 +2484,8 @@ V8_WARN_UNUSED_RESULT bool WasmObjectToJSReturnValue(
       case i::wasm::GenericKind::kNoExn:
       case i::wasm::GenericKind::kCont:
       case i::wasm::GenericKind::kNoCont:
+      case i::wasm::GenericKind::kWaitqueue:
+      case i::wasm::GenericKind::kNoWaitqueue:
         thrower->TypeError("invalid type %s", unsafe_type.name().c_str());
         return false;
       default:

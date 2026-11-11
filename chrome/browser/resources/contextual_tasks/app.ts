@@ -5,6 +5,11 @@
 // <if expr="not is_android">
 import './composebox.js';
 import './onboarding_tooltip.js';
+import '//resources/cr_components/composebox/contextual_entrypoint_and_menu.js';
+
+import type {ContextualActionMenuElement} from '//resources/cr_components/composebox/contextual_action_menu.js';
+import type {ContextualEntrypointAndMenuElement} from '//resources/cr_components/composebox/contextual_entrypoint_and_menu.js';
+import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
 
 import type {ContextualTasksComposeboxElement} from './composebox.js';
 import type {ContextualTasksOnboardingTooltipElement} from './onboarding_tooltip.js';
@@ -39,6 +44,7 @@ import {BrowserProxyImpl} from './contextual_tasks_browser_proxy.js';
 import {PostMessageHandler} from './post_message_handler.js';
 import type {Rect} from './post_message_handler.js';
 import {getNonOccludedClipPath} from './utils/clip_path.js';
+import {recordAction} from './utils.js';
 
 declare global {
   interface HTMLElementEventMap {
@@ -148,7 +154,14 @@ function hasExitCobrowseParam(url: URL): boolean {
   return debParam.indexOf('nocobrowse1') > -1;
 }
 
-export class ContextualTasksAppElement extends CrLitElement {
+// <if expr="is_android">
+const ContextualTasksAppElementBase = CrLitElement;
+// </if>
+// <if expr="not is_android">
+const ContextualTasksAppElementBase = HelpBubbleMixinLit(CrLitElement);
+// </if>
+
+export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
   static get is() {
     return 'contextual-tasks-app';
   }
@@ -342,6 +355,9 @@ export class ContextualTasksAppElement extends CrLitElement {
   // even if the load is aborted and the frame therefore never changes.
   private lastThreadFrameLoadStartEvent_: chrome.webviewTag.LoadStartEvent|
       LoadEvent|null = null;
+  // Tracks whether the frame is loading for the very first time to prevent
+  // double animations.
+  private isInitialFrameLoad_: boolean = true;
 
   private updateThemeFromUrl(url: URL) {
     const csParam = url.searchParams.get('cs');
@@ -366,6 +382,13 @@ export class ContextualTasksAppElement extends CrLitElement {
     super.connectedCallback();
     this.updateBackgroundColor_();
 
+    // <if expr="not is_android">
+    this.shadowRoot.addEventListener('context-menu-closed', () => {
+      this.hideHelpBubble(
+          'ContextualTasksUI::kSmartTabSharingMenuItemElementId');
+    });
+    // </if>
+
     // Record the WebUI URL in case one of the events below fires and changes
     // it.
     const webUiUrlOnLoad = new URL(window.location.href);
@@ -379,6 +402,14 @@ export class ContextualTasksAppElement extends CrLitElement {
     this.listenerIds_ = [
       callbackRouter.onSidePanelStateChanged.addListener(
           () => this.updateSidePanelState()),
+      callbackRouter.turnOnSmartTabSharing.addListener(() => {
+        // <if expr="not is_android">
+        const menu = this.getContextualActionMenu();
+        if (menu) {
+          menu.setSmartTabSharingToggle(true);
+        }
+        // </if>
+      }),
       callbackRouter.setThreadTitle.addListener(title => {
         this.threadTitle_ = title;
         document.title = title || loadTimeData.getString('title');
@@ -386,6 +417,7 @@ export class ContextualTasksAppElement extends CrLitElement {
       callbackRouter.onAiPageStatusChanged.addListener(isAiPage => {
         this.isAiPage_ = isAiPage;
       }),
+
       callbackRouter.postMessageToWebview.addListener(
           this.postMessageToWebview.bind(this)),
       callbackRouter.onHandshakeComplete.addListener(
@@ -492,11 +524,8 @@ export class ContextualTasksAppElement extends CrLitElement {
         }
 
         if (this.isShownInTab_) {
-          chrome.metricsPrivate.recordUserAction(
+          recordAction(
               'ContextualTasks.HistoryNavigation.UserAction.NavigatedInFullTab');
-          chrome.metricsPrivate.recordBoolean(
-              'ContextualTasks.HistoryNavigation.UserAction.NavigatedInFullTab',
-              true);
         }
 
         this.browserProxy_.handler.setTaskId({value: taskUuid});
@@ -584,7 +613,10 @@ export class ContextualTasksAppElement extends CrLitElement {
     // Check if the initial render should be zero state.
     const {isZeroState} =
         await this.browserProxy_.handler.isZeroState(threadUrlAsUrl.href);
+    const {isAiPage} =
+        await this.browserProxy_.handler.isAiPage(threadUrlAsUrl.href);
     this.isZeroState_ = isZeroState;
+    this.isAiPage_ = isAiPage;
 
     this.inNlm_ = this.checkInNlm_(threadUrlAsUrl);
 
@@ -622,6 +654,10 @@ export class ContextualTasksAppElement extends CrLitElement {
         this.onInputPlateBoundsUpdate_.bind(this));
 
     this.eventTracker_.add(
+        composebox, 'context-menu-opened',
+        () => this.onComposeboxContextMenuOpened_());
+
+    this.eventTracker_.add(
         composebox, 'composebox-height-update',
         (e: CustomEvent<{height: number}>) => {
           // TODO(crbug.com/483737358): Sending an object instead of a proto
@@ -657,6 +693,31 @@ export class ContextualTasksAppElement extends CrLitElement {
       this.updateCommonSearchParams();
     }
   }
+
+  // <if expr="not is_android">
+  private getContextualActionMenu(): ContextualActionMenuElement|null {
+    const wrapper =
+        this.shadowRoot?.querySelector<ContextualTasksComposeboxElement>(
+            'contextual-tasks-composebox');
+    if (!wrapper) {
+      return null;
+    }
+    const innerComposebox =
+        wrapper.shadowRoot?.querySelector<HTMLElement>('#composebox');
+    if (!innerComposebox) {
+      return null;
+    }
+    const entrypoint = innerComposebox.shadowRoot
+                           ?.querySelector<ContextualEntrypointAndMenuElement>(
+                               '#contextEntrypoint');
+    if (!entrypoint) {
+      return null;
+    }
+    return entrypoint.shadowRoot?.querySelector<ContextualActionMenuElement>(
+               '#menu') ||
+        null;
+  }
+  // </if>
 
   private updateTooltipVisibility_() {
     // Tooltip not supported on Android. Therefore, make calls to this method
@@ -697,8 +758,38 @@ export class ContextualTasksAppElement extends CrLitElement {
     }
   }
 
+  protected onComposeboxContextMenuOpened_() {
+    // <if expr="not is_android">
+    setTimeout(() => {
+      const menu = this.getContextualActionMenu();
+      if (menu) {
+        const menuItem = menu.shadowRoot?.querySelector('#smartTabSharingItem');
+        if (menuItem) {
+          const rect = menuItem.getBoundingClientRect();
+          const floatingAnchor = this.shadowRoot.querySelector<HTMLElement>(
+              '#iphMenuSmartTabSharingAnchor');
+          if (floatingAnchor) {
+            floatingAnchor.style.left = `${rect.left}px`;
+            floatingAnchor.style.top = `${rect.top}px`;
+            floatingAnchor.style.width = `${rect.width}px`;
+            floatingAnchor.style.height = `${rect.height}px`;
+
+            this.registerHelpBubble(
+                'ContextualTasksUI::kSmartTabSharingMenuItemElementId',
+                '#iphMenuSmartTabSharingAnchor', {
+                  fixed: true,
+                  containerElement: menu.getDialog(),
+                });
+            this.browserProxy_.handler.onContextMenuOpened();
+          }
+        }
+      }
+    }, 200);
+    // </if>
+  }
+
   private setStyleVariable(variable: string, value: string) {
-    this.composebox_?.style.setProperty(variable, `${value}px`);
+    this.composebox_?.style.setProperty(variable, value);
   }
 
   private onThreadFrameLoadStart(e: Event) {
@@ -823,7 +914,9 @@ export class ContextualTasksAppElement extends CrLitElement {
 
     if (isAiPage && isZeroState) {
       this.isZeroState_ = true;
-      this.playZeroStateAnimations_();
+      if (!this.isInitialFrameLoad_) {
+        this.playZeroStateAnimations_();
+      }
     }
 
     if (!wasZeroState && isZeroState) {
@@ -851,6 +944,8 @@ export class ContextualTasksAppElement extends CrLitElement {
       }
       this.isInBasicMode_ = true;
     }
+
+    this.isInitialFrameLoad_ = false;
 
     if (this.onLoadStartFinishedCallbackForTesting_) {
       this.onLoadStartFinishedCallbackForTesting_();
@@ -925,9 +1020,10 @@ export class ContextualTasksAppElement extends CrLitElement {
           {opacity: 1},
         ],
         {
-          duration: 150,
-          easing: 'ease-in-out',
-          fill: 'forwards',
+          duration: 300,
+          delay: 100,
+          easing: 'cubic-bezier(0, 0, 0, 1)',
+          fill: 'both',
         });
   }
 
@@ -1003,7 +1099,7 @@ export class ContextualTasksAppElement extends CrLitElement {
     const style: string[] = [
       `--composebox-margin-bottom: 0;`,  // Need to remove margin on the child
                                          // container.
-      `position: fixed;`,
+      `position: ${this.inNlm_ ? 'fixed' : 'absolute'};`,
       `bottom: ${window.innerHeight - relativeRect.bottom}px;`,
       `left: ${relativeRect.left}px;`,
       `width: ${relativeRect.width}px;`,
@@ -1064,10 +1160,7 @@ export class ContextualTasksAppElement extends CrLitElement {
   }
 
   protected async onNewThreadClick_() {
-    chrome.metricsPrivate.recordUserAction(
-        'ContextualTasks.WebUI.UserAction.OpenNewThread');
-    chrome.metricsPrivate.recordBoolean(
-        'ContextualTasks.WebUI.UserAction.OpenNewThread', true);
+    recordAction('ContextualTasks.WebUI.UserAction.OpenNewThread');
     const {url} = await this.browserProxy_.handler.getThreadUrl();
     const newThreadUrl = new URL(url);
     const currentUrl = new URL(this.$.threadFrame.src);

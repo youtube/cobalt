@@ -84,8 +84,10 @@ V8_OBJECT class LoadHandler final : public DataHandler {
   // Encoding when KindBits contains kNormal.
   //
 
+  // Indicates whether the property is a data property.
+  using IsDataPropertyBits = LookupOnLookupStartObjectBits::Next<bool, 1>;
   // Index of a value entry in the dictionary.
-  using DictionaryIndexBits = LookupOnLookupStartObjectBits::Next<unsigned, 24>;
+  using DictionaryIndexBits = IsDataPropertyBits::Next<unsigned, 23>;
   // Make sure we don't overflow the smi.
   static_assert(DictionaryIndexBits::kLastUsedBit < kSmiValueSize);
 
@@ -135,8 +137,9 @@ V8_OBJECT class LoadHandler final : public DataHandler {
   // Decodes kind from Smi-handler.
   static inline Kind GetHandlerKind(Tagged<Smi> smi_handler);
 
-  // Creates a Smi-handler for loading a property from a slow object.
-  static inline Handle<Smi> LoadNormal(Isolate* isolate, InternalIndex entry);
+  // Creates a Smi-handler for loading a property from a dictionary.
+  static inline Handle<Smi> LoadNormal(Isolate* isolate, InternalIndex entry,
+                                       bool is_data_property);
 
   // Creates a Smi-handler for loading a property from a global object.
   static inline Handle<Smi> LoadGlobal(Isolate* isolate);

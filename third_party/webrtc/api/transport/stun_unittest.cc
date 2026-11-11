@@ -21,8 +21,10 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "rtc_base/byte_buffer.h"
 #include "rtc_base/byte_order.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/ip_address.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/span_helpers.h"
@@ -35,6 +37,7 @@ namespace webrtc {
 namespace {
 
 using ::testing::ElementsAreArray;
+using ::testing::NotNull;
 
 // Sample STUN packets with various attributes
 // Gathered by wiresharking pjproject's pjnath test programs
@@ -1685,5 +1688,52 @@ TEST_F(StunTest, ByteStringAsVectorOfUint32) {
       0x9aeaa70c, 0xbfd8cb56, 0x781ef2b5, 0xb2d3f249, 0xc1b571a2};
   EXPECT_THAT(*integrity_vector, ElementsAreArray(expected_integrity_vector));
 }
+
+TEST_F(StunTest, RemovingSigningAttributesAllowsAddingNewAttributes) {
+  IceMessage msg;
+  ByteBufferReader buf(kRfc5769SampleRequestWithoutMI);
+  EXPECT_TRUE(msg.Read(&buf));
+  EXPECT_TRUE(msg.AddMessageIntegrity(kRfc5769SampleMsgPassword));
+  ASSERT_TRUE(msg.IntegrityOk());
+
+  // Removing the MI attribute should make the message unsigned.
+  auto removed_attr = msg.RemoveAttribute(STUN_ATTR_MESSAGE_INTEGRITY);
+  ASSERT_THAT(removed_attr, NotNull());
+  EXPECT_FALSE(msg.IntegrityOk());
+
+  // Now, removing and adding a new attribute should be possible.
+  msg.RemoveAttribute(STUN_ATTR_USERNAME);
+  auto attr = StunAttribute::CreateByteString(STUN_ATTR_USERNAME);
+  attr->CopyBytes(AsUint8Span(absl::string_view("newuser")));
+  msg.AddAttribute(std::move(attr));
+
+  const StunByteStringAttribute* username =
+      msg.GetByteString(STUN_ATTR_USERNAME);
+  ASSERT_THAT(username, NotNull());
+  EXPECT_EQ("newuser", username->string_view());
+}
+
+#if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
+TEST_F(StunTest, AddingAttributesAfterSigningCrashesDeathTest) {
+  IceMessage msg;
+  ByteBufferReader buf(kRfc5769SampleRequestWithoutMI);
+  EXPECT_TRUE(msg.Read(&buf));
+  EXPECT_TRUE(msg.AddMessageIntegrity(kRfc5769SampleMsgPassword));
+  ASSERT_TRUE(msg.IntegrityOk());
+  auto attr = StunAttribute::CreateByteString(STUN_ATTR_USERNAME);
+  attr->CopyBytes(AsUint8Span(absl::string_view("keso")));
+
+  EXPECT_DEATH(msg.AddAttribute(std::move(attr)), "");
+}
+
+TEST_F(StunTest, RemovingAttributesAfterSigningCrashesDeathTest) {
+  IceMessage msg;
+  ByteBufferReader buf(kRfc5769SampleRequestWithoutMI);
+  EXPECT_TRUE(msg.Read(&buf));
+  EXPECT_TRUE(msg.AddMessageIntegrity(kRfc5769SampleMsgPassword));
+  ASSERT_TRUE(msg.IntegrityOk());
+  EXPECT_DEATH(msg.RemoveAttribute(STUN_ATTR_USERNAME), "");
+}
+#endif
 
 }  // namespace webrtc

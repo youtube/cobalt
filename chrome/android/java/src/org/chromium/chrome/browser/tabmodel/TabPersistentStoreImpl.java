@@ -334,8 +334,7 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
                     public void didSelectTab(Tab tab, @TabSelectionType int type, int lastId) {
                         // Initialization will create the current tab and select it, this isn't a
                         // meaningful change that needs to be saved.
-                        if (ChromeFeatureList.sTabModelInitFixes.isEnabled()
-                                && !mTabModelSelector.isTabStateInitialized()
+                        if (!mTabModelSelector.isTabStateInitialized()
                                 && lastId == TabList.INVALID_TAB_INDEX) {
                             return;
                         }
@@ -356,8 +355,7 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
                             boolean markedForSelection) {
                         // Ignore all tabs being restored as part of init, they're all already on
                         // disk.
-                        if (ChromeFeatureList.sTabModelInitFixes.isEnabled()
-                                && !mTabModelSelector.isTabStateInitialized()
+                        if (!mTabModelSelector.isTabStateInitialized()
                                 && type == TabLaunchType.FROM_RESTORE) {
                             return;
                         }
@@ -433,11 +431,9 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
                 int id = tab.getId();
                 boolean incognito = tab.isIncognito();
                 try {
-                    if (ChromeFeatureList.sTabModelInitFixes.isEnabled()) {
-                        TabStateAttributes attributes = TabStateAttributes.from(tab);
-                        if (attributes != null) {
-                            attributes.clearTabStateDirtiness();
-                        }
+                    TabStateAttributes attributes = TabStateAttributes.from(tab);
+                    if (attributes != null) {
+                        attributes.clearTabStateDirtiness();
                     }
                     TabState state = TabStateExtractor.from(tab);
                     if (state != null) {
@@ -492,21 +488,22 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
     }
 
     @VisibleForTesting
-    /* package */ void initializeRestoreVars(boolean ignoreIncognitoFiles) {
-        mCancelNormalTabLoads = false;
+    /* package */ void initializeRestoreVars(
+            boolean ignoreIncognitoFiles, boolean ignoreRegularFiles) {
+        mCancelNormalTabLoads = ignoreRegularFiles;
         mCancelIncognitoTabLoads = ignoreIncognitoFiles;
         mNormalTabsRestored = new SparseIntArray();
         mIncognitoTabsRestored = new SparseIntArray();
     }
 
     @Override
-    public void loadState(boolean ignoreIncognitoFiles) {
+    public void loadState(boolean ignoreIncognitoFiles, boolean ignoreRegularFiles) {
         // If a cleanup task is in progress, cancel it before loading state.
         mPersistencePolicy.cancelCleanupInProgress();
 
         waitForMigrationToFinish();
 
-        initializeRestoreVars(ignoreIncognitoFiles);
+        initializeRestoreVars(ignoreIncognitoFiles, ignoreRegularFiles);
 
         try {
             mTabRestoreStartTime = SystemClock.elapsedRealtime();
@@ -579,7 +576,7 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
         }
 
         // Initialize variables.
-        initializeRestoreVars(false);
+        initializeRestoreVars(mCancelIncognitoTabLoads, mCancelNormalTabLoads);
 
         try {
             // Read the tab state metadata file.
@@ -1027,6 +1024,11 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
         mLastSavedMetadata = listData;
     }
 
+    private boolean shouldCancelTabLoad(@Nullable Boolean isIncognito) {
+        return (mCancelIncognitoTabLoads && Boolean.TRUE.equals(isIncognito))
+                || (mCancelNormalTabLoads && Boolean.FALSE.equals(isIncognito));
+    }
+
     /**
      * @param isIncognitoSelected Whether the tab model is incognito.
      * @return A callback for reading data from tab models.
@@ -1039,7 +1041,7 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
                 @Nullable Boolean isIncognito,
                 boolean isStandardActiveIndex,
                 boolean isIncognitoActiveIndex) -> {
-            if (mCancelIncognitoTabLoads && (isIncognito != null && isIncognito)) {
+            if (shouldCancelTabLoad(isIncognito)) {
                 return;
             }
 
@@ -1218,9 +1220,7 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
 
     @Override
     public void resumeSaveTabList(Runnable onSaveTabListRunnable) {
-        boolean shouldTriggerSave =
-                !ChromeFeatureList.sTabModelInitFixes.isEnabled()
-                        || mMetadataSaveMode == MetadataSaveMode.PAUSED_AND_DIRTY;
+        boolean shouldTriggerSave = mMetadataSaveMode == MetadataSaveMode.PAUSED_AND_DIRTY;
         mMetadataSaveMode = MetadataSaveMode.SAVING_ALLOWED;
         if (shouldTriggerSave) {
             addObserver(

@@ -31,7 +31,7 @@ You can build it locally directly from the V8 checkout:
 ```bash
 ./tools/clang/scripts/build.py --without-android --without-fuchsia \
                                --host-cc=gcc --host-cxx=g++ \
-                               --gcc-toolchain=/usr \
+                               --with-ml-inliner-model='' \
                                --use-system-cmake --disable-asserts
 ```
 
@@ -61,6 +61,8 @@ v8_enable_backtrace=true
 v8_enable_slow_dchecks=true
 v8_optimized_debug=false
 ```
+
+The Rust support in the build system may not work either, but you can avoid that dependency with the `v8_enable_temporal_support = false` GN argument.
 
 ## Using the system's clang or GCC { #system_clang_gcc }
 

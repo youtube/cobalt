@@ -38,12 +38,16 @@ class RtpStreamReceiverController : public RtpStreamReceiverControllerInterface,
       uint32_t ssrc,
       RtpPacketSinkInterface* sink) override;
 
+  RtpPacketSinkInterface* ResolveSink(const RtpPacketReceived& packet);
+
   // TODO(bugs.webrtc.org/7135): Not yet responsible for parsing.
   bool OnRtpPacket(const RtpPacketReceived& packet);
 
   // Implements RecoveredPacketReceiver.
   // Responsible for demuxing recovered FLEXFEC packets.
   void OnRecoveredPacket(const RtpPacketReceived& packet) override;
+
+  bool IsEmpty() const;
 
  private:
   class Receiver : public RtpStreamReceiverInterface {

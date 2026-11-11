@@ -33,15 +33,6 @@ QuicSpdyClientStream::QuicSpdyClientStream(QuicStreamId id,
       header_bytes_written_(0),
       session_(session) {}
 
-QuicSpdyClientStream::QuicSpdyClientStream(PendingStream& pending,
-                                           QuicSpdyClientSession* session)
-    : QuicSpdyStream(pending, session),
-      content_length_(-1),
-      response_code_(0),
-      header_bytes_read_(0),
-      header_bytes_written_(0),
-      session_(session) {}
-
 QuicSpdyClientStream::~QuicSpdyClientStream() = default;
 
 bool QuicSpdyClientStream::CopyAndValidateHeaders(

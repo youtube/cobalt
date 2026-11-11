@@ -7,6 +7,7 @@
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
+#include "src/ast/scopes.h"
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
@@ -59,8 +60,6 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForFunctionCompile(
 
   // Do not support re-parsing top-level function of a wrapped script.
   DCHECK_IMPLIES(flags.is_toplevel(), !script->is_wrapped());
-
-  flags.set_is_hoisted_in_context(shared->is_hoisted_in_context());
 
   return flags;
 }
@@ -127,6 +126,7 @@ void UnoptimizedCompileFlags::SetFlagsFromFunction(T function) {
   set_private_name_lookup_skips_outer_class(
       function->private_name_lookup_skips_outer_class());
   set_is_toplevel(function->is_toplevel());
+  set_is_hoisted_in_context(function->is_hoisted_in_context());
 }
 
 void UnoptimizedCompileFlags::SetFlagsForToplevelCompile(

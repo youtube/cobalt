@@ -21,6 +21,7 @@ import androidx.annotation.VisibleForTesting;
 import androidx.asynclayoutinflater.view.AsyncLayoutInflater;
 import androidx.constraintlayout.widget.ConstraintLayout;
 
+import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
@@ -105,11 +106,13 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
     private @Nullable BottomSheetRectProvider mBottomSheetRectProvider;
     private final Supplier<@Nullable View> mScrimAnchorViewSupplier;
     private final ScrimManager mScrimManager;
+    private boolean mHasContextualTasksFocus;
 
     // Mediator is scoped to a particular profile. Can reuse as long as the profile does not change.
     private @Nullable FuseboxMediator mMediator;
     private @Nullable @BrandedColorScheme Integer mLastBrandedColorScheme;
     private boolean mDestroyed;
+    private @Nullable Callback<Boolean> mOnInteractionCompletedCallback;
 
     /**
      * Creates a new instance of {@link FuseboxCoordinator}.
@@ -133,9 +136,10 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
         mContext = context;
         mWindowAndroid = windowAndroid;
         mParent = parent;
-        mScrimManager =
-                new ScrimManager(
-                        context, (ViewGroup) parent.getRootView(), ScrimClient.FUSEBOX_POPUP);
+        Activity activity = assumeNonNull(ContextUtils.activityFromContext(context));
+        ViewGroup contentView = activity.findViewById(android.R.id.content);
+        // TODO(crbug.com/509962912): Consider using RootUiCoordinator's ScrimManager.
+        mScrimManager = new ScrimManager(context, contentView, ScrimClient.FUSEBOX_POPUP);
         mTabModelSelectorSupplier = tabModelSelectorSupplier;
         mSnackbarManager = snackbarManager;
         mScrimAnchorViewSupplier = scrimAnchorViewSupplier;
@@ -163,9 +167,6 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
                         // Init with a default, and it will be corrected by the mediator before it
                         // matters.
                         .with(FuseboxProperties.COLOR_SCHEME, BrandedColorScheme.APP_DEFAULT)
-                        .with(
-                                FuseboxProperties.SHOW_DEDICATED_MODE_BUTTON,
-                                OmniboxFeatures.sShowDedicatedModeButton.getValue())
                         .with(FuseboxProperties.POPUP_STATE, FuseboxProperties.PopupState.HIDDEN)
                         .build();
 
@@ -217,10 +218,11 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
         var popup =
                 new FuseboxPopup(
                         mContext,
+                        mWindowAndroid,
                         popupWindowBuilder.build(),
                         popupView,
                         dynamicRectProvider,
-                        OmniboxFeatures.sShowBottomSheetPopup.getValue());
+                        OmniboxFeatures.shouldShowBottomSheetPopup());
 
         mViewHolder = new FuseboxViewHolder(mParent, popup);
 
@@ -255,6 +257,7 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
                         Clipboard.getInstance(),
                         mScrimManager,
                         mScrimAnchorViewSupplier);
+        mMediator.onContextualTaskFocusChanged(mHasContextualTasksFocus);
         if (mLastBrandedColorScheme != null) {
             mMediator.updateVisualsForState(mLastBrandedColorScheme);
         }
@@ -275,6 +278,9 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
         }
         if (mBottomSheetRectProvider != null) {
             mBottomSheetRectProvider.destroy();
+        }
+        if (mViewHolder != null) {
+            mViewHolder.popup.destroy();
         }
         mScrimManager.destroy();
     }
@@ -360,6 +366,18 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
         mPendingSession = null;
     }
 
+    /**
+     * Called when focus is lost or gained while in a Contextual Tasks session.
+     *
+     * @param hasFocus Whether the omnibox has focus.
+     */
+    public void onContextualTaskFocusChanged(boolean hasFocus) {
+        mHasContextualTasksFocus = hasFocus;
+        if (mMediator != null) {
+            mMediator.onContextualTaskFocusChanged(hasFocus);
+        }
+    }
+
     // TemplateUrlServiceObserver
     @Override
     public void onTemplateURLServiceChanged() {
@@ -393,6 +411,10 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
         if (mViewHolder == null || mViewHolder.addButton == null) return;
         mViewHolder.addButton.requestFocus();
         mViewHolder.addButton.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
+        if (mOnInteractionCompletedCallback != null) {
+            mOnInteractionCompletedCallback.onResult(
+                    mMediator != null && mMediator.wasActionTaken());
+        }
     }
 
     @Initializer
@@ -445,6 +467,11 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
     /** Registers a callback notified when the layout mode of the fusebox changes. */
     public NonNullObservableSupplier<@FuseboxLayoutMode Integer> getFuseboxLayoutModeSupplier() {
         return mFuseboxLayoutModeSupplier;
+    }
+
+    /** Set callback to be invoked when the popup is dismissed. */
+    public void setOnInteractionCompletedCallback(Callback<Boolean> callback) {
+        mOnInteractionCompletedCallback = callback;
     }
 
     /**

@@ -934,8 +934,9 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
           if (!op.effect_handlers[i].is_switch()) {
             output_handlers[i].block =
                 MapToNewGraph(op.effect_handlers[i].block);
-          } else
+          } else {
             output_handlers[i].block = nullptr;
+          }
         }
         Asm().set_effect_handlers_for_next_call(output_handlers);
       }

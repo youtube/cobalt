@@ -90,8 +90,8 @@
 #endif  // V8_ENABLE_MAGLEV
 
 #ifdef V8_ENABLE_PARTITION_ALLOC
-#include <partition_alloc/partition_root.h>
-#include <partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h>
+#include "third_party/partition_alloc/src/partition_alloc/partition_root.h"
+#include "third_party/partition_alloc/src/partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h"
 #endif  // V8_ENABLE_PARTITION_ALLOC
 
 #if V8_OS_POSIX
@@ -619,7 +619,7 @@ class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
   DummySourceStream(Isolate* isolate, Local<String> source) : done_(false) {
     source_length_ = source->Length();
     source_buffer_ = std::make_unique<uint16_t[]>(source_length_);
-    source->WriteV2(isolate, 0, source_length_, source_buffer_.get());
+    source->Write(isolate, 0, source_length_, source_buffer_.get());
   }
 
   size_t GetMoreData(const uint8_t** src) override {
@@ -1175,8 +1175,9 @@ std::string NormalizePath(const std::string& path,
 std::string NormalizeModuleSpecifier(const std::string& specifier,
                                      const std::string& dir_name) {
   if (specifier.starts_with(kDataURLPrefix) ||
-      specifier.starts_with("http://") || specifier.starts_with("https://"))
+      specifier.starts_with("http://") || specifier.starts_with("https://")) {
     return specifier;
+  }
   return NormalizePath(specifier, dir_name);
 }
 
@@ -1961,6 +1962,11 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
 
 // Treat every line as a JSON value and parse it.
 bool Shell::LoadJSON(Isolate* isolate, const char* file_name) {
+  if (std::string_view(file_name).starts_with("data:")) {
+    printf("d8: --json does not support data URLs\n");
+    base::OS::ExitProcess(1);
+  }
+
   HandleScope handle_scope(isolate);
   PerIsolateData* isolate_data = PerIsolateData::Get(isolate);
   Local<Context> realm =
@@ -3587,6 +3593,11 @@ bool Shell::FunctionAndArgumentsToString(Local<Function> function,
       Local<Value> argument;
       if (!maybe_argument.ToLocal(&argument)) {
         ThrowError(isolate, "Failed to get argument");
+        return false;
+      }
+      if (!argument->IsObject() && !argument->IsPrimitive()) {
+        ThrowError(isolate,
+                   "Invalid argument, must be a JSON-serializable object");
         return false;
       }
       Local<String> argument_string;
@@ -5592,7 +5603,7 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
         InspectorClient::GetSession(context);
     uint32_t length = message->Length();
     std::unique_ptr<uint16_t[]> buffer(new uint16_t[length]);
-    message->WriteV2(isolate, 0, length, buffer.get());
+    message->Write(isolate, 0, length, buffer.get());
     v8_inspector::StringView message_view(buffer.get(), length);
     {
       v8::SealHandleScope seal_handle_scope(isolate);
@@ -6456,24 +6467,34 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.simulate_errors = true;
     } else if (FlagWithArgMatches("--flag-processing-mode", &flag_value, argc,
                                   argv, &i, /*keep_flag=*/true)) {
-      flag_processing_mode_explicitly_set = true;
-      if (strcmp(flag_value, "exit-on-error") == 0) {
-        check_d8_flag_contradictions = true;
-        exit_on_flag_contradictions = true;
-      } else if (strcmp(flag_value, "ignore-contradictions") == 0) {
-        check_d8_flag_contradictions = false;
-        exit_on_flag_contradictions = false;
-      } else if (strcmp(flag_value, "abort-on-error") == 0) {
-        check_d8_flag_contradictions = true;
-        exit_on_flag_contradictions = false;
+      if (!flag_processing_mode_explicitly_set) {
+        flag_processing_mode_explicitly_set = true;
+        if (strcmp(flag_value, "exit-on-error") == 0) {
+          check_d8_flag_contradictions = true;
+          exit_on_flag_contradictions = true;
+        } else if (strcmp(flag_value, "ignore-contradictions") == 0) {
+          check_d8_flag_contradictions = false;
+          exit_on_flag_contradictions = false;
+        } else if (strcmp(flag_value, "abort-on-error") == 0) {
+          check_d8_flag_contradictions = true;
+          exit_on_flag_contradictions = false;
+        }
       }
-    } else if (FlagMatches("--fuzzing", &argv[i], /*keep_flag=*/true)) {
+    } else if (FlagMatches("--fuzzing", &argv[i], /*keep_flag=*/true) ||
+               FlagMatches("--sandbox-fuzzing", &argv[i], /*keep_flag=*/true)) {
+      // Set v8_flags.fuzzing early because this is tested in some locations to
+      // decide how to handle conflicting flags (it would later be set by
+      // implications but we need it being set earlier).
+      i::v8_flags.fuzzing = true;
       if (!flag_processing_mode_explicitly_set) {
         check_d8_flag_contradictions = false;
       }
     } else if (FlagMatches("--disallow-unsafe-flags", &argv[i],
                            /*keep_flag=*/true)) {
       disallow_unsafe_flags = true;
+    } else if (FlagMatches("--version", &argv[i])) {
+      printf("V8 version %s\n", V8::GetVersion());
+      base::OS::ExitProcess(0);
     } else if (FlagMatches("--shell", &argv[i])) {
       options.interactive_shell = true;
     } else if (FlagMatches("--test", &argv[i])) {
@@ -6728,6 +6749,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       "  -e        execute a string in V8\n"
       "  --shell   run an interactive JavaScript shell\n"
       "  --module  execute a file as a JavaScript module\n"
+      "  --version print V8 version and exit\n"
       "  -C        set the current working directory before executing "
       "subsequent files\n";
   using HelpOptions = i::FlagList::HelpOptions;
@@ -7377,6 +7399,18 @@ void ConfigurePartitionAllocIfEnabled() {
 int Shell::Main(int argc, char* argv[]) {
   ConfigurePartitionAllocIfEnabled();
   v8::base::EnsureConsoleOutput();
+
+#if (defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID) && \
+     !defined(V8_TARGET_OS_CHROMEOS)) ||                \
+    (defined(V8_OS_DARWIN) && !defined(V8_OS_IOS))
+#if !defined(V8_USE_ADDRESS_SANITIZER) &&   \
+    !defined(V8_USE_HWADDRESS_SANITIZER) && \
+    !defined(V8_USE_MEMORY_SANITIZER) &&    \
+    !defined(V8_USE_UNDEFINED_BEHAVIOR_SANITIZER) && !defined(V8_IS_TSAN)
+  i::v8_flags.sandbox_prohibit_insecure_mode = true;
+#endif
+#endif
+
   if (!v8::Shell::SetOptions(argc, argv)) return 1;
 
 #ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT

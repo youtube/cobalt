@@ -468,8 +468,6 @@ crbug.com/402989074 [ win amd-0x7480 angle-d3d9 passthrough ] conformance/unifor
 # crbug.com/402989074 [ win amd-0x1900 angle-d3d9 passthrough ] conformance/uniforms/uniform-values-per-program.html [ Failure ]
 # crbug.com/402989074 [ win amd-0x150e angle-d3d9 passthrough ] conformance/uniforms/uniform-values-per-program.html [ Failure ]
 
-## win10 / angle-d3d11 / Passthrough command decoder failures ##
-crbug.com/40167934 [ angle-d3d11 arch-x86_64 debug-x64 no-clang-coverage nvidia passthrough target-cpu-64 win10 ] conformance/extensions/khr-parallel-shader-compile.html [ RetryOnFailure ]
 
 ## Vulkan / Win / NVIDIA / Passthrough command decoder ##
 
@@ -489,29 +487,6 @@ crbug.com/498951069 [ angle-d3d9 intel-0x9bc5 passthrough win ] conformance/unif
 
 crbug.com/844311 [ angle-opengl mac ] conformance/glsl/misc/fragcolor-fragdata-invariant.html [ Failure ]
 
-## Mac Swangle ##
-# These are failing very often
-crbug.com/504989192 [ mac angle-swiftshader ] conformance/context/context-eviction-with-garbage-collection.html [ Failure ]
-crbug.com/504989192 [ mac angle-swiftshader ] conformance/context/context-release-upon-reload.html [ Failure ]
-crbug.com/504989192 [ mac angle-swiftshader ] conformance/context/premultiplyalpha-test.html [ Failure ]
-crbug.com/504989192 [ mac angle-swiftshader ] conformance/rendering/framebuffer-switch.html [ Failure ]
-crbug.com/504989192 [ mac angle-swiftshader ] conformance/state/gl-enable-enum-test.html [ Failure ]
-crbug.com/504989192 [ mac angle-swiftshader ] conformance/textures/misc/exif-orientation.html [ Failure ]
-crbug.com/504989192 [ mac angle-swiftshader ] conformance/textures/webgl_canvas/tex-2d-rgb-rgb-unsigned_short_5_6_5.html [ Failure ]
-crbug.com/504989192 [ mac angle-swiftshader ] conformance/textures/webgl_canvas/tex-2d-rgba-rgba-unsigned_byte.html [ Failure ]
-crbug.com/504989192 [ mac angle-swiftshader ] conformance/textures/webgl_canvas/tex-2d-rgba-rgba-unsigned_short_4_4_4_4.html [ Failure ]
-crbug.com/504989192 [ mac angle-swiftshader ] conformance/uniforms/gl-get-uniform-location-errors.html [ Failure ]
-crbug.com/504989192 [ mac angle-swiftshader ] conformance/uniforms/gl-uniform-arrays.html [ Failure ]
-crbug.com/504989192 [ mac angle-swiftshader ] conformance/uniforms/gl-uniform-bool.html [ Failure ]
-crbug.com/504989192 [ mac angle-swiftshader ] conformance/context/context-type-test.html [ Failure ]
-# These are failing less often
-crbug.com/504989192 [ mac angle-swiftshader ] conformance/rendering/draw-arrays-out-of-bounds.html [ RetryOnFailure ]
-crbug.com/504989192 [ mac angle-swiftshader ] conformance/textures/webgl_canvas/tex-2d-rgba-rgba-unsigned_short_5_5_5_1.html [ RetryOnFailure ]
-crbug.com/504989192 [ mac angle-swiftshader ] conformance/typedarrays/array-large-array-tests.html [ RetryOnFailure ]
-crbug.com/504989192 [ mac angle-swiftshader ] conformance/typedarrays/data-view-crash.html [ RetryOnFailure ]
-crbug.com/504989192 [ mac angle-swiftshader ] conformance/typedarrays/data-view-test.html [ RetryOnFailure ]
-crbug.com/504989192 [ mac angle-swiftshader ] conformance/typedarrays/typed-arrays-in-workers.html [ RetryOnFailure ]
-
 ## Mac AMD failures ##
 
 # TODO(kbr): uncomment the following expectation after test has
@@ -524,7 +499,6 @@ crbug.com/328100306 [ amd angle-metal sonoma ] conformance/glsl/bugs/sampler-arr
 crbug.com/354627705 [ mac amd-0x7340 angle-opengl ] conformance/context/context-attributes-alpha-depth-stencil-antialias.html [ Failure ]
 crbug.com/354627705 [ mac amd-0x7340 angle-metal ] conformance/extensions/webgl-polygon-mode.html [ Failure ]
 crbug.com/354627705 [ mac amd-0x7340 angle-opengl ] conformance/rendering/color-mask-preserved-during-implicit-clears.html [ Failure ]
-crbug.com/420455918 [ amd-0x7340 angle-opengl asan mac release ] conformance/renderbuffers/stencil-renderbuffer-initialization.html [ Failure ]
 crbug.com/420455918 [ amd-0x7340 angle-opengl debug mac no-asan ] conformance/renderbuffers/stencil-renderbuffer-initialization.html [ Failure ]
 crbug.com/436522727 [ amd-0x7340 debug graphite-enabled no-clang-coverage sonoma ] conformance/extensions/khr-parallel-shader-compile.html [ Failure ]
 
@@ -546,6 +520,8 @@ crbug.com/1021428 [ linux angle-vulkan passthrough intel ] WebglExtension_WEBGL_
 
 ## Linux / OpenGL / GTX 1660 ##
 crbug.com/498282277 [ linux angle-opengl nvidia-0x2184 ] conformance/textures/canvas/tex-2d-rgba-rgba-unsigned_byte.html [ RetryOnFailure ]
+
+crbug.com/510410317 [ linux nvidia passthrough ] conformance/offscreencanvas/offscreencanvas-transfer-image-bitmap.html [ RetryOnFailure ]
 
 ####################
 # Android failures #
@@ -626,7 +602,6 @@ crbug.com/396176034 [ android android-sm-a137f ] conformance/offscreencanvas/con
 
 crbug.com/1372149 [ android android-sm-a236b no-passthrough ] conformance/rendering/blending.html [ Failure ]
 crbug.com/40241618 [ android android-sm-s911u1 no-passthrough ] conformance/rendering/blending.html [ Failure ]
-crbug.com/1499000 [ android android-sm-a236b no-passthrough ] conformance/textures/misc/video-rotation.html [ Failure ]
 
 crbug.com/331489774 [ android android-sm-s911u1 no-passthrough ] conformance/context/context-attributes-alpha-depth-stencil-antialias.html [ Failure ]
 
@@ -634,8 +609,6 @@ crbug.com/331489774 [ android android-sm-s911u1 no-passthrough ] conformance/con
 # Android Desktop failures #
 ############################
 
-# Brya failures
-crbug.com/416483574 [ android android-brya ] conformance/extensions/webgl-compressed-texture-size-limit.html [ Failure ]
 
 
 

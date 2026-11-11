@@ -104,33 +104,6 @@ class AutoTruster : public extensions::ExtensionRegistryObserver {
 class DocumentScanApiTest : public ExtensionApiTest,
                             public testing::WithParamInterface<ExtensionType> {
  public:
-  void SetUpOnMainThread() override {
-    ExtensionApiTest::SetUpOnMainThread();
-
-    auto* lorgnette_manager = static_cast<ash::FakeLorgnetteScannerManager*>(
-        ash::LorgnetteScannerManagerFactory::GetForBrowserContext(profile()));
-
-    // Set up Lorgnette's CancelScan response.
-    lorgnette_manager->SetCancelScanResult(lorgnette::OPERATION_RESULT_SUCCESS);
-
-    // Set up Lorgnette's CloseScanner response.
-    lorgnette_manager->SetCloseScannerResult(
-        lorgnette::OPERATION_RESULT_SUCCESS);
-
-    // Set up Lorgnette's GetCurrentConfig response.
-    lorgnette::ScannerConfig config;
-    lorgnette::OptionGroup* group = config.add_option_groups();
-    group->set_title("title");
-    group->add_members("item1");
-    group->add_members("item2");
-    lorgnette_manager->ConfigureGetCurrentConfigResponse(
-        lorgnette::OPERATION_RESULT_SUCCESS, std::move(config));
-
-    // Set up Lorgnette's StartPreparedScan response.
-    lorgnette_manager->SetStartPreparedScanResult(
-        lorgnette::OPERATION_RESULT_SUCCESS);
-  }
-
   void SetUpBrowserContextKeyedServices(
       content::BrowserContext* context) override {
     ExtensionApiTest::SetUpBrowserContextKeyedServices(context);
@@ -141,19 +114,17 @@ class DocumentScanApiTest : public ExtensionApiTest,
         }));
   }
 
-  void SetScannerInfoList(std::vector<lorgnette::ScannerInfo> scanners) {
-    lorgnette::ListScannersResponse response;
-    response.set_result(lorgnette::OPERATION_RESULT_SUCCESS);
-
+  void AddScanners(std::vector<lorgnette::ScannerInfo> scanners) {
     lorgnette::ScannerConfig config_template;
     (*config_template.mutable_options())["option1"] =
         CreateTestScannerOption("option1", 5);
-
+    lorgnette::OptionGroup* group = config_template.add_option_groups();
+    group->set_title("title");
+    group->add_members("item1");
+    group->add_members("item2");
     for (auto& scanner : scanners) {
-      lorgnette_manager()->AddScanner(scanner, config_template);
-      response.mutable_scanners()->Add(std::move(scanner));
+      lorgnette_manager()->AddScanner(std::move(scanner), config_template);
     }
-    lorgnette_manager()->SetGetScannerInfoListResponse(response);
   }
 
  protected:
@@ -191,7 +162,7 @@ IN_PROC_BROWSER_TEST_P(DocumentScanApiTest, StartScan_PermissionDenied) {
   // case it still needs a valid scanner handle, so set the discovery
   // confirmation result.
   ScannerDiscoveryRunner::SetDiscoveryConfirmationResultForTesting(true);
-  SetScannerInfoList({CreateTestScannerInfo()});
+  AddScanners({CreateTestScannerInfo()});
   base::AutoReset<std::optional<bool>> testing_scope =
       StartScanRunner::SetStartScanConfirmationResultForTesting(false);
   RunTest("start_scan_denied.html");
@@ -201,7 +172,7 @@ IN_PROC_BROWSER_TEST_P(DocumentScanApiTest, PerformScan_PermissionAllowed) {
   ScannerDiscoveryRunner::SetDiscoveryConfirmationResultForTesting(true);
   base::AutoReset<std::optional<bool>> testing_scope =
       StartScanRunner::SetStartScanConfirmationResultForTesting(true);
-  SetScannerInfoList({CreateTestScannerInfo()});
+  AddScanners({CreateTestScannerInfo()});
   const std::vector<std::string> scan_data = {"img", "data", "img", "data", ""};
   lorgnette_manager()->ConfigureReadScanDataResponse(
       lorgnette::OPERATION_RESULT_EOF, scan_data);
@@ -217,7 +188,7 @@ IN_PROC_BROWSER_TEST_P(DocumentScanApiTest, PerformScan_ExtensionTrusted) {
   ScannerDiscoveryRunner::SetDiscoveryConfirmationResultForTesting(false);
   base::AutoReset<std::optional<bool>> testing_scope =
       StartScanRunner::SetStartScanConfirmationResultForTesting(false);
-  SetScannerInfoList({CreateTestScannerInfo()});
+  AddScanners({CreateTestScannerInfo()});
   const std::vector<std::string> scan_data = {"img", "data", "img", "data", ""};
   lorgnette_manager()->ConfigureReadScanDataResponse(
       lorgnette::OPERATION_RESULT_EOF, scan_data);

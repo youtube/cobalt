@@ -41,7 +41,7 @@
 #include "src/numbers/ieee754.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/simd-shuffle.h"
+#include "src/compiler/backend/simd-shuffle.h"
 #endif
 
 namespace v8::internal::compiler::turboshaft {
@@ -1983,6 +1983,49 @@ class MachineOptimizationReducer : public Next {
           }
         }
       }
+      // Fold consecutive right shifts of the same kind:
+      //   (x >> a) >> b  =>  x >> (a + b)  if a + b < rep.bit_width()
+      // For arithmetic shifts we also handle the
+      // `kShiftRightArithmeticShiftOutZeros` variant: this kind requires that
+      // the shifted-out bits are zero, which we cannot in general prove for a
+      // composed shift. So if either input is plain `kShiftRightArithmetic`
+      // we demote the result to plain `kShiftRightArithmetic`; only when both
+      // inputs are `kShiftRightArithmeticShiftOutZeros` do we keep that kind.
+      // Mixing logical and arithmetic shifts is unsafe (different sign
+      // behaviour for the bits between `a` and `a+b`), so we only fold
+      // logical+logical and arithmetic+arithmetic.
+      if (kind == any_of(Kind::kShiftRightArithmetic,
+                         Kind::kShiftRightArithmeticShiftOutZeros,
+                         Kind::kShiftRightLogical)) {
+        V<Word> x;
+        ShiftOp::Kind inner_kind;
+        WordRepresentation inner_rep;
+        int inner_amount;
+        if (matcher_.MatchConstantShift(left, &x, &inner_kind, &inner_rep,
+                                        &inner_amount) &&
+            inner_rep == rep && inner_amount + amount < rep.bit_width()) {
+          bool inner_is_arith =
+              inner_kind == Kind::kShiftRightArithmetic ||
+              inner_kind == Kind::kShiftRightArithmeticShiftOutZeros;
+          bool outer_is_arith =
+              kind == Kind::kShiftRightArithmetic ||
+              kind == Kind::kShiftRightArithmeticShiftOutZeros;
+          if (inner_is_arith && outer_is_arith) {
+            Kind combined_kind =
+                (inner_kind == Kind::kShiftRightArithmeticShiftOutZeros &&
+                 kind == Kind::kShiftRightArithmeticShiftOutZeros)
+                    ? Kind::kShiftRightArithmeticShiftOutZeros
+                    : Kind::kShiftRightArithmetic;
+            return __ Shift(x, inner_amount + amount, combined_kind, rep);
+          }
+          if (inner_kind == Kind::kShiftRightLogical &&
+              kind == Kind::kShiftRightLogical) {
+            return __ Shift(x, inner_amount + amount, Kind::kShiftRightLogical,
+                            rep);
+          }
+          // Mixed logical/arithmetic: skip for safety.
+        }
+      }
       if (rep == WordRepresentation::Word32() &&
           SupportedOperations::word32_shift_is_safe()) {
         // Remove the explicit 'and' with 0x1F if the shift provided by the
@@ -2240,7 +2283,7 @@ class MachineOptimizationReducer : public Next {
       const ConstantOp& base = matcher_.Cast<ConstantOp>(base_idx);
       if (base.kind == any_of(ConstantOp::Kind::kHeapObject,
                               ConstantOp::Kind::kCompressedHeapObject)) {
-        if (offset == HeapObject::kMapOffset) {
+        if (offset == offsetof(HeapObject, map_)) {
           // Only few loads should be loading the map from a ConstantOp
           // HeapObject, so unparking the JSHeapBroker here rather than before
           // the optimization pass itself it probably more efficient.
@@ -2526,8 +2569,8 @@ class MachineOptimizationReducer : public Next {
           const uint8_t* shuffle2 = shuffles[1]->shuffle;
           const uint8_t* shuffle3 = shuffles[2]->shuffle;
           const uint8_t* shuffle4 = shuffles[3]->shuffle;
-          if (wasm::SimdShuffle::TryMatch8x16UpperToLowerReduce(
-                  shuffle1, shuffle2, shuffle3, shuffle4)) {
+          if (SimdShuffle::TryMatch8x16UpperToLowerReduce(shuffle1, shuffle2,
+                                                          shuffle3, shuffle4)) {
             V<Simd128> reduce = __ Simd128Reduce(
                 reduce_input, Simd128ReduceOp::Kind::kI8x16AddReduce);
             return __ Simd128ExtractLane(reduce, kind, 0);
@@ -2540,8 +2583,8 @@ class MachineOptimizationReducer : public Next {
           const uint8_t* shuffle1 = shuffles[0]->shuffle;
           const uint8_t* shuffle2 = shuffles[1]->shuffle;
           const uint8_t* shuffle3 = shuffles[2]->shuffle;
-          if (wasm::SimdShuffle::TryMatch16x8UpperToLowerReduce(
-                  shuffle1, shuffle2, shuffle3)) {
+          if (SimdShuffle::TryMatch16x8UpperToLowerReduce(shuffle1, shuffle2,
+                                                          shuffle3)) {
             V<Simd128> reduce = __ Simd128Reduce(
                 reduce_input, Simd128ReduceOp::Kind::kI16x8AddReduce);
             return __ Simd128ExtractLane(reduce, kind, 0);
@@ -2553,8 +2596,7 @@ class MachineOptimizationReducer : public Next {
         if (shuffles.size() == 2) {
           const uint8_t* shuffle1 = shuffles[0]->shuffle;
           const uint8_t* shuffle2 = shuffles[1]->shuffle;
-          if (wasm::SimdShuffle::TryMatch32x4UpperToLowerReduce(shuffle1,
-                                                                shuffle2)) {
+          if (SimdShuffle::TryMatch32x4UpperToLowerReduce(shuffle1, shuffle2)) {
             V<Simd128> reduce = __ Simd128Reduce(
                 reduce_input, Simd128ReduceOp::Kind::kI32x4AddReduce);
             return __ Simd128ExtractLane(reduce, kind, 0);
@@ -2566,8 +2608,7 @@ class MachineOptimizationReducer : public Next {
         if (shuffles.size() == 2) {
           const uint8_t* shuffle1 = shuffles[0]->shuffle;
           const uint8_t* shuffle2 = shuffles[1]->shuffle;
-          if (wasm::SimdShuffle::TryMatch32x4PairwiseReduce(shuffle1,
-                                                            shuffle2)) {
+          if (SimdShuffle::TryMatch32x4PairwiseReduce(shuffle1, shuffle2)) {
             V<Simd128> reduce = __ Simd128Reduce(
                 reduce_input, Simd128ReduceOp::Kind::kF32x4AddReduce);
             return __ Simd128ExtractLane(reduce, kind, 0);
@@ -2579,9 +2620,9 @@ class MachineOptimizationReducer : public Next {
       case MachineRepresentation::kFloat64: {
         if (shuffles.size() == 1) {
           uint8_t shuffle64x2[2];
-          if (wasm::SimdShuffle::TryMatch64x2Shuffle(shuffles[0]->shuffle,
-                                                     shuffle64x2) &&
-              wasm::SimdShuffle::TryMatch64x2Reduce(shuffle64x2)) {
+          if (SimdShuffle::TryMatch64x2Shuffle(shuffles[0]->shuffle,
+                                               shuffle64x2) &&
+              SimdShuffle::TryMatch64x2Reduce(shuffle64x2)) {
             V<Simd128> reduce =
                 rep == MachineRepresentation::kWord64
                     ? __ Simd128Reduce(reduce_input,

@@ -29,9 +29,6 @@ V8_OBJECT class JSCollectionIterator : public JSObject {
   void JSCollectionIteratorPrint(std::ostream& os, const char* name);
   V8_EXPORT_PRIVATE void JSCollectionIteratorVerify(Isolate* isolate);
 
-  // Back-compat offset/size constants.
-  static const int kTableOffset;
-  static const int kIndexOffset;
   static const int kHeaderSize;
 
  public:
@@ -39,10 +36,6 @@ V8_OBJECT class JSCollectionIterator : public JSObject {
   TaggedMember<Object> index_;
 } V8_OBJECT_END;
 
-inline constexpr int JSCollectionIterator::kTableOffset =
-    offsetof(JSCollectionIterator, table_);
-inline constexpr int JSCollectionIterator::kIndexOffset =
-    offsetof(JSCollectionIterator, index_);
 inline constexpr int JSCollectionIterator::kHeaderSize =
     sizeof(JSCollectionIterator);
 

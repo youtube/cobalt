@@ -8,12 +8,12 @@ import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
 
+import org.chromium.base.TimeUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.components.autofill.autofill_ai.AttributeInstance.DateValue;
 import org.chromium.components.autofill.autofill_ai.AttributeInstance.StringValue;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -24,22 +24,24 @@ import java.util.Objects;
 @JNINamespace("autofill")
 @NullMarked
 public class EntityInstance {
-    private final String mGUID;
     private final @RecordType int mRecordType;
     private final EntityType mEntityType;
     private final Map<AttributeType, AttributeInstance> mAttributes = new HashMap<>();
+    private final String mNickname;
     private final EntityMetadata mMetadata;
     private final boolean mRequiresReauthToSee;
     private final boolean mIsMaskedServerEntity;
 
     /** Builder for the {@link EntityInstance}. */
     public static final class Builder {
-        private String mGUID = "";
+        private String mGuid = "";
         private @RecordType int mRecordType = RecordType.LOCAL;
         private final EntityType mEntityType;
         private final List<AttributeInstance> mAttributes = new ArrayList<>();
-        private @Nullable LocalDate mModifiedDate;
-        private @Nullable Integer mUseCount;
+        private String mNickname = "";
+        private long mModifiedDateMillis;
+        private long mUseCount;
+        private long mUseDateMillis;
         private boolean mRequiresReauthToSee;
         private boolean mIsMaskedServerEntity;
 
@@ -47,8 +49,8 @@ public class EntityInstance {
             mEntityType = Objects.requireNonNull(entityType, "Entity type cannot be null");
         }
 
-        public Builder setGUID(String guid) {
-            mGUID = guid;
+        public Builder setGuid(String guid) {
+            mGuid = guid;
             return this;
         }
 
@@ -62,13 +64,23 @@ public class EntityInstance {
             return this;
         }
 
-        public Builder setModifiedDate(LocalDate modifiedDate) {
-            mModifiedDate = modifiedDate;
+        public Builder setNickname(String nickname) {
+            mNickname = nickname;
             return this;
         }
 
-        public Builder setUseCount(int useCount) {
+        public Builder setModifiedDate(long modifiedDateMillis) {
+            mModifiedDateMillis = modifiedDateMillis;
+            return this;
+        }
+
+        public Builder setUseCount(long useCount) {
             mUseCount = useCount;
+            return this;
+        }
+
+        public Builder setUseDate(long useDateMillis) {
+            mUseDateMillis = useDateMillis;
             return this;
         }
 
@@ -83,23 +95,20 @@ public class EntityInstance {
         }
 
         public EntityInstance build() {
-            if (mModifiedDate == null) {
-                throw new IllegalStateException("mModifiedDate cannot be null");
+            final long currentDate = TimeUtils.currentTimeMillis();
+            if (mModifiedDateMillis == 0) {
+                mModifiedDateMillis = currentDate;
             }
-            if (mUseCount == null) {
-                throw new IllegalStateException("mUseCount cannot be null");
+            if (mUseDateMillis == 0) {
+                mUseDateMillis = currentDate;
             }
             EntityMetadata metadata =
-                    new EntityMetadata(
-                            mModifiedDate.getDayOfMonth(),
-                            mModifiedDate.getMonthValue(),
-                            mModifiedDate.getYear(),
-                            mUseCount);
+                    new EntityMetadata(mGuid, mModifiedDateMillis, mUseCount, mUseDateMillis);
             return new EntityInstance(
-                    mGUID,
                     mRecordType,
                     mEntityType,
                     mAttributes,
+                    mNickname,
                     metadata,
                     mRequiresReauthToSee,
                     mIsMaskedServerEntity);
@@ -108,15 +117,14 @@ public class EntityInstance {
 
     @CalledByNative
     private EntityInstance(
-            @JniType("std::string") String guid,
             @RecordType int recordType,
             @JniType("autofill::EntityTypeAndroid") EntityType entityType,
             @JniType("std::vector<autofill::AttributeInstanceAndroid>")
                     List<AttributeInstance> attributes,
+            @JniType("std::string") String nickname,
             @JniType("autofill::EntityMetadataAndroid") EntityMetadata metadata,
             boolean requiresReauthToSee,
             boolean isMaskedServerEntity) {
-        mGUID = guid;
         mRecordType = recordType;
         mEntityType = entityType;
         mMetadata = metadata;
@@ -125,13 +133,14 @@ public class EntityInstance {
                     : "Duplicate attribute: " + attribute.getAttributeType().getTypeName();
             mAttributes.put(attribute.getAttributeType(), attribute);
         }
+        mNickname = nickname;
         mRequiresReauthToSee = requiresReauthToSee;
         mIsMaskedServerEntity = isMaskedServerEntity;
     }
 
     @CalledByNative
-    public @JniType("std::string") String getGUID() {
-        return mGUID;
+    public @JniType("std::string") String getGuid() {
+        return mMetadata.getGuid();
     }
 
     @CalledByNative
@@ -148,6 +157,11 @@ public class EntityInstance {
     public @JniType("std::vector<autofill::AttributeInstanceAndroid>") List<AttributeInstance>
             getAttributes() {
         return new ArrayList<>(mAttributes.values());
+    }
+
+    @CalledByNative
+    public @JniType("std::string") String getNickname() {
+        return mNickname;
     }
 
     public @Nullable AttributeInstance getAttribute(AttributeType attributeType) {

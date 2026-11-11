@@ -34,6 +34,7 @@ import static org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskUni
 import static org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskUnitTestSupport.FAKE_NATIVE_ANDROID_BROWSER_WINDOW_PTR;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.role.RoleManager;
 import android.content.Context;
@@ -1145,6 +1146,63 @@ public class ChromeAndroidTaskImplUnitTest {
     }
 
     @Test
+    public void getNativeBrowserWindowPtr_returnsPtrValueForRegisteredActivity() {
+        // Arrange.
+        var chromeAndroidTaskWithMockDeps = createChromeAndroidTaskWithMockDeps(/* taskId= */ 1);
+        var chromeAndroidTask = chromeAndroidTaskWithMockDeps.mChromeAndroidTask;
+        var profile = chromeAndroidTaskWithMockDeps.mMockProfile;
+        var activity =
+                chromeAndroidTaskWithMockDeps
+                        .mActivityScopedObjects
+                        .mActivityWindowAndroid
+                        .getActivity()
+                        .get();
+
+        // Act.
+        long nativeBrowserWindowPtr =
+                chromeAndroidTask.getNativeBrowserWindowPtr(profile, activity);
+
+        // Assert.
+        assertEquals(FAKE_NATIVE_ANDROID_BROWSER_WINDOW_PTR, nativeBrowserWindowPtr);
+    }
+
+    @Test
+    public void getNativeBrowserWindowPtr_returnsZeroForUnregisteredActivity() {
+        // Arrange.
+        var chromeAndroidTaskWithMockDeps = createChromeAndroidTaskWithMockDeps(/* taskId= */ 1);
+        var chromeAndroidTask = chromeAndroidTaskWithMockDeps.mChromeAndroidTask;
+        var profile = chromeAndroidTaskWithMockDeps.mMockProfile;
+        var unregisteredActivity = mock(Activity.class);
+
+        // Act.
+        long nativeBrowserWindowPtr =
+                chromeAndroidTask.getNativeBrowserWindowPtr(profile, unregisteredActivity);
+
+        // Assert.
+        assertEquals(0, nativeBrowserWindowPtr);
+    }
+
+    @Test
+    public void getNativeBrowserWindowPtr_calledAfterTaskDestroyed_throwsException() {
+        // Arrange.
+        var chromeAndroidTaskWithMockDeps = createChromeAndroidTaskWithMockDeps(/* taskId= */ 1);
+        var chromeAndroidTask = chromeAndroidTaskWithMockDeps.mChromeAndroidTask;
+        var profile = chromeAndroidTaskWithMockDeps.mMockProfile;
+        var activity =
+                chromeAndroidTaskWithMockDeps
+                        .mActivityScopedObjects
+                        .mActivityWindowAndroid
+                        .getActivity()
+                        .get();
+        chromeAndroidTask.destroy();
+
+        // Act & Assert.
+        assertThrows(
+                AssertionError.class,
+                () -> chromeAndroidTask.getNativeBrowserWindowPtr(profile, activity));
+    }
+
+    @Test
     public void destroy_unregisterListenersForTopActivity() {
         // Arrange: Add the 1st instance of ActivityScopedObjects.
         int taskId = 1;
@@ -1506,6 +1564,28 @@ public class ChromeAndroidTaskImplUnitTest {
         assertEquals(2, testFeature.mTaskFocusChangeHistory.size());
         assertTrue(testFeature.mTaskFocusChangeHistory.get(0));
         assertFalse(testFeature.mTaskFocusChangeHistory.get(1));
+    }
+
+    @Test
+    public void onTaskVisibilityChanged_invokesOnTaskVisibilityChangedForFeature() {
+        // Arrange.
+        var chromeAndroidTask =
+                (ChromeAndroidTaskImpl)
+                        createChromeAndroidTaskWithMockDeps(/* taskId= */ 1).mChromeAndroidTask;
+        var testFeature = new TestChromeAndroidTaskFeature(chromeAndroidTask);
+        var featureKey =
+                new ChromeAndroidTaskFeatureKey(
+                        TestChromeAndroidTaskFeature.class, /* profile= */ null);
+        chromeAndroidTask.addFeature(featureKey, () -> testFeature);
+
+        // Act.
+        chromeAndroidTask.onTaskVisibilityChanged(/* taskId= */ 1, /* isVisible= */ true);
+        chromeAndroidTask.onTaskVisibilityChanged(/* taskId= */ 1, /* isVisible= */ false);
+
+        // Assert.
+        assertEquals(2, testFeature.mTaskVisibilityChangeHistory.size());
+        assertTrue(testFeature.mTaskVisibilityChangeHistory.get(0));
+        assertFalse(testFeature.mTaskVisibilityChangeHistory.get(1));
     }
 
     @Test
@@ -3776,6 +3856,9 @@ public class ChromeAndroidTaskImplUnitTest {
         /** Records the {@code hasFocus} values passed to {@link #onTaskFocusChanged}. */
         final List<Boolean> mTaskFocusChangeHistory = new ArrayList<>();
 
+        /** Records the {@code isVisible} values passed to {@link #onTaskVisibilityChanged}. */
+        final List<Boolean> mTaskVisibilityChangeHistory = new ArrayList<>();
+
         /** Records the {@link TabModel} passed to {@link #onTabModelSelected}. */
         final List<TabModel> mTabModelSelectedHistory = new ArrayList<>();
 
@@ -3816,6 +3899,11 @@ public class ChromeAndroidTaskImplUnitTest {
         @Override
         public void onTaskFocusChanged(boolean hasFocus) {
             mTaskFocusChangeHistory.add(hasFocus);
+        }
+
+        @Override
+        public void onTaskVisibilityChanged(boolean isVisible) {
+            mTaskVisibilityChangeHistory.add(isVisible);
         }
 
         @Override

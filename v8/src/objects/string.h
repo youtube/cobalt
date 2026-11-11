@@ -787,9 +787,16 @@ V8_OBJECT class String : public Name {
   // Compute and set the hash code.
   // The value returned is always a computed hash, even if the value stored is
   // a forwarding index.
+  // If `out_one_byte_content` is non-null, it is set to true iff the content
+  // is known to fit in one byte. It is set only when the hasher actually
+  // scans the content; not set on length > kMaxHashCalcLength or when the
+  // input forwards through a thin/forwarding-index. Used by internalization
+  // to canonicalize 2-byte-with-1-byte-content without a second scan.
   V8_EXPORT_PRIVATE uint32_t ComputeAndSetRawHash();
+  V8_EXPORT_PRIVATE uint32_t ComputeAndSetRawHash(bool* out_one_byte_content);
   V8_EXPORT_PRIVATE uint32_t
-  ComputeAndSetRawHash(const SharedStringAccessGuardIfNeeded&);
+  ComputeAndSetRawHash(const SharedStringAccessGuardIfNeeded&,
+                       bool* out_one_byte_content = nullptr);
 
  public:
   uint32_t length_;
@@ -1068,11 +1075,6 @@ V8_OBJECT class ConsString : public String {
   // Minimum length for a cons string.
   static const uint32_t kMinLength = 13;
 
-  // Expose these for convenience since not all classes can be friends (classes
-  // in anonymous namespaces).
-  static const int kFirstOffset;
-  static const int kSecondOffset;
-
   DECL_VERIFIER(ConsString)
 
  private:
@@ -1091,12 +1093,11 @@ V8_OBJECT class ConsString : public String {
 
   friend Tagged<String> String::GetUnderlying() const;
 
+ public:
   TaggedMember<String> first_;
   TaggedMember<String> second_;
 } V8_OBJECT_END;
 
-constexpr int ConsString::kFirstOffset = offsetof(ConsString, first_);
-constexpr int ConsString::kSecondOffset = offsetof(ConsString, second_);
 
 template <>
 struct ObjectTraits<ConsString> {

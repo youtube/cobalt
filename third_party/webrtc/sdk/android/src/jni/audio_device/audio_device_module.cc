@@ -584,7 +584,13 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
   std::optional<Stats> GetStats() const override {
     if (!initialized_)
       return std::nullopt;
-    return output_->GetStats();
+    Stats stats;
+    bool has_stats = output_->GetStats(&stats);
+    has_stats |= input_->GetStats(&stats);
+    if (has_stats) {
+      return stats;
+    }
+    return std::nullopt;
   }
 
   int32_t AttachAudioBuffer() {

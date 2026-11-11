@@ -48,11 +48,11 @@
 #include "chrome/browser/ui/bookmarks/bookmark_bar_controller.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
@@ -68,6 +68,7 @@
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller_chromeos.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_tester.h"
+#include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/views/location_bar/content_setting_image_view.h"
 #include "chrome/browser/ui/views/location_bar/custom_tab_bar_view.h"
 #include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
@@ -1037,6 +1038,77 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest, TopViewInset) {
   EXPECT_EQ(0, window->GetProperty(aura::client::kTopViewInset));
 }
 
+// Test that for a browser window, its caption buttons are moved to the top
+// container when entering immersive fullscreen and back to frame view when
+// exiting, not depending on reveal state.
+IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest,
+                       CaptionButtonsMovedToTopContainer) {
+  gfx::ScopedAnimationDurationScaleMode scale_mode(
+      gfx::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  chromeos::ImmersiveFullscreenControllerTestApi::GlobalAnimationDisabler
+      disabler;
+
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  views::View* frame_view = GetFrameViewChromeOS(browser_view);
+  auto* caption_buttons =
+      GetFrameViewChromeOS(browser_view)->caption_button_container();
+  views::View* top_container = browser_view->top_container();
+
+  // Initially in non-immersive mode, caption buttons should be a child of the
+  // frame view.
+  EXPECT_EQ(frame_view, caption_buttons->parent());
+
+  auto* const immersive_mode_controller =
+      ImmersiveModeController::From(browser());
+  {
+    ImmersiveModeTester tester(browser());
+
+    // Auto Enter immersive mode.
+    EnterImmersiveFullscreenMode(browser());
+    tester.WaitForRevealStarted();
+
+    // Immersive frame is revealed upon entering immersive fullscreen.
+    EXPECT_TRUE(immersive_mode_controller->IsRevealed());
+
+    // In immersive mode, caption buttons should be a child of the top
+    // container.
+    EXPECT_EQ(top_container, caption_buttons->parent());
+
+    // Timeout to unreveal.
+    tester.WaitForRevealEnded();
+  }
+
+  EXPECT_FALSE(immersive_mode_controller->IsRevealed());
+  EXPECT_EQ(top_container, caption_buttons->parent());
+
+  aura::Window* window = browser()->window()->GetNativeWindow();
+  ui::test::EventGenerator event_generator(window->GetRootWindow());
+
+  gfx::Point point(std::roundl(window->bounds().width() / 3), 0);
+  {
+    ImmersiveModeTester tester(browser());
+    event_generator.MoveMouseTo(point);
+    tester.WaitForRevealStarted();
+
+    EXPECT_TRUE(immersive_mode_controller->IsRevealed());
+    EXPECT_EQ(top_container, caption_buttons->parent());
+
+    point.set_y(std::roundl(window->bounds().height() / 2));
+    event_generator.MoveMouseTo(point);
+    tester.WaitForRevealEnded();
+  }
+  EXPECT_FALSE(immersive_mode_controller->IsRevealed());
+
+  EXPECT_EQ(top_container, caption_buttons->parent());
+
+  // Exit immersive mode.
+  ExitImmersiveFullscreenMode(browser());
+
+  // Caption buttons should be moved back to the frame view.
+  EXPECT_EQ(frame_view, caption_buttons->parent());
+}
+
 // Test that for a browser window, its caption buttons are always hidden in
 // tablet mode.
 IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest,
@@ -1907,7 +1979,9 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewAshThemeChangeTest, ThemeChange) {
               WindowOpenDisposition::CURRENT_TAB,
               apps::LaunchSource::kFromTest));
   ASSERT_TRUE(web_contents);
-  Browser* browser = chrome::FindBrowserWithTab(web_contents);
+  Browser* browser = GlobalBrowserCollection::GetInstance()
+                         ->FindBrowserWithTab(web_contents)
+                         ->GetBrowserForMigrationOnly();
   auto* contents_web_view =
       BrowserView::GetBrowserViewForBrowser(browser)->contents_web_view();
 

@@ -190,198 +190,6 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//tools/metrics/histograms/metadata/ui/histograms.xml:WebUIHostname) -->
 
-<histogram name="AccessCodeCast.Discovery.AddSinkResult.New"
-    enum="AccessCodeCastAddSinkResult" expires_after="2026-06-12">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    The result of adding a cast sink to the media router sink list via the
-    AccessCodeCastSinkService when discovering it using an access code. Recorded
-    after the cast sink is added. Logged only on desktop platforms.
-  </summary>
-</histogram>
-
-<histogram name="AccessCodeCast.Discovery.AddSinkResult.Remembered"
-    enum="AccessCodeCastAddSinkResult" expires_after="2026-09-13">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    The result of adding a cast sink to the media router sink list via the
-    AccessCodeCastSinkService when the device was remembered due to device
-    policy. Recorded after the cast sink is added. Logged only on desktop
-    platforms.
-  </summary>
-</histogram>
-
-<histogram name="AccessCodeCast.Discovery.CastModeOnSuccess"
-    enum="AccessCodeCastCastMode" expires_after="2026-06-12">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    The selected cast mode when a cast session is successfully started
-    (ResultCode::OK) after a user enters an access code. Logged only on desktop
-    platforms.
-  </summary>
-</histogram>
-
-<histogram name="AccessCodeCast.Discovery.DeviceDurationOnRoute"
-    units="seconds" expires_after="2026-06-12">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    The duration in seconds an access code device will stay in the list of cast
-    devices. Recorded on successful creation of a cast session to an access code
-    device. Logged only on desktop platforms.
-  </summary>
-</histogram>
-
-<histogram name="AccessCodeCast.Discovery.RememberedDevicesCount"
-    units="cast devices" expires_after="2026-06-12">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    The count of cast devices which have been successfully remembered via the
-    access code cast sink service. Recorded when the browser starts, and any
-    time the network changes. Logged only on desktop platforms.
-  </summary>
-</histogram>
-
-<histogram name="AccessCodeCast.Session.FreezeCount" units="instances"
-    expires_after="2026-10-25">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    The count of times that a local cast mirroring session is frozen, or paused,
-    during its duration. Recorded at the end of a cast mirroring session. Logged
-    only on desktop platforms.
-  </summary>
-</histogram>
-
-<histogram name="AccessCodeCast.Session.FreezeDuration" units="ms"
-    expires_after="2026-06-12">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    The amount of time in milliseconds that a local cast mirroring session is
-    frozen, or paused, until it is resumed or ended. Recorded when the session
-    is resumed, or when the session ends. Logged only on desktop platforms.
-  </summary>
-</histogram>
-
-<histogram name="AccessCodeCast.Session.NewDeviceRouteCreationDuration"
-    units="ms" expires_after="2026-06-12">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    The amount of time in milliseconds that it takes to connect to a new device.
-    It is the combination of connecting to our server, validating the access
-    code, constructing a cast device, opening a channel to that device, and then
-    waiting for success. It is only recorded if the request was successful; not
-    recorded for non-local routes. Logged only on desktop platforms.
-  </summary>
-</histogram>
-
-<histogram name="AccessCodeCast.Session.RouteDiscoveryTypeAndSource"
-    enum="AccessCodeCastDiscoveryTypeAndSource" expires_after="2026-06-12">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    The discovery type of the associated sink and the cast media source for an
-    access code route. Recorded when at the start of a local access code route.
-    Logged only on desktop platforms.
-  </summary>
-</histogram>
-
-<histogram name="AccessCodeCast.Session.RouteDuration" units="ms"
-    expires_after="2026-06-12">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    The amount of time in milliseconds that a route to an access code device
-    lasts. Recorded at the end of a local access code route; not recorded for
-    non-local routes. Logged only on desktop platforms.
-  </summary>
-</histogram>
-
-<histogram name="AccessCodeCast.Session.SavedDeviceRouteCreationDuration"
-    units="ms" expires_after="2026-06-12">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    The amount of time in milliseconds that it takes to connect to a saved
-    device. It is a combination of the time to request a mirroring route +
-    waiting for a success. It is only recorded if the request was successful;
-    not recorded for non-local routes. Logged only on desktop platforms.
-  </summary>
-</histogram>
-
-<histogram name="AccessCodeCast.Ui.AccessCodeInputTime" units="ms"
-    expires_after="2026-06-12">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    The amount of time in milliseconds for the user to input an access code
-    after the UI is enabled for a cast attempt. Recorded when the user presses
-    enter or the submit button after typing an access code. Logged only on
-    desktop platforms.
-  </summary>
-</histogram>
-
-<histogram name="AccessCodeCast.Ui.AccessCodeNotFoundCount" units="instances"
-    expires_after="2026-10-25">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    The count of ACCESS_CODE_NOT_FOUND errors received while the
-    AccessCodeCastDialog is open, correlating to the number of times a user
-    typed an incorrect access code. Recorded after the dialog is closed. Logged
-    only on desktop platforms.
-  </summary>
-</histogram>
-
-<histogram name="AccessCodeCast.Ui.CastAttemptLength" units="ms"
-    expires_after="2026-06-12">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    The amount of time in milliseconds that the dialog is loading while
-    attempting to cast to a new device via access code. Recorded after a cast
-    attempt completes, and does not depend on whether the attempt was successful
-    or ended in error. Logged only on desktop platforms.
-  </summary>
-</histogram>
-
-<histogram name="AccessCodeCast.Ui.DialogCloseReason"
-    enum="AccessCodeCastDialogCloseReason" expires_after="2026-06-12">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    The reason why the Access Code Cast dialog closed. Recorded when the Access
-    Code Cast dialog closes. Logged only on desktop platforms.
-  </summary>
-</histogram>
-
-<histogram name="AccessCodeCast.Ui.DialogLoadTime" units="ms"
-    expires_after="2026-06-12">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    The length of time for the AccessCodeCast dialog to finish loading after
-    instantiation. Recorded after the UI creates a page handler object. Logged
-    only on desktop platforms.
-  </summary>
-</histogram>
-
-<histogram name="AccessCodeCast.Ui.DialogOpenLocation"
-    enum="AccessCodeCastDialogOpenLocation" expires_after="2026-06-12">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    The location from which the AccessCodeCast dialog is opened. Recorded after
-    the dialog opens. Only logged on desktop platforms.
-  </summary>
-</histogram>
-
 <histogram name="Ads.InterestGroup.AtAuctionTotalSize.{Type}" units="KB"
     expires_after="2026-04-26">
   <owner>caraitto@chromium.org</owner>
@@ -3037,7 +2845,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ComponentUpdater.AndroidComponentLoader.LoadStatus.{Component}"
-    enum="BooleanSuccess" expires_after="2026-09-01">
+    enum="BooleanSuccess" expires_after="2027-04-01">
   <owner>pbirk@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <owner>src/components/component_updater/android/OWNERS</owner>
@@ -4079,7 +3887,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Feedback.TrustSafetySentiment.TriggerOccurred"
-    enum="TrustSafetySentimentFeatureArea" expires_after="2026-08-30">
+    enum="TrustSafetySentimentFeatureArea" expires_after="2026-11-01">
   <owner>sauski@google.com</owner>
   <owner>chrome-hats-eng@google.com</owner>
   <summary>
@@ -4391,7 +4199,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="FirstRun.Sentinel.Created" enum="FirstRunSentinelResult"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>jlebel@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -4421,7 +4229,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="FirstRun.Stage" enum="FirstRunStageResult"
-    expires_after="2026-09-06">
+    expires_after="2026-11-08">
   <owner>tinazwang@chromium.org</owner>
   <owner>bling-get-started@google.com</owner>
   <summary>
@@ -4554,7 +4362,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Gamepad.KnownGamepadConnectedWithId"
-    enum="GamepadVendorProduct" expires_after="2026-08-30">
+    enum="GamepadVendorProduct" expires_after="2026-11-01">
   <owner>mattreynolds@chromium.org</owner>
   <owner>deviceapi-team@google.com</owner>
   <summary>
@@ -4733,18 +4541,6 @@ chromium-metrics-reviews@google.com.
     <variant name=".EncryptDatabase" summary=""/>
     <variant name=".PrepareForEnrollment" summary=""/>
   </token>
-</histogram>
-
-<histogram name="Hyphenation.Open" units="ms" expires_after="2026-05-08">
-  <owner>kojii@chromium.org</owner>
-  <owner>layout-dev@chromium.org</owner>
-  <summary>The time it takes to open a hyphenation dictionary.</summary>
-</histogram>
-
-<histogram name="Hyphenation.Open.File" units="ms" expires_after="2026-05-08">
-  <owner>kojii@chromium.org</owner>
-  <owner>layout-dev@chromium.org</owner>
-  <summary>The time it takes to open a hyphenation dictionary file.</summary>
 </histogram>
 
 <histogram name="Import.ImporterType.AutoImport" enum="ImporterType"
@@ -5287,7 +5083,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MPArch.ChildProcessLaunchSubsequent" units="ms"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>pasko@chromium.org</owner>
   <owner>yfriedman@chromium.org</owner>
   <summary>
@@ -5522,7 +5318,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OriginTrials.PersistentOriginTrial.CriticalRestart"
-    enum="Boolean" expires_after="2026-08-03">
+    enum="Boolean" expires_after="2027-04-01">
   <owner>pbirk@chromium.org</owner>
   <owner>src/components/origin_trials/OWNERS</owner>
   <summary>
@@ -5541,7 +5337,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OriginTrials.PersistentOriginTrial.LevelDbInitSuccess"
-    enum="Boolean" expires_after="2026-08-03">
+    enum="Boolean" expires_after="2027-04-01">
   <owner>pbirk@chromium.org</owner>
   <owner>src/components/origin_trials/OWNERS</owner>
   <summary>
@@ -5553,7 +5349,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OriginTrials.PersistentOriginTrial.LevelDbLoadSize"
-    units="origins" expires_after="2026-08-03">
+    units="origins" expires_after="2027-04-01">
   <owner>pbirk@chromium.org</owner>
   <owner>src/components/origin_trials/OWNERS</owner>
   <summary>
@@ -5566,7 +5362,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OriginTrials.PersistentOriginTrial.LevelDbLoadSuccess"
-    enum="Boolean" expires_after="2026-08-03">
+    enum="Boolean" expires_after="2027-04-01">
   <owner>pbirk@chromium.org</owner>
   <owner>src/components/origin_trials/OWNERS</owner>
   <summary>
@@ -5578,7 +5374,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OriginTrials.PersistentOriginTrial.LevelDbLoadTime" units="ms"
-    expires_after="2026-10-04">
+    expires_after="2027-04-01">
   <owner>pbirk@chromium.org</owner>
   <owner>src/components/origin_trials/OWNERS</owner>
   <summary>
@@ -5591,7 +5387,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OriginTrials.PersistentOriginTrial.OriginLookupsBeforeDbLoad"
-    units="origins" expires_after="2026-08-03">
+    units="origins" expires_after="2027-04-01">
   <owner>pbirk@chromium.org</owner>
   <owner>src/components/origin_trials/OWNERS</owner>
   <summary>
@@ -5608,7 +5404,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OriginTrials.PersistentOriginTrial.OriginsAddedBeforeDbLoad"
-    units="origins" expires_after="2026-08-03">
+    units="origins" expires_after="2027-04-01">
   <owner>pbirk@chromium.org</owner>
   <owner>src/components/origin_trials/OWNERS</owner>
   <summary>
@@ -5621,7 +5417,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OriginTrials.PersistentOriginTrial.PartitionSetSize"
-    units="sites" expires_after="2026-08-03">
+    units="sites" expires_after="2027-04-01">
   <owner>pbirk@chromium.org</owner>
   <owner>src/components/origin_trials/OWNERS</owner>
   <summary>
@@ -5635,7 +5431,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OriginTrials.PersistentOriginTrial.TokenHasFirstPartyPartition"
-    enum="Boolean" expires_after="2026-08-03">
+    enum="Boolean" expires_after="2027-04-01">
   <owner>pbirk@chromium.org</owner>
   <owner>src/components/origin_trials/OWNERS</owner>
   <summary>
@@ -6106,7 +5902,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Process.Sandbox.IPC.ThreadCreateRemoteThreadErrorCode"
-    enum="WinGetLastError" expires_after="2026-08-31">
+    enum="WinGetLastError" expires_after="2026-11-01">
   <owner>ajgo@chromium.org</owner>
   <owner>wfh@chromium.org</owner>
   <summary>
@@ -6117,7 +5913,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Process.Sandbox.IPC.ThreadDuplicateHandleErrorCode"
-    enum="WinGetLastError" expires_after="2026-08-31">
+    enum="WinGetLastError" expires_after="2026-11-01">
   <owner>ajgo@chromium.org</owner>
   <owner>wfh@chromium.org</owner>
   <summary>
@@ -6335,14 +6131,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ReadingList.Unread.Number" units="count"
-    expires_after="2026-08-23">
+    expires_after="2026-11-01">
   <owner>gambard@chromium.org</owner>
   <owner>bling-team@google.com</owner>
   <summary>Number of unread entries in reading list.</summary>
 </histogram>
 
 <histogram name="ReadingList.WebUI.LoadCompletedTime" units="ms"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>corising@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -6536,7 +6332,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ReportingAndNEL.UnresponsiveRenderer.CrashReportOutcome"
-    enum="CrashRepHandlingOutcome" expires_after="2026-08-30">
+    enum="CrashRepHandlingOutcome" expires_after="2026-11-01">
   <owner>iclelland@chromium.org</owner>
   <owner>issackjohn@microsoft.com</owner>
   <owner>src/net/reporting/OWNERS</owner>
@@ -7096,7 +6892,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SiteIsolatedCodeCache.DataSize" units="bytes"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>olivierli@chromium.org</owner>
   <owner>leszeks@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
@@ -7320,17 +7116,6 @@ useful for Chirp alerts (go/crca-alerts). -->
     Recorded only for regular profiles. (Not recorded on guest profiles for
     example.) Recorded both when spelling is initialized and when the preference
     is changed.
-  </summary>
-</histogram>
-
-<histogram name="SpellCheck.SpellingService.RequestDuration" units="ms"
-    expires_after="2024-12-01">
-  <owner>shend@chromium.org</owner>
-  <owner>essential-inputs-team@google.com</owner>
-  <summary>
-    The elapsed time, in ms, between the moment the SimpleURLLoader starts
-    downloading the request and the moment the SimpleURLLoader callback is
-    invoked after the request finishes, whether an error or a success.
   </summary>
 </histogram>
 
@@ -7761,7 +7546,7 @@ should be kept until we use this API.  -->
 </histogram>
 
 <histogram name="Tracing.Init.InitTracing" units="ms"
-    expires_after="2026-12-01">
+    expires_after="2027-04-01">
   <owner>pbirk@chromium.org</owner>
   <owner>webview-team@google.com</owner>
   <owner>chrometto-team@google.com</owner>
@@ -7774,7 +7559,7 @@ should be kept until we use this API.  -->
 </histogram>
 
 <histogram name="Tracing.Init.Perfetto.Initialize" units="ms"
-    expires_after="2026-12-01">
+    expires_after="2027-04-01">
   <owner>pbirk@chromium.org</owner>
   <owner>webview-team@google.com</owner>
   <owner>chrometto-team@google.com</owner>

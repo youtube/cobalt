@@ -43,7 +43,7 @@ class VIZ_COMMON_EXPORT ExternalBeginFrameSourceMac
   void SetVSyncDisplayID(int64_t display_id, bool force_update) override;
   void RefreshRateChangedOnSameDisplay() override;
 
-  void UpdateVSyncDisplay() override;
+  void UpdateVSyncDisplay(int64_t display_id) override;
 
   // ExternalBeginFrameSourceClient implementation.
   void OnNeedsBeginFrames(bool needs_begin_frames) override;
@@ -74,7 +74,7 @@ class VIZ_COMMON_EXPORT ExternalBeginFrameSourceMac
   void CreateDelayBasedTimeSourceIfNeeded();
 
   void StartBeginFrame();
-  void StopBeginFrame();
+  void StopBeginFrame(bool force_stop);
 
   // Implements base::PowerSuspendObserver.
   void OnResume() override;
@@ -105,6 +105,12 @@ class VIZ_COMMON_EXPORT ExternalBeginFrameSourceMac
   base::TimeDelta last_interval_;
 
   bool just_started_begin_frame_ = false;
+
+  // To prevent the DisplayLink from constantly toggling on and off, allow it
+  // to continue running for this many consecutive VSyncs after it is no longer
+  // needed.
+  constexpr static int kMaxKeepAliveCount = 20;
+  int vsync_callback_keep_alive_counter_ = 0;
 
   const raw_ptr<OutputSurface, DanglingUntriaged> output_surface_;
   UpdateVSyncParametersCallback update_vsync_params_callback_;

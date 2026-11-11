@@ -2559,11 +2559,15 @@ void InstanceBuilder::ProcessExports() {
 
         if (is_asm_js &&
             name->IsEqualTo(base::CStrVector(AsmJs::kSingleFunctionName))) {
-          desc.set_value(value);
+          PropertyDescriptor single_desc;
+          single_desc.set_value(value);
+          single_desc.set_writable(true);
+          single_desc.set_enumerable(false);
+          single_desc.set_configurable(true);
           CHECK(JSReceiver::DefineOwnProperty(
                     isolate_, instance_object,
                     isolate_->factory()->wasm_asm_single_function_symbol(),
-                    &desc, Just(kThrowOnError))
+                    &single_desc, Just(kThrowOnError))
                     .FromMaybe(false));
           continue;
         }
@@ -2658,7 +2662,8 @@ void InstanceBuilder::ProcessExports() {
                                details.attributes());
     } else {
       // Add a property to the dictionary.
-      JSObject::SetNormalizedProperty(exports_object, name, value, details);
+      JSObject::SetNormalizedProperty(exports_object, name, value, details)
+          .Check();
     }
   }
 

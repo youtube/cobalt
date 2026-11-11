@@ -12,7 +12,6 @@
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
 #include "src/handles/handles.h"
-#include "src/objects/objects-inl.h"  // For CastTraits<T>::AllowFrom.
 #include "src/objects/oddball.h"
 #include "src/objects/slots.h"
 #include "src/objects/string.h"
@@ -105,7 +104,8 @@ V8_RO_CONST Tagged<Boolean> ReadOnlyRoots::boolean_value(bool value) const {
 
 V8_RO_CONST Tagged<String> ReadOnlyRoots::single_character_string(
     int code) const {
-  return Cast<String>(object_at(RootsTable::SingleCharacterStringIndex(code)));
+  return UncheckedCast<String>(
+      object_at(RootsTable::SingleCharacterStringIndex(code)));
 }
 
 Address ReadOnlyRoots::first_name_for_protector() const {

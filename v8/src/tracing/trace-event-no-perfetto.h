@@ -97,6 +97,18 @@ struct Flow {
   static inline Flow Global(uint64_t flow_id) { return Flow(); }
 };
 
+struct TerminatingFlow {
+  static inline TerminatingFlow ProcessScoped(uint64_t flow_id) {
+    return TerminatingFlow();
+  }
+  static inline TerminatingFlow FromPointer(void* ptr) {
+    return TerminatingFlow();
+  }
+  static inline TerminatingFlow Global(uint64_t flow_id) {
+    return TerminatingFlow();
+  }
+};
+
 }  // namespace perfetto
 
 // This is the legacy implementation of tracing macros. There have been two

@@ -12,16 +12,24 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.robolectric.Shadows.shadowOf;
 
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.os.Looper;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewConfiguration;
 
 import androidx.test.core.app.ApplicationProvider;
 
@@ -35,6 +43,7 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
+import org.robolectric.Robolectric;
 
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNullableObservableSupplier;
@@ -58,11 +67,14 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.listmenu.ListMenuHost;
 import org.chromium.ui.listmenu.MenuModelBridge;
+import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 
+import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @RunWith(BaseRobolectricTestRunner.class)
 public class ExtensionActionListMediatorTest {
@@ -137,6 +149,8 @@ public class ExtensionActionListMediatorTest {
 
     @Mock private TabModelSelector mTabModelSelector;
 
+    @Mock private ModalDialogManager mModalDialogManager;
+
     @Captor private ArgumentCaptor<ListMenuHost.PopupMenuShownListener> mPopupListenerCaptor;
 
     @Captor
@@ -188,6 +202,7 @@ public class ExtensionActionListMediatorTest {
                                     action.getId(),
                                     action.getTitle(),
                                     action.getTitle(),
+                                    action.getTitle(),
                                     action.getHoverCardState());
                         });
 
@@ -215,7 +230,8 @@ public class ExtensionActionListMediatorTest {
                         mExtensionsToolbarBridge,
                         /* contextMenuPopulatorFactory= */ null,
                         /* selectionDropdownMenuDelegate= */ null,
-                        mTabModelSelector) {
+                        mTabModelSelector,
+                        mModalDialogManager) {
                     @Override
                     Bitmap getIconForAction(String actionId, WebContents webContents) {
                         ActionData action = mActions.get(actionId);
@@ -395,6 +411,26 @@ public class ExtensionActionListMediatorTest {
     }
 
     @Test
+    public void testDismissPopupOnDialogAdded() {
+        ArgumentCaptor<ModalDialogManager.ModalDialogManagerObserver> observerCaptor =
+                ArgumentCaptor.forClass(ModalDialogManager.ModalDialogManagerObserver.class);
+        verify(mModalDialogManager).addObserver(observerCaptor.capture());
+
+        // Trigger a popup.
+        long nativeHostPtr = 123L;
+        mBridgeDelegateCaptor.getValue().triggerPopup(ACTION1_ID, nativeHostPtr);
+
+        // Verify the native contents were created.
+        verify(mPopupContentsJniMock).create(nativeHostPtr);
+
+        // Simulate a dialog being added.
+        observerCaptor.getValue().onDialogAdded(null);
+
+        // The pending popup contents should be destroyed to prevent overlapping UIs.
+        verify(mPopupContentsMock).destroy();
+    }
+
+    @Test
     public void testPopOutAction_Unpinned_Popup() {
         // Action 3 is initially not in the model (unpinned).
         assertEquals(2, mModels.size());
@@ -520,6 +556,77 @@ public class ExtensionActionListMediatorTest {
 
         // The pending popup contents must be destroyed during teardown.
         verify(mPopupContentsMock).destroy();
+    }
+
+    @Test
+    public void testHoverCard_ShowsAfterDelay() {
+        Activity activity = Robolectric.buildActivity(Activity.class).setup().get();
+        when(mWindowAndroid.getActivity()).thenReturn(new WeakReference<>(activity));
+
+        mMediator.reconcileActionItems();
+        ListItem item = mModels.get(0);
+        View.OnHoverListener listener =
+                item.model.get(ExtensionActionButtonProperties.ON_HOVER_LISTENER);
+
+        // Set up the mock action to track if its state is queried.
+        ExtensionAction action = mock(ExtensionAction.class);
+        ExtensionAction.HoverCardState state = mock(ExtensionAction.HoverCardState.class);
+        when(action.getHoverCardState()).thenReturn(state);
+        doReturn(action).when(mExtensionsToolbarBridge).getAction(eq(ACTION1_ID), any());
+
+        View anchorView = new View(activity);
+        when(mRecyclerViewDelegate.getButtonViewForId(ACTION1_ID)).thenReturn(anchorView);
+
+        // Trigger hover enter.
+        MotionEvent enterEvent = mock(MotionEvent.class);
+        when(enterEvent.getAction()).thenReturn(MotionEvent.ACTION_HOVER_ENTER);
+        listener.onHover(anchorView, enterEvent);
+
+        // Verify the card construction hasn't started yet.
+        verify(action, never()).getHoverCardState();
+
+        // Fast forward looper past the long press timeout.
+        shadowOf(Looper.getMainLooper())
+                .idleFor(ViewConfiguration.getLongPressTimeout(), TimeUnit.MILLISECONDS);
+
+        // Verify the mediator proceeded to build and show the card.
+        verify(action).getHoverCardState();
+    }
+
+    @Test
+    public void testHoverCard_CancelsOnExitBeforeDelay() {
+        Activity activity = Robolectric.buildActivity(Activity.class).setup().get();
+        when(mWindowAndroid.getActivity()).thenReturn(new WeakReference<>(activity));
+
+        mMediator.reconcileActionItems();
+        ListItem item = mModels.get(0);
+        View.OnHoverListener listener =
+                item.model.get(ExtensionActionButtonProperties.ON_HOVER_LISTENER);
+
+        ExtensionAction action = mock(ExtensionAction.class);
+        ExtensionAction.HoverCardState state = mock(ExtensionAction.HoverCardState.class);
+        when(action.getHoverCardState()).thenReturn(state);
+        doReturn(action).when(mExtensionsToolbarBridge).getAction(eq(ACTION1_ID), any());
+
+        View anchorView = new View(activity);
+        when(mRecyclerViewDelegate.getButtonViewForId(ACTION1_ID)).thenReturn(anchorView);
+
+        // Trigger hover enter.
+        MotionEvent enterEvent = mock(MotionEvent.class);
+        when(enterEvent.getAction()).thenReturn(MotionEvent.ACTION_HOVER_ENTER);
+        listener.onHover(anchorView, enterEvent);
+
+        // Immediately trigger hover exit before the delay finishes.
+        MotionEvent exitEvent = mock(MotionEvent.class);
+        when(exitEvent.getAction()).thenReturn(MotionEvent.ACTION_HOVER_EXIT);
+        listener.onHover(anchorView, exitEvent);
+
+        // Fast forward looper past the long press timeout.
+        shadowOf(Looper.getMainLooper())
+                .idleFor(ViewConfiguration.getLongPressTimeout(), TimeUnit.MILLISECONDS);
+
+        // Verify the runnable was cancelled and the card was never constructed.
+        verify(action, never()).getHoverCardState();
     }
 
     private static Bitmap createSimpleIcon(int color) {

@@ -210,21 +210,62 @@ class MediaContentDescription {
     return connection_address_;
   }
 
+  // Used to indicate at which level (session or media) an attribute is
+  // signaled in the SDP.
+  enum class AttributeLevel { kNone, kSession, kMedia };
+
   // Determines if it's allowed to mix one- and two-byte rtp header extensions
   // within the same rtp stream.
-  enum ExtmapAllowMixed { kNo, kSession, kMedia };
-  void set_extmap_allow_mixed_enum(ExtmapAllowMixed new_extmap_allow_mixed) {
-    if (new_extmap_allow_mixed == kMedia &&
-        extmap_allow_mixed_enum_ == kSession) {
+  void set_extmap_allow_mixed_level(AttributeLevel level) {
+    if (level == AttributeLevel::kMedia &&
+        extmap_allow_mixed_level_ == AttributeLevel::kSession) {
       // Do not downgrade from session level to media level.
       return;
     }
-    extmap_allow_mixed_enum_ = new_extmap_allow_mixed;
+    extmap_allow_mixed_level_ = level;
   }
+  AttributeLevel extmap_allow_mixed_level() const {
+    return extmap_allow_mixed_level_;
+  }
+  bool extmap_allow_mixed() const {
+    return extmap_allow_mixed_level_ != AttributeLevel::kNone;
+  }
+
+  // TODO(bugs.webrtc.org/455813732): Remove once downstream projects have
+  // migrated to AttributeLevel and set_extmap_allow_mixed_level() /
+  // extmap_allow_mixed_level().
+  enum [[deprecated("Use AttributeLevel")]] ExtmapAllowMixed {
+    kNo,
+    kSession,
+    kMedia
+  };
+  [[deprecated("Use set_extmap_allow_mixed_level")]]
+  void set_extmap_allow_mixed_enum(ExtmapAllowMixed new_extmap_allow_mixed) {
+    AttributeLevel level = AttributeLevel::kNone;
+    switch (new_extmap_allow_mixed) {
+      case kNo:
+        level = AttributeLevel::kNone;
+        break;
+      case kSession:
+        level = AttributeLevel::kSession;
+        break;
+      case kMedia:
+        level = AttributeLevel::kMedia;
+        break;
+    }
+    set_extmap_allow_mixed_level(level);
+  }
+  [[deprecated("Use extmap_allow_mixed_level")]]
   ExtmapAllowMixed extmap_allow_mixed_enum() const {
-    return extmap_allow_mixed_enum_;
+    switch (extmap_allow_mixed_level_) {
+      case AttributeLevel::kNone:
+        return kNo;
+      case AttributeLevel::kSession:
+        return kSession;
+      case AttributeLevel::kMedia:
+        return kMedia;
+    }
   }
-  bool extmap_allow_mixed() const { return extmap_allow_mixed_enum_ != kNo; }
 
   // Simulcast functionality.
   bool HasSimulcast() const {
@@ -299,7 +340,7 @@ class MediaContentDescription {
   bool conference_mode_ = false;
   RtpTransceiverDirection direction_ = RtpTransceiverDirection::kSendRecv;
   SocketAddress connection_address_;
-  ExtmapAllowMixed extmap_allow_mixed_enum_ = kMedia;
+  AttributeLevel extmap_allow_mixed_level_ = AttributeLevel::kMedia;
 
   SimulcastDescription simulcast_;
   std::vector<RidDescription> receive_rids_;
@@ -604,14 +645,15 @@ class SessionDescription {
   // within the same rtp stream.
   void set_extmap_allow_mixed(bool supported) {
     extmap_allow_mixed_ = supported;
-    MediaContentDescription::ExtmapAllowMixed media_level_setting =
-        supported ? MediaContentDescription::kSession
-                  : MediaContentDescription::kNo;
+    MediaContentDescription::AttributeLevel media_level_setting =
+        supported ? MediaContentDescription::AttributeLevel::kSession
+                  : MediaContentDescription::AttributeLevel::kNone;
     for (auto& content : contents_) {
-      // Do not set to kNo if the current setting is kMedia.
-      if (supported || content.media_description()->extmap_allow_mixed_enum() !=
-                           MediaContentDescription::kMedia) {
-        content.media_description()->set_extmap_allow_mixed_enum(
+      // Do not set to kNone if the current setting is kMedia.
+      if (supported ||
+          content.media_description()->extmap_allow_mixed_level() !=
+              MediaContentDescription::AttributeLevel::kMedia) {
+        content.media_description()->set_extmap_allow_mixed_level(
             media_level_setting);
       }
     }
@@ -633,6 +675,5 @@ class SessionDescription {
 enum ContentSource { CS_LOCAL, CS_REMOTE };
 
 }  //  namespace webrtc
-
 
 #endif  // PC_SESSION_DESCRIPTION_H_

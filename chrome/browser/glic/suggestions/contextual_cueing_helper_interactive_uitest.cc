@@ -50,18 +50,8 @@
 
 class FakeGlicNudgeDelegate : public glic::GlicNudgeDelegate {
  public:
-  void OnTriggerGlicNudgeUI(std::string label) override {
-    last_nudge_label_ = label;
-    if (!last_nudge_label_.empty()) {
-      is_showing_nudge_ = true;
-      future_.SetValue();
-    }
-  }
-  void OnTriggerAnchoredMessage(
-      std::string label,
-      std::string anchored_message_text,
-      std::optional<std::string> prompt_suggestion) override {
-    last_nudge_label_ = label;
+  void OnTriggerGlicNudgeUI(glic::NudgeParams params) override {
+    last_nudge_label_ = params.label;
     if (!last_nudge_label_.empty()) {
       is_showing_nudge_ = true;
       future_.SetValue();
@@ -148,7 +138,7 @@ class ContextualCueingHelperBrowserTest
          {page_content_annotations::features::kAnnotatedPageContentExtraction,
           {}},
          {contextual_tasks::kContextualTasks, {}}},
-        {contextual_cueing::kContextualCueingV2});
+        {contextual_cueing::kContextualCueingV2, glic::kUseAnchoredMessage});
   }
 };
 
@@ -867,5 +857,5 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingBypassNudgeCapsTest,
   // kAutoOpenGlicForPdf + auto_open_eligible should open the panel.
   auto* glic_service = glic::GlicKeyedService::Get(browser()->profile());
   ASSERT_TRUE(glic_service);
-  EXPECT_TRUE(glic_service->IsWindowShowing());
+  EXPECT_TRUE(glic_service->instance_coordinator().IsAnyPanelShowing());
 }

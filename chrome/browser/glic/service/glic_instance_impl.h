@@ -71,7 +71,8 @@ class GlicInstanceImpl : public GlicInstance,
                          public Host::Observer,
                          public GlicSharingManagerProvider,
                          public GlicUiEmbedder::Delegate,
-                         public actor::ActorTaskDelegate {
+                         public actor::ActorTaskDelegate,
+                         public GlicActorTaskManager::Delegate {
  public:
   class InstanceCoordinatorDelegate {
    public:
@@ -133,7 +134,10 @@ class GlicInstanceImpl : public GlicInstance,
   void Hibernate();
   void Shutdown();
   void CloseInstanceAndShutdown();
-  void BindTabWithoutShowing(tabs::TabInterface* tab, bool pin_on_bind);
+  void BindTabWithoutShowing(tabs::TabInterface* tab,
+                             GlicPinTrigger pin_trigger,
+                             bool pin_on_bind);
+  void SuppressShowOnNextTabAddedToTask(bool suppress);
   // Initializes the instance for a hidden client. No-op if the instance already
   // has webui contents.
   void MaybeInitializeHiddenClient(mojom::InvocationSource invocation_source,
@@ -159,8 +163,11 @@ class GlicInstanceImpl : public GlicInstance,
   // Called when a new tab is created from a source tab that is bound to this
   // instance. This attempts to daisy chain the new tab to the same instance.
   void MaybeDaisyChainToTab(tabs::TabInterface* source_tab,
-                            tabs::TabInterface* target_tab);
+                            tabs::TabInterface* target_tab,
+                            DaisyChainSource source);
 
+  // Closes the embedder identified by `key`.
+  // NOTE: This method may result in the deletion of `this`.
   void Close(EmbedderKey key, const CloseOptions& options = {});
   // Returns true when toggle shows the instance and false when it is closed.
   bool Toggle(ShowOptions&& options,
@@ -168,6 +175,7 @@ class GlicInstanceImpl : public GlicInstance,
               glic::mojom::InvocationSource source,
               std::optional<std::string> prompt_suggestion);
 
+  // NOTE: This method may result in the deletion of `this`.
   void UnbindEmbedder(EmbedderKey key);
   GlicUiEmbedder* GetEmbedderForTab(tabs::TabInterface* tab);
   bool ContextAccessIndicatorEnabled();
@@ -181,6 +189,7 @@ class GlicInstanceImpl : public GlicInstance,
   const InstanceId& id() const override;
   void SetIdForRestoration(InstanceId id);
   std::optional<std::string> conversation_id() const override;
+  base::WeakPtr<actor::ActorTaskDelegate> GetActorTaskDelegate() override;
   std::string conversation_title() const override;
   base::CallbackListSubscription RegisterStateChange(
       StateChangeCallback callback) override;
@@ -200,35 +209,7 @@ class GlicInstanceImpl : public GlicInstance,
       bool open_in_background,
       const std::optional<int32_t>& window_id,
       glic::mojom::WebClientHandler::CreateTabCallback callback) override;
-  void CreateTask(
-      base::WeakPtr<actor::ActorTaskDelegate> delegate,
-      actor::webui::mojom::TaskOptionsPtr options,
-      mojom::WebClientHandler::CreateTaskCallback callback) override;
-  void PerformActions(
-      const std::vector<uint8_t>& actions_proto,
-      mojom::WebClientHandler::PerformActionsCallback callback) override;
-  void CancelActions(
-      actor::TaskId task_id,
-      mojom::WebClientHandler::CancelActionsCallback callback) override;
-  void StopActorTask(actor::TaskId task_id,
-                     mojom::ActorTaskStopReason stop_reason) override;
-  void PauseActorTask(actor::TaskId task_id,
-                      mojom::ActorTaskPauseReason pause_reason,
-                      tabs::TabInterface::Handle tab_handle) override;
-  void ResumeActorTask(
-      actor::TaskId task_id,
-      const mojom::GetTabContextOptions& context_options,
-      glic::mojom::WebClientHandler::ResumeActorTaskCallback callback) override;
-  void InterruptActorTask(
-      actor::TaskId task_id,
-      std::optional<mojom::ActorTaskInterruptReason> interrupt_reason) override;
-  void UninterruptActorTask(actor::TaskId task_id) override;
-  void CreateActorTab(
-      actor::TaskId task_id,
-      bool open_in_background,
-      const std::optional<int32_t>& initiator_tab_id,
-      const std::optional<int32_t>& initiator_window_id,
-      glic::mojom::WebClientHandler::CreateActorTabCallback callback) override;
+  GlicActorClientSession* BindActorClientSession() override;
   void FetchZeroStateSuggestions(
       bool is_first_run,
       std::optional<std::vector<std::string>> supported_tools,
@@ -260,7 +241,9 @@ class GlicInstanceImpl : public GlicInstance,
       const ShowOptions& options,
       glic::mojom::ConversationInfoPtr info,
       mojom::WebClientHandler::SwitchConversationCallback callback) override;
-  void WillCloseFor(EmbedderKey key) override;
+  // Notifies that the embedder has closed. Guaranteed to be called for all
+  // close sources.
+  void DidCloseFor(EmbedderKey key, EmbedderCloseReason reason) override;
   void NotifyPanelStateChanged() override;
   // Opens the floating UI for this instance
   void Detach(tabs::TabInterface& tab) override;
@@ -373,6 +356,7 @@ class GlicInstanceImpl : public GlicInstance,
   void MaybeWarmZeroStateSuggestions();
 
   bool IsActiveEmbedder(EmbedderKey key) const;
+  bool ShouldShowInactiveSidePanel(const SidePanelShowOptions& options) const;
 
   bool ShouldPinOnBind() const;
 
@@ -388,7 +372,6 @@ class GlicInstanceImpl : public GlicInstance,
       mojom::InvocationSource invocation_source,
       std::optional<std::string> prompt_suggestion,
       mojom::FreOverride fre_override = mojom::FreOverride::kUnspecified);
-
 
   void MaybeShowShortcutSnoozePromo();
 
@@ -457,6 +440,9 @@ class GlicInstanceImpl : public GlicInstance,
   // True during the synchronous execution of `CreateTab()`, which is called
   // when the user clicks a link inside the Glic panel.
   bool is_creating_tab_from_glic_panel_link_click_ = false;
+
+  // True if we should suppress showing the panel when a tab is added to a task.
+  bool suppress_show_on_tab_added_to_task_ = false;
 
   base::WeakPtrFactory<GlicInstanceImpl> weak_ptr_factory_{this};
 };

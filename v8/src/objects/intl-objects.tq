@@ -128,7 +128,7 @@ transitioning builtin StringFastLocaleCompare(
   try {
     const leftStr = Cast<String>(left) otherwise Bailout;
     const rightStr = Cast<String>(right) otherwise Bailout;
-    if (TaggedEqual(leftStr, rightStr)) return SmiConstant(0);
+    if (TaggedEqual(leftStr, rightStr)) goto Done(SmiConstant(0));
 
     // TODO(mrcvtl): Investigate why StringToSlice slows down SeqOneByteString
     // comparisons.
@@ -142,8 +142,9 @@ transitioning builtin StringFastLocaleCompare(
                 Subslice(&lSeq.chars, 0, leftLength) otherwise unreachable;
             const rightSlice =
                 Subslice(&rSeq.chars, 0, rightLength) otherwise unreachable;
-            return LocaleCompareFastPath(leftSlice, rightSlice)
+            const result = LocaleCompareFastPath(leftSlice, rightSlice)
                 otherwise Bailout;
+            goto Done(result);
           }
           case (String): {
           }
@@ -159,20 +160,37 @@ transitioning builtin StringFastLocaleCompare(
       const rightStr = Cast<String>(right) otherwise Bailout;
       StringToSlice(rightStr) otherwise RightOneByte, RightTwoByte;
     } label RightOneByte(rightSlice: ConstSlice<char8>) {
-      return LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+      const result =
+          LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+      goto Done(result);
     } label RightTwoByte(rightSlice: ConstSlice<char16>) {
-      return LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+      const result =
+          LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+      goto Done(result);
     }
   } label LeftTwoByte(leftSlice: ConstSlice<char16>) {
     try {
       const rightStr = Cast<String>(right) otherwise Bailout;
       StringToSlice(rightStr) otherwise RightOneByte, RightTwoByte;
     } label RightOneByte(rightSlice: ConstSlice<char8>) {
-      return LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+      const result =
+          LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+      goto Done(result);
     } label RightTwoByte(rightSlice: ConstSlice<char16>) {
-      return LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+      const result =
+          LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+      goto Done(result);
     }
   } label Bailout deferred {
-    return Call(context, localeCompareFn, left, right, locales);
+    const result = Call(context, localeCompareFn, left, right, locales);
+    goto Done(result);
+  } label Done(result: JSAny) {
+    // The Turboshaft StringLocaleCompareIntlOp narrows the result to
+    // V<Smi> from {-1, 0, 1}; keep the invariant explicit.
+    dcheck(TaggedIsSmi(result));
+    dcheck(
+        UnsafeCast<Smi>(result) == -1 || UnsafeCast<Smi>(result) == 0 ||
+        UnsafeCast<Smi>(result) == 1);
+    return result;
   }
 }

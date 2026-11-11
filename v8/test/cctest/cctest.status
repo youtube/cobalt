@@ -609,7 +609,12 @@
 
   # --experimental-wasm-fp16
   'test-run-wasm-f16/*': [SKIP],
- }],  # has_wasm_interpreter
+  'test-run-wasm/RunWasmInterpreter_Float32*': [SKIP],
+
+  # --experimental-wasm-wide-arithmetic
+  'test-run-wasm-64/RunWasmInterpreter_I64MulWideS': [SKIP],
+  'test-run-wasm-64/RunWasmInterpreter_I64MulWideU': [SKIP],
+}],  # has_wasm_interpreter
 
 ##############################################################################
 ['lite_mode or variant == jitless', {

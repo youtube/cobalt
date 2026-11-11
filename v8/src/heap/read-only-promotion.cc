@@ -222,7 +222,7 @@ class Committee final {
   static PromoRecommendation GetPromoRecommendation(Committee* committee,
                                                     Isolate* isolate,
                                                     Tagged<HeapObject> o) {
-    const InstanceType itype = o->map(isolate)->instance_type();
+    const InstanceType itype = o->map()->instance_type();
 #define V(TYPE)                                                \
   if (InstanceTypeChecker::Is##TYPE(itype)) {                  \
     return GetPromoRecommendation##TYPE(committee, isolate,    \
@@ -357,7 +357,8 @@ class Committee final {
       DCHECK(host->is_builtin());
     }
     void VisitMapPointer(Tagged<HeapObject> host) final {
-      MaybeObjectSlot slot = host->RawMaybeWeakField(HeapObject::kMapOffset);
+      MaybeObjectSlot slot =
+          host->RawMaybeWeakField(offsetof(HeapObject, map_));
       VisitPointers(host, slot, slot + 1);
     }
 
@@ -426,7 +427,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       HeapObjectMap* moves) {
     ReadOnlySpace* rospace = isolate->heap()->read_only_space();
     for (Tagged<HeapObject> src : promotees) {
-      const int size = src->Size(isolate);
+      const int size = src->Size();
       Tagged<HeapObject> dst =
           rospace->AllocateRaw(size, kTaggedAligned).ToObjectChecked();
       Heap::CopyBlock(dst.address(), src.address(), size);
@@ -500,7 +501,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     // verifier would fail on this now-dead object.
     for (auto [src, dst] : moves) {
       CHECK(!HeapLayout::InReadOnlySpace(src));
-      isolate->heap()->CreateFillerObjectAt(src.address(), src->Size(isolate));
+      isolate->heap()->CreateFillerObjectAt(src.address(), src->Size());
     }
   }
 
@@ -568,7 +569,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       // InstructionStream objects never move to RO space.
     }
     void VisitMapPointer(Tagged<HeapObject> host) final {
-      ProcessSlot(host, host->RawMaybeWeakField(HeapObject::kMapOffset));
+      ProcessSlot(host, host->RawMaybeWeakField(offsetof(HeapObject, map_)));
     }
     void VisitExternalPointer(Tagged<HeapObject> host,
                               ExternalPointerSlot slot) final {
@@ -692,7 +693,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       CHECK(HeapLayout::InReadOnlySpace(code));
 
       IndirectPointerSlot slot = code->RawIndirectPointerField(
-          Code::kSelfIndirectPointerOffset, kCodeIndirectPointerTag);
+          offsetof(ExposedTrustedObject, self_indirect_pointer_),
+          kCodeIndirectPointerTag);
       CodeEntrypointTag entrypoint_tag = code->entrypoint_tag();
 
       IndirectPointerHandle old_handle = slot.Relaxed_LoadHandle();

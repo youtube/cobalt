@@ -21,7 +21,7 @@ class TurboshaftFloatSpecialValues {
   DEFINE_TORQUE_GENERATED_TURBOSHAFT_FLOAT_SPECIAL_VALUES()
 };
 
-V8_OBJECT class TurboshaftType : public HeapObjectLayout {
+V8_OBJECT class TurboshaftType : public HeapObject {
 } V8_OBJECT_END;
 
 V8_OBJECT class TurboshaftWord32Type : public TurboshaftType {

@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "base/files/file_util.h"
 #include "base/format_macros.h"
@@ -37,6 +38,7 @@
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "url/origin.h"
+#include "url/url_constants.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "components/download/internal/common/android/download_collection_bridge.h"
@@ -63,6 +65,9 @@ const int kDefaultOverwrittenDownloadExpiredTimeInDays = 90;
 
 // Default buffer size in bytes to write to the download file.
 const int kDefaultDownloadFileBufferSize = 524288;
+
+// Maximum size of a data URL. URLs larger than this will be truncated.
+const size_t kMaxDataURLSize = 1024u;
 
 #if BUILDFLAG(IS_ANDROID)
 // Default maximum length of a downloaded file name on Android.
@@ -174,6 +179,18 @@ void OnInterMediateUriCreated(LocalPathCallback callback,
 }  // namespace
 
 const uint32_t DownloadItem::kInvalidId = 0;
+
+void TruncateDataUrlAtTheEndIfNeeded(std::vector<GURL>* url_chain) {
+  for (GURL& url : *url_chain) {
+    if (url.SchemeIs(url::kDataScheme)) {
+      const std::string& data_url = url.spec();
+      if (data_url.size() > kMaxDataURLSize) {
+        GURL truncated_url(data_url.substr(0, kMaxDataURLSize));
+        url.Swap(&truncated_url);
+      }
+    }
+  }
+}
 
 DownloadInterruptReason HandleRequestCompletionStatus(
     net::Error error_code,
@@ -564,6 +581,8 @@ DownloadDBEntry CreateDownloadDBEntryFromItem(const DownloadItemImpl& item) {
   auto range_request_offset = item.GetRangeRequestOffset();
   in_progress_info.range_request_from = range_request_offset.first;
   in_progress_info.range_request_to = range_request_offset.second;
+  in_progress_info.fetched_via_service_worker =
+      item.fetched_via_service_worker();
 
   download_info.in_progress_info = std::move(in_progress_info);
 
@@ -584,10 +603,13 @@ std::unique_ptr<DownloadEntry> CreateDownloadEntryFromDownloadDBEntry(
   if (!ukm_info || !in_progress_info)
     return nullptr;
 
-  return std::make_unique<DownloadEntry>(
+  auto download_entry = std::make_unique<DownloadEntry>(
       entry->download_info->guid, std::string(), ukm_info->download_source,
       in_progress_info->fetch_error_body, in_progress_info->request_headers,
       ukm_info->ukm_download_id);
+  download_entry->fetched_via_service_worker =
+      in_progress_info->fetched_via_service_worker;
+  return download_entry;
 }
 
 uint64_t GetUniqueDownloadId() {

@@ -182,8 +182,9 @@ void JSTypedArray::MarkDetached(DirectHandle<JSTypedArray> typed_array,
   DirectHandle<Map> new_map = update.ChangeInstanceType(
       MapUpdater::InstanceTypeChange::kTypedArrayDetaching);
   JSObject::MigrateToMap(isolate, typed_array, new_map);
-  typed_array->WriteBoundedSizeField(kRawLengthOffset, 0);
-  typed_array->WriteBoundedSizeField(kRawByteLengthOffset, 0);
+  typed_array->WriteBoundedSizeField(offsetof(JSTypedArray, raw_length_), 0);
+  typed_array->WriteBoundedSizeField(
+      offsetof(JSArrayBufferView, raw_byte_length_), 0);
   // TODO(olivf, 467645277): Set the buffer to a canonical detached ab value.
 }
 
@@ -340,7 +341,7 @@ std::shared_ptr<BackingStore> JSArrayBuffer::RemoveExtension() {
 }
 
 Handle<JSArrayBuffer> JSTypedArray::GetBuffer(Isolate* isolate) {
-  DirectHandle<JSTypedArray> self(*this, isolate);
+  DirectHandle<JSTypedArray> self(this, isolate);
   DCHECK(IsTypedArrayOrRabGsabTypedArrayElementsKind(self->GetElementsKind()));
   Handle<JSArrayBuffer> array_buffer(Cast<JSArrayBuffer>(self->buffer()),
                                      isolate);

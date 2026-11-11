@@ -105,12 +105,14 @@ const HeapObjectHeader* BasePage::TryObjectHeaderFromInnerAddress(
     const void* address) const {
   if (is_large()) {
     if (!LargePage::From(this)->PayloadContains(
-            static_cast<ConstAddress>(address)))
+            static_cast<ConstAddress>(address))) {
       return nullptr;
+    }
   } else {
     const NormalPage* normal_page = NormalPage::From(this);
-    if (!normal_page->PayloadContains(static_cast<ConstAddress>(address)))
+    if (!normal_page->PayloadContains(static_cast<ConstAddress>(address))) {
       return nullptr;
+    }
     // Check that the space has no linear allocation buffer.
     DCHECK(!NormalPageSpace::From(normal_page->space())
                 .linear_allocation_buffer()

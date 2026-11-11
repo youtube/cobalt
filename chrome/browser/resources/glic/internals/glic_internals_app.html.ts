@@ -4,6 +4,8 @@
 
 import {html} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
+import {InvocationSource} from '../glic.mojom-webui.js';
+
 import type {GlicInternalsAppElement} from './glic_internals_app.js';
 
 export function getHtml(this: GlicInternalsAppElement) {
@@ -78,34 +80,6 @@ export function getHtml(this: GlicInternalsAppElement) {
         </tr>
       </table>` :
       html`<h3 id="loadingMsg">Loading...</h3>`}
-    <h2>Guest URL Presets</h2>
-    ${this.data_?.config ? html`
-      <div class="presets-container">
-        <label for="autopushInput">Autopush</label>
-        <input
-            id="autopushInput" .value="${this.data_.config.autopushGuestUrl}"
-            @change="${this.onAutopushInputChange}">
-        </input>
-        <label for="stagingInput">Staging</label>
-        <input
-            id="stagingInput" .value="${this.data_.config.stagingGuestUrl}"
-            @change="${this.onStagingInputChange}">
-        </input>
-        <label for="preprodInput">Preprod</label>
-        <input
-            id="preprodInput" .value="${this.data_.config.preprodGuestUrl}"
-            @change="${this.onPreprodInputChange}">
-        </input>
-        <label for="prodInput">Prod</label>
-        <input id="prodInput" .value="${this.data_.config.prodGuestUrl}"
-            @change="${this.onProdInputChange}">
-        </input>
-        <div id="inputErrorMsg" class="hiddenElement">
-            Invalid URL submitted: presets not updated
-        </div>
-        <cr-button @click="${this.onSavePresetsClick_}">Save</cr-button>
-      </div>` :
-      html`<h3 id="loadingMsg">Loading...</h3>`}
       </div>
 
       <!-- ================= DEBUG CONTROLS TAB ================= -->
@@ -139,6 +113,15 @@ export function getHtml(this: GlicInternalsAppElement) {
               Wait for Panel Open
             </label>
           </div>
+          ${this.invokeAutoSubmit_ ? html`
+            <div style="display: flex; gap: 16px; align-items: center;">
+              <label>
+                <input type="checkbox" .checked="${this.invokeShowPanel_}"
+                    @change="${this.onInvokeShowPanelChange_}">
+                Show Panel
+              </label>
+            </div>
+          ` : html``}
           <label for="invokeInvocationSourceSelect">Invocation Source</label>
           <select id="invokeInvocationSourceSelect"
               .value="${this.invokeInvocationSource_.toString()}"
@@ -147,6 +130,24 @@ export function getHtml(this: GlicInternalsAppElement) {
               <option value="${option.value}">${option.name}</option>
             `)}
           </select>
+          ${this.invokeInvocationSource_ ===
+              InvocationSource.kUniversalCart
+              ? html`
+            <div class="payload-container" style="
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                margin-top: 8px;">
+              <h4>Universal Cart Payload</h4>
+              <label for="payloadUniversalCartMetadataInput">
+                Serialized Metadata
+              </label>
+              <input id="payloadUniversalCartMetadataInput"
+                  .value="${this.invokePayloadUniversalCartMetadata_}"
+                  @input="${this.onPayloadUniversalCartMetadataInput_}">
+              </input>
+            </div>
+          ` : html``}
           <label for="invokeFreOverrideSelect">FRE Override</label>
           <select id="invokeFreOverrideSelect"
               .value="${this.invokeFreOverride_.toString()}"
@@ -164,6 +165,16 @@ export function getHtml(this: GlicInternalsAppElement) {
               <option value="${item.value}">${item.name}</option>
             `)}
           </select>
+          ${this.invokeFeatureMode_ === 2 ? html`
+            <label for="invokeActuationTargetSelect">Actuation Target</label>
+            <select id="invokeActuationTargetSelect"
+                .value="${this.invokeActuationTarget_.toString()}"
+                @change="${this.onInvokeActuationTargetChange_}">
+              ${this.actuationTargetEnumValues_.map(item => html`
+                <option value="${item.value}">${item.name}</option>
+              `)}
+            </select>
+          ` : html``}
 
           <div style="display: flex; gap: 16px; align-items: center;">
             <label>
@@ -214,11 +225,45 @@ export function getHtml(this: GlicInternalsAppElement) {
             ${this.invokeLogs_.map(
               log => html`<pre style="margin: 0;">${log}</pre>`)}
           </div>
+          ${this.data_?.experimentalTriggeringEnabled ? html`
+            <h3>Experimental Opt-In</h3>
+            <div style="display: flex; gap: 16px; align-items: center;">
+              <cr-button @click="${this.onExperimentalOptInClick_}">
+                Show Experimental Opt-In
+              </cr-button>
+            </div>
+          ` : html``}
         </div>
-      </div>
-
-      <h2>Web Continuity URL Preset</h2>
-      ${this.data_?.config ? html`
+        <h2>Guest URL Presets</h2>
+        ${this.data_?.config ? html`
+          <div class="presets-container">
+            <label for="autopushInput">Autopush</label>
+            <input id="autopushInput"
+                .value="${this.data_.config.autopushGuestUrl}"
+                @change="${this.onAutopushInputChange}">
+            </input>
+            <label for="stagingInput">Staging</label>
+            <input
+                id="stagingInput" .value="${this.data_.config.stagingGuestUrl}"
+                @change="${this.onStagingInputChange}">
+            </input>
+            <label for="preprodInput">Preprod</label>
+            <input
+                id="preprodInput" .value="${this.data_.config.preprodGuestUrl}"
+                @change="${this.onPreprodInputChange}">
+            </input>
+            <label for="prodInput">Prod</label>
+            <input id="prodInput" .value="${this.data_.config.prodGuestUrl}"
+                @change="${this.onProdInputChange}">
+            </input>
+            <div id="inputErrorMsg" class="hiddenElement">
+                Invalid URL submitted: presets not updated
+            </div>
+            <cr-button @click="${this.onSavePresetsClick_}">Save</cr-button>
+          </div>` :
+          html`<h3 id="loadingMsg">Loading...</h3>`}
+        <h2>Web Continuity URL Preset</h2>
+        ${this.data_?.config ? html`
           <div class="web-continuity-container">
             <label for="webContinuityInput">Web Continuity</label>
             <input id="webContinuityInput"

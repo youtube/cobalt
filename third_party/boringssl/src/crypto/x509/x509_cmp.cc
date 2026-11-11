@@ -17,8 +17,8 @@
 #include <openssl/asn1.h>
 #include <openssl/digest.h>
 #include <openssl/err.h>
-#include <openssl/mem.h>
 #include <openssl/md5.h>
+#include <openssl/mem.h>
 #include <openssl/obj.h>
 #include <openssl/sha.h>
 #include <openssl/stack.h>
@@ -241,12 +241,5 @@ int X509_check_private_key(const X509 *x, const EVP_PKEY *k) {
 // count but it has the same effect by duping the STACK and upping the ref of
 // each X509 structure.
 STACK_OF(X509) *X509_chain_up_ref(STACK_OF(X509) *chain) {
-  STACK_OF(X509) *ret = sk_X509_dup(chain);
-  if (ret == nullptr) {
-    return nullptr;
-  }
-  for (size_t i = 0; i < sk_X509_num(ret); i++) {
-    X509_up_ref(sk_X509_value(ret, i));
-  }
-  return ret;
+  return sk_X509_deep_copy(chain, X509_dup_ref, X509_free);
 }

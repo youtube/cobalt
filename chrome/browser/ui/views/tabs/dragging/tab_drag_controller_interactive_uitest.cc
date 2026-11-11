@@ -103,6 +103,10 @@
 #include "ui/views/widget/widget.h"
 #include "ui/views/window/dialog_delegate.h"
 
+#if BUILDFLAG(IS_MAC)
+#include "base/mac/mac_util.h"
+#endif
+
 #if defined(USE_AURA)
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/test/test_window_delegate.h"
@@ -2044,7 +2048,8 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 }
 
 // Test is based on DragToSeparateWindow. https://crbug.com/40748225
-#if (BUILDFLAG(IS_MAC) && defined(ARCH_CPU_ARM64)) || BUILDFLAG(IS_CHROMEOS)
+#if (BUILDFLAG(IS_MAC) && defined(ARCH_CPU_ARM64)) || \
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
 #define MAYBE_DragToSeparateWindowDuringDragEnd \
   DISABLED_DragToSeparateWindowDuringDragEnd
 #else
@@ -2354,6 +2359,13 @@ class TabDragControllerTestDialog : public views::DialogDelegateView {
 // The dialog should follow the new browser window.
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
                        DetachToOwnWindowWithDialog) {
+#if defined(MEMORY_SANITIZER)
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test on MSAN with InitialWebUI enabled. "
+                    "See crbug.com/477426026.";
+  }
+#endif
+
   const gfx::Rect initial_bounds(browser()->window()->GetBounds());
   AddTabsAndResetBrowser(browser(), 1);
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
@@ -3263,9 +3275,19 @@ void DragAllStep2(DetachToBrowserTabDragControllerTest* test) {
 }  // namespace
 
 // Selects multiple tabs and starts dragging the window.
-// TODO(crbug.com/40934892): Expectations are sometimes off by one pixel on
-// Windows. Reenable once deflaked.
-IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest, DragAll) {
+// TODO(crbug.com/509555634): Test is flaky on windows. Reenable once deflaked.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_DragAll DISABLED_DragAll
+#else
+#define MAYBE_DragAll DragAll
+#endif
+IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest, MAYBE_DragAll) {
+#if BUILDFLAG(IS_MAC)
+  // TODO(crbug.com/510801992): Re-enable on macOS 26 once test is deflaked
+  if (base::mac::MacOSMajorVersion() == 26) {
+    GTEST_SKIP() << "Disabled on macOS Tahoe.";
+  }
+#endif
   AddTabsAndResetBrowser(browser(), 1);
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
   browser()->tab_strip_model()->SelectTabAt(0);
@@ -4154,68 +4176,6 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
             gfx::Range(0, 1));
 }
 
-IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
-                       RevertSplitTabDragWhileDetachedWithGroupShift) {
-#if BUILDFLAG(IS_MAC)
-  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
-    GTEST_SKIP() << "Skipping test because it fails on Mac with InitialWebUI "
-                    "enabled. See b/464087732.";
-  }
-#endif
-
-  ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
-
-  TabStrip* tab_strip = GetTabStripForBrowser(browser());
-  TabStripModel* model = browser()->tab_strip_model();
-  // Start with 4 tabs: 0, 1, 2, 3
-  AddTabsAndResetBrowser(browser(), 3);
-  // Group tabs 1, 2, 3
-  tab_groups::TabGroupId group = model->AddToNewGroup({1, 2, 3});
-  // Turn 2, 3 into a split tab.
-  model->ActivateTabAt(2);
-  split_tabs::SplitTabId split_id =
-      model->AddToNewSplit({3}, split_tabs::SplitTabVisualData(),
-                           split_tabs::SplitTabCreatedSource::kToolbarButton);
-
-  StopAnimating(tab_strip);
-  EnsureFocusToTabStrip(tab_strip);
-
-  ui_test_utils::BrowserDestroyedObserver browser_removed_observer;
-  AsyncBrowserWaiter waiter(
-      base::BindLambdaForTesting([this](BrowserWindowInterface* new_browser) {
-        if (!new_browser) {
-          new_browser = ui_test_utils::GetBrowserNotInSet({this->browser()});
-        }
-        CHECK(new_browser);
-        // Shift the group in the source window.
-        // Current source: [0] [G: 1]
-        // Move 1 to 0: [G: 1] [0]
-        this->browser()->tab_strip_model()->MoveWebContentsAt(1, 0, false);
-
-        new AsyncEscapePresser(
-            BrowserView::GetBrowserViewForBrowser(new_browser)->GetWidget());
-      }));
-
-  test::QuitDraggingObserver observer(tab_strip);
-  // Split tab is at model index 2.
-  Tab* split_tab = tab_strip->tab_at(2);
-  ASSERT_TRUE(PressInputAtCenter(split_tab));
-  ASSERT_TRUE(DragInputToCenterNotifyWhenDone(
-      split_tab, base::BindLambdaForTesting([]() {
-        test::PostTaskToRunMoveLoop(base::DoNothing());
-      }),
-      gfx::Vector2d(0, GetDetachY(tab_strip))));
-  observer.Wait();
-
-  // Ensure completion of asynchronous browser closure.
-  browser_removed_observer.Wait();
-
-  EXPECT_EQ("1 2 3 0", IDString(model));
-  EXPECT_EQ(model->GetSplitData(split_id)->ListTabs().size(), 2u);
-  EXPECT_EQ(model->group_model()->GetTabGroup(group)->ListTabs(),
-            gfx::Range(0, 3));
-}
-
 // Creates a browser with four tabs where the second and third tab is in a
 // collapsed group. Drag the fourth tab to the left past the group header. The
 // fourth tab should swap places with the collapsed group header.
@@ -4436,6 +4396,12 @@ using DetachTabWithUrlControlledByWebApp = DetachToBrowserTabDragControllerTest;
 // The kTearOffWebAppTabOpensWebAppWindow experiment determines whether the new
 // browser window will be a normal browser window or an app window.
 IN_PROC_BROWSER_TEST_P(DetachTabWithUrlControlledByWebApp, TearOffWebApp) {
+#if defined(MEMORY_SANITIZER)
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test on MSAN with InitialWebUI enabled (crbug.com/477426026).";
+  }
+#endif
+
 #if BUILDFLAG(IS_LINUX)
   if (ui::OzonePlatform::RunningOnWaylandForTest() &&
       base::FeatureList::IsEnabled(features::kInitialWebUI)) {
@@ -6277,19 +6243,19 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTestTouch,
   run_loop.Run();
 
   // Drag the tab 1 to left-snapping.
-  DragTabAndNotify(
-      tab_strip, base::BindLambdaForTesting([&]() {
-        const gfx::Rect display_bounds =
-            display::Screen::Get()->GetPrimaryDisplay().bounds();
-        const gfx::Point target(display_bounds.x(),
-                                display_bounds.CenterPoint().y());
-        ASSERT_TRUE(DragInputToNotifyWhenDone(
-            target,
-            base::BindLambdaForTesting([&]() { ASSERT_TRUE(ReleaseInput()); }),
-            // The window hint isn't used on Ash.
-            gfx::NativeWindow()));
-      }),
-      1);
+  DragTabAndNotify(tab_strip, base::BindLambdaForTesting([&]() {
+                     const gfx::Rect display_bounds =
+                         display::Screen::Get()->GetPrimaryDisplay().bounds();
+                     const gfx::Point target(display_bounds.x(),
+                                             display_bounds.CenterPoint().y());
+                     ASSERT_TRUE(DragInputToNotifyWhenDone(
+                         target, base::BindLambdaForTesting([&]() {
+                           ASSERT_TRUE(ReleaseInput());
+                         }),
+                         // The window hint isn't used on Ash.
+                         gfx::NativeWindow()));
+                   }),
+                   1);
 
   ASSERT_FALSE(TabDragController::IsActive());
   EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());

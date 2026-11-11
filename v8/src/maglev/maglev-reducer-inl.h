@@ -15,6 +15,7 @@
 #include "src/base/division-by-constant.h"
 #include "src/base/ieee754.h"
 #include "src/common/scoped-modification.h"
+#include "src/compiler/processed-feedback.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-map-inference.h"
 #include "src/numbers/conversions.h"
@@ -343,9 +344,6 @@ void MaglevReducer<BaseT>::SetNodeInputsNoConversion(NodeT* node,
 template <typename BaseT>
 template <typename NodeT>
 NodeT* MaglevReducer<BaseT>::AttachExtraInfoAndAddToGraph(NodeT* node) {
-  static_assert(NodeT::kProperties.has_eager_deopt_info() +
-                    NodeT::kProperties.can_lazy_deopt() <=
-                1);
   AttachDeoptCheckpoint(node);
   AttachEagerDeoptInfo(node);
   AttachLazyDeoptInfo(node);
@@ -691,8 +689,8 @@ template <typename BaseT>
 std::optional<int32_t> MaglevReducer<BaseT>::TryGetInt32Constant(
     ValueNode* value) {
   switch (value->opcode()) {
-    case Opcode::kConstant: {
-      compiler::ObjectRef object = value->Cast<Constant>()->object();
+    case Opcode::kHeapConstant: {
+      compiler::ObjectRef object = value->Cast<HeapConstant>()->object();
       if (object.IsHeapNumber() &&
           IsInt32Double(object.AsHeapNumber().value())) {
         return static_cast<int32_t>(object.AsHeapNumber().value());
@@ -790,8 +788,8 @@ ReduceResult MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
 
   // Process constants first to avoid allocating NodeInfo for them.
   switch (value->opcode()) {
-    case Opcode::kConstant: {
-      compiler::ObjectRef object = value->Cast<Constant>()->object();
+    case Opcode::kHeapConstant: {
+      compiler::ObjectRef object = value->Cast<HeapConstant>()->object();
       if (!object.IsHeapNumber()) break;
       int32_t truncated_value = DoubleToInt32(object.AsHeapNumber().value());
       return GetInt32Constant(truncated_value);
@@ -801,7 +799,7 @@ ReduceResult MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
     case Opcode::kRootConstant: {
       Tagged<Object> root_object =
           local_isolate()->root(value->Cast<RootConstant>()->index());
-      if (!IsOddball(root_object, local_isolate())) break;
+      if (!IsOddball(root_object)) break;
       int32_t truncated_value =
           DoubleToInt32(Cast<Oddball>(root_object)->to_number_raw());
       // All oddball ToNumber truncations are valid Smis.
@@ -1138,8 +1136,8 @@ MaglevReducer<BaseT>::TryGetFloat64OrHoleyFloat64Constant(
   DCHECK(use_repr == UseRepresentation::kFloat64 ||
          use_repr == UseRepresentation::kHoleyFloat64);
   switch (value->opcode()) {
-    case Opcode::kConstant: {
-      compiler::ObjectRef object = value->Cast<Constant>()->object();
+    case Opcode::kHeapConstant: {
+      compiler::ObjectRef object = value->Cast<HeapConstant>()->object();
       if (object.IsHeapNumber()) {
         double cst = object.AsHeapNumber().value();
         if (std::isnan(cst)) {
@@ -1276,6 +1274,50 @@ void MaglevReducer<BaseT>::FlushNodesToBlock() {
     new_nodes_at_.clear();
   }
 }
+
+#define TRACE_CANNOT_INLINE(...) \
+  TRACE_INLINING(TraceSkip(shared) << __VA_ARGS__)
+
+template <typename BaseT>
+bool MaglevReducer<BaseT>::CanInlineCall(
+    const MaglevCompilationUnit* current_unit,
+    compiler::SharedFunctionInfoRef shared, float call_frequency) {
+  auto tracer_ = tracer();
+  if (static_cast<int>(graph()->inlined_functions().size()) >=
+      SourcePosition::MaxInliningId()) {
+    graph()->compilation_info()->set_could_not_inline_all_candidates();
+    TRACE_CANNOT_INLINE("maximum inlining ids");
+    return false;
+  }
+
+  if (current_unit && current_unit->shared_function_info().equals(shared)) {
+    TRACE_CANNOT_INLINE("direct recursion");
+    return false;
+  }
+  SharedFunctionInfo::Inlineability inlineability =
+      shared.GetInlineability(CodeKind::MAGLEV, broker());
+  if (inlineability != SharedFunctionInfo::Inlineability::kIsInlineable) {
+    TRACE_CANNOT_INLINE(inlineability);
+    return false;
+  }
+  compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
+  const CompilationFlags& flags = graph()->compilation_info()->flags();
+  if (call_frequency < flags.min_inlining_frequency) {
+    TRACE_CANNOT_INLINE("call frequency ("
+                        << call_frequency << ") < minimum threshold ("
+                        << flags.min_inlining_frequency << ")");
+    return false;
+  }
+  if (bytecode.length() > flags.max_inlined_bytecode_size) {
+    TRACE_CANNOT_INLINE("big function, size ("
+                        << bytecode.length() << ") >= max-size ("
+                        << flags.max_inlined_bytecode_size << ")");
+    return false;
+  }
+  return true;
+}
+#undef TRACE_CANNOT_INLINE
+
 template <typename BaseT>
 template <typename MapContainer>
 MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckConstantMaps(
@@ -1381,7 +1423,7 @@ template <typename BaseT>
 void MaglevReducer<BaseT>::SetKnownValue(ValueNode* node,
                                          compiler::ObjectRef ref,
                                          NodeType new_node_type) {
-  DCHECK(!node->Is<Constant>());
+  DCHECK(!node->Is<HeapConstant>());
   DCHECK(!node->Is<RootConstant>());
   NodeInfo* known_info = GetOrCreateInfoFor(node);
   // ref type should be compatible with type.
@@ -2801,6 +2843,104 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldLogicalNot(ValueNode* input) {
   }
 
   return {};
+}
+template <typename BaseT>
+bool MaglevReducer<BaseT>::IsTheHoleConstant(ValueNode* node) {
+  if (node != nullptr) {
+    if (compiler::OptionalHeapObjectRef maybe_constant =
+            TryGetConstant<HeapObject>(node)) {
+      return maybe_constant->IsTheHole();
+    }
+  }
+  return false;
+}
+
+template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::GetConvertReceiver(
+    compiler::SharedFunctionInfoRef shared, ValueNode* receiver,
+    ConvertReceiverMode mode) {
+  DCHECK(!IsTheHoleConstant(receiver));
+  if (shared.native() || shared.language_mode() == LanguageMode::kStrict) {
+    if (mode == ConvertReceiverMode::kNullOrUndefined) {
+      return GetRootConstant(RootIndex::kUndefinedValue);
+    } else {
+      return receiver;
+    }
+  }
+  if (mode == ConvertReceiverMode::kNullOrUndefined) {
+    return GetConstant(
+        broker()->target_native_context().global_proxy_object(broker()));
+  }
+  if (CheckType(receiver, NodeType::kJSReceiver)) return receiver;
+  if (compiler::OptionalHeapObjectRef maybe_constant =
+          TryGetConstant<HeapObject>(receiver)) {
+    compiler::HeapObjectRef constant = maybe_constant.value();
+    if (constant.IsNullOrUndefined()) {
+      return GetConstant(
+          broker()->target_native_context().global_proxy_object(broker()));
+    }
+  }
+  return AddNewNode<ConvertReceiver>({receiver},
+                                     broker()->target_native_context(), mode);
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceMathSqrt(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() < 1) {
+    return GetRootConstant(RootIndex::kNanValue);
+  }
+  if (!CanSpeculateCall() && args[0]->is_tagged()) {
+    return {};
+  }
+  ValueNode* value;
+  GET_VALUE_OR_ABORT(
+      value, GetFloat64ForToNumber(args[0], NodeType::kNumberOrOddball));
+  return AddNewNode<Float64Sqrt>({value});
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryReduceBuiltin(
+    Builtin builtin_id, compiler::JSFunctionRef target, CallArguments& args,
+    const compiler::FeedbackSource& feedback_source) {
+  if (args.mode() != CallArguments::kDefault) {
+    // TODO(victorgomes): Maybe inline the spread stub? Or call known function
+    // directly if arguments list is an array.
+    return {};
+  }
+
+  const compiler::FeedbackSource saved_feedback = current_speculation_feedback_;
+  const SpeculationMode saved_mode = current_speculation_mode_;
+  SpeculationMode mode = SpeculationMode::kDisallowSpeculation;
+  if (feedback_source.IsValid()) {
+    compiler::ProcessedFeedback const& processed_feedback =
+        broker_->GetFeedbackForCall(feedback_source);
+    if (!processed_feedback.IsInsufficient()) {
+      mode = processed_feedback.AsCall().speculation_mode();
+    }
+  }
+  if (mode != SpeculationMode::kDisallowSpeculation) {
+    current_speculation_feedback_ = feedback_source;
+    current_speculation_mode_ = mode;
+  } else {
+    current_speculation_feedback_ = compiler::FeedbackSource();
+    current_speculation_mode_ = SpeculationMode::kDisallowSpeculation;
+  }
+
+  MaybeReduceResult result;
+  switch (builtin_id) {
+    case Builtin::kMathSqrt:
+      result = TryReduceMathSqrt(target, args);
+      break;
+    default:
+      // Not yet ported. The remaining builtins still go through the
+      // bytecode-builder dispatcher.
+      break;
+  }
+
+  current_speculation_feedback_ = saved_feedback;
+  current_speculation_mode_ = saved_mode;
+  return result;
 }
 
 }  // namespace maglev

@@ -96,6 +96,7 @@ namespace compiler {
   V(X64Add)                                          \
   V(X64Add128)                                       \
   V(X64Add32)                                        \
+  V(X64Sub128)                                       \
   V(X64And)                                          \
   V(X64And32)                                        \
   V(X64Cmp)                                          \

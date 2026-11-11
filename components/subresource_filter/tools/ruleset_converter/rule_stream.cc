@@ -4,6 +4,7 @@
 
 #include "components/subresource_filter/tools/ruleset_converter/rule_stream.h"
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
@@ -190,6 +191,17 @@ class ProtobufRuleOutputStream : public RuleOutputStream {
   }
 
   bool Finish() override {
+    // Move site-specific rules (rules that apply to specific domains) to the
+    // front. This ensures that rules that must have explicit selectors have
+    // them so that generic rules utilize them too. Otherwise we could have
+    // situations where global rules are implicit but site-specific exclusion
+    // rules are explicit, and they don't share a selector.
+    auto* style_rules = all_rules_.mutable_style_rules();
+    std::stable_partition(style_rules->begin(), style_rules->end(),
+                          [](const url_pattern_index::proto::StyleRule& rule) {
+                            return !rule.domains().empty();
+                          });
+
     std::string buffer;
     if (!all_rules_.SerializeToString(&buffer)) {
       return false;

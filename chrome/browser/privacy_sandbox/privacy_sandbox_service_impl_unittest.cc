@@ -531,23 +531,101 @@ class PrivacySandboxServiceTest : public testing::Test {
   raw_ptr<PrivacySandboxServiceImpl> privacy_sandbox_service_ = nullptr;
 };
 
-// Params correspond to (IsFeatureOn, IsConsentCountry, ExpectedResult).
+class PrivacySandboxServiceAdPrivacyUxDeprecationTest
+    : public PrivacySandboxServiceTest {
+ public:
+  void InitializeFeaturesBeforeStart() override {
+    feature_list_.InitAndEnableFeature(
+        privacy_sandbox::kPrivacySandboxAdPrivacyUxDeprecation);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+TEST_F(PrivacySandboxServiceAdPrivacyUxDeprecationTest, TopicsDataCleared) {
+  prefs()->SetBoolean(prefs::kPrivacySandboxM1TopicsEnabled, true);
+  EXPECT_CALL(*mock_browsing_topics_service(), ClearAllTopicsData()).Times(1);
+  CreateService();
+  EXPECT_FALSE(prefs()->GetBoolean(prefs::kPrivacySandboxM1TopicsEnabled));
+}
+
+TEST_F(PrivacySandboxServiceAdPrivacyUxDeprecationTest, FledgeDataCleared) {
+  prefs()->SetBoolean(prefs::kPrivacySandboxM1FledgeEnabled, true);
+  ASSERT_EQ(browsing_data_remover()->GetLastUsedRemovalMaskForTesting(),
+            uint64_t(-1));
+  CreateService();
+  EXPECT_FALSE(prefs()->GetBoolean(prefs::kPrivacySandboxM1FledgeEnabled));
+  uint64_t expected_fledge_mask =
+      content::BrowsingDataRemover::DATA_TYPE_INTEREST_GROUPS |
+      content::BrowsingDataRemover::DATA_TYPE_SHARED_STORAGE |
+      content::BrowsingDataRemover::DATA_TYPE_INTEREST_GROUPS_INTERNAL;
+  EXPECT_EQ(browsing_data_remover()->GetLastUsedRemovalMaskForTesting(),
+            expected_fledge_mask);
+}
+
+TEST_F(PrivacySandboxServiceAdPrivacyUxDeprecationTest,
+       AdMeasurementDataCleared) {
+  prefs()->SetBoolean(prefs::kPrivacySandboxM1AdMeasurementEnabled, true);
+  ASSERT_EQ(browsing_data_remover()->GetLastUsedRemovalMaskForTesting(),
+            uint64_t(-1));
+  CreateService();
+  EXPECT_FALSE(
+      prefs()->GetBoolean(prefs::kPrivacySandboxM1AdMeasurementEnabled));
+  uint64_t expected_measurement_mask =
+      content::BrowsingDataRemover::DATA_TYPE_ATTRIBUTION_REPORTING |
+      content::BrowsingDataRemover::DATA_TYPE_AGGREGATION_SERVICE |
+      content::BrowsingDataRemover::DATA_TYPE_PRIVATE_AGGREGATION_INTERNAL;
+  EXPECT_EQ(browsing_data_remover()->GetLastUsedRemovalMaskForTesting(),
+            expected_measurement_mask);
+}
+
+class PrivacySandboxServiceAdPrivacyUxDeprecationDisabledTest
+    : public PrivacySandboxServiceTest {
+ public:
+  void InitializeFeaturesBeforeStart() override {
+    feature_list_.InitAndDisableFeature(
+        privacy_sandbox::kPrivacySandboxAdPrivacyUxDeprecation);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+TEST_F(PrivacySandboxServiceAdPrivacyUxDeprecationDisabledTest,
+       TopicsDataNotCleared) {
+  prefs()->SetBoolean(prefs::kPrivacySandboxM1TopicsEnabled, true);
+  EXPECT_CALL(*mock_browsing_topics_service(), ClearAllTopicsData()).Times(0);
+  CreateService();
+  EXPECT_TRUE(prefs()->GetBoolean(prefs::kPrivacySandboxM1TopicsEnabled));
+}
+
+TEST_F(PrivacySandboxServiceAdPrivacyUxDeprecationDisabledTest,
+       FledgeDataNotCleared) {
+  prefs()->SetBoolean(prefs::kPrivacySandboxM1FledgeEnabled, true);
+  CreateService();
+  EXPECT_TRUE(prefs()->GetBoolean(prefs::kPrivacySandboxM1FledgeEnabled));
+  EXPECT_EQ(browsing_data_remover()->GetLastUsedRemovalMaskForTesting(),
+            uint64_t(-1));
+}
+
+TEST_F(PrivacySandboxServiceAdPrivacyUxDeprecationDisabledTest,
+       AdMeasurementDataNotCleared) {
+  prefs()->SetBoolean(prefs::kPrivacySandboxM1AdMeasurementEnabled, true);
+  CreateService();
+  EXPECT_TRUE(
+      prefs()->GetBoolean(prefs::kPrivacySandboxM1AdMeasurementEnabled));
+  EXPECT_EQ(browsing_data_remover()->GetLastUsedRemovalMaskForTesting(),
+            uint64_t(-1));
+}
+
 class PrivacySandboxPrivacyGuideShouldShowAdTopicsTest
     : public PrivacySandboxServiceTest,
-      public testing::WithParamInterface<std::tuple<bool, bool, bool>> {};
+      public testing::WithParamInterface<bool> {};
 
 TEST_P(PrivacySandboxPrivacyGuideShouldShowAdTopicsTest,
        ShownAccordingToConsentCountryAndFeature) {
-  auto [is_feature_on, is_consent_country, result] = GetParam();
-
-  feature_list()->Reset();
-  if (is_feature_on) {
-    feature_list()->InitAndEnableFeature(
-        privacy_sandbox::kPrivacySandboxAdTopicsContentParity);
-  } else {
-    feature_list()->InitAndDisableFeature(
-        privacy_sandbox::kPrivacySandboxAdTopicsContentParity);
-  }
+  bool is_consent_country = GetParam();
 
   ON_CALL(*mock_privacy_sandbox_countries(), IsConsentCountry())
       .WillByDefault(testing::Return(is_consent_country));
@@ -555,15 +633,13 @@ TEST_P(PrivacySandboxPrivacyGuideShouldShowAdTopicsTest,
   bool should_show_card =
       privacy_sandbox_service()
           ->PrivacySandboxPrivacyGuideShouldShowAdTopicsCard();
-  ASSERT_EQ(should_show_card, result);
+  // The expected result is identical to the consent country status.
+  ASSERT_EQ(should_show_card, is_consent_country);
 }
 
 INSTANTIATE_TEST_SUITE_P(PrivacySandboxPrivacyGuideShouldShowAdTopicsTest,
                          PrivacySandboxPrivacyGuideShouldShowAdTopicsTest,
-                         testing::Values(std::tuple(true, true, true),
-                                         std::tuple(true, false, false),
-                                         std::tuple(false, true, false),
-                                         std::tuple(false, false, false)));
+                         testing::Bool());
 
 class PrivacySandboxShouldUsePrivacyPolicyChinaDomain
     : public PrivacySandboxServiceTest {};

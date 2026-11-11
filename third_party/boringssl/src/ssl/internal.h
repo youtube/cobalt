@@ -2150,6 +2150,11 @@ struct SSL_HANDSHAKE {
   // negotiated based on client_certificate_type extensions.
   // This is not used in resumption.
   uint8_t client_cert_type = kDefaultCertType;
+
+  // client_requested_server_cert_padding_size, for a server, is the number of
+  // bytes that the client requested we send, or nullopt if the client did not
+  // request any padding.
+  std::optional<uint16_t> client_requested_server_padding_size;
 };
 
 // kMaxTickets is the maximum number of tickets to send immediately after the
@@ -2543,6 +2548,10 @@ struct CERT {
   // the list of credentials.
   UniquePtr<SSLCredential> legacy_credential;
 
+  // available_trust_anchors, if not empty, overrides the default list of
+  // available trust anchors to send in EncryptedExtensions.
+  Array<uint8_t> available_trust_anchors;
+
   // x509_method contains pointers to functions that might deal with |X509|
   // compatibility, or might be a no-op, depending on the application.
   const SSL_X509_METHOD *x509_method = nullptr;
@@ -2921,6 +2930,11 @@ struct SSL3_STATE {
   // TLS mode which was incompatible with the leaf certificate's keyUsage
   // extension.
   bool was_key_usage_invalid : 1;
+
+  // server_sent_requested_padding is true iff a client requested padding
+  // through the server padding extension, and the server sent back the
+  // requested amount of padding.
+  bool server_sent_requested_padding : 1;
 
   // hs_buf is the buffer of handshake data to process.
   UniquePtr<BUF_MEM> hs_buf;
@@ -3450,6 +3464,11 @@ struct SSL_CONFIG {
   // negotiating a TLS 1.3 connection.
   enum ssl_compliance_policy_t compliance_policy = ssl_compliance_policy_none;
 
+  // server_padding_request, if set by the client, indicates that the client
+  // will ask the server to include additional padding in the
+  // EncryptedExtensions message of a TLS 1.3 connection.
+  std::optional<uint16_t> server_padding_request;
+
   // verify_mode is a bitmask of |SSL_VERIFY_*| values.
   uint8_t verify_mode = SSL_VERIFY_NONE;
 
@@ -3524,6 +3543,10 @@ struct SSL_CONFIG {
   // alps_use_new_codepoint if set indicates we use new ALPS extension codepoint
   // to negotiate and convey application settings.
   bool alps_use_new_codepoint : 1;
+
+  // server_padding_enabled is true iff the server is willing to send additional
+  // padding to clients that request it through the server padding extension.
+  bool server_padding_enabled : 1;
 };
 
 // From RFC 8446, used in determining PSK modes.

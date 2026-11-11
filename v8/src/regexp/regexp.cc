@@ -1415,8 +1415,9 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, CompileData* data,
   }
 
 #ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
-  if (V8_UNLIKELY(v8_flags.print_regexp_graph))
+  if (V8_UNLIKELY(v8_flags.print_regexp_graph)) {
     compiler.diagnostics()->graph_printer()->PrintGraph(data->node);
+  }
   if (v8_flags.trace_regexp_graph) DotPrinter::DotPrint("Start", data->node);
 #endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 

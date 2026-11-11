@@ -54,6 +54,9 @@ constexpr size_t kWebGLMaxVariableSizeInBytes        = static_cast<size_t>(2) * 
 constexpr size_t kWebGLMaxPrivateVariableSizeInBytes = static_cast<size_t>(64) * 1024;
 constexpr size_t kWebGLMaxTotalPrivateVariableSizeInBytes = static_cast<size_t>(16) * 1024 * 1024;
 
+// The 1024 character identifier limit, `-2` for the `_u`
+constexpr size_t kMaxAvailableIdentifierLength = 1022;
+
 bool ShouldEnforceESSL100LoopAndIndexingLimitations(ShShaderSpec spec,
                                                     int shaderVersion,
                                                     const ShCompileOptions &compileOptions)
@@ -1230,6 +1233,18 @@ bool TParseContext::checkIsNotReserved(const TSourceLoc &line, const ImmutableSt
                     "unintented behaviors are possible",
                     identifier.data());
         }
+    }
+
+    // Validate that identifier names won't conflict with the name hashing done later.
+    // See https://crbug.com/499176133
+    if ((identifier.length() >= kMaxAvailableIdentifierLength) &&
+        mResources.UserVariableNamePrefix != '\0' && identifier[0] == '_' &&
+        identifier[1] == mResources.UserVariableNamePrefix)
+    {
+        std::string err = "identifiers beginning with `_u` must be < " +
+                          std::to_string(kMaxAvailableIdentifierLength) + " characters";
+        error(line, err.c_str(), identifier);
+        return false;
     }
     return true;
 }
@@ -4352,11 +4367,28 @@ TPublicType TParseContext::addFullySpecifiedType(const TTypeQualifierBuilder &ty
     checkEarlyFragmentTestsIsNotSpecified(typeSpecifier.getLine(),
                                           returnType.layoutQualifier.earlyFragmentTests);
 
-    if (returnType.qualifier == EvqSampleIn || returnType.qualifier == EvqSampleOut ||
-        returnType.qualifier == EvqNoPerspectiveSampleIn ||
-        returnType.qualifier == EvqNoPerspectiveSampleOut)
+    switch (returnType.qualifier)
     {
-        mSampleQualifierSpecified = true;
+        case EvqSmooth:
+        case EvqFlat:
+        case EvqNoPerspective:
+        case EvqCentroid:
+        case EvqSample:
+        case EvqNoPerspectiveCentroid:
+        case EvqNoPerspectiveSample:
+            // These qualifiers must be merged with |in| or |out| qualifiers.
+            error(typeSpecifier.getLine(), "qualifier can only be used with in and out variables",
+                  getQualifierString(returnType.qualifier));
+            break;
+
+        case EvqSampleIn:
+        case EvqSampleOut:
+        case EvqNoPerspectiveSampleIn:
+        case EvqNoPerspectiveSampleOut:
+            mSampleQualifierSpecified = true;
+            break;
+        default:
+            break;
     }
 
     if (mShaderVersion < 300)
@@ -4395,7 +4427,7 @@ TPublicType TParseContext::addFullySpecifiedType(const TTypeQualifierBuilder &ty
         }
         if (returnType.qualifier == EvqComputeIn)
         {
-            error(typeSpecifier.getLine(), "'in' can be only used to specify the local group size",
+            error(typeSpecifier.getLine(), "'in' can only be used to specify the local group size",
                   "in");
         }
     }

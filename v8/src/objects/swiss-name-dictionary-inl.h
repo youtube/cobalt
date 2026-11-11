@@ -290,9 +290,8 @@ Tagged<Object> SwissNameDictionary::ValueAt(InternalIndex entry) {
 
 std::optional<Tagged<Object>> SwissNameDictionary::TryValueAt(
     InternalIndex entry) {
-  SLOW_DCHECK(Isolate::Current()->heap() ==
-              Heap::FromWritableHeapObject(*this));
-  SLOW_DCHECK(Isolate::Current()->heap()->IsPendingAllocation(Tagged(*this)));
+  SLOW_DCHECK(Isolate::Current()->heap() == Heap::FromWritableHeapObject(this));
+  SLOW_DCHECK(Isolate::Current()->heap()->IsPendingAllocation(Tagged(this)));
   // We can read Capacity() in a non-atomic way since we are reading an
   // initialized object which is not pending allocation.
   if (static_cast<unsigned>(entry.as_int()) >=
@@ -633,7 +632,7 @@ SwissNameDictionary::IterateEntriesOrdered() {
   }
 
   Isolate* isolate = Isolate::Current();
-  DCHECK_EQ(isolate, Heap::FromWritableHeapObject(*this)->isolate());
+  DCHECK_EQ(isolate, Heap::FromWritableHeapObject(this)->isolate());
   return IndexIterable(direct_handle(Tagged(this), isolate));
 }
 
@@ -646,9 +645,7 @@ void SwissNameDictionary::SetHash(int32_t hash) { hash_ = hash; }
 int SwissNameDictionary::Hash() { return hash_; }
 
 // static
-constexpr int SwissNameDictionary::PrefixOffset() {
-  return sizeof(HeapObjectLayout);
-}
+constexpr int SwissNameDictionary::PrefixOffset() { return sizeof(HeapObject); }
 
 // static
 constexpr int SwissNameDictionary::CapacityOffset() {

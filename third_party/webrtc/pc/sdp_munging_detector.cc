@@ -560,11 +560,25 @@ SdpMungingType DetermineContentsModification(
     }
     for (size_t i = 0; i < last_created_media_description->streams().size();
          i++) {
+      // ssrcs, then stream and track ids.
+      const StreamParams& created_stream_params =
+          last_created_media_description->streams()[i];
+      const StreamParams& set_stream_params =
+          media_description_to_set->streams()[i];
       if (last_created_media_description->streams()[i].ssrcs !=
           media_description_to_set->streams()[i].ssrcs) {
         RTC_LOG(LS_WARNING)
             << "SDP munging: SSRCs do not match last created description.";
         return SdpMungingType::kSsrcs;
+      }
+      if (created_stream_params.stream_ids() !=
+          set_stream_params.stream_ids()) {
+        RTC_LOG(LS_WARNING) << "SDP munging: msid stream modified.";
+        return SdpMungingType::kMsidStream;
+      }
+      if (created_stream_params.id != set_stream_params.id) {
+        RTC_LOG(LS_WARNING) << "SDP munging: msid track (deprecated) modified.";
+        return SdpMungingType::kMsidTrack;
       }
     }
 

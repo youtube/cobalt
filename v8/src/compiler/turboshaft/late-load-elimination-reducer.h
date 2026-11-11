@@ -498,29 +498,30 @@ class MemoryContentTable
 
 #if V8_ENABLE_SANDBOX
   OpIndex Find(const LoadTrustedPointerOp& load) {
-    OpIndex base = ResolveBase(load.table());
-    OptionalOpIndex index = load.handle();
-    int32_t offset = 0;
-    uint8_t element_size_log2 = kTrustedPointerTableEntrySizeLog2;
-    uint8_t size = MemoryRepresentation::UintPtr().SizeInBytes();
+    OpIndex base = ResolveBase(load.base());
+    int32_t offset = load.offset;
+    uint8_t element_size_log2 = 0;  // Unused;
+    uint8_t size = MemoryRepresentation::Uint32().SizeInBytes();
 
-    MemoryAddress mem{base, index, offset, element_size_log2, size};
+    MemoryAddress mem{base, OpIndex::Invalid(), offset, element_size_log2,
+                      size};
     auto key = all_keys_.find(mem);
     if (key == all_keys_.end()) return OpIndex::Invalid();
     return Get(key->second);
   }
 
   void Insert(const LoadTrustedPointerOp& load, OpIndex load_idx) {
-    OpIndex base = ResolveBase(load.table());
-    OptionalOpIndex index = load.handle();
-    int32_t offset = 0;
-    uint8_t element_size_log2 = kTrustedPointerTableEntrySizeLog2;
-    uint8_t size = MemoryRepresentation::UintPtr().SizeInBytes();
+    OpIndex base = ResolveBase(load.base());
+    int32_t offset = load.offset;
+    uint8_t element_size_log2 = 0;  // Unused.
+    uint8_t size = MemoryRepresentation::Uint32().SizeInBytes();
 
-    if (load.is_immutable) {
-      InsertImmutable(base, index, offset, element_size_log2, size, load_idx);
+    if (load.kind.is_immutable) {
+      InsertImmutable(base, OpIndex::Invalid(), offset, element_size_log2, size,
+                      load_idx);
     } else {
-      Insert(base, index, offset, element_size_log2, size, load_idx);
+      Insert(base, OpIndex::Invalid(), offset, element_size_log2, size,
+             load_idx);
     }
   }
 #endif

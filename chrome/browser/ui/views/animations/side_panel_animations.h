@@ -8,15 +8,20 @@
 #include "chrome/browser/ui/animation/browser_animation_provider.h"
 #include "chrome/browser/ui/animation/browser_animation_types.h"
 #include "ui/base/identifier/unique_identifier.h"
+#include "ui/base/interaction/framework_specific_implementation.h"
 
 class SidePanelAnimations : public CachingBrowserAnimationProvider {
  public:
+  DECLARE_FRAMEWORK_SPECIFIC_METADATA()
+
+  SidePanelAnimations();
+  ~SidePanelAnimations() override;
+
   DECLARE_CLASS_BROWSER_ANIMATION_GROUP(kSidePanel);
   DECLARE_CLASS_BROWSER_ANIMATION_MOTION(kOpen);
   DECLARE_CLASS_BROWSER_ANIMATION_MOTION(kOpenWithContentTransition);
   DECLARE_CLASS_BROWSER_ANIMATION_MOTION(kClose);
   DECLARE_CLASS_BROWSER_ANIMATION_SEQUENCE(kPanelWidth);
-  DECLARE_CLASS_BROWSER_ANIMATION_SEQUENCE(kMainAreaPadding);
   DECLARE_CLASS_BROWSER_ANIMATION_SEQUENCE(kMainAreaShadow);
   DECLARE_CLASS_BROWSER_ANIMATION_SEQUENCE(kContentTop);
   DECLARE_CLASS_BROWSER_ANIMATION_SEQUENCE(kContentBottom);

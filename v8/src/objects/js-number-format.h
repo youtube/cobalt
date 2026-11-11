@@ -128,10 +128,6 @@ V8_OBJECT class JSNumberFormat : public JSObject {
   inline void set_bound_format(Tagged<UnionOf<JSFunction, Undefined>> value,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  // Back-compat offset/size constants.
-  static const int kLocaleOffset;
-  static const int kIcuNumberFormatterOffset;
-  static const int kBoundFormatOffset;
   static const int kHeaderSize;
 
  public:
@@ -140,12 +136,6 @@ V8_OBJECT class JSNumberFormat : public JSObject {
   TaggedMember<UnionOf<JSFunction, Undefined>> bound_format_;
 } V8_OBJECT_END;
 
-inline constexpr int JSNumberFormat::kLocaleOffset =
-    offsetof(JSNumberFormat, locale_);
-inline constexpr int JSNumberFormat::kIcuNumberFormatterOffset =
-    offsetof(JSNumberFormat, icu_number_formatter_);
-inline constexpr int JSNumberFormat::kBoundFormatOffset =
-    offsetof(JSNumberFormat, bound_format_);
 inline constexpr int JSNumberFormat::kHeaderSize = sizeof(JSNumberFormat);
 
 // IntlMathematicalValue is designed only to be used as part of

@@ -25,7 +25,7 @@ def CollectSONAME(args):
   # to bundle readelf in the toolchain package.
   toc = ''
   readelf = subprocess.Popen(wrapper_utils.CommandToRun(
-      [args.readelf, '-d', args.sofile]),
+      [args.readelf, '-d', args.output]),
                              stdout=subprocess.PIPE,
                              bufsize=-1,
                              universal_newlines=True)
@@ -39,7 +39,7 @@ def CollectDynSym(args):
   """Replaces: nm --format=posix -g -D -p $sofile | cut -f1-2 -d' '"""
   toc = ''
   nm = subprocess.Popen(wrapper_utils.CommandToRun(
-      [args.nm, '--format=posix', '-g', '-D', '-p', args.sofile]),
+      [args.nm, '--format=posix', '-g', '-D', '-p', args.output]),
                         stdout=subprocess.PIPE,
                         bufsize=-1,
                         universal_newlines=True)
@@ -102,10 +102,9 @@ def main():
   parser.add_argument('--strip',
                       help='The strip binary to run',
                       metavar='PATH')
-  parser.add_argument('--dwp', help='The dwp binary to run', metavar='PATH')
-  parser.add_argument('--sofile',
-                      required=True,
-                      help='Shared object file produced by linking command',
+  parser.add_argument('--symbols-file',
+                      help='.so file with .debug sections '
+                      '(if different from --output)',
                       metavar='FILE')
   parser.add_argument('--tocfile',
                       required=True,
@@ -146,8 +145,10 @@ def main():
   # partitioned libraries. Instead, to keep Ninja happy, simply create dummy
   # files for the TOC and stripped lib.
   if collect_inputs_only or partitioned_library:
-    open(args.output, 'w').close()
     open(args.tocfile, 'w').close()
+
+  if partitioned_library:
+    open(args.output, 'w').close()
 
   # Instead of linking, records all inputs to a file. This is used by
   # enable_resource_allowlist_generation in order to avoid needing to
@@ -155,35 +156,31 @@ def main():
   if collect_inputs_only:
     if args.map_file:
       open(args.map_file, 'w').close()
-    if args.dwp:
-      open(args.sofile + '.dwp', 'w').close()
+    if args.symbols_file:
+      open(args.symbols_file, 'w').close()
 
-    with open(args.sofile, 'w') as f:
+    with open(args.output, 'w') as f:
       CollectInputs(f, args.command)
     return 0
 
-  # First, run the actual link.
+  # Run the actual link.
   command = wrapper_utils.CommandToRun(args.command)
   result = wrapper_utils.RunLinkWithOptionalMapFile(command,
                                                     env=fast_env,
                                                     map_file=args.map_file)
-
   if result != 0:
     return result
 
-  # If dwp is set, then package debug info for this SO.
-  dwp_proc = None
-  if args.dwp:
-    # Explicit delete to account for symlinks (when toggling between
-    # debug/release).
-    SafeDelete(args.sofile + '.dwp')
-    # Suppress warnings about duplicate CU entries (https://crbug.com/1264130)
-    dwp_proc = subprocess.Popen(wrapper_utils.CommandToRun(
-        [args.dwp, '-e', args.sofile, '-o', args.sofile + '.dwp']),
-                                stderr=subprocess.DEVNULL)
-
   if not partitioned_library:
-    # Next, generate the contents of the TOC file.
+    # Strip the linked shared object file (if desired).
+    # When use_mold=true, the linker creates both stripped and symbols
+    # files directly.
+    if args.strip:
+      result = subprocess.call(
+          wrapper_utils.CommandToRun(
+              [args.strip, '-o', args.output, args.symbols_file]))
+
+    # Generate the contents of the TOC file.
     result, toc = CollectTOC(args)
     if result != 0:
       return result
@@ -191,18 +188,6 @@ def main():
     # If there is an existing TOC file with identical contents, leave it alone.
     # Otherwise, write out the TOC file.
     UpdateTOC(args.tocfile, toc)
-
-    # Finally, strip the linked shared object file (if desired).
-    if args.strip:
-      result = subprocess.call(
-          wrapper_utils.CommandToRun(
-              [args.strip, '-o', args.output, args.sofile]))
-
-  if dwp_proc:
-    dwp_result = dwp_proc.wait()
-    if dwp_result != 0:
-      sys.stderr.write('dwp failed with error code {}\n'.format(dwp_result))
-      return dwp_result
 
   return result
 

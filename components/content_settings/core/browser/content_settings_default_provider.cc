@@ -215,7 +215,7 @@ bool DefaultProvider::SetWebsiteSetting(
     const ContentSettingsPattern& primary_pattern,
     const ContentSettingsPattern& secondary_pattern,
     ContentSettingsType content_type,
-    base::Value&& in_value,
+    const base::Value& in_value,
     const ContentSettingConstraints& constraints) {
   DCHECK(CalledOnValidThread());
   DCHECK(prefs_);
@@ -225,10 +225,6 @@ bool DefaultProvider::SetWebsiteSetting(
       secondary_pattern != ContentSettingsPattern::Wildcard()) {
     return false;
   }
-
-  // Move |in_value| to ensure that it gets cleaned up properly even if we don't
-  // pass on the ownership.
-  base::Value value(std::move(in_value));
 
   // The default settings may not be directly modified for OTR sessions.
   // Instead, they are synced to the main profile's setting.
@@ -243,9 +239,9 @@ bool DefaultProvider::SetWebsiteSetting(
     // whose callbacks may try to reacquire the lock on the same thread.
     {
       base::AutoLock lock(lock_);
-      ChangeSetting(content_type, value.Clone());
+      ChangeSetting(content_type, in_value.Clone());
     }
-    WriteToPref(content_type, value);
+    WriteToPref(content_type, in_value);
   }
 
   NotifyObservers(ContentSettingsPattern::Wildcard(),
@@ -482,12 +478,10 @@ void DefaultProvider::MigrateLocalNetworkAccessDefaultValue() {
     return;
   }
 
-  // Migrate when the feature gets enabled the first time.
+  // Migrate only once, if the pref is not set yet.
   // Only the default for LOCAL_NETWORK is changed, as the old prompt language
   // was biased towards that.
-  if (base::FeatureList::IsEnabled(
-          network::features::kLocalNetworkAccessChecksSplitPermissions) &&
-      !prefs_->GetBoolean(kLocalNetworkAccessMigrateDefaultValuePref)) {
+  if (!prefs_->GetBoolean(kLocalNetworkAccessMigrateDefaultValuePref)) {
     ChangeSetting(ContentSettingsType::LOCAL_NETWORK,
                   std::move(default_settings_.at(
                       ContentSettingsType::LOCAL_NETWORK_ACCESS)));
@@ -496,16 +490,6 @@ void DefaultProvider::MigrateLocalNetworkAccessDefaultValue() {
         ContentSettingsType::LOCAL_NETWORK_ACCESS,
         ContentSettingToValue(ContentSetting::CONTENT_SETTING_DEFAULT));
     prefs_->SetBoolean(kLocalNetworkAccessMigrateDefaultValuePref, true);
-  }
-
-  // If the feature is turned off, then don't attempt to migrate back, as we'd
-  // be unsure of how to reconcile the differences. But make sure to unset the
-  // migration pref so that when the feature gets turned back on we'll migrate
-  // again.
-  if (!base::FeatureList::IsEnabled(
-          network::features::kLocalNetworkAccessChecksSplitPermissions) &&
-      prefs_->GetBoolean(kLocalNetworkAccessMigrateDefaultValuePref)) {
-    prefs_->SetBoolean(kLocalNetworkAccessMigrateDefaultValuePref, false);
   }
 }
 

@@ -184,6 +184,8 @@ class ShellVariationsServiceClient
   // Profiles aren't supported, so nothing to do here.
   void RemoveGoogleGroupsFromPrefsForDeletedProfiles(
       PrefService* local_state) override {}
+  void RemoveEnterpriseGroupsFromPrefsForDeletedProfiles(
+      PrefService* local_state) override {}
 };
 
 void BindNetworkHintsHandler(

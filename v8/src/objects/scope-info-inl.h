@@ -429,9 +429,9 @@ void ScopeInfo::InitializeTaggedMembers(Tagged<Object> value, int tail_length) {
   // Covers the fixed TaggedMember<Smi> header slots
   // (parameter_count_..position_info_end_) plus the |tail_length| tail
   // slots. Matches the GC-visible range of ScopeInfo::BodyDescriptor.
-  MemsetTagged(
-      ObjectSlot(reinterpret_cast<Address>(this) + kFirstTaggedSlotOffset),
-      value, kFixedTaggedHeaderSlotCount + tail_length);
+  MemsetTagged(ObjectSlot(reinterpret_cast<Address>(this) +
+                          offsetof(ScopeInfo, parameter_count_)),
+               value, kFixedTaggedHeaderSlotCount + tail_length);
 }
 
 bool ScopeInfo::HasInlinedLocalNames() const {
@@ -470,7 +470,7 @@ class ScopeInfo::LocalNamesRange {
       if (range_->inlined()) {
         return scope_info()->ContextInlinedLocalName(index_.as_int());
       }
-      return Cast<String>(table()->KeyAt(GetPtrComprCageBase(), index_));
+      return Cast<String>(table()->KeyAt(index_));
     }
 
     const Iterator* operator*() const { return this; }

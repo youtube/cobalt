@@ -19,7 +19,6 @@ namespace {
 
 const QuicTime::Delta kTimeout = QuicTime::Delta::FromSeconds(1000);
 const QuicVersionLabel kFakeVersionLabel = 0x01234567;
-const QuicVersionLabel kFakeVersionLabel2 = 0x89ABCDEF;
 const uint64_t kFakeIdleTimeoutMilliseconds = 12012;
 const uint8_t kFakeStatelessResetTokenData[16] = {
     0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
@@ -40,15 +39,6 @@ std::vector<uint8_t> CreateFakeStatelessResetToken() {
       kFakeStatelessResetTokenData + sizeof(kFakeStatelessResetTokenData));
 }
 
-TransportParameters::LegacyVersionInformation
-CreateFakeLegacyVersionInformation() {
-  TransportParameters::LegacyVersionInformation legacy_version_information;
-  legacy_version_information.version = kFakeVersionLabel;
-  legacy_version_information.supported_versions.push_back(kFakeVersionLabel);
-  legacy_version_information.supported_versions.push_back(kFakeVersionLabel2);
-  return legacy_version_information;
-}
-
 TransportParameters::VersionInformation CreateFakeVersionInformation() {
   TransportParameters::VersionInformation version_information;
   version_information.chosen_version = kFakeVersionLabel;
@@ -60,7 +50,6 @@ TransportParameters::VersionInformation CreateFakeVersionInformation() {
 std::unique_ptr<TransportParameters> MakeFakeTransportParams() {
   auto params = std::make_unique<TransportParameters>();
   params->perspective = Perspective::IS_CLIENT;
-  params->legacy_version_information = CreateFakeLegacyVersionInformation();
   params->version_information = CreateFakeVersionInformation();
   params->max_idle_timeout_ms.set_value(kFakeIdleTimeoutMilliseconds);
   params->stateless_reset_token = CreateFakeStatelessResetToken();

@@ -533,7 +533,7 @@ TF_BUILTIN(AsyncGeneratorResolve, AsyncGeneratorBuiltinsAssembler) {
     StoreObjectFieldRoot(iter_result,
                          offsetof(JSIteratorResult, properties_or_hash_),
                          RootIndex::kEmptyFixedArray);
-    StoreObjectFieldRoot(iter_result, JSIteratorResult::kElementsOffset,
+    StoreObjectFieldRoot(iter_result, offsetof(JSObject, elements_),
                          RootIndex::kEmptyFixedArray);
     StoreObjectFieldNoWriteBarrier(iter_result, JSIteratorResult::kValueOffset,
                                    value);

@@ -161,7 +161,7 @@ class MaglevPhiRepresentationSelector {
   void UntagSmiConstantInput(Phi* phi, ValueRepresentation repr,
                              int input_index, const SmiConstant* input);
   void UntagConstantInput(Phi* phi, ValueRepresentation repr, bool truncating,
-                          int input_index, const Constant* input);
+                          int input_index, const HeapConstant* input);
   void UntagConversionInput(Phi* phi, ValueRepresentation repr, bool truncating,
                             int input_index, ValueNode* input);
   void UntagUntaggedPhiInput(Phi* phi, ValueRepresentation repr,

@@ -111,13 +111,18 @@ try_.builder(
 
 try_.builder(
     name = "linux-arm64-dbg",
-    mirrors = ["ci/linux-arm64-dbg"],
+    mirrors = [
+        "ci/linux-arm64-dbg",
+        "ci/linux-arm64-dbg-tests",
+    ],
     gn_args = gn_args.config(
         configs = [
             "ci/linux-arm64-dbg",
             "debug_try_builder",
         ],
     ),
+    cores = 16,
+    ssd = True,
     contact_team_email = "chrome-linux-engprod@google.com",
     execution_timeout = 6 * time.hour,
 )
@@ -349,6 +354,18 @@ try_.builder(
     name = "linux-fieldtrial-rel",
     mirrors = ["ci/linux-fieldtrial-rel"],
     gn_args = "ci/linux-fieldtrial-rel",
+    siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
+)
+
+try_.builder(
+    name = "linux-surface-embed-rel",
+    description_html = (
+        "Runs web_tests and wpt_tests using surface embed " +
+        "against complete desktop Chrome browser."
+    ),
+    mirrors = ["ci/linux-surface-embed-rel"],
+    gn_args = "ci/linux-surface-embed-rel",
+    contact_team_email = "chrome-webium-product-eng@google.com",
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )
 
@@ -1048,11 +1065,11 @@ try_.builder(
 )
 
 try_.builder(
-    name = "linux-treesinviz-disabled-rel",
+    name = "linux-treesinviz-enabled-rel",
     mirrors = [
-        "ci/linux-treesinviz-disabled-rel",
+        "ci/linux-treesinviz-enabled-rel",
     ],
-    gn_args = "ci/linux-treesinviz-disabled-rel",
+    gn_args = "ci/linux-treesinviz-enabled-rel",
     contact_team_email = "chrome-gpu-team@google.com",
 )
 

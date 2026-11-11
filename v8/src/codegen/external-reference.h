@@ -231,7 +231,8 @@ enum class IsolateFieldId : uint8_t;
   V(new_deoptimizer_function, "Deoptimizer::New()")                            \
   V(orderedhashmap_gethash_raw, "orderedhashmap_gethash_raw")                  \
   V(printf_function, "printf")                                                 \
-  V(refill_math_random, "MathRandom::RefillCache")                             \
+  V(initialize_and_maybe_refill_math_random,                                   \
+    "MathRandom::InitializeAndMaybeRefillCache")                               \
   V(search_string_raw_one_one, "search_string_raw_one_one")                    \
   V(search_string_raw_one_two, "search_string_raw_one_two")                    \
   V(search_string_raw_two_one, "search_string_raw_two_one")                    \
@@ -329,6 +330,7 @@ enum class IsolateFieldId : uint8_t;
   IF_WASM(V, wasm_word64_rol, "wasm::word64_rol")                              \
   IF_WASM(V, wasm_word64_ror, "wasm::word64_ror")                              \
   IF_WASM(V, wasm_int128_add, "wasm::wasm_int128_add_wrapper")                 \
+  IF_WASM(V, wasm_int128_sub, "wasm::wasm_int128_sub_wrapper")                 \
   IF_WASM(V, wasm_word64_ctz, "wasm::word64_ctz")                              \
   IF_WASM(V, wasm_word64_popcnt, "wasm::word64_popcnt")                        \
   IF_WASM(V, wasm_f64x2_ceil, "wasm::f64x2_ceil_wrapper")                      \
@@ -433,7 +435,7 @@ enum class IsolateFieldId : uint8_t;
   V(address_of_wasm_i16x8_splat_0x0001, "wasm_16x8_splat_0x0001")              \
   V(address_of_wasm_f64x2_convert_low_i32x4_u_int_mask,                        \
     "wasm_f64x2_convert_low_i32x4_u_int_mask")                                 \
-  V(supports_wasm_simd_128_address, "wasm::supports_wasm_simd_128_address")    \
+  V(supports_simd_128_address, "CpuFeatures::supports_simd_128_address")       \
   V(address_of_wasm_double_2_power_52, "wasm_double_2_power_52")               \
   V(address_of_wasm_int32_max_as_double, "wasm_int32_max_as_double")           \
   V(address_of_wasm_uint32_max_as_double, "wasm_uint32_max_as_double")         \

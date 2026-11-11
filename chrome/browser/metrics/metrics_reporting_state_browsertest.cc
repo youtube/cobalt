@@ -28,8 +28,10 @@
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/pref_names.h"
+#include "chrome/installer/util/google_update_settings.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/metrics/metrics_pref_names.h"
+#include "components/metrics/metrics_reporting_choice_service.h"
 #include "components/metrics/metrics_service_accessor.h"
 #include "components/policy/core/common/cloud/test/policy_builder.h"
 #include "components/prefs/pref_service.h"
@@ -172,7 +174,7 @@ class MetricsReportingStateTestParameterized
 class MetricsReportingStateClearDataTest
     : public MetricsReportingStateTest,
       public testing::WithParamInterface<
-          ChangeMetricsReportingStateCalledFrom> {
+          metrics::ChangeMetricsReportingStateCalledFrom> {
  public:
   // Set metrics reporting to false initially.
   bool IsMetricsReportingEnabledInitialValue() const override { return false; }
@@ -195,7 +197,8 @@ bool HistogramExists(std::string_view name) {
   return base::StatisticsRecorder::FindHistogram(name) != nullptr;
 }
 
-base::HistogramBase::Count32 GetHistogramDeltaTotalCount(std::string_view name) {
+base::HistogramBase::Count32 GetHistogramDeltaTotalCount(
+    std::string_view name) {
   return base::StatisticsRecorder::FindHistogram(name)
       ->SnapshotDelta()
       ->TotalCount();
@@ -210,11 +213,11 @@ IN_PROC_BROWSER_TEST_P(MetricsReportingStateTestParameterized,
   // Update the client's metrics reporting state.
   base::RunLoop run_loop;
   bool value_after_change = false;
-  ChangeMetricsReportingStateWithReply(
+  metrics::ChangeMetricsReportingStateWithReply(
       is_metrics_reporting_enabled_final_value(),
       base::BindOnce(&OnMetricsReportingStateChanged, &value_after_change,
                      run_loop.QuitClosure()),
-      ChangeMetricsReportingStateCalledFrom::kUiFirstRun);
+      metrics::ChangeMetricsReportingStateCalledFrom::kUiFirstRun);
   run_loop.Run();
 
   // Verify that the reporting state has been duly updated.
@@ -260,10 +263,10 @@ IN_PROC_BROWSER_TEST_P(MetricsReportingStateClearDataTest,
   ASSERT_TRUE(HistogramExists("Test.Before.StabilityHistogram"));
 
   // Simulate enabling metrics reporting.
-  ChangeMetricsReportingStateCalledFrom called_from = GetParam();
+  metrics::ChangeMetricsReportingStateCalledFrom called_from = GetParam();
   base::RunLoop run_loop;
   bool value_after_change = false;
-  ChangeMetricsReportingStateWithReply(
+  metrics::ChangeMetricsReportingStateWithReply(
       true,
       base::BindOnce(&OnMetricsReportingStateChanged, &value_after_change,
                      run_loop.QuitClosure()),
@@ -282,7 +285,8 @@ IN_PROC_BROWSER_TEST_P(MetricsReportingStateClearDataTest,
   // Verify that histogram data that came before clearing data are not included
   // in the next snapshot if metrics reporting was enabled from a settings page.
   bool called_from_settings_page =
-      (called_from == ChangeMetricsReportingStateCalledFrom::kUiSettings);
+      (called_from ==
+       metrics::ChangeMetricsReportingStateCalledFrom::kUiSettings);
   EXPECT_EQ(called_from_settings_page ? 0 : 1,
             GetHistogramDeltaTotalCount("Test.Before.Histogram"));
   EXPECT_EQ(called_from_settings_page ? 0 : 1,
@@ -310,11 +314,103 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     MetricsReportingStateTests,
     MetricsReportingStateClearDataTest,
-    testing::ValuesIn<ChangeMetricsReportingStateCalledFrom>(
-        {ChangeMetricsReportingStateCalledFrom::kUiSettings,
-         ChangeMetricsReportingStateCalledFrom::kUiFirstRun,
-         ChangeMetricsReportingStateCalledFrom::kSessionCrashedDialog,
-         ChangeMetricsReportingStateCalledFrom::kCrosMetricsSettingsChange}));
+    testing::ValuesIn<metrics::ChangeMetricsReportingStateCalledFrom>(
+        {metrics::ChangeMetricsReportingStateCalledFrom::kUiSettings,
+         metrics::ChangeMetricsReportingStateCalledFrom::kUiFirstRun,
+         metrics::ChangeMetricsReportingStateCalledFrom::kSessionCrashedDialog,
+         metrics::ChangeMetricsReportingStateCalledFrom::
+             kCrosMetricsSettingsChange}));
+
+struct MetricsReportingLevelTestParams {
+  metrics::MetricsReportingLevel level;
+  bool expected_enabled;
+};
+
+class MetricsReportingLevelTest
+    : public MetricsReportingStateTest,
+      public testing::WithParamInterface<MetricsReportingLevelTestParams> {
+ public:
+  bool IsMetricsReportingEnabledInitialValue() const override { return false; }
+};
+
+IN_PROC_BROWSER_TEST_P(MetricsReportingLevelTest,
+                       ChangeMetricsReportingState_RestructureEnabled) {
+  ASSERT_FALSE(MetricsReportingStateTest::IsMetricsAndCrashReportingEnabled());
+
+  // Enable the metrics consent restructure.
+  PrefService* local_state = g_browser_process->local_state();
+  local_state->SetBoolean(
+      metrics::prefs::kMetricsConsentRestructureFeatureState, true);
+  local_state->SetBoolean(metrics::prefs::kMetricsReportingMigrationDone, true);
+  metrics::MetricsReportingChoiceService::ClearCachedFeatureStateForTesting();
+  ASSERT_TRUE(metrics::MetricsReportingChoiceService::
+                  ShouldUseMetricsConsentRestructure(local_state));
+
+  metrics::MetricsReportingLevel level = GetParam().level;
+  bool expected_enabled = GetParam().expected_enabled;
+
+  metrics::ChangeMetricsReportingState(
+      level, metrics::ChangeMetricsReportingStateCalledFrom::kUiSettings);
+
+  // ChangeMetricsReportingState() is asynchronous. Wait for it to finish.
+  base::RunLoop run_loop;
+  GoogleUpdateSettings::CollectStatsConsentTaskRunner()->PostTaskAndReply(
+      FROM_HERE, base::DoNothing(), run_loop.QuitClosure());
+  run_loop.Run();
+
+  EXPECT_EQ(expected_enabled,
+            MetricsReportingStateTest::IsMetricsAndCrashReportingEnabled());
+
+  EXPECT_EQ(static_cast<int>(level),
+            local_state->GetInteger(metrics::prefs::kMetricsReportingLevel));
+  // The legacy pref should not have been updated.
+  EXPECT_FALSE(
+      local_state->GetBoolean(metrics::prefs::kMetricsReportingEnabled));
+}
+
+IN_PROC_BROWSER_TEST_P(MetricsReportingLevelTest,
+                       ChangeMetricsReportingState_RestructureDisabled) {
+  ASSERT_FALSE(MetricsReportingStateTest::IsMetricsAndCrashReportingEnabled());
+
+  // Ensure the metrics consent restructure is disabled.
+  PrefService* local_state = g_browser_process->local_state();
+  local_state->SetBoolean(
+      metrics::prefs::kMetricsConsentRestructureFeatureState, false);
+  metrics::MetricsReportingChoiceService::ClearCachedFeatureStateForTesting();
+  ASSERT_FALSE(metrics::MetricsReportingChoiceService::
+                   ShouldUseMetricsConsentRestructure(local_state));
+
+  metrics::MetricsReportingLevel level = GetParam().level;
+  bool expected_enabled = GetParam().expected_enabled;
+
+  metrics::ChangeMetricsReportingState(
+      level, metrics::ChangeMetricsReportingStateCalledFrom::kUiSettings);
+
+  // ChangeMetricsReportingState() is asynchronous. Wait for it to finish.
+  base::RunLoop run_loop;
+  GoogleUpdateSettings::CollectStatsConsentTaskRunner()->PostTaskAndReply(
+      FROM_HERE, base::DoNothing(), run_loop.QuitClosure());
+  run_loop.Run();
+
+  EXPECT_EQ(expected_enabled,
+            MetricsReportingStateTest::IsMetricsAndCrashReportingEnabled());
+
+  // The legacy pref SHOULD have been updated.
+  EXPECT_EQ(expected_enabled,
+            local_state->GetBoolean(metrics::prefs::kMetricsReportingEnabled));
+
+  // The level pref should NOT have been updated.
+  EXPECT_EQ(static_cast<int>(metrics::MetricsReportingLevel::kNone),
+            local_state->GetInteger(metrics::prefs::kMetricsReportingLevel));
+}
+
+INSTANTIATE_TEST_SUITE_P(MetricsReportingStateTests,
+                         MetricsReportingLevelTest,
+                         testing::ValuesIn<MetricsReportingLevelTestParams>(
+                             {{metrics::MetricsReportingLevel::kNone, false},
+                              {metrics::MetricsReportingLevel::kBasic, true},
+                              {metrics::MetricsReportingLevel::kAdvanced,
+                               true}}));
 
 #if BUILDFLAG(IS_CHROMEOS)
 // Used to verify that managed/unmanged devices returns correct values based on
@@ -357,7 +453,7 @@ class MetricsReportingStateManagedTest
 
 IN_PROC_BROWSER_TEST_P(MetricsReportingStateManagedTest,
                        IsMetricsReportingPolicyManagedReturnsCorrectValue) {
-  EXPECT_EQ(IsMetricsReportingPolicyManaged(), is_managed());
+  EXPECT_EQ(metrics::IsMetricsReportingPolicyManaged(), is_managed());
 }
 
 IN_PROC_BROWSER_TEST_P(MetricsReportingStateManagedTest,
@@ -365,11 +461,12 @@ IN_PROC_BROWSER_TEST_P(MetricsReportingStateManagedTest,
   // Simulate enabling metrics reporting through OnCrosMetricsChange().
   base::RunLoop run_loop;
   bool value_after_change = false;
-  ChangeMetricsReportingStateWithReply(
+  metrics::ChangeMetricsReportingStateWithReply(
       true,
       base::BindOnce(&OnMetricsReportingStateChanged, &value_after_change,
                      run_loop.QuitClosure()),
-      ChangeMetricsReportingStateCalledFrom::kCrosMetricsSettingsChange);
+      metrics::ChangeMetricsReportingStateCalledFrom::
+          kCrosMetricsSettingsChange);
   run_loop.Run();
 
   // Value should have changed regardless whether the device is managed or not.

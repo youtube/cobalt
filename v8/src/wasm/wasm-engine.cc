@@ -655,16 +655,17 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
     }
   }
 
-  return AsmWasmData::New(isolate, std::move(native_module), uses_bitset);
+  return AsmWasmData::New(isolate, std::move(native_module),
+                          uses_bitset->value_as_bits());
 }
 
 DirectHandle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
     Isolate* isolate, DirectHandle<AsmWasmData> asm_wasm_data,
     DirectHandle<Script> script) {
-  Managed<wasm::NativeModule>::Ptr native_module =
-      asm_wasm_data->managed_native_module()->ptr();
-  DirectHandle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, std::move(native_module).as_shared_ptr(), script);
+  std::shared_ptr<wasm::NativeModule> native_module =
+      asm_wasm_data->managed_native_module()->get();
+  DirectHandle<WasmModuleObject> module_object =
+      WasmModuleObject::New(isolate, std::move(native_module), script);
   return module_object;
 }
 

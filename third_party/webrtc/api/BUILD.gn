@@ -1194,6 +1194,7 @@ rtc_source_set("network_state_predictor_api") {
 rtc_source_set("array_view") {
   visibility = [ "*" ]
   sources = [ "array_view.h" ]
+  deps = [ "//third_party/abseil-cpp/absl/base:core_headers" ]
 }
 
 rtc_source_set("refcountedbase") {
@@ -1826,7 +1827,6 @@ if (rtc_include_tests) {
     testonly = true
 
     sources = [
-      "array_view_unittest.cc",
       "candidate_unittest.cc",
       "field_trials_unittest.cc",
       "function_view_unittest.cc",
@@ -1845,7 +1845,6 @@ if (rtc_include_tests) {
     ]
 
     deps = [
-      ":array_view",
       ":candidate",
       ":field_trials",
       ":field_trials_view",

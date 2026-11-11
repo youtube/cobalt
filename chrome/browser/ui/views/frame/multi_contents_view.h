@@ -145,6 +145,8 @@ class MultiContentsView
   void SetTargetContentBounds(
       std::optional<TargetContentBounds> target_content_bounds);
 
+  void SetIsAnimatingContent(bool is_animating);
+
   // If the split view is being resized.
   bool IsSplitResizing() const {
     return initial_start_width_on_resize_.has_value();
@@ -170,6 +172,8 @@ class MultiContentsView
   void OnDragAndDropPrefStateChange();
 
   void SetShouldShowTopSeparator(bool should_show);
+  void SetSplitViewInsets(gfx::Insets start_contents_view_inset,
+                          gfx::Insets end_contents_view_inset);
 
   void set_min_contents_width_for_testing(int width) {
     min_contents_width_for_testing_ = std::make_optional(width);

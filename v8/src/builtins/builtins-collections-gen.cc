@@ -746,10 +746,11 @@ TNode<HeapObject> CollectionsBuiltinsAssembler::AllocateJSCollectionIterator(
   StoreMapNoWriteBarrier(iterator, iterator_map);
   StoreObjectFieldRoot(iterator, offsetof(IteratorType, properties_or_hash_),
                        RootIndex::kEmptyFixedArray);
-  StoreObjectFieldRoot(iterator, IteratorType::kElementsOffset,
+  StoreObjectFieldRoot(iterator, offsetof(IteratorType, elements_),
                        RootIndex::kEmptyFixedArray);
-  StoreObjectFieldNoWriteBarrier(iterator, IteratorType::kTableOffset, table);
-  StoreObjectFieldNoWriteBarrier(iterator, IteratorType::kIndexOffset,
+  StoreObjectFieldNoWriteBarrier(iterator, offsetof(IteratorType, table_),
+                                 table);
+  StoreObjectFieldNoWriteBarrier(iterator, offsetof(IteratorType, index_),
                                  SmiConstant(0));
   return iterator;
 }
@@ -893,7 +894,7 @@ void CollectionsBuiltinsAssembler::
   BIND(&if_key_or_value_iterator);
   // Check that the iterator is not partially consumed.
   const TNode<Object> index =
-      LoadObjectField(CAST(iterator), JSMapIterator::kIndexOffset);
+      LoadObjectField(CAST(iterator), offsetof(JSCollectionIterator, index_));
   GotoIfNot(TaggedEqual(index, SmiConstant(0)), if_false);
   BranchIfMapIteratorProtectorValid(&extra_checks, if_false);
 
@@ -958,7 +959,7 @@ void CollectionsBuiltinsAssembler::BranchIfIterableWithOriginalValueSetIterator(
   BIND(&if_value_iterator);
   // Check that the iterator is not partially consumed.
   const TNode<Object> index =
-      LoadObjectField(CAST(iterable), JSSetIterator::kIndexOffset);
+      LoadObjectField(CAST(iterable), offsetof(JSCollectionIterator, index_));
   GotoIfNot(TaggedEqual(index, SmiConstant(0)), if_false);
 
   // Check if the iterator object has the original SetIterator prototype.
@@ -1021,11 +1022,12 @@ TNode<OrderedHashSet> CollectionsBuiltinsAssembler::SetOrSetIteratorToSet(
     CSA_DCHECK(this, IntPtrEqual(index, IntPtrConstant(0)));
     var_table = table;
     // Set the {iterable} to exhausted if it's an iterator.
-    StoreObjectFieldRoot(iterator, JSSetIterator::kTableOffset,
+    StoreObjectFieldRoot(iterator, offsetof(JSCollectionIterator, table_),
                          RootIndex::kEmptyOrderedHashSet);
     TNode<IntPtrT> number_of_elements = LoadAndUntagPositiveSmiObjectField(
         table, OrderedHashSet::NumberOfElementsOffset());
-    StoreObjectFieldNoWriteBarrier(iterator, JSSetIterator::kIndexOffset,
+    StoreObjectFieldNoWriteBarrier(iterator,
+                                   offsetof(JSCollectionIterator, index_),
                                    SmiTag(number_of_elements));
     Goto(&done);
   }
@@ -1109,9 +1111,10 @@ TNode<JSArray> CollectionsBuiltinsAssembler::MapIteratorToList(
 
   BIND(&done);
   // Set the {iterator} to exhausted.
-  StoreObjectFieldRoot(iterator, JSMapIterator::kTableOffset,
+  StoreObjectFieldRoot(iterator, offsetof(JSCollectionIterator, table_),
                        RootIndex::kEmptyOrderedHashMap);
-  StoreObjectFieldNoWriteBarrier(iterator, JSMapIterator::kIndexOffset,
+  StoreObjectFieldNoWriteBarrier(iterator,
+                                 offsetof(JSCollectionIterator, index_),
                                  SmiTag(var_index.value()));
   return UncheckedCast<JSArray>(array);
 }
@@ -1396,13 +1399,14 @@ std::pair<TNode<TableType>, TNode<IntPtrT>>
 CollectionsBuiltinsAssembler::TransitionAndUpdate(
     const TNode<IteratorType> iterator) {
   return Transition<TableType>(
-      CAST(LoadObjectField(iterator, IteratorType::kTableOffset)),
-      LoadAndUntagPositiveSmiObjectField(iterator, IteratorType::kIndexOffset),
+      CAST(LoadObjectField(iterator, offsetof(IteratorType, table_))),
+      LoadAndUntagPositiveSmiObjectField(iterator,
+                                         offsetof(IteratorType, index_)),
       [this, iterator](const TNode<TableType> table,
                        const TNode<IntPtrT> index) {
         // Update the {iterator} with the new state.
-        StoreObjectField(iterator, IteratorType::kTableOffset, table);
-        StoreObjectFieldNoWriteBarrier(iterator, IteratorType::kIndexOffset,
+        StoreObjectField(iterator, offsetof(IteratorType, table_), table);
+        StoreObjectFieldNoWriteBarrier(iterator, offsetof(IteratorType, index_),
                                        SmiTag(index));
       });
 }
@@ -2322,8 +2326,8 @@ TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   TNode<IntPtrT> entry_start_position;
   std::tie(entry_key, entry_start_position, index) =
       NextSkipHashTableHoles<OrderedHashMap>(table, index, &return_end);
-  StoreObjectFieldNoWriteBarrier(receiver, JSMapIterator::kIndexOffset,
-                                 SmiTag(index));
+  StoreObjectFieldNoWriteBarrier(
+      receiver, offsetof(JSCollectionIterator, index_), SmiTag(index));
   var_value = entry_key;
   var_done = FalseConstant();
 
@@ -2350,7 +2354,7 @@ TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
 
   BIND(&return_end);
   {
-    StoreObjectFieldRoot(receiver, JSMapIterator::kTableOffset,
+    StoreObjectFieldRoot(receiver, offsetof(JSCollectionIterator, table_),
                          RootIndex::kEmptyOrderedHashMap);
     Goto(&return_value);
   }
@@ -2512,8 +2516,8 @@ TF_BUILTIN(SetIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   TNode<IntPtrT> entry_start_position;
   std::tie(entry_key, entry_start_position, index) =
       NextSkipHashTableHoles<OrderedHashSet>(table, index, &return_end);
-  StoreObjectFieldNoWriteBarrier(receiver, JSSetIterator::kIndexOffset,
-                                 SmiTag(index));
+  StoreObjectFieldNoWriteBarrier(
+      receiver, offsetof(JSCollectionIterator, index_), SmiTag(index));
   var_value = entry_key;
   var_done = FalseConstant();
 
@@ -2537,7 +2541,7 @@ TF_BUILTIN(SetIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
 
   BIND(&return_end);
   {
-    StoreObjectFieldRoot(receiver, JSSetIterator::kTableOffset,
+    StoreObjectFieldRoot(receiver, offsetof(JSCollectionIterator, table_),
                          RootIndex::kEmptyOrderedHashSet);
     Goto(&return_value);
   }

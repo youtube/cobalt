@@ -85,10 +85,10 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   static inline void ForValue(Tagged<HeapObject> host, MaybeObjectSlot slot,
                               Tagged<T> value, WriteBarrierMode mode);
   template <typename T>
-  static inline void ForValue(HeapObjectLayout* host, TaggedMemberBase* slot,
+  static inline void ForValue(HeapObject* host, TaggedMemberBase* slot,
                               Tagged<T> value, WriteBarrierMode mode);
   template <typename T>
-  static inline void ForValue(HeapObjectLayout* host, MaybeObjectSlot slot,
+  static inline void ForValue(HeapObject* host, MaybeObjectSlot slot,
                               Tagged<T> value, WriteBarrierMode mode);
   static inline void ForEphemeronHashTable(Tagged<EphemeronHashTable> host,
                                            ObjectSlot slot,
@@ -109,7 +109,7 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
       Tagged<HeapObject> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   template <typename T, IndirectPointerTagRange kTagRange>
   static inline void ForIndirectPointer(
-      HeapObjectLayout* host, TrustedPointerMember<T, kTagRange>* slot,
+      HeapObject* host, TrustedPointerMember<T, kTagRange>* slot,
       Tagged<T> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   static inline void ForProtectedPointer(
       Tagged<TrustedObject> host, ProtectedPointerSlot slot,
@@ -117,7 +117,7 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   template <typename T>
   static inline void ForProtectedPointer(
-      HeapObjectLayout* host, TaggedMemberBase* slot, Tagged<T> value,
+      HeapObject* host, TaggedMemberBase* slot, Tagged<T> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   static inline void ForCppHeapPointer(
       Tagged<CppHeapPointerWrapperObjectT> host, CppHeapPointerSlot slot,
@@ -126,7 +126,7 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
       Tagged<HeapObject> host, JSDispatchHandle handle,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   static inline void ForJSDispatchHandle(
-      HeapObjectLayout* host, JSDispatchHandle handle,
+      HeapObject* host, JSDispatchHandle handle,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // Executes generational and/or marking write barrier for a [start, end) range
   // of non-weak slots inside |object|.
@@ -154,7 +154,7 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   template <typename T>
   static inline bool IsRequired(Tagged<HeapObject> host, T value);
   template <typename T>
-  static inline bool IsRequired(const HeapObjectLayout* host, T value);
+  static inline bool IsRequired(const HeapObject* host, T value);
 
   static bool VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
                                                JSDispatchHandle value,

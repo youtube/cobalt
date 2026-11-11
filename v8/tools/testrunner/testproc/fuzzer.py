@@ -8,8 +8,8 @@ from . import base
 
 
 # Extra flags randomly added to all fuzz tests with numfuzz. List of tuples
-# (probability, flag). You can space-separate multiple flags in the flag
-# string.
+# (probability, flag) or lists of mutually exclusive tuples [(probability, flag), ...].
+# You can space-separate multiple flags in the flag string.
 EXTRA_FLAGS = [
     (0.05, '--always-osr'),
     (0.05, '--always-osr-from-maglev'),
@@ -88,6 +88,10 @@ EXTRA_FLAGS = [
     (0.5, '--private-field-bytecodes'),
     (0.5, '--proto-assign-seq-lazy-func-opt --proto-assign-seq-opt-count=1'),
     (0.1, '--stress-branch-hinting'),
+    [
+        (0.33, '--verify-bytecode-full'),
+        (0.33, '--verify-bytecode-light'),
+    ],
 ]
 
 MIN_DEOPT = 1
@@ -99,9 +103,18 @@ def random_extra_flags(rng, extra_flags=EXTRA_FLAGS):
   """Returns a random list of flags chosen from the configurations in
   EXTRA_FLAGS.
   """
-  return list(chain(
-      *(flags.split(' ')
-        for prob, flags in extra_flags if rng.random() < prob)))
+  result = []
+  for item in extra_flags:
+    r = rng.random()
+    acc = 0
+    choices = item if isinstance(item[0], (list, tuple)) else [item]
+    for prob, flags in choices:
+      acc += prob
+      assert acc <= 1.0
+      if r < acc:
+        result.extend(flags.split())
+        break
+  return result
 
 
 def _flag_prefix(flag):

@@ -29,6 +29,14 @@ class ModelQualityLogEntry;
 struct OptimizationGuideModelExecutionResult;
 }  // namespace optimization_guide
 
+namespace page_actions {
+class PageActionObserver;
+}  // namespace page_actions
+
+namespace signin {
+class IdentityManager;
+}  // namespace signin
+
 namespace syncer {
 class SyncService;
 }  // namespace syncer
@@ -73,6 +81,8 @@ class ContextualCueingController
   // Returns the CueTarget for the given CueTargetType, or nullptr if there is
   // none.
   CueTarget* GetTarget(CueTargetType type);
+  // Getter function for CUJ of shown cue
+  const std::string& current_cuj() const { return current_cuj_; }
 
  private:
   // Initiates a model execution request to MES for the current window state.
@@ -90,6 +100,9 @@ class ContextualCueingController
   // Returns true if the cue should be shown to the user.
   bool IsAllowedToShowCue();
 
+  // Returns true if the user is subject to age restrictions.
+  bool IsUserSubjectToAgeRestrictions();
+
   void ShowCue(CueTargetType cue_type,
                const CueTarget& target,
                optimization_guide::proto::ContextualCueingResponse response);
@@ -97,6 +110,7 @@ class ContextualCueingController
                     CueActionData data,
                     actions::ActionItem*,
                     actions::ActionInvocationContext);
+  void OnCueHidden();
 
   // Returns the list of cue surfaces that are currently eligible to show a cue.
   absl::flat_hash_set<optimization_guide::proto::ContextualCueingSurface>
@@ -112,7 +126,13 @@ class ContextualCueingController
   raw_ptr<OptimizationGuideLogger> optimization_guide_logger_;
   raw_ptr<syncer::SyncService> sync_service_;
   raw_ptr<TemplateURLService> template_url_service_;
+  raw_ptr<signin::IdentityManager> identity_manager_;
   absl::flat_hash_map<CueTargetType, std::unique_ptr<CueTarget>> cue_targets_;
+  std::string current_cuj_;
+
+#if !BUILDFLAG(IS_ANDROID)
+  std::unique_ptr<page_actions::PageActionObserver> page_action_observer_;
+#endif
 
   base::WeakPtrFactory<ContextualCueingController> weak_ptr_factory_{this};
 };

@@ -15,6 +15,7 @@
 #import "components/segmentation_platform/public/features.h"
 #import "components/sync/base/features.h"
 #import "components/sync_preferences/features.h"
+#import "components/tab_groups/features.h"
 #import "components/variations/service/variations_service.h"
 #import "components/variations/service/variations_service_utils.h"
 #import "components/version_info/channel.h"
@@ -35,18 +36,25 @@ BASE_FEATURE(kSafetyCheckModuleHiddenIfNoIssuesKillswitch,
 
 BASE_FEATURE(kTabGridSetupMode, base::FEATURE_DISABLED_BY_DEFAULT);
 
-const char kTabGridSetupModeParamName[] = "mode";
+const char kTabGridSetupModeParamName[] = "tab_grid_setup_mode";
 
-const base::FeatureParam<int> kTabGridSetupModeParam(
+const base::FeatureParam<std::string> kTabGridSetupModeParam(
     &kTabGridSetupMode,
     kTabGridSetupModeParamName,
-    static_cast<int>(TabGridSetupMode::kImmediate));
+    "immediate");
 
 TabGridSetupMode GetTabGridSetupMode() {
   if (!base::FeatureList::IsEnabled(kTabGridSetupMode)) {
     return TabGridSetupMode::kImmediate;
   }
-  return static_cast<TabGridSetupMode>(kTabGridSetupModeParam.Get());
+  std::string value = kTabGridSetupModeParam.Get();
+  if (value == "deferred") {
+    return TabGridSetupMode::kDeferred;
+  }
+  if (value == "lazy_for_testing") {
+    return TabGridSetupMode::kLazy_ForTesting;
+  }
+  return TabGridSetupMode::kImmediate;
 }
 
 BASE_FEATURE(kOmahaServiceRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -75,6 +83,12 @@ bool IsDockingPromoV2Enabled() {
   return base::FeatureList::IsEnabled(kIOSDockingPromoV2);
 }
 
+BASE_FEATURE(kIOSLevelUp, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsLevelUpEnabled() {
+  return base::FeatureList::IsEnabled(kIOSLevelUp);
+}
+
 BASE_FEATURE(kEnableLensInOmniboxCopiedImage,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -90,8 +104,6 @@ BASE_FEATURE(kLensOverlayCustomBottomSheet, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensSearchHeadersCheckEnabled, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Used to gate the immersive SRP in the Composebox.
-BASE_FEATURE(kComposeboxImmersiveSRP, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kOmniboxDRSPrototype, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -926,7 +938,7 @@ BASE_FEATURE(kContextMenuPreviewDownsampleImage,
 BASE_FEATURE(kTabGroupColorOnSurface, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsTabGroupColorOnSurfaceEnabled() {
-  if (IsSyncedGroupColorEnabled()) {
+  if (IsUpdateTabGroupColorsEnabled()) {
     return true;
   }
   return base::FeatureList::IsEnabled(kTabGroupColorOnSurface);
@@ -1230,10 +1242,8 @@ bool IsOpenEditGroupViewByTappingTitleEnabled() {
   return base::FeatureList::IsEnabled(kOpenEditGroupViewByTappingTitle);
 }
 
-BASE_FEATURE(kSyncedGroupColor, base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsSyncedGroupColorEnabled() {
-  return base::FeatureList::IsEnabled(kSyncedGroupColor);
+bool IsUpdateTabGroupColorsEnabled() {
+  return base::FeatureList::IsEnabled(tab_groups::kUpdateTabGroupColors);
 }
 
 // Enables the plus button in NTP fakebox.
@@ -1260,5 +1270,18 @@ bool IsAssistantAimMinimizedStateEnabled() {
   return base::FeatureList::IsEnabled(kAssistantAimMinimizedState);
 }
 
+BASE_FEATURE(kIOSBackendPromoServiceIntegration,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsIOSBackendPromoServiceIntegrationEnabled() {
+  return base::FeatureList::IsEnabled(kIOSBackendPromoServiceIntegration);
+}
+
 BASE_FEATURE(kUseUIGraphicsImageRendererForFallbackIcons,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kIOSDarkModeDetection, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsIOSDarkModeDetectionEnabled() {
+  return base::FeatureList::IsEnabled(kIOSDarkModeDetection);
+}

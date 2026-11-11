@@ -140,13 +140,13 @@ void VerifyPointersVisitor::VisitCompressedRootPointers(Root root,
 }
 
 void VerifyPointersVisitor::VisitMapPointer(Tagged<HeapObject> host) {
-  VerifyHeapObjectImpl(host->map(cage_base()));
+  VerifyHeapObjectImpl(host->map());
 }
 
 void VerifyPointersVisitor::VerifyHeapObjectImpl(
     Tagged<HeapObject> heap_object) {
   CHECK(IsValidHeapObject(heap_, heap_object));
-  CHECK(IsMap(heap_object->map(cage_base())));
+  CHECK(IsMap(heap_object->map()));
   // Heap::InToPage() is not available with sticky mark-bits.
   CHECK_IMPLIES(
       !v8_flags.sticky_mark_bits && HeapLayout::InYoungGeneration(heap_object),
@@ -156,9 +156,8 @@ void VerifyPointersVisitor::VerifyHeapObjectImpl(
 void VerifyPointersVisitor::VerifyCodeObjectImpl(
     Tagged<HeapObject> heap_object) {
   CHECK(IsValidCodeObject(heap_, heap_object));
-  CHECK(IsMap(heap_object->map(cage_base())));
-  CHECK(heap_object->map(cage_base())->instance_type() ==
-        INSTRUCTION_STREAM_TYPE);
+  CHECK(IsMap(heap_object->map()));
+  CHECK_EQ(heap_object->map()->instance_type(), INSTRUCTION_STREAM_TYPE);
 }
 
 template <typename TSlot>
@@ -185,7 +184,7 @@ void VerifyPointersVisitor::VerifyPointers(Tagged<HeapObject> host,
   // to one of objects in DATA_ONLY_VISITOR_ID_LIST. You can fix
   // this by moving that object to POINTER_VISITOR_ID_LIST.
   CHECK_EQ(ObjectFields::kMaybePointers,
-           Map::ObjectFieldsFrom(host->map(cage_base())->visitor_id()));
+           Map::ObjectFieldsFrom(host->map()->visitor_id()));
   VerifyPointersImpl(start, end);
 }
 
@@ -198,7 +197,7 @@ void VerifyPointersVisitor::VisitCodeTarget(Tagged<InstructionStream> host,
 
 void VerifyPointersVisitor::VisitEmbeddedPointer(Tagged<InstructionStream> host,
                                                  RelocInfo* rinfo) {
-  VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
+  VerifyHeapObjectImpl(rinfo->target_object());
 }
 
 class VerifyReadOnlyPointersVisitor : public VerifyPointersVisitor {
@@ -513,17 +512,17 @@ void HeapVerification::VerifyOutgoingPointers(Tagged<HeapObject> object) {
 void HeapVerification::VerifyObjectMap(Tagged<HeapObject> object) {
   // The first word should be a map, and we expect all map pointers to be
   // in map space or read-only space.
-  MapWord map_word = object->map_word(cage_base_, kRelaxedLoad);
+  MapWord map_word = object->map_word(kRelaxedLoad);
   CHECK(!map_word.IsForwardingAddress());
   Tagged<Map> map = map_word.ToMap();
-  CHECK(IsMap(map, cage_base_));
+  CHECK(IsMap(map));
   CHECK(ReadOnlyHeap::Contains(map) || old_space()->Contains(map) ||
         (shared_space() && shared_space()->Contains(map)));
 
   if (HeapLayout::InYoungGeneration(object)) {
     // The object should not be code or a map.
-    CHECK(!IsMap(object, cage_base_));
-    CHECK(!IsAbstractCode(object, cage_base_));
+    CHECK(!IsMap(object));
+    CHECK(!IsAbstractCode(object));
   } else if (current_space_identity() == RO_SPACE) {
     CHECK(!IsExternalString(object));
     CHECK(!IsJSArrayBuffer(object));
@@ -589,7 +588,7 @@ class SlotVerifyingVisitor : public HeapVisitor<SlotVerifyingVisitor> {
 
   void VisitEmbeddedPointer(Tagged<InstructionStream> host,
                             RelocInfo* rinfo) override {
-    Tagged<Object> target = rinfo->target_object(cage_base());
+    Tagged<Object> target = rinfo->target_object();
     if (ShouldHaveBeenRecorded(host, target)) {
       CHECK(InTypedSet(SlotType::kEmbeddedObjectFull, rinfo->pc()) ||
             InTypedSet(SlotType::kEmbeddedObjectCompressed, rinfo->pc()) ||
@@ -784,7 +783,7 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
   MutablePage* chunk = MutablePage::FromHeapObject(isolate(), object);
 
   Address start = object.address();
-  Address end = start + object->Size(cage_base_);
+  Address end = start + object->Size();
 
   std::set<Address> old_to_new;
   std::set<std::pair<SlotType, Address>> typed_old_to_new;
@@ -908,7 +907,7 @@ void HeapVerifier::VerifyObjectLayoutChange(Heap* heap,
     VerifySafeMapTransition(heap, object, new_map);
   } else {
     CHECK_EQ(pending_layout_change_object, object);
-    pending_layout_change_object = HeapObject();
+    pending_layout_change_object = {};
   }
 }
 
@@ -918,12 +917,12 @@ void HeapVerifier::VerifySafeMapTransition(Heap* heap,
                                            Tagged<Map> new_map) {
   PtrComprCageBase cage_base(heap->isolate());
 
-  if (IsJSObject(object, cage_base)) {
+  if (IsJSObject(object)) {
     // Without double unboxing all in-object fields of a JSObject are tagged.
     return;
   }
 
-  if (IsString(object, cage_base) &&
+  if (IsString(object) &&
       (new_map == ReadOnlyRoots(heap).thin_two_byte_string_map() ||
        new_map == ReadOnlyRoots(heap).thin_one_byte_string_map())) {
     // When transitioning a string to ThinString,
@@ -932,7 +931,7 @@ void HeapVerifier::VerifySafeMapTransition(Heap* heap,
     return;
   }
 
-  if (v8_flags.shared_string_table && IsString(object, cage_base) &&
+  if (v8_flags.shared_string_table && IsString(object) &&
       InstanceTypeChecker::IsInternalizedString(new_map->instance_type())) {
     // In-place internalization does not change a string's fields.
     //

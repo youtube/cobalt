@@ -20,8 +20,6 @@
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/rtp_parameters.h"
-#include "api/task_queue/task_queue_base.h"
-#include "api/task_queue/task_queue_factory.h"
 #include "api/test/create_frame_generator.h"
 #include "api/test/simulated_network.h"
 #include "api/test/video/function_video_encoder_factory.h"
@@ -37,6 +35,7 @@
 #include "media/engine/internal_decoder_factory.h"
 #include "modules/video_coding/codecs/vp8/include/vp8.h"
 #include "rtc_base/task_queue_for_test.h"
+#include "rtc_base/thread.h"
 #include "test/direct_transport.h"
 #include "test/encoder_settings.h"
 #include "test/frame_generator_capturer.h"
@@ -59,8 +58,8 @@ void MultiStreamTester::RunTest() {
   // Use high prioirity since this task_queue used for fake network delivering
   // at correct time. Those test tasks should be prefered over code under test
   // to make test more stable.
-  auto task_queue = env.task_queue_factory().CreateTaskQueue(
-      "TaskQueue", TaskQueueFactory::Priority::kHigh);
+  auto network_thread = Thread::CreateWithSocketServer();
+  network_thread->Start();
   CallConfig sender_config(env);
   CallConfig receiver_config(env);
   std::unique_ptr<Call> sender_call;
@@ -79,13 +78,13 @@ void MultiStreamTester::RunTest() {
       CreateBuiltinVideoBitrateAllocatorFactory();
   InternalDecoderFactory decoder_factory;
 
-  SendTask(task_queue.get(), [&]() {
+  SendTask(network_thread.get(), [&]() {
     sender_call = Call::Create(std::move(sender_config));
     receiver_call = Call::Create(std::move(receiver_config));
     sender_transport =
-        CreateSendTransport(env, task_queue.get(), sender_call.get());
+        CreateSendTransport(env, network_thread.get(), sender_call.get());
     receiver_transport =
-        CreateReceiveTransport(env, task_queue.get(), receiver_call.get());
+        CreateReceiveTransport(env, network_thread.get(), receiver_call.get());
     sender_transport->SetReceiver(receiver_call->Receiver());
     receiver_transport->SetReceiver(sender_call->Receiver());
 
@@ -140,7 +139,7 @@ void MultiStreamTester::RunTest() {
 
   Wait();
 
-  SendTask(task_queue.get(), [&]() {
+  SendTask(network_thread.get(), [&]() {
     for (size_t i = 0; i < kNumStreams; ++i) {
       frame_generators[i]->Stop();
       sender_call->DestroyVideoSendStream(send_streams[i]);
@@ -154,6 +153,7 @@ void MultiStreamTester::RunTest() {
     sender_call.reset();
     receiver_call.reset();
   });
+  network_thread->Stop();
 }
 
 void MultiStreamTester::UpdateSendConfig(
@@ -168,11 +168,11 @@ void MultiStreamTester::UpdateReceiveConfig(
 
 std::unique_ptr<test::DirectTransport> MultiStreamTester::CreateSendTransport(
     const Environment& env,
-    TaskQueueBase* task_queue,
+    Thread* network_thread,
     Call* sender_call) {
   std::vector<RtpExtension> extensions = {};
   return std::make_unique<test::DirectTransport>(
-      env, task_queue,
+      env, network_thread,
       std::make_unique<FakeNetworkPipe>(
           &env.clock(),
           std::make_unique<SimulatedNetwork>(BuiltInNetworkBehaviorConfig())),
@@ -181,11 +181,11 @@ std::unique_ptr<test::DirectTransport> MultiStreamTester::CreateSendTransport(
 
 std::unique_ptr<test::DirectTransport>
 MultiStreamTester::CreateReceiveTransport(const Environment& env,
-                                          TaskQueueBase* task_queue,
+                                          Thread* network_thread,
                                           Call* receiver_call) {
   std::vector<RtpExtension> extensions = {};
   return std::make_unique<test::DirectTransport>(
-      env, task_queue,
+      env, network_thread,
       std::make_unique<FakeNetworkPipe>(
           &env.clock(),
           std::make_unique<SimulatedNetwork>(BuiltInNetworkBehaviorConfig())),

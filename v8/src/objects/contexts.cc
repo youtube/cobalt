@@ -61,7 +61,7 @@ Handle<NameToIndexHashTable> AddLocalNamesFromContext(
     DirectHandle<Name> name(it->name(), isolate);
     if (ignore_duplicates) {
       int32_t hash = NameToIndexShape::Hash(roots, *name);
-      if (names_table->FindEntry(isolate, roots, *name, hash).is_found()) {
+      if (names_table->FindEntry(roots, *name, hash).is_found()) {
         continue;
       }
     }
@@ -145,7 +145,7 @@ bool Context::is_declaration_context() const {
 }
 
 Tagged<Context> Context::declaration_context() const {
-  Tagged<Context> current = *this;
+  Tagged<Context> current = this;
   while (!current->is_declaration_context()) {
     current = current->previous();
   }
@@ -153,7 +153,7 @@ Tagged<Context> Context::declaration_context() const {
 }
 
 Tagged<Context> Context::closure_context() const {
-  Tagged<Context> current = *this;
+  Tagged<Context> current = this;
   while (!current->IsFunctionContext() && !current->IsScriptContext() &&
          !current->IsModuleContext() && !IsNativeContext(current) &&
          !current->IsEvalContext()) {
@@ -179,7 +179,7 @@ Tagged<JSReceiver> Context::extension_receiver() const {
 }
 
 Tagged<SourceTextModule> Context::module() const {
-  Tagged<Context> current = *this;
+  Tagged<Context> current = this;
   while (!current->IsModuleContext()) {
     current = current->previous();
   }
@@ -187,7 +187,7 @@ Tagged<SourceTextModule> Context::module() const {
 }
 
 Tagged<Context> Context::script_context() const {
-  Tagged<Context> current = *this;
+  Tagged<Context> current = this;
   while (!current->IsScriptContext()) {
     current = current->previous();
   }

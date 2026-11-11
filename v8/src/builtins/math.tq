@@ -508,23 +508,82 @@ transitioning javascript builtin MathHypot(
   }
 }
 
-// https://tc39.es/ecma262/#sec-math.random
-extern macro RefillMathRandom(NativeContext): Smi;
+@export
+struct XorShift128State {
+  s0: uint64;
+  s1: uint64;
+}
 
+extern macro LoadMathRandomState(ByteArray): XorShift128State;
+extern macro StoreMathRandomState(ByteArray, XorShift128State): void;
+extern macro InitializeAndMaybeRefillMathRandom(NativeContext): Smi;
+
+struct XorShift128Result {
+  state: XorShift128State;
+  random: uint64;
+}
+
+// LINT.IfChange(xorshift128+)
+macro RandomToDouble(random: uint64): float64 {
+  // Get a random [0,2**53) integer value (up to MAX_SAFE_INTEGER) by dropping
+  // 11 bits of the state.
+  const random0to2pow53: uint64 = random >>> Convert<uint64>(11);
+  const randomDouble: float64 = ChangeUint64ToFloat64(random0to2pow53);
+  // Map this to [0,1) by division with 2**53 (2**53 = 9007199254740992.0).
+  return randomDouble / 9007199254740992.0;
+}
+
+macro XorShift128(s0In: uint64, s1In: uint64): XorShift128Result {
+  let s1 = s0In;
+  const s0 = s1In;
+  const newS0 = s0;
+  s1 = Word64Xor(s1, Word64Shl(s1, Convert<uint64>(23)));
+  s1 = Word64Xor(s1, Word64Shr(s1, Convert<uint64>(17)));
+  s1 = Word64Xor(s1, s0);
+  s1 = Word64Xor(s1, Word64Shr(s0, Convert<uint64>(26)));
+  const newS1 = s1;
+  const random = Uint64Add(s0, s1);
+  return XorShift128Result{
+    state: XorShift128State{s0: newS0, s1: newS1},
+    random: random
+  };
+}
+// LINT.ThenChange(/src/base/utils/random-number-generator.h:xorshift128+)
+
+// https://tc39.es/ecma262/#sec-math.random
 transitioning javascript builtin MathRandom(
     js-implicit context: NativeContext, receiver: JSAny)(): Number {
-  let smiIndex: Smi = *NativeContextSlot(ContextSlot::MATH_RANDOM_INDEX_INDEX);
-  if (smiIndex == 0) {
-    // refill math random.
-    smiIndex = RefillMathRandom(context);
-  }
-  const newSmiIndex: Smi = smiIndex - 1;
-  *NativeContextSlot(ContextSlot::MATH_RANDOM_INDEX_INDEX) = newSmiIndex;
+  if constexpr (Is64()) {
+    const stateArray:
+        ByteArray = *NativeContextSlot(ContextSlot::MATH_RANDOM_STATE_INDEX);
 
-  const array: FixedDoubleArray =
-      *NativeContextSlot(ContextSlot::MATH_RANDOM_CACHE_INDEX);
-  const random: float64 =
-      array.values[Convert<intptr>(newSmiIndex)].ValueUnsafeAssumeNotHole();
-  return AllocateHeapNumberWithValue(random);
+    let state: XorShift128State = LoadMathRandomState(stateArray);
+
+    if (state.s0 == 0 && state.s1 == 0) deferred {
+        InitializeAndMaybeRefillMathRandom(context);
+        state = LoadMathRandomState(stateArray);
+      }
+
+    const result = XorShift128(state.s0, state.s1);
+    StoreMathRandomState(stateArray, result.state);
+    return AllocateHeapNumberWithValue(RandomToDouble(result.random));
+
+  } else {
+    let smiIndex:
+        Smi = *NativeContextSlot(ContextSlot::MATH_RANDOM_INDEX_INDEX);
+    if (smiIndex == 0) {
+      // refill math random.
+      smiIndex = InitializeAndMaybeRefillMathRandom(context);
+    }
+    const newSmiIndex: Smi = smiIndex - 1;
+    *NativeContextSlot(ContextSlot::MATH_RANDOM_INDEX_INDEX) = newSmiIndex;
+
+    const array: FixedDoubleArray =
+        UnsafeCast<FixedDoubleArray>(*NativeContextSlot(
+            ContextSlot::MATH_RANDOM_CACHE_INDEX));
+    const random: float64 =
+        array.values[Convert<intptr>(newSmiIndex)].ValueUnsafeAssumeNotHole();
+    return AllocateHeapNumberWithValue(random);
+  }
 }
 }

@@ -17,6 +17,7 @@ namespace
 {
 constexpr PackedEnumMap<Feature, const char *> kFeatureNames = {{
     {Feature::AddAndTrueToLoopCondition, "addAndTrueToLoopCondition"},
+    {Feature::AddFramebufferFetchBarrierOnUseMidRenderPass, "addFramebufferFetchBarrierOnUseMidRenderPass"},
     {Feature::AddMockTextureNoRenderTarget, "addMockTextureNoRenderTarget"},
     {Feature::AdjustClearColorPrecision, "adjustClearColorPrecision"},
     {Feature::AdjustSrcDstRegionForBlitFramebuffer, "adjustSrcDstRegionForBlitFramebuffer"},
@@ -121,6 +122,7 @@ constexpr PackedEnumMap<Feature, const char *> kFeatureNames = {{
     {Feature::DisallowMixedDepthStencilLoadOpNoneAndLoad, "disallowMixedDepthStencilLoadOpNoneAndLoad"},
     {Feature::DoesSRGBClearsOnLinearFramebufferAttachments, "doesSRGBClearsOnLinearFramebufferAttachments"},
     {Feature::DontInitializeUninitializedLocals, "dontInitializeUninitializedLocals"},
+    {Feature::DontInvalidateIncompleteFBOs, "dontInvalidateIncompleteFBOs"},
     {Feature::DontUseLoopsToInitializeVariables, "dontUseLoopsToInitializeVariables"},
     {Feature::DoubleDepthBiasConstantFactor, "doubleDepthBiasConstantFactor"},
     {Feature::DropDepthStencilClearOnInvalidate, "dropDepthStencilClearOnInvalidate"},
@@ -286,6 +288,7 @@ constexpr PackedEnumMap<Feature, const char *> kFeatureNames = {{
     {Feature::QueryCounterBitsGeneratesErrors, "queryCounterBitsGeneratesErrors"},
     {Feature::ReadPixelsUsingImplementationColorReadFormatForNorm16, "readPixelsUsingImplementationColorReadFormatForNorm16"},
     {Feature::ReapplyUBOBindingsAfterUsingBinaryProgram, "reapplyUBOBindingsAfterUsingBinaryProgram"},
+    {Feature::RecreateFboUponFlush, "recreateFboUponFlush"},
     {Feature::RecreateMipmapLevelsBeforeGenerate, "recreateMipmapLevelsBeforeGenerate"},
     {Feature::RecycleVkEvent, "recycleVkEvent"},
     {Feature::RegenerateStructNames, "regenerateStructNames"},

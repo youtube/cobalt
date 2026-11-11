@@ -12,11 +12,13 @@
 #define PC_TYPED_CODEC_VENDOR_H_
 
 #include <utility>
+#include <vector>
 
 #include "api/field_trials_view.h"
 #include "api/media_types.h"
 #include "media/base/codec_list.h"
 #include "media/base/media_engine.h"
+#include "pc/codec_configuration.h"
 
 namespace webrtc {
 
@@ -46,10 +48,14 @@ class TypedCodecVendor {
                    const FieldTrialsView& trials);
 
   const CodecList& codecs() const { return codecs_; }
+  const std::vector<CodecConfiguration>& configurations() const {
+    return configurations_;
+  }
 
  private:
   // Effectively const, but not marked as such since that breaks move semantics.
   CodecList codecs_;
+  std::vector<CodecConfiguration> configurations_;
 };
 
 }  //  namespace webrtc

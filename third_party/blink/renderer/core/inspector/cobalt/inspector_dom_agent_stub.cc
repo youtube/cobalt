@@ -45,7 +45,7 @@ void InspectorDOMAgent::DidModifyDOMAttr(Element*,
 void InspectorDOMAgent::DidRemoveDOMAttr(Element*, const QualifiedName&) {}
 void InspectorDOMAgent::DidModifyAdoptedStyleSheets(Node*) {}
 void InspectorDOMAgent::CharacterDataModified(CharacterData*) {}
-void InspectorDOMAgent::DidInvalidateStyleAttr(Node*) {}
+void InspectorDOMAgent::DidInvalidateStyleAttr(Element*) {}
 void InspectorDOMAgent::DidPerformSlotDistribution(HTMLSlotElement*) {}
 void InspectorDOMAgent::DidPushShadowRoot(Element*, ShadowRoot*) {}
 void InspectorDOMAgent::WillPopShadowRoot(Element*, ShadowRoot*) {}

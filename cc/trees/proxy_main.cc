@@ -149,17 +149,25 @@ void ProxyMain::BeginMainFrame(
   if (record_metrics) {
     timer.emplace();
   }
+  auto begin_main_frame_reason = begin_main_frame_reason_;
   absl::Cleanup maybe_record_metrics_and_idle = [&] {
     if (record_metrics) {
+      constexpr size_t num_buckets = 1 << begin_main_frame_reason.size();
       UMA_HISTOGRAM_ENUMERATION("Compositing.BeginMainFrame.MainResult",
                                 reason);
       UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
           "Compositing.BeginMainFrame.TimeUs", timer->Elapsed(),
           base::Microseconds(1), base::Seconds(10), 50);
+      UMA_HISTOGRAM_ENUMERATION("Compositing.BeginMainFrame.BMFReason1",
+                                begin_main_frame_reason.to_ulong(),
+                                num_buckets);
       if (reason == CommitEarlyOutReason::kFinishedNoUpdates) {
         UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
             "Compositing.BeginMainFrame.TimeUs.NoUpdate", timer->Elapsed(),
             base::Microseconds(1), base::Seconds(10), 50);
+        UMA_HISTOGRAM_ENUMERATION(
+            "Compositing.BeginMainFrame.BMFReason1.NoUpdate",
+            begin_main_frame_reason.to_ulong(), num_buckets);
       }
     }
     if (reason != CommitEarlyOutReason::kNoEarlyOut) {
@@ -171,6 +179,7 @@ void ProxyMain::BeginMainFrame(
   base::TimeTicks begin_main_frame_start_time = base::TimeTicks::Now();
   main_frames_in_flight_++;
   needs_begin_main_frame_ = false;
+  begin_main_frame_reason_.reset();
 
   const viz::BeginFrameArgs& frame_args =
       begin_main_frame_state->begin_frame_args;
@@ -189,8 +198,9 @@ void ProxyMain::BeginMainFrame(
                                       base::SampleMetadataScope::kProcess);
 
   // This needs to run unconditionally, so do it before any early-returns.
-  if (layer_tree_host_->scheduling_client())
-    layer_tree_host_->scheduling_client()->DidRunBeginMainFrame();
+  if (layer_tree_host_->scheduling_delegate()) {
+    layer_tree_host_->scheduling_delegate()->DidRunBeginMainFrame();
+  }
 
   // We need to issue image decode callbacks whether or not we will abort this
   // update and commit, since the request ids are only stored in
@@ -630,9 +640,10 @@ void ProxyMain::SetShouldWarmUp() {
                                 base::Unretained(proxy_impl_.get())));
 }
 
-void ProxyMain::SetNeedsAnimate(bool urgent) {
+void ProxyMain::SetNeedsAnimate(BeginMainFrameReason reason, bool urgent) {
   DCHECK(IsMainThread());
   needs_begin_main_frame_ = true;
+  set_begin_main_frame_reason(reason);
   if (SendCommitRequestToImplThreadIfNeeded(ANIMATE_PIPELINE_STAGE, urgent)) {
     TRACE_EVENT_INSTANT("cc", "ProxyMain::SetNeedsAnimate", "urgent", urgent);
   }

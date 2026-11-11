@@ -383,5 +383,107 @@ TEST(ScreamV2Test, AdaptsToDelayLinkCapacity2MbpsLongRunning) {
             TimeDelta::Millis(10 * 2 + 60));
 }
 
+TEST(ScreamV2Test, EntersAndExitsAlrState) {
+  SimulatedClock clock(Timestamp::Seconds(1'234));
+  Environment env = CreateTestEnvironment({.time = &clock});
+  ScreamV2 scream(env);
+  const DataRate kMaxDataRate = DataRate::KilobitsPerSec(2000);
+  scream.SetTargetBitrateConstraints(DataRate::Zero(), kMaxDataRate,
+                                     DataRate::KilobitsPerSec(300));
+
+  // Configure a feedback generator simulating a network with infinite
+  // capacity but 25ms one way delay.
+  CcFeedbackGenerator feedback_generator(
+      {.network_config = {.queue_delay_ms = 25}});
+
+  DataRate send_rate = DataRate::KilobitsPerSec(300);
+
+  // 1. Ramp up send rate to establish a high target rate / ref_window.
+  for (int i = 0; i < 50; ++i) {
+    TransportPacketsFeedback feedback =
+        feedback_generator.ProcessUntilNextFeedback(
+            send_rate, clock, [&](const SentPacket& packet) {
+              scream.OnPacketSent(packet.data_in_flight);
+            });
+    scream.OnTransportPacketsFeedback(feedback);
+    send_rate = scream.target_rate();
+  }
+
+  EXPECT_GT(send_rate, DataRate::KilobitsPerSec(1500));
+  EXPECT_FALSE(scream.is_application_limited());
+
+  // 2. Drop send rate to 1000kbps to simulate application-limited state.
+  send_rate = DataRate::KilobitsPerSec(1000);
+  for (int i = 0; i < 10; ++i) {
+    TransportPacketsFeedback feedback =
+        feedback_generator.ProcessUntilNextFeedback(
+            send_rate, clock, [&](const SentPacket& packet) {
+              scream.OnPacketSent(packet.data_in_flight);
+            });
+    scream.OnTransportPacketsFeedback(feedback);
+  }
+
+  EXPECT_TRUE(scream.is_application_limited());
+
+  // 3. Increase send rate back to the target rate to exit ALR.
+  send_rate = scream.target_rate();
+  for (int i = 0; i < 15; ++i) {
+    TransportPacketsFeedback feedback =
+        feedback_generator.ProcessUntilNextFeedback(
+            send_rate, clock, [&](const SentPacket& packet) {
+              scream.OnPacketSent(packet.data_in_flight);
+            });
+    scream.OnTransportPacketsFeedback(feedback);
+    send_rate = scream.target_rate();
+  }
+
+  EXPECT_FALSE(scream.is_application_limited());
+}
+
+TEST(ScreamV2Test, DisableAlrViaFieldTrial) {
+  SimulatedClock clock(Timestamp::Seconds(1'234));
+  Environment env = CreateTestEnvironment(
+      {.field_trials = "WebRTC-Bwe-ScreamV2/EnableAlr:false/", .time = &clock});
+  ScreamV2 scream(env);
+  const DataRate kMaxDataRate = DataRate::KilobitsPerSec(2000);
+  scream.SetTargetBitrateConstraints(DataRate::Zero(), kMaxDataRate,
+                                     DataRate::KilobitsPerSec(300));
+
+  // Configure a feedback generator simulating a network with infinite
+  // capacity but 25ms one way delay.
+  CcFeedbackGenerator feedback_generator(
+      {.network_config = {.queue_delay_ms = 25}});
+
+  DataRate send_rate = DataRate::KilobitsPerSec(300);
+
+  // 1. Ramp up send rate.
+  for (int i = 0; i < 50; ++i) {
+    TransportPacketsFeedback feedback =
+        feedback_generator.ProcessUntilNextFeedback(
+            send_rate, clock, [&](const SentPacket& packet) {
+              scream.OnPacketSent(packet.data_in_flight);
+            });
+    scream.OnTransportPacketsFeedback(feedback);
+    send_rate = scream.target_rate();
+  }
+
+  EXPECT_GT(send_rate, DataRate::KilobitsPerSec(1500));
+  EXPECT_FALSE(scream.is_application_limited());
+
+  // 2. Drop send rate to 100kbps.
+  send_rate = DataRate::KilobitsPerSec(100);
+  for (int i = 0; i < 10; ++i) {
+    TransportPacketsFeedback feedback =
+        feedback_generator.ProcessUntilNextFeedback(
+            send_rate, clock, [&](const SentPacket& packet) {
+              scream.OnPacketSent(packet.data_in_flight);
+            });
+    scream.OnTransportPacketsFeedback(feedback);
+  }
+
+  // ALR is disabled, so it should still not be in application-limited state.
+  EXPECT_FALSE(scream.is_application_limited());
+}
+
 }  // namespace
 }  // namespace webrtc

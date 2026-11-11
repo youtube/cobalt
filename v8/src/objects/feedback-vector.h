@@ -302,7 +302,7 @@ class ClosureFeedbackCellArray
 
   class BodyDescriptor;
 
-  static constexpr uint32_t kLengthOffset = HeapObject::kHeaderSize;
+  static constexpr uint32_t kLengthOffset = sizeof(HeapObject);
   static constexpr uint32_t kHeaderSize =
       kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kApiInt32Size);
   static_assert(sizeof(Super::Header) == kHeaderSize);
@@ -312,7 +312,7 @@ class NexusConfig;
 
 // A FeedbackVector has a fixed header followed by an array of feedback slots,
 // of length determined by the feedback metadata.
-V8_OBJECT class FeedbackVector : public HeapObjectLayout {
+V8_OBJECT class FeedbackVector : public HeapObject {
  public:
   DEFINE_TORQUE_GENERATED_OSR_STATE()
   DEFINE_TORQUE_GENERATED_FEEDBACK_VECTOR_FLAGS()
@@ -346,8 +346,6 @@ V8_OBJECT class FeedbackVector : public HeapObjectLayout {
   inline void set_flags(uint16_t value);
 
   inline Tagged<SharedFunctionInfo> shared_function_info() const;
-  inline Tagged<SharedFunctionInfo> shared_function_info(
-      PtrComprCageBase cage_base) const;
   inline void set_shared_function_info(
       Tagged<SharedFunctionInfo> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -426,8 +424,6 @@ V8_OBJECT class FeedbackVector : public HeapObjectLayout {
                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<MaybeObject> Get(FeedbackSlot slot) const;
-  inline Tagged<MaybeObject> Get(PtrComprCageBase cage_base,
-                                 FeedbackSlot slot) const;
 
   // Returns the feedback cell at |index| that is used to create the
   // closure.
@@ -516,16 +512,6 @@ V8_OBJECT class FeedbackVector : public HeapObjectLayout {
 
   class BodyDescriptor;
 
-  // Back-compat layout constants. Defined out-of-line.
-  static const int kLengthOffset;
-  static const int kInvocationCountOffset;
-  static const int kInvocationCountBeforeStableOffset;
-  static const int kOsrStateOffset;
-  static const int kFlagsOffset;
-  static const int kSharedFunctionInfoOffset;
-  static const int kClosureFeedbackCellArrayOffset;
-  static const int kParentFeedbackCellOffset;
-  static const int kStartOfStrongFieldsOffset;
   static const int kHeaderSize;
   static const int kRawFeedbackSlotsOffset;
 
@@ -576,24 +562,6 @@ V8_OBJECT class FeedbackVector : public HeapObjectLayout {
   FLEXIBLE_ARRAY_MEMBER(TaggedMember<MaybeObject>, raw_feedback_slots);
 } V8_OBJECT_END;
 
-inline constexpr int FeedbackVector::kLengthOffset =
-    offsetof(FeedbackVector, length_);
-inline constexpr int FeedbackVector::kInvocationCountOffset =
-    offsetof(FeedbackVector, invocation_count_);
-inline constexpr int FeedbackVector::kInvocationCountBeforeStableOffset =
-    offsetof(FeedbackVector, invocation_count_before_stable_);
-inline constexpr int FeedbackVector::kOsrStateOffset =
-    offsetof(FeedbackVector, osr_state_);
-inline constexpr int FeedbackVector::kFlagsOffset =
-    offsetof(FeedbackVector, flags_);
-inline constexpr int FeedbackVector::kSharedFunctionInfoOffset =
-    offsetof(FeedbackVector, shared_function_info_);
-inline constexpr int FeedbackVector::kClosureFeedbackCellArrayOffset =
-    offsetof(FeedbackVector, closure_feedback_cell_array_);
-inline constexpr int FeedbackVector::kParentFeedbackCellOffset =
-    offsetof(FeedbackVector, parent_feedback_cell_);
-inline constexpr int FeedbackVector::kStartOfStrongFieldsOffset =
-    offsetof(FeedbackVector, shared_function_info_);
 inline constexpr int FeedbackVector::kHeaderSize =
     OFFSET_OF_DATA_START(FeedbackVector);
 inline constexpr int FeedbackVector::kRawFeedbackSlotsOffset =
@@ -779,7 +747,7 @@ class SharedFeedbackSlot {
 // this object (it could, for example, also be stored on the Bytecode), but
 // keeping it here is somewhat efficient as the uint16s can just be stored
 // after the int32s of the slots.
-V8_OBJECT class FeedbackMetadata : public HeapObjectLayout {
+V8_OBJECT class FeedbackMetadata : public HeapObject {
  public:
   // The number of slots that this metadata contains. Stored as an int32.
   inline int32_t slot_count() const { return slot_count_; }
@@ -837,9 +805,6 @@ V8_OBJECT class FeedbackMetadata : public HeapObjectLayout {
                                 create_closure_slot_count * kUInt16Size);
   }
 
-  // Back-compat offset/size constants.
-  static const int kSlotCountOffset;
-  static const int kCreateClosureSlotCountOffset;
   static const int kHeaderSize;
 
   class BodyDescriptor;
@@ -874,10 +839,6 @@ V8_OBJECT class FeedbackMetadata : public HeapObjectLayout {
   int32_t create_closure_slot_count_;
 } V8_OBJECT_END;
 
-inline constexpr int FeedbackMetadata::kSlotCountOffset =
-    offsetof(FeedbackMetadata, slot_count_);
-inline constexpr int FeedbackMetadata::kCreateClosureSlotCountOffset =
-    offsetof(FeedbackMetadata, create_closure_slot_count_);
 inline constexpr int FeedbackMetadata::kHeaderSize = sizeof(FeedbackMetadata);
 
 // Verify that an empty hash field looks like a tagged object, but can't
@@ -1053,8 +1014,8 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
       MapsAndHandlers* maps_and_handlers,
       TryUpdateHandler map_handler = TryUpdateHandler()) const;
   MaybeObjectDirectHandle FindHandlerForMap(DirectHandle<Map> map) const;
-  // Used to obtain maps. This is used by compilers to get all the feedback
-  // stored in the vector.
+  // Used to obtain maps and handlers. This is used by compilers to get all the
+  // feedback stored in the vector.
   template <typename F>
   void IterateMapsWithUnclearedHandler(F) const;
 

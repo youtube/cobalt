@@ -26,7 +26,8 @@ void SampleAllocation(GCTracer* tracer, base::TimeTicks time,
                       size_t per_space_counter_bytes) {
   // Increment counters of all spaces.
   tracer->SampleAllocation(time, per_space_counter_bytes,
-                           per_space_counter_bytes, per_space_counter_bytes);
+                           per_space_counter_bytes, per_space_counter_bytes,
+                           per_space_counter_bytes);
 }
 
 enum class StartTracingMode {
@@ -120,6 +121,9 @@ TEST_F(GCTracerTest, PerGenerationAllocationThroughput) {
   EXPECT_EQ(expected_throughput1,
             static_cast<size_t>(
                 tracer->EmbedderAllocationThroughputInBytesPerMillisecond()));
+  EXPECT_EQ(expected_throughput1,
+            static_cast<size_t>(
+                tracer->ExternalAllocationThroughputInBytesPerMillisecond()));
   const int time3 = 1000;
   const size_t counter3 = 30000;
   SampleAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time3),
@@ -139,6 +143,9 @@ TEST_F(GCTracerTest, PerGenerationAllocationThroughput) {
   EXPECT_EQ(expected_throughput2,
             static_cast<size_t>(
                 tracer->EmbedderAllocationThroughputInBytesPerMillisecond()));
+  EXPECT_EQ(expected_throughput2,
+            static_cast<size_t>(
+                tracer->ExternalAllocationThroughputInBytesPerMillisecond()));
 
   const int time4 = 2000;
   const size_t counter4 = 31000;
@@ -166,6 +173,9 @@ TEST_F(GCTracerTest, PerGenerationAllocationThroughput) {
   EXPECT_EQ(expected_throughput3,
             static_cast<size_t>(
                 tracer->EmbedderAllocationThroughputInBytesPerMillisecond()));
+  EXPECT_EQ(expected_throughput3,
+            static_cast<size_t>(
+                tracer->ExternalAllocationThroughputInBytesPerMillisecond()));
 }
 
 TEST_F(GCTracerTest, RegularScope) {

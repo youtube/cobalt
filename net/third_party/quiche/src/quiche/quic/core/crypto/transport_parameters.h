@@ -109,38 +109,6 @@ struct QUICHE_EXPORT TransportParameters {
         std::ostream& os, const TransportParameters& params);
   };
 
-  // LegacyVersionInformation represents the Google QUIC downgrade prevention
-  // mechanism ported to QUIC+TLS. It is exchanged using transport parameter ID
-  // 0x4752 and is in the process of being deprecated in favor of RFC 9368
-  // which uses the VersionInformation class below.
-  struct QUICHE_EXPORT LegacyVersionInformation {
-    LegacyVersionInformation();
-    LegacyVersionInformation(const LegacyVersionInformation& other) = default;
-    LegacyVersionInformation& operator=(const LegacyVersionInformation& other) =
-        default;
-    LegacyVersionInformation& operator=(LegacyVersionInformation&& other) =
-        default;
-    LegacyVersionInformation(LegacyVersionInformation&& other) = default;
-    ~LegacyVersionInformation() = default;
-    bool operator==(const LegacyVersionInformation& rhs) const;
-    bool operator!=(const LegacyVersionInformation& rhs) const;
-    // When sent by the client, |version| is the initial version offered by the
-    // client (before any version negotiation packets) for this connection. When
-    // sent by the server, |version| is the version that is in use.
-    QuicVersionLabel version;
-
-    // When sent by the server, |supported_versions| contains a list of all
-    // versions that the server would send in a version negotiation packet. When
-    // sent by the client, this is empty.
-    QuicVersionLabelVector supported_versions;
-
-    // Allows easily logging.
-    std::string ToString() const;
-    friend QUICHE_EXPORT std::ostream& operator<<(
-        std::ostream& os,
-        const LegacyVersionInformation& legacy_version_information);
-  };
-
   // Version information used for version downgrade prevention and compatible
   // version negotiation. See RFC 9368.
   struct QUICHE_EXPORT VersionInformation {
@@ -183,10 +151,6 @@ struct QUICHE_EXPORT TransportParameters {
 
   friend QUICHE_EXPORT std::ostream& operator<<(
       std::ostream& os, const TransportParameters& params);
-
-  // Google QUIC downgrade prevention mechanism sent over QUIC+TLS. This is
-  // being deprecated in favor of the version_information field below.
-  std::optional<LegacyVersionInformation> legacy_version_information;
 
   // IETF downgrade prevention and compatible version negotiation, see RFC 9368.
   std::optional<VersionInformation> version_information;

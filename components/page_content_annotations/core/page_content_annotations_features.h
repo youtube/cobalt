@@ -5,6 +5,9 @@
 #ifndef COMPONENTS_PAGE_CONTENT_ANNOTATIONS_CORE_PAGE_CONTENT_ANNOTATIONS_FEATURES_H_
 #define COMPONENTS_PAGE_CONTENT_ANNOTATIONS_CORE_PAGE_CONTENT_ANNOTATIONS_FEATURES_H_
 
+#include <cstddef>
+#include <cstdint>
+
 #include "base/component_export.h"
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
@@ -64,6 +67,12 @@ extern const base::FeatureParam<bool> kPageContentCacheUseUserEngagement;
 // a page has settled enough for observations to take place.
 COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
 BASE_DECLARE_FEATURE(kPageSettledMonitor);
+
+// Enables the use of PageSettledMonitor for PCES extractions to better
+// determine when a page is stable enough for content extraction. This replaces
+// the legacy load/FCP plus a fixed-delay.
+COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
+BASE_DECLARE_FEATURE(kPageContentExtractionUsingPageSettledMonitor);
 
 // The overall observation timeout when waiting on a renderer tool to complete.
 COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
@@ -216,6 +225,10 @@ std::string AnnotatedPageContentMode();
 // content.
 COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
 bool ShouldAnnotatedPageContentExcludeAdRelated();
+
+// The maximum size in bytes of the text extracted from a PDF.
+COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
+uint32_t MaxPDFTextExtractionByteSize();
 
 // The triggering mode for page content extraction.
 enum class PageContentExtractionTriggeringMode {

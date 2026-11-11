@@ -891,6 +891,8 @@ class LiftoffAssembler : public MacroAssembler {
                             int64_t imm);
   inline void emit_i64_add128(Register dst_low, Register dst_high, Register al,
                               Register ah, Register bl, Register bh);
+  inline void emit_i64_sub128(Register dst_low, Register dst_high, Register al,
+                              Register ah, Register bl, Register bh);
   inline void emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs);
   inline void emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,

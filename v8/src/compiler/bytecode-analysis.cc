@@ -823,8 +823,9 @@ const LoopInfo& BytecodeAnalysis::GetLoopInfoFor(int header_offset) const {
 const LoopInfo* BytecodeAnalysis::TryGetLoopInfoFor(int header_offset) const {
   auto it = std::ranges::lower_bound(loop_infos_, header_offset, {},
                                      &LoopInfo::loop_start);
-  if (it == loop_infos_.end() || it->loop_start() != header_offset)
+  if (it == loop_infos_.end() || it->loop_start() != header_offset) {
     return nullptr;
+  }
   return &*it;
 }
 

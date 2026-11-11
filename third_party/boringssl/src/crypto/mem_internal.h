@@ -95,11 +95,11 @@ struct DeleterImpl<T, std::enable_if_t<T::kAllowRefCountedUniquePtr>> {
 // UpRef function. Other types may be C structs which require a
 // |BORINGSSL_MAKE_UP_REF| registration.
 template <typename T, typename = std::enable_if_t<T::kAllowRefCountedUniquePtr>>
-inline UniquePtr<T> UpRef(T *v) {
+inline UniquePtr<T> UpRef(const T *v) {
   if (v != nullptr) {
     v->UpRefInternal();
   }
-  return UniquePtr<T>(v);
+  return UniquePtr<T>(const_cast<T *>(v));
 }
 template <typename T, typename = std::enable_if_t<T::kAllowRefCountedUniquePtr>>
 inline UniquePtr<T> UpRef(const UniquePtr<T> &ptr) {
@@ -130,7 +130,11 @@ class RefCounted {
   // avoid a collision. Only the implementations of `FOO_up_ref` and `FOO_free`
   // should call these. |DecRefInternal| returns true if the object was freed
   // and false if there are still references.
-  void UpRefInternal() { CRYPTO_refcount_inc(&references_); }
+  void UpRefInternal() const {
+    // Safety: the folowing call does not mutate anything other than the atomic
+    // ref-count variable.
+    CRYPTO_refcount_inc(&references_);
+  }
   bool DecRefInternal() {
     if (CRYPTO_refcount_dec_and_test_zero(&references_)) {
       Derived *d = static_cast<Derived *>(this);
@@ -158,7 +162,7 @@ class RefCounted {
   ~RefCounted() { BSSL_CHECK(references_.load() == 0); }
 
  private:
-  CRYPTO_refcount_t references_ = 1;
+  mutable CRYPTO_refcount_t references_ = 1;
 };
 
 

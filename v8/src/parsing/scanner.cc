@@ -315,8 +315,9 @@ void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
   } else {
     return;
   }
-  if (c0_ != '=')
+  if (c0_ != '=') {
     return;
+  }
   value->Start();
   Advance();
   while (IsWhiteSpace(c0_)) {

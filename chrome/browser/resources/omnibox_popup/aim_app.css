@@ -33,7 +33,11 @@
   --color-composebox-background: var(--color-omnibox-results-background);
   --color-composebox-cancel-button: unset; /* Lens only */
   --color-composebox-cancel-button-light: var(--color-omnibox-text-dimmed);
+  --color-composebox-context-entrypoint-background: var(--color-omnibox-action-icon-hover);
   --color-composebox-context-entrypoint-hover-background: var(--color-omnibox-action-icon-hover);
+  --color-composebox-lens-button-hover-background: var(--color-omnibox-action-icon-hover);
+  --color-composebox-tool-chip-background: var(--color-omnibox-action-icon-hover);
+  --color-composebox-voice-button-hover-background: var(--color-omnibox-action-icon-hover);
   --color-composebox-context-entrypoint-text: var(--color-omnibox-context-entrypoint-text);
   --color-composebox-context-entrypoint-text-disabled: var(--color-omnibox-foreground-disabled);
   --color-composebox-file-carousel-remove-button: var(--color-omnibox-results-button-ink-drop-row-hovered);
@@ -59,6 +63,7 @@
   --color-composebox-recent-tab-chip-outline: unset; /* Omnibox has no recent tab chip. */
   --color-composebox-scrim-background: unset; /* No scrim. */
   --color-composebox-submit-button-background: var(--color-omnibox-composebox-submit-button-background);
+  --color-composebox-submit-button-energy: var(--color-omnibox-composebox-submit-button-energy);
   --color-composebox-submit-button-icon: var(--color-omnibox-composebox-submit-button-icon);
   --color-composebox-submit-button-hover: var(--color-omnibox-action-icon-hover);
   --color-composebox-suggestion-activity: unset; /* No activity suggestion disclaimer. */
@@ -71,15 +76,20 @@
   --cr-composebox-input-placeholder-color: var(--color-omnibox-foreground-disabled);
   --cr-composebox-outline-hcm: none;
   --cr-composebox-submit-button-margin-inline-start: auto;
-  --cr-composebox-submit-border-radius: 100px;
   --cr-composebox-submit-container-top: auto;
-  --cr-composebox-submit-height: 32px;
-  --cr-composebox-submit-width: 40px;
-  --cr-composebox-submit-icon-offset: 0;
   --cr-composebox-suggestion-activity-bottom: 0;
   --cr-composebox-suggestion-activity-margin-top: 0;
   --cr-composebox-voice-icon-top: auto;
   position: relative;
+}
+
+:host([energy-effect-enabled_]) #composebox {
+  --composebox-cancel-button-inline-end: 14px;
+  --cr-composebox-padding-bottom: 8px;
+  --cr-composebox-submit-border-radius: 100px;
+  --cr-composebox-submit-height: 36px;
+  --cr-composebox-submit-icon-offset: 0;
+  --cr-composebox-submit-width: 48px;
 }
 
 #composebox[searchbox-layout-mode='Compact'],
@@ -100,6 +110,11 @@
   min-height: 44px;
 }
 
+#composebox::part(voice-stop-button) {
+  background-color: var(--color-sys-neutral-container);
+  --cr-icon-button-fill-color: var(--color-sys-on-surface);
+}
+
 #composebox::part(context-menu-and-tools) {
   margin-top: var(--omnibox-context-menu-container-margin-top);
 }
@@ -109,7 +124,11 @@
 }
 
 cr-composebox[searchbox-layout-mode='TallBottomContext']::part(submit) {
-  bottom: 14px;
+  bottom: 10px;
+}
+
+:host([energy-effect-enabled_]) cr-composebox[searchbox-layout-mode='TallBottomContext']::part(submit) {
+  inset-inline-end: 8px;
 }
 
 #composebox::part(voice-icon) {
@@ -120,13 +139,30 @@ cr-composebox[searchbox-layout-mode='TallBottomContext']::part(submit) {
   bottom: 11px;
 }
 
+:host([energy-effect-enabled_])
+  #composebox[searchbox-layout-mode='TallBottomContext']::part(voice-icon) {
+  bottom: 10px;
+  inset-inline-end: 14px;
+}
+
 cr-composebox[submit-enabled][searchbox-layout-mode='TallBottomContext']:not([show-dropdown])::part(submit) {
-  bottom: 14px;
+  bottom: 6px;
+}
+
+:host([energy-effect-enabled_]) cr-composebox[submit-enabled][searchbox-layout-mode='TallBottomContext']:not([show-dropdown])::part(submit) {
+  bottom: 10px;
+  inset-inline-end: 8px;
 }
 
 #composebox[submit-enabled][searchbox-layout-mode='TallBottomContext']::part(voice-icon) {
   inset-inline-end: calc(var(--cr-composebox-submit-container-size) + 6px);
   margin-inline-end: 6px;
+}
+
+:host([energy-effect-enabled_])
+  #composebox[submit-enabled][searchbox-layout-mode='TallBottomContext']::part(voice-icon) {
+  inset-inline-end: calc(var(--cr-composebox-submit-width, var(--cr-composebox-submit-container-size)) + 8px);
+  margin-inline-end: 4px;
 }
 
 :host-context([dir='rtl']) #composebox[searchbox-layout-mode='Compact']::part(context-menu-entrypoint-icon),

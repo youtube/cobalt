@@ -10,11 +10,13 @@
 
 #import "base/apple/foundation_util.h"
 #import "base/cancelable_callback.h"
+#import "base/files/file_util.h"
 #import "base/memory/raw_ptr.h"
 #import "base/metrics/histogram_functions.h"
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/task/thread_pool.h"
 #import "base/time/time.h"
 #import "base/trace_event/trace_event.h"
 #import "components/feature_engagement/public/event_constants.h"
@@ -92,7 +94,6 @@
 #import "ios/chrome/common/ui/favicon/favicon_attributes.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/public/provider/chrome/browser/voice_search/voice_search_api.h"
-#import "ios/web/public/js_image_transcoder/java_script_image_transcoder.h"
 #import "ios/web/public/navigation/navigation_item.h"
 #import "ios/web/public/navigation/navigation_manager.h"
 #import "ios/web/public/navigation/referrer.h"
@@ -101,6 +102,10 @@
 #import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util.h"
 #import "url/gurl.h"
+
+@interface NewTabPageMediator (ImageFetcher)
+- (image_fetcher::ImageFetcherService*)imageFetcherService;
+@end
 
 namespace {
 
@@ -164,6 +169,122 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
         }
         }
         )");
+
+// Enum for the IOS.HomeCustomization.Background.Ntp.CacheCleanupEvent
+// histogram.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(NtpBackgroundCacheCleanupEvent)
+enum class NtpBackgroundCacheCleanupEvent {
+  // The cleanup was skipped because the user is a new background customization
+  // user.
+  kCleanupSkippedNewUser = 0,
+  // The cleanup was triggered (files deletion started).
+  kCleanupTriggered = 1,
+  // The cleanup completed successfully (files deleted).
+  kCleanupCompletedSuccess = 2,
+  // The cleanup failed to delete files.
+  kCleanupCompletedFailure = 3,
+  // The refetch of the current background was triggered.
+  kRefetchTriggered = 4,
+  // The refetch of the current background completed successfully.
+  kRefetchCompletedSuccess = 5,
+  // The refetch of the current background failed.
+  kRefetchCompletedFailure = 6,
+  kMaxValue = kRefetchCompletedFailure,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml)
+
+// Before M149, an upscaling and transcoding bug caused the image fetcher to
+// store unnecessarily large background images, making a cache cleanup
+// necessary. However, new background customization users (M149+) bypass this
+// step entirely since their caches are clean.
+void DisableImageFetcherCacheCleanupIfNeeded(PrefService* pref_service) {
+  // The default value for `kIosRecentlyUsedBackgrounds` is a list containing
+  // a single boolean `true`, which is used as a signal for a new user.
+  const auto& recently_used =
+      pref_service->GetList(prefs::kIosRecentlyUsedBackgrounds);
+  if (recently_used.size() == 1 && recently_used[0].is_bool() &&
+      recently_used[0].GetBool()) {
+    pref_service->SetBoolean(prefs::kIosImageFetcherShouldClearCache, false);
+    base::UmaHistogramEnumeration(
+        "IOS.HomeCustomization.Background.Ntp.CacheCleanupEvent",
+        NtpBackgroundCacheCleanupEvent::kCleanupSkippedNewUser);
+  }
+}
+
+// Before M149, there was an upscale & transcoding issue on background images
+// stored in the image fetcher image cache resulting in storing very large files
+// increasing the memory footprint for no reason. This function has been
+// introduced after the fix to clean up the image cache and will be removed in
+// a future version of Chrome.
+void CleanupImageFetcherCacheIfNeeded(PrefService* pref_service,
+                                      web::BrowserState* browser_state,
+                                      NewTabPageMediator* mediator,
+                                      HomeCustomBackground custom_background) {
+  if (!pref_service->GetBoolean(prefs::kIosImageFetcherShouldClearCache)) {
+    return;
+  }
+
+  base::UmaHistogramEnumeration(
+      "IOS.HomeCustomization.Background.Ntp.CacheCleanupEvent",
+      NtpBackgroundCacheCleanupEvent::kCleanupTriggered);
+
+  base::FilePath cache_path = browser_state->GetStatePath();
+  base::FilePath storage_path =
+      cache_path.Append(FILE_PATH_LITERAL("image_data_storage"));
+
+  __weak NewTabPageMediator* weakMediator = mediator;
+  // Refetches the image.
+  void (^refetchCurrentImage)(void) = ^{
+    NewTabPageMediator* strongMediator = weakMediator;
+    if (!strongMediator) {
+      return;
+    }
+    // Refetch the image to populate the cache in the new format.
+    if (const sync_pb::NtpCustomBackground* ntpBackground =
+            std::get_if<sync_pb::NtpCustomBackground>(&custom_background)) {
+      image_fetcher::ImageFetcher* imageFetcher =
+          [strongMediator imageFetcherService]->GetImageFetcher(
+              image_fetcher::ImageFetcherConfig::kReducedMode);
+      GURL imageURL = GURL(ntpBackground->url());
+      imageFetcher->FetchImageData(
+          imageURL,
+          base::BindOnce(^(const std::string& imageData,
+                           const image_fetcher::RequestMetadata& metadata) {
+            bool success = !imageData.empty();
+            base::UmaHistogramEnumeration(
+                "IOS.HomeCustomization.Background.Ntp.CacheCleanupEvent",
+                success
+                    ? NtpBackgroundCacheCleanupEvent::kCleanupCompletedSuccess
+                    : NtpBackgroundCacheCleanupEvent::kCleanupCompletedFailure);
+          }),
+          image_fetcher::ImageFetcherParams(kTrafficAnnotation,
+                                            kImageFetcherUmaClient));
+      base::UmaHistogramEnumeration(
+          "IOS.HomeCustomization.Background.Ntp.CacheCleanupEvent",
+          NtpBackgroundCacheCleanupEvent::kRefetchTriggered);
+    }
+  };
+
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
+      base::BindOnce(
+          ^(const base::FilePath& path) {
+            return base::DeletePathRecursively(path) &&
+                   base::CreateDirectory(path);
+          },
+          storage_path),
+      base::BindOnce(^(bool success) {
+        base::UmaHistogramEnumeration(
+            "IOS.HomeCustomization.Background.Ntp.CacheCleanupEvent",
+            success ? NtpBackgroundCacheCleanupEvent::kCleanupCompletedSuccess
+                    : NtpBackgroundCacheCleanupEvent::kCleanupCompletedFailure);
+        refetchCurrentImage();
+      }));
+
+  pref_service->SetBoolean(prefs::kIosImageFetcherShouldClearCache, false);
+}
 
 }  // namespace
 
@@ -232,8 +353,6 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
   raw_ptr<image_fetcher::ImageFetcherService> _imageFetcherService;
   raw_ptr<UserUploadedImageManager, DanglingUntriaged>
       _userUploadedImageManager;
-  // Transcoder used to decode images.
-  std::unique_ptr<web::JavaScriptImageTranscoder> _imageTranscoder;
   // Observer to keep track of the syncing status.
   std::unique_ptr<SyncObserverBridge> _syncObserver;
   raw_ptr<signin::IdentityManager> _identityManager;
@@ -324,7 +443,6 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
     _backgroundCustomizationService = backgroundCustomizationService;
     _backgroundImageCacheService = backgroundImageCacheService;
     _imageFetcherService = imageFetcherService;
-    _imageTranscoder = std::make_unique<web::JavaScriptImageTranscoder>();
     _userUploadedImageManager = userUploadedImageManager;
     _signedInIdentity = _authService->GetPrimaryIdentity();
     _tracker = tracker;
@@ -399,6 +517,8 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
 }
 
 - (void)setUp {
+  DisableImageFetcherCacheCleanupIfNeeded(_prefService);
+
   self.templateURLService->Load();
   [self updateModuleVisibilityForConsumer];
   [self.headerConsumer
@@ -652,6 +772,8 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
       initWithMutableTraits:self.consumer.traitOverrides];
   [traitAccessor setBoolForNewTabPageImageBackgroundTrait:(image != nil)];
   [traitAccessor setObjectForNewTabPageTrait:[NewTabPageTrait defaultValue]];
+  CleanupImageFetcherCacheIfNeeded(
+      _prefService, self.webState->GetBrowserState(), self, customBackground);
 }
 
 // Attempts to apply the cached background image. Returns YES if a cached image
@@ -869,29 +991,6 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
                                 HomeCustomizationBackgroundStyle::kDefault);
 }
 
-// Sanitizes and decodes downloaded image data in a sandboxed process before
-// applying it as the custom background.
-- (void)processDownloadedImageData:(const std::string&)imageData
-                          metadata:
-                              (const image_fetcher::RequestMetadata&)metadata
-                        background:(sync_pb::NtpCustomBackground)background
-                             cache:(BOOL)cache {
-  if (imageData.empty()) {
-    return;
-  }
-
-  __weak __typeof(self) weakSelf = self;
-  _imageTranscoder->TranscodeImage(
-      [NSData dataWithBytes:imageData.data() length:imageData.length()],
-      base::SysUTF8ToNSString(metadata.mime_type), nil, nil, @1.0,
-      base::BindOnce(^(NSData* safeData, NSError* error) {
-        UIImage* image = [UIImage imageWithData:safeData];
-        if (image) {
-          [weakSelf setCustomBackground:background image:image cache:cache];
-        }
-      }));
-}
-
 // Fetches and applies a custom background image.
 - (void)fetchCustomBackground:(sync_pb::NtpCustomBackground)background {
   GURL imageURL = GURL(background.url());
@@ -930,14 +1029,17 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
       const std::string&, const image_fetcher::RequestMetadata&)>>(
       base::BindOnce(^(const std::string& image_data,
                        const image_fetcher::RequestMetadata& metadata) {
-        __typeof(self) strongSelf = weakSelf;
-        if (!strongSelf) {
+        if (!image_data.empty()) {
+          NSData* data = [NSData dataWithBytes:image_data.data()
+                                        length:image_data.length()];
+          UIImage* image = [UIImage imageWithData:data];
+          if (image) {
+            // Temporarily sets the thumbnail as the background until the
+            // high-resolution image is loaded.
+            [weakSelf setCustomBackground:background image:image cache:NO];
+          }
           return;
         }
-        [strongSelf processDownloadedImageData:image_data
-                                      metadata:metadata
-                                    background:background
-                                         cache:NO];
       }));
 
   _imageCallback = std::make_unique<base::CancelableOnceCallback<void(
@@ -961,16 +1063,18 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
           strongSelf->_thumbnailCallback.reset();
         }
 
-        if (image_data.empty()) {
+        if (!image_data.empty()) {
+          NSData* data = [NSData dataWithBytes:image_data.data()
+                                        length:image_data.length()];
+          UIImage* image = [UIImage imageWithData:data];
+          if (image) {
+            [strongSelf setCustomBackground:background image:image cache:YES];
+          }
+        } else {
           base::UmaHistogramSparse(
               "IOS.HomeCustomization.Background.Ntp.ImageDownloadErrorCode",
               metadata.http_response_code);
         }
-
-        [strongSelf processDownloadedImageData:image_data
-                                      metadata:metadata
-                                    background:background
-                                         cache:YES];
 
         // Clear state.
         strongSelf->_pendingBackgroundURL = GURL();
@@ -990,6 +1094,10 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
 - (void)markSafariDataImportSetupListItemAsComplete {
   set_up_list_prefs::MarkItemComplete(GetApplicationContext()->GetLocalState(),
                                       SetUpListItemType::kSafariImport);
+}
+
+- (image_fetcher::ImageFetcherService*)imageFetcherService {
+  return _imageFetcherService;
 }
 
 @end

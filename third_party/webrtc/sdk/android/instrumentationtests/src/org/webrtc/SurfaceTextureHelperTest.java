@@ -154,10 +154,11 @@ public class SurfaceTextureHelperTest {
       GlUtil.checkNoGLES2Error("glReadPixels");
 
       // Assert rendered image is expected constant color.
+      // Allow off-by-one differences due to different rounding.
       while (rgbaData.hasRemaining()) {
-        assertEquals(red[i], rgbaData.get() & 0xFF);
-        assertEquals(green[i], rgbaData.get() & 0xFF);
-        assertEquals(blue[i], rgbaData.get() & 0xFF);
+        assertClose(1, red[i], rgbaData.get() & 0xFF);
+        assertClose(1, green[i], rgbaData.get() & 0xFF);
+        assertClose(1, blue[i], rgbaData.get() & 0xFF);
         assertEquals(255, rgbaData.get() & 0xFF);
       }
     }
@@ -226,11 +227,12 @@ public class SurfaceTextureHelperTest {
     eglBase.release();
 
     // Assert rendered image is expected constant color.
+    // Allow off-by-one differences due to different rounding.
     while (rgbaData.hasRemaining()) {
-      assertEquals(red, rgbaData.get() & 0xFF);
-      assertEquals(green, rgbaData.get() & 0xFF);
-      assertEquals(blue, rgbaData.get() & 0xFF);
-      assertEquals(255,rgbaData.get() & 0xFF);
+      assertClose(1, red, rgbaData.get() & 0xFF);
+      assertClose(1, green, rgbaData.get() & 0xFF);
+      assertClose(1, blue, rgbaData.get() & 0xFF);
+      assertEquals(255, rgbaData.get() & 0xFF);
     }
     // Late frame return after everything has been disposed and released.
     textureBuffer.release();

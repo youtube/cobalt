@@ -235,9 +235,6 @@ public final class ProductionSupportedFlagList {
                 AndroidAutofillFeatures.ANDROID_AUTOFILL_LAZY_FRAMEWORK_WRAPPER_NAME,
                 "Enable lazily initializing framework Autofill wrapper."),
         Flag.baseFeature(
-                AndroidAutofillFeatures.ANDROID_AUTOFILL_FORWARD_IFRAME_ORIGIN_NAME,
-                "Enable attaching the origin of iframes to form fields."),
-        Flag.baseFeature(
                 AndroidAutofillFeatures.ANDROID_AUTOFILL_IMPROVED_VISIBILITY_DETECTION_NAME,
                 "Enable improved visibility detection form fields sent to the Android "
                         + "Autofill framework."),
@@ -247,9 +244,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_ACCEPT_DOM_MUTATION_AFTER_AUTOFILL_SUBMISSION,
                 "Accepts DOM_MUTATION_AFTER_AUTOFILL submissions detected on password forms."),
-        Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_ADDRESS_IMPROVE_BUILDING_NUMBER_REGEX,
-                "Enables building number regex improvement."),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_BETTER_LOCAL_HEURISTIC_PLACEHOLDER_SUPPORT,
                 "Treats placeholders as a separate signal for Autofill local heuristics"),
@@ -406,9 +400,6 @@ public final class ProductionSupportedFlagList {
                 "Upload UMA metrics logs through MetricsUploadService not via GMS-core"
                         + " directly when running within the SDK Runtime."),
         Flag.baseFeature(
-                AwFeatures.ANDROID_METRICS_ASYNC_METRIC_LOGGING,
-                "Initiate metric uploading on a background thread."),
-        Flag.baseFeature(
                 BlinkFeatures.SET_INTERVAL_WITHOUT_CLAMP,
                 "Enables faster setInterval(,0) by removing the 1 ms clamping."),
         Flag.baseFeature(
@@ -429,6 +420,9 @@ public final class ProductionSupportedFlagList {
                 AwFeatures.WEBVIEW_RENDERER_KEEP_ALIVE,
                 "Keeps the renderer process alive after the last WebView is destroyed to "
                         + "allow for reuse."),
+        Flag.baseFeature(
+                AwFeatures.WEBVIEW_PREFETCH_ON_RENDERER_REUSE,
+                "Prefetches the native WebView code to memory when renderer is reused."),
         Flag.baseFeature(
                 BlinkFeatures.REDUCE_USER_AGENT_MINOR_VERSION,
                 "Enables reduce webview user-agent minor version."),
@@ -716,6 +710,9 @@ public final class ProductionSupportedFlagList {
                         + " to enable BFCache through AwSettings as well. If either of"
                         + " the flag / setting is enabled, BFCache will be enabled"),
         Flag.baseFeature(
+                AwSwitches.WEBVIEW_STATIC_METHODS_NOT_TRIGGER_STARTUP,
+                "When enabled, static methods in SharedStatics do not trigger startup."),
+        Flag.baseFeature(
                 ContentFeatures.ACCESSIBILITY_EXTENDED_SELECTION,
                 "Register, un-register Accessibility extended selection."),
         Flag.baseFeature(
@@ -894,9 +891,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature("ServiceWorkerAvoidMainThreadForInitialization"),
         Flag.baseFeature("DirectCompositorThreadIpc"),
         Flag.baseFeature(
-                AwFeatures.WEBVIEW_WEBAUTHN,
-                "Enable WebAuthn setWebAuthenticationSupport / getWebAuthenticationSupport APIs."),
-        Flag.baseFeature(
                 BlinkFeatures.BF_CACHE_OPEN_BROADCAST_CHANNEL,
                 "Start putting pages with broadcast channel into bfcache."),
         Flag.baseFeature(
@@ -987,10 +981,6 @@ public final class ProductionSupportedFlagList {
                     + " preferences via the AndroidX API or manifest metadata supersedes this"
                     + " flag."),
         Flag.baseFeature(
-                BlinkFeatures.ASYNC_SET_COOKIE,
-                "When enabled, the communication between renderer and network service is "
-                        + "asynchronous when setting cookies."),
-        Flag.baseFeature(
                 AwFeatures.WEBVIEW_LATCHED_COOKIE_POLICY,
                 "When enabled, cookie policy settings are captured at RestrictedCookieManager "
                         + "creation time and used throughout its lifetime. This enables shared "
@@ -1001,10 +991,6 @@ public final class ProductionSupportedFlagList {
                         + "Network Service opens the database, fixing race conditions that can "
                         + "cause cookie loss when cookies are set before WebView is fully "
                         + "initialized."),
-        Flag.baseFeature(
-                NetworkServiceFeatures.GET_COOKIES_ON_SET,
-                "When enabled, the network service returns all the cookies when setting a new "
-                        + "cookie, so that it can be cached."),
         Flag.baseFeature(
                 NetworkServiceFeatures.INCREASE_COOKIE_ACCESS_CACHE_SIZE,
                 "When enabled, keep more cookies in the cache to be able to skip redundant access"
@@ -1144,9 +1130,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 AwSwitches.WEBVIEW_OPT_IN_TO_GMS_BIND_SERVICE_OPTIMIZATION,
                 "Opt-in WebView to GMSCore's bindService optimizations"),
-        Flag.baseFeature(
-                AwSwitches.WEBVIEW_DEFER_STARTUP_GMS_CALLS,
-                "Defers GMS calls to after Chromium startup."),
         Flag.baseFeature(
                 AwFeatures.WEBVIEW_MOVE_WORK_TO_PROVIDER_INIT,
                 " Moves some of the work that is being run during `startChromium` to be done"
@@ -1404,6 +1387,10 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 ContentFeatures.PREFETCH_REQUEST_STATUS_LISTENER_ASYNC,
                 "Make PrefetchRequestStatusListener notifications async."),
+        Flag.baseFeature(AwFeatures.WEBVIEW_NAVIGATE, "Enables the WebView navigate method"),
+        Flag.baseFeature(
+                AwFeatures.WEBVIEW_ENABLE_DNS_PLATFORM,
+                "Enables the resolution of hostnames via platform DNS APIs in WebView."),
         // Add new commandline switches and features above. The final entry should have a
         // trailing comma for cleaner diffs.
     };

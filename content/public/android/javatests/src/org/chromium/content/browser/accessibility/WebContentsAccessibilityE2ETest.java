@@ -119,6 +119,21 @@ public class WebContentsAccessibilityE2ETest {
         return mServiceFuture.get().get(BIND_TIMEOUT_MS, TimeUnit.MILLISECONDS);
     }
 
+    private void waitForPageLoadAndInitialContentChange() throws Throwable {
+        mActivityTestRule.waitForActiveShellToBeDoneLoading();
+
+        boolean initialEventReceived =
+                getAccessibilityHelperService()
+                        .waitForEvent(
+                                new WaitForEventParamsBuilder()
+                                        .setEventType(
+                                                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
+                                        .build());
+        Assert.assertTrue(
+                "Service did not receive initial TYPE_WINDOW_CONTENT_CHANGED event",
+                initialEventReceived);
+    }
+
     private void enableAccessibilityService() throws IOException {
         UiAutomation uiAutomation =
                 InstrumentationRegistry.getInstrumentation()
@@ -221,18 +236,8 @@ public class WebContentsAccessibilityE2ETest {
         mActivityTestRule.launchContentShellWithUrl(
                 UrlUtils.encodeHtmlDataUri("<button>Click Me</button>"));
 
-        // Wait for the page to load by waiting for the initial TWCC.
-        boolean initialEventReceived =
-                getAccessibilityHelperService()
-                        .waitForEvent(
-                                new WaitForEventParamsBuilder()
-                                        .setEventType(
-                                                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
-                                        .setClassName("android.webkit.WebView")
-                                        .build());
-        Assert.assertTrue(
-                "Service did not receive initial TYPE_WINDOW_CONTENT_CHANGED event",
-                initialEventReceived);
+        // Wait for the page to load and for the service to receive a content change.
+        waitForPageLoadAndInitialContentChange();
 
         // Find the button and perform a focus action.
         boolean actionRes =
@@ -270,18 +275,8 @@ public class WebContentsAccessibilityE2ETest {
                 """;
         mActivityTestRule.launchContentShellWithUrl(UrlUtils.encodeHtmlDataUri(html));
 
-        // Wait for the page to load by waiting for the initial TWCC.
-        boolean initialEventReceived =
-                getAccessibilityHelperService()
-                        .waitForEvent(
-                                new WaitForEventParamsBuilder()
-                                        .setEventType(
-                                                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
-                                        .setClassName("android.webkit.WebView")
-                                        .build());
-        Assert.assertTrue(
-                "Service did not receive initial TYPE_WINDOW_CONTENT_CHANGED event",
-                initialEventReceived);
+        // Wait for the page to load and for the service to receive a content change.
+        waitForPageLoadAndInitialContentChange();
 
         // Dump the accessibility tree.
         String treeDump = getAccessibilityHelperService().dumpWebContentsAccessibilityTree();
@@ -314,18 +309,8 @@ WebView focusable focused actions:[CLEAR_FOCUS, AX_FOCUS] bundle:[chromeRole="ro
                 """;
         mActivityTestRule.launchContentShellWithUrl(UrlUtils.encodeHtmlDataUri(html));
 
-        // Wait for the page to load by waiting for the initial TWCC.
-        boolean initialEventReceived =
-                getAccessibilityHelperService()
-                        .waitForEvent(
-                                new WaitForEventParamsBuilder()
-                                        .setEventType(
-                                                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
-                                        .setClassName("android.webkit.WebView")
-                                        .build());
-        Assert.assertTrue(
-                "Service did not receive initial TYPE_WINDOW_CONTENT_CHANGED event",
-                initialEventReceived);
+        // Wait for the page to load and for the service to receive a content change.
+        waitForPageLoadAndInitialContentChange();
 
         // Inject script to set the selection.
         String script =
@@ -386,13 +371,8 @@ WebView focusable focused actions:[CLEAR_FOCUS, AX_FOCUS] bundle:[chromeRole="ro
         String url = UrlUtils.encodeHtmlDataUri(html);
         mActivityTestRule.launchContentShellWithUrl(url);
 
-        // Wait for the page to load.
-        getAccessibilityHelperService()
-                .waitForEvent(
-                        new WaitForEventParamsBuilder()
-                                .setEventType(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
-                                .setClassName("android.webkit.WebView")
-                                .build());
+        // Wait for the page to load and for the service to receive a content change.
+        waitForPageLoadAndInitialContentChange();
 
         // Set selection in the contenteditable via JS.
         mActivityTestRule.executeJSAndGetResult(
@@ -445,18 +425,8 @@ WebView focusable actions:[FOCUS, AX_FOCUS] bundle:[chromeRole="rootWebArea"]
                 """;
         mActivityTestRule.launchContentShellWithUrl(UrlUtils.encodeHtmlDataUri(html));
 
-        // Wait for the page to load by waiting for the initial TWCC.
-        boolean initialEventReceived =
-                getAccessibilityHelperService()
-                        .waitForEvent(
-                                new WaitForEventParamsBuilder()
-                                        .setEventType(
-                                                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
-                                        .setClassName("android.webkit.WebView")
-                                        .build());
-        Assert.assertTrue(
-                "Service did not receive initial TYPE_WINDOW_CONTENT_CHANGED event",
-                initialEventReceived);
+        // Wait for the page to load and for the service to receive a content change.
+        waitForPageLoadAndInitialContentChange();
 
         // Set aria-invalid="true" on the input element.
         mActivityTestRule.executeJSAndGetResult(
@@ -500,18 +470,8 @@ WebView focusable actions:[FOCUS, AX_FOCUS] bundle:[chromeRole="rootWebArea"]
                 """;
         mActivityTestRule.launchContentShellWithUrl(UrlUtils.encodeHtmlDataUri(html));
 
-        // Wait for the page to load by waiting for the initial TWCC.
-        boolean initialEventReceived =
-                getAccessibilityHelperService()
-                        .waitForEvent(
-                                new WaitForEventParamsBuilder()
-                                        .setEventType(
-                                                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
-                                        .setClassName("android.webkit.WebView")
-                                        .build());
-        Assert.assertTrue(
-                "Service did not receive initial TYPE_WINDOW_CONTENT_CHANGED event",
-                initialEventReceived);
+        // Wait for the page to load and for the service to receive a content change.
+        waitForPageLoadAndInitialContentChange();
 
         // Set aria-invalid="false" on the input element.
         mActivityTestRule.executeJSAndGetResult(

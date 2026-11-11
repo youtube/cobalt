@@ -20,7 +20,6 @@
 #include "chrome/browser/ash/input_method/textinput_test_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -241,12 +240,11 @@ IN_PROC_BROWSER_TEST_F(NativeInputMethodEngineWithoutImeServiceTest,
 // still present in its ObserverList. Usually this is a sign of UAFs waiting to
 // happen (those observers will likely try to unregister themselves later). It's
 // unclear if this is a quirk of the test or a bug in production code.
-#if defined(OFFICIAL_BUILD) && !DCHECK_IS_ON()
+#if defined(OFFICIAL_BUILD) && !DCHECK_IS_ON() && !BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_DestroyProfile DestroyProfile
 #else
 #define MAYBE_DestroyProfile DISABLED_DestroyProfile
-#endif  // defined(OFFICIAL_BUILD) && !DCHECK_IS_ON()
-
+#endif  // defined(OFFICIAL_BUILD) && !DCHECK_IS_ON() && !BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(NativeInputMethodEngineWithoutImeServiceTest,
                        MAYBE_DestroyProfile) {
   EXPECT_NE(engine_->GetPrefChangeRegistrarForTesting(), nullptr);

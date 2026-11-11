@@ -32,9 +32,6 @@ class FieldIndex final {
   static inline FieldIndex ForSmiLoadHandler(Tagged<Map> map, int32_t handler);
   static inline FieldIndex ForDescriptor(Tagged<Map> map,
                                          InternalIndex descriptor_index);
-  static inline FieldIndex ForDescriptor(PtrComprCageBase cage_base,
-                                         Tagged<Map> map,
-                                         InternalIndex descriptor_index);
   static inline FieldIndex ForDetails(Tagged<Map> map, PropertyDetails details);
 
   inline int GetLoadByFieldIndex() const;
@@ -111,7 +108,6 @@ class FieldIndex final {
     }
     PrintF("%s\n", representation.Mnemonic());
     UNREACHABLE();
-    return kTagged;
   }
 
   int first_field_offset_in_storage() const {

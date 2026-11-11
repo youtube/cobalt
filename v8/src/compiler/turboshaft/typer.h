@@ -497,8 +497,9 @@ struct FloatOperationTyper {
     }
     base::sort(results);
     auto it = std::unique(results.begin(), results.end());
-    if (std::distance(results.begin(), it) > kSetThreshold)
+    if (std::distance(results.begin(), it) > kSetThreshold) {
       return Type::Invalid();
+    }
     results.erase(it, results.end());
     if (results.empty()) return type_t::OnlySpecialValues(special_values);
     return Set(std::move(results), special_values, zone);
@@ -1181,13 +1182,15 @@ class Typer {
     switch (kind) {
       case ConstantOp::Kind::kFloat32:
         if (value.float32.is_nan()) return Float32Type::NaN();
-        if (IsMinusZero(value.float32.get_scalar()))
+        if (IsMinusZero(value.float32.get_scalar())) {
           return Float32Type::MinusZero();
+        }
         return Float32Type::Constant(value.float32.get_scalar());
       case ConstantOp::Kind::kFloat64:
         if (value.float64.is_nan()) return Float64Type::NaN();
-        if (IsMinusZero(value.float64.get_scalar()))
+        if (IsMinusZero(value.float64.get_scalar())) {
           return Float64Type::MinusZero();
+        }
         return Float64Type::Constant(value.float64.get_scalar());
       case ConstantOp::Kind::kWord32:
         return Word32Type::Constant(static_cast<uint32_t>(value.integral));

@@ -1811,8 +1811,9 @@ std::optional<ParseResult> MakeVarDeclarationStatement(
 
   auto type = child_results->NextAs<std::optional<TypeExpression*>>();
   std::optional<Expression*> initializer;
-  if (child_results->HasNext())
+  if (child_results->HasNext()) {
     initializer = child_results->NextAs<Expression*>();
+  }
   if (!initializer && !type) {
     ReportError("Declaration is missing a type.");
   }

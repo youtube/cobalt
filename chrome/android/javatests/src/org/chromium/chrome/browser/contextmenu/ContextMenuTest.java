@@ -71,7 +71,6 @@ import org.chromium.chrome.browser.compositor.layouts.LayoutManagerImpl;
 import org.chromium.chrome.browser.download.DownloadTestRule;
 import org.chromium.chrome.browser.download.DownloadUtils;
 import org.chromium.chrome.browser.enterprise.util.DataProtectionBridge;
-import org.chromium.chrome.browser.enterprise.util.DataProtectionBridgeJni;
 import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
 import org.chromium.chrome.browser.firstrun.FirstRunStatus;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -116,7 +115,6 @@ import org.chromium.ui.hierarchicalmenu.FlyoutController;
 import org.chromium.ui.listmenu.MenuModelBridge;
 import org.chromium.ui.modelutil.MVCListAdapter;
 import org.chromium.ui.mojom.MenuSourceType;
-import org.chromium.ui.test.util.DeviceRestriction;
 import org.chromium.url.GURL;
 
 import java.io.IOException;
@@ -134,6 +132,7 @@ import java.util.concurrent.atomic.AtomicReference;
 })
 @DisableFeatures({ContentFeatures.ANDROID_DESKTOP_ZOOM_SCALING})
 @Batch(Batch.PER_CLASS)
+@DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511288174
 public class ContextMenuTest {
 
     @Mock private TabContextMenuItemDelegate mItemDelegate;
@@ -235,7 +234,7 @@ public class ContextMenuTest {
 
         setupLensChipDelegate();
         DownloadUtils.setIsDownloadRestrictedByPolicyForTesting(false);
-        DataProtectionBridgeJni.setInstanceForTesting(mDataProtectionBridgeMock);
+        DataProtectionBridge.setInstanceForTesting(mDataProtectionBridgeMock);
         when(mMenuModelBridge.populateModelList()).thenReturn(new MVCListAdapter.ModelList());
     }
 
@@ -738,11 +737,7 @@ public class ContextMenuTest {
 
     @Test
     @LargeTest
-    @Restriction({
-        DeviceFormFactor.DESKTOP, // Re-enable on tablets once the crbug.com/500650152 is fixed.
-        DeviceRestriction.RESTRICTION_TYPE_NON_AUTO // crbug.com/502983881
-    })
-    @EnableFeatures({ChromeFeatureList.CONTEXT_MENU_EMPTY_SPACE})
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @DisableFeatures({UiAndroidFeatures.ANDROID_WINDOW_OCCLUSION})
     public void testSavePageLongPress() throws TimeoutException {
         DeviceInput.setSupportsPrecisionPointerForTesting(true);
@@ -765,7 +760,6 @@ public class ContextMenuTest {
     @LargeTest
     @Restriction(DeviceFormFactor.DESKTOP)
     @DisabledTest(message = "https://crbug.com/445993228")
-    @EnableFeatures({ChromeFeatureList.CONTEXT_MENU_EMPTY_SPACE})
     @DisableFeatures({UiAndroidFeatures.ANDROID_WINDOW_OCCLUSION})
     public void testSavePageRightClick() throws TimeoutException {
         DeviceInput.setSupportsPrecisionPointerForTesting(true);
@@ -1047,13 +1041,19 @@ public class ContextMenuTest {
     @Test
     @SmallTest
     @Feature({"Browser", "ContextMenu"})
-    @EnableFeatures({ChromeFeatureList.CONTEXT_MENU_PICTURE_IN_PICTURE_ANDROID})
+    @EnableFeatures({
+        ChromeFeatureList.CONTEXT_MENU_COPY_VIDEO_FRAME_ANDROID,
+        ChromeFeatureList.CONTEXT_MENU_DOWNLOAD_VIDEO_FRAME_ANDROID,
+        ChromeFeatureList.CONTEXT_MENU_PICTURE_IN_PICTURE_ANDROID
+    })
     public void testContextMenuRetrievesVideoOptions() throws TimeoutException {
         Tab tab = mActivityTestRule.getActivityTab();
         DOMUtils.clickNode(mActivityTestRule.getWebContents(), "videoDOMElement");
         mMenuCoordinator = ContextMenuUtils.openContextMenu(tab, "videoDOMElement");
 
         Integer[] expectedItems = {R.id.contextmenu_save_video};
+        expectedItems = maybeAddCopyVideoFrameItem(expectedItems);
+        expectedItems = maybeAddDownloadVideoFrameItem(expectedItems);
         expectedItems = maybeAddPictureInPictureItem(expectedItems);
         expectedItems = maybeAddInspectElementItem(expectedItems);
         assertMenuItemsAreEqual(mMenuCoordinator, expectedItems);
@@ -1311,11 +1311,7 @@ public class ContextMenuTest {
 
     @Test
     @SmallTest
-    @Restriction({
-        DeviceFormFactor.DESKTOP, // Re-enable on tablets once the crbug.com/500650152 is fixed.
-        DeviceRestriction.RESTRICTION_TYPE_NON_AUTO // crbug.com/502983881
-    })
-    @EnableFeatures({ChromeFeatureList.CONTEXT_MENU_EMPTY_SPACE})
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @DisableFeatures({UiAndroidFeatures.ANDROID_WINDOW_OCCLUSION})
     public void testSharePageLongPress() throws Exception {
         DeviceInput.setSupportsPrecisionPointerForTesting(true);
@@ -1356,7 +1352,6 @@ public class ContextMenuTest {
     @Test
     @SmallTest
     @Restriction(DeviceFormFactor.DESKTOP)
-    @EnableFeatures({ChromeFeatureList.CONTEXT_MENU_EMPTY_SPACE})
     @DisableFeatures({UiAndroidFeatures.ANDROID_WINDOW_OCCLUSION})
     public void testSharePageRightClick() throws Exception {
         DeviceInput.setSupportsPrecisionPointerForTesting(true);
@@ -1395,12 +1390,7 @@ public class ContextMenuTest {
 
     @Test
     @MediumTest
-    @Restriction({
-        DeviceFormFactor.DESKTOP, // Re-enable on tablets once the crbug.com/500650152 is fixed.
-        // Re-enable on automotive once crbug.com/504680967 is fixed
-        DeviceRestriction.RESTRICTION_TYPE_NON_AUTO
-    })
-    @EnableFeatures({ChromeFeatureList.CONTEXT_MENU_EMPTY_SPACE})
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @DisableFeatures({UiAndroidFeatures.ANDROID_WINDOW_OCCLUSION})
     public void testPrintPageLongPress() throws Exception {
         DeviceInput.setSupportsPrecisionPointerForTesting(true);
@@ -1431,7 +1421,6 @@ public class ContextMenuTest {
     @MediumTest
     @Restriction(DeviceFormFactor.DESKTOP)
     @DisabledTest(message = "https://crbug.com/445993228")
-    @EnableFeatures({ChromeFeatureList.CONTEXT_MENU_EMPTY_SPACE})
     @DisableFeatures({UiAndroidFeatures.ANDROID_WINDOW_OCCLUSION})
     public void testPrintPageRightClick() throws Exception {
         DeviceInput.setSupportsPrecisionPointerForTesting(true);
@@ -1458,9 +1447,21 @@ public class ContextMenuTest {
     }
 
     private void switchToDesktopUserAgent(Tab tab) {
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> TabUtils.switchUserAgent(tab, /* switchToDesktop= */ true));
-        ChromeTabUtils.waitForTabPageLoaded(tab, mTestUrl);
+        boolean needsSwitch =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> !TabUtils.isUsingDesktopUserAgent(tab.getWebContents()));
+
+        if (needsSwitch) {
+            ChromeTabUtils.waitForTabPageLoaded(
+                    tab,
+                    mTestUrl,
+                    () ->
+                            ThreadUtils.runOnUiThreadBlocking(
+                                    () ->
+                                            TabUtils.switchUserAgent(
+                                                    tab, /* switchToDesktop= */ true)));
+        }
+        ChromeTabUtils.waitForInteractable(tab);
         mActivityTestRule.assertWaitForPageScaleFactorMatch(PAGE_SCALE_FACTOR);
     }
 
@@ -1545,6 +1546,20 @@ public class ContextMenuTest {
                                         && DeviceInput.supportsPrecisionPointer()),
                 baseItems,
                 new Integer[] {R.id.contextmenu_inspect_element});
+    }
+
+    private Integer[] maybeAddCopyVideoFrameItem(Integer[] baseItems) {
+        return addItemsIf(
+                ChromeFeatureList.sContextMenuCopyVideoFrame.isEnabled(),
+                baseItems,
+                new Integer[] {R.id.contextmenu_copy_video_frame});
+    }
+
+    private Integer[] maybeAddDownloadVideoFrameItem(Integer[] baseItems) {
+        return addItemsIf(
+                ChromeFeatureList.sContextMenuDownloadVideoFrame.isEnabled(),
+                baseItems,
+                new Integer[] {R.id.contextmenu_download_video_frame});
     }
 
     private void saveMediaFromContextMenu(

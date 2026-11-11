@@ -828,8 +828,6 @@ class MockQuicSession : public QuicSession {
                ConnectionCloseSource source),
               (override));
   MOCK_METHOD(QuicStream*, CreateIncomingStream, (QuicStreamId id), (override));
-  MOCK_METHOD(QuicSpdyStream*, CreateIncomingStream, (PendingStream*),
-              (override));
   MOCK_METHOD(QuicConsumedData, WritevData,
               (QuicStreamId id, size_t write_length, QuicStreamOffset offset,
                StreamSendingState state, TransmissionType type,
@@ -979,8 +977,6 @@ class MockQuicSpdySession : public QuicSpdySession {
               (override));
   MOCK_METHOD(QuicSpdyStream*, CreateIncomingStream, (QuicStreamId id),
               (override));
-  MOCK_METHOD(QuicSpdyStream*, CreateIncomingStream, (PendingStream*),
-              (override));
   MOCK_METHOD(QuicSpdyStream*, CreateOutgoingBidirectionalStream, (),
               (override));
   MOCK_METHOD(bool, ShouldCreateIncomingStream, (QuicStreamId id), (override));
@@ -1087,8 +1083,6 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
 
   MOCK_METHOD(QuicSpdyStream*, CreateIncomingStream, (QuicStreamId id),
               (override));
-  MOCK_METHOD(QuicSpdyStream*, CreateIncomingStream, (PendingStream*),
-              (override));
   MOCK_METHOD(QuicSpdyStream*, CreateOutgoingBidirectionalStream, (),
               (override));
   MOCK_METHOD(std::vector<absl::string_view>::const_iterator, SelectAlpn,
@@ -1151,8 +1145,6 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSessionBase {
 
   // TestQuicSpdyClientSession
   MOCK_METHOD(QuicSpdyStream*, CreateIncomingStream, (QuicStreamId id),
-              (override));
-  MOCK_METHOD(QuicSpdyStream*, CreateIncomingStream, (PendingStream*),
               (override));
   MOCK_METHOD(QuicSpdyStream*, CreateOutgoingBidirectionalStream, (),
               (override));

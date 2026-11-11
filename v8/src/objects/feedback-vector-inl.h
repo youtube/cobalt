@@ -118,12 +118,11 @@ DEF_GETTER(FeedbackVector, has_metadata, bool) {
 }
 
 DEF_GETTER(FeedbackVector, metadata, Tagged<FeedbackMetadata>) {
-  return shared_function_info(cage_base)->feedback_metadata(cage_base);
+  return shared_function_info()->feedback_metadata();
 }
 
 DEF_ACQUIRE_GETTER(FeedbackVector, metadata, Tagged<FeedbackMetadata>) {
-  return shared_function_info(cage_base)->feedback_metadata(cage_base,
-                                                            kAcquireLoad);
+  return shared_function_info()->feedback_metadata(kAcquireLoad);
 }
 
 int FeedbackVector::length() const { return length_; }
@@ -166,10 +165,6 @@ void FeedbackVector::set_flags(uint16_t value) { flags_ = value; }
 
 Tagged<SharedFunctionInfo> FeedbackVector::shared_function_info() const {
   return shared_function_info_.load();
-}
-Tagged<SharedFunctionInfo> FeedbackVector::shared_function_info(
-    PtrComprCageBase cage_base) const {
-  return shared_function_info();
 }
 void FeedbackVector::set_shared_function_info(Tagged<SharedFunctionInfo> value,
                                               WriteBarrierMode mode) {
@@ -271,7 +266,7 @@ bool FeedbackVector::tiering_in_progress() const {
 
 std::optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
     Isolate* isolate, Handle<BytecodeArray> bytecode, FeedbackSlot slot) {
-  Tagged<MaybeObject> maybe_code = Get(isolate, slot);
+  Tagged<MaybeObject> maybe_code = Get(slot);
   if (maybe_code.IsCleared()) return {};
 
   Tagged<Code> code =
@@ -337,11 +332,6 @@ Tagged<MaybeObject> FeedbackVector::Get(FeedbackSlot slot) const {
   Tagged<MaybeObject> value = raw_feedback_slots(GetIndex(slot), kRelaxedLoad);
   DCHECK(!IsOfLegacyType(value));
   return value;
-}
-
-Tagged<MaybeObject> FeedbackVector::Get(PtrComprCageBase cage_base,
-                                        FeedbackSlot slot) const {
-  return Get(slot);
 }
 
 DirectHandle<FeedbackCell> FeedbackVector::GetClosureFeedbackCell(
@@ -608,8 +598,9 @@ void FeedbackNexus::IterateMapsWithUnclearedHandler(F function) const {
   // map/handler in the feedback array on-demand).
   for (FeedbackIterator it(this); !it.done(); it.Advance()) {
     DirectHandle<Map> map = config()->NewHandle(it.map());
-    if (!it.handler().IsCleared()) {
-      function(map);
+    Tagged<MaybeObject> handler_obj = it.handler();
+    if (!handler_obj.IsCleared()) {
+      function(map, handler_obj);
     }
   }
 }
@@ -625,8 +616,9 @@ Builtin FeedbackNexus::GetLoadICHandlerForStorageOffset(int storage_offset,
     // Currently we have eight handlers that support loading in-object field
     // with fixed index 0~7.
     int kMaxIndex = 7;
-    if (in_object_index > kMaxIndex)
+    if (in_object_index > kMaxIndex) {
       return Builtin::kLoadICInObjectNonDoubleFieldBaseline;
+    }
 
     LOAD_IC_IN_OBJECT_FIELD_WITH_INDEX_HANDLER_LIST(
         /*V*/, ASSERT_BUILTIN_ID_CONSECUTIVE)
@@ -641,8 +633,9 @@ Builtin FeedbackNexus::GetLoadICHandlerForStorageOffset(int storage_offset,
     // Currently we have four handlers that support loading out-of-object
     // field with fixed index 0~3.
     int kMaxIndex = 3;
-    if (out_of_object_index > kMaxIndex)
+    if (out_of_object_index > kMaxIndex) {
       return Builtin::kLoadICOutOfObjectNonDoubleFieldBaseline;
+    }
 
     LOAD_IC_OUT_OF_OBJECT_FIELD_WITH_INDEX_HANDLER_LIST(
         /*V*/, ASSERT_BUILTIN_ID_CONSECUTIVE)

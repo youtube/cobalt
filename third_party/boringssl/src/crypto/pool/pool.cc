@@ -95,7 +95,7 @@ int CRYPTO_BUFFER_POOL_up_ref(CRYPTO_BUFFER_POOL *pool) {
   return 1;
 }
 
-void CryptoBuffer::UpRefInternal() {
+void CryptoBuffer::UpRefInternal() const {
   // This is safe in the case that |buf->pool| is NULL because it's just
   // standard reference counting in that case.
   //
@@ -261,6 +261,12 @@ void CRYPTO_BUFFER_free(CRYPTO_BUFFER *buf) {
 int CRYPTO_BUFFER_up_ref(CRYPTO_BUFFER *buf) {
   FromOpaque(buf)->UpRefInternal();
   return 1;
+}
+
+CRYPTO_BUFFER *CRYPTO_BUFFER_dup_ref(const CRYPTO_BUFFER *buf) {
+  auto *buf_ = const_cast<CRYPTO_BUFFER *>(buf);
+  FromOpaque(buf_)->UpRefInternal();
+  return buf_;
 }
 
 const uint8_t *CRYPTO_BUFFER_data(const CRYPTO_BUFFER *buf) {

@@ -34,9 +34,6 @@ BASE_FEATURE(kWebViewConfigurableLibraryPrefetch,
 BASE_FEATURE(kWebViewContentRestrictionSupport,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// When enabled, defers GMS calls to after Chromium startup.
-BASE_FEATURE(kWebViewDeferStartupGmsCalls, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enable JS FileSystemAccess API.
 // This flag is set by WebView internal code based on an app's targetSdkVersion.
 // It is enabled for version B+. The default value here is not relevant, and is
@@ -127,6 +124,10 @@ BASE_FEATURE(kWebViewPrefetchNativeLibrary, base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<bool> kWebViewPrefetchFromRenderer{
     &kWebViewPrefetchNativeLibrary, "WebViewPrefetchFromRenderer", true};
 
+// Prefetches the native WebView code to memory when renderer is reused.
+BASE_FEATURE(kWebViewPrefetchOnRendererReuse,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // This enables to start main resource prefetch request from off the main thread
 // for WebView Prefetch API. See crbug.com/452406598, crbug.com/452389538 for
 // more details.
@@ -140,8 +141,6 @@ BASE_FEATURE(kWebViewHyperlinkContextMenu, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kCreateSpareRendererOnBrowserContextCreation,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Kill switch for WebAuthn usage in WebViews.
-BASE_FEATURE(kWebViewWebauthn, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // This enables RenderDocument in WebView. Note that this will only take effect
 // iff both this feature flag and the content/public kRenderDocument flag is
@@ -207,13 +206,6 @@ BASE_FEATURE(kWebViewUseStartupTasksLogicP2, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kWebViewStartupTasksYieldToNative,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// This results in the metric logging being run on a separate thread and
-// blocking until the results are retrieved.
-// When this is disabled, logging is initiated on the main thread and a success
-// status is reported to the chromium metrics service immediately.
-BASE_FEATURE(kAndroidMetricsAsyncMetricLogging,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Reduce when the app's copy of the finch seed expires. This makes WebView more
 // aggressive in requesting a new copy of its finch seed.
 BASE_FEATURE(kWebViewReducedSeedExpiration, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -233,6 +225,9 @@ BASE_FEATURE(kWebViewEarlyStartupTracing, base::FEATURE_DISABLED_BY_DEFAULT);
 // native library is loaded, which should make it available by the time we start
 // calling content code.
 BASE_FEATURE(kWebViewEarlyTracingInit, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables the resolution of hostnames via platform DNS APIs in WebView.
+BASE_FEATURE(kWebViewEnableDnsPlatform, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables tracing init on a background thread. This is mutually exclusive with
 // `kWebViewEarlyTracingInit`. If both flags are enabled,
@@ -296,7 +291,7 @@ BASE_FEATURE(kWebViewTestNonembeddedLowEntropySource,
 // When enabled, WebView uses the low entropy source provided by the nonembedded
 // WebView service.
 BASE_FEATURE(kWebViewUseNonembeddedLowEntropySource,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, the default user agent string is fetched more quickly without
 // waiting for chromium startup to complete.
@@ -318,6 +313,10 @@ BASE_FEATURE(kWebViewSkipFaviconJavaCopyUntilNeeded,
 BASE_FEATURE(kWebViewPassNullFaviconToOnPageStarted,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, certain static methods in SharedStatics do not trigger startup.
+BASE_FEATURE(kWebViewStaticMethodsNotTriggerStartup,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables non-blocking WebView constructor.
 BASE_FEATURE(kStartupNonBlockingWebViewConstructor,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -337,4 +336,7 @@ BASE_FEATURE(kWebViewPersistHttpServerProperties,
 // arrive without the intermediate I/O thread hop.
 BASE_FEATURE(kWebViewVizDirectCompositorThreadIpcFrameSinkManager,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Kill switch for the WebView Navigate method.
+BASE_FEATURE(kWebViewNavigate, base::FEATURE_ENABLED_BY_DEFAULT);
 }  // namespace android_webview::features

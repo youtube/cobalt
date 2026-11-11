@@ -19,14 +19,6 @@ public class BrowserControlsUtils {
 
     private static @Nullable Boolean sSyncMinHeightWithTotalHeightForTesting;
 
-    // Disallow top browser controls from scrolling off on large tablets by setting min height
-    // equal to overall height.
-    // TODO(https://crbug.com/450970998): Replace with doSyncMinHeightWithTotalHeightV2.
-    public static boolean doSyncMinHeightWithTotalHeight(Context context) {
-        return ChromeFeatureList.sLockTopControlsOnLargeTablets.isEnabled()
-                && DeviceFormFactor.isNonMultiDisplayContextOnLargeTablet(context);
-    }
-
     /**
      * Disallow top browser controls from scrolling off by setting min height equal to overall
      * height. This method checks the form factors internally.
@@ -38,8 +30,7 @@ public class BrowserControlsUtils {
             return sSyncMinHeightWithTotalHeightForTesting;
         }
 
-        if (!ChromeFeatureList.sLockTopControlsOnLargeTabletsV2.isEnabled()
-                || !ChromeFeatureList.sTopControlsRefactor.isEnabled()) {
+        if (!ChromeFeatureList.sLockTopControlsOnLargeTabletsV2.isEnabled()) {
             return false;
         }
 
@@ -49,8 +40,7 @@ public class BrowserControlsUtils {
 
     /** Whether use TopControlsStacker to drive the y offset for top control layers. */
     public static boolean isTopControlsRefactorOffsetEnabled() {
-        return ChromeFeatureList.sTopControlsRefactor.isEnabled()
-                && ChromeFeatureList.sTopControlsRefactorV2.isEnabled();
+        return ChromeFeatureList.sTopControlsRefactorV2.isEnabled();
     }
 
     /** Whether force adjusting top chrome height is allowed based on feature flags. */

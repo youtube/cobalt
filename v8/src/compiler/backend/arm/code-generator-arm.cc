@@ -19,6 +19,9 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/heap/mutable-page.h"
+#include "src/objects/js-function-inl.h"
+#include "src/objects/shared-function-info-inl.h"
+#include "src/sandbox/js-dispatch-table-inl.h"
 #include "src/utils/boxed-float.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -862,7 +865,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           UseScratchRegisterScope temps(masm());
           Register scratch = temps.Acquire();
           // Check the function's context matches the context argument.
-          __ ldr(scratch, FieldMemOperand(func, JSFunction::kContextOffset));
+          __ ldr(scratch,
+                 FieldMemOperand(func, offsetof(JSFunction, context_)));
           __ cmp(cp, scratch);
           __ Assert(eq, AbortReason::kWrongFunctionContext);
         }

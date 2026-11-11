@@ -15,12 +15,16 @@
 @class LayoutGuideCenter;
 @protocol SceneCommands;
 @protocol TabGridCommands;
+@class LayoutState;
 
 // View controller for the App Bar.
 @interface AppBarViewController
     : UIViewController <AppBarConsumer,
                         FullscreenUIElement,
                         FullscreenBrowserAgentObserving>
+
+// The layout state.
+@property(nonatomic, weak) LayoutState* layoutState;
 
 // The mutator.
 @property(nonatomic, weak) id<AppBarMutator> mutator;
@@ -41,7 +45,9 @@
 - (void)toggleSpotlightView:(BOOL)shouldShow;
 
 // Shows the blue-ish background with a circular gradient.
-- (void)showIPHBackground;
+// If `centered` is YES, the gradient is centered. Otherwise, it is left-bottom
+// aligned.
+- (void)showIPHBackgroundWithCentering:(BOOL)centered;
 
 // Hides the blue-ish background.
 - (void)hideIPHBackground;

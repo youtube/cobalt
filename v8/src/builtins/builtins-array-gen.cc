@@ -296,8 +296,8 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
   {
     TNode<JSArray> array_receiver = CAST(receiver);
     CSA_DCHECK(this, TaggedIsPositiveSmi(LoadJSArrayLength(array_receiver)));
-    TNode<Int32T> length =
-        LoadAndUntagToWord32ObjectField(array_receiver, JSArray::kLengthOffset);
+    TNode<Int32T> length = LoadAndUntagToWord32ObjectField(
+        array_receiver, offsetof(JSArray, length_));
     Label pop_and_return_undefined(this), return_undefined(this),
         fast_elements(this);
 
@@ -323,7 +323,7 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
            &runtime);
 
     TNode<IntPtrT> new_length_intptr = ChangePositiveInt32ToIntPtr(new_length);
-    StoreObjectFieldNoWriteBarrier(array_receiver, JSArray::kLengthOffset,
+    StoreObjectFieldNoWriteBarrier(array_receiver, offsetof(JSArray, length_),
                                    SmiTag(new_length_intptr));
 
     TNode<Int32T> elements_kind = LoadElementsKind(array_receiver);
@@ -1838,7 +1838,7 @@ TF_BUILTIN(ArrayConstructorImpl, ArrayBuiltinsAssembler) {
 
   // "Enter" the context of the Array function.
   TNode<Context> context =
-      CAST(LoadObjectField(target, JSFunction::kContextOffset));
+      CAST(LoadObjectField(target, offsetof(JSFunction, context_)));
 
   Label runtime(this, Label::kDeferred);
   GotoIf(TaggedNotEqual(target, new_target), &runtime);
@@ -1913,7 +1913,8 @@ void ArrayBuiltinsAssembler::GenerateArrayNoArgumentConstructor(
     ElementsKind kind, AllocationSiteOverrideMode mode) {
   using Descriptor = ArrayNoArgumentConstructorDescriptor;
   TNode<NativeContext> native_context = LoadObjectField<NativeContext>(
-      Parameter<HeapObject>(Descriptor::kFunction), JSFunction::kContextOffset);
+      Parameter<HeapObject>(Descriptor::kFunction),
+      offsetof(JSFunction, context_));
   bool track_allocation_site =
       AllocationSite::ShouldTrack(kind) && mode != DISABLE_ALLOCATION_SITES;
   std::optional<TNode<AllocationSite>> allocation_site =
@@ -1933,7 +1934,7 @@ void ArrayBuiltinsAssembler::GenerateArraySingleArgumentConstructor(
   auto context = Parameter<Context>(Descriptor::kContext);
   auto function = Parameter<JSAnyNotSmi>(Descriptor::kFunction);
   TNode<NativeContext> native_context =
-      CAST(LoadObjectField(function, JSFunction::kContextOffset));
+      CAST(LoadObjectField(function, offsetof(JSFunction, context_)));
   TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
 
   AllocationSiteMode allocation_site_mode = DONT_TRACK_ALLOCATION_SITE;

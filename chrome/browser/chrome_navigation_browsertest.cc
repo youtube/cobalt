@@ -72,6 +72,7 @@
 #include "content/public/test/navigation_handle_observer.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/url_loader_interceptor.h"
+#include "extensions/common/extension_features.h"
 #include "extensions/common/switches.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/test_extension_dir.h"
@@ -346,9 +347,14 @@ class CtrlClickShouldEndUpInSameProcessTest : public CtrlClickProcessTest {
     // SiteInstance and BrowsingInstance from the old contents.
     EXPECT_EQ(contents1->GetPrimaryMainFrame()->GetProcess(),
               contents2->GetPrimaryMainFrame()->GetProcess());
-    EXPECT_EQ(
-        contents1->GetPrimaryMainFrame()->GetSiteInstance()->GetSiteURL(),
-        contents2->GetPrimaryMainFrame()->GetSiteInstance()->GetSiteURL());
+    EXPECT_EQ(contents1->GetPrimaryMainFrame()
+                  ->GetSiteInstance()
+                  ->GetSecurityPrincipal()
+                  .GetDeprecatedSiteURL(),
+              contents2->GetPrimaryMainFrame()
+                  ->GetSiteInstance()
+                  ->GetSecurityPrincipal()
+                  .GetDeprecatedSiteURL());
     EXPECT_FALSE(contents1->GetSiteInstance()->IsRelatedSiteInstance(
         contents2->GetSiteInstance()));
   }
@@ -687,9 +693,11 @@ IN_PROC_BROWSER_TEST_F(ChromeNavigationBrowserTest,
     ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
     EXPECT_FALSE(observer.last_navigation_succeeded());
     EXPECT_EQ(url, observer.last_navigation_url());
-    EXPECT_EQ(
-        GURL(content::kUnreachableWebDataURL),
-        web_contents->GetPrimaryMainFrame()->GetSiteInstance()->GetSiteURL());
+    EXPECT_EQ(GURL(content::kUnreachableWebDataURL),
+              web_contents->GetPrimaryMainFrame()
+                  ->GetSiteInstance()
+                  ->GetSecurityPrincipal()
+                  .GetDeprecatedSiteURL());
   }
 
   // Install an extension, which will redirect all navigations to a.com URLs to
@@ -730,9 +738,11 @@ IN_PROC_BROWSER_TEST_F(ChromeNavigationBrowserTest,
     observer.Wait();
     EXPECT_TRUE(observer.last_navigation_succeeded());
     EXPECT_EQ(GURL(url::kAboutBlankURL), observer.last_navigation_url());
-    EXPECT_NE(
-        GURL(content::kUnreachableWebDataURL),
-        web_contents->GetPrimaryMainFrame()->GetSiteInstance()->GetSiteURL());
+    EXPECT_NE(GURL(content::kUnreachableWebDataURL),
+              web_contents->GetPrimaryMainFrame()
+                  ->GetSiteInstance()
+                  ->GetSecurityPrincipal()
+                  .GetDeprecatedSiteURL());
   }
 
   // In the above setup, the reload was carried out with the error page being
@@ -749,9 +759,10 @@ IN_PROC_BROWSER_TEST_F(ChromeNavigationBrowserTest,
   // and process selection should still honor the initiator, rather than end up
   // in an unlocked process and an unassigned SiteInstance.  See
   // https://crbug.com/40261555.
-  EXPECT_EQ(
-      "http://a.com/",
-      web_contents->GetPrimaryMainFrame()->GetSiteInstance()->GetSiteURL());
+  EXPECT_EQ("http://a.com/", web_contents->GetPrimaryMainFrame()
+                                 ->GetSiteInstance()
+                                 ->GetSecurityPrincipal()
+                                 .GetDeprecatedSiteURL());
   EXPECT_TRUE(web_contents->GetPrimaryMainFrame()
                   ->GetProcess()
                   ->IsProcessLockedToSiteForTesting());
@@ -1673,23 +1684,37 @@ IN_PROC_BROWSER_TEST_F(WebstoreIsolationBrowserTest, WebstorePopupIsIsolated) {
   EXPECT_TRUE(content::NavigateToURLFromRenderer(popup, webstore_url));
   scoped_refptr<content::SiteInstance> webstore_instance(
       popup->GetPrimaryMainFrame()->GetSiteInstance());
-  EXPECT_NE(webstore_instance, popup_instance);
-  EXPECT_NE(webstore_instance, initial_instance);
-  EXPECT_NE(webstore_instance->GetProcess(), initial_instance->GetProcess());
-  EXPECT_NE(webstore_instance->GetProcess(),
-            popup_instance->GetOrCreateProcessForTesting());
-  EXPECT_FALSE(webstore_instance->IsRelatedSiteInstance(popup_instance.get()));
-  EXPECT_FALSE(
-      webstore_instance->IsRelatedSiteInstance(initial_instance.get()));
 
-  // Finally navigate the popup back away from the web store URL. This will lead
-  // to another new process and BrowsingInstance swap.
-  EXPECT_TRUE(content::NavigateToURLFromRenderer(popup, first_url));
-  scoped_refptr<content::SiteInstance> final_instance(
-      popup->GetPrimaryMainFrame()->GetSiteInstance());
-  EXPECT_NE(final_instance->GetProcess(),
-            webstore_instance->GetOrCreateProcessForTesting());
-  EXPECT_FALSE(final_instance->IsRelatedSiteInstance(webstore_instance.get()));
+  if (base::FeatureList::IsEnabled(extensions_features::kWebstoreHostedApp)) {
+    // The webstore hosted app is installed. The webstore should have been
+    // forced into a new site instance.
+    EXPECT_NE(webstore_instance, popup_instance);
+    EXPECT_NE(webstore_instance, initial_instance);
+    EXPECT_NE(webstore_instance->GetProcess(), initial_instance->GetProcess());
+    EXPECT_NE(webstore_instance->GetProcess(),
+              popup_instance->GetOrCreateProcessForTesting());
+    EXPECT_FALSE(
+        webstore_instance->IsRelatedSiteInstance(popup_instance.get()));
+    EXPECT_FALSE(
+        webstore_instance->IsRelatedSiteInstance(initial_instance.get()));
+
+    // Finally navigate the popup back away from the web store URL. This will
+    // lead to another new process and BrowsingInstance swap.
+    EXPECT_TRUE(content::NavigateToURLFromRenderer(popup, first_url));
+    scoped_refptr<content::SiteInstance> final_instance(
+        popup->GetPrimaryMainFrame()->GetSiteInstance());
+    EXPECT_NE(final_instance->GetProcess(),
+              webstore_instance->GetOrCreateProcessForTesting());
+    EXPECT_FALSE(
+        final_instance->IsRelatedSiteInstance(webstore_instance.get()));
+  } else {
+    // The webstore hosted app isn't installed. No fun site instance
+    // shenanigans; the popup should be in a related site instance to its
+    // opener.
+    EXPECT_EQ(webstore_instance, popup_instance);
+    EXPECT_EQ(webstore_instance->GetProcess(),
+              popup_instance->GetOrCreateProcessForTesting());
+  }
 }
 
 // Make sure that the new Chrome Web Store URL used in production

@@ -32,6 +32,9 @@ namespace ash::auth {
 
 namespace {
 
+using policy::local_auth_factors::CheckPasswordComplexity;
+using policy::local_auth_factors::PasswordComplexityResult;
+
 const std::size_t kLocalPasswordMinimumLength = 8;
 
 using ConfigureResultCallback =
@@ -101,10 +104,9 @@ mojom::PasswordComplexity CheckLocalPasswordComplexityImpl(
 
   if (policy.has_value()) {
     // LocalAuthFactorsComplexity policy is set, perform the new check.
-    bool ok = policy::local_auth_factors::CheckPasswordComplexity(
-        password, policy.value());
-    return ok ? mojom::PasswordComplexity::kOk
-              : mojom::PasswordComplexity::kTooShort;
+    PasswordComplexityResult result =
+        CheckPasswordComplexity(password, policy.value());
+    return static_cast<mojom::PasswordComplexity>(result);
   }
 
   // We're counting unicode points here because we already have a function for

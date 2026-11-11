@@ -446,7 +446,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.HttpsFirstMode.InterstitialReason"
-    enum="HttpsFirstModeInterstitialReason" expires_after="2026-08-30">
+    enum="HttpsFirstModeInterstitialReason" expires_after="2026-11-01">
   <owner>meacer@chromium.org</owner>
   <owner>trusty-transport@chromium.org</owner>
   <summary>
@@ -467,7 +467,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.HttpsFirstMode.SettingChanged2"
-    enum="HttpsFirstModeSetting" expires_after="2026-07-05">
+    enum="HttpsFirstModeSetting" expires_after="2026-11-01">
   <owner>cthomp@chromium.org</owner>
   <owner>trusty-transport@chromium.org</owner>
   <summary>
@@ -560,6 +560,29 @@ chromium-metrics-reviews@google.com.
     Records whether the HTTPS-First Mode got enabled or disabled on a site due
     to its HTTP and HTTPS site engagement scores. Only recorded if the enabled
     state changes. Recorded even for sites allowlisted to load over HTTP.
+  </summary>
+</histogram>
+
+<histogram name="Security.iOS.KeychainMigration.Result"
+    enum="IOSKeychainMigrationResult" expires_after="2026-10-20">
+  <owner>marq@chromium.org</owner>
+  <owner>bling-flags@google.com</owner>
+  <summary>
+    Tracks whether a keychain item required accessibility migration and if the
+    migration attempt succeeded. Migration is needed if the item currently has
+    kSecAttrAccessibleWhenUnlocked but should have
+    kSecAttrAccessibleAfterFirstUnlock. Recorded on iOS only, after a migration
+    attempt has finished.
+  </summary>
+</histogram>
+
+<histogram name="Security.iOS.KeychainMigration.UserStatus"
+    enum="IOSKeychainMigrationUserStatus" expires_after="2026-10-20">
+  <owner>marq@chromium.org</owner>
+  <owner>bling-flags@google.com</owner>
+  <summary>
+    Tracks the overall migration status of the keychain for a user. Recorded
+    once per cold start on iOS.
   </summary>
 </histogram>
 
@@ -868,17 +891,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Security.SCTAuditing.OptIn.ReportSampled" enum="Boolean"
-    expires_after="2024-05-26">
-  <owner>cthomp@chromium.org</owner>
-  <owner>trusty-transport@chromium.org</owner>
-  <summary>
-    Records whether a report was sampled to be sent to Safe Browsing. Recorded
-    for each new report seen by the SCT auditing cache that was not
-    deduplicated.
-  </summary>
-</histogram>
-
 <histogram name="Security.SCTAuditing.OptIn.ReportSize" units="bytes"
     expires_after="2024-05-26">
   <owner>cthomp@chromium.org</owner>
@@ -1163,7 +1175,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SiteIsolation.IsSitePerProcessOrStricter.AndroidDesktop"
-    enum="Boolean" expires_after="2026-08-28">
+    enum="Boolean" expires_after="2026-11-01">
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>
   <owner>wenz@chromium.org</owner>

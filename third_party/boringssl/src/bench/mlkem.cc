@@ -47,7 +47,7 @@ void BM_SpeedMLKEM768KeyGenDecap(benchmark::State &state) {
 }
 
 // parse + encap (same as TLS client side)
-void BM_SpeedMLKEM768ParseEncacp(benchmark::State &state) {
+void BM_SpeedMLKEM768ParseEncap(benchmark::State &state) {
   for (auto _ : state) {
     state.PauseTiming();
     uint8_t encoded_public_key[MLKEM768_PUBLIC_KEY_BYTES];
@@ -96,7 +96,7 @@ void BM_SpeedMLKEM1024KeyGenDecap(benchmark::State &state) {
 }
 
 // parse + encap (same as TLS client side)
-void BM_SpeedMLKEM1024ParseEncacp(benchmark::State &state) {
+void BM_SpeedMLKEM1024ParseEncap(benchmark::State &state) {
   for (auto _ : state) {
     state.PauseTiming();
     uint8_t encoded_public_key[MLKEM1024_PUBLIC_KEY_BYTES];
@@ -289,9 +289,9 @@ void BM_SpeedMLKEM1024EncapOnly(benchmark::State &state) {
 
 BSSL_BENCH_LAZY_REGISTER() {
   BENCHMARK(BM_SpeedMLKEM768KeyGenDecap)->Apply(bssl::bench::SetThreads);
-  BENCHMARK(BM_SpeedMLKEM768ParseEncacp)->Apply(bssl::bench::SetThreads);
+  BENCHMARK(BM_SpeedMLKEM768ParseEncap)->Apply(bssl::bench::SetThreads);
   BENCHMARK(BM_SpeedMLKEM1024KeyGenDecap)->Apply(bssl::bench::SetThreads);
-  BENCHMARK(BM_SpeedMLKEM1024ParseEncacp)->Apply(bssl::bench::SetThreads);
+  BENCHMARK(BM_SpeedMLKEM1024ParseEncap)->Apply(bssl::bench::SetThreads);
 
   BENCHMARK(BM_SpeedMLKEM768KeyGenOnly)->Apply(bssl::bench::SetThreads);
   BENCHMARK(BM_SpeedMLKEM768DecapOnly)->Apply(bssl::bench::SetThreads);

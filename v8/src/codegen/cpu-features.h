@@ -149,7 +149,7 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
   static void SetUnsupported(CpuFeature f) { supported_.Remove(f); }
   static void SetUnsupported(CpuFeatureSet f_set) { supported_.Remove(f_set); }
 
-  static bool SupportsWasmSimd128();
+  static bool SupportsSimd128();
 
   static inline bool SupportsOptimizer();
 
@@ -184,10 +184,10 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
   static unsigned icache_line_size_;
   static unsigned dcache_line_size_;
   static bool initialized_;
-  // This variable is only used for certain archs to query SupportWasmSimd128()
+  // This variable is only used for certain archs to query SupportsSimd128()
   // at runtime in builtins using an extern ref. Other callers should use
-  // CpuFeatures::SupportWasmSimd128().
-  static bool supports_wasm_simd_128_;
+  // CpuFeatures::SupportsSimd128().
+  static bool supports_simd_128_;
   static bool supports_cetss_;
   // VLEN is the length in bits of the vector registers on RISC-V.
   static unsigned vlen_;

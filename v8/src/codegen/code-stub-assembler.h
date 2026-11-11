@@ -1134,7 +1134,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Union<Smi, WasmTrustedInstanceData>> LoadInstanceDataFromWasmImportData(
       TNode<WasmImportData> import_data) {
     return LoadProtectedPointerField<Union<Smi, WasmTrustedInstanceData>>(
-        import_data, WasmImportData::kProtectedInstanceDataOffset);
+        import_data, offsetof(WasmImportData, protected_instance_data_));
   }
 
   // Returns WasmImportData or WasmTrustedInstanceData.
@@ -1142,7 +1142,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   LoadImplicitArgFromWasmInternalFunction(TNode<WasmInternalFunction> object) {
     return LoadProtectedPointerField<
         Union<WasmImportData, WasmTrustedInstanceData>>(
-        object, WasmInternalFunction::kProtectedImplicitArgOffset);
+        object, offsetof(WasmInternalFunction, protected_implicit_arg_));
   }
 
   inline TNode<WasmInternalFunction> LoadWasmInternalFunctionFromFuncRef(
@@ -1151,14 +1151,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<WasmInternalFunction> LoadWasmInternalFunctionFromFunctionData(
       TNode<WasmFunctionData> data) {
     return LoadProtectedPointerField<WasmInternalFunction>(
-        data, WasmFunctionData::kProtectedInternalOffset);
+        data, offsetof(WasmFunctionData, protected_internal_));
   }
 
   TNode<WasmTrustedInstanceData>
   LoadWasmTrustedInstanceDataFromWasmExportedFunctionData(
       TNode<WasmExportedFunctionData> data) {
     return LoadProtectedPointerField<WasmTrustedInstanceData>(
-        data, WasmExportedFunctionData::kProtectedInstanceDataOffset);
+        data, offsetof(WasmExportedFunctionData, protected_instance_data_));
   }
 
   // Dynamically allocates a buffer of size `size` in C++ on the cppgc heap.
@@ -1168,14 +1168,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<RawPtrT> LoadJSTypedArrayExternalPointerPtr(
       TNode<JSTypedArray> holder) {
-    return LoadSandboxedPointerFromObject(holder,
-                                          JSTypedArray::kExternalPointerOffset);
+    return LoadSandboxedPointerFromObject(
+        holder, offsetof(JSTypedArray, external_pointer_));
   }
 
   void StoreJSTypedArrayExternalPointerPtr(TNode<JSTypedArray> holder,
                                            TNode<RawPtrT> value) {
-    StoreSandboxedPointerToObject(holder, JSTypedArray::kExternalPointerOffset,
-                                  value);
+    StoreSandboxedPointerToObject(
+        holder, offsetof(JSTypedArray, external_pointer_), value);
   }
 
   void InitializeJSAPIObjectWithEmbedderSlotsCppHeapWrapperPtr(
@@ -1187,7 +1187,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         IntPtrConstant(0);
 #endif  // !V8_COMPRESS_POINTERS
     StoreObjectFieldNoWriteBarrier(
-        holder, JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset,
+        holder, offsetof(JSAPIObjectWithEmbedderSlots, cpp_heap_wrappable_),
         zero_constant);
   }
 
@@ -1236,7 +1236,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       // Load a tagged field.
       if constexpr (is_subtype_v<T, Map>) {
         // If this is potentially loading a map, we need to check the offset.
-        if (offset == HeapObject::kMapOffset) {
+        if (offset == offsetof(HeapObject, map_)) {
           machine_type = MachineType::MapInHeader();
         }
       }
@@ -1275,8 +1275,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   TNode<Object> LoadConstructorOrBackPointer(TNode<Map> map) {
-    return LoadObjectField(map,
-                           Map::kConstructorOrBackPointerOrNativeContextOffset);
+    return LoadObjectField(
+        map, offsetof(Map, constructor_or_back_pointer_or_native_context_));
   }
 
   TNode<Simd128T> LoadSimd128(TNode<IntPtrT> ptr) {
@@ -2323,14 +2323,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                                    TNode<Object> key,
                                                    TNode<Object> value);
   TNode<Object> GetResultValueForHole(TNode<Object> value);
-  // Calls the next method of an iterator and returns the pair of
-  // {value, done} properties of the result.
-  std::pair<TNode<Object>, TNode<Object>> CallIteratorNext(
+  // Calls the next method of an iterator and returns the value property
+  // of the result, or TheHole if done.
+  TNode<Object> CallIteratorNext(
       TNode<Context> context, TNode<Object> iterator, TNode<Object> next,
       TNode<Union<FeedbackVector, Undefined>> feedback_vector,
       TNode<UintPtrT> call_slot);
-  using ForOfNextResult = TorqueStructForOfNextResult_0;
-  ForOfNextResult ForOfNextHelper(
+
+  TNode<Object> ForOfNextHelper(
       TNode<Context> context, TNode<Object> object, TNode<Object> next,
       TNode<Union<FeedbackVector, Undefined>> feedback_vector,
       TNode<UintPtrT> call_slot);
@@ -2491,6 +2491,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void ArrayListSetLength(TNode<ArrayList> array, TNode<Uint32T> length);
   // TODO(jgruber): Rename to ArrayListToFixedArray.
   TNode<FixedArray> ArrayListElements(TNode<ArrayList> array);
+
+  TorqueStructXorShift128State LoadMathRandomState(TNode<ByteArray> state);
+  void StoreMathRandomState(TNode<ByteArray> state,
+                            TorqueStructXorShift128State value);
 
   template <typename T>
   bool ClassHasMapConstant() {
@@ -4799,7 +4803,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // HeapNumber.
   TNode<Object> CloneIfMutablePrimitive(TNode<Object> object);
 
-  TNode<Smi> RefillMathRandom(TNode<NativeContext> native_context);
+  TNode<Smi> InitializeAndMaybeRefillMathRandom(
+      TNode<NativeContext> native_context);
 
   TNode<IntPtrT> FeedbackIteratorEntrySize() {
     return IntPtrConstant(FeedbackIterator::kEntrySize);

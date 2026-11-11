@@ -193,13 +193,6 @@ V8_OBJECT class JSDateTimeFormat : public JSObject {
   DECL_PRINTER(JSDateTimeFormat)
   DECL_VERIFIER(JSDateTimeFormat)
 
-  // Back-compat offset/size constants.
-  static const int kLocaleOffset;
-  static const int kIcuLocaleOffset;
-  static const int kIcuSimpleDateFormatOffset;
-  static const int kIcuDateIntervalFormatOffset;
-  static const int kBoundFormatOffset;
-  static const int kFlagsOffset;
   static const int kHeaderSize;
 
  public:
@@ -211,18 +204,6 @@ V8_OBJECT class JSDateTimeFormat : public JSObject {
   TaggedMember<Smi> flags_;
 } V8_OBJECT_END;
 
-inline constexpr int JSDateTimeFormat::kLocaleOffset =
-    offsetof(JSDateTimeFormat, locale_);
-inline constexpr int JSDateTimeFormat::kIcuLocaleOffset =
-    offsetof(JSDateTimeFormat, icu_locale_);
-inline constexpr int JSDateTimeFormat::kIcuSimpleDateFormatOffset =
-    offsetof(JSDateTimeFormat, icu_simple_date_format_);
-inline constexpr int JSDateTimeFormat::kIcuDateIntervalFormatOffset =
-    offsetof(JSDateTimeFormat, icu_date_interval_format_);
-inline constexpr int JSDateTimeFormat::kBoundFormatOffset =
-    offsetof(JSDateTimeFormat, bound_format_);
-inline constexpr int JSDateTimeFormat::kFlagsOffset =
-    offsetof(JSDateTimeFormat, flags_);
 inline constexpr int JSDateTimeFormat::kHeaderSize = sizeof(JSDateTimeFormat);
 
 }  // namespace internal

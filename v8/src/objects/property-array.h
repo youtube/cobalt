@@ -15,7 +15,7 @@ namespace internal {
 
 #include "torque-generated/src/objects/property-array-tq.inc"
 
-V8_OBJECT class PropertyArray : public HeapObjectLayout {
+V8_OBJECT class PropertyArray : public HeapObject {
  public:
   // [length]: length of the array.
   // The function returns an alias instead of uint32_t to force conversion at
@@ -31,10 +31,7 @@ V8_OBJECT class PropertyArray : public HeapObjectLayout {
   inline int Hash() const;
 
   inline Tagged<Object> get(int index) const;
-  inline Tagged<Object> get(PtrComprCageBase cage_base, int index) const;
   inline Tagged<Object> get(int index, SeqCstAccessTag tag) const;
-  inline Tagged<Object> get(PtrComprCageBase cage_base, int index,
-                            SeqCstAccessTag tag) const;
 
   inline void set(int index, Tagged<Object> value);
   inline void set(int index, Tagged<Object> value, SeqCstAccessTag tag);
@@ -43,9 +40,6 @@ V8_OBJECT class PropertyArray : public HeapObjectLayout {
 
   inline Tagged<Object> Swap(int index, Tagged<Object> value,
                              SeqCstAccessTag tag);
-  inline Tagged<Object> Swap(PtrComprCageBase cage_base, int index,
-                             Tagged<Object> value, SeqCstAccessTag tag);
-
   inline Tagged<Object> CompareAndSwap(int index, Tagged<Object> expected,
                                        Tagged<Object> value,
                                        SeqCstAccessTag tag);

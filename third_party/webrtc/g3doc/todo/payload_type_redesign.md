@@ -201,12 +201,42 @@ preserving legacy behavior when the field trial is disabled.
 - **MID Recycling:** Verify that MID recycling for video-to-audio and vice-versa
   works correctly without PT collisions or crashes.
 
-## Desired next steps
+## Testing Strategy
 
-Analyze the current situation. (Done)
+To ensure correctness and prevent regressions while the
+`WebRTC-PayloadTypesInTransport` field trial is being developed, a "Redesign
+Feedback Loop" strategy is used:
 
-### Test, isolate and fix failures
+1. **Canary Branch (`pt-enable`)**: Maintain a branch where the field trial is
+   forced enabled by default. This branch is used to run the full WebRTC test
+   suite (especially `rtc_pc_unittests` and `peerconnection_unittests`) to
+   identify all edge cases and legacy behaviors that the redesign logic doesn't
+   yet handle.
+2. **Reproduction and Isolation**: When a failure is identified on the canary
+   branch, the specific test case is cloned or ported into a specialized
+   integration test file (`pc/codec_vendor_redesign_unittest.cc`) on the
+   implementation branch. This allows for focused debugging and ensures the
+   failure is reproducible in a clean environment with the trial explicitly
+   enabled.
+3. **Surgical Fixes**: Fixes are developed and verified on the implementation
+   branch using the isolated tests.
+4. **Full Re-verification**: Once the implementation branch is stable, the
+   canary branch is rebased to include the fixes, and the full test suite is run
+   again to ensure no remaining failures and to catch new regressions.
 
-The identified failures in `PeerConnectionEncodingsIntegrationTest` and
-`PeerConnectionIntegrationTest` have been resolved. Next, focus on implementing
-the video strategy outlined above.
+## Backwards Compatibility for Unit Testing
+
+Many legacy unit tests (e.g., in `MediaSessionDescriptionFactoryTest`) have
+hardcoded expectations for payload type assignments. The redesigned PT
+allocation logic, which performs late assignment and respects established
+transport mappings, may assign different PTs than the old fixed-list strategy
+used by the engines.
+
+To maintain test stability without embedding legacy expectations in the
+production `CodecVendor` or `TypedCodecVendor`, a test-only "pre-seeding"
+mechanism is used. Test helpers like `CodecLookupHelperForTesting` are updated
+to harvest the hardcoded PTs from the test-configured codec lists and register
+them as local mappings in the `FakePayloadTypeSuggester` for the default audio
+and video MIDs. This ensures that when the `CodecVendor` requests a PT for a
+codec, the suggester returns the value the test expects, while the core
+allocation logic remains clean and generic.

@@ -10,9 +10,11 @@
 #include <map>
 #include <vector>
 
+#include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/values.h"
 #include "components/services/app_service/public/cpp/icon_info.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/gfx/geometry/size.h"
@@ -24,6 +26,8 @@ namespace web_app {
 using IconsMap = std::map<GURL, std::vector<SkBitmap>>;
 
 using SquareSizePx = int;
+using UnorderedSizeToBitmap = absl::flat_hash_map<SquareSizePx, SkBitmap>;
+using OrderedSizeToBitmap = base::flat_map<SquareSizePx, SkBitmap>;
 // Iterates in ascending order (checked in SortedSizesPxIsAscending test).
 using SortedSizesPx = base::flat_set<SquareSizePx, std::less<>>;
 using IconPurpose = blink::mojom::ManifestImageResource_Purpose;
@@ -60,26 +64,22 @@ struct IconBitmaps {
 
   bool operator==(const IconBitmaps&) const;
 
-  const std::map<SquareSizePx, SkBitmap>& GetBitmapsForPurpose(
-      IconPurpose purpose) const;
-  void SetBitmapsForPurpose(IconPurpose purpose,
-                            std::map<SquareSizePx, SkBitmap> bitmaps);
+  const OrderedSizeToBitmap& GetBitmapsForPurpose(IconPurpose purpose) const;
+  void SetBitmapsForPurpose(IconPurpose purpose, OrderedSizeToBitmap bitmaps);
 
   bool empty() const;
 
-  // TODO(crbug.com/40158740): Consider using base::flat_map.
-
   // Icon bitmaps suitable for any context, keyed by their square size.
   // See https://www.w3.org/TR/appmanifest/#dfn-any-purpose
-  std::map<SquareSizePx, SkBitmap> any;
+  OrderedSizeToBitmap any;
 
   // Icon bitmaps designed for masking, keyed by their square size.
   // See https://www.w3.org/TR/appmanifest/#dfn-maskable-purpose
-  std::map<SquareSizePx, SkBitmap> maskable;
+  OrderedSizeToBitmap maskable;
 
   // Monochrome bitmaps designed for any context, keyed by their square size.
   // See https://www.w3.org/TR/appmanifest/#purpose-member
-  std::map<SquareSizePx, SkBitmap> monochrome;
+  OrderedSizeToBitmap monochrome;
 };
 
 // Icon sizes for each IconPurpose.

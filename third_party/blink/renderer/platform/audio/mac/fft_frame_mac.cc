@@ -132,34 +132,6 @@ FFTFrame::FFTFrame(unsigned fft_size)
   frame_.imagp = imag_data_.Data();
 }
 
-// Creates a blank/empty frame (interpolate() must later be called).
-FFTFrame::FFTFrame() : real_data_(0), imag_data_(0) {
-  // Later will be set to correct values when interpolate() is called.
-  frame_.realp = nullptr;
-  frame_.imagp = nullptr;
-
-  fft_size_ = 0;
-  log2fft_size_ = 0;
-}
-
-// Copy constructor.
-FFTFrame::FFTFrame(const FFTFrame& frame)
-    : fft_size_(frame.fft_size_),
-      log2fft_size_(frame.log2fft_size_),
-      real_data_(frame.fft_size_),
-      imag_data_(frame.fft_size_),
-      fft_setup_(frame.fft_setup_) {
-  // Setup frame data.
-  frame_.realp = real_data_.Data();
-  frame_.imagp = imag_data_.Data();
-
-  // Copy/setup frame data.
-  real_data_.as_span().copy_from(frame.real_data_.as_span());
-  imag_data_.as_span().copy_from(frame.imag_data_.as_span());
-}
-
-FFTFrame::~FFTFrame() {}
-
 void FFTFrame::DoFFT(const float* data) {
   vDSP_ctoz((DSPComplex*)data, 2, &frame_, 1, fft_size_ / 2);
   vDSP_fft_zrip(fft_setup_, &frame_, 1, log2fft_size_, FFT_FORWARD);
@@ -171,8 +143,8 @@ void FFTFrame::DoFFT(const float* data) {
   // the correct scaling.
   float scale = 0.5f;
 
-  vector_math::Vsmul(frame_.realp, 1, &scale, frame_.realp, 1, fft_size_ / 2);
-  vector_math::Vsmul(frame_.imagp, 1, &scale, frame_.imagp, 1, fft_size_ / 2);
+  vector_math::Vsmul(frame_.realp, 1, scale, frame_.realp, 1, fft_size_ / 2);
+  vector_math::Vsmul(frame_.imagp, 1, scale, frame_.imagp, 1, fft_size_ / 2);
 }
 
 void FFTFrame::DoInverseFFT(float* data) {
@@ -181,7 +153,7 @@ void FFTFrame::DoInverseFFT(float* data) {
 
   // Do final scaling so that x == IFFT(FFT(x)).
   float scale = 1.0f / fft_size_;
-  vector_math::Vsmul(data, 1, &scale, data, 1, fft_size_);
+  vector_math::Vsmul(data, 1, scale, data, 1, fft_size_);
 }
 
 unsigned FFTFrame::MinFFTSize() {

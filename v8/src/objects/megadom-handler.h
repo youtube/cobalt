@@ -15,7 +15,7 @@ namespace internal {
 
 #include "torque-generated/src/objects/megadom-handler-tq.inc"
 
-V8_OBJECT class MegaDomHandler : public HeapObjectLayout {
+V8_OBJECT class MegaDomHandler : public HeapObject {
  public:
   inline Tagged<MaybeObject> accessor() const;
   inline Tagged<MaybeObject> accessor(AcquireLoadTag) const;

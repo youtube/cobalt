@@ -120,7 +120,9 @@ FlexfecReceiveStreamImpl::FlexfecReceiveStreamImpl(
            .receiver_only = true,
            .receive_statistics = rtp_receive_statistics_.get(),
            .outgoing_transport = config.rtcp_send_transport,
-           .rtt_stats = rtt_stats},
+           .rtt_stats = rtt_stats,
+           .rtcp_mode = config.rtcp_mode,
+           .remote_ssrc = config.remote_ssrc},
           [packet_router] {
             // Use the same logic as for the video receiver.
             if (packet_router != nullptr) {
@@ -134,9 +136,6 @@ FlexfecReceiveStreamImpl::FlexfecReceiveStreamImpl(
   RTC_DCHECK_GE(payload_type_, -1);
 
   packet_sequence_checker_.Detach();
-
-  // RTCP reporting.
-  rtp_rtcp_->SetRTCPStatus(config.rtcp_mode);
 }
 
 FlexfecReceiveStreamImpl::~FlexfecReceiveStreamImpl() {

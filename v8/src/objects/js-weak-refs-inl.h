@@ -329,7 +329,8 @@ void WeakCell::Nullify(Isolate* isolate,
     DCHECK_EQ(fr->active_cells(), this);
     fr->set_active_cells(next(), SKIP_WRITE_BARRIER_FOR_GC);
     gc_notify_updated_slot(
-        fr, fr->RawField(JSFinalizationRegistry::kActiveCellsOffset), next());
+        fr, fr->RawField(offsetof(JSFinalizationRegistry, active_cells_)),
+        next());
   }
   if (IsWeakCell(next())) {
     Tagged<WeakCell> next_cell = Cast<WeakCell>(next());
@@ -349,7 +350,7 @@ void WeakCell::Nullify(Isolate* isolate,
   gc_notify_updated_slot(this, ObjectSlot(&next_), next());
   fr->set_cleared_cells(Tagged(this), SKIP_WRITE_BARRIER_FOR_GC);
   gc_notify_updated_slot(
-      fr, fr->RawField(JSFinalizationRegistry::kClearedCellsOffset), this);
+      fr, fr->RawField(offsetof(JSFinalizationRegistry, cleared_cells_)), this);
 }
 
 void WeakCell::RemoveFromFinalizationRegistryCells(Isolate* isolate) {

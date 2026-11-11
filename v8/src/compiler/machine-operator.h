@@ -805,7 +805,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I8x16Eq();
   const Operator* I8x16BitMask();
 
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
   // SIMD operators.
   const Operator* F64x2Splat();
   const Operator* F64x2Abs();
@@ -1244,7 +1244,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* StoreLane(MemoryAccessKind kind, MachineRepresentation rep,
                             uint8_t laneidx);
 
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_SIMD128
 
   const Operator* TraceInstruction(uint32_t markid);
 

@@ -83,10 +83,6 @@ V8_OBJECT class JSSegmenter : public JSObject {
   DECL_PRINTER(JSSegmenter)
   DECL_VERIFIER(JSSegmenter)
 
-  // Back-compat offset/size constants.
-  static const int kLocaleOffset;
-  static const int kIcuBreakIteratorOffset;
-  static const int kFlagsOffset;
   static const int kHeaderSize;
 
  public:
@@ -95,11 +91,6 @@ V8_OBJECT class JSSegmenter : public JSObject {
   TaggedMember<Smi> flags_;
 } V8_OBJECT_END;
 
-inline constexpr int JSSegmenter::kLocaleOffset =
-    offsetof(JSSegmenter, locale_);
-inline constexpr int JSSegmenter::kIcuBreakIteratorOffset =
-    offsetof(JSSegmenter, icu_break_iterator_);
-inline constexpr int JSSegmenter::kFlagsOffset = offsetof(JSSegmenter, flags_);
 inline constexpr int JSSegmenter::kHeaderSize = sizeof(JSSegmenter);
 
 }  // namespace internal

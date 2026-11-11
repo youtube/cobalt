@@ -512,6 +512,10 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
           sab.byteLength === expectedLen,
           'Incorrect byteLength: expected ' + expectedLen + ', got ' +
               sab.byteLength);
+      assertTrue(
+          sab.maxByteLength === expectedLen,
+          'Incorrect maxByteLength: expected ' + expectedLen + ', got ' +
+              sab.maxByteLength);
       assertTrue(sab.growable === false, 'Buffer should not be growable');
 
       try {

@@ -55,6 +55,13 @@ inline void prf(uint8_t *out, size_t out_len, const uint8_t in[33]) {
   BORINGSSL_keccak(out, out_len, in, 33, boringssl_shake256);
 }
 
+#if defined(HAVE_KECCAK_X2)
+inline void prf_x2(uint8_t *outs[2], size_t out_len,
+                   const uint8_t *ins[2] /* 33 each */) {
+  BORINGSSL_keccak_short_x2(outs, out_len, ins, 33, boringssl_shake256);
+}
+#endif
+
 // Section 4.1
 void hash_h(uint8_t out[32], const uint8_t *in, size_t len) {
   BORINGSSL_keccak(out, 32, in, len, boringssl_sha3_256);
@@ -387,7 +394,21 @@ inline void scalar_inner_product(scalar *out, const vector<RANK> *lhs,
   }
 }
 
-// Algorithm 6 from the spec. Rejection samples a Keccak stream to get
+inline void scalar_from_keccak_block_vartime(scalar *out, int *done,
+                                             const uint8_t block[168]) {
+  for (size_t i = 0; i < 168 && *done < DEGREE; i += 3) {
+    uint16_t d1 = block[i] + 256 * (block[i + 1] % 16);
+    uint16_t d2 = block[i + 1] / 16 + 16 * block[i + 2];
+    if (d1 < kPrime) {
+      out->c[(*done)++] = d1;
+    }
+    if (d2 < kPrime && *done < DEGREE) {
+      out->c[(*done)++] = d2;
+    }
+  }
+}
+
+// Algorithm 7 from the spec. Rejection samples a Keccak stream to get
 // uniformly distributed elements. This is used for matrix expansion and only
 // operates on public inputs.
 inline void scalar_from_keccak_vartime(scalar *out,
@@ -400,31 +421,32 @@ inline void scalar_from_keccak_vartime(scalar *out,
   while (done < DEGREE) {
     uint8_t block[168];
     BORINGSSL_keccak_squeeze(keccak_ctx, block, sizeof(block));
-    for (size_t i = 0; i < sizeof(block) && done < DEGREE; i += 3) {
-      uint16_t d1 = block[i] + 256 * (block[i + 1] % 16);
-      uint16_t d2 = block[i + 1] / 16 + 16 * block[i + 2];
-      if (d1 < kPrime) {
-        out->c[done++] = d1;
-      }
-      if (d2 < kPrime && done < DEGREE) {
-        out->c[done++] = d2;
-      }
-    }
+    scalar_from_keccak_block_vartime(out, &done, block);
   }
 }
 
-// Algorithm 7 from the spec, with eta fixed to two and the PRF call
-// included. Creates binominally distributed elements by sampling 2*|eta| bits,
-// and setting the coefficient to the count of the first bits minus the count of
-// the second bits, resulting in a centered binomial distribution. Since eta is
-// two this gives -2/2 with a probability of 1/16, -1/1 with probability 1/4,
-// and 0 with probability 3/8.
-void scalar_centered_binomial_distribution_eta_2_with_prf(
-    scalar *out, const uint8_t input[33]) {
-  uint8_t entropy[128];
-  static_assert(sizeof(entropy) == 2 * /*kEta=*/2 * DEGREE / 8);
-  prf(entropy, sizeof(entropy), input);
+#if defined(HAVE_KECCAK_X2)
+inline void scalar_from_keccak_vartime_x2(scalar *out[2],
+                                          BORINGSSL_keccak_st keccak_ctx[2]) {
+  assert(keccak_ctx[0].squeeze_offset == 0);
+  assert(keccak_ctx[0].rate_bytes == 168);
+  assert(keccak_ctx[1].squeeze_offset == 0);
+  assert(keccak_ctx[1].rate_bytes == 168);
+  static_assert(168 % 3 == 0, "block and coefficient boundaries do not align");
 
+  int done[2] = {0, 0};
+  while (done[0] < DEGREE || done[1] < DEGREE) {
+    uint8_t block[2][168];
+    uint8_t *blocks[] = {block[0], block[1]};
+    BORINGSSL_keccak_squeeze_x2(keccak_ctx, blocks, sizeof(block[0]));
+    scalar_from_keccak_block_vartime(out[0], &done[0], block[0]);
+    scalar_from_keccak_block_vartime(out[1], &done[1], block[1]);
+  }
+}
+#endif
+
+static void scalar_centered_binomial_distribution_eta_2(
+    scalar *out, const uint8_t entropy[128]) {
   for (int i = 0; i < DEGREE; i += 2) {
     uint8_t byte = entropy[i / 2];
 
@@ -446,6 +468,42 @@ void scalar_centered_binomial_distribution_eta_2_with_prf(
   }
 }
 
+// Algorithm 8 from the spec, with eta fixed to two and the PRF call
+// included. Creates binominally distributed elements by sampling 2*|eta| bits,
+// and setting the coefficient to the count of the first bits minus the count of
+// the second bits, resulting in a centered binomial distribution. Since eta is
+// two this gives -2/2 with a probability of 1/16, -1/1 with probability 1/4,
+// and 0 with probability 3/8.
+void scalar_centered_binomial_distribution_eta_2_with_prf(
+    scalar *out, const uint8_t input[33]) {
+  uint8_t entropy[128];
+  static_assert(sizeof(entropy) == 2 * /*kEta=*/2 * DEGREE / 8);
+  prf(entropy, sizeof(entropy), input);
+  scalar_centered_binomial_distribution_eta_2(out, entropy);
+}
+
+#if defined(HAVE_KECCAK_X2)
+// scalar_centered_binomial_distribution_eta_2_with_prf_x2 computes two blocks
+// of scalar_centered_binomial_distribution_eta_2_with_prf.
+static void scalar_centered_binomial_distribution_eta_2_with_prf_x2(
+    scalar out[2], uint8_t input[33]) {
+  uint8_t entropy[2][128];
+  static_assert(sizeof(entropy[0]) == 2 * /*kEta=*/2 * DEGREE / 8);
+
+  uint8_t input1[33];
+  OPENSSL_memcpy(input1, input, 33);
+  ++input1[32];  // Counter.
+
+  uint8_t *entropies[] = {entropy[0], entropy[1]};
+  const uint8_t *inputs[2] = {input, input1};
+  prf_x2(entropies, sizeof(entropy[0]), inputs);
+
+  for (int k = 0; k < 2; k++) {
+    scalar_centered_binomial_distribution_eta_2(&out[k], entropy[k]);
+  }
+}
+#endif
+
 // Generates a secret vector by using
 // |scalar_centered_binomial_distribution_eta_2_with_prf|, using the given seed
 // appending and incrementing |counter| for entry of the vector.
@@ -454,26 +512,67 @@ void vector_generate_secret_eta_2(vector<RANK> *out, uint8_t *counter,
                                   const uint8_t seed[32]) {
   uint8_t input[33];
   OPENSSL_memcpy(input, seed, 32);
-  for (int i = 0; i < RANK; i++) {
+
+  int i = 0;
+#if defined(HAVE_KECCAK_X2)
+  for (; i + 2 <= RANK; i += 2) {
+    input[32] = *counter;
+    *counter += 2;
+    scalar_centered_binomial_distribution_eta_2_with_prf_x2(&out->v[i], input);
+  }
+#endif
+
+  for (; i < RANK; i++) {
     input[32] = (*counter)++;
     scalar_centered_binomial_distribution_eta_2_with_prf(&out->v[i], input);
   }
 }
+
+template <int RANK>
+void matrix_expand_step(scalar *out, uint8_t input[34], int i) {
+  input[32] = i / RANK;
+  input[33] = i % RANK;
+  BORINGSSL_keccak_st keccak_ctx;
+  BORINGSSL_keccak_init(&keccak_ctx, boringssl_shake128);
+  BORINGSSL_keccak_absorb(&keccak_ctx, input, 34);
+  scalar_from_keccak_vartime(out, &keccak_ctx);
+}
+
+#if defined(HAVE_KECCAK_X2)
+template <int RANK>
+void matrix_expand_step_x2(matrix<RANK> out[2], uint8_t input[34], int i) {
+  input[32] = i / RANK;
+  input[33] = i % RANK;
+  uint8_t input1[34];
+  OPENSSL_memcpy(input1, input, 32);
+  input1[32] = (i + 1) / RANK;
+  input1[33] = (i + 1) % RANK;
+  BORINGSSL_keccak_st keccak_ctx[2];
+  BORINGSSL_keccak_init(&keccak_ctx[0], boringssl_shake128);
+  BORINGSSL_keccak_init(&keccak_ctx[1], boringssl_shake128);
+  BORINGSSL_keccak_absorb(&keccak_ctx[0], input, 34);
+  BORINGSSL_keccak_absorb(&keccak_ctx[1], input1, 34);
+  scalar *outs[] = {&out->v[i / RANK][i % RANK],
+                    &out->v[(i + 1) / RANK][(i + 1) % RANK]};
+  scalar_from_keccak_vartime_x2(outs, keccak_ctx);
+}
+#endif
 
 // Expands the matrix of a seed for key generation and for encaps-CPA.
 template <int RANK>
 void matrix_expand(matrix<RANK> *out, const uint8_t rho[32]) {
   uint8_t input[34];
   OPENSSL_memcpy(input, rho, 32);
-  for (int i = 0; i < RANK; i++) {
-    for (int j = 0; j < RANK; j++) {
-      input[32] = i;
-      input[33] = j;
-      BORINGSSL_keccak_st keccak_ctx;
-      BORINGSSL_keccak_init(&keccak_ctx, boringssl_shake128);
-      BORINGSSL_keccak_absorb(&keccak_ctx, input, sizeof(input));
-      scalar_from_keccak_vartime(&out->v[i][j], &keccak_ctx);
-    }
+
+  int i = 0;
+#if defined(HAVE_KECCAK_X2)
+  for (; i + 2 <= RANK * RANK; i += 2) {
+    matrix_expand_step_x2(out, input, i);
+  }
+#endif
+
+  for (; i < RANK * RANK; i++) {
+    matrix_expand_step<RANK>(&out->v[i / RANK][i % RANK], input, i);
   }
 }
 

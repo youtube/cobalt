@@ -79,8 +79,6 @@
 !/third_party/antlr4
 !/third_party/colorama
 /third_party/colorama/src
-!/third_party/cpu_features
-/third_party/cpu_features/src
 !/third_party/dragonbox
 /third_party/dragonbox/src
 !/third_party/fast_float

@@ -222,11 +222,7 @@ public class NewTabPageTest {
     // Disable sign-in to suppress sync promo, as it's unrelated to this render test.
     @Policies.Add(@Policies.Item(key = "BrowserSignin", string = "0"))
     public void testRender_FocusFakeBox() throws Exception {
-        ThreadUtils.runOnUiThreadBlocking(
-                () ->
-                        mNtp.getNewTabPageCoordinator()
-                                .getNtpSearchBoxForTesting()
-                                .setIsFuseboxEligible(false));
+        ComposeplateUtils.setIsEnabledForTesting(false);
         ScrimManager scrimManager =
                 mActivityTestRule.getActivity().getRootUiCoordinatorForTesting().getScrimManager();
         scrimManager.disableAnimationForTesting(true);
@@ -242,12 +238,9 @@ public class NewTabPageTest {
     @Feature({"NewTabPage", "FeedNewTabPage", "RenderTest"})
     // Disable sign-in to suppress sync promo, as it's unrelated to this render test.
     @Policies.Add(@Policies.Item(key = "BrowserSignin", string = "0"))
+    @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT + ":show_ntp_plus_button/true")
     public void testRender_FocusFakeBox_withPlusButton() throws Exception {
-        ThreadUtils.runOnUiThreadBlocking(
-                () ->
-                        mNtp.getNewTabPageCoordinator()
-                                .getNtpSearchBoxForTesting()
-                                .setIsFuseboxEligible(true));
+        ComposeplateUtils.setIsEnabledForTesting(true);
         ScrimManager scrimManager =
                 mActivityTestRule.getActivity().getRootUiCoordinatorForTesting().getScrimManager();
         scrimManager.disableAnimationForTesting(true);

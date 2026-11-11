@@ -39,6 +39,7 @@
 #include "components/password_manager/core/browser/features/password_manager_features_util.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_manager_test_utils.h"
+#include "components/password_manager/core/browser/password_store/password_form_converters.h"
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/password_manager/core/browser/password_store/password_store_results_observer.h"
 #include "components/password_manager/core/browser/password_sync_util.h"
@@ -324,7 +325,7 @@ class PasswordManagerSyncTest : public SyncTest {
   void AddLocalCredential(const password_manager::PasswordForm& form) {
     scoped_refptr<password_manager::PasswordStoreInterface> password_store =
         passwords_helper::GetProfilePasswordStoreInterface(0);
-    password_store->AddLogin(form);
+    password_store->AddLogin(password_manager::FromPasswordForm(form));
     // Do a roundtrip to the DB thread, to make sure the new password is stored
     // before doing anything else that might depend on it.
     GetAllLoginsFromProfilePasswordStore();
@@ -339,7 +340,7 @@ class PasswordManagerSyncTest : public SyncTest {
     password_manager::PasswordStoreResultsObserver syncer;
     password_store->GetAllLoginsWithAffiliationAndBrandingInformation(
         syncer.GetWeakPtr());
-    return syncer.WaitForResults();
+    return password_manager::ToPasswordForms(syncer.WaitForResults());
   }
 
   // Synchronously reads all credentials from the account password store and
@@ -351,7 +352,7 @@ class PasswordManagerSyncTest : public SyncTest {
     password_manager::PasswordStoreResultsObserver syncer;
     password_store->GetAllLoginsWithAffiliationAndBrandingInformation(
         syncer.GetWeakPtr());
-    return syncer.WaitForResults();
+    return password_manager::ToPasswordForms(syncer.WaitForResults());
   }
 
   void NavigateToFile(content::WebContents* web_contents,

@@ -392,7 +392,6 @@
 <translation id="1595731774593926493">Redress 番号の削除</translation>
 <translation id="1597307423671074806">WebM 動画</translation>
 <translation id="159800670740560023">Chrome のヒントのリンクです。Enter キーを押すと <ph name="IPH_LINK_FOCUSED_LINK_TEXT" /> を開きます</translation>
-<translation id="1599079390582151174">送信しました。他のデバイスで Chrome を開きます。</translation>
 <translation id="1599199147673445968">カード情報を更新する場合は、<ph name="BEGIN_LINK" />こちらで入力してください<ph name="END_LINK" /></translation>
 <translation id="1601786938618212857">Zip</translation>
 <translation id="1604192142734009334">美容、フィットネス</translation>
@@ -471,6 +470,7 @@
 <translation id="1717688554309417925">デビット、小切手</translation>
 <translation id="1719434663396780149">値下げアラートはオンになっています。[<ph name="BEGIN_LINK" /><ph name="NOTIFICATION_SETTINGS" /><ph name="END_LINK" />] で変更できます。</translation>
 <translation id="1719838434204287058">24x30 インチ</translation>
+<translation id="1720318856472900922">TLS WWW サーバー認証</translation>
 <translation id="1720941539803966190">チュートリアルを閉じる</translation>
 <translation id="1721424275792716183">* 必須欄です</translation>
 <translation id="1723636263173393300">このポリシーで指定できるショートカットは <ph name="MAX_ITEMS_LIMIT" /> 件までです。</translation>
@@ -479,6 +479,7 @@
 <translation id="1727613060316725209">証明書は有効です</translation>
 <translation id="1728677426644403582">ウェブページのソースを表示しています</translation>
 <translation id="173080396488393970">この種類のカードはご利用いただけません</translation>
+<translation id="1731563515262205847">ML-DSA-65</translation>
 <translation id="1732445923934584865">直接リクエストする</translation>
 <translation id="1733064249834771892">フォント</translation>
 <translation id="1733631169686303142">オーディオ機器</translation>
@@ -746,6 +747,7 @@
 <translation id="21613918653299710">オンライン画像集</translation>
 <translation id="2161656808144014275">テキスト</translation>
 <translation id="2162435186600002085">メインヘッダーのロゴ</translation>
+<translation id="2162535140284745414">AI を活用した新しいブラウジング方法を見つけるのに役立つリアルタイムの提案が表示されます。</translation>
 <translation id="2162620598375156287">現在の価格は <ph name="SOURCE_WEBSITE" /> で <ph name="CURRENT_PRICE" /></translation>
 <translation id="2164510882479075877"><ph name="HOST_NAME" /> にタイプミスがないか確認してください。</translation>
 <translation id="2166049586286450108">すべてのデータへの管理者アクセス</translation>
@@ -753,6 +755,7 @@
 <translation id="2168151236314517198">このコンテンツの印刷は管理者が設定したポリシーによってブロックされています</translation>
 <translation id="2171244127100824330">情報は <ph name="ACCOUNT" /> の <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /> に保存されています</translation>
 <translation id="2172089022819052306">自動車修理、メンテナンス</translation>
+<translation id="217231402430591139">アカウントをリンク</translation>
 <translation id="2173302385160625112">インターネット接続を確認してください</translation>
 <translation id="2174875517416416684">取引が完了しませんでした。口座からの引き落としは行われていません。</translation>
 <translation id="2175630235841878061">100 MB を超えるファイルはダウンロードできません</translation>
@@ -848,7 +851,6 @@
 <translation id="2302571905116831849">ポイントカードを自動入力</translation>
 <translation id="230286397113210245">[シークレット ウィンドウを開く] ボタンです。実行すると、新しいシークレット ウィンドウを開いてシークレット モードでブラウジングできます</translation>
 <translation id="2303437270440428119">OpenDocument スプレッドシート</translation>
-<translation id="2305294852062272447">運転免許証を保存しますか？</translation>
 <translation id="2306124309679506798">没入型エクスペリエンスを許可しますか？</translation>
 <translation id="2310789833878085574">保存して自動入力</translation>
 <translation id="2312234273148520048">調味料、ドレッシング</translation>
@@ -994,6 +996,7 @@
 <translation id="2521385132275182522">ステープル（右下）</translation>
 <translation id="2521736961081452453">フォームを作成</translation>
 <translation id="2524461107774643265">その他の情報の追加</translation>
+<translation id="2524962131655207565"><ph name="BEGIN_BOLD" />購入手続きページのコンテンツは、これらのオプションを提供するために Google と共有されます。<ph name="END_BOLD" />お支払いプランは、ご利用条件を満たしていることが条件となります。後払いオプションを非表示にするには、<ph name="BEGIN_LINK" />お支払い設定<ph name="END_LINK" />に移動してください。</translation>
 <translation id="2526062290525841862">このアプリを実行するには、独立したウェブアプリのデベロッパー モードを再度有効にしてください</translation>
 <translation id="2526280916094749336">この住所は Google アカウント（<ph name="ACCOUNT" />）に保存され、Google サービス全体で使用できます。</translation>
 <translation id="2527451058878391043">CVC コードはカードの表面に記載されています。カード番号の右上にある 4 桁のコードです。</translation>
@@ -1095,6 +1098,7 @@
 <translation id="2677748264148917807">このページを離れる</translation>
 <translation id="2679216653373462289">モーション センサーと光センサーの使用</translation>
 <translation id="2679659833697380">情報はデバイスに保存されます</translation>
+<translation id="2680837394649649718"><ph name="DEVICE_NAME" /> の Chrome に送信しました。</translation>
 <translation id="2683195745483370038">その他の結果が見つかりました</translation>
 <translation id="2686919536310834199">文書作成サポートのフィードバックを送信します。</translation>
 <translation id="2687555958734450033">最適サイズ</translation>
@@ -1141,7 +1145,6 @@
 <translation id="2740531572673183784">OK</translation>
 <translation id="2742128390261873684">スマートホーム</translation>
 <translation id="2743512410823092182">DJ 用の機材</translation>
-<translation id="2743934314332613923">運転免許証を更新しますか？</translation>
 <translation id="2757727729385895652"><ph name="COUNT" /> 個のファイルを Google ドライブにアップロードしています</translation>
 <translation id="2759299890026163685">インターネット接続が安定していることを確認してからもう一度お試しください</translation>
 <translation id="2759825833388495838"><ph name="APP_NAME" /> でパスワードを入力しようとしています</translation>
@@ -1205,7 +1208,6 @@
 <translation id="2891963978019740012">Chrome で使用する検索エンジン</translation>
 <translation id="2893773853358652045">ロール 4</translation>
 <translation id="2894137550885451583">商品 <ph name="PRODUCT" /> の <ph name="CURRENCY" /> の価格です</translation>
-<translation id="2894233157216554317">パスポートを更新しますか？</translation>
 <translation id="2898398337339787921">Microsoft Excel</translation>
 <translation id="2900528713135656174">予定を作成</translation>
 <translation id="2902312830803030883">その他の操作</translation>
@@ -1302,7 +1304,6 @@
 <translation id="3024663005179499861">ポリシー タイプが間違っています</translation>
 <translation id="3027915437837548462">SVG 画像</translation>
 <translation id="3030331669969285614">以下は破壊的変更を防止したり元に戻したりするフラグです。期間限定でご利用いただけます。</translation>
-<translation id="3030542417256082866">車両情報を保存しますか？</translation>
 <translation id="3033200136993730761">自宅の住所は、関連性の高い検索結果や Google マップのルートの表示など、Google サービス全体の利便性の向上に役立ちます。住所は <ph name="BEGIN_LINK" />Google アカウント（<ph name="ACCOUNT" />）<ph name="END_LINK" />で編集、削除できます。</translation>
 <translation id="3033777742142108756">モーション センサーと光センサーの使用を一時的に許可しました</translation>
 <translation id="3034526003882782781">スクロールとズームが許可されました</translation>
@@ -1463,6 +1464,7 @@
 <translation id="3261488570342242926">仮想カードについて</translation>
 <translation id="3262698603497362968">購入のオプション</translation>
 <translation id="3264315627780269177">このタブは共有できません</translation>
+<translation id="3264637689694266148">提案をオフにしても、タブで開いているページのタイトルと URL は他の Chrome 機能で使用するため処理されることがあります。このデータへのブラウザ アクセスは、同期設定で管理できます</translation>
 <translation id="3266793032086590337">値（競合）</translation>
 <translation id="3268451620468152448">開いているタブ</translation>
 <translation id="3270041629388773465">CVC を保存するとすばやくお支払いできます</translation>
@@ -1598,6 +1600,7 @@
 <translation id="350069200438440499">ファイル名:</translation>
 <translation id="3501300228850242680">ヘビーメタル</translation>
 <translation id="350421688684366066">ラベル（高光沢）</translation>
+<translation id="3507062913298382727">ID カードを保存</translation>
 <translation id="350763432931695541">次の数ページのテキストを抽出しています</translation>
 <translation id="3507869775212388416">法律系の求人情報</translation>
 <translation id="3507936815618196901">周囲の 3D マップの作成とカメラ位置の追跡</translation>
@@ -1637,7 +1640,6 @@
 <translation id="3558573058928565255">日中</translation>
 <translation id="3559897352860026926"><ph name="CLOUD_PROVIDER" /> の設定を確認するよう管理者に依頼してください。</translation>
 <translation id="3560824484345057728">関連サイトを表示する</translation>
-<translation id="356359327498380603">車両情報を更新しますか？</translation>
 <translation id="3566021033012934673">この接続ではプライバシーが保護されません</translation>
 <translation id="3566336457819493938">215x315 mm</translation>
 <translation id="3566649245868131295">医療系の求人情報</translation>
@@ -1908,7 +1910,6 @@
 <translation id="3965672182149944205">住所を保存しますか？</translation>
 <translation id="3966044442021752214">製品の安全性</translation>
 <translation id="396761677631735618">タップ操作で入力できるポイントカードが画面の下半分に表示されています。</translation>
-<translation id="3969869202926863008">ローカル ネットワークへのアクセス</translation>
 <translation id="3970239200223030389">発行日</translation>
 <translation id="397105322502079400">計算しています...</translation>
 <translation id="3973234410852337861"><ph name="HOST_NAME" /> はブロックされています</translation>
@@ -1934,7 +1935,6 @@
 <translation id="4014895360827978999">取引サービス、決済システム</translation>
 <translation id="4018819349042761761">公開鍵</translation>
 <translation id="4023431997072828269">このフォームは安全ではない接続を使用して送信されているため、情報が他人に読み取られる可能性があります。</translation>
-<translation id="4024673763872230929">情報を保存すると、フォームにすばやく入力できます。情報はデバイスに保存されます。</translation>
 <translation id="4025325634010721551">ポリシーを再読み込みしました</translation>
 <translation id="4025338605225449265">通貨、為替</translation>
 <translation id="4025777154208238692">最終ページから印刷</translation>
@@ -1994,12 +1994,14 @@
 <translation id="4098306082496067348">購入時に使うカードとして追加するには、仮想カード情報をタップします。</translation>
 <translation id="4099048595830172239">機密コンテンツが表示されているときに <ph name="APPLICATION_TITLE" /> で画面を共有することは、管理者が設定したポリシーで推奨されていません。</translation>
 <translation id="4099391883283080991"><ph name="CUSTOMIZE_CHROME_FONTS_FOCUSED_FRIENDLY_MATCH_TEXT" /> です。Tab、Enter キーの順に押すと、Chrome のフォントサイズと書体をカスタマイズします</translation>
+<translation id="4100421230355095925">ML-DSA-44</translation>
 <translation id="4101413244023615925">テキストとグラフィック</translation>
 <translation id="4101917550061398111">選択したアイテムを削除</translation>
 <translation id="4102567721634170493">ローカル ニュース</translation>
 <translation id="4103249731201008433">デバイスのシリアル番号が無効です</translation>
 <translation id="4103592298805904008">段ボール（一重）</translation>
 <translation id="4104702906064390950">IBAN 情報を保存しています</translation>
+<translation id="4106101218644797743">同期設定</translation>
 <translation id="4106887816571530227">埋め込みコンテンツは許可されていません</translation>
 <translation id="4107047499377819067">VPN バックグラウンド サービスのインストールが開始しました。完了まで数分かかることがあります。</translation>
 <translation id="4110642094637545339">Google Pay、AfterPay のロゴ</translation>
@@ -2220,6 +2222,7 @@
 <translation id="4415156962929755728">プラスチック（高光沢）</translation>
 <translation id="4415426530740016218">受け取り場所の住所</translation>
 <translation id="4415748029120993980">SECG 楕円曲線 secp384r1（別名 NIST P-384）</translation>
+<translation id="4418150423720608641">ML-DSA-87</translation>
 <translation id="4419287616181386201">パスワードは管理設定で削除できます</translation>
 <translation id="4424024547088906515">このサーバーが <ph name="DOMAIN" /> であることを確認できませんでした。このサーバーのセキュリティ証明書は Chrome によって信頼されているものではありません。原因としては、不適切な設定や、悪意のあるユーザーによる接続妨害が考えられます。</translation>
 <translation id="4425750422187370446">スポーツ衣料</translation>
@@ -2335,6 +2338,7 @@
 <translation id="4640225694041297329">過去 7 日間の結果を表示</translation>
 <translation id="4642296966515958616">このタブグループに参加するには、Chrome を更新してください</translation>
 <translation id="464342062220857295">検索機能</translation>
+<translation id="4643958597583594452">Chrome は、デバイス上またはクラウドのプライベート スペースでページのタイトルと URL を処理します</translation>
 <translation id="4644567637638438744">Microsoft OneDrive にログインしている場合のみ、ファイルをアップロードできます</translation>
 <translation id="4644670975240021822">逆の順序（下向き）</translation>
 <translation id="4648262692072505866">ハッシュ形式には SHA-256 を使用する必要があります。</translation>
@@ -2472,6 +2476,7 @@
 <translation id="4855395119669662878">管理者は <ph name="DATE_TIME" /> に <ph name="CLOUD_PROVIDER" /> へのファイルのアップロードを開始します。ファイルのアップロードが完了するまでデバイスを接続したままにしてください。アップロード中は、ローカル ファイルの読み取りのみが可能です。</translation>
 <translation id="485902285759009870">コードを確認しています...</translation>
 <translation id="4860260582253463350">YouTube にアクセスするには本人確認が必要です。保護者の方がファミリー リンクで設定した内容が反映されます。</translation>
+<translation id="4862642413395066333">OCSP 応答の署名</translation>
 <translation id="4864406669374375262">バージョン文字列をクリップボードにコピーしました</translation>
 <translation id="486459320933704969">保護者の方から、このウェブサイトを開いてもよいという承認をもらう必要があります</translation>
 <translation id="4864801646102013152">リフォーム</translation>
@@ -2486,7 +2491,6 @@
 <translation id="4877422487531841831"><ph name="TEXT" /> を検索</translation>
 <translation id="4877521229462766300">埋め込みコンテンツを許可しますか？</translation>
 <translation id="4879491255372875719">自動（デフォルト）</translation>
-<translation id="4880328155169081699">ID カードを更新しますか？</translation>
 <translation id="4880827082731008257">検索履歴</translation>
 <translation id="4881695831933465202">開く</translation>
 <translation id="4881808915112408168">24x31.5 インチ</translation>
@@ -2583,6 +2587,7 @@
 <translation id="5019293549442035120">この住所は Google アカウント（<ph name="USER_EMAIL" />）に保存され、Google サービス全体で使用できます。</translation>
 <translation id="5019819206251569004">モーション センサーと光センサー</translation>
 <translation id="5019952743397118625"><ph name="EXTENSION_DEVELOPER_MODE_SETTINGS_POLICY_NAME" /> ポリシーを設定しました。拡張機能ページでデベロッパー モードを使用できるかどうかは <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> で制御されなくなります。</translation>
+<translation id="5020862932518041900">提案を選択または無視すると、Chrome でユーザーと関連性の高い情報のみが表示されるように調整します</translation>
 <translation id="5021500396464456616">このリンクを送信したユーザーにお問い合わせください</translation>
 <translation id="5021557570875267742">Chrome で価格をトラッキング</translation>
 <translation id="5023310440958281426">管理者のポリシーを確認してください</translation>
@@ -2691,7 +2696,6 @@
 <translation id="5191315092027169558">お使いのプロフィールは <ph name="DOMAIN" /> によって管理されています</translation>
 <translation id="51918995459521422"><ph name="ORIGIN" /> で複数のファイルがダウンロードされようとしています</translation>
 <translation id="519528950056409240">ウォレットにデータの共有を許可する</translation>
-<translation id="5199121357983849992">ID カードを保存しますか？</translation>
 <translation id="5200063972779787617">アカウントに住所を保存</translation>
 <translation id="5201306358585911203">このページに埋め込まれているページの内容</translation>
 <translation id="5203716867500274632">管理者が ChromeOS デバイスの以前と現在のセッション間で次の項目の同期を有効にしました。</translation>
@@ -2707,7 +2711,6 @@
 <translation id="5217759126664161410">プロトコルの形式が無効です。</translation>
 <translation id="5221377878828867877">パスワードの再利用は組織で監視されています</translation>
 <translation id="5222812217790122047">メールアドレスは必須です</translation>
-<translation id="5225215474235602477">パスポートを保存しますか？</translation>
 <translation id="5228269245420405804">遠隔学習</translation>
 <translation id="5229844812197559338"><ph name="SELECT_PROVIDER_TITLE" />。<ph name="LOGO_DESCRIPTION" /></translation>
 <translation id="5230733896359313003">配送先住所</translation>
@@ -2811,7 +2814,6 @@
 <translation id="5375686690914744327">SRA1</translation>
 <translation id="5377026284221673050">「時計が遅れています」、「時計が進んでいます」、「&lt;span class="error-code"&gt;NET::ERR_CERT_DATE_INVALID&lt;/span&gt;」</translation>
 <translation id="5379618281582508161">このパスワードをすべてのデバイスで使用するには、本人確認を行ってください</translation>
-<translation id="5380539543938195166">Known Traveler 番号を更新しますか？</translation>
 <translation id="5380953781541843508">昇順</translation>
 <translation id="5381318171304904246">続行すると、銀行のウェブサイトに移動します。確認が完了すると、自動的に戻って購入手続きが完了します。</translation>
 <translation id="5381952079334035181"><ph name="MEMBER_FIRST_NAME" /> さんがタブ「<ph name="WEBSITE_TITLE" />」を更新しました</translation>
@@ -2961,6 +2963,7 @@
 <translation id="5573641252776268565">パスポートの編集</translation>
 <translation id="5578606540385219379">サービス プロバイダ</translation>
 <translation id="5580958916614886209">有効期限の「月」を確認してもう一度お試しください</translation>
+<translation id="5582453333200265572">ID カードを更新</translation>
 <translation id="5583442610070676234"><ph name="COMPARE_SET_NAME" /> の比較表のその他の操作</translation>
 <translation id="55841966151154662">この IBAN を Google ウォレットに保存できませんでした。代わりにこのデバイスの Chrome に保存されました。</translation>
 <translation id="558420943003240152">パスワードとパスキーを管理...</translation>
@@ -3016,7 +3019,6 @@
 <translation id="5660122698869360728">新しいスマート フォルダを使用すると、すべてのショッピング ページを 1 か所に保存して、価格のトラッキングや検討などを自動的に行えます。</translation>
 <translation id="5663955426505430495">このデバイスの管理者によって、機能を追加する拡張機能がインストールされました。この拡張機能では、ユーザーデータの一部にアクセスする場合があります。</translation>
 <translation id="5667827081946850877">オーディオブック</translation>
-<translation id="5674082555327905359">ローカル ネットワーク上のすべてのデバイスへの接続を要求できます</translation>
 <translation id="5675650730144413517">このページは動作していません</translation>
 <translation id="5675809467256309336">ダンス音楽、エレクトロニック ミュージック</translation>
 <translation id="5675959228867414813">日付別に表示</translation>
@@ -3088,6 +3090,7 @@
 <translation id="5787146423283493983">キー合意</translation>
 <translation id="5793317771769868848">このお支払い方法はこのデバイスから削除されます</translation>
 <translation id="5794065675298686371">価格トラッキングの通知をオンにする</translation>
+<translation id="5797984091151707075">管理者ポリシーによりブロックされています</translation>
 <translation id="5800727402210090597">携帯電話の修理、サービス</translation>
 <translation id="580241730938216256">更新を開始</translation>
 <translation id="5804241973901381774">権限</translation>
@@ -3095,6 +3098,7 @@
 <translation id="5808435672482059465">Chrome 履歴を表示</translation>
 <translation id="5810442152076338065"><ph name="DOMAIN" /> への接続は古い暗号スイートにより暗号化されています。</translation>
 <translation id="5813119285467412249">追加のやり直し（&amp;R）</translation>
+<translation id="5813274153495000141">情報を保存すると、フォームにすばやく入力できます。情報はデバイスに保存されます。</translation>
 <translation id="5813753398265398978">物理学</translation>
 <translation id="5817918615728894473">ペア設定</translation>
 <translation id="5820625124144807242">注文の確認が完了したら、<ph name="BNPL_ISSUER_NAME" /> のアカウントにログインするか、アカウントを作成する必要があります。このアカウントは自動的に Google Pay にリンクされます。</translation>
@@ -3139,7 +3143,6 @@
 <translation id="5887400589839399685">カードが保存されました</translation>
 <translation id="5887687176710214216">最終アクセス日: 昨日</translation>
 <translation id="5889251770650310375">お使いの他のデバイスからも履歴にアクセスできるようにするには、本人確認を行って、履歴とタブを同期します。同期は [設定] でいつでも停止できます。Google では、履歴に基づいて検索やその他のサービスをカスタマイズすることがあります。</translation>
-<translation id="5890248301649767931">Redress 番号を保存しますか？</translation>
 <translation id="5895138241574237353">再起動</translation>
 <translation id="5895187275912066135">発行日</translation>
 <translation id="5895694128043506580">Google Chrome が機密情報を表示しようとしています</translation>
@@ -3217,10 +3220,10 @@
 <translation id="6006365096047131769">3x5 インチ</translation>
 <translation id="6008122969617370890">N～1 の順</translation>
 <translation id="6008256403891681546">JCB</translation>
+<translation id="6012135807160718387">Google の暗号化により情報が保護されます</translation>
 <translation id="6014801569448771146">パスワードの確認</translation>
 <translation id="6014851866995737824">「有効」リストまたは「無効」リストがないため、無視されました。</translation>
 <translation id="6015796118275082299">年</translation>
-<translation id="6017028474478839719">ID カードを保存しますか？</translation>
 <translation id="6017514345406065928">緑</translation>
 <translation id="6018650639991193045">Chrome の設定で閲覧履歴、Cookie、キャッシュなどを削除します</translation>
 <translation id="6019118530636932154">Google Apps Script</translation>
@@ -3425,7 +3428,6 @@
 <translation id="6321917430147971392">DNS 設定を確認してください</translation>
 <translation id="6322182122604171028">Windows Hello を使用できませんでした</translation>
 <translation id="6326947323444967009">iOS 設定で Chrome をシステムの既定のブラウザとして設定します</translation>
-<translation id="6327065120806001832">ローカル ネットワークへのアクセス</translation>
 <translation id="6328639280570009161">ネットワーク予測を無効にしてみてください</translation>
 <translation id="6329742260390895689">情報を自動入力するには、ウォレットの設定で [Google の各種サービスでパスを使用する] をオンにしてください</translation>
 <translation id="6329815962353376655">&lt;質問を入力&gt;</translation>
@@ -3529,6 +3531,7 @@
 <translation id="6451458296329894277">フォーム再送信の確認</translation>
 <translation id="6452429044474066211">ダイビング、水中アクティビティ</translation>
 <translation id="6452889436791091116">ISO ID-1</translation>
+<translation id="6453646205942063831">開いているタブのページのタイトルと URL を使用して、関連性の高い提案が表示されます</translation>
 <translation id="6455632609396391811">健康保険</translation>
 <translation id="6456955391422100996">広告を削除しました。</translation>
 <translation id="6457206614190510200">中綴じ</translation>
@@ -4175,7 +4178,6 @@
 <translation id="746412105358554870">JavaScript の最適化とセキュリティ</translation>
 <translation id="7465036432780054056">あなたが <ph name="TOP_LEVEL_URL" /> にアクセスしたことが <ph name="EMBEDDED_URL" /> で認識されます</translation>
 <translation id="7465963048299965912">10x13 インチ</translation>
-<translation id="7467332121947433617">ID カードを更新しますか？</translation>
 <translation id="7469935732330206581">安全でないフォーム</translation>
 <translation id="7470854469646445678">コピーする理由をお知らせください（必須）</translation>
 <translation id="7471007961486718967">転送する理由をお知らせください（必須）</translation>
@@ -4424,6 +4426,7 @@
 <translation id="7819605256207059717">組織でブロックされました</translation>
 <translation id="7822611063308883975">携帯ゲーム機</translation>
 <translation id="7825558994363763489">電子レンジ</translation>
+<translation id="7827688884439021871">AI を活用した新しいブラウジング方法を見つけるのに役立つリアルタイムの提案が表示されます</translation>
 <translation id="782886543891417279">ご利用の Wi-Fi（<ph name="WIFI_NAME" />）では、ログインページへのアクセスが必要な可能性があります。</translation>
 <translation id="7831993212387676366">ショッピング リストとは</translation>
 <translation id="7840103971441592723">スクリーン キャプチャを開始しました</translation>
@@ -4495,6 +4498,7 @@
 <translation id="7947285636476623132">有効期限の「年」を確認してもう一度お試しください</translation>
 <translation id="7947310711271925113">ポップ ミュージック</translation>
 <translation id="7947813448670013867"><ph name="SEE_CHROME_TIPS_FOCUSED_FRIENDLY_MATCH_TEXT" /> です。Tab キー、Enter キーの順に押して、Chrome の機能を確認します</translation>
+<translation id="7948579849190819732">現在のタブ</translation>
 <translation id="7949135979217012031">ウイルス対策、マルウェア</translation>
 <translation id="7950027195171824198">Chrome の設定で Cookie の設定を管理する</translation>
 <translation id="7951415247503192394">（32 ビット）</translation>
@@ -4715,6 +4719,7 @@
 <translation id="8289355894181816810">確認方法がわからない場合は、ネットワーク管理者までお問い合わせください。</translation>
 <translation id="8291367150570302588">ID カード</translation>
 <translation id="829335040383910391">音声</translation>
+<translation id="8294425747071240447">AI による提案</translation>
 <translation id="8294431847097064396">ソース</translation>
 <translation id="8297545700510100061">Cookie と他のサイトデータは、ログインや広告のパーソナライズなどでユーザーを覚えておくために使用されます。すべてのサイトの Cookie を管理するには、<ph name="SETTINGS" />をご覧ください。</translation>
 <translation id="8298115750975731693">ご利用の Wi-Fi（<ph name="WIFI_NAME" />）では、<ph name="BEGIN_BOLD" /><ph name="LOGIN_URL" /><ph name="END_BOLD" /> へのアクセスが必要な可能性があります。</translation>
@@ -4902,6 +4907,7 @@
 <translation id="8597726363542221027">中古車</translation>
 <translation id="8600271352425265729">今回のみ</translation>
 <translation id="860043288473659153">カード名義人</translation>
+<translation id="8601206103050338563">TLS WWW クライアント認証</translation>
 <translation id="8601456038554914806">ウォーター スポーツ用品</translation>
 <translation id="8601782593888534566">SF、ファンタジー</translation>
 <translation id="8604103095921958091">後払い決済の利用規約画面が画面全体に表示されています。</translation>
@@ -5001,7 +5007,6 @@
 <translation id="877348612833018844">{0,plural, =1{機密ファイルを移動しますか？}other{機密ファイルを移動しますか？}}</translation>
 <translation id="8775347646940100151">紙（レターヘッド）</translation>
 <translation id="8775863327608679820">分割払いを利用できる後払い決済のカード発行会社が画面の下半分に表示されています。</translation>
-<translation id="8776941011841875705">Known Traveler 番号を保存しますか？</translation>
 <translation id="877985182522063539">A4</translation>
 <translation id="8781278378794969337">[ページを翻訳] ボタンです。実行すると、Google 翻訳を使用してこのページを翻訳できます</translation>
 <translation id="8785658048882205566">オートバイ</translation>
@@ -5144,7 +5149,6 @@
 <translation id="9026253329950610248">Google サイト</translation>
 <translation id="9027020981272345766">Chrome Enterprise Core を試す</translation>
 <translation id="9027531288681624875">全画面表示を終了するには、|<ph name="ACCELERATOR" />| を長押しします</translation>
-<translation id="9031426777610376427">Redress 番号を更新しますか？</translation>
 <translation id="9035022520814077154">セキュリティ エラー</translation>
 <translation id="9035824888276246493">セキュリティ コードを保存する</translation>
 <translation id="9036306139374661733">マイクの使用を許可しますか？</translation>
@@ -5241,6 +5245,7 @@
 <translation id="9169664750068251925">このサイトでは常にブロック</translation>
 <translation id="9169931577761441333">ホーム画面に <ph name="APP_NAME" /> を追加</translation>
 <translation id="9170848237812810038">取消(&amp;U)</translation>
+<translation id="9170906125144697215">アプリを切り替えずに Pix で支払う</translation>
 <translation id="9171296965991013597">アプリを終了しますか？</translation>
 <translation id="9173282814238175921">1 つのドキュメント（新規シート）</translation>
 <translation id="9173995187295789444">Bluetooth デバイスをスキャンしています...</translation>
@@ -5257,7 +5262,6 @@
 <translation id="9186371298532546532">この住所を他の場所でも使用する</translation>
 <translation id="9189468832660648522"><ph name="MEMBER_FIRST_NAME" /> さんがこのタブを変更しました</translation>
 <translation id="9189789270972826888">カード情報が入力されていない場合は、以下のカード情報をクリックしてコピーして貼り付けてください。<ph name="IDS_AUTOFILL_FILLED_CARD_INFORMATION_BUBBLE_LEARN_MORE_LINK_LABEL" /></translation>
-<translation id="9190557999028587593">4 週間以上経過したトピックは自動的に削除されます</translation>
 <translation id="9191834167571392248">パンチ（左下）</translation>
 <translation id="9192361865877479444">金属（非光沢）</translation>
 <translation id="9192947025498305328">クリーン ビューティー</translation>

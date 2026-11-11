@@ -169,13 +169,10 @@ Tagged<TrustedByteArray> BytecodeArray::SourcePositionTable() const {
   // WARNING: This function may be called from a background thread, hence
   // changes to how it accesses the heap can easily lead to bugs.
   Tagged<Object> maybe_table = raw_source_position_table(kAcquireLoad);
-  if (maybe_table != Smi::zero())
+  if (maybe_table != Smi::zero()) {
     return TrustedCast<TrustedByteArray>(maybe_table);
+  }
   return Isolate::Current()->heap()->empty_trusted_byte_array();
-}
-Tagged<TrustedByteArray> BytecodeArray::SourcePositionTable(
-    PtrComprCageBase cage_base) const {
-  return SourcePositionTable();
 }
 
 void BytecodeArray::SetSourcePositionsFailedToCollect() {
@@ -187,7 +184,8 @@ void BytecodeArray::SetSourcePositionsFailedToCollect() {
   // matters for non-Smi values, so any future caller must keep using
   // TrustedSpaceCompressionScheme here.
   TaggedField<Object, 0, TrustedSpaceCompressionScheme>::Release_Store(
-      Tagged(this), kSourcePositionTableOffset, Smi::zero());
+      Tagged(this), offsetof(BytecodeArray, source_position_table_),
+      Smi::zero());
 }
 
 Tagged<Union<Smi, TrustedFixedArray>> BytecodeArray::raw_constant_pool() const {

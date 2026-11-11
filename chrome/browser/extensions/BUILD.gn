@@ -465,7 +465,8 @@ source_set("extensions") {
     # enterprise headers include extension_management.h.
     "//chrome/browser/enterprise",
 
-    # password_manager:impl includes extensions/api/settings_private/generated_pref.h
+    # password_manager:impl includes
+    # extensions/api/settings_private/generated_pref.h
     "//chrome/browser/password_manager:impl",
 
     # ssl includes extensions/api/settings_private/generated_pref.h via
@@ -491,7 +492,12 @@ source_set("extensions") {
     "//chrome/app/theme:chrome_unscaled_resources",
     "//chrome/browser:browser_features",
     "//chrome/browser:browser_process",
+    "//chrome/browser:browser_process_platform_part",
     "//chrome/browser:chrome_content_browser_client_parts",
+    "//chrome/browser:defaults",
+    "//chrome/browser:file_select_helper",
+    "//chrome/browser:file_util_service",
+    "//chrome/browser:icon_loader",
     "//chrome/browser:shell_integration",
     "//chrome/browser/app_mode",
     "//chrome/browser/apps:user_type_filter",
@@ -538,7 +544,9 @@ source_set("extensions") {
     "//chrome/browser/ssl",
     "//chrome/browser/tab_group_sync:factories",
     "//chrome/browser/tab_list",
+    "//chrome/browser/ui:accelerator_utils_headers",
     "//chrome/browser/ui:browser_element_identifiers",
+    "//chrome/browser/ui:simple_message_box_headers",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/autofill",
     "//chrome/browser/ui/browser_window",
@@ -577,6 +585,7 @@ source_set("extensions") {
     "//components/no_state_prefetch/browser",
     "//components/performance_manager",
     "//components/policy/core/browser",
+    "//components/policy/core/common",
     "//components/pref_registry",
     "//components/privacy_sandbox:features",
     "//components/privacy_sandbox:privacy_sandbox_prefs",
@@ -667,6 +676,12 @@ source_set("extensions") {
       "//chrome/android:chrome_jni_headers",
       "//chrome/browser/ui/android/tab_model",
     ]
+
+    if (enable_desktop_android_extensions) {
+      # pack_extension_job.cc and developer_private_functions.cc include headers
+      # from android extension bridges under IS_ANDROID.
+      deps += [ "//chrome/browser/ui/android/extensions:public" ]
+    }
   } else {
     sources += [
       "api/chrome_extensions_api_client_non_android.cc",
@@ -701,8 +716,8 @@ source_set("extensions") {
 
   if (enable_extensions) {
     sources += [
-      # TODO(crbug.com/40245282): Ideally, no API implementations would be included
-      # here.
+      # TODO(crbug.com/40245282): Ideally, no API implementations would be
+      # included here.
       "api/automation_internal/chrome_automation_internal_api_delegate.cc",
       "api/automation_internal/chrome_automation_internal_api_delegate.h",
       "api/bookmark_manager_private/bookmark_manager_private_api.cc",
@@ -990,7 +1005,6 @@ source_set("extensions") {
       "//components/download/public/common:public",
       "//components/drive",
       "//components/embedder_support:user_agent",
-      "//components/enterprise",
       "//components/enterprise/buildflags",
       "//components/enterprise/connectors/core",
       "//components/favicon/content",
@@ -1020,7 +1034,6 @@ source_set("extensions") {
       "//components/performance_manager",
       "//components/permissions",
       "//components/policy:generated",
-      "//components/policy/core/browser",
       "//components/reading_list/core",
       "//components/resources",
       "//components/safe_browsing:buildflags",
@@ -1216,7 +1229,6 @@ source_set("extensions") {
         "preinstalled_apps.h",
       ]
       deps += [
-        "//components/enterprise",
         "//components/enterprise/common/proto:connectors_proto",
         "//components/keep_alive_registry",
       ]
@@ -1542,6 +1554,10 @@ source_set("extensions") {
     if (!is_android && !is_chromeos) {
       deps += [ "//chrome/browser/ui/toasts" ]
     }
+
+    if (enterprise_cloud_content_analysis) {
+      deps += [ "//components/enterprise/common/proto:browser_events_proto" ]
+    }
   }  # if (enable_extensions)
 
   if (enable_printing) {
@@ -1570,6 +1586,8 @@ static_library("test_support") {
     "chrome_test_extension_loader.h",
     "extension_action_test_util.cc",
     "extension_action_test_util.h",
+    "extension_cookies_test_helper.cc",
+    "extension_cookies_test_helper.h",
     "extension_management_test_util.cc",
     "extension_management_test_util.h",
     "external_testing_loader.cc",
@@ -1612,8 +1630,10 @@ static_library("test_support") {
     "//content/test:test_support",
     "//extensions:test_support",
     "//extensions/browser:crx_installer",
+    "//net:test_support",
     "//services/data_decoder/public/cpp:test_support",
     "//testing/gmock",
+    "//url",
   ]
 
   if (enable_extensions) {
@@ -1776,6 +1796,13 @@ source_set("unit_tests") {
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 
   sources = [
+    "activity_log/activity_database_unittest.cc",
+    "activity_log/activity_log_enabled_unittest.cc",
+    "activity_log/activity_log_policy_unittest.cc",
+    "activity_log/activity_log_unittest.cc",
+    "activity_log/counting_policy_unittest.cc",
+    "activity_log/database_string_table_unittest.cc",
+    "activity_log/fullstream_ui_policy_unittest.cc",
     "api/bookmarks/bookmarks_api_unittest.cc",
     "api/browsing_data/browsing_data_unittest.cc",
     "api/chrome_extensions_api_client_unittest.cc",
@@ -1803,6 +1830,7 @@ source_set("unit_tests") {
     "api/gcm/extension_gcm_app_handler_unittest.cc",
     "api/identity/identity_api_unittest.cc",
     "api/management/management_api_unittest.cc",
+    "api/notifications/extension_notification_handler_unittest.cc",
     "api/omnibox/omnibox_unittest.cc",
     "api/omnibox/suggestion_parser_unittest.cc",
     "api/permissions/permissions_api_helpers_unittest.cc",
@@ -1819,6 +1847,7 @@ source_set("unit_tests") {
     "api/web_request/web_request_permissions_unittest.cc",
     "api/webstore_private/extension_install_status_unittest.cc",
     "api/webstore_private/webstore_private_unittest.cc",
+    "bookmarks/bookmarks_helpers_unittest.cc",
     "chrome_component_extension_resource_manager_unittest.cc",
     "chrome_content_verifier_unittest.cc",
     "chrome_extension_function_unittest.cc",
@@ -1826,6 +1855,8 @@ source_set("unit_tests") {
     "chrome_extension_test.h",
     "chrome_extension_test_unittest.cc",
     "component_loader_unittest.cc",
+    "context_menu_helpers_unittest.cc",
+    "context_menu_matcher_unittest.cc",
     "corrupted_extension_reinstaller_unittest.cc",
     "cws_info_service_unittest.cc",
     "event_router_forwarder_unittest.cc",
@@ -1883,6 +1914,7 @@ source_set("unit_tests") {
     "updater/extension_updater_unittest.cc",
     "user_script_listener_unittest.cc",
     "user_script_world_configuration_manager_unittest.cc",
+    "zipfile_installer_unittest.cc",
   ]
 
   deps = [
@@ -1892,6 +1924,7 @@ source_set("unit_tests") {
     "//base/test:test_config",
     "//base/test:test_support",
     "//chrome/browser",
+    "//chrome/browser:browser_process_impl",
     "//chrome/browser/background",
     "//chrome/browser/bookmarks",
     "//chrome/browser/content_settings:content_settings_factory",
@@ -1910,22 +1943,28 @@ source_set("unit_tests") {
     "//chrome/browser/media/router:test_support",
     "//chrome/browser/policy:test_support",
     "//chrome/browser/prefs",
+    "//chrome/browser/preloading/prefetch/no_state_prefetch",
     "//chrome/browser/resources:component_extension_resources_grit",
     "//chrome/browser/search_engines",
     "//chrome/browser/supervised_user:test_support",
     "//chrome/browser/sync",
     "//chrome/browser/ui/extensions",
     "//chrome/test:test_support",
+    "//components/bookmarks/managed",
     "//components/bookmarks/test",
     "//components/browser_sync:switches",
     "//components/gcm_driver:test_support",
+    "//components/no_state_prefetch/browser",
     "//components/os_crypt/async/browser:test_support",
     "//components/policy/core/common:test_support",
     "//components/prefs:test_support",
     "//components/proxy_config",
     "//components/search_engines",
+    "//components/services/unzip:in_process",
+    "//components/services/unzip/content",
     "//components/signin/public/identity_manager:test_support",
     "//components/sync:test_support",
+    "//components/sync_bookmarks",
     "//components/sync_preferences:test_support",
     "//components/themes:prefs",
     "//components/user_manager",
@@ -1947,17 +1986,11 @@ source_set("unit_tests") {
     "//testing/gtest",
     "//ui/base/accelerators/global_accelerator_listener",
     "//ui/display:test_support",
+    "//ui/menus",
   ]
 
   if (enable_extensions) {
     sources += [
-      "activity_log/activity_database_unittest.cc",
-      "activity_log/activity_log_enabled_unittest.cc",
-      "activity_log/activity_log_policy_unittest.cc",
-      "activity_log/activity_log_unittest.cc",
-      "activity_log/counting_policy_unittest.cc",
-      "activity_log/database_string_table_unittest.cc",
-      "activity_log/fullstream_ui_policy_unittest.cc",
       "api/activity_log_private/activity_log_private_api_unittest.cc",
       "api/declarative_webrequest/webrequest_action_unittest.cc",
       "api/declarative_webrequest/webrequest_rules_registry_unittest.cc",
@@ -1981,7 +2014,6 @@ source_set("unit_tests") {
       "api/image_writer_private/xz_extractor_unittest.cc",
       "api/language_settings_private/language_settings_private_api_unittest.cc",
       "api/language_settings_private/language_settings_private_delegate_unittest.cc",
-      "api/notifications/extension_notification_handler_unittest.cc",
       "api/page_capture/page_capture_api_unittest.cc",
       "api/passwords_private/password_access_auth_timeout_handler_unittest.cc",
       "api/passwords_private/password_check_delegate_unittest.cc",
@@ -1998,11 +2030,8 @@ source_set("unit_tests") {
       "api/tabs/windows_util_unittest.cc",
       "app_tab_helper_unittest.cc",
       "blocklist_states_interaction_unittest.cc",
-      "bookmarks/bookmarks_helpers_unittest.cc",
       "chrome_app_icon_unittest.cc",
       "chrome_app_sorting_unittest.cc",
-      "context_menu_helpers_unittest.cc",
-      "context_menu_matcher_unittest.cc",
       "error_console/error_console_unittest.cc",
       "extension_allowlist_unittest.cc",
       "extension_error_ui_default_unittest.cc",
@@ -2015,14 +2044,12 @@ source_set("unit_tests") {
       "update_install_gate_unittest.cc",
       "warning_badge_service_unittest.cc",
       "webstore_installer_unittest.cc",
-      "zipfile_installer_unittest.cc",
     ]
 
     deps += [
       "//chrome/browser/affiliations",
       "//chrome/browser/custom_handlers",
       "//chrome/browser/password_manager",
-      "//chrome/browser/preloading/prefetch/no_state_prefetch",
       "//chrome/browser/spellchecker",
       "//chrome/browser/ui/global_error:test_support",
       "//chrome/browser/update_client",
@@ -2031,14 +2058,10 @@ source_set("unit_tests") {
       "//chrome/browser/webapps:desktop",
       "//chrome/browser/webauthn:test_support",
       "//components/affiliations/core/browser:test_support",
-      "//components/bookmarks/managed",
       "//components/enterprise:test_support",
-      "//components/no_state_prefetch/browser",
       "//components/password_manager/content/browser",
       "//components/password_manager/core/browser/sharing",
       "//components/password_manager/core/browser/sharing:test_support",
-      "//components/services/unzip:in_process",
-      "//components/sync_bookmarks",
       "//components/webauthn/core/browser:test_support",
       "//extensions/browser:webstore_installer",
       "//ui/base/clipboard:clipboard_test_support",
@@ -2117,5 +2140,11 @@ source_set("unit_tests") {
       sources += [ "api/mdns/mdns_api_unittest.cc" ]
       deps += [ "//chrome/browser/extensions/api/mdns" ]
     }
+  }
+
+  if (enable_desktop_android_extensions) {
+    # developer_private_api_unittest.cc includes extension_util_bridge.h under
+    # IS_ANDROID.
+    deps += [ "//chrome/browser/ui/android/extensions:public" ]
   }
 }

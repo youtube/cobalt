@@ -218,17 +218,14 @@ struct MachineTypeOf<TaggedIndex> {
 template <class HeapObjectSubtype>
 struct MachineTypeOf<
     HeapObjectSubtype,
-    std::enable_if_t<std::is_base_of_v<HeapObject, HeapObjectSubtype> ||
-                     std::is_base_of_v<HeapObjectLayout, HeapObjectSubtype>>> {
+    std::enable_if_t<std::is_base_of_v<HeapObject, HeapObjectSubtype>>> {
   static constexpr MachineType value = MachineType::TaggedPointer();
 };
 
 template <class HeapObjectSubtype>
 constexpr MachineType MachineTypeOf<
     HeapObjectSubtype,
-    std::enable_if_t<std::is_base_of_v<HeapObject, HeapObjectSubtype> ||
-                     std::is_base_of_v<HeapObjectLayout, HeapObjectSubtype>>>::
-    value;
+    std::enable_if_t<std::is_base_of_v<HeapObject, HeapObjectSubtype>>>::value;
 
 template <>
 struct MachineTypeOf<ExternalReference> {

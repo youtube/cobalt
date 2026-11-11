@@ -77,6 +77,7 @@ android_library("java") {
     "//third_party/androidx:androidx_core_core_pip_java",
     "//third_party/jni_zero:jni_zero_java",
     "//ui/android:ui_java",
+    "//url:url_java",
   ]
 
   srcjar_deps = [
@@ -135,8 +136,9 @@ android_resources("java_resources") {
     "java/res/layout/actor_gts_tab_indicator.xml",
     "java/res/layout/actor_overlay.xml",
     "java/res/layout/actor_picture_in_picture_overlay.xml",
-    "java/res/values/dimens.xml",
+    "java/res/values-night/colors.xml",
     "java/res/values/colors.xml",
+    "java/res/values/dimens.xml",
   ]
   deps = [
     "//chrome/app:java_strings_grd",

@@ -158,6 +158,7 @@
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_iterator.h"
 #include "content/public/browser/resource_coordinator_service.h"
+#include "content/public/browser/security_principal.h"
 #include "content/public/browser/site_isolation_policy.h"
 #include "content/public/browser/tracing_support.h"
 #include "content/public/browser/weak_document_ptr.h"
@@ -1636,7 +1637,8 @@ RenderProcessHost* RenderProcessHostImpl::CreateRenderProcessHost(
 
 #if !BUILDFLAG(IS_ANDROID)
   if (site_instance) {
-    const GURL& site_url = site_instance->GetSiteURL();
+    const GURL& site_url =
+        site_instance->GetSecurityPrincipal().GetDeprecatedSiteURL();
     if (GetContentClient()->browser()->IsTopChromeWebUIURL(site_url)) {
       flags |= RenderProcessFlags::kForTopChromeWebUI;
     }
@@ -1683,8 +1685,7 @@ RenderProcessHostImpl::RenderProcessHostImpl(
                 false /* boost_for_discard */,
 #if BUILDFLAG(IS_ANDROID)
                 is_spare_renderer,
-                ChildProcessImportance::NORMAL,
-                false /* has_active_clients */
+                ChildProcessImportance::NORMAL
 #else
                 std::nullopt
 #endif
@@ -3500,7 +3501,7 @@ void RenderProcessHostImpl::NotifySpareManagerAboutRecentlyUsedSiteInstance(
   SpareRenderProcessHostManagerImpl::Get().PrepareForFutureRequests(
       site_instance->GetBrowserContext(),
       GetContentClient()->browser()->GetSpareRendererDelayForSiteURL(
-          site_instance->GetSiteURL()));
+          site_instance->GetSecurityPrincipal().GetDeprecatedSiteURL()));
 }
 
 // static
@@ -5462,7 +5463,7 @@ RenderProcessHost* RenderProcessHostImpl::GetProcessHostForSiteInstance(
     spare_process_manager.PrepareForFutureRequests(
         browser_context,
         GetContentClient()->browser()->GetSpareRendererDelayForSiteURL(
-            site_instance->GetSiteURL()));
+            site_instance->GetSecurityPrincipal().GetDeprecatedSiteURL()));
   }
 
   if (is_unmatched_service_worker) {
@@ -5842,7 +5843,6 @@ void RenderProcessHostImpl::UpdateProcessPriorityInputs() {
 #if BUILDFLAG(IS_ANDROID)
   ChildProcessImportance new_effective_importance =
       ChildProcessImportance::NORMAL;
-  bool new_has_active_clients = false;
 #endif
   for (RenderProcessHostPriorityClient* client : priority_clients_) {
     RenderProcessHostPriorityClient::Priority priority = client->GetPriority();
@@ -5871,8 +5871,6 @@ void RenderProcessHostImpl::UpdateProcessPriorityInputs() {
 #if BUILDFLAG(IS_ANDROID)
     new_effective_importance =
         std::max(new_effective_importance, priority.importance);
-    new_has_active_clients =
-        new_has_active_clients || priority.has_active_clients;
 #endif
   }
 
@@ -5885,11 +5883,9 @@ void RenderProcessHostImpl::UpdateProcessPriorityInputs() {
   intersects_viewport_ = new_intersects_viewport;
   is_discarding_ = new_is_discarding;
 #if BUILDFLAG(IS_ANDROID)
-  inputs_changed = inputs_changed ||
-                   new_effective_importance != effective_importance_ ||
-                   new_has_active_clients != has_active_clients_;
+  inputs_changed =
+      inputs_changed || new_effective_importance != effective_importance_;
   effective_importance_ = new_effective_importance;
-  has_active_clients_ = new_has_active_clients;
 #endif
   if (inputs_changed)
     UpdateProcessPriority();
@@ -5914,7 +5910,7 @@ void RenderProcessHostImpl::UpdateProcessPriority() {
       boost_for_loading_count_ > 0, is_discarding_,
 #if BUILDFLAG(IS_ANDROID)
       spare_renderer_priority_status_ == SpareRendererPriorityStatus::kSpare,
-      GetEffectiveImportance(), has_active_clients_
+      GetEffectiveImportance()
 #else
       priority_override_
 #endif

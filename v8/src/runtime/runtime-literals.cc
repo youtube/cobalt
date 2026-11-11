@@ -90,7 +90,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     }
   }
 
-  if (object->map(isolate)->is_deprecated()) {
+  if (object->map()->is_deprecated()) {
     base::MutexGuard mutex_guard(isolate->boilerplate_migration_access());
     JSObject::MigrateInstance(isolate, object);
   }
@@ -98,7 +98,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   Handle<JSObject> copy;
   if (copying) {
     // JSFunction objects are not allowed to be in normal boilerplates at all.
-    DCHECK(!IsJSFunction(*object, isolate));
+    DCHECK(!IsJSFunction(*object));
     DirectHandle<AllocationSite> site_to_pass;
     if (site_context()->ShouldCreateMemento(object)) {
       site_to_pass = site_context()->current();
@@ -114,18 +114,18 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   HandleScope scope(isolate);
 
   // Deep copy own properties. Arrays only have 1 property "length".
-  if (!IsJSArray(*copy, isolate)) {
-    if (copy->HasFastProperties(isolate)) {
+  if (!IsJSArray(*copy)) {
+    if (copy->HasFastProperties()) {
       DirectHandle<DescriptorArray> descriptors(
-          copy->map(isolate)->instance_descriptors(isolate), isolate);
-      for (InternalIndex i : copy->map(isolate)->IterateOwnDescriptors()) {
+          copy->map()->instance_descriptors(), isolate);
+      for (InternalIndex i : copy->map()->IterateOwnDescriptors()) {
         PropertyDetails details = descriptors->GetDetails(i);
         DCHECK_EQ(PropertyLocation::kField, details.location());
         DCHECK_EQ(PropertyKind::kData, details.kind());
-        FieldIndex index = FieldIndex::ForDetails(copy->map(isolate), details);
+        FieldIndex index = FieldIndex::ForDetails(copy->map(), details);
 
-        Tagged<Object> raw = copy->RawFastPropertyAt(isolate, index);
-        if (IsJSObject(raw, isolate)) {
+        Tagged<Object> raw = copy->RawFastPropertyAt(index);
+        if (IsJSObject(raw)) {
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                                      VisitElementOrProperty(copy, value));
@@ -139,10 +139,10 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     } else {
       if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
         DirectHandle<SwissNameDictionary> dict(
-            copy->property_dictionary_swiss(isolate), isolate);
+            copy->property_dictionary_swiss(), isolate);
         for (InternalIndex i : dict->IterateEntries()) {
           Tagged<Object> raw = dict->ValueAt(i);
-          if (!IsJSObject(raw, isolate)) continue;
+          if (!IsJSObject(raw)) continue;
           DCHECK(IsName(dict->KeyAt(i)));
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
@@ -150,12 +150,11 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           if (copying) dict->ValueAtPut(i, *value);
         }
       } else {
-        DirectHandle<NameDictionary> dict(copy->property_dictionary(isolate),
-                                          isolate);
+        DirectHandle<NameDictionary> dict(copy->property_dictionary(), isolate);
         for (InternalIndex i : dict->IterateEntries()) {
-          Tagged<Object> raw = dict->ValueAt(isolate, i);
-          if (!IsJSObject(raw, isolate)) continue;
-          DCHECK(IsName(dict->KeyAt(isolate, i)));
+          Tagged<Object> raw = dict->ValueAt(i);
+          if (!IsJSObject(raw)) continue;
+          DCHECK(IsName(dict->KeyAt(i)));
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                                      VisitElementOrProperty(copy, value));
@@ -165,11 +164,11 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     }
 
     // Assume non-arrays don't end up having elements.
-    if (copy->elements(isolate)->ulength().value() == 0) return copy;
+    if (copy->elements()->ulength().value() == 0) return copy;
   }
 
   // Deep copy own elements.
-  switch (copy->GetElementsKind(isolate)) {
+  switch (copy->GetElementsKind()) {
     case PACKED_ELEMENTS:
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
@@ -179,8 +178,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_ELEMENTS:
     case SHARED_ARRAY_ELEMENTS: {
-      DirectHandle<FixedArray> elements(
-          Cast<FixedArray>(copy->elements(isolate)), isolate);
+      DirectHandle<FixedArray> elements(Cast<FixedArray>(copy->elements()),
+                                        isolate);
       uint32_t elements_len = elements->ulength().value();
       if (elements->map() == ReadOnlyRoots(isolate).fixed_cow_array_map()) {
 #ifdef DEBUG
@@ -191,7 +190,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       } else {
         for (uint32_t i = 0; i < elements_len; i++) {
           Tagged<Object> raw = elements->get(i);
-          if (!IsJSObject(raw, isolate)) continue;
+          if (!IsJSObject(raw)) continue;
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                                      VisitElementOrProperty(copy, value));
@@ -202,10 +201,10 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     }
     case DICTIONARY_ELEMENTS: {
       DirectHandle<NumberDictionary> element_dictionary(
-          copy->element_dictionary(isolate), isolate);
+          copy->element_dictionary(), isolate);
       for (InternalIndex i : element_dictionary->IterateEntries()) {
-        Tagged<Object> raw = element_dictionary->ValueAt(isolate, i);
-        if (!IsJSObject(raw, isolate)) continue;
+        Tagged<Object> raw = element_dictionary->ValueAt(i);
+        if (!IsJSObject(raw)) continue;
         Handle<JSObject> value(Cast<JSObject>(raw), isolate);
         ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                                    VisitElementOrProperty(copy, value));
@@ -563,8 +562,9 @@ Handle<JSObject> CreateObjectLiteral(
   for (int i = 0; i < length; i++) {
     uint32_t element_index = 0;
     if (!Object::ToArrayIndex(object_boilerplate_description->name(i),
-                              &element_index))
+                              &element_index)) {
       continue;
+    }
 
     DirectHandle<Object> value =
         direct_handle(object_boilerplate_description->value(i), isolate);
@@ -649,7 +649,7 @@ Handle<JSObject> CreateArrayLiteral(
         if (!value.GetHeapObject(isolate, &value_heap_object)) continue;
         if (IsAnyHole(value_heap_object)) continue;
 
-        if (IsArrayBoilerplateDescription(value_heap_object, isolate)) {
+        if (IsArrayBoilerplateDescription(value_heap_object)) {
           HandleScope sub_scope(isolate);
           DirectHandle<ArrayBoilerplateDescription> boilerplate(
               Cast<ArrayBoilerplateDescription>(value_heap_object), isolate);
@@ -657,7 +657,7 @@ Handle<JSObject> CreateArrayLiteral(
               CreateArrayLiteral(isolate, boilerplate, allocation);
           fixed_array_values_copy->set(i, *result);
 
-        } else if (IsObjectBoilerplateDescription(value_heap_object, isolate)) {
+        } else if (IsObjectBoilerplateDescription(value_heap_object)) {
           HandleScope sub_scope(isolate);
           DirectHandle<ObjectBoilerplateDescription> boilerplate(
               Cast<ObjectBoilerplateDescription>(value_heap_object), isolate);

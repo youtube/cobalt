@@ -128,6 +128,8 @@ void WillSwapFrameTreeNode(FrameTreeNode& old_node, FrameTreeNode& new_node) {}
 void OnNavigationEntryMarkedSkippable(const GURL& url,
                                       RenderFrameHostImpl* rfh) {}
 
+void OnBackUINavigationWouldSkipAd(RenderFrameHostImpl* rfh) {}
+
 void OnFetchKeepAliveRequestWillBeSent(
     FrameTreeNode* frame_tree_node,
     const std::string& request_id,

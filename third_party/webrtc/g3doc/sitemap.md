@@ -43,6 +43,7 @@
   - [Stats](/stats/g3doc/stats.md)
   - [Logging](/logging/g3doc/rtc_event_log.md)
 - Testing
+  - [Testing guidelines](/g3doc/testing.md)
   - Media Quality and performance
     - PeerConnection Framework
       - [Overview](/test/pc/e2e/g3doc/index.md)

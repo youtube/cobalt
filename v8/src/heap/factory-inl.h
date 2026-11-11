@@ -146,7 +146,7 @@ Factory::CodeBuilder& Factory::CodeBuilder::set_empty_source_position_table() {
 }
 
 Factory::CodeBuilder& Factory::CodeBuilder::set_interpreter_data(
-    Handle<TrustedObject> interpreter_data) {
+    Handle<UnionOf<BytecodeArray, InterpreterData>> interpreter_data) {
   // This DCHECK requires this function to be in -inl.h.
   DCHECK(IsInterpreterData(*interpreter_data) ||
          IsBytecodeArray(*interpreter_data));

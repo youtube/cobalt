@@ -182,6 +182,37 @@ def v8_root_dir() -> Path:
 
 V8_ROOT_DIR = v8_root_dir()
 
+
+def get_most_recent_config():
+  out_dir = V8_ROOT_DIR / "out"
+  if not out_dir.exists() or not out_dir.is_dir():
+    return None
+
+  best_config = None
+  best_mtime = 0
+
+  for config_dir in out_dir.iterdir():
+    if not config_dir.is_dir():
+      continue
+    if not (config_dir / "build.ninja").exists():
+      continue
+
+    mtime = 0
+    args_gn = config_dir / "args.gn"
+    d8_file = config_dir / "d8"
+    if d8_file.exists():
+      mtime = d8_file.stat().st_mtime
+    elif args_gn.exists():
+      mtime = args_gn.stat().st_mtime
+    else:
+      mtime = config_dir.stat().st_mtime
+
+    if mtime > best_mtime:
+      best_mtime = mtime
+      best_config = config_dir.name
+
+  return best_config
+
 if V8_DIR != V8_ROOT_DIR:
   subprocess.run([
       sys.executable,
@@ -189,6 +220,76 @@ if V8_DIR != V8_ROOT_DIR:
       str(V8_ROOT_DIR),
       str(V8_DIR),
   ])
+
+
+def check_worktree_changes(config):
+  config_path = config.path
+  args_gn = config_path / "args.gn"
+  snapshot_file = config_path / "snapshot_blob.bin"
+  last_built_commit_file = config_path / "last_built_commit"
+  last_test_run_file = config_path / "last_test_run"
+
+  if not args_gn.exists() or not last_built_commit_file.exists():
+    return True, True
+
+  oldest_binary_mtime = float("inf")
+  snapshot_mtime = float("inf")
+  if snapshot_file.exists():
+    snapshot_mtime = snapshot_file.stat().st_mtime
+  for target in config.targets:
+    binary_file = config_path / target
+    if not binary_file.exists():
+      return True, True
+    binary_mtime = binary_file.stat().st_mtime
+    if binary_mtime < snapshot_mtime:
+      return True, True
+    oldest_binary_mtime = min(oldest_binary_mtime, binary_mtime)
+  if args_gn.stat().st_mtime > oldest_binary_mtime:
+    return True, True
+
+  changed_files = []
+  last_built_commit = last_built_commit_file.read_text().strip()
+  try:
+    git_diff_out = subprocess.check_output(
+        ["git", "diff", "--name-only", last_built_commit],
+        cwd=V8_ROOT_DIR,
+        text=True).strip()
+    if git_diff_out:
+      changed_files = git_diff_out.splitlines()
+    git_untracked_out = subprocess.check_output(
+        ["git", "ls-files", "--others", "--exclude-standard"],
+        cwd=V8_ROOT_DIR,
+        text=True).strip()
+    if git_untracked_out:
+      changed_files.extend(git_untracked_out.splitlines())
+  except subprocess.CalledProcessError:
+    return True, True
+
+  is_js_test = lambda f: f.startswith("test/") and f.endswith(".js")
+  build_pattern = re.compile(r'\.(cc|h|tq|gn|gni|bazel|S|asm|cc\.tmpl|cpp)$')
+
+  for f in changed_files:
+    if is_js_test(f) or f.startswith(".agents/") or f.startswith("agents/"):
+      continue
+    if build_pattern.search(f):
+      filepath = V8_ROOT_DIR / f
+      if filepath.exists() and filepath.stat().st_mtime > oldest_binary_mtime:
+        return True, True
+
+  if not last_test_run_file.exists():
+    return False, True
+  last_test_mtime = last_test_run_file.stat().st_mtime
+  if oldest_binary_mtime > last_test_mtime:
+    return False, True
+
+  for f in changed_files:
+    if is_js_test(f):
+      filepath = V8_ROOT_DIR / f
+      if filepath.exists() and filepath.stat().st_mtime > last_test_mtime:
+        return False, True
+
+  # Skipping tests is OK if the default test set was requested.
+  return False, set(config.tests) == set(DEFAULT_TESTS)
 
 RECLIENT_CERT_CACHE = V8_ROOT_DIR / ".#gm_reclient_cert_cache"
 
@@ -571,6 +672,15 @@ class RawConfig:
         _notify("V8 build requires your attention",
                 "Detecting torque failure, re-running in GDB...")
         _call(cmdline)
+    if return_code == 0:
+      try:
+        head_commit = subprocess.check_output(["git", "rev-parse", "HEAD"],
+                                              cwd=V8_ROOT_DIR,
+                                              text=True).strip()
+        last_built_commit_file = self.path / "last_built_commit"
+        last_built_commit_file.write_text(head_commit)
+      except subprocess.CalledProcessError:
+        pass
     return return_code
 
   def run_tests(self):
@@ -582,9 +692,16 @@ class RawConfig:
       tests = " ".join(self.tests)
     run_tests = V8_DIR / "tools" / "run-tests.py"
     test_runner_args = " ".join(self.testrunner_args)
-    return _call(
+    return_code = _call(
         f'"{sys.executable }" {run_tests} --outdir={self.path} {tests} {test_runner_args}'
     )
+    if return_code == 0:
+      is_full_run = ("ALL" in self.tests or
+                     set(self.tests) == set(DEFAULT_TESTS))
+      if is_full_run:
+        last_test_run_file = self.path / "last_test_run"
+        last_test_run_file.write_text(str(int(time.time())))
+    return return_code
 
 
 # Contrary to RawConfig, takes arch and mode, and sets everything up
@@ -716,6 +833,7 @@ class ArgumentParser(object):
     self.configs = {}
     self.testrunner_args = []
     self.sync_mode = GclientSyncMode.NONE
+    self.ensure_tests_ran = False
 
   def populate_configs(self, arches, modes, targets, tests, clean):
     for a in arches:
@@ -802,6 +920,9 @@ class ArgumentParser(object):
       print_completions_and_exit()
     if self._parse_sync_arg(argstring):
       return
+    if argstring == "--ensure-tests-ran":
+      self.ensure_tests_ran = True
+      return
     if argstring == "quiet":
       global QUIET
       QUIET = True
@@ -881,7 +1002,6 @@ class ArgumentParser(object):
     arches = arches or DEFAULT_ARCHES
     modes = modes or DEFAULT_MODES
     targets = targets or DEFAULT_TARGETS
-    # Produce configs.
     self.populate_configs(arches, modes, targets, tests, clean)
 
   def parse_arguments(self, argv):
@@ -892,6 +1012,14 @@ class ArgumentParser(object):
       sys.exit(code)
     for argstring in argv:
       self.parse_arg(argstring)
+    if (self.ensure_tests_ran and len(self.global_actions) == 0 and
+        len(self.configs) == 0 and len(self.global_targets) == 0 and
+        len(self.global_tests) == 0):
+      most_recent = get_most_recent_config()
+      if most_recent:
+        self.parse_arg(most_recent)
+        self.parse_arg("check")
+
     self.process_global_actions()
     for c in self.configs:
       self.configs[c].extend(self.global_targets, self.global_tests)
@@ -918,9 +1046,17 @@ def main(argv):
     print("# gcert")
     subprocess.check_call("gcert", shell=True)
   for c in configs:
-    return_code += configs[c].build()
-  if return_code == 0:
-    for c in configs:
+    build_needed, test_needed = check_worktree_changes(configs[c])
+    if not test_needed:
+      print("No changes since last successful test run, skipping.")
+      continue
+    build_code = 0
+    if build_needed:
+      build_code = configs[c].build()
+      return_code += build_code
+    else:
+      print("No source changes since last build, reusing binaries.")
+    if build_code == 0:
       return_code += configs[c].run_tests()
   if return_code == 0:
     _notify('Done!', 'V8 compilation finished successfully.')

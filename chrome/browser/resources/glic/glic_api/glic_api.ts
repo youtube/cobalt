@@ -89,6 +89,16 @@ export declare interface AdditionalContextPart {
   pendingRegion?: PendingCapturedRegion;
 }
 
+/** Payload for Universal Cart invocation. */
+export declare interface UniversalCartPayload {
+  serializedMetadata: ArrayBuffer;
+}
+
+/** Union representing source-specific payloads. */
+export declare interface InvocationPayload {
+  universalCart?: UniversalCartPayload;
+}
+
 /** Configuration to override the default ZSS behavior for the invocation. */
 export declare interface ZssConfig {
   /** Additional content to inject into the body of the ZSS message. */
@@ -115,6 +125,8 @@ export declare interface InvokeOptions {
   skillId?: string;
   /** Configuration to override the default ZSS behavior for the invocation. */
   zssConfig?: ZssConfig;
+  /** Source-specific payload for the invocation. */
+  payload?: InvocationPayload;
 }
 
 /** An update sent from the web client to the host. */
@@ -222,7 +234,7 @@ export declare interface GlicWebClient {
    * take place.
    */
   getExperimentalTriggeringUpdates?
-      (): Observable2<ExperimentalTriggeringUpdate>;
+    (): Observable2<ExperimentalTriggeringUpdate>;
 
   // !!! ATTENTION !!!
   // Avoid adding new methods to this interface! Instead, to push information to
@@ -276,15 +288,6 @@ export declare interface GlicBrowserHost {
    * it is created.
    */
   enableDragResize?(enabled: boolean): Promise<void>;
-
-  /**
-   * Set the areas of the glic window from which it should be draggable. If
-   * `areas` is empty, a default draggable area will be created.
-   *
-   * Returns a promise that resolves when the browser has updated the draggable
-   * area.
-   */
-  setWindowDraggableAreas(areas: DraggableArea[]): Promise<void>;
 
   /**
    * Sets the minimum possible size a user can resize to for the glic window.
@@ -539,7 +542,7 @@ export declare interface GlicBrowserHost {
    * be terminated and a new one will begin.
    */
   captureRegion?
-      (params?: CaptureRegionParams): ObservableValue<CaptureRegionResult>;
+    (params?: CaptureRegionParams): ObservableValue<CaptureRegionResult>;
 
   /**
    * Deletes a captured region.
@@ -1129,6 +1132,17 @@ export declare interface GlicBrowserHost {
    *   `undefined`, no error dialog is showing.
    */
   setErrorDialogState?(shownDialogType?: ClientErrorDialogType): void;
+
+  /**
+   * Reports that the web client encountered a transient error. Transient errors
+   * are errors may be presented to the user, but may not prevent further use of
+   * GiC. Chrome may use this information to influence whether sign in cookies
+   * are synced later.
+   *
+   * @param abslStatus A absl::StatusCode value. See
+   *     https://abseil.io/docs/cpp/guides/status-codes.
+   */
+  reportClientTransientError?(abslStatus: number): void;
 }
 
 /** Information about a conversation. */
@@ -1215,6 +1229,9 @@ export declare interface CreateActorTabOptions {
  * intentionally no constraints on when or how often they are called.
  */
 export declare interface GlicBrowserHostMetrics {
+  /** Called when the opt-in CTA is shown. */
+  onOptinImpression?(): void;
+
   /** Called when the user has submitted input via the web client. */
   onUserInputSubmitted?(mode: WebClientMode): void;
 
@@ -2103,18 +2120,6 @@ export declare interface ScrollToNodeSelector {
 export type ScrollToError = ErrorWithReason<'scrollTo'>;
 
 /**
- * A rectangular area based in the glic window's coordinate system. All
- * coordinate and size values are in DIPs. The coordinate system is based in the
- * panel's view with the origin located in the top-left of the panel.
- */
-export declare interface DraggableArea {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-/**
  * A generic interface for observing a stream of values.
  *
  * Subscriptions should be kept only while necessary, as they incur some cost.
@@ -2989,6 +2994,10 @@ export enum InvocationSource {
   // Used exclusively for invocations originating from the
   // GlicExperimentalTriggeringMessageHandler.
   EXPERIMENTAL_TRIGGERING = 28,
+  // Actuation triggered by the password change feature.
+  PASSWORD_CHANGE = 29,
+  // From an Autofill action.
+  AUTOFILL = 30,
 }
 
 ///////////////////////////////////////////////

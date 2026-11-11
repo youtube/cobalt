@@ -33,7 +33,7 @@ class ObjectPreProcessor final {
   V(Code)
 
   void PreProcessIfNeeded(Tagged<HeapObject> o) {
-    const InstanceType itype = o->map(isolate_)->instance_type();
+    const InstanceType itype = o->map()->instance_type();
 #define V(TYPE)                                    \
   if (InstanceTypeChecker::Is##TYPE(itype)) {      \
     return PreProcess##TYPE(TrustedCast<TYPE>(o)); \
@@ -88,24 +88,24 @@ class ObjectPreProcessor final {
 
   void PreProcessAccessorInfo(Tagged<AccessorInfo> o) {
     EncodeExternalPointerSlot(
-        o->RawExternalPointerField(AccessorInfo::kGetterOffset,
+        o->RawExternalPointerField(offsetof(AccessorInfo, getter_),
                                    kAccessorInfoGetterTag),
         o->getter(isolate_));  // Pass the non-redirected value.
     EncodeExternalPointerSlot(o->RawExternalPointerField(
-        AccessorInfo::kSetterOffset, kAccessorInfoSetterTag));
+        offsetof(AccessorInfo, setter_), kAccessorInfoSetterTag));
   }
   void PreProcessInterceptorInfo(Tagged<InterceptorInfo> o) {
     const bool is_named = o->is_named();
 
 #define PROCESS_NAMED_FIELD(Name, name)                                 \
   EncodeExternalPointerSlot(                                            \
-      o->RawExternalPointerField(InterceptorInfo::k##Name##Offset,      \
+      o->RawExternalPointerField(offsetof(InterceptorInfo, name##_),    \
                                  kApiNamedProperty##Name##CallbackTag), \
       o->named_##name(isolate_) /* non-redirected */);
 
 #define PROCESS_INDEXED_FIELD(Name, name)                                 \
   EncodeExternalPointerSlot(                                              \
-      o->RawExternalPointerField(InterceptorInfo::k##Name##Offset,        \
+      o->RawExternalPointerField(offsetof(InterceptorInfo, name##_),      \
                                  kApiIndexedProperty##Name##CallbackTag), \
       o->indexed_##name(isolate_) /* non-redirected */);
 
@@ -253,7 +253,7 @@ class EncodeRelocationsVisitor final : public ObjectVisitor {
   }
 
   void VisitMapPointer(Tagged<HeapObject> host) override {
-    ProcessSlot(host->RawMaybeWeakField(HeapObject::kMapOffset));
+    ProcessSlot(host->RawMaybeWeakField(offsetof(HeapObject, map_)));
   }
 
   // Sanity-checks:
@@ -350,7 +350,6 @@ class EncodeRelocationsVisitor final : public ObjectVisitor {
 void ReadOnlySegmentForSerialization::EncodeTaggedSlots(Isolate* isolate) {
   DCHECK(!V8_STATIC_ROOTS_BOOL);
   EncodeRelocationsVisitor v(isolate, this);
-  PtrComprCageBase cage_base(isolate);
 
   DCHECK_GE(segment_start, page->area_start());
   const Address segment_end = segment_start + segment_size;
@@ -432,8 +431,8 @@ class ReadOnlyHeapImageSerializer {
                free_space->Size() - static_cast<int>(sizeof(FreeSpace))}};
     }
     if (Tagged<Hole> hole; TryCast<Hole>(obj, &hole)) {
-      return {{hole.address() + HeapObject::kHeaderSize,
-               sizeof(Hole) - HeapObject::kHeaderSize}};
+      return {{hole.address() + sizeof(HeapObject),
+               sizeof(Hole) - sizeof(HeapObject)}};
     }
 #ifdef V8_ENABLE_WEBASSEMBLY
     if (Tagged<WasmNull> wasm_null; TryCast<WasmNull>(obj, &wasm_null)) {

@@ -77,19 +77,11 @@ void JSWrappedFunction::set_context(Tagged<NativeContext> value,
 Tagged<FeedbackCell> JSFunction::raw_feedback_cell() const {
   return Cast<FeedbackCell>(feedback_cell_.load());
 }
-Tagged<FeedbackCell> JSFunction::raw_feedback_cell(
-    PtrComprCageBase cage_base) const {
-  return Cast<FeedbackCell>(feedback_cell_.load());
-}
 void JSFunction::set_raw_feedback_cell(Tagged<FeedbackCell> value,
                                        WriteBarrierMode mode) {
   feedback_cell_.store(this, value, mode);
 }
 Tagged<FeedbackCell> JSFunction::raw_feedback_cell(AcquireLoadTag) const {
-  return Cast<FeedbackCell>(feedback_cell_.Acquire_Load());
-}
-Tagged<FeedbackCell> JSFunction::raw_feedback_cell(PtrComprCageBase,
-                                                   AcquireLoadTag) const {
   return Cast<FeedbackCell>(feedback_cell_.Acquire_Load());
 }
 void JSFunction::set_raw_feedback_cell(Tagged<FeedbackCell> value,
@@ -98,12 +90,8 @@ void JSFunction::set_raw_feedback_cell(Tagged<FeedbackCell> value,
 }
 
 Tagged<FeedbackVector> JSFunction::feedback_vector() const {
-  return feedback_vector(GetPtrComprCageBase());
-}
-Tagged<FeedbackVector> JSFunction::feedback_vector(
-    PtrComprCageBase cage_base) const {
-  DCHECK(has_feedback_vector(cage_base));
-  return Cast<FeedbackVector>(raw_feedback_cell(cage_base)->value());
+  DCHECK(has_feedback_vector());
+  return Cast<FeedbackVector>(raw_feedback_cell()->value());
 }
 
 Tagged<ClosureFeedbackCellArray> JSFunction::closure_feedback_cell_array()
@@ -251,10 +239,6 @@ JSDispatchHandle JSFunction::dispatch_handle(AcquireLoadTag) const {
 Tagged<Context> JSFunction::context(AcquireLoadTag) const {
   return Cast<Context>(context_.Acquire_Load());
 }
-// TODO(jgruber): Remove cage_base overload after HeapObjectLayout migration.
-Tagged<Context> JSFunction::context(PtrComprCageBase, AcquireLoadTag) const {
-  return Cast<Context>(context_.Acquire_Load());
-}
 void JSFunction::set_context(Tagged<Context> value, ReleaseStoreTag,
                              WriteBarrierMode mode) {
   context_.Release_Store(this, value, mode);
@@ -271,17 +255,8 @@ Address JSFunction::instruction_start(IsolateForSandbox isolate) const {
 Tagged<SharedFunctionInfo> JSFunction::shared() const {
   return Cast<SharedFunctionInfo>(shared_function_info_.Relaxed_Load());
 }
-// TODO(jgruber): Remove cage_base overload after HeapObjectLayout migration.
-Tagged<SharedFunctionInfo> JSFunction::shared(PtrComprCageBase) const {
-  return shared();
-}
 
 Tagged<SharedFunctionInfo> JSFunction::shared(RelaxedLoadTag) const {
-  return Cast<SharedFunctionInfo>(shared_function_info_.Relaxed_Load());
-}
-// TODO(jgruber): Remove cage_base overload after HeapObjectLayout migration.
-Tagged<SharedFunctionInfo> JSFunction::shared(PtrComprCageBase,
-                                              RelaxedLoadTag) const {
   return Cast<SharedFunctionInfo>(shared_function_info_.Relaxed_Load());
 }
 
@@ -406,10 +381,6 @@ bool JSFunction::has_feedback_vector() const {
   return shared()->is_compiled() &&
          IsFeedbackVector(raw_feedback_cell()->value());
 }
-// TODO(jgruber): Remove cage_base overload after HeapObjectLayout migration.
-bool JSFunction::has_feedback_vector(PtrComprCageBase) const {
-  return has_feedback_vector();
-}
 
 bool JSFunction::has_closure_feedback_cell_array() const {
   return shared()->is_compiled() &&
@@ -419,10 +390,6 @@ bool JSFunction::has_closure_feedback_cell_array() const {
 Tagged<Context> JSFunction::context() { return Cast<Context>(context_.load()); }
 
 Tagged<Context> JSFunction::context(RelaxedLoadTag) const {
-  return Cast<Context>(context_.Relaxed_Load());
-}
-// TODO(jgruber): Remove cage_base overload after HeapObjectLayout migration.
-Tagged<Context> JSFunction::context(PtrComprCageBase, RelaxedLoadTag) const {
   return Cast<Context>(context_.Relaxed_Load());
 }
 
@@ -441,13 +408,6 @@ JSFunctionWithPrototype::prototype_or_initial_map(AcquireLoadTag) const {
   return Cast<UnionOf<JSPrototype, Map, TheHole>>(
       prototype_or_initial_map_.Acquire_Load());
 }
-// TODO(jgruber): Remove cage_base overload after HeapObjectLayout migration.
-Tagged<UnionOf<JSPrototype, Map, TheHole>>
-JSFunctionWithPrototype::prototype_or_initial_map(PtrComprCageBase,
-                                                  AcquireLoadTag) const {
-  return Cast<UnionOf<JSPrototype, Map, TheHole>>(
-      prototype_or_initial_map_.Acquire_Load());
-}
 void JSFunctionWithPrototype::set_prototype_or_initial_map(
     Tagged<UnionOf<JSPrototype, Map, TheHole>> value, ReleaseStoreTag,
     WriteBarrierMode mode) {
@@ -458,13 +418,6 @@ Tagged<UnionOf<JSPrototype, Map, TheHole>> JSFunction::prototype_or_initial_map(
     AcquireLoadTag tag) const {
   DCHECK(has_prototype_slot());
   return Cast<JSFunctionWithPrototype>(this)->prototype_or_initial_map(tag);
-}
-// TODO(jgruber): Remove cage_base overload after HeapObjectLayout migration.
-Tagged<UnionOf<JSPrototype, Map, TheHole>> JSFunction::prototype_or_initial_map(
-    PtrComprCageBase cage_base, AcquireLoadTag tag) const {
-  DCHECK(has_prototype_slot());
-  return Cast<JSFunctionWithPrototype>(this)->prototype_or_initial_map(
-      cage_base, tag);
 }
 void JSFunction::set_prototype_or_initial_map(
     Tagged<UnionOf<JSPrototype, Map, TheHole>> value, ReleaseStoreTag tag,
@@ -479,61 +432,33 @@ bool JSFunction::has_prototype_slot() const {
   // there's only one such instance type.
   return !IsJSFunctionWithoutPrototypeMap(map());
 }
-// TODO(jgruber): Remove cage_base overload after HeapObjectLayout migration.
-bool JSFunction::has_prototype_slot(PtrComprCageBase) const {
-  return has_prototype_slot();
-}
 
 Tagged<Map> JSFunction::initial_map() const {
   return Cast<Map>(prototype_or_initial_map(kAcquireLoad));
-}
-// TODO(jgruber): Remove cage_base overload after HeapObjectLayout migration.
-Tagged<Map> JSFunction::initial_map(PtrComprCageBase) const {
-  return initial_map();
 }
 
 bool JSFunction::has_initial_map() const {
   DCHECK(has_prototype_slot());
   return IsMap(prototype_or_initial_map(kAcquireLoad));
 }
-// TODO(jgruber): Remove cage_base overload after HeapObjectLayout migration.
-bool JSFunction::has_initial_map(PtrComprCageBase) const {
-  return has_initial_map();
-}
 
 bool JSFunction::has_instance_prototype() const {
   DCHECK(has_prototype_slot());
   return !IsTheHole(prototype_or_initial_map(kAcquireLoad));
-}
-// TODO(jgruber): Remove cage_base overload after HeapObjectLayout migration.
-bool JSFunction::has_instance_prototype(PtrComprCageBase) const {
-  return has_instance_prototype();
 }
 
 bool JSFunction::has_prototype() const {
   DCHECK(has_prototype_slot());
   return map()->has_non_instance_prototype() || has_instance_prototype();
 }
-// TODO(jgruber): Remove cage_base overload after HeapObjectLayout migration.
-bool JSFunction::has_prototype(PtrComprCageBase) const {
-  return has_prototype();
-}
 
 bool JSFunction::has_prototype_property() const {
   return (has_prototype_slot() && map()->is_constructor()) ||
          IsGeneratorFunction(shared()->kind());
 }
-// TODO(jgruber): Remove cage_base overload after HeapObjectLayout migration.
-bool JSFunction::has_prototype_property(PtrComprCageBase) const {
-  return has_prototype_property();
-}
 
 bool JSFunction::PrototypeRequiresRuntimeLookup() const {
   return !has_prototype_property() || map()->has_non_instance_prototype();
-}
-// TODO(jgruber): Remove cage_base overload after HeapObjectLayout migration.
-bool JSFunction::PrototypeRequiresRuntimeLookup(PtrComprCageBase) const {
-  return PrototypeRequiresRuntimeLookup();
 }
 
 Tagged<JSPrototype> JSFunction::instance_prototype() const {
@@ -545,10 +470,6 @@ Tagged<JSPrototype> JSFunction::instance_prototype() const {
   // initial map field is used for the prototype field.
   return Cast<JSPrototype>(prototype_or_initial_map(kAcquireLoad));
 }
-// TODO(jgruber): Remove cage_base overload after HeapObjectLayout migration.
-Tagged<JSPrototype> JSFunction::instance_prototype(PtrComprCageBase) const {
-  return instance_prototype();
-}
 
 Tagged<Object> JSFunction::prototype() const {
   DCHECK(has_prototype());
@@ -559,10 +480,6 @@ Tagged<Object> JSFunction::prototype() const {
     return map->GetNonInstancePrototype();
   }
   return instance_prototype();
-}
-// TODO(jgruber): Remove cage_base overload after HeapObjectLayout migration.
-Tagged<Object> JSFunction::prototype(PtrComprCageBase) const {
-  return prototype();
 }
 
 bool JSFunction::is_compiled(IsolateForSandbox isolate) const {

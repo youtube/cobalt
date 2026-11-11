@@ -47,13 +47,13 @@ void HeapObjectRange::iterator::AdvanceToNextObject() {
   while (cur_addr_ != cur_end_) {
     DCHECK_LT(cur_addr_, cur_end_);
     Tagged<HeapObject> obj = HeapObject::FromAddress(cur_addr_);
-    cur_size_ = ALIGN_TO_ALLOCATION_ALIGNMENT(obj->Size(cage_base()));
+    cur_size_ = ALIGN_TO_ALLOCATION_ALIGNMENT(obj->Size());
     DCHECK_LE(cur_addr_ + cur_size_, cur_end_);
-    if (IsFreeSpaceOrFiller(obj, cage_base())) {
+    if (IsFreeSpaceOrFiller(obj)) {
       cur_addr_ += cur_size_;
     } else {
 #ifdef DEBUG
-      if (IsInstructionStream(obj, cage_base())) {
+      if (IsInstructionStream(obj)) {
         DCHECK_EQ(NormalPage::FromHeapObject(obj)->owner_identity(),
                   CODE_SPACE);
         DCHECK_VALID_REGULAR_CODEOBJECT_SIZE(cur_size_);

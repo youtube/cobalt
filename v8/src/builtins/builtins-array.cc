@@ -130,8 +130,9 @@ inline bool IsJSArrayWithAddableFastElements(Isolate* isolate,
                                              DirectHandle<Object> receiver,
                                              ElementsKind* kind,
                                              DirectHandle<JSArray>* array) {
-  if (!IsJSArrayWithExtensibleFastElements(isolate, receiver, kind, array))
+  if (!IsJSArrayWithExtensibleFastElements(isolate, receiver, kind, array)) {
     return false;
+  }
 
   // If there may be elements accessors in the prototype chain, the fast path
   // cannot be used if there arguments to add to the array.
@@ -303,7 +304,7 @@ V8_WARN_UNUSED_RESULT bool TryFastArrayFill(
 
   // Need to ensure that the fill value can be contained in the array.
   ElementsKind origin_kind = array->GetElementsKind();
-  ElementsKind target_kind = Object::OptimalElementsKind(*value, isolate);
+  ElementsKind target_kind = Object::OptimalElementsKind(*value);
 
   if (target_kind != origin_kind) {
     // Use a short-lived HandleScope to avoid creating several copies of the
@@ -414,27 +415,6 @@ BUILTIN(ArrayPrototypeFill) {
                        end_index)) {
     return *receiver;
   }
-
-  // Diagnostic for crbug.com/508110100: a turbolev-only OOM in the generic
-  // path of Array.p.fill that aborts in NumberDictionary growth with
-  // "invalid table size". If the requested fill range exceeds the maximum
-  // NumberDictionary capacity, the generic path is guaranteed to abort with
-  // that message; capture inputs and a JS stack trace at the call site
-  // instead, so the next wild crash carries enough context to localize the
-  // miscompile.
-  if (V8_UNLIKELY(v8_flags.turbolev)) {
-    constexpr uint64_t kMaxFillRange = NumberDictionary::kMaxCapacity * 2 / 3;
-    if (end_index - start_index > kMaxFillRange) {
-      isolate->PushStackTraceAndDie(
-          reinterpret_cast<void*>((*receiver).ptr()),
-          reinterpret_cast<void*>((*receiver)->map(isolate).ptr()),
-          reinterpret_cast<void*>(static_cast<uintptr_t>(length)),
-          reinterpret_cast<void*>(static_cast<uintptr_t>(start_index)),
-          reinterpret_cast<void*>(static_cast<uintptr_t>(end_index)),
-          reinterpret_cast<void*>((*value).ptr()));
-    }
-  }
-
   return GenericArrayFill(isolate, receiver, value, start_index, end_index);
 }
 
@@ -850,13 +830,13 @@ class ArrayConcatVisitor {
         index_offset_(0u),
         bit_field_(FastElementsField::encode(fast_elements) |
                    ExceedsLimitField::encode(false) |
-                   IsFixedArrayField::encode(IsFixedArray(*storage, isolate)) |
+                   IsFixedArrayField::encode(IsFixedArray(*storage)) |
                    HasSimpleElementsField::encode(
-                       IsFixedArray(*storage, isolate) ||
+                       IsFixedArray(*storage) ||
                        // Don't take fast path for storages that might have
                        // side effects when storing to them.
-                       (!IsCustomElementsReceiverMap(storage->map(isolate)) &&
-                        !IsJSTypedArray(*storage, isolate)))) {
+                       (!IsCustomElementsReceiverMap(storage->map()) &&
+                        !IsJSTypedArray(*storage)))) {
     DCHECK_IMPLIES(this->fast_elements(), is_fixed_array());
   }
 
@@ -1464,8 +1444,9 @@ static Maybe<bool> IsConcatSpreadable(Isolate* isolate,
     MaybeDirectHandle<Object> maybeValue =
         i::Runtime::GetObjectProperty(isolate, receiver, key);
     if (!maybeValue.ToHandle(&value)) return Nothing<bool>();
-    if (!IsUndefined(*value, isolate))
+    if (!IsUndefined(*value, isolate)) {
       return Just(Object::BooleanValue(*value, isolate));
+    }
   }
   return Object::IsArray(receiver);
 }

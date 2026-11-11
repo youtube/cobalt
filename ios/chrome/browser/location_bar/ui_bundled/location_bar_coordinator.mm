@@ -580,6 +580,7 @@ struct AIHubBadgeActiveWindowsData : public base::SupportsUserData::Data {
 - (void)setLocationBarActive:(BOOL)active {
   [self.badgeMediator setActive:active];
   self.mediator.active = active;
+  [self.locationBarBadgeCoordinator setActive:active];
 }
 
 - (void)setTopPosition:(BOOL)topPosition {
@@ -876,6 +877,10 @@ struct AIHubBadgeActiveWindowsData : public base::SupportsUserData::Data {
 
 - (void)recordLensOverlayAvailability {
   [self.viewController recordLensOverlayAvailability];
+}
+
+- (void)updateAIHubNewBadgeVisibility {
+  [self.viewController updateAIHubNewBadgeVisibility];
 }
 
 #pragma mark - URLDragDataSource

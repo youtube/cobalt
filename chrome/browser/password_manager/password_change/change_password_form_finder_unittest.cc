@@ -286,6 +286,10 @@ TEST_P(ChangePasswordFormFinderTest, ChangePasswordFormNotDetected) {
       "PasswordManager.ChangePasswordFormDetected", false, 1);
   histogram_tester.ExpectTotalCount(
       "PasswordManager.ChangePasswordFormDetectionTime", 0);
+  CheckOpenFormStatus(
+      logs_uploader.GetFinalLog(),
+      QualityStatus::
+          PasswordChangeQuality_StepQuality_SubmissionStatus_TIME_OUT);
 }
 
 TEST_P(ChangePasswordFormFinderTest,
@@ -768,7 +772,7 @@ TEST_P(ChangePasswordFormFinderTest, InterventionNeededPageCausesFailure) {
   CheckOpenFormStatus(
       logs_uploader.GetFinalLog(),
       QualityStatus::
-          PasswordChangeQuality_StepQuality_SubmissionStatus_UNEXPECTED_STATE);
+          PasswordChangeQuality_StepQuality_SubmissionStatus_USER_INTERVENTION_NEEDED);
 }
 
 TEST_P(ChangePasswordFormFinderTest, PageStabilityAfterClick_WaiterNotCreatedUntilStable) {

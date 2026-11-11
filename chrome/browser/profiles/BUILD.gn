@@ -85,6 +85,7 @@ source_set("misc") {
     "//chrome/browser:buildflags",
     "//chrome/browser:flags",
     "//chrome/browser:global_features",
+    "//chrome/browser:startup_data",
     "//chrome/browser/accessibility",
     "//chrome/browser/app_mode",
     "//chrome/browser/background",
@@ -373,6 +374,7 @@ source_set("profile_manager_impl") {
     "//base",
     "//chrome/browser:browser_features",
     "//chrome/browser:browser_process",
+    "//chrome/browser:browser_process_platform_part",
     "//chrome/browser:buildflags",
     "//chrome/browser:flags",
     "//chrome/browser/accessibility",
@@ -526,6 +528,7 @@ source_set("profile_util_impl") {
     "//chrome/app:generated_resources",
     "//chrome/app/vector_icons",
     "//chrome/browser:browser_process",
+    "//chrome/browser:browser_process_platform_part",
     "//chrome/browser/autofill",
     "//chrome/browser/bookmarks",
     "//chrome/browser/browsing_topics",
@@ -682,6 +685,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/performance_manager",
     "//chrome/browser/permissions",
     "//chrome/browser/persisted_state_db",
+    "//chrome/browser/personal_context",
     "//chrome/browser/plus_addresses",
     "//chrome/browser/predictors",
     "//chrome/browser/prefs",
@@ -775,6 +779,7 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/commerce/merchant_viewer:merchant_viewer_data_manager",
       "//chrome/browser/feed",
       "//chrome/browser/tab",
+      "//chrome/browser/ui/android",
       "//components/commerce/core:merchant_signal_db_proto",
     ]
     if (enable_webui_ntp) {
@@ -819,6 +824,7 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/ui/webui/signin",
       "//chrome/browser/ui/webui/signin:login_ui_service",
       "//chrome/browser/user_education",
+      "//chrome/browser/web_applications/isolated_web_apps/window_management",
     ]
   }
   if (is_chromeos) {

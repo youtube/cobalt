@@ -900,6 +900,7 @@ crypto_test_data = [
     "crypto/fipsmodule/rand/ctrdrbg_vectors.txt",
     "crypto/hmac/hmac_tests.txt",
     "crypto/hpke/hpke_test_vectors.txt",
+    "crypto/hpke/hpke_test_vectors_pq.txt",
     "crypto/kyber/kyber_tests.txt",
     "crypto/mldsa/mldsa_nist_keygen_44_tests.txt",
     "crypto/mldsa/mldsa_nist_keygen_65_tests.txt",

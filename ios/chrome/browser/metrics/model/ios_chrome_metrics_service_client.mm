@@ -49,6 +49,7 @@
 #import "components/metrics/metrics_features.h"
 #import "components/metrics/metrics_log_uploader.h"
 #import "components/metrics/metrics_pref_names.h"
+#import "components/metrics/metrics_reporting_choice_service.h"
 #import "components/metrics/metrics_reporting_default_state.h"
 #import "components/metrics/metrics_service.h"
 #import "components/metrics/metrics_state_manager.h"
@@ -408,15 +409,6 @@ void IOSChromeMetricsServiceClient::RegisterMetricsServiceProviders() {
 
   metrics_service_->RegisterMetricsProvider(
       std::make_unique<syncer::PassphraseTypeMetricsProvider>(
-          syncer::PassphraseTypeMetricsProvider::HistogramVersion::kV2,
-          base::BindRepeating(&SyncServiceFactory::GetAllSyncServices)));
-  metrics_service_->RegisterMetricsProvider(
-      std::make_unique<syncer::PassphraseTypeMetricsProvider>(
-          syncer::PassphraseTypeMetricsProvider::HistogramVersion::kV4,
-          base::BindRepeating(&SyncServiceFactory::GetAllSyncServices)));
-  metrics_service_->RegisterMetricsProvider(
-      std::make_unique<syncer::PassphraseTypeMetricsProvider>(
-          syncer::PassphraseTypeMetricsProvider::HistogramVersion::kV5,
           base::BindRepeating(&SyncServiceFactory::GetAllSyncServices)));
 
   metrics_service_->RegisterMetricsProvider(
@@ -782,10 +774,26 @@ void IOSChromeMetricsServiceClient::WebStateDestroyed(
 }
 
 bool IOSChromeMetricsServiceClient::IsUkmAllowedForAllProfiles() {
+  // Note: Incognito is handled separately, see
+  // MetricsServicesManager::UpdateUkmService().
+  PrefService* local_state = GetApplicationContext()->GetLocalState();
+  if (metrics::MetricsReportingChoiceService::
+          ShouldUseMetricsConsentRestructure(local_state)) {
+    return metrics::MetricsReportingChoiceService::
+        IsAdvancedMetricsReportingEnabled(local_state);
+  }
   return UkmConsentStateObserver::IsUkmAllowedForAllProfiles();
 }
 
 bool IOSChromeMetricsServiceClient::IsDwaAllowedForAllProfiles() {
+  // Note: Incognito is handled separately, see
+  // MetricsServicesManager::UpdateUkmService().
+  PrefService* local_state = GetApplicationContext()->GetLocalState();
+  if (metrics::MetricsReportingChoiceService::
+          ShouldUseMetricsConsentRestructure(local_state)) {
+    return metrics::MetricsReportingChoiceService::
+        IsAdvancedMetricsReportingEnabled(local_state);
+  }
   return UkmConsentStateObserver::IsDwaAllowedForAllProfiles();
 }
 

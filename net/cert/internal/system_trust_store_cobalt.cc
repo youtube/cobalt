@@ -61,6 +61,11 @@ class SystemTrustStoreChromeOnly : public SystemTrustStore {
     return trust_store_chrome_->GetMTCAnchorData(log_id);
   }
 
+  std::optional<int32_t> GetCrsRootIdForCert(
+      const bssl::CertPathBuilderResultPath* path) const override {
+    return trust_store_chrome_->GetCrsRootIdForCert(path);
+  }
+
   bssl::TrustStore* eutl_trust_store() override {
     return trust_store_chrome_->eutl_trust_store();
   }

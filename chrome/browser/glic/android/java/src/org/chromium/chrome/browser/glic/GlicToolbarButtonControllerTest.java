@@ -11,6 +11,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.drawable.LayerDrawable;
 import android.view.View;
@@ -25,6 +26,7 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
+import org.robolectric.Robolectric;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.supplier.ObservableSuppliers;
@@ -66,43 +68,49 @@ public class GlicToolbarButtonControllerTest {
     @Mock private ActorKeyedService mActorService;
     @Mock private BrowserControlsVisibilityManager mBrowserControlsVisibilityManager;
     private BrowserStateBrowserControlsVisibilityDelegate mBrowserControlsVisibilityDelegate;
-    @Mock private GlicToolbarButtonController.GlicButtonDelegate mToggleGlicCallback;
+    @Mock private GlicButtonDelegate mToggleGlicCallback;
     @Mock private Tracker mTracker;
     @Mock private TabModelSelector mTabModelSelector;
     @Mock private ButtonDataProvider.ButtonDataObserver mObserver;
     @Mock private GlicKeyedServiceFactory.Natives mGlicKeyedServiceFactoryJniMock;
     @Mock private GlicKeyedService mGlicKeyedService;
     @Mock private GlicEnabling.Natives mGlicEnablingJniMock;
+    @Mock private ChromeAndroidTask mTask;
     @Captor private ArgumentCaptor<ActorKeyedService.Observer> mActorObserverCaptor;
 
+    private Activity mActivity;
     private Context mContext;
     private GlicToolbarButtonController mController;
 
     @Before
     public void setUp() {
         mContext = ContextUtils.getApplicationContext();
+        mActivity = Robolectric.setupActivity(Activity.class);
+
         when(mTab.getProfile()).thenReturn(mProfile);
         when(mTab.getUrl()).thenReturn(JUnitTestGURLs.EXAMPLE_URL);
         ActorKeyedServiceFactory.setForTesting(mActorService);
+        GlicKeyedServiceFactory.setForTesting(mGlicKeyedService);
         GlicKeyedServiceFactoryJni.setInstanceForTesting(mGlicKeyedServiceFactoryJniMock);
+        when(mGlicKeyedServiceFactoryJniMock.getForProfile(any())).thenReturn(mGlicKeyedService);
         mBrowserControlsVisibilityDelegate =
                 new BrowserStateBrowserControlsVisibilityDelegate(
                         ObservableSuppliers.alwaysFalse());
         when(mBrowserControlsVisibilityManager.getBrowserVisibilityDelegate())
                 .thenReturn(mBrowserControlsVisibilityDelegate);
         GlicEnablingJni.setInstanceForTesting(mGlicEnablingJniMock);
-        when(mGlicKeyedServiceFactoryJniMock.getForProfile(mProfile)).thenReturn(mGlicKeyedService);
         when(mGlicEnablingJniMock.isEnabledForProfile(any())).thenReturn(true);
         mController =
                 new GlicToolbarButtonController(
-                        mContext,
+                        mActivity,
                         () -> mTab,
                         mToggleGlicCallback,
                         () -> mTracker,
-                        () -> null,
+                        () -> mTask,
                         mBrowserControlsVisibilityManager,
                         () -> mTabModelSelector);
     }
+
 
     @Test
     public void testButtonData() {
@@ -326,12 +334,12 @@ public class GlicToolbarButtonControllerTest {
     @Test
     public void testIsPanelOpen_Initial() {
         ChromeAndroidTask task = mock(ChromeAndroidTask.class);
-        when(task.getOrCreateNativeBrowserWindowPtr(mProfile)).thenReturn(123L);
+        when(task.getNativeBrowserWindowPtr(mProfile, mActivity)).thenReturn(123L);
         when(mGlicKeyedService.isPanelShowingForBrowser(123L)).thenReturn(true);
 
         GlicToolbarButtonController controller =
                 new GlicToolbarButtonController(
-                        mContext,
+                        mActivity,
                         () -> mTab,
                         mToggleGlicCallback,
                         () -> mTracker,
@@ -347,12 +355,12 @@ public class GlicToolbarButtonControllerTest {
     @Test
     public void testIsPanelOpen_GlobalShowHide() {
         ChromeAndroidTask task = mock(ChromeAndroidTask.class);
-        when(task.getOrCreateNativeBrowserWindowPtr(mProfile)).thenReturn(123L);
+        when(task.getNativeBrowserWindowPtr(mProfile, mActivity)).thenReturn(123L);
         when(mGlicKeyedService.isPanelShowingForBrowser(123L)).thenReturn(true);
 
         GlicToolbarButtonController controller =
                 new GlicToolbarButtonController(
-                        mContext,
+                        mActivity,
                         () -> mTab,
                         mToggleGlicCallback,
                         () -> mTracker,
@@ -362,13 +370,13 @@ public class GlicToolbarButtonControllerTest {
 
         controller.get(mTab); // Initialize observations
 
-        controller.onGlobalShowHide();
+        controller.onGlobalShowHideForTesting();
 
         ButtonData buttonData = controller.get(mTab);
         Assert.assertTrue(buttonData.getButtonSpec().isChecked());
 
         when(mGlicKeyedService.isPanelShowingForBrowser(123L)).thenReturn(false);
-        controller.onGlobalShowHide();
+        controller.onGlobalShowHideForTesting();
         buttonData = controller.get(mTab);
         Assert.assertFalse(buttonData.getButtonSpec().isChecked());
     }

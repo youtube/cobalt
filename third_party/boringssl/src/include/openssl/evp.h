@@ -47,14 +47,22 @@ extern "C" {
 // on allocation failure.
 OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_new(void);
 
-// EVP_PKEY_free frees all data referenced by |pkey| and then frees |pkey|
-// itself.
+// EVP_PKEY_free decrements the reference count of |pkey| and frees it if the
+// reference count drops to zero.
 OPENSSL_EXPORT void EVP_PKEY_free(EVP_PKEY *pkey);
 
 // EVP_PKEY_up_ref increments the reference count of |pkey| and returns one. It
 // does not mutate |pkey| for thread-safety purposes and may be used
 // concurrently.
 OPENSSL_EXPORT int EVP_PKEY_up_ref(EVP_PKEY *pkey);
+
+// EVP_PKEY_dup_ref increments the reference count of |pkey| and returns |pkey|.
+// The caller must call |EVP_PKEY_free| on the result to release the reference.
+//
+// WARNING: Although the result is non-const for use with |EVP_PKEY_free|, it is
+// still shared with other parts of the application that share the same object.
+// Avoid mutating shared |EVP_PKEY|s.
+OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_dup_ref(const EVP_PKEY *pkey);
 
 // EVP_PKEY_is_opaque returns one if |pkey| is opaque. Opaque keys are backed by
 // custom implementations which do not expose key material and parameters. It is

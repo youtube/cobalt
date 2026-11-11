@@ -271,7 +271,8 @@ class TestCase(object):
     def remove_ignored_flags(flags):
       # TODO(500181840): remove if/when --fuzzing no longer influences the flag
       # processing mode.
-      flags = remove_flags_after(flags, "--fuzzing")
+      if "--fuzzing" in flags:
+        return []
       flags = remove_flags_after(
           flags, "--flag-processing-mode=ignore-contradictions")
       return flags

@@ -77,8 +77,6 @@ import java.lang.annotation.RetentionPolicy;
     FeatureConstants.IPH_TAB_SWITCHER_XR,
     FeatureConstants.IPH_TAB_TEARING_XR,
     FeatureConstants.IPH_TOUCH_TO_SEARCH_CALLOUT,
-    FeatureConstants.IPH_WEB_FEED_POST_FOLLOW_DIALOG_FEATURE,
-    FeatureConstants.IPH_WEB_FEED_POST_FOLLOW_DIALOG_FEATURE_WITH_UI_UPDATE,
     FeatureConstants.KEYBOARD_ACCESSORY_ACCOUNT_NAME_EMAIL_SUGGESTION_FEATURE,
     FeatureConstants.KEYBOARD_ACCESSORY_ADDRESS_FILL_FEATURE,
     FeatureConstants.KEYBOARD_ACCESSORY_AT_MEMORY_FEATURE,
@@ -93,7 +91,6 @@ import java.lang.annotation.RetentionPolicy;
     FeatureConstants.KEYBOARD_ACCESSORY_PAYMENT_OFFER_FEATURE,
     FeatureConstants.KEYBOARD_ACCESSORY_PAYMENT_VIRTUAL_CARD_DISABLED_FEATURE,
     FeatureConstants.KEYBOARD_ACCESSORY_PAYMENT_VIRTUAL_CARD_FEATURE,
-    FeatureConstants.KEYBOARD_ACCESSORY_PLUS_ADDRESS_CREATE_SUGGESTION,
     FeatureConstants.KEYBOARD_ACCESSORY_VIRTUAL_CARD_CVC_FILL_FEATURE,
     FeatureConstants.MENU_ADD_TO_GROUP,
     FeatureConstants.MOST_VISITED_TILES_CUSTOMIZATION_PIN,
@@ -317,13 +314,6 @@ public @interface FeatureConstants {
     /** An IPH feature to inform users that the touch to search panel can be expanded. */
     String IPH_TOUCH_TO_SEARCH_CALLOUT = "IPH_TouchToSearchCallout";
 
-    /** A dialog IPH feature to inform users about the WebFeed post-follow. */
-    String IPH_WEB_FEED_POST_FOLLOW_DIALOG_FEATURE = "IPH_WebFeedPostFollowDialog";
-
-    /** A dialog IPH feature to inform users about the WebFeed post-follow after the UI update. */
-    String IPH_WEB_FEED_POST_FOLLOW_DIALOG_FEATURE_WITH_UI_UPDATE =
-            "IPH_WebFeedPostFollowDialogWithUIUpdate";
-
     String KEYBOARD_ACCESSORY_ACCOUNT_NAME_EMAIL_SUGGESTION_FEATURE =
             "IPH_AutofillAccountNameEmailSuggestion";
 
@@ -356,8 +346,6 @@ public @interface FeatureConstants {
             "IPH_AutofillDisabledVirtualCardSuggestion";
 
     String KEYBOARD_ACCESSORY_PAYMENT_VIRTUAL_CARD_FEATURE = "IPH_AutofillVirtualCardSuggestion";
-
-    String KEYBOARD_ACCESSORY_PLUS_ADDRESS_CREATE_SUGGESTION = "IPH_PlusAddressCreateSuggestion";
 
     String KEYBOARD_ACCESSORY_VIRTUAL_CARD_CVC_FILL_FEATURE =
             "IPH_AutofillVirtualCardCVCSuggestion";

@@ -68,9 +68,9 @@ public class FuseboxSessionState implements UserData {
     private final AutocompleteInput mAutocompleteInput = new AutocompleteInput();
 
     private @Nullable FuseboxMetrics mMetrics;
-    private @Nullable Profile mProfile;
+    protected @Nullable Profile mProfile;
     private @Nullable ComposeboxQueryControllerBridge mComposeBoxQueryControllerBridge;
-    private @Nullable AutocompleteController mAutocomplete;
+    protected @Nullable AutocompleteController mAutocomplete;
     private @Nullable FuseboxAttachmentModelList mFuseboxAttachmentModelList;
     private @Nullable OneShotCallback<Profile> mPendingProfileCallback;
     private @Nullable WebContents mWebContents;
@@ -107,6 +107,11 @@ public class FuseboxSessionState implements UserData {
     /** Returns the WebContents of the contextual tasks WebUI associated with the fusebox. */
     public @Nullable WebContents getContextualTasksWebContents() {
         return mWebContents;
+    }
+
+    /** Returns whether the session is scoped to a specific AI task. */
+    public boolean isTaskScoped() {
+        return false;
     }
 
     /** Returns the current {@link Profile} for this session. */
@@ -207,13 +212,11 @@ public class FuseboxSessionState implements UserData {
         assert (mProfile == null);
         mProfile = profile;
 
-        // AutocompleteController is currently a Profile-keyed instance and does not require
-        // explicit destruction.
-        mAutocomplete = AutocompleteController.getForProfile(mProfile);
+        createAutoComplete(profile);
 
         if (mComposeBoxQueryControllerBridge == null) {
             mComposeBoxQueryControllerBridge =
-                    ComposeboxQueryControllerBridge.create(mProfile, mWebContents);
+                    ComposeboxQueryControllerBridge.create(mProfile, mWebContents, isTaskScoped());
         }
 
         if (mComposeBoxQueryControllerBridge != null && mFuseboxAttachmentModelList == null) {
@@ -229,6 +232,17 @@ public class FuseboxSessionState implements UserData {
 
         linkSessionControllers();
         if (onFullyActivated != null) onFullyActivated.run();
+    }
+
+    /**
+     * Create the AutocompleteController for the session.
+     *
+     * @param profile The profile to create the controller for.
+     */
+    protected void createAutoComplete(Profile profile) {
+        // AutocompleteController is currently a Profile-keyed instance and does not require
+        // explicit destruction.
+        mAutocomplete = AutocompleteController.getForProfile(profile);
     }
 
     @Override
@@ -296,6 +310,11 @@ public class FuseboxSessionState implements UserData {
     /** Returns whether the Fusebox session is active. */
     public boolean isSessionActive() {
         return mIsActive;
+    }
+
+    /** Returns whether the session is a contextual tasks session. */
+    public boolean isContextualTasksState() {
+        return false;
     }
 
     /** Modifies this session input to have the values of the given input. */

@@ -595,14 +595,16 @@ void DesktopSessionAgent::SetHostCursorRenderedByClient() {
   }
 }
 
-void DesktopSessionAgent::StartAudioInjector() {
+void DesktopSessionAgent::StartAudioInjector(
+    std::unique_ptr<IpcFifoBufferReader> audio_reader) {
   DCHECK(caller_task_runner_->BelongsToCurrentThread());
 
   if (audio_injector_) {
     return;
   }
 
-  audio_injector_ = desktop_environment_->CreateAudioInjector();
+  audio_injector_ =
+      desktop_environment_->CreateAudioInjector(std::move(audio_reader));
   if (!audio_injector_) {
     LOG(ERROR) << "Cannot start audio injector because it is not supported.";
     return;
@@ -617,6 +619,15 @@ void DesktopSessionAgent::InjectAudioPacket(
   if (audio_injector_) {
     audio_injector_->InjectAudioPacket(std::move(packet));
   }
+}
+
+void DesktopSessionAgent::SetAudioInjectorSampleInfo(
+    const protocol::AudioSampleInfo& info,
+    SetAudioInjectorSampleInfoCallback callback) {
+  DCHECK(caller_task_runner_->BelongsToCurrentThread());
+  // TODO: crbug.com/509659010 - Forward sample rate and channels to the SPSC
+  // audio injector once implemented, and acknowledge via callback.
+  std::move(callback).Run();
 }
 
 void DesktopSessionAgent::OnDesktopEnvironmentCreated(

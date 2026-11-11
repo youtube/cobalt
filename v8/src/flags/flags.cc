@@ -1237,6 +1237,9 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(disable_optimizing_compilers, stress_maglev),
       CONTRADICTION(disable_optimizing_compilers,
                     turboshaft_wasm_in_js_inlining),
+      CONTRADICTION(disable_optimizing_compilers, turbolev_future),
+      CONTRADICTION(disable_optimizing_compilers,
+                    turbolev_inline_js_wasm_wrappers),
       CONTRADICTION(jit_fuzzing, max_lazy),
       CONTRADICTION(jitless, maglev_as_top_tier),
       CONTRADICTION(jitless, maglev_future),
@@ -1247,6 +1250,12 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(jitless, turbolev_inline_js_wasm_wrappers),
       CONTRADICTION(jitless, turboshaft_wasm_in_js_inlining),
       CONTRADICTION(jitless, verify_turboshaft),
+#if V8_ENABLE_WEBASSEMBLY
+      CONTRADICTION(wasm_jitless_if_available_for_testing, turbolev),
+      CONTRADICTION(wasm_jitless_if_available_for_testing, turbolev_future),
+      CONTRADICTION(wasm_jitless_if_available_for_testing,
+                    turbolev_inline_js_wasm_wrappers),
+#endif  // V8_ENABLE_WEBASSEMBLY
       CONTRADICTION(lite_mode, maglev_as_top_tier),
       CONTRADICTION(lite_mode, maglev_future),
       CONTRADICTION(lite_mode, predictable_gc_schedule),
@@ -1263,6 +1272,11 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(predictable, stress_concurrent_inlining_attach_code),
       CONTRADICTION(predictable_gc_schedule, stress_compaction),
       CONTRADICTION(single_threaded, stress_concurrent_inlining_attach_code),
+#if V8_ENABLE_WEBASSEMBLY
+      CONTRADICTION(single_threaded, experimental_wasm_pgo_to_file),
+      CONTRADICTION(single_threaded, wasm_generate_compilation_hints),
+      CONTRADICTION(single_threaded, trace_wasm_generate_compilation_hints),
+#endif  // V8_ENABLE_WEBASSEMBLY
       CONTRADICTION(stress_concurrent_inlining, turboshaft_assert_types),
       CONTRADICTION(stress_concurrent_inlining_attach_code,
                     turboshaft_assert_types),
@@ -1300,9 +1314,14 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       RESET_WHEN_CORRECTNESS_FUZZING(assert_types),
       RESET_WHEN_CORRECTNESS_FUZZING(maglev_assert_types),
       RESET_WHEN_CORRECTNESS_FUZZING(turboshaft_assert_types),
+      RESET_WHEN_CORRECTNESS_FUZZING(verify_bytecode_full),
+      RESET_WHEN_CORRECTNESS_FUZZING(verify_bytecode_light),
 #if V8_ENABLE_WEBASSEMBLY
       RESET_WHEN_CORRECTNESS_FUZZING(wasm_assert_types),
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+      // https://crbug.com/508799454
+      RESET_WHEN_CORRECTNESS_FUZZING(for_of_optimization),
 
       // Not useful for differential fuzzing: https://crbug.com/496356383
       RESET_WHEN_CORRECTNESS_FUZZING(heap_snapshot_on_gc),

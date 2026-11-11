@@ -338,6 +338,71 @@ rtc_library("rate_statistics") {
   ]
 }
 
+if (rtc_rust) {
+  rtc_rust_library("rate_tracker_rust") {
+    crate_root = "rate_tracker.rs"
+    sources = [ "rate_tracker.rs" ]
+    deps = [
+      ":checks",
+      "../api/units:time_delta",
+      "../api/units:time_delta_rs",
+      "../api/units:timestamp",
+      "../api/units:timestamp_rs",
+      "//build/rust:cxx_rustdeps",
+    ]
+    visibility = [ "*" ]
+  }
+
+  rtc_rust_library("rate_tracker_ffi_rust") {
+    allow_unsafe = true
+    crate_root = "rate_tracker_ffi.rs"
+    sources = [ "rate_tracker_ffi.rs" ]
+    deps = [
+      ":rate_tracker_rust",
+      "../api/units:time_delta_rs",
+      "../api/units:timestamp_rs",
+      "//build/rust:cxx_rustdeps",
+    ]
+  }
+
+  rtc_rust_cxx_bridge("rate_tracker_ffi") {
+    allow_unsafe = true
+    source = "rate_tracker_ffi.rs"
+    deps = [
+      ":rate_tracker_ffi_rust",
+      ":rate_tracker_rust",
+      "../api/units:time_delta",
+      "../api/units:time_delta_ffi",
+      "../api/units:time_delta_rs",
+      "../api/units:timestamp",
+      "../api/units:timestamp_ffi",
+      "../api/units:timestamp_rs",
+      "//build/rust:cxx_rustdeps",
+    ]
+  }
+
+  rtc_rust_unittest("rate_tracker_rust_tests") {
+    crate_root = "rate_tracker.rs"
+    sources = [ "rate_tracker.rs" ]
+    deps = [
+      ":checks",
+      "../api/units:time_delta",
+      "../api/units:time_delta_rs",
+      "../api/units:timestamp",
+      "../api/units:timestamp_rs",
+    ]
+  }
+
+  rtc_rust_test_suite("rust_unit_tests") {
+    deps = [ ":rate_tracker_rust_tests" ]
+  }
+} else {
+  # This target is required for the bot configuration as it is always
+  # present in the more_configs_tests test suite even if Rust is disabled.
+  group("rust_unit_tests") {
+  }
+}
+
 rtc_library("rate_tracker") {
   visibility = [ "*" ]
   sources = [
@@ -1535,6 +1600,13 @@ rtc_source_set("ssl_header") {
   if (is_win) {
     deps += [ ":win32" ]
   }
+
+  # If we are building the SSL library ourselves, we know it's BoringSSL.
+  if (rtc_build_ssl) {
+    deps += [ "//third_party/boringssl" ]
+  } else {
+    configs += [ "..:external_ssl_library" ]
+  }
 }
 
 rtc_library("digest") {
@@ -1866,44 +1938,16 @@ rtc_library("task_queue_for_test") {
   ]
 }
 
-# Base64 implementation is backed by either Rust or Abseil.
-if (!rtc_rusty_base64) {
-  # abseil backed base64.
-  rtc_library("base64") {
-    sources = [
-      "base64.cc",
-      "base64.h",
-    ]
-    deps = [
-      "//third_party/abseil-cpp/absl/algorithm:container",
-      "//third_party/abseil-cpp/absl/strings",
-      "//third_party/abseil-cpp/absl/strings:string_view",
-    ]
-  }
-} else {
-  import("//build/config/rust.gni")
-  import("//build/rust/rust_static_library.gni")
-
-  rust_static_library("base64_rust_bridge") {
-    allow_unsafe = true  # Needed for FFI with cxx crate.
-    crate_root = "base64.rs"
-    sources = [ "base64.rs" ]
-    cxx_bindings = [ "base64.rs" ]
-    deps = [ "//third_party/rust/base64/v0_22:lib" ]
-    visibility = [ ":base64" ]
-  }
-
-  rtc_library("base64") {
-    sources = [
-      "base64.h",
-      "base64_rust.cc",
-    ]
-    deps = [
-      ":base64_rust_bridge",
-      "//build/rust:cxx_cppdeps",
-      "//third_party/abseil-cpp/absl/strings:string_view",
-    ]
-  }
+rtc_library("base64") {
+  sources = [
+    "base64.cc",
+    "base64.h",
+  ]
+  deps = [
+    "//third_party/abseil-cpp/absl/algorithm:container",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
 }
 
 rtc_library("cpu_info") {
@@ -2215,6 +2259,13 @@ if (rtc_include_tests) {
 
       if (is_win) {
         deps += [ "win:windows_version_unittest" ]
+      }
+      if (rtc_rust) {
+        sources += [ "rate_tracker_comparison_unittest.cc" ]
+        deps += [
+          ":rate_tracker_ffi",
+          "//third_party/abseil-cpp/absl/random",
+        ]
       }
     }
 

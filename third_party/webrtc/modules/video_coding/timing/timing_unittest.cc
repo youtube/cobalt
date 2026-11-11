@@ -38,17 +38,17 @@ MATCHER(HasConsistentVideoDelayTimings, "") {
   bool p3 = arg.render_delay >= TimeDelta::Zero();
   bool p4 = arg.min_playout_delay >= TimeDelta::Zero();
   bool p5 = arg.max_playout_delay >= TimeDelta::Zero();
-  bool p6 = arg.target_delay >= TimeDelta::Zero();
+  bool p6 = arg.stats_target_delay >= TimeDelta::Zero();
   bool p7 = arg.current_delay >= TimeDelta::Zero();
   *result_listener << "\np: " << p1 << p2 << p3 << p4 << p5 << p6 << p7;
   bool p = p1 && p2 && p3 && p4 && p5 && p6 && p7;
 
   // Delays should be internally consistent.
-  bool m1 = arg.minimum_delay <= arg.target_delay;
+  bool m1 = arg.minimum_delay <= arg.stats_target_delay;
   if (!m1) {
     *result_listener << "\nminimum_delay: " << ToString(arg.minimum_delay)
-                     << ", " << "target_delay: " << ToString(arg.target_delay)
-                     << "\n";
+                     << ", " << "stats_target_delay: "
+                     << ToString(arg.stats_target_delay) << "\n";
   }
   bool m2 = arg.minimum_delay <= arg.current_delay;
   if (!m2) {
@@ -56,14 +56,15 @@ MATCHER(HasConsistentVideoDelayTimings, "") {
                      << ", "
                      << "current_delay: " << ToString(arg.current_delay);
   }
-  bool m3 = arg.target_delay >= arg.min_playout_delay;
+  bool m3 = arg.stats_target_delay >= arg.min_playout_delay;
   if (!m3) {
-    *result_listener << "\ntarget_delay: " << ToString(arg.target_delay) << ", "
+    *result_listener << "\nstats_target_delay: "
+                     << ToString(arg.stats_target_delay) << ", "
                      << "min_playout_delay: " << ToString(arg.min_playout_delay)
                      << "\n";
   }
   // TODO(crbug.com/webrtc/15197): Uncomment when this is guaranteed.
-  // bool m4 = arg.target_delay <= arg.max_playout_delay;
+  // bool m4 = arg.stats_target_delay <= arg.max_playout_delay;
   bool m5 = arg.current_delay >= arg.min_playout_delay;
   if (!m5) {
     *result_listener << "\ncurrent_delay: " << ToString(arg.current_delay)
@@ -141,191 +142,6 @@ TEST(VCMTimingTest, UseLowLatencyRenderer) {
   EXPECT_THAT(timing.GetTimings(), HasConsistentVideoDelayTimings());
 }
 
-TEST(VCMTimingTest, MaxWaitingTimeIsZeroForZeroRenderTime) {
-  // This is the default path when the RTP playout delay header extension is set
-  // to min==0 and max==0.
-  constexpr int64_t kStartTimeUs = 3.15e13;  // About one year in us.
-  constexpr TimeDelta kTimeDelta = 1 / Frequency::Hertz(60);
-  constexpr Timestamp kZeroRenderTime = Timestamp::Zero();
-  SimulatedClock clock(kStartTimeUs);
-  FieldTrials field_trials = CreateTestFieldTrials();
-  VCMTiming timing(&clock, field_trials);
-  timing.set_playout_delay({TimeDelta::Zero(), TimeDelta::Zero()});
-  for (int i = 0; i < 10; ++i) {
-    clock.AdvanceTime(kTimeDelta);
-    Timestamp now = clock.CurrentTime();
-    EXPECT_LT(timing.MaxWaitingTime(kZeroRenderTime, now,
-                                    /*too_many_frames_queued=*/false),
-              TimeDelta::Zero());
-  }
-  // Another frame submitted at the same time also returns a negative max
-  // waiting time.
-  Timestamp now = clock.CurrentTime();
-  EXPECT_LT(timing.MaxWaitingTime(kZeroRenderTime, now,
-                                  /*too_many_frames_queued=*/false),
-            TimeDelta::Zero());
-  // MaxWaitingTime should be less than zero even if there's a burst of frames.
-  EXPECT_LT(timing.MaxWaitingTime(kZeroRenderTime, now,
-                                  /*too_many_frames_queued=*/false),
-            TimeDelta::Zero());
-  EXPECT_LT(timing.MaxWaitingTime(kZeroRenderTime, now,
-                                  /*too_many_frames_queued=*/false),
-            TimeDelta::Zero());
-  EXPECT_LT(timing.MaxWaitingTime(kZeroRenderTime, now,
-                                  /*too_many_frames_queued=*/false),
-            TimeDelta::Zero());
-
-  EXPECT_THAT(timing.GetTimings(), HasConsistentVideoDelayTimings());
-}
-
-TEST(VCMTimingTest, MaxWaitingTimeZeroDelayPacingExperiment) {
-  // The minimum pacing is enabled by a field trial and active if the RTP
-  // playout delay header extension is set to min==0.
-  constexpr TimeDelta kMinPacing = TimeDelta::Millis(3);
-  FieldTrials field_trials =
-      CreateTestFieldTrials("WebRTC-ZeroPlayoutDelay/min_pacing:3ms/");
-  constexpr int64_t kStartTimeUs = 3.15e13;  // About one year in us.
-  constexpr TimeDelta kTimeDelta = 1 / Frequency::Hertz(60);
-  constexpr auto kZeroRenderTime = Timestamp::Zero();
-  SimulatedClock clock(kStartTimeUs);
-  VCMTiming timing(&clock, field_trials);
-  // MaxWaitingTime() returns zero for evenly spaced video frames.
-  for (int i = 0; i < 10; ++i) {
-    clock.AdvanceTime(kTimeDelta);
-    Timestamp now = clock.CurrentTime();
-    EXPECT_EQ(timing.MaxWaitingTime(kZeroRenderTime, now,
-                                    /*too_many_frames_queued=*/false),
-              TimeDelta::Zero());
-    timing.SetLastDecodeScheduledTimestamp(now);
-  }
-  // Another frame submitted at the same time is paced according to the field
-  // trial setting.
-  auto now = clock.CurrentTime();
-  EXPECT_EQ(timing.MaxWaitingTime(kZeroRenderTime, now,
-                                  /*too_many_frames_queued=*/false),
-            kMinPacing);
-  // If there's a burst of frames, the wait time is calculated based on next
-  // decode time.
-  EXPECT_EQ(timing.MaxWaitingTime(kZeroRenderTime, now,
-                                  /*too_many_frames_queued=*/false),
-            kMinPacing);
-  EXPECT_EQ(timing.MaxWaitingTime(kZeroRenderTime, now,
-                                  /*too_many_frames_queued=*/false),
-            kMinPacing);
-  // Allow a few ms to pass, this should be subtracted from the MaxWaitingTime.
-  constexpr TimeDelta kTwoMs = TimeDelta::Millis(2);
-  clock.AdvanceTime(kTwoMs);
-  now = clock.CurrentTime();
-  EXPECT_EQ(timing.MaxWaitingTime(kZeroRenderTime, now,
-                                  /*too_many_frames_queued=*/false),
-            kMinPacing - kTwoMs);
-  // A frame is decoded at the current time, the wait time should be restored to
-  // pacing delay.
-  timing.SetLastDecodeScheduledTimestamp(now);
-  EXPECT_EQ(timing.MaxWaitingTime(kZeroRenderTime, now,
-                                  /*too_many_frames_queued=*/false),
-            kMinPacing);
-
-  EXPECT_THAT(timing.GetTimings(), HasConsistentVideoDelayTimings());
-}
-
-TEST(VCMTimingTest, DefaultMaxWaitingTimeUnaffectedByPacingExperiment) {
-  // The minimum pacing is enabled by a field trial but should not have any
-  // effect if render_time_ms is greater than 0;
-  FieldTrials field_trials =
-      CreateTestFieldTrials("WebRTC-ZeroPlayoutDelay/min_pacing:3ms/");
-  constexpr int64_t kStartTimeUs = 3.15e13;  // About one year in us.
-  const TimeDelta kTimeDelta = TimeDelta::Millis(1000.0 / 60.0);
-  SimulatedClock clock(kStartTimeUs);
-  VCMTiming timing(&clock, field_trials);
-  clock.AdvanceTime(kTimeDelta);
-  auto now = clock.CurrentTime();
-  Timestamp render_time = now + TimeDelta::Millis(30);
-  // Estimate the internal processing delay from the first frame.
-  TimeDelta estimated_processing_delay =
-      (render_time - now) -
-      timing.MaxWaitingTime(render_time, now,
-                            /*too_many_frames_queued=*/false);
-  EXPECT_GT(estimated_processing_delay, TimeDelta::Zero());
-
-  // Any other frame submitted at the same time should be scheduled according to
-  // its render time.
-  for (int i = 0; i < 5; ++i) {
-    render_time += kTimeDelta;
-    EXPECT_EQ(timing.MaxWaitingTime(render_time, now,
-                                    /*too_many_frames_queued=*/false),
-              render_time - now - estimated_processing_delay);
-  }
-
-  EXPECT_THAT(timing.GetTimings(), HasConsistentVideoDelayTimings());
-}
-
-TEST(VCMTimingTest, MaxWaitingTimeReturnsZeroIfTooManyFramesQueuedIsTrue) {
-  // The minimum pacing is enabled by a field trial and active if the RTP
-  // playout delay header extension is set to min==0.
-  constexpr TimeDelta kMinPacing = TimeDelta::Millis(3);
-  FieldTrials field_trials =
-      CreateTestFieldTrials("WebRTC-ZeroPlayoutDelay/min_pacing:3ms/");
-  constexpr int64_t kStartTimeUs = 3.15e13;  // About one year in us.
-  const TimeDelta kTimeDelta = TimeDelta::Millis(1000.0 / 60.0);
-  constexpr auto kZeroRenderTime = Timestamp::Zero();
-  SimulatedClock clock(kStartTimeUs);
-  VCMTiming timing(&clock, field_trials);
-  // MaxWaitingTime() returns zero for evenly spaced video frames.
-  for (int i = 0; i < 10; ++i) {
-    clock.AdvanceTime(kTimeDelta);
-    auto now = clock.CurrentTime();
-    EXPECT_EQ(timing.MaxWaitingTime(kZeroRenderTime, now,
-                                    /*too_many_frames_queued=*/false),
-              TimeDelta::Zero());
-    timing.SetLastDecodeScheduledTimestamp(now);
-  }
-  // Another frame submitted at the same time is paced according to the field
-  // trial setting.
-  auto now_ms = clock.CurrentTime();
-  EXPECT_EQ(timing.MaxWaitingTime(kZeroRenderTime, now_ms,
-                                  /*too_many_frames_queued=*/false),
-            kMinPacing);
-  // MaxWaitingTime returns 0 even if there's a burst of frames if
-  // too_many_frames_queued is set to true.
-  EXPECT_EQ(timing.MaxWaitingTime(kZeroRenderTime, now_ms,
-                                  /*too_many_frames_queued=*/true),
-            TimeDelta::Zero());
-  EXPECT_EQ(timing.MaxWaitingTime(kZeroRenderTime, now_ms,
-                                  /*too_many_frames_queued=*/true),
-            TimeDelta::Zero());
-
-  EXPECT_THAT(timing.GetTimings(), HasConsistentVideoDelayTimings());
-}
-
-TEST(VCMTimingTest, MaxWaitingTime) {
-  FieldTrials field_trials = CreateTestFieldTrials();
-  SimulatedClock clock(0);
-  VCMTiming timing(&clock, field_trials);
-  timing.set_render_delay(kRenderDelay);
-  UpdateDecodeTimer(timing, clock, kDecodeTime);
-
-  Timestamp on_time = clock.CurrentTime() + kDecodeTime + kRenderDelay;
-
-  // Early frame.
-  Timestamp render_time = on_time + TimeDelta::Millis(1);
-  EXPECT_EQ(timing.MaxWaitingTime(render_time, clock.CurrentTime(),
-                                  /*too_many_frames_queued=*/false),
-            TimeDelta::Millis(1));
-
-  // Exactly on time.
-  render_time = on_time;
-  EXPECT_EQ(timing.MaxWaitingTime(render_time, clock.CurrentTime(),
-                                  /*too_many_frames_queued=*/false),
-            TimeDelta::Zero());
-
-  // Late frame.
-  render_time = on_time - TimeDelta::Millis(1);
-  EXPECT_EQ(timing.MaxWaitingTime(render_time, clock.CurrentTime(),
-                                  /*too_many_frames_queued=*/false),
-            TimeDelta::Millis(-1));
-}
-
 TEST(VCMTimingTest, UpdateCurrentDelayCapsWhenOffByMicroseconds) {
   FieldTrials field_trials = CreateTestFieldTrials();
   SimulatedClock clock(0);
@@ -384,7 +200,7 @@ TEST(VCMTimingTest, InitialVideoDelayTimings) {
   EXPECT_EQ(timings.render_delay,
             VCMTiming::VideoDelayTimings::kDefaultRenderDelay);
   EXPECT_EQ(timings.min_playout_delay, TimeDelta::Zero());
-  EXPECT_EQ(timings.target_delay, TimeDelta::Zero());
+  EXPECT_EQ(timings.stats_target_delay, TimeDelta::Zero());
   EXPECT_EQ(timings.current_delay, TimeDelta::Zero());
   EXPECT_THAT(timings, HasConsistentVideoDelayTimings());
 }
@@ -423,7 +239,7 @@ TEST(VCMTimingTest, GetTimings) {
   EXPECT_EQ(timings.render_delay, render_delay);
   EXPECT_EQ(timings.min_playout_delay, min_playout_delay);
   EXPECT_EQ(timings.max_playout_delay, max_playout_delay);
-  EXPECT_EQ(timings.target_delay, minimum_delay);
+  EXPECT_EQ(timings.stats_target_delay, minimum_delay);
   EXPECT_EQ(timings.current_delay, minimum_delay);
   EXPECT_THAT(timings, HasConsistentVideoDelayTimings());
 }
@@ -459,7 +275,7 @@ TEST(VCMTimingTest, Reset) {
             VCMTiming::VideoDelayTimings::kDefaultRenderDelay);
   EXPECT_EQ(timings.min_playout_delay, TimeDelta::Zero());
   EXPECT_EQ(timings.max_playout_delay, max_playout_delay);
-  EXPECT_EQ(timings.target_delay, TimeDelta::Zero());
+  EXPECT_EQ(timings.stats_target_delay, TimeDelta::Zero());
   EXPECT_EQ(timings.current_delay, TimeDelta::Zero());
   EXPECT_THAT(timings, HasConsistentVideoDelayTimings());
 }
@@ -554,7 +370,7 @@ TEST(VCMTimingTest, IncreasesCurrentDelayWhenFrameIsLate) {
   timing.SetMinimumDelay(kMinimumDelay);
   timing.set_render_delay(kRenderDelay);
 
-  // Current delay is initialized to jitter delay.
+  // Current delay is initialized to minimum delay.
   EXPECT_EQ(timing.GetTimings().current_delay, kMinimumDelay);
   EXPECT_EQ(timing.TargetVideoDelay(), kMinimumDelay + kRenderDelay);
 
@@ -574,7 +390,7 @@ TEST(VCMTimingTest, CapsCurrentDelayIncreaseToTarget) {
   timing.SetMinimumDelay(kMinimumDelay);
   timing.set_render_delay(kRenderDelay);
 
-  // Current delay is initialized to jitter delay.
+  // Current delay is initialized to minimum delay.
   EXPECT_EQ(timing.GetTimings().current_delay, kMinimumDelay);
   EXPECT_EQ(timing.TargetVideoDelay(), kMinimumDelay + kRenderDelay);
 
@@ -594,7 +410,7 @@ TEST(VCMTimingTest, KeepsCurrentDelayWhenFrameIsEarly) {
   timing.SetMinimumDelay(kMinimumDelay);
   timing.set_render_delay(kRenderDelay);
 
-  // Current delay is initialized to jitter delay.
+  // Current delay is initialized to minimum delay.
   EXPECT_EQ(timing.GetTimings().current_delay, kMinimumDelay);
   EXPECT_EQ(timing.TargetVideoDelay(), kMinimumDelay + kRenderDelay);
 
@@ -615,7 +431,7 @@ TEST(VCMTimingTest, IncreasesCurrentDelayWhenFrameIsLateWithDecodeTime) {
   timing.set_render_delay(kRenderDelay);
   UpdateDecodeTimer(timing, clock, kDecodeTime);
 
-  // Current delay is initialized to jitter delay.
+  // Current delay is initialized to minimum delay.
   EXPECT_EQ(timing.GetTimings().current_delay, kMinimumDelay);
   EXPECT_EQ(timing.TargetVideoDelay(),
             kMinimumDelay + kDecodeTime + kRenderDelay);
@@ -641,7 +457,7 @@ TEST(VCMTimingTest, DecreasesCurrentDelayToTarget) {
                             clock.CurrentTime() + TimeDelta::Millis(588));
   EXPECT_EQ(timing.GetTimings().current_delay, timing.TargetVideoDelay());
 
-  // Reduce jitter delay.
+  // Reduce minimum delay.
   timing.SetMinimumDelay(kMinimumDelay / 2);
   EXPECT_EQ(timing.TargetVideoDelay(), kMinimumDelay / 2 + kRenderDelay);
 

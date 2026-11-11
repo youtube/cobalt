@@ -11,41 +11,12 @@
     'name': 'client.webrtc',
     'mixins': [],
     'machines': {
-      'Android32': {
-        'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
-          'chromium-tester-service-account'
-        ],
-        'test_suites': {
-          'gtest_tests': 'android_tests',
-          'isolated_scripts': 'android_junit_tests',
-        },
-      },
-      'Android32 (dbg)': {
-        'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
-          'chromium-tester-service-account'
-        ],
-        'test_suites': {
-          'gtest_tests': 'android_tests',
-          'isolated_scripts': 'android_junit_tests',
-        },
-      },
-      'Android32 (more configs)': {
-        'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
-          'chromium-tester-service-account'
-        ],
-        'test_suites': {
-          'gtest_tests': 'more_configs_tests',
-        },
-      },
       'Android32 Builder arm': {},
       'Android32 Builder x86': {},
       'Android32 Builder x86 (dbg)': {},
       'Android64': {
         'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
+          'panther_on_14', 'android-devices', 'has_native_resultdb_integration',
           'chromium-tester-service-account'
         ],
         'test_suites': {
@@ -55,12 +26,21 @@
       },
       'Android64 (dbg)': {
         'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
+          'panther_on_14', 'android-devices', 'has_native_resultdb_integration',
           'chromium-tester-service-account'
         ],
         'test_suites': {
           'gtest_tests': 'android_tests',
           'isolated_scripts': 'android_junit_tests',
+        },
+      },
+      'Android64 (more configs)': {
+        'mixins': [
+          'panther_on_14', 'android-devices', 'has_native_resultdb_integration',
+          'chromium-tester-service-account'
+        ],
+        'test_suites': {
+          'gtest_tests': 'more_configs_tests',
         },
       },
       'Android64 Builder arm64': {},
@@ -302,29 +282,9 @@
     'name': 'tryserver.webrtc',
     'mixins': [],
     'machines': {
-      'android_arm64_dbg': {
-        'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
-          'chromium-tester-service-account'
-        ],
-        'test_suites': {
-          'gtest_tests': 'android_tests_tryserver',
-          'isolated_scripts': 'android_junit_tests',
-        },
-      },
-      'android_arm64_rel': {
-        'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
-          'chromium-tester-service-account'
-        ],
-        'test_suites': {
-          'gtest_tests': 'android_tests_tryserver',
-          'isolated_scripts': 'android_junit_tests',
-        },
-      },
       'android_arm_dbg': {
         'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
+          'panther_on_14', 'android-devices', 'has_native_resultdb_integration',
           'chromium-tester-service-account'
         ],
         'test_suites': {
@@ -334,7 +294,7 @@
       },
       'android_arm_more_configs': {
         'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
+          'panther_on_14', 'android-devices', 'has_native_resultdb_integration',
           'chromium-tester-service-account'
         ],
         'test_suites': {
@@ -343,7 +303,7 @@
       },
       'android_arm_rel': {
         'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
+          'panther_on_14', 'android-devices', 'has_native_resultdb_integration',
           'chromium-tester-service-account'
         ],
         'test_suites': {
@@ -351,8 +311,6 @@
           'isolated_scripts': 'android_junit_tests',
         },
       },
-      'android_compile_arm64_dbg': {},
-      'android_compile_arm64_rel': {},
       'android_compile_arm_dbg': {},
       'android_compile_arm_rel': {},
       'android_compile_x64_dbg': {},

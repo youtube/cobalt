@@ -59,7 +59,8 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
       register_allocator_(fixed_register_count()),
       bytecode_array_writer_(zone, &constant_array_builder_,
                              source_position_mode),
-      register_optimizer_(nullptr) {
+      register_optimizer_(nullptr),
+      potentially_throwing_bytecode_count_(0) {
   DCHECK_GE(parameter_count_, 0);
   DCHECK_LE(parameter_count_, std::numeric_limits<uint16_t>::max());
   DCHECK_GE(local_register_count_, 0);
@@ -146,7 +147,8 @@ BytecodeSourceInfo BytecodeArrayBuilder::CurrentSourcePosition(
     // invalidate the existing source position information if it is used.
     if (latest_source_info_.is_statement() ||
         !v8_flags.ignition_filter_expression_positions ||
-        !Bytecodes::IsWithoutExternalSideEffects(bytecode)) {
+        !Bytecodes::IsWithoutExternalSideEffects(bytecode) ||
+        Bytecodes::IsJumpIfToBoolean(bytecode)) {
       source_position = latest_source_info_;
       latest_source_info_.set_invalid();
     }
@@ -175,23 +177,31 @@ void BytecodeArrayBuilder::AttachOrEmitDeferredSourceInfo(BytecodeNode* node) {
 
 void BytecodeArrayBuilder::Write(BytecodeNode* node) {
   AttachOrEmitDeferredSourceInfo(node);
+  if (!Bytecodes::IsWithoutExternalSideEffects(node->bytecode())) {
+    potentially_throwing_bytecode_count_++;
+  }
   bytecode_array_writer_.Write(node);
 }
 
 void BytecodeArrayBuilder::WriteJump(BytecodeNode* node, BytecodeLabel* label) {
   AttachOrEmitDeferredSourceInfo(node);
+  DCHECK(Bytecodes::IsWithoutExternalSideEffects(node->bytecode()) ||
+         Bytecodes::IsJumpIfToBoolean(node->bytecode()));
   bytecode_array_writer_.WriteJump(node, label);
 }
 
 void BytecodeArrayBuilder::WriteJumpLoop(BytecodeNode* node,
                                          BytecodeLoopHeader* loop_header) {
   AttachOrEmitDeferredSourceInfo(node);
+  // JumpLoop can throw due to interrupt checks (stack overflow, termination).
+  potentially_throwing_bytecode_count_++;
   bytecode_array_writer_.WriteJumpLoop(node, loop_header);
 }
 
 void BytecodeArrayBuilder::WriteSwitch(BytecodeNode* node,
                                        BytecodeJumpTable* jump_table) {
   AttachOrEmitDeferredSourceInfo(node);
+  DCHECK(Bytecodes::IsWithoutExternalSideEffects(node->bytecode()));
   bytecode_array_writer_.WriteSwitch(node, jump_table);
 }
 
@@ -975,10 +985,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::GetIterator(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForOfNext(Register object,
                                                       Register next,
-                                                      RegisterList value_done,
                                                       int call_slot) {
-  DCHECK_EQ(2, value_done.register_count());
-  OutputForOfNext(object, next, value_done, call_slot);
+  OutputForOfNext(object, next, call_slot);
   return *this;
 }
 
@@ -1293,6 +1301,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MarkTryEnd(int handler_id) {
     register_optimizer_->ResetTypeHintForAccumulator();
   }
   bytecode_array_writer_.BindTryRegionEnd(handler_table_builder(), handler_id);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::DropHandlerEntry(int handler_id) {
+  handler_table_builder()->DropHandlerEntry(handler_id);
   return *this;
 }
 
@@ -1800,16 +1813,18 @@ uint32_t BytecodeArrayBuilder::GetInputOutputRegisterOperand(Register reg) {
 uint32_t BytecodeArrayBuilder::GetInputRegisterListOperand(
     RegisterList reg_list) {
   DCHECK(RegisterListIsValid(reg_list));
-  if (register_optimizer_)
+  if (register_optimizer_) {
     reg_list = register_optimizer_->GetInputRegisterList(reg_list);
+  }
   return static_cast<uint32_t>(reg_list.first_register().ToOperand());
 }
 
 uint32_t BytecodeArrayBuilder::GetOutputRegisterListOperand(
     RegisterList reg_list) {
   DCHECK(RegisterListIsValid(reg_list));
-  if (register_optimizer_)
+  if (register_optimizer_) {
     register_optimizer_->PrepareOutputRegisterList(reg_list);
+  }
   return static_cast<uint32_t>(reg_list.first_register().ToOperand());
 }
 

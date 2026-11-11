@@ -5140,7 +5140,7 @@ void MacroAssembler::InvokeFunction(
   DCHECK_EQ(function, a1);
 
   // Set up the context.
-  Ld(cp, FieldMemOperand(function, JSFunction::kContextOffset));
+  Ld(cp, FieldMemOperand(function, offsetof(JSFunction, context_)));
 
   InvokeFunctionCode(function, no_reg, actual_parameter_count, type,
                      argument_adaption_mode);
@@ -5157,7 +5157,7 @@ void MacroAssembler::InvokeFunctionWithNewTarget(
   // (See FullCodeGenerator::Generate().)
   DCHECK_EQ(function, a1);
 
-  Ld(cp, FieldMemOperand(function, JSFunction::kContextOffset));
+  Ld(cp, FieldMemOperand(function, offsetof(JSFunction, context_)));
 
   InvokeFunctionCode(function, new_target, actual_parameter_count, type);
 }
@@ -5173,7 +5173,7 @@ void MacroAssembler::InvokeFunctionCode(
 
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
   Lw(dispatch_handle,
-     FieldMemOperand(function, JSFunction::kDispatchHandleOffset));
+     FieldMemOperand(function, offsetof(JSFunction, dispatch_handle_)));
 
   // On function call, call into the debugger if necessary.
   Label debug_hook, continue_after_hook;
@@ -5226,13 +5226,13 @@ void MacroAssembler::InvokeFunctionCode(
 void MacroAssembler::GetObjectType(Register object, Register map,
                                    Register type_reg) {
   LoadMap(map, object);
-  Lhu(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  Lhu(type_reg, FieldMemOperand(map, offsetof(Map, instance_type_)));
 }
 
 void MacroAssembler::GetInstanceTypeRange(Register map, Register type_reg,
                                           InstanceType lower_limit,
                                           Register range) {
-  Lhu(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  Lhu(type_reg, FieldMemOperand(map, offsetof(Map, instance_type_)));
   Dsubu(range, type_reg, Operand(lower_limit));
 }
 
@@ -5516,11 +5516,11 @@ void MacroAssembler::Abort(AbortReason reason) {
 }
 
 void MacroAssembler::LoadMap(Register destination, Register object) {
-  Ld(destination, FieldMemOperand(object, HeapObject::kMapOffset));
+  Ld(destination, FieldMemOperand(object, offsetof(HeapObject, map_)));
 }
 
 void MacroAssembler::LoadFeedbackCell(Register dst, Register closure) {
-  Ld(dst, FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
+  Ld(dst, FieldMemOperand(closure, offsetof(JSFunction, feedback_cell_)));
 }
 
 void MacroAssembler::LoadFeedbackVectorFromCell(Register dst,
@@ -5531,8 +5531,8 @@ void MacroAssembler::LoadFeedbackVectorFromCell(Register dst,
   Ld(dst, FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)));
 
   // Check if feedback vector is valid.
-  Ld(scratch, FieldMemOperand(dst, HeapObject::kMapOffset));
-  Lhu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  Ld(scratch, FieldMemOperand(dst, offsetof(HeapObject, map_)));
+  Lhu(scratch, FieldMemOperand(scratch, offsetof(Map, instance_type_)));
   Branch(&done, eq, scratch, Operand(FEEDBACK_VECTOR_TYPE));
 
   // Not valid, load undefined.
@@ -5551,7 +5551,8 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
 void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   LoadMap(dst, cp);
   Ld(dst,
-     FieldMemOperand(dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
+     FieldMemOperand(
+         dst, offsetof(Map, constructor_or_back_pointer_or_native_context_)));
   Ld(dst, MemOperand(dst, Context::SlotOffset(index)));
 }
 
@@ -5817,7 +5818,7 @@ void MacroAssembler::AssertConstructor(Register object) {
           Operand(zero_reg));
 
     LoadMap(t8, object);
-    Lbu(t8, FieldMemOperand(t8, Map::kBitFieldOffset));
+    Lbu(t8, FieldMemOperand(t8, offsetof(Map, bit_field_)));
     And(t8, t8, Operand(Map::Bits1::IsConstructorBit::kMask));
     Check(ne, AbortReason::kOperandIsNotAConstructor, t8, Operand(zero_reg));
   }
@@ -6395,7 +6396,7 @@ void MacroAssembler::CallJSFunction(Register function_object,
   Register scratch = s2;
 
   Lw(dispatch_handle,
-     FieldMemOperand(function_object, JSFunction::kDispatchHandleOffset));
+     FieldMemOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
   LoadEntrypointAndParameterCountFromJSDispatchTable(code, parameter_count,
                                                      dispatch_handle, scratch);
 

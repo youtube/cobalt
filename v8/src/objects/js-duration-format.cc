@@ -730,8 +730,9 @@ bool OutputLongShortOrNarrow(const char* type, double value,
                              JSDurationFormat::Separator separator,
                              std::vector<std::vector<Part>>* parts,
                              std::vector<icu::UnicodeString>* strings) {
-  if (value == 0 && display == JSDurationFormat::Display::kAuto)
+  if (value == 0 && display == JSDurationFormat::Display::kAuto) {
     return display_negative_sign;
+  }
   return Output(type, value, fmt, addToLast, display_negative_sign,
                 negative_duration, separator, parts, strings);
 }
@@ -744,8 +745,9 @@ bool OutputLongShortNarrowOrNumeric(
     JSDurationFormat::Separator separator,
     std::vector<std::vector<Part>>* parts,
     std::vector<icu::UnicodeString>* strings) {
-  if (value == 0 && display == JSDurationFormat::Display::kAuto)
+  if (value == 0 && display == JSDurationFormat::Display::kAuto) {
     return display_negative_sign;
+  }
   if (style == JSDurationFormat::FieldStyle::kNumeric) {
     return Output(type, value,
                   fmt.grouping(UNumberGroupingStrategy::UNUM_GROUPING_OFF),

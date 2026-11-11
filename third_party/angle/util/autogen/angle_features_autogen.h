@@ -17,6 +17,7 @@ namespace angle
 enum class Feature
 {
     AddAndTrueToLoopCondition,
+    AddFramebufferFetchBarrierOnUseMidRenderPass,
     AddMockTextureNoRenderTarget,
     AdjustClearColorPrecision,
     AdjustSrcDstRegionForBlitFramebuffer,
@@ -121,6 +122,7 @@ enum class Feature
     DisallowMixedDepthStencilLoadOpNoneAndLoad,
     DoesSRGBClearsOnLinearFramebufferAttachments,
     DontInitializeUninitializedLocals,
+    DontInvalidateIncompleteFBOs,
     DontUseLoopsToInitializeVariables,
     DoubleDepthBiasConstantFactor,
     DropDepthStencilClearOnInvalidate,
@@ -286,6 +288,7 @@ enum class Feature
     QueryCounterBitsGeneratesErrors,
     ReadPixelsUsingImplementationColorReadFormatForNorm16,
     ReapplyUBOBindingsAfterUsingBinaryProgram,
+    RecreateFboUponFlush,
     RecreateMipmapLevelsBeforeGenerate,
     RecycleVkEvent,
     RegenerateStructNames,

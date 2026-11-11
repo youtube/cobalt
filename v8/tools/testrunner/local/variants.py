@@ -240,19 +240,22 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         # 'stress' disables Liftoff, which conflicts with flags that require
         # Liftoff support.
         "--liftoff-only",
-        "--wasm-dynamic-tiering"
+        "--wasm-dynamic-tiering",
+        "--wasm-deopt",
     ],
     "instruction_scheduling": [
         # instruction_scheduling disables Liftoff, which conflicts with flags
         # that require Liftoff support.
         "--liftoff-only",
-        "--wasm-dynamic-tiering"
+        "--wasm-dynamic-tiering",
+        "--wasm-deopt",
     ],
     "stress_instruction_scheduling": [
-        # instruction_scheduling disables Liftoff, which conflicts with flags
-        # that require Liftoff support.
+        # stress_instruction_scheduling disables Liftoff, which conflicts with
+        # flags that require Liftoff support.
         "--liftoff-only",
-        "--wasm-dynamic-tiering"
+        "--wasm-dynamic-tiering",
+        "--wasm-deopt",
     ],
     "sparkplug": ["--jitless", "--no-sparkplug"],
     "concurrent_sparkplug": ["--jitless"],
@@ -306,7 +309,13 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--concurrent-recompilation", "--stress_concurrent_inlining",
         "--no-assert-types"
     ],
-    "wasm_assert_types": ["--liftoff-only", "--wasm-dynamic-tiering"],
+    "wasm_assert_types": [
+        # 'wasm_assert_types' disables Liftoff, which conflicts with flags that
+        # require Liftoff support.
+        "--liftoff-only",
+        "--wasm-dynamic-tiering",
+        "--wasm-deopt",
+    ],
     "verify_turboshaft": ["--jitless"],
     "stress_wasm_stack_switching": ["--no-stress-wasm-stack-switching"],
 }
@@ -399,6 +408,8 @@ INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
     "--turboshaft-assert-types": [
         "--concurrent-recompilation", "--stress-concurrent-inlining"
     ],
+    "--wasm-generate-compilation-hints": ["--single-threaded"],
+    "--trace-wasm-generate-compilation-hints": ["--single-threaded"],
 }
 
 SLOW_VARIANTS = set([

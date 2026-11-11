@@ -117,8 +117,6 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
               (override));
   MOCK_METHOD(QuicSpdyStream*, CreateIncomingStream, (QuicStreamId id),
               (override));
-  MOCK_METHOD(QuicSpdyStream*, CreateIncomingStream, (PendingStream*),
-              (override));
   MOCK_METHOD(QuicSpdyStream*, CreateOutgoingBidirectionalStream, (),
               (override));
 

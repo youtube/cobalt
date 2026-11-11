@@ -16,11 +16,27 @@
 #include <utility>
 
 #include "absl/strings/has_absl_stringify.h"
-#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
+
+namespace string_builder_internal {
+
+struct StringBuilderSink {
+  std::string& s;
+  void Append(absl::string_view part) { s.append(part); }
+};
+
+// AbslFormatFlush is a customization point called by Abseil's formatting
+// library (via ADL). Providing this direct implementation avoids intermediate
+// std::string allocations or buffering overhead (e.g. from absl::StrCat),
+// allowing Abseil to append formatted pieces directly to the sink's string.
+inline void AbslFormatFlush(StringBuilderSink* sink, absl::string_view part) {
+  sink->Append(part);
+}
+
+}  // namespace string_builder_internal
 
 // A string builder that supports dynamic resizing while building a string.
 // The class is based around an instance of std::string and allows moving
@@ -46,7 +62,8 @@ class RTC_EXPORT StringBuilder {
   template <typename T>
     requires absl::HasAbslStringify<T>::value
   StringBuilder& operator<<(const T& value) {
-    str_ += absl::StrCat(value);
+    string_builder_internal::StringBuilderSink sink{str_};
+    AbslStringify(sink, value);
     return *this;
   }
 

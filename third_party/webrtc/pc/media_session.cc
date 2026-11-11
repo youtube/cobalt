@@ -601,7 +601,7 @@ bool CreateMediaContentAnswer(
     MediaContentDescription* answer,
     PayloadTypeSuggester& suggester,
     RtpTransceiverIdDomain id_domain) {
-  answer->set_extmap_allow_mixed_enum(offer->extmap_allow_mixed_enum());
+  answer->set_extmap_allow_mixed_level(offer->extmap_allow_mixed_level());
   const RtpExtension::Filter extensions_filter =
       enable_encrypted_rtp_header_extensions
           ? RtpExtension::Filter::kPreferEncryptedExtension

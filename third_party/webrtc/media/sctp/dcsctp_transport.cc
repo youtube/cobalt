@@ -796,8 +796,6 @@ dcsctp::DcSctpOptions DcSctpTransport::CreateDcSctpOptions(
 
 std::vector<uint8_t> DcSctpTransport::GenerateConnectionToken(
     const Environment& env) {
-  RTC_DCHECK(env.field_trials().IsEnabled("WebRTC-Sctp-Snap"))
-      << "Only implemented under field trial.";
   Random random(env.clock().TimeInMicroseconds());
   auto temp_factory = std::make_unique<dcsctp::DcSctpSocketFactory>();
   return temp_factory->GenerateConnectionToken(

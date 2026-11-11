@@ -68,8 +68,7 @@ namespace v8::internal {
 //       contains the number of the bucket representing the i-th entry of the
 //       table in enumeration order. Entries may contain unitialized data if the
 //       corresponding bucket  hasn't been used before.
-V8_OBJECT class V8_EXPORT_PRIVATE SwissNameDictionary
-    : public HeapObjectLayout {
+V8_OBJECT class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
  public:
   using Group = swiss_table::Group;
 

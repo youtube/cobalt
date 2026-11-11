@@ -225,7 +225,7 @@ declare_args() {
   # This build flag is used to enable block positioning in profile-guided
   # optimization of builtins based on raw execution counts (as opposed to
   # branch hints).
-  v8_enable_builtins_block_position = false
+  v8_enable_builtins_block_position = true
 
   # This build flag is used to control whether reorder builtins according to
   # the call graph with C3 algorithm based builtin PGO profiling.
@@ -643,6 +643,8 @@ if (v8_enable_external_code_space == "") {
 if (v8_enable_sparkplug == "") {
   v8_enable_sparkplug = !v8_jitless
 }
+v8_enable_sparkplug_plus = v8_enable_sparkplug && (v8_current_cpu == "x64" ||
+                                                   v8_current_cpu == "arm64")
 if (v8_enable_maglev == "") {
   v8_enable_maglev =
       v8_enable_turbofan &&
@@ -1257,12 +1259,11 @@ config("features") {
   }
 
   if (v8_enable_pointer_compression) {
-    if (v8_enable_pointer_compression_shared_cage) {
-      defines += [
-        "V8_CONTIGUOUS_COMPRESSED_RO_SPACE",
-        "V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB=${v8_contiguous_compressed_ro_space_size_mb}",
-      ]
-    } else {
+    defines += [
+      "V8_CONTIGUOUS_COMPRESSED_RO_SPACE",
+      "V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB=${v8_contiguous_compressed_ro_space_size_mb}",
+    ]
+    if (!v8_enable_pointer_compression_shared_cage) {
       defines += [ "V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES" ]
     }
   }
@@ -1449,6 +1450,9 @@ config("features") {
   }
   if (v8_enable_sparkplug) {
     defines += [ "V8_ENABLE_SPARKPLUG" ]
+  }
+  if (v8_enable_sparkplug_plus) {
+    defines += [ "V8_ENABLE_SPARKPLUG_PLUS" ]
   }
   if (v8_enable_maglev) {
     defines += [ "V8_ENABLE_MAGLEV" ]
@@ -1693,9 +1697,11 @@ config("toolchain") {
       defines += [ "CAN_USE_RVV_INSTRUCTIONS" ]
       defines += [ "RVV_VLEN=${riscv_rvv_vlen}" ]
     }
-
     if (riscv_use_zicfiss) {
       defines += [ "V8_ENABLE_RISCV_SHADOW_STACK" ]
+    }
+    if (riscv_profile == "rva23u64") {
+      defines += [ "CAN_USE_RVA23U64_INSTRUCTIONS" ]
     }
     if (riscv_use_zicond) {
       defines += [ "__riscv_zicond" ]
@@ -1708,9 +1714,6 @@ config("toolchain") {
     }
     if (riscv_use_zbs) {
       defines += [ "__riscv_zbs" ]
-    }
-    if (riscv_profile == "rva23u64") {
-      defines += [ "__riscv_zfa" ]
     }
     defines += [ "RISCV_CODE_ALIGNMENT=${riscv_code_alignment}" ]
     defines +=
@@ -1796,7 +1799,14 @@ config("toolchain") {
 
   if (is_clang) {
     cflags += [ "-Wunreachable-code" ]
-    if (v8_current_cpu != "ppc64" && v8_current_cpu != "s390x") {
+
+    # Lifetime safety warnings are still under active development upstream
+    # and become stricter fairly frequently. Enable these warnings only when
+    # not building as part of Chromium, so that the warnings becoming stricter
+    # don't block compiler updates in Chromium. We'll resolve these when
+    # rolling the compiler update into V8 instead.
+    if (!build_with_chromium && v8_current_cpu != "ppc64" &&
+        v8_current_cpu != "s390x") {
       cflags += [ "-Wlifetime-safety-permissive" ]
     }
 
@@ -2241,6 +2251,7 @@ torque_files = [
   "src/objects/js-disposable-stack.tq",
   "src/objects/js-function.tq",
   "src/objects/js-generator.tq",
+  "src/objects/js-interceptor-map.tq",
   "src/objects/js-iterator-helpers.tq",
   "src/objects/js-objects.tq",
   "src/objects/js-promise.tq",
@@ -3091,6 +3102,7 @@ action("v8_dump_build_config") {
     "full_debug=$is_full_debug",
     "gdbjit=$v8_enable_gdbjit",
     "has_jitless=$v8_jitless",
+    "sparkplug_plus=$v8_enable_sparkplug_plus",
     "has_maglev=$v8_enable_maglev",
     "has_turbofan=$v8_enable_turbofan",
     "has_webassembly=$v8_enable_webassembly",
@@ -3774,6 +3786,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/backend/register-allocation.h",
     "src/compiler/backend/register-allocator-verifier.h",
     "src/compiler/backend/register-allocator.h",
+    "src/compiler/backend/simd-shuffle.h",
     "src/compiler/backend/spill-placer.h",
     "src/compiler/backend/unwinding-info-writer.h",
     "src/compiler/basic-block-call-graph-profiler.h",
@@ -4344,6 +4357,8 @@ v8_header_set("v8_internal_headers") {
     "src/objects/js-function.h",
     "src/objects/js-generator-inl.h",
     "src/objects/js-generator.h",
+    "src/objects/js-interceptor-map-inl.h",
+    "src/objects/js-interceptor-map.h",
     "src/objects/js-iterator-helpers-inl.h",
     "src/objects/js-iterator-helpers.h",
     "src/objects/js-objects-inl.h",
@@ -4868,7 +4883,6 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/names-provider.h",
       "src/wasm/pgo.h",
       "src/wasm/signature-hashing.h",
-      "src/wasm/simd-shuffle.h",
       "src/wasm/stacks.h",
       "src/wasm/std-object-sizes.h",
       "src/wasm/streaming-decoder.h",
@@ -5409,6 +5423,7 @@ v8_compiler_sources = [
   "src/compiler/backend/move-optimizer.cc",
   "src/compiler/backend/register-allocator-verifier.cc",
   "src/compiler/backend/register-allocator.cc",
+  "src/compiler/backend/simd-shuffle.cc",
   "src/compiler/backend/spill-placer.cc",
   "src/compiler/basic-block-call-graph-profiler.cc",
   "src/compiler/branch-elimination.cc",
@@ -6454,7 +6469,6 @@ v8_cluster_source_set("v8_base_without_compiler") {
       "src/wasm/module-instantiate.cc",
       "src/wasm/names-provider.cc",
       "src/wasm/pgo.cc",
-      "src/wasm/simd-shuffle.cc",
       "src/wasm/stacks.cc",
       "src/wasm/streaming-decoder.cc",
       "src/wasm/sync-streaming-decoder.cc",
@@ -7396,6 +7410,8 @@ v8_component("v8_libbase") {
     deps += [ ":libm" ]
   }
 
+  deps += [ "//third_party/llvm-libc:headers" ]
+
   # TODO(infra): Add support for qnx, freebsd, openbsd, netbsd, and solaris.
 }
 
@@ -7469,6 +7485,10 @@ v8_component("v8_libplatform") {
     ":v8_libbase",
     ":v8_tracing",
   ]
+
+  if (v8_enable_partition_alloc) {
+    deps += [ "//third_party/partition_alloc" ]
+  }
 
   if (v8_use_perfetto) {
     sources -= [
@@ -7992,7 +8012,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ldflags = [ "/OPT:NOICF" ]  # link.exe, but also lld-link.exe.
     } else if (is_apple && !use_lld) {
       ldflags = [ "-Wl,-no_deduplicate" ]  # ld64.
-    } else if (use_lld) {
+    } else if (use_lld || linker_path != "") {
       ldflags = [ "-Wl,--icf=none" ]
     }
   }

@@ -166,9 +166,15 @@ RtpHeaderExtensionCapability::RtpHeaderExtensionCapability(
 RtpHeaderExtensionCapability::~RtpHeaderExtensionCapability() = default;
 
 RtpExtension::RtpExtension() = default;
-RtpExtension::RtpExtension(absl::string_view uri, int id) : uri(uri), id(id) {}
+RtpExtension::RtpExtension(absl::string_view uri, int id) : uri(uri), id(id) {
+  RTC_DCHECK(id >= kMinId && id <= kMaxId)
+      << "Extension ID " << id << " is not in valid range";
+}
 RtpExtension::RtpExtension(absl::string_view uri, int id, bool encrypt)
-    : uri(uri), id(id), encrypt(encrypt) {}
+    : uri(uri), id(id), encrypt(encrypt) {
+  RTC_DCHECK(id >= kMinId && id <= kMaxId)
+      << "Extension ID " << id << " is not in valid range";
+}
 RtpExtension::~RtpExtension() = default;
 
 RtpFecParameters::RtpFecParameters() = default;

@@ -16,6 +16,9 @@
 #include "build/build_config.h"
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/devtools/features.h"
 #include "chrome/browser/feature_engagement/tracker_factory.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
@@ -29,7 +32,6 @@
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/feature_first_run/autofill_ai_first_run_dialog.h"
@@ -1036,6 +1038,36 @@ void MaybeRegisterChromeFeaturePromos(
           .SetCustomActionDismissText(
               IDS_COOKIE_CONTROLS_PROMO_CLOSE_BUTTON_TEXT)));
 
+  // kIPHSmartTabSharingFeature:
+  registry.RegisterFeature(std::move(
+      user_education::FeaturePromoSpecification::CreateForCustomAction(
+          feature_engagement::kIPHSmartTabSharingFeature,
+          ContextualTasksUI::kSmartTabSharingMenuItemElementId,
+          IDS_STS_IPH_PROMPT_FIRST_TIME_ADDING_CONTEXT_MESSAGE_BODY,
+          IDS_STS_IPH_PROMPT_FIRST_TIME_ADDING_CONTEXT_TURN_ON,
+          base::BindRepeating(
+              [](ContextPtr ctx,
+                 user_education::FeaturePromoHandle promo_handle) {
+                Browser* const browser = GetBrowser(ctx);
+                auto* service =
+                    contextual_tasks::ContextualTasksUiServiceFactory::
+                        GetForBrowserContext(browser->profile());
+                if (service) {
+                  service->TurnOnSmartTabSharing(browser);
+                }
+              }))
+          .SetBubbleTitleText(
+              IDS_STS_IPH_PROMPT_FIRST_TIME_ADDING_CONTEXT_HEADER)
+          .SetCustomActionDismissText(IDS_NO_THANKS)
+          .SetCustomActionIsDefault(true)
+          .SetBubbleArrow(user_education::HelpBubbleArrow::kBottomRight)
+          .SetInAnyContext(true)
+          .SetMetadata(
+              148, "orinj@chromium.org",
+              "Triggered when the user opens the '+' context menu in "
+              "composebox "
+              "and Smart Tab Sharing is available but hasn't been used yet.")));
+
   // kIPHReadingListDiscoveryFeature:
   registry.RegisterFeature(
       std::move(FeaturePromoSpecification::CreateForLegacyPromo(
@@ -1700,7 +1732,7 @@ void MaybeRegisterChromeFeaturePromos(
     registry.RegisterFeature(std::move(
         FeaturePromoSpecification::CreateForCustomUi(
             feature_engagement::kIPHiOSEnhancedBrowsingDesktopFeature,
-            kToolbarAppMenuButtonElementId,
+            kToolbarAvatarButtonElementId,
             user_education::CreateCustomHelpBubbleViewFactoryCallback(
                 base::BindRepeating(
                     &IOSPromoBubbleView::Create,

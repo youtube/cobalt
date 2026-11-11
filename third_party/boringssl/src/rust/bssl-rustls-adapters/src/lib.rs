@@ -314,7 +314,6 @@ impl CryptoProviderBuilder {
         self
     }
 
-    #[cfg(feature = "mlalgs")]
     /// Include post-quantum MLKEM hybrid key exchange groups, with a lower priority than previously
     /// registered groups.
     pub fn with_mlkem_groups(mut self) -> Self {

@@ -145,9 +145,6 @@ extra_kv = { allow_unsafe = false }
 [crate.array-init]
 extra_kv = { allow_unsafe = true }
 
-[crate.arrayvec.extra_kv]
-allow_unsafe = true
-
 [crate.autocfg.extra_kv]
 allow_unsafe = false
 
@@ -224,6 +221,10 @@ extra_kv = { allow_unsafe = false }
 [crate.clap_lex.extra_kv]
 allow_unsafe = true
 
+[crate.cobs]
+allow_first_party_usage = false
+extra_kv = { allow_unsafe = false }
+
 [crate.codespan-reporting.extra_kv]
 allow_unsafe = false
 
@@ -285,9 +286,6 @@ allow_unsafe = false
 allow_unsafe = false
 
 [crate.either.extra_kv]
-allow_unsafe = true
-
-[crate.encoding_rs.extra_kv]
 allow_unsafe = true
 
 [crate.equivalent.extra_kv]
@@ -623,6 +621,11 @@ allow_unsafe = false
 configs_to_remove = ['//build/config/compiler:default_optimization']
 configs_to_add = ['//build/config/compiler:optimize']
 
+[crate.postcard]
+group = 'test'
+allow_first_party_usage = false
+extra_kv = { allow_unsafe = true }
+
 [crate.potential_utf.extra_kv]
 allow_unsafe = true
 
@@ -660,8 +663,16 @@ allow_unsafe = false
 extra_input_roots = ['../generated', '../data/generated']
 extra_kv = { allow_unsafe = false }
 
+[crate.regex]
+group = 'test'
+allow_first_party_usage = false
+extra_kv = { allow_unsafe = true }
+
 [crate.regex-automata.extra_kv]
 allow_unsafe = true
+
+[crate.regex-lite]
+extra_kv = { allow_unsafe = false }
 
 [crate.regex-syntax.extra_kv]
 allow_unsafe = false
@@ -687,7 +698,21 @@ extra_build_script_input_roots = ['../build/rustc.rs']
 [crate.ryu.extra_kv]
 allow_unsafe = true
 
+[crate.safe_arch]
+group = 'test'
+allow_first_party_usage = false
+extra_kv = { allow_unsafe = true }
+
+[crate.scc]
+group = 'test'
+allow_first_party_usage = false
+extra_kv = { allow_unsafe = true }
+
 [crate.scopeguard]
+extra_kv = { allow_unsafe = true }
+
+[crate.sdd]
+allow_first_party_usage = false
 extra_kv = { allow_unsafe = true }
 
 [crate.serde]
@@ -707,9 +732,19 @@ allow_unsafe = true
 [crate.serde_json_lenient.extra_kv]
 allow_unsafe = true
 
+[crate.shared-brotli-patch-decoder]
+extra_kv = { allow_unsafe = true, extra_deps = ["//third_party/brotli:dec"] }
+remove_build_rs = true
+remove_deps = ['cc'] # Only used in build.rs
+
 [crate.simd-adler32.extra_kv]
 allow_unsafe = true
 allow_unstable_features = ["stdarch_arm_neon_intrinsics"]
+
+[crate.siphasher]
+group = 'test'
+allow_first_party_usage = false
+extra_kv = { allow_unsafe = true }
 
 [crate.skrifa]
 extra_input_roots = ['../generated']
@@ -764,13 +799,13 @@ allow_unsafe = false
 [crate.symphonia-codec-vorbis.extra_kv]
 allow_unsafe = false
 
+[crate.symphonia-common]
+extra_kv = { allow_unsafe = false }
+
 [crate.symphonia-core.extra_kv]
 allow_unsafe = false
 
 [crate.symphonia-metadata.extra_kv]
-allow_unsafe = false
-
-[crate.symphonia-utils-xiph.extra_kv]
 allow_unsafe = false
 
 [crate.syn.extra_kv]

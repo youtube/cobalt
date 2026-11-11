@@ -64,9 +64,6 @@ RTCError VerifyExtensionIds(const RtpHeaderExtensions& extensions) {
   using ExtensionsUsed = std::bitset<1 + RtpExtension::kMaxId>;
   ExtensionsUsed id_used;
   for (const auto& extension : extensions) {
-    if (extension.id == 0) {
-      continue;
-    }
     if (extension.id < RtpExtension::kMinId ||
         extension.id > RtpExtension::kMaxId) {
       return RTCError::InvalidParameter()
@@ -239,9 +236,6 @@ RTCError RtpTransport::VerifyRtpHeaderExtensionMap(
   }
 
   for (const auto& new_extension : extensions) {
-    if (new_extension.id == 0) {
-      continue;
-    }
     // TODO: bugs.webrtc.org/503013383 - Introduce checking against IDs that are
     // currently not present in the SDP, but have been used in previous
     // negotiation rounds. Reusing extensions with a different ID is a protocol

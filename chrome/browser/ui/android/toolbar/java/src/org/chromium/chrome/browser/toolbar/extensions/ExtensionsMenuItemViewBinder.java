@@ -9,6 +9,10 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.core.view.AccessibilityDelegateCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
+
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsMenuTypes.ControlState.Status;
@@ -22,6 +26,16 @@ import org.chromium.ui.modelutil.PropertyModel;
  */
 @NullMarked
 public class ExtensionsMenuItemViewBinder {
+    private static final AccessibilityDelegateCompat sForceFocusableDelegate =
+            new AccessibilityDelegateCompat() {
+                @Override
+                public void onInitializeAccessibilityNodeInfo(
+                        View host, AccessibilityNodeInfoCompat info) {
+                    super.onInitializeAccessibilityNodeInfo(host, info);
+                    info.setFocusable(true);
+                }
+            };
+
     public static void bind(PropertyModel model, View view, PropertyKey key) {
         if (key == ExtensionsMenuItemProperties.TITLE) {
             TextView titleView = view.findViewById(R.id.extensions_menu_item_title);
@@ -38,6 +52,12 @@ public class ExtensionsMenuItemViewBinder {
             view.findViewById(R.id.extensions_menu_item_context_menu)
                     .setOnClickListener(
                             model.get(ExtensionsMenuItemProperties.CONTEXT_MENU_BUTTON_ON_CLICK));
+        } else if (key == ExtensionsMenuItemProperties.CONTEXT_MENU_BUTTON_ACCESSIBLE_NAME) {
+            view.findViewById(R.id.extensions_menu_item_context_menu)
+                    .setContentDescription(
+                            model.get(
+                                    ExtensionsMenuItemProperties
+                                            .CONTEXT_MENU_BUTTON_ACCESSIBLE_NAME));
         } else if (key == ExtensionsMenuItemProperties.PRIMARY_ACTION_ON_CLICK) {
             view.findViewById(R.id.extensions_menu_item_primary_action)
                     .setOnClickListener(
@@ -60,6 +80,9 @@ public class ExtensionsMenuItemViewBinder {
             MaterialSwitchWithText toggle = view.findViewById(R.id.extensions_menu_item_toggle);
             toggle.setVisibility(status == Status.HIDDEN ? View.GONE : View.VISIBLE);
             toggle.setEnabled(status == Status.ENABLED);
+            // Force the view to be focusable for accessibility even when disabled,
+            // so screen readers can navigate to it.
+            ViewCompat.setAccessibilityDelegate(toggle, sForceFocusableDelegate);
         } else if (key == ExtensionsMenuItemProperties.SITE_ACCESS_TOGGLE_TOOLTIP) {
             MaterialSwitchWithText toggle = view.findViewById(R.id.extensions_menu_item_toggle);
             toggle.setTooltipText(
@@ -91,9 +114,16 @@ public class ExtensionsMenuItemViewBinder {
             button.setEnabled(isEnabled);
             icon.setEnabled(isEnabled);
             enterpriseIcon.setEnabled(isEnabled);
+            // Force the view to be focusable for accessibility even when disabled,
+            // so screen readers can navigate to it.
+            ViewCompat.setAccessibilityDelegate(layout, sForceFocusableDelegate);
         } else if (key == ExtensionsMenuItemProperties.SITE_PERMISSIONS_BUTTON_TEXT) {
             TextView button = view.findViewById(R.id.extensions_menu_item_site_permissions_button);
             button.setText(model.get(ExtensionsMenuItemProperties.SITE_PERMISSIONS_BUTTON_TEXT));
+        } else if (key == ExtensionsMenuItemProperties.SITE_PERMISSIONS_BUTTON_TOOLTIP) {
+            View layout = view.findViewById(R.id.extensions_menu_item_site_permissions_layout);
+            layout.setTooltipText(
+                    model.get(ExtensionsMenuItemProperties.SITE_PERMISSIONS_BUTTON_TOOLTIP));
         } else if (key == ExtensionsMenuItemProperties.IS_ENTERPRISE) {
             boolean isEnterprise = model.get(ExtensionsMenuItemProperties.IS_ENTERPRISE);
             View icon = view.findViewById(R.id.extensions_menu_item_site_permissions_icon);

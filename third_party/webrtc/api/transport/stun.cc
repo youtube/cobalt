@@ -35,10 +35,8 @@
 #include "rtc_base/net_helpers.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/span_helpers.h"
+#include "rtc_base/string_utils.h"
 #include "system_wrappers/include/metrics.h"
-
-using ::webrtc::ByteBufferReader;
-using ::webrtc::ByteBufferWriter;
 
 namespace webrtc {
 
@@ -144,6 +142,15 @@ static bool DesignatedExpertRange(int attr_type) {
 }
 
 void StunMessage::AddAttribute(std::unique_ptr<StunAttribute> attr) {
+  // Once a message is signed, adding attributes is a programming error.
+  // Exceptions are the Integrity attributes and Fingerprint.
+  if (attr->type() != STUN_ATTR_MESSAGE_INTEGRITY &&
+      attr->type() != STUN_ATTR_GOOG_MESSAGE_INTEGRITY_32 &&
+      attr->type() != STUN_ATTR_FINGERPRINT) {
+    RTC_CHECK(integrity_ != IntegrityStatus::kIntegrityOk)
+        << "You cannot add attributes to a signed STUN message."
+        << " Message type was 0x" << ToHex(attr->type());
+  }
   // Fail any attributes that aren't valid for this type of message,
   // but allow any type for the range that in the RFC is reserved for
   // the "designated experts".
@@ -162,6 +169,12 @@ void StunMessage::AddAttribute(std::unique_ptr<StunAttribute> attr) {
 }
 
 std::unique_ptr<StunAttribute> StunMessage::RemoveAttribute(int type) {
+  if (type != STUN_ATTR_MESSAGE_INTEGRITY &&
+      type != STUN_ATTR_GOOG_MESSAGE_INTEGRITY_32) {
+    // Removing attributes will break integrity, so don't allow
+    // removing attributes from a signed message.
+    RTC_CHECK(integrity_ != IntegrityStatus::kIntegrityOk);
+  }
   std::unique_ptr<StunAttribute> attribute;
   for (auto it = attrs_.rbegin(); it != attrs_.rend(); ++it) {
     if ((*it)->type() == type) {
@@ -177,6 +190,12 @@ std::unique_ptr<StunAttribute> StunMessage::RemoveAttribute(int type) {
       attr_length += (4 - (attr_length % 4));
     }
     length_ -= static_cast<uint16_t>(attr_length + 4);
+    if (type == STUN_ATTR_MESSAGE_INTEGRITY ||
+        type == STUN_ATTR_GOOG_MESSAGE_INTEGRITY_32) {
+      // If the message was signed, it is now unsigned, and adding more
+      // attributes is possible.
+      integrity_ = IntegrityStatus::kNotSet;
+    }
   }
   return attribute;
 }
@@ -187,6 +206,7 @@ void StunMessage::ClearAttributes() {
   }
   attrs_.clear();
   length_ = 0;
+  integrity_ = IntegrityStatus::kNotSet;
 }
 
 std::vector<uint16_t> StunMessage::GetNonComprehendedAttributes() const {

@@ -179,7 +179,7 @@ MaybeDirectHandle<String> CreateExternalizableString(
   // space in that case. Note that this is also true for non-canonicalized
   // ConsStrings that TurboFan might create (the first part is empty), so we
   // explicitly check for that case as well.
-  if (IsConsString(*string, i_isolate) && !string->IsFlat() &&
+  if (IsConsString(*string) && !string->IsFlat() &&
       Cast<ConsString>(string)->first()->length() != 0) {
     DirectHandle<String> result;
     if (CopyConsStringToOld(i_isolate, Cast<ConsString>(string), encoding)

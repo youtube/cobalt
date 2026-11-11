@@ -25,8 +25,6 @@ class QUICHE_EXPORT QuicSpdyClientStream : public QuicSpdyStream {
  public:
   QuicSpdyClientStream(QuicStreamId id, QuicSpdyClientSession* session,
                        StreamType type);
-  QuicSpdyClientStream(PendingStream& pending,
-                       QuicSpdyClientSession* spdy_session);
   QuicSpdyClientStream(const QuicSpdyClientStream&) = delete;
   QuicSpdyClientStream& operator=(const QuicSpdyClientStream&) = delete;
   ~QuicSpdyClientStream() override;

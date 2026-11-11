@@ -8,6 +8,7 @@
 #include "src/objects/js-generator.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/objects/js-function.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/tagged-field-inl.h"
 

@@ -262,4 +262,18 @@ constexpr base::FeatureParam<bool> kEnableRecentTabsTip{
     &kAndroidTipsNotificationsV2, "enable_recent_tabs_tip",
     /*default_value=*/true};
 
+BASE_FEATURE(kNewTabPageCustomizationV2, base::FEATURE_DISABLED_BY_DEFAULT);
+constexpr base::FeatureParam<bool> kNewTabPageCustomizationV2ShowPromo{
+    &kNewTabPageCustomizationV2, "show_promo",
+    /*default_value=*/false};
+
+constexpr base::FeatureParam<int> kNewTabPageCustomizationV2IphMaxImpression{
+    &kNewTabPageCustomizationV2, "iph_max_impression",
+    /*default_value=*/5};
+
+constexpr base::FeatureParam<int>
+    kNewTabPageCustomizationV2IphDisplayIntervalDays{
+        &kNewTabPageCustomizationV2, "iph_display_interval_days",
+        /*default_value=*/14};
+
 }  // namespace segmentation_platform::features

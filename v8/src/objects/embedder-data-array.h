@@ -21,7 +21,7 @@ namespace internal {
 // It's basically an "array of EmbedderDataSlots".
 // Note, if the pointer compression is enabled the embedder data slot also
 // contains a raw data part in addition to tagged part.
-V8_OBJECT class EmbedderDataArray : public HeapObjectLayout {
+V8_OBJECT class EmbedderDataArray : public HeapObject {
  public:
   inline int length() const;
   inline void set_length(int value);

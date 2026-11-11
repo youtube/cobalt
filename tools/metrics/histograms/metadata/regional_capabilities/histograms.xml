@@ -57,7 +57,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RegionalCapabilities.Debug.AndroidProgramResolution"
-    enum="AndroidProgramResolution" expires_after="2026-09-01">
+    enum="AndroidProgramResolution" expires_after="2026-11-01">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -68,7 +68,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RegionalCapabilities.Debug.DefaultHighlightingResult"
-    enum="BooleanSuccess" expires_after="2026-03-01">
+    enum="BooleanSuccess" expires_after="2026-09-01">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -81,11 +81,14 @@ chromium-metrics-reviews@google.com.
     display on that choice screen. Should be emitted once per profile that show
     the choice screen, even if multiple windows (on desktop) are each showing a
     dialog.
+
+    Warning: this histogram was expired from 2026-03-01 to 2026-05-04; data may
+    be missing.
   </summary>
 </histogram>
 
 <histogram name="RegionalCapabilities.Debug.HasActiveRegionalProgram"
-    enum="Boolean" expires_after="2026-09-01">
+    enum="Boolean" expires_after="2026-11-01">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -96,7 +99,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RegionalCapabilities.Debug.ProgramSpecificExclusion"
-    enum="RegionalProgramSpecificExclusion" expires_after="2026-09-01">
+    enum="RegionalProgramSpecificExclusion" expires_after="2026-11-01">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -212,7 +215,7 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.ThenChange(tools/metrics/histograms/metadata/puma/histograms.xml:PUMA.RegionalCapabilities.FunnelStage.Triggering) -->
 
 <histogram name="RegionalCapabilities.LoadedCountrySource"
-    enum="LoadedCapabilitiesCountrySource" expires_after="2026-09-06">
+    enum="LoadedCapabilitiesCountrySource" expires_after="2026-11-08">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -224,7 +227,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RegionalCapabilities.PersistedCountryMatching"
-    enum="CountryMatchingStatus" expires_after="2026-09-06">
+    enum="CountryMatchingStatus" expires_after="2026-11-08">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>

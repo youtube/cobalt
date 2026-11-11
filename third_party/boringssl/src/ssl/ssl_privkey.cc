@@ -76,7 +76,7 @@ static const SSL_SIGNATURE_ALGORITHM kSignatureAlgorithms[] = {
      /*client_only=*/false},
 
     // Legacy PKCS#1 v1.5 code points are only allowed in TLS 1.3 and
-    // client-only. See draft-ietf-tls-tls13-pkcs1-00.
+    // client-only. See RFC 9963.
     {SSL_SIGN_RSA_PKCS1_SHA256_LEGACY, EVP_PKEY_RSA, NID_undef, &EVP_sha256,
      /*is_rsa_pss=*/false, /*tls12_ok=*/false, /*tls13_ok=*/true,
      /*client_only=*/true},

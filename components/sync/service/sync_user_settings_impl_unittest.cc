@@ -179,10 +179,6 @@ TEST_F(SyncUserSettingsImplTest, PreferredTypesSyncEverything) {
   // now mapped to a selectable type.
   expected_types.Remove(ACCESSIBILITY_ANNOTATION);
 
-  // TODO(crbug.com/488439751): In CL #3, delete (THEMES_ANDROID is now mapped
-  // to a selectable type.
-  expected_types.Remove(THEMES_ANDROID);
-
 #if BUILDFLAG(IS_CHROMEOS)
   expected_types.RemoveAll({WEB_APKS});
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -276,15 +272,18 @@ TEST_F(SyncUserSettingsImplTest,
   // History and Tabs require a separate opt-in.
   // SavedTabGroups also requires a separate opt-in, either the same one as
   // history and tabs (on mobile), or a dedicated opt-in.
-  // Cookies are not supported in transport mode.
   UserSelectableTypeSet expected_disabled_types = {
       UserSelectableType::kHistory, UserSelectableType::kTabs,
-      UserSelectableType::kSavedTabGroups, UserSelectableType::kCookies};
+      UserSelectableType::kSavedTabGroups};
 
 #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
   // Themes is not supported on mobile.
   expected_disabled_types.Put(UserSelectableType::kThemes);
 #endif
+#if !BUILDFLAG(IS_CHROMEOS)
+  // Cookies is only supported on ChromeOS.
+  expected_disabled_types.Put(UserSelectableType::kCookies);
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   EXPECT_THAT(
       sync_user_settings->GetSelectedTypes(),
@@ -360,9 +359,6 @@ TEST_F(SyncUserSettingsImplTest, PreferredTypesSyncAllOsTypes) {
   // now mapped to a selectable type.
   expected_types.Remove(ACCESSIBILITY_ANNOTATION);
 
-  // TODO(crbug.com/488439751): In CL #3, delete (THEMES_ANDROID is now mapped
-  // to a selectable type.
-  expected_types.Remove(THEMES_ANDROID);
   EXPECT_TRUE(sync_user_settings->IsSyncAllOsTypesEnabled());
   EXPECT_THAT(GetPreferredUserTypes(*sync_user_settings),
               ContainerEq(expected_types));

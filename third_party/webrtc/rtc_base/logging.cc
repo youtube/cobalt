@@ -18,6 +18,7 @@
 #include <cstring>
 #include <ctime>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -554,8 +555,23 @@ void Log(const LogArgType* fmt, ...) {
       tag = tag_meta.tag;
       break;
     }
+#else
+    case LogArgType::kReserved:
 #endif
-    default: {
+    case LogArgType::kEnd:
+    case LogArgType::kInt:
+    case LogArgType::kLong:
+    case LogArgType::kLongLong:
+    case LogArgType::kUInt:
+    case LogArgType::kULong:
+    case LogArgType::kULongLong:
+    case LogArgType::kDouble:
+    case LogArgType::kLongDouble:
+    case LogArgType::kCharP:
+    case LogArgType::kStdString:
+    case LogArgType::kStringView:
+    case LogArgType::kVoidP:
+    case LogArgType::kStdStringView: {
       RTC_DCHECK_NOTREACHED();
       va_end(args);
       return;
@@ -591,6 +607,9 @@ void Log(const LogArgType* fmt, ...) {
       case LogArgType::kDouble:
         log_message.stream() << va_arg(args, double);
         break;
+      case LogArgType::kLongDouble:
+        log_message.stream().AppendFormat("%Lf", va_arg(args, long double));
+        break;
       case LogArgType::kCharP: {
         const char* s = va_arg(args, const char*);
         log_message.stream() << (s ? s : "(null)");
@@ -602,14 +621,26 @@ void Log(const LogArgType* fmt, ...) {
       case LogArgType::kStringView:
         log_message.stream() << *va_arg(args, const absl::string_view*);
         break;
+      case LogArgType::kStdStringView:
+        log_message.stream() << *va_arg(args, const std::string_view*);
+        break;
       case LogArgType::kVoidP:
         log_message.stream()
             << ToHex(reinterpret_cast<uintptr_t>(va_arg(args, const void*)));
         break;
-      default:
+      case LogArgType::kEnd:
+      case LogArgType::kLogMetadata:
+      case LogArgType::kLogMetadataErr:
+#ifdef WEBRTC_ANDROID
+      case LogArgType::kLogMetadataTag:
+#else
+      case LogArgType::kReserved:
+#endif
+      {
         RTC_DCHECK_NOTREACHED();
         va_end(args);
         return;
+      }
     }
   }
 

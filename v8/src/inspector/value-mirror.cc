@@ -51,8 +51,9 @@ Response arrayToProtocolValue(v8::Local<v8::Context> context,
   uint32_t length = array->Length();
   for (uint32_t i = 0; i < length; i++) {
     v8::Local<v8::Value> value;
-    if (!array->Get(context, i).ToLocal(&value))
+    if (!array->Get(context, i).ToLocal(&value)) {
       return Response::InternalError();
+    }
     std::unique_ptr<protocol::Value> element;
     Response response = toProtocolValue(context, value, maxDepth - 1, &element);
     if (!response.IsSuccess()) return response;
@@ -68,25 +69,30 @@ Response objectToProtocolValue(
   std::unique_ptr<protocol::DictionaryValue> jsonObject =
       protocol::DictionaryValue::create();
   v8::Local<v8::Array> propertyNames;
-  if (!object->GetOwnPropertyNames(context).ToLocal(&propertyNames))
+  if (!object->GetOwnPropertyNames(context).ToLocal(&propertyNames)) {
     return Response::InternalError();
+  }
   uint32_t length = propertyNames->Length();
   for (uint32_t i = 0; i < length; i++) {
     v8::Local<v8::Value> name;
-    if (!propertyNames->Get(context, i).ToLocal(&name))
+    if (!propertyNames->Get(context, i).ToLocal(&name)) {
       return Response::InternalError();
+    }
     if (name->IsString()) {
       v8::Maybe<bool> hasRealNamedProperty =
           object->HasRealNamedProperty(context, name.As<v8::String>());
       // Don't access properties with interceptors.
-      if (hasRealNamedProperty.IsNothing() || !hasRealNamedProperty.FromJust())
+      if (hasRealNamedProperty.IsNothing() ||
+          !hasRealNamedProperty.FromJust()) {
         continue;
+      }
     }
     v8::Local<v8::String> propertyName;
     if (!name->ToString(context).ToLocal(&propertyName)) continue;
     v8::Local<v8::Value> property;
-    if (!object->Get(context, name).ToLocal(&property))
+    if (!object->Get(context, name).ToLocal(&property)) {
       return Response::InternalError();
+    }
     if (property->IsUndefined()) continue;
     std::unique_ptr<protocol::Value> propertyValue;
     Response response =
@@ -117,8 +123,9 @@ std::unique_ptr<protocol::FundamentalValue> toProtocolValue(
 Response toProtocolValue(v8::Local<v8::Context> context,
                          v8::Local<v8::Value> value, int maxDepth,
                          std::unique_ptr<protocol::Value>* result) {
-  if (maxDepth <= 0)
+  if (maxDepth <= 0) {
     return Response::ServerError("Object reference chain is too long");
+  }
 
   if (value->IsNull() || value->IsUndefined()) {
     *result = protocol::Value::null();
@@ -253,8 +260,9 @@ String16 descriptionForRegExp(v8::Isolate* isolate,
 }
 
 v8::Local<v8::Function> deepBoundFunction(v8::Local<v8::Function> function) {
-  while (function->GetBoundFunction()->IsFunction())
+  while (function->GetBoundFunction()->IsFunction()) {
     function = function->GetBoundFunction().As<v8::Function>();
+  }
   return function;
 }
 
@@ -533,8 +541,9 @@ class PrimitiveValueMirror final : public ValueMirrorBase {
             .setOverflow(false)
             .setProperties(std::make_unique<protocol::Array<PropertyPreview>>())
             .build();
-    if (value->IsNull())
+    if (value->IsNull()) {
       (*preview)->setSubtype(RemoteObject::SubtypeEnum::Null);
+    }
   }
 
   void buildPropertyPreview(
@@ -547,8 +556,9 @@ class PrimitiveValueMirror final : public ValueMirrorBase {
                        descriptionForPrimitiveType(context, value), kMiddle))
                    .setType(m_type)
                    .build();
-    if (value->IsNull())
+    if (value->IsNull()) {
       (*preview)->setSubtype(RemoteObject::SubtypeEnum::Null);
+    }
   }
 
   Response buildDeepSerializedValue(
@@ -1271,10 +1281,11 @@ class ObjectMirror final : public ValueMirrorBase {
     if (embedderDeepSerializedResult) {
       // Embedder-implemented serialization.
 
-      if (!embedderDeepSerializedResult->isSuccess)
+      if (!embedderDeepSerializedResult->isSuccess) {
         return Response::ServerError(
             toString16(embedderDeepSerializedResult->errorMessage->string())
                 .utf8());
+      }
 
       (*result)->setString(
           "type",
@@ -1735,8 +1746,9 @@ std::vector<PrivatePropertyMirror> ValueMirror::getPrivateProperties(
   int filter =
       static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateAccessors) |
       static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateFields);
-  if (!v8::debug::GetPrivateMembers(context, object, filter, &names, &values))
+  if (!v8::debug::GetPrivateMembers(context, object, filter, &names, &values)) {
     return mirrors;
+  }
 
   size_t len = values.size();
   for (size_t i = 0; i < len; i++) {

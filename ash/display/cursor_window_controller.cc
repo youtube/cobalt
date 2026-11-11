@@ -63,6 +63,7 @@ std::vector<gfx::ImageSkia> GetCursorImages(
     int target_cursor_size_in_dip,
     float dsf,
     SkColor cursor_color,
+    std::optional<SkColor> outline_color,
     gfx::Point* out_hotspot_in_physical_pixels) {
   std::vector<gfx::ImageSkia> images;
   // Rotation is handled in viz (for aura::Window based cursor)
@@ -73,7 +74,7 @@ std::vector<gfx::ImageSkia> GetCursorImages(
       cursor_size == ui::CursorSize::kLarge
           ? std::make_optional(target_cursor_size_in_dip * dsf)
           : std::nullopt,
-      display::Display::ROTATE_0, cursor_color);
+      display::Display::ROTATE_0, cursor_color, outline_color);
   if (!cursor_data) {
     return images;
   }
@@ -401,10 +402,6 @@ CursorWindowController::~CursorWindowController() {
   SetContainer(NULL);
 }
 
-void CursorWindowController::Init() {
-  Shell::Get()->UpdateCursorCompositingEnabled();
-}
-
 void CursorWindowController::AddObserver(Observer* observer) {
   observers_.AddObserver(observer);
 }
@@ -442,9 +439,21 @@ void CursorWindowController::SetCursorColor(SkColor cursor_color) {
     UpdateCursorImage();
 }
 
+void CursorWindowController::SetCursorInverted(bool inverted) {
+  if (is_inverted_ == inverted) {
+    return;
+  }
+
+  is_inverted_ = inverted;
+
+  // Reset cursor lottie animation cache when new color needs to be applied.
+  wm::ClearCursorAnimationCache();
+
+  UpdateCursorMode();
+}
+
 bool CursorWindowController::ShouldEnableCursorCompositing() {
-  if (::features::IsAccessibilityInvertedMouseCursorEnabled() &&
-      cursor_color_ == ui::kDefaultCursorColor) {
+  if (::features::IsAccessibilityInvertedMouseCursorEnabled() && is_inverted_) {
     return true;
   }
 
@@ -672,6 +681,10 @@ SkColor CursorWindowController::GetCursorColorForTest() const {
   return cursor_color_;
 }
 
+bool CursorWindowController::IsCursorInvertedForTest() const {
+  return is_inverted_;
+}
+
 gfx::Rect CursorWindowController::GetCursorBoundsInScreenForTest() const {
   if (cursor_view_widget_) {
     gfx::Rect cursor_rect =
@@ -740,8 +753,8 @@ void CursorWindowController::UpdateCursorImage() {
   gfx::Point hot_point_in_physical_pixels;
 
   // Only use inverted mode if no other cursor color was set.
-  bool use_inverted = ::features::IsAccessibilityInvertedMouseCursorEnabled() &&
-                      cursor_color_ == ui::kDefaultCursorColor;
+  bool use_inverted =
+      ::features::IsAccessibilityInvertedMouseCursorEnabled() && is_inverted_;
   SkColor fill_color = use_inverted ? kFillColorForInvert : cursor_color_;
 
   if (cursor_.type() == ui::mojom::CursorType::kCustom) {
@@ -790,9 +803,14 @@ void CursorWindowController::UpdateCursorImage() {
     // Standard cursor.
     const float dsf = display_.device_scale_factor();
 
-    images =
-        GetCursorImages(cursor_size_, cursor_.type(), large_cursor_size_in_dip_,
-                        dsf, fill_color, &hot_point_in_physical_pixels);
+    std::optional<SkColor> outline_color;
+    if (use_inverted) {
+      outline_color = SK_ColorWHITE;
+    }
+
+    images = GetCursorImages(cursor_size_, cursor_.type(),
+                             large_cursor_size_in_dip_, dsf, fill_color,
+                             outline_color, &hot_point_in_physical_pixels);
     if (images.empty()) {
       return;
     }
@@ -867,8 +885,7 @@ const gfx::ImageSkia& CursorWindowController::GetCursorImageForTest() const {
 bool CursorWindowController::ShouldUseFastInk() const {
   // If inverted cursor is enabled, we want to use the aura::Window path to
   // support the inverted cursor feature.
-  if (::features::IsAccessibilityInvertedMouseCursorEnabled() &&
-      cursor_color_ == ui::kDefaultCursorColor) {
+  if (::features::IsAccessibilityInvertedMouseCursorEnabled() && is_inverted_) {
     return false;
   }
 

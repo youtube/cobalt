@@ -404,8 +404,9 @@ template <typename LineEndsContainer>
 bool Script::GetPositionInfoInternal(
     const LineEndsContainer& ends, int position, Script::PositionInfo* info,
     const DisallowGarbageCollection& no_gc) const {
-  if (!GetLineEndsContainerPositionInfo(ends, position, info, no_gc))
+  if (!GetLineEndsContainerPositionInfo(ends, position, info, no_gc)) {
     return false;
+  }
 
   // Line end is position of the linebreak character.
   info->line_end = GetLineEnd(ends, info->line);
@@ -530,10 +531,9 @@ DirectHandle<String> Script::GetScriptHash(Isolate* isolate,
     return isolate->factory()->empty_string();
   }
 
-  PtrComprCageBase cage_base(isolate);
   {
     Tagged<Object> maybe_source_hash = script->source_hash();
-    if (IsString(maybe_source_hash, cage_base)) {
+    if (IsString(maybe_source_hash)) {
       DirectHandle<String> precomputed(Cast<String>(maybe_source_hash),
                                        isolate);
       if (precomputed->length() > 0) {
@@ -546,7 +546,7 @@ DirectHandle<String> Script::GetScriptHash(Isolate* isolate,
   {
     Tagged<Object> maybe_script_source = script->source();
 
-    if (!IsString(maybe_script_source, cage_base)) {
+    if (!IsString(maybe_script_source)) {
       return isolate->factory()->empty_string();
     }
     src_text = direct_handle(Cast<String>(maybe_script_source), isolate);

@@ -132,7 +132,7 @@ void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
   if (v8_flags.debug_code) {
     __ AssertMap(map);
   }
-  __ Ld(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  __ Ld(type, FieldMemOperand(map, offsetof(Map, instance_type_)));
   __ Branch(target, cc, type, Operand(instance_type));
 }
 void BaselineAssembler::JumpIfPointer(Condition cc, Register value,

@@ -85,7 +85,7 @@ static_assert(sizeof(struct poly1305_state_internal_t) + 63 <=
               "poly1305_state_internal_t");
 
 poly1305_state_internal *poly1305_aligned_state(poly1305_state *state) {
-  return (poly1305_state_internal *)(((uint64_t)state + 63) & ~63);
+  return reinterpret_cast<poly1305_state_internal *>(align_pointer(state, 64));
 }
 
 size_t poly1305_min(size_t a, size_t b) { return (a < b) ? a : b; }

@@ -10,6 +10,7 @@
 #include <stddef.h>
 
 #include <string>
+#include <vector>
 
 #include "base/apple/foundation_util.h"
 #include "base/apple/scoped_objc_class_swizzler.h"
@@ -55,7 +56,6 @@
 #include "chrome/browser/shortcuts/chrome_webloc_file.h"
 #include "chrome/browser/signin/signin_util.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
@@ -191,6 +191,18 @@ class ProfileDestructionWaiter {
 
 @end
 
+@interface AppController (ConfirmQuitPanelTesting)
+- (BOOL)test_runConfirmQuitPanel;
+@end
+
+@implementation AppController (ConfirmQuitPanelTesting)
+
+- (BOOL)test_runConfirmQuitPanel {
+  return NO;
+}
+
+@end
+
 namespace {
 
 using AppControllerBrowserTest = InProcessBrowserTest;
@@ -241,6 +253,28 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest, CommandDuringShutdown) {
                          withObject:cmd_n
                          afterDelay:0];
   // Let the run loop get flushed, during process cleanup and try not to crash.
+}
+
+IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest,
+                       CancelConfirmQuitResetsClosingAllBrowsers) {
+  base::apple::ScopedObjCClassSwizzler swizzler(
+      [AppController class], @selector(runConfirmQuitPanel),
+      @selector(test_runConfirmQuitPanel));
+
+  std::vector<bool> closing_all_browsers_notifications;
+  base::CallbackListSubscription subscription =
+      chrome::AddClosingAllBrowsersCallback(base::BindRepeating(
+          [](std::vector<bool>* notifications, bool closing) {
+            notifications->push_back(closing);
+          },
+          base::Unretained(&closing_all_browsers_notifications)));
+
+  chrome::AttemptUserExit();
+
+  ASSERT_EQ(2u, closing_all_browsers_notifications.size());
+  EXPECT_TRUE(closing_all_browsers_notifications[0]);
+  EXPECT_FALSE(closing_all_browsers_notifications[1]);
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
 }
 
 class AppControllerKeepAliveBrowserTest : public InProcessBrowserTest {
@@ -859,25 +893,19 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest, OpenUrlInGuestBrowser) {
 // Tests that when a GURL is opened while incognito forced and there is no
 // browser opened, it is opened in a new incognito browser.
 // Test for https://crbug.com/40912038#comment9
-// TODO(crbug.com/505499902): Re-enable this test once it's no longer flaky.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_OpenUrlWhenForcedIncognito DISABLED_OpenUrlWhenForcedIncognito
-#else
-#define MAYBE_OpenUrlWhenForcedIncognito OpenUrlWhenForcedIncognito
-#endif
-IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest,
-                       MAYBE_OpenUrlWhenForcedIncognito) {
+IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest, OpenUrlWhenForcedIncognito) {
   ASSERT_TRUE(embedded_test_server()->Start());
-  EXPECT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(), 1u);
-  // Close the current non-incognito browser.
   Profile* profile = browser()->profile();
+  base::FilePath original_profile_base_name = profile->GetBaseName();
+  // Force incognito mode.
+  IncognitoModePrefs::SetAvailability(
+      profile->GetPrefs(), policy::IncognitoModeAvailability::kForced);
+  // Close the current non-incognito browser.
+  EXPECT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(), 1u);
   ui_test_utils::BrowserDestroyedObserver observer(browser());
   chrome::CloseAllBrowsers();
   observer.Wait();
   EXPECT_TRUE(GlobalBrowserCollection::GetInstance()->IsEmpty());
-  // Force incognito mode.
-  IncognitoModePrefs::SetAvailability(
-      profile->GetPrefs(), policy::IncognitoModeAvailability::kForced);
   // Open a url.
   GURL simple(embedded_test_server()->GetURL("/simple.html"));
   content::TestNavigationObserver event_navigation_observer(simple);
@@ -891,7 +919,8 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest,
   EXPECT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(), 1u);
   EXPECT_TRUE(new_browser->GetProfile()->IsIncognitoProfile());
   EXPECT_TRUE(new_browser->GetProfile()->IsPrimaryOTRProfile());
-  EXPECT_EQ(profile, new_browser->GetProfile()->GetOriginalProfile());
+  EXPECT_EQ(original_profile_base_name,
+            new_browser->GetProfile()->GetBaseName());
   EXPECT_EQ(simple, new_browser->GetTabStripModel()
                         ->GetActiveWebContents()
                         ->GetLastCommittedURL());
@@ -900,31 +929,19 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest,
 // Tests that when a GURL is opened while incognito forced and an incognito
 // browser is opened, it is opened in the already opened incognito browser.
 // Test for https://crbug.com/40912038#comment9
-// TODO(crbug.com/504176001): Re-enable this test once it's no longer flaky.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_OpenUrlWhenForcedIncognitoAndIncognitoBrowserIsOpened \
-  DISABLED_OpenUrlWhenForcedIncognitoAndIncognitoBrowserIsOpened
-#else
-#define MAYBE_OpenUrlWhenForcedIncognitoAndIncognitoBrowserIsOpened \
-  OpenUrlWhenForcedIncognitoAndIncognitoBrowserIsOpened
-#endif
-IN_PROC_BROWSER_TEST_F(
-    AppControllerBrowserTest,
-    MAYBE_OpenUrlWhenForcedIncognitoAndIncognitoBrowserIsOpened) {
+IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest,
+                       OpenUrlWhenForcedIncognitoAndIncognitoBrowserIsOpened) {
   ASSERT_TRUE(embedded_test_server()->Start());
   EXPECT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(), 1u);
-  // Close the current non-incognito browser.
-  Profile* profile = browser()->profile();
-  ui_test_utils::BrowserDestroyedObserver observer(browser());
-  chrome::CloseAllBrowsers();
-  observer.Wait();
-  EXPECT_TRUE(GlobalBrowserCollection::GetInstance()->IsEmpty());
   // Force incognito mode.
+  Profile* profile = browser()->profile();
   IncognitoModePrefs::SetAvailability(
       profile->GetPrefs(), policy::IncognitoModeAvailability::kForced);
   // Create an incognito browser.
   Browser* incognito_browser = CreateIncognitoBrowser(profile);
   EXPECT_TRUE(incognito_browser->profile()->IsIncognitoProfile());
+  // Close the current non-incognito browser.
+  CloseBrowserSynchronously(browser());
   EXPECT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(), 1u);
   EXPECT_EQ(1, incognito_browser->tab_strip_model()->count());
   EXPECT_EQ(incognito_browser,

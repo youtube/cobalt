@@ -17,8 +17,6 @@ use crate::errors::Error;
 #[cfg(unix)]
 #[test]
 fn ping_pong() -> Result<(), Error> {
-    use std::sync::Arc;
-
     use bssl_x509::{
         certificates::X509Certificate, keys::PrivateKey, params::Trust, store::X509StoreBuilder,
     };
@@ -31,7 +29,7 @@ fn ping_pong() -> Result<(), Error> {
         tests::sync_ping_pong,
     };
 
-    let cache = Arc::new(CertificateCache::new());
+    let cache = CertificateCache::new();
     let ca = Certificate::parse_one_from_pem(CA, Some(&cache))?;
     let server_cert = Certificate::parse_one_from_pem(RSA_SERVER_CERT, Some(&cache))?;
     let server_key = PrivateKey::from_pem(RSA_SERVER_KEY, || unreachable!())?;
@@ -45,7 +43,7 @@ fn ping_pong() -> Result<(), Error> {
         builder.build()
     };
     server_ctx_builder
-        .with_certificate_cache(Some(Arc::clone(&cache)))
+        .with_certificate_cache(Some(&cache))
         .with_credential(server_cred.unwrap())?;
     let server_ctx = server_ctx_builder.build();
     let mut server_conn = server_ctx.new_server_connection(None)?.build();
@@ -57,7 +55,7 @@ fn ping_pong() -> Result<(), Error> {
         .add_cert(X509Certificate::parse_one_from_pem(&CA)?)?;
     let cert_store = cert_store.build();
     client_ctx_builder
-        .with_certificate_cache(Some(Arc::clone(&cache)))
+        .with_certificate_cache(Some(&cache))
         .with_certificate_store(&cert_store);
     let client_ctx = client_ctx_builder.build();
     let mut client_conn = client_ctx.new_client_connection(None)?;

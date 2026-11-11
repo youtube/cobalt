@@ -149,7 +149,7 @@ void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
   if (v8_flags.debug_code) {
     __ AssertMap(map);
   }
-  __ Ld_hu(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  __ Ld_hu(type, FieldMemOperand(map, offsetof(Map, instance_type_)));
   __ Branch(target, cc, type, Operand(instance_type));
 }
 void BaselineAssembler::JumpIfSmi(Condition cc, Register value, Tagged<Smi> smi,

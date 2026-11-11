@@ -111,7 +111,6 @@ rtc_library("timing_module") {
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
     "../../../rtc_base:macromagic",
-    "../../../rtc_base/experiments:field_trial_parser",
     "../../../rtc_base/synchronization:mutex",
     "../../../system_wrappers",
   ]

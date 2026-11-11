@@ -588,9 +588,10 @@ Maybe<temporal_rs::ArithmeticOverflow> ToTemporalOverflowHandleUndefined(
     const char* method_name) {
   DirectHandle<Object> options;
   // Default is "constrain"
-  if (!maybe_options.ToHandle(&options) || IsUndefined(*options))
+  if (!maybe_options.ToHandle(&options) || IsUndefined(*options)) {
     return Just(temporal_rs::ArithmeticOverflow(
         temporal_rs::ArithmeticOverflow::Constrain));
+  }
   auto overflow_ident = isolate->factory()->overflow_string();
   if (!IsJSReceiver(*options)) {
     // (GetOptionsObject) 3. Throw a TypeError exception.
@@ -1028,7 +1029,7 @@ Maybe<temporal_rs::DisplayCalendar> GetTemporalShowCalendarNameOption(
 // convenience method for getting the "calendar" field off of a Temporal object
 std::optional<temporal_rs::AnyCalendarKind> ExtractCalendarFrom(
     Isolate* isolate, Tagged<HeapObject> calendar_like) {
-  InstanceType instance_type = calendar_like->map(isolate)->instance_type();
+  InstanceType instance_type = calendar_like->map()->instance_type();
   // a. If temporalCalendarLike has an [[InitializedTemporalDate]],
   // [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]],
   // [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]]
@@ -1036,27 +1037,27 @@ std::optional<temporal_rs::AnyCalendarKind> ExtractCalendarFrom(
   //
   // i. Return temporalCalendarLike.[[Calendar]].
   if (InstanceTypeChecker::IsJSTemporalPlainDate(instance_type)) {
-    return Cast<JSTemporalPlainDate>(*calendar_like)
+    return Cast<JSTemporalPlainDate>(calendar_like)
         ->wrapped_rust()
         ->calendar()
         .kind();
   } else if (InstanceTypeChecker::IsJSTemporalPlainDateTime(instance_type)) {
-    return Cast<JSTemporalPlainDateTime>(*calendar_like)
+    return Cast<JSTemporalPlainDateTime>(calendar_like)
         ->wrapped_rust()
         ->calendar()
         .kind();
   } else if (InstanceTypeChecker::IsJSTemporalPlainMonthDay(instance_type)) {
-    return Cast<JSTemporalPlainMonthDay>(*calendar_like)
+    return Cast<JSTemporalPlainMonthDay>(calendar_like)
         ->wrapped_rust()
         ->calendar()
         .kind();
   } else if (InstanceTypeChecker::IsJSTemporalPlainYearMonth(instance_type)) {
-    return Cast<JSTemporalPlainYearMonth>(*calendar_like)
+    return Cast<JSTemporalPlainYearMonth>(calendar_like)
         ->wrapped_rust()
         ->calendar()
         .kind();
   } else if (InstanceTypeChecker::IsJSTemporalZonedDateTime(instance_type)) {
-    return Cast<JSTemporalZonedDateTime>(*calendar_like)
+    return Cast<JSTemporalZonedDateTime>(calendar_like)
         ->wrapped_rust()
         ->calendar()
         .kind();
@@ -1612,8 +1613,7 @@ Maybe<bool> IsPartialTemporalObject(Isolate* isolate,
   if (!IsHeapObject(*value)) {
     return Just(false);
   }
-  InstanceType instance_type =
-      Cast<HeapObject>(*value)->map(isolate)->instance_type();
+  InstanceType instance_type = Cast<HeapObject>(*value)->map()->instance_type();
 
   if (!InstanceTypeChecker::IsJSReceiver(instance_type)) {
     return Just(false);
@@ -2410,8 +2410,7 @@ MaybeDirectHandle<JSTemporalPlainTime> ToTemporalTime(
         isolate,
         NEW_TEMPORAL_TYPE_ERROR("Time-like argument must be object or string"));
   }
-  InstanceType instance_type =
-      Cast<HeapObject>(*item)->map(isolate)->instance_type();
+  InstanceType instance_type = Cast<HeapObject>(*item)->map()->instance_type();
 
   // 2. If item is an Object, then
   if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
@@ -2538,8 +2537,7 @@ MaybeDirectHandle<JSTemporalPlainDate> ToTemporalDate(
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
                                  "Date argument must be object or string."));
   }
-  InstanceType instance_type =
-      Cast<HeapObject>(*item)->map(isolate)->instance_type();
+  InstanceType instance_type = Cast<HeapObject>(*item)->map()->instance_type();
   // 2. If item is an Object, then
   if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
     auto partial = temporal::kNullPartialDate;
@@ -2651,8 +2649,7 @@ MaybeDirectHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
         isolate,
         NEW_TEMPORAL_TYPE_ERROR("DateTime argument must be object or string."));
   }
-  InstanceType instance_type =
-      Cast<HeapObject>(*item)->map(isolate)->instance_type();
+  InstanceType instance_type = Cast<HeapObject>(*item)->map()->instance_type();
 
   // 2. If item is an Object, then
   if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
@@ -2772,8 +2769,7 @@ MaybeDirectHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
                     NEW_TEMPORAL_TYPE_ERROR(
                         "YearMonth argument must be object or string."));
   }
-  InstanceType instance_type =
-      Cast<HeapObject>(*item)->map(isolate)->instance_type();
+  InstanceType instance_type = Cast<HeapObject>(*item)->map()->instance_type();
   // 2. If item is an Object, then
   if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
     // a. If item has an [[InitializedTemporalYearMonth]] internal slot, then
@@ -2921,8 +2917,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
                     NEW_TEMPORAL_TYPE_ERROR(
                         "ZonedDateTime argument must be object or string."));
   }
-  InstanceType instance_type =
-      Cast<HeapObject>(*item)->map(isolate)->instance_type();
+  InstanceType instance_type = Cast<HeapObject>(*item)->map()->instance_type();
 
   // 2. Let offsetBehaviour be option.
   // 3. Let matchBehaviour be match-exactly.
@@ -3047,8 +3042,7 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
         isolate,
         NEW_TEMPORAL_TYPE_ERROR("MonthDay argument must be object or string."));
   }
-  InstanceType instance_type =
-      Cast<HeapObject>(*item)->map(isolate)->instance_type();
+  InstanceType instance_type = Cast<HeapObject>(*item)->map()->instance_type();
   // 2. If item is an Object, then
   if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
     // a. If item has an [[InitializedTemporalMonthDay]] internal slot, then
@@ -3251,8 +3245,7 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(
                                  "relativeTo must be object or string."));
   }
-  InstanceType instance_type =
-      Cast<HeapObject>(*value)->map(isolate)->instance_type();
+  InstanceType instance_type = Cast<HeapObject>(*value)->map()->instance_type();
 
   // 5. If value is an Object, then
   if (InstanceTypeChecker::IsJSReceiver(instance_type)) {

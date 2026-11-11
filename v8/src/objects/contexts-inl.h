@@ -142,7 +142,7 @@ Tagged<Object> Context::unchecked_previous() const {
 
 Tagged<Context> Context::previous() const {
   Tagged<Object> result = get(PREVIOUS_INDEX, kRelaxedLoad);
-  DCHECK(IsBootstrappingOrValidParentContext(result, *this));
+  DCHECK(IsBootstrappingOrValidParentContext(result, this));
   return UncheckedCast<Context>(result);
 }
 void Context::set_previous(Tagged<Context> context, WriteBarrierMode mode) {

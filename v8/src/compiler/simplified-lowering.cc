@@ -1033,8 +1033,9 @@ class RepresentationSelector {
   void ConvertInput(Node* node, int index, UseInfo use,
                     Type input_type = Type::Invalid()) {
     // In the change phase, insert a change before the use if necessary.
-    if (use.representation() == MachineRepresentation::kNone)
+    if (use.representation() == MachineRepresentation::kNone) {
       return;  // No input requirement on the use.
+    }
     Node* input = node->InputAt(index);
     DCHECK_NOT_NULL(input);
     NodeInfo* input_info = GetInfo(input);
@@ -1698,7 +1699,7 @@ class RepresentationSelector {
                             value_representation, value);
     if (write_barrier_kind != kNoWriteBarrier) {
       if (base_taggedness == kTaggedBase &&
-          field_offset == HeapObject::kMapOffset) {
+          field_offset == offsetof(HeapObject, map_)) {
         write_barrier_kind = kMapWriteBarrier;
       }
     }
@@ -2740,12 +2741,14 @@ class RepresentationSelector {
         // TODO(bmeurer): Optimize somewhat based on input type?
         if (truncation.IsUsedAsWord32()) {
           SetOutput<T>(node, MachineRepresentation::kWord32);
-          if (lower<T>())
+          if (lower<T>()) {
             lowering->DoJSToNumberOrNumericTruncatesToWord32(node, this);
+          }
         } else if (truncation.TruncatesOddballAndBigIntToNumber()) {
           SetOutput<T>(node, MachineRepresentation::kFloat64);
-          if (lower<T>())
+          if (lower<T>()) {
             lowering->DoJSToNumberOrNumericTruncatesToFloat64(node, this);
+          }
         } else {
           SetOutput<T>(node, MachineRepresentation::kTagged);
         }
@@ -4044,6 +4047,17 @@ class RepresentationSelector {
         SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
         return;
       }
+      case IrOpcode::kStringLocaleCompareIntl: {
+        ProcessInput<T>(node, 0, UseInfo::AnyTagged());      // localeCompareFn
+        ProcessInput<T>(node, 1, UseInfo::AnyTagged());      // left
+        ProcessInput<T>(node, 2, UseInfo::AnyTagged());      // right
+        ProcessInput<T>(node, 3, UseInfo::AnyTagged());      // locales
+        ProcessInput<T>(node, 4, UseInfo::TaggedPointer());  // context
+        ProcessInput<T>(node, 5, UseInfo::TaggedPointer());  // frame_state
+        ProcessRemainingInputs<T>(node, 6);
+        SetOutput<T>(node, MachineRepresentation::kTaggedSigned);
+        return;
+      }
       case IrOpcode::kCheckBounds:
         return VisitCheckBounds<T>(node, lowering);
       case IrOpcode::kCheckHeapObject: {
@@ -4932,6 +4946,11 @@ class RepresentationSelector {
                       MachineRepresentation::kTaggedSigned);
         return;
 
+      case IrOpcode::kWeakCollectionGet:
+        VisitBinop<T>(node, UseInfo::AnyTagged(),
+                      MachineRepresentation::kTagged);
+        return;
+
       case IrOpcode::kFastApiCall: {
         VisitFastApiCall<T>(node, lowering);
         return;
@@ -5174,15 +5193,17 @@ class RepresentationSelector {
   void ChangeOp(Node* node, const Operator* new_op) {
     compiler::NodeProperties::ChangeOp(node, new_op);
 
-    if (V8_UNLIKELY(observe_node_manager_ != nullptr))
+    if (V8_UNLIKELY(observe_node_manager_ != nullptr)) {
       observe_node_manager_->OnNodeChanged(kSimplifiedLoweringReducerName, node,
                                            node);
+    }
   }
 
   void NotifyNodeReplaced(Node* node, Node* replacement) {
-    if (V8_UNLIKELY(observe_node_manager_ != nullptr))
+    if (V8_UNLIKELY(observe_node_manager_ != nullptr)) {
       observe_node_manager_->OnNodeChanged(kSimplifiedLoweringReducerName, node,
                                            replacement);
+    }
   }
 
   Type true_type() const { return singleton_true_; }
@@ -6137,9 +6158,10 @@ Operator const* SimplifiedLowering::ToNumericOperator() {
 void SimplifiedLowering::ChangeOp(Node* node, const Operator* new_op) {
   compiler::NodeProperties::ChangeOp(node, new_op);
 
-  if (V8_UNLIKELY(observe_node_manager_ != nullptr))
+  if (V8_UNLIKELY(observe_node_manager_ != nullptr)) {
     observe_node_manager_->OnNodeChanged(kSimplifiedLoweringReducerName, node,
                                          node);
+  }
 }
 
 #undef TRACE

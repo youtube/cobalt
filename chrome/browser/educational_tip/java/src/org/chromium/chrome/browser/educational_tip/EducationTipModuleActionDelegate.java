@@ -45,6 +45,9 @@ public interface EducationTipModuleActionDelegate {
     /** Opens the app menu and highlights the quick delete menu item. */
     void openAndHighlightQuickDeleteMenuItem();
 
+    /** Opens the NTP theme customization bottom sheet. */
+    void openNtpThemeCustomizationBottomSheet();
+
     /**
      * Opens the the history sync opt in page.
      *
@@ -60,9 +63,6 @@ public interface EducationTipModuleActionDelegate {
      *     BottomSheetSigninAndHistorySyncCoordinator#startSigninFlow} instead.
      */
     void showSignInLegacy();
-
-    /** Opens the settings page for the Tips Notifications channel. */
-    void showTipsNotificationsChannelSettings();
 
     /** Opens the Password Checkup UI. */
     void showPasswordCheckup();
@@ -95,4 +95,10 @@ public interface EducationTipModuleActionDelegate {
      * @return True if the Role Manager was shown.
      */
     boolean maybeShowDefaultBrowserPromoWithRoleManager();
+
+    /**
+     * Returns whether customized NTP background can be displayed on this device. It returns true on
+     * tablets, while checks whether edge-to-edge is enabled on phones.
+     */
+    boolean supportCustomizedNtpTheme();
 }

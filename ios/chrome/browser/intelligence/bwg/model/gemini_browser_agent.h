@@ -11,6 +11,7 @@
 #import <set>
 
 #import "base/memory/raw_ptr.h"
+#import "base/observer_list.h"
 #import "base/time/time.h"
 #import "base/timer/timer.h"
 #import "base/types/expected.h"
@@ -23,6 +24,7 @@
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_tab_helper_observer.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_view_state_change_handler.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
+#import "ios/chrome/browser/shared/coordinator/scene/scene_activation_level.h"
 #import "ios/chrome/browser/shared/model/browser/browser_observer.h"
 #import "ios/chrome/browser/shared/model/browser/browser_user_data.h"
 #import "ios/chrome/browser/tabs/model/tabs_dependency_installer.h"
@@ -30,6 +32,7 @@
 
 class Browser;
 class FullscreenController;
+class AppBarMediatorTest;
 
 enum class PageContextWrapperError;
 
@@ -49,6 +52,7 @@ class ScopedFullscreenDisabler;
 @class GeminiPageContext;
 @class GeminiViewStateChangeHandler;
 @class GeminiScrollObserver;
+@class GeminiSceneStateObserver;
 @class GeminiSuggestionHandler;
 @class GeminiActuationHandler;
 
@@ -66,10 +70,30 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
                            public signin::IdentityManager::Observer,
                            public GeminiViewStateChangeHandlerTarget {
  public:
+  // Observer interface for GeminiBrowserAgent.
+  class Observer : public base::CheckedObserver {
+   public:
+    // Called when the floaty invocation state changes.
+    virtual void OnFloatyInvokedChanged(bool is_invoked) {}
+
+    // Called when Gemini availability for the active web state changes.
+    virtual void OnGeminiAvailabilityChanged(bool available) {}
+  };
+
   GeminiBrowserAgent(const GeminiBrowserAgent&) = delete;
   GeminiBrowserAgent& operator=(const GeminiBrowserAgent&) = delete;
 
   ~GeminiBrowserAgent() override;
+
+  // Adds/removes an observer.
+  void AddObserver(Observer* observer);
+  void RemoveObserver(Observer* observer);
+
+  // Returns true if the floaty is currently invoked.
+  bool is_floaty_invoked() const { return is_floaty_invoked_; }
+
+  // Returns true if Gemini is available for the active web state.
+  bool IsGeminiAvailableForActiveWebState() const;
 
   // BrowserObserver:
   void BrowserDestroyed(Browser* browser) override;
@@ -127,11 +151,15 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // floaty to be shown.
   void ShowFloatyIfInvoked(bool animated, gemini::FloatyUpdateSource source);
 
-  // GeminiViewStateChangeHandlerTarget:
-  void OnGeminiViewStateExpanded() override;
+  void OnViewStateChanged(ios::provider::GeminiViewState view_state) override;
+  void OnProcessingStatusChanged(
+      ios::provider::GeminiClientMode processing_status) override;
   void CollapseFloatyIfInvoked() override;
   void SetLastShownViewState(
       ios::provider::GeminiViewState view_state) override;
+
+  // Called when the scene activation level changes.
+  void OnSceneActivationLevelChanged(SceneActivationLevel level);
 
   // Called when trait collection is updated.
   void UpdateForTraitCollection(UITraitCollection* traitCollection);
@@ -143,6 +171,10 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   explicit GeminiBrowserAgent(Browser* browser);
   friend class BrowserUserData<GeminiBrowserAgent>;
   friend class GeminiBrowserAgentTest;
+  friend class AppBarMediatorTest;
+
+  // Fetches the full context of the active page and feeds it to Gemini.
+  void UpdateGeminiPageContext();
 
   // Starts the Gemini session (prepares context and shows overlay).
   void PresentFloaty(UIViewController* base_view_controller,
@@ -320,6 +352,9 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   id keyboard_show_observer_ = nil;
   id keyboard_hide_observer_ = nil;
 
+  // Observer for scene state activation changes.
+  __strong GeminiSceneStateObserver* scene_state_observer_ = nil;
+
   // Observer for scroll events.
   __strong GeminiScrollObserver* scroll_observer_ = nullptr;
 
@@ -375,7 +410,15 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // Whether the floaty is hidden by the keyboard.
   bool is_hidden_by_keyboard_ = false;
 
+  // The last known availability of Gemini for the active web state.
+  bool last_known_gemini_availability_ = false;
+
+  // Updates the Gemini availability and notifies observers if it changed.
+  void UpdateGeminiAvailability();
+
   // Weak pointer factory.
+  // Observers for GeminiBrowserAgent.
+  base::ObserverList<Observer> observers_;
   base::WeakPtrFactory<GeminiBrowserAgent> weak_factory_{this};
 };
 

@@ -72,12 +72,6 @@ class QUICHE_EXPORT QuicGenericSessionBase : public QuicSession,
   bool ShouldKeepConnectionAlive() const override { return true; }
 
   QuicStream* CreateIncomingStream(QuicStreamId id) override;
-  QuicStream* CreateIncomingStream(PendingStream* /*pending*/) override {
-    QUIC_BUG(QuicGenericSessionBase_PendingStream)
-        << "QuicGenericSessionBase::CreateIncomingStream(PendingStream) not "
-           "implemented";
-    return nullptr;
-  }
 
   void OnTlsHandshakeComplete() override;
   void OnDatagramReceived(absl::string_view datagram) override;

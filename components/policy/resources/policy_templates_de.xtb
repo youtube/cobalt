@@ -1230,6 +1230,14 @@ Die Verfügbarkeit von Erweiterungen wird weiterhin über andere Richtlinien fes
 <translation id="1858775210076906272">Voreingestellte Kerberos-Konfiguration</translation>
 <translation id="1861206724856734193">Legt eine Liste mit Regeln zur Vermeidung von Datenlecks fest.</translation>
 <translation id="1862267110714201519">Funktion für ghost-Dialogfelder deaktivieren.</translation>
+<translation id="1862749749551522146">Die Randomisierung der Socket-Poolgröße ist ein Sicherheitsmechanismus, der verhindert, dass Angreifer deterministische Kapazitätslimits ausnutzen, um websiteübergreifende Informationen zu erhalten.
+Wenn die Kapazität eines Pools normalerweise 128 Sockets beträgt, wird der Pool durch diesen Mechanismus zufällig auf einen Wert zwischen 128 und 256 begrenzt.
+Dadurch können bis zu 2-mal so viele Verbindungen zum Proxy hergestellt werden, in der Praxis liegt der erwartete Wert jedoch eher bei 1,2-mal so vielen Verbindungen.
+
+Dies wirkt sich auf die Einstellungen von „<ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" />“ und „<ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" />“ aus.
+Anstatt dass die Obergrenze durch diese Einstellungen festgelegt wird, beträgt sie das Zweifache ihrer Werte (auch wenn der tatsächliche Wert in der Praxis eher dem 1,2-Fachen entspricht).
+
+Dies ist standardmäßig für alle Pools aktiviert, aber mit dieser Richtlinie kann die Funktion speziell für Proxy-Pools deaktiviert werden.</translation>
 <translation id="1865417998205858223">Hauptberechtigungen</translation>
 <translation id="1865867000796030567">Wenn die Richtlinie aktiviert ist, wird der Wert des Manifestschlüssels „<ph name="REQUIRED_PLATFORM_VERSION" />“ der automatisch verzögerungsfrei gestarteten Kiosk-App beim automatischen Update als Zielversionspräfix verwendet.
 
@@ -1881,6 +1889,25 @@ Wenn die Richtlinie nicht konfiguriert oder deaktiviert ist, ist eine Dateiüber
 <translation id="225340736558643885">Warnmeldungen für nicht sichere Formulare aktivieren</translation>
 <translation id="2258126710006312594">Nutzern mit Remote-Zugriff die Übertragung von Dateien vom/zum Host gestatten</translation>
 <translation id="225830954785359083">Verhindern, dass Seiten beim Entfernen Pop-ups anzeigen</translation>
+<translation id="2260635608598936994">Konfiguriert Filter, um auszuwählen, welche Clientzertifikate in <ph name="PRODUCT_NAME" />-Sicherheitssignalberichte aufgenommen werden. Diese Berichte senden Informationen zum Browser- und Gerätestatus an <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" />. Administratoren können diese Informationen verwenden, um <ph name="GOOGLE_CONTEXT_AWARE_ACCESS" />-Regeln zu konfigurieren.
+
+Mit dieser Richtlinie kannst du Filter auf der Grundlage von Clientzertifikatattributen wie Distinguished Name von ISSUER und/oder SUBJECT definieren. <ph name="PRODUCT_NAME" /> berücksichtigt in den Signalberichten nur Zertifikate, die mindestens einem der angegebenen Filter entsprechen.
+
+     Beispiele für die Verwendung des Abschnitts <ph name="SELECTOR_PLACEHOLDER" />:
+
+      * Wenn für <ph name="SELECTOR_PLACEHOLDER" /> „<ph name="SECURITY_SIGNALS_CLIENT_CERTIFICATE_SELECTORS_FILTER_EXAMPLE" />“ festgelegt ist, werden nur Clientzertifikate ausgewählt, die über ein Zertifikat mit dem CommonName <ph name="ISSUER_CN_PLACEHOLDER" /> ausgestellt wurden.
+
+      * Wenn <ph name="SELECTOR_PLACEHOLDER" /> sowohl den Abschnitt <ph name="ISSUER_STRING_VALUE" /> als auch den Abschnitt <ph name="SUBJECT_STRING_VALUE" /> enthält, werden nur Clientzertifikate ausgewählt, die beide Bedingungen erfüllen.
+
+      * Wenn <ph name="SELECTOR_PLACEHOLDER" /> einen <ph name="SUBJECT_STRING_VALUE" />-Abschnitt mit dem Wert <ph name="FILTER_STRING_ORGANIZATION" /> enthält, muss ein Zertifikat mindestens eine Organisation haben, die mit dem angegebenen Wert übereinstimmt, um ausgewählt zu werden.
+
+      * Wenn <ph name="SELECTOR_PLACEHOLDER" /> einen <ph name="SUBJECT_STRING_VALUE" />-Abschnitt mit einem <ph name="FILTER_STRING_ORGANIZATIONAL_UNIT" />-Wert enthält, muss ein Zertifikat mindestens eine Organisationseinheit haben, die mit dem angegebenen Wert übereinstimmt, um ausgewählt zu werden.
+
+      * Wenn für <ph name="SELECTOR_PLACEHOLDER" /> „<ph name="EMPTY_DICTIONARY" />“ festgelegt ist, werden leere Details für diese Richtlinie ignoriert.
+
+      Wenn die Richtlinie nicht konfiguriert ist, werden bei der Signalberichterstellung keine Clientzertifikate ausgewählt.
+
+*Wichtig*: Diese Richtlinie ist nur wirksam, wenn die Richtlinie „<ph name="USER_SECURITY_SIGNALS_REPORTING_POLICY_NAME" />“ aktiviert ist, die die allgemeine Funktion zum Senden von Sicherheitssignalen aus Chrome steuert.</translation>
 <translation id="2261648512244797294">Veraltetes Drucken über Privet deaktivieren</translation>
 <translation id="2262701937800507517">Standardreihenfolge von <ph name="PRODUCT_OS_NAME" /> für Chiffren verwenden</translation>
 <translation id="2263881357524831360">Verwendung von Drittanbieter-Passwortmanagern in <ph name="PRODUCT_NAME" /> unter <ph name="ANDROID_NAME" /> erlauben</translation>
@@ -2309,6 +2336,24 @@ Diese Richtlinie gilt nur für neue Verbindungsversuche und macht bestehende Ver
 <translation id="252742292004421898">Direct Sockets API auf diesen Websites zulassen</translation>
 <translation id="2528762900096510743">Automatischen Abmeldedienst aktivieren</translation>
 <translation id="2529880111512635313">Liste der Apps und Erweiterungen konfigurieren, deren Installation erzwungen wurde</translation>
+<translation id="2530090617700835618">Mit dieser Richtlinie wird die maximale Anzahl gleichzeitiger Verbindungen pro Proxyserver für WebSocket-Anfragen festgelegt.
+
+Informationen zum Ändern von Nicht-WebSocket-Anfragelimits findest du unter <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" />.
+
+Ist diese Richtlinie nicht konfiguriert, so kommt der Standardwert von 128 zum Einsatz.
+
+Einige Webanwendungen nutzen viele Verbindungen mit „hängenden“ GET-Anfragen. Wird ein Wert unter 128 festgelegt, kann dies zu Netzwerkblockaden im Browser führen, wenn zu viele solcher Verbindungen gleichzeitig offen sind.
+Einige Proxyserver können eine hohe Anzahl gleichzeitiger Verbindungen pro Client nicht verarbeiten. Dieses Problem kann umgangen werden, indem für diese Richtlinie ein niedrigerer Wert festgelegt wird.
+
+Der Wert sollte mindestens 6 betragen.
+Wird ein niedrigerer Wert festgelegt, wird stattdessen 6 verwendet.
+Wenn du deinen Wert unter dem Standardwert (128) festlegst, geschieht dies auf eigenes Risiko.
+
+Der Wert sollte höchstens 256 betragen.
+Wird ein höherer Wert festgelegt, wird stattdessen 256 verwendet.
+Das Erhöhen über den Standardwert (128) erfolgt auf eigenes Risiko.
+
+Beachte, dass die erzwungenen Limits durch „<ph name="ALLOW_SOCKET_POOL_SIZE_RANDOMIZATION_FOR_PROXIES_POLICY_NAME" />“ beeinflusst werden.</translation>
 <translation id="253135976343875019">Inaktivitätsspanne bis zur Warnung im Netzbetrieb</translation>
 <translation id="2532480434098051405">„Inline Image“ mit der Verbesserung von KI-Modellen zulassen.</translation>
 <translation id="2535370400681639351">Wenn diese Richtlinie aktiviert ist, werden Anfragen zur Gnubby-Authentifizierung bei einer Remote-Host-Verbindung über einen Proxy weitergeleitet.
@@ -2688,6 +2733,15 @@ Wenn die Richtlinie deaktiviert oder nicht konfiguriert ist, können Nutzer Date
 Wenn die Richtlinie aktiviert oder nicht konfiguriert ist, können Nutzer Kerberos-Konten über die Kontoeinstellungen auf der Kerberos-Einstellungsseite hinzufügen. Die Nutzer haben die vollständige Kontrolle über Konten, die sie hinzugefügt haben, und können diese ändern oder entfernen.
 
 Ist die Richtlinie deaktiviert, können Nutzer keine Kerberos-Konten hinzufügen. Konten können dann nur über die Richtlinie „Kerberos-Konten konfigurieren“ hinzugefügt werden. So lassen sich Konten effektiv sperren.</translation>
+<translation id="2771222727845689796">Mit dieser Richtlinie kannst du eine Liste von URL-Mustern festlegen. Für im Hintergrund ausgeführte Webinhalte, die mit diesen Mustern übereinstimmen, wird die Vordergrundpriorität erzwungen.
+
+Wenn die Richtlinie „<ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" />“ aktiviert ist, wird diese Liste ignoriert, da für alle Tabs die Vordergrundpriorität erzwungen wird.
+
+Wenn „<ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" />“ deaktiviert oder nicht konfiguriert ist, wird die Vordergrundpriorität nur für Inhalte erzwungen, die mit den Mustern in dieser Liste übereinstimmen.
+
+Weitere Informationen zu gültigen <ph name="URL_LABEL" />-Mustern findest du unter https://support.google.com/chrome/a?p=url_blocklist_filter_format.
+
+Wenn diese Liste leer oder nicht konfiguriert ist, wird für keine im Hintergrund ausgeführten Inhalte die Vordergrundpriorität erzwungen.</translation>
 <translation id="2772231477628401250">HTTP für Updatedownloads verwenden</translation>
 <translation id="2772955711376920612">Wenn die Richtlinie aktiviert ist und „<ph name="DEVICE_POWER_PEAK_SHIFT_BATTERY_THRESHOLD_POLICY_NAME" />“ sowie „<ph name="DEVICE_POWER_PEAK_SHIFT_DAY_CONFIG_POLICY_NAME" />“ konfiguriert sind, ist das Umschalten bei Leistungsspitzen immer aktiviert, sofern die Funktion vom Gerät unterstützt wird. Die Energieverwaltung zum Umschalten bei Leistungsspitzen ist eine Richtlinie zum Energiesparen, mit der die Nutzung des Netzstroms bei Spitzenlasten minimiert wird. Für jeden Wochentag kann ein Beginn und ein Ende für den Modus zum Umschalten bei Leistungsspitzen festgelegt werden. Solange der Ladezustand des Akkus den angegebenen Schwellenwert nicht unterschreitet, wird das Gerät während dieser Zeiträume über den Akku mit Strom versorgt – auch dann, wenn das System an das Stromnetz angeschlossen ist. Nach dem angegebenen Ende wird das Gerät wieder über das Netz mit Strom versorgt (vorausgesetzt, es ist an das Stromnetz angeschlossen), der Akku jedoch nicht geladen. Das Gerät wird wieder auf den normalen Betrieb mit Netzstrom umgestellt und der Akku aufgeladen, nachdem die festgelegte Startzeit zum Laden erreicht wurde.
 
@@ -4693,15 +4747,6 @@ Wenn die Richtlinie auf <ph name="DISABLE_UNPUBLISHED" /> (1) gesetzt ist, sind
 
           Wird sie nicht konfiguriert, ist das gesprochene Feedback auf dem Anmeldebildschirm anfangs deaktiviert, kann jedoch vom Nutzer jederzeit aktiviert werden.</translation>
 <translation id="4173974507809462880">Bildschirm für die Scrollrichtung des Touchpads bei der Anmeldung anzeigen</translation>
-<translation id="4175770453187201981">Mit dieser Richtlinie werden die KI‑Modus-Integrationen von Google in der Adressleiste und im Suchfeld auf der Seite „Neuer Tab“ gesteuert.
-
-Für den Zugriff auf diese Funktion muss die Google Suche als Standardsuchmaschine des Nutzers festgelegt sein.
-
-0 / nicht festgelegt = Die Funktion ist für Nutzer verfügbar.
-
-1 = Die Funktion ist für Nutzer nicht verfügbar.
-
-Wenn die Richtlinie nicht konfiguriert ist, wird das Verhalten der Funktion durch die Richtlinie „<ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />“ bestimmt.</translation>
 <translation id="417956245902013347">Hiermit wird die Bedienungshilfe "Textcursor hervorheben" auf dem Anmeldebildschirm aktiviert.
 
           Wird diese Richtlinie auf "true" gesetzt, ist die Bedienungshilfe "Textcursor hervorheben" auf dem Anmeldebildschirm immer aktiviert.
@@ -4837,6 +4882,7 @@ Mit dieser Richtlinie wurde das automatische Upgrade für gemischte Inhalte unte
       Wenn die Richtlinie deaktiviert oder nicht konfiguriert ist, können Nutzer diese Einstellung ändern.
 
       Hinweis: Nutze unter Android stattdessen die Richtlinie <ph name="ISOLATE_ORIGINS_ANDROID_POLICY_NAME" />.</translation>
+<translation id="4261641564041253502">Clientzertifikate, die mit Filtern für <ph name="PRODUCT_NAME" />-Sicherheitssignalberichte übereinstimmen, automatisch auswählen.</translation>
 <translation id="4261820385751181068">Sprache der Anmeldeseite</translation>
 <translation id="4263788921751326798">Melden von Informationen zu Absturzberichten auf Geräten deaktivieren</translation>
 <translation id="4268586991084547853">Bessere Kompatibilität mit der Richtlinie „Microsoft IE/Edge Enterprise Mode Sitelists“.</translation>
@@ -5220,6 +5266,24 @@ Weitere Informationen zur Funktion „<ph name="IP_PROTECTION_NAME" />“ findes
 
 Die Funktion „<ph name="IP_PROTECTION_NAME" />“ wird frühestens mit M139 eingeführt.</translation>
 <translation id="4525328580251166229">Steuert zum Bruschetta-Subsystem gehörige Richtlinien.</translation>
+<translation id="452801090660038046">Mit dieser Richtlinie wird die maximale Anzahl gleichzeitiger Verbindungen pro Proxyserver für Nicht-WebSocket-Anfragen festgelegt.
+
+Informationen zum Ändern von WebSocket-Anfragelimits findest du unter <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" />.
+
+Ist diese Richtlinie nicht konfiguriert, so kommt der Standardwert von 128 zum Einsatz.
+
+Einige Webanwendungen nutzen viele Verbindungen mit „hängenden“ GET-Anfragen. Wird ein Wert unter 128 festgelegt, kann dies zu Netzwerkblockaden im Browser führen, wenn zu viele solcher Verbindungen gleichzeitig offen sind.
+Einige Proxyserver können eine hohe Anzahl gleichzeitiger Verbindungen pro Client nicht verarbeiten. Dieses Problem kann umgangen werden, indem für diese Richtlinie ein niedrigerer Wert festgelegt wird.
+
+Der Wert sollte mindestens 6 betragen.
+Wird ein niedrigerer Wert festgelegt, wird stattdessen 6 verwendet.
+Wenn du deinen Wert unter dem Standardwert (128) festlegst, geschieht dies auf eigenes Risiko.
+
+Der Wert sollte höchstens 256 (99 in <ph name="PRODUCT_NAME" /> 147 und früher) betragen.
+Wird ein höherer Wert festgelegt, wird stattdessen 256 (99 in <ph name="PRODUCT_NAME" /> 147 und früher) verwendet.
+Das Erhöhen über den Standardwert (128) erfolgt auf eigenes Risiko.
+
+Beachte, dass die erzwungenen Limits durch „<ph name="ALLOW_SOCKET_POOL_SIZE_RANDOMIZATION_FOR_PROXIES_POLICY_NAME" />“ beeinflusst werden.</translation>
 <translation id="4528981768990874684">Funktion „<ph name="IP_PROTECTION_NAME" />“ deaktivieren.</translation>
 <translation id="453031441196755904">Diese Richtlinie ist veraltet.</translation>
 <translation id="4531706050939927436">Die Installation von Android-Apps kann von der Google Admin-Konsole aus über Google Play erzwungen werden. Android-Apps nutzen diese Richtlinie nicht.</translation>
@@ -5635,23 +5699,6 @@ Ist sie deaktiviert, sieht der Nutzer keine Werbung zur Erweiterung für Anmelde
       Wenn sie aktiviert ist, wird der Einführungsbildschirm für Gemini angezeigt.
 
       Ist die Richtlinie nicht konfiguriert, wird der Einführungsbildschirm für Gemini bei von Unternehmen verwalteten Nutzern übersprungen und nicht verwalteten Nutzern angezeigt.</translation>
-<translation id="4781685421378746692">Mit dieser Richtlinie wird das Teilen von Seiten- und Dateiinhalten mit <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> und <ph name="GOOGLE_LENS_PRODUCT_NAME" /> über die Seitenleiste oder Tabs von <ph name="PRODUCT_NAME" /> gesteuert.
-
-Diese Richtlinie wirkt sich nicht auf die Webversion von <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> aus. Sie legt nur fest, wie Nutzer Informationen teilen können, wenn sie <ph name="PRODUCT_NAME" /> verwenden.
-
-0 / nicht festgelegt = Nutzer können Seiten- oder Dateiinhalte mit <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> teilen.
-
-1 = Nutzer können keine Seiten- oder Dateiinhalte mit <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> teilen. Die Zugangspunkte zum Teilen von Kontext und die Seitenleiste werden deaktiviert oder ausgeblendet.
-
-Diese Richtlinie wird ignoriert, wenn <ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> nicht die Standardsuchmaschine der Nutzer ist, da die Funktion deaktiviert ist.
-
-Diese Richtlinie ist unabhängig von der Richtlinie „<ph name="AI_MODE_SETTINGS_POLICY_NAME" />“. Die Richtlinie „<ph name="AI_MODE_SETTINGS_POLICY_NAME" />“ steuert nur Zugangspunkte in der Omnibox oder im Suchfeld auf der Seite „Neuer Tab“, während diese Richtlinie das Teilen von Kontext über die Seitenleiste oder Tabs steuert.
-
-Diese Richtlinie steuert auch nicht die <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />-Integration, die von <ph name="GEMINI_SETTINGS_POLICY_NAME" /> deaktiviert werden kann.
-
-Wenn diese Richtlinie nicht konfiguriert ist, wird das Verhalten der Funktion durch die Richtlinie „<ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />“ bestimmt.
-
-Weitere Informationen zur Datenverarbeitung bei auf generativer KI basierenden Funktionen findest du unter https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="4783415902268741066">Zulassen, dass die neuesten Ergebnisse der Standardsuchmaschine in der Seitenleiste eines Browsers angezeigt werden</translation>
 <translation id="4786784434769279324">Aktionen, die ausgeführt werden sollen, wenn der Computer inaktiv ist</translation>
 <translation id="4787763197941188108">Überschreibt die standardmäßige Druckseitengröße.
@@ -6520,22 +6567,6 @@ Ist die Richtlinie nicht konfiguriert, wird der Standardwert von 0 Grad verwend
 <translation id="5293285950307241933">Alle lokalen Nutzerdaten löschen</translation>
 <translation id="5293619885162445352">Erlauben, dass <ph name="PEPPER_NAME" /> den neuen Videodecoder verwendet.</translation>
 <translation id="529457411593078576">Nutzungsbedingungen während der ersten Ausführung für CCT aktivieren</translation>
-<translation id="529718811410033393">Mit dieser Richtlinie wird die maximale Anzahl gleichzeitiger Verbindungen pro Proxyserver für Nicht-WebSocket-Anfragen festgelegt.
-
-Informationen zum Ändern von WebSocket-Anfragelimits findest du unter <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" />.
-
-Wird die Richtlinie nicht konfiguriert, gilt standardmäßig ein Wert von 32.
-
-Einige Webanwendungen nutzen viele Verbindungen mit „hängenden“ GET-Anfragen. Wird ein Wert unter 32 festgelegt, kann dies zu Netzwerkblockaden im Browser führen, wenn zu viele solcher Verbindungen gleichzeitig offen sind.
-Einige Proxyserver können eine hohe Anzahl gleichzeitiger Verbindungen pro Client nicht verarbeiten. Dies lässt sich durch einen niedrigeren Wert für diese Richtlinie beheben.
-
-Der Wert sollte mindestens 6 betragen.
-Wird ein niedrigerer Wert festgelegt, wird stattdessen 6 verwendet.
-Das Reduzieren unter den Standardwert (32) erfolgt auf eigenes Risiko.
-
-Der Wert sollte höchstens 256 (99 in <ph name="PRODUCT_NAME" /> 147 und früher) betragen.
-Wird ein höherer Wert festgelegt, wird stattdessen 256 (99 in <ph name="PRODUCT_NAME" /> 147 und früher) verwendet.
-Das Erhöhen über den Standardwert (32) erfolgt auf eigenes Risiko.</translation>
 <translation id="5297873769621042075">Mit dieser Richtlinie kann eine Liste mit Hostnamen oder Hostnamenmustern (z. B. „[*.]beispiel.de“) angelegt werden, die nicht auf HTTPS umgestellt werden und für die kein Fehler-Interstitial angezeigt wird, wenn der HTTPS-First-Modus aktiviert ist. Organisationen können diese Richtlinie verwenden, um den Zugriff auf Server aufrechtzuerhalten, die HTTPS nicht unterstützen, ohne HTTPS-Umstellungen und/oder den HTTPS-First-Modus zu deaktivieren.
 
 Bereitgestellte Hostnamen müssen kanonisiert werden: Alle IDNs müssen in ihr A-Label-Format konvertiert und alle ASCII-Buchstaben kleingeschrieben werden.
@@ -6820,15 +6851,6 @@ Wenn die in der Richtlinie <ph name="DEVICE_MINIMUM_VERSION_POLICY_NAME" /> ange
 <translation id="5481873128882951841">Geräuschunterdrückung von Krisp deaktivieren</translation>
 <translation id="5483012943408894695">Ursprünge oder Hostnamenmuster, für die Einschränkungen für unsichere Ursprünge nicht gelten sollen</translation>
 <translation id="5483065054530244863">SHA-1-signierte Zertifikate zulassen, die von lokalen Vertrauensankern ausgestellt werden</translation>
-<translation id="5485491014653571963">Mit dieser Einstellung werden Gemini-App-Integrationen zugelassen.
-
-0 / nicht festgelegt = Gemini-Integration ist für Nutzer verfügbar.
-
-1 = Gemini-Integration ist für Nutzer nicht verfügbar.
-
-Wenn die Richtlinie nicht konfiguriert ist, wird das Verhalten der Funktion durch die Richtlinie „<ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />“ bestimmt.
-
-Weitere Informationen findest du im Hilfeartikel unter https://support.google.com/chrome/a?p=gemini_in_chrome.</translation>
 <translation id="5486917900445838803">Wenn diese Richtlinie aktiviert oder nicht konfiguriert ist, wird die Grafikbeschleunigung aktiviert (sofern verfügbar).
 
       Ist die Richtlinie deaktiviert, wird die Grafikbeschleunigung deaktiviert.</translation>
@@ -7081,29 +7103,6 @@ Wenn diese Richtlinie für <ph name="PRODUCT_OS_NAME" /> Kiosk festgelegt ist, w
 <translation id="5622924058222112599">Standardmäßigen Einführungsprozess für CECPQ2 aktivieren</translation>
 <translation id="5623304306796942802">Aufforderung, wenn mehrere Zertifikate passen</translation>
 <translation id="5624310713789233422">Steuert die Sichtbarkeit des Unternehmensprofillogos auf der Symbolleiste</translation>
-<translation id="5624334866248253262">Konfiguriert eine Liste von Datenkontrollregeln zur Vermeidung von Datenlecks.
-
-      Jede Regel besteht aus den folgenden Elementen:
-      – Bedingungsfelder zum Auslösen der Regel. Eine Regel wird nur ausgelöst, wenn eine Nutzeraktion mit allen Feldern in den Feldern „<ph name="DATA_CONTROLS_SOURCES" />“, „<ph name="DATA_CONTROLS_DESTINATIONS" />“, „<ph name="DATA_CONTROLS_AND" />“, „<ph name="DATA_CONTROLS_OR" />“ und „<ph name="DATA_CONTROLS_NOT" />“ übereinstimmt. Bei untergeordneten Feldern einer Liste muss nur ein Eintrag abgeglichen werden. Beispielsweise muss nur ein URL-Muster übereinstimmen, um die Regel auszulösen.
-      – Eine Liste der anzuwendenden Einschränkungen. Je nach Einschränkung sind möglicherweise nur „<ph name="DATA_CONTROLS_SOURCES" />“- oder „<ph name="DATA_CONTROLS_DESTINATIONS" />“-Bedingungen verfügbar.
-
-      Regeln können hinzugefügt werden, um Einschränkungen für Folgendes zu steuern:
-– Daten in der Zwischenablage, die zwischen Quellen und Zielen geteilt werden.
-      – Das Blockieren von Screenshots basierend auf den Quelltabs.
-
-      Wenn die Richtlinie „<ph name="ON_SECURITY_EVENT_ENTERPRISE_CONNECTOR" />“ auf „True“ gesetzt ist, werden die ausgelösten Regeln dem Administrator gemeldet.
-      Die Einschränkungsebene kann auf BLOCK, WARN oder REPORT festgelegt werden.
-      – Wenn die Einschränkungsebene auf BLOCK gesetzt ist, wird die Aktion nicht zugelassen.
-      – Wenn die Einschränkungsebene auf WARN gesetzt ist, erhält der Nutzer eine Warnung und kann entweder mit der Aktion fortfahren oder sie abbrechen.
-      – Wenn die Einschränkungsebene auf REPORT gesetzt ist, wird die Nutzeraktion nicht unterbrochen, aber ein Bericht wird gesendet, wenn die Richtlinie „<ph name="ON_SECURITY_EVENT_ENTERPRISE_CONNECTOR" />“ aktiviert ist.
-
-      Hinweise:
-      – Formatiere die URL-Muster gemäß diesem Format (https://support.google.com/chrome/a?p=url_blocklist_filter_format).
-      – Für Regeln zur Vermeidung von Datenlecks speziell für <ph name="PRODUCT_OS_NAME" /> kannst du dir auch die Richtlinie „<ph name="DATA_LEAK_PREVENTION_RULES_LIST" />“ ansehen.
-
-      Ist die Richtlinie nicht konfiguriert, werden keine Einschränkungen angewendet.
-
-      Diese Richtlinie ist nur für Nutzer verfügbar, denen eine Chrome Enterprise Premium-Lizenz zugewiesen wurde.</translation>
 <translation id="5625771176514429288">Chrome-Apps dürfen zukünftig auf diesen Plattformen ausgeführt werden.</translation>
 <translation id="5627270992026554674">Lehrkräften nicht erlauben, die Teilnehmerliste von Google Classroom zu verwenden.</translation>
 <translation id="5630352020869108293">Letzte Sitzung wiederherstellen</translation>
@@ -8185,6 +8184,7 @@ Hinweis: Diese Richtlinie gilt nur für Plattformen, die Erweiterungen unterstü
 
       Unabhängig davon, ob die Richtlinie konfiguriert ist, kann die WPAD-Optimierung nicht von Nutzern geändert werden.</translation>
 <translation id="6363485842496031347">In der Einstellung von „Löschen“ wird die Tastenkombination verwendet, die den Alt-Modifikator enthält</translation>
+<translation id="6364336078281746235">Vordergrundpriorität für bestimmte URLs erzwingen</translation>
 <translation id="6366574325767783825">Wenn die Richtlinie auf "True" gesetzt oder nicht konfiguriert ist, werden von <ph name="PRODUCT_NAME" /> Webinhalte akzeptiert, die als Signed HTTP Exchanges implementiert sind.
 
       Wenn die Richtlinie auf "False" gesetzt ist, werden die Signed HTTP Exchanges nicht geladen.</translation>
@@ -10093,22 +10093,6 @@ Wenn die Richtlinie leer bleibt, sind keine Ausnahmen zu „<ph name="FLOATING_S
 
       Bei nicht verwalteten Geräten ist es auch wichtig, ob der jeweilige Nutzer der Geräteeigentümer ist.</translation>
 <translation id="7570291542739287032">Nur Cloud</translation>
-<translation id="7571158727244273239">Mit dieser Richtlinie wird die maximale Anzahl gleichzeitiger Verbindungen pro Proxyserver für WebSocket-Anfragen festgelegt.
-
-Informationen zum Ändern von Nicht-WebSocket-Anfragelimits findest du unter <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" />.
-
-Wird die Richtlinie nicht konfiguriert, gilt standardmäßig ein Wert von 32.
-
-Einige Webanwendungen nutzen viele Verbindungen mit „hängenden“ GET-Anfragen. Wird ein Wert unter 32 festgelegt, kann dies zu Netzwerkblockaden im Browser führen, wenn zu viele solcher Verbindungen gleichzeitig offen sind.
-Einige Proxyserver können eine hohe Anzahl gleichzeitiger Verbindungen pro Client nicht verarbeiten. Dies lässt sich durch einen niedrigeren Wert für diese Richtlinie beheben.
-
-Der Wert sollte mindestens 6 betragen.
-Wird ein niedrigerer Wert festgelegt, wird stattdessen 6 verwendet.
-Das Reduzieren unter den Standardwert (32) erfolgt auf eigenes Risiko.
-
-Der Wert sollte höchstens 256 betragen.
-Wird ein höherer Wert festgelegt, wird stattdessen 256 verwendet.
-Das Erhöhen über den Standardwert (32) erfolgt auf eigenes Risiko.</translation>
 <translation id="7572641760104970905">Keine Komplexität</translation>
 <translation id="757395965347379751">Wenn diese Einstellung aktiviert ist, werden von <ph name="PRODUCT_NAME" /> SHA-1-signierte Zertifikate genehmigt, vorausgesetzt sie werden erfolgreich überprüft und bilden eine Kette zu einem lokal installierten CA-Zertifikat.
 
@@ -10684,6 +10668,7 @@ Deaktiviere die Richtlinie nur, wenn du eine Endpunkt-Sicherheitslösung verwend
 <translation id="7941975817681987555">Netzwerkaktionen nicht über Netzwerkverbindungen vervollständigen</translation>
 <translation id="794447754389837404">Privaten Netzwerkzugriff in der Direct Sockets API auf diesen Websites blockieren</translation>
 <translation id="7945445169067895719">Sperre aktivieren, wenn das Gerät in den Ruhemodus versetzt oder zugeklappt wird</translation>
+<translation id="7945744599423774764">Randomisierung der Socket-Poolgröße für Proxys zulassen</translation>
 <translation id="7946350455013548764">Wenn die Richtlinie auf 3 gesetzt ist, dürfen Websites um Zugriff auf HID-Geräte bitten. Ist sie auf 2 gesetzt, wird der Zugriff auf HID-Geräte verweigert.
 
       Wenn sie nicht konfiguriert ist, können Websites um Zugriff bitten, aber Nutzer können diese Einstellung ändern.
@@ -11263,6 +11248,7 @@ Ist die Richtlinie nicht konfiguriert, ist die Mimik-Steuerung anfangs deaktivie
 <translation id="8337114537412769126">Wenn "<ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" />" aktiviert ist, gibt "<ph name="DEFAULT_SEARCH_PROVIDER_SUGGEST_URL_POST_PARAMS_POLICY_NAME" />" die Parameter für die Vorschlagsuche mit POST an. Die Richtlinie besteht aus kommagetrennten Name/Wert-Paaren. Wenn ein Wert ein Vorlagenparameter wie <ph name="SEARCH_TERM_MARKER" /> ist, wird er durch echte Suchbegriffsdaten ersetzt.
 
       Ist "<ph name="DEFAULT_SEARCH_PROVIDER_SUGGEST_URL_POST_PARAMS_POLICY_NAME" />" nicht konfiguriert, wird die Vorschlagsuchanfrage mithilfe der GET-Methode gesendet.</translation>
+<translation id="8337200442224446773">Randomisierung von Socket-Pools für Proxys verhindern</translation>
 <translation id="8337961007759352651">Skripts für Worker (Web Worker, Service Worker usw.) erfordern einen JavaScript-MIME-Typ wie <ph name="MIMETYPE_TEXT_JAVASCRIPT" />. Das heißt, Worker-Skripts mit älteren MIME-Typen wie <ph name="MIMETYPE_TEXT_ASCII" /> werden abgelehnt.</translation>
 <translation id="8339089771335211509">WebRTC verwendet nur die Schnittstelle, die mit dem öffentlichen Internet verbunden ist, und stellt keine Verbindung über private IP-Adressen her.</translation>
 <translation id="8339420913453596618">Zweiter Authentifizierungsfaktor deaktiviert</translation>
@@ -11689,6 +11675,7 @@ Wenn diese Richtlinie auf „False“ gesetzt ist, werden keine Daten zu Richtli
 Diese Richtlinie wird nur angewendet, wenn das Gerät für <ph name="PRODUCT_NAME" /> mit <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> registriert ist.
 Für <ph name="PRODUCT_OS_NAME" /> wird diese Richtlinie immer angewendet.</translation>
 <translation id="8619748440665904084">Import von Autofill-Daten für Formulare bei der ersten Ausführung deaktivieren</translation>
+<translation id="8621146428060651659">Randomisierung von Socket-Pools für Proxys zulassen</translation>
 <translation id="862621549134406761">Prüfung der RSA-Schlüsselverwendung aktivieren</translation>
 <translation id="8626826495474944836">Website-Isolierung für jede Website erzwingen</translation>
 <translation id="8630797597241896082">VC‑Hintergrund basierend auf generativer KI zulassen und KI‑Modelle verbessern</translation>

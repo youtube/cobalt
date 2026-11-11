@@ -71,13 +71,13 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
 
   // Compute the number of registers and parameters.
   TNode<SharedFunctionInfo> shared = LoadObjectField<SharedFunctionInfo>(
-      closure, JSFunction::kSharedFunctionInfoOffset);
+      closure, offsetof(JSFunction, shared_function_info_));
   TNode<IntPtrT> formal_parameter_count = ChangeInt32ToIntPtr(
       LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(shared));
   TNode<BytecodeArray> bytecode_array =
       LoadSharedFunctionInfoBytecodeArray(shared);
   TNode<IntPtrT> frame_size = ChangeInt32ToIntPtr(LoadObjectField<Uint32T>(
-      bytecode_array, BytecodeArray::kFrameSizeOffset));
+      bytecode_array, offsetof(BytecodeArray, frame_size_)));
   TNode<IntPtrT> parameters_and_register_length =
       Signed(IntPtrAdd(WordSar(frame_size, IntPtrConstant(kTaggedSizeLog2)),
                        formal_parameter_count));

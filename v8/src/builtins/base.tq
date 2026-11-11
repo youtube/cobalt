@@ -594,8 +594,7 @@ const kSwissNameDictionaryInitialCapacity:
 const kWasmArrayHeaderSize:
     constexpr int32 generates 'WasmArray::kHeaderSize';
 
-const kHeapObjectHeaderSize:
-    constexpr int32 generates 'HeapObject::kHeaderSize';
+const kHeapObjectHeaderSize: constexpr int32 generates 'sizeof(HeapObject)';
 
 type Exception extends Oddball;
 type EmptyString extends String;
@@ -1345,6 +1344,7 @@ extern macro AllocateSharedHeapNumberWithValue(float64): HeapNumber;
 extern macro AllocateContextCell(Object): ContextCell;
 extern macro ChangeInt32ToTagged(int32): Number;
 extern macro ChangeUint32ToTagged(uint32): Number;
+extern macro ChangeUint64ToFloat64(uint64): float64;
 extern macro ChangeUintPtrToFloat64(uintptr): float64;
 extern macro ChangeUintPtrToTagged(uintptr): Number;
 extern macro Unsigned(int64): uint64;

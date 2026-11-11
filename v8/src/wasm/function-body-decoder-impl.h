@@ -1079,6 +1079,12 @@ class EffectHandlerTableIterator {
 };
 
 struct MemoryAccessImmediate {
+  enum Kind {
+    kNonAtomic,
+    kAtomic,
+    kAtomicRMW,
+  };
+
   uint32_t alignment;
   uint32_t mem_index;
   uint64_t offset;
@@ -1091,7 +1097,7 @@ struct MemoryAccessImmediate {
   template <typename ValidationTag>
   V8_INLINE MemoryAccessImmediate(Decoder* decoder, const uint8_t* pc,
                                   uint32_t max_alignment,
-                                  bool acquire_release_enabled, bool is_rmw,
+                                  bool acquire_release_enabled, Kind kind,
                                   ValidationTag = {}) {
     // Check for the fast path (two single-byte LEBs, mem index 0).
     const bool two_bytes = !ValidationTag::validate || decoder->end() - pc >= 2;
@@ -1104,7 +1110,7 @@ struct MemoryAccessImmediate {
       length = 2;
     } else {
       ConstructSlow<ValidationTag>(decoder, pc, max_alignment,
-                                   acquire_release_enabled, is_rmw);
+                                   acquire_release_enabled, kind);
     }
     if (!VALIDATE(alignment <= max_alignment)) {
       DecodeError<ValidationTag>(
@@ -1121,7 +1127,7 @@ struct MemoryAccessImmediate {
                                                   const uint8_t* pc,
                                                   uint32_t max_alignment,
                                                   bool acquire_release_enabled,
-                                                  bool is_rmw) {
+                                                  Kind kind) {
     // Default to sequential consistency. This will be overwritten if the
     // acquire_release bit is set.
     memory_order = AtomicMemoryOrder::kSeqCst;
@@ -1141,12 +1147,21 @@ struct MemoryAccessImmediate {
     }
 
     if (alignment & 0x20) {
-      if (acquire_release_enabled) {
+      if (!acquire_release_enabled) {
+        DecodeError<ValidationTag>(
+            decoder, pc,
+            "invalid memory ordering: acquire-release requires "
+            "--experimental-wasm-acquire-release flag");
+      } else if (kind == kNonAtomic) {
+        DecodeError<ValidationTag>(
+            decoder, pc,
+            "memory ordering immediate invalid on non-atomic operation");
+      } else {
         alignment &= ~0x20;
         uint8_t order_imm =
             decoder->read_u8<ValidationTag>(pc + length, "memory order");
         length++;
-        if (is_rmw) {
+        if (kind == kAtomicRMW) {
           uint8_t read_order = order_imm & 0x0F;
           uint8_t write_order = order_imm >> 4;
           if (!VALIDATE(read_order == write_order)) {
@@ -1176,11 +1191,6 @@ struct MemoryAccessImmediate {
           }
           memory_order = static_cast<AtomicMemoryOrder>(order);
         }
-      } else {
-        DecodeError<ValidationTag>(
-            decoder, pc,
-            "invalid memory ordering: acquire-release requires "
-            "--experimental-wasm-acquire-release flag");
       }
     }
 
@@ -2468,7 +2478,6 @@ class WasmDecoder : public Decoder {
                                ImmediateObservers&... ios) {
     WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
     bool kAcquireReleaseAtomicEnabled = true;
-    bool kIsRMWAtomicOp = false;
     switch (opcode) {
       /********** Control opcodes **********/
       case kExprUnreachable:
@@ -2690,7 +2699,8 @@ class WasmDecoder : public Decoder {
       FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
       FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE) {
         MemoryAccessImmediate imm(decoder, pc + 1, UINT32_MAX,
-                                  kAcquireReleaseAtomicEnabled, kIsRMWAtomicOp,
+                                  kAcquireReleaseAtomicEnabled,
+                                  MemoryAccessImmediate::kNonAtomic,
                                   validate);
         (ios.MemoryAccess(imm), ...);
         return 1 + imm.length;
@@ -2768,9 +2778,9 @@ class WasmDecoder : public Decoder {
           }
           case kExprF32LoadMemF16:
           case kExprF32StoreMemF16: {
-            MemoryAccessImmediate imm(decoder, pc + length, UINT32_MAX,
-                                      kAcquireReleaseAtomicEnabled,
-                                      kIsRMWAtomicOp, validate);
+            MemoryAccessImmediate imm(
+                decoder, pc + length, UINT32_MAX, kAcquireReleaseAtomicEnabled,
+                MemoryAccessImmediate::kNonAtomic, validate);
             (ios.MemoryAccess(imm), ...);
             return length + imm.length;
           }
@@ -2812,14 +2822,15 @@ class WasmDecoder : public Decoder {
           FOREACH_SIMD_MEM_OPCODE(DECLARE_OPCODE_CASE) {
             MemoryAccessImmediate imm(decoder, pc + length, UINT32_MAX,
                                       kAcquireReleaseAtomicEnabled,
-                                      kIsRMWAtomicOp, validate);
+                                      MemoryAccessImmediate::kNonAtomic,
+                                      validate);
             (ios.MemoryAccess(imm), ...);
             return length + imm.length;
           }
           FOREACH_SIMD_MEM_1_OPERAND_OPCODE(DECLARE_OPCODE_CASE) {
             MemoryAccessImmediate imm(
                 decoder, pc + length, UINT32_MAX, kAcquireReleaseAtomicEnabled,
-                kIsRMWAtomicOp, validate);
+                MemoryAccessImmediate::kNonAtomic, validate);
         if (sizeof...(ios) > 0) {
               SimdLaneImmediate lane_imm(decoder,
                                          pc + length + imm.length, validate);
@@ -2853,9 +2864,13 @@ class WasmDecoder : public Decoder {
           FOREACH_ATOMIC_OPCODE(DECLARE_OPCODE_CASE) {
             WasmOpcode full_opcode =
                 static_cast<WasmOpcode>((kAtomicPrefix << 8) | opcode);
-            MemoryAccessImmediate imm(
-                decoder, pc + length, UINT32_MAX, kAcquireReleaseAtomicEnabled,
-                WasmOpcodes::IsAtomicRmwOpcode(full_opcode), validate);
+            MemoryAccessImmediate::Kind kind =
+                WasmOpcodes::IsAtomicRmwOpcode(full_opcode)
+                    ? MemoryAccessImmediate::kAtomicRMW
+                    : MemoryAccessImmediate::kAtomic;
+            MemoryAccessImmediate imm(decoder, pc + length, UINT32_MAX,
+                                      kAcquireReleaseAtomicEnabled, kind,
+                                      validate);
             (ios.MemoryAccess(imm), ...);
             return length + imm.length;
           }
@@ -3522,10 +3537,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return memory->is_memory64() ? kWasmI64 : kWasmI32;
   }
 
-  V8_INLINE MemoryAccessImmediate MakeMemoryAccessImmediate(
-      uint32_t pc_offset, uint32_t max_alignment, bool is_rmw = false) {
+  V8_INLINE MemoryAccessImmediate
+  MakeMemoryAccessImmediate(uint32_t pc_offset, uint32_t max_alignment,
+                            MemoryAccessImmediate::Kind kind) {
     return MemoryAccessImmediate(this, this->pc_ + pc_offset, max_alignment,
-                                 this->enabled_.has_acquire_release(), is_rmw,
+                                 this->enabled_.has_acquire_release(), kind,
                                  validate);
   }
 
@@ -4897,8 +4913,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     EffectHandlerTableImmediate handler_table_imm(
         this, this->pc_ + 1 + imm.length, validate);
-    if (!this->Validate(this->pc_ + imm.length + 1, handler_table_imm))
+    if (!this->Validate(this->pc_ + imm.length + 1, handler_table_imm)) {
       return 0;
+    }
 
     base::Vector<HandlerCase> handlers =
         this->zone_->template AllocateVector<HandlerCase>(
@@ -4941,8 +4958,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     EffectHandlerTableImmediate handler_table_imm(
         this, this->pc_ + cont_imm.length + exc_imm.length + 1, validate);
     if (!this->Validate(this->pc_ + cont_imm.length + exc_imm.length + 1,
-                        handler_table_imm))
+                        handler_table_imm)) {
       return 0;
+    }
 
     base::Vector<HandlerCase> handlers =
         this->zone_->template AllocateVector<HandlerCase>(
@@ -5483,18 +5501,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   int DecodeLoadMem(LoadType type, int prefix_len = 1) {
-    MemoryAccessImmediate imm =
-        MakeMemoryAccessImmediate(prefix_len, type.size_log_2());
+    MemoryAccessImmediate imm = MakeMemoryAccessImmediate(
+        prefix_len, type.size_log_2(), MemoryAccessImmediate::kNonAtomic);
     if (!this->Validate(this->pc_ + prefix_len, imm)) return 0;
     ValueType address_type = MemoryAddressType(imm.memory);
     Value index = Pop(address_type);
     Value* result = Push(type.value_type());
-    if (!VALIDATE(imm.memory_order == AtomicMemoryOrder::kSeqCst)) {
-      this->DecodeError(
-          this->pc_ + prefix_len,
-          "non-atomic load must have sequential consistency memory order");
-      return 0;
-    }
     if (V8_LIKELY(
             !CheckStaticallyOutOfBounds(imm.memory, type.size(), imm.offset))) {
       CALL_INTERFACE_IF_OK_AND_REACHABLE(LoadMem, type, imm, index, result);
@@ -5507,8 +5519,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     // Load extends always load 64-bits.
     uint32_t max_alignment =
         transform == LoadTransformationKind::kExtend ? 3 : type.size_log_2();
-    MemoryAccessImmediate imm =
-        MakeMemoryAccessImmediate(opcode_length, max_alignment);
+    MemoryAccessImmediate imm = MakeMemoryAccessImmediate(
+        opcode_length, max_alignment, MemoryAccessImmediate::kNonAtomic);
     if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
     ValueType address_type = MemoryAddressType(imm.memory);
     Value index = Pop(address_type);
@@ -5524,8 +5536,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   int DecodeLoadLane(WasmOpcode opcode, LoadType type, uint32_t opcode_length) {
-    MemoryAccessImmediate mem_imm =
-        MakeMemoryAccessImmediate(opcode_length, type.size_log_2());
+    MemoryAccessImmediate mem_imm = MakeMemoryAccessImmediate(
+        opcode_length, type.size_log_2(), MemoryAccessImmediate::kNonAtomic);
     if (!this->Validate(this->pc_ + opcode_length, mem_imm)) return 0;
     SimdLaneImmediate lane_imm(this, this->pc_ + opcode_length + mem_imm.length,
                                validate);
@@ -5544,8 +5556,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   int DecodeStoreLane(WasmOpcode opcode, StoreType type,
                       uint32_t opcode_length) {
-    MemoryAccessImmediate mem_imm =
-        MakeMemoryAccessImmediate(opcode_length, type.size_log_2());
+    MemoryAccessImmediate mem_imm = MakeMemoryAccessImmediate(
+        opcode_length, type.size_log_2(), MemoryAccessImmediate::kNonAtomic);
     if (!this->Validate(this->pc_ + opcode_length, mem_imm)) return 0;
     SimdLaneImmediate lane_imm(this, this->pc_ + opcode_length + mem_imm.length,
                                validate);
@@ -5573,17 +5585,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   int DecodeStoreMem(StoreType store, int prefix_len = 1) {
-    MemoryAccessImmediate imm =
-        MakeMemoryAccessImmediate(prefix_len, store.size_log_2());
+    MemoryAccessImmediate imm = MakeMemoryAccessImmediate(
+        prefix_len, store.size_log_2(), MemoryAccessImmediate::kNonAtomic);
     if (!this->Validate(this->pc_ + prefix_len, imm)) return 0;
     ValueType address_type = MemoryAddressType(imm.memory);
     auto [index, value] = Pop(address_type, store.value_type());
-    if (!VALIDATE(imm.memory_order == AtomicMemoryOrder::kSeqCst)) {
-      this->DecodeError(
-          this->pc_ + prefix_len,
-          "non-atomic store must have sequential consistency memory order");
-      return 0;
-    }
     if (V8_LIKELY(!CheckStaticallyOutOfBounds(imm.memory, store.size(),
                                               imm.offset))) {
       CALL_INTERFACE_IF_OK_AND_REACHABLE(StoreMem, store, imm, index, value);
@@ -7703,9 +7709,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     const uint32_t element_size_log2 =
         ElementSizeLog2Of(memtype.representation());
-    bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);
+    MemoryAccessImmediate::Kind kind = WasmOpcodes::IsAtomicRmwOpcode(opcode)
+                                           ? MemoryAccessImmediate::kAtomicRMW
+                                           : MemoryAccessImmediate::kAtomic;
     MemoryAccessImmediate imm =
-        MakeMemoryAccessImmediate(opcode_length, element_size_log2, is_rmw);
+        MakeMemoryAccessImmediate(opcode_length, element_size_log2, kind);
     if (!this->Validate(this->pc_ + opcode_length, imm)) return false;
     if (!VALIDATE(imm.alignment == element_size_log2)) {
       this->DecodeError(this->pc_,
@@ -7875,7 +7883,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       case kExprI64Add128: {
         CHECK_PROTOTYPE_OPCODE(wide_arithmetic);
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || \
+    V8_TARGET_ARCH_ARM64
         auto [a_lo, a_hi, b_lo, b_hi] =
             Pop(kWasmI64, kWasmI64, kWasmI64, kWasmI64);
         Value* result_l = Push(kWasmI64);
@@ -7907,8 +7916,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       case kExprI64Sub128: {
         CHECK_PROTOTYPE_OPCODE(wide_arithmetic);
-        this->DecodeError("Wide arithmetic opcodes are not yet implemented.");
-        return 0;
+        auto [a_lo, a_hi, b_lo, b_hi] =
+            Pop(kWasmI64, kWasmI64, kWasmI64, kWasmI64);
+        Value* result_l = Push(kWasmI64);
+        Value* result_h = Push(kWasmI64);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(WideOp4, opcode, a_lo, a_hi, b_lo,
+                                           b_hi, result_l, result_h);
+        return opcode_length;
       }
       default:
         this->DecodeError("invalid numeric opcode: 0x%x", opcode);
@@ -8198,7 +8212,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     // Arity 1 is still common enough that we handle it separately (only doing
     // the most basic subtype check).
     if (arity == 1 && (strict_count ? actual == arity : actual >= arity)) {
-      if (stack_.back().type == merge->vals.first.type) return true;
+      if (stack_.back().type == merge->vals.first.type) {
+        if constexpr (static_cast<bool>(rewrite_types) &&
+                      ValidationTag::validate) {
+          stack_.back().pc_for_errors = this->pc_;
+        }
+        return true;
+      }
     }
     return TypeCheckStackAgainstMerge_Slow<strict_count, push_branch_values,
                                            merge_type, rewrite_types>(merge);
@@ -8240,6 +8260,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if constexpr (static_cast<bool>(rewrite_types)) {
           // Upcast type on the stack to the target type of the label.
           val.type = old.type;
+          if constexpr (ValidationTag::validate) {
+            val.pc_for_errors = this->pc_;
+          }
         }
       }
       return true;
@@ -8266,6 +8289,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         for (uint32_t i = 0; i < std::min(arity, inserted_value_count); i++) {
           if (stack_base[i].type == kWasmBottom) {
             stack_base[i].type = (*merge)[i].type;
+            if constexpr (static_cast<bool>(rewrite_types) &&
+                          ValidationTag::validate) {
+              stack_base[i].pc_for_errors = this->pc_;
+            }
           }
         }
       }

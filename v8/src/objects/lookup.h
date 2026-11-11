@@ -234,11 +234,11 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   void ReconfigureDataProperty(DirectHandle<Object> value,
                                PropertyAttributes attributes);
   void Delete();
-  void TransitionToAccessorProperty(DirectHandle<Object> getter,
-                                    DirectHandle<Object> setter,
-                                    PropertyAttributes attributes);
-  void TransitionToAccessorPair(DirectHandle<Object> pair,
-                                PropertyAttributes attributes);
+  V8_WARN_UNUSED_RESULT Maybe<bool> TransitionToAccessorProperty(
+      DirectHandle<Object> getter, DirectHandle<Object> setter,
+      PropertyAttributes attributes);
+  V8_WARN_UNUSED_RESULT Maybe<bool> TransitionToAccessorPair(
+      DirectHandle<Object> pair, PropertyAttributes attributes);
   PropertyDetails property_details() const {
     DCHECK(has_property_);
     return property_details_;

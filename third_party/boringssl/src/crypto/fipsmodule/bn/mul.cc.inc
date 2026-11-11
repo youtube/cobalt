@@ -140,6 +140,7 @@ int bssl::bn_abs_sub_consttime(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
   }
   bn_abs_sub_part_words(r->d, a->d, b->d, cl, dl, tmp->d);
   r->width = r_len;
+  r->neg = 0;
   return 1;
 }
 

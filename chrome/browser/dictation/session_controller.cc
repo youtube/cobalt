@@ -6,20 +6,24 @@
 
 #include <memory>
 
+#include "chrome/browser/dictation/session_controller_delegate.h"
+#include "chrome/browser/dictation/session_ui.h"
 #include "chrome/browser/dictation/stream_provider.h"
-#include "chrome/browser/dictation/ui.h"
 
 namespace dictation {
 
 SessionController::SessionController(SessionControllerDelegate& delegate)
-    : delegate_(delegate),
-      ui_(delegate_->CreateUi(*this)) {}
+    : delegate_(delegate) {}
 
 SessionController::~SessionController() {
   CHECK(state_ != State::kInactive || !attached_stream_provider_);
   if (state_ != State::kInactive) {
     EndDictationStream();
   }
+}
+
+void SessionController::Initialize() {
+  ui_ = delegate_->CreateUi(*this);
 }
 
 void SessionController::StartDictationStream(Target& target) {
@@ -30,7 +34,7 @@ void SessionController::StartDictationStream(Target& target) {
   stream_provider->BindToTarget(target);
   attached_stream_provider_ = std::move(stream_provider);
 
-  MoveToState(State::kInitializing);
+  MoveToState(State::kStreamInitializing);
 }
 
 void SessionController::EndDictationStream() {
@@ -38,6 +42,12 @@ void SessionController::EndDictationStream() {
   attached_stream_provider_->Stop();
   attached_stream_provider_.reset();
   MoveToState(State::kInactive);
+}
+
+void SessionController::RequestEndSession() {
+  delegate_->EndSession();
+
+  // DO NOT ADD CODE AFTER THIS: EndSession() destroys `this`.
 }
 
 void SessionController::MoveToState(State new_state) {

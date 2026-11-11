@@ -167,14 +167,10 @@ constexpr PrefsForManagedContentSettingsMapEntry
          ContentSettingsType::CONTROLLED_FRAME, CONTENT_SETTING_BLOCK},
         // LocalNetworkAccess:
         // * Block takes precedence over Allow
-        // * LocalNetworkAccessAllowed/Blocked apply to all 3 LNA permissions
+        // * LocalNetworkAccessAllowed/Blocked applies to both LNA permissions
         // * More specific permission (LocalNetworkAllowed/Blocked and
         //   LoopbackNetworkAllowed/Blocked) take precedence over the more
         //   general LocalNetworkAccessAllowed/Blocked policies
-        {prefs::kManagedLocalNetworkAccessAllowedForUrls,
-         ContentSettingsType::LOCAL_NETWORK_ACCESS, CONTENT_SETTING_ALLOW},
-        {prefs::kManagedLocalNetworkAccessBlockedForUrls,
-         ContentSettingsType::LOCAL_NETWORK_ACCESS, CONTENT_SETTING_BLOCK},
         {prefs::kManagedLocalNetworkAccessAllowedForUrls,
          ContentSettingsType::LOCAL_NETWORK, CONTENT_SETTING_ALLOW},
         {prefs::kManagedLocalNetworkAccessBlockedForUrls,
@@ -257,6 +253,8 @@ constexpr const char* kManagedPrefs[] = {
     prefs::kManagedDirectSocketsBlockedForUrls,
     prefs::kManagedDirectSocketsPrivateNetworkAccessAllowedForUrls,
     prefs::kManagedDirectSocketsPrivateNetworkAccessBlockedForUrls,
+    prefs::kManagedSubAppsWithoutPromptsAllowedForOrigins,
+    prefs::kManagedSubAppsWithoutPromptsBlockedForOrigins,
 #if BUILDFLAG(IS_CHROMEOS)
     prefs::kManagedSmartCardConnectAllowedForUrls,
     prefs::kManagedSmartCardConnectBlockedForUrls,
@@ -299,6 +297,7 @@ constexpr const char* kManagedDefaultPrefs[] = {
     prefs::kManagedDefaultLocalFontsSetting,
     prefs::kManagedDefaultWebPrintingSetting,
     prefs::kManagedDefaultDirectSocketsSetting,
+    prefs::kManagedDefaultSubAppsWithoutPromptsSetting,
     prefs::kManagedDefaultDirectSocketsPrivateNetworkAccessSetting,
     prefs::kManagedDefaultControlledFrameSetting,
 #if BUILDFLAG(IS_CHROMEOS)
@@ -726,7 +725,7 @@ bool PolicyProvider::SetWebsiteSetting(
     const ContentSettingsPattern& primary_pattern,
     const ContentSettingsPattern& secondary_pattern,
     ContentSettingsType content_type,
-    base::Value&& value,
+    const base::Value& value,
     const ContentSettingConstraints& constraints) {
   return false;
 }

@@ -1013,7 +1013,7 @@ bool ComputedStyle::DiffNeedsFullLayout(const Document& document,
     }
   }
 
-  if (IsDisplayLayoutCustomBox() &&
+  if (IsDisplayLayoutCustom() &&
       DiffNeedsFullLayoutForLayoutCustom(document, other)) {
     return true;
   }
@@ -1049,7 +1049,7 @@ bool ComputedStyle::DiffNeedsFullLayout(const Document& document,
 bool ComputedStyle::DiffNeedsFullLayoutForLayoutCustom(
     const Document& document,
     const ComputedStyle& other) const {
-  DCHECK(IsDisplayLayoutCustomBox());
+  DCHECK(IsDisplayLayoutCustom());
 
   LayoutWorklet* worklet = LayoutWorklet::From(*document.domWindow());
   const AtomicString& name = DisplayLayoutCustomName();
@@ -2834,6 +2834,18 @@ std::optional<blink::Color> ComputedStyle::AccentColorResolved() const {
   return auto_color.Resolve(GetCurrentColor(), UsedColorScheme());
 }
 
+std::optional<blink::Color> ComputedStyle::ResolvedCaretTextColor() const {
+  const StyleAutoColor& text_color = CaretColor().TextColor();
+  if (text_color.IsAutoColor()) {
+    return std::nullopt;
+  }
+  const StyleColor& style_color = text_color.ToStyleColor();
+  if (ShouldForceColor(style_color)) {
+    return GetInternalForcedCurrentColor(nullptr);
+  }
+  return style_color.Resolve(GetCurrentColor(), UsedColorScheme(), nullptr);
+}
+
 std::optional<blink::Color> ComputedStyle::ScrollbarThumbColorResolved() const {
   if (const StyleScrollbarColor* scrollbar_color = UsedScrollbarColor()) {
     return scrollbar_color->GetThumbColor().Resolve(GetCurrentColor(),
@@ -2873,7 +2885,7 @@ bool ComputedStyle::ShouldApplyAnyContainment(const Element& element,
     return true;
   }
   return (effective_containment & (kContainsLayout | kContainsPaint)) &&
-         (!IsDisplayTableType(display) || IsDisplayTableBox(display) ||
+         (!IsDisplayTableType(display) || IsDisplayTable(display) ||
           display == EDisplay::kTableCell ||
           display == EDisplay::kTableCaption);
 }

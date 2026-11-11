@@ -5,7 +5,9 @@
 #ifndef CHROME_BROWSER_SHARING_GLIC_EXPERIMENTAL_TRIGGERING_GLIC_EXPERIMENTAL_TRIGGERING_MESSAGE_HANDLER_H_
 #define CHROME_BROWSER_SHARING_GLIC_EXPERIMENTAL_TRIGGERING_GLIC_EXPERIMENTAL_TRIGGERING_MESSAGE_HANDLER_H_
 
+#include <map>
 #include <optional>
+#include <string>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -16,8 +18,7 @@
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
 
 namespace glic {
-class GlicInstance;
-class GlicKeyedService;
+class GlicExperimentalOptInController;
 }  // namespace glic
 
 class Profile;
@@ -27,6 +28,7 @@ class SharingMessageSender;
 namespace tabs {
 class TabInterface;
 }
+class ExperimentalTriggeringUpdatesHandler;
 
 class GlicExperimentalTriggeringMessageHandler : public SharingMessageHandler {
  public:
@@ -47,23 +49,19 @@ class GlicExperimentalTriggeringMessageHandler : public SharingMessageHandler {
   virtual tabs::TabInterface* GetActiveTab() const;
 
  private:
-  void OnClientConnectedForUpdates(
-      components_sharing_message::ServerChannelConfiguration server_channel,
-      std::optional<int64_t> last_seen_sequence_number,
-      base::WeakPtr<glic::GlicInstance> instance);
+  friend class ExperimentalTriggeringUpdatesHandler;
 
-  void ProcessStopActionRequest(
-      components_sharing_message::SharingMessage message,
-      tabs::TabInterface* active_tab,
-      glic::GlicKeyedService* glic_service,
-      DoneCallback done_callback);
+  void ProcessDeviceOptInRequest(tabs::TabInterface* active_tab);
+
+  void OnUpdatesHandlerCleanup(std::string context_id);
 
   const raw_ptr<Profile> profile_;
-
   const raw_ptr<SharingMessageSender> message_sender_;
-  mojo::UniqueReceiverSet<glic::mojom::ExperimentalTriggeringUpdatesHandler>
-      listeners_;
-
+#if !BUILDFLAG(IS_ANDROID)
+  std::unique_ptr<glic::GlicExperimentalOptInController> opt_in_controller_;
+#endif
+  std::map<std::string, std::unique_ptr<ExperimentalTriggeringUpdatesHandler>>
+      context_id_to_updates_handler_map_;
   base::WeakPtrFactory<GlicExperimentalTriggeringMessageHandler>
       weak_ptr_factory_{this};
 };

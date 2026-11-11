@@ -4,6 +4,7 @@
 
 #include "quiche/quic/masque/masque_ohttp_client.h"
 
+#include <cstring>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -42,6 +43,7 @@
 #include "quiche/oblivious_http/buffers/oblivious_http_response.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 #include "quiche/oblivious_http/oblivious_http_client.h"
+#include <zlib.h>
 
 namespace quic {
 
@@ -61,6 +63,8 @@ using Message = ::quic::MasqueConnectionPool::Message;
 namespace {
 
 static constexpr uint64_t kFixedSizeResponseFramingIndicator = 0x01;
+// Buffer size for gzip decompression. 32KB chosen arbitrarily.
+static constexpr size_t kGzipDecompressBufferSize = 32768;
 
 absl::Status ParseHeadersIntoMap(
     const std::vector<std::string>& headers,
@@ -98,6 +102,51 @@ absl::StatusOr<std::vector<absl::string_view>> SplitIntoChunks(
     offset = end;
   }
   return chunks;
+}
+
+absl::StatusOr<std::string> GzipDecompress(absl::string_view input) {
+  z_stream zs;
+  memset(&zs, 0, sizeof(zs));
+
+  // Initialize zlib for gzip decompression.
+  // 16 + MAX_WBITS tells zlib to expect a gzip header and trailer, which is the
+  // expectation for valid HTTP responses with `Content-Encoding: gzip`.
+  if (inflateInit2(&zs, 16 + MAX_WBITS) != Z_OK) {
+    return absl::InternalError(
+        "Failed to initialize zlib for gzip decompression");
+  }
+
+  // Automatically clean up zlib resources when exiting the function.
+  absl::Cleanup cleanup = [&zs] { inflateEnd(&zs); };
+
+  zs.next_in = reinterpret_cast<uint8_t*>(const_cast<char*>(input.data()));
+  zs.avail_in = input.size();
+
+  int ret;
+  std::vector<uint8_t> outbuffer(kGzipDecompressBufferSize);
+  std::string decompressed;
+
+  // Decompress the input in chunks until we reach the end of the stream.
+  do {
+    zs.next_out = outbuffer.data();
+    zs.avail_out = outbuffer.size();
+
+    ret = inflate(&zs, Z_NO_FLUSH);
+
+    // Calculate how much data was placed in the buffer and append it.
+    size_t decompressed_size = outbuffer.size() - zs.avail_out;
+    decompressed.append(reinterpret_cast<char*>(outbuffer.data()),
+                        decompressed_size);
+  } while (ret == Z_OK);
+
+  // Z_STREAM_END indicates that the full compressed stream was processed
+  // successfully.
+  if (ret != Z_STREAM_END) {
+    return absl::InternalError(
+        absl::StrCat("Gzip decompression failed with error code: ", ret));
+  }
+
+  return decompressed;
 }
 
 class PingPongResponseVisitor : public MasqueOhttpClient::ResponseVisitor {
@@ -544,6 +593,9 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
          per_request_config.headers()) {
       headers.push_back({header.first, header.second});
     }
+    if (config_.handle_gzip_response()) {
+      headers.push_back({"accept-encoding", "gzip"});
+    }
     QUICHE_ASSIGN_OR_RETURN(
         std::string encoded_headers,
         pending_request.encoder->EncodeHeaders(absl::MakeSpan(headers)));
@@ -573,6 +625,9 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
     for (const std::pair<std::string, std::string>& header :
          per_request_config.headers()) {
       binary_request.AddHeaderField({header.first, header.second});
+    }
+    if (config_.handle_gzip_response()) {
+      binary_request.AddHeaderField({"accept-encoding", "gzip"});
     }
     binary_request.set_body(post_data);
     QUICHE_ASSIGN_OR_RETURN(encoded_data, binary_request.Serialize());
@@ -795,6 +850,20 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
                    << request_id << ". Body length is "
                    << encapsulated_response->body.size() << ". Headers:"
                    << encapsulated_response->headers.DebugString();
+  if (config_.handle_gzip_response()) {
+    auto content_encoding_it =
+        encapsulated_response->headers.find("content-encoding");
+    if (content_encoding_it != encapsulated_response->headers.end() &&
+        absl::EqualsIgnoreCase(content_encoding_it->second, "gzip")) {
+      size_t compressed_size = encapsulated_response->body.size();
+      QUICHE_ASSIGN_OR_RETURN(std::string decompressed_body,
+                              GzipDecompress(encapsulated_response->body));
+      QUICHE_LOG(INFO) << "Successfully decompressed gzip response from size "
+                       << compressed_size << " to size "
+                       << decompressed_body.size();
+      encapsulated_response->body = std::move(decompressed_body);
+    }
+  }
   std::cout << encapsulated_response->body;
   int16_t encapsulated_status_code =
       MasqueConnectionPool::GetStatusCode(*encapsulated_response);
@@ -1043,6 +1112,7 @@ absl::Status MasqueOhttpClient::ChunkHandler::OnBodyChunk(
   body_chunk_count_++;
   QUICHE_LOG(INFO) << "Received body chunk #" << body_chunk_count_
                    << " of size " << body_chunk.size();
+  std::cout << body_chunk;
   response_.body += body_chunk;
 
   if (response_chunk_callback_) {

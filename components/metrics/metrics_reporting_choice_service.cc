@@ -75,6 +75,15 @@ void MetricsReportingChoiceService::ClearCachedFeatureStateForTesting() {
 }
 
 // static
+void MetricsReportingChoiceService::SetMetricsReportingLevel(
+    PrefService* local_state,
+    MetricsReportingLevel level) {
+  CHECK(local_state);
+  local_state->SetInteger(prefs::kMetricsReportingLevel,
+                          static_cast<int>(level));
+}
+
+// static
 bool MetricsReportingChoiceService::ShouldUseMetricsConsentRestructure(
     const PrefService* local_state) {
   CHECK(local_state);
@@ -98,6 +107,15 @@ bool MetricsReportingChoiceService::IsBasicMetricsReportingEnabled(
     }
   }
   return local_state->GetBoolean(prefs::kMetricsReportingEnabled);
+}
+
+// static
+bool MetricsReportingChoiceService::IsAdvancedMetricsReportingEnabled(
+    const PrefService* local_state) {
+  CHECK(local_state);
+  MetricsReportingLevel level = static_cast<MetricsReportingLevel>(
+      local_state->GetInteger(prefs::kMetricsReportingLevel));
+  return level == MetricsReportingLevel::kAdvanced;
 }
 
 // static

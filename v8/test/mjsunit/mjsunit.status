@@ -271,6 +271,8 @@
   'random-bit-correlations': [PASS, ['mode == debug or simulator_run', SKIP]],
 
   'arbitrary-length-varargs': [PASS, ['(mode == debug and simulator_run) or lower_limits_mode', SKIP]],
+
+  'regress/regress-509622555*': [['not sparkplug_plus', SKIP]],
 }],  # ALWAYS
 
 ################################################################################
@@ -368,6 +370,7 @@
   'random-bit-correlations': [SLOW],
   'regress/regress-crbug-941743': [SKIP],
   'regress/regress-crbug-1041232': [SKIP],
+  'regress/regress-499721612': [SKIP],
   'regress/wasm/regress-1010272': [SKIP],
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
@@ -456,7 +459,8 @@
 
   # Too slow for gc stress.
   'asm/embenchen/box2d': [SKIP],
-  'wasm/wasm-interpreter': [PASS, ['arch == arm64 and simulator_run', SKIP]],
+  'regress/regress-904275': [PASS, SLOW, NO_VARIANTS],
+  'wasm/wasm-interpreter': [PASS, NO_VARIANTS, ['arch == arm64 and simulator_run', SKIP]],
 
   # Too slow for gc stress, BUG(v8:9506): times out.
   'wasm/shared-memory-worker-explicit-gc-stress': [SKIP],
@@ -472,7 +476,6 @@
   'regress/asm/regress-775710': [PASS, SLOW],
   'regress/regress-crbug-820312': [PASS, SLOW],
   'regress/regress-524': [PASS, ['tsan', SLOW]],
-  'regress/regress-904275': [PASS, SLOW],
 
   # BUG(v8:7880): Slow tests.
   'regress/regress-390568195': [PASS, ['tsan', SKIP]],
@@ -561,6 +564,7 @@
   'maglev/regress-355256380': [SKIP],
 
   'turbolev/has-in-prototype-chain-wasm': [SKIP],
+  'turbolev/regress-505610970': [SKIP],
 
   'sandbox/regress/regress-334120897': [SKIP],
   'sandbox/regress/regress-349502157': [SKIP],
@@ -670,6 +674,10 @@
   'regress/wasm/regress-473272199': [SKIP],
   'regress/wasm/regress-488089242': [SKIP],
   'regress/wasm/regress-489349562': [SKIP],
+  'regress/wasm/regress-493314948': [SKIP],
+  'regress/wasm/regress-493430818': [SKIP],
+  'regress/wasm/regress-493529579': [SKIP],
+  'regress/wasm/regress-493521637': [SKIP],
   'wasm/cont-bind': [SKIP],
   'wasm/regress-496645739': [SKIP],
   'wasm/regress-497667917': [SKIP],
@@ -690,6 +698,7 @@
   'regress/wasm/regress-336007398': [SKIP],
   'regress/wasm/regress-390467420': [SKIP],
   'regress/wasm/regress-399497254': [SKIP],
+  'regress/wasm/regress-497330272': [SKIP],
   'regress/wasm/regress-crbug-1463232': [SKIP],
   'regress/wasm/regress-crbug-1466312': [SKIP],
   'regress/wasm/regress-v8-14710': [SKIP],
@@ -749,6 +758,7 @@
   'regress/wasm/regress-334687959': [SKIP],
   'regress/wasm/regress-366350766': [SKIP],
   'regress/wasm/regress-441221187': [SKIP],
+  'regress/wasm/regress-505124865': [SKIP],
 
   # Wasm imported strings (just text-decoder or text-encoder)
   'wasm/imported-strings-utf8': [SKIP],
@@ -761,6 +771,16 @@
   # --experimental-wasm-shared
   'regress/wasm/regress-454276076': [SKIP],
   'regress/wasm/regress-475896261': [SKIP],
+  'regress/wasm/regress-490877756': [SKIP],
+  'regress/wasm/regress-490877757': [SKIP],
+  'regress/wasm/regress-490877758': [SKIP],
+  'regress/wasm/regress-493088266': [SKIP],
+  'regress/wasm/regress-493171989': [SKIP],
+  'regress/wasm/regress-500181839': [SKIP],
+  'regress/wasm/regress-504716006': [SKIP],
+  'regress/wasm/regress-505117973': [SKIP],
+  'regress/wasm/regress-508336493': [SKIP],
+  'regress/wasm/regress-508691168': [SKIP],
   'wasm/shared-everything/*': [SKIP],
   'wasm/subtyping-invalid': [SKIP],
 
@@ -852,6 +872,8 @@
   'wasm/async-compile': [SKIP],
   'wasm/log-code-after-post-message': [SKIP],
   'wasm/multiple-code-spaces': [SKIP],
+  'wasm/regress-488803428': [SKIP],
+  'wasm/regress-510650967': [SKIP],
   'wasm/wasm-code-coverage': [SKIP],
   'wasm/wrapper-compilation': [SKIP],
 
@@ -888,8 +910,13 @@
   'regress/wasm/regress-368241691': [SKIP],
   'regress/wasm/regress-373702823': [SKIP],
   'regress/wasm/regress-383356864': [SKIP],
+  'regress/wasm/regress-391907159': [SKIP],
   'regress/wasm/regress-456319253': [SKIP],
   'regress/wasm/regress-484405356': [SKIP],
+  'regress/wasm/regress-490183533': [SKIP],
+  'regress/wasm/regress-493099941': [SKIP],
+  'regress/wasm/regress-509674461': [SKIP],
+  'regress/wasm/regress-511772679': [SKIP],
   'regress/wasm/regress-crbug-1507751': [SKIP],
   'wasm/bit-shift-right': [SKIP],
   'wasm/bounds-check-turbofan': [SKIP],
@@ -927,6 +954,11 @@
   'regress/wasm/regress-470127856': [SKIP],
   'regress/wasm/regress-471380636': [SKIP],
   'regress/wasm/regress-474491347': [SKIP],
+  'regress/wasm/regress-491696923': [SKIP],
+  'regress/wasm/regress-493521807': [SKIP],
+  'regress/wasm/regress-498814570': [SKIP],
+  'regress/wasm/regress-498818401': [SKIP],
+  'regress/wasm/regress-500113958': [SKIP],
 
   # The interpreter call stack contains an additional top frame if we throw a
   # type-mismatch exception before executing the Wasm function.
@@ -981,6 +1013,7 @@
   'compiler/fast-api-interface-types': [SKIP],
   'compiler/fast-api-deopt': [SKIP],
   'regress/regress-505551322': [SKIP],
+  'regress/regress-508672637': [SKIP],
   'compiler/regress-crbug-1201011': [SKIP],
   'compiler/regress-crbug-1201057': [SKIP],
   'compiler/regress-crbug-1201082': [SKIP],
@@ -1060,6 +1093,7 @@
   'regress/regress-1447383': [SKIP],
   'regress/regress-crbug-335592010': [SKIP],
   'regress/regress-352402863': [SKIP],
+  'string-localecompare-inline': [SKIP],
 
   # Non-BMP characters currently aren't considered identifiers without i18n
   'harmony/private-name-surrogate-pair': [PASS,FAIL],
@@ -1136,6 +1170,7 @@
   'compiler/fast-api-calls-64-bit-integer-values': [SKIP],
   'wasm/fast-api-calls-with-wellknown-imports-i64': [SKIP],
   'wasm/fast-api-calls-with-wellknown-imports-conflict': [SKIP],
+  'regress/regress-508347341': [SKIP],
 }],  # 'arch in (ia32, arm, riscv32)'
 
 ##############################################################################
@@ -1810,7 +1845,7 @@
 }], # gc_fuzzer or deopt_fuzzer
 
 ##############################################################################
-['gc_fuzzer or deopt_fuzzer or interrupt_fuzzer', {
+['num_fuzzer', {
   # BUG(v8:12842) Skipped until we remove flakes on NumFuzz.
   'compiler/regress-1224277': [SKIP],
   'regress/regress-1220974': [SKIP],
@@ -1858,7 +1893,9 @@
   'wasm/max-wasm-functions': [FUZZ_RARE, PASS],
   'wasm/memory-resizable-buffer-array-*': [FUZZ_RARE, PASS],
   'wasm/shared-memory*': [FUZZ_RARE, PASS],
-}], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
+  # Fails due to CWD changes in arguments processing.
+  'd8/cwd/working_dir': [SKIP],
+}], # num_fuzzer
 
 ##############################################################################
 ['endurance_fuzzer', {
@@ -1925,7 +1962,6 @@
 
   # These tests trigger profiling, which can trigger non-deterministic
   # allocations.
-  'asm/log-lazy-code': [SKIP],
   'regress/regress-1394663': [SKIP],
   'regress/wasm/regress-crbug-1502180': [SKIP],
   'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
@@ -2392,7 +2428,7 @@
 
 ##############################################################################
 ['variant == stress_incremental_marking', {
-  'harmony/sharedarraybuffer-worker-gc-stress': [PASS, ['gc_stress and arch == arm64 and simulator_run', SKIP]],
+  'harmony/sharedarraybuffer-worker-gc-stress': [PASS, ['gc_stress', SKIP]],
   'regress/regress-740784': [PASS, ['tsan', SKIP]],
   'regress/regress-crbug-820312': [PASS, SLOW],
   'wasm/shared-memory-worker-stress': [PASS, SLOW, ['tsan', SKIP]],
@@ -2598,6 +2634,9 @@
   # TODO(42204563): These tests rely on the shared heap which is incompatible
   # with single generation.
   'regress/regress-461969023': [SKIP],
+  # We need this here because it needs --fuzzing, and in that case we do not
+  # check for contradictory flags.
+  'regress/wasm/regress-510448957': [SKIP],
 
   # weakrefs/minor-gc-* tests require a young generation.
   'weakrefs/minor-gc-*': [SKIP],
@@ -2648,6 +2687,7 @@
   'compiler/fast-api-sequences-x64': [SKIP],
   'compiler/fast-api-annotations': [SKIP],
   'regress/regress-505551322': [SKIP],
+  'regress/regress-508672637': [SKIP],
 }],  # arch != x64 and arch != arm64 and arch != loong64 and arch != mips64 and arch != riscv64'
 
 ##############################################################################
@@ -2656,6 +2696,8 @@
 ['(arch != x64 and arch != arm64 and arch != riscv64 and arch != loong64) or (arch == arm64 and not pointer_compression)', {
   # this test requires memory64 trap handling.
   'regress/wasm/regress-332939161': [SKIP],
+  # Requires 4GB typed array, which fails on 32-bit systems.
+  'regress/regress-509312809': [SKIP],
 }],
 
 ##############################################################################
@@ -2754,6 +2796,7 @@
   'tzoffset-transition-apia': [FAIL],
   'tzoffset-transition-lord-howe': [FAIL],
   'tzoffset-transition-moscow': [FAIL],
+  'string-localecompare-inline': [SKIP],
 }], # variant == google3_nociu
 
 # Tests that cannot run without JS shared memory
@@ -2830,6 +2873,7 @@
   'regress/wasm/regress-368086282': [SKIP],
   'regress/wasm/regress-438770394': [SKIP],
   'regress/regress-505551322': [SKIP],
+  'regress/regress-508672637': [SKIP],
   'regress/regress-366323469': [FAIL],
   'regress/regress-366635361': [FAIL],
   # Maglev doesn't specialise the IsBeingInterpreted runtime func.
@@ -3048,6 +3092,7 @@
 
   # Slow tests.
   'ignition/regress-672027': [PASS, SLOW],
+  'regress/wasm/regress-355493919': [SKIP], # No need to waste cpu cycles on it.
 
   # Test checks that object is reclaimed but cannot use async GCs.
   'weakrefs/minor-gc-*': [SKIP],
@@ -3128,7 +3173,6 @@
   'regress-332570754': [SKIP],
   'regress/regress-490446682': [SKIP],
   'asm/regress-1395401': [SKIP],
-  'asm/log-lazy-code': [SKIP],
   'regress/regress-1394663': [SKIP],
   'regress/wasm/regress-crbug-1502180': [SKIP],
   'regress/wasm/regress-392928805': [SKIP],
@@ -3318,4 +3362,13 @@
   'regress/regress-v8-9394-2': [FAIL],
 }],
 
+##############################################################################
+['not temporal', {
+  # Needs temporal:
+  'regress/regress-463593768': [SKIP],
+  'regress/regress-464961493': [SKIP],
+  'regress/regress-493269623': [SKIP],
+  'regress/regress-495503781': [SKIP],
+  'regress/regress-temporal-zoneinfo': [SKIP],
+}],
 ]

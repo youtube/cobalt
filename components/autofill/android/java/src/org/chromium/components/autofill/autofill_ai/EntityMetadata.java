@@ -6,6 +6,7 @@ package org.chromium.components.autofill.autofill_ai;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 
 import org.chromium.build.annotations.NullMarked;
 
@@ -13,36 +14,41 @@ import org.chromium.build.annotations.NullMarked;
 @JNINamespace("autofill")
 @NullMarked
 public class EntityMetadata {
-    private final int mModifiedDay;
-    private final int mModifiedMonth;
-    private final int mModifiedYear;
-    private final int mUseCount;
+    private final String mGuid;
+    // The dates are stored as raw long values to avoid using java.time.*.
+    private final long mModifiedTime;
+    private final long mUseCount;
+    private final long mUseDateMillis;
 
     @CalledByNative
-    public EntityMetadata(int day, int month, int year, int useCount) {
-        mModifiedDay = day;
-        mModifiedMonth = month;
-        mModifiedYear = year;
+    public EntityMetadata(
+            @JniType("std::string") String guid,
+            long modifiedTimeMillis,
+            long useCount,
+            long useDateMillis) {
+        mGuid = guid;
+        mModifiedTime = modifiedTimeMillis;
         mUseCount = useCount;
+        mUseDateMillis = useDateMillis;
     }
 
     @CalledByNative
-    public int getModifiedDay() {
-        return mModifiedDay;
+    public @JniType("std::string") String getGuid() {
+        return mGuid;
     }
 
     @CalledByNative
-    public int getModifiedMonth() {
-        return mModifiedMonth;
+    public long getModifiedTimeMillis() {
+        return mModifiedTime;
     }
 
     @CalledByNative
-    public int getModifiedYear() {
-        return mModifiedYear;
-    }
-
-    @CalledByNative
-    public int getUseCount() {
+    public long getUseCount() {
         return mUseCount;
+    }
+
+    @CalledByNative
+    public long getUseDateMillis() {
+        return mUseDateMillis;
     }
 }

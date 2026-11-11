@@ -46,7 +46,7 @@ Tagged<InstructionStream> InstructionStream::Initialize(
             self.address(), InstructionStream::SizeFor(body_size));
     CHECK_EQ(InstructionStream::SizeFor(body_size), writable_allocation.size());
 
-    writable_allocation.WriteHeaderSlot<Map, HeapObject::kMapOffset>(
+    writable_allocation.WriteHeaderSlot<Map, offsetof(HeapObject, map_)>(
         map, kRelaxedStore);
 
     writable_allocation.WriteHeaderSlot<uint32_t, kBodySizeOffset>(body_size);
@@ -85,7 +85,7 @@ Tagged<InstructionStream> InstructionStream::Initialize(
     CHECK(!WriteBarrier::IsRequired(istream, map));
   }
 #endif
-  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*istream, kRelocationInfoOffset,
+  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(istream, kRelocationInfoOffset,
                                               reloc_info, UPDATE_WRITE_BARRIER);
 
   return istream;
@@ -164,7 +164,7 @@ void InstructionStream::Finalize(Tagged<Code> code,
   // Trigger the write barriers after we dropped the JIT write permissions.
   RelocateFromDescWriteBarriers(heap, desc, code->constant_pool(), *promise,
                                 no_gc);
-  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*this, kCodeOffset, code,
+  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(this, kCodeOffset, code,
                                               UPDATE_WRITE_BARRIER);
 
   code->FlushICache();

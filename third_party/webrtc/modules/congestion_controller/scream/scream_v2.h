@@ -113,6 +113,8 @@ class ScreamV2 {
                      params_.max_segment_size.Get();
   }
 
+  bool is_application_limited() const { return is_application_limited_; }
+
  private:
   void UpdateL4SAlpha(const TransportPacketsFeedback& msg);
   void UpdateRefWindow(const TransportPacketsFeedback& msg);
@@ -165,6 +167,11 @@ class ScreamV2 {
 
   DelayBasedCongestionControl delay_based_congestion_control_;
   bool first_feedback_processed_ = false;
+
+  // Tracks if the send rate is less than the network path can currently
+  // support. This is done by checking if max_allowed_ref_window() <
+  // ref_window_.
+  bool is_application_limited_ = false;
 };
 
 }  // namespace webrtc

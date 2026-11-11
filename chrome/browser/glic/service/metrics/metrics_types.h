@@ -132,7 +132,15 @@ enum class ResponseSegmentation {
   kExperimentalTriggeringAttachedAudio = 114,
   kExperimentalTriggeringDetachedText = 115,
   kExperimentalTriggeringDetachedAudio = 116,
-  kMaxValue = kExperimentalTriggeringDetachedAudio,
+  kPasswordChangeAttachedText = 117,
+  kPasswordChangeAttachedAudio = 118,
+  kPasswordChangeDetachedText = 119,
+  kPasswordChangeDetachedAudio = 120,
+  kAutofillAttachedText = 121,
+  kAutofillAttachedAudio = 122,
+  kAutofillDetachedText = 123,
+  kAutofillDetachedAudio = 124,
+  kMaxValue = kAutofillDetachedAudio,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicResponseSegmentation)
 
@@ -144,6 +152,7 @@ enum class ModeOffset : int {
   kMaxValue = kAudioDetached,
 };
 
+// LINT.IfChange(DaisyChainSource)
 enum class DaisyChainSource {
   kUnknown = 0,
   kGlicContents = 1,
@@ -153,8 +162,10 @@ enum class DaisyChainSource {
   kWebHandoff = 5,
   kAutoOpenPdf = 6,
   kLastActiveInstance = 7,
-  kMaxValue = kLastActiveInstance,
+  kBookmark = 8,
+  kMaxValue = kBookmark,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/histograms.xml:Source)
 
 std::string GetDaisyChainSourceString(DaisyChainSource source);
 

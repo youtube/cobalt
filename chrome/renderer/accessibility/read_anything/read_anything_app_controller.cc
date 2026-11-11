@@ -564,7 +564,8 @@ void ReadAnythingAppController::OnStringAttributeChanged(
   }
 }
 
-bool ReadAnythingAppController::IsUpdateProcessingPaused() const {
+bool ReadAnythingAppController::IsUpdateProcessingPaused(
+    bool allow_selection_updates) const {
   if (model_.screen2x_distiller_running() ||
       read_aloud_model_.speech_playing()) {
     return true;
@@ -588,9 +589,13 @@ bool ReadAnythingAppController::IsUpdateProcessingPaused() const {
       read_anything::mojom::ReadAnythingPresentationState::
           kInImmersiveOverlay) {
     // We only want to block the processing/distillation pipeline if there is
-    // already a good distillation on IRM. If a distillation is pending, or if
-    // the current distillation is empty, we don't want to block the pending
-    // update.
+    // already a good distillation on IRM. If a distillation or selection is
+    // pending, or if the current distillation is empty, we don't want to
+    // block the pending update.
+    if (allow_selection_updates && model_.has_pending_selection()) {
+      return false;
+    }
+
     return model_.distillation_state() ==
            read_anything::mojom::ReadAnythingDistillationState::
                kDistillationWithContent;
@@ -599,8 +604,10 @@ bool ReadAnythingAppController::IsUpdateProcessingPaused() const {
   return false;
 }
 
-void ReadAnythingAppController::ProcessPendingUpdatesIfAllowed() {
-  if (IsUpdateProcessingPaused() || !model_.ContainsActiveTree()) {
+void ReadAnythingAppController::ProcessPendingUpdatesIfAllowed(
+    bool allow_selection_updates) {
+  if (IsUpdateProcessingPaused(allow_selection_updates) ||
+      !model_.ContainsActiveTree()) {
     return;
   }
 
@@ -642,7 +649,7 @@ void ReadAnythingAppController::AccessibilityEventReceived(
 
   // Trigger model updates for Screen2x or for Readability when the select text
   // feature is enabled.
-  if (features::IsReadAnythingReadabilitySelectTextEnabled() ||
+  if (IsReadabilitySelectTextEnabled() ||
       !model_.is_readability_next_distillation_method()) {
     ProcessModelUpdates();
     return;
@@ -653,7 +660,7 @@ void ReadAnythingAppController::ProcessModelUpdates() {
   // When the Readability feature is enabled as standalone, treat readability
   // distilation as static and ignore model updates.
   if (model_.is_readability_next_distillation_method() &&
-      !features::IsReadAnythingReadabilitySelectTextEnabled()) {
+      !IsReadabilitySelectTextEnabled()) {
     return;
   }
 
@@ -1526,7 +1533,8 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
       .SetMethod("onSpeechEngineStalled",
                  &ReadAnythingAppController::OnSpeechEngineStalled)
       .SetMethod("onRenderedTextBlocksAvailable",
-                 &ReadAnythingAppController::OnRenderedTextBlocksAvailable);
+                 &ReadAnythingAppController::OnRenderedTextBlocksAvailable)
+      .SetMethod("getAxMapping", &ReadAnythingAppController::GetAXMapping);
 }
 
 ui::AXNodeID ReadAnythingAppController::RootId() const {
@@ -1924,11 +1932,21 @@ void ReadAnythingAppController::SendGetPresentationStateRequest() const {
 
 void ReadAnythingAppController::OnGetPresentationState(
     read_anything::mojom::ReadAnythingPresentationState presentation_state) {
+  bool is_immersive_opening =
+      (presentation_state ==
+       read_anything::mojom::ReadAnythingPresentationState::
+           kInImmersiveOverlay) &&
+      (model_.active_presentation_state() !=
+       read_anything::mojom::ReadAnythingPresentationState::
+           kInImmersiveOverlay);
+
   model_.set_active_presentation_state(presentation_state);
   // Now that the presentation state changed which is potentially one of the
   // factors blocking processing, see if we can unblock processing of the
   // updates.
-  ProcessPendingUpdatesIfAllowed();
+  ProcessPendingUpdatesIfAllowed(
+      /* allow_selection_updates=*/is_immersive_opening);
+
   ExecuteJavaScript("chrome.readingMode.onPresentationStateReceived(" +
                     base::ToString(static_cast<int>(presentation_state)) +
                     ");");
@@ -2247,6 +2265,9 @@ void ReadAnythingAppController::OnDistilled(int word_count) {
         "Accessibility.ReadAnything.WordsDistilledByReadability", word_count, 1,
         kMaxWordsConsumed, kWordsConsumedBuckets);
   }
+  base::UmaHistogramCustomCounts(
+      "Accessibility.ReadAnything.WordsDistilledOnNewPage", word_count, 1,
+      kMaxWordsConsumed, kWordsConsumedBuckets);
 }
 
 void ReadAnythingAppController::UpdateWordsSeen(int words_seen) {
@@ -3045,7 +3066,7 @@ void ReadAnythingAppController::ApplyAccessibilityUpdatesForReadability(
 }
 
 void ReadAnythingAppController::OnRenderedTextBlocksAvailable(
-    const std::vector<std::string>& blocks) {
+    const std::vector<std::u16string>& blocks) {
   if (!IsReadabilitySelectTextEnabled()) {
     return;
   }
@@ -3067,9 +3088,46 @@ void ReadAnythingAppController::MaybeMapRenderedTextToTree() {
   }
 
   if (model_.MapRenderedTextToTree(model_.readability_text_blocks())) {
-    // TODO(crbug.com/507447796): Notify frontend that readability text has been
-    // mapped to create readability nodestore.
+    ExecuteJavaScript("chrome.readingMode.onRenderedTextMappingReady();");
   }
+}
+
+v8::Local<v8::Value> ReadAnythingAppController::GetAXMapping(int index) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  if (!IsReadabilitySelectTextEnabled() || !isolate) {
+    return v8::Undefined(isolate);
+  }
+
+  v8::EscapableHandleScope handle_scope(isolate);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  if (context.IsEmpty()) {
+    return v8::Undefined(isolate);
+  }
+
+  // Retrieve the mapping segments from the model for the given block index.
+  // A single Readability block can map to multiple AXNodes (e.g. if it contains
+  // inline links).
+  std::vector<ReadAnythingAppModel::MappingSegment> segments =
+      model_.GetAXMapping(static_cast<size_t>(index));
+
+  v8::Local<v8::Array> v8_segments =
+      v8::Array::New(isolate, static_cast<int>(segments.size()));
+
+  for (size_t i = 0; i < segments.size(); ++i) {
+    const auto& segment = segments[i];
+
+    // Create a V8 object for this segment and populate it with the source
+    // AXNode ID and the start/end character offsets within the distilled block.
+    v8::Local<v8::Object> segment_obj = v8::Object::New(isolate);
+    gin::Dictionary segment_dict(isolate, segment_obj);
+    segment_dict.Set("axNodeId", segment.id);
+    segment_dict.Set("start", segment.start);
+    segment_dict.Set("end", segment.end);
+
+    v8_segments->Set(context, static_cast<uint32_t>(i), segment_obj).Check();
+  }
+
+  return handle_scope.Escape(v8_segments);
 }
 
 bool ReadAnythingAppController::IsHidden() const {

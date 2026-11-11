@@ -260,7 +260,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
           HandleScope inner_scope(isolate_);
           Handle<String> key_name(Cast<String>(contents->get(i)), isolate_);
           auto property_val_node_and_snapshot =
-              val_nodes_and_snapshots->Lookup(isolate_, key_name);
+              val_nodes_and_snapshots->Lookup(key_name);
           Handle<Object> property_val_node(property_val_node_and_snapshot[0],
                                            isolate_);
           Handle<Object> property_snapshot(property_val_node_and_snapshot[1],
@@ -364,13 +364,11 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source,
           v8_flags.json_parse_max_heuristically_internalized_strings) {
   size_t start = 0;
   size_t length = source->length();
-  PtrComprCageBase cage_base(isolate);
-  if (IsSlicedString(*source, cage_base)) {
+  if (IsSlicedString(*source)) {
     Tagged<SlicedString> string = Cast<SlicedString>(*source);
     start = string->offset();
     Tagged<String> parent = string->parent();
-    if (IsThinString(parent, cage_base))
-      parent = Cast<ThinString>(parent)->actual();
+    if (IsThinString(parent)) parent = Cast<ThinString>(parent)->actual();
     source_ = handle(parent, isolate);
   } else {
     source_ = String::Flatten(isolate, source);

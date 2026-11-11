@@ -1039,6 +1039,7 @@ bool operator==(AssertNotNullParameters const& lhs,
   V(CheckedUint32ToTaggedSigned, 1, 1)       \
   V(CheckedUint64ToInt32, 1, 1)              \
   V(CheckedInt32ToUint64, 1, 1)              \
+  V(CheckedInt64ToUint64, 1, 1)              \
   V(CheckedUint64ToInt64, 1, 1)              \
   V(CheckedUint64ToTaggedSigned, 1, 1)
 
@@ -1163,6 +1164,15 @@ struct SimplifiedOperatorGlobalCache final {
                    "FindOrderedHashSetEntry", 2, 1, 1, 1, 1, 0) {}
   };
   FindOrderedHashSetEntryOperator kFindOrderedHashSetEntry;
+
+  // Inputs: receiver (JSWeakCollection), key (Object).
+  // Output: looked-up value (Object) or undefined.
+  struct WeakCollectionGetOperator final : public Operator {
+    WeakCollectionGetOperator()
+        : Operator(IrOpcode::kWeakCollectionGet, Operator::kEliminatable,
+                   "WeakCollectionGet", 2, 1, 1, 1, 1, 0) {}
+  };
+  WeakCollectionGetOperator kWeakCollectionGet;
 
   template <CheckForMinusZeroMode kMode>
   struct ChangeFloat64ToTaggedOperator final
@@ -1479,7 +1489,7 @@ struct SimplifiedOperatorGlobalCache final {
     StringToLowerCaseIntlOperator()
         : Operator(IrOpcode::kStringToLowerCaseIntl,
                    Operator::kFoldable | Operator::kIdempotent,
-                   "StringToLowerCaseIntl", 3, 1, 1, 1, 1, 1) {}
+                   "StringToLowerCaseIntl", 3, 1, 1, 1, 1, 2) {}
   };
   StringToLowerCaseIntlOperator kStringToLowerCaseIntl;
 
@@ -1487,9 +1497,16 @@ struct SimplifiedOperatorGlobalCache final {
     StringToUpperCaseIntlOperator()
         : Operator(IrOpcode::kStringToUpperCaseIntl,
                    Operator::kFoldable | Operator::kIdempotent,
-                   "StringToUpperCaseIntl", 3, 1, 1, 1, 1, 1) {}
+                   "StringToUpperCaseIntl", 3, 1, 1, 1, 1, 2) {}
   };
   StringToUpperCaseIntlOperator kStringToUpperCaseIntl;
+
+  struct StringLocaleCompareIntlOperator final : public Operator {
+    StringLocaleCompareIntlOperator()
+        : Operator(IrOpcode::kStringLocaleCompareIntl, Operator::kNoProperties,
+                   "StringLocaleCompareIntl", 6, 1, 1, 1, 1, 2) {}
+  };
+  StringLocaleCompareIntlOperator kStringLocaleCompareIntl;
 
 #define SPECULATIVE_NUMBER_BINOP(Name)                                     \
   template <NumberOperationHint kHint>                                     \
@@ -1595,6 +1612,7 @@ GET_FROM_CACHE(FindOrderedHashMapEntryForInt32Key)
 GET_FROM_CACHE(LoadFieldByIndex)
 GET_FROM_CACHE(StringToLowerCaseIntl)
 GET_FROM_CACHE(StringToUpperCaseIntl)
+GET_FROM_CACHE(StringLocaleCompareIntl)
 #undef GET_FROM_CACHE
 
 const Operator* SimplifiedOperatorBuilder::FindOrderedCollectionEntry(
@@ -1605,6 +1623,10 @@ const Operator* SimplifiedOperatorBuilder::FindOrderedCollectionEntry(
     case CollectionKind::kSet:
       return &cache_.kFindOrderedHashSetEntry;
   }
+}
+
+const Operator* SimplifiedOperatorBuilder::WeakCollectionGet() {
+  return &cache_.kWeakCollectionGet;
 }
 
 #define GET_FROM_CACHE_WITH_FEEDBACK(Name, value_input_count,               \

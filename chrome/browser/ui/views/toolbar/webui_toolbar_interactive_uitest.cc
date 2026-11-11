@@ -16,6 +16,7 @@
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
+#include "build/buildflag.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
@@ -39,6 +40,9 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "ui/base/interaction/element_identifier.h"
+#include "ui/gfx/geometry/point.h"
+#include "ui/gfx/geometry/vector2d.h"
+#include "ui/views/interaction/interaction_test_util_views.h"
 #include "ui/views/metrics.h"
 
 namespace {
@@ -144,8 +148,23 @@ class WebUIToolbarViewsInteractiveUiTest
  public:
   WebUIToolbarViewsInteractiveUiTest() {
     if (IsWebUIReloadButtonEnabled()) {
+      // While the WebUI back and forward buttons are not currently tested by
+      // these tests, they are needed to provide a spot on the toolbar for the
+      // mouse to hover over that's not the reload button. See
+      // MoveMouseOffOfReloadButton() for details.
       feature_list_.InitWithFeatures(
           {features::kInitialWebUI, features::kWebUIReloadButton,
+#if BUILDFLAG(IS_MAC)
+           // While it's not wrong to enable the WebUI back/forward button on
+           // other platforms, it's currently only needed in these tests on Mac,
+           // to work around a bug on that platform. See
+           // MoveMouseOffOfReloadButton() for details.
+           //
+           // TODO(crbug.com/503006742): Remove this once the Mac bug if fixed,
+           // or remove the above #if if we start testing the back/forward
+           // button with these tests.
+           features::kWebUIBackForwardButton,
+#endif  // BUILDFLAG(IS_MAC)
            features::kSkipIPCChannelPausingForNonGuests,
            features::kWebUIInProcessResourceLoadingV2,
            features::kInitialWebUISyncNavStartToCommit},
@@ -153,6 +172,7 @@ class WebUIToolbarViewsInteractiveUiTest
     } else {
       feature_list_.InitWithFeatures(
           {}, {features::kInitialWebUI, features::kWebUIReloadButton,
+               features::kWebUIBackForwardButton,
                features::kSkipIPCChannelPausingForNonGuests,
                features::kWebUIInProcessResourceLoadingV2,
                features::kInitialWebUISyncNavStartToCommit});
@@ -277,9 +297,9 @@ class WebUIToolbarViewsInteractiveUiTest
 
   // Waits until the reload button is "ready" after a navigation completes -
   // that means the reload icon is displaying, and not in the double-click
-  // timeout period. Note that since the reload button is showing, we also know
-  // the button isn't disabled, and the enable timer isn't running, since those
-  // only happen while showing the stop icon.
+  // timeout period. Note that since the reload button is showing, we also
+  // know the button isn't disabled, and the enable timer isn't running, since
+  // those only happen while showing the stop icon.
   MultiStep WaitForReloadButtonReady() {
     if (IsWebUIReloadButtonEnabled()) {
       return WaitForJsResultAt(kWebUIToolbarId, kReloadButtonDeepQuery,
@@ -315,11 +335,30 @@ class WebUIToolbarViewsInteractiveUiTest
                      "Reload button showing enabled stop icon");
   }
 
-  // Called at the start of tests. Instruments the initial tab and moves the
-  // mouse off of the toolbar. See MoveMouseOffOfToolbar() for why it's a good
-  // idea to move the cursor off of the toolbar.
-  MultiStep SetUpTest() {
-    return Steps(InstrumentTab(kTabId), MoveMouseOffOfToolbar());
+  // Waits for the reload button to show a disabled stop icon.
+  MultiStep WaitForReloadButtonDisabledStopIcon() {
+    if (IsWebUIReloadButtonEnabled()) {
+      return WaitForJsResultAt(kWebUIToolbarId, kReloadButtonDeepQuery,
+                               R"(el => (el.showStopIcon && el.isDisabled))",
+                               true);
+    }
+    return PollUntil(base::BindRepeating(
+                         [](const ReloadButton* reload_button) {
+                           return reload_button->GetVisibleMode() ==
+                                      ReloadButton::Mode::kStop &&
+                                  !reload_button->GetEnabled();
+                         },
+                         base::Unretained(&GetNonWebUIReloadButton())),
+                     "Reload button showing disabled stop icon");
+  }
+
+  // Called at the start of reload button tests. Instruments the initial tab and
+  // moves the mouse off of the reload button. See MoveMouseOffOfReloadButton()
+  // for why it's a good idea to move the cursor off of the toolbar at the start
+  // of reload button tests.
+  MultiStep SetUpReloadButtonTest() {
+    return Steps(InstrumentTab(kTabId), InstrumentReloadButton(),
+                 MoveMouseOffOfReloadButton());
   }
 
   MultiStep InstrumentReloadButton() {
@@ -331,19 +370,68 @@ class WebUIToolbarViewsInteractiveUiTest
     return WaitForReloadButtonReady();
   }
 
+  // Moves mouse over the reload button and, if the WebUI reload button is
+  // enabled, waits for the ":hover" state to be applied to the button, since
+  // the WebUI implementation depends on that state, unlike the Views
+  // implementation, which queries the current location of the cursor instead.
   MultiStep MoveMouseOverReloadButton() {
     if (IsWebUIReloadButtonEnabled()) {
-      return MoveMouseTo(kWebUIToolbarId, kReloadButtonDeepQuery);
+      return Steps(MoveMouseTo(kWebUIToolbarId, kReloadButtonDeepQuery),
+                   WaitForReloadHover(/*hover=*/true));
     }
     return Steps(MoveMouseTo(kReloadButtonElementId));
+  }
+
+  // Move cursor off of the reload button, and if using the WebUI reload
+  // button, wait for the ":hover" state to be removed. This is useful because
+  // hovering over the reload button affects reload button state (e.g.,
+  // hovering when load stops will temporarily disable the button, which
+  // affects tests). No wait is necessary with the views toolbar button,
+  // because it checks the current location of the cursor, rather than relying
+  // on a state that may take a little time to update.
+  //
+  // InstrumentReloadButton() must be called before this step is run, so it
+  // can find the reload button to wait until it realizes the mouse is not
+  // hovering over it.
+  //
+  // In theory, it doesn't actually matter where the cursor as moved, as long
+  // as it's not on the reload but still on top of the browser window (to make
+  // sure simulated events are propagated). However, to remove the ":hover"
+  // state on Mac, the cursor needs to still be over the toolbar on that
+  // platform.
+  //
+  // TODO(crbug.com/503006742): Remove the use of back/forward button on Mac
+  // once this is fixed.
+  MultiStep MoveMouseOffOfReloadButton() {
+#if BUILDFLAG(IS_MAC)
+    if (IsWebUIReloadButtonEnabled()) {
+      return Steps(MoveMouseTo(kWebUIToolbarId, kBackForwardButtonDeepQuery),
+                   WaitForReloadHover(/*hover=*/false));
+    }
+#endif  // BUILDFLAG(IS_MAC)
+    return Steps(MoveMouseTo(kTabId));
+  }
+
+  // Waits for the reload button's CSS property to have / not have the
+  // ":hover" property, depending on `hover`. InstrumentReloadButton() must be
+  // called before this step is run. Step only makes sense when
+  // IsWebUIReloadButtonEnabled() is true. The Views reload button makes
+  // system calls to get the location of the cursor, so always gets the most
+  // up-to-date position.
+  MultiStep WaitForReloadHover(bool hover) {
+    CHECK(IsWebUIReloadButtonEnabled());
+    return WaitForJsResultAt(kWebUIToolbarId, kReloadButtonDeepQuery,
+                             R"(el => el.renderRoot.querySelector(
+                                'cr-icon-button')?.matches(':hover'))",
+                             hover);
   }
 
   // Waits for the specified amount of time.
   StepBuilder DoWaitForTime(base::TimeDelta delay) {
     StepBuilder step = Do(base::BindOnce(
         [](base::TimeDelta delay) {
-          // Have to allow nestable tasks to use this within a RunTestSequence()
-          // call.
+          // Have to allow nestable tasks to use this within a
+          // RunTestSequence() call.
           base::RunLoop run_loop(base::RunLoop::Type::kNestableTasksAllowed);
           base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
               FROM_HERE, run_loop.QuitClosure(), delay);
@@ -371,45 +459,107 @@ class WebUIToolbarViewsInteractiveUiTest
     return static_cast<ReloadButton&>(GetReloadControl());
   }
 
-  void SetReloadButtonDoubleClickInterval(base::TimeDelta interval) {
-    // Could have added a virtual method to avoid the casting, but this avoids
-    // including the methods in release builds.
+  // Sets the double click interval for the reload button. May only be called
+  // after InstrumentReloadButton() has been invoked.
+  MultiStep SetReloadButtonDoubleClickInterval(
+      base::TimeDelta double_click_interval) {
     if (IsWebUIReloadButtonEnabled()) {
-      GetWebUIReloadButton().set_double_click_interval_for_testing(interval);
+      return Steps(
+          Do(base::BindOnce(
+              [](WebUIReloadControl* reload_control,
+                 base::TimeDelta double_click_interval) {
+                reload_control->SetDoubleClickIntervalForTesting(
+                    double_click_interval);
+              },
+              base::Unretained(&GetWebUIReloadButton()),
+              double_click_interval)),
+          // Wait for the updated state to reach Javascript. Since mouse
+          // messages are handled by JS directly, there's a chance of any
+          // subsequent click event making it to the renderer before the new
+          // interval, otherwise. Use milliseconds to avoid overflow, since
+          // base::Values can only hold 32-bit ints.
+          WaitForJsResultAt(
+              kWebUIToolbarId, kReloadButtonDeepQuery,
+              R"(el => Number(el.state.doubleClickInterval.microseconds)/1000)",
+              static_cast<int>(double_click_interval.InMilliseconds())));
+
     } else {
-      GetNonWebUIReloadButton().set_double_click_timer_delay_for_testing(
-          interval);
+      return Steps(Do(base::BindOnce(
+          [](ReloadButton* reload_button,
+             base::TimeDelta double_click_interval) {
+            reload_button->set_double_click_timer_delay_for_testing(
+                double_click_interval);
+          },
+          base::Unretained(&GetNonWebUIReloadButton()),
+          double_click_interval)));
     }
   }
 
-  // Checks that the reload button's mode is currently `expected_mode`.
+  // Sets the mode switch interval for the reload button. May only be called
+  // after InstrumentReloadButton() has been invoked.
+  StepBuilder SetModeSwitchInterval(base::TimeDelta mode_switch_interval) {
+    StepBuilder step;
+    if (IsWebUIReloadButtonEnabled()) {
+      // The WebUI reload button mode switch timer is handled entirely in
+      // Javascript, so have to call into Javascript to set its duration.
+      step = CheckJsResultAt(
+          kWebUIToolbarId, kReloadButtonDeepQuery,
+          content::JsReplace(
+              R"(el => el.modeSwitchIntervalMs_ = $1)",
+              static_cast<int>(mode_switch_interval.InMilliseconds())),
+          static_cast<int>(mode_switch_interval.InMilliseconds()));
+    } else {
+      step = Do(base::BindOnce(
+          [](ReloadButton* reload_button,
+             base::TimeDelta mode_switch_interval) {
+            reload_button->set_mode_switch_timer_delay_for_testing(
+                mode_switch_interval);
+          },
+          base::Unretained(&GetNonWebUIReloadButton()), mode_switch_interval));
+    }
+    SetStepDescription(step, "SetModeSwitchInterval()");
+    return step;
+  }
+
+  // Checks that the reload button's mode is currently `expected_mode` and not
+  // disabled.
   StepBuilder ExpectReloadButtonMode(ReloadControl::Mode expected_mode) {
     if (IsWebUIReloadButtonEnabled()) {
-      return CheckJsResultAt(kWebUIToolbarId, kReloadButtonDeepQuery,
-                             R"(el => el.showStopIcon)",
-                             expected_mode == ReloadControl::Mode::kStop);
+      return CheckJsResultAt(
+          kWebUIToolbarId, kReloadButtonDeepQuery,
+          content::JsReplace(
+              R"(el => (el.showStopIcon == $1 && !el.isDisabled))",
+              expected_mode == ReloadControl::Mode::kStop),
+          true);
     } else {
       return Do(base::BindOnce(
           [](ReloadButton* reload_button, ReloadButton::Mode expected_mode) {
             EXPECT_EQ(reload_button->GetVisibleMode(), expected_mode);
+            EXPECT_TRUE(reload_button->GetEnabled());
           },
           base::Unretained(&GetNonWebUIReloadButton()), expected_mode));
     }
   }
 
-  // Move cursor 1 pixel below the toolbar, so it's not on any buttons, such as
-  // the reload button, where hovering may affect behavior (e.g., the reload
-  // button may end up disabled when transitioning from the stop icon to the
-  // reload icon). Use the center of the toolbar so the cursor is still over the
-  // main window, to avoid any issues with it being outside the current context.
-  // Also avoid positioning relative to a button, so it doesn't need to block
-  // moving the cursor on loading WebUI scripts in a renderer.
-  StepBuilder MoveMouseOffOfToolbar() {
-    return MoveMouseTo(ToolbarView::kToolbarElementId,
-                       base::BindOnce([](ui::TrackedElement* el) {
-                         return el->GetScreenBounds().bottom_center() +
-                                gfx::Vector2d(0, 1);
-                       }));
+  // Checks that the reload button is currently displaying the stop button and
+  // is disabled.
+  StepBuilder ExpectReloadButtonStopModeAndDisabled() {
+    StepBuilder step;
+    if (IsWebUIReloadButtonEnabled()) {
+      step =
+          CheckJsResultAt(kWebUIToolbarId, kReloadButtonDeepQuery,
+                          R"(el => (el.showStopIcon && el.isDisabled))", true);
+    } else {
+      step = Do(base::BindOnce(
+          [](ReloadButton* reload_button) {
+            EXPECT_EQ(reload_button->GetVisibleMode(),
+                      ReloadControl::Mode::kStop);
+            EXPECT_FALSE(reload_button->GetEnabled());
+          },
+          base::Unretained(&GetNonWebUIReloadButton())));
+    }
+    SetStepDescription(step, "SetModeSwitchInterval()");
+    return step;
   }
 
   // Navigates to DelayedUrl() and triggers a response, waiting for the
@@ -431,6 +581,22 @@ class WebUIToolbarViewsInteractiveUiTest
     return step;
   }
 
+  // Triggers a reload without a button press. For the purposes of these tests,
+  // the important thing is that it's a load not triggered by clicking on the
+  // reload button.
+  StepBuilder DoStartReloadWithoutClick() {
+    StepBuilder step = Do(base::BindOnce(
+        [](Browser* browser) {
+          browser->tab_strip_model()
+              ->GetActiveWebContents()
+              ->GetController()
+              .Reload(content::ReloadType::NORMAL, /*check_for_repost=*/false);
+        },
+        base::Unretained(browser())));
+    SetStepDescription(step, "DoStartReloadWithoutClick()");
+    return step;
+  }
+
   void SetStepDescription(StepBuilder& step, std::string_view description) {
     int count = ++step_with_description_counts_[std::string(description)];
     step.SetDescription(base::StringPrintf("%s, call %i", description, count));
@@ -441,6 +607,8 @@ class WebUIToolbarViewsInteractiveUiTest
 
   const WebContentsInteractionTestUtil::DeepQuery kReloadButtonDeepQuery = {
       "toolbar-app", "reload-button"};
+  const WebContentsInteractionTestUtil::DeepQuery kBackForwardButtonDeepQuery =
+      {"toolbar-app", "back-forward-button"};
 
   // Number of steps with a particular description. Helps in debugging when
   // there are multiple identical steps, which is not uncommon in these tests.
@@ -458,16 +626,16 @@ INSTANTIATE_TEST_SUITE_P(All,
                          WebUIToolbarViewsInteractiveUiTest,
                          testing::Bool());
 
-// Test that the reload button exists, and clicking on it will cause the page to
-// be reloaded.
+// Test that the reload button exists, and clicking on it will cause the page
+// to be reloaded.
 IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest, ReloadButton) {
   const GURL url = embedded_test_server()->GetURL("/title1.html");
 
   ReloadButtonTestNavigationObserver observer(
       browser()->tab_strip_model()->GetActiveWebContents());
 
-  RunTestSequence(SetUpTest(), NavigateWebContents(kTabId, url),
-                  InstrumentReloadButton(), MoveMouseOverReloadButton(),
+  RunTestSequence(SetUpReloadButtonTest(), NavigateWebContents(kTabId, url),
+                  WaitForReloadButtonReady(), MoveMouseOverReloadButton(),
                   ClickMouse(), WaitForWebContentsNavigation(kTabId, url));
 
   EXPECT_EQ(observer.num_started_navigations(), 2u);
@@ -476,24 +644,23 @@ IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest, ReloadButton) {
 }
 
 // Test that multiple reload clicks while in the double-click period, before a
-// page has finished loading (or even committed) are ignored. Simulates a bunch
-// of clicks at once, then pauses briefly, and then simulates more. Also checks
-// that only the reload button is shown during this process, as it only changes
-// after the reload interval has passed.
+// page has finished loading (or even committed) are ignored. Simulates a
+// bunch of clicks at once, then pauses briefly, and then simulates more. Also
+// checks that only the reload button is shown during this process, as it only
+// changes after the reload interval has passed.
 IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
                        ReloadButtonMultipleClicksBeforeLoadStopIgnored) {
   ReloadButtonTestNavigationObserver observer(
       browser()->tab_strip_model()->GetActiveWebContents());
 
-  // Set the double click interval to be long enough to avoid any chance of it
-  // passing during the test.
-  SetReloadButtonDoubleClickInterval(base::Hours(1));
-
   // Simulate having shift pressed for some of the loads, which should not make
   // a difference to the logic under test.
   RunTestSequence(
-      SetUpTest(), DoNavigateToDelayedUrl(), InstrumentReloadButton(),
-      MoveMouseOverReloadButton(),
+      SetUpReloadButtonTest(), DoNavigateToDelayedUrl(),
+      // Set the double click interval to be long enough to avoid any chance of
+      // it passing during the test.
+      SetReloadButtonDoubleClickInterval(base::Hours(1)),
+      WaitForReloadButtonReady(), MoveMouseOverReloadButton(),
       ExpectReloadButtonMode(ReloadControl::Mode::kReload), ClickMouse(),
       ClickMouse(ui_controls::LEFT, /*release=*/true, ui_controls::kShift),
       ClickMouse(), ExpectReloadButtonMode(ReloadControl::Mode::kReload),
@@ -518,14 +685,13 @@ IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
   ReloadButtonTestNavigationObserver observer(
       browser()->tab_strip_model()->GetActiveWebContents());
 
-  // Set the double click interval to be long enough to avoid any chance of it
-  // passing during the test.
-  SetReloadButtonDoubleClickInterval(base::Hours(1));
-
   // Simulate having shift pressed for some of the loads, which should not make
   // a difference to the logic under test.
-  RunTestSequence(SetUpTest(), DoNavigateToDelayedUrl(),
-                  InstrumentReloadButton(), MoveMouseOverReloadButton(),
+  RunTestSequence(SetUpReloadButtonTest(), DoNavigateToDelayedUrl(),
+                  // Set the double click interval to be long enough to avoid
+                  // any chance of it passing during the test.
+                  SetReloadButtonDoubleClickInterval(base::Hours(1)),
+                  WaitForReloadButtonReady(), MoveMouseOverReloadButton(),
                   ClickMouse(), DoSendDelayedResponse(), DoWaitForLoadStop(),
                   // The stop button should never be shown.
                   ExpectReloadButtonMode(ReloadControl::Mode::kReload),
@@ -544,15 +710,14 @@ IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
                        ReloadButtonClickAgainAfterReloadInterval) {
   const GURL url = embedded_test_server()->GetURL("/title1.html");
 
-  // Set a short double click interval.
-  SetReloadButtonDoubleClickInterval(base::Milliseconds(100));
-
   ReloadButtonTestNavigationObserver observer(
       browser()->tab_strip_model()->GetActiveWebContents());
 
   RunTestSequence(
-      SetUpTest(), NavigateWebContents(kTabId, url), InstrumentReloadButton(),
-      MoveMouseOverReloadButton(), ClickMouse(),
+      SetUpReloadButtonTest(), NavigateWebContents(kTabId, url),
+      // Set a short double click interval.
+      SetReloadButtonDoubleClickInterval(base::Milliseconds(100)),
+      WaitForReloadButtonReady(), MoveMouseOverReloadButton(), ClickMouse(),
       WaitForWebContentsNavigation(kTabId, url),
       // Make sure the reload button is ready before trying to load again, to
       // avoid any races. This is not able to check that the exact interval is
@@ -567,24 +732,23 @@ IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
   EXPECT_EQ(observer.num_committed_navigations(), 3u);
 }
 
-// Make sure the reload button can eventually be clicked again. This test waits
-// through the reload button being disabled. It uses the delayed URL, to avoid
-// raciness around when the reload icon switches to the stop icon.
+// Make sure the reload button can eventually be clicked again. This test
+// waits through the reload button being disabled. It uses the delayed URL, to
+// avoid raciness around when the reload icon switches to the stop icon.
 IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
                        ReloadButtonClickAgainAfterReloadInterval2) {
-  // Set a short double click interval.
-  SetReloadButtonDoubleClickInterval(base::Milliseconds(100));
-
   ReloadButtonTestNavigationObserver observer(
       browser()->tab_strip_model()->GetActiveWebContents());
 
-  RunTestSequence(SetUpTest(), DoNavigateToDelayedUrl(),
-                  InstrumentReloadButton(), MoveMouseOverReloadButton(),
+  RunTestSequence(SetUpReloadButtonTest(), DoNavigateToDelayedUrl(),
+                  // Set a short double click interval.
+                  SetReloadButtonDoubleClickInterval(base::Milliseconds(100)),
+                  WaitForReloadButtonReady(), MoveMouseOverReloadButton(),
                   ClickMouse(), WaitForReloadButtonStopIcon(),
                   DoSendDelayedResponse(), DoWaitForLoadStop(),
-                  // Make sure the reload button is ready before trying to load
-                  // again, to avoid any races. This is not able to check that
-                  // the exact interval is respected, unfortunately.
+                  // Make sure the reload button is ready before trying to
+                  // load again, to avoid any races. This is not able to check
+                  // that the exact interval is respected, unfortunately.
                   WaitForReloadButtonReady(), ClickMouse(),
                   DoSendDelayedResponse(), DoWaitForLoadStop());
 
@@ -599,20 +763,21 @@ IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
                        ReloadButtonNewTabResetsReloadInterval) {
   const GURL url = embedded_test_server()->GetURL("/title1.html");
 
-  // Set the double click interval to be long enough to avoid any chance of it
-  // passing during the test.
-  SetReloadButtonDoubleClickInterval(base::Hours(1));
-
   RunTestSequence(
-      SetUpTest(), NavigateWebContents(kTabId, url), InstrumentReloadButton(),
-      MoveMouseOverReloadButton(),
-      // Click reload button for initial tab, and wait for navigation to start.
-      // Waiting for navigation start prevents racily creating a new tab before
-      // navigating the old one starts.
+      SetUpReloadButtonTest(), NavigateWebContents(kTabId, url),
+      // Set the double click interval to be long enough to avoid any chance of
+      // it passing during the test.
+      SetReloadButtonDoubleClickInterval(base::Hours(1)),
+      WaitForReloadButtonReady(), MoveMouseOverReloadButton(),
+      // Click reload button for initial tab, and wait for navigation to
+      // start. Waiting for navigation start prevents racily creating a new
+      // tab before navigating the old one starts.
       ClickMouse(), WaitForWebContentsNavigation(kTabId, url),
-      // Move mouse off of the toolbar to avoid the reload button potentially
-      // becoming disabled on load complete for the initial load of the new tab.
-      MoveMouseOffOfToolbar(), AddInstrumentedTab(kTab2Id, url),
+      MoveMouseOffOfReloadButton(),
+      // Move mouse off of the reload button to avoid the reload button
+      // potentially becoming disabled on load complete for the initial load
+      // of the new tab.
+      AddInstrumentedTab(kTab2Id, url),
       // Wait for the reload button to be updated to reflect the completed
       // navigation.
       WaitForReloadButtonReady(),
@@ -627,15 +792,14 @@ IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
                        ReloadButtonSwitchingTabResetsReloadInterval) {
   const GURL url = embedded_test_server()->GetURL("/title1.html");
 
-  // Set the double click interval to be long enough to avoid any chance of it
-  // passing during the test.
-  SetReloadButtonDoubleClickInterval(base::Hours(1));
-
   ReloadButtonTestNavigationObserver observer(
       browser()->tab_strip_model()->GetActiveWebContents());
 
   RunTestSequence(
-      SetUpTest(), NavigateWebContents(kTabId, url), InstrumentReloadButton(),
+      SetUpReloadButtonTest(), NavigateWebContents(kTabId, url),
+      // Set the double click interval to be long enough to avoid any chance of
+      // it passing during the test.
+      SetReloadButtonDoubleClickInterval(base::Hours(1)),
       AddInstrumentedTab(kTab2Id, url),
       // Wait for the reload button to be updated to reflect the completed
       // navigation.
@@ -643,12 +807,267 @@ IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
       // Press reload button for the new tab, and wait for it to complete.
       MoveMouseOverReloadButton(), ClickMouse(),
       WaitForWebContentsNavigation(kTab2Id, url),
-      // Switch back to the original tab, and press the reload button again. The
-      // double-click delay should not apply, due to the tab switch.
+      // Switch back to the original tab, and press the reload button again.
+      // The double-click delay should not apply, due to the tab switch.
       SelectTab(kTabStripElementId, 0), WaitForReloadButtonReady(),
       ClickMouse(), WaitForWebContentsNavigation(kTabId, url));
 
   EXPECT_EQ(observer.num_started_navigations(), 2u);
   EXPECT_EQ(observer.num_finished_navigations(), 2u);
+  EXPECT_EQ(observer.num_committed_navigations(), 2u);
+}
+
+// Test how the reload button changes when the mouse never hovers over the icon
+// when a reload is triggered by some other mechanism.
+IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
+                       ReloadButtonNotClickedMouseNeverOverButton) {
+  ReloadButtonTestNavigationObserver observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+
+  RunTestSequence(
+      SetUpReloadButtonTest(), DoNavigateToDelayedUrl(),
+      SetReloadButtonDoubleClickInterval(base::Hours(1)),
+      SetModeSwitchInterval(base::Hours(1)), WaitForReloadButtonReady(),
+      // Trigger a reload without the mouse.
+      DoStartReloadWithoutClick(),
+      // We should soon start showing the stop icon, and should
+      // continue showing it until the page finishes loading.
+      WaitForReloadButtonStopIcon(), DoWaitForTime(base::Milliseconds(100)),
+      WaitForReloadButtonStopIcon(),
+      // Complete the request.
+      DoSendDelayedResponse(), DoWaitForLoadStop(),
+      // Once the request completes, we should start showing the
+      // reload button again.
+      WaitForReloadButtonReady());
+
+  EXPECT_EQ(observer.num_started_navigations(), 2u);
+  EXPECT_EQ(observer.num_finished_navigations(), 2u);
+  EXPECT_EQ(observer.num_committed_navigations(), 2u);
+}
+
+// Test how the reload button changes when the mouse hovers over the icon when a
+// reload is triggered by some other mechanism. This test uses a long mode
+// switch interval, so checks that the button is disabled, as expected.
+IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
+                       ReloadButtonNotClickedMouseHoverOverButton1) {
+  ReloadButtonTestNavigationObserver observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+
+  RunTestSequence(
+      SetUpReloadButtonTest(), DoNavigateToDelayedUrl(),
+      SetReloadButtonDoubleClickInterval(base::Hours(1)),
+      SetModeSwitchInterval(base::Hours(1)), WaitForReloadButtonReady(),
+      MoveMouseOverReloadButton(),
+      // Trigger a reload without the mouse.
+      DoStartReloadWithoutClick(),
+      // We should soon start showing the stop icon, and should show it until
+      // the load completes.
+      WaitForReloadButtonStopIcon(), DoWaitForTime(base::Milliseconds(100)),
+      ExpectReloadButtonMode(ReloadControl::Mode::kStop),
+      // Complete the request.
+      DoSendDelayedResponse(), DoWaitForLoadStop(),
+      // Once the request completes, we should continue showing the stop
+      // button, but it should be disabled. Check that clicking the button does
+      // nothing.
+      WaitForReloadButtonDisabledStopIcon(), ClickMouse(),
+      // Wait to make sure the ClickMouse call didn't trigger a load.
+      DoWaitForTime(base::Milliseconds(100)),
+      // Button should still be disabled.
+      ExpectReloadButtonStopModeAndDisabled());
+
+  EXPECT_EQ(observer.num_started_navigations(), 2u);
+  EXPECT_EQ(observer.num_finished_navigations(), 2u);
+  EXPECT_EQ(observer.num_committed_navigations(), 2u);
+}
+
+// Test how the reload button changes when the mouse hovers over the icon when a
+// reload is triggered by some other mechanism. This test uses a short mode
+// switch interval, and checks that after the button is re-enabled, clicking on
+// it works.
+IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
+                       ReloadButtonNotClickedMouseHoverOverButton2) {
+  ReloadButtonTestNavigationObserver observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+
+  RunTestSequence(
+      SetUpReloadButtonTest(), DoNavigateToDelayedUrl(),
+      SetReloadButtonDoubleClickInterval(base::Hours(1)),
+      SetModeSwitchInterval(base::Milliseconds(100)),
+      WaitForReloadButtonReady(), MoveMouseOverReloadButton(),
+      // Trigger a reload without the mouse.
+      DoStartReloadWithoutClick(),
+      // We should soon start showing the stop icon, and should show it until
+      // the load completes.
+      WaitForReloadButtonStopIcon(), DoWaitForTime(base::Milliseconds(100)),
+      ExpectReloadButtonMode(ReloadControl::Mode::kStop),
+      // Complete the request.
+      DoSendDelayedResponse(), DoWaitForLoadStop(),
+      // Once the request completes, the button should be temporarily disabled.
+      // Rather than try to observe it when it's disabled (which could be racy),
+      // wait for it to be enabled.
+      WaitForReloadButtonReady(),
+      // Trigger a reload by pressing the button, and make sure it works.
+      ClickMouse(), DoSendDelayedResponse(), DoWaitForLoadStop());
+
+  EXPECT_EQ(observer.num_started_navigations(), 3u);
+  EXPECT_EQ(observer.num_finished_navigations(), 3u);
+  EXPECT_EQ(observer.num_committed_navigations(), 3u);
+}
+
+// Test how the reload button changes when the mouse is clicked to trigger a
+// reload, but the cursor is moved off of the button before the load completes.
+IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
+                       ReloadButtonIconMouseMovedOffOfButton) {
+  // On Mac, moving the mouse is not enough to update the `:hover` state.
+  // While MoveMouseOverReloadButton() simulates a right click to help work
+  // around it, subsequently moving the mouse off of the reload button runs into
+  // issues as well, and clicking doesn't seem to work around that, so skip the
+  // test on Mac for now.
+  //
+  // TODO(crbug.com/503006729): Remove this block once the issue is fixed.
+#if BUILDFLAG(IS_MAC)
+  if (IsWebUIReloadButtonEnabled()) {
+    GTEST_SKIP();
+  }
+#endif
+
+  ReloadButtonTestNavigationObserver observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+
+  RunTestSequence(
+      SetUpReloadButtonTest(), DoNavigateToDelayedUrl(),
+      // This interval will be run into, though the test uses
+      // WaitForReloadButtonStopIcon() to wait for it to pass, rather than
+      // trying to observe this state, to avoid any races.
+      SetReloadButtonDoubleClickInterval(base::Milliseconds(100)),
+      // This interval should never be appled in this test, since the cursor is
+      // moved off the button before the load completes.
+      SetModeSwitchInterval(base::Hours(1)),
+      // Trigger a reload with the mouse.
+      WaitForReloadButtonReady(), MoveMouseOverReloadButton(), ClickMouse(),
+      // We should show the stop icon once the double-click interval passes.
+      // Can't really check the interval in this test, since time is not mocked
+      // out.
+      WaitForReloadButtonStopIcon(), DoWaitForTime(base::Milliseconds(100)),
+      WaitForReloadButtonStopIcon(),
+      // Move mouse off the reload button before the load completes. As a
+      // result, the button should never be disabled.
+      MoveMouseOffOfReloadButton(),
+      // Complete the request.
+      DoSendDelayedResponse(), DoWaitForLoadStop(),
+      // Once the request completes, we should start showing the reload button
+      // again.
+      WaitForReloadButtonReady());
+
+  EXPECT_EQ(observer.num_started_navigations(), 2u);
+  EXPECT_EQ(observer.num_finished_navigations(), 2u);
+  EXPECT_EQ(observer.num_committed_navigations(), 2u);
+}
+
+// Test that the stop icon is shown when the cursor hovers over the reload
+// button after clicking on it. This test uses a long mode switch interval, and
+// checks that the button is disabled on load complete.
+IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
+                       ReloadButtonClickedMouseHoverOverButton1) {
+  ReloadButtonTestNavigationObserver observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+
+  RunTestSequence(
+      SetUpReloadButtonTest(), DoNavigateToDelayedUrl(),
+      SetReloadButtonDoubleClickInterval(base::Milliseconds(100)),
+      SetModeSwitchInterval(base::Hours(1)),
+      // Click the mouse while it's over the reload button, which should trigger
+      // a reload.
+      WaitForReloadButtonReady(), MoveMouseOverReloadButton(), ClickMouse(),
+      // We should soon start showing the stop icon, and should show it until
+      // the load completes.
+      WaitForReloadButtonStopIcon(), DoWaitForTime(base::Milliseconds(100)),
+      ExpectReloadButtonMode(ReloadControl::Mode::kStop),
+      // Complete the request.
+      DoSendDelayedResponse(), DoWaitForLoadStop(),
+      // Once the request completes, we should continue showing the stop
+      // button, but it should be disabled. Check that clicking the button does
+      // nothing.
+      WaitForReloadButtonDisabledStopIcon(), ClickMouse(),
+      ClickMouse(ui_controls::LEFT, /*release=*/true, ui_controls::kShift),
+      ClickMouse(), DoWaitForTime(base::Milliseconds(100)),
+      ExpectReloadButtonStopModeAndDisabled(),
+      ClickMouse(ui_controls::LEFT, /*release=*/true, ui_controls::kShift),
+      ClickMouse(),
+      ClickMouse(ui_controls::LEFT, /*release=*/true, ui_controls::kShift));
+
+  EXPECT_EQ(observer.num_started_navigations(), 2u);
+  EXPECT_EQ(observer.num_finished_navigations(), 2u);
+  EXPECT_EQ(observer.num_committed_navigations(), 2u);
+}
+
+// Test that after showing the stop icon when the reload button is pressed, the
+// reload button eventually starts showing the reload icon and is enabled. To
+// avoid any races, this test does not check that the reload button is disabled,
+// it just waits until it's enabled again before triggering another load.
+IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
+                       ReloadButtonClickedMouseHoverOverButton2) {
+  ReloadButtonTestNavigationObserver observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+
+  RunTestSequence(
+      SetUpReloadButtonTest(), DoNavigateToDelayedUrl(),
+      SetReloadButtonDoubleClickInterval(base::Milliseconds(100)),
+      SetModeSwitchInterval(base::Milliseconds(100)),
+      // Click the mouse while it's over the reload button, which should trigger
+      // a reload.
+      WaitForReloadButtonReady(), MoveMouseOverReloadButton(), ClickMouse(),
+      // We should soon start showing the stop icon, and should show it until
+      // the load completes.
+      WaitForReloadButtonStopIcon(), DoWaitForTime(base::Milliseconds(100)),
+      ExpectReloadButtonMode(ReloadControl::Mode::kStop),
+      // Complete the request.
+      DoSendDelayedResponse(), DoWaitForLoadStop(),
+      // Once the request completes, the button should be temporarily disabled.
+      // Rather than try to observe it when it's disabled (which could be racy),
+      // wait for it to be enabled.
+      WaitForReloadButtonReady(),
+      // Trigger a reload by pressing the button, and make sure it works.
+      ClickMouse(), DoSendDelayedResponse(), DoWaitForLoadStop());
+
+  EXPECT_EQ(observer.num_started_navigations(), 3u);
+  EXPECT_EQ(observer.num_finished_navigations(), 3u);
+  EXPECT_EQ(observer.num_committed_navigations(), 3u);
+}
+
+// Test that when the stop icon is pressed, after pressing the reload icon, that
+// the load is stopped, and a disabled stop icon is never shown.
+IN_PROC_BROWSER_TEST_P(WebUIToolbarViewsInteractiveUiTest,
+                       ReloadButtonClickedThenStopClicked) {
+  ReloadButtonTestNavigationObserver observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+
+  RunTestSequence(
+      SetUpReloadButtonTest(), DoNavigateToDelayedUrl(),
+      // The reload interval should be hit in this test, but not the mode switch
+      // interval.
+      SetReloadButtonDoubleClickInterval(base::Milliseconds(100)),
+      SetModeSwitchInterval(base::Hours(1)),
+      // Click the mouse while it's over the reload button, which should trigger
+      // a reload.
+      WaitForReloadButtonReady(), MoveMouseOverReloadButton(), ClickMouse(),
+      // We should soon start showing the stop icon, and should show it until
+      // the load completes.
+      WaitForReloadButtonStopIcon(), DoWaitForTime(base::Milliseconds(100)),
+      ExpectReloadButtonMode(ReloadControl::Mode::kStop),
+      // Click the stop button, and wait for the load to stop.
+      ClickMouse(), DoWaitForLoadStop(),
+      // We should show an enabled reload button.
+      WaitForReloadButtonReady(),
+      // Try to send a delayed response to the request - this shouldn't do
+      // anything other than remove the queued HttpResponse, so the next request
+      // can be responded to.
+      DoSendDelayedResponse(),
+      // Trigger another reload by pressing the button, and make sure it works.
+      ClickMouse(), DoSendDelayedResponse(), DoWaitForLoadStop());
+
+  // The stop button press should have resulted in an uncommitted navigation.
+  EXPECT_EQ(observer.num_started_navigations(), 3u);
+  EXPECT_EQ(observer.num_finished_navigations(), 3u);
   EXPECT_EQ(observer.num_committed_navigations(), 2u);
 }

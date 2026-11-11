@@ -112,8 +112,9 @@ JSSynchronizationPrimitive::SetWaiterQueueHead(Isolate* requester,
       base::AsAtomic32::Release_Store(waiter_queue_head_handle_location(),
                                       handle);
       WriteBarrier::ForExternalPointer(
-          this,
-          RawExternalPointerField(kWaiterQueueHeadOffset, kWaiterQueueNodeTag));
+          this, RawExternalPointerField(
+                    offsetof(JSSynchronizationPrimitive, waiter_queue_head_),
+                    kWaiterQueueNodeTag));
       return new_state;
     }
     if (DEBUG_BOOL) {

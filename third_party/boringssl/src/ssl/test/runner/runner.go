@@ -632,9 +632,11 @@ type testCase struct {
 	testTLSUnique bool
 	// sendEmptyRecords is the number of consecutive empty records to send
 	// before each test message.
+	// If both this and `sendWarningAlerts` are set, they alternate at the end.
 	sendEmptyRecords int
 	// sendWarningAlerts is the number of consecutive warning alerts to send
 	// before each test message.
+	// If both this and `sendWarningAlerts` are set, they alternate at the end.
 	sendWarningAlerts int
 	// sendUserCanceledAlerts is the number of consecutive user_canceled alerts to
 	// send before each test message.
@@ -1193,15 +1195,17 @@ func doExchange(test *testCase, config *Config, conn net.Conn, isResume bool, tr
 			}
 		}
 
-		for i := 0; i < test.sendEmptyRecords; i++ {
-			if _, err := tlsConn.Write(nil); err != nil {
-				return err
+		// Count _down_, so that in case of differing values for the two counters, the alternating takes place at the _end_.
+		for i := max(test.sendEmptyRecords, test.sendWarningAlerts); i > 0; i-- {
+			if i <= test.sendEmptyRecords {
+				if _, err := tlsConn.Write(nil); err != nil {
+					return err
+				}
 			}
-		}
-
-		for i := 0; i < test.sendWarningAlerts; i++ {
-			if err := tlsConn.SendAlert(alertLevelWarning, alertUnexpectedMessage); err != nil {
-				return err
+			if i <= test.sendWarningAlerts {
+				if err := tlsConn.SendAlert(alertLevelWarning, alertUnexpectedMessage); err != nil {
+					return err
+				}
 			}
 		}
 
@@ -2395,6 +2399,7 @@ func main() {
 	addTrustAnchorTests()
 	addPSKTests()
 	addRawPublicKeyTests()
+	addServerPaddingTests()
 
 	toAppend, err := convertToSplitHandshakeTests(testCases)
 	if err != nil {

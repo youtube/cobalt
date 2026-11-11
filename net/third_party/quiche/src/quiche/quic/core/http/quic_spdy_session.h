@@ -496,7 +496,6 @@ class QUICHE_EXPORT QuicSpdySession
   // Override CreateIncomingStream() with QuicSpdyStream return type to
   // ensure that all data streams are QuicSpdyStreams.
   QuicSpdyStream* CreateIncomingStream(QuicStreamId id) override = 0;
-  QuicSpdyStream* CreateIncomingStream(PendingStream* pending) override = 0;
   bool ShouldRefuseIncomingStream(QuicStreamId id) override;
   // Called to create a new outgoing bidirectional stream.
   virtual QuicSpdyStream* CreateOutgoingBidirectionalStream() = 0;

@@ -229,7 +229,7 @@ void PropertyCallbackArguments::Initialize(Isolate* isolate,
   }
   values_[T::kIsolateIndex] = reinterpret_cast<Address>(isolate);
   values_[T::kHolderIndex] = holder.ptr();
-  DCHECK(!IsJSGlobalObject(*holder));
+  DCHECK(!IsJSGlobalObject(holder));
 
   // Make sure the Isolate slot is safe to visit by GC (Isolate pointer
   // is guaranteed to be page aligned).

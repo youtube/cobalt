@@ -34,8 +34,6 @@
 #include "third_party/blink/renderer/platform/audio/mac/vector_math_mac.h"
 #elif defined(CPU_ARM_NEON)
 #include "third_party/blink/renderer/platform/audio/cpu/arm/vector_math_neon.h"
-#elif defined(HAVE_MIPS_MSA_INTRINSICS)
-#include "third_party/blink/renderer/platform/audio/cpu/mips/vector_math_msa.h"
 #elif defined(ARCH_CPU_X86_FAMILY)
 #include "third_party/blink/renderer/platform/audio/cpu/x86/vector_math_x86.h"
 #else
@@ -49,8 +47,6 @@ namespace {
 namespace impl = mac;
 #elif defined(CPU_ARM_NEON)
 namespace impl = neon;
-#elif defined(HAVE_MIPS_MSA_INTRINSICS)
-namespace impl = msa;
 #elif defined(ARCH_CPU_X86_FAMILY)
 namespace impl = x86;
 #else
@@ -110,51 +106,45 @@ void Vsub(const float* source1p,
              dest_stride, frames_to_process);
 }
 
-void Vclip(base::span<const float> source_p,
+void Vclip(base::span<const float> source,
            int source_stride,
-           const float* low_threshold_p,
-           const float* high_threshold_p,
-           base::span<float> dest_p,
+           float low_threshold,
+           float high_threshold,
+           base::span<float> dest,
            int dest_stride) {
-  float low_threshold = *low_threshold_p;
-  float high_threshold = *high_threshold_p;
-
 #if DCHECK_IS_ON()
   // Do the same DCHECKs that |ClampTo| would do so that optimization paths do
   // not have to do them.
-  for (size_t i = 0u; i < dest_p.size(); ++i) {
-    DCHECK(!std::isnan(source_p[i]));
+  for (size_t i = 0u; i < dest.size(); ++i) {
+    DCHECK(!std::isnan(source[i]));
   }
   // This also ensures that thresholds are not NaNs.
   DCHECK_LE(low_threshold, high_threshold);
 #endif
 
-  impl::Vclip(source_p.data(), source_stride, &low_threshold, &high_threshold,
-              dest_p.data(), dest_stride, dest_p.size());
+  impl::Vclip(source.data(), source_stride, &low_threshold, &high_threshold,
+              dest.data(), dest_stride, dest.size());
 }
 
-void Vclip(const float* source_p,
+void Vclip(base::span<const float> source,
            int source_stride,
-           float low_threshold_p,
-           float high_threshold_p,
-           float* dest_p,
+           float low_threshold,
+           float high_threshold,
+           base::span<float> dest,
            int dest_stride,
            uint32_t frames_to_process) {
-  float low_threshold = low_threshold_p;
-  float high_threshold = high_threshold_p;
-
 #if DCHECK_IS_ON()
   // Do the same DCHECKs that |ClampTo| would do so that optimization paths do
   // not have to do them.
   for (size_t i = 0u; i < frames_to_process; ++i) {
-    UNSAFE_TODO(DCHECK(!std::isnan(source_p[i])));
+    DCHECK(!std::isnan(source[i]));
   }
   // This also ensures that thresholds are not NaNs.
   DCHECK_LE(low_threshold, high_threshold);
 #endif
 
-  impl::Vclip(source_p, source_stride, &low_threshold, &high_threshold, dest_p,
-              dest_stride, frames_to_process);
+  impl::Vclip(source.data(), source_stride, &low_threshold, &high_threshold,
+              dest.data(), dest_stride, frames_to_process);
 }
 
 void Vmaxmgv(const float* source_p,
@@ -182,38 +172,12 @@ void Vmul(const float* source1p,
 
 void Vsma(const float* source_p,
           int source_stride,
-          const float* scale,
-          float* dest_p,
-          int dest_stride,
-          uint32_t frames_to_process) {
-  const float k = *scale;
-
-  impl::Vsma(source_p, source_stride, &k, dest_p, dest_stride,
-             frames_to_process);
-}
-
-void Vsma(const float* source_p,
-          int source_stride,
           float scale,
           float* dest_p,
           int dest_stride,
           uint32_t frames_to_process) {
-  const float k = scale;
-
-  impl::Vsma(source_p, source_stride, &k, dest_p, dest_stride,
+  impl::Vsma(source_p, source_stride, &scale, dest_p, dest_stride,
              frames_to_process);
-}
-
-void Vsmul(const float* source_p,
-           int source_stride,
-           const float* scale,
-           float* dest_p,
-           int dest_stride,
-           uint32_t frames_to_process) {
-  const float k = *scale;
-
-  impl::Vsmul(source_p, source_stride, &k, dest_p, dest_stride,
-              frames_to_process);
 }
 
 void Vsmul(const float* source_p,
@@ -222,21 +186,7 @@ void Vsmul(const float* source_p,
            float* dest_p,
            int dest_stride,
            uint32_t frames_to_process) {
-  const float k = scale;
-
-  impl::Vsmul(source_p, source_stride, &k, dest_p, dest_stride,
-              frames_to_process);
-}
-
-void Vsadd(const float* source_p,
-           int source_stride,
-           const float* addend,
-           float* dest_p,
-           int dest_stride,
-           uint32_t frames_to_process) {
-  const float k = *addend;
-
-  impl::Vsadd(source_p, source_stride, &k, dest_p, dest_stride,
+  impl::Vsmul(source_p, source_stride, &scale, dest_p, dest_stride,
               frames_to_process);
 }
 
@@ -246,9 +196,7 @@ void Vsadd(const float* source_p,
            float* dest_p,
            int dest_stride,
            uint32_t frames_to_process) {
-  const float k = addend;
-
-  impl::Vsadd(source_p, source_stride, &k, dest_p, dest_stride,
+  impl::Vsadd(source_p, source_stride, &addend, dest_p, dest_stride,
               frames_to_process);
 }
 

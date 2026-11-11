@@ -1167,8 +1167,9 @@ class LiteralBoilerplateBuilder {
     int flags = AggregateLiteral::kNoFlags;
     if (is_shallow()) flags |= AggregateLiteral::kIsShallow;
     if (disable_mementos) flags |= AggregateLiteral::kDisableMementos;
-    if (needs_initial_allocation_site())
+    if (needs_initial_allocation_site()) {
       flags |= AggregateLiteral::kNeedsInitialAllocationSite;
+    }
     return flags;
   }
 
@@ -1594,6 +1595,10 @@ class VariableProxy final : public Expression {
   void set_needs_hole_check() {
     bit_field_ =
         HoleCheckModeField::update(bit_field_, HoleCheckMode::kRequired);
+  }
+  void clear_needs_hole_check(Variable* var) {
+    DCHECK(var->is_dynamic());
+    bit_field_ = HoleCheckModeField::update(bit_field_, HoleCheckMode::kElided);
   }
 
   bool IsPrivateName() const { return raw_name()->IsPrivateName(); }
@@ -2366,6 +2371,7 @@ class FunctionLiteral final : public Expression {
   const AstConsString* raw_name() const { return raw_name_; }
   void set_raw_name(const AstConsString* name) { raw_name_ = name; }
   DeclarationScope* scope() const { return scope_; }
+  bool is_hoisted_in_context() const;
   ZonePtrList<Statement>* body() { return &body_; }
   void set_function_token_position(int pos) { function_token_position_ = pos; }
   int function_token_position() const { return function_token_position_; }

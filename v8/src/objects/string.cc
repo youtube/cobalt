@@ -1881,7 +1881,8 @@ namespace {
 template <typename Char>
 uint32_t HashString(Tagged<String> string, size_t start, uint32_t length,
                     const HashSeed seed,
-                    const SharedStringAccessGuardIfNeeded& access_guard) {
+                    const SharedStringAccessGuardIfNeeded& access_guard,
+                    bool* out_one_byte_content) {
   DisallowGarbageCollection no_gc;
 
   if (length > String::kMaxHashCalcLength) {
@@ -1901,18 +1902,25 @@ uint32_t HashString(Tagged<String> string, size_t start, uint32_t length,
     chars = string->GetDirectStringChars<Char>(no_gc, access_guard) + start;
   }
 
-  return StringHasher::HashSequentialString<Char>(chars, length, seed);
+  return StringHasher::HashSequentialString<Char>(chars, length, seed,
+                                                  out_one_byte_content);
 }
 
 }  // namespace
 
 uint32_t String::ComputeAndSetRawHash() {
+  return ComputeAndSetRawHash(/*out_one_byte_content=*/nullptr);
+}
+
+uint32_t String::ComputeAndSetRawHash(bool* out_one_byte_content) {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(this));
-  return ComputeAndSetRawHash(SharedStringAccessGuardIfNeeded::NotNeeded());
+  return ComputeAndSetRawHash(SharedStringAccessGuardIfNeeded::NotNeeded(),
+                              out_one_byte_content);
 }
 
 uint32_t String::ComputeAndSetRawHash(
-    const SharedStringAccessGuardIfNeeded& access_guard) {
+    const SharedStringAccessGuardIfNeeded& access_guard,
+    bool* out_one_byte_content) {
   DisallowGarbageCollection no_gc;
   // Should only be called if hash code has not yet been computed.
   //
@@ -1941,6 +1949,7 @@ uint32_t String::ComputeAndSetRawHash(
     string = Cast<ThinString>(string)->actual();
     shape = StringShape(string);
     if (length() == string->length()) {
+      // We are not running the hasher; leave out_one_byte_content untouched.
       uint32_t raw_hash = string->RawHash();
       DCHECK(IsHashFieldComputed(raw_hash));
       set_raw_hash_field(raw_hash);
@@ -1949,8 +1958,10 @@ uint32_t String::ComputeAndSetRawHash(
   }
   uint32_t raw_hash_field =
       shape.IsOneByte()
-          ? HashString<uint8_t>(string, start, length(), seed, access_guard)
-          : HashString<uint16_t>(string, start, length(), seed, access_guard);
+          ? HashString<uint8_t>(string, start, length(), seed, access_guard,
+                                out_one_byte_content)
+          : HashString<uint16_t>(string, start, length(), seed, access_guard,
+                                 out_one_byte_content);
   set_raw_hash_field_if_empty(raw_hash_field);
   // Check the hash code is there (or a forwarding index if the string was
   // internalized/externalized in parallel).
@@ -2069,7 +2080,7 @@ SeqString::DataAndPaddingSizes SeqTwoByteString::GetDataAndPaddingSizes()
 #ifdef VERIFY_HEAP
 V8_EXPORT_PRIVATE void SeqString::SeqStringVerify(Isolate* isolate) {
   StringVerify(isolate);
-  CHECK(IsSeqString(this, isolate));
+  CHECK(IsSeqString(this));
   DataAndPaddingSizes sz = GetDataAndPaddingSizes();
   auto padding = reinterpret_cast<char*>(address() + sz.data_size);
   CHECK(sz.padding_size <= kTaggedSize);

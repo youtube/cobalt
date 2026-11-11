@@ -421,6 +421,8 @@ std::ostream& operator<<(std::ostream& os, ChangeOrDeoptOp::Kind kind) {
       return os << "Float64NotHole";
     case ChangeOrDeoptOp::Kind::kInt32ToUint64:
       return os << "Int32ToUint64";
+    case ChangeOrDeoptOp::Kind::kInt64ToUint64:
+      return os << "Int64ToUint64";
     case ChangeOrDeoptOp::Kind::kFloat64ToUint64:
       return os << "Float64ToUint64";
   }
@@ -654,8 +656,9 @@ void LoadOp::PrintOptions(std::ostream& os) const {
   if (kind.is_immutable) os << ", immutable";
   os << ", " << loaded_rep;
   os << ", " << result_rep;
-  if (element_size_log2 != 0)
+  if (element_size_log2 != 0) {
     os << ", element size: 2^" << int{element_size_log2};
+  }
   if (offset != 0) os << ", offset: " << offset;
   os << ']';
 }
@@ -742,8 +745,9 @@ void StoreOp::PrintOptions(std::ostream& os) const {
   os << ", " << stored_rep;
   os << ", " << write_barrier;
   if (kind.is_atomic) os << ", atomic with memory order " << memory_order_;
-  if (element_size_log2 != 0)
+  if (element_size_log2 != 0) {
     os << ", element size: 2^" << int{element_size_log2};
+  }
   if (offset != 0) os << ", offset: " << offset;
   if (maybe_initializing_or_transitioning) os << ", initializing";
   os << ']';
@@ -806,8 +810,10 @@ void LoadExternalPointerOp::PrintOptions(std::ostream& os) const {
 #if V8_ENABLE_SANDBOX
 void LoadTrustedPointerOp::PrintOptions(std::ostream& os) const {
   os << '[';
-  os << "is_immutable: " << is_immutable << ", ";
-  os << "tag_range: [" << tag_range.first << ", " << tag_range.last << "]";
+  if (kind.with_trap_handler) os << "trapping, ";
+  if (kind.is_immutable) os << "immutable, ";
+  os << "tag_range: [" << tag_range.first << ", " << tag_range.last << "], ";
+  os << "offset: " << offset;
   os << ']';
 }
 #endif
@@ -1128,6 +1134,10 @@ void Word64MulWideOp::PrintOptions(std::ostream& os) const {
   os << (kind == Kind::kSigned ? "signed" : "unsigned");
 }
 
+void Word64AddSub128BinopOp::PrintOptions(std::ostream& os) const {
+  os << (kind == Kind::kAdd ? "add" : "sub");
+}
+
 void WordBinopDeoptOnOverflowOp::PrintOptions(std::ostream& os) const {
   os << '[';
   switch (kind) {
@@ -1204,10 +1214,11 @@ std::ostream& operator<<(std::ostream& os, EffectHandler h) {
 std::ostream& operator<<(std::ostream& os, base::Vector<EffectHandler> hs) {
   os << "effect handlers: ";
   for (auto& h : hs) {
-    if (h.is_switch())
+    if (h.is_switch()) {
       os << h.tag_index() << "[switch]" << (&h == &hs.last() ? "" : " ");
-    else
+    } else {
       os << h.tag_index() << ":" << h.block << (&h == &hs.last() ? "" : " ");
+    }
   }
   return os;
 }
@@ -1768,6 +1779,9 @@ const RegisterRepresentation& RepresentationFor(wasm::ValueType type) {
   }
 }
 
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+#if V8_ENABLE_SIMD128
 namespace {
 template <size_t size>
 void PrintSimdValue(std::ostream& os, const uint8_t (&value)[size]) {
@@ -2016,8 +2030,9 @@ void Simd128LoadPairDeinterleaveOp::PrintOptions(std::ostream& os) const {
   }
   os << ']';
 }
+#endif  // V8_ENABLE_SIMD128
 
-#if V8_ENABLE_WASM_SIMD256_REVEC
+#if V8_ENABLE_SIMD256
 void Simd256ConstantOp::PrintOptions(std::ostream& os) const {
   PrintSimdValue(os, value);
 }
@@ -2112,7 +2127,9 @@ std::ostream& operator<<(std::ostream& os, Simd256UnpackOp::Kind kind) {
 #undef PRINT_KIND
 }
 #endif  // V8_TARGET_ARCH_X64
-#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif  // V8_ENABLE_SIMD256
+
+#if V8_ENABLE_WEBASSEMBLY
 
 void WasmAllocateArrayOp::PrintOptions(std::ostream& os) const {
   os << '[' << array_type->element_type()

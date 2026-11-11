@@ -4,25 +4,47 @@
 
 #include "components/record_replay/core/browser/recording_data_manager_impl.h"
 
+#include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/json/json_reader.h"
-#include "base/strings/string_number_conversions.h"
 #include "base/task/thread_pool.h"
-#include "base/values.h"
-#include "components/record_replay/core/browser/capabilities_database.h"
-#include "components/record_replay/core/browser/parsing_utils.h"
 #include "components/record_replay/core/browser/recording.pb.h"
+#include "components/record_replay/core/browser/task_database.h"
 #include "components/record_replay/core/common/record_replay_features.h"
+#include "components/record_replay/core/common/record_replay_switches.h"
 
 namespace record_replay {
+
+namespace {
+
+base::FilePath GetSeedingFilePath() {
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kTaskDefinitionFile)) {
+    return command_line->GetSwitchValuePath(switches::kTaskDefinitionFile);
+  }
+  return base::FilePath();
+}
+
+}  // namespace
 
 RecordingDataManagerImpl::RecordingDataManagerImpl(base::FilePath profile_path)
     : db_(base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
-           base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN})) {
-  db_.AsyncCall(&CapabilitiesDatabase::Init).WithArgs(std::move(profile_path));
-  SeedDatabaseIfEmpty();
+           // CRITICAL: MUST use BLOCK_SHUTDOWN. SQLite database writes and
+           // transactions must complete fully before shutdown to prevent
+           // database corruption. CONTINUE_ON_SHUTDOWN would allow the thread
+           // pool to kill the thread mid-write.
+           base::TaskShutdownBehavior::BLOCK_SHUTDOWN})) {
+  // Intent: Asynchronously initialize the database. Subsequent calls are safely
+  // queued on the same sequenced task runner and will execute after Init
+  // completes.
+  db_.AsyncCall(&TaskDatabase::Init).WithArgs(std::move(profile_path));
+
+  // Trigger asynchronous seeding by retrieving the local file path (if
+  // specified) and the Feature configuration, prioritizing the file.
+  db_.AsyncCall(&TaskDatabase::RunSeeding)
+      .WithArgs(GetSeedingFilePath(),
+                features::kRecordReplayTaskDefinitionSeed.Get());
 }
 
 RecordingDataManagerImpl::~RecordingDataManagerImpl() = default;
@@ -30,7 +52,7 @@ RecordingDataManagerImpl::~RecordingDataManagerImpl() = default;
 void RecordingDataManagerImpl::AddRecording(
     Recording recording,
     base::OnceCallback<void(int64_t)> callback) {
-  db_.AsyncCall(&CapabilitiesDatabase::AddRecording)
+  db_.AsyncCall(&TaskDatabase::AddRecording)
       .WithArgs(std::move(recording))
       .Then(std::move(callback));
 }
@@ -38,73 +60,63 @@ void RecordingDataManagerImpl::AddRecording(
 void RecordingDataManagerImpl::GetRecordingsByUrl(
     std::string url,
     base::OnceCallback<void(std::vector<Recording>)> callback) {
-  db_.AsyncCall(&CapabilitiesDatabase::GetRecordingsByUrl)
+  db_.AsyncCall(&TaskDatabase::GetRecordingsByUrl)
       .WithArgs(std::move(url))
       .Then(std::move(callback));
 }
 
-void RecordingDataManagerImpl::SaveActivityAnnotation(
-    std::optional<int64_t> annotation_id,
-    ActivityAnnotation annotation,
+void RecordingDataManagerImpl::SaveTaskDefinition(
+    std::optional<int64_t> task_definition_id,
+    TaskDefinition task_definition,
     std::string target_url,
     std::optional<int64_t> recording_id,
     base::OnceClosure callback) {
-  db_.AsyncCall(&CapabilitiesDatabase::SaveActivityAnnotation)
-      .WithArgs(annotation_id, std::move(annotation), std::move(target_url),
-                recording_id)
+  db_.AsyncCall(&TaskDatabase::SaveTaskDefinition)
+      .WithArgs(task_definition_id, std::move(task_definition),
+                std::move(target_url), recording_id)
       .Then(std::move(callback));
 }
 
-void RecordingDataManagerImpl::GetActivityAnnotation(
-    int64_t annotation_id,
-    base::OnceCallback<void(std::optional<ActivityAnnotation>)> callback) {
-  db_.AsyncCall(&CapabilitiesDatabase::GetActivityAnnotation)
-      .WithArgs(annotation_id)
+void RecordingDataManagerImpl::GetTaskDefinition(
+    int64_t task_definition_id,
+    base::OnceCallback<void(std::optional<TaskDefinition>)> callback) {
+  db_.AsyncCall(&TaskDatabase::GetTaskDefinition)
+      .WithArgs(task_definition_id)
       .Then(std::move(callback));
 }
 
-void RecordingDataManagerImpl::GetActivityAnnotationsByUrl(
+void RecordingDataManagerImpl::GetTaskDefinitionsByUrl(
     std::string url,
-    base::OnceCallback<
-        void(std::vector<std::pair<int64_t, ActivityAnnotation>>)> callback) {
-  db_.AsyncCall(&CapabilitiesDatabase::GetActivityAnnotationsByUrl)
+    base::OnceCallback<void(std::vector<std::pair<int64_t, TaskDefinition>>)>
+        callback) {
+  db_.AsyncCall(&TaskDatabase::GetTaskDefinitionsByUrl)
       .WithArgs(std::move(url))
       .Then(std::move(callback));
 }
 
-void RecordingDataManagerImpl::SaveActivityData(
-    int64_t annotation_id,
-    ActivityData data,
+void RecordingDataManagerImpl::SaveTaskData(
+    int64_t task_definition_id,
+    TaskData data,
     base::OnceCallback<void(bool)> callback) {
-  db_.AsyncCall(&CapabilitiesDatabase::SaveActivityData)
-      .WithArgs(annotation_id, std::move(data))
+  db_.AsyncCall(&TaskDatabase::SaveTaskData)
+      .WithArgs(task_definition_id, std::move(data))
       .Then(std::move(callback));
 }
 
-void RecordingDataManagerImpl::GetActivityData(
-    int64_t annotation_id,
-    base::OnceCallback<void(std::optional<ActivityData>)> callback) {
-  db_.AsyncCall(&CapabilitiesDatabase::GetActivityData)
-      .WithArgs(annotation_id)
+void RecordingDataManagerImpl::GetTaskData(
+    int64_t task_definition_id,
+    base::OnceCallback<void(std::optional<TaskData>)> callback) {
+  db_.AsyncCall(&TaskDatabase::GetTaskData)
+      .WithArgs(task_definition_id)
       .Then(std::move(callback));
 }
 
-void RecordingDataManagerImpl::DeleteActivityData(
-    int64_t annotation_id,
+void RecordingDataManagerImpl::DeleteTaskData(
+    int64_t task_definition_id,
     base::OnceCallback<void(bool)> callback) {
-  db_.AsyncCall(&CapabilitiesDatabase::DeleteActivityData)
-      .WithArgs(annotation_id)
+  db_.AsyncCall(&TaskDatabase::DeleteTaskData)
+      .WithArgs(task_definition_id)
       .Then(std::move(callback));
-}
-
-void RecordingDataManagerImpl::SeedDatabaseIfEmpty() {
-  std::string seed_json = features::kRecordReplayAnnotationSeed.Get();
-  if (seed_json.empty()) {
-    return;
-  }
-
-  db_.AsyncCall(&CapabilitiesDatabase::MaybeSeedAnnotationsFromJson)
-      .WithArgs(std::move(seed_json));
 }
 
 }  // namespace record_replay

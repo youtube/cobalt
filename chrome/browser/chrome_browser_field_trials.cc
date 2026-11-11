@@ -155,6 +155,11 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // low-memory scenarios.
   feature_overrides.EnableFeature(chrome::android::kChangeUnfocusedPriority);
 
+  // Enables media capture (tab+window+screen sharing).
+  // TODO(crbug.com/352187279): Remove when tablet rollout is complete.
+  feature_overrides.EnableFeature(kAndroidMediaPicker);
+  feature_overrides.EnableFeature(features::kUserMediaScreenCapturing);
+
   // Enable background media capturing on desktop devices.
   // TODO(crbug.com/426461170): Remove once we enable this feature for all form
   // factors. Currently we have no conclusion whether to enable this on mobile
@@ -172,10 +177,6 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // factors.
   feature_overrides.EnableFeature(
       autofill::features::kAutofillAndroidDesktopSuppressAccessoryOnEmpty);
-  // TODO(crbug.com/436900619): Remove when the long term solution is
-  // implemented.
-  feature_overrides.EnableFeature(
-      chrome::android::kLockTopControlsOnLargeTablets);
   // TODO(crbug.com/445446479): Remove when rollout is complete to all form
   // factors.
   feature_overrides.EnableFeature(

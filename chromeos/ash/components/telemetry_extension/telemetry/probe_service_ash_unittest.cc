@@ -10,10 +10,8 @@
 #include "base/functional/bind.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
-#include "chromeos/ash/components/dbus/debug_daemon/debug_daemon_client.h"
 #include "chromeos/ash/components/mojo_service_manager/fake_mojo_service_manager.h"
 #include "chromeos/ash/services/cros_healthd/public/cpp/fake_cros_healthd.h"
-#include "mojo/public/cpp/bindings/remote.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace ash {
@@ -21,26 +19,21 @@ namespace ash {
 class ProbeServiceAshTest : public testing::Test {
  public:
   void SetUp() override {
-    DebugDaemonClient::InitializeFake();
     cros_healthd::FakeCrosHealthd::Initialize();
-    probe_service_.BindReceiver(
-        remote_probe_service_.BindNewPipeAndPassReceiver());
   }
 
   void TearDown() override {
     cros_healthd::FakeCrosHealthd::Shutdown();
-    DebugDaemonClient::Shutdown();
   }
 
-  crosapi::mojom::TelemetryProbeServiceProxy* probe_service() const {
-    return remote_probe_service_.get();
+  crosapi::mojom::TelemetryProbeService* probe_service() {
+    return &probe_service_;
   }
 
  private:
   base::test::TaskEnvironment task_environment_;
   ::ash::mojo_service_manager::FakeMojoServiceManager fake_service_manager_;
 
-  mojo::Remote<crosapi::mojom::TelemetryProbeService> remote_probe_service_;
   ProbeServiceAsh probe_service_;
 };
 
@@ -77,21 +70,6 @@ TEST_F(ProbeServiceAshTest, ProbeTelemetryInfoSuccess) {
 
             run_loop.Quit();
           }));
-  run_loop.Run();
-}
-
-// Tests that GetOemData requests OEM data in debugd and
-// forwards response via callback.
-TEST_F(ProbeServiceAshTest, GetOemDataSuccess) {
-  base::RunLoop run_loop;
-  probe_service()->GetOemData(
-      base::BindLambdaForTesting([&](crosapi::mojom::ProbeOemDataPtr ptr) {
-        ASSERT_TRUE(ptr);
-        ASSERT_TRUE(ptr->oem_data.has_value());
-        EXPECT_EQ(ptr->oem_data.value(), "oemdata: response from GetLog");
-
-        run_loop.Quit();
-      }));
   run_loop.Run();
 }
 

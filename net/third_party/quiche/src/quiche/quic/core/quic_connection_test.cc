@@ -16,7 +16,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/congestion_control/loss_detection_interface.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "quiche/quic/core/crypto/null_decrypter.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
@@ -7659,9 +7658,7 @@ TEST_P(QuicConnectionTest, NoPathDegradingDetectionBeforeHandshakeConfirmed) {
       .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
 
   connection_.SendStreamDataWithString(1, "data", 0, NO_FIN);
-  if (GetQuicReloadableFlag(
-          quic_no_path_degrading_before_handshake_confirmed) &&
-      connection_.SupportsMultiplePacketNumberSpaces()) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
     EXPECT_FALSE(connection_.PathDegradingDetectionInProgress());
   } else {
     EXPECT_TRUE(connection_.PathDegradingDetectionInProgress());
@@ -9651,12 +9648,8 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
   EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
   connection_.SetFromConfig(config);
-  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2) ||
-      GetQuicReloadableFlag(
-          quic_no_path_degrading_before_handshake_confirmed)) {
-    EXPECT_CALL(visitor_, GetHandshakeState())
-        .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
-  }
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   connection_.OnHandshakeComplete();
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
@@ -9705,12 +9698,8 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter7ClientPTOs) {
   EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
   connection_.SetFromConfig(config);
-  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2) ||
-      GetQuicReloadableFlag(
-          quic_no_path_degrading_before_handshake_confirmed)) {
-    EXPECT_CALL(visitor_, GetHandshakeState())
-        .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
-  }
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   connection_.OnHandshakeComplete();
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
@@ -9758,12 +9747,8 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter8ClientPTOs) {
   EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
   connection_.SetFromConfig(config);
-  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2) ||
-      GetQuicReloadableFlag(
-          quic_no_path_degrading_before_handshake_confirmed)) {
-    EXPECT_CALL(visitor_, GetHandshakeState())
-        .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
-  }
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   connection_.OnHandshakeComplete();
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
@@ -11202,12 +11187,8 @@ TEST_P(QuicConnectionTest, MadeForwardProgressOnDiscardingKeys) {
   connection_options.push_back(k5RTO);
   config.SetConnectionOptionsToSend(connection_options);
   QuicConfigPeer::SetNegotiated(&config, true);
-  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2) ||
-      GetQuicReloadableFlag(
-          quic_no_path_degrading_before_handshake_confirmed)) {
-    EXPECT_CALL(visitor_, GetHandshakeState())
-        .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
-  }
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
   if (connection_.version().IsIetfQuic()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
@@ -11220,27 +11201,14 @@ TEST_P(QuicConnectionTest, MadeForwardProgressOnDiscardingKeys) {
   connection_.SetFromConfig(config);
 
   connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_HANDSHAKE);
-  if (GetQuicReloadableFlag(
-          quic_no_path_degrading_before_handshake_confirmed)) {
-    // No blackhole detection before handshake confirmed.
-    EXPECT_FALSE(connection_.BlackholeDetectionInProgress());
-  } else {
-    EXPECT_TRUE(connection_.BlackholeDetectionInProgress());
-  }
+  // No blackhole detection before handshake confirmed.
+  EXPECT_FALSE(connection_.BlackholeDetectionInProgress());
   // Discard handshake keys.
   EXPECT_CALL(visitor_, GetHandshakeState())
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   connection_.OnHandshakeComplete();
-  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2) ||
-      GetQuicReloadableFlag(
-          quic_no_path_degrading_before_handshake_confirmed)) {
-    // Verify blackhole detection stops.
-    EXPECT_FALSE(connection_.BlackholeDetectionInProgress());
-  } else {
-    // Problematic: although there is nothing in flight, blackhole detection is
-    // still in progress.
-    EXPECT_TRUE(connection_.BlackholeDetectionInProgress());
-  }
+  // Verify blackhole detection stops.
+  EXPECT_FALSE(connection_.BlackholeDetectionInProgress());
 }
 
 TEST_P(QuicConnectionTest, ProcessUndecryptablePacketsBasedOnEncryptionLevel) {

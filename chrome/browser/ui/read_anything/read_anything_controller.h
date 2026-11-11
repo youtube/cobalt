@@ -145,7 +145,7 @@ class ReadAnythingController : public tabs::ContentsObservingTabFeature {
   void ToggleUI(ReadAnythingOpenTrigger trigger);
 
   // Toggles between the Immersive Reading Mode UI and the Side Panel UI.
-  void TogglePresentation(bool is_user_initiated = true);
+  void TogglePresentation(bool is_user_initiated);
 
   // Returns the current presentation_state_ of the Reading Mode feature. This
   // refers to the current host of the WebUI, but does not guarantee that the
@@ -224,8 +224,11 @@ class ReadAnythingController : public tabs::ContentsObservingTabFeature {
   // (e.g. due to being unresponsive).
   void OnRendererCrashed();
 
-  // Helper function to record OnEntryHidden metrics.
-  void RecordEntryHiddenMetrics();
+  // Records OnEntryHidden metrics and returns the calculated session duration
+  // if Reading Mode was successfully shown. Returns std::nullopt if the UI is
+  // closed before being successfully shown or hidden due to an in-progress
+  // presentation mode transition.
+  std::optional<base::TimeDelta> RecordEntryHiddenMetrics();
 
   // Returns the SidePanelUI for the active tab if it can be shown.
   // Otherwise, returns nullptr.
@@ -262,8 +265,8 @@ class ReadAnythingController : public tabs::ContentsObservingTabFeature {
   base::ObserverList<ReadAnythingImmersiveActivationObserver>
       immersive_activation_observers_;
 
-  // Holds subscriptions for TabInterface callbacks.
-  std::vector<base::CallbackListSubscription> tab_subscriptions_;
+  // Holds subscription for TabInterface callbacks.
+  base::CallbackListSubscription tab_did_activate_subscription_;
 
   PresentationState presentation_state_ = PresentationState::kUndefined;
   // When a tab becomes inactive and hides IRM, this is set to true to let us

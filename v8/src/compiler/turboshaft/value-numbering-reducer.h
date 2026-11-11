@@ -296,7 +296,7 @@ class ValueNumberingReducer : public Next {
     }
     if constexpr (std::is_same_v<Op, LoadOp>) {
       if (v8_flags.turbolev && !op.index().valid() &&
-          op.offset == HeapObject::kMapOffset) {
+          op.offset == offsetof(HeapObject, map_)) {
         // We don't GVN loads at offset kMapOffset, because they could be string
         // maps loads, which can get invalidated on GCs and we don't increment
         // {current_epoch_} on operations that can_allocate but only on those

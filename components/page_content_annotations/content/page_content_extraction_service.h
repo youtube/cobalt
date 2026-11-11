@@ -54,6 +54,10 @@ using RefCountedPDFTextPtr = scoped_refptr<const RefCountedPDFText>;
 using PageContent =
     std::variant<RefCountedAnnotatedPageContentPtr, RefCountedPDFTextPtr>;
 
+// Returns true if `content` holds a non-null RefCountedAnnotatedPageContentPtr
+// or RefCountedPDFTextPtr.
+bool IsPageContentValid(const PageContent& content);
+
 // Returns true if `content` holds a RefCountedAnnotatedPageContentPtr.
 bool IsAnnotatedPageContentPtr(const PageContent& content);
 
@@ -118,10 +122,12 @@ class PageContentExtractionService : public KeyedService,
   // and, if not constructible, return the reason why via a base::expected.
 
   // Returns the cached APC for `page` and whether it is eligible for
-  // server upload. Will return nullopt if not available or not supported. E.g.
-  // for PDFs, when initial extraction is not complete, the triggering mode is
-  // 'on hidden' and the page is still visible, or the request object lacks
-  // observers.
+  // server upload. Returns `std::nullopt` if not available or not supported,
+  // for example:
+  // - For PDFs, as PDF text extraction results are never cached.
+  // - When the initial extraction is not complete (e.g., the triggering mode
+  //   is 'on hidden' and the page is still visible).
+  // - The request object lacks observers.
   // Virtual for testing.
   virtual std::optional<ExtractedPageContentResult>
   GetExtractedPageContentAndEligibilityForPage(content::Page& page);
@@ -149,11 +155,10 @@ class PageContentExtractionService : public KeyedService,
 
   // Extracts a new APC for `page` and computes its eligibility for server
   // upload, and caches the new result. It will wait for the initial
-  // extraction to complete if there is one pending. For PDFs, it will return
-  // the cached copy instead. If the extraction request is cleared or reset
-  // (e.g. from a navigation or destruction), the callbacks will resolve with
-  // std::nullopt. Extraction is not supported for PDFs and will also result in
-  // nullopt.
+  // extraction to complete if there is one pending. If the extraction request
+  // is cleared or reset (e.g. from a navigation or destruction), the callbacks
+  // will resolve with std::nullopt. On-demand extraction is not supported for
+  // PDFs and this function will also return a std::nullopt.
   // Virtual for testing.
   virtual void RefreshExtractedPageContentAndEligibilityForPage(
       content::Page& page,
@@ -172,7 +177,8 @@ class PageContentExtractionService : public KeyedService,
 
   // Called when a new navigation happens in a WebContents.
   void OnNewNavigation(std::optional<int64_t> tab_id,
-                       content::WebContents* web_contents);
+                       content::WebContents* web_contents,
+                       bool is_same_document);
 
   // Called when all the tab models are initialized to perform cleanup of stale
   // entries in the page content cache.

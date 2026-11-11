@@ -725,18 +725,23 @@ void SourceTextModule::FetchStarExports(Isolate* isolate,
       continue;  // Indirect export.
     }
 
-    DCHECK_EQ(Cast<ModuleRequest>(module->info()->module_requests()->get(
-                                      entry->module_request()))
-                  ->phase(),
-              ModuleImportPhase::kEvaluation);
+    // Source phase imports store a JSReceiver (not a Module) in
+    // requested_modules. Guard against type confusion if a future change
+    // breaks the invariant that star exports only reference evaluation-phase
+    // imports.
+    CHECK_EQ(Cast<ModuleRequest>(module->info()->module_requests()->get(
+                                     entry->module_request()))
+                 ->phase(),
+             ModuleImportPhase::kEvaluation);
     Handle<Module> requested_module(
         Cast<Module>(module->requested_modules()->get(entry->module_request())),
         isolate);
 
     // Recurse.
-    if (IsSourceTextModule(*requested_module))
+    if (IsSourceTextModule(*requested_module)) {
       FetchStarExports(isolate, Cast<SourceTextModule>(requested_module), zone,
                        visited);
+    }
 
     // Collect all of [requested_module]'s exports that must be added to
     // [module]'s exports (i.e. to [exports]).  We record these in
@@ -844,7 +849,10 @@ DirectHandle<JSModuleNamespace> SourceTextModule::GetModuleNamespace(
     int module_request_index) {
   Tagged<ModuleRequest> module_request = Cast<ModuleRequest>(
       module->info()->module_requests()->get(module_request_index));
-  DCHECK_NE(module_request->phase(), ModuleImportPhase::kSource);
+  // Source phase imports store a JSReceiver (not a Module) in
+  // requested_modules. Guard against type confusion if a future change
+  // routes a source-phase request through GetModuleNamespace.
+  CHECK_NE(module_request->phase(), ModuleImportPhase::kSource);
 
   Handle<Module> requested_module(
       Cast<Module>(module->requested_modules()->get(module_request_index)),
@@ -1162,13 +1170,12 @@ Maybe<bool> SourceTextModule::ExecuteAsyncModule(
   // 8. Perform PerformPromiseThen(capability.[[Promise]],
   //                               onFulfilled, onRejected).
   DirectHandle<Object> args[] = {on_fulfilled, on_rejected};
-  if (V8_UNLIKELY(Execution::CallBuiltin(isolate, isolate->promise_then(),
+  if (V8_UNLIKELY(Execution::CallBuiltin(isolate,
+                                         isolate->perform_promise_then(),
                                          capability, base::VectorOf(args))
                       .is_null())) {
-    // This may fail with a termination exception or if, for any weird reason,
-    // the promise has been rejected. See bugs: https://crbug.com/349961173 and
-    // https://crbug.com/442161248.
-    CHECK(isolate->has_exception());
+    // This may only fail with a termination exception.
+    CHECK(isolate->is_execution_terminating());
     return Nothing<bool>();
   }
 

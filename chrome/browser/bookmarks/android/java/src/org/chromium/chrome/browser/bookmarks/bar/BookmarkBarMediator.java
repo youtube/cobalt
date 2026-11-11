@@ -44,6 +44,7 @@ import org.chromium.chrome.browser.bookmarks.BookmarkManagerOpener;
 import org.chromium.chrome.browser.bookmarks.BookmarkModel;
 import org.chromium.chrome.browser.bookmarks.BookmarkOpener;
 import org.chromium.chrome.browser.bookmarks.BookmarkUiPrefs.BookmarkRowDisplayPref;
+import org.chromium.chrome.browser.bookmarks.BookmarkUtils;
 import org.chromium.chrome.browser.bookmarks.BookmarkViewUtils;
 import org.chromium.chrome.browser.bookmarks.R;
 import org.chromium.chrome.browser.bookmarks.bar.BookmarkBarUtils.BookmarkBarClickType;
@@ -321,7 +322,7 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
             runIfStillRelevantAfterFinishLoadingBookmarkModel(
                     (profileAfterLoading, modelAfterLoading) -> {
                         // Build the entire model list for this folder. The grandchildren are stored
-                        // in SUBMENU_ITEMS.
+                        // in SUBMENU_PROVIDER.
                         ModelList menuModel =
                                 buildMenuModelListForFolder(modelAfterLoading, item.getId());
                         BookmarkBarUtils.recordClick(BookmarkBarClickType.BOOKMARK_BAR_FOLDER);
@@ -358,7 +359,8 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
                 (profileAfterLoading, modelAfterLoading) -> {
                     // Get an ordered list of all the children (both folders and web pages) of the
                     // bookmarks bar.
-                    List<BookmarkId> allBookmarkItems = getBookmarkIdsForModel(modelAfterLoading);
+                    List<BookmarkId> allBookmarkItems =
+                            BookmarkUtils.getDesktopBookmarkIds(modelAfterLoading);
 
                     // Get the index of the first hidden item from the LayoutManager.
                     int firstHiddenIndex =
@@ -467,7 +469,7 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
                         });
 
         // Go through the entire model list and add the click listeners.
-        popupListMenu.setupCallbacksRecursively(
+        popupListMenu.setupCallbacks(
                 () -> {
                     if (mAnchoredPopupWindow != null) {
                         mAnchoredPopupWindow.dismiss();
@@ -645,7 +647,7 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
                 BookmarkModel.getForProfile(assertNonNull(mProfileSupplier.get()));
         if (bookmarkModel == null) return INVALID_INDEX;
 
-        return getBookmarkIdsForModel(bookmarkModel).indexOf(item.getId());
+        return BookmarkUtils.getDesktopBookmarkIds(bookmarkModel).indexOf(item.getId());
     }
 
     private @Nullable View getAnchorViewForBookmark(BookmarkItem item) {
@@ -660,7 +662,7 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
 
     // Recursive method that builds the entire model list for a clicked bookmark in the bookmarks
     // bar. The size of the returned model list will just be the number of the direct children
-    // because each folder's SUBMENU_ITEMS contains the children list as a separate model list.
+    // because each folder's SUBMENU_PROVIDER contains the children list as a separate model list.
     @VisibleForTesting
     ModelList buildMenuModelListForFolder(BookmarkModel bookmarkModel, BookmarkId folderId) {
         List<BookmarkId> childIds = bookmarkModel.getChildIds(folderId);
@@ -727,7 +729,7 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
                                         bookmarkItem.getTitle()))
                         .with(ListMenuItemProperties.TOOLTIP, bookmarkItem.getTitle())
                         .with(ListMenuItemProperties.IS_TEXT_ELLIPSIZED_AT_END, true)
-                        .with(ListMenuSubmenuItemProperties.SUBMENU_ITEMS, childrenList)
+                        .with(ListMenuSubmenuItemProperties.SUBMENU_PROVIDER, () -> childrenList)
                         .with(ListMenuItemProperties.START_ICON_BITMAP, sFolderIconBitmap)
                         .with(ListMenuItemProperties.ENABLED, true)
                         .with(ListMenuItemProperties.CLICK_LISTENER, clickListener)
@@ -998,29 +1000,6 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
             parent = parentView.getParent();
         }
         return null;
-    }
-
-    /**
-     * Gets the full list of BookmarkId's based on the given model. This will find all the account
-     * bookmark bar IDs, followed by the local bookmark bar IDs, since both should appear in the bar
-     * if they both exist.
-     *
-     * @param bookmarkModel The bookmark model to query bookmarks for.
-     * @return List of BookmarkId's for the bookmark bar of the given model.
-     */
-    private List<BookmarkId> getBookmarkIdsForModel(BookmarkModel bookmarkModel) {
-        BookmarkId accountDesktopFolderId = bookmarkModel.getAccountDesktopFolderId();
-        List<BookmarkId> bookmarkIds = new ArrayList<>();
-        if (accountDesktopFolderId != null) {
-            bookmarkIds.addAll(bookmarkModel.getChildIds(accountDesktopFolderId));
-        }
-
-        BookmarkId localFolderId = bookmarkModel.getDesktopFolderId();
-        if (localFolderId != null) {
-            bookmarkIds.addAll(bookmarkModel.getChildIds(localFolderId));
-        }
-
-        return bookmarkIds;
     }
 
     /**

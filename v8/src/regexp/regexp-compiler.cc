@@ -276,8 +276,9 @@ void ClassRanges::AppendToText(Text* text, Zone* zone) {
 }
 
 void Text::AppendToText(Text* text, Zone* zone) {
-  for (int i = 0; i < elements()->length(); i++)
+  for (int i = 0; i < elements()->length(); i++) {
     text->AddElement(elements()->at(i), zone);
+  }
 }
 
 TextElement TextElement::FromAtom(Atom* atom) {
@@ -442,10 +443,12 @@ class DynamicBitSet : public ZoneObject {
     if (value < kFirstLimit) {
       first_ |= (1 << value);
     } else {
-      if (remaining_ == nullptr)
+      if (remaining_ == nullptr) {
         remaining_ = zone->New<ZoneList<unsigned>>(1, zone);
-      if (remaining_->is_empty() || !remaining_->Contains(value))
+      }
+      if (remaining_->is_empty() || !remaining_->Contains(value)) {
         remaining_->Add(value, zone);
+      }
     }
   }
 
@@ -2142,8 +2145,9 @@ EmitResult AssertionNode::EmitBoundaryCheck(Compiler* compiler, Trace* trace) {
       if (bm->at(0)->is_word()) next_is_word_character = Trace::TRUE_VALUE;
     }
   } else {
-    if (lookahead->at(0)->is_non_word())
+    if (lookahead->at(0)->is_non_word()) {
       next_is_word_character = Trace::FALSE_VALUE;
+    }
     if (lookahead->at(0)->is_word()) next_is_word_character = Trace::TRUE_VALUE;
   }
   bool at_boundary = (assertion_type_ == AssertionNode::AT_BOUNDARY);
@@ -3863,8 +3867,13 @@ class Analysis : public NodeVisitor {
   }
 
   void VisitChoice(ChoiceNode* that) override {
+    // Flags need to be reset to the state of the ChoiceNode at the beginning
+    // of each alternative, as flags might be modified when visiting an
+    // alternative.
+    Flags header_flags = flags();
     for (int i = 0; i < that->alternatives()->length(); i++) {
       EnsureAnalyzed(that->alternatives()->at(i).node());
+      set_flags(header_flags);
       if (has_failed()) return;
       STATIC_FOR_EACH(Propagators::VisitChoice(that, i));
     }

@@ -91,21 +91,18 @@ public class TabGroupUtils {
     /**
      * Opens a new tab in the last position of the tab group and selects it.
      *
-     * @param tabGroupModelFilter The {@link TabGroupModelFilter} to act on.
+     * @param tabModel The {@link TabModel} to act on.
      * @param url The url to load the new tab with.
      * @param parentId The ID of one of the tabs in the tab group.
      * @param type The launch type of the new tab.
      */
     public static void openUrlInGroup(
-            TabGroupModelFilter tabGroupModelFilter,
-            String url,
-            int parentId,
-            @TabLaunchType int type) {
-        List<Tab> relatedTabs = tabGroupModelFilter.getRelatedTabList(parentId);
+            TabModel tabModel, String url, int parentId, @TabLaunchType int type) {
+        List<Tab> relatedTabs = tabModel.getRelatedTabList(parentId);
         if (relatedTabs.isEmpty()) return;
 
         Tab lastTab = relatedTabs.get(relatedTabs.size() - 1);
-        TabCreator tabCreator = tabGroupModelFilter.getTabModel().getTabCreator();
+        TabCreator tabCreator = tabModel.getTabCreator();
         LoadUrlParams loadUrlParams = new LoadUrlParams(url);
         tabCreator.createNewTab(loadUrlParams, type, lastTab);
     }
@@ -292,20 +289,20 @@ public class TabGroupUtils {
      *
      * @param tabs The tabs to be added to a tab group.
      * @param destTabId The tab id of the destination tab group.
-     * @param tabGroupModelFilter Used to read current tab groups.
+     * @param tabModel Used to read current tab groups.
      * @param tabMovedCallback Used to follow up on a tab being moved groups or ungrouped.
      */
     public static void mergeTabsToDest(
             List<Tab> tabs,
             @TabId int destTabId,
-            TabGroupModelFilter tabGroupModelFilter,
+            TabModel tabModel,
             @Nullable TabMovedCallback tabMovedCallback) {
-        Tab destTab = tabGroupModelFilter.getTabModel().getTabById(destTabId);
+        Tab destTab = tabModel.getTabById(destTabId);
         if (destTab == null) {
             return;
         }
 
-        tabGroupModelFilter.mergeListOfTabsToGroup(
+        tabModel.mergeListOfTabsToGroup(
                 tabs, destTab, MergeNotificationType.NOTIFY_IF_NOT_NEW_GROUP);
         if (tabMovedCallback != null) {
             tabMovedCallback.onTabMoved();

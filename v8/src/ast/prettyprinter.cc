@@ -394,10 +394,11 @@ void CallPrinter::VisitYield(Yield* node) { Find(node->expression()); }
 void CallPrinter::VisitYieldStar(YieldStar* node) {
   if (!found_ && position_ == node->expression()->position()) {
     found_ = true;
-    if (IsAsyncFunction(function_kind_))
+    if (IsAsyncFunction(function_kind_)) {
       is_async_iterator_error_ = true;
-    else
+    } else {
       is_iterator_error_ = true;
+    }
     Print("yield* ");
   }
   Find(node->expression());

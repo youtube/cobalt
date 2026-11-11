@@ -13,7 +13,7 @@
 
 namespace v8::internal::maglev {
 
-Constant* Graph::GetHeapNumberConstant(double constant) {
+HeapConstant* Graph::GetHeapNumberConstant(double constant) {
   uint64_t bits = Float64(constant).get_bits();
   auto it = heap_number_constants_.find(bits);
   if (it == heap_number_constants_.end()) {
@@ -24,7 +24,7 @@ Constant* Graph::GetHeapNumberConstant(double constant) {
             ->NewHeapNumberFromBits<AllocationType::kOld>(bits);
     compiler::HeapNumberRef number_ref =
         MakeRef(broker(), broker()->CanonicalPersistentHandle(number));
-    Constant* node = CreateNewConstantNode<Constant>(0, number_ref);
+    HeapConstant* node = CreateNewConstantNode<HeapConstant>(0, number_ref);
     heap_number_constants_.emplace(bits, node);
     return node;
   }
@@ -135,7 +135,7 @@ ValueNode* Graph::GetConstant(compiler::ObjectRef ref) {
     }
   }
 
-  return GetOrAddNewConstantNode(constants_, ref.AsHeapObject());
+  return GetOrAddNewConstantNode(heap_constants_, ref.AsHeapObject());
 }
 
 ValueNode* Graph::GetTrustedConstant(compiler::HeapObjectRef ref,

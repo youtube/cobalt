@@ -38,6 +38,7 @@
 #include "chrome/browser/feedback/feedback_uploader_chrome.h"
 #include "chrome/browser/feedback/feedback_uploader_factory_chrome.h"
 #include "chrome/browser/glic/actor/glic_actor_policy_checker.h"
+#include "chrome/browser/glic/actor/glic_actor_task_manager.h"
 #include "chrome/browser/glic/common/future_browser_features.h"
 #include "chrome/browser/glic/common/glic_navigation.h"
 #include "chrome/browser/glic/fre/fre_util.h"
@@ -70,7 +71,6 @@
 #include "chrome/browser/glic/suggestions/contextual_cueing_features.h"
 #include "chrome/browser/glic/widget/browser_conditions.h"
 #include "chrome/browser/global_features.h"
-#include "chrome/browser/lens/region_search/lens_region_search_controller.h"
 #include "chrome/browser/permissions/system/system_permission_settings.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
@@ -146,6 +146,7 @@
 #include "chrome/browser/feedback/system_logs/chrome_system_logs_fetcher.h"
 #include "chrome/browser/glic/glic_hotkey.h"
 #include "chrome/browser/glic/host/context/glic_focused_browser_manager.h"
+#include "chrome/browser/glic/selection/selection_overlay_controller.h"
 #include "chrome/browser/media/audio_ducker.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
@@ -178,13 +179,15 @@ mojom::FormFactor GetGlicFormFactor(ui::DeviceFormFactor form_factor) {
   switch (form_factor) {
     case ui::DEVICE_FORM_FACTOR_DESKTOP:
       return mojom::FormFactor::kDesktop;
+    // TODO(b/512144892): Foldable is currently grouped with phone. We need
+    // transition between bottom sheet and side panel, to match tablet UI.
+    case ui::DEVICE_FORM_FACTOR_FOLDABLE:
     case ui::DEVICE_FORM_FACTOR_PHONE:
       return mojom::FormFactor::kPhone;
     case ui::DEVICE_FORM_FACTOR_TABLET:
       return mojom::FormFactor::kTablet;
     case ui::DEVICE_FORM_FACTOR_TV:
     case ui::DEVICE_FORM_FACTOR_AUTOMOTIVE:
-    case ui::DEVICE_FORM_FACTOR_FOLDABLE:
     case ui::DEVICE_FORM_FACTOR_XR:
       return mojom::FormFactor::kUnknown;
   }
@@ -411,209 +414,6 @@ class DebouncerDeduper {
   glic::mojom::FocusedTabDataPtr next_data_candidate_;
 };
 
-const char kGlicActorJournalLog[] = "glic-actor-journal";
-// Class that encapsulates interacting with the actor journal.
-class JournalHandler {
- public:
-  explicit JournalHandler(Profile* profile)
-      : actor_keyed_service_(actor::ActorKeyedService::Get(profile)) {
-    base::FilePath path =
-        base::CommandLine::ForCurrentProcess()->GetSwitchValuePath(
-            kGlicActorJournalLog);
-    if (!path.empty()) {
-      GetUniquePath(path, base::BindOnce(&JournalHandler::OnUniquePathReceived,
-                                         base::Unretained(this)));
-    }
-  }
-
-  void LogBeginAsyncEvent(uint64_t event_async_id,
-                          int32_t task_id,
-                          const std::string& event,
-                          const std::string& details) {
-    // If there is a matching ID make sure it terminates before the new event
-    // is created.
-    auto it = active_journal_events_.find(event_async_id);
-    if (it != active_journal_events_.end()) {
-      active_journal_events_.erase(it);
-    }
-
-    auto actor_task_id = actor::TaskId(task_id);
-    active_journal_events_[event_async_id] =
-        actor_keyed_service_->GetJournal().CreatePendingAsyncEntry(
-            /*url=*/GURL::EmptyGURL(), actor_task_id,
-            actor::MakeFrontEndTrackUUID(actor_task_id), event,
-            actor::JournalDetailsBuilder()
-                .Add("begin_details", details)
-                .Build());
-  }
-
-  void LogEndAsyncEvent(uint64_t event_async_id, const std::string& details) {
-    auto it = active_journal_events_.find(event_async_id);
-    if (it != active_journal_events_.end()) {
-      it->second->EndEntry(
-          actor::JournalDetailsBuilder().Add("end_details", details).Build());
-
-      if (!it->second->GetTaskId().is_null()) {
-        // Log a histogram for each async event.
-        std::string histogram_name;
-        // The event name may have whitespaces and that won't work as a
-        // histogram name.
-        base::RemoveChars(it->second->event_name(), " ", &histogram_name);
-
-        base::UmaHistogramLongTimes100(
-            "Glic.Actor.JournalEvent." + histogram_name,
-            base::TimeTicks::Now() - it->second->begin_time());
-      }
-
-      active_journal_events_.erase(it);
-    }
-  }
-
-  void LogInstantEvent(int32_t task_id,
-                       const std::string& event,
-                       const std::string& details) {
-    auto actor_task_id = actor::TaskId(task_id);
-    actor_keyed_service_->GetJournal().Log(
-        /*url=*/GURL::EmptyGURL(), actor_task_id,
-        actor::MakeFrontEndTrackUUID(actor_task_id), event,
-        actor::JournalDetailsBuilder().Add("details", details).Build());
-  }
-
-  void Clear() {
-    if (journal_serializer_) {
-      journal_serializer_->Clear();
-    }
-  }
-
-  void Snapshot(
-      bool clear_journal,
-      glic::mojom::WebClientHandler::JournalSnapshotCallback callback) {
-    if (!journal_serializer_) {
-      std::move(callback).Run(glic::mojom::Journal::New());
-      return;
-    }
-    std::move(callback).Run(
-        glic::mojom::Journal::New(journal_serializer_->Snapshot()));
-    if (clear_journal) {
-      journal_serializer_->Clear();
-    }
-  }
-
-  std::vector<uint8_t> GetSnapshot(bool clear_journal) {
-    std::vector<uint8_t> result_buffer;
-    if (journal_serializer_) {
-      result_buffer = journal_serializer_->Snapshot();
-      if (clear_journal) {
-        journal_serializer_->Clear();
-      }
-    }
-    return result_buffer;
-  }
-
-  void Start(uint64_t max_bytes, bool capture_screenshots) {
-    journal_serializer_ =
-        std::make_unique<actor::AggregatedJournalInMemorySerializer>(
-            actor_keyed_service_->GetJournal(), max_bytes);
-    journal_serializer_->Init();
-  }
-
-  void Stop() { journal_serializer_.reset(); }
-
-  void RecordFeedback(bool positive, const std::string& reason) {
-    if (base::FeatureList::IsEnabled(features::kGlicRecordActorJournal) &&
-        !positive) {
-      SendResponseFeedback(reason);
-    }
-  }
-
- private:
-  void SendResponseFeedback(const std::string& reason) {
-    base::WeakPtr<feedback::FeedbackUploader> uploader =
-        feedback::FeedbackUploaderFactoryChrome::GetForBrowserContext(
-            actor_keyed_service_->GetProfile())
-            ->AsWeakPtr();
-    scoped_refptr<::feedback::FeedbackData> feedback_data =
-        base::MakeRefCounted<feedback::FeedbackData>(
-            std::move(uploader), ContentTracingManager::Get());
-    auto journal = GetSnapshot(false);
-
-    // TODO(b/430054430): Fetch and include system data to the feedback.
-    feedback_data->set_description(
-        reason + " - " + base::Uuid::GenerateRandomV4().AsLowercaseString());
-    feedback_data->set_product_id(
-        features::kGlicRecordActorJournalFeedbackProductId.Get());
-    feedback_data->set_category_tag(
-        features::kGlicRecordActorJournalFeedbackCategoryTag.Get());
-    feedback_data->set_is_offensive_or_unsafe(false);
-    feedback_data->AddFile("actor-journal", journal);
-
-    signin::IdentityManager* identity_manager =
-        IdentityManagerFactory::GetForProfile(
-            actor_keyed_service_->GetProfile());
-    if (identity_manager &&
-        identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
-      feedback_data->set_user_email(
-          identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
-              .email);
-    }
-
-// NEEDS_ANDROID_IMPL: ChromeSystemLogsFetcher
-#if BUILDFLAG(IS_ANDROID)
-    feedback_data->CompressSystemInfo();
-    feedback_data->OnFeedbackPageDataComplete();
-#else
-    system_logs::BuildChromeSystemLogsFetcher(
-        actor_keyed_service_->GetProfile(), /*scrub_data=*/false)
-        ->Fetch(base::BindOnce(
-            [](scoped_refptr<::feedback::FeedbackData> feedback_data,
-               std::unique_ptr<system_logs::SystemLogsResponse>
-                   system_logs_response) {
-              if (system_logs_response) {
-                feedback_data->AddLogs(*system_logs_response);
-              }
-              feedback_data->CompressSystemInfo();
-              feedback_data->OnFeedbackPageDataComplete();
-            },
-            std::move(feedback_data)));
-#endif
-  }
-
-  void GetUniquePath(const base::FilePath& file_path,
-                     base::OnceCallback<void(const base::FilePath&)> callback) {
-    base::ThreadPool::PostTaskAndReplyWithResult(
-        FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
-        base::BindOnce(&base::GetUniquePathWithSuffixFormat, file_path,
-                       base::cstring_view("_%d")),
-        std::move(callback));
-  }
-
-  void OnUniquePathReceived(const base::FilePath& unique_path) {
-    LOG(ERROR) << "Glic Journal: " << unique_path;
-    file_journal_serializer_ =
-        std::make_unique<actor::AggregatedJournalFileSerializer>(
-            actor_keyed_service_->GetJournal());
-    file_journal_serializer_->Init(
-        unique_path,
-        base::BindOnce(&JournalHandler::FileInitDone, base::Unretained(this)));
-  }
-
-  void FileInitDone(bool success) {
-    if (!success) {
-      file_journal_serializer_.reset();
-    }
-  }
-
-  absl::flat_hash_map<
-      uint64_t,
-      std::unique_ptr<actor::AggregatedJournal::PendingAsyncEntry>>
-      active_journal_events_;
-  std::unique_ptr<actor::AggregatedJournalInMemorySerializer>
-      journal_serializer_;
-  std::unique_ptr<actor::AggregatedJournalFileSerializer>
-      file_journal_serializer_;
-  raw_ptr<actor::ActorKeyedService> actor_keyed_service_;
-};
-
 }  // namespace
 
 // WARNING: One instance of this class is created per WebUI navigated to
@@ -645,9 +445,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
         annotation_manager_(
             std::make_unique<GlicAnnotationManager>(glic_service_)) {
     VLOG(1) << "Glic [WebClientHandler] Constructor";
-    if (base::FeatureList::IsEnabled(features::kGlicActor)) {
-      journal_handler_ = std::make_unique<JournalHandler>(profile_);
-    }
     active_state_calculator_.AddObserver(this);
   }
 
@@ -707,6 +504,11 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     web_client_.Bind(std::move(web_client));
     web_client_.set_disconnect_handler(base::BindOnce(
         &GlicWebClientHandler::WebClientDisconnected, base::Unretained(this)));
+
+    if (base::FeatureList::IsEnabled(features::kGlicActor)) {
+      actor_client_session_ =
+          host().instance_delegate().BindActorClientSession()->GetWeakPtr();
+    }
 
     page_metadata_manager_ =
         std::make_unique<PageMetadataManager>(profile_, web_client_.get());
@@ -1158,46 +960,48 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
 
   void CreateTask(actor::webui::mojom::TaskOptionsPtr options,
                   CreateTaskCallback callback) override {
-    host().instance_delegate().CreateTask(nullptr, std::move(options),
-                                          std::move(callback));
+    if (!actor_client_session_) {
+      std::move(callback).Run(base::unexpected(
+          mojom::CreateTaskErrorReason::kTaskSystemUnavailable));
+      return;
+    }
+    actor_client_session_->CreateTask(std::move(options), std::move(callback));
   }
 
   void PerformActions(const std::vector<uint8_t>& actions_proto,
                       PerformActionsCallback callback) override {
-    if (!base::FeatureList::IsEnabled(features::kGlicActor)) {
+    if (!actor_client_session_) {
       receiver_.ReportBadMessage(
           "PerformActions cannot be called without GlicActor enabled.");
       return;
     }
-    host().instance_delegate().PerformActions(actions_proto,
-                                              std::move(callback));
+    actor_client_session_->PerformActions(actions_proto, std::move(callback));
   }
 
   void CancelActions(int32_t task_id, CancelActionsCallback callback) override {
-    if (!base::FeatureList::IsEnabled(features::kGlicActor)) {
+    if (!actor_client_session_) {
       receiver_.ReportBadMessage(
           "CancelActions cannot be called without GlicActor enabled.");
       return;
     }
-    host().instance_delegate().CancelActions(actor::TaskId(task_id),
-                                             std::move(callback));
+    actor_client_session_->CancelActions(actor::TaskId(task_id),
+                                         std::move(callback));
   }
 
   void StopActorTask(int32_t task_id,
                      mojom::ActorTaskStopReason stop_reason) override {
-    if (!base::FeatureList::IsEnabled(features::kGlicActor)) {
+    if (!actor_client_session_) {
       receiver_.ReportBadMessage(
           "StopActorTask cannot be called without GlicActor enabled.");
       return;
     }
-    host().instance_delegate().StopActorTask(actor::TaskId(task_id),
-                                             stop_reason);
+    actor_client_session_->StopActorTask(actor::TaskId(task_id), stop_reason);
   }
 
   void PauseActorTask(int32_t task_id,
                       mojom::ActorTaskPauseReason pause_reason,
                       std::optional<int32_t> tab_id) override {
-    if (!base::FeatureList::IsEnabled(features::kGlicActor)) {
+    if (!actor_client_session_) {
       receiver_.ReportBadMessage(
           "PauseActorTask cannot be called without GlicActor enabled.");
       return;
@@ -1206,41 +1010,40 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     if (tab_id.has_value()) {
       tab_handle = tabs::TabInterface::Handle(*tab_id);
     }
-    host().instance_delegate().PauseActorTask(actor::TaskId(task_id),
-                                              pause_reason, tab_handle);
+    actor_client_session_->PauseActorTask(actor::TaskId(task_id), pause_reason,
+                                          tab_handle);
   }
 
   void ResumeActorTask(int32_t task_id,
                        glic::mojom::GetTabContextOptionsPtr context_options,
                        ResumeActorTaskCallback callback) override {
-    if (!base::FeatureList::IsEnabled(features::kGlicActor)) {
+    if (!actor_client_session_) {
       receiver_.ReportBadMessage(
           "ResumeActorTask cannot be called without GlicActor enabled.");
       return;
     }
-    host().instance_delegate().ResumeActorTask(
+    actor_client_session_->ResumeActorTask(
         actor::TaskId(task_id), *context_options, std::move(callback));
   }
 
   void InterruptActorTask(int32_t task_id,
                           std::optional<glic::mojom::ActorTaskInterruptReason>
                               interrupt_reason) override {
-    if (!base::FeatureList::IsEnabled(features::kGlicActor)) {
+    if (!actor_client_session_) {
       receiver_.ReportBadMessage(
           "InterruptActorTask cannot be called without GlicActor enabled.");
       return;
     }
-    host().instance_delegate().InterruptActorTask(actor::TaskId(task_id),
-                                                  interrupt_reason);
+    actor_client_session_->InterruptActorTask(actor::TaskId(task_id));
   }
 
   void UninterruptActorTask(int32_t task_id) override {
-    if (!base::FeatureList::IsEnabled(features::kGlicActor)) {
+    if (!actor_client_session_) {
       receiver_.ReportBadMessage(
           "UninterruptActorTask cannot be called without GlicActor enabled.");
       return;
     }
-    host().instance_delegate().UninterruptActorTask(actor::TaskId(task_id));
+    actor_client_session_->UninterruptActorTask(actor::TaskId(task_id));
   }
 
   void CreateSkill(mojom::CreateSkillRequestPtr request,
@@ -1329,12 +1132,12 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
                       std::optional<int32_t> initiator_tab_id,
                       std::optional<int32_t> initiator_window_id,
                       CreateActorTabCallback callback) override {
-    if (!base::FeatureList::IsEnabled(features::kGlicActor)) {
+    if (!actor_client_session_) {
       receiver_.ReportBadMessage(
           "StopActorTask cannot be called without GlicActor enabled.");
       return;
     }
-    host().instance_delegate().CreateActorTab(
+    actor_client_session_->CreateActorTab(
         actor::TaskId(task_id), open_in_background, initiator_tab_id,
         initiator_window_id, std::move(callback));
   }
@@ -1374,8 +1177,9 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
       // "focusable" by Glic (e.g. chrome:// pages).
       tab = focus.is_focus() ? focus.focus() : focus.unfocused_tab();
     }
-    glic_service_->CaptureRegion(tab, std::move(observer),
-                                 std::move(tab_context_options));
+    SelectionOverlayController::CaptureRegion(tab, sharing_manager(),
+                                              std::move(observer),
+                                              std::move(tab_context_options));
 #else
     NOTIMPLEMENTED();
 #endif
@@ -1391,7 +1195,12 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     if (tab->GetProfile() != profile_) {
       return;
     }
-    glic_service_->DeleteCapturedRegion(tab, id);
+    if (auto* web_contents = tab->GetContents()) {
+      if (auto* selection_overlay_controller =
+              SelectionOverlayController::FromTabWebContents(web_contents)) {
+        selection_overlay_controller->DeleteRegion(id);
+      }
+    }
 #else
     NOTIMPLEMENTED();
 #endif
@@ -1413,19 +1222,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
 #else
     std::move(callback).Run(false);
 #endif
-  }
-
-  void SetPanelDraggableAreas(
-      const std::vector<gfx::Rect>& draggable_areas,
-      SetPanelDraggableAreasCallback callback) override {
-    if (!draggable_areas.empty()) {
-      host().SetPanelDraggableAreas(page_handler_, draggable_areas);
-    } else {
-      // Default to the top bar area of the panel.
-      // TODO(cuianthony): Define panel dimensions constants in shared location.
-      host().SetPanelDraggableAreas(page_handler_, {{0, 0, 400, 80}});
-    }
-    std::move(callback).Run();
   }
 
   void SetMinimumPanelSize(const gfx::Size& size) override {
@@ -1577,61 +1373,73 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     }
   }
 
+  void ReportClientTransientError(
+      mojo_base::mojom::AbslStatusCode status_code) override {
+    glic_service_->GetAuthController().OnClientTransientError(status_code);
+    base::UmaHistogramSparse("Glic.Api.Client.TransientError",
+                             static_cast<int>(status_code));
+  }
+
   void LogBeginAsyncEvent(uint64_t event_async_id,
                           int32_t task_id,
                           const std::string& event,
                           const std::string& details) override {
-    if (journal_handler_) {
-      journal_handler_->LogBeginAsyncEvent(event_async_id, task_id, event,
-                                           details);
+    if (actor_client_session_) {
+      actor_client_session_->LogBeginAsyncEvent(event_async_id, task_id, event,
+                                                details);
     }
   }
 
   void LogEndAsyncEvent(uint64_t event_async_id,
                         const std::string& details) override {
-    if (journal_handler_) {
-      journal_handler_->LogEndAsyncEvent(event_async_id, details);
+    if (actor_client_session_) {
+      actor_client_session_->LogEndAsyncEvent(event_async_id, details);
     }
   }
 
   void LogInstantEvent(int32_t task_id,
                        const std::string& event,
                        const std::string& details) override {
-    if (journal_handler_) {
-      journal_handler_->LogInstantEvent(task_id, event, details);
+    if (actor_client_session_) {
+      actor_client_session_->LogInstantEvent(task_id, event, details);
     }
   }
 
   void JournalClear() override {
-    if (journal_handler_) {
-      journal_handler_->Clear();
+    if (actor_client_session_) {
+      actor_client_session_->JournalClear();
     }
   }
 
   void JournalSnapshot(bool clear_journal,
                        JournalSnapshotCallback callback) override {
-    if (journal_handler_) {
-      journal_handler_->Snapshot(clear_journal, std::move(callback));
+    if (actor_client_session_) {
+      actor_client_session_->JournalSnapshot(clear_journal,
+                                             std::move(callback));
     }
   }
 
   void JournalStart(uint64_t max_bytes, bool capture_screenshots) override {
-    if (journal_handler_) {
-      journal_handler_->Start(max_bytes, capture_screenshots);
+    if (actor_client_session_) {
+      actor_client_session_->JournalStart(max_bytes, capture_screenshots);
     }
   }
 
   void JournalStop() override {
-    if (journal_handler_) {
-      journal_handler_->Stop();
+    if (actor_client_session_) {
+      actor_client_session_->JournalStop();
     }
   }
 
   void JournalRecordFeedback(bool positive,
                              const std::string& reason) override {
-    if (journal_handler_) {
-      journal_handler_->RecordFeedback(positive, reason);
+    if (actor_client_session_) {
+      actor_client_session_->JournalRecordFeedback(positive, reason);
     }
+  }
+
+  void OnOptinImpression() override {
+    host().instance_metrics().OnOptinImpression();
   }
 
   void OnUserInputSubmitted(mojom::WebClientMode mode) override {
@@ -1861,19 +1669,9 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
 
     // TODO(crbug.com/424472586): Pass supported tools to service from web
     // client.
-    host().instance_delegate().FetchZeroStateSuggestions(
-        is_fre.value_or(false),
-        /*supported_tools=*/{},
-        base::BindOnce(
-            [](GetZeroStateSuggestionsForFocusedTabCallback callback,
-               base::TimeTicks start,
-               glic::mojom::ZeroStateSuggestionsPtr suggestions) {
-              base::UmaHistogramTimes(
-                  "Glic.Api.FetchZeroStateSuggestionsLatency",
-                  base::TimeTicks::Now() - start);
-              std::move(callback).Run(std::move(suggestions));
-            },
-            std::move(callback), base::TimeTicks::Now()));
+    host().instance_delegate().FetchZeroStateSuggestions(is_fre.value_or(false),
+                                                         /*supported_tools=*/{},
+                                                         std::move(callback));
   }
 
   void MaybeRefreshUserStatus() override {
@@ -2082,6 +1880,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     if (skills_service_) {
       skills_service_->RemoveObserver(this);
     }
+    actor_client_session_ = nullptr;
   }
 
   void WebClientDisconnected() {
@@ -2421,12 +2220,12 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
   const std::unique_ptr<GlicAnnotationManager> annotation_manager_;
   std::unique_ptr<system_permission_settings::ScopedObservation>
       system_permission_settings_observation_;
-  std::unique_ptr<JournalHandler> journal_handler_;
   std::unique_ptr<DebouncerDeduper> debouncer_deduper_;
   std::unique_ptr<PageMetadataManager> page_metadata_manager_;
   raw_ptr<skills::SkillsService> skills_service_;
   base::WeakPtr<actor::AutofillSelectionDialogEventHandler>
       autofill_selection_event_handler_;
+  base::WeakPtr<GlicActorClientSession> actor_client_session_;
   bool floating_panel_can_attach_ = false;
 };
 
@@ -2442,6 +2241,7 @@ GlicPageHandler::GlicPageHandler(
       page_(std::move(page)) {
   VLOG(1) << "Glic [PageHandler] Constructor";
   CHECK(host_);
+  MarkProcessAsGlic(webui_contents->GetPrimaryMainFrame()->GetProcess());
   host_->WebUIPageHandlerAdded(this);
   host_->AddPanelStateObserver(this);
   UpdatePageState(host_->GetPanelState(web_client_handler_.get()).kind);
@@ -2604,8 +2404,7 @@ void GlicPageHandler::OpenDisabledByAdminLinkAndClosePanel() {
 }
 
 void GlicPageHandler::SignInAndClosePanel() {
-  GetGlicService()->GetAuthController().ShowReauthForAccount(base::DoNothing());
-  host().ClosePanel(this);
+  GetGlicService()->GetAuthController().ShowReauthForAccount(webui_contents_);
 }
 
 void GlicPageHandler::ResizeWidget(const gfx::Size& size,

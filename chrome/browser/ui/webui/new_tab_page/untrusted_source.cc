@@ -23,12 +23,14 @@
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
+#include "base/token.h"
 #include "chrome/browser/new_tab_page/one_google_bar/one_google_bar_data.h"
 #include "chrome/browser/new_tab_page/one_google_bar/one_google_bar_service_factory.h"
 #include "chrome/browser/policy/chrome_policy_blocklist_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search/background/ntp_custom_background_service.h"
 #include "chrome/browser/search/background/ntp_custom_background_service_factory.h"
+#include "chrome/browser/ui/search/ntp_user_data_logger.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/new_tab_page_untrusted_resources.h"
 #include "components/policy/core/browser/url_list/policy_blocklist_service.h"
@@ -41,10 +43,6 @@
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/base/template_expressions.h"
 #include "url/url_util.h"
-
-#if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/ui/search/ntp_user_data_logger.h"
-#endif
 
 using URLBlocklistState = policy::URLBlocklist::URLBlocklistState;
 
@@ -88,6 +86,21 @@ std::string AsyncParamDataAsCSV(
 
   // Strip preceding comma and return value.
   return csv.substr(1);
+}
+
+// Validates that the background image path is either exactly "background.jpg"
+// or a 32-character hex token followed by "background.jpg". This prevents
+// directory traversal (crbug.com/497241148). The analogous serialization
+// logic can be found in
+// `NtpCustomBackgroundService::SetBackgroundToLocalResourceWithId()` and
+// `WallpaperSearchBackgroundManager::SelectLocalBackgroundImage()`.
+bool IsValidBackgroundImagePath(std::string_view path) {
+  std::optional<std::string_view> prefix =
+      base::RemoveSuffix(path, "background.jpg");
+  if (!prefix) {
+    return false;
+  }
+  return prefix->empty() || base::Token::FromString(*prefix).has_value();
 }
 
 std::map<std::string, std::string> ExtractQueryParams(
@@ -260,7 +273,7 @@ void UntrustedSource::StartDataRequest(
         IDR_NEW_TAB_PAGE_UNTRUSTED_BACKGROUND_IMAGE_JS));
     return;
   }
-  if (base::EndsWith(path, "background.jpg")) {
+  if (IsValidBackgroundImagePath(path)) {
     base::ThreadPool::PostTaskAndReplyWithResult(
         FROM_HERE, {base::TaskPriority::USER_VISIBLE, base::MayBlock()},
         base::BindOnce(&ReadBackgroundImageData,
@@ -308,7 +321,7 @@ bool UntrustedSource::ShouldServiceRequest(
   return path == "one-google-bar" || path == "one_google_bar.js" ||
          path == "one_google_bar_api.js" || path == "image" ||
          path == "background_image" || path == "custom_background_image" ||
-         path == "background_image.js" || path.contains("background.jpg");
+         path == "background_image.js" || IsValidBackgroundImagePath(path);
 }
 
 void UntrustedSource::OnOneGoogleBarDataUpdated() {
@@ -316,11 +329,9 @@ void UntrustedSource::OnOneGoogleBarDataUpdated() {
       one_google_bar_service_->one_google_bar_data();
 
   if (one_google_bar_load_start_time_.has_value()) {
-#if !BUILDFLAG(IS_ANDROID)
     NTPUserDataLogger::LogOneGoogleBarFetchDuration(
         /*success=*/data.has_value(),
         /*duration=*/base::TimeTicks::Now() - *one_google_bar_load_start_time_);
-#endif
     one_google_bar_load_start_time_ = std::nullopt;
   }
 

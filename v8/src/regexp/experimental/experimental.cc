@@ -99,6 +99,7 @@ std::optional<CompilationResult> CompileImpl(
     RegExp::ThrowRegExpException(isolate, re_data, parse_result.error);
     return std::nullopt;
   }
+  SBXCHECK_EQ(parse_result.capture_count, re_data->capture_count());
 
   ZoneList<Instruction> bytecode = ExperimentalCompiler::Compile(
       parse_result.tree, JSRegExp::AsRegExpFlags(re_data->flags()), &zone);

@@ -40,18 +40,9 @@ Tagged<Object> PropertyArray::get(int index) const {
   return objects()[index].Relaxed_Load();
 }
 
-Tagged<Object> PropertyArray::get(PtrComprCageBase, int index) const {
-  return get(index);
-}
-
 Tagged<Object> PropertyArray::get(int index, SeqCstAccessTag) const {
   DCHECK_LT(static_cast<uint32_t>(index), this->length(kAcquireLoad).value());
   return objects()[index].SeqCst_Load();
-}
-
-Tagged<Object> PropertyArray::get(PtrComprCageBase, int index,
-                                  SeqCstAccessTag tag) const {
-  return get(index, tag);
 }
 
 void PropertyArray::set(int index, Tagged<Object> value) {
@@ -79,11 +70,6 @@ Tagged<Object> PropertyArray::Swap(int index, Tagged<Object> value,
   DCHECK_LT(static_cast<uint32_t>(index), this->length(kAcquireLoad).value());
   DCHECK(IsShared(value));
   return objects()[index].SeqCst_Swap(this, value);
-}
-
-Tagged<Object> PropertyArray::Swap(PtrComprCageBase, int index,
-                                   Tagged<Object> value, SeqCstAccessTag tag) {
-  return Swap(index, value, tag);
 }
 
 Tagged<Object> PropertyArray::CompareAndSwap(int index, Tagged<Object> expected,

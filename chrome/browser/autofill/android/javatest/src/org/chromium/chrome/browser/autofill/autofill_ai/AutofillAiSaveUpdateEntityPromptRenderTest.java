@@ -27,12 +27,22 @@ import org.chromium.base.test.params.ParameterizedRunner;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
+import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.chrome.browser.autofill.PersonalDataManager;
+import org.chromium.chrome.browser.autofill.PersonalDataManagerFactory;
 import org.chromium.chrome.browser.autofill.R;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.night_mode.ChromeNightModeTestUtils;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.components.autofill.autofill_ai.EntityInstance;
+import org.chromium.components.autofill.autofill_ai.RecordType;
+import org.chromium.components.autofill.autofill_ai.utils.TestUtils;
+import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.ui.test.util.NightModeTestUtils;
 import org.chromium.ui.test.util.RenderTestRule;
 import org.chromium.ui.test.util.RenderTestRule.Component;
@@ -47,6 +57,10 @@ import java.util.List;
 @RunWith(ParameterizedRunner.class)
 @ParameterAnnotations.UseRunnerDelegate(ChromeJUnit4RunnerDelegate.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
+@EnableFeatures({
+    ChromeFeatureList.AUTOFILL_AI_EDIT_ENTITIES_FROM_SAVE_UPDATE_PROMPT,
+    ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA
+})
 public class AutofillAiSaveUpdateEntityPromptRenderTest {
     private static final long NATIVE_AUTOFILL_AI_SAVE_UPDATE_ENTITY_PROMPT_CONTROLLER = 100L;
 
@@ -61,14 +75,22 @@ public class AutofillAiSaveUpdateEntityPromptRenderTest {
     @Rule
     public final RenderTestRule mRenderTestRule =
             RenderTestRule.Builder.withPublicCorpus()
-                    .setRevision(1)
+                    .setRevision(2)
                     .setBugComponent(Component.UI_BROWSER_AUTOFILL)
                     .build();
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Mock private AutofillAiSaveUpdateEntityPromptController.Natives mPromptControllerJni;
+    @Mock private Profile mProfile;
+    @Mock private IdentityManager mIdentityManager;
+    @Mock private PersonalDataManager mPersonalDataManager;
 
+    private final EntityInstance mEntity =
+            new EntityInstance.Builder(TestUtils.getVehicleEntityType())
+                    .setGuid("")
+                    .setRecordType(RecordType.LOCAL)
+                    .build();
     private AutofillAiSaveUpdateEntityPromptController mPromptController;
     private AutofillAiSaveUpdateEntityPrompt mPrompt;
 
@@ -81,6 +103,9 @@ public class AutofillAiSaveUpdateEntityPromptRenderTest {
     public void setUp() throws Exception {
         mActivityTestRule.startOnBlankPage();
         mActivityTestRule.waitForActivityCompletelyLoaded();
+
+        IdentityServicesProvider.setIdentityManagerForTesting(mIdentityManager);
+        PersonalDataManagerFactory.setInstanceForTesting(mPersonalDataManager);
 
         mPromptController =
                 AutofillAiSaveUpdateEntityPromptController.create(
@@ -110,7 +135,9 @@ public class AutofillAiSaveUpdateEntityPromptRenderTest {
                                     new AutofillAiSaveUpdateEntityPrompt(
                                             mPromptController,
                                             mActivityTestRule.getActivity().getModalDialogManager(),
-                                            mActivityTestRule.getActivity());
+                                            mActivityTestRule.getActivity(),
+                                            mProfile,
+                                            mEntity);
                             mPrompt.setDialogDetails(
                                     /* title= */ "Dialog title",
                                     /* positiveButtonText= */ "Accept",
@@ -162,7 +189,9 @@ public class AutofillAiSaveUpdateEntityPromptRenderTest {
                                     new AutofillAiSaveUpdateEntityPrompt(
                                             mPromptController,
                                             mActivityTestRule.getActivity().getModalDialogManager(),
-                                            mActivityTestRule.getActivity());
+                                            mActivityTestRule.getActivity(),
+                                            mProfile,
+                                            mEntity);
                             mPrompt.setDialogDetails(
                                     /* title= */ "Dialog title",
                                     /* positiveButtonText= */ "Accept",
@@ -211,5 +240,69 @@ public class AutofillAiSaveUpdateEntityPromptRenderTest {
                             return mPrompt.getDialogViewForTesting();
                         });
         mRenderTestRule.render(dialogView, "autofill_ai_update_entity");
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"RenderTest"})
+    public void updateWalletEntityWithoutNewAttributes() throws Exception {
+        View dialogView =
+                runOnUiThreadBlocking(
+                        () -> {
+                            mPrompt =
+                                    new AutofillAiSaveUpdateEntityPrompt(
+                                            mPromptController,
+                                            mActivityTestRule.getActivity().getModalDialogManager(),
+                                            mActivityTestRule.getActivity(),
+                                            mProfile,
+                                            mEntity);
+                            mPrompt.setDialogDetails(
+                                    /* title= */ "Dialog title",
+                                    /* positiveButtonText= */ "Accept",
+                                    /* negativeButtonText= */ "Cancel",
+                                    /* isWalletableEntity= */ false);
+                            mPrompt.setEntityUpdateDetails(
+                                    List.of(
+                                            new EntityAttributeUpdateDetails(
+                                                    "Country",
+                                                    "Ukraine",
+                                                    "Germany",
+                                                    EntityAttributeUpdateType
+                                                            .NEW_ENTITY_ATTRIBUTE_UPDATED),
+                                            new EntityAttributeUpdateDetails(
+                                                    "Number",
+                                                    "AA123456",
+                                                    "BB123456",
+                                                    EntityAttributeUpdateType
+                                                            .NEW_ENTITY_ATTRIBUTE_UPDATED),
+                                            new EntityAttributeUpdateDetails(
+                                                    "Issue date",
+                                                    "Oct. 10, 2019",
+                                                    "",
+                                                    EntityAttributeUpdateType
+                                                            .NEW_ENTITY_ATTRIBUTE_UNCHANGED),
+                                            new EntityAttributeUpdateDetails(
+                                                    "Expiration date",
+                                                    "Oct. 10, 2029",
+                                                    "",
+                                                    EntityAttributeUpdateType
+                                                            .NEW_ENTITY_ATTRIBUTE_UNCHANGED)),
+                                    /* isUpdatePrompt= */ true);
+                            Context context = mActivityTestRule.getActivity();
+                            String walletTitle =
+                                    context.getString(R.string.autofill_google_wallet_title);
+                            String email = "alexpark@gmail.com";
+                            String sourceNotice =
+                                    context.getString(
+                                                    R.string
+                                                            .autofill_ai_save_or_update_entity_in_wallet_source_notice)
+                                            .replace("$1", walletTitle)
+                                            .replace("$2", walletTitle)
+                                            .replace("$3", email);
+                            mPrompt.setSourceNotice(sourceNotice, /* insertManageInfoLink= */ true);
+                            mPrompt.show();
+                            return mPrompt.getDialogViewForTesting();
+                        });
+        mRenderTestRule.render(dialogView, "autofill_ai_update_entity_without_new_attributes");
     }
 }

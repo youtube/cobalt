@@ -49,8 +49,6 @@ dependencies = [
  "futures",
  "libc",
  "once_cell",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

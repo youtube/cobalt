@@ -335,22 +335,17 @@ def _CheckOrderedFlagsFile(input_api, output_api):
     if input_api.platform == 'win32':
         return []
     h_file = None
-    cc_file = None
     for f in input_api.AffectedFiles(include_deletes=False):
         if f.LocalPath().endswith('ios_chrome_flag_descriptions.h'):
             h_file = f.LocalPath()
-        elif f.LocalPath().endswith('ios_chrome_flag_descriptions.cc'):
-            cc_file = f.LocalPath()
 
-    if h_file or cc_file:
+    if h_file:
         try:
             command = [
                 input_api.python3_executable, 'tools/order_flags.py', '--check'
             ]
             if h_file:
                 command.extend(['--h-file', h_file])
-            if cc_file:
-                command.extend(['--cc-file', cc_file])
             subprocess.check_output(command, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             message = 'Flag description files not alphabetically sorted.\n'
@@ -654,6 +649,8 @@ def _CheckLargeImagesets(input_api, output_api):
 
     errors = []
     for f in input_api.AffectedFiles(include_deletes=False):
+        if f.Action() != 'A':
+            continue
         local_path = f.LocalPath()
         lower_path = local_path.lower()
         if '.imageset/' not in lower_path:

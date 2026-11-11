@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import type {WebClientInitialState} from '../glic.mojom-webui.js';
-import type {ActorTaskInterruptReason, ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AdditionalContext, AdditionalContextPart, AnnotatedPageData, AutofillSuggestion, CancelActionsResult, CaptureRegionErrorReason, CaptureRegionParams, CaptureRegionResult, ChromeVersion, ClientCapabilities, ClientErrorDialogType, ConversationInfo, CreateSkillRequest, Credential, DraggableArea, ErrorReasonTypes, ErrorWithReason, ExperimentalTriggeringUpdate, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, FormFactor, FormFillingRequest, FormFillingResponse, GetPinCandidatesOptions, HostCapability, InvokeOptions, Journal, MetricUserInputReactionType, MicrophoneStatus, NavigationConfirmationRequest, NavigationConfirmationResponse, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, Platform, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectAutofillSuggestionsDialogRequest, SelectAutofillSuggestionsDialogResponse, SelectCredentialDialogRequest, SelectCredentialDialogResponse, Skill, SkillPreview, SkillsWebClientEvent, TabContextOptions, TabContextResult, TabData, TaskOptions, UnpinTabsOptions, UpdateSkillRequest, UserConfirmationDialogRequest, UserConfirmationDialogResponse, UserProfileInfo, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+import type {ActorTaskInterruptReason, ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AdditionalContext, AdditionalContextPart, AnnotatedPageData, AutofillSuggestion, CancelActionsResult, CaptureRegionErrorReason, CaptureRegionParams, CaptureRegionResult, ChromeVersion, ClientCapabilities, ClientErrorDialogType, ConversationInfo, CreateSkillRequest, Credential, ErrorReasonTypes, ErrorWithReason, ExperimentalTriggeringUpdate, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, FormFactor, FormFillingRequest, FormFillingResponse, GetPinCandidatesOptions, HostCapability, InvokeOptions, Journal, MetricUserInputReactionType, MicrophoneStatus, NavigationConfirmationRequest, NavigationConfirmationResponse, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, Platform, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectAutofillSuggestionsDialogRequest, SelectAutofillSuggestionsDialogResponse, SelectCredentialDialogRequest, SelectCredentialDialogResponse, Skill, SkillPreview, SkillsWebClientEvent, TabContextOptions, TabContextResult, TabData, TaskOptions, UnpinTabsOptions, UpdateSkillRequest, UserConfirmationDialogRequest, UserConfirmationDialogResponse, UserProfileInfo, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
 
 
 /*
@@ -270,12 +270,6 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     },
     backgroundAllowed: true,
   },
-  glicBrowserSetWindowDraggableAreas: {
-    request: {
-      areas: DraggableArea[],
-    },
-    backgroundAllowed: true,
-  },
   glicBrowserSetMinimumWidgetSize: {
     request: {
       size: {
@@ -409,6 +403,9 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     request: {
       reactionType: MetricUserInputReactionType,
     },
+  },
+  glicBrowserOnOptinImpression: {
+    backgroundAllowed: true,
   },
   glicBrowserOnContextUploadStarted: {
     backgroundAllowed: true,
@@ -668,6 +665,12 @@ export declare type HostRequestTypes = ValidateRequestMap<{
   glicBrowserSetErrorDialogState: {
     request: {
       shownDialogType?: ClientErrorDialogType,
+    },
+    backgroundAllowed: true,
+  },
+  glicBrowserReportClientTransientError: {
+    request: {
+      abslStatus: number,
     },
     backgroundAllowed: true,
   },
@@ -957,6 +960,7 @@ export declare type WebClientRequestTypes = ValidateRequestMap<{
 interface UnreportedRequests {
   RecordHistogram: null;
   SetErrorDialogState: null;
+  ReportClientTransientError: null;
 }
 
 type RemoveStringPrefix<S extends string, Prefix extends string> =
@@ -990,7 +994,7 @@ const RECORDED_REQUEST_IDS = {
   CaptureScreenshot: 16,
   ResizeWindow: 17,
   EnableDragResize: 18,
-  SetWindowDraggableAreas: 19,
+  // Do not reuse deleted request ID: 19,
   SetMinimumWidgetSize: 20,
   SetMicrophonePermissionState: 21,
   SetLocationPermissionState: 22,
@@ -1066,9 +1070,10 @@ const RECORDED_REQUEST_IDS = {
   OnActionSubmitted: 93,
   SubscribeToTabFavicon: 94,
   ShowBrowseSkillsUi: 95,
-  OnExperimentalTriggeringUpdate: 96,
-  SubscribeToZoomLevel: 97,
-  UnsubscribeFromZoomLevel: 98,
+  SubscribeToZoomLevel: 96,
+  UnsubscribeFromZoomLevel: 97,
+  OnExperimentalTriggeringUpdate: 98,
+  OnOptinImpression: 99,
 } as const satisfies HostRequestEnumNamesType;
 // LINT.ThenChange(
 //  //tools/metrics/histograms/metadata/glic/histograms.xml:ApiRequestType,

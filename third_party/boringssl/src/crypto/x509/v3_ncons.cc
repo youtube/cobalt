@@ -23,6 +23,7 @@
 #include <openssl/asn1t.h>
 #include <openssl/base.h>
 #include <openssl/bio.h>
+#include <openssl/bytestring.h>
 #include <openssl/conf.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
@@ -102,6 +103,192 @@ bool is_allowed_rfc822_domain(const CBS *cbs) {
       return false;
     }
   }
+  return true;
+}
+
+// Removes the port part of a URI authority string, if present, leaving the
+// host. Returns true if the port was syntactically valid (contained only
+// digits), or was not present (vacuously valid).
+bool nc_uri_remove_port(CBS *in_out) {
+  CBS host, unused;
+  if (CBS_get_until_first(in_out, &host, ':')) {
+    if (!CBS_skip(in_out, 1) ||
+        CBS_get_until_first_not_of(in_out, &unused, "0123456789")) {
+      return false;
+    }
+    *in_out = host;
+    return true;
+  }
+  // There was no port.
+  return true;
+}
+
+// Strips a single trailing dot from `host` if present.
+// Per RFC 9499, we allow names to be written relative to the root (e.g.
+// "www.example.com" is allowed even though technically the FQDN is
+// "www.example.com." with a trailing dot representing the common root), and
+// normalize names into this relative form for consistency.
+void nc_uri_remove_trailing_dot(CBS *host) {
+  if (ends_with(host, '.')) {
+    uint8_t unused_byte;
+    BSSL_CHECK(CBS_get_last_u8(host, &unused_byte));
+  }
+}
+
+// Returns whether the authority portion of a URI contains a syntactically valid
+// fully qualified domain name (FQDN).
+//
+// RFC 3986, section 3.2:
+//   authority   = [ userinfo "@" ] host [ ":" port ]
+//
+// RFC 5280, section 4.2.1.10: if a URI name constraint applies, applications
+// MUST reject a certificate with a subjectAltName with a URI that "does not
+// include an authority component with a host name specified as a fully
+// qualified domain name".
+//
+// Therefore we reject IP addresses in this function, and reject authority
+// components containing a userinfo component. The caller is responsible for
+// having removed any colon and port component, and normalizing to DNS relative
+// form by removing any trailing dot.
+bool nc_uri_is_fqdn(const CBS *uri_authority) {
+  if (CBS_len(uri_authority) == 0) {
+    return false;
+  }
+  CBS host_to_parse = *uri_authority;
+
+  // Reject userinfo, and IPv6 addresses delimited by square brackets. IPv4
+  // addresses are rejected later.
+  CBS unused;
+  if (CBS_get_until_first_of(&host_to_parse, &unused, "@[]")) {
+    return false;
+  }
+
+  // Validate that the host is identified by a registered name. Following RFC
+  // 3986, section 3.2.2: we refer to the preferred name syntax rules for DNS
+  // registered names found in RFC 1034, section 3.5, modified by RFC 1123:
+  //
+  //   <domain> ::= <subdomain> | " "
+  //   <subdomain> ::= <label> | <subdomain> "." <label>
+  //   <label> ::= <let-dig> [ [ <ldh-str> ] <let-dig> ]
+  //   <ldh-str> ::= <let-dig-hyp> | <let-dig-hyp> <ldh-str>
+  //   <let-dig-hyp> ::= <let-dig> | "-"
+  //   <let-dig> ::= <letter> | <digit>
+  //   <letter> ::= any one of the 52 alphabetic characters A through Z in
+  //                upper case and a through z in lower case
+  //   <digit> ::= any one of the ten digits 0 through 9
+  //
+  // Additionally:
+  //  - The first and last character of each label is a letter or digit.
+  //  - Label length is no more than 63 characters.
+  CBS label;
+  CBS_init(&label, nullptr, 0);
+  while (CBS_len(&host_to_parse) > 0) {
+    if (CBS_get_until_first(&host_to_parse, &label, '.')) {
+      // Consume the dot.
+      CBS_skip(&host_to_parse, 1);
+      // A trailing dot should have already been removed by the caller.
+      if (CBS_len(&host_to_parse) == 0) {
+        return false;
+      }
+    } else {
+      // This is the last label.
+      label = host_to_parse;
+      CBS_skip(&host_to_parse, CBS_len(&label));
+    }
+    if (CBS_len(&label) == 0 || CBS_len(&label) > 63 ||
+        !OPENSSL_isalnum(CBS_data(&label)[0]) ||
+        !OPENSSL_isalnum(CBS_data(&label)[CBS_len(&label) - 1])) {
+      return false;
+    }
+    for (uint8_t c : Span<const uint8_t>(label)) {
+      if (!OPENSSL_isalnum(c) && c != '-') {
+        return false;
+      }
+    }
+  }
+
+  // Reject IP addresses by looking for (following the WHATWG URL parser) a
+  // completely numeric (decimal, octal, or hex) last component. An empty final
+  // component (e.g. if the host itself was empty) is also rejected here.
+  // https://url.spec.whatwg.org/#concept-host-parser
+  // https://url.spec.whatwg.org/#ends-in-a-number-checker
+  //
+  // Check for 0x or 0X followed by zero or more hex digits.
+  if (starts_with_str(&label, "0x") || starts_with_str(&label, "0X")) {
+    for (uint8_t c : Span<const uint8_t>(label).subspan(2)) {
+      if (!OPENSSL_isxdigit(c)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  // Check for decimal or octal digits.
+  for (uint8_t c : Span<const uint8_t>(label)) {
+    if (!OPENSSL_isdigit(c)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Performs basic parsing of a URI to extract the host portion for name
+// constraints matching. This is not a full URI parser. This returns false if no
+// valid URI host could be obtained, which means the certificate should be
+// rejected.
+bool nc_get_valid_uri_host(CBS *out, const ASN1_IA5STRING *uri_name) {
+  CBS uri_cbs;
+  CBS_init(&uri_cbs, uri_name->data, uri_name->length);
+
+  // RFC 3986, section 3:
+  // URI         = scheme ":" hier-part [ "?" query ] [ "#" fragment ]
+
+  // Check for the scheme and skip past it.
+  // RFC 3986, section 3.1:
+  //   scheme      = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
+  CBS scheme;
+  uint8_t byte;
+  if (!CBS_get_until_first(&uri_cbs, &scheme, ':') ||
+      // Consume the colon.
+      !CBS_get_u8(&uri_cbs, &byte) ||
+      // Test that the first byte is a letter.
+      !CBS_get_u8(&scheme, &byte) || !OPENSSL_isalpha(byte)) {
+    return false;
+  }
+  // Check that the rest of the scheme consists of allowed characters.
+  for (uint8_t c : Span<const uint8_t>(scheme)) {
+    if (!OPENSSL_isalnum(c) && c != '+' && c != '-' && c != '.') {
+      return false;
+    }
+  }
+
+  // RFC 3986, section 3.2:
+  //   The authority component is preceded by a double slash ("//") and is
+  //   terminated by the next slash ("/"), question mark ("?"), or number
+  //   sign ("#") character, or by the end of the URI.
+  if (!CBS_get_u8(&uri_cbs, &byte) || byte != '/' ||
+      !CBS_get_u8(&uri_cbs, &byte) || byte != '/') {
+    return false;
+  }
+  CBS authority;
+  if (!CBS_get_until_first_of(&uri_cbs, &authority, "/?#")) {
+    authority = uri_cbs;
+  }
+
+  // RFC 5280, section 4.2.1.10: reject URI with no authority component.
+  if (CBS_len(&authority) == 0) {
+    return false;
+  }
+
+  if (!nc_uri_remove_port(&authority)) {
+    return false;
+  }
+
+  CBS host = authority;
+  nc_uri_remove_trailing_dot(&host);
+  if (!nc_uri_is_fqdn(&host)) {
+    return false;
+  }
+  *out = host;
   return true;
 }
 
@@ -279,43 +466,41 @@ int nc_email(const ASN1_IA5STRING *eml, const ASN1_IA5STRING *base,
 }
 
 int nc_uri(const ASN1_IA5STRING *uri, const ASN1_IA5STRING *base) {
-  CBS uri_cbs, base_cbs;
-  CBS_init(&uri_cbs, uri->data, uri->length);
+  // Parse a URI name to extract the host name as a fully qualified domain name.
+  CBS uri_host;
+  if (!nc_get_valid_uri_host(&uri_host, uri)) {
+    return X509_V_ERR_UNSUPPORTED_NAME_SYNTAX;
+  }
+
+  CBS base_cbs;
   CBS_init(&base_cbs, base->data, base->length);
+  nc_uri_remove_trailing_dot(&base_cbs);
 
-  // Check for foo:// and skip past it
-  CBS scheme;
-  uint8_t byte;
-  if (!CBS_get_until_first(&uri_cbs, &scheme, ':') ||
-      !CBS_skip(&uri_cbs, 1) ||  // Skip the colon
-      !CBS_get_u8(&uri_cbs, &byte) || byte != '/' ||
-      !CBS_get_u8(&uri_cbs, &byte) || byte != '/') {
-    return X509_V_ERR_UNSUPPORTED_NAME_SYNTAX;
+  // Make a copy of the name constraint string, which will be modified and
+  // checked for FQDN validity.
+  CBS base_fqdn = base_cbs;
+
+  // If present, strip a leading dot, which denotes a name constraint that
+  // matches all DNS subdomains.
+  const bool base_has_leading_dot = starts_with(&base_fqdn, '.');
+  if (base_has_leading_dot) {
+    CBS_skip(&base_fqdn, 1);
   }
 
-  // Look for a port indicator as end of hostname first. Otherwise look for
-  // trailing slash, or the end of the string.
-  // TODO(davidben): This is not a correct URI parser and mishandles IPv6
-  // literals.
-  CBS host;
-  if (!CBS_get_until_first(&uri_cbs, &host, ':') &&
-      !CBS_get_until_first(&uri_cbs, &host, '/')) {
-    host = uri_cbs;
-  }
-
-  if (CBS_len(&host) == 0) {
-    return X509_V_ERR_UNSUPPORTED_NAME_SYNTAX;
+  // Validate that the name constraint is a proper FQDN.
+  if (!nc_uri_is_fqdn(&base_fqdn)) {
+    return X509_V_ERR_UNSUPPORTED_CONSTRAINT_SYNTAX;
   }
 
   // Special case: initial '.' is RHS match
-  if (starts_with(&base_cbs, '.')) {
-    if (has_suffix_case(&host, &base_cbs)) {
+  if (base_has_leading_dot) {
+    if (has_suffix_case(&uri_host, &base_cbs)) {
       return X509_V_OK;
     }
     return X509_V_ERR_PERMITTED_VIOLATION;
   }
 
-  if (!equal_case(&base_cbs, &host)) {
+  if (!equal_case(&base_cbs, &uri_host)) {
     return X509_V_ERR_PERMITTED_VIOLATION;
   }
 
@@ -346,9 +531,14 @@ int nc_match_single(const GENERAL_NAME *gen, const GENERAL_NAME *base,
 
 int nc_match(const GENERAL_NAME *gen, const NAME_CONSTRAINTS *nc,
              bool case_insensitive_exclude_localpart) {
-  // Permitted subtrees: if any subtrees exist of matching the type at
-  // least one subtree must match.
-  int match = 0;
+  // Permitted subtrees: if any subtrees exist of the name type, then at least
+  // one subtree must match. If no subtrees match the type, then that name type
+  // is unconstrained.
+  enum {
+    kUnconstrainedNameType = 0,
+    kNoMatch,
+    kMatch,
+  } match_status = kUnconstrainedNameType;
   for (const GENERAL_SUBTREE *sub : nc->permittedSubtrees) {
     if (gen->type != sub->base->type) {
       continue;
@@ -357,22 +547,20 @@ int nc_match(const GENERAL_NAME *gen, const NAME_CONSTRAINTS *nc,
       return X509_V_ERR_SUBTREE_MINMAX;
     }
     // If we already have a match don't bother trying any more
-    if (match == 2) {
+    if (match_status == kMatch) {
       continue;
     }
-    if (match == 0) {
-      match = 1;
-    }
+    match_status = kNoMatch;
     int r = nc_match_single(gen, sub->base, /*excluding=*/false,
                             /*case_insensitive_local_part=*/false);
     if (r == X509_V_OK) {
-      match = 2;
+      match_status = kMatch;
     } else if (r != X509_V_ERR_PERMITTED_VIOLATION) {
       return r;
     }
   }
 
-  if (match == 1) {
+  if (match_status == kNoMatch) {
     return X509_V_ERR_PERMITTED_VIOLATION;
   }
 

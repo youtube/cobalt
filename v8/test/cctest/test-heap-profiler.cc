@@ -99,8 +99,9 @@ class NamedEntriesDetector {
         v8::base::HashMap::Entry* entry = visited.LookupOrInsert(
             reinterpret_cast<void*>(child),
             static_cast<uint32_t>(reinterpret_cast<uintptr_t>(child)));
-        if (entry->value)
+        if (entry->value) {
           continue;
+        }
         entry->value = reinterpret_cast<void*>(1);
         list.push_back(child);
         CheckEntry(child);
@@ -214,8 +215,9 @@ const v8::HeapGraphNode* GetProperty(v8::Isolate* isolate,
   for (int i = 0, count = node->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = node->GetChild(i);
     v8::String::Utf8Value prop_name(isolate, prop->GetName());
-    if (prop->GetType() == type && strcmp(name, *prop_name) == 0)
+    if (prop->GetType() == type && strcmp(name, *prop_name) == 0) {
       return prop->GetToNode();
+    }
   }
   return nullptr;
 }
@@ -1174,11 +1176,13 @@ TEST(HeapSnapshotAddressReuse) {
   int wrong_count = 0;
   for (int i = 0, count = array_node->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = array_node->GetChild(i);
-    if (prop->GetType() != v8::HeapGraphEdge::kElement)
+    if (prop->GetType() != v8::HeapGraphEdge::kElement) {
       continue;
+    }
     v8::SnapshotObjectId id = prop->GetToNode()->GetId();
-    if (id < maxId1)
+    if (id < maxId1) {
       ++wrong_count;
+    }
   }
   CHECK_EQ(0, wrong_count);
 }
@@ -1480,8 +1484,9 @@ class TestStatsStream : public v8::OutputStream {
     CHECK(updates_written);
     updates_written_ += updates_written;
     entries_count_ = 0;
-    if (first_interval_index_ == -1 && updates_written != 0)
+    if (first_interval_index_ == -1 && updates_written != 0) {
       first_interval_index_ = buffer[0].index;
+    }
     for (int i = 0; i < updates_written; ++i) {
       entries_count_ += buffer[i].count;
       entries_size_ += buffer[i].size;
@@ -1514,8 +1519,9 @@ static TestStatsStream GetHeapStatsUpdate(
   int64_t timestamp = -1;
   v8::SnapshotObjectId last_seen_id =
       heap_profiler->GetHeapStats(&stream, &timestamp);
-  if (object_id)
+  if (object_id) {
     *object_id = last_seen_id;
+  }
   CHECK_NE(-1, timestamp);
   CHECK_EQ(1, stream.eos_signaled());
   return stream;
@@ -1651,8 +1657,9 @@ TEST(HeapSnapshotObjectsStats) {
     CHECK_EQ(8, stats_update.first_interval_index());
   }
 
-  for (int i = 0; i < 100; ++i)
+  for (int i = 0; i < 100; ++i) {
     array.Get(isolate)->Set(env.local(), i, v8_num(i)).FromJust();
+  }
 
   {
     // Single chunk of data with 1 entry expected in update.
@@ -2340,8 +2347,9 @@ TEST(NodesIteration) {
   const int nodes_count = snapshot->GetNodesCount();
   int count = 0;
   for (int i = 0; i < nodes_count; ++i) {
-    if (snapshot->GetNode(i) == global)
+    if (snapshot->GetNode(i) == global) {
       ++count;
+    }
   }
   CHECK_EQ(1, count);
 }
@@ -2415,8 +2423,9 @@ TEST(GetHeapValueForDeletedObject) {
 static int StringCmp(const char* ref, i::Tagged<i::String> act) {
   std::unique_ptr<char[]> s_act = act->ToCString();
   int result = strcmp(ref, s_act.get());
-  if (result != 0)
+  if (result != 0) {
     fprintf(stderr, "Expected: \"%s\", Actual: \"%s\"\n", ref, s_act.get());
+  }
   return result;
 }
 

@@ -312,7 +312,7 @@ void PrintStateValue(std::ostream& os, Isolate* isolate,
   os << ")";
 }
 
-bool TestSimd128Moves() { return CpuFeatures::SupportsWasmSimd128(); }
+bool TestSimd128Moves() { return CpuFeatures::SupportsSimd128(); }
 
 }  // namespace
 

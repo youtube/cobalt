@@ -11,6 +11,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/focus/browser_focus_controller.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/user_education/impl/browser_feature_promo_controller.h"
@@ -21,7 +22,6 @@
 #include "components/user_education/common/tutorial/tutorial_service.h"
 #include "components/user_education/webui/help_bubble_handler.h"
 #include "components/user_education/webui/help_bubble_webui.h"
-#include "components/user_education/webui/tracked_element_help_bubble_webui_anchor.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/interaction/framework_specific_implementation.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -29,6 +29,25 @@
 #include "ui/views/accessible_pane_view.h"
 #include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/view_utils.h"
+#include "ui/webui/tracked_element/tracked_element_handler.h"
+#include "ui/webui/tracked_element/tracked_element_web_ui.h"
+
+WEB_CONTENTS_USER_DATA_KEY_IMPL(ForceWebUIHelpBubbles);
+
+ForceWebUIHelpBubbles::ForceWebUIHelpBubbles(content::WebContents* contents)
+    : content::WebContentsUserData<ForceWebUIHelpBubbles>(*contents) {}
+ForceWebUIHelpBubbles::~ForceWebUIHelpBubbles() = default;
+
+void ForceWebUIHelpBubbles::SetForceWebUIForAnchors(
+    std::initializer_list<ui::ElementIdentifier> help_bubble_anchors) {
+  forced_anchors_.insert(help_bubble_anchors.begin(),
+                         help_bubble_anchors.end());
+}
+
+bool ForceWebUIHelpBubbles::ShouldForceWebUIForAnchor(
+    ui::ElementIdentifier anchor_id) const {
+  return forced_anchors_.contains(anchor_id);
+}
 
 BrowserHelpBubbleDelegate::BrowserHelpBubbleDelegate() = default;
 BrowserHelpBubbleDelegate::~BrowserHelpBubbleDelegate() = default;
@@ -112,12 +131,11 @@ TabWebUIHelpBubbleFactoryBrowser::CreateBubble(
     // ensure the contents pane is focused.
     if (const auto* const contents =
             result->AsA<user_education::HelpBubbleWebUI>()->GetWebContents()) {
-      if (const BrowserWindowInterface* browser =
+      if (BrowserWindowInterface* browser =
               GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
                   contents)) {
         if (browser->GetTabStripModel()->GetActiveWebContents() == contents) {
-          BrowserView::GetBrowserViewForBrowser(browser)
-              ->FocusWebContentsPane();
+          BrowserFocusController::From(browser)->FocusWebContentsPane();
         }
       }
     }
@@ -136,15 +154,20 @@ FloatingWebUIHelpBubbleFactoryBrowser::
 
 bool FloatingWebUIHelpBubbleFactoryBrowser::CanBuildBubbleForTrackedElement(
     const ui::TrackedElement* element) const {
-  if (!element->IsA<user_education::TrackedElementHelpBubbleWebUIAnchor>()) {
+  if (!element->IsA<ui::TrackedElementWebUI>()) {
     return false;
   }
 
   // If this is a WebUI in a tab, then don't use this factory.
   const auto* contents =
-      element->AsA<user_education::TrackedElementHelpBubbleWebUIAnchor>()
-          ->handler()
-          ->GetWebContents();
+      element->AsA<ui::TrackedElementWebUI>()->handler()->web_contents();
+  if (contents) {
+    if (auto* forced = ForceWebUIHelpBubbles::FromWebContents(contents)) {
+      if (forced->ShouldForceWebUIForAnchor(element->identifier())) {
+        return false;
+      }
+    }
+  }
   // Note: this checks all tabs for their WebContents.
   if (GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(contents)) {
     return false;

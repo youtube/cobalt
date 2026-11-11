@@ -261,6 +261,8 @@ type clientHelloMsg struct {
 	reorderOuterExtensionsWithoutCompressing bool
 	prefixExtensions                         []uint16
 	extensionsWithTrailingData               []uint16
+	serverPaddingRequest                     *uint16
+
 	// The following fields are only filled in by |unmarshal| and ignored when
 	// marshaling a new ClientHello.
 	echPayloadStart int
@@ -660,6 +662,15 @@ func (m *clientHelloMsg) marshalBody(hello *cryptobyte.Builder, typ clientHelloT
 		})
 		extensions = append(extensions, extension{
 			id:   extensionServerCertificateType,
+			body: body.BytesOrPanic(),
+		})
+	}
+
+	if m.serverPaddingRequest != nil {
+		body := cryptobyte.NewBuilder(nil)
+		body.AddUint16(*m.serverPaddingRequest)
+		extensions = append(extensions, extension{
+			id:   extensionServerPaddingRequest,
 			body: body.BytesOrPanic(),
 		})
 	}
@@ -1224,6 +1235,13 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 			if !parseTrustAnchors(&body, &m.trustAnchors) || len(body) != 0 {
 				return false
 			}
+
+		case extensionServerPaddingRequest:
+			var serverPaddingRequest uint16
+			if !body.ReadUint16(&serverPaddingRequest) || len(body) != 0 {
+				return false
+			}
+			m.serverPaddingRequest = ptrTo(serverPaddingRequest)
 		case extensionClientCertificateType:
 			var certTypes cryptobyte.String
 			if !body.ReadUint8LengthPrefixed(&certTypes) || len(body) != 0 {
@@ -1674,6 +1692,7 @@ type serverExtensions struct {
 	clientCertificateType      *CertificateType
 	serverCertificateType      *CertificateType
 	extensionsWithTrailingData []uint16
+	serverPadding              *uint16
 }
 
 func (m *serverExtensions) marshal(extensions *cryptobyte.Builder) {
@@ -1684,6 +1703,13 @@ func (m *serverExtensions) marshal(extensions *cryptobyte.Builder) {
 			if slices.Contains(m.extensionsWithTrailingData, id) {
 				extension.AddUint8(0)
 			}
+		})
+	}
+
+	if m.serverPadding != nil {
+		addExt(extensionServerPaddingRequest, func(extension *cryptobyte.Builder) {
+			data := make([]byte, *m.serverPadding)
+			extension.AddBytes(data)
 		})
 	}
 	if m.duplicateExtension {
@@ -1978,6 +2004,11 @@ func (m *serverExtensions) unmarshal(data cryptobyte.String, version version) bo
 				return false
 			}
 			m.serverCertificateType = ptrTo(CertificateType(certType))
+		case extensionServerPaddingRequest:
+			m.serverPadding = ptrTo(uint16(len(body)))
+			if !isAllZero(body) {
+				return false
+			}
 		default:
 			// Unknown extensions are illegal from the server.
 			return false

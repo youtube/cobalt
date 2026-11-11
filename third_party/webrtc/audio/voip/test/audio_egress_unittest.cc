@@ -51,9 +51,9 @@ std::unique_ptr<ModuleRtpRtcpImpl2> CreateRtpStack(const Environment& env,
   rtp_config.rtcp_report_interval_ms = 5000;
   rtp_config.outgoing_transport = transport;
   rtp_config.local_media_ssrc = remote_ssrc;
+  rtp_config.rtcp_mode = RtcpMode::kCompound;
   auto rtp_rtcp = ModuleRtpRtcpImpl2::CreateSendModule(env, rtp_config);
   rtp_rtcp->SetSendingMediaStatus(false);
-  rtp_rtcp->SetRTCPStatus(RtcpMode::kCompound);
   return rtp_rtcp;
 }
 

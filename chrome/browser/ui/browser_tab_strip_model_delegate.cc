@@ -92,7 +92,7 @@ void BrowserTabStripModelDelegate::OpenGlicWindowFromSharedTab() {
   auto* service =
       glic::GlicKeyedServiceFactory::GetGlicKeyedService(browser_->profile());
 
-  if (!service->IsWindowOrFreShowing()) {
+  if (!service->instance_coordinator().IsAnyPanelShowing()) {
     service->ToggleUI(/*bwi=*/nullptr, /*prevent_close=*/true,
                       glic::mojom::InvocationSource::kSharedTab);
   }
@@ -283,12 +283,14 @@ void BrowserTabStripModelDelegate::GroupCloseStopped(
 
 bool BrowserTabStripModelDelegate::RunUnloadListenerBeforeClosing(
     content::WebContents* contents) {
-  return browser_->RunUnloadListenerBeforeClosing(contents);
+  return UnloadController::From(browser_)->RunUnloadListenerBeforeClosing(
+      contents);
 }
 
 bool BrowserTabStripModelDelegate::ShouldRunUnloadListenerBeforeClosing(
     content::WebContents* contents) {
-  return browser_->ShouldRunUnloadListenerBeforeClosing(contents);
+  return UnloadController::From(browser_)->ShouldRunUnloadListenerBeforeClosing(
+      contents);
 }
 
 bool BrowserTabStripModelDelegate::CanReload() const {
@@ -338,12 +340,15 @@ BrowserTabStripModelDelegate::GetBrowserWindowInterface() {
 
 void BrowserTabStripModelDelegate::NewSplitTab(
     std::vector<int> indices,
+    split_tabs::SplitTabLayout layout,
     split_tabs::SplitTabCreatedSource source) {
   if (indices.empty()) {
-    chrome::NewSplitTab(browser_, source);
+    chrome::NewSplitTab(browser_, layout, source);
   } else {
-    browser_->tab_strip_model()->AddToNewSplit(
-        indices, split_tabs::SplitTabVisualData(), source);
+    split_tabs::SplitTabVisualData visual_data =
+        split_tabs::SplitTabVisualData();
+    visual_data.set_split_layout(layout);
+    browser_->tab_strip_model()->AddToNewSplit(indices, visual_data, source);
   }
 }
 

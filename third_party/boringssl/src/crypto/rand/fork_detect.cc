@@ -20,9 +20,10 @@
 #include "../internal.h"
 #include "internal.h"
 
-using namespace bssl;
+#if defined(OPENSSL_FORK_DETECTION_WIPEONFORK)
 
-#if defined(OPENSSL_FORK_DETECTION_MADVISE)
+#if defined(OPENSSL_LINUX)
+
 #include <assert.h>
 #include <stdlib.h>
 #include <sys/mman.h>
@@ -32,13 +33,48 @@ static_assert(MADV_WIPEONFORK == 18);
 #else
 #define MADV_WIPEONFORK 18
 #endif
+
+#else
+
+// Otherwise assume a BSD style API.
+#include <stdlib.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
+#endif
+
 #elif defined(OPENSSL_FORK_DETECTION_PTHREAD_ATFORK)
+
 #include <pthread.h>
 #include <stdlib.h>
 #include <unistd.h>
+
 #endif  // OPENSSL_FORK_DETECTION_PTHREAD_ATFORK
 
-#if defined(OPENSSL_FORK_DETECTION_MADVISE)
+
+using namespace bssl;
+
+#if defined(OPENSSL_FORK_DETECTION_WIPEONFORK)
+
+static bool wipeonfork(void *addr, size_t page_size) {
+#if defined(OPENSSL_LINUX)
+  // Linux flavor, >=4.14.
+  // Some versions of qemu (up to at least 5.0.0-rc4, see linux-user/syscall.c)
+  // ignore |madvise| calls and just return zero (i.e. success). But we need to
+  // know whether MADV_WIPEONFORK actually took effect. Therefore try an invalid
+  // call to check that the implementation of |madvise| is actually rejecting
+  // unknown |advice| values.
+  return madvise(addr, page_size, -1) != 0 &&
+         madvise(addr, page_size, MADV_WIPEONFORK) == 0;
+#elif defined(MAP_INHERIT_ZERO)
+  // OpenBSD flavor, >=5.6.
+  return minherit(addr, page_size, MAP_INHERIT_ZERO) == 0;
+#else
+  // FreeBSD flavor, >=12.0.
+  return minherit(addr, page_size, INHERIT_ZERO) == 0;
+#endif
+}
+
 static int g_force_madv_wipeonfork;
 static int g_force_madv_wipeonfork_enabled;
 static CRYPTO_once_t g_fork_detect_once = CRYPTO_ONCE_INIT;
@@ -56,26 +92,18 @@ static void init_fork_detect() {
     return;
   }
 
-  void *addr = mmap(nullptr, (size_t)page_size, PROT_READ | PROT_WRITE,
-                    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  void *addr = mmap(nullptr, static_cast<size_t>(page_size),
+                    PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (addr == MAP_FAILED) {
     return;
   }
 
-  // Some versions of qemu (up to at least 5.0.0-rc4, see linux-user/syscall.c)
-  // ignore |madvise| calls and just return zero (i.e. success). But we need to
-  // know whether MADV_WIPEONFORK actually took effect. Therefore try an invalid
-  // call to check that the implementation of |madvise| is actually rejecting
-  // unknown |advice| values.
-  if (madvise(addr, (size_t)page_size, -1) == 0 ||
-      madvise(addr, (size_t)page_size, MADV_WIPEONFORK) != 0) {
-    munmap(addr, (size_t)page_size);
+  if (!wipeonfork(addr, static_cast<size_t>(page_size))) {
+    munmap(addr, static_cast<size_t>(page_size));
     return;
   }
 
-  auto *const atomic = reinterpret_cast<Atomic<uint32_t> *>(addr);
-  atomic->store(1);
-  g_fork_detect_addr = atomic;
+  g_fork_detect_addr = new (addr) Atomic<uint32_t>(1);
   g_fork_generation = 1;
 }
 

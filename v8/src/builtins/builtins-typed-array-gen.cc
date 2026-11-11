@@ -49,7 +49,7 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
   StoreMapNoWriteBarrier(buffer, map);
   StoreObjectFieldNoWriteBarrier(buffer, offsetof(JSArray, properties_or_hash_),
                                  empty_fixed_array);
-  StoreObjectFieldNoWriteBarrier(buffer, JSArray::kElementsOffset,
+  StoreObjectFieldNoWriteBarrier(buffer, offsetof(JSObject, elements_),
                                  empty_fixed_array);
   // Setup the ArrayBuffer.
   //  - Set BitField to 0.
@@ -65,24 +65,26 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
 #endif
   int32_t bitfield_value = (1 << JSArrayBuffer::IsExternalBit::kShift) |
                            (1 << JSArrayBuffer::IsDetachableBit::kShift);
-  StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBitFieldOffset,
+  StoreObjectFieldNoWriteBarrier(buffer, offsetof(JSArrayBuffer, bit_field_),
                                  Int32Constant(bitfield_value));
 
-  StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kViewsOrDetachKeyOffset,
+  StoreObjectFieldNoWriteBarrier(buffer,
+                                 offsetof(JSArrayBuffer, views_or_detach_key_),
                                  SmiConstant(JSArrayBuffer::kNoView.value()));
-  StoreBoundedSizeToObject(buffer, JSArrayBuffer::kRawByteLengthOffset,
+  StoreBoundedSizeToObject(buffer, offsetof(JSArrayBuffer, raw_byte_length_),
                            UintPtrConstant(0));
-  StoreBoundedSizeToObject(buffer, JSArrayBuffer::kRawMaxByteLengthOffset,
+  StoreBoundedSizeToObject(buffer,
+                           offsetof(JSArrayBuffer, raw_max_byte_length_),
                            UintPtrConstant(0));
-  StoreSandboxedPointerToObject(buffer, JSArrayBuffer::kBackingStoreOffset,
+  StoreSandboxedPointerToObject(buffer, offsetof(JSArrayBuffer, backing_store_),
                                 EmptyBackingStoreBufferConstant());
 #ifdef V8_COMPRESS_POINTERS
   // When pointer compression is enabled, the extension slot contains a
   // (lazily-initialized) external pointer handle.
-  StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kExtensionOffset,
+  StoreObjectFieldNoWriteBarrier(buffer, offsetof(JSArrayBuffer, extension_),
                                  ExternalPointerHandleNullConstant());
 #else
-  StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kExtensionOffset,
+  StoreObjectFieldNoWriteBarrier(buffer, offsetof(JSArrayBuffer, extension_),
                                  IntPtrConstant(0));
 #endif
   InitializeJSAPIObjectWithEmbedderSlotsCppHeapWrapperPtr(buffer);
@@ -509,7 +511,7 @@ void TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
 
 void TypedArrayBuiltinsAssembler::SetJSTypedArrayOffHeapDataPtr(
     TNode<JSTypedArray> holder, TNode<RawPtrT> base, TNode<UintPtrT> offset) {
-  StoreObjectFieldNoWriteBarrier(holder, JSTypedArray::kBasePointerOffset,
+  StoreObjectFieldNoWriteBarrier(holder, offsetof(JSTypedArray, base_pointer_),
                                  SmiConstant(0));
 
   base = RawPtrAdd(base, Signed(offset));

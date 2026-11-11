@@ -3755,6 +3755,47 @@
       "features": [
         "disable_rgb_to_yuv_conversion"
       ]
+    },
+    {
+      "id": 475,
+      "description": "Disable accelerated video decoding on AMD Strix Halo to prevent kernel hanging",
+      "cr_bugs": [447709687],
+      "os": {
+        "type": "linux"
+      },
+      "vendor_id": "0x1002",
+      "device_id": ["0x1586"],
+      "features": [
+        "disable_vaapi"
+      ]
+    },
+    {
+      "id": 476,
+      "description": "Qualcomm GPUs crash when invalidating incomplete framebuffers",
+      "cr_bugs": [507508103],
+      "os": {
+        "type": "android"
+      },
+      "gl_vendor": "Qualcomm.*",
+      "driver_version": {
+        "op": "<",
+        "value": "881"
+      },
+      "features": [
+        "dont_invalidate_incomplete_fbos"
+      ]
+    },
+    {
+      "id": 477,
+      "description": "Recreate FBO upon flush/finish/fencesync under certain conditions on Qualcomm GPUs",
+      "gl_vendor": "Qualcomm.*",
+      "driver_version": {
+        "op": "<",
+        "value": "878"
+      },
+      "features": [
+        "recreate_fbo_upon_flush"
+      ]
     }
   ]
 }

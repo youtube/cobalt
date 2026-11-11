@@ -61,6 +61,7 @@ class FakeLorgnetteScannerManager final : public LorgnetteScannerManager {
             PageCallback page_callback,
             CompletionCallback completion_callback) override;
   void CancelScan(CancelCallback cancel_callback) override;
+  // TODO(crbug.com/479031241): Fix edge cases. 
   void CancelScan(const lorgnette::CancelScanRequest& request,
                   CancelScanCallback callback) override;
 
@@ -68,49 +69,18 @@ class FakeLorgnetteScannerManager final : public LorgnetteScannerManager {
   // make them pass std::nullopt to their response callbacks.
   // TODO(crbug.com/479031241): Make this affect all relevant operations.
   void SimulateDBusFailure(bool simulate);
+  void SimulateScannerFailure(bool simulate);
 
   // Registers a scanner with a template configuration. A subsequent OpenScanner
   // request with the scanner id from `scanner_info` will succeed and return a
   // copy of `config_template` with a unique session handle populated in the
   // scanner token, unless overridden via SimulateDBusFailure.
-  void AddScanner(const lorgnette::ScannerInfo& scanner_info,
-                  const lorgnette::ScannerConfig& config_template);
-
-  // Sets the response returned by GetScannerNames().
-  void SetGetScannerNamesResponse(
-      const std::vector<std::string>& scanner_names);
-
-  // Sets the response returned by GetScannerInfoList().
-  void SetGetScannerInfoListResponse(
-      const std::optional<lorgnette::ListScannersResponse>& response);
-
-  // Sets the response returned by GetScannerCapabilities().
-  void SetGetScannerCapabilitiesResponse(
-      const std::optional<lorgnette::ScannerCapabilities>&
-          scanner_capabilities);
-
-  // Sets the result field of the response returned by CloseScanner(). If this
-  // is std::nullopt, the callback is passed std::nullopt. The default is
-  // OPERATION_RESULT_ADF_JAMMED.
-  void SetCloseScannerResult(std::optional<lorgnette::OperationResult> result);
-
-  // Configures the response returned by GetCurrentConfig().
-  // If `result` has no value, the response will be nullopt (that's the
-  // default). Otherwise, the response will consist of the given values and the
-  // scanner from the request.
-  void ConfigureGetCurrentConfigResponse(
-      std::optional<lorgnette::OperationResult> result,
-      std::optional<lorgnette::ScannerConfig> config);
-
-  // Sets the result field of the response returned by StartPreparedScan().
-  // - If `result` has no value, the response will be nullopt (that's the
-  //   default).
-  // - Otherwise, the response will consist of the given result, the scanner
-  //   from the request, and, in the case of OPERATION_RESULT_SUCCESS, a fresh
-  //   job handle. Exception: if the requested max read size is below the
-  //   minimum of 32k, the result will be OPERATION_RESULT_INVALID.
-  void SetStartPreparedScanResult(
-      std::optional<lorgnette::OperationResult> result);
+  // TODO(crbug.com/479031241): Update this and other comments once the class
+  // rewrite is complete.
+  void AddScanner(lorgnette::ScannerInfo scanner_info,
+                  lorgnette::ScannerConfig config_template,
+                  std::optional<lorgnette::ScannerCapabilities> capabilities =
+                      std::nullopt);
 
   // Configures the response returned by ReadScanData().
   // - If `result` has no value, the response will be nullopt (that's the
@@ -128,12 +98,6 @@ class FakeLorgnetteScannerManager final : public LorgnetteScannerManager {
   void SetScanResponse(
       const std::optional<std::vector<std::string>>& scan_data);
 
-  // Sets the result field of the response returned by the two-parameter version
-  // of CancelScan(). If this is std::nullopt, the callback is passed
-  // std::nullopt. The default is OPERATION_RESULT_ADF_JAMMED.
-  // Note: This does not apply to cancelled jobs, see the class documentation.
-  void SetCancelScanResult(std::optional<lorgnette::OperationResult> result);
-
   // Optionally sets `scan_data` if a matching set of scan settings is found.
   void MaybeSetScanDataBasedOnSettings(const lorgnette::ScanSettings& settings);
 
@@ -149,33 +113,26 @@ class FakeLorgnetteScannerManager final : public LorgnetteScannerManager {
   };
 
   struct ScannerState {
-    ScannerState(std::string scanner_id,
-                 lorgnette::ScannerConfig template_config);
+    ScannerState(lorgnette::ScannerInfo info,
+                 lorgnette::ScannerConfig template_config,
+                 lorgnette::ScannerCapabilities capabilities);
     ScannerState(ScannerState&& other) noexcept;
     ScannerState& operator=(ScannerState&& other) noexcept;
     ~ScannerState();
 
-    std::string scanner_id;
+    lorgnette::ScannerInfo info;
     lorgnette::ScannerConfig template_config;
+    lorgnette::ScannerCapabilities capabilities;
     std::optional<ScannerSession> active_session;
   };
 
   std::string CreateFreshHandle();
 
-  std::vector<std::string> scanner_names_;
-  std::optional<lorgnette::ListScannersResponse> list_scanners_response_;
-  std::optional<lorgnette::ScannerCapabilities> scanner_capabilities_;
   bool simulate_dbus_failure_ = false;
+  bool simulate_scanner_failure_ = false;
   std::vector<ScannerState> scanners_;
-  std::optional<lorgnette::OperationResult> close_scanner_result_ =
-      lorgnette::OPERATION_RESULT_ADF_JAMMED;
-  std::optional<lorgnette::OperationResult> get_current_config_result_;
-  std::optional<lorgnette::ScannerConfig> get_current_config_config_;
-  std::optional<lorgnette::OperationResult> start_prepared_scan_result_;
   std::optional<lorgnette::OperationResult> read_scan_data_result_;
   std::vector<std::string> read_scan_data_chunks_;
-  std::optional<lorgnette::OperationResult> cancel_scan_result_ =
-      lorgnette::OPERATION_RESULT_ADF_JAMMED;
   size_t handle_count_ = 0;
   std::optional<std::vector<std::string>> scan_data_;
   std::vector<std::string> cancelled_jobs_;

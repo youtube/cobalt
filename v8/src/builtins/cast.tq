@@ -932,6 +932,21 @@ Cast<FixedArray|Undefined>(o: HeapObject): FixedArray|
   }
 }
 
+Cast<FixedDoubleArray|Undefined>(o: HeapObject): FixedDoubleArray|
+    Undefined labels CastError {
+  typeswitch (o) {
+    case (o: Undefined): {
+      return o;
+    }
+    case (o: FixedDoubleArray): {
+      return o;
+    }
+    case (Object): {
+      goto CastError;
+    }
+  }
+}
+
 Cast<JSProxy|Null>(o: HeapObject): JSProxy|Null labels CastError {
   typeswitch (o) {
     case (o: Null): {

@@ -21,13 +21,13 @@
 #include "api/environment/environment.h"
 #include "api/media_types.h"
 #include "api/rtp_parameters.h"
-#include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
 #include "call/call.h"
 #include "call/simulated_packet_receiver.h"
 #include "modules/rtp_rtcp/source/rtp_util.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
+#include "rtc_base/thread.h"
 #include "test/direct_transport.h"
 #include "test/gtest.h"
 #include "test/test_flags.h"
@@ -85,7 +85,7 @@ class PacketTransport : public test::DirectTransport {
   enum TransportType { kReceiver, kSender };
 
   PacketTransport(const Environment& env,
-                  TaskQueueBase* task_queue,
+                  Thread* network_thread,
                   Call* send_call,
                   RtpRtcpObserver* observer,
                   TransportType transport_type,
@@ -94,7 +94,7 @@ class PacketTransport : public test::DirectTransport {
                   std::span<const RtpExtension> audio_extensions,
                   std::span<const RtpExtension> video_extensions)
       : test::DirectTransport(env,
-                              task_queue,
+                              network_thread,
                               std::move(nw_pipe),
                               send_call,
                               payload_type_map,

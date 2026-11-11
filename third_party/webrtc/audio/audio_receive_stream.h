@@ -132,11 +132,7 @@ class AudioReceiveStreamImpl final : public webrtc::AudioReceiveStreamInterface,
 
   void SetSyncGroup(absl::string_view sync_group);
 
-  uint32_t remote_ssrc() const override {
-    // The remote_ssrc member variable of config_ will never change and can be
-    // considered const.
-    return config_.rtp.remote_ssrc;
-  }
+  uint32_t remote_ssrc() const override;
 
   // Returns a reference to the currently set sync group of the stream.
   // Must be called on the packet delivery thread.
@@ -161,7 +157,7 @@ class AudioReceiveStreamImpl final : public webrtc::AudioReceiveStreamInterface,
   RTC_NO_UNIQUE_ADDRESS SequenceChecker packet_sequence_checker_{
       SequenceChecker::kDetached};
   webrtc::AudioReceiveStreamInterface::Config config_;
-  scoped_refptr<webrtc::AudioState> audio_state_;
+  const scoped_refptr<webrtc::AudioState> audio_state_;
   const std::unique_ptr<voe::ChannelReceiveInterface> channel_receive_;
 
   bool playing_ RTC_GUARDED_BY(worker_thread_checker_) = false;

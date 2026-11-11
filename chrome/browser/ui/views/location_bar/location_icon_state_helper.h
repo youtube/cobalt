@@ -9,6 +9,9 @@
 
 #include "components/security_state/core/security_state.h"
 #include "ui/accessibility/ax_enums.mojom-forward.h"
+namespace ui {
+class ImageModel;
+}
 
 class LocationBarModel;
 
@@ -23,8 +26,6 @@ enum class SecurityChipIcon {
   kSecurePageInfo,
   kNotSecureWarning,
   kDangerous,
-  kGoogleSuperG,
-  kGoogleGMonochrome,
   kAddContext,
 };
 
@@ -49,7 +50,8 @@ bool ShouldShowSecurityChipText(const LocationBarModel* model,
 SecurityChipIcon GetSecurityChipIconEnum(const LocationBarModel* model,
                                          bool is_add_context_button_shown);
 
-bool IsSecurityChipInteractive(bool is_editing_or_empty, SecurityChipIcon icon);
+// Returns true if the icon is the Google Super G gradient icon.
+bool IsGradientGoogleSuperGIcon(const ui::ImageModel& icon);
 
 // Accessibility & Tooltip
 SecurityChipAccessibilityState GetSecurityChipAccessibilityState(

@@ -2493,7 +2493,7 @@ void TranslatedState::EnsurePropertiesAllocatedAndMarked(
   Tagged<ByteArray> raw_object_storage = *object_storage;
 
   // Set markers for out-of-object properties.
-  Tagged<DescriptorArray> descriptors = map->instance_descriptors(isolate());
+  Tagged<DescriptorArray> descriptors = map->instance_descriptors();
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     FieldIndex index = FieldIndex::ForDescriptor(raw_map, i);
     Representation representation = descriptors->GetDetails(i).representation();
@@ -2533,7 +2533,7 @@ void TranslatedState::EnsureJSObjectAllocated(TranslatedValue* slot,
   DisallowGarbageCollection no_gc;
   Tagged<Map> raw_map = *map;
   Tagged<ByteArray> raw_object_storage = *object_storage;
-  Tagged<DescriptorArray> descriptors = map->instance_descriptors(isolate());
+  Tagged<DescriptorArray> descriptors = map->instance_descriptors();
 
   // Set markers for in-object properties.
   for (InternalIndex i : raw_map->IterateOwnDescriptors()) {
@@ -2631,7 +2631,7 @@ void TranslatedState::InitializeJSObjectAt(
     InstanceType instance_type = map->instance_type();
     USE(instance_type);
     if (InstanceTypeChecker::IsJSFunction(instance_type) &&
-        offset == JSFunction::kDispatchHandleOffset) {
+        offset == offsetof(JSFunction, dispatch_handle_)) {
       // The JSDispatchHandle will be materialized as a number, but we need
       // the raw value here. TODO(saelo): can we implement "proper" support
       // for JSDispatchHandles in the deoptimizer?
@@ -2639,12 +2639,12 @@ void TranslatedState::InitializeJSObjectAt(
       CHECK(IsNumber(*field_value));
       JSDispatchHandle handle(Object::NumberValue(Cast<Number>(*field_value)));
       object_storage->WriteField<JSDispatchHandle::underlying_type>(
-          JSFunction::kDispatchHandleOffset, handle.value());
+          offsetof(JSFunction, dispatch_handle_), handle.value());
       continue;
     }
 #ifdef V8_ENABLE_SANDBOX
     if (InstanceTypeChecker::IsJSRegExp(instance_type) &&
-        offset == JSRegExp::kDataOffset) {
+        offset == offsetof(JSRegExp, data_)) {
       DirectHandle<HeapObject> field_value = slot->storage();
       // If the value comes from the DeoptimizationLiteralArray, it is a
       // RegExpDataWrapper as we can't store TrustedSpace values in a FixedArray

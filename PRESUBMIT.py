@@ -2465,6 +2465,25 @@ _BANNED_MOJOM_PATTERNS: Sequence[BanRule] = (
     ),
 )
 
+_BANNED_GN_PATTERNS: Sequence[BanRule] = (BanRule(
+    pattern=r'/(?i)is_desktop_android',
+    explanation=(
+        'Usage of IS_DESKTOP_ANDROID build flag ',
+        'is discouraged. Use system affordances to determine feature ',
+        'availablility. Refer to https://chromium.googlesource.com/chromium/src/+/HEAD/docs/ui/android/device_form_factor.md for guidelines. ',
+        'To request an exception, file a bug at ',
+        'https://b.corp.google.com/issues/new?component=1753515&template=2172655',
+        'Once approved, use centralized util DeviceInfo.isDesktop() ',
+        'instead of direct build flag or PackageManager.FEATURE_PC checks. ',
+        'Allowances may be granted to only the directories below: ',
+        '[build/, chrome/, components/, extensions/, infra/, tools/] ',
+        'Note: in particular we need to avoid components shared with ',
+        'WebView.',
+    ),
+    treat_as_error=False,
+    surface_as_gerrit_lint=True,
+), )
+
 _IPC_ENUM_TRAITS_DEPRECATED = (
     'You are using IPC_ENUM_TRAITS() in your code. It has been deprecated.\n'
     'See http://www.chromium.org/Home/chromium-security/education/'
@@ -2796,6 +2815,10 @@ def CheckNoProductionCodeUsingTestOnlyFunctionsJava(input_api, output_api):
     # Ignore definitions. (Comments are ignored separately.)
     exclusion_re = input_api.re.compile(r'(%s)[^;]+\{' % name_pattern)
     allowlist_re = input_api.re.compile(r'// IN-TEST$')
+    # exclusion_re misses the closing ''''} when it wraps to the next line, support an on demand
+    # multi-line check as a last step.
+    multi_line_exclusion_re = input_api.re.compile(
+            r'(%s)[^;]+\{' % name_pattern, input_api.re.DOTALL)
 
     problems = []
     sources = lambda x: input_api.FilterSourceFile(
@@ -2807,6 +2830,7 @@ def CheckNoProductionCodeUsingTestOnlyFunctionsJava(input_api, output_api):
                                      file_filter=sources):
         local_path = f.LocalPath()
         is_inside_javadoc = False
+        cached_file_lines = None
         for line_number, line in f.ChangedContents():
             if is_inside_javadoc and javadoc_end_re.search(line):
                 is_inside_javadoc = False
@@ -2818,8 +2842,14 @@ def CheckNoProductionCodeUsingTestOnlyFunctionsJava(input_api, output_api):
                     and not annotation_re.search(line)
                     and not allowlist_re.search(line)
                     and not exclusion_re.search(line)):
-                problems.append('%s:%d\n    %s' %
-                                (local_path, line_number, line.strip()))
+
+                if cached_file_lines is None:
+                    cached_file_lines = input_api.ReadFile(f).splitlines()
+                full_text_from_line = '\n'.join(cached_file_lines[line_number - 1:])
+                match = multi_line_exclusion_re.search(full_text_from_line)
+                if not match or match.start() >= len(line):
+                    problems.append('%s:%d\n    %s' %
+                                    (local_path, line_number, line.strip()))
 
     if problems:
         return [
@@ -3232,6 +3262,12 @@ def CheckNoBannedPatterns(input_api, output_api):
     for f in input_api.AffectedFiles(file_filter=file_filter):
         for line_num, line in f.ChangedContents():
             for ban_rule in _BANNED_MOJOM_PATTERNS:
+                CheckForMatch(f, line_num, line, ban_rule)
+
+    file_filter = lambda f: f.LocalPath().endswith(('.gn', '.gni'))
+    for f in input_api.AffectedFiles(file_filter=file_filter):
+        for line_num, line in f.ChangedContents():
+            for ban_rule in _BANNED_GN_PATTERNS:
                 CheckForMatch(f, line_num, line, ban_rule)
 
     return results

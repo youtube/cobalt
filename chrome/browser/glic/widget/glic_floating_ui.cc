@@ -15,7 +15,6 @@
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/service/glic_instance_helper.h"
 #include "chrome/browser/glic/service/metrics/glic_instance_metrics.h"
-#include "chrome/browser/glic/widget/glic_inactive_floating_ui.h"
 #include "chrome/browser/glic/widget/glic_view.h"
 #include "chrome/browser/glic/widget/glic_widget.h"
 #include "chrome/browser/glic/widget/glic_window_animator.h"
@@ -79,6 +78,7 @@ GlicFloatingUi::GlicFloatingUi(Profile* profile,
   PictureInPictureOcclusionTracker* tracker =
       PictureInPictureWindowManager::GetInstance()->GetOcclusionTracker();
   tracker->OnPictureInPictureWidgetOpened(glic_widget_.get());
+  browser_attach_observation_ = ObserveBrowserForAttachment(profile_, this);
 }
 
 GlicFloatingUi::~GlicFloatingUi() {
@@ -285,6 +285,10 @@ void GlicFloatingUi::FloatingPanelCanAttachChanged(bool can_attach) {
   delegate_->host().FloatingPanelCanAttachChanged(can_attach);
 }
 
+void GlicFloatingUi::CanAttachToBrowserChanged(bool can_attach) {
+  FloatingPanelCanAttachChanged(can_attach && source_tab_.Get() != nullptr);
+}
+
 void GlicFloatingUi::ConfigureWebContentsModalDialogs() {
   // Add capability to show web modal dialogs (e.g. Data Controls Dialogs for
   // enterprise users) via constrained_window APIs.
@@ -322,7 +326,9 @@ bool GlicFloatingUi::IsShowingOrBackgrounded() const {
 }
 
 void GlicFloatingUi::Show(const ShowOptions& options) {
-  FloatingPanelCanAttachChanged(source_tab_.Get() != nullptr);
+  FloatingPanelCanAttachChanged(
+      browser_attach_observation_->CanAttachToBrowser() &&
+      source_tab_.Get() != nullptr);
   instance_metrics_->OnShowInFloaty(options);
   GlicProfileManager::GetInstance()->SetCurrentDetachedGlic(profile_);
   GetGlicWidget()->Show();
@@ -350,7 +356,8 @@ void GlicFloatingUi::Close(const CloseOptions& options) {
   glic_delegate_.reset();
   user_resizable_ = false;
   // NOTE: `this` will be destroyed after this call.
-  delegate_->WillCloseFor(FloatingEmbedderKey{});
+  delegate_->DidCloseFor(FloatingEmbedderKey{},
+                         EmbedderCloseReason::kExplicitlyClosed);
 }
 
 void GlicFloatingUi::ClearWebContentsDelegate() {
@@ -472,7 +479,7 @@ void GlicFloatingUi::RemoveObserver(
 }
 
 std::unique_ptr<GlicUiEmbedder> GlicFloatingUi::CreateInactiveEmbedder() const {
-  return GlicInactiveFloatingUi::From(*this);
+  return nullptr;
 }
 
 #if !BUILDFLAG(IS_ANDROID)

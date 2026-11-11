@@ -109,7 +109,7 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   // Set bytecode/interpreter data or deoptimization data.
   if (CodeKindUsesBytecodeOrInterpreterData(options.kind)) {
     DCHECK(options.deoptimization_data.is_null());
-    Tagged<TrustedObject> data =
+    Tagged<UnionOf<BytecodeArray, InterpreterData>> data =
         *options.bytecode_or_interpreter_data.ToHandleChecked();
     DCHECK(IsBytecodeArray(data) || IsInterpreterData(data));
     code->set_bytecode_or_interpreter_data(data);

@@ -32,11 +32,13 @@
 #include "components/password_manager/core/browser/password_manager_test_utils.h"
 #include "components/password_manager/core/browser/password_store/interactions_stats.h"
 #include "components/password_manager/core/browser/password_store/mock_smart_bubble_stats_store.h"
+#include "components/password_manager/core/browser/password_store/password_form_converters.h"
 #include "components/password_manager/core/browser/password_store/test_password_store.h"
 #include "components/password_manager/core/common/credential_manager_types.h"
 #include "components/password_manager/core/common/password_manager_ui.h"
 #include "components/sync/test/test_sync_service.h"
 #include "components/ukm/test_ukm_recorder.h"
+#include "components/url_formatter/elide_url.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_renderer_host.h"
@@ -312,6 +314,28 @@ TEST_F(SaveUpdateBubbleControllerTest, CloseWithoutInteraction) {
       password_manager::metrics_util::NO_DIRECT_INTERACTION);
 }
 
+TEST_F(SaveUpdateBubbleControllerTest, GetDomainForSubhead_SameDomain) {
+  const url::Origin origin = url::Origin::Create(GURL(kSiteOrigin));
+  content::WebContentsTester::For(web_contents())
+      ->NavigateAndCommit(GURL(kSiteOrigin));
+  PretendPasswordWaiting();
+  EXPECT_CALL(*delegate(), GetOrigin()).WillRepeatedly(Return(origin));
+
+  EXPECT_EQ(std::nullopt, controller()->GetDomainForSubhead());
+  DestroyModelAndVerifyControllerExpectations();
+}
+
+TEST_F(SaveUpdateBubbleControllerTest, GetDomainForSubhead_DifferentDomain) {
+  const url::Origin origin = url::Origin::Create(GURL(kSiteOrigin));
+  content::WebContentsTester::For(web_contents())
+      ->NavigateAndCommit(GURL("http://different.com/login"));
+  PretendPasswordWaiting();
+  EXPECT_CALL(*delegate(), GetOrigin()).WillRepeatedly(Return(origin));
+
+  EXPECT_EQ(u"example.com", controller()->GetDomainForSubhead());
+  DestroyModelAndVerifyControllerExpectations();
+}
+
 TEST_F(SaveUpdateBubbleControllerTest, ClickSaveWithAccountStorageDisabled) {
   ON_CALL(*password_feature_manager(), IsAccountStorageActive)
       .WillByDefault(Return(false));
@@ -464,7 +488,7 @@ TEST_F(SaveUpdateBubbleControllerTest, ClickSaveWhenCredentialsExisted) {
   form.password_value = u"password";
   form.signon_realm = "https://google.com";
   form.url = GURL(form.signon_realm);
-  GetStore()->AddLogin(form);
+  GetStore()->AddLogin(password_manager::FromPasswordForm(form));
   add_waiter.WaitOrReturn();
 
   base::HistogramTester histogram_tester;

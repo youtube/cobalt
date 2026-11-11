@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use alloc::ffi::CString;
+use alloc::{
+    boxed::Box,
+    ffi::CString, //
+};
 use core::{
     ffi::CStr,
     ptr::null, //
@@ -28,6 +31,7 @@ use crate::{
     check_lib_error,
     config::ConfigurationError,
     connection::{
+        TlsConnection,
         TlsConnectionBuilder,
         lifecycle::{
             EstablishedTlsConnection,
@@ -35,16 +39,22 @@ use crate::{
         }, //
     }, //
     credentials::{
+        CertificateType,
         CertificateVerificationMode,
         SignatureAlgorithm,
-        TlsCredential, //
+        TlsCredential,
+        VerifyCertificate,
+        cert_cb, //
     },
     errors::Error,
     ffi::slice_into_ffi_raw_parts,
     has_duplicates, //
 };
 
-impl<R, M> TlsConnectionBuilder<R, M> {
+impl<R, M> TlsConnectionBuilder<R, M>
+where
+    M: HasTlsConnectionMethod,
+{
     /// Configure the certificate verification mode.
     pub fn with_certificate_verification_mode(
         &mut self,
@@ -52,11 +62,73 @@ impl<R, M> TlsConnectionBuilder<R, M> {
     ) -> &mut Self {
         let ctx = self.ptr();
         unsafe {
-            // Safety: `ctx` is still valid here, `mode` has a correct value by construction and
-            // `NULL` is a valid callback handle.
-            bssl_sys::SSL_set_custom_verify(ctx, mode as _, None);
+            // Safety: this method only updates the mode value.
+            bssl_sys::SSL_set_verify(ctx, mode as _, None);
         }
         self
+    }
+
+    /// Configure the certificate verifier.
+    ///
+    /// See [`VerifyCertificate`] for how to implement a custom verifier.
+    ///
+    /// If raw public key authentication, per [RFC 7250], is configured,
+    /// the authentication through this mechanism will **fail** unless a certificate verifier
+    /// is configured.
+    ///
+    /// [RFC 7250]: <https://datatracker.ietf.org/doc/html/rfc7250>
+    pub fn with_certificate_verifier<V>(
+        &mut self,
+        mode: CertificateVerificationMode,
+        verifier: V,
+    ) -> &mut Self
+    where
+        V: VerifyCertificate + 'static,
+    {
+        let ctx = self.ptr();
+        unsafe {
+            // Safety: we only install our own vtable.
+            bssl_sys::SSL_set_custom_verify(
+                ctx,
+                mode as _,
+                Some(cert_cb::<super::methods::RustConnectionMethods<M>>),
+            );
+        }
+        self.get_connection_methods().verify_certificate_methods = Some(Box::new(verifier) as _);
+        self
+    }
+
+    /// Remove custom certificate verifier.
+    pub fn without_certificate_verifier(&mut self, mode: CertificateVerificationMode) -> &mut Self {
+        let ctx = self.ptr();
+        unsafe {
+            // Safety: we only uninstall the vtable.
+            bssl_sys::SSL_set_custom_verify(ctx, mode as _, None);
+        }
+        self.get_connection_methods().verify_certificate_methods = None;
+        self
+    }
+}
+
+impl<M> TlsConnectionBuilder<Client, M>
+where
+    M: HasTlsConnectionMethod,
+{
+    /// Set the list of available client certificate types.
+    pub fn with_available_client_cert_types(
+        &mut self,
+        types: &[CertificateType],
+    ) -> Result<&mut Self, Error> {
+        let (ptr, len) = slice_into_ffi_raw_parts(types);
+        check_lib_error!(unsafe {
+            // Safety:
+            // - `self.ptr()` is a valid `SSL` handle.
+            // - `ptr` is a valid pointer to an array of `i32` representing certificate types.
+            // - `len` is the number of elements in the array.
+            // - The function copies the data, so the pointer only needs to be valid for the call.
+            bssl_sys::SSL_set1_available_client_cert_types(self.ptr(), ptr as *const _, len)
+        });
+        Ok(self)
     }
 }
 
@@ -254,5 +326,43 @@ impl<'a, R, M> EstablishedTlsConnection<'a, R, M> {
             )
         });
         Ok(())
+    }
+}
+
+impl<R, M> TlsConnection<R, M> {
+    /// Get the peer's [`CertificateType`].
+    pub fn get_peer_certificate_type(&self) -> Option<CertificateType> {
+        let ty = unsafe {
+            // Safety:
+            // - `self.ptr()` is a valid `SSL` handle.
+            bssl_sys::SSL_get_peer_cert_type(self.ptr())
+        };
+        ty.try_into().ok().and_then(|ty: u8| ty.try_into().ok())
+    }
+
+    /// Get the peer's raw public key as DER-encoded SubjectPublicKeyInfo.
+    pub fn get_peer_raw_public_key(&self) -> Option<Vec<u8>> {
+        let pkey = unsafe {
+            // Safety:
+            // - `self.ptr()` is a valid `SSL` handle.
+            // - `pkey` does not escape the current function frame.
+            bssl_sys::SSL_get0_peer_rpk(self.ptr())
+        };
+        if pkey.is_null() {
+            return None;
+        }
+
+        let buffer = bssl_crypto::cbb_to_buffer(64, |cbb| {
+            assert_eq!(
+                unsafe {
+                    // Safety:
+                    // - `cbb` is a valid pointer to `CBB` provided by `cbb_to_buffer`.
+                    // - `pkey` is a valid pointer to `EVP_PKEY`.
+                    bssl_sys::EVP_marshal_public_key(cbb, pkey)
+                },
+                1
+            );
+        });
+        Some(buffer.as_ref().to_vec())
     }
 }

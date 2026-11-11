@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Synchronous I/O adapters.
+
 use crate::io::stdio::PollFor;
 use crate::io::{AbstractReader, AbstractSocket, AbstractSocketResult, AbstractWriter};
 use std::{

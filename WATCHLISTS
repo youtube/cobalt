@@ -1226,6 +1226,13 @@
     'extension': {
       'filepath': 'extension',
     },
+    'feature_engagement': {
+      'filepath': 'components/feature_engagement/|' \
+                  'chrome/browser/feature_engagement|' \
+                  'chrome/browser/android/feature_engagement/|' \
+                  'tools/metrics/histograms/metadata/feature_engagement/|' \
+                  'tools/feature_engagement/',
+    },
     'feed': {
       'filepath': 'chrome/android/feed|' \
                   'chrome/browser/feed/|' \
@@ -1456,6 +1463,9 @@
       'filepath': 'ios/chrome/browser/about_flags\.(h|mm)|'\
                   'ios/chrome/browser/experimental_flags\.(h|mm)|'\
                   'ios/chrome/browser/resources/Settings.bundle/Experimental\.plist',
+    },
+    'ios_intelligence_actor': {
+      'filepath': 'ios/chrome/browser/intelligence/actor(?!/tools)'
     },
     'ios_intelligence_actor_tools': {
       'filepath': 'ios/chrome/browser/intelligence/actor/tools'
@@ -1919,13 +1929,6 @@
     },
     'plugin_metadata': {
       'filepath': 'chrome/browser/resources/plugin_metadata/'
-    },
-    'plus_addresses': {
-      'filepath': 'components/plus_addresses/'\
-                  '|chrome/browser/plus_addresses/'\
-                  '|chrome/browser/ui/plus_addresses/'\
-                  '|components/plus_addresses_strings_grdp/'\
-                  '|ios/chrome/browser/plus_addresses/'
     },
     'popup_blocker': {
       'filepath': 'chrome/browser/ui/blocked_content'
@@ -2601,9 +2604,9 @@
     'android_webapk': ['webapks-watchlist@chromium.org'],
     'android_webview': ['android-webview-reviews@chromium.org'],
     'android_webview_network_service': [],
-    'android_webview_stable_webexposed': ['ashleynewson+watch-webexposed@chromium.org',
+    'android_webview_stable_webexposed': ['ashleynewson+watch-webexposed-stable@chromium.org',
                                           'peter+watch-webexposed@chromium.org'],
-    'android_webview_webexposed': ['ashleynewson+watch-webexposed@chromium.org'],
+    'android_webview_webexposed': ['ashleynewson+watch-webexposed-unstable@chromium.org'],
     'app_service_protos': ['cros-reporting-team+watch@google.com',
                            'vshenvi+watch@google.com'],
     'app_shortcuts': ['loyso+watch@chromium.org',
@@ -3000,6 +3003,7 @@
                       'freedjm+watch@chromium.org'],
     'extension': ['chromium-apps-reviews@chromium.org',
                   'extensions-reviews@chromium.org'],
+    'feature_engagement': ['mschillaci@google.com'],
     'feed': ['harringtond+watch@chromium.org',
              'petewil+watch@chromium.org',
              'iwells+watch@chromium.org'],
@@ -3073,6 +3077,7 @@
     'ios_credential_provider': ['rkgibson+watch@chromium.org'],
     'ios_enterprise': ['eic+watch@google.com'],
     'ios_flags': ['noyau+watch@chromium.org'],
+    'ios_intelligence_actor': ['ios-actor-watchlist@google.com'],
     'ios_intelligence_actor_tools': ['bling-ai-foundations-reviews-external@google.com'],
     'ios_ntp': ['thegreenfrog+watch@chromium.org'],
     'ios_payments_autofill': ['slobodan+watch@chromium.org'],
@@ -3236,8 +3241,6 @@
                  'pushi+watch-phonehub@google.com'],
     'picture_in_picture': ['beaufort.francois+pip@gmail.com'],
     'plugin_metadata': ['wfh+watch@chromium.org'],
-    'plus_addresses': ['mreichhoff+watch-plus_addresses@chromium.org',
-             'jkeitel+watch-plus_addresses@google.com'],
     'popup_blocker': ['csharrison+watch-popups@chromium.org'],
     'precache': ['wifiprefetch-reviews@google.com'],
     'prefetch_proxy': ['marcinjb+p4watch@google.com',

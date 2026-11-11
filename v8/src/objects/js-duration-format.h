@@ -190,11 +190,6 @@ V8_OBJECT class JSDurationFormat : public JSObject {
   DECL_PRINTER(JSDurationFormat)
   DECL_VERIFIER(JSDurationFormat)
 
-  // Back-compat offset/size constants.
-  static const int kStyleFlagsOffset;
-  static const int kDisplayFlagsOffset;
-  static const int kIcuLocaleOffset;
-  static const int kIcuNumberFormatterOffset;
   static const int kHeaderSize;
 
  public:
@@ -204,14 +199,6 @@ V8_OBJECT class JSDurationFormat : public JSObject {
   TaggedMember<Foreign> icu_number_formatter_;
 } V8_OBJECT_END;
 
-inline constexpr int JSDurationFormat::kStyleFlagsOffset =
-    offsetof(JSDurationFormat, style_flags_);
-inline constexpr int JSDurationFormat::kDisplayFlagsOffset =
-    offsetof(JSDurationFormat, display_flags_);
-inline constexpr int JSDurationFormat::kIcuLocaleOffset =
-    offsetof(JSDurationFormat, icu_locale_);
-inline constexpr int JSDurationFormat::kIcuNumberFormatterOffset =
-    offsetof(JSDurationFormat, icu_number_formatter_);
 inline constexpr int JSDurationFormat::kHeaderSize = sizeof(JSDurationFormat);
 
 }  // namespace internal

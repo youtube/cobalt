@@ -17,12 +17,14 @@
 #import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/identity_manager/primary_account_change_event.h"
 #import "ios/chrome/browser/favicon/model/favicon_service_factory.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_configuration.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_tab_helper.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_extractor_java_script_feature.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_service.h"
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_service_factory.h"
+#import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/model/browser/browser_list.h"
 #import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
@@ -75,7 +77,8 @@ class GeminiBrowserAgentTest : public PlatformTest {
         ->ConfigureFeatures(
             {web::FindInPageJavaScriptFeature::GetInstance(),
              PageContextExtractorJavaScriptFeature::GetInstance()});
-    browser_ = std::make_unique<TestBrowser>(profile_);
+    SceneState* scene_state = [[SceneState alloc] initWithAppState:nil];
+    browser_ = std::make_unique<TestBrowser>(profile_, scene_state);
     GeminiBrowserAgent::CreateForBrowser(browser_.get());
     gemini_browser_agent_ = GeminiBrowserAgent::FromBrowser(browser_.get());
 
@@ -188,8 +191,17 @@ class GeminiBrowserAgentTest : public PlatformTest {
   }
 
   // Setter for `floaty_hidden_timestamp_`.
+  // Wrapper for `InvokeFloaty`.
+  void InvokeFloaty(GeminiConfiguration* config) {
+    gemini_browser_agent_->InvokeFloaty(config);
+  }
   void SetFloatyHiddenTimestamp(base::TimeTicks timestamp) {
     gemini_browser_agent_->floaty_hidden_timestamp_ = timestamp;
+  }
+
+  // Triggers `UpdateGeminiPageContext()` in the browser agent.
+  void UpdateGeminiPageContext() {
+    gemini_browser_agent_->UpdateGeminiPageContext();
   }
 
   base::test::ScopedFeatureList feature_list_;
@@ -209,9 +221,45 @@ class GeminiBrowserAgentTest : public PlatformTest {
   FakeSnapshotGeneratorDelegate* fake_snapshot_delegate_;
 };
 
+// A test observer for GeminiBrowserAgent.
+class TestGeminiObserver : public GeminiBrowserAgent::Observer {
+ public:
+  void OnFloatyInvokedChanged(bool is_invoked) override {
+    is_invoked_ = is_invoked;
+    call_count_++;
+  }
+  void OnGeminiAvailabilityChanged(bool available) override {
+    available_ = available;
+    availability_call_count_++;
+  }
+  bool is_invoked_ = false;
+  int call_count_ = 0;
+  bool available_ = false;
+  int availability_call_count_ = 0;
+};
+
 // Tests that the GeminiBrowserAgent can be instantiated.
 TEST_F(GeminiBrowserAgentTest, TestGeminiBrowserAgentInstantiation) {
   EXPECT_NE(nullptr, gemini_browser_agent_);
+}
+
+// Tests that observers are notified when the floaty invocation state changes.
+TEST_F(GeminiBrowserAgentTest, TestObserverNotification) {
+  TestGeminiObserver observer;
+  gemini_browser_agent_->AddObserver(&observer);
+
+  // Set invoked.
+  SetIsFloatyInvoked(false);
+  InvokeFloaty([[GeminiConfiguration alloc] init]);
+  EXPECT_TRUE(observer.is_invoked_);
+  EXPECT_EQ(1, observer.call_count_);
+
+  // Dismiss.
+  gemini_browser_agent_->DismissFloaty();
+  EXPECT_FALSE(observer.is_invoked_);
+  EXPECT_EQ(2, observer.call_count_);
+
+  gemini_browser_agent_->RemoveObserver(&observer);
 }
 
 // Tests the presentation of the BWG overlay and state of tab helper side
@@ -311,8 +359,8 @@ TEST_F(GeminiBrowserAgentTest, TestActiveWebStateChanged) {
   EXPECT_TRUE(helper2->HasObserver(agent));
 }
 
-// Tests that OnGeminiViewStateExpanded triggers page context generation.
-TEST_F(GeminiBrowserAgentTest, TestOnGeminiViewStateExpanded) {
+// Tests that UpdateGeminiPageContext triggers page context generation.
+TEST_F(GeminiBrowserAgentTest, TestUpdateGeminiPageContext) {
   // Set a valid URL.
   web_state_->SetCurrentURL(GURL("https://example.com"));
   web_state_->SetContentsMimeType("text/html");
@@ -343,7 +391,7 @@ TEST_F(GeminiBrowserAgentTest, TestOnGeminiViewStateExpanded) {
   // Ensure the WebState is visible so PageContextWrapper attempts a snapshot.
   web_state_->WasShown();
 
-  gemini_browser_agent_->OnGeminiViewStateExpanded();
+  UpdateGeminiPageContext();
 
   // Wait for the delegate method to be called.
   ASSERT_TRUE(
@@ -640,4 +688,102 @@ TEST_F(GeminiBrowserAgentTest, TestForceDismissedWhenTemporarilyHidden) {
   EXPECT_FALSE(IsFloatyInvoked());
   EXPECT_FALSE(IsFloatyTemporarilyHidden());
   EXPECT_TRUE(IsConversationIdPrefCleared());
+}
+
+// Tests that when the floaty is expanded/focused while temporarily hidden,
+// it becomes visible again, resetting the temporary hidden state.
+TEST_F(GeminiBrowserAgentTest,
+       TestFloatyVisibleWhenExpandedWhileTemporarilyHidden) {
+  SetIsFloatyInvoked(true);
+  SetIsFloatyTemporarilyHidden(true);
+
+  EXPECT_TRUE(IsFloatyTemporarilyHidden());
+
+  // Simulate view state changing to expanded.
+  gemini_browser_agent_->OnViewStateChanged(
+      ios::provider::GeminiViewState::kExpanded);
+
+  EXPECT_FALSE(IsFloatyTemporarilyHidden());
+}
+
+// Tests that the view mode switches to text/floaty mode on backgrounding if the
+// current mode is live.
+TEST_F(GeminiBrowserAgentTest, TestSwitchToTextModeOnBackgroundingIfLive) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures({kGeminiLive}, {});
+
+  SetIsFloatyInvoked(true);
+
+  // Set the current mode to Live.
+  ios::provider::SwitchToMode(ios::provider::GeminiViewMode::kLive,
+                              /*animated=*/false);
+  EXPECT_EQ(ios::provider::GetCurrentMode(),
+            ios::provider::GeminiViewMode::kLive);
+
+  // Simulate app backgrounding via SceneState activation level callback.
+  gemini_browser_agent_->OnSceneActivationLevelChanged(
+      SceneActivationLevelBackground);
+
+  // Verify it switched to Floaty (text mode).
+  EXPECT_EQ(ios::provider::GetCurrentMode(),
+            ios::provider::GeminiViewMode::kFloaty);
+}
+
+// Tests that the view mode does not change on backgrounding if it is not
+// currently in live mode.
+TEST_F(GeminiBrowserAgentTest, TestNoSwitchOnBackgroundingIfNotLive) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures({kGeminiLive}, {});
+
+  SetIsFloatyInvoked(true);
+
+  // Set the current mode to Floaty (text mode).
+  ios::provider::SwitchToMode(ios::provider::GeminiViewMode::kFloaty,
+                              /*animated=*/false);
+  EXPECT_EQ(ios::provider::GetCurrentMode(),
+            ios::provider::GeminiViewMode::kFloaty);
+
+  // Simulate app backgrounding via SceneState activation level callback.
+  gemini_browser_agent_->OnSceneActivationLevelChanged(
+      SceneActivationLevelBackground);
+
+  // Verify it remained Floaty (text mode).
+  EXPECT_EQ(ios::provider::GetCurrentMode(),
+            ios::provider::GeminiViewMode::kFloaty);
+}
+
+// Tests that OnGeminiAvailabilityChanged is called when Gemini availability
+// changes.
+TEST_F(GeminiBrowserAgentTest, TestOnGeminiAvailabilityChanged) {
+  TestGeminiObserver observer;
+  gemini_browser_agent_->AddObserver(&observer);
+
+  // Add active WebState with GeminiTabHelper.
+  auto web_state = std::make_unique<web::FakeWebState>();
+  web_state->SetBrowserState(profile_);
+  GeminiTabHelper::CreateForWebState(web_state.get());
+  WebViewProxyTabHelper::CreateForWebState(web_state.get());
+  web_state->SetCurrentURL(GURL("https://example.com"));
+  web_state->SetContentsMimeType("text/html");
+
+  // Insert and activate the web state to trigger active web state change.
+  browser_->GetWebStateList()->InsertWebState(
+      std::move(web_state),
+      WebStateList::InsertionParams::Automatic().Activate(true));
+
+  // The observer should have been notified of availability.
+  EXPECT_TRUE(observer.available_);
+  EXPECT_GE(observer.availability_call_count_, 1);
+
+  // Navigate to an ineligible site.
+  web_state_ = static_cast<web::FakeWebState*>(
+      browser_->GetWebStateList()->GetActiveWebState());
+  web_state_->SetCurrentURL(GURL("chrome://settings"));
+
+  // Manually trigger page context updated to simulate navigation finishing.
+  gemini_browser_agent_->OnPageContextUpdated(web_state_);
+
+  EXPECT_FALSE(observer.available_);
+
+  gemini_browser_agent_->RemoveObserver(&observer);
 }

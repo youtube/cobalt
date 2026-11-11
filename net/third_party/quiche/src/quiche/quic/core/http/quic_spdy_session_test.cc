@@ -242,9 +242,6 @@ class TestStream : public QuicSpdyStream {
   TestStream(QuicStreamId id, QuicSpdySession* session, StreamType type)
       : QuicSpdyStream(id, session, type) {}
 
-  TestStream(PendingStream& pending, QuicSpdySession* session)
-      : QuicSpdyStream(pending, session) {}
-
   using QuicStream::CloseWriteSide;
 
   void OnBodyAvailable() override {}
@@ -311,12 +308,6 @@ class TestSession : public QuicSpdySession {
       ActivateStream(absl::WrapUnique(stream));
       return stream;
     }
-  }
-
-  TestStream* CreateIncomingStream(PendingStream* pending) override {
-    TestStream* stream = new TestStream(*pending, this);
-    ActivateStream(absl::WrapUnique(stream));
-    return stream;
   }
 
   bool ShouldCreateIncomingStream(QuicStreamId /*id*/) override { return true; }

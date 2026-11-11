@@ -254,6 +254,9 @@ PositionForExplainGeminiEditMenu ExplainGeminiEditMenuPosition() {
   if (param == 2) {
     return PositionForExplainGeminiEditMenu::kAfterSearch;
   }
+  if (param == 3) {
+    return PositionForExplainGeminiEditMenu::kAdjacent;
+  }
   return PositionForExplainGeminiEditMenu::kDisabled;
 }
 
@@ -428,7 +431,7 @@ bool IsGeminiUpdatedEligibilityEnabled() {
   return base::FeatureList::IsEnabled(kGeminiUpdatedEligibility);
 }
 
-BASE_FEATURE(kGeminiImageRemixTool, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGeminiImageRemixTool, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsGeminiImageRemixToolEnabled() {
   if (!IsPageActionMenuEnabled()) {
@@ -444,7 +447,7 @@ bool IsGeminiImageRemixToolShowFRERowEnabled() {
     return false;
   }
   return base::GetFieldTrialParamByFeatureAsBool(
-      kGeminiImageRemixTool, kGeminiImageRemixToolShowFRERow, false);
+      kGeminiImageRemixTool, kGeminiImageRemixToolShowFRERow, true);
 }
 
 const char kGeminiImageRemixToolShowAboveSearchImage[] = "ShowAboveSearchImage";
@@ -474,7 +477,7 @@ bool IsGeminiImageRemixToolRemovePageContextEnabled() {
     return false;
   }
   return base::GetFieldTrialParamByFeatureAsBool(
-      kGeminiImageRemixTool, kGeminiImageRemixToolRemovePageContext, false);
+      kGeminiImageRemixTool, kGeminiImageRemixToolRemovePageContext, true);
 }
 
 BASE_FEATURE(kGeminiEligibilityAblation, base::FEATURE_DISABLED_BY_DEFAULT);

@@ -21,13 +21,13 @@ class StructBodyDescriptor;
 // An abstract superclass, a marker class really, for simple structure classes.
 // It doesn't carry any functionality but allows struct classes to be
 // identified in the type system.
-V8_OBJECT class Struct : public HeapObjectLayout {
+V8_OBJECT class Struct : public HeapObject {
  public:
   void BriefPrintDetails(std::ostream& os);
 
   using BodyDescriptor = StructBodyDescriptor;
 } V8_OBJECT_END;
-static_assert(sizeof(Struct) == sizeof(HeapObjectLayout));
+static_assert(sizeof(Struct) == sizeof(HeapObject));
 
 V8_OBJECT class Tuple2 : public Struct {
  public:

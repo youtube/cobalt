@@ -25,11 +25,18 @@ use core::{
         c_int, //
     },
     fmt::Debug,
+    future::Future,
+    iter::FusedIterator,
     marker::PhantomData,
     mem::forget,
+    pin::Pin,
     ptr::{
         NonNull,
         null_mut, //
+    },
+    task::{
+        Context,
+        Poll, //
     }, //
 };
 
@@ -39,8 +46,13 @@ use bssl_x509::{
 };
 
 use crate::{
+    VerifyCertificateMethods,
+    abort_on_panic,
+    alerts::AlertDescription,
+    call_slice_getter,
     check_lib_error,
     config::ConfigurationError,
+    connection::methods::{verify_cert_task_from_ssl, waker_data_from_ssl},
     context::CertificateCache,
     crypto_buffer_wrapper,
     errors::{
@@ -64,9 +76,13 @@ pub struct TlsCredentialBuilder<Mode>(NonNull<bssl_sys::SSL_CREDENTIAL>, Phantom
 /// X.509 credential
 pub enum X509Mode {}
 
+/// Raw Public Key credential
+pub enum RawPublicKeyMode {}
+
 pub(crate) trait NeedsPrivateKey {}
 
 impl NeedsPrivateKey for X509Mode {}
+impl NeedsPrivateKey for RawPublicKeyMode {}
 
 // Safety: At this type state, the credential handle is exclusively owned.
 unsafe impl<M> Send for TlsCredentialBuilder<M> {}
@@ -109,6 +125,27 @@ impl TlsCredentialBuilder<X509Mode> {
             NonNull::new(unsafe {
                 // Safety: this call has no side-effect other than allocation.
                 bssl_sys::SSL_CREDENTIAL_new_x509()
+            })
+            .expect("allocation failure"),
+            PhantomData,
+        );
+        this.set_ex_data()
+    }
+}
+
+impl TlsCredentialBuilder<RawPublicKeyMode> {
+    /// Construct raw public key credential instance.
+    ///
+    /// TLS connection may use this credential to perform authentication per [RFC 7250].
+    ///
+    /// [RFC 7250]: <https://tools.ietf.org/html/rfc7250>
+    pub fn new_raw_public_key(mut key: PrivateKey) -> Self {
+        let this = Self(
+            NonNull::new(unsafe {
+                // Safety:
+                // - the `PrivateKey` type already contains both public and private key parts.
+                // - the constructor call also claims the ownership of the key.
+                bssl_sys::SSL_CREDENTIAL_new_raw_public_key(key.as_mut_ptr())
             })
             .expect("allocation failure"),
             PhantomData,
@@ -514,6 +551,322 @@ bssl_macros::bssl_enum! {
         Mldsa65 = bssl_sys::SSL_SIGN_ML_DSA_65 as u16,
         /// IANA entry `ML-DSA-87`
         Mldsa87 = bssl_sys::SSL_SIGN_ML_DSA_87 as u16,
+    }
+}
+
+// NOTE: this context does not own the connection.
+/// A verification context handle.
+#[repr(transparent)]
+pub struct VerifyCertificateContext(NonNull<bssl_sys::SSL>);
+
+impl VerifyCertificateContext {
+    fn ptr(&self) -> *mut bssl_sys::SSL {
+        self.0.as_ptr()
+    }
+
+    /// Get Encrypted `ClientHello` name override, specifically a DNS name per
+    /// [RFC 5280], which a character set stipulated by [RFC 1034] §3.5.
+    ///
+    /// The returned name should be interpreted first as an opaque byte string.
+    ///
+    /// # Interaction with custom certificate verification
+    ///
+    /// If the return value is [`Some`], the end-entity certificate must be
+    /// verified against the name reported by this call.
+    ///
+    /// [RFC 5280]: <https://datatracker.ietf.org/doc/html/rfc5280>
+    /// [RFC 1034]: <https://datatracker.ietf.org/doc/html/rfc1034#section-3.5>
+    pub fn get_ech_name_override(&self) -> Option<&str> {
+        let name: &[u8] = unsafe {
+            // Safety:
+            // - `self` outlives the slice.
+            // - transmuting i8 to u8 preserve the character value.
+            core::mem::transmute(call_slice_getter!(
+                bssl_sys::SSL_get0_ech_name_override,
+                self.ptr()
+            )?)
+        };
+        if name.is_empty() || !name.is_ascii() {
+            return None;
+        }
+        // A DNS name has to be an IA5String, specifically ASCII first.
+        str::from_utf8(name).ok()
+    }
+
+    /// Get the stapled OCSP response, if any.
+    ///
+    /// The response may not be a valid OCSPResponse from the server as per
+    /// [RFC 2560].
+    ///
+    /// [RFC 2560]: <https://datatracker.ietf.org/doc/html/rfc6960>
+    pub fn get_ocsp_response(&self) -> Option<&[u8]> {
+        // Safety: response, when it exists, is outlived by the connection.
+        let response = call_slice_getter!(bssl_sys::SSL_get0_ocsp_response, self.ptr())?;
+        (!response.is_empty()).then_some(response)
+    }
+
+    /// Get the Signed Certificate Timestamp list, if any, as per [RFC 6962] §3.2.
+    ///
+    /// [RFC 6962]: <https://datatracker.ietf.org/doc/html/rfc6962#section-3.2>
+    pub fn get_signed_cert_timestamp_list(&self) -> Option<&[u8]> {
+        // Safety: list, when it exists, is outlived by the connection.
+        let list = call_slice_getter!(bssl_sys::SSL_get0_signed_cert_timestamp_list, self.ptr())?;
+        (!list.is_empty()).then_some(list)
+    }
+}
+
+/// Custom certificate verification callback.
+///
+/// It is recommended to avoid panicking in the trait implementation.
+/// A panic in this callback will lead to abort.
+pub trait VerifyCertificate: Send + Sync {
+    /// Decide whether a certificate chain is acceptable.
+    ///
+    /// The peer certificate chain is supplied in `certs`, in which the first certificate is
+    /// the End Entity certificate, if any.
+    ///
+    /// This method may be called more than once if the verification is asynchronous.
+    /// To signal suspension, this method should return [`VerifyResult::Pending`].
+    fn verify<'a>(
+        &self,
+        ctx: &'a VerifyCertificateContext,
+        certs: CertificateChainIterator<'a>,
+    ) -> Box<dyn VerifyCertificateTask>;
+}
+
+/// An outstanding certificate verification task.
+pub trait VerifyCertificateTask: Send {
+    /// Try to complete the verification task.
+    fn complete(&mut self, async_ctx: Option<&mut Context<'_>>) -> VerifyResult;
+}
+
+/// Custom certificate verification result.
+pub enum VerifyResult {
+    /// The certificate chain is accepted.
+    Accept,
+    /// The certification chain is pending asynchronous result.
+    Pending,
+    /// The certificate chain is rejected possibly with an alert.
+    Reject(Option<AlertDescription>),
+}
+
+/// Asynchronous custom certificate verification.
+///
+/// This is the `async` analogue of [`VerifyCertificate`].
+pub trait AsyncVerifyCertificate: Send + Sync + Unpin {
+    /// The future type of the verification process.
+    type VerifyFuture: 'static + Unpin + Send + Sync + Future<Output = bool>;
+
+    /// Decide whether a certificate chain is acceptable.
+    fn verify(
+        &self,
+        ctx: &VerifyCertificateContext,
+        certs: CertificateChainIterator<'_>,
+    ) -> Self::VerifyFuture;
+}
+
+/// Adapter to run certificate verification asynchronously.
+pub struct AsyncVerifyCertificateAdapter<T>(pub T);
+
+impl<T, Fut> VerifyCertificate for AsyncVerifyCertificateAdapter<T>
+where
+    T: AsyncVerifyCertificate<VerifyFuture = Fut>,
+    Fut: 'static + Unpin + Send + Sync + Future<Output = bool>,
+{
+    fn verify<'a>(
+        &self,
+        ctx: &'a VerifyCertificateContext,
+        certs: CertificateChainIterator<'a>,
+    ) -> Box<dyn VerifyCertificateTask> {
+        Box::new(AsyncVerifyCertificateTask(self.0.verify(ctx, certs)))
+    }
+}
+
+struct AsyncVerifyCertificateTask<Fut>(Fut);
+
+impl<Fut> VerifyCertificateTask for AsyncVerifyCertificateTask<Fut>
+where
+    Fut: 'static + Unpin + Send + Sync + Future<Output = bool>,
+{
+    fn complete(&mut self, async_ctx: Option<&mut Context<'_>>) -> VerifyResult {
+        let Some(cx) = async_ctx else {
+            return VerifyResult::Reject(Some(AlertDescription::InternalError));
+        };
+        let outstanding_task = Pin::new(&mut self.0);
+        match outstanding_task.poll(cx) {
+            Poll::Ready(accept) => {
+                if accept {
+                    VerifyResult::Accept
+                } else {
+                    VerifyResult::Reject(Some(AlertDescription::BadCertificate))
+                }
+            }
+            Poll::Pending => VerifyResult::Pending,
+        }
+    }
+}
+
+/// Certificate chain iterator.
+///
+/// This iterator will supply the peer leaf certificate as the first element in the chain, if any.
+#[derive(Clone, Copy)]
+pub struct CertificateChainIterator<'a> {
+    certs: *const bssl_sys::stack_st_CRYPTO_BUFFER,
+    len: usize,
+    curr: usize,
+    _p: PhantomData<&'a ()>,
+}
+
+impl<'a> CertificateChainIterator<'a> {
+    /// Safety: caller must ensure that `certs` is outlived by,
+    /// or in other words stays alive as long as, `'a`.
+    pub(crate) unsafe fn new(certs: *const bssl_sys::stack_st_CRYPTO_BUFFER) -> Self {
+        let len = if certs.is_null() {
+            0
+        } else {
+            unsafe {
+                // Safety: `certs` is valid now.
+                bssl_sys::sk_CRYPTO_BUFFER_num(certs)
+            }
+        };
+        Self {
+            certs,
+            len,
+            curr: 0,
+            _p: PhantomData,
+        }
+    }
+}
+
+impl<'a> Iterator for CertificateChainIterator<'a> {
+    type Item = Certificate;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.curr >= self.len {
+            return None;
+        }
+        let cert = unsafe {
+            // Safety: `self.certs` is still valid now and `self.curr` is within the bound.
+            bssl_sys::sk_CRYPTO_BUFFER_value(self.certs, self.curr)
+        };
+        self.curr += 1;
+        let Some(cert) = NonNull::new(cert) else {
+            // Fuse the iterator.
+            self.curr = self.len;
+            return None;
+        };
+        unsafe {
+            // Safety: `cert` is valid here.
+            bssl_sys::CRYPTO_BUFFER_up_ref(cert.as_ptr());
+        }
+        Some(Certificate(cert))
+    }
+}
+
+impl ExactSizeIterator for CertificateChainIterator<'_> {
+    fn len(&self) -> usize {
+        self.len
+    }
+}
+
+impl FusedIterator for CertificateChainIterator<'_> {}
+
+/// Safety: this callback stub must be installed with a context object allocated
+/// as a `Box<dyn VerifyCertificate>`.
+pub(crate) unsafe extern "C" fn cert_cb<M: VerifyCertificateMethods>(
+    ssl: *mut bssl_sys::SSL,
+    alert: *mut u8,
+) -> bssl_sys::ssl_verify_result_t {
+    let Some(ssl) = NonNull::new(ssl) else {
+        return bssl_sys::ssl_verify_result_t_ssl_verify_invalid;
+    };
+    let Some(methods) = (unsafe {
+        // Safety: `ssl` outlives `methods`
+        M::from_ssl(ssl.as_ptr())
+    }) else {
+        return bssl_sys::ssl_verify_result_t_ssl_verify_invalid;
+    };
+    let waker = unsafe {
+        // Safety:
+        // - this callback must be installed by `TlsContextBuilder` or `TlsConnection`,
+        //   so the associated data must have been set up correctly.
+        // - the caller of this callback must own the connection exclusively.
+        waker_data_from_ssl(ssl)
+    };
+    let mut context = waker.as_ref().map(Context::from_waker);
+    let Some(verify) = methods.verify_certificate_methods() else {
+        return bssl_sys::ssl_verify_result_t_ssl_verify_invalid;
+    };
+    let cert_chain = unsafe {
+        // Safety: `ssl` is still alive in handshake mode and will outlive `cert_chain`.
+        bssl_sys::SSL_get0_peer_certificates(ssl.as_ptr())
+    };
+    let certs = unsafe {
+        // Safety: `cert_chain` is outlived by `ssl` whose lifetime is annotated as `'a`.
+        CertificateChainIterator::new(cert_chain)
+    };
+    let ctx = &VerifyCertificateContext(ssl);
+    let async_ctx = context.as_mut();
+
+    let outstanding_task = unsafe {
+        // Safety: `ssl` outlives the in-flight task and exclusively owned by the caller of
+        // this callback.
+        verify_cert_task_from_ssl(ssl)
+    };
+
+    abort_on_panic(move || {
+        if let Some(task) = outstanding_task {
+            match task.complete(async_ctx) {
+                VerifyResult::Pending => bssl_sys::ssl_verify_result_t_ssl_verify_retry,
+                VerifyResult::Accept => {
+                    let _ = outstanding_task.take();
+                    bssl_sys::ssl_verify_result_t_ssl_verify_ok
+                }
+                VerifyResult::Reject(ad) => {
+                    let _ = outstanding_task.take();
+                    if let Some(ad) = ad {
+                        unsafe {
+                            // Safety: `alert` is valid per BoringSSL invariants.
+                            alert.write(ad as _);
+                        }
+                    }
+                    bssl_sys::ssl_verify_result_t_ssl_verify_invalid
+                }
+            }
+        } else {
+            let mut task = verify.verify(ctx, certs);
+            match task.complete(async_ctx) {
+                VerifyResult::Pending => {
+                    *outstanding_task = Some(task);
+                    bssl_sys::ssl_verify_result_t_ssl_verify_retry
+                }
+                VerifyResult::Accept => bssl_sys::ssl_verify_result_t_ssl_verify_ok,
+                VerifyResult::Reject(ad) => {
+                    if let Some(ad) = ad {
+                        unsafe {
+                            // Safety: `alert` is valid per BoringSSL invariants.
+                            alert.write(ad as _);
+                        }
+                    }
+                    bssl_sys::ssl_verify_result_t_ssl_verify_invalid
+                }
+            }
+        }
+    })
+}
+
+bssl_macros::bssl_enum! {
+    /// [IANA] designation of TLS certificate types.
+    ///
+    /// [IANA]: https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#tls-extensiontype-values-3
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+    pub enum CertificateType: u8 {
+        /// X.509 certificate type.
+        X509 = bssl_sys::TLSEXT_cert_type_x509 as u8,
+        /// Raw Public Key certificate type per [RFC 7250].
+        ///
+        /// [RFC 7250]: https://datatracker.ietf.org/doc/html/rfc7250
+        Rpk = bssl_sys::TLSEXT_cert_type_rpk as u8,
     }
 }
 

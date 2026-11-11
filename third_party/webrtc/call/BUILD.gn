@@ -998,6 +998,9 @@ if (rtc_include_tests) {
       "../api:rtc_error",
       "../api:rtp_parameters",
       "../media:codec",
+      "../rtc_base:checks",
+      "../rtc_base/containers:flat_map",
+      "//third_party/abseil-cpp/absl/strings",
       "//third_party/abseil-cpp/absl/strings:string_view",
     ]
   }

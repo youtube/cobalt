@@ -1913,8 +1913,8 @@ template void RunF32x8ConvertI32x8RevecTest<uint32_t>(WasmOpcode);
 template void RunF32x8ConvertI32x8RevecTest<int32_t>(WasmOpcode);
 
 template <typename NarrowIntType, typename WideIntType>
-void RunIntSignExtensionRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
-                                  WasmOpcode splat_op) {
+void RunIntExtensionRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
+                              WasmOpcode splat_op) {
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;
   WasmRunner<int32_t, int32_t> r(TestExecutionTier::kTurbofan);
@@ -1952,24 +1952,21 @@ void RunIntSignExtensionRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
 }
 
 // Explicit instantiations of uses.
-template void RunIntSignExtensionRevecTest<int16_t, int32_t>(WasmOpcode,
-                                                             WasmOpcode,
-                                                             WasmOpcode);
-template void RunIntSignExtensionRevecTest<uint16_t, uint32_t>(WasmOpcode,
-                                                               WasmOpcode,
-                                                               WasmOpcode);
-template void RunIntSignExtensionRevecTest<int32_t, int64_t>(WasmOpcode,
-                                                             WasmOpcode,
-                                                             WasmOpcode);
-template void RunIntSignExtensionRevecTest<uint32_t, uint64_t>(WasmOpcode,
-                                                               WasmOpcode,
-                                                               WasmOpcode);
-template void RunIntSignExtensionRevecTest<int8_t, int16_t>(WasmOpcode,
-                                                            WasmOpcode,
-                                                            WasmOpcode);
-template void RunIntSignExtensionRevecTest<uint8_t, uint16_t>(WasmOpcode,
-                                                              WasmOpcode,
-                                                              WasmOpcode);
+template void RunIntExtensionRevecTest<int16_t, int32_t>(WasmOpcode, WasmOpcode,
+                                                         WasmOpcode);
+template void RunIntExtensionRevecTest<uint16_t, uint32_t>(WasmOpcode,
+                                                           WasmOpcode,
+                                                           WasmOpcode);
+template void RunIntExtensionRevecTest<int32_t, int64_t>(WasmOpcode, WasmOpcode,
+                                                         WasmOpcode);
+template void RunIntExtensionRevecTest<uint32_t, uint64_t>(WasmOpcode,
+                                                           WasmOpcode,
+                                                           WasmOpcode);
+template void RunIntExtensionRevecTest<int8_t, int16_t>(WasmOpcode, WasmOpcode,
+                                                        WasmOpcode);
+template void RunIntExtensionRevecTest<uint8_t, uint16_t>(WasmOpcode,
+                                                          WasmOpcode,
+                                                          WasmOpcode);
 
 template <typename S, typename T>
 void RunIntToIntNarrowingRevecTest(WasmOpcode opcode) {

@@ -25,28 +25,13 @@ bool IsTaggedIndex(Tagged<Object> obj) {
          TaggedIndex::IsValid(Tagged<TaggedIndex>(obj.ptr()).value());
 }
 
-#define IS_TYPE_FUNCTION_DEF(type_)                               \
-  bool Is##type_(Tagged<Object> obj) {                            \
-    Tagged<HeapObject> ho;                                        \
-    return TryCast<HeapObject>(obj, &ho) && Is##type_(ho);        \
-  }                                                               \
-  bool Is##type_(Tagged<Object> obj, PtrComprCageBase) {          \
-    Tagged<HeapObject> ho;                                        \
-    return TryCast<HeapObject>(obj, &ho) && Is##type_(ho);        \
-  }                                                               \
-  bool Is##type_(HeapObject obj) {                                \
-    static_assert(kTaggedCanConvertToRawObjects);                 \
-    return Is##type_(Tagged<HeapObject>(obj));                    \
-  }                                                               \
-  bool Is##type_(HeapObject obj, PtrComprCageBase) {              \
-    static_assert(kTaggedCanConvertToRawObjects);                 \
-    return Is##type_(Tagged<HeapObject>(obj));                    \
-  }                                                               \
-  bool Is##type_(const HeapObjectLayout* obj) {                   \
-    return Is##type_(Tagged<HeapObject>(obj));                    \
-  }                                                               \
-  bool Is##type_(const HeapObjectLayout* obj, PtrComprCageBase) { \
-    return Is##type_(Tagged<HeapObject>(obj));                    \
+#define IS_TYPE_FUNCTION_DEF(type_)                        \
+  inline bool Is##type_(Tagged<Object> obj) {              \
+    Tagged<HeapObject> ho;                                 \
+    return TryCast<HeapObject>(obj, &ho) && Is##type_(ho); \
+  }                                                        \
+  inline bool Is##type_(const HeapObject* obj) {           \
+    return Is##type_(Tagged<HeapObject>(obj));             \
   }
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
 IS_TYPE_FUNCTION_DEF(HashTableBase)
@@ -55,22 +40,22 @@ IS_TYPE_FUNCTION_DEF(PropertyDictionary)
 IS_TYPE_FUNCTION_DEF(AnyHole)
 #undef IS_TYPE_FUNCTION_DEF
 
-#define IS_TYPE_FUNCTION_DEF(Type, ...)                                      \
-  bool Is##Type(Tagged<Object> obj, Isolate*) { return Is##Type(obj); }      \
-  bool Is##Type(Tagged<Object> obj, LocalIsolate*) { return Is##Type(obj); } \
-  bool Is##Type(Tagged<Object> obj, ReadOnlyRoots) { return Is##Type(obj); } \
-  bool Is##Type(Tagged<HeapObject> obj) {                                    \
-    return Is##Type(Tagged<Object>(obj));                                    \
-  }                                                                          \
-  bool Is##Type(HeapObject obj) {                                            \
-    static_assert(kTaggedCanConvertToRawObjects);                            \
-    return Is##Type(Tagged<Object>(obj));                                    \
-  }                                                                          \
-  bool Is##Type(const HeapObjectLayout* obj, Isolate*) {                     \
-    return Is##Type(Tagged<Object>(obj));                                    \
-  }                                                                          \
-  bool Is##Type(const HeapObjectLayout* obj) {                               \
-    return Is##Type(Tagged<Object>(obj));                                    \
+#define IS_TYPE_FUNCTION_DEF(Type, ...)                                        \
+  inline bool Is##Type(Tagged<Object> obj, Isolate*) { return Is##Type(obj); } \
+  inline bool Is##Type(Tagged<Object> obj, LocalIsolate*) {                    \
+    return Is##Type(obj);                                                      \
+  }                                                                            \
+  inline bool Is##Type(Tagged<Object> obj, ReadOnlyRoots) {                    \
+    return Is##Type(obj);                                                      \
+  }                                                                            \
+  inline bool Is##Type(Tagged<HeapObject> obj) {                               \
+    return Is##Type(Tagged<Object>(obj));                                      \
+  }                                                                            \
+  inline bool Is##Type(const HeapObject* obj, Isolate*) {                      \
+    return Is##Type(Tagged<Object>(obj));                                      \
+  }                                                                            \
+  inline bool Is##Type(const HeapObject* obj) {                                \
+    return Is##Type(Tagged<Object>(obj));                                      \
   }
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 HOLE_LIST(IS_TYPE_FUNCTION_DEF)
@@ -135,11 +120,6 @@ bool IsAnyHole(Tagged<HeapObject> obj) {
   return false;
 }
 
-bool IsAnyHole(Tagged<HeapObject> obj, PtrComprCageBase) {
-  return IsAnyHole(obj);
-}
-
-
 bool IsNullOrUndefined(Tagged<Object> obj, Isolate*) {
   return IsNullOrUndefined(obj);
 }
@@ -194,7 +174,7 @@ bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
 }
 
 bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
-  return IsJSObject(obj) && !HeapLayout::InWritableSharedSpace(*obj);
+  return IsJSObject(obj) && !HeapLayout::InWritableSharedSpace(obj);
 }
 
 bool IsAnyObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
@@ -204,30 +184,18 @@ bool IsAnyObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
 
 bool IsAnyObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
   return (IsJSObject(obj) || IsWasmObject(obj)) &&
-         !HeapLayout::InWritableSharedSpace(*obj);
+         !HeapLayout::InWritableSharedSpace(obj);
 }
 
 bool IsNumber(Tagged<Object> obj) {
   if (IsSmi(obj)) return true;
-  Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
-  PtrComprCageBase cage_base = GetPtrComprCageBase(heap_object);
-  return IsHeapNumber(heap_object, cage_base);
-}
-
-bool IsNumber(Tagged<Object> obj, PtrComprCageBase cage_base) {
-  return obj.IsSmi() || IsHeapNumber(obj, cage_base);
+  return IsHeapNumber(Cast<HeapObject>(obj));
 }
 
 bool IsNumeric(Tagged<Object> obj) {
   if (IsSmi(obj)) return true;
   Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
-  PtrComprCageBase cage_base = GetPtrComprCageBase(heap_object);
-  return IsHeapNumber(heap_object, cage_base) ||
-         IsBigInt(heap_object, cage_base);
-}
-
-bool IsNumeric(Tagged<Object> obj, PtrComprCageBase cage_base) {
-  return IsNumber(obj, cage_base) || IsBigInt(obj, cage_base);
+  return IsHeapNumber(heap_object) || IsBigInt(heap_object);
 }
 
 bool IsMetaMap(Tagged<Map> map) {
@@ -261,35 +229,15 @@ bool IsJSInterceptorMap(Tagged<HeapObject> obj) {
 
 bool IsPrimitive(Tagged<Object> obj) {
   if (obj.IsSmi()) return true;
-  Tagged<HeapObject> this_heap_object = Cast<HeapObject>(obj);
-  PtrComprCageBase cage_base = GetPtrComprCageBase(this_heap_object);
-  return IsPrimitiveMap(this_heap_object->map(cage_base));
+  return IsPrimitiveMap(Cast<HeapObject>(obj)->map());
 }
 
-bool IsPrimitive(Tagged<Object> obj, PtrComprCageBase cage_base) {
-  return obj.IsSmi() || IsPrimitiveMap(Cast<HeapObject>(obj)->map(cage_base));
-}
-
-#define MAKE_STRUCT_PREDICATE(NAME, Name, name)                             \
-  bool Is##Name(Tagged<Object> obj) {                                       \
-    return IsHeapObject(obj) && Is##Name(Cast<HeapObject>(obj));            \
-  }                                                                         \
-  bool Is##Name(Tagged<Object> obj, PtrComprCageBase cage_base) {           \
-    return IsHeapObject(obj) && Is##Name(Cast<HeapObject>(obj), cage_base); \
-  }                                                                         \
-  bool Is##Name(HeapObject obj) {                                           \
-    static_assert(kTaggedCanConvertToRawObjects);                           \
-    return Is##Name(Tagged<HeapObject>(obj));                               \
-  }                                                                         \
-  bool Is##Name(HeapObject obj, PtrComprCageBase cage_base) {               \
-    static_assert(kTaggedCanConvertToRawObjects);                           \
-    return Is##Name(Tagged<HeapObject>(obj), cage_base);                    \
-  }                                                                         \
-  bool Is##Name(const HeapObjectLayout* obj) {                              \
-    return Is##Name(Tagged<HeapObject>(obj));                               \
-  }                                                                         \
-  bool Is##Name(const HeapObjectLayout* obj, PtrComprCageBase cage_base) {  \
-    return Is##Name(Tagged<HeapObject>(obj), cage_base);                    \
+#define MAKE_STRUCT_PREDICATE(NAME, Name, name)                  \
+  inline bool Is##Name(Tagged<Object> obj) {                     \
+    return IsHeapObject(obj) && Is##Name(Cast<HeapObject>(obj)); \
+  }                                                              \
+  inline bool Is##Name(const HeapObject* obj) {                  \
+    return Is##Name(Tagged<HeapObject>(obj));                    \
   }
 STRUCT_LIST(MAKE_STRUCT_PREDICATE)
 #undef MAKE_STRUCT_PREDICATE

@@ -131,7 +131,7 @@ RTCPSender::RTCPSender(const Environment& env, Configuration config)
       send_ssrc_(config.local_media_ssrc),
       recv_ssrc_callback_(std::move(config.recv_ssrc_callback)),
       random_(env_.clock().TimeInMicroseconds()),
-      method_(RtcpMode::kOff),
+      method_(config.rtcp_mode),
       transport_(config.outgoing_transport),
       report_interval_(config.rtcp_report_interval),
       schedule_next_rtcp_send_evaluation_(
@@ -170,6 +170,10 @@ RTCPSender::RTCPSender(const Environment& env, Configuration config)
   builders_[kRtcpTmmbn] = &RTCPSender::BuildTMMBN;
   builders_[kRtcpNack] = &RTCPSender::BuildNACK;
   builders_[kRtcpAnyExtendedReports] = &RTCPSender::BuildExtendedReports;
+
+  if (method_ != RtcpMode::kOff) {
+    SetNextRtcpSendEvaluationDuration(report_interval_ / 2);
+  }
 }
 
 RTCPSender::~RTCPSender() {}

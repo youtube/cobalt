@@ -1108,8 +1108,9 @@ int OS::VSNPrintF(char* str,
   int n = vsnprintf(str, length, format, args);
   if (n < 0 || n >= length) {
     // If the length is zero, the assignment fails.
-    if (length > 0)
+    if (length > 0) {
       str[length - 1] = '\0';
+    }
     return -1;
   } else {
     return n;

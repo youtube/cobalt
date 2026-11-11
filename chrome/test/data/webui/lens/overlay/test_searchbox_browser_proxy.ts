@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import type {NavigationPredictor} from '//resources/mojo/components/omnibox/browser/omnibox.mojom-webui.js';
-import type {OmniboxPopupSelection, PageHandlerInterface, PageRemote, PlaceholderConfig, SelectedFileInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {OmniboxPopupSelection, PageHandlerInterface, PageRemote, PlaceholderConfig, SelectedFileInfo, SmartComposeStats} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {ModelMode, ToolMode} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {BigBuffer} from '//resources/mojo/mojo/public/mojom/base/big_buffer.mojom-webui.js';
 import type {String16} from '//resources/mojo/mojo/public/mojom/base/string16.mojom-webui.js';
@@ -12,6 +12,7 @@ import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/ung
 import type {WindowOpenDisposition} from '//resources/mojo/ui/base/mojom/window_open_disposition.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 import {PageCallbackRouter} from 'chrome-untrusted://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import {MockInputState} from 'chrome-untrusted://webui-test/cr_components/searchbox/searchbox_test_utils.js';
 import {TestBrowserProxy} from 'chrome-untrusted://webui-test/test_browser_proxy.js';
 
 /**
@@ -21,8 +22,6 @@ import {TestBrowserProxy} from 'chrome-untrusted://webui-test/test_browser_proxy
  * handler remote, resolving the browser call promises with named arguments.
  */
 class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
-  private results_: Map<string, any> = new Map();
-
   constructor() {
     super([
       'deleteAutocompleteMatch',
@@ -43,7 +42,6 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
       'notifySessionAbandoned',
       'addFileContext',
       'addTabContext',
-      'addDriveContext',
       'onDriveUploadClicked',
       'deleteContext',
       'clearFiles',
@@ -59,11 +57,8 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
       'setPopupSelection',
       'openPopupSelection',
       'getPageClassification',
+      'setSmartComposeStats',
     ]);
-  }
-
-  setResultFor(methodName: string, result: any) {
-    this.results_.set(methodName, result);
   }
 
   setPage(page: PageRemote) {
@@ -125,6 +120,10 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
     });
   }
 
+  setSmartComposeStats(smartComposeStats: SmartComposeStats) {
+    this.methodCalled('setSmartComposeStats', {smartComposeStats});
+  }
+
   onNavigationLikely(
       line: number, url: Url, navigationPredictor: NavigationPredictor) {
     this.methodCalled('onNavigationLikely', {line, url, navigationPredictor});
@@ -159,9 +158,6 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
 
   getRecentTabs() {
     this.methodCalled('getRecentTabs');
-    if (this.results_.has('getRecentTabs')) {
-      return this.results_.get('getRecentTabs');
-    }
     return Promise.resolve({tabs: []});
   }
 
@@ -172,11 +168,7 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
 
   getInputState() {
     this.methodCalled('getInputState');
-    if (this.results_.has('getInputState')) {
-      return this.results_.get('getInputState');
-    }
-
-    return Promise.resolve();
+    return Promise.resolve({state: new MockInputState()});
   }
 
   notifySessionStarted() {
@@ -192,13 +184,9 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
     return Promise.resolve('');
   }
 
-  addDriveContext(driveId: string, resourceKey: string, mimeType: string) {
-    this.methodCalled('addDriveContext', driveId, resourceKey, mimeType);
-    return Promise.resolve('');
-  }
-
   onDriveUploadClicked() {
     this.methodCalled('onDriveUploadClicked');
+    return Promise.resolve({response: {files: [], error: null}});
   }
 
   addTabContext(tabId: number, delayUpload: boolean) {

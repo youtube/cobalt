@@ -47,16 +47,39 @@ class TurbolevEarlyLoweringReducer : public Next {
 
     if (first_instance_type == last_instance_type) {
 #if V8_STATIC_ROOTS_BOOL
-      // If this DCHECK fails, then we could special-case for this and just do a
-      // single map compare rather than loading the instance type.
-      DCHECK(
-          !InstanceTypeChecker::UniqueMapOfInstanceType(first_instance_type));
+      if (auto root_index = InstanceTypeChecker::UniqueMapOfInstanceType(
+              first_instance_type)) {
+        __ DeoptimizeIfNot(__ RootEqual(map, *root_index, isolate_),
+                           frame_state, DeoptimizeReason::kWrongInstanceType,
+                           feedback);
+        return;
+      }
 #endif  // V8_STATIC_ROOTS_BOOL
       V<Word32> instance_type = __ LoadInstanceTypeField(map);
       __ DeoptimizeIfNot(__ Word32Equal(instance_type, first_instance_type),
                          frame_state, DeoptimizeReason::kWrongInstanceType,
                          feedback);
     } else {
+#if V8_STATIC_ROOTS_BOOL
+      if (auto map_range =
+              InstanceTypeChecker::UniqueMapRangeOfInstanceTypeRange(
+                  first_instance_type, last_instance_type)) {
+        V<Word32> compressed_map =
+            __ TruncateWordPtrToWord32(__ BitcastHeapObjectToWordPtr(map));
+        V<Word32> map_check;
+        if (map_range->first == 0) {
+          map_check =
+              __ Uint32LessThanOrEqual(compressed_map, map_range->second);
+        } else {
+          map_check = __ Uint32LessThanOrEqual(
+              __ Word32Sub(compressed_map, map_range->first),
+              map_range->second - map_range->first);
+        }
+        __ DeoptimizeIfNot(map_check, frame_state,
+                           DeoptimizeReason::kWrongInstanceType, feedback);
+        return;
+      }
+#endif  // V8_STATIC_ROOTS_BOOL
       __ DeoptimizeIfNot(CheckInstanceTypeIsInRange(map, first_instance_type,
                                                     last_instance_type),
                          frame_state, DeoptimizeReason::kWrongInstanceType,
@@ -181,7 +204,7 @@ class TurbolevEarlyLoweringReducer : public Next {
       V<Smi> new_length_tagged = __ TagSmi(new_length_raw);
       __ Store(object, new_length_tagged, StoreOp::Kind::TaggedBase(),
                MemoryRepresentation::TaggedSigned(),
-               WriteBarrierKind::kNoWriteBarrier, JSArray::kLengthOffset);
+               WriteBarrierKind::kNoWriteBarrier, offsetof(JSArray, length_));
       GOTO(done, new_length_tagged);
     }
 

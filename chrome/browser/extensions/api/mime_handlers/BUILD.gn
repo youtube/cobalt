@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//extensions/buildflags/buildflags.gni")
+import("//pdf/features.gni")
 
 assert(enable_extensions,
        "Cannot depend on extensions because enable_extensions=false.")
@@ -11,11 +12,15 @@ source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
-  sources = [ "generic_mime_handler_browsertest.cc" ]
+  sources = [
+    "generic_mime_handler_browsertest.cc",
+    "mime_handler_storage_partitioning_browsertest.cc",
+  ]
   deps = [
     "//base",
     "//base/test:test_support",
     "//chrome/browser/extensions",
+    "//chrome/browser/plugins",
     "//chrome/browser/profiles:profile",
     "//chrome/test:test_support",
     "//components/version_info:channel",
@@ -26,4 +31,13 @@ source_set("browser_tests") {
     "//extensions/common",
     "//net:test_support",
   ]
+
+  if (enable_pdf) {
+    sources += [ "mime_handler_fallback_browsertest.cc" ]
+    deps += [
+      "//chrome/browser/pdf:pdf_extension_test_utils",
+      "//extensions/browser/mime_handler",
+      "//pdf:features",
+    ]
+  }
 }

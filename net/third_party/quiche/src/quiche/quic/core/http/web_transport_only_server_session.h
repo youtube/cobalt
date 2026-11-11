@@ -83,7 +83,6 @@ class QUICHE_EXPORT WebTransportOnlyServerSession
   bool OnSettingsFrame(const SettingsFrame& frame) override;
 
   QuicSpdyStream* CreateIncomingStream(QuicStreamId id) override;
-  QuicSpdyStream* CreateIncomingStream(PendingStream* pending) override;
   QuicSpdyStream* CreateOutgoingBidirectionalStream() override;
   QuicStream* ProcessBidirectionalPendingStream(
       PendingStream& pending) override;

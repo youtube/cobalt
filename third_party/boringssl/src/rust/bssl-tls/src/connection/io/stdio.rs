@@ -16,11 +16,11 @@ use std::io;
 
 use super::{
     Error,
-    TlsConnectionRef,
     TlsMode, //
 };
 use crate::{
     ReceiveBuffer,
+    connection::TlsConnection,
     context::DtlsMode,
     errors::{
         IoError,
@@ -62,7 +62,7 @@ fn translate_res_for_stdio(res: Result<IoStatus, Error>) -> Result<usize, io::Er
     }
 }
 
-impl<R> io::Read for TlsConnectionRef<R, TlsMode> {
+impl<R> io::Read for TlsConnection<R, TlsMode> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let mut buf = ReceiveBuffer::new(buf);
         let res = self.sync_read(&mut buf);
@@ -70,7 +70,7 @@ impl<R> io::Read for TlsConnectionRef<R, TlsMode> {
     }
 }
 
-impl<R> io::Write for TlsConnectionRef<R, TlsMode> {
+impl<R> io::Write for TlsConnection<R, TlsMode> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         translate_res_for_stdio(self.sync_write(buf))
     }
@@ -95,7 +95,7 @@ fn translate_result_for_datagram(res: Result<IoStatus, Error>) -> AbstractSocket
     }
 }
 
-impl<R> DatagramSocket for TlsConnectionRef<R, DtlsMode> {
+impl<R> DatagramSocket for TlsConnection<R, DtlsMode> {
     fn send(&mut self, datagram: &[u8]) -> AbstractSocketResult {
         translate_result_for_datagram(self.sync_write(datagram))
     }

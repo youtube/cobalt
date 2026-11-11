@@ -6789,11 +6789,7 @@ bool QuicConnection::ShouldDetectPathDegrading() const {
   if (!connected_) {
     return false;
   }
-  if (GetQuicReloadableFlag(
-          quic_no_path_degrading_before_handshake_confirmed) &&
-      SupportsMultiplePacketNumberSpaces()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_no_path_degrading_before_handshake_confirmed, 1, 2);
+  if (SupportsMultiplePacketNumberSpaces()) {
     // No path degrading detection before handshake confirmed.
     return perspective_ == Perspective::IS_CLIENT && IsHandshakeConfirmed() &&
            !is_path_degrading_;
@@ -6855,11 +6851,7 @@ bool QuicConnection::ShouldDetectBlackhole() const {
   if (!connected_ || blackhole_detection_disabled_) {
     return false;
   }
-  if (GetQuicReloadableFlag(
-          quic_no_path_degrading_before_handshake_confirmed) &&
-      SupportsMultiplePacketNumberSpaces() && !IsHandshakeConfirmed()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_no_path_degrading_before_handshake_confirmed, 2, 2);
+  if (SupportsMultiplePacketNumberSpaces() && !IsHandshakeConfirmed()) {
     return false;
   }
   // No blackhole detection before handshake completes.

@@ -102,6 +102,9 @@ constexpr char kGCMGroupServerOAuth2Scope[] =
 // OAuth2 scope for DevTools Google Developer Program features.
 constexpr char kGdpOAuth2Scope[] =
     "https://www.googleapis.com/auth/devprofiles.full_control";
+// OAuth2 scope for readonly access to Gmail metadata.
+constexpr char kGmailMetadataOAuth2Scope[] =
+    "https://www.googleapis.com/auth/gmail.metadata";
 // OAuth2 scope for readonly access to Gmail OTP email data.
 constexpr char kGmailOtpReadonlyOAuth2Scope[] =
     "https://www.googleapis.com/auth/gmail.otp.readonly";
@@ -324,6 +327,7 @@ constexpr char kActorLoginPermissionServiceName[] =
     "actor_login_permission_service";
 constexpr char kGapisServiceName[] = "gapis_service";
 constexpr char kOneTimeTokenServiceName[] = "one_time_token_service";
+constexpr char kDrivePickerHostName[] = "drive_picker_host";
 constexpr char kMultistepFilterName[] = "multistep_filter";
 }  // namespace
 
@@ -758,7 +762,8 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
     case OAuthConsumerId::kOneTimeTokenService:
       return OAuthConsumer(
           /*name=*/kOneTimeTokenServiceName,
-          /*scopes=*/{kOneTimeTokenOAuth2Scope, kGmailOtpReadonlyOAuth2Scope,
+          /*scopes=*/{kOneTimeTokenOAuth2Scope, kGmailMetadataOAuth2Scope,
+                      kGmailOtpReadonlyOAuth2Scope,
                       // TODO(b/506950478): Remove kGoogleUserInfoEmail scope
                       // once the service accepts kOneTimeTokenOAuth2Scope.
                       GaiaConstants::kGoogleUserInfoEmail});
@@ -772,6 +777,10 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
       return OAuthConsumer(
           /*name=*/kSecureGatewayServiceName,
           /*scopes=*/{GaiaConstants::kSecureGatewayOAuth2Scope});
+    case OAuthConsumerId::kDrivePickerHost:
+      return OAuthConsumer(
+          /*name=*/kDrivePickerHostName,
+          /*scopes=*/{kDriveReadOnlyOAuth2Scope});
   }
 }
 

@@ -3,21 +3,33 @@
 // found in the LICENSE file.
 
 // This is a copy from:
-// https://github.com/googleprojectzero/fuzzilli/blob/main/Sources/FuzzilliCli/Profiles/V8SandboxProfile.swift
+// https://github.com/googleprojectzero/fuzzilli/blob/main/Sources/Fuzzilli/Profiles/V8SandboxProfile.swift
 
-// Corrupt the given object in a deterministic fashion (when using the same seed) and log the steps being performed.
-function corrupt(obj, seed) {
-    // In general, in this function memory contents is represented as (unsigned) BigInt, everything else (addresses, offsets, etc.) are Numbers.
+// The following functions corrupt a given object in a deterministic fashion (based on the provided seed and path) and log the steps being performed.
+
+function getSandboxCorruptionHelpers() {
+    // In general, memory contents are represented as (unsigned) BigInts, everything else (addresses, offsets, etc.) are Numbers.
+
     function assert(c) {
         if (!c) {
             throw new Error("Assertion in the in-sandbox-corruption API failed!");
         }
     }
+
     const kHeapObjectTag = 0x1n;
     // V8 uses the two lowest bits as tag bits: 0x1 to indicate HeapObject vs Smi and 0x2 to indicate a weak reference.
     const kHeapObjectTagMask = 0x3n;
     // Offsets should be a multiple of 4, as that's the typical field size.
     const kOffsetAlignmentMask = ~0x3;
+
+    const builtins = Sandbox.getBuiltinNames();
+    assert(builtins.length > 0);
+
+    const Step = {
+        NEIGHBOR: 0,
+        POINTER: 1,
+    };
+
     // Helper class for accessing in-sandbox memory.
     class Memory {
         constructor() {
@@ -25,24 +37,23 @@ function corrupt(obj, seed) {
             this.dataView = new DataView(buffer);
             this.taggedView = new Uint32Array(buffer);
         }
-        read32(addr) {
-            return BigInt(this.dataView.getUint32(addr, true));
+
+        read(addr, numBits) {
+            switch (numBits) {
+                case 8: return BigInt(this.dataView.getUint8(addr));
+                case 16: return BigInt(this.dataView.getUint16(addr, true));
+                case 32: return BigInt(this.dataView.getUint32(addr, true));
+            }
         }
-        write32(addr, value) {
-            this.dataView.setUint32(addr, Number(value), true);
+
+        write(addr, value, numBits) {
+            switch (numBits) {
+                case 8: this.dataView.setUint8(addr, Number(value)); break;
+                case 16: this.dataView.setUint16(addr, Number(value), true); break;
+                case 32: this.dataView.setUint32(addr, Number(value), true); break;
+            }
         }
-        read16(addr) {
-            return BigInt(this.dataView.getUint16(addr, true));
-        }
-        write16(addr, value) {
-            this.dataView.setUint16(addr, Number(value), true);
-        }
-        read8(addr) {
-            return BigInt(this.dataView.getUint8(addr));
-        }
-        write8(addr, value) {
-            this.dataView.setUint8(addr, Number(value));
-        }
+
         copyTagged(source, destination, size) {
             assert(size % 4 == 0);
             let toIndex = destination / 4;
@@ -52,6 +63,7 @@ function corrupt(obj, seed) {
         }
     }
     let memory = new Memory;
+
     // A worker thread that corrupts memory from the background.
     //
     // The main thread can post messages to this worker which contain
@@ -63,6 +75,7 @@ function corrupt(obj, seed) {
         let memory = new DataView(new Sandbox.MemoryView(0, 0x100000000));
         let work = [];
         let iteration = 0;
+
         onmessage = function(e) {
             if (work.length == 0) {
                 // Time to start working.
@@ -70,6 +83,7 @@ function corrupt(obj, seed) {
             }
             work.push(e.data);
         }
+
         function corrupt(address, value, size) {
             switch (size) {
                 case 8:
@@ -83,6 +97,7 @@ function corrupt(obj, seed) {
                     break;
             }
         }
+
         function doWork() {
             iteration++;
             for (let item of work) {
@@ -93,84 +108,13 @@ function corrupt(obj, seed) {
             setTimeout(doWork);
         }
     }
-    if (typeof this.memory_corruption_worker === 'undefined') {
+    if (typeof globalThis.memory_corruption_worker === 'undefined') {
         // Define as non-configurable and non-enumerable property.
         let worker = new Worker(workerFunc, {type: 'function'});
-        Object.defineProperty(this, 'memory_corruption_worker', {value: worker});
+        Object.defineProperty(globalThis, 'memory_corruption_worker', {value: worker});
     }
-    // Simple, seedable PRNG based on a LCG.
-    class RNG {
-        m = 2 ** 32;
-        a = 1664525;
-        c = 1013904223;
-        x;
-        constructor(seed) {
-            this.x = seed;
-        }
-        randomInt() {
-            this.x = (this.x * this.a + this.c) % this.m;
-            return this.x;
-        }
-        randomBigInt() {
-            return BigInt(this.randomInt());
-        }
-        randomIntBelow(n) {
-            return Math.floor(this.randomFloat() * n);
-        }
-        randomBigIntBelow(n) {
-            return BigInt(this.randomIntBelow(Number(n)));
-        }
-        randomBigIntInHalfOpenRange(lower, upper) {
-            assert(upper > lower);
-            let diff = upper - lower;
-            return lower + this.randomBigIntBelow(diff);
-        }
-        randomFloat() {
-            return this.randomInt() / this.m;
-        }
-        probability(p) {
-            return this.randomFloat() < p;
-        }
-        randomElement(array) {
-            assert(array.length > 0);
-            let randomIndex = this.randomIntBelow(array.length)
-            return array[randomIndex];
-        }
-    }
-    // Helper class implementing the various binary mutations.
-    class Mutator {
-        rng;
-        constructor(rng) {
-            this.rng = rng;
-        }
-        mutate(value, numBits) {
-            assert(numBits <= 32);
-            let allMutations = [this.#mutateBitflip, this.#mutateIncrement, this.#mutateReplace];
-            let mutate = this.rng.randomElement(allMutations);
-            return mutate.call(this, value, BigInt(numBits));
-        }
-        #mutateBitflip(value, numBits) {
-            let bitPosition = this.rng.randomBigIntBelow(numBits);
-            let bit = 1n << bitPosition;
-            return value ^ bit;
-        }
-        #mutateIncrement(value, numBits) {
-            let increment = this.#generateRandomBigInt(numBits);
-            if (increment == 0n) increment = 1n;
-            return (value + increment) & ((1n << numBits) - 1n);
-        }
-        #mutateReplace(value, numBits) {
-            return this.#generateRandomBigInt(numBits);
-        }
-        #generateRandomBigInt(numBits) {
-            // Generate a random integer, giving uniform weight to each order of magnitude (power-of-two).
-            // In other words, this function is equally likely to generate an integer in the range [n, 2n) or [2n, 4n).
-            let magnitude = this.rng.randomBigIntBelow(numBits + 1n);     // Between [0, numBits]
-            let upper = 1n << magnitude;
-            let lower = upper >> 1n;
-            return this.rng.randomBigIntInHalfOpenRange(lower, upper);
-        }
-    }
+
+
     // Helper function to deterministically find a random neighbor object.
     //
     // This logic is designed to deal with a (somewhat) non-deterministic heap layout to ensure that test cases are reproducible.
@@ -178,13 +122,14 @@ function corrupt(obj, seed) {
     // start object, (b) is within the first N (currently 100) objects, and (c) is always the first neighbor of its instance type.
     //
     // This is achieved by iterating over the heap starting from the start object and computing a simple 16-bit hash value for each
-    // object. At the end, we select the first object whose hash is closest to a random 16-bit integer taken from the rng (which
-    // behaves deterministically). Note that we always take the first object if there are multiple object with the same instance
-    // type. For finding later neighbors, we rely on the |corrupt| logic to recursively pick neighbor objects.
-    function findRandomNeighborObject(addr, rng) {
+    // object. At the end, we select the first object whose hash is closest to a random 16-bit hash query.
+    // Note that we always take the first object if there are multiple objects with the same instance type.
+    // For finding later neighbors, we rely on the traversal path containing multiple Step.NEIGHBOR entries.
+    function findRandomNeighborObject(addr, hashQuery) {
         const N = 100;
         const kUint16Max = 0xffff;
         const kUnknownInstanceId = kUint16Max;
+
         // Simple hash function for 16-bit unsigned integers. See https://github.com/skeeto/hash-prospector
         function hash16(x) {
             assert(x >= 0 && x <= kUint16Max);
@@ -195,117 +140,185 @@ function corrupt(obj, seed) {
             x ^= x >> 9;
             return x;
         }
-        let query = rng.randomInt() & 0xffff;
+
+        hashQuery = hashQuery & 0xffff;
         let currentWinner = addr;
         let currentBest = kUint16Max;
+
         for (let i = 0; i < N; i++) {
             addr += Sandbox.getSizeOfObjectAt(addr);
             let typeId = Sandbox.getInstanceTypeIdOfObjectAt(addr);
             if (typeId == kUnknownInstanceId) {
-                // We found a corrupted object or went past the end of a page. No point in searching any further.
                 break;
             }
             let hash = hash16(typeId);
-            let score = Math.abs(hash - query);
+            let score = Math.abs(hash - hashQuery);
             if (score < currentBest) {
                 currentBest = score;
                 currentWinner = addr;
             }
         }
+
         return currentWinner;
     }
+
     // Helper function to create a copy of the object at the given address and return the address of the copy.
     // This is for example useful when we would like to corrupt a read-only object: in that case, we can then instead
     // create a copy of the read-only object, install that into whichever object references is, then corrupt the copy.
     function copyObjectAt(source) {
-        let size = Sandbox.getSizeOfObjectAt(source);
+        let objectSize = Sandbox.getSizeOfObjectAt(source);
         // Simple way to get a placeholder object that's large enough: create a sequential string.
         // TODO(saelo): maybe add a method to the sandbox api to construct an object of the appropriate size.
-        let placeholder = Array(size).fill("a").join("");
+        let placeholder = Array(objectSize).fill("a").join("");
         let destination = Sandbox.getAddressOf(placeholder);
-        memory.copyTagged(source, destination, size);
+        memory.copyTagged(source, destination, objectSize);
         return destination;
     }
-    // Helper function implementing the object corruption logic.
-    function corruptObjectAt(addr, rng, depth) {
-        let indent = "  ".repeat(depth + 1);
-        if (depth >= 10) {
-            print(indent + "Too much recursion, bailing out.");
-            return;
+
+    function getRandomAlignedOffset(addr, offsetSeed) {
+        let objectSize = Sandbox.getSizeOfObjectAt(addr);
+        return (offsetSeed % objectSize) & kOffsetAlignmentMask;
+    }
+
+    function getBaseAddress(obj) {
+        try {
+            if (!Sandbox.isWritable(obj)) return null;
+            return Sandbox.getAddressOf(obj);
+        } catch (e) {
+            // Presumably, |obj| is a Smi, not a HeapObject.
+            return null;
         }
-        // We cannot corrupt read-only objects (or any objects referenced from them, as they must also be read-only).
-        // This is simply an optimization, otherwise we would crash during the memory write below.
-        if (!Sandbox.isWritableObjectAt(addr)) {
-            print(indent + "Not corrupting read-only object");
-            return;
-        }
-        let instanceType = Sandbox.getInstanceTypeOfObjectAt(addr);
-        print(indent + "Corrupting object at 0x" + addr.toString(16) + " of type " + instanceType);
-        // Some of the time, find a neighbor object to corrupt instead.
-        // This allows the fuzzer to discover and corrupt objects that are not directly referenced from a visible JavaScript variable.
-        if (rng.probability(0.25)) {
-            let newAddr = findRandomNeighborObject(addr, rng);
-            print(indent + "Recursively corrupting neighboring object at offset " + (newAddr - addr));
-            return corruptObjectAt(newAddr, rng, depth + 1);
-        }
-        // Determine a random field to corrupt.
-        let size = Sandbox.getSizeOfObjectAt(addr);
-        let offset = (rng.randomInt() % size) & kOffsetAlignmentMask;
-        // Check if the field currently contains a pointer to another object. In that case, (most of the time) corrupt that other object instead.
-        let oldValue = memory.read32(addr + offset);
-        let isLikelyPointer = (oldValue & kHeapObjectTag) == kHeapObjectTag;
-        if (isLikelyPointer && rng.probability(0.75)) {
-            let newAddr = Number(oldValue & ~kHeapObjectTagMask);
-            if (Sandbox.isValidObjectAt(newAddr)) {
-                print(indent + "Recursively corrupting object referenced through pointer at offset " + offset);
-                if (!Sandbox.isWritableObjectAt(newAddr)) {
-                    // We cannot corrupt the referenced object, so instead we create a copy of it and corrupt that instead.
-                    newAddr = copyObjectAt(newAddr);
-                    memory.write32(addr + offset, BigInt(newAddr) | kHeapObjectTag);
-                    print(indent + "Referenced object is in read-only memory. Creating and corrupting a copy instead");
-                }
-                return corruptObjectAt(newAddr, rng, depth + 1);
-            }
-        }
-        // Finally, corrupt the object!
-        let numBitsToCorrupt = rng.randomElement([8, 16, 32]);
-        let mutator = new Mutator(rng);
-        let newValue;
-        switch (numBitsToCorrupt) {
-            case 8:
-                offset += rng.randomIntBelow(4);
-                oldValue = memory.read8(addr + offset);
-                newValue = mutator.mutate(oldValue, 8);
-                memory.write8(addr + offset, newValue);
-                break;
-            case 16:
-                offset += rng.randomIntBelow(2) * 2;
-                oldValue = memory.read16(addr + offset);
-                newValue = mutator.mutate(oldValue, 16);
-                memory.write16(addr + offset, newValue);
-                break;
-            case 32:
-                oldValue = memory.read32(addr + offset);
-                newValue = mutator.mutate(oldValue, 32);
-                memory.write32(addr + offset, newValue);
-                break;
-        }
+    }
+
+    function prepareDataCorruptionContext(obj, path, offsetSeed, numBitsToCorrupt, subFieldOffset) {
+        let baseAddr = getBaseAddress(obj);
+        if (!baseAddr) return null;
+
+        let addr = evaluateTraversalPath(baseAddr, path);
+        if (!addr) return null;
+
+        let offset = getRandomAlignedOffset(addr, offsetSeed);
+        offset += subFieldOffset;
+
+        let oldValue = memory.read(addr + offset, numBitsToCorrupt);
+        return { addr, offset, oldValue, finalizeDataCorruption };
+    }
+
+    function finalizeDataCorruption(addr, offset, oldValue, newValue, numBitsToCorrupt, typeString) {
         assert(oldValue >= 0 && oldValue < (1n << BigInt(numBitsToCorrupt)));
         assert(newValue >= 0 && newValue < (1n << BigInt(numBitsToCorrupt)));
-        print(indent + "Corrupted " + numBitsToCorrupt + "-bit field at offset " + offset + ". Old value: 0x" + oldValue.toString(16) + ", new value: 0x" + newValue.toString(16));
-        // With low probability, keep flipping this value between the old and new value on a background worker thread.
-        if (rng.probability(0.10)) {
-            print(indent + "Will keep flipping this field between old and new value on background worker");
-            this.memory_corruption_worker.postMessage({address: addr + offset, valueA: Number(oldValue), valueB: Number(newValue), size: numBitsToCorrupt});
+
+        memory.write(addr + offset, newValue, numBitsToCorrupt);
+        print("  Corrupted " + numBitsToCorrupt + "-bit field (" + typeString + ") at offset " + offset + ". Old value: 0x" + oldValue.toString(16) + ", new value: 0x" + newValue.toString(16));
+    }
+
+    // The path argument is an array of [Step, Value] tuples.
+    // If Step === Step.NEIGHBOR, Value is the exact 16-bit hash query.
+    // If Step === Step.POINTER, Value is a random UInt32 seed used to calculate an aligned offset.
+    function evaluateTraversalPath(addr, path) {
+        let instanceType = Sandbox.getInstanceTypeOfObjectAt(addr);
+        print("Corrupting memory starting from object at 0x" + addr.toString(16) + " of type " + instanceType);
+
+        for (let [stepType, seedValue] of path) {
+            if (!Sandbox.isWritableObjectAt(addr)) {
+                print("  Not corrupting read-only object. Bailing out.");
+                return null;
+            }
+
+            switch (stepType) {
+                case Step.NEIGHBOR: {
+                    let oldAddr = addr;
+                    addr = findRandomNeighborObject(addr, seedValue);
+                    print("  Jumping to neighboring object at offset " + (addr - oldAddr));
+                    break;
+                }
+                case Step.POINTER: {
+                    let offset = getRandomAlignedOffset(addr, seedValue);
+                    let oldValue = memory.read(addr + offset, 32);
+
+                    // If the selected offset doesn't contain a valid pointer, we break out
+                    // of the traversal loop but still corrupt the current (valid) object.
+                    let isLikelyPointer = (oldValue & kHeapObjectTag) == kHeapObjectTag;
+                    if (!isLikelyPointer) {
+                        break;
+                    }
+
+                    let newAddr = Number(oldValue & ~kHeapObjectTagMask);
+                    if (!Sandbox.isValidObjectAt(newAddr)) {
+                        break;
+                    }
+
+                    print("  Following pointer at offset " + offset + " to object at 0x" + newAddr.toString(16));
+
+                    if (!Sandbox.isWritableObjectAt(newAddr)) {
+                        newAddr = copyObjectAt(newAddr);
+                        memory.write(addr + offset, BigInt(newAddr) | kHeapObjectTag, 32);
+                        print("  Referenced object is in read-only memory. Created and linked a writable copy at 0x" + newAddr.toString(16));
+                    }
+                    addr = newAddr;
+                    break;
+                }
+            }
         }
+        return Sandbox.isWritableObjectAt(addr) ? addr : null;
     }
-    let addr;
-    try {
-        addr = Sandbox.getAddressOf(obj);
-    } catch (e) {
-        // Presumably, |obj| is a Smi, not a HeapObject.
-        return;
+
+    return {
+        builtins, getBaseAddress, evaluateTraversalPath, prepareDataCorruptionContext
+    };
+}
+
+function corruptDataWithBitflip(obj, path, offsetSeed, numBitsToCorrupt, subFieldOffset, bitPosition) {
+    let { addr, offset, oldValue, finalizeDataCorruption } = getSandboxCorruptionHelpers().prepareDataCorruptionContext(obj, path, offsetSeed, numBitsToCorrupt, subFieldOffset) || {};
+    if (!addr) return;
+
+    let newValue = oldValue ^ (1n << BigInt(bitPosition));
+    finalizeDataCorruption(addr, offset, oldValue, newValue, numBitsToCorrupt, "Bitflip");
+}
+
+function corruptDataWithIncrement(obj, path, offsetSeed, numBitsToCorrupt, subFieldOffset, incrementValue) {
+    let { addr, offset, oldValue, finalizeDataCorruption } = getSandboxCorruptionHelpers().prepareDataCorruptionContext(obj, path, offsetSeed, numBitsToCorrupt, subFieldOffset) || {};
+    if (!addr) return;
+
+    let newValue = (oldValue + incrementValue) & ((1n << BigInt(numBitsToCorrupt)) - 1n);
+    finalizeDataCorruption(addr, offset, oldValue, newValue, numBitsToCorrupt, "Increment");
+}
+
+function corruptDataWithReplace(obj, path, offsetSeed, numBitsToCorrupt, subFieldOffset, replaceValue) {
+    let { addr, offset, oldValue, finalizeDataCorruption } = getSandboxCorruptionHelpers().prepareDataCorruptionContext(obj, path, offsetSeed, numBitsToCorrupt, subFieldOffset) || {};
+    if (!addr) return;
+
+    let newValue = replaceValue;
+    finalizeDataCorruption(addr, offset, oldValue, newValue, numBitsToCorrupt, "Replace");
+}
+
+function corruptWithWorker(obj, path, offsetSeed, numBitsToCorrupt, subFieldOffset, bitPosition) {
+    let { addr, offset, oldValue } = getSandboxCorruptionHelpers().prepareDataCorruptionContext(obj, path, offsetSeed, numBitsToCorrupt, subFieldOffset) || {};
+    if (!addr) return;
+
+    let newValue = oldValue ^ (1n << BigInt(bitPosition));
+
+    globalThis.memory_corruption_worker.postMessage({
+        address: addr + offset, valueA: Number(oldValue), valueB: Number(newValue), size: numBitsToCorrupt
+    });
+
+    print("  Started background worker to continuously flip " + numBitsToCorrupt + "-bit field at offset " + offset + " between 0x" + oldValue.toString(16) + " and 0x" + newValue.toString(16));
+}
+
+function corruptFunction(obj, path, builtinSeed) {
+    let { builtins, getBaseAddress, evaluateTraversalPath } = getSandboxCorruptionHelpers();
+    let baseAddr = getBaseAddress(obj);
+    if (!baseAddr) return;
+    let addr = evaluateTraversalPath(baseAddr, path);
+    if (!addr) return;
+
+    let instanceTypeId = Sandbox.getInstanceTypeIdOfObjectAt(addr);
+    if (instanceTypeId === Sandbox.getInstanceTypeIdFor("JS_FUNCTION_TYPE")) {
+        let targetObj = Sandbox.getObjectAt(addr);
+        let builtinId = builtinSeed % builtins.length;
+        try {
+            Sandbox.setFunctionCodeToBuiltin(targetObj, builtinId);
+            print("  Hijacked JSFunction code pointer! Swapped with builtin: " + builtins[builtinId]);
+        } catch(e) {}
     }
-    print("Corrupting memory starting from object at 0x" + addr.toString(16) + " with RNG seed " + seed);
-    corruptObjectAt(addr, new RNG(seed), 0);
 }

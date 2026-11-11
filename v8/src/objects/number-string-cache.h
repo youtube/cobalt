@@ -72,14 +72,14 @@ V8_OBJECT class SmiStringCache : public FixedArray {
 } V8_OBJECT_END;
 
 // Used for mapping raw doubles to Strings.
-V8_OBJECT class DoubleStringCache : public HeapObjectLayout {
+V8_OBJECT class DoubleStringCache : public HeapObject {
  public:
   V8_OBJECT struct Entry {
     UnalignedDoubleMember key_;
     TaggedMember<UnionOf<Smi, String>> value_;
   } V8_OBJECT_END;
 
-  using Header = HeapObjectLayout;
+  using Header = HeapObject;
 
   // Empty entries are initialized with this sentinel (both key and value).
   static constexpr Tagged<Smi> kEmptySentinel = Smi::zero();

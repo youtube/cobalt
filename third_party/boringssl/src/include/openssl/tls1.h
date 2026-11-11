@@ -140,6 +140,11 @@ extern "C" {
 // standardization completes.
 #define TLSEXT_TYPE_trust_anchors 0xca34
 
+// Extension allowing the server to add additional bytes of padding to
+// EncryptedExtensions.
+// This is not an IANA defined extension number
+#define TLSEXT_TYPE_server_padding 4832
+
 // ExtensionType value from draft-ietf-tls-tlsflags.
 #define TLSEXT_TYPE_tls_flags 62
 

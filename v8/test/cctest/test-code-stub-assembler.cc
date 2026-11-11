@@ -1993,7 +1993,7 @@ TEST(AllocateJSObjectFromMap) {
     m.GotoIfNot(m.IsJSArrayMap(map), &done);
 
     // JS array verification requires the length field to be set.
-    m.StoreObjectFieldNoWriteBarrier(result, JSArray::kLengthOffset,
+    m.StoreObjectFieldNoWriteBarrier(result, offsetof(JSArray, length_),
                                      m.SmiConstant(0));
     m.Goto(&done);
 

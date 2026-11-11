@@ -33,10 +33,12 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_observer.h"
 #include "chrome/common/chrome_switches.h"
+#include "chrome/common/extensions/extension_constants.h"
 #include "components/security_interstitials/content/security_interstitial_tab_helper.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/security_principal.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
 #include "extensions/browser/event_router.h"
@@ -49,6 +51,7 @@
 #include "extensions/common/error_utils.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_id.h"
+#include "extensions/common/manifest.h"
 #include "extensions/common/manifest_constants.h"
 #include "extensions/common/permissions/permissions_data.h"
 #include "pdf/buildflags.h"
@@ -224,10 +227,13 @@ bool ExtensionMayAttachToURLOrInnerURL(const Extension& extension,
 
 constexpr char kBrowserTargetId[] = "browser";
 
-constexpr char kPerfettoUIExtensionId[] = "lfmkphfpdbjijhpomgecfikhfohaoine";
-
 bool ExtensionIsTrusted(const Extension& extension) {
-  return extension.id() == kPerfettoUIExtensionId;
+  if (extension.id() != extension_misc::kPerfettoUIExtensionId) {
+    return false;
+  }
+  return !Manifest::IsUnpackedLocation(extension.location()) ||
+         base::CommandLine::ForCurrentProcess()->HasSwitch(
+             switches::kAllowUnpackedPerfettoExtension);
 }
 
 bool ExtensionMayAttachToRenderFrameHost(
@@ -260,8 +266,9 @@ bool ExtensionMayAttachToRenderFrameHost(
         if (chrome_pdf::features::IsOopifPdfEnabled() &&
             (IsPdfExtensionOrigin(
                  render_frame_host->GetLastCommittedOrigin()) ||
-             IsPdfExtensionUrl(
-                 render_frame_host->GetSiteInstance()->GetSiteURL()))) {
+             IsPdfExtensionUrl(render_frame_host->GetSiteInstance()
+                                   ->GetSecurityPrincipal()
+                                   .GetDeprecatedSiteURL()))) {
           return content::RenderFrameHost::FrameIterationAction::kContinue;
         }
 #endif  // BUILDFLAG(ENABLE_PDF)
@@ -280,8 +287,10 @@ bool ExtensionMayAttachToRenderFrameHost(
                 render_frame_host->GetLastCommittedURL(), &page_url, error) ||
             !ExtensionMayAttachToURLOrInnerURL(
                 extension, extension_profile,
-                render_frame_host->GetSiteInstance()->GetSiteURL(), &page_url,
-                error)) {
+                render_frame_host->GetSiteInstance()
+                    ->GetSecurityPrincipal()
+                    .GetDeprecatedSiteURL(),
+                &page_url, error)) {
           result = false;
           return content::RenderFrameHost::FrameIterationAction::kStop;
         }

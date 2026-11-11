@@ -197,9 +197,9 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
   current_trace_id_.emplace(reinterpret_cast<uint64_t>(this) ^
                             heap_->tracer()->CurrentEpoch());
 
-  TRACE_GC_EPOCH_WITH_FLOW(heap()->tracer(), scope_id, ThreadKind::kMain,
-                           current_trace_id_.value(),
-                           TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_GC_EPOCH_WITH_FLOW(
+      heap()->tracer(), scope_id, ThreadKind::kMain,
+      perfetto::Flow::ProcessScoped(current_trace_id_.value()));
   heap_->tracer()->NotifyIncrementalMarkingStart();
 
   start_time_ = v8::base::TimeTicks::Now();
@@ -784,8 +784,7 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
               heap_->tracer()->CurrentEpoch());
   TRACE_GC_EPOCH_WITH_FLOW(
       heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL, ThreadKind::kMain,
-      current_trace_id_.value(),
-      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+      perfetto::Flow::ProcessScoped(current_trace_id_.value()));
   DCHECK(IsMajorMarking());
   const auto start = v8::base::TimeTicks::Now();
 

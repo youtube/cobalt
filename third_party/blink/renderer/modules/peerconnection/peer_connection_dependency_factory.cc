@@ -280,17 +280,13 @@ class LocalNetworkAccessPermission final
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     CHECK(RuntimeEnabledFeatures::LocalNetworkAccessWebRTCEnabled());
 
-    mojom::blink::PermissionName permission_name =
-        mojom::blink::PermissionName::LOCAL_NETWORK_ACCESS;
-    if (base::FeatureList::IsEnabled(
-            network::features::kLocalNetworkAccessChecksSplitPermissions)) {
-      network::mojom::IPAddressSpace target_address_space =
-          FromSocketAddress(candidate_address);
-      if (target_address_space == network::mojom::IPAddressSpace::kLoopback) {
-        permission_name = mojom::blink::PermissionName::LOOPBACK_NETWORK;
-      } else {
-        permission_name = mojom::blink::PermissionName::LOCAL_NETWORK;
-      }
+    mojom::blink::PermissionName permission_name;
+    network::mojom::IPAddressSpace target_address_space =
+        FromSocketAddress(candidate_address);
+    if (target_address_space == network::mojom::IPAddressSpace::kLoopback) {
+      permission_name = mojom::blink::PermissionName::LOOPBACK_NETWORK;
+    } else {
+      permission_name = mojom::blink::PermissionName::LOCAL_NETWORK;
     }
 
     callback_ = std::move(callback);
@@ -887,7 +883,7 @@ void PeerConnectionDependencyFactory::InitializeSignalingThread(
   // TODO(crbug.com/40265716): remove batch_udp_packets parameter.
   socket_factory_ = std::make_unique<IpcPacketSocketFactory>(
       CrossThreadBindRepeating(
-          &PeerConnectionDependencyFactory::DoGetDevtoolsToken,
+          &PeerConnectionDependencyFactory::DoGetDevtoolsThrottlingToken,
           WrapCrossThreadWeakPersistent(this)),
       p2p_socket_dispatcher_.Get(), traffic_annotation, /*batch_udp_packets=*/
       false);
@@ -965,7 +961,7 @@ void PeerConnectionDependencyFactory::InitializeSignalingThread(
   event->Signal();
 }
 
-void PeerConnectionDependencyFactory::DoGetDevtoolsToken(
+void PeerConnectionDependencyFactory::DoGetDevtoolsThrottlingToken(
     base::OnceCallback<void(std::optional<base::UnguessableToken>)> then) {
   context_task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE,
@@ -975,21 +971,22 @@ void PeerConnectionDependencyFactory::DoGetDevtoolsToken(
             if (!factory) {
               return std::nullopt;
             }
-            return factory->GetDevtoolsToken();
+            return factory->GetDevtoolsThrottlingToken();
           },
           WrapCrossThreadWeakPersistent(this))),
       std::move(then));
 }
 
 std::optional<base::UnguessableToken>
-PeerConnectionDependencyFactory::GetDevtoolsToken() {
+PeerConnectionDependencyFactory::GetDevtoolsThrottlingToken() {
   if (!GetExecutionContext()) {
     return std::nullopt;
   }
   CHECK(GetExecutionContext()->IsContextThread());
-  std::optional<base::UnguessableToken> devtools_token;
-  probe::WillCreateP2PSocketUdp(GetExecutionContext(), &devtools_token);
-  return devtools_token;
+  std::optional<base::UnguessableToken> devtools_throttling_token;
+  probe::WillCreateP2PSocketUdp(GetExecutionContext(),
+                                &devtools_throttling_token);
+  return devtools_throttling_token;
 }
 
 bool PeerConnectionDependencyFactory::PeerConnectionFactoryCreated() {

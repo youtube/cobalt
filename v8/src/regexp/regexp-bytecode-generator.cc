@@ -42,12 +42,6 @@ void BytecodeWriter::ExpandBuffer(size_t new_size) {
   buffer_.resize(new_size);
 }
 
-void BytecodeWriter::Reset() {
-  // We keep the buffer_ storage; the next pass will overwrite its contents.
-  jump_edges_.clear();
-  ResetPc(0);
-}
-
 void BytecodeWriter::EmitRawBytecodeStream(const uint8_t* data, int len) {
   EnsureCapacity(len);
   // Must start at a bytecode boundary.
@@ -245,6 +239,7 @@ void BytecodeGenerator::Emit(Args... args) {
 }
 
 void BytecodeGenerator::Bind(Label* l) {
+  advance_current_end_ = kInvalidPC;
   DCHECK(!l->is_bound());
   if (l->is_linked()) {
     int pos = l->pos();
@@ -315,7 +310,16 @@ void BytecodeGenerator::Backtrack() {
   Emit<Bytecode::kBacktrack>(error_code);
 }
 
-void BytecodeGenerator::GoTo(Label* label) { Emit<Bytecode::kGoTo>(label); }
+void BytecodeGenerator::GoTo(Label* label) {
+  if (advance_current_end_ == pc_) {
+    // Fuse the preceding AdvanceCurrentPosition into kAdvanceCpAndGoto.
+    ResetPc(advance_current_start_);
+    Emit<Bytecode::kAdvanceCpAndGoto>(advance_current_offset_, label);
+    advance_current_end_ = kInvalidPC;
+  } else {
+    Emit<Bytecode::kGoTo>(label);
+  }
+}
 
 void BytecodeGenerator::PushBacktrack(Label* label) {
   Emit<Bytecode::kPushBacktrack>(label);
@@ -329,7 +333,10 @@ bool BytecodeGenerator::Succeed() {
 void BytecodeGenerator::Fail() { Emit<Bytecode::kFail>(); }
 
 void BytecodeGenerator::AdvanceCurrentPosition(int by) {
+  advance_current_start_ = pc_;
+  advance_current_offset_ = by;
   Emit<Bytecode::kAdvanceCurrentPosition>(by);
+  advance_current_end_ = pc_;
 }
 
 void BytecodeGenerator::CheckFixedLengthLoop(

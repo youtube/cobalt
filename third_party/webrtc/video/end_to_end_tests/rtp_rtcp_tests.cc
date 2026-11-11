@@ -551,8 +551,10 @@ TEST_F(RtpRtcpEndToEndTest, DISABLED_TestFlexfecRtpStatePreservation) {
     CreateVideoStreams();
 
     // RTCP might be disabled if the network is "down".
-    sender_call_->SignalChannelNetworkState(MediaType::VIDEO, kNetworkUp);
-    receiver_call_->SignalChannelNetworkState(MediaType::VIDEO, kNetworkUp);
+    network_thread()->BlockingCall([this]() {
+      sender_call_->SignalChannelNetworkState(MediaType::VIDEO, kNetworkUp);
+      receiver_call_->SignalChannelNetworkState(MediaType::VIDEO, kNetworkUp);
+    });
 
     CreateFrameGeneratorCapturer(kFrameRate, kFrameMaxWidth, kFrameMaxHeight);
 

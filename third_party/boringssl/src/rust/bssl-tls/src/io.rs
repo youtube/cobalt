@@ -47,7 +47,7 @@ use crate::{
 
 #[cfg(feature = "std")]
 pub mod stdio;
-/// Synchronous I/O adapters.
+#[cfg(feature = "std")]
 pub mod sync_io;
 
 #[cfg(all(unix, feature = "std"))]

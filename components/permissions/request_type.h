@@ -40,7 +40,6 @@ enum class RequestType {
   kLocalFonts,
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   kLocalNetwork,
-  kLocalNetworkAccess,
   kLoopbackNetwork,
   kMicStream,
   kMidiSysex,

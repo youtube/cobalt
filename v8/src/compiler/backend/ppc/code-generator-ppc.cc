@@ -14,6 +14,9 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/heap/mutable-page.h"
+#include "src/objects/js-function-inl.h"
+#include "src/objects/shared-function-info-inl.h"
+#include "src/sandbox/js-dispatch-table-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-linkage.h"
@@ -26,7 +29,6 @@ namespace compiler {
 
 #define __ masm()->
 
-#define kScratchReg r11
 
 // Adds PPC-specific methods to convert InstructionOperands.
 class PPCOperandConverter final : public InstructionOperandConverter {
@@ -452,7 +454,9 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
 #define ASSEMBLE_FLOAT_MODULO()                                             \
   do {                                                                      \
     FrameScope scope(masm(), StackFrame::MANUAL);                           \
-    __ PrepareCallCFunction(0, 2, kScratchReg);                             \
+    UseScratchRegisterScope temps(masm());                                  \
+    Register scratch = temps.Acquire();                                     \
+    __ PrepareCallCFunction(0, 2, scratch);                                 \
     __ MovToFloatParameters(i.InputDoubleRegister(0),                       \
                             i.InputDoubleRegister(1));                      \
     __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2); \
@@ -465,7 +469,9 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     /* TODO(bmeurer): We should really get rid of this special instruction, */ \
     /* and generate a CallAddress instruction instead. */                      \
     FrameScope scope(masm(), StackFrame::MANUAL);                              \
-    __ PrepareCallCFunction(0, 1, kScratchReg);                                \
+    UseScratchRegisterScope temps(masm());                                     \
+    Register scratch = temps.Acquire();                                        \
+    __ PrepareCallCFunction(0, 1, scratch);                                    \
     __ MovToFloatParameter(i.InputDoubleRegister(0));                          \
     __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 1);    \
     /* Move the result in the double result register. */                       \
@@ -478,7 +484,9 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     /* TODO(bmeurer): We should really get rid of this special instruction, */ \
     /* and generate a CallAddress instruction instead. */                      \
     FrameScope scope(masm(), StackFrame::MANUAL);                              \
-    __ PrepareCallCFunction(0, 2, kScratchReg);                                \
+    UseScratchRegisterScope temps(masm());                                     \
+    Register scratch = temps.Acquire();                                        \
+    __ PrepareCallCFunction(0, 2, scratch);                                    \
     __ MovToFloatParameters(i.InputDoubleRegister(0),                          \
                             i.InputDoubleRegister(1));                         \
     __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 2);    \
@@ -635,25 +643,31 @@ static inline bool is_wasm_on_be(bool IsWasm) {
 
 #define ASSEMBLE_ATOMIC_EXCHANGE(_type, reverse_op)                    \
   do {                                                                 \
+    UseScratchRegisterScope temps(masm());                             \
+    Register scratch = temps.Acquire();                                \
+    Register scratch2 = temps.Acquire();                               \
     Register val = i.InputRegister(2);                                 \
     Register dst = i.OutputRegister();                                 \
-    MAYBE_REVERSE_IF_WASM(ip, val, reverse_op, kScratchReg, true);     \
+    MAYBE_REVERSE_IF_WASM(scratch2, val, reverse_op, scratch, true);   \
     __ AtomicExchange<_type>(                                          \
         MemOperand(i.InputRegister(0), i.InputRegister(1)), val, dst); \
-    MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, kScratchReg, false);   \
+    MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, scratch, false);       \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(_type, reverse_op)                 \
-  do {                                                                      \
-    Register expected_val = i.InputRegister(2);                             \
-    Register new_val = i.InputRegister(3);                                  \
-    Register dst = i.OutputRegister();                                      \
-    MAYBE_REVERSE_IF_WASM(ip, expected_val, reverse_op, kScratchReg, true); \
-    MAYBE_REVERSE_IF_WASM(r0, new_val, reverse_op, kScratchReg, true);      \
-    __ AtomicCompareExchange<_type>(                                        \
-        MemOperand(i.InputRegister(0), i.InputRegister(1)), expected_val,   \
-        new_val, dst, kScratchReg);                                         \
-    MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, kScratchReg, false);        \
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(_type, reverse_op)                   \
+  do {                                                                        \
+    UseScratchRegisterScope temps(masm());                                    \
+    Register scratch = temps.Acquire();                                       \
+    Register scratch2 = temps.Acquire();                                      \
+    Register expected_val = i.InputRegister(2);                               \
+    Register new_val = i.InputRegister(3);                                    \
+    Register dst = i.OutputRegister();                                        \
+    MAYBE_REVERSE_IF_WASM(scratch2, expected_val, reverse_op, scratch, true); \
+    MAYBE_REVERSE_IF_WASM(r0, new_val, reverse_op, scratch, true);            \
+    __ AtomicCompareExchange<_type>(                                          \
+        MemOperand(i.InputRegister(0), i.InputRegister(1)), expected_val,     \
+        new_val, dst, scratch);                                               \
+    MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, scratch, false);              \
   } while (false)
 
 #define ASSEMBLE_ATOMIC_BINOP_BYTE(bin_inst, _type)                          \
@@ -668,8 +682,10 @@ static inline bool is_wasm_on_be(bool IsWasm) {
     };                                                                       \
     MemOperand dst_operand =                                                 \
         MemOperand(i.InputRegister(0), i.InputRegister(1));                  \
+    UseScratchRegisterScope temps(masm());                                   \
+    Register scratch = temps.Acquire();                                      \
     __ AtomicOps<_type>(dst_operand, i.InputRegister(2), i.OutputRegister(), \
-                        kScratchReg, bin_op);                                \
+                        scratch, bin_op);                                    \
     break;                                                                   \
   } while (false)
 
@@ -700,8 +716,10 @@ static inline bool is_wasm_on_be(bool IsWasm) {
     };                                                                        \
     MemOperand dst_operand =                                                  \
         MemOperand(i.InputRegister(0), i.InputRegister(1));                   \
+    UseScratchRegisterScope temps2(masm());                                   \
+    Register scratch2 = temps2.Acquire();                                     \
     __ AtomicOps<_type>(dst_operand, i.InputRegister(2), i.OutputRegister(),  \
-                        kScratchReg, bin_op);                                 \
+                        scratch2, bin_op);                                    \
     MAYBE_REVERSE_IF_WASM(i.OutputRegister(), i.OutputRegister(), reverse_op, \
                           scratch, false);                                    \
     break;                                                                    \
@@ -816,7 +834,8 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 
 // Check that {kJavaScriptCallCodeStartRegister} is correct.
 void CodeGenerator::AssembleCodeStartRegisterCheck() {
-  Register scratch = kScratchReg;
+  UseScratchRegisterScope temps(masm());
+  Register scratch = temps.Acquire();
   __ ComputeCodeStartAddress(scratch);
   __ CmpS64(scratch, kJavaScriptCallCodeStartRegister);
   __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
@@ -827,7 +846,9 @@ void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
 }
 
 void CodeGenerator::AssertNotDeoptimized() {
-  __ AssertNotDeoptimized(kScratchReg);
+  UseScratchRegisterScope temps(masm());
+  Register scratch = temps.Acquire();
+  __ AssertNotDeoptimized(scratch);
 }
 
 // Assembles an instruction after register allocation, producing machine code.
@@ -971,10 +992,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Register func = i.InputRegister(0);
         if (v8_flags.debug_code) {
           // Check the function's context matches the context argument.
-          __ LoadTaggedField(kScratchReg,
-                             FieldMemOperand(func, JSFunction::kContextOffset),
-                             r0);
-          __ CmpS64(cp, kScratchReg);
+          UseScratchRegisterScope temps(masm());
+          Register scratch = temps.Acquire();
+          __ LoadTaggedField(
+              scratch, FieldMemOperand(func, offsetof(JSFunction, context_)),
+              r0);
+          __ CmpS64(cp, scratch);
           __ Assert(eq, AbortReason::kWrongFunctionContext);
         }
         __ CallJSFunction(func, num_arguments);
@@ -986,7 +1009,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchPrepareCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
-      __ PrepareCallCFunction(num_parameters, kScratchReg);
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ PrepareCallCFunction(num_parameters, scratch);
       // Frame alignment requires using FP-relative frame addressing.
       frame_access_state()->SetFrameAccessToFP();
       break;
@@ -1042,9 +1067,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Label return_location;
 #if V8_ENABLE_WEBASSEMBLY
       if (linkage()->GetIncomingDescriptor()->IsWasmCapiFunction()) {
+        UseScratchRegisterScope wasm_temps(masm());
+        Register wasm_scratch = wasm_temps.Acquire();
         // Put the return address in a stack slot.
-        __ GetLabelAddress(kScratchReg, &return_location, r0);
-        __ StoreU64(kScratchReg,
+        __ GetLabelAddress(wasm_scratch, &return_location, r0);
+        __ StoreU64(wasm_scratch,
                     MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
         set_isolate_data_slots = SetIsolateDataSlots::kNo;
       }
@@ -1170,7 +1197,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       if (ShouldApplyOffsetToStackCheck(instr, &offset)) {
         lhs_register = i.TempRegister(0);
-        __ SubS64(lhs_register, sp, Operand(offset), kScratchReg);
+        UseScratchRegisterScope temps(masm());
+        Register scratch = temps.Acquire();
+        __ SubS64(lhs_register, sp, Operand(offset), scratch);
       }
 
       constexpr size_t kValueIndex = 0;
@@ -1199,7 +1228,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (v8_flags.debug_code) {
         // Checking that |value| is not a cleared weakref: our write barrier
         // does not support that for now.
-        __ CmpS64(value, Operand(kClearedWeakHeapObjectLower32), kScratchReg);
+        UseScratchRegisterScope temps(masm());
+        Register scratch = temps.Acquire();
+        __ CmpS64(value, Operand(kClearedWeakHeapObjectLower32), scratch);
         __ Check(ne, AbortReason::kOperandIsCleared);
       }
 
@@ -1245,8 +1276,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
 
       DCHECK(v8_flags.verify_write_barriers);
+      Register scratch = i.TempRegister(0);
       auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
-          this, object, value, kScratchReg, &unwinding_info_writer_);
+          this, object, value, scratch, &unwinding_info_writer_);
       __ JumpIfNotSmi(value, ool->entry());
       __ bind(ool->exit());
 
@@ -1276,8 +1308,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ LoadF32(i.OutputFloatRegister(), MemOperand(fp, offset), r0);
         } else {
           DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
+          UseScratchRegisterScope temps(masm());
+          Register scratch = temps.Acquire();
           __ LoadSimd128(i.OutputSimd128Register(), MemOperand(fp, offset),
-                         kScratchReg);
+                         scratch);
         }
       } else {
         __ LoadU64(i.OutputRegister(), MemOperand(fp, offset), r0);
@@ -1342,8 +1376,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kPPC_RotRight32:
       if (HasRegisterInput(instr, 1)) {
-        __ subfic(kScratchReg, i.InputRegister(1), Operand(32));
-        __ rotlw(i.OutputRegister(), i.InputRegister(0), kScratchReg,
+        UseScratchRegisterScope temps(masm());
+        Register scratch = temps.Acquire();
+        __ subfic(scratch, i.InputRegister(1), Operand(32));
+        __ rotlw(i.OutputRegister(), i.InputRegister(0), scratch,
                  i.OutputRCBit());
       } else {
         int sh = i.InputInt32(1);
@@ -1352,8 +1388,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kPPC_RotRight64:
       if (HasRegisterInput(instr, 1)) {
-        __ subfic(kScratchReg, i.InputRegister(1), Operand(64));
-        __ rotld(i.OutputRegister(), i.InputRegister(0), kScratchReg,
+        UseScratchRegisterScope temps(masm());
+        Register scratch = temps.Acquire();
+        __ subfic(scratch, i.InputRegister(1), Operand(64));
+        __ rotld(i.OutputRegister(), i.InputRegister(0), scratch,
                  i.OutputRCBit());
       } else {
         int sh = i.InputInt32(1);
@@ -1685,11 +1723,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ StoreF64WithUpdate(i.InputDoubleRegister(1),
                                 MemOperand(sp, -kDoubleSize), r0);
           break;
-        case MachineRepresentation::kSimd128:
+        case MachineRepresentation::kSimd128: {
+          UseScratchRegisterScope temps(masm());
+          Register scratch = temps.Acquire();
           __ addi(sp, sp, Operand(-kSimd128Size));
           __ StoreSimd128(i.InputSimd128Register(1), MemOperand(r0, sp),
-                          kScratchReg);
+                          scratch);
           break;
+        }
         default:
           __ StoreU64WithUpdate(i.InputRegister(1),
                                 MemOperand(sp, -kSystemPointerSize), r0);
@@ -1732,9 +1773,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                       MemOperand(sp, slot * kSystemPointerSize), r0);
         } else {
           DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
+          UseScratchRegisterScope temps(masm());
+          Register scratch = temps.Acquire();
           __ StoreSimd128(i.InputSimd128Register(0),
-                          MemOperand(sp, slot * kSystemPointerSize),
-                          kScratchReg);
+                          MemOperand(sp, slot * kSystemPointerSize), scratch);
         }
       } else {
         __ StoreU64(i.InputRegister(0),
@@ -1813,10 +1855,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         int crbit = v8::internal::Assembler::encode_crbit(
             cr, static_cast<CRBit>(VXCVI % CRWIDTH));
         __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr0
-        __ li(kScratchReg, Operand(1));
-        __ ShiftLeftU64(kScratchReg, kScratchReg,
+        UseScratchRegisterScope temps(masm());
+        Register scratch = temps.Acquire();
+        __ li(scratch, Operand(1));
+        __ ShiftLeftU64(scratch, scratch,
                         Operand(31));  // generate INT32_MIN.
-        __ isel(i.OutputRegister(0), kScratchReg, i.OutputRegister(0), crbit);
+        __ isel(i.OutputRegister(0), scratch, i.OutputRegister(0), crbit);
       }
       break;
     }
@@ -1834,8 +1878,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         int crbit = v8::internal::Assembler::encode_crbit(
             cr, static_cast<CRBit>(VXCVI % CRWIDTH));
         __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr0
-        __ li(kScratchReg, Operand::Zero());
-        __ isel(i.OutputRegister(0), kScratchReg, i.OutputRegister(0), crbit);
+        UseScratchRegisterScope temps(masm());
+        Register scratch = temps.Acquire();
+        __ li(scratch, Operand::Zero());
+        __ isel(i.OutputRegister(0), scratch, i.OutputRegister(0), crbit);
       }
       break;
     }
@@ -1917,12 +1963,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ MovDoubleHighToInt(i.OutputRegister(), i.InputDoubleRegister(0));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
-    case kPPC_DoubleFromWord32Pair:
-      __ clrldi(kScratchReg, i.InputRegister(1), Operand(32));
+    case kPPC_DoubleFromWord32Pair: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ clrldi(scratch, i.InputRegister(1), Operand(32));
       __ ShiftLeftU64(i.TempRegister(0), i.InputRegister(0), Operand(32));
-      __ OrU64(i.TempRegister(0), i.TempRegister(0), kScratchReg);
+      __ OrU64(i.TempRegister(0), i.TempRegister(0), scratch);
       __ MovInt64ToDouble(i.OutputDoubleRegister(), i.TempRegister(0));
       break;
+    }
     case kPPC_DoubleInsertLowWord32:
       __ InsertDoubleLow(i.OutputDoubleRegister(), i.InputRegister(1), r0);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
@@ -1940,9 +1989,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ MovFloatToInt(i.OutputRegister(), i.InputDoubleRegister(0),
                        kScratchDoubleReg);
       break;
-    case kPPC_BitcastInt32ToFloat32:
-      __ MovIntToFloat(i.OutputDoubleRegister(), i.InputRegister(0), ip);
+    case kPPC_BitcastInt32ToFloat32: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ MovIntToFloat(i.OutputDoubleRegister(), i.InputRegister(0), scratch);
       break;
+    }
     case kPPC_BitcastDoubleToInt64:
       __ MovDoubleToInt64(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
@@ -1983,7 +2035,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       MemOperand operand = i.MemoryOperand(&mode);
       bool is_atomic = i.InputInt32(2);
       DCHECK_EQ(mode, kMode_MRR);
-      __ LoadSimd128(result, operand, kScratchReg);
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ LoadSimd128(result, operand, scratch);
       if (is_atomic) __ lwsync();
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -2018,7 +2072,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       bool is_atomic = i.InputInt32(3);
       if (is_atomic) __ lwsync();
       DCHECK_EQ(mode, kMode_MRR);
-      __ StoreSimd128(value, operand, kScratchReg);
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ StoreSimd128(value, operand, scratch);
       if (is_atomic) __ sync();
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -2053,18 +2109,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_EXCHANGE(uint64_t, ByteReverseU64);
       break;
     }
-    case kAtomicCompareExchangeInt8:
+    case kAtomicCompareExchangeInt8: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
       __ AtomicCompareExchange<int8_t>(
           MemOperand(i.InputRegister(0), i.InputRegister(1)),
-          i.InputRegister(2), i.InputRegister(3), i.OutputRegister(),
-          kScratchReg);
+          i.InputRegister(2), i.InputRegister(3), i.OutputRegister(), scratch);
       break;
-    case kPPC_AtomicCompareExchangeUint8:
+    }
+    case kPPC_AtomicCompareExchangeUint8: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
       __ AtomicCompareExchange<uint8_t>(
           MemOperand(i.InputRegister(0), i.InputRegister(1)),
-          i.InputRegister(2), i.InputRegister(3), i.OutputRegister(),
-          kScratchReg);
+          i.InputRegister(2), i.InputRegister(3), i.OutputRegister(), scratch);
       break;
+    }
     case kAtomicCompareExchangeInt16: {
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(int16_t, ByteReverseU16);
       __ extsh(i.OutputRegister(), i.OutputRegister());
@@ -2120,15 +2180,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Emit the write barrier.
       Register object = i.InputRegister(0);
       Register offset = i.InputRegister(1);
-      Register value = i.InputRegister(2);
+      Register new_value = i.InputRegister(3);
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      Register scratch2 = temps.Acquire();
       auto ool = zone()->New<OutOfLineRecordWrite>(
-          this, object, offset, value, ip, kScratchReg,
+          this, object, offset, new_value, scratch2, scratch,
           RecordWriteMode::kValueIsAny, DetermineStubCallMode(),
           &unwinding_info_writer_);
       __ bne(ool->exit());
-      __ JumpIfSmi(value, ool->exit());
+      __ JumpIfSmi(new_value, ool->exit());
 
-      __ CheckPageFlag(object, kScratchReg,
+      __ CheckPageFlag(object, scratch,
                        MemoryChunk::kPointersFromHereAreInterestingMask, ne,
                        ool->entry());
       __ bind(ool->exit());
@@ -2195,7 +2258,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register input = i.InputRegister(0);
       Register output = i.OutputRegister();
       Register temp1 = r0;
-      Register temp2 = kScratchReg;
+      UseScratchRegisterScope temps(masm());
+      Register temp2 = temps.Acquire();
       Register temp3 = i.TempRegister(0);
       if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
         __ brd(output, input);
@@ -2434,11 +2498,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I32x4AllTrue)             \
   V(I16x8AllTrue)             \
   V(I8x16AllTrue)
-#define EMIT_SIMD_ALL_TRUE(name)                                   \
-  case kPPC_##name: {                                              \
-    __ name(i.OutputRegister(), i.InputSimd128Register(0), r0, ip, \
-            kScratchSimd128Reg);                                   \
-    break;                                                         \
+#define EMIT_SIMD_ALL_TRUE(name)                                        \
+  case kPPC_##name: {                                                   \
+    UseScratchRegisterScope temps(masm());                              \
+    Register scratch = temps.Acquire();                                 \
+    __ name(i.OutputRegister(), i.InputSimd128Register(0), r0, scratch, \
+            kScratchSimd128Reg);                                        \
+    break;                                                              \
   }
       SIMD_ALL_TRUE_LIST(EMIT_SIMD_ALL_TRUE)
 #undef EMIT_SIMD_ALL_TRUE
@@ -2481,16 +2547,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(S128Load16Lane, LoadLane16LE) \
   V(S128Load8Lane, LoadLane8LE)
 
-#define EMIT_SIMD_LOAD_LANE(name, op)                                      \
-  case kPPC_##name: {                                                      \
-    Simd128Register dst = i.OutputSimd128Register();                       \
-    DCHECK_EQ(dst, i.InputSimd128Register(0));                             \
-    AddressingMode mode = kMode_None;                                      \
-    size_t index = 1;                                                      \
-    MemOperand operand = i.MemoryOperand(&mode, &index);                   \
-    DCHECK_EQ(mode, kMode_MRR);                                            \
-    __ op(dst, operand, i.InputUint8(3), kScratchReg, kScratchSimd128Reg); \
-    break;                                                                 \
+#define EMIT_SIMD_LOAD_LANE(name, op)                                  \
+  case kPPC_##name: {                                                  \
+    Simd128Register dst = i.OutputSimd128Register();                   \
+    DCHECK_EQ(dst, i.InputSimd128Register(0));                         \
+    AddressingMode mode = kMode_None;                                  \
+    size_t index = 1;                                                  \
+    MemOperand operand = i.MemoryOperand(&mode, &index);               \
+    DCHECK_EQ(mode, kMode_MRR);                                        \
+    UseScratchRegisterScope temps(masm());                             \
+    Register scratch = temps.Acquire();                                \
+    __ op(dst, operand, i.InputUint8(3), scratch, kScratchSimd128Reg); \
+    break;                                                             \
   }
       SIMD_LOAD_LANE_LIST(EMIT_SIMD_LOAD_LANE)
 #undef EMIT_SIMD_LOAD_LANE
@@ -2502,15 +2570,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(S128Store16Lane, StoreLane16LE) \
   V(S128Store8Lane, StoreLane8LE)
 
-#define EMIT_SIMD_STORE_LANE(name, op)                                      \
-  case kPPC_##name: {                                                       \
-    AddressingMode mode = kMode_None;                                       \
-    size_t index = 1;                                                       \
-    MemOperand operand = i.MemoryOperand(&mode, &index);                    \
-    DCHECK_EQ(mode, kMode_MRR);                                             \
-    __ op(i.InputSimd128Register(0), operand, i.InputUint8(3), kScratchReg, \
-          kScratchSimd128Reg);                                              \
-    break;                                                                  \
+#define EMIT_SIMD_STORE_LANE(name, op)                                  \
+  case kPPC_##name: {                                                   \
+    AddressingMode mode = kMode_None;                                   \
+    size_t index = 1;                                                   \
+    MemOperand operand = i.MemoryOperand(&mode, &index);                \
+    DCHECK_EQ(mode, kMode_MRR);                                         \
+    UseScratchRegisterScope temps(masm());                              \
+    Register scratch = temps.Acquire();                                 \
+    __ op(i.InputSimd128Register(0), operand, i.InputUint8(3), scratch, \
+          kScratchSimd128Reg);                                          \
+    break;                                                              \
   }
       SIMD_STORE_LANE_LIST(EMIT_SIMD_STORE_LANE)
 #undef EMIT_SIMD_STORE_LANE
@@ -2522,13 +2592,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(S128Load16Splat, LoadAndSplat16x8LE) \
   V(S128Load8Splat, LoadAndSplat8x16LE)
 
-#define EMIT_SIMD_LOAD_SPLAT(name, op)                      \
-  case kPPC_##name: {                                       \
-    AddressingMode mode = kMode_None;                       \
-    MemOperand operand = i.MemoryOperand(&mode);            \
-    DCHECK_EQ(mode, kMode_MRR);                             \
-    __ op(i.OutputSimd128Register(), operand, kScratchReg); \
-    break;                                                  \
+#define EMIT_SIMD_LOAD_SPLAT(name, op)                  \
+  case kPPC_##name: {                                   \
+    AddressingMode mode = kMode_None;                   \
+    MemOperand operand = i.MemoryOperand(&mode);        \
+    DCHECK_EQ(mode, kMode_MRR);                         \
+    UseScratchRegisterScope temps(masm());              \
+    Register scratch = temps.Acquire();                 \
+    __ op(i.OutputSimd128Register(), operand, scratch); \
+    break;                                              \
   }
       SIMD_LOAD_SPLAT(EMIT_SIMD_LOAD_SPLAT)
 #undef EMIT_SIMD_LOAD_SPLAT
@@ -2536,15 +2608,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
     case kPPC_FSplat: {
       int lane_size = LaneSizeBits(LaneSizeField::decode(instr->opcode()));
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
       switch (lane_size) {
         case 32: {
           __ F32x4Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0),
-                        kScratchDoubleReg, kScratchReg);
+                        kScratchDoubleReg, scratch);
           break;
         }
         case 64: {
           __ F64x2Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0),
-                        kScratchReg);
+                        scratch);
           break;
         }
         default:
@@ -2578,17 +2652,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kPPC_FExtractLane: {
       int lane_size = LaneSizeBits(LaneSizeField::decode(instr->opcode()));
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      Register scratch2 = temps.Acquire();
       switch (lane_size) {
         case 32: {
           __ F32x4ExtractLane(i.OutputDoubleRegister(),
                               i.InputSimd128Register(0), i.InputInt8(1),
-                              kScratchSimd128Reg, kScratchReg, ip);
+                              kScratchSimd128Reg, scratch, scratch2);
           break;
         }
         case 64: {
           __ F64x2ExtractLane(i.OutputDoubleRegister(),
                               i.InputSimd128Register(0), i.InputInt8(1),
-                              kScratchSimd128Reg, kScratchReg);
+                              kScratchSimd128Reg, scratch);
           break;
         }
         default:
@@ -2653,19 +2730,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_FReplaceLane: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       int lane_size = LaneSizeBits(LaneSizeField::decode(instr->opcode()));
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
       switch (lane_size) {
         case 32: {
-          __ F32x4ReplaceLane(
-              i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputDoubleRegister(2), i.InputInt8(1), kScratchReg,
-              kScratchDoubleReg, kScratchSimd128Reg);
+          __ F32x4ReplaceLane(i.OutputSimd128Register(),
+                              i.InputSimd128Register(0),
+                              i.InputDoubleRegister(2), i.InputInt8(1), scratch,
+                              kScratchDoubleReg, kScratchSimd128Reg);
           break;
         }
         case 64: {
           __ F64x2ReplaceLane(i.OutputSimd128Register(),
                               i.InputSimd128Register(0),
-                              i.InputDoubleRegister(2), i.InputInt8(1),
-                              kScratchReg, kScratchSimd128Reg);
+                              i.InputDoubleRegister(2), i.InputInt8(1), scratch,
+                              kScratchSimd128Reg);
           break;
         }
         default:
@@ -2707,8 +2786,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I64x2Mul: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
       __ I64x2Mul(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1), ip, r0,
+                  i.InputSimd128Register(1), scratch, r0,
                   i.ToRegister(instr->TempAt(0)), kScratchSimd128Reg);
       break;
     }
@@ -2725,9 +2806,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_S128Const: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
       uint64_t low = make_uint64(i.InputUint32(1), i.InputUint32(0));
       uint64_t high = make_uint64(i.InputUint32(3), i.InputUint32(2));
-      __ S128Const(i.OutputSimd128Register(), high, low, r0, ip);
+      __ S128Const(i.OutputSimd128Register(), high, low, r0, scratch);
       break;
     }
     case kPPC_S128Zero: {
@@ -2749,78 +2832,104 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_V128AnyTrue: {
-      __ V128AnyTrue(i.OutputRegister(), i.InputSimd128Register(0), r0, ip,
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ V128AnyTrue(i.OutputRegister(), i.InputSimd128Register(0), r0, scratch,
                      kScratchSimd128Reg);
       break;
     }
     case kPPC_F64x2ConvertLowI32x4U: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
       __ F64x2ConvertLowI32x4U(i.OutputSimd128Register(),
-                               i.InputSimd128Register(0), kScratchReg,
+                               i.InputSimd128Register(0), scratch,
                                kScratchSimd128Reg);
       break;
     }
     case kPPC_I64x2UConvertI32x4Low: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
       __ I64x2UConvertI32x4Low(i.OutputSimd128Register(),
-                               i.InputSimd128Register(0), kScratchReg,
+                               i.InputSimd128Register(0), scratch,
                                kScratchSimd128Reg);
       break;
     }
     case kPPC_I64x2UConvertI32x4High: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
       __ I64x2UConvertI32x4High(i.OutputSimd128Register(),
-                                i.InputSimd128Register(0), kScratchReg,
+                                i.InputSimd128Register(0), scratch,
                                 kScratchSimd128Reg);
       break;
     }
     case kPPC_I32x4UConvertI16x8Low: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
       __ I32x4UConvertI16x8Low(i.OutputSimd128Register(),
-                               i.InputSimd128Register(0), kScratchReg,
+                               i.InputSimd128Register(0), scratch,
                                kScratchSimd128Reg);
       break;
     }
     case kPPC_I32x4UConvertI16x8High: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
       __ I32x4UConvertI16x8High(i.OutputSimd128Register(),
-                                i.InputSimd128Register(0), kScratchReg,
+                                i.InputSimd128Register(0), scratch,
                                 kScratchSimd128Reg);
       break;
     }
     case kPPC_I16x8UConvertI8x16Low: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
       __ I16x8UConvertI8x16Low(i.OutputSimd128Register(),
-                               i.InputSimd128Register(0), kScratchReg,
+                               i.InputSimd128Register(0), scratch,
                                kScratchSimd128Reg);
       break;
     }
     case kPPC_I16x8UConvertI8x16High: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
       __ I16x8UConvertI8x16High(i.OutputSimd128Register(),
-                                i.InputSimd128Register(0), kScratchReg,
+                                i.InputSimd128Register(0), scratch,
                                 kScratchSimd128Reg);
       break;
     }
     case kPPC_I8x16Shuffle: {
       uint64_t low = make_uint64(i.InputUint32(3), i.InputUint32(2));
       uint64_t high = make_uint64(i.InputUint32(5), i.InputUint32(4));
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
       __ I8x16Shuffle(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                      i.InputSimd128Register(1), high, low, r0, ip,
+                      i.InputSimd128Register(1), high, low, r0, scratch,
                       kScratchSimd128Reg);
       break;
     }
     case kPPC_I64x2BitMask: {
-      __ I64x2BitMask(i.OutputRegister(), i.InputSimd128Register(0),
-                      kScratchReg, kScratchSimd128Reg);
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ I64x2BitMask(i.OutputRegister(), i.InputSimd128Register(0), scratch,
+                      kScratchSimd128Reg);
       break;
     }
     case kPPC_I32x4BitMask: {
-      __ I32x4BitMask(i.OutputRegister(), i.InputSimd128Register(0),
-                      kScratchReg, kScratchSimd128Reg);
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ I32x4BitMask(i.OutputRegister(), i.InputSimd128Register(0), scratch,
+                      kScratchSimd128Reg);
       break;
     }
     case kPPC_I16x8BitMask: {
-      __ I16x8BitMask(i.OutputRegister(), i.InputSimd128Register(0),
-                      kScratchReg, kScratchSimd128Reg);
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ I16x8BitMask(i.OutputRegister(), i.InputSimd128Register(0), scratch,
+                      kScratchSimd128Reg);
       break;
     }
     case kPPC_I8x16BitMask: {
-      __ I8x16BitMask(i.OutputRegister(), i.InputSimd128Register(0), ip, r0,
-                      kScratchSimd128Reg);
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ I8x16BitMask(i.OutputRegister(), i.InputSimd128Register(0), scratch,
+                      r0, kScratchSimd128Reg);
       break;
     }
     case kPPC_I32x4DotI8x16AddS: {
@@ -2835,46 +2944,62 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   DCHECK_EQ(mode, kMode_MRR);
     case kPPC_S128Load8x8S: {
       PREP_LOAD_EXTEND()
-      __ LoadAndExtend8x8SLE(i.OutputSimd128Register(), operand, kScratchReg);
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ LoadAndExtend8x8SLE(i.OutputSimd128Register(), operand, scratch);
       break;
     }
     case kPPC_S128Load8x8U: {
       PREP_LOAD_EXTEND()
-      __ LoadAndExtend8x8ULE(i.OutputSimd128Register(), operand, kScratchReg,
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ LoadAndExtend8x8ULE(i.OutputSimd128Register(), operand, scratch,
                              kScratchSimd128Reg);
       break;
     }
     case kPPC_S128Load16x4S: {
       PREP_LOAD_EXTEND()
-      __ LoadAndExtend16x4SLE(i.OutputSimd128Register(), operand, kScratchReg);
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ LoadAndExtend16x4SLE(i.OutputSimd128Register(), operand, scratch);
       break;
     }
     case kPPC_S128Load16x4U: {
       PREP_LOAD_EXTEND()
-      __ LoadAndExtend16x4ULE(i.OutputSimd128Register(), operand, kScratchReg,
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ LoadAndExtend16x4ULE(i.OutputSimd128Register(), operand, scratch,
                               kScratchSimd128Reg);
       break;
     }
     case kPPC_S128Load32x2S: {
       PREP_LOAD_EXTEND()
-      __ LoadAndExtend32x2SLE(i.OutputSimd128Register(), operand, kScratchReg);
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ LoadAndExtend32x2SLE(i.OutputSimd128Register(), operand, scratch);
       break;
     }
     case kPPC_S128Load32x2U: {
       PREP_LOAD_EXTEND()
-      __ LoadAndExtend32x2ULE(i.OutputSimd128Register(), operand, kScratchReg,
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ LoadAndExtend32x2ULE(i.OutputSimd128Register(), operand, scratch,
                               kScratchSimd128Reg);
       break;
     }
     case kPPC_S128Load32Zero: {
       PREP_LOAD_EXTEND()
-      __ LoadV32ZeroLE(i.OutputSimd128Register(), operand, kScratchReg,
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ LoadV32ZeroLE(i.OutputSimd128Register(), operand, scratch,
                        kScratchSimd128Reg);
       break;
     }
     case kPPC_S128Load64Zero: {
       PREP_LOAD_EXTEND()
-      __ LoadV64ZeroLE(i.OutputSimd128Register(), operand, kScratchReg,
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ LoadV64ZeroLE(i.OutputSimd128Register(), operand, scratch,
                        kScratchSimd128Reg);
       break;
     }
@@ -3002,8 +3127,12 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     case overflow32:
     case overflow64:
       if (reg_value != 1) __ li(reg, Operand(1));
-      __ li(kScratchReg, Operand::Zero());
-      __ isel(cond, reg, reg, kScratchReg, cr);
+      {
+        UseScratchRegisterScope temps(masm());
+        Register scratch = temps.Acquire();
+        __ li(scratch, Operand::Zero());
+        __ isel(cond, reg, reg, scratch, cr);
+      }
       break;
     case ne:
     case ge:
@@ -3054,10 +3183,12 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   Label* const table = AddJumpTable(cases);
   __ CmpU64(input, Operand(case_count), r0);
   __ bge(GetLabel(i.InputRpo(1)));
-  __ mov_label_addr(kScratchReg, table);
+  UseScratchRegisterScope temps(masm());
+  Register scratch = temps.Acquire();
+  __ GetLabelAddress(scratch, table, r0);
   __ ShiftLeftU64(r0, input, Operand(kSystemPointerSizeLog2));
-  __ LoadU64(kScratchReg, MemOperand(kScratchReg, r0));
-  __ Jump(kScratchReg);
+  __ LoadU64(scratch, MemOperand(scratch, r0));
+  __ Jump(scratch);
 }
 
 void CodeGenerator::AssembleArchSelect(Instruction* instr,
@@ -3174,7 +3305,8 @@ void CodeGenerator::AssembleConstructFrame() {
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
       if (required_slots * kSystemPointerSize < v8_flags.stack_size * KB) {
-        Register stack_limit = ip;
+        UseScratchRegisterScope temps(masm());
+        Register stack_limit = temps.Acquire();
         __ LoadStackLimit(stack_limit, StackLimitKind::kRealStackLimit, r0);
         __ AddS64(stack_limit, stack_limit,
                   Operand(required_slots * kSystemPointerSize), r0);
@@ -3194,7 +3326,10 @@ void CodeGenerator::AssembleConstructFrame() {
         Simd128RegList simd128_regs_to_save;
         for (auto reg : wasm::kSimd128ParamRegisters)
           simd128_regs_to_save.set(reg);
-        __ MultiPushF64AndV128(fp_regs_to_save, simd128_regs_to_save, ip, r0);
+        UseScratchRegisterScope temps(masm());
+        Register scratch = temps.Acquire();
+        __ MultiPushF64AndV128(fp_regs_to_save, simd128_regs_to_save, scratch,
+                               r0);
         __ mov(WasmHandleStackOverflowDescriptor::GapRegister(),
                Operand(required_slots * kSystemPointerSize));
         __ AddS64(
@@ -3212,7 +3347,8 @@ void CodeGenerator::AssembleConstructFrame() {
         // safepoint here.
         ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
         RecordSafepoint(reference_map);
-        __ MultiPopF64AndV128(fp_regs_to_save, simd128_regs_to_save, ip, r0);
+        __ MultiPopF64AndV128(fp_regs_to_save, simd128_regs_to_save, scratch,
+                              r0);
         __ MultiPop(regs_to_save);
       } else {
         __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
@@ -3252,11 +3388,13 @@ void CodeGenerator::AssembleConstructFrame() {
   __ AllocateStackSpace(returns * kSystemPointerSize);
 
   if (!frame()->tagged_slots().IsEmpty()) {
-    __ mov(kScratchReg, Operand(0));
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.Acquire();
+    __ mov(scratch, Operand(0));
     for (int spill_slot : frame()->tagged_slots()) {
       FrameOffset offset = frame_access_state()->GetFrameOffset(spill_slot);
       DCHECK(offset.from_frame_pointer());
-      __ StoreU64(kScratchReg, MemOperand(fp, offset.offset()));
+      __ StoreU64(scratch, MemOperand(fp, offset.offset()));
     }
   }
 }
@@ -3324,14 +3462,16 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     for (auto reg : wasm::kFpParamRegisters) fp_regs_to_save.set(reg);
     Simd128RegList simd128_regs_to_save;
     for (auto reg : wasm::kSimd128ParamRegisters) simd128_regs_to_save.set(reg);
-    __ MultiPushF64AndV128(fp_regs_to_save, simd128_regs_to_save, ip, r0);
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.Acquire();
+    __ MultiPushF64AndV128(fp_regs_to_save, simd128_regs_to_save, scratch, r0);
     __ Move(kCArgRegs[0], ExternalReference::isolate_address());
     __ PrepareCallCFunction(1, r0);
     __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
     // Restore old FP. We don't need to restore old SP explicitly, because
     // it will be restored from FP in LeaveFrame before return.
     __ mr(fp, kReturnRegister0);
-    __ MultiPopF64AndV128(fp_regs_to_save, simd128_regs_to_save, ip, r0);
+    __ MultiPopF64AndV128(fp_regs_to_save, simd128_regs_to_save, scratch, r0);
     __ MultiPop(regs_to_save);
     __ bind(&done);
   }
@@ -3476,10 +3616,13 @@ void CodeGenerator::MoveToTempLocation(InstructionOperand* source,
     } else if (IsFloatingPoint(rep)) {
       scratch_reg_code = kScratchDoubleReg.code();
     } else {
-      scratch_reg_code = kScratchReg.code();
+      DCHECK(!move_cycle_.temps.has_value());
+      move_cycle_.temps.emplace(masm());
+      move_cycle_.scratch_reg_code = move_cycle_.temps->Acquire().code();
+      scratch_reg_code = move_cycle_.scratch_reg_code;
+      DCHECK(!AreAliased(Register::from_code(scratch_reg_code), r0, ip));
     }
     AllocatedOperand scratch(LocationOperand::REGISTER, rep, scratch_reg_code);
-    DCHECK(!AreAliased(kScratchReg, r0, ip));
     AssembleMove(source, &scratch);
   } else {
     // The scratch register is blocked by pending moves. Use the stack instead.
@@ -3498,10 +3641,11 @@ void CodeGenerator::MoveTempLocationTo(InstructionOperand* dest,
     } else if (IsFloatingPoint(rep)) {
       scratch_reg_code = kScratchDoubleReg.code();
     } else {
-      scratch_reg_code = kScratchReg.code();
+      DCHECK_NE(move_cycle_.scratch_reg_code, -1);
+      scratch_reg_code = move_cycle_.scratch_reg_code;
+      DCHECK(!AreAliased(Register::from_code(scratch_reg_code), r0, ip));
     }
     AllocatedOperand scratch(LocationOperand::REGISTER, rep, scratch_reg_code);
-    DCHECK(!AreAliased(kScratchReg, r0, ip));
     AssembleMove(&scratch, dest);
   } else {
     Pop(dest, rep);
@@ -3537,14 +3681,18 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     if (destination->IsRegister()) {
       __ LoadU64(g.ToRegister(destination), src, r0);
     } else {
-      Register temp = ip;
+      UseScratchRegisterScope temps(masm());
+      Register temp = temps.Acquire();
       __ LoadU64(temp, src, r0);
       __ StoreU64(temp, g.ToMemOperand(destination), r0);
     }
   } else if (source->IsConstant()) {
     Constant src = g.ToConstant(source);
     if (destination->IsRegister() || destination->IsStackSlot()) {
-      Register dst = destination->IsRegister() ? g.ToRegister(destination) : ip;
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      Register dst =
+          destination->IsRegister() ? g.ToRegister(destination) : scratch;
       switch (src.type()) {
         case Constant::kInt32:
           __ mov(dst, Operand(src.ToInt32(), src.rmode()));
@@ -3696,18 +3844,19 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
 void CodeGenerator::AssembleSwap(InstructionOperand* source,
                                  InstructionOperand* destination) {
   PPCOperandConverter g(this, nullptr);
+  UseScratchRegisterScope temps(masm());
+  Register scratch = temps.Acquire();
   if (source->IsRegister()) {
     Register src = g.ToRegister(source);
     if (destination->IsRegister()) {
-      __ SwapP(src, g.ToRegister(destination), kScratchReg);
+      __ SwapP(src, g.ToRegister(destination), scratch);
     } else {
       DCHECK(destination->IsStackSlot());
-      __ SwapP(src, g.ToMemOperand(destination), kScratchReg);
+      __ SwapP(src, g.ToMemOperand(destination), scratch);
     }
   } else if (source->IsStackSlot()) {
     DCHECK(destination->IsStackSlot());
-    __ SwapP(g.ToMemOperand(source), g.ToMemOperand(destination), kScratchReg,
-             r0);
+    __ SwapP(g.ToMemOperand(source), g.ToMemOperand(destination), scratch, r0);
   } else if (source->IsFloatRegister()) {
     DoubleRegister src = g.ToDoubleRegister(source);
     if (destination->IsFloatRegister()) {
@@ -3740,12 +3889,12 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     } else {
       DCHECK(destination->IsSimd128StackSlot());
       __ SwapSimd128(src, g.ToMemOperand(destination), kScratchSimd128Reg,
-                     kScratchReg);
+                     scratch);
     }
   } else if (source->IsSimd128StackSlot()) {
     DCHECK(destination->IsSimd128StackSlot());
     __ SwapSimd128(g.ToMemOperand(source), g.ToMemOperand(destination),
-                   kScratchSimd128Reg, kScratchSimd128Reg2, kScratchReg);
+                   kScratchSimd128Reg, kScratchSimd128Reg2, scratch);
 
   } else {
     UNREACHABLE();

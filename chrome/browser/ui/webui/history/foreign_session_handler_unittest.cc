@@ -9,20 +9,28 @@
 #include <vector>
 
 #include "base/callback_list.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
+#include "base/test/scoped_feature_list.h"
+#include "chrome/browser/sync/device_info_sync_service_factory.h"
 #include "chrome/browser/sync/session_sync_service_factory.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/test_tab_strip_model_delegate.h"
+#include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/views/side_panel/tabs_from_other_devices/tabs_from_other_devices_side_panel_metrics.h"
 #include "chrome/browser/ui/webui/side_panel/tabs_from_other_devices/tabs_from_other_devices_side_panel_ui.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/prefs/pref_service.h"
 #include "components/sessions/core/session_id.h"
 #include "components/sessions/core/session_types.h"
+#include "components/sync_device_info/device_info.h"
+#include "components/sync_device_info/fake_device_info_sync_service.h"
 #include "components/sync_sessions/mock_open_tabs_ui_delegate.h"
 #include "components/sync_sessions/session_sync_service.h"
+#include "components/sync_sessions/synced_session.h"
 #include "content/public/test/test_web_ui.h"
 #include "content/public/test/web_contents_tester.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -307,6 +315,12 @@ class ForeignSessionHandlerSidePanelTest
                                     -> std::unique_ptr<KeyedService> {
               return std::make_unique<FakeSessionSyncService>();
             })},
+        TestingProfile::TestingFactory{
+            DeviceInfoSyncServiceFactory::GetInstance(),
+            base::BindRepeating([](content::BrowserContext* context)
+                                    -> std::unique_ptr<KeyedService> {
+              return std::make_unique<syncer::FakeDeviceInfoSyncService>();
+            })},
     };
   }
 
@@ -401,6 +415,186 @@ TEST_F(ForeignSessionHandlerSidePanelTest,
                   WindowOpenDisposition::NEW_BACKGROUND_TAB));
 
   handler_->OpenForeignSessionTab("my_session_tag", 456, std::move(modifiers));
+}
+
+TEST_F(ForeignSessionHandlerSidePanelTest, RecordMetricsOnTabOpen) {
+  CreateSidePanelUI();
+
+  TabsFromOtherDevicesSidePanelMetrics metrics;
+  metrics.OnEntryShown(nullptr);
+  side_panel_ui_->SetMetricsRecorder(metrics.GetWeakPtr());
+
+  ::sessions::SessionTab session_tab;
+  session_tab.navigations.emplace_back();
+  session_tab.navigations.back().set_virtual_url(
+      GURL("https://www.google.com"));
+
+  const ::sessions::SessionTab* returned_session_tab = &session_tab;
+  EXPECT_CALL(*session_sync_service()->GetOpenTabsUIDelegate(),
+              GetForeignTab("my_session_tag",
+                            SessionID::FromSerializedValue(456), testing::_))
+      .WillOnce(testing::DoAll(testing::SetArgPointee<2>(returned_session_tab),
+                               testing::Return(true)));
+
+  ui::mojom::ClickModifiersPtr modifiers = ui::mojom::ClickModifiers::New();
+
+  base::HistogramTester histogram_tester;
+
+  handler_->OpenForeignSessionTab("my_session_tag", 456, std::move(modifiers));
+
+  histogram_tester.ExpectBucketCount(
+      "Sync.TabsFromOtherDevicesSidePanel.List.Events", 3,
+      1);  // 3 is kTabOpened
+
+  histogram_tester.ExpectTotalCount(
+      "Sync.TabsFromOtherDevicesSidePanel.List.TimeToFirstTab", 1);
+}
+
+TEST_F(ForeignSessionHandlerSidePanelTest,
+       GetForeignSessions_DuplicateNamesWithSuffixes) {
+  CreateSidePanelUI();
+
+  syncer::DeviceInfoSyncService* device_info_sync_service =
+      DeviceInfoSyncServiceFactory::GetForProfile(profile());
+  syncer::FakeDeviceInfoTracker* device_info_tracker =
+      static_cast<syncer::FakeDeviceInfoTracker*>(
+          device_info_sync_service->GetDeviceInfoTracker());
+
+  // Create two devices with the same name but different channels.
+  auto device1 = std::make_unique<syncer::DeviceInfo>(
+      "tag1", "My Device", "1.0", "Mozilla/5.0 channel(stable)",
+      syncer::DeviceInfo::DeviceType::kPhone,
+      syncer::DeviceInfo::OsType::kAndroid,
+      syncer::DeviceInfo::FormFactor::kPhone, "id1", "Manufacturer", "Model",
+      "FullHWClass", base::Time::Now(), base::TimeDelta(), false,
+      syncer::DeviceInfo::SendTabReceivingType::kChromeOrUnspecified,
+      std::nullopt, std::nullopt, "fcm1", syncer::DataTypeSet{}, std::nullopt,
+      false, MobilePromoOnDesktopPromoTypeSet{},
+      syncer::DeviceInfo::GlicExperimentalTriggeringState::kUnavailable);
+
+  auto device2 = std::make_unique<syncer::DeviceInfo>(
+      "tag2", "My Device", "1.0", "Mozilla/5.0 channel(canary)",
+      syncer::DeviceInfo::DeviceType::kPhone,
+      syncer::DeviceInfo::OsType::kAndroid,
+      syncer::DeviceInfo::FormFactor::kPhone, "id2", "Manufacturer", "Model",
+      "FullHWClass", base::Time::Now(), base::TimeDelta(), false,
+      syncer::DeviceInfo::SendTabReceivingType::kChromeOrUnspecified,
+      std::nullopt, std::nullopt, "fcm2", syncer::DataTypeSet{}, std::nullopt,
+      false, MobilePromoOnDesktopPromoTypeSet{},
+      syncer::DeviceInfo::GlicExperimentalTriggeringState::kUnavailable);
+
+  device_info_tracker->Add(std::move(device1));
+  device_info_tracker->Add(std::move(device2));
+
+  // Set up fake sessions.
+  std::vector<raw_ptr<const sync_sessions::SyncedSession, VectorExperimental>>
+      sessions;
+  auto session1 = std::make_unique<sync_sessions::SyncedSession>();
+  session1->SetSessionTag("tag1");
+  session1->SetSessionName("My Device");
+
+  auto session2 = std::make_unique<sync_sessions::SyncedSession>();
+  session2->SetSessionTag("tag2");
+  session2->SetSessionName("My Device");
+
+  sessions.push_back(session1.get());
+  sessions.push_back(session2.get());
+
+  EXPECT_CALL(*session_sync_service()->GetOpenTabsUIDelegate(),
+              GetAllForeignSessions)
+      .WillOnce(testing::DoAll(testing::SetArgPointee<0>(sessions),
+                               testing::Return(true)));
+
+  base::MockCallback<ForeignSessionHandler::GetForeignSessionsCallback>
+      callback;
+
+  std::vector<history::mojom::ForeignSessionPtr> result_sessions;
+  EXPECT_CALL(callback, Run)
+      .WillOnce([&result_sessions](
+                    std::vector<history::mojom::ForeignSessionPtr> sessions) {
+        result_sessions = std::move(sessions);
+      });
+
+  handler_->GetForeignSessions(callback.Get());
+
+  ASSERT_EQ(result_sessions.size(), 2u);
+  EXPECT_EQ(result_sessions[0]->name, "My Device");  // Stable gets no suffix
+  EXPECT_EQ(result_sessions[1]->name, "My Device (Canary)");
+}
+
+TEST_F(ForeignSessionHandlerSidePanelTest,
+       GetForeignSessions_ExcludeStableChannel) {
+  base::test::ScopedFeatureList feature_list{
+      features::kTabsFromOtherDevicesSidePanelExcludeStableChannel};
+
+  CreateSidePanelUI();
+
+  syncer::DeviceInfoSyncService* device_info_sync_service =
+      DeviceInfoSyncServiceFactory::GetForProfile(profile());
+  syncer::FakeDeviceInfoTracker* device_info_tracker =
+      static_cast<syncer::FakeDeviceInfoTracker*>(
+          device_info_sync_service->GetDeviceInfoTracker());
+
+  // Create one stable and one canary device.
+  auto device1 = std::make_unique<syncer::DeviceInfo>(
+      "tag1", "Stable Device", "1.0", "Mozilla/5.0 channel(stable)",
+      syncer::DeviceInfo::DeviceType::kPhone,
+      syncer::DeviceInfo::OsType::kAndroid,
+      syncer::DeviceInfo::FormFactor::kPhone, "id1", "Manufacturer", "Model",
+      "FullHWClass", base::Time::Now(), base::TimeDelta(), false,
+      syncer::DeviceInfo::SendTabReceivingType::kChromeOrUnspecified,
+      std::nullopt, std::nullopt, "fcm1", syncer::DataTypeSet{}, std::nullopt,
+      false, MobilePromoOnDesktopPromoTypeSet{},
+      syncer::DeviceInfo::GlicExperimentalTriggeringState::kUnavailable);
+
+  auto device2 = std::make_unique<syncer::DeviceInfo>(
+      "tag2", "Canary Device", "1.0", "Mozilla/5.0 channel(canary)",
+      syncer::DeviceInfo::DeviceType::kPhone,
+      syncer::DeviceInfo::OsType::kAndroid,
+      syncer::DeviceInfo::FormFactor::kPhone, "id2", "Manufacturer", "Model",
+      "FullHWClass", base::Time::Now(), base::TimeDelta(), false,
+      syncer::DeviceInfo::SendTabReceivingType::kChromeOrUnspecified,
+      std::nullopt, std::nullopt, "fcm2", syncer::DataTypeSet{}, std::nullopt,
+      false, MobilePromoOnDesktopPromoTypeSet{},
+      syncer::DeviceInfo::GlicExperimentalTriggeringState::kUnavailable);
+
+  device_info_tracker->Add(std::move(device1));
+  device_info_tracker->Add(std::move(device2));
+
+  // Set up fake sessions.
+  std::vector<raw_ptr<const sync_sessions::SyncedSession, VectorExperimental>>
+      sessions;
+  auto session1 = std::make_unique<sync_sessions::SyncedSession>();
+  session1->SetSessionTag("tag1");
+  session1->SetSessionName("Stable Device");
+
+  auto session2 = std::make_unique<sync_sessions::SyncedSession>();
+  session2->SetSessionTag("tag2");
+  session2->SetSessionName("Canary Device");
+
+  sessions.push_back(session1.get());
+  sessions.push_back(session2.get());
+
+  EXPECT_CALL(*session_sync_service()->GetOpenTabsUIDelegate(),
+              GetAllForeignSessions)
+      .WillOnce(testing::DoAll(testing::SetArgPointee<0>(sessions),
+                               testing::Return(true)));
+
+  base::MockCallback<ForeignSessionHandler::GetForeignSessionsCallback>
+      callback;
+
+  std::vector<history::mojom::ForeignSessionPtr> result_sessions;
+  EXPECT_CALL(callback, Run)
+      .WillOnce([&result_sessions](
+                    std::vector<history::mojom::ForeignSessionPtr> sessions) {
+        result_sessions = std::move(sessions);
+      });
+
+  handler_->GetForeignSessions(callback.Get());
+
+  // Only the canary device should be returned.
+  ASSERT_EQ(result_sessions.size(), 1u);
+  EXPECT_EQ(result_sessions[0]->name, "Canary Device");
 }
 
 }  // namespace browser_sync

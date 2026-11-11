@@ -264,7 +264,7 @@ TNode<WasmInternalFunction>
 CodeStubAssembler::LoadWasmInternalFunctionFromFuncRef(
     TNode<WasmFuncRef> func_ref) {
   return LoadTrustedPointerFromObject<kWasmInternalFunctionIndirectPointerTag>(
-      func_ref, WasmFuncRef::kTrustedInternalOffset);
+      func_ref, offsetof(WasmFuncRef, trusted_internal_));
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY

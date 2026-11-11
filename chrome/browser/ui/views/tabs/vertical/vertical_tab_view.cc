@@ -13,6 +13,7 @@
 #include "base/metrics/user_metrics_action.h"
 #include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
 #include "chrome/browser/glic/browser_ui/tab_underline_controller.h"
 #include "chrome/browser/glic/browser_ui/tab_underline_view.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
@@ -23,6 +24,7 @@
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tab_contents/core_tab_helper.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
+#include "chrome/browser/ui/tabs/tab_change_type.h"
 #include "chrome/browser/ui/tabs/tab_data.h"
 #include "chrome/browser/ui/tabs/tab_muted_utils.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -142,7 +144,9 @@ VerticalTabView::VerticalTabView(TabCollectionNode* collection_node)
           // TODO(crbug.com/467733947): Hook up metrics logging callback.
           base::DoNothingAs<void(views::View*, const ui::MouseEvent&)>()))),
       hover_controller_(gfx::Animation::ShouldRenderRichAnimation()
-                            ? std::make_unique<GlowHoverController>(this)
+                            ? std::make_unique<GlowHoverController>(
+                                  this,
+                                  kGlowHoverAnimationDuration)
                             : nullptr) {
   tabs::TabInterface* tab = const_cast<tabs::TabInterface*>(GetTabInterface());
   BrowserWindowInterface* browser_window = tab->GetBrowserWindowInterface();
@@ -187,6 +191,7 @@ VerticalTabView::VerticalTabView(TabCollectionNode* collection_node)
   // So we get don't get enter/exit on children and don't prematurely stop the
   // hover.
   SetNotifyEnterExitOnChild(true);
+  set_context_menu_controller(this);
 
   // Add accessibility and focus ring
   SetFocusBehavior(FocusBehavior::ACCESSIBLE_ONLY);
@@ -210,9 +215,13 @@ VerticalTabView::VerticalTabView(TabCollectionNode* collection_node)
   node_destroyed_subscription_ =
       collection_node_->RegisterWillDestroyCallback(base::BindOnce(
           &VerticalTabView::ResetCollectionNode, base::Unretained(this)));
-  data_changed_subscription_ =
-      collection_node_->RegisterDataChangedCallback(base::BindRepeating(
-          &VerticalTabView::OnDataChanged, base::Unretained(this)));
+  tab_state_changed_subscription_ =
+      collection_node_->RegisterTabSelectionChangedCallback(base::BindRepeating(
+          &VerticalTabView::OnTabStateChanged, base::Unretained(this)));
+  tab_data_observer_ = std::make_unique<tabs::TabDataObserver>(tab);
+  tab_data_changed_subscription_ =
+      tab_data_observer_->RegisterTabDataChangedCallback(base::BindRepeating(
+          &VerticalTabView::OnTabDataChanged, base::Unretained(this)));
 
   CHECK(collection_node_->GetController());
   auto* state_controller =
@@ -222,8 +231,6 @@ VerticalTabView::VerticalTabView(TabCollectionNode* collection_node)
   collapsed_state_changed_subscription_ =
       state_controller->RegisterOnCollapseChanged(base::BindRepeating(
           &VerticalTabView::OnCollapseStateChanged, base::Unretained(this)));
-
-  set_context_menu_controller(this);
 }
 
 VerticalTabView::~VerticalTabView() = default;
@@ -618,7 +625,7 @@ void VerticalTabView::AddedToWidget() {
       GetWidget()->RegisterPaintAsActiveChangedCallback(base::BindRepeating(
           &VerticalTabView::OnFrameActiveStateChanged, base::Unretained(this)));
 
-  OnDataChanged();
+  OnTabStateChanged();
 
   // Recompute accessible name when the structure changes.
   UpdateAccessibleName();
@@ -946,7 +953,7 @@ void VerticalTabView::OnCollapseStateChanged(
   collapsed_ = state == tabs::VerticalTabStripCollapseState::kCollapsed;
 }
 
-void VerticalTabView::OnDataChanged() {
+void VerticalTabView::OnTabStateChanged() {
   CHECK(collection_node_);
 
   tabs::TabInterface* tab = const_cast<tabs::TabInterface*>(GetTabInterface());
@@ -968,6 +975,11 @@ void VerticalTabView::OnDataChanged() {
   InvalidateLayout();
 }
 
+void VerticalTabView::OnTabDataChanged(TabChangeType change_type,
+                                       const tabs::TabData& data) {
+  UpdateTabData(GetTabInterface());
+}
+
 void VerticalTabView::SetSelection(bool selected) {
   if (selected_ == selected) {
     return;
@@ -977,10 +989,9 @@ void VerticalTabView::SetSelection(bool selected) {
   GetViewAccessibility().SetIsSelected(selected_);
 }
 
-void VerticalTabView::UpdateTabData(tabs::TabInterface* tab) {
-  tabs::TabData new_data = tabs::TabData::FromTabInterface(tab);
+void VerticalTabView::UpdateTabData(const tabs::TabInterface* tab) {
   tabs::TabData old_data = std::move(tab_data_);
-  tab_data_ = std::move(new_data);
+  tab_data_ = tab_data_observer_->tab_data();
 
   if (tabs::ShouldUpdateAccessibleName(old_data, tab_data_)) {
     UpdateAccessibleName();
@@ -992,16 +1003,14 @@ void VerticalTabView::UpdateTabData(tabs::TabInterface* tab) {
                       !tab->IsActivated() && tab->IsBlocked());
   icon_->SetAttention(TabIcon::AttentionType::kTabWantsAttentionStatus,
                       tab_data_.needs_attention);
-
-  UpdateTitle();
-
+  UpdateTitle(tab_data_.title, tab_data_.should_render_loading_title);
   alert_indicator_->TransitionToAlertState(tab_data_.alert_state);
   SetHoverCardDataFrom(tab_data_);
 }
 
-void VerticalTabView::UpdateTitle() {
-  std::u16string title = tab_data_.title;
-  if (tab_data_.should_render_loading_title) {
+void VerticalTabView::UpdateTitle(std::u16string title,
+                                  bool should_render_loading_title) {
+  if (should_render_loading_title) {
     title = icon_->GetShowingLoadingAnimation()
                 ? l10n_util::GetStringUTF16(IDS_TAB_LOADING_TITLE)
                 : CoreTabHelper::GetDefaultTitle();

@@ -59,6 +59,13 @@ int EVP_PKEY_up_ref(EVP_PKEY *pkey) {
   return 1;
 }
 
+EVP_PKEY *EVP_PKEY_dup_ref(const EVP_PKEY *pkey) {
+  auto pkey_ref = const_cast<EVP_PKEY *>(pkey);
+  // We know that this call always returns one.
+  EVP_PKEY_up_ref(pkey_ref);
+  return pkey_ref;
+}
+
 int EVP_PKEY_is_opaque(const EVP_PKEY *pkey) {
   auto *impl = FromOpaque(pkey);
   if (impl->ameth && impl->ameth->pkey_opaque) {

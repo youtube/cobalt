@@ -270,12 +270,12 @@ ReadOnlyPageObjectIterator::ReadOnlyPageObjectIterator(
 }
 
 Tagged<HeapObject> ReadOnlyPageObjectIterator::Next() {
-  if (page_ == nullptr) return HeapObject();
+  if (page_ == nullptr) return {};
 
   Address end = page_->GetAreaStart() + page_->area_size();
   for (;;) {
     DCHECK_LE(current_addr_, end);
-    if (current_addr_ == end) return HeapObject();
+    if (current_addr_ == end) return {};
 
     Tagged<HeapObject> object = HeapObject::FromAddress(current_addr_);
     const int object_size = object->Size();

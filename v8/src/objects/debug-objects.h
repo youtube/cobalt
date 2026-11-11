@@ -235,25 +235,13 @@ struct CoverageInfoSlot {
   int32_t padding;
 
   static const int kSize;
-  static const int kStartSourcePositionOffset;
-  static const int kEndSourcePositionOffset;
-  static const int kBlockCountOffset;
-  static const int kPaddingOffset;
 };
 static_assert(sizeof(CoverageInfoSlot) == 16);
 
 inline constexpr int CoverageInfoSlot::kSize = sizeof(CoverageInfoSlot);
-inline constexpr int CoverageInfoSlot::kStartSourcePositionOffset =
-    offsetof(CoverageInfoSlot, start_source_position);
-inline constexpr int CoverageInfoSlot::kEndSourcePositionOffset =
-    offsetof(CoverageInfoSlot, end_source_position);
-inline constexpr int CoverageInfoSlot::kBlockCountOffset =
-    offsetof(CoverageInfoSlot, block_count);
-inline constexpr int CoverageInfoSlot::kPaddingOffset =
-    offsetof(CoverageInfoSlot, padding);
 
 // Holds information related to block code coverage.
-V8_OBJECT class CoverageInfo : public HeapObjectLayout {
+V8_OBJECT class CoverageInfo : public HeapObject {
  public:
   inline int32_t slot_count() const;
   inline void set_slot_count(int32_t value);
@@ -285,15 +273,10 @@ V8_OBJECT class CoverageInfo : public HeapObjectLayout {
   // Description of layout within each slot.
   using Slot = CoverageInfoSlot;
 
-  // Back-compat offset/size constants.
-  static const int kSlotCountOffset;
-
   int32_t slot_count_;
   FLEXIBLE_ARRAY_MEMBER(CoverageInfoSlot, slots);
 } V8_OBJECT_END;
 
-inline constexpr int CoverageInfo::kSlotCountOffset =
-    offsetof(CoverageInfo, slot_count_);
 
 constexpr int CoverageInfo::SizeFor(int slot_count) {
   return OBJECT_POINTER_ALIGN(OFFSET_OF_DATA_START(CoverageInfo) +

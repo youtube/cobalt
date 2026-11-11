@@ -44,8 +44,7 @@ class GlicKeyedService;
 
 class GlicSelectionObserver
     : public content::WebContentsObserver,
-      public content::RenderWidgetHost::InputEventObserver,
-      public Host::Observer {
+      public content::RenderWidgetHost::InputEventObserver {
  public:
   explicit GlicSelectionObserver(content::WebContents* web_contents);
   ~GlicSelectionObserver() override;
@@ -80,14 +79,11 @@ class GlicSelectionObserver
       content::RenderWidgetHost::InputEventObserver::InputEventSource source)
       override;
 
-  // Host::Observer:
-  void WebClientConnected() override;
-
  private:
   void ProcessPendingSelection();
   void ResetPendingSelection();
 
-  void OnPanelStateChanged();
+  void OnGlobalPanelShowHide();
 
   static void InvokeGlicFromSelectionAffordance(
       std::u16string selected_text,
@@ -119,9 +115,6 @@ class GlicSelectionObserver
   base::CallbackListSubscription panel_state_subscription_;
   std::u16string last_selected_text_;
 
-  // Timer to process the selection after a timeout.
-  base::OneShotTimer selection_debounce_timer_;
-
   // The text of the last selection that was ignored due to rate limiting.
   std::optional<std::u16string> pending_selection_text_;
 
@@ -135,13 +128,12 @@ class GlicSelectionObserver
 
   bool has_sent_selection_context_ = false;
   bool is_widget_pinned_ = false;
+  bool is_selecting_ = false;
 
   base::WeakPtr<views::Widget> selection_widget_;
 
   mojo::Remote<blink::mojom::TextFragmentReceiver> text_fragment_remote_;
   std::optional<GURL> generated_link_;
-
-  base::ScopedObservation<Host, Host::Observer> host_observation_{this};
 
   base::WeakPtrFactory<GlicSelectionObserver> weak_ptr_factory_{this};
 

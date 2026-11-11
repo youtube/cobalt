@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/branding_buildflags.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
@@ -51,7 +52,7 @@ class SelectionOverlayInteractiveTest : public test::InteractiveGlicTest {
  public:
   SelectionOverlayInteractiveTest() {
     scoped_feature_list_.InitWithFeatures(
-        {::features::kGlicRegionSelectionNew, ::features::kGlicCaptureRegion,
+        {::features::kGlicCaptureRegion,
          // Only supports multi-instance mode for now.
          ::features::kGlicMultiInstance},
         {});
@@ -699,5 +700,4 @@ IN_PROC_BROWSER_TEST_F(SelectionOverlayInteractiveTestWithPolyline,
         SelectionOverlayController::FromTabWebContents(web_contents)->Close();
       }));
 }
-
 }  // namespace glic

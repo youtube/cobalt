@@ -34,6 +34,22 @@ const HeapGraphEdge* GetNamedEdge(const HeapEntry& entry, const char* name) {
   return nullptr;
 }
 
+const HeapGraphEdge* FindFirstEdgeTo(const HeapEntry& from,
+                                     const HeapEntry& to) {
+  for (int i = 0; i < from.children_count(); ++i) {
+    const HeapGraphEdge* edge = from.child(i);
+    if (edge->to() == &to) return edge;
+  }
+  return nullptr;
+}
+
+const HeapEntry* GetEntryByName(HeapSnapshot* snapshot, const char* name) {
+  for (const HeapEntry& entry : snapshot->entries()) {
+    if (strcmp(entry.name(), name) == 0) return &entry;
+  }
+  return nullptr;
+}
+
 bool HasNamedEdge(const HeapEntry& entry, const char* name) {
   return GetNamedEdge(entry, name) != nullptr;
 }
@@ -78,6 +94,13 @@ const HeapEntry* GetEntryFor(Isolate* isolate, HeapSnapshot* snapshot,
       isolate->heap()->heap_profiler()->heap_object_map()->FindEntry(addr);
   if (id == v8::HeapProfiler::kUnknownObjectId) return nullptr;
   return snapshot->GetEntryById(id);
+}
+
+const HeapEntry* GetEntryFor(Isolate* isolate, HeapSnapshot* snapshot,
+                             const cppgc::internal::HeapObjectHeader& header) {
+  Address header_address = reinterpret_cast<Address>(
+      const_cast<cppgc::internal::HeapObjectHeader*>(&header));
+  return GetEntryFor(isolate, snapshot, header_address);
 }
 
 }  // namespace v8::internal

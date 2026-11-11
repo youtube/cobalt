@@ -893,7 +893,6 @@ class QUICHE_EXPORT QuicSession
   // Caller does not own the returned stream.
   // Returns nullptr and does error handling if the stream can not be created.
   virtual QuicStream* CreateIncomingStream(QuicStreamId id) = 0;
-  virtual QuicStream* CreateIncomingStream(PendingStream* pending) = 0;
   // Return true if the specified stream should be refused.
   virtual bool ShouldRefuseIncomingStream(QuicStreamId) { return false; }
 
@@ -1169,6 +1168,12 @@ class QUICHE_EXPORT QuicSession
   // if action returns false.
   void PerformActionOnNonStaticStreams(
       quiche::UnretainedCallback<bool(QuicStream*)> action);
+
+  // This is a temporary workaround to fix compile breakage in the Chromium
+  // roll. Do not call this method or add more references to it.
+  // TODO: b/508413463 - Remove this method once a version of Open Screen that
+  // doesn't override this method has rolled into Chromium.
+  virtual QuicStream* CreateIncomingStream(PendingStream*) { return nullptr; }
 
   // A counter for streams which have sent and received FIN but waiting for
   // application to consume data.

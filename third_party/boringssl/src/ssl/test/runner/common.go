@@ -223,6 +223,7 @@ const (
 	extensionQUICTransportParams        uint16 = 57
 	extensionTLSFlags                   uint16 = 62
 	extensionCustom                     uint16 = 1234  // not IANA assigned
+	extensionServerPaddingRequest       uint16 = 4832  // not IANA assigned
 	extensionNextProtoNeg               uint16 = 13172 // not IANA assigned
 	extensionApplicationSettingsOld     uint16 = 17513 // not IANA assigned
 	extensionApplicationSettings        uint16 = 17613 // not IANA assigned
@@ -334,7 +335,7 @@ const (
 	signatureMLDSA65 signatureAlgorithm = 0x0905
 	signatureMLDSA87 signatureAlgorithm = 0x0906
 
-	// draft-ietf-tls-tls13-pkcs1-00
+	// RFC 9963
 	signatureRSAPKCS1WithSHA256Legacy signatureAlgorithm = 0x0420
 
 	// signatureRSAPKCS1WithMD5AndSHA1 is the internal value BoringSSL uses to
@@ -780,6 +781,10 @@ type Config struct {
 	// ResumptionAcrossNames specifies whether session tickets issued by the TLS
 	// server should be marked as compatible with cross-name resumption.
 	ResumptionAcrossNames bool
+
+	// RequestServerPadding, if not nil, configures a client to request the
+	// specified number of bytes of padding from the server.
+	RequestServerPadding *uint16
 
 	// Bugs specifies optional misbehaviour to be used for testing other
 	// implementations.
@@ -2285,6 +2290,16 @@ type ProtocolBugs struct {
 	// TODO(crbug.com/505803427): Currently only implemented for ClientHello and
 	// CertificateRequest.
 	ExtensionsWithTrailingData []uint16
+
+	// If SendServerPaddingLength, if not nil, sends the amount of padding
+	// specified in the server padding extension. If this is not set, the
+	// server padding extension will not be sent.
+	SendServerPaddingLength *uint16
+
+	// ExpectedServerPadding, if true, will expect that the server sent back
+	// exactly the amount of padding requested by the client through server
+	// padding extension.
+	ExpectedServerPadding bool
 }
 
 func (c *Config) serverInit() {

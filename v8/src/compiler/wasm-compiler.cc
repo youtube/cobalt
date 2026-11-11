@@ -222,7 +222,8 @@ void WasmGraphBuilder::Start(unsigned params) {
                AbortReason::kUnexpectedInstanceType);
       }
       instance_data_node_ = gasm_->LoadProtectedPointerFromObject(
-          param, WasmImportData::kProtectedInstanceDataOffset - kHeapObjectTag);
+          param,
+          offsetof(WasmImportData, protected_instance_data_) - kHeapObjectTag);
       break;
     }
     case kJSFunctionAbiMode: {
@@ -497,8 +498,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                          isolate, wasm::WasmEnabledFeatures::All(), sig) {}
 
   Node* BuildCallAndReturn(Node* js_context, Node* function_data,
-                           base::SmallVector<Node*, 16> args, Node* frame_state,
-                           bool set_in_wasm_flag) {
+                           base::SmallVector<Node*, 16> args,
+                           Node* frame_state) {
     const int rets_count = static_cast<int>(wrapper_sig_->return_count());
     base::SmallVector<Node*, 1> rets(rets_count);
 
@@ -508,13 +509,13 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // target independent, in particular for tier-up.
     Node* internal = gasm_->LoadImmutableProtectedPointerFromObject(
         function_data,
-        WasmFunctionData::kProtectedInternalOffset - kHeapObjectTag);
+        offsetof(WasmFunctionData, protected_internal_) - kHeapObjectTag);
     args[0] = gasm_->LoadFromObject(
         MachineType::Uint32(), internal,
-        WasmInternalFunction::kRawCallTargetOffset - kHeapObjectTag);
+        offsetof(WasmInternalFunction, raw_call_target_) - kHeapObjectTag);
     Node* implicit_arg = gasm_->LoadImmutableProtectedPointerFromObject(
-        internal,
-        WasmInternalFunction::kProtectedImplicitArgOffset - kHeapObjectTag);
+        internal, offsetof(WasmInternalFunction, protected_implicit_arg_) -
+                      kHeapObjectTag);
     BuildWasmCall(wrapper_sig_, base::VectorOf(args), base::VectorOf(rets),
                   implicit_arg, true, frame_state);
 
@@ -529,7 +530,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return jsval;
   }
 
-  void BuildJSToWasmWrapper(Node* frame_state, bool set_in_wasm_flag) {
+  void BuildJSToWasmWrapper(Node* frame_state) {
     const int wasm_param_count =
         static_cast<int>(wrapper_sig_->parameter_count());
 
@@ -593,8 +594,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       args[i + 1] = wasm_param;
     }
 
-    Node* jsval = BuildCallAndReturn(js_context, function_data, args,
-                                     frame_state, set_in_wasm_flag);
+    Node* jsval =
+        BuildCallAndReturn(js_context, function_data, args, frame_state);
 
 #if V8_ENABLE_DRUMBRAKE
     if (v8_flags.wasm_enable_exec_time_histograms && v8_flags.slow_histograms &&
@@ -623,11 +624,11 @@ void BuildInlinedJSToWasmWrapper(Zone* zone, MachineGraph* mcgraph,
                                  const wasm::CanonicalSig* signature,
                                  Isolate* isolate,
                                  compiler::SourcePositionTable* spt,
-                                 Node* frame_state, bool set_in_wasm_flag) {
+                                 Node* frame_state) {
   WasmWrapperGraphBuilder builder(zone, mcgraph, signature,
                                   WasmGraphBuilder::kJSFunctionAbiMode, isolate,
                                   spt);
-  builder.BuildJSToWasmWrapper(frame_state, set_in_wasm_flag);
+  builder.BuildJSToWasmWrapper(frame_state);
 }
 
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(

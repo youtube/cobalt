@@ -250,6 +250,8 @@ class Deserializer : public SerializerDeserializer {
   template <typename SlotAccessor>
   int ReadFixedRawData(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
+  int ReadExtendedMapBitfieldEx(uint8_t data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
   int ReadFixedRepeatRoot(uint8_t data, SlotAccessor slot_accessor);
 
   // A helper function for ReadData for reading external references.

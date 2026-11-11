@@ -320,7 +320,7 @@ V8_NOINLINE V8_PRESERVE_MOST inline bool TryReportUnreachable(
   }
   recursion++;
   Isolate::Current()->PushStackTraceAndDie(
-      reinterpret_cast<void*>(string->ptr()),
+      "invalid string dispatch", reinterpret_cast<void*>(string->ptr()),
       reinterpret_cast<void*>(map->ptr()));
   recursion--;
   UNREACHABLE();
@@ -1725,8 +1725,9 @@ void StringCharacterStream::Reset(Tagged<String> string, int offset) {
   iter_.Reset(cons_string, offset);
   if (!cons_string.is_null()) {
     string = iter_.Next(&offset);
-    if (!string.is_null())
+    if (!string.is_null()) {
       String::VisitFlat(this, string, offset, access_guard_);
+    }
   }
 }
 

@@ -33,7 +33,7 @@ use crate::{
     connection::{
         Client,
         Server,
-        TlsConnectionRef,
+        TlsConnection,
         methods::HasTlsConnectionMethod, //
     },
     context::{
@@ -50,7 +50,7 @@ use crate::{
 };
 
 /// # Connection shutdown
-impl<R, M> TlsConnectionRef<R, M> {
+impl<R, M> TlsConnection<R, M> {
     /// Set whether shutting down this connection sends out a `close_notify` alert.
     pub fn set_quiet_shutdown(&mut self, quiet: bool) -> &mut Self {
         unsafe {
@@ -77,7 +77,7 @@ impl<R, M> TlsConnectionRef<R, M> {
 ///
 /// Please refer to [`EstablishedTlsConnection`] and [`TlsConnectionInHandshake`] for allowed
 /// operations.
-impl<R, M> TlsConnectionRef<R, M> {
+impl<R, M> TlsConnection<R, M> {
     /// Access handshake-related options if the connection is in handshake mode.
     pub fn in_handshake<'a>(&'a mut self) -> Option<TlsConnectionInHandshake<'a, R, M>> {
         if self.is_in_handshake() {
@@ -113,9 +113,9 @@ bssl_macros::bssl_enum! {
 
 /// # Connection state
 ///
-/// When operations on [`TlsConnectionRef`] return with pending status,
+/// When operations on [`TlsConnection`] return with pending status,
 /// there will be reasons why the operations should be retried.
-impl<R, M> TlsConnectionRef<R, M> {
+impl<R, M> TlsConnection<R, M> {
     /// Check the connection if it needs additional data.
     pub fn wants_data(&self) -> Option<TlsPendingData> {
         let code = unsafe {
@@ -128,7 +128,7 @@ impl<R, M> TlsConnectionRef<R, M> {
 }
 
 /// # Alerts
-impl<R, M> TlsConnectionRef<R, M>
+impl<R, M> TlsConnection<R, M>
 where
     M: HasTlsConnectionMethod,
 {
@@ -162,20 +162,19 @@ where
     }
 }
 
-impl<R> TlsConnectionRef<R, TlsMode> {
+impl<R> TlsConnection<R, TlsMode> {
     /// Inspect if the connection is suspended for which reason, after invocation of I/O methods.
     pub fn take_pending_reason(&mut self) -> Option<TlsRetryReason> {
-        let methods = self.get_connection_methods();
-        methods.take_pending_reason()
+        self.get_connection_methods().take_pending_reason()
     }
 }
 
 /// A handle to the connection that is valid only during handshake.
 #[repr(transparent)]
-pub struct TlsConnectionInHandshake<'a, R, M>(pub(crate) &'a mut TlsConnectionRef<R, M>);
+pub struct TlsConnectionInHandshake<'a, R, M>(pub(crate) &'a mut TlsConnection<R, M>);
 
 impl<R, M> Deref for TlsConnectionInHandshake<'_, R, M> {
-    type Target = TlsConnectionRef<R, M>;
+    type Target = TlsConnection<R, M>;
     fn deref(&self) -> &Self::Target {
         &*self.0
     }
@@ -237,10 +236,10 @@ where
 /// A handle to the connection that is valid only after initialization, or in other words after
 /// handshake.
 #[repr(transparent)]
-pub struct EstablishedTlsConnection<'a, R, M = TlsMode>(&'a mut TlsConnectionRef<R, M>);
+pub struct EstablishedTlsConnection<'a, R, M = TlsMode>(&'a mut TlsConnection<R, M>);
 
 impl<R, M> Deref for EstablishedTlsConnection<'_, R, M> {
-    type Target = TlsConnectionRef<R, M>;
+    type Target = TlsConnection<R, M>;
     fn deref(&self) -> &Self::Target {
         &*self.0
     }

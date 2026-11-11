@@ -966,12 +966,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Stores a stack trace in a stack-allocated temporary buffer which will
   // end up in the minidump for debugging purposes.
   [[noreturn]] V8_NOINLINE void PushStackTraceAndDie(
-      void* ptr1 = nullptr, void* ptr2 = nullptr, void* ptr3 = nullptr,
-      void* ptr4 = nullptr, void* ptr5 = nullptr, void* ptr6 = nullptr);
+      const char* reason, void* ptr1 = nullptr, void* ptr2 = nullptr,
+      void* ptr3 = nullptr, void* ptr4 = nullptr, void* ptr5 = nullptr,
+      void* ptr6 = nullptr);
   // Similar to the above but without collecting the stack trace.
   [[noreturn]] V8_NOINLINE void PushParamsAndDie(
-      void* ptr1 = nullptr, void* ptr2 = nullptr, void* ptr3 = nullptr,
-      void* ptr4 = nullptr, void* ptr5 = nullptr, void* ptr6 = nullptr);
+      const char* reason, void* ptr1 = nullptr, void* ptr2 = nullptr,
+      void* ptr3 = nullptr, void* ptr4 = nullptr, void* ptr5 = nullptr,
+      void* ptr6 = nullptr);
   // Like PushStackTraceAndDie but uses DumpWithoutCrashing to continue
   // execution.
   V8_NOINLINE void PushStackTraceAndContinue(

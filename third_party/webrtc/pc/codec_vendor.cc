@@ -568,6 +568,8 @@ RTCError AssignCodecIdsAndLinkRed(PayloadTypeSuggester* pt_suggester,
         return result.error();
       }
       codec.id = result.value();
+    } else if (pt_suggester) {
+      pt_suggester->AddLocalMapping(mid, codec.id, codec);
     }
     // record first Opus codec id
     if (absl::EqualsIgnoreCase(codec.name, kOpusCodecName) &&
@@ -684,10 +686,11 @@ RTCErrorOr<std::vector<Codec>> CodecVendor::GetNegotiatedCodecsForOffer(
             // remote offer without RTX for a codec for which we support RTX.
             // This is only done for video since we do not yet have rtx for
             // audio.
-            auto referenced_codec =
+            const Codec* referenced_codec =
                 GetAssociatedCodecForRtx(supported_codecs, codec);
-            RTC_DCHECK(referenced_codec);
-
+            if (!referenced_codec) {
+              continue;
+            }
             // Find the codec we should be referencing and point to it.
             std::optional<Codec> changed_referenced_codec = FindMatchingCodec(
                 supported_codecs, filtered_codecs, *referenced_codec);

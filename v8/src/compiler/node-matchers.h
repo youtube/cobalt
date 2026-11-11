@@ -802,13 +802,15 @@ struct BaseWithIndexAndDisplacementMatcher {
           break;
         case IrOpcode::kInt32Sub:
           // If the subtrahend is not a constant, it is not an addressing use.
-          if (from->InputAt(1)->opcode() != IrOpcode::kInt32Constant)
+          if (from->InputAt(1)->opcode() != IrOpcode::kInt32Constant) {
             return false;
+          }
           break;
         case IrOpcode::kInt64Sub:
           // If the subtrahend is not a constant, it is not an addressing use.
-          if (from->InputAt(1)->opcode() != IrOpcode::kInt64Constant)
+          if (from->InputAt(1)->opcode() != IrOpcode::kInt64Constant) {
             return false;
+          }
           break;
         case IrOpcode::kStore:
         case IrOpcode::kTrappingStore:

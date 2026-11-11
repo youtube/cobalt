@@ -123,6 +123,7 @@ AudioReceiveStreamImpl::AudioReceiveStreamImpl(
   RTC_DCHECK(config.rtcp_send_transport);
   RTC_DCHECK(audio_state_);
   RTC_DCHECK(channel_receive_);
+  RTC_DCHECK_EQ(config_.rtp.remote_ssrc, channel_receive_->remote_ssrc());
 
   RTC_DCHECK(packet_router);
   // Configure bandwidth estimation.
@@ -457,6 +458,10 @@ void AudioReceiveStreamImpl::SetSyncGroup(absl::string_view sync_group) {
 const std::string& AudioReceiveStreamImpl::sync_group() const {
   RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
   return config_.sync_group;
+}
+
+uint32_t AudioReceiveStreamImpl::remote_ssrc() const {
+  return channel_receive_->remote_ssrc();
 }
 
 internal::AudioState* AudioReceiveStreamImpl::audio_state() const {

@@ -78,7 +78,7 @@ class AccessBuilderTS : public AllStatic {
   }
   static FieldAccessTS<FeedbackVector, Word32> ForFeedbackVectorLength() {
     return FieldAccessTS<FeedbackVector, Word32>(compiler::FieldAccess{
-        BaseTaggedness::kTaggedBase, FeedbackVector::kLengthOffset,
+        BaseTaggedness::kTaggedBase, offsetof(FeedbackVector, length_),
         Handle<Name>(), OptionalMapRef(), TypeCache::Get()->kInt32,
         MachineType::Int32(), WriteBarrierKind::kNoWriteBarrier});
   }

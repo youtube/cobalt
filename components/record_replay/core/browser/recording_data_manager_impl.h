@@ -11,18 +11,18 @@
 
 #include "base/memory/weak_ptr.h"
 #include "base/threading/sequence_bound.h"
-#include "components/record_replay/core/browser/capabilities_database.h"
 #include "components/record_replay/core/browser/recording.pb.h"
 #include "components/record_replay/core/browser/recording_data_manager.h"
+#include "components/record_replay/core/browser/task_database.h"
 
 namespace record_replay {
 
 // Concrete implementation for `RecordingDataManager` using a SQLite database
-// to save and load `Recording` protos and `ActivityAnnotation`s.
+// to save and load `Recording` protos and `TaskDefinition`s.
 //
 // Owned by `RecordingDataManagerFactory` as a `KeyedService`, and thus tied to
 // the lifecycle of a `Profile`.
-// It runs on the UI thread but uses `CapabilitiesDatabase` on a background
+// It runs on the UI thread but uses `TaskDatabase` on a background
 // sequence for database I/O.
 class RecordingDataManagerImpl : public RecordingDataManager {
  public:
@@ -37,36 +37,29 @@ class RecordingDataManagerImpl : public RecordingDataManager {
   void GetRecordingsByUrl(
       std::string url,
       base::OnceCallback<void(std::vector<Recording>)> callback) override;
-  void SaveActivityAnnotation(std::optional<int64_t> annotation_id,
-                              ActivityAnnotation annotation,
-                              std::string target_url,
-                              std::optional<int64_t> recording_id,
-                              base::OnceClosure callback) override;
-  void GetActivityAnnotation(
-      int64_t annotation_id,
-      base::OnceCallback<void(std::optional<ActivityAnnotation>)> callback)
-      override;
-  void GetActivityAnnotationsByUrl(
+  void SaveTaskDefinition(std::optional<int64_t> task_definition_id,
+                          TaskDefinition task_definition,
+                          std::string target_url,
+                          std::optional<int64_t> recording_id,
+                          base::OnceClosure callback) override;
+  void GetTaskDefinition(int64_t task_definition_id,
+                         base::OnceCallback<void(std::optional<TaskDefinition>)>
+                             callback) override;
+  void GetTaskDefinitionsByUrl(
       std::string url,
-      base::OnceCallback<
-          void(std::vector<std::pair<int64_t, ActivityAnnotation>>)> callback)
-      override;
-  void SaveActivityData(int64_t annotation_id,
-                        ActivityData data,
-                        base::OnceCallback<void(bool)> callback) override;
-  void GetActivityData(
-      int64_t annotation_id,
-      base::OnceCallback<void(std::optional<ActivityData>)> callback) override;
-  void DeleteActivityData(int64_t annotation_id,
-                          base::OnceCallback<void(bool)> callback) override;
+      base::OnceCallback<void(std::vector<std::pair<int64_t, TaskDefinition>>)>
+          callback) override;
+  void SaveTaskData(int64_t task_definition_id,
+                    TaskData data,
+                    base::OnceCallback<void(bool)> callback) override;
+  void GetTaskData(
+      int64_t task_definition_id,
+      base::OnceCallback<void(std::optional<TaskData>)> callback) override;
+  void DeleteTaskData(int64_t task_definition_id,
+                      base::OnceCallback<void(bool)> callback) override;
 
  private:
-  // Reads the feature parameter and seeds the database if empty.
-  void SeedDatabaseIfEmpty();
-
-  base::SequenceBound<CapabilitiesDatabase> db_;
-
-  base::WeakPtrFactory<RecordingDataManagerImpl> weak_ptr_factory_{this};
+  base::SequenceBound<TaskDatabase> db_;
 };
 
 }  // namespace record_replay

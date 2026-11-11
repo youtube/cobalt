@@ -196,10 +196,8 @@ ClassDeclaration :
 
 ClassAnnotation :
   @doNotGenerateCppClass
-  @generatePrint
   @abstract
   @export
-  @noVerifier
   @hasSameInstanceTypeAsParent
   @highestInstanceTypeWithinParentClassRange
   @lowestInstanceTypeWithinParentClassRange
@@ -213,7 +211,6 @@ ClassFieldDeclaration :
   ClassFieldAnnotation* weak opt const opt FieldDeclaration;
 
 ClassFieldAnnotation :
-  @noVerifier
   @if ( Identifier )
   @ifnot ( Identifier )
 
@@ -243,36 +240,47 @@ TNode<HeapObject> LoadJSProxyTarget(TNode<JSProxy> p_o);
 void StoreJSProxyTarget(TNode<JSProxy> p_o, TNode<HeapObject> p_v);
 ```
 
-As described above, the fields defined in Torque classes generate C++ code that removes the need for duplicate boilerplate accessor and heap visitor code. The hand-written definition of JSProxy must inherit from a generated class template, like this:
+For `extern` classes, the layout and C++ class definition are maintained manually in C++ to allow standard C++ mechanics and inheritance. To ensure C++ and Torque stay synchronized, the Torque class should be annotated with `@cppObjectLayoutDefinition`.
+
+The hand-written definition of `JSProxy` in C++ inherits directly from its superclass (e.g. `JSReceiver`) and defines its fields and accessors manually:
 
 ```cpp
 // In js-proxy.h:
-class JSProxy : public TorqueGeneratedJSProxy<JSProxy, JSReceiver> {
+V8_OBJECT class JSProxy : public JSReceiver {
+ public:
+  inline Tagged<UnionOf<JSReceiver, Null>> target() const;
+  inline void set_target(Tagged<UnionOf<JSReceiver, Null>> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  // Whatever the class needs beyond Torque-generated stuff goes here...
+  inline Tagged<UnionOf<JSReceiver, Null>> handler() const;
+  inline void set_handler(Tagged<UnionOf<JSReceiver, Null>> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  // At the end, because it messes with public/private:
-  TQ_OBJECT_CONSTRUCTORS(JSProxy)
-}
+  // ...
 
-// In js-proxy-inl.h:
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSProxy)
+ public:
+  TaggedMember<UnionOf<JSReceiver, Null>> target_;
+  TaggedMember<UnionOf<JSReceiver, Null>> handler_;
+  int32_t flags_;
+} V8_OBJECT_END;
 ```
 
-The generated class provides cast functions, field accessor functions, and field offset constants (e.g. `kTargetOffset` and `kHandlerOffset` in this case) representing the byte offset of each field from the beginning of the class.
+When `@cppObjectLayoutDefinition` is specified, the Torque compiler generates layout assertions in a generated `.cc` file (e.g., `torque-generated/src/objects/js-proxy-tq.cc`) to verify that the C++ offsets and sizes match the Torque definition:
+
+```cpp
+class TorqueGeneratedJSProxyAsserts {
+  static constexpr int kTargetOffset = sizeof(JSReceiver);
+  // ...
+  static_assert(kTargetOffset == offsetof(JSProxy, target_));
+  static_assert(kSize == sizeof(JSProxy));
+};
+```
 
 ##### Class type annotations
 
-Some classes can't use the inheritance pattern shown in the example above. In those cases, the class can specify `@doNotGenerateCppClass`, inherit directly from its superclass type, and include a Torque-generated macro for its field offset constants. Such classes must implement their own accessors and cast functions. Using that macro looks like this:
+`@cppObjectLayoutDefinition` indicates that the class layout is defined in C++. This enables the generation of C++ static assertions to verify layout compatibility between C++ and Torque.
 
-```cpp
-class JSProxy : public JSReceiver {
- public:
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSReceiver::kHeaderSize, TORQUE_GENERATED_JS_PROXY_FIELDS)
-  // Rest of class omitted...
-}
-```
+`@doNotGenerateCppClass` can be used in conjunction with `@cppObjectLayoutDefinition` to suppress the generation of these layout assertions. This is useful for special base classes (like `HeapObject`) where manual layout verification is preferred or where standard offset assertions are not applicable.
 
 Printers and verifiers for these classes are hand-written in `src/diagnostics/objects-printer.cc` and `src/diagnostics/objects-debug.cc`. (To run the verifiers before and after every GC, build with `v8_enable_verify_heap = true` and run with `--verify-heap`.)
 

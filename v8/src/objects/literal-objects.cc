@@ -837,9 +837,11 @@ void ArrayBoilerplateDescription::BriefPrintDetails(std::ostream& os) {
 
 void RegExpBoilerplateDescription::BriefPrintDetails(std::ostream& os) {
   // Note: keep boilerplate layout synced with JSRegExp layout.
-  static_assert(JSRegExp::kDataOffset == JSObject::kHeaderSize);
-  static_assert(JSRegExp::kFlagsOffset == JSRegExp::kDataOffset + kTaggedSize);
-  static_assert(JSRegExp::kHeaderSize == JSRegExp::kFlagsOffset + kTaggedSize);
+  static_assert(offsetof(JSRegExp, data_) == JSObject::kHeaderSize);
+  static_assert(offsetof(JSRegExp, flags_) ==
+                offsetof(JSRegExp, data_) + kTaggedSize);
+  static_assert(JSRegExp::kHeaderSize ==
+                offsetof(JSRegExp, flags_) + kTaggedSize);
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   os << " " << Brief(data(isolate)) << ", " << flags();
 }

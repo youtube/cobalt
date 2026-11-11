@@ -26,13 +26,13 @@
 #include "third_party/jni_zero/jni_export.h"
 #include "third_party/jni_zero/logging.h"
 
-#if !defined(JNI_ZERO_ENABLE_COMPAT_API)
 #if BUILDFLAG(IS_COBALT)
+#if !defined(JNI_ZERO_ENABLE_COMPAT_API)
 #define JNI_ZERO_ENABLE_COMPAT_API 1
 #else
 #define JNI_ZERO_ENABLE_COMPAT_API 0
-#endif  // BUILDFLAG(IS_COBALT)
 #endif  // !defined(JNI_ZERO_ENABLE_COMPAT_API)
+#endif  // BUILDFLAG(IS_COBALT)
 
 // Forward declaration of template class that contains @CalledByNative methods.
 // Must live in a custom / unique namespace to ensure it doesn't collide with
@@ -54,7 +54,7 @@ concept IsJobject =
 // The "jobject" type is basically the "any" type, so we use this concept to
 // allow implicit casts from jobject -> subclass.
 template <typename T, typename U>
-concept IsConvertableJObject =
+concept IsConvertibleJObject =
     std::is_convertible_v<U, T> || std::same_as<U, jobject>;
 #else
 template <typename T>
@@ -404,7 +404,7 @@ class JavaRef : public JavaRef<jobject> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   static JavaRef<T> CreateLeaky(JNIEnv* env, U obj) {
     return JavaRef<T>(env, obj);
@@ -492,7 +492,7 @@ class JavaRef<internal::_JObjectArray<T>*> : public JavaRef<jobjectArray> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<JArray<T>, U>
+    requires internal::IsConvertibleJObject<JArray<T>, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   static JavaRef<JArray<T>> CreateLeaky(JNIEnv* env, U obj) {
     return JavaRef<internal::_JObjectArray<T>*>(env, obj);
@@ -508,7 +508,7 @@ class JavaRef<internal::_JObjectArray<T>*> : public JavaRef<jobjectArray> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   void Set(JNIEnv* env, int32_t index, const JavaRef<U>& value) const {
     env->SetObjectArrayElement(this->obj(), index, value.obj());
@@ -546,7 +546,7 @@ class ScopedJavaLocalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   static ScopedJavaLocalRef Adopt(JNIEnv* env, U obj) {
     return ScopedJavaLocalRef(env, obj);
@@ -565,7 +565,7 @@ class ScopedJavaLocalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   ScopedJavaLocalRef(const ScopedJavaLocalRef<U>& other) : env_(other.env_) {
     JavaRef<jobject>::SetNewLocalRef(env_, other.obj());
@@ -581,7 +581,7 @@ class ScopedJavaLocalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   ScopedJavaLocalRef(ScopedJavaLocalRef<U>&& other) : env_(other.env_) {
     JavaRef<jobject>::steal(std::move(other));
@@ -591,7 +591,7 @@ class ScopedJavaLocalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   explicit ScopedJavaLocalRef(const JavaRef<U>& other) {
     Reset(other);
@@ -600,7 +600,7 @@ class ScopedJavaLocalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   ScopedJavaLocalRef(JNIEnv* env, const JavaRef<U>& other) {
     Reset(other);
@@ -624,7 +624,7 @@ class ScopedJavaLocalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   ScopedJavaLocalRef& operator=(const ScopedJavaLocalRef<U>& other) {
     Reset(other);
@@ -635,7 +635,7 @@ class ScopedJavaLocalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   ScopedJavaLocalRef& operator=(ScopedJavaLocalRef<U>&& other) {
     env_ = other.env_;
@@ -648,7 +648,7 @@ class ScopedJavaLocalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   ScopedJavaLocalRef& operator=(const JavaRef<U>& other) {
     Reset(other);
@@ -660,7 +660,7 @@ class ScopedJavaLocalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   void Reset(const ScopedJavaLocalRef<U>& other) {
     // We can copy over env_ here as |other| instance must be from the same
@@ -672,7 +672,7 @@ class ScopedJavaLocalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   void Reset(const JavaRef<U>& other) {
     // If |env_| was not yet set (is still null) it will be attached to the
@@ -742,7 +742,7 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   ScopedJavaGlobalRef(const ScopedJavaGlobalRef<U>& other) {
     Reset(other);
@@ -758,7 +758,7 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   ScopedJavaGlobalRef(ScopedJavaGlobalRef<U>&& other) {
     JavaRef<T>::steal(std::move(other));
@@ -768,7 +768,7 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   explicit ScopedJavaGlobalRef(const JavaRef<U>& other) {
     Reset(other);
@@ -777,7 +777,7 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   ScopedJavaGlobalRef(JNIEnv* env, const JavaRef<U>& other) {
     JavaRef<T>::SetNewGlobalRef(env, other.obj());
@@ -801,7 +801,7 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   ScopedJavaGlobalRef& operator=(const ScopedJavaGlobalRef<U>& other) {
     Reset(other);
@@ -812,7 +812,7 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   ScopedJavaGlobalRef& operator=(ScopedJavaGlobalRef<U>&& other) {
     Reset();
@@ -824,7 +824,7 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   ScopedJavaGlobalRef& operator=(const JavaRef<U>& other) {
     Reset(other);
@@ -836,7 +836,7 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   void Reset(const ScopedJavaGlobalRef<U>& other) {
     Reset(nullptr, other);
@@ -845,7 +845,7 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   void Reset(const JavaRef<U>& other) {
     Reset(nullptr, other);
@@ -854,7 +854,7 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   void Reset(JNIEnv* env, const JavaRef<U>& other) {
     JavaRef<T>::SetNewGlobalRef(env, other.obj());
@@ -934,7 +934,7 @@ class JNI_ZERO_COMPONENT_BUILD_EXPORT LeakedJavaGlobalRef : public JavaRef<T> {
   template <typename U>
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
-    requires internal::IsConvertableJObject<T, U>
+    requires internal::IsConvertibleJObject<T, U>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   void Reset(JNIEnv* env, const JavaRef<U>& j_object) {
     Reset();

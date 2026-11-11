@@ -106,10 +106,6 @@ V8_OBJECT class JSListFormat : public JSObject {
   DECL_PRINTER(JSListFormat)
   DECL_VERIFIER(JSListFormat)
 
-  // Back-compat offset/size constants.
-  static const int kLocaleOffset;
-  static const int kIcuFormatterOffset;
-  static const int kFlagsOffset;
   static const int kHeaderSize;
 
  public:
@@ -118,12 +114,6 @@ V8_OBJECT class JSListFormat : public JSObject {
   TaggedMember<Smi> flags_;
 } V8_OBJECT_END;
 
-inline constexpr int JSListFormat::kLocaleOffset =
-    offsetof(JSListFormat, locale_);
-inline constexpr int JSListFormat::kIcuFormatterOffset =
-    offsetof(JSListFormat, icu_formatter_);
-inline constexpr int JSListFormat::kFlagsOffset =
-    offsetof(JSListFormat, flags_);
 inline constexpr int JSListFormat::kHeaderSize = sizeof(JSListFormat);
 
 }  // namespace internal

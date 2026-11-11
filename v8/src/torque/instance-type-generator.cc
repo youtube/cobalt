@@ -60,10 +60,11 @@ std::unique_ptr<InstanceTypeTree> BuildInstanceTypeTree() {
   for (auto& type_tree : unparented_types) {
     const ClassType* parent = type_tree->type->GetSuperClass();
     if (parent == nullptr) {
-      if (root != nullptr)
+      if (root != nullptr) {
         Error("Expected only one root class type. Found: ", root->type->name(),
               " and ", type_tree->type->name())
             .Position(type_tree->type->GetPosition());
+      }
       root = std::move(type_tree);
     } else {
       map_by_type[parent]->children.push_back(std::move(type_tree));

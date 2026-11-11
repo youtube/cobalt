@@ -170,11 +170,9 @@ class Object : public AllStatic {
   // with the hole NaN pattern. This is necessary to distinguish between
   // initialized and non-initialized double fields.
   static inline std::pair<Representation, PropertyConstness>
-  OptimalRepresentation(Tagged<Object> obj, PropertyConstness constness,
-                        PtrComprCageBase cage_base);
+  OptimalRepresentation(Tagged<Object> obj, PropertyConstness constness);
 
-  static inline ElementsKind OptimalElementsKind(Tagged<Object> obj,
-                                                 PtrComprCageBase cage_base);
+  static inline ElementsKind OptimalElementsKind(Tagged<Object> obj);
 
   // If {allow_coercion} is true, then a Smi will be considered to fit
   // a Double representation, since it can be converted to a HeapNumber

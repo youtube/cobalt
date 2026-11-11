@@ -1177,8 +1177,19 @@ Node* Element::Clone(Document& factory,
       cloned_shadow_root.SetKeepCustomElementRegistryNull(
           shadow_root->ShouldKeepCustomElementRegistryNull());
 
-      // TODO(crbug.com/448174611): Re-process the shadowrootadoptedstylesheets
-      // attribute value on the cloned shadow root.
+      // Re-resolve the shadowrootadoptedstylesheets attribute against the
+      // cloned shadow root so that `adoptedStyleSheets` is populated. Note that
+      // this will not preserve any modifications made to the
+      // `adoptedStyleSheets`.
+      if (RuntimeEnabledFeatures::ShadowRootAdoptedStyleSheetEnabled(
+              factory.GetExecutionContext())) {
+        const AtomicString& adopted_stylesheets_value =
+            shadow_root->AdoptedStylesheetsAttributeValue();
+        if (!adopted_stylesheets_value.IsNull()) {
+          cloned_shadow_root.ProcessAdoptedStylesheetAttribute(
+              adopted_stylesheets_value);
+        }
+      }
 
       // 6.6 If the clone children flag is set, then for each child child of
       // node’s shadow root, in tree order: append the result of cloning child
@@ -1280,6 +1291,16 @@ void Element::removeAttribute(const QualifiedName& name) {
   }
 
   RemoveAttributeInternal(index, AttributeModificationReason::kDirectly);
+}
+
+void Element::RemoveAllAttributes() {
+  while (hasAttributes()) {
+    const AttributeCollection& attributes = GetElementData()->Attributes();
+    // Use a reason of kByCloning since our caller is going to use the cloning
+    // process to restore a different set of attributes.
+    RemoveAttributeInternal(attributes.size() - 1,
+                            AttributeModificationReason::kByCloning);
+  }
 }
 
 void Element::SetBooleanAttribute(const QualifiedName& name, bool value) {
@@ -3774,10 +3795,6 @@ DISABLE_CFI_PERF
 void Element::AttributeChanged(const AttributeModificationParams& params) {
   ParseAttribute(params);
 
-  GetDocument().IncDOMTreeVersion();
-  GetDocument().NotifyAttributeChanged(*this, params.name, params.old_value,
-                                       params.new_value);
-
   const QualifiedName& name = params.name;
   if (name == html_names::kIdAttr) {
     AtomicString lowercase_id;
@@ -3914,13 +3931,19 @@ void Element::AttributeChanged(const AttributeModificationParams& params) {
       }
     }
   }
+}
 
-  InvalidateNodeListCachesInAncestors(&name, this, nullptr);
-
+void Element::AttributeChangedWithInvalidations(
+    const AttributeModificationParams& params) {
+  AttributeChanged(params);
+  GetDocument().IncDOMTreeVersion();
+  GetDocument().NotifyAttributeChanged(*this, params.name, params.old_value,
+                                       params.new_value);
+  InvalidateNodeListCachesInAncestors(&params.name, this, nullptr);
   if (isConnected()) {
     if (AXObjectCache* cache = GetDocument().ExistingAXObjectCache()) {
       if (params.old_value != params.new_value) {
-        cache->HandleAttributeChanged(name, this);
+        cache->HandleAttributeChanged(params.name, this);
       }
     }
   }
@@ -4095,9 +4118,15 @@ void Element::StripScriptingAttributes(
 
 void Element::ParserSetAttributes(
     const Vector<Attribute, kAttributePrealloc>& attribute_vector) {
+  // We must start with a newly-created element.  If we don't, it would not be
+  // safe to batch the AttributeChanged notifications the way we do, since on
+  // elements that are not newly-created, AttributeChanged might run script.
   DCHECK(!isConnected());
   DCHECK(!parentNode());
   DCHECK(!element_data_);
+  DCHECK(!HasChildren());
+  DCHECK_EQ(attribute_or_class_bloom_, 0u);
+  EventDispatchForbiddenScope assert_no_event_dispatch;
 
   if (!attribute_vector.empty()) {
     if (ElementDataCache* cache = GetDocument().GetElementDataCache()) {
@@ -4108,15 +4137,9 @@ void Element::ParserSetAttributes(
           ShareableElementData::CreateWithAttributes(attribute_vector);
     }
 
-    DCHECK_EQ(nullptr, ElementTraversal::FirstChild(*this));
-
-    // NOTE: AttributeChanged() will add back the class names (if any),
-    // so it is safe to reset the filter here.
-    attribute_or_class_bloom_ = 0;
     for (const Attribute& attribute : attribute_vector) {
       attribute_or_class_bloom_ |= FilterForAttribute(attribute.GetName());
     }
-    UpdateSubtreeBloomFilterAfterInsert();
   }
 
   ParserDidSetAttributes();
@@ -4127,6 +4150,10 @@ void Element::ParserSetAttributes(
     AttributeChanged(AttributeModificationParams(
         attribute.GetName(), g_null_atom, attribute.Value(),
         AttributeModificationReason::kByParser));
+  }
+
+  if (!attribute_vector.empty()) {
+    GetDocument().IncDOMTreeVersion();
   }
 }
 
@@ -4305,9 +4332,9 @@ Node::InsertionNotificationRequest Element::InsertedInto(
   }
 
   // Clean up the unnecessary explicitly set custom element registry
-  // in element rare data set in RemovedFrom. Note that we only need
-  // to do such bookkeeping when scoped custom element registry is actually
-  // used.
+  // in element rare data set in RemovedFrom or TreeScopeAdopter. Note that
+  // we only need to do such bookkeeping when scoped custom element registry
+  // is actually used.
   if (GetDocument().ScopedCustomElementRegistryUsed()) {
     DCHECK(RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled());
     if (ElementRareDataVector* rare_data = RareData()) {
@@ -8844,6 +8871,21 @@ void Element::OverscrollTargetStateChanged() {
   PseudoStateChanged(CSSSelector::kPseudoOverscrollTarget);
 }
 
+bool Element::MatchesOverscrollOpen() const {
+  if (!RuntimeEnabledFeatures::OverscrollGesturesEnabled()) {
+    return false;
+  }
+  if (auto* pseudo = GetPseudoElement(kPseudoIdOverscrollAreaParent)) {
+    if (auto* box_model_object =
+            DynamicTo<LayoutBoxModelObject>(pseudo->GetLayoutObject())) {
+      auto* scrollable_area = DynamicTo<PaintLayerScrollableArea>(
+          box_model_object->GetScrollableArea());
+      return scrollable_area->IsCurrentlyOverscrolling();
+    }
+  }
+  return false;
+}
+
 void Element::FocusWithinStateChanged() {
   if (GetComputedStyle() && GetComputedStyle()->AffectedByFocusWithin()) {
     StyleChangeType change_type =
@@ -10581,6 +10623,10 @@ PseudoElement* Element::CreatePseudoElementIfNeeded(
     return nullptr;
   }
 
+  if (IsTransitionPseudoElement(pseudo_id)) {
+    pseudo_element->RetargetAnimations();
+  }
+
   probe::PseudoElementCreated(pseudo_element);
   return pseudo_element;
 }
@@ -11189,7 +11235,7 @@ KURL Element::HrefURL() const {
     return GetURLAttributeAsKURL(html_names::kHrefAttr);
   }
   if (auto* svg_a = DynamicTo<SVGAElement>(*this)) {
-    return svg_a->LegacyHrefURL(GetDocument());
+    return svg_a->Url();
   }
   return KURL();
 }
@@ -11646,7 +11692,7 @@ void Element::WillModifyAttribute(const QualifiedName& name,
 DISABLE_CFI_PERF
 void Element::DidAddAttribute(const QualifiedName& name,
                               const AtomicString& value) {
-  AttributeChanged(AttributeModificationParams(
+  AttributeChangedWithInvalidations(AttributeModificationParams(
       name, g_null_atom, value, AttributeModificationReason::kDirectly));
   if (name == html_names::kIdAttr) {
     UpdateId(g_null_atom, value);
@@ -11661,7 +11707,7 @@ void Element::DidModifyAttribute(const QualifiedName& name,
   if (name == html_names::kIdAttr) {
     UpdateId(old_value, new_value);
   }
-  AttributeChanged(
+  AttributeChangedWithInvalidations(
       AttributeModificationParams(name, old_value, new_value, reason));
   probe::DidModifyDOMAttr(this, name, new_value);
   // Do not dispatch a DOMSubtreeModified event here; see bug 81141.
@@ -11672,7 +11718,7 @@ void Element::DidRemoveAttribute(const QualifiedName& name,
   if (name == html_names::kIdAttr) {
     UpdateId(old_value, g_null_atom);
   }
-  AttributeChanged(AttributeModificationParams(
+  AttributeChangedWithInvalidations(AttributeModificationParams(
       name, old_value, g_null_atom, AttributeModificationReason::kDirectly));
   probe::DidRemoveDOMAttr(this, name);
 }
@@ -11851,22 +11897,6 @@ void Element::DetachAttrNodeFromElementWithValue(Attr* attr_node,
   }
 }
 
-void Element::DetachAllAttrNodesFromElement() {
-  AttrNodeList* list = GetAttrNodeList();
-  if (!list) {
-    return;
-  }
-
-  AttributeCollection attributes = GetElementData()->Attributes();
-  for (const Attribute& attr : attributes) {
-    if (Attr* attr_node = AttrIfExists(attr.GetName())) {
-      attr_node->DetachFromElementWithValue(attr.Value());
-    }
-  }
-
-  RemoveAttrNodeList();
-}
-
 void Element::WillRecalcStyle(const StyleRecalcChange) {
   DCHECK(HasCustomStyleCallbacks());
 }
@@ -11886,9 +11916,17 @@ void Element::AdjustStyle(ComputedStyleBuilder&) {
 }
 
 void Element::CloneAttributesFrom(const Element& other) {
-  if (RareData()) {
-    DetachAllAttrNodesFromElement();
-  }
+  // We must start with a newly-created element.  If we don't, it would not be
+  // safe to batch the AttributeChanged notifications the way we do, since on
+  // elements that are not newly-created, AttributeChanged might run script.
+  DCHECK(!isConnected());
+  DCHECK(!parentNode());
+  DCHECK(!element_data_);
+  DCHECK(!HasChildren());
+  CHECK_EQ(attribute_or_class_bloom_, 0u);
+  CHECK(!hasAttributes());
+  CHECK(!GetAttrNodeList());
+  EventDispatchForbiddenScope assert_no_event_dispatch;
 
   other.SynchronizeAllAttributes();
   if (!other.element_data_) {
@@ -11940,27 +11978,13 @@ void Element::CloneAttributesFrom(const Element& other) {
     element_data_ = other.element_data_->MakeUniqueCopy();
   }
 
-  // Since we're going through the list of attributes now, we use the
-  // opportunity to recreate the Bloom filter; in particular, it may
-  // be different from the source's Bloom filter if it came from a document
-  // with different quirks mode setting.
-  Element* first_child = ElementTraversal::FirstChild(*this);
-  if (!first_child) {
-    attribute_or_class_bloom_ = 0;
-  } else if (!first_child->nextSibling()) {
-    attribute_or_class_bloom_ = first_child->attribute_or_class_bloom_;
-  } else {
-    // Two or more children left; we don't consider it worth it
-    // to try to reset the filter fully.
-  }
   for (wtf_size_t i = 0; i < element_data_->Attributes().size(); ++i) {
     const Attribute& attr = element_data_->Attributes().at(i);
     attribute_or_class_bloom_ |= FilterForAttribute(attr.GetName());
-    AttributeChanged(
+    AttributeChangedWithInvalidations(
         AttributeModificationParams(attr.GetName(), g_null_atom, attr.Value(),
                                     AttributeModificationReason::kByCloning));
   }
-  UpdateSubtreeBloomFilterAfterInsert();
 
   if (other.nonce() != g_null_atom) {
     setNonce(other.nonce());

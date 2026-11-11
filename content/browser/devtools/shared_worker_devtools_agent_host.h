@@ -18,6 +18,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/unguessable_token.h"
 #include "content/browser/devtools/devtools_agent_host_impl.h"
+#include "content/common/content_export.h"
 #include "content/public/browser/shared_worker_instance.h"
 #include "third_party/blink/public/mojom/devtools/devtools_agent.mojom.h"
 
@@ -29,7 +30,8 @@ namespace content {
 
 class SharedWorkerHost;
 
-class SharedWorkerDevToolsAgentHost : public DevToolsAgentHostImpl {
+class CONTENT_EXPORT SharedWorkerDevToolsAgentHost
+    : public DevToolsAgentHostImpl {
  public:
   using List = std::vector<scoped_refptr<SharedWorkerDevToolsAgentHost>>;
 
@@ -94,6 +96,7 @@ class SharedWorkerDevToolsAgentHost : public DevToolsAgentHostImpl {
   mojo::PendingRemote<blink::mojom::DevToolsAgent> pending_agent_remote_;
   mojo::PendingReceiver<blink::mojom::DevToolsAgentHost>
       pending_agent_host_receiver_;
+  const base::UnguessableToken browser_context_token_;
 };
 
 }  // namespace content

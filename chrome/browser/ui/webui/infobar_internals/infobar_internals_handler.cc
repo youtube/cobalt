@@ -16,6 +16,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/branding_buildflags.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/buildflags.h"
 #include "chrome/browser/devtools/devtools_infobar_delegate.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/global_features.h"
@@ -28,15 +29,23 @@
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_ui.h"
+#include "content/public/common/buildflags.h"
 #include "extensions/buildflags/buildflags.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(ENABLE_PLUGINS)
+#include "chrome/browser/plugins/reload_plugin_infobar_delegate.h"
+#endif
+
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/extensions/api/debugger/extension_dev_tools_infobar_delegate.h"
 #include "chrome/browser/extensions/api/messaging/incognito_connectability.h"
 #include "chrome/browser/extensions/api/messaging/incognito_connectability_infobar_delegate.h"
+#include "chrome/browser/extensions/theme_installed_infobar_delegate.h"
+#include "chrome/browser/themes/theme_service.h"
+#include "chrome/browser/themes/theme_service_factory.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/extension.h"
 #endif
@@ -44,6 +53,10 @@
 #if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
 #include "chrome/browser/win/installer_downloader/installer_downloader_controller.h"
 #include "chrome/browser/win/installer_downloader/installer_downloader_pref_names.h"
+#endif
+
+#if BUILDFLAG(IS_MAC) && BUILDFLAG(ENABLE_UPDATER)
+#include "chrome/browser/ui/cocoa/keystone_infobar_delegate.h"
 #endif
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
@@ -113,7 +126,6 @@ void InfoBarInternalsHandler::GetInfoBars(GetInfoBarsCallback callback) {
       "want to allow an extension to communicate with a website in "
       "incognito mode. This trigger shows the infobar."));
 #endif
-
 #if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
   infobar_list.emplace_back(InfoBarEntry::New(
       /*type=*/InfoBarType::kInstallerDownloader,
@@ -124,13 +136,42 @@ void InfoBarInternalsHandler::GetInfoBars(GetInfoBarsCallback callback) {
       "prevent it to shown and then trigger a show request."));
 #endif
 
+#if BUILDFLAG(IS_MAC) && BUILDFLAG(ENABLE_UPDATER)
+  infobar_list.emplace_back(InfoBarEntry::New(
+      /*type=*/InfoBarType::kKeystone, /*name=*/"Keystone",
+      /*description=*/
+      "The Keystone infobar asks the user to promote the updater to "
+      "system scope. This trigger resets any browser state that "
+      "prevents the infobar from being shown, then shows the infobar. "
+      "This can only be triggered on Mac."));
+#endif
+
+#if BUILDFLAG(ENABLE_PLUGINS)
+  infobar_list.emplace_back(InfoBarEntry::New(
+      /*type=*/InfoBarType::kReloadPlugin, /*name=*/"Reload Plugin",
+      /*description=*/
+      "The Reload Plugin infobar is used to ask the user to reload a "
+      "page when a plugin has crashed or disconnected. This trigger "
+      "shows the infobar."));
+#endif
+
 #if BUILDFLAG(IS_WIN)
+
   infobar_list.emplace_back(InfoBarEntry::New(
       /*type=*/InfoBarType::kStartupLaunch, /*name=*/"Startup Launch",
       /*description=*/
       "Triggers the startup launch infobar. This infobar can only be "
       "triggered on Windows, and only when LaunchOnStartup feature flag is "
       "enabled."));
+#endif
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  infobar_list.emplace_back(InfoBarEntry::New(
+      /*type=*/InfoBarType::kThemeInstalled, /*name=*/"Theme Installed",
+      /*description=*/
+      "The Theme Installed infobar is shown when a user installs a theme. "
+      "This trigger shows the infobar for the current theme, allowing you "
+      "to 'undo' to the state before this trigger."));
 #endif
 
   std::move(callback).Run(std::move(infobar_list));
@@ -294,6 +335,43 @@ bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
       return false;
     }
 #endif
+#if BUILDFLAG(ENABLE_PLUGINS)
+    case InfoBarType::kReloadPlugin: {
+      BrowserWindowInterface* const bwi =
+          GetLastActiveBrowserWindowInterfaceWithAnyProfile();
+      if (!bwi || !bwi->GetActiveTabInterface()) {
+        return false;
+      }
+
+      content::WebContents* web_contents =
+          bwi->GetActiveTabInterface()->GetContents();
+      ReloadPluginInfoBarDelegate::Create(
+          infobars::ContentInfoBarManager::FromWebContents(web_contents),
+          &web_contents->GetController(),
+          l10n_util::GetStringFUTF16(IDS_PLUGIN_CRASHED_PROMPT,
+                                     u"Infobar Internals"));
+      return true;
+    }
+#endif
+#if BUILDFLAG(IS_MAC)
+    case InfoBarType::kKeystone: {
+#if BUILDFLAG(ENABLE_UPDATER)
+      BrowserWindowInterface* const bwi =
+          GetLastActiveBrowserWindowInterfaceWithAnyProfile();
+      Profile* profile = bwi->GetProfile();
+
+      if (!profile) {
+        return false;
+      }
+
+      profile->GetPrefs()->SetBoolean(prefs::kShowUpdatePromotionInfoBar, true);
+      ShowUpdaterPromotionInfoBar();
+      return true;
+#else
+      return false;
+#endif
+    }
+#endif
 #if BUILDFLAG(IS_WIN)
     case InfoBarType::kStartupLaunch: {
       PrefService* local_state = g_browser_process->local_state();
@@ -310,6 +388,37 @@ bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
         return true;
       }
       return false;
+    }
+#endif
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+    case InfoBarType::kThemeInstalled: {
+      BrowserWindowInterface* const bwi =
+          GetLastActiveBrowserWindowInterfaceWithAnyProfile();
+      Profile* profile = bwi->GetProfile();
+      if (!profile) {
+        return false;
+      }
+
+      ThemeService* theme_service = ThemeServiceFactory::GetForProfile(profile);
+      extensions::ExtensionRegistry* registry =
+          extensions::ExtensionRegistry::Get(profile);
+
+      std::string theme_name = "Default";
+      std::string theme_id = "";
+
+      if (theme_service->UsingExtensionTheme()) {
+        theme_id = theme_service->GetThemeID();
+        const extensions::Extension* extension = registry->GetExtensionById(
+            theme_id, extensions::ExtensionRegistry::EVERYTHING);
+        if (extension) {
+          theme_name = extension->name();
+        }
+      }
+
+      ThemeInstalledInfoBarDelegate::CreateForLastActiveTab(
+          profile, theme_name, theme_id,
+          theme_service->BuildReinstallerForCurrentTheme());
+      return true;
     }
 #endif
   }

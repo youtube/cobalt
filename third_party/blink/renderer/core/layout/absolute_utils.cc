@@ -426,17 +426,10 @@ void ComputeInsets(const LayoutUnit available_size,
 
 bool CanComputeBlockSizeWithoutLayout(
     const BlockNode& node,
-    WritingDirectionMode container_writing_direction,
-    ItemPosition block_alignment_position,
-    bool has_auto_block_inset,
-    bool has_inline_size) {
+    AutoSizeBehavior block_auto_size_behavior) {
   // Tables (even with an explicit size) apply a min-content constraint.
   if (node.IsTable()) {
     return false;
-  }
-  // Replaced elements always have their size computed ahead of time.
-  if (node.IsReplaced()) {
-    return true;
   }
   const auto& style = node.Style();
   if (style.LogicalHeight().HasContentOrIntrinsic() ||
@@ -444,89 +437,59 @@ bool CanComputeBlockSizeWithoutLayout(
       style.LogicalMaxHeight().HasContentOrIntrinsic()) {
     return false;
   }
-  if (style.LogicalHeight().HasAuto()) {
-    // Any 'auto' inset will trigger fit-content.
-    if (has_auto_block_inset) {
-      return false;
-    }
-    // Check for an explicit stretch.
-    if (block_alignment_position == ItemPosition::kStretch) {
-      return true;
-    }
-    // Non-normal alignment will trigger fit-content.
-    if (block_alignment_position != ItemPosition::kNormal) {
-      return false;
-    }
-    // An aspect-ratio (with a definite inline-size) will trigger fit-content.
-    if (!style.AspectRatio().IsAuto() && has_inline_size) {
-      return false;
-    }
+  if (!style.LogicalHeight().HasAuto()) {
+    return true;
   }
-  return true;
+  switch (block_auto_size_behavior) {
+    case AutoSizeBehavior::kFitContent:
+      return false;
+    case AutoSizeBehavior::kStretchExplicit:
+      return true;
+    case AutoSizeBehavior::kStretchImplicit:
+      // An aspect-ratio will trigger fit-content.
+      return style.AspectRatio().IsAuto();
+  }
 }
 
 }  // namespace
 
-LogicalOofInsets ComputeOutOfFlowInsets(
-    const ComputedStyle& style,
-    const LogicalSize& available_logical_size,
-    const LogicalAlignment& alignment,
-    WritingDirectionMode self_writing_direction) {
-  bool force_x_insets_to_zero = false;
-  bool force_y_insets_to_zero = false;
-  if (style.PositionAreaOffsets()) {
-    force_x_insets_to_zero = force_y_insets_to_zero = true;
-  }
-  if (alignment.inline_alignment.GetPosition() == ItemPosition::kAnchorCenter) {
-    if (self_writing_direction.IsHorizontal()) {
-      force_x_insets_to_zero = true;
-    } else {
-      force_y_insets_to_zero = true;
+LogicalOofInsets ComputeOutOfFlowInsets(const ComputedStyle& style,
+                                        const LogicalSize& available_size,
+                                        const LogicalAlignment& alignment) {
+  auto force_insets_to_zero = [&](ItemPosition position) -> bool {
+    return style.PositionAreaOffsets() ||
+           (style.AnchorCenterOffset() &&
+            position == ItemPosition::kAnchorCenter);
+  };
+  const bool force_inline_insets_to_zero =
+      force_insets_to_zero(alignment.inline_alignment.GetPosition());
+  const bool force_block_insets_to_zero =
+      force_insets_to_zero(alignment.block_alignment.GetPosition());
+
+  auto resolve_inset =
+      [](const Length& length, LayoutUnit available_size,
+         bool force_inset_to_zero) -> std::optional<LayoutUnit> {
+    if (!length.IsAuto()) {
+      return MinimumValueForLength(length, available_size);
     }
-  }
-  if (alignment.block_alignment.GetPosition() == ItemPosition::kAnchorCenter) {
-    if (self_writing_direction.IsHorizontal()) {
-      force_y_insets_to_zero = true;
-    } else {
-      force_x_insets_to_zero = true;
+    if (force_inset_to_zero) {
+      return LayoutUnit();
     }
-  }
+    return std::nullopt;
+  };
 
-  // Compute in physical, because anchors may be in different `writing-mode` or
-  // `direction`.
-  const PhysicalSize available_size = ToPhysicalSize(
-      available_logical_size, self_writing_direction.GetWritingMode());
-  std::optional<LayoutUnit> left;
-  if (const Length& left_length = style.Left(); !left_length.IsAuto()) {
-    left = MinimumValueForLength(left_length, available_size.width);
-  } else if (force_x_insets_to_zero) {
-    left = LayoutUnit();
-  }
-  std::optional<LayoutUnit> right;
-  if (const Length& right_length = style.Right(); !right_length.IsAuto()) {
-    right = MinimumValueForLength(right_length, available_size.width);
-  } else if (force_x_insets_to_zero) {
-    right = LayoutUnit();
-  }
+  PhysicalToLogical<const Length&> insets(style.GetWritingDirection(),
+                                          style.Top(), style.Right(),
+                                          style.Bottom(), style.Left());
 
-  std::optional<LayoutUnit> top;
-  if (const Length& top_length = style.Top(); !top_length.IsAuto()) {
-    top = MinimumValueForLength(top_length, available_size.height);
-  } else if (force_y_insets_to_zero) {
-    top = LayoutUnit();
-  }
-  std::optional<LayoutUnit> bottom;
-  if (const Length& bottom_length = style.Bottom(); !bottom_length.IsAuto()) {
-    bottom = MinimumValueForLength(bottom_length, available_size.height);
-  } else if (force_y_insets_to_zero) {
-    bottom = LayoutUnit();
-  }
-
-  // Convert the physical insets to logical.
-  PhysicalToLogical<std::optional<LayoutUnit>&> insets(
-      self_writing_direction, top, right, bottom, left);
-  return {insets.InlineStart(), insets.InlineEnd(), insets.BlockStart(),
-          insets.BlockEnd()};
+  return {resolve_inset(insets.InlineStart(), available_size.inline_size,
+                        force_inline_insets_to_zero),
+          resolve_inset(insets.InlineEnd(), available_size.inline_size,
+                        force_inline_insets_to_zero),
+          resolve_inset(insets.BlockStart(), available_size.block_size,
+                        force_block_insets_to_zero),
+          resolve_inset(insets.BlockEnd(), available_size.block_size,
+                        force_block_insets_to_zero)};
 }
 
 LogicalAlignment ComputeAlignment(
@@ -579,46 +542,25 @@ LogicalAlignment ComputeAlignment(
 LogicalAnchorCenterPosition ComputeAnchorCenterPosition(
     const ComputedStyle& style,
     const LogicalAlignment& alignment,
-    WritingDirectionMode writing_direction,
-    LogicalSize available_logical_size) {
-  // Compute in physical, because anchors may be in different writing-mode.
-  const ItemPosition inline_position = alignment.inline_alignment.GetPosition();
-  const ItemPosition block_position = alignment.block_alignment.GetPosition();
-
-  const bool has_anchor_center_in_x =
-      writing_direction.IsHorizontal()
-          ? inline_position == ItemPosition::kAnchorCenter
-          : block_position == ItemPosition::kAnchorCenter;
-  const bool has_anchor_center_in_y =
-      writing_direction.IsHorizontal()
-          ? block_position == ItemPosition::kAnchorCenter
-          : inline_position == ItemPosition::kAnchorCenter;
-
-  const PhysicalSize available_size = ToPhysicalSize(
-      available_logical_size, writing_direction.GetWritingMode());
-  std::optional<LayoutUnit> left;
-  std::optional<LayoutUnit> top;
-  std::optional<LayoutUnit> right;
-  std::optional<LayoutUnit> bottom;
-  if (style.AnchorCenterOffset().has_value()) {
-    if (has_anchor_center_in_x) {
-      left = style.AnchorCenterOffset()->left;
-      if (left) {
-        right = available_size.width - *left;
-      }
-    }
-    if (has_anchor_center_in_y) {
-      top = style.AnchorCenterOffset()->top;
-      if (top) {
-        bottom = available_size.height - *top;
-      }
-    }
+    LogicalSize available_size) {
+  const std::optional<PhysicalOffset>& physical_offset =
+      style.AnchorCenterOffset();
+  if (!physical_offset) {
+    return {std::nullopt, std::nullopt};
   }
 
-  // Convert result back to logical against `writing_direction`.
-  PhysicalToLogical converter(writing_direction, top, right, bottom, left);
-  return LogicalAnchorCenterPosition{converter.InlineStart(),
-                                     converter.BlockStart()};
+  // Convert the anchor-center point, to our logical coordinate space. Use a
+  // 0x0 inner_size as we are converting a point.
+  WritingModeConverter converter(style.GetWritingDirection(), available_size);
+  const LogicalOffset offset =
+      converter.ToLogical(*physical_offset, /*inner_size=*/PhysicalSize());
+  return {
+      alignment.inline_alignment.GetPosition() == ItemPosition::kAnchorCenter
+          ? std::make_optional(offset.inline_offset)
+          : std::nullopt,
+      alignment.block_alignment.GetPosition() == ItemPosition::kAnchorCenter
+          ? std::make_optional(offset.block_offset)
+          : std::nullopt};
 }
 
 InsetModifiedContainingBlock ComputeInsetModifiedContainingBlock(
@@ -685,48 +627,26 @@ bool ComputeOofInlineDimensions(
     const BoxStrut& border_padding,
     const std::optional<LogicalSize>& replaced_size,
     const BoxStrut& container_insets,
+    AutoSizeBehavior inline_auto_size_behavior,
+    AutoSizeBehavior block_auto_size_behavior,
     WritingDirectionMode container_writing_direction,
     LogicalOofDimensions* dimensions) {
   DCHECK(dimensions);
   DCHECK_GE(imcb.InlineSize(), LayoutUnit());
 
-  const auto alignment_position = alignment.inline_alignment.GetPosition();
-  const auto block_alignment_position = alignment.block_alignment.GetPosition();
-
   bool depends_on_min_max_sizes = false;
-  const bool can_compute_block_size_without_layout =
-      CanComputeBlockSizeWithoutLayout(node, container_writing_direction,
-                                       block_alignment_position,
-                                       imcb.has_auto_block_inset,
-                                       /* has_inline_size */ false);
-
   auto MinMaxSizesFunc = [&](SizeType type) -> MinMaxSizesResult {
     DCHECK(!node.IsReplaced());
 
     // Mark the inline calculations as being dependent on min/max sizes.
     depends_on_min_max_sizes = true;
 
-    // If we can't compute our block-size without layout, we can use the
-    // provided space to determine our min/max sizes.
-    if (!can_compute_block_size_without_layout)
-      return node.ComputeMinMaxSizes(style.GetWritingMode(), type, space);
-
-    // Compute our block-size if we haven't already.
-    if (dimensions->size.block_size == kIndefiniteSize) {
-      ComputeOofBlockDimensions(
-          node, break_token, style, space, imcb, anchor_center_position,
-          alignment, border_padding, /*replaced_size=*/std::nullopt,
-          container_insets, container_writing_direction, dimensions);
-    }
-
-    // Create a new space, setting the fixed block-size.
     ConstraintSpaceBuilder builder(style.GetWritingMode(),
                                    style.GetWritingDirection(),
                                    /* is_new_fc */ true);
-    builder.SetAvailableSize(
-        {space.AvailableSize().inline_size, dimensions->size.block_size});
-    builder.SetIsFixedBlockSize(true);
+    builder.SetAvailableSize(imcb.Size());
     builder.SetPercentageResolutionSize(space.PercentageResolutionSize());
+    builder.SetBlockAutoBehavior(block_auto_size_behavior);
     return node.ComputeMinMaxSizes(style.GetWritingMode(), type,
                                    builder.ToConstraintSpace());
   };
@@ -736,50 +656,50 @@ bool ComputeOofInlineDimensions(
     DCHECK(node.IsReplaced());
     inline_size = replaced_size->inline_size;
   } else {
-    const Length& main_inline_length = style.LogicalWidth();
-
-    const bool is_implicit_stretch =
-        !imcb.has_auto_inline_inset &&
-        alignment_position == ItemPosition::kNormal;
-    const bool is_explicit_stretch =
-        !imcb.has_auto_inline_inset &&
-        alignment_position == ItemPosition::kStretch;
-    const bool is_stretch = is_implicit_stretch || is_explicit_stretch;
-
-    // If our block constraint is strong/explicit.
-    const bool is_block_explicit =
-        !style.LogicalHeight().HasAuto() ||
-        (!imcb.has_auto_block_inset &&
-         block_alignment_position == ItemPosition::kStretch);
+    auto may_apply_aspect_ratio = [&]() -> bool {
+      // Check if we have an aspect-ratio.
+      if (style.AspectRatio().IsAuto()) {
+        return false;
+      }
+      // Check if we can resolve our main block-size.
+      return ResolveMainBlockLength(
+                 space, style, border_padding, style.LogicalHeight(),
+                 block_auto_size_behavior == AutoSizeBehavior::kFitContent
+                     ? &Length::FitContent()
+                     : &Length::Stretch(),
+                 kIndefiniteSize, imcb.BlockSize()) != kIndefiniteSize;
+    };
 
     // Determine how "auto" should resolve.
     bool apply_automatic_min_size = false;
     const Length& auto_length = ([&]() {
-      // Tables always shrink-to-fit unless explicitly asked to stretch.
-      if (node.IsTable()) {
-        return is_explicit_stretch ? Length::Stretch() : Length::FitContent();
+      switch (inline_auto_size_behavior) {
+        case AutoSizeBehavior::kFitContent:
+          // Check if we need to apply the auto min-size.
+          if (may_apply_aspect_ratio() &&
+              style.OverflowInlineDirection() == EOverflow::kVisible) {
+            apply_automatic_min_size = true;
+          }
+          return Length::FitContent();
+        case AutoSizeBehavior::kStretchExplicit:
+          return Length::Stretch();
+        case AutoSizeBehavior::kStretchImplicit:
+          // Check if the aspect-ratio applies (we have an explicit block-size).
+          const bool is_block_explicit =
+              !style.LogicalHeight().HasAuto() ||
+              block_auto_size_behavior == AutoSizeBehavior::kStretchExplicit;
+          if (is_block_explicit && may_apply_aspect_ratio()) {
+            if (style.OverflowInlineDirection() == EOverflow::kVisible) {
+              apply_automatic_min_size = true;
+            }
+            return Length::FitContent();
+          }
+          return Length::Stretch();
       }
-      // We'd like to apply the aspect-ratio.
-      // The aspect-ratio applies from the block-axis if we can compute our
-      // block-size without invoking layout, and either:
-      //  - We aren't stretching our auto inline-size.
-      //  - We are stretching our auto inline-size, but the block-size has a
-      //    stronger (explicit) constraint, e.g:
-      //    "height:10px" or "align-self:stretch".
-      if (!style.AspectRatio().IsAuto() &&
-          can_compute_block_size_without_layout &&
-          (!is_stretch || (is_implicit_stretch && is_block_explicit))) {
-        // See if we should apply the automatic minimum size.
-        if (style.OverflowInlineDirection() == EOverflow::kVisible) {
-          apply_automatic_min_size = true;
-        }
-        return Length::FitContent();
-      }
-      return is_stretch ? Length::Stretch() : Length::FitContent();
     })();
 
     const LayoutUnit main_inline_size = ResolveMainInlineLength(
-        space, style, border_padding, MinMaxSizesFunc, main_inline_length,
+        space, style, border_padding, MinMaxSizesFunc, style.LogicalWidth(),
         &auto_length, imcb.InlineSize());
     const MinMaxSizes min_max_inline_sizes = ComputeMinMaxInlineSizes(
         space, node, border_padding,
@@ -843,23 +763,18 @@ const LayoutResult* ComputeOofBlockDimensions(
     const BoxStrut& border_padding,
     const std::optional<LogicalSize>& replaced_size,
     const BoxStrut& container_insets,
+    AutoSizeBehavior block_auto_size_behavior,
     WritingDirectionMode container_writing_direction,
     LogicalOofDimensions* dimensions) {
   DCHECK(dimensions);
   DCHECK_GE(imcb.BlockSize(), LayoutUnit());
-
-  const auto alignment_position = alignment.block_alignment.GetPosition();
 
   const LayoutResult* result = nullptr;
   LayoutUnit block_size;
   if (replaced_size) {
     DCHECK(node.IsReplaced());
     block_size = replaced_size->block_size;
-  } else if (CanComputeBlockSizeWithoutLayout(
-                 node, container_writing_direction, alignment_position,
-                 imcb.has_auto_block_inset,
-                 /* has_inline_size */ dimensions->size.inline_size !=
-                     kIndefiniteSize)) {
+  } else if (CanComputeBlockSizeWithoutLayout(node, block_auto_size_behavior)) {
     DCHECK(!node.IsTable());
 
     // Nothing depends on our intrinsic-size, so we can safely use the initial
@@ -887,13 +802,7 @@ const LayoutResult* ComputeOofBlockDimensions(
     if (space.IsHiddenForPaint()) {
       builder.SetIsHiddenForPaint(true);
     }
-
-    // Tables need to know about the explicit stretch constraint to produce
-    // the correct result.
-    if (!imcb.has_auto_block_inset &&
-        alignment_position == ItemPosition::kStretch) {
-      builder.SetBlockAutoBehavior(AutoSizeBehavior::kStretchExplicit);
-    }
+    builder.SetBlockAutoBehavior(block_auto_size_behavior);
 
     if (space.IsInitialColumnBalancingPass()) {
       // The |fragmentainer_offset_delta| will not make a difference in the

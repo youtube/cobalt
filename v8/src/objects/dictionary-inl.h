@@ -22,27 +22,12 @@ namespace v8::internal {
 
 template <typename Derived, typename Shape>
 Tagged<Object> Dictionary<Derived, Shape>::ValueAt(InternalIndex entry) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase();
-  return ValueAt(cage_base, entry);
-}
-
-template <typename Derived, typename Shape>
-Tagged<Object> Dictionary<Derived, Shape>::ValueAt(PtrComprCageBase cage_base,
-                                                   InternalIndex entry) {
   return this->get(DerivedHashTable::EntryToIndex(entry) +
                    Derived::kEntryValueIndex);
 }
 
 template <typename Derived, typename Shape>
 Tagged<Object> Dictionary<Derived, Shape>::ValueAt(InternalIndex entry,
-                                                   SeqCstAccessTag tag) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase();
-  return ValueAt(cage_base, entry, tag);
-}
-
-template <typename Derived, typename Shape>
-Tagged<Object> Dictionary<Derived, Shape>::ValueAt(PtrComprCageBase cage_base,
-                                                   InternalIndex entry,
                                                    SeqCstAccessTag tag) {
   return this->get(
       DerivedHashTable::EntryToIndex(entry) + Derived::kEntryValueIndex, tag);
@@ -220,13 +205,7 @@ DirectHandle<Map> GlobalDictionary::GetMap(RootsTable& roots) {
 }
 
 Tagged<Name> NameDictionary::NameAt(InternalIndex entry) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase();
-  return NameAt(cage_base, entry);
-}
-
-Tagged<Name> NameDictionary::NameAt(PtrComprCageBase cage_base,
-                                    InternalIndex entry) {
-  return Cast<Name>(KeyAt(cage_base, entry));
+  return Cast<Name>(KeyAt(entry));
 }
 
 DirectHandle<Map> NameDictionary::GetMap(RootsTable& roots) {
@@ -245,34 +224,16 @@ BIT_FIELD_ACCESSORS(NameDictionary, flags, may_have_interesting_properties,
                     NameDictionary::MayHaveInterestingPropertiesBit)
 
 Tagged<PropertyCell> GlobalDictionary::CellAt(InternalIndex entry) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase();
-  return CellAt(cage_base, entry);
-}
-
-Tagged<PropertyCell> GlobalDictionary::CellAt(PtrComprCageBase cage_base,
-                                              InternalIndex entry) {
-  DCHECK(IsPropertyCell(KeyAt(cage_base, entry), cage_base));
-  return Cast<PropertyCell>(KeyAt(cage_base, entry));
+  DCHECK(IsPropertyCell(KeyAt(entry)));
+  return Cast<PropertyCell>(KeyAt(entry));
 }
 
 Tagged<Name> GlobalDictionary::NameAt(InternalIndex entry) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase();
-  return NameAt(cage_base, entry);
-}
-
-Tagged<Name> GlobalDictionary::NameAt(PtrComprCageBase cage_base,
-                                      InternalIndex entry) {
-  return CellAt(cage_base, entry)->name();
+  return CellAt(entry)->name();
 }
 
 Tagged<Object> GlobalDictionary::ValueAt(InternalIndex entry) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase();
-  return ValueAt(cage_base, entry);
-}
-
-Tagged<Object> GlobalDictionary::ValueAt(PtrComprCageBase cage_base,
-                                         InternalIndex entry) {
-  return CellAt(cage_base, entry)->value();
+  return CellAt(entry)->value();
 }
 
 void GlobalDictionary::SetEntry(InternalIndex entry, Tagged<Object> key,

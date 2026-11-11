@@ -346,8 +346,8 @@ void RunI32x8ConvertF32x8RevecTest(WasmOpcode opcode,
 template <typename IntType>
 void RunF32x8ConvertI32x8RevecTest(WasmOpcode opcode);
 template <typename NarrowIntType, typename WideIntType>
-void RunIntSignExtensionRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
-                                  WasmOpcode splat_op);
+void RunIntExtensionRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
+                              WasmOpcode splat_op);
 template <typename S, typename T>
 void RunIntToIntNarrowingRevecTest(WasmOpcode opcode);
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC

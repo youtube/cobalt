@@ -20,6 +20,7 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "api/audio_codecs/audio_format.h"
+#include "api/field_trials_view.h"
 #include "api/payload_type.h"
 #include "api/rtp_parameters.h"
 #include "api/video_codecs/scalability_mode.h"
@@ -273,6 +274,11 @@ std::vector<const Codec*> FindAllMatchingCodecs(
 
 RTC_EXPORT void AddH264ConstrainedBaselineProfileToSupportedFormats(
     std::vector<SdpVideoFormat>* supported_formats);
+
+// This function adds the default RTCP feedback parameters to the codec,
+// based on the codec name and the active field trials.
+void AddDefaultFeedbackParams(Codec* codec, const FieldTrialsView& trials);
+
 }  // namespace webrtc
 
 

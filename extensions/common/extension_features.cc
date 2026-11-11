@@ -57,10 +57,20 @@ const base::FeatureParam<bool> kGlicRequireConsentForInvokeParam(
     "glic_require_consent_for_invoke",
     false);
 
-const base::FeatureParam<bool> kGlicOpenNewTabInForegroundParam(
-    &kApiGlicAccessFromGoogleWebpage,
-    "glic_open_new_tab_in_foreground",
-    true);
+const base::FeatureParam<GlicOpenNewTabDisposition>::Option
+    kGlicOpenNewTabDispositionOptions[] = {
+        {GlicOpenNewTabDisposition::kForeground,
+         kGlicOpenNewTabDispositionForeground},
+        {GlicOpenNewTabDisposition::kBackground,
+         kGlicOpenNewTabDispositionBackground},
+        {GlicOpenNewTabDisposition::kForegroundIfNotConsented,
+         kGlicOpenNewTabDispositionForegroundIfNotConsented}};
+
+const base::FeatureParam<GlicOpenNewTabDisposition>
+    kGlicOpenNewTabDispositionParam{
+        &kApiGlicAccessFromGoogleWebpage, "glic_open_new_tab_disposition",
+        GlicOpenNewTabDisposition::kForegroundIfNotConsented,
+        &kGlicOpenNewTabDispositionOptions};
 
 BASE_FEATURE(kApiProxyOverrideRulesPrivate, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -135,7 +145,7 @@ BASE_FEATURE(kAllowLegacyMV2Extensions, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionProtocolHandlers, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kExtensionTabContextMenu, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kExtensionTabContextMenu, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionsManifestV3Only, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -168,6 +178,16 @@ BASE_FEATURE(kStructuredCloningForMessaging, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTelemetryExtensionPendingApprovalApi,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// TODO(https://crbug.com/328494022): Disable this on ChromeOS, too, and then
+// eventually remove it.
+BASE_FEATURE(kWebstoreHostedApp,
+#if BUILDFLAG(IS_CHROMEOS)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif  // BUILDFLAG(IS_CHROMEOS)
+);
 
 // TODO(crbug.com/399447642): Clean up this feature after confirming the fix is
 // sufficient.

@@ -174,7 +174,9 @@ uint32_t Name::GetRawHashFromForwardingTable(uint32_t raw_hash) const {
   return isolate->string_forwarding_table()->GetRawHash(isolate, index);
 }
 
-uint32_t Name::EnsureRawHash() {
+uint32_t Name::EnsureRawHash() { return EnsureRawHash(nullptr); }
+
+uint32_t Name::EnsureRawHash(bool* out_one_byte_content) {
   // Fast case: has hash code already been computed?
   uint32_t field = raw_hash_field(kAcquireLoad);
   if (IsHashFieldComputed(field)) return field;
@@ -183,7 +185,7 @@ uint32_t Name::EnsureRawHash() {
     return GetRawHashFromForwardingTable(field);
   }
   // Slow case: compute hash code and set it. Has to be a string.
-  return Cast<String>(this)->ComputeAndSetRawHash();
+  return Cast<String>(this)->ComputeAndSetRawHash(out_one_byte_content);
 }
 
 uint32_t Name::EnsureRawHash(

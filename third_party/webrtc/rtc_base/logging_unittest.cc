@@ -19,6 +19,7 @@
 #include <cstdlib>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "absl/cleanup/cleanup.h"
@@ -155,6 +156,36 @@ TEST(LogTest, SingleStream) {
   LogMessage::RemoveLogToStream(&stream);
   EXPECT_EQ(LS_NONE, LogMessage::GetLogToStream(&stream));
   EXPECT_EQ(sev, LogMessage::GetLogToStream(nullptr));
+}
+
+TEST(LogTest, LogStdStringView) {
+  std::string str;
+  LogSinkImpl stream(&str);
+  LogMessage::AddLogToStream(&stream, LS_INFO);
+
+  constexpr std::string_view kLongPath =
+      "/a/very/long/path/string/that/exceeds/the/small/string/optimization/"
+      "buffer/size/which/is/typically/around/fifteen/to/twenty/two/characters/"
+      "and/this/is/definitely/longer/than/one/hundred/characters/to/trigger/"
+      "any/potential/asan/errors";
+  RTC_LOG(LS_INFO) << kLongPath;
+
+  EXPECT_THAT(str, HasSubstr(kLongPath));
+
+  LogMessage::RemoveLogToStream(&stream);
+}
+
+TEST(LogTest, LogLongDouble) {
+  std::string str;
+  LogSinkImpl stream(&str);
+  LogMessage::AddLogToStream(&stream, LS_INFO);
+
+  long double ld = 123.456789L;
+  RTC_LOG(LS_INFO) << ld;
+
+  EXPECT_THAT(str, HasSubstr("123.456"));
+
+  LogMessage::RemoveLogToStream(&stream);
 }
 
 TEST(LogTest, LogIfLogIfConditionIsTrue) {

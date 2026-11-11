@@ -21,7 +21,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/common/chrome_features.h"
@@ -167,6 +166,7 @@ void GlicInvokeHandler::Invoke() {
                                   weak_ptr_factory_.GetWeakPtr()));
     }
   }
+
   if (!options_.tab_sharing.tabs_to_pin.empty()) {
     CHECK(options_.tab_sharing.pin_trigger != GlicPinTrigger::kUnknown);
     instance_->sharing_manager().PinTabs(options_.tab_sharing.tabs_to_pin,
@@ -180,17 +180,29 @@ void GlicInvokeHandler::Invoke() {
         std::make_unique<WaitForNavigationTask>(tab_->GetContents()));
   }
 
+  if (options_.additional_context.has_value() &&
+      options_.additional_context->policy_check == PolicyCheck::kClipboard) {
+    tasks.push_back(std::make_unique<CopyPolicyTask>(
+        &*instance_, options_,
+        base::BindOnce(&GlicInvokeHandler::OnError,
+                       weak_ptr_factory_.GetWeakPtr())));
+  }
+
   auto show_options = ShowOptions::ForSidePanel(
-      *tab_, GlicPinTrigger::kInstanceCreation, options_.invocation_source);
+      *tab_, GlicPinTrigger::kInstanceCreation, options_.GetInvocationSource());
 
   if (options_.fre_override != mojom::FreOverride::kUnspecified) {
     show_options.fre_override = options_.fre_override;
   }
 
-  tasks.push_back(
-      std::make_unique<ShowInstanceTask>(&*instance_, show_options));
+  if (!auto_submit_passkey_.has_value() || auto_submit_options_.show_panel) {
+    tasks.push_back(
+        std::make_unique<ShowInstanceTask>(&*instance_, show_options));
+  } else {
+    tasks.push_back(std::make_unique<SetupHiddenPanelTask>(&*instance_, tab_));
+  }
   tasks.push_back(std::make_unique<MaybeInitializeHiddenClientTask>(
-      &*instance_, options_.invocation_source, options_.fre_override));
+      &*instance_, options_.GetInvocationSource(), options_.fre_override));
   tasks.push_back(
       std::make_unique<WaitForClientConnectedTask>(&instance_->host()));
   if (options_.on_client_connected) {
@@ -208,6 +220,14 @@ void GlicInvokeHandler::Invoke() {
 
   if (options_.wait_for_panel_open) {
     tasks.push_back(std::make_unique<StabilizationTask>(tab_->GetContents()));
+  }
+
+  if (options_.additional_context.has_value() &&
+      options_.additional_context->policy_check == PolicyCheck::kClipboard) {
+    tasks.push_back(std::make_unique<PastePolicyCheckTask>(
+        tab_->GetContents(), &*instance_, options_,
+        base::BindOnce(&GlicInvokeHandler::OnError,
+                       weak_ptr_factory_.GetWeakPtr())));
   }
 
   tasks.push_back(std::make_unique<WaitForFreCompletionTask>(
@@ -276,6 +296,7 @@ void GlicInvokeHandler::OnSuccess() {
 
 void GlicInvokeHandler::OnError(GlicInvokeError error) {
   timeout_timer_.Stop();
+  instance_->SuppressShowOnNextTabAddedToTask(false);
   if (main_task_) {
     main_task_->NotifySequenceCompleted(/*success=*/false);
   }
@@ -305,14 +326,19 @@ bool GlicInvokeHandler::IsActuatingFeatureMode() const {
 
 mojom::InvokeOptionsPtr GlicInvokeHandler::CreateMojoOptions() {
   auto mojo_options = mojom::InvokeOptions::New();
-  mojo_options->invocation_source = options_.invocation_source;
+  mojo_options->invocation_source = options_.GetInvocationSource();
+
+  if (auto* payload = std::get_if<glic::mojom::InvocationPayloadPtr>(
+          &options_.source_or_payload)) {
+    mojo_options->payload = (*payload).Clone();
+  }
 
   if (!options_.prompts.empty()) {
     mojo_options->prompts = options_.prompts;
   }
 
-  if (options_.additional_context) {
-    mojo_options->context = std::move(options_.additional_context);
+  if (options_.additional_context && options_.additional_context->context) {
+    mojo_options->context = std::move(options_.additional_context->context);
   }
 
   mojo_options->auto_submit = auto_submit_passkey_.has_value();

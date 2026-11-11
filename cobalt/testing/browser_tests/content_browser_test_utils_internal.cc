@@ -52,6 +52,7 @@
 #include "content/public/browser/file_select_listener.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/security_principal.h"
 #include "content/public/browser/site_isolation_policy.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test_utils.h"
@@ -435,13 +436,15 @@ std::string FrameTreeVisualizer::DepictFrameTree(FrameTreeNode* root) {
     SiteInstanceImpl* site_instance =
         static_cast<SiteInstanceImpl*>(legend_entry.second);
     std::string description =
-        GetUrlWithoutPort(site_instance->GetSiteURL()).spec();
+        GetUrlWithoutPort(
+            site_instance->GetSecurityPrincipal().GetDeprecatedSiteURL())
+            .spec();
 
     // data: URLs have site URLs of the form data:nonce, where the nonce is an
     // UnguessableToken. Make these deterministic for testing by using the
     // abbreviated letter for the site in the nonce. For example,
     // "data:nonce_A".
-    if (site_instance->GetSiteURL().SchemeIs(url::kDataScheme)) {
+    if (site_instance->GetSecurityPrincipal().SchemeIs(url::kDataScheme)) {
       description =
           base::StringPrintf("data:nonce_%s", legend_entry.first.c_str());
     }

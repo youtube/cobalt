@@ -11,6 +11,7 @@
 
 @protocol AppBarConsumer;
 class AuthenticationService;
+class GeminiBrowserAgent;
 class GeminiService;
 @class BrowserActionFactory;
 @protocol FullscreenBrowserAgentObserving;
@@ -24,6 +25,7 @@ class PrefService;
 @protocol TabGridCommands;
 @protocol SettingsCommands;
 @protocol BWGCommands;
+@protocol FullscreenCommands;
 @class TabGridState;
 @protocol TabGroupsCommands;
 class TemplateURLService;
@@ -64,6 +66,12 @@ class WebStateList;
 // Handler for the BWG commands.
 @property(nonatomic, weak) id<BWGCommands> geminiHandler;
 
+// The regular FullscreenCommands handler.
+@property(nonatomic, weak) id<FullscreenCommands> regularFullscreenHandler;
+
+// The incognito FullscreenCommands handler.
+@property(nonatomic, weak) id<FullscreenCommands> incognitoFullscreenHandler;
+
 // The consumer of this mediator.
 @property(nonatomic, weak)
     id<AppBarConsumer, FullscreenUIElement, FullscreenBrowserAgentObserving>
@@ -89,6 +97,7 @@ class WebStateList;
               authenticationService:
                   (AuthenticationService*)authenticationService
                       geminiService:(GeminiService*)geminiService
+                 geminiBrowserAgent:(GeminiBrowserAgent*)geminiBrowserAgent
                           URLLoader:(UrlLoadingBrowserAgent*)URLLoader
                        tabGridState:(TabGridState*)tabGridState
                      incognitoState:(IncognitoState*)incognitoState;

@@ -439,10 +439,6 @@ NET_EXPORT BASE_DECLARE_FEATURE(kUseNetworkPathMonitorForNetworkChangeNotifier);
 // This feature will enable the Device Bound Session Credentials protocol to let
 // the server assert sessions (and cookies) are bound to a specific device.
 NET_EXPORT BASE_DECLARE_FEATURE(kDeviceBoundSessions);
-// This feature will enable the browser to persist Device Bound Session data
-// across restarts. This feature is only valid if `kDeviceBoundSessions` is
-// enabled.
-NET_EXPORT BASE_DECLARE_FEATURE(kPersistDeviceBoundSessions);
 // This feature prevents deadlocks from recursive DBSC token refresh requests
 // by setting `device_bound_session_mode` to `kBypassDeferral` on DBSC refresh
 // requests.
@@ -877,6 +873,8 @@ NET_EXPORT BASE_DECLARE_FEATURE(kIgnoreMemoryPressureForSslClientSessionCache);
 NET_EXPORT BASE_DECLARE_FEATURE(kCookieParseRejectEmptyNameAmbiguous);
 
 NET_EXPORT BASE_DECLARE_FEATURE(kEnablePrivateVerificationTokens);
+
+NET_EXPORT bool IsDnsPlatformSupported();
 
 }  // namespace net::features
 

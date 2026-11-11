@@ -19,7 +19,7 @@ class WeakFixedArray;
 
 #include "torque-generated/src/objects/property-cell-tq.inc"
 
-V8_OBJECT class PropertyCell : public HeapObjectLayout {
+V8_OBJECT class PropertyCell : public HeapObject {
  public:
   // [name]: the name of the global property.
   inline Tagged<Name> name() const;

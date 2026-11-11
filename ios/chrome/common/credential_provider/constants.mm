@@ -71,20 +71,12 @@ NSString* const kUserDefaultsCredentialProviderPasswordSyncSetting =
 NSString* const kUserDefaultsCredentialProviderAutomaticPasskeyUpgradeSetting =
     @"kUserDefaultsCredentialProviderAutomaticPasskeyUpgradeSetting";
 
-// Used to generate the key for the app group user defaults containing whether
-// passkey PRF support is currently enabled.
-NSString* const kUserDefaultsCredentialProviderPasskeyPRFSetting =
-    @"kUserDefaultsCredentialProviderPasskeyPRFSetting";
 
 // Used to generate the key for the app group user defaults containing whether
 // passkey Large Blob support is currently enabled.
 NSString* const kUserDefaultsCredentialProviderPasskeyLargeBlobSetting =
     @"kUserDefaultsCredentialProviderPasskeyLargeBlobSetting";
 
-// Used to generate the key for the app group user defaults containing whether
-// signal API is currently enabled.
-NSString* const kUserDefaultsCredentialProviderSignalAPISetting =
-    @"kUserDefaultsCredentialProviderSignalAPISetting";
 
 // Used to generate the key for the app group user defaults containing whether
 // the button order in the confirmation alerts should be swapped.
@@ -188,10 +180,6 @@ AppGroupUserDefaulsCredentialProviderAutomaticPasskeyUpgradeEnabled() {
           kUserDefaultsCredentialProviderAutomaticPasskeyUpgradeSetting];
 }
 
-NSString* AppGroupUserDefaulsCredentialProviderPasskeyPRFEnabled() {
-  return [AppGroupPrefix()
-      stringByAppendingString:kUserDefaultsCredentialProviderPasskeyPRFSetting];
-}
 
 NSString* AppGroupUserDefaulsCredentialProviderPasskeyLargeBlobEnabled() {
   return [AppGroupPrefix()
@@ -199,10 +187,6 @@ NSString* AppGroupUserDefaulsCredentialProviderPasskeyLargeBlobEnabled() {
           kUserDefaultsCredentialProviderPasskeyLargeBlobSetting];
 }
 
-NSString* AppGroupUserDefaulsCredentialProviderSignalAPIEnabled() {
-  return [AppGroupPrefix()
-      stringByAppendingString:kUserDefaultsCredentialProviderSignalAPISetting];
-}
 
 NSString*
 AppGroupUserDefaulsCredentialProviderConfirmationButtonSwapOrderEnabled() {

@@ -21,8 +21,8 @@ ScreamV2Parameters::ScreamV2Parameters(const FieldTrialsView& trials)
     : min_ref_window("MinRefWindow", DataSize::Bytes(1000)),
       l4s_avg_g_up("L4sAvgGUp", 1.0 / 8.0),
       l4s_avg_g_down("L4sAvgGDown", 1.0 / 128.0),
-      smoothed_rtt_avg_g_up("SmoothedRttAvgGUp", 1.0 / 8.0),
-      smoothed_rtt_avg_g_down("SmoothedRttAvgGDown", 1.0 / 8.0),
+      smoothed_rtt_avg_g("SmoothedRttAvgG", 1.0 / 8.0),
+      smoothed_rtt_avg_in_alr_g("SmoothedRttAvgInAlrG", 1.0 / 128.0),
       max_segment_size("MaxSegmentSize", DataSize::Bytes(1280)),
       bytes_in_flight_head_room("BytesInFlightHeadRoom", 1.1),
       beta_loss("BetaLoss", 0.7),
@@ -62,12 +62,13 @@ ScreamV2Parameters::ScreamV2Parameters(const FieldTrialsView& trials)
       feedback_hold_time_avg_g("FeedbackHoldTimeAvgG", 1.0 / 8.0),
       allow_large_pacing_bursts_after_congestion_time(
           "AllowLargePacingBurstsAfterCongestionTime",
-          TimeDelta::Seconds(15)) {
+          TimeDelta::Seconds(15)),
+      enable_alr("EnableAlr", true) {
   ParseFieldTrial({&min_ref_window,
                    &l4s_avg_g_up,
                    &l4s_avg_g_down,
-                   &smoothed_rtt_avg_g_up,
-                   &smoothed_rtt_avg_g_down,
+                   &smoothed_rtt_avg_g,
+                   &smoothed_rtt_avg_in_alr_g,
                    &max_segment_size,
                    &bytes_in_flight_head_room,
                    &beta_loss,
@@ -94,7 +95,8 @@ ScreamV2Parameters::ScreamV2Parameters(const FieldTrialsView& trials)
                    &initial_probing_duration,
                    &pacing_factor,
                    &feedback_hold_time_avg_g,
-                   &allow_large_pacing_bursts_after_congestion_time},
+                   &allow_large_pacing_bursts_after_congestion_time,
+                   &enable_alr},
                   trials.Lookup("WebRTC-Bwe-ScreamV2"));
 }
 

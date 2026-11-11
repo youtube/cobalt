@@ -16,6 +16,7 @@
 #include "base/notreached.h"
 #include "base/rand_util.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/task/task_traits.h"
 #include "base/time/time.h"
 #include "base/types/expected.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
@@ -59,7 +60,6 @@
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
@@ -73,6 +73,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/browser_context.h"
+#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/common/url_constants.h"
@@ -85,13 +86,10 @@
 #include "ui/base/page_transition_types.h"
 #include "ui/views/widget/widget.h"
 #include "url/gurl.h"
-
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/glic/glic_metrics.h"
-#include "chrome/browser/glic/host/glic_region_capture_controller.h"
 #include "chrome/browser/glic/media/glic_media_integration.h"
 #include "chrome/browser/glic/widget/glic_widget.h"
-
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -168,10 +166,6 @@ GlicKeyedService::GlicKeyedService(
           profile,
           enabling_.get(),
           &instance_coordinator())),
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL: CaptureRegion
-      region_capture_controller_(
-          std::make_unique<GlicRegionCaptureController>()),
-#endif
       auth_controller_(
           std::make_unique<AuthController>(profile, identity_manager)),
 
@@ -228,12 +222,6 @@ GlicKeyedService::~GlicKeyedService() {
   metrics_->ClearControllers();
 }
 
-#if !BUILDFLAG(IS_ANDROID)
-GlicRegionCaptureController& GlicKeyedService::region_capture_controller() {
-  return *region_capture_controller_;
-}
-#endif
-
 // static
 GlicKeyedService* GlicKeyedService::Get(content::BrowserContext* context) {
   return GlicKeyedServiceFactory::GetGlicKeyedService(context);
@@ -252,24 +240,21 @@ void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
                                 bool prevent_close,
                                 mojom::InvocationSource source,
                                 std::optional<std::string> prompt_suggestion) {
-  ToggleUIInternal(bwi, prevent_close, source, std::move(prompt_suggestion),
-                   /*conversation_id=*/std::nullopt);
+  ToggleUIInternal(bwi, prevent_close, source, std::move(prompt_suggestion));
 }
 
 void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
                                 bool prevent_close,
                                 mojom::InvocationSource source) {
   ToggleUIInternal(bwi, prevent_close, source,
-                   /*prompt_suggestion=*/std::nullopt,
-                   /*conversation_id=*/std::nullopt);
+                   /*prompt_suggestion=*/std::nullopt);
 }
 
 void GlicKeyedService::ToggleUIInternal(
     BrowserWindowInterface* bwi,
     bool prevent_close,
     mojom::InvocationSource source,
-    std::optional<std::string> prompt_suggestion,
-    std::optional<std::string> conversation_id) {
+    std::optional<std::string> prompt_suggestion) {
   // Glic may be disabled for certain user profiles (the user is browsing in
   // incognito or guest mode, policy, etc). In those cases, the entry points to
   // this method should already have been removed.
@@ -284,15 +269,9 @@ void GlicKeyedService::ToggleUIInternal(
     return;
   }
 
-  // Show the FRE if not yet completed, and if we have a browser to use.
-  if (fre_controller_->ShouldShowFreDialog()) {
-    fre_controller_->MarkFreStartAttempt();
-    fre_controller_->MarkSidepanelFreShown();
-  }
-
   instance_coordinator().Toggle(
       bwi ? bwi : GetActiveGlicEligibleBrowser(profile_), prevent_close, source,
-      prompt_suggestion, conversation_id);
+      prompt_suggestion);
 }
 
 bool GlicKeyedService::MaybeInvoke(
@@ -360,24 +339,6 @@ base::WeakPtr<GlicInstance> GlicKeyedService::Invoke(
       .Invoke(std::move(options));
 }
 
-void GlicKeyedService::OpenFreDialogInNewTab(BrowserWindowInterface* bwi,
-                                             mojom::InvocationSource source) {
-#if !BUILDFLAG(IS_ANDROID)
-  // Glic may be disabled for certain user profiles (the user is browsing in
-  // incognito or guest mode, policy, etc). In those cases, the entry points to
-  // this method should already have been removed.
-  CHECK(GlicEnabling::IsEnabledForProfile(profile_));
-
-  GlicProfileManager* glic_profile_manager = GlicProfileManager::GetInstance();
-  if (glic_profile_manager) {
-    glic_profile_manager->SetActiveGlic(this);
-  }
-  fre_controller().OpenFreDialogInNewTab(bwi->GetWeakPtr(), source);
-#else
-  NOTIMPLEMENTED() << "OpenFreDialogInNewTab";
-#endif
-}
-
 void GlicKeyedService::CloseAndShutdown(
     content::RenderFrameHost* render_frame_host) {
   instance_coordinator().CloseAndShutdownInstanceWithFrame(render_frame_host);
@@ -408,15 +369,6 @@ GlicSharingManager& GlicKeyedService::active_instance_sharing_manager() {
   return *sharing_manager_.get();
 }
 
-bool GlicKeyedService::IsWindowShowing() const {
-  for (const auto* instance : instance_coordinator().GetInstances()) {
-    if (instance && instance->IsShowing()) {
-      return true;
-    }
-  }
-  return false;
-}
-
 bool GlicKeyedService::IsPanelShowingForBrowser(
     const BrowserWindowInterface& bwi) const {
   return instance_coordinator().IsPanelShowingForBrowser(bwi);
@@ -424,10 +376,6 @@ bool GlicKeyedService::IsPanelShowingForBrowser(
 
 bool GlicKeyedService::IsWindowDetached() const {
   return instance_coordinator().IsDetached();
-}
-
-bool GlicKeyedService::IsWindowOrFreShowing() const {
-  return IsWindowShowing();
 }
 
 base::CallbackListSubscription
@@ -526,21 +474,6 @@ base::CallbackListSubscription GlicKeyedService::AddUserInputSubmittedCallback(
   return user_input_submitted_callback_list_.Add(std::move(callback));
 }
 
-#if !BUILDFLAG(IS_ANDROID)  // Single instance only
-void GlicKeyedService::CaptureRegion(
-    tabs::TabInterface* tab,
-    mojo::PendingRemote<mojom::CaptureRegionObserver> observer,
-    mojom::GetTabContextOptionsPtr options) {
-  region_capture_controller_->CaptureRegion(tab, std::move(observer),
-                                            std::move(options));
-}
-
-void GlicKeyedService::DeleteCapturedRegion(tabs::TabInterface* tab,
-                                            const base::UnguessableToken& id) {
-  region_capture_controller_->DeleteRegion(tab, id);
-}
-#endif
-
 void GlicKeyedService::ShareContextImage(tabs::TabInterface* tab,
                                          content::RenderFrameHost* frame,
                                          const ::GURL& src_url) {
@@ -574,10 +507,12 @@ void GlicKeyedService::TryPreload() {
         profile_,
         base::BindOnce(&GlicKeyedService::FinishPreload, GetWeakPtr()));
   } else {
-    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-        FROM_HERE,
-        base::BindOnce(&GlicKeyedService::TryPreloadAfterDelay, GetWeakPtr()),
-        delay);
+    content::GetUIThreadTaskRunner({base::TaskPriority::BEST_EFFORT})
+        ->PostDelayedTask(
+            FROM_HERE,
+            base::BindOnce(&GlicKeyedService::TryPreloadAfterDelay,
+                           GetWeakPtr()),
+            delay);
   }
 }
 

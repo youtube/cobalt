@@ -201,11 +201,6 @@ void FindsService::RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterDictionaryPref(
       prefs::kFindsNotInterestedThemesLastTimestamp);
   registry->RegisterBooleanPref(prefs::kFindsOptInPromoUserInteracted, false);
-  // TODO(crbug.com/497928018): Remove the deprecated user interacted pref.
-  registry->RegisterIntegerPref(prefs::kFindsOptInPromoInteractedCount, 0);
-  // TODO(crbug.com/497928018): Remove the deprecated user interacted pref.
-  registry->RegisterInt64Pref(prefs::kFindsOptInPromoLastInteractedTimestamp,
-                              0);
   registry->RegisterIntegerPref(prefs::kFindsOptInPromoShownCount, 0);
   registry->RegisterInt64Pref(prefs::kFindsOptInPromoLastShownTimestamp, 0);
 }
@@ -244,6 +239,14 @@ void FindsService::ExecuteModelAndScheduleNotification(
     RecordFindsResultAndRunCallback(
         std::move(callback), {Result::Status::kDisabledByEnterprisePolicy,
                               "Error: Feature disabled by enterprise policy."});
+    return;
+  }
+
+  if (finds::features::kBlockModelExecution.Get()) {
+    RecordFindsResultAndRunCallback(
+        std::move(callback),
+        {Result::Status::kModelExecutionDisabledByParam,
+         "Error: Model execution disabled by feature parameter."});
     return;
   }
 
@@ -339,10 +342,6 @@ bool FindsService::ScheduleNotificationForInternalsPage() {
 }
 
 void FindsService::CheckFindsNotificationsEnabledAndMaybeExecute() {
-  // TODO(crbug.com/497928018): Remove this when deprecated pref removed.
-  pref_service_->ClearPref(prefs::kFindsOptInPromoInteractedCount);
-  pref_service_->ClearPref(prefs::kFindsOptInPromoLastInteractedTimestamp);
-
 #if BUILDFLAG(IS_ANDROID)
   if (!IsAllowedByEnterprisePolicy(pref_service_)) {
     return;

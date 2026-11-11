@@ -132,3 +132,23 @@ macro_rules! crypto_buffer_wrapper {
         }
     };
 }
+
+// Safety: `$obj` must outlive the returned slice.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! call_slice_getter {
+    ($fn:path, $obj:expr) => {{
+        let mut data = ::core::ptr::null();
+        let mut len = 0;
+        #[allow(unused_unsafe)]
+        unsafe {
+            // Safety: `obj`, `data` and `len` are all valid.
+            $fn($obj, &raw mut data, &raw mut len);
+        }
+        #[allow(unused_unsafe)]
+        unsafe {
+            // Safety: data and len are returned by BoringSSL and are valid.
+            $crate::ffi::sanitize_slice(data, len)
+        }
+    }};
+}

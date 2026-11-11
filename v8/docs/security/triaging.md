@@ -51,6 +51,8 @@ See the section below for common scenarios that lead to reclassifications.
 
 The same general principles apply to sandbox security bugs.
 To ease classification, bugs should reproduce on `d8` by providing `--run-as-sandbox-security-poc` in addition to possibly other flags in the [sandbox testing environment](../../src/sandbox/README.md#testing).
+A successful reproduction must result in the crash filter reporting a sandbox violation (e.g. "V8 sandbox violation detected").
+Crashes reported as "harmless" by the filter do not qualify as sandbox escapes.
 
 ## Common cases for conditional features and code
 
@@ -105,6 +107,22 @@ Invalid ("bogus") `DCHECK`s should still be fixed or removed.
 
 Note: `CHECK`s must not be behind special builds or phases, such as `--verify-*`.
 
+### Sandbox: Reliance on libc++ hardening
+
+V8's sandbox security boundary relies on libc++ hardening (specifically
+`_LIBCPP_HARDENING_MODE`) to prevent out-of-bounds accesses in standard
+containers like `std::vector` and `std::span`.
+
+Rationale: If a logic flaw allows an attacker to corrupt an index used for a
+`std::vector::operator[]` access, the hardened STL will perform a bounds check
+at runtime and safely trap (crash) even in release builds. Running into a
+hardened libc++ check after an in-sandbox corruption is not a sandbox escape
+and is not even considered a bug.
+
+Note: Developers should still prefer using `SBXCHECK` or similar V8-specific
+hardened checks for untrusted inputs to provide better diagnostics and explicit
+intent.
+
 ### Sandbox: Read-only bypasses
 
 Fields: **Type=Bug**, **Security_Impact-None**
@@ -126,3 +144,13 @@ To make this clear, V8 will automatically remove any calls to unsupported functi
 
 V8 uses snapshots that are deserialized at startup.
 These snapshots are fully trusted and outside of the attacker model, see the Chrome Security FAQ regarding [physically local attacks](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/security/faq.md#why-arent-physically_local-attacks-in-chromes-threat-model).
+
+### Bugs reproducing only with `--enable-inspector`
+
+Fields: **component=Platform>DevTools** (componentid:1457055), **Type=Bug**, **Security_Impact-None**
+
+In addition, assignee should be one of the [OWNERS](../../src/inspector/OWNERS).
+
+Rationale: `--enable-inspector` does not accurately represent the production behavior of DevTools.
+`inspector-test` should be used for valid reproductions.
+For more details see [security documentation](../../src/inspector/SECURITY.md).

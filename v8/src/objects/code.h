@@ -156,9 +156,10 @@ V8_OBJECT class Code : public ExposedTrustedObject {
 
   // [bytecode_or_interpreter_data]: BytecodeArray or InterpreterData for
   // baseline code.
-  inline Tagged<TrustedObject> bytecode_or_interpreter_data() const;
+  inline Tagged<UnionOf<BytecodeArray, InterpreterData>>
+  bytecode_or_interpreter_data() const;
   inline void set_bytecode_or_interpreter_data(
-      Tagged<TrustedObject> value,
+      Tagged<UnionOf<BytecodeArray, InterpreterData>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // [source_position_table]: ByteArray for the source positions table for
   // non-baseline code.
@@ -528,12 +529,8 @@ V8_OBJECT class Code : public ExposedTrustedObject {
 // Note that both the underlying Code object and the associated
 // InstructionStream may be forwarding pointers, thus type checks and normal
 // (checked) casts do not work on GcSafeCode.
-class GcSafeCode : public HeapObject {
+V8_OBJECT class GcSafeCode : public HeapObject {
  public:
-  // Use with care, this casts away knowledge that we're dealing with a
-  // special-semantics object.
-  inline Tagged<Code> UnsafeCastToCode() const;
-
   // Safe accessors (these just forward to Code methods).
   inline Address instruction_start() const;
   inline Address instruction_end() const;
@@ -559,16 +556,17 @@ class GcSafeCode : public HeapObject {
   inline Address InstructionStart(Isolate* isolate, Address pc) const;
   inline Address InstructionEnd(Isolate* isolate, Address pc) const;
   inline bool CanDeoptAt(Isolate* isolate, Address pc) const;
-  inline Tagged<Object> raw_instruction_stream(
-      PtrComprCageBase code_cage_base) const;
   // The two following accessors repurpose the InlinedBytecodeSize field, see
   // comment in code-inl.h.
   inline uint16_t wasm_js_tagged_parameter_count() const;
   inline uint16_t wasm_js_first_tagged_parameter() const;
 
  private:
-  OBJECT_CONSTRUCTORS(GcSafeCode, HeapObject);
-};
+  // Use with care, this casts away knowledge that we're dealing with a
+  // special-semantics object.
+  inline const Code* UnsafeCastToCode() const;
+  inline Code* UnsafeCastToCode();
+} V8_OBJECT_END;
 
 // A CodeWrapper wraps a Code but lives inside the sandbox. This can be useful
 // for example when a reference to a Code needs to be stored along other tagged

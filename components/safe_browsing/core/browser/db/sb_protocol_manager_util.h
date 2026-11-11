@@ -235,6 +235,12 @@ class ListIdentifier {
 
   bool uses_v5_api() const { return uses_v5_api_; }
 
+  bool operator<(const ListIdentifier& rhs) const {
+    CHECK(uses_v5_api());
+    CHECK(rhs.uses_v5_api());
+    return sb_threat_type_ < rhs.sb_threat_type_;
+  }
+
  private:
   // For v4:
   PlatformType platform_type_;
@@ -265,6 +271,12 @@ ListIdentifier GetUrlUwsId();
 
 // Returns the basename of the store file, without the ".store" extension.
 std::string GetUmaSuffixForStore(const base::FilePath& file_path);
+
+// Get the prefix size of a v5 list.
+PrefixSize GetV5ListPrefixSize(const ListIdentifier& list_identifier);
+
+// Get the name of a v5 list.
+std::string GetV5ListName(const ListIdentifier& list_identifier);
 
 // Represents the state of each store.
 using StoreStateMap = std::unordered_map<ListIdentifier, std::string>;

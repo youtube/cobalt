@@ -210,10 +210,11 @@ class V8_EXPORT_PRIVATE Stack final {
     (*callback)();
     {
       v8::base::MutexGuard guard(&stack->lock_);
-      if (previous_segment.top)
+      if (previous_segment.top) {
         background_stacks[thread] = previous_segment;
-      else
+      } else {
         background_stacks.erase(thread);
+      }
     }
   }
 

@@ -17,11 +17,11 @@
 use alloc::vec::Vec;
 use core::ptr::{
     NonNull,
-    null,
     null_mut, //
 };
 
 use crate::{
+    call_slice_getter,
     config::ProtocolVersion,
     context::TlsContext,
     errors::Error,
@@ -76,21 +76,6 @@ impl Clone for TlsSession {
         }
         Self(self.0)
     }
-}
-
-macro_rules! call_slice_getter {
-    ($fn:path, $obj:expr) => {{
-        let mut data = null();
-        let mut len = 0;
-        unsafe {
-            // Safety: `obj`, `data` and `len` are all valid.
-            $fn($obj, &raw mut data, &raw mut len);
-        }
-        unsafe {
-            // Safety: data and len are returned by BoringSSL and are valid.
-            sanitize_slice(data, len)
-        }
-    }};
 }
 
 impl TlsSession {
@@ -334,138 +319,24 @@ impl TlsSession {
 
 #[cfg(test)]
 mod tests {
+    use core::pin::Pin;
+
+    use futures::future::try_join;
+
     use super::*;
 
-    use alloc::{collections::VecDeque, sync::Arc};
-    use core::task::Context;
-    use std::sync::Mutex;
-
+    use crate::tests::create_mock_pipe;
     use crate::{
-        connection::{Client, Server, TlsConnection},
-        context::{TlsContextBuilder, TlsMode},
-        credentials::{PskHash, TlsCredential},
-        io::{AbstractReader, AbstractSocket, AbstractSocketResult, AbstractWriter},
+        context::TlsContextBuilder,
+        credentials::{
+            PskHash,
+            TlsCredential, //
+        }, //
     };
 
     const TEST_KEY: &[u8; 32] = b"0123456789abcdef0123456789abcdef";
     const TEST_IDENTITY: &[u8] = b"test-identity";
     const TEST_CONTEXT: &[u8] = b"test-context";
-    const TEST_DATA: &[u8] = b"BoringSSL is awesome!";
-
-    struct SharedPipe {
-        buf: VecDeque<u8>,
-    }
-
-    struct ConnectedSocket {
-        read_pipe: Arc<Mutex<SharedPipe>>,
-        write_pipe: Arc<Mutex<SharedPipe>>,
-    }
-
-    impl AbstractReader for ConnectedSocket {
-        fn read(&mut self, _: Option<&mut Context<'_>>, buf: &mut [u8]) -> AbstractSocketResult {
-            let mut pipe = self.read_pipe.lock().unwrap();
-            let len = pipe.buf.len().min(buf.len());
-            if len == 0 {
-                return AbstractSocketResult::Retry;
-            }
-            for i in 0..len {
-                buf[i] = pipe.buf.pop_front().unwrap();
-            }
-            AbstractSocketResult::Ok(len)
-        }
-    }
-
-    impl AbstractWriter for ConnectedSocket {
-        fn write(&mut self, _: Option<&mut Context<'_>>, buf: &[u8]) -> AbstractSocketResult {
-            let mut pipe = self.write_pipe.lock().unwrap();
-            pipe.buf.extend(buf.iter().copied());
-            AbstractSocketResult::Ok(buf.len())
-        }
-        fn flush(&mut self, _: Option<&mut Context<'_>>) -> AbstractSocketResult {
-            AbstractSocketResult::Ok(0)
-        }
-    }
-
-    impl AbstractSocket for ConnectedSocket {}
-
-    fn create_connected_pair() -> (ConnectedSocket, ConnectedSocket) {
-        let pipe1 = Arc::new(Mutex::new(SharedPipe {
-            buf: VecDeque::new(),
-        }));
-        let pipe2 = Arc::new(Mutex::new(SharedPipe {
-            buf: VecDeque::new(),
-        }));
-        (
-            ConnectedSocket {
-                read_pipe: pipe1.clone(),
-                write_pipe: pipe2.clone(),
-            },
-            ConnectedSocket {
-                read_pipe: pipe2,
-                write_pipe: pipe1,
-            },
-        )
-    }
-
-    fn check_connection(
-        conn_client: &mut TlsConnection<Client, TlsMode>,
-        conn_server: &mut TlsConnection<Server, TlsMode>,
-    ) {
-        let mut client_established = false;
-        let mut server_established = false;
-
-        for _ in 0..100 {
-            if !client_established {
-                if let Some(mut handshake) = conn_client.in_handshake() {
-                    match handshake.do_handshake() {
-                        Ok(None) => client_established = true,
-                        Ok(Some(_)) => {}
-                        Err(e) => panic!("Client handshake failed: {:?}", e),
-                    }
-                } else {
-                    client_established = true;
-                }
-            }
-            if !server_established {
-                if let Some(mut handshake) = conn_server.in_handshake() {
-                    match handshake.do_handshake() {
-                        Ok(None) => server_established = true,
-                        Ok(Some(_)) => {}
-                        Err(e) => panic!("Server handshake failed: {:?}", e),
-                    }
-                } else {
-                    server_established = true;
-                }
-            }
-            if client_established && server_established {
-                break;
-            }
-        }
-
-        assert!(client_established);
-        assert!(server_established);
-
-        // Send application data to verify connection works
-        let test_data = TEST_DATA;
-        let mut written = 0;
-        while written < test_data.len() {
-            match conn_client.sync_write(&test_data[written..]) {
-                Ok(crate::io::IoStatus::Ok(n)) => written += n,
-                _ => panic!("Write failed"),
-            }
-        }
-
-        let mut read_buf = [0u8; TEST_DATA.len()];
-        let mut recv_buf = crate::ffi::ReceiveBuffer::new(&mut read_buf);
-        while recv_buf.remaining() > 0 {
-            match conn_server.sync_read(&mut recv_buf) {
-                Ok(crate::io::IoStatus::Ok(_)) => {}
-                _ => panic!("Read failed"),
-            }
-        }
-
-        assert_eq!(&read_buf, test_data);
-    }
 
     #[test]
     fn test_session_ops() {
@@ -500,17 +371,20 @@ mod tests {
         ctx_server.with_credential(cred_server).unwrap();
         let ctx_server = ctx_server.build();
 
-        let (sock_client, sock_server) = create_connected_pair();
+        let mut conn_client = ctx_client.new_client_connection(None).unwrap().build();
+        let mut conn_server = ctx_server.new_server_connection(None).unwrap().build();
 
-        let builder_client = ctx_client.new_client_connection(None).unwrap();
-        let mut conn_client = builder_client.build();
+        let (sock_client, sock_server, mut executor) = create_mock_pipe();
+
         conn_client.set_io(sock_client).unwrap();
-
-        let builder_server = ctx_server.new_server_connection(None).unwrap();
-        let mut conn_server = builder_server.build();
         conn_server.set_io(sock_server).unwrap();
 
-        check_connection(&mut conn_client, &mut conn_server);
+        executor
+            .run(try_join(
+                conn_client.in_handshake().unwrap().async_handshake(),
+                conn_server.in_handshake().unwrap().async_handshake(),
+            ))
+            .unwrap();
 
         let est_client = conn_client.established().unwrap();
         let session = est_client.get_session().unwrap();
@@ -548,35 +422,55 @@ mod tests {
         let mut ctx_server = TlsContextBuilder::new_tls();
         ctx_server.with_credential(cred_server).unwrap();
         let ctx_server = ctx_server.build();
+        let mut conn_client = ctx_client.new_client_connection(None).unwrap().build();
+        let mut conn_server = ctx_server.new_server_connection(None).unwrap().build();
 
-        let (sock_client, sock_server) = create_connected_pair();
+        let (sock_client, sock_server, mut executor) = create_mock_pipe();
 
-        let builder_client = ctx_client.new_client_connection(None).unwrap();
-        let mut conn_client = builder_client.build();
         conn_client.set_io(sock_client).unwrap();
-
-        let builder_server = ctx_server.new_server_connection(None).unwrap();
-        let mut conn_server = builder_server.build();
         conn_server.set_io(sock_server).unwrap();
 
-        check_connection(&mut conn_client, &mut conn_server);
+        executor
+            .run(try_join(
+                conn_client.in_handshake().unwrap().async_handshake(),
+                conn_server.in_handshake().unwrap().async_handshake(),
+            ))
+            .unwrap();
 
         let est_client = conn_client.established().unwrap();
         let session = est_client.get_session().unwrap();
+        let peer = session.get_peer_sha256().unwrap();
 
         // === SESSION RESUMPTION ===
         // Use the session for a new connection
-        let (sock_client_2, sock_server_2) = create_connected_pair();
+        let (sock_client_2, sock_server_2, mut executor) = create_mock_pipe();
 
         let mut builder_client_2 = ctx_client.new_client_connection(None).unwrap();
         builder_client_2.with_session(&session);
         let mut conn_client_2 = builder_client_2.build();
-        conn_client_2.set_io(sock_client_2).unwrap();
 
         let builder_server_2 = ctx_server.new_server_connection(None).unwrap();
         let mut conn_server_2 = builder_server_2.build();
+
+        conn_client_2.set_io(sock_client_2).unwrap();
         conn_server_2.set_io(sock_server_2).unwrap();
 
-        check_connection(&mut conn_client_2, &mut conn_server_2);
+        executor
+            .run(try_join(
+                Pin::new(&mut conn_client_2).async_write(b"hello"),
+                Pin::new(&mut conn_server_2).async_write(b"world"),
+            ))
+            .unwrap();
+        // The peer identity should be the same as before
+        assert_eq!(
+            conn_client_2
+                .established()
+                .unwrap()
+                .get_session()
+                .unwrap()
+                .get_peer_sha256()
+                .unwrap(),
+            peer
+        );
     }
 }

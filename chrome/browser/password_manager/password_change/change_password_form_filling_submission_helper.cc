@@ -49,16 +49,9 @@ blink::mojom::AIPageContentOptionsPtr GetAIPageContentOptions() {
   // WebContents where password change is happening is hidden, and renderer
   // won't capture a snapshot unless it becomes visible again or
   // on_critical_path is set to true.
-  blink::mojom::AIPageContentOptionsPtr options;
-  if (base::FeatureList::IsEnabled(
-          password_manager::features::
-              kUseActionablesForImprovedPasswordChange)) {
-    options = optimization_guide::ActionableAIPageContentOptions(
-        /*on_critical_path =*/true);
-  } else {
-    options = optimization_guide::DefaultAIPageContentOptions(
-        /*on_critical_path =*/true);
-  }
+  blink::mojom::AIPageContentOptionsPtr options =
+      optimization_guide::ActionableAIPageContentOptions(
+          /*on_critical_path =*/true);
   options->include_same_site_only = true;
   return options;
 }
@@ -190,8 +183,7 @@ void ChangePasswordFormFillingSubmissionHelper::TriggerFilling(
   CHECK(form_manager_);
   if (!driver) {
     // Fail immediately as something went terribly wrong (e.g. page crashed).
-    std::move(callback_).Run(
-        base::unexpected(SubmissionError::kFailedToFillForm));
+    OnFormFillingFailed();
     return;
   }
 
@@ -275,17 +267,7 @@ void ChangePasswordFormFillingSubmissionHelper::ChangePasswordFormFilled(
                                OnChangePasswordFormFound,
                            weak_ptr_factory_.GetWeakPtr()))
             .SetTimeoutCallback(base::BindOnce(
-                [](base::WeakPtr<ChangePasswordFormFillingSubmissionHelper>
-                       helper) {
-                  if (!helper) {
-                    return;
-                  }
-                  CHECK(helper->callback_);
-                  // New form wasn't found. The flow should be marked as failed.
-                  std::move(helper->callback_)
-                      .Run(
-                          base::unexpected(SubmissionError::kFailedToFillForm));
-                },
+                &ChangePasswordFormFillingSubmissionHelper::OnFormFillingFailed,
                 weak_ptr_factory_.GetWeakPtr()))
             .SetFieldsToIgnore(observed_fields_)
             .Build();
@@ -409,7 +391,24 @@ void ChangePasswordFormFillingSubmissionHelper::OnButtonClicked(
 
 void ChangePasswordFormFillingSubmissionHelper::OnTimeout() {
   LogMessage(client_, Logger::STRING_AUTOMATED_PASSWORD_CHANGE_TIMEOUT);
+  if (logs_uploader_) {
+    logs_uploader_->SetFlowInterrupted(
+        kSubmitFormFlowStep,
+        ModelQualityLogsUploader::QualityStatus::
+            PasswordChangeQuality_StepQuality_SubmissionStatus_TIME_OUT);
+  }
   std::move(callback_).Run(base::unexpected(SubmissionError::kTimeout));
+}
+
+void ChangePasswordFormFillingSubmissionHelper::OnFormFillingFailed() {
+  if (logs_uploader_) {
+    logs_uploader_->SetFlowInterrupted(
+        kSubmitFormFlowStep,
+        ModelQualityLogsUploader::QualityStatus::
+            PasswordChangeQuality_StepQuality_SubmissionStatus_FORM_FILLING_FAILED);
+  }
+  std::move(callback_).Run(
+      base::unexpected(SubmissionError::kFailedToFillForm));
 }
 
 void ChangePasswordFormFillingSubmissionHelper::OnChangePasswordFormFound(

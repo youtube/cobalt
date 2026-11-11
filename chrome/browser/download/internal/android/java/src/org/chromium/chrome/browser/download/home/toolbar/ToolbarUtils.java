@@ -12,7 +12,6 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.download.DirectoryOption;
 import org.chromium.chrome.browser.download.DownloadDirectoryProvider;
 import org.chromium.chrome.browser.download.internal.R;
-import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.components.browser_ui.widget.highlight.ViewHighlighter;
 import org.chromium.components.browser_ui.widget.highlight.ViewHighlighter.HighlightParams;
 import org.chromium.components.browser_ui.widget.highlight.ViewHighlighter.HighlightShape;
@@ -77,13 +76,13 @@ public class ToolbarUtils {
     private static void showDownloadSettingsInProductHelp(
             Tracker tracker, View anchorView, View rootView) {
         TextBubble textBubble =
-                new TextBubble(
-                        rootView.getContext(),
-                        rootView,
-                        R.string.iph_download_settings_text,
-                        R.string.iph_download_settings_accessibility_text,
-                        new ViewRectProvider(anchorView),
-                        ChromeAccessibilityUtil.get().isAccessibilityEnabled());
+                new TextBubble.Builder(
+                                rootView.getContext(),
+                                rootView,
+                                new ViewRectProvider(anchorView),
+                                R.string.iph_download_settings_text,
+                                R.string.iph_download_settings_accessibility_text)
+                        .build();
         textBubble.setDismissOnTouchInteraction(true);
         textBubble.addOnDismissListener(
                 () -> {

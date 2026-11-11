@@ -14,13 +14,13 @@
 #include "src/codegen/machine-type.h"
 #include "src/codegen/x64/assembler-x64.h"
 #include "src/codegen/x64/register-x64.h"
+#include "src/compiler/backend/simd-shuffle.h"
 #include "src/compiler/linkage.h"
 #include "src/flags/flags.h"
 #include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
 #include "src/wasm/baseline/parallel-move.h"
-#include "src/wasm/simd-shuffle.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -1110,6 +1110,29 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
     if (result.gp() != rax) {
       movl(result.gp(), rax);
     }
+  } else {
+    cmpxchgq(dst_op, value_reg);
+    if (result.gp() != rax) {
+      movq(result.gp(), rax);
+    }
+  }
+
+  if (!v8_flags.disable_write_barriers) {
+    Label done;
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+    // TODO(429142815): WriteBarrier builtins currently require a sandbox mode
+    // switch, so more code is emitted and we need far jumps here. Once the
+    // builtins run in sandboxed mode, we can again always use near jumps.
+    Label::Distance distance = Label::kFar;
+#else
+    Label::Distance distance = Label::kNear;
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+    j(not_equal, &done, distance);
+    EmitWriteBarrier(dst_addr, dst_op, new_value_for_write_barrier, pinned);
+    bind(&done);
+  }
+
+  if constexpr (COMPRESS_POINTERS_BOOL) {
     // Pointer decompression needs to use an or instead of an add as
     // value_reg is a full pointer. If the expected value stored in rax matches
     // the expected value, rax is left unmodified which already contains a
@@ -1119,26 +1142,7 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
     // value if it isn't already decompressed but keeping it unmodified
     // otherwise.
     orq(result.gp(), kPtrComprCageBaseRegister);
-  } else {
-    cmpxchgq(dst_op, value_reg);
-    if (result.gp() != rax) {
-      movq(result.gp(), rax);
-    }
   }
-
-  if (v8_flags.disable_write_barriers) return;
-  Label done;
-#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-  // TODO(429142815): WriteBarrier builtins currently require a sandbox mode
-  // switch, so more code is emitted and we need far jumps here. Once the
-  // builtins run in sandboxed mode, we can again always use near jumps.
-  Label::Distance distance = Label::kFar;
-#else
-  Label::Distance distance = Label::kNear;
-#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-  j(not_equal, &done, distance);
-  EmitWriteBarrier(dst_addr, dst_op, new_value_for_write_barrier, pinned);
-  bind(&done);
 }
 
 void LiftoffAssembler::AtomicFence() { mfence(); }
@@ -1681,19 +1685,39 @@ void LiftoffAssembler::emit_i64_add128(Register dst_low, Register dst_high,
   DCHECK_NE(dst_low, dst_high);
   if (dst_low == al) {
     addq(dst_low, bl);
-  } else if (dst_low == bl) {
-    addq(dst_low, al);
   } else {
+    DCHECK_NE(dst_low, bl);
     movq(dst_low, al);
     addq(dst_low, bl);
   }
   if (dst_high == ah) {
     adcq(dst_high, bh);
-  } else if (dst_high == bh) {
-    adcq(dst_high, ah);
   } else {
+    DCHECK_NE(dst_high, bh);
     movq(dst_high, ah);
     adcq(dst_high, bh);
+  }
+}
+
+void LiftoffAssembler::emit_i64_sub128(Register dst_low, Register dst_high,
+                                       Register al, Register ah, Register bl,
+                                       Register bh) {
+  DCHECK_NE(dst_low, ah);
+  DCHECK_NE(dst_low, bh);
+  DCHECK_NE(dst_low, dst_high);
+  if (dst_low == al) {
+    subq(dst_low, bl);
+  } else {
+    DCHECK_NE(dst_low, bl);
+    movq(dst_low, al);
+    subq(dst_low, bl);
+  }
+  if (dst_high == ah) {
+    sbbq(dst_high, bh);
+  } else {
+    DCHECK_NE(dst_high, bh);
+    movq(dst_high, ah);
+    sbbq(dst_high, bh);
   }
 }
 
@@ -2910,7 +2934,7 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
   if (is_swizzle) {
     uint32_t imms[4];
     // Shuffles that use just 1 operand are called swizzles, rhs can be ignored.
-    wasm::SimdShuffle::Pack16Lanes(imms, shuffle);
+    compiler::SimdShuffle::Pack16Lanes(imms, shuffle);
     MacroAssembler::Move(kScratchDoubleReg, make_uint64(imms[3], imms[2]),
                          make_uint64(imms[1], imms[0]));
     Pshufb(dst.fp(), lhs.fp(), kScratchDoubleReg);

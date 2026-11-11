@@ -316,6 +316,20 @@ struct builtin : CallDescriptorBuilder {
   using FindOrderedHashSetEntry =
       FindOrderedHashEntry<Builtin::kFindOrderedHashSetEntry>;
 
+  struct WeakMapLookupHashIndex : public Descriptor<WeakMapLookupHashIndex> {
+    static constexpr auto kFunction = Builtin::kWeakMapLookupHashIndex;
+    struct Arguments : ArgumentsBase {
+      ARG(V<EphemeronHashTable>, table)
+      ARG(V<Object>, key)
+    };
+    using returns_t = std::tuple<V<Smi>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr OpEffects kEffects = base_effects.CanReadMemory();
+  };
+
   template <Builtin B>
   struct GrowFastElements : public Descriptor<GrowFastElements<B>> {
     static constexpr auto kFunction = B;
@@ -585,6 +599,24 @@ struct builtin : CallDescriptorBuilder {
                                               .CanReadMemory()
                                               .CanAllocateWithoutIdentity()
                                               .CanDependOnChecks();
+  };
+
+  struct StringFastLocaleCompare : public Descriptor<StringFastLocaleCompare> {
+    static constexpr auto kFunction = Builtin::kStringFastLocaleCompare;
+    struct Arguments : ArgumentsBase {
+      ARG(V<JSFunction>, locale_compare_fn)
+      ARG(V<Object>, left)
+      ARG(V<Object>, right)
+      ARG(V<StringOrUndefined>, locales)
+    };
+    using returns_t = std::tuple<V<Smi>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = true;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    // The bailout calls back into JS via String.prototype.localeCompare, so
+    // worst-case effects.
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
   };
 #endif  // V8_INTL_SUPPORT
 

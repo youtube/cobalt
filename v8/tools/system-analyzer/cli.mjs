@@ -1184,6 +1184,239 @@ class IcCommand extends GroupStatsCommand {
   }
 }
 
+class ProfileCommand extends Command {
+  static get commandName() {
+    return 'profile';
+  }
+
+  static get aliases() {
+    return ['ticks', 'perf', 'prof'];
+  }
+
+  static get help() {
+    return 'Print profile of filtered ticks.\n\n' +
+        'Shows a profile similar to tick-processor but for filtered ticks only.\n\n' +
+        EventFilter.help;
+  }
+
+  run(args) {
+    const CallTree = this.processor.profile.topDownTree_.constructor;
+    const tree = new CallTree();
+
+    let totalTicks = 0;
+    const flatProfile = new Map();
+
+    this.processor.tickTimeline.forEach(tick => {
+      if (!this.filterTick(tick)) return;
+
+      totalTicks++;
+
+      // Flat profile collection
+      const topEntry = tick.stack[0];
+      let name = 'UNKNOWN';
+      let type = 'Other';
+
+      if (typeof topEntry === 'number' || typeof topEntry === 'bigint') {
+        name = 'UNKNOWN';
+      } else if (topEntry) {
+        name = topEntry.getName();
+        if (topEntry.type === 'SHARED_LIB')
+          type = 'LIB';
+        else if (topEntry.type === 'CPP')
+          type = 'CPP';
+        else if (
+            topEntry.isJSFunction?.() || topEntry.type === 'LazyCompile' ||
+            topEntry.type === 'Function')
+          type = 'JS';
+      }
+
+      const stat = flatProfile.get(name) || {ticks: 0, type: type, name: name};
+      stat.ticks++;
+      flatProfile.set(name, stat);
+
+      // Tree profile collection
+      const nameStack = [];
+      for (const entry of tick.stack) {
+        if (typeof entry === 'number' || typeof entry === 'bigint') {
+          nameStack.push('UNKNOWN');
+        } else if (entry) {
+          const entryName = entry.getName();
+          if (!this.processor.profile.skipThisFunction(entryName)) {
+            nameStack.push(entryName);
+          }
+        }
+      }
+      tree.addPath(nameStack);
+    });
+
+    tree.computeTotalWeights();
+    return {tree, flatProfile, totalTicks};
+  }
+
+  filterTick(tick) {
+    if (this.filter.timeRange) {
+      if (tick.startTime < this.filter.timeRange.start ||
+          tick.startTime > this.filter.timeRange.end) {
+        return false;
+      }
+    }
+    if (this.filter.script || this.filter.scriptId !== null ||
+        this.filter.functionName || this.filter.file) {
+      for (const entry of tick.stack) {
+        if (typeof entry === 'number' || typeof entry === 'bigint') continue;
+        if (!entry) continue;
+
+        const script = this.processor.getProfileEntryScript(entry);
+        let matches = true;
+
+        if (this.filter.script) {
+          if (!script || !script.url.includes(this.filter.script))
+            matches = false;
+        }
+        if (this.filter.scriptId !== null) {
+          if (!script || script.id !== this.filter.scriptId) matches = false;
+        }
+        if (this.filter.functionName) {
+          if (!entry.getName().includes(this.filter.functionName))
+            matches = false;
+        }
+        if (this.filter.file) {
+          if (!script || !script.url.includes(this.filter.file))
+            matches = false;
+        }
+
+        if (matches) return true;
+      }
+      return false;
+    }
+    return true;
+  }
+
+  execute(args) {
+    const results = this.run(args);
+    if (this.format === 'json') {
+      const jsonTree = this.nodeToJSON(results.tree.getRoot());
+      const jsonFlat = Array.from(results.flatProfile.values());
+      print(JSON.stringify(
+          {
+            tree: jsonTree,
+            flatProfile: jsonFlat,
+            totalTicks: results.totalTicks
+          },
+          null, 2));
+    } else if (this.format === 'count') {
+      print(results.totalTicks);
+    } else {
+      this.printText(results);
+    }
+  }
+
+  nodeToJSON(node) {
+    const children = {};
+    for (const [label, child] of Object.entries(node.children)) {
+      children[label] = this.nodeToJSON(child);
+    }
+    return {
+      label: node.label,
+      selfWeight: node.selfWeight,
+      totalWeight: node.totalWeight,
+      children: children
+    };
+  }
+
+  printText(result) {
+    const {tree, flatProfile, totalTicks} = result;
+
+    if (totalTicks === 0) {
+      print('No ticks found.');
+      return;
+    }
+
+    // Count library ticks
+    let libraryTicks = 0;
+    flatProfile.forEach(stat => {
+      if (stat.type === 'LIB') libraryTicks += stat.ticks;
+    });
+    const nonLibraryTicks = totalTicks - libraryTicks;
+
+    const state = {count: 0, max: this.limit > 0 ? this.limit : Infinity};
+
+    this.printSection(
+        'Shared libraries', stat => stat.type === 'LIB', flatProfile,
+        totalTicks, nonLibraryTicks, state);
+    this.printSection(
+        'JavaScript', stat => stat.type === 'JS', flatProfile, totalTicks,
+        nonLibraryTicks, state);
+    this.printSection(
+        'C++', stat => stat.type === 'CPP', flatProfile, totalTicks,
+        nonLibraryTicks, state);
+
+    const allTicks = this.processor.tickTimeline.length;
+    const totalPct = (totalTicks * 100 / allTicks).toFixed(1);
+    print(`\n--- Filtered Ticks Profile (${totalTicks} ticks, ${
+        totalPct}% of total ${allTicks}) ---`);
+
+    this.printNode(tree.getRoot(), 0, totalTicks, state);
+  }
+
+  printSection(
+      title, typeFilter, flatProfile, totalTicks, nonLibraryTicks, state) {
+    if (state.count >= state.max) return;
+
+    const entries = Array.from(flatProfile.values())
+                        .filter(stat => typeFilter(stat))
+                        .sort((a, b) => b.ticks - a.ticks);
+
+    if (entries.length === 0) return;
+
+    print(`\n [${title}]:`);
+    print('   ticks  total  nonlib   name');
+
+    for (const stat of entries) {
+      if (state.count >= state.max) break;
+
+      const pct = (stat.ticks * 100 / totalTicks).toFixed(1);
+      const nonLibPct = nonLibraryTicks > 0 && stat.type !== 'LIB' ?
+          `${
+              (stat.ticks * 100 / nonLibraryTicks)
+                  .toFixed(1)
+                  .toString()
+                  .padStart(5)}%` :
+          '      ';
+      print(`${`  ${stat.ticks.toString().padStart(5)}  `}${
+          pct.toString().padStart(5)}%  ${nonLibPct}   ${stat.name}`);
+      state.count++;
+    }
+  }
+
+  printNode(node, indent, totalTicks, state) {
+    if (state && state.count >= state.max) return;
+    if (this.limit > 0 && indent / 2 >= this.limit) return;
+
+    const indentStr = ''.padStart(indent);
+    const pct = (node.totalWeight * 100 / totalTicks).toFixed(1);
+
+    if (node.label !== '') {
+      print(`${`  ${node.totalWeight.toString().padStart(5)}  `}${
+          pct.toString().padStart(5)}%  ${indentStr}${node.label}`);
+      if (state) state.count++;
+    }
+
+    const children = Object.values(node.children)
+                         .sort((a, b) => b.totalWeight - a.totalWeight);
+
+    if (this.limit > 0) {
+      children.splice(this.limit);
+    }
+
+    for (const child of children) {
+      if (child.totalWeight * 100 / totalTicks < 1.0) continue;
+      this.printNode(
+          child, node.label !== '' ? indent + 2 : indent, totalTicks, state);
+    }
+  }
+}
+
 class MapCommand extends GroupStatsCommand {
   static get commandName() {
     return 'map';
@@ -1227,6 +1460,7 @@ const COMMANDS = Object.freeze([
   DeoptCommand,
   IcCommand,
   IcListCommand,
+  ProfileCommand,
   MapCommand,
 ]);
 
@@ -1297,6 +1531,7 @@ export {
   FunctionCommand,
   IcCommand,
   IcListCommand,
+  ProfileCommand,
   COMMANDS,
   COMMANDS_LOOKUP
 };

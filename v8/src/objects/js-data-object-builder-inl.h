@@ -373,7 +373,7 @@ bool JSDataObjectBuilder::TryFastTransitionToPropertyKey(
   if (IsOnExpectedFinalMapFastPath()) {
     expected_key =
         handle(Cast<InternalizedString>(
-                   expected_final_map_->instance_descriptors(isolate_)->GetKey(
+                   expected_final_map_->instance_descriptors()->GetKey(
                        descriptor_index)),
                isolate_);
     target_map = expected_final_map_;
@@ -431,8 +431,7 @@ bool JSDataObjectBuilder::TryFastTransitionToPropertyKey(
   InternalIndex descriptor_index(current_property_index_);
   if (IsOnExpectedFinalMapFastPath()) {
     expected_key = Cast<InternalizedString>(
-        expected_final_map_->instance_descriptors(isolate_)->GetKey(
-            descriptor_index));
+        expected_final_map_->instance_descriptors()->GetKey(descriptor_index));
     target_map = expected_final_map_;
   }
 
@@ -461,14 +460,14 @@ bool JSDataObjectBuilder::TryFastTransitionToPropertyKey(
 bool JSDataObjectBuilder::TryAddFastPropertyTransitionForValue(
     DirectHandle<InternalizedString> key, DirectHandle<Object> value) {
   if (may_have_duplicate_keys_) {
-    Tagged<DescriptorArray> descriptors = map_->instance_descriptors(isolate_);
+    Tagged<DescriptorArray> descriptors = map_->instance_descriptors();
     InternalIndex descriptor_number =
         descriptors->SearchWithCache(isolate_, *key, *map_);
     if (descriptor_number.is_found()) {
       return false;
     }
   } else {
-    DCHECK(map_->instance_descriptors(isolate_)
+    DCHECK(map_->instance_descriptors()
                ->SearchWithCache(isolate_, *key, *map_)
                .is_not_found());
   }
@@ -477,8 +476,8 @@ bool JSDataObjectBuilder::TryAddFastPropertyTransitionForValue(
     return false;
   }
 
-  auto [representation, constness] = Object::OptimalRepresentation(
-      *value, PropertyConstness::kConst, isolate_);
+  auto [representation, constness] =
+      Object::OptimalRepresentation(*value, PropertyConstness::kConst);
   DirectHandle<FieldType> type =
       Object::OptimalType(*value, isolate_, representation);
   MaybeHandle<Map> maybe_map =
@@ -507,7 +506,7 @@ bool JSDataObjectBuilder::TryGeneralizeFieldToValue(
 
   InternalIndex descriptor_index(current_property_index_);
   PropertyDetails current_details =
-      map_->instance_descriptors(isolate_)->GetDetails(descriptor_index);
+      map_->instance_descriptors()->GetDetails(descriptor_index);
   Representation expected_representation = current_details.representation();
 
   DCHECK_EQ(current_details.kind(), PropertyKind::kData);
@@ -523,8 +522,8 @@ bool JSDataObjectBuilder::TryGeneralizeFieldToValue(
       return true;
     }
 
-    auto [representation, constness] = Object::OptimalRepresentation(
-        *value, current_details.constness(), isolate_);
+    auto [representation, constness] =
+        Object::OptimalRepresentation(*value, current_details.constness());
     representation = representation.generalize(expected_representation);
     if (!expected_representation.CanBeInPlaceChangedTo(representation)) {
       // Reconfigure the map for the value, deprecating if necessary. This
@@ -564,8 +563,7 @@ bool JSDataObjectBuilder::TryGeneralizeFieldToValue(
     }
   } else if (expected_representation.IsHeapObject() &&
              !FieldType::NowContains(
-                 map_->instance_descriptors(isolate_)->GetFieldType(
-                     descriptor_index),
+                 map_->instance_descriptors()->GetFieldType(descriptor_index),
                  value)) {
     DirectHandle<FieldType> value_type =
         Object::OptimalType(*value, isolate_, expected_representation);
@@ -577,8 +575,7 @@ bool JSDataObjectBuilder::TryGeneralizeFieldToValue(
   }
 
   DCHECK(FieldType::NowContains(
-      map_->instance_descriptors(isolate_)->GetFieldType(descriptor_index),
-      value));
+      map_->instance_descriptors()->GetFieldType(descriptor_index), value));
   return true;
 }
 
@@ -608,8 +605,7 @@ void JSDataObjectBuilder::RegisterFieldNeedsFreshHeapNumber(
 
 void JSDataObjectBuilder::RecalculateExtraHeapNumbersNeeded() {
   extra_heap_numbers_needed_ = 0;
-  Tagged<DescriptorArray> map_descriptors =
-      map_->instance_descriptors(isolate_);
+  Tagged<DescriptorArray> map_descriptors = map_->instance_descriptors();
   for (int i = 0; i < current_property_index_; ++i) {
     if (map_descriptors->GetDetails(InternalIndex(i))
             .representation()

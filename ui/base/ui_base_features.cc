@@ -45,6 +45,17 @@ BASE_FEATURE(kApplyNativeOcclusionToCompositor,
 BASE_FEATURE(kAlwaysTrackNativeWindowOcclusionForTest,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, native window occlusion tracking listens for
+// EVENT_OBJECT_DESTROY on top-level windows that previously occluded a tracked
+// window, and recalculates occlusion when one of them is destroyed. This
+// covers the case where the owning process is forcibly terminated (e.g., via
+// TerminateProcess), which doesn't reliably fire EVENT_OBJECT_HIDE or
+// EVENT_SYSTEM_FOREGROUND. Enabled by default; behind a feature flag so it
+// can be disabled remotely via Finch if a regression is observed. See
+// https://crbug.com/510416850 for context.
+BASE_FEATURE(kRecalculateNativeWinOcclusionOnWindowDestroy,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Field trial param name for `kApplyNativeOcclusionToCompositor`.
 const base::FeatureParam<std::string> kApplyNativeOcclusionToCompositorType{
     &kApplyNativeOcclusionToCompositor, "type", /*default=*/""};
@@ -65,7 +76,7 @@ BASE_FEATURE(kOnlyUseWindowResizeHelperOnResize,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls replacement of CATransactionCoordinator with a new implementation.
-BASE_FEATURE(kCATransactionV2, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kCATransactionV2, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -117,6 +128,10 @@ BASE_FEATURE(kWaylandTextInputV3, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether Wayland session management protocol is enabled.
 BASE_FEATURE(kWaylandSessionManagement, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Controls whether external begin frames are driven by Wayland frame callbacks.
+BASE_FEATURE(kWaylandExternalBeginFrameSource,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_OZONE)
 
 #if BUILDFLAG(IS_LINUX)

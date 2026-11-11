@@ -6,15 +6,25 @@
 
 #include <memory>
 
+#include "base/command_line.h"
+#include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
+#include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/test_future.h"
 #include "build/build_config.h"
+#include "chrome/browser/indigo/indigo_image_replacement_manager.h"
+#include "chrome/browser/indigo/indigo_prefs.h"
+#include "chrome/browser/indigo/indigo_service.h"
+#include "chrome/browser/indigo/indigo_service_factory.h"
+#include "chrome/browser/indigo/onboarding/indigo_onboarding_dialog.h"
 #include "chrome/browser/optimization_guide/mock_optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
-#include "chrome/browser/ui/page_actions/test_support/fake_tab_interface.h"
-#include "chrome/browser/ui/page_actions/test_support/mock_page_action_controller.h"
+#include "chrome/browser/ui/page_action/test_support/fake_tab_interface.h"
+#include "chrome/browser/ui/page_action/test_support/mock_page_action_controller.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/optimization_guide/core/hints/optimization_guide_decision.h"
@@ -23,8 +33,10 @@
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/navigation_simulator.h"
+#include "mojo/public/cpp/bindings/receiver.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/mojom/image_replacement/image_replacement.mojom.h"
 #include "ui/base/unowned_user_data/unowned_user_data_host.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -51,6 +63,8 @@ class IndigoPageActionControllerTest : public testing::Test {
  protected:
   void SetUp() override {
     feature_list_.InitAndEnableFeature(features::kIndigo);
+    scoped_command_line_.GetProcessCommandLine()->AppendSwitchASCII(
+        "indigo-script", "/dummy/path");
   }
 
   void TearDown() override {
@@ -77,17 +91,18 @@ class IndigoPageActionControllerTest : public testing::Test {
       profile_ = IdentityTestEnvironmentProfileAdaptor::
           CreateProfileForIdentityTestEnvironment(builder);
 
-      mock_optimization_guide_ =
-          static_cast<testing::NiceMock<MockOptimizationGuideKeyedService>*>(
-              OptimizationGuideKeyedServiceFactory::GetForProfile(
-                  profile_.get()));
-
       identity_test_env_adaptor_ =
           std::make_unique<IdentityTestEnvironmentProfileAdaptor>(
               profile_.get());
       identity_test_env_adaptor_->identity_test_env()
           ->MakePrimaryAccountAvailable("user@example.com",
                                         signin::ConsentLevel::kSignin);
+
+      mock_optimization_guide_ =
+          static_cast<testing::NiceMock<MockOptimizationGuideKeyedService>*>(
+              OptimizationGuideKeyedServiceFactory::GetForProfile(
+                  profile_.get()));
+
       SetModelExecutionCapability(true);
     }
 
@@ -165,6 +180,7 @@ class IndigoPageActionControllerTest : public testing::Test {
   std::unique_ptr<page_actions::MockPageActionController>
       page_action_controller_;
   std::unique_ptr<IndigoPageActionController> controller_;
+  base::test::ScopedCommandLine scoped_command_line_;
 };
 
 TEST_F(IndigoPageActionControllerTest, ShowsWhenOptimizationGuideReturnsTrue) {
@@ -411,6 +427,128 @@ TEST_F(IndigoPageActionControllerTest, ShowsAnchoredMessageThenSuggestionChip) {
         url, tab_interface_->GetContents());
     navigation->Commit();
   }
+}
+
+TEST_F(IndigoPageActionControllerTest, InvokeActionTriggersEligibilityCheck) {
+  CreateController();
+
+  base::test::TestFuture<void> fetcher_called;
+  IndigoServiceFactory::GetForProfile(profile_.get())
+      ->SetRemoteEligibilityFetcherForTesting(base::BindLambdaForTesting(
+          [&](IndigoService::RemoteEligibilityCallback callback) {
+            fetcher_called.SetValue();
+            std::move(callback).Run(RemoteEligibility{});
+          }));
+
+  controller_->InvokeAction();
+  EXPECT_TRUE(fetcher_called.Wait());
+}
+
+TEST_F(IndigoPageActionControllerTest, OnboardingSuccessTriggersContinuation) {
+  CreateController();
+
+  // Explicitly set the initial state for onboarding preference.
+  profile_->GetPrefs()->SetBoolean(prefs::kIndigoHasOnboarded, false);
+
+  OnboardingResult result;
+  result.acknowledge_chrome_disclaimer = true;
+
+  base::test::TestFuture<void> fetcher_called;
+  IndigoServiceFactory::GetForProfile(profile_.get())
+      ->SetRemoteEligibilityFetcherForTesting(base::BindLambdaForTesting(
+          [&](IndigoService::RemoteEligibilityCallback callback) {
+            fetcher_called.SetValue();
+            std::move(callback).Run(RemoteEligibility{});
+          }));
+
+  // Initial state: eligible but needs onboarding. This should show the dialog.
+  CombinedEligibility eligibility;
+  eligibility.local_eligibility = LocalEligibility::kEligible;
+  eligibility.remote_eligibility = RemoteEligibility{
+      .is_service_supported_for_account = true, .has_user_image = false};
+  eligibility.has_onboarded_pref = false;
+
+  base::OnceCallback<void(const OnboardingResult&)> captured_callback;
+  IndigoPageActionController::TestApi(controller_.get())
+      .SetOnboardingDialogFactory(base::BindLambdaForTesting(
+          [&](tabs::TabInterface& tab, const GURL& url,
+              base::OnceCallback<void(const OnboardingResult&)> callback)
+              -> std::unique_ptr<IndigoOnboardingDialog> {
+            captured_callback = std::move(callback);
+            return nullptr;
+          }));
+
+  IndigoPageActionController::TestApi(controller_.get())
+      .CheckEligibilityForOnboarding(eligibility);
+
+  ASSERT_TRUE(!captured_callback.is_null());
+
+  // Now simulate the dialog closing with success.
+  std::move(captured_callback).Run(result);
+
+  // Closing with success set the pref and trigger a re-fetch for continuation.
+  EXPECT_TRUE(profile_->GetPrefs()->GetBoolean(prefs::kIndigoHasOnboarded));
+  EXPECT_TRUE(fetcher_called.Wait());
+}
+
+TEST_F(IndigoPageActionControllerTest, OnboardingCancelledDoesNotTrigger) {
+  CreateController();
+
+  // Explicitly set the initial state for onboarding preference.
+  profile_->GetPrefs()->SetBoolean(prefs::kIndigoHasOnboarded, false);
+
+  OnboardingResult result;
+  result.acknowledge_chrome_disclaimer = false;
+
+  base::test::TestFuture<void> fetcher_called;
+  IndigoServiceFactory::GetForProfile(profile_.get())
+      ->SetRemoteEligibilityFetcherForTesting(base::BindLambdaForTesting(
+          [&](IndigoService::RemoteEligibilityCallback callback) {
+            fetcher_called.SetValue();
+            std::move(callback).Run(RemoteEligibility{});
+          }));
+
+  IndigoPageActionController::TestApi(controller_.get())
+      .CheckOnboardingResult(result);
+
+  EXPECT_FALSE(fetcher_called.IsReady());
+  EXPECT_FALSE(profile_->GetPrefs()->GetBoolean(prefs::kIndigoHasOnboarded));
+}
+
+TEST_F(IndigoPageActionControllerTest, OnCloseResetsReplacements) {
+  CreateController();
+
+  GURL url("https://example.com");
+  auto navigation = content::NavigationSimulator::CreateBrowserInitiated(
+      url, tab_interface_->GetContents());
+  navigation->Commit();
+
+  content::WebContents* web_contents = tab_interface_->GetContents();
+  auto* manager = IndigoImageReplacementManager::GetOrCreateForPage(
+      web_contents->GetPrimaryPage());
+
+  base::test::TestFuture<void> disconnect_future;
+
+  class FakeImageReplacement : public blink::mojom::ImageReplacement {
+   public:
+    FakeImageReplacement() = default;
+    void StartReplacement(
+        mojo::PendingRemote<blink::mojom::ImageReplacementHost> host) override {
+      // Do nothing.
+    }
+    void RenderReplacement() override {}
+  };
+
+  FakeImageReplacement fake_replacement;
+  mojo::Receiver<blink::mojom::ImageReplacement> receiver(&fake_replacement);
+
+  manager->RegisterImageReplacement(receiver.BindNewPipeAndPassRemote(),
+                                    /*is_primary=*/true);
+  receiver.set_disconnect_handler(disconnect_future.GetCallback());
+
+  controller_->OnClose(nullptr);
+
+  EXPECT_TRUE(disconnect_future.Wait());
 }
 
 }  // namespace

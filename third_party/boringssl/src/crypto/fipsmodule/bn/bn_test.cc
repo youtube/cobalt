@@ -223,6 +223,8 @@ static void TestSum(BIGNUMFileTest *t, BN_CTX *ctx) {
     ASSERT_TRUE(BN_usub(ret.get(), sum.get(), ret.get()));
     EXPECT_BIGNUMS_EQUAL("Sum -u B (r is b)", a.get(), ret.get());
 
+    // bn_abs_sub_consttime should overwrite the output sign.
+    BN_set_negative(ret.get(), 1);
     ASSERT_TRUE(bn_abs_sub_consttime(ret.get(), sum.get(), a.get(), ctx));
     EXPECT_BIGNUMS_EQUAL("|Sum - A|", b.get(), ret.get());
     ASSERT_TRUE(bn_abs_sub_consttime(ret.get(), a.get(), sum.get(), ctx));
@@ -1039,18 +1041,29 @@ TEST_F(BNTest, SumTestVectors) {
 }
 
 TEST_F(BNTest, BN2BinPadded) {
-  uint8_t zeros[256], out[256], reference[128];
+  auto test_decode = [&](Span<const uint8_t> in, const BIGNUM *expected) {
+    UniquePtr<BIGNUM> decoded(BN_new());
+    // |BN_lebin2bn| should correctly override an existing value.
+    ASSERT_TRUE(BN_rand(decoded.get(), /*bits=*/128, BN_RAND_TOP_ANY,
+                        BN_RAND_BOTTOM_ANY));
+    BN_set_negative(decoded.get(), 1);
+    ASSERT_TRUE(BN_bin2bn(in.data(), in.size(), decoded.get()));
+    EXPECT_BIGNUMS_EQUAL("BN_bin2bn round-trip", expected, decoded.get());
+  };
 
+  uint8_t zeros[256], out[256], reference[128];
   OPENSSL_memset(zeros, 0, sizeof(zeros));
 
   // Test edge case at 0.
   UniquePtr<BIGNUM> n(BN_new());
   ASSERT_TRUE(n);
   ASSERT_TRUE(BN_bn2bin_padded(nullptr, 0, n.get()));
+  test_decode({}, n.get());
 
   OPENSSL_memset(out, -1, sizeof(out));
   ASSERT_TRUE(BN_bn2bin_padded(out, sizeof(out), n.get()));
   EXPECT_EQ(Bytes(zeros), Bytes(out));
+  test_decode(out, n.get());
 
   // Test a random numbers at various byte lengths.
   for (size_t bytes = 128 - 7; bytes <= 128; bytes++) {
@@ -1068,17 +1081,20 @@ TEST_F(BNTest, BN2BinPadded) {
     // Exactly right size should encode.
     ASSERT_TRUE(BN_bn2bin_padded(out, bytes, n.get()));
     EXPECT_EQ(Bytes(reference, bytes), Bytes(out, bytes));
+    test_decode(Span(out, bytes), n.get());
 
     // Pad up one byte extra.
     ASSERT_TRUE(BN_bn2bin_padded(out, bytes + 1, n.get()));
     EXPECT_EQ(0u, out[0]);
     EXPECT_EQ(Bytes(reference, bytes), Bytes(out + 1, bytes));
+    test_decode(Span(out, bytes + 1), n.get());
 
     // Pad up to 256.
     ASSERT_TRUE(BN_bn2bin_padded(out, sizeof(out), n.get()));
     EXPECT_EQ(Bytes(zeros, sizeof(out) - bytes),
               Bytes(out, sizeof(out) - bytes));
     EXPECT_EQ(Bytes(reference, bytes), Bytes(out + sizeof(out) - bytes, bytes));
+    test_decode(out, n.get());
 
     // Repeat some tests with a non-minimal |BIGNUM|.
     EXPECT_TRUE(bn_resize_words(n.get(), 32));
@@ -1092,10 +1108,19 @@ TEST_F(BNTest, BN2BinPadded) {
 }
 
 TEST_F(BNTest, LittleEndian) {
+  auto test_decode = [&](Span<const uint8_t> in, const BIGNUM *expected) {
+    UniquePtr<BIGNUM> decoded(BN_new());
+    // |BN_lebin2bn| should correctly override an existing value.
+    ASSERT_TRUE(BN_rand(decoded.get(), /*bits=*/128, BN_RAND_TOP_ANY,
+                        BN_RAND_BOTTOM_ANY));
+    BN_set_negative(decoded.get(), 1);
+    ASSERT_TRUE(BN_lebin2bn(in.data(), in.size(), decoded.get()));
+    EXPECT_BIGNUMS_EQUAL("BN_lebin2bn round-trip", expected, decoded.get());
+  };
+
   UniquePtr<BIGNUM> x(BN_new());
-  UniquePtr<BIGNUM> y(BN_new());
   ASSERT_TRUE(x);
-  ASSERT_TRUE(y);
+  test_decode({}, x.get());
 
   // Test edge case at 0. Fill |out| with garbage to ensure |BN_bn2le_padded|
   // wrote the result.
@@ -1104,9 +1129,7 @@ TEST_F(BNTest, LittleEndian) {
   OPENSSL_memset(zeros, 0, sizeof(zeros));
   ASSERT_TRUE(BN_bn2le_padded(out, sizeof(out), x.get()));
   EXPECT_EQ(Bytes(zeros), Bytes(out));
-
-  ASSERT_TRUE(BN_lebin2bn(out, sizeof(out), y.get()));
-  EXPECT_BIGNUMS_EQUAL("BN_lebin2bn round-trip", x.get(), y.get());
+  test_decode(out, x.get());
 
   // Test random numbers at various byte lengths.
   for (size_t bytes = 128 - 7; bytes <= 128; bytes++) {
@@ -1129,8 +1152,7 @@ TEST_F(BNTest, LittleEndian) {
     EXPECT_EQ(Bytes(out), Bytes(expected));
 
     // Make sure the decoding produces the same BIGNUM.
-    ASSERT_TRUE(BN_lebin2bn(out, bytes, y.get()));
-    EXPECT_BIGNUMS_EQUAL("BN_lebin2bn round-trip", x.get(), y.get());
+    test_decode(Span(out, bytes), x.get());
   }
 }
 

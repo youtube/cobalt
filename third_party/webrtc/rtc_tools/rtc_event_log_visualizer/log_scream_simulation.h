@@ -49,6 +49,7 @@ class LogScreamSimulation {
     DataSize ref_window_i = DataSize::Zero();
     DataSize max_allowed_ref_window = DataSize::Zero();
     DataSize max_data_in_flight = DataSize::Zero();
+    bool is_application_limited = false;
     // Data in flight after last packet was sent before the state was captured.
     DataSize data_in_flight = DataSize::Zero();
     // How the send window have been utilized. Based on data in flight when the

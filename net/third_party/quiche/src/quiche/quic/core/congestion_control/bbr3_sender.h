@@ -119,7 +119,7 @@ class QUICHE_EXPORT Bbr3Sender final : public SendAlgorithmInterface {
  private:
   void UpdatePacingRate(QuicByteCount bytes_acked);
   void UpdateCongestionWindow(QuicByteCount bytes_acked);
-  QuicByteCount GetTargetCongestionWindow(float gain) const;
+  QuicByteCount ApplyQuantizationBudget(QuicByteCount inflight_cap) const;
   // Helper function for Bbr2Mode transitions.
   void LeaveStartup(QuicTime now);
   Bbr2Mode OnCongestionEventStartup(
@@ -199,6 +199,7 @@ class QUICHE_EXPORT Bbr3Sender final : public SendAlgorithmInterface {
   Bbr2NetworkModel model_;
 
   const QuicByteCount initial_cwnd_;
+  uint64_t max_ack_height_window_length_ = 10;
 
   // Current cwnd and pacing rate.
   QuicByteCount cwnd_;
@@ -212,6 +213,9 @@ class QUICHE_EXPORT Bbr3Sender final : public SendAlgorithmInterface {
 
   // Startup state.
   QuicBandwidth startup_max_bw_at_round_beginning_ = QuicBandwidth::Zero();
+
+  // Drain state.
+  uint64_t drain_rounds_ = 0;
 
   // Probe BW state.
   struct ProbeBWState {

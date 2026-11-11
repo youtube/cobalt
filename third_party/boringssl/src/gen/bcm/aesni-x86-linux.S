@@ -661,7 +661,7 @@ aes_hw_ccm64_encrypt_blocks:
 	movdqa	%xmm7,%xmm2
 	leal	32(%edx,%ecx,1),%edx
 	subl	%ecx,%ebx
-.byte	102,15,56,0,253
+	pshufb	%xmm5,%xmm7
 .L031ccm64_enc_outer:
 	movups	(%ebp),%xmm0
 	movl	%ebx,%ecx
@@ -690,7 +690,7 @@ aes_hw_ccm64_encrypt_blocks:
 	xorps	%xmm2,%xmm6
 	movdqa	%xmm7,%xmm2
 	movups	%xmm6,(%edi)
-.byte	102,15,56,0,213
+	pshufb	%xmm5,%xmm2
 	leal	16(%edi),%edi
 	jnz	.L031ccm64_enc_outer
 	movl	48(%esp),%esp
@@ -747,7 +747,7 @@ aes_hw_ccm64_decrypt_blocks:
 	movdqa	%xmm7,%xmm2
 	movl	%edx,%ebp
 	movl	%ecx,%ebx
-.byte	102,15,56,0,253
+	pshufb	%xmm5,%xmm7
 	movups	(%edx),%xmm0
 	movups	16(%edx),%xmm1
 	leal	32(%edx),%edx
@@ -774,7 +774,7 @@ aes_hw_ccm64_decrypt_blocks:
 	movdqa	%xmm7,%xmm2
 	movups	%xmm6,(%edi)
 	leal	16(%edi),%edi
-.byte	102,15,56,0,213
+	pshufb	%xmm5,%xmm2
 	subl	$1,%eax
 	jz	.L035ccm64_dec_break
 	movups	(%ebp),%xmm0
@@ -878,29 +878,29 @@ aes_hw_ctr32_encrypt_blocks:
 	movl	%ecx,20(%esp)
 	movl	%ecx,24(%esp)
 	movl	%ebp,28(%esp)
-.byte	102,15,58,22,251,3
-.byte	102,15,58,34,253,3
+	pextrd	$3,%xmm7,%ebx
+	pinsrd	$3,%ebp,%xmm7
 	movl	240(%edx),%ecx
 	bswap	%ebx
 	pxor	%xmm0,%xmm0
 	pxor	%xmm1,%xmm1
 	movdqa	(%esp),%xmm2
-.byte	102,15,58,34,195,0
+	pinsrd	$0,%ebx,%xmm0
 	leal	3(%ebx),%ebp
-.byte	102,15,58,34,205,0
+	pinsrd	$0,%ebp,%xmm1
 	incl	%ebx
-.byte	102,15,58,34,195,1
+	pinsrd	$1,%ebx,%xmm0
 	incl	%ebp
-.byte	102,15,58,34,205,1
+	pinsrd	$1,%ebp,%xmm1
 	incl	%ebx
-.byte	102,15,58,34,195,2
+	pinsrd	$2,%ebx,%xmm0
 	incl	%ebp
-.byte	102,15,58,34,205,2
+	pinsrd	$2,%ebp,%xmm1
 	movdqa	%xmm0,48(%esp)
-.byte	102,15,56,0,194
+	pshufb	%xmm2,%xmm0
 	movdqu	(%edx),%xmm6
 	movdqa	%xmm1,64(%esp)
-.byte	102,15,56,0,202
+	pshufb	%xmm2,%xmm1
 	pshufd	$192,%xmm0,%xmm2
 	pshufd	$128,%xmm0,%xmm3
 	cmpl	$6,%eax
@@ -957,12 +957,12 @@ aes_hw_ctr32_encrypt_blocks:
 	movups	80(%esi),%xmm3
 	leal	96(%esi),%esi
 	movdqa	%xmm0,48(%esp)
-.byte	102,15,56,0,194
+	pshufb	%xmm2,%xmm0
 	xorps	%xmm4,%xmm6
 	movups	%xmm5,48(%edi)
 	xorps	%xmm3,%xmm7
 	movdqa	%xmm1,64(%esp)
-.byte	102,15,56,0,202
+	pshufb	%xmm2,%xmm1
 	movups	%xmm6,64(%edi)
 	pshufd	$192,%xmm0,%xmm2
 	movups	%xmm7,80(%edi)
@@ -2346,7 +2346,7 @@ aes_hw_set_encrypt_key_alt:
 	movdqa	%xmm0,%xmm2
 	movdqu	%xmm0,-16(%edx)
 .L115loop_key128:
-.byte	102,15,56,0,197
+	pshufb	%xmm5,%xmm0
 	aesenclast	%xmm4,%xmm0
 	pslld	$1,%xmm4
 	leal	16(%edx),%edx
@@ -2363,7 +2363,7 @@ aes_hw_set_encrypt_key_alt:
 	decl	%ecx
 	jnz	.L115loop_key128
 	movdqa	48(%ebx),%xmm4
-.byte	102,15,56,0,197
+	pshufb	%xmm5,%xmm0
 	aesenclast	%xmm4,%xmm0
 	pslld	$1,%xmm4
 	movdqa	%xmm2,%xmm3
@@ -2376,7 +2376,7 @@ aes_hw_set_encrypt_key_alt:
 	pxor	%xmm2,%xmm0
 	movdqu	%xmm0,(%edx)
 	movdqa	%xmm0,%xmm2
-.byte	102,15,56,0,197
+	pshufb	%xmm5,%xmm0
 	aesenclast	%xmm4,%xmm0
 	movdqa	%xmm2,%xmm3
 	pslldq	$4,%xmm2
@@ -2400,7 +2400,7 @@ aes_hw_set_encrypt_key_alt:
 .L117loop_key192:
 	movq	%xmm2,(%edx)
 	movdqa	%xmm2,%xmm1
-.byte	102,15,56,0,213
+	pshufb	%xmm5,%xmm2
 	aesenclast	%xmm4,%xmm2
 	pslld	$1,%xmm4
 	leal	24(%edx),%edx
@@ -2434,7 +2434,7 @@ aes_hw_set_encrypt_key_alt:
 	movdqa	%xmm2,%xmm1
 	movdqu	%xmm2,-16(%edx)
 .L118loop_key256:
-.byte	102,15,56,0,213
+	pshufb	%xmm5,%xmm2
 	aesenclast	%xmm4,%xmm2
 	movdqa	%xmm0,%xmm3
 	pslldq	$4,%xmm0

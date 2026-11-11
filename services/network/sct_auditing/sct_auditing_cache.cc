@@ -45,13 +45,6 @@ void RecordSCTAuditingReportDeduplicatedMetrics(bool deduplicated) {
                             deduplicated);
 }
 
-// Records whether a new report that wasn't deduplicated was sampled for
-// sending to the reporting server.
-void RecordSCTAuditingReportSampledMetrics(bool sampled) {
-  base::UmaHistogramBoolean("Security.SCTAuditing.OptIn.ReportSampled",
-                            sampled);
-}
-
 // Records the size of a report that will be sent to the reporting server, in
 // bytes. Used to track how much bandwidth is consumed by sending reports.
 void RecordSCTAuditingReportSizeMetrics(size_t report_size) {
@@ -61,7 +54,10 @@ void RecordSCTAuditingReportSizeMetrics(size_t report_size) {
 
 }  // namespace
 
-SCTAuditingCache::ReportEntry::ReportEntry() = default;
+SCTAuditingCache::ReportEntry::ReportEntry(
+    net::HashValue key,
+    std::unique_ptr<sct_auditing::SCTClientReport> report)
+    : key(std::move(key)), report(std::move(report)) {}
 SCTAuditingCache::ReportEntry::ReportEntry(ReportEntry&& other) = default;
 SCTAuditingCache::ReportEntry::~ReportEntry() = default;
 
@@ -140,10 +136,8 @@ SCTAuditingCache::MaybeGenerateReportEntry(
   dedupe_cache_.Put(cache_key, true);
 
   if (base::RandDouble() > configuration_->sampling_rate) {
-    RecordSCTAuditingReportSampledMetrics(false);
     return std::nullopt;
   }
-  RecordSCTAuditingReportSampledMetrics(true);
 
   auto* connection_context = tls_report->mutable_context();
   base::TimeDelta time_since_unix_epoch =
@@ -171,10 +165,7 @@ SCTAuditingCache::MaybeGenerateReportEntry(
   if (dedupe_cache_.size() > dedupe_cache_size_hwm_)
     dedupe_cache_size_hwm_ = dedupe_cache_.size();
 
-  ReportEntry report_entry;
-  report_entry.key = std::move(cache_key);
-  report_entry.report = std::move(report);
-  return report_entry;
+  return ReportEntry(std::move(cache_key), std::move(report));
 }
 
 bool SCTAuditingCache::IsPopularSCT(base::span<const uint8_t> sct_leaf_hash) {

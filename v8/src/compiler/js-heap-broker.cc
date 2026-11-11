@@ -199,7 +199,8 @@ NamedAccessFeedback const& ElementAccessFeedback::Refine(JSHeapBroker* broker,
   // key is know to be a known name.
   CHECK(transition_groups_.empty());
   ZoneVector<MapRef> maps(broker->zone());
-  return *broker->zone()->New<NamedAccessFeedback>(broker, name, maps,
+  ZoneVector<OptionalObjectRef> handlers(broker->zone());
+  return *broker->zone()->New<NamedAccessFeedback>(broker, name, maps, handlers,
                                                    slot_kind());
 }
 
@@ -417,12 +418,13 @@ MegaDOMPropertyAccessFeedback::MegaDOMPropertyAccessFeedback(
 
 NamedAccessFeedback::NamedAccessFeedback(
     JSHeapBroker* broker, NameRef name, ZoneVector<MapRef> const& maps,
-    FeedbackSlotKind slot_kind,
+    ZoneVector<OptionalObjectRef> const& handlers, FeedbackSlotKind slot_kind,
     bool has_deprecated_map_without_migration_target)
     : ProcessedFeedback(kNamedAccess, slot_kind),
       name_(name.UnpackIfThin(broker)),
       original_name_maybe_thin_(name),
       maps_(maps),
+      handlers_(handlers),
       has_deprecated_map_without_migration_target_(
           has_deprecated_map_without_migration_target) {
   DCHECK(IsLoadICKind(slot_kind) || IsSetNamedICKind(slot_kind) ||
@@ -479,10 +481,11 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(kind);
 
   ZoneVector<MapRef> maps(zone());
+  ZoneVector<OptionalObjectRef> handlers(zone());
   bool has_deprecated_map_without_migration_target = false;
   nexus.IterateMapsWithUnclearedHandler(
-      [this, &maps, &has_deprecated_map_without_migration_target](
-          DirectHandle<Map> map_handle) {
+      [this, &maps, &handlers, &has_deprecated_map_without_migration_target](
+          DirectHandle<Map> map_handle, Tagged<MaybeObject> handler_obj) {
         OptionalMapRef maybe_map_ref = TryMakeRef(this, *map_handle);
         if (!maybe_map_ref.has_value()) return;
         MapRef map = maybe_map_ref.value();
@@ -510,6 +513,12 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
         }
         if (map.is_abandoned_prototype_map()) return;
         maps.push_back(map);
+
+        OptionalObjectRef handler;
+        if (handler_obj.IsSmi()) {
+          handler = TryMakeRef(this, handler_obj.cast<Smi>());
+        }
+        handlers.push_back(handler);
       });
 
   OptionalNameRef name =
@@ -561,8 +570,10 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
     DCHECK_IMPLIES(maps.empty(),
                    nexus.ic_state() == InlineCacheState::MEGAMORPHIC ||
                        nexus.ic_state() == InlineCacheState::HOMOMORPHIC);
+    DCHECK_EQ(maps.size(), handlers.size());
     return *zone()->New<NamedAccessFeedback>(
-        this, *name, maps, kind, has_deprecated_map_without_migration_target);
+        this, *name, maps, handlers, kind,
+        has_deprecated_map_without_migration_target);
   } else if (nexus.GetKeyType() == IcCheckType::kElement && !maps.empty()) {
     return ProcessFeedbackMapsForElementAccess(
         maps, KeyedAccessMode::FromNexus(nexus), kind);
@@ -962,17 +973,26 @@ OptionalNameRef JSHeapBroker::GetNameFeedback(FeedbackNexus const& nexus) {
   return MakeRefAssumeMemoryFence(this, raw_name);
 }
 
-PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(MapRef map, NameRef name,
-                                                       AccessMode access_mode) {
+PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
+    MapRef map, NameRef name, AccessMode access_mode,
+    OptionalObjectRef handler) {
   DCHECK_NOT_NULL(dependencies_);
 
-  PropertyAccessTarget target({map, name, access_mode});
+  // Only include handler in the cache key for dictionary map loads.
+  // For everything else, the handler doesn't affect the resulting
+  // PropertyAccessInfo, and including it would cause a cache explosion.
+  OptionalObjectRef cache_handler =
+      (map.is_dictionary_map() && access_mode == AccessMode::kLoad)
+          ? handler
+          : std::nullopt;
+
+  PropertyAccessTarget target({map, name, access_mode, cache_handler});
   auto it = property_access_infos_.find(target);
   if (it != property_access_infos_.end()) return it->second;
 
   AccessInfoFactory factory(this, zone());
   PropertyAccessInfo access_info =
-      factory.ComputePropertyAccessInfo(map, name, access_mode);
+      factory.ComputePropertyAccessInfo(map, name, access_mode, handler);
   TRACE(this, "Storing PropertyAccessInfo for "
                   << access_mode << " of property " << name << " on map "
                   << map);

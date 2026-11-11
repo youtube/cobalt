@@ -271,8 +271,9 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* i_isolate, const char* location,
 
     if (!v8_flags.correctness_fuzzer_suppressions) {
       char* first_newline = strchr(heap_stats.last_few_messages, '\n');
-      if (first_newline == nullptr || first_newline[1] == '\0')
+      if (first_newline == nullptr || first_newline[1] == '\0') {
         first_newline = heap_stats.last_few_messages;
+      }
       base::OS::PrintError("\n<--- Last few GCs --->\n%s\n", first_newline);
     }
   }
@@ -1347,13 +1348,10 @@ void FunctionTemplate::SetCallHandler(
     i::DirectHandle<i::FixedArray> function_overloads =
         i_isolate->factory()->NewFixedArray(function_count);
     for (uint32_t i = 0; i < function_count; i++) {
-      const CFunction& c_function = c_function_overloads.data()[i];
-      i::DirectHandle<i::Managed<i::CFunctionWithSignature>> overload =
-          i::Managed<i::CFunctionWithSignature>::From(
-              i_isolate, sizeof(i::CFunctionWithSignature),
-              std::make_shared<i::CFunctionWithSignature>(
-                  reinterpret_cast<const i::Address>(c_function.GetAddress()),
-                  c_function.GetTypeInfo()));
+      const CFunction* c_function = &c_function_overloads.data()[i];
+      i::DirectHandle<i::Foreign> overload =
+          i_isolate->factory()->NewForeign<i::kCFunctionTag>(
+              reinterpret_cast<i::Address>(c_function));
       function_overloads->set(i, *overload);
     }
     i::FunctionTemplateInfo::SetCFunctionOverloads(i_isolate, info,
@@ -2544,15 +2542,17 @@ Module::GetStalledTopLevelAwaitMessages(Isolate* isolate) {
   if (size_t stalled_awaits_count = stalled_awaits.first.size();
       stalled_awaits_count > 0) {
     modules.reserve(stalled_awaits_count);
-    for (auto module : stalled_awaits.first)
+    for (auto module : stalled_awaits.first) {
       modules.push_back(ToApiHandle<Module>(module));
+    }
   }
   LocalVector<Message> messages(isolate);
   if (size_t stalled_awaits_count = stalled_awaits.second.size();
       stalled_awaits_count > 0) {
     messages.reserve(stalled_awaits_count);
-    for (auto message : stalled_awaits.second)
+    for (auto message : stalled_awaits.second) {
       messages.push_back(ToApiHandle<Message>(message));
+    }
   }
 
   return {modules, messages};
@@ -3522,10 +3522,8 @@ bool ValueSerializer::Delegate::HasCustomHostObject(Isolate* v8_isolate) {
 
 Maybe<bool> ValueSerializer::Delegate::IsHostObject(Isolate* v8_isolate,
                                                     Local<Object> object) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   auto js_object = i::Cast<i::JSObject>(Utils::OpenDirectHandle(*object));
-  return Just<bool>(
-      i::JSObject::GetEmbedderFieldCount(js_object->map(i_isolate)));
+  return Just<bool>(i::JSObject::GetEmbedderFieldCount(js_object->map()));
 }
 
 Maybe<uint32_t> ValueSerializer::Delegate::GetSharedArrayBufferId(
@@ -4979,8 +4977,7 @@ MaybeLocal<Array> v8::Object::GetPropertyNames(
       accumulator.GetKeys(static_cast<i::GetKeysConversion>(key_conversion));
   DCHECK(self->map()->EnumLength() == i::kInvalidEnumCacheSentinel ||
          self->map()->EnumLength() == 0 ||
-         self->map()->instance_descriptors(i_isolate)->enum_cache()->keys() !=
-             *value);
+         self->map()->instance_descriptors()->enum_cache()->keys() != *value);
   auto result = i_isolate->factory()->NewJSArrayWithElements(value);
   return api_scope.Escape(Utils::ToLocal(result));
 }
@@ -5251,13 +5248,13 @@ Maybe<bool> v8::Object::HasRealNamedCallbackProperty(Local<Context> context,
 
 bool v8::Object::HasNamedLookupInterceptor() const {
   auto self = *Utils::OpenDirectHandle(this);
-  if (!IsJSObject(*self)) return false;
+  if (!IsJSObject(self)) return false;
   return i::Cast<i::JSObject>(self)->HasNamedInterceptor();
 }
 
 bool v8::Object::HasIndexedLookupInterceptor() const {
   auto self = *Utils::OpenDirectHandle(this);
-  if (!IsJSObject(*self)) return false;
+  if (!IsJSObject(self)) return false;
   return i::Cast<i::JSObject>(self)->HasIndexedInterceptor();
 }
 
@@ -5267,7 +5264,7 @@ MaybeLocal<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
       context, RCCId::kAPI_Object_GetRealNamedPropertyInPrototypeChain};
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
-  if (!IsJSObject(*self) && !IsWasmObject(*self)) return {};
+  if (!i::IsJSObject(*self) && !i::IsWasmObject(*self)) return {};
   auto key_obj = Utils::OpenDirectHandle(*key);
   i::PrototypeIterator iter(i_isolate, self);
   if (iter.IsAtEnd()) return {};
@@ -5289,7 +5286,7 @@ v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(
       i_isolate, context,
       RCCId::kAPI_Object_GetRealNamedPropertyAttributesInPrototypeChain};
   auto self = Utils::OpenDirectHandle(this);
-  if (!IsJSObject(*self) && !IsWasmObject(*self)) return {};
+  if (!i::IsJSObject(*self) && !i::IsWasmObject(*self)) return {};
   auto key_obj = Utils::OpenDirectHandle(*key);
   i::PrototypeIterator iter(i_isolate, self);
   if (iter.IsAtEnd()) return {};
@@ -5885,7 +5882,7 @@ bool String::ContainsOnlyOneByte() const {
   return helper.Check(*str);
 }
 
-size_t String::Utf8LengthV2(Isolate* v8_isolate) const {
+size_t String::Utf8Length(Isolate* v8_isolate) const {
   auto str = Utils::OpenDirectHandle(this);
   return i::String::Utf8Length(reinterpret_cast<i::Isolate*>(v8_isolate), str);
 }
@@ -5907,21 +5904,20 @@ static inline void WriteHelperV2(i::Isolate* i_isolate, const String* string,
   }
 }
 
-void String::WriteV2(Isolate* v8_isolate, uint32_t offset, uint32_t length,
-                     uint16_t* buffer, int flags) const {
+void String::Write(Isolate* v8_isolate, uint32_t offset, uint32_t length,
+                   uint16_t* buffer, int flags) const {
   WriteHelperV2(reinterpret_cast<i::Isolate*>(v8_isolate), this, buffer, offset,
                 length, flags);
 }
 
-void String::WriteOneByteV2(Isolate* v8_isolate, uint32_t offset,
-                            uint32_t length, uint8_t* buffer, int flags) const {
+void String::WriteOneByte(Isolate* v8_isolate, uint32_t offset, uint32_t length,
+                          uint8_t* buffer, int flags) const {
   WriteHelperV2(reinterpret_cast<i::Isolate*>(v8_isolate), this, buffer, offset,
                 length, flags);
 }
 
-size_t String::WriteUtf8V2(Isolate* v8_isolate, char* buffer, size_t capacity,
-                           int flags,
-                           size_t* processed_characters_return) const {
+size_t String::WriteUtf8(Isolate* v8_isolate, char* buffer, size_t capacity,
+                         int flags, size_t* processed_characters_return) const {
   auto str = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ApiRuntimeCallStatsScope rcs_scope(i_isolate, RCCId::kAPI_String_WriteUtf8);
@@ -5991,6 +5987,12 @@ Local<v8::String> v8::String::InternalizeString(Isolate* v8_isolate) {
   auto* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   auto str = Utils::OpenDirectHandle(this);
   return Utils::ToLocal(isolate->factory()->InternalizeString(str));
+}
+
+bool v8::String::IsInStringTable(Isolate* v8_isolate) const {
+  auto* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  auto str = Utils::OpenDirectHandle(this);
+  return isolate->string_table()->HasString(isolate, str);
 }
 
 void v8::String::VerifyExternalStringResourceBase(
@@ -6674,27 +6676,9 @@ static i::DirectHandle<ObjectType> CreateEnvironment(
             i_isolate, global_constructor,
             i_isolate->factory()->undefined_value());
       }
-
-      // Same for other interceptors. If the global constructor has
-      // interceptors, we need to replace them temporarily with noop
-      // interceptors, so the map is correctly marked as having interceptors,
-      // but we don't invoke any.
-      if (!IsUndefined(global_constructor->GetNamedPropertyHandler(),
-                       i_isolate)) {
-        named_interceptor = direct_handle(
-            global_constructor->GetNamedPropertyHandler(), i_isolate);
-        i::FunctionTemplateInfo::SetNamedPropertyHandler(
-            i_isolate, global_constructor,
-            i_isolate->factory()->noop_named_interceptor_info());
-      }
-      if (!IsUndefined(global_constructor->GetIndexedPropertyHandler(),
-                       i_isolate)) {
-        indexed_interceptor = direct_handle(
-            global_constructor->GetIndexedPropertyHandler(), i_isolate);
-        i::FunctionTemplateInfo::SetIndexedPropertyHandler(
-            i_isolate, global_constructor,
-            i_isolate->factory()->noop_indexed_interceptor_info());
-      }
+      // We don't need to silence named/indexed interceptors since we skip
+      // them when we transfer properties from the snapshotted global object
+      // to the new global object. See Genesis::TransferNamedProperties(..).
     }
 
     i::MaybeDirectHandle<i::JSGlobalProxy> maybe_proxy;
@@ -6717,10 +6701,6 @@ static i::DirectHandle<ObjectType> CreateEnvironment(
           i::direct_handle(proxy_constructor->GetAccessCheckInfo(), i_isolate));
       global_constructor->set_needs_access_check(
           proxy_constructor->needs_access_check());
-      i::FunctionTemplateInfo::SetNamedPropertyHandler(
-          i_isolate, global_constructor, named_interceptor);
-      i::FunctionTemplateInfo::SetIndexedPropertyHandler(
-          i_isolate, global_constructor, indexed_interceptor);
     }
   }
   // Leave V8.
@@ -8298,7 +8278,7 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
       sorted.reserve(dict->NumberOfElements());
       ReadOnlyRoots roots(isolate);
       for (InternalIndex i : dict->IterateEntries()) {
-        Tagged<Object> key = dict->KeyAt(isolate, i);
+        Tagged<Object> key = dict->KeyAt(i);
         if (!dict->IsKey(roots, key)) continue;
         uint32_t index =
             static_cast<uint32_t>(Object::NumberValue(Cast<Number>(key)));
@@ -10352,8 +10332,9 @@ Local<Value> Isolate::GetContinuationPreservedEmbedderData() {
 void Isolate::SetContinuationPreservedEmbedderData(Local<Value> data) {
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  if (data.IsEmpty())
+  if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(this));
+  }
   i_isolate->isolate_data()->set_continuation_preserved_embedder_data(
       *Utils::OpenDirectHandle(*data));
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
@@ -10627,8 +10608,9 @@ void Isolate::EnqueueMicrotask(Local<Function> v8_function) {
   auto function = Utils::OpenDirectHandle(*v8_function);
   i::DirectHandle<i::NativeContext> handler_context;
   if (!i::JSReceiver::GetContextForMicrotask(function).ToHandle(
-          &handler_context))
+          &handler_context)) {
     handler_context = i_isolate->native_context();
+  }
   MicrotaskQueue* microtask_queue = handler_context->microtask_queue();
   if (microtask_queue) microtask_queue->EnqueueMicrotask(this, v8_function);
 }
@@ -11205,11 +11187,11 @@ String::Utf8Value::Utf8Value(v8::Isolate* v8_isolate, v8::Local<v8::Value> obj)
   TryCatch try_catch(v8_isolate);
   Local<String> str;
   if (!obj->ToString(context).ToLocal(&str)) return;
-  length_ = str->Utf8LengthV2(v8_isolate);
+  length_ = str->Utf8Length(v8_isolate);
   str_ = i::NewArray<char>(length_ + 1);
   int flags = String::WriteFlags::kNullTerminate |
               String::WriteFlags::kReplaceInvalidUtf8;
-  str->WriteUtf8V2(v8_isolate, str_, length_ + 1, flags);
+  str->WriteUtf8(v8_isolate, str_, length_ + 1, flags);
 }
 
 String::Utf8Value::~Utf8Value() { i::DeleteArray(str_); }
@@ -11227,8 +11209,7 @@ String::Value::Value(v8::Isolate* v8_isolate, v8::Local<v8::Value> obj)
   length_ = str->Length();
   SBXCHECK_LT(length_, String::kMaxLength);
   str_ = i::NewArray<uint16_t>(length_ + 1);
-  str->WriteV2(v8_isolate, 0, length_, str_,
-               String::WriteFlags::kNullTerminate);
+  str->Write(v8_isolate, 0, length_, str_, String::WriteFlags::kNullTerminate);
 }
 
 String::Value::~Value() { i::DeleteArray(str_); }
@@ -12330,20 +12311,18 @@ v8::Intercepted InvokeNamedInterceptorGetterCallback(
   return intercepted;
 }
 
-// TODO(https://crbug.com/348660658): migrate setter callbacks to a new
-// signature with const v8::PropertyCallbackInfo<v8::Boolean>& info.
 v8::Intercepted InvokeNamedInterceptorSetterCallback(
     v8::Local<v8::Name> property, v8::Local<v8::Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   // Leaving JavaScript.
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(i_isolate, RuntimeCallCounterId::kNamedSetterCallback);
 
-  v8::NamedPropertySetterCallback setter;
+  v8::NamedPropertySetterCallbackV2 setter;
   {
     DirectHandle<InterceptorInfo> interceptor_info =
         PropertyCallbackArguments::GetInterceptorInfo(info);
-    setter = reinterpret_cast<v8::NamedPropertySetterCallback>(
+    setter = reinterpret_cast<v8::NamedPropertySetterCallbackV2>(
         interceptor_info->named_setter(i_isolate));
 
     if (i_isolate->should_check_side_effects() &&

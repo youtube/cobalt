@@ -28,7 +28,7 @@ WasmBuiltinsAssembler::LoadTrustedDataFromInstance(
     TNode<WasmInstanceObject> instance_object) {
   return LoadTrustedPointerFromObject<
       kWasmTrustedInstanceDataIndirectPointerTag>(
-      instance_object, WasmInstanceObject::kTrustedDataOffset);
+      instance_object, offsetof(WasmInstanceObject, trusted_data_));
 }
 
 TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
@@ -154,7 +154,7 @@ TF_BUILTIN(WasmToJsWrapperInvalidSig, WasmBuiltinsAssembler) {
   TNode<WasmImportData> data =
       UncheckedParameter<WasmImportData>(Descriptor::kWasmImportData);
   TNode<Context> context =
-      LoadObjectField<Context>(data, WasmImportData::kNativeContextOffset);
+      LoadObjectField<Context>(data, offsetof(WasmImportData, native_context_));
 
   CallRuntime(Runtime::kWasmThrowJSTypeError, context);
   Unreachable();

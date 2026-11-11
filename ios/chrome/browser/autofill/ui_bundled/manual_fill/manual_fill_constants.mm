@@ -37,6 +37,9 @@ NSString* const kSuggestPasswordAccessibilityIdentifier =
 
 NSString* const kMaskedPasswordButtonText = @"••••••••";
 
+// Format string for the subtitle when both host and type are present.
+NSString* const kSubtitleFormat = @"%@ • %@";
+
 // Payments
 
 NSString* const kPaymentManualFillGPayLogoID = @"PaymentManualFillGPayLogoID";
@@ -57,29 +60,6 @@ NSString* const kAddressTableViewAccessibilityIdentifier =
 
 NSString* const kManageAddressAccessibilityIdentifier =
     @"ManualFillManageAddressAccessibilityIdentifier";
-
-// Plus Addresses
-
-NSString* const kManagePlusAddressAccessibilityIdentifier =
-    @"ManagePlusAddressAccessibilityIdentifier";
-
-NSString* const kCreatePlusAddressAccessibilityIdentifier =
-    @"CreatePlusAddressAccessibilityIdentifier";
-
-NSString* const kSelectPlusAddressAccessibilityIdentifier =
-    @"SelectPlusAddressAccessibilityIdentifier";
-
-NSString* const kExpandedManualFillPlusAddressFaviconID =
-    @"ExpandedManualFillPlusAddressFaviconID";
-
-NSString* const kExpandedManualFillPlusAddressOverflowMenuID =
-    @"ExpandedManualFillPlusAddressOverflowMenuID";
-
-NSString* const kPlusAddressDoneButtonAccessibilityIdentifier =
-    @"PlusAddressDoneButtonAccessibilityIdentifier";
-
-NSString* const kPlusAddressSearchBarAccessibilityIdentifier =
-    @"PlusAddressSearchBarAccessibilityIdentifier";
 
 // Miscellaneous
 

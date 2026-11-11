@@ -142,7 +142,6 @@
 <translation id="147982357559798527">ಬದಲಿಸಲಾಗಿದೆ</translation>
 <translation id="1486096554574027028">ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ಹುಡುಕಿ</translation>
 <translation id="1491277525950327607">ಸೆಟ್ಟಿಂಗ್‌ ಟಾಗಲ್‌ ಮಾಡಲು ಡಬಲ್ ಟ್ಯಾಪ್ ಮಾಡಿ</translation>
-<translation id="1491965206608166851">ಯಾವುದೇ ಆ್ಯಪ್‌ನಿಂದ ನೀವು ಸೇವ್‌ ಮಾಡಿದ ಪಾಸ್‌ವರ್ಡ್‌ಗಳು ಮತ್ತು ಪಾಸ್‌ಕೀಗಳೊಂದಿಗೆ ಸೈನ್ ಇನ್ ಮಾಡಿ</translation>
 <translation id="1492417797159476138">ಈ ಸೈಟ್‌ಗಾಗಿ ನೀವು ಈಗಾಗಲೇ ಈ ಬಳಕೆದಾರರ ಹೆಸರನ್ನು ಉಳಿಸಿದ್ದೀರಿ</translation>
 <translation id="1497590942294823549">ಮೆನು → Password Manager</translation>
 <translation id="1498283581832036924">ನಿಮ್ಮ <ph name="WEBSITE" /> ಖಾತೆಯನ್ನು ಅಳಿಸಲಾಗುವುದಿಲ್ಲ.</translation>
@@ -160,6 +159,7 @@
 <translation id="1524563461097350801">ಬೇಡ</translation>
 <translation id="1531038290222364269">ಟ್ಯಾಬ್‌ಗಳನ್ನು ತೋರಿಸಿ</translation>
 <translation id="1536390784834419204">ಪುಟವನ್ನು ಅನುವಾದಿಸಿ</translation>
+<translation id="1539535193627863227">ಈ ಸೈಟ್‌ಗಾಗಿ ಯಾವುದೇ ಪಾಸ್‌ವರ್ಡ್‌ಗಳು ಅಥವಾ ಪಾಸ್‌ಕೀಗಳು ಕಂಡುಬಂದಿಲ್ಲ</translation>
 <translation id="1540800554400757039">ವಿಳಾಸ 1</translation>
 <translation id="154312949627292154">ಲಾಕ್‌ ಸ್ಕ್ರೀನ್‌ನಿಂದ ನಿಮ್ಮ ಇತರ ಸಾಧನಗಳಿಂದ ಸ್ವೀಕರಿಸಿದ ಟ್ಯಾಬ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ.</translation>
 <translation id="1545749641540134597">QR ಕೋಡ್ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ</translation>
@@ -201,6 +201,7 @@
 <translation id="1657011748321897393">ನೀವು ನಿಮ್ಮ ನೆಟ್‌ವರ್ಕ್‌ಗೆ ಸಂಪರ್ಕ ಹೊಂದದೇ ಇರುವುದರಿಂದ ಹಂಚಿಕೆ ವಿಫಲಗೊಂಡಿದೆ.</translation>
 <translation id="1668001730617725852">ಹೊಸ ಟ್ಯಾಬ್ ಗುಂಪಿನಲ್ಲಿ ತೆರೆಯಿರಿ</translation>
 <translation id="1670861525135254448">ವಾಹನ ಮಾಹಿತಿಯನ್ನು ಸೇವ್ ಮಾಡಿ</translation>
+<translation id="1671568970992212376">ನಿಮ್ಮ Google Photos ನಲ್ಲಿ ಫೋಟೋಗಳನ್ನು ಸೇವ್ ಮಾಡಿ ಮತ್ತು ಅವುಗಳನ್ನು ಯಾವುದೇ ಸಮಯದಲ್ಲಿ ಆ್ಯಕ್ಸೆಸ್ ಮಾಡಿ.</translation>
 <translation id="1674504678466460478"><ph name="SOURCE_LANGUAGE" /> ನಿಂದ <ph name="TARGET_LANGUAGE" /> ಗೆ</translation>
 <translation id="1678855624321223424">ನಿಮ್ಮ ಸಂಸ್ಥೆಯ ನೀತಿಗಳನ್ನು ಆಧರಿಸಿ, ಈ ಫೈಲ್ ಸೆನ್ಸಿಟಿವ್ ಮಾಹಿತಿಯನ್ನು ಒಳಗೊಂಡಿರಬಹುದು</translation>
 <translation id="168389590065701766">ನೀವು ಈಗ ನಿಮ್ಮ ವಿಳಾಸ ಪಟ್ಟಿಯಿಂದ Google Lens ಅನ್ನು ತೆರೆಯಬಹುದು ಮತ್ತು ನೀವು ನೋಡುವ ಯಾವುದನ್ನಾದರೂ ಹುಡುಕಬಹುದು</translation>
@@ -357,12 +358,10 @@
 <translation id="2199562093267256223">ಇದು <ph name="USER_EMAIL" /> ಗೆ ಸೈನ್ ಇನ್ ಮಾಡಿರುವ ಎಲ್ಲಾ ಸಾಧನಗಳಿಂದ ಗುಂಪನ್ನು ಅಳಿಸಲಾಗುತ್ತದೆ.</translation>
 <translation id="2202084845446535117">ಯಾವುದೇ ಇಮೇಲ್‌ ಖಾತೆಗಳಿಲ್ಲ</translation>
 <translation id="2214453882118345682">ನಿಮ್ಮ ಕ್ಯಾಮರಾವನ್ನು ಬಳಸಿಕೊಂಡು ನೀವು ಏನನ್ನು ನೋಡುತ್ತೀರಿ ಎಂಬುದನ್ನು ಶಾಪಿಂಗ್ ಮಾಡಿ, ಅನುವಾದಿಸಿ ಮತ್ತು ಗುರುತಿಸಿ.</translation>
-<translation id="2215819824168709130">ಟ್ರ್ಯಾಕ್ ದರದ ಕಾರ್ಡ್ ಅನ್ನು ಮರೆಮಾಡಿ</translation>
 <translation id="2216366330550244277">ಉತ್ಪನ್ನದ ಪುಟಕ್ಕೆ ಹೋಗಿ</translation>
 <translation id="2219935992754556187">Chrome ನಿಮ್ಮ ಸೂಕ್ಷ್ಮವಾದ ವೈಯಕ್ತಿಕ ಡೇಟಾವನ್ನು ಫೇಸ್ ID ಮೂಲಕ ಸುರಕ್ಷಿತವಾಗಿರಿಸುತ್ತದೆ</translation>
 <translation id="2220529011494928058">ಸಮಸ್ಯೆ ವರದಿಮಾಡಿ</translation>
 <translation id="2223461067862937305">QR ಕೋಡ್ ಅನ್ನು ರಚಿಸಿ</translation>
-<translation id="2225701818156393674">ಟ್ರ್ಯಾಕ್ ಮಾಡಲಾದ ಉತ್ಪನ್ನಗಳ ನಿಮ್ಮ ಪಟ್ಟಿಗೆ ಉತ್ಪನ್ನವನ್ನು ಸೇರಿಸಲಾಗಿದೆ.</translation>
 <translation id="2230173723195178503">ವೆಬ್‌ಪುಟ ಲೋಡ್ ಮಾಡಲಾಗಿದೆ</translation>
 <translation id="2236949375853147973">ನನ್ನ ಚಟುವಟಿಕೆ</translation>
 <translation id="2237869114829007407">ಯಾವುದೇ ಪುಟ ಅಥವಾ ವಿಷಯದ ಕುರಿತು ಅವಲೋಕನ ಮತ್ತು ಪ್ರಮುಖ ಒಳನೋಟಗಳನ್ನು ಪಡೆಯಿರಿ</translation>
@@ -441,7 +440,6 @@
 <translation id="2493269659028026145"><ph name="BIOMETRIC_AUTHENITCATION_TYPE" /> ಮೂಲಕ ತಕ್ಷಣವೇ ಲಾಕ್ ಮಾಡಿ</translation>
 <translation id="2496180316473517155">ಬ್ರೌಸಿಂಗ್ ಇತಿಹಾಸ</translation>
 <translation id="2496626742194544812">ಮೊದಲ ಟ್ಯಾನ್‌ಗೆ ಹೋಗಿ</translation>
-<translation id="2497852260688568942">ನಿಮ್ಮ ನಿರ್ವಾಹಕರು ಸಿಂಕ್ ಅನ್ನು ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿದ್ದಾರೆ</translation>
 <translation id="2499505845365628575"><ph name="HISTORY_BUTTON_ACCESSIBILITY_LABEL" /> ದಿಂದ ನಿಮ್ಮ ಎಲ್ಲಾ ಬ್ರೌಸಿಂಗ್ ಇತಿಹಾಸವನ್ನು ನೀವು ಕಾಣಬಹುದು.</translation>
 <translation id="2511117522375201202">ನಿಮ್ಮ ಭದ್ರತೆಯನ್ನು ಅಪಾಯಕ್ಕೀಡು ಮಾಡಬಹುದಾದ <ph name="NUMBER_OF_PASSWORDS" /> ಅಪಾಯಕ್ಕೀಡಾದ ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ನೀವು ಹೊಂದಿದ್ದೀರಿ.</translation>
 <translation id="2513103768503127042">ನಿಮ್ಮ ಟ್ಯಾಬ್ ಗುಂಪುಗಳನ್ನು ನೀವು ಇಲ್ಲಿ ಕಾಣುತ್ತೀರಿ</translation>
@@ -554,7 +552,6 @@
 <translation id="2902312830803030883">ಇನ್ನಷ್ಟು ಕ್ರಿಯೆಗಳು</translation>
 <translation id="2904788871580817212">ನಿಮ್ಮ ತೆರೆದ ಟ್ಯಾಬ್‌ನಲ್ಲಿ ದರ ಇಳಿಕೆ, <ph name="PREVIOUS_PRICE" /> ರಿಂದ <ph name="PRICE" /> ಗೆ, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN" /></translation>
 <translation id="2905479111267140204">ನಿಮ್ಮ ಭದ್ರತೆಯನ್ನು ಅಪಾಯಕ್ಕೀಡು ಮಾಡಬಹುದಾದ <ph name="NUMBER_OF_PASSWORDS" /> ಮರುಬಳಕೆ ಮಾಡಲಾದ ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ನೀವು ಹೊಂದಿದ್ದೀರಿ.</translation>
-<translation id="29153882450867370">"ದರ ಟ್ರ್ಯಾಕ್ ಮಾಡಿ" ಅನ್ನು ಮರೆಮಾಡಿ</translation>
 <translation id="291754862089661335">ಈ ಫ್ರೇಮ್‌ನಲ್ಲಿ QR ಕೋಡ್ ಅಥವಾ ಬಾರ್‌ಕೋಡ್ ಅನ್ನು ಇರಿಸಿ</translation>
 <translation id="2918688092312652908">ಓದದಿರುವುದು ಎಂದು ಗುರುತಿಸಿ</translation>
 <translation id="2922210239002704889">ನಿಮ್ಮ ಹೋಮ್ ಪೇಜ್ ಅಥವಾ ಕೀಬೋರ್ಡ್‌ಗೆ ಹೋಗಿ</translation>
@@ -566,6 +563,7 @@
 <translation id="2969979262385602596">ಸೈನ್ ಇನ್ ವಿಫಲವಾಗಿದೆ. ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</translation>
 <translation id="2975761176769946178">URL ಅಗತ್ಯವಿದೆ</translation>
 <translation id="297667759942911166">ಟ್ಯಾಬ್ ಗುಂಪುಗಳಲ್ಲಿ ಕೊಲಾಬೊರೇಟ್ ಮಾಡಿ</translation>
+<translation id="298696743524648170">Chrome ನಲ್ಲಿ Gemini ಅನ್ನು ಬಳಸಲು, ನಿಮ್ಮ Google ಖಾತೆಯೊಂದಿಗೆ Chrome ಗೆ ಸೈನ್ ಇನ್ ಮಾಡಿ</translation>
 <translation id="2987670534697681860">ಈ ಸಾಧನದಲ್ಲಿ ನಿಮ್ಮ ಎಲ್ಲಾ ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ಆ್ಯಕ್ಸೆಸ್ ಮಾಡಲು ಇದು ನೀವೇ ಎಂಬುದನ್ನು ದೃಢೀಕರಿಸಿ.</translation>
 <translation id="2989523299700148168">ಇತ್ತೀಚೆಗೆ ಭೇಟಿ ನೀಡಿದವು</translation>
 <translation id="2989805286512600854">ಹೊಸ ಟ್ಯಾಬ್‌ನಲ್ಲಿ ತೆರೆಯಿರಿ</translation>
@@ -598,6 +596,7 @@
 <translation id="3106258548858559536">ರೀಡಿಂಗ್ ಮೋಡ್ ಅನ್ನು ಆಫ್ ಮಾಡಿ</translation>
 <translation id="3106690631878101882">ಅನುವಾದಿಸಿ ಎಂಬುದನ್ನು ಮರೆಮಾಡಿ</translation>
 <translation id="310900540163454140"><ph name="WEBSITE" /> ಗಾಗಿ ಪಾಸ್‌ವರ್ಡ್ ಅನ್ನು ಅಳಿಸಬೇಕೇ?</translation>
+<translation id="3109724472072898302">ಕುಗ್ಗಿಸಿದ</translation>
 <translation id="3112556859945124369">ಗುರುತಿಸಿ...</translation>
 <translation id="3116695032231023709">ಗುರುತಿನ ಕಾರ್ಡ್‌ ಅನ್ನು ಸೇವ್ ಮಾಡಿ</translation>
 <translation id="3119874402040566234">ನಿಮ್ಮನ್ನು ಸೈನ್ ಔಟ್ ಮಾಡಲಾಗುತ್ತದೆ ಮತ್ತು ಬ್ರೌಸಿಂಗ್ ಡೇಟಾವನ್ನು ಅಳಿಸಲಾಗುತ್ತದೆ</translation>
@@ -619,6 +618,7 @@
 <translation id="31652791196570636">ವಜಾಗೊಳಿಸಿ</translation>
 <translation id="3167868116600277716">ಫೀಡ್ ಅನ್ನು ಡಿಸ್ಕವರ್‌ ಮಾಡಿ</translation>
 <translation id="3169472444629675720">Discover</translation>
+<translation id="3172755898799085680">ಈ ಪುಟದಲ್ಲಿ Gemini ಲಭ್ಯವಿಲ್ಲ</translation>
 <translation id="3174662312949010067">ಇತರ ಸಾಧನಗಳಲ್ಲಿ ಉಳಿಸಲಾದ ನಿಮ್ಮ ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ಸಹ ನೀವು ಬಳಸಬಹುದು.</translation>
 <translation id="3177338796769255211">ನಿಮ್ಮ ಎಲ್ಲಾ ಸಾಧನಗಳಲ್ಲಿ ನಿಮ್ಮ ಬುಕ್‌ಮಾರ್ಕ್‌ಗಳು ಮತ್ತು ಇತ್ಯಾದಿಗಳನ್ನು ಪಡೆಯಲು ಸೈನ್ ಇನ್ ಮಾಡಿ</translation>
 <translation id="3181954750937456830">ಸುರಕ್ಷಿತ ಬ್ರೌಸಿಂಗ್ (ಅಪಾಯಕಾರಿ ಸೈಟ್‌ಗಳಿಂದ ನಿಮ್ಮನ್ನು ಮತ್ತು ನಿಮ್ಮ ಸಾಧನವನ್ನು ರಕ್ಷಿಸುತ್ತದೆ)</translation>
@@ -642,6 +642,7 @@
 <translation id="3245744387817103524">ನಿಮ್ಮ ಬದಲಾವಣೆಯನ್ನು ಉಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.</translation>
 <translation id="3254806613790954367">ನಿಮ್ಮ ಎಲ್ಲಾ ಸಾಧನಗಳಾದ್ಯಂತ ನೀವು ಕೊನೆಯದಾಗಿ ತೆರೆದ ಟ್ಯಾಬ್‌</translation>
 <translation id="325717987950204592">"ಗೌಪ್ಯತೆ ಮತ್ತು ಭದ್ರತೆ" ಎಂಬುದನ್ನು ಟ್ಯಾಪ್ ಮಾಡಿ</translation>
+<translation id="3259451381796379533">ಈ ಖಾತೆಯು Gemini ಜೊತೆ ಕಾರ್ಯನಿರ್ವಹಿಸುವುದಿಲ್ಲ. ಬೇರೊಂದು Google ಖಾತೆಯೊಂದಿಗೆ ಸೈನ್ ಇನ್ ಮಾಡಿ.</translation>
 <translation id="3265736395246760288">ನಿಮ್ಮ ಯಾವುದೇ ಸಿಂಕ್ ಮಾಡಲಾದ ಸಾಧನಗಳಿಂದ ವೇಗವಾಗಿ ಸೈನ್ ಇನ್ ಮಾಡಿ.</translation>
 <translation id="3272527697863656322">ರದ್ದುಮಾಡಿ</translation>
 <translation id="3273510436356991673">ಹೋಮ್‌ ಸ್ಕ್ರೀನ್‌ ಅನ್ನು ಕಸ್ಟಮೈಸ್‌ ಮಾಡಿ</translation>
@@ -763,6 +764,7 @@
 <translation id="372676576864368480"><ph name="LAST_DIGITS" /> ನಿಂದ ಕೊನೆಗೊಳ್ಳುವ ಕಾರ್ಡ್ ಸಂಖ್ಯೆಯನ್ನು ಆಟೋಫಿಲ್ ಮಾಡಿ</translation>
 <translation id="3738428049780661523"><ph name="DATE" /> ರಂದು ರಚಿಸಲಾಗಿದೆ</translation>
 <translation id="3742498336182910186">ಕ್ಯಾಮರಾ ರೋಲ್‌</translation>
+<translation id="3746269120925354434">Google Wallet ನಲ್ಲಿ ಮಾಹಿತಿಯನ್ನು ಸೇವ್ ಮಾಡಲಾಗಿದೆ</translation>
 <translation id="3750225824417196283">ಹೊಸ ಅಜ್ಞಾತ ಟ್ಯಾಬ್‌ ಪುಟ</translation>
 <translation id="3751873026576444885">Google Lens ಮೂಲಕ ನಿಮ್ಮ ಸ್ಕ್ರೀನ್‌ ಅನ್ನು ಹುಡುಕುವುದನ್ನು ನಿಲ್ಲಿಸಿ</translation>
 <translation id="3753408171347588045">ದರಗಳನ್ನು ಟ್ರ್ಯಾಕ್ ಮಾಡಲಾಗುತ್ತಿದೆ</translation>
@@ -992,6 +994,7 @@
 <translation id="4552042254369397518">ನಕಲಿಸಲಾಗುತ್ತಿದೆ…</translation>
 <translation id="4553044860350038560">ಇನ್ನಷ್ಟು ಪಾಸ್‌ಕೀಗಳು</translation>
 <translation id="4564893319561643483">"<ph name="TITLE" />" ಅನ್ನು ಮರೆಮಾಡಿ</translation>
+<translation id="456502772933839252"><ph name="PAGE_TITLE" /> ಅನ್ನು ಹಂಚಿಕೊಳ್ಳಲಾಗುತ್ತಿದೆ</translation>
 <translation id="4565377596337484307">ಪಾಸ್‌ವರ್ಡ್ ಮರೆಮಾಡಿ</translation>
 <translation id="4568230126482344545">ಇತ್ತೀಚಿನ ಟ್ಯಾಬ್‌ಗಳನ್ನು ಮರೆಮಾಡಿ</translation>
 <translation id="4578835633387306383">ಆನ್ ಮಾಡಿ…</translation>
@@ -1076,7 +1079,6 @@
 <translation id="4824480232751123840">ವಾಲ್ಯೂಮ್</translation>
 <translation id="4824497107140370669">{count,plural, =0{{domain}}=1{{domain} ಮತ್ತು ಇತರೆ 1}one{{domain} ಮತ್ತು ಇತರೆ {count}}other{{domain} ಮತ್ತು ಇತರೆ {count}}}</translation>
 <translation id="4826588772550366629">ಕ್ಯಾಮರಾ ಮತ್ತು ಮೈಕ್ರೊಫೋನ್</translation>
-<translation id="4828431027673677473">ನಿಮ್ಮ ಆಸಕ್ತಿಗಳನ್ನು ಆಧರಿಸಿದ ಉತ್ಪನ್ನಗಳು</translation>
 <translation id="4829420936835028285">ಟ್ಯಾಬ್ ಗುಂಪನ್ನು ಎಡಿಟ್ ಮಾಡಿ</translation>
 <translation id="4833786495304741580">ಬಳಕೆಯ ಅಂಕಿಅಂಶಗಳು ಮತ್ತು ಕ್ರ್ಯಾಶ್ ವರದಿಗಳನ್ನು Google ಗೆ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಕಳುಹಿಸುತ್ತದೆ.</translation>
 <translation id="483689884442613745">ಸೇವ್‌ ಮಾಡಿ…</translation>
@@ -1132,7 +1134,6 @@
 <translation id="4992255726304765516"><ph name="COLOR" /> ಟ್ಯಾಬ್ ಗುಂಪಿನ ಬಣ್ಣ</translation>
 <translation id="5005498671520578047">ಪಾಸ್‌ವರ್ಡ್ ಕಾಪಿ ಮಾಡಿ</translation>
 <translation id="5009127379503001909">ಬ್ರೌಸ್ ಮಾಡುತ್ತಿರಿ</translation>
-<translation id="5012914568031465281">ದರವನ್ನು ಟ್ರ್ಯಾಕ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.</translation>
 <translation id="5016205925109358554">Serif</translation>
 <translation id="5016420433031926653"><ph name="USER_EMAIL" /> ಗೆ ಕಳುಹಿಸಿ</translation>
 <translation id="5017529052065664584">ಹಿಂದಿನ 15 ನಿಮಿಷಗಳು</translation>
@@ -1402,6 +1403,7 @@
 <translation id="5936065461722368675">ಪೂರ್ಣ ಪುಟವನ್ನು ಅನುವಾದಿಸಿ</translation>
 <translation id="5937560539988385583">ಪುಟವನ್ನು ಅನುವಾದಿಸಲಾಗಿದೆ</translation>
 <translation id="5938160824633642847">ನಿಮ್ಮ ಸಾಧನ ಬಹುತೇಕ ಭರ್ತಿಯಾಗಿದೆ. ಸ್ಥಳಾವಕಾಶ ಮುಕ್ತಗೊಳಿಸಿ, ಪುನಃ ಪ್ರಯತ್ನಿಸಿ.</translation>
+<translation id="5941711191222866238">ಕುಗ್ಗಿಸಿ</translation>
 <translation id="5944869793365969636">QR ಕೋಡ್ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ</translation>
 <translation id="5948291296578561264">ನಿಮ್ಮ ಫೋಟೋ ಲೈಬ್ರರಿಗೆ ಫೋಟೋಗಳನ್ನು ಉಳಿಸಲು ಇದು ನಿಮ್ಮನ್ನು ಅನುಮತಿಸುತ್ತದೆ.</translation>
 <translation id="5948605885471592910">ನೀವು ತೆರೆದಿರುವ ಎಲ್ಲವನ್ನೂ ನೋಡಿ ಮತ್ತು ನಿರ್ವಹಿಸಿ</translation>
@@ -1780,6 +1782,7 @@
 <translation id="7186568385131859684">Google ಸೇವೆಗಳಾದ್ಯಂತ ನಿಮ್ಮ ಇತರ ಡೇಟಾದೊಂದಿಗೆ ಬ್ರೌಸಿಂಗ್ ಇತಿಹಾಸವನ್ನು ಹೇಗೆ ಬಳಸಲಾಗುತ್ತದೆ ಎಂಬುದನ್ನು ನಿಯಂತ್ರಿಸಿ</translation>
 <translation id="719133302483559673">ನಿಮ್ಮ ಆಸಕ್ತಿಗಳು ಮತ್ತು ಆದ್ಯತೆಗಳನ್ನು ನಿರ್ವಹಿಸಿ.</translation>
 <translation id="7191382490098297347">ಕ್ಯಾಮರಾ ರೋಲ್ ಚಿತ್ರ</translation>
+<translation id="7203150201908454328">ವಿಸ್ತೃತವಾದ</translation>
 <translation id="7203496777391039568">ನಿಮ್ಮ ಸಂಸ್ಥೆಯ ಡೇಟಾ ಖಾಸಗಿ ಮತ್ತು ಸುರಕ್ಷಿತವಾಗಿದೆ</translation>
 <translation id="720399613139435155">ಅನುವಾದ ವಿಫಲವಾಗಿದೆ</translation>
 <translation id="7204922488054642675">ವೈಯಕ್ತಿಕಗೊಳಿಸಿದ ಸುದ್ದಿ</translation>
@@ -1864,6 +1867,7 @@
 <translation id="7498234416455752244">ಎಡಿಟ್‌ ಮಾಡುತ್ತಿರಿ</translation>
 <translation id="7500244509706269886">ಆಟೋಫಿಲ್‌ ಫಾರ್ಮ್</translation>
 <translation id="750493650310597496">0 ಆಯ್ಕೆ ಮಾಡಲಾಗಿದೆ</translation>
+<translation id="7505402981231763928">Gemini ಅನ್ನು ಬಳಸಲು ನೀವು ಸೈನ್ ಇನ್ ಮಾಡಬೇಕಾಗುತ್ತದೆ</translation>
 <translation id="7506817096924591340"><ph name="FILENAME" /> (<ph name="FILESIZE" />).</translation>
 <translation id="7508728395076009983">ನಿಮ್ಮ ಅಜ್ಞಾತ ಟ್ಯಾಬ್‌ಗಳನ್ನು ಲಾಕ್ ಮಾಡಲು, Touch ID, Face ID ಅಥವಾ ಪಾಸ್‌ಕೋಡ್ ಅನ್ನು ಸೆಟಪ್ ಮಾಡಿ.</translation>
 <translation id="750886945254958667">ಟ್ಯಾಬ್‌ಗಳನ್ನು ನಂತರ ಸೇರಿಸಲು ಈ ಗುಂಪನ್ನು ಇರಿಸಿಕೊಳ್ಳಿ ಅಥವಾ ನಿಮಗೆ ಇನ್ನು ಮುಂದೆ ಇದಕ್ಕೆ ಆ್ಯಕ್ಸೆಸ್ ಬೇಕಿಲ್ಲದಿದ್ದರೆ ಇದನ್ನು ತೊರೆಯಿರಿ</translation>
@@ -1996,6 +2000,7 @@
 <translation id="7938254975914653459">FaceTime</translation>
 <translation id="7939856641500914040">ಬ್ರೌಸಿಂಗ್ ಡೇಟಾವನ್ನು ಅಳಿಸಿ…</translation>
 <translation id="7941578031639087549">{count,plural, =1{ನಿಮ್ಮ ಖಾತೆ {email} ನಲ್ಲಿ ನಿಮ್ಮ ಓದುವ ಪಟ್ಟಿಗೆ ಪುಟವನ್ನು ಸೇರಿಸಲಾಗಿದೆ}one{ನಿಮ್ಮ ಖಾತೆ {email} ನಲ್ಲಿ ನಿಮ್ಮ ಓದುವ ಪಟ್ಟಿಗೆ {count} ಪುಟಗಳನ್ನು ಸೇರಿಸಲಾಗಿದೆ}other{ನಿಮ್ಮ ಖಾತೆ {email} ನಲ್ಲಿ ನಿಮ್ಮ ಓದುವ ಪಟ್ಟಿಗೆ {count} ಪುಟಗಳನ್ನು ಸೇರಿಸಲಾಗಿದೆ}}</translation>
+<translation id="7948579849190819732">ಪ್ರಸ್ತುತ ಟ್ಯಾಬ್</translation>
 <translation id="7952353944614086413">ಟ್ಯಾಬ್‌ಗಳು ಮತ್ತು ಗುಂಪುಗಳನ್ನು ತೆರೆಯಿರಿ</translation>
 <translation id="7952670906562503188">ನೀವು {passkey_count} ಪಾಸ್‌ಕೀಗಳು ಮತ್ತು ಸೈನ್-ಇನ್ ಮಾಹಿತಿಯನ್ನು ಎಂದಿಗೂ ಸೇವ್ ಮಾಡದಿರಲು ಆಯ್ಕೆ ಮಾಡಿಕೊಂಡಿರುವ ಆ್ಯಪ್‌ಗಳು ಮತ್ತು ಸೈಟ್‌ಗಳ ಪಟ್ಟಿಯನ್ನು ಅಳಿಸಲಿದ್ದೀರಿ. ಸೈಟ್‌ಗಳು ಅಥವಾ ಆ್ಯಪ್‌ಗಳಿಗಾಗಿ ನೀವು ರಚಿಸಿದ ಯಾವುದೇ ಖಾತೆಯನ್ನು ಅಳಿಸಲಾಗುವುದಿಲ್ಲ.</translation>
 <translation id="7958575506592576831">ಪುಟ ಭದ್ರತೆಯ ಮಾಹಿತಿ</translation>
@@ -2105,7 +2110,6 @@
 <translation id="828291969289324795">{count,plural, =1{ಹೊಸ ಗುಂಪಿಗೆ ಟ್ಯಾಬ್ ಸೇರಿಸಿ}one{ಹೊಸ ಗುಂಪಿಗೆ ಟ್ಯಾಬ್‌ಗಳನ್ನು ಸೇರಿಸಿ}other{ಹೊಸ ಗುಂಪಿಗೆ ಟ್ಯಾಬ್‌ಗಳನ್ನು ಸೇರಿಸಿ}}</translation>
 <translation id="8283172974887967105">ಸೆಟ್ ಮಾಡಿ…</translation>
 <translation id="8289930144142009940"><ph name="FEATURE_NAME" /> ನೋಟಿಫಿಕೇಶನ್‌ಗಳನ್ನು ಆಫ್ ಮಾಡಲಾಗಿದೆ</translation>
-<translation id="8290077367744012649">ನಿಮ್ಮ ಟ್ಯಾಬ್‌ಗಳಿಂದ ಬೆಲೆಗಳನ್ನು ಟ್ರ್ಯಾಕ್ ಮಾಡಿ</translation>
 <translation id="8292893224181644074">ಡೌನ್‌ಲೋಡ್ ಪೂರ್ಣಗೊಂಡಿದೆ</translation>
 <translation id="8299417921174340354">ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ಬಳಸಲು, ನೀವು ಮೊದಲು ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿ ಪಾಸ್‌ಕೋಡ್ ಅನ್ನು ಹೊಂದಿಸಬೇಕು.</translation>
 <translation id="8307481894409578819">ಈ ಫೈಲ್ ಅನ್ನು ಅಪ್‌ಲೋಡ್‌ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ</translation>
@@ -2164,6 +2168,7 @@
 <translation id="8515534223594179607">ಬ್ರೌಸಿಂಗ್ ಡೇಟಾವನ್ನು ಎಕ್ಸ್‌ಪೋರ್ಟ್ ಮಾಡಿ</translation>
 <translation id="8522147671363140027">{count,plural, =1{{count} ಪಾಸ್‌ವರ್ಡ್ ಮತ್ತು ಇತರ ಐಟಂಗಳನ್ನು ಈ ಸಾಧನದಲ್ಲಿ ಮಾತ್ರ ಸೇವ್ ಮಾಡಲಾಗುತ್ತದೆ. ಅವುಗಳನ್ನು ನಿಮ್ಮ ಇತರ ಸಾಧನಗಳಲ್ಲಿ ಬಳಸಲು, ಅವುಗಳನ್ನು ನಿಮ್ಮ Google ಖಾತೆ {email} ನಲ್ಲಿ ಸೇವ್ ಮಾಡಿ.}one{{count} ಪಾಸ್‌ವರ್ಡ್‌ಗಳು ಮತ್ತು ಇತರ ಐಟಂಗಳನ್ನು ಈ ಸಾಧನದಲ್ಲಿ ಮಾತ್ರ ಸೇವ್ ಮಾಡಲಾಗುತ್ತದೆ. ಅವುಗಳನ್ನು ನಿಮ್ಮ ಇತರ ಸಾಧನಗಳಲ್ಲಿ ಬಳಸಲು, ಅವುಗಳನ್ನು ನಿಮ್ಮ Google ಖಾತೆ {email} ನಲ್ಲಿ ಸೇವ್ ಮಾಡಿ.}other{{count} ಪಾಸ್‌ವರ್ಡ್‌ಗಳು ಮತ್ತು ಇತರ ಐಟಂಗಳನ್ನು ಈ ಸಾಧನದಲ್ಲಿ ಮಾತ್ರ ಸೇವ್ ಮಾಡಲಾಗುತ್ತದೆ. ಅವುಗಳನ್ನು ನಿಮ್ಮ ಇತರ ಸಾಧನಗಳಲ್ಲಿ ಬಳಸಲು, ಅವುಗಳನ್ನು ನಿಮ್ಮ Google ಖಾತೆ {email} ನಲ್ಲಿ ಸೇವ್ ಮಾಡಿ.}}</translation>
 <translation id="8524799873541103884"><ph name="NUMBER_OF_OPEN_TABS" /> ರಲ್ಲಿ <ph name="LAST_VISIBLE_TAB" /> ಮೂಲಕ <ph name="INCOGNITO" /> ಟ್ಯಾಬ್‌ಗಳು <ph name="FIRST_VISIBLE_TAB" /></translation>
+<translation id="8525306231823319788">ಪೂರ್ಣ ಪರದೆ</translation>
 <translation id="8528009254289981965">ಅಜ್ಞಾತ ಮೋಡ್‌ನಲ್ಲಿ ಇತರ ಆ್ಯಪ್‌ಗಳಿಂದ ಲಿಂಕ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ</translation>
 <translation id="8529767659511976195">ಹೊಸತು</translation>
 <translation id="8531572740963685410">PDF ಗಳು</translation>
@@ -2172,6 +2177,7 @@
 <translation id="8533670235862049797">ಸುರಕ್ಷಿತ ಬ್ರೌಸಿಂಗ್ ಆನ್ ಆಗಿದೆ</translation>
 <translation id="8534481786647257214">Google+ ಪೋಸ್ಟ್ ಪೂರ್ಣಗೊಂಡಿದೆ.</translation>
 <translation id="8535368836838588657">ಪಾಸ್‌ವರ್ಡ್‌ ಅನ್ನು ಬಹಿರಂಗಪಡಿಸಿ</translation>
+<translation id="8540426897269305488"><ph name="CELL_ACCESSIBILITY_LABEL" /> ಮೂಲಕ ಸೈನ್‌ ಇನ್‌ ಮಾಡಿ</translation>
 <translation id="8545276357312221485">ನಿಮ್ಮ ಡೀಫಾಲ್ಟ್‌ ಬ್ರೌಸರ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಪರಿಶೀಲಿಸಿ</translation>
 <translation id="854938212724803178">ನೀವು ಅಪಾಯಕ್ಕೀಡಾದ 1 ಪಾಸ್‌ವರ್ಡ್ ಅನ್ನು ಹೊಂದಿದ್ದೀರಿ. ಸುರಕ್ಷಿತವಾಗಿರಲು ಈಗಲೇ ಅದನ್ನು ಸರಿಪಡಿಸಿ.</translation>
 <translation id="8551311254462607218">ವಿಳಾಸ ಪಟ್ಟಿಯಲ್ಲಿ, Google Lens ಕ್ಯಾಮರಾ ಐಕಾನ್ ಮೇಲೆ ಟ್ಯಾಪ್ ಮಾಡಿ</translation>
@@ -2284,7 +2290,6 @@
 <translation id="8879952635974818770">ವೈಯಕ್ತೀಕರಣಗೊಳಿಸಲಾದ ಕಂಟೆಂಟ್‌</translation>
 <translation id="8887595428614802520">ಎಲ್ಲಾ ಟ್ಯಾಬ್‌ಗಳು ಮತ್ತು ಗುಂಪುಗಳನ್ನು ಮುಚ್ಚಿರಿ</translation>
 <translation id="8888595487174963247">ರಿಮೈಂಡರ್ ಅನ್ನು ತೆಗೆದುಹಾಕಿ</translation>
-<translation id="8891031436559779793">ಯಾವುದೇ ಸೈಟ್‌ನಲ್ಲಿ ಬೆಲೆ ಕಡಿಮೆಯಾದರೆ ನಿಮಗೆ ಸೂಚನೆಗಳನ್ನು ನೀಡಲಾಗುತ್ತದೆ.</translation>
 <translation id="8893208530912252670">ವೀಡಿಯೊಗಳು</translation>
 <translation id="8898822736010347272">ಹೊಸ ಅಪಾಯಗಳನ್ನು ಕಂಡುಹಿಡಿಯಲು ಮತ್ತು ವೆಬ್‌ನಲ್ಲಿರುವ ಪ್ರತಿಯೊಬ್ಬರನ್ನು ರಕ್ಷಿಸುವುದಕ್ಕೆ ಸಹಾಯ ಮಾಡಲು, ನೀವು ಭೇಟಿ ನೀಡುವ ಕೆಲವು ಪುಟಗಳ URL ಗಳು, ಸೀಮಿತ ಸಿಸ್ಟಂ ಮಾಹಿತಿ ಮತ್ತು ಪುಟಗಳಲ್ಲಿನ ಕೆಲವು ಕಂಟೆಂಟ್ ಅನ್ನು Google ಗೆ ಕಳುಹಿಸುತ್ತದೆ.</translation>
 <translation id="8900845556227858314">ಬ್ರೌಸರ್ ಆ್ಯಪ್</translation>

@@ -560,7 +560,9 @@ TEST_F(StatsEndToEndTest, MAYBE_ContentTypeSwitches) {
     CreateReceiveTransport(test.GetReceiveTransportConfig(), &test);
     CreateSendTransport(test.GetReceiveTransportConfig(), &test);
 
-    receiver_call_->SignalChannelNetworkState(MediaType::VIDEO, kNetworkUp);
+    network_thread()->BlockingCall([this]() {
+      receiver_call_->SignalChannelNetworkState(MediaType::VIDEO, kNetworkUp);
+    });
     CreateSendConfig(1, 0, 0);
     CreateMatchingReceiveConfigs();
 
@@ -756,7 +758,9 @@ TEST_F(StatsEndToEndTest, CallReportsRttForSender) {
     CreateFrameGeneratorCapturer(test::VideoTestConstants::kDefaultFramerate,
                                  test::VideoTestConstants::kDefaultWidth,
                                  test::VideoTestConstants::kDefaultHeight);
-    receiver_call_->SignalChannelNetworkState(MediaType::VIDEO, kNetworkUp);
+    network_thread()->BlockingCall([this]() {
+      receiver_call_->SignalChannelNetworkState(MediaType::VIDEO, kNetworkUp);
+    });
     Start();
   });
 

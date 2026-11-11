@@ -268,6 +268,7 @@ bool BytecodeVerifier::IsAllowedRuntimeFunction(Runtime::FunctionId id) {
     case Runtime::kTrapHandlerThrowWasmError:
     case Runtime::kWasmInternalFunctionCreateExternal:
     case Runtime::kWasmArrayCopy:
+    case Runtime::kWasmAllocateFeedbackVector:
       return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:

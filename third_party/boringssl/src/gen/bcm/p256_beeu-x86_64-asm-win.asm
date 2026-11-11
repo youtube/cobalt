@@ -14,9 +14,8 @@ default	rel
 section	.text code align=64
 
 
-
-
 global	beeu_mod_inverse_vartime
+
 ALIGN	32
 beeu_mod_inverse_vartime:
 	mov	QWORD[8+rsp],rdi	;WIN64 prologue

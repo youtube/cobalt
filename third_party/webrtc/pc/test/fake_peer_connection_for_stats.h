@@ -48,6 +48,7 @@
 #include "p2p/base/port.h"
 #include "p2p/base/transport_description.h"
 #include "p2p/base/transport_info.h"
+#include "p2p/dtls/fake_dtls_transport.h"
 #include "p2p/test/fake_ice_transport.h"
 #include "p2p/test/fake_port_allocator.h"
 #include "pc/channel.h"
@@ -438,6 +439,13 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
                                    voice_media_send_channel_ptr,
                                    voice_media_receive_channel_ptr);
     auto dtls_transport = transport_controller_->LookupDtlsTransportByMid(mid);
+    if (!dtls_transport) {
+      auto fake_dtls = std::make_unique<FakeDtlsTransport>(
+          transport_name, ICE_CANDIDATE_COMPONENT_RTP);
+      auto wrapper = make_ref_counted<DtlsTransport>(fake_dtls.get());
+      fake_dtls_transports_[mid] = std::move(fake_dtls);
+      dtls_transport = wrapper;
+    }
     transceiver->SetTransport(dtls_transport, transport_name);
     voice_media_send_channel_ptr->SetStats(initial_stats);
     voice_media_receive_channel_ptr->SetStats(initial_stats);
@@ -477,6 +485,13 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
                                    video_media_send_channel_ptr,
                                    video_media_receive_channel_ptr);
     auto dtls_transport = transport_controller_->LookupDtlsTransportByMid(mid);
+    if (!dtls_transport) {
+      auto fake_dtls = std::make_unique<FakeDtlsTransport>(
+          transport_name, ICE_CANDIDATE_COMPONENT_RTP);
+      auto wrapper = make_ref_counted<DtlsTransport>(fake_dtls.get());
+      fake_dtls_transports_[mid] = std::move(fake_dtls);
+      dtls_transport = wrapper;
+    }
     transceiver->SetTransport(dtls_transport, transport_name);
     video_media_send_channel_ptr->SetStats(initial_stats);
     video_media_receive_channel_ptr->SetStats(initial_stats);
@@ -490,10 +505,9 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
 
   void AddSctpDataChannel(const std::string& label,
                           const InternalDataChannelInit& init) {
-    // TODO(bugs.webrtc.org/11547): Supply a separate network thread.
     AddSctpDataChannel(SctpDataChannel::Create(
         data_channel_controller_.weak_ptr(), label, false, init,
-        Thread::Current(), Thread::Current()));
+        signaling_safety_.flag(), signaling_thread_, network_thread_));
   }
 
   void AddSctpDataChannel(scoped_refptr<SctpDataChannel> data_channel) {
@@ -600,7 +614,15 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
       const std::set<std::string>& transport_names) override {
     RTC_DCHECK_RUN_ON(network_thread_);
     std::map<std::string, TransportStats> transport_stats_by_name;
-    for (const std::string& transport_name : transport_names) {
+    std::set<std::string> all_names = transport_names;
+    // In some legacy stats tests, the fake PeerConnection's
+    // JsepTransportController is not fully configured, causing
+    // `GetTransportName` to return `std::nullopt`. This fallback loop ensures
+    // stats are still retrieved for these transports.
+    for (const auto& entry : transport_names_by_mid_) {
+      all_names.insert(entry.second);
+    }
+    for (const std::string& transport_name : all_names) {
       transport_stats_by_name[transport_name] =
           GetTransportStatsByName(transport_name);
     }
@@ -747,6 +769,7 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
   Thread* const network_thread_;
   Thread* const worker_thread_;
   Thread* const signaling_thread_;
+  ScopedTaskSafety signaling_safety_;
 
   PeerConnectionFactoryDependencies dependencies_;
   scoped_refptr<ConnectionContext> context_;
@@ -777,6 +800,8 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
   std::optional<FakePortAllocator> port_allocator_;
   std::unique_ptr<JsepTransportController> transport_controller_;
   std::map<std::string, std::string> transport_names_by_mid_;
+  std::map<std::string, std::unique_ptr<FakeDtlsTransport>>
+      fake_dtls_transports_;
 };
 
 }  // namespace webrtc

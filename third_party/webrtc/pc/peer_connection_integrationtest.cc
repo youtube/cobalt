@@ -4676,7 +4676,8 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   caller()->AddVideoTrack();
-  auto munger = [](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+  bool munged = false;
+  auto munger = [&munged](std::unique_ptr<SessionDescriptionInterface>& sdp) {
     auto video = GetFirstVideoContentDescription(sdp->description());
     auto codecs = video->codecs();
     std::optional<Codec> replacement_codec;
@@ -4692,6 +4693,7 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
           RTC_LOG(LS_INFO) << "Remapping VP9 codec " << codec << " to AV1";
           codec.name = replacement_codec->name;
           codec.params = replacement_codec->params;
+          munged = true;
           break;
         }
       }
@@ -4702,8 +4704,11 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   };
   caller()->SetGeneratedSdpMunger(munger);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
-              IsRtcOk());
+  // Skip rest of test if munge didn't work.
+  if (!munged) {
+    GTEST_SKIP() << "SDP munging did not replace codec, skipping.";
+  }
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   caller()->SetGeneratedSdpMunger(nullptr);
   std::unique_ptr<SessionDescriptionInterface> offer =
       caller()->CreateOfferAndWait();
@@ -5355,6 +5360,87 @@ TEST_P(PeerConnectionIntegrationTest,
 }
 
 #endif  // WEBRTC_HAVE_SCTP
+
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
+       MungeOfferCodecAndReOfferCausesNoDuplicateId) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->AddVideoTrack();
+  caller()->AddAudioTrack();
+  bool munged = false;
+  auto munger = [&munged](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+    VideoContentDescription* video =
+        GetFirstVideoContentDescription(sdp->description());
+    std::vector<Codec> codecs = video->codecs();
+    // Check that AV1 is present. If not, the munged SDP won't be accepted
+    // by SetLocalDescription.
+    if (!absl::c_any_of(
+            codecs, [](const Codec& codec) { return codec.name == "AV1"; })) {
+      return;
+    }
+    for (auto& codec : codecs) {
+      if (codec.name == "VP9") {
+        RTC_LOG(LS_INFO) << "Remapping VP9 codec " << codec << " to AV1";
+        codec.name = "AV1";
+        munged = true;
+      }
+    }
+    video->set_codecs(codecs);
+  };
+  caller()->SetGeneratedSdpMunger(munger);
+  caller()->CreateAndSetAndSignalOffer();
+  if (!munged) {
+    GTEST_SKIP() << "Test skipped, codec remapping did not work";
+  }
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  EXPECT_TRUE(ValidateBundledPayloadTypes(
+                  *caller()->pc()->local_description()->description())
+                  .ok());
+  EXPECT_TRUE(ValidateBundledPayloadTypes(
+                  *caller()->pc()->remote_description()->description())
+                  .ok());
+  caller()->SetGeneratedSdpMunger(nullptr);
+  auto offer = caller()->CreateOfferAndWait();
+  ASSERT_THAT(offer, NotNull());
+  // The offer should be acceptable.
+  EXPECT_TRUE(ValidateBundledPayloadTypes(*offer->description()).ok());
+  EXPECT_TRUE(caller()->SetLocalDescriptionAndSendSdpMessage(std::move(offer)));
+}
+
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
+       MungeOfferCodecWithNonsenseFailsAtSetLocalDescription) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->AddVideoTrack();
+  caller()->AddAudioTrack();
+  bool munged = false;
+  auto munger = [&munged](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+    VideoContentDescription* video =
+        GetFirstVideoContentDescription(sdp->description());
+    std::vector<Codec> codecs = video->codecs();
+    for (auto& codec : codecs) {
+      if (codec.name == "VP9") {
+        RTC_LOG(LS_ERROR) << "Remapping VP9 codec " << codec << " to NONSENSE";
+        codec.name = "NONSENSE";
+        munged = true;
+      }
+    }
+    video->set_codecs(codecs);
+  };
+  caller()->SetGeneratedSdpMunger(munger);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller()->CreateOfferAndWait();
+  ASSERT_THAT(offer, NotNull());
+  // If the munger failed to find a VP9 codec to munge, don't test.
+  if (!munged) {
+    GTEST_SKIP() << "Replacement of codec failed, skipping test";
+  }
+  auto observer = make_ref_counted<MockSetSessionDescriptionObserver>();
+  caller()->pc()->SetLocalDescription(observer.get(), offer.release());
+  ASSERT_TRUE(WaitUntil([&] { return observer->called(); }));
+  // Observe failure.
+  EXPECT_FALSE(observer->result());
+}
 
 }  // namespace
 

@@ -129,6 +129,66 @@ bool ReferencedCodecsMatch(const std::vector<Codec>& codecs1,
   return codec1 != nullptr && codec2 != nullptr && codec1->Matches(*codec2);
 }
 
+CodecParameterMap InsertDefaultParams(const std::string& name,
+                                      const CodecParameterMap& params) {
+  CodecParameterMap updated_params = params;
+  if (absl::EqualsIgnoreCase(name, kVp9CodecName)) {
+    if (!HasParameter(params, kVP9FmtpProfileId)) {
+      if (std::optional<VP9Profile> default_profile =
+              ParseSdpForVP9Profile({})) {
+        updated_params.insert(
+            {kVP9FmtpProfileId, VP9ProfileToString(*default_profile)});
+      }
+    }
+  }
+  if (absl::EqualsIgnoreCase(name, kAv1CodecName)) {
+    if (!HasParameter(params, kAv1FmtpProfile)) {
+      if (std::optional<AV1Profile> default_profile =
+              ParseSdpForAV1Profile({})) {
+        updated_params.insert(
+            {kAv1FmtpProfile, AV1ProfileToString(*default_profile).data()});
+      }
+    }
+    if (!HasParameter(params, kAv1FmtpTier)) {
+      updated_params.insert({kAv1FmtpTier, AV1GetTierOrDefault({})});
+    }
+    if (!HasParameter(params, kAv1FmtpLevelIdx)) {
+      updated_params.insert({kAv1FmtpLevelIdx, AV1GetLevelIdxOrDefault({})});
+    }
+  }
+  if (absl::EqualsIgnoreCase(name, kH264CodecName)) {
+    if (!HasParameter(params, kH264FmtpPacketizationMode)) {
+      updated_params.insert(
+          {kH264FmtpPacketizationMode, H264GetPacketizationModeOrDefault({})});
+    }
+  }
+#ifdef RTC_ENABLE_H265
+  if (absl::EqualsIgnoreCase(name, kH265CodecName)) {
+    if (std::optional<H265ProfileTierLevel> default_params =
+            ParseSdpForH265ProfileTierLevel({})) {
+      if (!HasParameter(params, kH265FmtpProfileId)) {
+        updated_params.insert(
+            {kH265FmtpProfileId, H265ProfileToString(default_params->profile)});
+      }
+      if (!HasParameter(params, kH265FmtpLevelId)) {
+        updated_params.insert(
+            {kH265FmtpLevelId, H265LevelToString(default_params->level)});
+      }
+      if (!HasParameter(params, kH265FmtpTierFlag)) {
+        updated_params.insert(
+            {kH265FmtpTierFlag, H265TierToString(default_params->tier)});
+      }
+    }
+    if (!HasParameter(params, kH265FmtpTxMode)) {
+      updated_params.insert({kH265FmtpTxMode, GetH265TxModeOrDefault({})});
+    }
+  }
+#endif
+  return updated_params;
+}
+
+}  // namespace
+
 bool MatchesWithReferenceAttributesAndComparator(
     const Codec& codec_to_match,
     const Codec& potential_match,
@@ -211,66 +271,6 @@ bool MatchesWithReferenceAttributesAndComparator(
   }
   return true;  // Not a codec with a PT-valued reference.
 }
-
-CodecParameterMap InsertDefaultParams(const std::string& name,
-                                      const CodecParameterMap& params) {
-  CodecParameterMap updated_params = params;
-  if (absl::EqualsIgnoreCase(name, kVp9CodecName)) {
-    if (!HasParameter(params, kVP9FmtpProfileId)) {
-      if (std::optional<VP9Profile> default_profile =
-              ParseSdpForVP9Profile({})) {
-        updated_params.insert(
-            {kVP9FmtpProfileId, VP9ProfileToString(*default_profile)});
-      }
-    }
-  }
-  if (absl::EqualsIgnoreCase(name, kAv1CodecName)) {
-    if (!HasParameter(params, kAv1FmtpProfile)) {
-      if (std::optional<AV1Profile> default_profile =
-              ParseSdpForAV1Profile({})) {
-        updated_params.insert(
-            {kAv1FmtpProfile, AV1ProfileToString(*default_profile).data()});
-      }
-    }
-    if (!HasParameter(params, kAv1FmtpTier)) {
-      updated_params.insert({kAv1FmtpTier, AV1GetTierOrDefault({})});
-    }
-    if (!HasParameter(params, kAv1FmtpLevelIdx)) {
-      updated_params.insert({kAv1FmtpLevelIdx, AV1GetLevelIdxOrDefault({})});
-    }
-  }
-  if (absl::EqualsIgnoreCase(name, kH264CodecName)) {
-    if (!HasParameter(params, kH264FmtpPacketizationMode)) {
-      updated_params.insert(
-          {kH264FmtpPacketizationMode, H264GetPacketizationModeOrDefault({})});
-    }
-  }
-#ifdef RTC_ENABLE_H265
-  if (absl::EqualsIgnoreCase(name, kH265CodecName)) {
-    if (std::optional<H265ProfileTierLevel> default_params =
-            ParseSdpForH265ProfileTierLevel({})) {
-      if (!HasParameter(params, kH265FmtpProfileId)) {
-        updated_params.insert(
-            {kH265FmtpProfileId, H265ProfileToString(default_params->profile)});
-      }
-      if (!HasParameter(params, kH265FmtpLevelId)) {
-        updated_params.insert(
-            {kH265FmtpLevelId, H265LevelToString(default_params->level)});
-      }
-      if (!HasParameter(params, kH265FmtpTierFlag)) {
-        updated_params.insert(
-            {kH265FmtpTierFlag, H265TierToString(default_params->tier)});
-      }
-    }
-    if (!HasParameter(params, kH265FmtpTxMode)) {
-      updated_params.insert({kH265FmtpTxMode, GetH265TxModeOrDefault({})});
-    }
-  }
-#endif
-  return updated_params;
-}
-
-}  // namespace
 
 bool MatchesWithCodecRules(const Codec& left_codec, const Codec& right_codec) {
   // Match the codec id/name based on the typical static/dynamic name rules.

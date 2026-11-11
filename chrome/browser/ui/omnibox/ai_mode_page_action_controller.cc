@@ -14,8 +14,8 @@
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
+#include "chrome/browser/ui/page_action/page_action_controller.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
-#include "chrome/browser/ui/page_actions/page_action_controller.h"
 #include "chrome/browser/ui/search/omnibox_utils.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
@@ -129,6 +129,10 @@ bool AiModePageActionController::ShouldShowPageAction(
   // show the AIM entrypoint if the user typed text is non-empty.
   if (base::FeatureList::IsEnabled(omnibox::kHideAimEntrypointOnUserInput) &&
       !edit_model->user_text().empty()) {
+    return false;
+  }
+
+  if (omnibox::kShowRhsAimHint.Get()) {
     return false;
   }
 

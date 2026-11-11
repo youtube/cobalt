@@ -5,8 +5,8 @@
 #include "src/compiler/turboshaft/wasm-shuffle-reducer.h"
 
 #include "src/base/iterator.h"
+#include "src/compiler/backend/simd-shuffle.h"
 #include "src/flags/flags.h"
-#include "src/wasm/simd-shuffle.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -35,7 +35,7 @@ void DemandedByteAnalysis::AddOp(const Simd128UnaryOp& unop,
   visited_.insert(&unop);
 
   if (IsUnaryLowHalfOp(unop.kind)) {
-    demanded.Halve();
+    demanded.HalveWithLimit(GetInputElementSizeInBytes(unop.kind));
     Add(unop.input(), demanded);
   }
 }
@@ -46,7 +46,7 @@ void DemandedByteAnalysis::AddOp(const Simd128BinopOp& binop,
   visited_.insert(&binop);
 
   if (IsBinaryLowHalfOp(binop.kind)) {
-    demanded.Halve();
+    demanded.HalveWithLimit(GetInputElementSizeInBytes(binop.kind));
     Add(binop.left(), demanded);
     Add(binop.right(), demanded);
   }
@@ -151,7 +151,7 @@ void DemandedByteAnalysis::RecordPartialOp(const Simd128UnaryOp& unop,
     // operand.
     if (auto maybe_demanded = AddUserAndCheckFoundAll(unop, demanded)) {
       demanded = maybe_demanded.value();
-      demanded.Halve();
+      demanded.HalveWithLimit(GetInputElementSizeInBytes(unop.kind));
       Add(unop.input(), demanded);
     }
   }
@@ -164,7 +164,7 @@ void DemandedByteAnalysis::RecordPartialOp(const Simd128BinopOp& binop,
     // operands.
     if (auto maybe_demanded = AddUserAndCheckFoundAll(binop, demanded)) {
       demanded = maybe_demanded.value();
-      demanded.Halve();
+      demanded.HalveWithLimit(GetInputElementSizeInBytes(binop.kind));
       Add(binop.left(), demanded);
       Add(binop.right(), demanded);
     }
@@ -519,41 +519,41 @@ void WasmShuffleAnalyzer::ProcessShuffleOfLoads(const Simd128ShuffleOp& shuffle,
 
   if (GetDemandedBytes(&shuffle).IsAll()) {
     // Full width shuffles.
-    wasm::SimdShuffle::ShuffleArray shuffle_bytes;
+    SimdShuffle::ShuffleArray shuffle_bytes;
     std::copy_n(shuffle.shuffle, kSimd128Size, shuffle_bytes.begin());
-    auto canonical = wasm::SimdShuffle::TryMatchCanonical(shuffle_bytes);
+    auto canonical = SimdShuffle::TryMatchCanonical(shuffle_bytes);
     switch (canonical) {
       default:
         return;
-      case wasm::SimdShuffle::CanonicalShuffle::kS64x2Even:
+      case SimdShuffle::CanonicalShuffle::kS64x2Even:
         AddShuffle(even_64x2_shuffles_, odd_64x2_shuffles_, true,
                    Simd128LoadPairDeinterleaveOp::Kind::k64x4);
         break;
-      case wasm::SimdShuffle::CanonicalShuffle::kS64x2Odd:
+      case SimdShuffle::CanonicalShuffle::kS64x2Odd:
         AddShuffle(odd_64x2_shuffles_, even_64x2_shuffles_, false,
                    Simd128LoadPairDeinterleaveOp::Kind::k64x4);
         break;
-      case wasm::SimdShuffle::CanonicalShuffle::kS32x4Even:
+      case SimdShuffle::CanonicalShuffle::kS32x4Even:
         AddShuffle(even_32x4_shuffles_, odd_32x4_shuffles_, true,
                    Simd128LoadPairDeinterleaveOp::Kind::k32x8);
         break;
-      case wasm::SimdShuffle::CanonicalShuffle::kS32x4Odd:
+      case SimdShuffle::CanonicalShuffle::kS32x4Odd:
         AddShuffle(odd_32x4_shuffles_, even_32x4_shuffles_, false,
                    Simd128LoadPairDeinterleaveOp::Kind::k32x8);
         break;
-      case wasm::SimdShuffle::CanonicalShuffle::kS16x8Even:
+      case SimdShuffle::CanonicalShuffle::kS16x8Even:
         AddShuffle(even_16x8_shuffles_, odd_16x8_shuffles_, true,
                    Simd128LoadPairDeinterleaveOp::Kind::k16x16);
         break;
-      case wasm::SimdShuffle::CanonicalShuffle::kS16x8Odd:
+      case SimdShuffle::CanonicalShuffle::kS16x8Odd:
         AddShuffle(odd_16x8_shuffles_, even_16x8_shuffles_, false,
                    Simd128LoadPairDeinterleaveOp::Kind::k16x16);
         break;
-      case wasm::SimdShuffle::CanonicalShuffle::kS8x16Even:
+      case SimdShuffle::CanonicalShuffle::kS8x16Even:
         AddShuffle(even_8x16_shuffles_, odd_8x16_shuffles_, true,
                    Simd128LoadPairDeinterleaveOp::Kind::k8x32);
         break;
-      case wasm::SimdShuffle::CanonicalShuffle::kS8x16Odd:
+      case SimdShuffle::CanonicalShuffle::kS8x16Odd:
         AddShuffle(odd_8x16_shuffles_, even_8x16_shuffles_, false,
                    Simd128LoadPairDeinterleaveOp::Kind::k8x32);
         break;

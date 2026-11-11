@@ -175,9 +175,15 @@ public class ItemChooserDialog implements DeviceItemAdapter.Observer {
 
         mTitle.setText(labels.title);
         mTitle.setMovementMethod(LinkMovementMethod.getInstance());
-
         mEmptyMessage.setMovementMethod(LinkMovementMethod.getInstance());
         mStatus.setMovementMethod(LinkMovementMethod.getInstance());
+
+        /**
+         * Note: {@link android.widget.TextView#setMovementMethod} overrides the view's focus state.
+         * setFocusable must be called afterward to restore the desired behavior.
+         */
+        mTitle.setFocusable(false);
+        mEmptyMessage.setFocusable(false);
 
         mConfirmButton = (Button) dialogContainer.findViewById(R.id.positive);
         mConfirmButton.setText(labels.positiveButton);
@@ -193,7 +199,7 @@ public class ItemChooserDialog implements DeviceItemAdapter.Observer {
                     }
                 };
 
-        Button cancelButton = (Button) dialogContainer.findViewById(R.id.negative);
+        Button cancelButton = dialogContainer.findViewById(R.id.negative);
         if (PermissionsAndroidFeatureMap.isEnabled(
                 PermissionsAndroidFeatureList.ANDROID_ITEM_CHOOSER_CANCEL_BUTTON)) {
             cancelButton.setText(context.getString(R.string.item_chooser_dialog_cancel_button));

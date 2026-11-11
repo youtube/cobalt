@@ -47,10 +47,13 @@ _CONVERTED_SCHEMAS = [
     ('web_accessible_resources.idl', 'web_accessible_resources.webidl'),
     ('enterprise_platform_keys_internal.idl',
      'enterprise_platform_keys_internal.webidl'),
+    ('experimental_ai_data.idl', 'experimental_ai_data.webidl'),
     ('web_accessible_resources_mv2.idl', 'web_accessible_resources_mv2.webidl'),
     ('automation_internal.idl', 'automation_internal.webidl'),
     ('automation.idl', 'automation.webidl'),
     ('feedback_private.idl', 'feedback_private.webidl'),
+    ('file_manager_private_internal.idl',
+     'file_manager_private_internal.webidl'),
     ('media_perception_private.idl', 'media_perception_private.webidl'),
     ('mojo_private.idl', 'mojo_private.webidl'),
     ('networking_onc.idl', 'networking_onc.webidl'),
@@ -86,6 +89,7 @@ _CONVERTED_SCHEMAS = [
     ('enterprise_networking_attributes.idl',
      'enterprise_networking_attributes.webidl'),
     ('enterprise_platform_keys.idl', 'enterprise_platform_keys.webidl'),
+    ('experimental_actor.idl', 'experimental_actor.webidl'),
 ]
 
 class WebIdlDiffToolTest(unittest.TestCase):

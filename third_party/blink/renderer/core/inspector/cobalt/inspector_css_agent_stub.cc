@@ -23,6 +23,7 @@ void InspectorCSSAgent::ForcePseudoState(Element*,
                                          bool*) {}
 void InspectorCSSAgent::ForceStartingStyle(Element*, bool*) {}
 void InspectorCSSAgent::DidMutateStyleSheet(CSSStyleSheet*) {}
+void InspectorCSSAgent::DidInvalidateStyleAttr(Element*) {}
 void InspectorCSSAgent::DidReplaceStyleSheetText(CSSStyleSheet*,
                                                  const String&) {}
 void InspectorCSSAgent::GetTextPosition(wtf_size_t,

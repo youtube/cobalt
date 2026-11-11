@@ -147,7 +147,7 @@ void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
   ScratchRegisterScope temps(this);
   Register type = temps.AcquireScratch();
   __ LoadMap(map, object);
-  __ Ldrh(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  __ Ldrh(type, FieldMemOperand(map, offsetof(Map, instance_type_)));
   JumpIf(cc, type, instance_type, target);
 }
 void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
@@ -158,7 +158,7 @@ void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
   if (v8_flags.debug_code) {
     __ AssertMap(map);
   }
-  __ Ldrh(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  __ Ldrh(type, FieldMemOperand(map, offsetof(Map, instance_type_)));
   JumpIf(cc, type, instance_type, target);
 }
 void BaselineAssembler::JumpIfPointer(Condition cc, Register value,

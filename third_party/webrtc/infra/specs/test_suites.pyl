@@ -47,8 +47,7 @@
       },
       'slow_peer_connection_unittests': {},
       'svc_tests': {
-        'remove_mixins': ['walleye'],
-        'mixins': ['shards-8', 'crosshatch'],
+        'mixins': ['shards-8'],
       },
       'system_wrappers_unittests': {},
       'test_support_unittests': {},
@@ -61,6 +60,8 @@
       'voip_unittests': {},
       'webrtc_nonparallel_tests': {},
       # keep-sorted end
+      # rust_tests don't work on android yet. See crbug.com/40809974.
+      # 'rust_tests': {},
     },
     'android_tests_tryserver_specific': {
       'video_codec_perf_tests': {
@@ -95,6 +96,7 @@
       'rtc_unittests': {
         'mixins': ['shards-6'],
       },
+      'rust_tests': {},
       'slow_peer_connection_unittests': {},
       'svc_tests': {
         'mixins': ['shards-4'],
@@ -153,7 +155,8 @@
       # 'test_support_unittests': {},
       # TODO(bugs.webrtc.org/14707): chromium.test component needs to allow creating listening ports.
       # 'tools_unittests': {},
-      #
+      # TODO(bugs.webrtc.org/416446214): Determine how to get rust test runner working on Fuchsia.
+      # 'rust_tests': {},
     },
     'ios_simulator_tests': {
       # keep-sorted start block=yes
@@ -201,6 +204,8 @@
       'voip_unittests': {},
       'webrtc_nonparallel_tests': {},
       # keep-sorted end
+      # TODO(bugs.webrtc.org/416446214): Determine how to get rust test runner working on iOS.
+      # 'rust_tests': {},
     },
     'more_configs_tests': {
       'peerconnection_unittests': {

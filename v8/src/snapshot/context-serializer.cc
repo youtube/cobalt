@@ -197,7 +197,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     Handle<JSObject> js_obj = Cast<JSObject>(obj);
     int embedder_fields_count = js_obj->GetEmbedderFieldCount();
     if (embedder_fields_count > 0) {
-      DCHECK(!js_obj->NeedsRehashing(cage_base()));
+      DCHECK(!js_obj->NeedsRehashing());
       v8::Local<v8::Object> api_obj = v8::Utils::ToLocal(js_obj);
       v8::SerializeInternalFieldsCallback user_callback =
           serialize_embedder_fields_.js_object_callback;
@@ -262,8 +262,8 @@ bool ContextSerializer::ShouldBeInTheStartupObjectCache(Tagged<HeapObject> o) {
   // script would cause dupes.
   return IsName(o) || IsScript(o) || IsSharedFunctionInfo(o) ||
          IsHeapNumber(o) || IsCode(o) || IsInstructionStream(o) ||
-         IsScopeInfo(o) || IsAccessorInfo(o) || IsTemplateInfo(o) ||
-         IsClassPositions(o) ||
+         IsScopeInfo(o) || IsAccessorInfo(o) || IsInterceptorInfo(o) ||
+         IsTemplateInfo(o) || IsClassPositions(o) ||
          o->map() == ReadOnlyRoots(isolate()).fixed_cow_array_map();
 }
 
@@ -390,8 +390,8 @@ void ContextSerializer::SerializeObjectWithEmbedderFields(
 
 void ContextSerializer::CheckRehashability(Tagged<HeapObject> obj) {
   if (!can_be_rehashed_) return;
-  if (!obj->NeedsRehashing(cage_base())) return;
-  if (obj->CanBeRehashed(cage_base())) return;
+  if (!obj->NeedsRehashing()) return;
+  if (obj->CanBeRehashed()) return;
   can_be_rehashed_ = false;
 }
 

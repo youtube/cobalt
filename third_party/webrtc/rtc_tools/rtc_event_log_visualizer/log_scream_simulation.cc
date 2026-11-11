@@ -170,6 +170,7 @@ void LogScreamSimulation::LogState(const TransportPacketsFeedback& msg) {
       .ref_window_i = scream_->ref_window_i(),
       .max_allowed_ref_window = scream_->max_allowed_ref_window(),
       .max_data_in_flight = scream_->max_data_in_flight(),
+      .is_application_limited = scream_->is_application_limited(),
       .data_in_flight = data_in_flight_,
       .send_window_usage = send_window_usage_,
       .smoothed_rtt = scream_->delay_based_congestion_control().rtt(),

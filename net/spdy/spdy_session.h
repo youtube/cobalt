@@ -25,6 +25,7 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/io_buffer.h"
@@ -101,6 +102,20 @@ const spdy::SpdyStreamId kLastStreamId = 0x7fffffff;
 // virtually never be hit in practice, while still preventing an
 // attacker from growing this queue unboundedly.
 const int kSpdySessionMaxQueuedCappedFrames = 10000;
+
+// Default minimum time the connection must be idle before a "Preface Ping"
+// is sent upon subsequent write activity.
+// A "Preface Ping" is a PING frame proactively sent by the SPDY session
+// prior to enqueuing a DATA or HEADERS frame when the connection has been
+// idle, to verify that the network path is still alive.
+#if BUILDFLAG(IS_COBALT)
+// On living room devices (e.g. Android TV), short pauses (15-45s) between user
+// interactions are standard. Because TCP keep-alive maintains NAT state every
+// 45s, only connections idle for >60s require an HTTP/2 preface ping.
+const int kSpdyDefaultConnectionAtRiskOfLossSeconds = 60;
+#else
+const int kSpdyDefaultConnectionAtRiskOfLossSeconds = 10;
+#endif
 
 // Default time to delay sending small receive window updates (can be
 // configured through SetTimeToBufferSmallWindowUpdates()). Usually window
@@ -581,6 +596,10 @@ class NET_EXPORT SpdySession
   // Returns true if session is currently active.
   bool is_active() const {
     return !active_streams_.empty() || !created_streams_.empty();
+  }
+
+  bool WasEverUsedToCreateStreams() const {
+    return streams_initiated_count_ > 0;
   }
 
   // True if the server supports WebSocket protocol.

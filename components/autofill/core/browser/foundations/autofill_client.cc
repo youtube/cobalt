@@ -13,7 +13,6 @@
 #include "base/no_destructor.h"
 #include "base/notimplemented.h"
 #include "build/build_config.h"
-#include "components/accessibility_annotator/core/accessibility_annotator_types.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_manager.h"
 #include "components/autofill/core/browser/integrators/compose/autofill_compose_delegate.h"
@@ -26,6 +25,7 @@
 #include "components/autofill/core/browser/ui/popup_open_enums.h"
 #include "components/optimization_guide/core/model_execution/remote_model_executor.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
+#include "components/personal_context/core/personal_context_types.h"
 #include "components/version_info/channel.h"
 
 namespace autofill {
@@ -110,21 +110,29 @@ AutofillClient::GetPasswordManagerFieldClassificationModelHandler() {
 AutofillComposeDelegate* AutofillClient::GetComposeDelegate() {
   return nullptr;
 }
+const AutofillComposeDelegate* AutofillClient::GetComposeDelegate() const {
+  return const_cast<AutofillClient*>(this)->GetComposeDelegate();
+}
 
 accessibility_annotator::AccessibilityQueryService*
 AutofillClient::GetAccessibilityQueryService() {
   return nullptr;
 }
 
-accessibility_annotator::RemoteAnnotatorEnablementState
-AutofillClient::GetAccessibilityAnnotatorEnablementState() const {
-  return accessibility_annotator::RemoteAnnotatorEnablementState::
-      kDisabledNotEligible;
+personal_context::PersonalContextEnablementState
+AutofillClient::GetPersonalContextEnablementState() const {
+  return personal_context::PersonalContextEnablementState::kDisabledNotEligible;
 }
 
 PasswordManagerDelegate* AutofillClient::GetPasswordManagerDelegate(
     const FieldGlobalId& field_id) {
   return nullptr;
+}
+
+const PasswordManagerDelegate* AutofillClient::GetPasswordManagerDelegate(
+    const FieldGlobalId& field_id) const {
+  return const_cast<AutofillClient*>(this)->GetPasswordManagerDelegate(
+      field_id);
 }
 
 void AutofillClient::GetAiPageContent(GetAiPageContentCallback callback) {

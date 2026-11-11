@@ -255,7 +255,7 @@ using MapHandlesSpan = v8::MemorySpan<DirectHandle<Map>>;
 // |               |   [raw_transitions]                             |
 // +---------------+-------------------------------------------------+
 
-V8_OBJECT class Map : public HeapObjectLayout {
+V8_OBJECT class Map : public HeapObject {
  public:
   // Instance size.
   // Size in bytes or kVariableSizeSentinel if instances do not have
@@ -585,9 +585,8 @@ V8_OBJECT class Map : public HeapObjectLayout {
   // Return the map of the root of object's prototype chain.
   Tagged<Map> GetPrototypeChainRootMap(Isolate* isolate) const;
 
-  V8_EXPORT_PRIVATE Tagged<Map> FindRootMap(PtrComprCageBase cage_base) const;
-  V8_EXPORT_PRIVATE Tagged<Map> FindFieldOwner(PtrComprCageBase cage_base,
-                                               InternalIndex descriptor) const;
+  V8_EXPORT_PRIVATE Tagged<Map> FindRootMap() const;
+  V8_EXPORT_PRIVATE Tagged<Map> FindFieldOwner(InternalIndex descriptor) const;
 
   inline int GetInObjectPropertyOffset(int index) const;
 
@@ -729,8 +728,7 @@ V8_OBJECT class Map : public HeapObjectLayout {
   // Constructor getter that performs at most the given number of steps
   // in the transition tree. Returns either the constructor or the map at
   // which the walk has stopped.
-  inline Tagged<Object> TryGetConstructor(PtrComprCageBase cage_base,
-                                          int max_steps);
+  inline Tagged<Object> TryGetConstructor(int max_steps);
 
   // Gets non-instance prototype value which is stored in Tuple2 in a
   // root map's |constructor_or_back_pointer| field.
@@ -741,15 +739,13 @@ V8_OBJECT class Map : public HeapObjectLayout {
   inline Tagged<HeapObject> GetBackPointer() const;
   inline void SetBackPointer(Tagged<HeapObject> value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline bool TryGetBackPointer(PtrComprCageBase cage_base,
-                                Tagged<Map>* back_pointer) const;
+  inline bool TryGetBackPointer(Tagged<Map>* back_pointer) const;
 
   // [instance descriptors]: describes the object.
   DECL_ACCESSORS(instance_descriptors, Tagged<DescriptorArray>)
   DECL_ACQUIRE_GETTER(instance_descriptors, Tagged<DescriptorArray>)
   V8_EXPORT_PRIVATE void SetInstanceDescriptors(
-      Isolate* isolate, Tagged<DescriptorArray> descriptors,
-      int number_of_own_descriptors,
+      Tagged<DescriptorArray> descriptors, int number_of_own_descriptors,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER);
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -762,11 +758,9 @@ V8_OBJECT class Map : public HeapObjectLayout {
   DECL_SETTER(custom_descriptor, Tagged<WasmStruct>)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  inline void UpdateDescriptors(Isolate* isolate,
-                                Tagged<DescriptorArray> descriptors,
+  inline void UpdateDescriptors(Tagged<DescriptorArray> descriptors,
                                 int number_of_own_descriptors);
-  inline void InitializeDescriptors(Isolate* isolate,
-                                    Tagged<DescriptorArray> descriptors);
+  inline void InitializeDescriptors(Tagged<DescriptorArray> descriptors);
 
   // [dependent code]: list of optimized codes that weakly embed this map.
   DECL_ACCESSORS(dependent_code, Tagged<DependentCode>)
@@ -803,8 +797,8 @@ V8_OBJECT class Map : public HeapObjectLayout {
   inline bool BelongsToSameNativeContextAs(Tagged<Map> other_map) const;
   inline bool BelongsToSameNativeContextAs(Tagged<Context> context) const;
 
-  inline Tagged<Name> GetLastDescriptorName(Isolate* isolate) const;
-  inline PropertyDetails GetLastDescriptorDetails(Isolate* isolate) const;
+  inline Tagged<Name> GetLastDescriptorName() const;
+  inline PropertyDetails GetLastDescriptorDetails() const;
 
   inline InternalIndex LastAdded() const;
 
@@ -1047,8 +1041,7 @@ V8_OBJECT class Map : public HeapObjectLayout {
 #endif
 #if defined(DEBUG) || defined(VERIFY_HEAP)
   V8_EXPORT_PRIVATE void VerifyDescriptorInObjectBits(
-      Isolate* isolate, Tagged<DescriptorArray> descriptors,
-      int number_of_own_descriptors);
+      Tagged<DescriptorArray> descriptors, int number_of_own_descriptors);
   V8_EXPORT_PRIVATE void VerifyPropertyDetailsInObjectBits(
       PropertyDetails details);
 #endif
@@ -1203,8 +1196,8 @@ V8_OBJECT class Map : public HeapObjectLayout {
   // This is the replacement for IsMap() which avoids reading the instance type
   // but compares the object's map against given meta_map, so it can be used
   // concurrently without acquire load.
-  V8_INLINE static bool ConcurrentIsHeapObjectWithMap(
-      PtrComprCageBase cage_base, Tagged<Object> object, Tagged<Map> meta_map);
+  V8_INLINE static bool ConcurrentIsHeapObjectWithMap(Tagged<Object> object,
+                                                      Tagged<Map> meta_map);
 
   // Use the high-level instance_descriptors/SetInstanceDescriptors instead.
   DECL_RELEASE_SETTER(instance_descriptors, Tagged<DescriptorArray>)
@@ -1220,26 +1213,9 @@ V8_OBJECT class Map : public HeapObjectLayout {
  public:
   // Backwards-compatible offset constants. Defined out-of-line below
   // because offsetof / sizeof on Map cannot appear inside Map's own body.
-  static const int kInstanceSizeInWordsOffset;
-  static const int kInobjectPropertiesStartOrConstructorFunctionIndexOffset;
-  static const int kUsedOrUnusedInstanceSizeInWordsOffset;
-  static const int kVisitorIdOffset;
-  static const int kInstanceTypeOffset;
-  static const int kBitFieldOffset;
   static const int kBitFieldOffsetEnd;
-  static const int kBitField2Offset;
-  static const int kBitField3Offset;
-  static const int kPrototypeOffset;
-  static const int kConstructorOrBackPointerOrNativeContextOffset;
-  static const int kInstanceDescriptorsOffset;
-  static const int kDependentCodeOffset;
 #if V8_ENABLE_WEBASSEMBLY
-  static const int kImmediateSupertypeOffset;
 #endif
-  static const int kPrototypeValidityCellOffset;
-  static const int kTransitionsOrPrototypeInfoOffset;
-  static const int kStartOfStrongFieldsOffset;
-  static const int kEndOfStrongFieldsOffset;
   static const int kEndOfWeakFieldsOffset;
   static const int kHeaderSize;
   static const int kSize;
@@ -1272,43 +1248,16 @@ V8_OBJECT class Map : public HeapObjectLayout {
 
 // Backwards-compatible Map offset constants. Defined out-of-line because
 // offsetof / sizeof on Map cannot appear inside Map's own class body.
-inline constexpr int Map::kInstanceSizeInWordsOffset =
-    offsetof(Map, instance_size_in_words_);
-inline constexpr int
-    Map::kInobjectPropertiesStartOrConstructorFunctionIndexOffset =
-        offsetof(Map, inobject_properties_start_or_constructor_function_index_);
-inline constexpr int Map::kUsedOrUnusedInstanceSizeInWordsOffset =
-    offsetof(Map, used_or_unused_instance_size_in_words_);
-inline constexpr int Map::kVisitorIdOffset = offsetof(Map, visitor_id_);
-inline constexpr int Map::kInstanceTypeOffset = offsetof(Map, instance_type_);
-inline constexpr int Map::kBitFieldOffset = offsetof(Map, bit_field_);
 inline constexpr int Map::kBitFieldOffsetEnd =
     offsetof(Map, bit_field_) + sizeof(uint8_t) - 1;
-inline constexpr int Map::kBitField2Offset = offsetof(Map, bit_field2_);
-inline constexpr int Map::kBitField3Offset = offsetof(Map, bit_field3_);
-inline constexpr int Map::kPrototypeOffset = offsetof(Map, prototype_);
-inline constexpr int Map::kConstructorOrBackPointerOrNativeContextOffset =
-    offsetof(Map, constructor_or_back_pointer_or_native_context_);
-inline constexpr int Map::kInstanceDescriptorsOffset =
-    offsetof(Map, instance_descriptors_);
-inline constexpr int Map::kDependentCodeOffset = offsetof(Map, dependent_code_);
 #if V8_ENABLE_WEBASSEMBLY
-inline constexpr int Map::kImmediateSupertypeOffset =
-    offsetof(Map, dependent_code_);
 #endif
-inline constexpr int Map::kPrototypeValidityCellOffset =
-    offsetof(Map, prototype_validity_cell_);
-inline constexpr int Map::kTransitionsOrPrototypeInfoOffset =
-    offsetof(Map, transitions_or_prototype_info_);
-inline constexpr int Map::kStartOfStrongFieldsOffset =
-    offsetof(Map, prototype_);
-inline constexpr int Map::kEndOfStrongFieldsOffset =
-    offsetof(Map, transitions_or_prototype_info_);
 inline constexpr int Map::kEndOfWeakFieldsOffset = sizeof(Map);
 inline constexpr int Map::kHeaderSize = sizeof(Map);
 inline constexpr int Map::kSize = sizeof(Map);
 
-static_assert(Map::kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
+static_assert(offsetof(Map, instance_type_) ==
+              Internals::kMapInstanceTypeOffset);
 
 // Base class for Maps with extra fields. Subclasses must be defined with
 // @hasSameInstanceTypeAsParent and define padding fields up to kTaggedSize.
@@ -1348,27 +1297,7 @@ inline constexpr int ExtendedMap::kMinimumSize =
 inline constexpr int ExtendedMap::kStartOfStrongExtendedFieldsOffset =
     kMinimumSize;
 
-// Extended map for interceptor objects, it caches named and indexed
-// InterceptorInfo objects in the Map for faster access.
-V8_OBJECT class JSInterceptorMap : public ExtendedMap {
- public:
-  inline Tagged<InterceptorInfo> named_interceptor() const;
-  inline void set_named_interceptor(
-      Tagged<InterceptorInfo> interceptor_info,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<InterceptorInfo> indexed_interceptor() const;
-  inline void set_indexed_interceptor(
-      Tagged<InterceptorInfo> interceptor_info,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-  inline void clear_extended_padding();
-
- public:
-  uint8_t extended_padding_[kTaggedSize - 1];
-  TaggedMember<InterceptorInfo> named_interceptor_;
-  TaggedMember<InterceptorInfo> indexed_interceptor_;
-} V8_OBJECT_END;
 
 // The cache for maps used by normalized (dictionary mode) objects.
 // Such maps do not have property descriptors, so a typical program
@@ -1388,8 +1317,7 @@ class NormalizedMapCache : public WeakFixedArray {
   DECL_VERIFIER(NormalizedMapCache)
 
  private:
-  friend bool IsNormalizedMapCache(Tagged<HeapObject> obj,
-                                   PtrComprCageBase cage_base);
+  friend bool IsNormalizedMapCache(Tagged<HeapObject> obj);
 
   static const uint32_t kEntries = 64;
 

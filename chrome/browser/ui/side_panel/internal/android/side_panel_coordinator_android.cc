@@ -209,16 +209,16 @@ void SidePanelCoordinatorAndroid::Close(SidePanelEntryHideReason hide_reason,
 }
 
 void SidePanelCoordinatorAndroid::OnWindowResized(JNIEnv* env,
-                                                  bool should_show_side_panel) {
-  SPLOG("OnWindowResized - should_show_side_panel: " << should_show_side_panel);
+                                                  bool can_show_side_panel) {
+  SPLOG("OnWindowResized - can_show_side_panel: " << can_show_side_panel);
 
-  if (is_window_too_small_ == !should_show_side_panel) {
+  if (is_window_too_small_ == !can_show_side_panel) {
     return;
   }
 
-  is_window_too_small_ = !should_show_side_panel;
+  is_window_too_small_ = !can_show_side_panel;
 
-  if (should_show_side_panel) {
+  if (can_show_side_panel) {
     CHECK(!IsSidePanelShowing() || IsClosing())
         << "Side panel should not be visible when the window changes from "
            "being too small to being large enough.";
@@ -227,7 +227,18 @@ void SidePanelCoordinatorAndroid::OnWindowResized(JNIEnv* env,
       // TODO(crbug.com/507911289): Revisit animations.
       Show(*key_to_restore_after_window_resize_, std::nullopt,
            /*suppress_animations=*/true);
-      key_to_restore_after_window_resize_.reset();
+    } else {
+      // If we didn't restore a cached key (e.g. because we are on a different
+      // tab), check if the current tab has an active entry that was blocked.
+      SidePanelRegistry* contextual_registry = GetActiveContextualRegistry();
+      std::optional<SidePanelEntry*> active_contextual_entry =
+          contextual_registry ? contextual_registry->GetActiveEntry()
+                              : std::nullopt;
+      if (active_contextual_entry) {
+        Show(UniqueKey{contextual_registry->GetTabInterface().GetHandle(),
+                       (*active_contextual_entry)->key()},
+             std::nullopt, /*suppress_animations=*/true);
+      }
     }
   } else {
     if (IsSidePanelShowing() && !IsClosing()) {
@@ -490,7 +501,7 @@ void SidePanelCoordinatorAndroid::MaybeShowEntryOnTabStripModelChanged(
   // If the side panel isn't showing, check if we should show it.
   std::optional<SidePanelEntry*> new_active_entry =
       new_contextual_registry ? new_contextual_registry->GetActiveEntry()
-                              : nullptr;
+                              : std::nullopt;
   if (new_active_entry) {
     UniqueKey key{new_contextual_registry->GetTabInterface().GetHandle(),
                   (*new_active_entry)->key()};

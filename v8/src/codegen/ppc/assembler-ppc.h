@@ -1058,10 +1058,6 @@ class Assembler : public AssemblerBase {
   void add_label_offset(Register dst, Register base, Label* label,
                         int delta = 0);
 
-  // Load the address of the label in a register and associate with an
-  // internal reference relocation.
-  void mov_label_addr(Register dst, Label* label);
-
   // Emit the address of the label (i.e. a jump table entry) and associate with
   // an internal reference relocation.
   void emit_label_addr(Label* label);

@@ -185,7 +185,7 @@ AutofillSuggestionController::GetOrCreate(
   if (AutofillPopupControllerImpl* previous_impl =
           static_cast<AutofillPopupControllerImpl*>(previous.get());
       previous_impl && previous_impl->delegate_.get() == delegate.get() &&
-      previous_impl->container_view() == controller_common.container_view &&
+      previous_impl->container_view() == web_contents->GetNativeView() &&
       previous_impl->GetSuggestionTriggerSource() == trigger_source) {
     if (previous_impl->self_deletion_weak_ptr_factory_.HasWeakPtrs()) {
       previous_impl->self_deletion_weak_ptr_factory_.InvalidateWeakPtrs();
@@ -497,7 +497,7 @@ void AutofillPopupControllerImpl::AcceptSuggestion(
 }
 
 gfx::NativeView AutofillPopupControllerImpl::container_view() const {
-  return controller_common_.container_view;
+  return web_contents_ ? web_contents_->GetNativeView() : gfx::NativeView();
 }
 
 content::WebContents* AutofillPopupControllerImpl::GetWebContents() const {
@@ -542,8 +542,7 @@ AutofillPopupControllerImpl::GetSearchBarConfig(
       return AutofillPopupView::SearchBarConfig{
           .placeholder = l10n_util::GetStringUTF16(
               IDS_AUTOFILL_AT_MEMORY_POPUP_SEARCH_BAR_PLACEHOLDER),
-          .no_results_message = l10n_util::GetStringUTF16(
-              IDS_AUTOFILL_AT_MEMORY_POPUP_NO_RESULTS)};
+          .no_results_message = u""};
     case AutofillSuggestionTriggerSource::kManualFallbackPasswords:
       return AutofillPopupView::SearchBarConfig{
           .placeholder = l10n_util::GetStringUTF16(
@@ -1015,11 +1014,12 @@ bool AutofillPopupControllerImpl::ShouldShowNoSuggestionsMessage() const {
     return false;
   }
 
-  // AtMemory always replaces the suggestion list with the search results.
-  // Since these results are already pre-filtered by the search service,
-  // we just need to check if the list is empty.
-  if (suggestions_filling_product_ == FillingProduct::kAtMemory) {
-    return GetSuggestions().empty();
+  // If the search bar is configured to not show a "no results" message,
+  // we should not show it.
+  std::optional<AutofillPopupView::SearchBarConfig> search_bar_config =
+      GetSearchBarConfig(trigger_source_);
+  if (search_bar_config && search_bar_config->no_results_message.empty()) {
+    return false;
   }
 
   // For other products, the popup is considered effectively empty if all

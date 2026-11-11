@@ -58,9 +58,10 @@ gfx::Rect ToPixelSnappedLogicalRect(const LogicalRect& rect) {
 
 }  // namespace
 
-CSSBoxType ReferenceBox(const ShapeValue& shape_value) {
-  if (shape_value.CssBox() == CSSBoxType::kMissing)
-    return CSSBoxType::kMargin;
+ShapeBox ReferenceBox(const ShapeValue& shape_value) {
+  if (shape_value.CssBox() == ShapeBox::kMissing) {
+    return ShapeBox::kMarginBox;
+  }
   return shape_value.CssBox();
 }
 
@@ -77,15 +78,15 @@ void ShapeOutsideInfo::SetReferenceBoxLogicalSize(
 
   const ShapeValue& shape_value = *layout_box_->StyleRef().ShapeOutside();
   switch (ReferenceBox(shape_value)) {
-    case CSSBoxType::kMargin:
+    case ShapeBox::kMarginBox:
       UseCounter::Count(document, WebFeature::kShapeOutsideMarginBox);
       new_reference_box_logical_size.Expand(margin_size.inline_size,
                                             margin_size.block_size);
       break;
-    case CSSBoxType::kBorder:
+    case ShapeBox::kBorderBox:
       UseCounter::Count(document, WebFeature::kShapeOutsideBorderBox);
       break;
-    case CSSBoxType::kPadding:
+    case ShapeBox::kPaddingBox:
       UseCounter::Count(document, WebFeature::kShapeOutsidePaddingBox);
       new_reference_box_logical_size -=
           layout_box_->BorderOutsets().ConvertToLogical(writing_direction);
@@ -96,7 +97,7 @@ void ShapeOutsideInfo::SetReferenceBoxLogicalSize(
             WebFeature::kShapeOutsidePaddingBoxDifferentFromMarginBox);
       }
       break;
-    case CSSBoxType::kContent: {
+    case ShapeBox::kContentBox: {
       const bool is_shape_image = shape_value.GetType() == ShapeValue::kImage;
       if (!is_shape_image) {
         UseCounter::Count(document, WebFeature::kShapeOutsideContentBox);
@@ -114,7 +115,7 @@ void ShapeOutsideInfo::SetReferenceBoxLogicalSize(
       }
       break;
     }
-    case CSSBoxType::kMissing:
+    case ShapeBox::kMissing:
       NOTREACHED();
   }
 
@@ -221,7 +222,6 @@ const Shape& ShapeOutsideInfo::ComputedShape() const {
 
   switch (shape_value.GetType()) {
     case ShapeValue::kShape:
-      DCHECK(shape_value.Shape());
       shape_ =
           Shape::CreateShape(shape_value.Shape(), reference_box_logical_size_,
                              writing_mode, margin, style.EffectiveZoom());
@@ -250,15 +250,15 @@ const Shape& ShapeOutsideInfo::ComputedShape() const {
 LogicalOffset ShapeOutsideInfo::LogicalStartOffset() const {
   const PhysicalBoxStrut outsets = ([&] {
     switch (ReferenceBox(*layout_box_->StyleRef().ShapeOutside())) {
-      case CSSBoxType::kMargin:
+      case ShapeBox::kMarginBox:
         return -layout_box_->MarginOutsets();
-      case CSSBoxType::kBorder:
+      case ShapeBox::kBorderBox:
         return PhysicalBoxStrut();
-      case CSSBoxType::kPadding:
+      case ShapeBox::kPaddingBox:
         return layout_box_->BorderOutsets();
-      case CSSBoxType::kContent:
+      case ShapeBox::kContentBox:
         return layout_box_->BorderOutsets() + layout_box_->PaddingOutsets();
-      case CSSBoxType::kMissing:
+      case ShapeBox::kMissing:
         NOTREACHED();
     }
   })();
@@ -274,8 +274,6 @@ bool ShapeOutsideInfo::IsEnabledFor(const LayoutBox& box) {
     return false;
 
   switch (shape_value->GetType()) {
-    case ShapeValue::kShape:
-      return shape_value->Shape();
     case ShapeValue::kImage: {
       const StyleImage* image = shape_value->GetImage();
       CHECK(image);
@@ -283,11 +281,11 @@ bool ShapeOutsideInfo::IsEnabledFor(const LayoutBox& box) {
       CHECK(!image_is_usable || image->IsCorsSameOrigin());
       return image_is_usable;
     }
+    case ShapeValue::kShape:
     case ShapeValue::kBox:
       return true;
   }
-
-  return false;
+  NOTREACHED();
 }
 
 PhysicalRect ShapeOutsideInfo::ComputedShapePhysicalBoundingBox() const {

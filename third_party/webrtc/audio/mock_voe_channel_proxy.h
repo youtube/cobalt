@@ -130,6 +130,7 @@ class MockChannelReceive : public voe::ChannelReceiveInterface {
       (override));
   MOCK_METHOD(void, SetMaximumBufferPackets, (size_t max_packets), (override));
   MOCK_METHOD(void, SetFastAccelerate, (bool enable), (override));
+  MOCK_METHOD(uint32_t, remote_ssrc, (), (const, override));
 };
 
 class MockChannelSend : public voe::ChannelSendInterface {

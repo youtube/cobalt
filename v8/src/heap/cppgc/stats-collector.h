@@ -505,13 +505,15 @@ void StatsCollector::InternalScope<trace_category,
   if (static_cast<int>(scope_id_) >=
       (scope_category == kMutatorThread
            ? static_cast<int>(kNumHistogramScopeIds)
-           : static_cast<int>(kNumHistogramConcurrentScopeIds)))
+           : static_cast<int>(kNumHistogramConcurrentScopeIds))) {
     return;
+  }
   v8::base::TimeDelta time = v8::base::TimeTicks::Now() - start_time_;
   if (scope_category == StatsCollector::ScopeContext::kMutatorThread) {
     stats_collector_->current_.scope_data[scope_id_] += time;
-    if (stats_collector_->metric_recorder_)
+    if (stats_collector_->metric_recorder_) {
       stats_collector_->RecordHistogramSample(scope_id_, time);
+    }
     return;
   }
   // scope_category == StatsCollector::ScopeContext::kConcurrentThread

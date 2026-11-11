@@ -59,10 +59,6 @@ V8_OBJECT class JSCollator : public JSObject {
   DECL_PRINTER(JSCollator)
   DECL_VERIFIER(JSCollator)
 
-  // Back-compat offset/size constants.
-  static const int kIcuCollatorOffset;
-  static const int kBoundCompareOffset;
-  static const int kLocaleOffset;
   static const int kHeaderSize;
 
  public:
@@ -71,11 +67,6 @@ V8_OBJECT class JSCollator : public JSObject {
   TaggedMember<String> locale_;
 } V8_OBJECT_END;
 
-inline constexpr int JSCollator::kIcuCollatorOffset =
-    offsetof(JSCollator, icu_collator_);
-inline constexpr int JSCollator::kBoundCompareOffset =
-    offsetof(JSCollator, bound_compare_);
-inline constexpr int JSCollator::kLocaleOffset = offsetof(JSCollator, locale_);
 inline constexpr int JSCollator::kHeaderSize = sizeof(JSCollator);
 
 }  // namespace internal

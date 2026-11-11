@@ -52,6 +52,9 @@
 /// The remaining number of images allowed.
 @property(nonatomic, assign) NSUInteger remainingNumberOfImagesAllowed;
 
+/// The absolute maximum number of tabs allowed to be attached.
+@property(nonatomic, assign) NSUInteger maxTabAttachmentCount;
+
 /// Whether the model picker is allowed to be shown.
 @property(nonatomic, assign) BOOL allowModelPicker;
 
@@ -88,6 +91,13 @@
 
 /// Whether the given model is available (allowed and not disabled).
 - (BOOL)isModelAvailable:(ComposeboxModelOption)option;
+
+/// Returns whether global testing mode for making all tools accessible is
+/// active.
++ (BOOL)allToolsEnabled;
+
+/// Switches the global accessibility override status.
++ (void)setAllToolsEnabled:(BOOL)enabled;
 
 @end
 

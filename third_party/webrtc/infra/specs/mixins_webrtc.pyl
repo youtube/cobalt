@@ -21,14 +21,6 @@
       }
     }
   },
-  'crosshatch': {
-    'swarming': {
-      'dimensions': {
-        'device_type': 'crosshatch',
-        'os': 'Android',
-      },
-    },
-  },
   # Hack to use the test-launcher-summary-output flag + emulator folders for gtest-output
   # but it's currently the only way to get the file out of the emulator.
   'fuchsia-gtest-output': {
@@ -97,6 +89,15 @@
       'dimensions': {
         'cpu': 'x86-64',
         'os': 'Mac-15'
+      }
+    }
+  },
+  'panther_on_14': {
+    'swarming': {
+      'dimensions': {
+        'device_type': 'panther',
+        'device_os': 'AP2A.240705.004',  # Android 14
+        'os': 'Android'
       }
     }
   },
@@ -192,14 +193,6 @@
       'hard_timeout': 10800,
       'io_timeout': 10800,
     },
-  },
-  'walleye': {
-    'swarming': {
-      'dimensions': {
-        'device_type': 'walleye',
-        'os': 'Android'
-      }
-    }
   },
   'win11': {
     'swarming': {

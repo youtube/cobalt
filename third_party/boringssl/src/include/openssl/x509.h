@@ -77,6 +77,14 @@ DECLARE_ASN1_ITEM(X509)
 // X509_up_ref adds one to the reference count of |x509| and returns one.
 OPENSSL_EXPORT int X509_up_ref(X509 *x509);
 
+// X509_dup_ref increments the reference count of |x509| and returns |x509|.
+// The caller must call |X509_free| on the result to release the reference.
+//
+// WARNING: Although the result is non-const for use with |X509_free|, it is
+// still shared with other parts of the appplication for the same object. Avoid
+// mutating shared |X509|s.
+OPENSSL_EXPORT X509 *X509_dup_ref(const X509 *x509);
+
 // X509_chain_up_ref returns a newly-allocated |STACK_OF(X509)| containing a
 // shallow copy of |chain|, or NULL on error. That is, the return value has the
 // same contents as |chain|, and each |X509|'s reference count is incremented by

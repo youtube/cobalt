@@ -349,6 +349,7 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/security_principal.h"
 #include "content/public/browser/service_worker_context.h"
+#include "content/public/browser/site_instance.h"
 #include "content/public/browser/site_isolation_mode.h"
 #include "content/public/browser/site_isolation_policy.h"
 #include "content/public/browser/sms_fetcher.h"
@@ -544,7 +545,6 @@
 #include "chrome/browser/metrics/usage_scenario/chrome_responsiveness_calculator_delegate.h"
 #include "chrome/browser/new_tab_page/new_tab_page_util.h"
 #include "chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h"
-#include "chrome/browser/printing/print_preview_dialog_controller.h"
 #include "chrome/browser/screen_ai/screen_ai_install_state.h"
 #include "chrome/browser/search/instant_service.h"
 #include "chrome/browser/search/instant_service_factory.h"
@@ -669,6 +669,9 @@
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "extensions/browser/api/web_request/web_request_proxying_webtransport.h"
+#if !BUILDFLAG(IS_ANDROID)
+#include "extensions/browser/mime_handler/mime_handler_stream_manager.h"
+#endif  // !BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 #if BUILDFLAG(ENABLE_PLUGINS)
@@ -744,7 +747,6 @@
 #endif  // BUILDFLAG(OS_LEVEL_GEOLOCATION_PERMISSION_SUPPORTED)
 
 #if BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/contextmenu/context_menu_features.h"
 #include "chrome/browser/feed/feed_service_factory.h"
 #include "chrome/browser/safe_browsing/advanced_protection_status_manager_android.h"
 #include "components/feed/feed_feature_list.h"
@@ -757,6 +759,10 @@
 #if BUILDFLAG(ENABLE_REQUEST_HEADER_INTEGRITY)
 #include "chrome/common/request_header_integrity/request_header_integrity_url_loader_throttle.h"  // nogncheck crbug.com/40147906
 #endif
+
+#if BUILDFLAG(ENABLE_PRINT_PREVIEW)
+#include "chrome/browser/printing/print_preview_dialog_controller.h"
+#endif  // BUILDFLAG(ENABLE_PRINT_PREVIEW)
 
 #include "base/win/windows_h_disallowed.h"
 
@@ -1631,7 +1637,7 @@ void ChromeContentBrowserClient::RegisterProfilePrefs(
   registry->RegisterBooleanPref(prefs::kPrefetchWithServiceWorkerEnabled, true);
   registry->RegisterBooleanPref(prefs::kServiceWorkerAutoPreloadEnabled, true);
 
-  registry->RegisterIntegerPref(prefs::kCpuPerformanceTierPolicyOverride,
+  registry->RegisterIntegerPref(prefs::kCpuPerformanceTierOverride,
                                 prefs::kCpuPerformanceTierOverrideNone);
 }
 
@@ -2476,8 +2482,9 @@ void ChromeContentBrowserClient::SiteInstanceGotProcessAndSite(
 #if !BUILDFLAG(IS_ANDROID)
   // Remember the ID of the Instant process to signal the renderer process
   // on startup in |AppendExtraCommandLineSwitches| below.
-  if (search::ShouldAssignURLToInstantRenderer(site_instance->GetSiteURL(),
-                                               profile)) {
+  if (search::ShouldAssignURLToInstantRenderer(
+          site_instance->GetSecurityPrincipal().GetDeprecatedSiteURL(),
+          profile)) {
     InstantService* instant_service =
         InstantServiceFactory::GetForProfile(profile);
     if (instant_service) {
@@ -3148,13 +3155,6 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
                                     switches::kChangeStackGuardOnForkEnabled);
   }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-
-#if BUILDFLAG(IS_ANDROID)
-  // Communicating to renderer for starting the reader for web feed.
-  if (feed::IsWebFeedEnabledForLocale(feed::FeedServiceFactory::GetCountry())) {
-    command_line->AppendSwitch(feed::switches::kEnableRssLinkReader);
-  }
-#endif
 }
 
 std::string
@@ -4491,11 +4491,14 @@ bool ChromeContentBrowserClient::CanCreateWindow(
     bool is_from_embedded_page =
         web_contents != responsible_web_contents ||
         guest_view::GuestViewBase::FromRenderFrameHost(opener);
+    content::SiteInstance* site = opener->GetSiteInstance();
+    bool is_same_site_or_from_ui = site && site->IsSameSiteWithURL(target_url);
     if (contextual_tasks_ui_service &&
-        contextual_tasks_ui_service->HandleNavigation(std::move(url_params),
-                                                      responsible_web_contents,
-                                                      is_from_embedded_page,
-                                                      /*is_to_new_tab=*/true)) {
+        contextual_tasks_ui_service->HandleNavigation(
+            std::move(url_params), responsible_web_contents,
+            is_from_embedded_page,
+            /*is_to_new_tab=*/true,
+            /*is_same_site_or_from_ui=*/is_same_site_or_from_ui)) {
       return false;
     }
   }
@@ -4785,6 +4788,9 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
       web_prefs->picture_in_picture_enabled =
           delegate->IsPictureInPictureEnabled();
 
+      web_prefs->immersive_video_playback_enabled =
+          delegate->IsImmersivePlaybackEnabled();
+
       web_prefs->modal_context_menu = delegate->IsModalContextMenu();
 
       web_prefs->dynamic_safe_area_insets_enabled =
@@ -4948,8 +4954,7 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
   web_prefs->prefers_default_scrollbar_styles =
       prefs->GetBoolean(prefs::kPrefersDefaultScrollbarStyles);
 #if BUILDFLAG(IS_ANDROID)
-  web_prefs->always_show_context_menu_on_touch =
-      base::FeatureList::IsEnabled(::features::kContextMenuEmptySpace);
+  web_prefs->always_show_context_menu_on_touch = true;
 #endif
 
   if (web_contents->GetVisibleURL().SchemeIs(content::kChromeDevToolsScheme) &&
@@ -6515,9 +6520,12 @@ void ChromeContentBrowserClient::
     return;
   }
 
-  factories->emplace(extensions::kExtensionScheme,
-                     extensions::CreateExtensionURLLoaderFactory(
-                         render_process_id, render_frame_id));
+  // TODO(crbug.com/379869738) Remove FromUnsafeValue.
+  factories->emplace(
+      extensions::kExtensionScheme,
+      extensions::CreateExtensionURLLoaderFactory(
+          content::ChildProcessId::FromUnsafeValue(render_process_id),
+          render_frame_id));
 
   const extensions::Extension* extension = nullptr;
   if (request_initiator_origin != std::nullopt) {
@@ -6879,8 +6887,8 @@ bool ChromeContentBrowserClient::ShouldForceDownloadResource(
     bool force_download = profile->GetPrefs()->GetBoolean(
         quickoffice::kQuickOfficeForceFileDownloadEnabled);
     if (force_download) {
-      std::string extension_id =
-          PluginUtils::GetExtensionIdForMimeType(browser_context, mime_type);
+      std::string extension_id = PluginUtils::GetExtensionIdForMimeType(
+          browser_context, mime_type, /*embedded=*/false);
 
       if (extension_misc::IsQuickOfficeExtension(extension_id)) {
         return true;
@@ -8557,6 +8565,83 @@ bool ChromeContentBrowserClient::ShouldUseFirstPartyStorageKey(
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 }
 
+content::RenderFrameHost*
+ChromeContentBrowserClient::GetEffectiveTopFrameForPartitioning(
+    content::RenderFrameHost* render_frame_host) {
+#if BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_ANDROID)
+  auto* manager =
+      extensions::mime_handler::MimeHandlerStreamManager::FromRenderFrameHost(
+          render_frame_host);
+  if (!manager) {
+    return nullptr;
+  }
+  // Walk up to the *outermost* MIME handler extension frame. Same-origin
+  // chrome-extension subframes and about:blank subframes inside the MHV
+  // are not themselves registered as extension hosts (only the
+  // wrapper-attached extension RFH is), so they are passed through. For
+  // theoretical nesting (one MHV embedding another via its own wrapper),
+  // the outermost extension is the right effective top.
+  content::RenderFrameHost* extension_rfh = nullptr;
+  for (auto* rfh = render_frame_host; rfh; rfh = rfh->GetParent()) {
+    if (manager->IsExtensionHost(rfh)) {
+      extension_rfh = rfh;
+    }
+  }
+  if (!extension_rfh) {
+    return nullptr;
+  }
+  // Only treat the extension as the effective top for full-page MIME handler.
+  // For an HTML page that explicitly iframes a PDF, the embedding HTML page
+  // IS a real web ancestor; do not hide it. The wrapper must be the topmost
+  // main frame of its frame tree (which includes the inner main frame of a
+  // `<webview>`); this is what `GetOutermostMainFrame()` returns per its
+  // doc comment.
+  content::RenderFrameHost* wrapper = extension_rfh->GetParent();
+  if (!wrapper || wrapper != wrapper->GetOutermostMainFrame()) {
+    return nullptr;
+  }
+  return extension_rfh;
+#else
+  return nullptr;
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_ANDROID)
+}
+
+bool ChromeContentBrowserClient::IsCrossOriginSubframeAllowedToShowFilePicker(
+    content::RenderFrameHost* render_frame_host,
+    const url::Origin& requesting_origin) {
+#if BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_ANDROID)
+  // Fast path: the PDF viewer extension is always allowed, regardless of
+  // whether its stream is plumbed via the OOPIF MimeHandlerStreamManager
+  // or the legacy GuestView path.
+#if BUILDFLAG(ENABLE_PDF)
+  if (IsPdfExtensionOrigin(requesting_origin)) {
+    return true;
+  }
+#endif  // BUILDFLAG(ENABLE_PDF)
+
+  if (!render_frame_host) {
+    return false;
+  }
+
+  // Otherwise verify the requesting frame is, or descends from, a MIME
+  // handler extension host registered with the stream manager and that
+  // the host's origin matches the requesting one.
+  auto* manager =
+      extensions::mime_handler::MimeHandlerStreamManager::FromRenderFrameHost(
+          render_frame_host);
+  if (!manager) {
+    return false;
+  }
+
+  for (auto* rfh = render_frame_host; rfh; rfh = rfh->GetParent()) {
+    if (manager->IsExtensionHost(rfh)) {
+      return rfh->GetLastCommittedOrigin() == requesting_origin;
+    }
+  }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_ANDROID)
+  return false;
+}
+
 std::unique_ptr<content::ResponsivenessCalculatorDelegate>
 ChromeContentBrowserClient::CreateResponsivenessCalculatorDelegate() {
 #if !BUILDFLAG(IS_ANDROID)
@@ -9124,7 +9209,7 @@ std::optional<int> ChromeContentBrowserClient::GetCpuPerformanceTierOverride(
   if (browser_context) {
     const PrefService* prefs =
         Profile::FromBrowserContext(browser_context)->GetPrefs();
-    if (int value = prefs->GetInteger(prefs::kCpuPerformanceTierPolicyOverride);
+    if (int value = prefs->GetInteger(prefs::kCpuPerformanceTierOverride);
         value != prefs::kCpuPerformanceTierOverrideNone) {
       return value;
     }

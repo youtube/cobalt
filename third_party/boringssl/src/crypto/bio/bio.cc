@@ -239,6 +239,10 @@ void BIO_set_retry_write(BIO *bio) {
   FromOpaque(bio)->flags |= BIO_FLAGS_WRITE | BIO_FLAGS_SHOULD_RETRY;
 }
 
+void BIO_set_retry_special(BIO *bio) {
+  FromOpaque(bio)->flags |= BIO_FLAGS_IO_SPECIAL | BIO_FLAGS_SHOULD_RETRY;
+}
+
 static const int kRetryFlags = BIO_FLAGS_RWS | BIO_FLAGS_SHOULD_RETRY;
 
 int BIO_get_retry_flags(BIO *bio) {
@@ -567,10 +571,6 @@ int BIO_read_asn1(BIO *bio, uint8_t **out, size_t *out_len, size_t max_len) {
   }
 
   return 1;
-}
-
-void BIO_set_retry_special(BIO *bio) {
-  FromOpaque(bio)->flags |= BIO_FLAGS_READ | BIO_FLAGS_IO_SPECIAL;
 }
 
 int BIO_set_write_buffer_size(BIO *bio, int buffer_size) { return 0; }

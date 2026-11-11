@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <memory>
+#include <string_view>
 
 #include "base/base64.h"
 #include "base/callback_list.h"
@@ -579,12 +580,12 @@ IN_PROC_BROWSER_TEST_P(SingleClientSendTabToSelfTextFragmentSyncTest,
 
   send_tab_to_self::SendTabToSelfBubbleController* controller =
       send_tab_to_self::SendTabToSelfBubbleController::
-          CreateOrGetFromWebContents(web_contents);
+          GetOrCreateForWebContents(web_contents);
   // Increase the timeout to avoid flakiness on slow bots.
   controller->SetSelectorGenerationTimeoutForTesting(base::Seconds(2));
 
   constexpr char kTargetGuid[] = "target_guid";
-  controller->OnDeviceSelected(kTargetGuid);
+  controller->OnDeviceSelected(kTargetGuid, "device_name");
 
   ASSERT_TRUE(
       ServerCountMatchStatusChecker(syncer::SEND_TAB_TO_SELF, 1).Wait());
@@ -630,10 +631,10 @@ IN_PROC_BROWSER_TEST_P(SingleClientSendTabToSelfTextFragmentSyncTest,
 
   send_tab_to_self::SendTabToSelfBubbleController* controller =
       send_tab_to_self::SendTabToSelfBubbleController::
-          CreateOrGetFromWebContents(web_contents);
+          GetOrCreateForWebContents(web_contents);
 
   constexpr char kTargetGuid[] = "target_guid";
-  controller->OnDeviceSelected(kTargetGuid);
+  controller->OnDeviceSelected(kTargetGuid, "device_name");
 
   ASSERT_TRUE(
       ServerCountMatchStatusChecker(syncer::SEND_TAB_TO_SELF, 1).Wait());

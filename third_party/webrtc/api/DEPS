@@ -27,6 +27,7 @@ include_rules = [
   "-resources",
   "-rtc_base",
   "-rtc_tools",
+  "-rust",
   "-sdk",
   "-stats",
   "-style-guide",
