@@ -464,7 +464,12 @@ def main():
   config_path = os.path.join(paths.BUILD_OUTPUT_ROOT, config_dir)
   obj_path = os.path.join(config_path, 'obj')
   if not args.relative_manifest_path:
-    prefix = '' if args.config in ['qa', 'gold'] else 'dev_'
+    if args.config == 'debug':
+      prefix = 'debug_'
+    elif args.config == 'devel':
+      prefix = 'dev_'
+    else:
+      prefix = ''
     if args.platform == 'evergreen-x64':
       prefix = 'x64_' + prefix
     elif args.platform == 'evergreen-arm64':
