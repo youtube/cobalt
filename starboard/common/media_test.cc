@@ -14,6 +14,11 @@
 
 #include "starboard/common/media.h"
 
+#include <optional>
+#include <sstream>
+#include <string>
+#include <string_view>
+
 #include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -22,10 +27,20 @@ namespace {
 
 class ParseVideoCodecTest : public ::testing::Test {
  protected:
-  bool Parse(const char* codec_string) {
-    return ParseVideoCodec(codec_string, &codec_, &profile_, &level_,
-                           &bit_depth_, &color_primary_id_, &transfer_id_,
-                           &matrix_id_);
+  bool Parse(std::string_view codec_string) {
+    std::optional<ParsedVideoCodec> result = ParseVideoCodec(codec_string);
+    if (!result) {
+      return false;
+    }
+    EXPECT_NE(result->codec, kSbMediaVideoCodecNone);
+    codec_ = result->codec;
+    profile_ = result->profile;
+    level_ = result->level;
+    bit_depth_ = result->bit_depth;
+    color_primary_id_ = result->primary_id;
+    transfer_id_ = result->transfer_id;
+    matrix_id_ = result->matrix_id;
+    return true;
   }
 
   SbMediaVideoCodec codec_;
@@ -183,6 +198,22 @@ TEST_F(ParseVideoCodecTest, LongFormVp9) {
   EXPECT_EQ(matrix_id_, kSbMediaMatrixIdBt2020NonconstantLuminance);
 }
 
+TEST(ParsedVideoCodecTest, StreamOperator) {
+  std::optional<ParsedVideoCodec> codec_info =
+      ParseVideoCodec("vp09.02.10.10.01.09.16.09");
+  ASSERT_TRUE(codec_info);
+
+  std::stringstream ss;
+  ss << *codec_info;
+  EXPECT_EQ(
+      ss.str(),
+      std::string("codec=") + GetMediaVideoCodecName(codec_info->codec) +
+          ", profile=2, level=10, bit_depth=10, primary_id=" +
+          GetMediaPrimaryIdName(codec_info->primary_id) +
+          ", transfer_id=" + GetMediaTransferIdName(codec_info->transfer_id) +
+          ", matrix_id=" + GetMediaMatrixIdName(codec_info->matrix_id));
+}
+
 TEST_F(ParseVideoCodecTest, InvalidVp9) {
   EXPECT_FALSE(Parse("vp09.02.10.10.01.9.16.9"));
   EXPECT_FALSE(Parse("vp09.02.10.10.01.09.16"));
@@ -191,6 +222,16 @@ TEST_F(ParseVideoCodecTest, InvalidVp9) {
   EXPECT_FALSE(Parse("vp09.02.10"));
   EXPECT_FALSE(Parse("vp09.02"));
   EXPECT_FALSE(Parse("vp09"));
+}
+
+TEST_F(ParseVideoCodecTest, NonNullTerminatedView) {
+  const std::string kBuffer = "vp09.02.10.10.01.09.16.09.01";
+  // "vp09.02.10.10.01.09.16.09", i.e. the medium form.
+  ASSERT_TRUE(Parse(std::string_view(kBuffer).substr(0, 25)));
+  EXPECT_EQ(codec_, kSbMediaVideoCodecVp9);
+  EXPECT_EQ(bit_depth_, 10);
+  // "vp09.02.10.10.01.09.16", which is invalid.
+  EXPECT_FALSE(Parse(std::string_view(kBuffer).substr(0, 22)));
 }
 
 }  // namespace
