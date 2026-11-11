@@ -127,6 +127,7 @@ class TtsPlatformImpl {
                             engineId);
         }
 
+        @VisibleForTesting
         private TtsEngine(TextToSpeech textToSpeech) {
             mTextToSpeech = textToSpeech;
             mInitialized = textToSpeech != null;
@@ -210,15 +211,13 @@ class TtsPlatformImpl {
             if (!isInitialized()) {
                 return false;
             }
-            if (TextUtils.isEmpty(lang)) {
-                if (mCurrentLanguage != null) {
-                    Voice defaultVoice = mTextToSpeech.getDefaultVoice();
-                    Locale defaultLocale = defaultVoice != null ? defaultVoice.getLocale() : null;
-                    mTextToSpeech.setLanguage(
-                            defaultLocale != null ? defaultLocale : Locale.getDefault());
-                    mCurrentLanguage = null;
-                }
-            } else if (!TextUtils.equals(lang, mCurrentLanguage)) {
+            if (TextUtils.isEmpty(lang) && mCurrentLanguage != null) {
+                Voice defaultVoice = mTextToSpeech.getDefaultVoice();
+                Locale defaultLocale = defaultVoice != null ? defaultVoice.getLocale() : null;
+                mTextToSpeech.setLanguage(
+                        defaultLocale != null ? defaultLocale : Locale.getDefault());
+                mCurrentLanguage = null;
+            } else if (!TextUtils.isEmpty(lang) && !TextUtils.equals(lang, mCurrentLanguage)) {
                 mTextToSpeech.setLanguage(LocaleUtils.forLanguageTag(lang.replace("_", "-")));
                 mCurrentLanguage = lang;
             }
