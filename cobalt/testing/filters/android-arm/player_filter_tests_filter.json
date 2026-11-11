@@ -1,9 +1,31 @@
 {
-  "comment": "Disable long-running hardware decoder tests on Android. Enable fast unit tests first.",
+  "comment": "Disable failing and long-running hardware decoder tests on Android.",
   "failing_tests": [
-    "*PlayerComponentsTest*",
-    "*AdaptiveAudioDecoderTest*",
-    "*AudioDecoderTest*",
-    "*VideoDecoderTest*"
+    "AudioDecoderTests/AudioDecoderTest.MultipleInvalidInput/*",
+    "AudioDecoderTests/AudioDecoderTest.MultipleValidInputsAfterInvalidInput/*",
+    "PlayerComponentsTests/PlayerComponentsTest.EOSWithoutInput/*",
+    "PlayerComponentsTests/PlayerComponentsTest.Pause/*",
+    "PlayerComponentsTests/PlayerComponentsTest.Preroll/*_dmp_DecodeToTexture_*",
+    "PlayerComponentsTests/PlayerComponentsTest.Preroll/*_dmp_Punchout_*",
+    "PlayerComponentsTests/PlayerComponentsTest.SeekBackward/*",
+    "PlayerComponentsTests/PlayerComponentsTest.SeekForward/*",
+    "PlayerComponentsTests/PlayerComponentsTest.ShortPlayback/*",
+    "PlayerComponentsTests/PlayerComponentsTest.SunnyDay/*",
+    "VideoDecoderTests/VideoDecoderTest.*/*_Punchout",
+    "VideoDecoderTests/VideoDecoderTest.*/*__stub",
+    "VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/*",
+    "VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/*",
+    "VideoDecoderTests/VideoDecoderTest.GetCurrentDecodeTargetBeforeWriteInputBuffer/*",
+    "VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/*",
+    "VideoDecoderTests/VideoDecoderTest.MultipleInputs/*",
+    "VideoDecoderTests/VideoDecoderTest.MultipleInvalidInput/*",
+    "VideoDecoderTests/VideoDecoderTest.MultipleResets/*",
+    "VideoDecoderTests/VideoDecoderTest.MultipleValidInputsAfterInvalidKeyFrame/*",
+    "VideoDecoderTests/VideoDecoderTest.Preroll/*",
+    "VideoDecoderTests/VideoDecoderTest.ResetAfterInput/*",
+    "VideoDecoderTests/VideoDecoderTest.ResetBeforeInput/*",
+    "VideoDecoderTests/VideoDecoderTest.SingleInput/*",
+    "VideoDecoderTests/VideoDecoderTest.SingleInvalidKeyFrame/*",
+    "VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/*"
   ]
 }
