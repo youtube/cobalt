@@ -33,6 +33,22 @@ bool StartsWith(std::string_view str, std::string_view prefix) {
   return str.substr(0, prefix.size()) == prefix;
 }
 
+// Wrappers of isdigit(), isxdigit(), and isalpha() that are safe to call with
+// any char.  Passing a negative value other than EOF to the <cctype> functions
+// is undefined behavior, which happens with non-ASCII chars when char is
+// signed.
+bool IsDigit(char c) {
+  return isdigit(static_cast<unsigned char>(c)) != 0;
+}
+
+bool IsHexDigit(char c) {
+  return isxdigit(static_cast<unsigned char>(c)) != 0;
+}
+
+bool IsAlpha(char c) {
+  return std::isalpha(static_cast<unsigned char>(c)) != 0;
+}
+
 int hex_to_int(char hex) {
   if (hex >= '0' && hex <= '9') {
     return hex - '0';
@@ -62,7 +78,7 @@ std::optional<T> ReadOneDigitHex(std::string_view str) {
     return static_cast<T>((str[0] - 'a' + 10));
   }
 
-  if (!isdigit(str[0])) {
+  if (!IsDigit(str[0])) {
     return std::nullopt;
   }
 
@@ -78,7 +94,7 @@ std::optional<T> ReadDecimalUntilDot(std::string_view str) {
     if (c == '.') {
       break;
     }
-    if (!isdigit(c)) {
+    if (!IsDigit(c)) {
       return std::nullopt;
     }
     output = output * 10 + (c - '0');
@@ -92,7 +108,7 @@ std::optional<T> ReadDecimalUntilDot(std::string_view str) {
 // characters is not a digit.
 template <typename T>
 std::optional<T> ReadTwoDigitDecimal(std::string_view str) {
-  if (str.size() < 2 || !isdigit(str[0]) || !isdigit(str[1])) {
+  if (str.size() < 2 || !IsDigit(str[0]) || !IsDigit(str[1])) {
     return std::nullopt;
   }
 
@@ -115,11 +131,11 @@ bool VerifyFormat(std::string_view format, std::string_view reference) {
     return false;
   }
   for (size_t i = 0; i < reference.size(); ++i) {
-    if (isdigit(reference[i])) {
-      if (!isdigit(format[i])) {
+    if (IsDigit(reference[i])) {
+      if (!IsDigit(format[i])) {
         return false;
       }
-    } else if (std::isalpha(reference[i])) {
+    } else if (IsAlpha(reference[i])) {
       if (reference[i] != format[i]) {
         return false;
       }
@@ -134,7 +150,7 @@ bool VerifyFormat(std::string_view format, std::string_view reference) {
   if (format.size() == reference.size()) {
     return true;
   }
-  return format[reference.size()] != '.' && !isdigit(format[reference.size()]);
+  return format[reference.size()] != '.' && !IsDigit(format[reference.size()]);
 }
 
 // It works exactly the same as the above function, except that the size of
@@ -293,7 +309,7 @@ std::optional<ParsedVideoCodec> ParseH264Info(std::string_view codec) {
     return std::nullopt;
   }
 
-  if (codec.size() != 11 || !isxdigit(codec[9]) || !isxdigit(codec[10])) {
+  if (codec.size() != 11 || !IsHexDigit(codec[9]) || !IsHexDigit(codec[10])) {
     return std::nullopt;
   }
 
@@ -421,8 +437,8 @@ std::optional<ParsedVideoCodec> ParseH265Info(std::string_view codec) {
     if (codec.empty()) {
       return info;
     }
-    if (codec.size() < 3 || codec[0] != '.' || !isxdigit(codec[1]) ||
-        !isxdigit(codec[2])) {
+    if (codec.size() < 3 || codec[0] != '.' || !IsHexDigit(codec[1]) ||
+        !IsHexDigit(codec[2])) {
       return std::nullopt;
     }
     codec.remove_prefix(3);

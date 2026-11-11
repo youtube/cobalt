@@ -288,5 +288,16 @@ TEST_F(ParseVideoCodecTest, EmbeddedNullCharacter) {
   EXPECT_FALSE(Parse(std::string_view("avc1.640028\0", 12)));
 }
 
+TEST_F(ParseVideoCodecTest, NonAsciiCharacters) {
+  // Non-ASCII chars are negative when char is signed, and must be rejected
+  // like any other invalid char.
+  EXPECT_FALSE(Parse("vp09.0\xb9.41.08"));
+  EXPECT_FALSE(Parse("av01.0.0\xb5M.08"));
+  EXPECT_FALSE(Parse("avc1.6400\xe2\x82"));
+  EXPECT_FALSE(Parse("hvc1.1.\xff.L93.B0"));
+  EXPECT_FALSE(Parse("hvc1.1.2.L9\xb3.B0"));
+  EXPECT_FALSE(Parse("hvc1.1.2.L93.\xc2\xb0"));
+}
+
 }  // namespace
 }  // namespace starboard
