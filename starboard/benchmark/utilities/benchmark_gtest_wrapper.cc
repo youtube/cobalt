@@ -67,15 +67,16 @@ class FailOnBenchmarkErrorReporter : public ::benchmark::ConsoleReporter {
   }
 };
 
-// Returns the --benchmark_* flags from the test command line so that e.g.
-// --benchmark_filter can be passed through the test runner.
-// ::testing::internal::GetArgvs() is an internal GoogleTest API intentionally
-// relied upon here because starboard_test_main owns main(); it holds a copy of
-// the full original argv captured before InitGoogleTest() strips --gtest_*
-// flags, so filtering by the "--benchmark_" prefix forwards only Google
-// Benchmark flags.
+// Returns the original argv[0] followed by the --benchmark_* flags from the
+// test command line so that e.g. --benchmark_filter can be passed through the
+// test runner. ::testing::internal::GetArgvs() is an internal GoogleTest API
+// intentionally relied upon here because starboard_test_main owns main(); it
+// returns a copy of the full original argv captured before InitGoogleTest()
+// strips --gtest_* flags, so filtering by the "--benchmark_" prefix forwards
+// only Google Benchmark flags.
 std::vector<std::string> GetBenchmarkArgs() {
-  const std::vector<std::string>& argvs = ::testing::internal::GetArgvs();
+  const std::vector<std::string> argvs = ::testing::internal::GetArgvs();
+  // On Android, Chromium's native test launcher passes "_" as argv[0].
   std::vector<std::string> args = {argvs.empty() ? "benchmarks" : argvs[0]};
 
   for (size_t i = 1; i < argvs.size(); ++i) {
