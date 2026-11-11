@@ -145,17 +145,14 @@ PerformanceEntry::EntryType PerformanceEntry::ToEntryTypeEnum(
   if (entry_type == performance_entry_names::kContainer) {
     return kContainer;
   }
-<<<<<<< HEAD
   if (entry_type == performance_entry_names::kScroll) {
     return kScroll;
   }
-=======
 #if BUILDFLAG(IS_COBALT)
   if (entry_type == performance_entry_names::kCobaltFrame) {
     return kCobaltFrame;
   }
 #endif
->>>>>>> parent of 818594f56dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return kInvalid;
 }
 

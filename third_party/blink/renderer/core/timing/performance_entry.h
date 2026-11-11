@@ -85,13 +85,10 @@ class CORE_EXPORT PerformanceEntry : public ScriptWrappable {
     kScript = 1 << 16,
     kContainer = 1 << 17,
     kInteractionContentfulPaint = 1 << 18,
-<<<<<<< HEAD
     kScroll = 1 << 19,
-=======
 #if BUILDFLAG(IS_COBALT)
-    kCobaltFrame = 1 << 19,
+    kCobaltFrame = 1 << 20,
 #endif
->>>>>>> parent of 818594f56dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   };
 
   const AtomicString& name() const { return name_; }

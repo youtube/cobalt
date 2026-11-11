@@ -90,18 +90,15 @@ PerformanceEntryType PerformanceObserver::supportedEntryTypeMask(
   if (RuntimeEnabledFeatures::ContainerTimingEnabled(execution_context)) {
     mask |= PerformanceEntry::kContainer;
   }
-<<<<<<< HEAD
   if (RuntimeEnabledFeatures::ScrollPerformanceTimingEnabled(
           execution_context)) {
     mask |= PerformanceEntry::kScroll;
   }
-=======
 #if BUILDFLAG(IS_COBALT)
   if (RuntimeEnabledFeatures::CobaltFrameTimingEnabled(execution_context)) {
     mask |= PerformanceEntry::kCobaltFrame;
   }
 #endif
->>>>>>> parent of 818594f56dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return mask;
 }
 
