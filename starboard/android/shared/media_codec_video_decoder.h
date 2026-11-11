@@ -30,6 +30,7 @@
 #include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
 #include "starboard/android/shared/media_codec.h"
 #include "starboard/android/shared/media_codec_decoder.h"
+#include "starboard/android/shared/protected_video_plane.h"
 #include "starboard/android/shared/video_frame_tracker.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/android/shared/video_window.h"
@@ -56,7 +57,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                                public MediaCodecDecoder::Host,
                                public VideoSurfaceTextureBridge::Host,
                                private JobQueue::JobOwner,
-                               private VideoSurfaceHolder {
+                               private VideoSurfaceHolder,
+                               private ProtectedPresenterObserver {
  public:
   struct StreamConfig {
     VideoStreamInfo video_stream_info;
@@ -169,6 +171,13 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void ResetInternal(bool skip_flush);
   bool NeedsCodecTransition(
       const scoped_refptr<InputBuffer>& input_buffer) const;
+  // Checks after |delay_usec| whether a protected presenter draws this
+  // decoder's frames, and if not, switches the decoder output to punch-out.
+  void ScheduleProtectedFallbackCheck(int64_t delay_usec);
+  void MaybeFallBackToPunchOut();
+
+  // ProtectedPresenterObserver:
+  void OnProtectedPresenterReleased() override;
 
   // These variables will be initialized inside ctor or Initialize() and will
   // not be changed during the life time of this class.
@@ -264,6 +273,12 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   int input_buffer_written_ = 0;
   bool first_texture_received_ = false;
+  // Set once the decoder output was redirected to the punch-out surface
+  // because no protected presenter draws it. Guarded by |decode_target_mutex_|
+  // for readers off the decoder thread.
+  bool fell_back_to_punch_out_ = false;
+  bool logged_video_surface_unavailable_ = false;
+  JobQueue::JobToken fallback_check_token_ = JobQueue::JobToken::kUnscheduled;
   bool end_of_stream_written_ = false;
   volatile int64_t first_buffer_timestamp_;  // microseconds
   std::atomic_bool has_new_texture_available_{false};

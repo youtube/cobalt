@@ -716,7 +716,17 @@ class MODULES_EXPORT WebGLRenderingContextBase
                                              SourceDrawingBuffer);
 
   // CanvasRenderingContext implementation.
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: a protected context has no compositor layer. Its pixels are on the
+  // video plane under the page, and even an empty layer next to the <video>
+  // hole forces a render surface under transforms with clips (squeezeback),
+  // where the hole no longer reaches the plane.
+  bool IsComposited() const override {
+    return !CreationAttributes().cobalt_protected_content;
+  }
+#else
   bool IsComposited() const override { return true; }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   bool UsingSwapChain() const override;
   void PageVisibilityChanged() override;
   CanvasResourceProvider* PaintRenderingResultsToCanvas(

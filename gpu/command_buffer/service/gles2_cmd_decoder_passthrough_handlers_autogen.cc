@@ -5161,5 +5161,15 @@ error::Error GLES2DecoderPassthroughImpl::HandlePolygonOffsetClampEXT(
   return error::kNoError;
 }
 
+error::Error GLES2DecoderPassthroughImpl::HandlePresentProtectedFrameCOBALT(
+    uint32_t immediate_data_size,
+    const volatile void* cmd_data) {
+  error::Error error = DoPresentProtectedFrameCOBALT();
+  if (error != error::kNoError) {
+    return error;
+  }
+  return error::kNoError;
+}
+
 }  // namespace gles2
 }  // namespace gpu

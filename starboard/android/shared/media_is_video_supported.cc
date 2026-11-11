@@ -21,6 +21,7 @@
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/mime_param.h"
+#include "starboard/android/shared/protected_video_plane.h"
 #include "starboard/common/size.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
@@ -51,7 +52,11 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
   // can play decode-to-texture video just as well as normal video.
 
   bool must_support_tunnel_mode = false;
+  bool protected_decode_to_texture = false;
   if (mime_type) {
+    protected_decode_to_texture =
+        mime_type->GetParamStringValue(kMimeParamDecodeToTexture, "") ==
+        "protected";
     // Allows for enabling tunneled playback. Disabled by default.
     // https://source.android.com/devices/tv/multimedia-tunneling
     if (!mime_type->ValidateBoolParameter(kMimeParamTunnelMode)) {
@@ -64,6 +69,15 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
   if (must_support_tunnel_mode && decode_to_texture_required) {
     SB_LOG(WARNING) << "Tunnel mode is rejected because output mode decode to "
                        "texture is required but not supported.";
+    return false;
+  }
+
+  // Protected decode-to-texture needs a secure decoder whose SDR output the
+  // embedder can render on a protected GL context (see
+  // SbPlayerGetPreferredOutputMode(), which keeps HDR on punch-out).
+  if (protected_decode_to_texture &&
+      (!IsProtectedDecodeToTextureEnabled() || must_support_hdr ||
+       must_support_tunnel_mode)) {
     return false;
   }
 
@@ -83,7 +97,8 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
   // also support it for encrypted playback. However, some devices require
   // tunneled playback to be encrypted, so we must align the tunnel mode
   // requirement with the secure playback requirement.
-  const bool require_secure_playback = must_support_tunnel_mode;
+  const bool require_secure_playback =
+      must_support_tunnel_mode || protected_decode_to_texture;
 
   // 10-bit video still needs a decoder that handles 10-bit, even with SDR
   // color. MediaCapabilitiesCache checks that through the decoder's HDR

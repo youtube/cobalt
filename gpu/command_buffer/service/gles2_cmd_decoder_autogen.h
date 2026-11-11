@@ -5812,6 +5812,13 @@ error::Error GLES2DecoderImpl::HandlePolygonOffsetClampEXT(
   return error::kNoError;
 }
 
+error::Error GLES2DecoderImpl::HandlePresentProtectedFrameCOBALT(
+    uint32_t immediate_data_size,
+    const volatile void* cmd_data) {
+  DoPresentProtectedFrameCOBALT();
+  return error::kNoError;
+}
+
 bool GLES2DecoderImpl::SetCapabilityState(GLenum cap, bool enabled) {
   switch (cap) {
     case GL_BLEND:

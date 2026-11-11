@@ -161,7 +161,12 @@ scoped_refptr<DrawingBuffer> DrawingBuffer::Create(
     WebGLVersion webgl_version,
     ChromiumImageUsage chromium_image_usage,
     PredefinedColorSpace color_space,
-    gl::GpuPreference gpu_preference) {
+    gl::GpuPreference gpu_preference
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+    ,
+    bool cobalt_protected_content
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+) {
   if (g_should_fail_drawing_buffer_creation_for_testing) {
     g_should_fail_drawing_buffer_creation_for_testing = false;
     return nullptr;
@@ -185,6 +190,9 @@ scoped_refptr<DrawingBuffer> DrawingBuffer::Create(
   }
   DCHECK(extensions_util->SupportsExtension("GL_OES_packed_depth_stencil"));
   extensions_util->EnsureExtensionEnabled("GL_OES_packed_depth_stencil");
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  want_antialiasing = want_antialiasing && !cobalt_protected_content;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   bool multisample_supported =
       want_antialiasing &&
       (extensions_util->SupportsExtension(
@@ -219,6 +227,9 @@ scoped_refptr<DrawingBuffer> DrawingBuffer::Create(
           want_alpha_channel, premultiplied_alpha, preserve, webgl_version,
           want_depth_buffer, want_stencil_buffer, chromium_image_usage,
           color_space, gpu_preference));
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  drawing_buffer->cobalt_protected_content_ = cobalt_protected_content;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   if (!drawing_buffer->Initialize(size, multisample_supported)) {
     drawing_buffer->BeginDestruction();
     return scoped_refptr<DrawingBuffer>();
@@ -425,6 +436,14 @@ DrawingBuffer::CreateOrRecycleSoftwareResource() {
 bool DrawingBuffer::PrepareTransferableResource(
     viz::TransferableResource* out_resource,
     viz::ReleaseCallback* out_release_callback) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // A protected canvas paints nothing into the page: its pixels are on the
+  // video plane, and the canvas layer must not draw a quad over the hole.
+  if (cobalt_protected_content_) {
+    return false;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
   ScopedStateRestorer scoped_state_restorer(this);
 
   if (CheckForDestructionAndChangeAndResolveIfNeeded(kDiscardAllowed) !=
@@ -520,6 +539,11 @@ DrawingBuffer::CheckForDestructionAndChangeAndResolveIfNeeded(
 
 scoped_refptr<StaticBitmapImage>
 DrawingBuffer::GetUnacceleratedStaticBitmapImage() {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (cobalt_protected_content_) {
+    return nullptr;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   ScopedStateRestorer scoped_state_restorer(this);
 
   if (CheckForDestructionAndChangeAndResolveIfNeeded(kDontDiscard) ==
@@ -714,6 +738,11 @@ void DrawingBuffer::MailboxReleasedSoftware(SoftwareResource resource,
 }
 
 scoped_refptr<StaticBitmapImage> DrawingBuffer::TransferToStaticBitmapImage() {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (cobalt_protected_content_) {
+    return nullptr;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   ScopedStateRestorer scoped_state_restorer(this);
 
   gpu::SyncToken sync_token;
@@ -807,6 +836,11 @@ DrawingBuffer::CreateOrRecycleColorBuffer() {
 scoped_refptr<ExternalCanvasResource>
 DrawingBuffer::ExportLowLatencyCanvasResource(
     base::WeakPtr<CanvasResourceProvider> resource_provider) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (cobalt_protected_content_) {
+    return nullptr;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   // Swap chain must be presented before resource is exported.
   ResolveAndPresentSwapChainIfNeeded();
 
@@ -830,6 +864,11 @@ DrawingBuffer::ExportLowLatencyCanvasResource(
 }
 
 scoped_refptr<CanvasResource> DrawingBuffer::ExportCanvasResource() {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (cobalt_protected_content_) {
+    return nullptr;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   ScopedStateRestorer scoped_state_restorer(this);
   TRACE_EVENT0("blink", "DrawingBuffer::ExportCanvasResource");
 
@@ -989,6 +1028,19 @@ bool DrawingBuffer::Initialize(const gfx::Size& size, bool use_multisampling) {
           "GL_AMD_framebuffer_multisample_advanced"))
     has_eqaa_support = true;
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (cobalt_protected_content_) {
+    // Render straight into the context's default framebuffer (the protected
+    // window surface): fbo_ stays 0, so every Bind() binds the window.
+    anti_aliasing_mode_ = kAntialiasingModeNone;
+    sample_count_ = 0;
+    state_restorer_->SetFramebufferBindingDirty();
+    gl_->BindFramebuffer(GL_FRAMEBUFFER, 0);
+    size_ = AdjustSize(size, size_, max_texture_size_);
+    return !size_.IsEmpty() && gl_->GetGraphicsResetStatusKHR() == GL_NO_ERROR;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
   state_restorer_->SetFramebufferBindingDirty();
   gl_->GenFramebuffers(1, &fbo_);
   gl_->BindFramebuffer(GL_FRAMEBUFFER, fbo_);
@@ -1049,6 +1101,11 @@ std::optional<gpu::SyncToken> DrawingBuffer::CopyToPlatformInternal(
     bool dst_is_unpremul_gl,
     SourceDrawingBuffer src_buffer,
     CopyFunctionRef copy_function) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (cobalt_protected_content_) {
+    return std::nullopt;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   ScopedStateRestorer scoped_state_restorer(this);
 
   gpu::gles2::GLES2Interface* src_gl = gl_;
@@ -1469,6 +1526,17 @@ gfx::Size DrawingBuffer::AdjustSize(const gfx::Size& desired_size,
   return adjusted_size;
 }
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+void DrawingBuffer::PresentCobaltProtectedFrame() {
+  DCHECK(cobalt_protected_content_);
+  if (destruction_in_progress_) {
+    return;
+  }
+  gl_->PresentProtectedFrameCOBALT();
+  gl_->Flush();
+}
+
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 bool DrawingBuffer::Resize(const gfx::Size& new_size) {
   ScopedStateRestorer scoped_state_restorer(this);
   return ResizeFramebufferInternal(requested_format_, requested_alpha_type_,
@@ -1494,6 +1562,14 @@ bool DrawingBuffer::ResizeFramebufferInternal(GLenum requested_format,
   if (adjusted_size.IsEmpty()) {
     return false;
   }
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (cobalt_protected_content_) {
+    // The window surface is sized by the platform, not by the canvas; there is
+    // nothing to reallocate, and clearing here would present a black frame.
+    size_ = adjusted_size;
+    return true;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   needs_reallocate |= adjusted_size != size_;
 
   // Initialize the alpha allocation settings based on the features and
@@ -1566,6 +1642,13 @@ void DrawingBuffer::SetColorSpace(PredefinedColorSpace predefined_color_space) {
       PredefinedColorSpaceToGfxColorSpace(predefined_color_space);
   DCHECK_NE(color_space, color_space_);
   color_space_ = color_space;
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (cobalt_protected_content_) {
+    // The window surface's format is fixed; there is no color buffer to
+    // reallocate, and clearing would present a black frame.
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
   ScopedStateRestorer scoped_state_restorer(this);
 
@@ -1583,6 +1666,11 @@ void DrawingBuffer::SetColorSpace(PredefinedColorSpace predefined_color_space) {
 }
 
 bool DrawingBuffer::ResolveAndBindForReadAndDraw() {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (cobalt_protected_content_) {
+    return false;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   {
     ScopedStateRestorer scoped_state_restorer(this);
     ResolveIfNeeded(kDontDiscard);
@@ -1776,6 +1864,11 @@ GLenum DrawingBuffer::StorageFormat() const {
 scoped_refptr<StaticBitmapImage>
 DrawingBuffer::GetRGBAUnacceleratedStaticBitmapImage(
     SourceDrawingBuffer source_buffer) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (cobalt_protected_content_) {
+    return nullptr;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   ScopedStateRestorer scoped_state_restorer(this);
 
   // Readback in native GL byte order (RGBA).

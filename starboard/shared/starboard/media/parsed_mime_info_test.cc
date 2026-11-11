@@ -91,6 +91,29 @@ TEST(ParsedMimeInfoTest, ParsesPcmCodec) {
   EXPECT_EQ(mime_info->audio_info().codec, kSbMediaAudioCodecPcm);
 }
 
+TEST(ParsedMimeInfoTest, ParsesDecodeToTexture) {
+  auto mime_info = ParsedMimeInfo::Create(
+      "video/mp4; codecs=\"avc1.42001E\"; decode-to-texture=true");
+  ASSERT_TRUE(mime_info);
+  ASSERT_TRUE(mime_info->has_video_info());
+  EXPECT_TRUE(mime_info->video_info().decode_to_texture_required);
+  EXPECT_FALSE(mime_info->video_info().protected_decode_to_texture_required);
+}
+
+TEST(ParsedMimeInfoTest, ParsesProtectedDecodeToTexture) {
+  auto mime_info = ParsedMimeInfo::Create(
+      "video/mp4; codecs=\"avc1.42001E\"; decode-to-texture=protected");
+  ASSERT_TRUE(mime_info);
+  ASSERT_TRUE(mime_info->has_video_info());
+  EXPECT_TRUE(mime_info->video_info().decode_to_texture_required);
+  EXPECT_TRUE(mime_info->video_info().protected_decode_to_texture_required);
+}
+
+TEST(ParsedMimeInfoTest, RejectsUnknownDecodeToTextureValue) {
+  EXPECT_FALSE(ParsedMimeInfo::Create(
+      "video/mp4; codecs=\"avc1.42001E\"; decode-to-texture=secure"));
+}
+
 }  // namespace
 
 }  // namespace starboard

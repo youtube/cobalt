@@ -313,6 +313,13 @@ jint MediaCodecBridge::Flush() {
   return Java_MediaCodecBridge_flush(env, j_media_codec_bridge_);
 }
 
+bool MediaCodecBridge::SetOutputSurface(
+    const jni_zero::JavaRef<jobject>& surface) {
+  JNIEnv* env = AttachCurrentThread();
+  return Java_MediaCodecBridge_setOutputSurface(env, j_media_codec_bridge_,
+                                                surface);
+}
+
 std::optional<FrameSize> MediaCodecBridge::GetOutputSize() {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> result(

@@ -33,6 +33,7 @@
 #include "starboard/android/shared/media_codec_video_decoder.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/mime_param.h"
+#include "starboard/android/shared/protected_video_plane.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
@@ -765,6 +766,13 @@ bool PlayerComponents::Factory::OutputModeSupported(
     }
     DrmSystem* android_drm_system = static_cast<DrmSystem*>(drm_system);
     bool require_secure_decoder = android_drm_system->require_secured_decoder();
+    if (require_secure_decoder && IsProtectedDecodeToTextureEnabled()) {
+      // The embedder renders decode targets on a protected GL context, so the
+      // secure decoder's buffers stay in protected memory end to end.
+      SB_LOG(INFO) << "Allowing protected decode-to-texture for a secure "
+                      "decoder.";
+      return true;
+    }
     SB_LOG_IF(INFO, require_secure_decoder)
         << "Output mode under decode-to-texture is not supported due to secure "
            "decoder is required.";

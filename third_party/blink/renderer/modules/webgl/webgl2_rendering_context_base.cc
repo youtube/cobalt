@@ -428,6 +428,15 @@ void WebGL2RenderingContextBase::getBufferSubData(
     MaybeShared<DOMArrayBufferView> dst_data,
     int64_t dst_offset,
     GLuint length) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: a vertex shader can copy protected texels into a buffer through
+  // transform feedback.
+  if (CreationAttributes().cobalt_protected_content) {
+    SynthesizeGLError(GL_INVALID_OPERATION, "getBufferSubData",
+                      "protected content cannot be read back");
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   WebGLBuffer* source_buffer = nullptr;
   void* destination_data_ptr = nullptr;
   int64_t destination_byte_length = 0;
@@ -474,6 +483,16 @@ void WebGL2RenderingContextBase::blitFramebuffer(GLint src_x0,
                                                  GLenum filter) {
   if (isContextLost())
     return;
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (CreationAttributes().cobalt_protected_content &&
+      !GetReadFramebufferBinding()) {
+    // The default framebuffer is the protected window surface.
+    SynthesizeGLError(GL_INVALID_OPERATION, "blitFramebuffer",
+                      "protected content cannot be read back");
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
   ContextGL()->BlitFramebufferCHROMIUM(src_x0, src_y0, src_x1, src_y1, dst_x0,
                                        dst_y0, dst_x1, dst_y1, mask, filter);
@@ -898,6 +917,14 @@ void WebGL2RenderingContextBase::readPixels(GLint x,
                                             int64_t offset) {
   if (isContextLost())
     return;
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (CreationAttributes().cobalt_protected_content) {
+    SynthesizeGLError(GL_INVALID_OPERATION, "readPixels",
+                      "protected content cannot be read back");
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
   // Due to WebGL's same-origin restrictions, it is not possible to
   // taint the origin using the WebGL API.
@@ -3561,6 +3588,19 @@ void WebGL2RenderingContextBase::beginQuery(GLenum target, WebGLQuery* query) {
                       "query type does not match target");
     return;
   }
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: a fragment shader can discard based on a protected texel, and an
+  // occlusion query would report whether it did.
+  if (CreationAttributes().cobalt_protected_content &&
+      (target == GL_ANY_SAMPLES_PASSED ||
+       target == GL_ANY_SAMPLES_PASSED_CONSERVATIVE)) {
+    SynthesizeGLError(GL_INVALID_OPERATION, "beginQuery",
+                      "occlusion queries are not available on protected "
+                      "contexts");
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
   switch (target) {
     case GL_ANY_SAMPLES_PASSED:

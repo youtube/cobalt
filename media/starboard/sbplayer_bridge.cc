@@ -1479,7 +1479,8 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
     DCHECK(video_stream_info_.max_video_capabilities);
 
     // Set the `default_output_mode` to `kSbPlayerOutputModeDecodeToTexture` if
-    // any of the mime associated with it has `decode-to-texture=true` set.
+    // any of the mime associated with it has `decode-to-texture=true` (or
+    // `=protected`) set.
     // TODO(b/232559177): Make the check below more flexible, to work with
     //                    other well formed inputs (e.g. with extra space).
     const bool force_decode_to_texture =
@@ -1487,8 +1488,11 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
     bool is_decode_to_texture_preferred =
         force_decode_to_texture ||
         strstr(video_stream_info_.mime, "decode-to-texture=true") ||
+        strstr(video_stream_info_.mime, "decode-to-texture=protected") ||
         strstr(video_stream_info_.max_video_capabilities,
-               "decode-to-texture=true");
+               "decode-to-texture=true") ||
+        strstr(video_stream_info_.max_video_capabilities,
+               "decode-to-texture=protected");
 
     if (is_decode_to_texture_preferred) {
       LOG(INFO) << "Setting `default_output_mode` from \""

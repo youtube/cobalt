@@ -1588,6 +1588,14 @@ WebMediaPlayerImpl::GetCurrentFrameThenUpdate() {
   return GetCurrentFrameFromCompositor();
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+scoped_refptr<media::VideoFrame>
+WebMediaPlayerImpl::GetCurrentProtectedFrameThenUpdate() {
+  DCHECK(main_task_runner_->BelongsToCurrentThread());
+  return compositor_->GetProtectedFrameThenUpdate();
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 std::optional<media::VideoFrame::ID> WebMediaPlayerImpl::CurrentFrameId()
     const {
   DCHECK(main_task_runner_->BelongsToCurrentThread());

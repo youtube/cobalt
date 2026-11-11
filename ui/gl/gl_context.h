@@ -84,7 +84,13 @@ enum class AngleContextVirtualizationGroup {
   kDefault = -1,
   kDrDc = 1,
   kGLImageProcessor = 2,
-  kWebViewRenderThread = 3
+  kWebViewRenderThread = 3,
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: contexts created with EGL_PROTECTED_CONTENT_EXT, for
+  // hardware-protected video in WebGL. ANGLE gives the group its own protected
+  // native context.
+  kCobaltProtected = 4,
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 };
 
 struct GL_EXPORT GLContextAttribs {
@@ -128,6 +134,13 @@ struct GL_EXPORT GLContextAttribs {
       AngleContextVirtualizationGroup::kDefault;
 
   ContextPriority context_priority = ContextPriorityMedium;
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: create the context with EGL_PROTECTED_CONTENT_EXT
+  // (EGL_EXT_protected_content). Such a context can sample protected buffers
+  // and can only render to protected surfaces.
+  bool protected_content = false;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 };
 
 // Encapsulates an OpenGL context, hiding platform specific management.

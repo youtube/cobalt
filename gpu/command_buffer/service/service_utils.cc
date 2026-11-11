@@ -149,6 +149,18 @@ gl::GLContextAttribs GenerateGLContextAttribsForDecoder(
     attribs.robust_buffer_access = true;
     attribs.allow_client_arrays = false;
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+    // Cobalt: protected WebGL shares one protected native context with the
+    // Starboard decode-target context through this virtualization group. All
+    // other attributes stay as for any decoder, because ANGLE rejects sharing
+    // between contexts whose reset strategies differ.
+    if (attribs_helper.protected_content) {
+      attribs.protected_content = true;
+      attribs.angle_context_virtualization_group_number =
+          gl::AngleContextVirtualizationGroup::kCobaltProtected;
+    }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
     // Request a specific context version instead of always 3.0
     if (IsWebGL2OrES3ContextType(attribs_helper.context_type)) {
       attribs.client_major_es_version = 3;

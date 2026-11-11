@@ -35,6 +35,9 @@ WebGLContextAttributes* ToWebGLContextAttributes(
       attrs.fail_if_major_performance_caveat);
   result->setXrCompatible(attrs.xr_compatible);
   result->setDesynchronized(attrs.desynchronized);
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  result->setCobaltProtectedContent(attrs.cobalt_protected_content);
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   return result;
 }
 
@@ -48,6 +51,9 @@ Platform::ContextAttributes ToPlatformContextAttributes(
   result.fail_if_major_performance_caveat =
       attrs.fail_if_major_performance_caveat;
   result.context_type = context_type;
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  result.protected_content = attrs.cobalt_protected_content;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   return result;
 }
 

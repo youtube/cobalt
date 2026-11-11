@@ -1740,6 +1740,14 @@ angle::Result Texture::setStorage(Context *context,
     InitState initState = DetermineInitState(context, nullptr, nullptr);
     mState.setImageDescChain(0, static_cast<GLuint>(levels - 1), size, Format(internalFormat),
                              initState);
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    // Cobalt: immutable storage allocated by a protected context is protected
+    // (EXT_protected_textures), so that it can be a render target of that context.
+    if (context->getState().hasProtectedContent())
+    {
+        mState.mHasProtectedContent = true;
+    }
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
 
     ANGLE_TRY(mTexture->setStorage(context, type, levels, internalFormat, size));
 

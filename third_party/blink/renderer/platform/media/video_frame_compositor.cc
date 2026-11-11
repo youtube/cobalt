@@ -264,6 +264,35 @@ void VideoFrameCompositor::PaintSingleFrame(
   }
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void VideoFrameCompositor::SetProtectedFrame(
+    scoped_refptr<media::VideoFrame> frame) {
+  base::AutoLock lock(protected_frame_lock_);
+  protected_frame_ = std::move(frame);
+}
+
+void VideoFrameCompositor::SetProtectedFrameUpdateCallback(
+    base::RepeatingClosure request_update) {
+  base::AutoLock lock(protected_frame_lock_);
+  request_protected_frame_update_ = std::move(request_update);
+}
+
+scoped_refptr<media::VideoFrame>
+VideoFrameCompositor::GetProtectedFrameThenUpdate() {
+  scoped_refptr<media::VideoFrame> frame;
+  base::RepeatingClosure request_update;
+  {
+    base::AutoLock lock(protected_frame_lock_);
+    frame = protected_frame_;
+    request_update = request_protected_frame_update_;
+  }
+  if (request_update) {
+    request_update.Run();
+  }
+  return frame;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 void VideoFrameCompositor::UpdateCurrentFrameIfStale(UpdateType type) {
   TRACE_EVENT0("media", "VideoFrameCompositor::UpdateCurrentFrameIfStale");
   DCHECK(task_runner_->BelongsToCurrentThread());

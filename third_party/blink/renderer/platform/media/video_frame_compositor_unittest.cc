@@ -9,6 +9,7 @@
 #include "base/run_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "base/test/task_environment.h"
@@ -18,6 +19,7 @@
 #include "components/viz/common/surfaces/frame_sink_id.h"
 #include "gpu/command_buffer/client/test_shared_image_interface.h"
 #include "media/base/video_frame.h"
+#include "media/media_buildflags.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/platform/web_video_frame_submitter.h"
@@ -220,6 +222,29 @@ TEST_F(VideoFrameCompositorTest, PaintSingleFrame) {
   EXPECT_EQ(expected, actual);
   EXPECT_EQ(1, submitter_->did_receive_frame_count());
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+TEST_F(VideoFrameCompositorTest, ProtectedFrameIsNeverComposited) {
+  scoped_refptr<media::VideoFrame> protected_frame =
+      media::VideoFrame::CreateBlackFrame(gfx::Size(16, 16));
+  int update_requests = 0;
+  compositor()->SetProtectedFrameUpdateCallback(
+      base::BindLambdaForTesting([&] { ++update_requests; }));
+
+  compositor()->SetProtectedFrame(protected_frame);
+  EXPECT_EQ(protected_frame, compositor()->GetProtectedFrameThenUpdate());
+  EXPECT_EQ(1, update_requests);
+
+  // The protected frame never becomes the composited frame.
+  EXPECT_FALSE(compositor()->GetCurrentFrame());
+  EXPECT_EQ(0, submitter_->did_receive_frame_count());
+
+  compositor()->SetProtectedFrameUpdateCallback({});
+  compositor()->SetProtectedFrame(nullptr);
+  EXPECT_FALSE(compositor()->GetProtectedFrameThenUpdate());
+  EXPECT_EQ(1, update_requests);
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 TEST_F(VideoFrameCompositorTest, RenderFiresPresentationCallback) {
   // Advance the clock so we can differentiate between base::TimeTicks::Now()

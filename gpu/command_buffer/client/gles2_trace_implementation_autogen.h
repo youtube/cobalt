@@ -919,4 +919,5 @@ void PolygonModeANGLE(GLenum face, GLenum mode) override;
 void PolygonOffsetClampEXT(GLfloat factor,
                            GLfloat units,
                            GLfloat clamp) override;
+void PresentProtectedFrameCOBALT() override;
 #endif  // GPU_COMMAND_BUFFER_CLIENT_GLES2_TRACE_IMPLEMENTATION_AUTOGEN_H_

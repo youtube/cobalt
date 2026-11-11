@@ -104,6 +104,12 @@ struct GPU_EXPORT StructTraits<gpu::mojom::ContextCreationAttribsDataView,
     return attribs.enable_gpu_rasterization;
   }
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  static bool protected_content(const gpu::ContextCreationAttribs& attribs) {
+    return attribs.protected_content;
+  }
+
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   static gpu::ContextType context_type(
       const gpu::ContextCreationAttribs& attribs) {
     return attribs.context_type;

@@ -43,6 +43,11 @@ class CORE_EXPORT CanvasContextCreationAttributesCore {
   // Help to determine whether to use GPU or CPU for the canvas.
   WillReadFrequently will_read_frequently = WillReadFrequently::kUndefined;
   bool xr_compatible = false;
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: a protected WebGL context whose default framebuffer is a protected
+  // window surface on the video plane.
+  bool cobalt_protected_content = false;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 };
 
 }  // namespace blink

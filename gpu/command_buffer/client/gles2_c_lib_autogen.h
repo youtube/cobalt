@@ -1808,6 +1808,9 @@ void GL_APIENTRY GLES2PolygonOffsetClampEXT(GLfloat factor,
                                             GLfloat clamp) {
   gles2::GetGLContext()->PolygonOffsetClampEXT(factor, units, clamp);
 }
+void GL_APIENTRY GLES2PresentProtectedFrameCOBALT() {
+  gles2::GetGLContext()->PresentProtectedFrameCOBALT();
+}
 
 namespace gles2 {
 
@@ -3249,6 +3252,10 @@ extern const NameToFunc g_gles2_function_table[] = {
     {
         "glPolygonOffsetClampEXT",
         reinterpret_cast<GLES2FunctionPointer>(glPolygonOffsetClampEXT),
+    },
+    {
+        "glPresentProtectedFrameCOBALT",
+        reinterpret_cast<GLES2FunctionPointer>(glPresentProtectedFrameCOBALT),
     },
     {
         nullptr,

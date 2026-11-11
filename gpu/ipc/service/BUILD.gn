@@ -139,6 +139,10 @@ component("service") {
   if (is_android) {
     sources += [ "image_transport_surface_android.cc" ]
     libs += [ "android" ]
+    if (is_cobalt) {
+      # Protected WebGL presents on the Starboard video plane.
+      deps += [ "//starboard:starboard_headers_only" ]
+    }
   }
   if (is_linux || is_chromeos) {
     sources += [ "image_transport_surface_linux.cc" ]

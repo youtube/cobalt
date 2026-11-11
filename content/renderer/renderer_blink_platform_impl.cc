@@ -796,6 +796,9 @@ RendererBlinkPlatformImpl::CreateOffscreenGraphicsContext3DProvider(
       web_attributes.fail_if_major_performance_caveat;
 
   attributes.context_type = ToGpuContextType(web_attributes.context_type);
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  attributes.protected_content = web_attributes.protected_content;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
   constexpr bool automatic_flushes = true;
   constexpr bool support_locking = false;

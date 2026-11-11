@@ -27,6 +27,9 @@ egl::Error PbufferSurfaceEGL::initialize(const egl::Display *display)
     constexpr EGLint kForwardedPBufferSurfaceAttributes[] = {
         EGL_WIDTH,          EGL_HEIGHT,         EGL_LARGEST_PBUFFER, EGL_TEXTURE_FORMAT,
         EGL_TEXTURE_TARGET, EGL_MIPMAP_TEXTURE, EGL_VG_COLORSPACE,   EGL_VG_ALPHA_FORMAT,
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+        EGL_PROTECTED_CONTENT_EXT,
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     };
 
     native_egl::AttributeVector nativeAttribs =

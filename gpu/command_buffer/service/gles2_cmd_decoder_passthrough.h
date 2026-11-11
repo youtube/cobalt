@@ -478,6 +478,15 @@ class GPU_GLES2_EXPORT GLES2DecoderPassthroughImpl
 
   bool IsEmulatedFramebufferBound(GLenum target) const;
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: for a protected context, refuses (with a GL error) commands that
+  // would write into |texture| if it is backed by a shared image, which other
+  // contexts can read. Returns true if the command must not run.
+  bool RefuseSharedImageWriteInProtectedContext(GLuint texture);
+  // Likewise for the texture bound to |target| on the active texture unit.
+  bool RefuseSharedImageWriteToBoundTexture(GLenum target);
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
   void ExitCommandProcessingEarly() override;
 
   bool OnlyHasPendingProgramCompletionQueries();
@@ -517,6 +526,11 @@ class GPU_GLES2_EXPORT GLES2DecoderPassthroughImpl
   scoped_refptr<gl::GLSurface> surface_;
   scoped_refptr<gl::GLContext> context_;
   bool offscreen_;
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: a protected WebGL context, which runs only the commands allowed by
+  // GetProtectedCommandPolicy().
+  bool protected_content_ = false;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
   // The ContextGroup for this decoder uses to track resources.
   scoped_refptr<ContextGroup> group_;

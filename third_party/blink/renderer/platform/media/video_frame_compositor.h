@@ -125,6 +125,15 @@ class PLATFORM_EXPORT VideoFrameCompositor : public media::VideoRendererSink,
   void Stop() override;
   void PaintSingleFrame(scoped_refptr<media::VideoFrame> frame,
                         bool repaint_duplicate_frame = false) override;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void SetProtectedFrame(scoped_refptr<media::VideoFrame> frame) override;
+  void SetProtectedFrameUpdateCallback(
+      base::RepeatingClosure request_update) override;
+
+  // Returns the latest protected frame, or null, and asks the renderer for a
+  // newer one. Can be called from any thread.
+  scoped_refptr<media::VideoFrame> GetProtectedFrameThenUpdate();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // If |client_| is not set, |callback_| is set, and |is_background_rendering_|
   // is true, it requests a new frame from |callback_|. Uses the elapsed time
@@ -275,6 +284,15 @@ class PLATFORM_EXPORT VideoFrameCompositor : public media::VideoRendererSink,
   base::TimeTicks last_expected_display_time_ GUARDED_BY(current_frame_lock_);
   uint32_t presentation_counter_ GUARDED_BY(current_frame_lock_) = 0u;
   bool rendered_last_frame_ GUARDED_BY(current_frame_lock_) = false;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Set on the media thread, read on the thread of protected WebGL.
+  base::Lock protected_frame_lock_;
+  scoped_refptr<media::VideoFrame> protected_frame_
+      GUARDED_BY(protected_frame_lock_);
+  base::RepeatingClosure request_protected_frame_update_
+      GUARDED_BY(protected_frame_lock_);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // These values are updated and read from the media and compositor threads.
   base::Lock callback_lock_;

@@ -44,6 +44,10 @@
 #include "ui/gl/gl_version_info.h"
 #include "ui/gl/scoped_make_current.h"
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#include "gpu/command_buffer/service/cobalt_protected_commands.h"
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
 namespace gpu {
 namespace gles2 {
 
@@ -838,6 +842,11 @@ error::Error GLES2DecoderPassthroughImpl::DoCompressedTexSubImage2D(
     GLsizei image_size,
     GLsizei data_size,
     const void* data) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (RefuseSharedImageWriteToBoundTexture(target)) {
+    return error::kNoError;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   api()->glCompressedTexSubImage2DRobustANGLEFn(target, level, xoffset, yoffset,
                                                 width, height, format,
                                                 image_size, data_size, data);
@@ -890,6 +899,11 @@ error::Error GLES2DecoderPassthroughImpl::DoCompressedTexSubImage3D(
     GLsizei image_size,
     GLsizei data_size,
     const void* data) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (RefuseSharedImageWriteToBoundTexture(target)) {
+    return error::kNoError;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   api()->glCompressedTexSubImage3DRobustANGLEFn(
       target, level, xoffset, yoffset, zoffset, width, height, depth, format,
       image_size, data_size, data);
@@ -1418,6 +1432,11 @@ error::Error GLES2DecoderPassthroughImpl::DoFramebufferTexture2D(
                 "Cannot change the attachments of the default framebuffer.");
     return error::kNoError;
   }
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (RefuseSharedImageWriteInProtectedContext(texture)) {
+    return error::kNoError;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   api()->glFramebufferTexture2DEXTFn(
       target, attachment, textarget,
       GetTextureServiceID(api(), texture, resources_, false), level);
@@ -1435,6 +1454,11 @@ error::Error GLES2DecoderPassthroughImpl::DoFramebufferTextureLayer(
                 "Cannot change the attachments of the default framebuffer.");
     return error::kNoError;
   }
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (RefuseSharedImageWriteInProtectedContext(texture)) {
+    return error::kNoError;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   api()->glFramebufferTextureLayerFn(
       target, attachment,
       GetTextureServiceID(api(), texture, resources_, false), level, layer);
@@ -1453,6 +1477,11 @@ error::Error GLES2DecoderPassthroughImpl::DoFramebufferTextureMultiviewOVR(
                 "Cannot change the attachments of the default framebuffer.");
     return error::kNoError;
   }
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (RefuseSharedImageWriteInProtectedContext(texture)) {
+    return error::kNoError;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   api()->glFramebufferTextureMultiviewOVRFn(
       target, attachment,
       GetTextureServiceID(api(), texture, resources_, false), level,
@@ -3236,6 +3265,11 @@ error::Error GLES2DecoderPassthroughImpl::DoTexSubImage2D(GLenum target,
                                                           GLenum type,
                                                           GLsizei image_size,
                                                           const void* pixels) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (RefuseSharedImageWriteToBoundTexture(target)) {
+    return error::kNoError;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   ScopedUnpackStateButAlignmentReset reset_unpack(
       api(), image_size != 0 && feature_info_->gl_version_info().is_es3, false);
   api()->glTexSubImage2DRobustANGLEFn(target, level, xoffset, yoffset, width,
@@ -3260,6 +3294,11 @@ error::Error GLES2DecoderPassthroughImpl::DoTexSubImage3D(GLenum target,
                                                           GLenum type,
                                                           GLsizei image_size,
                                                           const void* pixels) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (RefuseSharedImageWriteToBoundTexture(target)) {
+    return error::kNoError;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   ScopedUnpackStateButAlignmentReset reset_unpack(
       api(), image_size != 0 && feature_info_->gl_version_info().is_es3, true);
   api()->glTexSubImage3DRobustANGLEFn(target, level, xoffset, yoffset, zoffset,
@@ -3715,6 +3754,16 @@ error::Error GLES2DecoderPassthroughImpl::DoBlitFramebufferCHROMIUM(
     GLbitfield mask,
     GLenum filter) {
   DCHECK(feature_info_->feature_flags().chromium_framebuffer_multisample);
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: the default framebuffer of a protected context is its protected
+  // window surface; copying it is refused like CopyTexImage2D.
+  if (protected_content_ && bound_read_framebuffer_ == 0) {
+    InsertError(GL_INVALID_OPERATION,
+                "cannot blit from the default framebuffer of a protected "
+                "context");
+    return error::kNoError;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   api()->glBlitFramebufferFn(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1,
                              dstY1, mask, filter);
   return error::kNoError;
@@ -3772,6 +3821,11 @@ error::Error GLES2DecoderPassthroughImpl::DoFramebufferTexture2DMultisampleEXT(
                 "Cannot change the attachments of the default framebuffer.");
     return error::kNoError;
   }
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (RefuseSharedImageWriteInProtectedContext(texture)) {
+    return error::kNoError;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   api()->glFramebufferTexture2DMultisampleEXTFn(
       target, attachment, textarget,
       GetTextureServiceID(api(), texture, resources_, false), level, samples);
@@ -3919,6 +3973,13 @@ error::Error GLES2DecoderPassthroughImpl::DoBeginQueryEXT(
     GLuint id,
     int32_t sync_shm_id,
     uint32_t sync_shm_offset) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (protected_content_ && !IsQueryTargetAllowedInProtectedContext(target)) {
+    InsertError(GL_INVALID_OPERATION,
+                "Query target is not allowed in a protected context.");
+    return error::kNoError;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   GLuint service_id = GetQueryServiceID(id, &query_id_map_);
   QueryInfo* query_info = &query_info_map_[service_id];
 
@@ -4669,6 +4730,11 @@ error::Error GLES2DecoderPassthroughImpl::DoCopyTextureCHROMIUM(
     GLboolean unpack_flip_y,
     GLboolean unpack_premultiply_alpha,
     GLboolean unpack_unmultiply_alpha) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (RefuseSharedImageWriteInProtectedContext(dest_id)) {
+    return error::kNoError;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   gl::ScopedEnableTextureRectangleInShaderCompiler enable(
       feature_info_->IsWebGLContext() ? api() : nullptr);
   api()->glCopyTextureCHROMIUMFn(
@@ -4697,6 +4763,11 @@ error::Error GLES2DecoderPassthroughImpl::DoCopySubTextureCHROMIUM(
     GLboolean unpack_flip_y,
     GLboolean unpack_premultiply_alpha,
     GLboolean unpack_unmultiply_alpha) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (RefuseSharedImageWriteInProtectedContext(dest_id)) {
+    return error::kNoError;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   gl::ScopedEnableTextureRectangleInShaderCompiler enable(
       feature_info_->IsWebGLContext() ? api() : nullptr);
   api()->glCopySubTextureCHROMIUMFn(
@@ -4870,6 +4941,31 @@ error::Error GLES2DecoderPassthroughImpl::DoDrawBuffersEXT(
   api()->glDrawBuffersARBFn(count, bufs_copy.data());
   return error::kNoError;
 }
+
+error::Error GLES2DecoderPassthroughImpl::DoPresentProtectedFrameCOBALT() {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: a protected WebGL context draws into its window surface on the
+  // video plane; for other contexts this is a no-op.
+  if (protected_content_ && !offscreen_ && surface_) {
+    TRACE_EVENT0("gpu", "PresentProtectedFrameCOBALT");
+    surface_->SwapBuffers(base::DoNothing(), gfx::FrameData());
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  return error::kNoError;
+}
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+bool GLES2DecoderPassthroughImpl::RefuseSharedImageWriteInProtectedContext(
+    GLuint texture) {
+  if (!protected_content_ ||
+      !resources_->texture_shared_image_map.contains(texture)) {
+    return false;
+  }
+  InsertError(GL_INVALID_OPERATION,
+              "a protected context cannot write to a shared image");
+  return true;
+}
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
 error::Error GLES2DecoderPassthroughImpl::DoFlushDriverCachesCHROMIUM() {
   // On Adreno Android devices we need to use a workaround to force caches to
@@ -5081,6 +5177,14 @@ GLES2DecoderPassthroughImpl::DoBeginSharedImageAccessDirectCHROMIUM(
     InsertError(GL_INVALID_ENUM, "unrecognized access mode");
     return error::kNoError;
   }
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  if (protected_content_ &&
+      !IsSharedImageAccessModeAllowedInProtectedContext(mode)) {
+    InsertError(GL_INVALID_OPERATION,
+                "a protected context may only read shared images");
+    return error::kNoError;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
   auto found = resources_->texture_shared_image_map.find(client_id);
   if (found == resources_->texture_shared_image_map.end()) {

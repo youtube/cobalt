@@ -19,6 +19,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/no_destructor.h"
+#include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
@@ -91,6 +92,10 @@ StarboardRendererClient::StarboardRendererClient(
 StarboardRendererClient::~StarboardRendererClient() {
   SetPlayingState(false);
   DCHECK(!video_renderer_sink_started_);
+  if (protected_frame_source_) {
+    video_renderer_sink_->SetProtectedFrameUpdateCallback({});
+    video_renderer_sink_->SetProtectedFrame(nullptr);
+  }
 
   if (bypass_bridge_) {
     bypass_bridge_->Invalidate();
@@ -264,6 +269,15 @@ void StarboardRendererClient::UpdateStarboardRenderingMode(
       }
       break;
     case StarboardRenderingMode::kDecodeToTexture:
+      if (base::FeatureList::IsEnabled(kCobaltProtectedWebGL)) {
+        // Blink's protected WebGL path asks for newer frames through this.
+        protected_frame_source_ = true;
+        video_renderer_sink_->SetProtectedFrameUpdateCallback(
+            base::BindPostTask(media_task_runner_,
+                               base::BindRepeating(
+                                   &StarboardRendererClient::UpdateCurrentFrame,
+                                   weak_factory_.GetWeakPtr())));
+      }
       // StarboardRenderingMode::kDecodeToTexture needs to update
       // video frame via VideoRendererSink::RenderCallback::Render().
       if (is_playing_) {
@@ -565,6 +579,13 @@ void StarboardRendererClient::SetPlayingState(bool is_playing) {
 void StarboardRendererClient::UpdateCurrentFrame() {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
   DCHECK_EQ(rendering_mode_, StarboardRenderingMode::kDecodeToTexture);
+  // The compositor asks every vsync, and protected WebGL every draw. Each
+  // request blocks the service until the GPU thread updates the texture, so
+  // let at most one be in flight; the next tick asks again.
+  if (get_current_video_frame_pending_) {
+    return;
+  }
+  get_current_video_frame_pending_ = true;
   renderer_extension_->GetCurrentVideoFrame(
       base::BindOnce(&StarboardRendererClient::OnGetCurrentVideoFrameDone,
                      weak_factory_.GetWeakPtr()));
@@ -573,10 +594,28 @@ void StarboardRendererClient::UpdateCurrentFrame() {
 void StarboardRendererClient::OnGetCurrentVideoFrameDone(
     const scoped_refptr<VideoFrame>& frame) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
-  if (frame) {
-    base::AutoLock auto_lock(lock_);
-    next_video_frame_ = std::move(frame);
+  get_current_video_frame_pending_ = false;
+  if (!frame) {
+    return;
   }
+  // The service marks the frames of players with a CDM, which it renders on
+  // protected decode targets, as protected. Such frames go only to the sink's
+  // protected frame, for protected WebGL; the compositor gets a hole frame
+  // instead, which keeps the video plane's geometry flowing to
+  // SbPlayerSetBounds() as in punch-out.
+  if (protected_frame_source_ && frame->metadata().protected_video) {
+    const gfx::Size size = frame->natural_size();
+    video_renderer_sink_->SetProtectedFrame(std::move(frame));
+    if (!protected_hole_frame_ ||
+        protected_hole_frame_->natural_size() != size) {
+      protected_hole_frame_ = video_overlay_factory_->CreateFrame(size);
+    }
+    base::AutoLock auto_lock(lock_);
+    next_video_frame_ = protected_hole_frame_;
+    return;
+  }
+  base::AutoLock auto_lock(lock_);
+  next_video_frame_ = std::move(frame);
 }
 
 #if BUILDFLAG(IS_ANDROID)

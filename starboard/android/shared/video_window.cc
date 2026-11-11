@@ -16,14 +16,20 @@
 
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
+#include <android/hardware_buffer.h>
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
+#include <dlfcn.h>
 #include <jni.h>
+#include <strings.h>
+#include <sys/system_properties.h>
 
 #include <mutex>
+#include <set>
 #include <vector>
 
 #include "cobalt/android/jni_headers/VideoSurfaceView_jni.h"
+#include "starboard/android/shared/protected_video_plane.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/no_destructor.h"
@@ -51,6 +57,35 @@ jni_zero::ScopedJavaGlobalRef<jobject>& GetGlobalVideoSurface() {
 ANativeWindow* g_native_video_window = nullptr;
 // Global video surface pointer holder.
 VideoSurfaceHolder* g_video_surface_holder = nullptr;
+
+// Holder used while a protected GL presenter owns the video window (see
+// AcquireVideoWindowForPresenter()). While it is installed, decoders cannot
+// acquire the surface and CleanUpVideoSurface() leaves the window alone, so
+// exactly one EGL producer is connected to the window.
+class PresenterSurfaceHolder final : public VideoSurfaceHolder {
+ public:
+  void OnSurfaceDestroyed() override {
+    SB_LOG(WARNING) << "Video surface destroyed while a protected presenter "
+                       "holds it.";
+  }
+};
+PresenterSurfaceHolder* GetPresenterSurfaceHolder() {
+  static NoDestructor<PresenterSurfaceHolder> holder;
+  return holder.get();
+}
+
+struct PresenterObservers {
+  std::mutex mutex;
+  std::set<ProtectedPresenterObserver*> observers;
+};
+PresenterObservers& GetPresenterObservers() {
+  static NoDestructor<PresenterObservers> observers;
+  return *observers;
+}
+
+// True while CleanUpVideoSurface() clears the window outside the mutex; no
+// presenter may connect to it meanwhile. Guarded by GetViewSurfaceMutex().
+bool g_clearing_video_window = false;
 
 void ClearNativeWindow(void* raw_context) {
   ANativeWindow* native_window = static_cast<ANativeWindow*>(raw_context);
@@ -198,17 +233,150 @@ void VideoSurfaceHolder::CleanUpVideoSurface(
     SbDecodeTargetGraphicsContextProvider* gpu_provider) {
   // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
   // during painting.
-  std::lock_guard lock(*GetViewSurfaceMutex());
+  std::unique_lock lock(*GetViewSurfaceMutex());
 
   if (!g_native_video_window) {
     SB_LOG(INFO) << "Tried to clean up video window when it was null.";
     return;
   }
+  if (g_video_surface_holder == GetPresenterSurfaceHolder()) {
+    SB_LOG(INFO) << "Not clearing the video window: a protected presenter "
+                    "holds it.";
+    return;
+  }
 
   SB_CHECK(gpu_provider);
-  gpu_provider->gles_context_runner(gpu_provider, &ClearNativeWindow,
-                                    g_native_video_window);
+  // The runner blocks on the GPU thread, which takes this mutex to acquire the
+  // window for a protected presenter: running it under the lock would
+  // deadlock. Pin the window and fence presenters off instead.
+  ANativeWindow* window = g_native_video_window;
+  ANativeWindow_acquire(window);
+  g_clearing_video_window = true;
+  lock.unlock();
+  gpu_provider->gles_context_runner(gpu_provider, &ClearNativeWindow, window);
+  lock.lock();
+  g_clearing_video_window = false;
+  ANativeWindow_release(window);
   SB_LOG(INFO) << "Video surface has been cleared.";
+}
+
+void* AcquireVideoWindowForPresenter() {
+  std::lock_guard lock(*GetViewSurfaceMutex());
+  if (g_clearing_video_window) {
+    SB_LOG(WARNING) << "Video window is being cleared by a decoder.";
+    return nullptr;
+  }
+  if (!g_native_video_window) {
+    SB_LOG(WARNING) << "No video window for the protected presenter.";
+    return nullptr;
+  }
+  if (g_video_surface_holder != nullptr &&
+      g_video_surface_holder != GetPresenterSurfaceHolder()) {
+    SB_LOG(WARNING) << "Video window is held by a decoder.";
+    return nullptr;
+  }
+  if (g_video_surface_holder == GetPresenterSurfaceHolder()) {
+    SB_LOG(WARNING) << "Video window is already held by a presenter.";
+    return nullptr;
+  }
+  g_video_surface_holder = GetPresenterSurfaceHolder();
+  ANativeWindow_acquire(g_native_video_window);
+  SB_LOG(INFO) << "Protected presenter acquired the video window.";
+  SetVideoSurfaceFullscreen();
+  return g_native_video_window;
+}
+
+namespace {
+
+// MediaTek's composer counts a buffer as secure only if its usage carries
+// AHARDWAREBUFFER_USAGE_VENDOR_0 as well as PROTECTED_CONTENT (it logs
+// "is_protected 1 != is_secured 0" otherwise). Its secure decoder sets both on
+// its own output buffers. The allocator already places PROTECTED_CONTENT alone
+// in the secure video heap, so this is about agreeing with the composer, not
+// about where the memory lives.
+bool UsesMediaTekSecureUsageBit() {
+  static const bool uses = [] {
+    char value[PROP_VALUE_MAX] = {};
+    __system_property_get("ro.soc.manufacturer", value);
+    if (strcasecmp(value, "mediatek") != 0) {
+      return false;
+    }
+    // Respect an explicit "no secure video path"; the property may also be
+    // unreadable from the app's SELinux domain, which reads as empty.
+    char svp[PROP_VALUE_MAX] = {};
+    __system_property_get("ro.vendor.mtk_sec_video_path_support", svp);
+    return strcmp(svp, "0") != 0;
+  }();
+  return uses;
+}
+
+}  // namespace
+
+void PrepareVideoWindowSurface(void* window) {
+  if (!window || !UsesMediaTekSecureUsageBit()) {
+    return;
+  }
+  // ANativeWindow_setUsage() is in libnativewindow (LL-NDK), not in the NDK
+  // headers. It sets the producer usage of buffers allocated from now on, so it
+  // must run after eglCreateWindowSurface() (which sets its own usage) and
+  // before the first dequeue. The value keeps what EGL requested for a
+  // protected GPU window surface and adds the vendor bit.
+  using SetUsageFn = int (*)(ANativeWindow*, uint64_t);
+  static SetUsageFn set_usage = [] {
+    void* lib = dlopen("libnativewindow.so", RTLD_NOW | RTLD_NOLOAD);
+    return lib ? reinterpret_cast<SetUsageFn>(
+                     dlsym(lib, "ANativeWindow_setUsage"))
+               : nullptr;
+  }();
+  constexpr uint64_t usage = AHARDWAREBUFFER_USAGE_PROTECTED_CONTENT |
+                             AHARDWAREBUFFER_USAGE_GPU_FRAMEBUFFER |
+                             AHARDWAREBUFFER_USAGE_VENDOR_0;
+  const int result =
+      set_usage ? set_usage(static_cast<ANativeWindow*>(window), usage) : -1;
+  if (result == 0) {
+    SB_LOG(INFO) << "Protected presenter window: buffer usage 0x" << std::hex
+                 << usage << " (MediaTek secure bit).";
+  } else {
+    SB_LOG(WARNING) << "Protected presenter window: could not set the "
+                       "MediaTek secure usage bit ("
+                    << (set_usage ? "error " : "no ANativeWindow_setUsage ")
+                    << result << ").";
+  }
+}
+
+bool IsVideoWindowHeldByPresenter() {
+  std::lock_guard lock(*GetViewSurfaceMutex());
+  return g_video_surface_holder == GetPresenterSurfaceHolder();
+}
+
+void ReleaseVideoWindowForPresenter(void* window) {
+  std::lock_guard lock(*GetViewSurfaceMutex());
+  if (g_video_surface_holder == GetPresenterSurfaceHolder()) {
+    g_video_surface_holder = nullptr;
+  }
+  if (window) {
+    ANativeWindow_release(static_cast<ANativeWindow*>(window));
+  }
+  SB_LOG(INFO) << "Protected presenter released the video window.";
+  // Back to the hole geometry for whoever renders next, and let protected
+  // decode-to-texture players fall back to punch-out (they re-check later, so
+  // a presenter re-attaching right away keeps the protected path).
+  ReapplyVideoSurfaceBounds();
+  std::lock_guard observers_lock(GetPresenterObservers().mutex);
+  for (ProtectedPresenterObserver* observer :
+       GetPresenterObservers().observers) {
+    observer->OnProtectedPresenterReleased();
+  }
+}
+
+void AddProtectedPresenterObserver(ProtectedPresenterObserver* observer) {
+  std::lock_guard lock(GetPresenterObservers().mutex);
+  GetPresenterObservers().observers.insert(observer);
+}
+
+void RemoveProtectedPresenterObserver(ProtectedPresenterObserver* observer) {
+  std::lock_guard lock(GetPresenterObservers().mutex);
+  GetPresenterObservers().observers.erase(observer);
 }
 
 void VideoSurfaceHolder::ResetVideoSurface() {

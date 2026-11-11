@@ -1160,6 +1160,15 @@ void HTMLCanvasElement::Paint(GraphicsContext& context,
     return;
   }
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: a protected WebGL canvas has no page pixels; they are on the video
+  // plane under the page. Painting it (e.g. the opaque-black fill below, used
+  // whenever the canvas is not composited) would cover the video hole.
+  if (context_ && context_->CreationAttributes().cobalt_protected_content) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
   // If the canvas is gpu composited, it has another way of getting to screen
   if (!PaintsIntoCanvasBuffer()) {
     // For click-and-drag or printing we still want to draw

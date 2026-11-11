@@ -99,6 +99,12 @@ class StarboardGpuFactory : public gpu::CommandBufferStub::DestructionObserver {
   virtual void RunCallbackOnGpu(base::OnceCallback<void()> callback,
                                 base::WaitableEvent* done_event) = 0;
   virtual void PostCallbackToGpu(base::OnceCallback<void()> callback) = 0;
+  // Renders the protected decode targets that secure decoders create with
+  // |provider| on a protected decode-target context (a DRM player with
+  // kCobaltProtectedWebGL), or stops doing so when |provider| is null.
+  // Clear players keep the media stub's context.
+  virtual void SetProtectedDecodeTargets(
+      SbDecodeTargetGraphicsContextProvider* provider) {}
   virtual void CreateImageOnGpu(
       const gfx::Size& coded_size,
       const gfx::ColorSpace& color_space,

@@ -28,4 +28,14 @@ source_set("gpu") {
     "//content/public/child",
     "//content/public/gpu",
   ]
+
+  if (is_android) {
+    deps += [
+      "//gpu/ipc/service",
+      "//media",
+      "//starboard:starboard_headers_only",
+      "//ui/gfx",
+      "//ui/gl",
+    ]
+  }
 }

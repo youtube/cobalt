@@ -120,6 +120,18 @@ class GL_EXPORT NativeViewGLSurfaceEGL : public GLSurfaceEGL,
   // Takes care of the platform dependant bits, of any, for creating the window.
   virtual bool InitializeNativeWindow();
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: create the window surface with EGL_PROTECTED_CONTENT_EXT. The
+  // surface then follows the native window's size (no EGL_FIXED_SIZE_ANGLE).
+  // Must be called before Initialize().
+  void SetProtectedContent(bool protected_content) {
+    protected_content_ = protected_content;
+    if (protected_content) {
+      enable_fixed_size_angle_ = false;
+    }
+  }
+
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
  protected:
   ~NativeViewGLSurfaceEGL() override;
 
@@ -129,6 +141,9 @@ class GL_EXPORT NativeViewGLSurfaceEGL : public GLSurfaceEGL,
   EGLNativeWindowType window_ = 0;
   gfx::Size size_ = gfx::Size(1, 1);
   bool enable_fixed_size_angle_ = true;
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  bool protected_content_ = false;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
   GLSurfacePresentationHelper* presentation_helper() const {
     return presentation_helper_.get();

@@ -3314,4 +3314,15 @@ TEST_F(GLES2ImplementationTest, PolygonOffsetClampEXT) {
   gl_->PolygonOffsetClampEXT(1, 2, 3);
   EXPECT_EQ(0, memcmp(&expected, commands_, sizeof(expected)));
 }
+
+TEST_F(GLES2ImplementationTest, PresentProtectedFrameCOBALT) {
+  struct Cmds {
+    cmds::PresentProtectedFrameCOBALT cmd;
+  };
+  Cmds expected;
+  expected.cmd.Init();
+
+  gl_->PresentProtectedFrameCOBALT();
+  EXPECT_EQ(0, memcmp(&expected, commands_, sizeof(expected)));
+}
 #endif  // GPU_COMMAND_BUFFER_CLIENT_GLES2_IMPLEMENTATION_UNITTEST_AUTOGEN_H_

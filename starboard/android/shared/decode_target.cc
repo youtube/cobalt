@@ -23,6 +23,7 @@
 #include <functional>
 #include <mutex>
 
+#include "starboard/android/shared/protected_video_plane.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
@@ -41,8 +42,10 @@ void RunOnContextRunner(void* context) {
 
 // static
 scoped_refptr<DecodeTarget> DecodeTarget::Create(
-    SbDecodeTargetGraphicsContextProvider* provider) {
-  scoped_refptr<DecodeTarget> decode_target(new DecodeTarget(provider));
+    SbDecodeTargetGraphicsContextProvider* provider,
+    bool protected_path) {
+  scoped_refptr<DecodeTarget> decode_target(
+      new DecodeTarget(provider, protected_path));
   if (decode_target->surface_texture_.is_null() ||
       decode_target->surface_.is_null()) {
     // The GLES context runner did not run CreateOnContextRunner() (see
@@ -55,7 +58,9 @@ scoped_refptr<DecodeTarget> DecodeTarget::Create(
   return decode_target;
 }
 
-DecodeTarget::DecodeTarget(SbDecodeTargetGraphicsContextProvider* provider) {
+DecodeTarget::DecodeTarget(SbDecodeTargetGraphicsContextProvider* provider,
+                           bool protected_path)
+    : provider_(provider), protected_path_(protected_path) {
   std::function<void()> closure =
       std::bind(&DecodeTarget::CreateOnContextRunner, this);
   SbDecodeTargetRunInGlesContext(provider, &RunOnContextRunner, &closure);
@@ -73,10 +78,16 @@ DecodeTarget::~DecodeTarget() {
     ANativeWindow_release(native_window_);
   }
 
-  if (info_.planes[0].texture != 0) {
-    glDeleteTextures(1, &info_.planes[0].texture);
-    SB_CHECK_EQ(glGetError(), static_cast<GLenum>(GL_NO_ERROR));
+  if (info_.planes[0].texture == 0) {
+    return;
   }
+  if (hooks_id_) {
+    DeleteProtectedDecodeTargetTexture(provider_, hooks_id_,
+                                       info_.planes[0].texture);
+    return;
+  }
+  glDeleteTextures(1, &info_.planes[0].texture);
+  SB_CHECK_EQ(glGetError(), static_cast<GLenum>(GL_NO_ERROR));
 }
 
 void DecodeTarget::CreateOnContextRunner() {
@@ -85,21 +96,34 @@ void DecodeTarget::CreateOnContextRunner() {
   // the creation of the content when SurfaceTexture::updateTexImage() is
   // called.
   GLuint texture;
-  GL_CALL(glGenTextures(1, &texture));
-  GL_CALL(glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture));
-  GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER,
-                          GL_LINEAR));
-  GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER,
-                          GL_LINEAR));
-  GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S,
-                          GL_CLAMP_TO_EDGE));
-  GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T,
-                          GL_CLAMP_TO_EDGE));
+  // The name SurfaceTexture attaches to. It differs from |texture| only for an
+  // embedder texture, whose native (driver) name is not the embedder's name.
+  GLuint native_texture;
+  // Clear decoders keep the system-GL texture, so that clear WebGL and the
+  // compositor can sample it.
+  hooks_id_ =
+      protected_path_ ? GetProtectedDecodeTargetTextureHooksId(provider_) : 0;
+  if (hooks_id_) {
+    SB_CHECK(CreateProtectedDecodeTargetTexture(provider_, hooks_id_, &texture,
+                                                &native_texture));
+  } else {
+    GL_CALL(glGenTextures(1, &texture));
+    GL_CALL(glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture));
+    GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER,
+                            GL_LINEAR));
+    GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER,
+                            GL_LINEAR));
+    GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S,
+                            GL_CLAMP_TO_EDGE));
+    GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T,
+                            GL_CLAMP_TO_EDGE));
+    native_texture = texture;
+  }
 
   JNIEnv* env = jni_zero::AttachCurrentThread();
   // Wrap the GL texture in an Android SurfaceTexture object.
   surface_texture_ =
-      VideoSurfaceTextureBridge::CreateVideoSurfaceTexture(env, texture);
+      VideoSurfaceTextureBridge::CreateVideoSurfaceTexture(env, native_texture);
   SB_CHECK(surface_texture_);
 
   // We will also need an Android Surface object in order to obtain a
@@ -125,7 +149,9 @@ void DecodeTarget::CreateOnContextRunner() {
   info_.planes[0].content_region.top = 0;
   info_.planes[0].content_region.bottom = 0;
 
-  GL_CALL(glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0));
+  if (!hooks_id_) {
+    GL_CALL(glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0));
+  }
 }
 
 }  // namespace starboard

@@ -24,6 +24,7 @@
 #include "starboard/android/shared/platform_info.h"
 #include "starboard/android/shared/platform_service.h"
 #include "starboard/android/shared/player_settings.h"
+#include "starboard/android/shared/protected_video_plane.h"
 #include "starboard/android/shared/system_info_api.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/configuration.h"
@@ -34,6 +35,7 @@
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
 #include "starboard/extension/player_settings.h"
+#include "starboard/extension/protected_video_plane.h"
 #include "starboard/extension/system_info.h"
 #include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/features_extension.h"
@@ -106,6 +108,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kStarboardExtensionPlayerSettingsName) == 0) {
     return starboard::GetPlayerSettingsApi();
+  }
+  if (strcmp(name, kStarboardExtensionProtectedVideoPlaneName) == 0) {
+    return starboard::GetProtectedVideoPlaneApi();
   }
   if (strcmp(name, kStarboardExtensionAccessibilityName) == 0) {
     return starboard::GetAccessibilityApi();

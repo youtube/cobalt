@@ -45,6 +45,11 @@
 #include "ui/gl/progress_reporter.h"
 #include "ui/gl/scoped_make_current.h"
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#include "base/strings/strcat.h"
+#include "gpu/command_buffer/service/cobalt_protected_commands.h"
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
 #if BUILDFLAG(IS_WIN)
 #include "gpu/command_buffer/service/shared_image/d3d_image_backing_factory.h"
 #endif  // BUILDFLAG(IS_WIN)
@@ -726,6 +731,20 @@ GLES2Decoder::Error GLES2DecoderPassthroughImpl::DoCommandsImpl(
                  << "cmd: " << GetCommandName(command);
     }
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+    // Cobalt: a GLES2 command that a protected context may not run sets a GL
+    // error and has no other effect.
+    if (protected_content_ && command >= kFirstGLES2Command &&
+        !IsCommandAllowedInProtectedContext(command)) {
+      InsertError(GL_INVALID_OPERATION,
+                  base::StrCat({GetCommandName(command),
+                                " is not allowed in a protected context"}));
+      process_pos += size;
+      cmd_data += size;
+      continue;
+    }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
     const unsigned int arg_count = size - 1;
     unsigned int command_index = command - kFirstGLES2Command;
     if (command_index < std::size(command_info)) {
@@ -814,6 +833,9 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   context_ = context;
   surface_ = surface;
   offscreen_ = offscreen;
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  protected_content_ = attrib_helper.protected_content;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
   // For WebGL contexts, log GL errors so they appear in devtools. Otherwise
   // only enable debug logging if requested.
@@ -2748,6 +2770,22 @@ void GLES2DecoderPassthroughImpl::UpdateTextureSizeFromTarget(GLenum target) {
   UpdateTextureSizeFromTexturePassthrough(bound_texture.texture.get(),
                                           bound_texture.client_id);
 }
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+bool GLES2DecoderPassthroughImpl::RefuseSharedImageWriteToBoundTexture(
+    GLenum target) {
+  // Sub-image uploads can read from a pixel unpack buffer, which transform
+  // feedback can fill with values computed from protected texels.
+  const TextureTarget texture_type =
+      GLenumToTextureTarget(TextureTargetToTextureType(target));
+  if (texture_type == TextureTarget::kUnkown) {
+    return false;
+  }
+  return RefuseSharedImageWriteInProtectedContext(
+      bound_textures_[static_cast<size_t>(texture_type)][active_texture_unit_]
+          .client_id);
+}
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
 void GLES2DecoderPassthroughImpl::UpdateTextureSizeFromClientID(
     GLuint client_id) {

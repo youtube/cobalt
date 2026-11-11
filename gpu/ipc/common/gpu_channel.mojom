@@ -62,6 +62,8 @@ struct ContextCreationAttribs {
   bool enable_grcontext = false;
   bool enable_raster_interface = false;
   bool enable_gpu_rasterization = false;
+  [EnableIf=is_cobalt&is_android]
+  bool protected_content = false;
 
   ContextType context_type = kOpenGLES2;
 };

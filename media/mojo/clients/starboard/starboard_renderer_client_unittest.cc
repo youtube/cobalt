@@ -21,6 +21,7 @@
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_command_line.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "media/base/fake_demuxer_stream.h"
@@ -43,6 +44,7 @@
 namespace media {
 
 using ::testing::_;
+using ::testing::AnyNumber;
 using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::StrictMock;
@@ -126,6 +128,8 @@ class MockVideoRendererSink : public VideoRendererSink {
   MOCK_METHOD1(Start, void(RenderCallback*));
   MOCK_METHOD0(Stop, void());
   MOCK_METHOD2(PaintSingleFrame, void(scoped_refptr<VideoFrame>, bool));
+  MOCK_METHOD1(SetProtectedFrame, void(scoped_refptr<VideoFrame>));
+  MOCK_METHOD1(SetProtectedFrameUpdateCallback, void(base::RepeatingClosure));
 };
 
 class MockRendererClientStarboard : public RendererClient {
@@ -166,6 +170,14 @@ class StarboardRendererClientTest : public ::testing::Test {
     media_resource_ = std::make_unique<FakeMediaResource>(3, 9, false);
   }
 
+  void TearDown() override {
+    // Closes the mojo pipes, so that their self-owned fakes are destroyed and
+    // their expectations verified.
+    starboard_renderer_client_.reset();
+    fake_extension_ = nullptr;
+    task_environment_.RunUntilIdle();
+  }
+
   void InitializeStarboardRendererClient(bool with_gpu_factories = true,
                                          bool bypass_mojo_for_media = false,
                                          bool mojo_initialize_result = true) {
@@ -177,9 +189,11 @@ class StarboardRendererClientTest : public ::testing::Test {
 
     mojo::PendingRemote<mojom::StarboardRendererExtension>
         starboard_renderer_extensions_remote;
+    auto fake_extension = std::make_unique<FakeStarboardRendererExtension>(
+        &fake_mojom_renderer_record_);
+    fake_extension_ = fake_extension.get();
     mojo::MakeSelfOwnedReceiver(
-        std::make_unique<FakeStarboardRendererExtension>(
-            &fake_mojom_renderer_record_),
+        std::move(fake_extension),
         starboard_renderer_extensions_remote.InitWithNewPipeAndPassReceiver());
 
     mojo::PendingRemote<media::mojom::StarboardRendererClientExtension>
@@ -218,6 +232,8 @@ class StarboardRendererClientTest : public ::testing::Test {
   std::unique_ptr<FakeMediaResource> media_resource_;
   std::unique_ptr<StarboardRendererClient> starboard_renderer_client_;
   FakeMojomRendererCallRecord fake_mojom_renderer_record_;
+  // Owned by its mojo receiver.
+  raw_ptr<FakeStarboardRendererExtension> fake_extension_ = nullptr;
 };
 
 TEST_F(StarboardRendererClientTest, CreateAndDestroy) {
@@ -433,6 +449,104 @@ TEST_F(StarboardRendererClientTest,
   EXPECT_TRUE(::testing::Mock::VerifyAndClearExpectations(&renderer_init_cb_));
 
   EXPECT_CALL(renderer_init_cb_, Run(_)).Times(0);
+  starboard_renderer_client_->UpdateStarboardRenderingMode(
+      StarboardRenderingMode::kDecodeToTexture);
+  task_environment_.RunUntilIdle();
+}
+
+scoped_refptr<VideoFrame> CreateFrame(const gfx::Size& size,
+                                      bool protected_video) {
+  scoped_refptr<VideoFrame> frame = VideoFrame::CreateBlackFrame(size);
+  frame->metadata().protected_video = protected_video;
+  return frame;
+}
+
+TEST_F(StarboardRendererClientTest, ProtectedFramesGoToSink) {
+  base::test::ScopedFeatureList features(kCobaltProtectedWebGL);
+  InitializeStarboardRendererClient();
+  base::RepeatingClosure request_update;
+  EXPECT_CALL(mock_video_renderer_sink_, SetProtectedFrameUpdateCallback(_))
+      .WillOnce([&](base::RepeatingClosure callback) {
+        request_update = std::move(callback);
+      })
+      .WillRepeatedly([](base::RepeatingClosure) {});
+  EXPECT_CALL(mock_video_renderer_sink_,
+              SetProtectedFrame(scoped_refptr<VideoFrame>()))
+      .Times(AnyNumber());
+  starboard_renderer_client_->Initialize(media_resource_.get(),
+                                         &renderer_client_, base::DoNothing());
+  starboard_renderer_client_->UpdateStarboardRenderingMode(
+      StarboardRenderingMode::kDecodeToTexture);
+  task_environment_.RunUntilIdle();
+  ASSERT_TRUE(request_update);
+
+  // While a request is in flight, further ones do not reach the service.
+  mojom::StarboardRendererExtension::GetCurrentVideoFrameCallback reply;
+  EXPECT_CALL(*fake_extension_, GetCurrentVideoFrame(_))
+      .WillOnce(
+          [&](mojom::StarboardRendererExtension::GetCurrentVideoFrameCallback
+                  callback) { reply = std::move(callback); });
+  request_update.Run();
+  request_update.Run();
+  task_environment_.RunUntilIdle();
+  testing::Mock::VerifyAndClearExpectations(fake_extension_);
+  ASSERT_TRUE(reply);
+
+  // The frame goes to the sink, which never composites it. (It crosses mojo,
+  // so the sink sees a copy.)
+  const gfx::Size kSize(640, 360);
+  EXPECT_CALL(mock_video_renderer_sink_, SetProtectedFrame(testing::NotNull()))
+      .WillOnce([&](scoped_refptr<VideoFrame> frame) {
+        EXPECT_EQ(frame->natural_size(), kSize);
+      });
+  std::move(reply).Run(CreateFrame(kSize, /*protected_video=*/true));
+  task_environment_.RunUntilIdle();
+
+  // With the reply in, the next request goes out.
+  EXPECT_CALL(*fake_extension_, GetCurrentVideoFrame(_));
+  request_update.Run();
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererClientTest, ClearFramesStayOutOfProtectedSink) {
+  base::test::ScopedFeatureList features(kCobaltProtectedWebGL);
+  InitializeStarboardRendererClient();
+  base::RepeatingClosure request_update;
+  EXPECT_CALL(mock_video_renderer_sink_, SetProtectedFrameUpdateCallback(_))
+      .WillOnce([&](base::RepeatingClosure callback) {
+        request_update = std::move(callback);
+      })
+      .WillRepeatedly([](base::RepeatingClosure) {});
+  EXPECT_CALL(mock_video_renderer_sink_,
+              SetProtectedFrame(scoped_refptr<VideoFrame>()))
+      .Times(AnyNumber());
+  EXPECT_CALL(mock_video_renderer_sink_, SetProtectedFrame(testing::NotNull()))
+      .Times(0);
+  starboard_renderer_client_->Initialize(media_resource_.get(),
+                                         &renderer_client_, base::DoNothing());
+  starboard_renderer_client_->UpdateStarboardRenderingMode(
+      StarboardRenderingMode::kDecodeToTexture);
+  task_environment_.RunUntilIdle();
+  ASSERT_TRUE(request_update);
+
+  EXPECT_CALL(*fake_extension_, GetCurrentVideoFrame(_))
+      .WillOnce(
+          [&](mojom::StarboardRendererExtension::GetCurrentVideoFrameCallback
+                  callback) {
+            std::move(callback).Run(
+                CreateFrame(gfx::Size(640, 360), /*protected_video=*/false));
+          });
+  request_update.Run();
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererClientTest, ProtectedFramesNeedTheFeature) {
+  InitializeStarboardRendererClient();
+  // Without the update callback, protected WebGL cannot request frames.
+  EXPECT_CALL(mock_video_renderer_sink_, SetProtectedFrameUpdateCallback(_))
+      .Times(0);
+  starboard_renderer_client_->Initialize(media_resource_.get(),
+                                         &renderer_client_, base::DoNothing());
   starboard_renderer_client_->UpdateStarboardRenderingMode(
       StarboardRenderingMode::kDecodeToTexture);
   task_environment_.RunUntilIdle();

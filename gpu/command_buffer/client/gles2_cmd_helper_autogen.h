@@ -3426,4 +3426,12 @@ void PolygonOffsetClampEXT(GLfloat factor, GLfloat units, GLfloat clamp) {
   }
 }
 
+void PresentProtectedFrameCOBALT() {
+  gles2::cmds::PresentProtectedFrameCOBALT* c =
+      GetCmdSpace<gles2::cmds::PresentProtectedFrameCOBALT>();
+  if (c) {
+    c->Init();
+  }
+}
+
 #endif  // GPU_COMMAND_BUFFER_CLIENT_GLES2_CMD_HELPER_AUTOGEN_H_

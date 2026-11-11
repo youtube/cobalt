@@ -1654,6 +1654,12 @@ void GenerateCaps(const FunctionsGL *functions,
 #endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     extensions->EGLImageArrayEXT = functions->hasGLESExtension("GL_EXT_EGL_image_array");
 
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    // Cobalt: GL_EXT_protected_textures. The frontend forces it off without
+    // EGL_EXT_protected_content.
+    extensions->protectedTexturesEXT = functions->hasGLESExtension("GL_EXT_protected_textures");
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+
     extensions->EGLSyncOES = functions->hasGLESExtension("GL_OES_EGL_sync");
 
     if (!features.disableTimestampQueries.enabled &&

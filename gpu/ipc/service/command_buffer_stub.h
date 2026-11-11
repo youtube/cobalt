@@ -186,6 +186,11 @@ class GPU_IPC_SERVICE_EXPORT CommandBufferStub
 
   ContextType context_type() const { return context_type_; }
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt: a protected WebGL context.
+  bool protected_content() const { return protected_content_; }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
   void AddDestructionObserver(DestructionObserver* observer);
   void RemoveDestructionObserver(DestructionObserver* observer);
 
@@ -261,6 +266,9 @@ class GPU_IPC_SERVICE_EXPORT CommandBufferStub
 
   bool initialized_;
   bool use_virtualized_gl_context_;
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  bool protected_content_ = false;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
   std::unique_ptr<CommandBufferService> command_buffer_;
 

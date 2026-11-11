@@ -33,7 +33,13 @@ egl::Error NativeBufferImageSiblingAndroid::initialize(const egl::Display *displ
         &mSize.depth, &pixelFormat, &usage);
     mFormat = gl::Format(angle::android::NativePixelFormatToGLInternalFormat(pixelFormat));
     mYUV    = angle::android::NativePixelFormatIsYUV(pixelFormat);
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    // Cobalt: AHARDWAREBUFFER_USAGE_PROTECTED_CONTENT (stable NDK ABI value).
+    constexpr uint64_t kAHardwareBufferUsageProtectedContent = 1ull << 14;
+    mHasProtectedContent = (usage & kAHardwareBufferUsageProtectedContent) != 0;
+#else
     mHasProtectedContent = false;
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
 
     return egl::NoError();
 }
@@ -86,6 +92,13 @@ void NativeBufferImageSiblingAndroid::getImageCreationAttributes(
         outAttributes->push_back(EGL_GL_COLORSPACE_KHR);
         outAttributes->push_back(mColorSpace);
     }
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    if (mHasProtectedContent)
+    {
+        outAttributes->push_back(EGL_PROTECTED_CONTENT_EXT);
+        outAttributes->push_back(EGL_TRUE);
+    }
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
 }
 
 }  // namespace rx

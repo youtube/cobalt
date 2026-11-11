@@ -877,6 +877,59 @@ TEST_P(EGLProtectedContentTest, QueryContext)
     EXPECT_EQ(value, 1);
 }
 
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+// Cobalt: protected contexts in one virtualization group share one protected
+// native context, so a texture created in one is visible in the others. Cobalt
+// renders protected video textures this way, from a decode-target context into
+// protected WebGL contexts.
+TEST_P(EGLProtectedContentTest, ProtectedVirtualizationGroupSharesTextures)
+{
+    ANGLE_SKIP_TEST_IF(!IsEGLDisplayExtensionEnabled(mDisplay, "EGL_EXT_protected_content"));
+    ANGLE_SKIP_TEST_IF(
+        !IsEGLDisplayExtensionEnabled(mDisplay, "EGL_ANGLE_context_virtualization"));
+    ANGLE_SKIP_TEST_IF(
+        !IsEGLDisplayExtensionEnabled(mDisplay, "EGL_ANGLE_display_texture_share_group"));
+    ANGLE_SKIP_TEST_IF(
+        !IsEGLDisplayExtensionEnabled(mDisplay, "EGL_KHR_surfaceless_context"));
+
+    EGLConfig config = EGL_NO_CONFIG_KHR;
+    EXPECT_TRUE(chooseConfig(&config));
+    ANGLE_SKIP_TEST_IF(config == EGL_NO_CONFIG_KHR);
+
+    constexpr EGLint kGroup = 4;
+    const EGLint attribs[]  = {EGL_CONTEXT_MAJOR_VERSION,
+                               mMajorVersion,
+                               EGL_PROTECTED_CONTENT_EXT,
+                               EGL_TRUE,
+                               EGL_CONTEXT_VIRTUALIZATION_GROUP_ANGLE,
+                               kGroup,
+                               EGL_DISPLAY_TEXTURE_SHARE_GROUP_ANGLE,
+                               EGL_TRUE,
+                               EGL_NONE};
+    EGLContext producer = eglCreateContext(mDisplay, config, nullptr, attribs);
+    ASSERT_NE(producer, EGL_NO_CONTEXT);
+    EGLContext consumer = eglCreateContext(mDisplay, config, nullptr, attribs);
+    ASSERT_NE(consumer, EGL_NO_CONTEXT);
+
+    EGLint value = 0;
+    EXPECT_EGL_TRUE(eglQueryContext(mDisplay, consumer, EGL_PROTECTED_CONTENT_EXT, &value));
+    EXPECT_EQ(value, EGL_TRUE);
+
+    ASSERT_EGL_TRUE(eglMakeCurrent(mDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, producer));
+    GLuint texture = 0;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    ASSERT_GL_NO_ERROR();
+
+    ASSERT_EGL_TRUE(eglMakeCurrent(mDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, consumer));
+    EXPECT_GL_TRUE(glIsTexture(texture));
+
+    ASSERT_EGL_TRUE(eglMakeCurrent(mDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+    eglDestroyContext(mDisplay, consumer);
+    eglDestroyContext(mDisplay, producer);
+}
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+
 ANGLE_INSTANTIATE_TEST(EGLProtectedContentTest,
                        WithNoFixture(ES2_OPENGLES()),
                        WithNoFixture(ES3_OPENGLES()),

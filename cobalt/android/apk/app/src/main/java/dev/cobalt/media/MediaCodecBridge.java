@@ -793,6 +793,21 @@ class MediaCodecBridge {
     }
   }
 
+  /**
+   * Redirects decoded frames to {@code surface} without recreating the codec, e.g. to the punch-out
+   * video surface when protected WebGL goes away. Returns false if the codec refuses.
+   */
+  @CalledByNative
+  private boolean setOutputSurface(Surface surface) {
+    try {
+      mMediaCodec.get().setOutputSurface(surface);
+      return true;
+    } catch (RuntimeException e) {
+      Log.e(TAG, "Failed to set output surface", e);
+      return false;
+    }
+  }
+
   @CalledByNative
   private MediaFormatWrapper getOutputFormat() {
     MediaFormat format = null;

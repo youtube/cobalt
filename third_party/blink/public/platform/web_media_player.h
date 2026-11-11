@@ -40,6 +40,7 @@
 #include "media/base/picture_in_picture_events_info.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_frame_metadata.h"
+#include "media/media_buildflags.h"
 #include "third_party/blink/public/platform/web_audio_source_provider_impl.h"
 #include "third_party/blink/public/platform/web_content_decryption_module.h"
 #include "third_party/blink/public/platform/web_media_source.h"
@@ -333,6 +334,16 @@ class WebMediaPlayer {
   // current frame for a future call in some cases. Returns nullptr if no frame
   // is available.
   virtual scoped_refptr<media::VideoFrame> GetCurrentFrameThenUpdate() = 0;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Cobalt: like GetCurrentFrameThenUpdate(), but returns the protected (DRM)
+  // frame, which only a protected WebGL context may sample. Null for players
+  // without protected frames.
+  virtual scoped_refptr<media::VideoFrame>
+  GetCurrentProtectedFrameThenUpdate() {
+    return nullptr;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Return current video frame unique id from compositor. The query is readonly
   // and should avoid any extra ops. Function returns std::nullopt if current

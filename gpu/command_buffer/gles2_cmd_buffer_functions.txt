@@ -412,3 +412,6 @@ GL_APICALL void         GL_APIENTRY glPolygonModeANGLE (GLenum face, GLenum mode
 
 // Extension EXT_polygon_offset_clamp
 GL_APICALL void         GL_APIENTRY glPolygonOffsetClampEXT (GLfloat factor, GLfloat units, GLfloat clamp);
+
+// Cobalt: protected WebGL presents its protected window surface (Android).
+GL_APICALL void         GL_APIENTRY glPresentProtectedFrameCOBALT (void);
