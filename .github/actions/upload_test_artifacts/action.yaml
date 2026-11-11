@@ -55,9 +55,11 @@ runs:
           browser_archive_flags="${host_archive_flags}"
         fi
 
-        echo "host_archive_flags=${host_archive_flags}" >> $GITHUB_OUTPUT
-        echo "device_archive_flags=${device_archive_flags}" >> $GITHUB_OUTPUT
-        echo "browser_archive_flags=${browser_archive_flags}" >> $GITHUB_OUTPUT
+        {
+          echo "host_archive_flags=${host_archive_flags}"
+          echo "device_archive_flags=${device_archive_flags}"
+          echo "browser_archive_flags=${browser_archive_flags}"
+        } >> "${GITHUB_OUTPUT}"
       shell: bash
 
     - name: Parse Test Targets
@@ -72,13 +74,13 @@ runs:
 
         # This includes both gtest and junit since both will be archived as though they were on-host tests.
         host_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "host" and (.test_type == "gtest" or .test_type == "junit")) | .target] | join(",")' "${json_file}")
-        echo "host_targets=${host_targets}" >> $GITHUB_OUTPUT
+        echo "host_targets=${host_targets}" >> "${GITHUB_OUTPUT}"
 
         device_gtest_targets=$(jq -cr '[.[] | select(.target != null and .runs_on == "device" and .test_type == "gtest" and (.target | contains("browsertests") | not)) | .target] | join(",")' "${json_file}")
-        echo "device_gtest_targets=${device_gtest_targets}" >> $GITHUB_OUTPUT
+        echo "device_gtest_targets=${device_gtest_targets}" >> "${GITHUB_OUTPUT}"
 
         browser_web_targets=$(jq -cr '[.[] | select(.target != null and (.test_type == "browsertest" or .test_type == "webtest" or (.target | contains("browsertests")))) | .target] | join(",")' "${json_file}")
-        echo "browser_web_targets=${browser_web_targets}" >> $GITHUB_OUTPUT
+        echo "browser_web_targets=${browser_web_targets}" >> "${GITHUB_OUTPUT}"
       shell: bash
 
     - name: Copy Runnables to Artifacts
@@ -103,12 +105,13 @@ runs:
       run: |
         set -x
         cd cobalt/src
+        read -r -a flags <<< "${ARCHIVE_FLAGS}"
         time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
           --source-dir . \
-          --out-dir out/${PLATFORM}_${CONFIG}/ \
-          --destination-dir ${GITHUB_WORKSPACE}/artifacts \
+          --out-dir "out/${PLATFORM}_${CONFIG}/" \
+          --destination-dir "${GITHUB_WORKSPACE}/artifacts" \
           --targets "${HOST_TARGETS}" \
-          ${ARCHIVE_FLAGS}
+          "${flags[@]}"
       shell: bash
 
     - name: Archive Device Tests
@@ -121,12 +124,13 @@ runs:
       run: |
         set -x
         cd cobalt/src
+        read -r -a flags <<< "${ARCHIVE_FLAGS}"
         time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
           --source-dir . \
-          --out-dir out/${PLATFORM}_${CONFIG}/ \
-          --destination-dir ${GITHUB_WORKSPACE}/artifacts \
+          --out-dir "out/${PLATFORM}_${CONFIG}/" \
+          --destination-dir "${GITHUB_WORKSPACE}/artifacts" \
           --targets "${DEVICE_TARGETS}" \
-          ${ARCHIVE_FLAGS}
+          "${flags[@]}"
       shell: bash
 
     - name: Archive Browser/Web Tests
@@ -139,12 +143,13 @@ runs:
       run: |
         set -x
         cd cobalt/src
+        read -r -a flags <<< "${ARCHIVE_FLAGS}"
         time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
           --source-dir . \
-          --out-dir out/${PLATFORM}_${CONFIG}/ \
-          --destination-dir ${GITHUB_WORKSPACE}/artifacts \
+          --out-dir "out/${PLATFORM}_${CONFIG}/" \
+          --destination-dir "${GITHUB_WORKSPACE}/artifacts" \
           --targets "${BROWSER_WEB_TEST_TARGETS}" \
-          ${ARCHIVE_FLAGS}
+          "${flags[@]}"
       shell: bash
 
     - name: Upload Test Artifacts to GCS
@@ -161,8 +166,8 @@ runs:
 
         # Add Cobalt release artifacts for smoke tests.
         if [[ "${UPLOAD_E2E_TEST_ARTIFACTS}" == "true" || "${UPLOAD_CHROMEDRIVER_TEST_ARTIFACTS}" == "true" ]]; then
-          mv ${GITHUB_WORKSPACE}/cobalt/src/out/test-package/* \
-             ${GITHUB_WORKSPACE}/artifacts/
+          mv "${GITHUB_WORKSPACE}"/cobalt/src/out/test-package/* \
+             "${GITHUB_WORKSPACE}/artifacts/"
         fi
 
         # Upload cobalt.apk for smoke tests.
