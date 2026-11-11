@@ -47,29 +47,26 @@ int hex_to_int(char hex) {
   return 0;
 }
 
-// Read one digit hex from |str| and store into |output|. Return false if
-// |str| is empty or the character is not a hex digit, return true otherwise.
+// Read one digit hex from the first character of |str|. Return std::nullopt
+// if |str| is empty or the character is not a hex digit.
 template <typename T>
-bool ReadOneDigitHex(std::string_view str, T* output) {
+std::optional<T> ReadOneDigitHex(std::string_view str) {
   if (str.empty()) {
-    return false;
+    return std::nullopt;
   }
 
   if (str[0] >= 'A' && str[0] <= 'F') {
-    *output = static_cast<T>((str[0] - 'A' + 10));
-    return true;
+    return static_cast<T>((str[0] - 'A' + 10));
   }
   if (str[0] >= 'a' && str[0] <= 'f') {
-    *output = static_cast<T>((str[0] - 'a' + 10));
-    return true;
+    return static_cast<T>((str[0] - 'a' + 10));
   }
 
   if (!isdigit(str[0])) {
-    return false;
+    return std::nullopt;
   }
 
-  *output = static_cast<T>((str[0] - '0'));
-  return true;
+  return static_cast<T>((str[0] - '0'));
 }
 
 // Read multi digit decimal from |str| until the next '.' character or end of
@@ -358,12 +355,12 @@ std::optional<ParsedVideoCodec> ParseH265Info(std::string_view codec) {
       codec.remove_prefix(1);
       break;
     }
-    uint32_t hex = 0;
-    if (!ReadOneDigitHex(codec, &hex)) {
+    std::optional<uint32_t> hex = ReadOneDigitHex<uint32_t>(codec);
+    if (!hex) {
       return std::nullopt;
     }
     general_profile_compatibility_flags *= 16;
-    general_profile_compatibility_flags += hex;
+    general_profile_compatibility_flags += *hex;
     codec.remove_prefix(1);
   }
 
