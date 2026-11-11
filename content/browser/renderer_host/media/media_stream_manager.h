@@ -554,19 +554,13 @@ class CONTENT_EXPORT MediaStreamManager
   void StopDevice(blink::mojom::MediaStreamType type,
                   const base::UnguessableToken& session_id);
 
-<<<<<<< HEAD
+#if !BUILDFLAG(IS_COBALT) || BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   // Used by the native screen capture picker to stop application-audio for a
   // specific session ID. Note: this only affects application audio; if
   // system-audio is captured, it will not be stopped.
   void StopApplicationAudioForPickerSessionId(
       DesktopMediaID::Id picker_session_id);
-=======
-#if !BUILDFLAG(IS_COBALT) || BUILDFLAG(ENABLE_SCREEN_CAPTURE)
-  // Used by the native screen capture picker to stop audio for a specific
-  // session ID.
-  void StopAudioForPickerSessionId(DesktopMediaID::Id picker_session_id);
 #endif  // !BUILDFLAG(IS_COBALT) || BUILDFLAG(ENABLE_SCREEN_CAPTURE)
->>>>>>> parent of 818594f56dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // Calls the correct capture manager and closes the device with |session_id|.
   // All requests that use the device are updated.
