@@ -64,7 +64,8 @@ class BidirectionalFitReuseAllocator : public UnderlyingReuseAllocator {
                                  size_t conservative_decommit_blocks,
                                  bool aggressive_decommit_on_suspend,
                                  bool memset_on_reclaim,
-                                 bool mark_as_cold_on_reclaim)
+                                 bool mark_as_cold_on_reclaim,
+                                 bool enable_decommit_only_on_memory_pressure = false)
       : UnderlyingReuseAllocator(fallback_allocator,
                                  initial_capacity,
                                  allocation_increment,
@@ -74,7 +75,8 @@ class BidirectionalFitReuseAllocator : public UnderlyingReuseAllocator {
                                  conservative_decommit_blocks,
                                  aggressive_decommit_on_suspend,
                                  memset_on_reclaim,
-                                 mark_as_cold_on_reclaim),
+                                 mark_as_cold_on_reclaim,
+                                 enable_decommit_only_on_memory_pressure),
         small_allocation_threshold_(small_allocation_threshold) {}
 
   FreeBlockIterator FindFreeBlock(size_t size,
