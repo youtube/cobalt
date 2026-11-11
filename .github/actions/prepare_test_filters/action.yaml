@@ -1,9 +1,6 @@
 name: Prepare Test Filters
 description: Downloads previous test results and prepares the filter directory.
 inputs:
-  test_results_key:
-    description: "Artifact key used to store test results."
-    required: true
   platform:
     description: "The platform being tested."
     required: true
@@ -35,5 +32,5 @@ runs:
       uses: ./.github/actions/download_test_results
       continue-on-error: true
       with:
-        pattern: ${{ inputs.test_results_key }}*_retry_filter_*
+        pattern: ${{ inputs.platform }}_*retry_filter_*
         path: ${{ steps.prepare-filters.outputs.filter_dir }}

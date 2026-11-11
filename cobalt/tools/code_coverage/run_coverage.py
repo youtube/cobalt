@@ -69,6 +69,8 @@ def discover_targets(test_targets_dir, platform):
       # executable (if defined).
       for entry in data:
         if isinstance(entry, dict) and 'target' in entry:
+          if entry.get('build') is False:
+            continue
           discovered_targets.append(entry['target'])
   return discovered_targets
 

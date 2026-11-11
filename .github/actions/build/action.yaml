@@ -116,7 +116,7 @@ runs:
           #     --json-output > "${DYN_TEST_TARGETS_JSON_FILE}"
 
 
-          test_targets_json=$(jq -cr '[.[] | select(.target != null) | .target]' "${TEST_TARGETS_JSON_FILE}")
+          test_targets_json=$(jq -cr '[.[] | select(.target != null and (.build != false)) | .target]' "${TEST_TARGETS_JSON_FILE}")
           echo "test_targets_json=${test_targets_json}" >> "${GITHUB_OUTPUT}"
 
           test_targets_count=$(echo "${test_targets_json}" | jq -cr 'length')

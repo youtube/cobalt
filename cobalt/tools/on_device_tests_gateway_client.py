@@ -144,11 +144,6 @@ def _get_test_args_and_dimensions(
         f'retry_level={args.retry_level}',
     ])
 
-  if args.test_attempts:
-    test_args.extend([
-        f'test_attempts={args.test_attempts}',
-    ])
-
   device_type = None
   device_pool = None
 
@@ -203,13 +198,6 @@ def _unit_test_params(args: argparse.Namespace, target_name: str,
   ]
   if args.gcs_result_path:
     params.append(f'gcs_result_path={args.gcs_result_path}')
-  if args.test_attempts:
-    try:
-      if int(args.test_attempts) > 1:
-        # Must delete existing results when retries are enabled.
-        params.append('gcs_delete_before_upload=true')
-    except ValueError:
-      logging.warning('Invalid test_attempts value: %s', args.test_attempts)
 
   return params
 
@@ -226,6 +214,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
 
   for target_data in targets:
     test_type = args.test_type
+    target_test_args = list(test_args)
 
     if test_type in ('unit_test', 'browser_test'):
       if not device_type or not device_pool:
@@ -233,23 +222,21 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       target_gtest_filter = ''
       if isinstance(target_data, dict):
         test_target = target_data['target']
-        if test_attempts := target_data.get('test_attempts', ''):
-          test_args.append(f'test_attempts={test_attempts}')
         target_gtest_filter = target_data.get('gtest_filter', '')
       else:
         test_target = target_data
-        if args.test_attempts:
-          test_args.append(f'test_attempts={args.test_attempts}')
       target_name = test_target.split(':')[-1]
       if args.gtest_filter:
         gtest_filter = args.gtest_filter
       elif target_gtest_filter:
         gtest_filter = target_gtest_filter
-      else:
+      elif args.filter_json_dir:
         gtest_filter = get_gtest_filter(args.filter_json_dir, target_name)
         if gtest_filter == '-*':
           print(f'Skipping {target_name} due to test filter.')
           continue
+      else:
+        gtest_filter = '*'
       dir_on_device = _DIR_ON_DEV_MAP.get(args.device_family, '')
       cmd_args = [
           f'--gtest_output=xml:{dir_on_device}/{target_name}_testoutput.xml',
@@ -264,23 +251,24 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       if 'cobalt_browsertests' in target_name:
         test_type = 'browser_test'
 
-    elif test_type in ('e2e_test', 'yts_test', 'yts_wpt_test'):
+    elif test_type in ('e2e_test', 'yts_test'):
       if isinstance(target_data, dict):
         test_target = target_data.get('target', '')
-        test_attempts = target_data.get('test_attempts', '')
       else:
         test_target = target_data
-        test_attempts = ''
-      if test_attempts:
-        test_args.extend([f'test_attempts={test_attempts}'])
-      elif args.test_attempts:
-        test_args.extend([f'test_attempts={args.test_attempts}'])
+      target_name = test_target.split(':')[-1]
+
+      if args.filter_json_dir:
+        test_filter = get_gtest_filter(args.filter_json_dir, target_name)
+        if test_filter == '-*':
+          print(f'Skipping {target_name} due to test filter.')
+          continue
+
       test_cmd_args = []
       files = []
-      if test_type == 'yts_wpt_test':
-        test_type = 'e2e_test'
       yt_binary_name = os.path.splitext(os.path.basename(args.artifact_name))[0]
       params = [f'yt_binary_name={yt_binary_name}']
+
       if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
         params.append(f'gcs_cobalt_archive=gs://{args.cobalt_path}.zip')
       else:
@@ -291,6 +279,14 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         else:
           files.append(f'cobalt_path={bigstore_path}')
 
+      if args.gcs_result_path:
+        params.append(f'gcs_result_path={args.gcs_result_path}')
+        params.append(f'gcs_result_filename={target_name}_testoutput.xml')
+        if test_type == 'e2e_test':
+          params.append(f'gcs_log_filename={target_name}_cobalt.log')
+        else:
+          params.append(f'gcs_log_filename={target_name}_log.txt')
+
     else:
       raise ValueError(f'Unsupported test type: {test_type}')
 
@@ -298,7 +294,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         'device_type': device_type,
         'device_pool': device_pool,
         'test_cmd_args': test_cmd_args,
-        'test_args': test_args,
+        'test_args': target_test_args,
         'files': files,
         'params': params,
         'test_target': test_target,
@@ -346,9 +342,7 @@ def main() -> int:
       '--test_type',
       type=str,
       required=True,
-      choices=[
-          'unit_test', 'e2e_test', 'yts_test', 'browser_test', 'yts_wpt_test'
-      ],
+      choices=['unit_test', 'browser_test', 'e2e_test', 'yts_test'],
       help='Type of test to run.',
   )
   trigger_args.add_argument(
@@ -370,10 +364,14 @@ def main() -> int:
       help='Additional labels to assign to the test.',
   )
   trigger_args.add_argument(
-      '--test_attempts',
+      '--filter_json_dir',
       type=str,
-      default='1',
-      help='The maximum number of times a test can retry.',
+      help='Directory containing filter JSON files for test selection.',
+  )
+  trigger_args.add_argument(
+      '--gcs_result_path',
+      type=str,
+      help='GCS URL where test result files should be uploaded.',
   )
   trigger_args.add_argument(
       '--retry_level',
@@ -409,11 +407,6 @@ def main() -> int:
   # --- Unit Test Arguments ---
   unit_test_group = trigger_parser.add_argument_group('Unit Test Arguments')
   unit_test_group.add_argument(
-      '--filter_json_dir',
-      type=str,
-      help='Directory containing filter JSON files for test selection.',
-  )
-  unit_test_group.add_argument(
       '--gtest_filter',
       type=str,
       help='Explicit gtest filter string to run specific test cases.',
@@ -423,11 +416,6 @@ def main() -> int:
       '--gcs_archive_path',
       type=str,
       help='Path to Cobalt archive to be tested. Must be on GCS.',
-  )
-  unit_test_group.add_argument(
-      '--gcs_result_path',
-      type=str,
-      help='GCS URL where test result files should be uploaded.',
   )
 
   # --- E2E Test Arguments ---
@@ -466,7 +454,7 @@ def main() -> int:
       # arguments.
       if args.test_type in ('e2e_test', 'yts_test'):
         if not args.cobalt_path:
-          raise ValueError('--cobalt_path is required for e2e_test or yts_test')
+          raise ValueError(f'--cobalt_path is required for {args.test_type}')
       elif args.test_type in ('unit_test', 'browser_test'):
         if not args.device_family:
           raise ValueError(f'--device_family is required for {args.test_type}')
