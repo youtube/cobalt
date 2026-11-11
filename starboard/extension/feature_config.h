@@ -173,7 +173,7 @@ STARBOARD_FEATURE(kRestartPlaybackOnAudioThresholdGrowth,
 // the platform video MediaCodec fails. Set the following variable to true to
 // retry the creation up to |kVideoCodecCreationRetryCount| times while
 // buffering inputs, as the failure can be transient on devices whose vendor HAL
-// releases the previous codec asynchronously (b/581989550). The H5VCC setting
+// releases the previous codec asynchronously. The H5VCC setting
 // `Media.VideoCodecCreationRetryCount` takes precedence over this feature when
 // it is set to a non-zero value.
 STARBOARD_FEATURE(kRetryVideoCodecCreation, "RetryVideoCodecCreation", false)

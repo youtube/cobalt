@@ -156,8 +156,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
       const jni_zero::JavaRef<jobject>& output_surface);
   // Prepares the output surface and initializes the codec, tearing the codec
   // down on failure. A failure to create the MediaCodec itself is retried
-  // later while retry budget remains (b/581989550), returning
-  // kRetryScheduled. Returns a failure when the caller has to report an error.
+  // later while retry budget remains, returning kRetryScheduled. Returns a
+  // failure when the caller has to report an error.
   Result<CodecInitStatus> TryInitializeCodec(
       const VideoStreamInfo& video_stream_info);
   void RetryCodecCreation();
@@ -312,7 +312,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const size_t initial_number_of_preroll_frames_;
   size_t number_of_preroll_frames_;
 
-  // Codec creation retry state, see b/581989550.
+  // Codec creation retry state.
   struct PendingCodecCreationRetry {
     JobQueue::JobToken job_token = JobQueue::JobToken::kUnscheduled;
     // Stream info used by the failed attempt, for retries that fire before any

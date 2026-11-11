@@ -38,7 +38,7 @@ bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
 inline constexpr int kMaxVideoCodecCreationRetryCount = 10;
 
 // Returns how many times MediaCodecVideoDecoder retries creating the platform
-// MediaCodec after a failure (b/581989550). The H5VCC setting
+// MediaCodec after a failure. The H5VCC setting
 // `Media.VideoCodecCreationRetryCount` in |features| takes precedence whenever
 // it is set: a positive value is the retry count and a negative value disables
 // retries. As 0 is the experiment framework's "unset" sentinel, it defers to
