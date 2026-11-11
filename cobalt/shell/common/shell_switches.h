@@ -28,6 +28,9 @@ inline constexpr char16_t kDefaultSplashCacheName[] = u"default";
 // Current cobalt/shell/embedded_resources/loader_embedded_resources/splash.webm
 // is around 20KB, so 10MB should be sufficient.
 inline constexpr size_t kMaxSplashContentSize = 10 * 1024 * 1024;
+// Proof of concept: plays the splash video directly with a Starboard player,
+// without a splash screen WebContents. See cobalt/shell/browser/splash/.
+inline constexpr char kNativeSplashPlayer[] = "native-splash-player";
 
 extern const char kContentShellUserDataDir[];
 extern const char kCrashDumpsDir[];

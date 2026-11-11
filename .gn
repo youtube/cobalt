@@ -175,6 +175,9 @@ exec_script_allowlist += [
   "//starboard/build/config/sabi/BUILD.gn",
   "//starboard/build/platform_path.gni",
   "//starboard/content/fonts/variables.gni",
+
+  # Proof of concept: fetches WAMR at gn time.
+  "//third_party/wasm_micro_runtime/BUILD.gn",
 ]
 
 # TODO(cobalt, b/377295011): figure out a better long-term solution here, or

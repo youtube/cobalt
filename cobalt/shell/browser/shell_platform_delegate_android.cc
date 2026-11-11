@@ -220,4 +220,13 @@ void JNI_Shell_CloseShell(JNIEnv* env, jlong shellPtr) {
   shell->Close();
 }
 
+void ShellPlatformDelegate::SetNativeSplashActive(Shell* shell, bool active) {
+  JNIEnv* env = AttachCurrentThread();
+  auto it = shell_data_map_.find(shell);
+  if (it == shell_data_map_.end() || it->second.java_object.is_null()) {
+    return;
+  }
+  Java_Shell_setNativeSplashActive(env, it->second.java_object, active);
+}
+
 }  // namespace content
