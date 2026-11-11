@@ -14,21 +14,72 @@
 
 #include "starboard/benchmark/player/player_benchmark_helper.h"
 
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include <algorithm>
 #include <cstring>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/decode_target.h"
 #include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/system.h"
 
 namespace starboard {
+namespace {
 
-SbPlayerBenchmarkHelper::SbPlayerBenchmarkHelper() {
-  ConfigureExperimentalFeaturesForCurrentThread();
+// Returns true if |filename| can be opened from the directory that
+// ResolveTestFileName() in
+// starboard/shared/starboard/player/file_cache_reader.cc picks for it. Keep the
+// two in sync.
+// VideoDmpReader SB_CHECKs that the file exists, so checking first turns a
+// missing file into an error instead of a crash.
+bool TestFileExists(const char* filename) {
+  std::vector<char> content_path(kSbFileMaxPath + 1);
+  if (!SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
+                       content_path.size())) {
+    return false;
+  }
+  const std::string content(content_path.data());
+  const std::string sep(1, kSbFileSepChar);
+  const std::string path_inside_content = sep + "test" + sep + "starboard" +
+                                          sep + "shared" + sep + "starboard" +
+                                          sep + "player" + sep + "testdata";
+  const size_t last_sep = content.find_last_of(kSbFileSepChar);
+  const std::string candidates[] = {
+      content + path_inside_content,
+      content.substr(0, last_sep) + sep + "starboard" + sep +
+          content.substr(last_sep + 1) + path_inside_content,
+      "/sdcard/chromium_tests_root" + path_inside_content,
+  };
+  for (const std::string& directory : candidates) {
+    struct stat info;
+    if (stat(directory.c_str(), &info) == 0 && S_ISDIR(info.st_mode)) {
+      const std::string path = directory + sep + filename;
+      return stat(path.c_str(), &info) == 0 && S_ISREG(info.st_mode) &&
+             access(path.c_str(), R_OK) == 0;
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
+SbPlayerBenchmarkHelper::SbPlayerBenchmarkHelper(
+    FakeGraphicsContextProvider* graphics_context_provider)
+    : owned_graphics_context_provider_(
+          graphics_context_provider
+              ? nullptr
+              : std::make_unique<FakeGraphicsContextProvider>()),
+      graphics_context_provider_(graphics_context_provider
+                                     ? graphics_context_provider
+                                     : owned_graphics_context_provider_.get()) {
+  ConfigureExperimentalFeaturesForCurrentThread({});
 }
 
 SbPlayerBenchmarkHelper::~SbPlayerBenchmarkHelper() {
@@ -36,70 +87,129 @@ SbPlayerBenchmarkHelper::~SbPlayerBenchmarkHelper() {
   DestroyPlayer();
 }
 
+bool SbPlayerBenchmarkHelper::LoadDmpFiles(const char* audio_file,
+                                           const char* video_file,
+                                           std::string* out_error) {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(out_error);
+  SB_DCHECK(!SbPlayerIsValid(player_));
+
+  // Parse DMP files upfront (kDisableReadOnDemand) and cache them by name so
+  // lazy file reads, sample allocations, and multi-clip switching never happen
+  // inside timed iterations.
+  if (!audio_file) {
+    audio_reader_ = nullptr;
+    audio_mime_ = nullptr;
+  } else {
+    auto it = loaded_audio_dmps_.find(audio_file);
+    if (it == loaded_audio_dmps_.end()) {
+      if (!TestFileExists(audio_file)) {
+        *out_error = std::string("Cannot find audio DMP file ") + audio_file;
+        return false;
+      }
+      auto reader = std::make_unique<VideoDmpReader>(
+          audio_file, VideoDmpReader::kDisableReadOnDemand);
+      if (reader->number_of_audio_buffers() == 0) {
+        *out_error = std::string("No audio samples in ") + audio_file;
+        return false;
+      }
+      std::string mime = reader->audio_mime_type();
+      it = loaded_audio_dmps_
+               .emplace(audio_file,
+                        LoadedDmp{std::move(reader), std::move(mime)})
+               .first;
+    }
+    audio_reader_ = it->second.reader.get();
+    audio_mime_ = &it->second.mime;
+  }
+
+  if (!video_file) {
+    video_reader_ = nullptr;
+    video_mime_ = nullptr;
+  } else {
+    auto it = loaded_video_dmps_.find(video_file);
+    if (it == loaded_video_dmps_.end()) {
+      if (!TestFileExists(video_file)) {
+        *out_error = std::string("Cannot find video DMP file ") + video_file;
+        return false;
+      }
+      auto reader = std::make_unique<VideoDmpReader>(
+          video_file, VideoDmpReader::kDisableReadOnDemand);
+      if (reader->number_of_video_buffers() == 0) {
+        *out_error = std::string("No video samples in ") + video_file;
+        return false;
+      }
+      std::string mime = reader->video_mime_type();
+      it = loaded_video_dmps_
+               .emplace(video_file,
+                        LoadedDmp{std::move(reader), std::move(mime)})
+               .first;
+    }
+    video_reader_ = it->second.reader.get();
+    video_mime_ = &it->second.mime;
+  }
+
+  return true;
+}
+
+bool SbPlayerBenchmarkHelper::IsOutputModeSupportedForDmpFiles(
+    SbPlayerOutputMode output_mode) {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SbPlayerCreationParam creation_param;
+  GetCreationParamForDmpFiles(output_mode, &creation_param);
+  return IsOutputModeSupported(creation_param);
+}
+
+int64_t SbPlayerBenchmarkHelper::GetDurationUs() const {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  if (audio_reader_ && video_reader_) {
+    return std::min(audio_reader_->audio_duration(),
+                    video_reader_->video_duration());
+  }
+  if (video_reader_) {
+    return video_reader_->video_duration();
+  }
+  return audio_reader_ ? audio_reader_->audio_duration() : 0;
+}
+
 SbPlayerBenchmarkHelper::InitResult SbPlayerBenchmarkHelper::InitializePlayer(
     const char* audio_file,
     const char* video_file,
-    SbPlayerOutputMode output_mode) {
+    SbPlayerOutputMode output_mode,
+    InitializeTimes* out_times) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK_EQ(player_, kSbPlayerInvalid);
 
-  SbPlayerCreationParam creation_param = {};
-  creation_param.drm_system = kSbDrmSystemInvalid;
-  creation_param.output_mode = output_mode;
-  // The mime strings have to outlive the SbPlayerCreate() call below.
-  std::string audio_mime;
-  std::string video_mime;
-
-  // Parse DMP files upfront (kDisableReadOnDemand) so lazy file reads and
-  // sample allocations never happen inside timed benchmark iterations.
-  if (audio_file) {
-    audio_reader_ = std::make_unique<VideoDmpReader>(
-        audio_file, VideoDmpReader::kDisableReadOnDemand);
-    if (audio_reader_->number_of_audio_buffers() == 0) {
-      SB_LOG(ERROR) << "Failed to load audio DMP: " << audio_file;
-      DestroyPlayer();
-      return InitResult::kFailed;
-    }
-    audio_reader_->audio_stream_info().ConvertTo(
-        &creation_param.audio_stream_info);
-    audio_mime = audio_reader_->audio_mime_type();
-    creation_param.audio_stream_info.mime = audio_mime.c_str();
-  } else {
-    creation_param.audio_stream_info.codec = kSbMediaAudioCodecNone;
-  }
-
-  if (video_file) {
-    video_reader_ = std::make_unique<VideoDmpReader>(
-        video_file, VideoDmpReader::kDisableReadOnDemand);
-    if (video_reader_->number_of_video_buffers() == 0) {
-      SB_LOG(ERROR) << "Failed to load video DMP: " << video_file;
-      DestroyPlayer();
-      return InitResult::kFailed;
-    }
-    video_reader_->video_stream_info().ConvertTo(
-        &creation_param.video_stream_info);
-    video_mime = video_reader_->video_mime_type();
-    creation_param.video_stream_info.mime = video_mime.c_str();
-  } else {
-    creation_param.video_stream_info.codec = kSbMediaVideoCodecNone;
-  }
-
-  if (!IsOutputModeSupported(creation_param)) {
-    DestroyPlayer();
-    return InitResult::kOutputModeNotSupported;
-  }
-
-  output_mode_ = output_mode;
+  InitializeTimes local_times;
+  InitializeTimes& times = out_times ? *out_times : local_times;
+  times = {};
   {
     std::lock_guard<std::mutex> lock(mutex_);
     error_occurred_ = false;
+    player_error_.reset();
     received_player_states_.clear();
+    initialized_time_.reset();
     presenting_time_.reset();
     audio_needs_data_ = false;
     video_needs_data_ = false;
     ticket_ = SB_PLAYER_INITIAL_TICKET;
   }
 
+  std::string error;
+  if (!LoadDmpFiles(audio_file, video_file, &error)) {
+    SB_LOG(ERROR) << error;
+    return InitResult::kFailed;
+  }
+
+  SbPlayerCreationParam creation_param;
+  GetCreationParamForDmpFiles(output_mode, &creation_param);
+  if (!IsOutputModeSupported(creation_param)) {
+    return InitResult::kOutputModeNotSupported;
+  }
+
+  output_mode_ = output_mode;
+
+  times.create_start = Clock::now();
   SbPlayer player =
       SbPlayerCreate(GetWindow(), &creation_param, DummyDeallocateSampleFunc,
                      DecoderStatusCallback, PlayerStatusCallback,
@@ -107,17 +217,21 @@ SbPlayerBenchmarkHelper::InitResult SbPlayerBenchmarkHelper::InitializePlayer(
 
   if (!SbPlayerIsValid(player)) {
     SB_LOG(ERROR) << "SbPlayerCreate failed";
-    DestroyPlayer();
+    output_mode_ = kSbPlayerOutputModeInvalid;
     return InitResult::kFailed;
   }
 
+  times.created = Clock::now();
   player_ = player;
 
   if (!WaitForPlayerState(kSbPlayerStateInitialized,
                           SB_PLAYER_INITIAL_TICKET)) {
     SB_LOG(ERROR) << "Player failed to reach kSbPlayerStateInitialized";
-    DestroyPlayer();
     return InitResult::kFailed;
+  }
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    times.initialized = initialized_time_;
   }
 
   // Start the playback pipeline at 1.0x so seek benchmarks measure seeking an
@@ -138,9 +252,12 @@ void SbPlayerBenchmarkHelper::DestroyPlayer() {
   if (SbPlayerIsValid(player_to_destroy)) {
     SbPlayerDestroy(player_to_destroy);
   }
+}
 
-  audio_reader_.reset();
-  video_reader_.reset();
+std::optional<SbPlayerBenchmarkHelper::PlayerError>
+SbPlayerBenchmarkHelper::GetPlayerError() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return player_error_;
 }
 
 // static
@@ -192,6 +309,30 @@ bool SbPlayerBenchmarkHelper::IsOutputModeSupported(
              creation_param.output_mode;
 }
 
+void SbPlayerBenchmarkHelper::GetCreationParamForDmpFiles(
+    SbPlayerOutputMode output_mode,
+    SbPlayerCreationParam* out_creation_param) {
+  *out_creation_param = {};
+  out_creation_param->drm_system = kSbDrmSystemInvalid;
+  out_creation_param->output_mode = output_mode;
+
+  if (audio_reader_) {
+    audio_reader_->audio_stream_info().ConvertTo(
+        &out_creation_param->audio_stream_info);
+    out_creation_param->audio_stream_info.mime = audio_mime_->c_str();
+  } else {
+    out_creation_param->audio_stream_info.codec = kSbMediaAudioCodecNone;
+  }
+
+  if (video_reader_) {
+    video_reader_->video_stream_info().ConvertTo(
+        &out_creation_param->video_stream_info);
+    out_creation_param->video_stream_info.mime = video_mime_->c_str();
+  } else {
+    out_creation_param->video_stream_info.codec = kSbMediaVideoCodecNone;
+  }
+}
+
 bool SbPlayerBenchmarkHelper::FeedUntilPresenting(
     Clock::time_point* out_presenting_time,
     Clock::duration timeout) {
@@ -237,18 +378,18 @@ bool SbPlayerBenchmarkHelper::FeedUntilPresenting(
       }
 
       const auto now = Clock::now();
+      if (!write_audio && !write_video && now >= deadline) {
+        SB_LOG(ERROR) << "Timed out waiting for kSbPlayerStatePresenting"
+                      << " (audio_needs_data=" << audio_needs_data_
+                      << ", video_needs_data=" << video_needs_data_ << ")";
+        return false;
+      }
       if (poll_decode_target && now >= next_decode_target_poll) {
         need_decode_target_poll = true;
         next_decode_target_poll = now + kDecodeTargetPollInterval;
       }
 
       if (!write_audio && !write_video && !need_decode_target_poll) {
-        if (now >= deadline) {
-          SB_LOG(ERROR) << "Timed out waiting for kSbPlayerStatePresenting"
-                        << " (audio_needs_data=" << audio_needs_data_
-                        << ", video_needs_data=" << video_needs_data_ << ")";
-          return false;
-        }
         const Clock::time_point wait_deadline =
             poll_decode_target ? std::min(deadline, next_decode_target_poll)
                                : deadline;
@@ -344,6 +485,10 @@ void SbPlayerBenchmarkHelper::PlayerStatusCallback(SbPlayer player,
   }
 
   helper->received_player_states_.insert(state);
+  if (state == kSbPlayerStateInitialized &&
+      !helper->initialized_time_.has_value()) {
+    helper->initialized_time_ = Clock::now();
+  }
   if (state == kSbPlayerStatePresenting &&
       !helper->presenting_time_.has_value()) {
     helper->presenting_time_ = Clock::now();
@@ -365,11 +510,20 @@ void SbPlayerBenchmarkHelper::PlayerErrorCallback(SbPlayer player,
   // between a waiter's predicate check and its wait.
   std::lock_guard<std::mutex> lock(helper->mutex_);
   helper->error_occurred_ = true;
+  if (!helper->player_error_.has_value()) {
+    helper->player_error_ = PlayerError{error, message ? message : ""};
+  }
   helper->condition_variable_.notify_all();
 }
 
-void SbPlayerBenchmarkHelper::ConfigureExperimentalFeaturesForCurrentThread()
-    const {
+bool SbPlayerBenchmarkHelper::SetExperimentalFeatures(
+    const std::map<std::string, int64_t>& features) {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  return ConfigureExperimentalFeaturesForCurrentThread(features);
+}
+
+bool SbPlayerBenchmarkHelper::ConfigureExperimentalFeaturesForCurrentThread(
+    const std::map<std::string, int64_t>& features) const {
   // Android's SbPlayerCreate() unconditionally calls
   // GetExperimentalFeaturesForCurrentThread(), which SB_CHECKs that
   // SetExperimentalFeaturesForCurrentThread() has been called on the current
@@ -380,14 +534,24 @@ void SbPlayerBenchmarkHelper::ConfigureExperimentalFeaturesForCurrentThread()
       const StarboardExtensionExperimentalFeaturesConfigurationApi*>(
       SbSystemGetExtension(
           kStarboardExtensionExperimentalFeaturesConfigurationName));
-  if (experimental_features_extension &&
+  if (!experimental_features_extension ||
       strcmp(experimental_features_extension->name,
-             kStarboardExtensionExperimentalFeaturesConfigurationName) == 0 &&
-      experimental_features_extension->version >= 1) {
-    StarboardExtensionExperimentalFeatures features = {nullptr, 0};
-    experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
-        &features);
+             kStarboardExtensionExperimentalFeaturesConfigurationName) != 0 ||
+      experimental_features_extension->version < 1) {
+    return false;
   }
+
+  // The entries only need to outlive the call, which copies them.
+  std::vector<StarboardExperimentalFeatureEntry> entries;
+  entries.reserve(features.size());
+  for (const auto& [key, value] : features) {
+    entries.push_back({key.c_str(), value});
+  }
+  StarboardExtensionExperimentalFeatures extension_features = {
+      entries.empty() ? nullptr : entries.data(), entries.size()};
+  experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
+      &extension_features);
+  return true;
 }
 
 void SbPlayerBenchmarkHelper::Seek(int64_t seek_time_us) {
@@ -402,7 +566,7 @@ void SbPlayerBenchmarkHelper::WriteSamples(SbMediaType type) {
   }
 
   const bool is_audio = type == kSbMediaTypeAudio;
-  VideoDmpReader* reader = is_audio ? audio_reader_.get() : video_reader_.get();
+  VideoDmpReader* reader = is_audio ? audio_reader_ : video_reader_;
   if (!reader) {
     return;
   }
@@ -464,7 +628,7 @@ void SbPlayerBenchmarkHelper::PumpDecodeTarget() {
   }
 
   SbPlayer player = player_;
-  fake_graphics_context_provider_.RunOnGlesContextThread([player]() {
+  graphics_context_provider_->RunOnGlesContextThread([player]() {
     SbDecodeTarget frame = SbPlayerGetCurrentFrame(player);
     if (SbDecodeTargetIsValid(frame)) {
       SbDecodeTargetRelease(frame);
