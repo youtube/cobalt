@@ -70,35 +70,33 @@ std::optional<T> ReadOneDigitHex(std::string_view str) {
 }
 
 // Read multi digit decimal from |str| until the next '.' character or end of
-// string, and store into |output|. Return false if one of the character is not
-// a digit, return true otherwise.
+// string. Return std::nullopt if one of the character is not a digit.
 template <typename T>
-bool ReadDecimalUntilDot(std::string_view str, T* output) {
-  *output = 0;
+std::optional<T> ReadDecimalUntilDot(std::string_view str) {
+  T output = 0;
   for (char c : str) {
     if (c == '.') {
       break;
     }
     if (!isdigit(c)) {
-      return false;
+      return std::nullopt;
     }
-    *output = *output * 10 + (c - '0');
+    output = output * 10 + (c - '0');
   }
 
-  return true;
+  return output;
 }
 
-// Read two digit decimal from |str| and store into |output|. Return false if
-// |str| has less than two characters or any of the first two characters is not
-// a digit, return true otherwise.
+// Read two digit decimal from the first two characters of |str|. Return
+// std::nullopt if |str| has less than two characters or any of the first two
+// characters is not a digit.
 template <typename T>
-bool ReadTwoDigitDecimal(std::string_view str, T* output) {
+std::optional<T> ReadTwoDigitDecimal(std::string_view str) {
   if (str.size() < 2 || !isdigit(str[0]) || !isdigit(str[1])) {
-    return false;
+    return std::nullopt;
   }
 
-  *output = static_cast<T>((str[0] - '0') * 10 + (str[1] - '0'));
-  return true;
+  return static_cast<T>((str[0] - '0') * 10 + (str[1] - '0'));
 }
 
 // Verify the format against a reference using the following rules:
@@ -190,16 +188,16 @@ std::optional<ParsedVideoCodec> ParseAv1Info(std::string_view codec) {
 
   // 3. Parse level, which is two digit value from 0 to 23, maps to level 2.0,
   //    2.1, 2.2, 2.3, 3.0, 3.1, 3.2, 3.3, ..., 7.0, 7.1, 7.2, 7.3.
-  int level_value;
-  if (!ReadTwoDigitDecimal(codec.substr(7), &level_value)) {
+  std::optional<int> level_value = ReadTwoDigitDecimal<int>(codec.substr(7));
+  if (!level_value) {
     return std::nullopt;
   }
 
-  if (level_value > 23) {
+  if (*level_value > 23) {
     return std::nullopt;
   }
   // Level x.y is represented by integer |xy|, for example, 23 means level 2.3.
-  info.level = (level_value / 4 + 2) * 10 + (level_value % 4);
+  info.level = (*level_value / 4 + 2) * 10 + (*level_value % 4);
 
   // 4. Parse tier, which can only be 'M' or 'H'
   if (codec[9] != 'M' && codec[9] != 'H') {
@@ -207,9 +205,11 @@ std::optional<ParsedVideoCodec> ParseAv1Info(std::string_view codec) {
   }
 
   // 5. Parse bit depth, which can be value 08, 10, or 12.
-  if (!ReadTwoDigitDecimal(codec.substr(11), &info.bit_depth)) {
+  std::optional<int> bit_depth = ReadTwoDigitDecimal<int>(codec.substr(11));
+  if (!bit_depth) {
     return std::nullopt;
   }
+  info.bit_depth = *bit_depth;
   if (info.bit_depth != 8 && info.bit_depth != 10 && info.bit_depth != 12) {
     return std::nullopt;
   }
@@ -237,9 +237,12 @@ std::optional<ParsedVideoCodec> ParseAv1Info(std::string_view codec) {
 
   // 9. Parse color primaries, which can be 1 to 12, and 22 (EBU Tech. 3213-E).
   //    Note that 22 is not currently supported by Cobalt.
-  if (!ReadTwoDigitDecimal(codec.substr(20), &info.primary_id)) {
+  std::optional<SbMediaPrimaryId> primary_id =
+      ReadTwoDigitDecimal<SbMediaPrimaryId>(codec.substr(20));
+  if (!primary_id) {
     return std::nullopt;
   }
+  info.primary_id = *primary_id;
   SB_LOG_IF(WARNING, info.primary_id == 22)
       << codec << " uses primary id 22 (EBU Tech. 3213-E)."
       << " It is rejected because Cobalt doesn't support primary id 22.";
@@ -248,18 +251,24 @@ std::optional<ParsedVideoCodec> ParseAv1Info(std::string_view codec) {
   }
 
   // 10. Parse transfer characteristics, which can be 0 to 18.
-  if (!ReadTwoDigitDecimal(codec.substr(23), &info.transfer_id)) {
+  std::optional<SbMediaTransferId> transfer_id =
+      ReadTwoDigitDecimal<SbMediaTransferId>(codec.substr(23));
+  if (!transfer_id) {
     return std::nullopt;
   }
+  info.transfer_id = *transfer_id;
   if (info.transfer_id > 18) {
     return std::nullopt;
   }
 
   // 11. Parse matrix coefficients, which can be 0 to 14.
   //     Note that 12, 13, and 14 are not currently supported by Cobalt.
-  if (!ReadTwoDigitDecimal(codec.substr(26), &info.matrix_id)) {
+  std::optional<SbMediaMatrixId> matrix_id =
+      ReadTwoDigitDecimal<SbMediaMatrixId>(codec.substr(26));
+  if (!matrix_id) {
     return std::nullopt;
   }
+  info.matrix_id = *matrix_id;
   if (info.matrix_id > 11) {
     return std::nullopt;
   }
@@ -328,14 +337,16 @@ std::optional<ParsedVideoCodec> ParseH265Info(std::string_view codec) {
   }
 
   // Read profile
-  int general_profile_idc;
+  std::optional<int> general_profile_idc;
   if (codec[1] == '.') {
-    if (!ReadDecimalUntilDot(codec, &general_profile_idc)) {
+    general_profile_idc = ReadDecimalUntilDot<int>(codec);
+    if (!general_profile_idc) {
       return std::nullopt;
     }
     codec.remove_prefix(2);
   } else if (codec[2] == '.') {
-    if (!ReadDecimalUntilDot(codec, &general_profile_idc)) {
+    general_profile_idc = ReadDecimalUntilDot<int>(codec);
+    if (!general_profile_idc) {
       return std::nullopt;
     }
     codec.remove_prefix(3);
@@ -365,13 +376,13 @@ std::optional<ParsedVideoCodec> ParseH265Info(std::string_view codec) {
   }
 
   info.profile = -1;
-  if (general_profile_idc == 3 || (general_profile_compatibility_flags & 4)) {
+  if (*general_profile_idc == 3 || (general_profile_compatibility_flags & 4)) {
     info.profile = 3;
   }
-  if (general_profile_idc == 2 || (general_profile_compatibility_flags & 2)) {
+  if (*general_profile_idc == 2 || (general_profile_compatibility_flags & 2)) {
     info.profile = 2;
   }
-  if (general_profile_idc == 1 || (general_profile_compatibility_flags & 1)) {
+  if (*general_profile_idc == 1 || (general_profile_compatibility_flags & 1)) {
     info.profile = 1;
   }
   if (info.profile == -1) {
@@ -388,9 +399,11 @@ std::optional<ParsedVideoCodec> ParseH265Info(std::string_view codec) {
   if (codec.size() < 2) {
     return std::nullopt;
   }
-  if (!ReadDecimalUntilDot(codec, &info.level)) {
+  std::optional<int> level = ReadDecimalUntilDot<int>(codec);
+  if (!level) {
     return std::nullopt;
   }
+  info.level = *level;
   if (info.level % 3 != 0) {
     return std::nullopt;
   }
@@ -458,9 +471,11 @@ std::optional<ParsedVideoCodec> ParseVp09Info(std::string_view codec) {
   info.codec = kSbMediaVideoCodecVp9;
 
   // 2. Parse profile, which can only be 00, 01, 02, or 03.
-  if (!ReadTwoDigitDecimal(codec.substr(5), &info.profile)) {
+  std::optional<int> profile = ReadTwoDigitDecimal<int>(codec.substr(5));
+  if (!profile) {
     return std::nullopt;
   }
+  info.profile = *profile;
   if (info.profile < 0 || info.profile > 3) {
     return std::nullopt;
   }
@@ -468,18 +483,22 @@ std::optional<ParsedVideoCodec> ParseVp09Info(std::string_view codec) {
   // 3. Parse level, which is two digit value in the following list:
   const int kLevels[] = {10, 11, 20, 21, 30, 31, 40,
                          41, 50, 51, 52, 60, 61, 62};
-  if (!ReadTwoDigitDecimal(codec.substr(8), &info.level)) {
+  std::optional<int> level = ReadTwoDigitDecimal<int>(codec.substr(8));
+  if (!level) {
     return std::nullopt;
   }
+  info.level = *level;
   auto end = kLevels + SB_ARRAY_SIZE(kLevels);
   if (std::find(kLevels, end, info.level) == end) {
     return std::nullopt;
   }
 
   // 4. Parse bit depth, which can be value 08, 10, or 12.
-  if (!ReadTwoDigitDecimal(codec.substr(11), &info.bit_depth)) {
+  std::optional<int> bit_depth = ReadTwoDigitDecimal<int>(codec.substr(11));
+  if (!bit_depth) {
     return std::nullopt;
   }
+  info.bit_depth = *bit_depth;
   if (info.bit_depth != 8 && info.bit_depth != 10 && info.bit_depth != 12) {
     return std::nullopt;
   }
@@ -495,34 +514,42 @@ std::optional<ParsedVideoCodec> ParseVp09Info(std::string_view codec) {
 
   // 6. Parse chroma subsampling, which we only support 00 and 01.
   // Note that this value is not returned.
-  int chroma;
-  if (!ReadTwoDigitDecimal(codec.substr(14), &chroma) ||
-      (chroma != 0 && chroma != 1)) {
+  std::optional<int> chroma = ReadTwoDigitDecimal<int>(codec.substr(14));
+  if (!chroma || (*chroma != 0 && *chroma != 1)) {
     return std::nullopt;
   }
 
   // 7. Parse color primaries, which can be 1 to 12, and 22 (EBU Tech. 3213-E).
   //    Note that 22 is not currently supported by Cobalt.
-  if (!ReadTwoDigitDecimal(codec.substr(17), &info.primary_id)) {
+  std::optional<SbMediaPrimaryId> primary_id =
+      ReadTwoDigitDecimal<SbMediaPrimaryId>(codec.substr(17));
+  if (!primary_id) {
     return std::nullopt;
   }
+  info.primary_id = *primary_id;
   if (info.primary_id < 1 || info.primary_id > 12) {
     return std::nullopt;
   }
 
   // 8. Parse transfer characteristics, which can be 0 to 18.
-  if (!ReadTwoDigitDecimal(codec.substr(20), &info.transfer_id)) {
+  std::optional<SbMediaTransferId> transfer_id =
+      ReadTwoDigitDecimal<SbMediaTransferId>(codec.substr(20));
+  if (!transfer_id) {
     return std::nullopt;
   }
+  info.transfer_id = *transfer_id;
   if (info.transfer_id > 18) {
     return std::nullopt;
   }
 
   // 9. Parse matrix coefficients, which can be 0 to 14.
   //     Note that 12, 13, and 14 are not currently supported by Cobalt.
-  if (!ReadTwoDigitDecimal(codec.substr(23), &info.matrix_id)) {
+  std::optional<SbMediaMatrixId> matrix_id =
+      ReadTwoDigitDecimal<SbMediaMatrixId>(codec.substr(23));
+  if (!matrix_id) {
     return std::nullopt;
   }
+  info.matrix_id = *matrix_id;
   if (info.matrix_id > 11) {
     return std::nullopt;
   }
@@ -533,11 +560,11 @@ std::optional<ParsedVideoCodec> ParseVp09Info(std::string_view codec) {
   }
 
   // 11. Parse color range, which can only be 0 or 1.
-  int color_range;
-  if (!ReadTwoDigitDecimal(codec.substr(26), &color_range)) {
+  std::optional<int> color_range = ReadTwoDigitDecimal<int>(codec.substr(26));
+  if (!color_range) {
     return std::nullopt;
   }
-  if (color_range != 0 && color_range != 1) {
+  if (*color_range != 0 && *color_range != 1) {
     return std::nullopt;
   }
 
