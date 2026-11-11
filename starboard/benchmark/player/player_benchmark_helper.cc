@@ -36,10 +36,19 @@ SbPlayerBenchmarkHelper::~SbPlayerBenchmarkHelper() {
   DestroyPlayer();
 }
 
-bool SbPlayerBenchmarkHelper::LoadDmpFiles(const char* audio_file,
-                                           const char* video_file) {
+SbPlayerBenchmarkHelper::InitResult SbPlayerBenchmarkHelper::InitializePlayer(
+    const char* audio_file,
+    const char* video_file,
+    SbPlayerOutputMode output_mode) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  DestroyPlayer();
+  SB_DCHECK_EQ(player_, kSbPlayerInvalid);
+
+  SbPlayerCreationParam creation_param = {};
+  creation_param.drm_system = kSbDrmSystemInvalid;
+  creation_param.output_mode = output_mode;
+  // The mime strings have to outlive the SbPlayerCreate() call below.
+  std::string audio_mime;
+  std::string video_mime;
 
   // Parse DMP files upfront (kDisableReadOnDemand) so lazy file reads and
   // sample allocations never happen inside timed benchmark iterations.
@@ -49,42 +58,8 @@ bool SbPlayerBenchmarkHelper::LoadDmpFiles(const char* audio_file,
     if (audio_reader_->number_of_audio_buffers() == 0) {
       SB_LOG(ERROR) << "Failed to load audio DMP: " << audio_file;
       DestroyPlayer();
-      return false;
+      return InitResult::kFailed;
     }
-  }
-
-  if (video_file) {
-    video_reader_ = std::make_unique<VideoDmpReader>(
-        video_file, VideoDmpReader::kDisableReadOnDemand);
-    if (video_reader_->number_of_video_buffers() == 0) {
-      SB_LOG(ERROR) << "Failed to load video DMP: " << video_file;
-      DestroyPlayer();
-      return false;
-    }
-  }
-
-  return true;
-}
-
-SbPlayerBenchmarkHelper::InitResult
-SbPlayerBenchmarkHelper::CreatePlayerFromLoadedDmp(
-    SbPlayerOutputMode output_mode,
-    const SbMediaColorMetadata* color_metadata_override,
-    bool initialize_codec_with_color_metadata) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
-  SB_DCHECK_EQ(player_, kSbPlayerInvalid);
-
-  ConfigureExperimentalFeaturesForCurrentThread(
-      initialize_codec_with_color_metadata);
-
-  SbPlayerCreationParam creation_param = {};
-  creation_param.drm_system = kSbDrmSystemInvalid;
-  creation_param.output_mode = output_mode;
-  // The mime strings have to outlive the SbPlayerCreate() call below.
-  std::string audio_mime;
-  std::string video_mime;
-
-  if (audio_reader_) {
     audio_reader_->audio_stream_info().ConvertTo(
         &creation_param.audio_stream_info);
     audio_mime = audio_reader_->audio_mime_type();
@@ -93,31 +68,28 @@ SbPlayerBenchmarkHelper::CreatePlayerFromLoadedDmp(
     creation_param.audio_stream_info.codec = kSbMediaAudioCodecNone;
   }
 
-  if (video_reader_) {
+  if (video_file) {
+    video_reader_ = std::make_unique<VideoDmpReader>(
+        video_file, VideoDmpReader::kDisableReadOnDemand);
+    if (video_reader_->number_of_video_buffers() == 0) {
+      SB_LOG(ERROR) << "Failed to load video DMP: " << video_file;
+      DestroyPlayer();
+      return InitResult::kFailed;
+    }
     video_reader_->video_stream_info().ConvertTo(
         &creation_param.video_stream_info);
     video_mime = video_reader_->video_mime_type();
     creation_param.video_stream_info.mime = video_mime.c_str();
-    if (color_metadata_override) {
-      creation_param.video_stream_info.color_metadata =
-          *color_metadata_override;
-    }
   } else {
     creation_param.video_stream_info.codec = kSbMediaVideoCodecNone;
   }
 
   if (!IsOutputModeSupported(creation_param)) {
+    DestroyPlayer();
     return InitResult::kOutputModeNotSupported;
   }
 
   output_mode_ = output_mode;
-  color_metadata_override_ = color_metadata_override
-                                 ? std::make_optional(*color_metadata_override)
-                                 : std::nullopt;
-  next_audio_sample_index_ = 0;
-  next_video_sample_index_ = 0;
-  audio_eos_written_ = false;
-  video_eos_written_ = false;
   {
     std::lock_guard<std::mutex> lock(mutex_);
     error_occurred_ = false;
@@ -135,7 +107,7 @@ SbPlayerBenchmarkHelper::CreatePlayerFromLoadedDmp(
 
   if (!SbPlayerIsValid(player)) {
     SB_LOG(ERROR) << "SbPlayerCreate failed";
-    DestroyPlayerInstance();
+    DestroyPlayer();
     return InitResult::kFailed;
   }
 
@@ -144,47 +116,29 @@ SbPlayerBenchmarkHelper::CreatePlayerFromLoadedDmp(
   if (!WaitForPlayerState(kSbPlayerStateInitialized,
                           SB_PLAYER_INITIAL_TICKET)) {
     SB_LOG(ERROR) << "Player failed to reach kSbPlayerStateInitialized";
-    DestroyPlayerInstance();
+    DestroyPlayer();
     return InitResult::kFailed;
   }
 
-  // Start the playback pipeline at 1.0x so seek and startup benchmarks drive
-  // preroll through to kSbPlayerStatePresenting.
+  // Start the playback pipeline at 1.0x so seek benchmarks measure seeking an
+  // actively playing player.
   Seek(0);
   SbPlayerSetPlaybackRate(player_, 1.0);
 
   return InitResult::kOk;
 }
 
-void SbPlayerBenchmarkHelper::DestroyPlayerInstance() {
+void SbPlayerBenchmarkHelper::DestroyPlayer() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   SbPlayer player_to_destroy = player_;
   player_ = kSbPlayerInvalid;
   output_mode_ = kSbPlayerOutputModeInvalid;
-  color_metadata_override_.reset();
 
   if (SbPlayerIsValid(player_to_destroy)) {
     SbPlayerDestroy(player_to_destroy);
   }
-}
 
-SbPlayerBenchmarkHelper::InitResult SbPlayerBenchmarkHelper::InitializePlayer(
-    const char* audio_file,
-    const char* video_file,
-    SbPlayerOutputMode output_mode) {
-  if (!LoadDmpFiles(audio_file, video_file)) {
-    return InitResult::kFailed;
-  }
-  InitResult result = CreatePlayerFromLoadedDmp(output_mode);
-  if (result != InitResult::kOk) {
-    DestroyPlayer();
-  }
-  return result;
-}
-
-void SbPlayerBenchmarkHelper::DestroyPlayer() {
-  DestroyPlayerInstance();
   audio_reader_.reset();
   video_reader_.reset();
 }
@@ -414,8 +368,8 @@ void SbPlayerBenchmarkHelper::PlayerErrorCallback(SbPlayer player,
   helper->condition_variable_.notify_all();
 }
 
-void SbPlayerBenchmarkHelper::ConfigureExperimentalFeaturesForCurrentThread(
-    bool initialize_codec_with_color_metadata) const {
+void SbPlayerBenchmarkHelper::ConfigureExperimentalFeaturesForCurrentThread()
+    const {
   // Android's SbPlayerCreate() unconditionally calls
   // GetExperimentalFeaturesForCurrentThread(), which SB_CHECKs that
   // SetExperimentalFeaturesForCurrentThread() has been called on the current
@@ -430,12 +384,7 @@ void SbPlayerBenchmarkHelper::ConfigureExperimentalFeaturesForCurrentThread(
       strcmp(experimental_features_extension->name,
              kStarboardExtensionExperimentalFeaturesConfigurationName) == 0 &&
       experimental_features_extension->version >= 1) {
-    StarboardExperimentalFeatureEntry entry = {
-        "Media.InitializeVideoCodecWithColorMetadata",
-        initialize_codec_with_color_metadata ? 1 : 0};
-    StarboardExtensionExperimentalFeatures features = {
-        initialize_codec_with_color_metadata ? &entry : nullptr,
-        initialize_codec_with_color_metadata ? 1u : 0u};
+    StarboardExtensionExperimentalFeatures features = {nullptr, 0};
     experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
         &features);
   }
@@ -482,13 +431,8 @@ void SbPlayerBenchmarkHelper::WriteSamples(SbMediaType type) {
                                              total_samples - next_sample_index);
     sample_infos.reserve(samples_to_write);
     for (size_t i = 0; i < samples_to_write; ++i) {
-      SbPlayerSampleInfo sample_info =
-          reader->GetPlayerSampleInfo(type, next_sample_index++);
-      if (!is_audio && color_metadata_override_.has_value()) {
-        sample_info.video_sample_info.stream_info.color_metadata =
-            *color_metadata_override_;
-      }
-      sample_infos.push_back(sample_info);
+      sample_infos.push_back(
+          reader->GetPlayerSampleInfo(type, next_sample_index++));
     }
   }
 

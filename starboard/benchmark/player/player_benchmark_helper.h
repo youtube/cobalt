@@ -73,25 +73,6 @@ class SbPlayerBenchmarkHelper {
   SbPlayerBenchmarkHelper();
   ~SbPlayerBenchmarkHelper();
 
-  // Loads and parses the specified audio and video DMP files upfront so file
-  // I/O does not occur inside timed startup benchmark iterations.
-  bool LoadDmpFiles(const char* audio_file, const char* video_file);
-
-  // Creates an SbPlayer from DMP files previously loaded via LoadDmpFiles(),
-  // waits for kSbPlayerStateInitialized, and starts playback at 0s / 1.0x.
-  // If |color_metadata_override| is non-null, overrides the video stream's
-  // SbMediaColorMetadata in both SbPlayerCreate() and written video samples.
-  // If |initialize_codec_with_color_metadata| is true, enables the
-  // Media.InitializeVideoCodecWithColorMetadata H5vcc setting for the player.
-  InitResult CreatePlayerFromLoadedDmp(
-      SbPlayerOutputMode output_mode,
-      const SbMediaColorMetadata* color_metadata_override = nullptr,
-      bool initialize_codec_with_color_metadata = false);
-
-  // Destroys only the active SbPlayer instance while keeping loaded DMP readers
-  // cached for subsequent benchmark iterations.
-  void DestroyPlayerInstance();
-
   // Initializes the player with specific audio and video DMP files.
   InitResult InitializePlayer(const char* audio_file,
                               const char* video_file,
@@ -164,8 +145,7 @@ class SbPlayerBenchmarkHelper {
                                   SbPlayerError error,
                                   const char* message);
 
-  void ConfigureExperimentalFeaturesForCurrentThread(
-      bool initialize_codec_with_color_metadata = false) const;
+  void ConfigureExperimentalFeaturesForCurrentThread() const;
   void Seek(int64_t seek_time_us);
   void WriteSamples(SbMediaType type);
   void PumpDecodeTarget();
@@ -181,7 +161,6 @@ class SbPlayerBenchmarkHelper {
 
   std::unique_ptr<VideoDmpReader> audio_reader_;
   std::unique_ptr<VideoDmpReader> video_reader_;
-  std::optional<SbMediaColorMetadata> color_metadata_override_;
 
   size_t next_audio_sample_index_ = 0;
   size_t next_video_sample_index_ = 0;
