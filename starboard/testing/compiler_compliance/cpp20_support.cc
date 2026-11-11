@@ -30,7 +30,7 @@ namespace {
 
 // Test std::string ends_with support
 void test_string_ends_with() {
-  bool result = std::string("foobar").ends_with("bar");
+  [[maybe_unused]] bool result = std::string("foobar").ends_with("bar");
 }
 
 // Test std::erase_if support
@@ -45,7 +45,7 @@ void test_erase_if() {
 void test_midpoint() {
   std::uint32_t a = std::numeric_limits<std::uint32_t>::max();
   std::uint32_t b = std::numeric_limits<std::uint32_t>::max() - 2;
-  std::uint32_t result = std::midpoint(a, b);
+  [[maybe_unused]] std::uint32_t result = std::midpoint(a, b);
 }
 
 // Test designated initializers
@@ -54,7 +54,7 @@ void test_designated_initializer() {
     int x = 1;
     int y = 2;
   };
-  S s{.y = 3};  // OK, s.x == 1, s.y == 3
+  [[maybe_unused]] S s{.y = 3};  // OK, s.x == 1, s.y == 3
 }
 
 }  // namespace
