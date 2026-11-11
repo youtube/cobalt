@@ -1007,16 +1007,10 @@ void MediaCodecVideoDecoder::RetryCodecCreation() {
   SB_CHECK(BelongsToCurrentThread());
   SB_CHECK(codec_creation_retry_.pending.has_value());
   SB_CHECK(!media_decoder_);
+  // The decoder is created and Initialize()d in the same job, so the retry job
+  // always runs with |error_cb_| set.
+  SB_CHECK(error_cb_);
 
-  if (!error_cb_) {
-    // Initialize() hasn't been called yet, so an error couldn't be reported.
-    // This isn't expected as the retry job can only run after the job that
-    // created this decoder and called Initialize() on it, but be defensive
-    // and check back later without consuming retry budget.
-    codec_creation_retry_.pending->job_token = Schedule(
-        [this] { RetryCodecCreation(); }, kCodecCreationRetryBaseDelayUsec);
-    return;
-  }
   const PendingCodecCreationRetry retry =
       std::move(*codec_creation_retry_.pending);
   codec_creation_retry_.pending.reset();
