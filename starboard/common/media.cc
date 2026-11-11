@@ -29,10 +29,6 @@ namespace starboard {
 
 namespace {
 
-bool StartsWith(std::string_view str, std::string_view prefix) {
-  return str.substr(0, prefix.size()) == prefix;
-}
-
 // Wrappers of isdigit(), isxdigit(), and isalpha() that are safe to call with
 // any char.  Passing a negative value other than EOF to the <cctype> functions
 // is undefined behavior, which happens with non-ASCII chars when char is
