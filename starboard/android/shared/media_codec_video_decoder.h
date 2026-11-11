@@ -214,6 +214,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool skip_video_frames_over_60_fps_;
 
   const bool ignore_stale_rendered_frames_after_seek_;
+  const bool initialize_codec_with_color_metadata_;
   const bool enable_trivial_optimizations_;
   const bool enable_codec_thread_improvements_;
   const bool enable_ndk_video_;
