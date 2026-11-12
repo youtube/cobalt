@@ -876,7 +876,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   SB_CHECK(j_output_surface);
 
   if (needs_fps_to_initialize_codec_) {
-    SB_DCHECK_GT(pending_input_buffers_.size(), 0u);
+    SB_CHECK_GT(pending_input_buffers_.size(), 0u);
 
     // Guesstimate the video fps.
     if (pending_input_buffers_.size() == 1) {
@@ -902,13 +902,13 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
         video_fps_ = 30;
       }
     }
-    SB_DCHECK_GT(video_fps_, 0);
+    SB_CHECK_GT(video_fps_, 0);
   }
 
   if (needs_fps_to_initialize_codec_) {
-    SB_DCHECK_GT(video_fps_, 0);
+    SB_CHECK_GT(video_fps_, 0);
   } else {
-    SB_DCHECK_EQ(video_fps_, 0);
+    SB_CHECK_EQ(video_fps_, 0);
   }
 
   // If initial stream resolution exceeds max_video_capabilities, update

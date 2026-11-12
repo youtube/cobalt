@@ -70,59 +70,34 @@ TEST(MediaCodecVideoDecoderHelpersTest, GetVideoCodecCreationRetryCount) {
         {std::string(kMediaVideoCodecCreationRetryCount.key()),
          std::move(value)}});
   };
-  const ExperimentalFeatures no_h5vcc_setting;
 
-  // Retries are disabled when neither the H5VCC setting nor the Starboard
-  // feature is set.
-  EXPECT_EQ(GetVideoCodecCreationRetryCount(no_h5vcc_setting, std::nullopt), 0);
-
-  // The Starboard feature param applies when there is no H5VCC setting.
-  EXPECT_EQ(GetVideoCodecCreationRetryCount(no_h5vcc_setting, 3), 3);
-
-  // The H5VCC setting applies when the Starboard feature is disabled.
-  EXPECT_EQ(GetVideoCodecCreationRetryCount(
-                h5vcc_setting(static_cast<int64_t>(2)), std::nullopt),
-            2);
-
-  // The H5VCC setting takes precedence over the Starboard feature, and a
-  // negative value disables retries.
-  EXPECT_EQ(GetVideoCodecCreationRetryCount(
-                h5vcc_setting(static_cast<int64_t>(5)), 3),
-            5);
-  EXPECT_EQ(GetVideoCodecCreationRetryCount(
-                h5vcc_setting(static_cast<int64_t>(-1)), 3),
-            0);
-
-  // 0 is the H5VCC "unset" sentinel, so it defers to the Starboard feature.
-  EXPECT_EQ(GetVideoCodecCreationRetryCount(
-                h5vcc_setting(static_cast<int64_t>(0)), 3),
-            3);
-  EXPECT_EQ(GetVideoCodecCreationRetryCount(
-                h5vcc_setting(static_cast<int64_t>(0)), std::nullopt),
-            0);
-
-  // A setting of the wrong type is ignored.
-  EXPECT_EQ(GetVideoCodecCreationRetryCount(h5vcc_setting(std::string("5")), 3),
-            3);
-
-  // A negative feature param disables retries.
-  EXPECT_EQ(GetVideoCodecCreationRetryCount(no_h5vcc_setting, -1), 0);
-
-  // The retry count is capped, whichever source it comes from.
-  EXPECT_EQ(GetVideoCodecCreationRetryCount(no_h5vcc_setting,
-                                            kMaxVideoCodecCreationRetryCount),
-            kMaxVideoCodecCreationRetryCount);
-  EXPECT_EQ(GetVideoCodecCreationRetryCount(
-                no_h5vcc_setting, kMaxVideoCodecCreationRetryCount + 1),
-            kMaxVideoCodecCreationRetryCount);
-  EXPECT_EQ(GetVideoCodecCreationRetryCount(
-                h5vcc_setting(static_cast<int64_t>(1000)), std::nullopt),
-            kMaxVideoCodecCreationRetryCount);
+  // Retries are disabled when the setting is unset, 0 (the "unset" sentinel),
+  // negative, or not an int.
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(ExperimentalFeatures()), 0);
   EXPECT_EQ(
-      GetVideoCodecCreationRetryCount(
-          h5vcc_setting(static_cast<int64_t>(std::numeric_limits<int>::max())),
-          3),
-      kMaxVideoCodecCreationRetryCount);
+      GetVideoCodecCreationRetryCount(h5vcc_setting(static_cast<int64_t>(0))),
+      0);
+  EXPECT_EQ(
+      GetVideoCodecCreationRetryCount(h5vcc_setting(static_cast<int64_t>(-1))),
+      0);
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(h5vcc_setting(std::string("5"))),
+            0);
+
+  // A positive value is the retry count.
+  EXPECT_EQ(
+      GetVideoCodecCreationRetryCount(h5vcc_setting(static_cast<int64_t>(3))),
+      3);
+
+  // The retry count is capped.
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(h5vcc_setting(
+                static_cast<int64_t>(kMaxVideoCodecCreationRetryCount))),
+            kMaxVideoCodecCreationRetryCount);
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(h5vcc_setting(
+                static_cast<int64_t>(kMaxVideoCodecCreationRetryCount + 1))),
+            kMaxVideoCodecCreationRetryCount);
+  EXPECT_EQ(GetVideoCodecCreationRetryCount(h5vcc_setting(
+                static_cast<int64_t>(std::numeric_limits<int>::max()))),
+            kMaxVideoCodecCreationRetryCount);
 }
 
 TEST(MediaCodecVideoDecoderHelpersTest, ParseMaxResolution) {
