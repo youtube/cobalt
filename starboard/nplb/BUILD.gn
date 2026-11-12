@@ -378,15 +378,19 @@ test("nplb") {
         "//starboard/android/shared/testing/AndroidManifest.xml.jinja2"
   }
 
+  data_deps = [ "//starboard/nplb/testdata/file_tests:nplb_file_tests_data" ]
+
+  # The compiler compliance audits validate that the partner (Starboard)
+  # toolchain supports the C++ standards required by the software requirements.
+  # They are compile-only checks: they are built with the Starboard toolchain
+  # whenever NPLB is built, but are not linked into (or run by) NPLB.
   if (sb_enable_cpp17_audit) {
-    deps += [ "//starboard/nplb/compiler_compliance:cpp17_supported" ]
+    data_deps += [ "//starboard/nplb/compiler_compliance:cpp17_supported($starboard_toolchain)" ]
   }
 
   if (sb_enable_cpp20_audit) {
-    deps += [ "//starboard/nplb/compiler_compliance:cpp20_supported" ]
+    data_deps += [ "//starboard/nplb/compiler_compliance:cpp20_supported($starboard_toolchain)" ]
   }
-
-  data_deps = [ "//starboard/nplb/testdata/file_tests:nplb_file_tests_data" ]
 
   if (is_cobalt_hermetic_build) {
     deps += [ "//cobalt/common/icu_init" ]
