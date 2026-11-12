@@ -333,7 +333,7 @@ source_set("common") {
     deps += [ "//cobalt/updater" ]
   }
 
-  if (is_androidtv) {
+  if (is_androidtv || (is_ios && target_platform == "tvos")) {
     deps += [ "//starboard/crashpad_wrapper:native_stability_reader" ]
   }
 }
@@ -544,7 +544,7 @@ test("cobalt_unittests") {
     ]
   }
 
-  if (is_androidtv) {
+  if (is_androidtv || (is_ios && target_platform == "tvos")) {
     deps += [ "//starboard/crashpad_wrapper:native_stability_reader_test" ]
   }
 

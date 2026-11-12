@@ -187,7 +187,8 @@ void PopulateCobaltFrameBinders(
 
   binder_map->Add<h5vcc_storage::mojom::H5vccStorage>(
       base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
-#if BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV) || \
+    BUILDFLAG(IS_IOS_TVOS)
   binder_map->Add<h5vcc_native_stability::mojom::H5vccNativeStability>(
       base::BindRepeating(
           &h5vcc_native_stability::H5vccNativeStabilityImpl::Create));

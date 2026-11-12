@@ -35,10 +35,15 @@
 #include "base/task/thread_pool.h"
 #include "base/uuid.h"
 #include "base/values.h"
+#include "cobalt/build/configs/buildflags.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/native_stability.h"
 #include "starboard/system.h"
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "cobalt/browser/cobalt_crash_annotations.h"  // nogncheck
+#endif
 
 namespace h5vcc_native_stability {
 
@@ -341,16 +346,22 @@ const void* NativeStabilityManager::GetExtension(const char* name) {
 }
 
 void NativeStabilityManager::ArmCrashUuidAnnotation() {
+  std::string uuid = base::Uuid::GenerateRandomV4().AsLowercaseString();
+#if BUILDFLAG(IS_IOS_TVOS)
+  cobalt::browser::CobaltCrashAnnotations::GetInstance()->SetAnnotation(
+      kNativeStabilityCrashUuidKey, uuid);
+  VLOG(1) << "Armed native_stability_crash_uuid annotation: " << uuid;
+#else
   auto crash_handler_extension =
       static_cast<const CobaltExtensionCrashHandlerApi*>(
           GetExtension(kCobaltExtensionCrashHandlerName));
   if (crash_handler_extension && crash_handler_extension->version >= 2 &&
       crash_handler_extension->SetString) {
-    std::string uuid = base::Uuid::GenerateRandomV4().AsLowercaseString();
     crash_handler_extension->SetString(kNativeStabilityCrashUuidKey,
                                        uuid.c_str());
     VLOG(1) << "Armed native_stability_crash_uuid annotation: " << uuid;
   }
+#endif
 }
 
 void NativeStabilityManager::GetPendingReports(

@@ -79,6 +79,8 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/media/media_get_initial_buffer_capacity.cc",
     "//starboard/shared/starboard/media/media_get_video_buffer_budget.cc",
     "//starboard/shared/starboard/media/media_is_buffer_pool_allocate_on_demand.cc",
+    "//starboard/shared/starboard/native_stability.cc",
+    "//starboard/shared/starboard/native_stability.h",
     "//starboard/shared/starboard/queue_application.cc",
     "//starboard/shared/starboard/queue_application.h",
     "//starboard/shared/starboard/system_request_stop.cc",

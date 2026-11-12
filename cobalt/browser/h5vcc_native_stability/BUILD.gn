@@ -23,11 +23,16 @@ source_set("h5vcc_native_stability") {
   deps = [
     "//base",
     "//cobalt/browser/h5vcc_native_stability/public/mojom",
+    "//cobalt/build/configs:buildflags",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
     "//starboard:starboard_group",
     "//starboard:starboard_headers_only",
   ]
+
+  if (is_ios && target_platform == "tvos") {
+    deps += [ "//cobalt/browser:cobalt_crash_annotations" ]
+  }
 }
 
 source_set("unit_tests") {
