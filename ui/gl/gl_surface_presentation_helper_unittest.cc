@@ -722,12 +722,21 @@ TEST_F(GLSurfacePresentationHelperTest,
   EXPECT_CALL(*gl_, GetQueryObjectuiv(_, GL_QUERY_RESULT_AVAILABLE, NotNull()))
       .WillRepeatedly(DoAll(SetArgPointee<2>(1), Return()));
   EXPECT_CALL(*gl_, GetInteger64v(GL_TIMESTAMP_EXT, NotNull()))
+<<<<<<< ours
       .WillRepeatedly(
           [&](GLenum, GLint64* data) { *data = (current_ns * 24) / 1000; });
   EXPECT_CALL(*gl_, GetQueryObjectui64v(_, GL_QUERY_RESULT, NotNull()))
       .WillRepeatedly([&](GLuint, GLenum, GLuint64* params) {
         *params = static_cast<GLuint64>(current_ns);
       });
+=======
+      .WillRepeatedly(Invoke(
+          [&](GLenum, GLint64* data) { *data = (current_ns * 24) / 1000; }));
+  EXPECT_CALL(*gl_, GetQueryObjectui64v(_, GL_QUERY_RESULT, NotNull()))
+      .WillRepeatedly(Invoke([&](GLuint, GLenum, GLuint64* params) {
+        *params = static_cast<GLuint64>(current_ns);
+      }));
+>>>>>>> theirs
 
   scoped_refptr<GPUTimingClient> timing_setup =
       context_->CreateGPUTimingClient();
