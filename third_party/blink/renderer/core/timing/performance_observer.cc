@@ -101,7 +101,7 @@ PerformanceEntryType PerformanceObserver::supportedEntryTypeMask(
     mask |= PerformanceEntry::kCobaltFrame;
   }
 #endif
->>>>>>> parent of 9a7e887640b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 818594f56dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return mask;
 }
 

@@ -4348,7 +4348,7 @@ void MediaStreamManager::StopApplicationAudioForPickerSessionId(
 =======
 #if !BUILDFLAG(IS_COBALT) || BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 void MediaStreamManager::StopAudioForPickerSessionId(
->>>>>>> parent of 9a7e887640b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 818594f56dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     DesktopMediaID::Id picker_session_id) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 

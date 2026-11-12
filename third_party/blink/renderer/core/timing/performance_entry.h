@@ -91,7 +91,7 @@ class CORE_EXPORT PerformanceEntry : public ScriptWrappable {
 #if BUILDFLAG(IS_COBALT)
     kCobaltFrame = 1 << 19,
 #endif
->>>>>>> parent of 9a7e887640b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 818594f56dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   };
 
   const AtomicString& name() const { return name_; }

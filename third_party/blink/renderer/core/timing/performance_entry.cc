@@ -155,7 +155,7 @@ PerformanceEntry::EntryType PerformanceEntry::ToEntryTypeEnum(
     return kCobaltFrame;
   }
 #endif
->>>>>>> parent of 9a7e887640b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 818594f56dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return kInvalid;
 }
 

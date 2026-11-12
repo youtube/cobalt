@@ -929,4 +929,4 @@ ad14f9bebfdee678ba25da9430c2d5c3b00d6a11
 # Chromium's blame.ignoreRevsFile is normally irrelevant to Cobalt
 # and makes git-blame slower and less reliable.
 # See crbug.com/574290 and crrev.com/c/5888125.
->>>>>>> parent of 9a7e887640b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 818594f56dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

@@ -185,7 +185,7 @@ inspector_protocol_generate("protocol_sources") {
     inputs = [
       _concatenated_protocol_path,
       config_file,
->>>>>>> parent of 9a7e887640b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 818594f56dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     ]
 
     # These are relative to $target_gen_dir.

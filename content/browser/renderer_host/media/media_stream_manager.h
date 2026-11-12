@@ -566,7 +566,7 @@ class CONTENT_EXPORT MediaStreamManager
   // session ID.
   void StopAudioForPickerSessionId(DesktopMediaID::Id picker_session_id);
 #endif  // !BUILDFLAG(IS_COBALT) || BUILDFLAG(ENABLE_SCREEN_CAPTURE)
->>>>>>> parent of 9a7e887640b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 818594f56dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // Calls the correct capture manager and closes the device with |session_id|.
   // All requests that use the device are updated.
