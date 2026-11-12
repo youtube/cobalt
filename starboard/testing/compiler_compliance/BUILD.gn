@@ -15,6 +15,7 @@
 import("//build_overrides/build.gni")  # For use_cxx17.
 
 static_library("compiler_compliance") {
+  testonly = true
   sources = [ "cpp17_support.cc" ]
 
   if (!use_cxx17) {
