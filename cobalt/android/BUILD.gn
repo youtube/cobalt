@@ -151,7 +151,10 @@ android_library("cobalt_browser_java") {
     "apk/app/src/main/java/dev/cobalt/browser/CobaltContentBrowserClient.java",
   ]
   srcjar_deps = [ ":browser_jni_headers" ]
-  deps = [ "//third_party/jni_zero:jni_zero_java" ]
+  deps = [
+    "//content/public/android:content_java",
+    "//third_party/jni_zero:jni_zero_java",
+  ]
 }
 
 android_library("cobalt_main_java") {

@@ -27,9 +27,11 @@
 #include "base/functional/callback.h"
 #include "base/hash/hash.h"
 #include "base/i18n/rtl.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/no_destructor.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
@@ -79,6 +81,7 @@
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/content_constants.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "gpu/config/gpu_finch_features.h"
@@ -200,6 +203,71 @@ void ParseAndApplyH5vccSettingsForTesting(std::string_view settings_value,
 }
 
 #if BUILDFLAG(IS_ANDROID)
+class FreezeStorageFlushObserver : public CobaltLifecycleManagerObserver,
+                                   public content::WebContentsObserver {
+ public:
+  static FreezeStorageFlushObserver* GetInstance() {
+    static base::NoDestructor<FreezeStorageFlushObserver> instance;
+    return instance.get();
+  }
+
+  void FreezeAndFlush(CobaltContentBrowserClient* client,
+                      content::WebContents* web_contents) {
+    if (!client) {
+      return;
+    }
+    if (!web_contents) {
+      client->FlushCookiesAndLocalStorage(base::DoNothing());
+      return;
+    }
+    client_ = client;
+    pending_web_contents_ = web_contents;
+    Observe(web_contents);
+    if (!observing_) {
+      CobaltLifecycleManager::GetInstance()->AddObserver(this);
+      observing_ = true;
+    }
+    CobaltLifecycleManager::GetInstance()->StartWaitingForAck(
+        web_contents, PendingAck::kFreeze);
+    web_contents->SetPageFrozen(true);
+  }
+
+  // CobaltLifecycleManagerObserver:
+  void OnAllFramesVisible(content::WebContents* web_contents) override {}
+
+  void OnAllFramesFrozen(content::WebContents* web_contents) override {
+    if (web_contents != pending_web_contents_) {
+      return;
+    }
+    FlushAndReset();
+  }
+
+  // content::WebContentsObserver:
+  void WebContentsDestroyed() override { FlushAndReset(); }
+
+ private:
+  friend class base::NoDestructor<FreezeStorageFlushObserver>;
+  FreezeStorageFlushObserver() = default;
+  ~FreezeStorageFlushObserver() override = default;
+
+  void FlushAndReset() {
+    CobaltContentBrowserClient* client = client_;
+    pending_web_contents_ = nullptr;
+    Observe(nullptr);
+    if (observing_) {
+      CobaltLifecycleManager::GetInstance()->RemoveObserver(this);
+      observing_ = false;
+    }
+    if (client) {
+      client->FlushCookiesAndLocalStorage(base::DoNothing());
+    }
+  }
+
+  raw_ptr<CobaltContentBrowserClient> client_ = nullptr;
+  raw_ptr<content::WebContents> pending_web_contents_ = nullptr;
+  bool observing_ = false;
+};
+
 static void JNI_CobaltContentBrowserClient_FlushCookiesAndLocalStorage(
     JNIEnv*) {
   auto* client = CobaltContentBrowserClient::Get();
@@ -207,6 +275,20 @@ static void JNI_CobaltContentBrowserClient_FlushCookiesAndLocalStorage(
     return;
   }
   client->FlushCookiesAndLocalStorage(base::DoNothing());
+}
+
+static void JNI_CobaltContentBrowserClient_FreezeAndFlushCookiesAndLocalStorage(
+    JNIEnv*,
+    const base::android::JavaParamRef<jobject>& jweb_contents) {
+  auto* client = CobaltContentBrowserClient::Get();
+  if (!client) {
+    return;
+  }
+  content::WebContents* web_contents =
+      jweb_contents ? content::WebContents::FromJavaWebContents(jweb_contents)
+                    : nullptr;
+  FreezeStorageFlushObserver::GetInstance()->FreezeAndFlush(client,
+                                                            web_contents);
 }
 
 static void JNI_CobaltContentBrowserClient_DispatchBlur(JNIEnv*) {
@@ -233,6 +315,11 @@ static jboolean JNI_CobaltContentBrowserClient_IsFreezeOnBackgroundEnabled(
 static jint JNI_CobaltContentBrowserClient_GetFreezeOnBackgroundDelayMs(
     JNIEnv*) {
   return std::max(0, features::kCobaltFreezeOnBackgroundDelayMs.Get());
+}
+
+static jboolean JNI_CobaltContentBrowserClient_IsFlushStorageOnFreezeEnabled(
+    JNIEnv*) {
+  return base::FeatureList::IsEnabled(features::kCobaltFlushStorageOnFreeze);
 }
 
 static jboolean
