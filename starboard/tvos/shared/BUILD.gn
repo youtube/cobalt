@@ -256,3 +256,19 @@ static_library("starboard_platform") {
     defines = [ "USE_STARBOARD_MEDIA" ]
   }
 }
+
+source_set("starboard_platform_tests") {
+  testonly = true
+
+  sources = [ "media_is_video_supported_test.cc" ]
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+
+  deps = [
+    ":starboard_platform",
+    "//starboard/shared/starboard:feature_list",
+    "//starboard/shared/starboard/media:media_util",
+    "//starboard/testing:scoped_feature_list",
+    "//testing/gtest",
+  ]
+}

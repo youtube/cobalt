@@ -18,6 +18,8 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/feature_list.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
@@ -53,7 +55,10 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
       return false;
     }
 
-    if (fps > 60) {
+    const int max_fps =
+        features::FeatureList::IsEnabled(features::kSupport120FpsVideo) ? 120
+                                                                        : 60;
+    if (fps > max_fps) {
       return false;
     }
 
