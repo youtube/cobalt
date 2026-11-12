@@ -136,7 +136,11 @@ BASE_FEATURE_PARAM(int,
                    kCobaltV8InitialOldSpaceSizeMb,
                    &kCobaltV8InitialOldSpaceSize,
                    "initial_old_space_size_mb",
+#if BUILDFLAG(IS_ANDROID)
+                   64);
+#else
                    16);
+#endif
 
 // Enabled by default on Android to preserve existing production behavior, and
 // disabled by default on 3P (non-Android) platforms to avoid V8 MemorySaverMode
