@@ -55,8 +55,8 @@
 // We support GCC 7 and later.
 // This minimum will go up.
 #if defined(__GNUC__) && !defined(__clang__)
-#if __GNUC__ < 10
-#error "This package requires GCC 10 or higher."
+#if __GNUC__ < 7
+#error "This package requires GCC 7 or higher."
 #endif
 #endif
 

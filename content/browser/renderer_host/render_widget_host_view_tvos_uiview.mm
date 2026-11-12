@@ -350,11 +350,8 @@ BOOL RemoteButtonSupportsAutoRepeat(RemoteButton button) {
       _selectWillShowKeyboard = YES;
       return YES;
     }
-<<<<<<< HEAD
     // Reset `_selectWillShowKeyboard` to NO. If a previous press was
     // cancelled, the flag could remain YES.
-=======
->>>>>>> parent of d044b617957 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     _selectWillShowKeyboard = NO;
   } else if (type == blink::WebInputEvent::Type::kKeyUp) {
     if (_selectWillShowKeyboard) {

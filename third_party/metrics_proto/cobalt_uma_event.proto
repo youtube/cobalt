@@ -18,9 +18,9 @@ option optimize_for = LITE_RUNTIME;
 
 package cobalt.browser.metrics;
 
-import "histogram_event.proto";
-import "reporting_info.proto";
-import "user_action_event.proto";
+import "third_party/metrics_proto/histogram_event.proto";
+import "third_party/metrics_proto/reporting_info.proto";
+import "third_party/metrics_proto/user_action_event.proto";
 
 // CobaltUMAEvent is a trimmed down version of the Chrome UMA
 // ChromeUserMetricsExtension proto suitable for consumption by systems other

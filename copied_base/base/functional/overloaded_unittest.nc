@@ -16,7 +16,7 @@ namespace base {
   struct PackageB {};
 
   absl::variant<PackageA, PackageB> var = PackageA();
-  absl::visit(
+  std::visit(
       Overloaded{[](PackageA& pack) { return "PackageA"; }},
       var);
 

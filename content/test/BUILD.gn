@@ -3869,6 +3869,8 @@ test("content_unittests") {
       ]
       deps += [
         "//components/optimization_guide/core:ondevice",
+        "//components/optimization_guide/proto:optimization_guide_proto",
+        "//components/optimization_guide/public/mojom",
         "//components/soda:constants",
         "//components/soda:utils",
         "//media/mojo/mojom:speech_recognition",

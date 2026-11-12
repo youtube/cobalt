@@ -271,14 +271,13 @@ BASE_FEATURE(kSelectionEdgeVisibilityUsesFullEdge,
 BASE_FEATURE(kResourcePoolPreferExactSizeReuse,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-<<<<<<< HEAD
 // Killswitch for disabling SendEarlyBeginMainFrame function in cc/scheduler.
 BASE_FEATURE(kSendEarlyFinalBeginMainFrame, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool SendEarlyFinalBeginMainFrameIsEnabled() {
   return base::FeatureList::IsEnabled(kSendEarlyFinalBeginMainFrame);
 }
-=======
+
 #if BUILDFLAG(IS_COBALT)
 BASE_FEATURE(kCobaltTileMemoryMetrics,
              "CobaltTileMemoryMetrics",
@@ -287,6 +286,5 @@ BASE_FEATURE(kCobaltTileMemoryMetrics,
 const base::FeatureParam<base::TimeDelta> kCobaltTileMemoryMetricsInterval{
     &kCobaltTileMemoryMetrics, "interval", base::Minutes(1)};
 #endif
->>>>>>> parent of d044b617957 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace features

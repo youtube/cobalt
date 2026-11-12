@@ -69,6 +69,8 @@ class CobaltMetricsServicesManagerClient
 
   ::metrics::MetricsStateManager* GetMetricsStateManager() override;
 
+  PrefService* GetLocalState() override;
+
   void ClearMetricsServiceClientRawPtrForTest() {
     metrics_service_client_ = nullptr;
   }

@@ -114,14 +114,10 @@ std::string AudioDecoderConfig::AsHumanReadableString() const {
     << ", discard decoder delay: "
     << base::ToString(should_discard_decoder_delay())
     << ", target_output_channel_layout: "
-<<<<<<< HEAD
     << ChannelLayoutToString(target_output_channel_layout().channel_layout())
-=======
-    << ChannelLayoutToString(target_output_channel_layout())
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     << ", mime_type: " << mime_type()
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of d044b617957 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     << ", target_output_sample_format: "
     << SampleFormatToString(target_output_sample_format());
   return s.str();

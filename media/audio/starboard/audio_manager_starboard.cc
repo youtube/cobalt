@@ -42,7 +42,7 @@ bool AudioManagerStarboard::HasAudioInputDevices() {
                                   /*info_array_size=*/0) > 0;
 }
 
-void AudioManagerStarboard::GetAudioInputDeviceNames(
+bool AudioManagerStarboard::GetAudioInputDeviceNames(
     AudioDeviceNames* device_names) {
   CHECK(device_names->empty());
   int microphone_count = SbMicrophoneGetAvailable(/*out_info_array=*/nullptr,
@@ -52,12 +52,14 @@ void AudioManagerStarboard::GetAudioInputDeviceNames(
     // only add the default device entry.
     device_names->push_back(media::AudioDeviceName::CreateDefault());
   }
+  return true;
 }
 
-void AudioManagerStarboard::GetAudioOutputDeviceNames(
+bool AudioManagerStarboard::GetAudioOutputDeviceNames(
     AudioDeviceNames* device_names) {
   // Starboard doesnt support output devices
   NOTIMPLEMENTED();
+  return true;
 }
 
 AudioParameters AudioManagerStarboard::GetInputStreamParameters(

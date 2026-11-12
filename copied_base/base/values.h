@@ -963,7 +963,7 @@ class BASE_EXPORT GSL_OWNER Value {
 
   template <typename Visitor>
   auto Visit(Visitor&& visitor) const {
-    return absl::visit(std::forward<Visitor>(visitor), data_);
+    return std::visit(std::forward<Visitor>(visitor), data_);
   }
 
  private:
@@ -1085,7 +1085,7 @@ class BASE_EXPORT GSL_POINTER ValueView {
   // to be a general replacement of `Value`.
   template <typename Visitor>
   auto Visit(Visitor&& visitor) const {
-    return absl::visit(std::forward<Visitor>(visitor), data_view_);
+    return std::visit(std::forward<Visitor>(visitor), data_view_);
   }
 
   // Returns a clone of the underlying Value.

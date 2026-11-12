@@ -650,29 +650,7 @@ void WasmTableObject::UpdateDispatchTable(
           sig_id, target_func_index, WasmDispatchTable::kExistingEntry);
     }
 
-<<<<<<< HEAD
     InvalidateInterpreterIndirectCallCaches(isolate, dispatch_table);
-=======
-    Tagged<ProtectedWeakFixedArray> uses_raw = dispatch_table->protected_uses();
-    // SANDBOX SAFETY: see comment in `WasmTableObject::Grow` (above).
-    // `protected_uses` is a `ProtectedWeakFixedArray` in trusted space, which
-    // is an evacuation candidate during mark-compact; the call to
-    // `UpdateIndirectCallTable` may allocate and trigger GC. Without
-    // conservative stack scanning (the V8 default), a raw `Tagged<>` on
-    // the C++ stack would become stale, so we wrap it in a `DirectHandle`.
-    DirectHandle<ProtectedWeakFixedArray> uses(uses_raw, isolate);
-    int used_length = GetUsedLength(*uses);
-    for (int i = kReservedSlotOffset; i < used_length; i += 2) {
-      if (uses->get(i).IsCleared()) continue;
-      Tagged<WasmTrustedInstanceData> instance = GetInstance(*uses, i);
-      if (instance->has_interpreter_object()) {
-        int table_index = GetTableIndex(*uses, i);
-        wasm::WasmInterpreterRuntime::UpdateIndirectCallTable(
-            isolate, direct_handle(instance->instance_object(), isolate),
-            table_index);
-      }
-    }
->>>>>>> parent of d044b617957 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif  // V8_ENABLE_DRUMBRAKE
   } else {
     dispatch_table->SetForNonWrapper(

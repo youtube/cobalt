@@ -982,7 +982,6 @@ TEST_F(ResourcePoolTest, PeakMetrics) {
   EXPECT_EQ(0u, resource_pool_->GetTotalResourceCountForTesting());
 }
 
-<<<<<<< HEAD
 TEST_F(ResourcePoolTest, PeakMemoryUsageHistograms) {
   base::HistogramTester histogram_tester;
 
@@ -1024,7 +1023,6 @@ TEST_F(ResourcePoolTest, PeakMemoryUsageHistogramsZero) {
       "Compositing.ResourcePool.PeakMemoryUsage.NonZero", 0);
 }
 
-=======
 #if BUILDFLAG(IS_COBALT)
 TEST_F(ResourcePoolTest, TileMemoryAndPeakMetrics) {
   base::HistogramTester histogram_tester;
@@ -1167,5 +1165,4 @@ TEST_F(ResourcePoolTest, TileMemoryMetricsDisabled) {
 }
 #endif
 
->>>>>>> parent of d044b617957 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace cc
