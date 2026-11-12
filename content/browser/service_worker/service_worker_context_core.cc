@@ -31,9 +31,7 @@
 #include "content/browser/service_worker/service_worker_container_host.h"
 #include "content/browser/service_worker/service_worker_context_core_observer.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
-#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/service_worker/service_worker_hid_delegate_observer.h"
-#endif
 #include "content/browser/service_worker/service_worker_host.h"
 #include "content/browser/service_worker/service_worker_info.h"
 #include "content/browser/service_worker/service_worker_job_coordinator.h"
@@ -42,9 +40,7 @@
 #include "content/browser/service_worker/service_worker_register_job.h"
 #include "content/browser/service_worker/service_worker_registration.h"
 #include "content/browser/service_worker/service_worker_security_utils.h"
-#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/service_worker/service_worker_usb_delegate_observer.h"
-#endif
 #include "content/browser/service_worker/service_worker_version.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/common/content_navigation_policy.h"
@@ -1485,7 +1481,7 @@ ScopedServiceWorkerClient::CommitResponseAndRelease(
   return std::make_tuple(std::move(container_info), std::move(controller));
 }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID)
 ServiceWorkerHidDelegateObserver*
 ServiceWorkerContextCore::hid_delegate_observer() {
   if (!hid_delegate_observer_) {
@@ -1499,10 +1495,9 @@ void ServiceWorkerContextCore::SetServiceWorkerHidDelegateObserverForTesting(
     std::unique_ptr<ServiceWorkerHidDelegateObserver> hid_delegate_observer) {
   hid_delegate_observer_ = std::move(hid_delegate_observer);
 }
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
-#if (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) && \
-    !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
 ServiceWorkerUsbDelegateObserver*
 ServiceWorkerContextCore::usb_delegate_observer() {
   if (!usb_delegate_observer_) {
@@ -1516,6 +1511,6 @@ void ServiceWorkerContextCore::SetServiceWorkerUsbDelegateObserverForTesting(
     std::unique_ptr<ServiceWorkerUsbDelegateObserver> usb_delegate_observer) {
   usb_delegate_observer_ = std::move(usb_delegate_observer);
 }
-#endif  // (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) &&
-        // !BUILDFLAG(IS_COBALT)
+#endif  // !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
+
 }  // namespace content

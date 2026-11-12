@@ -122,12 +122,6 @@ class MEDIA_EXPORT AudioDecoderConfig {
     return target_output_sample_format_;
   }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Mime_type string of the config.
-  void set_mime_type(std::string_view mime_type) { mime_type_ = mime_type; }
-  const std::string& mime_type() const { return mime_type_; }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
  private:
   // WARNING: When modifying or adding any parameters, update the following:
   // - AudioDecoderConfig::AsHumanReadableString()
@@ -172,11 +166,6 @@ class MEDIA_EXPORT AudioDecoderConfig {
 
   int bytes_per_channel_ = 0;
   int bytes_per_frame_ = 0;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Full mime string for the audio decoder config.
-  std::string mime_type_ = "";
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Not using DISALLOW_COPY_AND_ASSIGN here intentionally to allow the compiler
   // generated copy constructor and assignment operator. Since the extra data is

@@ -168,27 +168,6 @@ template("generate_bindings") {
     ]
     outputs = invoker.outputs
 
-    if (!use_webrtc_peer_connection) {
-      # Cobalt excludes certain bindings (rtc/peerconnection, hardware, etc.)
-      # from the web_idl_database, so the generator does not emit them. Drop
-      # their declared outputs to match what is actually produced. Upstream
-      # split the former monolithic generate_bindings_all into per-type actions,
-      # so this filtering must run for every type.
-      _filter_exclude_patterns = [
-        # Keep these patterns because they live in modules/webrtc (kept in
-        # Cobalt), not modules/peerconnection.
-        "*v8_rtc_diagnostic_logging_options.*",
-        "*v8_rtc_finish_diagnostic_logging_options.*",
-        "*v8_rtc_start_diagnostic_logging_options.*",
-      ]
-      _dropped_outputs = filter_exclude(
-          filter_include(outputs, cobalt_bindings_exclude_patterns),
-          _filter_exclude_patterns)
-      _kept_outputs = filter_exclude(outputs, _dropped_outputs)
-      outputs = []
-      outputs = _kept_outputs
-    }
-
     args = [
       "--web_idl_database",
       rebase_path(web_idl_database, root_build_dir),
@@ -472,24 +451,6 @@ action_with_pydeps("check_generated_file_list") {
     "union",
   ]
   file_list += generated_union_sources_for_testing_in_core
-
-  if (!use_webrtc_peer_connection) {
-      _filter_exclude_patterns = [
-        # Some RTC* dictionary objects live in modules/webrtc (kept in Cobalt),
-        # not modules/peerconnection (removed), so their generated bindings
-        # must stay listed. Drop everything the broad "*v8_rtc_*" patterns
-        # catch EXCEPT for them.
-        "*v8_rtc_diagnostic_logging_options.*",
-        "*v8_rtc_finish_diagnostic_logging_options.*",
-        "*v8_rtc_start_diagnostic_logging_options.*",
-      ]
-    _dropped_bindings = filter_exclude(
-        filter_include(file_list, cobalt_bindings_exclude_patterns),
-        _filter_exclude_patterns)
-    _kept_file_list = filter_exclude(file_list, _dropped_bindings)
-    file_list = []
-    file_list = _kept_file_list
-  }
 
   response_file_contents = []
   foreach(token, file_list) {

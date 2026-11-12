@@ -177,11 +177,9 @@ class WebContentsAndroid;
 class SelectionPopupDelegate;
 #endif
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 namespace webid {
 enum class FederatedLoginResult;
 }
-#endif
 
 // CreatedWindow holds the WebContentsImpl and target url between IPC calls to
 // CreateNewWindow and ShowCreatedWindow.
@@ -729,9 +727,7 @@ class CONTENT_EXPORT WebContentsImpl
       RenderFrameHostImpl* render_frame_host) override;
   void WebAuthnAssertionRequestSucceeded(
       RenderFrameHostImpl* render_frame_host) override;
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   void OnFedCmFederatedLogin(webid::FederatedLoginResult result) override;
-#endif
   void BindDisplayCutoutHost(
       RenderFrameHostImpl* render_frame_host,
       mojo::PendingAssociatedReceiver<blink::mojom::DisplayCutoutHost> receiver)

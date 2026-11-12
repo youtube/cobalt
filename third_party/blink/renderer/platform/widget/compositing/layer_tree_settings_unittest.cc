@@ -7,30 +7,15 @@
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/features.h"
-#include "base/test/scoped_feature_list.h"
-#endif
-
 namespace blink {
 
 // Verify desktop memory limit calculations.
-//
-// These tests are disabled on Starboard because GetGpuMemoryPolicy() may
-// override |bytes_limit_when_visible| with a Cobalt-specific budget (see
-// base::features::kCobaltForceGpuMemAvailable and the 32-bit default cap), so
-// the expected values below are not stable across Starboard configurations.
-// Cobalt-specific coverage lives in CobaltForceGpuMemAvailableFeature.
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID)
 TEST(LayerTreeSettings, IgnoreGivenMemoryPolicy) {
   auto policy =
       GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256), gfx::Size(), 1.f);
   EXPECT_EQ(512u * 1024u * 1024u, policy.bytes_limit_when_visible);
-#if BUILDFLAG(IS_COBALT)
-  EXPECT_EQ(gpu::MemoryAllocation::CUTOFF_ALLOW_REQUIRED_ONLY,
-#else
   EXPECT_EQ(gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE,
-#endif
             policy.priority_cutoff_when_visible);
 }
 
@@ -38,34 +23,14 @@ TEST(LayerTreeSettings, LargeScreensUseMoreMemory) {
   auto policy = GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256),
                                    gfx::Size(4096, 2160), 1.f);
   EXPECT_EQ(977272832u, policy.bytes_limit_when_visible);
-#if BUILDFLAG(IS_COBALT)
-  EXPECT_EQ(gpu::MemoryAllocation::CUTOFF_ALLOW_REQUIRED_ONLY,
-#else
   EXPECT_EQ(gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE,
-#endif
             policy.priority_cutoff_when_visible);
 
   policy = GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256),
                               gfx::Size(2056, 1329), 2.f);
   EXPECT_EQ(1152u * 1024u * 1024u, policy.bytes_limit_when_visible);
-#if BUILDFLAG(IS_COBALT)
-  EXPECT_EQ(gpu::MemoryAllocation::CUTOFF_ALLOW_REQUIRED_ONLY,
-#else
   EXPECT_EQ(gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE,
-#endif
             policy.priority_cutoff_when_visible);
-}
-#endif
-
-#if BUILDFLAG(IS_COBALT)
-TEST(LayerTreeSettings, CobaltForceGpuMemAvailableFeature) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeatureWithParameters(
-      base::features::kCobaltForceGpuMemAvailable,
-      {{"force_gpu_mem_available_mb", "128"}});
-  auto policy =
-      GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256), gfx::Size(), 1.f);
-  EXPECT_EQ(128u * 1024u * 1024u, policy.bytes_limit_when_visible);
 }
 #endif
 
