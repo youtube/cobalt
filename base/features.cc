@@ -118,10 +118,6 @@ BASE_FEATURE(kCobaltPurgeSkiaCachesOnModeratePressure,
              "CobaltPurgeSkiaCachesOnModeratePressure",
              FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kCobaltPurgeFontManagerCachesOnMemoryPressure,
-             "CobaltPurgeFontManagerCachesOnMemoryPressure",
-             FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kCobaltV8MaxOldSpaceSize,
              "CobaltV8MaxOldSpaceSize",
              FEATURE_DISABLED_BY_DEFAULT);

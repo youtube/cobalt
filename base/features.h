@@ -62,12 +62,6 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltGpuDiscardableCacheLimitMb);
 // feature, these caches are only purged on CRITICAL memory pressure.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltPurgeSkiaCachesOnModeratePressure);
 
-// When enabled, SkFontMgr_Cobalt (used by hermetic/Evergreen builds) purges its
-// font file memory chunk cache and unreferenced typefaces on MODERATE memory
-// pressure, and additionally purges the Skia glyph cache on CRITICAL memory
-// pressure. Without this feature these font caches are never purged.
-BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltPurgeFontManagerCachesOnMemoryPressure);
-
 // When enabled, gates the V8 max old space size via Finch feature and
 // parameter.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8MaxOldSpaceSize);
