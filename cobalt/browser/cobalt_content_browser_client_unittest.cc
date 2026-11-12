@@ -1466,6 +1466,33 @@ TEST_F(CobaltContentBrowserClientFieldTrialConfigTest,
 }
 
 TEST_F(CobaltContentBrowserClientFieldTrialConfigTest,
+       SetUpCobaltFeaturesAndParamsDefaultBehaviorWithoutSwitches) {
+  PopulateCachedExperimentConfig();
+
+  auto feature_list = std::make_unique<base::FeatureList>();
+  client_.SetUpCobaltFeaturesAndParams(feature_list.get());
+
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatureList(std::move(feature_list));
+
+  auto* global_features = GlobalFeatures::GetInstance();
+  EXPECT_TRUE(base::FeatureList::IsEnabled(features::kTestFinchFeature));
+#if defined(OFFICIAL_BUILD)
+  // Official builds only apply the testing config when explicitly enabled, so
+  // the cached experiment config is used.
+  EXPECT_EQ(
+      global_features->experiment_config_manager()->GetExperimentConfigType(),
+      ExperimentConfigType::kRegularConfig);
+  EXPECT_EQ(global_features->active_config_data(), "cached_active_config_data");
+  EXPECT_EQ(features::kTestFinchFeatureParam.Get(), "CachedConfigValue");
+#else
+  // Non-official builds apply the testing config by default.
+  EXPECT_TRUE(global_features->active_config_data().empty());
+  EXPECT_EQ(features::kTestFinchFeatureParam.Get(), "1");
+#endif  // defined(OFFICIAL_BUILD)
+}
+
+TEST_F(CobaltContentBrowserClientFieldTrialConfigTest,
        SetUpCobaltFeaturesAndParamsRespectsFeatureOverridePrecedence) {
   scoped_command_line_.GetProcessCommandLine()->AppendSwitch(
       variations::switches::kEnableFieldTrialTestingConfig);

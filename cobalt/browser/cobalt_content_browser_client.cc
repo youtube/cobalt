@@ -992,10 +992,18 @@ bool ShouldUseFieldTrialTestingConfig(const base::CommandLine& command_line) {
       command_line.GetSwitchValueASCII(
           variations::switches::kEnableBenchmarking) ==
           variations::switches::kEnableFieldTrialTestingConfig;
+#if defined(OFFICIAL_BUILD)
+  // Official (qa/gold) builds behave like production by default: they only
+  // apply the testing config when it is explicitly requested, so that on-device
+  // tests exercise the persisted Finch experiment config and the production
+  // User-Agent string.
+  return is_enable_switch_set;
+#else
   return is_enable_switch_set ||
          (!command_line.HasSwitch(
               variations::switches::kDisableFieldTrialTestingConfig) &&
           !command_line.HasSwitch(variations::switches::kVariationsServerURL));
+#endif  // defined(OFFICIAL_BUILD)
 }
 }  // namespace
 #endif  // BUILDFLAG(FIELDTRIAL_TESTING_ENABLED)

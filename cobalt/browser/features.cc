@@ -32,13 +32,6 @@ BASE_FEATURE(kTestFinchFeature,
 const base::FeatureParam<std::string> kTestFinchFeatureParam{
     &kTestFinchFeature, "TestFinchFeatureParam", ""};
 
-BASE_FEATURE(kEnableUserAgentFinchToken,
-             "EnableUserAgentFinchToken",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-const base::FeatureParam<std::string> kUserAgentFinchTokenParam{
-    &kEnableUserAgentFinchToken, "token", ""};
-
 BASE_FEATURE(kHangReporting,
              "HangReporting",
              base::FEATURE_DISABLED_BY_DEFAULT);

@@ -189,24 +189,6 @@
             ]
         }
     ],
-    "CobaltUserAgentFinchTokenLaunch": [
-        {
-            "platforms": [
-                "android"
-            ],
-            "experiments": [
-                {
-                    "name": "Treatment",
-                    "params": {
-                        "token": "2"
-                    },
-                    "enable_features": [
-                        "EnableUserAgentFinchToken"
-                    ]
-                }
-            ]
-        }
-    ],
     "ContentLengthAwareMojoPipeSizingStudy": [
         {
             "platforms": [
