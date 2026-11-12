@@ -1,6 +1,0 @@
-/*#pragma settings CannotUseMinAndAbsTogether*/
-
-void main() {
-    half x = -5;
-    sk_FragColor.r = min(abs(x), 6);
-}

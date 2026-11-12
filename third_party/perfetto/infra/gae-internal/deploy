@@ -1,3 +1,0 @@
-#!/bin/bash
-gcloud app deploy app.yaml --project google.com:perfetto-gae-internal
-
