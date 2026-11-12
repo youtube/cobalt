@@ -17,8 +17,11 @@
     "CobaltMetricsBrowserTest.PeriodicRecordsMemoryMetrics",
     "CobaltMetricsBrowserTest.RecordsMemoryMetrics",
     "CommitNavigationRaceBrowserTest.*",
+<<<<<<< HEAD
     "CustomMimeTypeBrowserTest.CanPlayType_MapsSupportTypeAndForwardsRawMime",
     "DeferSpeculativeRFHCreationReuseRFHTest.ReuseSameRFHNotDeferred",
+=======
+>>>>>>> e2de078cd40 (Revert "android: Filter CustomMimeTypeBrowserTest.CanPlayType on android-arm" (#13948))
     "DeferSpeculativeRFHCreationTest.NavigateWithPendingCommit",
     "DeferSpeculativeRFHCreationTest.NavigationFromCrashedFrameNotDeferred",
     "DocumentPolicyBrowserTest.FragmentAnchorEnabledByDocumentPolicy",
