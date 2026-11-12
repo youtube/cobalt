@@ -230,7 +230,7 @@ public class JavaSwitchesTest {
   @Test
   public void testApply_NativeSwitchesNotOnCommandLine() {
     Map<String, String> switches = new HashMap<>();
-    switches.put(AndroidTvFlags.V8_MAX_OLD_SPACE_SIZE, "1024");
+    switches.put(AndroidTvFlags.V8_SET_BYTECODE_OLD_TIME, "1024");
     switches.put(AndroidTvFlags.ENABLE_QUIC, "");
 
     // Switches expanded in C++ are handed over via takeNativeKeyValues(), not the command line.
@@ -271,7 +271,7 @@ public class JavaSwitchesTest {
   @Test
   public void testTakeNativeKeyValues_SortedKeysAndNumericValues() {
     Map<String, String> switches = new HashMap<>();
-    switches.put(AndroidTvFlags.V8_MAX_OLD_SPACE_SIZE, "1024");
+    switches.put(AndroidTvFlags.V8_SET_BYTECODE_OLD_TIME, "1024");
     switches.put(AndroidTvFlags.ENABLE_QUIC, "");
     switches.put(AndroidTvFlags.AVOID_CC_REUSE_RESOURCE, "true");
 
@@ -279,7 +279,7 @@ public class JavaSwitchesTest {
 
     assertThat(JavaSwitches.takeNativeKeyValues())
         .asList()
-        .containsExactly("AvoidCCReuseResource", "", "EnableQUIC", "", "V8MaxOldSpaceSize", "1024")
+        .containsExactly("AvoidCCReuseResource", "", "EnableQUIC", "", "V8SetBytecodeOldTime", "1024")
         .inOrder();
   }
 
@@ -297,7 +297,7 @@ public class JavaSwitchesTest {
   public void testTakeNativeKeyValues_ExperimentsNotAllowed_Empty() {
     Map<String, String> switches = new HashMap<>();
     switches.put(AndroidTvFlags.ENABLE_QUIC, "1");
-    switches.put(AndroidTvFlags.V8_MAX_OLD_SPACE_SIZE, "1024");
+    switches.put(AndroidTvFlags.V8_SET_BYTECODE_OLD_TIME, "1024");
 
     apply(switches, false);
 
@@ -313,7 +313,7 @@ public class JavaSwitchesTest {
   @Test
   public void testToNativeKeyValues_SanitizesValues() {
     Map<String, String> switches = new HashMap<>();
-    switches.put(AndroidTvFlags.V8_INITIAL_OLD_SPACE_SIZE, "invalid_non_numeric");
+    switches.put(AndroidTvFlags.V8_SET_BYTECODE_OLD_TIME, "invalid_non_numeric");
     switches.put(AndroidTvFlags.FORCE_GPU_MEM_AVAILABLE_MB, null);
     switches.put(AndroidTvFlags.GPU_IMAGE_CACHE_LIMIT_ITEMS, "5,0=0");
 
@@ -322,7 +322,7 @@ public class JavaSwitchesTest {
         .containsExactly(
             "ForceGpuMemAvailableMb", "",
             "GpuImageCacheLimitItems", "500",
-            "V8InitialOldSpaceSize", "")
+            "V8SetBytecodeOldTime", "")
         .inOrder();
   }
 
