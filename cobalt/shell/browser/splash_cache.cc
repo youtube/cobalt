@@ -157,12 +157,21 @@ class SplashCacheCleaner {
   void OnMatched(const std::u16string& cache_name,
                  const std::string& entry,
                  base::OnceClosure on_matched,
+<<<<<<< ours
                  blink::mojom::CacheStorage::MatchResult result) {
     if (!result.has_value()) {
       // Not found. Only these two errors are misses, like
       // H5vccSchemeURLLoader::OnCacheMatched(). Others, e.g., storage errors,
       // mean that the entry may still be cached.
       const auto status = result.error();
+=======
+                 blink::mojom::MatchResultPtr result) {
+    if (result->is_status()) {
+      // Not found. Only these two errors are misses, like
+      // H5vccSchemeURLLoader::OnCacheMatched(). Others, e.g., storage errors,
+      // mean that the entry may still be cached.
+      const auto status = result->get_status();
+>>>>>>> theirs
       if (status != blink::mojom::CacheStorageError::kErrorNotFound &&
           status != blink::mojom::CacheStorageError::kErrorCacheNameNotFound) {
         has_failure_ = true;
@@ -197,15 +206,24 @@ class SplashCacheCleaner {
 
   void OnCacheOpened(const std::vector<std::string>& entries_to_delete,
                      base::OnceClosure on_cache_cleaned,
+<<<<<<< ours
                      blink::mojom::CacheStorage::OpenResult result) {
     if (!result.has_value()) {
+=======
+                     blink::mojom::OpenResultPtr result) {
+    if (!result->is_cache()) {
+>>>>>>> theirs
       has_failure_ = true;
       std::move(on_cache_cleaned).Run();
       return;
     }
 
     mojo::AssociatedRemote<blink::mojom::CacheStorageCache>& cache_remote =
+<<<<<<< ours
         cache_remotes_.emplace_back(std::move(result.value()));
+=======
+        cache_remotes_.emplace_back(std::move(result->get_cache()));
+>>>>>>> theirs
     cache_remote.set_disconnect_handler(
         base::BindOnce(&SplashCacheCleaner::Finish, weak_factory_.GetWeakPtr(),
                        SplashCacheClearResult::kFailed));
