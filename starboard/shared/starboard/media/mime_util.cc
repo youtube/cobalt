@@ -172,12 +172,13 @@ bool IsSupportedVideoCodec(const ParsedMimeInfo& mime_info) {
     }
   }
 
-  return MediaIsVideoSupported(
-      codec_info.codec, &mime_type, codec_info.profile, codec_info.level,
-      codec_info.bit_depth, codec_info.primary_id, codec_info.transfer_id,
-      codec_info.matrix_id, video_info.frame_size.width,
-      video_info.frame_size.height, video_info.bitrate, video_info.fps,
-      video_info.decode_to_texture_required);
+  VideoSupportQueryParams params;
+  params.codec_info = codec_info;
+  params.frame_size = video_info.frame_size;
+  params.bitrate = video_info.bitrate;
+  params.fps = video_info.fps;
+  params.decode_to_texture_required = video_info.decode_to_texture_required;
+  return MediaIsVideoSupported(&mime_type, params);
 }
 
 }  // namespace
