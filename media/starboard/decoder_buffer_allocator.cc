@@ -269,10 +269,6 @@ base::expected<void, std::string> DecoderBufferAllocator::SetSetting(
     //     memsets reclaimed blocks to 0.
     //   - mark_as_cold_on_reclaim (bit 28): When set (bit 28 is non-zero),
     //     uses MADV_COLD on reclaimed blocks.
-    //   - periodic_decommit (bit 29): Legacy bit for background periodic
-    //     decommit via base::ThreadPool. Now always enabled whenever
-    //     `enable_decommit_on_idle` is true (i.e. for all positive V3 setting
-    //     values), so bit 29 is effectively a no-op.
     // - block_size (8 bits): Specifies both the initial pool capacity and the
     //   fallback allocation increment.
     // - retain_blocks (8 bits): Specifies the first `retain_blocks` blocks of
@@ -312,10 +308,9 @@ base::expected<void, std::string> DecoderBufferAllocator::SetSetting(
     strategy_config.mark_as_cold_on_reclaim = (flags & 0x10) != 0;
 
     bool enable_decommit_on_suspend = (flags & 0x01) != 0;
-    bool periodic_decommit = (flags & 0x20) != 0;
 
-    EnableConfigurableDecommitStrategy(
-        strategy_config, enable_decommit_on_suspend, periodic_decommit);
+    EnableConfigurableDecommitStrategy(strategy_config,
+                                       enable_decommit_on_suspend);
     return base::ok();
   }
   return base::unexpected(name + " isn't a supported setting.");
@@ -336,8 +331,7 @@ void DecoderBufferAllocator::OnPeriodicDecommitTask(
 // static
 void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
     Strategy::ExperimentConfig strategy_config,
-    bool enable_decommit_on_suspend,
-    bool periodic_decommit) {
+    bool enable_decommit_on_suspend) {
   auto* allocator = Get();
   CHECK(allocator);
   // Checking MADV_COLD support directly here simplifies experimental setup
@@ -358,16 +352,13 @@ void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
                                                   std::memory_order_release);
   }
   if (strategy_config.enable_decommit_on_idle) {
-    periodic_decommit = true;
-  }
-  if (periodic_decommit) {
     // This feature is enable only, and isn't expected to be disabled.
     allocator->EnablePeriodicDecommitLoop();
   }
   allocator->UpdateAllocatorStrategy(base::BindRepeating(
       [](const Strategy::ExperimentConfig& strategy_config,
-         bool enable_decommit_on_suspend, bool periodic_decommit,
-         int initial_capacity, int allocation_unit)
+         bool enable_decommit_on_suspend, int initial_capacity,
+         int allocation_unit)
           -> std::unique_ptr<DecoderBufferAllocator::Strategy> {
         LOG(INFO)
             << "DecoderBufferAllocator is using "
@@ -390,12 +381,11 @@ void DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
             << ", memset_on_reclaim: "
             << ToString(strategy_config.memset_on_reclaim)
             << ", mark_as_cold_on_reclaim: "
-            << ToString(strategy_config.mark_as_cold_on_reclaim)
-            << ", periodic_decommit: " << ToString(periodic_decommit);
+            << ToString(strategy_config.mark_as_cold_on_reclaim);
 
         return std::make_unique<DefaultReuseAllocatorStrategy>(strategy_config);
       },
-      strategy_config, enable_decommit_on_suspend, periodic_decommit));
+      strategy_config, enable_decommit_on_suspend));
 }
 
 void DecoderBufferAllocator::EnsureStrategyIsCreated() {
