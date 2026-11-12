@@ -16,6 +16,8 @@
 
 #include <stdint.h>
 
+#include <string>
+
 #include "starboard/configuration.h"
 #include "starboard/extension/features.h"
 #include "starboard/shared/starboard/feature_list.h"
@@ -24,6 +26,66 @@
 namespace starboard::features {
 
 namespace {
+
+// `starboard/extension/feature_config.h` expresses time-parameter defaults as
+// `base::Microseconds(...)`, `base::Milliseconds(...)`, and
+// `base::Seconds(...)`, while test targets under Starboard must not depend on
+// `//base`. Provide file-local constexpr helpers inside this anonymous
+// namespace so default parameter values from `feature_config.h` are preserved
+// in unit tests.
+namespace base {
+
+[[maybe_unused]] constexpr int64_t Microseconds(int64_t n) {
+  return n;
+}
+[[maybe_unused]] constexpr int64_t Milliseconds(int64_t n) {
+  return n * 1000;
+}
+[[maybe_unused]] constexpr int64_t Seconds(int64_t n) {
+  return n * 1000000;
+}
+
+}  // namespace base
+
+[[maybe_unused]] SbFeatureParam MakeDefaultParam(
+    const SbFeatureParamExt<bool>& base,
+    bool default_value) {
+  SbFeatureParam param = base;
+  param.value.bool_value = default_value;
+  return param;
+}
+
+[[maybe_unused]] SbFeatureParam MakeDefaultParam(
+    const SbFeatureParamExt<int>& base,
+    int default_value) {
+  SbFeatureParam param = base;
+  param.value.int_value = default_value;
+  return param;
+}
+
+[[maybe_unused]] SbFeatureParam MakeDefaultParam(
+    const SbFeatureParamExt<double>& base,
+    double default_value) {
+  SbFeatureParam param = base;
+  param.value.double_value = default_value;
+  return param;
+}
+
+[[maybe_unused]] SbFeatureParam MakeDefaultParam(
+    const SbFeatureParamExt<std::string>& base,
+    const char* default_value) {
+  SbFeatureParam param = base;
+  param.value.string_value = default_value;
+  return param;
+}
+
+[[maybe_unused]] SbFeatureParam MakeDefaultParam(
+    const SbFeatureParamExt<int64_t>& base,
+    int64_t default_value) {
+  SbFeatureParam param = base;
+  param.value.time_value = default_value;
+  return param;
+}
 
 // The initialization function accepts an array of SbFeatures and
 // SbFeatureParams as arguments, so these macros help create that array to pass
@@ -45,7 +107,7 @@ namespace {
 
 #define STARBOARD_FEATURE_PARAM(T, param_object_name, feature, name, \
                                 default_value)                       \
-  param_object_name,
+  MakeDefaultParam(param_object_name, default_value),
 
 #define STARBOARD_FEATURE_PARAM_TIME_TYPE int64_t
 

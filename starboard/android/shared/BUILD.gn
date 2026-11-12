@@ -436,7 +436,7 @@ static_library("test_support") {
     ":starboard_platform",
     "//testing/gmock",
     "//testing/gtest",
-    "//third_party/jni_zero:jni_zero",
+    "//third_party/jni_zero",
   ]
 
   sources = [
@@ -472,6 +472,7 @@ test("starboard_platform_tests") {
               "video_frame_tracker_test.cc",
               "video_max_video_input_size_test.cc",
               "video_surface_view_test.cc",
+              "video_window_test.cc",
             ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]

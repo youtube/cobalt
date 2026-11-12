@@ -252,6 +252,7 @@ test("cobalt_browsertests") {
     "picture_in_picture_browsertest.cc",
     "privacy_sandbox_disabled_browsertest.cc",
     "render_thread_hidden_gpu_channel_browsertest.cc",
+    "video_surface_release_browsertest.cc",
 
     #"session_history_browsertest.cc",
     #"site_per_process_browsertest.cc",
