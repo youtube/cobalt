@@ -31,14 +31,11 @@
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/shared/starboard/experimental_features.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
-#if !BUILDFLAG(IS_STARBOARD)
-#include "starboard/shared/starboard/feature_list.h"
-#include "starboard/shared/starboard/features.h"
-#endif  // !BUILDFLAG(IS_STARBOARD)
 
 using starboard::ExoPlayerPlayerWorkerHandler;
 using starboard::FilterBasedPlayerWorkerHandler;
@@ -206,15 +203,8 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
     // Check the availability of the video window. As we only support one main
     // player, and sub players are in decode to texture mode on Android, a
     // single video window should be enough.
-#if !BUILDFLAG(IS_STARBOARD)
-    const bool wait_for_surface_release =
-        starboard::features::FeatureList::IsEnabled(
-            starboard::features::kCobaltWaitForVideoSurfaceRelease);
-#else
-    const bool wait_for_surface_release = false;
-#endif  // !BUILDFLAG(IS_STARBOARD)
     const bool surface_ready =
-        wait_for_surface_release
+        starboard::VideoSurfaceHolder::IsWaitForVideoSurfaceReleaseEnabled()
             ? starboard::VideoSurfaceHolder::HasVideoSurface()
             : starboard::VideoSurfaceHolder::IsVideoSurfaceAvailable();
     if (!surface_ready && !starboard::GetSurfaceViewForCurrentThread()) {

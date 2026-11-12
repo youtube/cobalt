@@ -34,11 +34,9 @@
 #include "starboard/common/once.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/gles/gl_call.h"
-#include "third_party/jni_zero/jni_zero.h"
-#if !BUILDFLAG(IS_STARBOARD)
 #include "starboard/shared/starboard/feature_list.h"
 #include "starboard/shared/starboard/features.h"
-#endif  // !BUILDFLAG(IS_STARBOARD)
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -61,40 +59,25 @@ ANativeWindow* g_native_video_window = nullptr;
 // Global video surface pointer holder.
 VideoSurfaceHolder* g_video_surface_holder = nullptr;
 
-#if !BUILDFLAG(IS_STARBOARD)
-// True while an asynchronous SurfaceView reset posted by
-// ResetAndReleaseVideoSurface() is awaiting replacement via
-// JNI_VideoSurfaceView_OnVideoSurfaceChanged(), bounded by
-// |g_surface_reset_deadline|. Guarded by *GetViewSurfaceMutex().
-bool g_surface_reset_pending = false;
-std::chrono::steady_clock::time_point g_surface_reset_deadline{};
-
 int GetWaitForVideoSurfaceReleaseTimeoutMs() {
-  if (!features::FeatureList::IsEnabled(
-          features::kCobaltWaitForVideoSurfaceRelease)) {
+#if !BUILDFLAG(IS_STARBOARD)
+  if (!VideoSurfaceHolder::IsWaitForVideoSurfaceReleaseEnabled()) {
     return 0;
   }
-  constexpr int kMaxWaitTimeoutMs = 5000;
+  constexpr int kMaxWaitTimeoutMs = 5'000;
   return std::clamp(features::kCobaltWaitForVideoSurfaceReleaseTimeoutMs.Get(),
                     0, kMaxWaitTimeoutMs);
-}
-
-bool IsSurfaceResetPendingLocked() {
-  if (!g_surface_reset_pending) {
-    return false;
-  }
-  if (std::chrono::steady_clock::now() >= g_surface_reset_deadline) {
-    g_surface_reset_pending = false;
-    return false;
-  }
-  return true;
-}
+#else
+  return 0;
 #endif  // !BUILDFLAG(IS_STARBOARD)
+}
 
 void ReleaseVideoSurfaceLocked(VideoSurfaceHolder* holder) {
   if (g_video_surface_holder == holder) {
     g_video_surface_holder = nullptr;
-    GetViewSurfaceCondition()->notify_all();
+    if (VideoSurfaceHolder::IsWaitForVideoSurfaceReleaseEnabled()) {
+      GetViewSurfaceCondition()->notify_all();
+    }
   }
 }
 
@@ -205,13 +188,12 @@ void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     g_native_video_window = NULL;
   }
   if (surface) {
-#if !BUILDFLAG(IS_STARBOARD)
-    g_surface_reset_pending = false;
-#endif  // !BUILDFLAG(IS_STARBOARD)
     GetGlobalVideoSurface().Reset(env, surface);
     g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
   }
-  GetViewSurfaceCondition()->notify_all();
+  if (VideoSurfaceHolder::IsWaitForVideoSurfaceReleaseEnabled()) {
+    GetViewSurfaceCondition()->notify_all();
+  }
 }
 
 // static
@@ -224,44 +206,40 @@ bool VideoSurfaceHolder::IsVideoSurfaceAvailable() {
 }
 
 // static
+bool VideoSurfaceHolder::IsWaitForVideoSurfaceReleaseEnabled() {
+#if !BUILDFLAG(IS_STARBOARD)
+  return features::FeatureList::IsEnabled(
+      features::kCobaltWaitForVideoSurfaceRelease);
+#else
+  return false;
+#endif  // !BUILDFLAG(IS_STARBOARD)
+}
+
+// static
 bool VideoSurfaceHolder::HasVideoSurface() {
   std::lock_guard lock(*GetViewSurfaceMutex());
-#if !BUILDFLAG(IS_STARBOARD)
-  if (IsSurfaceResetPendingLocked()) {
-    return true;
-  }
-#endif  // !BUILDFLAG(IS_STARBOARD)
   return static_cast<bool>(GetGlobalVideoSurface());
 }
 
 jni_zero::ScopedJavaLocalRef<jobject>
 VideoSurfaceHolder::AcquireVideoSurface() {
   std::unique_lock lock(*GetViewSurfaceMutex());
-#if !BUILDFLAG(IS_STARBOARD)
   const int timeout_ms = GetWaitForVideoSurfaceReleaseTimeoutMs();
-  if (timeout_ms > 0) {
-    if (g_video_surface_holder == this && !GetGlobalVideoSurface()) {
+  if (timeout_ms > 0 && g_video_surface_holder == this) {
+    if (!GetGlobalVideoSurface()) {
       g_video_surface_holder = nullptr;
       return {};
     }
-    if (g_video_surface_holder == this) {
-      JNIEnv* env = jni_zero::AttachCurrentThread();
-      return jni_zero::ScopedJavaLocalRef<jobject>(env,
-                                                   GetGlobalVideoSurface());
-    }
-    if (g_video_surface_holder != nullptr || IsSurfaceResetPendingLocked()) {
-      auto deadline = std::chrono::steady_clock::now() +
-                      std::chrono::milliseconds(timeout_ms);
-      if (g_video_surface_holder == nullptr && g_surface_reset_pending) {
-        deadline = std::min(deadline, g_surface_reset_deadline);
-      }
-      GetViewSurfaceCondition()->wait_until(lock, deadline, []() {
-        return g_video_surface_holder == nullptr &&
-               (GetGlobalVideoSurface() || !IsSurfaceResetPendingLocked());
-      });
-    }
+    JNIEnv* env = jni_zero::AttachCurrentThread();
+    return jni_zero::ScopedJavaLocalRef<jobject>(env, GetGlobalVideoSurface());
   }
-#endif  // !BUILDFLAG(IS_STARBOARD)
+
+  if (timeout_ms > 0 && g_video_surface_holder != nullptr) {
+    GetViewSurfaceCondition()->wait_for(
+        lock, std::chrono::milliseconds(timeout_ms),
+        []() { return g_video_surface_holder == nullptr; });
+  }
+
   if (g_video_surface_holder != NULL) {
     return {};
   }
@@ -275,23 +253,6 @@ VideoSurfaceHolder::AcquireVideoSurface() {
 
 void VideoSurfaceHolder::ReleaseVideoSurface() {
   std::lock_guard lock(*GetViewSurfaceMutex());
-  ReleaseVideoSurfaceLocked(this);
-}
-
-void VideoSurfaceHolder::CleanUpAndReleaseVideoSurface(
-    SbDecodeTargetGraphicsContextProvider* gpu_provider) {
-  // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
-  // during painting, and release ownership atomically before unlocking.
-  std::lock_guard lock(*GetViewSurfaceMutex());
-
-  if (g_native_video_window) {
-    SB_CHECK(gpu_provider);
-    gpu_provider->gles_context_runner(gpu_provider, &ClearNativeWindow,
-                                      g_native_video_window);
-    SB_LOG(INFO) << "Video surface has been cleared.";
-  } else {
-    SB_LOG(INFO) << "Tried to clean up video window when it was null.";
-  }
   ReleaseVideoSurfaceLocked(this);
 }
 
@@ -310,43 +271,6 @@ void VideoSurfaceHolder::CleanUpVideoSurface(
   gpu_provider->gles_context_runner(gpu_provider, &ClearNativeWindow,
                                     g_native_video_window);
   SB_LOG(INFO) << "Video surface has been cleared.";
-}
-
-void VideoSurfaceHolder::ResetAndReleaseVideoSurface() {
-  // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
-  // during painting, and release ownership atomically before unlocking so a
-  // concurrent UI-thread OnVideoSurfaceChanged(nullptr) cannot re-enter the
-  // destroying holder.
-  std::lock_guard lock(*GetViewSurfaceMutex());
-
-  JNIEnv* env = AttachCurrentThread();
-  if (!env) {
-    SB_LOG(INFO) << "Tried to reset video window when JNIEnv was null.";
-    ReleaseVideoSurfaceLocked(this);
-    return;
-  }
-
-#if !BUILDFLAG(IS_STARBOARD)
-  const bool had_surface = static_cast<bool>(GetGlobalVideoSurface());
-#endif  // !BUILDFLAG(IS_STARBOARD)
-  StarboardBridge::GetInstance()->ResetVideoSurface(env);
-#if !BUILDFLAG(IS_STARBOARD)
-  const int timeout_ms = GetWaitForVideoSurfaceReleaseTimeoutMs();
-  if (timeout_ms > 0) {
-    GetGlobalVideoSurface().Reset();
-    if (g_native_video_window) {
-      ANativeWindow_release(g_native_video_window);
-      g_native_video_window = nullptr;
-    }
-    if (had_surface) {
-      g_surface_reset_pending = true;
-      g_surface_reset_deadline = std::chrono::steady_clock::now() +
-                                 std::chrono::milliseconds(timeout_ms);
-    }
-  }
-#endif  // !BUILDFLAG(IS_STARBOARD)
-  SB_LOG(INFO) << "Video surface has been reset.";
-  ReleaseVideoSurfaceLocked(this);
 }
 
 void VideoSurfaceHolder::ResetVideoSurface() {

@@ -43,9 +43,6 @@
 #include "starboard/drm.h"
 #include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/features.h"
-#if !BUILDFLAG(IS_STARBOARD)
-#include "starboard/shared/starboard/feature_list.h"
-#endif  // !BUILDFLAG(IS_STARBOARD)
 #include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
@@ -58,15 +55,6 @@ using jni_zero::AttachCurrentThread;
 using jni_zero::JavaRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
-
-bool IsWaitForVideoSurfaceReleaseEnabled() {
-#if !BUILDFLAG(IS_STARBOARD)
-  return features::FeatureList::IsEnabled(
-      features::kCobaltWaitForVideoSurfaceRelease);
-#else
-  return false;
-#endif  // !BUILDFLAG(IS_STARBOARD)
-}
 
 class VideoFrameImpl final : public VideoFrame {
  public:
@@ -430,29 +418,21 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   TeardownCodec();
-  if (IsWaitForVideoSurfaceReleaseEnabled() && owns_video_surface_) {
-    // The video surface must be reset after tunnel mode playbacks. This
-    // prevents video distortion on some platforms. For details, see
-    // http://b/182610842.
-    if (tunnel_mode_audio_session_id_.has_value()) {
-      ResetAndReleaseVideoSurface();
-    } else if (output_mode_ == kSbPlayerOutputModePunchOut) {
-      CleanUpAndReleaseVideoSurface(decode_target_graphics_context_provider_);
-    } else {
-      ReleaseVideoSurface();
+  if (VideoSurfaceHolder::IsWaitForVideoSurfaceReleaseEnabled() &&
+      !tunnel_mode_audio_session_id_.has_value() && owns_video_surface_) {
+    if (output_mode_ == kSbPlayerOutputModePunchOut) {
+      CleanUpVideoSurface(decode_target_graphics_context_provider_);
     }
+    ReleaseVideoSurface();
     owns_video_surface_ = false;
     return;
   }
-  if (!IsWaitForVideoSurfaceReleaseEnabled()) {
-    // The video surface must be reset after tunnel mode playbacks. This
-    // prevents video distortion on some platforms. For details, see
-    // http://b/182610842.
-    if (tunnel_mode_audio_session_id_.has_value()) {
-      ResetVideoSurface();
-    } else if (output_mode_ == kSbPlayerOutputModePunchOut) {
-      CleanUpVideoSurface(decode_target_graphics_context_provider_);
-    }
+  // The video surface must be reset after tunnel mode playbacks. This prevents
+  // video distortion on some platforms. For details, see http://b/182610842.
+  if (tunnel_mode_audio_session_id_.has_value()) {
+    ResetVideoSurface();
+  } else if (output_mode_ == kSbPlayerOutputModePunchOut) {
+    CleanUpVideoSurface(decode_target_graphics_context_provider_);
   }
 }
 
@@ -959,7 +939,11 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
 
 void MediaCodecVideoDecoder::TeardownCodec() {
   SB_CHECK(BelongsToCurrentThread());
-  if (!IsWaitForVideoSurfaceReleaseEnabled() && owns_video_surface_) {
+  if (VideoSurfaceHolder::IsWaitForVideoSurfaceReleaseEnabled() &&
+      !tunnel_mode_audio_session_id_.has_value()) {
+    // Keep surface ownership until destructor so a replacement player can wait
+    // on the VideoSurface holder.
+  } else if (owns_video_surface_) {
     ReleaseVideoSurface();
     owns_video_surface_ = false;
   }

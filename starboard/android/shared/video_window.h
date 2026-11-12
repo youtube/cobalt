@@ -28,6 +28,9 @@ class VideoSurfaceHolder {
   // Return true only if the video surface is available.
   static bool IsVideoSurfaceAvailable();
 
+  // Return true if CobaltWaitForVideoSurfaceRelease is enabled.
+  static bool IsWaitForVideoSurfaceReleaseEnabled();
+
   // Return true if a native video surface exists, even if currently held by
   // an active decoder.
   static bool HasVideoSurface();
@@ -48,17 +51,8 @@ class VideoSurfaceHolder {
   // Release the surface to make the surface available for other holder.
   void ReleaseVideoSurface();
 
-  // Cleans up the video surface via |gpu_provider| and atomically releases
-  // surface ownership under the surface mutex.
-  void CleanUpAndReleaseVideoSurface(
-      SbDecodeTargetGraphicsContextProvider* gpu_provider);
-
   // Cleans up the video surface, and posts the task to |gpu_provider|.
   void CleanUpVideoSurface(SbDecodeTargetGraphicsContextProvider* gpu_provider);
-
-  // Requests asynchronous recreation of the video surface and atomically
-  // releases surface ownership under the surface mutex.
-  void ResetAndReleaseVideoSurface();
 
   // Reset the video surface by re-creating video surface.
   void ResetVideoSurface();
