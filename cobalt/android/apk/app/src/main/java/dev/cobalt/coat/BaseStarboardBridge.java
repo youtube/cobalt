@@ -20,6 +20,7 @@ import static dev.cobalt.util.Log.TAG;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -28,8 +29,10 @@ import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
+import android.os.Debug;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Process;
 import android.view.InputDevice;
 import android.view.Surface;
 import android.view.Window;
@@ -58,6 +61,7 @@ import java.util.TimeZone;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import org.chromium.base.CommandLine;
+import org.chromium.base.memory.CobaltMemoryInfoBridge;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -1238,6 +1242,28 @@ public class BaseStarboardBridge {
 
   @CalledByNative
   protected void setStartupDiagnosisInfo(String key, String value) {}
+
+  /**
+   * Returns the "summary.graphics" value of ActivityManager memory info for this process, in KB, or
+   * -1 if it can't be read.
+   */
+  @CalledByNative
+  public int getUsedGraphicsMemoryKb() {
+    ActivityManager activityManager =
+        (ActivityManager) mAppContext.getSystemService(Context.ACTIVITY_SERVICE);
+    if (activityManager == null) {
+      return -1;
+    }
+    try {
+      Debug.MemoryInfo[] infos = activityManager.getProcessMemoryInfo(new int[] {Process.myPid()});
+      if (infos == null || infos.length == 0 || infos[0] == null) {
+        return -1;
+      }
+      return CobaltMemoryInfoBridge.getGraphicsMemoryKb(infos[0]);
+    } catch (SecurityException e) {
+      return -1;
+    }
+  }
 
   @CalledByNative
   public boolean getWasLowMemoryKilled() {

@@ -328,6 +328,15 @@ SB_EXPORT_ANDROID bool StarboardBridge::GetWasLowMemoryKilled(JNIEnv* env) {
              env, j_starboard_bridge_) == JNI_TRUE;
 }
 
+SB_EXPORT_ANDROID int StarboardBridge::GetUsedGraphicsMemoryKb(JNIEnv* env) {
+  SB_CHECK(env);
+  if (!j_starboard_bridge_) {
+    return -1;
+  }
+  return Java_BaseStarboardBridge_getUsedGraphicsMemoryKb(env,
+                                                          j_starboard_bridge_);
+}
+
 SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {
   SB_CHECK(env);
   return Java_BaseStarboardBridge_closeApp(env, j_starboard_bridge_);
