@@ -511,6 +511,14 @@ class WebMediaPlayerImplTest
     wmpi_->was_suspended_for_frame_closed_ = is_suspended;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  void SetDeferLoadCB(WebMediaPlayerBuilder::DeferLoadCB defer_load_cb) {
+    wmpi_->defer_load_cb_ = std::move(defer_load_cb);
+  }
+
+  void CallStartPipeline() { wmpi_->StartPipeline(); }
+#endif  // BUILDFLAG(IS_COBALT)
+
   void SetFullscreen(bool is_fullscreen) {
     wmpi_->overlay_enabled_ = is_fullscreen;
     wmpi_->overlay_info_.is_fullscreen = is_fullscreen;
@@ -1557,6 +1565,78 @@ TEST_F(WebMediaPlayerImplTest, ComputePlayState_FrameClosed) {
   EXPECT_TRUE(state.is_suspended);
   EXPECT_FALSE(state.is_memory_reporting_enabled);
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(WebMediaPlayerImplTest,
+       StartPipelineDeferredWhenConcealedDuringDataSourceInit) {
+  std::unique_ptr<media::MockDemuxer> demuxer =
+      std::make_unique<NiceMock<media::MockDemuxer>>();
+  auto* demuxer_ptr = demuxer.get();
+  InitializeWebMediaPlayerImpl(std::move(demuxer));
+
+  base::OnceClosure deferred_start_pipeline_cb;
+  SetDeferLoadCB(base::BindLambdaForTesting([&](base::OnceClosure closure) {
+    if (delegate_.IsPageHidden()) {
+      deferred_start_pipeline_cb = std::move(closure);
+      return true;
+    }
+    std::move(closure).Run();
+    return false;
+  }));
+
+  // Simulate conceal arriving before StartPipeline() is reached (e.g., while
+  // MultiBufferDataSource is still initializing).
+  delegate_.SetPageHiddenForTesting(true);
+  wmpi_->SuspendForFrameClosed();
+
+  EXPECT_CALL(*demuxer_ptr, OnInitialize(_, _)).Times(0);
+  CallStartPipeline();
+  EXPECT_FALSE(deferred_start_pipeline_cb.is_null());
+  testing::Mock::VerifyAndClearExpectations(demuxer_ptr);
+
+  // Reveal the page and run the deferred callback; pipeline startup should now
+  // proceed to initialize the demuxer.
+  delegate_.SetPageHiddenForTesting(false);
+  SetWasSuspendedForFrameClosed(false);
+  EXPECT_CALL(*demuxer_ptr, OnInitialize(_, _));
+  std::move(deferred_start_pipeline_cb).Run();
+  CycleThreads();
+}
+
+// Verifies the user journey where a media element begins loading and
+// transitions to StartPipeline() while the frame is marked hidden or suspended
+// (e.g., inside a hidden iframe, or when SuspendForFrameClosed() arrives over
+// the MediaPlayer Mojo pipe before the WebView visibility state transitions
+// from kVisible to kHidden). StartPipeline() must not infinitely recurse when
+// CobaltContentRendererClient::DeferMediaLoad() sees a visible WebView and
+// executes the closure synchronously.
+TEST_F(WebMediaPlayerImplTest,
+       StartPipelineDoesNotRecurseWhenFrameSuspendedWhilePageVisible) {
+  std::unique_ptr<media::MockDemuxer> demuxer =
+      std::make_unique<NiceMock<media::MockDemuxer>>();
+  auto* demuxer_ptr = demuxer.get();
+  InitializeWebMediaPlayerImpl(std::move(demuxer));
+
+  int defer_cb_calls = 0;
+  SetDeferLoadCB(base::BindLambdaForTesting([&](base::OnceClosure closure) {
+    ++defer_cb_calls;
+    if (delegate_.IsPageHidden()) {
+      return true;
+    }
+    std::move(closure).Run();
+    return false;
+  }));
+
+  // Page (WebView) is still visible, but SuspendForFrameClosed() has arrived.
+  delegate_.SetPageHiddenForTesting(false);
+  wmpi_->SuspendForFrameClosed();
+
+  EXPECT_CALL(*demuxer_ptr, OnInitialize(_, _)).Times(1);
+  CallStartPipeline();
+  EXPECT_EQ(defer_cb_calls, 0);
+  CycleThreads();
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 TEST_F(WebMediaPlayerImplTest, ComputePlayState_PausedSeek) {
   InitializeWebMediaPlayerImpl();

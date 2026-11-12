@@ -779,6 +779,11 @@ void MediaWebContentsObserver::OnMediaPlayerAdded(
       std::make_unique<MediaPlayerObserverHostImpl>(player_id, this));
   observer_it.first->second->BindMediaPlayerObserverReceiver(
       std::move(media_player_observer));
+#if BUILDFLAG(IS_COBALT)
+  if (web_contents()->GetVisibility() == Visibility::HIDDEN) {
+    remote_it.first->second->SuspendForFrameClosed();
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void MediaWebContentsObserver::SuspendAllMediaPlayers() {
