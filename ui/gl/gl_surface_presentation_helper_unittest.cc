@@ -8,16 +8,23 @@
 
 #if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
 
+<<<<<<< ours
 #include <algorithm>
+=======
+>>>>>>> theirs
 #include <atomic>
 #include <memory>
 
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+<<<<<<< ours
 #include "base/synchronization/waitable_event.h"
 #include "base/test/bind.h"
 #include "base/threading/platform_thread.h"
+=======
+#include "base/test/bind.h"
+>>>>>>> theirs
 #include "base/time/time.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -58,6 +65,7 @@ class TestGLContextWithEGLDisplay : public GLContextStub {
     return_null_gpu_timing_client_ = value;
   }
 
+<<<<<<< ours
   void set_fail_make_current(bool value) { fail_make_current_ = value; }
 
   int make_current_calls() const { return make_current_calls_; }
@@ -70,6 +78,8 @@ class TestGLContextWithEGLDisplay : public GLContextStub {
     return GLContextStub::MakeCurrentImpl(surface);
   }
 
+=======
+>>>>>>> theirs
   GLDisplayEGL* GetGLDisplayEGL() override { return display_egl_; }
   scoped_refptr<GPUTimingClient> CreateGPUTimingClient() override {
     if (return_null_gpu_timing_client_) {
@@ -82,8 +92,11 @@ class TestGLContextWithEGLDisplay : public GLContextStub {
   ~TestGLContextWithEGLDisplay() override = default;
   raw_ptr<GLDisplayEGL> display_egl_;
   bool return_null_gpu_timing_client_ = false;
+<<<<<<< ours
   bool fail_make_current_ = false;
   int make_current_calls_ = 0;
+=======
+>>>>>>> theirs
 };
 
 // Test fixture wiring mock GL/EGL bindings and a single-threaded task
@@ -109,7 +122,10 @@ class GLSurfacePresentationHelperTest : public testing::Test {
     g_current_egl_context = egl_api_.get();
     g_driver_egl.fn.eglGetCurrentDisplayFn = &FakeGetCurrentDisplay;
     g_driver_egl.fn.eglCreateSyncKHRFn = &FakeCreateSyncKHR;
+<<<<<<< ours
     g_driver_egl.fn.eglClientWaitSyncKHRFn = &FakeClientWaitSyncKHR;
+=======
+>>>>>>> theirs
     g_driver_egl.fn.eglDestroySyncKHRFn = &FakeDestroySyncKHR;
     g_driver_egl.fn.eglGetSyncAttribKHRFn = &FakeGetSyncAttribKHR;
     g_driver_egl.fn.eglGetErrorFn = &FakeGetError;
@@ -148,12 +164,15 @@ class GLSurfacePresentationHelperTest : public testing::Test {
     next_sync_id_.store(1, std::memory_order_relaxed);
     created_syncs_.store(0, std::memory_order_relaxed);
     destroyed_syncs_.store(0, std::memory_order_relaxed);
+<<<<<<< ours
     wait_calls_.store(0, std::memory_order_relaxed);
     block_fence_signal_.store(false, std::memory_order_relaxed);
     fail_client_wait_.store(false, std::memory_order_relaxed);
     fence_signal_delay_ms_.store(0, std::memory_order_relaxed);
     last_fence_signaled_ticks_us_.store(0, std::memory_order_relaxed);
     fence_signaled_event_ = nullptr;
+=======
+>>>>>>> theirs
   }
 
   static EGLDisplay GL_BINDING_CALL FakeGetCurrentDisplay() {
@@ -168,6 +187,7 @@ class GLSurfacePresentationHelperTest : public testing::Test {
     return reinterpret_cast<EGLSyncKHR>(id);
   }
 
+<<<<<<< ours
   static EGLint GL_BINDING_CALL FakeClientWaitSyncKHR(EGLDisplay,
                                                       EGLSyncKHR,
                                                       EGLint,
@@ -195,6 +215,8 @@ class GLSurfacePresentationHelperTest : public testing::Test {
     return EGL_CONDITION_SATISFIED_KHR;
   }
 
+=======
+>>>>>>> theirs
   static EGLBoolean GL_BINDING_CALL FakeDestroySyncKHR(EGLDisplay, EGLSyncKHR) {
     destroyed_syncs_.fetch_add(1, std::memory_order_relaxed);
     return EGL_TRUE;
@@ -221,17 +243,21 @@ class GLSurfacePresentationHelperTest : public testing::Test {
   static std::atomic<uintptr_t> next_sync_id_;
   static std::atomic<int> created_syncs_;
   static std::atomic<int> destroyed_syncs_;
+<<<<<<< ours
   static std::atomic<int> wait_calls_;
   static std::atomic<bool> block_fence_signal_;
   static std::atomic<bool> fail_client_wait_;
   static std::atomic<int> fence_signal_delay_ms_;
   static std::atomic<int64_t> last_fence_signaled_ticks_us_;
   static std::atomic<base::WaitableEvent*> fence_signaled_event_;
+=======
+>>>>>>> theirs
 };
 
 std::atomic<uintptr_t> GLSurfacePresentationHelperTest::next_sync_id_{1};
 std::atomic<int> GLSurfacePresentationHelperTest::created_syncs_{0};
 std::atomic<int> GLSurfacePresentationHelperTest::destroyed_syncs_{0};
+<<<<<<< ours
 std::atomic<int> GLSurfacePresentationHelperTest::wait_calls_{0};
 std::atomic<bool> GLSurfacePresentationHelperTest::block_fence_signal_{false};
 std::atomic<bool> GLSurfacePresentationHelperTest::fail_client_wait_{false};
@@ -240,13 +266,19 @@ std::atomic<int64_t>
     GLSurfacePresentationHelperTest::last_fence_signaled_ticks_us_{0};
 std::atomic<base::WaitableEvent*>
     GLSurfacePresentationHelperTest::fence_signaled_event_{nullptr};
+=======
+>>>>>>> theirs
 
 // When video playback or UI rendering runs on GPU drivers that truncate
 // GL_TIMESTAMP_EXT query results to float32 at high uptime (e.g. Mali after
 // 68.7s), GLSurfacePresentationHelper switches from GPUTimer to GLFence after 6
 // frames without failing presentation or causing playback stutter.
 TEST_F(GLSurfacePresentationHelperTest,
+<<<<<<< ours
        FallsBackFromFloat32QuantizedGPUTimerToSubMsAsyncEGLFence) {
+=======
+       FallsBackFromFloat32QuantizedGPUTimerToGLFence) {
+>>>>>>> theirs
   EXPECT_CALL(
       *gl_, GetQueryiv(GL_TIMESTAMP_EXT, GL_QUERY_COUNTER_BITS_EXT, NotNull()))
       .WillRepeatedly(DoAll(SetArgPointee<2>(64), Return()));
@@ -263,6 +295,7 @@ TEST_F(GLSurfacePresentationHelperTest,
   int64_t current_ns = 31LL * 3600 * base::Time::kNanosecondsPerSecond + 9999;
   uint64_t truncated_query_ns = 0;
   EXPECT_CALL(*gl_, QueryCounter(_, GL_TIMESTAMP_EXT))
+<<<<<<< ours
       .WillRepeatedly([&](GLuint, GLenum) {
         ++query_counter_calls;
         truncated_query_ns =
@@ -276,6 +309,22 @@ TEST_F(GLSurfacePresentationHelperTest,
       .WillRepeatedly([&](GLuint, GLenum, GLuint64* params) {
         *params = truncated_query_ns;
       });
+=======
+      .WillRepeatedly(Invoke([&](GLuint, GLenum) {
+        ++query_counter_calls;
+        truncated_query_ns =
+            static_cast<uint64_t>(static_cast<float>(current_ns));
+      }));
+  EXPECT_CALL(*gl_, GetQueryObjectuiv(_, GL_QUERY_RESULT_AVAILABLE, NotNull()))
+      .WillRepeatedly(DoAll(SetArgPointee<2>(1), Return()));
+  EXPECT_CALL(*gl_, GetInteger64v(GL_TIMESTAMP_EXT, NotNull()))
+      .WillRepeatedly(
+          Invoke([&](GLenum, GLint64* data) { *data = current_ns; }));
+  EXPECT_CALL(*gl_, GetQueryObjectui64v(_, GL_QUERY_RESULT, NotNull()))
+      .WillRepeatedly(Invoke([&](GLuint, GLenum, GLuint64* params) {
+        *params = truncated_query_ns;
+      }));
+>>>>>>> theirs
 
   // Bind GPUTiming's fake CPU clock so simulated 31h timestamps match CPU time.
   scoped_refptr<GPUTimingClient> timing_setup =
@@ -308,11 +357,16 @@ TEST_F(GLSurfacePresentationHelperTest,
   EXPECT_EQ(6, query_counter_calls);
   EXPECT_EQ(0, created_syncs_.load());
 
+<<<<<<< ours
   // Frame 7 must fall back to off-thread GLFenceEGL waiting and stamp the
   // timestamp when the worker wakes up (not when the GPU thread later runs).
   base::WaitableEvent signaled_event;
   fence_signaled_event_.store(&signaled_event, std::memory_order_release);
   fence_signal_delay_ms_.store(2, std::memory_order_relaxed);
+=======
+  // Frame 7 must fall back to GLFence without issuing further timestamp
+  // queries.
+>>>>>>> theirs
   base::RunLoop fence_loop;
   gfx::PresentationFeedback fence_feedback;
   {
@@ -322,6 +376,7 @@ TEST_F(GLSurfacePresentationHelperTest,
           fence_feedback = fb;
           fence_loop.Quit();
         }));
+<<<<<<< ours
     // Worker wait must not start during PreSwapBuffers before eglSwapBuffers
     // and PostSwapBuffers complete.
     EXPECT_EQ(0, wait_calls_.load());
@@ -333,10 +388,14 @@ TEST_F(GLSurfacePresentationHelperTest,
   base::PlatformThread::Sleep(base::Milliseconds(20));
   const base::TimeTicks after_gpu_sleep = base::TimeTicks::Now();
   fence_signaled_event_.store(nullptr, std::memory_order_release);
+=======
+  }
+>>>>>>> theirs
   fence_loop.Run();
 
   EXPECT_EQ(6, query_counter_calls);
   EXPECT_EQ(1, created_syncs_.load());
+<<<<<<< ours
   EXPECT_GE(wait_calls_.load(), 1);
   EXPECT_EQ(1, destroyed_syncs_.load());
   EXPECT_FALSE(fence_feedback.failed());
@@ -346,6 +405,10 @@ TEST_F(GLSurfacePresentationHelperTest,
                               std::memory_order_acquire));
   EXPECT_GE(fence_feedback.timestamp, expected_signal_time);
   EXPECT_LT(fence_feedback.timestamp, after_gpu_sleep - base::Milliseconds(10));
+=======
+  EXPECT_EQ(1, destroyed_syncs_.load());
+  EXPECT_FALSE(fence_feedback.failed());
+>>>>>>> theirs
 }
 
 // When starting video playback or UI rendering on platforms with unpatched Mali
@@ -373,6 +436,7 @@ TEST_F(GLSurfacePresentationHelperTest,
   int query_counter_calls = 0;
   int64_t current_ns = 3600LL * base::Time::kNanosecondsPerSecond + 777;
   EXPECT_CALL(*gl_, QueryCounter(_, GL_TIMESTAMP_EXT))
+<<<<<<< ours
       .WillRepeatedly([&](GLuint, GLenum) { ++query_counter_calls; });
   EXPECT_CALL(*gl_, GetQueryObjectuiv(_, GL_QUERY_RESULT_AVAILABLE, NotNull()))
       .WillRepeatedly(DoAll(SetArgPointee<2>(1), Return()));
@@ -383,6 +447,18 @@ TEST_F(GLSurfacePresentationHelperTest,
       .WillRepeatedly([&](GLuint, GLenum, GLuint64* params) {
         *params = static_cast<GLuint64>(current_ns);
       });
+=======
+      .WillRepeatedly(Invoke([&](GLuint, GLenum) { ++query_counter_calls; }));
+  EXPECT_CALL(*gl_, GetQueryObjectuiv(_, GL_QUERY_RESULT_AVAILABLE, NotNull()))
+      .WillRepeatedly(DoAll(SetArgPointee<2>(1), Return()));
+  EXPECT_CALL(*gl_, GetInteger64v(GL_TIMESTAMP_EXT, NotNull()))
+      .WillRepeatedly(Invoke(
+          [&](GLenum, GLint64* data) { *data = (current_ns * 24) / 1000; }));
+  EXPECT_CALL(*gl_, GetQueryObjectui64v(_, GL_QUERY_RESULT, NotNull()))
+      .WillRepeatedly(Invoke([&](GLuint, GLenum, GLuint64* params) {
+        *params = static_cast<GLuint64>(current_ns);
+      }));
+>>>>>>> theirs
 
   scoped_refptr<GPUTimingClient> timing_setup =
       context_->CreateGPUTimingClient();
@@ -434,7 +510,10 @@ TEST_F(GLSurfacePresentationHelperTest,
 
   EXPECT_EQ(2, query_counter_calls);
   EXPECT_EQ(1, created_syncs_.load());
+<<<<<<< ours
   EXPECT_GE(wait_calls_.load(), 1);
+=======
+>>>>>>> theirs
   EXPECT_EQ(1, destroyed_syncs_.load());
   EXPECT_FALSE(fence_feedback.failed());
 }
@@ -461,6 +540,7 @@ TEST_F(GLSurfacePresentationHelperTest,
   int query_counter_calls = 0;
   int64_t current_ns = 3600LL * base::Time::kNanosecondsPerSecond + 777;
   EXPECT_CALL(*gl_, QueryCounter(_, GL_TIMESTAMP_EXT))
+<<<<<<< ours
       .WillRepeatedly([&](GLuint, GLenum) { ++query_counter_calls; });
   EXPECT_CALL(*gl_, GetQueryObjectuiv(_, GL_QUERY_RESULT_AVAILABLE, NotNull()))
       .WillRepeatedly(DoAll(SetArgPointee<2>(1), Return()));
@@ -471,6 +551,18 @@ TEST_F(GLSurfacePresentationHelperTest,
       .WillRepeatedly([&](GLuint, GLenum, GLuint64* params) {
         *params = static_cast<GLuint64>(current_ns);
       });
+=======
+      .WillRepeatedly(Invoke([&](GLuint, GLenum) { ++query_counter_calls; }));
+  EXPECT_CALL(*gl_, GetQueryObjectuiv(_, GL_QUERY_RESULT_AVAILABLE, NotNull()))
+      .WillRepeatedly(DoAll(SetArgPointee<2>(1), Return()));
+  EXPECT_CALL(*gl_, GetInteger64v(GL_TIMESTAMP_EXT, NotNull()))
+      .WillRepeatedly(Invoke(
+          [&](GLenum, GLint64* data) { *data = (current_ns * 24) / 1000; }));
+  EXPECT_CALL(*gl_, GetQueryObjectui64v(_, GL_QUERY_RESULT, NotNull()))
+      .WillRepeatedly(Invoke([&](GLuint, GLenum, GLuint64* params) {
+        *params = static_cast<GLuint64>(current_ns);
+      }));
+>>>>>>> theirs
 
   scoped_refptr<GPUTimingClient> timing_setup =
       context_->CreateGPUTimingClient();
@@ -544,11 +636,15 @@ TEST_F(GLSurfacePresentationHelperTest,
   fence_loop.Run();
 
   EXPECT_EQ(1, created_syncs_.load());
+<<<<<<< ours
   EXPECT_GE(wait_calls_.load(), 1);
+=======
+>>>>>>> theirs
   EXPECT_EQ(1, destroyed_syncs_.load());
   EXPECT_FALSE(fence_feedback.failed());
 }
 
+<<<<<<< ours
 // Verifies that when the surface/helper is destroyed while an async EGLSyncKHR
 // wait is in flight (e.g. during Cobalt suspend/conceal before eglTerminate),
 // ~GLSurfacePresentationHelper() synchronously cancels and destroys the
@@ -799,6 +895,8 @@ TEST_F(GLSurfacePresentationHelperTest,
   EXPECT_EQ(1, destroyed_syncs_.load());
 }
 
+=======
+>>>>>>> theirs
 }  // namespace
 }  // namespace gl
 

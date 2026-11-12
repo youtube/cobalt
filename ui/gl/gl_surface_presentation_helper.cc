@@ -356,6 +356,7 @@ void GLSurfacePresentationHelper::OnMakeCurrent(GLContext* context,
 // issues on some devices.
 #if !BUILDFLAG(IS_ANDROID)
   gl_fence_supported_ = GLFence::IsSupported();
+<<<<<<< ours
   GLDisplayEGL* display_egl = context->GetGLDisplayEGL();
   // On EGL surfaces without a VSyncProvider (such as Starboard/RDK), polling
   // GLFence::HasCompleted() on a 16.7ms CPU timer quantizes presentation
@@ -366,6 +367,8 @@ void GLSurfacePresentationHelper::OnMakeCurrent(GLContext* context,
                                vsync_interval_.is_zero() && display_egl &&
                                display_egl->GetDisplay() != EGL_NO_DISPLAY &&
                                display_egl->ext->b_EGL_KHR_fence_sync;
+=======
+>>>>>>> theirs
 #endif
 
   gpu_timing_client_ = context->CreateGPUTimingClient();
@@ -607,11 +610,16 @@ void GLSurfacePresentationHelper::CheckPendingFrames() {
       (pending_frames_.empty() || !pending_frames_.front().timer)) {
     gpu_timing_client_ = nullptr;
   }
+<<<<<<< ours
 
   if (!pending_frames_.empty() && !pending_frames_.front().fence_wait_state) {
     ScheduleCheckPendingFrames(true /* align_with_next_vsync */);
   }
 #else
+=======
+#endif  // BUILDFLAG(IS_COBALT)
+
+>>>>>>> theirs
   if (!pending_frames_.empty())
     ScheduleCheckPendingFrames(true /* align_with_next_vsync */);
 #endif  // BUILDFLAG(IS_COBALT)
