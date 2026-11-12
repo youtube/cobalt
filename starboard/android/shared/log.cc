@@ -58,3 +58,4 @@ void SbLog(SbLogPriority priority, const char* message) {
   // and we end up losing crucial logs. The test runner specifies a sleep time.
   usleep(::starboard::GetLogSleepTime());
 }
+// Test tvOS Impact after the Kokoro trigger change (DO NOT MERGE).
