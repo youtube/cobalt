@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -25,6 +26,7 @@
 #include "gpu/config/gpu_feature_info.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "gpu/config/gpu_info.h"
+#include "gpu/config/gpu_switches.h"
 #include "gpu/ipc/common/gpu_client_ids.h"
 #include "gpu/ipc/host/gpu_disk_cache.h"
 #include "mojo/public/cpp/bindings/sync_call_restrictions.h"
@@ -303,6 +305,14 @@ void GpuHostImpl::SetChannelDiskCacheHandle(
     return;
   }
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD)
+  // Same as above, opted in per launch via --gpu-shader-disk-cache-gr-only.
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kGpuShaderDiskCacheGrOnly) &&
+      handle != gpu::GpuDiskCacheHandle(gpu::kGrShaderGpuDiskCacheHandle)) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD)
 
   scoped_refptr<gpu::GpuDiskCache> cache =
       delegate_->GetGpuDiskCacheFactory()->Get(handle);

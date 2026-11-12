@@ -56,6 +56,10 @@ jint FakeMediaCodec::QueueInputBuffer(jint index,
   std::lock_guard lock(mutex_);
   SB_CHECK_GE(index, 0);
   SB_CHECK_LT(index, kNumBuffers);
+  ++queue_input_buffer_attempts_;
+  if (queue_input_buffer_status_ != 0) {
+    return queue_input_buffer_status_;
+  }
 
   QueuedInput input;
   input.index = index;
@@ -111,6 +115,8 @@ bool FakeMediaCodec::Restart() {
 
 jint FakeMediaCodec::Flush() {
   std::lock_guard lock(mutex_);
+  queue_input_buffer_status_ = MEDIA_CODEC_OK;
+  queue_input_buffer_attempts_ = 0;
   queued_inputs_.clear();
   released_outputs_.clear();
   return 0;
@@ -122,6 +128,16 @@ std::optional<FrameSize> FakeMediaCodec::GetOutputSize() {
 
 std::optional<AudioOutputFormatResult> FakeMediaCodec::GetAudioOutputFormat() {
   return AudioOutputFormatResult{44100, 2};
+}
+
+void FakeMediaCodec::set_queue_input_buffer_status(jint status) {
+  std::lock_guard lock(mutex_);
+  queue_input_buffer_status_ = status;
+}
+
+size_t FakeMediaCodec::queue_input_buffer_attempts() const {
+  std::lock_guard lock(mutex_);
+  return queue_input_buffer_attempts_;
 }
 
 void FakeMediaCodec::SimulateInputBufferAvailable(int index) {

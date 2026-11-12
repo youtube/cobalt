@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string.h>
+
 #include <cmath>
+#include <cstdint>
 
 #include "starboard/extension/accessibility.h"
 #include "starboard/extension/configuration.h"
@@ -596,13 +599,68 @@ TEST(ExtensionTest, LowMemoryKillExtension) {
   }
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
-  EXPECT_EQ(extension_api->version, 1u);
-  EXPECT_NE(extension_api->WasLowMemoryKilled, nullptr);
+  EXPECT_GE(extension_api->version, 1u);
+  EXPECT_LE(extension_api->version, 2u);
+  ASSERT_NE(extension_api->WasLowMemoryKilled, nullptr);
 
   bool was_low_memory_killed = extension_api->WasLowMemoryKilled();
   EXPECT_EQ(extension_api->WasLowMemoryKilled(), was_low_memory_killed)
       << "WasLowMemoryKilled() should return the same result across multiple "
          "calls";
+
+  if (extension_api->version >= 2) {
+    ASSERT_NE(extension_api->GetLowMemoryKillDetails, nullptr);
+    EXPECT_FALSE(extension_api->GetLowMemoryKillDetails(nullptr));
+
+    const SbLowMemoryKillDetails kSentinelDetails = {
+        123456789,
+        kSbLowMemoryKillForegroundStatusForeground,
+        kSbLowMemoryKillPressureSourceCobalt,
+        100,
+        200,
+        300,
+        400,
+        "sentinel reason",
+    };
+    auto expect_details_eq = [](const SbLowMemoryKillDetails& expected,
+                                const SbLowMemoryKillDetails& actual) {
+      EXPECT_EQ(actual.timestamp_posix_usec, expected.timestamp_posix_usec);
+      EXPECT_EQ(actual.foreground_status, expected.foreground_status);
+      EXPECT_EQ(actual.pressure_source, expected.pressure_source);
+      EXPECT_EQ(actual.system_memory_available,
+                expected.system_memory_available);
+      EXPECT_EQ(actual.system_memory_total, expected.system_memory_total);
+      EXPECT_EQ(actual.cobalt_memory_usage, expected.cobalt_memory_usage);
+      EXPECT_EQ(actual.cobalt_memory_limit, expected.cobalt_memory_limit);
+      EXPECT_STREQ(actual.reason, expected.reason);
+    };
+
+    SbLowMemoryKillDetails details = kSentinelDetails;
+    EXPECT_EQ(extension_api->GetLowMemoryKillDetails(&details),
+              was_low_memory_killed);
+    if (!was_low_memory_killed) {
+      expect_details_eq(kSentinelDetails, details);
+    } else {
+      EXPECT_GE(details.timestamp_posix_usec, 0);
+      EXPECT_GE(details.foreground_status,
+                kSbLowMemoryKillForegroundStatusUnknown);
+      EXPECT_LE(details.foreground_status,
+                kSbLowMemoryKillForegroundStatusBackground);
+      EXPECT_GE(details.pressure_source, kSbLowMemoryKillPressureSourceUnknown);
+      EXPECT_LE(details.pressure_source, kSbLowMemoryKillPressureSourceCobalt);
+      EXPECT_GE(details.system_memory_available, -1);
+      EXPECT_GE(details.system_memory_total, -1);
+      EXPECT_GE(details.cobalt_memory_usage, -1);
+      EXPECT_GE(details.cobalt_memory_limit, -1);
+      EXPECT_LT(strnlen(details.reason, sizeof(details.reason)),
+                sizeof(details.reason))
+          << "SbLowMemoryKillDetails::reason must be null-terminated";
+
+      SbLowMemoryKillDetails second_details = kSentinelDetails;
+      EXPECT_TRUE(extension_api->GetLowMemoryKillDetails(&second_details));
+      expect_details_eq(details, second_details);
+    }
+  }
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));

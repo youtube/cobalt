@@ -680,13 +680,11 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_EQ(base::StatisticsRecorder::FindHistogram(kHist1), nullptr);
   EXPECT_EQ(base::StatisticsRecorder::FindHistogram(kHist2), nullptr);
 
-#if !BUILDFLAG(IS_WIN)
-  // On POSIX, hold a read-only mapping on prior_file1 to verify post-merge
+  // Hold a read-only mapping on prior_file1 to verify post-merge
   // MEMORY_DELETED state and atomic consumption of unlogged samples.
   auto inspect_mapped = std::make_unique<base::MemoryMappedFile>();
   ASSERT_TRUE(inspect_mapped->Initialize(prior_file1,
                                          base::MemoryMappedFile::READ_ONLY));
-#endif
 
   ClearOtherStabilityMetricsPmaFiles(metrics_dir, kStabilityAllocatorName,
                                      base::GetCurrentProcId());
@@ -716,7 +714,6 @@ IN_PROC_BROWSER_TEST_F(
       "Cobalt.StabilityMetrics.PriorPmaFilesMergedCount", 2, 1);
   histogram_tester.ExpectTotalCount("UMA.FileMetricsProvider.AccessResult", 0);
 
-#if !BUILDFLAG(IS_WIN)
   // Verify the underlying PMA header was marked MEMORY_DELETED and its unlogged
   // samples were atomically consumed via SnapshotDelta().
   auto inspect_mem = std::make_unique<base::FilePersistentMemoryAllocator>(
@@ -730,7 +727,6 @@ IN_PROC_BROWSER_TEST_F(
     inspect_allocator.MergeHistogramFinalDeltaToStatisticsRecorder(h.get());
   }
   EXPECT_EQ(merged1->SnapshotSamples()->GetCount(101), 1);
-#endif
 
   // Re-running cleanup and import is idempotent and adds 0 duplicate samples.
   ClearOtherStabilityMetricsPmaFiles(metrics_dir, kStabilityAllocatorName,
@@ -877,11 +873,9 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   ASSERT_TRUE(CreatePriorSessionSparsePmaFile(
       prior_file, kStabilityAllocatorName, kControlHist, 88));
 
-#if !BUILDFLAG(IS_WIN)
   auto inspect_mapped = std::make_unique<base::MemoryMappedFile>();
   ASSERT_TRUE(inspect_mapped->Initialize(prior_file,
                                          base::MemoryMappedFile::READ_ONLY));
-#endif
 
   ClearOtherStabilityMetricsPmaFiles(
       temp_dir.GetPath(), kStabilityAllocatorName, base::GetCurrentProcId());
@@ -892,7 +886,6 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   ASSERT_NE(merged, nullptr);
   EXPECT_EQ(merged->SnapshotSamples()->GetCount(88), 1);
 
-#if !BUILDFLAG(IS_WIN)
   // In the A/B control cohort (flag disabled), the PMA header is not mutated to
   // MEMORY_DELETED.
   auto inspect_mem = std::make_unique<base::FilePersistentMemoryAllocator>(
@@ -900,7 +893,6 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
       base::FilePersistentMemoryAllocator::kReadOnly);
   EXPECT_NE(inspect_mem->GetMemoryState(),
             base::PersistentMemoryAllocator::MEMORY_DELETED);
-#endif
 
   histogram_tester.ExpectUniqueSample(
       "Cobalt.StabilityMetrics.PriorPmaFileAction",

@@ -95,8 +95,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   @SuppressWarnings("unused")
   private CobaltA11yHelper mA11yHelper;
 
-  private boolean mForceCreateNewVideoSurfaceView;
-
   private ShellManager mShellManager;
   private ActivityWindowAndroid mWindowAndroid;
   private Intent mLastSentIntent;
@@ -463,6 +461,23 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @VisibleForTesting
   void setupStartupGuard() {
+    StartupGuard.getInstance()
+        .setObserver(
+            new StartupGuard.Observer() {
+              @Override
+              public void onMilestoneReached(int milestone) {
+                CobaltProcessStateSummary.onStartupMilestoneReached(
+                    milestone,
+                    StartupGuard.getInstance().getStartupStatus(),
+                    StartupGuard.getInstance().isArmed());
+              }
+
+              @Override
+              public void onArmedChanged(boolean armed) {
+                CobaltProcessStateSummary.onStartupGuardArmedChanged(
+                    armed, StartupGuard.getInstance().getStartupStatus());
+              }
+            });
     Map<String, String> switches = getJavaSwitches();
     if (switches.containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
       Log.i(TAG, "StartupGuard is disabled by Java switch.");
@@ -522,7 +537,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     } else {
       Log.i(TAG, "Do not create VideoSurfaceView.");
     }
-    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_START);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.POST_ACTIVITY_ON_CREATE);
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
       mBackInvokedCallback = OnBackInvokedHelper.register(this);
@@ -582,16 +597,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onStart() {
-    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_RESUME);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.PRE_ACTIVITY_ON_START);
     if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
     }
     if (mIsCobaltUsingAndroidOverlay) {
       Log.i(TAG, "Use AndroidOverlay for Video SurfaceView.");
-    } else if (mForceCreateNewVideoSurfaceView) {
-      Log.w(TAG, "Force to create a new video surface.");
-      createNewSurfaceView();
     }
 
     DisplayUtil.cacheDefaultDisplay(this);
@@ -626,7 +638,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     }
     MemoryPressureMonitor.INSTANCE.enablePolling(false);
 
-    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_PAUSE);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.POST_ACTIVITY_ON_START);
   }
 
   @Override
@@ -675,20 +687,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     // process is killed while the app is in the background.
     CobaltContentBrowserClient.flushCookiesAndLocalStorage();
 
-    if (VideoSurfaceView.getCurrentSurface() != null) {
-      mForceCreateNewVideoSurfaceView = true;
-    }
     MemoryPressureMonitor.INSTANCE.disablePolling();
-
-    // Set the SurfaceView to fullscreen.
-    View rootView = getWindow().getDecorView();
-    setVideoSurfaceBounds(0, 0, rootView.getWidth(), rootView.getHeight());
   }
 
   @Override
   protected void onResume() {
     super.onResume();
-    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_STOP);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.PRE_ACTIVITY_ON_RESUME);
     checkAndRetryOnNetworkOnline();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
@@ -700,7 +705,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     } else {
       CobaltContentBrowserClient.dispatchFocus();
     }
-    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_DESTROY);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.POST_ACTIVITY_ON_RESUME);
   }
 
   @Override

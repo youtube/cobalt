@@ -74,8 +74,6 @@ group("cobalt_shell_lib_deps") {
     "//cobalt/build/configs:buildflags",
     "//cobalt/shell/browser/migrate_storage_record",
     "//components/cdm/renderer",
-    "//components/crash/content/browser",
-    "//components/crash/core/app",
     "//components/custom_handlers",
     "//components/embedder_support",
     "//components/embedder_support:user_agent",
@@ -194,6 +192,13 @@ group("cobalt_shell_lib_deps") {
   if (is_starboard || is_androidtv) {
     public_deps += [ "//cobalt/browser:hang_watcher_delegate" ]
   }
+
+  if (!is_cobalt_hermetic_build) {
+    public_deps += [
+      "//components/crash/content/browser",
+      "//components/crash/core/app",
+    ]
+  }
 }
 
 static_library("cobalt_shell_switches") {
@@ -242,6 +247,8 @@ static_library("cobalt_shell_lib") {
     "browser/shell_speech_recognition_manager_delegate.h",
     "browser/shell_web_contents_view_delegate.h",
     "browser/shell_web_contents_view_delegate_creator.h",
+    "browser/splash_cache.cc",
+    "browser/splash_cache.h",
     "browser/splash_screen_metrics.cc",
     "browser/splash_screen_metrics.h",
     "browser/splash_screen_web_contents_delegate.cc",
@@ -277,6 +284,7 @@ static_library("cobalt_shell_lib") {
       "browser/on_screen_keyboard/tvos/cobalt_search_controller.mm",
       "browser/on_screen_keyboard/tvos/cobalt_search_results_controller.h",
       "browser/on_screen_keyboard/tvos/cobalt_search_results_controller.mm",
+      "browser/shell_browser_main_parts_ios.mm",
       "browser/shell_platform_delegate_ios.mm",
       "browser/shell_web_contents_view_delegate_ios.mm",
     ]
@@ -356,6 +364,10 @@ static_library("cobalt_shell_lib") {
       "//cobalt/browser/on_screen_keyboard/public/mojom",
     ]
   }
+
+  if (is_ios) {
+    deps += [ "//components/application_locale_storage" ]
+  }
 }
 
 # This component provides a ContentMainDelegate for Content Shell and derived
@@ -397,13 +409,16 @@ group("cobalt_shell_app_deps") {
 
   public_deps = [
     ":cobalt_shell_lib",
-    "//components/crash/core/app",
     "//components/crash/core/common:crash_key",
     "//components/memory_system",
     "//content/public/app",
     "//content/public/renderer",
     "//v8",
   ]
+
+  if (!is_cobalt_hermetic_build) {
+    public_deps += [ "//components/crash/core/app" ]
+  }
 }
 
 repack("pak") {

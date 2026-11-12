@@ -129,7 +129,7 @@ BASE_DECLARE_FEATURE(kSplashScreenConfig);
 // to the splash screen as the "timeout" query param (in ms), and the built-in
 // splash screen stays up until then instead of closing when its animation
 // ends. Values need a unit, e.g., "3s" or "2500ms".
-// Locally: --enable-features=SplashScreenConfig:timeout/3s
+// Locally: --enable-features=SplashScreenConfig:SplashScreenConfig_timeout/3s
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSplashScreenTimeoutParam);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
@@ -138,7 +138,7 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSplashScreenTimeoutParam);
 // The "force_image", "cache" and "timeout" query params are still appended.
 // Only available in non-gold builds; gold builds always use the built-in
 // splash screen. The value must be URL-encoded, e.g., for http://example.com:
-// --enable-features=SplashScreenConfig:url/http%3A%2F%2Fexample.com
+// --enable-features=SplashScreenConfig:SplashScreenConfig_url/http%3A%2F%2Fexample.com
 BASE_DECLARE_FEATURE_PARAM(std::string, kSplashScreenUrlParam);
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
@@ -189,6 +189,10 @@ extern const base::FeatureParam<int>
 // that costs Mojo round trips to the browser UI thread on every request.
 BASE_DECLARE_FEATURE(kCobaltSkipTrustedHeaderClient);
 
+// Runs H5vccPlatformServiceManager and PlatformService Mojo receivers on a
+// dedicated CobaltPlatformService thread instead of the browser UI thread.
+BASE_DECLARE_FEATURE(kCobaltPlatformServicesOffUiThread);
+
 // Freezes the web app (document freeze event, JS timers stopped, freeze-time
 // memory purging) when the Android Activity is stopped, after an optional
 // delay. Disabled by default: Chrobalt currently never freezes in the
@@ -216,6 +220,43 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
 // authoritative startup reader/merger) and Android ApplicationExitInfo records
 // across sessions.
 BASE_DECLARE_FEATURE(kCobaltStabilityMetricsDeduplication);
+
+// Preconnects to the initial launch URL origin during PreMainMessageLoopRun()
+// while WebContents creation is deferred to ShellManager.launchShell(), so DNS
+// resolution and TCP/TLS handshakes overlap with browser/UI startup before the
+// first navigation starts.
+BASE_DECLARE_FEATURE(kCobaltStartupPreconnect);
+
+// Also writes HttpServerProperties to disk when the app is paused, instead of
+// leaving it to its 60 s write-coalescing timer, which a background kill does
+// not honor.
+BASE_DECLARE_FEATURE(kCobaltFlushHttpServerPropertiesOnPause);
+
+// Gates independent Finch/Mendel experimentation on Cobalt's on-disk HTTP cache
+// capacity (DIR_CACHE/Cache), decoupled from V8 code-cache optimizations. When
+// enabled, `cobalt_http_cache_size_bytes` (default: 12582912 bytes / 12 MiB,
+// clamped to [1048576, 1073741824]) overrides Android's 25 MiB default while
+// still honoring explicit developer `--max-http-cache-size` CLI overrides, and
+// caps Starboard's HTTP cache within `ComputeDefaultHttpCacheSize()`.
+BASE_DECLARE_FEATURE(kCobaltHttpCacheQuota);
+BASE_DECLARE_FEATURE_PARAM(int, kCobaltMaxHttpCacheSizeBytes);
+
+// Gates V8 JavaScript generated code cache optimizations:
+// 1. Raises `Code Cache/js` capacity via
+//    `CobaltCodeCacheOptimization_size_bytes` (default: 10485760 bytes /
+//    10 MiB, clamped to [1048576, 1073741824], while `Code Cache/wasm` stays
+//    capped at 1 MiB) so cold-start bytecode writes do not cross SimpleCache's
+//    90% eviction watermark, and updates Starboard's dynamic non-HTTP cache
+//    reserve in `ComputeDefaultHttpCacheSize()` accordingly.
+// 2. When `CobaltCodeCacheOptimization_bypass_heat_check` is true (default),
+//    sets `WebPreferences::v8_cache_options` to `kCodeWithoutHeatCheck` instead
+//    of `kDefault` so Launch #1 after install, cache clear, or weekly JS
+//    updates produces deferred bytecode (via Blink's existing
+//    `PostDelayedIdleTask` queue) for Launch #2 instead of waiting until
+//    Launch #3.
+BASE_DECLARE_FEATURE(kCobaltCodeCacheOptimization);
+BASE_DECLARE_FEATURE_PARAM(int, kCobaltGeneratedCodeCacheSizeBytes);
+BASE_DECLARE_FEATURE_PARAM(bool, kCobaltV8CodeCacheBypassHeatCheck);
 
 }  // namespace features
 }  // namespace cobalt

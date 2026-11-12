@@ -20,6 +20,7 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/mime_param.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
@@ -75,11 +76,11 @@ bool ShouldEnableTunneledPlayback(const SbMediaVideoStreamInfo& stream_info) {
   }
 
   auto mime_type = MimeType::Create(stream_info.mime);
-  if (!mime_type || !mime_type->ValidateBoolParameter("tunnelmode")) {
+  if (!mime_type || !mime_type->ValidateBoolParameter(kMimeParamTunnelMode)) {
     return false;
   }
 
-  return mime_type->GetParamBoolValue("tunnelmode", false);
+  return mime_type->GetParamBoolValue(kMimeParamTunnelMode, false);
 }
 
 ScopedJavaLocalRef<jobject> CreateAudioFormat(
@@ -145,8 +146,8 @@ ScopedJavaLocalRef<jobject> CreateVideoFormat(
   ScopedJavaLocalRef<jstring> j_mime(ConvertUTF8ToJavaString(
       env, SupportedVideoCodecToMimeType(stream_info.codec)));
 
-  int framerate = mime_type->GetParamIntValue("framerate", 0);
-  int bitrate = mime_type->GetParamIntValue("bitrate", 0);
+  int framerate = mime_type->GetParamIntValue(kMimeParamFramerate, 0);
+  int bitrate = mime_type->GetParamIntValue(kMimeParamBitrate, 0);
 
   ScopedJavaLocalRef<jobject> j_color_info =
       CreateExoPlayerColorInfo(stream_info.color_metadata);

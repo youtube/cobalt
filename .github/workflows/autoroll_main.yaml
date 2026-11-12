@@ -29,7 +29,7 @@ jobs:
       fail-fast: false
       matrix:
         branch: [
-          {source: main, target: 27.lts, autoroll: .github/AUTOROLL, max_commits: 10, mode: full},
+          {source: main, target: 27.lts, autoroll: .github/AUTOROLL, max_commits: 10, mode: label},
           {source: main, target: staging, autoroll: .github/AUTOROLL, max_commits: 50, mode: full},
         ]
     steps:

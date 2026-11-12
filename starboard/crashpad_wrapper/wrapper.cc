@@ -47,7 +47,6 @@ namespace crashpad {
 
 const char kCrashpadVersionKey[] = "ver";
 const char kCrashpadProductKey[] = "prod";
-const char kCrashpadUserAgentStringKey[] = "user_agent_string";
 const char kCrashpadCertScopeKey[] = "cert_scope";
 
 namespace {

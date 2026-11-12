@@ -1499,6 +1499,13 @@ bool RenderThreadImpl::IsGpuRemoteDisconnected() {
 }
 scoped_refptr<gpu::GpuChannelHost> RenderThreadImpl::EstablishGpuChannelSync() {
   TRACE_EVENT0("gpu", "RenderThreadImpl::EstablishGpuChannelSync");
+#if BUILDFLAG(IS_COBALT)
+  if (RendererIsHidden() &&
+      base::FeatureList::IsEnabled(
+          features::kCobaltSkipSyncGpuChannelWhenHidden)) {
+    return nullptr;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   scoped_refptr<gpu::GpuChannelHost> gpu_channel =
       gpu_->EstablishGpuChannelSync();

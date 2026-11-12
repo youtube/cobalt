@@ -17,6 +17,8 @@
     "PrivacySandboxDisabledBrowserTest.NetworkContextTrustTokenMethodsReturnEmpty",
     "H5vccSchemeURLLoaderFactoryBrowserTest.*",
     "H5vccSchemeURLLoaderFactoryCacheBrowserTest.*",
+    "SplashCacheBrowserTest.*",
+    "H5vccSchemeURLLoaderFactoryCacheDisabledBrowserTest.*",
     "H5vccRuntimeBrowserTest.*",
     "H5vccMemoryBrowserTest.*",
     "H5vccSystemBrowserTest.*",
@@ -49,6 +51,10 @@
     "EncryptedMediaTest.*",
     "MediaTest.*",
     "CustomMimeTypeBrowserTest.*",
-    "WebRtcGetUserMediaBrowserTest.*"
+    "WebRtcGetUserMediaBrowserTest.*",
+    "I18nBrowserTest.*",
+    "RepresentativeLanguages/I18nBrowserLanguageParamTest.*",
+    "RenderThreadHiddenGpuChannelBrowserTest.*",
+    "RenderThreadHiddenGpuChannelDefaultDisabledBrowserTest.*"
   ]
 }

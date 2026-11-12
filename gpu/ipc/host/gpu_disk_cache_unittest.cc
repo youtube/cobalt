@@ -361,6 +361,11 @@ TEST_F(GpuDiskCacheTest, CobaltHistograms) {
       "Cobalt.Storage.GpuShaderCache.LoadedEntriesCount", 2, 1);
   histogram_tester.ExpectUniqueSample(
       "Cobalt.Storage.GpuShaderCache.LoadedBytesKB", 2, 1);
+
+  base::HistogramTester disabled_histogram_tester;
+  GpuDiskCacheFactory disabled_factory;
+  disabled_histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.GpuShaderCache.ConfiguredMaxSizeKB", 0, 1);
 }
 #endif  // BUILDFLAG(IS_COBALT)
 

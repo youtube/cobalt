@@ -353,10 +353,10 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
                                                       bool* is_eos_played,
                                                       bool* is_underflow,
                                                       double* playback_rate) {
-  SB_DCHECK(is_playing);
-  SB_DCHECK(is_eos_played);
-  SB_DCHECK(is_underflow);
-  SB_DCHECK(playback_rate);
+  SB_CHECK(is_playing);
+  SB_CHECK(is_eos_played);
+  SB_CHECK(is_underflow);
+  SB_CHECK(playback_rate);
 
   std::lock_guard scoped_lock(mutex_);
   *is_playing = !paused_;
@@ -513,7 +513,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
   SB_DCHECK(audio_track_thread_);
   SB_DCHECK(audio_track_thread_->BelongsToCurrentThread());
   SB_DCHECK(error_cb_);
-  SB_DCHECK(audio_track_);
+  SB_CHECK(audio_track_);
 
   // Encoded passthrough bitstreams (e.g. AC3/E-AC3) cannot be seamlessly routed
   // across different sinks (e.g. Bluetooth or built-in speakers), so any device
@@ -697,6 +697,12 @@ void AudioRendererPassthrough::OnDecoderOutput() {
   }
 
   std::lock_guard scoped_lock(mutex_);
+  // Passthrough can't trim e/ac3 syncframes, so drop those that start before
+  // the seek target, instead of playing them all after a seek.
+  if (!decoded_audio->is_end_of_stream() &&
+      decoded_audio->timestamp() < seek_to_time_) {
+    return;
+  }
   decoded_audios_.push(std::move(*decoded_audio));
 }
 

@@ -24,6 +24,16 @@
 #import "starboard/tvos/shared/media/playback_capabilities.h"
 
 namespace starboard {
+namespace {
+
+#if defined(COBALT_INTERNAL_BUILD)
+// NOTE: Despite the generic name, this is NOT for general experiments.
+// It specifically gates software VP9 decoder fallback on Apple TV (tvOS).
+// See b/180431906.
+constexpr MimeParam kMimeParamExperimental{"experimental"};
+#endif  // defined(COBALT_INTERNAL_BUILD)
+
+}  // namespace
 
 bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            const MimeType* mime_type,
@@ -58,7 +68,8 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
       }
     }
 
-    bool is_hdr = !IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id);
+    bool is_hdr =
+        !Is8BitSDRVideo(bit_depth, primary_id, transfer_id, matrix_id);
     if (video_codec == kSbMediaVideoCodecH264) {
       return !is_hdr && frame_height <= 1080 && frame_width <= 1920;
     }
@@ -88,11 +99,12 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
         // value, `ValidateStringParameter` will cause an early return of
         // `false` from the function. If present and "allowed",
         // `experimental_allowed` is set to true.
-        if (!mime_type->ValidateStringParameter("experimental", "allowed")) {
+        if (!mime_type->ValidateStringParameter(kMimeParamExperimental,
+                                                "allowed")) {
           return false;
         }
         const std::string& experimental_value =
-            mime_type->GetParamStringValue("experimental", "");
+            mime_type->GetParamStringValue(kMimeParamExperimental, "");
         experimental_allowed = experimental_value == "allowed";
       }
 

@@ -18,6 +18,7 @@
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
+#include "base/features.h"
 #include "base/strings/string_util.h"
 #include "cc/base/features.h"
 #include "cc/base/switches.h"
@@ -72,8 +73,6 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        ::switches::autoplay::kNoUserGestureRequiredPolicy},
       // Set default raster threads to 2 for smoother performance.
       {::switches::kNumRasterThreads, "2"},
-      // Limit the HTTP disk cache to 25 MiB (25 * 1024 * 1024 bytes).
-      {switches::kMaxHttpCacheSize, "26214400"},
       {blink::switches::kJavaScriptFlags,
        // Disable decommitting pooled pages to prevent virtual memory
        // fragmentation.
@@ -102,6 +101,9 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // task that made them so recent writes survive process
                // termination.
                storage::kDomStorageSmartFlushing.name,
+               // Map Android TRIM_MEMORY_RUNNING_MODERATE/LOW to MODERATE
+               // memory pressure instead of dropping them.
+               base::features::kCobaltEnableModerateMemoryPressure.name,
            },
            ",")},
       {::switches::kDisableFeatures,

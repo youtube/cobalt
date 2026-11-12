@@ -74,13 +74,14 @@ Thread::Thread(std::string_view name, const ThreadOptions& options)
 Thread::~Thread() {
   // A started thread must be joined before destruction.
   if (d_->started_.load()) {
+    // TODO(b/435425692): Replace with SB_CHECK once safety is confirmed.
     SB_DCHECK(d_->join_called_.load())
         << "Thread '" << name_ << "' was not joined before destruction.";
   }
 }
 
 void Thread::Start() {
-  SB_DCHECK(!d_->started_.load());
+  SB_CHECK(!d_->started_.load());
   d_->started_.store(true);
 
   pthread_attr_t attributes;
@@ -111,7 +112,7 @@ void Thread::SleepMilliseconds(int value) {
 bool Thread::WaitForJoin(int64_t timeout) {
   bool joined = d_->join_sema_.TakeWait(timeout);
   if (joined) {
-    SB_DCHECK(d_->join_called_.load());
+    SB_CHECK(d_->join_called_.load());
   }
   return joined;
 }
@@ -149,7 +150,7 @@ void* Thread::ThreadEntryPoint(void* context) {
 }
 
 void Thread::Join() {
-  SB_DCHECK_EQ(d_->join_called_.load(), false);
+  SB_CHECK(!d_->join_called_.load());
 
   d_->join_called_.store(true);
   d_->join_sema_.Put();

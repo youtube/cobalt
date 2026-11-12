@@ -130,17 +130,19 @@ BASE_FEATURE(kSplashScreenConfig,
              "SplashScreenConfig",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Finch flattens params across features into one namespace, so param names are
+// prefixed with the feature name (go/cobalt-finch-setup#naming-style-guide).
 BASE_FEATURE_PARAM(base::TimeDelta,
                    kSplashScreenTimeoutParam,
                    &kSplashScreenConfig,
-                   "timeout",
+                   "SplashScreenConfig_timeout",
                    base::Milliseconds(1500));
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 BASE_FEATURE_PARAM(std::string,
                    kSplashScreenUrlParam,
                    &kSplashScreenConfig,
-                   "url",
+                   "SplashScreenConfig_url",
                    "");
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
@@ -195,8 +197,17 @@ const base::FeatureParam<int> kCobaltMemoryPressureBudgetMBParam{
 const base::FeatureParam<int> kCobaltMemoryPressurePollIntervalSecondsParam{
     &kEnableCobaltMemoryPressureEvaluator, "poll_interval_seconds", 10};
 
+// TODO(b/570129950): Remove this flag and the deprecated TrustedHeaderClient
+// code path (CobaltTrustedURLLoaderHeaderClient, CobaltTrustedHeaderClient,
+// CobaltContentBrowserClient::WillCreateURLLoaderFactory, and the IS_COBALT
+// kURLLoadOptionUseHeaderClient/AsCorsPreflight flags in url_loader.cc) after
+// 2026-12-10.
 BASE_FEATURE(kCobaltSkipTrustedHeaderClient,
              "CobaltSkipTrustedHeaderClient",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltPlatformServicesOffUiThread,
+             "CobaltPlatformServicesOffUiThread",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCobaltFreezeOnBackground,
@@ -223,6 +234,42 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 BASE_FEATURE(kCobaltStabilityMetricsDeduplication,
              "CobaltStabilityMetricsDeduplication",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltStartupPreconnect,
+             "CobaltStartupPreconnect",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltFlushHttpServerPropertiesOnPause,
+             "CobaltFlushHttpServerPropertiesOnPause",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltHttpCacheQuota,
+             "CobaltHttpCacheQuota",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltMaxHttpCacheSizeBytes,
+                   &kCobaltHttpCacheQuota,
+                   "cobalt_http_cache_size_bytes",
+                   12582912);
+
+BASE_FEATURE(kCobaltCodeCacheOptimization,
+             "CobaltCodeCacheOptimization",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Finch flattens params across features into one namespace, so param names are
+// prefixed with the feature name (go/cobalt-finch-setup#naming-style-guide).
+BASE_FEATURE_PARAM(int,
+                   kCobaltGeneratedCodeCacheSizeBytes,
+                   &kCobaltCodeCacheOptimization,
+                   "CobaltCodeCacheOptimization_size_bytes",
+                   10485760);
+
+BASE_FEATURE_PARAM(bool,
+                   kCobaltV8CodeCacheBypassHeatCheck,
+                   &kCobaltCodeCacheOptimization,
+                   "CobaltCodeCacheOptimization_bypass_heat_check",
+                   true);
 
 }  // namespace features
 }  // namespace cobalt

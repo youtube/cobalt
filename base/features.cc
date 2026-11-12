@@ -44,6 +44,10 @@ BASE_FEATURE(kCobaltEnableModerateMemoryPressure,
              "CobaltEnableModerateMemoryPressure",
              FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCobaltDiscardableSingleMapping,
+             "CobaltDiscardableSingleMapping",
+             FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kCobaltMemoryPressureCooldown,
              "CobaltMemoryPressureCooldown",
              FEATURE_DISABLED_BY_DEFAULT);
@@ -93,13 +97,19 @@ BASE_FEATURE_PARAM(int,
                    "force_gpu_mem_available_mb",
                    64);
 
-// Enabled by default on 3P/Starboard platforms so that they use the 1 MB GPU
-// discardable cache limit that upstream only applies to low-end Android
-// devices, instead of the upstream desktop default of 192 MB (256 MB with 4 GB+
-// of RAM). Disabled by default on Android, where Cobalt runs in low-end device
-// mode and upstream already uses 1 MB. Setting the parameter to a larger value
-// restores a bigger cache via Finch without requiring a binary change;
-// disabling the feature falls back to the upstream per-platform defaults.
+// Enabled by default on 3P/Starboard platforms so that they use a 32 MB GPU
+// discardable cache limit instead of the upstream desktop default of 192 MB
+// (256 MB with 4 GB+ of RAM). Disabled by default on Android, where Cobalt runs
+// in low-end device mode and upstream already uses 1 MB. The parameter resizes
+// the cache via Finch without requiring a binary change; disabling the feature
+// falls back to the upstream per-platform defaults.
+//
+// The default used to be 1 MB, which is too small for the GPU-side copies of
+// decoded thumbnails (the transfer cache shares this limit): they were evicted
+// and re-uploaded inside row-to-row navigation frames, lowering R2R FPS on the
+// RDK reference device. There, 20 MB and below still lowered it, 24 MB was
+// borderline and 32 MB matched the uncapped cache, while every limit from 16 MB
+// up used about the same memory.
 BASE_FEATURE(kCobaltGpuDiscardableCacheLimit,
              "CobaltGpuDiscardableCacheLimit",
 #if BUILDFLAG(IS_ANDROID)
@@ -112,7 +122,7 @@ BASE_FEATURE_PARAM(int,
                    kCobaltGpuDiscardableCacheLimitMb,
                    &kCobaltGpuDiscardableCacheLimit,
                    "CobaltGpuDiscardableCacheLimit_mb",
-                   1);
+                   32);
 
 BASE_FEATURE(kCobaltV8MaxOldSpaceSize,
              "CobaltV8MaxOldSpaceSize",
@@ -185,6 +195,14 @@ BASE_FEATURE_PARAM(int,
 
 BASE_FEATURE(kCobaltStorageCleanup,
              "CobaltStorageCleanup",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltSkipCookieUpdateAccess,
+             "CobaltSkipCookieUpdateAccess",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltLocalStorageReuseLogsAndSkipEmptyCommits,
+             "CobaltLocalStorageReuseLogsAndSkipEmptyCommits",
              FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)

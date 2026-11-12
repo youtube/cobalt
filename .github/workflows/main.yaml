@@ -671,7 +671,7 @@ jobs:
         uses: ./.github/actions/on_device_tests
         with:
           nightly: ${{ inputs.nightly }}
-          test_targets_json: ${{ steps.parse-device-targets.outputs.test_targets_json }}
+          test_targets_json: ${{ steps.parse-device-targets.outputs.test_target_configs_json }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
@@ -1125,7 +1125,7 @@ jobs:
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
           datadog_api_key: ${{ secrets.datadog_api_key }}
-          num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
+          num_gtest_shards: ${{ matrix.test_info.shards || needs.initialize.outputs.num_gtest_shards }}
       - name: ${{ matrix.test_info.target }} Device Logs
         if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true' && matrix.test_info.runs_on == 'device'
         continue-on-error: true

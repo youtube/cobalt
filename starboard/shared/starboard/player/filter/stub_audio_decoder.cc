@@ -38,8 +38,8 @@ SbMediaAudioSampleType GetSupportedSampleType() {
 int CalculateFramesPerInputBuffer(int sample_rate,
                                   const scoped_refptr<InputBuffer>& first,
                                   const scoped_refptr<InputBuffer>& second) {
-  SB_DCHECK(first);
-  SB_DCHECK(second);
+  SB_CHECK(first);
+  SB_CHECK(second);
 
   int64_t duration = second->timestamp() - first->timestamp();
   if (duration <= 0) {

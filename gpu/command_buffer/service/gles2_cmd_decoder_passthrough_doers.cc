@@ -398,8 +398,19 @@ error::Error GLES2DecoderPassthroughImpl::DoActiveTexture(GLenum texture) {
     return error::kNoError;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  // Without GL_KHR_debug, CheckErrorCallbackState() doesn't see the driver
+  // rejecting an out-of-range unit, so check it here.
+  size_t texture_unit = static_cast<size_t>(texture) - GL_TEXTURE0;
+  if (texture_unit >= bound_textures_[0].size()) {
+    InsertError(GL_INVALID_ENUM, "Texture unit out of range.");
+    return error::kNoError;
+  }
+  active_texture_unit_ = texture_unit;
+#else
   active_texture_unit_ = static_cast<size_t>(texture) - GL_TEXTURE0;
   DCHECK(active_texture_unit_ < kMaxTextureUnits);
+#endif
 
   return error::kNoError;
 }

@@ -531,6 +531,28 @@ BASE_FEATURE(kCobaltBypassMojoForMedia,
 BASE_FEATURE(kCobaltDisableDecoderBufferAllocator,
              "CobaltDisableDecoderBufferAllocator",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, DecoderBufferAllocator uses a strategy that tracks idle pool
+// blocks and returns them to the OS on memory pressure. Blocks that hold live
+// DecoderBuffers are never released. The h5vcc setting
+// "DecoderBuffer.EnableConfigurableDecommitStrategy" still overrides the
+// strategy configuration.
+BASE_FEATURE(kCobaltDecoderBufferDecommitOnMemoryPressure,
+             "CobaltDecoderBufferDecommitOnMemoryPressure",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// Number of idle pool blocks kept committed on MODERATE memory pressure, so the
+// next playback can reuse them without page faults. Ignored when the h5vcc
+// setting overrides the strategy.
+BASE_FEATURE_PARAM(int,
+                   kCobaltDecoderBufferDecommitRetainBlocks,
+                   &kCobaltDecoderBufferDecommitOnMemoryPressure,
+                   "retain_blocks",
+                   4);
+// Whether CRITICAL memory pressure also releases blocks in the retain window.
+BASE_FEATURE_PARAM(bool,
+                   kCobaltDecoderBufferDecommitReleaseRetainedOnCritical,
+                   &kCobaltDecoderBufferDecommitOnMemoryPressure,
+                   "release_retained_on_critical",
+                   true);
 // When enabled, the MediaSource stream parsers parse appended data in place
 // rather than copying it into an internal byte queue. Cobalt retains the
 // ArrayBuffer passed to SourceBuffer.appendBuffer() until the StreamParser is
@@ -560,6 +582,44 @@ BASE_FEATURE_PARAM(bool,
 #else   // BUILDFLAG(IS_ANDROID)
                    true);
 #endif  // BUILDFLAG(IS_ANDROID)
+// When enabled, each feature below replaces the video buffer budget returned by
+// SbMediaGetVideoBufferBudget() for its resolution tier with the value of its
+// "BudgetMB" param.
+// When enabled, each feature below lowers the video buffer budget returned by
+// SbMediaGetVideoBufferBudget() for its resolution tier to the value of its
+// "<FeatureName>_budget_mb" param. It never raises the platform's budget.
+BASE_FEATURE(kCobaltVideoBufferBudget1080p,
+             "CobaltVideoBufferBudget1080p",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(int,
+                   kCobaltVideoBufferBudget1080pMB,
+                   &kCobaltVideoBufferBudget1080p,
+                   "CobaltVideoBufferBudget1080p_budget_mb",
+                   0);
+BASE_FEATURE(kCobaltVideoBufferBudget4kSdr,
+             "CobaltVideoBufferBudget4kSdr",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(int,
+                   kCobaltVideoBufferBudget4kSdrMB,
+                   &kCobaltVideoBufferBudget4kSdr,
+                   "CobaltVideoBufferBudget4kSdr_budget_mb",
+                   0);
+BASE_FEATURE(kCobaltVideoBufferBudget4kHdr,
+             "CobaltVideoBufferBudget4kHdr",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(int,
+                   kCobaltVideoBufferBudget4kHdrMB,
+                   &kCobaltVideoBufferBudget4kHdr,
+                   "CobaltVideoBufferBudget4kHdr_budget_mb",
+                   0);
+BASE_FEATURE(kCobaltVideoBufferBudgetAbove4k,
+             "CobaltVideoBufferBudgetAbove4k",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(int,
+                   kCobaltVideoBufferBudgetAbove4kMB,
+                   &kCobaltVideoBufferBudgetAbove4k,
+                   "CobaltVideoBufferBudgetAbove4k_budget_mb",
+                   0);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)

@@ -49,6 +49,8 @@ class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed;
     SbDrmSessionClosedFunc session_closed;
   };
+  using KeyStateChangedCallback = std::function<void()>;
+
   static std::unique_ptr<DrmSystem> Create(std::string_view key_system,
                                            void* context,
                                            Callbacks callbacks);
@@ -100,6 +102,20 @@ class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
   // Return true when the drm system is ready for secure input buffers.
   bool IsReady();
 
+  // Observers of DRM key state changes (e.g. when IsReady() becomes true, a
+  // license is provided, or key statuses change).  Callbacks run on arbitrary
+  // threads under an internal lock, so they must be lightweight and must not
+  // call back into DrmSystem.  UnregisterKeyStateChangedCallback() blocks until
+  // any in-flight callback returns.
+  void RegisterKeyStateChangedCallback(const void* observer,
+                                       KeyStateChangedCallback callback);
+  void UnregisterKeyStateChangedCallback(const void* observer);
+  // Incremented before registered callbacks run so observers snapshotting
+  // before an operation cannot miss an intervening key state change.
+  uint64_t GetKeyStateGeneration() const {
+    return key_state_generation_.load(std::memory_order_acquire);
+  }
+
  private:
   class SessionUpdateRequest {
    public:
@@ -126,6 +142,9 @@ class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
   void HandlePendingRequests();
   void GenerateSessionUpdateRequest(
       std::unique_ptr<SessionUpdateRequest> request);
+  // Bumps |key_state_generation_| and runs registered callbacks; must not be
+  // called with |mutex_| held.
+  void NotifyKeyStateChanged();
 
   const std::string key_system_;
   const raw_ptr<void> context_;
@@ -150,6 +169,17 @@ class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
   // only after provisioning). In such scenarios, `DrmSystem` still needs an EME
   // session ID to interact with the Cobalt CDM module.
   DrmSessionIdMapper session_id_mapper_;  //  Guarded by |mutex_|.
+
+  // Guards |key_state_callbacks_| and is held while callbacks run; never
+  // acquired while |mutex_| is held.
+  std::mutex key_state_callbacks_mutex_;
+  std::map<const void*, KeyStateChangedCallback>
+      key_state_callbacks_;  // Guarded by |key_state_callbacks_mutex_|.
+
+  std::atomic_bool has_key_state_callbacks_{false};
+  // Incremented before callbacks run so observers snapshotting before an
+  // operation cannot miss an intervening key state change.
+  std::atomic<uint64_t> key_state_generation_{0};
 
   // Guaranteed to be non-null for any instance returned by the factory method.
   // However, it can be null during destruction if the factory method fails

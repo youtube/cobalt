@@ -334,7 +334,6 @@ TEST_P(PosixSocketResolveTest, RainyDayUnknownHostname) {
   EXPECT_EQ(nullptr, ai);
 }
 
-#if SB_HAS(IPV6)
 INSTANTIATE_TEST_SUITE_P(
     PosixSocketHints,
     PosixSocketResolveTest,
@@ -348,21 +347,6 @@ INSTANTIATE_TEST_SUITE_P(
                           std::make_pair(SOCK_DGRAM, IPPROTO_UDP),
                           std::make_pair(SOCK_STREAM, IPPROTO_TCP))),
     GetPosixSocketHintsName);
-#else
-INSTANTIATE_TEST_SUITE_P(
-    PosixSocketHints,
-    PosixSocketResolveTest,
-    ::testing::Combine(
-        ::testing::Values(AF_UNSPEC, AF_INET),
-        ::testing::Values(std::make_pair(0, 0),
-                          std::make_pair(0, IPPROTO_UDP),
-                          std::make_pair(0, IPPROTO_TCP),
-                          std::make_pair(SOCK_STREAM, 0),
-                          std::make_pair(SOCK_DGRAM, 0),
-                          std::make_pair(SOCK_DGRAM, IPPROTO_UDP),
-                          std::make_pair(SOCK_STREAM, IPPROTO_TCP))),
-    GetPosixSocketHintsName);
-#endif
 
 }  // namespace
 }  // namespace nplb
