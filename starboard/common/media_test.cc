@@ -134,6 +134,11 @@ TEST_F(ParseVideoCodecTest, InvalidAvc) {
   EXPECT_FALSE(Parse("avc1.64002"));
   EXPECT_FALSE(Parse("avc2.640028"));
   EXPECT_FALSE(Parse("avc3.640028.1"));
+  // Every char after "avc1." must be hex.
+  EXPECT_FALSE(Parse("avc1.zz0028"));  // Profile.
+  EXPECT_FALSE(Parse("avc1.6z0028"));
+  EXPECT_FALSE(Parse("avc1.64zz28"));  // Constraint set flags.
+  EXPECT_FALSE(Parse("avc3.4D0g1E"));
 }
 
 TEST_F(ParseVideoCodecTest, H265) {
@@ -286,6 +291,11 @@ TEST_F(ParseVideoCodecTest, EmbeddedNullCharacter) {
   // aren't treated as "vp9" or "avc1.640028".
   EXPECT_FALSE(Parse(std::string_view("vp9\0", 4)));
   EXPECT_FALSE(Parse(std::string_view("avc1.640028\0", 12)));
+  // An embedded null is an invalid char wherever it appears.
+  // "\000" is a full 3-digit octal escape, so the following digits aren't
+  // absorbed into it.
+  EXPECT_FALSE(Parse(std::string_view("avc1.\00040028", 11)));     // Profile.
+  EXPECT_FALSE(Parse(std::string_view("avc1.64\000\00028", 11)));  // Flags.
 }
 
 TEST_F(ParseVideoCodecTest, NonAsciiCharacters) {

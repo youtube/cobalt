@@ -305,8 +305,15 @@ std::optional<ParsedVideoCodec> ParseH264Info(std::string_view codec) {
     return std::nullopt;
   }
 
-  if (codec.size() != 11 || !IsHexDigit(codec[9]) || !IsHexDigit(codec[10])) {
+  // The codec is in the form of "avc1.PPCCLL", where PP is the profile, CC is
+  // the constraint set flags, and LL is the level, all in hex.
+  if (codec.size() != 11) {
     return std::nullopt;
+  }
+  for (size_t i = 5; i < codec.size(); ++i) {
+    if (!IsHexDigit(codec[i])) {
+      return std::nullopt;
+    }
   }
 
   ParsedVideoCodec info;
