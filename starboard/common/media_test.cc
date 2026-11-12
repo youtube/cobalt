@@ -134,6 +134,11 @@ TEST_F(ParseVideoCodecTest, InvalidAvc) {
   EXPECT_FALSE(Parse("avc1.64002"));
   EXPECT_FALSE(Parse("avc2.640028"));
   EXPECT_FALSE(Parse("avc3.640028.1"));
+  // Every char after "avc1." must be hex.
+  EXPECT_FALSE(Parse("avc1.zz0028"));  // Profile.
+  EXPECT_FALSE(Parse("avc1.6z0028"));
+  EXPECT_FALSE(Parse("avc1.64zz28"));  // Constraint set flags.
+  EXPECT_FALSE(Parse("avc3.4D0g1E"));
 }
 
 TEST_F(ParseVideoCodecTest, H265) {
@@ -232,6 +237,76 @@ TEST_F(ParseVideoCodecTest, NonNullTerminatedView) {
   EXPECT_EQ(bit_depth_, 10);
   // "vp09.02.10.10.01.09.16", which is invalid.
   EXPECT_FALSE(Parse(std::string_view(kBuffer).substr(0, 22)));
+}
+
+TEST_F(ParseVideoCodecTest, NonNullTerminatedViewOfAllCodecs) {
+  // Each view is a prefix of a longer buffer, and the parsing must not read
+  // beyond the end of the view.
+  const std::string kAv1 = "av01.0.04M.10.0.110.09.16.09.0";
+  // "av01.0.04M.10", i.e. the short form.
+  ASSERT_TRUE(Parse(std::string_view(kAv1).substr(0, 13)));
+  EXPECT_EQ(codec_, kSbMediaVideoCodecAv1);
+  EXPECT_EQ(bit_depth_, 10);
+  EXPECT_EQ(color_primary_id_, kSbMediaPrimaryIdBt709);
+  // "av01.0.04M.10.0.110.09.16.09", which is invalid.
+  EXPECT_FALSE(Parse(std::string_view(kAv1).substr(0, kAv1.size() - 2)));
+
+  const std::string kAvc = "avc1.6400281";
+  // "avc1.640028".
+  ASSERT_TRUE(Parse(std::string_view(kAvc).substr(0, 11)));
+  EXPECT_EQ(codec_, kSbMediaVideoCodecH264);
+  EXPECT_EQ(profile_, 100);
+  EXPECT_EQ(level_, 40);
+  // "avc1.64002", which is invalid.
+  EXPECT_FALSE(Parse(std::string_view(kAvc).substr(0, 10)));
+
+  const std::string kHevc = "hvc1.1.2.L93.B0.B";
+  // "hvc1.1.2.L93.B0".
+  ASSERT_TRUE(Parse(std::string_view(kHevc).substr(0, 15)));
+  EXPECT_EQ(codec_, kSbMediaVideoCodecH265);
+  EXPECT_EQ(profile_, 1);
+  EXPECT_EQ(level_, 31);
+  // "hvc1.1.2.L93".
+  ASSERT_TRUE(Parse(std::string_view(kHevc).substr(0, 12)));
+  EXPECT_EQ(level_, 31);
+  // "hvc1.1.2.L93.B", which is invalid.
+  EXPECT_FALSE(Parse(std::string_view(kHevc).substr(0, 14)));
+  // "hvc1.1.2.L", which is invalid.
+  EXPECT_FALSE(Parse(std::string_view(kHevc).substr(0, 10)));
+  // "hvc1.1.2.", which is invalid.
+  EXPECT_FALSE(Parse(std::string_view(kHevc).substr(0, 9)));
+  // "hvc1.", which is invalid.
+  EXPECT_FALSE(Parse(std::string_view(kHevc).substr(0, 5)));
+
+  const std::string kVp9 = "vp9.2x";
+  // "vp9.2".
+  ASSERT_TRUE(Parse(std::string_view(kVp9).substr(0, 5)));
+  EXPECT_EQ(codec_, kSbMediaVideoCodecVp9);
+  EXPECT_EQ(profile_, 2);
+  EXPECT_EQ(bit_depth_, 10);
+}
+
+TEST_F(ParseVideoCodecTest, EmbeddedNullCharacter) {
+  // Characters after an embedded null are part of the codec string, so these
+  // aren't treated as "vp9" or "avc1.640028".
+  EXPECT_FALSE(Parse(std::string_view("vp9\0", 4)));
+  EXPECT_FALSE(Parse(std::string_view("avc1.640028\0", 12)));
+  // An embedded null is an invalid char wherever it appears.
+  // "\000" is a full 3-digit octal escape, so the following digits aren't
+  // absorbed into it.
+  EXPECT_FALSE(Parse(std::string_view("avc1.\00040028", 11)));     // Profile.
+  EXPECT_FALSE(Parse(std::string_view("avc1.64\000\00028", 11)));  // Flags.
+}
+
+TEST_F(ParseVideoCodecTest, NonAsciiCharacters) {
+  // Non-ASCII chars are negative when char is signed, and must be rejected
+  // like any other invalid char.
+  EXPECT_FALSE(Parse("vp09.0\xb9.41.08"));
+  EXPECT_FALSE(Parse("av01.0.0\xb5M.08"));
+  EXPECT_FALSE(Parse("avc1.6400\xe2\x82"));
+  EXPECT_FALSE(Parse("hvc1.1.\xff.L93.B0"));
+  EXPECT_FALSE(Parse("hvc1.1.2.L9\xb3.B0"));
+  EXPECT_FALSE(Parse("hvc1.1.2.L93.\xc2\xb0"));
 }
 
 }  // namespace
