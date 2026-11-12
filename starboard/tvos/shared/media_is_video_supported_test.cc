@@ -39,7 +39,7 @@ TEST(MediaIsVideoSupportedTest, DefaultFpsCapIs60) {
 }
 
 TEST(MediaIsVideoSupportedTest, RaisesFpsCapTo120WhenFeatureEnabled) {
-  testing::ScopedFeatureList scoped_feature_list;
+  features::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(features::kSupport120FpsVideo);
 
   EXPECT_TRUE(Is1080pSdrH264SupportedAtFps(60));
@@ -49,7 +49,7 @@ TEST(MediaIsVideoSupportedTest, RaisesFpsCapTo120WhenFeatureEnabled) {
 }
 
 TEST(MediaIsVideoSupportedTest, CapsFpsAt60WhenFeatureDisabled) {
-  testing::ScopedFeatureList scoped_feature_list;
+  features::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndDisableFeature(features::kSupport120FpsVideo);
 
   EXPECT_TRUE(Is1080pSdrH264SupportedAtFps(60));
