@@ -477,6 +477,32 @@ BASE_FEATURE(kCobaltSkipHiddenMediaControlsWork,
              "CobaltSkipHiddenMediaControlsWork",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Turns on V8 memory saver mode for all isolates when memory pressure is
+// signaled, and turns it off once no pressure has been signaled for
+// |kCobaltV8MemorySaverHoldSeconds|. Memory saver mode keeps the JS heap
+// smaller (conservative heap growth, more compaction, memory reducer active)
+// at the cost of more frequent GCs.
+BASE_FEATURE(kCobaltV8MemorySaverOnMemoryPressure,
+             "CobaltV8MemorySaverOnMemoryPressure",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// How long to stay in memory saver mode after the last memory pressure signal.
+// Memory pressure has no reliable "pressure is over" signal, so this decides
+// when to turn it off. It should be longer than the gap between repeated
+// pressure signals to avoid toggling.
+BASE_FEATURE_PARAM(int,
+                   kCobaltV8MemorySaverHoldSeconds,
+                   &kCobaltV8MemorySaverOnMemoryPressure,
+                   "hold_seconds",
+                   300);
+// When true, only CRITICAL memory pressure turns on memory saver mode. By
+// default MODERATE does too, since memory saver mode is a preventive measure
+// that helps most before pressure becomes critical.
+BASE_FEATURE_PARAM(bool,
+                   kCobaltV8MemorySaverOnCriticalOnly,
+                   &kCobaltV8MemorySaverOnMemoryPressure,
+                   "critical_only",
+                   false);
+
 // Enables full memory cache eviction on critical memory pressure in Cobalt.
 BASE_FEATURE(kEvictMemoryCacheOnCriticalMemoryPressure,
              "EvictMemoryCacheOnCriticalMemoryPressure",
