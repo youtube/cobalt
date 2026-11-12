@@ -594,4 +594,73 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest,
   this->allocator_->Free(block2);
 }
 
+// Verifies that a block which stays kIdleDecommitted across a second
+// ReclaimFallbackBlocks() is neither decommitted again nor double-counted in
+// decommitted_bytes_ / GetCapacity().
+TYPED_TEST(BidirectionalFitReuseAllocatorTest,
+           DecommittedBytesNotDoubleCountedAcrossReclaims) {
+  const size_t kAlignment = sizeof(void*);
+  const size_t kBlockSize = 64 * 1024;
+
+  this->ResetAllocatorWithTieredDecommitSupport(/*retain_blocks=*/0,
+                                                /*conservative_blocks=*/0);
+
+  void* block1 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  void* block2 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  ASSERT_NE(block1, nullptr);
+  ASSERT_NE(block2, nullptr);
+  const size_t full_capacity = this->allocator_->GetCapacity();
+
+  // Reach idle and decommit both blocks immediately (bypassing the grace
+  // period).
+  this->allocator_->Free(block1);
+  this->allocator_->Free(block2);
+  this->allocator_->DecommitAllDecommitableBlocks();
+  ASSERT_EQ(this->mock_fallback_allocator_->decommits.size(), 2U);
+  const size_t fallback_block_size =
+      this->mock_fallback_allocator_->decommits[0].size;
+  ASSERT_EQ(this->mock_fallback_allocator_->decommits[1].size,
+            fallback_block_size);
+  EXPECT_EQ(this->allocator_->GetCapacity(),
+            full_capacity - 2 * fallback_block_size);
+
+  // Re-activate exactly one block, then free it again so the allocator reaches
+  // idle and calls ReclaimFallbackBlocks() while the other block is still
+  // kIdleDecommitted.
+  block1 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  ASSERT_NE(block1, nullptr);
+  EXPECT_EQ(this->allocator_->GetCapacity(),
+            full_capacity - fallback_block_size);
+  this->allocator_->Free(block1);
+  EXPECT_EQ(this->allocator_->GetAllocated(), 0U);
+
+  // Drain the grace period, then decommit the single pending block.
+  for (int i = 0; i < 3; ++i) {
+    this->allocator_->TryToDecommitOneBlock(/*cadence=*/1);
+    EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 2U);
+  }
+  this->allocator_->TryToDecommitOneBlock(/*cadence=*/1);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 3U);
+  EXPECT_EQ(this->allocator_->GetCapacity(),
+            full_capacity - 2 * fallback_block_size);
+
+  // Further ticks must not decommit the already-decommitted block again.
+  for (int i = 0; i < 5; ++i) {
+    this->allocator_->TryToDecommitOneBlock(/*cadence=*/1);
+  }
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 3U);
+  EXPECT_EQ(this->allocator_->GetCapacity(),
+            full_capacity - 2 * fallback_block_size);
+
+  // Re-activating both blocks restores the full committed capacity.
+  block1 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  block2 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  ASSERT_NE(block1, nullptr);
+  ASSERT_NE(block2, nullptr);
+  EXPECT_EQ(this->allocator_->GetCapacity(), full_capacity);
+
+  this->allocator_->Free(block1);
+  this->allocator_->Free(block2);
+}
+
 }  // namespace starboard

@@ -35,6 +35,8 @@ namespace media {
 
 namespace {
 
+// Keep in sync with `kDefaultDecommitGraceTicks` in
+// `starboard/common/reuse_allocator_base.cc` (3 ticks * 5s = 15s grace window).
 constexpr base::TimeDelta kDefaultPeriodicDecommitInterval = base::Seconds(5);
 
 // The current default AllocatorStrategy is EmbeddedMetadataReuseAllocatorBase.
@@ -270,9 +272,10 @@ base::expected<void, std::string> DecoderBufferAllocator::SetSetting(
     //     memsets reclaimed blocks to 0.
     //   - mark_as_cold_on_reclaim (bit 28): When set (bit 28 is non-zero),
     //     uses MADV_COLD on reclaimed blocks.
-    //   - periodic_decommit (bit 29): When set (bit 29 is non-zero),
-    //     periodically decommits idle blocks in the background via
-    //     base::ThreadPool.
+    //   - periodic_decommit (bit 29): Legacy bit for background periodic
+    //     decommit via base::ThreadPool. Now always enabled whenever
+    //     `enable_decommit_on_idle` is true (i.e. for all positive V2 setting
+    //     values), so bit 29 is effectively a no-op.
     // - block_size (8 bits): Specifies both the initial pool capacity and the
     //   fallback allocation increment.
     // - retain_blocks (8 bits): Specifies the first `retain_blocks` blocks of

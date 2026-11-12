@@ -27,10 +27,11 @@ namespace starboard {
 
 namespace {
 
-// Wait 3 periodic ticks (15 seconds at 5s interval) after
-// ReclaimFallbackBlocks() before decommitting idle blocks in the background, so
-// consecutive playback transitions and seeks reuse committed pages without
-// MADV_DONTNEED + page-fault thrashing.
+// Wait 3 periodic ticks (15 seconds at `kDefaultPeriodicDecommitInterval = 5s`
+// in `media/starboard/decoder_buffer_allocator.cc`) after
+// `ReclaimFallbackBlocks()` or fallback block activation before decommitting
+// idle blocks in the background, so consecutive playback transitions and seeks
+// reuse committed pages without MADV_DONTNEED + page-fault thrashing.
 constexpr size_t kDefaultDecommitGraceTicks = 3;
 
 }  // namespace
@@ -113,6 +114,7 @@ std::pair<void*, intptr_t> ReuseAllocatorBase::AllocateFallbackBlock(
         decommitted_bytes_ -= fallback_block.size;
       }
       fallback_block.state = kActiveInUse;
+      decommit_grace_ticks_remaining_ = kDefaultDecommitGraceTicks;
       *size_to_try = fallback_block.size;
       return {fallback_block.address, static_cast<intptr_t>(i)};
     }
@@ -127,6 +129,7 @@ std::pair<void*, intptr_t> ReuseAllocatorBase::AllocateFallbackBlock(
     intptr_t index = static_cast<intptr_t>(fallback_allocations_.size());
     fallback_allocations_.emplace_back(ptr, *size_to_try);
     capacity_ += *size_to_try;
+    decommit_grace_ticks_remaining_ = kDefaultDecommitGraceTicks;
     return {ptr, index};
   }
   return {nullptr, -1};
