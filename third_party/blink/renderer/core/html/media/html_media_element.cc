@@ -2511,7 +2511,7 @@ void HTMLMediaElement::ProgressEventTimerFired() {
     sent_stalled_event_ = false;
 #if BUILDFLAG(IS_COBALT)
     if (!base::FeatureList::IsEnabled(
-            features::kCobaltSkipHiddenMediaControlsWork) ||
+            features::kCobaltSkipMediaProgressLayoutUpdate) ||
         ShouldShowControls()) {
       UpdateLayoutObject();
     }
@@ -4512,24 +4512,27 @@ void HTMLMediaElement::UpdateControlsVisibility() {
   if (!isConnected())
     return;
 
-#if BUILDFLAG(IS_COBALT)
-  // Cobalt does not show native controls or the cast overlay button, so skip
-  // creating MediaControlsImpl, its shadow DOM, and its media event listeners
-  // when native controls are not needed.
-  if (base::FeatureList::IsEnabled(
-          features::kCobaltSkipHiddenMediaControlsWork) &&
-      !ShouldShowControls()) {
-    return;
-  }
-#endif  // BUILDFLAG(IS_COBALT)
-
   bool native_controls = ShouldShowControls();
 
   // When LazyInitializeMediaControls is enabled, initialize the controls only
   // if native controls should be used or if using the cast overlay.
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt does not show native controls or the cast overlay button, so skip
+  // creating MediaControlsImpl, its shadow DOM, and its media event listeners
+  // when native controls are not needed.
+  const bool skip_controls_creation =
+      base::FeatureList::IsEnabled(
+          features::kCobaltSkipHiddenMediaControlsCreation) &&
+      !native_controls;
+  if (!skip_controls_creation &&
+      (!RuntimeEnabledFeatures::LazyInitializeMediaControlsEnabled() ||
+       RuntimeEnabledFeatures::MediaCastOverlayButtonEnabled() ||
+       native_controls)) {
+#else
   if (!RuntimeEnabledFeatures::LazyInitializeMediaControlsEnabled() ||
       RuntimeEnabledFeatures::MediaCastOverlayButtonEnabled() ||
       native_controls) {
+#endif  // BUILDFLAG(IS_COBALT)
     EnsureMediaControls();
 
     // TODO(mlamouri): this doesn't sound needed but the following tests, on
@@ -4537,6 +4540,13 @@ void HTMLMediaElement::UpdateControlsVisibility() {
     // fullscreen/compositor-touch-hit-rects-fullscreen-video-controls.html
     GetMediaControls()->Reset();
   }
+#if BUILDFLAG(IS_COBALT)
+  if (skip_controls_creation && error()) {
+    // Preserve MediaControlsImpl::Reset()'s error-pausing side effect when
+    // MediaControls creation is skipped while an error is already present.
+    pause();
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   if (native_controls)
     GetMediaControls()->MaybeShow();
@@ -4546,6 +4556,25 @@ void HTMLMediaElement::UpdateControlsVisibility() {
   if (web_media_player_)
     web_media_player_->OnHasNativeControlsChanged(native_controls);
 }
+
+#if BUILDFLAG(IS_COBALT)
+DispatchEventResult HTMLMediaElement::DispatchEventInternal(Event& event) {
+  DispatchEventResult result = HTMLElement::DispatchEventInternal(event);
+  // When hidden MediaControlsImpl creation is skipped,
+  // MediaControlsMediaEventListener is not attached to invoke
+  // MediaControlsImpl::OnError() -> Reset() -> pause() when an async 'error'
+  // event is dispatched on this media element. For scoped events inside an
+  // author ShadowRoot (or detached subtree), event.target() may be retargeted
+  // to nullptr after dispatch finishes.
+  if (event.type() == event_type_names::kError && !GetMediaControls() &&
+      base::FeatureList::IsEnabled(
+          features::kCobaltSkipHiddenMediaControlsCreation) &&
+      error()) {
+    pause();
+  }
+  return result;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 CueTimeline& HTMLMediaElement::GetCueTimeline() {
   if (!cue_timeline_)

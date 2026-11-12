@@ -525,6 +525,9 @@ class CORE_EXPORT HTMLMediaElement
   LayoutObject* CreateLayoutObject(const ComputedStyle&) override;
   void DidNotifySubtreeInsertionsToDocument() override;
   void DidRecalcStyle(const StyleRecalcChange) final;
+#if BUILDFLAG(IS_COBALT)
+  DispatchEventResult DispatchEventInternal(Event&) override;
+#endif  // BUILDFLAG(IS_COBALT)
 
   bool CanStartSelection() const override { return false; }
 
