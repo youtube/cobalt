@@ -20,3 +20,6 @@ gl_type = "angle"
 
 # Widevine platform identifier for keybox selection
 sb_widevine_platform = "tvos"
+
+platform_tests_path =
+    "//starboard/tvos/shared:starboard_platform_tests($starboard_toolchain)"

@@ -188,6 +188,13 @@ STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   false)
 // keep-sorted end
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+
+#if BUILDFLAG(IS_IOS_TVOS)
+// keep-sorted start newline_separated=yes
+// Enables video support up to 120 FPS (instead of the default 60 FPS cap).
+STARBOARD_FEATURE(kSupport120FpsVideo, "Support120FpsVideo", false)
+// keep-sorted end
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 FEATURE_LIST_END
 
 // To add a parameter to Starboard, use the macro:
