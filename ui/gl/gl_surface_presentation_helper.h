@@ -9,6 +9,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "ui/gfx/swap_result.h"
 #include "ui/gl/gl_export.h"
 #include "ui/gl/gl_surface.h"
@@ -85,6 +86,12 @@ class GL_EXPORT GLSurfacePresentationHelper {
     int frame_id = -1;
     GLSurface::PresentationCallback callback;
     gfx::SwapResult result = gfx::SwapResult::SWAP_ACK;
+#if BUILDFLAG(IS_STARBOARD)
+    // Time at which eglSwapBuffers() returned for this frame. Used as the
+    // presentation time when the fence never signals, and to detect hung
+    // fences.
+    base::TimeTicks swap_completed_time;
+#endif
   };
 
   bool GetFrameTimestampInfoIfAvailable(const Frame& frame,
@@ -92,6 +99,18 @@ class GL_EXPORT GLSurfacePresentationHelper {
                                         base::TimeDelta* interval,
                                         base::TimeTicks* writes_done,
                                         uint32_t* flags);
+
+#if BUILDFLAG(IS_STARBOARD)
+  // Without a VSyncProvider the GLFence path reports the CPU time at which the
+  // GPU main thread observed the fence, which can place two buffered frames a
+  // few ms apart (or two frames of one poll at the same time). Buffers leave
+  // the swapchain at most once per VSync, so advance |timestamp| to the next
+  // VSync slot after the previous presented frame when it is earlier than
+  // that. Updates |last_presented_timestamp_|.
+  void ApplyFifoVSyncSlot(base::TimeTicks* timestamp,
+                          base::TimeDelta* interval,
+                          uint32_t* flags);
+#endif
 
   // Check |pending_frames_| and run presentation callbacks.
   void CheckPendingFrames();
@@ -116,6 +135,11 @@ class GL_EXPORT GLSurfacePresentationHelper {
   bool gl_fence_supported_ = false;
   raw_ptr<EGLTimestampClient> egl_timestamp_client_ = nullptr;
   bool update_vsync_pending_ = false;
+#if BUILDFLAG(IS_STARBOARD)
+  // Timestamp handed out for the most recent successful presentation on the
+  // fixed-VSync (no VSyncProvider) path; see ApplyFifoVSyncSlot().
+  base::TimeTicks last_presented_timestamp_;
+#endif
 
   base::WeakPtrFactory<GLSurfacePresentationHelper> weak_ptr_factory_{this};
 };
