@@ -31,7 +31,6 @@
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_audio_decoder.h"
 #include "starboard/android/shared/media_codec_video_decoder.h"
-#include "starboard/android/shared/media_codec_video_decoder_helpers.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/mime_param.h"
 #include "starboard/common/check_op.h"
@@ -581,8 +580,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
          creation_parameters.max_video_resolution()},
         decoder_tunnel_mode_config,
         {max_video_input_size, enable_flush_during_seek, use_dual_threads,
-         experimental_features,
-         GetVideoCodecCreationRetryCount(experimental_features)},
+         experimental_features},
         {reset_delay_usec, flush_delay_usec});
   }
 

@@ -79,9 +79,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
     bool enable_flush_during_seek = false;
     bool use_dual_threads = true;
     ExperimentalFeatures experimental_features;
-    // Number of times to retry creating the platform MediaCodec after a
-    // failure, see GetVideoCodecCreationRetryCount(). 0 disables retries.
-    int codec_creation_retry_count = 0;
   };
 
   struct PlatformOptions {
