@@ -16,7 +16,10 @@
 #include "starboard/shared/starboard/feature_list.h"
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
+<<<<<<< ours
 #include "starboard/shared/starboard/media/resolutions.h"
+=======
+>>>>>>> theirs
 #include "starboard/testing/scoped_feature_list.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -24,6 +27,7 @@ namespace starboard {
 namespace {
 
 bool Is1080pSdrH264SupportedAtFps(int fps) {
+<<<<<<< ours
   VideoSupportQueryParams params;
   params.codec_info.codec = kSbMediaVideoCodecH264;
   params.codec_info.primary_id = kSbMediaPrimaryIdBt709;
@@ -33,6 +37,14 @@ bool Is1080pSdrH264SupportedAtFps(int fps) {
   params.bitrate = 5'000'000;
   params.fps = fps;
   return MediaIsVideoSupported(/*mime_type=*/nullptr, params);
+=======
+  return MediaIsVideoSupported(
+      kSbMediaVideoCodecH264, /*mime_type=*/nullptr, /*profile=*/-1,
+      /*level=*/-1, /*bit_depth=*/8, kSbMediaPrimaryIdBt709,
+      kSbMediaTransferIdBt709, kSbMediaMatrixIdBt709, /*frame_width=*/1920,
+      /*frame_height=*/1080, /*bitrate=*/5'000'000, fps,
+      /*decode_to_texture_required=*/false);
+>>>>>>> theirs
 }
 
 TEST(MediaIsVideoSupportedTest, DefaultFpsCapIs60) {
@@ -43,7 +55,11 @@ TEST(MediaIsVideoSupportedTest, DefaultFpsCapIs60) {
 }
 
 TEST(MediaIsVideoSupportedTest, RaisesFpsCapTo120WhenFeatureEnabled) {
+<<<<<<< ours
   features::ScopedFeatureList scoped_feature_list;
+=======
+  testing::ScopedFeatureList scoped_feature_list;
+>>>>>>> theirs
   scoped_feature_list.InitAndEnableFeature(features::kSupport120FpsVideo);
 
   EXPECT_TRUE(Is1080pSdrH264SupportedAtFps(60));
@@ -53,7 +69,11 @@ TEST(MediaIsVideoSupportedTest, RaisesFpsCapTo120WhenFeatureEnabled) {
 }
 
 TEST(MediaIsVideoSupportedTest, CapsFpsAt60WhenFeatureDisabled) {
+<<<<<<< ours
   features::ScopedFeatureList scoped_feature_list;
+=======
+  testing::ScopedFeatureList scoped_feature_list;
+>>>>>>> theirs
   scoped_feature_list.InitAndDisableFeature(features::kSupport120FpsVideo);
 
   EXPECT_TRUE(Is1080pSdrH264SupportedAtFps(60));

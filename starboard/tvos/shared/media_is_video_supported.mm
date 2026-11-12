@@ -52,7 +52,11 @@ bool MediaIsVideoSupported(const MimeType* mime_type,
     const int max_fps =
         features::FeatureList::IsEnabled(features::kSupport120FpsVideo) ? 120
                                                                         : 60;
+<<<<<<< ours
     if (params.fps > max_fps) {
+=======
+    if (fps > max_fps) {
+>>>>>>> theirs
       return false;
     }
 
