@@ -31,7 +31,7 @@ namespace {
 // output can still be written via --benchmark_out=<path>
 // --benchmark_out_format=json.
 //
-// Stack-owned by RunPlayerBenchmarks for the duration of
+// Stack-owned by RunBenchmarks for the duration of
 // RunSpecifiedBenchmarks() (which borrows it without taking ownership) and used
 // exclusively on the gtest runner thread.
 class FailOnBenchmarkErrorReporter : public ::benchmark::ConsoleReporter {
@@ -67,25 +67,21 @@ class FailOnBenchmarkErrorReporter : public ::benchmark::ConsoleReporter {
   }
 };
 
-// Returns the --benchmark_* flags from the test command line so that e.g.
-// --benchmark_filter can be passed through the test runner.
-// ::testing::internal::GetArgvs() is an internal GoogleTest API intentionally
-// relied upon here because starboard_test_main owns main(); it holds a copy of
-// the full original argv captured before InitGoogleTest() strips --gtest_*
-// flags, so filtering by the "--benchmark_" prefix forwards only Google
-// Benchmark flags.
-//
-// TODO(b/582763971): This wrapper is shared by player_benchmarks and
-// media_benchmarks, but argv[0] and the test name below are still
-// player-specific. Also, BenchmarkProcessState frees these strings while
-// Google Benchmark keeps a pointer to argv[0], which corrupts the "Running"
-// banner and --benchmark_out_format=json output.
+// Returns the original argv[0] followed by the --benchmark_* flags from the
+// test command line so that e.g. --benchmark_filter can be passed through the
+// test runner. ::testing::internal::GetArgvs() is an internal GoogleTest API
+// intentionally relied upon here because starboard_test_main owns main(); it
+// returns a copy of the full original argv captured before InitGoogleTest()
+// strips --gtest_* flags, so filtering by the "--benchmark_" prefix forwards
+// only Google Benchmark flags.
 std::vector<std::string> GetBenchmarkArgs() {
-  std::vector<std::string> args = {"player_benchmarks"};
+  const std::vector<std::string> argvs = ::testing::internal::GetArgvs();
+  // On Android, Chromium's native test launcher passes "_" as argv[0].
+  std::vector<std::string> args = {argvs.empty() ? "benchmarks" : argvs[0]};
 
-  for (const std::string& arg : ::testing::internal::GetArgvs()) {
-    if (arg.rfind("--benchmark_", 0) == 0) {
-      args.push_back(arg);
+  for (size_t i = 1; i < argvs.size(); ++i) {
+    if (argvs[i].rfind("--benchmark_", 0) == 0) {
+      args.push_back(argvs[i]);
     }
   }
 
@@ -119,11 +115,12 @@ void PrintBenchmarkHelpAndFail() {
 // nulling the pointer, so calling Initialize()/Shutdown() per test iteration
 // would use-after-free under --gtest_repeat > 1.
 struct BenchmarkProcessState {
+  // Retained for the lifetime of the process because ::benchmark::Initialize()
+  // stores a raw pointer to argv[0] in BenchmarkReporter::Context.
+  std::vector<std::string> args;
   bool has_unrecognized_args = false;
 
-  BenchmarkProcessState() {
-    std::vector<std::string> args = GetBenchmarkArgs();
-
+  BenchmarkProcessState() : args(GetBenchmarkArgs()) {
     // Google Benchmark may modify argc/argv.
     std::vector<char*> argv;
     argv.reserve(args.size() + 1);
@@ -145,7 +142,7 @@ struct BenchmarkProcessState {
 
 }  // namespace
 
-TEST(SbPlayerBenchmarkTest, RunPlayerBenchmarks) {
+TEST(StarboardBenchmarkTest, RunBenchmarks) {
   static BenchmarkProcessState state;
   ASSERT_FALSE(state.has_unrecognized_args)
       << "Unrecognized --benchmark_* command-line flag";

@@ -57,7 +57,7 @@ group("gn_all") {
       # benchmarks are enabled. Intentionally not listed in
       # cobalt/build/testing/targets/*/test_targets.json, so they are not run
       # automatically.
-      "//starboard/benchmark:media_benchmarks",
+      "//starboard/benchmark:audio_sink_benchmarks",
       "//starboard/benchmark:player_benchmarks",
     ]
   }
