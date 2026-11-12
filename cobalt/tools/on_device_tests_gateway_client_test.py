@@ -123,7 +123,7 @@ class ProcessTestRequestsTest(unittest.TestCase):
 
     self.assertEqual(len(requests), 3)
     self.assertEqual(requests[0]['test_target'], 'base:base_unittests')
-    self.assertEqual(requests[0]['test_type'], 'unit_test')
+    self.assertEqual(requests[0]['test_type'], 'browser_test')
     self.assertEqual(
         requests[0]['test_args'].count('test_attempts=1'),
         1,
@@ -137,7 +137,8 @@ class ProcessTestRequestsTest(unittest.TestCase):
         requests[0]['test_cmd_args'],
         [('command_line_args='
           '--gtest_output=xml:/sdcard/Download/base_unittests_testoutput.xml '
-          '--gtest_filter=* --single-process-tests --num-retries=0')],
+          '--gtest_filter=* --single-process-tests --num-retries=0 '
+          '--disable-test-server')],
     )
 
     self.assertEqual(requests[1]['test_target'], 'url:url_unittests')
@@ -182,7 +183,7 @@ class ProcessTestRequestsTest(unittest.TestCase):
       )
       self.assertIn(
           'host_deps=/bigstore/test-artifacts/android-arm/'
-          'cobalt_browsertests_host_deps.tar.gz',
+          'android_test_host_deps.tar.gz',
           req['files'],
       )
       self.assertIn(
@@ -199,6 +200,7 @@ class ProcessTestRequestsTest(unittest.TestCase):
           '--gtest_filter=-DisabledSuite.TestA:DisabledSuite.TestB',
           cmd_line,
       )
+      self.assertIn('--disable-test-server', cmd_line)
       self.assertIn(f'--test-launcher-shard-index={shard_idx}', cmd_line)
       self.assertIn('--test-launcher-total-shards=4', cmd_line)
       self.assertNotIn('--gtest_shard_index', cmd_line)
@@ -322,6 +324,28 @@ class ProcessTestRequestsTest(unittest.TestCase):
                   explicit_requests[0]['test_cmd_args'][0])
 
   def test_sharded_non_browser_test_raises_value_error(self):
+    pilot = process_test_requests(
+        self._make_args([{
+            'target': 'base:base_unittests',
+            'shards': 2
+        }]))
+    self.assertEqual([r['test_type'] for r in pilot], ['browser_test'] * 2)
+    self.assertIn('--disable-test-server', pilot[0]['test_cmd_args'][0])
+
+    for bad_args in (
+        self._make_args([{
+            'target': 'starboard/nplb:nplb_loader',
+            'shards': 2
+        }],
+                        device_family='rdk'),
+        self._make_args([{
+            'target': 'cobalt/android:cobalt_coat_junit_tests',
+            'shards': 2
+        }]),
+    ):
+      with self.assertRaises(ValueError):
+        process_test_requests(bad_args)
+
     unit_args = self._make_args([{
         'target': 'cobalt:cobalt_unittests',
         'shards': 2,
@@ -396,6 +420,39 @@ class ProcessTestRequestsTest(unittest.TestCase):
     self.assertEqual(token, 'fake-token')
     self.assertEqual(labels, ['chrobalt_on_device_test'])
     self.assertEqual(len(test_requests), 4)
+
+  def test_android_host_runner_routing(self):
+    expected_host_dep = ('host_deps=/bigstore/test-artifacts/android-arm/'
+                         'android_test_host_deps.tar.gz')
+    requests = process_test_requests(
+        self._make_args([
+            'cobalt/testing/browser_tests:cobalt_browsertests_loader',
+            'url:url_unittests',
+            'starboard/nplb:nplb_loader',
+            'crypto:crypto_unittests',
+            'cobalt/android:cobalt_coat_junit_tests',
+        ]))
+    self.assertEqual([r['test_type'] for r in requests], [
+        'browser_test', 'browser_test', 'browser_test', 'unit_test', 'unit_test'
+    ])
+    for req in requests[:4]:
+      self.assertIn(expected_host_dep, req['files'])
+    for req in requests[:3]:
+      self.assertIn('--disable-test-server', req['test_cmd_args'][0])
+    self.assertNotIn('--disable-test-server', requests[3]['test_cmd_args'][0])
+    self.assertFalse(
+        any(f.startswith('host_deps=') for f in requests[4]['files']))
+
+    rdk_requests = process_test_requests(
+        self._make_args([
+            'url:url_unittests',
+            'cobalt/testing/browser_tests:cobalt_browsertests',
+        ],
+                        device_family='rdk'))
+    self.assertEqual([r['test_type'] for r in rdk_requests],
+                     ['unit_test', 'browser_test'])
+    for req in rdk_requests:
+      self.assertFalse(any(f.startswith('host_deps=') for f in req['files']))
 
 
 if __name__ == '__main__':
