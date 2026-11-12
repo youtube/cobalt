@@ -279,8 +279,12 @@ public class JavaSwitchesTest {
 
     assertThat(JavaSwitches.takeNativeKeyValues())
         .asList()
+<<<<<<< ours
         .containsExactly(
             "AvoidCCReuseResource", "", "EnableQUIC", "", "V8SetBytecodeOldTime", "1024")
+=======
+        .containsExactly("AvoidCCReuseResource", "", "EnableQUIC", "", "V8SetBytecodeOldTime", "1024")
+>>>>>>> theirs
         .inOrder();
   }
 
