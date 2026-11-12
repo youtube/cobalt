@@ -1,0 +1,61 @@
+diff --git a/source/common/ucnv2022.cpp b/source/common/ucnv2022.cpp
+index df6f0cb9b..c502d051c 100644
+--- a/source/common/ucnv2022.cpp
++++ b/source/common/ucnv2022.cpp
+@@ -513,7 +513,7 @@ _ISO2022Open(UConverter *cnv, UConverterLoadArgs *pArgs, UErrorCode *errorCode){
+                     ucnv_loadSharedData("ISO8859_7", &stackPieces, &stackArgs, errorCode);
+             }
+             myConverterData->myConverterArray[JISX208] =
+-                ucnv_loadSharedData("Shift-JIS", &stackPieces, &stackArgs, errorCode);
++                ucnv_loadSharedData("EUC-JP", &stackPieces, &stackArgs, errorCode);
+             if(jpCharsetMasks[version]&CSM(JISX212)) {
+                 myConverterData->myConverterArray[JISX212] =
+                     ucnv_loadSharedData("jisx-212", &stackPieces, &stackArgs, errorCode);
+@@ -1514,6 +1514,7 @@ jisx201FromU(uint32_t value) {
+     return 0xfffe;
+ }
+ 
++#if 0
+ /*
+  * Take a valid Shift-JIS byte pair, check that it is in the range corresponding
+  * to JIS X 0208, and convert it to a pair of 21..7E bytes.
+@@ -1586,6 +1587,7 @@ _2022ToSJIS(uint8_t c1, uint8_t c2, char bytes[2]) {
+     bytes[0] = static_cast<char>(c1);
+     bytes[1] = static_cast<char>(c2);
+ }
++#endif
+ 
+ /*
+  * JIS X 0208 has fallbacks from Unicode half-width Katakana to full-width (DBCS)
+@@ -1857,8 +1859,13 @@ getTrail:
+                                 converterData->myConverterArray[cs0],
+                                 sourceChar, &value,
+                                 useFallback, MBCS_OUTPUT_2);
+-                    if(len2 == 2 || (len2 == -2 && len == 0)) {  /* only accept DBCS: abs(len)==2 */
+-                        value = _2022FromSJIS(value);
++                    // Only accept DBCS char (abs(len2) == 2).
++                    // With EUC-JP table for JIS X 208, half-width Kana
++                    // represented with DBCS starting with 0x8E has to be
++                    // filtered out so that they can be converted with
++                    // hwkana_fb table.
++                    if ((len2 == 2 && ((value & 0xFF00) != 0x8E00)) || (len2 == -2 && len == 0)) {
++                        value &= 0x7F7F;
+                         if(value != 0) {
+                             targetValue = value;
+                             len = len2;
+@@ -2251,13 +2258,10 @@ getTrailByte:
+                         if (leadIsOk && trailIsOk) {
+                             ++mySource;
+                             tmpSourceChar = (mySourceChar << 8) | trailByte;
+-                            if(cs == JISX208) {
+-                                _2022ToSJIS(static_cast<uint8_t>(mySourceChar), trailByte, tempBuf);
+-                                mySourceChar = tmpSourceChar;
+-                            } else {
++                            {
+                                 /* Copy before we modify tmpSourceChar so toUnicodeCallback() sees the correct bytes. */
+                                 mySourceChar = tmpSourceChar;
+-                                if (cs == KSC5601) {
++                                if (cs == JISX208 || cs == KSC5601) {
+                                     tmpSourceChar += 0x8080;  /* = _2022ToGR94DBCS(tmpSourceChar) */
+                                 }
+                                 tempBuf[0] = static_cast<char>(tmpSourceChar >> 8);

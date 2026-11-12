@@ -1,0 +1,267 @@
+// Copyright (C) 2023 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import m from 'mithril';
+import {BigintMath} from '../../base/bigint_math';
+import {exists} from '../../base/utils';
+import type {SliceDetails} from '../sql_utils/slice';
+import {Anchor} from '../../widgets/anchor';
+import {MenuItem, PopupMenu} from '../../widgets/menu';
+import {Section} from '../../widgets/section';
+import {SqlRef} from '../../widgets/sql_ref';
+import {Tree, TreeNode} from '../../widgets/tree';
+import {
+  type BreakdownByThreadState,
+  BreakdownByThreadStateTreeNode,
+} from './thread_state';
+import {DurationWidget} from '../widgets/duration';
+import {renderProcessRef} from '../widgets/process';
+import {renderThreadRef} from '../widgets/thread';
+import {Timestamp} from '../widgets/timestamp';
+import type {Trace} from '../../public/trace';
+import {
+  type DistributionPanelAttrs,
+  openDistributionTab,
+} from '../distribution_panel';
+import {
+  LONG,
+  NUM,
+  type Row,
+  STR_NULL,
+} from '../../trace_processor/query_result';
+import {Time} from '../../base/time';
+import {type Dataset, UnionDataset} from '../../trace_processor/dataset';
+
+export type DistributionScope = 'track' | 'all';
+
+export function sliceDistributionCellRenderers(
+  trace: Trace,
+): Record<string, (value: Row[string]) => m.Children> {
+  return {
+    ts: (value) =>
+      typeof value === 'bigint'
+        ? m(Timestamp, {trace, ts: Time.fromRaw(value)})
+        : String(value ?? ''),
+    dur: (value) =>
+      typeof value === 'bigint'
+        ? m(DurationWidget, {trace, dur: value})
+        : String(value ?? ''),
+  };
+}
+
+const SLICE_DISTRIBUTION_SCHEMA = {
+  id: NUM,
+  name: STR_NULL,
+  dur: LONG,
+  ts: LONG,
+};
+
+export function findSliceTrackDataset(
+  trace: Trace,
+  trackId: number,
+): Dataset | undefined {
+  const track = trace.tracks.findTrack((t) =>
+    t.tags?.trackIds?.includes(trackId),
+  );
+  const dataset = track?.renderer.getDataset?.();
+  if (dataset === undefined || !dataset.implements(SLICE_DISTRIBUTION_SCHEMA)) {
+    return undefined;
+  }
+  return dataset;
+}
+
+// Mirrors the dataset-union approach used by trace search (core/dataset_search.ts):
+// the "whole trace" scope is the union of what each track exposes rather than a
+// raw query against the slice table.
+export function findWholeTraceSliceDataset(trace: Trace): Dataset | undefined {
+  const datasets: Dataset[] = [];
+  for (const track of trace.tracks.getAllTracks()) {
+    const dataset = track.renderer.getDataset?.();
+    if (dataset?.implements(SLICE_DISTRIBUTION_SCHEMA)) {
+      datasets.push(dataset);
+    }
+  }
+  if (datasets.length === 0) return undefined;
+  if (datasets.length === 1) return datasets[0];
+  return UnionDataset.create(datasets);
+}
+
+export function sliceDistributionConfig(
+  trace: Trace,
+  sliceName: string,
+  dataset: Dataset,
+  scope: DistributionScope,
+): Omit<DistributionPanelAttrs, 'trace'> {
+  const scopeLabel = scope === 'track' ? 'this track' : 'across trace';
+  return {
+    title: `${sliceName} (${scopeLabel})`,
+    dataset,
+    filter: {col: 'name', eq: sliceName},
+    valueColumn: 'dur',
+    idColumn: 'id',
+    sqlTable: 'slice',
+    displayColumns: ['ts', 'dur'],
+    cellRenderers: sliceDistributionCellRenderers(trace),
+  };
+}
+
+function resolveSliceDataset(
+  trace: Trace,
+  trackId: number,
+  scope: DistributionScope,
+): Dataset | undefined {
+  return scope === 'track'
+    ? findSliceTrackDataset(trace, trackId)
+    : findWholeTraceSliceDataset(trace);
+}
+
+function openSliceDistribution(
+  trace: Trace,
+  sliceName: string,
+  trackId: number,
+  scope: DistributionScope,
+): void {
+  const dataset = resolveSliceDataset(trace, trackId, scope);
+  if (dataset === undefined) return;
+  openDistributionTab(
+    trace,
+    sliceDistributionConfig(trace, sliceName, dataset, scope),
+  );
+}
+
+function renderMatchingSlicesMenu(
+  trace: Trace,
+  slice: SliceDetails,
+): m.Children {
+  const sliceName = slice.name;
+  if (sliceName === undefined) {
+    return m(MenuItem, {
+      label: 'Slices with the same name',
+      disabled: true,
+    });
+  }
+  const item = (label: string, scope: DistributionScope) =>
+    m(MenuItem, {
+      label,
+      onclick: () =>
+        openSliceDistribution(trace, sliceName, slice.trackId, scope),
+    });
+  return [
+    item('Slices with the same name (this track)', 'track'),
+    item('Slices with the same name (across trace)', 'all'),
+  ];
+}
+
+export function renderDetails(
+  trace: Trace,
+  slice: SliceDetails,
+  durationBreakdown?: BreakdownByThreadState,
+) {
+  return m(
+    Section,
+    {title: 'Details'},
+    m(
+      Tree,
+      m(TreeNode, {
+        left: 'Name',
+        right: m(
+          PopupMenu,
+          {
+            trigger: m(Anchor, slice.name),
+          },
+          renderMatchingSlicesMenu(trace, slice),
+        ),
+      }),
+      m(TreeNode, {
+        left: 'Category',
+        right:
+          !slice.category || slice.category === '[NULL]'
+            ? 'N/A'
+            : slice.category,
+      }),
+      m(TreeNode, {
+        left: 'Start time',
+        right: m(Timestamp, {trace, ts: slice.ts}),
+      }),
+      exists(slice.absTime) &&
+        m(TreeNode, {left: 'Absolute Time', right: slice.absTime}),
+      m(
+        TreeNode,
+        {
+          left: 'Duration',
+          right: m(DurationWidget, {trace, dur: slice.dur}),
+        },
+        exists(durationBreakdown) &&
+          slice.dur > 0 &&
+          m(BreakdownByThreadStateTreeNode, {
+            trace,
+            data: durationBreakdown,
+            dur: slice.dur,
+          }),
+      ),
+      renderThreadDuration(trace, slice),
+      slice.thread &&
+        m(TreeNode, {
+          left: 'Thread',
+          right: renderThreadRef(trace, slice.thread),
+        }),
+      slice.process &&
+        m(TreeNode, {
+          left: 'Process',
+          right: renderProcessRef(trace, slice.process),
+        }),
+      slice.process &&
+        exists(slice.process.uid) &&
+        m(TreeNode, {
+          left: 'User ID',
+          right: slice.process.uid,
+        }),
+      slice.process &&
+        slice.process.packageName &&
+        m(TreeNode, {
+          left: 'Package name',
+          right: slice.process.packageName,
+        }),
+      slice.process &&
+        exists(slice.process.versionCode) &&
+        m(TreeNode, {
+          left: 'Version code',
+          right: slice.process.versionCode,
+        }),
+      m(TreeNode, {
+        left: 'SQL ID',
+        right: m(SqlRef, {table: 'slice', id: slice.id}),
+      }),
+    ),
+  );
+}
+
+function renderThreadDuration(trace: Trace, sliceInfo: SliceDetails) {
+  if (exists(sliceInfo.threadTs) && exists(sliceInfo.threadDur)) {
+    // If we have valid thread duration, also display a percentage of
+    // |threadDur| compared to |dur|.
+    const ratio = BigintMath.ratio(sliceInfo.threadDur, sliceInfo.dur);
+    const threadDurFractionSuffix =
+      sliceInfo.threadDur === -1n ? '' : ` (${(ratio * 100).toFixed(2)}%)`;
+    return m(TreeNode, {
+      left: 'Thread duration',
+      right: [
+        m(DurationWidget, {trace, dur: sliceInfo.threadDur}),
+        threadDurFractionSuffix,
+      ],
+    });
+  } else {
+    return undefined;
+  }
+}

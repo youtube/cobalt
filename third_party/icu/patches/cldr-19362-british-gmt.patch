@@ -1,0 +1,12 @@
+diff --git a/source/data/zone/en_GB.txt b/source/data/zone/en_GB.txt
+index aa9880b27..5d83862a2 100644
+--- a/source/data/zone/en_GB.txt
++++ b/source/data/zone/en_GB.txt
+@@ -6,6 +6,7 @@ en_GB{
+     zoneStrings{
+         "Europe:London"{
+             sd{"BST"}
++            ss{"GMT"}
+         }
+         "meta:Europe_Central"{
+             sd{"CEST"}
