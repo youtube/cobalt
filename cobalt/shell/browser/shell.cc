@@ -48,6 +48,7 @@
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
 #endif
 #include "cobalt/shell/browser/shell_javascript_dialog_manager.h"
+#include "cobalt/shell/browser/splash_cache.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/shell/embedded_resources/embedded_js.h"
@@ -110,8 +111,6 @@ using ::starboard::StarboardBridge;
 namespace content {
 
 namespace {
-
-constexpr char kMusicTopic[] = "music";
 
 // Helper function to check if a URL is a valid deep link for a specific topic.
 // It requires both a "launch" parameter and a matching "topic" parameter.
@@ -605,8 +604,8 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
         cobalt::switches::kInitialURL));
   }
   if (link_url.is_valid()) {
-    if (IsDeepLinkTopic(link_url, kMusicTopic)) {
-      topic = kMusicTopic;
+    if (IsDeepLinkTopic(link_url, kMusicSplashCacheName)) {
+      topic = kMusicSplashCacheName;
     }
   }
   Shell* shell = CreateShell(

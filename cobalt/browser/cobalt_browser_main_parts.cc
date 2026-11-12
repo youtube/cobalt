@@ -37,6 +37,7 @@
 #include "build/buildflag.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/constants/cobalt_pref_names.h"
+#include "cobalt/browser/experiments/experiment_config_manager.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
@@ -47,8 +48,10 @@
 #include "cobalt/browser/metrics/cobalt_storage_metrics_helper.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
+#include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "cobalt/shell/browser/splash_cache.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/persistent_histograms.h"
@@ -792,9 +795,28 @@ void CobaltBrowserMainParts::OnMigrationComplete() {
   CHECK(sequence_checker_.CalledOnValidSequence());
   LOG(INFO) << "Migration complete. Proceeding with deferred launchShell.";
   migration_finished_ = true;
+  MaybeClearCachedSplashFiles();
   if (pending_task_) {
     std::move(pending_task_).Run();
   }
+}
+
+void CobaltBrowserMainParts::MaybeClearCachedSplashFiles() {
+  // If bad cached splash assets crash Cobalt, the app cannot launch at all.
+  // Finch turns into crash safe mode but only lasts one launch, after which the
+  // regular config reads the same file again. So clear the cached splash assets
+  // in crash safe mode, whatever caused the crashes and regardless of
+  // kEnableCachedSplashFile, as clearing is cheap.
+  // TODO(b/576340659): Revisit this once the cached splash assets prove stable.
+  if (!GlobalFeatures::GetInstance()
+           ->experiment_config_manager()
+           ->IsCrashSafeMode()) {
+    return;
+  }
+  LOG(INFO) << "Clearing cached splash assets in Finch's crash safe mode.";
+  content::ClearCachedSplashFiles(
+      browser_context(),
+      content::H5vccSchemeURLLoaderFactory::GetSplashDomain());
 }
 
 void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(

@@ -584,6 +584,18 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
+<histogram name="Cobalt.SplashScreen.ClearCachedFilesResult"
+    enum="SplashCacheClearResult" expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>borongchen@google.com</owner>
+  <summary>
+    Records the result of deleting the splash assets that the WebApp cached
+    (splash.webm and splash.png in the default and music caches), as they may
+    have crashed Cobalt. Recorded once per launch in Finch's crash safe mode,
+    i.e., when the empty experiment config is used due to the crash streak.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.SplashScreen.FetchedFromCache"
     enum="SplashScreenFetchedState" expires_after="never">
   <owner>tasunny@google.com</owner>
