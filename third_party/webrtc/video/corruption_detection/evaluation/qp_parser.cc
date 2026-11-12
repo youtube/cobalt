@@ -12,13 +12,18 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <span>
 
 #include "api/video/video_codec_type.h"
+#include "modules/video_coding/utility/av1_qp_parser.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {
+
+GenericQpParser::GenericQpParser() : av1_parser_(Av1QpParser::Create()) {}
+GenericQpParser::~GenericQpParser() = default;
 
 std::optional<uint32_t> GenericQpParser::Parse(
     VideoCodecType codec_type,
@@ -31,7 +36,7 @@ std::optional<uint32_t> GenericQpParser::Parse(
   }
 
   RTC_DCHECK_EQ(codec_type, kVideoCodecAV1);
-  return av1_parser_.Parse(frame_data, operating_point);
+  return av1_parser_->Parse(frame_data, operating_point);
 }
 
 }  // namespace webrtc

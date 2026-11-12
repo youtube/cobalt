@@ -22,7 +22,6 @@
 
 #include "api/audio/echo_canceller3_config.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/aec_state.h"
 #include "modules/audio_processing/aec3/block.h"
@@ -31,6 +30,7 @@
 #include "modules/audio_processing/aec3/subtractor_output.h"
 #include "modules/audio_processing/test/echo_canceller_test_tools.h"
 #include "rtc_base/random.h"
+#include "test/create_test_environment.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -129,7 +129,7 @@ class ResidualEchoEstimatorTest {
  private:
   const size_t num_render_channels_;
   const size_t num_capture_channels_;
-  const Environment env_ = CreateEnvironment();
+  const Environment env_ = CreateTestEnvironment();
   const EchoCanceller3Config& config_;
   ResidualEchoEstimator estimator_;
   AecState aec_state_;

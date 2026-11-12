@@ -757,6 +757,9 @@ DEFINE_BOOL(maglev_reuse_stack_slots, true,
             "reuse stack slots in the maglev optimizing compiler")
 DEFINE_BOOL(maglev_untagged_phis, false,
             "enable phi untagging in the maglev optimizing compiler")
+DEFINE_INT(maglev_untagged_phis_bisect_limit, -1,
+           "limit the number of Phis we untag in Maglev phi untagging (-1 for "
+           "unbounded)")
 DEFINE_BOOL(turbolev_untagged_phis, false,
             "enable phi untagging in the Turbolev optimizing compiler")
 DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_untagged_phis)
@@ -1268,9 +1271,6 @@ DEFINE_DEVELOPER_FLAG(trace_track_allocation_sites,
 DEFINE_DEVELOPER_FLAG(trace_migration, "trace object migration")
 DEFINE_DEVELOPER_FLAG(trace_generalization, "trace map generalization")
 
-DEFINE_BOOL(reuse_scope_infos, true, "reuse scope infos from previous compiles")
-
-DEFINE_IMPLICATION(fuzzing, reuse_scope_infos)
 
 // Flags for Sparkplug
 #undef FLAG
@@ -2713,6 +2713,10 @@ DEFINE_BOOL(
 DEFINE_INT(
     sqrt_allocation_limits_factor, 80,
     "When the sqrt heap limit is enabled, multiplier on the heap growth.")
+DEFINE_INT(
+    sqrt_allocation_limits_minimal_factor, 20,
+    "When the sqrt heap limit is enabled, multiplier on the heap growth for "
+    "HeapGrowingMode::kMinimal.")
 DEFINE_FLOAT(
     sqrt_allocation_limits_max_growing_factor, 4.0,
     "This is the upper bound for growing factor when using sqrt heap limit.")
@@ -3438,6 +3442,7 @@ DEFINE_NEG_IMPLICATION(regexp_interpret_all, regexp_tier_up)
 DEFINE_SMI(regexp_tier_up_ticks, 1,
            "set the number of executions for the regexp interpreter before "
            "tiering-up to the compiler")
+DEFINE_REQUIREMENT(v8_flags.regexp_tier_up_ticks >= 0)
 DEFINE_BOOL(
     regexp_jit_all, false,
     "compile all regexp patterns directly to native code, skipping the "

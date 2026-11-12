@@ -37,6 +37,7 @@
 #include "rtc_base/socket_server.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/thread.h"
+#include "test/create_test_environment.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -101,7 +102,7 @@ class PeerConnectionHeaderExtensionTest
         CreateModularPeerConnectionFactory(std::move(factory_dependencies));
 
     auto fake_port_allocator = std::make_unique<FakePortAllocator>(
-        CreateEnvironment(), socket_server_.get());
+        CreateTestEnvironment(), socket_server_.get());
     auto observer = std::make_unique<MockPeerConnectionObserver>();
     PeerConnectionInterface::RTCConfiguration config;
     if (semantics)

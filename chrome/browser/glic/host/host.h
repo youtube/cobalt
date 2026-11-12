@@ -19,9 +19,9 @@
 #include "chrome/browser/glic/host/glic_web_client_access.h"
 #include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/browser/glic/public/glic_passkeys.h"
-#include "chrome/common/actor/task_id.h"
 #include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/visibility.h"
 
 class Profile;
 namespace content {
@@ -251,6 +251,9 @@ class Host : public GlicSharingManagerProvider {
   // Returns the WebUI web contents. May be null.
   content::WebContents* webui_contents() const;
 
+  // Sets the visibility of the WebUI web contents.
+  void SetWebContentsVisibility(content::Visibility visibility);
+
   // Returns the WebClient web contents. May be null.
   content::WebContents* web_client_contents() const;
 
@@ -383,8 +386,6 @@ class Host : public GlicSharingManagerProvider {
   bool IsWebContentPresentAndMatches(content::RenderFrameHost* rfh);
 
   void NotifyActorTaskListRowClicked(int32_t task_id);
-
-  void NotifySkillToInvokeChanged(mojom::SkillPtr skill);
 
   // Register a handler to observe experimental triggering related updates.
   // The callback informs if the registration operations was successful or not.

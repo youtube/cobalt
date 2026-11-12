@@ -1925,6 +1925,23 @@ TEST_F(TestSimulcastEncoderAdapterFake, TestInitFailureCleansUpEncoders) {
   EXPECT_TRUE(helper_->factory()->encoders().empty());
 }
 
+TEST_F(TestSimulcastEncoderAdapterFake,
+       SingleStreamInitEncodeReturnsEncoderError) {
+  SimulcastTestFixtureImpl::DefaultSettings(
+      &codec_, static_cast<const int*>(kTestTemporalLayerProfile),
+      kVideoCodecVP8);
+  codec_.numberOfSimulcastStreams = 1;
+
+  EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, adapter_->InitEncode(&codec_, kSettings));
+  ASSERT_EQ(1u, helper_->factory()->encoders().size());
+
+  helper_->factory()->encoders()[0]->set_init_encode_return_value(
+      WEBRTC_VIDEO_CODEC_ENCODER_FAILURE);
+
+  EXPECT_EQ(WEBRTC_VIDEO_CODEC_ENCODER_FAILURE,
+            adapter_->InitEncode(&codec_, kSettings));
+}
+
 TEST_F(TestSimulcastEncoderAdapterFake, DoesNotAlterMaxQpForScreenshare) {
   const int kHighMaxQp = 56;
   const int kLowMaxQp = 46;

@@ -197,10 +197,10 @@ RTCError MergeRtxCodec(const CodecConfiguration& config,
                     : CreateVideoCodec(PayloadType::NotSet(), kRtxCodecName);
     rtx.SetParam(kCodecParamAssociatedPayloadType, primary_codec.id.value());
     // Convention: RTX PT = primary PT + 1.
-    // Suggester will ignore this if it is already in use.
-    int preferred_id = primary_codec.id.value() + 1;
-    if (preferred_id <= 127) {
-      rtx.id = PayloadType(preferred_id);
+    // Suggester will ignore this if it is already in use or invalid.
+    PayloadType preferred_id = PayloadType(primary_codec.id.value() + 1);
+    if (preferred_id.Valid(/*rtcp_mux=*/true)) {
+      rtx.id = preferred_id;
     }
     RTCErrorOr<PayloadType> result =
         pt_suggester.SuggestPayloadType(mid, rtx, pick_from_top_of_range);
@@ -933,8 +933,8 @@ RTCErrorOr<std::vector<Codec>> CodecVendor::GetNegotiatedCodecsForOffer(
       }
     }
     MergeCodecsByDirection(media_description_options.type,
-                           RtpTransceiverDirection::kSendRecv, mid, codecs,
-                           pt_suggester, /*pick_from_top_of_range=*/true);
+                           media_description_options.direction, mid, codecs,
+                           pt_suggester, /*pick_from_top_of_range=*/false);
   } else {
     // LEGACY path: Assume codecs have PTs.
     // If current content exists and is not being recycled, use its codecs.
@@ -1062,7 +1062,7 @@ RTCErrorOr<std::vector<Codec>> CodecVendor::GetNegotiatedCodecsForOffer(
   if (payload_types_in_transport_) {
     AssignCodecIdsAndLinkRedRefactored(pt_suggester, mid,
                                        filtered_codecs.writable_codecs(),
-                                       /*pick_from_top_of_range=*/true);
+                                       /*pick_from_top_of_range=*/false);
   } else {
     RecordCodecIdsAndLinkRed(pt_suggester, mid,
                              filtered_codecs.writable_codecs());

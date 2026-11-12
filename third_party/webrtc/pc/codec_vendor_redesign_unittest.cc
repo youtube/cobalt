@@ -175,6 +175,24 @@ TEST_F(CodecVendorRedesignTest,
   EXPECT_THAT(codecs, Not(Contains(Field(&Codec::name, "red"))));
 }
 
+TEST_F(CodecVendorRedesignTest, VideoOfferWithRecvOnlyAndNoEncoderFactory) {
+  media_engine_.SetVideoSendCodecs({});
+  std::vector<Codec> video_codecs({
+      CreateVideoCodec(97, "vp8"),
+  });
+  media_engine_.SetVideoRecvCodecs(video_codecs);
+  vendor_ = std::make_unique<CodecVendor>(&media_engine_,
+                                          /*rtx_enabled=*/true, trials_);
+  MediaDescriptionOptions options(MediaType::VIDEO, "video",
+                                  RtpTransceiverDirection::kRecvOnly,
+                                  /*stopped=*/false);
+  auto result = vendor_->GetNegotiatedCodecsForOffer(
+      options, MediaSessionOptions(), /*current_content=*/nullptr,
+      pt_suggester_);
+  ASSERT_TRUE(result.ok());
+  EXPECT_THAT(result.value(), Contains(Field(&Codec::name, "vp8")));
+}
+
 TEST_F(CodecVendorRedesignTest, OfferMaintainsStableIds) {
   MediaDescriptionOptions options(MediaType::AUDIO, "audio",
                                   RtpTransceiverDirection::kSendRecv,

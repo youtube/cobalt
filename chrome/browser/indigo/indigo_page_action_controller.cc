@@ -4,14 +4,24 @@
 
 #include "chrome/browser/indigo/indigo_page_action_controller.h"
 
+#include <memory>
+#include <optional>
+
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
 #include "base/notimplemented.h"
+#include "base/types/pass_key.h"
+#include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/public/glic_invoke_options.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_side_panel_coordinator.h"
+#include "chrome/browser/indigo/api_client.h"
 #include "chrome/browser/indigo/indigo_agent_host.h"
 #include "chrome/browser/indigo/indigo_image_replacement_manager.h"
 #include "chrome/browser/indigo/indigo_prefs.h"
@@ -43,6 +53,44 @@ namespace {
 const char kForceIndigoSwitch[] = "force-indigo";
 const char kForceIndigoOnboardingSwitch[] = "force-indigo-onboarding";
 const char kForceIndigoToolbarSwitch[] = "force-indigo-toolbar";
+
+void RecordTransformationResultCannotGenerateImage(
+    const CombinedEligibility& eligibility) {
+  DCHECK(!eligibility.CanGenerateImage());
+  IndigoTransformationResult result;
+
+  if (eligibility.local_eligibility != LocalEligibility::kEligible) {
+    switch (eligibility.local_eligibility) {
+      case LocalEligibility::kNotSignedIn:
+        result = IndigoTransformationResult::kNotSignedIn;
+        break;
+      case LocalEligibility::kMissingCapabilities:
+        result = IndigoTransformationResult::kMissingCapabilities;
+        break;
+      case LocalEligibility::kDisabledByPolicy:
+        result = IndigoTransformationResult::kDisabledByPolicy;
+        break;
+      case LocalEligibility::kMissingScript:
+        result = IndigoTransformationResult::kMissingScript;
+        break;
+      case LocalEligibility::kEligible:
+        NOTREACHED();
+    }
+  } else if (!eligibility.remote_eligibility.has_value()) {
+    result = IndigoTransformationResult::kRemoteStatusMissing;
+  } else if (!eligibility.remote_eligibility
+                  ->is_service_supported_for_account) {
+    result = IndigoTransformationResult::kServiceNotSupported;
+  } else if (!eligibility.remote_eligibility->has_user_image) {
+    result = IndigoTransformationResult::kMissingUserImage;
+  } else if (!eligibility.has_onboarded_pref) {
+    result = IndigoTransformationResult::kNotOnboarded;
+  } else {
+    result = IndigoTransformationResult::kUnknown;
+  }
+
+  base::UmaHistogramEnumeration("Indigo.Transformation.Result", result);
+}
 }  // namespace
 
 DEFINE_USER_DATA(IndigoPageActionController);
@@ -94,10 +142,7 @@ IndigoPageActionController::~IndigoPageActionController() {
   // If there is a toolbar, hide it before anything else. This makes sure that
   // the OnClose delegate function isn't called after some members have been
   // destroyed.
-  if (toolbar_) {
-    toolbar_->Hide();
-    toolbar_.reset();
-  }
+  HideToolbar();
 }
 
 // static
@@ -130,6 +175,7 @@ void IndigoPageActionController::CheckEligibilityForOnboarding(
 
   // Show onboarding if the user is ready to onboard, or if it's forced.
   if (eligibility.ReadyToOnboard() || force_onboarding) {
+    base::RecordAction(base::UserMetricsAction("Indigo.Onboarding.Trigger"));
     std::string onboarding_url =
         command_line->GetSwitchValueASCII(kForceIndigoOnboardingSwitch);
     if (onboarding_url.empty()) {
@@ -164,11 +210,43 @@ void IndigoPageActionController::ContinueInvoke(
     // image and aren't ready to onboard.
     LOG(WARNING)
         << "Indigo not eligible for generation and not ready to onboard";
+    RecordTransformationResultCannotGenerateImage(eligibility);
     return;
+  }
+
+  if (base::FeatureList::IsEnabled(features::kIndigoOpenGlic)) {
+    Profile* profile =
+        Profile::FromBrowserContext(web_contents->GetBrowserContext());
+    if (auto* glic_keyed_service = glic::GlicKeyedService::Get(profile)) {
+      glic::GlicInvokeOptions options(
+          glic::Target(&tab()),
+          glic::mojom::InvocationSource::kIndigoPageAction);
+
+      std::string prompt = features::kIndigoGlicPrompt.Get();
+      if (prompt.empty()) {
+        std::string prompt_key = features::kIndigoGlicPromptKey.Get();
+        if (!prompt_key.empty() && indigo_service_) {
+          std::optional<std::string> proto_prompt =
+              indigo_service_->GetPrompt(prompt_key);
+          if (proto_prompt.has_value()) {
+            prompt = *proto_prompt;
+          }
+        }
+      }
+
+      if (!prompt.empty()) {
+        options.prompts.push_back(std::move(prompt));
+        glic_keyed_service->InvokeWithAutoSubmit(
+            glic::InvokeWithAutoSubmitPasskeyProvider::GetPassKey(),
+            std::move(options));
+      }
+    }
   }
 
   if (IndigoAgentHost::GetOrCreateForPage(web_contents->GetPrimaryPage())
           ->Invoke()) {
+    base::RecordAction(
+        base::UserMetricsAction("Indigo.Transformation.Trigger"));
     return;
   }
 
@@ -200,6 +278,26 @@ void IndigoPageActionController::ShowToolbarInside(const gfx::Rect& rect) {
   toolbar_->ShowInside(parent_view, rect);
 }
 
+void IndigoPageActionController::Reset(ResetType reset_type) {
+  HideToolbar();
+
+  content::WebContents* web_contents = tab().GetContents();
+  if (!web_contents) {
+    return;
+  }
+
+  content::Page& primary_page = web_contents->GetPrimaryPage();
+  if (auto* manager = IndigoImageReplacementManager::GetForPage(primary_page)) {
+    manager->ResetAllReplacements(base::PassKey<IndigoPageActionController>());
+  }
+
+  if (reset_type == ResetType::kResetReplacementsAndContentScript) {
+    if (auto* host = IndigoAgentHost::GetForPage(primary_page)) {
+      host->Reset();
+    }
+  }
+}
+
 void IndigoPageActionController::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
   ContentsObservingTabFeature::DidFinishNavigation(navigation_handle);
@@ -214,12 +312,11 @@ void IndigoPageActionController::DidFinishNavigation(
     return;
   }
 
-  if (toolbar_) {
-    toolbar_->Hide();
-    toolbar_.reset();
-  }
+  HideToolbar();
 
-  // TODO: b/508219600 Consider closing the onboarding dialog if navigates away.
+  if (onboarding_dialog_) {
+    onboarding_dialog_->Close();
+  }
 
   invoke_weak_ptr_factory_.InvalidateWeakPtrs();
 
@@ -233,25 +330,6 @@ void IndigoPageActionController::DidFinishNavigation(
         url, optimization_guide::proto::OptimizationType::INDIGO,
         base::BindOnce(&IndigoPageActionController::OnOptimizationGuideDecision,
                        weak_ptr_factory_.GetWeakPtr(), url));
-  }
-}
-
-void IndigoPageActionController::OnClose(IndigoToolbar* toolbar) {
-  if (toolbar_) {
-    toolbar_->Hide();
-    toolbar_.reset();
-  }
-  content::WebContents* web_contents = tab().GetContents();
-  if (web_contents) {
-    auto* host = IndigoAgentHost::GetForPage(web_contents->GetPrimaryPage());
-    if (host) {
-      host->Reset();
-    }
-    auto* manager = IndigoImageReplacementManager::GetForPage(
-        web_contents->GetPrimaryPage());
-    if (manager) {
-      manager->ResetAllReplacements();
-    }
   }
 }
 
@@ -276,6 +354,10 @@ void IndigoPageActionController::TabDidBecomeVisible(tabs::TabInterface* tab) {
   toolbar_->TabDidBecomeVisible(parent_view);
 }
 
+void IndigoPageActionController::OnClose(IndigoToolbar* toolbar) {
+  Reset(ResetType::kResetReplacementsAndContentScript);
+}
+
 void IndigoPageActionController::OnRegenerate(IndigoToolbar* toolbar) {
   NOTIMPLEMENTED();
 }
@@ -286,7 +368,25 @@ void IndigoPageActionController::OnReplaceOriginalPhoto(
 }
 
 void IndigoPageActionController::OnDeleteOriginalPhoto(IndigoToolbar* toolbar) {
-  NOTIMPLEMENTED();
+  if (!indigo_service_) {
+    return;
+  }
+
+  Reset(ResetType::kResetReplacementsAndContentScript);
+
+  indigo_service_->GetApiClient().Delete(
+      base::BindOnce(&IndigoPageActionController::OnDeleteOriginalPhotoComplete,
+                     weak_ptr_factory_.GetWeakPtr()));
+}
+
+void IndigoPageActionController::OnDeleteOriginalPhotoComplete(
+    base::expected<void, DeleteError> result) {
+  if (result.has_value()) {
+    // TODO(b/509508517): Show a toast to inform the user the image
+    // was deleted.
+  } else {
+    LOG(ERROR) << "Delete original photo failed: " << result.error().message;
+  }
 }
 
 void IndigoPageActionController::UpdateEntryPointsState() {
@@ -345,9 +445,9 @@ void IndigoPageActionController::OnOnboardingDialogClosed(
     Profile* profile =
         Profile::FromBrowserContext(web_contents->GetBrowserContext());
     profile->GetPrefs()->SetBoolean(prefs::kIndigoHasOnboarded, true);
+    base::RecordAction(base::UserMetricsAction("Indigo.Onboarding.Complete"));
 
     if (indigo_service_) {
-      indigo_service_->InvalidateRemoteEligibility();
       indigo_service_->GetCombinedEligibility(
           base::BindOnce(&IndigoPageActionController::ContinueInvoke,
                          invoke_weak_ptr_factory_.GetWeakPtr()));
@@ -388,6 +488,13 @@ views::View* IndigoPageActionController::GetIndigoOverlayView() const {
   CHECK(contents_container);
 
   return contents_container->indigo_overlay_view();
+}
+
+void IndigoPageActionController::HideToolbar() {
+  if (toolbar_) {
+    toolbar_->Hide();
+    toolbar_.reset();
+  }
 }
 
 }  // namespace indigo

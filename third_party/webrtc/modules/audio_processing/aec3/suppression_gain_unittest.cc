@@ -19,7 +19,6 @@
 
 #include "api/audio/echo_canceller3_config.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/aec_state.h"
 #include "modules/audio_processing/aec3/block.h"
@@ -31,6 +30,7 @@
 #include "modules/audio_processing/aec3/subtractor_output.h"
 #include "modules/audio_processing/logging/apm_data_dumper.h"
 #include "rtc_base/checks.h"
+#include "test/create_test_environment.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -55,7 +55,7 @@ TEST(SuppressionGainDeathTest, NullOutputGains) {
   Y.im.fill(0.0f);
 
   float high_bands_gain;
-  AecState aec_state(CreateEnvironment(), EchoCanceller3Config{}, 1);
+  AecState aec_state(CreateTestEnvironment(), EchoCanceller3Config{}, 1);
   EXPECT_DEATH(
       SuppressionGain(EchoCanceller3Config{}, DetectOptimization(), 16000, 1)
           .GetGain(EchoCanceller3Config{}.suppressor, /*config_changed=*/false,
@@ -90,7 +90,7 @@ TEST(SuppressionGainTest, BasicGainComputation) {
   std::array<float, kFftLengthBy2Plus1> g;
   std::vector<SubtractorOutput> output(kNumCaptureChannels);
   Block x(kNumBands, kNumRenderChannels);
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   AecState aec_state(env, config, kNumCaptureChannels);
   ApmDataDumper data_dumper(42);
   Subtractor subtractor(env, config, kNumRenderChannels, kNumCaptureChannels,

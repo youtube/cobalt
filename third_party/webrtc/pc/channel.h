@@ -265,8 +265,8 @@ class BaseChannel : public ChannelInterface,
   // Registers a demuxer criteria with the transport, on the network thread.
   // This function will fail if there's no transport of if a sink is already
   // registered for this channel's demuxer_critera().
-  bool RegisterRtpDemuxerSink_w(bool clear_payload_types,
-                                std::optional<flat_set<uint32_t>> ssrcs)
+  bool RegisterRtpDemuxerSink_w(const MediaContentDescription* content,
+                                std::vector<uint32_t> removed_ssrcs = {})
       RTC_RUN_ON(worker_thread());
 
   // Return description of media channel to facilitate logging
@@ -278,7 +278,8 @@ class BaseChannel : public ChannelInterface,
  private:
   bool ConnectToRtpTransport_n(RtpTransportInternal* rtp_transport)
       RTC_RUN_ON(network_thread());
-  void DisconnectFromRtpTransport_n() RTC_RUN_ON(network_thread());
+  void DisconnectFromRtpTransport_n(bool permanent_teardown)
+      RTC_RUN_ON(network_thread());
   void SignalSentPacket_n(const SentPacketInfo& sent_packet);
   // Only called on the network thread.
   RtpDemuxerCriteria demuxer_criteria() const RTC_RUN_ON(network_thread());

@@ -2509,6 +2509,11 @@ std::optional<uint32_t> WebRtcVoiceReceiveChannel::GetUnsignaledSsrc() const {
   return unsignaled_recv_ssrcs_.back();
 }
 
+std::vector<uint32_t> WebRtcVoiceReceiveChannel::GetUnsignaledSsrcs() const {
+  RTC_DCHECK_RUN_ON(worker_thread_);
+  return unsignaled_recv_ssrcs_;
+}
+
 // Not implemented.
 // TODO(https://crbug.com/webrtc/12676): Implement a fix for the unsignalled
 // SSRC race that can happen when an m= section goes from receiving to not

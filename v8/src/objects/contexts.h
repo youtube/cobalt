@@ -325,6 +325,8 @@ enum ContextLookupFlags {
     initial_regexp_string_iterator_prototype_map)                              \
   V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)      \
   V(SCRIPT_EXECUTION_CALLBACK_INDEX, Object, script_execution_callback)        \
+  V(TEMPORAL_GET_EPOCH_NANOSECONDS_CALLBACK_INDEX, Object,                     \
+    temporal_get_epoch_nanoseconds_callback)                                   \
   V(SECURITY_TOKEN_INDEX, Object, security_token)                              \
   V(SERIALIZED_OBJECTS, HeapObject, serialized_objects)                        \
   V(SET_VALUE_ITERATOR_MAP_INDEX, Map, set_value_iterator_map)                 \
@@ -647,8 +649,6 @@ V8_OBJECT class Context : public HeapObject {
   inline bool IsScriptContext() const;
   inline bool HasContextCells() const;
 
-  inline bool HasSameSecurityTokenAs(Tagged<Context> that) const;
-
   Handle<Object> ErrorMessageForCodeGenerationFromStrings();
   DirectHandle<Object> ErrorMessageForWasmCodeGeneration();
 
@@ -774,6 +774,8 @@ class NativeContext : public Context {
  public:
   // TODO(neis): Move some stuff from Context here.
 
+  inline bool HasSameSecurityTokenAs(Tagged<NativeContext> that) const;
+
   // NativeContext fields are read concurrently from background threads; any
   // concurrent writes of affected fields must have acquire-release semantics,
   // thus we hide the non-atomic setter. Note this doesn't protect fully since
@@ -856,22 +858,14 @@ class NativeContext : public Context {
                 Internals::kNativeContextEmbedderDataOffset);
 };
 
-class ScriptContextTableShape final : public AllStatic {
- public:
-  using ElementT = Context;
-  using CompressionScheme = V8HeapCompressionScheme;
-  static constexpr RootIndex kMapRootIndex = RootIndex::kScriptContextTableMap;
-  static constexpr bool kLengthEqualsCapacity = false;
-};
 
 // A table of all script contexts. Every loaded top-level script with top-level
 // lexical declarations contributes its ScriptContext into this table.
-class ScriptContextTable
-    : public TaggedArrayBase<ScriptContextTable, ScriptContextTableShape> {
-  using Super = TaggedArrayBase<ScriptContextTable, ScriptContextTableShape>;
+class ScriptContextTable : public TaggedArrayBase<ScriptContextTable, Context> {
+  using Super = TaggedArrayBase<ScriptContextTable, Context>;
 
  public:
-  using Shape = ScriptContextTableShape;
+  static constexpr RootIndex kMapRootIndex = RootIndex::kScriptContextTableMap;
 
   static Handle<ScriptContextTable> New(
       Isolate* isolate, uint32_t capacity,

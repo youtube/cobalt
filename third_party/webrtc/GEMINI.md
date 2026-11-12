@@ -1,6 +1,7 @@
 # General workflow
 
 @agents/prompts/common.md
+@agents/README.md
 
 # Searching Downstream
 

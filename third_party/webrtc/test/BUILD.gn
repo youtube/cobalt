@@ -1504,6 +1504,7 @@ rtc_library("fake_encoded_frame") {
 }
 
 rtc_library("video_codec_tester") {
+  visibility = [ "*" ]
   testonly = true
   sources = [
     "video_codec_tester.cc",

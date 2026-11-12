@@ -65,6 +65,7 @@ import org.chromium.build.annotations.MonotonicNonNull;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.NullUnmarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.omnibox.LocationBar;
@@ -93,14 +94,16 @@ import org.chromium.chrome.browser.toolbar.optional_button.ButtonData;
 import org.chromium.chrome.browser.toolbar.optional_button.OptionalButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.optional_button.OptionalButtonCoordinator.TransitionType;
 import org.chromium.chrome.browser.toolbar.reload_button.ReloadButtonCoordinator;
-import org.chromium.chrome.browser.toolbar.settings.AddressBarPreference;
 import org.chromium.chrome.browser.toolbar.signin_button.SigninButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.top.CaptureReadinessResult.TopToolbarBlockCaptureReason;
 import org.chromium.chrome.browser.toolbar.top.NavigationPopup.HistoryDelegate;
 import org.chromium.chrome.browser.toolbar.top.TopToolbarCoordinator.ToolbarColorObserver;
+import org.chromium.chrome.browser.ui.bottombar.BottomBarConfigUtils;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
+import org.chromium.chrome.browser.ui.theme.ChromeSemanticColorUtils;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.components.browser_ui.styles.ChromeColors;
+import org.chromium.components.browser_ui.styles.IncognitoColors;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.animation.CancelAwareAnimatorListener;
 import org.chromium.components.embedder_support.util.UrlUtilities;
@@ -230,10 +233,10 @@ public class ToolbarPhone extends ToolbarLayout
     private final Rect mLocationBarBackgroundNtpOffset = new Rect();
 
     /**
-     * Offsets applied to the <i>contents</i> of the omnibox if we are showing a New Tab Page.
-     * This can be different from {@link #mLocationBarBackgroundNtpOffset} due to the fact that we
-     * extend the omnibox horizontally beyond the screen boundaries when focused, to hide its
-     * rounded corners.
+     * Offsets applied to the <i>contents</i> of the omnibox if we are showing a New Tab Page. This
+     * can be different from {@link #mLocationBarBackgroundNtpOffset} due to the fact that we extend
+     * the omnibox horizontally beyond the screen boundaries when focused, to hide its rounded
+     * corners.
      */
     private float mLocationBarNtpOffsetLeft;
 
@@ -324,6 +327,7 @@ public class ToolbarPhone extends ToolbarLayout
     // Added due to https://crbug.com/323888159 to mark the loading phase while navigating from NTP
     // to webpages.
     private boolean mIsInLoadingPhaseFromNtpToWebpage;
+    private boolean mTabOrModelChanged;
 
     // The following are some properties used during animation.  We use explicit property classes
     // to avoid the cost of reflection for each animation setup.
@@ -354,7 +358,7 @@ public class ToolbarPhone extends ToolbarLayout
         mBackgroundHeightIncreaseWhenFocus =
                 OmniboxResourceProvider.getLocationBarBackgroundOnFocusHeightIncrease(context);
         mToolbarBackgroundColorForNtp =
-                ContextCompat.getColor(getContext(), R.color.home_surface_background_color);
+                ChromeSemanticColorUtils.getHomeSurfaceBackgroundColor(getContext());
         float locationBarBackgroundColorAlphaForNtp =
                 ResourcesCompat.getFloat(
                         getResources(), R.dimen.home_surface_search_box_background_alpha);
@@ -834,8 +838,8 @@ public class ToolbarPhone extends ToolbarLayout
 
     /**
      * @param visualState The current {@link VisualState} of the toolbar.
-     * @return The left bounds of the location bar, accounting for any buttons on the left side
-     *         of the toolbar.
+     * @return The left bounds of the location bar, accounting for any buttons on the left side of
+     *     the toolbar.
      */
     private int getViewBoundsLeftOfLocationBar(@VisualState int visualState) {
         // Uses getMeasuredWidth()s instead of getLeft() because this is called in onMeasure
@@ -872,8 +876,8 @@ public class ToolbarPhone extends ToolbarLayout
 
     /**
      * @param visualState The current {@link VisualState} of the toolbar.
-     * @return The right bounds of the location bar, accounting for any buttons on the right side
-     *         of the toolbar.
+     * @return The right bounds of the location bar, accounting for any buttons on the right side of
+     *     the toolbar.
      */
     private int getViewBoundsRightOfLocationBar(@VisualState int visualState) {
         // Uses getMeasuredWidth()s instead of getRight() because this is called in onMeasure
@@ -953,9 +957,20 @@ public class ToolbarPhone extends ToolbarLayout
                 if (mIsInLoadingPhaseFromNtpToWebpage) {
                     return mToolbarBackgroundColorForNtp;
                 }
-                return ChromeColors.getDefaultThemeColor(getContext(), /* isIncognito= */ false);
+                if (urlHasFocus()) {
+                    return getToolbarDefaultColor(/* shouldUseFocusColor= */ false);
+                }
+                return getToolbarDataProvider().getPrimaryColor();
             case VisualState.INCOGNITO:
-                return ChromeColors.getDefaultThemeColor(getContext(), /* isIncognito= */ true);
+                boolean isBottomBarEnabled = BottomBarConfigUtils.isBottomBarEnabled(getContext());
+                boolean isBottomPosition =
+                        mBrowserControlsStateProvider != null
+                                && mBrowserControlsStateProvider.getControlsPosition()
+                                        == ControlsPosition.BOTTOM;
+                return (isBottomBarEnabled && isBottomPosition)
+                        ? IncognitoColors.getColorSurfaceContainerHigh(
+                                getContext(), /* isIncognito= */ true)
+                        : ChromeColors.getDefaultThemeColor(getContext(), /* isIncognito= */ true);
             case VisualState.BRAND_COLOR:
                 if (urlHasFocus()) {
                     return getToolbarDefaultColor(/* shouldUseFocusColor= */ false);
@@ -1090,17 +1105,6 @@ public class ToolbarPhone extends ToolbarLayout
             translationY -= searchBoxInset;
         }
 
-        // When Bottom Toolbar v2 is enabled, toolbar is at bottom, and URL has focus, we set the
-        // top padding to 0 in updateLayoutParamsForMultiline(). This causes the location bar's
-        // getTop() to decrease by the padding amount, which makes translationY larger than it
-        // should be. We need to subtract the padding difference to compensate.
-        if (ChromeFeatureList.sAndroidBottomToolbarV2.isEnabled()
-                && !AddressBarPreference.isToolbarConfiguredToShowOnTop()
-                && urlHasFocus()
-                && mTopPaddingForEdgeToEdgeNtp > 0) {
-            translationY -= mTopPaddingForEdgeToEdgeNtp;
-        }
-
         return Math.max(0, translationY);
     }
 
@@ -1164,8 +1168,8 @@ public class ToolbarPhone extends ToolbarLayout
     }
 
     /**
-     * @return The left drawing position for the location bar background when the location bar
-     *         has focus.
+     * @return The left drawing position for the location bar background when the location bar has
+     *     focus.
      */
     private int getFocusedLeftPositionOfLocationBarBackground() {
         return mToolbarSidePadding;
@@ -1206,8 +1210,8 @@ public class ToolbarPhone extends ToolbarLayout
     }
 
     /**
-     * @return The right drawing position for the location bar background when the location bar
-     *         has focus.
+     * @return The right drawing position for the location bar background when the location bar has
+     *     focus.
      */
     private int getFocusedRightPositionOfLocationBarBackground() {
         return getWidth() - mToolbarSidePadding;
@@ -1773,7 +1777,7 @@ public class ToolbarPhone extends ToolbarLayout
 
     /**
      * @return Whether or not the location bar should be drawing at any particular state of the
-     *         toolbar.
+     *     toolbar.
      */
     private boolean shouldDrawLocationBar() {
         // The location bar should have alpha or clip+translation when its not supposed to be
@@ -2025,8 +2029,13 @@ public class ToolbarPhone extends ToolbarLayout
                 new VisibleUrlText(
                         urlBarData.displayText, mLocationBar.getOmniboxVisibleTextPrefixHint());
         assumeNonNull(getTint());
+
+        View urlBar =
+                mLocationBar.getPhoneCoordinator().getViewForDrawing().findViewById(R.id.url_bar);
+
         return new PhoneCaptureStateToken(
                 getTint().getDefaultColor(),
+                mToolbarBackground.getColor(),
                 mTabCountSupplier == null ? 0 : mTabCountSupplier.get(),
                 mButtonData,
                 mVisualState,
@@ -2038,7 +2047,8 @@ public class ToolbarPhone extends ToolbarLayout
                 getToolbarDataProvider().isPaintPreview(),
                 getProgressBar().getProgress(),
                 mUnfocusedLocationBarLayoutWidth,
-                mBrowserControlsStateProvider.getControlsPosition());
+                mBrowserControlsStateProvider.getControlsPosition(),
+                urlBar.getWidth());
     }
 
     @Override
@@ -2401,8 +2411,7 @@ public class ToolbarPhone extends ToolbarLayout
         // - investigate what else needs to be done to make the WRAP_CONTENT work well as the
         //   default / static setting (likely leading to elimination of `toolbar_height_no_shadow`
         //   dimension).
-        if (OmniboxFeatures.sMultilineEditField.isEnabled()
-                || ChromeFeatureList.sAndroidBottomToolbarV2.isEnabled()) {
+        if (OmniboxFeatures.sMultilineEditField.isEnabled()) {
             updateLayoutParamsForMultiline();
         }
 
@@ -2422,19 +2431,12 @@ public class ToolbarPhone extends ToolbarLayout
 
     private void updateLayoutParamsForMultiline() {
         var params = getLayoutParams();
-        int effectiveTopPadding = getEffectiveTopPaddingForEdgeToEdge();
         params.height =
                 urlHasFocus()
                         ? LayoutParams.WRAP_CONTENT
                         : getResources().getDimensionPixelSize(R.dimen.toolbar_height_no_shadow)
-                                + effectiveTopPadding;
+                                + mTopPaddingForEdgeToEdgeNtp;
         setLayoutParams(params);
-
-        // When Bottom Toolbar v2 is enabled, URL focus causes the omnibox to move to the bottom of
-        // the screen. We should update the top padding that was added for edge-to-edge NTP, as it's
-        // no longer needed and would cause incorrect spacing.
-        setPaddingRelative(
-                getPaddingStart(), effectiveTopPadding, getPaddingEnd(), getPaddingBottom());
     }
 
     private boolean animatingSuggestionsListOnNtp() {
@@ -2954,9 +2956,12 @@ public class ToolbarPhone extends ToolbarLayout
 
     @Override
     public void onTabOrModelChanged() {
+        mIsInLoadingPhaseFromNtpToWebpage = false;
+        mTabOrModelChanged = true;
         super.onTabOrModelChanged();
         updateNtpAnimationState();
         updateVisualsForLocationBarState();
+        mTabOrModelChanged = false;
     }
 
     /** Called when the tab model changes. */
@@ -2993,15 +2998,14 @@ public class ToolbarPhone extends ToolbarLayout
                 isLocationBarShownInGeneralNtp()
                         ? mToolbarBackgroundColorForNtp
                         : getToolbarDataProvider().getPrimaryColor();
+
+        // The loading phase is finished, even if the final color matches the initial color.
+        mIsInLoadingPhaseFromNtpToWebpage = false;
+
         if (initialColor == finalColor) return;
 
         final @ColorInt int initialLocationBarColor =
                 getLocationBarColorForToolbarColor(initialColor);
-
-        // When the webpage finishes loading during the NTP phase, the process should halt at this
-        // point because the tab's color is updated, and the initial color of the location bar is
-        // established for the upcoming navigation animation.
-        mIsInLoadingPhaseFromNtpToWebpage = false;
 
         final @ColorInt int finalLocationBarColor = getLocationBarColorForToolbarColor(finalColor);
 
@@ -3129,45 +3133,24 @@ public class ToolbarPhone extends ToolbarLayout
         // with the toolbar's color.
         mTopPaddingForEdgeToEdgeNtp = newTopPadding;
 
-        // Use effective padding which considers whether the omnibox is currently at the bottom
-        // (When Bottom Toolbar v2 is enabled and URL has focus).
-        int effectiveTopPadding = getEffectiveTopPaddingForEdgeToEdge();
-
         var layoutParams = getLayoutParams();
 
         // During screen rotation, onToEdgeChange() is called and may reset the toolbar height.
         // When URL has focus, the toolbar should use WRAP_CONTENT to support multiline omnibox,
         // instead of being reset to a fixed height.
-        if (urlHasFocus()
-                && (OmniboxFeatures.sMultilineEditField.isEnabled()
-                        || ChromeFeatureList.sAndroidBottomToolbarV2.isEnabled())) {
+        if (urlHasFocus() && OmniboxFeatures.sMultilineEditField.isEnabled()) {
             layoutParams.height = LayoutParams.WRAP_CONTENT;
         } else {
             layoutParams.height =
                     getResources().getDimensionPixelSize(R.dimen.toolbar_height_no_shadow)
-                            + effectiveTopPadding;
+                            + mTopPaddingForEdgeToEdgeNtp;
         }
         setLayoutParams(layoutParams);
         setPaddingRelative(
-                getPaddingStart(), effectiveTopPadding, getPaddingEnd(), getPaddingBottom());
-    }
-
-    /**
-     * Returns the effective top padding for the current state. When Bottom Toolbar v2 is enabled,
-     * toolbar is configured to show at bottom, and URL has focus, the top padding should be 0 since
-     * the omnibox moves to the bottom of the screen.
-     */
-    private int getEffectiveTopPaddingForEdgeToEdge() {
-        // When toolbar is configured to show on top, keep the top padding.
-        if (!ChromeFeatureList.sAndroidBottomToolbarV2.isEnabled()
-                || AddressBarPreference.isToolbarConfiguredToShowOnTop()) {
-            return mTopPaddingForEdgeToEdgeNtp;
-        }
-
-        // When toolbar is at bottom, clear padding if:
-        // 1. URL has focus (omnibox moves to bottom), or
-        // 2. Not on NTP (only NTP needs the padding for edge-to-edge display)
-        return (urlHasFocus() || !isNtpVisualState(mVisualState)) ? 0 : mTopPaddingForEdgeToEdgeNtp;
+                getPaddingStart(),
+                mTopPaddingForEdgeToEdgeNtp,
+                getPaddingEnd(),
+                getPaddingBottom());
     }
 
     /** Checks if the given visual state represents a New Tab Page. */
@@ -3382,6 +3365,7 @@ public class ToolbarPhone extends ToolbarLayout
      * manner.
      */
     private void startLoadingPhaseFromNtpToWebpage(@VisualState int newVisualState) {
+        if (mTabOrModelChanged) return;
         boolean isStartLoadingPhaseFromNtpToWebpage =
                 (mVisualState == VisualState.NEW_TAB_NORMAL
                                 || mVisualState == VisualState.NEW_TAB_SEARCH_ENGINE_NO_LOGO)
@@ -3647,8 +3631,8 @@ public class ToolbarPhone extends ToolbarLayout
     }
 
     /**
-     * Whether the menu button is visible. Used as a proxy for whether there are end toolbar
-     * buttons besides the optional button.
+     * Whether the menu button is visible. Used as a proxy for whether there are end toolbar buttons
+     * besides the optional button.
      */
     private boolean isMenuButtonPresent() {
         return getMenuButtonCoordinator().isVisible();
@@ -3755,6 +3739,7 @@ public class ToolbarPhone extends ToolbarLayout
     @Override
     public void onTransitionEnd() {
         mInLayoutTransition = false;
+        mIsInLoadingPhaseFromNtpToWebpage = false;
         updateToolbarBackgroundFromState(mVisualState);
     }
 

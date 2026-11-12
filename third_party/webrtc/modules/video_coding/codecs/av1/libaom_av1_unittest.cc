@@ -48,6 +48,7 @@
 #include "modules/video_coding/svc/scalable_video_controller.h"
 #include "modules/video_coding/svc/svc_rate_allocator.h"
 #include "rtc_base/checks.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -151,7 +152,7 @@ class TestAv1Decoder {
 };
 
 TEST(LibaomAv1Test, EncodeDecode) {
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   TestAv1Decoder decoder(env, /*decoder_id=*/0);
   std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder(env);
   VideoCodec codec_settings = DefaultCodecSettings();
@@ -240,7 +241,7 @@ TEST(LibaomAv1Test, InitReleaseRepeatedly) {
 }
 
 TEST(LibaomAv1Test, RejectsNativeFramesWithUnequalChromaStrides) {
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder(env);
   VideoCodec codec_settings = DefaultCodecSettings();
   ASSERT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
@@ -283,7 +284,7 @@ TEST(LibaomAv1Test, RejectsNativeFramesWithUnequalChromaStrides) {
 }
 
 TEST(LibaomAv1Test, RejectsI420FramesWithUnequalChromaStrides) {
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder(env);
   VideoCodec codec_settings = DefaultCodecSettings();
   ASSERT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
@@ -369,7 +370,7 @@ TEST_P(LibaomAv1SvcTest, EncodeAndDecodeAllDecodeTargets) {
   size_t num_decode_targets =
       svc_controller->DependencyStructure().num_decode_targets;
 
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder(env);
   VideoCodec codec_settings = DefaultCodecSettings();
   codec_settings.SetScalabilityMode(GetParam().GetScalabilityMode());
@@ -442,7 +443,7 @@ TEST_P(LibaomAv1SvcTest, SetRatesMatchMeasuredBitrate) {
   }
 
   std::unique_ptr<VideoEncoder> encoder =
-      CreateLibaomAv1Encoder(CreateEnvironment());
+      CreateLibaomAv1Encoder(CreateTestEnvironment());
   ASSERT_TRUE(encoder);
   VideoCodec codec_settings = DefaultCodecSettings();
   codec_settings.SetScalabilityMode(param.GetScalabilityMode());

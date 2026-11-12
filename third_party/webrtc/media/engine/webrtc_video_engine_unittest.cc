@@ -7146,6 +7146,22 @@ TEST_F(WebRtcVideoChannelTest,
   EXPECT_EQ(receivers2[0]->GetConfig().rtp.remote_ssrc, kIncomingSignalledSsrc);
 }
 
+TEST_F(WebRtcVideoChannelTest, GetUnsignaledSsrcs) {
+  EXPECT_TRUE(receive_channel_->GetUnsignaledSsrcs().empty());
+
+  // Receive a packet with an unsignaled SSRC.
+  RtpPacketReceived packet;
+  packet.SetSsrc(kIncomingUnsignalledSsrc);
+  ReceivePacketAndAdvanceTime(packet);
+
+  EXPECT_THAT(receive_channel_->GetUnsignaledSsrcs(),
+              testing::ElementsAre(kIncomingUnsignalledSsrc));
+
+  // Resetting the unsignaled stream should clear the SSRCs.
+  receive_channel_->ResetUnsignaledRecvStream();
+  EXPECT_TRUE(receive_channel_->GetUnsignaledSsrcs().empty());
+}
+
 TEST_F(WebRtcVideoChannelTest,
        RecentlyAddedSsrcsDoNotCreateUnsignalledRecvStreams) {
   const uint32_t kSsrc1 = 1;

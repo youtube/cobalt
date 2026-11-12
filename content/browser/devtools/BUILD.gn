@@ -157,6 +157,8 @@ if (enable_devtools_backend) {
       "protocol/tethering.h",
       "protocol/tracing.cc",
       "protocol/tracing.h",
+      "protocol/web_mcp.cc",
+      "protocol/web_mcp.h",
       "protocol/web_authn.cc",
       "protocol/web_authn.h",
     ]

@@ -13,8 +13,9 @@ import org.chromium.build.annotations.NullMarked;
 @IntDef({
     KeyboardFocusRow.NONE,
     KeyboardFocusRow.TAB_STRIP,
-    KeyboardFocusRow.OMNIBOX,
-    KeyboardFocusRow.BOOKMARKS_BAR
+    KeyboardFocusRow.TOOLBAR,
+    KeyboardFocusRow.BOOKMARKS_BAR,
+    KeyboardFocusRow.SIDE_PANEL
 })
 public @interface KeyboardFocusRow {
     /** The focus is not in one of the rows of top controls. */
@@ -23,9 +24,12 @@ public @interface KeyboardFocusRow {
     /** The focus is within the tab strip. */
     int TAB_STRIP = 1;
 
-    /** The focus is on the Omnibox */
-    int OMNIBOX = 2;
+    /** The focus is on the toolbar (home, back, forward, refresh, omnibox...). */
+    int TOOLBAR = 2;
 
     /** The focus is on the bookmarks bar (tab groups, bookmarks...). */
     int BOOKMARKS_BAR = 3;
+
+    /** The focus is on the Side Panel (e.g. GLiC, AIM, etc). */
+    int SIDE_PANEL = 4;
 }

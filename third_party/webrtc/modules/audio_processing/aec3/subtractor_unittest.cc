@@ -23,7 +23,6 @@
 
 #include "api/audio/echo_canceller3_config.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/aec3_fft.h"
 #include "modules/audio_processing/aec3/aec_state.h"
@@ -38,6 +37,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/random.h"
 #include "rtc_base/strings/string_builder.h"
+#include "test/create_test_environment.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -211,7 +211,7 @@ std::string ProduceDebugText(size_t num_render_channels,
 
 // Verifies that the check for non data dumper works.
 TEST(SubtractorDeathTest, NullDataDumper) {
-  EXPECT_DEATH(Subtractor(CreateEnvironment(), EchoCanceller3Config(), 1, 1,
+  EXPECT_DEATH(Subtractor(CreateTestEnvironment(), EchoCanceller3Config(), 1, 1,
                           nullptr, DetectOptimization()),
                "");
 }
@@ -220,7 +220,7 @@ TEST(SubtractorDeathTest, NullDataDumper) {
 
 // Verifies that the subtractor is able to converge on correlated data.
 TEST(Subtractor, Convergence) {
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   std::vector<int> blocks_with_echo_path_changes;
   for (size_t filter_length_blocks : {12, 20, 30}) {
     for (size_t delay_samples : {0, 64, 150, 200, 301}) {
@@ -239,7 +239,7 @@ TEST(Subtractor, Convergence) {
 // Verifies that the subtractor is able to handle the case when the refined
 // filter is longer than the coarse filter.
 TEST(Subtractor, RefinedFilterLongerThanCoarseFilter) {
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   std::vector<int> blocks_with_echo_path_changes;
   std::vector<float> echo_to_nearend_powers = RunSubtractorTest(
       env, 1, 1, 400, 64, 20, 15, false, blocks_with_echo_path_changes);
@@ -251,7 +251,7 @@ TEST(Subtractor, RefinedFilterLongerThanCoarseFilter) {
 // Verifies that the subtractor is able to handle the case when the coarse
 // filter is longer than the refined filter.
 TEST(Subtractor, CoarseFilterLongerThanRefinedFilter) {
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   std::vector<int> blocks_with_echo_path_changes;
   std::vector<float> echo_to_nearend_powers = RunSubtractorTest(
       env, 1, 1, 400, 64, 15, 20, false, blocks_with_echo_path_changes);
@@ -262,7 +262,7 @@ TEST(Subtractor, CoarseFilterLongerThanRefinedFilter) {
 
 // Verifies that the subtractor does not converge on uncorrelated signals.
 TEST(Subtractor, NonConvergenceOnUncorrelatedSignals) {
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   std::vector<int> blocks_with_echo_path_changes;
   for (size_t filter_length_blocks : {12, 20, 30}) {
     for (size_t delay_samples : {0, 64, 150, 200, 301}) {
@@ -298,7 +298,7 @@ INSTANTIATE_TEST_SUITE_P(DebugMultiChannel,
 TEST_P(SubtractorMultiChannelUpToEightRender, Convergence) {
   const size_t num_render_channels = std::get<0>(GetParam());
   const size_t num_capture_channels = std::get<1>(GetParam());
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
 
   std::vector<int> blocks_with_echo_path_changes;
   size_t num_blocks_to_process = 2500 * num_render_channels;
@@ -332,7 +332,7 @@ TEST_P(SubtractorMultiChannelUpToFourRender,
        NonConvergenceOnUncorrelatedSignals) {
   const size_t num_render_channels = std::get<0>(GetParam());
   const size_t num_capture_channels = std::get<1>(GetParam());
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
 
   std::vector<int> blocks_with_echo_path_changes;
   size_t num_blocks_to_process = 5000 * num_render_channels;

@@ -31,7 +31,6 @@
 #include "components/sync/engine/events/protocol_event.h"
 #include "components/sync/engine/net/http_post_provider.h"
 #include "components/sync/engine/net/http_post_provider_factory.h"
-#include "components/sync/engine/nigori/key_derivation_params.h"
 #include "components/sync/engine/polling_constants.h"
 #include "components/sync/engine/required_passphrase_verifier.h"
 #include "components/sync/engine/sync_scheduler.h"
@@ -123,6 +122,8 @@ class SyncEncryptionHandlerObserverMock
               (override));
   MOCK_METHOD(void, OnTrustedVaultKeyRequired, (), (override));
   MOCK_METHOD(void, OnTrustedVaultKeyAccepted, (), (override));
+  MOCK_METHOD(void, OnKeystoreKeysRequired, (), (override));
+  MOCK_METHOD(void, OnKeystoreKeysAccepted, (), (override));
   MOCK_METHOD(void, OnEncryptedTypesChanged, (DataTypeSet, bool), (override));
   MOCK_METHOD(void,
               OnCryptographerStateChanged,

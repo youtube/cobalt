@@ -2453,9 +2453,13 @@ class ComputedStyle final : public ComputedStyleBase {
       const Longhand& color_property,
       bool* is_current_color = nullptr) const;
 
+  CORE_EXPORT blink::Color VisitedDependentColor(
+      const blink::Color& unvisited_color,
+      const Longhand& color_property,
+      bool* is_current_color = nullptr) const;
+
   // Used to resolve gap decoration colors for painting.
   CORE_EXPORT blink::Color VisitedDependentGapColor(const StyleColor& gap_color,
-                                                    const ComputedStyle& style,
                                                     bool is_column_rule) const;
 
   // Used to resolve 'context-fill' and 'context-stroke' paints
@@ -2511,7 +2515,11 @@ class ComputedStyle final : public ComputedStyleBase {
     if (pseudo == kPseudoIdMarker) {
       return IsDisplayListItem();
     }
-    if (pseudo == kPseudoIdBackdrop && Overlay() == EOverlay::kNone) {
+    // ::backdrop is generated for top layer elements (where Overlay is not
+    // none) or for overscroll targets (which have
+    // -internal-overscroll-position: auto).
+    if (pseudo == kPseudoIdBackdrop && Overlay() == EOverlay::kNone &&
+        !IsInternalOverscrollPositionAuto()) {
       return false;
     }
     if (pseudo == kPseudoIdScrollMarkerGroupBefore) {

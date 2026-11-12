@@ -12,6 +12,7 @@
 
 #include "base/check.h"
 #include "base/notimplemented.h"
+#include "base/strings/utf_string_conversions.h"
 #include "components/page_content_annotations/content/embeddings_candidate_generator.h"
 #include "components/page_content_annotations/content/page_content_extraction_service.h"
 #include "components/passage_embeddings/core/passage_embeddings_features.h"
@@ -86,6 +87,19 @@ class PageEmbeddingsService::WebContentsEventsObserver
     if (visibility == content::Visibility::HIDDEN) {
       page_embeddings_service_->ComputeEmbeddingsOnHide(
           web_contents()->GetPrimaryPage());
+    }
+  }
+
+  void PrimaryPageChanged(content::Page& page) override {
+    auto loc =
+        page_embeddings_service_->web_contents_states_.find(web_contents());
+    if (loc != page_embeddings_service_->web_contents_states_.end()) {
+      if (auto* computing =
+              std::get_if<Computing>(&loc->second.embeddings_state)) {
+        page_embeddings_service_->embedder_->TryCancel(computing->task_id);
+      }
+      loc->second.page = nullptr;
+      loc->second.embeddings_state = Unavailable{};
     }
   }
 
@@ -297,7 +311,9 @@ void PageEmbeddingsService::OnPageContentExtracted(content::Page& page,
                          [](RefCountedPDFTextPtr) {
                            return passage_embeddings::kMaxPassagesFromPDF.Get();
                          }},
-                     page_content));
+                     page_content),
+          base::UTF16ToUTF8(web_contents->GetTitle()),
+          web_contents->GetLastCommittedURL().spec());
 
   if (!pending_passages.empty()) {
     state.embeddings_state = Pending{.passages = std::move(pending_passages)};

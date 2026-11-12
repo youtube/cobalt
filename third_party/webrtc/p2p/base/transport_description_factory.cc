@@ -19,6 +19,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/ssl_fingerprint.h"
+#include "rtc_base/ssl_stream_adapter.h"
 
 namespace webrtc {
 
@@ -48,7 +49,8 @@ std::unique_ptr<TransportDescription> TransportDescriptionFactory::CreateOffer(
     desc->AddOption(ICE_OPTION_RENOMINATION);
   }
 
-  if (field_trials_.IsEnabled("WebRTC-IceHandshakeDtls") &&
+  if (SSLStreamAdapter::IsBoringSsl() &&
+      field_trials_.IsEnabled("WebRTC-IceHandshakeDtls") &&
       (!current_description ||
        current_description->HasOption(ICE_OPTION_GOOG_SPED_V1))) {
     desc->AddOption(ICE_OPTION_GOOG_SPED_V1);
@@ -96,7 +98,8 @@ std::unique_ptr<TransportDescription> TransportDescriptionFactory::CreateAnswer(
   if (options.enable_ice_renomination) {
     desc->AddOption(ICE_OPTION_RENOMINATION);
   }
-  if (field_trials_.IsEnabled("WebRTC-IceHandshakeDtls") &&
+  if (SSLStreamAdapter::IsBoringSsl() &&
+      field_trials_.IsEnabled("WebRTC-IceHandshakeDtls") &&
       offer->HasOption(ICE_OPTION_GOOG_SPED_V1) &&
       (current_description == nullptr ||
        current_description->HasOption(ICE_OPTION_GOOG_SPED_V1))) {

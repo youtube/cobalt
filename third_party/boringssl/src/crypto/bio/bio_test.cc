@@ -513,6 +513,46 @@ TEST(BIOTest, ReadASN1) {
   }
 }
 
+TEST(BIOTest, ReadASN1ErrorNegative) {
+  // A custom BIO whose bread callback returns a negative value other than -1.
+  BIO_METHOD *meth = BIO_meth_new(BIO_TYPE_SOURCE_SINK, "evil");
+  ASSERT_TRUE(meth);
+  BIO_meth_set_read(meth, [](BIO *bio, char *buf, int len) -> int {
+    int *call_count = reinterpret_cast<int *>(BIO_get_data(bio));
+    (*call_count)++;
+    if (*call_count == 1) {
+      if (len < 2) {
+        return -1;
+      }
+      buf[0] = '\x30';
+      buf[1] = '\x80';
+      return 2;
+    }
+    return -2;
+  });
+  BIO_meth_set_ctrl(
+      meth, [](BIO *bio, int cmd, long larg, void *parg) -> long { return 1; });
+
+  UniquePtr<BIO> bio(BIO_new(meth));
+  ASSERT_TRUE(bio);
+
+  int call_count = 0;
+  BIO_set_data(bio.get(), &call_count);
+  BIO_set_init(bio.get(), 1);
+
+  uint8_t *out = nullptr;
+  size_t out_len = 0;
+  int ok = BIO_read_asn1(bio.get(), &out, &out_len, 1000);
+  EXPECT_EQ(ok, 0);
+  if (ok == 1) {
+    OPENSSL_free(out);
+  }
+
+  bio.reset();
+  BIO_meth_free(meth);
+}
+
+
 TEST(BIOTest, MemReadOnly) {
   // A memory BIO created from |BIO_new_mem_buf| is a read-only buffer.
   static const char kData[] = "abcdefghijklmno";

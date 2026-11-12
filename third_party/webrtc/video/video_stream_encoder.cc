@@ -750,7 +750,11 @@ VideoStreamEncoder::VideoStreamEncoder(
           ParseVp9LowTierCoreCountThreshold(env_.field_trials())),
       experimental_encoder_thread_limit_(
           ParseEncoderThreadLimit(env_.field_trials())),
-      speed_experiment_(env_.field_trials()),
+      speed_experiment_(env_.field_trials(),
+                        /* use_low_complexity_for_vp9 = */
+                        vp9_low_tier_core_threshold_.has_value()
+                            ? number_of_cores_ <= *vp9_low_tier_core_threshold_
+                            : false),
       encoder_queue_(std::move(encoder_queue)),
       prepared_frames_processor_(
           make_ref_counted<PreparedFramesProcessor>(this)) {
@@ -1362,18 +1366,8 @@ void VideoStreamEncoder::ReconfigureEncoder() {
 
   // GetComplexity() will return kComplexityNormal if nothing configured via
   // field trials.
-  VideoCodecComplexity complexity = speed_experiment_.GetComplexity(
-      codec.codecType, codec.mode == VideoCodecMode::kScreensharing);
-  if (!speed_experiment_.IsDynamicSpeedEnabled() &&
-      codec.codecType == VideoCodecType::kVideoCodecVP9 &&
-      number_of_cores_ <= vp9_low_tier_core_threshold_.value_or(0) &&
-      complexity == VideoCodecComplexity::kComplexityNormal) {
-    // Default "normal" speed with no dynamic speed control, and the "low
-    // complexity vp9 on low tier" flag present => use low complexity.
-    codec.SetVideoEncoderComplexity(VideoCodecComplexity::kComplexityLow);
-  } else {
-    codec.SetVideoEncoderComplexity(complexity);
-  }
+  codec.SetVideoEncoderComplexity(speed_experiment_.GetComplexity(
+      codec.codecType, codec.mode == VideoCodecMode::kScreensharing));
 
   quality_convergence_controller_.Initialize(
       codec.numberOfSimulcastStreams, encoder_->GetEncoderInfo().min_qp,

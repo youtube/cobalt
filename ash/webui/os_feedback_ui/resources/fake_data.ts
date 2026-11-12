@@ -76,7 +76,6 @@ export const fakeFeedbackContext: FeedbackContext = {
   extraDiagnostics: null,
   fromAutofill: false,
   settingsSearchDoNotRecordMetrics: true,
-  hasLinkedCrossDevicePhone: false,
   isInternalAccount: false,
   pageUrl: 'chrome://tab/',
   traceId: 1,
@@ -90,7 +89,6 @@ export const fakeEmptyFeedbackContext: FeedbackContext = {
   extraDiagnostics: null,
   fromAutofill: false,
   settingsSearchDoNotRecordMetrics: true,
-  hasLinkedCrossDevicePhone: false,
   isInternalAccount: false,
   pageUrl: '',
   traceId: 0,
@@ -105,7 +103,6 @@ export const fakeLoginFlowFeedbackContext: FeedbackContext = {
   extraDiagnostics: null,
   fromAutofill: false,
   settingsSearchDoNotRecordMetrics: true,
-  hasLinkedCrossDevicePhone: false,
   isInternalAccount: false,
   pageUrl: '',
   traceId: 0,
@@ -119,27 +116,11 @@ export const fakeInternalUserFeedbackContext: FeedbackContext = {
   extraDiagnostics: null,
   fromAutofill: false,
   settingsSearchDoNotRecordMetrics: false,
-  hasLinkedCrossDevicePhone: true,
   isInternalAccount: true,
   pageUrl: 'chrome://tab/',
   traceId: 1,
   wifiDebugLogsAllowed: false,
 };
-
-export const fakeFeedbackContextWithoutLinkedCrossDevicePhone:
-    FeedbackContext = {
-      autofillMetadata: '',
-      categoryTag: '',
-      email: 'test.user@google.com',
-      extraDiagnostics: null,
-      fromAutofill: false,
-      settingsSearchDoNotRecordMetrics: false,
-      hasLinkedCrossDevicePhone: false,
-      isInternalAccount: true,
-      pageUrl: 'chrome://tab/',
-      traceId: 1,
-      wifiDebugLogsAllowed: false,
-    };
 
 export const fakeFeedbackContextWithExtraDiagnostics: FeedbackContext = {
   autofillMetadata: '',
@@ -148,7 +129,6 @@ export const fakeFeedbackContextWithExtraDiagnostics: FeedbackContext = {
   extraDiagnostics: 'some extra info',
   fromAutofill: false,
   settingsSearchDoNotRecordMetrics: false,
-  hasLinkedCrossDevicePhone: false,
   isInternalAccount: true,
   pageUrl: 'chrome://tab/',
   traceId: 1,

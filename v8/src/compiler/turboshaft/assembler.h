@@ -2390,6 +2390,7 @@ class AssemblerOpInterface : public Next {
       case WordRepresentation::Word64():
         return Word64Constant(value);
     }
+    UNREACHABLE();
   }
   V<WordPtr> IntPtrConstant(intptr_t value) {
     return UintPtrConstant(static_cast<uintptr_t>(value));
@@ -2435,6 +2436,7 @@ class AssemblerOpInterface : public Next {
       case FloatRepresentation::Float64():
         return Float64Constant(value);
     }
+    UNREACHABLE();
   }
   V<Number> NumberConstant(i::Float64 value) {
     return ReduceIfReachableConstant(ConstantOp::Kind::kNumber, value);
@@ -5331,10 +5333,8 @@ class AssemblerOpInterface : public Next {
 
   V<WasmStruct> WasmAllocateStruct(V<Map> rtt,
                                    const wasm::StructType* struct_type,
-                                   wasm::ModuleTypeIndex type_index,
-                                   SharedFlag is_shared) {
-    return ReduceIfReachableWasmAllocateStruct(rtt, struct_type, type_index,
-                                               is_shared);
+                                   wasm::ModuleTypeIndex type_index) {
+    return ReduceIfReachableWasmAllocateStruct(rtt, struct_type, type_index);
   }
 
   V<WasmFuncRef> WasmRefFunc(V<WasmTrustedInstanceData> wasm_instance,

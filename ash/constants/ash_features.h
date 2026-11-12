@@ -309,8 +309,6 @@ BASE_DECLARE_FEATURE(kEphemeralNetworkPolicies);
 COMPONENT_EXPORT(ASH_CONSTANTS)
 COMPONENT_EXPORT(ASH_CONSTANTS) BASE_DECLARE_FEATURE(kFastPairSavedDevices);
 COMPONENT_EXPORT(ASH_CONSTANTS)
-BASE_DECLARE_FEATURE(kFastPairSavedDevicesStrictOptIn);
-COMPONENT_EXPORT(ASH_CONSTANTS)
 BASE_DECLARE_FEATURE(kFeatureManagement16Desks);
 COMPONENT_EXPORT(ASH_CONSTANTS)
 BASE_DECLARE_FEATURE(kFeatureManagementBorealis);
@@ -532,8 +530,6 @@ BASE_DECLARE_FEATURE(kLauncherNudgeShortInterval);
 COMPONENT_EXPORT(ASH_CONSTANTS)
 BASE_DECLARE_FEATURE(kFeatureManagementLocalImageSearch);
 COMPONENT_EXPORT(ASH_CONSTANTS)
-BASE_DECLARE_FEATURE(kLinkCrossDeviceDogfoodFeedback);
-COMPONENT_EXPORT(ASH_CONSTANTS)
 BASE_DECLARE_FEATURE(kLinkCrossDeviceInternals);
 COMPONENT_EXPORT(ASH_CONSTANTS)
 BASE_DECLARE_FEATURE(kLobster);
@@ -714,7 +710,6 @@ COMPONENT_EXPORT(ASH_CONSTANTS) BASE_DECLARE_FEATURE(kQuickDim);
 COMPONENT_EXPORT(ASH_CONSTANTS)
 BASE_DECLARE_FEATURE(kSmbServiceIsCreatedOnUserSessionStartUpTaskCompleted);
 COMPONENT_EXPORT(ASH_CONSTANTS) BASE_DECLARE_FEATURE(kSmbproviderdOnDemand);
-COMPONENT_EXPORT(ASH_CONSTANTS) BASE_DECLARE_FEATURE(kQuickAppAccessTestUI);
 COMPONENT_EXPORT(ASH_CONSTANTS) BASE_DECLARE_FEATURE(kQuickUnlockFingerprint);
 // TODO(crbug.com/1104164) - Remove this once most users have their preferences
 // backfilled.
@@ -1093,7 +1088,6 @@ COMPONENT_EXPORT(ASH_CONSTANTS) bool IsFastPairKeyboardsEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsFastPairPwaCompanionEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsFastPairSoftwareScanningEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsFastPairSavedDevicesEnabled();
-COMPONENT_EXPORT(ASH_CONSTANTS) bool IsFastPairSavedDevicesStrictOptInEnabled();
 
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsFilesLocalImageSearchEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsFingerprintAuthFactorEnabled();
@@ -1172,7 +1166,6 @@ bool IsInternalServerSideSpeechRecognitionEnabledByFinch();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsJupiterScreensaverEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS)
 bool IsLauncherContinueSectionWithRecentsEnabled();
-COMPONENT_EXPORT(ASH_CONSTANTS) bool IsLinkCrossDeviceDogfoodFeedbackEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsLinkCrossDeviceInternalsEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsLobsterEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsLobsterEnabledForManagedUsers();

@@ -8,7 +8,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -32,9 +34,10 @@ import org.robolectric.Robolectric;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.DeviceInfo;
+import org.chromium.base.FakeTimeTestRule;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.Features;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.composeplate.ComposeplateUtils;
@@ -44,6 +47,9 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.magic_stack.ModuleRegistry;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinatorFactory;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.omnibox.SearchEngineUtils;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
@@ -83,7 +89,7 @@ import java.util.function.Supplier;
 /** Unit tests for {@link NewTabPageCoordinator}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
-@Features.EnableFeatures({
+@EnableFeatures({
     ChromeFeatureList.SEGMENTATION_PLATFORM_ANDROID_HOME_MODULE_RANKER_V2,
     SigninFeatures.ENABLE_SEAMLESS_SIGNIN,
     SigninFeatures.MAKE_IDENTITY_MANAGER_SOURCE_OF_ACCOUNTS
@@ -91,6 +97,7 @@ import java.util.function.Supplier;
 public class NewTabPageCoordinatorUnitTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
     @Rule public SuggestionsDependenciesRule mSuggestionsDeps = new SuggestionsDependenciesRule();
+    @Rule public FakeTimeTestRule mFakeTimeTestRule = new FakeTimeTestRule();
 
     @Mock private ComposeplateUtils.Natives mMockComposeplateUtilsJni;
     @Mock private HomeModulesRankingHelper.Natives mHomeModulesRankingHelperJniMock;
@@ -286,6 +293,24 @@ public class NewTabPageCoordinatorUnitTest {
         assertNull(model.get(NewTabPageLayoutProperties.DELEGATE));
         assertNull(model.get(NewTabPageLayoutProperties.ON_LAYOUT_CHANGE_LISTENER));
         assertNull(model.get(NewTabPageLayoutProperties.SEARCH_BOX_VIEW));
+    }
+
+    @Test
+    public void testTriggerCustomizationBottomSheet() {
+        NtpCustomizationCoordinatorFactory factory = mock(NtpCustomizationCoordinatorFactory.class);
+        NtpCustomizationCoordinatorFactory.setInstanceForTesting(factory);
+        NtpCustomizationCoordinator customizationCoordinator =
+                mock(NtpCustomizationCoordinator.class);
+        when(factory.create(any(), any(), any(), anyInt(), any(), any()))
+                .thenReturn(customizationCoordinator);
+        assertFalse(NtpCustomizationUtils.isThemeTipBottomSheetShownFromSharedPreference());
+
+        mCoordinator.triggerCustomizationBottomSheet();
+
+        verify(customizationCoordinator).showBottomSheet();
+        assertTrue(NtpCustomizationUtils.isThemeTipBottomSheetShownFromSharedPreference());
+
+        NtpCustomizationUtils.resetSharedPreferenceForTesting();
     }
 
     private void createCoordinator() {

@@ -161,30 +161,7 @@ void AudioReceiveStreamImpl::UnregisterFromTransport() {
   rtp_stream_receiver_.reset();
 }
 
-void AudioReceiveStreamImpl::ReconfigureForTesting(
-    const AudioReceiveStreamInterface::Config& config) {
-  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
 
-  // SSRC can't be changed mid-stream.
-  RTC_DCHECK_EQ(remote_ssrc(), config.rtp.remote_ssrc);
-
-  // Configuration parameters which cannot be changed.
-  RTC_DCHECK_EQ(config_.rtcp_send_transport, config.rtcp_send_transport);
-  // Decoder factory cannot be changed because it is configured at
-  // voe::Channel construction time.
-  RTC_DCHECK_EQ(config_.decoder_factory, config.decoder_factory);
-
-  // TODO(solenberg): Config NACK history window (which is a packet count),
-  // using the actual packet size for the configured codec.
-  RTC_DCHECK_EQ(config_.rtp.nack.rtp_history_ms, config.rtp.nack.rtp_history_ms)
-      << "Use SetUseTransportCcAndNackHistory";
-
-  RTC_DCHECK(config_.decoder_map == config.decoder_map) << "Use SetDecoderMap";
-  RTC_DCHECK_EQ(config_.frame_transformer, config.frame_transformer)
-      << "Use SetDepacketizerToDecoderFrameTransformer";
-
-  config_ = config;
-}
 
 void AudioReceiveStreamImpl::Start() {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);

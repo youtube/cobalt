@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/environment/environment.h"
 #include "api/payload_type.h"
 #include "api/rtc_error.h"
 #include "api/rtp_parameters.h"
@@ -116,7 +117,7 @@ class PayloadTypeRecorder final {
 
 class RtpHeaderExtensionRecorder final {
  public:
-  RtpHeaderExtensionRecorder() {}
+  explicit RtpHeaderExtensionRecorder(const Environment& env) : env_(env) {}
   ~RtpHeaderExtensionRecorder() {}
 
   RTCError AddMapping(int id, absl::string_view uri, bool encrypt);
@@ -126,6 +127,7 @@ class RtpHeaderExtensionRecorder final {
   void Rollback();
 
  private:
+  const Environment env_;
   // (uri, encrypt) -> id
   flat_map<std::pair<std::string, bool>, int> uri_to_id_;
   flat_map<std::pair<std::string, bool>, int> checkpoint_uri_to_id_;

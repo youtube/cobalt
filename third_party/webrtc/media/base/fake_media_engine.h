@@ -75,6 +75,7 @@
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/containers/flat_set.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
@@ -138,6 +139,25 @@ class RtpReceiveChannelHelper : public Base, public MediaChannelUtil {
   }
   std::optional<uint32_t> GetUnsignaledSsrc() const override {
     return std::nullopt;
+  }
+  void SetReceiveSsrcs_n(const flat_set<uint32_t>& ssrcs) override {
+    receive_ssrcs_n_ = ssrcs;
+  }
+  void ClearReceiveSinks_n(
+      std::optional<std::vector<uint32_t>> ssrcs) override {
+    clear_receive_sinks_calls_.push_back(ssrcs);
+  }
+  std::vector<uint32_t> GetUnsignaledSsrcs() const override {
+    return fake_unsignaled_ssrcs_;
+  }
+  void AddFakeUnsignaledSsrc(uint32_t ssrc) {
+    fake_unsignaled_ssrcs_.push_back(ssrc);
+  }
+  void ClearFakeUnsignaledSsrcs() { fake_unsignaled_ssrcs_.clear(); }
+  const flat_set<uint32_t>& receive_ssrcs_n() const { return receive_ssrcs_n_; }
+  const std::vector<std::optional<std::vector<uint32_t>>>&
+  clear_receive_sinks_calls() const {
+    return clear_receive_sinks_calls_;
   }
 
   virtual bool SetLocalSsrc(const StreamParams& /* sp */) { return true; }
@@ -229,6 +249,10 @@ class RtpReceiveChannelHelper : public Base, public MediaChannelUtil {
   bool fail_set_recv_codecs() const { return fail_set_recv_codecs_; }
 
  private:
+  flat_set<uint32_t> receive_ssrcs_n_;
+  std::vector<std::optional<std::vector<uint32_t>>> clear_receive_sinks_calls_;
+  std::vector<uint32_t> fake_unsignaled_ssrcs_;
+
   bool playout_;
   std::vector<RtpExtension> recv_extensions_;
   std::list<std::string> rtp_packets_;

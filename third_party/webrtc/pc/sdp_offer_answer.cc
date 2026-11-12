@@ -1623,7 +1623,7 @@ SdpOfferAnswerHandler::SdpOfferAnswerHandler(const Environment& env,
       operations_chain_(OperationsChain::Create()),
       rtcp_cname_(GenerateRtcpCname()),
       local_ice_credentials_to_replace_(new LocalIceCredentialsToReplace()),
-      pt_suggester_(pc_->configuration()->bundle_policy),
+      pt_suggester_(pc_->configuration()->bundle_policy, env_),
       weak_ptr_factory_(this) {
   operations_chain_->SetOnChainEmptyCallback(
       [this_weak_ptr = weak_ptr_factory_.GetWeakPtr()]() {

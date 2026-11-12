@@ -371,10 +371,12 @@ rtc_library("payload_type_picker") {
   ]
   deps = [
     ":payload_type",
+    "../api:field_trials_view",
     "../api:payload_type",
     "../api:rtc_error",
     "../api:rtp_parameters",
     "../api/audio_codecs:audio_codecs_api",
+    "../api/environment",
     "../media:codec",
     "../media:media_constants",
     "../rtc_base:checks",
@@ -382,6 +384,7 @@ rtc_library("payload_type_picker") {
     "../rtc_base:stringutils",
     "../rtc_base/containers:flat_map",
     "../rtc_base/containers:flat_set",
+    "../system_wrappers:metrics",
     "//third_party/abseil-cpp/absl/strings",
   ]
 }
@@ -686,10 +689,14 @@ if (rtc_include_tests) {
         ":call_interfaces",
         ":payload_type",
         ":payload_type_picker",
+        "../api:field_trials",
         "../api:payload_type",
+        "../api:rtc_error",
+        "../api/environment",
         "../api/video_codecs:video_codecs_api",
         "../media:codec",
         "../media:media_constants",
+        "../test:create_test_environment",
         "../test:test_support",
         "//third_party/abseil-cpp/absl/strings",
       ]

@@ -1486,7 +1486,7 @@ class GraphBuildingNodeProcessor {
             TryInlineWasmWrapper(node, function_data, native_module);
       }
     }
-    // LINT.ThenChange(src/maglev/maglev-graph-builder.cc:WasmWrapperInliningConditions)
+    // LINT.ThenChange(src/maglev/maglev-reducer-inl.h:WasmWrapperInliningConditions)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     V<Object> callee = Map(node->TargetInput());
@@ -5576,6 +5576,13 @@ class GraphBuildingNodeProcessor {
     // Nothing to do; `Dead` is in Maglev to kill a node when removing it
     // directly from the graph is not possible.
     return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::DeadValue*,
+                                const maglev::ProcessingState&) {
+    // `DeadValue` is a frame-state-only placeholder that must never be
+    // translated into a real operation.
+    UNREACHABLE();
   }
 
   maglev::ProcessResult Process(maglev::DebugBreak*,

@@ -114,6 +114,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../../../api/units:data_size",
       "../../../api/units:time_delta",
       "../../../api/units:timestamp",
+      "../../../test:create_test_environment",
       "../../../test:test_support",
       "../../../test/scenario",
     ]

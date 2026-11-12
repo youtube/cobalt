@@ -15,12 +15,12 @@
 #include <cmath>
 
 #include "api/audio/echo_canceller3_config.h"
-#include "api/environment/environment_factory.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/aec3_fft.h"
 #include "modules/audio_processing/aec3/aec_state.h"
 #include "modules/audio_processing/aec3/fft_data.h"
 #include "rtc_base/checks.h"
+#include "test/create_test_environment.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -143,7 +143,7 @@ TEST(DbMetric, Constructor) {
 // Verify the general functionality of EchoRemoverMetrics.
 TEST(EchoRemoverMetrics, NormalUsage) {
   EchoRemoverMetrics metrics;
-  AecState aec_state(CreateEnvironment(), EchoCanceller3Config{}, 1);
+  AecState aec_state(CreateTestEnvironment(), EchoCanceller3Config{}, 1);
   std::array<float, kFftLengthBy2Plus1> comfort_noise_spectrum;
   std::array<float, kFftLengthBy2Plus1> suppressor_gain;
   comfort_noise_spectrum.fill(10.f);

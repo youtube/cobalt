@@ -972,8 +972,9 @@ void V8RuntimeAgentImpl::bindingCallback(
 
 void V8RuntimeAgentImpl::addBinding(InspectedContext* context,
                                     const String16& name) {
+  int contextId = context->contextId();
   auto it = m_activeBindings.find(name);
-  if (it != m_activeBindings.end() && it->second.count(context->contextId())) {
+  if (it != m_activeBindings.end() && it->second.count(contextId)) {
     return;
   }
   v8::HandleScope handles(m_inspector->isolate());
@@ -987,12 +988,13 @@ void V8RuntimeAgentImpl::addBinding(InspectedContext* context,
           .ToLocal(&functionValue)) {
     v8::Maybe<bool> success = global->Set(localContext, v8Name, functionValue);
     USE(success);
-    if (it == m_activeBindings.end()) {
-      m_activeBindings.emplace(name,
-                               std::unordered_set<int>(context->contextId()));
-    } else {
-      m_activeBindings.at(name).insert(context->contextId());
+
+    // The context might have been destroyed during the Set() call due to
+    // re-entrant JS.
+    if (!m_inspector->getContext(m_session->contextGroupId(), contextId)) {
+      return;
     }
+    m_activeBindings[name].insert(contextId);
   }
 }
 
@@ -1125,11 +1127,16 @@ Response V8RuntimeAgentImpl::enable() {
       m_inspector->ensureConsoleMessageStorage(m_session->contextGroupId());
   // The message queue can be cleared by a getter during message formatting.
   // Make a copy of the message to avoid a UAF.
-  const auto& messages = storage->messages();
-  const size_t size = messages.size();
+  // Also, the storage itself can be destroyed and recreated, so re-fetch the
+  // storage on each iteration.
+  size_t size = storage->messages().size();
   for (size_t i = 0; i < size; ++i) {
-    if (i >= messages.size()) break;
-    V8ConsoleMessage message = *messages[i];
+    if (m_inspector->consoleMessageStorage(m_session->contextGroupId()) !=
+        storage) {
+      break;
+    }
+    if (i >= storage->messages().size()) break;
+    V8ConsoleMessage message = *storage->messages()[i];
     if (!reportMessage(&message, false)) {
       break;
     }

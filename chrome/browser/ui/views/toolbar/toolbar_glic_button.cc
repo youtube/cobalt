@@ -19,6 +19,7 @@
 #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
@@ -153,7 +154,9 @@ void ToolbarGlicButton::AddCloseButton(PressedCallback pressed_callback) {
       l10n_util::GetStringUTF16(IDS_TOOLTIP_GLIC_CLOSE));
 
   const ui::ImageModel icon_image_model = ui::ImageModel::FromVectorIcon(
-      vector_icons::kCloseChromeRefreshOldIcon,
+      features::IsRoundedIconsEnabled()
+          ? vector_icons::kCloseIcon
+          : vector_icons::kCloseChromeRefreshOldIcon,
       kColorTabSearchButtonCRForegroundFrameActive, kCloseButtonSize);
 
   close_button->SetImageModel(views::Button::STATE_NORMAL, icon_image_model);
@@ -211,6 +214,35 @@ void ToolbarGlicButton::Collapse() {
 void ToolbarGlicButton::Expand() {
   SetInternalPadding(gfx::Insets());
   GlicButton<ToolbarButton>::Expand();
+}
+
+void ToolbarGlicButton::OnBoundsChanged(const gfx::Rect& previous_bounds) {
+  GlicButton<ToolbarButton>::OnBoundsChanged(previous_bounds);
+
+  // Button layout is kPreferredSnapToMinimum, so if the width is smaller than
+  // the normal width or if the button is collapsed, the label will be hidden.
+  bool should_hide_label =
+      width() < normal_width() || width_state() == WidthState::kCollapsed;
+
+  auto* image_view = static_cast<views::ImageView*>(image_container_view());
+  auto* box_layout = static_cast<views::BoxLayout*>(GetLayoutManager());
+
+  if (should_hide_label) {
+    if (label()->GetVisible()) {
+      label()->SetVisible(false);
+      image_view->SetProperty(views::kMarginsKey, gfx::Insets());
+      box_layout->set_main_axis_alignment(
+          views::BoxLayout::MainAxisAlignment::kCenter);
+    }
+  } else {
+    if (!label()->GetVisible()) {
+      label()->SetVisible(true);
+      image_view->SetProperty(views::kMarginsKey,
+                              gfx::Insets().set_left(kIconLeftMargin));
+      box_layout->set_main_axis_alignment(
+          views::BoxLayout::MainAxisAlignment::kStart);
+    }
+  }
 }
 
 bool ToolbarGlicButton::GetIsShowingNudge() const {

@@ -513,7 +513,7 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
                             const MediaConfig& config,
                             const VideoOptions& options,
                             const CryptoOptions& crypto_options,
-                            VideoDecoderFactory* absl_nonnull decoder_factory);
+                            VideoDecoderFactory* absl_nullable decoder_factory);
   ~WebRtcVideoReceiveChannel() override;
 
  public:
@@ -542,6 +542,7 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
   void ResetUnsignaledRecvStream() override;
   absl::AnyInvocable<void() &&> GetResetUnsignaledRecvStreamTask() override;
   std::optional<uint32_t> GetUnsignaledSsrc() const override;
+  std::vector<uint32_t> GetUnsignaledSsrcs() const override;
   void OnDemuxerCriteriaUpdatePending() override;
   void OnDemuxerCriteriaUpdateComplete() override;
   bool SetSink(uint32_t ssrc, VideoSinkInterface<VideoFrame>* sink) override;

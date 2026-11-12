@@ -1667,6 +1667,7 @@ TEST_F(OmniboxEditModelTest, OpenTabMatch) {
       .WillOnce(SaveArg<2>(&disposition));
 
   match.provider = controller()->autocomplete_controller()->search_provider();
+  match.type = AutocompleteMatchType::SEARCH_WHAT_YOU_TYPED;
   match.from_keyword = true;
   model()->OpenMatchForTesting(match, WindowOpenDisposition::CURRENT_TAB,
                                GURL(), std::u16string(), 0);
@@ -1904,6 +1905,7 @@ TEST_F(OmniboxEditModelPopupTest, AimPopupEnabled_ForcedNavigationEnabled) {
   EXPECT_CALL(*client(), IsAimPopupEnabled()).WillRepeatedly(Return(true));
   EXPECT_CALL(*client(), OpenUrl(_)).Times(1);
 
+  model()->SetUserText(u"query");
   model()->OpenAiMode(/*via_keyboard=*/true, /*via_context_menu=*/false);
 
   EXPECT_EQ(OmniboxPopupState::kNone,

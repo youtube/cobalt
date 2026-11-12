@@ -25,6 +25,7 @@
 #include "content/public/browser/web_contents.h"
 #include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom.h"
 #include "third_party/skia/include/core/SkPaint.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/codec/jpeg_codec.h"
 #include "ui/gfx/geometry/insets.h"
@@ -392,12 +393,8 @@ int SelectionOverlayController::GetToolResourceId() {
   return IDS_GLIC_SELECTION_OVERLAY_RENDERER_LABEL;
 }
 
-ui::ElementIdentifier SelectionOverlayController::GetViewContainerId() {
+ui::ElementIdentifier SelectionOverlayController::GetViewContainerId() const {
   return kGlicSelectionOverlayViewElementId;
-}
-
-bool SelectionOverlayController::UsesContentsContainerView() {
-  return true;
 }
 
 SidePanelType SelectionOverlayController::GetSidePanelType() {
@@ -429,7 +426,9 @@ SelectionOverlayController::GetPreselectionBubbleConfig() {
   return {
       .message_string_id = IDS_GLIC_SELECTION_OVERLAY_PRESELECTION_BUBBLE_TEXT,
       .bubble_background_color = kColorGlicSelectionOverlayToast,
-      .icon = &vector_icons::kCropFreeOldIcon,
+      .icon =
+          &(features::IsRoundedIconsEnabled() ? vector_icons::kCropFreeIcon
+                                              : vector_icons::kCropFreeOldIcon),
       .cancel_button_config = CancelButtonConfig{
           .color = kColorGlicSelectionOverlayToastCancelButton,
           .padding = gfx::Insets::VH(8, 16),
@@ -438,7 +437,8 @@ SelectionOverlayController::GetPreselectionBubbleConfig() {
 
 bool SelectionOverlayController::IsOverlayViewShared() const {
   // Glic's selection overlay's WebView is attached to the ContentsContainerView
-  // which cannot be shared across multiple tabs.
+  // which cannot be shared across multiple tabs. It also means glic's selection
+  // overlay respects the split view.
   return false;
 }
 
@@ -448,7 +448,8 @@ void SelectionOverlayController::DismissOverlay(
 }
 
 void SelectionOverlayController::AdjustRegion(
-    selection::SelectedRegionPtr target) {
+    selection::SelectedRegionPtr target,
+    bool is_using_keyboard) {
   auto it = selected_regions_.find(target->id);
   if (it != selected_regions_.end()) {
     it->second = std::move(target);
@@ -456,17 +457,17 @@ void SelectionOverlayController::AdjustRegion(
     selected_regions_[target->id] = std::move(target);
   }
 
-  RenderRegions();
+  RenderRegions(!is_using_keyboard);
 }
 
-void SelectionOverlayController::DeleteRegion(
-    const base::UnguessableToken& id) {
+void SelectionOverlayController::DeleteRegion(const base::UnguessableToken& id,
+                                              bool is_using_keyboard) {
   if (selected_regions_.erase(id)) {
     if (selected_regions_.empty()) {
       CloseUI();
       return;
     }
-    RenderRegions();
+    RenderRegions(!is_using_keyboard);
   }
 }
 
@@ -494,7 +495,7 @@ void SelectionOverlayController::Reset() {
   options_.reset();
 }
 
-void SelectionOverlayController::RenderRegions() {
+void SelectionOverlayController::RenderRegions(bool should_focus_panel) {
   if (redacted_screenshot_.empty()) {
     return;
   }
@@ -567,7 +568,11 @@ void SelectionOverlayController::RenderRegions() {
     instance->SendAdditionalContext(std::move(additional_context));
     instance->OnSelectionAreasChanged(selected_regions_.size());
     instance->OnPolylinePointsChanged(polyline_counts);
-    instance->FocusIfActive();
+    // If the event that triggered this was initiated via keyboard, do not
+    // focus the panel to avoid stealing focus away from the selection pane.
+    if (should_focus_panel) {
+      instance->FocusIfActive();
+    }
   }
 }
 

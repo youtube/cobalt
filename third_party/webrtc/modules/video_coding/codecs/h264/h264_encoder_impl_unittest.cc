@@ -14,7 +14,6 @@
 #include <cstdint>
 #include <optional>
 
-#include "api/environment/environment_factory.h"
 #include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
 #include "api/test/create_frame_generator.h"
@@ -28,6 +27,7 @@
 #include "api/video_codecs/video_encoder.h"
 #include "modules/video_coding/codecs/h264/include/h264_globals.h"
 #include "modules/video_coding/include/video_error_codes.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -60,7 +60,7 @@ void SetDefaultSettings(VideoCodec* codec_settings) {
 }
 
 TEST(H264EncoderImplTest, CanInitializeWithDefaultParameters) {
-  H264EncoderImpl encoder(CreateEnvironment(), {});
+  H264EncoderImpl encoder(CreateTestEnvironment(), {});
   VideoCodec codec_settings;
   SetDefaultSettings(&codec_settings);
   EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK,
@@ -71,7 +71,7 @@ TEST(H264EncoderImplTest, CanInitializeWithDefaultParameters) {
 
 TEST(H264EncoderImplTest, CanInitializeWithNonInterleavedModeExplicitly) {
   H264EncoderImpl encoder(
-      CreateEnvironment(),
+      CreateTestEnvironment(),
       {.packetization_mode = H264PacketizationMode::NonInterleaved});
   VideoCodec codec_settings;
   SetDefaultSettings(&codec_settings);
@@ -83,7 +83,7 @@ TEST(H264EncoderImplTest, CanInitializeWithNonInterleavedModeExplicitly) {
 
 TEST(H264EncoderImplTest, CanInitializeWithSingleNalUnitModeExplicitly) {
   H264EncoderImpl encoder(
-      CreateEnvironment(),
+      CreateTestEnvironment(),
       {.packetization_mode = H264PacketizationMode::SingleNalUnit});
   VideoCodec codec_settings;
   SetDefaultSettings(&codec_settings);
@@ -94,7 +94,7 @@ TEST(H264EncoderImplTest, CanInitializeWithSingleNalUnitModeExplicitly) {
 }
 
 TEST(H264EncoderImplTest, OnFrameDropped) {
-  H264EncoderImpl encoder(CreateEnvironment(), {});
+  H264EncoderImpl encoder(CreateTestEnvironment(), {});
   VideoCodec codec_settings;
   SetDefaultSettings(&codec_settings);
   // Set a very low bitrate to force frame drops.
@@ -142,7 +142,7 @@ TEST(H264EncoderImplTest, OnFrameDropped) {
 }
 
 TEST(H264EncoderImplTest, RejectsI420FramesWithUnequalChromaStrides) {
-  H264EncoderImpl encoder(CreateEnvironment(), {});
+  H264EncoderImpl encoder(CreateTestEnvironment(), {});
   VideoCodec codec_settings;
   SetDefaultSettings(&codec_settings);
   MockEncodedImageCallback callback;
@@ -167,7 +167,7 @@ TEST(H264EncoderImplTest, RejectsI420FramesWithUnequalChromaStrides) {
 }
 
 TEST(H264EncoderImplTest, RejectsNativeFramesWithUnequalChromaStrides) {
-  H264EncoderImpl encoder(CreateEnvironment(), {});
+  H264EncoderImpl encoder(CreateTestEnvironment(), {});
   VideoCodec codec_settings;
   SetDefaultSettings(&codec_settings);
   MockEncodedImageCallback callback;

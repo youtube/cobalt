@@ -56,11 +56,16 @@ void GlicSidePanelCoordinatorDesktopAndroid::CreateAndRegisterEntry() {
     return;
   }
 
+  // Note that Android only supports toolbar-height side panels, so
+  // we pass `SidePanelType::kToolbar` without checking the
+  // `kGlicUseToolbarHeightSidePanel` flag. The flag controls the rollout of
+  // toolbar-height panel on WML, so it may be disabled and not in sync with the
+  // GLiC rollout on Android.
+  //
+  // TODO(crbug.com/515153523): Consider if Android side panels should be
+  // WebContents-height.
   auto entry = std::make_unique<SidePanelEntry>(
-      base::FeatureList::IsEnabled(features::kGlicUseToolbarHeightSidePanel)
-          ? SidePanelType::kToolbar
-          : SidePanelType::kContent,
-      SidePanelEntry::Key(SidePanelEntry::Id::kGlic),
+      SidePanelType::kToolbar, SidePanelEntry::Key(SidePanelEntry::Id::kGlic),
       base::BindRepeating(&GlicSidePanelCoordinatorDesktopAndroid::CreateView,
                           base::Unretained(this)),
       base::BindRepeating(
@@ -156,7 +161,8 @@ SidePanelNativeView GlicSidePanelCoordinatorDesktopAndroid::CreateView(
             *tab_, context_sharing::TabBottomSheetClientType::kGlic);
     cobrowse_views_bridge_->CreateCoBrowseViews(web_contents_.get());
   }
-  auto view = cobrowse_views_bridge_->GetView();
+  auto view = context_sharing::CoBrowseViewsBridge::GetViewFromCoBrowseViews(
+      cobrowse_views_bridge_->GetCoBrowseViews());
   if (!view) {
     return nullptr;
   }

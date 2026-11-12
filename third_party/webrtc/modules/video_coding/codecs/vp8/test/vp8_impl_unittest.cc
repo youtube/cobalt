@@ -50,6 +50,7 @@
 #include "modules/video_coding/include/video_error_codes.h"
 #include "modules/video_coding/utility/vp8_header_parser.h"
 #include "rtc_base/time_utils.h"
+#include "test/create_test_environment.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -149,7 +150,7 @@ TEST_F(TestVp8Impl, ErrorResilienceDisabledForNoTemporalLayers) {
   codec_settings_.simulcastStream[0].numberOfTemporalLayers = 1;
 
   auto* const vpx = new NiceMock<MockLibvpxInterface>();
-  LibvpxVp8Encoder encoder(CreateEnvironment(), {}, absl::WrapUnique(vpx));
+  LibvpxVp8Encoder encoder(CreateTestEnvironment(), {}, absl::WrapUnique(vpx));
   EXPECT_CALL(*vpx,
               codec_enc_init(
                   _, _, Field(&vpx_codec_enc_cfg_t::g_error_resilient, 0), _));
@@ -162,7 +163,7 @@ TEST_F(TestVp8Impl, DefaultErrorResilienceEnabledForTemporalLayers) {
   codec_settings_.VP8()->numberOfTemporalLayers = 2;
 
   auto* const vpx = new NiceMock<MockLibvpxInterface>();
-  LibvpxVp8Encoder encoder(CreateEnvironment(), {}, absl::WrapUnique(vpx));
+  LibvpxVp8Encoder encoder(CreateTestEnvironment(), {}, absl::WrapUnique(vpx));
   EXPECT_CALL(*vpx,
               codec_enc_init(_, _,
                              Field(&vpx_codec_enc_cfg_t::g_error_resilient,
@@ -194,7 +195,7 @@ TEST_F(TestVp8Impl,
 TEST_F(TestVp8Impl, SetRates) {
   codec_settings_.SetFrameDropEnabled(true);
   auto* const vpx = new NiceMock<MockLibvpxInterface>();
-  LibvpxVp8Encoder encoder(CreateEnvironment(), {}, absl::WrapUnique(vpx));
+  LibvpxVp8Encoder encoder(CreateTestEnvironment(), {}, absl::WrapUnique(vpx));
   EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK,
             encoder.InitEncode(&codec_settings_,
                                VideoEncoder::Settings(kCapabilities, 1, 1000)));
@@ -669,7 +670,7 @@ TEST_F(TestVp8Impl, DontDropKeyframes) {
 
 TEST_F(TestVp8Impl, KeepsTimestampOnReencode) {
   auto* const vpx = new NiceMock<MockLibvpxInterface>();
-  LibvpxVp8Encoder encoder(CreateEnvironment(), {}, absl::WrapUnique(vpx));
+  LibvpxVp8Encoder encoder(CreateTestEnvironment(), {}, absl::WrapUnique(vpx));
 
   // Settings needed to trigger ScreenshareLayers usage, which is required for
   // overshoot-drop-reencode logic.
@@ -721,7 +722,7 @@ TEST_F(TestVp8Impl, PopulatesFilterSettings) {
 
 TEST(LibvpxVp8EncoderTest, GetEncoderInfoReturnsStaticInformation) {
   auto* const vpx = new NiceMock<MockLibvpxInterface>();
-  LibvpxVp8Encoder encoder(CreateEnvironment(), {}, absl::WrapUnique(vpx));
+  LibvpxVp8Encoder encoder(CreateTestEnvironment(), {}, absl::WrapUnique(vpx));
 
   const auto info = encoder.GetEncoderInfo();
 
@@ -773,7 +774,7 @@ TEST(LibvpxVp8EncoderTest, ResolutionBitrateLimitsFromFieldTrial) {
 TEST(LibvpxVp8EncoderTest,
      GetEncoderInfoReturnsEmptyResolutionBitrateLimitsByDefault) {
   auto* const vpx = new NiceMock<MockLibvpxInterface>();
-  LibvpxVp8Encoder encoder(CreateEnvironment(), {}, absl::WrapUnique(vpx));
+  LibvpxVp8Encoder encoder(CreateTestEnvironment(), {}, absl::WrapUnique(vpx));
 
   const auto info = encoder.GetEncoderInfo();
 
@@ -792,7 +793,7 @@ TEST(LibvpxVp8EncoderTest,
   settings.resolution_bitrate_limits = resolution_bitrate_limits;
 
   auto* const vpx = new NiceMock<MockLibvpxInterface>();
-  LibvpxVp8Encoder encoder(CreateEnvironment(), std::move(settings),
+  LibvpxVp8Encoder encoder(CreateTestEnvironment(), std::move(settings),
                            absl::WrapUnique(vpx));
 
   const auto info = encoder.GetEncoderInfo();

@@ -356,6 +356,9 @@ void ContextualSearchMetricsRecorder::NotifyQuerySubmitted(
     int query_text_length,
     int file_count,
     bool has_drive_context) {
+  if (query_text_length == 0 && file_count == 0) {
+    return;
+  }
   NotifySessionStateChanged(SessionState::kQuerySubmitted);
   RecordQueryMetrics(has_tab_context, has_non_tab_context, query_text_length,
                      file_count, has_drive_context);
@@ -789,6 +792,32 @@ void ContextualSearchMetricsRecorder::RecordTypedSuggestNavigation(
       base::StrCat({"ContextualSearch.TypedSuggestNavigation.IsVerbatim.",
                     metrics_suffix_}),
       is_verbatim);
+}
+
+void ContextualSearchMetricsRecorder::RecordNoAcMatchSubmitQuery(
+    int text_length,
+    int file_count,
+    bool is_ac_match) {
+  ContextualSearchNoAcMatchState state;
+  if (is_ac_match) {
+    state = ContextualSearchNoAcMatchState::kAcMatch;
+  } else {
+    bool has_text = text_length > 0;
+    bool has_files = file_count > 0;
+    if (has_text && has_files) {
+      state = ContextualSearchNoAcMatchState::kTextAndContext;
+    } else if (has_text) {
+      state = ContextualSearchNoAcMatchState::kOnlyText;
+    } else if (has_files) {
+      state = ContextualSearchNoAcMatchState::kOnlyContext;
+    } else {
+      state = ContextualSearchNoAcMatchState::kNoTextOrContext;
+    }
+  }
+  base::UmaHistogramEnumeration(
+      base::StrCat(
+          {"ContextualSearch.NoAcMatch.SubmitQuery.", metrics_suffix_}),
+      state);
 }
 
 }  // namespace contextual_search

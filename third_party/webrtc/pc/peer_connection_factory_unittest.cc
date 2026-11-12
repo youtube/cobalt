@@ -67,6 +67,7 @@
 #include "rtc_base/socket_address.h"
 #include "rtc_base/socket_server.h"
 #include "rtc_base/thread.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
@@ -168,8 +169,8 @@ class PeerConnectionFactoryTest : public ::testing::Test {
         nullptr /* audio_mixer */, nullptr /* audio_processing */);
 
     ASSERT_TRUE(factory_.get() != nullptr);
-    port_allocator_ = std::make_unique<FakePortAllocator>(CreateEnvironment(),
-                                                          socket_server_.get());
+    port_allocator_ = std::make_unique<FakePortAllocator>(
+        CreateTestEnvironment(), socket_server_.get());
     raw_port_allocator_ = port_allocator_.get();
   }
 
@@ -296,7 +297,7 @@ CreatePeerConnectionFactoryWithRtxDisabled() {
           OpenH264DecoderTemplateAdapter, Dav1dDecoderTemplateAdapter>>(),
   EnableMedia(pcf_dependencies);
 
-  Environment env = CreateEnvironment();
+  Environment env = CreateTestEnvironment();
   scoped_refptr<ConnectionContext> context =
       ConnectionContext::Create(env, &pcf_dependencies);
   context->set_use_rtx(false);

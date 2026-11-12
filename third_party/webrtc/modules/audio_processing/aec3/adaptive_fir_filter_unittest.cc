@@ -22,7 +22,6 @@
 #include <vector>
 
 #include "api/audio/echo_canceller3_config.h"
-#include "api/environment/environment_factory.h"
 #include "modules/audio_processing/aec3/adaptive_fir_filter_erl.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/aec3_fft.h"
@@ -43,6 +42,7 @@
 #include "rtc_base/numerics/safe_minmax.h"
 #include "rtc_base/random.h"
 #include "rtc_base/strings/string_builder.h"
+#include "test/create_test_environment.h"
 #include "test/gtest.h"
 
 // Defines WEBRTC_ARCH_X86_FAMILY, used below.
@@ -506,7 +506,7 @@ TEST_P(AdaptiveFirFilterMultiChannel, FilterAndAdapt) {
   Block x(kNumBands, num_render_channels);
   std::vector<float> n(kBlockSize, 0.f);
   std::vector<float> y(kBlockSize, 0.f);
-  AecState aec_state(CreateEnvironment(), EchoCanceller3Config{},
+  AecState aec_state(CreateTestEnvironment(), EchoCanceller3Config{},
                      num_capture_channels);
   RenderSignalAnalyzer render_signal_analyzer(config);
   std::optional<DelayEstimate> delay_estimate;

@@ -318,7 +318,7 @@ bool dtls1_process_handshake_fragments(SSL *ssl, uint8_t *out_alert,
       implicit_ack = true;
     }
 
-    if (msg_hdr.seq - ssl->d1->handshake_read_seq > SSL_MAX_HANDSHAKE_FLIGHT) {
+    if (msg_hdr.seq - ssl->d1->handshake_read_seq >= SSL_MAX_HANDSHAKE_FLIGHT) {
       // Ignore fragments too far in the future.
       skipped_fragments = true;
       continue;

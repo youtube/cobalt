@@ -1006,6 +1006,11 @@ RTCError JsepTransportController::ValidateAndMaybeUpdateBundleGroups(
     if (bundled_content->rejected) {
       for (const auto& content_name : bundle_group->content_names()) {
         auto other_content = description->GetContentByName(content_name);
+        if (!other_content) {
+          return RTCError(RTCErrorType::INVALID_PARAMETER,
+                          "A BUNDLE group contains a MID='" + content_name +
+                              "' matching no m= section.");
+        }
         if (!other_content->rejected) {
           return RTCError(RTCErrorType::INVALID_PARAMETER,
                           "The m= section with mid='" + content_name +

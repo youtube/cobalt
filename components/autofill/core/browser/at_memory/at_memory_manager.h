@@ -12,7 +12,12 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/types/expected.h"
+#include "components/autofill/core/browser/at_memory/at_memory_data_type.h"
 #include "components/autofill/core/browser/at_memory/at_memory_funnel_metrics.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
+#include "components/autofill/core/browser/filling/autofill_ai/autofill_ai_access_manager.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/common/aliases.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
@@ -47,6 +52,7 @@ class AtMemoryManager {
   // session if the `trigger_source` is an @memory one.
   // TODO(crbug.com/507770024): Rename to OnSuggestionsShown.
   void OnPopupShown(AutofillSuggestionTriggerSource trigger_source,
+                    bool is_context_secure,
                     UpdateSuggestionsCallback update_callback);
 
   // Called when the user types in the filter/search bar. Returns true if
@@ -98,6 +104,23 @@ class AtMemoryManager {
                       const FormFieldData& field,
                       const Suggestion& suggestion);
 
+  // Fills the unmasked AutofillAI value after fetching it.
+  void FillSensitiveAutofillAiData(const EntityInstance::EntityId& entity_id,
+                                   const FormData& form,
+                                   const FormFieldData& field,
+                                   const Suggestion& suggestion,
+                                   const AtMemoryDataType& data_type);
+
+  // Callback handler when the unmasked AutofillAI entity has been fetched.
+  void OnAutofillAiFetched(
+      const FormData& form,
+      const FormFieldData& field,
+      const Suggestion& suggestion,
+      const AtMemoryDataType& data_type,
+      base::expected<EntityInstance, AutofillAiAccessManager::FailureReason>
+          result,
+      bool reauth_attempted);
+
   const raw_ptr<BrowserAutofillManager> owner_;
 
   AutofillSuggestionTriggerSource trigger_source_ =
@@ -107,6 +130,8 @@ class AtMemoryManager {
 
   std::unique_ptr<AtMemoryFunnelMetrics> at_memory_funnel_metrics_;
 
+  // Indicates whether the current tab and the form uses a secure connection.
+  bool is_context_secure_ = false;
   // Flag indicating that a search query is in progress.
   bool is_searching_ = false;
   // Flag to distinguish if the ongoing query is a full search (explicit submit)

@@ -34,7 +34,6 @@
 #include "api/enable_media_with_defaults.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
-#include "api/field_trials.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
@@ -1260,7 +1259,7 @@ PeerConnectionIntegrationTestBase::CreatePeerConnectionWrapper(
   auto it = field_trials_overrides_.find(debug_name);
   if (it != field_trials_overrides_.end()) {
     field_trials = it->second;
-    dependencies.trials = std::make_unique<FieldTrials>(it->second);
+    dependencies.trials = CreateTestFieldTrialsPtr(it->second);
   }
   env.Set(CreateTestFieldTrialsPtr(field_trials));
 

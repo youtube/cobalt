@@ -362,11 +362,11 @@ IOSGeminiSessionCancellationReason HistogramEnumFromGeminiCancelType(
 }
 
 - (void)geminiLiveUserDidBargeIn {
-  // TODO(crbug.com/512507489): Implement barge-in logic.
+  [self.geminiViewStateDelegate geminiLiveUserDidBargeIn];
 }
 
 - (void)geminiLiveUserDidTapLiveButton {
-  // TODO(crbug.com/513196020): Implement Live button tap logic.
+  [self.geminiViewStateDelegate geminiLiveUserDidTapLiveButton];
 }
 
 #pragma mark - Private

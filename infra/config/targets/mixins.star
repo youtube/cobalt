@@ -822,6 +822,31 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "gpu_amd_rx_9070_xt_linux_experimental",
+    swarming = targets.swarming(
+        dimensions = {
+            "display_attached": "1",
+            "display_server": "x11",
+            "gpu": "1002:7550-25.2.8",
+            "os": "Ubuntu-24.04",
+            "pool": "chromium.tests.gpu.experimental",
+        },
+    ),
+)
+
+targets.mixin(
+    name = "gpu_amd_rx_9070_xt_win_experimental",
+    swarming = targets.swarming(
+        dimensions = {
+            "display_attached": "1",
+            "gpu": "1002:7550-32.0.31007.5012",
+            "os": "Windows-11",
+            "pool": "chromium.tests.gpu.experimental",
+        },
+    ),
+)
+
+targets.mixin(
     name = "gpu_amd_9900x_linux_experimental",
     # We always need this entry to be generated since it is used by
     # //content/test/gpu/find_bad_machines.py.
@@ -832,6 +857,31 @@ targets.mixin(
             "display_server": "x11",
             "gpu": "1002:13c0",
             "os": "Ubuntu",
+            "pool": "chromium.tests.gpu.experimental",
+        },
+    ),
+)
+
+targets.mixin(
+    name = "gpu_nvidia_rtx_5080_linux_experimental",
+    swarming = targets.swarming(
+        dimensions = {
+            "display_attached": "1",
+            "display_server": "x11",
+            "gpu": "10de:2c02-595.58.03",
+            "os": "Ubuntu-24.04",
+            "pool": "chromium.tests.gpu.experimental",
+        },
+    ),
+)
+
+targets.mixin(
+    name = "gpu_nvidia_rtx_5080_win_experimental",
+    swarming = targets.swarming(
+        dimensions = {
+            "display_attached": "1",
+            "gpu": "10de:2c02-32.0.15.9597",
+            "os": "Windows-11",
             "pool": "chromium.tests.gpu.experimental",
         },
     ),
@@ -2236,12 +2286,12 @@ targets.mixin(
     name = "xcode_26_beta",
     args = [
         "--xcode-build-version",
-        "17f5032f",
+        "17f42",
     ],
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "xcode_ios_17f5032f",
+                name = "xcode_ios_17f42",
                 path = "Xcode.app",
             ),
         ],

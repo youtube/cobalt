@@ -306,7 +306,7 @@ class DtlsTransportInternalImpl : public DtlsTransportInternal {
   void SetPiggybackDtlsDataCallback(
       absl::AnyInvocable<void(PacketTransportInternal* transport,
                               const ReceivedIpPacket& packet)> callback);
-  void PeriodicRetransmitDtlsPacketUntilDtlsConnected();
+  void FlushPendingDtlsPacket();
 
   // SetRemoteFingerprint must be called after SetLocalCertificate, and any
   // other methods like SetDtlsRole. It's what triggers the actual DTLS setup.
@@ -366,11 +366,6 @@ class DtlsTransportInternalImpl : public DtlsTransportInternal {
   absl::AnyInvocable<void(PacketTransportInternal*, const ReceivedIpPacket&)>
       piggybacked_dtls_callback_;
 
-  // When ICE get writable during dtls piggybacked handshake
-  // there is currently no safe way of updating the timeout
-  // in boringssl (that is work in progress). Therefore
-  // DtlsTransportInternalImpl has a "hack" to periodically retransmit.
-  bool pending_periodic_retransmit_dtls_packet_ = false;
   ScopedTaskSafetyDetached safety_flag_;
 
   // We reuse this class also in tests that pretend to be ice-lite.

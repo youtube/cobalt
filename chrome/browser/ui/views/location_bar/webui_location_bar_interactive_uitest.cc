@@ -16,6 +16,7 @@
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter_base.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_view_webui.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_webui_base_content.h"
+#include "chrome/browser/ui/views/page_info/page_info_bubble_view_base.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
 #include "chrome/browser/ui/waap/initial_web_ui_manager.h"
@@ -35,6 +36,7 @@
 namespace {
 
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kTabId);
+DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kSecondTabId);
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kClassicPopupWebViewId);
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kWebUIToolbarId);
 
@@ -156,17 +158,26 @@ class WebUILocationBarInteractiveUiTest : public TestBase {
 
   auto FakeKeyDownAt(ui::ElementIdentifier webcontents_id,
                      const WebContentsInteractionTestUtil::DeepQuery& where,
-                     std::string_view key) {
+                     std::string_view key,
+                     bool shift = false,
+                     bool control = false,
+                     bool alt = false,
+                     bool command = false) {
     const char kTemplate[] = R"(
       (el) => {
         const ev = new KeyboardEvent('keydown', {
-          key: $1
+          key: $1,
+          shiftKey: $2,
+          ctrlKey: $3,
+          altKey: $4,
+          metaKey: $5,
         });
         el.dispatchEvent(ev);
       }
     )";
-    return ExecuteJsAt(webcontents_id, where,
-                       content::JsReplace(kTemplate, key));
+    return ExecuteJsAt(
+        webcontents_id, where,
+        content::JsReplace(kTemplate, key, shift, control, alt, command));
   }
 
   auto WaitTillOmniboxViewText(std::string_view expected_text) {
@@ -404,4 +415,44 @@ IN_PROC_BROWSER_TEST_F(WebUILocationBarInteractiveUiTest, InlineSuggestion) {
 
       // Removing the focus should hide the popup.
       RemoveFocusFromPopup());
+}
+
+// Use Ctrl-Alt-Enter to append www. and .com to URL and open it in new tab.
+IN_PROC_BROWSER_TEST_F(WebUILocationBarInteractiveUiTest, Modifiers) {
+  RunTestSequence(
+      InstrumentTab(kTabId), WaitForWebContentsReady(kTabId),
+      InstrumentNonTabWebView(kWebUIToolbarId, GetToolbarWebView()),
+      InAnyContext(
+          EnsureNotPresent(OmniboxPopupPresenterBase::kRoundedResultsFrame)),
+      FocusWebContents(kWebUIToolbarId),
+      ExecuteJsAt(kWebUIToolbarId, kOmniboxInputDeepQuery, "el => el.focus()"),
+      // Shouldn't have a popup visible yet.
+      InAnyContext(
+          EnsureNotPresent(OmniboxPopupPresenterBase::kRoundedResultsFrame)),
+      // Type some text, it should show up. We include the schema to make
+      // sure we always end up with https://.
+      EnterText(kOmniboxElementId, u"https://google"),
+      WaitForClassicPopupReady(), WaitTillOmniboxViewText("https://google"),
+      // Omnibox needs to see Ctrl pressed down, not just as modifier, to
+      // append stuff around it.
+      FakeKeyDownAt(kWebUIToolbarId, kOmniboxInputDeepQuery, "Control"),
+      InstrumentNextTab(kSecondTabId),
+      FakeKeyDownAt(kWebUIToolbarId, kOmniboxInputDeepQuery, "Enter",
+                    /*shift=*/false, /*control=*/true,
+                    /*alt=*/true, /*command=*/false),
+      WaitForWebContentsNavigation(kSecondTabId,
+                                   GURL("https://www.google.com")));
+}
+
+// Clicking the location icon should show the Page Info bubble.
+IN_PROC_BROWSER_TEST_F(WebUILocationBarInteractiveUiTest, ClickLocationIcon) {
+  RunTestSequence(
+      InstrumentTab(kTabId), WaitForWebContentsReady(kTabId),
+      InstrumentNonTabWebView(kWebUIToolbarId, GetToolbarWebView()),
+      FocusWebContents(kWebUIToolbarId),
+      ExecuteJsAt(
+          kWebUIToolbarId,
+          {"toolbar-app", "location-bar", "location-icon", "#container"},
+          "el => el.click()"),
+      WaitForShow(PageInfoBubbleViewBase::kPageInfoBubbleElementIdentifier));
 }

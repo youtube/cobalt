@@ -98,7 +98,6 @@
 #include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
-#include "rtc_base/weak_ptr.h"
 
 namespace webrtc {
 
@@ -586,7 +585,6 @@ class PeerConnection : public PeerConnectionInternal,
       const std::vector<Candidate>& candidates) RTC_RUN_ON(signaling_thread());
   void OnTransportControllerCandidateChanged(
       const CandidatePairChangeEvent& event) RTC_RUN_ON(signaling_thread());
-  void OnTransportControllerDtlsHandshakeError(SSLHandshakeError error);
 
   // Invoked when TransportController connection completion is signaled.
   // Reports stats for all transports in use.
@@ -778,9 +776,6 @@ class PeerConnection : public PeerConnectionInternal,
       pending_local_description_clone_;
   mutable std::unique_ptr<SessionDescriptionInterface>
       pending_remote_description_clone_;
-
-  // This variable needs to be the last one in the class.
-  WeakPtrFactory<PeerConnection> weak_factory_;
 };
 
 }  // namespace webrtc

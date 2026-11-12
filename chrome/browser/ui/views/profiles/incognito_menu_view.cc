@@ -16,7 +16,6 @@
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/lifetime/application_lifetime_desktop.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -66,7 +65,9 @@ void IncognitoMenuView::BuildMenu() {
   AddFeatureButton(close_button_title,
                    base::BindRepeating(&IncognitoMenuView::OnExitButtonClicked,
                                        base::Unretained(this)),
-                   vector_icons::kCloseOldIcon);
+                   features::IsRoundedIconsEnabled()
+                       ? vector_icons::kCloseIcon
+                       : vector_icons::kCloseOldIcon);
 }
 
 std::u16string IncognitoMenuView::GetAccessibleWindowTitle() const {

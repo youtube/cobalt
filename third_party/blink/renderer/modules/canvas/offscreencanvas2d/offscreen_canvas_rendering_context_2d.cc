@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "base/metrics/histogram_functions.h"
+#include "base/rand_util.h"
 #include "base/trace_event/trace_event.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_canvas_font_stretch.h"
@@ -135,7 +136,7 @@ void OffscreenCanvasRenderingContext2D::FinalizeFrame(FlushReason reason) {
   if (!GetOrCreateResourceProvider()) {
     return;
   }
-  resource_provider_->FlushCanvas2D(reason);
+  resource_provider_->Flush(reason);
   Host()->NotifyCachesOfSwitchingFrame();
 }
 
@@ -363,8 +364,7 @@ scoped_refptr<StaticBitmapImage> OffscreenCanvasRenderingContext2D::GetImage() {
   FinalizeFrame(FlushReason::kOther);
   if (!IsPaintable())
     return nullptr;
-  scoped_refptr<StaticBitmapImage> image =
-      resource_provider_->SnapshotForCanvas2D();
+  scoped_refptr<StaticBitmapImage> image = resource_provider_->Snapshot();
 
   return image;
 }
@@ -401,8 +401,7 @@ OffscreenCanvasRenderingContext2D::GetPaintCanvas() const {
 
 const MemoryManagedPaintRecorder* OffscreenCanvasRenderingContext2D::Recorder()
     const {
-  return resource_provider_ ? &resource_provider_->RecorderForCanvas2D()
-                            : nullptr;
+  return resource_provider_ ? &resource_provider_->Recorder() : nullptr;
 }
 
 void OffscreenCanvasRenderingContext2D::WillDraw(
@@ -418,7 +417,7 @@ void OffscreenCanvasRenderingContext2D::WillDraw(
 
   if (layer_count_ == 0 && resource_provider_ != nullptr) [[likely]] {
     // TODO(crbug.com/1246486): Make auto-flushing layer friendly.
-    resource_provider_->FlushIfRecordingLimitExceededForCanvas2D();
+    resource_provider_->FlushIfRecordingLimitExceeded();
   }
 }
 
@@ -460,15 +459,14 @@ bool OffscreenCanvasRenderingContext2D::WritePixels(
     return false;
   }
 
-  resource_provider_->FlushCanvas2D();
+  resource_provider_->Flush();
 
   // Short-circuit out if an error occurred while flushing the recording.
   if (!resource_provider_->IsValid()) {
     return false;
   }
 
-  return resource_provider_->WritePixelsForCanvas2D(orig_info, pixels,
-                                                    row_bytes, x, y);
+  return resource_provider_->WritePixels(orig_info, pixels, row_bytes, x, y);
 }
 
 bool OffscreenCanvasRenderingContext2D::ResolveFont(const String& new_font) {
@@ -503,8 +501,7 @@ bool OffscreenCanvasRenderingContext2D::ResolveFont(const String& new_font) {
 
 std::optional<cc::PaintRecord> OffscreenCanvasRenderingContext2D::FlushCanvas(
     FlushReason reason) {
-  return resource_provider_ ? resource_provider_->FlushCanvas2D(reason)
-                            : std::nullopt;
+  return resource_provider_ ? resource_provider_->Flush(reason) : std::nullopt;
 }
 
 OffscreenCanvas* OffscreenCanvasRenderingContext2D::HostAsOffscreenCanvas()

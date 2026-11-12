@@ -29,7 +29,6 @@
 #include "api/audio_codecs/audio_format.h"
 #include "api/candidate.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/field_trials_view.h"
 #include "api/media_types.h"
 #include "api/payload_type.h"
@@ -5050,7 +5049,7 @@ TEST_F(MediaSessionDescriptionFactoryTest,
 class MediaProtocolTest : public testing::TestWithParam<const char*> {
  public:
   MediaProtocolTest()
-      : env_(CreateEnvironment()),
+      : env_(CreateTestEnvironment()),
         tdf1_(env_.field_trials()),
         tdf2_(env_.field_trials()),
         codec_lookup_helper_1_(env_.field_trials()),
@@ -5125,7 +5124,7 @@ INSTANTIATE_TEST_SUITE_P(MediaProtocolDtlsPatternTest,
                          ValuesIn(kMediaProtocolsDtls));
 
 void TestAudioCodecsOffer(RtpTransceiverDirection direction) {
-  Environment env(CreateEnvironment());
+  Environment env(CreateTestEnvironment());
   TransportDescriptionFactory tdf(env.field_trials());
   tdf.set_certificate(RTCCertificate::Create(
       std::unique_ptr<SSLIdentity>(new FakeSSLIdentity("id"))));
@@ -5236,7 +5235,7 @@ std::vector<T> VectorFromIndices(const T* array, const int (&indices)[IDXS]) {
 void TestAudioCodecsAnswer(RtpTransceiverDirection offer_direction,
                            RtpTransceiverDirection answer_direction,
                            bool add_legacy_stream) {
-  Environment env(CreateEnvironment());
+  Environment env(CreateTestEnvironment());
   TransportDescriptionFactory offer_tdf(env.field_trials());
   TransportDescriptionFactory answer_tdf(env.field_trials());
   FakeSctpTransportFactory offer_sctpf;
@@ -5395,7 +5394,7 @@ INSTANTIATE_TEST_SUITE_P(MediaSessionDescriptionFactoryTest,
 class VideoCodecsOfferH265LevelIdTest : public testing::Test {
  public:
   VideoCodecsOfferH265LevelIdTest()
-      : env_(CreateEnvironment()),
+      : env_(CreateTestEnvironment()),
         tdf_offerer_(env_.field_trials()),
         tdf_answerer_(env_.field_trials()),
         sf_offerer_(env_,
@@ -5620,10 +5619,10 @@ TEST_F(VideoCodecsOfferH265LevelIdTest,
                                               offerer_recv_codecs);
   codec_lookup_helper_answerer_.SetVideoCodecs(answerer_send_codecs,
                                                answerer_recv_codecs);
-  EXPECT_EQ(offerer_sendrecv_codecs,
-            codec_lookup_helper_offerer_.GetCodecVendor()
-                ->video_sendrecv_codecs()
-                .codecs());
+  EXPECT_THAT(codec_lookup_helper_offerer_.GetCodecVendor()
+                  ->video_sendrecv_codecs()
+                  .codecs(),
+              CodecListsMatch(offerer_sendrecv_codecs, &env_.field_trials()));
 
   MediaSessionOptions opts;
   AddMediaDescriptionOptions(MediaType::VIDEO, kVideoMid,

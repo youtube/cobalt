@@ -23,6 +23,7 @@
 #include "base/metrics/user_metrics.h"
 #include "base/strings/escape.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
@@ -42,6 +43,7 @@
 #include "chrome/browser/prefs/incognito_mode_prefs.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/reading_list/reading_list_model_factory.h"
+#include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_util.h"
@@ -67,7 +69,6 @@
 #include "chrome/browser/ui/bookmarks/bookmark_utils_desktop.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_command_controller.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_live_tab_context.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -109,6 +110,7 @@
 #include "chrome/browser/ui/tabs/split_tab_util.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_user_gesture_details.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -273,14 +275,14 @@ void CreateAndShowNewWindowWithContents(
   }
   // Preserve the size of the original window. The new window has already
   // been given an offset by the OS, so we shouldn't copy the old bounds.
-  BrowserWindow* new_window = new_browser->window();
+  ui::BaseWindow* new_window = new_browser->GetWindow();
   new_window->SetBounds(
       gfx::Rect(new_window->GetRestoredBounds().origin(),
                 original_browser->GetWindow()->GetRestoredBounds().size()));
 
   // We need to show the browser now.  Otherwise ContainerWin assumes the
   // WebContents is invisible and won't size it.
-  new_browser->window()->Show();
+  new_window->Show();
 
   // The page transition below is only for the purpose of inserting the tab.
   new_browser->tab_strip_model()->AddWebContents(std::move(contents), -1,
@@ -467,6 +469,65 @@ Browser* CreateNewBrowser(Browser* browser, bool user_gesture) {
   return Browser::Create(params);
 }
 
+struct MruTabResult {
+  raw_ptr<BrowserWindowInterface> browser;
+  int index;
+};
+
+std::optional<MruTabResult> GetGlobalMruTab(
+    BrowserCollection* collection,
+    BrowserWindowInterface* active_browser) {
+  BrowserWindowInterface* mru_browser = nullptr;
+  int mru_idx = -1;
+  base::Time max_time = base::Time::Min();
+
+  collection->ForEach(
+      [&](BrowserWindowInterface* b) {
+        TabStripModel* model = b->GetTabStripModel();
+        int i = 0;
+        for (auto it = model->begin(); it != model->end(); ++it, ++i) {
+          if (b == active_browser && i == model->active_index()) {
+            continue;
+          }
+          content::WebContents* contents = (*it)->GetContents();
+          auto* lifecycle_unit =
+              resource_coordinator::TabLifecycleUnitExternal::FromWebContents(
+                  contents);
+          if (!lifecycle_unit) {
+            continue;
+          }
+          base::Time last_active = lifecycle_unit->GetLastFocusedTime();
+          if (last_active > max_time) {
+            max_time = last_active;
+            mru_browser = b;
+            mru_idx = i;
+          }
+        }
+        return true;
+      },
+      BrowserCollection::Order::kActivation);
+
+  if (mru_browser) {
+    return MruTabResult{mru_browser, mru_idx};
+  }
+  return std::nullopt;
+}
+
+void ActivateTab(TabStripModel* model,
+                 int index,
+                 TabStripUserGestureDetails gesture_detail) {
+  std::optional<tab_groups::TabGroupId> group_id =
+      model->GetTabGroupForTab(index);
+  if (group_id.has_value() && model->IsGroupCollapsed(group_id.value())) {
+    TabGroup* group = model->group_model()->GetTabGroup(group_id.value());
+    tab_groups::TabGroupVisualData new_visual_data(
+        group->visual_data()->title(), group->visual_data()->color(),
+        /*is_collapsed=*/false);
+    model->ChangeTabGroupVisuals(group_id.value(), std::move(new_visual_data));
+  }
+  model->ActivateTabAt(index, gesture_detail);
+}
+
 }  // namespace
 
 using base::UserMetricsAction;
@@ -524,7 +585,7 @@ WebContents* GetTabAndRevertIfNecessaryHelper(BrowserWindowInterface* browser,
       new_browser->tab_strip_model()->AddWebContents(std::move(new_tab), -1,
                                                      ui::PAGE_TRANSITION_LINK,
                                                      AddTabTypes::ADD_ACTIVE);
-      new_browser->window()->Show();
+      new_browser->GetWindow()->Show();
       return raw_new_tab;
     }
     default:
@@ -773,7 +834,7 @@ BrowserWindowInterface* OpenEmptyWindow(Profile* profile,
     AddTabAt(browser, GURL(), -1, true);
   }
 
-  browser->window()->Show();
+  browser->GetWindow()->Show();
   return browser;
 }
 
@@ -1273,6 +1334,22 @@ bool CanResetZoom(content::WebContents* contents) {
 void SelectNextTab(BrowserWindowInterface* browser,
                    TabStripUserGestureDetails gesture_detail) {
   base::RecordAction(UserMetricsAction("SelectNextTab"));
+
+  if (base::FeatureList::IsEnabled(features::kCtrlTabMru) &&
+      browser->GetProfile()->GetPrefs()->GetBoolean(prefs::kCtrlTabMru)) {
+    auto mru_result = GetGlobalMruTab(
+        ProfileBrowserCollection::GetForProfile(browser->GetProfile()),
+        browser);
+    if (mru_result) {
+      if (mru_result->browser != browser) {
+        mru_result->browser->GetWindow()->Activate();
+      }
+      ActivateTab(mru_result->browser->GetTabStripModel(), mru_result->index,
+                  gesture_detail);
+      return;
+    }
+  }
+
   browser->GetTabStripModel()->SelectNextTab(gesture_detail);
 }
 

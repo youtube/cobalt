@@ -145,6 +145,7 @@ I pattern URL non devono essere in conflitto con <ph name="CONTROLLED_FRAME_ALLO
 Per informazioni dettagliate sui pattern URL validi, visita la pagina https://chromeenterprise.google/policies/url-patterns. <ph name="WILDCARD_VALUE" /> non è un valore accettato per questa policy.</translation>
 <translation id="1082802595100075771">Consenti agli utenti di scegliere un servizio Google anonimo per fornire descrizioni automatiche alle immagini senza etichetta</translation>
 <translation id="1084697375611053264">Specifica l'elenco di domini di applicazioni web di terze parti a cui è consentito utilizzare <ph name="DESK_API_NAME" /> per controllare <ph name="PRODUCT_OS_NAME" /> scrivanie. Questi pattern URL devono essere nel formato definito per la proprietà "matches" all'indirizzo https://developer.chrome.com/docs/extensions/mv3/manifest/externally_connectable/#reference</translation>
+<translation id="1086596047220085412">Impostazioni di condivisione intelligente delle schede</translation>
 <translation id="1087057100912843460">Consenti aggiornamenti</translation>
 <translation id="1087187152710800704">Nega l'autorizzazione per la gestione delle finestre su tutti i siti per impostazione predefinita</translation>
 <translation id="1087437665304381368">Questa norma consente di controllare esclusivamente la modalità sviluppatore di <ph name="PRODUCT_OS_NAME" />. Se vuoi impedire l'accesso alle Opzioni sviluppatore Android, devi impostare la norma <ph name="DEVELOPER_TOOLS_DISABLED_POLICY_NAME" />.</translation>
@@ -1112,6 +1113,7 @@ policy era la versione 121. È stata rimossa nella versione 122.</translation>
       Vedi anche la policy <ph name="REMOTE_ACCESS_HOST_CLIENT_DOMAIN_LIST_POLICY_NAME" />.
 
       Nota: questa impostazione sostituirà <ph name="REMOTE_ACCESS_HOST_DOMAIN_POLICY_NAME" />, se presente.</translation>
+<translation id="1723571018091915166">Non consentire la condivisione intelligente delle schede con le integrazioni di <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.</translation>
 <translation id="172374442286684480">Consenti a tutti i siti di impostare i dati locali</translation>
 <translation id="1729169799290004131">La configurazione della policy consente di specificare la percentuale di luminosità dello schermo, che comporta la disattivazione delle funzionalità di luminosità automatica. Il valore iniziale di luminosità dello schermo viene regolato il base al valore della policy, ma gli utenti possono modificarlo.
 
@@ -2931,6 +2933,13 @@ Questa policy può essere impostata soltanto come policy relativa agli utenti cl
 <translation id="2866726566162790531">Elenco delle origini che consentono tutte le autenticazioni HTTP</translation>
 <translation id="2868756546751652023">Consenti agli utenti di utilizzare il tethering istantaneo</translation>
 <translation id="286898786908566256">Consenti agli utenti di inviare numeri di telefono da Chrome al loro dispositivo Android</translation>
+<translation id="287087426320717057">Questa policy consente agli utenti di avviare qualsiasi tipo di aggiornamento firmware.
+
+      Se la policy viene attivata o se non viene configurata, gli utenti (ad es. il proprietario del dispositivo) possono avviare aggiornamenti firmware.
+
+      Se la policy viene disattivata, gli utenti non possono applicare gli aggiornamenti firmware.
+
+      Questa policy si applica al firmware per gli aggiornamenti firmware delle periferiche esterne e dei componenti interni per i dispositivi <ph name="PRODUCT_OS_FLEX_NAME" />. Questa policy non influisce sugli aggiornamenti firmware dei componenti interni per i dispositivi <ph name="PRODUCT_OS_NAME" />.</translation>
 <translation id="2872098849906555324">Disattiva la sincronizzazione Google Drive</translation>
 <translation id="2872189563975139803">Impostazioni di separazione dei profili aziendali</translation>
 <translation id="2872961005593481000">Spegni</translation>
@@ -3519,7 +3528,6 @@ Se non viene configurata, verrà utilizzato il nuovo comportamento, esattamente 
 <translation id="3229163415739929305">Se la policy viene impostata su Attivata o se non viene configurata, viene attivato il recupero dei metadati di caricamento delle pagine e dei modelli di machine learning che migliorano l'esperienza di navigazione.
       Se la policy viene impostata su Disattivata, il comportamento di alcune funzionalità potrebbe non essere corretto.</translation>
 <translation id="3231311173895401135">Lascia che sia il browser a decidere in merito al supporto</translation>
-<translation id="3231684792162319504">Non consentire l'attivazione sperimentale di Gemini.</translation>
 <translation id="3231837273069128027">La configurazione della policy consente di impostare disponibilità e comportamento degli aggiornamenti del firmware <ph name="TPM_FIRMWARE_UPDATE_TPM" />.
 
       Specifica le singole impostazioni nelle proprietà JSON:
@@ -5267,7 +5275,6 @@ Se la policy viene configurata, gli utenti non possono modificarla in <ph name="
 <translation id="4435032708588431506">Consenti QUIC</translation>
 <translation id="443665821428652897">Cancella i dati del sito alla chiusura del browser (obsoleta)</translation>
 <translation id="4436941175475497595">Disattiva anteprima di stampa</translation>
-<translation id="4436992815485865052">Consenti l'attivazione sperimentale di Gemini.</translation>
 <translation id="4439336120285389675">Consente di specificare un elenco di funzioni ritirate della piattaforma web da riattivare temporaneamente.
 
       Questa norma consente agli amministratori di riattivare funzioni ritirate della piattaforma web per un periodo di tempo limitato. Le funzioni sono identificate da un tag string e le funzioni corrispondenti ai tag inclusi nell'elenco specificato tramite questa norma verranno riattivate.
@@ -6686,7 +6693,6 @@ Nota: questa funzionalità non è ancora disponibile per tutti gli utenti, quind
 <translation id="5255790642269910630">La configurazione della policy comporta la rotazione di ogni display nell'orientamento specificato a ogni riavvio e la prima volta che viene eseguita la connessione del display dopo la modifica del valore della policy. Gli utenti possono modificare la rotazione del display tramite la pagina delle impostazioni dopo aver eseguito l'accesso, ma la rotazione tornerà allo stato precedente al riavvio successivo. Questa policy si applica ai display primari e secondari.
 
 Se non viene configurata, il valore predefinito è 0 e gli utenti sono liberi di modificarlo. In questo caso, il valore predefinito non viene applicato nuovamente al riavvio.</translation>
-<translation id="5256792633540454282">Controlla l'attivazione sperimentale di Gemini</translation>
 <translation id="5257395339965216304">Dati app ospitate</translation>
 <translation id="5258445772095084618">Consenti agli utenti non affiliati di usare le macchine virtuali necessarie per supportare le app Linux</translation>
 <translation id="5258651513421638932">Consenti la connessione della smart card da parte delle app isolate</translation>
@@ -7692,7 +7698,6 @@ Su <ph name="MAC_OS_NAME" />, questa policy è disponibile soltanto per le istan
 
       Questa policy è deprecata. Usa la policy <ph name="PRINTERS_BULK_BLOCKLIST" />.</translation>
 <translation id="591088232153082363">Ricarica adattiva della batteria sulla base dei pattern di utilizzo batteria.</translation>
-<translation id="5911656389795271430">Questa è una policy sperimentale.</translation>
 <translation id="5913506885872855604">Questa può essere utilizzata per trattare determinati intervalli di indirizzi interni come "pubblici" e quindi non soggetti a controlli di <ph name="LOCAL_NETWORK_ACCES" />. Al contrario, può essere utilizzata per trattare determinati intervalli di indirizzi pubblici che potrebbero essere utilizzati internamente come "locali", in modo che siano protetti dai controlli di <ph name="LOCAL_NETWORK_ACCESS" />.
 
 Gli override dello spazio di indirizzi IP hanno due forme:
@@ -8437,6 +8442,25 @@ Per ulteriori informazioni sulla gestione dei dati per le funzionalità di AI ge
 <translation id="6383774771168138899">Configura il flusso <ph name="CLOUD_UPLOAD_NAME" /> per <ph name="MICROSOFT_ONE_DRIVE_NAME" /> e <ph name="MICROSOFT_365_NAME" /></translation>
 <translation id="6384542789059421431">Attiva la visualizzazione delle pagine di risultati del motore di ricerca predefinito in un riquadro laterale del browser.</translation>
 <translation id="6389240462871677239">Consenti alle origini delle app web isolate di utilizzare Controlled Frame</translation>
+<translation id="6393598243777822017">Questa policy consente di controllare la funzionalità di condivisione intelligente delle schede di <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> tramite il riquadro laterale o le schede di <ph name="PRODUCT_NAME" />.
+
+Tieni presente che questa policy non influisce su <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> sul web. Stabilisce solo il modo in cui gli utenti possono condividere le informazioni quando usano <ph name="PRODUCT_NAME" />.
+
+0 = gli utenti possono condividere contenuti di pagine o file con <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.
+
+1 = gli utenti non possono condividere contenuti di pagine o file con <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />. Gli entry point per la condivisione del contesto e il riquadro laterale verranno disattivati o nascosti.
+
+Questa policy verrà ignorata quando <ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> non è il motore di ricerca predefinito degli utenti perché la funzionalità è disattivata.
+
+Questa policy è indipendente dalla policy <ph name="AI_MODE_SETTINGS_POLICY_NAME" />. La policy <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> consente di controllare solo gli entry point nella omnibox o nella casella di ricerca della pagina Nuova scheda, mentre questa policy consente di controllare la condivisione del contesto tramite il riquadro laterale o le schede.
+
+Questa policy non consente di controllare l'integrazione di <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />, che può essere disattivata da <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
+
+Tieni presente che questa policy viene ignorata, se <ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> viene disattivata.
+
+Se questa policy non viene configurata, il relativo comportamento viene determinato dalla policy <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.
+
+Per ulteriori informazioni sulla gestione dei dati per le funzionalità di AI generativa, visita la pagina https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="6394350458541421998">La norma non è più supportata a partire dalla versione 29 di <ph name="PRODUCT_OS_NAME" />. Utilizza la norma PresentationScreenDimDelayScale.</translation>
 <translation id="6397588391180665797">Consente di segnalare eventi di configurazione di rete degli utenti su dispositivi registrati.
 
@@ -10916,6 +10940,7 @@ Se la policy viene impostata su Disattivata o se non viene configurata, gli uten
 
 Se la policy <ph name="ENABLE_MEDIA_ROUTER_POLICY_NAME" /> viene impostata su Disattivata, il valore di tale policy non avrà effetto e l'icona della barra degli strumenti non verrà mostrata.</translation>
 <translation id="7933141401888114454">Attivazione della creazione di utenti controllati</translation>
+<translation id="793360449603660370">Consenti la condivisione intelligente delle schede con le integrazioni di <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.</translation>
 <translation id="793473937901685727">Imposta la disponibilità dei certificati per le app ARC</translation>
 <translation id="7936302526928951356">La stringa user agent non bloccherà la versione principale.</translation>
 <translation id="7936632434238618620">La configurazione della policy consente di creare un elenco di pattern URL che specifica i siti per cui Chrome può selezionare automaticamente un certificato client. Il valore è un array di dizionari JSON sotto forma di stringa, ognuno nel formato <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_EXAMPLE" />, dove <ph name="URL_PATTERN_PLACEHOLDER" /> rappresenta un pattern di impostazioni dei contenuti. <ph name="FILTER_PLACEHOLDER" /> consente di limitare i certificati client che il browser può selezionare automaticamente. Indipendentemente dal filtro, vengono selezionati solo certificati che soddisfano la richiesta di certificato del server. Su Android e iOS, Chrome può selezionare solo i certificati client di cui ha eseguito il provisioning; non può accedere ai certificati installati a livello di sistema operativo.

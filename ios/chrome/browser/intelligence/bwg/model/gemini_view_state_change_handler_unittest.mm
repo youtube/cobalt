@@ -29,12 +29,16 @@ class FakeGeminiViewStateChangeHandlerTarget
     last_shown_view_state_ = view_state;
   }
   void CollapseFloatyIfInvoked() override { collapse_floaty_called_ = true; }
+  void OnLiveButtonTapped() override { live_button_tapped_called_ = true; }
+  void OnGeminiLiveUserDidBargeIn() override { barge_in_called_ = true; }
 
   std::optional<ios::provider::GeminiViewState> last_view_state_changed_;
   std::optional<ios::provider::GeminiClientMode>
       last_processing_status_changed_;
   std::optional<ios::provider::GeminiViewState> last_shown_view_state_;
   bool collapse_floaty_called_ = false;
+  bool live_button_tapped_called_ = false;
+  bool barge_in_called_ = false;
 };
 
 class GeminiViewStateChangeHandlerTest : public PlatformTest {
@@ -116,6 +120,21 @@ TEST_F(GeminiViewStateChangeHandlerTest, TestDisconnect) {
 
   [handler_ switchToViewState:ios::provider::GeminiViewState::kCollapsed];
   EXPECT_FALSE(target_.collapse_floaty_called_);
+
+  [handler_ geminiLiveUserDidBargeIn];
+  EXPECT_FALSE(target_.barge_in_called_);
+}
+
+// Tests that the handler correctly notifies the target when the user barges in.
+TEST_F(GeminiViewStateChangeHandlerTest, TestGeminiLiveUserDidBargeIn) {
+  [handler_ geminiLiveUserDidBargeIn];
+  EXPECT_TRUE(target_.barge_in_called_);
+}
+
+// Tests that the handler correctly forwards live button taps.
+TEST_F(GeminiViewStateChangeHandlerTest, TestLiveButtonTapped) {
+  [handler_ geminiLiveUserDidTapLiveButton];
+  EXPECT_TRUE(target_.live_button_tapped_called_);
 }
 
 }  // namespace

@@ -18,15 +18,16 @@
 #include "base/state_transitions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
-#include "chrome/browser/actor/aggregated_journal.h"
+#include "chrome/browser/actor/aggregated_journal_render_frame_binder.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/tools/observation_delay_metrics.h"
 #include "chrome/browser/actor/tools/tool_callbacks.h"
-#include "chrome/common/actor/journal_details_builder.h"
-#include "chrome/common/actor/task_id.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_render_frame.mojom.h"
 #include "components/actor/core/actor_features.h"
+#include "components/actor/core/aggregated_journal.h"
+#include "components/actor/core/journal_details_builder.h"
+#include "components/actor/core/task_id.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/core/browser/form_predictions_tracker.h"
 #include "components/page_content_annotations/content/browser/page_settled_monitor.h"
@@ -157,7 +158,7 @@ ObservationDelayController::ObservationDelayController(
       GURL::EmptyGURL(), task_id, "ObservationDelay: Created",
       JournalDetailsBuilder().Add("May Use PageStability", true).Build());
 
-  journal.EnsureJournalBound(target_frame);
+  AggregatedJournalRenderFrameBinder::EnsureBound(journal, target_frame);
 
   // Note: It's important that the PageStabilityMonitor be created on the same
   // interface as tool invocation since it relies on being created before a

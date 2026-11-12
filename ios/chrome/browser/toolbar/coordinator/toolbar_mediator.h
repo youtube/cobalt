@@ -15,13 +15,21 @@
 @protocol FullscreenCommands;
 class FullscreenController;
 @protocol SettingsCommands;
+@protocol SceneCommands;
+@class UIViewController;
 @protocol ToolbarConsumer;
 @protocol ToolbarHeightDelegate;
+class PrefService;
 class WebNavigationBrowserAgent;
 namespace web {
 class WebState;
 }  // namespace web
 class WebStateList;
+
+class AuthenticationService;
+@protocol BWGCommands;
+class GeminiBrowserAgent;
+class GeminiService;
 
 // Mediator for the toolbar.
 @interface ToolbarMediator : NSObject <BannerPromoViewDelegate, ToolbarMutator>
@@ -44,13 +52,27 @@ class WebStateList;
 // Handler for settings commands.
 @property(nonatomic, weak) id<SettingsCommands> settingsHandler;
 
+// Dispatcher for Gemini commands.
+@property(nonatomic, weak) id<BWGCommands> geminiHandler;
+
+// Base view controller for presenting UI sheets.
+@property(nonatomic, weak) UIViewController* baseViewController;
+
+// Handler for scene commands.
+@property(nonatomic, weak) id<SceneCommands> sceneHandler;
+
 // Initializer.
 - (instancetype)initWithWebStateList:(WebStateList*)webStateList
                        actionFactory:(BrowserActionFactory*)actionFactory
+                         prefService:(PrefService*)prefService
                 fullscreenController:(FullscreenController*)fullscreenController
                          topPosition:(BOOL)topPosition
         defaultBrowserBannerAppAgent:
             (DefaultBrowserBannerPromoAppAgent*)defaultBrowserBannerAppAgent
+               authenticationService:
+                   (AuthenticationService*)authenticationService
+                       geminiService:(GeminiService*)geminiService
+                  geminiBrowserAgent:(GeminiBrowserAgent*)geminiBrowserAgent
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;
@@ -59,7 +81,8 @@ class WebStateList;
 - (void)setUICurrentlySupportsPromo:(BOOL)supports;
 
 // Updates the consumer with the current state of the web state.
-- (void)updateConsumerWithWebState:(web::WebState*)webState;
+- (void)updateConsumerWithWebState:(web::WebState*)webState
+                          animated:(BOOL)animated;
 
 // Disconnects observations.
 - (void)disconnect;

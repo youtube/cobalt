@@ -24,7 +24,6 @@
 #include "api/audio_codecs/g722/audio_encoder_g722_config.h"
 #include "api/audio_codecs/opus/audio_encoder_opus.h"
 #include "api/audio_codecs/opus/audio_encoder_opus_config.h"
-#include "api/environment/environment_factory.h"
 #include "modules/audio_coding/codecs/g711/audio_decoder_pcm.h"
 #include "modules/audio_coding/codecs/g711/audio_encoder_pcm.h"
 #include "modules/audio_coding/codecs/g722/audio_decoder_g722.h"
@@ -36,6 +35,7 @@
 #include "modules/audio_coding/neteq/tools/resample_input_audio_file.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
+#include "test/create_test_environment.h"
 #include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
@@ -367,7 +367,7 @@ class AudioDecoderOpusTest
                              ? AudioEncoderOpusConfig::ApplicationMode::kVoip
                              : AudioEncoderOpusConfig::ApplicationMode::kAudio;
     audio_encoder_ = AudioEncoderOpus::MakeAudioEncoder(
-        CreateEnvironment(), std::move(config),
+        CreateTestEnvironment(), std::move(config),
         {.payload_type = payload_type_});
     audio_encoder_->OnReceivedOverhead(kOverheadBytesPerPacket);
   }

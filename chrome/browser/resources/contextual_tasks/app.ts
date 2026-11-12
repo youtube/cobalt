@@ -114,53 +114,44 @@ export interface ContextualTasksAppElement {
   };
 }
 
-// Updates the param for task ID in the URL and adds an entry in history if it
-// changed.
-function updateTaskDetailsInUrl(taskId: Uuid) {
+// Copy the params from the current aim URL to the webui URL.
+// Keeping the params in sync ensures the page reloads or
+// restores correctly.
+// Update the task ID in the URL.
+// Update navigation entry with replaceState/pushState.
+function updateTaskDetailsInUrl(
+    taskId: Uuid, aimUrl: Url, replaceNavigationEntry: boolean) {
   const url = new URL(window.location.href);
 
-  const existingTaskId = url.searchParams.get(CHROME_TASK_PARAM_KEY);
-  url.searchParams.set(CHROME_TASK_PARAM_KEY, taskId.value);
-
-  // Allow back navigation if the task ID changes. Other changes to the URL
-  // represent state changes for the current task.
-  if (existingTaskId !== taskId.value) {
-    window.history.pushState({}, '', url.href);
-  } else {
-    window.history.replaceState({}, '', url.href);
-  }
-}
-
-// Copy the params from the current aim URL to the webui URL without adding a
-// history entry. Keeping the params in sync ensures the page reloads or
-// restores correctly.
-function updateWebuiParams(aimUrl: Url) {
-  const webuiUrl = new URL(window.location.href);
-
-  const taskId = webuiUrl.searchParams.get(CHROME_TASK_PARAM_KEY);
-  const host = webuiUrl.searchParams.get(CHROME_HOST_PARAM_KEY);
+  const host = url.searchParams.get(CHROME_HOST_PARAM_KEY);
 
   // Clear the existing params
-  webuiUrl.search = '';
+  url.search = '';
 
   // Preserve host if present in current URL.
   if (host) {
-    webuiUrl.searchParams.set(CHROME_HOST_PARAM_KEY, host);
+    url.searchParams.set(CHROME_HOST_PARAM_KEY, host);
   }
 
   // Add all the params from the aim URL, except host.
   new URL(aimUrl).searchParams.forEach((value, key) => {
     if (key !== CHROME_HOST_PARAM_KEY) {
-      webuiUrl.searchParams.set(key, value);
+      url.searchParams.set(key, value);
     }
   });
 
-  // Add the task ID back to the params if it was there to begin with.
+  // Add the task ID to the params.
   if (taskId) {
-    webuiUrl.searchParams.set(CHROME_TASK_PARAM_KEY, taskId);
+    url.searchParams.set(CHROME_TASK_PARAM_KEY, taskId.value);
   }
 
-  window.history.replaceState({}, '', webuiUrl.href);
+  // Allow back navigation if the task ID changes. Other changes to the URL
+  // represent state changes for the current task.
+  if (replaceNavigationEntry) {
+    window.history.replaceState({}, '', url.href);
+  } else {
+    window.history.pushState({}, '', url.href);
+  }
 }
 
 // Returns whether the value of the "deb" param contains "nocobrowse1" which
@@ -271,6 +262,10 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
         type: Boolean,
         reflect: true,
       },
+      isAimEligible_: {
+        type: Boolean,
+        reflect: true,
+      },
     };
   }
 
@@ -300,6 +295,8 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
   // though top-level navigation could fail for numerous reasons.
   protected accessor isLoadError_: boolean = !window.navigator.onLine;
   protected accessor isAiPage_: boolean = loadTimeData.getBoolean('isAiPage');
+  protected accessor isAimEligible_: boolean =
+      loadTimeData.getBoolean('isAimEligible');
   protected accessor isLensOverlayShowing_: boolean = false;
   protected accessor isOverlayOpenForAimVisualSearch_: boolean = false;
   // Indicates if in tab mode. Most start in a tab.
@@ -483,7 +480,6 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
         this.composebox_?.deleteFile(fileToken);
       }),
       callbackRouter.setTaskDetails.addListener(updateTaskDetailsInUrl),
-      callbackRouter.setAimUrl.addListener(updateWebuiParams),
       callbackRouter.onZeroStateChange.addListener(isZeroState => {
         this.isZeroState_ = isZeroState;
         // If we just changed to zero state, that means
@@ -493,8 +489,9 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
         if (isZeroState) {
           this.composebox_?.clearInputAndFocus();
           // Reset the forced composebox bounds since the zero state position
-          // is controlled natively.
-          this.forcedComposeboxBounds_ = null;
+          if (!this.shouldSetForceComposeboxBounds_()) {
+            this.forcedComposeboxBounds_ = null;
+          }
         }
       }),
       callbackRouter.setInNlm.addListener((inNlm: boolean) => {
@@ -948,7 +945,6 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
     const wasAiPage = this.isAiPage_;
     const wasZeroState = this.isZeroState_;
 
-    this.composebox_?.setToolFromUrl(ev.url);
 
     const {isAiPage} = await this.browserProxy_.handler.isAiPage(ev.url);
     const {isZeroState} = await this.browserProxy_.handler.isZeroState(ev.url);
@@ -1048,11 +1044,15 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
       // Since the height is controlled client side and the composebox grows
       // updwards, set the top of the rect to match the current height to avoid
       // miscalculations in the clip path.
-      this.forcedComposeboxBounds_ = {
-        ...inputRect,
-        height: currentHeight,
-        top: inputRect.bottom - currentHeight,
-      };
+      if (this.shouldSetForceComposeboxBounds_()) {
+        this.forcedComposeboxBounds_ = {
+          ...inputRect,
+          height: currentHeight,
+          top: inputRect.bottom - currentHeight,
+        };
+      } else {
+        this.forcedComposeboxBounds_ = null;
+      }
     }
     if (occluders !== undefined) {
       this.occluders_ = occluders;
@@ -1078,6 +1078,10 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
   }
 
   protected isComposeboxHidden_(): boolean {
+    if (!this.isAimEligible_) {
+      return true;
+    }
+
     // Stay hidden until the first isZeroState_ value is determined to prevent
     // the composebox from flickering in.
     if (this.isZeroState_ === undefined) {
@@ -1123,6 +1127,10 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
       return false;
     }
     return url.searchParams.has(this.nlmUrlParam_);
+  }
+
+  private shouldSetForceComposeboxBounds_(): boolean {
+    return !this.isZeroState_ || this.inNlm_;
   }
 
   getComposeboxBoundsStyles() {

@@ -126,6 +126,7 @@ source_set("misc") {
     "//chrome/browser/transition_manager",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/startup",
+    "//chrome/browser/ui/webui:prefs_internals_source",
     "//chrome/browser/ui/zoom",
     "//chrome/browser/updates/announcement_notification",
     "//chrome/browser/webid",
@@ -172,6 +173,7 @@ source_set("misc") {
       "profile_manager_android.cc",
     ]
     deps += [
+      "//chrome/browser:profile_key_startup_accessor",
       "//chrome/browser/android:profile_token",
       "//chrome/browser/profiles/android:jni_headers",
       "//chrome/common:constants",

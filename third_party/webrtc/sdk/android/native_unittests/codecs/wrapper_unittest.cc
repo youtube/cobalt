@@ -29,6 +29,7 @@
 #include "sdk/android/native_api/jni/jvm.h"
 #include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "sdk/android/src/jni/video_encoder_wrapper.h"
+#include "test/create_test_environment.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -52,7 +53,7 @@ TEST(JavaCodecsWrapperTest, JavaToNativeResolutionBitrateLimits) {
   JNIEnv* env = AttachCurrentThreadIfNeeded();
   ScopedJavaLocalRef<jobject> j_fake_encoder =
       jni::Java_CodecsWrapperTestHelper_createFakeVideoEncoder(env);
-  const Environment webrtc_env = CreateEnvironment();
+  const Environment webrtc_env = CreateTestEnvironment();
 
   auto encoder = jni::JavaToNativeVideoEncoder(
       env, j_fake_encoder, NativeToJavaPointer(&webrtc_env));
@@ -72,7 +73,7 @@ TEST(JavaCodecsWrapperTest, EncodeNullFrame) {
   JNIEnv* env = AttachCurrentThreadIfNeeded();
   ScopedJavaLocalRef<jobject> j_fake_encoder =
       jni::Java_CodecsWrapperTestHelper_createFakeVideoEncoder(env);
-  const Environment webrtc_env = CreateEnvironment();
+  const Environment webrtc_env = CreateTestEnvironment();
 
   auto encoder = jni::JavaToNativeVideoEncoder(
       env, j_fake_encoder, NativeToJavaPointer(&webrtc_env));

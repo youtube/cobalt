@@ -24,7 +24,6 @@
 #include "api/audio_codecs/audio_format.h"
 #include "api/audio_codecs/opus/audio_encoder_opus_config.h"
 #include "api/call/bitrate_allocation.h"
-#include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
 #include "api/field_trials_view.h"
 #include "api/rtp_parameters.h"
@@ -689,7 +688,7 @@ TEST(AudioEncoderOpusTest, GetFrameLenghtRange) {
   AudioEncoderOpusConfig config =
       CreateConfigWithParameters({{"maxptime", "10"}, {"ptime", "10"}});
   std::unique_ptr<AudioEncoder> encoder = AudioEncoderOpus::MakeAudioEncoder(
-      CreateEnvironment(), std::move(config),
+      CreateTestEnvironment(), std::move(config),
       {.payload_type = kDefaultOpusPayloadType});
   auto ptime = TimeDelta::Millis(10);
   std::optional<std::pair<TimeDelta, TimeDelta>> range = {{ptime, ptime}};
@@ -781,7 +780,7 @@ TEST_P(AudioEncoderOpusTest, OpusFlagDtxAsNonSpeech) {
   config.dtx_enabled = true;
   config.sample_rate_hz = sample_rate_hz_;
   const auto encoder = AudioEncoderOpus::MakeAudioEncoder(
-      CreateEnvironment(), std::move(config), {.payload_type = 17});
+      CreateTestEnvironment(), std::move(config), {.payload_type = 17});
 
   // Open file containing speech and silence.
   const std::string kInputFileName =

@@ -121,6 +121,10 @@ OPENSSL_EXPORT int CBS_get_u32(CBS *cbs, uint32_t *out);
 // |cbs| and advances |cbs|. It returns one on success and zero on error.
 OPENSSL_EXPORT int CBS_get_u32le(CBS *cbs, uint32_t *out);
 
+// CBS_get_u48 sets |*out| to the next, big-endian 48-bit value from |cbs| and
+// advances |cbs|. It returns one on success and zero on error.
+OPENSSL_EXPORT int CBS_get_u48(CBS *cbs, uint64_t *out);
+
 // CBS_get_u64 sets |*out| to the next, big-endian uint64_t value from |cbs|
 // and advances |cbs|. It returns one on success and zero on error.
 OPENSSL_EXPORT int CBS_get_u64(CBS *cbs, uint64_t *out);

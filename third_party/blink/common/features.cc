@@ -199,6 +199,14 @@ BASE_FEATURE_PARAM(bool,
                    "background-code-cache-decoder-start",
                    true);
 
+BASE_FEATURE(kRestrictBackgroundFetchFromServiceWorker,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(std::string,
+                   kBackgroundFetchFromServiceWorkerAllowListStr,
+                   &kRestrictBackgroundFetchFromServiceWorker,
+                   "allowlist",
+                   "");
+
 // Redefine the oklab and oklch spaces to have gamut mapping baked into them.
 // https://crbug.com/1508329
 BASE_FEATURE(kBakedGamutMapping, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1075,6 +1083,9 @@ BASE_FEATURE(kFledgeTruncateSelectableBuyerAndSellerReportingIdsToKAnonLimit,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kForceHighPerformanceGPUForWebGL,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kOffscreenCanvasPropagateVisibility,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kForceSkcmsICCParsing, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2766,8 +2777,6 @@ BASE_FEATURE(kRendererMainIsDefaultThreadTypeForWebRTC,
 #endif  // BUILDFLAG(IS_ANDROID)
 );
 
-// Enable borderless mode for desktop PWAs. go/borderless-mode
-BASE_FEATURE(kWebAppBorderless, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls scope extensions feature in web apps. Enables parsing of "site"
 // entries in "scope_extensions" field in web app manifests. See explainer for

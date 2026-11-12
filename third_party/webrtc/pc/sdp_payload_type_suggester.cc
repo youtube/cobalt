@@ -177,7 +177,7 @@ SdpPayloadTypeSuggester::LookupBundleRecorder(absl::string_view mid) {
   }
   if (!recorder_by_mid_.contains(transport_mapped_name)) {
     recorder_by_mid_.emplace(std::make_pair(
-        transport_mapped_name, BundleTypeRecorder(payload_type_picker_)));
+        transport_mapped_name, BundleTypeRecorder(payload_type_picker_, env_)));
   }
   return recorder_by_mid_.at(transport_mapped_name);
 }

@@ -815,6 +815,7 @@ rtc_library("transport_description_factory") {
     "../rtc_base:checks",
     "../rtc_base:logging",
     "../rtc_base:ssl",
+    "../rtc_base:ssl_adapter",
   ]
 }
 

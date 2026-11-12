@@ -22,6 +22,8 @@
 #include "base/containers/span.h"
 #include "base/files/scoped_file.h"
 #include "base/strings/cstring_view.h"
+#include "base/strings/strcat.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/test_future.h"
 #include "net/base/net_errors.h"
 #include "net/dns/host_resolver_internal_result.h"
@@ -98,15 +100,25 @@ const char kQNameData[] =
     "\x00";
 const base::span<const uint8_t> kQName = base::as_byte_span(kQNameData);
 
-TEST_F(DnsPlatformAndroidAttemptTest, Success) {
+struct SuccessTestParam {
+  uint16_t qtype;
+  std::string_view qtype_str;
+};
+
+class DnsPlatformAndroidAttemptSuccessTest
+    : public DnsPlatformAndroidAttemptTest,
+      public testing::WithParamInterface<SuccessTestParam> {};
+
+TEST_P(DnsPlatformAndroidAttemptSuccessTest, Success) {
   if (__builtin_available(android 29, *)) {
+    SuccessTestParam param = GetParam();
     base::ScopedFD fd =
         MockAndroidDnsPlatformAttemptDelegate::CreateFdWithUnreadData();
 
     MockAndroidDnsPlatformAttemptDelegate delegate;
 
     EXPECT_CALL(delegate, Query(NETWORK_UNSPECIFIED, StrEq("www.google.com"),
-                                dns_protocol::kTypeA))
+                                param.qtype))
         .WillOnce(Return(fd.get()));
 
     EXPECT_CALL(delegate, Result(fd.get(), _, _))
@@ -118,28 +130,43 @@ TEST_F(DnsPlatformAndroidAttemptTest, Success) {
     EXPECT_CALL(delegate, Close(fd.get())).Times(0);
 
     DnsPlatformAndroidAttempt executor(
-        /*server_index=*/0, kQName, dns_protocol::kTypeA,
-        handles::kInvalidNetworkHandle, &delegate, NetLogWithSource());
+        /*server_index=*/0, kQName, param.qtype, handles::kInvalidNetworkHandle,
+        &delegate, NetLogWithSource());
 
+    base::HistogramTester histograms;
     ResultsCallbackTestFuture future;
-    executor.Start(future.GetCallback());
-    int result = future.Take();
-
-    EXPECT_THAT(result, IsOk());
+    int rv = executor.Start(future.GetCallback());
+    EXPECT_THAT(rv, IsOk());
     const DnsResponse* response = executor.GetResponse();
     ASSERT_NE(response, nullptr);
     EXPECT_EQ(response->io_buffer()->size(),
               static_cast<int>(successful_dns_response.size()));
-    EXPECT_EQ(absl::string_view(response->io_buffer()->data(),
+    EXPECT_EQ(std::string_view(response->io_buffer()->data(),
                                 response->io_buffer()->size()),
-              absl::string_view(
+              std::string_view(
                   reinterpret_cast<const char*>(successful_dns_response.data()),
                   successful_dns_response.size()));
     EXPECT_EQ(response->rcode(), dns_protocol::kRcodeNOERROR);
+    histograms.ExpectUniqueSample(
+        "Net.DNS.DnsPlatformAndroidAttempt.FdAlreadyReadable", true, 1);
+    histograms.ExpectUniqueSample(
+        base::StrCat({"Net.DNS.DnsPlatformAndroidAttempt.ResponseSize.",
+                      param.qtype_str}),
+        successful_dns_response.size(), 1);
   } else {
     GTEST_SKIP_(kSkipTestOnAndroidVersionBelow29);
   }
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    DnsPlatformAndroidAttemptSuccessTests,
+    DnsPlatformAndroidAttemptSuccessTest,
+    testing::Values(SuccessTestParam{dns_protocol::kTypeA, "A"},
+                    SuccessTestParam{dns_protocol::kTypeAAAA, "AAAA"},
+                    SuccessTestParam{dns_protocol::kTypeHttps, "HTTPS"}),
+    [](const testing::TestParamInfo<SuccessTestParam>& info) {
+      return std::string(info.param.qtype_str);
+    });
 
 TEST_F(DnsPlatformAndroidAttemptTest,
        FailOnAndroidResNqueryNegativeReturnValue) {
@@ -159,10 +186,8 @@ TEST_F(DnsPlatformAndroidAttemptTest,
         handles::kInvalidNetworkHandle, &delegate, NetLogWithSource());
 
     ResultsCallbackTestFuture future;
-    executor.Start(future.GetCallback());
-    int result = future.Take();
-
-    EXPECT_THAT(result, IsError(ERR_ACCESS_DENIED));
+    int rv = executor.Start(future.GetCallback());
+    EXPECT_THAT(rv, IsError(ERR_ACCESS_DENIED));
   } else {
     GTEST_SKIP_(kSkipTestOnAndroidVersionBelow29);
   }
@@ -188,11 +213,12 @@ TEST_F(DnsPlatformAndroidAttemptTest,
         /*server_index=*/0, kQName, dns_protocol::kTypeA,
         handles::kInvalidNetworkHandle, &delegate, NetLogWithSource());
 
+    base::HistogramTester histograms;
     ResultsCallbackTestFuture future;
-    executor.Start(future.GetCallback());
-    int result = future.Take();
-
-    EXPECT_THAT(result, IsError(ERR_ACCESS_DENIED));
+    int rv = executor.Start(future.GetCallback());
+    EXPECT_THAT(rv, IsError(ERR_ACCESS_DENIED));
+    histograms.ExpectTotalCount(
+        "Net.DNS.DnsPlatformAndroidAttempt.ResponseSize.A", 0);
   } else {
     GTEST_SKIP_(kSkipTestOnAndroidVersionBelow29);
   }
@@ -218,11 +244,13 @@ TEST_F(DnsPlatformAndroidAttemptTest, FailOnMalformedDnsResponse) {
         /*server_index=*/0, kQName, dns_protocol::kTypeA,
         handles::kInvalidNetworkHandle, &delegate, NetLogWithSource());
 
+    base::HistogramTester histograms;
     ResultsCallbackTestFuture future;
-    executor.Start(future.GetCallback());
-    int result = future.Take();
-
-    EXPECT_THAT(result, IsError(ERR_DNS_MALFORMED_RESPONSE));
+    int rv = executor.Start(future.GetCallback());
+    EXPECT_THAT(rv, IsError(ERR_DNS_MALFORMED_RESPONSE));
+    histograms.ExpectUniqueSample(
+        "Net.DNS.DnsPlatformAndroidAttempt.ResponseSize.A",
+        malformed_dns_response.size(), 1);
   } else {
     GTEST_SKIP_(kSkipTestOnAndroidVersionBelow29);
   }
@@ -248,11 +276,13 @@ TEST_F(DnsPlatformAndroidAttemptTest, FailOnResponseFlagsNxdomain) {
         /*server_index=*/0, kQName, dns_protocol::kTypeA,
         handles::kInvalidNetworkHandle, &delegate, NetLogWithSource());
 
+    base::HistogramTester histograms;
     ResultsCallbackTestFuture future;
-    executor.Start(future.GetCallback());
-    int result = future.Take();
-
-    EXPECT_THAT(result, IsError(ERR_NAME_NOT_RESOLVED));
+    int rv = executor.Start(future.GetCallback());
+    EXPECT_THAT(rv, IsError(ERR_NAME_NOT_RESOLVED));
+    histograms.ExpectUniqueSample(
+        "Net.DNS.DnsPlatformAndroidAttempt.ResponseSize.A",
+        nxdomain_dns_response.size(), 1);
   } else {
     GTEST_SKIP_(kSkipTestOnAndroidVersionBelow29);
   }
@@ -278,11 +308,13 @@ TEST_F(DnsPlatformAndroidAttemptTest, FailOnResponseTCFlag) {
         /*server_index=*/0, kQName, dns_protocol::kTypeA,
         handles::kInvalidNetworkHandle, &delegate, NetLogWithSource());
 
+    base::HistogramTester histograms;
     ResultsCallbackTestFuture future;
-    executor.Start(future.GetCallback());
-    int result = future.Take();
-
-    EXPECT_THAT(result, IsError(ERR_UNEXPECTED));
+    int rv = executor.Start(future.GetCallback());
+    EXPECT_THAT(rv, IsError(ERR_UNEXPECTED));
+    histograms.ExpectUniqueSample(
+        "Net.DNS.DnsPlatformAndroidAttempt.ResponseSize.A",
+        truncated_dns_response.size(), 1);
   } else {
     GTEST_SKIP_(kSkipTestOnAndroidVersionBelow29);
   }
@@ -298,34 +330,91 @@ TEST_F(DnsPlatformAndroidAttemptTest, DestroyedBeforeResponseClosesFd) {
     base::ScopedFD fd =
         MockAndroidDnsPlatformAttemptDelegate::CreateFdWithNoData();
 
-    base::RunLoop run_loop;
     MockAndroidDnsPlatformAttemptDelegate delegate;
     EXPECT_CALL(delegate, Query(NETWORK_UNSPECIFIED, StrEq("www.google.com"),
                                 dns_protocol::kTypeA))
-        .WillOnce([&]() {
-          base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-              FROM_HERE, base::BindOnce(&base::RunLoop::Quit,
-                                        base::Unretained(&run_loop)));
-          return fd.get();
-        });
+        .WillOnce(Return(fd.get()));
     EXPECT_CALL(delegate, Result(_, _, _)).Times(0);
     EXPECT_CALL(delegate, Close(fd.get())).WillOnce([&]() {
       EXPECT_EQ(close(fd.release()), 0);
     });
 
     {
+      base::HistogramTester histograms;
       DnsPlatformAndroidAttempt executor(
           /*server_index=*/0, kQName, dns_protocol::kTypeA,
           handles::kInvalidNetworkHandle, &delegate, NetLogWithSource());
 
       ResultsCallbackTestFuture future;
-      executor.Start(future.GetCallback());
-      // Triggers the execution of DnsPlatformAndroidAttempt::StartInternal,
-      // which calls ::Query. At this point our mock posts RunLoop::Quit, before
-      // returning a valid fd.
-      run_loop.Run();
+      int rv = executor.Start(future.GetCallback());
+      ASSERT_EQ(rv, ERR_IO_PENDING);
+      histograms.ExpectUniqueSample(
+          "Net.DNS.DnsPlatformAndroidAttempt.FdAlreadyReadable", false, 1);
       // The end of the scope destroys the executor, which should close the fd.
     }
+  } else {
+    GTEST_SKIP_(kSkipTestOnAndroidVersionBelow29);
+  }
+}
+
+TEST_F(DnsPlatformAndroidAttemptTest, SuccessAsync) {
+  if (__builtin_available(android 29, *)) {
+    int pipefd[2];
+    ASSERT_EQ(pipe(pipefd), 0);
+    base::ScopedFD read_fd(pipefd[0]);
+    base::ScopedFD write_fd(pipefd[1]);
+
+    MockAndroidDnsPlatformAttemptDelegate delegate;
+
+    EXPECT_CALL(delegate, Query(NETWORK_UNSPECIFIED, StrEq("www.google.com"),
+                                dns_protocol::kTypeA))
+        .WillOnce(Return(read_fd.get()));
+
+    EXPECT_CALL(delegate, Result(read_fd.get(), _, _))
+        .WillOnce([&](int, int* rcode, base::span<uint8_t> answer) {
+          std::ranges::copy(successful_dns_response, answer.begin());
+          return successful_dns_response.size();
+        });
+
+    EXPECT_CALL(delegate, Close(read_fd.get())).Times(0);
+
+    DnsPlatformAndroidAttempt executor(
+        /*server_index=*/0, kQName, dns_protocol::kTypeA,
+        handles::kInvalidNetworkHandle, &delegate, NetLogWithSource());
+
+    base::HistogramTester histograms;
+    ResultsCallbackTestFuture future;
+    int rv = executor.Start(future.GetCallback());
+
+    // Since the pipe is empty, it must return ERR_IO_PENDING.
+    ASSERT_EQ(rv, ERR_IO_PENDING);
+
+    // Verify that it was NOT readable initially.
+    histograms.ExpectUniqueSample(
+        "Net.DNS.DnsPlatformAndroidAttempt.FdAlreadyReadable", false, 1);
+
+    // Asynchronously write to the pipe to make it readable.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(
+                       [](int fd) {
+                         CHECK_EQ(write(fd, "ready", 5), 5);
+                       },
+                       write_fd.get()));
+
+    int result = future.Take();
+
+    EXPECT_THAT(result, IsOk());
+    const DnsResponse* response = executor.GetResponse();
+    ASSERT_NE(response, nullptr);
+    EXPECT_EQ(response->io_buffer()->size(),
+              static_cast<int>(successful_dns_response.size()));
+    EXPECT_EQ(std::string_view(response->io_buffer()->data(),
+                                response->io_buffer()->size()),
+              std::string_view(
+                  reinterpret_cast<const char*>(successful_dns_response.data()),
+                  successful_dns_response.size()));
+    EXPECT_EQ(response->rcode(), dns_protocol::kRcodeNOERROR);
+
   } else {
     GTEST_SKIP_(kSkipTestOnAndroidVersionBelow29);
   }
@@ -358,8 +447,10 @@ TEST_F(DnsPlatformAndroidAttemptTest, E2EUnsuccessfulResolution) {
         NetLogWithSource());
 
     ResultsCallbackTestFuture future;
-    executor.Start(future.GetCallback());
-    int result = future.Take();
+    int rv = executor.Start(future.GetCallback());
+    // This is a real E2E test, so we don't know whether `Start` terminates
+    // synchronously or asynchronously.
+    int result = rv == ERR_IO_PENDING ? future.Take() : rv;
 
     // Make sure it terminates with a failure, but the exact failure is not
     // important.

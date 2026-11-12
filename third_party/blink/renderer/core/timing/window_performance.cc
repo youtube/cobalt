@@ -1552,25 +1552,20 @@ void WindowPerformance::AddContainerTiming(
 void WindowPerformance::TryReportAsFirstInputTiming(
     PerformanceEventTiming* event_timing_entry) {
   CHECK(event_timing_entry);
+  CHECK(event_timing_entry->HasInteractionId());
 
   // If we have already emitted, bail out.
   if (first_input_timing_) {
     return;
   }
-
-  PerformanceEventTiming* new_first_input_entry = nullptr;
-
-  CHECK(event_timing_entry->HasKnownInteractionID());
-  if (event_timing_entry->interactionId() != 0) {
-    new_first_input_entry =
-        PerformanceEventTiming::CreateFirstInputTiming(event_timing_entry);
-  }
-
-  if (!new_first_input_entry) {
+  if (!event_timing_entry->IsInteraction()) {
     return;
   }
 
+  PerformanceEventTiming* new_first_input_entry =
+      PerformanceEventTiming::CreateFirstInputTiming(event_timing_entry);
   CHECK_EQ("first-input", new_first_input_entry->entryType());
+
   if (HasObserverFor(PerformanceEntry::kFirstInput)) {
     UseCounter::Count(GetExecutionContext(),
                       WebFeature::kEventTimingExplicitlyRequested);
@@ -1661,7 +1656,7 @@ SpeculationData* WindowPerformance::getSpeculations() {
   if (!window || !window->document()) {
     return MakeGarbageCollected<SpeculationData>(
         HeapVector<Member<PreloadData>>(),
-        HeapVector<Member<SpeculationNavigationData>>());
+        HeapVector<Member<SpeculationNavigationData>>(), KURL());
   }
 
   Document* document = window->document();
@@ -1672,7 +1667,7 @@ SpeculationData* WindowPerformance::getSpeculations() {
     const auto& preload_records = document->Fetcher()->GetPreloadRecords();
     for (const auto& [url, info] : preload_records) {
       preloads.push_back(MakeGarbageCollected<PreloadData>(
-          url, info.as, info.crossorigin, info.used_time));
+          url, info.as, info.crossorigin, info.early_hints, info.used_time));
     }
   }
 
@@ -1694,8 +1689,8 @@ SpeculationData* WindowPerformance::getSpeculations() {
     }
   }
 
-  return MakeGarbageCollected<SpeculationData>(std::move(preloads),
-                                               std::move(navigations));
+  return MakeGarbageCollected<SpeculationData>(
+      std::move(preloads), std::move(navigations), navigation_destination_url_);
 }
 
 uint64_t WindowPerformance::interactionCount() const {

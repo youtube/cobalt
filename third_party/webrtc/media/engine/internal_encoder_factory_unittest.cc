@@ -13,11 +13,11 @@
 #include <memory>
 #include <optional>
 
-#include "api/environment/environment_factory.h"
 #include "api/video_codecs/sdp_video_format.h"
 #include "api/video_codecs/video_encoder.h"
 #include "api/video_codecs/video_encoder_factory.h"
 #include "media/base/media_constants.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -54,7 +54,7 @@ MATCHER_P(Support, expected, "") {
 TEST(InternalEncoderFactoryTest, Vp8) {
   InternalEncoderFactory factory;
   std::unique_ptr<VideoEncoder> encoder =
-      factory.Create(CreateEnvironment(), SdpVideoFormat::VP8());
+      factory.Create(CreateTestEnvironment(), SdpVideoFormat::VP8());
   EXPECT_TRUE(encoder);
 }
 
@@ -62,7 +62,7 @@ TEST(InternalEncoderFactoryTest, Vp9Profile0) {
   InternalEncoderFactory factory;
   if (kVp9Enabled) {
     std::unique_ptr<VideoEncoder> encoder =
-        factory.Create(CreateEnvironment(), SdpVideoFormat::VP9Profile0());
+        factory.Create(CreateTestEnvironment(), SdpVideoFormat::VP9Profile0());
     EXPECT_TRUE(encoder);
   } else {
     EXPECT_THAT(factory.GetSupportedFormats(),
@@ -74,7 +74,7 @@ TEST(InternalEncoderFactoryTest, H264) {
   InternalEncoderFactory factory;
   if (kH264Enabled) {
     std::unique_ptr<VideoEncoder> encoder =
-        factory.Create(CreateEnvironment(), SdpVideoFormat::H264());
+        factory.Create(CreateTestEnvironment(), SdpVideoFormat::H264());
     EXPECT_TRUE(encoder);
   } else {
     EXPECT_THAT(factory.GetSupportedFormats(),
@@ -86,7 +86,7 @@ TEST(InternalEncoderFactoryTest, H264) {
 TEST(InternalEncoderFactoryTest, H265IsNotEnabled) {
   InternalEncoderFactory factory;
   std::unique_ptr<VideoEncoder> encoder =
-      factory.Create(CreateEnvironment(), SdpVideoFormat(kH265CodecName));
+      factory.Create(CreateTestEnvironment(), SdpVideoFormat(kH265CodecName));
   EXPECT_EQ(static_cast<bool>(encoder), kH265Enabled);
   EXPECT_THAT(factory.GetSupportedFormats(),
               Not(Contains(Field(&SdpVideoFormat::name, kH265CodecName))));
@@ -122,7 +122,7 @@ TEST(InternalEncoderFactoryTest, Av1) {
   EXPECT_THAT(factory.GetSupportedFormats(),
               Contains(Field(&SdpVideoFormat::name, kAv1CodecName)));
   EXPECT_TRUE(
-      factory.Create(CreateEnvironment(), SdpVideoFormat::AV1Profile0()));
+      factory.Create(CreateTestEnvironment(), SdpVideoFormat::AV1Profile0()));
 }
 
 TEST(InternalEncoderFactoryTest, QueryCodecSupportNoScalabilityModeAv1) {

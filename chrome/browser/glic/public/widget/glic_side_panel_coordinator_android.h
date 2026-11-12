@@ -18,6 +18,10 @@
 
 class BrowserWindowInterface;
 
+namespace context_sharing {
+class CoBrowseViewsBridge;
+}
+
 namespace glic {
 
 class GlicSidePanelCoordinatorAndroid
@@ -40,6 +44,7 @@ class GlicSidePanelCoordinatorAndroid
       base::RepeatingCallback<void(State state)> callback) override;
   int GetPreferredWidth() override;
   bool IsGlicSidePanelActive() override;
+  void SuppressBottomSheetForTesting(bool suppress);
 
   // context_sharing::TabBottomSheetBridge::Observer:
   void OnClosed() override;
@@ -64,7 +69,9 @@ class GlicSidePanelCoordinatorAndroid
   base::CallbackListSubscription did_activate_subscription_;
   base::CallbackListSubscription will_deactivate_subscription_;
   base::CallbackListSubscription will_detach_subscription_;
-  std::unique_ptr<context_sharing::TabBottomSheetBridge> bridge_;
+  std::unique_ptr<context_sharing::CoBrowseViewsBridge> views_bridge_;
+  std::unique_ptr<context_sharing::TabBottomSheetBridge>
+      tab_bottom_sheet_bridge_;
   base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
       browser_observation_{this};
 };

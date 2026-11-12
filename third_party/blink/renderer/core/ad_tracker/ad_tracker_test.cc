@@ -19,6 +19,7 @@
 #include "third_party/blink/renderer/core/dom/element_traversal.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/html/html_frame_owner_element.h"
 #include "third_party/blink/renderer/core/html/html_image_element.h"
 #include "third_party/blink/renderer/core/probe/async_task_context.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
@@ -4393,6 +4394,181 @@ TEST(AdTrackerTest, AdScriptAncestry_ScriptIdFromDifferentTracker) {
 
   ad_tracker_a->Shutdown();
   ad_tracker_b->Shutdown();
+}
+
+TEST_F(AdTrackerSimTest, JavascriptUrlDetected) {
+  String ad_script_url = "https://example.com/script.js?ad=true";
+  SimSubresourceRequest ad_script(ad_script_url, "text/javascript");
+
+  main_resource_->Complete(R"HTML(
+    <body><script src="script.js?ad=true"></script></body>
+  )HTML");
+
+  // The ad script creates an iframe with a javascript: URL.
+  // The frame should be tagged as an ad.
+  ad_script.Complete(R"SCRIPT(
+    const iframe = document.createElement('iframe');
+    iframe.src = `javascript:
+      const iframe2 = parent.document.createElement('iframe');
+      iframe2.id = 'test';
+      iframe2.src = 'about:blank';
+      parent.document.body.appendChild(iframe2);
+    `;
+    document.body.appendChild(iframe);
+  )SCRIPT");
+
+  // Run loop to allow the first iframe to be created, the javascript: URL
+  // navigation to be scheduled, and the javascript: URL to execute
+  // asynchronously.
+  base::RunLoop().RunUntilIdle();
+
+  // Verify that the second iframe (test) is created.
+  Element* test_element = GetDocument().getElementById(AtomicString("test"));
+  ASSERT_TRUE(test_element);
+
+  auto* test_frame = To<HTMLFrameOwnerElement>(test_element)->ContentFrame();
+  ASSERT_TRUE(test_frame);
+  ASSERT_TRUE(test_frame->IsLocalFrame());
+
+  // The second iframe should now be correctly flagged as created by ad script.
+  EXPECT_TRUE(To<LocalFrame>(test_frame)->IsFrameCreatedByAdScript());
+}
+
+TEST_F(AdTrackerSimTest, JavascriptUrlAnchorDetected) {
+  String ad_script_url = "https://example.com/script.js?ad=true";
+  SimSubresourceRequest ad_script(ad_script_url, "text/javascript");
+
+  main_resource_->Complete(R"HTML(
+    <body><script src="script.js?ad=true"></script></body>
+  )HTML");
+
+  // The ad script creates an anchor tag with a javascript: URL and clicks it.
+  // This should be correctly flagged because we synchronously tag the pending
+  // javascript: URL navigation initiated by an ad script, regardless of the
+  // element type that triggered it.
+  ad_script.Complete(R"SCRIPT(
+    const a = document.createElement('a');
+    a.href = `javascript:
+      const iframe = document.createElement('iframe');
+      iframe.id = 'test';
+      iframe.src = 'about:blank';
+      document.body.appendChild(iframe);
+    `;
+    document.body.appendChild(a);
+    a.click();
+  )SCRIPT");
+
+  base::RunLoop().RunUntilIdle();
+
+  // Verify that the iframe (test) is created.
+  Element* test_element = GetDocument().getElementById(AtomicString("test"));
+  ASSERT_TRUE(test_element);
+
+  auto* test_frame = To<HTMLFrameOwnerElement>(test_element)->ContentFrame();
+  ASSERT_TRUE(test_frame);
+  ASSERT_TRUE(test_frame->IsLocalFrame());
+
+  // The iframe should be correctly flagged.
+  EXPECT_TRUE(To<LocalFrame>(test_frame)->IsFrameCreatedByAdScript());
+}
+
+TEST_F(AdTrackerSimTest, JavascriptUrlFormDetected) {
+  String ad_script_url = "https://example.com/script.js?ad=true";
+  SimSubresourceRequest ad_script(ad_script_url, "text/javascript");
+
+  main_resource_->Complete(R"HTML(
+    <body><script src="script.js?ad=true"></script></body>
+  )HTML");
+
+  // The ad script creates a form with a javascript: URL action and submits it.
+  // This should be correctly flagged because we synchronously tag the pending
+  // javascript: URL navigation initiated by an ad script, regardless of the
+  // element type that triggered it.
+  ad_script.Complete(R"SCRIPT(
+    const form = document.createElement('form');
+    form.action = `javascript:
+      const iframe = document.createElement('iframe');
+      iframe.id = 'test';
+      iframe.src = 'about:blank';
+      document.body.appendChild(iframe);
+    `;
+    document.body.appendChild(form);
+    form.submit();
+  )SCRIPT");
+
+  base::RunLoop().RunUntilIdle();
+
+  // Verify that the iframe (test) is created.
+  Element* test_element = GetDocument().getElementById(AtomicString("test"));
+  ASSERT_TRUE(test_element);
+
+  auto* test_frame = To<HTMLFrameOwnerElement>(test_element)->ContentFrame();
+  ASSERT_TRUE(test_frame);
+  ASSERT_TRUE(test_frame->IsLocalFrame());
+
+  // The iframe should be correctly flagged.
+  EXPECT_TRUE(To<LocalFrame>(test_frame)->IsFrameCreatedByAdScript());
+}
+
+TEST_F(AdTrackerSimTest, SetTimeoutWithStringScript) {
+  String ad_script_url = "https://example.com/script.js?ad=true";
+  SimSubresourceRequest ad_script(ad_script_url, "text/javascript");
+
+  main_resource_->Complete(R"HTML(
+    <body><script src="script.js?ad=true"></script></body>
+  )HTML");
+
+  // The ad script uses string-based setTimeout to create an iframe. Function
+  // callbacks are correctly attached to the associated script id but strings
+  // are not, so make sure that we capture string-based callbacks and tag
+  // them as ads when they run.
+  ad_script.Complete(R"SCRIPT(
+    setTimeout(`
+      const iframe = document.createElement('iframe');
+      iframe.src = 'about:blank';
+      document.body.appendChild(iframe);
+    `, 0);
+  )SCRIPT");
+
+  base::RunLoop().RunUntilIdle();
+
+  // Verify that the iframe is created.
+  auto* child_frame =
+      To<LocalFrame>(GetDocument().GetFrame()->Tree().FirstChild());
+  ASSERT_TRUE(child_frame);
+
+  // The frame should now be correctly flagged as created by ad script.
+  EXPECT_TRUE(child_frame->IsFrameCreatedByAdScript());
+}
+
+TEST_F(AdTrackerSimTest, NewFunctionDetected) {
+  String ad_script_url = "https://example.com/script.js?ad=true";
+  SimSubresourceRequest ad_script(ad_script_url, "text/javascript");
+
+  main_resource_->Complete(R"HTML(
+    <body><script src="script.js?ad=true"></script></body>
+  )HTML");
+
+  // Make sure that a compiled function from a string is appropriately tagged
+  // as an ad.
+  ad_script.Complete(R"SCRIPT(
+    const f = new Function(`
+      const iframe = document.createElement('iframe');
+      iframe.src = 'about:blank';
+      document.body.appendChild(iframe);
+    `);
+    f();
+  )SCRIPT");
+
+  base::RunLoop().RunUntilIdle();
+
+  // Verify that the iframe is created.
+  auto* child_frame =
+      To<LocalFrame>(GetDocument().GetFrame()->Tree().FirstChild());
+  ASSERT_TRUE(child_frame);
+
+  // The frame should be correctly flagged.
+  EXPECT_TRUE(child_frame->IsFrameCreatedByAdScript());
 }
 
 }  // namespace blink

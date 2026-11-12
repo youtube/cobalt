@@ -14,11 +14,11 @@
 #include <optional>
 
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/video_codecs/sdp_video_format.h"
 #include "api/video_codecs/video_decoder.h"
 #include "api/video_codecs/video_decoder_factory.h"
 #include "media/base/media_constants.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -58,7 +58,7 @@ MATCHER_P(Support, expected, "") {
 }
 
 TEST(InternalDecoderFactoryTest, Vp8) {
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   InternalDecoderFactory factory;
   std::unique_ptr<VideoDecoder> decoder =
       factory.Create(env, SdpVideoFormat::VP8());
@@ -66,7 +66,7 @@ TEST(InternalDecoderFactoryTest, Vp8) {
 }
 
 TEST(InternalDecoderFactoryTest, Vp9Profile0) {
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   InternalDecoderFactory factory;
   std::unique_ptr<VideoDecoder> decoder =
       factory.Create(env, SdpVideoFormat::VP9Profile0());
@@ -74,7 +74,7 @@ TEST(InternalDecoderFactoryTest, Vp9Profile0) {
 }
 
 TEST(InternalDecoderFactoryTest, Vp9Profile1) {
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   InternalDecoderFactory factory;
   std::unique_ptr<VideoDecoder> decoder =
       factory.Create(env, SdpVideoFormat::VP9Profile1());
@@ -82,7 +82,7 @@ TEST(InternalDecoderFactoryTest, Vp9Profile1) {
 }
 
 TEST(InternalDecoderFactoryTest, H264) {
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   InternalDecoderFactory factory;
   std::unique_ptr<VideoDecoder> decoder =
       factory.Create(env, SdpVideoFormat::H264());
@@ -90,7 +90,7 @@ TEST(InternalDecoderFactoryTest, H264) {
 }
 
 TEST(InternalDecoderFactoryTest, Av1Profile0) {
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   InternalDecoderFactory factory;
   if (kDav1dIsIncluded) {
     EXPECT_THAT(factory.GetSupportedFormats(),
@@ -104,7 +104,7 @@ TEST(InternalDecoderFactoryTest, Av1Profile0) {
 
 // At current stage since internal H.265 decoder is not implemented,
 TEST(InternalDecoderFactoryTest, H265IsNotEnabled) {
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   InternalDecoderFactory factory;
   std::unique_ptr<VideoDecoder> decoder =
       factory.Create(env, SdpVideoFormat(kH265CodecName));
@@ -120,7 +120,7 @@ TEST(InternalDecoderFactoryTest, Av1) {
 #endif
 
 TEST(InternalDecoderFactoryTest, Av1Profile1_Dav1dDecoderTrialEnabled) {
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   InternalDecoderFactory factory;
   std::unique_ptr<VideoDecoder> decoder =
       factory.Create(env, SdpVideoFormat::AV1Profile1());

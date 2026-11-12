@@ -19,7 +19,6 @@
 
 #include "api/candidate.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/units/time_delta.h"
 #include "p2p/base/basic_packet_socket_factory.h"
@@ -36,6 +35,7 @@
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/virtual_socket_server.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
@@ -44,7 +44,7 @@
 using ::testing::Eq;
 using ::testing::IsTrue;
 using ::webrtc::Connection;
-using ::webrtc::CreateEnvironment;
+using ::webrtc::CreateTestEnvironment;
 using ::webrtc::Environment;
 using ::webrtc::ICE_PWD_LENGTH;
 using ::webrtc::ICE_UFRAG_LENGTH;
@@ -130,7 +130,7 @@ class TCPPortTest : public ::testing::Test {
   }
 
  protected:
-  const Environment env_ = CreateEnvironment();
+  const Environment env_ = CreateTestEnvironment();
   // When a "create port" helper method is called with an IP, we create a
   // Network with that IP and add it to this list. Using a list instead of a
   // vector so that when it grows, pointers aren't invalidated.

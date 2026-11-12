@@ -12,7 +12,6 @@
 #include "ash/public/cpp/projector/projector_new_screencast_precondition.h"
 #include "ash/public/cpp/test/mock_projector_client.h"
 #include "ash/webui/projector_app/public/cpp/projector_app_constants.h"
-#include "ash/webui/system_apps/public/system_web_app_type.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -44,8 +43,9 @@
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "chromeos/ash/components/account_manager/account_manager_factory.h"
+#include "chromeos/ash/components/system_web_apps/system_web_app_type.h"
 #include "components/account_id/account_id.h"
-#include "components/account_manager_core/account_manager_facade.h"
+#include "components/account_manager_core/account_manager_metrics.h"
 #include "components/account_manager_core/chromeos/account_manager_mojo_service.h"
 #include "components/account_manager_core/chromeos/fake_account_manager_ui.h"
 #include "components/prefs/pref_service.h"
@@ -360,9 +360,8 @@ IN_PROC_BROWSER_TEST_F(ProjectorClientTest,
   EXPECT_EQ(0,
             fake_account_manager_ui_ptr->show_manage_accounts_settings_calls());
   histogram_tester.ExpectUniqueSample(
-      account_manager::AccountManagerFacade::kAccountAdditionSource,
-      account_manager::AccountManagerFacade::AccountAdditionSource::
-          kChromeOSProjectorAppReauth,
+      account_manager::kAccountAdditionSourceHistogramName,
+      account_manager::AccountAdditionSource::kChromeOSProjectorAppReauth,
       /*expected_count=*/1);
 
   fake_account_manager_ui_ptr->CloseDialog();

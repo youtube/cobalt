@@ -54,8 +54,6 @@ const base::FeatureParam<bool> kPrivacySandboxSettings4ShowSampleDataForTesting{
     &kPrivacySandboxSettings4,
     kPrivacySandboxSettings4ShowSampleDataForTestingName, false};
 
-BASE_FEATURE(kOverridePrivacySandboxSettingsLocalTesting,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDisablePrivacySandboxPrompts, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -90,5 +88,5 @@ BASE_FEATURE(kPrivateStateTokensDevUI, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kPrivacySandboxNoticeFramework, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPrivacySandboxAdPrivacyUxDeprecation,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 }  // namespace privacy_sandbox

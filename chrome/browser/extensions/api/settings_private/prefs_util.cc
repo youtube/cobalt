@@ -279,6 +279,7 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::kBoolean;
 
   // Appearance settings.
+  (*s_allowlist)[::prefs::kCtrlTabMru] = settings_api::PrefType::kBoolean;
   (*s_allowlist)[::prefs::kCurrentThemeID] = settings_api::PrefType::kString;
   (*s_allowlist)[::prefs::kPinnedActions] = settings_api::PrefType::kList;
   (*s_allowlist)[themes::prefs::kPolicyThemeColor] =
@@ -1349,9 +1350,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   (*s_allowlist)[optimization_guide::prefs::
                      kAutofillPredictionImprovementsEnterprisePolicyAllowed] =
       settings_api::PrefType::kNumber;
-  (*s_allowlist)
-      [optimization_guide::prefs::kContextualCueingEnterprisePolicyAllowed] =
-          settings_api::PrefType::kNumber;
+  (*s_allowlist)[optimization_guide::prefs::kChromeSuggestionsSettings] =
+      settings_api::PrefType::kNumber;
   (*s_allowlist)[contextual_tasks::kContextualTasksSmartTabSharingSettings] =
       settings_api::PrefType::kNumber;
 

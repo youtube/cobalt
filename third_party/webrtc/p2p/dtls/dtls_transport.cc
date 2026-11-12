@@ -55,7 +55,6 @@
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/stream.h"
-#include "rtc_base/thread.h"
 #include "system_wrappers/include/clock.h"
 #include "system_wrappers/include/metrics.h"
 
@@ -271,7 +270,9 @@ DtlsTransportInternalImpl::DtlsTransportInternalImpl(
           [this](bool success) { CompleteDtlsInStun(success); }) {
   RTC_DCHECK(ice_transport_);
   ConnectToIceTransport();
-  dtls_in_stun_ = ice_transport_->internal()->config().dtls_handshake_in_stun;
+  if (SSLStreamAdapter::IsBoringSsl()) {
+    dtls_in_stun_ = ice_transport_->internal()->config().dtls_handshake_in_stun;
+  }
 }
 
 DtlsTransportInternalImpl::DtlsTransportInternalImpl(
@@ -522,7 +523,9 @@ bool DtlsTransportInternalImpl::AppendSrtpKeyingMaterial(
 bool DtlsTransportInternalImpl::SetupDtls() {
   RTC_DCHECK(dtls_role_);
 
-  dtls_in_stun_ = ice_transport()->config().dtls_handshake_in_stun;
+  if (SSLStreamAdapter::IsBoringSsl()) {
+    dtls_in_stun_ = ice_transport()->config().dtls_handshake_in_stun;
+  }
 
   {
     auto downward = std::make_unique<StreamInterfaceChannel>(ice_transport());
@@ -841,20 +844,15 @@ void DtlsTransportInternalImpl::OnWritableState(
     case DtlsTransportState::kConnected:
       // Note: SignalWritableState fired by set_writable.
       if (dtls_in_stun_ && dtls_ && first_ice_writable) {
-        // Dtls1.3 has one remaining packet after it has become kConnected (?),
-        // make sure that this packet is sent too.
         UpdateHandshakeTimeout();
-        PeriodicRetransmitDtlsPacketUntilDtlsConnected();
+        FlushPendingDtlsPacket();
       }
       set_writable(ice_transport()->writable());
       break;
     case DtlsTransportState::kConnecting:
       if (dtls_in_stun_ && dtls_) {
-        // If DTLS piggybacking is enabled, we set the timeout
-        // on the DTLS object (which is then different from the
-        // inital kDisabledHandshakeTimeoutMs)
         UpdateHandshakeTimeout();
-        PeriodicRetransmitDtlsPacketUntilDtlsConnected();
+        FlushPendingDtlsPacket();
       }
       break;
     case DtlsTransportState::kFailed:
@@ -1245,7 +1243,7 @@ void DtlsTransportInternalImpl::UpdateHandshakeTimeout() {
       dtls_role_ == SSL_CLIENT) {
     // We sent one STUN BINDING request with an embedded DTLS packet and
     // discovered that peer does not support DtlsInStun. The DTLS packet will be
-    // sent by PeriodicRetransmitDtlsPacketUntilDtlsConnected and that will
+    // sent by FlushPendingDtlsPacket and that will
     // incur one more RTT. Increase slightly timeout to avoid unneeded DTLS
     // retranmission.
     delay_ms = (delay_ms * 133) / 100;
@@ -1278,17 +1276,8 @@ bool DtlsTransportInternalImpl::WasDtlsCompletedByPiggybacking() {
                                DtlsStunPiggybackController::State::PENDING);
 }
 
-void DtlsTransportInternalImpl::
-    PeriodicRetransmitDtlsPacketUntilDtlsConnected() {
+void DtlsTransportInternalImpl::FlushPendingDtlsPacket() {
   RTC_DCHECK_RUN_ON(&thread_checker_);
-
-  if (pending_periodic_retransmit_dtls_packet_ == true) {
-    // PeriodicRetransmitDtlsPacketUntilDtlsConnected is called in two places
-    // a) Either by PostTask, where pending_ping_until_dtls_connected_ is FALSE
-    // b) When Ice get connected, in which it is unknown if
-    // pending_periodic_retransmit_dtls_packet_ is true or false.
-    return;
-  }
 
   if (dtls_stun_piggyback_controller_.state() ==
       DtlsStunPiggybackController::State::COMPLETE) {
@@ -1309,32 +1298,6 @@ void DtlsTransportInternalImpl::
                                   /* flags= */ 0);
     }
   }
-
-  if (dtls_stun_piggyback_controller_.state() ==
-      DtlsStunPiggybackController::State::OFF) {
-    // Peer does not support DTLS in STUN. We have now retransmitted the packet
-    // once, and let DTLS handle further retransmits.
-    return;
-  }
-
-  const auto rtt_ms = ice_transport()->GetRttEstimate().value_or(
-      kDefaultHandshakeEstimateRttMs);
-  const int delay_ms = ComputeRetransmissionTimeout(rtt_ms);
-
-  // Set pending before we post task.
-  pending_periodic_retransmit_dtls_packet_ = true;
-  Thread::Current()->PostDelayedHighPrecisionTask(
-      SafeTask(safety_flag_.flag(),
-               [this] {
-                 RTC_DCHECK_RUN_ON(&thread_checker_);
-                 // Clear pending then the PostTask runs.
-                 pending_periodic_retransmit_dtls_packet_ = false;
-                 PeriodicRetransmitDtlsPacketUntilDtlsConnected();
-               }),
-      TimeDelta::Millis(delay_ms));
-  RTC_LOG(LS_INFO) << ToString()
-                   << ": Scheduled retransmit of DTLS packet, delay_ms: "
-                   << delay_ms;
 }
 
 int DtlsTransportInternalImpl::GetRetransmissionCount() const {

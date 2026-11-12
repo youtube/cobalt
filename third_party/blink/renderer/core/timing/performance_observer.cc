@@ -90,6 +90,10 @@ PerformanceEntryType PerformanceObserver::supportedEntryTypeMask(
   if (RuntimeEnabledFeatures::ContainerTimingEnabled(execution_context)) {
     mask |= PerformanceEntry::kContainer;
   }
+  if (RuntimeEnabledFeatures::ScrollPerformanceTimingEnabled(
+          execution_context)) {
+    mask |= PerformanceEntry::kScroll;
+  }
 #if BUILDFLAG(IS_COBALT)
   if (RuntimeEnabledFeatures::CobaltFrameTimingEnabled(execution_context)) {
     mask |= PerformanceEntry::kCobaltFrame;
@@ -160,6 +164,9 @@ Vector<AtomicString> PerformanceObserver::supportedEntryTypes(
   }
   if (mask & PerformanceEntry::kResource) {
     supportedEntryTypes.push_back(performance_entry_names::kResource);
+  }
+  if (mask & PerformanceEntry::kScroll) {
+    supportedEntryTypes.push_back(performance_entry_names::kScroll);
   }
   if (mask & PerformanceEntry::kSoftNavigation) {
     supportedEntryTypes.push_back(performance_entry_names::kSoftNavigation);

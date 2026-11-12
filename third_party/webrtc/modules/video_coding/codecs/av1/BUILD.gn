@@ -167,6 +167,7 @@ if (rtc_include_tests) {
       "../../../../api/video_codecs:scalability_mode",
       "../../../../api/video_codecs:video_codecs_api",
       "../../../../rtc_base:checks",
+      "../../../../test:create_test_environment",
       "../../../../test:create_test_field_trials",
       "../../../../test:test_support",
     ]

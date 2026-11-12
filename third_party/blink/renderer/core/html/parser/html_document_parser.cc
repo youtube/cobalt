@@ -32,6 +32,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/rand_util.h"
 #include "base/strings/strcat.h"
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
@@ -567,7 +568,7 @@ void HTMLDocumentParser::PrepareToStopParsing() {
   AttemptToRunDeferredScriptsAndEnd();
 
   base::TimeDelta elapsed_time = timer.Elapsed();
-  if (metrics_sub_sampler_.ShouldSample(0.01)) {
+  if (base::ShouldRecordSubsampledMetric(0.01)) {
     base::UmaHistogramTimes("Blink.PrepareToStopParsingTime", elapsed_time);
   }
   if (metrics_reporter_) {
@@ -802,7 +803,7 @@ bool HTMLDocumentParser::PumpTokenizer() {
   }
 
   base::TimeDelta pump_tokenizer_elapsed_time = pump_tokenizer_timer.Elapsed();
-  if (metrics_sub_sampler_.ShouldSample(0.01)) {
+  if (base::ShouldRecordSubsampledMetric(0.01)) {
     base::UmaHistogramTimes("Blink.PumpTokenizerTime",
                             pump_tokenizer_elapsed_time);
   }
@@ -909,6 +910,7 @@ void HTMLDocumentParser::ConstructTreeFromToken(AtomicHTMLToken& atomic_token) {
   // Check whether we've exited the header.
   if (!task_runner_state_->HaveExitedHeader()) {
     if (GetDocument()->body()) {
+      TRACE_EVENT_INSTANT("blink", "HTMLDocumentParser::SetExitedHeader");
       task_runner_state_->SetExitedHeader();
     }
   }

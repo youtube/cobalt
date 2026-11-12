@@ -14,6 +14,9 @@ specific_include_rules = {
   "multiplex_encoder_adapter\\.cc": [
     "+media/base",
   ],
+  "av1_qp_parser\\.cc": [
+    "+third_party/libgav1",
+  ],
   ".*test.*\\.cc": [
      "+media/base",
      "+media/engine",

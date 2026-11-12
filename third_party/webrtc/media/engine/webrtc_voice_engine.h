@@ -352,6 +352,7 @@ class WebRtcVoiceReceiveChannel final
   void ResetUnsignaledRecvStream() override;
   absl::AnyInvocable<void() &&> GetResetUnsignaledRecvStreamTask() override;
   std::optional<uint32_t> GetUnsignaledSsrc() const override;
+  std::vector<uint32_t> GetUnsignaledSsrcs() const override;
 
   void OnDemuxerCriteriaUpdatePending() override;
   void OnDemuxerCriteriaUpdateComplete() override;

@@ -23,11 +23,11 @@
 #include "build/build_config.h"
 #include "chrome/browser/actor/actor_navigation_throttle.h"
 #include "chrome/browser/actor/actor_task_delegate.h"
-#include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/actor/tools/tool_request.h"
-#include "chrome/common/actor/task_id.h"
 #include "chrome/common/actor_webui.mojom-forward.h"
 #include "chrome/common/glic_enums.mojom.h"
+#include "components/actor/core/aggregated_journal.h"
+#include "components/actor/core/task_id.h"
 #include "components/actor/core/task_source_info.h"
 #include "components/actor/public/mojom/actor_types.mojom-forward.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
@@ -44,6 +44,7 @@ class ActionTrackerForMetrics;
 class ActorKeyedService;
 class EnterprisePolicyChecker;
 class ExecutionEngine;
+class TabObservationStrategy;
 
 namespace ui {
 class UiEventDispatcher;
@@ -66,7 +67,8 @@ struct ActionResultWithLatencyInfo;
 class ActorTask : public base::SupportsUserData {
  public:
   using ActCallback =
-      base::OnceCallback<void(std::vector<ActionResultWithLatencyInfo>)>;
+      base::OnceCallback<void(std::vector<ActionResultWithLatencyInfo>,
+                              TabObservationStrategy)>;
 
   // Created only via ActorKeyedService::CreateTask or the CreateForTesting
   // method in this class.
@@ -325,7 +327,8 @@ class ActorTask : public base::SupportsUserData {
                              content::WebContents* old_contents,
                              content::WebContents* new_contents);
 
-  void OnFinishedAct(std::vector<ActionResultWithLatencyInfo> action_results);
+  void OnFinishedAct(std::vector<ActionResultWithLatencyInfo> action_results,
+                     TabObservationStrategy observation_strategy);
 
   void OnTabWillDetach(tabs::TabInterface* tab,
                        tabs::TabInterface::DetachReason reason);

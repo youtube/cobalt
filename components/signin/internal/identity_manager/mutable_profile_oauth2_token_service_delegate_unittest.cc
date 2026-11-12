@@ -22,6 +22,7 @@
 #include "base/strings/string_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/gmock_callback_support.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
@@ -37,6 +38,7 @@
 #include "components/signin/internal/identity_manager/primary_account_manager.h"
 #include "components/signin/internal/identity_manager/profile_oauth2_token_service.h"
 #include "components/signin/internal/identity_manager/token_binding_helper.h"
+#include "components/signin/public/base/binding_key_registration_token_result.h"
 #include "components/signin/public/base/device_id_helper.h"
 #include "components/signin/public/base/hybrid_encryption_key.h"
 #include "components/signin/public/base/signin_metrics.h"
@@ -67,6 +69,7 @@
 #include "net/http/http_status_code.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/test/test_network_connection_tracker.h"
+#include "services/network/test/test_utils.h"
 #include "sql/statement.h"
 #include "sql/test/test_helpers.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -79,8 +82,10 @@ using ::testing::_;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::Field;
+using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::Key;
+using ::testing::Not;
 using ::testing::SizeIs;
 
 constexpr char kTestTokenDatabase[] = "TestTokenDatabase";
@@ -171,16 +176,17 @@ class MutableProfileOAuth2TokenServiceDelegateTest
       public ProfileOAuth2TokenServiceObserver,
       public WebDataServiceConsumer {
  public:
+  MutableProfileOAuth2TokenServiceDelegateTest()
+      : account_tracker_service_(CreateAccountTrackerService()) {}
+
   void SetUp() override {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
-    AccountTrackerService::RegisterPrefs(pref_service_.registry());
     PrimaryAccountManager::RegisterProfilePrefs(pref_service_.registry());
     ProfileOAuth2TokenService::RegisterProfilePrefs(pref_service_.registry());
     client_ = std::make_unique<TestSigninClient>(&pref_service_);
     client_->GetTestURLLoaderFactory()->AddResponse(
         GaiaUrls::GetInstance()->oauth2_revoke_url().spec(), "");
     LoadTokenDatabase();
-    account_tracker_service_.Initialize(&pref_service_, base::FilePath());
   }
 
   void TearDown() override {
@@ -367,19 +373,24 @@ class MutableProfileOAuth2TokenServiceDelegateTest
   }
 
  protected:
+  AccountTrackerService CreateAccountTrackerService() {
+    AccountTrackerService::RegisterPrefs(pref_service_.registry());
+    return AccountTrackerService(&pref_service_, base::FilePath());
+  }
+
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::MainThreadType::UI,
       base::test::TaskEnvironment::TimeSource::MOCK_TIME,
       base::test::TaskEnvironment::ThreadPoolExecutionMode::ASYNC};
   std::unique_ptr<TestSigninClient> client_;
+  sync_preferences::TestingPrefServiceSyncable pref_service_;
+  AccountTrackerService account_tracker_service_;
   std::unique_ptr<MutableProfileOAuth2TokenServiceDelegate>
       oauth2_service_delegate_;
   base::ScopedObservation<ProfileOAuth2TokenServiceDelegate,
                           ProfileOAuth2TokenServiceObserver>
       test_service_observation_{this};
   TestingOAuth2AccessTokenManagerConsumer consumer_;
-  sync_preferences::TestingPrefServiceSyncable pref_service_;
-  AccountTrackerService account_tracker_service_;
   base::ScopedTempDir temp_dir_;
   std::unique_ptr<os_crypt_async::OSCryptAsync> os_crypt_{
       os_crypt_async::GetTestOSCryptAsyncForTesting(
@@ -2291,6 +2302,61 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateBoundTokensTest,
   oauth2_service_delegate_->ExtractCredentials(&dest_token_service, account_id);
 }
 
+TEST_F(MutableProfileOAuth2TokenServiceDelegateBoundTokensTest,
+       TokenUpgradeEligibilityFlagFeatureEnabled) {
+  base::test::ScopedFeatureList scoped_feature_list(
+      switches::kEnableChromeRefreshTokenBindingUpgrade);
+  const CoreAccountId account_id = account_tracker_service_.SeedAccountInfo(
+      GaiaId("account_id"), "test@google.com");
+  const std::vector<uint8_t> kFakeWrappedBindingKey = {1, 2, 3};
+
+  InitializeOAuth2ServiceDelegateWithTokenBinding();
+  oauth2_service_delegate_->UpdateCredentials(
+      account_id, "refresh_token",
+      signin_metrics::SourceForRefreshTokenOperation::kUnknown,
+      signin::TokenBindingInfo(kFakeWrappedBindingKey,
+                               /*mtls_token_binding=*/false));
+  std::unique_ptr<OAuth2AccessTokenFetcher> fetcher =
+      oauth2_service_delegate_->CreateAccessTokenFetcher(
+          account_id, oauth2_service_delegate_->GetURLLoaderFactory(), this,
+          /*token_binding_challenge=*/"");
+  fetcher->Start("foo", "bar", {"scope"});
+  ASSERT_GE(client_->GetTestURLLoaderFactory()->pending_requests()->size(), 1u);
+  const std::string request_body = network::GetUploadData(
+      client_->GetTestURLLoaderFactory()->pending_requests()->back().request);
+  EXPECT_THAT(request_body,
+              HasSubstr("&check_bound_token_upgrade_eligibility=true"));
+  ShutdownOAuth2ServiceDelegate();
+}
+
+TEST_F(MutableProfileOAuth2TokenServiceDelegateBoundTokensTest,
+       TokenUpgradeEligibilityFlagFeatureDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      switches::kEnableChromeRefreshTokenBindingUpgrade);
+  const CoreAccountId account_id = account_tracker_service_.SeedAccountInfo(
+      GaiaId("account_id"), "test@google.com");
+  const std::vector<uint8_t> kFakeWrappedBindingKey = {1, 2, 3};
+
+  InitializeOAuth2ServiceDelegateWithTokenBinding();
+  oauth2_service_delegate_->UpdateCredentials(
+      account_id, "refresh_token",
+      signin_metrics::SourceForRefreshTokenOperation::kUnknown,
+      signin::TokenBindingInfo(kFakeWrappedBindingKey,
+                               /*mtls_token_binding=*/false));
+  std::unique_ptr<OAuth2AccessTokenFetcher> fetcher =
+      oauth2_service_delegate_->CreateAccessTokenFetcher(
+          account_id, oauth2_service_delegate_->GetURLLoaderFactory(), this,
+          /*token_binding_challenge=*/"");
+  fetcher->Start("foo", "bar", {"scope"});
+  ASSERT_GE(client_->GetTestURLLoaderFactory()->pending_requests()->size(), 1u);
+  const std::string request_body = network::GetUploadData(
+      client_->GetTestURLLoaderFactory()->pending_requests()->back().request);
+  EXPECT_THAT(request_body,
+              Not(HasSubstr("&check_bound_token_upgrade_eligibility=true")));
+  ShutdownOAuth2ServiceDelegate();
+}
+
 class MutableProfileOAuth2TokenServiceDelegateWithChallengeParamTest
     : public MutableProfileOAuth2TokenServiceDelegateBoundTokensTest,
       public testing::WithParamInterface<std::string> {};
@@ -2499,6 +2565,183 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
   // Should not crash when passing an empty key or call anything on the mock.
   oauth2_service_delegate_->AddBindingKeyToService({});
 }
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
+       GenerateBindingKeyRegistrationTokenNoTokenBindingHelper) {
+  oauth2_service_delegate_ =
+      CreateOAuth2ServiceDelegate(/*token_binding_helper=*/nullptr);
+  base::test::TestFuture<
+      std::optional<signin::BindingKeyRegistrationTokenResult>>
+      future;
+  EXPECT_FALSE(oauth2_service_delegate_->GenerateBindingKeyRegistrationToken(
+      "ES256", "test_code", future.GetCallback()));
+}
+
+TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
+       GenerateBindingKeyRegistrationTokenWithTokenBindingHelper) {
+  testing::StrictMock<unexportable_keys::MockUnexportableKeyService>
+      mock_unexportable_key_service;
+  // Set up a key generation failure for simplicity.
+  EXPECT_CALL(mock_unexportable_key_service, GenerateSigningKeySlowlyAsync)
+      .WillOnce(base::test::RunOnceCallback<2>(
+          base::unexpected(unexportable_keys::ServiceError::kCryptoApiFailed)));
+  oauth2_service_delegate_ = CreateOAuth2ServiceDelegate(
+      std::make_unique<TokenBindingHelper>(mock_unexportable_key_service));
+  base::test::TestFuture<
+      std::optional<signin::BindingKeyRegistrationTokenResult>>
+      future;
+  EXPECT_TRUE(oauth2_service_delegate_->GenerateBindingKeyRegistrationToken(
+      "ES256", "test_code", future.GetCallback()));
+  EXPECT_FALSE(future.Get().has_value());
+}
+
+TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
+       RevokeBoundTokenClearsRegistrationTokenHelper) {
+  testing::StrictMock<unexportable_keys::MockUnexportableKeyService>
+      mock_unexportable_key_service;
+  oauth2_service_delegate_ = CreateOAuth2ServiceDelegate(
+      std::make_unique<TokenBindingHelper>(mock_unexportable_key_service));
+  oauth2_service_delegate_->SetOnRefreshTokenRevokedNotified(base::DoNothing());
+
+  const CoreAccountId account_id =
+      CoreAccountId::FromGaiaId(GaiaId("account_id"));
+  const std::vector<uint8_t> kFakeWrappedBindingKey = {1, 2, 3};
+  oauth2_service_delegate_->UpdateCredentials(
+      account_id, "refresh_token",
+      signin_metrics::SourceForRefreshTokenOperation::kUnknown,
+      signin::TokenBindingInfo(kFakeWrappedBindingKey,
+                               /*mtls_token_binding=*/false));
+
+  // First request reuses the existing binding key.
+  EXPECT_CALL(mock_unexportable_key_service, FromWrappedSigningKeySlowlyAsync)
+      .WillOnce(base::test::RunOnceCallback<2>(
+          base::unexpected(unexportable_keys::ServiceError::kCryptoApiFailed)));
+
+  base::test::TestFuture<
+      std::optional<signin::BindingKeyRegistrationTokenResult>>
+      future_1;
+  EXPECT_TRUE(oauth2_service_delegate_->GenerateBindingKeyRegistrationToken(
+      "ES256", "test_code_1", future_1.GetCallback()));
+  EXPECT_FALSE(future_1.Get().has_value());
+
+  // Revoking credentials removes the binding key and resets the registration
+  // token helper.
+  oauth2_service_delegate_->RevokeCredentials(account_id);
+
+  // Subsequent request generates a new signing key.
+  EXPECT_CALL(mock_unexportable_key_service, GenerateSigningKeySlowlyAsync)
+      .WillOnce(base::test::RunOnceCallback<2>(
+          base::unexpected(unexportable_keys::ServiceError::kCryptoApiFailed)));
+
+  base::test::TestFuture<
+      std::optional<signin::BindingKeyRegistrationTokenResult>>
+      future_2;
+  EXPECT_TRUE(oauth2_service_delegate_->GenerateBindingKeyRegistrationToken(
+      "ES256", "test_code_2", future_2.GetCallback()));
+  EXPECT_FALSE(future_2.Get().has_value());
+}
+
+TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
+       RevokeAllBoundTokensClearsRegistrationTokenHelper) {
+  testing::StrictMock<unexportable_keys::MockUnexportableKeyService>
+      mock_unexportable_key_service;
+  oauth2_service_delegate_ = CreateOAuth2ServiceDelegate(
+      std::make_unique<TokenBindingHelper>(mock_unexportable_key_service));
+  oauth2_service_delegate_->SetOnRefreshTokenRevokedNotified(base::DoNothing());
+
+  const CoreAccountId account_id_1 =
+      CoreAccountId::FromGaiaId(GaiaId("account_id_1"));
+  const CoreAccountId account_id_2 =
+      CoreAccountId::FromGaiaId(GaiaId("account_id_2"));
+  const std::vector<uint8_t> kFakeWrappedBindingKey = {1, 2, 3};
+  oauth2_service_delegate_->UpdateCredentials(
+      account_id_1, "refresh_token_1",
+      signin_metrics::SourceForRefreshTokenOperation::kUnknown,
+      signin::TokenBindingInfo(kFakeWrappedBindingKey,
+                               /*mtls_token_binding=*/false));
+  oauth2_service_delegate_->UpdateCredentials(
+      account_id_2, "refresh_token_2",
+      signin_metrics::SourceForRefreshTokenOperation::kUnknown,
+      signin::TokenBindingInfo(kFakeWrappedBindingKey,
+                               /*mtls_token_binding=*/false));
+
+  // First request reuses the existing binding key.
+  EXPECT_CALL(mock_unexportable_key_service, FromWrappedSigningKeySlowlyAsync)
+      .WillOnce(base::test::RunOnceCallback<2>(
+          base::unexpected(unexportable_keys::ServiceError::kCryptoApiFailed)));
+
+  base::test::TestFuture<
+      std::optional<signin::BindingKeyRegistrationTokenResult>>
+      future_1;
+  EXPECT_TRUE(oauth2_service_delegate_->GenerateBindingKeyRegistrationToken(
+      "ES256", "test_code_1", future_1.GetCallback()));
+  EXPECT_FALSE(future_1.Get().has_value());
+
+  // Revoking all credentials removes all binding keys and resets the
+  // registration token helper.
+  oauth2_service_delegate_->RevokeAllCredentials(
+      signin_metrics::SourceForRefreshTokenOperation::kUnknown);
+
+  // Subsequent request generates a new signing key.
+  EXPECT_CALL(mock_unexportable_key_service, GenerateSigningKeySlowlyAsync)
+      .WillOnce(base::test::RunOnceCallback<2>(
+          base::unexpected(unexportable_keys::ServiceError::kCryptoApiFailed)));
+
+  base::test::TestFuture<
+      std::optional<signin::BindingKeyRegistrationTokenResult>>
+      future_2;
+  EXPECT_TRUE(oauth2_service_delegate_->GenerateBindingKeyRegistrationToken(
+      "ES256", "test_code_2", future_2.GetCallback()));
+  EXPECT_FALSE(future_2.Get().has_value());
+}
+
+TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
+       InvalidateBoundTokenClearsRegistrationTokenHelper) {
+  testing::StrictMock<unexportable_keys::MockUnexportableKeyService>
+      mock_unexportable_key_service;
+  oauth2_service_delegate_ = CreateOAuth2ServiceDelegate(
+      std::make_unique<TokenBindingHelper>(mock_unexportable_key_service));
+
+  const CoreAccountId account_id =
+      CoreAccountId::FromGaiaId(GaiaId("account_id"));
+  const std::vector<uint8_t> kFakeWrappedBindingKey = {1, 2, 3};
+  oauth2_service_delegate_->UpdateCredentials(
+      account_id, "refresh_token",
+      signin_metrics::SourceForRefreshTokenOperation::kUnknown,
+      signin::TokenBindingInfo(kFakeWrappedBindingKey,
+                               /*mtls_token_binding=*/false));
+
+  // First request reuses the existing binding key.
+  EXPECT_CALL(mock_unexportable_key_service, FromWrappedSigningKeySlowlyAsync)
+      .WillOnce(base::test::RunOnceCallback<2>(
+          base::unexpected(unexportable_keys::ServiceError::kCryptoApiFailed)));
+
+  base::test::TestFuture<
+      std::optional<signin::BindingKeyRegistrationTokenResult>>
+      future_1;
+  EXPECT_TRUE(oauth2_service_delegate_->GenerateBindingKeyRegistrationToken(
+      "ES256", "test_code_1", future_1.GetCallback()));
+  EXPECT_FALSE(future_1.Get().has_value());
+
+  // Invalidating the refresh token removes the binding key and resets the
+  // registration token helper.
+  oauth2_service_delegate_->UpdateCredentials(
+      account_id, GaiaConstants::kInvalidRefreshToken);
+
+  // Subsequent request generates a new signing key.
+  EXPECT_CALL(mock_unexportable_key_service, GenerateSigningKeySlowlyAsync)
+      .WillOnce(base::test::RunOnceCallback<2>(
+          base::unexpected(unexportable_keys::ServiceError::kCryptoApiFailed)));
+
+  base::test::TestFuture<
+      std::optional<signin::BindingKeyRegistrationTokenResult>>
+      future_2;
+  EXPECT_TRUE(oauth2_service_delegate_->GenerateBindingKeyRegistrationToken(
+      "ES256", "test_code_2", future_2.GetCallback()));
+  EXPECT_FALSE(future_2.Get().has_value());
+}
+#endif
 
 class MutableProfileOAuth2TokenServiceDelegateGarbageCollectionTest
     : public MutableProfileOAuth2TokenServiceDelegateTest,

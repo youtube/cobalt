@@ -9,6 +9,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
+#include "build/build_config.h"
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_cookie_synchronizer.h"
@@ -50,6 +51,7 @@
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/unowned_user_data/user_data_factory.h"
+#include "ui/gfx/scoped_animation_duration_scale_mode.h"
 
 using testing::_;
 
@@ -59,6 +61,7 @@ constexpr char kMockAimPageHost[] = "www.google.com";
 
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kPrimaryTab);
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kGenericTab);
+DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kGenericTab2);
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kInnerWebContentsId);
 DEFINE_LOCAL_CUSTOM_ELEMENT_EVENT_TYPE(kElementExistsEvent);
 DEFINE_LOCAL_CUSTOM_ELEMENT_EVENT_TYPE(kElementDoesNotExistEvent);
@@ -207,26 +210,26 @@ class ContextualTasksInteractiveUiTest : public InteractiveBrowserTest {
           GURL cluster_info_url{
               lens::features::GetLensOverlayClusterInfoEndpointUrl()};
           GURL upload_url{lens::features::GetLensOverlayEndpointURL()};
-          if (url.host() == cluster_info_url.host()) {
-            if (url.path() == cluster_info_url.path()) {
-              lens::LensOverlayServerClusterInfoResponse response;
-              response.set_search_session_id("test_search_session_id");
-              std::string response_string;
-              CHECK(response.SerializeToString(&response_string));
-              content::URLLoaderInterceptor::WriteResponse(
-                  "HTTP/1.1 200 OK\nContent-Type: application/x-protobuf\n\n",
-                  response_string, params->client.get());
-              return true;
-            }
-            if (url.path() == upload_url.path()) {
-              lens::LensOverlayServerResponse response;
-              std::string response_string;
-              CHECK(response.SerializeToString(&response_string));
-              content::URLLoaderInterceptor::WriteResponse(
-                  "HTTP/1.1 200 OK\nContent-Type: application/x-protobuf\n\n",
-                  response_string, params->client.get());
-              return true;
-            }
+          if (url.host() == cluster_info_url.host() &&
+              url.path() == cluster_info_url.path()) {
+            lens::LensOverlayServerClusterInfoResponse response;
+            response.set_search_session_id("test_search_session_id");
+            std::string response_string;
+            CHECK(response.SerializeToString(&response_string));
+            content::URLLoaderInterceptor::WriteResponse(
+                "HTTP/1.1 200 OK\nContent-Type: application/x-protobuf\n\n",
+                response_string, params->client.get());
+            return true;
+          }
+          if (url.host() == upload_url.host() &&
+              url.path() == upload_url.path()) {
+            lens::LensOverlayServerResponse response;
+            std::string response_string;
+            CHECK(response.SerializeToString(&response_string));
+            content::URLLoaderInterceptor::WriteResponse(
+                "HTTP/1.1 200 OK\nContent-Type: application/x-protobuf\n\n",
+                response_string, params->client.get());
+            return true;
           }
           return false;
         }));
@@ -392,6 +395,52 @@ class ContextualTasksInteractiveUiTest : public InteractiveBrowserTest {
     return WaitForStateChange(kPrimaryTab, change);
   }
 
+  auto WaitForFaviconGroupWithTitle(const ui::ElementIdentifier& contents_id,
+                                    const std::string& expected_title) {
+    StateChange change;
+    change.type = StateChange::Type::kExistsAndConditionTrue;
+    change.where = {"contextual-tasks-app"};
+    change.test_function = base::StringPrintf(
+        "function(app) {"
+        "  const el = "
+        "app?.shadowRoot?.querySelector('#composebox')?.shadowRoot?."
+        "querySelector('#composebox')?.shadowRoot?."
+        "querySelector('#contextEntrypoint')?.shadowRoot?."
+        "querySelector('#entrypointButton')?.shadowRoot?."
+        "querySelector('composebox-favicon-group');"
+        "  if (el && el.tabs) {"
+        "    return el.tabs.some(t => t.title.includes('%s'));"
+        "  }"
+        "  return false;"
+        "}",
+        expected_title.c_str());
+    change.event = kElementExistsEvent;
+    return WaitForStateChange(contents_id, change);
+  }
+
+  auto WaitForDocumentChipWithTitle(const ui::ElementIdentifier& contents_id,
+                                    const std::string& expected_title) {
+    StateChange change;
+    change.type = StateChange::Type::kExistsAndConditionTrue;
+    change.where = {"contextual-tasks-app"};
+    change.test_function = base::StringPrintf(
+        "function(app) {"
+        "  const el = "
+        "app?.shadowRoot?.querySelector('#composebox')?.shadowRoot?."
+        "querySelector('#composebox')?.shadowRoot?."
+        "querySelector('#carousel')?.shadowRoot?."
+        "querySelector('cr-composebox-file-thumbnail')?.shadowRoot?."
+        "querySelector('#documentChip')?.querySelector('#documentTitle');"
+        "  if (el && el.textContent.trim().includes('%s')) {"
+        "    return true;"
+        "  }"
+        "  return false;"
+        "}",
+        expected_title.c_str());
+    change.event = kElementExistsEvent;
+    return WaitForStateChange(contents_id, change);
+  }
+
   auto WaitForInterceptionAndLoad() {
     return Steps(WaitForWebContentsNavigation(kPrimaryTab),
                  CheckElement(kPrimaryTab,
@@ -494,10 +543,104 @@ class ContextualTasksInteractiveUiTest : public InteractiveBrowserTest {
         }));
   }
 
+  auto VerifyMultipleSubmitQueryMessage(
+      const std::string& expected_query_text,
+      int expected_viewport_image_count,
+      int expected_upload_image_count,
+      int expected_upload_file_count,
+      std::vector<std::string> expected_added_input_names) {
+    return Steps(
+        // Wait until the inner WebContents receives a message starting with the
+        // SubmitQuery protobuf tag byte (18 / 0x12).
+        WaitForJsResult(kInnerWebContentsId,
+                        "() => window.receivedMessages.some(buf => new "
+                        "Uint8Array(buf)[0] === 18)"),
+        WithElement(kInnerWebContentsId, [expected_query_text,
+                                          expected_viewport_image_count,
+                                          expected_upload_image_count,
+                                          expected_upload_file_count,
+                                          expected_added_input_names](
+                                             ui::TrackedElement* el) {
+          auto* web_contents = AsInstrumentedWebContents(el)->web_contents();
+          // Extract the binary protobuf message from JavaScript by converting
+          // the matching ArrayBuffer into a base64 encoded string.
+          std::string base64_msg =
+              content::EvalJs(web_contents,
+                              "btoa(Array.from(new "
+                              "Uint8Array(window.receivedMessages.find(buf => "
+                              "new Uint8Array(buf)[0] === 18))).map(b => "
+                              "String.fromCharCode(b)).join(''))")
+                  .ExtractString();
+          std::string decoded_msg;
+          ASSERT_TRUE(base::Base64Decode(base64_msg, &decoded_msg));
+          lens::ClientToAimMessage message;
+          ASSERT_TRUE(message.ParseFromString(decoded_msg));
+
+          // Verify core query payload requirements.
+          EXPECT_TRUE(message.has_submit_query());
+          EXPECT_EQ(message.submit_query().payload().query_text(),
+                    expected_query_text);
+          EXPECT_EQ(
+              message.submit_query().payload().lens_image_query_data_size(),
+              expected_viewport_image_count + expected_upload_image_count +
+                  expected_upload_file_count);
+
+          // Verify additional context inputs.
+          if (!expected_added_input_names.empty()) {
+            EXPECT_TRUE(message.submit_query().payload().has_added_inputs());
+            auto added_inputs = message.submit_query().payload().added_inputs();
+            EXPECT_EQ(added_inputs.added_inputs_size(),
+                      static_cast<int>(expected_added_input_names.size()));
+
+            for (const auto& expected_name : expected_added_input_names) {
+              bool found = false;
+              for (int i = 0; i < added_inputs.added_inputs_size(); ++i) {
+                const auto& input = added_inputs.added_inputs(i);
+                if (input.has_lens_file()) {
+                  std::string name = input.lens_file().file_name();
+                  if (name.empty()) {
+                    name = input.lens_file().page_url();
+                  }
+                  if (name.find(expected_name) != std::string::npos) {
+                    found = true;
+                    break;
+                  }
+                }
+              }
+              EXPECT_TRUE(found)
+                  << "Expected added input not found: " << expected_name;
+            }
+          } else {
+            EXPECT_FALSE(message.submit_query().payload().has_added_inputs());
+          }
+        }));
+  }
+
+  auto InputText(const std::string& query_text) {
+    const DeepQuery kComposeboxInput = {"contextual-tasks-app", "#composebox",
+                                        "#composebox", "#composeboxInput",
+                                        "#input"};
+    return Steps(
+        ClickElement(kPrimaryTab, kComposeboxInput),
+        ExecuteJsAt(
+            kPrimaryTab, kComposeboxInput,
+            base::StringPrintf(
+                "(el) => { "
+                "  el.value = '%s'; "
+                "  el.dispatchEvent(new Event('input', { bubbles: true })); "
+                "  el.dispatchEvent(new Event('change', { bubbles: true })); "
+                "}",
+                query_text.c_str())));
+  }
+
  protected:
   base::test::ScopedFeatureList scoped_feature_list_;
   std::optional<ui::UserDataFactory::ScopedOverride> tab_context_override_;
   std::unique_ptr<content::URLLoaderInterceptor> url_loader_interceptor_;
+
+ private:
+  gfx::ScopedAnimationDurationScaleMode disable_animations_{
+      gfx::ScopedAnimationDurationScaleMode::ZERO_DURATION};
 };
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksInteractiveUiTest,
@@ -540,10 +683,7 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksInteractiveUiTest,
                   ForceClickAddContextEntrypoint(kPrimaryTab),
                   ForceClickMenuButton(kPrimaryTab, "fileUpload"),
 
-                  WaitForElementExists(kPrimaryTab, kDocumentChip),
-                  CheckJsResultAt(kPrimaryTab, kDocumentChipTitle,
-                                  "el => el.textContent.trim()",
-                                  testing::HasSubstr("download.pdf")),
+                  WaitForDocumentChipWithTitle(kPrimaryTab, "download.pdf"),
                   WaitForComposeboxFilesCount(1),
 
                   ClickButton(kPrimaryTab, kRemoveDocumentButton),
@@ -606,11 +746,7 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksInteractiveUiTest,
                   ForceClickAddContextEntrypoint(kPrimaryTab),
                   ForceClickMenuButton(kPrimaryTab, 0),
 
-                  WaitForElementExists(kPrimaryTab, kFaviconGroup),
-                  CheckJsResultAt(kPrimaryTab, kFaviconGroup,
-                                  "el => el.tabs && el.tabs.length === 1 && "
-                                  "el.tabs[0].title.includes('title1.html')",
-                                  true),
+                  WaitForFaviconGroupWithTitle(kPrimaryTab, "title1.html"),
                   WaitForComposeboxFilesCount(1),
 
                   ForceClickAddContextEntrypoint(kPrimaryTab),
@@ -641,11 +777,7 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksInteractiveUiTest,
       InstrumentInnerWebContents(kInnerWebContentsId, kPrimaryTab, 0),
       ForceClickAddContextEntrypoint(kPrimaryTab),
       ForceClickMenuButton(kPrimaryTab, 0),
-      WaitForElementExists(kPrimaryTab, kFaviconGroup),
-      CheckJsResultAt(kPrimaryTab, kFaviconGroup,
-                      "el => el.tabs && el.tabs.length === 1 && "
-                      "el.tabs[0].title.includes('title1.html')",
-                      true),
+      WaitForFaviconGroupWithTitle(kPrimaryTab, "title1.html"),
       WaitForComposeboxFilesCount(1), ClickButton(kPrimaryTab, kSubmitButton),
       VerifySubmitQueryMessage(
           lens::LensOverlayRequestId::MEDIA_TYPE_WEBPAGE_AND_IMAGE,
@@ -688,10 +820,7 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksInteractiveUiTest,
       InstrumentInnerWebContents(kInnerWebContentsId, kPrimaryTab, 0),
       ForceClickAddContextEntrypoint(kPrimaryTab),
       ForceClickMenuButton(kPrimaryTab, "fileUpload"),
-      WaitForElementExists(kPrimaryTab, kDocumentChip),
-      CheckJsResultAt(kPrimaryTab, kDocumentChipTitle,
-                      "el => el.textContent.trim()",
-                      testing::HasSubstr("download.pdf")),
+      WaitForDocumentChipWithTitle(kPrimaryTab, "download.pdf"),
       WaitForComposeboxFilesCount(1), ClickButton(kPrimaryTab, kSubmitButton),
       VerifySubmitQueryMessage(lens::LensOverlayRequestId::MEDIA_TYPE_PDF,
                                "download.pdf"));
@@ -727,6 +856,219 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksInteractiveUiTest,
       WaitForComposeboxFilesCount(1), ClickButton(kPrimaryTab, kSubmitButton),
       VerifySubmitQueryMessage(
           lens::LensOverlayRequestId::MEDIA_TYPE_DEFAULT_IMAGE));
+}
+
+// TODO(crbug.com/516333831): Re-enable this test on Windows.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_AddAndSubmitMultipleContextsFromComposebox \
+  DISABLED_AddAndSubmitMultipleContextsFromComposebox
+#else
+#define MAYBE_AddAndSubmitMultipleContextsFromComposebox \
+  AddAndSubmitMultipleContextsFromComposebox
+#endif
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksInteractiveUiTest,
+                       MAYBE_AddAndSubmitMultipleContextsFromComposebox) {
+  const GURL kInterceptionUrl("https://www.google.com/search?udm=50");
+  const GURL kGenericPageUrl1 = embedded_test_server()->GetURL("/title1.html");
+  const GURL kGenericPageUrl2 = embedded_test_server()->GetURL("/title2.html");
+
+  base::FilePath test_data_dir;
+  base::PathService::Get(chrome::DIR_TEST_DATA, &test_data_dir);
+  base::FilePath pdf_path = test_data_dir.AppendASCII("download.pdf");
+  base::FilePath image_path = test_data_dir.AppendASCII("handbag.png");
+
+  const DeepQuery kFaviconGroup = {
+      "contextual-tasks-app", "#composebox",       "#composebox",
+      "#contextEntrypoint",   "#entrypointButton", "composebox-favicon-group"};
+
+  const DeepQuery kSubmitButton = {"contextual-tasks-app", "#composebox",
+                                   "#composebox", "cr-composebox-submit",
+                                   "#submitContainer"};
+
+  RunTestSequence(
+      InstrumentTab(kPrimaryTab, 0),
+      AddInstrumentedTab(kGenericTab2, kGenericPageUrl2),
+      AddInstrumentedTab(kGenericTab, kGenericPageUrl1),
+      SelectTab(kTabStripElementId, 0),
+      OpenContextualTasksInCurrentTab(kInterceptionUrl),
+      InstrumentInnerWebContents(kInnerWebContentsId, kPrimaryTab, 0),
+
+      // 1. Add Tab 1 (most recent since we opened Tab 2 first, is at Index 0)
+      ForceClickAddContextEntrypoint(kPrimaryTab),
+      ForceClickMenuButton(kPrimaryTab, 0),
+      WaitForFaviconGroupWithTitle(kPrimaryTab, "title1.html"),
+      WaitForComposeboxFilesCount(1),
+
+      // 2. Add Tab 2 (now shifted to Index 1 since Tab 1 is selected. Menu is
+      // already open!)
+      ForceClickMenuButton(kPrimaryTab, 1),
+      WaitForFaviconGroupWithTitle(kPrimaryTab, "Title Of Awesomeness"),
+      WaitForComposeboxFilesCount(2),
+
+      // 3. Set factory for PDF and upload PDF. Menu is still open!
+      Do(base::BindLambdaForTesting([&]() {
+        ui::SelectFileDialog::SetFactory(
+            std::make_unique<content::FakeSelectFileDialogFactory>(
+                std::vector<base::FilePath>{pdf_path}));
+      })),
+      ForceClickMenuButton(kPrimaryTab, "fileUpload"),
+      WaitForDocumentChipWithTitle(kPrimaryTab, "download.pdf"),
+      WaitForComposeboxFilesCount(3),
+
+      // 4. Set factory for Image 1 and upload Image 1
+      Do(base::BindLambdaForTesting([&]() {
+        ui::SelectFileDialog::SetFactory(
+            std::make_unique<content::FakeSelectFileDialogFactory>(
+                std::vector<base::FilePath>{image_path}));
+      })),
+      ForceClickAddContextEntrypoint(kPrimaryTab),
+      ForceClickMenuButton(kPrimaryTab, "imageUpload"),
+      WaitForComposeboxFilesCount(4),
+
+      // 5. Set factory for Image 2 and upload Image 2
+      Do(base::BindLambdaForTesting([&]() {
+        ui::SelectFileDialog::SetFactory(
+            std::make_unique<content::FakeSelectFileDialogFactory>(
+                std::vector<base::FilePath>{image_path}));
+      })),
+      ForceClickAddContextEntrypoint(kPrimaryTab),
+      ForceClickMenuButton(kPrimaryTab, "imageUpload"),
+      WaitForComposeboxFilesCount(5),
+
+      // 6. Submit
+      ClickButton(kPrimaryTab, kSubmitButton),
+
+      // 7. Verify multiple inputs in the final message
+      // We expect 4 images: 2 manual images + 2 viewports from the 2 tabs.
+      // (PDF has no viewport screenshot since it's uploaded as a manual file).
+      VerifyMultipleSubmitQueryMessage(
+          /*expected_query_text=*/"",
+          /*expected_viewport_image_count=*/2,
+          /*expected_upload_image_count=*/2,
+          /*expected_upload_file_count=*/1,
+          std::vector<std::string>{"title1.html", "title2.html",
+                                   "download.pdf"}));
+}
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksInteractiveUiTest,
+                       AddAndSubmitTextOnlyFromComposebox) {
+  const GURL kInterceptionUrl("https://www.google.com/search?udm=50");
+
+  const DeepQuery kSubmitButton = {"contextual-tasks-app", "#composebox",
+                                   "#composebox", "cr-composebox-submit",
+                                   "#submitContainer"};
+
+  RunTestSequence(
+      InstrumentTab(kPrimaryTab, 0), SelectTab(kTabStripElementId, 0),
+      OpenContextualTasksInCurrentTab(kInterceptionUrl),
+      InstrumentInnerWebContents(kInnerWebContentsId, kPrimaryTab, 0),
+
+      // Type text query
+      InputText("My text-only query"),
+
+      // Click Submit
+      ClickButton(kPrimaryTab, kSubmitButton),
+
+      // Verify query submission (0 viewports, 0 uploads, 0 files, expected
+      // text)
+      VerifyMultipleSubmitQueryMessage("My text-only query",
+                                       /*expected_viewport_image_count=*/0,
+                                       /*expected_upload_image_count=*/0,
+                                       /*expected_upload_file_count=*/0,
+                                       /*expected_added_input_names=*/{}));
+}
+
+// TODO(crbug.com/516333831): Re-enable this test on Windows.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_AddAndSubmitMultipleContextsWithTextFromComposebox \
+  DISABLED_AddAndSubmitMultipleContextsWithTextFromComposebox
+#else
+#define MAYBE_AddAndSubmitMultipleContextsWithTextFromComposebox \
+  AddAndSubmitMultipleContextsWithTextFromComposebox
+#endif
+IN_PROC_BROWSER_TEST_F(ContextualTasksInteractiveUiTest,
+                       MAYBE_AddAndSubmitMultipleContextsWithTextFromComposebox) {
+  const GURL kInterceptionUrl("https://www.google.com/search?udm=50");
+  const GURL kGenericPageUrl1 = embedded_test_server()->GetURL("/title1.html");
+  const GURL kGenericPageUrl2 = embedded_test_server()->GetURL("/title2.html");
+
+  base::FilePath test_data_dir;
+  base::PathService::Get(chrome::DIR_TEST_DATA, &test_data_dir);
+  base::FilePath pdf_path = test_data_dir.AppendASCII("download.pdf");
+  base::FilePath image_path = test_data_dir.AppendASCII("handbag.png");
+
+  const DeepQuery kFaviconGroup = {
+      "contextual-tasks-app", "#composebox",       "#composebox",
+      "#contextEntrypoint",   "#entrypointButton", "composebox-favicon-group"};
+
+  const DeepQuery kSubmitButton = {"contextual-tasks-app", "#composebox",
+                                   "#composebox", "cr-composebox-submit",
+                                   "#submitContainer"};
+
+  RunTestSequence(
+      InstrumentTab(kPrimaryTab, 0),
+      AddInstrumentedTab(kGenericTab2, kGenericPageUrl2),
+      AddInstrumentedTab(kGenericTab, kGenericPageUrl1),
+      SelectTab(kTabStripElementId, 0),
+      OpenContextualTasksInCurrentTab(kInterceptionUrl),
+      InstrumentInnerWebContents(kInnerWebContentsId, kPrimaryTab, 0),
+
+      // 1. Add Tab 1
+      ForceClickAddContextEntrypoint(kPrimaryTab),
+      ForceClickMenuButton(kPrimaryTab, 0),
+      WaitForFaviconGroupWithTitle(kPrimaryTab, "title1.html"),
+      WaitForComposeboxFilesCount(1),
+
+      // 2. Add Tab 2 (Menu is still open!)
+      ForceClickMenuButton(kPrimaryTab, 1),
+      WaitForFaviconGroupWithTitle(kPrimaryTab, "Title Of Awesomeness"),
+      WaitForComposeboxFilesCount(2),
+
+      // 3. Set factory for PDF and upload PDF. Menu is still open!
+      Do(base::BindLambdaForTesting([&]() {
+        ui::SelectFileDialog::SetFactory(
+            std::make_unique<content::FakeSelectFileDialogFactory>(
+                std::vector<base::FilePath>{pdf_path}));
+      })),
+      ForceClickMenuButton(kPrimaryTab, "fileUpload"),
+      WaitForDocumentChipWithTitle(kPrimaryTab, "download.pdf"),
+      WaitForComposeboxFilesCount(3),
+
+      // 4. Set factory for Image 1 and upload Image 1
+      Do(base::BindLambdaForTesting([&]() {
+        ui::SelectFileDialog::SetFactory(
+            std::make_unique<content::FakeSelectFileDialogFactory>(
+                std::vector<base::FilePath>{image_path}));
+      })),
+      ForceClickAddContextEntrypoint(kPrimaryTab),
+      ForceClickMenuButton(kPrimaryTab, "imageUpload"),
+      WaitForComposeboxFilesCount(4),
+
+      // 5. Set factory for Image 2 and upload Image 2
+      Do(base::BindLambdaForTesting([&]() {
+        ui::SelectFileDialog::SetFactory(
+            std::make_unique<content::FakeSelectFileDialogFactory>(
+                std::vector<base::FilePath>{image_path}));
+      })),
+      ForceClickAddContextEntrypoint(kPrimaryTab),
+      ForceClickMenuButton(kPrimaryTab, "imageUpload"),
+      WaitForComposeboxFilesCount(5),
+
+      // Type query text
+      InputText("Query with multiple attachments"),
+
+      // 6. Submit
+      ClickButton(kPrimaryTab, kSubmitButton),
+
+      // 7. Verify multiple inputs + query text in the final message
+      VerifyMultipleSubmitQueryMessage(
+          "Query with multiple attachments",
+          /*expected_viewport_image_count=*/2,
+          /*expected_upload_image_count=*/2,
+          /*expected_upload_file_count=*/1,
+          std::vector<std::string>{"title1.html", "title2.html",
+                                   "download.pdf"}));
 }
 
 }  // namespace contextual_tasks

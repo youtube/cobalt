@@ -2572,9 +2572,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int32_t offset = i.InputInt32(1);
       Register table = i.InputRegister(2);
       IndirectPointerTag first =
-          IndirectPointerTagRangeFirstField::decode(opcode);
+          static_cast<IndirectPointerTag>(i.InputInt32(3));
       IndirectPointerTag last =
-          IndirectPointerTagRangeLastField::decode(opcode);
+          static_cast<IndirectPointerTag>(i.InputInt32(4));
       IndirectPointerTagRange tag_range(first, last);
 
       Register destination = i.OutputRegister();
@@ -4403,8 +4403,10 @@ void CodeGenerator::AssembleConstructFrame() {
             WasmHandleStackOverflowDescriptor::FrameBaseRegister());
         for (auto reg : wasm::kGpParamRegisters) regs_to_save.Combine(reg);
         __ PushCPURegList(regs_to_save);
-        CPURegList fp_regs_to_save(kDRegSizeInBits, DoubleRegList{});
-        for (auto reg : wasm::kFpParamRegisters) fp_regs_to_save.Combine(reg);
+        CPURegList fp_regs_to_save(kQRegSizeInBits, DoubleRegList{});
+        for (auto reg : wasm::kFpParamRegisters) {
+          fp_regs_to_save.Combine(reg.Q());
+        }
         __ PushCPURegList(fp_regs_to_save);
         __ Mov(WasmHandleStackOverflowDescriptor::GapRegister(),
                required_slots * kSystemPointerSize);
@@ -4515,8 +4517,10 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     CPURegList regs_to_save(kXRegSizeInBits, RegList{});
     for (auto reg : wasm::kGpReturnRegisters) regs_to_save.Combine(reg);
     __ PushCPURegList(regs_to_save);
-    CPURegList fp_regs_to_save(kDRegSizeInBits, DoubleRegList{});
-    for (auto reg : wasm::kFpReturnRegisters) fp_regs_to_save.Combine(reg);
+    CPURegList fp_regs_to_save(kQRegSizeInBits, DoubleRegList{});
+    for (auto reg : wasm::kFpReturnRegisters) {
+      fp_regs_to_save.Combine(reg.Q());
+    }
     __ PushCPURegList(fp_regs_to_save);
     __ Mov(kCArgRegs[0], ExternalReference::isolate_address());
     __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);

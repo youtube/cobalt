@@ -8,6 +8,8 @@
 
 #include "rtc_base/experiments/encoder_speed_experiment.h"
 
+#include <string>
+
 #include "api/field_trials.h"
 #include "api/video/video_codec_type.h"
 #include "api/video_codecs/video_codec.h"
@@ -104,6 +106,58 @@ TEST(EncoderSpeedExperimentTest, InvalidDynamicSpeedValue) {
   FieldTrials field_trials("WebRTC-EncoderSpeed/dynamic_speed:invalid/");
   EncoderSpeedExperiment config(field_trials);
   EXPECT_FALSE(config.IsDynamicSpeedEnabled());  // Should default to false
+}
+
+TEST(EncoderSpeedExperimentTest, Vp9LowComplexityFallbackEnabled) {
+  for (std::string trial : {"WebRTC-EncoderSpeed/dynamic_speed:true/",
+                            "WebRTC-EncoderSpeed/dynamic_speed:false/"}) {
+    FieldTrials field_trials(trial);
+    EncoderSpeedExperiment config(field_trials,
+                                  /*use_low_complexity_for_vp9=*/true);
+
+    // VP9 should fallback to low complexity.
+    EXPECT_EQ(config.GetComplexity(kVideoCodecVP9, /*is_screenshare=*/false),
+              VideoCodecComplexity::kComplexityLow);
+    EXPECT_EQ(config.GetComplexity(kVideoCodecVP9, /*is_screenshare=*/true),
+              VideoCodecComplexity::kComplexityLow);
+
+    // Other codecs should still be normal complexity.
+    EXPECT_EQ(config.GetComplexity(kVideoCodecVP8, /*is_screenshare=*/false),
+              VideoCodecComplexity::kComplexityNormal);
+    EXPECT_EQ(config.GetComplexity(kVideoCodecAV1, /*is_screenshare=*/false),
+              VideoCodecComplexity::kComplexityNormal);
+  }
+}
+
+TEST(EncoderSpeedExperimentTest,
+     FieldTrialsTakePrecedenceOverVP9LowComplexityFlag) {
+  for (std::string trial :
+       {"WebRTC-EncoderSpeed/"
+        "dynamic_speed:false,vp9_camera:high,vp9_screenshare:max/",
+        "WebRTC-EncoderSpeed/"
+        "dynamic_speed:true,vp9_camera:high,vp9_screenshare:max/"}) {
+    FieldTrials field_trials(trial);
+    EncoderSpeedExperiment config(field_trials,
+                                  /*use_low_complexity_for_vp9=*/true);
+
+    // VP9 should use the configured complexity instead of falling back.
+    EXPECT_EQ(config.GetComplexity(kVideoCodecVP9, /*is_screenshare=*/false),
+              VideoCodecComplexity::kComplexityHigh);
+    EXPECT_EQ(config.GetComplexity(kVideoCodecVP9, /*is_screenshare=*/true),
+              VideoCodecComplexity::kComplexityMax);
+  }
+}
+
+TEST(EncoderSpeedExperimentTest, Vp9LowComplexityFallbackDisabled) {
+  FieldTrials field_trials("WebRTC-EncoderSpeed/dynamic_speed:true/");
+  EncoderSpeedExperiment config(field_trials,
+                                /*use_low_complexity_for_vp9=*/false);
+
+  // VP9 should be normal complexity.
+  EXPECT_EQ(config.GetComplexity(kVideoCodecVP9, /*is_screenshare=*/false),
+            VideoCodecComplexity::kComplexityNormal);
+  EXPECT_EQ(config.GetComplexity(kVideoCodecVP9, /*is_screenshare=*/true),
+            VideoCodecComplexity::kComplexityNormal);
 }
 
 }  // namespace

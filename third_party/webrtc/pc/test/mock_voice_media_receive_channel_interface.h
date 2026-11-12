@@ -114,6 +114,7 @@ class MockVoiceMediaReceiveChannelInterface
               GetUnsignaledSsrc,
               (),
               (const, override));
+  MOCK_METHOD(std::vector<uint32_t>, GetUnsignaledSsrcs, (), (const, override));
   MOCK_METHOD(void, OnDemuxerCriteriaUpdatePending, (), (override));
   MOCK_METHOD(void, OnDemuxerCriteriaUpdateComplete, (), (override));
   MOCK_METHOD(void,

@@ -28,8 +28,10 @@ export function getHtml(this: NtpSearchboxElement) {
         .inputState="${this.inputState_}"
         .searchboxLayoutMode="${this.searchboxLayoutMode}"
         .tabSuggestions="${this.tabSuggestions_}"
+        .recentTabId="${this.recentTabId_}"
         ?show-context-menu-description="${!this.useCompactLayout_()}"
-        glif-animation-state="${this.contextMenuGlifAnimationState}">
+        glif-animation-state="${this.contextMenuGlifAnimationState}"
+        .energyEffectAnimationEnabled="${this.energyEffectAnimationEnabled}">
     </cr-composebox-contextual-entrypoint-and-menu>
   </div>
 </cr-composebox-file-inputs>

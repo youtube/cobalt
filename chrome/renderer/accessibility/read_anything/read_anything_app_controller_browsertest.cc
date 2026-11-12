@@ -128,7 +128,8 @@ class MockReadAnythingUntrustedPageHandler
               (override));
   MOCK_METHOD(void,
               OnLineFocusChanged,
-              (read_anything::mojom::LineFocus line_focus),
+              (read_anything::mojom::LineFocus current_line_focus,
+               read_anything::mojom::LineFocus last_non_disabled_line_focus),
               (override));
   MOCK_METHOD(void,
               OnImageDataRequested,
@@ -2931,9 +2932,11 @@ TEST_F(ReadAnythingAppControllerTest, TurnedHighlightOff_SavesHighlightState) {
 TEST_F(ReadAnythingAppControllerTest, OnLineFocusChanged_SetsLineFocus) {
   EnableLineFocus();
   auto line_focus = read_anything::mojom::LineFocus::kLineCursor;
-  EXPECT_CALL(page_handler_, OnLineFocusChanged(line_focus)).Times(1);
+  EXPECT_CALL(page_handler_, OnLineFocusChanged(line_focus, line_focus))
+      .Times(1);
 
-  controller().OnLineFocusChanged(static_cast<int>(line_focus));
+  controller().OnLineFocusChanged(static_cast<int>(line_focus),
+                                  static_cast<int>(line_focus));
 
   ASSERT_EQ(line_focus, model().last_non_disabled_line_focus());
   ASSERT_TRUE(controller().IsLineFocusOn());
@@ -2944,10 +2947,10 @@ TEST_F(ReadAnythingAppControllerTest,
   EnableLineFocus();
   auto line_focus_off = read_anything::mojom::LineFocus::kOff;
   auto line_focus = read_anything::mojom::LineFocus::kLineStatic;
-  EXPECT_CALL(page_handler_, OnLineFocusChanged).Times(2);
+  EXPECT_CALL(page_handler_, OnLineFocusChanged).Times(1);
 
-  controller().OnLineFocusChanged(static_cast<int>(line_focus));
-  controller().OnLineFocusChanged(static_cast<int>(line_focus_off));
+  controller().OnLineFocusChanged(static_cast<int>(line_focus_off),
+                                  static_cast<int>(line_focus));
 
   ASSERT_EQ(line_focus, model().last_non_disabled_line_focus());
   ASSERT_FALSE(controller().IsLineFocusOn());
@@ -5167,6 +5170,32 @@ TEST_F(ReadAnythingAppControllerReadabilityTest,
             ReadAnythingAppModel::DistillationMethod::kScreen2x);
 }
 
+TEST_F(
+    ReadAnythingAppControllerReadabilityTest,
+    AccessibilityEventReceived_Readability_DoesNotProcessSelectionIfFeatureDisabled) {
+  // Set conditions to process readability accessibility updates
+  EXPECT_CALL(page_handler_,
+              OnDistillationStateChanged(
+                  read_anything::mojom::ReadAnythingDistillationState::
+                      kDistillationInProgress))
+      .Times(1);
+  controller().SetDistillationState(
+      read_anything::mojom::ReadAnythingDistillationState::
+          kDistillationInProgress);
+
+  // Set up: requires_post_process_selection is true.
+  model().set_requires_post_process_selection(true);
+
+  // Call AccessibilityEventReceived.
+  ui::AXTreeUpdate update;
+  test::SetUpdateTreeID(&update, tree_id_);
+  AccessibilityEventReceived({update});
+
+  // Verification: PostProcessSelection was NOT called because the feature flag
+  // is disabled, so requires_post_process_selection remains true.
+  EXPECT_TRUE(model().requires_post_process_selection());
+}
+
 TEST_F(ReadAnythingAppControllerTest, Draw_DebouncesForPdf) {
   static constexpr ui::AXNodeID kId = 4;
   ui::AXNodeData node;
@@ -5400,4 +5429,29 @@ TEST_F(ReadAnythingAppControllerReadabilitySelectTextTest,
   ASSERT_TRUE(result->IsArray());
   v8::Local<v8::Array> array = result.As<v8::Array>();
   EXPECT_EQ(array->Length(), 1u);
+}
+
+TEST_F(ReadAnythingAppControllerReadabilitySelectTextTest,
+       AccessibilityEventReceived_Readability_ProcessesSelectionIfRequired) {
+  // Set conditions to process readability accessibility updates
+  EXPECT_CALL(page_handler_,
+              OnDistillationStateChanged(
+                  read_anything::mojom::ReadAnythingDistillationState::
+                      kDistillationInProgress))
+      .Times(1);
+  controller().SetDistillationState(
+      read_anything::mojom::ReadAnythingDistillationState::
+          kDistillationInProgress);
+
+  // Set up: requires_post_process_selection is true.
+  model().set_requires_post_process_selection(true);
+
+  // Call AccessibilityEventReceived.
+  ui::AXTreeUpdate update;
+  test::SetUpdateTreeID(&update, tree_id_);
+  AccessibilityEventReceived({update});
+
+  // Verification: PostProcessSelection was called, which reset
+  // requires_post_process_selection to false.
+  EXPECT_FALSE(model().requires_post_process_selection());
 }

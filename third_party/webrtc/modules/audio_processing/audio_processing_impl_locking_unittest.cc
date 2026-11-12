@@ -16,7 +16,6 @@
 
 #include "api/audio/audio_processing.h"
 #include "api/audio/builtin_audio_processing_builder.h"
-#include "api/environment/environment_factory.h"
 #include "api/scoped_refptr.h"
 #include "api/units/time_delta.h"
 #include "rtc_base/event.h"
@@ -25,6 +24,7 @@
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
+#include "test/create_test_environment.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -487,7 +487,7 @@ AudioProcessingImplLockTest::AudioProcessingImplLockTest()
     : test_config_(GetParam()),
       apm_(BuiltinAudioProcessingBuilder()
                .SetConfig(GetApmTestConfig(test_config_.aec_type))
-               .Build(CreateEnvironment())),
+               .Build(CreateTestEnvironment())),
       render_thread_state_(kMaxFrameSize,
                            &rand_gen_,
                            &render_call_event_,

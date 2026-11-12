@@ -36,9 +36,9 @@
 #include "api/audio/echo_detector_creator.h"
 #include "api/audio/neural_residual_echo_estimator.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
+#include "api/units/timestamp.h"
 #include "common_audio/channel_buffer.h"
 #include "common_audio/include/audio_util.h"
 #include "modules/audio_processing/aec_dump/aec_dump_factory.h"
@@ -47,7 +47,6 @@
 #include "modules/audio_processing/test/test_utils.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/cpu_info.h"
-#include "rtc_base/fake_clock.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/numerics/safe_minmax.h"
 #include "rtc_base/protobuf_utils.h"
@@ -55,9 +54,11 @@
 #include "rtc_base/swap_queue.h"
 #include "rtc_base/system/file_wrapper.h"
 #include "rtc_base/task_queue_for_test.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
+#include "test/time_controller/simulated_time_controller.h"
 
 #ifdef WEBRTC_ANDROID_PLATFORM_BUILD
 #include "external/webrtc/webrtc/modules/audio_processing/debug.pb.h"
@@ -390,6 +391,7 @@ class ApmTest : public ::testing::Test {
 
   const std::string output_path_;
   const std::string ref_filename_;
+  GlobalSimulatedTimeController time_controller_{Timestamp::Seconds(5)};
   scoped_refptr<AudioProcessing> apm_;
   Int16FrameData frame_;
   Int16FrameData revframe_;
@@ -410,7 +412,8 @@ ApmTest::ApmTest()
       far_file_(nullptr),
       near_file_(nullptr),
       out_file_(nullptr) {
-  apm_ = BuiltinAudioProcessingBuilder().Build(CreateEnvironment());
+  apm_ = BuiltinAudioProcessingBuilder().Build(
+      CreateTestEnvironment({.time = &time_controller_}));
   AudioProcessing::Config apm_config = apm_->GetConfig();
   apm_config.gain_controller1.analog_gain_controller.enabled = false;
   apm_config.pipeline.maximum_internal_processing_rate = 48000;
@@ -1272,7 +1275,7 @@ TEST_F(ApmTest, NoProcessingWhenAllComponentsDisabledFloat) {
   auto src_channels = &src[0];
   auto dest_channels = &dest[0];
 
-  apm_ = BuiltinAudioProcessingBuilder().Build(CreateEnvironment());
+  apm_ = BuiltinAudioProcessingBuilder().Build(CreateTestEnvironment());
   EXPECT_NOERR(apm_->ProcessStream(&src_channels, StreamConfig(sample_rate, 1),
                                    StreamConfig(sample_rate, 1),
                                    &dest_channels));
@@ -1482,7 +1485,6 @@ void ApmTest::ProcessDebugDump(absl::string_view in_filename,
 }
 
 void ApmTest::VerifyDebugDumpTest(Format format) {
-  ScopedFakeClock fake_clock;
   const std::string in_filename = test::ResourcePath("ref03", "aecdump");
   std::string format_string;
   switch (format) {
@@ -1690,7 +1692,7 @@ TEST_F(ApmTest, Process) {
 
     apm_ = BuiltinAudioProcessingBuilder()
                .SetEchoDetector(CreateEchoDetector())
-               .Build(CreateEnvironment());
+               .Build(CreateTestEnvironment());
     AudioProcessing::Config apm_config = apm_->GetConfig();
     apm_config.gain_controller1.analog_gain_controller.enabled = false;
     apm_->ApplyConfig(apm_config);
@@ -1844,7 +1846,7 @@ class AudioProcessingTest
     apm_config.gain_controller1.analog_gain_controller.enabled = false;
     scoped_refptr<AudioProcessing> ap = BuiltinAudioProcessingBuilder()
                                             .SetConfig(apm_config)
-                                            .Build(CreateEnvironment());
+                                            .Build(CreateTestEnvironment());
 
     EnableAllAPComponents(ap.get());
 
@@ -2060,7 +2062,7 @@ void RunApmRateAndChannelTest(std::span<const int> sample_rates_hz,
   apm_config.pipeline.multi_channel_capture = true;
   apm_config.echo_canceller.enabled = true;
   scoped_refptr<AudioProcessing> apm =
-      BuiltinAudioProcessingBuilder(apm_config).Build(CreateEnvironment());
+      BuiltinAudioProcessingBuilder(apm_config).Build(CreateTestEnvironment());
 
   StreamConfig render_input_stream_config;
   StreamConfig render_output_stream_config;
@@ -2175,7 +2177,7 @@ TEST(ApmConfiguration, EnablePostProcessing) {
   scoped_refptr<AudioProcessing> apm =
       BuiltinAudioProcessingBuilder()
           .SetCapturePostProcessing(std::move(mock_post_processor))
-          .Build(CreateEnvironment());
+          .Build(CreateTestEnvironment());
 
   Int16FrameData audio;
   audio.SetProperties(AudioProcessing::GetFrameSize(
@@ -2198,7 +2200,7 @@ TEST(ApmConfiguration, EnablePreProcessing) {
   scoped_refptr<AudioProcessing> apm =
       BuiltinAudioProcessingBuilder()
           .SetRenderPreProcessing(std::move(mock_pre_processor))
-          .Build(CreateEnvironment());
+          .Build(CreateTestEnvironment());
 
   Int16FrameData audio;
   audio.SetProperties(AudioProcessing::GetFrameSize(
@@ -2222,7 +2224,7 @@ TEST(ApmConfiguration, EnableCaptureAnalyzer) {
   scoped_refptr<AudioProcessing> apm =
       BuiltinAudioProcessingBuilder()
           .SetCaptureAnalyzer(std::move(mock_capture_analyzer))
-          .Build(CreateEnvironment());
+          .Build(CreateTestEnvironment());
 
   Int16FrameData audio;
   audio.SetProperties(AudioProcessing::GetFrameSize(
@@ -2244,7 +2246,7 @@ TEST(ApmConfiguration, PreProcessingReceivesRuntimeSettings) {
   scoped_refptr<AudioProcessing> apm =
       BuiltinAudioProcessingBuilder()
           .SetRenderPreProcessing(std::move(mock_pre_processor))
-          .Build(CreateEnvironment());
+          .Build(CreateTestEnvironment());
   apm->SetRuntimeSetting(
       AudioProcessing::RuntimeSetting::CreateCustomRenderSetting(0));
 
@@ -2291,7 +2293,7 @@ TEST(ApmConfiguration, EchoControlInjection) {
   scoped_refptr<AudioProcessing> apm =
       BuiltinAudioProcessingBuilder()
           .SetEchoControlFactory(std::move(echo_control_factory))
-          .Build(CreateEnvironment());
+          .Build(CreateTestEnvironment());
 
   Int16FrameData audio;
   audio.SetProperties(AudioProcessing::GetFrameSize(
@@ -2322,7 +2324,7 @@ TEST(ApmConfiguration, EchoDetectorInjection) {
       .Times(1);
   scoped_refptr<AudioProcessing> apm = BuiltinAudioProcessingBuilder()
                                            .SetEchoDetector(mock_echo_detector)
-                                           .Build(CreateEnvironment());
+                                           .Build(CreateTestEnvironment());
 
   // The echo detector is included in processing when enabled.
   EXPECT_CALL(*mock_echo_detector, AnalyzeRenderAudio(_))
@@ -2382,7 +2384,7 @@ scoped_refptr<AudioProcessing> CreateApm() {
   scoped_refptr<AudioProcessing> apm =
       BuiltinAudioProcessingBuilder()
           .SetEchoDetector(CreateEchoDetector())
-          .Build(CreateEnvironment());
+          .Build(CreateTestEnvironment());
   if (!apm) {
     return apm;
   }
@@ -2480,7 +2482,7 @@ TEST(ApmStatistics, DoNotReportVoiceDetectedStat) {
   }
 
   scoped_refptr<AudioProcessing> apm =
-      BuiltinAudioProcessingBuilder().Build(CreateEnvironment());
+      BuiltinAudioProcessingBuilder().Build(CreateTestEnvironment());
   apm->Initialize(processing_config);
 
   // No metric should be reported.
@@ -2498,7 +2500,7 @@ TEST(ApmStatistics, DoNotReportVoiceDetectedStat) {
 
 TEST(ApmStatistics, GetStatisticsReportsNoEchoDetectorStatsWhenDisabled) {
   scoped_refptr<AudioProcessing> apm =
-      BuiltinAudioProcessingBuilder().Build(CreateEnvironment());
+      BuiltinAudioProcessingBuilder().Build(CreateTestEnvironment());
   Int16FrameData frame;
   frame.SetProperties(AudioProcessing::GetFrameSize(
                           AudioProcessing::NativeRate::kSampleRate32kHz),
@@ -2520,7 +2522,7 @@ TEST(ApmStatistics, GetStatisticsReportsEchoDetectorStatsWhenEnabled) {
   scoped_refptr<AudioProcessing> apm =
       BuiltinAudioProcessingBuilder()
           .SetEchoDetector(CreateEchoDetector())
-          .Build(CreateEnvironment());
+          .Build(CreateTestEnvironment());
   Int16FrameData frame;
   frame.SetProperties(AudioProcessing::GetFrameSize(
                           AudioProcessing::NativeRate::kSampleRate32kHz),
@@ -2899,7 +2901,7 @@ TEST_P(ApmFormatHandlingTest, IntApi) {
 
   // Call APM.
   scoped_refptr<AudioProcessing> ap =
-      BuiltinAudioProcessingBuilder().Build(CreateEnvironment());
+      BuiltinAudioProcessingBuilder().Build(CreateTestEnvironment());
   int error;
   if (stream_direction_ == kForward) {
     error = ap->ProcessStream(input_block.data(), test_params_.input_config,
@@ -2978,7 +2980,7 @@ TEST_P(ApmFormatHandlingTest, FloatApi) {
 
   // Call APM.
   scoped_refptr<AudioProcessing> ap =
-      BuiltinAudioProcessingBuilder().Build(CreateEnvironment());
+      BuiltinAudioProcessingBuilder().Build(CreateTestEnvironment());
   int error;
   if (stream_direction_ == kForward) {
     error =
@@ -3054,7 +3056,7 @@ TEST(ApmAnalyzeReverseStreamFormatTest, AnalyzeReverseStream) {
 
     // Call APM.
     scoped_refptr<AudioProcessing> ap =
-        BuiltinAudioProcessingBuilder().Build(CreateEnvironment());
+        BuiltinAudioProcessingBuilder().Build(CreateTestEnvironment());
     int error = ap->AnalyzeReverseStream(input_block.channels(), input_config);
 
     // Check output.

@@ -58,6 +58,7 @@ namespace {
 
 const char kPermissionPolicyNotEnabledError[] =
     "Access to the feature \"tools\" is disallowed by permissions policy.";
+const char kInactiveDocumentError[] = "The document is not active.";
 
 String ValidateAndStringifyObject(ScriptState* script_state,
                                   ExceptionState& exception_state,
@@ -267,14 +268,15 @@ void ModelContext::registerTool(ScriptState* script_state,
                                 ExceptionState& exception_state) {
   if (!document_->IsActive()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "The document is detached.");
+                                      kInactiveDocumentError);
     return;
   }
 
   if (!ExecutionContext::From(script_state)
            ->IsFeatureEnabled(
                network::mojom::PermissionsPolicyFeature::kTools)) {
-    exception_state.ThrowSecurityError(kPermissionPolicyNotEnabledError);
+    exception_state.ThrowDOMException(DOMExceptionCode::kNotAllowedError,
+                                      kPermissionPolicyNotEnabledError);
     return;
   }
 
@@ -326,6 +328,20 @@ void ModelContext::registerTool(ScriptState* script_state,
         MakeGarbageCollected<ToolUnregisterAbortAlgorithm>(this, tool->name()));
   }
 
+  Vector<scoped_refptr<const SecurityOrigin>> exposed_origins;
+  if (options && options->hasExposedTo()) {
+    for (const String& origin_str : options->exposedTo()) {
+      scoped_refptr<const SecurityOrigin> origin =
+          SecurityOrigin::CreateFromString(origin_str);
+      if (!origin->IsPotentiallyTrustworthy()) {
+        exception_state.ThrowSecurityError(
+            "Only secure origins are allowed in the exposedTo list.");
+        return;
+      }
+      exposed_origins.push_back(origin);
+    }
+  }
+
   auto script_tool = mojom::blink::ScriptTool::New();
   script_tool->name = tool->name();
   script_tool->description = tool->description();
@@ -333,20 +349,6 @@ void ModelContext::registerTool(ScriptState* script_state,
   // TODO(https://crbug.com/509568047): Stop setting these two members.
   script_tool->tool_owner_frame_token = document_->GetFrame()->GetFrameToken();
   script_tool->origin = document_->GetExecutionContext()->GetSecurityOrigin();
-
-  Vector<scoped_refptr<const SecurityOrigin>> exposed_origins;
-  if (options && options->hasExposedTo()) {
-    for (const String& origin_str : options->exposedTo()) {
-      scoped_refptr<const SecurityOrigin> origin =
-          SecurityOrigin::CreateFromString(origin_str);
-      if (origin->Protocol() != "https") {
-        exception_state.ThrowSecurityError(
-            "Only HTTPS origins are allowed in exposedTo list.");
-        return;
-      }
-      exposed_origins.push_back(origin);
-    }
-  }
   script_tool->exposed_origins = std::move(exposed_origins);
 
   if (tool->hasAnnotations()) {
@@ -643,8 +645,6 @@ bool ModelContext::ExecuteV8Tool(V8ToolExecuteCallback* tool_function,
 }
 
 void ModelContext::RegisterDeclarativeTool(
-    String name,
-    String description,
     DeclarativeWebMCPTool* declarative_tool) {
   if (!document_->GetExecutionContext()->IsFeatureEnabled(
           network::mojom::PermissionsPolicyFeature::kTools)) {
@@ -659,8 +659,8 @@ void ModelContext::RegisterDeclarativeTool(
                     WebFeature::kModelContextRegisterDeclarativeTool);
 
   auto script_tool = mojom::blink::ScriptTool::New();
-  script_tool->name = name;
-  script_tool->description = description;
+  script_tool->name = declarative_tool->ToolName();
+  script_tool->description = declarative_tool->ToolDescription();
   script_tool->input_schema = declarative_tool->ComputeInputSchema();
   // TODO(https://crbug.com/509568047): Stop setting these two members.
   script_tool->tool_owner_frame_token = document_->GetFrame()->GetFrameToken();
@@ -669,7 +669,7 @@ void ModelContext::RegisterDeclarativeTool(
   auto* tool_data = MakeGarbageCollected<ToolData>(
       base::PassKey<ModelContext>(), std::move(script_tool), declarative_tool);
 
-  tool_map_.insert(name, tool_data);
+  tool_map_.insert(declarative_tool->ToolName(), tool_data);
   model_context_host_remote_->RegisterScriptTool(
       tool_data->ScriptTool().Clone());
   probe::WebMCPToolAdded(document_, *tool_data);
@@ -786,21 +786,22 @@ ScriptPromise<IDLSequence<RegisteredTool>> ModelContext::getTools(
     return ScriptPromise<IDLSequence<RegisteredTool>>::RejectWithDOMException(
         script_state,
         MakeGarbageCollected<DOMException>(DOMExceptionCode::kInvalidStateError,
-                                           "The document is not active."));
+                                           kInactiveDocumentError));
+  }
+
+  if (!ExecutionContext::From(script_state)
+           ->IsFeatureEnabled(
+               network::mojom::PermissionsPolicyFeature::kTools)) {
+    return ScriptPromise<IDLSequence<RegisteredTool>>::RejectWithDOMException(
+        script_state,
+        MakeGarbageCollected<DOMException>(DOMExceptionCode::kNotAllowedError,
+                                           kPermissionPolicyNotEnabledError));
   }
 
   auto* resolver =
       MakeGarbageCollected<ScriptPromiseResolver<IDLSequence<RegisteredTool>>>(
           script_state);
   ScriptPromise promise = resolver->Promise();
-
-  if (!ExecutionContext::From(script_state)
-           ->IsFeatureEnabled(
-               network::mojom::PermissionsPolicyFeature::kTools)) {
-    resolver->RejectWithSecurityError(kPermissionPolicyNotEnabledError,
-                                      kPermissionPolicyNotEnabledError);
-    return promise;
-  }
 
   model_context_host_remote_->GetScriptTools(
       blink::BindOnce(&ModelContext::OnGetScriptToolsCompleted,
@@ -855,21 +856,22 @@ ScriptPromise<IDLNullable<IDLString>> ModelContext::executeTool(
     return ScriptPromise<IDLNullable<IDLString>>::RejectWithDOMException(
         script_state,
         MakeGarbageCollected<DOMException>(DOMExceptionCode::kInvalidStateError,
-                                           "The document is not active."));
+                                           kInactiveDocumentError));
+  }
+
+  if (!ExecutionContext::From(script_state)
+           ->IsFeatureEnabled(
+               network::mojom::PermissionsPolicyFeature::kTools)) {
+    return ScriptPromise<IDLNullable<IDLString>>::RejectWithDOMException(
+        script_state,
+        MakeGarbageCollected<DOMException>(DOMExceptionCode::kNotAllowedError,
+                                           kPermissionPolicyNotEnabledError));
   }
 
   auto* resolver =
       MakeGarbageCollected<ScriptPromiseResolver<IDLNullable<IDLString>>>(
           script_state);
   ScriptPromise promise = resolver->Promise();
-
-  if (!ExecutionContext::From(script_state)
-           ->IsFeatureEnabled(
-               network::mojom::PermissionsPolicyFeature::kTools)) {
-    resolver->RejectWithSecurityError(kPermissionPolicyNotEnabledError,
-                                      kPermissionPolicyNotEnabledError);
-    return promise;
-  }
 
   DOMWindow* window = tool->window();
   // `window` is always non-null, but its frame might be missing if the document

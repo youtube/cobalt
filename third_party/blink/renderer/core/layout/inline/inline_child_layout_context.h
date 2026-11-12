@@ -8,11 +8,11 @@
 #include <optional>
 
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/layout/inline/fit_text_utils.h"
 #include "third_party/blink/renderer/core/layout/inline/fragment_items_builder.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_box_state.h"
 #include "third_party/blink/renderer/core/layout/inline/logical_line_item.h"
 #include "third_party/blink/renderer/core/layout/inline/score_line_break_context.h"
+#include "third_party/blink/renderer/core/layout/inline/text_fit_utils.h"
 
 namespace blink {
 
@@ -74,10 +74,10 @@ class CORE_EXPORT InlineChildLayoutContext {
     balanced_available_width_ = value;
   }
 
-  // FitText: Enable the measuring mode if `paragraph_scale` is nullptr.
+  // text-fit: Enable the measuring mode if `paragraph_scale` is nullptr.
   void EnableMeasuringModeIfNecessary(const ParagraphScale* paragraph_scale);
   bool IsMeasuringScale() const { return is_measuring_scale_; }
-  // FitText: Returns the minimum scale handled in the measuring mode.
+  // text-fit: Returns the minimum scale handled in the measuring mode.
   ParagraphScale MeasuredScale() const;
 
  protected:
@@ -108,10 +108,10 @@ class CORE_EXPORT InlineChildLayoutContext {
   // Used by `ParagraphLineBreaker`.
   std::optional<LayoutUnit> balanced_available_width_;
 
-  // FitText: In the measuring mode, this field is updated for every line.
+  // text-fit: In the measuring mode, this field is updated for every line.
   // Otherwise, this holds the paragraph scale which is applied to every line.
   ParagraphScale minimum_scale_;
-  // FitText: True if in the measuring mode.
+  // text-fit: True if in the measuring mode.
   bool is_measuring_scale_ = false;
 };
 

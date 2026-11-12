@@ -247,7 +247,7 @@ void WebRequestAPI::Proxy::HandleAuthRequest(
   // Default implementation cancels the request.
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback), std::nullopt,
-                                false /* should_cancel */));
+                                /*should_cancel=*/false));
 }
 
 WebRequestAPI::ProxySet::ProxySet() {
@@ -280,15 +280,18 @@ void WebRequestAPI::ProxySet::RemoveProxy(Proxy* proxy) {
   proxies_.erase(proxy_it);
 }
 
-void WebRequestAPI::ProxySet::AssociateProxyWithRequestId(
+bool WebRequestAPI::ProxySet::AssociateProxyWithRequestId(
     Proxy* proxy,
     const content::GlobalRequestID& id) {
   DCHECK(proxy);
   DCHECK(proxies_.count(proxy));
   DCHECK(id.request_id);
   auto result = request_id_to_proxy_map_.emplace(id, proxy);
-  DCHECK(result.second) << "Unexpected request ID collision.";
+  if (!result.second) {
+    return false;
+  }
   proxy_to_request_id_map_[proxy].insert(id);
+  return true;
 }
 
 void WebRequestAPI::ProxySet::DisassociateProxyWithRequestId(
@@ -321,7 +324,7 @@ void WebRequestAPI::ProxySet::MaybeProxyAuthRequest(
     // their auth credentials.
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), std::nullopt,
-                                  false /* should_cancel */));
+                                  /*should_cancel=*/false));
     return;
   }
 
@@ -643,6 +646,30 @@ void WebRequestAPI::OnListenerRemoved(const EventListenerInfo& details) {
     // cleanup.
     std::move(remove_listener).Run();
   }
+}
+
+void WebRequestAPI::OnListenerUpdated(const EventListenerInfo& details) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  // Only lazy listeners can be updated. See `EventListenerMap::UpdateFilter()`.
+  CHECK(details.is_lazy);
+
+  std::string event_name = EventRouter::GetBaseEventName(details.event_name);
+  auto* event_router = WebRequestEventRouter::Get(details.browser_context);
+
+  // A sub-event-named listener was re-registered with a different filter. This
+  // is neither an add nor a remove: firing `OnListenerRemoved()` here would
+  // post an async `RemoveLazyListener()` keyed only by sub-event name, which
+  // would tear down the just-registered replacement. Route through the add path
+  // instead: for a lazy listener `WebRequestEventRouter::AddEventListener()`
+  // replaces any inactive listener for the same sub-event name with the new
+  // filter, which is exactly the update we want.
+  const size_t inactive_count_before = event_router->GetInactiveListenerCount(
+      details.browser_context, event_name);
+  OnListenerAdded(details);
+  const size_t inactive_count_after = event_router->GetInactiveListenerCount(
+      details.browser_context, event_name);
+  // Ensure no listeners were added.
+  CHECK_EQ(inactive_count_before, inactive_count_after);
 }
 
 bool WebRequestAPI::MaybeProxyURLLoaderFactory(

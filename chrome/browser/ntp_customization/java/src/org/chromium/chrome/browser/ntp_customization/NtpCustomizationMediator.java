@@ -29,6 +29,7 @@ import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ResettersForTesting;
+import org.chromium.base.TimeUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.feed.FeedFeatures;
@@ -132,6 +133,8 @@ public class NtpCustomizationMediator implements TemplateUrlServiceObserver {
                         // Notify to recreate activities if a new customized theme color is selected
                         // or removed.
                         if (mShouldRecreate) {
+                            NtpCustomizationUtils.setLastApplyThemeTimestampToSharedPreference(
+                                    TimeUtils.uptimeMillis());
                             NtpThemeStateProvider.getInstance().notifyApplyThemeChanges();
                         }
                     }
@@ -321,13 +324,9 @@ public class NtpCustomizationMediator implements TemplateUrlServiceObserver {
             content.add(FEED);
         }
 
-        if (NtpCustomizationUtils.isNtpThemeCustomizationEnabled()) {
-            boolean isTablet = DeviceFormFactor.isNonMultiDisplayContextOnTablet(context);
-            if (isTablet
-                    || NtpCustomizationUtils.canEnableEdgeToEdgeForCustomizedTheme(
-                            mWindowAndroid, isTablet)) {
-                content.add(THEME);
-            }
+        if (NtpCustomizationUtils.isNtpThemeCustomizationEnabled(
+                mWindowAndroid, DeviceFormFactor.isNonMultiDisplayContextOnTablet(context))) {
+            content.add(THEME);
         }
         return content;
     }
@@ -343,6 +342,7 @@ public class NtpCustomizationMediator implements TemplateUrlServiceObserver {
         mViewFlipperMap.clear();
         mTypeToListenersMap.clear();
         mListContent.clear();
+        mCurrentBottomSheet = null;
     }
 
     /**

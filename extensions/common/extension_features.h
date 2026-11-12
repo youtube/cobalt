@@ -121,6 +121,10 @@ BASE_DECLARE_FEATURE(kAllowWithholdingExtensionPermissionsOnInstall);
 // extension).
 BASE_DECLARE_FEATURE(kCheckingNoExtensionIdInExtensionIpcs);
 
+// Controls whether component extensions are allowed to use chrome://resources/
+// URLs in worker scripts and subresources.
+BASE_DECLARE_FEATURE(kComponentExtensionAllowWorkerChromeResources);
+
 // If enabled, <webview>s will be allowed to request permission from an
 // embedding Chrome App to request access to Human Interface Devices.
 BASE_DECLARE_FEATURE(kEnableWebHidInWebView);
@@ -147,10 +151,6 @@ BASE_DECLARE_FEATURE(kExtensionLocalizationGuid);
 
 // A replacement key for declaring icons, in addition to supporting dark mode.
 BASE_DECLARE_FEATURE(kExtensionIconVariants);
-
-// Controls disabling affected MV2 extensions that are no longer supported.
-// Users can re-enable these extensions.
-BASE_DECLARE_FEATURE(kExtensionManifestV2Disabled);
 
 // Controls fully removing support for user-installed MV2 extensions.
 // Users may no longer re-enable these extensions. Enterprises may still

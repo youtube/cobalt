@@ -467,11 +467,11 @@ int SimulcastEncoderAdapter::InitEncode(
         encoded_complete_callback_);
     if (total_streams_count_ == 1) {
       RTC_LOG(LS_ERROR) << "[SEA] InitEncode: failed with error code: "
-                        << WebRtcVideoCodecErrorToString(ret);
-      return ret;
+                        << WebRtcVideoCodecErrorToString(result);
+      return result;
     }
     RTC_LOG(LS_WARNING) << "[SEA] InitEncode: failed with error code: "
-                        << WebRtcVideoCodecErrorToString(ret)
+                        << WebRtcVideoCodecErrorToString(result)
                         << ". Falling back to multi-encoder mode.";
   }
 
@@ -508,7 +508,7 @@ int SimulcastEncoderAdapter::InitEncode(
       encoder_context.reset();
       Release();
       RTC_LOG(LS_ERROR) << "[SEA] InitEncode: failed with error code: "
-                        << WebRtcVideoCodecErrorToString(ret);
+                        << WebRtcVideoCodecErrorToString(result);
       return result;
     }
 

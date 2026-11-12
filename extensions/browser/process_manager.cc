@@ -4,8 +4,10 @@
 
 #include "extensions/browser/process_manager.h"
 
+#include <algorithm>
+#include <iterator>
 #include <memory>
-#include <unordered_set>
+#include <set>
 #include <vector>
 
 #include "base/feature_list.h"
@@ -489,13 +491,15 @@ void ProcessManager::IncrementLazyKeepaliveCount(
   }
 }
 
-void ProcessManager::DecrementLazyKeepaliveCount(
+bool ProcessManager::DecrementLazyKeepaliveCount(
     const Extension* extension,
     Activity::Type activity_type,
     const std::string& extra_data) {
   if (BackgroundInfo::HasLazyBackgroundPage(extension)) {
-    DecrementLazyKeepaliveCount(extension->id(), activity_type, extra_data);
+    return DecrementLazyKeepaliveCount(extension->id(), activity_type,
+                                       extra_data);
   }
+  return false;
 }
 
 void ProcessManager::NotifyExtensionProcessTerminated(
@@ -753,20 +757,28 @@ base::Uuid ProcessManager::IncrementServiceWorkerKeepaliveCount(
   return request_uuid;
 }
 
-void ProcessManager::DecrementLazyKeepaliveCount(
+bool ProcessManager::DecrementLazyKeepaliveCount(
     const ExtensionId& extension_id,
     Activity::Type activity_type,
     const std::string& extra_data) {
-  BackgroundPageData& data = background_page_data_[extension_id];
+  auto map_it = background_page_data_.find(extension_id);
+  if (map_it == background_page_data_.end()) {
+    return false;
+  }
+  BackgroundPageData& data = map_it->second;
 
+  // Only decrement counts that correspond to a precisely tracked increment.
+  // Renderer IPCs are untrusted and must not be able to balance or drain other
+  // legitimate keepalive activity types.
+  const auto activity = std::make_pair(activity_type, extra_data);
+  const auto it = data.activities.find(activity);
+  if (it == data.activities.end()) {
+    return false;
+  }
   DCHECK(data.lazy_keepalive_count > 0 ||
          !extension_registry_->enabled_extensions().Contains(extension_id));
   --data.lazy_keepalive_count;
-  const auto it =
-      data.activities.find(std::make_pair(activity_type, extra_data));
-  if (it != data.activities.end()) {
-    data.activities.erase(it);
-  }
+  data.activities.erase(it);
 
   // If we reach a zero keepalive count when the lazy background page is about
   // to be closed, incrementing close_sequence_id will cancel the close
@@ -785,6 +797,7 @@ void ProcessManager::DecrementLazyKeepaliveCount(
           g_event_page_idle_time);
     }
   }
+  return true;
 }
 
 void ProcessManager::DecrementServiceWorkerKeepaliveCount(
@@ -876,7 +889,7 @@ void ProcessManager::CloseLazyBackgroundPageNow(const ExtensionId& extension_id,
       return;
     }
 
-    // Close remaining views.
+    // Close remaining views. First, collect frames to unregister.
     std::vector<content::RenderFrameHost*> frames_to_close;
     for (const auto& key_value : all_extension_frames_) {
       if (key_value.second.CanKeepalive() &&
@@ -885,13 +898,28 @@ void ProcessManager::CloseLazyBackgroundPageNow(const ExtensionId& extension_id,
         frames_to_close.push_back(key_value.first);
       }
     }
+    // Collect unique WebContents and unregister frames.
+    std::set<content::WebContents*> raw_web_contents;
     for (content::RenderFrameHost* frame : frames_to_close) {
-      content::WebContents::FromRenderFrameHost(frame)->ClosePage();
-      // WebContents::ClosePage() may result in calling
-      // UnregisterRenderFrameHost() asynchronously and may cause race
-      // conditions when the background page is reloaded.
-      // To avoid this, unregister the view now.
+      if (content::WebContents* web_contents =
+              content::WebContents::FromRenderFrameHost(frame)) {
+        raw_web_contents.insert(web_contents);
+      }
       UnregisterRenderFrameHost(frame);
+    }
+    // Safely close the collected pages using WeakPtrs. WebContents::ClosePage()
+    // can execute synchronously and destroy WebContents and frames, which would
+    // lead to a UAF if iterating over frames or raw pointers while calling
+    // ClosePage(). See crbug.com/513156160.
+    std::vector<base::WeakPtr<content::WebContents>> safe_web_contents;
+    safe_web_contents.reserve(raw_web_contents.size());
+    std::ranges::transform(
+        raw_web_contents, std::back_inserter(safe_web_contents),
+        [](content::WebContents* contents) { return contents->GetWeakPtr(); });
+    for (const auto& web_contents : safe_web_contents) {
+      if (web_contents) {
+        web_contents->ClosePage();
+      }
     }
 
     host = GetBackgroundHostForExtension(extension_id);
@@ -1116,6 +1144,17 @@ ProcessManager::GetServiceWorkerKeepaliveDataForRecords(
 
 std::vector<WorkerId> ProcessManager::GetAllWorkersIdsForTesting() {
   return all_running_extension_workers_.GetAllForTesting();  // IN-TEST
+}
+
+void ProcessManager::ReleaseLazyKeepaliveCountForFrameForTesting(
+    content::RenderFrameHost* render_frame_host) {
+  ReleaseLazyKeepaliveCountForFrame(render_frame_host);
+}
+
+void ProcessManager::CloseLazyBackgroundPageNowForTesting(
+    const ExtensionId& extension_id) {
+  CloseLazyBackgroundPageNow(
+      extension_id, background_page_data_[extension_id].close_sequence_id);
 }
 
 void ProcessManager::ClearBackgroundPageData(const ExtensionId& extension_id) {

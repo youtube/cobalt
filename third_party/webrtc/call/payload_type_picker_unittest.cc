@@ -14,10 +14,12 @@
 
 #include "absl/strings/str_cat.h"
 #include "api/payload_type.h"
+#include "api/rtc_error.h"
 #include "api/video_codecs/sdp_video_format.h"
 #include "call/payload_type.h"
 #include "media/base/codec.h"
 #include "media/base/media_constants.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -265,6 +267,32 @@ TEST(PayloadTypePicker, AbslStringify) {
   EXPECT_THAT(s, testing::HasSubstr("Entries:"));
   EXPECT_THAT(s, testing::HasSubstr("\n 47:[-1:audio/lyra/8000/1]"));
   EXPECT_THAT(s, testing::HasSubstr("\n 100:[-1:video/vp8/90000/0]"));
+}
+
+TEST(RtpHeaderExtensionRecorder, StoreAndRecall) {
+  RtpHeaderExtensionRecorder recorder(CreateTestEnvironment());
+  RTCError error = recorder.AddMapping(1, "uri", false);
+  EXPECT_TRUE(error.ok());
+  RTCErrorOr<int> result = recorder.LookupId("uri", false);
+  ASSERT_TRUE(result.ok());
+  EXPECT_EQ(result.value(), 1);
+}
+
+TEST(RtpHeaderExtensionRecorder, RedefinitionReturnsOkByDefault) {
+  RtpHeaderExtensionRecorder recorder(CreateTestEnvironment());
+  recorder.AddMapping(1, "uri", false);
+  RTCError error = recorder.AddMapping(2, "uri", false);
+  EXPECT_TRUE(error.ok());
+  EXPECT_EQ(recorder.LookupId("uri", false).value(), 2);
+}
+
+TEST(RtpHeaderExtensionRecorder, RedefinitionReturnsErrorWithFieldTrial) {
+  RtpHeaderExtensionRecorder recorder(CreateTestEnvironment(
+      {.field_trials = "WebRTC-ErrorOnRtpExtensionRedefinition/Enabled/"}));
+  recorder.AddMapping(1, "uri", false);
+  RTCError error = recorder.AddMapping(2, "uri", false);
+  EXPECT_FALSE(error.ok());
+  EXPECT_EQ(recorder.LookupId("uri", false).value(), 1);
 }
 
 }  // namespace webrtc

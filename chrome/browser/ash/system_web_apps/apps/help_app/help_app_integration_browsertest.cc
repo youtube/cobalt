@@ -45,7 +45,6 @@
 #include "chrome/browser/ui/ash/system/system_tray_client_impl.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/chrome_pages.h"
@@ -106,7 +105,8 @@ class HelpAppIntegrationTest : public SystemWebAppIntegrationTest {
     scoped_feature_list_.InitWithFeatures(
         {chromeos::features::kUploadOfficeToCloud,
          features::kReleaseNotesNotificationAllChannels},
-        {features::kHelpAppOpensInsteadOfReleaseNotesNotification});
+        {features::kHelpAppOpensInsteadOfReleaseNotesNotification,
+         ::features::kWebAppInstallDialog});
     https_server()->AddDefaultHandlers(GetChromeTestDataDir());
   }
 

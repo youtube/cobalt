@@ -1704,10 +1704,11 @@ class TurboshaftGraphBuildingInterface
   }
 
 #if V8_INTL_SUPPORT
-  V<String> CallStringToLowercase(FullDecoder* decoder, V<String> string) {
+  V<String> CallStringToLowercase(FullDecoder* decoder, V<String> string,
+                                  V<Context> context) {
     OpIndex result = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringToLowerCaseIntl>(
-        decoder, __ NoContextConstant(), {string});
+        decoder, context, {string}, CheckForException::kCatchInThisFrame);
     return result;
   }
 #endif
@@ -2534,7 +2535,8 @@ class TurboshaftGraphBuildingInterface
             __ Unreachable();
           }
         }
-        V<String> result_value = CallStringToLowercase(decoder, string);
+        V<String> result_value = CallStringToLowercase(
+            decoder, string, instance_cache_.native_context());
         result = __ AnnotateWasmType(result_value, kWasmRefString);
         decoder->detected_->add_stringref();
         break;
@@ -2551,7 +2553,8 @@ class TurboshaftGraphBuildingInterface
           return false;
         }
         V<String> string = args[0].get<String>();
-        V<String> result_value = CallStringToLowercase(decoder, string);
+        V<String> result_value = CallStringToLowercase(
+            decoder, string, instance_cache_.native_context());
         result = __ AnnotateWasmType(result_value, kWasmRefExternString);
         decoder->detected_->add_imported_strings();
         break;
@@ -2705,7 +2708,8 @@ class TurboshaftGraphBuildingInterface
     } else {
       // Locally defined function.
       if (should_inline(decoder, feedback_slot_,
-                        decoder->module_->functions[imm.index].code.length())) {
+                        decoder->module_->functions[imm.index].code.length(),
+                        1)) {
         if (v8_flags.trace_wasm_inlining) {
           PrintF("[function %d%s: inlining direct call #%d to function %d]\n",
                  func_index_, mode_ == kRegular ? "" : " (inlined)",
@@ -2734,7 +2738,8 @@ class TurboshaftGraphBuildingInterface
     } else {
       // Locally defined function.
       if (should_inline(decoder, feedback_slot_,
-                        decoder->module_->functions[imm.index].code.length())) {
+                        decoder->module_->functions[imm.index].code.length(),
+                        1)) {
         if (v8_flags.trace_wasm_inlining) {
           PrintF(
               "[function %d%s: inlining direct tail call #%d to function %d]\n",
@@ -2763,8 +2768,11 @@ class TurboshaftGraphBuildingInterface
       // which might be non-existent (OpIndex::Invalid()) in unreachable code.
       if (__ generating_unreachable_operations()) return;
 
+      base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
+
       if (should_inline(decoder, feedback_slot_,
-                        std::numeric_limits<int>::max())) {
+                        std::numeric_limits<int>::max(),
+                        feedback_cases.size())) {
         V<WordPtr> index_wordptr = TableAddressToUintPtrOrOOBTrap(
             imm.table_imm.table->address_type, index.get<Word>());
 
@@ -2785,7 +2793,6 @@ class TurboshaftGraphBuildingInterface
             decoder, index_wordptr, imm, kNeedsTypeOrNullCheck);
 
         size_t return_count = imm.sig->return_count();
-        base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
         std::vector<base::SmallVector<OpIndex, 2>> case_returns(return_count);
         // The slow path is the non-inlined generic `call_indirect`,
         // or a deopt node if that is enabled.
@@ -2959,8 +2966,11 @@ class TurboshaftGraphBuildingInterface
       CHECK(v8_flags.wasm_inlining);
       feedback_slot_++;
 
+      base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
+
       if (should_inline(decoder, feedback_slot_,
-                        std::numeric_limits<int>::max())) {
+                        std::numeric_limits<int>::max(),
+                        feedback_cases.size())) {
         V<WordPtr> index_wordptr = TableAddressToUintPtrOrOOBTrap(
             imm.table_imm.table->address_type, index.get<Word>());
 
@@ -2980,7 +2990,6 @@ class TurboshaftGraphBuildingInterface
         auto [target, implicit_arg] = BuildIndirectCallTargetAndImplicitArg(
             decoder, index_wordptr, imm, kNeedsTypeOrNullCheck);
 
-        base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
         constexpr int kSlowpathCase = 1;
         base::SmallVector<TSBlock*, wasm::kMaxPolymorphism + kSlowpathCase>
             case_blocks;
@@ -3085,15 +3094,16 @@ class TurboshaftGraphBuildingInterface
     // which might be non-existent (OpIndex::Invalid()) in unreachable code.
     if (__ generating_unreachable_operations()) return;
 
-    if (should_inline(decoder, feedback_slot_,
-                      std::numeric_limits<int>::max())) {
+    base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
+
+    if (should_inline(decoder, feedback_slot_, std::numeric_limits<int>::max(),
+                      feedback_cases.size())) {
       DCHECK_EQ(shared_, SharedFlag::kNo);
       V<FixedArray> func_refs = LOAD_IMMUTABLE_INSTANCE_FIELD(
           trusted_instance_data(SharedFlag::kNo), FuncRefs,
           MemoryRepresentation::TaggedPointer());
 
       size_t return_count = sig->return_count();
-      base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
       std::vector<base::SmallVector<OpIndex, 2>> case_returns(return_count);
       // The slow path is the non-inlined generic `call_ref`,
       // or a deopt node if that is enabled.
@@ -3243,15 +3253,14 @@ class TurboshaftGraphBuildingInterface
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
                      const FunctionSig* sig, const Value args[]) {
     feedback_slot_++;
-
-    if (should_inline(decoder, feedback_slot_,
-                      std::numeric_limits<int>::max())) {
+    base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
+    if (should_inline(decoder, feedback_slot_, std::numeric_limits<int>::max(),
+                      feedback_cases.size())) {
       DCHECK_EQ(shared_, SharedFlag::kNo);
       V<FixedArray> func_refs = LOAD_IMMUTABLE_INSTANCE_FIELD(
           trusted_instance_data(SharedFlag::kNo), FuncRefs,
           MemoryRepresentation::TaggedPointer());
 
-      base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
       constexpr int kSlowpathCase = 1;
       base::SmallVector<TSBlock*, wasm::kMaxPolymorphism + kSlowpathCase>
           case_blocks;
@@ -5304,7 +5313,7 @@ class TurboshaftGraphBuildingInterface
                                            : compiler::kWithoutNullCheck,
           {});
       result->op = old_value;
-      V<Any> new_value;
+      V<Word64> new_value;
       V<Word64> old = V<Word64>::Cast(old_value);
       switch (opcode) {
         case kExprStructAtomicAdd:
@@ -5323,7 +5332,7 @@ class TurboshaftGraphBuildingInterface
           new_value = __ Word64BitwiseXor(old, field_value.get<Word64>());
           break;
         case kExprStructAtomicExchange:
-          new_value = field_value.op;
+          new_value = field_value.get<Word64>();
           break;
         default:
           UNREACHABLE();
@@ -5356,10 +5365,9 @@ class TurboshaftGraphBuildingInterface
       }
     })(opcode);
     result->op = __ StructAtomicRMW(
-        struct_object.get<WasmStructNullable>(),
-        field_value.get<WasmStructNullable>(), OpIndex::Invalid(), op,
-        field.struct_imm.struct_type, field.struct_imm.index,
-        field.field_imm.index,
+        struct_object.get<WasmStructNullable>(), field_value.op,
+        OpIndex::Invalid(), op, field.struct_imm.struct_type,
+        field.struct_imm.index, field.field_imm.index,
         struct_object.type.is_nullable() ? compiler::kWithNullCheck
                                          : compiler::kWithoutNullCheck,
         memory_order);
@@ -5388,7 +5396,7 @@ class TurboshaftGraphBuildingInterface
       result->op = old_value;
       IF (__ Word64Equal(old_value, expected_value.get<Word64>())) {
         __ StructSet(struct_object.get<WasmStructNullable>(),
-                     new_value.get<WasmStructNullable>(), struct_type,
+                     new_value.get<Word64>(), struct_type,
                      field.struct_imm.index, field.field_imm.index,
                      compiler::kWithoutNullCheck, {},
                      FieldImmediateToWriteBarrier(field));
@@ -5397,9 +5405,8 @@ class TurboshaftGraphBuildingInterface
     }
 
     result->op = __ StructAtomicRMW(
-        struct_object.get<WasmStructNullable>(),
-        new_value.get<WasmStructNullable>(),
-        expected_value.get<WasmStructNullable>(),
+        struct_object.get<WasmStructNullable>(), new_value.op,
+        expected_value.op,
         compiler::turboshaft::StructAtomicRMWOp::BinOp::kCompareExchange,
         field.struct_imm.struct_type, field.struct_imm.index,
         field.field_imm.index,
@@ -5524,7 +5531,7 @@ class TurboshaftGraphBuildingInterface
       V<Any> old_value = __ ArrayGet(array_value, index.get<Word32>(),
                                      imm.array_type, true, {});
       result->op = old_value;
-      V<compiler::turboshaft::Word> new_value;
+      V<Word64> new_value;
       V<Word64> old = V<Word64>::Cast(old_value);
       switch (opcode) {
         case kExprArrayAtomicAdd:
@@ -5543,7 +5550,7 @@ class TurboshaftGraphBuildingInterface
           new_value = __ Word64BitwiseXor(old, value.get<Word64>());
           break;
         case kExprArrayAtomicExchange:
-          new_value = value.get<Word>();
+          new_value = value.get<Word64>();
           break;
         default:
           UNREACHABLE();
@@ -5576,8 +5583,8 @@ class TurboshaftGraphBuildingInterface
     })(opcode);
     auto array_value = array_obj.get<WasmArrayNullable>();
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type);
-    result->op = __ ArrayAtomicRMW(array_value, index.get<Word32>(),
-                                   value.get<Word32>(), OpIndex::Invalid(), op,
+    result->op = __ ArrayAtomicRMW(array_value, index.get<Word32>(), value.op,
+                                   OpIndex::Invalid(), op,
                                    imm.array_type->element_type(), order);
   }
 
@@ -5599,7 +5606,7 @@ class TurboshaftGraphBuildingInterface
           array_value, index.get<Word32>(), imm.array_type, true, {}));
       result->op = old_value;
       IF (__ Word64Equal(old_value, expected_value.get<Word64>())) {
-        __ ArraySet(array_value, index.get<Word32>(), new_value.get<Word32>(),
+        __ ArraySet(array_value, index.get<Word32>(), new_value.get<Word64>(),
                     imm.array_type->element_type(), {},
                     ArrayIndexImmediateToWriteBarrier(imm));
       }
@@ -5607,8 +5614,7 @@ class TurboshaftGraphBuildingInterface
     }
 
     result->op = __ ArrayAtomicRMW(
-        array_value, index.get<Word32>(), new_value.get<Word32>(),
-        expected_value.get<Word32>(),
+        array_value, index.get<Word32>(), new_value.op, expected_value.op,
         compiler::turboshaft::ArrayAtomicRMWOp::BinOp::kCompareExchange,
         imm.array_type->element_type(), order);
   }
@@ -7928,29 +7934,31 @@ class TurboshaftGraphBuildingInterface
       case kExprI64Mul:
         return __ Word64Mul(lhs, rhs);
       case kExprI64DivS: {
-        if constexpr (!Is64()) {
-          return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_int64_div(),
-                                wasm::TrapId::kTrapDivByZero);
-        }
+#if V8_TARGET_ARCH_32_BIT
+        return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_int64_div(),
+                              wasm::TrapId::kTrapDivByZero);
+#else   // !V8_TARGET_ARCH_32_BIT
         __ TrapIf(__ Word64Equal(rhs, 0), TrapId::kTrapDivByZero);
         V<Word32> unrepresentable_condition = __ Word32BitwiseAnd(
             __ Word64Equal(rhs, -1),
             __ Word64Equal(lhs, std::numeric_limits<int64_t>::min()));
         __ TrapIf(unrepresentable_condition, TrapId::kTrapDivUnrepresentable);
         return __ Int64Div(lhs, rhs);
+#endif  // !V8_TARGET_ARCH_32_BIT
       }
       case kExprI64DivU:
-        if constexpr (!Is64()) {
-          return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_uint64_div(),
-                                wasm::TrapId::kTrapDivByZero);
-        }
+#if V8_TARGET_ARCH_32_BIT
+        return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_uint64_div(),
+                              wasm::TrapId::kTrapDivByZero);
+#else   // !V8_TARGET_ARCH_32_BIT
         __ TrapIf(__ Word64Equal(rhs, 0), TrapId::kTrapDivByZero);
         return __ Uint64Div(lhs, rhs);
+#endif  // !V8_TARGET_ARCH_32_BIT
       case kExprI64RemS: {
-        if constexpr (!Is64()) {
-          return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_int64_mod(),
-                                wasm::TrapId::kTrapRemByZero);
-        }
+#if V8_TARGET_ARCH_32_BIT
+        return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_int64_mod(),
+                              wasm::TrapId::kTrapRemByZero);
+#else   // !V8_TARGET_ARCH_32_BIT
         __ TrapIf(__ Word64Equal(rhs, 0), TrapId::kTrapRemByZero);
         Label<Word64> done(&asm_);
         IF (UNLIKELY(__ Word64Equal(rhs, -1))) {
@@ -7961,14 +7969,16 @@ class TurboshaftGraphBuildingInterface
 
         BIND(done, result);
         return result;
+#endif  // !V8_TARGET_ARCH_32_BIT
       }
       case kExprI64RemU:
-        if constexpr (!Is64()) {
-          return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_uint64_mod(),
-                                wasm::TrapId::kTrapRemByZero);
-        }
+#if V8_TARGET_ARCH_32_BIT
+        return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_uint64_mod(),
+                              wasm::TrapId::kTrapRemByZero);
+#else   // !V8_TARGET_ARCH_32_BIT
         __ TrapIf(__ Word64Equal(rhs, 0), TrapId::kTrapRemByZero);
         return __ Uint64Mod(lhs, rhs);
+#endif  // !V8_TARGET_ARCH_32_BIT
       case kExprI64And:
         return __ Word64BitwiseAnd(lhs, rhs);
       case kExprI64Ior:
@@ -8777,9 +8787,10 @@ class TurboshaftGraphBuildingInterface
     // traces.
     if (check_for_exception == CheckForException::kCatchInParentFrame) {
       __ output_graph().operation_origins()[call] = WasmPositionToOpIndex(
-          parent_position_.ScriptOffset(), parent_position_.InliningId() == -1
-                                               ? kNoInliningId
-                                               : parent_position_.InliningId());
+          parent_position_.ScriptOffset(),
+          parent_position_.InliningId() == SourcePosition::kNotInlined
+              ? kNoInliningId
+              : parent_position_.InliningId());
     }
   }
 
@@ -9253,9 +9264,7 @@ class TurboshaftGraphBuildingInterface
       struct_value = __ AnnotateWasmType(
           struct_value, ValueType::Ref(decoder->module_->heap_type(imm.index)));
     } else {
-      const SharedFlag shared = type.is_shared;
-      struct_value =
-          __ WasmAllocateStruct(rtt, imm.struct_type, imm.index, shared);
+      struct_value = __ WasmAllocateStruct(rtt, imm.struct_type, imm.index);
     }
 
     bool in_old_space = type.is_shared == SharedFlag::kYes ||
@@ -9364,11 +9373,17 @@ class TurboshaftGraphBuildingInterface
   }
 
   base::Vector<InliningTree*> GetFeedbackCases(FullDecoder* decoder) {
+    if (!inlining_decisions_ ||
+        inlining_decisions_->mode() == InliningTree::Mode::kUninitialized) {
+      return {};
+    }
     if (inlining_decisions_->mode() == InliningTree::Mode::kVector) {
       return inlining_decisions_->function_calls()[feedback_slot_];
     }
-    DCHECK(inlining_decisions_->function_calls_map().contains(
-        decoder->pc_relative_offset()));
+    if (!inlining_decisions_->function_calls_map().contains(
+            decoder->pc_relative_offset())) {
+      return {};
+    }
     return inlining_decisions_
         ->function_calls_map()[decoder->pc_relative_offset()];
   }
@@ -9614,7 +9629,8 @@ class TurboshaftGraphBuildingInterface
   }
 
  private:
-  bool should_inline(FullDecoder* decoder, int feedback_slot, int size) {
+  bool should_inline(FullDecoder* decoder, int feedback_slot, int size,
+                     size_t cases_count) {
     if (!v8_flags.wasm_inlining) return false;
     // TODO(42204563,41480394,335082212): Do not inline if the current function
     // is shared (which also implies the target cannot be shared either).
@@ -9629,8 +9645,8 @@ class TurboshaftGraphBuildingInterface
     // What can happen here is that due to --no-liftoff, we inline additional
     // functions that are not included in the inlining tree, resulting in
     // `inlining_positions_` growing in size more than expected.
-    if (!v8_flags.liftoff &&
-        inlining_positions_->size() >= InliningTree::kMaxInlinedCount) {
+    if (!v8_flags.liftoff && inlining_positions_->size() + cases_count >
+                                 InliningTree::kMaxInlinedCount) {
       return false;
     }
 
@@ -9676,9 +9692,9 @@ class TurboshaftGraphBuildingInterface
              // In a production configuration, `InliningTree` decides what to
              // (not) inline, e.g., asm.js functions or to not exceed
              // `kMaxInlinedCount`. But without Liftoff, we need to "manually"
-             // comply with these constraints here.
-             !is_asmjs_module(decoder->module_) &&
-             inlining_positions_->size() < InliningTree::kMaxInlinedCount;
+             // comply with these constraints; we already checked for
+             // `kMaxInlinedCount`, so we exclude asmjs modules here.
+             !is_asmjs_module(decoder->module_);
     }
     return false;
   }

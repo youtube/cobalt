@@ -145,6 +145,7 @@
 如需详细了解有效的网址格式，请访问 https://chromeenterprise.google/policies/url-patterns。<ph name="WILDCARD_VALUE" /> 不是此政策可接受的值。</translation>
 <translation id="1082802595100075771">允许用户选择使用匿名 Google 服务为无标签图片提供自动说明</translation>
 <translation id="1084697375611053264">以列表形式指定允许哪些第三方 Web 应用网域使用 <ph name="DESK_API_NAME" /> 控制 <ph name="PRODUCT_OS_NAME" /> 桌面。这些网址格式应遵循 https://developer.chrome.com/docs/extensions/mv3/manifest/externally_connectable/#reference 页面中为“matches”属性定义的格式</translation>
+<translation id="1086596047220085412">智能标签页分享设置</translation>
 <translation id="1087057100912843460">允许更新</translation>
 <translation id="1087187152710800704">默认情况下拒绝向所有网站授予窗口管理权限</translation>
 <translation id="1087437665304381368">此政策仅用于控制 <ph name="PRODUCT_OS_NAME" />开发者模式。如果您想阻止对 Android 开发者选项的访问，则需设置 <ph name="DEVELOPER_TOOLS_DISABLED_POLICY_NAME" /> 政策。</translation>
@@ -1066,6 +1067,7 @@ Chrome 政策的优先级高于此政策，例如：如果某个扩展程序已�
       另请参阅 <ph name="REMOTE_ACCESS_HOST_CLIENT_DOMAIN_LIST_POLICY_NAME" />。
 
       注意：此设置会覆盖 <ph name="REMOTE_ACCESS_HOST_DOMAIN_POLICY_NAME" />（若已设置）。</translation>
+<translation id="1723571018091915166">不允许与 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />集成功能智能分享标签页。</translation>
 <translation id="172374442286684480">允许所有网站设置本地数据</translation>
 <translation id="1729169799290004131">通过设置此政策，您可以指定屏幕亮度百分比（关闭自动调节亮度功能）。系统会根据政策值调整初始屏幕亮度，但用户可以更改相关设置。
 
@@ -2873,6 +2875,13 @@ PAC 样式的字符串：
 <translation id="2866726566162790531">允许所有 HTTP 身份验证的来源列表</translation>
 <translation id="2868756546751652023">允许用户使用“即时网络共享”功能</translation>
 <translation id="286898786908566256">允许用户将电话号码从 Chrome 发送到 Android 设备</translation>
+<translation id="287087426320717057">此政策允许用户启动任何类型的固件更新。
+
+      如果此政策已启用或未设置，设备所有者等用户便能启动固件更新。
+
+      如果此政策已停用，所有用户都将无法应用固件更新。
+
+      此政策适用于 <ph name="PRODUCT_OS_FLEX_NAME" /> 设备的外围设备固件更新和内部组件固件更新。<ph name="PRODUCT_OS_NAME" /> 设备的内部组件固件更新不受此政策的影响。</translation>
 <translation id="2872098849906555324">停用 Google 云端硬盘同步功能</translation>
 <translation id="2872189563975139803">企业资料分离设置</translation>
 <translation id="2872961005593481000">关机</translation>
@@ -3439,7 +3448,6 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 变体可控制是否为顶层
 <translation id="322359555555487980">确定变体在 <ph name="PRODUCT_OS_NAME" />中的可用情况</translation>
 <translation id="3229163415739929305">如果此政策已启用或未设置，系统会启用页面加载元数据提取功能和用以提升浏览体验的机器学习模型。如果此政策已停用，可能会导致某些功能无法正常运行。</translation>
 <translation id="3231311173895401135">让浏览器决定是否支持</translation>
-<translation id="3231684792162319504">禁止采用 Gemini 实验性触发机制。</translation>
 <translation id="3231837273069128027">通过设置此政策，您可以配置 <ph name="TPM_FIRMWARE_UPDATE_TPM" /> 固件更新的可用性和行为。
 
       请在 JSON 属性中指定各项设置：
@@ -5156,7 +5164,6 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
 <translation id="4435032708588431506">允许使用 QUIC</translation>
 <translation id="443665821428652897">在浏览器关闭时清除网站数据（已弃用）</translation>
 <translation id="4436941175475497595">停用打印预览</translation>
-<translation id="4436992815485865052">允许采用 Gemini 实验性触发机制。</translation>
 <translation id="4439336120285389675">指定要临时重新启用的已弃用网络平台功能的列表。
 
       通过此政策，管理员可以使已弃用的网络平台功能在限定的时间内重新发挥功效。这些功能用字符串标记进行标识，与通过此政策指定的列表中包含的标记对应的功能将被重新启用。
@@ -6541,7 +6548,6 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 <translation id="5255790642269910630">如果此政策已设置，那么每当重新启动时或在此政策的值更改后首次连接时，每个显示屏都会旋转到指定方向。用户可在登录后通过“设置”页面更改显示屏旋转角度，但下次重新启动时显示屏仍会恢复为更改前的设置。此政策适用于主要显示屏和次要显示屏。
 
 如果此政策未设置，默认值便是 0 度，但用户可以随意更改此值。如果用户更改了默认值，显示屏在重启时将不会重新应用此值。</translation>
-<translation id="5256792633540454282">控制 Gemini 实验性触发机制</translation>
 <translation id="5257395339965216304">托管的应用数据</translation>
 <translation id="5258445772095084618">允许独立用户使用所需的虚拟机来支持 Linux 应用</translation>
 <translation id="5258651513421638932">允许独立式应用连接智能卡</translation>
@@ -7529,7 +7535,6 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 
       此政策已被弃用，请改用 <ph name="PRINTERS_BULK_BLOCKLIST" />。</translation>
 <translation id="591088232153082363">基于电池使用模式自动调节电池充电速率。</translation>
-<translation id="5911656389795271430">这是一项实验性政策。</translation>
 <translation id="5913506885872855604">设置此政策即可将某些内部地址范围视为“公开”，使之无需接受<ph name="LOCAL_NETWORK_ACCES" />检查。反之，如果某些公开地址范围可能用于内部，则可以将其视为“本地”，以便通过<ph name="LOCAL_NETWORK_ACCESS" />检查予以保护。
 
 IP 地址空间覆盖有两种形式：
@@ -8250,6 +8255,25 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 <translation id="6383774771168138899">为 <ph name="MICROSOFT_ONE_DRIVE_NAME" /> 和 <ph name="MICROSOFT_365_NAME" /> 配置<ph name="CLOUD_UPLOAD_NAME" />流程</translation>
 <translation id="6384542789059421431">允许在浏览器侧边栏中显示默认搜索引擎的搜索结果页面。</translation>
 <translation id="6389240462871677239">允许独立式 Web 应用 (IWA) 源使用 Controlled Frame</translation>
+<translation id="6393598243777822017">此政策用于控制是否允许通过 <ph name="PRODUCT_NAME" /> 侧边栏或标签页使用 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />的智能标签页分享功能。
+
+请注意，此政策不影响在网页上使用 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />，仅控制用户在使用 <ph name="PRODUCT_NAME" /> 时可如何与其分享信息。
+
+0 = 用户可以与 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />分享网页或文件内容。
+
+1 = 用户无法与 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />分享网页或文件内容。用于分享上下文的入口点和侧边栏将被停用或隐藏。
+
+如果 <ph name="GOOGLE_SEARCH_PRODUCT_NAME" />未设为用户的默认搜索引擎，系统会忽略此政策，因为该功能已停用。
+
+此政策独立于 <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> 政策。<ph name="AI_MODE_SETTINGS_POLICY_NAME" /> 政策仅控制多功能框或新标签页搜索框中的入口点，而此政策旨在控制通过侧边栏或标签页进行上下文分享。
+
+此政策也不会控制 <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> 集成功能，该功能可通过 <ph name="GEMINI_SETTINGS_POLICY_NAME" /> 政策停用。
+
+请注意，如果 <ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> 处于停用状态，系统将忽略此政策。
+
+如果未设置此政策，相关行为将由 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策决定。
+
+如需详细了解生成式 AI 功能的数据处理机制，请访问 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="6394350458541421998">此政策从 <ph name="PRODUCT_OS_NAME" />版本 29 起开始弃用。请改用 PresentationScreenDimDelayScale 政策。</translation>
 <translation id="6397588391180665797">报告已注册的设备上的用户网络配置。
 
@@ -10651,6 +10675,7 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 
 如果 <ph name="ENABLE_MEDIA_ROUTER_POLICY_NAME" /> 政策设为停用，此政策的值不会产生任何效力，所以 Cast 工具栏图标不会显示。</translation>
 <translation id="7933141401888114454">允许创建受监管用户</translation>
+<translation id="793360449603660370">允许与 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />集成功能智能分享标签页。</translation>
 <translation id="793473937901685727">为 ARC 应用设置证书可用性</translation>
 <translation id="7936302526928951356">User-Agent 字符串不会冻结主要版本。</translation>
 <translation id="7936632434238618620">此政策用于设置一系列网址格式，从而指定 Chrome 可为哪些网站自动选择客户端证书。此政策的值是一个由字符串化的 JSON 字典组成的数组，每个字典条目都必须采用 <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_EXAMPLE" /> 格式，其中 <ph name="URL_PATTERN_PLACEHOLDER" /> 是内容设置格式。<ph name="FILTER_PLACEHOLDER" /> 用于限制浏览器可自动从哪些客户端证书中进行选择。无论是否设置了过滤条件，系统都只会选择与服务器的证书请求相匹配的证书。在 Android 和 iOS 上，Chrome 只能选择它自行配置的客户端证书，而无法访问在操作系统级别安装的证书。

@@ -36,6 +36,7 @@
   - Video
     - [Adaptation](/video/g3doc/adaptation.md)
     - [Video coding](/modules/video_coding/g3doc/index.md)
+    - [Video Encoder API v2](/api/video_codecs/g3doc/video_encoder_api_v2.md)
     - [Stats](/video/g3doc/stats.md)
   - DataChannel
   - [PeerConnection](/pc/g3doc/peer_connection.md)

@@ -32,6 +32,7 @@ import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.tab.CurrentTabObserver;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.theme.ThemeColorProvider.ThemeColorObserver;
 import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.theme.ToolbarThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.ToolbarProgressBar;
@@ -45,7 +46,7 @@ import java.util.function.Supplier;
 
 /** The business logic for controlling the top toolbar's cc texture. */
 @NullMarked
-public class TopToolbarOverlayMediator {
+public class TopToolbarOverlayMediator implements ThemeColorObserver {
     // LINT.IfChange(InvalidContentOffset)
     static final float INVALID_CONTENT_OFFSET = -10001.f;
     // LINT.ThenChange(//chrome/browser/android/compositor/layer/toolbar_layer.cc:InvalidContentOffset)
@@ -122,6 +123,7 @@ public class TopToolbarOverlayMediator {
     private float mViewportHeight;
 
     private @Nullable BrowserControlsOffsetTagsInfo mBrowserControlsOffsetTagsInfo;
+    private boolean mCurrentlyAnimating;
 
     private float mAnimatedProgress;
     private float mTargetProgress;
@@ -319,6 +321,20 @@ public class TopToolbarOverlayMediator {
                             updateProgress();
                         }
                     }
+
+                    @Override
+                    public void onBottomControlsHeightAnimationStarted() {
+                        mCurrentlyAnimating = true;
+                        if (getControlsPosition() == ControlsPosition.BOTTOM) {
+                            mModel.set(TopToolbarOverlayProperties.TOOLBAR_OFFSET_TAG, null);
+                        }
+                    }
+
+                    @Override
+                    public void onBottomControlsHeightAnimationEnded() {
+                        mCurrentlyAnimating = false;
+                        updateOffsetTag(mBrowserControlsOffsetTagsInfo);
+                    }
                 };
         mBrowserControlsStateProvider.addObserver(mBrowserControlsObserver);
 
@@ -341,6 +357,8 @@ public class TopToolbarOverlayMediator {
         if (progressBar != null && ChromeFeatureList.sAndroidApb144Patch5.isEnabled()) {
             progressBar.addObserver(mProgressBarObserver);
         }
+
+        mToolbarThemeColorProvider.addThemeColorObserver(this);
 
         mIsBrowserControlsAndroidViewVisible =
                 mBrowserControlsStateProvider.getAndroidControlsVisibility() == View.VISIBLE;
@@ -381,6 +399,7 @@ public class TopToolbarOverlayMediator {
 
     void updateOffsetTag(@Nullable BrowserControlsOffsetTagsInfo offsetTagsInfo) {
         mBrowserControlsOffsetTagsInfo = offsetTagsInfo;
+        if (mCurrentlyAnimating) return;
 
         if (offsetTagsInfo == null) {
             mModel.set(TopToolbarOverlayProperties.TOOLBAR_OFFSET_TAG, null);
@@ -432,12 +451,22 @@ public class TopToolbarOverlayMediator {
 
     /**
      * Update the colors of the layer based on the specified tab.
+     *
      * @param tab The tab to base the colors on.
      */
     private void updateThemeColor(Tab tab) {
         @ColorInt int color = getToolbarBackgroundColor(tab);
         mModel.set(TopToolbarOverlayProperties.TOOLBAR_BACKGROUND_COLOR, color);
         mModel.set(TopToolbarOverlayProperties.URL_BAR_COLOR, getUrlBarBackgroundColor(tab, color));
+    }
+
+    // ThemeColorObserver implementation.
+    @Override
+    public void onThemeColorChanged(@ColorInt int color, boolean shouldAnimate) {
+        Tab tab = mTabSupplier.get();
+        if (tab != null) {
+            updateThemeColor(tab);
+        }
     }
 
     /**
@@ -520,6 +549,8 @@ public class TopToolbarOverlayMediator {
     void destroy() {
         mTabObserver.destroy();
 
+        mToolbarThemeColorProvider.removeThemeColorObserver(this);
+
         mBottomToolbarControlsOffsetSupplier.removeObserver(mOnBottomToolbarControlsOffsetChanged);
         mSuppressToolbarSceneLayerSupplier.removeObserver(mOnSuppressToolbarSceneLayerChanged);
         mLayoutStateProvider.removeObserver(mSceneChangeObserver);
@@ -551,12 +582,16 @@ public class TopToolbarOverlayMediator {
         }
     }
 
-    /** @return Whether this overlay should be attached to the tree. */
+    /**
+     * @return Whether this overlay should be attached to the tree.
+     */
     boolean shouldBeAttachedToTree() {
         return true;
     }
 
-    /** @param xOffset The x offset of the toolbar. */
+    /**
+     * @param xOffset The x offset of the toolbar.
+     */
     void setXOffset(float xOffset) {
         mModel.set(TopToolbarOverlayProperties.X_OFFSET, xOffset);
     }
@@ -575,7 +610,9 @@ public class TopToolbarOverlayMediator {
         mModel.set(TopToolbarOverlayProperties.ANONYMIZE, anonymize);
     }
 
-    /** @param visible Whether the overlay and shadow should be visible despite other signals. */
+    /**
+     * @param visible Whether the overlay and shadow should be visible despite other signals.
+     */
     void setManualVisibility(boolean visible) {
         assert mIsVisibilityManuallyControlled
                 : "Manual visibility control was not set for this overlay.";
@@ -672,12 +709,12 @@ public class TopToolbarOverlayMediator {
         ResettersForTesting.register(() -> sIsTabletForTesting = null);
     }
 
-    static void setToolbarBackgroundColorForTesting(@ColorInt int color) {
+    static void setToolbarBackgroundColorForTesting(@Nullable Integer color) {
         sToolbarBackgroundColorForTesting = color;
         ResettersForTesting.register(() -> sToolbarBackgroundColorForTesting = null);
     }
 
-    static void setUrlBarColorForTesting(@ColorInt int color) {
+    static void setUrlBarColorForTesting(@Nullable Integer color) {
         sUrlBarColorForTesting = color;
         ResettersForTesting.register(() -> sUrlBarColorForTesting = null);
     }

@@ -108,6 +108,7 @@
 #include "chrome/browser/media/webrtc/audio_debug_recordings_handler.h"
 #include "chrome/browser/media/webrtc/capture_policy_utils.h"
 #include "chrome/browser/media/webrtc/chrome_screen_enumerator.h"
+#include "chrome/browser/media/webrtc/desktop_capture_devices_util.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
 #include "chrome/browser/media/webrtc/media_device_salt_service_factory.h"
 #include "chrome/browser/media/webrtc/rtc_diagnostic_logging_utils.h"
@@ -404,6 +405,7 @@
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy_features.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/self_deleting_url_loader_factory.h"
 #include "services/network/public/cpp/web_sandbox_flags.h"
@@ -412,6 +414,7 @@
 #include "services/network/public/mojom/network_service.mojom.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 #include "services/network/public/mojom/web_transport.mojom.h"
+#include "third_party/blink/public/common/chrome_debug_urls.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/loader/url_loader_throttle.h"
 #include "third_party/blink/public/common/mime_util/mime_util.h"
@@ -689,6 +692,7 @@
 
 #if BUILDFLAG(ENABLE_MEDIA_REMOTING)
 #include "chrome/browser/media/cast_remoting_connector.h"
+#include "chrome/browser/media/remoting_bridge.h"
 #endif
 
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
@@ -821,6 +825,10 @@ BASE_FEATURE(kPrewarmServiceWorkerRegistrationForDSE,
 BASE_FEATURE(kPrefetchRequestIntegrityHeaders,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
+
+#if BUILDFLAG(IS_WIN)
+BASE_FEATURE(kEnableASLRBeaconMitigation, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN)
 
 // Cached version of the locale so we can return the locale on the I/O
 // thread.
@@ -1603,6 +1611,10 @@ void ChromeContentBrowserClient::RegisterProfilePrefs(
   registry->RegisterBooleanPref(
       policy::policy_prefs::
           kAllowBackForwardCacheForCacheControlNoStorePageEnabled,
+      true);
+
+  registry->RegisterBooleanPref(
+      policy::policy_prefs::kRestrictBackgroundFetchFromServiceWorkerEnabled,
       true);
 
   registry->RegisterBooleanPref(
@@ -2448,6 +2460,18 @@ ChromeContentBrowserClient::GetBaselinePermissionsPolicyForIsolatedApp(
 #endif
 }
 
+void ChromeContentBrowserClient::EnsureRequiredHeadersForIsolatedApp(
+    content::BrowserContext* browser_context,
+    const GURL& url,
+    network::mojom::URLResponseHead* response_head,
+    const std::optional<content::FrameTreeNodeId>& frame_tree_node) {
+#if !BUILDFLAG(IS_ANDROID)
+  ChromeContentBrowserClientIsolatedWebAppsPart::
+      EnsureRequiredHeadersForIsolatedApp(browser_context, url, response_head,
+                                          frame_tree_node);
+#endif
+}
+
 bool ChromeContentBrowserClient::ShouldTryToUseExistingProcessHost(
     content::BrowserContext* browser_context,
     const GURL& url) {
@@ -2734,6 +2758,12 @@ bool ChromeContentBrowserClient::IsMultiCaptureAllowed(
 #endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
+content::WebContents*
+ChromeContentBrowserClient::GetWebContentsFromWindowIfCaptureHandleAllowed(
+    gfx::NativeWindow window) {
+  return ::GetWebContentsFromWindowIfCaptureHandleAllowed(window);
+}
+
 bool ChromeContentBrowserClient::IsFileAccessAllowed(
     const base::FilePath& path,
     const base::FilePath& absolute_path,
@@ -2904,6 +2934,20 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
             blink::switches::kXSLTEnabledPolicy,
             prefs->GetBoolean(policy::policy_prefs::kXSLTEnabled) ? "true"
                                                                   : "false");
+      }
+
+      if (prefs
+              ->FindPreference(
+                  policy::policy_prefs::
+                      kRestrictBackgroundFetchFromServiceWorkerEnabled)
+              ->IsManaged()) {
+        command_line->AppendSwitchASCII(
+            blink::switches::kRestrictBackgroundFetchFromServiceWorker,
+            prefs->GetBoolean(
+                policy::policy_prefs::
+                    kRestrictBackgroundFetchFromServiceWorkerEnabled)
+                ? "true"
+                : "false");
       }
 
       if (!prefs->GetBoolean(prefs::kPartitionedBlobUrlUsage)) {
@@ -4498,9 +4542,8 @@ bool ChromeContentBrowserClient::CanCreateWindow(
         contextual_tasks_ui_service->HandleNavigation(
             std::move(url_params), responsible_web_contents,
             is_from_embedded_page,
-            /*from_can_create_window=*/true,
-            /*is_same_site_or_from_ui=*/true,
-            /*is_mobile_ua=*/is_same_site_or_from_ui)) {
+            /*from_can_create_window=*/true, is_same_site_or_from_ui,
+            /*is_mobile_ua=*/false)) {
       return false;
     }
   }
@@ -4858,6 +4901,20 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
       }
     }
 #endif
+
+    contextual_tasks::ContextualTasksUiService* ui_service =
+        contextual_tasks::ContextualTasksUiServiceFactory::GetForBrowserContext(
+            profile);
+    if (ui_service && ui_service->IsTrackedWindow(web_contents)) {
+      // This preference must be set here because OverrideWebPreferences is
+      // the central place in Chrome to modify WebPreferences for renderers.
+      // There is no component-specific hook in
+      // chrome/browser/contextual_tasks that allows overriding these
+      // preferences directly. We need to allow scripts to close windows for
+      // tracked guest windows so that the page that was opened via
+      // window.open can close itself if needed (e.g., via window.close()).
+      web_prefs->allow_scripts_to_close_windows = true;
+    }
 
     web_prefs->is_initial_profile =
         profile->GetOriginalProfile()->GetBaseName() ==
@@ -5504,6 +5561,40 @@ std::optional<std::wstring>
 ChromeContentBrowserClient::GetWindowsSecurityAttributeName() const {
   return installer::GetIsolationAttributeName();
 }
+
+std::vector<uintptr_t> ChromeContentBrowserClient::GetAslrBeaconAddresses(
+    sandbox::mojom::Sandbox sandbox_type) {
+  if (!base::FeatureList::IsEnabled(kEnableASLRBeaconMitigation)) {
+    return {};
+  }
+
+  if (sandbox_type == sandbox::mojom::Sandbox::kNoSandbox ||
+      sandbox_type ==
+          sandbox::mojom::Sandbox::kNoSandboxAndElevatedPrivileges) {
+    return {};
+  }
+
+  const auto* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(sandbox::policy::switches::kNoSandbox)) {
+    return {};
+  }
+
+  if (sandbox_type == sandbox::mojom::Sandbox::kGpu) {
+    if (command_line->HasSwitch(
+            sandbox::policy::switches::kDisableGpuSandbox)) {
+      return {};
+    }
+  }
+
+  // In a chrome build, kBrowserResourcesDll will be loaded. In tests, this will
+  // not exist and simply be skipped.
+  if (const auto chrome_dll =
+          base::win::GetModuleAddress(chrome::kBrowserResourcesDll)) {
+    return {reinterpret_cast<uintptr_t>(chrome_dll.value())};
+  }
+
+  return {};
+}
 #endif  // BUILDFLAG(IS_WIN)
 
 void ChromeContentBrowserClient::
@@ -5791,8 +5882,14 @@ void ChromeContentBrowserClient::CreateMediaRemoter(
     content::RenderFrameHost* render_frame_host,
     mojo::PendingRemote<media::mojom::RemotingSource> source,
     mojo::PendingReceiver<media::mojom::Remoter> receiver) {
-  CastRemotingConnector::CreateMediaRemoter(
-      render_frame_host, std::move(source), std::move(receiver));
+  DCHECK(render_frame_host);
+  auto* const contents =
+      content::WebContents::FromRenderFrameHost(render_frame_host);
+  if (!contents) {
+    return;
+  }
+  RemotingBridge::CreateMediaRemoter(CastRemotingConnector::Get(contents),
+                                     std::move(source), std::move(receiver));
 }
 #endif  // BUILDFLAG(ENABLE_MEDIA_REMOTING)
 
@@ -6154,6 +6251,49 @@ ChromeContentBrowserClient::CreateNonNetworkNavigationURLLoaderFactory(
   return {};
 }
 
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+namespace {
+// Components of chrome that are implemented as extensions are allowed to use
+// chrome://resources/ URLs in workers.
+bool ExtensionWorkerHasAccessToChromeResources(
+    const extensions::Extension* extension) {
+  return extension && extension->is_extension() &&
+         Manifest::IsComponentLocation(extension->location());
+}
+
+void AddChromeSchemeFactoriesForWorker(
+    content::BrowserContext* browser_context,
+    const std::optional<url::Origin>& request_initiator,
+    ChromeContentBrowserClient::NonNetworkURLLoaderFactoryMap* factories) {
+  if (!base::FeatureList::IsEnabled(
+          extensions_features::kComponentExtensionAllowWorkerChromeResources)) {
+    return;
+  }
+
+  if (!request_initiator.has_value()) {
+    return;
+  }
+
+  extensions::ExtensionRegistry* registry = extensions::ExtensionRegistry::Get(
+      Profile::FromBrowserContext(browser_context));
+  DCHECK(registry);
+  const extensions::Extension* extension =
+      registry->enabled_extensions().GetExtensionOrAppByURL(
+          request_initiator->GetURL());
+
+  // Support for chrome:// scheme if appropriate for workers.
+  if (ExtensionWorkerHasAccessToChromeResources(extension)) {
+    std::vector<std::string> allowed_webui_hosts = {
+        content::kChromeUIResourcesHost};
+    factories->emplace(content::kChromeUIScheme,
+                       content::CreateWebUIURLLoaderFactoryForWorker(
+                           browser_context, content::kChromeUIScheme,
+                           std::move(allowed_webui_hosts)));
+  }
+}
+}  // namespace
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+
 void ChromeContentBrowserClient::
     RegisterNonNetworkWorkerMainResourceURLLoaderFactories(
         content::BrowserContext* browser_context,
@@ -6389,9 +6529,6 @@ void InitializeFileURLLoaderFactoryForExtension(
         SpecialAccessFileURLLoaderFactory::Create(render_process_id));
   }
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-
-#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 void AddChromeSchemeFactories(
     int render_process_id,
     content::RenderFrameHost* frame_host,
@@ -6554,6 +6691,9 @@ void ChromeContentBrowserClient::
   if (web_contents) {
     AddChromeSchemeFactories(render_process_id, frame_host, web_contents,
                              extension, factories);
+  } else {
+    AddChromeSchemeFactoriesForWorker(browser_context, request_initiator_origin,
+                                      factories);
   }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 }
@@ -7958,6 +8098,25 @@ void ChromeContentBrowserClient::
   }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+  if (base::FeatureList::IsEnabled(
+          extensions_features::kComponentExtensionAllowWorkerChromeResources) &&
+      script_url.SchemeIs(extensions::kExtensionScheme)) {
+    content::RenderProcessHost* process =
+        content::RenderProcessHost::FromID(child_id);
+    extensions::ExtensionRegistry* registry =
+        extensions::ExtensionRegistry::Get(
+            Profile::FromBrowserContext(process->GetBrowserContext()));
+    const extensions::Extension* extension =
+        registry->enabled_extensions().GetExtensionOrAppByURL(script_url);
+    if (ExtensionWorkerHasAccessToChromeResources(extension)) {
+      auto* policy = content::ChildProcessSecurityPolicy::GetInstance();
+      policy->GrantRequestOrigin(
+          child_id, url::Origin::Create(GURL(blink::kChromeUIResourcesURL)));
+    }
+  }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 }
 
 content::ContentBrowserClient::LocalNetworkAccessRequestPolicyOverride
@@ -8567,22 +8726,29 @@ bool ChromeContentBrowserClient::ShouldUseFirstPartyStorageKey(
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 }
 
-content::RenderFrameHost*
-ChromeContentBrowserClient::GetEffectiveTopFrameForPartitioning(
-    content::RenderFrameHost* render_frame_host) {
 #if BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_ANDROID)
+namespace {
+
+// Walks up from `render_frame_host` to the *outermost* MIME handler
+// extension frame, then verifies that frame's wrapper is the topmost
+// main frame of its frame tree (the OOPIF embedding the extension is
+// not itself iframed by a real web ancestor). Returns nullptr otherwise.
+//
+// There is no explicit pass-through branch for inner frames of the
+// MHV (about:blank subframes, same-origin chrome-extension
+// subframes): they are simply not registered as extension hosts with
+// the stream manager (only the wrapper-attached extension RFH is),
+// so the ancestor walk skips past them and lands on the outermost
+// MHV extension RFH. For theoretical nesting (one MHV embedding
+// another via its own wrapper), the loop's last match wins.
+content::RenderFrameHost* GetOutermostMimeHandlerExtensionFrame(
+    content::RenderFrameHost* render_frame_host) {
   auto* manager =
       extensions::mime_handler::MimeHandlerStreamManager::FromRenderFrameHost(
           render_frame_host);
   if (!manager) {
     return nullptr;
   }
-  // Walk up to the *outermost* MIME handler extension frame. Same-origin
-  // chrome-extension subframes and about:blank subframes inside the MHV
-  // are not themselves registered as extension hosts (only the
-  // wrapper-attached extension RFH is), so they are passed through. For
-  // theoretical nesting (one MHV embedding another via its own wrapper),
-  // the outermost extension is the right effective top.
   content::RenderFrameHost* extension_rfh = nullptr;
   for (auto* rfh = render_frame_host; rfh; rfh = rfh->GetParent()) {
     if (manager->IsExtensionHost(rfh)) {
@@ -8592,17 +8758,27 @@ ChromeContentBrowserClient::GetEffectiveTopFrameForPartitioning(
   if (!extension_rfh) {
     return nullptr;
   }
-  // Only treat the extension as the effective top for full-page MIME handler.
-  // For an HTML page that explicitly iframes a PDF, the embedding HTML page
-  // IS a real web ancestor; do not hide it. The wrapper must be the topmost
-  // main frame of its frame tree (which includes the inner main frame of a
-  // `<webview>`); this is what `GetOutermostMainFrame()` returns per its
-  // doc comment.
+  // Only treat the extension as the outermost MHV for full-page MIME
+  // handler. For an HTML page that explicitly iframes a PDF, the
+  // embedding HTML page IS a real web ancestor; do not hide it. The
+  // wrapper must be the topmost main frame of its frame tree (which
+  // includes the inner main frame of a `<webview>`); this is what
+  // `GetOutermostMainFrame()` returns per its doc comment.
   content::RenderFrameHost* wrapper = extension_rfh->GetParent();
   if (!wrapper || wrapper != wrapper->GetOutermostMainFrame()) {
     return nullptr;
   }
   return extension_rfh;
+}
+
+}  // namespace
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_ANDROID)
+
+content::RenderFrameHost*
+ChromeContentBrowserClient::GetEffectiveTopFrameForPartitioning(
+    content::RenderFrameHost* render_frame_host) {
+#if BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_ANDROID)
+  return GetOutermostMimeHandlerExtensionFrame(render_frame_host);
 #else
   return nullptr;
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_ANDROID)
@@ -8642,6 +8818,42 @@ bool ChromeContentBrowserClient::IsCrossOriginSubframeAllowedToShowFilePicker(
   }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_ANDROID)
   return false;
+}
+
+std::optional<network::ParsedPermissionsPolicy>
+ChromeContentBrowserClient::GetContainerPolicyOverrideForCommit(
+    content::NavigationHandle& navigation_handle) {
+#if BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_ANDROID)
+  content::RenderFrameHost* rfh = navigation_handle.GetRenderFrameHost();
+  // Only the outermost MIME handler extension frame gets the override.
+  // An MHV iframed inside a real HTML ancestor (e.g., `<iframe src=foo.pdf>`)
+  // keeps the parent-derived `allow` policy: the embedding page is a real
+  // web ancestor and its delegation choices stand.
+  if (!rfh || GetOutermostMimeHandlerExtensionFrame(rfh) != rfh) {
+    return std::nullopt;
+  }
+  std::optional<url::Origin> commit_origin =
+      navigation_handle.GetOriginToCommit();
+  if (!commit_origin) {
+    return std::nullopt;
+  }
+  // The MIME handler extension RFH is a cross-origin iframe of the
+  // embedder, so `EnableForSelf` features (the schema default for most
+  // of the catalog) would be blocked without an explicit `allow`
+  // attribute. Grant every feature so the extension document has the
+  // same starting set as a top-level extension context, and can
+  // delegate to its own cross-origin children via `allow="..."`.
+  network::ParsedPermissionsPolicy policy;
+  for (const auto& [feature, _] :
+       network::GetPermissionsPolicyFeatureList(*commit_origin)) {
+    network::ParsedPermissionsPolicyDeclaration decl(feature);
+    decl.matches_all_origins = true;
+    policy.push_back(std::move(decl));
+  }
+  return policy;
+#else
+  return std::nullopt;
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_ANDROID)
 }
 
 std::unique_ptr<content::ResponsivenessCalculatorDelegate>

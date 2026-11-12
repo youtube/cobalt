@@ -140,10 +140,6 @@ class AudioReceiveStreamImpl final : public webrtc::AudioReceiveStreamInterface,
   // Must be called on the packet delivery thread.
   const std::string& sync_group() const;
 
-  // TODO(tommi): Remove this method.
-  void ReconfigureForTesting(
-      const webrtc::AudioReceiveStreamInterface::Config& config);
-
  private:
   internal::AudioState* audio_state() const;
 

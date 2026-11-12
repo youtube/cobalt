@@ -75,27 +75,31 @@ class WasmLoweringReducer : public Next {
     if (trap_id == TrapId::kTrapNullDereference) {
       // Skip the check altogether if null checks are turned off.
       if (!v8_flags.experimental_wasm_skip_null_checks) {
-        // Use an explicit null check if
-        // (1) we cannot use trap handler or
-        // (2) the object might be a Smi or
-        // (3) the object might be a JS object.
-        if (null_check_strategy_ == NullCheckStrategy::kExplicit ||
-            wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), type.AsNonShared(),
-                              module_) ||
-            wasm::IsSubtypeOf(wasm::kWasmExnRef.AsNonNull(), type.AsNonShared(),
-                              module_) ||
-            !type.use_wasm_null()) {
-          __ TrapIf(__ IsNull(object, type), frame_state, trap_id);
+        if (null_check_strategy_ == NullCheckStrategy::kTrapHandler) {
+          // To make sure load elimination sees consistent representations, we
+          // load known fields of objects.
+          if (wasm::IsSubtypeOf(type.AsNonShared(), wasm::kWasmStructRef,
+                                module_) ||
+              wasm::IsSubtypeOf(type.AsNonShared(), wasm::kWasmArrayRef,
+                                module_)) {
+            __ Load(object, LoadOp::Kind::TrapOnNull().Immutable(),
+                    MemoryRepresentation::AnyTagged(),
+                    offsetof(WasmObject, properties_or_hash_));
+          } else if (wasm::IsSubtypeOf(type, wasm::kWasmWaitqueueRef,
+                                       module_)) {
+            __ Load(object, LoadOp::Kind::TrapOnNull().Immutable(),
+                    MemoryRepresentation::Uint32(),
+                    offsetof(Foreign, foreign_address_));
+          } else if (wasm::IsSubtypeOf(type.AsNonShared(), wasm::kWasmFuncRef,
+                                       module_)) {
+            __ Load(object, LoadOp::Kind::TrapOnNull().Immutable(),
+                    MemoryRepresentation::TaggedSigned(),
+                    offsetof(WasmInternalFunction, function_index_));
+          } else {
+            __ TrapIf(__ IsNull(object, type), frame_state, trap_id);
+          }
         } else {
-          // Otherwise, load the word after the map word.
-          static_assert(WasmStruct::kHeaderSize > kTaggedSize);
-          static_assert(WasmArray::kHeaderSize > kTaggedSize);
-          static_assert(WasmInternalFunction::kHeaderSize > kTaggedSize);
-          // Waitqueues are represented as Managed.
-          static_assert(sizeof(Managed<FutexManagedObjectWaitList>) >
-                        kTaggedSize);
-          __ Load(object, LoadOp::Kind::TrapOnNull().Immutable(),
-                  MemoryRepresentation::Int32(), kTaggedSize);
+          __ TrapIf(__ IsNull(object, type), frame_state, trap_id);
         }
       }
     } else {
@@ -484,20 +488,22 @@ class WasmLoweringReducer : public Next {
 
   V<WasmStruct> REDUCE(WasmAllocateStruct)(V<Map> rtt,
                                            const wasm::StructType* struct_type,
-                                           wasm::ModuleTypeIndex type_index,
-                                           SharedFlag is_shared) {
+                                           wasm::ModuleTypeIndex type_index) {
     int size = WasmStruct::Size(struct_type);
     Uninitialized<WasmStruct> s = __ template Allocate<WasmStruct>(
         size,
-        is_shared == SharedFlag::kYes ? AllocationType::kSharedOld
-                                      : AllocationType::kYoung,
-        is_shared == SharedFlag::kYes ? kDoubleAligned : kTaggedAligned);
+        struct_type->is_shared() == SharedFlag::kYes
+            ? AllocationType::kSharedOld
+            : AllocationType::kYoung,
+        struct_type->is_shared() == SharedFlag::kYes ? kDoubleAligned
+                                                     : kTaggedAligned);
     // Objects allocated into old-space need a write barrier for initialization.
-    __ InitializeField(s,
-                       AccessBuilder::ForMap(is_shared == SharedFlag::kYes
-                                                 ? compiler::kMapWriteBarrier
-                                                 : compiler::kNoWriteBarrier),
-                       rtt);
+    __ InitializeField(
+        s,
+        AccessBuilder::ForMap(struct_type->is_shared() == SharedFlag::kYes
+                                  ? compiler::kMapWriteBarrier
+                                  : compiler::kNoWriteBarrier),
+        rtt);
     __ InitializeField(s, AccessBuilder::ForJSObjectPropertiesOrHash(),
                        __ template LoadRoot<RootIndex::kEmptyFixedArray>());
     // Note: Struct initialization isn't finished here, the user defined fields

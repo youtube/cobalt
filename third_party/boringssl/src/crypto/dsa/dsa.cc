@@ -741,6 +741,7 @@ int DSA_verify(int type, const uint8_t *digest, size_t digest_len,
 int DSA_check_signature(int *out_valid, const uint8_t *digest,
                         size_t digest_len, const uint8_t *sig, size_t sig_len,
                         const DSA *dsa) {
+  *out_valid = 0;
   DSA_SIG *s = nullptr;
   int ret = 0;
   uint8_t *der = nullptr;

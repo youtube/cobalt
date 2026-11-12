@@ -11,7 +11,7 @@
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/ui/states/actor_task_nudge_state.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
-#include "chrome/common/actor/task_id.h"
+#include "components/actor/core/task_id.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
@@ -85,6 +85,10 @@ class GlicActorTaskIconManager : public KeyedService {
 
   // Determines the state of a task to show in the task list bubble.
   void UpdateTaskListBubble(actor::TaskId task_id);
+
+  // Returns true if notifications should be suppressed for the task.
+  static bool ShouldSuppressNotification(glic::mojom::FeatureMode feature_mode,
+                                         actor::ActorTask::State state);
 
   std::vector<base::CallbackListSubscription> callback_subscriptions_;
 

@@ -243,7 +243,10 @@ void CustomizeToolbarHandler::ListActions(ListActionsCallback callback) {
       side_panel::customize_chrome::mojom::CategoryId::kNavigation,
       GURL(webui::EncodePNGAndMakeDataURI(
           ui::ImageModel::FromVectorIcon(
-              vector_icons::kForwardArrowChromeRefreshOldIcon, icon_color_id)
+              features::IsRoundedIconsEnabled()
+                  ? vector_icons::kArrowForwardIcon
+                  : vector_icons::kForwardArrowChromeRefreshOldIcon,
+              icon_color_id)
               .Rasterize(&provider),
           scale_factor)));
 
@@ -271,8 +274,8 @@ void CustomizeToolbarHandler::ListActions(ListActionsCallback callback) {
     PrefService* const pref_service = bwi->GetProfile()->GetPrefs();
     const gfx::VectorIcon& contextual_tasks_icon =
         pref_service->GetBoolean(prefs::kSidePanelHorizontalAlignment)
-            ? kDockToRightSparkIcon
-            : kDockToLeftSparkIcon;
+            ? kDockToRightSparkCustomIcon
+            : kDockToLeftSparkCustomIcon;
     auto contextual_task_action =
         side_panel::customize_chrome::mojom::Action::New(
             MojoActionForChromeAction(kActionSidePanelShowContextualTasks)

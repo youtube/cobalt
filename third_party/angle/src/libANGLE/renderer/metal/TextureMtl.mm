@@ -1054,8 +1054,7 @@ angle::Result TextureMtl::createNativeStorage(const gl::Context *context,
             std::move(nativeTextureStorage), /*baseGLLevel=*/mState.getEffectiveBaseLevel(),
             format);
     }
-
-    ANGLE_TRY(checkForEmulatedChannels(context, format, *mNativeTextureStorage));
+    ANGLE_TRY(initializeNowIfNeeded(context, format, *mNativeTextureStorage));
 
     ANGLE_TRY(createViewFromBaseToMaxLevel());
 
@@ -1083,14 +1082,14 @@ angle::Result TextureMtl::ensureSamplerStateCreated(const gl::Context *context)
     {
         // On devices not supporting filtering for depth textures, we need to convert to nearest
         // here.
-        samplerDesc.minFilter = MTLSamplerMinMagFilterNearest;
-        samplerDesc.magFilter = MTLSamplerMinMagFilterNearest;
-        if (samplerDesc.mipFilter != MTLSamplerMipFilterNotMipmapped)
+        samplerDesc.setMinFilter(MTLSamplerMinMagFilterNearest);
+        samplerDesc.setMagFilter(MTLSamplerMinMagFilterNearest);
+        if (samplerDesc.getMipFilter() != MTLSamplerMipFilterNotMipmapped)
         {
-            samplerDesc.mipFilter = MTLSamplerMipFilterNearest;
+            samplerDesc.setMipFilter(MTLSamplerMipFilterNearest);
         }
 
-        samplerDesc.maxAnisotropy = 1;
+        samplerDesc.setMaxAnisotropy(1);
     }
 
     // OpenGL ES 3.x: The rules for texel selection are modified
@@ -1099,9 +1098,9 @@ angle::Result TextureMtl::ensureSamplerStateCreated(const gl::Context *context)
          mState.getType() == gl::TextureType::CubeMapArray) &&
         context->getState().getClientVersion() >= gl::ES_3_0)
     {
-        samplerDesc.rAddressMode = MTLSamplerAddressModeClampToEdge;
-        samplerDesc.sAddressMode = MTLSamplerAddressModeClampToEdge;
-        samplerDesc.tAddressMode = MTLSamplerAddressModeClampToEdge;
+        samplerDesc.setRAddressMode(MTLSamplerAddressModeClampToEdge);
+        samplerDesc.setSAddressMode(MTLSamplerAddressModeClampToEdge);
+        samplerDesc.setTAddressMode(MTLSamplerAddressModeClampToEdge);
     }
     mMetalSamplerState = contextMtl->getDisplay()->getStateCache().getSamplerState(
         contextMtl->getMetalDevice(), samplerDesc);
@@ -2109,7 +2108,7 @@ angle::Result TextureMtl::redefineImage(const gl::Context *context,
         }
 
         // Make sure emulated channels are properly initialized in this newly allocated texture.
-        ANGLE_TRY(checkForEmulatedChannels(context, mtlFormat, imageDef.image));
+        ANGLE_TRY(initializeNowIfNeeded(context, mtlFormat, imageDef.image));
     }
 
     // Tell context to rebind textures
@@ -2566,15 +2565,17 @@ angle::Result TextureMtl::convertAndSetPerSliceSubImage(const gl::Context *conte
     return angle::Result::Continue;
 }
 
-angle::Result TextureMtl::checkForEmulatedChannels(const gl::Context *context,
-                                                   const mtl::Format &mtlFormat,
-                                                   const mtl::TextureRef &texture)
+angle::Result TextureMtl::initializeNowIfNeeded(const gl::Context *context,
+                                                const mtl::Format &mtlFormat,
+                                                const mtl::TextureRef &texture)
 {
     bool emulatedChannels = mtl::IsFormatEmulated(mtlFormat);
+    ContextMtl *contextMtl = mtl::GetImpl(context);
+    bool toNonZero = contextMtl->getDisplay()->getFeatures().allocateNonZeroTextures.enabled;
 
     // For emulated channels that GL texture intends to not have,
-    // we need to initialize their content.
-    if (emulatedChannels)
+    // or if we want to detect uninitialized reads, we need to initialize their content.
+    if (emulatedChannels || toNonZero)
     {
         uint32_t mipmaps = texture->mipmapLevels();
 
@@ -2586,7 +2587,8 @@ angle::Result TextureMtl::checkForEmulatedChannels(const gl::Context *context,
                 auto index = mtl::ImageNativeIndex::FromBaseZeroGLIndex(
                     GetCubeOrArraySliceMipIndex(texture, layer, mip));
 
-                ANGLE_TRY(mtl::InitializeTextureContents(context, texture, mtlFormat, index));
+                ANGLE_TRY(
+                    mtl::InitializeTextureContents(context, texture, mtlFormat, index, toNonZero));
             }
         }
     }

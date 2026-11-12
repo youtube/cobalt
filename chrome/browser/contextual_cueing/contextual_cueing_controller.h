@@ -7,11 +7,14 @@
 
 #include <memory>
 
+#include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/contextual_cueing/contextual_cueing_enums.h"
 #include "chrome/browser/contextual_cueing/cue_target.h"
 #include "components/optimization_guide/proto/features/contextual_cueing.pb.h"
 #include "components/page_content_annotations/core/page_content_annotations_service.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 class BrowserWindowInterface;
@@ -83,10 +86,17 @@ class ContextualCueingController
   CueTarget* GetTarget(CueTargetType type);
   // Getter function for CUJ of shown cue
   const std::string& current_cuj() const { return current_cuj_; }
+  void OnCueInteraction(ContextualCueingInteraction interaction_type,
+                        CueTargetType cue_type,
+                        CueActionData data);
 
  private:
   // Initiates a model execution request to MES for the current window state.
   void InitiateModelExecutionRequest();
+
+  // Calculate the amount of time the current cue has been shown, and reset the
+  // shown timestamp.
+  base::TimeDelta ExtractCueShownDuration();
 
   // Callback for when the model execution response is received.
   void OnModelExecutionResponseReceived(
@@ -103,6 +113,10 @@ class ContextualCueingController
   // Returns true if the user is subject to age restrictions.
   bool IsUserSubjectToAgeRestrictions();
 
+  // Returns the active tab's ukm::SourceId, or ukm::kInvalidSourceId if there
+  // is no active tab.
+  ukm::SourceId GetActiveTabSourceId() const;
+
   void ShowCue(CueTargetType cue_type,
                const CueTarget& target,
                optimization_guide::proto::ContextualCueingResponse response);
@@ -111,6 +125,11 @@ class ContextualCueingController
                     actions::ActionItem*,
                     actions::ActionInvocationContext);
   void OnCueHidden();
+
+  void OnSidePanelShown();
+
+  // Starts observing the SidePanelUI to detect when it is shown.
+  void ObserveSidePanel();
 
   // Returns the list of cue surfaces that are currently eligible to show a cue.
   absl::flat_hash_set<optimization_guide::proto::ContextualCueingSurface>
@@ -129,6 +148,8 @@ class ContextualCueingController
   raw_ptr<signin::IdentityManager> identity_manager_;
   absl::flat_hash_map<CueTargetType, std::unique_ptr<CueTarget>> cue_targets_;
   std::string current_cuj_;
+  base::CallbackListSubscription side_panel_shown_subscription_;
+  base::TimeTicks cue_shown_time_;
 
 #if !BUILDFLAG(IS_ANDROID)
   std::unique_ptr<page_actions::PageActionObserver> page_action_observer_;

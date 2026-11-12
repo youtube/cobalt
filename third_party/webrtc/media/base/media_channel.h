@@ -59,6 +59,7 @@
 #include "modules/rtp_rtcp/include/report_block_data.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/async_packet_socket.h"
+#include "rtc_base/containers/flat_set.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
@@ -289,10 +290,17 @@ class MediaReceiveChannelInterface {
   virtual absl::AnyInvocable<void() &&> GetResetUnsignaledRecvStreamTask() = 0;
   // Sets the abstract interface class for sending RTP/RTCP data.
   virtual void SetInterface(MediaChannelNetworkInterface* iface) = 0;
+  virtual void SetReceiveSsrcs_n(const flat_set<uint32_t>& ssrcs) {}
+  // Clears receive sinks on the network thread.
+  // If `ssrcs` is std::nullopt, all receive sinks are cleared (permanent
+  // teardown). Otherwise, only the specified `ssrcs` are cleared.
+  virtual void ClearReceiveSinks_n(std::optional<std::vector<uint32_t>> ssrcs) {
+  }
   // Called on the network when an RTP packet is received.
   virtual void OnPacketReceived(RtpPacketReceived packet) = 0;
   // Gets the current unsignaled receive stream's SSRC, if there is one.
   virtual std::optional<uint32_t> GetUnsignaledSsrc() const = 0;
+  virtual std::vector<uint32_t> GetUnsignaledSsrcs() const = 0;
   // This is currently a workaround because of the demuxer state being managed
   // across two separate threads. Once the state is consistently managed on
   // the same thread (network), this workaround can be removed.

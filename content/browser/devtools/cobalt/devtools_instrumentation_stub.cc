@@ -311,8 +311,9 @@ void OnServiceWorkerMainScriptRequestWillBeSent(
     network::ResourceRequest& request) {}
 
 void OnWorkerMainScriptRequestWillBeSent(
-    RenderFrameHostImpl& render_frame_host,
-    const base::UnguessableToken& devtools_worker_token,
+    RenderFrameHostImpl& ancestor_frame_host,
+    DedicatedWorkerHost* creator_worker,
+    const base::UnguessableToken& worker_token,
     network::ResourceRequest& request) {}
 
 void DidChangeFrameLoadingState(FrameTreeNode& ftn) {}

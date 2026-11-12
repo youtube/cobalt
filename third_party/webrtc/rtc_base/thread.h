@@ -532,8 +532,8 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public TaskQueueBase {
   bool invoke_policy_enabled_ RTC_GUARDED_BY(this) = false;
 #endif
   mutable Mutex mutex_;
-  bool fInitialized_;
-  bool fDestroyed_;
+  bool initialized_;
+  bool destroyed_;
 
   std::atomic<int> stop_;
 

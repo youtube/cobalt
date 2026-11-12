@@ -36,6 +36,7 @@ if (rtc_include_tests) {
         "../../../api/voip:voip_api",
         "../../../modules/audio_device:mock_audio_device",
         "../../../modules/audio_processing:mocks",
+        "../../../test:create_test_environment",
         "../../../test:mock_transport",
         "../../../test:run_loop",
         "../../../test:test_support",

@@ -40,7 +40,7 @@ struct FieldDescription {
   std::optional<std::u16string> name;
   std::optional<std::u16string> name_attribute;
   std::optional<std::u16string> id_attribute;
-  std::optional<std::u16string> challenge;
+  std::optional<std::u16string> nonce;
   std::optional<std::u16string> value;
   std::optional<std::u16string> placeholder;
   std::optional<std::u16string> aria_label;
@@ -57,6 +57,7 @@ struct FieldDescription {
   FieldPropertiesMask properties_mask = 0;
   bool checked = false;
   std::optional<int32_t> form_control_ax_id;
+  std::optional<FormFieldData::LabelSource> label_source;
 };
 
 // Attributes provided to the test form.

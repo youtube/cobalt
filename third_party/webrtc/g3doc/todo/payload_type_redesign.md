@@ -118,94 +118,68 @@ the PT of the codec it refers to.
 
 ## Current implementation status
 
-The new strategy is implemented for audio codecs and is being enabled for video
-codecs. Several issues that caused test failures when enabling the
-`WebRTC-PayloadTypesInTransport` field trial have been identified and fixed:
+The redesign is now largely implemented for both audio and video codecs when the
+`WebRTC-PayloadTypesInTransport` field trial is enabled. Key milestones reached:
 
-- **Audio/Video RED Collision:** RED codecs of different media types were
-  incorrectly matching, leading to payload type conflicts.
-  `MatchesWithCodecRules` now enforces media type equality.
-- **MID Recycling:** When a MID is recycled, it must preserve its media type
-  (e.g., Audio stays Audio). `CodecVendor` now correctly identifies and returns
-  an `INTERNAL_ERROR` if a MID is reused for a different media type, preventing
-  invalid codec merging.
-- **RED Matching Logic:** Relaxed the matching rules for RED to allow
-  negotiation to proceed even when parameters (linking RED to primary codecs)
-  are not yet populated, as this linking now happens late in the `CodecVendor`.
-- **RTX PT Convention:** RTX payload types now follow the conventional
-  `Primary_PT + 1` rule where possible.
+- **Bifurcated Negotiation Logic:** `CodecVendor` now has separate paths for
+  legacy and redesigned PT allocation. The redesigned path uses
+  `CodecConfiguration` and `MergeCodecsFromConfigurations` for all media types.
+- **Unified Resiliency Expansion:** Late expansion of RTX, RED, ULPFEC, and
+  FlexFEC is handled uniformly in `pc/codec_vendor.cc`.
+- **Audio/Video RED Collision:** Fixed by enforcing media type equality in
+  matching rules.
+- **MID Recycling:** Correctly handled with media type validation, preventing
+  invalid codec merging when MIDs are reused.
+- **Stable PT Assignment:** Verified to maintain payload type stability across
+  renegotiations and codec preference changes.
+- **Conventional RTX Assignment:** RTX PTs now default to `Primary_PT + 1` to
+  maintain backwards compatibility with legacy expectations.
 
-The new strategy is now mostly implemented for video codecs, including support
-for RTX, RED, ULPFEC, and FlexFEC late assignment.
+The implementation is verified by a dedicated suite of integration tests in
+`pc/codec_vendor_redesign_unittest.cc`.
 
 ## Unified Implementation Strategy for Audio and Video
 
-The goal is to transition audio and video codec handling to a unified
-late-assignment model using a new internal representation to handle resiliency
-mechanisms. This also involves refactoring the existing partial late assignment
-implementation for audio.
+The transition to a unified late-assignment model is nearly complete, using
+internal `CodecConfiguration` objects to represent codecs before they are
+assigned payload types.
 
 ### 1. CodecConfiguration and ResiliencyInfo
 
-To support late assignment without modifying the global `webrtc::Codec` class, a
-new internal representation `CodecConfiguration` will be introduced in the `pc/`
-directory.
+Introduced in `pc/codec_configuration.h`:
 
-- **`ResiliencyInfo`**: Encapsulates the redundancy requirements for a codec
-  (e.g., RTX, RED, ULPFEC, FlexFEC). It supports combined requirements (RED +
-  ULPFEC) and identifies whether a mechanism is shared across the media section.
-- **`CodecConfiguration`**: Stores codec attributes (excluding payload type) and
-  the associated `ResiliencyInfo`. This is the primary representation used
-  during capability gathering and the initial stages of negotiation.
+- **`ResiliencyInfo`**: Encapsulates the redundancy requirements (RTX, RED,
+  ULPFEC, FlexFEC).
+- **`CodecConfiguration`**: Stores codec attributes and their associated
+  `ResiliencyInfo`. This allows the engine to express capabilities without
+  pre-assigning payload types.
 
-### 2. Unified Codec Collection with Bifurcated Paths
+### 2. Unified Codec Collection
 
-- `TypedCodecVendor` will be updated to store either a legacy `CodecList` or a
-  collection of `CodecConfiguration` objects for audio and video, depending on
-  the `WebRTC-PayloadTypesInTransport` field trial.
-- When the trial is active:
-  - **Audio**: `CollectAudioCodecs` will be refactored to return
-    `CodecConfiguration` objects. Media codecs like Opus will be tagged with a
-    shared RED requirement.
-  - **Video**: `CollectVideoCodecs` and `VideoCodecsFromFactory` will populate
-    `CodecConfiguration` objects, tagging media codecs with their required
-    resiliency (e.g., VP8 gets RTX; all video codecs get shared RED and
-    FlexFEC).
-- When the trial is inactive, legacy methods will be used to ensure zero
-  behavior change.
+`TypedCodecVendor` handles the bifurcated collection path:
 
-### 3. Late Expansion and Unified Parameter Linking
+- **Redesigned Path**: Collects `CodecConfiguration` objects from the media
+  engine factories. It also performs a "legacy expansion" to populate the
+  internal `codecs()` list for compatibility with existing code that expects
+  pre-assigned PTs.
+- **Legacy Path**: Continues to use the engine's `LegacySendCodecs` /
+  `LegacyRecvCodecs` methods.
 
-`CodecVendor` will bifurcate its negotiation logic:
+### 3. Late Expansion and Parameter Linking
 
-- **Legacy Path**: Continues to use the existing `MergeCodecs` logic with
-  pre-assigned payload types.
-- **Late Assignment Path**: Uses a new `MergeCodecsFromConfigurations` function
-  for all media types that:
-  1. Assigns a payload type to the primary media codec via
-     `SdpPayloadTypeSuggester`.
-  2. Expands the `ResiliencyInfo` into one or more redundancy `Codec` objects.
-  3. Links these redundancy codecs to the primary codec's payload type (e.g.,
-     setting the `apt` parameter for RTX, or updating RED's FMTP with the
-     primary PT).
-  4. Assigns payload types to the redundancy codecs, following conventional
-     rules where possible (e.g., `RTX_PT = Primary_PT + 1`).
+`CodecVendor::MergeCodecsFromConfigurations` performs the following for all
+media types:
 
-This unified strategy removes the need for media-specific hacks (like the
-current manual RED linking for audio) and ensures that all redundancy codecs are
-correctly linked only after the primary payload types are known, while strictly
-preserving legacy behavior when the field trial is disabled.
+1.  Assigns a payload type to the primary media codec via
+    `SdpPayloadTypeSuggester`.
+2.  Expands the `ResiliencyInfo` into redundancy `Codec` objects (RTX, RED,
+    FEC).
+3.  Links redundancy codecs to the primary PT (e.g., setting the `apt` parameter
+    for RTX).
 
-### 4. Verification and Testing
-
-- **Integration Tests:** Enable the `WebRTC-PayloadTypesInTransport` trial in
-  `peerconnection_unittests` and `rtc_unittests` to identify any video-specific
-  regressions.
-- **Stable PT Tests:** Add coverage to ensure that payload types remain stable
-  across renegotiations, even when the order of codecs in the transceiver
-  preferences changes.
-- **MID Recycling:** Verify that MID recycling (within the same media type)
-  works correctly without PT collisions or crashes.
+**Current Status:** RTX linking is fully unified. RED linking for audio still
+partially relies on a legacy `LinkRed` helper, which will be refactored into the
+unified expansion logic in a future step.
 
 ## Testing Strategy
 
@@ -213,41 +187,21 @@ To ensure correctness and prevent regressions while the
 `WebRTC-PayloadTypesInTransport` field trial is being developed, a "Redesign
 Feedback Loop" strategy is used:
 
-1. **Identify failing tests** Run the tests for this CL with the flag
-   "force-fieldtrials='WebRTC-PayloadTypesInTransport/Enable'". When using this
-   with `gtest-parallel`, two dashes must be inserted before the extra argument.
-2. **Reproduction and Isolation**: When a failure is identified in step 1, the
-   specific test case is cloned or ported into a specialized integration test
-   file (`pc/codec_vendor_redesign_unittest.cc`) on the implementation branch.
-   This allows for focused debugging and ensures the failure is reproducible in
-   a clean environment with the trial explicitly enabled.
-3. **Surgical Fixes**: Fixes are developed and verified using the isolated
-   tests.
-4. **Full Re-verification**: Once the tests are stable, run all tests without
-   the field trial flag to ensure there are no regressions, and then either ask
-   to commit this set of changes or loop back to step 1.
-
-To ensure that no unit tests are missed, a "canary branch" approach is used.
-
-1. **Canary Branch (`pt-enable`)**: Maintain a branch where the field trial is
-   forced enabled by default. This branch is used to run the full WebRTC test
-   suite (especially `rtc_pc_unittests` and `peerconnection_unittests`) to
-   identify all edge cases and legacy behaviors that the redesign logic doesn't
-   yet handle.
+1.  **Identify failing tests:** Run full suites (`rtc_unittests`,
+    `peerconnection_unittests`) with the trial enabled.
+2.  **Reproduction and Isolation:** Failing cases are ported to
+    `pc/codec_vendor_redesign_unittest.cc` for focused debugging.
+3.  **Surgical Fixes:** Fixes are verified against the isolated tests and then
+    re-verified against the full suite.
+4.  **Full Re-verification:** Once the tests are stable, run all tests without
+    the field trial flag to ensure there are no regressions, and then either ask
+    to commit this set of changes or loop back to step 1.
 
 ## Backwards Compatibility for Unit Testing
 
-Many legacy unit tests (e.g., in `MediaSessionDescriptionFactoryTest`) have
-hardcoded expectations for payload type assignments. The redesigned PT
-allocation logic, which performs late assignment and respects established
-transport mappings, may assign different PTs than the old fixed-list strategy
-used by the engines.
+Test helpers like `CodecLookupHelperForTesting` are used in legacy unit tests
+to "pre-seed" the `FakePayloadTypeSuggester` with hardcoded PT expectations.
+This allows tests that depend on specific PT values to pass while the
+underlying allocation logic transitions to a more generic, transport-aware
+strategy.
 
-To maintain test stability without embedding legacy expectations in the
-production `CodecVendor` or `TypedCodecVendor`, a test-only "pre-seeding"
-mechanism is used. Test helpers like `CodecLookupHelperForTesting` are updated
-to harvest the hardcoded PTs from the test-configured codec lists and register
-them as local mappings in the `FakePayloadTypeSuggester` for the default audio
-and video MIDs. This ensures that when the `CodecVendor` requests a PT for a
-codec, the suggester returns the value the test expects, while the core
-allocation logic remains clean and generic.

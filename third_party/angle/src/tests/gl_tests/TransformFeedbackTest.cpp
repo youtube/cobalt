@@ -251,6 +251,34 @@ TEST_P(TransformFeedbackTest, QueryActiveNoXfbDrawThenXfbBeginEnd)
     EXPECT_EQ(primitivesWritten, 0u);
 }
 
+// Test that starting transform feedback with one program but pausing and drawing with another
+// program draws the expected results
+TEST_P(TransformFeedbackTest, DrawWithOtherProgramDuringPause)
+{
+    ANGLE_GL_PROGRAM(blueProgram, essl3_shaders::vs::Simple(), essl3_shaders::fs::Blue());
+
+    std::vector<std::string> tfVaryings;
+    tfVaryings.push_back("gl_Position");
+    compileDefaultProgram(tfVaryings, GL_INTERLEAVED_ATTRIBS);
+    glUseProgram(mProgram);
+
+    // Bind the buffer for transform feedback output and start transform feedback
+    glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, mTransformFeedbackBuffer);
+    glBeginTransformFeedback(GL_TRIANGLES);
+    glPauseTransformFeedback();
+    EXPECT_GL_NO_ERROR();
+
+    glUseProgram(blueProgram);
+    drawQuad(blueProgram, essl3_shaders::PositionAttrib(), 0.5f);
+    EXPECT_GL_NO_ERROR();
+
+    glUseProgram(mProgram);
+    glResumeTransformFeedback();
+    glEndTransformFeedback();
+
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::blue);
+}
+
 // Test that resuming transform feedback with a different program results in validation error.
 TEST_P(TransformFeedbackTest, ProgramSwitchDuringPauseAndResume)
 {
@@ -1030,9 +1058,7 @@ TEST_P(TransformFeedbackTest, BlitWhileRecordingDoesNotContribute)
 }
 
 // Test that XFB does not allow writing more vertices than fit in the bound buffers.
-// TODO(jmadill): Enable this test after fixing the last case where the buffer size changes after
-// calling glBeginTransformFeedback.
-TEST_P(TransformFeedbackTest, DISABLED_TooSmallBuffers)
+TEST_P(TransformFeedbackTest, TooSmallBuffers)
 {
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -4689,13 +4715,21 @@ TEST_P(TransformFeedbackTest, RenderOnceChangeXfbBufferRenderAgain)
     // Break the render pass
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
 
-    // Redefine the transform feedback buffer
-    glBufferData(GL_TRANSFORM_FEEDBACK_BUFFER, 40, nullptr, GL_DYNAMIC_READ);
+    // Redefine the transform feedback buffer: a draw fits to 96 bytes.
+    glBufferData(GL_TRANSFORM_FEEDBACK_BUFFER, 96 * 2, nullptr, GL_DYNAMIC_READ);
 
     // Start a new render pass
     drawQuad(drawColor, essl3_shaders::PositionAttrib(), 0.5f);
+    EXPECT_GL_NO_ERROR();
+
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
+
+    glBufferData(GL_TRANSFORM_FEEDBACK_BUFFER, 40, nullptr, GL_DYNAMIC_READ);
+    drawQuad(drawColor, essl3_shaders::PositionAttrib(), 0.5f);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     glEndTransformFeedback();
+    EXPECT_GL_NO_ERROR();
 }
 
 // Test bufferData call and transform feedback.

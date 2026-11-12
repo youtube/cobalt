@@ -2363,6 +2363,7 @@ func main() {
 	addSignatureAlgorithmTests()
 	addDTLSRetransmitTests()
 	addDTLSReorderTests()
+	addDTLSFragmentWindowTests()
 	addExportKeyingMaterialTests()
 	addExportTrafficSecretsTests()
 	addTLSUniqueTests()

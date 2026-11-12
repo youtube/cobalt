@@ -808,11 +808,13 @@ DirectHandle<HeapObject> RegExpMacroAssemblerPPC::GetCode(
       __ b(&return_r3);
 
       __ bind(&stack_limit_hit);
+      StoreRegExpStackPointerToMemory(backtrack_stackpointer(), r4);
       CallCheckStackGuardState(r3, extra_space_for_variables);
       __ cmpi(r3, Operand::Zero());
       // If returned value is non-zero, we exit with the returned value as
       // result.
       __ bne(&return_r3);
+      LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
 
       __ bind(&stack_ok);
     }
@@ -1352,8 +1354,10 @@ void RegExpMacroAssemblerPPC::SafeCall(Label* to, Condition cond,
 
 void RegExpMacroAssemblerPPC::SafeReturn() {
   __ pop(r0);
-  __ mov(ip, Operand(masm_->CodeObject()));
-  __ add(r0, r0, ip);
+  UseScratchRegisterScope temps(masm_.get());
+  Register scratch = temps.Acquire();
+  __ mov(scratch, Operand(masm_->CodeObject()));
+  __ add(r0, r0, scratch);
   __ mtlr(r0);
   __ blr();
 }
@@ -1361,8 +1365,10 @@ void RegExpMacroAssemblerPPC::SafeReturn() {
 void RegExpMacroAssemblerPPC::SafeCallTarget(Label* name) {
   __ bind(name);
   __ mflr(r0);
-  __ mov(ip, Operand(masm_->CodeObject()));
-  __ sub(r0, r0, ip);
+  UseScratchRegisterScope temps(masm_.get());
+  Register scratch = temps.Acquire();
+  __ mov(scratch, Operand(masm_->CodeObject()));
+  __ sub(r0, r0, scratch);
   __ push(r0);
 }
 

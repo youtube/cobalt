@@ -187,6 +187,10 @@ component using an `Environment` **must always create** an `Environment` using
 [test/create_test_environment.h](../test/create_test_environment.h)) and pass it
 to the components being tested.
 
+Using `CreateEnvironment` will cause the test to ignore the command line
+`force-fieldtrials` flag, so this should not be used in tests unless there are
+specific reasons for using it.
+
 ### Avoid polling, use `WaitUntil` when needed
 
 `webrtc::WaitUntil` (located in [test/wait_until.h](../test/wait_until.h)) is a

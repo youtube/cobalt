@@ -25,14 +25,16 @@ class TaskInfoDelegate {
   virtual void SetThreadId(std::optional<std::string> id) = 0;
   virtual const std::optional<std::string>& GetThreadTitle() = 0;
   virtual void SetThreadTitle(std::optional<std::string> title) = 0;
-  virtual void SetAimUrl(const GURL& url) = 0;
   virtual void SetIsAiPage(bool is_ai_page) = 0;
-  virtual void UpdateModelModeFromUrl(const GURL& url) = 0;
+  virtual void UpdateStateFromUrl(const GURL& url) = 0;
   virtual bool IsShownInTab() = 0;
   virtual BrowserWindowInterface* GetBrowser() = 0;
   virtual content::WebContents* GetWebUIWebContents() = 0;
   virtual void OnZeroStateChange(bool is_zero_state) = 0;
   virtual void SetInNlm(bool in_nlm) = 0;
+  virtual void PushTaskDetailsToPage(std::optional<base::Uuid> id,
+                                     const GURL& url,
+                                     bool replace_navigation_entry) = 0;
 
   // Called to prepare for a task change.
   virtual void PrepareForTaskChange() = 0;

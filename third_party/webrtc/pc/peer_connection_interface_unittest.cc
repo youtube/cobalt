@@ -28,7 +28,6 @@
 #include "api/crypto/crypto_options.h"
 #include "api/data_channel_interface.h"
 #include "api/enable_media_with_defaults.h"
-#include "api/environment/environment_factory.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
@@ -90,6 +89,7 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "rtc_base/weak_ptr.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
@@ -728,7 +728,7 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
     std::unique_ptr<FakePortAllocator> port_allocator =
         network_thread_->BlockingCall([&] {
           auto allocator = std::make_unique<FakePortAllocator>(
-              CreateEnvironment(), network_thread_->socketserver());
+              CreateTestEnvironment(), network_thread_->socketserver());
           port_allocator_ = allocator->NewWeakPtr();
           return allocator;
         });
@@ -1411,7 +1411,7 @@ TEST_P(PeerConnectionInterfaceTest,
   std::unique_ptr<FakePortAllocator> port_allocator;
   network_thread_->BlockingCall([&] {
     port_allocator = std::make_unique<FakePortAllocator>(
-        CreateEnvironment(), network_thread_->socketserver());
+        CreateTestEnvironment(), network_thread_->socketserver());
   });
   // We need to keep a raw pointer to check flags later, but we need to
   // accessing it on the network thread or be careful. FakePortAllocator methods

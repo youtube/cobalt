@@ -17,7 +17,6 @@
 #include <vector>
 
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
 #include "api/test/mock_fec_controller_override.h"
@@ -33,6 +32,7 @@
 #include "api/video_codecs/vp8_temporal_layers_factory.h"
 #include "modules/video_coding/codecs/vp9/include/vp9_globals.h"
 #include "rtc_base/checks.h"
+#include "test/create_test_environment.h"
 #include "test/gtest.h"
 #include "video/config/video_encoder_config.h"
 
@@ -144,7 +144,7 @@ class VideoCodecInitializerTest : public ::testing::Test {
     return stream;
   }
 
-  const Environment env_ = CreateEnvironment();
+  const Environment env_ = CreateTestEnvironment();
   MockFecControllerOverride fec_controller_override_;
 
   // Input settings.

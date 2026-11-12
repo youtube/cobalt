@@ -478,6 +478,68 @@ def _PrintPerDeviceOutput(devices, results, single_line=False):
     yield result
 
 
+def _ParseMeminfo(usage):
+  """Parses dumpsys meminfo output.
+
+  Returns:
+    A dict containing parsed PSS, USS, and individual App Summary metrics,
+    or None if parsing failed.
+  """
+  match = re.search(r'^\s+TOTAL\s+(\d+)\s+(\d+)\s+(\d+)', usage, re.MULTILINE)
+  if not match:
+    return None
+
+  pss = int(match.group(1))
+  dirty = int(match.group(2))
+  clean = int(match.group(3))
+  uss = dirty + clean
+
+  metrics = {
+      'Java Heap': 0,
+      'Native Heap': 0,
+      'Code': 0,
+      'Stack': 0,
+      'Graphics': 0,
+      'Private Other': 0,
+      'System': 0,
+  }
+  for metric in metrics:
+    match_metric = re.search(r'^\s+' + metric + r':\s+(\d+)', usage,
+                             re.MULTILINE)
+    if match_metric:
+      metrics[metric] = int(match_metric.group(1))
+
+  return {
+      'pss': pss,
+      'uss': uss,
+      'metrics': metrics,
+  }
+
+
+def _PrintMemUsageSummary(num_processes, total_pss, total_uss, summary_metrics):
+  print(_Colorize('==== MEMORY USAGE SUMMARY ====', colorama.Fore.YELLOW))
+  print('Number of processes: %d' % num_processes)
+  print('Total PSS: %d KB (%.1f MB)' % (total_pss, total_pss / 1024.0))
+  print('Total USS (private clean+dirty): %d KB (%.1f MB)' %
+        (total_uss, total_uss / 1024.0))
+  print('\nApp Summary Totals (PSS):')
+
+  mmap_val = summary_metrics.get('Code', 0) + summary_metrics.get('System', 0)
+
+  # The App Summary's "Code" value actually only reports private memory
+  # for code/resources, and the "System" bucket was capturing PSS of
+  # shared code.
+  # Combining Code & System in the final summary makes more sense, since
+  # this is the "memory from mmap'ed files".
+  for metric, value in summary_metrics.items():
+    if metric in ('Code', 'System'):
+      continue
+    print('  %-20s: %d KB (%.1f MB)' % (metric, value, value / 1024.0))
+
+  print('  %-20s: %d KB (%.1f MB)' %
+        ('mmap (Code+System)', mmap_val, mmap_val / 1024.0))
+
+
 def _RunMemUsage(devices, package_name, query_app=False):
   cmd_args = ['dumpsys', 'meminfo']
   if not query_app:
@@ -487,7 +549,7 @@ def _RunMemUsage(devices, package_name, query_app=False):
     ret = []
     for process in sorted(_GetPackageProcesses(d, package_name)):
       meminfo = d.RunShellCommand(cmd_args + [str(process.pid)])
-      ret.append((process.name, '\n'.join(meminfo)))
+      ret.append((process.name, process.pid, '\n'.join(meminfo)))
     return ret
 
   parallel_devices = device_utils.DeviceUtils.parallel(devices)
@@ -496,10 +558,39 @@ def _RunMemUsage(devices, package_name, query_app=False):
     if not result:
       print('No processes found.')
     else:
-      for name, usage in sorted(result):
+      total_pss = 0
+      total_uss = 0
+      num_processes = 0
+      summary_metrics = {
+          'Java Heap': 0,
+          'Native Heap': 0,
+          'Code': 0,
+          'Stack': 0,
+          'Graphics': 0,
+          'Private Other': 0,
+          'System': 0,
+      }
+      for name, pid, usage in sorted(result):
         print(_Colorize('==== Output of "dumpsys meminfo %s" ====' % name,
                         colorama.Fore.GREEN))
+        if 'MEMINFO in pid' not in usage:
+          # dumpsys meminfo prints the pids for java processes, but not for
+          # native ones. Add it in since it can be helpful.
+          print('Native Process PID=%d' % pid)
         print(usage)
+        parsed = _ParseMeminfo(usage)
+        if parsed:
+          total_pss += parsed['pss']
+          total_uss += parsed['uss']
+          num_processes += 1
+          for metric in summary_metrics:
+            summary_metrics[metric] += parsed['metrics'][metric]
+        else:
+          logging.warning('Could not parse memory usage for %s', name)
+
+      if num_processes > 0:
+        _PrintMemUsageSummary(num_processes, total_pss, total_uss,
+                              summary_metrics)
 
 
 def _DuHelper(device, path_spec, run_as=None):

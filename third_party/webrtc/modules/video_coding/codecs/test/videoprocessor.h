@@ -187,6 +187,7 @@ class VideoProcessor {
 
   void HandleTailDrops();
 
+  const Environment env_;
   // Test config.
   const VideoCodecTestFixture::Config config_;
   const size_t num_simulcast_or_spatial_layers_;

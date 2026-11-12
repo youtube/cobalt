@@ -30,8 +30,11 @@
 #include "components/input/native_web_keyboard_event.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/permissions/permission_request_manager.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
@@ -129,6 +132,11 @@ void OmniboxPopupWebUIBaseContent::CloseUI() {
   // Update the popup state manager that the popup is closing.
   // LocationBarView is subscribed to state changes and will close the widget.
   controller()->popup_state_manager()->SetPopupState(OmniboxPopupState::kNone);
+}
+
+void OmniboxPopupWebUIBaseContent::OnActiveTabChanged(
+    content::WebContents* new_contents) {
+  CloseUI();
 }
 
 void OmniboxPopupWebUIBaseContent::ShowUI() {
@@ -292,6 +300,19 @@ content::WebContents* OmniboxPopupWebUIBaseContent::GetWrappedWebContents() {
 
 void OmniboxPopupWebUIBaseContent::OnMenuClosed() {
   std::move(context_menu_).reset();
+  OnContextMenuClosed();
+  // Synthesize a mouse leave event from the context menu to trigger
+  // re-rendering of the web ui pop up state. This is to ensure entrypoint
+  // button to the context menu does not get stuck in the :hover state.
+  if (auto* web_contents = GetWebContents()) {
+    if (auto* rwh =
+            web_contents->GetPrimaryMainFrame()->GetRenderWidgetHost()) {
+      blink::WebMouseEvent mouse_event(blink::WebInputEvent::Type::kMouseLeave,
+                                       blink::WebInputEvent::kNoModifiers,
+                                       base::TimeTicks::Now());
+      rwh->ForwardMouseEvent(mouse_event);
+    }
+  }
 }
 
 void OmniboxPopupWebUIBaseContent::PrimaryMainFrameRenderProcessGone(

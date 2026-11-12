@@ -572,6 +572,7 @@
 496259841 WIN D3D11 : RobustResourceInitTestES3.InvalidateThenReadBack/* = SKIP
 496259841 WIN D3D11 : RobustResourceInitTestES3.DrawThenInvalidateThenReadBack/* = SKIP
 496259841 WIN D3D11 : RobustResourceInitTestES3.DrawThenInvalidateThenVerifyDepthStencil/* = SKIP
+514927166 WIN D3D11 : RobustResourceInitTestES3.ClearThenInvalidateThenReadBack/* = SKIP
 512896813 WIN D3D11 : LineLoopTestES3.LineLoopDrawArraysInstancedBaseInstance/* = SKIP
 512896813 WIN D3D11 : LineLoopTestES3.LineLoopDrawElementsInstancedBaseVertexBaseInstance/* = SKIP
 514615434 D3D11 : DrawBaseVertexBaseInstanceTest.NegativeBaseVertex/* = SKIP
@@ -1033,6 +1034,7 @@
 480069042 PIXEL10 GLES : ImageTestES3.RGBXAHBUploadDataColorspace/* = SKIP
 480069042 PIXEL10 GLES : ImageTestES3.RenderToYUVAHB/* = SKIP
 480069042 PIXEL10 GLES : ImageTestES3.RenderToYUVAHBWithDepth/* = SKIP
+480069042 PIXEL10 GLES : ImageTestES3.RenderToYUVAHBThenReadPixels/* = SKIP
 480069042 PIXEL10 GLES : ImageTestES3.Source3DTargetExternalESSL3/* = SKIP
 480069042 PIXEL10 GLES : ImageTestES3.SourceAHBTargetTexture2DGenerateMipmap/* = SKIP
 480069042 PIXEL10 GLES : ImageTestES3.SourceRenderbufferTargetTextureExternalESSL3/* = SKIP
@@ -1040,6 +1042,8 @@
 480069042 PIXEL10 GLES : ImageTestES3.SourceYUVAHBTargetExternalYUVFetchSamplerExternalOES/* = SKIP
 480069042 PIXEL10 GLES : ImageTestES3.SourceYUVAHBTargetExternalYUVFetchVSSamplerExternalOES/* = SKIP
 480069042 PIXEL10 GLES : ImageTestES3.SourceYUVAHBTargetExternalYUVSampleLinearFiltering/* = SKIP
+480069042 PIXEL10 GLES : ImageTestRGB565ES3.SourceAHBTarget2DDrawAndUploadByteData/* = SKIP
+480069042 PIXEL10 GLES : ImageTestRGB565ES3.SourceAHBTarget2DDrawAndUploadPacked565Data/* = SKIP
 480069042 PIXEL10 GLES : IncompleteTextureTestES3.IntegerType/* = SKIP
 480069042 PIXEL10 GLES : IncompleteTextureTestES3.UnsignedIntegerType/* = SKIP
 480069042 PIXEL10 GLES : MSRTTES31Test.RenderbufferDrawCopyThenBlendAllAttachmentsMixed/* = SKIP
@@ -1191,7 +1195,7 @@
 480069042 PIXEL10 GLES : UniformBlockWithOneLargeArrayMemberTest.MemberTypeIsVec2/* = SKIP
 480069042 PIXEL10 GLES : UniformBlockWithOneLargeArrayMemberTest.MemberTypeIsVec3/* = SKIP
 480069042 PIXEL10 GLES : UniformBufferTest.Std140UniformBlockWithPerMemberColumnMajorQualifier/* = SKIP
-480069042 PIXEL10 GLES : WebGLCompatibilityTest.GenerateMipmapUnsizedFloatingPointTexture/* = SKIP
+480069042 PIXEL10 GLES : WebGL1CompatibilityTest.GenerateMipmapUnsizedFloatingPointTexture/* = SKIP
 480069042 PIXEL10 GLES : CopyTexImageLumaWorkaroundTestES3.DifferentCubeFacesLuminanceAlpha/ES3_OpenGLES_ForceLumaWorkaroundForSameTextureCopyTexImage2D = SKIP
 480069042 PIXEL10 GLES : GLSLTest_ES31.IOBlockInvariantAll/* = SKIP
 498083624 PIXEL10 GLES : CopyTextureTestES3.SRGBWithPackParameters/* = SKIP
@@ -1239,6 +1243,7 @@
 480069042 PIXEL10 VULKAN : ImageTestES3.PartialRenderToYUVAHB/* = SKIP
 480069042 PIXEL10 VULKAN : ImageTestES3.RenderToYUVAHB/* = SKIP
 480069042 PIXEL10 VULKAN : ImageTestES3.RenderToYUVAHBWithDepth/* = SKIP
+480069042 PIXEL10 VULKAN : ImageTestES3.RenderToYUVAHBThenReadPixels/* = SKIP
 480069042 PIXEL10 VULKAN : ImageTestES3.SourceRenderbufferTargetTextureExternalESSL3/* = SKIP
 480069042 PIXEL10 VULKAN : ImageTestES3.SourceRenderbufferTargetTextureExternalESSL3_Colorspace/* = SKIP
 480069042 PIXEL10 VULKAN : ImageTestES3.SourceYUVAHBTargetExternalCopySrc/* = SKIP
@@ -1372,6 +1377,24 @@
 40096883 IOS METAL : Texture2DDepthStencilTestES3.TexSampleModes*Swizzled/* = SKIP
 375244081 IOS METAL : GLSLTest_ES3.MaxVaryingWithFeedbackAndGLline/* = SKIP
 496604559 IOS METAL : RobustResourceInitTestES3.DrawThenInvalidateThenVerifyDepthStencil/* = SKIP
+507904704 IOS METAL : CompressedTextureASTCTest.Test/* = SKIP
+507904704 IOS METAL : CompressedTextureEACR11STest.Test/* = SKIP
+507904704 IOS METAL : CompressedTextureEACR11UTest.Test/* = SKIP
+507904704 IOS METAL : CompressedTextureEACRG11STest.Test/* = SKIP
+507904704 IOS METAL : CompressedTextureEACRG11UTest.Test/* = SKIP
+507904704 IOS METAL : CompressedTextureETC1SubTest.Test/* = SKIP
+507904704 IOS METAL : CompressedTextureETC2RGB8A1SRGBTest.Test/* = SKIP
+507904704 IOS METAL : CompressedTextureETC2RGB8A1Test.Test/* = SKIP
+507904704 IOS METAL : CompressedTextureETC2RGB8SRGBTest.Test/* = SKIP
+507904704 IOS METAL : CompressedTextureETC2RGB8Test.Test/* = SKIP
+507904704 IOS METAL : CompressedTextureETC2RGBA8SRGBTest.Test/* = SKIP
+507904704 IOS METAL : CompressedTextureETC2RGBA8Test.Test/* = SKIP
+507904704 IOS METAL : ETC1CompressedTextureTest.ETC1CompressedImageNPOT/* = SKIP
+507904704 IOS METAL : ETC1CompressedTextureTest.ETC1CompressedSubImage/* = SKIP
+507904704 IOS METAL : ETC1CompressedTextureTest.ETC1ShrinkThenGrowMaxLevels/* = SKIP
+507904704 IOS METAL : Texture2DTestES3.SampleThenFullUpdateThenSampleAgainCompressed/* = SKIP
+507904704 IOS METAL : TextureSizeLimitTest.CompressedASTC/* = SKIP
+507904704 IOS METAL : WebGLCompatibilityTest.EnableCompressedTextureExtensionETC1/* = SKIP
 
 // Simulator does not support compare functions in the sampler state
 365066518 IOS METAL : ShadowSamplerFunctionTexture2DTest.Test/* = SKIP
@@ -2763,6 +2786,9 @@
 512157667 WIN VULKAN : WebGLCompatibilityTest.PointSizeDefaultWhenNotSet/* = SKIP
 512157667 WIN D3D11 : WebGLCompatibilityTest.PointSizeDefaultWhenNotSet/* = SKIP
 512157667 WIN D3D9 : WebGLCompatibilityTest.PointSizeDefaultWhenNotSet/* = SKIP
+512157667 PIXEL10 VULKAN : WebGLCompatibilityTest.PointSizeDefaultWhenNotSet/* = SKIP
+512157667 PIXEL10 GLES : WebGLCompatibilityTest.PointSizeDefaultWhenNotSet/* = SKIP
+512157667 GALAXYS24EXYNOS VULKAN : WebGLCompatibilityTest.PointSizeDefaultWhenNotSet/* = SKIP
 
 // Likely a SwiftShader bug.
 514397873 SWIFTSHADER : DrawBaseVertexBaseInstanceTest_ES3.BaseInstanceDivisorIndexing/* = SKIP

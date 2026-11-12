@@ -101,9 +101,6 @@ BASE_FEATURE(kContextualTasksHideMenuOnAiPage,
 BASE_FEATURE(kContextualTasksHideCloseButtonInVerticalTabs,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kContextualTasksUpdateModelOnNavigation,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kContextualTasksVideoCitations, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kContextualTasksPdfCitations, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -132,10 +129,7 @@ BASE_FEATURE(kContextualTasksJavaFusebox, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kContextualTasksOverrideShowBottomSheetOnLargeScreen,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-bool GetIsContextualTasksUpdateModeOnNavigationEnabled() {
-  return base::FeatureList::IsEnabled(kContextualTasksUpdateModelOnNavigation);
-}
-
+BASE_FEATURE(kAimTriggeredThreadLinks, base::FEATURE_DISABLED_BY_DEFAULT);
 bool GetIsContextualTasksPdfCitationsEnabled() {
   return base::FeatureList::IsEnabled(kContextualTasksPdfCitations);
 }
@@ -187,6 +181,16 @@ const base::FeatureParam<double> kContentVisibilityThreshold{
     &kContextualTasksContext,
     "ContextualTasksContextContentVisibilityThreshold", 0.7};
 
+const base::FeatureParam<bool> kEnablePreviousTabFallback(
+    &kContextualTasksContext,
+    "ContextualTasksEnablePreviousTabFallback",
+    true);
+
+const base::FeatureParam<base::TimeDelta> kPreviousTabRecencyThreshold(
+    &kContextualTasksContext,
+    "ContextualTasksPreviousTabRecencyThreshold",
+    base::Seconds(30));
+
 const base::FeatureParam<std::string> kQueryEmbeddingTask{
     &kContextualTasksContext, "ContextualTasksContextQueryEmbeddingTask", ""};
 
@@ -205,6 +209,60 @@ const base::FeatureParam<double> kSmartTabSharingPromoScoreThreshold(
     "ContextualTasksContextSmartTabSharingPromoScoreThreshold",
     0.6);
 
+const base::FeatureParam<SmartTabSharingIphFirstTimePromptOption>::Option
+    kSmartTabSharingIphFirstTimePromptOptions[] = {
+        {SmartTabSharingIphFirstTimePromptOption::kIphFirstTimePromptV1,
+         "iphStsFirstTimePromptV1"},
+        {SmartTabSharingIphFirstTimePromptOption::kIphFirstTimePromptV2,
+         "iphStsFirstTimePromptV2"},
+};
+const base::FeatureParam<SmartTabSharingIphFirstTimePromptOption>
+    kSmartTabSharingIphFirstTimePromptOption(
+        &kContextualTasksContext,
+        "ContextualTasksContextSmartTabSharingIphFirstTimePromptOption",
+        SmartTabSharingIphFirstTimePromptOption::kIphFirstTimePromptV1,
+        &kSmartTabSharingIphFirstTimePromptOptions);
+
+const base::FeatureParam<SmartTabSharingIphDefaultOnOption>::Option
+    kSmartTabSharingIphDefaultOnOptions[] = {
+        {SmartTabSharingIphDefaultOnOption::kIphDefaultOnV1,
+         "iphStsDefaultOnV1"},
+        {SmartTabSharingIphDefaultOnOption::kIphDefaultOnV2,
+         "iphStsDefaultOnV2"},
+};
+const base::FeatureParam<SmartTabSharingIphDefaultOnOption>
+    kSmartTabSharingIphDefaultOnOption(
+        &kContextualTasksContext,
+        "ContextualTasksContextSmartTabSharingDefaultOnOption",
+        SmartTabSharingIphDefaultOnOption::kIphDefaultOnV1,
+        &kSmartTabSharingIphDefaultOnOptions);
+
+const base::FeatureParam<SmartTabSharingIphTryItPromoOption>::Option
+    kSmartTabSharingIphTryItPromoOptions[] = {
+        {SmartTabSharingIphTryItPromoOption::kIphTryItPromoV1,
+         "iphStsTryItPromoV1"},
+        {SmartTabSharingIphTryItPromoOption::kIphTryItPromoV2,
+         "iphStsTryItPromoV2"},
+};
+const base::FeatureParam<SmartTabSharingIphTryItPromoOption>
+    kSmartTabSharingIphTryItPromoOption(
+        &kContextualTasksContext,
+        "ContextualTasksContextSmartTabSharingIphTryItPromoOption",
+        SmartTabSharingIphTryItPromoOption::kIphTryItPromoV1,
+        &kSmartTabSharingIphTryItPromoOptions);
+
+const base::FeatureParam<SmartTabSharingMegaplusStringOption>::Option
+    kSmartTabSharingMegaplusOptions[] = {
+        {SmartTabSharingMegaplusStringOption::kMegaplusV1, "megaplusV1"},
+        {SmartTabSharingMegaplusStringOption::kMegaplusV2, "megaplusV2"},
+        {SmartTabSharingMegaplusStringOption::kMegaplusV3, "megaplusV3"},
+};
+const base::FeatureParam<SmartTabSharingMegaplusStringOption>
+    kSmartTabSharingMegaplusStringOption(
+        &kContextualTasksContext,
+        "ContextualTasksContextSmartTabSharingMegaplusStringOption",
+        SmartTabSharingMegaplusStringOption::kMegaplusV1,
+        &kSmartTabSharingMegaplusOptions);
 const base::FeatureParam<double> kContextualTasksContextLoggingSampleRate{
     &kContextualTasksContextLogging, "ContextualTasksContextLoggingSampleRate",
     1.0};

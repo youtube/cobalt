@@ -415,6 +415,7 @@ void LateLoadEliminationAnalyzer::ProcessTrustedLoad(
     USE(replacement);
     // All trusted loads have the same representation and they can't alias with
     // any other loads.
+    DCHECK(replacement.Is<LoadTrustedPointerOp>());
     DCHECK_EQ(replacement.outputs_rep(), load.outputs_rep());
     TRACE(">> Found replacement at offset " << existing);
     replacements_[op_idx] = Replacement::LoadElimination(existing);

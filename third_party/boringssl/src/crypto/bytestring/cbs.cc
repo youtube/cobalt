@@ -146,6 +146,8 @@ int CBS_get_u32le(CBS *cbs, uint32_t *out) {
   return 1;
 }
 
+int CBS_get_u48(CBS *cbs, uint64_t *out) { return cbs_get_u(cbs, out, 6); }
+
 int CBS_get_u64(CBS *cbs, uint64_t *out) { return cbs_get_u(cbs, out, 8); }
 
 int CBS_get_u64le(CBS *cbs, uint64_t *out) {

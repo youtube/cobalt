@@ -18,13 +18,13 @@
 #include "api/audio/audio_frame.h"
 #include "api/audio_codecs/audio_format.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
-#include "api/environment/environment_factory.h"
 #include "api/neteq/default_neteq_factory.h"
 #include "api/neteq/neteq.h"
 #include "api/rtp_headers.h"
 #include "api/units/timestamp.h"
 #include "modules/audio_coding/codecs/pcm16b/pcm16b.h"
 #include "modules/audio_coding/include/audio_coding_module.h"
+#include "test/create_test_environment.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -33,7 +33,7 @@ class TargetDelayTest : public ::testing::Test {
  protected:
   TargetDelayTest()
       : neteq_(
-            DefaultNetEqFactory().Create(CreateEnvironment(),
+            DefaultNetEqFactory().Create(CreateTestEnvironment(),
                                          NetEq::Config(),
                                          CreateBuiltinAudioDecoderFactory())) {}
 

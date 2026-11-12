@@ -1267,7 +1267,7 @@ class LiftoffCompiler {
         // function prologue), plus 1 for each local (including parameters). Do
         // this only *after* setting up the frame completely, even though we
         // already executed the work then.
-        CheckMaxSteps(decoder, 16 + __ num_locals());
+        CheckMaxSteps(decoder, static_cast<int32_t>(16 + __ num_locals()));
       }
     } else {
       DCHECK(!max_steps_);
@@ -1482,107 +1482,61 @@ class LiftoffCompiler {
     }
   }
 
-  V8_INLINE void FuzzerChargeSteps(FullDecoder* decoder, int stack_idx,
-                                   LiftoffRegList pinned = {}) {
-    FuzzerChargeSteps(decoder, stack_idx, nullptr, pinned);
-  }
-
-  V8_INLINE void FuzzerChargeSteps(FullDecoder* decoder, LiftoffRegister input,
-                                   LiftoffRegList pinned = {}) {
-    FuzzerChargeSteps(decoder, input, nullptr, pinned);
-  }
-
+  // Load the length of a string, which will be used as steps.
   V8_INLINE void FuzzerChargeStringLength(FullDecoder* decoder,
                                           LiftoffRegister input,
                                           LiftoffRegList pinned = {}) {
-    FuzzerChargeSteps(
-        decoder, input,
-        [this, decoder](LiftoffRegister input, LiftoffRegList& pinned) {
-          LiftoffRegister length_reg =
-              pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-          LoadObjectField(decoder, length_reg, input.gp(), no_reg,
-                          offsetof(String, length_) - kHeapObjectTag,
-                          ValueKind::kI32, false /* is_signed */,
-                          false /* trapping */, pinned);
-          return length_reg;
-        },
-        pinned);
+    if (V8_LIKELY(max_steps_ == nullptr)) return;
+    LiftoffRegister length_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LoadObjectField(decoder, length_reg, input.gp(), no_reg,
+                    offsetof(String, length_) - kHeapObjectTag, kI32,
+                    false /* is_signed */, false /* trapping */, pinned);
+    FuzzerChargeSteps(decoder, length_reg, kI32, pinned);
   }
 
-  template <typename LoadFn>
+  // Use steps in `steps_reg` with value kind `kind`.
+  V8_INLINE void FuzzerChargeSteps(FullDecoder* decoder,
+                                   LiftoffRegister steps_reg, ValueKind kind,
+                                   LiftoffRegList pinned = {}) {
+    if (V8_LIKELY(max_steps_ == nullptr)) return;
+    pinned.set(steps_reg);
+
+#if V8_TARGET_ARCH_64_BIT
+    LiftoffAssembler::MaxStepsVariant steps_done{
+        std::make_pair(steps_reg.gp(), kind)};
+#else
+    LiftoffAssembler::MaxStepsVariant steps_done{steps_reg};
+#endif
+    CheckMaxSteps(decoder, steps_done, pinned);
+  }
+
+  // Load steps from stack position `stack_idx`.
   V8_INLINE void FuzzerChargeSteps(FullDecoder* decoder, int stack_idx,
-                                   LoadFn load_fn, LiftoffRegList pinned = {}) {
-    if (V8_UNLIKELY(max_steps_ != nullptr)) {
-      LiftoffRegister input = pinned.set(__ PeekToRegister(stack_idx, pinned));
-      FuzzerChargeSteps(decoder, input, load_fn, pinned);
-    }
+                                   LiftoffRegList pinned = {}) {
+    if (V8_LIKELY(max_steps_ == nullptr)) return;
+    LiftoffRegister reg = pinned.set(__ PeekToRegister(stack_idx, pinned));
+    ValueKind kind =
+        __ cache_state() -> stack_state.end()[-1 - stack_idx].kind();
+    FuzzerChargeSteps(decoder, reg, kind, pinned);
   }
 
-  template <typename LoadFn>
-  V8_INLINE void FuzzerChargeSteps(FullDecoder* decoder, LiftoffRegister input,
-                                   LoadFn load_fn, LiftoffRegList pinned = {}) {
-    if (V8_UNLIKELY(max_steps_ != nullptr)) {
-      pinned.set(input);
-      LiftoffRegister steps_reg = input;
-      if constexpr (!std::is_same_v<std::nullptr_t, LoadFn>) {
-        steps_reg = load_fn(input, pinned);
-      }
-      CheckMaxSteps(decoder, steps_reg, pinned);
-    }
-  }
-
+  // This is the bottlenectk that all other functions above call in order to
+  // perform the actual check.
   V8_NOINLINE void CheckMaxSteps(FullDecoder* decoder,
-                                 LiftoffRegister steps_done,
+                                 LiftoffAssembler::MaxStepsVariant steps_done,
                                  LiftoffRegList pinned = {}) {
-    SCOPED_CODE_COMMENT("check max steps (reg)");
-    pinned.set(steps_done);
-    LiftoffRegister max_steps =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LiftoffRegister max_steps_addr =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    {
-      FREEZE_STATE(frozen);
-      __ LoadConstant(
-          max_steps_addr,
-          WasmValue::ForUintPtr(reinterpret_cast<uintptr_t>(max_steps_)));
-      __ Load(max_steps, max_steps_addr.gp(), no_reg, 0, LoadType::kI32Load);
-      __ emit_i32_sub(max_steps.gp(), max_steps.gp(), steps_done.gp());
-      __ Store(max_steps_addr.gp(), no_reg, 0, max_steps, StoreType::kI32Store,
-               pinned);
-      // Abort if max steps have been executed.
-      OutOfLineCode* ool = out_of_line_code_without_safepoints_.front();
-      DCHECK_EQ(Builtin::kThrowWasmTrapUnreachable, ool->builtin);
-      Label* trap_label = &ool->label;
-      __ emit_i32_cond_jumpi(kLessThan, trap_label, max_steps.gp(), 0, frozen);
-    }
-  }
-
-  V8_NOINLINE void CheckMaxSteps(FullDecoder* decoder, int steps_done = 1,
-                                 LiftoffRegList pinned = {}) {
-    DCHECK_LE(1, steps_done);
+    DCHECK_NOT_NULL(max_steps_);
     SCOPED_CODE_COMMENT("check max steps");
-    LiftoffRegister max_steps = pinned.set(__ GetUnusedRegister(kGpReg, {}));
-    LiftoffRegister max_steps_addr =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    {
-      FREEZE_STATE(frozen);
-      __ LoadConstant(
-          max_steps_addr,
-          WasmValue::ForUintPtr(reinterpret_cast<uintptr_t>(max_steps_)));
-      __ Load(max_steps, max_steps_addr.gp(), no_reg, 0, LoadType::kI32Load);
-      // Subtract first (and store the result), so the caller sees that
-      // max_steps ran negative. Since we never subtract too much at once, we
-      // cannot underflow.
-      DCHECK_GE(kMaxInt / 16, steps_done);  // An arbitrary limit.
-      __ emit_i32_subi(max_steps.gp(), max_steps.gp(), steps_done);
-      __ Store(max_steps_addr.gp(), no_reg, 0, max_steps, StoreType::kI32Store,
-               pinned);
-      // Abort if max steps have been executed.
-      OutOfLineCode* ool = out_of_line_code_without_safepoints_.front();
-      DCHECK_EQ(Builtin::kThrowWasmTrapUnreachable, ool->builtin);
-      Label* trap_label = &ool->label;
-      __ emit_i32_cond_jumpi(kLessThan, trap_label, max_steps.gp(), 0, frozen);
+    OutOfLineCode* ool = out_of_line_code_without_safepoints_.front();
+    DCHECK_EQ(Builtin::kThrowWasmTrapUnreachable, ool->builtin);
+#ifdef DEBUG
+    if (const int32_t* steps_int = std::get_if<int32_t>(&steps_done)) {
+      DCHECK_LE(1, *steps_int);
+      DCHECK_GE(kMaxInt / 2, *steps_int);
     }
+#endif  // DEBUG
+    __ DecrementMaxSteps(max_steps_, steps_done, &ool->label, pinned);
   }
 
   V8_NOINLINE void EmitDebuggingInfo(FullDecoder* decoder, WasmOpcode opcode) {
@@ -1661,7 +1615,7 @@ class LiftoffCompiler {
       __ bind(&cont);
     }
     if (V8_UNLIKELY(max_steps_ != nullptr)) {
-      CheckMaxSteps(decoder);
+      CheckMaxSteps(decoder, 1);
     }
   }
 
@@ -2461,33 +2415,39 @@ class LiftoffCompiler {
     LiftoffRegister dst = src_rc == dst_rc
                               ? __ GetUnusedRegister(dst_rc, {src}, {})
                               : __ GetUnusedRegister(dst_rc, {});
-    bool emitted = __ emit_type_conversion(
-        opcode, dst, src,
-        can_trap ? AddOutOfLineTrap(decoder,
-                                    Builtin::kThrowWasmTrapFloatUnrepresentable)
-                       .label()
-                 : nullptr);
+    std::optional<OolTrapLabel> trap;
+    if (can_trap) {
+      trap.emplace(AddOutOfLineTrap(
+          decoder, Builtin::kThrowWasmTrapFloatUnrepresentable));
+    }
+    bool emitted = __ emit_type_conversion(opcode, dst, src,
+                                           can_trap ? trap->label() : nullptr);
     if (!emitted) {
       if constexpr (fallback_fn == nullptr) {
         UNREACHABLE();
       }
       ExternalReference ext_ref = fallback_fn();
       if (can_trap) {
+        // TODO(clemensb): Resetting the OolTrapLabel here and then capturing a
+        // new one later is problematic as it will result in showing the state
+        // of the stack *after* the operation instead of before.
+        trap.reset();
         // External references for potentially trapping conversions return int.
         LiftoffRegister ret_reg =
             __ GetUnusedRegister(kGpReg, LiftoffRegList{dst});
         LiftoffRegister dst_regs[] = {ret_reg, dst};
         GenerateCCallWithStackBuffer(dst_regs, kI32, dst_kind,
                                      {VarState{src_kind, src, 0}}, ext_ref);
-        OolTrapLabel trap = AddOutOfLineTrap(
-            decoder, Builtin::kThrowWasmTrapFloatUnrepresentable);
-        __ emit_cond_jump(kEqual, trap.label(), kI32, ret_reg.gp(), no_reg,
-                          trap.frozen());
+        trap.emplace(AddOutOfLineTrap(
+            decoder, Builtin::kThrowWasmTrapFloatUnrepresentable));
+        __ emit_cond_jump(kEqual, trap->label(), kI32, ret_reg.gp(), no_reg,
+                          trap->frozen());
       } else {
         GenerateCCallWithStackBuffer(&dst, kVoid, dst_kind,
                                      {VarState{src_kind, src, 0}}, ext_ref);
       }
     }
+    trap.reset();
     __ PushRegister(dst_kind, dst);
   }
 
@@ -3021,18 +2981,28 @@ class LiftoffCompiler {
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
           __ SpillDivRegisters();
-          Label* div_by_zero =
-              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapDivByZero)
-                  .label();
-          Label* div_unrepresentable =
-              AddOutOfLineTrap(decoder,
-                               Builtin::kThrowWasmTrapDivUnrepresentable)
-                  .label();
-          if (!__ emit_i64_divs(dst, lhs, rhs, div_by_zero,
-                                div_unrepresentable)) {
+          std::optional<OolTrapLabel> div_by_zero;
+          div_by_zero.emplace(
+              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapDivByZero));
+          std::optional<OolTrapLabel> div_unrepresentable;
+          div_unrepresentable.emplace(AddOutOfLineTrap(
+              decoder, Builtin::kThrowWasmTrapDivUnrepresentable));
+          if (!__ emit_i64_divs(dst, lhs, rhs, div_by_zero->label(),
+                                div_unrepresentable->label())) {
+#if V8_TARGET_ARCH_64_BIT
+            UNREACHABLE();
+#else   // !V8_TARGET_ARCH_64_BIT
             ExternalReference ext_ref = ExternalReference::wasm_int64_div();
-            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, div_by_zero,
-                                div_unrepresentable);
+            Label* div_by_zero_ptr = div_by_zero->label();
+            Label* div_unrepresentable_ptr = div_unrepresentable->label();
+            // TODO(513426275): Capturing the label here and then resetting the
+            // OolTrapLabel is problematic as it might result in a stale
+            // stack state.
+            div_by_zero.reset();
+            div_unrepresentable.reset();
+            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, div_by_zero_ptr,
+                                div_unrepresentable_ptr);
+#endif  // !V8_TARGET_ARCH_64_BIT
           }
         });
       case kExprI64DivU:
@@ -3040,12 +3010,21 @@ class LiftoffCompiler {
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
           __ SpillDivRegisters();
-          Label* div_by_zero =
-              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapDivByZero)
-                  .label();
-          if (!__ emit_i64_divu(dst, lhs, rhs, div_by_zero)) {
+          std::optional<OolTrapLabel> div_by_zero;
+          div_by_zero.emplace(
+              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapDivByZero));
+          if (!__ emit_i64_divu(dst, lhs, rhs, div_by_zero->label())) {
+#if V8_TARGET_ARCH_64_BIT
+            UNREACHABLE();
+#else   // !V8_TARGET_ARCH_64_BIT
             ExternalReference ext_ref = ExternalReference::wasm_uint64_div();
-            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, div_by_zero);
+            Label* div_by_zero_ptr = div_by_zero->label();
+            // TODO(513426275): Capturing the label here and then resetting the
+            // OolTrapLabel is problematic as it might result in a stale
+            // stack state.
+            div_by_zero.reset();
+            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, div_by_zero_ptr);
+#endif  // !V8_TARGET_ARCH_64_BIT
           }
         });
       case kExprI64RemS:
@@ -3053,12 +3032,21 @@ class LiftoffCompiler {
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
           __ SpillDivRegisters();
-          Label* rem_by_zero =
-              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapRemByZero)
-                  .label();
-          if (!__ emit_i64_rems(dst, lhs, rhs, rem_by_zero)) {
+          std::optional<OolTrapLabel> rem_by_zero;
+          rem_by_zero.emplace(
+              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapRemByZero));
+          if (!__ emit_i64_rems(dst, lhs, rhs, rem_by_zero->label())) {
+#if V8_TARGET_ARCH_64_BIT
+            UNREACHABLE();
+#else   // !V8_TARGET_ARCH_64_BIT
             ExternalReference ext_ref = ExternalReference::wasm_int64_mod();
-            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero);
+            Label* rem_by_zero_ptr = rem_by_zero->label();
+            // TODO(513426275): Capturing the label here and then resetting the
+            // OolTrapLabel is problematic as it might result in a stale
+            // stack state.
+            rem_by_zero.reset();
+            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero_ptr);
+#endif  // !V8_TARGET_ARCH_64_BIT
           }
         });
       case kExprI64RemU:
@@ -3066,12 +3054,21 @@ class LiftoffCompiler {
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
           __ SpillDivRegisters();
-          Label* rem_by_zero =
-              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapRemByZero)
-                  .label();
-          if (!__ emit_i64_remu(dst, lhs, rhs, rem_by_zero)) {
+          std::optional<OolTrapLabel> rem_by_zero;
+          rem_by_zero.emplace(
+              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapRemByZero));
+          if (!__ emit_i64_remu(dst, lhs, rhs, rem_by_zero->label())) {
+#if V8_TARGET_ARCH_64_BIT
+            UNREACHABLE();
+#else   // !V8_TARGET_ARCH_64_BIT
             ExternalReference ext_ref = ExternalReference::wasm_uint64_mod();
-            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero);
+            Label* rem_by_zero_ptr = rem_by_zero->label();
+            // TODO(513426275): Capturing the label here and then resetting the
+            // OolTrapLabel is problematic as it might result in a stale
+            // stack state.
+            rem_by_zero.reset();
+            EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero_ptr);
+#endif  // !V8_TARGET_ARCH_64_BIT
           }
         });
       case kExprRefEq: {
@@ -3094,7 +3091,7 @@ class LiftoffCompiler {
   void WideOp2(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs_val,
                const Value& rhs_val, Value* result_low, Value* result_high) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_PPC64 || \
-    V8_TARGET_ARCH_S390X
+    V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_RISCV64
     switch (opcode) {
       case kExprI64MulWideS:
         __ emit_i64_mul_wide_s();
@@ -3901,7 +3898,7 @@ class LiftoffCompiler {
     OolTrapLabel(LiftoffAssembler& assembler, Label* label)
         : label_(label), freeze_(assembler) {}
 
-    Label* label() const { return label_; }
+    Label* label() const V8_LIFETIME_BOUND { return label_; }
     const FreezeCacheState& frozen() const { return freeze_; }
 
    private:
@@ -4581,7 +4578,8 @@ class LiftoffCompiler {
     // Pop the input, then spill all cache registers to make the runtime call.
     LiftoffRegList pinned;
     LiftoffRegister num_pages = pinned.set(__ PopToRegister());
-    FuzzerChargeSteps(decoder, num_pages, pinned);
+    FuzzerChargeSteps(decoder, num_pages,
+                      imm.memory->is_memory64() ? kI64 : kI32, pinned);
     __ SpillAllRegisters();
 
     LiftoffRegister result = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -9276,15 +9274,17 @@ class LiftoffCompiler {
     Label no_match, match;
     TypeCheck check(object.type, &no_match, null_succeeds);
     Initialize(check, decoder, kPeek, object.type);
-    FREEZE_STATE(frozen);
+    {
+      FREEZE_STATE(frozen);
 
-    if (null_succeeds && check.obj_type.is_nullable()) {
-      __ emit_cond_jump(kEqual, &match, kRefNull, check.obj_reg,
-                        check.null_reg(), frozen);
+      if (null_succeeds && check.obj_type.is_nullable()) {
+        __ emit_cond_jump(kEqual, &match, kRefNull, check.obj_reg,
+                          check.null_reg(), frozen);
+      }
+
+      (this->*type_checker)(check, frozen);
+      __ bind(&match);
     }
-
-    (this->*type_checker)(check, frozen);
-    __ bind(&match);
     BrOrRet(decoder, br_depth);
 
     __ bind(&no_match);
@@ -9302,17 +9302,19 @@ class LiftoffCompiler {
     Label no_match, end;
     TypeCheck check(object.type, &no_match, null_succeeds);
     Initialize(check, decoder, kPeek, object.type);
-    FREEZE_STATE(frozen);
+    {
+      FREEZE_STATE(frozen);
 
-    if (null_succeeds && check.obj_type.is_nullable()) {
-      __ emit_cond_jump(kEqual, &end, kRefNull, check.obj_reg, check.null_reg(),
-                        frozen);
+      if (null_succeeds && check.obj_type.is_nullable()) {
+        __ emit_cond_jump(kEqual, &end, kRefNull, check.obj_reg,
+                          check.null_reg(), frozen);
+      }
+
+      (this->*type_checker)(check, frozen);
+      __ emit_jump(&end);
+
+      __ bind(&no_match);
     }
-
-    (this->*type_checker)(check, frozen);
-    __ emit_jump(&end);
-
-    __ bind(&no_match);
     BrOrRet(decoder, br_depth);
 
     __ bind(&end);
@@ -9926,7 +9928,7 @@ class LiftoffCompiler {
     LiftoffRegister start_reg = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister view_reg = pinned.set(__ PopToRegister(pinned));
     MaybeEmitNullCheck(decoder, view_reg.gp(), pinned, view.type);
-    FuzzerChargeSteps(decoder, end_reg, pinned);
+    FuzzerChargeSteps(decoder, end_reg, kI32, pinned);
     VarState view_var(kRef, view_reg, 0);
     VarState start_var(kI32, start_reg, 0);
     VarState end_var(kI32, end_reg, 0);

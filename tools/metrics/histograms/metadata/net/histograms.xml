@@ -48,6 +48,12 @@ chromium-metrics-reviews@google.com.
   <variant name="Secure" summary="DoH is enabled"/>
 </variants>
 
+<variants name="DnsQueryType">
+  <variant name="A" summary="A DNS query type"/>
+  <variant name="AAAA" summary="AAAA DNS query type"/>
+  <variant name="HTTPS" summary="HTTPS DNS query type"/>
+</variants>
+
 <!-- LINT.IfChange(DohProviderId) -->
 
 <variants name="DohProviderId">
@@ -891,7 +897,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="HttpCache.NoVarySearch.DirectoryCreateError.Dedicated"
-    enum="PlatformFileError" expires_after="2026-09-20">
+    enum="PlatformFileError" expires_after="2026-11-22">
   <owner>ricea@chromium.org</owner>
   <owner>net-dev@chromium.org</owner>
   <summary>
@@ -2127,7 +2133,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DeviceBoundSessions.GoogleRegistrationIsFromStandard"
-    enum="Boolean" expires_after="2026-09-20">
+    enum="Boolean" expires_after="2026-11-22">
   <owner>thefrog@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -2308,7 +2314,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DeviceBoundSessions.RequestDeferralDecision3"
-    enum="DeviceBoundSessionUsage2" expires_after="2026-09-20">
+    enum="DeviceBoundSessionUsage2" expires_after="2026-11-22">
   <owner>thefrog@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -2607,6 +2613,29 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Net.DNS.DnsPlatformAndroidAttempt.FdAlreadyReadable"
+    enum="Boolean" expires_after="2027-05-22">
+  <owner>stefanoduo@chromium.org</owner>
+  <owner>src/net/dns/OWNERS</owner>
+  <summary>
+    Whether the file descriptor returned by android_res_nquery was already
+    readable as soon as it was returned. Reported when starting a platform DNS
+    attempt on Android.
+  </summary>
+</histogram>
+
+<histogram name="Net.DNS.DnsPlatformAndroidAttempt.ResponseSize.{QueryType}"
+    units="bytes" expires_after="2027-05-22">
+  <owner>stefanoduo@chromium.org</owner>
+  <owner>src/net/dns/OWNERS</owner>
+  <summary>
+    The size of the DNS response in bytes returned by android_res_nresult for
+    {QueryType} resource records. Reported when successfully reading a platform
+    DNS attempt response on Android.
+  </summary>
+  <token key="QueryType" variants="DnsQueryType"/>
+</histogram>
+
 <histogram name="Net.DNS.DnsTask.AdditionalHttps.Requested"
     enum="AdditionalHttpsRecordStatus" expires_after="2026-11-01">
   <owner>awillia@chromium.org</owner>
@@ -2663,46 +2692,6 @@ chromium-metrics-reviews@google.com.
     started DnsAttempt (the representation of an individual network request to a
     DNS server).
   </summary>
-</histogram>
-
-<histogram name="Net.DNS.DnsTransaction.HttpsLookupResult" enum="NetErrorCodes"
-    expires_after="2026-11-01">
-  <owner>stefanoduo@google.com</owner>
-  <owner>src/net/dns/OWNERS</owner>
-  <summary>
-    Net error codes resulting from completed or aborted DnsTransactions querying
-    for HTTPS resource records. Recorded across all resolution modes when a
-    transaction completes or is aborted before completion.
-  </summary>
-</histogram>
-
-<histogram
-    name="Net.DNS.DnsTransaction.HttpsLookupResult.ClassicTruncatedAndTcpRetried"
-    enum="NetErrorCodes" expires_after="2026-11-01">
-  <owner>stefanoduo@google.com</owner>
-  <owner>src/net/dns/OWNERS</owner>
-  <summary>
-    Net error codes resulting from completed or aborted classic (Do53)
-    DnsTransactions querying for HTTPS resource records that experienced UDP
-    truncation (TC bit set) and retried over TCP. Recorded when a classic DNS
-    transaction completes or is aborted after retrying over TCP.
-  </summary>
-</histogram>
-
-<histogram name="Net.DNS.DnsTransaction.HttpsLookupResult.{AttemptMode}"
-    enum="NetErrorCodes" expires_after="2026-11-01">
-  <owner>stefanoduo@google.com</owner>
-  <owner>src/net/dns/OWNERS</owner>
-  <summary>
-    Net error codes resulting from completed or aborted DnsTransactions querying
-    for HTTPS resource records using {AttemptMode}. Recorded when a transaction
-    completes or is aborted before completion.
-  </summary>
-  <token key="AttemptMode">
-    <variant name="Classic" summary="classic DNS (Do53)"/>
-    <variant name="DoH" summary="DNS over HTTPS"/>
-    <variant name="Platform" summary="platform resolver"/>
-  </token>
 </histogram>
 
 <histogram name="Net.DNS.DnsTransaction.Insecure.{DohProviderId}FailureTime"
@@ -2866,6 +2855,49 @@ chromium-metrics-reviews@google.com.
   <token key="Outcome">
     <variant name="Failure"/>
     <variant name="Success"/>
+  </token>
+</histogram>
+
+<histogram name="Net.DNS.DnsTransaction.{QueryType}.LookupResult"
+    enum="NetErrorCodes" expires_after="2026-11-01">
+  <owner>stefanoduo@google.com</owner>
+  <owner>src/net/dns/OWNERS</owner>
+  <summary>
+    Net error codes resulting from completed or aborted DnsTransactions querying
+    for {QueryType} resource records. Recorded across all resolution modes when
+    a transaction completes or is aborted before completion.
+  </summary>
+  <token key="QueryType" variants="DnsQueryType"/>
+</histogram>
+
+<histogram
+    name="Net.DNS.DnsTransaction.{QueryType}.LookupResult.ClassicTruncatedAndTcpRetried"
+    enum="NetErrorCodes" expires_after="2026-11-01">
+  <owner>stefanoduo@google.com</owner>
+  <owner>src/net/dns/OWNERS</owner>
+  <summary>
+    Net error codes resulting from completed or aborted classic (Do53)
+    DnsTransactions querying for {QueryType} resource records that experienced
+    UDP truncation (TC bit set) and retried over TCP. Recorded when a classic
+    DNS transaction completes or is aborted after retrying over TCP.
+  </summary>
+  <token key="QueryType" variants="DnsQueryType"/>
+</histogram>
+
+<histogram name="Net.DNS.DnsTransaction.{QueryType}.LookupResult.{AttemptMode}"
+    enum="NetErrorCodes" expires_after="2026-11-01">
+  <owner>stefanoduo@google.com</owner>
+  <owner>src/net/dns/OWNERS</owner>
+  <summary>
+    Net error codes resulting from completed or aborted DnsTransactions querying
+    for {QueryType} resource records using {AttemptMode}. Recorded when a
+    transaction completes or is aborted before completion.
+  </summary>
+  <token key="QueryType" variants="DnsQueryType"/>
+  <token key="AttemptMode">
+    <variant name="Classic" summary="classic DNS (Do53)"/>
+    <variant name="DoH" summary="DNS over HTTPS"/>
+    <variant name="Platform" summary="platform resolver"/>
   </token>
 </histogram>
 
@@ -3408,7 +3440,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DNS.UpgradeConfig.InsecureUpgradeSucceeded" enum="Boolean"
-    expires_after="2026-09-20">
+    expires_after="2026-11-22">
   <owner>awillia@chromium.org</owner>
   <owner>src/net/dns/OWNERS</owner>
   <summary>
@@ -4004,7 +4036,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpStreamPool.QuicAttemptTime.{Result}" units="ms"
-    expires_after="2026-06-07">
+    expires_after="2027-04-23">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -4127,7 +4159,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpStreamPool.TcpBasedAttemptTime2.{Result}" units="ms"
-    expires_after="2026-06-21">
+    expires_after="2027-04-23">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -7498,6 +7530,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Net.RequestedUrlLength" units="characters"
+    expires_after="2027-05-01">
+  <owner>tov@google.com</owner>
+  <owner>chrome-privacy-core@google.com</owner>
+  <summary>
+    The length of the requested URL, excluding the fragment. Only logged for
+    requests where the URL length exceeds 8192 characters. Recorded when the
+    network loader (URLLoader) request is initiated in the Network Service.
+  </summary>
+</histogram>
+
 <histogram name="Net.RestrictedCookieManager.GetCookiesString.Count30Seconds"
     units="IPCs" expires_after="2026-04-26">
   <owner>olivierli@chromium.org</owner>
@@ -8591,6 +8634,18 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Net.SqlDiskCache.EntriesWithHintsPercentage" units="%"
+    expires_after="2026-11-15">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Records the percentage of live cache entries that have associated hints set.
+    This is recorded once each time the in-memory index is loaded from the
+    database. This data is used to evaluate the efficiency of the in-memory data
+    structures.
+  </summary>
+</histogram>
+
 <histogram name="Net.SqlDiskCache.ExclusiveOperationDelay" units="microseconds"
     expires_after="2026-11-15">
   <owner>horo@chromium.org</owner>
@@ -9249,7 +9304,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.URLLoader.AcceptCH.RunObserverCall" enum="Boolean"
-    expires_after="2026-09-20">
+    expires_after="2026-11-22">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -9294,7 +9349,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.URLLoader.HasHeaderClient" enum="Boolean"
-    expires_after="2026-09-20">
+    expires_after="2026-11-22">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -9304,7 +9359,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.URLLoader.OnBeforeSendHeadersDuration" units="ms"
-    expires_after="2026-09-20">
+    expires_after="2026-11-22">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -9442,6 +9497,7 @@ chromium-metrics-reviews@google.com.
   <token key="ProtocolOrType">
     <variant name="" summary="All protocols"/>
     <variant name=".Http2" summary="HTTP/2"/>
+    <variant name=".Http3" summary="HTTP/3"/>
     <variant name="_Localhost"/>
     <variant name="_NotLocalhost"/>
   </token>
@@ -9471,6 +9527,18 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Net.WebSocket.Http3SessionReuseAvailable" enum="Boolean"
+    expires_after="2027-05-13">
+  <owner>ricea@chromium.org</owner>
+  <owner>patilmayur@microsoft.com</owner>
+  <owner>blink-network-stack@google.com</owner>
+  <summary>
+    Whether a WebSocket-over-HTTP/3 handshake can reuse an existing QUIC session
+    that supports Extended CONNECT. Recorded for WebSocket handshakes when QUIC
+    and WebSocket-over-HTTP/3 are enabled and the proxy is direct.
+  </summary>
+</histogram>
+
 <histogram name="Net.WebSocket.ProtocolHeaderSize" units="bytes"
     expires_after="2026-11-15">
   <owner>ricea@chromium.org</owner>
@@ -9492,7 +9560,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.WebTransport.NegotiatedHttpDatagramVersion"
-    enum="NegotiatedHttpDatagramVersion" expires_after="2026-06-02">
+    enum="NegotiatedHttpDatagramVersion" expires_after="2027-05-24">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>

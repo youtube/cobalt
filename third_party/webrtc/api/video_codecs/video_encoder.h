@@ -64,23 +64,10 @@ class RTC_EXPORT EncodedImageCallback {
     bool drop_next_frame = false;
   };
 
-  // Used to signal the encoder about reason a frame is dropped.
-  // kDroppedByMediaOptimizations - dropped by MediaOptimizations (for rate
-  // limiting purposes).
-  // kDroppedByEncoder - dropped by encoder's internal rate limiter.
-  // TODO: bugs.webrtc.org/467444018 - Remove when OnDroppedFrame is deleted.
-  enum class DropReason : uint8_t {
-    kDroppedByMediaOptimizations,
-    kDroppedByEncoder
-  };
-
   // Callback function which is called when an image has been encoded.
   virtual Result OnEncodedImage(
       const EncodedImage& encoded_image,
       const CodecSpecificInfo* codec_specific_info) = 0;
-
-  [[deprecated("bugs.webrtc.org/467444018 -Use OnFrameDropped instead.")]]
-  virtual void OnDroppedFrame(DropReason /* reason */) {}
 
   // Callback function called when an encoder has decided to drop a frame.
   // This is usually either because of rate control buffer overflow or because
@@ -89,11 +76,9 @@ class RTC_EXPORT EncodedImageCallback {
   // thus the corresponding input frame. If `is_end_of_temporal_unit` is true,
   // it means that no further callback to neither `OnEncodedImage()` nor
   // `OnFrameDropped()` is expected for this RTP timestamp.
-  // TODO: bugs.webrtc.org/467444018 - Make pure virtual when all implementors
-  // have had time to update.
   virtual void OnFrameDropped(uint32_t rtp_timestamp,
                               int spatial_id,
-                              bool is_end_of_temporal_unit) {}
+                              bool is_end_of_temporal_unit) = 0;
 };
 
 class RTC_EXPORT VideoEncoder {

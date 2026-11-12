@@ -17,7 +17,6 @@
 #include "third_party/blink/renderer/core/layout/disable_layout_side_effects_scope.h"
 #include "third_party/blink/renderer/core/layout/floats_utils.h"
 #include "third_party/blink/renderer/core/layout/fragmentation_utils.h"
-#include "third_party/blink/renderer/core/layout/inline/fit_text_utils.h"
 #include "third_party/blink/renderer/core/layout/inline/initial_letter_utils.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_box_state.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_break_token.h"
@@ -35,6 +34,7 @@
 #include "third_party/blink/renderer/core/layout/inline/paragraph_line_breaker.h"
 #include "third_party/blink/renderer/core/layout/inline/ruby_utils.h"
 #include "third_party/blink/renderer/core/layout/inline/score_line_breaker.h"
+#include "third_party/blink/renderer/core/layout/inline/text_fit_utils.h"
 #include "third_party/blink/renderer/core/layout/layout_result.h"
 #include "third_party/blink/renderer/core/layout/layout_text_combine.h"
 #include "third_party/blink/renderer/core/layout/length_utils.h"
@@ -279,7 +279,7 @@ void InlineLayoutAlgorithm::PrepareBoxStates(
   // If the previous line was ::first-line, always rebuild because box states
   // have ::first-line styles.
   const InlineItems& items = line_info.ItemsData().items;
-  if (!break_token->UseFirstLineStyle() && !apply_fit_text_) {
+  if (!break_token->UseFirstLineStyle() && !apply_text_fit_) {
     box_states_ = context_->BoxStatesIfValidForItemIndex(
         items, break_token->StartItemIndex());
     if (box_states_) {
@@ -319,8 +319,7 @@ void InlineLayoutAlgorithm::CheckBoxStates(
                      should_scale_line_height)
       .RebuildBoxStates(line_info, 0u, GetBreakToken()->StartItemIndex());
   LogicalLineItems& line_box = context_->AcquireTempLogicalLineItems();
-  rebuilt.OnBeginPlaceItems(Node(), line_info.LineStyle(), line_info.Results(),
-                            baseline_type_, quirks_mode_,
+  rebuilt.OnBeginPlaceItems(Node(), line_info, baseline_type_, quirks_mode_,
                             should_scale_line_height, &line_box);
   DCHECK(box_states_);
   box_states_->CheckSame(rebuilt);
@@ -337,8 +336,11 @@ InlineLayoutAlgorithm::GetLineClampState(const LineInfo* line_info) const {
   }
   if (!(line_info && line_info->IsBlockInInline()) &&
       line_clamp_data.IsAtClampPoint()) {
-    if (!RuntimeEnabledFeatures::CSSLineClampEnabled() ||
-        Style().BlockEllipsis() == EBlockEllipsis::kEllipsis) [[likely]] {
+    EBlockEllipsis block_ellipsis =
+        RuntimeEnabledFeatures::CSSLineClampEnabled()
+            ? Style().BlockEllipsis()
+            : line_clamp_data.block_ellipsis;
+    if (block_ellipsis == EBlockEllipsis::kEllipsis) [[likely]] {
       return LineClampState::kLineClampEllipsis;
     }
   }
@@ -385,7 +387,7 @@ void InlineLayoutAlgorithm::CreateLine(const LineLayoutOpportunity& opportunity,
     // No scaling because of no text.
     box_states_->LineBoxState().EnsureTextMetrics(
         line_info->LineStyle(), *box_states_->LineBoxState().font,
-        baseline_type_, FitTextBlockScale::kFixed);
+        baseline_type_, TextFitBlockScale::kFixed);
   } else if (line_builder.InitialLetterItemResult() &&
              box_states_->LineBoxState().metrics.IsEmpty()) [[unlikely]] {
     box_states_->LineBoxState().metrics = FontHeight();
@@ -639,7 +641,7 @@ void InlineLayoutAlgorithm::ApplyTextBoxTrim(LineInfo& line_info,
   InlineBoxState::AdjustEdges(line_style, *line_style.GetFont(), baseline_type_,
                               should_apply_over, should_apply_under,
                               intrinsic_metrics);
-  if (RuntimeEnabledFeatures::CssTextFitEnabled() && apply_fit_text_) {
+  if (RuntimeEnabledFeatures::CssTextFitEnabled() && apply_text_fit_) {
     float scale = line_info.TextFitScale();
     if (scale < 1.0f) {
       std::optional<float> min_size = Node().MinimumFontPhysicalSize();
@@ -1151,7 +1153,7 @@ const LayoutResult* InlineLayoutAlgorithm::Layout() {
     container_builder_.SetIsLineForParallelFlow();
   }
 
-  apply_fit_text_ = ShouldApplyFitText(Node());
+  apply_text_fit_ = ShouldApplyTextFit(Node());
 
   FragmentItemsBuilder* const items_builder = context_->ItemsBuilder();
   DCHECK(items_builder);
@@ -1342,14 +1344,14 @@ const LayoutResult* InlineLayoutAlgorithm::Layout() {
     }
 
     bool should_scale_line_height = false;
-    if (apply_fit_text_) {
+    if (apply_text_fit_) {
       if (context_->IsMeasuringScale()) {
         // No fit-text handling here. We call MeasurePerBlockScale() later.
       } else if (ParagraphScale scale = context_->MeasuredScale();
                  scale.scale != 1.0f) {
-        should_scale_line_height =
-            LineFitter(Node(), &line_info)
-                .FitLine(scale.scale, scale.additional_paint_time_scale);
+        LineFitter(Node(), &line_info)
+            .FitLine(scale.scale, scale.additional_paint_time_scale);
+        should_scale_line_height = true;
       } else {
         should_scale_line_height =
             LineFitter(Node(), &line_info).MeasureAndFitLine();

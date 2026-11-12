@@ -26,14 +26,14 @@
 #include "base/time/time.h"
 #include "base/types/expected.h"
 #include "base/types/zip.h"
-#include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/autofill/actor/actor_filling_observer.h"
 #include "chrome/browser/autofill/actor/actor_key_metrics_recorder.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/autofill/autofill_client_provider.h"
 #include "chrome/browser/ui/autofill/autofill_client_provider_factory.h"
-#include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/chrome_features.h"
+#include "components/actor/core/aggregated_journal.h"
+#include "components/actor/core/journal_details_builder.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/filling/form_filler.h"
@@ -496,8 +496,7 @@ ActorFormFillingServiceImpl::~ActorFormFillingServiceImpl() = default;
 void ActorFormFillingServiceImpl::GetSuggestions(
     const tabs::TabInterface& tab,
     base::span<const FillRequest> fill_requests,
-    base::OnceCallback<void(base::expected<std::vector<ActorFormFillingRequest>,
-                                           ActorFormFillingError>)> callback) {
+    GetSuggestionsCallback callback) {
   auto callback_with_metrics =
       base::BindOnce(&RecordGetSuggestionsMetrics, base::TimeTicks::Now())
           .Then(std::move(callback));

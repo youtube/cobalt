@@ -18,6 +18,7 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "api/environment/environment.h"
 #include "api/jsep.h"
 #include "api/payload_type.h"
 #include "api/peer_connection_interface.h"
@@ -35,8 +36,9 @@ namespace webrtc {
 class SdpPayloadTypeSuggester : public PayloadTypeSuggester {
  public:
   explicit SdpPayloadTypeSuggester(
-      PeerConnectionInterface::BundlePolicy bundle_policy)
-      : bundle_manager_(bundle_policy) {}
+      PeerConnectionInterface::BundlePolicy bundle_policy,
+      const Environment& env)
+      : env_(env), bundle_manager_(bundle_policy) {}
   SdpPayloadTypeSuggester(const SdpPayloadTypeSuggester&) = delete;
   SdpPayloadTypeSuggester& operator=(const SdpPayloadTypeSuggester&) = delete;
   SdpPayloadTypeSuggester(SdpPayloadTypeSuggester&&) = delete;
@@ -69,8 +71,11 @@ class SdpPayloadTypeSuggester : public PayloadTypeSuggester {
   // Records the association of local and remote payload types with a bundle.
   class BundleTypeRecorder {
    public:
-    explicit BundleTypeRecorder(PayloadTypePicker& picker)
-        : local_payload_types_(picker), remote_payload_types_(picker) {}
+    explicit BundleTypeRecorder(PayloadTypePicker& picker,
+                                const Environment& env)
+        : local_payload_types_(picker),
+          remote_payload_types_(picker),
+          header_extensions_(env) {}
 
     PayloadTypeRecorder& local_payload_types() { return local_payload_types_; }
     PayloadTypeRecorder& remote_payload_types() {
@@ -89,6 +94,7 @@ class SdpPayloadTypeSuggester : public PayloadTypeSuggester {
   BundleTypeRecorder& LookupBundleRecorder(absl::string_view mid);
   PayloadTypePicker payload_type_picker_;
   RtpHeaderExtensionPicker rtp_header_extension_picker_;
+  const Environment env_;
   // Record of bundle groups, used for looking up payload type suggesters.
   // This class also exists on the network thread, in JsepTransportController.
   BundleManager bundle_manager_;

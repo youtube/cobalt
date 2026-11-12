@@ -33,6 +33,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_minmax.h"
 #include "rtc_base/strings/string_builder.h"
+#include "test/create_test_environment.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -2082,7 +2083,7 @@ TEST_P(AgcManagerDirectChannelSampleRateTest, CheckIsAlive) {
 
   constexpr AnalogAgcConfig kConfig{.enabled = true,
                                     .clipping_predictor{.enabled = true}};
-  AgcManagerDirect manager(CreateEnvironment(), num_channels, kConfig);
+  AgcManagerDirect manager(CreateTestEnvironment(), num_channels, kConfig);
   manager.Initialize();
   AudioBuffer buffer(sample_rate_hz, num_channels, sample_rate_hz, num_channels,
                      sample_rate_hz, num_channels);

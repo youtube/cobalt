@@ -126,7 +126,6 @@ _CONFIG = [
             'base::MemoryPressureListener',
             'base::MemoryPressureListenerTag',
             'base::MessagePump',
-            'base::MetricsSubSampler',
             'base::MiB',
             'base::MiBS',
             'base::MiBU',
@@ -160,6 +159,7 @@ _CONFIG = [
             'base::ScopedClosureRunner',
             'base::ScopedFD',
             'base::Seconds',
+            'base::ShouldRecordSubsampledMetric',
             'base::sequence_manager::TaskTimeObserver',
             'base::sequence_manager::SequenceManager',
             'base::SequencedTaskRunner',
@@ -169,6 +169,7 @@ _CONFIG = [
             'base::Span(OrSize|Reader|Writer)',
             'base::subtle::reinterpret_span',
             'base::StringPiece',
+            'base::StringPrintf',
             'base::StrongAlias',
             'base::SubstringSetMatcher',
             'base::SysInfo',
@@ -2175,6 +2176,14 @@ _CONFIG = [
         'allowed': [
             'wc_fuzzer::.+',
         ]
+    },
+    {
+        'paths': [
+            'third_party/blink/renderer/modules/background_fetch/background_fetch_manager.cc',
+        ],
+        'allowed': [
+            'base::CommandLine',
+        ],
     },
     {
         'paths': [

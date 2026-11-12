@@ -171,7 +171,8 @@ std::u16string ClickToCallUiController::GetContentType() const {
 }
 
 const gfx::VectorIcon& ClickToCallUiController::GetVectorIcon() const {
-  return vector_icons::kCallRefreshOldIcon;
+  return features::IsRoundedIconsEnabled() ? vector_icons::kCallIcon
+                                           : vector_icons::kCallRefreshOldIcon;
 }
 
 std::u16string ClickToCallUiController::GetTextForTooltipAndAccessibleName()
@@ -190,8 +191,9 @@ SharingDialogData ClickToCallUiController::CreateDialogData(
 
   // Do not add the header image for error dialogs.
   if (dialog_type != SharingDialogType::kErrorDialog) {
-    data.header_icons = SharingDialogData::HeaderIcons(
-        &kClickToCallIllustrationIcon, &kClickToCallIllustrationDarkIcon);
+    data.header_icons =
+        SharingDialogData::HeaderIcons(&kClickToCallIllustrationCustomIcon,
+                                       &kClickToCallIllustrationDarkCustomIcon);
   }
 
   data.help_text_id =

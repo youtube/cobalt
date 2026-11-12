@@ -22,6 +22,7 @@
 #include "media/base/codec.h"
 #include "media/base/media_constants.h"
 #include "pc/session_description.h"
+#include "test/create_test_environment.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -44,7 +45,7 @@ class SdpPayloadTypeSuggesterTest : public testing::Test {
   }
 
  protected:
-  SdpPayloadTypeSuggester suggester_{kBundlePolicy};
+  SdpPayloadTypeSuggester suggester_{kBundlePolicy, CreateTestEnvironment()};
 };
 
 TEST_F(SdpPayloadTypeSuggesterTest, SuggestPayloadTypeBasic) {
@@ -59,7 +60,8 @@ TEST_F(SdpPayloadTypeSuggesterTest, SuggestPayloadTypeBasic) {
 TEST_F(SdpPayloadTypeSuggesterTest, SuggestPayloadTypeReusesRemotePayloadType) {
   const PayloadType remote_lyra_pt(99);
   Codec remote_lyra_codec = CreateAudioCodec(remote_lyra_pt, "lyra", 8000, 1);
-  auto offer = std::make_unique<SessionDescription>();
+  std::unique_ptr<SessionDescription> offer =
+      std::make_unique<SessionDescription>();
   AddAudioSection(offer.get());
   offer->contents()[0].media_description()->set_codecs({remote_lyra_codec});
   EXPECT_TRUE(
@@ -77,7 +79,8 @@ TEST_F(SdpPayloadTypeSuggesterTest,
   // libwebrtc will normally allocate 110 to DTMF/48000
   const PayloadType remote_opus_pt(110);
   Codec remote_opus_codec = CreateAudioCodec(remote_opus_pt, "opus", 48000, 2);
-  auto offer = std::make_unique<SessionDescription>();
+  std::unique_ptr<SessionDescription> offer =
+      std::make_unique<SessionDescription>();
   AddAudioSection(offer.get());
   offer->contents()[0].media_description()->set_codecs({remote_opus_codec});
   EXPECT_TRUE(

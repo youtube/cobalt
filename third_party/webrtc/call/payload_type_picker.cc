@@ -31,6 +31,7 @@
 #include "rtc_base/containers/flat_set.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/string_encode.h"
+#include "system_wrappers/include/metrics.h"
 
 namespace webrtc {
 
@@ -213,11 +214,11 @@ RTCErrorOr<PayloadType> PayloadTypePicker::SuggestMapping(
     Codec codec,
     const PayloadTypeRecorder* excluder,
     bool pick_from_top_of_range) {
-  // Test compatibility: If the codec contains a PT, and it is free, use it.
-  // This saves having to rewrite tests that set the codec ID themselves.
-  // Codecs with unassigned IDs should have -1 as their id.
-  if (codec.id >= 0 && codec.id <= kLastDynamicPayloadTypeUpperRange &&
-      seen_payload_types_.count(codec.id.value()) == 0) {
+  // Test compatibility: If the codec contains a PT, and it is free and valid,
+  // use it. This saves having to rewrite tests that set the codec ID
+  // themselves. Unassigned IDs will have id.IsSet() = false.
+  if (codec.id.IsSet() && codec.id.IsDynamic() &&
+      !seen_payload_types_.contains(codec.id)) {
     AddMapping(PayloadType(codec.id), codec);
     return PayloadType(codec.id);
   }
@@ -283,7 +284,7 @@ RTCError PayloadTypeRecorder::AddMapping(PayloadType payload_type,
       !MatchesWithReferenceAttributes(codec, existing_codec_it->second)) {
     // Redefinition attempted.
     if (disallow_redefinition_level_ > 0) {
-      if (accepted_definitions_.count(payload_type) > 0) {
+      if (accepted_definitions_.contains(payload_type)) {
         // We have already defined this PT in this scope.
         RTC_LOG(LS_WARNING)
             << "Rejected attempt to redefine mapping for PT " << payload_type
@@ -371,8 +372,14 @@ RTCError RtpHeaderExtensionRecorder::AddMapping(int id,
   auto it = uri_to_id_.find(std::pair{uri, encrypt});
   if (it != uri_to_id_.end()) {
     if (it->second != id) {
-      // TODO: https://issues.webrtc.org/41480892 - This will return an error in
-      // the future.
+      RTC_HISTOGRAM_BOOLEAN(
+          "WebRTC.PeerConnection.RtpHeaderExtensionRedefinition", true);
+      // TODO: bugs.webrtc.org/504685269 - Enable error return by default.
+      if (env_.field_trials().IsEnabled(
+              "WebRTC-ErrorOnRtpExtensionRedefinition")) {
+        return RTCError(RTCErrorType::INVALID_PARAMETER,
+                        "Redefining mapping for RTP header extension");
+      }
       RTC_LOG(LS_ERROR) << "RtpHeaderExtensionRecorder: Redefining mapping for "
                         << uri << " (encrypt=" << encrypt << ") from "
                         << it->second << " to " << id;
@@ -421,7 +428,7 @@ RTCErrorOr<int> RtpHeaderExtensionPicker::SuggestMapping(
 
   // Test compatibility: If preferred_id is provided and free, use it.
   if (preferred_id >= 1 && preferred_id <= 255 &&
-      seen_ids_.count(preferred_id) == 0) {
+      !seen_ids_.contains(preferred_id)) {
     if (preferred_id <= 14) {
       AddMapping(preferred_id, uri, encrypt);
       return preferred_id;
@@ -439,7 +446,7 @@ RTCErrorOr<int> RtpHeaderExtensionPicker::SuggestMapping(
   // One-byte range: 1-14.
   // We prefer to allocate from the top of the range (14 down to 1).
   for (int id = 14; id >= 1; --id) {
-    if (seen_ids_.count(id) == 0) {
+    if (!seen_ids_.contains(id)) {
       AddMapping(id, uri, encrypt);
       return id;
     }
@@ -449,7 +456,7 @@ RTCErrorOr<int> RtpHeaderExtensionPicker::SuggestMapping(
     // TODO: issues.webrtc.org/334925828 - add unit tests for this case.
     // Two-byte range: 16-255. (Avoid 15, which is special in RFC 8285)
     for (int id = 16; id <= 255; ++id) {
-      if (seen_ids_.count(id) == 0) {
+      if (!seen_ids_.contains(id)) {
         AddMapping(id, uri, encrypt);
         return id;
       }

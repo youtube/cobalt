@@ -20,7 +20,6 @@
 
 #include "api/candidate.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
 #include "api/test/mock_datagram_connection_observer.h"
@@ -38,6 +37,7 @@
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_fingerprint.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
@@ -63,7 +63,7 @@ bool IsRtpOrRtcpPacket(uint8_t first_byte) {
 
 class DatagramConnectionTest : public ::testing::Test {
  public:
-  DatagramConnectionTest() : env_(CreateEnvironment()) {}
+  DatagramConnectionTest() : env_(CreateTestEnvironment()) {}
 
   ~DatagramConnectionTest() override {
     conn1_->Terminate([] {});

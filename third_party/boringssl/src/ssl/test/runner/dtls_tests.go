@@ -1610,3 +1610,75 @@ func addDTLSReorderTests() {
 		})
 	}
 }
+
+func addDTLSFragmentWindowTests() {
+	for _, vers := range allVersions(dtls) {
+		// A handshake fragment with a sequence number exactly at the upper bound
+		// of the sliding window (handshake_read_seq + SSL_MAX_HANDSHAKE_FLIGHT,
+		// which is +7) should be silently discarded rather than triggering a
+		// fatal internal error alert.
+		testCases = append(testCases, testCase{
+			protocol: dtls,
+			testType: serverTest,
+			name:     "DTLS-FragmentWindow-UpperLimit-Discard-Server-" + vers.name,
+			config: Config{
+				MaxVersion: vers.version,
+				Bugs: ProtocolBugs{
+					WriteFlightDTLS: func(c *DTLSController, prev, received, next []DTLSMessage, records []DTLSRecordNumberInfo) {
+						for _, msg := range next {
+							if msg.Sequence == 0 && !msg.IsChangeCipherSpec {
+								// Injected future fragment with offset +7.
+								// Since SSL_MAX_HANDSHAKE_FLIGHT is 7, sequence + 7 is at the upper limit.
+								// This must be silently discarded by the shim.
+								shouldDiscard := DTLSFragment{
+									Epoch:         msg.Epoch,
+									Type:          msg.Type,
+									Sequence:      msg.Sequence + 7,
+									Offset:        0,
+									TotalLength:   len(msg.Data),
+									Data:          msg.Data,
+									ShouldDiscard: true,
+								}
+								c.WriteFragments([]DTLSFragment{shouldDiscard, msg.Fragment(0, len(msg.Data))})
+							} else {
+								c.WriteFragments([]DTLSFragment{msg.Fragment(0, len(msg.Data))})
+							}
+						}
+					},
+				},
+			},
+		})
+
+		testCases = append(testCases, testCase{
+			protocol: dtls,
+			testType: clientTest,
+			name:     "DTLS-FragmentWindow-UpperLimit-Discard-Client-" + vers.name,
+			config: Config{
+				MaxVersion: vers.version,
+				Bugs: ProtocolBugs{
+					PackHandshakeFragments: 4096,
+					WriteFlightDTLS: func(c *DTLSController, prev, received, next []DTLSMessage, records []DTLSRecordNumberInfo) {
+						for _, msg := range next {
+							if msg.Sequence == 0 && !msg.IsChangeCipherSpec {
+								// Injected future fragment with offset +7.
+								// This must be silently discarded by the shim.
+								shouldDiscard := DTLSFragment{
+									Epoch:         msg.Epoch,
+									Type:          msg.Type,
+									Sequence:      msg.Sequence + 7,
+									Offset:        0,
+									TotalLength:   len(msg.Data),
+									Data:          msg.Data,
+									ShouldDiscard: true,
+								}
+								c.WriteFragments([]DTLSFragment{shouldDiscard, msg.Fragment(0, len(msg.Data))})
+							} else {
+								c.WriteFragments([]DTLSFragment{msg.Fragment(0, len(msg.Data))})
+							}
+						}
+					},
+				},
+			},
+		})
+	}
+}

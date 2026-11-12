@@ -8285,6 +8285,65 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
+<event name="ContextualCueing.CueInteraction">
+  <owner>iwells@chromium.org</owner>
+  <owner>sophiechang@chromium.org</owner>
+  <summary>
+    Metrics recorded when the user interacts with or dismisses a v2 cue.
+  </summary>
+  <metric name="ProactiveCueShownDuration">
+    <summary>
+      Duration in milliseconds between showing the cue and user interaction or
+      dismissal. Exponentially bucketed.
+    </summary>
+  </metric>
+</event>
+
+<event name="ContextualCueing.CueShown" singular="true">
+  <owner>iwells@chromium.org</owner>
+  <owner>sophiechang@chromium.org</owner>
+  <summary>
+    Metrics recorded when the v2 cue is shown to the user.
+  </summary>
+  <metric name="MatchedTabCount">
+    <summary>
+      Number of background tabs suggested by the model that are still valid and
+      relevant (e.g. not navigated away or closed). Exponentially bucketed.
+    </summary>
+  </metric>
+  <metric name="MissingTabCount">
+    <summary>
+      Number of background tabs suggested by the model that weren’t valid by the
+      time the model response was received. Exponentially bucketed.
+    </summary>
+  </metric>
+  <metric name="NavigatedAwayTabCount">
+    <summary>
+      Number of background tabs suggested by the model that are no longer
+      relevant because they navigated to another URL before the model response
+      was received. Exponentially bucketed.
+    </summary>
+  </metric>
+  <metric name="ProactiveCueDecision" enum="ContextualCueingDecision">
+    <summary>
+      Records kSuccess when a cue is shown, or a different value indicating the
+      reason why the cue was not shown.
+    </summary>
+  </metric>
+  <metric name="ProactiveCueLatencyAfterPageLoad">
+    <summary>
+      Duration in milliseconds between page load
+      (WebContentsObserver::DidFinishNavigation()) and a cue being shown.
+    </summary>
+  </metric>
+  <metric name="SuggestedCujCategory">
+    <summary>
+      Hash of the name of the critical user journey category output by the
+      model.
+    </summary>
+  </metric>
+</event>
+
 <event name="ContextualCueing.NudgeDecision">
   <owner>sophiechang@chromium.org</owner>
   <owner>zekunjiang@google.com</owner>
@@ -19055,7 +19114,7 @@ be describing additional metrics about the same event.
     renderer process are allocated to all pages hosted in that process using the
     algorithm in performance_manager::ProcessMetricsDecorator. An event is
     collected for each open page every 2 minutes, which is the same frequency as
-    the PerformanceMonitor.AverageCPU9.* histograms.
+    the PerformanceMonitor.AverageCPU10.* histograms.
   </summary>
   <metric name="BackgroundState" enum="PageMeasurementBackgroundState">
     <summary>
@@ -19086,7 +19145,7 @@ be describing additional metrics about the same event.
     <summary>
       The estimated CPU usage of the page over the last 2 minutes, with 10,000
       as 100% usage of 1 full core. (The same scale as the
-      PerformanceMonitor.AverageCPU9.* histograms.)
+      PerformanceMonitor.AverageCPU10.* histograms.)
     </summary>
     <aggregation>
       <history>
@@ -19114,7 +19173,7 @@ be describing additional metrics about the same event.
     <summary>
       The sum of the estimated CPU usage of all pages over the last 2 minutes,
       with 10,000 as 100% usage of 1 full core. (The same scale as the
-      PerformanceMonitor.AverageCPU9.* histograms.) RecentCPUUsage can be
+      PerformanceMonitor.AverageCPU10.* histograms.) RecentCPUUsage can be
       compared to this to find how the page compares to other open tabs.
     </summary>
     <aggregation>

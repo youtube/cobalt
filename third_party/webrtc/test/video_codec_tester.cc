@@ -630,12 +630,12 @@ class VideoCodecAnalyzer : public VideoCodecTester::VideoCodecStats {
         }
       }
       if (frame.encoded) {
-        stream.encode_time_ms.AddSample(
-            StatsSample(frame.encode_time.ms(), time));
+        stream.encode_time_us.AddSample(
+            StatsSample(frame.encode_time.us<double>(), time));
       }
       if (frame.decoded) {
-        stream.decode_time_ms.AddSample(
-            StatsSample(frame.decode_time.ms(), time));
+        stream.decode_time_us.AddSample(
+            StatsSample(frame.decode_time.us<double>(), time));
       }
       if (frame.psnr) {
         stream.psnr.y.AddSample(StatsSample(frame.psnr->y, time));
@@ -650,8 +650,8 @@ class VideoCodecAnalyzer : public VideoCodecTester::VideoCodecStats {
         stream.target_bitrate_kbps.AddSample(
             StatsSample(frame.target_bitrate->kbps<double>(), time));
         int buffer_level_bits = leaky_bucket.Update(frame);
-        stream.transmission_time_ms.AddSample(StatsSample(
-            1000 * buffer_level_bits / frame.target_bitrate->bps<double>(),
+        stream.buffer_delay_ms.AddSample(StatsSample(
+            1000.0 * buffer_level_bits / frame.target_bitrate->bps<double>(),
             time));
       }
     }
@@ -1564,25 +1564,23 @@ void VideoCodecStats::Stream::LogMetrics(
                     ImprovementDirection::kSmallerIsBetter, metadata);
   logger->LogMetric(prefix + "qp", test_case_name, qp, Unit::kUnitless,
                     ImprovementDirection::kSmallerIsBetter, metadata);
-  // TODO(webrtc:14852): Change to us or even ns.
-  logger->LogMetric(prefix + "encode_time_ms", test_case_name, encode_time_ms,
-                    Unit::kMilliseconds, ImprovementDirection::kSmallerIsBetter,
+  logger->LogMetric(prefix + "encode_time_us", test_case_name, encode_time_us,
+                    Unit::kUnitless, ImprovementDirection::kSmallerIsBetter,
                     metadata);
-  logger->LogMetric(prefix + "decode_time_ms", test_case_name, decode_time_ms,
-                    Unit::kMilliseconds, ImprovementDirection::kSmallerIsBetter,
+  logger->LogMetric(prefix + "decode_time_us", test_case_name, decode_time_us,
+                    Unit::kUnitless, ImprovementDirection::kSmallerIsBetter,
                     metadata);
-  // TODO(webrtc:14852): Change to kUnitLess. kKilobitsPerSecond are converted
-  // to bytes per second in Chromeperf dash.
+  // We use Unit::kUnitless for kbps bitrate metrics to prevent the Chromeperf
+  // exporter from converting them to bytes per second (which alters the raw
+  // values).
   logger->LogMetric(prefix + "target_bitrate_kbps", test_case_name,
-                    target_bitrate_kbps, Unit::kKilobitsPerSecond,
+                    target_bitrate_kbps, Unit::kUnitless,
                     ImprovementDirection::kBiggerIsBetter, metadata);
   logger->LogMetric(prefix + "target_framerate_fps", test_case_name,
                     target_framerate_fps, Unit::kHertz,
                     ImprovementDirection::kBiggerIsBetter, metadata);
-  // TODO(webrtc:14852): Change to kUnitLess. kKilobitsPerSecond are converted
-  // to bytes per second in Chromeperf dash.
   logger->LogMetric(prefix + "encoded_bitrate_kbps", test_case_name,
-                    encoded_bitrate_kbps, Unit::kKilobitsPerSecond,
+                    encoded_bitrate_kbps, Unit::kUnitless,
                     ImprovementDirection::kBiggerIsBetter, metadata);
   logger->LogMetric(prefix + "encoded_framerate_fps", test_case_name,
                     encoded_framerate_fps, Unit::kHertz,
@@ -1593,9 +1591,9 @@ void VideoCodecStats::Stream::LogMetrics(
   logger->LogMetric(prefix + "framerate_mismatch_pct", test_case_name,
                     framerate_mismatch_pct, Unit::kPercent,
                     ImprovementDirection::kNeitherIsBetter, metadata);
-  logger->LogMetric(prefix + "transmission_time_ms", test_case_name,
-                    transmission_time_ms, Unit::kMilliseconds,
-                    ImprovementDirection::kSmallerIsBetter, metadata);
+  logger->LogMetric(prefix + "buffer_delay_ms", test_case_name, buffer_delay_ms,
+                    Unit::kMilliseconds, ImprovementDirection::kSmallerIsBetter,
+                    metadata);
   logger->LogMetric(prefix + "psnr_y_db", test_case_name, psnr.y,
                     Unit::kUnitless, ImprovementDirection::kBiggerIsBetter,
                     metadata);

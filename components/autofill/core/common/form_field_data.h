@@ -317,13 +317,8 @@ class FormFieldData {
   void set_aria_description(std::u16string aria_description) {
     aria_description_ = std::move(aria_description);
   }
-  // A cryptographically random nonce provided by the website as a challenge
-  // to the browser to bind it to the EVT.
-  // https://dickhardt.github.io/email-verification/draft-hardt-email-verification.html#section-2.5
-  const std::u16string& challenge() const { return challenge_; }
-  void set_challenge(std::u16string challenge) {
-    challenge_ = std::move(challenge);
-  }
+  const std::u16string& nonce() const { return nonce_; }
+  void set_nonce(std::u16string nonce) { nonce_ = std::move(nonce); }
 
   // A unique identifier of the containing frame. This value is not serialized
   // because LocalFrameTokens must not be leaked to other renderer processes.
@@ -461,9 +456,11 @@ class FormFieldData {
     label_source_ = label_source;
   }
 
-  // The bounds of this field in current frame coordinates at the
-  // form-extraction time. It is valid if not empty, will not be synced to the
-  // server side or be used for field comparison and isn't in serialize methods.
+  // The bounds of the field
+  // - in the browser process: in the outermost main frame's coordinate system;
+  // - in the renderer process: in the field's host frame's coordinate system.
+  // (The conversion happens in AutofillDriver.)
+  // It is not populated on Bling.
   const gfx::RectF& bounds() const { return bounds_; }
   void set_bounds(gfx::RectF bounds) { bounds_ = std::move(bounds); }
 
@@ -504,7 +501,7 @@ class FormFieldData {
   std::u16string css_classes_;
   std::u16string aria_label_;
   std::u16string aria_description_;
-  std::u16string challenge_;
+  std::u16string nonce_;
   LocalFrameToken host_frame_;
   FieldRendererId renderer_id_;
   FormRendererId host_form_id_;
@@ -529,7 +526,8 @@ class FormFieldData {
   gfx::RectF bounds_;
   std::vector<SelectOption> datalist_options_;
   bool force_override_ = false;
-  // LINT.ThenChange(form_field_data.cc:IdenticalAndEquivalentDomElements)
+  // LINT.ThenChange(form_field_data.cc:IdenticalAndEquivalentDomElements,
+  // autofill_test_utils.cc:FormFieldDataEq)
 };
 
 // Structure containing necessary information to be sent from the browser to the

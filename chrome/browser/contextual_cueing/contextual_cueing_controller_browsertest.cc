@@ -17,7 +17,9 @@
 #include "chrome/browser/contextual_cueing/contextual_cueing_service.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_service_factory.h"
 #include "chrome/browser/contextual_cueing/features.h"
+#include "chrome/browser/contextual_cueing/prefs.h"
 #include "chrome/browser/contextual_cueing/test_cue_target.h"
+#include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/optimization_guide/browser_test_util.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
@@ -45,11 +47,15 @@
 #include "components/optimization_guide/core/optimization_guide_prefs.h"
 #include "components/optimization_guide/proto/features/contextual_cueing.pb.h"
 #include "components/prefs/pref_service.h"
+#include "components/sessions/content/session_tab_helper.h"
 #include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #include "components/sync/test/test_sync_service.h"
+#include "components/ukm/test_ukm_recorder.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/test/browser_test.h"
 #include "pdf/buildflags.h"
+#include "services/metrics/public/cpp/metrics_utils.h"
+#include "services/metrics/public/cpp/ukm_builders.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "ui/actions/actions.h"
 #include "ui/base/window_open_disposition.h"
@@ -148,6 +154,18 @@ class ContextualCueingControllerBrowserTestBase : public SigninBrowserTestBase {
             response_any, /*execution_info=*/nullptr));
   }
 
+  void VerifyProactiveCueDecision(
+      const ukm::TestAutoSetUkmRecorder& ukm_recorder,
+      ContextualCueingDecision expected_decision) {
+    auto entries = ukm_recorder.GetEntriesByName(
+        ukm::builders::ContextualCueing_CueShown::kEntryName);
+    ASSERT_EQ(1u, entries.size());
+    ukm_recorder.ExpectEntryMetric(
+        entries[0].get(),
+        ukm::builders::ContextualCueing_CueShown::kProactiveCueDecisionName,
+        static_cast<int64_t>(expected_decision));
+  }
+
   void SimulateFilterPassed(
       const GURL& url = GURL("https://www.activetab.com/abc")) {
     content::WebContents* active_web_contents =
@@ -225,6 +243,7 @@ class ContextualCueingControllerBrowserTest
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
                        NoLongerActiveTabAfterCategoryClassification) {
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
 
   // Have browser navigate to a valid URL.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
@@ -250,6 +269,9 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
       "ContextualCueing.V2.Decision",
       ContextualCueingDecision::kNoLongerActiveTabAfterCategoryClassification,
       1);
+  VerifyProactiveCueDecision(
+      ukm_recorder,
+      ContextualCueingDecision::kNoLongerActiveTabAfterCategoryClassification);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
@@ -258,6 +280,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
       browser(), GURL("https://www.example.com/abc")));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
 
   content::WebContents* active_web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -279,6 +302,8 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   histogram_tester.ExpectUniqueSample(
       "ContextualCueing.V2.Decision",
       ContextualCueingDecision::kFailedCategoryClassification, 1);
+  VerifyProactiveCueDecision(
+      ukm_recorder, ContextualCueingDecision::kFailedCategoryClassification);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
@@ -287,6 +312,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
       browser(), GURL("https://www.example.com/abc")));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
 
   // Seed empty execution result.
   optimization_guide::OptimizationGuideModelExecutionResult result(
@@ -315,10 +341,16 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   histogram_tester.ExpectUniqueSample(
       "ContextualCueing.V2.Decision",
       ContextualCueingDecision::kModelExecutionResponseFailedToParse, 1);
+  VerifyProactiveCueDecision(
+      ukm_recorder,
+      ContextualCueingDecision::kModelExecutionResponseFailedToParse);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
                        PassesFilterAndModelExecutionSucceeded) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      glic::prefs::kGlicDefaultTabContextEnabled, true);
+
   // Navigate current Chrome tab to a valid URL (and will be in the background
   // in final state).
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
@@ -338,13 +370,30 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
       WindowOpenDisposition::NEW_FOREGROUND_TAB,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
   base::HistogramTester histogram_tester;
 
-  SeedExecutionResult(MakeCompleteResponse());
+  auto response = MakeCompleteResponse();
+  response.set_suggested_cuj("TestCUJ");
 
   content::WebContents* active_web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_TRUE(active_web_contents);
+
+  // Add a valid tab to the response.
+  SessionID active_tab_id =
+      sessions::SessionTabHelper::IdForTab(active_web_contents);
+  auto* valid_tab =
+      response.mutable_gemini_in_chrome_surface()->add_tabs_to_share();
+  valid_tab->set_tab_id(active_tab_id.id());
+
+  // Add an invalid tab to the response.
+  auto* invalid_tab =
+      response.mutable_gemini_in_chrome_surface()->add_tabs_to_share();
+  invalid_tab->set_tab_id(9999);
+
+  SeedExecutionResult(response);
+
   contextual_cueing_controller()->OnPageContentAnnotated(
       page_content_annotations::HistoryVisit(
           active_web_contents->GetController()
@@ -369,11 +418,46 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   // skipped.
   histogram_tester.ExpectUniqueSample(
       "ContextualCueing.V2.NumRequestedBackgroundTabs", 1, 1);
+
+  auto entries = ukm_recorder.GetEntriesByName(
+      ukm::builders::ContextualCueing_CueShown::kEntryName);
+  ASSERT_EQ(1u, entries.size());
+  const ukm::mojom::UkmEntry* entry = entries[0].get();
+
+  ukm::SourceId expected_source_id =
+      active_web_contents->GetPrimaryMainFrame()->GetPageUkmSourceId();
+
+  EXPECT_EQ(expected_source_id, entry->source_id);
+  ukm_recorder.ExpectEntryMetric(
+      entry,
+      ukm::builders::ContextualCueing_CueShown::kSuggestedCujCategoryName,
+      base::HashMetricName("TestCUJ"));
+
+  ukm_recorder.ExpectEntryMetric(
+      entry,
+      ukm::builders::ContextualCueing_CueShown::kProactiveCueDecisionName,
+      static_cast<int64_t>(ContextualCueingDecision::kSuccess));
+
+  // One valid tab in the response.
+  ukm_recorder.ExpectEntryMetric(
+      entry, ukm::builders::ContextualCueing_CueShown::kMatchedTabCountName,
+      ukm::GetExponentialBucketMin(1, 1.5));
+
+  ukm_recorder.ExpectEntryMetric(
+      entry, ukm::builders::ContextualCueing_CueShown::kMissingTabCountName,
+      ukm::GetExponentialBucketMin(1, 1.5));
+
+  const int64_t* latency_value = ukm_recorder.GetEntryMetric(
+      entry, ukm::builders::ContextualCueing_CueShown::
+                 kProactiveCueLatencyAfterPageLoadName);
+  ASSERT_TRUE(latency_value);
+  EXPECT_GE(*latency_value, 0);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
                        NoAnchoredMessageCueInResponse) {
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
 
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("https://www.activetab.com/abc"),
@@ -391,11 +475,14 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   histogram_tester.ExpectUniqueSample(
       "ContextualCueing.V2.Decision",
       ContextualCueingDecision::kMissingAnchoredMessageText, 1);
+  VerifyProactiveCueDecision(
+      ukm_recorder, ContextualCueingDecision::kMissingAnchoredMessageText);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
                        UnknownFulfillmentSurface) {
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
 
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("https://www.activetab.com/abc"),
@@ -413,10 +500,13 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   histogram_tester.ExpectUniqueSample(
       "ContextualCueing.V2.Decision",
       ContextualCueingDecision::kUnknownFulfillmentSurface, 1);
+  VerifyProactiveCueDecision(
+      ukm_recorder, ContextualCueingDecision::kUnknownFulfillmentSurface);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest, Ineligible) {
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
 
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("https://www.activetab.com/abc"),
@@ -431,6 +521,8 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest, Ineligible) {
   histogram_tester.ExpectUniqueSample(
       "ContextualCueing.V2.Decision",
       ContextualCueingDecision::kNoEligibleCueSurfaces, 1);
+  VerifyProactiveCueDecision(ukm_recorder,
+                             ContextualCueingDecision::kNoEligibleCueSurfaces);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest, ShowCueAndClick) {
@@ -453,6 +545,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest, ShowCueAndClick) {
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
 
   SeedExecutionResult(MakeCompleteResponse());
   SimulateFilterPassed();
@@ -461,6 +554,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest, ShowCueAndClick) {
 
   histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
                                       ContextualCueingDecision::kSuccess, 1);
+  VerifyProactiveCueDecision(ukm_recorder, ContextualCueingDecision::kSuccess);
 
   auto* action =
       actions::ActionManager::Get().FindAction(kActionAnchoredContextualCue);
@@ -475,6 +569,16 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest, ShowCueAndClick) {
   histogram_tester.ExpectUniqueSample("ContextualCueing.V2.CueInteraction",
                                       ContextualCueingInteraction::kCueClicked,
                                       1);
+
+  auto entries = ukm_recorder.GetEntriesByName(
+      ukm::builders::ContextualCueing_CueInteraction::kEntryName);
+  ASSERT_EQ(1u, entries.size());
+  const ukm::mojom::UkmEntry* entry = entries[0].get();
+  const int64_t* duration_value = ukm_recorder.GetEntryMetric(
+      entry, ukm::builders::ContextualCueing_CueInteraction::
+                 kProactiveCueShownDurationName);
+  ASSERT_TRUE(duration_value);
+  EXPECT_GE(*duration_value, 0);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
@@ -498,6 +602,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   observer.RegisterAsPageActionObserver(*page_action_controller);
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
 
   SeedExecutionResult(MakeCompleteResponse());
   SimulateFilterPassed();
@@ -506,6 +611,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
 
   histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
                                       ContextualCueingDecision::kSuccess, 1);
+  VerifyProactiveCueDecision(ukm_recorder, ContextualCueingDecision::kSuccess);
 
   // Initially the anchored message is shown.
   ASSERT_TRUE(base::test::RunUntil([&]() {
@@ -544,6 +650,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
   SeedExecutionResult(MakeCompleteResponse());
   SimulateFilterPassed();
 
@@ -558,6 +665,9 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   histogram_tester.ExpectUniqueSample(
       "ContextualCueing.V2.Decision",
       ContextualCueingDecision::kNoLongerActiveTabAfterModelExecution, 1);
+  VerifyProactiveCueDecision(
+      ukm_recorder,
+      ContextualCueingDecision::kNoLongerActiveTabAfterModelExecution);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
@@ -568,6 +678,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
   SeedExecutionResult(MakeCompleteResponse());
   SimulateFilterPassed();
 
@@ -580,6 +691,8 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   histogram_tester.ExpectUniqueSample(
       "ContextualCueing.V2.Decision",
       ContextualCueingDecision::kFeaturePromoActive, 1);
+  VerifyProactiveCueDecision(ukm_recorder,
+                             ContextualCueingDecision::kFeaturePromoActive);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest, HistorySyncOff) {
@@ -589,6 +702,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest, HistorySyncOff) {
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
   EnableHistorySync(false);
   SeedExecutionResult(MakeCompleteResponse());
   SimulateFilterPassed();
@@ -598,6 +712,8 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest, HistorySyncOff) {
   histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
                                       ContextualCueingDecision::kHistorySyncOff,
                                       1);
+  VerifyProactiveCueDecision(ukm_recorder,
+                             ContextualCueingDecision::kHistorySyncOff);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
@@ -634,6 +750,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
                        NotEnoughPageLoadsSinceLastCue) {
   {
     base::HistogramTester histogram_tester;
+    ukm::TestAutoSetUkmRecorder ukm_recorder;
 
     // Navigate to a valid URL.
     ASSERT_TRUE(ui_test_utils::NavigateToURL(
@@ -646,10 +763,13 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
         &histogram_tester, "ContextualCueing.V2.Decision", 1);
     histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
                                         ContextualCueingDecision::kSuccess, 1);
+    VerifyProactiveCueDecision(ukm_recorder,
+                               ContextualCueingDecision::kSuccess);
   }
 
   {
     base::HistogramTester histogram_tester;
+    ukm::TestAutoSetUkmRecorder ukm_recorder;
 
     // Simulate a new page load.
     ASSERT_TRUE(ui_test_utils::NavigateToURL(
@@ -663,12 +783,16 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
     histogram_tester.ExpectUniqueSample(
         "ContextualCueing.V2.Decision",
         ContextualCueingDecision::kNotEnoughPageLoadsSinceLastCue, 1);
+    VerifyProactiveCueDecision(
+        ukm_recorder,
+        ContextualCueingDecision::kNotEnoughPageLoadsSinceLastCue);
   }
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
                        NonHttpUrlNotEligible) {
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
 
   // Simulate a new page load.
   GURL non_http_url("chrome://settings");
@@ -682,11 +806,14 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
                                       ContextualCueingDecision::kUrlNotEligible,
                                       1);
+  VerifyProactiveCueDecision(ukm_recorder,
+                             ContextualCueingDecision::kUrlNotEligible);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
                        GoogleSearchUrlNotEligible) {
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
 
   // Simulate a new page load.
   GURL search_url("https://www.google.com/search?q=test");
@@ -700,11 +827,14 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
                                       ContextualCueingDecision::kUrlNotEligible,
                                       1);
+  VerifyProactiveCueDecision(ukm_recorder,
+                             ContextualCueingDecision::kUrlNotEligible);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
                        OtherSearchEngineUrlNotEligible) {
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
 
   // Simulate a new page load.
   GURL search_url("https://duckduckgo.com/?q=test");
@@ -718,11 +848,14 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
                                       ContextualCueingDecision::kUrlNotEligible,
                                       1);
+  VerifyProactiveCueDecision(ukm_recorder,
+                             ContextualCueingDecision::kUrlNotEligible);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
                        HomePageNotEligible) {
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
 
   // Simulate a new page load.
   GURL homepage_url("https://activetab.com/");
@@ -736,6 +869,8 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
                                       ContextualCueingDecision::kUrlNotEligible,
                                       1);
+  VerifyProactiveCueDecision(ukm_recorder,
+                             ContextualCueingDecision::kUrlNotEligible);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
@@ -746,6 +881,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
   SeedExecutionResult(MakeCompleteResponse());
 
   // Open side panel.
@@ -765,6 +901,54 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   histogram_tester.ExpectUniqueSample(
       "ContextualCueing.V2.Decision",
       ContextualCueingDecision::kSidePanelShowing, 1);
+  VerifyProactiveCueDecision(ukm_recorder,
+                             ContextualCueingDecision::kSidePanelShowing);
+}
+
+IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
+                       CueHidesWhenSidePanelOpened) {
+#if BUILDFLAG(IS_ANDROID)
+  GTEST_SKIP()
+      << "Contextual cueing anchored message not implemented for Android";
+#endif
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL("https://www.activetab.com/abc"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  page_actions::PageActionController* page_action_controller =
+      GetPageActionController();
+  CHECK(page_action_controller);
+  page_actions::PageActionObserver observer(kActionAnchoredContextualCue);
+  observer.RegisterAsPageActionObserver(*page_action_controller);
+
+  base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
+
+  SeedExecutionResult(MakeCompleteResponse());
+  SimulateFilterPassed();
+  optimization_guide::RetryForHistogramUntilCountReached(
+      &histogram_tester, "ContextualCueing.V2.Decision", 1);
+
+  histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
+                                      ContextualCueingDecision::kSuccess, 1);
+  VerifyProactiveCueDecision(ukm_recorder, ContextualCueingDecision::kSuccess);
+
+  // Initially, the contextual cue anchored message is shown on the screen.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return observer.GetCurrentPageActionState().anchored_message_showing;
+  }));
+
+  // Open the side panel (we use Bookmarks here as a standard global entry).
+  auto* side_panel_ui = SidePanelUIProvider::From(browser());
+  ASSERT_TRUE(side_panel_ui);
+  side_panel_ui->Show(SidePanelEntryId::kBookmarks);
+
+  // Verify that our observer successfully intercepted the open event
+  // and hid the contextual cue dynamically.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return !observer.GetCurrentPageActionState().showing; }));
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
@@ -775,6 +959,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
   SeedExecutionResult(MakeCompleteResponse());
 
   // Add an infobar to the active tab.
@@ -794,6 +979,8 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
                                       ContextualCueingDecision::kInfobarVisible,
                                       1);
+  VerifyProactiveCueDecision(ukm_recorder,
+                             ContextualCueingDecision::kInfobarVisible);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest, UserOptedOut) {
@@ -810,6 +997,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest, UserOptedOut) {
           optimization_guide::prefs::FeatureOptInState::kDisabled));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
   SeedExecutionResult(MakeCompleteResponse());
   SimulateFilterPassed();
 
@@ -818,6 +1006,8 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest, UserOptedOut) {
   histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
                                       ContextualCueingDecision::kUserOptedOut,
                                       1);
+  VerifyProactiveCueDecision(ukm_recorder,
+                             ContextualCueingDecision::kUserOptedOut);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
@@ -829,11 +1019,12 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
 
   PrefService* prefs = browser()->profile()->GetPrefs();
   prefs->SetInteger(
-      optimization_guide::prefs::kContextualCueingEnterprisePolicyAllowed,
-      static_cast<int>(optimization_guide::model_execution::prefs::
-                           ModelExecutionEnterprisePolicyValue::kDisable));
+      optimization_guide::prefs::kChromeSuggestionsSettings,
+      static_cast<int>(
+          contextual_cueing::ChromeSuggestionsSettingsValue::kDisabled));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
   SeedExecutionResult(MakeCompleteResponse());
   SimulateFilterPassed();
 
@@ -842,6 +1033,8 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   histogram_tester.ExpectUniqueSample(
       "ContextualCueing.V2.Decision",
       ContextualCueingDecision::kDisabledByEnterprisePolicy, 1);
+  VerifyProactiveCueDecision(
+      ukm_recorder, ContextualCueingDecision::kDisabledByEnterprisePolicy);
 }
 
 // TODO(crbug.com/503910711): Add a test for hiding on navigation
@@ -855,6 +1048,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
 
   // 2. Mock the server response and inject a fake CUJ string
   auto response = MakeCompleteResponse();
@@ -871,6 +1065,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   // 5. Confirm flow was completed successfully
   histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
                                       ContextualCueingDecision::kSuccess, 1);
+  VerifyProactiveCueDecision(ukm_recorder, ContextualCueingDecision::kSuccess);
 
   // 6. Verify your new histogram!
   histogram_tester.ExpectUniqueSample("ContextualCueing.ShownCueCUJ",
@@ -887,6 +1082,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
 
   // 2. Mock the server response and inject a fake CUJ string
   auto response = MakeCompleteResponse();
@@ -903,6 +1099,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   // 5. Confirm flow was completed successfully
   histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
                                       ContextualCueingDecision::kSuccess, 1);
+  VerifyProactiveCueDecision(ukm_recorder, ContextualCueingDecision::kSuccess);
 
   // 6. Simulate user clicking the cue
   auto* action =
@@ -928,6 +1125,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
   SeedExecutionResult(MakeCompleteResponse());
 
   content::WebContents* active_web_contents =
@@ -953,6 +1151,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
       &histogram_tester, "ContextualCueing.V2.Decision", 1);
   histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
                                       ContextualCueingDecision::kSuccess, 1);
+  VerifyProactiveCueDecision(ukm_recorder, ContextualCueingDecision::kSuccess);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
@@ -965,6 +1164,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
 
   content::WebContents* active_web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -989,6 +1189,8 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   histogram_tester.ExpectUniqueSample(
       "ContextualCueing.V2.Decision",
       ContextualCueingDecision::kFailedCategoryClassification, 1);
+  VerifyProactiveCueDecision(
+      ukm_recorder, ContextualCueingDecision::kFailedCategoryClassification);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
@@ -1001,6 +1203,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
 
   content::WebContents* active_web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -1025,6 +1228,8 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   histogram_tester.ExpectUniqueSample(
       "ContextualCueing.V2.Decision",
       ContextualCueingDecision::kFailedCategoryClassification, 1);
+  VerifyProactiveCueDecision(
+      ukm_recorder, ContextualCueingDecision::kFailedCategoryClassification);
 }
 
 #endif  // BUILDFLAG(ENABLE_PDF)
@@ -1057,6 +1262,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTestWithAgeRestriction,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
   SeedExecutionResult(MakeCompleteResponse());
   SimulateFilterPassed();
 
@@ -1065,6 +1271,8 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTestWithAgeRestriction,
   histogram_tester.ExpectUniqueSample(
       "ContextualCueing.V2.Decision",
       ContextualCueingDecision::kAgeRestrictionEnforced, 1);
+  VerifyProactiveCueDecision(ukm_recorder,
+                             ContextualCueingDecision::kAgeRestrictionEnforced);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTestWithAgeRestriction,
@@ -1077,6 +1285,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTestWithAgeRestriction,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
   SeedExecutionResult(MakeCompleteResponse());
   SimulateFilterPassed();
 
@@ -1084,6 +1293,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTestWithAgeRestriction,
       &histogram_tester, "ContextualCueing.V2.Decision", 1);
   histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
                                       ContextualCueingDecision::kSuccess, 1);
+  VerifyProactiveCueDecision(ukm_recorder, ContextualCueingDecision::kSuccess);
 }
 
 #if BUILDFLAG(ENABLE_PDF)
@@ -1109,6 +1319,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerDoNotDiscardShoppingPdfsTest,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
   SeedExecutionResult(MakeCompleteResponse());
 
   content::WebContents* active_web_contents =
@@ -1134,6 +1345,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerDoNotDiscardShoppingPdfsTest,
       &histogram_tester, "ContextualCueing.V2.Decision", 1);
   histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
                                       ContextualCueingDecision::kSuccess, 1);
+  VerifyProactiveCueDecision(ukm_recorder, ContextualCueingDecision::kSuccess);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerDoNotDiscardShoppingPdfsTest,
@@ -1146,6 +1358,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerDoNotDiscardShoppingPdfsTest,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
   SeedExecutionResult(MakeCompleteResponse());
 
   content::WebContents* active_web_contents =
@@ -1170,6 +1383,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerDoNotDiscardShoppingPdfsTest,
       &histogram_tester, "ContextualCueing.V2.Decision", 1);
   histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
                                       ContextualCueingDecision::kSuccess, 1);
+  VerifyProactiveCueDecision(ukm_recorder, ContextualCueingDecision::kSuccess);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerDoNotDiscardShoppingPdfsTest,
@@ -1182,6 +1396,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerDoNotDiscardShoppingPdfsTest,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
   SeedExecutionResult(MakeCompleteResponse());
 
   content::WebContents* active_web_contents =
@@ -1206,6 +1421,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerDoNotDiscardShoppingPdfsTest,
       &histogram_tester, "ContextualCueing.V2.Decision", 1);
   histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
                                       ContextualCueingDecision::kSuccess, 1);
+  VerifyProactiveCueDecision(ukm_recorder, ContextualCueingDecision::kSuccess);
 }
 
 #endif

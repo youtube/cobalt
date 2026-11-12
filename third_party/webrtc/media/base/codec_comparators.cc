@@ -271,26 +271,22 @@ bool MatchesWithCodecRules(const Codec& left_codec, const Codec& right_codec) {
   // Match the codec id/name based on the typical static/dynamic name rules.
   // Matching is case-insensitive.
 
-  // We support the ranges [96, 127] and more recently [35, 65].
+  // We support the ranges [96, 127] and more recently [35, 63].
   // https://www.iana.org/assignments/rtp-parameters/rtp-parameters.xhtml#rtp-parameters-1
   // Within those ranges we match by codec name, outside by codec id.
   // We also match by name if either ID is unassigned.
   // Since no codecs are assigned an id in the range [66, 95] by us, these will
   // never match.
-  const int kLowerDynamicRangeMin = 35;
-  const int kLowerDynamicRangeMax = 65;
-  const int kUpperDynamicRangeMin = 96;
-  const int kUpperDynamicRangeMax = 127;
   const bool is_id_in_dynamic_range =
-      (left_codec.id >= kLowerDynamicRangeMin &&
-       left_codec.id <= kLowerDynamicRangeMax) ||
-      (left_codec.id >= kUpperDynamicRangeMin &&
-       left_codec.id <= kUpperDynamicRangeMax);
+      (left_codec.id >= PayloadType::kLowerDynamicRangeMin &&
+       left_codec.id <= PayloadType::kLowerDynamicRangeMax) ||
+      (left_codec.id >= PayloadType::kUpperDynamicRangeMin &&
+       left_codec.id <= PayloadType::kUpperDynamicRangeMax);
   const bool is_codec_id_in_dynamic_range =
-      (right_codec.id >= kLowerDynamicRangeMin &&
-       right_codec.id <= kLowerDynamicRangeMax) ||
-      (right_codec.id >= kUpperDynamicRangeMin &&
-       right_codec.id <= kUpperDynamicRangeMax);
+      (right_codec.id >= PayloadType::kLowerDynamicRangeMin &&
+       right_codec.id <= PayloadType::kLowerDynamicRangeMax) ||
+      (right_codec.id >= PayloadType::kUpperDynamicRangeMin &&
+       right_codec.id <= PayloadType::kUpperDynamicRangeMax);
 
   if (left_codec.type != right_codec.type) {
     return false;

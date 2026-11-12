@@ -43,6 +43,7 @@ public class PhoneCaptureStateTokenTest {
     private static final boolean DEFAULT_IS_PAINT_PREVIEW = false;
     private static final float DEFAULT_PROGRESS = 0.1f;
     private static final int DEFAULT_UNFOCUSED_LOCATION_BAR_LAYOUT_WIDTH = 2;
+    private static final int DEFAULT_URL_BAR_WIDTH = 100;
 
     // Not static/final because they're initialized in #before(). Apparently ColorStateList.valueOf
     // calls into Android native code, and cannot be done too early.
@@ -77,6 +78,16 @@ public class PhoneCaptureStateTokenTest {
                 new PhoneCustomTabCaptureStateTokenBuilder().setTint(Color.RED).build();
         assertEquals(
                 ToolbarSnapshotDifference.TINT,
+                PhoneCaptureStateToken.getAnyDifference(
+                        mDefaultPhoneCaptureStateToken, otherPhoneCaptureStateToken));
+    }
+
+    @Test
+    public void testDifferentThemeColor() {
+        PhoneCaptureStateToken otherPhoneCaptureStateToken =
+                new PhoneCustomTabCaptureStateTokenBuilder().setThemeColor(Color.RED).build();
+        assertEquals(
+                ToolbarSnapshotDifference.THEME_COLOR,
                 PhoneCaptureStateToken.getAnyDifference(
                         mDefaultPhoneCaptureStateToken, otherPhoneCaptureStateToken));
     }
@@ -353,8 +364,19 @@ public class PhoneCaptureStateTokenTest {
                         mDefaultPhoneCaptureStateToken, otherPhoneCaptureStateToken));
     }
 
+    @Test
+    public void testDifferentUrlBarWidth() {
+        PhoneCaptureStateToken otherPhoneCaptureStateToken =
+                new PhoneCustomTabCaptureStateTokenBuilder().setUrlBarWidth(200).build();
+        assertEquals(
+                ToolbarSnapshotDifference.URL_TEXT,
+                PhoneCaptureStateToken.getAnyDifference(
+                        mDefaultPhoneCaptureStateToken, otherPhoneCaptureStateToken));
+    }
+
     private class PhoneCustomTabCaptureStateTokenBuilder {
         private @ColorInt int mTint = DEFAULT_TINT;
+        private @ColorInt int mThemeColor = DEFAULT_TINT;
         private int mTabCount = DEFAULT_TAB_COUNT;
         private ButtonData mOptionalButtonData = DEFAULT_BUTTON_DATA;
         private @VisualState int mVisualState = DEFAULT_VISUAL_STATE;
@@ -369,9 +391,15 @@ public class PhoneCaptureStateTokenTest {
         private float mProgress = DEFAULT_PROGRESS;
         private int mUnfocusedLocationBarLayoutWidth = DEFAULT_UNFOCUSED_LOCATION_BAR_LAYOUT_WIDTH;
         private int mControlsPosition = ControlsPosition.TOP;
+        private int mUrlBarWidth = DEFAULT_URL_BAR_WIDTH;
 
         public PhoneCustomTabCaptureStateTokenBuilder setTint(@ColorInt int tint) {
             mTint = tint;
+            return this;
+        }
+
+        public PhoneCustomTabCaptureStateTokenBuilder setThemeColor(@ColorInt int themeColor) {
+            mThemeColor = themeColor;
             return this;
         }
 
@@ -448,10 +476,16 @@ public class PhoneCaptureStateTokenTest {
             return this;
         }
 
+        public PhoneCustomTabCaptureStateTokenBuilder setUrlBarWidth(int urlBarWidth) {
+            mUrlBarWidth = urlBarWidth;
+            return this;
+        }
+
         public PhoneCaptureStateToken build() {
             VisibleUrlText visibleUrlText = new VisibleUrlText(mUrlText, mVisibleTextPrefixHint);
             return new PhoneCaptureStateToken(
                     mTint,
+                    mThemeColor,
                     mTabCount,
                     mOptionalButtonData,
                     mVisualState,
@@ -463,7 +497,8 @@ public class PhoneCaptureStateTokenTest {
                     mIsPaintPreview,
                     mProgress,
                     mUnfocusedLocationBarLayoutWidth,
-                    mControlsPosition);
+                    mControlsPosition,
+                    mUrlBarWidth);
         }
     }
 }

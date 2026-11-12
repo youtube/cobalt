@@ -9734,50 +9734,41 @@ class ComputePressureSpecificTest(ChromeDriverBaseTestWithWebServer):
         self._driver.UpdateVirtualPressureSource,
         'invalid_type',
         'nominal',
-        0.2,
     )
 
-  def testUpdateVirtualPressureSourceWithInvalidState(self):
+  def testUpdateVirtualPressureSourceWithInvalidSample(self):
     self.assertRaisesRegex(
         chromedriver.InvalidArgument,
         'invalid argument: Invalid pressure state: invalid_sample',
         self._driver.UpdateVirtualPressureSource,
         'cpu',
         'invalid_sample',
-        0.2,
     )
 
-  def testUpdateVirtualPressureSourceWithoutStateAndEstimate(self):
+  def testUpdateVirtualPressureSourceWithoutSample(self):
     self.assertRaisesRegex(
         Exception,
-        "UpdateVirtualPressureSource\(\) missing 2 required " +
-        "positional arguments: 'sample' and 'own_contribution_estimate'",
+        "UpdateVirtualPressureSource\(\) missing 1 required " +
+        "positional argument: 'sample'",
         self._driver.UpdateVirtualPressureSource,
         'cpu',
     )
 
-  def testUpdateVirtualPressureSourceWithoutEstimate(self):
-    self.assertRaisesRegex(
-        Exception,
-        "UpdateVirtualPressureSource\(\) missing 1 required " +
-        "positional argument: 'own_contribution_estimate'",
-        self._driver.UpdateVirtualPressureSource,
-        'cpu', 'nominal',
-    )
-
-  def testUpdateVirtualPressureSourceWithNonStringState(self):
+  def testUpdateVirtualPressureSourceWithNonStringSample(self):
     self.assertRaisesRegex(
         chromedriver.InvalidArgument,
         "invalid argument: 'sample' must be a string",
         self._driver.UpdateVirtualPressureSource,
-        'cpu', 42, 0.3,)
+        "cpu",
+        42,
+    )
 
   def testUpdateVirtualPressureSourceWithoutOverriding(self):
     self.assertRaisesRegex(
         Exception,
         'invalid argument: The specified pressure source is not being '
         'overridden',
-        self._driver.UpdateVirtualPressureSource, 'cpu', 'nominal', 0.3,)
+        self._driver.UpdateVirtualPressureSource, 'cpu', 'nominal')
 
   def testRemoveVirtualPressureSourceWithInvalidType(self):
     self.assertRaisesRegex(
@@ -9823,7 +9814,7 @@ class ComputePressureSpecificTest(ChromeDriverBaseTestWithWebServer):
     states_length = 1
 
     for state in pressure_states:
-      self._driver.UpdateVirtualPressureSource(source, state, 0.3,)
+      self._driver.UpdateVirtualPressureSource(source, state)
       self.assertTrue(
           self.WaitForCondition(lambda: self._driver.ExecuteScript(
               'return states.length === arguments[0]', states_length)))
@@ -9840,7 +9831,7 @@ class ComputePressureSpecificTest(ChromeDriverBaseTestWithWebServer):
     self._driver.ExecuteAsyncScript(
         'const done = arguments[0]; addPressureObserver().then(done)')
 
-    self._driver.UpdateVirtualPressureSource(source, 'serious', 0.3,)
+    self._driver.UpdateVirtualPressureSource(source, 'serious')
     self.assertTrue(
         self.WaitForCondition(lambda: self._driver.ExecuteScript(
             'return states.at(-1) === "serious"')))
@@ -9849,7 +9840,7 @@ class ComputePressureSpecificTest(ChromeDriverBaseTestWithWebServer):
         Exception,
         'invalid argument: The specified pressure source is not being '
         'overridden',
-        self._driver.UpdateVirtualPressureSource, source, 'nominal', 0.3,)
+        self._driver.UpdateVirtualPressureSource, source, 'nominal')
 
 class AutoOpenDevtoolsTests(ChromeDriverBaseTestWithWebServer):
   def setUp(self):
@@ -10071,12 +10062,12 @@ class ProtectedAudienceSpecificTest(ChromeDriverBaseTestWithWebServer):
       <body>
       <script>
         async function doJoin() {
-          navigator.joinAdInterestGroup({
+          return navigator.joinAdInterestGroup({
             'owner': 'https://owner.test/',
             'name': 'testing',
             'biddingLogicURL': 'https://owner.test/generateBid.js',
             'ads': [{renderURL: 'https://ad.example.com/ad.html'}],
-            }, 3600000)
+            }, 3600000);
         }
       </script>
       </body>
@@ -10105,14 +10096,24 @@ class ProtectedAudienceSpecificTest(ChromeDriverBaseTestWithWebServer):
     self.chrome_switches = ['host-resolver-rules=MAP *:443 127.0.0.1:%s' % port,
             'privacy-sandbox-enrollment-overrides=https://owner.test/',
             'force-reporting-destination-attested',  # needed for headless shell
-            'enable-features=OverridePrivacySandboxSettingsLocalTesting']
+            'disable-features=PrivacySandboxAdPrivacyUxDeprecation']
     self._driver = self.CreateDriver(
         accept_insecure_certs=True,
-        chrome_switches=self.chrome_switches)
+        chrome_switches=self.chrome_switches,
+        logging_prefs={'browser': 'ALL'},
+        experimental_options={'prefs': {
+            'privacy_sandbox.m1.fledge_enabled': True,
+            'privacy_sandbox.m1.topics_enabled': True,
+            'privacy_sandbox.m1.ad_measurement_enabled': True,
+            'privacy_sandbox.m1.consent_decision_made': True,
+            'privacy_sandbox.m1.eea_notice_acknowledged': True,
+            'privacy_sandbox.m1.row_notice_acknowledged': True,
+            'privacy_sandbox.m1.restricted_notice_acknowledged': True,
+        }})
 
   def testSetProtectedAudienceKAnonymity(self):
     self._driver.Load('https://owner.test/join.html')
-    self._driver.ExecuteScript('doJoin()')
+    self._driver.ExecuteScript('return doJoin()')
 
     bid_key = ('AdBid\nhttps://owner.test/\nhttps://owner.test/generateBid.js'
                '\nhttps://ad.example.com/ad.html')

@@ -421,7 +421,7 @@ static int bio_read_all(Bio *bio, uint8_t **out, size_t *out_len,
     if (n == 0) {
       *out_len = done;
       return 1;
-    } else if (n == -1) {
+    } else if (n < 0) {
       OPENSSL_free(*out);
       return 0;
     }

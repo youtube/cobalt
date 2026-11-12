@@ -54,6 +54,7 @@
 #include "components/omnibox/browser/omnibox_popup_selection.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/browser/vector_icons.h"
+#include "components/omnibox/common/input_state.h"
 #include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/search/ntp_features.h"
@@ -92,6 +93,24 @@ const char* kReplyRotated180IconResourceName =
 }  // namespace searchbox_internal
 
 namespace {
+
+std::u16string GetSmartTabSharingMegaplusString() {
+  switch (contextual_tasks::kSmartTabSharingMegaplusStringOption.Get()) {
+    case contextual_tasks::SmartTabSharingMegaplusStringOption::kMegaplusV1:
+      return l10n_util::GetStringUTF16(
+          IDS_STS_MEGAPLUS_SHARE_RELEVANT_OPEN_TABS);
+    case contextual_tasks::SmartTabSharingMegaplusStringOption::kMegaplusV2:
+      return l10n_util::GetStringUTF16(
+          IDS_STS_MEGAPLUS_SHARE_RELEVANT_OPEN_TABS_V2);
+    case contextual_tasks::SmartTabSharingMegaplusStringOption::kMegaplusV3:
+      return l10n_util::GetStringUTF16(
+          IDS_STS_MEGAPLUS_SHARE_RELEVANT_OPEN_TABS_V3);
+    default:
+      return l10n_util::GetStringUTF16(
+          IDS_STS_MEGAPLUS_SHARE_RELEVANT_OPEN_TABS);
+  }
+}
+
 constexpr int kPromptHeightBuffer = 40;
 constexpr int kPromptWidthBuffer = 40;
 
@@ -522,7 +541,7 @@ base::DictValue SearchboxHandler::GetWebUIDataSourceDict(
   dict.Set("searchboxCr23SteadyStateShadow",
            ntp_features::kNtpRealboxCr23SteadyStateShadow.Get());
 
-  int max_files = 10;
+  int max_files = omnibox::kDefaultMaxTotalInputs;
   int max_images = max_files;
   int max_pdfs = max_files;
   AimEligibilityService* service =
@@ -577,9 +596,8 @@ base::DictValue SearchboxHandler::GetWebUIDataSourceDict(
            options.is_lens ? false
                            : contextual_tasks::ContextualTasksContextService::
                                  GetIsSmartTabSharingEnabled(profile));
-  dict.Set(
-      "stsMegaplusShareRelevantOpenTabs",
-      l10n_util::GetStringUTF16(IDS_STS_MEGAPLUS_SHARE_RELEVANT_OPEN_TABS));
+  dict.Set("stsMegaplusShareRelevantOpenTabs",
+           GetSmartTabSharingMegaplusString());
 
   return dict;
 }
@@ -634,23 +652,23 @@ std::string SearchboxHandler::AutocompleteIconToResourceName(
                                ? omnibox::kOfflineDinoIcon.name
                                : omnibox::kDinoCr2023OldIcon.name)) {
     return kDinoIconResourceName;
-  } else if (icon.name == omnibox::kDriveDocsIcon.name) {
+  } else if (icon.name == omnibox::kDriveDocsCustomIcon.name) {
     return kDriveDocsIconResourceName;
-  } else if (icon.name == omnibox::kDriveFolderIcon.name) {
+  } else if (icon.name == omnibox::kDriveFolderCustomIcon.name) {
     return kDriveFolderIconResourceName;
-  } else if (icon.name == omnibox::kDriveFormsIcon.name) {
+  } else if (icon.name == omnibox::kDriveFormsCustomIcon.name) {
     return kDriveFormIconResourceName;
-  } else if (icon.name == omnibox::kDriveImageIcon.name) {
+  } else if (icon.name == omnibox::kDriveImageCustomIcon.name) {
     return kDriveImageIconResourceName;
-  } else if (icon.name == omnibox::kDriveLogoIcon.name) {
+  } else if (icon.name == omnibox::kDriveLogoCustomIcon.name) {
     return kDriveLogoIconResourceName;
-  } else if (icon.name == omnibox::kDrivePdfIcon.name) {
+  } else if (icon.name == omnibox::kDrivePdfCustomIcon.name) {
     return kDrivePdfIconResourceName;
-  } else if (icon.name == omnibox::kDriveSheetsIcon.name) {
+  } else if (icon.name == omnibox::kDriveSheetsCustomIcon.name) {
     return kDriveSheetsIconResourceName;
-  } else if (icon.name == omnibox::kDriveSlidesIcon.name) {
+  } else if (icon.name == omnibox::kDriveSlidesCustomIcon.name) {
     return kDriveSlidesIconResourceName;
-  } else if (icon.name == omnibox::kDriveVideoIcon.name) {
+  } else if (icon.name == omnibox::kDriveVideoCustomIcon.name) {
     return kDriveVideoIconResourceName;
   } else if (icon.name == (features::IsRoundedIconsEnabled()
                                ? omnibox::kDomainIcon.name
@@ -684,7 +702,7 @@ std::string SearchboxHandler::AutocompleteIconToResourceName(
                                ? omnibox::kChromeProductIcon.name
                                : omnibox::kProductChromeRefreshOldIcon.name)) {
     return kPedalsIconResourceName;
-  } else if (icon.name == omnibox::kReplyRotated180Icon.name) {
+  } else if (icon.name == omnibox::kReplyRotated180CustomIcon.name) {
     return searchbox_internal::kReplyRotated180IconResourceName;
   } else if (icon.name == (features::IsRoundedIconsEnabled()
                                ? omnibox::kSearchSparkIcon.name
@@ -711,9 +729,15 @@ std::string SearchboxHandler::AutocompleteIconToResourceName(
                   ? omnibox::kTrendingUpIcon.name
                   : omnibox::kTrendingUpChromeRefreshOldIcon.name)) {
     return kTrendingUpIconResourceName;
-  } else if (icon.name == vector_icons::kHistoryChromeRefreshOldIcon.name) {
+  } else if (icon.name ==
+             (features::IsRoundedIconsEnabled()
+                  ? vector_icons::kHistoryIcon.name
+                  : vector_icons::kHistoryChromeRefreshOldIcon.name)) {
     return kHistoryIconResourceName;
-  } else if (icon.name == vector_icons::kSearchChromeRefreshOldIcon.name) {
+  } else if (icon.name ==
+             (features::IsRoundedIconsEnabled()
+                  ? vector_icons::kSearchIcon.name
+                  : vector_icons::kSearchChromeRefreshOldIcon.name)) {
     return kSearchIconResourceName;
   }
 

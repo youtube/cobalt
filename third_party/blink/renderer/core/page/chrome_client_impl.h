@@ -93,6 +93,7 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
   void RegisterForCommitObservation(CommitObserver*) override;
   void UnregisterFromCommitObservation(CommitObserver*) override;
   void WillCommitCompositorFrame() override;
+  void RequestFrameWithoutVSyncFromRoot(LocalFrame& frame) override;
   bool StartDeferringCommits(LocalFrame& main_frame,
                              base::TimeDelta timeout,
                              cc::PaintHoldingReason reason) override;
@@ -292,6 +293,7 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
   void JavaScriptChangedValue(HTMLFormControlElement&,
                               const String& old_value,
                               bool was_autofilled) override;
+  bool IsAutofillableElement(const HTMLFormControlElement&) override;
 
   void ShowVirtualKeyboardOnElementFocus(LocalFrame&) override;
 

@@ -29,7 +29,6 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
-#include "chrome/common/actor/task_id.h"
 #include "chrome/common/chrome_features.h"
 #include "components/metrics/profile_metrics_service.h"
 #include "components/prefs/pref_service.h"
@@ -85,9 +84,9 @@ class BaseDelegate : public GlicMetrics::Delegate {
   }
   std::vector<content::WebContents*> GetPinnedAndSharedWebContents() override {
     std::vector<content::WebContents*> pinned_and_shared;
-    for (content::WebContents* web_contents :
-         sharing_manager_->GetPinnedTabs()) {
-      if (IsTabValidForSharing(web_contents)) {
+    for (tabs::TabInterface* tab : sharing_manager_->GetPinnedTabs()) {
+      content::WebContents* web_contents = tab->GetContents();
+      if (web_contents && IsTabValidForSharing(web_contents)) {
         pinned_and_shared.push_back(web_contents);
       }
     }

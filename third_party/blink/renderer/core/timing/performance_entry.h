@@ -85,8 +85,9 @@ class CORE_EXPORT PerformanceEntry : public ScriptWrappable {
     kScript = 1 << 16,
     kContainer = 1 << 17,
     kInteractionContentfulPaint = 1 << 18,
+    kScroll = 1 << 19,
 #if BUILDFLAG(IS_COBALT)
-    kCobaltFrame = 1 << 19,
+    kCobaltFrame = 1 << 20,
 #endif
   };
 

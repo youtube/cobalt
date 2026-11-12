@@ -59,7 +59,8 @@ TEST(CBSTest, Skip) {
 
 TEST(CBSTest, GetUint) {
   static const uint8_t kData[] = {1,  2,  3,  4,  5,  6,  7,  8,  9,  10,
-                                  11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+                                  11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                                  21, 22, 23, 24, 25, 26};
   uint8_t u8;
   uint16_t u16;
   uint32_t u32;
@@ -75,12 +76,14 @@ TEST(CBSTest, GetUint) {
   EXPECT_EQ(0x40506u, u32);
   ASSERT_TRUE(CBS_get_u32(&data, &u32));
   EXPECT_EQ(0x708090au, u32);
+  ASSERT_TRUE(CBS_get_u48(&data, &u64));
+  EXPECT_EQ(0xb0c0d0e0f10u, u64);
   ASSERT_TRUE(CBS_get_u64(&data, &u64));
-  EXPECT_EQ(0xb0c0d0e0f101112u, u64);
+  EXPECT_EQ(0x1112131415161718u, u64);
   ASSERT_TRUE(CBS_get_last_u8(&data, &u8));
-  EXPECT_EQ(0x14u, u8);
+  EXPECT_EQ(0x1au, u8);
   ASSERT_TRUE(CBS_get_last_u8(&data, &u8));
-  EXPECT_EQ(0x13u, u8);
+  EXPECT_EQ(0x19u, u8);
   EXPECT_FALSE(CBS_get_u8(&data, &u8));
   EXPECT_FALSE(CBS_get_last_u8(&data, &u8));
 

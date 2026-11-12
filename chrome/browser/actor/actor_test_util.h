@@ -28,8 +28,8 @@
 #include "chrome/browser/actor/ui/event_dispatcher.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/actor/action_result.h"
-#include "chrome/common/actor/task_id.h"
 #include "components/actor/core/shared_types.h"
+#include "components/actor/core/task_id.h"
 #include "components/actor/public/mojom/actor_types.mojom.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/sessions/core/session_id.h"
@@ -53,6 +53,7 @@ class TabInterface;
 
 namespace actor {
 
+class TabObservationStrategy;
 struct TaskSourceInfo;
 
 template <typename T>
@@ -65,8 +66,21 @@ auto UiEventDispatcherCallback(
   };
 }
 
-using ActResultFuture =
-    base::test::TestFuture<std::vector<ActionResultWithLatencyInfo>>;
+class ActResultFuture
+    : public base::test::TestFuture<std::vector<ActionResultWithLatencyInfo>,
+                                    TabObservationStrategy> {
+ public:
+  const std::vector<ActionResultWithLatencyInfo>& Get() {
+    return std::get<0>(
+        base::test::TestFuture<std::vector<ActionResultWithLatencyInfo>,
+                               TabObservationStrategy>::Get());
+  }
+  std::vector<ActionResultWithLatencyInfo> Take() {
+    return std::get<0>(
+        base::test::TestFuture<std::vector<ActionResultWithLatencyInfo>,
+                               TabObservationStrategy>::Take());
+  }
+};
 using PerformActionsFuture = ActResultFuture;
 
 /////////////////////////

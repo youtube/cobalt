@@ -414,7 +414,8 @@ TEST(CodecTest, TestCodecMatches) {
   EXPECT_TRUE(c1.Matches(CreateAudioCodec(97, "a", 44100, 0)));
   EXPECT_TRUE(c1.Matches(CreateAudioCodec(35, "a", 44100, 0)));
   EXPECT_TRUE(c1.Matches(CreateAudioCodec(42, "a", 44100, 0)));
-  EXPECT_TRUE(c1.Matches(CreateAudioCodec(65, "a", 44100, 0)));
+  EXPECT_TRUE(c1.Matches(CreateAudioCodec(63, "a", 44100, 0)));
+  EXPECT_FALSE(c1.Matches(CreateAudioCodec(64, "a", 44100, 0)));
   EXPECT_FALSE(c1.Matches(CreateAudioCodec(95, "A", 44100, 0)));
   EXPECT_FALSE(c1.Matches(CreateAudioCodec(34, "A", 44100, 0)));
   EXPECT_FALSE(c1.Matches(CreateAudioCodec(96, "", 44100, 2)));
@@ -467,7 +468,8 @@ TEST(CodecTest, TestVideoCodecMatches) {
   EXPECT_TRUE(c1.Matches(CreateVideoCodec(97, "v")));
   EXPECT_TRUE(c1.Matches(CreateVideoCodec(35, "v")));
   EXPECT_TRUE(c1.Matches(CreateVideoCodec(42, "v")));
-  EXPECT_TRUE(c1.Matches(CreateVideoCodec(65, "v")));
+  EXPECT_TRUE(c1.Matches(CreateVideoCodec(63, "v")));
+  EXPECT_FALSE(c1.Matches(CreateVideoCodec(64, "v")));
   EXPECT_FALSE(c1.Matches(CreateVideoCodec(96, "")));
   EXPECT_FALSE(c1.Matches(CreateVideoCodec(95, "V")));
   EXPECT_FALSE(c1.Matches(CreateVideoCodec(34, "V")));

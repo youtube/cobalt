@@ -9,7 +9,6 @@ import {ContextualSearchInputStateDeletionType} from 'chrome://resources/cr_comp
 import {ContextUploadErrorType, ContextUploadStatus, InputType, ToolMode} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
 import {createAutocompleteResultForTesting, createSearchMatchForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import type {TabInfo} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {ToolMode as ComposeboxToolMode} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
@@ -435,6 +434,56 @@ suite('NewTabPageComposeboxUploadFileTest', () => {
             histogramName, ContextualSearchInputStateDeletionType.TAB));
   });
 
+  test(
+      'closing tab automatically clears its context from files and counter',
+      async () => {
+        loadTimeData.overrideValues({composeboxSource: 'NewTabPage'});
+        testSupport.createComposeboxElement(testProxy);
+        await microtasksFinished();
+
+        // Add a tab context using the test helper.
+        const uuid = await testSupport.addTab(testProxy);
+        await testProxy.element.updateComplete;
+
+        const tabFile: ComposeboxFile = {
+          uuid: uuid,
+          name: 'Google Search',
+          type: 'tab',
+          inputType: InputType.kBrowserTab,
+          status: ContextUploadStatus.kUploadSuccessful,
+          url: 'https://google.com',
+          tabId: 1,
+          isDeletable: true,
+          supportsUnimodal: true,
+          objectUrl: null,
+          dataUrl: null,
+          iconName: null,
+        };
+
+        // Manually populate frontend state variables with the tab file.
+        testProxy.element.files = new Map([[uuid, tabFile]]);
+        testProxy.element.addedTabsIds = new Map([[1, uuid]]);
+        await testProxy.element.updateComplete;
+
+        // Verify that the tab is initially selected.
+        assertEquals(testProxy.element.files.size, 1);
+        assertTrue(testProxy.element.files.has(uuid));
+
+        // Mock getRecentTabs to return empty list (simulates tab closure).
+        testProxy.searchboxHandler.setResultFor(
+            'getRecentTabs', Promise.resolve({tabs: []}));
+
+        // Trigger suggestion refresh to run the automatic tab cleanup.
+        await testProxy.element.refreshTabSuggestions();
+        await testProxy.element.updateComplete;
+        await microtasksFinished();
+
+        // Verify the closed tab context has been removed.
+        assertEquals(testProxy.element.files.size, 0);
+        assertEquals(testProxy.element.addedTabsIds.size, 0);
+        assertFalse(testProxy.element.files.has(uuid));
+      });
+
   test('image upload button clicks file input', () => {
     loadTimeData.overrideValues({
       'composeboxShowContextMenu': true,
@@ -474,9 +523,6 @@ suite('NewTabPageComposeboxUploadFileTest', () => {
   test(
       'upload button should not be disabled except when upload is in progress',
       async () => {
-        loadTimeData.overrideValues({
-          'composeboxShowCreateImageButton': true,
-        });
         const testInputState = {
           ...new testSupport.MockInputState(),
           maxInputsByType: {
@@ -1183,7 +1229,7 @@ suite('NewTabPageComposeboxUploadContextTest', () => {
           showInCurrentTabChip: true,
           showInPreviousTabChip: false,
           lastActive: {internalValue: BigInt(1)},
-        } as any as TabInfo;
+        };
 
         testProxy.searchboxHandler.resetResolver(
             testSupport.ADD_TAB_CONTEXT_FN);
@@ -1245,7 +1291,7 @@ suite('NewTabPageComposeboxUploadContextTest', () => {
           showInCurrentTabChip: true,
           showInPreviousTabChip: false,
           lastActive: {internalValue: BigInt(1)},
-        } as any as TabInfo;
+        };
 
         // Do not mock `addTabContext` return value so callback does not
         // update current held auto chip context properly.
@@ -1298,7 +1344,7 @@ suite('NewTabPageComposeboxUploadContextTest', () => {
           showInCurrentTabChip: true,
           showInPreviousTabChip: false,
           lastActive: {internalValue: BigInt(4)},
-        } as any as TabInfo;
+        };
 
         testProxy.searchboxHandler.resetResolver(
             testSupport.ADD_TAB_CONTEXT_FN);
@@ -1335,7 +1381,7 @@ suite('NewTabPageComposeboxUploadContextTest', () => {
           showInCurrentTabChip: true,
           showInPreviousTabChip: false,
           lastActive: {internalValue: BigInt(1)},
-        } as any as TabInfo;
+        };
 
         testProxy.searchboxHandler.resetResolver(
             testSupport.ADD_TAB_CONTEXT_FN);

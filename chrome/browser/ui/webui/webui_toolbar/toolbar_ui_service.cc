@@ -105,9 +105,14 @@ void ToolbarUIService::ShowContextMenu(
 }
 
 void ToolbarUIService::OnOmniboxAction(
-    toolbar_ui_api::mojom::OmniboxActionPtr action) {
+    toolbar_ui_api::mojom::OmniboxActionPtr action,
+    OnOmniboxActionCallback callback) {
   if (delegate_) {
-    delegate_->OnOmniboxAction(std::move(action));
+    std::move(callback).Run(delegate_->OnOmniboxAction(std::move(action)));
+  } else {
+    std::move(callback).Run(base::unexpected(
+        Error::New(Code::kFailedPrecondition,
+                   "ToolbarUIService: null delegate_ for OnOmniboxAction")));
   }
 }
 
@@ -178,6 +183,14 @@ void ToolbarUIService::OnLhsChipCollapseAnimationEnded(
     toolbar_ui_api::mojom::LhsChipIdentifier identifier) {
   if (delegate_) {
     delegate_->OnLhsChipCollapseAnimationEnded(identifier);
+  }
+}
+
+void ToolbarUIService::OnLhsChipDrag(
+    toolbar_ui_api::mojom::LhsChipIdentifier identifier,
+    ui::mojom::DragEventSource source) {
+  if (delegate_) {
+    delegate_->OnLhsChipDrag(identifier, source);
   }
 }
 

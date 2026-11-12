@@ -18,6 +18,7 @@
 #import "base/types/expected.h"
 #import "components/optimization_guide/proto/features/actions_data.pb.h"
 #import "ios/chrome/browser/intelligence/actor/model/actor_service_factory.h"
+#import "ios/chrome/browser/intelligence/actor/model/snackbar_actor_task_updates_observer.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_extractor_java_script_feature.h"
@@ -73,7 +74,11 @@ class TestTool : public ActorTool {
 
 class ActorServiceTest : public PlatformTest {
  public:
-  ActorServiceTest() : web_client_(std::make_unique<web::FakeWebClient>()) {
+  explicit ActorServiceTest(
+      base::test::TaskEnvironment::TimeSource time_source =
+          base::test::TaskEnvironment::TimeSource::DEFAULT)
+      : web_client_(std::make_unique<web::FakeWebClient>()),
+        task_environment_(time_source) {
     ActorServiceFactory::GetInstance();
     profile_ = TestProfileIOS::Builder().Build();
   }
@@ -89,9 +94,14 @@ class ActorServiceTest : public PlatformTest {
 
  protected:
   web::ScopedTestingWebClient web_client_;
-  web::WebTaskEnvironment task_environment_{
-      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  web::WebTaskEnvironment task_environment_;
   std::unique_ptr<TestProfileIOS> profile_;
+};
+
+class ActorServiceMockTimeTest : public ActorServiceTest {
+ public:
+  ActorServiceMockTimeTest()
+      : ActorServiceTest(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
 };
 
 // Tests that `ActorService` is successfully created when the `kActorTools`
@@ -479,7 +489,8 @@ TEST_F(ActorServiceTest, PerformActions_Loading_DeferredUntilStopLoading) {
 
 // Tests that a loading WebState times out after 5 seconds, forcing the
 // deferred PerformActions callback to run to prevent hanging.
-TEST_F(ActorServiceTest, PerformActions_Loading_TimeoutResolvesCallback) {
+TEST_F(ActorServiceMockTimeTest,
+       PerformActions_Loading_TimeoutResolvesCallback) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(kActorTools);
 
@@ -542,17 +553,19 @@ TEST_F(ActorServiceTest, TracksOnlyLatestCreatedTaskObserver) {
   auto test_browser = std::make_unique<TestBrowser>(profile_.get());
   browser_list->AddBrowser(test_browser.get());
 
-  id snackbar_commands = OCMProtocolMock(@protocol(SnackbarCommands));
+  id snackbar_commands =
+      OCMProtocolMock(@protocol(GeminiActorSnackbarCommands));
   [test_browser->GetCommandDispatcher()
       startDispatchingToTarget:snackbar_commands
-                   forProtocol:@protocol(SnackbarCommands)];
+                   forProtocol:@protocol(GeminiActorSnackbarCommands)];
 
   // Expect first task registration message.
   [[snackbar_commands expect]
-      showSnackbarMessage:[OCMArg checkWithBlock:^BOOL(
-                                      SnackbarMessage* message) {
+      showGeminiActorSnackbarMessage:[OCMArg checkWithBlock:^BOOL(
+                                                 SnackbarMessage* message) {
         return [message.title isEqualToString:@"First Task"];
-      }]];
+      }]
+              additionalBottomOffset:kGeminiActorSnackbarBottomOffset];
 
   // Create first task. This immediately emits a registration snackbar message.
   ActorTaskId task_id1 =
@@ -562,10 +575,11 @@ TEST_F(ActorServiceTest, TracksOnlyLatestCreatedTaskObserver) {
 
   // Expect second task registration message.
   [[snackbar_commands expect]
-      showSnackbarMessage:[OCMArg checkWithBlock:^BOOL(
-                                      SnackbarMessage* message) {
+      showGeminiActorSnackbarMessage:[OCMArg checkWithBlock:^BOOL(
+                                                 SnackbarMessage* message) {
         return [message.title isEqualToString:@"Second Task"];
-      }]];
+      }]
+              additionalBottomOffset:kGeminiActorSnackbarBottomOffset];
 
   // Create second task. This replaces the observer installed in the service
   // and emits a registration snackbar message for the second task.
@@ -578,10 +592,11 @@ TEST_F(ActorServiceTest, TracksOnlyLatestCreatedTaskObserver) {
   // We verify this by ensuring the mock rejects any new messages for the first
   // task.
   [[snackbar_commands reject]
-      showSnackbarMessage:[OCMArg checkWithBlock:^BOOL(
-                                      SnackbarMessage* message) {
+      showGeminiActorSnackbarMessage:[OCMArg checkWithBlock:^BOOL(
+                                                 SnackbarMessage* message) {
         return [message.title isEqualToString:@"First Task"];
-      }]];
+      }]
+              additionalBottomOffset:kGeminiActorSnackbarBottomOffset];
 
   service->PerformActions(task_id1, {}, "Updating first again",
                           base::BindOnce(^(PerformActionsResult result){

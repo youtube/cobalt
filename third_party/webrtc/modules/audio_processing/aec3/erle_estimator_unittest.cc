@@ -20,13 +20,13 @@
 #include <vector>
 
 #include "api/audio/echo_canceller3_config.h"
-#include "api/environment/environment_factory.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/block.h"
 #include "modules/audio_processing/aec3/render_buffer.h"
 #include "modules/audio_processing/aec3/render_delay_buffer.h"
 #include "modules/audio_processing/aec3/spectrum_buffer.h"
 #include "rtc_base/checks.h"
+#include "test/create_test_environment.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -180,7 +180,8 @@ TEST_P(ErleEstimatorMultiChannel, VerifyErleIncreaseAndHold) {
 
   GetFilterFreq(config.delay.delay_headroom_samples, filter_frequency_response);
 
-  ErleEstimator estimator(CreateEnvironment(), 0, config, num_capture_channels);
+  ErleEstimator estimator(CreateTestEnvironment(), 0, config,
+                          num_capture_channels);
 
   FormFarendTimeFrame(&x);
   render_delay_buffer->Insert(x);
@@ -243,7 +244,7 @@ TEST_P(ErleEstimatorMultiChannel, VerifyErleTrackingOnOnsets) {
 
   GetFilterFreq(config.delay.delay_headroom_samples, filter_frequency_response);
 
-  ErleEstimator estimator(CreateEnvironment(),
+  ErleEstimator estimator(CreateTestEnvironment(),
                           /*startup_phase_length_blocks=*/0, config,
                           num_capture_channels);
 

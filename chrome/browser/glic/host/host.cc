@@ -123,12 +123,6 @@ void Host::NotifyActorTaskListRowClicked(int32_t task_id) {
   }
 }
 
-void Host::NotifySkillToInvokeChanged(mojom::SkillPtr skill) {
-  if (auto* client = GetPrimaryWebClient()) {
-    client->NotifySkillToInvokeChanged(std::move(skill));
-  }
-}
-
 void Host::NotifyIsInvoking(bool is_invoking) {
   if (auto* client = GetPrimaryWebClient()) {
     client->NotifyIsInvoking(is_invoking);
@@ -530,6 +524,12 @@ content::WebContents* Host::webui_contents() const {
     return page_handler()->webui_contents();
   }
   return nullptr;
+}
+
+void Host::SetWebContentsVisibility(content::Visibility visibility) {
+  if (contents_) {
+    contents_->SetVisibility(visibility);
+  }
 }
 
 content::WebContents* Host::web_client_contents() const {

@@ -10,7 +10,11 @@
 #import "base/memory/raw_ptr.h"
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
+#import "components/policy/core/common/policy_pref_names.h"
+#import "components/prefs/ios/pref_observer_bridge.h"
+#import "components/prefs/pref_change_registrar.h"
 #import "components/signin/public/base/signin_metrics.h"
+#import "components/signin/public/identity_manager/objc/identity_manager_observer_bridge.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_consumer.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/cobrowse/model/cobrowse_context.h"
@@ -21,6 +25,7 @@
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_updater.h"
 #import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_browser_agent.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_browser_agent_observer_bridge.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_service.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_entry_flow_result.h"
@@ -49,6 +54,8 @@
 #import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
+#import "ios/chrome/browser/signin/model/avatar/avatar_provider.h"
+#import "ios/chrome/browser/signin/model/constants.h"
 #import "ios/chrome/browser/toolbar/ui/buttons/toolbar_button_menu_factory.h"
 #import "ios/chrome/browser/toolbar/ui/buttons/toolbar_button_menu_factory_delegate.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
@@ -57,17 +64,14 @@
 #import "ios/web/public/web_state_observer_bridge.h"
 #import "url/gurl.h"
 
-@interface AppBarMediator () <IncognitoStateObserver,
+@interface AppBarMediator () <GeminiBrowserAgentObserving,
+                              IdentityManagerObserverBridgeDelegate,
+                              IncognitoStateObserver,
+                              PrefObserverDelegate,
                               SearchEngineObserving,
                               TabGridStateObserver,
                               ToolbarButtonMenuFactoryDelegate,
                               WebStateListObserving>
-
-// Called when the Gemini floaty invocation state changes.
-- (void)geminiFloatyInvokedChanged:(BOOL)isInvoked;
-
-// Called when the Gemini availability changes for a page.
-- (void)geminiAvailabilityChanged:(BOOL)isAvailable;
 
 // The web state list currently observed by this mediator.
 @property(nonatomic, assign) WebStateList* currentWebStateList;
@@ -76,26 +80,6 @@
 @property(nonatomic, assign) const TabGroup* currentTabGroup;
 
 @end
-
-namespace {
-
-// Bridge for GeminiBrowserAgent::Observer.
-class GeminiBrowserAgentObserverBridge : public GeminiBrowserAgent::Observer {
- public:
-  GeminiBrowserAgentObserverBridge(AppBarMediator* mediator)
-      : mediator_(mediator) {}
-  void OnFloatyInvokedChanged(bool is_invoked) override {
-    [mediator_ geminiFloatyInvokedChanged:is_invoked];
-  }
-  void OnGeminiAvailabilityChanged(bool available) override {
-    [mediator_ geminiAvailabilityChanged:available];
-  }
-
- private:
-  __weak AppBarMediator* mediator_;
-};
-
-}  // namespace
 
 @implementation AppBarMediator {
   std::unique_ptr<WebStateListObserverBridge> _observerBridge;
@@ -113,6 +97,9 @@ class GeminiBrowserAgentObserverBridge : public GeminiBrowserAgent::Observer {
       _incognitoFullscreenObserver;
   raw_ptr<PrefService> _prefService;
   raw_ptr<AuthenticationService> _authenticationService;
+  raw_ptr<signin::IdentityManager> _identityManager;
+  std::unique_ptr<signin::IdentityManagerObserverBridge>
+      _identityManagerObserver;
   raw_ptr<GeminiService> _geminiService;
   raw_ptr<GeminiBrowserAgent> _geminiBrowserAgent;
   std::unique_ptr<GeminiBrowserAgentObserverBridge> _geminiObserver;
@@ -125,6 +112,8 @@ class GeminiBrowserAgentObserverBridge : public GeminiBrowserAgent::Observer {
   IncognitoState* _incognitoState;
   ToolbarButtonMenuFactory* _regularButtonMenuFactory;
   ToolbarButtonMenuFactory* _incognitoButtonMenuFactory;
+  std::unique_ptr<PrefChangeRegistrar> _prefChangeRegistrar;
+  std::unique_ptr<PrefObserverBridge> _prefObserverBridge;
 }
 
 - (instancetype)
@@ -145,6 +134,7 @@ class GeminiBrowserAgentObserverBridge : public GeminiBrowserAgent::Observer {
                  templateURLService:(TemplateURLService*)templateURLService
               authenticationService:
                   (AuthenticationService*)authenticationService
+                    identityManager:(signin::IdentityManager*)identityManager
                       geminiService:(GeminiService*)geminiService
                  geminiBrowserAgent:(GeminiBrowserAgent*)geminiBrowserAgent
                           URLLoader:(UrlLoadingBrowserAgent*)URLLoader
@@ -169,13 +159,18 @@ class GeminiBrowserAgentObserverBridge : public GeminiBrowserAgent::Observer {
         std::make_unique<SearchEngineObserverBridge>(self, _templateURLService);
 
     _authenticationService = authenticationService;
+    _identityManager = identityManager;
+    if (_identityManager) {
+      _identityManagerObserver =
+          std::make_unique<signin::IdentityManagerObserverBridge>(
+              _identityManager, self);
+    }
 
     _geminiService = geminiService;
     _geminiBrowserAgent = geminiBrowserAgent;
     if (_geminiBrowserAgent) {
-      _geminiObserver =
-          std::make_unique<GeminiBrowserAgentObserverBridge>(self);
-      _geminiBrowserAgent->AddObserver(_geminiObserver.get());
+      _geminiObserver = std::make_unique<GeminiBrowserAgentObserverBridge>(
+          self, _geminiBrowserAgent);
     }
 
     _tabGridState = tabGridState;
@@ -199,6 +194,14 @@ class GeminiBrowserAgentObserverBridge : public GeminiBrowserAgent::Observer {
                 templateURLService:_templateURLService
                       tabGridState:_tabGridState];
     _incognitoButtonMenuFactory.delegate = self;
+
+    CHECK(_prefService);
+    _prefChangeRegistrar = std::make_unique<PrefChangeRegistrar>();
+    _prefChangeRegistrar->Init(_prefService);
+    _prefObserverBridge = std::make_unique<PrefObserverBridge>(self);
+    _prefObserverBridge->ObserveChangesForPreference(
+        policy::policy_prefs::kIncognitoModeAvailability,
+        _prefChangeRegistrar.get());
 
     if (_tabGridState.tabGridVisible) {
       [self updateForTabGridPage:_tabGridState.currentPage];
@@ -316,18 +319,27 @@ class GeminiBrowserAgentObserverBridge : public GeminiBrowserAgent::Observer {
   _regularWebStateList = nullptr;
   _incognitoWebStateList = nullptr;
   _prefService = nullptr;
+  _prefChangeRegistrar.reset();
+  _prefObserverBridge.reset();
   _searchEngineObserver.reset();
   _templateURLService = nullptr;
   _authenticationService = nullptr;
   _geminiService = nullptr;
-  if (_geminiBrowserAgent && _geminiObserver) {
-    _geminiBrowserAgent->RemoveObserver(_geminiObserver.get());
-  }
   _geminiBrowserAgent = nullptr;
   _geminiObserver.reset();
   _URLLoader = nullptr;
   _incognitoState = nil;
   _tabGridState = nil;
+  _identityManagerObserver.reset();
+  _identityManager = nullptr;
+}
+
+#pragma mark - PrefObserverDelegate
+
+- (void)onPreferenceChanged:(const std::string&)preferenceName {
+  if (preferenceName == policy::policy_prefs::kIncognitoModeAvailability) {
+    [self updateConsumer];
+  }
 }
 
 #pragma mark - WebStateListObserving
@@ -497,8 +509,9 @@ class GeminiBrowserAgentObserverBridge : public GeminiBrowserAgent::Observer {
   } else {
     CGPoint center = [sender.superview convertPoint:sender.center toView:nil];
     OpenNewTabCommand* command = [OpenNewTabCommand
-        commandWithIncognito:_incognitoState.incognitoContentVisible
-                 originPoint:center];
+        commandWithURLFromChrome:GURL(kChromeUINewTabURL)
+                     inIncognito:_incognitoState.incognitoContentVisible];
+    command.originPoint = center;
     [self.sceneHandler openURLInNewTab:command];
 
     [IntentDonationHelper donateIntent:IntentType::kOpenNewTab];
@@ -510,7 +523,8 @@ class GeminiBrowserAgentObserverBridge : public GeminiBrowserAgent::Observer {
   [self createNewTabGroupWithTabs:{}];
 }
 
-- (void)assistantButtonTappedWithState:(AppBarAssistantButtonState)state {
+- (void)assistantButtonTappedWithState:(AppBarAssistantButtonState)state
+                              fromView:(UIView*)sender {
   switch (state) {
     case AppBarAssistantButtonState::kAsk: {
       __weak __typeof(self) weakSelf = self;
@@ -532,8 +546,12 @@ class GeminiBrowserAgentObserverBridge : public GeminiBrowserAgent::Observer {
       [self.sceneHandler showAssistant];
       break;
     }
-    case AppBarAssistantButtonState::kFallback:
-      // TODO(crbug.com/484000888): Handle fallback action.
+    case AppBarAssistantButtonState::kAccount:
+      if (_authenticationService->HasPrimaryIdentity()) {
+        [self.delegate showAccountMenu:sender];
+      } else {
+        [self.delegate showSignin:sender];
+      }
       break;
   }
 }
@@ -555,6 +573,16 @@ class GeminiBrowserAgentObserverBridge : public GeminiBrowserAgent::Observer {
 - (void)navigateToPageForItem:(web::NavigationItem*)item {
   // App bar does not have web navigation functionality in its button menus.
   NOTREACHED();
+}
+
+#pragma mark - GeminiBrowserAgentObserverBridge
+
+- (void)geminiFloatyInvokedChanged:(BOOL)isInvoked {
+  [self updateAssistantButton];
+}
+
+- (void)geminiAvailabilityChanged:(BOOL)available {
+  [self updateAssistantButton];
 }
 
 #pragma mark - Properties
@@ -663,8 +691,7 @@ class GeminiBrowserAgentObserverBridge : public GeminiBrowserAgent::Observer {
 
 // Updates the consumer with the latest state of the assistant button.
 - (void)updateAssistantButton {
-  AppBarAssistantButtonState state = AppBarAssistantButtonState::kFallback;
-
+  AppBarAssistantButtonState state = AppBarAssistantButtonState::kAccount;
   if (IsPageActionMenuEnabled()) {
     state = AppBarAssistantButtonState::kAsk;
   } else if (IsAimCobrowseEnabled() && IsAssistantContainerEnabled()) {
@@ -679,19 +706,25 @@ class GeminiBrowserAgentObserverBridge : public GeminiBrowserAgent::Observer {
     highlighted = enabled && _geminiBrowserAgent &&
                   _geminiBrowserAgent->is_floaty_invoked();
   }
+
+  UIImage* avatar = nil;
+  if (state == AppBarAssistantButtonState::kAccount) {
+    id<SystemIdentity> identity = _authenticationService->GetPrimaryIdentity();
+    ApplicationContext* context = GetApplicationContext();
+    signin::AvatarProvider* avatarProvider =
+        context ? context->GetIdentityAvatarProvider() : nullptr;
+    if (avatarProvider && identity) {
+      avatar = avatarProvider->GetIdentityAvatar(
+          identity, IdentityAvatarSize::TableViewIcon);
+    }
+  }
+
+  BOOL signedIn = _authenticationService->HasPrimaryIdentity();
   [self.consumer setAssistantButtonState:state
                              highlighted:highlighted
-                                 enabled:enabled];
-}
-
-// Called when the Gemini floaty invocation state changes.
-- (void)geminiFloatyInvokedChanged:(BOOL)isInvoked {
-  [self updateAssistantButton];
-}
-
-// Called when the Gemini availability changes.
-- (void)geminiAvailabilityChanged:(BOOL)available {
-  [self updateAssistantButton];
+                                 enabled:enabled
+                                  avatar:avatar
+                                signedIn:signedIn];
 }
 
 // Updates for `incognito` being visible.
@@ -767,6 +800,7 @@ class GeminiBrowserAgentObserverBridge : public GeminiBrowserAgent::Observer {
   CHECK(_URLLoader);
 
   UrlLoadParams params = UrlLoadParams::InNewTab(GURL(kChromeUINewTabURL));
+  params.from_chrome = YES;
   params.in_incognito = incognito;
   params.append_to = OpenPosition::kLastTab;
   params.switch_mode_if_needed = true;
@@ -816,6 +850,7 @@ class GeminiBrowserAgentObserverBridge : public GeminiBrowserAgent::Observer {
 
   GURL URL(kChromeUINewTabURL);
   UrlLoadParams params = UrlLoadParams::InNewTab(URL);
+  params.from_chrome = YES;
   params.in_incognito = incognito;
   params.load_in_group = true;
   params.tab_group = group->GetWeakPtr();
@@ -842,4 +877,16 @@ class GeminiBrowserAgentObserverBridge : public GeminiBrowserAgent::Observer {
       break;
   }
 }
+
+#pragma mark - IdentityManagerObserverBridgeDelegate
+
+- (void)onPrimaryAccountChanged:
+    (const signin::PrimaryAccountChangeEvent&)event {
+  [self updateAssistantButton];
+}
+
+- (void)onExtendedAccountInfoUpdated:(const AccountInfo&)info {
+  [self updateAssistantButton];
+}
+
 @end

@@ -38,6 +38,13 @@ class BrowserWindowInterface;
 class WebUILocationBar;
 class WebUIToolbarUI;
 class WebUIToolbarInternalWebView;
+class ExtensionsContainer;
+class WebUIToolbarExtensionsContainer;
+
+namespace ui {
+template <typename T>
+class ScopedUnownedUserData;
+}
 
 namespace views {
 class WebView;
@@ -163,10 +170,13 @@ class WebUIToolbarWebView
       toolbar_ui_api::mojom::LhsChipIdentifier identifier) override;
   void OnLhsChipCollapseAnimationEnded(
       toolbar_ui_api::mojom::LhsChipIdentifier identifier) override;
+  void OnLhsChipDrag(toolbar_ui_api::mojom::LhsChipIdentifier identifier,
+                     ui::mojom::DragEventSource source) override;
   void OnHomeButtonDropUrl(const GURL& url) override;
   void OnHomeButtonDropFile(const gfx::PointF& drop_position) override;
   void OnToolbarDropFile(const gfx::PointF& drop_position) override;
-  void OnOmniboxAction(toolbar_ui_api::mojom::OmniboxActionPtr action) override;
+  base::expected<std::monostate, mojo_base::mojom::ErrorPtr> OnOmniboxAction(
+      toolbar_ui_api::mojom::OmniboxActionPtr action) override;
   void ShowAvatarMenu() override;
 
   // BrowserControlsService::BrowserControlsServiceDelegate:
@@ -287,6 +297,7 @@ class WebUIToolbarWebView
   WebUIToolbarUI* GetWebUIToolbarUI();
 
   void OnTouchUiChanged();
+  void OnActiveTabChanged(BrowserWindowInterface* browser_interface);
   void PostPushNavigationState();
   void PushNavigationState();
   toolbar_ui_api::mojom::BackForwardControlStatePtr GetBackForwardState() const;
@@ -317,7 +328,13 @@ class WebUIToolbarWebView
   WebUISplitTabsControl split_tabs_control_;
   WebUIHomeControl home_control_;
   WebUIAvatarToolbarButton avatar_control_;
+  // This is null if WebUILocationBar is off, or the window is in one of the
+  // modes (e.g. popup) that don't use it yet.
   std::unique_ptr<WebUILocationBar> location_bar_;
+  std::unique_ptr<WebUIToolbarExtensionsContainer> extensions_container_;
+  std::unique_ptr<ui::ScopedUnownedUserData<ExtensionsContainer>>
+      scoped_extensions_container_user_data_;
+  base::CallbackListSubscription active_tab_subscription_;
   WebUIBackForwardControl back_control_;
   WebUIBackForwardControl forward_control_;
   WebUIPinnedToolbarActions pinned_toolbar_actions_;

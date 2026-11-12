@@ -374,6 +374,21 @@ rtc_library("video_coding_utility") {
   ]
 }
 
+rtc_library("av1_qp_parser") {
+  testonly = true
+  sources = [
+    "utility/av1_qp_parser.cc",
+    "utility/av1_qp_parser.h",
+  ]
+  deps = [
+    "../../api/video:video_frame",
+    "../../api/video:video_frame_type",
+    "//third_party/libgav1:libgav1_decoder",
+    "//third_party/libgav1:libgav1_parser",
+  ]
+  public_configs = [ "//third_party/libgav1:libgav1_public_config" ]
+}
+
 rtc_library("encoder_speed_controller_impl") {
   visibility = [ "*" ]
   sources = [
@@ -575,7 +590,8 @@ rtc_library("webrtc_vp8_temporal_layers") {
   ]
 }
 
-# This target includes VP9 files that may be used for any VP9 codec, internal SW or external HW.
+# This target includes VP9 files that may be used for any VP9 codec, internal SW
+# or external HW.
 rtc_library("webrtc_vp9_helpers") {
   sources = [
     "codecs/vp9/svc_config.cc",
@@ -1019,6 +1035,7 @@ if (rtc_include_tests) {
       "../../media:rtc_simulcast_encoder_adapter",
       "../../rtc_base:checks",
       "../../rtc_base:timeutils",
+      "../../test:create_test_environment",
       "../../test:create_test_field_trials",
       "../../test:fileutils",
       "../../test:test_support",
@@ -1089,6 +1106,7 @@ if (rtc_include_tests) {
       "rtp_frame_reference_finder_unittest.cc",
       "rtp_vp8_ref_finder_unittest.cc",
       "rtp_vp9_ref_finder_unittest.cc",
+      "utility/av1_qp_parser_unittest.cc",
       "utility/bandwidth_quality_scaler_unittest.cc",
       "utility/decoded_frames_history_unittest.cc",
       "utility/encoder_speed_controller_impl_unittest.cc",
@@ -1111,6 +1129,7 @@ if (rtc_include_tests) {
     }
 
     deps = [
+      ":av1_qp_parser",
       ":chain_diff_calculator",
       ":codec_globals_headers",
       ":frame_dependencies_calculator",

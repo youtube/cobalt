@@ -24,7 +24,6 @@
 
 #include "absl/algorithm/container.h"
 #include "api/create_modular_peer_connection_factory.h"
-#include "api/environment/environment_factory.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
@@ -54,6 +53,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/ref_counted_object.h"
 #include "rtc_base/thread.h"
+#include "test/create_test_environment.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
 #ifdef WEBRTC_ANDROID
@@ -174,8 +174,8 @@ class PeerConnectionMediaBaseTest : public ::testing::Test {
     auto pc_factory =
         CreateModularPeerConnectionFactory(std::move(factory_dependencies));
 
-    auto fake_port_allocator =
-        std::make_unique<FakePortAllocator>(CreateEnvironment(), vss_.get());
+    auto fake_port_allocator = std::make_unique<FakePortAllocator>(
+        CreateTestEnvironment(), vss_.get());
     auto observer = std::make_unique<MockPeerConnectionObserver>();
     auto modified_config = config;
     modified_config.sdp_semantics = sdp_semantics_;

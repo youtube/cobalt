@@ -80,9 +80,11 @@ export class ContextualActionMenuElement extends
       shareTabsFlyoutPosition_: {type: String},
       sharingTabsText_: {type: String},
       uploadButtonDisabled: {type: Boolean},
+      recentTabId: {type: Number},
     };
   }
 
+  accessor recentTabId: number|null = null;
   accessor fileNum: number = 0;
   accessor disabledTabIds: Map<number, UnguessableToken> = new Map();
   accessor restoredTabIds: number[] = [];
@@ -416,8 +418,8 @@ export class ContextualActionMenuElement extends
             this.restoredTabIds.includes(tab.tabId));
   }
 
-  protected isRecentTab_(index: number): boolean {
-    return index === 0;
+  protected isRecentTab_(tabId: number): boolean {
+    return this.recentTabId !== null && tabId === this.recentTabId;
   }
 
   protected onSmartTabSharingToggleChange_(e: Event) {
@@ -463,7 +465,7 @@ export class ContextualActionMenuElement extends
   }
 
   protected deleteTabContext_(uuid: UnguessableToken) {
-    this.fire('delete-tab-context', {uuid: uuid});
+    this.fire('delete-tab-context', {uuid: uuid, fromUserAction: true});
   }
 
   protected addTabContext_(tabInfo: TabInfo) {
@@ -474,7 +476,9 @@ export class ContextualActionMenuElement extends
       delayUpload: false,
       origin: TabUploadOrigin.CONTEXT_MENU,
     });
-    if (!this.enableMultiTabSelection_) {
+    if (!this.enableMultiTabSelection_ ||
+        this.metricsSource_ === 'NewTabPage' ||
+        this.metricsSource_ === 'Omnibox') {
       this.$.menu.close();
     }
   }

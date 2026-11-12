@@ -145,6 +145,7 @@ URL 패턴은 <ph name="CONTROLLED_FRAME_ALLOWED_FOR_URLS_POLICY_NAME" />와 충
 유효한 URL 패턴에 관한 자세한 내용은 https://chromeenterprise.google/policies/url-patterns 페이지를 참고하세요. <ph name="WILDCARD_VALUE" />는 이 정책에 허용되는 값이 아닙니다.</translation>
 <translation id="1082802595100075771">사용자가 익명의 Google 서비스를 통해 라벨이 지정되지 않은 이미지에 관해 자동으로 생성된 설명을 들을지 선택하도록 허용</translation>
 <translation id="1084697375611053264"><ph name="DESK_API_NAME" />를 사용하여 <ph name="PRODUCT_OS_NAME" /> 데스크를 제어할 수 있는 서드 파티 웹 애플리케이션 도메인 목록을 지정합니다. 이러한 URL 패턴은 다음 페이지에 정의된 'matches' 속성 형식을 따라야 합니다. https://developer.chrome.com/docs/extensions/mv3/manifest/externally_connectable/#reference</translation>
+<translation id="1086596047220085412">스마트 탭 공유 설정</translation>
 <translation id="1087057100912843460">업데이트 허용</translation>
 <translation id="1087187152710800704">기본적으로 모든 사이트에서 창 관리 권한 거부</translation>
 <translation id="1087437665304381368">이 정책은 <ph name="PRODUCT_OS_NAME" /> 개발자 모드만 제어합니다. Android 개발자 옵션에 액세스하지 못하게 하려면 <ph name="DEVELOPER_TOOLS_DISABLED_POLICY_NAME" /> 정책을 설정해야 합니다.</translation>
@@ -1094,6 +1095,7 @@ Chrome 앱은 ID(예: <ph name="DEFAULT_HANDLERS_FOR_FILE_EXTENSIONS_POLICY_CHRO
       <ph name="REMOTE_ACCESS_HOST_CLIENT_DOMAIN_LIST_POLICY_NAME" />도 참고하세요.
 
       <ph name="REMOTE_ACCESS_HOST_DOMAIN_POLICY_NAME" />이 있더라도 이 설정이 우선 적용됩니다.</translation>
+<translation id="1723571018091915166"><ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> 통합과의 스마트 탭 공유를 허용하지 않습니다.</translation>
 <translation id="172374442286684480">모든 사이트에서 로컬 데이터 설정 허용</translation>
 <translation id="1729169799290004131">정책을 설정하면 화면 밝기 비율을 지정할 수 있으며 자동 밝기 기능이 사용 중지됩니다. 초기 화면 밝기는 정책 값으로 조정되지만 사용자가 변경할 수 있습니다.
 
@@ -2173,6 +2175,7 @@ False로 설정하면 개인 정보 보호 화면은 항상 사용 중지됩니�
 
 이 정책을 설정하지 않으면 처음에는 개인 정보 보호 화면이 사용 중지되지만 사용자가 이를 제어할 수 있습니다.</translation>
 <translation id="2413899611035194909">로그인 화면 작업 표시줄 메뉴에 접근성 옵션 표시</translation>
+<translation id="2414712434655365347">특정 URL 패턴에 대한 HTTP 헤더 삽입 구성</translation>
 <translation id="2415715982424988916">살펴보기(버전 91부터 지원됨)</translation>
 <translation id="2420958105721932612">앱 설치 방법을 지정합니다. AVAILABLE: 앱이 자동으로 설치되지 않으나 사용자가 설치할 수 있습니다. 정책을 지정하지 않을 경우 기본값으로 사용됩니다. FORCE_INSTALLED: 앱이 자동으로 설치되며 사용자가 제거할 수 없습니다. BLOCKED: 앱이 차단되어 설치할 수 없습니다. 이전 정책에서 앱이 설치된 경우 제거됩니다.</translation>
 <translation id="2421400544595297401">독립적인 사용자가 Android 앱을 사용하도록 허용 안함</translation>
@@ -2917,6 +2920,13 @@ Chrome에서 퍼스트 파티 세트 관련 통합을 지원하는지 제어합�
 <translation id="2866726566162790531">모든 HTTP 인증을 허용하는 출처 목록</translation>
 <translation id="2868756546751652023">사용자가 인스턴트 테더링을 사용하도록 허용</translation>
 <translation id="286898786908566256">사용자가 Chrome에서 Android 기기로 전화번호를 전송하도록 허용</translation>
+<translation id="287087426320717057">이 정책을 사용하면 사용자가 모든 종류의 펌웨어 업데이트를 시작할 수 있습니다.
+
+      정책을 '사용'으로 설정하거나 설정하지 않으면 기기 소유자와 같은 사용자가 펌웨어 업데이트를 시작할 수 있습니다.
+
+      정책을 '사용 안함'으로 설정하면 모든 사용자가 펌웨어 업데이트를 적용할 수 없습니다.
+
+      이 정책은 외부 주변기기 펌웨어 업데이트의 펌웨어 및 <ph name="PRODUCT_OS_FLEX_NAME" /> 기기의 내부 구성요소 펌웨어 업데이트에 적용됩니다. <ph name="PRODUCT_OS_NAME" /> 기기의 내부 구성요소 펌웨어 업데이트는 이 정책의 영향을 받지 않습니다.</translation>
 <translation id="2872098849906555324">Google Drive 동기화 사용 중지</translation>
 <translation id="2872189563975139803">엔터프라이즈 프로필 분리 설정</translation>
 <translation id="2872961005593481000">종료</translation>
@@ -3486,7 +3496,6 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 변형은 크로스 사이트 
 <translation id="3229163415739929305">정책을 사용 설정하거나 설정하지 않으면 페이지 로드 메타데이터와 머신러닝 모델을 가져와서 브라우저 사용 환경을 개선할 수 있습니다.
       정책을 사용 안함으로 설정하면 일부 기능이 제대로 작동하지 않을 수 있습니다.</translation>
 <translation id="3231311173895401135">브라우저에서 지원 여부 결정</translation>
-<translation id="3231684792162319504">Gemini 실험 버전 트리거를 허용하지 않습니다.</translation>
 <translation id="3231837273069128027">정책을 설정하면 <ph name="TPM_FIRMWARE_UPDATE_TPM" /> 펌웨어 업데이트의 사용 가능 여부 및 동작이 구성됩니다.
 
       개별 설정을 JSON 속성으로 지정합니다.
@@ -5254,7 +5263,6 @@ Chrome Root Store를 공개 신뢰의 소스로 사용하는 내장된
 <translation id="4435032708588431506">QUIC 허용</translation>
 <translation id="443665821428652897">브라우저 종료 시 사이트 데이터 지우기(지원 중단)</translation>
 <translation id="4436941175475497595">인쇄 미리보기 사용 안함</translation>
-<translation id="4436992815485865052">Gemini 실험 버전 트리거를 허용합니다.</translation>
 <translation id="4439336120285389675">지원 중단된 웹 플랫폼 기능 중 일시적으로 다시 사용 설정할 기능을 지정합니다.
 
       이 정책을 사용하면 관리자는 지원 중단된 웹 플랫폼 기능을 일시적으로 다시 사용 설정할 수 있습니다. 기능은 문자열 태그에 의해 식별되며 이 정책에 의해 지정된 목록에 있는 태그와 일치하는 기능은 다시 사용 설정됩니다.
@@ -6687,7 +6695,6 @@ False로 설정하면 <ph name="PRODUCT_NAME" />에서 시스템 알림을 사�
 <translation id="5255790642269910630">이 정책을 설정하면 정책 값을 변경한 후 처음 연결할 때와 재부팅할 때마다 지정된 방향으로 각 화면이 회전합니다. 사용자는 로그인한 후 설정 페이지를 통해 화면 회전을 변경할 수 있으나, 다음 재부팅 시 원래 설정으로 다시 변경됩니다. 이 정책은 기본 및 보조 화면에 적용됩니다.
 
 설정하지 않으면 기본값은 0도이며 사용자가 자유롭게 변경할 수 있습니다. 이 경우 다시 시작할 때 기본값이 재적용되지 않습니다.</translation>
-<translation id="5256792633540454282">Gemini 실험 버전 트리거 제어</translation>
 <translation id="5257395339965216304">호스팅된 앱 데이터</translation>
 <translation id="5258445772095084618">제휴되지 않은 사용자가 Linux 앱을 지원하는 데 필요한 가상 머신을 사용하도록 허용</translation>
 <translation id="5258651513421638932">분리형 앱의 스마트 카드 연결 허용</translation>
@@ -7713,7 +7720,6 @@ Microsoft SharePoint 및 OneDrive 카드에는 추가 관리자 구성이 필요
 
       이 정책은 지원 중단되었으므로 <ph name="PRINTERS_BULK_BLOCKLIST" /> 정책을 대신 사용하세요.</translation>
 <translation id="591088232153082363">배터리 사용량 패턴에 맞춰 배터리를 충전합니다.</translation>
-<translation id="5911656389795271430">이 정책은 실험 정책입니다.</translation>
 <translation id="5913506885872855604">이 정책은 <ph name="LOCAL_NETWORK_ACCES" /> 검사를 받지 않도록 특정 내부 주소 범위를 '공개'로 처리하는 데 사용할 수 있습니다. 반대로, 내부적으로 사용될 수 있는 특정 공개 주소 범위를 '로컬'로 처리하여 <ph name="LOCAL_NETWORK_ACCESS" /> 검사로 보호하는 데 사용할 수 있습니다.
 
 IP 주소 공간 재정의에는 두 가지 형식이 있습니다.
@@ -8150,6 +8156,25 @@ ArcEnabled 및 UnaffiliatedArcAllowed 정책에서 적용하는 제한사항과 
 <translation id="624219423122512710">유휴 브라우저 작업</translation>
 <translation id="6244061205361004687">사용자가 VPN을 수동으로 연결 해제하거나 수정하도록 허용</translation>
 <translation id="6244210204546589761">시작 시 열리는 URL</translation>
+<translation id="6245828368576563662">이 정책을 사용하면 특정 URL 패턴과 일치하는 웹 요청에 커스텀 HTTP 헤더를 삽입하는 규칙 목록을 정의할 수 있습니다. 이 정책에 의해 설정된 헤더는 요청에 원래 포함되어 있던 헤더뿐만 아니라 사용자 또는 확장 프로그램이 시도한 수정 사항보다 우선 적용됩니다.
+
+이 정책의 일반적인 사용 사례는 커스텀 헤더(예: <ph name="EXAMPLE_HEADER_NAME" />)를 삽입하여 테넌트 액세스 제어를 적용하는 것입니다.
+
+이 정책은 규칙 목록을 허용합니다. 각 규칙에는 다음이 포함됩니다.
+
+* <ph name="PATTERNS_KEY" />: 일치시킬 URL 패턴 목록입니다. URL 패턴의 형식을 지정하는 방법을 확인하세요( https://support.google.com/chrome/a?p=url_blocklist_filter_format ).
+
+* <ph name="HEADERS_KEY" />: 삽입할 헤더를 나타내는 객체 목록입니다. 각 객체에는 다음이 포함됩니다.
+
+  * <ph name="HEADER_NAME_KEY" />: 삽입할 헤더의 이름입니다.
+
+  * <ph name="HEADER_VALUE_KEY" />: 삽입할 헤더의 값입니다.
+
+요청과 일치하는 규칙이 여러 개 있는 경우 일치하는 모든 규칙의 헤더가 적용됩니다. 이름이 같은 헤더가 여러 개 있는 경우 가장 구체적인 URL 패턴이 있는 헤더가 적용됩니다. 패턴이 동일하게 구체적인 경우에는 목록에서 마지막에 표시되는 패턴이 적용됩니다.
+
+헤더 이름은 RFC 2616( https://www.rfc-editor.org/rfc/rfc2616 )을 준수해야 합니다. 헤더 값에는 NUL, CR 또는 LF 기호가 포함되어서는 안 됩니다. 개별 헤더는 8KB를 초과할 수 없습니다. 잘못된 헤더 및 URL 패턴은 무시됩니다.
+
+이 정책은 모든 규칙에서 총 500개 URL 패턴으로 제한됩니다. 각 규칙에는 최대 20개 헤더가 포함될 수 있습니다. 이러한 기준점을 초과하는 패턴과 헤더는 무시됩니다.</translation>
 <translation id="624595269193747921">일치하는 프린터 검색을 특정 프린터 집합으로 제한할지를 나타냅니다.</translation>
 <translation id="6246290059248303618">로컬 네트워크에 있는 다른 기기에서 시작한 <ph name="PRODUCT_NAME" /> 세션에 미디어 컨트롤을 표시합니다.</translation>
 <translation id="6247316685259031374">이 정책은 오디오 프로세스 샌드박스를 제어합니다.
@@ -8439,6 +8464,25 @@ Origin-Agent-Cluster: 헤더가 설정되지 않았을 때 M111의 기본값은 
 <translation id="6383774771168138899"><ph name="MICROSOFT_ONE_DRIVE_NAME" /> 및 <ph name="MICROSOFT_365_NAME" />의 <ph name="CLOUD_UPLOAD_NAME" /> 흐름 구성</translation>
 <translation id="6384542789059421431">브라우저 측면 패널에 기본 검색엔진 결과 페이지 표시를 사용 설정합니다.</translation>
 <translation id="6389240462871677239">분리형 웹 앱 출처에서 제어된 프레임을 사용하도록 허용</translation>
+<translation id="6393598243777822017">이 정책은 <ph name="PRODUCT_NAME" /> 측면 패널 또는 탭을 통한 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />의 스마트 탭 공유 기능을 제어합니다.
+
+이 정책은 웹의 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />에는 영향을 미치지 않습니다. <ph name="PRODUCT_NAME" /> 이용 시 사용자가 정보를 공유하는 방식을 제어할 뿐입니다.
+
+0 = 사용자가 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />에 페이지 또는 파일 콘텐츠를 공유할 수 있습니다.
+
+1 = 사용자가 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />에 페이지 또는 파일 콘텐츠를 공유할 수 없습니다. 컨텍스트 공유의 진입점과 측면 패널이 사용 중지되거나 숨겨집니다.
+
+이 기능이 사용 중지되어 있으므로 <ph name="GOOGLE_SEARCH_PRODUCT_NAME" />이 사용자의 기본 검색엔진이 아닌 경우 이 정책은 무시됩니다.
+
+이 정책은 <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> 정책과 별개입니다. <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> 정책은 검색주소창 또는 NTP 검색창의 진입점만 제어하는 반면, 이 정책은 측면 패널 또는 탭을 통한 컨텍스트 공유를 제어합니다.
+
+이 정책은 <ph name="GEMINI_SETTINGS_POLICY_NAME" />에서 사용 중지할 수 있는 <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> 통합도 제어하지 않습니다.
+
+<ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> 정책이 사용 중지되면 이 정책은 무시됩니다.
+
+정책을 설정하지 않으면 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 정책에 따라 동작이 결정됩니다.
+
+생성형 AI 기능의 데이터 처리에 관한 자세한 내용은 https://support.google.com/chrome/a?p=generative_ai_settings 페이지를 참고하세요.</translation>
 <translation id="6394350458541421998">이 정책은 <ph name="PRODUCT_OS_NAME" /> 버전 29를 기준으로 지원 중단되었습니다. 대신 PresentationScreenDimDelayScale 정책을 사용해 주시기 바랍니다.</translation>
 <translation id="6397588391180665797">등록된 기기에서 사용자 네트워크 구성을 보고합니다.
 
@@ -10931,6 +10975,7 @@ https://chromeenterprise.google/policies/url-patterns를 참고하세요.
 
 <ph name="ENABLE_MEDIA_ROUTER_POLICY_NAME" /> 정책이 사용 안함으로 설정된 경우 이 정책의 값은 적용되지 않으며, 툴바 아이콘도 표시되지 않습니다.</translation>
 <translation id="7933141401888114454">관리 대상 사용자 생성을 허용합니다.</translation>
+<translation id="793360449603660370"><ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> 통합과의 스마트 탭 공유를 허용합니다.</translation>
 <translation id="793473937901685727">ARC 앱에 인증서 사용 가능 여부 설정</translation>
 <translation id="7936302526928951356">메이저 버전에서는 사용자 에이전트 문자열이 고정되지 않습니다.</translation>
 <translation id="7936632434238618620">정책을 설정하면 Chrome에서 클라이언트 인증서를 자동으로 선택할 사이트를 지정하는 URL 패턴 목록을 작성할 수 있습니다. 값은 각각 <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_EXAMPLE" /> 형식의 문자열화된 JSON 사전 배열이며, 여기에서 <ph name="URL_PATTERN_PLACEHOLDER" />은 콘텐츠 설정 패턴입니다. <ph name="FILTER_PLACEHOLDER" />는 브라우저에서 자동으로 선택할 클라이언트 인증서를 제한합니다. 필터와 관계없이 서버의 인증서 요청과 일치하는 인증서만 선택됩니다. Android 및 iOS에서 Chrome은 자체적으로 프로비저닝한 클라이언트 인증서만 선택할 수 있으며 운영체제 수준에서 설치된 인증서에는 액세스할 수 없습니다.

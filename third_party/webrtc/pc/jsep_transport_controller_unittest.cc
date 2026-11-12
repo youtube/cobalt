@@ -2349,6 +2349,32 @@ TEST_F(JsepTransportControllerTest, RejectFirstContentInBundleGroup) {
   EXPECT_EQ(nullptr, transport_controller_->GetDtlsTransport(kDataMid1));
 }
 
+TEST_F(JsepTransportControllerTest,
+       RejectMissingContentInStaleRemoteOfferBundleGroup) {
+  CreateJsepTransportController(JsepTransportController::Config());
+
+  auto local_offer = CreateSessionDescriptionWithBundleGroup();
+  std::unique_ptr<SessionDescription> remote_answer(local_offer->Clone());
+  EXPECT_TRUE(
+      transport_controller_
+          ->SetLocalDescription(SdpType::kOffer, local_offer.get(), nullptr)
+          .ok());
+  EXPECT_TRUE(transport_controller_
+                  ->SetRemoteDescription(SdpType::kAnswer, local_offer.get(),
+                                         remote_answer.get())
+                  .ok());
+
+  auto remote_reoffer = std::make_unique<SessionDescription>();
+  AddAudioSection(remote_reoffer.get(), kAudioMid1, kIceUfrag1, kIcePwd1,
+                  ICEMODE_FULL, CONNECTIONROLE_ACTPASS, nullptr);
+  remote_reoffer->contents()[0].rejected = true;
+
+  RTCError error = transport_controller_->SetRemoteDescription(
+      SdpType::kOffer, local_offer.get(), remote_reoffer.get());
+  EXPECT_FALSE(error.ok());
+  EXPECT_EQ(RTCErrorType::INVALID_PARAMETER, error.type());
+}
+
 // Tests that applying non-RTCP-mux offer would fail when kRtcpMuxPolicyRequire
 // is used.
 TEST_F(JsepTransportControllerTest, ApplyNonRtcpMuxOfferWhenMuxingRequired) {

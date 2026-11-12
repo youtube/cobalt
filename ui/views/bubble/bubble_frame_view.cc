@@ -178,7 +178,9 @@ std::unique_ptr<Label> BubbleFrameView::CreateDefaultTitleLabel(
 std::unique_ptr<Button> BubbleFrameView::CreateCloseButton(
     Button::PressedCallback callback) {
   auto close_button = CreateVectorImageButtonWithNativeTheme(
-      std::move(callback), vector_icons::kCloseChromeRefreshOldIcon);
+      std::move(callback), features::IsRoundedIconsEnabled()
+                               ? vector_icons::kCloseIcon
+                               : vector_icons::kCloseChromeRefreshOldIcon);
   close_button->SetTooltipText(l10n_util::GetStringUTF16(IDS_APP_CLOSE));
   close_button->GetViewAccessibility().SetName(
       l10n_util::GetStringUTF16(IDS_APP_CLOSE));
@@ -505,16 +507,16 @@ void BubbleFrameView::UpdateMainImage() {
 
     const int border_radius = LayoutProvider::Get()->GetCornerRadiusMetric(
         Emphasis::kHigh, gfx::Size());
+    const ui::ColorProvider* color_provider = GetColorProvider();
     main_image_->SetImage(ui::ImageModel::FromImageSkia(
         gfx::ImageSkiaOperations::CreateCroppedCenteredRoundRectImage(
             gfx::Size(main_image_dimension, main_image_dimension),
             border_radius - 2 * kMainImageBorderStrokeThickness,
-            model.GetImage().AsImageSkia())));
+            model.Rasterize(color_provider))));
     main_image_->SetBorder(views::CreateRoundedRectBorder(
         kMainImageBorderStrokeThickness, border_radius, image_insets,
-        GetColorProvider()
-            ? GetColorProvider()->GetColor(ui::kColorBubbleBorder)
-            : gfx::kPlaceholderColor));
+        color_provider ? color_provider->GetColor(ui::kColorBubbleBorder)
+                       : gfx::kPlaceholderColor));
 
     main_image_->SetVisible(true);
   }

@@ -232,6 +232,47 @@ TEST(DSATest, Verify) {
                           sizeof(fips_sig_bad_r), dsa.get()));
 }
 
+TEST(DSATest, CheckSignature) {
+  bssl::UniquePtr<DSA> dsa = GetFIPSDSA();
+  ASSERT_TRUE(dsa);
+
+  int valid;
+
+  // Valid signature
+  valid = 42;
+  EXPECT_EQ(1, DSA_check_signature(&valid, fips_digest, sizeof(fips_digest),
+                                   fips_sig, sizeof(fips_sig), dsa.get()));
+  EXPECT_EQ(1, valid);
+
+  // Bad r (invalid signature, not error)
+  valid = 42;
+  EXPECT_EQ(1, DSA_check_signature(&valid, fips_digest, sizeof(fips_digest),
+                                   fips_sig_bad_r, sizeof(fips_sig_bad_r),
+                                   dsa.get()));
+  EXPECT_EQ(0, valid);
+
+  // Negative signature (error)
+  valid = 42;
+  EXPECT_EQ(0, DSA_check_signature(&valid, fips_digest, sizeof(fips_digest),
+                                   fips_sig_negative, sizeof(fips_sig_negative),
+                                   dsa.get()));
+  EXPECT_EQ(0, valid);
+
+  // Extra data (error)
+  valid = 42;
+  EXPECT_EQ(0, DSA_check_signature(&valid, fips_digest, sizeof(fips_digest),
+                                   fips_sig_extra, sizeof(fips_sig_extra),
+                                   dsa.get()));
+  EXPECT_EQ(0, valid);
+
+  // Bad length (error)
+  valid = 42;
+  EXPECT_EQ(0, DSA_check_signature(&valid, fips_digest, sizeof(fips_digest),
+                                   fips_sig_bad_length,
+                                   sizeof(fips_sig_bad_length), dsa.get()));
+  EXPECT_EQ(0, valid);
+}
+
 TEST(DSATest, InvalidGroup) {
   bssl::UniquePtr<DSA> dsa = GetFIPSDSA();
   ASSERT_TRUE(dsa);

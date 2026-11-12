@@ -175,6 +175,7 @@ export class NtpSearchboxElement extends NtpSearchboxElementBase implements
       //========================================================================
       tabSuggestions_: {type: Array},
       inputState_: {type: Object},
+      recentTabId_: {type: Number},
 
       /** Searchbox default icon (i.e., Google G icon or the search loupe). */
       searchboxIcon_: {type: String},
@@ -195,10 +196,12 @@ export class NtpSearchboxElement extends NtpSearchboxElementBase implements
         type: Boolean,
         reflect: true,
       },
+      energyEffectAnimationEnabled: {type: Boolean},
     };
   }
 
   accessor ntpRealboxNextEnabled: boolean = false;
+  accessor energyEffectAnimationEnabled: boolean = false;
   accessor composeboxEnabled: boolean = false;
   accessor composeButtonEnabled: boolean = false;
   accessor cyclingPlaceholders: boolean = false;
@@ -218,6 +221,7 @@ export class NtpSearchboxElement extends NtpSearchboxElementBase implements
   accessor searchboxSteadyStateShadow: boolean =
       loadTimeData.getBoolean('searchboxCr23SteadyStateShadow');
   accessor placeholderText: string = '';
+  accessor recentTabId_: number|null = null;
 
   accessor inVoiceSearchMode: boolean = false;
   // If voice search error scrim is showing:
@@ -485,6 +489,7 @@ export class NtpSearchboxElement extends NtpSearchboxElementBase implements
       return;
     }
     const {tabs} = await this.pageHandler().getRecentTabs();
+    this.recentTabId_ = tabs[0]?.tabId ?? null;
     this.tabSuggestions_ = [...tabs];
 
     if (this.contextMenuOpened_ && this.inputState_) {
@@ -601,7 +606,7 @@ export class NtpSearchboxElement extends NtpSearchboxElementBase implements
     }
     const queryText = isSearch ? this.$.input.inputElement.value.trim() : '';
 
-    if (!this.composeboxEnabled || queryText) {
+    if (queryText) {
       const histogramName =
           'ContextualSearch.UserAction.SubmitQueryV2.NewTabPage';
       // LINT.IfChange(ContextualSearchContextState)
@@ -613,7 +618,9 @@ export class NtpSearchboxElement extends NtpSearchboxElementBase implements
       const userActionName =
           'ContextualSearch.UserAction.SubmitQueryV2.WithoutContext.NewTabPage';
       chrome.histograms.recordUserAction(userActionName);
+    }
 
+    if (!this.composeboxEnabled || queryText) {
       this.pageHandler().notifySessionStarted();
       this.pageHandler().submitQuery(
           queryText, e.detail.button, false, /* altKey */

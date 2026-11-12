@@ -4489,7 +4489,7 @@ VkResult QueryHelper::getResultImpl(ContextVk *contextVk,
 
     VkDevice device = contextVk->getDevice();
     VkResult result = getQueryPool().getResults(device, mQuery, mQueryCount, sizeof(results),
-                                                results.data(), sizeof(uint64_t), flags);
+                                                results.data(), resultOut->getDataSize(), flags);
 
     if (result == VK_SUCCESS)
     {
@@ -11322,8 +11322,10 @@ angle::Result ImageHelper::readPixelsImpl(ContextVk *contextVk,
     Renderer *renderer = contextVk->getRenderer();
 
     bool isExternalFormat = getExternalFormat() != 0;
-    ASSERT(!isExternalFormat || (mActualFormatID >= angle::FormatID::EXTERNAL0 &&
-                                 mActualFormatID <= angle::FormatID::EXTERNAL7));
+
+    // Vulkan spec says that mYcbcrConversionDesc is always set for samplable external-format
+    // images
+    ASSERT(!isExternalFormat || mYcbcrConversionDesc.valid());
 
     // If the source image is multisampled, we need to resolve it into a temporary image before
     // performing a readback.
