@@ -223,10 +223,14 @@ class FreezeStorageFlushObserver : public CobaltLifecycleManagerObserver,
 
   void FreezeAndFlush(CobaltContentBrowserClient* client,
                       content::WebContents* web_contents) {
+    if (!content::BrowserThread::CurrentlyOn(content::BrowserThread::UI)) {
+      return;
+    }
     if (!client) {
       return;
     }
-    if (!web_contents) {
+    if (!web_contents || web_contents->IsBeingDestroyed() ||
+        web_contents->GetVisibility() == content::Visibility::VISIBLE) {
       client->FlushCookiesAndLocalStorage(base::DoNothing());
       return;
     }
@@ -290,13 +294,17 @@ static void JNI_CobaltContentBrowserClient_FlushCookiesAndLocalStorage(
 static void JNI_CobaltContentBrowserClient_FreezeAndFlushCookiesAndLocalStorage(
     JNIEnv*,
     const base::android::JavaParamRef<jobject>& jweb_contents) {
+  if (!content::BrowserThread::CurrentlyOn(content::BrowserThread::UI)) {
+    return;
+  }
   auto* client = CobaltContentBrowserClient::Get();
   if (!client) {
     return;
   }
   content::WebContents* web_contents =
-      jweb_contents ? content::WebContents::FromJavaWebContents(jweb_contents)
-                    : nullptr;
+      !jweb_contents.is_null()
+          ? content::WebContents::FromJavaWebContents(jweb_contents)
+          : nullptr;
   FreezeStorageFlushObserver::GetInstance()->FreezeAndFlush(client,
                                                             web_contents);
 }
@@ -329,6 +337,9 @@ static jint JNI_CobaltContentBrowserClient_GetFreezeOnBackgroundDelayMs(
 
 static jboolean JNI_CobaltContentBrowserClient_IsFlushStorageOnFreezeEnabled(
     JNIEnv*) {
+  if (!base::FeatureList::GetInstance()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(features::kCobaltFlushStorageOnFreeze);
 }
 
