@@ -1062,4 +1062,26 @@ TEST_F(ParkableImageWithLimitedDiskCapacityTest, ParkWithLimitedDiskCapacity) {
   EXPECT_TRUE(is_on_disk(pi2));
 }
 
+#if BUILDFLAG(IS_COBALT)
+TEST_F(ParkableImageTest, CobaltParkableMemoryOptimizationDisablesDiskParking) {
+  base::test::ScopedFeatureList cobalt_fl(
+      features::kCobaltParkableMemoryOptimization);
+  EXPECT_FALSE(ParkableImageManager::IsParkableImagesToDiskEnabled());
+
+  const size_t kDataSize = 3.5 * 4096;
+  auto data = base::HeapArray<uint8_t>::Uninit(kDataSize);
+  PrepareReferenceData(data);
+
+  auto pi = MakeParkableImageForTesting(data);
+  pi->Freeze();
+  pi->Data();
+  WaitForParking();
+  RunPostedTasks();
+
+  EXPECT_FALSE(is_on_disk(pi));
+  ExpectWriteStatistics(kDataSize / 1024, 0);
+  EXPECT_TRUE(IsSameContent(pi, data));
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace blink

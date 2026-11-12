@@ -44,7 +44,9 @@ class CobaltMemoryMetricsEmitter
   enum class MetricSize {
     kPercentage,  // percentages, 0% - 100%
     kLarge,       // 1MiB - 64,000MiB
-    kSmall,       // 10 - 500,000KiB
+    kSmall,       // 1,000 - 500,000KiB (UmaHistogramMemoryKB)
+    kSmallFine,   // 1 - 100,000KiB (UmaHistogramCounts100000, sub-1MiB
+                  // precision)
     kTiny,        // 1 - 500,000B
     kCustom,      // custom range, in bytes
   };

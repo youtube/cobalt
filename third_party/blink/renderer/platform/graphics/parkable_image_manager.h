@@ -38,7 +38,14 @@ class PLATFORM_EXPORT ParkableImageManager
   size_t Size() const LOCKS_EXCLUDED(lock_);
 
   static bool IsParkableImagesToDiskEnabled() {
+#if BUILDFLAG(IS_COBALT)
+    // Route through the shared helper so kCobaltParkableMemoryOptimization
+    // also stops the renderer's delayed image parking task, not only the
+    // browser's swap file creation.
+    return features::IsParkableImagesToDiskEnabled();
+#else
     return base::FeatureList::IsEnabled(features::kParkableImagesToDisk);
+#endif  // BUILDFLAG(IS_COBALT)
   }
 
   void MaybeParkImagesForTesting() { MaybeParkImages(); }

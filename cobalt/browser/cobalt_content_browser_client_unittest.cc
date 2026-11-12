@@ -39,6 +39,7 @@
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/trace_event/memory_infra_background_allowlist.h"
 #include "build/build_config.h"
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
@@ -77,6 +78,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "third_party/blink/public/mojom/v8_cache_options.mojom.h"
 #include "url/origin.h"
@@ -1376,6 +1378,32 @@ TEST_F(CobaltPlatformServiceBinderTest,
   state_.on_close = close_loop.QuitClosure();
   service.reset();
   close_loop.Run();
+}
+
+TEST_F(CobaltContentBrowserClientTest, CobaltParkableMemoryOptimization) {
+  EXPECT_FALSE(base::FeatureList::IsEnabled(
+      blink::features::kCobaltParkableMemoryOptimization));
+  EXPECT_TRUE(blink::features::IsParkableImagesToDiskEnabled());
+  EXPECT_TRUE(blink::features::IsParkableStringsToDiskEnabled());
+
+  base::test::ScopedFeatureList feature_list(
+      blink::features::kCobaltParkableMemoryOptimization);
+  EXPECT_FALSE(blink::features::IsParkableImagesToDiskEnabled());
+  EXPECT_FALSE(blink::features::IsParkableStringsToDiskEnabled());
+  EXPECT_TRUE(
+      base::FeatureList::IsEnabled(blink::features::kCompressParkableStrings));
+}
+
+TEST_F(CobaltContentBrowserClientTest,
+       ParkableInMemoryInfraBackgroundAllowlist) {
+  EXPECT_TRUE(
+      base::trace_event::IsMemoryDumpProviderInAllowlist("ParkableImages"));
+  EXPECT_TRUE(
+      base::trace_event::IsMemoryDumpProviderInAllowlist("ParkableStrings"));
+  EXPECT_TRUE(base::trace_event::IsMemoryAllocatorDumpNameInAllowlist(
+      "parkable_images"));
+  EXPECT_TRUE(base::trace_event::IsMemoryAllocatorDumpNameInAllowlist(
+      "parkable_strings"));
 }
 
 }  // namespace

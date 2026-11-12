@@ -458,6 +458,13 @@ BASE_FEATURE(kCobaltBypassHTMLPreloadScanner,
              "CobaltBypassHTMLPreloadScanner",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Disables ParkableImage and ParkableString disk swapping in Cobalt, so no
+// DiskDataAllocator swap file is created in DIR_CACHE and parked data is never
+// read back from disk on the main thread.
+BASE_FEATURE(kCobaltParkableMemoryOptimization,
+             "CobaltParkableMemoryOptimization",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables preserving kTrivial3DTransform (e.g. translateZ(0)) on low-end
 // devices so that shelf tracks and carousels are promoted to dedicated
 // hardware-composited cc::PictureLayers rather than triggering CPU repaints.
@@ -2951,11 +2958,21 @@ bool IsFencedFramesEnabled() {
 }
 
 bool IsParkableStringsToDiskEnabled() {
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(kCobaltParkableMemoryOptimization)) {
+    return false;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   // Always enabled as soon as compression is enabled.
   return base::FeatureList::IsEnabled(kCompressParkableStrings);
 }
 
 bool IsParkableImagesToDiskEnabled() {
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(kCobaltParkableMemoryOptimization)) {
+    return false;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   return base::FeatureList::IsEnabled(kParkableImagesToDisk);
 }
 
