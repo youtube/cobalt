@@ -16,6 +16,7 @@
 #import <UIKit/UIKit.h>
 
 #include "starboard/common/log.h"
+#include "starboard/common/size.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/feature_list.h"
@@ -23,6 +24,7 @@
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
+#include "starboard/shared/starboard/media/resolutions.h"
 #import "starboard/tvos/shared/media/playback_capabilities.h"
 
 namespace starboard {
@@ -38,23 +40,24 @@ constexpr MimeParam kMimeParamExperimental{"experimental"};
 }  // namespace
 
 bool MediaIsVideoSupported(const MimeType* mime_type,
-                           const VideoSupportQuery& query) {
-  const ParsedVideoCodec& codec_info = query.codec_info;
+                           const VideoSupportQueryParams& params) {
+  const ParsedVideoCodec& codec_info = params.codec_info;
+  const Size& frame_size = params.frame_size;
 
   @autoreleasepool {
-    if (query.bitrate > kSbMediaMaxVideoBitrateInBitsPerSecond) {
+    if (params.bitrate > kSbMediaMaxVideoBitrateInBitsPerSecond) {
       return false;
     }
 
     const int max_fps =
         features::FeatureList::IsEnabled(features::kSupport120FpsVideo) ? 120
                                                                         : 60;
-    if (query.fps > max_fps) {
+    if (params.fps > max_fps) {
       return false;
     }
 
     // Reject HFR video on SFR displays.
-    if (query.fps > 45) {
+    if (params.fps > 45) {
       NSInteger refresh_rate = UIScreen.mainScreen.maximumFramesPerSecond;
       if (refresh_rate < 1) {
         refresh_rate = 60;
@@ -67,8 +70,7 @@ bool MediaIsVideoSupported(const MimeType* mime_type,
     bool is_hdr = !Is8BitSDRVideo(codec_info.bit_depth, codec_info.primary_id,
                                   codec_info.transfer_id, codec_info.matrix_id);
     if (codec_info.codec == kSbMediaVideoCodecH264) {
-      return !is_hdr && query.frame_size.height <= 1080 &&
-             query.frame_size.width <= 1920;
+      return !is_hdr && frame_size.FitsWithin(Resolution::k1080p);
     }
 
     if (is_hdr) {
@@ -86,8 +88,7 @@ bool MediaIsVideoSupported(const MimeType* mime_type,
     if (codec_info.codec == kSbMediaVideoCodecVp9) {
 #if defined(COBALT_INTERNAL_BUILD)
       if (PlaybackCapabilities::IsHwVp9Supported()) {
-        return query.frame_size.height <= 2160 &&
-               query.frame_size.width <= 3840;
+        return frame_size.FitsWithin(Resolution::k4k);
       }
 
       bool experimental_allowed = false;
@@ -112,25 +113,20 @@ bool MediaIsVideoSupported(const MimeType* mime_type,
         }
         if (PlaybackCapabilities::IsAppleTV4K()) {
           // The sw vp9 decoder capability for Apple TV 4K.
-          if (query.frame_size.height <= 1080 &&
-              query.frame_size.width <= 1920) {
+          if (frame_size.FitsWithin(Resolution::k1080p)) {
             return true;
           }
-          if (query.frame_size.height <= 1440 &&
-              query.frame_size.width <= 2560) {
-            return !is_hdr || query.fps <= 30;
+          if (frame_size.FitsWithin(Resolution::k1440p)) {
+            return !is_hdr || params.fps <= 30;
           }
-          if (query.frame_size.height <= 2160 &&
-              query.frame_size.width <= 3840 && query.fps <= 30) {
+          if (frame_size.FitsWithin(Resolution::k4k) && params.fps <= 30) {
             return true;
           }
         } else {
           // The sw vp9 decoder capability for Apple TV HD.
-          if (query.frame_size.height <= 1080 &&
-              query.frame_size.width <= 1920 && query.fps <= 30) {
+          if (frame_size.FitsWithin(Resolution::k1080p) && params.fps <= 30) {
             return true;
-          } else if (query.frame_size.height <= 720 &&
-                     query.frame_size.width <= 1280) {
+          } else if (frame_size.FitsWithin(Resolution::k720p)) {
             return true;
           }
         }
@@ -146,8 +142,7 @@ bool MediaIsVideoSupported(const MimeType* mime_type,
 #if defined(COBALT_INTERNAL_BUILD)
       if (PlaybackCapabilities::IsHwAv1Supported()) {
         // Cap resolution to 4k for AV1 implementation verification.
-        return query.frame_size.height <= 2160 &&
-               query.frame_size.width <= 3840;
+        return frame_size.FitsWithin(Resolution::k4k);
       }
 #endif  // defined(COBALT_INTERNAL_BUILD)
     }

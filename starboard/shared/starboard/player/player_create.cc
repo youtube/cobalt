@@ -33,7 +33,7 @@
 #include "starboard/shared/starboard/player/player_worker.h"
 
 using ::starboard::MimeType;
-using ::starboard::VideoSupportQuery;
+using ::starboard::VideoSupportQueryParams;
 
 SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         const SbPlayerCreationParam* creation_param,
@@ -155,13 +155,13 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
     }
     // Fields that aren't set explicitly keep their default values, i.e. they
     // are unknown and shouldn't be considered.
-    VideoSupportQuery query;
-    query.codec_info.codec = video_codec;
-    query.bitrate = kDefaultBitRate;
-    query.decode_to_texture_required =
+    VideoSupportQueryParams params;
+    params.codec_info.codec = video_codec;
+    params.bitrate = kDefaultBitRate;
+    params.decode_to_texture_required =
         output_mode == kSbPlayerOutputModeDecodeToTexture;
     if (!MediaIsVideoSupported(video_mime_type ? &*video_mime_type : nullptr,
-                               query)) {
+                               params)) {
       SB_LOG(ERROR) << "Unsupported video codec "
                     << starboard::GetMediaVideoCodecName(video_codec) << ".";
       player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,

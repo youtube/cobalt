@@ -17,19 +17,21 @@
 // clang-format on
 
 #include "starboard/common/log.h"
+#include "starboard/common/size.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/gles.h"
 #include "starboard/media.h"
 #include "starboard/shared/libde265/de265_library_loader.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/media/resolutions.h"
 #include "starboard/system.h"
 
 namespace starboard {
 
 bool MediaIsVideoSupported(const MimeType* mime_type,
-                           const VideoSupportQuery& query) {
-  const ParsedVideoCodec& codec_info = query.codec_info;
+                           const VideoSupportQueryParams& params) {
+  const ParsedVideoCodec& codec_info = params.codec_info;
   const SbMediaVideoCodec video_codec = codec_info.codec;
 
   if (!Is8BitSDRVideo(codec_info.bit_depth, codec_info.primary_id,
@@ -44,7 +46,7 @@ bool MediaIsVideoSupported(const MimeType* mime_type,
     }
   }
 
-  if (query.decode_to_texture_required) {
+  if (params.decode_to_texture_required) {
     bool has_gles_support = SbGetGlesInterface();
 
     if (!has_gles_support) {
@@ -56,18 +58,16 @@ bool MediaIsVideoSupported(const MimeType* mime_type,
 
   static const bool can_support_8k = SbSystemGetNumberOfProcessors() >= 16;
 
-  const int max_width = can_support_8k ? 7680 : 1920;
-  const int max_height = can_support_8k ? 4320 : 1080;
+  const Size max_size = can_support_8k ? Resolution::k8k : Resolution::k1080p;
 
   return (video_codec == kSbMediaVideoCodecAv1 ||
           video_codec == kSbMediaVideoCodecH264 ||
           (video_codec == kSbMediaVideoCodecH265 && is_de265_supported()) ||
           (video_codec == kSbMediaVideoCodecVp8) ||
           (video_codec == kSbMediaVideoCodecVp9)) &&
-         query.frame_size.width <= max_width &&
-         query.frame_size.height <= max_height &&
-         query.bitrate <= kSbMediaMaxVideoBitrateInBitsPerSecond &&
-         query.fps <= 60;
+         params.frame_size.FitsWithin(max_size) &&
+         params.bitrate <= kSbMediaMaxVideoBitrateInBitsPerSecond &&
+         params.fps <= 60;
 }
 
 }  // namespace starboard

@@ -21,7 +21,7 @@
 namespace starboard {
 
 bool MediaIsVideoSupported(const MimeType* mime_type,
-                           const VideoSupportQuery& query) {
+                           const VideoSupportQueryParams& params) {
   return false;
 }
 

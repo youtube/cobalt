@@ -42,7 +42,7 @@ bool MediaIsKeySystemSupported(SbMediaVideoCodec video_codec,
                                const char* key_system);
 
 // Describes the video stream checked by MediaIsVideoSupported().
-struct VideoSupportQuery {
+struct VideoSupportQueryParams {
   // The video codec and the information parsed from the codec string.  The
   // video codec is |codec_info.codec|, which must not be
   // |kSbMediaVideoCodecNone|.  Other fields in |codec_info| keep their default
@@ -77,15 +77,16 @@ struct VideoSupportQuery {
   bool decode_to_texture_required = false;
 };
 
-// Indicates whether the video stream described by |query| is supported on this
-// platform.  If |query.codec_info.codec| is not supported under any condition,
+// Indicates whether the video stream described by |params| is supported on this
+// platform.  If |params.codec_info.codec| is not supported under any condition,
 // this function returns |false|.
 //
 // |mime_type|: The parsed mime type passed to the corresponding interface.
 //              Note that |mime_type| can be NULL.
-// |query|: The video stream to check.  See |VideoSupportQuery| for details.
+// |params|: The video stream to check.  See |VideoSupportQueryParams| for
+//           details.
 bool MediaIsVideoSupported(const MimeType* mime_type,
-                           const VideoSupportQuery& query);
+                           const VideoSupportQueryParams& params);
 
 // Indicates whether this platform supports |audio_codec| at |bitrate|.
 // If |audio_codec| is not supported under any condition, this function

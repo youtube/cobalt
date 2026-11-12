@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/size.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/feature_list.h"
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
+#include "starboard/shared/starboard/media/resolutions.h"
 #include "starboard/testing/scoped_feature_list.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -24,15 +24,15 @@ namespace starboard {
 namespace {
 
 bool Is1080pSdrH264SupportedAtFps(int fps) {
-  VideoSupportQuery query;
-  query.codec_info.codec = kSbMediaVideoCodecH264;
-  query.codec_info.primary_id = kSbMediaPrimaryIdBt709;
-  query.codec_info.transfer_id = kSbMediaTransferIdBt709;
-  query.codec_info.matrix_id = kSbMediaMatrixIdBt709;
-  query.frame_size = Size(1920, 1080);
-  query.bitrate = 5'000'000;
-  query.fps = fps;
-  return MediaIsVideoSupported(/*mime_type=*/nullptr, query);
+  VideoSupportQueryParams params;
+  params.codec_info.codec = kSbMediaVideoCodecH264;
+  params.codec_info.primary_id = kSbMediaPrimaryIdBt709;
+  params.codec_info.transfer_id = kSbMediaTransferIdBt709;
+  params.codec_info.matrix_id = kSbMediaMatrixIdBt709;
+  params.frame_size = Resolution::k1080p;
+  params.bitrate = 5'000'000;
+  params.fps = fps;
+  return MediaIsVideoSupported(/*mime_type=*/nullptr, params);
 }
 
 TEST(MediaIsVideoSupportedTest, DefaultFpsCapIs60) {

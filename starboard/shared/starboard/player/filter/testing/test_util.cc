@@ -199,14 +199,14 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
       const SbMediaVideoCodec video_codec = dmp_reader.video_codec();
       bool need_to_check_with_wait = video_codec == kSbMediaVideoCodecAv1 ||
                                      video_codec == kSbMediaVideoCodecVp9;
-      VideoSupportQuery query;
-      query.codec_info.codec = video_codec;
-      query.frame_size = video_stream_info.frame_size;
-      query.bitrate = dmp_reader.video_bitrate();
-      query.fps = dmp_reader.video_fps();
+      VideoSupportQueryParams params;
+      params.codec_info.codec = video_codec;
+      params.frame_size = video_stream_info.frame_size;
+      params.bitrate = dmp_reader.video_bitrate();
+      params.fps = dmp_reader.video_fps();
       do {
         if (MediaIsVideoSupported(video_mime_type ? &*video_mime_type : nullptr,
-                                  query)) {
+                                  params)) {
           test_params.push_back(std::make_tuple(filename, output_mode));
           break;
         } else if (need_to_check_with_wait && !decoder_has_been_checked_once) {

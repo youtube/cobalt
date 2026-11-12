@@ -29,8 +29,8 @@
 namespace starboard {
 
 bool MediaIsVideoSupported(const MimeType* mime_type,
-                           const VideoSupportQuery& query) {
-  const ParsedVideoCodec& codec_info = query.codec_info;
+                           const VideoSupportQueryParams& params) {
+  const ParsedVideoCodec& codec_info = params.codec_info;
 
   // 10-bit video with SDR color doesn't need an HDR display.
   if (!IsSDRColor(codec_info.primary_id, codec_info.transfer_id,
@@ -53,7 +53,7 @@ bool MediaIsVideoSupported(const MimeType* mime_type,
         mime_type->GetParamBoolValue(kMimeParamTunnelMode, false);
   }
 
-  if (must_support_tunnel_mode && query.decode_to_texture_required) {
+  if (must_support_tunnel_mode && params.decode_to_texture_required) {
     SB_LOG(WARNING) << "Tunnel mode is rejected because output mode decode to "
                        "texture is required but not supported.";
     return false;
@@ -85,7 +85,7 @@ bool MediaIsVideoSupported(const MimeType* mime_type,
                       codec_info.transfer_id, codec_info.matrix_id);
   return MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
       mime, require_secure_playback, needs_hdr_capable_decoder,
-      must_support_tunnel_mode, query.frame_size, query.bitrate, query.fps);
+      must_support_tunnel_mode, params.frame_size, params.bitrate, params.fps);
 }
 
 }  // namespace starboard

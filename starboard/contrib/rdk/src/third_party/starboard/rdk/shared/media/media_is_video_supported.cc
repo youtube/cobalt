@@ -32,6 +32,7 @@
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/common/log.h"
+#include "starboard/common/size.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -44,19 +45,20 @@
 namespace starboard {
 
 bool MediaIsVideoSupported(const MimeType* content_type,
-                           const VideoSupportQuery& query) {
-  const ParsedVideoCodec& codec_info = query.codec_info;
+                           const VideoSupportQueryParams& params) {
+  const ParsedVideoCodec& codec_info = params.codec_info;
 
-  if (query.decode_to_texture_required) {
+  if (params.decode_to_texture_required) {
     SB_LOG(WARNING) << "Decoding to texture required with "
-                    << query.frame_size.width << "x" << query.frame_size.height;
+                    << params.frame_size.width << "x"
+                    << params.frame_size.height;
     return false;
   }
 
   const auto video_resolution = platform::device().video_resolution().value_or(platform::Resolution{});
 
-  if (query.frame_size.height > video_resolution.height ||
-      query.frame_size.width > video_resolution.width) {
+  if (!params.frame_size.FitsWithin(
+          Size(video_resolution.width, video_resolution.height))) {
     return false;
   }
 
@@ -90,8 +92,9 @@ bool MediaIsVideoSupported(const MimeType* content_type,
     }
   }
 
-  return query.bitrate <= kSbMediaMaxVideoBitrateInBitsPerSecond &&
-         query.fps <= 60 && GstRegistryHasElementForMediaType(codec_info.codec);
+  return params.bitrate <= kSbMediaMaxVideoBitrateInBitsPerSecond &&
+         params.fps <= 60 &&
+         GstRegistryHasElementForMediaType(codec_info.codec);
 }
 
 }  // namespace starboard
