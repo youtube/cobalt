@@ -22,6 +22,7 @@ jobs:
     permissions:
       actions: read
       pull-requests: write
+      statuses: read
     steps:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -64,6 +65,15 @@ jobs:
 
           if [[ "${affects_tvos}" == "false" ]]; then
             echo "PR #${pr_number} doesn't affect tvOS."
+            exit 0
+          fi
+
+          # Kokoro doesn't build a commit twice, so it would leave the label,
+          # and the next push would build before its analysis.
+          started=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/status?per_page=100" \
+            --jq 'any(.statuses[]; .context == "kokoro")')
+          if [[ "${started}" == "true" ]]; then
+            echo "Kokoro already built ${HEAD_SHA}."
             exit 0
           fi
           [[ "${affects_tvos}" == "true" ]] || echo "tvOS Impact analysis didn't finish. Labeling anyway."
