@@ -197,9 +197,14 @@ const base::FeatureParam<int> kCobaltMemoryPressureBudgetMBParam{
 const base::FeatureParam<int> kCobaltMemoryPressurePollIntervalSecondsParam{
     &kEnableCobaltMemoryPressureEvaluator, "poll_interval_seconds", 10};
 
+// TODO(b/570129950): Remove this flag and the deprecated TrustedHeaderClient
+// code path (CobaltTrustedURLLoaderHeaderClient, CobaltTrustedHeaderClient,
+// CobaltContentBrowserClient::WillCreateURLLoaderFactory, and the IS_COBALT
+// kURLLoadOptionUseHeaderClient/AsCorsPreflight flags in url_loader.cc) after
+// 2026-12-10.
 BASE_FEATURE(kCobaltSkipTrustedHeaderClient,
              "CobaltSkipTrustedHeaderClient",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCobaltPlatformServicesOffUiThread,
              "CobaltPlatformServicesOffUiThread",
