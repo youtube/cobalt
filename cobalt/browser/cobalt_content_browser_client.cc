@@ -235,6 +235,11 @@ static jint JNI_CobaltContentBrowserClient_GetFreezeOnBackgroundDelayMs(
   return std::max(0, features::kCobaltFreezeOnBackgroundDelayMs.Get());
 }
 
+static jboolean JNI_CobaltContentBrowserClient_IsFlushStorageOnFreezeEnabled(
+    JNIEnv*) {
+  return base::FeatureList::IsEnabled(features::kCobaltFlushStorageOnFreeze);
+}
+
 static jboolean
 JNI_CobaltContentBrowserClient_IsPlatformServicesOffUiThreadEnabled(JNIEnv*) {
   return base::FeatureList::IsEnabled(
