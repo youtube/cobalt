@@ -40,6 +40,12 @@ namespace starboard {
 class ReuseAllocatorBase : public Allocator {
  public:
   // Allocator methods.
+  // Returns the committed capacity: total bytes obtained from the fallback
+  // allocator minus bytes currently aggressively decommitted (kIdleDecommitted,
+  // MADV_DONTNEED). Blocks decommitted with MADV_FREE (kIdleFreed) are still
+  // counted because the kernel may not have reclaimed them yet. Note that
+  // `max_capacity_` enforcement deliberately uses the raw `capacity_` since the
+  // virtual address range of decommitted blocks remains reserved and reusable.
   size_t GetCapacity() const override {
     return capacity_ >= decommitted_bytes_ ? capacity_ - decommitted_bytes_ : 0;
   }
@@ -52,8 +58,10 @@ class ReuseAllocatorBase : public Allocator {
   // MADV_DONTNEED). Blocks in use are never affected.
   void DecommitAllDecommitableBlocks(bool include_retained_blocks = false);
 
-  // Attempts to decommit a single pending idle block, amortized by `cadence`.
-  // When `cadence == 1`, it immediately decommits a pending block.
+  // Attempts to decommit a single pending idle block after the post-reclaim /
+  // post-activation grace window (`decommit_grace_ticks_remaining_` calls) has
+  // elapsed, amortized by `cadence`. Once the grace window has elapsed and
+  // `cadence == 1`, each call decommits one pending block.
   void TryToDecommitOneBlock(int cadence);
 
  protected:

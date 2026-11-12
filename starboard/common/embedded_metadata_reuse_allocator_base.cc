@@ -206,6 +206,9 @@ void EmbeddedMetadataReuseAllocatorBase::Free(void* memory) {
     return;
   }
 
+  // Peek at the block header size so `GetAllocated()` reflects this free in
+  // O(1) time before the deferred `TryFree()` runs; the signature check mirrors
+  // `TryFree()`.
   const BlockMetadata* metadata = static_cast<const BlockMetadata*>(memory) - 1;
   if (metadata->signature == this && metadata->size > 0) {
     pending_free_bytes_ += static_cast<size_t>(metadata->size);
@@ -277,14 +280,14 @@ void EmbeddedMetadataReuseAllocatorBase::PrintAllocations(
   }
 
   size_t capacity = GetCapacity();
+  size_t allocated = GetAllocated();
   int64_t allocated_percentage =
-      capacity == 0
-          ? 0
-          : static_cast<int64_t>(total_allocated_in_bytes_) * 100 / capacity;
-  SB_LOG(INFO) << "Allocated " << total_allocated_in_bytes_ << " bytes ("
+      capacity == 0 ? 0 : static_cast<int64_t>(allocated) * 100 / capacity;
+  size_t free_bytes = capacity >= allocated ? capacity - allocated : 0;
+  SB_LOG(INFO) << "Allocated " << allocated << " bytes ("
                << allocated_percentage << "%) from a pool of capacity "
-               << capacity << " bytes.  There are "
-               << capacity - total_allocated_in_bytes_ << " free bytes.";
+               << capacity << " bytes.  There are " << free_bytes
+               << " free bytes.";
   SB_LOG(INFO) << "Total allocated block: " << total_allocated_blocks_;
 
   int lines = 0;
