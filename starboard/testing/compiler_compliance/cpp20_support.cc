@@ -38,8 +38,10 @@ TEST(Cpp20Support, StringEndsWith) {
 TEST(Cpp20Support, EraseIf) {
   std::vector<char> cnt(10);
   std::iota(cnt.begin(), cnt.end(), '0');
-  std::erase(cnt, '3');
-  std::erase_if(cnt, [](char x) { return (x - '0') % 2 == 0; });
+  EXPECT_EQ(1U, std::erase(cnt, '3'));
+  EXPECT_EQ(5U, std::erase_if(cnt, [](char x) { return (x - '0') % 2 == 0; }));
+  ASSERT_EQ(4U, cnt.size());
+  EXPECT_EQ(std::vector<char>({'1', '5', '7', '9'}), cnt);
 }
 
 // Test std::midpoint support
