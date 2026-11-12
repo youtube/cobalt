@@ -1015,12 +1015,14 @@ void MediaCodecVideoDecoder::RetryCodecCreation() {
       std::move(*codec_creation_retry_.pending);
   codec_creation_retry_.pending.reset();
 
-  // A failed attempt releases the global video surface in TeardownCodec(), so
-  // this decoder is no longer its holder and isn't notified through
-  // OnSurfaceDestroyed() if the surface is destroyed (e.g. the app is
-  // suspended) while the retry is pending. Mirror the suspend behavior instead
-  // of turning it into a decode error: give up silently and leave the codec
-  // torn down.
+  // In punch-out mode without a |surface_view_|, the decoder renders to the
+  // global video surface (a decoder with a |surface_view_| renders to that and
+  // doesn't use the global surface). A failed attempt releases the global
+  // surface in TeardownCodec(), so this decoder is no longer its holder and
+  // isn't notified through OnSurfaceDestroyed() if the surface is destroyed
+  // (e.g. the app is suspended) while the retry is pending. Mirror the suspend
+  // behavior instead of turning it into a decode error: give up silently and
+  // leave the codec torn down.
   if (output_mode_ == kSbPlayerOutputModePunchOut && !surface_view_ &&
       !HasVideoSurface()) {
     SB_LOG(INFO) << "Video surface was destroyed, abandoning MediaCodec "
