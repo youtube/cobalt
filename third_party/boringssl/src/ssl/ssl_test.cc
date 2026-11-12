@@ -5504,6 +5504,57 @@ TEST(SSLTest, OverrideKeyMethodWithKey) {
   ASSERT_TRUE(ConnectClientAndServer(&client, &server, ctx.get(), ctx.get()));
 }
 
+TEST(SSLTest, NullDecryptPrivateKeyMethod) {
+  bssl::UniquePtr<EVP_PKEY> key = GetTestKey();
+  ASSERT_TRUE(key);
+  bssl::UniquePtr<X509> leaf = GetTestCertificate();
+  ASSERT_TRUE(leaf);
+
+  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
+  ASSERT_TRUE(client_ctx);
+  bssl::UniquePtr<SSL_CTX> server_ctx(SSL_CTX_new(TLS_method()));
+  ASSERT_TRUE(server_ctx);
+
+  ASSERT_TRUE(SSL_CTX_use_certificate(server_ctx.get(), leaf.get()));
+
+  // Configure an SSL_PRIVATE_KEY_METHOD on the server with sign and complete,
+  // but NULL decrypt.
+  static const SSL_PRIVATE_KEY_METHOD kNullDecryptMethod = {
+      [](SSL *ssl, uint8_t *out, size_t *out_len, size_t max_out,
+         uint16_t signature_algorithm, const uint8_t *in,
+         size_t in_len) { return ssl_private_key_failure; },
+      nullptr,  // decrypt
+      [](SSL *ssl, uint8_t *out, size_t *out_len, size_t max_out) {
+        return ssl_private_key_failure;
+      },
+  };
+
+  SSL_CTX_set_private_key_method(server_ctx.get(), &kNullDecryptMethod);
+
+  // Negotiate RSA key exchange (SSL_kRSA). We do this by restricting both
+  // client and server to TLS 1.2 and configuring an RSA key exchange cipher
+  // suite.
+  ASSERT_TRUE(SSL_CTX_set_max_proto_version(client_ctx.get(), TLS1_2_VERSION));
+  ASSERT_TRUE(SSL_CTX_set_max_proto_version(server_ctx.get(), TLS1_2_VERSION));
+
+  ASSERT_TRUE(SSL_CTX_set_cipher_list(client_ctx.get(), "AES128-GCM-SHA256"));
+  ASSERT_TRUE(SSL_CTX_set_cipher_list(server_ctx.get(), "AES128-GCM-SHA256"));
+
+  // Use a custom verify on client to accept the self-signed test cert.
+  SSL_CTX_set_custom_verify(client_ctx.get(), SSL_VERIFY_PEER,
+                            AcceptAnyCertificate);
+
+  bssl::UniquePtr<SSL> client, server;
+  // Since the decrypt hook is NULL, the server's decryption during the RSA key
+  // exchange should fail cleanly.
+  EXPECT_FALSE(ConnectClientAndServer(&client, &server, client_ctx.get(),
+                                      server_ctx.get()));
+  uint32_t err = ERR_get_error();
+  EXPECT_TRUE(ErrorEquals(err, ERR_LIB_SSL, ERR_R_INTERNAL_ERROR));
+  EXPECT_EQ(0u, ERR_get_error());
+}
+
+
 // Configuring a chain and then overwriting it with a different chain should
 // clear the old one.
 TEST(SSLTest, OverrideChain) {
@@ -11646,5 +11697,59 @@ TEST_F(SSLPAKETest, ServerThreads) {
 }
 #endif  // OPENSSL_THREADS
 
+static uint16_t g_client_sigalg_used = 0;
+static uint16_t g_server_sigalg_used = 0;
+
+static void SignatureAlgorithmUsedInfoCallback(const SSL *ssl, int type,
+                                               int value) {
+  if (type == SSL_CB_HANDSHAKE_DONE) {
+    if (SSL_is_server(ssl)) {
+      g_server_sigalg_used = SSL_get_signature_algorithm_used(ssl);
+    } else {
+      g_client_sigalg_used = SSL_get_signature_algorithm_used(ssl);
+    }
+  }
+}
+
+TEST(SSLTest, SignatureAlgorithmUsed) {
+  g_client_sigalg_used = 0;
+  g_server_sigalg_used = 0;
+
+  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
+  bssl::UniquePtr<SSL_CTX> server_ctx(
+      CreateContextWithTestCertificate(TLS_method()));
+  ASSERT_TRUE(client_ctx);
+  ASSERT_TRUE(server_ctx);
+
+  // By setting a single signature algorithm, we force the handshake to use
+  // that algorithm, and we can check that it is reported as the signature
+  // algorithm used.
+  const uint16_t kPref = SSL_SIGN_RSA_PSS_RSAE_SHA384;
+  static const uint16_t kPrefs[] = {kPref};
+  ASSERT_TRUE(SSL_CTX_set_signing_algorithm_prefs(
+      server_ctx.get(), kPrefs, std::size(kPrefs)));
+  ASSERT_TRUE(SSL_CTX_set_signing_algorithm_prefs(
+      client_ctx.get(), kPrefs, std::size(kPrefs)));
+
+  SSL_CTX_set_info_callback(client_ctx.get(),
+                            SignatureAlgorithmUsedInfoCallback);
+  SSL_CTX_set_info_callback(server_ctx.get(),
+                            SignatureAlgorithmUsedInfoCallback);
+
+  bssl::UniquePtr<SSL> client, server;
+  ASSERT_TRUE(ConnectClientAndServer(&client, &server, client_ctx.get(),
+                                     server_ctx.get()));
+
+  EXPECT_EQ(g_server_sigalg_used, kPref);
+  // There is no client signature algorithm.
+  EXPECT_EQ(g_client_sigalg_used, 0u);
+
+  // After the handshake completes, the handshake object is reset, so the API
+  // returns 0.
+  EXPECT_EQ(SSL_get_signature_algorithm_used(client.get()), 0u);
+  EXPECT_EQ(SSL_get_signature_algorithm_used(server.get()), 0u);
+}
+
 }  // namespace
 BSSL_NAMESPACE_END
+

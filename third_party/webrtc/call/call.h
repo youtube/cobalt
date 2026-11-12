@@ -148,6 +148,8 @@ class Call {
   virtual std::optional<int> FeedbackAccordingToRfc8888Count() = 0;
   virtual std::optional<int> FeedbackAccordingToTransportCcCount() = 0;
 
+  virtual void DisconnectFromNetworkThread() = 0;
+
   virtual TaskQueueBase* network_thread() const = 0;
   virtual TaskQueueBase* worker_thread() const = 0;
 

@@ -458,6 +458,17 @@ def _speedometer3_crossbench(estimated_runtime: int = 60,
                           flags=flags)
 
 
+@_register("speedometer3-turbolev_future.crossbench")
+def _speedometer3_turbolev_future_crossbench(estimated_runtime: int = 60,
+                                             flags: tuple[str, ...] = ()):
+  flags += ("--js-flags=--turbolev-future", )
+  return CrossbenchConfig(
+      "speedometer3-turbolev_future.crossbench",
+      "speedometer_3",
+      estimated_runtime=estimated_runtime,
+      flags=flags,
+  )
+
 @_register('browser_startup.crossbench')
 def _browser_startup_crossbench(estimated_runtime: int = 60,
                                 flags: tuple[str, ...] = ()):
@@ -991,6 +1002,18 @@ PLATFORM_INFO = {
     'android-pixel25-ultra-xl-perf': {
         'description': 'Android B',
         'num_shards': 3,
+        'platform_os': 'android',
+        'is_fyi': False
+    },
+    'android-pixel10-perf': {
+        'description': 'Android B',
+        'num_shards': 25,
+        'platform_os': 'android',
+        'is_fyi': False
+    },
+    'android-pixel10_webview-perf': {
+        'description': 'Android B',
+        'num_shards': 23,
         'platform_os': 'android',
         'is_fyi': False
     },

@@ -92,7 +92,8 @@ class CORE_EXPORT HTMLVideoElement final
   // Used by canvas to gain raw pixel access.
   void PaintCurrentFrame(cc::PaintCanvas*,
                          const gfx::Rect&,
-                         const cc::PaintFlags&) const;
+                         const cc::PaintFlags&,
+                         bool force_pixel_readback) const;
 
   bool HasAvailableVideoFrame() const;
   bool HasReadableVideoFrame() const;
@@ -248,6 +249,7 @@ class CORE_EXPORT HTMLVideoElement final
   void RequestVisibility(RequestVisibilityCallback request_visibility_cb) final;
 
   void DidMoveToNewDocument(Document& old_document) override;
+  void DidChangeIsCanvasOrInCanvasSubtree() override;
 
   void UpdatePictureInPictureAvailability();
 
@@ -308,7 +310,6 @@ class CORE_EXPORT HTMLVideoElement final
   // GetSourceImageForCanvas(), etc). Created on demand.
   std::unique_ptr<CanvasNon2DResourceProviderSharedImage> snapshot_provider_;
   std::optional<CanvasSnapshotProvider::Info> cached_draw_info_;
-  sk_sp<SkSurface> sw_draw_surface_;
   HeapTaskRunnerTimer<HTMLVideoElement> cache_deleting_timer_;
 
   // Paint flags set based on CSS properties, which must be propagated to the

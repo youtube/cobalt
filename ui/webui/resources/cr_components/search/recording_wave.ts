@@ -75,16 +75,17 @@ class Wiggle {
   }
 }
 
-const globalEnergyWiggle = new Wiggle(/*amplitude=*/ 1.1,
-                                      /*frequency=*/ 1.5);
+const globalEnergyWiggle = new Wiggle(/*amplitude=*/ 2,
+                                      /*frequency=*/ 0.5);
 
 export interface Bar {
   level: number;
   isSpawning: boolean;
   isUnspawned: boolean;
   initialScale: number;
-  currentScale: number;
-  velocity: number;
+  spawnTimeMs: number;
+  currentScaleX: number;
+  currentScaleY: number;
   jitterFactor: number;
   targetHeightPx: number;
 }
@@ -95,15 +96,9 @@ export interface RecordingWaveElement {
   };
 }
 
-interface Rgb {
-  r: number;
-  g: number;
-  b: number;
-}
-
 // ======Physics and visual parameters======
 // The time (in milliseconds) between rendering new volume bars.
-const BAR_INTERVAL_MS = 140;
+const BAR_INTERVAL_MS = 120;
 
 // Total number of bars allowed to move across the screen (both on and off
 // screen) for the sliding left recording wave effect.
@@ -113,28 +108,32 @@ const MAX_BARS = 100;
 // an active volume bar. This creates the visual right-side padding delay.
 const ACTIVATION_DELAY_INDEX = 6;
 
-// Width of bar, in px.
+// Max width of bar, in px. Minimum width is set in `bar-pill.is-unspawned`
+// CSS rule.
 const BAR_WIDTH = 12;
 
 // Space between each bar, in px.
-export const BAR_GAP = 7;
+export const BAR_GAP = 3;
 
-// Maximum height of each bar, in px.
+// Maximum height of each bar, in px. Minimum height is set in
+// `bar-pill.is-unspawned` CSS rule.
 const MAX_BAR_HEIGHT = 36;
 
-// Target decimal percentage of the height that the bar should end up at
-// after oscillating.
-const TARGET_SCALE = 1.0;
+// Spring constants to match Android spring behavior.
+// Force of the spring.
+const SPRING_STIFFNESS = 200.0;
 
-// Controls the stiffness of the spring oscillation movement. Higher means more
-// force and eventual velocity.
-const STIFFNESS = 0.4;
+// Friction to slow down speed of height change of pills.
+const SPRING_DAMPING_HEIGHT = 0.3;
 
-// Friction/slowing down of animation after oscillation movement.
-const DAMPING = 0.62;
+// Friction to slow down speed of width change of pills.
+const SPRING_DAMPING_WIDTH = 0.7;
+
+// Time it takes for the spring to settle to a stop.
+const SPRING_SETTLE_TIME_SECONDS = 0.65;
 
 // Value to simply increase the raw volume level in the animation (output).
-const VOLUME_MULTIPLIER = 2.2;
+const VOLUME_MULTIPLIER = 1;
 
 // Minimum volume level scaling (0-1):
 const MINIMUM_VOLUME_LEVEL = 0.1;
@@ -144,19 +143,6 @@ const MINIMUM_VOLUME_LEVEL = 0.1;
 const DEFAULT_STARTING_HEIGHT = 8;
 
 // ======Smaller parameters for fine tuning of shadows/color======:
-// Color changes from right to mid to left.
-const COLORS = {
-  START: {r: 43, g: 130, b: 255},  // 0%
-  MID: {r: 193, g: 181, b: 254},   // Threshold
-  END: {r: 248, g: 241, b: 255},   // 100%
-};
-// Dissapation energy used as an exponent to determine the amount each pill
-// fades as it moves left.
-const DISSIPATION_EXPONENT = 2.1;
-
-// Ratio of first color to second color:
-const COLOR_RATIO_THRESHOLD = 0.6;
-
 // Ratio of each pill's height used to determine the shadow offset of each pill.
 const HEIGHT_TO_OFFSET_RATIO = 0.214;
 
@@ -173,17 +159,116 @@ const SHADOW_SIDE_OFFSET_RATIO = 0.33;
 // Ratio to decrease blur each pill's shadow by.
 const SHADOW_SIDE_BLUR_RATIO = 0.5;
 
+// The ratio (0.0 to 1.0) along the wave's width at which the pill shadow
+// should be completely faded out (transparent).
+const SHADOW_FULLY_FADED_RATIO = 0.85;
+
+// RGB channels for the pill shadow color (light purple).
+const SHADOW_COLOR_RGB = '224, 165, 255';
+
 // Linear interpolation.
 const lerp = (start: number, end: number, t: number) =>
     start + (end - start) * t;
 
-// Right to left colors in red green blue:
-// First 60% is perwinkle blue. The last 40% should become more lavender.
-const lerpColor = (color1: Rgb, color2: Rgb, t: number) => ({
-  r: Math.round(lerp(color1.r, color2.r, t)),
-  g: Math.round(lerp(color1.g, color2.g, t)),
-  b: Math.round(lerp(color1.b, color2.b, t)),
-});
+interface ColorStop {
+  ratio: number;
+  r: number;
+  g: number;
+  b: number;
+}
+
+// Note: Initial colors are set in `bar-pill.is-unspawned` CSS rule.
+// Points to change color at:
+const LIGHT_STOPS: ColorStop[] = [
+  {ratio: 0.0, r: 201, g: 210, b: 255},  // #C9D2FF
+  {ratio: 0.03, r: 49, g: 134, b: 255},  // #3186FF
+  {ratio: 0.4, r: 23, g: 116, b: 255},   // #1774FF
+  {ratio: 0.7, r: 169, g: 168, b: 255},  // #A9A8FF
+  {ratio: 0.9, r: 201, g: 210, b: 255},  // #C9D2FF
+  {ratio: 1.0, r: 236, g: 240, b: 255},  // #ECF0FF
+];
+
+// Points to change color at in dark mode:
+const DARK_STOPS: ColorStop[] = [
+  {ratio: 0.0, r: 55, g: 70, b: 109},    // #37466D
+  {ratio: 0.03, r: 49, g: 134, b: 255},  // #3186FF
+  {ratio: 0.4, r: 23, g: 116, b: 255},   // #1774FF
+  {ratio: 0.7, r: 118, g: 117, b: 212},  // #7675D4
+  {ratio: 0.9, r: 76, g: 86, b: 143},    // #4C568F
+  {ratio: 1.0, r: 55, g: 70, b: 109},    // #37466D
+];
+
+// Computes the color at a given ratio along a multi-stop (point) gradient.
+// A ratio is essentially the current progress the pill has made when traversing
+// right to left. This function finds the two color stops, the current ratio
+// (progress made), and linearly interpolates between them to blend the two
+// stop's colors.
+function getGradientColor(ratio: number, stops: ColorStop[]): string {
+  const clampedRatio = Math.max(0, Math.min(1, ratio));
+
+  // Surrounding color stops (initialized to temporary values).
+  let left = stops[0]!;
+  let right = stops[stops.length - 1]!;
+
+  // Linearly search with two variables for the two adjacent stops
+  // that the ratio (progress) belongs in. Avoid binary search since
+  // array is effectively O(1) since there is a constant number of stops
+  // relative to input.
+  for (let i = 0; i < stops.length - 1; i++) {
+    const currentStop = stops[i]!;
+    const nextStop = stops[i + 1]!;
+    if (clampedRatio >= currentStop.ratio && clampedRatio <= nextStop.ratio) {
+      left = currentStop;
+      right = nextStop;
+      break;
+    }
+  }
+
+  const range = right.ratio - left.ratio;
+  // Calculate progress of ratio within the given range.
+  const progress = range > 0 ? (clampedRatio - left.ratio) / range : 0;
+
+  // Mix the RGB channels of the left and right stops based on the progress.
+  const r = Math.round(left.r + (right.r - left.r) * progress);
+  const g = Math.round(left.g + (right.g - left.g) * progress);
+  const b = Math.round(left.b + (right.b - left.b) * progress);
+
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+// Solves the closed-form analytical position of an under-damped harmonic
+// spring at continuous time t (seconds), assuming initial position 0, target
+// position 1, and initial velocity 0.
+function solveAnalyticalSpring(
+  timeSeconds: number,
+  stiffness: number,
+  dampingRatio: number,
+): number {
+  if (timeSeconds <= 0) {
+    return 0;
+  }
+  const undampedFrequency = Math.sqrt(stiffness);  // (angular frequency)
+
+  const dampedFrequency =
+      undampedFrequency * Math.sqrt(1.0 - dampingRatio * dampingRatio);
+
+  // Coefficient derived from boundary conditions.
+  // It ensures the spring starts at rest (initial velocity = 0 at t = 0).
+  // Under underdamped conditions, this scaling factor is:
+  const phaseOffsetCoefficient =
+      (dampingRatio * undampedFrequency) / dampedFrequency;
+
+  // Rate at which oscillation amplitude decays over time.
+  const decayEnvelope =
+      Math.exp(-dampingRatio * undampedFrequency * timeSeconds);
+
+  // Sinusoidal oscillation components (harmonic motion).
+  const oscillation = Math.cos(dampedFrequency * timeSeconds) +
+      phaseOffsetCoefficient * Math.sin(dampedFrequency * timeSeconds);
+
+  // Position starts at 0 and ends at 1.
+  return 1.0 - decayEnvelope * oscillation;
+}
 
 export class RecordingWaveElement extends CrLitElement {
   static get is() {
@@ -211,7 +296,6 @@ export class RecordingWaveElement extends CrLitElement {
 
   private barsData_: Bar[] = [];
   private lastDrawTimestamp_: number = performance.now();
-  private lastFrameTime_: number = performance.now();
   private animationFrameId_: number|null = null;
 
   override disconnectedCallback() {
@@ -244,8 +328,9 @@ export class RecordingWaveElement extends CrLitElement {
             // been 'turned on').
             isSpawning: false,
             initialScale: 1,
-            currentScale: 0,
-            velocity: 0,
+            spawnTimeMs: 0,
+            currentScaleX: 0,
+            currentScaleY: 0,
             jitterFactor: 0,
             targetHeightPx: DEFAULT_STARTING_HEIGHT,
           });
@@ -259,7 +344,6 @@ export class RecordingWaveElement extends CrLitElement {
         }
 
         this.lastDrawTimestamp_ = performance.now();
-        this.lastFrameTime_ = performance.now();
         if (this.animationFrameId_ === null) {
           this.animationFrameId_ = requestAnimationFrame(this.animationLoop_);
         }
@@ -291,16 +375,16 @@ export class RecordingWaveElement extends CrLitElement {
       return;
     }
 
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const stops = isDark ? DARK_STOPS : LIGHT_STOPS;
+
     const now = performance.now();
 
-    // Normalize total time elapsed since last frame as a
-    // progress percentage by 33.33ms (30FPS).
-    // This is used for height/width animations, but not sliding of bars.
-    const timeDelta = (now - this.lastFrameTime_) / 33.33;
-    this.lastFrameTime_ = now;
-
-    // Time elapsed since last frame. This is used as a progress bar between
-    // frames to draw "pseudo frames" for sliding of bars.
+    // Time elapsed since the last bar was created. Note that this is used solely
+    // for deciding when to spawn a new bar and for smooth sliding/scrolling
+    // transitions of the entire wave container to the left. It is not used for
+    // the spring physics simulation of individual bars, which operates on absolute time
+    // and no longer delta time (the time since last frame).
     let elapsed = now - this.lastDrawTimestamp_;
 
     // If it is time to create a new bar:
@@ -316,8 +400,9 @@ export class RecordingWaveElement extends CrLitElement {
         isUnspawned: true,
         isSpawning: false,
         initialScale: 1,
-        currentScale: 0,
-        velocity: 0,
+        spawnTimeMs: 0,
+        currentScaleX: 0,
+        currentScaleY: 0,
         jitterFactor: jitterFactor,
         targetHeightPx: DEFAULT_STARTING_HEIGHT,
       });
@@ -379,63 +464,32 @@ export class RecordingWaveElement extends CrLitElement {
         bar.targetHeightPx =
             Math.max(Math.min(liveLevel, 1), 0.1) * MAX_BAR_HEIGHT;
         bar.initialScale = 4 / bar.targetHeightPx;
+        bar.spawnTimeMs = performance.now();
+        bar.currentScaleX = 0;
+        bar.currentScaleY = 0;
       }
       // If it has been initialized before and is 'springing' towards its goal
-      // volume height.
+      // volume height and width.
       if (bar.isSpawning) {
-        // Uses Hooke's law: F = kx (force = spring constant * displacement).
-        // Spring constant == `STIFFNESS`: higher means more stiffness means
-        // more force/movement.
-        const force = STIFFNESS * (TARGET_SCALE - bar.currentScale);
-        // Update velocity based on force using y=Ft+b, where velocity_new is
-        // `y` and velocity_old is `b`. `F` is force, and `t` is time delta.
-        // Force is used instead of acceleration since for simpler simulation
-        // purposes, mass and thus inertia are effectively ignored, as mass is
-        // assumed to be '1'. Multiply by damping to add friction.
-        bar.velocity =
-            (bar.velocity + force * timeDelta) * Math.pow(DAMPING, timeDelta);
+        const t = (performance.now() - bar.spawnTimeMs) / 1000;
+        const currentScaleY = solveAnalyticalSpring(
+            t, SPRING_STIFFNESS, SPRING_DAMPING_HEIGHT);
+        const currentScaleX = solveAnalyticalSpring(
+            t, SPRING_STIFFNESS, SPRING_DAMPING_WIDTH);
 
-        // Update progress in its oscillation, which is used to determine
-        // current height/width of bar:
-        bar.currentScale += bar.velocity * timeDelta;
+        // Check if the spring has completed its oscillation and settled (reached
+        // the mechanical noise floor). Once done, snap the scales to 1.0 and
+        // disable further physics processing to conserve CPU cycles.
+        const isDone = t > SPRING_SETTLE_TIME_SECONDS;
 
-        // If the bar is close enough to its final size and almost stopped
-        // (less velocity), snap it to exactly 1.0 and disable physics
-        // processing to save CPU. Velocity must be near 0, as position due to
-        // oscillation (repeated cycles back and forth) does not indicate purely
-        // by itself if the spring oscillation is finished.
-        if (Math.abs(TARGET_SCALE - bar.currentScale) < 0.005 &&
-            Math.abs(bar.velocity) < 0.001) {
-          bar.currentScale = TARGET_SCALE;
-          bar.isSpawning = false;
-        }
+        bar.currentScaleY = isDone ? 1.0 : currentScaleY;
+        bar.currentScaleX = isDone ? 1.0 : currentScaleX;
+        bar.isSpawning = !isDone;
       }
 
-      // Determine colors (the further left, the more lavender it is).
-      // It starts off as perwinkle blue when the bar spawns in on the right.
+      // Determine colors using gradient stops based on progressRatio.
       const progressRatio = index / Math.max(this.barsData_.length - 1, 1);
-
-      // Colors change from right to mid (set threshold) to left. See if are
-      // before/after threshold.
-      const isBeforeThreshold = progressRatio <= COLOR_RATIO_THRESHOLD;
-
-      const startColor = isBeforeThreshold ? COLORS.START : COLORS.MID;
-      const endColor = isBeforeThreshold ? COLORS.MID : COLORS.END;
-
-      // Calculate normalized ratio based on if it is before or after threshold.
-      // Want ratio normalized based on the section that is being focused on
-      // (before, or after):
-      const normRatio = isBeforeThreshold ?
-          progressRatio / COLOR_RATIO_THRESHOLD :
-          (progressRatio - COLOR_RATIO_THRESHOLD) / (1 - COLOR_RATIO_THRESHOLD);
-
-      // Final red green blue:
-      const {r, g, b} = lerpColor(startColor, endColor, normRatio);
-
-      // Apply a color gradient and 'glow' depth/shadow based on the
-      // bar's horizontal position. Bars start of as blue, and older bars (left)
-      // become more purple and transparent to simulate energy dissipation.
-      const color = bar.isUnspawned ? '#8ab4f8' : `rgb(${r}, ${g}, ${b})`;
+      const color = getGradientColor(progressRatio, stops);
 
       const jitter = bar.jitterFactor || 0;
 
@@ -452,17 +506,18 @@ export class RecordingWaveElement extends CrLitElement {
       // Specifically to define the edges (shadows on the side):
       const sideBlurRadius = blurRadius * SHADOW_SIDE_BLUR_RATIO;
 
-      // Non linear ease-out formula to decide fade out:
-      // max(0.1, (1-progress)^2.1). Floor is 10% (0.1).
-      const shadowOpacity =
-          Math.max(Math.pow(1 - progressRatio, DISSIPATION_EXPONENT), 0.1);
-      const shadowColor = `rgba(237, 202, 255, ${shadowOpacity})`;
+      // Shadow's progress relative to its final ratio (percentage) at which the
+      // shadow should be fully transparent.
+      const shadowProgress = progressRatio / SHADOW_FULLY_FADED_RATIO;
+      // Linear fade-out: full opacity (1.0) on the right, fading to
+      // transparent (0.0) at the fade threshold.
+      const shadowOpacity = Math.max(0, 1.0 - shadowProgress);
+      const shadowColor = `rgba(${SHADOW_COLOR_RGB}, ${shadowOpacity})`;
 
       // Create 4 shadows:
       // - Top Shadow: creates a "cap" of light at the top.
       // - Side Shadows: These create the "rounded" tube effect by creating 3D
-      // rounded
-      //   corners on left/right of bar.
+      // rounded corners on left/right of bar.
       // - Bottom Shadow: Adds a subtle base glow.
       const boxShadow = bar.isUnspawned ?
           'none' :
@@ -490,9 +545,9 @@ export class RecordingWaveElement extends CrLitElement {
           // to 1.0)
           // - scaleX: Expands the width from 50% to full size.
           // - scaleY: Stretches the height from the initial 4px scale up to
-          // full size.
-          const scaleX = lerp(0.5, 1, bar.currentScale);
-          const scaleY = lerp(bar.initialScale, 1, bar.currentScale);
+          //   full size.
+          const scaleX = lerp(0.5, 1, bar.currentScaleX);
+          const scaleY = lerp(bar.initialScale, 1, bar.currentScaleY);
           pill.style.transform = `scaleX(${scaleX}) scaleY(${scaleY})`;
 
           // Redundancy check/action:

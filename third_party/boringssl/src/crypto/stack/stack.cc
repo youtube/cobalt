@@ -360,7 +360,7 @@ void OPENSSL_sk_sort(OPENSSL_STACK *sk,
     return;
   }
 
-  std::stable_sort(sk->data, sk->data + sk->num, [&](void *a, void *b) {
+  std::sort(sk->data, sk->data + sk->num, [&](void *a, void *b) {
     return call_cmp_func(sk->comp, a, b) < 0;
   });
   sk->sorted = 1;

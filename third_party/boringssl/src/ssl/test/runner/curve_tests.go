@@ -273,6 +273,7 @@ func addCurveTests() {
 		},
 		shouldFail:    true,
 		expectedError: ":NO_SHARED_GROUP:",
+		expectedLocalError: "remote error: missing extension",
 	})
 
 	// The server must fall back to another cipher when there are no

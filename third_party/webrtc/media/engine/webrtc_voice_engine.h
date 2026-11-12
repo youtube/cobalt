@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/audio/audio_device.h"
@@ -73,9 +74,6 @@ class AudioFrameProcessor;
 // WebRtcVoiceEngine is a class to be used with CompositeMediaEngine.
 // It uses the WebRtc VoiceEngine library for audio handling.
 class WebRtcVoiceEngine final : public VoiceEngineInterface {
-  friend class WebRtcVoiceSendChannel;
-  friend class WebRtcVoiceReceiveChannel;
-
  public:
   WebRtcVoiceEngine(const Environment& env,
                     scoped_refptr<AudioDeviceModule> adm,
@@ -113,12 +111,20 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
   const std::vector<Codec>& LegacySendCodecs() const override;
   const std::vector<Codec>& LegacyRecvCodecs() const override;
 
-  AudioEncoderFactory* encoder_factory() const override {
-    return encoder_factory_.get();
+  const scoped_refptr<AudioEncoderFactory>& encoder_factory() const override {
+    return encoder_factory_;
   }
-  AudioDecoderFactory* decoder_factory() const override {
-    return decoder_factory_.get();
+  const scoped_refptr<AudioDecoderFactory>& decoder_factory() const override {
+    return decoder_factory_;
   }
+
+  // Every option that is "set" will be applied. Every option not "set" will be
+  // ignored. This allows us to selectively turn on and off different options
+  // easily at any time.
+  void ApplyOptions(const AudioOptions& options);
+
+  AudioDeviceModule* adm();
+  AudioProcessing* apm() const;
   std::vector<RtpHeaderExtensionCapability> GetRtpHeaderExtensions(
       const FieldTrialsView* field_trials) const override;
 
@@ -133,17 +139,12 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
 
   std::optional<AudioDeviceModule::Stats> GetAudioDeviceStats() override;
 
- private:
-  // Every option that is "set" will be applied. Every option not "set" will be
-  // ignored. This allows us to selectively turn on and off different options
-  // easily at any time.
-  void ApplyOptions(const AudioOptions& options);
+  bool NeedsAuxiliaryCodecsAdded() const override { return true; }
 
+ private:
   const Environment env_;
   std::unique_ptr<TaskQueueBase, TaskQueueDeleter> low_priority_worker_queue_;
 
-  AudioDeviceModule* adm();
-  AudioProcessing* apm() const;
   AudioState* audio_state();
 
   SequenceChecker signal_thread_checker_{SequenceChecker::kDetached};
@@ -164,14 +165,6 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
   const std::vector<Codec> legacy_send_codecs_;
   const std::vector<Codec> legacy_recv_codecs_;
   bool initialized_ RTC_GUARDED_BY(worker_thread_checker_) = false;
-
-  // Jitter buffer settings for new streams.
-  size_t audio_jitter_buffer_max_packets_
-      RTC_GUARDED_BY(worker_thread_checker_) = 200;
-  bool audio_jitter_buffer_fast_accelerate_
-      RTC_GUARDED_BY(worker_thread_checker_) = false;
-  int audio_jitter_buffer_min_delay_ms_ RTC_GUARDED_BY(worker_thread_checker_) =
-      0;
 };
 
 class WebRtcVoiceSendChannel final : public MediaChannelUtil,
@@ -287,7 +280,6 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
   AudioOptions options_ RTC_GUARDED_BY(worker_thread_);
   PayloadType dtmf_payload_type_ RTC_GUARDED_BY(worker_thread_);
   int dtmf_payload_freq_ RTC_GUARDED_BY(worker_thread_) = -1;
-  bool enable_non_sender_rtt_ RTC_GUARDED_BY(worker_thread_) = false;
   bool send_ RTC_GUARDED_BY(worker_thread_) = false;
   Call* const call_ = nullptr;
 
@@ -319,11 +311,11 @@ class WebRtcVoiceReceiveChannel final
       public VoiceMediaReceiveChannelInterface {
  public:
   WebRtcVoiceReceiveChannel(const Environment& env,
-                            WebRtcVoiceEngine* engine,
+                            WebRtcVoiceEngine* absl_nonnull engine,
                             const MediaConfig& config,
                             const AudioOptions& options,
                             const CryptoOptions& crypto_options,
-                            Call* call);
+                            Call* absl_nonnull call);
 
   WebRtcVoiceReceiveChannel() = delete;
   WebRtcVoiceReceiveChannel(const WebRtcVoiceReceiveChannel&) = delete;
@@ -430,10 +422,7 @@ class WebRtcVoiceReceiveChannel final
 
   WebRtcVoiceEngine* const engine_ = nullptr;
 
-  // TODO(kwiberg): decoder_map_ and recv_codecs_ store the exact same
-  // information, in slightly different formats. Eliminate recv_codecs_.
   std::map<int, SdpAudioFormat> decoder_map_ RTC_GUARDED_BY(worker_thread_);
-  std::vector<Codec> recv_codecs_ RTC_GUARDED_BY(worker_thread_);
 
   AudioOptions options_ RTC_GUARDED_BY(worker_thread_);
   bool recv_nack_enabled_ RTC_GUARDED_BY(worker_thread_) = false;

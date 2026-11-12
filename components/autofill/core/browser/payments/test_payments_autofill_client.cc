@@ -155,7 +155,8 @@ void TestPaymentsAutofillClient::VirtualCardEnrollCompleted(
     PaymentsRpcResult result) {}
 
 void TestPaymentsAutofillClient::OnCardDataAvailable(
-    const FilledCardInformationBubbleOptions& options) {}
+    const FilledCardInformationBubbleOptions& options,
+    const url::Origin& origin) {}
 
 void TestPaymentsAutofillClient::ConfirmSaveIbanLocally(
     const Iban& iban,
@@ -487,6 +488,16 @@ BnplUiDelegate* TestPaymentsAutofillClient::GetBnplUiDelegate() {
 OmniboxAutofillDelegate*
 TestPaymentsAutofillClient::GetOmniboxAutofillDelegate() {
   return omnibox_autofill_delegate_.get();
+}
+
+void TestPaymentsAutofillClient::ShowOmniboxAutofillChip() {
+  omnibox_autofill_chip_shown_ = true;
+  omnibox_autofill_chip_hidden_ = false;
+}
+
+void TestPaymentsAutofillClient::HideOmniboxAutofillChip() {
+  omnibox_autofill_chip_hidden_ = true;
+  omnibox_autofill_chip_shown_ = false;
 }
 #endif
 

@@ -117,13 +117,12 @@ class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface {
   // Legacy: Retrieve list of supported codecs.
   // + protection codecs, and assigns PT numbers that may have to be
   // reassigned.
-  // This function is being moved to CodecVendor
   // TODO: https://issues.webrtc.org/360058654 - remove when all users updated.
   virtual const std::vector<Codec>& LegacySendCodecs() const = 0;
   virtual const std::vector<Codec>& LegacyRecvCodecs() const = 0;
 
-  virtual AudioEncoderFactory* encoder_factory() const = 0;
-  virtual AudioDecoderFactory* decoder_factory() const = 0;
+  virtual const scoped_refptr<AudioEncoderFactory>& encoder_factory() const = 0;
+  virtual const scoped_refptr<AudioDecoderFactory>& decoder_factory() const = 0;
 
   // Starts AEC dump using existing file, a maximum file size in bytes can be
   // specified. Logging is stopped just before the size limit is exceeded.
@@ -134,6 +133,10 @@ class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface {
   virtual void StopAecDump() = 0;
 
   virtual std::optional<AudioDeviceModule::Stats> GetAudioDeviceStats() = 0;
+
+  // Returns true if the engine handles built-in codecs like DTMF and CN
+  // automatically.
+  virtual bool NeedsAuxiliaryCodecsAdded() const { return false; }
 };
 
 class VideoEngineInterface : public RtpHeaderExtensionQueryInterface {
@@ -177,6 +180,10 @@ class VideoEngineInterface : public RtpHeaderExtensionQueryInterface {
 
   virtual std::vector<SdpVideoFormat> GetSupportedFormats(
       bool is_decoder) const = 0;
+
+  // Returns true if the engine handles built-in codecs like RTX, RED, FEC
+  // automatically.
+  virtual bool NeedsAuxiliaryCodecsAdded() const { return false; }
 };
 
 // MediaEngineInterface is an abstraction of a media engine which can be

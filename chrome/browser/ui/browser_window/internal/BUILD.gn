@@ -93,7 +93,6 @@ source_set("internal") {
       "//chrome/browser/ui/signin",
       "//chrome/browser/ui/sync",
       "//chrome/browser/ui/tabs",
-      "//chrome/browser/ui/tabs:glic",
       "//chrome/browser/ui/tabs:tab_list_bridge",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/tabs/projects:impl",
@@ -121,6 +120,7 @@ source_set("internal") {
       "//chrome/browser/ui/web_applications:launch_utils",
       "//chrome/browser/ui/web_modal:browser_window_modal_dialog_delegate",
       "//chrome/browser/ui/webui_browser",
+      "//chrome/browser/ui/window_feature_controller",
       "//chrome/browser/ui/zoom:browser_window_zoom_observer",
       "//components/breadcrumbs/core:status",
       "//components/collaboration/public",
@@ -145,7 +145,10 @@ source_set("internal") {
     }
 
     if (is_win || is_mac || is_linux) {
-      deps += [ "//chrome/browser/ui/views/session_restore_infobar" ]
+      deps += [
+        "//chrome/browser/download/bubble",
+        "//chrome/browser/ui/views/session_restore_infobar",
+      ]
     }
 
     if (is_win || is_mac || is_linux || is_chromeos) {
@@ -157,6 +160,8 @@ source_set("internal") {
         "//chrome/browser/ash/boca/on_task",
         "//components/session_manager/core",
       ]
+    } else {
+      deps += [ "//chrome/browser/download/bubble" ]
     }
 
     if (use_aura) {
@@ -218,6 +223,7 @@ if (is_android) {
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/AndroidBaseWindow.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/AndroidBrowserWindow.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/AndroidBrowserWindowCreateParamsImpl.java",
+      "android/java/src/org/chromium/chrome/browser/ui/browser_window/AndroidBrowserWindowObserverNotifier.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/BrowserWindowCreatorBridge.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/BrowserWindowInterfaceIteratorAndroid.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskBoundsConstraints.java",

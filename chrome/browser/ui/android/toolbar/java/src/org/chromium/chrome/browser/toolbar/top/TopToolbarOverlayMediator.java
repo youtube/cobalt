@@ -33,7 +33,7 @@ import org.chromium.chrome.browser.tab.CurrentTabObserver;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.theme.ThemeUtils;
-import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
+import org.chromium.chrome.browser.theme.ToolbarThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.ToolbarProgressBar;
 import org.chromium.components.browser_ui.widget.ClipDrawableProgressBar;
 import org.chromium.components.browser_ui.widget.ClipDrawableProgressBar.DrawingInfo;
@@ -85,7 +85,7 @@ public class TopToolbarOverlayMediator {
 
     private final ProgressBarObserver mProgressBarObserver;
 
-    private final TopUiThemeColorProvider mTopUiThemeColorProvider;
+    private final ToolbarThemeColorProvider mToolbarThemeColorProvider;
 
     /** The view state for this overlay. */
     private final PropertyModel mModel;
@@ -154,7 +154,7 @@ public class TopToolbarOverlayMediator {
             Callback<DrawingInfo> progressInfoCallback,
             NullableObservableSupplier<Tab> tabSupplier,
             BrowserControlsStateProvider browserControlsStateProvider,
-            TopUiThemeColorProvider topUiThemeColorProvider,
+            ToolbarThemeColorProvider toolbarThemeColorProvider,
             NonNullObservableSupplier<Integer> bottomToolbarControlsOffsetSupplier,
             NonNullObservableSupplier<Boolean> suppressToolbarSceneLayerSupplier,
             int layoutsToShowOn,
@@ -165,7 +165,7 @@ public class TopToolbarOverlayMediator {
         mLayoutStateProvider = layoutStateProvider;
         mProgressInfoCallback = progressInfoCallback;
         mBrowserControlsStateProvider = browserControlsStateProvider;
-        mTopUiThemeColorProvider = topUiThemeColorProvider;
+        mToolbarThemeColorProvider = toolbarThemeColorProvider;
         mModel = model;
         mBottomToolbarControlsOffsetSupplier = bottomToolbarControlsOffsetSupplier;
         mSuppressToolbarSceneLayerSupplier = suppressToolbarSceneLayerSupplier;
@@ -268,7 +268,7 @@ public class TopToolbarOverlayMediator {
                                 height = getBookmarkBarAdjustedContentOffset(height);
                             }
                             if (getControlsPosition() == ControlsPosition.TOP) {
-                                applyContentOffsetToModel(height);
+                                applyContentOffsetToModel(adjustContentOffsetForHairline(height));
                             } else if (getControlsPosition() == ControlsPosition.BOTTOM) {
                                 applyContentOffsetToModel(
                                         mBottomToolbarControlsOffsetSupplier.get()
@@ -297,10 +297,8 @@ public class TopToolbarOverlayMediator {
                             @BrowserControlsState int constraints,
                             boolean shouldUpdateOffsets) {
                         // Offset tag application is handled by TopControlsStacker when
-                        // #isTopControlsRefactorOffsetEnabled is enabled and browser controls
-                        // is at the top.
-                        if (!BrowserControlsUtils.isTopControlsRefactorOffsetEnabled()
-                                || getControlsPosition() == ControlsPosition.BOTTOM) {
+                        // browser controls is at the top.
+                        if (getControlsPosition() == ControlsPosition.BOTTOM) {
                             updateOffsetTag(offsetTagsInfo);
                         }
                         if (shouldUpdateOffsets) {
@@ -312,6 +310,10 @@ public class TopToolbarOverlayMediator {
                     @Override
                     public void onControlsPositionChanged(int controlsPosition) {
                         updateOffsetTag(mBrowserControlsOffsetTagsInfo);
+                        Tab tab = mTabSupplier.get();
+                        if (tab != null) {
+                            updateThemeColor(tab);
+                        }
                         if (ChromeFeatureList.sAndroidAnimatedProgressBarInBrowser.isEnabled()
                                 && ChromeFeatureList.sAndroidApb144Patch8.isEnabled()) {
                             updateProgress();
@@ -444,7 +446,7 @@ public class TopToolbarOverlayMediator {
      */
     private @ColorInt int getToolbarBackgroundColor(Tab tab) {
         if (sToolbarBackgroundColorForTesting != null) return sToolbarBackgroundColorForTesting;
-        return mTopUiThemeColorProvider.getToolbarBackgroundColor(tab);
+        return mToolbarThemeColorProvider.getToolbarBackgroundColor(tab);
     }
 
     /**
@@ -563,7 +565,6 @@ public class TopToolbarOverlayMediator {
      * @param yOffset The Y offset of the toolbar.
      */
     void setYOffset(float yOffset) {
-        assert BrowserControlsUtils.isTopControlsRefactorOffsetEnabled();
         mModel.set(TopToolbarOverlayProperties.Y_OFFSET, yOffset);
     }
 
@@ -627,16 +628,7 @@ public class TopToolbarOverlayMediator {
             return;
         }
 
-        // If BCIV is enabled, we keep the composited view visible even when hiding the toolbar,
-        // but the shadow isn't included in the toolbar's height, so we shift the toolbar up by
-        // the shadow's height to hide the toolbar completely.
-        int topControlsMinHeight = mBrowserControlsStateProvider.getTopControlsMinHeight();
-        int topControlsHairlineHeight =
-                mBrowserControlsStateProvider.getTopControlsHairlineHeight();
-        if (contentOffset >= topControlsMinHeight
-                && contentOffset <= topControlsMinHeight + topControlsHairlineHeight) {
-            contentOffset -= topControlsHairlineHeight;
-        }
+        contentOffset = adjustContentOffsetForHairline(contentOffset);
 
         if (ChromeFeatureList.sAndroidBookmarkBar.isEnabled()) {
             contentOffset = getBookmarkBarAdjustedContentOffset(contentOffset);
@@ -645,10 +637,19 @@ public class TopToolbarOverlayMediator {
         applyContentOffsetToModel(contentOffset);
     }
 
+    private int adjustContentOffsetForHairline(int contentOffset) {
+        int topControlsMinHeight = mBrowserControlsStateProvider.getTopControlsMinHeight();
+        int topControlsHairlineHeight =
+                mBrowserControlsStateProvider.getTopControlsHairlineHeight();
+        if (BrowserControlsUtils.shouldContentOffsetHideTopControlsHairline(
+                contentOffset, topControlsMinHeight, topControlsHairlineHeight)) {
+            return contentOffset - topControlsHairlineHeight;
+        }
+        return contentOffset;
+    }
+
     private void applyContentOffsetToModel(float contentOffset) {
-        if (BrowserControlsUtils.isTopControlsRefactorOffsetEnabled()
-                && getControlsPosition() == ControlsPosition.TOP
-                && !mIsVisibilityManuallyControlled) {
+        if (getControlsPosition() == ControlsPosition.TOP && !mIsVisibilityManuallyControlled) {
             contentOffset = INVALID_CONTENT_OFFSET;
         }
         mModel.set(TopToolbarOverlayProperties.LEGACY_CONTENT_OFFSET, contentOffset);

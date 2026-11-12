@@ -443,11 +443,9 @@ bool PeriodicWaveImpl::CreateBandLimitedTables(
     // arrays.  Need to scale the data by fftSize to remove the scaling that the
     // inverse IFFT would do.
     float scale = fft_size;
-    vector_math::Vsmul(real_data.data(), 1, scale, real.Data(), 1,
-                       number_of_components);
+    vector_math::Vsmul(real_data, scale, real.as_span(), number_of_components);
     scale = -scale;
-    vector_math::Vsmul(imag_data.data(), 1, scale, imag.Data(), 1,
-                       number_of_components);
+    vector_math::Vsmul(imag_data, scale, imag.as_span(), number_of_components);
 
     // Find the starting bin where we should start culling.  We need to clear
     // out the highest frequencies to band-limit the waveform.
@@ -477,15 +475,14 @@ bool PeriodicWaveImpl::CreateBandLimitedTables(
     band_limited_tables_.push_back(std::move(table));
 
     // Apply an inverse FFT to generate the time-domain table data.
-    float* data = band_limited_tables_[range_index]->Data();
-    frame.DoInverseFFT(data);
+    base::span<float> data_span = band_limited_tables_[range_index]->as_span();
+    frame.DoInverseFFT(data_span);
 
     // For the first range (which has the highest power), calculate its peak
     // value then compute normalization scale.
     if (!disable_normalization) {
       if (!range_index) {
-        float max_value;
-        vector_math::Vmaxmgv(data, 1, &max_value, fft_size);
+        float max_value = vector_math::Vmaxmgv(data_span, fft_size);
 
         if (max_value) {
           normalization_scale = 1.0f / max_value;
@@ -494,7 +491,7 @@ bool PeriodicWaveImpl::CreateBandLimitedTables(
     }
 
     // Apply normalization scale.
-    vector_math::Vsmul(data, 1, normalization_scale, data, 1, fft_size);
+    vector_math::Vsmul(data_span, normalization_scale, data_span, fft_size);
   }
   return true;
 }

@@ -2417,7 +2417,8 @@ public class AwContents implements SmartClipProvider {
 
         // TODO(crbug.com/408974593): Consider adding a fixupUrl option.
         // TODO(crbug.com/408974593): Allow developers to set the PageTransition type.
-        LoadUrlParams loadUrlParams = new LoadUrlParams(params.url, PageTransition.TYPED);
+        LoadUrlParams loadUrlParams =
+                new LoadUrlParams(params.url, PageTransition.TYPED | PageTransition.FROM_API);
         loadUrlParams.setShouldReplaceCurrentEntry(params.shouldReplaceCurrentEntry);
         loadUrlParams.setExtraHeaders(params.extraHeaders);
         // Remove extra headers for cross origin redirects to avoid data leakage - see
@@ -4656,6 +4657,9 @@ public class AwContents implements SmartClipProvider {
             if (isDestroyed(NO_WARN)) return false;
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
                 mSettings.setSpatialNavigationEnabled(false);
+                RecordHistogram.recordBooleanHistogram(
+                        "Android.WebView.NestedScrollingEnabled",
+                        mContainerView.isNestedScrollingEnabled());
             }
 
             AwContentsJni.get().onInputEvent(mNativeAwContents);

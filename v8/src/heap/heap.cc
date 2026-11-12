@@ -182,7 +182,8 @@ class Heap::AllocationTrackerForDebugging final
     } else if (v8_flags.trace_allocation_stack_interval > 0) {
       allocations_count_.fetch_add(1, std::memory_order_relaxed);
       if (allocations_count_ % v8_flags.trace_allocation_stack_interval == 0) {
-        heap_->isolate()->PrintStack(stdout, Isolate::kPrintStackConcise);
+        heap_->isolate()->PrintStack(stdout, Isolate::kPrintStackConcise,
+                                     AllowAllocation::kNo);
       }
     }
   }
@@ -6779,8 +6780,9 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     // If the bucket corresponding to the object's chunk does not exist, or the
     // object is not found in the bucket, return true.
     BasePage* chunk = BasePage::FromHeapObject(heap_->isolate(), object);
-    if (reachable_.count(chunk) == 0) return true;
-    return reachable_[chunk]->count(object) == 0;
+    auto it = reachable_.find(chunk);
+    if (it == reachable_.end()) return true;
+    return !it->second->contains(object);
   }
 
  private:
@@ -6790,13 +6792,12 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     // If the bucket corresponding to the object's chunk does not exist, then
     // create an empty bucket.
     BasePage* chunk = BasePage::FromHeapObject(heap_->isolate(), object);
-    if (reachable_.count(chunk) == 0) {
-      reachable_[chunk] = std::make_unique<BucketType>();
+    auto it = reachable_.find(chunk);
+    if (it == reachable_.end()) {
+      it = reachable_.emplace(chunk, std::make_unique<BucketType>()).first;
     }
     // Insert the object if not present; return whether it was indeed inserted.
-    if (reachable_[chunk]->count(object)) return false;
-    reachable_[chunk]->insert(object);
-    return true;
+    return it->second->insert(object).second;
   }
 
   class MarkingVisitor : public ObjectVisitorWithCageBases, public RootVisitor {

@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "api/audio/audio_frame.h"
 #include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
@@ -172,9 +173,9 @@ class ChannelReceiveInterface : public RtpPacketSinkInterface {
 
 std::unique_ptr<ChannelReceiveInterface> CreateChannelReceive(
     const Environment& env,
-    NetEqFactory* neteq_factory,
-    AudioDeviceModule* audio_device_module,
-    Transport* rtcp_send_transport,
+    NetEqFactory* absl_nullable neteq_factory,
+    AudioDeviceModule* absl_nonnull audio_device_module,
+    Transport* absl_nonnull rtcp_send_transport,
     uint32_t remote_ssrc,
     size_t jitter_buffer_max_packets,
     bool jitter_buffer_fast_playout,

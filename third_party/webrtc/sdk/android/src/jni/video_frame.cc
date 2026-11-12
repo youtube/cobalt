@@ -311,8 +311,12 @@ ScopedJavaLocalRef<jobject> NativeToJavaVideoFrame(JNIEnv* jni,
         jni, j_video_frame_buffer, static_cast<jint>(frame.rotation()),
         static_cast<jlong>(frame.timestamp_us() * kNumNanosecsPerMicrosec));
   } else {
+    auto i420_buffer = buffer->ToI420();
+    if (!i420_buffer) {
+      return nullptr;
+    }
     return Java_VideoFrame_Constructor(
-        jni, WrapI420Buffer(jni, buffer->ToI420()),
+        jni, WrapI420Buffer(jni, i420_buffer),
         static_cast<jint>(frame.rotation()),
         static_cast<jlong>(frame.timestamp_us() * kNumNanosecsPerMicrosec));
   }

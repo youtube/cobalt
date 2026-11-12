@@ -16,12 +16,16 @@
 #import "components/password_manager/core/browser/form_fetcher_impl.h"
 #import "components/password_manager/core/browser/password_manager_client.h"
 #import "components/password_manager/core/browser/password_manager_util.h"
+#import "components/password_manager/core/browser/password_store/password_form_converters.h"
 #import "components/password_manager/core/browser/ui/credential_ui_entry.h"
 #import "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
 #import "components/sync/base/data_type.h"
 #import "components/sync/service/sync_service.h"
 #import "components/webauthn/core/browser/passkey_model.h"
 #import "components/webauthn/ios/features.h"
+#import "components/webauthn/ios/ios_webauthn_credentials_delegate.h"
+#import "components/webauthn/ios/ios_webauthn_credentials_delegate_factory.h"
+#import "components/webauthn/ios/passkey_java_script_feature.h"
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/form_fetcher_consumer_bridge.h"
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_action_cell.h"
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_constants.h"
@@ -42,6 +46,7 @@
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/credential_provider/passkey_model_observer_bridge.h"
 #import "ios/chrome/grit/ios_strings.h"
+#import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/web_state_observer_bridge.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 #import "ui/gfx/favicon_size.h"
@@ -151,6 +156,12 @@ std::vector<ManualFillCredentialAndPasswordForm> GetFilteredCredentials(
 
   // Provides access to passkeys stored in user's account.
   raw_ptr<webauthn::PasskeyModel> _passkeyModel;
+
+  // The WebAuthn credentials delegate for the frame currently registering form
+  // activity, or the main frame as a fallback. Can be null if conditional
+  // passkey login is disabled or no frame is active.
+  base::WeakPtr<password_manager::WebAuthnCredentialsDelegate>
+      _webAuthnDelegate;
 }
 
 - (instancetype)initWithFaviconLoader:(FaviconLoader*)faviconLoader
@@ -228,7 +239,33 @@ std::vector<ManualFillCredentialAndPasswordForm> GetFilteredCredentials(
     [self setFormFetcher:[self createFormFetcher]];
   }
 
+  if (!_webAuthnDelegate && IsConditionalPasskeyLoginEnabled()) {
+    web::WebFramesManager* framesManager =
+        webauthn::PasskeyJavaScriptFeature::GetInstance()->GetWebFramesManager(
+            _webState);
+    if (framesManager) {
+      webauthn::IOSWebAuthnCredentialsDelegateFactory* factory =
+          webauthn::IOSWebAuthnCredentialsDelegateFactory::GetFactory(
+              _webState);
+      for (web::WebFrame* frame : framesManager->GetAllWebFrames()) {
+        webauthn::IOSWebAuthnCredentialsDelegate* delegate =
+            factory->GetDelegateForFrameId(frame->GetFrameId());
+        if (delegate && delegate->GetPasskeys().has_value()) {
+          _webAuthnDelegate = delegate->AsWeakPtr();
+          break;
+        }
+      }
+    }
+  }
+
   _formFetcher->Fetch();
+
+  if (_webAuthnDelegate && !_webAuthnDelegate->GetPasskeys().has_value()) {
+    __weak __typeof(self) weakSelf = self;
+    _webAuthnDelegate->RequestNotificationWhenPasskeysReady(base::BindOnce(^{
+      [weakSelf postDataToConsumer];
+    }));
+  }
 }
 
 - (void)fetchAllPasswords {
@@ -287,11 +324,68 @@ std::vector<ManualFillCredentialAndPasswordForm> GetFilteredCredentials(
   if (!self.consumer) {
     return;
   }
-  NSArray<ManualFillCredentialItem*>* credentials =
+
+  size_t passkeyCount = 0;
+  const std::vector<password_manager::PasskeyCredential>* availablePasskeys =
+      nullptr;
+
+  if (_webAuthnDelegate) {
+    base::expected<const std::vector<password_manager::PasskeyCredential>*,
+                   password_manager::WebAuthnCredentialsDelegate::
+                       PasskeysUnavailableReason>
+        passkeys_result = _webAuthnDelegate->GetPasskeys();
+    if (passkeys_result.has_value()) {
+      availablePasskeys = *passkeys_result;
+      passkeyCount = availablePasskeys->size();
+    }
+  }
+
+  size_t totalCount = passkeyCount + _credentials.size();
+  NSMutableArray<ManualFillCredentialItem*>* items =
+      [[NSMutableArray alloc] initWithCapacity:totalCount];
+
+  if (availablePasskeys) {
+    const std::vector<password_manager::PasskeyCredential>& passkeys =
+        *availablePasskeys;
+    for (size_t i = 0; i < passkeyCount; i++) {
+      const password_manager::PasskeyCredential& passkey = passkeys[i];
+
+      NSString* rpId = base::SysUTF8ToNSString(passkey.rp_id());
+      ManualFillCredential* passkeyCredential = [[ManualFillCredential alloc]
+            initWithUsername:base::SysUTF8ToNSString(passkey.username())
+                    password:@""
+                    siteName:rpId
+                        host:rpId
+                         URL:_URL
+          isBackupCredential:NO];
+
+      NSString* cellIndexAccessibilityLabel = base::SysUTF16ToNSString(
+          base::i18n::MessageFormatter::FormatWithNamedArgs(
+              l10n_util::GetStringUTF16(
+                  IDS_IOS_MANUAL_FALLBACK_PASSWORD_CELL_INDEX),
+              "count", base::checked_cast<int>(totalCount), "position",
+              base::checked_cast<int>(i + 1)));
+
+      ManualFillCredentialItem* item = [[ManualFillCredentialItem alloc]
+                   initWithCredential:passkeyCredential
+                      contentInjector:self
+                          menuActions:@[]
+                            cellIndex:i
+          cellIndexAccessibilityLabel:cellIndexAccessibilityLabel
+               showAutofillFormButton:_showAutofillFormButton
+              fromAllPasswordsContext:[self isFromAllPasswordsContext]
+                       credentialType:ManualFillCredentialType::kPasskey];
+      [items addObject:item];
+    }
+  }
+
+  NSArray<ManualFillCredentialItem*>* credentialItems =
       [self createItemsForCredentials:_credentials
-                           startIndex:0
-                           totalCount:_credentials.size()];
-  [self.consumer presentCredentials:credentials];
+                           startIndex:passkeyCount
+                           totalCount:totalCount];
+  [items addObjectsFromArray:credentialItems];
+
+  [self.consumer presentCredentials:items];
 }
 
 // Creates a table view model with the passed credentials.
@@ -610,6 +704,14 @@ std::vector<ManualFillCredentialAndPasswordForm> GetFilteredCredentials(
     didRegisterFormActivity:(const autofill::FormActivityParams&)params
                     inFrame:(web::WebFrame*)frame {
   DCHECK_EQ(_webState, webState);
+  CHECK(frame);
+
+  if (IsConditionalPasskeyLoginEnabled()) {
+    webauthn::IOSWebAuthnCredentialsDelegate* delegate =
+        webauthn::IOSWebAuthnCredentialsDelegateFactory::GetFactory(webState)
+            ->GetDelegateForFrameId(frame->GetFrameId());
+    _webAuthnDelegate = delegate ? delegate->AsWeakPtr() : nullptr;
+  }
   if (_activeFieldIsObfuscated !=
       (params.field_type == autofill::kObfuscatedFieldType)) {
     _activeFieldIsObfuscated =
@@ -654,11 +756,10 @@ std::vector<ManualFillCredentialAndPasswordForm> GetFilteredCredentials(
 
 - (void)fetchDidComplete {
   // Fetch the passwords.
-  const base::span<const PasswordForm> passwordForms =
-      _formFetcher->GetBestMatches();
-
-  std::vector<PasswordForm> passwordFormVector =
-      std::vector<PasswordForm>(passwordForms.begin(), passwordForms.end());
+  std::vector<PasswordForm> passwordFormVector;
+  for (const auto& cred : _formFetcher->GetBestMatches()) {
+    passwordFormVector.push_back(password_manager::ToPasswordForm(cred));
+  }
   _credentials = [self
       createManualFillCredentialsFromPasswordForms:std::move(
                                                        passwordFormVector)];

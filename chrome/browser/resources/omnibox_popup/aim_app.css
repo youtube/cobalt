@@ -68,7 +68,7 @@
   --color-composebox-submit-button-hover: var(--color-omnibox-action-icon-hover);
   --color-composebox-suggestion-activity: unset; /* No activity suggestion disclaimer. */
   --color-composebox-type-ahead: var(--color-omnibox-foreground-disabled);
-  --color-composebox-type-ahead-chip: var(--color-omnibox-foreground-disabled);
+  --color-composebox-type-ahead-chip: var(--color-omnibox-composebox-chip-background);
   --color-composebox-upload-button: var(--omnibox-results-chip-background);
   --color-composebox-upload-button-disabled: var(--color-omnibox-foreground-disabled);
   --color-composebox-voice-search-font: var(--color-omnibox-text);
@@ -106,6 +106,44 @@
   top: 14px;
 }
 
+:host([energy-effect-enabled_]) #composebox::part(context-menu-entrypoint-icon) {
+  --cr-composebox-entrypoint-background-color: var(--color-omnibox-composebox-context-entrypoint-background);
+  --cr-composebox-entrypoint-border-radius: 100px;
+  --cr-composebox-entrypoint-height: 32px;
+  --cr-composebox-entrypoint-width: 40px;
+  --cr-icon-button-icon-size: 20px;
+}
+
+:host([energy-effect-enabled_]) #composebox[in-tool-mode]::part(context-menu-entrypoint-icon) {
+  --cr-composebox-entrypoint-background-color: transparent;
+}
+
+:host([energy-effect-animation-enabled_]) #composebox::part(context-menu-entrypoint-icon),
+:host([energy-effect-animation-enabled_]) #composebox::part(entrypoint-button) {
+  --button-scale-x: 1.16;
+  --cr-icon-button-transition:
+    var(--on-release-duration) var(--expressive-fast-curve);
+  --expressive-fast-curve: cubic-bezier(0.42, 1.67, 0.21, 0.9);
+  --icon-scale-x: 0.95;
+  --on-press-duration: 200ms;
+  --on-release-duration: 400ms;
+
+  transform-origin: center;
+  transition: transform var(--on-release-duration) var(--expressive-fast-curve);
+  will-change: transform;
+}
+
+:host([energy-effect-animation-enabled_]) #composebox::part(context-menu-entrypoint-icon):active,
+:host([energy-effect-animation-enabled_]) #composebox::part(entrypoint-button):active {
+  --cr-icon-button-icon-size:
+    calc(20px * var(--icon-scale-x));
+  --cr-icon-button-transition:
+    var(--on-press-duration) var(--expressive-fast-curve);
+
+  transform: scale(var(--button-scale-x), 1);
+  transition-duration: var(--on-press-duration);
+}
+
 #composebox::part(input) {
   min-height: 44px;
 }
@@ -131,7 +169,15 @@ cr-composebox[searchbox-layout-mode='TallBottomContext']::part(submit) {
   inset-inline-end: 8px;
 }
 
-#composebox::part(voice-icon) {
+/* Only set min height/width if it exists;
+ * otherwise use existing min height/width.
+ */
+cr-composebox.has-embedded-permission-prompt::part(composebox) {
+  min-height: var(--cr_composebox_minimum_height);
+  min-width: var(--cr_composebox_minimum_width);
+}
+
+cr-composebox::part(voice-icon) {
   --cr-icon-button-fill-color: var(--cr-composebox-voice-icon-fill-color);
 }
 

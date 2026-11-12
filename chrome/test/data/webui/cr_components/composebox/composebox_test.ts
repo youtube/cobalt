@@ -4,6 +4,7 @@
 
 import 'chrome://resources/cr_components/composebox/composebox.js';
 
+import {ComposeboxFile} from 'chrome://resources/cr_components/composebox/common.js';
 import type {ComposeboxElement} from 'chrome://resources/cr_components/composebox/composebox.js';
 import {PageCallbackRouter, PageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
 import type {ComposeboxInputElement} from 'chrome://resources/cr_components/composebox/composebox_input.js';
@@ -13,11 +14,13 @@ import {createAutocompleteResultForTesting, createSearchMatchForTesting} from 'c
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {PageRemote as SearchboxPageRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {InputType} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
+import type {UnguessableToken} from 'chrome://resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
+import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import type {TestMock} from 'chrome://webui-test/test_mock.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
-import {installMock} from './composebox_test_utils.js';
+import {installMock, MockInputState} from './composebox_test_utils.js';
 
 suite('ComposeboxTest', () => {
   let composebox: ComposeboxElement;
@@ -64,6 +67,9 @@ suite('ComposeboxTest', () => {
       dismissButton: 'Dismiss',
       composeboxDragAndDropHint: 'Hint',
       removeSuggestion: 'Remove',
+      composeboxDeleteFileTitle: 'Delete',
+      contextManagementInComposeboxEnabled: false,
+      tabFaviconChipsToCoinsEnabled: false,
     });
 
     handler = installMock(
@@ -338,9 +344,141 @@ suite('ComposeboxTest', () => {
 
     assertEquals('', composebox.smartComposeInlineHint);
   });
+
+  test(
+      'filters tabs from carousel when tab chips to coins flag is enabled',
+      async () => {
+        // Override the feature flag to true before creating the component.
+        loadTimeData.overrideValues({
+          tabFaviconChipsToCoinsEnabled: true,
+        });
+
+        document.body.innerHTML = window.trustedTypes!.emptyHTML;
+        const freshComposebox = document.createElement('cr-composebox');
+        document.body.appendChild(freshComposebox);
+
+        // Prepare mock files: one regular file, one tab (identified by having a
+        // 'url').
+        const regularFile = {name: 'image.png', type: 'image/png'} as any;
+        const tabFile = {name: 'Google', url: 'https://www.google.com/'} as any;
+        freshComposebox.files =
+            new Map([['uuid-1', regularFile], ['uuid-2', tabFile]]);
+
+        freshComposebox.requestUpdate();
+        await freshComposebox.updateComplete;
+
+        // Retrieve the carousel component for assertions.
+        const carousel = freshComposebox.shadowRoot.querySelector(
+            'cr-composebox-file-carousel');
+        assertTrue(!!carousel);
+
+        // Assert: The carousel should only receive 1 file (the regular image).
+        // The tab file should be successfully filtered out.
+        assertEquals(1, carousel.files.length);
+        assertEquals('image.png', carousel.files[0]!.name);
+      });
+
+  test('does not filter tabs from carousel when flag is disabled', async () => {
+    // Override the feature flag to false.
+    loadTimeData.overrideValues({
+      tabFaviconChipsToCoinsEnabled: false,
+    });
+
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    const freshComposebox = document.createElement('cr-composebox');
+    document.body.appendChild(freshComposebox);
+
+    // Prepare mock files: one regular file, one tab (identified by having a
+    // 'url').
+    const regularFile = {name: 'image.png', type: 'image/png'} as any;
+    const tabFile = {name: 'Google', url: 'https://www.google.com/'} as any;
+    freshComposebox.files =
+        new Map([['uuid-1', regularFile], ['uuid-2', tabFile]]);
+
+    freshComposebox.requestUpdate();
+    await freshComposebox.updateComplete;
+
+    // Retrieve the carousel component for assertions.
+    const carousel =
+        freshComposebox.shadowRoot.querySelector('cr-composebox-file-carousel');
+    assertTrue(!!carousel);
+
+    // Assert: When the flag is disabled, no filtering occurs.
+    // The carousel should receive both files exactly as they were added.
+    assertEquals(2, carousel.files.length);
+  });
+
+  test('incompatible files are deleted on input state change', async () => {
+    // Add a file to composebox.
+    const token = 'uuid-1' as unknown as UnguessableToken;
+    const file = new ComposeboxFile(
+        token, 'image.png', 'image/png', InputType.kLensImage, {
+          isDeletable: true,
+        });
+    composebox.files = new Map([[token, file]]);
+    await composebox.updateComplete;
+
+    // Verify it is there.
+    assertEquals(1, composebox.files.size);
+
+    // Trigger input state change with kLensImage in disabledInputTypes.
+    const inputState = new MockInputState({
+      allowedInputTypes: [InputType.kLensImage, InputType.kLensFile],
+      disabledInputTypes: [InputType.kLensImage],  // Image is disabled
+    });
+
+    searchboxCallbackRouterRemote.onInputStateChanged(inputState);
+    await searchboxCallbackRouterRemote.$.flushForTesting();
+    await microtasksFinished();
+    await composebox.updateComplete;
+
+    // Verify the file was deleted.
+    assertEquals(0, composebox.files.size);
+  });
+
+  test('queryAutocomplete passes cursor position', async () => {
+    composebox.input = 'hello';
+    await composebox.updateComplete;
+
+    const inputElement = composebox.getInputElement();
+    inputElement.inputElement.focus();
+    inputElement.inputElement.selectionStart = 3;
+    inputElement.inputElement.selectionEnd = 3;
+
+    // Clear the `queryAutocomplete` called for ZPS.
+    searchboxHandler.resetResolver('queryAutocomplete');
+    composebox.queryAutocomplete(/*clearMatches=*/ false);
+
+    const args = await searchboxHandler.whenCalled('queryAutocomplete');
+    assertDeepEquals(args, ['hello', false, 3]);
+  });
+
+  test(
+      'queryAutocomplete passes cursor position when input is out of sync',
+      async () => {
+        composebox.input = 'hello';
+        await composebox.updateComplete;
+
+        const inputElement = composebox.getInputElement();
+        inputElement.inputElement.focus();
+        inputElement.inputElement.selectionStart = 3;
+        inputElement.inputElement.selectionEnd = 3;
+
+        // Simulate a programming update of the input as happens when, e.g., the
+        // user closes the composebox. This update won't be immediately
+        // reflected in the DOM.
+        composebox.input = 'hello world';
+
+        // Clear the `queryAutocomplete` called for ZPS.
+        searchboxHandler.resetResolver('queryAutocomplete');
+        composebox.queryAutocomplete(/*clearMatches=*/ false);
+
+        const args = await searchboxHandler.whenCalled('queryAutocomplete');
+        assertDeepEquals(args, ['hello world', false, 11]);
+      });
 });
 
-suite('composeboxSharedMountAutoRepostionDefault', () => {
+suite('composeboxSharedMountAutoRepositionDefault', () => {
   let composebox: ComposeboxElement;
 
   setup(async () => {
@@ -372,7 +510,8 @@ suite('composeboxSharedMountAutoRepostionDefault', () => {
       // Keys accessed by ContextualActionMenuElement class-field
       // initialization once the shared
       // `<cr-composebox-contextual-entrypoint-and-menu>` mount renders.
-      // loadTimeData.getBoolean() asserts on absent keys, so these are required.
+      // loadTimeData.getBoolean() asserts on absent keys, so these are
+      // required.
       // Not optional with defaults - when `composeboxShowContextMenu` is true.
       composeboxContextMenuEnableMultiTabSelection: false,
       composeboxShowContextMenuTabPreviews: false,
@@ -397,6 +536,8 @@ suite('composeboxSharedMountAutoRepostionDefault', () => {
       dismissButton: 'Dismiss',
       composeboxDragAndDropHint: 'Hint',
       removeSuggestion: 'Remove',
+      contextManagementInComposeboxEnabled: false,
+      tabFaviconChipsToCoinsEnabled: false,
     });
 
     const handler = installMock(

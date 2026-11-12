@@ -46,6 +46,7 @@
 #include "third_party/blink/public/web/web_form_control_element.h"
 #include "third_party/blink/public/web/web_form_element.h"
 #include "third_party/blink/public/web/web_input_element.h"
+#include "third_party/blink/public/web/web_local_frame_observer.h"
 #include "ui/accessibility/ax_mode.h"
 
 namespace blink {
@@ -132,6 +133,22 @@ class AutofillAgent : public content::RenderFrameObserver,
     // information in or near the keyboard instead.
     UsesKeyboardAccessoryForSuggestions uses_keyboard_accessory_for_suggestions{
         BUILDFLAG(IS_ANDROID)};
+  };
+
+  class EmailVerificationObserver : public blink::WebLocalFrameObserver {
+   public:
+    explicit EmailVerificationObserver(AutofillAgent* agent);
+    ~EmailVerificationObserver() override;
+    void StoreEmailVerificationToken(FieldRendererId field_id,
+                                     const std::string& token);
+    // blink::WebLocalFrameObserver:
+    void WillSendSubmitEvent(const blink::WebFormElement& form) override;
+    void OnFrameDetached() override {}
+    void Reset() { email_verification_tokens_.clear(); }
+
+   private:
+    const raw_ptr<AutofillAgent> agent_;
+    base::flat_map<FieldRendererId, std::string> email_verification_tokens_;
   };
 
   // PasswordAutofillAgent is guaranteed to outlive AutofillAgent.
@@ -222,9 +239,8 @@ class AutofillAgent : public content::RenderFrameObserver,
   void GetPotentialLastFourCombinationsForStandaloneCvc(
       base::OnceCallback<void(const std::vector<std::string>&)>
           potential_matches) override;
-  void DispatchEmailVerifiedEvent(
-      FieldRendererId field_id,
-      const std::string& presentation_token) override;
+  void SendEmailVerificationToken(FieldRendererId field_id,
+                                  const std::string& token) override;
 
   // Fires Mojo messages for a given form submission.
   void FireHostSubmitEvents(const FormData& form_data,
@@ -573,6 +589,8 @@ class AutofillAgent : public content::RenderFrameObserver,
   } input_warnings_;
 
   const bool replace_form_element_observer_ = false;
+
+  EmailVerificationObserver email_verification_observer_;
 
   base::WeakPtrFactory<AutofillAgent> weak_ptr_factory_{this};
 };

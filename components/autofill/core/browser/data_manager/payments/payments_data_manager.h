@@ -5,16 +5,24 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_DATA_MANAGER_PAYMENTS_PAYMENTS_DATA_MANAGER_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_DATA_MANAGER_PAYMENTS_PAYMENTS_DATA_MANAGER_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "base/containers/span.h"
 #include "base/functional/function_ref.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
+#include "base/scoped_observation.h"
+#include "base/time/time.h"
+#include "build/buildflag.h"
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/data_model/payments/autofill_offer_data.h"
 #include "components/autofill/core/browser/data_model/payments/autofill_wallet_usage_data.h"
@@ -31,10 +39,15 @@
 #include "components/autofill/core/browser/webdata/autofill_webdata_service_observer.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
+#include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/service/sync_service_observer.h"
+#include "components/webdata/common/web_data_results.h"
+#include "components/webdata/common/web_data_service_base.h"
 #include "ui/gfx/image/image.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace syncer {
 class SyncService;
@@ -318,10 +331,6 @@ class PaymentsDataManager : public AutofillWebDataServiceObserverOnUISequence,
   // Deletes all server cards (both masked and unmasked).
   void ClearAllServerDataForTesting();
 
-  // Sets |credit_cards_| to the contents of |credit_cards| and updates the web
-  // database by adding, updating and removing credit cards.
-  void SetCreditCards(std::vector<CreditCard>* credit_cards);
-
   // Try to save a credit card locally. If the card already exists, do nothing
   // and return false. If the card is new, save it locally and return true.
   virtual bool SaveCardLocallyIfNew(const CreditCard& imported_credit_card);
@@ -412,7 +421,7 @@ class PaymentsDataManager : public AutofillWebDataServiceObserverOnUISequence,
 
   // Called when the user accepts the prompt to save the credit card locally.
   // Records some metrics and attempts to save the imported card. Returns the
-  // guid of the new or updated card, or the empty string if no card was saved.
+  // guid of the new or updated card.
   std::string OnAcceptedLocalCreditCardSave(
       const CreditCard& imported_credit_card);
 

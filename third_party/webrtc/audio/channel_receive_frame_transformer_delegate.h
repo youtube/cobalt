@@ -17,6 +17,7 @@
 #include <span>
 #include <string>
 
+#include "absl/base/nullability.h"
 #include "api/frame_transformer_interface.h"
 #include "api/rtp_headers.h"
 #include "api/scoped_refptr.h"
@@ -40,7 +41,7 @@ class ChannelReceiveFrameTransformerDelegate : public TransformedFrameCallback {
   ChannelReceiveFrameTransformerDelegate(
       ReceiveFrameCallback receive_frame_callback,
       scoped_refptr<FrameTransformerInterface> frame_transformer,
-      TaskQueueBase* channel_receive_thread);
+      TaskQueueBase* absl_nonnull channel_receive_thread);
 
   // Registers `this` as callback for `frame_transformer_`, to get the
   // transformed frames.

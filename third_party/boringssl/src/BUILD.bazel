@@ -28,6 +28,7 @@ load(
     "crypto_sources_asm",
     "crypto_test_data",
     "crypto_test_sources",
+    "crypto_test_internal_headers",
     "decrepit_internal_headers",
     "decrepit_sources",
     "decrepit_test_sources",
@@ -114,7 +115,7 @@ bssl_cc_library(
 bssl_cc_test(
     name = "crypto_test",
     size = "large",
-    srcs = crypto_test_sources,
+    srcs = crypto_test_sources + crypto_test_internal_headers,
     data = crypto_test_data,
     # crypto_test references assembly symbols directly and thus must be linked
     # statically.

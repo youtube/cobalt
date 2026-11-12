@@ -900,7 +900,7 @@ chromium-metrics-reviews@google.com.
   <int value="12" label="Bottom Banner (e.g. Download Banner)"/>
   <int value="13" label="Keyboard"/>
   <int value="14" label="Gesture IPH"/>
-  <int value="15" label="Search Related Page"/>
+  <int value="15" label="Search Related Page (Deprecated)"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h:FloatyUpdateSource) -->
@@ -995,7 +995,7 @@ chromium-metrics-reviews@google.com.
 <enum name="IOSGeminiPageAvailability">
   <int value="0" label="Unavailable"/>
   <int value="1" label="Available"/>
-  <int value="2" label="Search Result Page"/>
+  <int value="2" label="Search Result Page (Deprecated)"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h:IOSGeminiPageAvailability) -->
@@ -1405,6 +1405,7 @@ chromium-metrics-reviews@google.com.
   <int value="9" label="SpotlightDebugger"/>
   <int value="10" label="PriceNotifications"/>
   <int value="11" label="Cobalt"/>
+  <int value="12" label="LevelUp"/>
 </enum>
 
 <!-- LINT.ThenChange(
@@ -2741,6 +2742,21 @@ chromium-metrics-reviews@google.com.
   <int value="13" label="Imperial Volume"/>
   <int value="14" label="Metric Volume"/>
 </enum>
+
+<!-- LINT.IfChange(UserFeedbackSender) -->
+
+<enum name="UserFeedbackSender">
+  <int value="0" label="ToolsMenu"/>
+  <int value="1" label="SadTab"/>
+  <int value="2" label="Feed"/>
+  <int value="3" label="KeyCommand"/>
+  <int value="4" label="MiniMap"/>
+  <int value="5" label="ParcelTracking"/>
+  <int value="6" label="UnitConversion"/>
+  <int value="7" label="ContentNotification"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/public/provider/chrome/browser/user_feedback/user_feedback_sender.h:UserFeedbackSender) -->
 
 <enum name="VariationsFirstRunSeedApplicationStage">
   <int value="0" label="Seed missing">

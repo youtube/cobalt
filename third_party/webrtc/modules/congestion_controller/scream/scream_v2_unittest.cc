@@ -161,7 +161,7 @@ TEST(ScreamV2Test, ReferenceWindowIncreaseLessPerStepIfCeDetected) {
   EXPECT_GT(scream_1.ref_window(), scream_2.ref_window());
 }
 
-TEST(ScreamV2Test, ReferenceWindowDecreaseIfPacketsAreLostForTheFirstTime) {
+TEST(ScreamV2Test, ReferenceWindowDecreaseOnConsecutiveLossEvents) {
   SimulatedClock clock(Timestamp::Seconds(1'234));
   Environment env = CreateTestEnvironment({.time = &clock});
   ScreamV2 scream(env);
@@ -175,14 +175,18 @@ TEST(ScreamV2Test, ReferenceWindowDecreaseIfPacketsAreLostForTheFirstTime) {
   DataSize ref_window = scream.ref_window();
   clock.AdvanceTime(TimeDelta::Millis(25));
 
-  TransportPacketsFeedback loss_feedback =
-      CreateFeedback(clock.CurrentTime(), /*rtt=*/TimeDelta::Millis(10),
-                     /*number_of_ect1_packets=*/5,
-                     /*number_of_packets_in_flight=*/5);
-  loss_feedback.packet_feedbacks[3].receive_time = Timestamp::PlusInfinity();
-  loss_feedback.packet_feedbacks[3].reported_lost_for_the_first_time = true;
-
-  scream.OnTransportPacketsFeedback(loss_feedback);
+  // Send consecutive loss reports until loss_event_rate exceeds the 0.25
+  // threshold to trigger the reference window decrease.
+  for (int i = 0; i < 3; ++i) {
+    TransportPacketsFeedback loss_feedback =
+        CreateFeedback(clock.CurrentTime(), /*rtt=*/TimeDelta::Millis(10),
+                       /*number_of_ect1_packets=*/5,
+                       /*number_of_packets_in_flight=*/5);
+    loss_feedback.packet_feedbacks[3].receive_time = Timestamp::PlusInfinity();
+    loss_feedback.packet_feedbacks[3].reported_lost_for_the_first_time = true;
+    scream.OnTransportPacketsFeedback(loss_feedback);
+    clock.AdvanceTime(TimeDelta::Millis(25));
+  }
   EXPECT_LT(scream.ref_window(), ref_window);
   ref_window = scream.ref_window();
 
@@ -356,6 +360,26 @@ TEST(ScreamV2Test, AdaptsToDelayLinkCapacity2Mbps) {
   AdaptsToLinkCapacityParams params{
       .network_config = {.queue_delay_ms = 10,
                          .link_capacity = DataRate::KilobitsPerSec(2000)},
+      .send_as_ect1 = false,  // Adapt only due to delay increase.
+      .adaption_time = TimeDelta::Seconds(10)};
+
+  AdaptsToLinkCapacityResult result = RunAdaptToLinkCapacityTest(params);
+
+  EXPECT_LT(result.data_rate, DataRate::KilobitsPerSec(2500));
+  EXPECT_GT(result.data_rate, DataRate::KilobitsPerSec(1500));
+  EXPECT_LT(result.max_rate_after_adaption, DataRate::KilobitsPerSec(2500));
+  EXPECT_GT(result.min_rate_after_adaption, DataRate::KilobitsPerSec(1500));
+
+  EXPECT_LT(result.max_smoothed_rtt_after_adaptation,
+            TimeDelta::Millis(10 * 2 + 50 + 10));
+}
+
+TEST(ScreamV2Test, AdaptsToDelayLinkCapacity2MbpsWithReorderedPackets) {
+  AdaptsToLinkCapacityParams params{
+      .network_config = {.queue_delay_ms = 10,
+                         .delay_standard_deviation_ms = 5,
+                         .link_capacity = DataRate::KilobitsPerSec(2000),
+                         .allow_reordering = true},
       .send_as_ect1 = false,  // Adapt only due to delay increase.
       .adaption_time = TimeDelta::Seconds(10)};
 

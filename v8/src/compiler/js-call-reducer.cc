@@ -1789,6 +1789,12 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeSort(
   GotoIf(NumberLessThan(NumberConstant(kMaxInlineSortSize), original_length),
          &slow_label);
 
+  if (v8_flags.turbo_typer_hardening) {
+    original_length =
+        CheckBounds(original_length, NumberConstant(kMaxInlineSortSize + 1),
+                    CheckBoundsFlag::kAbortOnOutOfBounds);
+  }
+
   // Fast path: inline insertion sort on a temporary FixedArray.
   {
     // Allocate a temporary FixedArray of kMaxInlineSortSize.  We always
@@ -4376,6 +4382,9 @@ Reduction JSCallReducer::ReduceCallWasmFunction(
     wasm_native_module_for_inlining_ = native_module;
   }
 
+  // Keep the instance data (and thus the NativeModule) alive via a GC root.
+  broker()->CanonicalPersistentHandle(instance_data);
+
   // TODO(mliedtke): We should be able to remove module, signature, native
   // module and function index from the SharedFunctionInfoRef. However, for some
   // reason I may dereference the SharedFunctionInfoRef here but not in
@@ -4992,9 +5001,10 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   // Avoid deoptimization loops.
   if (speculation_mode != SpeculationMode::kAllowSpeculation) return NoChange();
 
-  // Only optimize with array literals.
+  // Only optimize with array literals and heap constant arrays.
   if (arguments_list->opcode() != IrOpcode::kJSCreateLiteralArray &&
-      arguments_list->opcode() != IrOpcode::kJSCreateEmptyLiteralArray) {
+      arguments_list->opcode() != IrOpcode::kJSCreateEmptyLiteralArray &&
+      arguments_list->opcode() != IrOpcode::kHeapConstant) {
     return NoChange();
   }
 
@@ -5015,23 +5025,42 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
     return ReplaceWithSubgraph(&a, subgraph);
   }
 
-  DCHECK_EQ(arguments_list->opcode(), IrOpcode::kJSCreateLiteralArray);
+  int array_length;
+  std::optional<MapRef> array_map;
 
-  // Find array length and elements' kind from the feedback's allocation
-  // site's boilerplate JSArray.
-  JSCreateLiteralOpNode args_node(arguments_list);
-  CreateLiteralParameters const& args_params = args_node.Parameters();
-  const FeedbackSource& array_feedback = args_params.feedback();
-  const ProcessedFeedback& feedback =
-      broker()->GetFeedbackForArrayOrObjectLiteral(array_feedback);
-  if (feedback.IsInsufficient()) return NoChange();
+  if (arguments_list->opcode() == IrOpcode::kHeapConstant) {
+    HeapObjectMatcher m(arguments_list);
+    if (!m.HasResolvedValue() || !m.Ref(broker()).IsJSArray()) {
+      return NoChange();
+    }
+    JSArrayRef constant_array = m.Ref(broker()).AsJSArray();
+    // Using `length_unsafe` is safe here because we will emit a
+    // CheckArrayLength node later to validate the dynamic length at runtime.
+    OptionalObjectRef len_ref = constant_array.length_unsafe(broker());
+    if (!len_ref.has_value() || !len_ref->IsSmi()) {
+      return NoChange();
+    }
+    array_length = len_ref->AsSmi();
+    array_map = constant_array.map(broker());
+  } else {
+    DCHECK_EQ(arguments_list->opcode(), IrOpcode::kJSCreateLiteralArray);
 
-  AllocationSiteRef site = feedback.AsLiteral().value();
-  if (!site.boilerplate(broker()).has_value()) return NoChange();
+    // Find array length and elements' kind from the feedback's allocation
+    // site's boilerplate JSArray.
+    JSCreateLiteralOpNode args_node(arguments_list);
+    CreateLiteralParameters const& args_params = args_node.Parameters();
+    const FeedbackSource& array_feedback = args_params.feedback();
+    const ProcessedFeedback& feedback =
+        broker()->GetFeedbackForArrayOrObjectLiteral(array_feedback);
+    if (feedback.IsInsufficient()) return NoChange();
 
-  JSArrayRef boilerplate_array = site.boilerplate(broker())->AsJSArray();
-  int const array_length =
-      boilerplate_array.GetBoilerplateLength(broker()).AsSmi();
+    AllocationSiteRef site = feedback.AsLiteral().value();
+    if (!site.boilerplate(broker()).has_value()) return NoChange();
+
+    JSArrayRef boilerplate_array = site.boilerplate(broker())->AsJSArray();
+    array_length = boilerplate_array.GetBoilerplateLength(broker()).AsSmi();
+    array_map = boilerplate_array.map(broker());
+  }
   SBXCHECK_GE(array_length, 0);
 
   // We'll replace the arguments_list input with {array_length} element loads.
@@ -5046,8 +5075,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   }
 
   // Determine the array's map.
-  MapRef array_map = boilerplate_array.map(broker());
-  if (!array_map.supports_fast_array_iteration(broker())) {
+  if (!array_map->supports_fast_array_iteration(broker())) {
     return NoChange();
   }
 
@@ -5063,13 +5091,13 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   // Speculate on that array's map is still equal to the dynamic map of
   // arguments_list; generate a map check.
   effect = graph()->NewNode(
-      simplified()->CheckMaps(CheckMapsFlag::kNone, ZoneRefSet<Map>(array_map),
+      simplified()->CheckMaps(CheckMapsFlag::kNone, ZoneRefSet<Map>(*array_map),
                               feedback_source),
       arguments_list, effect, control);
 
   // Speculate on that array's length being equal to the dynamic length of
   // arguments_list; generate a deopt check.
-  ElementsKind elements_kind = array_map.elements_kind();
+  ElementsKind elements_kind = array_map->elements_kind();
   effect = CheckArrayLength(arguments_list, elements_kind, array_length,
                             feedback_source, effect, control);
 

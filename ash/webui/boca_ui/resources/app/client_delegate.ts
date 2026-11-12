@@ -65,6 +65,7 @@ export function getStudentActivityMojomToUI(activities: Activity[]):
         viewScreenSessionCode: item.activity.viewScreenSessionCode ?
             item.activity.viewScreenSessionCode :
             undefined,
+        geminiState: item.activity.geminiState.valueOf(),
       },
     };
   });
@@ -378,6 +379,9 @@ export class ClientDelegateFactory {
       },
       stopPresentingOwnScreen: async () => {
         return (await pageHandler.stopPresentingOwnScreen()).success;
+      },
+      getGeminiStatus: async () => {
+        return (await pageHandler.getGeminiStatus()).enabled;
       },
     };
   }

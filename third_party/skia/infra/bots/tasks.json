@@ -96537,7 +96537,6 @@
     "Build-Win-Clang-x86_64-Release-Direct3D": {},
     "Build-Win-Clang-x86_64-Release-Vulkan": {},
     "Build-Win-MSVC-arm64-Release-ANGLE": {},
-    "Build-Win-MSVC-x86_64-Debug-Graphite_Dawn_D3D12": {},
     "Build-Win-MSVC-x86_64-Debug-Graphite_Native_Vulkan": {
       "location_regexes": [
         "(tests|src/gpu)/graphite/.*",

@@ -52,10 +52,10 @@ extern const base::FeatureParam<bool> kCloseComposeboxByClickOutside;
 extern const base::FeatureParam<bool> kEnableThreadsRail;
 // Whether to show the AIM threads rail Google logo.
 extern const base::FeatureParam<bool> kEnableThreadsRailLogo;
+// Whether to use ntp-composebox instead of cr-composebox.
+extern const base::FeatureParam<bool> kUseNtpComposeboxFork;
 
 bool IsNtpComposeboxEnabled(Profile* profile);
-
-bool IsDeepSearchEnabled(Profile* profile);
 
 bool IsCreateImagesEnabled(Profile* profile);
 

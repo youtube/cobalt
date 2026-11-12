@@ -583,7 +583,6 @@
 <translation id="7318036098707714271">您的偏好设置文件已损坏或无效。
 
 Chromium 无法恢复您的设置。</translation>
-<translation id="7339898014177206373">打开新的窗口</translation>
 <translation id="734373864078049451">您的上网记录、书签和其他Chromium内容都保存在此处。</translation>
 <translation id="7347827960336370838">只有知道您口令的人能读取您的加密数据。该口令不会被发送给 Google，也不会被 Google 存储。如果您忘记了口令或想更改此设置，将需要<ph name="BEGIN_LINK" />删除您账号中的 Chromium 数据<ph name="END_LINK" />。</translation>
 <translation id="7349591376906416160">您的系统管理员已将 Chromium 配置为使用<ph name="ALTERNATIVE_BROWSER_NAME" />访问 <ph name="TARGET_URL_HOSTNAME" />。</translation>
@@ -592,6 +591,7 @@ Chromium 无法恢复您的设置。</translation>
 <translation id="7376384068949534168">您近期未访问过该网站，因此 Chromium 撤消了该网站的<ph name="PERMISSION_1" />权限和<ph name="PERMISSION_2" />权限。</translation>
 <translation id="73786666777299047">打开 Chrome 应用商店</translation>
 <translation id="7384121030444253939">此扩展程序已不再受支持。Chromium 建议您移除它。</translation>
+<translation id="7407655596887111931">Chromium 现已设为默认浏览器</translation>
 <translation id="7413153308467572558">从上次停下的地方继续：Chromium 会在您每次重启后恢复标签页。如需关闭此功能，请前往</translation>
 <translation id="7427879960656355200">将密码导入 Chromium</translation>
 <translation id="744815265653811511">1. 点击下方的“<ph name="BUTTON_LABEL" />”
@@ -733,6 +733,7 @@ Chromium 无法恢复您的设置。</translation>
 <translation id="8981150672034878610">无法启动 Chromium，因为打开您的个人资料时出了点问题。请尝试重启 Chromium。</translation>
 <translation id="8988036198400390003">管理 Chromium 个人资料</translation>
 <translation id="9019929317751753759">为了提高 Chromium 的安全性，我们停用了以下扩展程序（该扩展程序未列在<ph name="IDS_EXTENSION_WEB_STORE_TITLE" />中，并且可能是在您不知情的情况下添加的）。</translation>
+<translation id="9022552996538154597">登录 Chromium</translation>
 <translation id="904366664621834601">Chromium 阻止了此项下载操作，因为归档文件包含可能隐藏恶意软件的其他文件</translation>
 <translation id="9053882453960391422">让您的密码、书签和历史记录在所有设备上完美同步。将默认浏览器更新为 Chromium，即可轻松使用您熟悉且喜爱的功能。Chromium 将固定到任务栏，以便您快速访问。</translation>
 <translation id="9062666675513499497">登录其他 Google 服务时登录 Chromium</translation>

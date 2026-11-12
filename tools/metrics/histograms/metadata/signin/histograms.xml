@@ -191,6 +191,30 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Signin.AccountCapabilities.CanSignInToChrome.FetchDuration"
+    units="ms" expires_after="2027-05-01">
+  <owner>ddac@chromium.org</owner>
+  <owner>ljjlee@google.com</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records the duration of fetching the can_sign_in_to_chrome capability for
+    age mismatch checks. Recorded when the fetch completes (either succeeds or
+    times out).
+  </summary>
+</histogram>
+
+<histogram name="Signin.AccountCapabilities.CanSignInToChrome.FetchResult"
+    enum="CanSignInToChromeCapabilityResult" expires_after="2027-05-01">
+  <owner>ddac@chromium.org</owner>
+  <owner>ljjlee@google.com</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records the result of the capability fetch in AgeMismatchCapabilitiesFetcher
+    (False, True, or Timeout). Recorded once on the completion of each fetch
+    attempt.
+  </summary>
+</histogram>
+
 <histogram
     name="Signin.AccountCapabilities.ExternalPrivacyContextBuildDuration"
     units="ms" expires_after="2026-09-01">
@@ -266,7 +290,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Signin.AccountCapabilities.GetFromSystemLibraryResult"
     enum="AccountCapabilitiesGetFromSystemLibraryResult"
-    expires_after="2026-09-13">
+    expires_after="2026-11-15">
   <owner>fernandex@google.com</owner>
   <owner>msarda@chromium.org</owner>
   <owner>triploblastic@chromium.org</owner>
@@ -752,6 +776,43 @@ prefs when the profile is loaded.  -->
   </token>
 </histogram>
 
+<histogram name="Signin.AgeMismatchSignout.Action"
+    enum="AgeMismatchSignoutAction" expires_after="2027-05-01">
+  <owner>ddac@chromium.org</owner>
+  <owner>ljjlee@google.com</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records the user choice in the Age Mismatch Sign-Out dialog (Use another
+    account, Use without an account). Logged when the user taps one of the
+    buttons.
+  </summary>
+</histogram>
+
+<histogram name="Signin.AgeMismatchSignout.PromptMode"
+    enum="AgeMismatchPromptMode" expires_after="2027-05-01">
+  <owner>ddac@chromium.org</owner>
+  <owner>ljjlee@google.com</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records the mode of the Age Mismatch Sign-Out dialog. &quot;Standard&quot;
+    mode is used when the check is triggered outside of a sign-in flow (e.g. on
+    app foreground). &quot;Signin Flow&quot; mode is used when the check is part
+    of a sign-in operation. Logged when the dialog is presented.
+  </summary>
+</histogram>
+
+<histogram name="Signin.AgeMismatchSignout.StaySignedOutButtonState"
+    enum="AgeMismatchStaySignedOutButtonState" expires_after="2027-05-01">
+  <owner>ddac@chromium.org</owner>
+  <owner>ljjlee@google.com</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records whether the 'Stay signed out' button is shown or hidden in the Age
+    Mismatch prompt because the user is already signed in to a primary account.
+    Logged when the prompt is displayed.
+  </summary>
+</histogram>
+
 <histogram name="Signin.Android.FRESigninEvents" enum="FRESigninEvents"
     expires_after="2026-09-27">
   <owner>mthiesse@chromium.org</owner>
@@ -808,7 +869,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.AndroidNumberOfDeviceAccounts" units="accounts"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>triploblastic@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -832,7 +893,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.AuthError" enum="GoogleServiceAuthError"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>msarda@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <summary>
@@ -922,7 +983,7 @@ prefs when the profile is loaded.  -->
 <histogram
     name="Signin.BoundSessionCredentials.CookieRotationGenerateAssertionResult"
     enum="BoundSessionCredentialsCookieRotationGenerateAssertionResult"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>alexilin@chromium.org</owner>
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -1197,7 +1258,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.BoundSessionCredentials.SessionCountOnInit"
-    units="DBSC sessions" expires_after="2026-09-06">
+    units="DBSC sessions" expires_after="2026-11-15">
   <owner>alexilin@chromium.org</owner>
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -1601,7 +1662,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.DiceTokenBindingOutcome" enum="DiceTokenBindingOutcome"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>alexilin@chromium.org</owner>
   <owner>ahijazi@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -1974,7 +2035,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.IdentityConfirmationSnackbarDecision"
-    enum="IdentityConfirmationSnackbarDecision" expires_after="2026-09-13">
+    enum="IdentityConfirmationSnackbarDecision" expires_after="2026-11-15">
   <owner>jlebel@chromium.org</owner>
   <owner>jood@google.com</owner>
   <owner>treib@chromium.org</owner>
@@ -2245,7 +2306,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.IOSAccountSwitchType" enum="IOSAccountSwitchType"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>jlebel@chromium.org</owner>
   <owner>treib@chromium.org</owner>
   <owner>chrome-signin-mobile-team@google.com</owner>
@@ -2257,7 +2318,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.IOSAuthenticationServiceInitializationOutcome"
-    enum="IOSProfileInitializationOutcome" expires_after="2026-09-06">
+    enum="IOSProfileInitializationOutcome" expires_after="2026-11-15">
   <owner>jlebel@chromium.org</owner>
   <owner>treib@chromium.org</owner>
   <owner>chrome-signin-mobile-team@google.com</owner>
@@ -2332,7 +2393,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.IOSGaiaCookieStateOnSignedInNavigation"
-    enum="GaiaCookieStateOnSignedInNavigation" expires_after="2026-09-06">
+    enum="GaiaCookieStateOnSignedInNavigation" expires_after="2026-11-15">
   <owner>jlebel@chromium.org</owner>
   <owner>msarda@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -2347,7 +2408,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.IOSHostedDomainFetchEvent"
-    enum="IOSHostedDomainFetchEvent" expires_after="2026-09-06">
+    enum="IOSHostedDomainFetchEvent" expires_after="2026-11-15">
   <owner>arthurmilchior@chromium.org</owner>
   <owner>treib@chromium.org</owner>
   <owner>chrome-signin-mobile-team@google.com</owner>
@@ -2393,7 +2454,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.IOSNumberOfDeviceAccounts" units="accounts"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>jlebel@chromium.org</owner>
   <owner>msarda@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -2664,7 +2725,7 @@ the browser and content area. -->
 </histogram>
 
 <histogram name="Signin.OAuth2MintToken.Response" enum="OAuth2Response"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>alexilin@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -2748,7 +2809,7 @@ tokens and is needed for as long as Chrome is fetching access tokens. -->
 </histogram>
 
 <histogram name="Signin.OAuthMultiloginResponseEncryptionError"
-    enum="TokenBindingResponseEncryptionError" expires_after="2026-09-06">
+    enum="TokenBindingResponseEncryptionError" expires_after="2026-11-15">
   <owner>alexilin@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -2800,7 +2861,7 @@ should be kept to monitor/debug signin Multilogin issues-->
 </histogram>
 
 <histogram name="Signin.PAMInitialize.PrimaryAccountPrefs"
-    enum="PAMInitializePrimaryAccountPrefs" expires_after="2026-09-06">
+    enum="PAMInitializePrimaryAccountPrefs" expires_after="2026-11-15">
   <owner>msarda@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -3281,7 +3342,7 @@ OAuth Multilogin call. -->
 <!-- LINT.ThenChange(//chrome/browser/signin/services/android/java/src/org/chromium/chrome/browser/signin/services/SigninFlowTimestampsLogger.java:SigninFlowTimestamps) -->
 
 <histogram name="Signin.SigninAbortedAccessPoint" enum="SigninAccessPoint"
-    expires_after="2026-06-21">
+    expires_after="2027-05-12">
   <owner>bsazonov@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -3837,7 +3898,7 @@ kept as long as profile signout is possible -->
 </histogram>
 
 <histogram name="Signin.TokenBinding.BoundToTheSameKey"
-    enum="BooleanBoundToTheSameKey" expires_after="2026-09-06">
+    enum="BooleanBoundToTheSameKey" expires_after="2026-11-15">
   <owner>alexilin@chromium.org</owner>
   <owner>ahijazi@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -3851,7 +3912,7 @@ kept as long as profile signout is possible -->
 </histogram>
 
 <histogram name="Signin.TokenBinding.GenerateAssertionResult"
-    enum="TokenBindingGenerateAssertionResult" expires_after="2026-09-06">
+    enum="TokenBindingGenerateAssertionResult" expires_after="2026-11-15">
   <owner>alexilin@chromium.org</owner>
   <owner>ahijazi@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -3890,7 +3951,7 @@ for as long as we store refresh tokens in an SQLite DB. -->
 
 <histogram name="Signin.TokenTable.GetAllWrappedBindingKeysResult"
     enum="SigninTokenTableGetAllWrappedBindingKeysResult"
-    expires_after="2026-09-13">
+    expires_after="2026-11-15">
   <owner>alexilin@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>

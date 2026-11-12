@@ -8,15 +8,24 @@ aggregate_vector_icons("media_vector_icons") {
   icon_directory = "."
 
   sources = [
+    "cast.icon",
     "chevron_right.icon",
-    "media_cast_start.icon",
-    "media_cast_stop.icon",
-    "media_enter_pip.icon",
-    "media_exit_pip.icon",
-    "media_next_track.icon",
-    "media_previous_track.icon",
-    "pause.icon",
-    "play_arrow.icon",
+    "chevron_right_old.icon",
+    "media_cast_start_old.icon",
+    "media_cast_stop_old.icon",
+    "media_enter_pip_old.icon",
+    "media_exit_pip_old.icon",
+    "media_next_track_old.icon",
+    "media_previous_track_old.icon",
+    "pause_filled.icon",
+    "pause_old.icon",
+    "pip.icon",
+    "pip_exit.icon",
+    "play_arrow_filled.icon",
+    "play_arrow_old.icon",
+    "skip_next_filled.icon",
+    "skip_previous_filled.icon",
+    "stop_circle.icon",
   ]
 }
 

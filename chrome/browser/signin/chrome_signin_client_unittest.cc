@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
@@ -17,15 +18,14 @@
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/signin/public/base/signin_metrics.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
+#include "content/public/test/browser_task_environment.h"
+#include "google_apis/gaia/gaia_constants.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#if !BUILDFLAG(IS_ANDROID)
-#include "chrome/test/base/browser_with_test_window_test.h"
-#endif
 
 #if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
 
@@ -46,16 +46,12 @@ class MockChromeSigninClient : public ChromeSigninClient {
   MOCK_METHOD0(GetExtensionsCount, std::optional<size_t>());
 };
 
-class ChromeSigninClientSignoutTest : public BrowserWithTestWindowTest {
+class ChromeSigninClientSignoutTest : public testing::Test {
  public:
   ChromeSigninClientSignoutTest() : forced_signin_setter_(true) {}
   void SetUp() override {
-    BrowserWithTestWindowTest::SetUp();
-    CreateClient(browser()->profile());
-  }
-
-  void TearDown() override {
-    BrowserWithTestWindowTest::TearDown();
+    profile_ = TestingProfile::Builder().Build();
+    CreateClient(profile_.get());
   }
 
   void CreateClient(Profile* profile) {
@@ -69,7 +65,9 @@ class ChromeSigninClientSignoutTest : public BrowserWithTestWindowTest {
         source_metric);
   }
 
+  content::BrowserTaskEnvironment task_environment_;
   signin_util::ScopedForceSigninSetterForTesting forced_signin_setter_;
+  std::unique_ptr<TestingProfile> profile_;
   std::unique_ptr<MockChromeSigninClient> client_;
 };
 
@@ -77,10 +75,8 @@ TEST_F(ChromeSigninClientSignoutTest, SignOut) {
   signin_metrics::ProfileSignout source_metric =
       signin_metrics::ProfileSignout::kUserClickedSignoutSettings;
 
-  EXPECT_CALL(*client_, ShowUserManager(browser()->profile()->GetPath()))
-      .Times(1);
-  EXPECT_CALL(*client_, LockForceSigninProfile(browser()->profile()->GetPath()))
-      .Times(1);
+  EXPECT_CALL(*client_, ShowUserManager(profile_->GetPath())).Times(1);
+  EXPECT_CALL(*client_, LockForceSigninProfile(profile_->GetPath())).Times(1);
   EXPECT_CALL(*client_, SignOutCallback(source_metric,
                                         SigninClient::SignoutDecision::ALLOW))
       .Times(1);
@@ -90,15 +86,13 @@ TEST_F(ChromeSigninClientSignoutTest, SignOut) {
 
 TEST_F(ChromeSigninClientSignoutTest, SignOutWithoutForceSignin) {
   signin_util::ScopedForceSigninSetterForTesting signin_setter(false);
-  CreateClient(browser()->profile());
+  CreateClient(profile_.get());
 
   signin_metrics::ProfileSignout source_metric =
       signin_metrics::ProfileSignout::kUserClickedSignoutSettings;
 
-  EXPECT_CALL(*client_, ShowUserManager(browser()->profile()->GetPath()))
-      .Times(0);
-  EXPECT_CALL(*client_, LockForceSigninProfile(browser()->profile()->GetPath()))
-      .Times(0);
+  EXPECT_CALL(*client_, ShowUserManager(profile_->GetPath())).Times(0);
+  EXPECT_CALL(*client_, LockForceSigninProfile(profile_->GetPath())).Times(0);
   EXPECT_CALL(*client_, SignOutCallback(source_metric,
                                         SigninClient::SignoutDecision::ALLOW))
       .Times(1);
@@ -126,6 +120,31 @@ TEST_F(ChromeSigninClientSignoutTest, ChildProfile) {
 #else
   EXPECT_TRUE(client_->IsClearPrimaryAccountAllowed());
 #endif
+}
+
+TEST_F(ChromeSigninClientSignoutTest, GetOAuthConsumerForContextualTasks) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      {{contextual_tasks::kContextualTasksExtraOauthScopes,
+        {{"ContextualTasksOAuthScopes",
+          "https://example.com/scope1,https://example.com/scope2"}}},
+       {contextual_tasks::kContextualTasks, {}}},
+      {});
+
+  signin::OAuthConsumer consumer = client_->GetOAuthConsumerFromId(
+      signin::OAuthConsumerId::kContextualTasks);
+  EXPECT_EQ(consumer.GetName(),
+            signin::oauth_consumer_name::kContextualTasksName);
+
+  signin::ScopeSet scopes = consumer.GetScopes();
+
+  // Scopes from chormium source
+  EXPECT_THAT(scopes, testing::Contains(GaiaConstants::kClearCutOAuth2Scope));
+  EXPECT_THAT(scopes, testing::Contains(GaiaConstants::kLensOAuth2Scope));
+
+  // Scopes from FeatureParam
+  EXPECT_THAT(scopes, testing::Contains("https://example.com/scope1"));
+  EXPECT_THAT(scopes, testing::Contains("https://example.com/scope2"));
 }
 
 class ChromeSigninClientSignoutSourceTest

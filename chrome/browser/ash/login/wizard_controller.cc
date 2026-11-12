@@ -15,6 +15,8 @@
 #include <vector>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_login_pref_names.h"
+#include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/public/cpp/login_types.h"
 #include "ash/webui/help_app_ui/help_app_prefs.h"
@@ -53,7 +55,6 @@
 #include "chrome/browser/ash/login/fjord_oobe/fjord_oobe_util.h"
 #include "chrome/browser/ash/login/fjord_oobe/proto/fjord_oobe_state.pb.h"
 #include "chrome/browser/ash/login/hwid_checker.h"
-#include "chrome/browser/ash/login/login_pref_names.h"
 #include "chrome/browser/ash/login/login_wizard.h"
 #include "chrome/browser/ash/login/oobe_screen.h"
 #include "chrome/browser/ash/login/quick_unlock/quick_unlock_utils.h"
@@ -153,7 +154,6 @@
 #include "chrome/browser/ash/settings/stats_reporting_controller.h"
 #include "chrome/browser/ash/system/device_disabling_manager.h"
 #include "chrome/browser/ash/system/timezone_resolver_manager.h"
-#include "chrome/browser/ash/system/timezone_util.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/enterprise/util/affiliation.h"
@@ -249,7 +249,6 @@
 #include "chrome/browser/ui/webui/ash/login/wrong_hwid_screen_handler.h"
 #include "chrome/browser/ui/webui/help/help_utils_chromeos.h"
 #include "chrome/common/chrome_constants.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/audio/cras_audio_handler.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
 #include "chromeos/ash/components/dbus/update_engine/update_engine_client.h"
@@ -265,6 +264,7 @@
 #include "chromeos/ash/components/settings/timezone_settings.h"
 #include "chromeos/ash/components/timezone/timezone_provider.h"
 #include "chromeos/ash/components/timezone/timezone_request.h"
+#include "chromeos/ash/components/timezone/timezone_util.h"
 #include "chromeos/ash/experiences/arc/arc_features.h"
 #include "chromeos/ash/experiences/arc/arc_prefs.h"
 #include "chromeos/ash/experiences/arc/arc_util.h"
@@ -2756,7 +2756,15 @@ void WizardController::OnOSAuthErrorScreenExit(
     case OSAuthErrorScreen::Result::kProceedAuthenticated: {
       switch (wizard_context_->knowledge_factor_setup.auth_setup_flow) {
         case WizardContext::AuthChangeFlow::kInitialSetup:
+          ShowPasswordSelectionScreen();
+          return;
+
         case WizardContext::AuthChangeFlow::kRecovery:
+          if (ash::features::IsRecoveryFlowReorderEnabled()) {
+            wizard_context_->allow_factor_change_during_recovery = true;
+            ObtainContextAndLoginAuthenticated();
+            return;
+          }
           ShowPasswordSelectionScreen();
           return;
         case WizardContext::AuthChangeFlow::kReauthentication:
@@ -3004,7 +3012,7 @@ void WizardController::OnRecommendAppsScreenExit(
 
 void WizardController::OnRemoteActivityNotificationScreenExit() {
   // Remember the user acknowledged the message.
-  GetLocalState()->SetBoolean(::prefs::kRemoteAdminWasPresent, false);
+  GetLocalState()->SetBoolean(ash::prefs::kRemoteAdminWasPresent, false);
 
   // Check if there are any local accounts present for the lock screen which
   // suggest that the OOBE flow was completed and the dialog should be hidden.
@@ -3907,7 +3915,8 @@ void WizardController::OnTimezoneResolved(
   if (!timezone->timeZoneId.empty()) {
     VLOG(1) << "Resolve TimeZone: setting timezone to '" << timezone->timeZoneId
             << "'";
-    system::SetSystemAndSigninScreenTimezone(timezone->timeZoneId);
+    system::SetSystemAndSigninScreenTimezone(local_state_.get(),
+                                             timezone->timeZoneId);
   }
 }
 

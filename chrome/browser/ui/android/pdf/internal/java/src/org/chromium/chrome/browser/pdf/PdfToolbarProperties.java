@@ -25,6 +25,10 @@ class PdfToolbarProperties {
     /** The total number of pages in the document. */
     static final WritableIntPropertyKey TOTAL_PAGE_COUNT = new WritableIntPropertyKey();
 
+    /** Whether the PDF viewer is in two pages per row mode. */
+    static final WritableBooleanPropertyKey TWO_PAGES_PER_ROW_ACTIVE =
+            new WritableBooleanPropertyKey();
+
     /** The zoom level. */
     static final WritableFloatPropertyKey ZOOM_LEVEL = new WritableFloatPropertyKey();
 
@@ -36,17 +40,18 @@ class PdfToolbarProperties {
     static final WritableBooleanPropertyKey ZOOM_INCREASE_BUTTON_ENABLED =
             new WritableBooleanPropertyKey();
 
+    /** Whether to show the fit to page height icon. */
+    static final WritableBooleanPropertyKey SHOW_FIT_TO_HEIGHT_ICON =
+            new WritableBooleanPropertyKey();
+
     /** The callback for toolbar actions. */
     static final WritableObjectPropertyKey<View.OnClickListener> ON_CLICK_LISTENER =
             new WritableObjectPropertyKey<>();
 
     static final PropertyKey[] ALL_KEYS = {
-        CURRENT_PAGE_NUMBER,
-        TITLE,
-        TOTAL_PAGE_COUNT,
-        ZOOM_LEVEL,
-        ON_CLICK_LISTENER,
-        ZOOM_DECREASE_BUTTON_ENABLED,
-        ZOOM_INCREASE_BUTTON_ENABLED
+        CURRENT_PAGE_NUMBER, TITLE, TOTAL_PAGE_COUNT, ZOOM_LEVEL, ON_CLICK_LISTENER,
+        TWO_PAGES_PER_ROW_ACTIVE,
+        ZOOM_DECREASE_BUTTON_ENABLED, ZOOM_INCREASE_BUTTON_ENABLED,
+        SHOW_FIT_TO_HEIGHT_ICON
     };
 }

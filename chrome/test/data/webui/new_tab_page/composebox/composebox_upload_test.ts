@@ -4,6 +4,7 @@
 
 import type {CrA11yAnnouncerMessagesSentEvent} from 'chrome://new-tab-page/new_tab_page.js';
 import {$$} from 'chrome://new-tab-page/new_tab_page.js';
+import type {ComposeboxFile} from 'chrome://resources/cr_components/composebox/common.js';
 import {ContextualSearchInputStateDeletionType} from 'chrome://resources/cr_components/composebox/common.js';
 import {ContextUploadErrorType, ContextUploadStatus, InputType, ToolMode} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
 import {createAutocompleteResultForTesting, createSearchMatchForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
@@ -546,6 +547,44 @@ suite('NewTabPageComposeboxUploadFileTest', () => {
         await testProxy.element.updateComplete;
         assertFalse(testProxy.element['uploadButtonDisabled']);
       });
+
+  test('uploading drive file hides dropdown and does not query autocomplete', async () => {
+    loadTimeData.overrideValues({
+      composeboxShowZps: true,
+      composeboxShowContextMenu: true,
+    });
+    testSupport.createComposeboxElement(testProxy);
+    await microtasksFinished();
+
+    // Autocomplete queried once when composebox is opened for ZPS.
+    assertEquals(
+        testProxy.searchboxHandler.getCallCount('queryAutocomplete'), 1);
+
+    testProxy.searchboxHandler.setPromiseResolveFor(
+        'onDriveUploadClicked', {
+          response: {
+            files: [{
+              token: {low: BigInt(1), high: BigInt(2)},
+              fileName: 'foo.pdf',
+              mimeType: 'application/pdf',
+              thumbnailUrl: null,
+            }],
+            error: null,
+          },
+        });
+
+    const contextEntrypoint = $$(testProxy.element, '#contextEntrypoint');
+    assertTrue(!!contextEntrypoint);
+    contextEntrypoint.dispatchEvent(
+        new CustomEvent('open-drive-upload', {bubbles: true, composed: true}));
+
+    await testProxy.searchboxHandler.whenCalled('onDriveUploadClicked');
+    await microtasksFinished();
+
+    // Matches should be hidden.
+    assertFalse(await testSupport.areMatchesShowing(
+        testProxy.element, testProxy.searchboxCallbackRouterRemote));
+  });
 });
 
 suite('NewTabPageComposeboxUploadPasteTest', () => {
@@ -766,8 +805,10 @@ suite('NewTabPageComposeboxUploadPasteTest', () => {
 
     //  Check if the image was identified as an image.
     //  (has objectUrl) and the PDF was identified as a PDF (no objectUrl).
-    const imageFile = files.find(f => f.type.includes('image'));
-    const pdfFileInCarousel = files.find(f => f.type.includes('pdf'));
+    const imageFile =
+        files.find((f: ComposeboxFile) => f.type.includes('image'));
+    const pdfFileInCarousel =
+        files.find((f: ComposeboxFile) => f.type.includes('pdf'));
 
     // Ensure we found both.
     assertTrue(!!imageFile);
@@ -1049,7 +1090,6 @@ suite('NewTabPageComposeboxUploadToolModeTest', () => {
   });
 
   test('add file context fails', async () => {
-    loadTimeData.overrideValues({composeboxShowPdfUpload: true});
     testSupport.createComposeboxElement(testProxy);
     // Set the promise to reject to simulate a failure.
     testProxy.searchboxHandler.setResultMapperFor(
@@ -1412,7 +1452,8 @@ suite('NewTabPageComposeboxUploadContextTest', () => {
   });
 
   test('addSearchContext handles tab attachments', async () => {
-    loadTimeData.overrideValues({composeboxShowZps: true});
+    loadTimeData.overrideValues(
+        {composeboxShowZps: true, tabFaviconChipsToCoinsEnabled: false});
     testSupport.createComposeboxElement(testProxy);
     testProxy.element.searchboxNextEnabled = true;
 

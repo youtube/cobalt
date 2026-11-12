@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import './styles.scss';
 import m from 'mithril';
 import {z} from 'zod';
-import {PerfettoPlugin} from '../../public/plugin';
-import {Trace} from '../../public/trace';
+import type {PerfettoPlugin} from '../../public/plugin';
+import type {Trace} from '../../public/trace';
 import {NUM} from '../../trace_processor/query_result';
-import HeapProfilePlugin from '../dev.perfetto.HeapProfile';
+import HeapProfilePlugin, {
+  traceHasTimelineData,
+} from '../dev.perfetto.HeapProfile';
 import {HeapDumpPage} from './heap_dump_page';
 import {HeapDumpExplorerSession} from './session';
 
@@ -52,6 +55,14 @@ export default class implements PerfettoPlugin {
       render: (subpage) => m(HeapDumpPage, {session, subpage}),
     });
 
+    if (
+      HeapProfilePlugin.openHeapDumpExplorerByDefaultFlag.get() &&
+      !(await traceHasTimelineData(ctx))
+    ) {
+      session.autoNavigated = true;
+      ctx.initialPage.suggest('/heapdump', 100);
+    }
+
     ctx.plugins
       .getPlugin(HeapProfilePlugin)
       .registerOnNodeSelectedListener(({pathHashes, isDominator, upid, ts}) =>
@@ -65,17 +76,5 @@ export default class implements PerfettoPlugin {
       href: '#!/heapdump',
       icon: 'memory',
     });
-
-    if (!(await traceHasTimelineData(ctx))) {
-      session.autoNavigated = true;
-      ctx.onTraceReady.addListener(() => ctx.navigate('#!/heapdump'));
-    }
   }
-}
-
-async function traceHasTimelineData(ctx: Trace): Promise<boolean> {
-  const res = await ctx.engine.query(
-    `SELECT EXISTS(SELECT 1 FROM slice) OR EXISTS(SELECT 1 FROM sched) AS res`,
-  );
-  return res.firstRow({res: NUM}).res > 0;
 }

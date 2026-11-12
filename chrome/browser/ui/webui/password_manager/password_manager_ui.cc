@@ -97,11 +97,11 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       profile, password_manager::kChromeUIPasswordManagerHost);
 
-  webui::SetupWebUIDataSource(source, base::span(kPasswordManagerResources),
+  webui::SetupWebUIDataSource(source, kPasswordManagerResources,
                               IDR_PASSWORD_MANAGER_PASSWORD_MANAGER_HTML);
 
 #if !BUILDFLAG(OPTIMIZE_WEBUI)
-  source->AddResourcePaths(base::span(kSettingsSharedResources));
+  source->AddResourcePaths(kSettingsSharedResources);
 #endif
 
   static const webui::LocalizedString kStrings[] = {
@@ -696,10 +696,9 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
 #endif  // !BUILDFLAG(IS_CHROMEOS)
   source->AddBoolean("passwordUploadUiUpdate", passwordUploadUiUpdateEnabled);
 
-  source->AddString("webuiRefresh2026",
-                    base::FeatureList::IsEnabled(features::kWebuiRefresh2026)
-                        ? "webui-refresh-2026"
-                        : "");
+  source->AddString("webuiRefresh2026", features::IsWebuiRefresh2026Enabled()
+                                            ? "webui-refresh-2026"
+                                            : "");
 
   content::URLDataSource::Add(
       profile, std::make_unique<FaviconSource>(

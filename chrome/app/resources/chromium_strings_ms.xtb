@@ -584,7 +584,6 @@ Penanda halaman baharu tidak boleh disimpan dalam akaun anda sehingga anda memad
 <translation id="7318036098707714271">Fail pilihan anda rosak atau tidak sah.
 
 Chromium tidak dapat mengembalikan tetapan anda.</translation>
-<translation id="7339898014177206373">Tetingkap baharu</translation>
 <translation id="734373864078049451">Web, penanda halaman dan barangan Chromium anda yang lain tinggal di sini.</translation>
 <translation id="7347827960336370838">Pengguna yang mengetahui ungkapan laluan anda sahaja yang dapat membaca data anda yang disulitkan. Ungkapan laluan tidak dihantar kepada atau disimpan oleh Google. Jika anda terlupa ungkapan laluan anda atau mahu menukar tetapan ini, anda perlu <ph name="BEGIN_LINK" />memadamkan data Chromium dalam akaun anda<ph name="END_LINK" />.</translation>
 <translation id="7349591376906416160">Pentadbir sistem anda telah mengkonfigurasikan Chromium agar membuka <ph name="ALTERNATIVE_BROWSER_NAME" /> untuk mengakses <ph name="TARGET_URL_HOSTNAME" />.</translation>
@@ -593,6 +592,7 @@ Chromium tidak dapat mengembalikan tetapan anda.</translation>
 <translation id="7376384068949534168">Anda belum melawati laman web ini baru-baru ini. Chromium mengalih keluar <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />.</translation>
 <translation id="73786666777299047">Buka Gedung Web Chrome</translation>
 <translation id="7384121030444253939">Sambungan ini tidak disokong lagi. Chromium mengesyorkan supaya anda mengalih keluar sambungan tersebut.</translation>
+<translation id="7407655596887111931">Kini Chromium ialah penyemak imbas lalai anda</translation>
 <translation id="7413153308467572558">Teruskan dari tempat anda berhenti: Chromium memulihkan tab anda setiap kali anda memulakan semula apl. Untuk mematikan ciri ini, akses</translation>
 <translation id="7427879960656355200">Import Kata Laluan Kepada Chromium</translation>
 <translation id="744815265653811511">1. Klik <ph name="BUTTON_LABEL" /> di bawah
@@ -734,6 +734,7 @@ Chromium tidak dapat mengembalikan tetapan anda.</translation>
 <translation id="8981150672034878610">Tidak dapat memulakan Chromium kerana terdapat masalah semasa membuka profil anda. Cuba mulakan semula Chromium.</translation>
 <translation id="8988036198400390003">Urus profil Chromium</translation>
 <translation id="9019929317751753759">Untuk menjadikan Chromium lebih selamat, kami melumpuhkan sambungan berikut yang tidak disenaraikan dalam  <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> dan mungkin telah ditambahkan tanpa pengetahuan anda.</translation>
+<translation id="9022552996538154597">Log masuk ke Chromium</translation>
 <translation id="904366664621834601">Chromium menyekat muat turun ini kerana fail arkib termasuk fail lain yang mungkin menyembunyikan perisian hasad</translation>
 <translation id="9053882453960391422">Pastikan kata laluan, penanda halaman dan sejarah anda disegerakkan dengan sempurna merentas peranti. Akses ciri yang anda ketahui dan sukai dengan mudah dengan mengemaskinikan penyemak imbas lalai anda kepada Chromium. Chromium akan disematkan pada bar tugas anda untuk akses pantas.</translation>
 <translation id="9062666675513499497">Log masuk ke Chromium apabila anda log masuk ke perkhidmatan Google yang lain</translation>

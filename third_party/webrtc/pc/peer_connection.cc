@@ -753,6 +753,9 @@ PeerConnection::MakeCloseOnNetworkThreadTask() {
       // port_allocator_ and transport_controller_ live on the network thread
       // and must be destroyed there.
       TeardownDataChannelTransport_n(RTCError::OK());
+      if (call_ptr_) {
+        call_ptr_->DisconnectFromNetworkThread();
+      }
       port_allocator_->DiscardCandidatePool();
 
       std::move(jsep_close_task)();

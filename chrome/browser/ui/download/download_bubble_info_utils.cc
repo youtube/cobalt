@@ -12,6 +12,7 @@
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
 #include "ui/views/vector_icons.h"
 
@@ -25,16 +26,19 @@ using TailoredWarningType = DownloadUIModel::TailoredWarningType;
 namespace {
 
 IconAndColor IconAndColorForDangerousUiPattern() {
-  return IconAndColor{&vector_icons::kDangerousChromeRefreshIcon,
+  return IconAndColor{&vector_icons::kDangerousChromeRefreshOldIcon,
                       kColorDownloadItemIconDangerous};
 }
 
 IconAndColor IconAndColorForSuspiciousUiPattern() {
-  return IconAndColor{&kDownloadWarningIcon, kColorDownloadItemIconWarning};
+  return IconAndColor{
+      &(features::IsRoundedIconsEnabled() ? kWarningFilledIcon
+                                          : kDownloadWarningOldIcon),
+      kColorDownloadItemIconWarning};
 }
 
 IconAndColor IconAndColorForDownloadOff() {
-  return IconAndColor{&vector_icons::kFileDownloadOffChromeRefreshIcon,
+  return IconAndColor{&vector_icons::kFileDownloadOffChromeRefreshOldIcon,
                       ui::kColorSecondaryForeground};
 }
 
@@ -46,7 +50,9 @@ IconAndColor IconAndColorForInterrupted(const DownloadUIModel& model) {
     case download::DOWNLOAD_DANGER_TYPE_BLOCKED_PASSWORD_PROTECTED:
     case download::DOWNLOAD_DANGER_TYPE_BLOCKED_TOO_LARGE:
     case download::DOWNLOAD_DANGER_TYPE_BLOCKED_SCAN_FAILED:
-      return IconAndColor{&views::kInfoChromeRefreshOldIcon,
+      return IconAndColor{&(features::IsRoundedIconsEnabled()
+                                ? views::kInfoIcon
+                                : views::kInfoChromeRefreshOldIcon),
                           kColorDownloadItemIconDangerous};
     case download::DOWNLOAD_DANGER_TYPE_FORCE_SAVE_TO_GDRIVE:
     case download::DOWNLOAD_DANGER_TYPE_FORCE_SAVE_TO_ONEDRIVE:
@@ -54,11 +60,15 @@ IconAndColor IconAndColorForInterrupted(const DownloadUIModel& model) {
 #if BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
       if (enterprise_connectors::ShouldPromptReviewForDownload(
               model.profile(), model.GetDownloadItem())) {
-        return IconAndColor{&kDownloadWarningIcon,
-                            kColorDownloadItemIconDangerous};
+        return IconAndColor{
+            &(features::IsRoundedIconsEnabled() ? kWarningFilledIcon
+                                                : kDownloadWarningOldIcon),
+            kColorDownloadItemIconDangerous};
       }
 #endif  // BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
-      return IconAndColor{&views::kInfoChromeRefreshOldIcon,
+      return IconAndColor{&(features::IsRoundedIconsEnabled()
+                                ? views::kInfoIcon
+                                : views::kInfoChromeRefreshOldIcon),
                           kColorDownloadItemIconDangerous};
     }
     case download::DOWNLOAD_DANGER_TYPE_DANGEROUS_FILE:
@@ -86,11 +96,13 @@ IconAndColor IconAndColorForInterrupted(const DownloadUIModel& model) {
 
   if (model.GetLastFailState() ==
       offline_items_collection::FailState::FILE_BLOCKED) {
-    return IconAndColor{&views::kInfoChromeRefreshOldIcon,
-                        kColorDownloadItemIconDangerous};
+    return IconAndColor{
+        &(features::IsRoundedIconsEnabled() ? views::kInfoIcon
+                                            : views::kInfoChromeRefreshOldIcon),
+        kColorDownloadItemIconDangerous};
   }
 
-  return IconAndColor{&vector_icons::kFileDownloadOffChromeRefreshIcon,
+  return IconAndColor{&vector_icons::kFileDownloadOffChromeRefreshOldIcon,
                       kColorDownloadItemIconDangerous};
 }
 
@@ -126,13 +138,17 @@ IconAndColor IconAndColorForInProgressOrComplete(const DownloadUIModel& model) {
           model.profile(), model.GetDownloadItem())) {
     switch (model.GetDangerType()) {
       case download::DOWNLOAD_DANGER_TYPE_DANGEROUS_CONTENT:
-        return IconAndColor{&vector_icons::kDangerousChromeRefreshIcon,
+        return IconAndColor{&vector_icons::kDangerousChromeRefreshOldIcon,
                             kColorDownloadItemIconDangerous};
       case download::DOWNLOAD_DANGER_TYPE_POTENTIALLY_UNWANTED:
-        return IconAndColor{&kDownloadWarningIcon,
-                            kColorDownloadItemIconWarning};
+        return IconAndColor{
+            &(features::IsRoundedIconsEnabled() ? kWarningFilledIcon
+                                                : kDownloadWarningOldIcon),
+            kColorDownloadItemIconWarning};
       case download::DOWNLOAD_DANGER_TYPE_SENSITIVE_CONTENT_WARNING:
-        return IconAndColor{&views::kInfoChromeRefreshOldIcon,
+        return IconAndColor{&(features::IsRoundedIconsEnabled()
+                                  ? views::kInfoIcon
+                                  : views::kInfoChromeRefreshOldIcon),
                             kColorDownloadItemIconWarning};
       default:
         break;
@@ -159,14 +175,19 @@ IconAndColor IconAndColorForInProgressOrComplete(const DownloadUIModel& model) {
       return IconAndColorForDangerousUiPattern();
 
     case download::DOWNLOAD_DANGER_TYPE_SENSITIVE_CONTENT_WARNING:
-      return IconAndColor{&views::kInfoChromeRefreshOldIcon,
+      return IconAndColor{&(features::IsRoundedIconsEnabled()
+                                ? views::kInfoIcon
+                                : views::kInfoChromeRefreshOldIcon),
                           kColorDownloadItemIconWarning};
     case download::DOWNLOAD_DANGER_TYPE_PROMPT_FOR_SCANNING:
     case download::DOWNLOAD_DANGER_TYPE_PROMPT_FOR_LOCAL_PASSWORD_SCANNING:
     case download::DOWNLOAD_DANGER_TYPE_ASYNC_SCANNING:
     case download::DOWNLOAD_DANGER_TYPE_ASYNC_LOCAL_PASSWORD_SCANNING:
     case download::DOWNLOAD_DANGER_TYPE_DEEP_SCANNED_FAILED:
-      return IconAndColor{&kDownloadWarningIcon, kColorDownloadItemIconWarning};
+      return IconAndColor{
+          &(features::IsRoundedIconsEnabled() ? kWarningFilledIcon
+                                              : kDownloadWarningOldIcon),
+          kColorDownloadItemIconWarning};
     case download::DOWNLOAD_DANGER_TYPE_BLOCKED_PASSWORD_PROTECTED:
     case download::DOWNLOAD_DANGER_TYPE_BLOCKED_TOO_LARGE:
     case download::DOWNLOAD_DANGER_TYPE_SENSITIVE_CONTENT_BLOCK:
@@ -310,28 +331,28 @@ std::vector<DownloadBubbleQuickAction> QuickActionsForDownload(
       actions.emplace_back(
           DownloadCommands::Command::RESUME,
           l10n_util::GetStringUTF16(IDS_DOWNLOAD_BUBBLE_RESUME_QUICK_ACTION),
-          &vector_icons::kPlayArrowChromeRefreshIcon);
+          &vector_icons::kPlayArrowChromeRefreshOldIcon);
     } else {
       actions.emplace_back(
           DownloadCommands::Command::PAUSE,
           l10n_util::GetStringUTF16(IDS_DOWNLOAD_BUBBLE_PAUSE_QUICK_ACTION),
-          &vector_icons::kPauseChromeRefreshIcon);
+          &vector_icons::kPauseChromeRefreshOldIcon);
     }
 
     actions.emplace_back(
         DownloadCommands::Command::CANCEL,
         l10n_util::GetStringUTF16(IDS_DOWNLOAD_BUBBLE_CANCEL_QUICK_ACTION),
-        &vector_icons::kCancelChromeRefreshIcon);
+        &vector_icons::kCancelChromeRefreshOldIcon);
 
   } else {
     actions.emplace_back(DownloadCommands::Command::SHOW_IN_FOLDER,
                          l10n_util::GetStringUTF16(
                              IDS_DOWNLOAD_BUBBLE_SHOW_IN_FOLDER_QUICK_ACTION),
-                         &vector_icons::kFolderChromeRefreshIcon);
+                         &vector_icons::kFolderChromeRefreshOldIcon);
     actions.emplace_back(
         DownloadCommands::Command::OPEN_WHEN_COMPLETE,
         l10n_util::GetStringUTF16(IDS_DOWNLOAD_BUBBLE_OPEN_QUICK_ACTION),
-        &vector_icons::kLaunchChromeRefreshIcon);
+        &vector_icons::kLaunchChromeRefreshOldIcon);
   }
 
   return actions;

@@ -157,16 +157,22 @@ chrome_internal_verifier(
 
 chrome_internal_verifier(
     builder = "chromeos-betty-compile-chrome",
+)
+
+chrome_internal_verifier(
+    builder = "chromeos-betty-chrome-noop",
     cq_settings = try_.cq_settings(
-        experiment_percentage = 5,
+        # TODO(b/504819645): make this equivalent builder of compile above.
+        experiment_percentage = 50,
         on_default_cq = True,
     ),
+    owner_whitelist = ["googlers"],
 )
 
 chrome_internal_verifier(
     builder = "chromeos-betty-chrome-gtest",
     cq_settings = try_.cq_settings(
-        experiment_percentage = 5,
+        experiment_percentage = 50,
         on_default_cq = True,
     ),
     owner_whitelist = ["googlers"],
@@ -175,8 +181,8 @@ chrome_internal_verifier(
 chrome_internal_verifier(
     builder = "chromeos-betty-chrome-gtest-and-cqtast",
     cq_settings = try_.cq_settings(
-        # Runs on 100% of CL but experimentally.
-        experiment_percentage = 100,
+        # Runs on 50% of CL but experimentally.
+        experiment_percentage = 50,
         on_default_cq = True,
     ),
     owner_whitelist = ["google/chromeos-pa@google.com", "project-chromium-robot-committers"],

@@ -9,7 +9,10 @@
 #include <string_view>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/test/scoped_feature_list.h"
+#include "content/browser/storage_partition_impl.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
@@ -910,6 +913,187 @@ IN_PROC_BROWSER_TEST_F(ConnectionAllowlistTest, UseCounterForWorker) {
               });
             })();
           )"));
+}
+
+// TODO(crbug.com/40752428): There is a race condition which makes
+// `CreateCrossOriginPrefetchLoaderFactoryBundle()` sometimes called on the
+// previous document, before the new document is committed. Once it is fixed,
+// add a similar test to "LinkCrossOriginDocumentPrefetch" but use header
+// triggered prefetch. Otherwise that test will be flaky.
+IN_PROC_BROWSER_TEST_F(ConnectionAllowlistTest,
+                       LinkCrossOriginDocumentPrefetch) {
+  RegisterResponse(kCrossOriginAllowlistedPage,
+                   ResponseEntry("<html><body>Hello</body></html>",
+                                 {{"Connection-Allowlist",
+                                   R"((response-origin "*://b.test:*/*"))"}}));
+
+  auto server_handle = embedded_https_test_server().StartAndReturnHandle();
+  ASSERT_TRUE(server_handle);
+
+  GURL main_url = embedded_https_test_server().GetURL(
+      "a.test", kCrossOriginAllowlistedPage);
+  GURL allowed_url =
+      embedded_https_test_server().GetURL("b.test", "/allow.html");
+  GURL denied_url = embedded_https_test_server().GetURL("c.test", "/deny.html");
+
+  URLLoaderMonitor monitor;
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+
+  EXPECT_TRUE(ExecJs(shell()->web_contents(),
+                     content::JsReplace(R"(
+            var allowed_link = document.createElement('link');
+            allowed_link.href = $1;
+            allowed_link.rel = 'prefetch';
+            allowed_link.as = 'document';
+
+            var denied_link = document.createElement('link');
+            denied_link.href = $2;
+            denied_link.rel = 'prefetch';
+            denied_link.as = 'document';
+
+            document.body.appendChild(allowed_link);
+            document.body.appendChild(denied_link);
+          )",
+                                        allowed_url, denied_url)));
+
+  monitor.WaitForUrls({allowed_url, denied_url});
+  EXPECT_EQ(monitor.WaitForRequestCompletion(denied_url).error_code,
+            net::ERR_NETWORK_ACCESS_REVOKED);
+  EXPECT_EQ(monitor.WaitForRequestCompletion(allowed_url).error_code, net::OK);
+  std::optional<network::ResourceRequest> request =
+      monitor.GetRequestInfo(allowed_url);
+  ASSERT_TRUE(request.has_value());
+  EXPECT_EQ(request->resource_type,
+            static_cast<int>(blink::mojom::ResourceType::kPrefetch));
+}
+
+// Regression test: removing an about:blank iframe that inherited the parent's
+// network_restrictions_id must not clear the parent's nonce. After the iframe
+// is removed, cross-origin requests from the parent should still be blocked.
+IN_PROC_BROWSER_TEST_F(ConnectionAllowlistTest,
+                       RemovingAboutBlankIframeDoesNotClearParentNonce) {
+  RegisterResponse(
+      kSameOriginAllowlistedPage,
+      ResponseEntry("<html><body>Hello</body></html>",
+                    {{"Connection-Allowlist", "(response-origin)"}}));
+  ASSERT_TRUE(embedded_https_test_server().Start());
+
+  GURL main_url =
+      embedded_https_test_server().GetURL("a.test", kSameOriginAllowlistedPage);
+  GURL denied_url = embedded_https_test_server().GetURL("b.test", "/deny.js");
+
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+
+  // Set nonce clear delay to zero so that if the nonce were incorrectly
+  // scheduled for clearing, it would fire immediately rather than relying
+  // on the default 60-second delay to mask the bug.
+  static_cast<StoragePartitionImpl*>(shell()
+                                         ->web_contents()
+                                         ->GetBrowserContext()
+                                         ->GetDefaultStoragePartition())
+      ->SetClearNetworkRestrictionsParamsForTesting(base::TimeDelta(),
+                                                    base::DoNothing());
+
+  // 1. Create an about:blank iframe (initial empty document inherits the
+  //    parent's nonce).
+  // 2. Remove it immediately.
+  EXPECT_TRUE(ExecJs(shell()->web_contents(), R"(
+    const iframe = document.createElement('iframe');
+    document.body.appendChild(iframe);
+    iframe.remove();
+  )"));
+
+  // 3. After the iframe is destroyed, cross-origin requests from the parent
+  //    should still be blocked by Connection-Allowlist.
+  EXPECT_EQ("blocked",
+            EvalJs(shell()->web_contents(), content::JsReplace(R"(
+      fetch($1).then(() => 'allowed').catch(() => 'blocked');
+    )",
+                                                               denied_url)));
+}
+
+// Regression test: closing an opener tab must not clear the nonce for a
+// popup window that inherited it and remains at about:blank.
+IN_PROC_BROWSER_TEST_F(ConnectionAllowlistTest,
+                       ClosingOpenerDoesNotClearPopupNonce) {
+  RegisterResponse(
+      kSameOriginAllowlistedPage,
+      ResponseEntry("<html><body>Hello</body></html>",
+                    {{"Connection-Allowlist", "(response-origin)"}}));
+  ASSERT_TRUE(embedded_https_test_server().Start());
+
+  GURL main_url =
+      embedded_https_test_server().GetURL("a.test", kSameOriginAllowlistedPage);
+  GURL denied_url = embedded_https_test_server().GetURL("b.test", "/deny.js");
+
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+
+  // Set nonce clear delay to zero so incorrect clears fire immediately.
+  static_cast<StoragePartitionImpl*>(shell()
+                                         ->web_contents()
+                                         ->GetBrowserContext()
+                                         ->GetDefaultStoragePartition())
+      ->SetClearNetworkRestrictionsParamsForTesting(base::TimeDelta(),
+                                                    base::DoNothing());
+
+  // 1. Open a popup that stays at about:blank (inherits the opener's nonce).
+  ShellAddedObserver new_shell_observer;
+  EXPECT_TRUE(ExecJs(shell()->web_contents(), "window.open('about:blank');"));
+  Shell* popup = new_shell_observer.GetShell();
+
+  // 2. Close the opener tab.
+  shell()->Close();
+
+  // 3. The popup should still have its Connection-Allowlist enforcements.
+  //    Cross-origin requests should be blocked.
+  EXPECT_EQ("blocked",
+            EvalJs(popup->web_contents(), content::JsReplace(R"(
+      fetch($1).then(() => 'allowed').catch(() => 'blocked');
+    )",
+                                                             denied_url)));
+}
+
+// Regression test: when an about:blank iframe navigates to a new page, the
+// old initial empty document's RFH is destroyed. This must not clear the
+// parent's nonce -- the ref-counted id should keep the parent's nonce alive.
+IN_PROC_BROWSER_TEST_F(ConnectionAllowlistTest,
+                       NavigatingAboutBlankIframeDoesNotClearParentNonce) {
+  RegisterResponse(
+      kSameOriginAllowlistedPage,
+      ResponseEntry("<html><body><iframe id='child'></iframe></body></html>",
+                    {{"Connection-Allowlist", "(response-origin)"}}));
+  ASSERT_TRUE(embedded_https_test_server().Start());
+
+  GURL main_url =
+      embedded_https_test_server().GetURL("a.test", kSameOriginAllowlistedPage);
+  GURL iframe_url =
+      embedded_https_test_server().GetURL("b.test", "/title1.html");
+  GURL denied_url = embedded_https_test_server().GetURL("b.test", "/deny.js");
+
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+
+  // Set nonce clear delay to zero so incorrect clears fire immediately.
+  static_cast<StoragePartitionImpl*>(shell()
+                                         ->web_contents()
+                                         ->GetBrowserContext()
+                                         ->GetDefaultStoragePartition())
+      ->SetClearNetworkRestrictionsParamsForTesting(base::TimeDelta(),
+                                                    base::DoNothing());
+
+  // 1. The iframe starts at about:blank (initial empty document, inherits
+  //    the parent's nonce).
+  // 2. Navigate it to a real page -- this commits a new document in a new
+  //    RFH and destroys the old initial-empty-document RFH.
+  EXPECT_TRUE(
+      NavigateIframeToURL(shell()->web_contents(), "child", iframe_url));
+
+  // 3. After the old about:blank RFH is destroyed, cross-origin requests
+  //    from the parent should still be blocked.
+  EXPECT_EQ("blocked",
+            EvalJs(shell()->web_contents(), content::JsReplace(R"(
+      fetch($1).then(() => 'allowed').catch(() => 'blocked');
+    )",
+                                                               denied_url)));
 }
 
 }  // namespace content

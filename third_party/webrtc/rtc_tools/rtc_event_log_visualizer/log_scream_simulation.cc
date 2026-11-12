@@ -191,6 +191,7 @@ void LogScreamSimulation::LogState(const TransportPacketsFeedback& msg) {
           scream_->last_ref_window_increase_scale_factor(),
       .l4s_alpha = scream_->l4s_alpha(),
       .l4s_alpha_v = scream_->delay_based_congestion_control().l4s_alpha_v(),
+      .loss_event_rate = scream_->loss_event_rate(),
   });
 }
 

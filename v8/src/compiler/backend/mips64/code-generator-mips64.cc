@@ -1021,6 +1021,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ DaddOverflow(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1),
                       kScratchReg);
       break;
+    case kMips64Add128: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      CHECK(!AreAliased(i.OutputRegister(0), i.OutputRegister(1),
+                        i.InputRegister(0)));
+      __ Daddu(i.OutputRegister(0), i.InputRegister(0), i.InputOperand(1));
+      __ Daddu(i.OutputRegister(1), i.InputRegister(2), i.InputRegister(3));
+      __ Sltu(scratch, i.OutputRegister(0), i.InputRegister(0));
+      __ Daddu(i.OutputRegister(1), i.OutputRegister(1), scratch);
+      break;
+    }
     case kMips64Sub:
       __ Subu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
@@ -1031,6 +1042,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ DsubOverflow(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1),
                       kScratchReg);
       break;
+    case kMips64Sub128: {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ Sltu(scratch, i.InputRegister(0), i.InputOperand(1));
+      __ Dsubu(i.OutputRegister(0), i.InputRegister(0), i.InputOperand(1));
+      __ Dsubu(i.OutputRegister(1), i.InputRegister(2), i.InputRegister(3));
+      __ Dsubu(i.OutputRegister(1), i.OutputRegister(1), scratch);
+      break;
+    }
     case kMips64Mul:
       __ Mul(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
@@ -1078,6 +1098,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMips64Dmul:
       __ Dmul(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      break;
+    case kMips64DmulWide:
+      __ dmult(i.InputRegister(0), i.InputRegister(1));
+      __ mflo(i.OutputRegister(0));
+      if (instr->OutputCount() > 1) __ mfhi(i.OutputRegister(1));
+      break;
+    case kMips64DmuluWide:
+      __ dmultu(i.InputRegister(0), i.InputRegister(1));
+      __ mflo(i.OutputRegister(0));
+      if (instr->OutputCount() > 1) __ mfhi(i.OutputRegister(1));
       break;
     case kMips64Ddiv:
       __ Ddiv(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
@@ -2145,27 +2175,37 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Lld, Scd, i.InputRegister(2));
       break;
     case kAtomicCompareExchangeWithWriteBarrier: {
-      if constexpr (COMPRESS_POINTERS_BOOL) {
-        UNIMPLEMENTED();
-      } else {
-        ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Lld, Scd, i.InputRegister(2));
+      Label exit;
+      {
+        Label compareExchange;
+        __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
+        __ sync();
+        __ bind(&compareExchange);
+        __ Lld(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));
+        __ BranchShort(&exit, ne, i.InputRegister(2),
+                       Operand(i.OutputRegister(0)));
+        __ mov(i.TempRegister(1), i.InputRegister(3));
+        __ Scd(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));
+        __ BranchShort(&compareExchange, eq, i.TempRegister(1),
+                       Operand(zero_reg));
       }
-      if (v8_flags.disable_write_barriers) break;
-      // Emit the write barrier.
-      Register object = i.InputRegister(0);
-      Register offset = i.InputRegister(1);
-      Register new_value = i.InputRegister(3);
-      auto ool = zone()->New<OutOfLineRecordWrite>(
-          this, object, offset, new_value, i.TempRegister(0), i.TempRegister(1),
-          RecordWriteMode::kValueIsAny, DetermineStubCallMode());
-      __ BranchShort(ool->exit(), ne, i.InputRegister(2),
-                     Operand(i.OutputRegister(0)));
-      __ JumpIfSmi(new_value, ool->exit());
-
-      __ CheckPageFlag(object, i.TempRegister(0),
-                       MemoryChunk::kPointersFromHereAreInterestingMask, ne,
-                       ool->entry());
-      __ bind(ool->exit());
+      if (!v8_flags.disable_write_barriers) {
+        // Emit the write barrier.
+        Register object = i.InputRegister(0);
+        Register offset = i.InputRegister(1);
+        Register new_value = i.InputRegister(3);
+        auto ool = zone()->New<OutOfLineRecordWrite>(
+            this, object, offset, new_value, i.TempRegister(0),
+            i.TempRegister(1), RecordWriteMode::kValueIsAny,
+            DetermineStubCallMode());
+        __ JumpIfSmi(new_value, ool->exit());
+        __ CheckPageFlag(object, i.TempRegister(0),
+                         MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+                         ool->entry());
+        __ bind(ool->exit());
+      }
+      __ bind(&exit);
+      __ sync();
       break;
     }
 #define ATOMIC_BINOP_CASE(op, inst32, inst64)                          \

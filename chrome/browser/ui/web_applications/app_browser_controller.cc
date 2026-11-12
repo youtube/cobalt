@@ -286,7 +286,11 @@ AppBrowserController::~AppBrowserController() {
 
 bool AppBrowserController::ShouldShowCustomTabBar() const {
   if (!IsInstalled()) {
-    return false;
+    // If the app is uninstalled, the window should be closed. If it is
+    // somehow kept open (e.g. due to a download in progress), we must show
+    // the custom tab bar as a failsafe to reveal the URL/origin and prevent
+    // origin spoofing.
+    return true;
   }
 
   content::WebContents* web_contents =
@@ -462,11 +466,11 @@ bool AppBrowserController::AppUsesWindowControlsOverlay() const {
   return false;
 }
 
-bool AppBrowserController::AppUsesBorderlessMode() const {
+bool AppBrowserController::AppUsesUnframedMode() const {
   return false;
 }
 
-bool AppBrowserController::UrlMatchesBorderlessPattern(const GURL& url) const {
+bool AppBrowserController::UrlMatchesUnframedPattern(const GURL& url) const {
   return false;
 }
 
@@ -518,6 +522,10 @@ bool AppBrowserController::IsPreventCloseEnabled() const {
     return false;
   }
   return provider->registrar_unsafe().IsPreventCloseEnabled(app_id());
+}
+
+bool AppBrowserController::IsWindowCaptureHandleAllowed() const {
+  return false;
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -602,10 +610,10 @@ void AppBrowserController::OnBackgroundColorChanged() {
 
 void AppBrowserController::PrimaryPageChanged(content::Page& page) {
   // Reset the draggable regions for window controls overlay apps so they are
-  // not cached on navigation. Note that these are not cleared for borderless
-  // apps because when we navigate out of scope and then back to scope, the
-  // draggable regions stay same and nothing triggers to re-initialize them.
-  // So if they are cleared, they don't work anymore when coming back to scope.
+  // not cached on navigation. Note that these are not cleared for unframed apps
+  // because when we navigate out of scope and then back to scope, the draggable
+  // regions stay same and nothing triggers to re-initialize them. So if they
+  // are cleared, they don't work anymore when coming back to scope.
   if (AppUsesWindowControlsOverlay()) {
     draggable_region_ = std::nullopt;
   }
@@ -880,10 +888,10 @@ void AppBrowserController::OnTabInserted(content::WebContents* contents) {
   }
 
   // Collect draggable app regions if the app supports Window Controls Overlay
-  // or Borderless mode. This is required in addition to the use in
+  // or Unframed mode. This is required in addition to the use in
   // RenderFrameCreated to handle existing web contents being reparented into an
   // app window.
-  if (AppUsesWindowControlsOverlay() || AppUsesBorderlessMode()) {
+  if (AppUsesWindowControlsOverlay() || AppUsesUnframedMode()) {
     contents->SetSupportsDraggableRegions(/*supports_draggable_regions=*/true);
   }
 

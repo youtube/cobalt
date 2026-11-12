@@ -580,8 +580,15 @@ RenderFrameHostImpl* RenderWidgetHostViewAura::GetFocusedFrame() const {
 void RenderWidgetHostViewAura::HandleBoundsInRootChanged() {
 #if BUILDFLAG(IS_WIN)
   if (legacy_render_widget_host_HWND_) {
+    // `SetBounds()` calls ::SetWindowPos which can spin a nested message loop
+    // on Windows, potentially destroying `this`.
+    base::WeakPtr<RenderWidgetHostViewAura> weak_this(
+        weak_ptr_factory_.GetWeakPtr());
     legacy_render_widget_host_HWND_->SetBounds(
         window_->GetBoundsInRootWindow());
+    if (!weak_this) {
+      return;
+    }
   }
 #endif
   if (!in_shutdown_) {
@@ -705,6 +712,8 @@ void RenderWidgetHostViewAura::NotifyHostAndDelegateOnWasShown(
 
 #if BUILDFLAG(IS_WIN)
   UpdateLegacyWin();
+  // WARNING: Do not add any code after this line, since the last call can
+  // potentially destroy `this`.
 #endif
 }
 
@@ -976,6 +985,21 @@ void RenderWidgetHostViewAura::SetInsets(const gfx::Insets& insets) {
     SynchronizeVisualProperties(cc::DeadlinePolicy::UseDefaultDeadline(),
                                 window_->GetLocalSurfaceId());
   }
+}
+
+void RenderWidgetHostViewAura::SetForceSpecifiedDeadline(
+    std::optional<uint32_t> deadline_in_frames) {
+  if (delegated_frame_host_) {
+    delegated_frame_host_->SetForceSpecifiedDeadline(deadline_in_frames);
+  }
+}
+
+std::optional<uint32_t>
+RenderWidgetHostViewAura::GetForceSpecifiedDeadlineForTesting() {
+  if (delegated_frame_host_) {
+    return delegated_frame_host_->GetForceSpecifiedDeadlineForTesting();
+  }
+  return std::nullopt;
 }
 
 void RenderWidgetHostViewAura::UpdateCursor(const ui::Cursor& cursor) {
@@ -1332,9 +1356,18 @@ void RenderWidgetHostViewAura::ProcessAckedTouchEvent(
   for (size_t i = 0; i < touch.event.touches_length; ++i) {
     if (touch.event.touches[i].state == required_state) {
       CHECK(!sent_ack);
+      // ProcessedTouchEvent() triggers synchronous gesture dispatch, which can
+      // lead to focus or window activation changes. Observers of these changes
+      // may synchronously destroy the WebContents and this view. We must guard
+      // this call with a WeakPtr liveness check before dereferencing 'this'
+      // (e.g., via host() or delegate calls below).
+      auto weak_this = weak_ptr_factory_.GetWeakPtr();
       window_host->dispatcher()->ProcessedTouchEvent(
           touch.event.unique_touch_event_id, window_, result,
           input::InputEventResultStateIsSetBlocking(ack_result));
+      if (!weak_this) {
+        return;
+      }
       if (touch.event.touch_start_or_first_touch_move &&
           result == ui::ER_HANDLED && host()->delegate() &&
           host()->delegate()->GetInputEventRouter()) {
@@ -3109,7 +3142,14 @@ void RenderWidgetHostViewAura::InternalSetBounds(const gfx::Rect& rect) {
                               window_->GetLocalSurfaceId());
 
 #if BUILDFLAG(IS_WIN)
+  // `UpdateLegacyWin()` can spin a nested message loop on Windows, potentially
+  // destroying `this`.
+  base::WeakPtr<RenderWidgetHostViewAura> weak_this(
+      weak_ptr_factory_.GetWeakPtr());
   UpdateLegacyWin();
+  if (!weak_this) {
+    return;
+  }
 
   if (IsPointerLocked()) {
     UpdateMouseLockRegion();
@@ -3139,9 +3179,19 @@ void RenderWidgetHostViewAura::UpdateLegacyWin() {
   }
 
   if (legacy_render_widget_host_HWND_) {
+    // Both UpdateParent and SetBounds can spin a nested message loop on
+    // Windows, potentially destroying `this`.
+    base::WeakPtr<RenderWidgetHostViewAura> weak_this(
+        weak_ptr_factory_.GetWeakPtr());
     legacy_render_widget_host_HWND_->UpdateParent(GetHostWindowHWND());
+    if (!weak_this) {
+      return;
+    }
     legacy_render_widget_host_HWND_->SetBounds(
         window_->GetBoundsInRootWindow());
+    if (!weak_this) {
+      return;
+    }
     // There are cases where the parent window is created, made visible and
     // the associated RenderWidget is also visible before the
     // LegacyRenderWidgetHostHWND instace is created. Ensure that it is shown
@@ -3172,7 +3222,14 @@ void RenderWidgetHostViewAura::AddedToRootWindow() {
   }
 
 #if BUILDFLAG(IS_WIN)
+  // `UpdateLegacyWin()` can spin a nested message loop on Windows, potentially
+  // destroying `this`.
+  base::WeakPtr<RenderWidgetHostViewAura> weak_this(
+      weak_ptr_factory_.GetWeakPtr());
   UpdateLegacyWin();
+  if (!weak_this) {
+    return;
+  }
 #endif
 
   delegated_frame_host_->AttachToCompositor(GetCompositor());

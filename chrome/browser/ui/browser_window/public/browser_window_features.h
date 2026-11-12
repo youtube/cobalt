@@ -20,11 +20,8 @@ namespace glic {
 class GlicButtonController;
 class GlicIphController;
 class GlicNudgeController;
-}  // namespace glic
-
-namespace tabs {
 class GlicActorNudgeController;
-}  // namespace tabs
+}  // namespace glic
 
 class ActorUiWindowController;
 class ContextHighlightWindowFeature;
@@ -62,6 +59,7 @@ class ContextualTasksCloseButtonController;
 class CookieControlsBubbleCoordinator;
 class DataSharingBubbleController;
 class DesktopBrowserWindowCapabilities;
+class WindowFeatureController;
 class DevtoolsUIController;
 class EmbedderBrowserWindowFeatures;
 class ExtensionInstalledWatcher;
@@ -529,6 +527,8 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<BrowserWindowFullscreenController> fullscreen_controller_;
 
+  std::unique_ptr<WindowFeatureController> window_feature_controller_;
+
   std::unique_ptr<BrowserActions> browser_actions_;
 
   std::unique_ptr<chrome::BrowserCommandController> browser_command_controller_;
@@ -667,7 +667,7 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<glic::GlicNudgeController> glic_nudge_controller_;
 
-  std::unique_ptr<tabs::GlicActorNudgeController> glic_actor_nudge_controller_;
+  std::unique_ptr<glic::GlicActorNudgeController> glic_actor_nudge_controller_;
   std::unique_ptr<ActorTaskListBubbleController>
       actor_task_list_bubble_controller_;
   std::unique_ptr<glic::GlicButtonController> glic_button_controller_;

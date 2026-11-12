@@ -22,6 +22,7 @@
 #include "call/payload_type.h"
 #include "call/payload_type_picker.h"
 #include "media/base/codec.h"
+#include "media/base/codec_comparators.h"
 #include "pc/session_description.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/thread.h"
@@ -40,7 +41,7 @@ RTCErrorOr<PayloadType> SdpPayloadTypeSuggester::SuggestPayloadType(
   if (pick_from_top_of_range && codec.id.IsSet()) {
     RTCErrorOr<Codec> existing = local_recorder.LookupCodec(codec.id);
     if (existing.ok()) {
-      if (existing.value().Matches(codec)) {
+      if (MatchesWithReferenceAttributes(existing.value(), codec)) {
         return codec.id;
       }
     } else if (codec.id >= 0 && codec.id <= 127 &&
@@ -71,8 +72,13 @@ RTCErrorOr<PayloadType> SdpPayloadTypeSuggester::SuggestPayloadType(
     // If we get here, PT is already in use, possibly for something else.
     // Fall through to SuggestMapping.
   }
-  return payload_type_picker_.SuggestMapping(codec, &local_recorder,
-                                             pick_from_top_of_range);
+  RTCErrorOr<PayloadType> suggested_result =
+      payload_type_picker_.SuggestMapping(codec, &local_recorder,
+                                          pick_from_top_of_range);
+  if (suggested_result.ok()) {
+    local_recorder.AddMapping(suggested_result.value(), codec);
+  }
+  return suggested_result;
 }
 
 RTCError SdpPayloadTypeSuggester::AddLocalMapping(absl::string_view mid,

@@ -65,7 +65,7 @@ base::OnceClosure ZucchiniOperation(
       patch_operation_result,
 #endif  // BUILDFLAG(IS_STARBOARD)
       std::move(callback))
-      ->Operation(base::BindOnce(&Patcher::PatchZucchini, patcher));
+      ->Operation(base::BindOnce(&Patcher::PatchZucchini, patcher, is_foreground));
 #endif  // defined(IN_MEMORY_UPDATES)
   return base::DoNothing();
 }

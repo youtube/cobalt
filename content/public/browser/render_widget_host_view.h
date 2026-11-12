@@ -343,6 +343,15 @@ class CONTENT_EXPORT RenderWidgetHostView {
   // Tells the View if it should use default deadline policy when resizing.
   virtual void SetShouldUseDefaultDeadlineOnResize(bool enable) = 0;
 
+  // Forces a specified deadline for the next surface embedding. If the optional
+  // has a value, overrides the embedding deadline to the specified duration
+  // (unit: frames). If set to std::nullopt, clears any active override and
+  // restores default resize deadline policies.
+  virtual void SetForceSpecifiedDeadline(
+      std::optional<uint32_t> deadline_in_frames) {}
+
+  virtual std::optional<uint32_t> GetForceSpecifiedDeadlineForTesting();
+
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_IOS_TVOS)
   // Whether to prevent UpdateFrameBounds() from updating the reported view
   // bounds. This is required when displaying the native search bar, otherwise

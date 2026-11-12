@@ -130,6 +130,7 @@ class VideoCaptureServiceImpl::VizGpuContextProvider
       // Ensure there are no dangling pointers.
       media::VideoCaptureGpuChannelHost::GetInstance().SetSharedImageInterface(
           nullptr);
+      media::VideoCaptureGpuChannelHost::GetInstance().SetGpuChannel(nullptr);
 #if BUILDFLAG(IS_CHROMEOS)
       media::VideoCaptureDeviceFactoryChromeOS::SetGpuChannelHost(nullptr);
       media::VideoCaptureDeviceFactoryChromeOS::SetSharedImageInterface(
@@ -172,6 +173,7 @@ class VideoCaptureServiceImpl::VizGpuContextProvider
     // with. Set it back when GpuChannelHost is created/re-created successfully.
     media::VideoCaptureGpuChannelHost::GetInstance().SetSharedImageInterface(
         nullptr);
+    media::VideoCaptureGpuChannelHost::GetInstance().SetGpuChannel(nullptr);
 #if BUILDFLAG(IS_CHROMEOS)
     media::VideoCaptureDeviceFactoryChromeOS::SetGpuChannelHost(nullptr);
     media::VideoCaptureDeviceFactoryChromeOS::SetSharedImageInterface(nullptr);
@@ -207,6 +209,8 @@ class VideoCaptureServiceImpl::VizGpuContextProvider
     context_provider->AddObserver(this);
     context_provider_ = std::move(context_provider);
 
+    media::VideoCaptureGpuChannelHost::GetInstance().SetGpuChannel(
+        viz_gpu_->GetGpuChannel());
     media::VideoCaptureGpuChannelHost::GetInstance().SetSharedImageInterface(
         viz_gpu_->GetGpuChannel()->CreateClientSharedImageInterface());
 #if BUILDFLAG(IS_CHROMEOS)

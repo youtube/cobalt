@@ -70,11 +70,10 @@ public class ImmersiveVideoPlaybackCoordinatorTest {
     private FakePanelEntityHolder mMainPanelEntity;
     private FakePanelEntityHolder mControlPanelHolder;
     private ImmersiveVideoPlaybackCoordinator mCoordinator;
-    private static Activity sActivity;
 
     @BeforeClass
     public static void setupSuite() {
-        sActivity = sActivityTestRule.launchActivity(null);
+        sActivityTestRule.launchActivity(null);
     }
 
     @Before
@@ -93,7 +92,7 @@ public class ImmersiveVideoPlaybackCoordinatorTest {
                 () -> {
                     mCoordinator =
                             new TestImmersiveVideoPlaybackCoordinator(
-                                    sActivity,
+                                    sActivityTestRule.getActivity(),
                                     mWindowAndroid,
                                     mVideoControlDelegate,
                                     mXrSceneCoreSessionManager,

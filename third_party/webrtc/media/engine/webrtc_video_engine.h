@@ -23,6 +23,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/crypto/crypto_options.h"
@@ -132,20 +133,19 @@ class WebRtcVideoEngine : public VideoEngineInterface {
   VideoDecoderFactory* decoder_factory() const override {
     return decoder_factory_.get();
   }
-
   std::vector<SdpVideoFormat> GetSupportedFormats(
       bool is_decoder) const override;
 
+  bool NeedsAuxiliaryCodecsAdded() const override { return true; }
+
+ private:
   std::vector<RtpHeaderExtensionCapability> GetRtpHeaderExtensions(
       /* optional field trials from PeerConnection that override those from
          PeerConnectionFactory */
       const FieldTrialsView* field_trials) const override;
 
- private:
   const std::unique_ptr<VideoDecoderFactory> decoder_factory_;
   const std::unique_ptr<VideoEncoderFactory> encoder_factory_;
-  const std::unique_ptr<VideoBitrateAllocatorFactory>
-      bitrate_allocator_factory_;
   const FieldTrialsView& trials_;  // from PeerConnectionFactory
 };
 
@@ -408,7 +408,6 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
     WebRtcVideoSendChannel* const send_channel_;
     const Environment env_;
     RTC_NO_UNIQUE_ADDRESS SequenceChecker thread_checker_;
-    TaskQueueBase* const worker_thread_;
     const std::vector<uint32_t> ssrcs_ RTC_GUARDED_BY(&thread_checker_);
     const std::vector<SsrcGroup> ssrc_groups_ RTC_GUARDED_BY(&thread_checker_);
     Call* const call_;
@@ -510,11 +509,11 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
                                   public VideoMediaReceiveChannelInterface {
  public:
   WebRtcVideoReceiveChannel(const Environment& env,
-                            Call* call,
+                            Call* absl_nonnull call,
                             const MediaConfig& config,
                             const VideoOptions& options,
                             const CryptoOptions& crypto_options,
-                            VideoDecoderFactory* decoder_factory);
+                            VideoDecoderFactory* absl_nonnull decoder_factory);
   ~WebRtcVideoReceiveChannel() override;
 
  public:
@@ -624,10 +623,6 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
         const FlexfecReceiveStream::Config& flexfec_config);
     ~WebRtcVideoReceiveStream() override;
 
-    VideoReceiveStreamInterface& stream();
-    // Return value may be nullptr.
-    FlexfecReceiveStream* flexfec_stream();
-
     const std::vector<uint32_t>& GetSsrcs() const;
 
     std::vector<RtpSource> GetSources();
@@ -636,11 +631,6 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
     // owning WebRtcVideoChannel.
     RtpParameters GetRtpParameters() const;
 
-    // TODO(deadbeef): Move these feedback parameters into the recv parameters.
-    void SetFeedbackParameters(bool lntf_enabled,
-                               bool nack_enabled,
-                               RtcpMode rtcp_mode,
-                               std::optional<int> rtx_time);
     void SetReceiverParameters(const ChangedReceiverParameters& recv_params);
 
     void OnFrame(const VideoFrame& frame) override;
@@ -724,7 +714,6 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
   }
   // Variables.
   const Environment env_;
-  TaskQueueBase* const worker_thread_;
   ScopedTaskSafety task_safety_;
   scoped_refptr<PendingTaskSafetyFlag> network_thread_safety_;
   RTC_NO_UNIQUE_ADDRESS SequenceChecker network_thread_checker_{

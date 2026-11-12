@@ -28,6 +28,19 @@ struct ScreamV2Parameters {
   FieldTrialParameter<double> l4s_avg_g_up;
   FieldTrialParameter<double> l4s_avg_g_down;
 
+  // Exponentially Weighted Moving Average (EWMA) factor for loss_event_rate.
+  FieldTrialParameter<double> loss_event_rate_avg_g_loss;
+  FieldTrialParameter<double> loss_event_rate_avg_g_no_loss;
+
+  // Thresholds for loss_event_rate.
+  // If the estimated loss rate is below `loss_event_rate_threshold_discard`
+  // (and queue delay is low), newly reported packet losses are ignored as
+  // isolated/spurious events.
+  // Conversely, reference window increase is allowed only if the loss rate
+  // remains below `loss_event_rate_threshold_increase`.
+  FieldTrialParameter<double> loss_event_rate_threshold_discard;
+  FieldTrialParameter<double> loss_event_rate_threshold_increase;
+
   // Exponentially Weighted Moving Average (EWMA) factor for smoothed rtt.
   FieldTrialParameter<double> smoothed_rtt_avg_g;
   FieldTrialParameter<double> smoothed_rtt_avg_in_alr_g;

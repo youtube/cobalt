@@ -8351,6 +8351,7 @@ angle::Result ImageHelper::stageSubresourceUpdateImpl(ContextVk *contextVk,
     *updateAppliedImmediatelyOut = false;
 
     const angle::Format &storageFormat = vkFormat.getActualImageFormat(formatSupport);
+    angle::FormatID storageFormatID    = storageFormat.id;
 
     size_t outputRowPitch;
     size_t outputDepthPitch;
@@ -8361,6 +8362,17 @@ angle::Result ImageHelper::stageSubresourceUpdateImpl(ContextVk *contextVk,
 
     LoadImageFunctionInfo loadFunctionInfo = vkFormat.getTextureLoadFunction(formatSupport, type);
     LoadImageFunction stencilLoadFunction  = nullptr;
+
+    // In case the flag for BGR565 usage is enabled, we should make sure that the actual format ID
+    // for the image is also BGR565. Otherwise, the loading functions for RGB565 should be used for
+    // correct data conversions.
+    if (mActualFormatID == angle::FormatID::R5G6B5_UNORM &&
+        storageFormatID == angle::FormatID::B5G6R5_UNORM)
+    {
+        ASSERT(mIntendedFormatID == angle::FormatID::R5G6B5_UNORM);
+        loadFunctionInfo = Format::GetRGB565TextureLoadFunction(contextVk->getRenderer())(type);
+        storageFormatID  = angle::FormatID::R5G6B5_UNORM;
+    }
 
     bool useComputeTransCoding = false;
     if (storageFormat.isBlock)
@@ -8388,7 +8400,7 @@ angle::Result ImageHelper::stageSubresourceUpdateImpl(ContextVk *contextVk,
                                            glExtents.height, &bufferImageHeight));
 
         if (contextVk->getFeatures().supportsComputeTranscodeEtcToBc.enabled &&
-            IsETCFormat(vkFormat.getIntendedFormatID()) && IsBCFormat(storageFormat.id))
+            IsETCFormat(vkFormat.getIntendedFormatID()) && IsBCFormat(storageFormatID))
         {
             useComputeTransCoding =
                 shouldUseComputeForTransCoding(vk::LevelIndex(index.getLevelIndex()));
@@ -8403,7 +8415,7 @@ angle::Result ImageHelper::stageSubresourceUpdateImpl(ContextVk *contextVk,
         ASSERT(storageFormat.pixelBytes != 0);
         const bool stencilOnly = formatInfo.sizedInternalFormat == GL_STENCIL_INDEX8;
 
-        if (!stencilOnly && storageFormat.id == angle::FormatID::D24_UNORM_S8_UINT)
+        if (!stencilOnly && storageFormatID == angle::FormatID::D24_UNORM_S8_UINT)
         {
             switch (type)
             {
@@ -8415,7 +8427,7 @@ angle::Result ImageHelper::stageSubresourceUpdateImpl(ContextVk *contextVk,
                     break;
             }
         }
-        if (!stencilOnly && storageFormat.id == angle::FormatID::D32_FLOAT_S8X24_UINT)
+        if (!stencilOnly && storageFormatID == angle::FormatID::D32_FLOAT_S8X24_UINT)
         {
             // If depth is D32FLOAT_S8, we must pack D32F tightly (no stencil) for CopyBufferToImage
             outputRowPitch = sizeof(float) * glExtents.width;
@@ -8498,8 +8510,8 @@ angle::Result ImageHelper::stageSubresourceUpdateImpl(ContextVk *contextVk,
     uint8_t *stagingPointer;
     VkDeviceSize stagingOffset;
     ANGLE_TRY(contextVk->initBufferForImageCopy(currentBuffer, allocationSize,
-                                                MemoryCoherency::CachedNonCoherent,
-                                                storageFormat.id, &stagingOffset, &stagingPointer));
+                                                MemoryCoherency::CachedNonCoherent, storageFormatID,
+                                                &stagingOffset, &stagingPointer));
 
     loadFunctionInfo.loadFunction(
         contextVk->getImageLoadContext(), glExtents.width, glExtents.height, glExtents.depth,
@@ -8541,7 +8553,7 @@ angle::Result ImageHelper::stageSubresourceUpdateImpl(ContextVk *contextVk,
             copy.imageSubresource.aspectMask     = kPlaneAspectFlags[plane];
             appendSubresourceUpdate(
                 gl::LevelIndex(0),
-                SubresourceUpdate(stagingBuffer.get(), currentBuffer, copy, storageFormat.id));
+                SubresourceUpdate(stagingBuffer.get(), currentBuffer, copy, storageFormatID));
         }
 
         stagingBuffer.release();
@@ -8603,7 +8615,7 @@ angle::Result ImageHelper::stageSubresourceUpdateImpl(ContextVk *contextVk,
         stencilCopy.imageExtent                     = copy.imageExtent;
         stencilCopy.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_STENCIL_BIT;
         appendSubresourceUpdate(updateLevelGL, SubresourceUpdate(stagingBuffer.get(), currentBuffer,
-                                                                 stencilCopy, storageFormat.id));
+                                                                 stencilCopy, storageFormatID));
 
         aspectFlags &= ~VK_IMAGE_ASPECT_STENCIL_BIT;
     }
@@ -8629,7 +8641,7 @@ angle::Result ImageHelper::stageSubresourceUpdateImpl(ContextVk *contextVk,
         appendSubresourceUpdate(
             updateLevelGL, SubresourceUpdate(stagingBuffer.get(), currentBuffer, copy,
                                              useComputeTransCoding ? vkFormat.getIntendedFormatID()
-                                                                   : storageFormat.id));
+                                                                   : storageFormatID));
         pruneSupersededUpdatesForLevel(contextVk, updateLevelGL, PruneReason::MemoryOptimization);
     }
 
@@ -8909,17 +8921,9 @@ angle::Result ImageHelper::calculateBufferInfo(ContextVk *contextVk,
         return angle::Result::Continue;
     }
 
-    ANGLE_VK_CHECK_MATH(contextVk,
-                        formatInfo.computeRowPitch(type, glExtents.width, unpack.alignment,
-                                                   unpack.rowLength, inputRowPitch));
-
-    ANGLE_VK_CHECK_MATH(contextVk,
-                        formatInfo.computeDepthPitch(glExtents.height, unpack.imageHeight,
-                                                     *inputRowPitch, inputDepthPitch));
-
-    ANGLE_VK_CHECK_MATH(
-        contextVk, formatInfo.computeSkipBytes(type, *inputRowPitch, *inputDepthPitch, unpack, is3D,
-                                               inputSkipBytes));
+    ANGLE_VK_CHECK_MATH(contextVk, formatInfo.computeRowDepthSkipBytes(
+                                       type, glExtents.width, glExtents.height, unpack, is3D,
+                                       inputRowPitch, inputDepthPitch, inputSkipBytes));
 
     return angle::Result::Continue;
 }
@@ -10973,11 +10977,8 @@ angle::Result ImageHelper::GetReadPixelsParams(ContextVk *contextVk,
     const gl::InternalFormat &sizedFormatInfo = gl::GetInternalFormatInfo(format, type);
 
     GLuint outputPitch = 0;
-    ANGLE_VK_CHECK_MATH(contextVk,
-                        sizedFormatInfo.computeRowPitch(type, area.width, packState.alignment,
-                                                        packState.rowLength, &outputPitch));
-    ANGLE_VK_CHECK_MATH(contextVk, sizedFormatInfo.computeSkipBytes(type, outputPitch, 0, packState,
-                                                                    false, skipBytesOut));
+    ANGLE_VK_CHECK_MATH(contextVk, sizedFormatInfo.computeRowSkipBytes(type, area.width, packState,
+                                                                       &outputPitch, skipBytesOut));
 
     ANGLE_TRY(GetPackPixelsParams(sizedFormatInfo, outputPitch, packState, packBuffer, area,
                                   clippedArea, paramsOut, skipBytesOut));

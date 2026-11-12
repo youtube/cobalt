@@ -8,40 +8,48 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
 
 #include "base/callback_list.h"
+#include "base/containers/flat_map.h"
+#include "base/containers/flat_set.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
 #include "base/functional/function_ref.h"
-#include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
+#include "base/observer_list_types.h"
 #include "base/scoped_observation.h"
 #include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
-#include "base/types/strong_alias.h"
+#include "base/types/optional_ref.h"
+#include "base/types/pass_key.h"
 #include "build/build_config.h"
-#include "components/autofill/core/browser/autofill_trigger_source.h"
 #include "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.h"
+#include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/filling/form_filler.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/foundations/autofill_driver.h"
+#include "components/autofill/core/browser/heuristic_source.h"
 #include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
-#include "components/autofill/core/browser/suggestions/suggestion_type.h"
-#include "components/autofill/core/common/dense_set.h"
+#include "components/autofill/core/common/aliases.h"
 #include "components/autofill/core/common/form_data.h"
-#include "components/autofill/core/common/is_required.h"
 #include "components/autofill/core/common/language_code.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom.h"
+#include "components/autofill/core/common/password_form_fill_data.h"
 #include "components/autofill/core/common/signatures.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "components/translate/core/browser/translate_driver.h"
+#include "ui/gfx/geometry/rect.h"
 
 namespace autofill {
 
@@ -258,8 +266,8 @@ class AutofillManager
   // Events triggered by the renderer.
   // See autofill_driver.mojom for documentation.
   // Some functions are virtual for testing.
-  virtual void OnFormsSeen(const std::vector<FormData>& updated_forms,
-                           const std::vector<FormGlobalId>& removed_form_ids);
+  virtual void OnFormsSeen(std::vector<FormData> updated_forms,
+                           std::vector<FormGlobalId> removed_form_ids);
   virtual void OnFormSubmitted(const FormData& form,
                                mojom::SubmissionSource source);
   virtual void OnTextFieldValueChanged(const FormData& form,
@@ -390,7 +398,7 @@ class AutofillManager
   AutofillDriver& driver() { return *driver_; }
 
   // Reparses all known forms.
-  void ReparseKnownForms();
+  virtual void ReparseKnownForms();
 
   // After subscribing, FieldClassificationModelHandler::OnModelUpdated() will
   // trigger ReparseKnownForms(). There may be a handler for Autofill and/or
@@ -502,7 +510,7 @@ class AutofillManager
   //
   // TODO(crbug.com/40219607): Add unit tests.
   void ParseFormsAsync(
-      const std::vector<FormData>& forms,
+      std::vector<FormData> forms,
       base::OnceCallback<void(AutofillManager&, const std::vector<FormData>&)>
           callback);
 

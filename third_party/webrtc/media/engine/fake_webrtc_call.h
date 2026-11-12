@@ -431,6 +431,8 @@ class FakeCall final : public Call, public PacketReceiver {
     return 0;
   }
 
+  void DisconnectFromNetworkThread() override {}
+
  private:
   AudioSendStream* CreateAudioSendStream(
       const AudioSendStream::Config& config) override;

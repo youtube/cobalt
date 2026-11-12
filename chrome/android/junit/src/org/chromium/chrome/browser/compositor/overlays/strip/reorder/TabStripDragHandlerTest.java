@@ -99,6 +99,7 @@ import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.ui.favicon.FaviconHelper;
 import org.chromium.chrome.browser.ui.favicon.FaviconHelperJni;
+import org.chromium.components.tab_groups.TabGroupsFeatureMap;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.dragdrop.DragAndDropDelegate;
 import org.chromium.ui.dragdrop.DragDropGlobalState;
@@ -117,6 +118,7 @@ import java.util.function.Supplier;
 /** Tests for {@link TabStripDragHandler}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(qualifiers = "sw600dp", sdk = VERSION_CODES.S, shadows = ShadowToast.class)
+@DisableFeatures({TabGroupsFeatureMap.UPDATE_TAB_GROUP_COLORS})
 public class TabStripDragHandlerTest {
 
     private static final int CURR_INSTANCE_ID = 100;
@@ -229,7 +231,6 @@ public class TabStripDragHandlerTest {
         FaviconHelperJni.setInstanceForTesting(mFaviconHelperJniMock);
 
         when(mTabModel.getProfile()).thenReturn(mProfile);
-        when(mTabModel.getTabModel()).thenReturn(mTabModel);
         when(mTabModelSelector.getCurrentTab()).thenReturn(mTabBeingDragged);
         when(mTabModelSelector.getCurrentModel()).thenReturn(mTabModel);
         when(mTabModelSelector.getModel(anyBoolean())).thenReturn(mTabModel);

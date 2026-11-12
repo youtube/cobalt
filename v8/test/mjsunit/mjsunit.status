@@ -460,7 +460,7 @@
   # Too slow for gc stress.
   'asm/embenchen/box2d': [SKIP],
   'regress/regress-904275': [PASS, SLOW, NO_VARIANTS],
-  'wasm/wasm-interpreter': [PASS, NO_VARIANTS, ['arch == arm64 and simulator_run', SKIP]],
+  'wasm/wasm-interpreter': [PASS, NO_VARIANTS],
 
   # Too slow for gc stress, BUG(v8:9506): times out.
   'wasm/shared-memory-worker-explicit-gc-stress': [SKIP],
@@ -514,6 +514,21 @@
   # The --stress-compaction flag prevents minor GCs.
   'weakrefs/minor-gc-*': [SKIP],
 }],  # 'gc_stress'
+
+##############################################################################
+['gc_stress and arch == arm64 and simulator_run', {
+  # Too slow tests.
+  'messages': [SKIP],
+  'regress/regress-353058': [SKIP],
+  'regress/regress-447613219': [SKIP],
+  'regress/regress-677685': [SKIP],
+  'regress/regress-904275': [SKIP],
+  'regress/regress-crbug-1239907': [SKIP],
+  'regress/regress-crbug-1406774': [SKIP],
+  'regress/wasm/regress-355493919': [SKIP],
+  'stackoverflow-underapplication': [SKIP],
+  'wasm/wasm-interpreter': [SKIP],
+}],  # 'gc_stress and arch == arm64 and simulator_run'
 
 ##############################################################################
 ['gc_stress or variant == stress_concurrent_allocation', {
@@ -683,6 +698,8 @@
   'wasm/regress-497667917': [SKIP],
   'wasm/regress-498482620': [SKIP],
   'wasm/regress-499719427': [SKIP],
+  'wasm/regress-507134091': [SKIP],
+  'wasm/regress-510084068': [SKIP],
   'wasm/regress-wasmfx-exact-types': [SKIP],
   'wasm/resume-throw': [SKIP],
   'wasm/stack-switching*': [SKIP],
@@ -756,7 +773,6 @@
 
   # --wasm-lazy-validation
   'regress/wasm/regress-334687959': [SKIP],
-  'regress/wasm/regress-366350766': [SKIP],
   'regress/wasm/regress-441221187': [SKIP],
   'regress/wasm/regress-505124865': [SKIP],
 
@@ -872,8 +888,6 @@
   'wasm/async-compile': [SKIP],
   'wasm/log-code-after-post-message': [SKIP],
   'wasm/multiple-code-spaces': [SKIP],
-  'wasm/regress-488803428': [SKIP],
-  'wasm/regress-510650967': [SKIP],
   'wasm/wasm-code-coverage': [SKIP],
   'wasm/wrapper-compilation': [SKIP],
 
@@ -939,7 +953,7 @@
   # --wasm_tier_up
   'wasm/graceful_shutdown_during_tierup': [SKIP],
 
-  # --turboshaft-wasm-in-js-inlining
+  # --wasm-in-js-inlining-body
   'regress/wasm/regress-382564224': [SKIP],
   'regress/wasm/regress-422639603': [SKIP],
   'regress/wasm/regress-449028728': [SKIP],
@@ -2038,7 +2052,9 @@
 ['simulator_run and arch == ppc64', {
   # Slow tests
   'wasm/wasm-interpreter': [PASS, SLOW],
-  'regress/regress-499721612': [SKIP]
+  'regress/regress-499721612': [SKIP],
+  'asm/embenchen/box2d': [SKIP],
+  'asm/embenchen/zlib': [SKIP]
 }],  # 'simulator_run and arch == ppc64'
 
 ##############################################################################
@@ -2722,7 +2738,7 @@
 
 ##############################################################################
 # Skip failing tests in google3
-['variant == google3_noicu or variant == google3_icu', {
+['variant == google3', {
   # timeouts on Google3:
   'compiler/division-by-constant': [PASS, SLOW],
   'compiler/expression-trees': [SKIP],
@@ -2762,42 +2778,7 @@
 
   # Cannot open trace file 'v8_trace.json' for writing: Permission denied.
   'd8_trace': [SKIP],
-}], # variant == google3_nociu or variant == google3_icu
-
-# Specific failures for no_icu builds
-['variant == google3_noicu', {
-  'es6/unicode-regexp-ignore-case': [FAIL],
-  'es7/regexp-ui-word': [FAIL],
-  'harmony/regexp-named-captures': [FAIL],
-  'harmony/regexp-property-binary': [FAIL],
-  'harmony/regexp-property-char-class': [FAIL],
-  'harmony/regexp-property-enumerated': [FAIL],
-  'harmony/regexp-property-exact-match': [FAIL],
-  'harmony/regexp-property-general-category': [FAIL],
-  'harmony/regexp-property-lu-ui0': [FAIL],
-  'harmony/regexp-property-lu-ui1': [FAIL],
-  'harmony/regexp-property-lu-ui2': [FAIL],
-  'harmony/regexp-property-lu-ui3': [FAIL],
-  'harmony/regexp-property-lu-ui4': [FAIL],
-  'harmony/regexp-property-lu-ui5': [FAIL],
-  'harmony/regexp-property-lu-ui6': [FAIL],
-  'harmony/regexp-property-lu-ui7': [FAIL],
-  'harmony/regexp-property-lu-ui8': [FAIL],
-  'harmony/regexp-property-lu-ui9': [FAIL],
-  'harmony/regexp-property-lu-ui': [FAIL],
-  'harmony/regexp-property-script-extensions': [FAIL],
-  'harmony/regexp-property-scripts': [FAIL],
-  'harmony/regexp-property-special': [FAIL],
-  'icu-date-lord-howe': [FAIL],
-  'icu-date-to-string': [FAIL],
-  'regress/regress-5036': [FAIL],
-  'regress/regress-793588': [FAIL],
-  'regress/regress-449341185': [FAIL],
-  'tzoffset-transition-apia': [FAIL],
-  'tzoffset-transition-lord-howe': [FAIL],
-  'tzoffset-transition-moscow': [FAIL],
-  'string-localecompare-inline': [SKIP],
-}], # variant == google3_nociu
+}], # variant == google3
 
 # Tests that cannot run without JS shared memory
 ['not js_shared_memory', {
@@ -2980,6 +2961,10 @@
 
   # Maglev doesn't lower CallWithSpread.
   'compiler/regress-385386138': [SKIP],
+
+  # Maglev doesn't unroll constant arrays in apply.
+  'compiler/function-apply-constant-array': [SKIP],
+  'compiler/function-apply-constant-slow-array': [SKIP],
 
   # Various missing lowerings/specializations in Maglev.
   'compiler/deopt-pretenure': [SKIP],

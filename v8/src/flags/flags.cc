@@ -1235,11 +1235,9 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(disable_optimizing_compilers,
                     stress_concurrent_inlining_attach_code),
       CONTRADICTION(disable_optimizing_compilers, stress_maglev),
-      CONTRADICTION(disable_optimizing_compilers,
-                    turboshaft_wasm_in_js_inlining),
+      CONTRADICTION(disable_optimizing_compilers, wasm_in_js_inlining_body),
       CONTRADICTION(disable_optimizing_compilers, turbolev_future),
-      CONTRADICTION(disable_optimizing_compilers,
-                    turbolev_inline_js_wasm_wrappers),
+      CONTRADICTION(disable_optimizing_compilers, wasm_in_js_inlining_wrapper),
       CONTRADICTION(jit_fuzzing, max_lazy),
       CONTRADICTION(jitless, maglev_as_top_tier),
       CONTRADICTION(jitless, maglev_future),
@@ -1247,14 +1245,14 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(jitless, stress_concurrent_inlining_attach_code),
       CONTRADICTION(jitless, stress_maglev),
       CONTRADICTION(jitless, turbolev_future),
-      CONTRADICTION(jitless, turbolev_inline_js_wasm_wrappers),
-      CONTRADICTION(jitless, turboshaft_wasm_in_js_inlining),
+      CONTRADICTION(jitless, wasm_in_js_inlining_wrapper),
+      CONTRADICTION(jitless, wasm_in_js_inlining_body),
       CONTRADICTION(jitless, verify_turboshaft),
 #if V8_ENABLE_WEBASSEMBLY
       CONTRADICTION(wasm_jitless_if_available_for_testing, turbolev),
       CONTRADICTION(wasm_jitless_if_available_for_testing, turbolev_future),
       CONTRADICTION(wasm_jitless_if_available_for_testing,
-                    turbolev_inline_js_wasm_wrappers),
+                    wasm_in_js_inlining_wrapper),
 #endif  // V8_ENABLE_WEBASSEMBLY
       CONTRADICTION(lite_mode, maglev_as_top_tier),
       CONTRADICTION(lite_mode, maglev_future),
@@ -1263,7 +1261,7 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(lite_mode, stress_concurrent_inlining_attach_code),
       CONTRADICTION(lite_mode, stress_maglev),
       CONTRADICTION(lite_mode, turbolev_future),
-      CONTRADICTION(lite_mode, turboshaft_wasm_in_js_inlining),
+      CONTRADICTION(lite_mode, wasm_in_js_inlining_body),
       CONTRADICTION(lite_mode, verify_turboshaft),
       CONTRADICTION(maglev_as_top_tier, stress_concurrent_inlining),
       CONTRADICTION(maglev_as_top_tier, stress_concurrent_inlining_attach_code),
@@ -1284,11 +1282,13 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(turboshaft, stress_concurrent_inlining_attach_code),
       CONTRADICTION(minor_ms, handle_weak_ref_weakly_in_minor_gc),
 
-      // This stress enables additional CHECKs that are classified as non-issues
-      // by the sandbox fuzzer crash filters, and hence may result in masking
-      // real issues from the fuzzer.
+      // These stresses enable additional CHECKs that are classified as
+      // non-issues by the sandbox fuzzer crash filters, and hence may result in
+      // masking real issues from the fuzzer.
       CONTRADICTION(stress_lazy_source_positions, sandbox_fuzzing),
       CONTRADICTION(stress_lazy_source_positions, sandbox_testing),
+      CONTRADICTION(stress_lazy, sandbox_fuzzing),
+      CONTRADICTION(stress_lazy, sandbox_testing),
 
       // List of flags that shouldn't be used when --fuzzing or
       // --correctness-fuzzer-suppressions is passed. These flags will be reset
@@ -1320,9 +1320,6 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       RESET_WHEN_CORRECTNESS_FUZZING(wasm_assert_types),
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-      // https://crbug.com/508799454
-      RESET_WHEN_CORRECTNESS_FUZZING(for_of_optimization),
-
       // Not useful for differential fuzzing: https://crbug.com/496356383
       RESET_WHEN_CORRECTNESS_FUZZING(heap_snapshot_on_gc),
 
@@ -1340,13 +1337,6 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
 
       // OOBs are expected when using --mock-arraybuffer-allocator.
       RESET_WHEN_FUZZING(mock_arraybuffer_allocator),
-
-#if V8_ENABLE_WEBASSEMBLY
-      // https://crbug.com/448681081
-      // Lazy validation does change whether or when exceptions are thrown for
-      // invalid function bodies.
-      RESET_WHEN_CORRECTNESS_FUZZING(wasm_lazy_validation),
-#endif  // V8_ENABLE_WEBASSEMBLY
   };
   for (auto [flag1, flag2] : contradictions) {
     if (!flag1 || !flag2) continue;
@@ -1363,6 +1353,13 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
     std::cerr << "Warning: resetting flag --" << flag1->name()
               << " due to conflicting flags" << std::endl;
     flag1->Reset();
+  }
+  if (!base::bits::IsPowerOfTwo(v8_flags.homomorphic_ic_count.value())) {
+    if (Flag* f = FindFlagByPointer(&v8_flags.homomorphic_ic_count)) {
+      std::cerr << "Warning: resetting flag --homomorphic-ic-count due to "
+                   "invalid value\n";
+      f->Reset();
+    }
   }
   if ((v8_flags.trace_turbo || v8_flags.trace_turbo_graph) &&
       v8_flags.fuzzing_and_concurrent_recompilation) {

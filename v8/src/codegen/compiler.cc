@@ -2203,6 +2203,26 @@ class ConstantPoolPointerForwarder {
     }
   }
 
+  void UpdateStandaloneScopeInfo(Tagged<ScopeInfo> scope_info) {
+    if (!v8_flags.reuse_scope_infos) return;
+    if (!scope_info->HasOuterScopeInfo()) return;
+
+    Tagged<ScopeInfo> parent = scope_info;
+    Tagged<ScopeInfo> outer_info = scope_info->OuterScopeInfo();
+
+    auto it = scope_infos_to_update_.find(outer_info->UniqueIdInScript());
+    while (it == scope_infos_to_update_.end()) {
+      if (!outer_info->HasOuterScopeInfo()) return;
+      parent = outer_info;
+      outer_info = outer_info->OuterScopeInfo();
+      it = scope_infos_to_update_.find(outer_info->UniqueIdInScript());
+    }
+    if (outer_info == *it->second) return;
+
+    VerifyScopeInfo(outer_info, *it->second);
+    parent->set_outer_scope_info(*it->second);
+  }
+
  private:
   void VerifyScopeInfo(Tagged<ScopeInfo> scope_info,
                        Tagged<ScopeInfo> replacement) {
@@ -2470,7 +2490,11 @@ void BackgroundMergeTask::BeginMergeInBackground(
   for (uint32_t i = 0; i < old_script_infos_len; ++i) {
     DisallowGarbageCollection no_gc;
     Tagged<MaybeObject> maybe_new_sfi = new_script->infos()->get(i);
-    Tagged<MaybeObject> maybe_old_info = old_script->infos()->get(i);
+    // Acquire-load: pairs with the release-store in
+    // SharedFunctionInfo::SetScript so that a freshly-published SFI's field
+    // initialisation is visible before we dereference it below.
+    Tagged<MaybeObject> maybe_old_info =
+        old_script->infos()->get(i, kAcquireLoad);
     // We might have scope infos in the table if it's deserialized from a code
     // cache.
     if (maybe_new_sfi.IsWeak() &&
@@ -2516,6 +2540,12 @@ void BackgroundMergeTask::BeginMergeInBackground(
         if (new_sfi->HasBytecodeArray()) {
           forwarder.AddBytecodeArray(new_sfi->GetBytecodeArray(isolate));
         }
+      }
+    } else if (maybe_new_sfi.IsWeak() &&
+               Is<ScopeInfo>(maybe_new_sfi.GetHeapObjectAssumeWeak())) {
+      if (!maybe_old_info.IsWeak()) {
+        used_new_scope_infos_.push_back(local_heap->NewPersistentHandle(
+            Cast<ScopeInfo>(maybe_new_sfi.GetHeapObjectAssumeWeak())));
       }
     }
 
@@ -2611,6 +2641,9 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
         forwarder.AddBytecodeArray(new_sfi->GetBytecodeArray(isolate));
       }
     }
+    for (DirectHandle<ScopeInfo> new_scope : used_new_scope_infos_) {
+      forwarder.UpdateStandaloneScopeInfo(*new_scope);
+    }
     for (const auto& new_compiled_data : new_compiled_data_for_cached_sfis_) {
       // Unconditionally track the new_compiled_data for updating, even if we
       // might not use it because old_sfi is already compiled. It's possible
@@ -2662,7 +2695,7 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
         compiled_data_it++;
       }
     } else if (!maybe_old_info.IsWeak()) {
-      old_script->infos()->set(i, maybe_new_info);
+      old_script->infos()->set(i, maybe_new_info, kReleaseStore);
     }
   }
 

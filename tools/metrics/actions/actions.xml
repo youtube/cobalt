@@ -266,6 +266,8 @@ should be able to be added at any place in this file.
       summary="For AutofillExternalAccountProfileSuggestion feature."/>
   <variant name="_AutofillHomeWorkProfileSuggestion"
       summary="For AutofillHomeWorkProfileSuggestion feature."/>
+  <variant name="_AutofillOmniboxPaymentChip"
+      summary="For Autofill payment omnibox page action chip."/>
   <variant name="_AutofillVirtualCardCVCSuggestion"
       summary="For autofill suggestion of virtual cards."/>
   <variant name="_AutofillVirtualCardSuggestion"
@@ -279,7 +281,8 @@ should be able to be added at any place in this file.
       summary="For BadgedTranslateManualTrigger feature."/>
   <variant name="_BatterySaverMode" summary="For BatterySaverMode feature."/>
   <variant name="_Bookmark" summary="For Bookmark feature."/>
-  <variant name="_BookmarksBar" summary="For Bookmarks Bar feature."/>
+  <variant name="_BookmarksBar"
+      summary="For Bookmarks Bar feature. (obsolete)"/>
   <variant name="_BottomToolbarTip" summary="For BottomToolbarTip feature."/>
   <variant name="_CCTHistory" summary="For CCT History feature."/>
   <variant name="_CCTMinimized" summary="For Minimized CCT feature."/>
@@ -787,8 +790,12 @@ should be able to be added at any place in this file.
   <variant name="_SignInBenefitsNewSignin"
       summary="For sign-in benefits IPH feature."/>
   <variant name="_SiteControls" summary="For SiteControls IPH feature."/>
+  <variant name="_SmartTabSharingDefaultOnFeature"
+      summary="For Smart Tab Sharing Default On custom UI feature."/>
   <variant name="_SmartTabSharingFeature"
       summary="For Smart Tab Sharing feature."/>
+  <variant name="_SmartTabSharingTryItFeature"
+      summary="For Smart Tab Sharing Try It custom UI feature."/>
   <variant name="_SupervisedUserProfileSignin"
       summary="For displaying the supervised user sign-in IPH."/>
   <variant name="_TabAudioMuting" summary="For TabAudioMuting feature."/>
@@ -3410,6 +3417,8 @@ should be able to be added at any place in this file.
   <owner>tommasin@chromium.org</owner>
   <owner>chrome-browser-privacy-team@google.com</owner>
   <description>
+    (Obsolete) Renamed to PersonalContext.Notice.LearnMoreLinkClick.
+
     Recorded when the user clicks the Learn More link in the Accessibility
     Annotator info dialog.
   </description>
@@ -3419,6 +3428,8 @@ should be able to be added at any place in this file.
   <owner>tommasin@chromium.org</owner>
   <owner>chrome-browser-privacy-team@google.com</owner>
   <description>
+    (Obsolete) Renamed to PersonalContext.Notice.SettingsLinkClick.
+
     Recorded when the user clicks the Manage Settings link in the Accessibility
     Annotator info dialog.
   </description>
@@ -4883,6 +4894,22 @@ should be able to be added at any place in this file.
     background, or split-screen mode itself exited so that only a single
     instance remains visible on screen.
   </description>
+</action>
+
+<action name="Android.MultiWindow.CrashRecoveryCompleted">
+  <owner>aishwaryarj@google.com</owner>
+  <owner>zheliooo@google.com</owner>
+  <owner>clank-large-form-factors@google.com</owner>
+  <description>
+    Recorded when crash recovery successfully restores all windows.
+  </description>
+</action>
+
+<action name="Android.MultiWindow.CrashRecoveryInitiated">
+  <owner>aishwaryarj@google.com</owner>
+  <owner>zheliooo@google.com</owner>
+  <owner>clank-large-form-factors@google.com</owner>
+  <description>Recorded when crash recovery is initiated.</description>
 </action>
 
 <action name="Android.MultiWindowMode.Enter">
@@ -6386,7 +6413,17 @@ should be able to be added at any place in this file.
   <owner>rainhard@chromium.org</owner>
   <owner>chrome-browser-privacy-team@google.com</owner>
   <description>
+    (Obsolete) Renamed to Autofill.Settings.PersonalContextSettingsLinkRowClick.
+
     Recorded when the user clicks the accessibility annotator settings link row.
+  </description>
+</action>
+
+<action name="Autofill.Settings.PersonalContextSettingsLinkRowClick">
+  <owner>rainhard@chromium.org</owner>
+  <owner>chrome-browser-privacy-team@google.com</owner>
+  <description>
+    Recorded when the user clicks the Personal Context settings link row.
   </description>
 </action>
 
@@ -15233,6 +15270,13 @@ should be able to be added at any place in this file.
   <description>Logged when Close is called on an instance.</description>
 </action>
 
+<action name="Glic.Instance.Close.PeekView">
+  <owner>lindaywang@chromium.org</owner>
+  <description>
+    Logged when a Glic instance peek view is closed on Android.
+  </description>
+</action>
+
 <action name="Glic.Instance.Created">
   <owner>birnie@google.com</owner>
   <owner>perrier@google.com</owner>
@@ -15341,6 +15385,17 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Glic.Instance.Open2">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    Logged when opening a new or closed instance. Note that this may be logged
+    when a new conversation creates a new instance to replace an existing one in
+    an already open UI container, or when detaching/ attaching Floaty from side
+    panel.
+  </description>
+</action>
+
 <action name="Glic.Instance.PauseActorTask">
   <owner>birnie@google.com</owner>
   <owner>perrier@google.com</owner>
@@ -15402,6 +15457,13 @@ should be able to be added at any place in this file.
   <owner>perrier@google.com</owner>
   <description>
     Logged when a Glic instance is shown in a floating window.
+  </description>
+</action>
+
+<action name="Glic.Instance.Show.PeekView">
+  <owner>lindaywang@chromium.org</owner>
+  <description>
+    Logged when a Glic instance is shown in peek view on Android.
   </description>
 </action>
 
@@ -15525,6 +15587,24 @@ should be able to be added at any place in this file.
   <owner>birnie@google.com</owner>
   <owner>perrier@google.com</owner>
   <description>The Glic instance WebUI is holding loading.</description>
+</action>
+
+<action name="Glic.Instance.WebUiStateChanged.IneligibleAccount">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    The Glic instance WebUI is unavailable due to account capabilities. Logged
+    when the WebUI state transitions to kIneligibleAccount.
+  </description>
+</action>
+
+<action name="Glic.Instance.WebUiStateChanged.LocationMismatch">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    The Glic instance WebUI is unavailable due to country location mismatch.
+    Logged when the WebUI state transitions to kLocationMismatch.
+  </description>
 </action>
 
 <action name="Glic.Instance.WebUiStateChanged.Offline">
@@ -25539,6 +25619,14 @@ should be able to be added at any place in this file.
   <description>Please enter the description of this user action.</description>
 </action>
 
+<action name="MediaContextMenu_RouteMedia">
+  <owner>steimel@chromium.org</owner>
+  <owner>media-dev@chromium.org</owner>
+  <description>
+    User clicked on the contextual menu of a media player to cast (route media).
+  </description>
+</action>
+
 <action name="MediaContextMenu_SaveVideoFrameAs">
   <owner>xhwang@chromium.org</owner>
   <owner>media-dev@chromium.org</owner>
@@ -26035,6 +26123,15 @@ should be able to be added at any place in this file.
   <description>
     Reported when the user denies the confirmation dialog to move their local
     passwords to their account. iOS only.
+  </description>
+</action>
+
+<action name="Mobile.Signin.AgeMismatchSignout.LearnMore">
+  <owner>ddac@chromium.org</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <description>
+    Recorded when the user taps the URL to Learn More in the Age Mismatch
+    Sign-Out dialog. (iOS only).
   </description>
 </action>
 
@@ -28443,6 +28540,11 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileMenuAddressesAndMore">
+  <owner>massan@google.com</owner>
+  <description>User pressed 'Addresses and more' in the app menu.</description>
+</action>
+
 <action name="MobileMenuAddToBookmarks">
   <owner>aurimas@chromium.org</owner>
   <description>
@@ -28568,6 +28670,18 @@ should be able to be added at any place in this file.
   </token>
 </action>
 
+<action name="MobileMenuCopyLink">
+  <owner>massan@google.com</owner>
+  <description>User pressed 'Copy link' in the app menu.</description>
+</action>
+
+<action name="MobileMenuCreateTabGroup">
+  <owner>massan@google.com</owner>
+  <description>
+    User pressed 'Create new tab group' in the app menu.
+  </description>
+</action>
+
 <action name="MobileMenuDataSaverOpened">
   <owner>megjablon@chromium.org</owner>
   <description>User opened the data saver item in the app menu.</description>
@@ -28672,6 +28786,13 @@ should be able to be added at any place in this file.
   <description>User pressed 'Fullscreen' in the app menu.</description>
 </action>
 
+<action name="MobileMenuGooglePasswordManager">
+  <owner>massan@google.com</owner>
+  <description>
+    User pressed 'Google password manager' in the app menu.
+  </description>
+</action>
+
 <action name="MobileMenuGroupTabs">
   <owner>yusufo@chromium.org</owner>
   <owner>wychen@chromium.org</owner>
@@ -28753,6 +28874,11 @@ should be able to be added at any place in this file.
   <description>
     User pressed 'Move to other window' in the app menu.
   </description>
+</action>
+
+<action name="MobileMenuNameWindow">
+  <owner>massan@google.com</owner>
+  <description>User pressed 'Name window' in the app menu.</description>
 </action>
 
 <action name="MobileMenuNewIncognitoTab.BeforeTabRestore">
@@ -28880,6 +29006,11 @@ should be able to be added at any place in this file.
   <description>User pressed 'Paste and Go' in the app menu.</description>
 </action>
 
+<action name="MobileMenuPaymentMethods">
+  <owner>massan@google.com</owner>
+  <description>User pressed 'Payment methods' in the app menu.</description>
+</action>
+
 <action name="MobileMenuPinTab">
   <obsolete>Deprecated as of 2023-08</obsolete>
   <owner>ewannpv@chromium.org</owner>
@@ -28905,6 +29036,11 @@ should be able to be added at any place in this file.
 <action name="MobileMenuPrint">
   <owner>aurimas@chromium.org</owner>
   <description>User pressed 'Print' in the app menu.</description>
+</action>
+
+<action name="MobileMenuQRCode">
+  <owner>massan@google.com</owner>
+  <description>User pressed 'QR Code' in the app menu.</description>
 </action>
 
 <action name="MobileMenuQuit">
@@ -29009,6 +29145,11 @@ should be able to be added at any place in this file.
   <description>
     User pressed 'Select tabs' in the mobile tab switcher.
   </description>
+</action>
+
+<action name="MobileMenuSendToDevices">
+  <owner>massan@google.com</owner>
+  <description>User pressed 'Send to devices' in the app menu.</description>
 </action>
 
 <action name="MobileMenuSettings">
@@ -33028,6 +33169,9 @@ should be able to be added at any place in this file.
     <variant name=".NewGroup.MultiTab"
         summary="User created a new tab group with multiple tabs via the tab
                  context menu on tab strip on Android."/>
+    <variant name=".NewTabToTheRight"
+        summary="User created a new tab to the right via the tab context menu
+                 on tab strip on Android."/>
     <variant name=".PinTab"
         summary="User pinned a tab via the tab context menu on tab strip on
                  Android."/>
@@ -38511,6 +38655,24 @@ should be able to be added at any place in this file.
     being clicked, navigates the user to the notifications category settings
     page. This metric can be baselined against
     &quot;Permissions.QuietChip.TimeToInteraction&quot; histogram.
+  </description>
+</action>
+
+<action name="PersonalContext.Notice.LearnMoreLinkClick">
+  <owner>tommasin@chromium.org</owner>
+  <owner>chrome-browser-privacy-team@google.com</owner>
+  <description>
+    Recorded when the user clicks the Learn More link in the Personal Context
+    notice.
+  </description>
+</action>
+
+<action name="PersonalContext.Notice.SettingsLinkClick">
+  <owner>tommasin@chromium.org</owner>
+  <owner>chrome-browser-privacy-team@google.com</owner>
+  <description>
+    Recorded when the user clicks the Manage Settings link in the Personal
+    Context notice.
   </description>
 </action>
 
@@ -52197,6 +52359,9 @@ should be able to be added at any place in this file.
     <variant name=".SelectTabs"
         summary="Recorded when the 'Select tabs' option in the context menu
                  is selected."/>
+    <variant name=".SendTabToSelf"
+        summary="Recorded when the 'Send tab to self' option in the context
+                 menu is selected."/>
     <variant name=".ShareTab"
         summary="Recorded when the 'Share' option in the context menu is
                  selected."/>

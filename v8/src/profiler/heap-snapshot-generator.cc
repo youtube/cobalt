@@ -16,6 +16,8 @@
 #include "src/debug/debug.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/combined-heap.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
+#include "src/heap/cppgc-js/cpp-snapshot.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/safepoint.h"
@@ -1774,16 +1776,7 @@ void V8HeapExplorer::ExtractEphemeronHashTableReferences(
     HeapEntry* value_entry = GetEntry(value);
     HeapEntry* table_entry = GetEntry(table);
     if (key_entry && value_entry && !IsUndefined(key)) {
-      const char* edge_name = names_->GetFormatted(
-          "part of key (%s @%u) -> value (%s @%u) pair in WeakMap (table @%u)",
-          key_entry->name(), key_entry->id(), value_entry->name(),
-          value_entry->id(), table_entry->id());
-      key_entry->SetNamedAutoIndexReference(HeapGraphEdge::kInternal, edge_name,
-                                            value_entry, names_, generator_,
-                                            HeapEntry::kEphemeron);
-      table_entry->SetNamedAutoIndexReference(
-          HeapGraphEdge::kInternal, edge_name, value_entry, names_, generator_,
-          HeapEntry::kEphemeron);
+      generator_->CreateEphemeronEdges(table_entry, key_entry, value_entry);
     }
   }
 }
@@ -2621,9 +2614,10 @@ void V8HeapExplorer::ExtractWasmTrustedInstanceDataReferences(
 
 void V8HeapExplorer::ExtractWasmInstanceObjectReferences(
     Tagged<WasmInstanceObject> instance_object, HeapEntry* entry) {
-  SetInternalReference(entry, "trusted_data",
-                       instance_object->trusted_data(heap_->isolate()),
-                       offsetof(WasmInstanceObject, trusted_data_));
+  SetInternalReference(
+      entry, "trusted_data",
+      instance_object->trusted_data_allow_unpublished(heap_->isolate()),
+      offsetof(WasmInstanceObject, trusted_data_));
   SetInternalReference(entry, "module_object", instance_object->module_object(),
                        offsetof(WasmInstanceObject, module_object_));
   SetInternalReference(entry, "exports", instance_object->exports_object(),
@@ -3208,6 +3202,7 @@ class EmbedderGraphImpl : public EmbedderGraph {
     Node* from;
     Node* to;
     const char* name;
+    bool is_weak = false;
   };
 
   class V8NodeImpl : public Node {
@@ -3248,7 +3243,11 @@ class EmbedderGraphImpl : public EmbedderGraph {
   }
 
   void AddEdge(Node* from, Node* to, const char* name) final {
-    edges_.push_back({from, to, name});
+    edges_.push_back({from, to, name, false});
+  }
+
+  void AddWeakEdge(Node* from, Node* to, const char* name = nullptr) final {
+    edges_.push_back({from, to, name, true});
   }
 
   void AddNativeSize(size_t size) final { native_size_ += size; }
@@ -3291,18 +3290,35 @@ HeapEntry::Type EmbedderGraphNodeType(EmbedderGraphImpl::Node* node) {
   return node->IsRootNode() ? HeapEntry::kSynthetic : HeapEntry::kNative;
 }
 
+}  // anonymous namespace
+
+// static
 // Merges the names of an embedder node and its wrapper node.
 // If the wrapper node name contains a tag suffix (part after '/') then the
 // result is the embedder node name concatenated with the tag suffix.
 // Otherwise, the result is the embedder node name.
-const char* MergeNames(StringsStorage* names, const char* embedder_name,
-                       const char* wrapper_name) {
+const char* HeapSnapshotGenerator::MergeNames(StringsStorage* names,
+                                              const char* embedder_name,
+                                              const char* wrapper_name) {
   const char* suffix = strchr(wrapper_name, '/');
   return suffix ? names->GetFormatted("%s %s", embedder_name, suffix)
                 : embedder_name;
 }
 
-}  // anonymous namespace
+void HeapSnapshotGenerator::CreateEphemeronEdges(HeapEntry* table_entry,
+                                                 HeapEntry* key_entry,
+                                                 HeapEntry* value_entry) {
+  const char* edge_name = names_->GetFormatted(
+      "part of key (%s @%u) -> value (%s @%u) pair in WeakMap (table @%u)",
+      key_entry->name(), key_entry->id(), value_entry->name(),
+      value_entry->id(), table_entry->id());
+  key_entry->SetNamedAutoIndexReference(HeapGraphEdge::kInternal, edge_name,
+                                        value_entry, names_, this,
+                                        HeapEntry::kEphemeron);
+  table_entry->SetNamedAutoIndexReference(HeapGraphEdge::kInternal, edge_name,
+                                          value_entry, names_, this,
+                                          HeapEntry::kEphemeron);
+}
 
 HeapEntry* EmbedderGraphEntriesAllocator::AllocateEntry(HeapThing ptr) {
   EmbedderGraphImpl::Node* node =
@@ -3382,7 +3398,7 @@ void NativeObjectsExplorer::MergeNodeIntoEntry(
     }
   }
   entry->set_detachedness(original_node->GetDetachedness());
-  entry->set_name(MergeNames(
+  entry->set_name(HeapSnapshotGenerator::MergeNames(
       names_, EmbedderGraphNodeName(names_, original_node), entry->name()));
   entry->set_type(EmbedderGraphNodeType(original_node));
   DCHECK_GE(entry->self_size() + original_node->SizeInBytes(),
@@ -3413,14 +3429,19 @@ HeapEntry* NativeObjectsExplorer::EntryForEmbedderGraphNode(
 bool NativeObjectsExplorer::IterateAndExtractReferences(
     HeapSnapshotGenerator* generator) {
   generator_ = generator;
+  DisallowGarbageCollection no_gc;
+  HandleScope scope(isolate_);
+
+  if (isolate_->heap()->cpp_heap()) {
+    CppGraphBuilder::Run(
+        v8::internal::CppHeap::From(isolate_->heap()->cpp_heap()), generator_,
+        generator_->TakeCppHeapWrappers());
+  }
 
   if (v8_flags.heap_profiler_use_embedder_graph &&
       snapshot_->profiler()->HasBuildEmbedderGraphCallback()) {
-    v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate_));
-    DisallowGarbageCollection no_gc;
     EmbedderGraphImpl graph;
-    snapshot_->profiler()->BuildEmbedderGraph(
-        isolate_, &graph, generator_->TakeCppHeapWrappers());
+    snapshot_->profiler()->BuildEmbedderGraph(isolate_, &graph);
     for (const auto& node : graph.nodes()) {
       // Only add embedder nodes as V8 nodes have been added already by the
       // V8HeapExplorer.
@@ -3445,14 +3466,28 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
       if (!from) continue;
       HeapEntry* to = EntryForEmbedderGraphNode(edge.to);
       if (!to) continue;
-      if (edge.name == nullptr) {
-        from->SetIndexedAutoIndexReference(HeapGraphEdge::kElement, to,
-                                           generator_,
+      if (edge.is_weak) {
+        if (edge.name == nullptr) {
+          // Unlike kElement the edge type kWeak requires a name, so we use
+          // SetNamedAutoIndexReference here to create a name for the index.
+          from->SetNamedAutoIndexReference(HeapGraphEdge::kWeak, nullptr, to,
+                                           names_, generator_,
                                            HeapEntry::kOffHeapPointer);
+        } else {
+          from->SetNamedReference(HeapGraphEdge::kWeak,
+                                  names_->GetCopy(edge.name), to, generator_,
+                                  HeapEntry::kOffHeapPointer);
+        }
       } else {
-        from->SetNamedReference(HeapGraphEdge::kInternal,
-                                names_->GetCopy(edge.name), to, generator_,
-                                HeapEntry::kOffHeapPointer);
+        if (edge.name == nullptr) {
+          from->SetIndexedAutoIndexReference(HeapGraphEdge::kElement, to,
+                                             generator_,
+                                             HeapEntry::kOffHeapPointer);
+        } else {
+          from->SetNamedReference(HeapGraphEdge::kInternal,
+                                  names_->GetCopy(edge.name), to, generator_,
+                                  HeapEntry::kOffHeapPointer);
+        }
       }
     }
     snapshot_->set_extra_native_bytes(graph.native_size());

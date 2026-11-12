@@ -4,9 +4,12 @@
 
 #include "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_ukm_logger.h"
 
+#include <stdint.h>
+
 #include <algorithm>
-#include <cstdint>
-#include <type_traits>
+#include <memory>
+#include <optional>
+#include <string>
 #include <utility>
 
 #include "base/check_deref.h"
@@ -14,20 +17,23 @@
 #include "components/autofill/core/browser/autofill_browser_util.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics_utils.h"
 #include "components/autofill/core/browser/permissions/autofill_ai/autofill_ai_permission_utils.h"
-#include "components/autofill/core/common/autofill_util.h"
 #include "components/autofill/core/common/form_field_data.h"
+#include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 #include "components/autofill/core/common/signatures.h"
 #include "components/optimization_guide/core/model_quality/model_quality_log_entry.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/optimization_guide/proto/features/forms_classifications.pb.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
 
 namespace autofill {
 
@@ -105,6 +111,8 @@ optimization_guide::proto::FormControlType GetFormControlType(
       return optimization_guide::proto::FORM_CONTROL_TYPE_TEXT_AREA;
     case mojom::FormControlType::kInputDate:
       return optimization_guide::proto::FORM_CONTROL_TYPE_INPUT_DATE;
+    case mojom::FormControlType::kInputHiddenEmailVerification:
+      return optimization_guide::proto::FORM_CONTROL_TYPE_INPUT_HIDDEN;
   }
   NOTREACHED();
 }
@@ -132,6 +140,7 @@ optimization_guide::proto::AutofillAiPromptUserDecision GetUserDecision(
     AutofillClient::AutofillAiBubbleResult result) {
   switch (result) {
     case AutofillClient::AutofillAiBubbleResult::kAccepted:
+    case AutofillClient::AutofillAiBubbleResult::kEditAccepted:
       return optimization_guide::proto::
           AUTOFILL_AI_PROMPT_USER_DECISION_ACCEPTED;
     case AutofillClient::AutofillAiBubbleResult::kCancelled:
@@ -166,7 +175,7 @@ optimization_guide::proto::AutofillAiEntityStorageType GetStorageType(
       return optimization_guide::proto::AUTOFILL_AI_ENTITY_STORAGE_TYPE_LOCAL;
     case EntityInstance::RecordType::kServerWallet:
       return optimization_guide::proto::AUTOFILL_AI_ENTITY_STORAGE_TYPE_WALLET;
-    case EntityInstance::RecordType::kAccessibilityAnnotator:
+    case EntityInstance::RecordType::kPersonalContext:
       return optimization_guide::proto::AUTOFILL_AI_ENTITY_STORAGE_TYPE_UNKNOWN;
   }
 }

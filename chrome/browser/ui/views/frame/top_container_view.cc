@@ -25,6 +25,7 @@
 TopContainerView::TopContainerView(BrowserView* browser_view)
     : browser_view_(browser_view) {
   SetProperty(views::kElementIdentifierKey, kTopContainerElementId);
+  SetProperty(views::kViewDoesNotLayOutChildren, true);
 
   // Note: The colors will be set during layout, so these don't matter.
   auto background = std::make_unique<CustomCornersBackground>(
@@ -34,19 +35,6 @@ TopContainerView::TopContainerView(BrowserView* browser_view)
 }
 
 TopContainerView::~TopContainerView() = default;
-
-void TopContainerView::OnImmersiveRevealUpdated() {
-  SchedulePaint();
-
-  // TODO(crbug.com/41489962): Remove this once the View::SchedulePaint() API
-  // has been updated to correctly invalidate layer-backed child views.
-  for (auto& child : children()) {
-    if (child->layer()) {
-      child->layer()->SchedulePaint(
-          ConvertRectToTarget(this, child, GetLocalBounds()));
-    }
-  }
-}
 
 bool TopContainerView::IsPositionInWindowCaption(
     const gfx::Point& test_point) const {

@@ -13,6 +13,7 @@
 #include "base/features.h"
 #include "base/no_destructor.h"
 #include "build/android_buildflags.h"
+#include "cc/base/features.h"
 #include "chrome/browser/android/webapk/webapk_features.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/finds/core/finds_features.h"
@@ -177,6 +178,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kAbortNavigationsFromTabClosures,
     &features::kAndroidAnimatedProgressBarInBrowser,
     &features::kBackForwardCache,
+    &features::kBrowserControlsScrollSnapAnimation,
     &features::kDisplayEdgeToEdgeFullscreen,
     &features::kElasticOverscroll,
     &features::kEnableExclusiveAccessManager,
@@ -212,15 +214,15 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kAccountForSuppressedKeyboardInsets,
     &kAdaptiveButtonInTopToolbarCustomizationV2,
     &kAlwaysDrawCompositedToolbarHairline,
+    &kAndroidActorTaskTimeout,
     &kAndroidAppIntegrationMultiDataSource,
     &kAndroidAppRatingPrompt,
-    &kAndroidAppearanceSettings,
     &kAndroidBookmarkBar,
     &kAndroidBookmarkBarFastFollow,
     &kAndroidBottomBar,
     &kAndroidBottomToolbarV2,
     &kAndroidContextMenuNewActions,
-    &kAndroidDesktopDensity,
+    &kAndroidDeviceSignalsDisclaimer,
     &kAndroidElegantTextHeight,
     &kAndroidFirstRunLaunchBounds,
     &kAndroidHistoryClustering,
@@ -308,7 +310,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kCCTResetTimeoutEnabled,
     &kCCTResizableForThirdParties,
     &kCCTTabModalDialog,
-    &kCCTToolbarRefactor,
     &kCacheActivityTaskID,
     &kCacheDeprecatedSystemLocationSetting,
     &kCacheIsMultiInstanceApi31Enabled,
@@ -330,6 +331,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kControlsVisibilityFromNavigations,
     &kCrossDeviceTabPaneAndroid,
     &kCrossDeviceTaskHandoff,
+    &kDebugToolbarPositioning,
     &kDefaultBrowserPromoAndroid2,
     &kDefaultBrowserPromoEntryPoint,
     &kDefaultBrowserPromoFre,
@@ -399,6 +401,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kNtpSimplification,
     &kOmahaMinSdkVersionAndroid,
     &kOnDemandBackgroundTabContextCapture,
+    &kOnStartupWindowPolicy,
     &kPCCTMinimumHeight,
     &kPageAnnotationsService,
     &kPageContentProvider,
@@ -408,7 +411,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kPowerSavingModeBroadcastReceiverInBackground,
     &kPreconnectOnTabCreation,
     &kPriceChangeModule,
-    &kProcessRankPolicyAndroid,
     &kProtectRecentlyVisibleTab,
     &kProtectedTabsAndroid,
     &kPwaRestoreUi,
@@ -444,7 +446,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kTabClosureMethodRefactor,
     &kTabStorageSqlitePrototype,
     &kTabStripAutoSelectOnCloseChange,
-    &kTabStripDensityChangeAndroid,
     &kTabSwitcherDragDropAndroid,
     &kTabSwitcherGroupSuggestionsAndroid,
     &kTabSwitcherGroupSuggestionsTestModeAndroid,
@@ -457,7 +458,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kToolbarSnapshotRefactor,
     &kToolbarStaleCaptureBugFix,
     &kToolbarTabletResizeRefactor,
-    &kTopControlsRefactorV2,
     &kTouchToSearchCallout,
     &kTrustedWebActivityContactsDelegation,
     &kUmaBackgroundSessions,
@@ -468,6 +468,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kUseAppTaskForCustomTabActivation,
     &kUseInitialNetworkStateAtStartup,
     &kUseLibunwindstackNativeUnwinderAndroid,
+    &kUseWebUiNtpAndroid,
     &kVirtualKeyboardTransientInnerHeightFix,
     &kWebApkMinShellVersion,
     &kWebOtpCrossDeviceSimpleString,
@@ -566,15 +567,17 @@ static int64_t JNI_ChromeFeatureMap_GetNativeMap(JNIEnv* env) {
 BASE_FEATURE(kAccountForSuppressedKeyboardInsets, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAdaptiveButtonInTopToolbarCustomizationV2, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAlwaysDrawCompositedToolbarHairline, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kAndroidActorTaskTimeout, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidAppIntegrationMultiDataSource, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidAppRatingPrompt, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kAndroidAppearanceSettings, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidBookmarkBar, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidBookmarkBarFastFollow, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidBottomBar, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidBottomToolbarV2, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidContextMenuNewActions, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kAndroidDesktopDensity, base::FEATURE_ENABLED_BY_DEFAULT);
+// Enables additional text shown during profile creation for managed users,
+// informing them about device signal collection for security purposes.
+BASE_FEATURE(kAndroidDeviceSignalsDisclaimer, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidElegantTextHeight, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidFirstRunLaunchBounds, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidHistoryClustering, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -662,7 +665,6 @@ BASE_FEATURE(kCCTResetTimeoutAllowed, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kCCTResetTimeoutEnabled, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kCCTResizableForThirdParties, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kCCTTabModalDialog, base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kCCTToolbarRefactor, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kCacheActivityTaskID, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kCacheDeprecatedSystemLocationSetting, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kCacheIsMultiInstanceApi31Enabled, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -685,7 +687,8 @@ BASE_FEATURE(kContextualSearchSuppressShortView, base::FEATURE_DISABLED_BY_DEFAU
 BASE_FEATURE(kControlsVisibilityFromNavigations, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kCrossDeviceTabPaneAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kCrossDeviceTaskHandoff, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kDefaultBrowserPromoAndroid2, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDebugToolbarPositioning, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDefaultBrowserPromoAndroid2, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kDefaultBrowserPromoEntryPoint, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kDefaultBrowserPromoFre, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kDeferNavigationStateChanged, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -702,7 +705,7 @@ BASE_FEATURE(kEdgeToEdgeExtraLogs, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kEdgeToEdgeMonitorConfigurations, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kEdgeToEdgeTablet, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kEdgeToEdgeUseBackupNavbarInsets, base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kEducationalTipDefaultBrowserPromoCard, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kEducationalTipDefaultBrowserPromoCard, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kEmptyTabListAnimationKillSwitch, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableAndroidSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableAndroidSidePanelDevFeature, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -759,6 +762,7 @@ BASE_FEATURE(kNtpMvcRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kNtpSimplification, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kOmahaMinSdkVersionAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kOnDemandBackgroundTabContextCapture, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kOnStartupWindowPolicy, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kPCCTMinimumHeight, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kPageAnnotationsService, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kPageContentProvider, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -768,7 +772,6 @@ BASE_FEATURE(kPersistAcrossRebootsDebugLogs, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kPowerSavingModeBroadcastReceiverInBackground, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kPreconnectOnTabCreation, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kPriceChangeModule, base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kProcessRankPolicyAndroid, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kProtectRecentlyVisibleTab, base::FEATURE_DISABLED_BY_DEFAULT);
 // Put a higher memory priority to protected background tabs (e.g. tabs with
 // user edits in forms) to prevent them from being killed by LMKD before any
@@ -808,7 +811,6 @@ BASE_FEATURE(kTabBottomSheet, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kTabClosureMethodRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kTabStorageSqlitePrototype, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kTabStripAutoSelectOnCloseChange, base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kTabStripDensityChangeAndroid, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kTabSwitcherDragDropAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kTabSwitcherGroupSuggestionsAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kTabSwitcherGroupSuggestionsTestModeAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -821,7 +823,6 @@ BASE_FEATURE(kToolbarPhoneAnimationRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kToolbarSnapshotRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kToolbarStaleCaptureBugFix, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kToolbarTabletResizeRefactor, base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kTopControlsRefactorV2, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kTouchToSearchCallout, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kTrustedWebActivityContactsDelegation, base::FEATURE_DISABLED_BY_DEFAULT);
 // If enabled, keep logging and reporting UMA while chrome is backgrounded.
@@ -841,6 +842,7 @@ BASE_FEATURE(kUseInitialNetworkStateAtStartup, base::FEATURE_ENABLED_BY_DEFAULT)
 // Use the LibunwindstackNativeUnwinderAndroid for only browser main thread, and
 // only on Android.
 BASE_FEATURE(kUseLibunwindstackNativeUnwinderAndroid, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kUseWebUiNtpAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kVirtualKeyboardTransientInnerHeightFix, base::FEATURE_ENABLED_BY_DEFAULT);
 // Shows only the remote device name on the Android notification instead of
 // a descriptive text.

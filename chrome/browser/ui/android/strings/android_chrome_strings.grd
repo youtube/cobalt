@@ -550,6 +550,12 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
         <message name="IDS_EXTENSIONS_REQUEST_ACCESS_MESSAGE_TITLE_SINGLE_EXTENSION" desc="The title of the request access message banner that appears on the toolbar when an extension requests access to the site" formatter_data="android_java">
           Allow extension "<ph name="EXTENSION_NAME">%1$s</ph>"?
         </message>
+        <message name="IDS_EXTENSIONS_REQUEST_ACCESS_MESSAGE_DESCRIPTION_SINGLE_EXTENSION" desc="The description of the request access message banner for a single extension" formatter_data="android_java">
+          <ph name="WEBSITE">%1$s</ph> needs your permission to run <ph name="EXTENSION_NAME">%2$s</ph>
+        </message>
+        <message name="IDS_EXTENSIONS_REQUEST_ACCESS_MESSAGE_DESCRIPTION_MULTIPLE_EXTENSIONS" desc="The description of the request access message banner for multiple extensions" formatter_data="android_java">
+          <ph name="WEBSITE">%1$s</ph> needs your permission to run <ph name="COUNT">%2$s</ph> extensions
+        </message>
         <message name="IDS_SITE_SEARCH_EXTENSIONS_MENU_MANAGE" desc="Menu item to manage extensions">
           Manage
         </message>
@@ -2783,6 +2789,7 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
         Download
       </message>
 
+      <!-- Page-level App Menu items -->
       <message name="IDS_MENU_TRANSLATE" desc="Menu item for triggering a page translation. The word 'Translate' should match the translation in TC ID 1613971242435858090. [CHAR_LIMIT=27]">
         Translate…
       </message>
@@ -2798,11 +2805,23 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
         Listen to this page with AI
       </message>
 
+      <message name="IDS_MENU_SEARCH_TAB_WITH_GOOGLE_LENS" desc="Text for the Lens overlay item in the app menu. [CHAR_LIMIT=35]">
+        Search tab with Google Lens
+      </message>
       <message name="IDS_MENU_PRINT" desc="Menu item for printing the current page. [CHAR_LIMIT=27]">
         Print…
       </message>
       <message name="IDS_MENU_SHARE_PAGE" desc="Menu item for sharing the current page. [CHAR_LIMIT=27]">
         Share…
+      </message>
+      <message name="IDS_MENU_COPY_LINK" desc="Menu item for copying the link to the current page. [CHAR_LIMIT=27]">
+        Copy link
+      </message>
+      <message name="IDS_MENU_SEND_TO_DEVICES" desc="Menu item for sending the page to another device. [CHAR_LIMIT=27]">
+        Send to devices
+      </message>
+      <message name="IDS_MENU_QR_CODE" desc="Menu item for generating a QR Code for the current page. [CHAR_LIMIT=27]">
+        QR code
       </message>
       <message name="IDS_MENU_BACK_BUTTON_IPH_TEXT" desc="Message on the generic text buble to educate users on the menu back button">
         Open the menu to go back
@@ -2851,6 +2870,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <!-- ContextMenu -->
       <message name="IDS_CONTEXTMENU_SAVE_PAGE" desc="This string is shown in the context menu for saving the current page. [CHAR_LIMIT=30]">
         Download
+      </message>
+      <message name="IDS_CONTEXTMENU_SEARCH_TAB_WITH_GOOGLE_LENS" desc="Context sensitive menu item for deep linking into google lens. [CHAR_LIMIT=35]">
+        Search tab with Google Lens
       </message>
       <message name="IDS_CONTEXTMENU_SHARE_PAGE" desc="This string is shown in the context menu for sharing the current page. [CHAR_LIMIT=30]">
         Share
@@ -2917,9 +2939,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_CONTEXTMENU_SEARCH_IMAGE_WITH_GOOGLE_LENS" desc="Context sensitive menu item for deep linking into google lens. [CHAR_LIMIT=30]">
         Search image with Google Lens <ph name="BEGIN_NEW">&lt;new&gt;</ph>New<ph name="END_NEW">&lt;/new&gt;</ph>
-      </message>
-      <message name="IDS_LENS_OVERLAY_APP_MENU" desc="Text for the Lens overlay item in the app menu. [CHAR_LIMIT=30]">
-        Search with Google Lens
       </message>
       <message name="IDS_CONTEXTMENU_TRANSLATE_IMAGE_WITH_GOOGLE_LENS" desc="Context sensitive chip for deep linking into google lens for translate results. [CHAR_LIMIT=30]">
           Translate image with Google Lens <ph name="BEGIN_NEW">&lt;new&gt;</ph>New<ph name="END_NEW">&lt;/new&gt;</ph>
@@ -3769,6 +3788,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_SIGNIN_PROMO_DESCRIPTION_AUTOFILL_AND_PASSWORDS" desc="This string is the description of a card that appears in the Autofill and Passwords settings; the user is signed out of Chrome. The headline above this string is 'Get all your saved info'. We want users to read this card and tap the 'Sign-in' button and sign-in. The tone should be inviting.">
         Sign in to get your passwords and more on all your devices
       </message>
+      <message name="IDS_SIGNIN_PROMO_DESCRIPTION_AUTOFILL_AND_PASSWORDS_SEAMLESS" desc="This string is the description of a card that appears in the Autofill and Passwords settings; the user is signed out of Chrome. The headline above this string is 'Sign in to Chrome'.">
+        Get your passwords and more on all your devices
+      </message>
       <message name="IDS_SIGNIN_PROMO_TITLE_NTP_FEED_TOP_PROMO" desc="This string is the headline of a card that appears when the user visits Chrome's new tab page; the user isn't signed in to Chrome. The line below this string is 'Sign in to get content based on your interests'. [CHAR_LIMIT=70]">
         Get better content
       </message>
@@ -4130,8 +4152,8 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_MENU_DOWNLOAD" desc="Tooltip for the button to download the current web page. [CHAR_LIMIT=27]">
         Download
       </message>
-      <message name="IDS_MENU_SAVE_AND_PRINT" desc="Parent menu item for items related to saving and printing page">
-        Save and print
+      <message name="IDS_MENU_SAVE_AND_SHARE" desc="Parent menu item for items related to saving and sharing the page. [CHAR_LIMIT=27]">
+        Save and share
       </message>
       <message name="IDS_MENU_DOWNLOAD_PAGE" desc="Menu item for downloading the current web page. [CHAR_LIMIT=27]">
         Download page
@@ -4184,6 +4206,12 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_MENU_OTHER_BOOKMARKS" desc="Menu item for showing bookmarks stored in 'Other bookmarks'. [CHAR_LIMIT=27]">
         Other bookmarks
       </message>
+      <message name="IDS_MENU_TAB_GROUPS" desc="Menu item for showing items related to tab groups. [CHAR_LIMIT=27]">
+        Tab groups
+      </message>
+      <message name="IDS_MENU_CREATE_NEW_TAB_GROUP" desc="Menu item for creating a new tab group. [CHAR_LIMIT=27]">
+        Create new tab group
+      </message>
       <message name="IDS_MENU_RECENT_TABS" desc="Menu item for opening the 'Recent tabs' page that shows recently closed tabs and pages the user has opened on his/her other devices. [CHAR_LIMIT=27]">
         Recent tabs
       </message>
@@ -4201,6 +4229,18 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_CHROME_HISTORY" desc="Menu item for opening the CCT history page. [CHAR_LIMIT=27]">
         Chrome history
+      </message>
+      <message name="IDS_MENU_PASSWORDS_AND_AUTOFILL" desc="Menu item for showing menus related to passwords and autofill. [CHAR_LIMIT=27]">
+        Passwords and autofill
+      </message>
+      <message name="IDS_MENU_PAYMENT_METHODS" desc="Menu item for showing the payments page. [CHAR_LIMIT=27]">
+        Payment methods
+      </message>
+      <message name="IDS_MENU_ADDRESSES_AND_MORE" desc="Menu item for showing the 'Addresses and more' page. [CHAR_LIMIT=27]">
+        Addresses and more
+      </message>
+      <message name="IDS_MENU_GOOGLE_PASSWORD_MANAGER" desc="Menu item for opening the password manager. [CHAR_LIMIT=27]">
+        Google Password Manager
       </message>
       <message name="IDS_MENU_HISTORY" desc="Menu item for opening the history page. [CHAR_LIMIT=27]">
         History
@@ -4279,10 +4319,10 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_MENU_STOP_IMAGE_DESCRIPTIONS" desc="Menu item to stop getting alt text accessibility image labels/descriptions [CHAR_LIMIT=27]">
         Stop image descriptions
       </message>
-      <message name="IDS_MENU_ADD_TAB_TO_GROUP" desc="Menu item for adding a tab to a tab group.">
+      <message name="IDS_MENU_ADD_TAB_TO_GROUP" desc="Menu item for adding a tab to a tab group. [CHAR_LIMIT=27]">
         Add tab to group
       </message>
-      <message name="IDS_MENU_ADD_TAB_TO_NEW_GROUP" desc="Menu item for adding a tab to a new tab group.">
+      <message name="IDS_MENU_ADD_TAB_TO_NEW_GROUP" desc="Menu item for adding a tab to a new tab group. [CHAR_LIMIT=27]">
         Add tab to new group
       </message>
       <message name="IDS_MENU_MOVE_TAB_TO_GROUP" desc="Menu item for moving a tab to another group.">
@@ -4308,6 +4348,15 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_MENU_BOOKMARK_ALL_TABS" desc="Menu item for bookmarking all tabs.">
         Bookmark all tabs
+      </message>
+      <message name="IDS_MENU_ABOUT_CHROME" desc="Menu item for opening the 'About Chrome' page in the settings. [CHAR_LIMIT=27]">
+        About Chrome
+      </message>
+      <message name="IDS_MENU_HELP_CENTER" desc="Menu item for opening the help center. [CHAR_LIMIT=27]">
+        Help center
+      </message>
+      <message name="IDS_MENU_REPORT_ISSUE" desc="Menu item for reporting an issue. [CHAR_LIMIT=27]">
+        Report an issue...
       </message>
       <message name="IDS_MENU_EMPTY_SUBMENU" desc="Menu item to show when a folder doesn't contain any items.">
         (empty)
@@ -5283,6 +5332,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_SEND_TAB_TO_SELF_SHARE_ACTIVITY_TITLE" desc="Title of the Send Tab To Self Share activity that will appear in the Android share dialog.">
         Send to your devices
       </message>
+      <message name="IDS_SEND_TAB_TO_SELF_CONTEXT_MENU_TITLE" desc="Title of the Send Tab To Self option in the tab context menu.">
+        Send to your device
+      </message>
 
       <!-- Omnibox Suggestions -->
       <message name="IDS_OMNIBOX_CONFIRM_DELETE" desc="A message within a modal dialog that confirms the user wants to delete a suggestion from the list dropdown in the omnibox">
@@ -5883,7 +5935,7 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
         Manage your account
       </message>
       <message name="IDS_IPH_INSTANCE_SWITCHER_TEXT" desc="The in-product-help text prompting the user that app menu has a menu for managing multiple Chrome windows with instance switcher.">
-        Got many windows? You can manage them from here
+        You can manage your windows in Chrome's Window Manager
       </message>
       <message name="IDS_IPH_IDENTITY_DISC_ACCESSIBILITY_TEXT" desc="The in-product-help accessibility text prompting the user that tapping identity disc will navigate to 'Sync and Google services' settings page.">
         To manage your Google account, tap the "Manage account" button
@@ -7460,6 +7512,12 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_TIPS_OPT_IN_BOTTOM_SHEET_DESCRIPTION" desc="Description of the Tips Opt In bottom sheet promo.">
         Turn on notifications for useful tips to help you get the best of Chrome
       </message>
+      <message name="IDS_TIPS_OPT_IN_SNACKBAR_MESSAGE" desc="Snackbar message shown when the user opts in to receive tips notifications.">
+        Tips notifications turned on
+      </message>
+      <message name="IDS_TIPS_OPT_IN_SNACKBAR_ACTION_TEXT" desc="Action button of the Tips snackbar on user opt-in. [CHAR_LIMIT=10]">
+        Manage
+      </message>
 
       <!-- Caret Browsing -->
       <message name="IDS_CARET_BROWSING_DIALOG_TITLE" desc="Title of the caret browsing confirmation dialog" formatter_data="android_java">
@@ -7525,6 +7583,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
     <!-- Glic strings -->
       <message name="IDS_GLIC_ACTOR_TASK_IN_PROGRESS" desc="Snackbar message shown when a Glic actor task is still in progress.">
         Your task is still in progress
+      </message>
+      <message name="IDS_GLIC_INCOGNITO_NOT_AVAILABLE" desc="Text displayed in a snackbar when clicking the Glic toolbar button in an Incognito tab.">
+        Gemini isn’t available in Incognito mode
       </message>
 
       <!-- Immersive Playback Confirmation Dialog strings -->

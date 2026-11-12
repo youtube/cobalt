@@ -16,6 +16,7 @@
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
 #include "chrome/browser/ui/views/web_apps/web_app_icon_name_and_origin_view.h"
 #include "chrome/browser/ui/views/web_apps/web_app_install_dialog_delegate.h"
+#include "chrome/browser/ui/views/web_apps/web_app_testing_flags.h"
 #include "chrome/browser/ui/web_applications/web_app_dialogs.h"
 #include "chrome/browser/ui/web_applications/web_app_info_image_source.h"
 #include "chrome/browser/web_applications/model/dialog_image_info.h"
@@ -51,9 +52,6 @@
 namespace web_app {
 
 namespace {
-bool g_auto_accept_pwa_for_testing = false;
-bool g_auto_decline_pwa_for_testing = false;
-bool g_dont_close_on_deactivate = false;
 
 #if BUILDFLAG(IS_CHROMEOS)
 namespace cros_events = metrics::structured::events::v2::cr_os_events;
@@ -108,6 +106,16 @@ void ShowSimpleInstallDialogForWebApps(
   auto app_name = web_app_info->title;
   GURL start_url = web_app_info->start_url();
 
+  url::Origin initiating_origin;
+  if (show_initiating_origin) {
+    if (web_app_info && web_app_info->installed_by.has_value()) {
+      initiating_origin = url::Origin::Create(*web_app_info->installed_by);
+    } else {
+      initiating_origin =
+          web_contents->GetPrimaryMainFrame()->GetLastCommittedOrigin();
+    }
+  }
+
   auto delegate = std::make_unique<web_app::WebAppInstallDialogDelegate>(
       web_contents, std::move(web_app_info), std::move(install_tracker),
       std::move(callback), std::move(iph_state), prefs, tracker,
@@ -137,8 +145,6 @@ void ShowSimpleInstallDialogForWebApps(
   // Only show the initiating origin subtitle label for background document
   // installs from the Web Install API.
   if (show_initiating_origin) {
-    url::Origin initiating_origin =
-        web_contents->GetPrimaryMainFrame()->GetLastCommittedOrigin();
     std::u16string origin_url = url_formatter::FormatOriginForSecurityDisplay(
         initiating_origin, url_formatter::SchemeDisplay::OMIT_HTTP_AND_HTTPS);
     dialog_model_builder.SetSubtitle(l10n_util::GetStringFUTF16(
@@ -148,7 +154,7 @@ void ShowSimpleInstallDialogForWebApps(
   auto dialog = views::BubbleDialogModelHost::CreateModal(
       std::move(dialog_model), ui::mojom::ModalType::kChild);
 
-  if (g_dont_close_on_deactivate) {
+  if (test::g_dont_close_install_dialogs_on_deactivate_for_testing) {
     dialog->set_close_on_deactivate(false);
   }
   dialog_delegate = dialog->AsBubbleDialogDelegate();
@@ -162,25 +168,15 @@ void ShowSimpleInstallDialogForWebApps(
   delegate_weak_ptr->OnWidgetShownStartTracking(simple_dialog_widget);
 
   base::RecordAction(base::UserMetricsAction("WebAppInstallShown"));
-  if (g_auto_accept_pwa_for_testing) {
+  if (test::g_auto_accept_all_install_dialogs_for_testing) {
     dialog_delegate->AcceptDialog();
   }
-  if (g_auto_decline_pwa_for_testing) {
+  if (test::g_auto_decline_install_dialogs_for_testing) {
     dialog_delegate->CancelDialog();
   }
 }
 
-base::AutoReset<bool> SetAutoAcceptPWAInstallConfirmationForTesting() {
-  return base::AutoReset<bool>(&g_auto_accept_pwa_for_testing, true);
-}
 
-base::AutoReset<bool> SetAutoDeclinePWAInstallConfirmationForTesting() {
-  return base::AutoReset<bool>(&g_auto_decline_pwa_for_testing, true);
-}
-
-base::AutoReset<bool> SetDontCloseOnDeactivateForTesting() {
-  return base::AutoReset<bool>(&g_dont_close_on_deactivate, true);
-}
 
 // Creates a view for the simple install dialog that contains the
 // WebAppIconNameAndOriginView

@@ -1131,10 +1131,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
 #if V8_ENABLE_WEBASSEMBLY
   // Returns WasmTrustedInstanceData|Smi.
-  TNode<Union<Smi, WasmTrustedInstanceData>> LoadInstanceDataFromWasmImportData(
+  TNode<Union<Smi, WasmTrustedInstanceData>>
+  LoadImportingInstanceDataFromWasmImportData(
       TNode<WasmImportData> import_data) {
     return LoadProtectedPointerField<Union<Smi, WasmTrustedInstanceData>>(
-        import_data, offsetof(WasmImportData, protected_instance_data_));
+        import_data,
+        offsetof(WasmImportData, protected_importing_instance_data_));
   }
 
   // Returns WasmImportData or WasmTrustedInstanceData.
@@ -2322,15 +2324,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<JSObject> AllocateJSIteratorResultForEntry(TNode<Context> context,
                                                    TNode<Object> key,
                                                    TNode<Object> value);
-  TNode<Object> GetResultValueForHole(TNode<Object> value);
+  TNode<JSAny> GetResultValueForHole(TNode<JSAny> value);
   // Calls the next method of an iterator and returns the value property
   // of the result, or TheHole if done.
-  TNode<Object> CallIteratorNext(
+  TNode<UnionOf<JSAny, TheHole>> CallIteratorNext(
       TNode<Context> context, TNode<Object> iterator, TNode<Object> next,
       TNode<Union<FeedbackVector, Undefined>> feedback_vector,
       TNode<UintPtrT> call_slot);
 
-  TNode<Object> ForOfNextHelper(
+  TNode<UnionOf<JSAny, TheHole>> ForOfNextHelper(
       TNode<Context> context, TNode<Object> object, TNode<Object> next,
       TNode<Union<FeedbackVector, Undefined>> feedback_vector,
       TNode<UintPtrT> call_slot);
@@ -5031,8 +5033,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Object> value, WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       int additional_offset = 0);
 
-  TNode<IntPtrT> ComputeTypedArrayStoreOffset(TNode<IntPtrT> offset,
-                                              ElementsKind kind);
+  TNode<IntPtrT> ComputeTypedArrayAccessOffset(TNode<IntPtrT> offset,
+                                               ElementsKind kind);
 
   template <typename TIndex>
   void StoreElementTypedArrayBigInt(TNode<RawPtrT> elements, ElementsKind kind,

@@ -45,7 +45,7 @@ GlicSidePanelCoordinatorImpl::GlicSidePanelCoordinatorImpl(
       glic_service->enabling().RegisterAllowedChanged(base::BindRepeating(
           &GlicSidePanelCoordinatorImpl::OnGlicEnabledChanged,
           base::Unretained(this)));
-  if (glic_service->enabling().IsAllowed()) {
+  if (glic::GlicEnabling::ShouldShowGlicButton(tab_->GetProfile())) {
     CreateAndRegisterEntry();
   }
 }
@@ -159,7 +159,7 @@ void GlicSidePanelCoordinatorImpl::OnEntryShown(SidePanelEntry* entry) {
 
 void GlicSidePanelCoordinatorImpl::OnGlicEnabledChanged() {
   // Maybe register side panel entry if not yet registered.
-  if (glic::GlicEnabling::IsEnabledForProfile(tab_->GetProfile())) {
+  if (glic::GlicEnabling::ShouldShowGlicButton(tab_->GetProfile())) {
     CreateAndRegisterEntry();
   }
 }
@@ -174,10 +174,8 @@ std::unique_ptr<views::View> GlicSidePanelCoordinatorImpl::CreateView(
   // Provide the side panel with an empty container View so that different
   // `GlicUiEmbedder`s can update its contents as needed.
   auto glic_container = std::make_unique<views::View>();
-  if (base::FeatureList::IsEnabled(features::kGlicUseToolbarHeightSidePanel)) {
-    glic_container->SetPaintToLayer();
-    glic_container->layer()->SetFillsBoundsOpaquely(false);
-  }
+  glic_container->SetPaintToLayer();
+  glic_container->layer()->SetFillsBoundsOpaquely(false);
   glic_container->SetLayoutManager(std::make_unique<views::FillLayout>());
   glic_container_tracker_.SetView(glic_container.get());
 

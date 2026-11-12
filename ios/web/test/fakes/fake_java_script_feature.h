@@ -56,6 +56,11 @@ class FakeJavaScriptFeature : public JavaScriptFeature {
   bool GetErrorCount(WebFrame* web_frame,
                      base::OnceCallback<void(const base::Value*)> callback);
 
+  bool CallAsyncSum(WebFrame* web_frame,
+                    int addend1,
+                    int addend2,
+                    ExecuteJavaScriptCallbackWithError callback);
+
   WebState* last_received_web_state() const { return last_received_web_state_; }
 
   const ScriptMessage* last_received_message() const {
@@ -82,6 +87,9 @@ class FakeJavaScriptFeature : public JavaScriptFeature {
       WebState* web_state,
       const ScriptMessage& message,
       ScriptMessageReplyCallback callback) override;
+
+  // Clones `message` and sets it to `last_received_message_`.
+  void SetLastReceivedMessage(const ScriptMessage& message);
 
   raw_ptr<WebState, DanglingUntriaged> last_received_web_state_ = nullptr;
   std::unique_ptr<const ScriptMessage> last_received_message_;

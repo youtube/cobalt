@@ -14,12 +14,13 @@
 #include "base/scoped_observation.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
-#if !BUILDFLAG(IS_COBALT)
-#include "third_party/cld_3/src/src/nnet_language_identifier.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
 #include "ui/accessibility/ax_enums.mojom-forward.h"
 #include "ui/accessibility/ax_export.h"
 #include "ui/accessibility/ax_tree_observer.h"
+
+namespace chrome_lang_id {
+class NNetLanguageIdentifier;
+}  // namespace chrome_lang_id
 
 namespace ui {
 
@@ -293,16 +294,31 @@ class AX_EXPORT AXLanguageDetectionManager {
   // Perform labelling for node. Will not descend into children.
   void LabelLanguagesForNode(AXNode* node);
 
-  // This language identifier is constructed with a default minimum byte length
-  // of chrome_lang_id::NNetLanguageIdentifier::kMinNumBytesToConsider and is
-  // used for detecting page-level languages.
 #if !BUILDFLAG(IS_COBALT)
-  chrome_lang_id::NNetLanguageIdentifier language_identifier_;
+  // Lazy accessor for `language_identifier_`. Constructs the CLD3 model on
+  // first use to avoid the ~MB of matrix-weight allocations when the language-
+  // detection APIs are never invoked (the common case: the feature is disabled
+  // by default and most AXTrees never call DetectLanguagesForNode).
+  // Must be called on the same sequence as the rest of the manager (AXTree's
+  // sequence).
+  chrome_lang_id::NNetLanguageIdentifier& GetLanguageIdentifier();
 
-  // This language identifier is constructed with a minimum byte length of
+  // Lazy accessor for `short_text_language_identifier_`. Same rationale and
+  // sequence requirements as GetLanguageIdentifier().
+  chrome_lang_id::NNetLanguageIdentifier& GetShortTextLanguageIdentifier();
+
+  // This language identifier is constructed lazily (via GetLanguageIdentifier)
+  // with a default minimum byte length of
+  // chrome_lang_id::NNetLanguageIdentifier::kMinNumBytesToConsider and is
+  // used for detecting page-level languages.
+  std::unique_ptr<chrome_lang_id::NNetLanguageIdentifier> language_identifier_;
+
+  // This language identifier is constructed lazily (via
+  // GetShortTextLanguageIdentifier) with a minimum byte length of
   // kShortTextIdentifierMinByteLength so it can be used for detecting languages
   // of shorter text (e.g. one character).
-  chrome_lang_id::NNetLanguageIdentifier short_text_language_identifier_;
+  std::unique_ptr<chrome_lang_id::NNetLanguageIdentifier>
+      short_text_language_identifier_;
 #endif  // !BUILDFLAG(IS_COBALT)
 
   // The observer to support dynamic content language detection.

@@ -5467,6 +5467,17 @@ OPENSSL_EXPORT size_t SSL_get_client_random(const SSL *ssl, uint8_t *out,
 OPENSSL_EXPORT size_t SSL_get_server_random(const SSL *ssl, uint8_t *out,
                                             size_t max_out);
 
+// SSL_get_signature_algorithm_used returns the signature algorithm that |ssl|
+// used, or will use, to generate a signature in the current handshake. If not
+// applicable (e.g. if |ssl| did not authenticate itself with a certificate), it
+// returns zero.
+//
+// This function only returns a value during the handshake. After the handshake
+// is complete, the value is discarded. If needed after the handshake, callers
+// may save the value at |SSL_CB_HANDSHAKE_DONE| with
+// |SSL_CTX_set_info_callback|.
+OPENSSL_EXPORT uint16_t SSL_get_signature_algorithm_used(const SSL *ssl);
+
 // SSL_get_pending_cipher returns the cipher suite for the current handshake or
 // NULL if one has not been negotiated yet or there is no pending handshake.
 OPENSSL_EXPORT const SSL_CIPHER *SSL_get_pending_cipher(const SSL *ssl);

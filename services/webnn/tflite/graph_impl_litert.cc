@@ -20,7 +20,7 @@
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/types/expected_macros.h"
-#include "mojo/public/cpp/bindings/self_owned_associated_receiver.h"
+#include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/webnn/buildflags.h"
 #include "services/webnn/error.h"
 #include "services/webnn/public/cpp/webnn_trace.h"
@@ -299,13 +299,13 @@ class GraphImplLiteRt::ComputeResources {
     input_buffers.reserve(inputs.size());
     for (int i = 0; i < inputs.size(); ++i) {
       const auto& [name, input] = inputs[i];
-      base::span<uint8_t> data = buffers.at(input.tensor_index)->AsSpan();
+      const auto& buffer = buffers.at(input.tensor_index);
       ASSIGN_OR_RETURN(
           auto litert_buffer,
-          AsBaseExpected(
-              ::litert::TensorBuffer::CreateFromHostMemory(
-                  *env_, input_tensor_types[i], data.data(), data.size()),
-              "Failed to create input LiteRT buffer"));
+          AsBaseExpected(::litert::TensorBuffer::CreateFromHostMemory(
+                             *env_, input_tensor_types[i],
+                             buffer->AsSpan().data(), buffer->AllocatedSize()),
+                         "Failed to create input LiteRT buffer"));
       input_buffers.push_back(std::move(litert_buffer));
     }
 
@@ -313,14 +313,13 @@ class GraphImplLiteRt::ComputeResources {
     output_buffers.reserve(outputs.size());
     for (int i = 0; i < outputs.size(); ++i) {
       const auto& [name, output] = outputs[i];
-      base::span<uint8_t> data = buffers.at(output.tensor_index)->AsSpan();
-
+      const auto& buffer = buffers.at(output.tensor_index);
       ASSIGN_OR_RETURN(
           auto litert_buffer,
-          AsBaseExpected(
-              ::litert::TensorBuffer::CreateFromHostMemory(
-                  *env_, output_tensor_types[i], data.data(), data.size()),
-              "Failed to create output LiteRT buffer"));
+          AsBaseExpected(::litert::TensorBuffer::CreateFromHostMemory(
+                             *env_, output_tensor_types[i],
+                             buffer->AsSpan().data(), buffer->AllocatedSize()),
+                         "Failed to create output LiteRT buffer"));
       output_buffers.push_back(std::move(litert_buffer));
     }
 
@@ -465,7 +464,7 @@ class GraphImplLiteRt::ComputeResources {
 
 // static
 void GraphImplLiteRt::CreateAndBuild(
-    mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
+    mojo::PendingReceiver<mojom::WebNNGraph> receiver,
     mojom::GraphInfoPtr graph_info,
     ComputeResourceInfo compute_resource_info,
     base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
@@ -526,7 +525,7 @@ GraphImplLiteRt::CreateAndBuildOnBackgroundThread(
 }
 
 void GraphImplLiteRt::DidCreateAndBuild(
-    mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
+    mojo::PendingReceiver<mojom::WebNNGraph> receiver,
     base::WeakPtr<WebNNContextImpl> context,
     ComputeResourceInfo compute_resource_info,
     WebNNContextImpl::CreateGraphImplCallback callback,
@@ -559,7 +558,7 @@ void GraphImplLiteRt::DidCreateAndBuild(
 GraphImplLiteRt::~GraphImplLiteRt() = default;
 
 GraphImplLiteRt::GraphImplLiteRt(
-    mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
+    mojo::PendingReceiver<mojom::WebNNGraph> receiver,
     ComputeResourceInfo compute_resource_info,
     std::vector<std::pair<std::string, tflite::TensorDescriptor>>
         input_name_to_descriptor,

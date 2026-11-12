@@ -1515,6 +1515,7 @@ constexpr const char* ToString(AllocationSpace space) {
     case AllocationSpace::TRUSTED_LO_SPACE:
       return "trusted_large_object_space";
   }
+  UNREACHABLE();
 }
 
 inline std::ostream& operator<<(std::ostream& os, AllocationSpace space) {
@@ -1554,7 +1555,10 @@ constexpr const char* ToString(AllocationType kind) {
     case AllocationType::kSharedTrusted:
       return "SharedTrusted";
   }
+  UNREACHABLE();
 }
+
+enum class AllowAllocation : uint8_t { kYes, kNo };
 
 inline std::ostream& operator<<(std::ostream& os, AllocationType type) {
   return os << ToString(type);

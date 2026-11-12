@@ -1112,15 +1112,17 @@ angle::Result TextureMtl::ensureSamplerStateCreated(const gl::Context *context)
 angle::Result TextureMtl::createViewFromBaseToMaxLevel()
 {
     ASSERT(mNativeTextureStorage);
+    uint32_t baseLevel =
+        std::min(mNativeTextureStorage->getMaxSupportedGLLevel(), mState.getEffectiveBaseLevel());
     uint32_t maxLevel =
         std::min(mNativeTextureStorage->getMaxSupportedGLLevel(), mState.getEffectiveMaxLevel());
 
     // In edge case where base level > max level, clamp up to base level.
-    maxLevel = std::max(maxLevel, mState.getEffectiveBaseLevel());
+    maxLevel = std::max(maxLevel, baseLevel);
 
     mtl::TextureRef nativeViewFromBaseToMaxLevelRef;
     if (maxLevel == mNativeTextureStorage->getMaxSupportedGLLevel() &&
-        mState.getEffectiveBaseLevel() == mNativeTextureStorage->getBaseGLLevel())
+        baseLevel == mNativeTextureStorage->getBaseGLLevel())
     {
         // If base & max level are the same in mNativeTextureStorage, we don't need
         // a dedicated view. Furthermore, Intel driver has some bugs when sampling a view
@@ -1129,9 +1131,9 @@ angle::Result TextureMtl::createViewFromBaseToMaxLevel()
     }
     else
     {
-        uint32_t baseToMaxLevels = maxLevel - mState.getEffectiveBaseLevel() + 1;
+        uint32_t baseToMaxLevels = maxLevel - baseLevel + 1;
         nativeViewFromBaseToMaxLevelRef =
-            mNativeTextureStorage->createMipsView(mState.getEffectiveBaseLevel(), baseToMaxLevels);
+            mNativeTextureStorage->createMipsView(baseLevel, baseToMaxLevels);
     }
 
     mViewFromBaseToMaxLevel = std::make_unique<NativeTextureWrapper>(
@@ -1345,6 +1347,7 @@ ImageDefinitionMtl &TextureMtl::getImageDefinition(const gl::ImageIndex &imageIn
 
     return imageDef;
 }
+
 angle::Result TextureMtl::getRenderTarget(ContextMtl *context,
                                           const gl::ImageIndex &imageIndex,
                                           GLsizei implicitSamples,
@@ -2058,12 +2061,22 @@ angle::Result TextureMtl::redefineImage(const gl::Context *context,
 
     // If native texture still exists, it means the size hasn't been changed, no need to create new
     // image
-    if (mNativeTextureStorage && imageDef.image && imageWithinNativeStorageLevels)
+    if (mNativeTextureStorage && imageWithinNativeStorageLevels)
     {
-        ASSERT(imageDef.image->textureType() ==
-                   mtl::GetTextureType(GetTextureImageType(index.getType())) &&
-               imageDef.formatID == mNativeTextureStorage->getFormat().intendedFormatId &&
-               imageDef.image->sizeAt0() == size);
+        if (imageDef.image &&
+            imageDef.image->textureType() ==
+                mtl::GetTextureType(GetTextureImageType(index.getType())) &&
+            imageDef.formatID == mNativeTextureStorage->getFormat().intendedFormatId &&
+            imageDef.image->sizeAt0() == size)
+        {
+            // Keep it! (No-op)
+        }
+        else
+        {
+            // Recreate the view at this index.
+            imageDef.image = nullptr;
+            imageDef       = getImageDefinition(index);
+        }
     }
     else
     {
@@ -2185,14 +2198,9 @@ angle::Result TextureMtl::setSubImageImpl(const gl::Context *context,
     GLuint sourceRowPitch   = 0;
     GLuint sourceDepthPitch = 0;
     GLuint sourceSkipBytes  = 0;
-    ANGLE_CHECK_GL_MATH(contextMtl, formatInfo.computeRowPitch(type, area.width, unpack.alignment,
-                                                               unpack.rowLength, &sourceRowPitch));
-    ANGLE_CHECK_GL_MATH(
-        contextMtl, formatInfo.computeDepthPitch(area.height, unpack.imageHeight, sourceRowPitch,
-                                                 &sourceDepthPitch));
-    ANGLE_CHECK_GL_MATH(contextMtl,
-                        formatInfo.computeSkipBytes(type, sourceRowPitch, sourceDepthPitch, unpack,
-                                                    index.usesTex3D(), &sourceSkipBytes));
+    ANGLE_CHECK_GL_MATH(contextMtl, formatInfo.computeRowDepthSkipBytes(
+                                        type, area.width, area.height, unpack, index.usesTex3D(),
+                                        &sourceRowPitch, &sourceDepthPitch, &sourceSkipBytes));
 
     // Get corresponding source data's ANGLE format
     angle::FormatID srcAngleFormatId;

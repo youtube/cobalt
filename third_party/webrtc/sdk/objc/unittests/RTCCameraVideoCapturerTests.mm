@@ -18,7 +18,7 @@
 #import "base/RTCVideoFrame.h"
 #import "components/capturer/RTCCameraVideoCapturer.h"
 #import "helpers/AVCaptureSession+DevicePosition.h"
-#import "helpers/RTCDispatcher.h"
+#import "helpers/RTCDispatcher+Private.h"
 #import "helpers/scoped_cftyperef.h"
 
 #define WAIT(timeoutMs)                                                        \
@@ -476,6 +476,10 @@ CMSampleBufferRef createTestSampleBufferRef() {
   [self.capturer stopCapture];
 
   // Start capture code is dispatched async.
+  dispatch_sync([RTC_OBJC_TYPE(RTCDispatcher)
+                    dispatchQueueForType:RTCDispatcherTypeCaptureSession],
+                ^{
+                });
   OCMVerifyAllWithDelay(_captureSessionMock, 15);
 }
 
@@ -489,6 +493,10 @@ CMSampleBufferRef createTestSampleBufferRef() {
   [self.capturer startCaptureWithDevice:self.deviceMock format:format fps:30];
 
   // Start capture code is dispatched async.
+  dispatch_sync([RTC_OBJC_TYPE(RTCDispatcher)
+                    dispatchQueueForType:RTCDispatcherTypeCaptureSession],
+                ^{
+                });
   OCMVerifyAllWithDelay(self.deviceMock, 15);
 }
 

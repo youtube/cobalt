@@ -17,7 +17,9 @@ package runner
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strconv"
+	"strings"
 )
 
 type stateMachineTestConfig struct {
@@ -231,6 +233,33 @@ func addStateMachineCoverageTests(config stateMachineTestConfig) {
 			resumeShimPrefix: shimInitialWrite[2:],
 			resumeSession:    true,
 			earlyData:        true,
+		})
+
+		// Test handling of maximum early data that exceeds 2^16.
+		largeInitialWrite := strings.Repeat("0123456789abcdef", 32)
+		const largeInitialWriteRepeat = 256
+		tests = append(tests, testCase{
+			testType: clientTest,
+			name:     "TLS13-EarlyData-TooMuchData-LargeLimit-Client",
+			config: Config{
+				MaxVersion:       VersionTLS13,
+				MinVersion:       VersionTLS13,
+				MaxEarlyDataSize: uint32(len(largeInitialWrite) * largeInitialWriteRepeat),
+			},
+			resumeConfig: &Config{
+				MaxVersion:       VersionTLS13,
+				MinVersion:       VersionTLS13,
+				MaxEarlyDataSize: uint32(len(largeInitialWrite) * largeInitialWriteRepeat),
+				Bugs: ProtocolBugs{
+					ExpectEarlyData: slices.Repeat([][]byte{[]byte(largeInitialWrite)}, largeInitialWriteRepeat),
+				},
+			},
+			resumeShimPrefix: largeInitialWrite,
+			resumeSession:    true,
+			earlyData:        true,
+			flags: []string{
+				"-on-resume-shim-initial-write", largeInitialWrite,
+				"-on-resume-repeat-shim-initial-write", strconv.Itoa(largeInitialWriteRepeat + 1)},
 		})
 
 		// Unfinished writes can only be tested when operations are async. EarlyData

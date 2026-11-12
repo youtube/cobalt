@@ -7,8 +7,10 @@
 #include <string>
 #include <utility>
 
+#include "base/command_line.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/metrics/user_action_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
@@ -20,11 +22,13 @@
 #include "chrome/browser/glic/host/glic_features.mojom.h"
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/chrome_features.h"
+#include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
@@ -35,7 +39,10 @@
 #include "components/prefs/testing_pref_service.h"
 #include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
+#include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "components/variations/service/test_variations_service.h"
+#include "components/variations/service/variations_service.h"
+#include "components/variations/variations_switches.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -480,16 +487,29 @@ TEST_F(GlicEnablingProfileEligibilityTest, Eligible) {
 class GlicEnablingProfileReadyStateTestBase
     : public GlicEnablingProfileEligibilityTest {
  public:
-  GlicEnablingProfileReadyStateTestBase() = default;
-
-  void SetUp() override {
-    GlicEnablingProfileEligibilityTest::SetUp();
+  explicit GlicEnablingProfileReadyStateTestBase(
+      const std::vector<base::test::FeatureRef>& extra_enabled_features = {},
+      const std::vector<base::test::FeatureRef>& extra_disabled_features = {}) {
     // Ensure the profile is Enabled by default.
     // Disable rollout check and user status check complexities for these tests.
     // We already have kGlic enabled from the base class.
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{features::kGlicRollout},
-        /*disabled_features=*/{features::kGlicUserStatusCheck});
+    std::vector<base::test::FeatureRef> enabled_features = {
+        features::kGlicRollout};
+    enabled_features.insert(enabled_features.end(),
+                            extra_enabled_features.begin(),
+                            extra_enabled_features.end());
+
+    std::vector<base::test::FeatureRef> disabled_features = {
+        features::kGlicUserStatusCheck};
+    disabled_features.insert(disabled_features.end(),
+                             extra_disabled_features.begin(),
+                             extra_disabled_features.end());
+
+    scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
+  }
+
+  void SetUp() override {
+    GlicEnablingProfileEligibilityTest::SetUp();
 
     // Make sure we have a primary account so we don't fail the "capable" check.
     signin::IdentityManager* identity_manager =
@@ -506,8 +526,7 @@ class GlicEnablingProfileReadyStateTestBase
 };
 
 class GlicEnablingTrustFirstOnboardingTest
-    : public GlicEnablingProfileReadyStateTestBase {
-};
+    : public GlicEnablingProfileReadyStateTestBase {};
 
 TEST_F(GlicEnablingTrustFirstOnboardingTest, NotConsented_ReturnsReady) {
   glic::GlicKeyedService::Get(profile())->enabling().SetCompletedFre(
@@ -523,6 +542,158 @@ TEST_F(GlicEnablingTrustFirstOnboardingTest, Consented_ReturnsReady) {
 
   EXPECT_EQ(GlicEnabling::GetProfileReadyState(profile()),
             mojom::ProfileReadyState::kReady);
+}
+
+class GlicEnablingAnchorEntryPointTestBase : public testing::Test {
+ public:
+  GlicEnablingAnchorEntryPointTestBase() {
+    scoped_feature_list_.InitWithFeatures(
+        /*enabled_features=*/
+        {
+            features::kGlicRollout,
+#if BUILDFLAG(IS_CHROMEOS)
+            chromeos::features::kFeatureManagementGlic,
+#endif  // BUILDFLAG(IS_CHROMEOS)
+        },
+        /*disabled_features=*/{
+            features::kGlic,  // Explicitly disable kGlic to fail global
+                              // criteria
+            features::kGlicUserStatusCheck,
+        });
+  }
+
+  void SetUp() override {
+    raw_ptr<TestingProfileManager> testing_profile_manager =
+        TestingBrowserProcess::GetGlobal()->SetUpGlobalFeaturesForTesting(
+            /*profile_manager=*/true);
+
+#if BUILDFLAG(IS_CHROMEOS)
+    glic_user_session_test_helper_.PreProfileSetUp(
+        testing_profile_manager->profile_manager());
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+    profile_ = testing_profile_manager->CreateTestingProfile(
+        TestingProfile::kDefaultProfileUserName);
+
+    // Make sure we have a primary account so we don't fail the "capable" check.
+    signin::IdentityManager* identity_manager =
+        IdentityManagerFactory::GetForProfile(profile());
+    AccountInfo account_info = signin::MakePrimaryAccountAvailable(
+        identity_manager, "test@example.com", signin::ConsentLevel::kSignin);
+    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    mutator.set_can_use_model_execution_features(true);
+    signin::UpdateAccountInfoForAccount(identity_manager, account_info);
+  }
+
+  void TearDown() override {
+    profile_ = nullptr;
+    TestingBrowserProcess::GetGlobal()->TearDownGlobalFeaturesForTesting();
+#if BUILDFLAG(IS_CHROMEOS)
+    glic_user_session_test_helper_.PostProfileTearDown();
+#endif  // BUILDFLAG(IS_CHROMEOS)
+  }
+
+  Profile* profile() { return profile_.get(); }
+
+ private:
+  content::BrowserTaskEnvironment task_environment_;
+  base::test::ScopedFeatureList scoped_feature_list_;
+#if BUILDFLAG(IS_CHROMEOS)
+  ash::GlicUserSessionTestHelper glic_user_session_test_helper_;
+#endif  // BUILDFLAG(IS_CHROMEOS)
+  raw_ptr<TestingProfile> profile_ = nullptr;
+};
+
+TEST_F(GlicEnablingAnchorEntryPointTestBase,
+       AnchoredButtonForOnboardedProfile) {
+  profile()->GetPrefs()->SetInteger(
+      glic::prefs::kGlicCompletedFre,
+      static_cast<int>(glic::prefs::FreStatus::kCompleted));
+
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeature(
+      features::kGlicAnchorEntryPointForOnboardedUsers);
+
+  base::HistogramTester histogram_tester;
+
+  // Profile should be eligible because the anchor entry point feature is active
+  // and user is onboarded, even though kGlic (global criteria) is failing.
+  EXPECT_TRUE(GlicEnabling::IsProfileEligible(profile()));
+
+  GlicEnabling::ProfileEnablement enablement =
+      GlicEnabling::EnablementForProfile(profile());
+  enablement.RecordStartupMetrics();
+
+  histogram_tester.ExpectBucketCount(
+      "Glic.ProfileEnablement.AnchoredDespiteEligibilityFailureReason.Startup",
+      GlicEnabling::ProfileEnablement::FeatureDisabledReason::
+          kFeatureFlagDisabled,
+      1);
+}
+
+TEST_F(GlicEnablingAnchorEntryPointTestBase, FeatureFlagDisablesAnchoring) {
+  profile()->GetPrefs()->SetInteger(
+      glic::prefs::kGlicCompletedFre,
+      static_cast<int>(glic::prefs::FreStatus::kCompleted));
+
+  base::test::ScopedFeatureList features;
+  features.InitAndDisableFeature(
+      features::kGlicAnchorEntryPointForOnboardedUsers);
+
+  base::HistogramTester histogram_tester;
+
+  // Profile should NOT be eligible because the anchor entry point feature is
+  // disabled and kGlic (global criteria) is failing.
+  EXPECT_FALSE(GlicEnabling::IsProfileEligible(profile()));
+
+  GlicEnabling::ProfileEnablement enablement =
+      GlicEnabling::EnablementForProfile(profile());
+  enablement.RecordStartupMetrics();
+
+  histogram_tester.ExpectTotalCount(
+      "Glic.ProfileEnablement.AnchoredDespiteEligibilityFailureReason.Startup",
+      0);
+}
+
+TEST_F(GlicEnablingAnchorEntryPointTestBase,
+       GlobalDisablementPropagatedToReadyState) {
+  profile()->GetPrefs()->SetInteger(
+      glic::prefs::kGlicCompletedFre,
+      static_cast<int>(glic::prefs::FreStatus::kCompleted));
+
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeature(
+      features::kGlicAnchorEntryPointForOnboardedUsers);
+
+  // The anchor entry point feature keeps the button visible when global
+  // criteria fail. In a default test environment with the kGlic flag disabled,
+  // it falls through to the fallback block and returns kIneligibleAccount.
+  EXPECT_EQ(GlicEnabling::GetProfileReadyState(profile()),
+            mojom::ProfileReadyState::kIneligibleAccount);
+}
+
+TEST_F(GlicEnablingAnchorEntryPointTestBase,
+       PrimaryAccountNotCapable_ReturnsIneligibleAccountWhenAnchored) {
+  profile()->GetPrefs()->SetInteger(
+      glic::prefs::kGlicCompletedFre,
+      static_cast<int>(glic::prefs::FreStatus::kCompleted));
+
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeature(
+      features::kGlicAnchorEntryPointForOnboardedUsers);
+
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile());
+  AccountInfo account_info =
+      identity_manager->FindExtendedAccountInfoByAccountId(
+          identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin));
+  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  mutator.set_can_use_model_execution_features(false);
+  signin::UpdateAccountInfoForAccount(identity_manager, account_info);
+
+  // When anchored, capability failures map to kIneligibleAccount.
+  EXPECT_EQ(GlicEnabling::GetProfileReadyState(profile()),
+            mojom::ProfileReadyState::kIneligibleAccount);
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -1053,6 +1224,71 @@ TEST_F(GlicEnablingProfileReadyStateTestBase,
   EXPECT_TRUE(enabling.HasConsented());
   EXPECT_TRUE(enabling.GetUserEnabledActuationOnWeb());
   EXPECT_TRUE(enabling.GetExperimentalTriggeringEnabled());
+}
+
+class GlicEnablingCombinedObserverTest
+    : public GlicEnablingProfileReadyStateTestBase {
+ public:
+  GlicEnablingCombinedObserverTest()
+      : GlicEnablingProfileReadyStateTestBase(
+            {features::kGlicExperimentalTriggering},
+            {}) {}
+  ~GlicEnablingCombinedObserverTest() override = default;
+};
+
+TEST_F(GlicEnablingCombinedObserverTest,
+       ExperimentalTriggeringStateChangedCallback) {
+  bool callback_called = false;
+  auto& enabling = glic::GlicKeyedService::Get(profile())->enabling();
+
+  auto subscription = enabling.RegisterOnExperimentalTriggeringStateChanged(
+      base::BindLambdaForTesting([&]() { callback_called = true; }));
+
+  // 1. Toggle user_enabled_actuation_on_web -> should not trigger (still
+  // NeedsOptIn).
+  callback_called = false;
+  enabling.SetUserEnabledActuationOnWeb(true);
+  EXPECT_FALSE(callback_called);
+
+  // 2. Toggle completed_fre to completed -> should not trigger (still
+  // NeedsOptIn, experimental triggering is still false).
+  callback_called = false;
+  enabling.SetCompletedFre(prefs::FreStatus::kCompleted);
+  EXPECT_FALSE(callback_called);
+
+  // 3. Toggle experimental_triggering_enabled to true -> should trigger (Ready,
+  // all three are now true/completed).
+  callback_called = false;
+  enabling.SetExperimentalTriggeringEnabled(true);
+  EXPECT_TRUE(callback_called);
+
+  // 4. Toggle experimental_triggering_enabled back to false -> should trigger
+  // (NeedsOptIn).
+  callback_called = false;
+  enabling.SetExperimentalTriggeringEnabled(false);
+  EXPECT_TRUE(callback_called);
+
+  // Toggle back to ready.
+  enabling.SetExperimentalTriggeringEnabled(true);
+
+  // 5. Toggle user_enabled_actuation_on_web to false -> should trigger
+  // (NeedsOptIn).
+  callback_called = false;
+  enabling.SetUserEnabledActuationOnWeb(false);
+  EXPECT_TRUE(callback_called);
+
+  // Toggle back to ready.
+  enabling.SetUserEnabledActuationOnWeb(true);
+
+  // 6. Toggle consent to incomplete -> should trigger (NeedsOptIn).
+  callback_called = false;
+  enabling.SetCompletedFre(prefs::FreStatus::kIncomplete);
+  EXPECT_TRUE(callback_called);
+
+  // 7. Toggle consent to completed -> should trigger (Ready).
+  callback_called = false;
+  enabling.SetCompletedFre(prefs::FreStatus::kCompleted);
+  EXPECT_TRUE(callback_called);
 }
 
 }  // namespace

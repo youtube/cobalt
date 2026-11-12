@@ -28,13 +28,11 @@
 namespace autofill {
 namespace {
 
-using entity_ref = base::optional_ref<const EntityInstance>;
 using ::testing::_;
 using ::testing::AllOf;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::Optional;
-using ::testing::Property;
 
 class AutofillAiSaveUpdateEntityPromptControllerTest
     : public ChromeRenderViewHostTestHarness {
@@ -119,11 +117,30 @@ TEST_F(AutofillAiSaveUpdateEntityPromptControllerTest,
 
   EXPECT_CALL(prompt_closed_callback(),
               Run(AutofillClient::AutofillAiBubbleResult::kAccepted,
-                  Property(&entity_ref::has_value, false), _));
+                  Eq(std::nullopt), _));
   // Both `OnUserAccepted` and `OnPromptDismissed` are called when the user
   // clicks the positive button.
   prompt_controller().OnUserAccepted(env());
   prompt_controller().OnPromptDismissed(env());
+}
+
+TEST_F(AutofillAiSaveUpdateEntityPromptControllerTest,
+       DisplayPrompt_UserEdited) {
+  CreateController();
+  EXPECT_CALL(prompt_view(), Show(&prompt_controller()));
+  prompt_controller().DisplayPrompt();
+
+  EntityInstance edited_entity = test::GetPassportEntityInstance(
+      {.name = u"Bob Doe", .record_type = EntityInstance::RecordType::kLocal});
+  EntityInstanceAndroid edited_entity_android(
+      edited_entity, /*is_enabled=*/true,
+      /*is_eligible_for_wallet_storage=*/true,
+      /*requires_reauth_to_see=*/false);
+
+  EXPECT_CALL(prompt_closed_callback(),
+              Run(AutofillClient::AutofillAiBubbleResult::kEditAccepted,
+                  Optional(edited_entity), _));
+  prompt_controller().OnUserEdited(env(), edited_entity_android);
 }
 
 TEST_F(AutofillAiSaveUpdateEntityPromptControllerTest,
@@ -134,7 +151,7 @@ TEST_F(AutofillAiSaveUpdateEntityPromptControllerTest,
 
   EXPECT_CALL(prompt_closed_callback(),
               Run(AutofillClient::AutofillAiBubbleResult::kCancelled,
-                  Property(&entity_ref::has_value, false), _));
+                  Eq(std::nullopt), _));
   // Both `OnUserDeclined` and `OnPromptDismissed` are called when the user
   // clicks the negative button.
   prompt_controller().OnUserDeclined(env());
@@ -149,7 +166,7 @@ TEST_F(AutofillAiSaveUpdateEntityPromptControllerTest,
 
   EXPECT_CALL(prompt_closed_callback(),
               Run(AutofillClient::AutofillAiBubbleResult::kNotInteracted,
-                  Property(&entity_ref::has_value, false), _));
+                  Eq(std::nullopt), _));
   prompt_controller().OnPromptDismissed(env());
 }
 
@@ -159,15 +176,15 @@ TEST_F(AutofillAiSaveUpdateEntityPromptControllerTest,
   EXPECT_CALL(prompt_view(), Show(&prompt_controller()));
   prompt_controller().DisplayPrompt();
 
-  EXPECT_CALL(prompt_closed_callback(),
-              Run(AutofillClient::AutofillAiBubbleResult::kCancelled,
-                  Property(&entity_ref::has_value, false),
-                  AllOf(Field(&AutofillClient::EntityImportUIContext::
-                                  accepted_consent_string_id,
-                              Eq(std::nullopt)),
-                        Field(&AutofillClient::EntityImportUIContext::
-                                  accept_button_string_id,
-                              Eq(std::nullopt)))));
+  EXPECT_CALL(
+      prompt_closed_callback(),
+      Run(AutofillClient::AutofillAiBubbleResult::kCancelled, Eq(std::nullopt),
+          AllOf(Field(&AutofillClient::EntityImportUIContext::
+                          accepted_consent_string_id,
+                      Eq(std::nullopt)),
+                Field(&AutofillClient::EntityImportUIContext::
+                          accept_button_string_id,
+                      Eq(std::nullopt)))));
   prompt_controller().OnUserDeclined(env());
 }
 
@@ -177,8 +194,7 @@ TEST_F(AutofillAiSaveUpdateEntityPromptControllerTest,
 
   EXPECT_CALL(
       prompt_closed_callback(),
-      Run(AutofillClient::AutofillAiBubbleResult::kAccepted,
-          Property(&entity_ref::has_value, false),
+      Run(AutofillClient::AutofillAiBubbleResult::kAccepted, Eq(std::nullopt),
           AllOf(
               Field(
                   &AutofillClient::EntityImportUIContext::
@@ -200,8 +216,7 @@ TEST_F(AutofillAiSaveUpdateEntityPromptControllerTest,
 
   EXPECT_CALL(
       prompt_closed_callback(),
-      Run(AutofillClient::AutofillAiBubbleResult::kAccepted,
-          Property(&entity_ref::has_value, false),
+      Run(AutofillClient::AutofillAiBubbleResult::kAccepted, Eq(std::nullopt),
           AllOf(
               Field(
                   &AutofillClient::EntityImportUIContext::

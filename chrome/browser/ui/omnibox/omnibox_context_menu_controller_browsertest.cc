@@ -10,6 +10,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
@@ -19,8 +20,11 @@
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_state_manager.h"
+#include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
+#include "components/omnibox/browser/autocomplete_input.h"
 #include "chrome/browser/ui/omnibox/test_omnibox_popup_file_selector.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/views/drive_picker_host/drive_picker_result_handler.mojom.h"
 #include "chrome/browser/ui/views/location_bar/omnibox_popup_file_selector.h"
 #include "chrome/browser/ui/webui/cr_components/composebox/composebox_handler.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
@@ -56,6 +60,15 @@ size_t GetVisibleItemCount(const ui::SimpleMenuModel* menu_model) {
     }
   }
   return visible_count;
+}
+
+void OpenClassicPopup(Profile* profile, OmniboxController* omnibox_controller) {
+  auto* edit_model = omnibox_controller->edit_model();
+  edit_model->SetUserText(u"foo");
+  AutocompleteInput input(u"foo", metrics::OmniboxEventProto::BLANK,
+                          ChromeAutocompleteSchemeClassifier(profile));
+  input.set_omit_asynchronous_matches(true);
+  omnibox_controller->StartAutocomplete(input);
 }
 
 }  // namespace
@@ -258,8 +271,7 @@ IN_PROC_BROWSER_TEST_P(OmniboxContextMenuControllerBrowserTestWithCommand,
   ASSERT_TRUE(omnibox_controller);
 
   // Start with the popup in Classic state.
-  omnibox_controller->popup_state_manager()->SetPopupState(
-      OmniboxPopupState::kClassic);
+  OpenClassicPopup(browser()->profile(), omnibox_controller);
 
   // Executing the command should record that AIM was NOT open.
   controller.ExecuteCommand(GetCommandId(), 0);
@@ -504,7 +516,81 @@ IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerPecBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerPecBrowserTest,
-                       ExecuteCommandHandlesDriveOption) {
+                       ExecuteCommand_DriveOption_OnSelection) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL(chrome::kChromeUIOmniboxPopupAimURL)));
+
+  auto* web_contents = GetWebContents();
+  auto owning_window = gfx::NativeWindow();
+  TestOmniboxPopupFileSelector file_selector(owning_window);
+
+  auto* web_ui = web_contents->GetWebUI();
+  ASSERT_TRUE(web_ui);
+  auto* popup_ui = web_ui->GetController()->GetAs<OmniboxPopupUI>();
+  ASSERT_TRUE(popup_ui);
+  auto* handler = popup_ui->composebox_handler();
+  ASSERT_TRUE(handler);
+  ASSERT_TRUE(handler->input_state_model());
+
+  omnibox::InputState test_state;
+  test_state.allowed_input_types.push_back(
+      omnibox::InputType::INPUT_TYPE_DRIVE);
+  test_state.max_total_inputs = 5;
+  handler->input_state_model()->set_state_for_testing(test_state);
+
+  OmniboxContextMenuController controller(&file_selector, web_contents);
+  ui::SimpleMenuModel* menu_model = controller.menu_model();
+
+  std::u16string target_label =
+      l10n_util::GetStringUTF16(IDS_NTP_COMPOSE_ADD_DRIVE);
+  int command_id = -1;
+
+  for (size_t i = 0; i < menu_model->GetItemCount(); ++i) {
+    if (menu_model->GetLabelAt(i) == target_label) {
+      command_id = menu_model->GetCommandIdAt(i);
+      break;
+    }
+  }
+
+  auto* omnibox_controller =
+      OmniboxPopupWebContentsHelper::FromWebContents(web_contents)
+          ->get_omnibox_controller();
+  ASSERT_TRUE(omnibox_controller);
+  omnibox_controller->popup_state_manager()->SetPopupState(
+      OmniboxPopupState::kAim);
+
+  ASSERT_NE(command_id, -1) << "Drive option not found in menu";
+  controller.ExecuteCommand(command_id, 0);
+
+  EXPECT_EQ(OmniboxPopupState::kAim,
+            omnibox_controller->popup_state_manager()->popup_state());
+
+  omnibox_controller->popup_state_manager()->SetPopupState(
+      OmniboxPopupState::kNone);
+
+  std::vector<drive_picker_host::mojom::DriveFilePtr> files;
+  auto file = drive_picker_host::mojom::DriveFile::New();
+  file->id = "valid-id";
+  file->name = "test.png";
+  file->mime_type = "image/png";
+  file->type = "photo";
+  file->size_bytes = 1000;
+  files.push_back(std::move(file));
+
+  handler->OnSelection(std::move(files));
+
+  EXPECT_EQ(OmniboxPopupState::kAim,
+            omnibox_controller->popup_state_manager()->popup_state());
+
+  auto* session_handle = popup_ui->GetOrCreateContextualSessionHandle();
+  ASSERT_TRUE(session_handle);
+  auto uploaded_files = session_handle->GetUploadedContextFileInfos();
+  ASSERT_EQ(1u, uploaded_files.size());
+  EXPECT_EQ("test.png", uploaded_files[0].file_name);
+}
+
+IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerPecBrowserTest,
+                       ExecuteCommand_DriveOption_Aim_OnCancel) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL(chrome::kChromeUIOmniboxPopupAimURL)));
 
@@ -544,10 +630,130 @@ IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerPecBrowserTest,
           ->get_omnibox_controller();
   ASSERT_TRUE(omnibox_controller);
   omnibox_controller->popup_state_manager()->SetPopupState(
-      OmniboxPopupState::kClassic);
+      OmniboxPopupState::kAim);
 
   ASSERT_NE(command_id, -1) << "Drive option not found in menu";
   controller.ExecuteCommand(command_id, 0);
+
+  EXPECT_EQ(OmniboxPopupState::kAim,
+            omnibox_controller->popup_state_manager()->popup_state());
+
+  omnibox_controller->popup_state_manager()->SetPopupState(
+      OmniboxPopupState::kNone);
+
+  handler->OnCancel();
+
+  EXPECT_EQ(OmniboxPopupState::kAim,
+            omnibox_controller->popup_state_manager()->popup_state());
+}
+
+IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerPecBrowserTest,
+                       ExecuteCommand_DriveOption_Classic_OnCancel) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL(chrome::kChromeUIOmniboxPopupAimURL)));
+
+  auto* web_contents = GetWebContents();
+  auto owning_window = gfx::NativeWindow();
+  TestOmniboxPopupFileSelector file_selector(owning_window);
+
+  auto* web_ui = web_contents->GetWebUI();
+  ASSERT_TRUE(web_ui);
+  auto* popup_ui = web_ui->GetController()->GetAs<OmniboxPopupUI>();
+  ASSERT_TRUE(popup_ui);
+  auto* handler = popup_ui->composebox_handler();
+  ASSERT_TRUE(handler);
+  ASSERT_TRUE(handler->input_state_model());
+
+  omnibox::InputState test_state;
+  test_state.allowed_input_types.push_back(
+      omnibox::InputType::INPUT_TYPE_DRIVE);
+  handler->input_state_model()->set_state_for_testing(test_state);
+
+  OmniboxContextMenuController controller(&file_selector, web_contents);
+  ui::SimpleMenuModel* menu_model = controller.menu_model();
+
+  std::u16string target_label =
+      l10n_util::GetStringUTF16(IDS_NTP_COMPOSE_ADD_DRIVE);
+  int command_id = -1;
+
+  for (size_t i = 0; i < menu_model->GetItemCount(); ++i) {
+    if (menu_model->GetLabelAt(i) == target_label) {
+      command_id = menu_model->GetCommandIdAt(i);
+      break;
+    }
+  }
+
+  auto* omnibox_controller =
+      OmniboxPopupWebContentsHelper::FromWebContents(web_contents)
+          ->get_omnibox_controller();
+  ASSERT_TRUE(omnibox_controller);
+  OpenClassicPopup(browser()->profile(), omnibox_controller);
+
+  ASSERT_NE(command_id, -1) << "Drive option not found in menu";
+  controller.ExecuteCommand(command_id, 0);
+
+  EXPECT_EQ(OmniboxPopupState::kClassic,
+            omnibox_controller->popup_state_manager()->popup_state());
+
+  handler->OnCancel();
+
+  EXPECT_EQ(OmniboxPopupState::kClassic,
+            omnibox_controller->popup_state_manager()->popup_state());
+}
+
+IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerPecBrowserTest,
+                       ExecuteCommand_DriveOption_OnError) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL(chrome::kChromeUIOmniboxPopupAimURL)));
+
+  auto* web_contents = GetWebContents();
+  auto owning_window = gfx::NativeWindow();
+  TestOmniboxPopupFileSelector file_selector(owning_window);
+
+  auto* web_ui = web_contents->GetWebUI();
+  ASSERT_TRUE(web_ui);
+  auto* popup_ui = web_ui->GetController()->GetAs<OmniboxPopupUI>();
+  ASSERT_TRUE(popup_ui);
+  auto* handler = popup_ui->composebox_handler();
+  ASSERT_TRUE(handler);
+  ASSERT_TRUE(handler->input_state_model());
+
+  omnibox::InputState test_state;
+  test_state.allowed_input_types.push_back(
+      omnibox::InputType::INPUT_TYPE_DRIVE);
+  handler->input_state_model()->set_state_for_testing(test_state);
+
+  OmniboxContextMenuController controller(&file_selector, web_contents);
+  ui::SimpleMenuModel* menu_model = controller.menu_model();
+
+  std::u16string target_label =
+      l10n_util::GetStringUTF16(IDS_NTP_COMPOSE_ADD_DRIVE);
+  int command_id = -1;
+
+  for (size_t i = 0; i < menu_model->GetItemCount(); ++i) {
+    if (menu_model->GetLabelAt(i) == target_label) {
+      command_id = menu_model->GetCommandIdAt(i);
+      break;
+    }
+  }
+
+  auto* omnibox_controller =
+      OmniboxPopupWebContentsHelper::FromWebContents(web_contents)
+          ->get_omnibox_controller();
+  ASSERT_TRUE(omnibox_controller);
+  omnibox_controller->popup_state_manager()->SetPopupState(
+      OmniboxPopupState::kAim);
+
+  ASSERT_NE(command_id, -1) << "Drive option not found in menu";
+  controller.ExecuteCommand(command_id, 0);
+
+  EXPECT_EQ(OmniboxPopupState::kAim,
+            omnibox_controller->popup_state_manager()->popup_state());
+
+  omnibox_controller->popup_state_manager()->SetPopupState(
+      OmniboxPopupState::kNone);
+
+  handler->OnError(drive_picker_host::mojom::DrivePickerError::kWindowNotFound);
 
   EXPECT_EQ(OmniboxPopupState::kAim,
             omnibox_controller->popup_state_manager()->popup_state());

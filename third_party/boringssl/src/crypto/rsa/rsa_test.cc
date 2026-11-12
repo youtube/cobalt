@@ -1019,6 +1019,51 @@ TEST(RSATest, CheckKey) {
   ERR_clear_error();
 }
 
+TEST(RSATest, KeygenBadExponent) {
+  UniquePtr<RSA> rsa_opaque(RSA_new());
+  RSAImpl *rsa = FromOpaque(rsa_opaque.get());
+  ASSERT_TRUE(rsa);
+
+  UniquePtr<BIGNUM> e(BN_new());
+  ASSERT_TRUE(e);
+
+  // 3 is the smallest allowed public key value.
+  ASSERT_TRUE(BN_set_word(e.get(), 3));
+  ASSERT_TRUE(RSA_generate_key_ex(rsa, 2048, e.get(), nullptr));
+
+  // Maybe I prefer the Rabin scheme. But this is an RSA API!
+  ASSERT_TRUE(BN_set_word(e.get(), 2));
+  EXPECT_FALSE(RSA_generate_key_ex(rsa, 2048, e.get(), nullptr));
+  EXPECT_TRUE(ErrorEquals(ERR_get_error(), ERR_LIB_RSA, RSA_R_BAD_E_VALUE));
+
+  // Rabin-Shamir-Adleman? Nope.
+  ASSERT_TRUE(BN_set_word(e.get(), 6));
+  EXPECT_FALSE(RSA_generate_key_ex(rsa, 2048, e.get(), nullptr));
+  EXPECT_TRUE(ErrorEquals(ERR_get_error(), ERR_LIB_RSA, RSA_R_BAD_E_VALUE));
+
+  // RSA with exponent 1 is a joke. But we already use ROT26 for that purpose.
+  ASSERT_TRUE(BN_set_word(e.get(), 1));
+  EXPECT_FALSE(RSA_generate_key_ex(rsa, 2048, e.get(), nullptr));
+  EXPECT_TRUE(ErrorEquals(ERR_get_error(), ERR_LIB_RSA, RSA_R_BAD_E_VALUE));
+
+  // RSA with exponent 0 is also known as /dev/null, and not supported here.
+  ASSERT_TRUE(BN_set_word(e.get(), 0));
+  EXPECT_FALSE(RSA_generate_key_ex(rsa, 2048, e.get(), nullptr));
+  EXPECT_TRUE(ErrorEquals(ERR_get_error(), ERR_LIB_RSA, RSA_R_BAD_E_VALUE));
+
+  // Now this is just silly - perfectly fine RSA with e=3, except with an extra
+  // inversion that cryptographically does nothing at all except waste cycles.
+  // Throw it away.
+  ASSERT_TRUE(BN_set_word(e.get(), 3));
+  BN_set_negative(e.get(), 1);
+  EXPECT_FALSE(RSA_generate_key_ex(rsa, 2048, e.get(), nullptr));
+  EXPECT_TRUE(ErrorEquals(ERR_get_error(), ERR_LIB_RSA, RSA_R_BAD_E_VALUE));
+
+  // To validate nothing got corrupted, try good old 65537.
+  ASSERT_TRUE(BN_set_word(e.get(), RSA_F4));
+  EXPECT_TRUE(RSA_generate_key_ex(rsa, 2048, e.get(), nullptr));
+}
+
 TEST(RSATest, KeygenFail) {
   UniquePtr<RSA> rsa_opaque(RSA_new());
   RSAImpl *rsa = FromOpaque(rsa_opaque.get());

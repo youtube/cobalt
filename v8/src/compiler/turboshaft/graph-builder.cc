@@ -49,7 +49,6 @@
 #include "src/zone/zone-containers.h"
 
 namespace v8::internal::compiler::turboshaft {
-
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 namespace {
@@ -75,11 +74,10 @@ struct GraphBuilder {
   AssemblerT assembler;
   SourcePositionTable* source_positions;
   NodeOriginTable* origins;
-  JsWasmCallsSidetable* js_wasm_calls_sidetable;
   TurboshaftPipelineKind pipeline_kind;
 
   GraphBuilder(PipelineData* data, Zone* phase_zone, Schedule& schedule,
-               Linkage* linkage, JsWasmCallsSidetable* js_wasm_calls_sidetable)
+               Linkage* linkage)
       : phase_zone(phase_zone),
         schedule(schedule),
         linkage(linkage),
@@ -89,12 +87,11 @@ struct GraphBuilder {
         assembler(data, data->graph(), data->graph(), phase_zone),
         source_positions(data->source_positions()),
         origins(data->node_origins()),
-        js_wasm_calls_sidetable(js_wasm_calls_sidetable),
         pipeline_kind(data->pipeline_kind()) {}
 
   struct BlockData {
     Block* block;
-    OpIndex final_frame_state;
+    V<EagerFrameState> final_frame_state;
   };
   NodeAuxData<OpIndex> op_mapping{phase_zone};
   ZoneVector<BlockData> block_mapping{schedule.RpoBlockCount(), phase_zone};
@@ -234,7 +231,7 @@ struct GraphBuilder {
   }
   OpIndex Process(Node* node, BasicBlock* block,
                   const base::SmallVector<int, 16>& predecessor_permutation,
-                  OpIndex& dominating_frame_state,
+                  V<EagerFrameState>& dominating_frame_state,
                   std::optional<BailoutReason>* bailout,
                   bool is_final_control = false);
 };
@@ -277,7 +274,7 @@ std::optional<BailoutReason> GraphBuilder::Run() {
 
     // Skip loop back-edge predecessors: their final_frame_state hasn't been
     // computed yet at header-visit time.
-    OpIndex dominating_frame_state = OpIndex::Invalid();
+    V<EagerFrameState> dominating_frame_state = V<EagerFrameState>::Invalid();
     bool first_fs = true;
     for (BasicBlock* pred : predecessors) {
       if (pred->rpo_number() >= block->rpo_number()) {
@@ -285,12 +282,13 @@ std::optional<BailoutReason> GraphBuilder::Run() {
         DCHECK(block->IsLoopHeader());
         continue;
       }
-      OpIndex pred_fs = block_mapping[pred->rpo_number()].final_frame_state;
+      V<EagerFrameState> pred_fs =
+          block_mapping[pred->rpo_number()].final_frame_state;
       if (first_fs) {
         dominating_frame_state = pred_fs;
         first_fs = false;
       } else if (pred_fs != dominating_frame_state) {
-        dominating_frame_state = OpIndex::Invalid();
+        dominating_frame_state = V<EagerFrameState>::Invalid();
         break;
       }
     }
@@ -382,8 +380,8 @@ std::optional<BailoutReason> GraphBuilder::Run() {
 OpIndex GraphBuilder::Process(
     Node* node, BasicBlock* block,
     const base::SmallVector<int, 16>& predecessor_permutation,
-    OpIndex& dominating_frame_state, std::optional<BailoutReason>* bailout,
-    bool is_final_control) {
+    V<EagerFrameState>& dominating_frame_state,
+    std::optional<BailoutReason>* bailout, bool is_final_control) {
   if (Asm().current_block() == nullptr) {
     return OpIndex::Invalid();
   }
@@ -410,7 +408,8 @@ OpIndex GraphBuilder::Process(
 
     case IrOpcode::kCheckpoint: {
       // Preserve the frame state from this checkpoint for following nodes.
-      dominating_frame_state = Map(NodeProperties::GetFrameStateInput(node));
+      dominating_frame_state =
+          Map<EagerFrameState>(NodeProperties::GetFrameStateInput(node));
       return OpIndex::Invalid();
     }
 
@@ -1486,30 +1485,10 @@ OpIndex GraphBuilder::Process(
 
     case IrOpcode::kCall: {
       const CallDescriptor* call_descriptor = CallDescriptorOf(op);
-      const JSWasmCallParameters* wasm_call_parameters = nullptr;
-#if V8_ENABLE_WEBASSEMBLY
-      if (call_descriptor->IsAnyWasmFunctionCall() &&
-          v8_flags.turboshaft_wasm_in_js_inlining && js_wasm_calls_sidetable) {
-        // A JS-to-Wasm call where the wrapper got inlined in TurboFan but the
-        // actual Wasm body inlining was either not possible or is going to
-        // happen later in Turboshaft. See https://crbug.com/353475584.
-        // Make sure that for each not-yet-body-inlined call node, there is an
-        // entry in the sidetable.
-        // In some cctests, we build a Wasm call manually (i.e., it was not
-        // created by JS-to-Wasm wrapper inlining in Turbofan) and are thus
-        // missing the `js_wasm_calls_sidetable`. Handle that gracefully.
-        // TODO(dlehmann): Remove all this once we decide to only keep the
-        // Turbolev-based Wasm-in-JS body inlining.
-        auto it = js_wasm_calls_sidetable->find(node->id());
-        CHECK_NE(it, js_wasm_calls_sidetable->end());
-        wasm_call_parameters = it->second;
-      }
-#endif  // V8_ENABLE_WEBASSEMBLY
       CanThrow can_throw =
           op->HasProperty(Operator::kNoThrow) ? CanThrow::kNo : CanThrow::kYes;
       const TSCallDescriptor* ts_descriptor = TSCallDescriptor::Create(
-          call_descriptor, can_throw, LazyDeoptOnThrow::kNo, graph_zone,
-          wasm_call_parameters);
+          call_descriptor, can_throw, LazyDeoptOnThrow::kNo, graph_zone);
 
       base::SmallVector<OpIndex, 16> arguments;
       // The input `0` is the callee, the following value inputs are the
@@ -1521,11 +1500,12 @@ OpIndex GraphBuilder::Process(
         arguments.emplace_back(Map(node->InputAt(i)));
       }
 
-      OptionalV<FrameState> frame_state_idx = OptionalV<FrameState>::Nullopt();
+      OptionalV<LazyFrameState> frame_state_idx =
+          OptionalV<LazyFrameState>::Nullopt();
       if (call_descriptor->NeedsFrameState()) {
         compiler::FrameState frame_state{
             node->InputAt(static_cast<int>(call_descriptor->InputCount()))};
-        frame_state_idx = Map(frame_state);
+        frame_state_idx = Map<LazyFrameState>(frame_state);
       }
       OpEffects effects =
           OpEffects().CanDependOnChecks().CanChangeControlFlow().CanDeopt();
@@ -1573,9 +1553,10 @@ OpIndex GraphBuilder::Process(
         *bailout = BailoutReason::kTooManyArguments;
         return OpIndex::Invalid();
       }
-      return __ FrameState(builder.Inputs(), builder.inlined(),
-                           builder.AllocateFrameStateData(
-                               frame_state.frame_state_info(), graph_zone));
+      return __ template FrameState<AnyFrameState>(
+          builder.Inputs(), builder.inlined(),
+          builder.AllocateFrameStateData(frame_state.frame_state_info(),
+                                         graph_zone));
     }
 
     case IrOpcode::kDeoptimizeIf:
@@ -1604,7 +1585,7 @@ OpIndex GraphBuilder::Process(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     case IrOpcode::kDeoptimize: {
-      V<FrameState> frame_state = Map(node->InputAt(0));
+      V<EagerFrameState> frame_state = Map<EagerFrameState>(node->InputAt(0));
       __ Deoptimize(frame_state, &DeoptimizeParametersOf(op));
       return OpIndex::Invalid();
     }
@@ -1844,6 +1825,15 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kLoadFieldByIndex:
       return __ LoadFieldByIndex(Map(node->InputAt(0)), Map(node->InputAt(1)));
 
+    case IrOpcode::kLoadDictionaryField: {
+      ThrowingScope throwing_scope(this, block, is_final_control);
+      auto const& p = LoadDictionaryFieldParametersOf(node->op());
+      return __ LoadDictionaryField(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)),
+          p.dictionary_index().raw_value(), p.name(), p.feedback(),
+          LazyDeoptOnThrow::kNo);
+    }
+
     case IrOpcode::kCheckedAdditiveSafeIntegerAdd: {
       DCHECK(Is64());
       DCHECK(dominating_frame_state.valid());
@@ -2003,8 +1993,7 @@ OpIndex GraphBuilder::Process(
       V<Object> right = Map<Object>(node->InputAt(2));
       V<StringOrUndefined> locales = Map<StringOrUndefined>(node->InputAt(3));
       V<Context> context = Map<Context>(node->InputAt(4));
-      V<turboshaft::FrameState> frame_state =
-          Map<turboshaft::FrameState>(node->InputAt(5));
+      V<LazyFrameState> frame_state = Map<LazyFrameState>(node->InputAt(5));
       ThrowingScope throwing_scope(this, block, is_final_control);
       return __ StringLocaleCompareIntl(locale_compare_fn, left, right, locales,
                                         frame_state, context,
@@ -2255,7 +2244,8 @@ OpIndex GraphBuilder::Process(
       for (int i = 1; i < n.SlowCallArgumentCount(); ++i) {
         slow_call_arguments.push_back(Map(n.SlowCallArgument(i)));
       }
-      OpIndex frame_state = slow_call_arguments.back();
+      V<LazyFrameState> frame_state =
+          V<LazyFrameState>::Cast(slow_call_arguments.back());
 
       auto convert_fallback_return = [this](Variable value,
                                             CFunctionInfo::Int64Representation
@@ -2825,7 +2815,7 @@ OpIndex GraphBuilder::Process(
           UNREACHABLE();
       }
       V<Context> context = Map(node->InputAt(0));
-      V<FrameState> frame_state = Map(node->InputAt(1));
+      V<LazyFrameState> frame_state = Map<LazyFrameState>(node->InputAt(1));
       __ JSStackCheck(context, frame_state, kind);
       if (NodeProperties::IsExceptionalCall(node)) {
         // JSStackCheck in Turbofan have control projections (even though they
@@ -2899,11 +2889,9 @@ OpIndex GraphBuilder::Process(
 
 }  // namespace
 
-std::optional<BailoutReason> BuildGraph(
-    PipelineData* data, Schedule* schedule, Zone* phase_zone, Linkage* linkage,
-    JsWasmCallsSidetable* js_wasm_calls_sidetable) {
-  GraphBuilder builder{data, phase_zone, *schedule, linkage,
-                       js_wasm_calls_sidetable};
+std::optional<BailoutReason> BuildGraph(PipelineData* data, Schedule* schedule,
+                                        Zone* phase_zone, Linkage* linkage) {
+  GraphBuilder builder{data, phase_zone, *schedule, linkage};
   DCHECK(data->graph().IsCreatedFromTurbofan());
 #if DEBUG
   data->graph().set_broker(data->broker());

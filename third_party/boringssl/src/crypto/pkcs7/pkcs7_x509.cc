@@ -431,7 +431,7 @@ static int write_signer_info(CBB *out, void *arg) {
     }
   } else {
     if (!CBB_add_asn1(&seq, &child, CBS_ASN1_SEQUENCE) ||
-        !x509_marshal_name(&child, X509_get_subject_name(si_data->sign_cert)) ||
+        !x509_marshal_name(&child, X509_get_issuer_name(si_data->sign_cert)) ||
         !asn1_marshal_integer(&child,
                               X509_get0_serialNumber(si_data->sign_cert),
                               /*tag=*/0)) {

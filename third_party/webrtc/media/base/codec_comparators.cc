@@ -11,7 +11,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -32,7 +31,6 @@
 #include "media/base/codec.h"
 #include "media/base/media_constants.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
 #include "rtc_base/string_encode.h"
 
 namespace webrtc {
@@ -200,21 +198,18 @@ bool MatchesWithReferenceAttributesAndComparator(
   if (resiliency_type == Codec::ResiliencyType::kRtx) {
     int apt_value_1_int = 0;
     int apt_value_2_int = 0;
-    if (!codec_to_match.GetParam(kCodecParamAssociatedPayloadType,
-                                 &apt_value_1_int) ||
-        !potential_match.GetParam(kCodecParamAssociatedPayloadType,
-                                  &apt_value_2_int)) {
-      RTC_LOG(LS_WARNING) << "RTX missing associated payload type.";
-      return false;
-    }
-    PayloadType apt_value_1 =
-        PayloadType(static_cast<uint8_t>(apt_value_1_int));
-    PayloadType apt_value_2 =
-        PayloadType(static_cast<uint8_t>(apt_value_2_int));
-    if (reference_comparator(apt_value_1, apt_value_2)) {
+    bool has_apt_1 = codec_to_match.GetParam(kCodecParamAssociatedPayloadType,
+                                             &apt_value_1_int);
+    bool has_apt_2 = potential_match.GetParam(kCodecParamAssociatedPayloadType,
+                                              &apt_value_2_int);
+    if (!has_apt_1 && !has_apt_2) {
       return true;
     }
-    return false;
+    if (!has_apt_1 || !has_apt_2) {
+      return false;
+    }
+    return reference_comparator(PayloadType(apt_value_1_int),
+                                PayloadType(apt_value_2_int));
   }
   if (resiliency_type == Codec::ResiliencyType::kRed) {
     auto red_parameters_1 =

@@ -107,6 +107,12 @@ class DlpRulesManager;
 }  // namespace policy
 #endif
 
+#if !BUILDFLAG(IS_ANDROID)
+namespace split_tabs {
+enum class SplitTabLayout;
+}
+#endif
+
 class RenderViewContextMenu
     : public RenderViewContextMenuBase,
       public custom_handlers::ProtocolHandlerRegistry::Observer {
@@ -146,6 +152,9 @@ class RenderViewContextMenu
   bool IsCommandIdVisible(int command_id) const override;
   bool IsCommandIdEnabled(int command_id) const override;
   void ExecuteCommand(int command_id, int event_flags) override;
+  bool IsItemForCommandIdDynamic(int command_id) const override;
+  std::u16string GetLabelForCommandId(int command_id) const override;
+  ui::ImageModel GetIconForCommandId(int command_id) const override;
   void AddSpellCheckServiceItem(bool is_checked) override;
   void AddAccessibilityLabelsServiceItem(bool is_checked) override;
 
@@ -342,12 +351,18 @@ class RenderViewContextMenu
   bool AppendQRCodeGeneratorItem(bool for_image,
                                  bool draw_icon,
                                  bool add_separator);
+  void AddItemWithOptionalIcon(int command,
+                               int string,
+                               const gfx::VectorIcon& icon);
 
   std::unique_ptr<ui::DataTransferEndpoint> CreateDataEndpoint(
       bool notify_if_restricted) const;
 
   // Helper function for checking policies.
   bool IsSaveAsItemAllowedByPolicy(const GURL& item_url) const;
+
+  // Helper functions for checking policies.
+  bool IsSearchAllowedByPolicy() const;
 
   // Helper function for checking if text query should be opened in Lens. Checks
   // whether Lens is available and whether the text selection entrypoint flag is
@@ -484,7 +499,7 @@ class RenderViewContextMenu
   // next to the active tab. If the active tab is already in the split view,
   // then the tab that wasn't the source of the link will be navigated to the
   // link instead.
-  void OpenLinkInSplitView();
+  void OpenLinkInSplitView(split_tabs::SplitTabLayout layout);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
   // The destination URL to use if the user tries to search for or navigate to
@@ -593,6 +608,8 @@ class RenderViewContextMenu
   std::unique_ptr<ui::SimpleMenuModel> send_tab_to_self_submenu_;
   std::unique_ptr<send_tab_to_self::SendTabToSelfContextMenuDelegate>
       send_tab_to_self_submenu_delegate_;
+
+  std::unique_ptr<ui::SimpleMenuModel> split_layout_submenu_;
 
   //  Used for CTR metrics of menu item for opening Glic.
   bool glic_item_shown_ = false;

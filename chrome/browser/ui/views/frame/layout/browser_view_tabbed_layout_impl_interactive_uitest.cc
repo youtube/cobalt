@@ -25,10 +25,13 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
+#include "chrome/browser/ui/views/frame/custom_corners_background.h"
+#include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.h"
 #include "chrome/browser/ui/views/frame/multi_contents_resize_area.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
+#include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_controller.h"
@@ -44,6 +47,7 @@
 #include "ui/base/interaction/element_specifier.h"
 #include "ui/base/interaction/element_tracker.h"
 #include "ui/base/interaction/interactive_test_definitions.h"
+#include "ui/base/pointer/touch_ui_controller.h"
 #include "ui/gfx/animation/animation.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
@@ -590,6 +594,70 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplUiTest,
                   VerifyLayout());
 }
 
+enum class TopContainerBackgroundTestMode {
+  kDefault,
+  kTouch,
+  kImmersive,
+};
+
+class BrowserViewTabbedLayoutImplTopContainerBackgroundUiTest
+    : public BrowserViewTabbedLayoutImplUiTest,
+      public testing::WithParamInterface<TopContainerBackgroundTestMode> {
+ public:
+  BrowserViewTabbedLayoutImplTopContainerBackgroundUiTest() = default;
+  ~BrowserViewTabbedLayoutImplTopContainerBackgroundUiTest() override = default;
+};
+
+IN_PROC_BROWSER_TEST_P(BrowserViewTabbedLayoutImplTopContainerBackgroundUiTest,
+                       TopContainerBackground) {
+  std::optional<ui::TouchUiController::TouchUiScoperForTesting> touch_ui_scoper;
+  switch (GetParam()) {
+    case TopContainerBackgroundTestMode::kTouch:
+      touch_ui_scoper.emplace(true);
+      break;
+    case TopContainerBackgroundTestMode::kImmersive:
+      ImmersiveModeController::From(browser())->SetEnabled(true);
+      break;
+    case TopContainerBackgroundTestMode::kDefault:
+      break;
+  }
+  RunScheduledLayouts();
+
+  auto* const top_container = browser()->GetBrowserView().top_container();
+  auto* const background =
+      top_container->background()->AsA<CustomCornersBackground>();
+  ASSERT_NE(nullptr, background);
+  CustomCornersBackground::ColorChoice expected;
+  switch (GetParam()) {
+    case TopContainerBackgroundTestMode::kDefault:
+      expected = CustomCornersBackground::ToolbarTheme();
+      break;
+    case TopContainerBackgroundTestMode::kTouch:
+    case TopContainerBackgroundTestMode::kImmersive:
+#if BUILDFLAG(IS_CHROMEOS)
+      // On ChromeOS in these modes, the top container contains the tabstrip, so
+      // it must paint with the frame color.
+      expected = ui::kColorFrameActive;
+#else
+      expected = CustomCornersBackground::ToolbarTheme();
+#endif
+      break;
+  }
+  EXPECT_EQ(expected, background->primary_color());
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    BrowserViewTabbedLayoutImplTopContainerBackgroundUiTest,
+    testing::Values(TopContainerBackgroundTestMode::kDefault,
+                    TopContainerBackgroundTestMode::kTouch
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC)
+                    ,
+                    TopContainerBackgroundTestMode::kImmersive
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC)
+
+                    ));
+
 // Regression test for limiting the amount of WebContents resizing when the
 // "flyover" animation flag is enabled.
 class BrowserViewTabbedLayoutImplContentLayoutUiTest
@@ -677,7 +745,7 @@ class BrowserViewTabbedLayoutImplContentLayoutUiTest
     return Steps(
         Do([this]() {
           chrome::NewSplitTab(
-              browser(), split_tabs::SplitTabLayout::kVertical,
+              browser(), split_tabs::SplitTabLayout::kSideBySide,
               split_tabs::SplitTabCreatedSource::kToolbarButton);
         }),
         WaitForShow(MultiContentsResizeArea::kMultiContentsResizeAreaElementId),

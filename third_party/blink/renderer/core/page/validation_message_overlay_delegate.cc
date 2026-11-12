@@ -46,12 +46,13 @@ class ValidationMessageChromeClient : public EmptyChromeClient {
   }
 
   void ScheduleAnimation(const LocalFrameView*,
+                         cc::BeginMainFrameReason reason,
                          base::TimeDelta delay,
                          bool urgent) override {
     // Need to pass LocalFrameView for the anchor element because the Frame for
     // this overlay doesn't have an associated WebFrameWidget, which schedules
     // animation.
-    main_chrome_client_->ScheduleAnimation(anchor_view_, delay, urgent);
+    main_chrome_client_->ScheduleAnimation(anchor_view_, reason, delay, urgent);
     anchor_view_->SetVisualViewportOrOverlayNeedsRepaint();
   }
 
@@ -219,7 +220,7 @@ void ValidationMessageOverlayDelegate::WriteDocument(SegmentedBuffer& data) {
   data.Append(UncompressResourceAsBinary(IDR_VALIDATION_BUBBLE_CSS));
   PagePopupClient::AddLiteral("</style></head>", data);
   PagePopupClient::AddLiteral(
-      Locale::DefaultLocale().IsRTL() ? "<body dir=rtl>" : "<body dir=ltr>",
+      Locale::DefaultLocale().IsRtl() ? "<body dir=rtl>" : "<body dir=ltr>",
       data);
   PagePopupClient::AddLiteral(
       "<div id=container>"
@@ -314,7 +315,7 @@ void ValidationMessageOverlayDelegate::AdjustBubblePosition(
   double arrow_anchor_x;
   const int kOffsetToAnchorRect = 8;
   double anchor_rect_center = anchor_rect.x() + anchor_rect.width() / 2;
-  if (!Locale::DefaultLocale().IsRTL()) {
+  if (!Locale::DefaultLocale().IsRtl()) {
     double anchor_rect_left =
         anchor_rect.x() + kOffsetToAnchorRect * zoom_factor;
     if (anchor_rect_left > anchor_rect_center)

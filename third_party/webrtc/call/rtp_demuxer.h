@@ -166,6 +166,9 @@ class RtpDemuxer {
   // with a given RSID. Null pointer is not allowed.
   void AddSink(absl::string_view rsid, RtpPacketSinkInterface* sink);
 
+  // Removes all sinks from the demuxer.
+  void RemoveAllSinks();
+
   // Removes a sink. Return value reports if anything was actually removed.
   // Null pointer is not allowed.
   bool RemoveSink(const RtpPacketSinkInterface* sink);

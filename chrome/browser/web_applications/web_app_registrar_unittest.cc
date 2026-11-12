@@ -140,10 +140,8 @@ class WebAppRegistrarTest : public WebAppTest {
   }
 
   base::flat_set<webapps::AppId> PopulateRegistry(const Registry& registry) {
-    base::flat_set<webapps::AppId> app_ids;
-    for (auto& kv : registry) {
-      app_ids.insert(kv.second->app_id());
-    }
+    auto app_ids = base::MakeFlatSet<webapps::AppId>(
+        registry, /*comp=*/{}, [&](auto& kv) { return kv.second->app_id(); });
 
     database_factory().WriteRegistry(registry);
 
@@ -1096,7 +1094,7 @@ TEST_F(WebAppRegistrarTest,
 }
 
 TEST_F(WebAppRegistrarTest,
-       IsolatedWebAppsGetDisplayModeBorderlessRegardlessOfUserSettings) {
+       IsolatedWebAppsGetDisplayModeUnframedRegardlessOfUserSettings) {
   base::test::ScopedFeatureList scoped_feature_list(features::kIsolatedWebApps);
   StartWebAppProvider();
 
@@ -2042,7 +2040,7 @@ INSTANTIATE_TEST_SUITE_P(All,
                              case DisplayMode::kFullscreen:
                                return "Fullscreen";
                              case DisplayMode::kUnframed:
-                               return "Borderless";
+                               return "Unframed";
                              case DisplayMode::kPictureInPicture:
                                return "PictureInPicture";
                              case DisplayMode::kWindowControlsOverlay:

@@ -58,7 +58,8 @@ BASE_FEATURE(kLensOverlayVisualSelectionUpdates,
 BASE_FEATURE(kLensOverlayUpdatedClientContext,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kLensSearchSidePanelNewFeedback, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kLensSearchSidePanelNewFeedback,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables the Lens Overlay omnibox entry point. This is a separate feature from
 // kLensOverlay so that the omnibox entry point can be disabled without a
@@ -124,6 +125,9 @@ BASE_FEATURE(kLensOverlayOptimizationFilter, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kLensOverlayNonBlockingPrivacyNotice,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kLensOverlayNonBlockingPrivacyNoticeForImageSearch,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kLensUseSeparateRequestIdForViewportImages,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -135,6 +139,9 @@ BASE_FEATURE(kLensSendRawFileMediaTypes, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kLensSendUrlsInComposeboxes, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensRestrictAnnotatedPageContentToSameSiteFramesForNextQueries,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLensDeleteContextOnPageNavigation,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 constexpr base::FeatureParam<int> kLensUpdatedFeedbackToastTimeoutMs{
@@ -1285,6 +1292,12 @@ bool IsLensOverlayOptimizationFilterEnabled() {
 
 bool IsLensOverlayNonBlockingPrivacyNoticeEnabled() {
   return base::FeatureList::IsEnabled(kLensOverlayNonBlockingPrivacyNotice);
+}
+
+bool IsLensOverlayNonBlockingPrivacyNoticeForImageSearchEnabled() {
+  return base::FeatureList::IsEnabled(kLensOverlayNonBlockingPrivacyNotice) &&
+         base::FeatureList::IsEnabled(
+             kLensOverlayNonBlockingPrivacyNoticeForImageSearch);
 }
 
 int GetLensOverlayNonBlockingPrivacyNoticeImpressionCap() {

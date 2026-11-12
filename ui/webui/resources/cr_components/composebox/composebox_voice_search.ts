@@ -9,7 +9,9 @@ import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
 import {assert} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
-import type {PageHandlerRemote as SearchboxPageHandlerRemote} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
+import type {PageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {Size} from '//resources/mojo/ui/gfx/geometry/mojom/geometry.mojom-webui.js';
 
 import {SubmitButtonIconType} from './composebox.js';
 import type {PageHandlerRemote} from './composebox.mojom-webui.js';
@@ -17,6 +19,12 @@ import {ComposeboxProxyImpl} from './composebox_proxy.js';
 import {getCss} from './composebox_voice_search.css.js';
 import {getHtml} from './composebox_voice_search.html.js';
 import {WindowProxy} from './window_proxy.js';
+
+export interface VoicePermissionPromptState {
+  isOpened: boolean;
+  height: number;
+  width: number;
+}
 
 /**
  * Threshold for considering an interim speech transcript result as "confident
@@ -158,6 +166,7 @@ export class ComposeboxVoiceSearchElement extends
     return {
       submitStopButtonsEnabled: {type: Boolean},
       liveTranscriptEnabled: {type: Boolean},
+      pageCallbackRouter: {type: Object},
       transcript_: {type: String},
       listeningPlaceholder_: {type: String},
       state_: {type: Number},
@@ -178,7 +187,7 @@ export class ComposeboxVoiceSearchElement extends
       /**
        * Controls the `continuous` parameter of the Webkit Speech API. When
        * enabled, the API dynamically determines when to stop listening based on
-       * speech patterns.
+       * speech patterns. If this is enabled, `idleTimeout` is ignored.
        */
       dynamicTimeoutEnabled: {type: Boolean},
       /**
@@ -191,7 +200,8 @@ export class ComposeboxVoiceSearchElement extends
       /**
        * Time in milliseconds to wait before closing the UI if no interaction
        * has occurred since start, OR last word spoken. The default
-       * value matches the Google3 AIM implementation.
+       * value matches the Google3 AIM implementation. If
+       * `dynamicTimeoutEnabled` is set, then this number is ignored.
        */
       idleTimeout: {type: Number},
     };
@@ -199,6 +209,10 @@ export class ComposeboxVoiceSearchElement extends
 
   accessor submitStopButtonsEnabled: boolean = false;
   accessor liveTranscriptEnabled: boolean = true;
+  // Accept page callback router attribute asynchronously, so that the parent
+  // and voice search component can share the same mojo connection and source of
+  // truth (to avoid race conditions).
+  accessor pageCallbackRouter: PageCallbackRouter|null = null;
   protected accessor transcript_: string = '';
   protected accessor listeningPlaceholder_: string =
       loadTimeData.getString('voiceListening');
@@ -219,6 +233,7 @@ export class ComposeboxVoiceSearchElement extends
   private timerId_: number|null = null;
   private searchboxHandler_: SearchboxPageHandlerRemote =
       ComposeboxProxyImpl.getInstance().searchboxHandler;
+  private listenerIds_: number[] = [];
   accessor hasErrorTimer: boolean = false;
   accessor submitButtonIconType: SubmitButtonIconType =
       SubmitButtonIconType.FORWARD;
@@ -252,8 +267,24 @@ export class ComposeboxVoiceSearchElement extends
   }
 
   override disconnectedCallback() {
-    super.disconnectedCallback();
+    this.listenerIds_.forEach(
+        (id: number) => assert(this.pageCallbackRouter!.removeListener(id)));
+    this.listenerIds_ = [];
     this.voiceRecognition_.abort();
+    super.disconnectedCallback();
+  }
+
+  override updated(changedProperties: PropertyValues<this>) {
+    super.updated(changedProperties);
+    // When `pageCallbackRouter` is set by the parent,
+    // add all listeners for the callback router if not already added.
+    if (changedProperties.has('pageCallbackRouter') &&
+        this.pageCallbackRouter && this.listenerIds_.length === 0) {
+      this.listenerIds_.push(
+          this.pageCallbackRouter.onEmbeddedPermissionPromptChanged.addListener(
+              this.onEmbeddedVoicePermissionPromptChanged.bind(this)),
+      );
+    }
   }
 
   protected shouldShowErrorScrim_(): boolean {
@@ -262,7 +293,9 @@ export class ComposeboxVoiceSearchElement extends
 
   start() {
     this.errorMessage_ = '';
-    this.voiceRecognition_.continuous = this.dynamicTimeoutEnabled;
+    // If continuous is false, then speech webkit determines when to end, and
+    // there is no manual set timeout.
+    this.voiceRecognition_.continuous = !this.dynamicTimeoutEnabled;
     this.voiceRecognition_.start();
     this.state_ = State.STARTED;
     this.resetIdleTimer_();
@@ -282,6 +315,27 @@ export class ComposeboxVoiceSearchElement extends
         VoiceSearchAction.MAX_VALUE + 1);
     this.voiceRecognition_.stop();
     this.voiceModeEndCleanup_();
+  }
+
+  private onEmbeddedVoicePermissionPromptChanged(
+      isOpened: boolean, promptSize: Size) {
+    this.fire('voice-permission-changed', {
+      'isOpened': isOpened,
+      'height': promptSize.height,
+      'width': promptSize.width,
+    } as VoicePermissionPromptState);
+    if (isOpened) {
+      this.clearTimer_();
+    } else {
+      this.resetIdleTimer_();
+    }
+  }
+
+  private clearTimer_() {
+    if (this.timerId_) {
+      WindowProxy.getInstance().clearTimeout(this.timerId_);
+      this.timerId_ = null;
+    }
   }
 
   private resetIdleTimer_() {
@@ -304,7 +358,7 @@ export class ComposeboxVoiceSearchElement extends
     }
     // If there is text transcribed, process it as final.
     if (this.transcript_) {
-      this.onFinalResult_(this.transcript_);
+      this.onFinalResult_(this.transcript_, /* force_submit=*/ true);
       return;
     }
     this.onError_(VoiceSearchError.NO_SPEECH);
@@ -324,6 +378,8 @@ export class ComposeboxVoiceSearchElement extends
 
 
   private onResult_(e: SpeechRecognitionEvent) {
+    // First reset, in case of early return before second reset
+    // (done again to not include time taken to process results in timeout).
     this.resetIdleTimer_();
     switch (this.state_) {
       case State.STARTED:
@@ -355,13 +411,6 @@ export class ComposeboxVoiceSearchElement extends
 
     const speechResult = results[e.resultIndex];
     assert(speechResult);
-    // Process final results if is fully final.
-    if (!!speechResult && speechResult.isFinal) {
-      this.finalResult_ = speechResult[0]!.transcript;
-      this.transcript_ = this.finalResult_;
-      this.onFinalResult_(this.finalResult_);
-      return;
-    }
 
     // Process interim results based on confidence.
     for (let j = 0; j < results.length; j++) {
@@ -373,10 +422,17 @@ export class ComposeboxVoiceSearchElement extends
       if (result.confidence > RECOGNITION_CONFIDENCE_THRESHOLD) {
         this.finalResult_ += result.transcript;  // Displayed
       } else {
+        // TODO(crbug.com/511795841) Delete this deprecated feature.
         this.interimResult_ += result.transcript;
       }
     }
     this.fire('transcript-update', this.transcript_);
+
+    // Once all the work is done (may have delays depending on load), to avoid
+    // including that time in the timeout, reset the timer again. This schedules
+    // a potential submission of the transcript. Once `this.idleTimeout`
+    // timespan has passed, the timeout callback will submit the query.
+    this.resetIdleTimer_();
 
     // Force-stop long queries if queryLengthLimit is not undefined.
     if (this.queryLengthLimit !== undefined &&
@@ -387,14 +443,14 @@ export class ComposeboxVoiceSearchElement extends
 
   private onEnd_() {
     switch (this.state_) {
-    // If voiceRecognition calls `onEnd_` with the state being anything other
-    // than RESULT_FINAL, close out voice search since there was an error.
-    // The Web Speech API normally fires `onerror` before `onend` for explicit
-    // errors. However, for transient or silent errors (e.g., mic disconnection
-    // or manual aborts), `onerror` is bypassed and `onend` is called directly.
-    // Thus, if the state is anything other than RESULT_FINAL or ERROR_RECEIVED,
-    // we use this switch as a fallback router to manually catch these silent
-    // failures and pipe them to `onError_`.
+        // If voiceRecognition calls `onEnd_` with the state being anything
+        // other than `RESULT_FINAL` or `ERROR_RECEIVED` or `SPEECH_RECEIVED` or
+        // `RESULT_RECEIVED`, close out voice search since there was a silent
+        // failure with setting up audio or transcription. `RESULT_RECEIVED` is
+        // not okay if `continuous` is false since that means that speech webkit
+        // is the source of truth for timing out, and it has decided to time out
+        // and quit by itself by sending `onend` even though this frontend
+        // component is still expecting results.
       case State.STARTED:
         this.onError_(VoiceSearchError.AUDIO_CAPTURE);
         return;
@@ -403,7 +459,12 @@ export class ComposeboxVoiceSearchElement extends
         return;
       case State.SPEECH_RECEIVED:
       case State.RESULT_RECEIVED:
-        this.onError_(VoiceSearchError.NO_MATCH);
+        // If `continuous` is disabled, that means that speech
+        // webkit is the source of truth for timing out and has
+        // decided to time out.
+        if (!this.dynamicTimeoutEnabled) {
+          this.onError_(VoiceSearchError.NO_MATCH);
+        }
         return;
       case State.UNINITIALIZED:
       case State.ERROR_RECEIVED:

@@ -99,9 +99,23 @@ class AudioBufferSourceHandler final : public AudioScheduledSourceHandler {
                         uint32_t number_of_frames,
                         double start_time_offset);
 
+  bool HandleLoopWrapping(double virtual_end_frame,
+                          double virtual_delta_frames,
+                          unsigned write_index,
+                          uint32_t frames_remaining,
+                          double& virtual_read_index);
+
+  void ProcessFastPath(double virtual_delta_frames,
+                       double virtual_end_frame,
+                       uint32_t buffer_length,
+                       size_t destination_length,
+                       unsigned number_of_channels,
+                       int& frames_to_process,
+                       unsigned& write_index,
+                       double& virtual_read_index);
+
   // Render silence starting from "index" frame in AudioBus.
-  inline bool RenderSilenceAndFinishIfNotLooping(AudioBus*,
-                                                 unsigned index,
+  inline bool RenderSilenceAndFinishIfNotLooping(unsigned index,
                                                  uint32_t frames_to_process);
 
   // Clamps grain parameters to the duration of the given AudioBuffer.

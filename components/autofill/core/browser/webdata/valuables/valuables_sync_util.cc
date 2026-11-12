@@ -4,8 +4,16 @@
 
 #include "components/autofill/core/browser/webdata/valuables/valuables_sync_util.h"
 
+#include <memory>
+#include <utility>
+#include <vector>
+
+#include "base/time/time.h"
+#include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
+#include "components/autofill/core/browser/data_model/valuables/valuable_types.h"
 #include "components/autofill/core/browser/webdata/autofill_ai/entity_sync_util.h"
 #include "components/sync/protocol/autofill_valuable_specifics.pb.h"
+#include "components/sync/protocol/entity_data.h"
 #include "url/gurl.h"
 
 namespace autofill {
@@ -245,7 +253,8 @@ AutofillValuableSpecifics TrimAutofillValuableSpecificsDataForCaching(
       break;
     }
     case AutofillValuableSpecifics::kEventTicket:
-    case AutofillValuableSpecifics::kTransitPass: {
+    case AutofillValuableSpecifics::kTransitPass:
+    case AutofillValuableSpecifics::kOffer: {
       // Chrome does not support these types.
       break;
     }

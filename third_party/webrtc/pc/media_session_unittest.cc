@@ -118,7 +118,7 @@ class CodecLookupHelperForTesting : public CodecLookupHelper {
                             std::span<const Codec> codecs) {
     for (const Codec& c : codecs) {
       if (c.id.IsSet()) {
-        payload_type_suggester_.AddLocalMapping(mid, c.id, c);
+        RTC_CHECK(payload_type_suggester_.AddLocalMapping(mid, c.id, c).ok());
       }
     }
   }
@@ -1021,17 +1021,21 @@ TEST_F(MediaSessionDescriptionFactoryTest, TestCreateVideoOffer) {
   const MediaContentDescription* acd = ac->media_description();
   const MediaContentDescription* vcd = vc->media_description();
   EXPECT_EQ(acd->type(), MediaType::AUDIO);
-  EXPECT_EQ(
-      codec_lookup_helper_1_.GetCodecVendor()->audio_sendrecv_codecs().codecs(),
-      acd->codecs());
+  EXPECT_THAT(acd->codecs(),
+              CodecListsMatch(codec_lookup_helper_1_.GetCodecVendor()
+                                  ->audio_sendrecv_codecs()
+                                  .codecs(),
+                              &env_.field_trials()));
   EXPECT_EQ(acd->first_ssrc(), 0U);             // no sender is attached
   EXPECT_EQ(acd->bandwidth(), kAutoBandwidth);  // default bandwidth (auto)
   EXPECT_TRUE(acd->rtcp_mux());                 // rtcp-mux defaults on
   EXPECT_EQ(acd->protocol(), kMediaProtocolDtlsSavpf);
   EXPECT_EQ(vcd->type(), MediaType::VIDEO);
-  EXPECT_EQ(
-      codec_lookup_helper_1_.GetCodecVendor()->video_sendrecv_codecs().codecs(),
-      vcd->codecs());
+  EXPECT_THAT(vcd->codecs(),
+              CodecListsMatch(codec_lookup_helper_1_.GetCodecVendor()
+                                  ->video_sendrecv_codecs()
+                                  .codecs(),
+                              &env_.field_trials()));
   EXPECT_EQ(vcd->first_ssrc(), 0U);             // no sender is attached
   EXPECT_EQ(vcd->bandwidth(), kAutoBandwidth);  // default bandwidth (auto)
   EXPECT_TRUE(vcd->rtcp_mux());                 // rtcp-mux defaults on
@@ -2854,9 +2858,11 @@ TEST_F(MediaSessionDescriptionFactoryTest, TestCreateMultiStreamVideoOffer) {
   const MediaContentDescription* acd = ac->media_description();
   const MediaContentDescription* vcd = vc->media_description();
   EXPECT_EQ(acd->type(), MediaType::AUDIO);
-  EXPECT_EQ(
-      codec_lookup_helper_1_.GetCodecVendor()->audio_sendrecv_codecs().codecs(),
-      acd->codecs());
+  EXPECT_THAT(acd->codecs(),
+              CodecListsMatch(codec_lookup_helper_1_.GetCodecVendor()
+                                  ->audio_sendrecv_codecs()
+                                  .codecs(),
+                              &env_.field_trials()));
 
   const StreamParamsVec& audio_streams = acd->streams();
   ASSERT_EQ(audio_streams.size(), 2U);
@@ -2872,9 +2878,11 @@ TEST_F(MediaSessionDescriptionFactoryTest, TestCreateMultiStreamVideoOffer) {
   EXPECT_TRUE(acd->rtcp_mux());                 // rtcp-mux defaults on
 
   EXPECT_EQ(vcd->type(), MediaType::VIDEO);
-  EXPECT_EQ(
-      codec_lookup_helper_1_.GetCodecVendor()->video_sendrecv_codecs().codecs(),
-      vcd->codecs());
+  EXPECT_THAT(vcd->codecs(),
+              CodecListsMatch(codec_lookup_helper_1_.GetCodecVendor()
+                                  ->video_sendrecv_codecs()
+                                  .codecs(),
+                              &env_.field_trials()));
 
   const StreamParamsVec& video_streams = vcd->streams();
   ASSERT_EQ(video_streams.size(), 1U);
@@ -6546,8 +6554,9 @@ TEST_F(VideoCodecsOfferH265LevelIdTest,
   AttachSenderToMediaDescriptionOptions(
       kVideoMid, MediaType::VIDEO, kVideoTrack1, {kMediaStream1}, 1, &opts);
   std::vector<RtpCodecCapability> preferences;
-  for (const Codec& codec :
-       codec_lookup_helper_offerer_.GetCodecVendor()->video_recv_codecs()) {
+  for (const Codec& codec : codec_lookup_helper_offerer_.GetCodecVendor()
+                                ->video_recv_codecs()
+                                .codecs()) {
     preferences.push_back(ToRtpCodecCapability(codec));
   }
   opts.media_description_options[0].codec_preferences = preferences;

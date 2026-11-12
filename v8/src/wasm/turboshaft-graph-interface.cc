@@ -59,7 +59,7 @@ using compiler::turboshaft::ConstOrV;
 using compiler::turboshaft::DidntThrowOp;
 using compiler::turboshaft::Float32;
 using compiler::turboshaft::Float64;
-using compiler::turboshaft::FrameState;
+using EagerFrameState = compiler::turboshaft::EagerFrameState;
 using compiler::turboshaft::Graph;
 using compiler::turboshaft::Label;
 using compiler::turboshaft::LoadOp;
@@ -108,6 +108,7 @@ ExternalArrayType GetExternalArrayType(DataViewOp op_type) {
     case DataViewOp::kByteLength:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 size_t GetTypeSize(DataViewOp op_type) {
@@ -120,6 +121,7 @@ size_t GetTypeSize(DataViewOp op_type) {
     TYPED_ARRAYS(ELEMENTS_KIND_TO_ELEMENT_SIZE)
 #undef ELEMENTS_KIND_TO_ELEMENT_SIZE
   }
+  UNREACHABLE();
 }
 
 bool IsDataViewSetOp(DataViewOp op) {
@@ -134,6 +136,7 @@ bool IsDataViewSetOp(DataViewOp op) {
     case DataViewOp::kByteLength:
       return false;
   }
+  UNREACHABLE();
 }
 
 bool ReverseBytesSupported(size_t size_in_bytes) {
@@ -270,7 +273,7 @@ class TurboshaftGraphBuildingInterface
       SharedFlag shared, const WireBytesStorage* wire_bytes,
       base::Vector<OpIndex> real_parameters, TSBlock* return_block,
       BlockPhis* return_phis, TSBlock* catch_block, bool is_inlined_tail_call,
-      OptionalV<FrameState> parent_frame_state)
+      OptionalV<EagerFrameState> parent_frame_state)
       : WasmGraphBuilderBase(zone, assembler),
         mode_(mode),
         block_phis_(zone),
@@ -2799,7 +2802,7 @@ class TurboshaftGraphBuildingInterface
 
         // Creating the frame state here allows us to share the frame state
         // between a deopt due to wrong instance and deopt due to wrong target.
-        V<FrameState> frame_state =
+        V<EagerFrameState> frame_state =
             deopts_enabled() ? CreateFrameState(decoder, imm.sig, &index, args)
                              : OpIndex::Invalid();
         // CreateFrameState may have disabled deopts.
@@ -3161,7 +3164,7 @@ class TurboshaftGraphBuildingInterface
         }
         bool emit_deopt = use_deopt_slowpath && is_last_feedback_case;
         if (emit_deopt) {
-          V<FrameState> frame_state =
+          V<EagerFrameState> frame_state =
               CreateFrameState(decoder, sig, &func_ref, args);
           if (frame_state.valid()) {
             DeoptIfNot(
@@ -4046,9 +4049,13 @@ class TurboshaftGraphBuildingInterface
                const Value& func_ref, Value* result) {
     __ TrapIf(__ IsNull(func_ref.get<Object>(), func_ref.type),
               TrapId::kTrapNullDereference);
+    CanonicalTypeIndex canonical_sig_id =
+        decoder->module_->canonical_type_id(imm.cont_type->contfun_typeindex());
     result->op = __ WasmCallRuntime(
         decoder->zone(), Runtime::kWasmAllocateContinuation,
-        {trusted_instance_data(SharedFlag::kNo), func_ref.op},
+        {trusted_instance_data(SharedFlag::kNo), func_ref.op,
+         __ TagSmi(
+             __ RelocatableWasmCanonicalSignatureId(canonical_sig_id.index))},
         __ NoContextConstant());
   }
 
@@ -4077,15 +4084,14 @@ class TurboshaftGraphBuildingInterface
     // signature.
     CanonicalTypeIndex expected_csig_index =
         env_->module->canonical_type_id(imm.cont_type->contfun_typeindex());
-    const CanonicalSig* expected_csig =
-        GetTypeCanonicalizer()->LookupFunctionSignature(expected_csig_index);
-    uint64_t expected_hash = expected_csig->signature_hash();
-    V<Word64> signature_hash = __ Load(stack, LoadOp::Kind::RawAligned(),
-                                       MemoryRepresentation::Uint64(),
-                                       StackMemory::signature_hash_offset());
-    __ TrapIfNot(__ Equal(signature_hash, __ Word64Constant(expected_hash),
-                          RegisterRepresentation::Word64()),
-                 TrapId::kTrapFuncSigMismatch);
+    V<Word32> expected_id =
+        __ RelocatableWasmCanonicalSignatureId(expected_csig_index.index);
+    V<Word32> signature_id = __ Load(stack, LoadOp::Kind::RawAligned(),
+                                     MemoryRepresentation::Uint32(),
+                                     StackMemory::signature_id_offset());
+    __ TrapIfNot(
+        __ Equal(signature_id, expected_id, RegisterRepresentation::Word32()),
+        TrapId::kTrapFuncSigMismatch);
     return stack;
   }
 
@@ -4118,18 +4124,22 @@ class TurboshaftGraphBuildingInterface
           }
         });
     V<Context> native_context = instance_cache_.native_context();
+    CanonicalTypeIndex new_csig_index = decoder->module_->canonical_type_id(
+        new_imm.cont_type->contfun_typeindex());
     // Allocate a new continuation for this stack, and invalidate the old one by
     // pointing {StackMemory::current_cont_} to the new one.
     V<WasmContinuationObject> cont = __ WasmCallRuntime(
         decoder->zone(), Runtime::kWasmAllocateBoundContinuation,
-        {input_cont.op, __ SmiConstant(Smi::FromInt(static_cast<int>(delta)))},
+        {input_cont.op, __ SmiConstant(Smi::FromInt(static_cast<int>(delta))),
+         __ TagSmi(
+             __ RelocatableWasmCanonicalSignatureId(new_csig_index.index))},
         native_context);
     result->op = cont;
   }
 
   std::pair<V<WordPtr>, base::Vector<compiler::turboshaft::EffectHandler>>
-  PrepareResume(base::Vector<HandlerCase> handlers, const Value& cont_ref,
-                const ContIndexImmediate& imm) {
+  PrepareResume(FullDecoder* decoder, base::Vector<HandlerCase> handlers,
+                const Value& cont_ref, const ContIndexImmediate& imm) {
     V<WordPtr> stack = CheckContAndGetStack(cont_ref, imm);
     base::Vector<compiler::turboshaft::EffectHandler> asm_handlers =
         __ output_graph().graph_zone()
@@ -4141,6 +4151,26 @@ class TurboshaftGraphBuildingInterface
       asm_handlers[i].tag_and_kind.encode(
           handlers[i].kind == wasm::SwitchKind::kSwitch, handlers[i].tag.index);
       asm_handlers[i].block = __ NewBlock();
+      if (handlers[i].kind == kOnSuspend) {
+        // For each handler, save the signature index of the suspended
+        // continuation in the handler table.
+        // On suspend, we load the signature index from the table and save it in
+        // the suspended stack's metadata.
+        // When consuming a continuation (resume, resume_throw,
+        // resume_throw_ref, switch or cont.bind), we check the expected
+        // signature index against the one saved in the target continuation's
+        // stack. Continuations aren't castable so the types must match exactly.
+        Control* target = decoder->control_at(handlers[i].maybe_depth.br.depth);
+        Value& val = (*target->br_merge())[target->br_merge()->arity - 1];
+        HeapType ht = val.type.heap_type();
+        DCHECK(ht.has_index());
+        const ContType* cont_type = decoder->module_->cont_type(ht.ref_index());
+        CanonicalTypeIndex sig_index =
+            decoder->module_->canonical_type_id(cont_type->contfun_typeindex());
+        asm_handlers[i].sig = sig_index;
+      } else {
+        asm_handlers[i].sig = CanonicalTypeIndex::Invalid();
+      }
     }
     return {stack, asm_handlers};
   }
@@ -4160,7 +4190,8 @@ class TurboshaftGraphBuildingInterface
   void Resume(FullDecoder* decoder, const ContIndexImmediate& imm,
               base::Vector<HandlerCase> handlers, const Value& cont_ref,
               const Value args[], Value returns[]) {
-    auto [stack, asm_handlers] = PrepareResume(handlers, cont_ref, imm);
+    auto [stack, asm_handlers] =
+        PrepareResume(decoder, handlers, cont_ref, imm);
     // Reserve a stack buffer, move the tag params there and pass it to the
     // target stack.
     V<WordPtr> arg_buffer = __ Load(stack, LoadOp::Kind::RawAligned(),
@@ -4214,7 +4245,8 @@ class TurboshaftGraphBuildingInterface
                    const TagIndexImmediate& exc_imm,
                    base::Vector<wasm::HandlerCase> handlers,
                    const Value& cont_ref, const Value args[], Value returns[]) {
-    auto [stack, asm_handlers] = PrepareResume(handlers, cont_ref, cont_imm);
+    auto [stack, asm_handlers] =
+        PrepareResume(decoder, handlers, cont_ref, cont_imm);
     V<FixedArray> array = EncodeExceptionArray(decoder, exc_imm, args);
     V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
         trusted_instance_data(SharedFlag::kNo), TagsTable,
@@ -4238,7 +4270,8 @@ class TurboshaftGraphBuildingInterface
                       base::Vector<wasm::HandlerCase> handlers,
                       const Value& cont_ref, const Value& exn,
                       Value returns[]) {
-    auto [stack, asm_handlers] = PrepareResume(handlers, cont_ref, cont_imm);
+    auto [stack, asm_handlers] =
+        PrepareResume(decoder, handlers, cont_ref, cont_imm);
     asm_.set_effect_handlers_for_next_call(asm_handlers);
     V<WordPtr> result_buffer =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResumeThrowRef,
@@ -6981,10 +7014,10 @@ class TurboshaftGraphBuildingInterface
   }
 
  private:
-  V<FrameState> CreateFrameState(FullDecoder* decoder,
-                                 const FunctionSig* callee_sig,
-                                 const Value* func_ref_or_index,
-                                 const Value args[]) {
+  V<EagerFrameState> CreateFrameState(FullDecoder* decoder,
+                                      const FunctionSig* callee_sig,
+                                      const Value* func_ref_or_index,
+                                      const Value args[]) {
     compiler::turboshaft::FrameStateData::Builder builder;
     if (parent_frame_state_.valid()) {
       builder.AddParentFrameState(parent_frame_state_.value());
@@ -7079,13 +7112,13 @@ class TurboshaftGraphBuildingInterface
       return OpIndex::Invalid();
     }
 
-    return __ FrameState(
+    return __ template FrameState<EagerFrameState>(
         builder.Inputs(), builder.inlined(),
         builder.AllocateFrameStateData(*frame_state_info, zone));
   }
 
   void DeoptIfNot(FullDecoder* decoder, OpIndex deopt_condition,
-                  V<FrameState> frame_state) {
+                  V<EagerFrameState> frame_state) {
     CHECK(deopts_enabled());
     DCHECK(frame_state.valid());
     __ DeoptimizeIfNot(deopt_condition, frame_state,
@@ -7093,7 +7126,7 @@ class TurboshaftGraphBuildingInterface
                        compiler::FeedbackSource());
   }
 
-  void Deopt(FullDecoder* decoder, V<FrameState> frame_state) {
+  void Deopt(FullDecoder* decoder, V<EagerFrameState> frame_state) {
     CHECK(deopts_enabled());
     DCHECK(frame_state.valid());
     __ Deoptimize(frame_state, DeoptimizeReason::kWrongCallTarget,
@@ -8250,7 +8283,8 @@ class TurboshaftGraphBuildingInterface
         uint64_t effective_size = wasm::kMaxMemory64Size - end_offset;
 
 #if V8_TARGET_ARCH_ARM64
-        if (end_offset <= AllocatePageSize()) {
+        if (end_offset <= kMinExpectedOSPageSize) {
+          DCHECK_GE(AllocatePageSize(), kMinExpectedOSPageSize);
           // We have reserved an extra guard page, so that more accesses with
           // small values of `end_offset` can rely on the trap handler. As a
           // result, `converted_index` can be compared directly with
@@ -9220,7 +9254,8 @@ class TurboshaftGraphBuildingInterface
           struct_value, ValueType::Ref(decoder->module_->heap_type(imm.index)));
     } else {
       const SharedFlag shared = type.is_shared;
-      struct_value = __ WasmAllocateStruct(rtt, imm.struct_type, shared);
+      struct_value =
+          __ WasmAllocateStruct(rtt, imm.struct_type, imm.index, shared);
     }
 
     bool in_old_space = type.is_shared == SharedFlag::kYes ||
@@ -9396,35 +9431,6 @@ class TurboshaftGraphBuildingInterface
         inlinee.sig, inlinee.code.offset(), function_bytes.begin(),
         function_bytes.end(), inlinee_is_shared};
 
-    // If the inlinee was not validated before, do that now.
-    if (V8_UNLIKELY(!decoder->module_->function_was_validated(func_index))) {
-      if (ValidateFunctionBody(decoder->zone_, decoder->enabled_,
-                               decoder->module_, decoder->detected_,
-                               inlinee_body)
-              .failed()) {
-        // At this point we cannot easily raise a compilation error any more.
-        // Since this situation is highly unlikely though, we just ignore this
-        // inlinee, emit a regular call, and move on. The same validation error
-        // will be triggered again when actually compiling the invalid function.
-        V<WordPtr> callee =
-            __ RelocatableConstant(func_index, RelocInfo::WASM_CALL);
-        if (is_tail_call) {
-          BuildWasmMaybeReturnCall(
-              decoder, sig, callee,
-              trusted_instance_data(
-                  decoder->module_->function_is_shared(func_index)),
-              args);
-        } else {
-          BuildWasmCall(decoder, sig, callee,
-                        trusted_instance_data(
-                            decoder->module_->function_is_shared(func_index)),
-                        args, returns);
-        }
-        return;
-      }
-      decoder->module_->set_function_validated(func_index);
-    }
-
     BlockPhis fresh_return_phis(decoder->zone_);
 
     Mode inlinee_mode;
@@ -9461,7 +9467,7 @@ class TurboshaftGraphBuildingInterface
       inlinee_return_phis = &fresh_return_phis;
     }
 
-    OptionalV<FrameState> frame_state;
+    OptionalV<EagerFrameState> frame_state;
     if (deopts_enabled()) {
       frame_state = is_tail_call
                         ? parent_frame_state_
@@ -9510,7 +9516,7 @@ class TurboshaftGraphBuildingInterface
           no_liftoff_inlining_budget_);
     }
     inlinee_decoder.Decode();
-    // The function was already validated above.
+    // The function was already validated, so decoding cannot fail.
     DCHECK(inlinee_decoder.ok());
 
     DCHECK_IMPLIES(!is_tail_call && inlinee_mode == kInlinedWithCatch,
@@ -9613,6 +9619,20 @@ class TurboshaftGraphBuildingInterface
     // TODO(42204563,41480394,335082212): Do not inline if the current function
     // is shared (which also implies the target cannot be shared either).
     if (shared_ == SharedFlag::kYes) return false;
+    // Some of our cctests compile functions eagerly when defining them
+    // (see {WasmFunctionCompiler::Build}); their callees might not exist yet.
+    // All valid functions have size >= 2 (number of locals, kExprEnd).
+    // TODO(jkummerow): Bring testing infrastructure closer to production code
+    // to avoid this special case.
+    if (size == 0) return false;
+
+    // What can happen here is that due to --no-liftoff, we inline additional
+    // functions that are not included in the inlining tree, resulting in
+    // `inlining_positions_` growing in size more than expected.
+    if (!v8_flags.liftoff &&
+        inlining_positions_->size() >= InliningTree::kMaxInlinedCount) {
+      return false;
+    }
 
     if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
       if (inlining_decisions_->mode() == InliningTree::Mode::kVector) {
@@ -9788,7 +9808,7 @@ class TurboshaftGraphBuildingInterface
   bool is_inlined_tail_call_ = false;
 
   std::optional<bool> deopts_enabled_;
-  OptionalV<FrameState> parent_frame_state_;
+  OptionalV<EagerFrameState> parent_frame_state_;
   OptionalV<WordPtr> wide_ops_stack_buffer_;
   static constexpr int kWideOpsStackBufferSize = 4 * kInt64Size;
 
@@ -9834,7 +9854,6 @@ V8_EXPORT_PRIVATE void BuildTSGraph(
     std::unique_ptr<AssumptionsJournal>* assumptions,
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
     WasmFunctionCoverageData* coverage_data) {
-  DCHECK(env->module->function_was_validated(func_index));
   Zone zone(data->allocator(), ZONE_NAME);
   Assembler assembler(data, graph, graph, &zone);
   WasmFullDecoder<TurboshaftGraphBuildingInterface::ValidationTag,

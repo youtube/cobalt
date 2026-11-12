@@ -32,6 +32,7 @@
 #include "pc/rtp_parameters_conversion.h"
 #include "pc/session_description.h"
 #include "rtc_base/checks.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -133,9 +134,10 @@ TEST(CodecVendorTest, TestSetAudioCodecs) {
   media_engine.SetAudioRecvCodecs(no_codecs.codecs());
   {
     CodecVendor codec_vendor(&media_engine, false, trials);
-    EXPECT_EQ(no_codecs, codec_vendor.audio_send_codecs());
-    EXPECT_EQ(no_codecs, codec_vendor.audio_recv_codecs());
-    EXPECT_EQ(no_codecs, codec_vendor.audio_sendrecv_codecs());
+    EXPECT_EQ(no_codecs.codecs(), codec_vendor.audio_send_codecs().codecs());
+    EXPECT_EQ(no_codecs.codecs(), codec_vendor.audio_recv_codecs().codecs());
+    EXPECT_EQ(no_codecs.codecs(),
+              codec_vendor.audio_sendrecv_codecs().codecs());
   }
 }
 
@@ -266,6 +268,9 @@ TEST(CodecVendorTest, GetNegotiatedCodecsForAnswerWithCollision) {
 }
 
 TEST(CodecVendorMergeTest, BasicTestSetup) {
+  if (CreateTestFieldTrials().IsEnabled("WebRTC-PayloadTypesInTransport")) {
+    GTEST_SKIP();
+  }
   CodecList reference_codecs;
   const std::string mid = "mid";
   CodecList merged_codecs;
@@ -276,12 +281,16 @@ TEST(CodecVendorMergeTest, BasicTestSetup) {
 }
 
 TEST(CodecVendorMergeTest, IdenticalListsMergeWithNoChange) {
+  if (CreateTestFieldTrials().IsEnabled("WebRTC-PayloadTypesInTransport")) {
+    GTEST_SKIP();
+  }
   CodecList reference_codecs;
   const std::string mid = "mid";
   CodecList merged_codecs;
   FakePayloadTypeSuggester pt_suggester;
   Codec some_codec = CreateVideoCodec(97, "foo");
-  auto pt_or_error = pt_suggester.SuggestPayloadType(mid, some_codec);
+  RTCErrorOr<PayloadType> pt_or_error =
+      pt_suggester.SuggestPayloadType(mid, some_codec, false);
   ASSERT_THAT(pt_or_error.value(), Eq(97));
   reference_codecs.push_back(some_codec);
   merged_codecs.push_back(some_codec);
@@ -293,12 +302,16 @@ TEST(CodecVendorMergeTest, IdenticalListsMergeWithNoChange) {
 }
 
 TEST(CodecVendorMergeTest, MergeRenumbersAdditionalCodecs) {
+  if (CreateTestFieldTrials().IsEnabled("WebRTC-PayloadTypesInTransport")) {
+    GTEST_SKIP();
+  }
   CodecList reference_codecs;
   const std::string mid = "mid";
   CodecList merged_codecs;
   FakePayloadTypeSuggester pt_suggester;
   Codec some_codec = CreateVideoCodec(97, "foo");
-  auto pt_or_error = pt_suggester.SuggestPayloadType(mid, some_codec);
+  RTCErrorOr<PayloadType> pt_or_error =
+      pt_suggester.SuggestPayloadType(mid, some_codec, false);
   ASSERT_THAT(pt_or_error.value(), Eq(97));
   merged_codecs.push_back(some_codec);
   // Use the same PT for a reference codec. This should be renumbered.
@@ -323,6 +336,9 @@ TEST(CodecVendorMergeTest, MergeRenumbersAdditionalCodecs) {
 }
 
 TEST(CodecVendorMergeTest, MergeRenumbersRedCodecArgument) {
+  if (CreateTestFieldTrials().IsEnabled("WebRTC-PayloadTypesInTransport")) {
+    GTEST_SKIP();
+  }
   CodecList reference_codecs;
   const std::string mid = "mid";
   CodecList merged_codecs;
@@ -350,6 +366,9 @@ TEST(CodecVendorMergeTest, MergeRenumbersRedCodecArgument) {
 }
 
 TEST(CodecVendorMergeTest, MergeRenumbersRedCodecArgumentAndMerges) {
+  if (CreateTestFieldTrials().IsEnabled("WebRTC-PayloadTypesInTransport")) {
+    GTEST_SKIP();
+  }
   CodecList reference_codecs;
   const std::string mid = "mid";
   CodecList merged_codecs;
@@ -380,6 +399,9 @@ TEST(CodecVendorMergeTest, MergeRenumbersRedCodecArgumentAndMerges) {
 }
 
 TEST(CodecVendorMergeTest, MergeWithBrokenReferenceRedErrors) {
+  if (CreateTestFieldTrials().IsEnabled("WebRTC-PayloadTypesInTransport")) {
+    GTEST_SKIP();
+  }
   CodecList reference_codecs;
   const std::string mid = "mid";
   CodecList merged_codecs;
@@ -395,6 +417,34 @@ TEST(CodecVendorMergeTest, MergeWithBrokenReferenceRedErrors) {
       MergeCodecsForTesting(reference_codecs, mid, merged_codecs, pt_suggester);
   EXPECT_FALSE(error.ok());
   EXPECT_THAT(error.type(), Eq(RTCErrorType::INTERNAL_ERROR));
+}
+
+TEST(CodecVendorMergeTest, MergeWithCollisionPicksFromTop) {
+  if (CreateTestFieldTrials().IsEnabled("WebRTC-PayloadTypesInTransport")) {
+    GTEST_SKIP();
+  }
+  CodecList reference_codecs;
+  const std::string mid = "mid";
+  CodecList merged_codecs;
+  FakePayloadTypeSuggester pt_suggester;
+  // Existing codec with PT 97
+  Codec some_codec = CreateVideoCodec(97, "foo");
+  merged_codecs.push_back(some_codec);
+  RTC_CHECK(pt_suggester.AddLocalMapping(mid, 97, some_codec).ok());
+
+  // New codec in reference that also wants PT 97
+  Codec some_other_codec = CreateVideoCodec(97, "bar");
+  reference_codecs.push_back(some_other_codec);
+
+  // When merging with pick_from_top_of_range = true, it should pick 127
+  RTCError error =
+      MergeCodecsForTesting(reference_codecs, mid, merged_codecs, pt_suggester,
+                            /*pick_from_top_of_range=*/true);
+  EXPECT_TRUE(error.ok());
+  EXPECT_THAT(merged_codecs.size(), Eq(2));
+  EXPECT_THAT(merged_codecs.codecs(),
+              Contains(AllOf(Field("name", &Codec::name, "bar"),
+                             Field("id", &Codec::id, 127))));
 }
 
 }  // namespace

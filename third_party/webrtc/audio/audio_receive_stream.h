@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "api/audio/audio_frame.h"
 #include "api/audio/audio_mixer.h"
@@ -57,17 +58,18 @@ class AudioReceiveStreamImpl final : public webrtc::AudioReceiveStreamInterface,
  public:
   AudioReceiveStreamImpl(
       const Environment& env,
-      PacketRouter* packet_router,
-      NetEqFactory* neteq_factory,
+      PacketRouter* absl_nonnull packet_router,
+      NetEqFactory* absl_nullable neteq_factory,
       const webrtc::AudioReceiveStreamInterface::Config& config,
       const scoped_refptr<webrtc::AudioState>& audio_state);
   // For unit tests, which need to supply a mock channel receive.
   AudioReceiveStreamImpl(
       const Environment& env,
-      PacketRouter* packet_router,
+      PacketRouter* absl_nonnull packet_router,
       const webrtc::AudioReceiveStreamInterface::Config& config,
       const scoped_refptr<webrtc::AudioState>& audio_state,
-      std::unique_ptr<voe::ChannelReceiveInterface> channel_receive);
+      absl_nonnull std::unique_ptr<voe::ChannelReceiveInterface>
+          channel_receive);
 
   AudioReceiveStreamImpl() = delete;
   AudioReceiveStreamImpl(const AudioReceiveStreamImpl&) = delete;

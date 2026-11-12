@@ -32,6 +32,7 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/color/color_provider.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/color_palette.h"
@@ -168,10 +169,12 @@ class ClosePromoButton : public views::ImageButton {
     SetTooltipText(accessible_name);
 
     constexpr int kIconSize = 16;
-    SetImageModel(views::ImageButton::STATE_NORMAL,
-                  ui::ImageModel::FromVectorIcon(
-                      views::kIcCloseOldIcon,
-                      delegate_->GetHelpBubbleForegroundColorId(), kIconSize));
+    SetImageModel(
+        views::ImageButton::STATE_NORMAL,
+        ui::ImageModel::FromVectorIcon(
+            features::IsRoundedIconsEnabled() ? views::kCloseIcon
+                                              : views::kIcCloseOldIcon,
+            delegate_->GetHelpBubbleForegroundColorId(), kIconSize));
 
     constexpr float kCloseButtonFocusRingHaloThickness = 1.25f;
     views::FocusRing::Get(this)->SetHaloThickness(
@@ -334,10 +337,10 @@ HelpBubbleViewInfo HelpBubbleView::Create(
   auto bubble = base::WrapUnique(new HelpBubbleView(
       delegate, anchor, std::move(params), std::move(event_relay)));
   auto* const bubble_ptr = bubble.get();
-  auto* const widget = views::BubbleDialogDelegateView::CreateBubble(
-      std::move(bubble), views::Widget::InitParams::CLIENT_OWNS_WIDGET);
+  std::unique_ptr<views::Widget> widget =
+      views::BubbleDialogDelegate::CreateBubble(std::move(bubble).release());
   bubble_ptr->InitializeAndShow(visible_arrow, show_active);
-  return HelpBubbleViewInfo(base::WrapUnique(widget), bubble_ptr);
+  return HelpBubbleViewInfo(std::move(widget), bubble_ptr);
 }
 
 HelpBubbleView::HelpBubbleView(

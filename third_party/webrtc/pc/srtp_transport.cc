@@ -148,6 +148,28 @@ void SrtpTransport::OnWritableState(PacketTransportInternal* packet_transport) {
   SendWritableState(IsWritable(/*rtcp=*/false) && IsWritable(/*rtcp=*/true));
 }
 
+bool SrtpTransport::UseCryptex(bool enable, bool require) {
+  enable_cryptex_ = enable;
+  require_cryptex_ = require;
+  if (send_session_) {
+    if (!send_session_->UseCryptex(enable_cryptex_, require_cryptex_,
+                                   /*send=*/true)) {
+      RTC_LOG(LS_ERROR) << "Updating send session cryptex failed";
+      return false;
+    }
+  }
+  if (recv_session_) {
+    // TODO: bugs.webrtc.org/455813732 - never disable receiving cryptex.
+    if (!recv_session_->UseCryptex(enable_cryptex_, require_cryptex_,
+                                   /*send=*/false)) {
+      RTC_LOG(LS_ERROR) << "Updating recv session cryptex failed";
+      return false;
+    }
+  }
+
+  return true;
+}
+
 bool SrtpTransport::SetRtpParams(int send_crypto_suite,
                                  const ZeroOnFreeBuffer<uint8_t>& send_key,
                                  const std::vector<int>& send_extension_ids,
@@ -164,6 +186,11 @@ bool SrtpTransport::SetRtpParams(int send_crypto_suite,
     CreateSrtpSessions();
     new_sessions = true;
   }
+  if (!send_session_->UseCryptex(enable_cryptex_, require_cryptex_,
+                                 /*send=*/true)) {
+    RTC_LOG(LS_ERROR) << "Updating send session cryptex failed";
+    return false;
+  }
   bool ret = new_sessions
                  ? send_session_->SetSend(send_crypto_suite, send_key,
                                           send_extension_ids)
@@ -174,6 +201,11 @@ bool SrtpTransport::SetRtpParams(int send_crypto_suite,
     return false;
   }
 
+  if (!recv_session_->UseCryptex(enable_cryptex_, require_cryptex_,
+                                 /*send=*/false)) {
+    RTC_LOG(LS_ERROR) << "Updating recv session cryptex failed";
+    return false;
+  }
   ret = new_sessions ? recv_session_->SetReceive(recv_crypto_suite, recv_key,
                                                  recv_extension_ids)
                      : recv_session_->UpdateReceive(recv_crypto_suite, recv_key,
@@ -184,9 +216,10 @@ bool SrtpTransport::SetRtpParams(int send_crypto_suite,
   }
 
   RTC_LOG(LS_INFO) << "SRTP " << (new_sessions ? "activated" : "updated")
-                   << " with negotiated parameters: send crypto_suite "
-                   << send_crypto_suite << " recv crypto_suite "
-                   << recv_crypto_suite;
+                   << " with negotiated parameters:"
+                   << " send crypto_suite " << send_crypto_suite
+                   << " recv crypto_suite " << recv_crypto_suite << " cryptex "
+                   << enable_cryptex_ << "/" << require_cryptex_;
   MaybeUpdateWritableState();
   return true;
 }
@@ -205,21 +238,29 @@ bool SrtpTransport::SetRtcpParams(int send_crypto_suite,
   }
 
   send_rtcp_session_.reset(new SrtpSession(field_trials_));
+  if (!send_rtcp_session_->UseCryptex(enable_cryptex_, require_cryptex_,
+                                      /*send=*/true)) {
+    return false;
+  }
   if (!send_rtcp_session_->SetSend(send_crypto_suite, send_key,
                                    send_extension_ids)) {
     return false;
   }
 
   recv_rtcp_session_.reset(new SrtpSession(field_trials_));
+  if (!recv_rtcp_session_->UseCryptex(enable_cryptex_, require_cryptex_,
+                                      /*send=*/false)) {
+    return false;
+  }
   if (!recv_rtcp_session_->SetReceive(recv_crypto_suite, recv_key,
                                       recv_extension_ids)) {
     return false;
   }
 
   RTC_LOG(LS_INFO) << "SRTCP activated with negotiated parameters:"
-                      " send crypto_suite "
-                   << send_crypto_suite << " recv crypto_suite "
-                   << recv_crypto_suite;
+                   << " send crypto_suite " << send_crypto_suite
+                   << " recv crypto_suite " << recv_crypto_suite << " cryptex "
+                   << enable_cryptex_ << "/" << require_cryptex_;
   MaybeUpdateWritableState();
   return true;
 }

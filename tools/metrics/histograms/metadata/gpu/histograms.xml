@@ -430,7 +430,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.ANGLECanEmulateGLES3" enum="BooleanANGLECanEmulateGLES3"
-    expires_after="2026-09-13">
+    expires_after="2026-11-15">
   <owner>blundell@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@google.com</owner>
   <summary>
@@ -834,7 +834,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.DirectComposition.OverlaysSupported"
-    enum="BooleanOverlaySupported" expires_after="2026-09-06">
+    enum="BooleanOverlaySupported" expires_after="2026-11-15">
   <owner>sunnyps@chromium.org</owner>
   <owner>zmo@chromium.org</owner>
   <owner>magchen@chromium.org</owner>
@@ -846,7 +846,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.DirectComposition.Supported" enum="Boolean"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>lehoangquyen@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -907,7 +907,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="GPU.DrDcEnabled" enum="Boolean" expires_after="2026-09-13">
+<histogram name="GPU.DrDcEnabled" enum="Boolean" expires_after="2026-11-15">
   <owner>magchen@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -931,8 +931,20 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="GPU.EarlyInitialFrameSinkUsed" enum="Boolean"
+    expires_after="2027-04-24">
+  <owner>rakina@chromium.org</owner>
+  <owner>chrome-webium-product-eng@google.com</owner>
+  <summary>
+    Records whether the renderer's WidgetBase successfully used the initial
+    CompositorFrameSink pipes provided by the browser instead of requesting
+    creation of new pipes. Logged when WidgetBase initializes its
+    LayerTreeFrameSink.
+  </summary>
+</histogram>
+
 <histogram name="GPU.EGLDisplayType" enum="EGLDisplayType"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>zmo@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>The display type used to ask for an EGLDisplay.</summary>
@@ -978,8 +990,70 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="GPU.EstablishGpuChannel.Browser.{InitOrRegular}AsyncLatency"
+    units="ms" expires_after="2027-04-24">
+  <owner>rakina@chromium.org</owner>
+  <owner>chrome-webium-product-eng@google.com</owner>
+  <summary>
+    The time it takes for the browser process to establish the GPU channel for a
+    renderer (either via Mojo invitation or standard callback). Measured from
+    the start of the GpuClient request to when the channel is successfully
+    established with the GPU process.
+  </summary>
+  <token key="InitOrRegular">
+    <variant name="Init" summary="Initial channel for a new renderer process"/>
+    <variant name="Regular" summary="Standard channel request"/>
+  </token>
+</histogram>
+
+<histogram name="GPU.EstablishGpuChannel.EarliestRequestLatency" units="ms"
+    expires_after="2027-04-24">
+  <owner>rakina@chromium.org</owner>
+  <owner>chrome-webium-product-eng@google.com</owner>
+  <summary>
+    Measures the time from the earliest request in a batch until the channel is
+    established. Logged once per channel establishment upon successful
+    completion.
+  </summary>
+</histogram>
+
+<histogram name="GPU.EstablishGpuChannel.IndividualRequestLatency" units="ms"
+    expires_after="2027-04-24">
+  <owner>rakina@chromium.org</owner>
+  <owner>chrome-webium-product-eng@google.com</owner>
+  <summary>
+    Measures the wait time for each individual request in a batch to establish
+    the GPU channel. Logged for every request in the batch upon successful
+    completion.
+  </summary>
+</histogram>
+
+<histogram
+    name="GPU.EstablishGpuChannel.InitialChannelBrowserToRendererLatency"
+    units="ms" expires_after="2027-04-24">
+  <owner>rakina@chromium.org</owner>
+  <owner>chrome-webium-product-eng@google.com</owner>
+  <summary>
+    The total time it takes to establish the initial GPU channel for a new
+    renderer process. Measured from the moment the browser process starts the
+    request (in GpuClient) to the moment the renderer process finishes
+    initializing the channel (including getting the GPU info).
+  </summary>
+</histogram>
+
+<histogram name="GPU.EstablishGpuChannel.InitialChannelLatency" units="ms"
+    expires_after="2027-04-24">
+  <owner>rakina@chromium.org</owner>
+  <owner>chrome-webium-product-eng@google.com</owner>
+  <summary>
+    Measures the total time from renderer initialization to GPU channel
+    establishment. Logged once per renderer process initialization when the
+    channel establishment completes successfully.
+  </summary>
+</histogram>
+
 <histogram name="GPU.EstablishGpuChannelSyncRetry" enum="BooleanSuccess"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>fangzhoug@chromium.org</owner>
   <owner>kylechar@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
@@ -1001,7 +1075,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.EstablishGpuChannelSyncTime.FirstRun" units="ms"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>chikamune@chromium.org</owner>
   <owner>kouhei@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
@@ -1056,6 +1130,21 @@ chromium-metrics-reviews@google.com.
   <token key="TaskGraphValidationType" variants="TaskGraphValidationType"/>
 </histogram>
 
+<histogram name="GPU.FrameSink.BindToFirstFrameLatency.{PathType}" units="ms"
+    expires_after="2027-04-24">
+  <owner>rakina@chromium.org</owner>
+  <owner>chrome-webium-product-eng@google.com</owner>
+  <summary>
+    Measures the wait time from when the renderer is ready to establish the
+    frame sink (in FinishRequestNewLayerTreeFrameSink) until it receives the
+    first BeginMainFrame. Logged when the first frame arrives on the frame sink.
+  </summary>
+  <token key="PathType">
+    <variant name="Early" summary="Wait time for the early path"/>
+    <variant name="Standard" summary="Wait time for the standard path"/>
+  </token>
+</histogram>
+
 <histogram name="GPU.GLImplementation" enum="GLImplementation"
     expires_after="2026-10-04">
   <owner>magchen@chromium.org</owner>
@@ -1088,7 +1177,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.GPUProcessExitCode" enum="GPUProcessExitCode"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>zmo@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1097,7 +1186,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.GPUProcessLaunchTime" units="ms"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>vmiura@chromium.org</owner>
   <summary>
     Startup time of the GPU process as measured by the GPU process host.
@@ -1290,8 +1379,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="GPU.InitialChannelEstablishmentSucceeded" enum="Boolean"
+    expires_after="2027-04-24">
+  <owner>rakina@chromium.org</owner>
+  <owner>chrome-webium-product-eng@google.com</owner>
+  <summary>
+    Records whether the initial GPU channel was successfully established and
+    created the GpuChannelHost with correct GPU info. Logged once per renderer
+    process initialization when the channel establishment completes.
+  </summary>
+</histogram>
+
 <histogram name="GPU.IntelGpuGeneration" enum="IntelGpuGeneration"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>zmo@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1456,7 +1556,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Gpu.OutputSurface.ScheduleOverlaysUs" units="microseconds"
-    expires_after="2026-09-13">
+    expires_after="2026-11-15">
   <owner>magchen@chromium.org</owner>
   <owner>ccameron@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
@@ -1591,7 +1691,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.ProcessLifetimeEvents.HardwareAccelerated"
-    enum="GPUProcessLifetimeEvent" expires_after="2026-09-06">
+    enum="GPUProcessLifetimeEvent" expires_after="2026-11-15">
   <owner>vmiura@chromium.org</owner>
   <summary>
     Recorded once for every GPU process launch and crash when GPU process is
@@ -1625,7 +1725,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.RequestAdapterStatus.WebGPU"
-    enum="WebGPURequestAdapterStatus" expires_after="2026-09-03">
+    enum="WebGPURequestAdapterStatus" expires_after="2026-11-15">
   <owner>olivierli@chromium.org</owner>
   <owner>fdoray@chromium.org</owner>
   <summary>
@@ -1713,7 +1813,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.SharedImage.BackingType" enum="SharedImageBackingType"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>kylechar@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@google.com</owner>
   <summary>
@@ -1744,7 +1844,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.SoftwareRendering" enum="BooleanSoftwareRendering"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>zmo@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -2400,6 +2500,26 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Viz.DisplayLink.Create.GPU.{Source}" enum="BooleanSuccess"
+    expires_after="2027-03-30">
+  <owner>magchen@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    The result of creating {Source} in the GPU process for each display.
+    Recorded whenever a DisplayLink is created in ExternalBeginFrameSourceMac or
+    ImageTransportSurfaceOverlayMacEGL within the GPU process.
+  </summary>
+  <token key="Source">
+    <variant name="CADisplayLink"
+        summary="CADisplayLink using [screen displayLinkWithTarget]"/>
+    <variant name="CVDisplayLink"
+        summary="CVDisplayLink using CVDisplayLinkCreateWithCGDisplay"/>
+    <variant name="ExternalDisplayLink"
+        summary="ExternalDisplayLink using CADisplayLink in the Browser
+                 process"/>
+  </token>
+</histogram>
+
 <histogram name="Viz.ExternalBeginFrameSource.Interval" units="ms"
     expires_after="2026-09-18">
   <owner>lizeb@chromium.org</owner>
@@ -2425,21 +2545,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Viz.ExternalBeginFrameSourceMac.DisplayLink.Create"
-    enum="BooleanSuccess" expires_after="2026-05-01">
-  <owner>magchen@chromium.org</owner>
-  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
-  <summary>
-    The result of creating CVDisplaylink with CVDisplayLinkCreateWithCGDisplay
-    or CADisplayLink with [screen displayLinkWithTarget]. It does not track
-    ExternalDisplayLinkMac or Timer. This histogram is recorded each time a
-    DisplayLink is created in ExternalBeginFrameSourceMac,
-    ImageTransportSurfaceOverlayMacEGL, or DisplayLinkMacMojo. Replaced by
-    Viz.ExternalBeginFrameSourceMac.DisplayLink.Create2 as this histogram is
-    inflated by retires for CVDisplayLink when the initial creation fails.
-  </summary>
-</histogram>
-
 <histogram name="Viz.ExternalBeginFrameSourceMac.DisplayLink.Create2"
     enum="BooleanSuccess" expires_after="2027-03-30">
   <owner>magchen@chromium.org</owner>
@@ -2451,6 +2556,43 @@ chromium-metrics-reviews@google.com.
     time a DisplayLink is created in ExternalBeginFrameSourceMac,
     ImageTransportSurfaceOverlayMacEGL, or DisplayLinkMacMojo.
   </summary>
+</histogram>
+
+<histogram
+    name="Viz.ExternalBeginFrameSourceMac.TimeFromConstructionToFirstFrame{Source}"
+    units="ms" expires_after="2027-05-14">
+  <owner>magchen@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    The time elapsed from when ExternalBeginFrameSourceMac is constructed to
+    when the first OnDisplayLinkCallback or OnTimerTick is called. This measures
+    the latency to start the first frame using {Source}. This is not recorded if
+    a power event occurs before the first frame.
+  </summary>
+  <token key="Source">
+    <variant name="" summary="DisplayLink or Timer"/>
+    <variant name=".DisplayLink" summary="DisplayLink"/>
+    <variant name=".Timer" summary="Timer"/>
+  </token>
+</histogram>
+
+<histogram
+    name="Viz.ExternalBeginFrameSourceMac.TimeFromFirstNeedsBeginFramesToFirstFrame{Source}"
+    units="ms" expires_after="2027-05-14">
+  <owner>magchen@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    The time elapsed from when the first OnNeedsBeginFrames(true) is called to
+    when the first OnDisplayLinkCallback or OnTimerTick is called. This measures
+    the latency from the first request for frames to the first frame delivery
+    using {Source}. This is not recorded if a power event occurs before the
+    first frame.
+  </summary>
+  <token key="Source">
+    <variant name="" summary="DisplayLink or Timer"/>
+    <variant name=".DisplayLink" summary="DisplayLink"/>
+    <variant name=".Timer" summary="Timer"/>
+  </token>
 </histogram>
 
 <histogram name="Viz.FileDescriptorTracking.TimeToCompute" units="microseconds"

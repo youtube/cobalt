@@ -28,6 +28,7 @@
 #include "ui/base/ime/text_input_client.h"
 #include "ui/base/ime/text_input_type.h"
 #include "ui/base/mojom/menu_source_type.mojom-forward.h"
+#include "ui/color/color_variant.h"
 #include "ui/compositor/layer_tree_owner.h"
 #include "ui/events/gesture_event_details.h"
 #include "ui/events/keycodes/keyboard_codes.h"
@@ -212,11 +213,15 @@ class VIEWS_EXPORT Textfield : public View,
 
   // Gets/sets the text color to be used when painting the Textfield.
   SkColor GetTextColor() const;
-  void SetTextColor(SkColor color);
+  std::optional<ui::ColorId> text_color_id() const { return text_color_id_; }
+  void SetTextColorId(std::optional<ui::ColorId> color_id);
 
   // Gets/sets the background color to be used when painting the Textfield.
   SkColor GetBackgroundColor() const;
-  void SetBackgroundColor(SkColor color);
+  std::optional<ui::ColorVariant> background_color() const {
+    return background_color_;
+  }
+  void SetBackgroundColor(std::optional<ui::ColorVariant> color);
 
   // Getter/Setter methods for `is_background_enabled_` which controls
   // whether a background is drawn for this view.
@@ -225,12 +230,18 @@ class VIEWS_EXPORT Textfield : public View,
 
   // Gets/sets the selection text color to be used when painting the Textfield.
   SkColor GetSelectionTextColor() const;
-  void SetSelectionTextColor(SkColor color);
+  std::optional<ui::ColorId> selection_text_color_id() const {
+    return selection_text_color_id_;
+  }
+  void SetSelectionTextColorId(std::optional<ui::ColorId> color_id);
 
   // Gets/sets the selection background color to be used when painting the
   // Textfield.
   SkColor GetSelectionBackgroundColor() const;
-  void SetSelectionBackgroundColor(SkColor color);
+  std::optional<ui::ColorId> selection_background_color_id() const {
+    return selection_background_color_id_;
+  }
+  void SetSelectionBackgroundColorId(std::optional<ui::ColorId> color_id);
 
   // Gets/Sets whether or not the cursor is enabled.
   bool GetCursorEnabled() const;
@@ -250,9 +261,11 @@ class VIEWS_EXPORT Textfield : public View,
   std::u16string_view GetPlaceholderText() const;
   void SetPlaceholderText(std::u16string_view text);
 
-  void set_placeholder_text_color(SkColor color) {
-    placeholder_text_color_ = color;
+  void SetPlaceholderTextColorId(std::optional<ui::ColorId> color_id);
+  std::optional<ui::ColorId> placeholder_text_color_id() const {
+    return placeholder_text_color_id_;
   }
+  SkColor GetPlaceholderTextColor() const;
 
   void set_placeholder_font_list(const gfx::FontList& font_list) {
     placeholder_font_list_ = font_list;
@@ -425,6 +438,7 @@ class VIEWS_EXPORT Textfield : public View,
   void ConvertPointFromScreen(gfx::Point* point) override;
   void OpenContextMenu(const gfx::Point& anchor) override;
   void DestroyTouchSelection() override;
+  bool IsCommandIdEnabled(int command_id, bool can_paste) const override;
 
   // ui::SimpleMenuModel::Delegate overrides:
   bool IsCommandIdChecked(int command_id) const override;
@@ -513,6 +527,17 @@ class VIEWS_EXPORT Textfield : public View,
 
   [[nodiscard]] base::CallbackListSubscription AddTextChangedCallback(
       views::PropertyChangedCallback callback);
+
+  // Returns true if this textfield supports the system-wide Emoji menu item.
+  virtual bool SupportsEmoji() const;
+
+#if BUILDFLAG(IS_MAC)
+  // Returns true if this textfield should show editable context menu items.
+  virtual bool SupportsEditableContextMenuItems() const;
+
+  // Returns true if this textfield should support the "Look Up" menu item.
+  virtual bool SupportsLookUp() const;
+#endif
 
  protected:
   TextfieldModel* textfield_model() { return model_.get(); }
@@ -796,20 +821,14 @@ class VIEWS_EXPORT Textfield : public View,
   int minimum_width_in_chars_ = -1;
 
   // Colors which override default system colors.
-  // TODO(tluk): These should be updated to be ColorIds instead of SkColors.
-  std::optional<SkColor> text_color_;
-  std::optional<SkColor> background_color_;
-  std::optional<SkColor> selection_text_color_;
-  std::optional<SkColor> selection_background_color_;
+  std::optional<ui::ColorId> text_color_id_;
+  std::optional<ui::ColorVariant> background_color_;
+  std::optional<ui::ColorId> selection_text_color_id_;
+  std::optional<ui::ColorId> selection_background_color_id_;
 
-  // Text to display when empty.
+  // Text to display when empty and its color.
   std::u16string placeholder_text_;
-
-  // Placeholder text color.
-  // TODO(newcomer): Use NativeTheme to define different default placeholder
-  // text colors for chrome/CrOS when harmony is enabled by default
-  // (https://crbug.com/803279).
-  std::optional<SkColor> placeholder_text_color_;
+  std::optional<ui::ColorId> placeholder_text_color_id_;
 
   // The draw flags specified for |placeholder_text_|.
   int placeholder_text_draw_flags_;
@@ -981,7 +1000,7 @@ class VIEWS_EXPORT Textfield : public View,
 };
 
 BEGIN_VIEW_BUILDER(VIEWS_EXPORT, Textfield, View)
-VIEW_BUILDER_PROPERTY(SkColor, BackgroundColor)
+VIEW_BUILDER_PROPERTY(std::optional<ui::ColorVariant>, BackgroundColor)
 VIEW_BUILDER_PROPERTY(bool, BackgroundEnabled)
 VIEW_BUILDER_PROPERTY(TextfieldController*, Controller)
 VIEW_BUILDER_PROPERTY(bool, CursorEnabled)
@@ -991,12 +1010,13 @@ VIEW_BUILDER_PROPERTY(gfx::HorizontalAlignment, HorizontalAlignment)
 VIEW_BUILDER_PROPERTY(bool, Invalid)
 VIEW_BUILDER_PROPERTY(int, MinimumWidthInChars)
 VIEW_BUILDER_PROPERTY(std::u16string, PlaceholderText)
+VIEW_BUILDER_PROPERTY(std::optional<ui::ColorId>, PlaceholderTextColorId)
 VIEW_BUILDER_PROPERTY(bool, ReadOnly)
 VIEW_BUILDER_PROPERTY(gfx::Range, SelectedRange)
-VIEW_BUILDER_PROPERTY(SkColor, SelectionBackgroundColor)
-VIEW_BUILDER_PROPERTY(SkColor, SelectionTextColor)
+VIEW_BUILDER_PROPERTY(std::optional<ui::ColorId>, SelectionBackgroundColorId)
+VIEW_BUILDER_PROPERTY(std::optional<ui::ColorId>, SelectionTextColorId)
 VIEW_BUILDER_PROPERTY(std::u16string, Text)
-VIEW_BUILDER_PROPERTY(SkColor, TextColor)
+VIEW_BUILDER_PROPERTY(std::optional<ui::ColorId>, TextColorId)
 VIEW_BUILDER_PROPERTY(int, TextInputFlags)
 VIEW_BUILDER_PROPERTY(ui::TextInputType, TextInputType)
 VIEW_BUILDER_PROPERTY(bool, UseDefaultBorder)

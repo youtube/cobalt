@@ -590,6 +590,10 @@ IN_PROC_BROWSER_TEST_P(PDFExtensionJSInk2Test, Ink2Manager) {
   RunTestsInJsModule("ink2_manager_test.js", "test.pdf");
 }
 
+IN_PROC_BROWSER_TEST_P(PDFExtensionJSInk2Test, UndoRedoStack) {
+  RunTestsInJsModule("undo_redo_stack_test.js", "test.pdf");
+}
+
 IN_PROC_BROWSER_TEST_P(PDFExtensionJSInk2Test, Ink2AnnotationBrushMixin) {
   RunTestsInJsModule("ink2_annotation_brush_mixin_test.js", "test.pdf");
 }
@@ -660,9 +664,23 @@ IN_PROC_BROWSER_TEST_P(PDFExtensionJSInk2Test, Ink2TextAlignmentSelector) {
   RunTestsInJsModule("ink2_text_alignment_selector_test.js", "test.pdf");
 }
 
+IN_PROC_BROWSER_TEST_P(PDFExtensionJSInk2TextTest, Ink2TextBoxBasic) {
+  RunTestsInJsModule("ink2_text_box_basic_test.js", "test.pdf");
+}
+
 // TODO(crbug.com/440552067): Deflake and re-enable.
-IN_PROC_BROWSER_TEST_P(PDFExtensionJSInk2TextTest, DISABLED_Ink2TextBoxTest) {
-  RunTestsInJsModule("ink2_text_box_test.js", "test.pdf");
+IN_PROC_BROWSER_TEST_P(PDFExtensionJSInk2TextTest, DISABLED_Ink2TextBoxCommit) {
+  RunTestsInJsModule("ink2_text_box_commit_test.js", "test.pdf");
+}
+
+IN_PROC_BROWSER_TEST_P(PDFExtensionJSInk2TextTest, Ink2TextBoxKeyboard) {
+  RunTestsInJsModule("ink2_text_box_keyboard_test.js", "test.pdf");
+}
+
+// TODO(crbug.com/440552067): Deflake and re-enable.
+IN_PROC_BROWSER_TEST_P(PDFExtensionJSInk2TextTest,
+                       DISABLED_Ink2TextBoxViewport) {
+  RunTestsInJsModule("ink2_text_box_viewport_test.js", "test.pdf");
 }
 
 IN_PROC_BROWSER_TEST_P(PDFExtensionJSInk2TextTest, Ink2TextSidePanel) {

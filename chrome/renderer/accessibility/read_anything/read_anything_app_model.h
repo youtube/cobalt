@@ -648,6 +648,8 @@ class ReadAnythingAppModel {
   bool has_pending_selection() const { return has_pending_selection_; }
 
  private:
+  // TODO(crbug.com/513618559): Move text selection mapping algorithm logic
+  // into static utility methods / class.
   // An index for searching substrings within the flattened
   // |global_ax_tree_text_|. It uses a Suffix Array to find any string in O(log
   // N) time, where N is the length of the article.
@@ -673,19 +675,28 @@ class ReadAnythingAppModel {
     FindRange(std::u16string_view query) const;
   };
 
-  // Identifies all AXNodes that contribute to a given range from
-  // |global_ax_tree_text_| and creates MappingSegments with offsets relative to
-  // the distilled block.
-  // Args:
-  //  |ax_start|:  The start index of the match in |global_ax_tree_text|.
-  //  |ax_end|:    The end index (exclusive) in |global_ax_tree_text|.
-  //  |block_internal_offset|: The starting character position of this match
-  //                          within the rendered Readability block (usually 0
-  //                          for whole-block matches).
-  std::vector<MappingSegment> CreateSegmentsForMatch(
-      size_t ax_start,
-      size_t ax_end,
-      size_t block_internal_offset);
+  // A confirmed alignment point between a distilled Readability block and a
+  // character range in the global flattened AXTree text.
+  struct AlignmentAnchor {
+    size_t block_index;
+    size_t block_start;
+    size_t block_end;
+    size_t ax_start;
+    size_t ax_end;
+  };
+
+  // Represents a specific slice of text within a distilled Readability block
+  // that is still waiting to be mapped. Used by GapSubstring alignment to
+  // narrow down the search as anchors are "pinned".
+  struct TextRange {
+    size_t block_index;
+    // Character offsets within readability_text_blocks_[block_index].
+    size_t start;
+    size_t end;
+
+    size_t length() const { return end > start ? end - start : 0; }
+    bool empty() const { return length() == 0; }
+  };
 
   struct SelectionEndpoint {
     enum class Source {
@@ -735,14 +746,88 @@ class ReadAnythingAppModel {
 
   // Identifies blocks that appear exactly once in both the original AXTree
   // and the distilled Readability output.
-  void FindGloballyUniqueBlocks(
+  std::vector<AlignmentAnchor> FindGloballyUniqueBlocks(
       const std::vector<std::u16string>& blocks,
       const SuffixArray& index,
       const base::flat_map<std::u16string_view, int>& block_counts);
 
+  // Filters alignment anchor candidates using the Longest Increasing
+  // Subsequence (LIS) algorithm based on AXTree positions. Establishing a
+  // monotonic order is required for the recursive gap alignment step in the
+  // text selection mapping algorithm, as it  ensures that the search ranges
+  // between anchors are valid and sequential.
+  std::vector<AlignmentAnchor> FilterMonotonicAnchors(
+      std::vector<AlignmentAnchor> candidates);
+
+  // Recursively fills the gaps between established anchors by searching for the
+  // longest common unique substrings.
+  void GapSubstringAlignment(const std::vector<std::u16string>& blocks,
+                             const SuffixArray& index,
+                             const std::vector<AlignmentAnchor>& major_anchors);
+
+  // Converts the gap search space from block indices into unmapped TextRanges
+  // to trigger AlignSubstring for the defined gap.
+  void AlignGap(const std::vector<std::u16string>& blocks,
+                const SuffixArray& index,
+                size_t block_start,
+                size_t block_end,
+                size_t ax_start,
+                size_t ax_end);
+
+  // Recursively finds and maps the Longest Locally Unique Common Substring
+  // (LULCS) within a specific distilled and AXTree gap.
+  void AlignSubstring(const std::vector<std::u16string>& blocks,
+                      const SuffixArray& index,
+                      std::vector<TextRange> distilled_ranges,
+                      size_t ax_start,
+                      size_t ax_end);
+
+  // Sequentially maps the longest possible substrings for any remaining text
+  // within a gap.
+  void AlignRelativeOrder(const std::vector<std::u16string>& blocks,
+                          const SuffixArray& index,
+                          std::vector<TextRange> distilled_ranges,
+                          size_t ax_start,
+                          size_t ax_end);
+
+  // Searches for the Longest Locally Unique Common Substring (LULCS) that
+  // appears exactly once in the AXTree gap [ax_start, ax_end).
+  //
+  // The algorithm iterates through unmapped blocks, using binary search on
+  // substring length and the Suffix Array index to find global occurrences
+  // in O(log N) time. It then filters for local uniqueness within the
+  // current gap, pruning candidates shorter than the current best match.
+  //
+  // Complexity: O(G * L * log L * log N) average case, where G is the number
+  // of ranges, L is block length, and N is article length.
+  AlignmentAnchor FindLongestLocallyUniqueSubstring(
+      const std::vector<std::u16string>& blocks,
+      const SuffixArray& index,
+      const std::vector<TextRange>& distilled_ranges,
+      size_t ax_start,
+      size_t ax_end);
+
+  // Identifies all AXNodes that contribute to a given range from
+  // |global_ax_tree_text_| and creates MappingSegments with offsets relative to
+  // the distilled block.
+  // Args:
+  //  |ax_start|:  The start index of the match in |global_ax_tree_text|.
+  //  |ax_end|:    The end index (exclusive) in |global_ax_tree_text|.
+  //  |block_internal_offset|: The starting character position of this match
+  // within the rendered Readability block (usually 0 for whole-block matches).
+  std::vector<MappingSegment> CreateSegmentsForMatch(
+      size_t ax_start,
+      size_t ax_end,
+      size_t block_internal_offset);
+
   // Traverses the AXTree to create a flattened text representation for the text
   // selection mapping algorithm.
   void FlattenAXTree(ui::AXSerializableTree* tree);
+
+  // Checks if a candidate AXTree range overlaps with text that has already
+  // been mapped to a distilled block. This prevents multiple mappings to the
+  // same page's text.
+  bool IsAXRangeOccupied(size_t ax_start, size_t ax_end) const;
 
   // State.
   std::map<ui::AXTreeID, std::unique_ptr<AXTreeInfo>> tree_infos_;
@@ -900,6 +985,21 @@ class ReadAnythingAppModel {
   // position within the global string. This is used to translate mapping
   // results back into AXTree coordinates.
   std::vector<AXNodeSegment> flattened_ax_tree_nodes_;
+
+  // Keeps track of which parts of the |global_ax_tree_text_| have already been
+  // assigned to a full distilled block. Needed to ensure GapSubstringAlignment
+  // doesn't map something to already mapped text in a gap (Ex: a shuffled
+  // unique block not in the monotonic anchor list).
+  // Each pair is [start, end)
+  std::vector<std::pair<size_t, size_t>> occupied_ax_ranges_;
+
+  // The minimum number of characters required for a substring to be considered
+  // an anchor during GapSubstringAlignment mapping.
+  static constexpr size_t kMinAnchorLength = 15;
+
+  // The minimum number of characters required for a substring to be considered
+  // valid during RelativeOrderAlignment mapping.
+  static constexpr size_t kMinSequentialMatchLength = 5;
 
   // The distillation method that will be used for the next content update.
   DistillationMethod next_distillation_method_;

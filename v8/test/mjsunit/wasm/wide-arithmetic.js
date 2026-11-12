@@ -62,6 +62,24 @@ function testAdd128() {
       kNumericPrefix, kExprI64Add128,
     ]);
 
+  builder.addFunction(
+    "add128_alias3_overwrite",
+    makeSig([kWasmI64, kWasmI64, kWasmI64], [kWasmI64, kWasmI64])
+  )
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprI64Const, 0,
+      kExprI64Add,
+      kExprLocalTee, 0,
+      kExprLocalGet, 0,
+      kExprI64Const, 100,
+      kExprLocalSet, 0,
+      kExprLocalGet, 1,
+      kExprLocalGet, 2,
+      kNumericPrefix, kExprI64Add128,
+    ]);
+
   builder.addFunction("add128_alias2", makeSig([kWasmI64, kWasmI64, kWasmI64], [kWasmI64, kWasmI64]))
     .exportFunc()
     .addBody([
@@ -153,6 +171,9 @@ function testAdd128() {
   let add128_alias3 = instance.exports.add128_alias3;
   assertEquals([10n, 15n], add128_alias3(5n, 10n));
 
+  let add128_alias3_overwrite = instance.exports.add128_alias3_overwrite;
+  assertEquals([3n, 4n], add128_alias3_overwrite(1n, 2n, 3n));
+
   let add128_alias2 = instance.exports.add128_alias2;
   assertEquals([15n, 20n], add128_alias2(5n, 10n, 15n));
 
@@ -173,6 +194,24 @@ function testSub128() {
     kExprLocalGet, 2, kExprLocalGet, 3,
     kNumericPrefix, kExprI64Sub128,
   ]);
+
+  builder.addFunction(
+    "sub128_alias3_overwrite",
+    makeSig([kWasmI64, kWasmI64, kWasmI64], [kWasmI64, kWasmI64])
+  )
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprI64Const, 0,
+      kExprI64Add,
+      kExprLocalTee, 0,
+      kExprLocalGet, 0,
+      kExprI64Const, 100,
+      kExprLocalSet, 0,
+      kExprLocalGet, 1,
+      kExprLocalGet, 2,
+      kNumericPrefix, kExprI64Sub128,
+    ]);
   let instance;
   try {
     instance = builder.instantiate();
@@ -196,6 +235,9 @@ function testSub128() {
   assertEquals([-1n, 0x7fffffffffffffffn],
     sub128(0n, -0x8000000000000000n, 1n, 0n)
   );
+
+  let sub128_alias3_overwrite = instance.exports.sub128_alias3_overwrite;
+  assertEquals([-1n, -3n], sub128_alias3_overwrite(1n, 2n, 3n));
 }
 
 function testMulWideS() {
@@ -222,6 +264,18 @@ function testMulWideS() {
       kExprLocalGet, 1,
       kExprI64LoadMem, 3, 1,
       kNumericPrefix, kExprI64MulWideS,
+    ]);
+
+  builder.addFunction("mulWideSVolatileCache", makeSig([], []))
+    .exportFunc()
+    .addBody([
+      kExprI32Const, 0,
+      kExprI32LoadMem, 0, 0,
+      kExprDrop,
+      kExprI64Const, 0,
+      kExprI64Const, 0,
+      kNumericPrefix, kExprI64MulWideS,
+      kExprDrop, kExprDrop
     ]);
 
   let instance;
@@ -258,6 +312,9 @@ function testMulWideS() {
 
   let mulWideSLoad = instance.exports.mulWideSLoad;
   assertEquals([20n, 0n], mulWideSLoad(-4n, 0));
+
+  let mulWideSVolatileCache = instance.exports.mulWideSVolatileCache;
+  mulWideSVolatileCache();
 }
 
 function testMulWideU() {
@@ -284,6 +341,18 @@ function testMulWideU() {
       kExprLocalGet, 1,
       kExprI64LoadMem, 3, 1,
       kNumericPrefix, kExprI64MulWideU,
+    ]);
+
+  builder.addFunction("mulWideUVolatileCache", makeSig([], []))
+    .exportFunc()
+    .addBody([
+      kExprI32Const, 0,
+      kExprI32LoadMem, 0, 0,
+      kExprDrop,
+      kExprI64Const, 0,
+      kExprI64Const, 0,
+      kNumericPrefix, kExprI64MulWideU,
+      kExprDrop, kExprDrop
     ]);
 
   let instance;
@@ -315,6 +384,9 @@ function testMulWideU() {
 
   let mulWideULoad = instance.exports.mulWideULoad;
   assertEquals([20n, -9n], mulWideULoad(-4n, 0));
+
+  let mulWideUVolatileCache = instance.exports.mulWideUVolatileCache;
+  mulWideUVolatileCache();
 }
 
 testAdd128();

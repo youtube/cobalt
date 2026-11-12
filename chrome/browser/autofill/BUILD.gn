@@ -165,8 +165,8 @@ static_library("autofill") {
       "//third_party/libaddressinput",
       "//ui/android",
 
-      # TODO(crbug.com/352191610): Use //chrome/browser instead after fixing cyclic
-      # dependency.
+      # TODO(crbug.com/352191610): Use //chrome/browser instead after fixing
+      # cyclic dependency.
       "//chrome/browser/page_info:page_info_buildflags",
     ]
   } else {
@@ -245,7 +245,9 @@ source_set("browser_tests") {
       "autofill_browsertest.cc",
       "autofill_metrics_browsertest.cc",
       "autofill_server_browsertest.cc",
+      "email_verification_browsertest.cc",
       "form_structure_browsertest.cc",
+      "omnibox_autofill_delegate_browsertest.cc",
     ]
   }
 

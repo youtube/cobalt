@@ -120,7 +120,8 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(AtomicLoadWord32)                                      \
   V(AtomicStoreWord8)                                      \
   V(AtomicStoreWord16)                                     \
-  V(AtomicStoreWord32)
+  V(AtomicStoreWord32)                                     \
+  IF_SANDBOX(V, ArchLoadTrustedPointer)
 
 // Target-specific opcodes that specify which assembly sequence to emit.
 // Most opcodes specify a single instruction.
@@ -313,6 +314,7 @@ inline int32_t LaneSizeBits(LaneSize size) {
     case LaneSize::kL64:
       return 64;
   }
+  UNREACHABLE();
 }
 
 inline LaneSize LaneSizeFromBits(uint8_t width) {
@@ -330,6 +332,21 @@ inline LaneSize LaneSizeFromBits(uint8_t width) {
   }
 }
 
+enum class VectorLength : uint8_t { kV64 = 0, kV128 = 1, kV256 = 2, kV512 = 3 };
+
+inline int32_t VectorLengthBits(VectorLength length) {
+  switch (length) {
+    case VectorLength::kV64:
+      return 64;
+    case VectorLength::kV128:
+      return 128;
+    case VectorLength::kV256:
+      return 256;
+    case VectorLength::kV512:
+      return 512;
+  }
+}
+
 static constexpr int kLazyDeoptOnThrowSentinel = -1;
 
 // The InstructionCode is an opaque, target-specific integer that encodes what
@@ -343,7 +360,7 @@ using InstructionCode = uint32_t;
 // other information into a single InstructionCode which is stored as part of
 // the instruction.
 //
-// All instructions have the first five fields, using up the lower 23 bits.
+// All instructions (*) have the first five fields, using up the lower 23 bits.
 // The remaining 9 bits are accessible in the MiscField, which the other
 // instructions types can overlay specific data:
 // -- Generic
@@ -386,6 +403,13 @@ using InstructionCode = uint32_t;
 // BranchHint                   | 1
 // Undefined                    | 6
 //
+// (*) Exception: ArchLoadTrustedPointer uses the following layout:
+// ArchOpcode                   | 10 bits
+// TagRangeFirst                | 8
+// TagRangeLast                 | 8
+// <unused>                     | 4
+// AccessMode                   | 2
+//
 using ArchOpcodeField = base::BitField<ArchOpcode, 0, 10>;
 static_assert(ArchOpcodeField::is_valid(kLastArchOpcode),
               "All opcodes must fit in the 10-bit ArchOpcodeField.");
@@ -412,7 +436,6 @@ using RecordWriteModeField = FlagsConditionField::Next<RecordWriteMode, 3>;
 
 // LaneSizeField and AccessModeField are helper types to encode/decode a lane
 // size, an access mode, or both inside the overlapping MiscField.
-enum VectorLength { kV128 = 0, kV256 = 1, kV512 = 3 };
 using LaneSizeField = FlagsConditionField::Next<LaneSize, 2>;
 using VectorLengthField = LaneSizeField::Next<VectorLength, 2>;
 
@@ -468,6 +491,19 @@ using MiscField = FlagsConditionField::Next<int, 9>;
 
 using StackCheckField = FlagsConditionField::Next<StackCheckKind, 2>;
 using BranchHintField = StackCheckField::Next<bool, 1>;
+
+#if V8_ENABLE_SANDBOX
+using IndirectPointerTagRangeFirstField =
+    ArchOpcodeField::Next<IndirectPointerTag, 8>;
+using IndirectPointerTagRangeLastField =
+    IndirectPointerTagRangeFirstField::Next<IndirectPointerTag, 8>;
+static_assert(
+    IndirectPointerTagRangeFirstField::is_valid(kLastIndirectPointerTag));
+static_assert(
+    IndirectPointerTagRangeLastField::is_valid(kLastIndirectPointerTag));
+static_assert(IndirectPointerTagRangeLastField::kLastUsedBit <
+              AccessModeField::kShift);
+#endif  // V8_ENABLE_SANDBOX
 
 // ParamField and FPParamField represent the general purpose and floating point
 // parameter counts of a direct call into C and are given 5 bits each, which

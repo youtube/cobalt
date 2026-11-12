@@ -224,4 +224,22 @@ func addServerPaddingTests() {
 			"-server-supports-padding",
 		},
 	})
+
+	// Runner requests padding, and then does a resumption handshake. Shim should
+	// send server padding on initial handshake, but not resumption handshake.
+	testCases = append(testCases, testCase{
+		name:          "ServerPaddingServer-ResumeSession",
+		testType:      serverTest,
+		resumeSession: true,
+		config: Config{
+			MinVersion:           VersionTLS13,
+			RequestServerPadding: ptrTo(uint16(10)),
+			Bugs: ProtocolBugs{
+				ExpectedServerPadding: true,
+			},
+		},
+		flags: []string{
+			"-server-supports-padding",
+		},
+	})
 }

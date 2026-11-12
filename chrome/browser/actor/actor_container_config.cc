@@ -17,6 +17,7 @@
 #include "base/strings/string_util.h"
 #include "base/types/expected.h"
 #include "base/types/expected_macros.h"
+#include "base/types/optional_ref.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "url/gurl.h"
@@ -38,11 +39,8 @@ base::expected<std::string_view, std::string_view> ConvertProtocol(
     case optimization_guide::proto::Protocol::PROTOCOL_WS:
       return base::ok(url::kWsScheme);
     case optimization_guide::proto::Protocol::PROTOCOL_UNKNOWN:
-      return base::unexpected("Protocol not set");
-    // `default` is used because Protocol C++ proto has min/max sentinel values
-    // as well as unknown.
     default:
-      NOTREACHED();
+      return base::unexpected("Unknown protocol");
   }
 }
 
@@ -86,11 +84,21 @@ ActorContainerConfig::ActorContainerConfig(ActorContainerConfig&&) = default;
 
 ActorContainerConfig::~ActorContainerConfig() = default;
 
-ActorContainerConfig::ActorContainerConfig(
-    const optimization_guide::proto::AgentContainerConfig& config) {
+void ActorContainerConfig::Assign(
+    base::optional_ref<const optimization_guide::proto::AgentContainerConfig>
+        config) {
+  if (assign_attempted_) {
+    return;
+  }
+  assign_attempted_ = true;
   CHECK(!rules_.has_value());
+
+  if (!config.has_value()) {
+    return;
+  }
+
   rules_.emplace();
-  for (const auto& rule_proto : config.location_rules()) {
+  for (const auto& rule_proto : config->location_rules()) {
     base::expected<ActorContainerConfig::LocationType, std::string_view>
         destination_result = ConvertLocation(rule_proto.location());
     if (!destination_result.has_value()) {
@@ -112,14 +120,6 @@ ActorContainerConfig::ActorContainerConfig(
   }
 }
 
-void ActorContainerConfig::Assign(const ActorContainerConfig& other) {
-  if (assign_attempted_ || IsActive()) {
-    return;
-  }
-  assign_attempted_ = true;
-  rules_ = std::move(other.rules_);
-}
-
 base::expected<ActorContainerConfig::LocationType, std::string_view>
 ActorContainerConfig::ConvertLocation(
     const optimization_guide::proto::Location& location) {
@@ -132,6 +132,8 @@ ActorContainerConfig::ConvertLocation(
       return ConvertOrigin(location.origin());
     case optimization_guide::proto::Location::IDENTIFIER_ONEOF_NOT_SET:
       return base::unexpected("Location missing value");
+    default:
+      return base::unexpected("Unknown location type");
   }
 }
 

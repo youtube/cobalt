@@ -114,7 +114,7 @@ std::string AudioDecoderConfig::AsHumanReadableString() const {
     << ", discard decoder delay: "
     << base::ToString(should_discard_decoder_delay())
     << ", target_output_channel_layout: "
-    << ChannelLayoutToString(target_output_channel_layout())
+    << ChannelLayoutToString(target_output_channel_layout().channel_layout())
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     << ", mime_type: " << mime_type()
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

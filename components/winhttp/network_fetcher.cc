@@ -75,6 +75,10 @@ NetworkFetcher::NetworkFetcher(
 
 NetworkFetcher::~NetworkFetcher() {
   DVLOG(3) << __func__;
+  if (request_handle_.is_valid()) {
+    ::WinHttpSetStatusCallback(request_handle_.get(), nullptr,
+                               WINHTTP_CALLBACK_FLAG_ALL_NOTIFICATIONS, 0);
+  }
 }
 
 void NetworkFetcher::HandleClosing() {
@@ -92,14 +96,20 @@ void NetworkFetcher::Close() {
 
 void NetworkFetcher::CompleteFetch() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!fetch_complete_callback_) {
+    return;
+  }
+  const int reported_response_code =
+      FAILED(net_error_) ? net_error_ : response_code_;
   if (!file_.IsValid()) {
-    std::move(fetch_complete_callback_).Run(response_code_);
+    std::move(fetch_complete_callback_).Run(reported_response_code);
     return;
   }
   base::ThreadPool::PostTaskAndReply(
       FROM_HERE, kTaskTraits,
-      base::BindOnce([](base::File& file) { file.Close(); }, std::ref(file_)),
-      base::BindOnce(&NetworkFetcher::CompleteFetch, this));
+      base::BindOnce([](base::File file) { file.Close(); }, std::move(file_)),
+      base::BindOnce(std::move(fetch_complete_callback_),
+                     reported_response_code));
 }
 
 HRESULT NetworkFetcher::QueryHeaderString(const std::wstring& name,
@@ -151,6 +161,7 @@ void NetworkFetcher::PostRequest(
     FetchProgressCallback fetch_progress_callback,
     FetchCompleteCallback fetch_complete_callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(url_.is_empty());
 
   url_ = url;
   fetch_started_callback_ = std::move(fetch_started_callback);
@@ -178,6 +189,7 @@ base::OnceClosure NetworkFetcher::DownloadToFile(
     FetchProgressCallback fetch_progress_callback,
     FetchCompleteCallback fetch_complete_callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(url_.is_empty());
 
   url_ = url;
   file_path_ = file_path;

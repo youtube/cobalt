@@ -35,15 +35,10 @@ namespace webrtc {
 
 namespace {
 
-// Create the voice codec configurations. Do not allocate payload types at this
-// time.
 std::vector<CodecConfiguration> CollectAudioCodecConfigurations(
-    const std::vector<AudioCodecSpec>& specs) {
+    const std::vector<AudioCodecSpec>& specs,
+    bool add_auxiliary_codecs) {
   std::vector<CodecConfiguration> out;
-
-  // Audio RED is handled by the engine, not the factory, and is always
-  // available for Opus.
-  bool has_red = true;
 
   // Only generate CN payload types for these clockrates:
   std::map<int, bool, std::greater<int>> generate_cn = {{8000, false}};
@@ -51,7 +46,7 @@ std::vector<CodecConfiguration> CollectAudioCodecConfigurations(
   std::map<int, bool, std::greater<int>> generate_dtmf = {{8000, false},
                                                           {48000, false}};
 
-  for (const auto& spec : specs) {
+  for (const AudioCodecSpec& spec : specs) {
     if (absl::EqualsIgnoreCase(spec.format.name, kRedCodecName)) {
       continue;
     }
@@ -63,42 +58,48 @@ std::vector<CodecConfiguration> CollectAudioCodecConfigurations(
           FeedbackParam(kRtcpFbParamTransportCc, kParamValueEmpty));
     }
 
-    if (spec.info.allow_comfort_noise) {
-      // Generate a CN entry if the decoder allows it and we support the
-      // clockrate.
-      auto cn = generate_cn.find(spec.format.clockrate_hz);
-      if (cn != generate_cn.end()) {
-        cn->second = true;
+    if (add_auxiliary_codecs) {
+      if (spec.info.allow_comfort_noise) {
+        // Generate a CN entry if the decoder allows it and we support the
+        // clockrate.
+        auto cn = generate_cn.find(spec.format.clockrate_hz);
+        if (cn != generate_cn.end()) {
+          cn->second = true;
+        }
+      }
+
+      // Generate a telephone-event entry if we support the clockrate.
+      auto dtmf = generate_dtmf.find(spec.format.clockrate_hz);
+      if (dtmf != generate_dtmf.end()) {
+        dtmf->second = true;
       }
     }
 
-    // Generate a telephone-event entry if we support the clockrate.
-    auto dtmf = generate_dtmf.find(spec.format.clockrate_hz);
-    if (dtmf != generate_dtmf.end()) {
-      dtmf->second = true;
-    }
-
-    if (has_red && config.codec.name == kOpusCodecName) {
+    if (config.codec.name == kOpusCodecName) {
+      // Audio RED is handled by the engine, not the factory, and is always
+      // available for Opus.
       config.resiliency.red = true;
     }
     out.push_back(config);
   }
 
-  // Add CN codecs after "proper" audio codecs.
-  for (const auto& cn : generate_cn) {
-    if (cn.second) {
-      CodecConfiguration cn_config;
-      cn_config.codec = CreateAudioCodec({kCnCodecName, cn.first, 1});
-      out.push_back(cn_config);
+  if (add_auxiliary_codecs) {
+    // Add CN codecs after "proper" audio codecs.
+    for (const auto& cn : generate_cn) {
+      if (cn.second) {
+        CodecConfiguration cn_config;
+        cn_config.codec = CreateAudioCodec({kCnCodecName, cn.first, 1});
+        out.push_back(cn_config);
+      }
     }
-  }
 
-  // Add telephone-event codecs last.
-  for (const auto& dtmf : generate_dtmf) {
-    if (dtmf.second) {
-      CodecConfiguration dtmf_config;
-      dtmf_config.codec = CreateAudioCodec({kDtmfCodecName, dtmf.first, 1});
-      out.push_back(dtmf_config);
+    // Add telephone-event codecs last.
+    for (const auto& dtmf : generate_dtmf) {
+      if (dtmf.second) {
+        CodecConfiguration dtmf_config;
+        dtmf_config.codec = CreateAudioCodec({kDtmfCodecName, dtmf.first, 1});
+        out.push_back(dtmf_config);
+      }
     }
   }
   return out;
@@ -111,12 +112,14 @@ std::vector<CodecConfiguration> AudioCodecConfigurationsFromFactory(
   RTC_DCHECK(is_sender || voice.decoder_factory()) << "No decoder factory";
   return CollectAudioCodecConfigurations(
       is_sender ? voice.encoder_factory()->GetSupportedEncoders()
-                : voice.decoder_factory()->GetSupportedDecoders());
+                : voice.decoder_factory()->GetSupportedDecoders(),
+      voice.NeedsAuxiliaryCodecsAdded());
 }
 
 std::vector<CodecConfiguration> CollectVideoCodecConfigurations(
     const std::vector<SdpVideoFormat>& formats,
     bool rtx_enabled,
+    bool add_auxiliary_codecs,
     const FieldTrialsView& trials) {
   if (formats.empty()) {
     return {};
@@ -127,7 +130,7 @@ std::vector<CodecConfiguration> CollectVideoCodecConfigurations(
   bool has_flexfec = false;
   bool has_rtx = false;
 
-  for (const auto& format : formats) {
+  for (const SdpVideoFormat& format : formats) {
     if (absl::EqualsIgnoreCase(format.name, kRedCodecName)) {
       has_red = true;
     } else if (absl::EqualsIgnoreCase(format.name, kUlpfecCodecName)) {
@@ -140,7 +143,7 @@ std::vector<CodecConfiguration> CollectVideoCodecConfigurations(
   }
 
   std::vector<CodecConfiguration> out;
-  for (const auto& format : formats) {
+  for (const SdpVideoFormat& format : formats) {
     Codec codec = CreateVideoCodec(format);
     if (codec.IsResiliencyCodec()) {
       continue;
@@ -150,8 +153,7 @@ std::vector<CodecConfiguration> CollectVideoCodecConfigurations(
 
     CodecConfiguration config;
     config.codec = codec;
-    config.codec.id = PayloadType::NotSet();
-    if (rtx_enabled && has_rtx) {
+    if (rtx_enabled && (has_rtx || add_auxiliary_codecs)) {
       Codec::ResiliencyType resiliency_type = codec.GetResiliencyType();
       if (resiliency_type != Codec::ResiliencyType::kFlexfec &&
           resiliency_type != Codec::ResiliencyType::kUlpfec) {
@@ -160,7 +162,8 @@ std::vector<CodecConfiguration> CollectVideoCodecConfigurations(
     }
     config.resiliency.red = has_red;
     config.resiliency.ulpfec = has_ulpfec;
-    if (trials.IsEnabled("WebRTC-FlexFEC-03-Advertised")) {
+    if (trials.IsEnabled("WebRTC-FlexFEC-03-Advertised") ||
+        trials.IsEnabled("WebRTC-FlexFEC-03")) {
       config.resiliency.flexfec = has_flexfec;
     }
     out.push_back(config);
@@ -173,13 +176,15 @@ std::vector<CodecConfiguration> VideoCodecConfigurationsFromFactory(
     bool is_sender,
     bool rtx_enabled,
     const FieldTrialsView& trials) {
-  return CollectVideoCodecConfigurations(video.GetSupportedFormats(!is_sender),
-                                         rtx_enabled, trials);
+  return CollectVideoCodecConfigurations(
+      video.GetSupportedFormats(!is_sender), rtx_enabled,
+      video.NeedsAuxiliaryCodecsAdded(), trials);
 }
 
 Codecs CodecsFromConfigurations(
     const std::vector<CodecConfiguration>& configurations,
-    MediaType type) {
+    MediaType type,
+    bool rtx_enabled) {
   Codecs out;
   flat_set<std::string> shared_added;
   for (const auto& config : configurations) {
@@ -195,7 +200,9 @@ Codecs CodecsFromConfigurations(
       if (config.resiliency.red && shared_added.insert(kRedCodecName).second) {
         out.push_back(CreateVideoCodec(kRedCodecName));
         // Video RED also gets an RTX codec.
-        out.push_back(CreateVideoCodec(PayloadType::NotSet(), kRtxCodecName));
+        if (rtx_enabled) {
+          out.push_back(CreateVideoCodec(PayloadType::NotSet(), kRtxCodecName));
+        }
       }
       if (config.resiliency.ulpfec &&
           shared_added.insert(kUlpfecCodecName).second) {
@@ -248,7 +255,7 @@ TypedCodecVendor::TypedCodecVendor(const MediaEngineInterface* absl_nonnull
           media_engine->video(), is_sender, rtx_enabled, trials);
     }
     codecs_ = CodecList::CreateFromTrustedData(
-        CodecsFromConfigurations(configurations_, type));
+        CodecsFromConfigurations(configurations_, type, rtx_enabled));
   } else {
     codecs_ = CodecList::CreateFromTrustedData(
         GetCodecs(media_engine, type, is_sender, rtx_enabled));

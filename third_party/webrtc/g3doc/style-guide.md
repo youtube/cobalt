@@ -1,6 +1,6 @@
 <!-- go/cmark -->
 
-<!--* freshness: {owner: 'danilchap' reviewed: '2025-10-28'} *-->
+<!--* freshness: {owner: 'danilchap' reviewed: '2026-05-15'} *-->
 
 # WebRTC coding style guide
 
@@ -164,10 +164,6 @@ The following string building tools are NOT recommended:
   speed, not code size, and have significant code size overhead.
 - [`std::strcat`][std-strcat]. It is too easy to create buffer overflows.
 
-### Callbacks
-
-Prefer `webrtc::CallbackList`, and manage thread safety yourself.
-
 ### Smart pointers
 
 The following smart pointer types are recommended:
@@ -194,10 +190,12 @@ more.
 ### `std::function`
 
 `std::function` is allowed, but remember that it's not the right tool for every
-occasion. Prefer to use interfaces when that makes sense, and consider
-`webrtc::FunctionView` for cases where the callee will not save the function
-object. Prefer `absl::AnyInvocable` over `std::function` when you can accomplish
-the task by moving the callable instead of copying it.
+occasion. Prefer to use interfaces when that makes sense.
+
+- Prefer `webrtc::FunctionView` for cases where the callee will not save the
+function object.
+- Prefer `absl::AnyInvocable` when you can accomplish the task by moving the
+callable instead of copying it.
 
 ### Forward declarations
 
@@ -268,8 +266,9 @@ configuration, only use the following [GN templates][gn-templ].
 
 | instead of | use |
 |------------------|-----------------------------------------------------------------------------------------|
-| `executable` | `rtc_executable` `shared_library` | `rtc_shared_library` |
-| `source_set` | `rtc_source_set` (only for header only libraries, for everything else use `rtc_library`) |
+| `executable` | `rtc_executable` |
+| `shared_library` | `rtc_shared_library` |
+| `source_set` | `rtc_library` (for header only libraries you may use `rtc_source_set`) |
 | `static_library` | `rtc_static_library` (use `rtc_library` unless you really need `rtc_static_library`) |
 | `test` | `rtc_test` |
 
@@ -319,10 +318,6 @@ When combined with the `-Wundef` compiler option, this produces compile time
 warnings if preprocessor symbols are misspelled, or used without corresponding
 build rules to set them.
 
-### Markdown formatting
-
-Markdown formatting is enabled by adding .style.mdformat to the root, which
-means that all changes to .md files will be reformatted by "git cl format".
 
 [abseil]: https://abseil.io/about/
 [absl_deprecate_and_inline]: https://source.chromium.org/chromium/chromium/src/+/main:third_party/abseil-cpp/absl/base/macros.h?q=ABSL_DEPRECATE_AND_INLINE

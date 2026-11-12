@@ -7,6 +7,19 @@ import("//components/metrics/generate_expired_histograms_array.gni")
 import("//extensions/buildflags/buildflags.gni")
 
 # TODO(b/504980566): Further modularize //chrome/browser/metrics.
+if (!is_android) {
+  # Header-only target so downstream targets can include
+  # browser_activity_watcher.h without depending on all of :metrics.
+  source_set("browser_activity_watcher") {
+    public = [ "browser_activity_watcher.h" ]
+    public_deps = [
+      "//base",
+      "//chrome/browser/ui/browser_window",
+      "//chrome/browser/ui/tabs:tab_strip_model_observer",
+    ]
+  }
+}
+
 source_set("metrics") {
   public = [
     "accessibility_state_provider.h",
@@ -39,6 +52,7 @@ source_set("metrics") {
     "//base",
     "//chrome/browser:chrome_browser_field_trials",
     "//chrome/browser:main_extra_parts",
+    "//chrome/browser:memory_details",
     "//chrome/browser/policy",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/resource_coordinator:mojo_bindings",
@@ -75,7 +89,6 @@ source_set("metrics") {
 
   if (!is_android) {
     public += [
-      "browser_activity_watcher.h",
       "desktop_platform_features_metrics_provider.h",
       "desktop_session_duration/desktop_profile_session_durations_service.h",
       "desktop_session_duration/desktop_profile_session_durations_service_factory.h",
@@ -254,6 +267,7 @@ source_set("impl") {
   deps = [
     "//build/config/compiler:compiler_buildflags",
     "//chrome/browser:browser_process_platform_part",
+    "//chrome/browser:chrome_browser_main",
     "//chrome/browser:flags",
     "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/devtools",
@@ -285,7 +299,6 @@ source_set("impl") {
     "//chrome/browser/upgrade_detector",
     "//components/activity_reporter",
     "//components/crash/core/app",
-    "//components/enterprise/browser/groups:prefs",
     "//components/metrics:component_metrics",
     "//components/metrics/demographics",
     "//components/metrics/private_metrics",
@@ -351,7 +364,9 @@ source_set("impl") {
       "usage_scenario/video_capture_event_provider.cc",
     ]
     deps += [
+      ":browser_activity_watcher",
       "//chrome/browser/performance_manager/public/user_tuning",
+      "//chrome/browser/ui/location_bar",
       "//chrome/browser/ui/performance_controls",
       "//chrome/browser/ui/tabs",
       "//chrome/browser/ui/tabs:features",
@@ -399,6 +414,7 @@ source_set("impl") {
       "usertype_by_devicetype_metrics_provider.cc",
     ]
     deps += [
+      "//chrome/browser:chrome_shelf_metrics_provider",
       "//chrome/browser/ash/arc",
       "//chrome/browser/ash/arc/vmm",
       "//chrome/browser/ash/login",

@@ -1,5 +1,7 @@
 # Payload type allocation redesign
 
+The bug associated with this work is webrtc:360058654
+
 ## Background: What a payload type is
 
 The payload type is a property of a codec that is established between a sender
@@ -116,21 +118,25 @@ the PT of the codec it refers to.
 
 ## Current implementation status
 
-The new strategy is implemented for audio codecs. Several issues that caused
-test failures when enabling the `WebRTC-PayloadTypesInTransport` field trial
-have been identified and fixed:
+The new strategy is implemented for audio codecs and is being enabled for video
+codecs. Several issues that caused test failures when enabling the
+`WebRTC-PayloadTypesInTransport` field trial have been identified and fixed:
 
 - **Audio/Video RED Collision:** RED codecs of different media types were
   incorrectly matching, leading to payload type conflicts.
   `MatchesWithCodecRules` now enforces media type equality.
-- **MID Recycling:** When a MID was recycled for a different media type (e.g.,
-  Audio -> Video), `CodecVendor` was incorrectly merging codecs from the old
-  description. This has been fixed by validating the media type before merging.
+- **MID Recycling:** When a MID is recycled, it must preserve its media type
+  (e.g., Audio stays Audio). `CodecVendor` now correctly identifies and returns
+  an `INTERNAL_ERROR` if a MID is reused for a different media type, preventing
+  invalid codec merging.
 - **RED Matching Logic:** Relaxed the matching rules for RED to allow
   negotiation to proceed even when parameters (linking RED to primary codecs)
   are not yet populated, as this linking now happens late in the `CodecVendor`.
+- **RTX PT Convention:** RTX payload types now follow the conventional
+  `Primary_PT + 1` rule where possible.
 
-The new strategy is not yet implemented for video codecs.
+The new strategy is now mostly implemented for video codecs, including support
+for RTX, RED, ULPFEC, and FlexFEC late assignment.
 
 ## Unified Implementation Strategy for Audio and Video
 
@@ -198,7 +204,7 @@ preserving legacy behavior when the field trial is disabled.
 - **Stable PT Tests:** Add coverage to ensure that payload types remain stable
   across renegotiations, even when the order of codecs in the transceiver
   preferences changes.
-- **MID Recycling:** Verify that MID recycling for video-to-audio and vice-versa
+- **MID Recycling:** Verify that MID recycling (within the same media type)
   works correctly without PT collisions or crashes.
 
 ## Testing Strategy
@@ -207,22 +213,27 @@ To ensure correctness and prevent regressions while the
 `WebRTC-PayloadTypesInTransport` field trial is being developed, a "Redesign
 Feedback Loop" strategy is used:
 
+1. **Identify failing tests** Run the tests for this CL with the flag
+   "force-fieldtrials='WebRTC-PayloadTypesInTransport/Enable'". When using this
+   with `gtest-parallel`, two dashes must be inserted before the extra argument.
+2. **Reproduction and Isolation**: When a failure is identified in step 1, the
+   specific test case is cloned or ported into a specialized integration test
+   file (`pc/codec_vendor_redesign_unittest.cc`) on the implementation branch.
+   This allows for focused debugging and ensures the failure is reproducible in
+   a clean environment with the trial explicitly enabled.
+3. **Surgical Fixes**: Fixes are developed and verified using the isolated
+   tests.
+4. **Full Re-verification**: Once the tests are stable, run all tests without
+   the field trial flag to ensure there are no regressions, and then either ask
+   to commit this set of changes or loop back to step 1.
+
+To ensure that no unit tests are missed, a "canary branch" approach is used.
+
 1. **Canary Branch (`pt-enable`)**: Maintain a branch where the field trial is
    forced enabled by default. This branch is used to run the full WebRTC test
    suite (especially `rtc_pc_unittests` and `peerconnection_unittests`) to
    identify all edge cases and legacy behaviors that the redesign logic doesn't
    yet handle.
-2. **Reproduction and Isolation**: When a failure is identified on the canary
-   branch, the specific test case is cloned or ported into a specialized
-   integration test file (`pc/codec_vendor_redesign_unittest.cc`) on the
-   implementation branch. This allows for focused debugging and ensures the
-   failure is reproducible in a clean environment with the trial explicitly
-   enabled.
-3. **Surgical Fixes**: Fixes are developed and verified on the implementation
-   branch using the isolated tests.
-4. **Full Re-verification**: Once the implementation branch is stable, the
-   canary branch is rebased to include the fixes, and the full test suite is run
-   again to ensure no remaining failures and to catch new regressions.
 
 ## Backwards Compatibility for Unit Testing
 

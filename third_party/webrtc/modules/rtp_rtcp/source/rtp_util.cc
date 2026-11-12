@@ -12,6 +12,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 
 #include "modules/rtp_rtcp/source/byte_io.h"
@@ -58,6 +59,24 @@ uint16_t ParseRtpSequenceNumber(std::span<const uint8_t> rtp_packet) {
 uint32_t ParseRtpSsrc(std::span<const uint8_t> rtp_packet) {
   RTC_DCHECK(IsRtpPacket(rtp_packet));
   return ByteReader<uint32_t>::ReadBigEndian(rtp_packet.data() + 8);
+}
+
+std::optional<uint16_t> ParseRtpExtensionProfile(
+    std::span<const uint8_t> rtp_packet) {
+  if (!IsRtpPacket(rtp_packet)) {
+    return std::nullopt;
+  }
+  bool has_extension = rtp_packet[0] & 0b00010000;
+  if (!has_extension) {
+    return std::nullopt;
+  }
+  size_t csrc_count = rtp_packet[0] & 0b00001111;
+  size_t extension_start = kMinRtpPacketLen + csrc_count * 4;
+  if (rtp_packet.size() < extension_start + 2) {
+    return std::nullopt;
+  }
+  return ByteReader<uint16_t>::ReadBigEndian(rtp_packet.data() +
+                                             extension_start);
 }
 
 }  // namespace webrtc

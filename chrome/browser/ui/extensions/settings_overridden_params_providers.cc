@@ -259,7 +259,7 @@ ui::ImageModel CreateFallbackSearchIcon(const std::string& extension_name) {
   }
 
   // This icon doesn't pertain to an extension. Fall back to a fixed icon.
-  return ui::ImageModel::FromVectorIcon(vector_icons::kGlobeIcon,
+  return ui::ImageModel::FromVectorIcon(vector_icons::kGlobeOldIcon,
                                         ui::kColorIcon, kDialogIconSize);
 }
 
@@ -582,8 +582,10 @@ void GetSearchOverriddenParamsThenRun(
     }
     // The explicit choice dialog needs to be shown until a choice is made,
     // so suppress the mechanism that limits the number of times the dialog is
-    // shown.
-    params->unlimited_shows = true;
+    // shown. This is Finch-controlled in case it's proven undesirable.
+    params->unlimited_shows =
+        extensions_features::kSearchEngineExplicitChoiceDialogUnlimitedShows
+            .Get();
 
     std::vector<IconFetchParams> icon_lookups;
 
@@ -619,6 +621,14 @@ void GetSearchOverriddenParamsThenRun(
     }
 
     LogMissingParams(*params);
+
+    // After logging any missing parameters, attempt to fill in placeholders.
+    // This is a temporary workaround until we've figured out which scenario(s)
+    // yield no default search information. See http://crbug.com/513310356.
+    if (previous_setting.text.empty()) {
+      previous_setting.text =
+          l10n_util::GetStringUTF16(IDS_RESET_PROFILE_SETTINGS_DSE);
+    }
 
     // Asynchronously look up icons (if needed) then continue.
     FetchIconsThenRun(

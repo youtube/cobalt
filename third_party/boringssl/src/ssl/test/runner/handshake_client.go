@@ -2031,27 +2031,6 @@ func (hs *clientHandshakeState) establishKeys() error {
 func (hs *clientHandshakeState) processServerExtensions(serverExtensions *serverExtensions) error {
 	c := hs.c
 
-	if serverExtensions.serverPadding != nil && c.vers.protocolVersion() < VersionTLS13 {
-		return errors.New("tls: server sent padding over non-TLS 1.3 connection")
-	}
-
-	if !c.config.Bugs.ExpectedServerPadding && serverExtensions.serverPadding != nil {
-		return errors.New("tls: server sent unexpected padding")
-	}
-
-	if c.config.Bugs.ExpectedServerPadding && serverExtensions.serverPadding == nil {
-		return fmt.Errorf("tls: server did not send padding, expected %d bytes",
-			*c.config.RequestServerPadding)
-	}
-
-	// We expected padding of a certain amount, and got some padding. Check that
-	// they match.
-	if c.config.Bugs.ExpectedServerPadding && serverExtensions.serverPadding != nil {
-		if *serverExtensions.serverPadding != *c.config.RequestServerPadding {
-			return fmt.Errorf("tls: server sent %d bytes of padding instead of %d bytes", *serverExtensions.serverPadding, *c.config.RequestServerPadding)
-		}
-	}
-
 	if c.vers.protocolVersion() < VersionTLS13 {
 		if c.config.Bugs.RequireRenegotiationInfo && serverExtensions.secureRenegotiation == nil {
 			return errors.New("tls: renegotiation extension missing")
@@ -2272,6 +2251,35 @@ func (hs *clientHandshakeState) processServerExtensionsAfterResume(serverExtensi
 		}
 	}
 	c.clientCertificateType = serverExtensions.clientCertificateType
+
+	// Server padding should never be sent on resumption handshakes.
+	if serverExtensions.serverPadding != nil && isResume {
+		return errors.New("tls: server sent padding on a resumption handshake")
+	}
+
+	// If this isn't a resumption handshake, run server padding checks.
+	if !isResume {
+		if serverExtensions.serverPadding != nil && c.vers.protocolVersion() < VersionTLS13 {
+			return errors.New("tls: server sent padding over non-TLS 1.3 connection")
+		}
+
+		if !c.config.Bugs.ExpectedServerPadding && serverExtensions.serverPadding != nil {
+			return errors.New("tls: server sent unexpected padding")
+		}
+
+		if c.config.Bugs.ExpectedServerPadding && serverExtensions.serverPadding == nil {
+			return fmt.Errorf("tls: server did not send padding, expected %d bytes",
+				*c.config.RequestServerPadding)
+		}
+
+		// We expected padding of a certain amount, and got some padding. Check that
+		// they match.
+		if c.config.Bugs.ExpectedServerPadding && serverExtensions.serverPadding != nil {
+			if *serverExtensions.serverPadding != *c.config.RequestServerPadding {
+				return fmt.Errorf("tls: server sent %d bytes of padding instead of %d bytes", *serverExtensions.serverPadding, *c.config.RequestServerPadding)
+			}
+		}
+	}
 
 	return nil
 }

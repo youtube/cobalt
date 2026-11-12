@@ -198,6 +198,9 @@ class BufferT {
     if (size_ != buf.size_) {
       return false;
     }
+    if (size_ == 0) {
+      return true;
+    }
     if (std::is_integral<T>::value) {
       // Optimization.
       return std::memcmp(data_.get(), buf.data_.get(), size_ * sizeof(T)) == 0;

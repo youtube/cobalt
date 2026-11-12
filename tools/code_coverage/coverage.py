@@ -99,6 +99,7 @@ sys.path.append(
 from collections import defaultdict
 
 import coverage_utils
+import telemetry_utils
 
 # Absolute path to the code coverage tools binary. These paths can be
 # overwritten by user specified coverage tool paths.
@@ -328,6 +329,8 @@ def _GetLcovFilePath():
       LCOV_FILE_NAME)
 
 
+@telemetry_utils.tracer.start_as_current_span(
+    'coverage.py._CreateCoverageProfileDataForTargets')
 def _CreateCoverageProfileDataForTargets(targets,
                                          commands,
                                          jobs_count=None,
@@ -982,6 +985,8 @@ def _GetBinaryPathForWebTests():
     assert False, 'This platform is not supported for web tests.'
 
 
+@telemetry_utils.tracer.start_as_current_span(
+    'coverage.py._GetComponentMappings')
 def _GetComponentMappings(component_mappings_file):
   """Returns a dictionary of component mappings.
 
@@ -1008,6 +1013,8 @@ def _GetComponentMappings(component_mappings_file):
     return json.load(urllib.request.urlopen(COMPONENT_MAPPING_URL))
 
 
+@telemetry_utils.tracer.start_as_current_span(
+    'coverage.py._GenerateCoverageReport')
 def _GenerateCoverageReport(args, binary_paths, profdata_file_path,
                             absolute_filter_paths):
   """Generate the coverage report in the supported format."""
@@ -1229,8 +1236,10 @@ def _ParseCommandArguments():
   return args
 
 
+@telemetry_utils.tracer.start_as_current_span('coverage.py')
 def Main():
   """Execute tool commands."""
+  telemetry_utils.Initialize()
 
   # Change directory to source root to aid in relative paths calculations.
   os.chdir(SRC_ROOT_PATH)
@@ -1246,6 +1255,7 @@ def Main():
     return
 
   args = _ParseCommandArguments()
+  telemetry_utils.RecordMainAttributes(args.targets, args.build_dir)
   coverage_utils.ConfigureLogging(verbose=args.verbose, log_file=args.log_file)
   _ConfigureLLVMCoverageTools(args)
 

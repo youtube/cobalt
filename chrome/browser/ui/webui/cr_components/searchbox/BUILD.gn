@@ -18,6 +18,8 @@ source_set("searchbox") {
     "//chrome/browser/autocomplete",
     "//chrome/browser/tab_list",
     "//chrome/browser/ui/omnibox",
+    "//chrome/browser/ui/views/permissions",
+    "//chrome/browser/ui/views/permissions:embedded_permission_prompt_observer",
     "//components/contextual_search:prefs",
     "//components/contextual_search:public",
     "//components/contextual_tasks/public",
@@ -55,6 +57,8 @@ source_set("searchbox_impl") {
     "//chrome/browser/contextual_search",
     "//chrome/browser/contextual_tasks",
     "//chrome/browser/contextual_tasks:ui",
+    "//chrome/browser/contextual_tasks:user_data",
+    "//chrome/browser/feature_engagement",
     "//chrome/browser/omnibox",
     "//chrome/browser/predictors",
     "//chrome/browser/preloading",
@@ -67,6 +71,7 @@ source_set("searchbox_impl") {
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/contextual_search",
     "//chrome/browser/ui/omnibox",
+    "//chrome/browser/ui/views/permissions:embedded_permission_prompt_observer",
     "//chrome/browser/ui/webui",
     "//chrome/browser/ui/webui:webui_util",
     "//chrome/browser/ui/webui/new_tab_page/composebox/variations",
@@ -87,6 +92,7 @@ source_set("searchbox_impl") {
       "//chrome/browser/ui/lens",
       "//chrome/browser/ui/tabs",
       "//chrome/browser/ui/views/drive_picker_host",
+      "//chrome/browser/ui/webui/drive_picker_host:drive_picker_host_request",
     ]
   }
 }

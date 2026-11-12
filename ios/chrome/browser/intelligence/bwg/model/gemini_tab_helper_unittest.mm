@@ -598,6 +598,9 @@ TEST_F(GeminiTabHelperTest,
 @end
 
 TEST_F(GeminiTabHelperTest, TestGeneratePageContext) {
+  web_state_->SetCurrentURL(GURL("https://example.com"));
+  web_state_->SetContentsMimeType("text/html");
+
   id mockWrapperClass = OCMClassMock([PageContextWrapper class]);
   FakePageContextWrapper* fakeWrapper =
       [[FakePageContextWrapper alloc] initWithWebState:web_state_.get()
@@ -605,11 +608,10 @@ TEST_F(GeminiTabHelperTest, TestGeneratePageContext) {
   OCMStub([mockWrapperClass alloc]).andReturn(fakeWrapper);
 
   base::RunLoop run_loop;
-  tab_helper_->SetupPageContextGeneration(base::BindRepeating(
-      [](base::RunLoop* run_loop, PageContextWrapperCallbackResponse response) {
-        run_loop->Quit();
-      },
-      &run_loop));
+  tab_helper_->GeneratePageContext(
+      base::BindRepeating([](base::RunLoop* run_loop,
+                             GeminiPageContext* response) { run_loop->Quit(); },
+                          &run_loop));
 
   EXPECT_TRUE(fakeWrapper.shouldGetAnnotatedPageContent);
   EXPECT_TRUE(fakeWrapper.shouldGetSnapshot);
@@ -617,6 +619,8 @@ TEST_F(GeminiTabHelperTest, TestGeneratePageContext) {
 }
 
 TEST_F(GeminiTabHelperTest, TestGeneratePageContext_WaitsForLoad) {
+  web_state_->SetCurrentURL(GURL("https://example.com"));
+  web_state_->SetContentsMimeType("text/html");
   web_state_->SetLoading(true);
 
   id mockWrapperClass = OCMClassMock([PageContextWrapper class]);
@@ -625,7 +629,7 @@ TEST_F(GeminiTabHelperTest, TestGeneratePageContext_WaitsForLoad) {
                                     completionCallback:base::DoNothing()];
   OCMStub([mockWrapperClass alloc]).andReturn(fakeWrapper);
 
-  tab_helper_->SetupPageContextGeneration(base::DoNothing());
+  tab_helper_->GeneratePageContext(base::DoNothing());
 
   // Should NOT be called immediately.
   EXPECT_FALSE(fakeWrapper.populateCalled);
@@ -679,6 +683,8 @@ TEST_F(GeminiTabHelperTest,
 }
 
 TEST_F(GeminiTabHelperTest, TestForcePageContextGeneration) {
+  web_state_->SetCurrentURL(GURL("https://example.com"));
+  web_state_->SetContentsMimeType("text/html");
   web_state_->SetLoading(true);
 
   id mockWrapperClass = OCMClassMock([PageContextWrapper class]);
@@ -687,13 +693,35 @@ TEST_F(GeminiTabHelperTest, TestForcePageContextGeneration) {
                                     completionCallback:base::DoNothing()];
   OCMStub([mockWrapperClass alloc]).andReturn(fakeWrapper);
 
-  tab_helper_->SetupPageContextGeneration(base::DoNothing());
+  tab_helper_->GeneratePageContext(base::DoNothing());
 
   // Should NOT be called immediately.
   EXPECT_FALSE(fakeWrapper.populateCalled);
 
   // Force generation.
   tab_helper_->ForcePageContextGeneration();
+
+  EXPECT_TRUE(fakeWrapper.populateCalled);
+}
+
+TEST_F(GeminiTabHelperTest, TestGeneratePageContext_Timeout) {
+  web_state_->SetCurrentURL(GURL("https://example.com"));
+  web_state_->SetContentsMimeType("text/html");
+  web_state_->SetLoading(true);
+
+  id mockWrapperClass = OCMClassMock([PageContextWrapper class]);
+  FakePageContextWrapper* fakeWrapper =
+      [[FakePageContextWrapper alloc] initWithWebState:web_state_.get()
+                                    completionCallback:base::DoNothing()];
+  OCMStub([mockWrapperClass alloc]).andReturn(fakeWrapper);
+
+  tab_helper_->GeneratePageContext(base::DoNothing());
+
+  // Should NOT be called immediately.
+  EXPECT_FALSE(fakeWrapper.populateCalled);
+
+  // Fast forward by timeout.
+  task_environment_.FastForwardBy(base::Seconds(3) + base::Milliseconds(100));
 
   EXPECT_TRUE(fakeWrapper.populateCalled);
 }
@@ -747,7 +775,7 @@ TEST_F(GeminiTabHelperTest, IsGeminiAvailableForWebState_WhenUrlIsAimUrl) {
   EXPECT_FALSE(tab_helper_->IsGeminiAvailableForWebState());
 }
 
-// Tests that Gemini is not available for a web state when the URL is the Google
+// Tests that Gemini is available for a web state when the URL is the Google
 // home page.
 TEST_F(GeminiTabHelperTest,
        IsGeminiAvailableForWebState_WhenUrlIsGoogleHomePage) {
@@ -760,10 +788,10 @@ TEST_F(GeminiTabHelperTest,
   web_state_->SetContentsMimeType("text/html");
   GeminiTabHelper::CreateForWebState(web_state_.get());
   tab_helper_ = GeminiTabHelper::FromWebState(web_state_.get());
-  EXPECT_FALSE(tab_helper_->IsGeminiAvailableForWebState());
+  EXPECT_TRUE(tab_helper_->IsGeminiAvailableForWebState());
 }
 
-// Tests that Gemini is not available for a web state when the URL is a Google
+// Tests that Gemini is available for a web state when the URL is a Google
 // Search URL but not an AIM URL.
 TEST_F(GeminiTabHelperTest,
        IsGeminiAvailableForWebState_WhenUrlIsNotAimUrlButIsGoogleSearch) {
@@ -776,7 +804,7 @@ TEST_F(GeminiTabHelperTest,
   web_state_->SetContentsMimeType("text/html");
   GeminiTabHelper::CreateForWebState(web_state_.get());
   tab_helper_ = GeminiTabHelper::FromWebState(web_state_.get());
-  EXPECT_FALSE(tab_helper_->IsGeminiAvailableForWebState());
+  EXPECT_TRUE(tab_helper_->IsGeminiAvailableForWebState());
 }
 
 // Tests that Gemini is available for a web state when the URL is not a Google
@@ -821,58 +849,61 @@ TEST_F(GeminiTabHelperTest,
   EXPECT_TRUE(tab_helper_->IsGeminiAvailableForWebState());
 }
 
-// Tests that `IsUrlEligibleForGemini` correctly identifies eligible and
-// ineligible URLs based on scheme and specific URL patterns.
-TEST_F(GeminiTabHelperTest, IsUrlEligibleForGemini) {
-  // Valid HTTPS URL
-  GURL valid_https_url("https://www.example.com");
-  EXPECT_TRUE(tab_helper_->IsUrlEligibleForGemini(valid_https_url));
+// Tests `IsGeminiAvailableForWebState` under default configuration (no flags).
+TEST_F(GeminiTabHelperTest, IsGeminiAvailableForWebState_DefaultConfig) {
+  web_state_->SetContentsMimeType("text/html");
 
-  // Valid HTTP URL
-  GURL valid_http_url("http://www.example.com");
-  EXPECT_TRUE(tab_helper_->IsUrlEligibleForGemini(valid_http_url));
+  // Valid HTTPS URL should be available.
+  web_state_->SetCurrentURL(GURL("https://www.example.com"));
+  EXPECT_TRUE(tab_helper_->IsGeminiAvailableForWebState());
 
-  // Invalid scheme (chrome)
-  GURL invalid_chrome_url("chrome://settings");
-  EXPECT_FALSE(tab_helper_->IsUrlEligibleForGemini(invalid_chrome_url));
+  // Valid HTTP URL should be available.
+  web_state_->SetCurrentURL(GURL("http://www.example.com"));
+  EXPECT_TRUE(tab_helper_->IsGeminiAvailableForWebState());
 
-  // Invalid scheme (about)
-  GURL invalid_about_url("about:blank");
-  EXPECT_FALSE(tab_helper_->IsUrlEligibleForGemini(invalid_about_url));
+  // Invalid scheme (chrome) should not be available.
+  web_state_->SetCurrentURL(GURL("chrome://settings"));
+  EXPECT_FALSE(tab_helper_->IsGeminiAvailableForWebState());
 
-  // AIM URL
-  GURL aim_url("https://www.google.com/search?q=test&udm=50");
-  EXPECT_FALSE(tab_helper_->IsUrlEligibleForGemini(aim_url));
+  // Invalid scheme (about) should not be available.
+  web_state_->SetCurrentURL(GURL("about:blank"));
+  EXPECT_FALSE(tab_helper_->IsGeminiAvailableForWebState());
 
-  // Google Home Page
-  GURL google_home_url("https://www.google.com");
-  EXPECT_FALSE(tab_helper_->IsUrlEligibleForGemini(google_home_url));
+  // NTP should not be available.
+  web_state_->SetCurrentURL(GURL(kChromeUINewTabURL));
+  EXPECT_FALSE(tab_helper_->IsGeminiAvailableForWebState());
 }
 
-// Tests that Google Search URLs are ineligible for Gemini when the
-// `GeminiCopresenceSRPCheck` parameter is enabled.
-TEST_F(GeminiTabHelperTest, IsUrlEligibleForGemini_SRPCheck_Enabled) {
+// Tests `IsGeminiAvailableForWebState` under Copresence configuration with SRP
+// Check enabled.
+
+// Tests `IsGeminiAvailableForWebState` under Copresence configuration.
+TEST_F(GeminiTabHelperTest, IsGeminiAvailableForWebState_Copresence) {
   base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      {{kGeminiCopresence, {{"GeminiCopresenceSRPCheck", "true"}}},
-       {kPageActionMenu, {}}},
-      {});
+  scoped_feature_list.InitWithFeatures({kPageActionMenu}, {});
 
-  GURL srp_url("https://www.google.com/search?q=test");
-  EXPECT_FALSE(tab_helper_->IsUrlEligibleForGemini(srp_url));
-}
+  web_state_->SetContentsMimeType("text/html");
 
-// Tests that Google Search URLs are eligible for Gemini when the
-// `GeminiCopresenceSRPCheck` parameter is disabled.
-TEST_F(GeminiTabHelperTest, IsUrlEligibleForGemini_SRPCheck_Disabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      {{kGeminiCopresence, {{"GeminiCopresenceSRPCheck", "false"}}},
-       {kPageActionMenu, {}}},
-      {});
+  // Valid HTTPS URL should be available.
+  web_state_->SetCurrentURL(GURL("https://www.example.com"));
+  EXPECT_TRUE(tab_helper_->IsGeminiAvailableForWebState());
 
-  GURL srp_url("https://www.google.com/search?q=test");
-  EXPECT_TRUE(tab_helper_->IsUrlEligibleForGemini(srp_url));
+  // NTP should not be available.
+  web_state_->SetCurrentURL(GURL(kChromeUINewTabURL));
+  EXPECT_FALSE(tab_helper_->IsGeminiAvailableForWebState());
+
+  // AIM URL should not be available.
+  web_state_->SetCurrentURL(
+      GURL("https://www.google.com/search?q=test&udm=50"));
+  EXPECT_FALSE(tab_helper_->IsGeminiAvailableForWebState());
+
+  // SRP URL (Google Home Page) should be available.
+  web_state_->SetCurrentURL(GURL("https://www.google.com"));
+  EXPECT_TRUE(tab_helper_->IsGeminiAvailableForWebState());
+
+  // SRP URL (Google Search) should be available.
+  web_state_->SetCurrentURL(GURL("https://www.google.com/search?q=test"));
+  EXPECT_TRUE(tab_helper_->IsGeminiAvailableForWebState());
 }
 
 // Tests that Gemini is available for the NTP when the ChromeNextIa feature
@@ -906,14 +937,3 @@ TEST_F(GeminiTabHelperTest,
   EXPECT_FALSE(tab_helper_->IsGeminiAvailableForWebState());
 }
 
-// Tests that `IsUrlEligibleForGemini` correctly identifies NTP URL as eligible
-// when ChromeNextIa feature is enabled.
-TEST_F(GeminiTabHelperTest, IsUrlEligibleForGemini_Ntp_Enabled) {
-  feature_list_.InitWithFeatures(
-      /*enabled_features=*/{kChromeNextIa, kPageActionMenu, kComposeboxIOS,
-                            kComposeboxIpad},
-      /*disabled_features=*/{});
-
-  GURL ntp_url(kChromeUINewTabURL);
-  EXPECT_TRUE(tab_helper_->IsUrlEligibleForGemini(ntp_url));
-}

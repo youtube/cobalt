@@ -12,6 +12,7 @@
 
 class BrowserView;
 class BrowserWindowInterface;
+class WindowFeatureController;
 
 namespace gfx {
 class Rect;
@@ -65,7 +66,7 @@ class ImmersiveModeController {
     virtual ~Observer() = default;
   };
 
-  explicit ImmersiveModeController(BrowserWindowInterface* browser);
+  explicit ImmersiveModeController(ui::UnownedUserDataHost& host);
 
   ImmersiveModeController(const ImmersiveModeController&) = delete;
   ImmersiveModeController& operator=(const ImmersiveModeController&) = delete;
@@ -135,10 +136,6 @@ class ImmersiveModeController {
   // This is currently only used on macOS.
   virtual void OnContentFullscreenChanged(bool is_content_fullscreen) = 0;
 
-  // Called when the browser's tab strip layout (horizontal or vertical) has
-  // changed.
-  virtual void OnTabStripLayoutChanged() {}
-
   virtual void AddObserver(Observer* observer);
   virtual void RemoveObserver(Observer* observer);
 
@@ -158,7 +155,8 @@ namespace chrome {
 
 // Implemented in immersive_mode_controller_factory.cc.
 std::unique_ptr<ImmersiveModeController> CreateImmersiveModeController(
-    BrowserView* browser_view);
+    WindowFeatureController* window_feature_controller,
+    ui::UnownedUserDataHost& host);
 
 }  // namespace chrome
 

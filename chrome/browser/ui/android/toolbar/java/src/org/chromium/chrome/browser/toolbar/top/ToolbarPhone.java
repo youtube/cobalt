@@ -2401,7 +2401,7 @@ public class ToolbarPhone extends ToolbarLayout
         // - investigate what else needs to be done to make the WRAP_CONTENT work well as the
         //   default / static setting (likely leading to elimination of `toolbar_height_no_shadow`
         //   dimension).
-        if (OmniboxFeatures.allowMultilineEditField()
+        if (OmniboxFeatures.sMultilineEditField.isEnabled()
                 || ChromeFeatureList.sAndroidBottomToolbarV2.isEnabled()) {
             updateLayoutParamsForMultiline();
         }
@@ -2507,6 +2507,7 @@ public class ToolbarPhone extends ToolbarLayout
                         if (!hasFocus) {
                             mDisableLocationBarRelayout = true;
                         } else {
+                            mDisableLocationBarRelayout = false;
                             mLayoutLocationBarInFocusedMode = true;
                             ViewUtils.requestLayout(
                                     ToolbarPhone.this,
@@ -2523,8 +2524,8 @@ public class ToolbarPhone extends ToolbarLayout
 
                     @Override
                     public void onEnd(Animator animation) {
+                        mDisableLocationBarRelayout = false;
                         if (!hasFocus) {
-                            mDisableLocationBarRelayout = false;
                             mLayoutLocationBarInFocusedMode = false;
                             ViewUtils.requestLayout(
                                     ToolbarPhone.this,
@@ -3138,7 +3139,7 @@ public class ToolbarPhone extends ToolbarLayout
         // When URL has focus, the toolbar should use WRAP_CONTENT to support multiline omnibox,
         // instead of being reset to a fixed height.
         if (urlHasFocus()
-                && (OmniboxFeatures.allowMultilineEditField()
+                && (OmniboxFeatures.sMultilineEditField.isEnabled()
                         || ChromeFeatureList.sAndroidBottomToolbarV2.isEnabled())) {
             layoutParams.height = LayoutParams.WRAP_CONTENT;
         } else {

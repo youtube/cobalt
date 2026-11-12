@@ -144,8 +144,8 @@ class ChromePaymentsAutofillClient : public PaymentsAutofillClient,
       base::OnceClosure accept_virtual_card_callback,
       base::OnceClosure decline_virtual_card_callback) override;
   void VirtualCardEnrollCompleted(PaymentsRpcResult result) override;
-  void OnCardDataAvailable(
-      const FilledCardInformationBubbleOptions& options) override;
+  void OnCardDataAvailable(const FilledCardInformationBubbleOptions& options,
+                           const url::Origin& origin) override;
   void ConfirmSaveIbanLocally(const Iban& iban,
                               bool should_show_prompt,
                               SaveIbanPromptCallback callback) override;
@@ -253,6 +253,8 @@ class ChromePaymentsAutofillClient : public PaymentsAutofillClient,
   BnplUiDelegate* GetBnplUiDelegate() override;
 #if !BUILDFLAG(IS_ANDROID)
   OmniboxAutofillDelegate* GetOmniboxAutofillDelegate() override;
+  void ShowOmniboxAutofillChip() override;
+  void HideOmniboxAutofillChip() override;
 #endif
 
   // Begin ChromePaymentsAutofillClient-specific section.

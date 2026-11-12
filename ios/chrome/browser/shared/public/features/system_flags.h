@@ -202,6 +202,15 @@ bool ShouldShowCatalogItems();
 // Returns true if multi-profile forced migration should be considered done.
 bool ShouldForceMultiProfileForcedMigrationDone();
 
+// Returns true if Backend Promo debug tools should be shown in Settings.
+bool ShouldShowBackendPromoDebugTools();
+
+// Returns the selected push notification type to be force triggered.
+int GetForcedPushNotificationType();
+
+// Returns the delay in seconds before triggering the forced push notification.
+int GetForcedPushNotificationDelay();
+
 }  // namespace experimental_flags
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_SYSTEM_FLAGS_H_

@@ -29,6 +29,7 @@
 #include "api/video/video_content_type.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_type.h"
+#include "api/video/video_rotation.h"
 #include "api/video/video_timing.h"
 #include "api/video_codecs/video_decoder.h"
 #include "common_video/include/corruption_score_calculator.h"
@@ -256,6 +257,7 @@ TEST_F(GenericDecoderTest, UsesMappedColorSpaceIfSet) {
   FrameInfo frame_info;
   frame_info.rtp_timestamp = kRtpTimestamp;
   frame_info.decode_start = Timestamp::Zero();
+  frame_info.rotation = kVideoRotation_0;
   frame_info.content_type = VideoContentType::UNSPECIFIED;
   frame_info.frame_type = VideoFrameType::kVideoFrameKey;
   frame_info.color_space = kMappedColorSpace;
@@ -324,6 +326,7 @@ TEST_F(GenericDecoderTest, UsesDecoderColorSpaceIfNoneMapped) {
   FrameInfo frame_info;
   frame_info.rtp_timestamp = kRtpTimestamp;
   frame_info.decode_start = Timestamp::Zero();
+  frame_info.rotation = kVideoRotation_0;
   frame_info.content_type = VideoContentType::UNSPECIFIED;
   frame_info.frame_type = VideoFrameType::kVideoFrameKey;
   frame_info.color_space = std::nullopt;

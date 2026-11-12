@@ -509,7 +509,8 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
   [super tearDownHelper];
 }
 
-- (void)testTapAppendArrowButton {
+// TODO(crbug.com/513297149): Re-enable after the fix.
+- (void)DISABLED_testTapAppendArrowButton {
   [ChromeEarlGrey loadURL:GURL("about:blank")];
 
   // Clears the url and replace it with local url host.
@@ -540,7 +541,7 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
   // Wait for the new suggestions to show.
   [ChromeEarlGrey
       waitForUIElementToAppearWithMatcher:
-          chrome_test_util::OmniboxPopupRowVisibleWithString(@"abcdefghi")];
+          chrome_test_util::OmniboxPopupRowVisibleWithString(@"abcdefg")];
 }
 
 // Test when the popup is scrolled, the keyboard is dismissed

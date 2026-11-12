@@ -32,6 +32,7 @@
 #include "media/mojo/mojom/audio_output_stream.mojom.h"
 #include "media/mojo/mojom/audio_stream_factory.mojom.h"
 #include "services/audio/public/cpp/output_device.h"
+#include "ui/base/resource/resource_bundle.h"
 
 namespace audio {
 
@@ -51,9 +52,11 @@ class AudioStreamHandler::AudioStreamContainer
     : public media::AudioRendererSink::RenderCallback {
  public:
   AudioStreamContainer(SoundsManager::StreamFactoryBinder stream_factory_binder,
-                       std::unique_ptr<media::AudioHandler> audio_handler)
+                       std::unique_ptr<media::AudioHandler> audio_handler,
+                       bool loop)
       : stream_factory_binder_(std::move(stream_factory_binder)),
-        audio_handler_(std::move(audio_handler)) {
+        audio_handler_(std::move(audio_handler)),
+        loop_(loop) {
     DCHECK(audio_handler_);
     task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
   }
@@ -140,18 +143,34 @@ class AudioStreamHandler::AudioStreamContainer
              const media::AudioGlitchInfo& /* glitch_info */,
              media::AudioBus* dest) override {
     base::AutoLock al(state_lock_);
-    size_t frames_written = 0;
-    if (audio_handler_->AtEnd() ||
-        !audio_handler_->CopyTo(dest, &frames_written)) {
-      if (delayed_stop_posted_) {
-        return 0;
+    int total_frames_written = 0;
+    const int requested_frames = dest->frames();
+    while (total_frames_written < requested_frames) {
+      if (audio_handler_->AtEnd()) {
+        if (loop_) {
+          audio_handler_->Reset();
+        } else {
+          break;
+        }
       }
+      size_t frames_written = 0;
+      if (!audio_handler_->CopyPartialFramesTo(
+              dest, requested_frames - total_frames_written,
+              total_frames_written, &frames_written) ||
+          frames_written == 0) {
+        DLOG(ERROR) << "Failed to copy frames to audio bus";
+        // To avoid infinite loop if `CopyPartialFramesTo` encounters an error.
+        break;
+      }
+      total_frames_written += frames_written;
+    }
+
+    if (total_frames_written == 0 && !delayed_stop_posted_) {
       delayed_stop_posted_ = true;
       task_runner_->PostDelayedTask(FROM_HERE, stop_closure_.callback(),
                                     base::Milliseconds(kKeepAliveMs));
-      return 0;
     }
-    return dest->frames();
+    return total_frames_written;
   }
 
   void OnRenderError() override {
@@ -169,6 +188,7 @@ class AudioStreamHandler::AudioStreamContainer
   base::Lock state_lock_;
   bool delayed_stop_posted_ = false;
   std::unique_ptr<media::AudioHandler> audio_handler_;
+  const bool loop_;
   base::CancelableRepeatingClosure stop_closure_;
 
   base::WeakPtrFactory<AudioStreamHandler::AudioStreamContainer> weak_factory_{
@@ -177,9 +197,13 @@ class AudioStreamHandler::AudioStreamContainer
 
 AudioStreamHandler::AudioStreamHandler(
     SoundsManager::StreamFactoryBinder stream_factory_binder,
-    std::string_view audio_data,
-    media::AudioCodec codec) {
+    int resource_id,
+    media::AudioCodec codec,
+    bool loop) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  const std::string_view audio_data =
+      ui::ResourceBundle::GetSharedInstance().GetRawDataResource(resource_id);
 
   std::unique_ptr<media::AudioHandler> audio_handler;
   switch (codec) {
@@ -221,7 +245,7 @@ AudioStreamHandler::AudioStreamHandler(
       base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::WithBaseSyncPrimitives(),
            base::TaskPriority::USER_VISIBLE}),
-      std::move(stream_factory_binder), std::move(audio_handler));
+      std::move(stream_factory_binder), std::move(audio_handler), loop);
 }
 
 AudioStreamHandler::~AudioStreamHandler() {

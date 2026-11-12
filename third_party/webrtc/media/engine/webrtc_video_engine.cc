@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/functional/bind_front.h"
 #include "absl/strings/match.h"
@@ -866,8 +867,8 @@ WebRtcVideoEngine::GetRtpHeaderExtensions(
       (field_trials != nullptr ? *field_trials : trials_);
 
   std::vector<RtpHeaderExtensionCapability> result;
-  // id is *not* incremented for non-default extensions, UsedIds needs to
-  // resolve conflicts.
+  // id is *not* incremented for non-default extensions. Conflicting IDs
+  // need to be resolved.
   int id = 1;
   for (const auto& uri :
        {RtpExtension::kTimestampOffsetUri, RtpExtension::kAbsSendTimeUri,
@@ -1860,7 +1861,6 @@ WebRtcVideoSendChannel::WebRtcVideoSendStream::WebRtcVideoSendStream(
     const VideoSenderParameters& send_params)
     : send_channel_(send_channel),
       env_(env),
-      worker_thread_(call->worker_thread()),
       ssrcs_(sp.ssrcs),
       ssrc_groups_(sp.ssrc_groups),
       call_(call),
@@ -2844,14 +2844,13 @@ void WebRtcVideoSendChannel::SetEncoderToPacketizerFrameTransformer(
 // ------------------------ WebRtcVideoReceiveChannel ---------------------
 WebRtcVideoReceiveChannel::WebRtcVideoReceiveChannel(
     const Environment& env,
-    Call* call,
+    Call* absl_nonnull call,
     const MediaConfig& config,
     const VideoOptions& options,
     const CryptoOptions& crypto_options,
-    VideoDecoderFactory* decoder_factory)
+    VideoDecoderFactory* absl_nonnull decoder_factory)
     : MediaChannelUtil(call->network_thread(), config.enable_dscp),
       env_(env),
-      worker_thread_(call->worker_thread()),
       network_thread_safety_(PendingTaskSafetyFlag::CreateAttachedToTaskQueue(
           /*alive=*/true,
           call->network_thread())),
@@ -3532,16 +3531,7 @@ WebRtcVideoReceiveChannel::WebRtcVideoReceiveStream::
     call_->DestroyFlexfecReceiveStream(flexfec_stream_);
 }
 
-VideoReceiveStreamInterface&
-WebRtcVideoReceiveChannel::WebRtcVideoReceiveStream::stream() {
-  RTC_DCHECK(stream_);
-  return *stream_;
-}
 
-FlexfecReceiveStream*
-WebRtcVideoReceiveChannel::WebRtcVideoReceiveStream::flexfec_stream() {
-  return flexfec_stream_;
-}
 
 const std::vector<uint32_t>&
 WebRtcVideoReceiveChannel::WebRtcVideoReceiveStream::GetSsrcs() const {

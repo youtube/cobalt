@@ -60,12 +60,13 @@ class MockChannelReceive {
 // Test that the delegate registers itself with the frame transformer on Init().
 TEST(ChannelReceiveFrameTransformerDelegateTest,
      RegisterTransformedFrameCallbackOnInit) {
+  test::RunLoop main_thread;
   scoped_refptr<MockFrameTransformer> mock_frame_transformer =
       make_ref_counted<MockFrameTransformer>();
   scoped_refptr<ChannelReceiveFrameTransformerDelegate> delegate =
       make_ref_counted<ChannelReceiveFrameTransformerDelegate>(
           ChannelReceiveFrameTransformerDelegate::ReceiveFrameCallback(),
-          mock_frame_transformer, nullptr);
+          mock_frame_transformer, main_thread.task_queue());
   EXPECT_CALL(*mock_frame_transformer, RegisterTransformedFrameCallback);
   delegate->Init();
 }
@@ -74,12 +75,13 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
 // Reset().
 TEST(ChannelReceiveFrameTransformerDelegateTest,
      UnregisterTransformedFrameCallbackOnReset) {
+  test::RunLoop main_thread;
   scoped_refptr<MockFrameTransformer> mock_frame_transformer =
       make_ref_counted<MockFrameTransformer>();
   scoped_refptr<ChannelReceiveFrameTransformerDelegate> delegate =
       make_ref_counted<ChannelReceiveFrameTransformerDelegate>(
           ChannelReceiveFrameTransformerDelegate::ReceiveFrameCallback(),
-          mock_frame_transformer, nullptr);
+          mock_frame_transformer, main_thread.task_queue());
   EXPECT_CALL(*mock_frame_transformer, UnregisterTransformedFrameCallback);
   delegate->Reset();
 }
@@ -94,7 +96,8 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
   MockChannelReceive mock_channel;
   scoped_refptr<ChannelReceiveFrameTransformerDelegate> delegate =
       make_ref_counted<ChannelReceiveFrameTransformerDelegate>(
-          mock_channel.callback(), mock_frame_transformer, Thread::Current());
+          mock_channel.callback(), mock_frame_transformer,
+          main_thread.task_queue());
   scoped_refptr<TransformedFrameCallback> callback;
   EXPECT_CALL(*mock_frame_transformer, RegisterTransformedFrameCallback)
       .WillOnce(SaveArg<0>(&callback));
@@ -125,7 +128,8 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
   MockChannelReceive mock_channel;
   scoped_refptr<ChannelReceiveFrameTransformerDelegate> delegate =
       make_ref_counted<ChannelReceiveFrameTransformerDelegate>(
-          mock_channel.callback(), mock_frame_transformer, Thread::Current());
+          mock_channel.callback(), mock_frame_transformer,
+          main_thread.task_queue());
   scoped_refptr<TransformedFrameCallback> callback;
   EXPECT_CALL(*mock_frame_transformer, RegisterTransformedFrameCallback)
       .WillOnce(SaveArg<0>(&callback));
@@ -160,7 +164,8 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
   MockChannelReceive mock_channel;
   scoped_refptr<ChannelReceiveFrameTransformerDelegate> delegate =
       make_ref_counted<ChannelReceiveFrameTransformerDelegate>(
-          mock_channel.callback(), mock_frame_transformer, Thread::Current());
+          mock_channel.callback(), mock_frame_transformer,
+          main_thread.task_queue());
 
   delegate->Reset();
   EXPECT_CALL(mock_channel, ReceiveFrame).Times(0);
@@ -176,7 +181,8 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
   MockChannelReceive mock_channel;
   scoped_refptr<ChannelReceiveFrameTransformerDelegate> delegate =
       make_ref_counted<ChannelReceiveFrameTransformerDelegate>(
-          mock_channel.callback(), mock_frame_transformer, Thread::Current());
+          mock_channel.callback(), mock_frame_transformer,
+          main_thread.task_queue());
   const uint8_t data[] = {1, 2, 3, 4};
   std::span<const uint8_t> packet(data, sizeof(data));
   RTPHeader header;
@@ -200,7 +206,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
   scoped_refptr<ChannelReceiveFrameTransformerDelegate> delegate =
       make_ref_counted<ChannelReceiveFrameTransformerDelegate>(
           /*receive_frame_callback=*/nullptr, mock_frame_transformer,
-          Thread::Current());
+          main_thread.task_queue());
   scoped_refptr<TransformedFrameCallback> callback;
   EXPECT_CALL(*mock_frame_transformer, RegisterTransformedFrameCallback)
       .WillOnce(SaveArg<0>(&callback));
@@ -237,7 +243,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
   scoped_refptr<ChannelReceiveFrameTransformerDelegate> delegate =
       make_ref_counted<ChannelReceiveFrameTransformerDelegate>(
           /*receive_frame_callback=*/nullptr, mock_frame_transformer,
-          Thread::Current());
+          main_thread.task_queue());
   scoped_refptr<TransformedFrameCallback> callback;
   EXPECT_CALL(*mock_frame_transformer, RegisterTransformedFrameCallback)
       .WillOnce(SaveArg<0>(&callback));
@@ -275,7 +281,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
   scoped_refptr<ChannelReceiveFrameTransformerDelegate> delegate =
       make_ref_counted<ChannelReceiveFrameTransformerDelegate>(
           /*receive_frame_callback=*/nullptr, mock_frame_transformer,
-          Thread::Current());
+          main_thread.task_queue());
   scoped_refptr<TransformedFrameCallback> callback;
   EXPECT_CALL(*mock_frame_transformer, RegisterTransformedFrameCallback)
       .WillOnce(SaveArg<0>(&callback));
@@ -318,7 +324,7 @@ TEST(ChannelReceiveFrameTransformerDelegateTest, SetAudioLevel) {
   scoped_refptr<ChannelReceiveFrameTransformerDelegate> delegate =
       make_ref_counted<ChannelReceiveFrameTransformerDelegate>(
           /*receive_frame_callback=*/nullptr, mock_frame_transformer,
-          Thread::Current());
+          main_thread.task_queue());
   delegate->Init();
   const uint8_t data[] = {1, 2, 3, 4};
   std::span<const uint8_t> packet(data, sizeof(data));
@@ -353,7 +359,8 @@ TEST(ChannelReceiveFrameTransformerDelegateTest,
   MockChannelReceive mock_channel;
   scoped_refptr<ChannelReceiveFrameTransformerDelegate> delegate =
       make_ref_counted<ChannelReceiveFrameTransformerDelegate>(
-          mock_channel.callback(), mock_frame_transformer, Thread::Current());
+          mock_channel.callback(), mock_frame_transformer,
+          main_thread.task_queue());
   delegate->Init();
 
   std::unique_ptr<MockTransformableAudioFrame> audio_frame =

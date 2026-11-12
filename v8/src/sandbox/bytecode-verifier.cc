@@ -4,6 +4,7 @@
 
 #include "src/sandbox/bytecode-verifier.h"
 
+#include "src/base/numerics/checked_math.h"
 #include "src/codegen/handler-table.h"
 #include "src/flags/flags.h"
 #include "src/interpreter/bytecode-array-iterator.h"
@@ -78,8 +79,13 @@ void BytecodeVerifier::VerifyLight(IsolateForSandbox isolate,
     unsigned handler = table.GetRangeHandler(i);
     Check(end <= bytecode_length && start <= end,
           "Invalid exception handler range");
+    Check(handler >= end, "Exception handler must be after the try-range");
     Check(handler < bytecode_length && valid_offsets.Contains(handler),
           "Invalid exception handler offset");
+    int data = table.GetRangeData(i);
+    Check(data == interpreter::Register::invalid_value().index() ||
+              (data >= 0 && data < bytecode->register_count()),
+          "Invalid exception handler data");
   }
 }
 
@@ -175,12 +181,15 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
         case interpreter::OperandType::kRegOutList: {
           bool is_output =
               interpreter::Bytecodes::IsRegisterOutputOperandType(operand_type);
-          int count = iterator.GetRegisterOperandRange(i);
+          uint32_t count = iterator.GetRegisterOperandRange(i);
           if (count > 0) {
             interpreter::Register start = iterator.GetRegisterOperand(i);
             VerifyRegister(start, is_output);
             if (count > 1) {
-              interpreter::Register end(start.index() + count - 1);
+              base::internal::CheckedNumeric<int> end_index = start.index();
+              end_index += count - 1;
+              Check(end_index.IsValid(), "Register range end overflows");
+              interpreter::Register end(end_index.ValueOrDie());
               VerifyRegister(end, is_output);
               Check(start.is_parameter() == end.is_parameter(),
                     "Register range crosses parameter/local boundary");
@@ -269,6 +278,7 @@ bool BytecodeVerifier::IsAllowedRuntimeFunction(Runtime::FunctionId id) {
     case Runtime::kWasmInternalFunctionCreateExternal:
     case Runtime::kWasmArrayCopy:
     case Runtime::kWasmAllocateFeedbackVector:
+    case Runtime::kWasmStringNewWtf8:
       return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:

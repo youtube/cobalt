@@ -638,6 +638,43 @@ class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
   bool done_;
 };
 
+class FileSourceStream : public v8::ScriptCompiler::ExternalSourceStream {
+ public:
+  FileSourceStream(Isolate* isolate, const char* filename) {
+    file_ = base::Fopen(filename, "rb");
+    if (file_ == nullptr) {
+      std::ostringstream oss;
+      oss << "Error loading file for streaming: " << filename;
+      ThrowError(isolate, oss.view());
+    }
+  }
+
+  ~FileSourceStream() override {
+    if (file_ != nullptr) {
+      base::Fclose(file_);
+    }
+  }
+
+  size_t GetMoreData(const uint8_t** src) override {
+    if (file_ == nullptr) return 0;
+
+    auto buffer = std::make_unique<uint8_t[]>(kChunkSize);
+    size_t bytes_read = fread(buffer.get(), 1, kChunkSize, file_);
+    if (bytes_read == 0) {
+      return 0;
+    }
+
+    *src = buffer.release();
+    return bytes_read;
+  }
+
+  bool IsValid() const { return file_ != nullptr; }
+
+ private:
+  static constexpr size_t kChunkSize = 4096;
+  FILE* file_ = nullptr;
+};
+
 // Run a ScriptStreamingTask in a separate thread.
 class StreamerThread : public v8::base::Thread {
  public:
@@ -701,28 +738,71 @@ MaybeLocal<Module> Compile(Local<Context> context,
 
 }  // namespace
 
+MaybeLocal<String> Shell::Source::ConvertToString(Isolate* isolate) const {
+  if (type_ == Type::kString) {
+    return string_;
+  }
+  DCHECK_EQ(type_, Type::kFile);
+  return Shell::ReadFile(isolate, filename_);
+}
+
 template <class T>
-MaybeLocal<T> Shell::CompileString(Isolate* isolate, Local<Context> context,
-                                   Local<String> source,
+MaybeLocal<T> Shell::CompileSource(Isolate* isolate, Local<Context> context,
+                                   const Source& source,
                                    const ScriptOrigin& origin) {
   if (options.streaming_compile) {
-    v8::ScriptCompiler::StreamedSource streamed_source(
-        std::make_unique<DummySourceStream>(isolate, source),
-        v8::ScriptCompiler::StreamedSource::TWO_BYTE);
+    std::unique_ptr<v8::ScriptCompiler::ExternalSourceStream> source_stream;
+    v8::ScriptCompiler::StreamedSource::Encoding encoding;
+    Local<String> source_string;
+
+    if (source.type() == Source::Type::kString) {
+      source_string = source.string();
+      source_stream =
+          std::make_unique<DummySourceStream>(isolate, source_string);
+      encoding = v8::ScriptCompiler::StreamedSource::TWO_BYTE;
+    } else {
+      DCHECK_EQ(source.type(), Source::Type::kFile);
+      auto file_stream =
+          std::make_unique<FileSourceStream>(isolate, source.filename());
+      if (!file_stream->IsValid()) {
+        return MaybeLocal<T>();
+      }
+      source_stream = std::move(file_stream);
+      encoding = v8::ScriptCompiler::StreamedSource::UTF8;
+    }
+
+    v8::ScriptCompiler::StreamedSource streamed_source(std::move(source_stream),
+                                                       encoding);
     std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> streaming_task(
         v8::ScriptCompiler::StartStreaming(isolate, &streamed_source,
                                            std::is_same_v<T, Module>
                                                ? v8::ScriptType::kModule
                                                : v8::ScriptType::kClassic));
-    StreamerThread::StartThreadForTaskAndJoin(streaming_task.get());
-    return CompileStreamed<T>(context, &streamed_source, source, origin);
+    if (streaming_task) {
+      StreamerThread::StartThreadForTaskAndJoin(streaming_task.get());
+
+      if (source_string.IsEmpty()) {
+        if (!source.ConvertToString(isolate).ToLocal(&source_string)) {
+          return MaybeLocal<T>();
+        }
+      }
+      update_script_size(source_string->Length());
+      return CompileStreamed<T>(context, &streamed_source, source_string,
+                                origin);
+    }
   }
+
+  Local<String> source_string;
+  if (!source.ConvertToString(isolate).ToLocal(&source_string)) {
+    return MaybeLocal<T>();
+  }
+  update_script_size(source_string->Length());
 
   ScriptCompiler::CachedData* cached_code = nullptr;
   if (options.compile_options & ScriptCompiler::kConsumeCodeCache) {
-    cached_code = LookupCodeCache(isolate, source);
+    cached_code = LookupCodeCache(isolate, source_string);
   }
-  ScriptCompiler::Source script_source(source, origin, cached_code);
+  ScriptCompiler::Source script_source(source_string, origin, cached_code);
   MaybeLocal<T> result =
       Compile<T>(context, &script_source,
                  cached_code ? ScriptCompiler::kConsumeCodeCache
@@ -767,8 +847,9 @@ class ModuleEmbedderData {
   explicit ModuleEmbedderData(Isolate* isolate)
       : isolate_(isolate),
         module_to_specifier_map(10, ModuleGlobalHash(isolate)),
-        json_module_to_parsed_json_map(
-            10, module_to_specifier_map.hash_function()) {}
+        json_module_to_parsed_json_map(10,
+                                       module_to_specifier_map.hash_function()),
+        text_module_to_text_map(10, module_to_specifier_map.hash_function()) {}
 
   std::string GetModuleSpecifier(Local<Module> module) {
     Global<Module> global_module(isolate_, module);
@@ -798,6 +879,13 @@ class ModuleEmbedderData {
     return json_value_it->second.Get(isolate_);
   }
 
+  Local<Value> GetTextModuleValue(Local<Module> module) {
+    auto text_value_it =
+        text_module_to_text_map.find(Global<Module>(isolate_, module));
+    CHECK(text_value_it != text_module_to_text_map.end());
+    return text_value_it->second.Get(isolate_);
+  }
+
   static ModuleType ModuleTypeFromImportSpecifierAndAttributes(
       const std::string& specifier, Local<FixedArray> import_attributes,
       bool hasPositions) {
@@ -815,8 +903,11 @@ class ModuleEmbedderData {
         std::string assertion_value = ToSTLString(isolate, v8_assertion_value);
         if (assertion_value == "json") {
           return ModuleType::kJSON;
+        } else if (assertion_value == "text" && i::v8_flags.js_import_text) {
+          return ModuleType::kText;
         } else {
-          // JSON and WebAssembly are currently the only supported non-JS types
+          // JSON, text, and WebAssembly are currently the only supported non-JS
+          // types
           return ModuleType::kInvalid;
         }
       }
@@ -842,6 +933,10 @@ class ModuleEmbedderData {
   // JSONModuleEvaluationSteps
   std::unordered_map<Global<Module>, Global<Value>, ModuleGlobalHash>
       json_module_to_parsed_json_map;
+  // Map from text Module to its string content, for use in module
+  // TextModuleEvaluationSteps
+  std::unordered_map<Global<Module>, Global<Value>, ModuleGlobalHash>
+      text_module_to_text_map;
 
   // Origin location used for resolving modules when referrer is null.
   std::string origin;
@@ -949,16 +1044,28 @@ void D8WasmAsyncResolvePromiseCallback(
 
 }  // namespace
 
-// Executes a string within the current v8 context.
-bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
+// Executes a source within the current v8 context.
+bool Shell::ExecuteSource(Isolate* isolate, const Source& source,
                           Local<String> name,
                           ReportExceptions report_exceptions,
                           Global<Value>* out_result) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   if (i_isolate->is_execution_terminating()) return true;
+
+  Local<String> source_str;
+  if (i::v8_flags.parse_only ||
+      options.code_cache_options ==
+          ShellOptions::CodeCacheOptions::kProduceCache ||
+      options.code_cache_options ==
+          ShellOptions::CodeCacheOptions::kProduceCacheAfterExecute) {
+    if (!source.ConvertToString(isolate).ToLocal(&source_str)) {
+      return false;
+    }
+  }
+
   if (i::v8_flags.parse_only) {
     i::VMState<PARSER> state(i_isolate);
-    i::DirectHandle<i::String> str = Utils::OpenDirectHandle(*(source));
+    i::DirectHandle<i::String> str = Utils::OpenDirectHandle(*(source_str));
 
     // Set up ParseInfo.
     i::UnoptimizedCompileState compile_state;
@@ -1014,12 +1121,12 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
 
   for (int i = 1; i < options.repeat_compile; ++i) {
     HandleScope handle_scope_for_compiling(isolate);
-    if (CompileString<Script>(isolate, context, source, origin).IsEmpty()) {
+    if (CompileSource<Script>(isolate, context, source, origin).IsEmpty()) {
       return false;
     }
   }
   Local<Script> script;
-  if (!CompileString<Script>(isolate, context, source, origin)
+  if (!CompileSource<Script>(isolate, context, source, origin)
            .ToLocal(&script)) {
     return false;
   }
@@ -1029,7 +1136,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     // Serialize and store it in memory for the next execution.
     ScriptCompiler::CachedData* cached_data =
         ScriptCompiler::CreateCodeCache(script->GetUnboundScript());
-    StoreInCodeCache(isolate, source, cached_data);
+    StoreInCodeCache(isolate, source_str, cached_data);
     delete cached_data;
   }
   if (options.compile_only) return true;
@@ -1051,7 +1158,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     // Serialize and store it in memory for the next execution.
     ScriptCompiler::CachedData* cached_data =
         ScriptCompiler::CreateCodeCache(script->GetUnboundScript());
-    StoreInCodeCache(isolate, source, cached_data);
+    StoreInCodeCache(isolate, source_str, cached_data);
     delete cached_data;
   }
   data->realm_current_ = data->realm_switch_;
@@ -1367,7 +1474,8 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
   Local<Module> module;
   if (module_type == ModuleType::kJavaScript) {
     ScriptCompiler::Source source(source_text.ToLocalChecked(), origin);
-    if (!CompileString<Module>(isolate, context, source_text.ToLocalChecked(),
+    if (!CompileSource<Module>(isolate, context,
+                               Source::FromString(source_text.ToLocalChecked()),
                                origin)
              .ToLocal(&module)) {
       return MaybeLocal<Module>();
@@ -1390,6 +1498,20 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
     CHECK(module_data->json_module_to_parsed_json_map
               .insert(std::make_pair(Global<Module>(isolate, module),
                                      Global<Value>(isolate, parsed_json)))
+              .second);
+  } else if (module_type == ModuleType::kText) {
+    auto export_names = v8::to_array<Local<String>>(
+        {String::NewFromUtf8(isolate, "default").ToLocalChecked()});
+
+    module = v8::Module::CreateSyntheticModule(
+        isolate,
+        String::NewFromUtf8(isolate, module_specifier.c_str()).ToLocalChecked(),
+        export_names, Shell::TextModuleEvaluationSteps);
+
+    CHECK(module_data->text_module_to_text_map
+              .insert(std::make_pair(
+                  Global<Module>(isolate, module),
+                  Global<Value>(isolate, source_text.ToLocalChecked())))
               .second);
   } else {
     UNREACHABLE();
@@ -1478,6 +1600,31 @@ MaybeLocal<Value> Shell::JSONModuleEvaluationSteps(Local<Context> context,
       String::NewFromUtf8Literal(isolate, "default",
                                  NewStringType::kInternalized),
       json_value);
+
+  // Setting the default export should never fail.
+  CHECK(!try_catch.HasCaught());
+  CHECK(!result.IsNothing() && result.FromJust());
+
+  Local<Promise::Resolver> resolver =
+      Promise::Resolver::New(context).ToLocalChecked();
+  resolver->Resolve(context, Undefined(isolate)).ToChecked();
+  return resolver->GetPromise();
+}
+
+MaybeLocal<Value> Shell::TextModuleEvaluationSteps(Local<Context> context,
+                                                   Local<Module> module) {
+  Isolate* isolate = Isolate::GetCurrent();
+
+  i::Managed<ModuleEmbedderData>::Ptr module_data =
+      GetModuleDataFromContext(context);
+  Local<Value> text_value = module_data->GetTextModuleValue(module);
+
+  TryCatch try_catch(isolate);
+  Maybe<bool> result = module->SetSyntheticModuleExport(
+      isolate,
+      String::NewFromUtf8Literal(isolate, "default",
+                                 NewStringType::kInternalized),
+      text_value);
 
   // Setting the default export should never fail.
   CHECK(!try_catch.HasCaught());
@@ -2215,23 +2362,35 @@ uint64_t Shell::GetTracingTimestampFromPerformanceTimestamp(
 }
 
 #ifdef V8_OS_LINUX
-void SendPerfControlCommand(const char* command) {
+bool SendPerfControlCommand(const char* command) {
   if (Shell::options.perf_ctl_fd != -1 && Shell::options.perf_ack_fd != -1) {
     size_t command_len = strlen(command);
     ssize_t ret = write(Shell::options.perf_ctl_fd, command, command_len);
     if (ret == -1) {
       fprintf(stderr, "perf_ctl write error: %s\n", strerror(errno));
+      return false;
     }
-    CHECK_EQ(ret, command_len);
+    if (ret != static_cast<ssize_t>(command_len)) {
+      fprintf(stderr, "perf_ctl write failed to write all bytes\n");
+      return false;
+    }
 
     char ack[5];
     ret = read(Shell::options.perf_ack_fd, ack, 5);
     if (ret == -1) {
       fprintf(stderr, "perf_ack read error: %s\n", strerror(errno));
+      return false;
     }
-    CHECK_EQ(ret, 5);
-    CHECK_EQ(strcmp(ack, "ack\n"), 0);
+    if (ret != 5) {
+      fprintf(stderr, "perf_ack read failed to read all bytes\n");
+      return false;
+    }
+    if (strcmp(ack, "ack\n") != 0) {
+      fprintf(stderr, "perf_ack received invalid ack: %s\n", ack);
+      return false;
+    }
   }
+  return true;
 }
 #endif
 
@@ -2286,7 +2445,10 @@ void Shell::PerformanceMark(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 #ifdef V8_OS_LINUX
   if (options.scope_linux_perf_to_mark_measure) {
-    SendPerfControlCommand("enable");
+    if (!SendPerfControlCommand("enable")) {
+      options.perf_ctl_fd.Overwrite(-1);
+      options.perf_ack_fd.Overwrite(-1);
+    }
   }
 #endif
 }
@@ -2326,7 +2488,10 @@ void Shell::PerformanceMeasure(
 
 #ifdef V8_OS_LINUX
   if (options.scope_linux_perf_to_mark_measure) {
-    SendPerfControlCommand("disable");
+    if (!SendPerfControlCommand("disable")) {
+      options.perf_ctl_fd.Overwrite(-1);
+      options.perf_ack_fd.Overwrite(-1);
+    }
   }
 #endif
 
@@ -3445,10 +3610,8 @@ void Shell::ExecuteFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
       ThrowError(isolate, oss.view());
       return;
     }
-    Local<String> source;
-    if (!ReadFile(isolate, *file_name).ToLocal(&source)) return;
-    if (!ExecuteString(
-            isolate, source,
+    if (!ExecuteSource(
+            isolate, Source::FromFile(*file_name),
             String::NewFromUtf8(isolate, *file_name).ToLocalChecked(),
             options.quiet_load ? kNoReportExceptions : kReportExceptions)) {
       std::ostringstream oss;
@@ -4704,11 +4867,13 @@ static void PrintMessageCallback(Local<Message> message, Local<Value> error) {
 
 void Shell::PromiseRejectCallback(v8::PromiseRejectMessage data) {
   if (options.ignore_unhandled_promises) return;
+  START_ALLOW_USE_DEPRECATED();
   if (data.GetEvent() == v8::kPromiseRejectAfterResolved ||
       data.GetEvent() == v8::kPromiseResolveAfterResolved) {
     // Ignore reject/resolve after resolved.
     return;
   }
+  END_ALLOW_USE_DEPRECATED();
   v8::Local<v8::Promise> promise = data.GetPromise();
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   PerIsolateData* isolate_data = PerIsolateData::Get(isolate);
@@ -5423,8 +5588,8 @@ void Shell::RunShell(Isolate* isolate) {
       Local<String> input;
       if (!Shell::ReadFromStdin(isolate).ToLocal(&input)) break;
       Local<String> name = String::NewFromUtf8Literal(isolate, "(d8)");
-      success = ExecuteString(isolate, input, name, kReportExceptions,
-                              &global_result);
+      success = ExecuteSource(isolate, Source::FromString(input), name,
+                              kReportExceptions, &global_result);
       CHECK_EQ(success, !global_result.IsEmpty());
     }
     if (!FinishExecuting(isolate, context)) success = false;
@@ -5499,7 +5664,8 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
       Local<Value> args[] = {message};
       USE(callback.As<Function>()->Call(context, Undefined(isolate_), 1, args));
 #ifdef DEBUG
-      if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+      if (try_catch.HasCaught() && !try_catch.HasTerminated() &&
+          !i::v8_flags.fuzzing) {
         Local<Object> exception = try_catch.Exception().As<Object>();
         Local<String> key = v8::String::NewFromUtf8Literal(
             isolate_, "message", NewStringType::kInternalized);
@@ -5751,8 +5917,8 @@ bool TryExecuteBundle(Isolate* isolate, const std::string& content,
       Local<String> source =
           String::NewFromUtf8(isolate, item.content_or_name.c_str())
               .ToLocalChecked();
-      if (!Shell::ExecuteString(isolate, source, file_name,
-                                Shell::kReportExceptions)) {
+      if (!Shell::ExecuteSource(isolate, Shell::Source::FromString(source),
+                                file_name, Shell::kReportExceptions)) {
         *out_success = false;
       }
     } else if (item.type == ExecutionItem::kModuleEntrypoint) {
@@ -5802,8 +5968,8 @@ bool SourceGroup::Execute(Isolate* isolate) {
           String::NewFromUtf8(isolate, content.c_str(), NewStringType::kNormal)
               .ToLocalChecked();
       Shell::set_script_executed();
-      if (!Shell::ExecuteString(isolate, source, file_name,
-                                Shell::kReportExceptions)) {
+      if (!Shell::ExecuteSource(isolate, Shell::Source::FromString(source),
+                                file_name, Shell::kReportExceptions)) {
         return false;
       }
     } else if (!success) {
@@ -5827,8 +5993,8 @@ bool SourceGroup::Execute(Isolate* isolate) {
       Local<String> source =
           String::NewFromUtf8(isolate, argv_[i + 1]).ToLocalChecked();
       Shell::set_script_executed();
-      if (!Shell::ExecuteString(isolate, source, file_name,
-                                Shell::kReportExceptions)) {
+      if (!Shell::ExecuteSource(isolate, Shell::Source::FromString(source),
+                                file_name, Shell::kReportExceptions)) {
         success = false;
         break;
       }
@@ -5868,28 +6034,36 @@ bool SourceGroup::Execute(Isolate* isolate) {
     HandleScope handle_scope(isolate);
     Local<String> file_name =
         String::NewFromUtf8(isolate, arg).ToLocalChecked();
-    Local<String> source;
-    if (!Shell::ReadFile(isolate, arg).ToLocal(&source)) {
-      printf("Error reading '%s'\n", arg);
-      base::OS::ExitProcess(1);
-    }
-    Shell::set_script_executed();
-    Shell::update_script_size(source->Length());
 
-    bool handled_as_bundle = false;
     if (Shell::options.bundle) {
+      Local<String> source;
+      if (!Shell::ReadFile(isolate, arg).ToLocal(&source)) {
+        printf("Error reading '%s'\n", arg);
+        base::OS::ExitProcess(1);
+      }
+      Shell::set_script_executed();
+      Shell::update_script_size(source->Length());
+
+      bool handled_as_bundle = false;
       String::Utf8Value utf8(isolate, source);
       std::string content(*utf8, utf8.length());
       if (TryExecuteBundle(isolate, content, file_name, &success)) {
         handled_as_bundle = true;
         if (!success) break;
       }
-    }
-
-    if (!handled_as_bundle && !Shell::ExecuteString(isolate, source, file_name,
-                                                    Shell::kReportExceptions)) {
-      success = false;
-      break;
+      if (!handled_as_bundle &&
+          !Shell::ExecuteSource(isolate, Shell::Source::FromString(source),
+                                file_name, Shell::kReportExceptions)) {
+        success = false;
+        break;
+      }
+    } else {
+      Shell::set_script_executed();
+      if (!Shell::ExecuteSource(isolate, Shell::Source::FromFile(arg),
+                                file_name, Shell::kReportExceptions)) {
+        success = false;
+        break;
+      }
     }
   }
   return success;
@@ -6312,8 +6486,9 @@ void Worker::ExecuteInThread() {
               String::NewFromUtf8Literal(isolate_, "unnamed");
           Local<String> source =
               String::NewFromUtf8(isolate_, script_).ToLocalChecked();
-          success = Shell::ExecuteString(isolate_, source, file_name,
-                                         Shell::kReportExceptions);
+          success =
+              Shell::ExecuteSource(isolate_, Shell::Source::FromString(source),
+                                   file_name, Shell::kReportExceptions);
         }
         if (!Shell::FinishExecuting(isolate_, context_)) success = false;
         if (success) {
@@ -6727,6 +6902,11 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     check_flag_is_not_specified(options.thread_pool_size);
     check_flag_is_not_specified(options.dump_counters);
     check_flag_is_not_specified(options.dump_counters_nvp);
+#ifdef V8_OS_LINUX
+    check_flag_is_not_specified(options.perf_ctl_fd);
+    check_flag_is_not_specified(options.perf_ack_fd);
+    check_flag_is_not_specified(options.scope_linux_perf_to_mark_measure);
+#endif
   }
 
 #ifdef V8_OS_LINUX
@@ -6737,7 +6917,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
               "--perf-ctl-fd and --perf-ack-fd\n");
       return false;
     }
-    SendPerfControlCommand("disable");
+    if (!SendPerfControlCommand("disable")) {
+      fprintf(stderr, "Failed to initially disable perf control\n");
+      return false;
+    }
   }
 #endif
 

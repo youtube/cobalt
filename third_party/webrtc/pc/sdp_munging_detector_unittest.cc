@@ -1549,6 +1549,38 @@ TEST_F(SdpMungingTest, SctpInit) {
       ElementsAre(Pair(SdpMungingType::kDataChannelSctpInit, 1)));
 }
 
+TEST_F(SdpMungingTest, SctpInitAndIceUfrag) {
+  auto pc = CreatePeerConnection("WebRTC-Sctp-Snap/Enabled/");
+  EXPECT_TRUE(pc->CreateDataChannel("dc"));
+  auto offer = pc->CreateOffer();
+  ASSERT_THAT(offer, Not(IsNull()));
+
+  auto& transport_infos = offer->description()->transport_infos();
+  ASSERT_EQ(transport_infos.size(), 1u);
+  transport_infos[0].description.ice_ufrag =
+      "amungediceufragthisshouldberejected";  // But is not right now.
+
+  auto& contents = offer->description()->contents();
+  ASSERT_THAT(contents, SizeIs(1));
+  auto* media_description = contents[0].media_description();
+  ASSERT_THAT(media_description, Not(IsNull()));
+  auto* sctp_description = media_description->as_sctp();
+  ASSERT_THAT(sctp_description, Not(IsNull()));
+  EXPECT_TRUE(sctp_description->sctp_init());
+
+  std::vector<uint8_t> test_value = {
+      0x01, 0x00, 0x00, 0x1e, 0xde, 0xad, 0xbe, 0xef, 0x00, 0x50,
+      0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xde, 0xad, 0xbe, 0xef,
+      0xc0, 0x00, 0x00, 0x04, 0x80, 0x08, 0x00, 0x06, 0x82, 0xc0};
+  sctp_description->set_sctp_init(test_value);
+
+  RTCError error;
+  EXPECT_FALSE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kDataChannelSctpInit, 1)));
+}
+
 TEST_F(SdpMungingTest, MaxMessageSize) {
   auto pc = CreatePeerConnection();
   EXPECT_TRUE(pc->CreateDataChannel("dc"));

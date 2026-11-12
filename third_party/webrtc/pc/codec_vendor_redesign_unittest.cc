@@ -22,6 +22,7 @@
 #include "api/field_trials.h"
 #include "api/media_types.h"
 #include "api/payload_type.h"
+#include "api/rtc_error.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
 #include "call/fake_payload_type_suggester.h"
@@ -107,11 +108,13 @@ TEST_F(CodecVendorRedesignTest, AudioOfferIncludesRedAndAssignsIds) {
   EXPECT_EQ(fmtp, absl::StrCat(opus_it->id, "/", opus_it->id));
 }
 
-TEST_F(CodecVendorRedesignTest,
-       DISABLED_VideoOfferIncludesRtxAndRedAndAssignsIds) {
+TEST_F(CodecVendorRedesignTest, VideoOfferIncludesRtxAndRedAndAssignsIds) {
   MediaDescriptionOptions options(MediaType::VIDEO, "video",
                                   RtpTransceiverDirection::kSendRecv,
                                   /*stopped=*/false);
+
+  // Force VP8 to PT 120 so that RTX can get 121.
+  pt_suggester_.SetSuggestion("video", "vp8", PayloadType(120));
 
   auto result = vendor_->GetNegotiatedCodecsForOffer(
       options, MediaSessionOptions(), /*current_content=*/nullptr,
@@ -138,6 +141,9 @@ TEST_F(CodecVendorRedesignTest,
   std::string apt;
   EXPECT_TRUE(rtx_it->GetParam(kCodecParamAssociatedPayloadType, &apt));
   EXPECT_EQ(apt, absl::StrCat(vp8_it->id));
+
+  // Verify conventional assignment: RTX_PT = primary_PT + 1
+  EXPECT_EQ(rtx_it->id.value(), vp8_it->id.value() + 1);
 }
 
 TEST_F(CodecVendorRedesignTest,
@@ -341,6 +347,73 @@ TEST_F(CodecVendorRedesignTest, RespectsAudioCodecPreferences) {
   ASSERT_GE(codecs.size(), 2u);
   EXPECT_EQ(codecs[0].name, "red");
   EXPECT_EQ(codecs[1].name, "opus");
+}
+
+TEST_F(CodecVendorRedesignTest, MidRecyclingToDifferentTypeFails) {
+  // 1. Generate a video offer for MID "0"
+  MediaDescriptionOptions video_options(MediaType::VIDEO, "0",
+                                        RtpTransceiverDirection::kSendRecv,
+                                        /*stopped=*/false);
+  auto video_result = vendor_->GetNegotiatedCodecsForOffer(
+      video_options, MediaSessionOptions(), /*current_content=*/nullptr,
+      pt_suggester_);
+  ASSERT_TRUE(video_result.ok());
+
+  // 2. Generate an audio offer for the same MID "0" (invalid recycling)
+  MediaDescriptionOptions audio_options(MediaType::AUDIO, "0",
+                                        RtpTransceiverDirection::kSendRecv,
+                                        /*stopped=*/false);
+
+  // We need to provide current_content to simulate recycling
+  auto video_description = std::make_unique<VideoContentDescription>();
+  video_description->set_codecs(video_result.value());
+  ContentInfo current_content(MediaProtocolType::kRtp, "0",
+                              std::move(video_description));
+
+  auto audio_result = vendor_->GetNegotiatedCodecsForOffer(
+      audio_options, MediaSessionOptions(), &current_content, pt_suggester_);
+
+  // Verify that changing media type for the same MID is an error.
+  ASSERT_FALSE(audio_result.ok());
+  EXPECT_EQ(audio_result.error().type(), RTCErrorType::INTERNAL_ERROR);
+}
+
+TEST_F(CodecVendorRedesignTest, VideoOfferIncludesFecAndAssignsIds) {
+  // Explicitly enable FlexFEC field trial
+  FieldTrials flexfec_trials(
+      CreateTestFieldTrials("WebRTC-FlexFEC-03-Advertised/Enabled/"
+                            "WebRTC-PayloadTypesInTransport/Enabled/"));
+
+  std::vector<Codec> video_codecs({
+      CreateVideoCodec(97, "vp8"),
+      CreateVideoCodec(100, "ulpfec"),
+      CreateVideoCodec(101, "flexfec-03"),
+  });
+  media_engine_.SetVideoSendCodecs(video_codecs);
+  media_engine_.SetVideoRecvCodecs(video_codecs);
+
+  auto flexfec_vendor = std::make_unique<CodecVendor>(
+      &media_engine_, /*rtx_enabled=*/true, flexfec_trials);
+
+  MediaDescriptionOptions options(MediaType::VIDEO, "video",
+                                  RtpTransceiverDirection::kSendRecv,
+                                  /*stopped=*/false);
+
+  auto result = flexfec_vendor->GetNegotiatedCodecsForOffer(
+      options, MediaSessionOptions(), /*current_content=*/nullptr,
+      pt_suggester_);
+
+  ASSERT_TRUE(result.ok());
+  const auto& codecs = result.value();
+
+  EXPECT_THAT(codecs, Contains(Field(&Codec::name, "vp8")));
+  EXPECT_THAT(codecs, Contains(Field(&Codec::name, "ulpfec")));
+  EXPECT_THAT(codecs, Contains(Field(&Codec::name, "flexfec-03")));
+
+  // Verify IDs are assigned
+  for (const auto& codec : codecs) {
+    EXPECT_TRUE(codec.id.IsSet());
+  }
 }
 
 }  // namespace

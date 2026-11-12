@@ -199,6 +199,7 @@ std::ostream& operator<<(std::ostream& os, UseRepresentation repr) {
     case UseRepresentation::kHoleyFloat64:
       return os << "HoleyFloat64";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, NumberConversionMode mode) {
@@ -208,6 +209,7 @@ std::ostream& operator<<(std::ostream& os, NumberConversionMode mode) {
     case NumberConversionMode::kCanonicalizeSmi:
       return os << "kCanonicalizeSmi";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, const StringEqualInputMode mode) {
@@ -217,6 +219,7 @@ std::ostream& operator<<(std::ostream& os, const StringEqualInputMode mode) {
     case StringEqualInputMode::kStringsOrOddballs:
       return os << "kStringsOrOddballs";
   }
+  UNREACHABLE();
 }
 
 bool Phi::is_loop_phi() const { return merge_state()->is_loop(); }
@@ -4809,7 +4812,8 @@ int LoadDictionaryField::MaxCallStackArgs() const {
 }
 void LoadDictionaryField::SetValueLocationConstraints() {
   UseFixed(ContextInput(), kContextRegister);
-#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_ARM64)
+#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_ARM64) && \
+    !defined(V8_TARGET_ARCH_LOONG64)
   UseFixed(ObjectInput(), LoadDescriptor::ReceiverRegister());
 #else
   UseRegister(ObjectInput());
@@ -4817,7 +4821,8 @@ void LoadDictionaryField::SetValueLocationConstraints() {
   DefineAsRegister(this);
 }
 
-#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_ARM64)
+#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_ARM64) && \
+    !defined(V8_TARGET_ARCH_LOONG64)
 void LoadDictionaryField::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
   __ CallBuiltin<Builtin::kLoadIC>(

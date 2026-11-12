@@ -21,6 +21,7 @@
 #include "components/omnibox/browser/vector_icons.h"
 #include "extensions/common/image_util.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/base/window_open_disposition_utils.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/image/image_skia_operations.h"
@@ -49,15 +50,23 @@ ChromeSearchResult::IconInfo CreateAnswerIconInfo(
 const gfx::VectorIcon& AnswerTypeToVectorIcon(OmniboxResultAnswerType type) {
   switch (type) {
     case OmniboxResultAnswerType::kCurrency:
-      return omnibox::kAnswerCurrencyIcon;
+      return features::IsRoundedIconsEnabled()
+                 ? omnibox::kAutorenewIcon
+                 : omnibox::kAnswerCurrencyOldIcon;
     case OmniboxResultAnswerType::kDictionary:
-      return omnibox::kAnswerDictionaryIcon;
+      return features::IsRoundedIconsEnabled()
+                 ? omnibox::kBookIcon
+                 : omnibox::kAnswerDictionaryOldIcon;
     case OmniboxResultAnswerType::kFinance:
-      return omnibox::kAnswerFinanceIcon;
+      return features::IsRoundedIconsEnabled() ? omnibox::kSwapVertIcon
+                                               : omnibox::kAnswerFinanceOldIcon;
     case OmniboxResultAnswerType::kSunrise:
-      return omnibox::kAnswerSunriseIcon;
+      return features::IsRoundedIconsEnabled() ? omnibox::kWbSunnyFilledIcon
+                                               : omnibox::kAnswerSunriseOldIcon;
     case OmniboxResultAnswerType::kTranslation:
-      return omnibox::kAnswerTranslationIcon;
+      return features::IsRoundedIconsEnabled()
+                 ? omnibox::kTranslateIcon
+                 : omnibox::kAnswerTranslationOldIcon;
     default:
       return omnibox::kAnswerDefaultIcon;
   }
@@ -166,7 +175,9 @@ void OmniboxAnswerResult::OnColorModeChanged(bool dark_mode_enabled) {
 
 void OmniboxAnswerResult::UpdateIcon() {
   if (IsCalculatorResult()) {
-    SetIcon(CreateAnswerIconInfo(omnibox::kCalculatorIcon));
+    SetIcon(CreateAnswerIconInfo(features::IsRoundedIconsEnabled()
+                                     ? omnibox::kEqualIcon
+                                     : omnibox::kCalculatorOldIcon));
   } else if (IsWeatherResult() &&
              search_result_->image_url.value_or(GURL()).is_valid()) {
     // Weather icons are downloaded. Check this first so that the local

@@ -38,8 +38,7 @@ class RTC_EXPORT VideoDecoderFactory {
   // for signaling etc.
   virtual std::vector<SdpVideoFormat> GetSupportedFormats() const = 0;
 
-  // TODO(crbug.com/505034803): Deprecate once all clients are switched.
-  // [[deprecated("Use the 3-parameter version instead")]]
+  [[deprecated("Use the 3-parameter version instead")]]
   virtual CodecSupport QueryCodecSupport(const SdpVideoFormat& format,
                                          bool reference_scaling) const {
     return QueryCodecSupport(format, reference_scaling, std::nullopt);

@@ -305,6 +305,8 @@ static_library("safe_browsing") {
       "//chrome/browser/permissions:permissions_proto",
       "//chrome/browser/profiles",
       "//chrome/browser/profiles:profile",
+    ]
+    deps += [
       "//chrome/browser/search_engines",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/safety_hub",
@@ -354,6 +356,7 @@ static_library("safe_browsing") {
       "//components/safe_browsing/core/common/proto:csd_proto",
       "//components/safe_browsing/core/common/proto:realtimeapi_proto",
       "//components/signin/public/identity_manager",
+      "//components/site_engagement/content",
       "//components/site_engagement/core/mojom:mojo_bindings",
       "//components/sync_user_events",
       "//components/unified_consent",
@@ -572,6 +575,9 @@ static_library("safe_browsing") {
       }
       if (!is_android) {
         deps += [ "//chrome/browser/user_education" ]
+      }
+      if (!is_android && !is_chromeos) {
+        deps += [ "//chrome/browser/download/bubble" ]
       }
     } else if (safe_browsing_mode == 2) {
       public += [

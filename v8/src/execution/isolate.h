@@ -951,8 +951,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                               PrintCurrentStackTraceFilterCallback
                                   should_include_frame_callback = nullptr);
   void PrintStack(StringStream* accumulator,
-                  PrintStackMode mode = kPrintStackVerbose);
-  void PrintStack(FILE* out, PrintStackMode mode = kPrintStackVerbose);
+                  PrintStackMode mode = kPrintStackVerbose,
+                  AllowAllocation allow_allocation = AllowAllocation::kYes);
+  void PrintStack(FILE* out, PrintStackMode mode = kPrintStackVerbose,
+                  AllowAllocation allow_allocation = AllowAllocation::kYes);
 
   // Prints minimal stack trace without allocating on the V8 heap (native
   // allocations are allowed). Used for printing the JS stack on OOM errors.
@@ -1011,6 +1013,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool GetStackTraceLimit(Isolate* isolate, int* result);
 
   Address GetAbstractPC(int* line, int* column);
+  Address GetAbstractPCNoGC(int* line, int* column,
+                            DisallowGarbageCollection& no_gc);
 
   // Returns if the given context may access the given global object. If
   // the result is false, the exception is guaranteed to be

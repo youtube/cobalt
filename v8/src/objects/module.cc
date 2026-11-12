@@ -13,6 +13,7 @@
 #include "src/builtins/accessors.h"
 #include "src/common/assert-scope.h"
 #include "src/heap/heap-inl.h"
+#include "src/logging/counters.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-generator-inl.h"
@@ -92,6 +93,7 @@ const char* Module::StatusString(Module::Status status) {
     case Module::kErrored:
       return "Errored";
   }
+  UNREACHABLE();
 }
 #endif  // DEBUG
 
@@ -220,13 +222,17 @@ bool Module::Instantiate(Isolate* isolate, Handle<Module> module,
   Zone zone(isolate->allocator(), ZONE_NAME);
   ZoneForwardList<Handle<SourceTextModule>> stack(&zone);
   unsigned dfs_index = 0;
-  if (!FinishInstantiate(isolate, module, &stack, &dfs_index, &zone)) {
+  unsigned max_depth = 0;
+  if (!FinishInstantiate(isolate, module, &stack, &dfs_index, &zone, 1,
+                         &max_depth)) {
     ResetGraph(isolate, module);
     DCHECK_EQ(module->status(), kUnlinked);
     return false;
   }
   DCHECK_GE(module->status(), kLinked);
   DCHECK(stack.empty());
+  isolate->counters()->esm_modules_per_page()->AddSample(dfs_index);
+  isolate->counters()->esm_import_graph_depth()->AddSample(max_depth);
   return true;
 }
 
@@ -250,15 +256,18 @@ bool Module::PrepareInstantiate(Isolate* isolate, DirectHandle<Module> module,
 
 bool Module::FinishInstantiate(Isolate* isolate, Handle<Module> module,
                                ZoneForwardList<Handle<SourceTextModule>>* stack,
-                               unsigned* dfs_index, Zone* zone) {
+                               unsigned* dfs_index, Zone* zone, unsigned depth,
+                               unsigned* max_depth) {
   DCHECK_NE(module->status(), kEvaluating);
+  if (max_depth) *max_depth = std::max(*max_depth, depth);
   if (module->status() >= kLinking) return true;
   DCHECK_EQ(module->status(), kPreLinking);
   STACK_CHECK(isolate, false);
 
   if (IsSourceTextModule(*module)) {
     return SourceTextModule::FinishInstantiate(
-        isolate, Cast<SourceTextModule>(module), stack, dfs_index, zone);
+        isolate, Cast<SourceTextModule>(module), stack, dfs_index, zone, depth,
+        max_depth);
   } else {
     return SyntheticModule::FinishInstantiate(isolate,
                                               Cast<SyntheticModule>(module));
@@ -295,8 +304,14 @@ MaybeDirectHandle<Object> Module::Evaluate(Isolate* isolate,
   CHECK(module_status == kLinked || module_status == kEvaluatingAsync ||
         module_status == kEvaluated);
 
-  // 3. If module.[[Status]] is either EVALUATING-ASYNC or EVALUATED, set module
-  //    to module.[[CycleRoot]].
+  // 3. If module.[[Status]] is either EVALUATING-ASYNC or EVALUATED, then
+  //    a. If module.[[CycleRoot]] is not empty, then
+  //       i. Set module to module.[[CycleRoot]].
+  //    b. Else,
+  //       i. Assert: module.[[Status]] is EVALUATED and
+  //          module.[[EvaluationError]] is a throw completion.
+  // (The early return for kErrored above handles the case where CycleRoot is
+  // empty.)
   // A Synthetic Module has no children so it is its own cycle root.
   if (module_status >= kEvaluatingAsync && IsSourceTextModule(*module)) {
     module = Cast<SourceTextModule>(module)->GetCycleRoot(isolate);

@@ -6,15 +6,11 @@
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_FORM_PARSING_ADDRESS_FIELD_PARSER_H_
 
 #include <memory>
-#include <string>
-#include <vector>
+#include <optional>
 
-#include "base/compiler_specific.h"
-#include "base/memory/raw_ptr.h"
-#include "components/autofill/core/browser/autofill_type.h"
 #include "components/autofill/core/browser/country_type.h"
+#include "components/autofill/core/browser/form_parsing/field_candidates.h"
 #include "components/autofill/core/browser/form_parsing/form_field_parser.h"
-#include "components/autofill/core/common/language_code.h"
 
 namespace autofill {
 
@@ -47,10 +43,20 @@ class AddressFieldParser : public FormFieldParser {
  private:
   // When parsing a field's label and name separately with a given pattern:
   enum ParseNameLabelResult {
-    RESULT_MATCH_NONE,       // No match with the label or name.
-    RESULT_MATCH_LABEL,      // Only the label matches the pattern.
-    RESULT_MATCH_NAME,       // Only the name matches the pattern.
-    RESULT_MATCH_NAME_LABEL  // Name and label both match the pattern.
+    // No match with the label or name.
+    RESULT_MATCH_NONE,
+
+    // Only the high quality label matches the pattern.
+    RESULT_MATCH_HIGH_QUALITY_LABEL,
+    RESULT_MATCH_LOW_QUALITY_LABEL,
+
+    // Only the name matches the pattern.
+    RESULT_MATCH_NAME,
+
+    // Name and label both match the pattern.
+    // `RESULT_MATCH_NAME_LABEL` doesn't distinguish between low and high label
+    // matches, because a match in the name alone is considered high quality.
+    RESULT_MATCH_NAME_LABEL,
   };
 
   AddressFieldParser();

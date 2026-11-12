@@ -80,6 +80,7 @@ namespace {
 
 // Maximum number of output streams that can be open simultaneously.
 constexpr int kMaxOutputStreams = 10;
+constexpr int kDesktopMaxOutputStreams = 50;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 [[maybe_unused]] constexpr int kDefaultInputBufferSize = 1024;
@@ -416,7 +417,10 @@ AudioManagerAndroid::AudioManagerAndroid(
       communication_mode_is_on_(false),
       output_volume_override_set_(false),
       output_volume_override_(0) {
-  SetMaxOutputStreamsAllowed(kMaxOutputStreams);
+  const int max_output_streams = base::android::device_info::is_desktop()
+                                     ? kDesktopMaxOutputStreams
+                                     : kMaxOutputStreams;
+  SetMaxOutputStreamsAllowed(max_output_streams);
 }
 
 AudioManagerAndroid::~AudioManagerAndroid() = default;
@@ -458,13 +462,13 @@ bool AudioManagerAndroid::HasAudioInputDevices() {
   return true;
 }
 
-void AudioManagerAndroid::GetAudioInputDeviceNames(
+bool AudioManagerAndroid::GetAudioInputDeviceNames(
     AudioDeviceNames* device_names) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
   if (UseAAudioPerStreamDeviceSelection()) {
     GetDeviceNames(device_names, AudioDeviceDirection::kInput);
-    return;
+    return true;
   }
 
   // Android devices in general do not have robust support for specifying
@@ -488,15 +492,16 @@ void AudioManagerAndroid::GetAudioInputDeviceNames(
   // but each one can be controlled via appropriate Android API calls, e.g.
   // AudioManager#startBluetoothSco() for Bluetooth.
   GetCommunicationDeviceNames(device_names);
+  return true;
 }
 
-void AudioManagerAndroid::GetAudioOutputDeviceNames(
+bool AudioManagerAndroid::GetAudioOutputDeviceNames(
     AudioDeviceNames* device_names) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
   if (UseAAudioPerStreamDeviceSelection()) {
     GetDeviceNames(device_names, AudioDeviceDirection::kOutput);
-    return;
+    return true;
   }
 
   // Android devices in general do not have robust support for specifying
@@ -515,6 +520,7 @@ void AudioManagerAndroid::GetAudioOutputDeviceNames(
   // which an input device is automatically chosen, it could be more
   // appropriate to invert the input and output device lists.
   AddDefaultDevice(device_names);
+  return true;
 }
 
 void AudioManagerAndroid::GetDeviceNames(AudioDeviceNames* device_names,

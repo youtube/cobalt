@@ -261,8 +261,16 @@ enum ssl_private_key_result_t ssl_private_key_sign(
   assert(!hs->can_release_private_key);
 
   if (key_method != nullptr) {
+    if (key_method->sign == nullptr) {
+      OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
+      return ssl_private_key_failure;
+    }
     enum ssl_private_key_result_t ret;
     if (hs->pending_private_key_op) {
+      if (key_method->complete == nullptr) {
+        OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
+        return ssl_private_key_failure;
+      }
       ret = key_method->complete(ssl, out, out_len, max_out);
     } else {
       ret = key_method->sign(ssl, out, out_len, max_out, sigalg, in.data(),
@@ -321,8 +329,16 @@ enum ssl_private_key_result_t ssl_private_key_decrypt(SSL_HANDSHAKE *hs,
   const SSLCredential *const cred = hs->credential.get();
   assert(!hs->can_release_private_key);
   if (cred->key_method != nullptr) {
+    if (cred->key_method->decrypt == nullptr) {
+      OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
+      return ssl_private_key_failure;
+    }
     enum ssl_private_key_result_t ret;
     if (hs->pending_private_key_op) {
+      if (cred->key_method->complete == nullptr) {
+        OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
+        return ssl_private_key_failure;
+      }
       ret = cred->key_method->complete(ssl, out, out_len, max_out);
     } else {
       ret = cred->key_method->decrypt(ssl, out, out_len, max_out, in.data(),

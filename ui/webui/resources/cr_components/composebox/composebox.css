@@ -16,6 +16,7 @@
   --cr-composebox-outline-hcm: solid var(--color-composebox-outline-hcm);
   --cr-composebox-submit-container-size: 40px;
   --cr-icon-button-size: 36px;
+  --cr-composebox-tool-chip-right-close-icon-color: rgba(86, 89, 94, 1);
   --input-bottom-spacing: 10px;
   --text-input-top-spacing: 10px;
   --text-input-inline-end-spacing: 80px;
@@ -87,6 +88,12 @@
   width: var(--cr-composebox-width, 337px);
 }
 
+@media (prefers-color-scheme: dark) {
+  :host {
+    --cr-composebox-tool-chip-right-close-icon-color: rgba(173, 175, 184, 1);
+  }
+}
+
 :host(:not([searchbox-next-enabled])) {
   --expand-ease-in-duration: 400ms;
   --expand-delay: 300ms;
@@ -117,20 +124,24 @@
   border-radius: var(--expanded-border-radius);
 }
 
+:host([energy-effect-enabled]) {
+  --box-shadow-energy-effect: 0 4px 18px -2px rgba(60, 64, 67, 0.12);
+  box-shadow: none;
+}
+
 :host([energy-effect-animation-enabled]) {
   /* Energy Effect Motion Curves */
   --emphasized-accelerate-curve: cubic-bezier(0.3, 0, 0.8, 0.15);
   --standard-decelerate-curve: cubic-bezier(0, 0, 0, 1);
 
   /* Energy Effect Box Shadow */
-  --box-shadow-energy-effect: 0 4px 18px -2px rgba(60, 64, 67, 0.12);
   --box-shadow-energy-effect-no-alpha: 0 4px 18px -2px rgba(60, 64, 67, 0);
   --box-shadow-animation-duration: 650ms;
 
   position: relative;
 }
 
-:host([energy-effect-enabled])::after {
+:host([energy-effect-animation-enabled])::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -145,6 +156,9 @@
   border-radius: inherit;
 }
 
+/* This, along with its input container child's contents determine the height
+ * of cr-composebox.
+ */
 #composebox {
   border-radius: inherit;
   display: flex;
@@ -204,7 +218,7 @@ search-animated-glow {
   max-height: 254px;
 }
 
-:host([energy-effect-animation-enabled_][animation-state='expanding']) #composebox {
+:host([energy-effect-animation-enabled][animation-state='expanding']) #composebox {
   will-change: opacity;
   animation: zero-state-composebox-fade-in 50ms
       var(--emphasized-accelerate-curve) both;
@@ -223,7 +237,7 @@ search-animated-glow {
   min-height: calc(136px + 52px);
 }
 
-:host([energy-effect-animation-enabled]) #composebox {
+:host([energy-effect-enabled]) #composebox {
   box-shadow: var(--box-shadow-energy-effect);
 }
 
@@ -422,8 +436,9 @@ search-animated-glow {
 
 #contextEntrypoint {
   color: var(--color-searchbox-results-foreground);
-  padding-inline-start: var(--contextual-entrypoint-and-carousel-context-entrypoint-padding-inline-start, 8px);
-  padding-inline-end: var(--contextual-entrypoint-and-carousel-context-entrypoint-padding-inline-end, 8px);
+  /* Do not set 'padding-inline-end/start' here. It is set in
+   * 'composebox_shared_style.css'.
+   */
 }
 
 #toolChipsContainer {
@@ -549,6 +564,10 @@ search-animated-glow {
   --cr-icon-button-size: 36px;
 }
 
+:host([searchbox-next-enabled][entrypoint-name='Omnibox']) #contextEntrypoint[is-oblong-shape]::part(context-menu-entrypoint-icon) {
+  --cr-icon-button-size: 32px;
+}
+
 :host([searchbox-next-enabled][searchbox-layout-mode^='Tall']) #contextEntrypoint::part(context-menu-entrypoint-icon) {
   --cr-icon-button-icon-size: 20px;
 }
@@ -562,26 +581,24 @@ search-animated-glow {
   margin-top: 12px !important;
 }
 
-:host([in-voice-search-mode]) {
-  box-shadow: 2px 10px 18px -5px rgb(0, 0, 0, 0.1);
-}
-
 :host([in-voice-search-mode]) #suggestionActivity {
   display: none;
 }
 
 :host([in-voice-search-mode]) #composebox {
   block-size: fit-content;
-  min-block-size: 108px;
+  min-block-size: 112px;
   opacity: 0;
-  /* CANNOT be display: None since :host depends on its height. */
+  /* CANNOT be display: None since :host depends on its height.
+   * This must be invisible to hide the lens button.
+   */
   visibility: hidden;
 }
 
 :host([in-voice-search-mode]) #inputContainer {
   /* Ensure that the suggestions' height do not affect
    * size of composebox, and thus voice container (which inherits
-   * from composebox).
+   * from composebox). This must be invisible to hide the input/suggestions.
    */
   display: none;
 }

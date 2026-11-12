@@ -659,9 +659,6 @@ class TrustTokenProtocolTestBase : public ::testing::Test {
 
     TRUST_TOKEN_CLIENT_set_srr_key(client.get(), pub.get());
     TRUST_TOKEN_ISSUER_set_srr_key(issuer.get(), priv.get());
-    RAND_bytes(metadata_key, sizeof(metadata_key));
-    ASSERT_TRUE(TRUST_TOKEN_ISSUER_set_metadata_key(issuer.get(), metadata_key,
-                                                    sizeof(metadata_key)));
   }
 
   const TRUST_TOKEN_METHOD *method_;
@@ -670,7 +667,6 @@ class TrustTokenProtocolTestBase : public ::testing::Test {
   uint16_t issuer_max_batchsize = 10;
   bssl::UniquePtr<TRUST_TOKEN_CLIENT> client;
   bssl::UniquePtr<TRUST_TOKEN_ISSUER> issuer;
-  uint8_t metadata_key[32];
 };
 
 class TrustTokenProtocolTest
@@ -686,21 +682,6 @@ class TrustTokenProtocolTest
 INSTANTIATE_TEST_SUITE_P(TrustTokenAllProtocolTest, TrustTokenProtocolTest,
                          testing::Combine(testing::ValuesIn(AllMethods()),
                                           testing::Bool()));
-
-TEST_P(TrustTokenProtocolTest, MetadataKeySize) {
-  ASSERT_NO_FATAL_FAILURE(SetupContexts());
-
-  uint8_t md_key[64];
-  RAND_bytes(md_key, sizeof(md_key));
-  EXPECT_TRUE(TRUST_TOKEN_ISSUER_set_metadata_key(issuer.get(), md_key,
-                                                  sizeof(md_key)));
-  EXPECT_TRUE(TRUST_TOKEN_ISSUER_set_metadata_key(issuer.get(), md_key, 33));
-  EXPECT_TRUE(TRUST_TOKEN_ISSUER_set_metadata_key(issuer.get(), md_key, 32));
-  EXPECT_FALSE(TRUST_TOKEN_ISSUER_set_metadata_key(issuer.get(), md_key, 31));
-  EXPECT_FALSE(TRUST_TOKEN_ISSUER_set_metadata_key(issuer.get(), md_key, 16));
-  EXPECT_FALSE(TRUST_TOKEN_ISSUER_set_metadata_key(issuer.get(), md_key, 1));
-  EXPECT_FALSE(TRUST_TOKEN_ISSUER_set_metadata_key(issuer.get(), md_key, 0));
-}
 
 TEST_P(TrustTokenProtocolTest, InvalidToken) {
   ASSERT_NO_FATAL_FAILURE(SetupContexts());
@@ -923,9 +904,6 @@ TEST_P(TrustTokenProtocolTest, IssuedWithBadKeyID) {
 
   TRUST_TOKEN_CLIENT_set_srr_key(client.get(), pub.get());
   TRUST_TOKEN_ISSUER_set_srr_key(issuer.get(), priv.get());
-  RAND_bytes(metadata_key, sizeof(metadata_key));
-  ASSERT_TRUE(TRUST_TOKEN_ISSUER_set_metadata_key(issuer.get(), metadata_key,
-                                                  sizeof(metadata_key)));
 
 
   uint8_t *issue_msg = nullptr, *issue_resp = nullptr;

@@ -167,6 +167,9 @@ void DataControlsTabHelper::ShouldAllowSearchWith(
 
   Verdict verdict = IsSearchWithAllowedByPolicy(source_url, profile);
 
+  base::UmaHistogramEnumeration(
+      kIOSWebStateDataControlsSearchWithVerdictHistogram, verdict.level());
+
   ui::ClipboardMetadata metadata{
       .size = text_length * sizeof(std::u16string::value_type),
       .format_type = ui::ClipboardFormatType::PlainTextType()};
@@ -264,9 +267,9 @@ void DataControlsTabHelper::FinishSearchWith(
     Verdict verdict,
     base::OnceCallback<void(bool)> callback,
     bool bypassed) {
-  if (bypassed && source_profile) {
+  if (source_profile) {
     MaybeReportDataControlsCopy(source_url, source_profile.get(), metadata,
-                                std::move(verdict), /*bypassed=*/true);
+                                std::move(verdict), bypassed);
   }
   std::move(callback).Run(bypassed);
 }

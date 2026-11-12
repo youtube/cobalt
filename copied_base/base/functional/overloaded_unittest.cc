@@ -18,7 +18,7 @@ TEST(FunctionalTest, Overloaded) {
   absl::variant<PackageA, PackageB> var = PackageA();
 
   const std::string output =
-      absl::visit(Overloaded{[](const PackageA& pack) { return "PackageA"; },
+      std::visit(Overloaded{[](const PackageA& pack) { return "PackageA"; },
                              [](const PackageB& pack) { return "PackageB"; }},
                   var);
   EXPECT_EQ(output, "PackageA");

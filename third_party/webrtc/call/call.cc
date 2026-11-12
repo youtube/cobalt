@@ -23,6 +23,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/functional/bind_front.h"
 #include "absl/strings/string_view.h"
 #include "api/adaptation/resource.h"
@@ -76,6 +77,7 @@
 #include "modules/video_coding/fec_controller_default.h"
 #include "modules/video_coding/nack_requester.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/containers/flat_set.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/cpu_info.h"
 #include "rtc_base/logging.h"
@@ -200,6 +202,31 @@ class ResourceVideoSendStreamForwarder {
       adapter_resources_;
 };
 
+// Tracks currently active receiver sinks (AudioReceiveStreamImpl,
+// VideoReceiveStream2, FlexfecReceiveStreamImpl) on the worker thread. Used
+// by receiver controllers to validate that a resolved sink remains valid
+// before dispatching incoming RTP packets demuxed on the network thread.
+class ReceiveSinkRegistry : public RtpSinkValidator {
+ public:
+  ReceiveSinkRegistry() = default;
+  ~ReceiveSinkRegistry() override = default;
+
+  void OnSinkAdded(RtpPacketSinkInterface* sink) override {
+    registered_sinks_.insert(sink);
+  }
+  void OnSinkRemoved(RtpPacketSinkInterface* sink) override {
+    registered_sinks_.erase(sink);
+  }
+  bool IsValidSink(RtpPacketSinkInterface* sink) const override {
+    return sink != nullptr && registered_sinks_.contains(sink);
+  }
+
+  bool IsEmpty() const { return registered_sinks_.empty(); }
+
+ private:
+  flat_set<RtpPacketSinkInterface*> registered_sinks_;
+};
+
 class Call final : public webrtc::Call,
                    public PacketReceiver,
                    public TargetTransferRateObserver,
@@ -257,15 +284,17 @@ class Call final : public webrtc::Call,
   std::optional<int> FeedbackAccordingToRfc8888Count() override;
   std::optional<int> FeedbackAccordingToTransportCcCount() override;
 
+  void DisconnectFromNetworkThread() override;
+
   TaskQueueBase* network_thread() const override;
   TaskQueueBase* worker_thread() const override;
 
   void DeliverRtcpPacket(CopyOnWriteBuffer packet) override;
 
-  void DeliverRtpPacket(
-      MediaType media_type,
-      RtpPacketReceived packet,
-      OnUndemuxablePacketHandler undemuxable_packet_handler) override;
+  void DeliverRtpPacket(MediaType media_type,
+                        RtpPacketReceived packet,
+                        absl_nonnull OnUndemuxablePacketHandler
+                            undemuxable_packet_handler) override;
 
   void SignalChannelNetworkState(MediaType media, NetworkState state) override;
 
@@ -351,7 +380,12 @@ class Call final : public webrtc::Call,
 
   void DeliverRtpPacket_w(MediaType media_type,
                           RtpPacketReceived packet,
+                          RtpPacketSinkInterface* sink,
                           OnUndemuxablePacketHandler undemuxable_packet_handler)
+      RTC_RUN_ON(worker_thread_);
+
+  void DeliverToRetrySink(RtpPacketReceived packet,
+                          RtpPacketSinkInterface* retry_sink)
       RTC_RUN_ON(worker_thread_);
 
   AudioReceiveStreamImpl* FindAudioStreamForSyncGroup(
@@ -374,6 +408,10 @@ class Call final : public webrtc::Call,
   const Environment env_;
   TaskQueueBase* const worker_thread_;
   TaskQueueBase* const network_thread_;
+  scoped_refptr<PendingTaskSafetyFlag> network_safety_ =
+      PendingTaskSafetyFlag::CreateAttachedToTaskQueue(true, network_thread_);
+  const ScopedTaskSafety task_safety_;
+  ReceiveSinkRegistry receive_sink_registry_ RTC_GUARDED_BY(worker_thread_);
   const std::unique_ptr<DecodeSynchronizer> decode_sync_;
   RTC_NO_UNIQUE_ADDRESS SequenceChecker send_transport_sequence_checker_;
 
@@ -401,10 +439,10 @@ class Call final : public webrtc::Call,
       RTC_GUARDED_BY(worker_thread_);
   // TODO(bugs.webrtc.org/7135, bugs.webrtc.org/9719): Should eventually be
   // injected at creation, with a single object in the bundled case.
-  RtpStreamReceiverController audio_receiver_controller_
-      RTC_GUARDED_BY(worker_thread_);
-  RtpStreamReceiverController video_receiver_controller_
-      RTC_GUARDED_BY(worker_thread_);
+  RtpStreamReceiverController audio_receiver_controller_{
+      network_thread_, worker_thread_, &receive_sink_registry_};
+  RtpStreamReceiverController video_receiver_controller_{
+      network_thread_, worker_thread_, &receive_sink_registry_};
 
   // This extra map is used for receive processing which is
   // independent of media type.
@@ -455,11 +493,6 @@ class Call final : public webrtc::Call,
 
   const std::unique_ptr<SendDelayStats> video_send_delay_stats_;
   const Timestamp start_of_call_;
-
-  // Note that `task_safety_` needs to be at a greater scope than the task queue
-  // owned by `transport_send_` since calls might arrive on the network thread
-  // while Call is being deleted and the task queue is being torn down.
-  const ScopedTaskSafety task_safety_;
 
   // Caches transport_send_.get(), to avoid racing with destructor.
   // Note that this is declared before transport_send_ to ensure that it is not
@@ -749,8 +782,7 @@ Call::~Call() {
   RTC_CHECK(video_send_streams_.empty());
   RTC_CHECK(audio_receive_streams_.empty());
   RTC_CHECK(video_receive_streams_.empty());
-  RTC_CHECK(audio_receiver_controller_.IsEmpty());
-  RTC_CHECK(video_receiver_controller_.IsEmpty());
+  RTC_CHECK(receive_sink_registry_.IsEmpty());
 
   receive_side_cc_periodic_task_.Stop();
   elastic_bandwidth_allocation_task_.Stop();
@@ -1147,6 +1179,13 @@ std::optional<int> Call::FeedbackAccordingToTransportCcCount() {
   return transport_send_->ReceivedTransportCcFeedbackCount();
 }
 
+void Call::DisconnectFromNetworkThread() {
+  RTC_DCHECK_RUN_ON(network_thread_);
+  audio_receiver_controller_.DisconnectFromNetworkThread();
+  video_receiver_controller_.DisconnectFromNetworkThread();
+  network_safety_->SetNotAlive();
+}
+
 TaskQueueBase* Call::network_thread() const {
   return network_thread_;
 }
@@ -1382,10 +1421,10 @@ void Call::DeliverRtcpPacket_w(CopyOnWriteBuffer packet) {
   }
 }
 
-void Call::DeliverRtpPacket(
-    MediaType media_type,
-    RtpPacketReceived packet,
-    OnUndemuxablePacketHandler undemuxable_packet_handler) {
+void Call::DeliverRtpPacket(MediaType media_type,
+                            RtpPacketReceived packet,
+                            absl_nonnull OnUndemuxablePacketHandler
+                                undemuxable_packet_handler) {
   RTC_DCHECK_RUN_ON(network_thread_);
 
   if (receive_time_calculator_) {
@@ -1405,24 +1444,34 @@ void Call::DeliverRtpPacket(
     receive_stats_.AddReceivedVideoBytes(length, packet.arrival_time());
   }
 
+  RtpPacketSinkInterface* sink = nullptr;
+  if (media_type == MediaType::AUDIO || media_type == MediaType::VIDEO) {
+    RtpStreamReceiverController& receiver_controller =
+        media_type == MediaType::AUDIO ? audio_receiver_controller_
+                                       : video_receiver_controller_;
+    sink = receiver_controller.ResolveSink(packet);
+  }
+
   if (worker_thread_->IsCurrent()) {
     RTC_DCHECK_RUN_ON(worker_thread_);
-    DeliverRtpPacket_w(media_type, std::move(packet),
+    DeliverRtpPacket_w(media_type, std::move(packet), sink,
                        std::move(undemuxable_packet_handler));
   } else {
-    worker_thread_->PostTask(SafeTask(
-        task_safety_.flag(),
-        [this, media_type, packet = std::move(packet),
-         handler = std::move(undemuxable_packet_handler)]() mutable {
-          RTC_DCHECK_RUN_ON(worker_thread_);
-          DeliverRtpPacket_w(media_type, std::move(packet), std::move(handler));
-        }));
+    worker_thread_->PostTask(
+        SafeTask(task_safety_.flag(),
+                 [this, media_type, packet = std::move(packet), sink,
+                  handler = std::move(undemuxable_packet_handler)]() mutable {
+                   RTC_DCHECK_RUN_ON(worker_thread_);
+                   DeliverRtpPacket_w(media_type, std::move(packet), sink,
+                                      std::move(handler));
+                 }));
   }
 }
 
 void Call::DeliverRtpPacket_w(
     MediaType media_type,
     RtpPacketReceived packet,
+    RtpPacketSinkInterface* sink,
     OnUndemuxablePacketHandler undemuxable_packet_handler) {
   RTC_DCHECK_RUN_ON(worker_thread_);
   RTC_DCHECK(packet.arrival_time().IsFinite());
@@ -1441,25 +1490,50 @@ void Call::DeliverRtpPacket_w(
   RTC_HISTOGRAM_COUNTS_100000("WebRTC.TimeFromNetworkToDeliverRtpPacketUs",
                               nw_to_deliver_delay.us());
 
-  RtpStreamReceiverController& receiver_controller =
-      media_type == MediaType::AUDIO ? audio_receiver_controller_
-                                     : video_receiver_controller_;
-
-  if (!receiver_controller.OnRtpPacket(packet)) {
-    // Demuxing failed.  Allow the caller to create a
-    // receive stream in order to handle unsignalled SSRCs and try again.
-    // Note that we dont want to call NotifyBweOfReceivedPacket twice per
-    // packet.
-    if (!undemuxable_packet_handler(packet)) {
-      env_.event_log().Log(std::make_unique<RtcEventRtpPacketIncoming>(packet));
-      return;
-    }
-    if (!receiver_controller.OnRtpPacket(packet)) {
-      env_.event_log().Log(std::make_unique<RtcEventRtpPacketIncoming>(packet));
-      RTC_LOG(LS_INFO) << "Failed to demux packet " << packet.Ssrc();
-      return;
-    }
+  if (receive_sink_registry_.IsValidSink(sink)) {
+    sink->OnRtpPacket(packet);
+    return;
   }
+
+  if (!undemuxable_packet_handler(packet)) {
+    env_.event_log().Log(std::make_unique<RtcEventRtpPacketIncoming>(packet));
+    return;
+  }
+
+  if (network_thread_->IsCurrent()) {
+    RtpStreamReceiverController& controller = media_type == MediaType::AUDIO
+                                                  ? audio_receiver_controller_
+                                                  : video_receiver_controller_;
+    RtpPacketSinkInterface* retry_sink = controller.ResolveSink(packet);
+    DeliverToRetrySink(std::move(packet), retry_sink);
+  } else {
+    network_thread_->PostTask(SafeTask(
+        network_safety_,
+        [this, media_type, packet = std::move(packet)]() mutable {
+          RTC_DCHECK_RUN_ON(network_thread_);
+          RtpStreamReceiverController& controller =
+              media_type == MediaType::AUDIO ? audio_receiver_controller_
+                                             : video_receiver_controller_;
+          RtpPacketSinkInterface* retry_sink = controller.ResolveSink(packet);
+          worker_thread_->PostTask(SafeTask(
+              task_safety_.flag(),
+              [this, packet = std::move(packet), retry_sink]() mutable {
+                RTC_DCHECK_RUN_ON(worker_thread_);
+                DeliverToRetrySink(std::move(packet), retry_sink);
+              }));
+        }));
+  }
+}
+
+void Call::DeliverToRetrySink(RtpPacketReceived packet,
+                              RtpPacketSinkInterface* retry_sink) {
+  RTC_DCHECK_RUN_ON(worker_thread_);
+  if (receive_sink_registry_.IsValidSink(retry_sink)) {
+    retry_sink->OnRtpPacket(packet);
+    return;
+  }
+  env_.event_log().Log(std::make_unique<RtcEventRtpPacketIncoming>(packet));
+  RTC_LOG(LS_INFO) << "Failed to demux packet " << packet.Ssrc();
 }
 
 void Call::NotifyBweOfReceivedPacket(const RtpPacketReceived& packet,

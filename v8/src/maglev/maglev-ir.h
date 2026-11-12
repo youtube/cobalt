@@ -71,6 +71,8 @@
 namespace v8 {
 namespace internal {
 
+class AsyncResumeTask;
+
 enum Condition : int;
 
 namespace maglev {
@@ -5966,6 +5968,26 @@ struct VirtualJSPromiseObjectShape : VirtualJSObjectShape {
 #undef FIELD_LIST
 };
 
+struct VirtualAsyncResumeTaskShape : VirtualHeapObjectShape {
+  using T = AsyncResumeTask;
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+#define FIELD_LIST(V)                                                       \
+  V(continuation_preserved_embedder_data,                                   \
+    ObjectTraits<Microtask>::kContinuationPreservedEmbedderDataOffset,      \
+    vobj::FieldType::kTagged)                                               \
+  V(generator, ObjectTraits<T>::kGeneratorOffset, vobj::FieldType::kTagged) \
+  V(value, ObjectTraits<T>::kValueOffset, vobj::FieldType::kTagged)         \
+  V(kind, ObjectTraits<T>::kKindOffset, vobj::FieldType::kTagged)
+#else
+#define FIELD_LIST(V)                                                       \
+  V(generator, ObjectTraits<T>::kGeneratorOffset, vobj::FieldType::kTagged) \
+  V(value, ObjectTraits<T>::kValueOffset, vobj::FieldType::kTagged)         \
+  V(kind, ObjectTraits<T>::kKindOffset, vobj::FieldType::kTagged)
+#endif
+  DEF_SHAPE(VirtualHeapObjectShape, FIELD_LIST);
+#undef FIELD_LIST
+};
+
 struct VirtualFixedArrayShape : VirtualHeapObjectShape {
   // The instance size is determined by array length, and array elements are
   // tagged.
@@ -9401,10 +9423,7 @@ class LoadDictionaryField
   }
 
   static constexpr OpProperties kProperties =
-#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_ARM64)
-      OpProperties::Call() |
-#endif
-      OpProperties::CanCallUserCode() | OpProperties::DeferredCall();
+      OpProperties::JSCall() | OpProperties::DeferredCall();
 
   DECLARE_INPUTS(Context, Object)
   DECLARE_INPUT_TYPES(Tagged, Tagged)

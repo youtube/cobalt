@@ -692,6 +692,22 @@ const LayoutResult* BlockLayoutAlgorithm::LayoutInlineChild(
       BlockLayoutAlgorithm cloned_algorithm(cloned_param);
       const LayoutResult* result =
           cloned_algorithm.LayoutInlineChild(node, nullptr);
+      // The layout might abort with non-success status. For example, it may
+      // abort with kBfcBlockOffsetResolved when the BFC block offset is
+      // resolved, or kOutOfFragmentainerSpace when running out of space in a
+      // fragmentation context.
+      if (result->Status() != LayoutResult::kSuccess) {
+        if (result->Status() == LayoutResult::kBfcBlockOffsetResolved) {
+          // The parent layout expects the resolved BFC block offset to be
+          // present on the LayoutResult when the status is
+          // kBfcBlockOffsetResolved. Since we are aborting the current layout
+          // before we resolved it ourselves, we copy it from the result which
+          // triggered the abort.
+          DCHECK(result->BfcBlockOffset());
+          container_builder_.SetBfcBlockOffset(*result->BfcBlockOffset());
+        }
+        return container_builder_.Abort(result->Status());
+      }
       paragraph_scale = MeasurePerBlockScale(
           InlineNode(To<LayoutBlockFlow>(Node().GetLayoutBox())),
           result->GetPhysicalFragment(), ChildAvailableSize().inline_size);
@@ -808,61 +824,7 @@ inline const LayoutResult* BlockLayoutAlgorithm::Layout(
     abort_when_bfc_block_offset_updated_ = true;
   }
 
-  if (Style().HasLineClamp() && !Node().IsMulticolContainer()) {
-    if (!line_clamp_data_.data.IsLineClampContext()) {
-      LayoutUnit clamp_bfc_offset = kIndefiniteSize;
-      if (!Style().LineClamp() ||
-          RuntimeEnabledFeatures::CSSLineClampLinesAndHeightEnabled()) {
-        clamp_bfc_offset = ChildAvailableSize().block_size;
-        if (clamp_bfc_offset == kIndefiniteSize) {
-          const MinMaxSizes sizes = ComputeInitialMinMaxBlockSizes(
-              constraint_space, Node(), BorderPadding());
-          if (sizes.max_size != LayoutUnit::Max()) {
-            clamp_bfc_offset = sizes.max_size;
-          }
-        } else {
-          clamp_bfc_offset += BorderScrollbarPadding().BlockSum();
-        }
-      }
-
-      line_clamp_data_.UpdateFromStyle(Style().LineClamp(), clamp_bfc_offset,
-                                       BorderPadding().block_end);
-    }
-  } else {
-    if (Style().WebkitLineClamp() != 0) {
-      UseCounter::Count(Node().GetDocument(),
-                        WebFeature::kWebkitLineClampWithoutWebkitBox);
-    }
-
-    // If we're clamping by BFC offset, we need to add this box to the ancestor
-    // chain so we can properly compute the line-clamp container block size if
-    // we clamp inside it.
-    if (line_clamp_data_.data.IsMeasureUntilBfcOffset()) {
-      MinMaxSizes block_min_max_sizes = ComputeInitialMinMaxBlockSizes(
-          constraint_space, Node(), BorderPadding());
-
-      const bool is_fixed_block_size =
-          ChildAvailableSize().block_size != kIndefiniteSize ||
-          Node().ShouldApplyBlockSizeContainment() ||
-          block_min_max_sizes.min_size == block_min_max_sizes.max_size;
-
-      if (is_fixed_block_size) {
-        // If the block size is fixed, we won't ever clamp inside this box,
-        // since that couldnt possibly reduce the line-clamp container's height.
-        // But our ancestors still need to know the number of lines in the box.
-        line_clamp_data_.data.state = LineClampData::kCountLines;
-      } else {
-        DCHECK(constraint_space.GetLineClampAncestorChain());
-        LayoutUnit end_margin =
-            ComputeMarginsForSelf(constraint_space, Style()).block_end;
-        line_clamp_data_.ancestor_chain =
-            MakeGarbageCollected<LineClampAncestorChain>(
-                container_builder_.BfcBlockOffset(), BorderPadding().block_end,
-                end_margin, block_min_max_sizes,
-                constraint_space.GetLineClampAncestorChain());
-      }
-    }
-  }
+  SetupLineClamp();
 
   LayoutUnit content_edge = BorderScrollbarPadding().block_start;
 
@@ -4068,6 +4030,65 @@ LogicalOffset BlockLayoutAlgorithm::AdjustSliderThumbInlineOffset(
   return {logical_offset.inline_offset + offset, logical_offset.block_offset};
 }
 
+NOINLINE void BlockLayoutAlgorithm::SetupLineClamp() {
+  const ConstraintSpace& constraint_space = GetConstraintSpace();
+
+  if (Style().HasLineClamp() && !Node().IsMulticolContainer()) {
+    if (!line_clamp_data_.data.IsLineClampContext()) {
+      LayoutUnit clamp_bfc_offset = kIndefiniteSize;
+      if (Style().MaxLines().HasAutoKeyword()) {
+        clamp_bfc_offset = ChildAvailableSize().block_size;
+        if (clamp_bfc_offset == kIndefiniteSize) {
+          const MinMaxSizes sizes = ComputeInitialMinMaxBlockSizes(
+              constraint_space, Node(), BorderPadding());
+          if (sizes.max_size != LayoutUnit::Max()) {
+            clamp_bfc_offset = sizes.max_size;
+          }
+        } else {
+          clamp_bfc_offset += BorderScrollbarPadding().BlockSum();
+        }
+      }
+
+      line_clamp_data_.UpdateFromStyle(Style().LineClamp(), clamp_bfc_offset,
+                                       BorderPadding().block_end);
+    }
+  } else {
+    if (Style().WebkitLineClamp() != 0) {
+      UseCounter::Count(Node().GetDocument(),
+                        WebFeature::kWebkitLineClampWithoutWebkitBox);
+    }
+
+    // If we're clamping by BFC offset, we need to add this box to the ancestor
+    // chain so we can properly compute the line-clamp container block size if
+    // we clamp inside it.
+    if (line_clamp_data_.data.IsMeasureUntilBfcOffset()) {
+      MinMaxSizes block_min_max_sizes = ComputeInitialMinMaxBlockSizes(
+          constraint_space, Node(), BorderPadding());
+
+      const bool is_fixed_block_size =
+          ChildAvailableSize().block_size != kIndefiniteSize ||
+          Node().ShouldApplyBlockSizeContainment() ||
+          block_min_max_sizes.min_size == block_min_max_sizes.max_size;
+
+      if (is_fixed_block_size) {
+        // If the block size is fixed, we won't ever clamp inside this box,
+        // since that couldnt possibly reduce the line-clamp container's height.
+        // But our ancestors still need to know the number of lines in the box.
+        line_clamp_data_.data.state = LineClampData::kCountLines;
+      } else {
+        DCHECK(constraint_space.GetLineClampAncestorChain());
+        LayoutUnit end_margin =
+            ComputeMarginsForSelf(constraint_space, Style()).block_end;
+        line_clamp_data_.ancestor_chain =
+            MakeGarbageCollected<LineClampAncestorChain>(
+                container_builder_.BfcBlockOffset(), BorderPadding().block_end,
+                end_margin, block_min_max_sizes,
+                constraint_space.GetLineClampAncestorChain());
+      }
+    }
+  }
+}
+
 void BlockLineClampData::UpdateFromStyle(int lines_until_clamp,
                                          LayoutUnit clamp_bfc_offset,
                                          LayoutUnit end_border_padding) {
@@ -4091,7 +4112,6 @@ void BlockLineClampData::UpdateFromStyle(int lines_until_clamp,
       data.state = LineClampData::kClampByLines;
       data.lines_until_clamp = lines_until_clamp;
     } else {
-      DCHECK(RuntimeEnabledFeatures::CSSLineClampLinesAndHeightEnabled());
       data.state = LineClampData::kClampByLinesWithBfcOffset;
       data.lines_until_clamp = lines_until_clamp;
       data.clamp_bfc_offset = clamp_bfc_offset;

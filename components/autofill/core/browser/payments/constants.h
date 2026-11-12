@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_CONSTANTS_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_CONSTANTS_H_
 
+#include <stdint.h>
+
 #include <string_view>
 
 #include "components/autofill/core/browser/field_types.h"

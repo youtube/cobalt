@@ -283,8 +283,8 @@ source_set("unit_tests") {
   # build returns the crash keys in the unit-test, not the "variations"
   # target. The test verifies the keys in the "variations" target, not the
   # test. As such, it fails in component builds.
-  # TODO(crbug.com/40172607): Enable this unittest for is_fuchsia when crash keys
-  # are supported on Fuchsia.
+  # TODO(crbug.com/40172607): Enable this unittest for is_fuchsia when crash
+  # keys are supported on Fuchsia.
   if (!is_component_build && !is_fuchsia) {
     sources += [ "variations_crash_keys_unittest.cc" ]
   }
@@ -331,11 +331,10 @@ test("variations_unittests") {
 if (use_fuzzing_engine_with_lpm) {
   fuzzable_proto_library("test_cases_proto") {
     sources = [ "fuzzers/create_trials_from_seed_test_case.proto" ]
-
-    import_dirs = [ "//components/variations/proto" ]
-
     deps = [ "//components/variations/proto" ]
+    proto_in_dir = "//"
   }
+
   fuzzer_test("create_trial_from_study_fuzzer") {
     sources = [ "fuzzers/create_trial_from_study_fuzzer.cc" ]
     deps = [
@@ -344,7 +343,11 @@ if (use_fuzzing_engine_with_lpm) {
       "//base/test:test_support",
       "//third_party/libprotobuf-mutator",
     ]
+
+    # TODO(crbug.com/505034799): Migrate to FUZZ_TEST.
+    is_fuzztest_compatible = false
   }
+
   fuzzer_test("create_trials_from_seed_fuzzer") {
     sources = [ "fuzzers/create_trials_from_seed_fuzzer.cc" ]
     deps = [
@@ -354,7 +357,11 @@ if (use_fuzzing_engine_with_lpm) {
       "//base/test:test_support",
       "//third_party/libprotobuf-mutator",
     ]
+
+    # TODO(crbug.com/505034799): Migrate to FUZZ_TEST.
+    is_fuzztest_compatible = false
   }
+
   fuzzer_test("create_trials_from_seed_v2_fuzzer") {
     sources = [ "fuzzers/create_trials_from_seed_fuzzer_v2.cc" ]
     deps = [
@@ -369,6 +376,10 @@ if (use_fuzzing_engine_with_lpm) {
       "//components/variations/service",
       "//third_party/libprotobuf-mutator",
     ]
+    if (is_android) {
+      # Provides org.chromium.components.metrics.LowEntropySource.
+      deps += [ "//components/metrics:metrics_java" ]
+    }
     seed_corpus = "fuzzers/testcases/create_trials_from_seed/"
   }
 }

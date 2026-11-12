@@ -111,6 +111,7 @@ import org.chromium.chrome.browser.data_sharing.DataSharingTabManager;
 import org.chromium.chrome.browser.dragdrop.ChromeDropDataAndroid;
 import org.chromium.chrome.browser.dragdrop.ChromeTabDropDataAndroid;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.glic.GlicEnabling;
 import org.chromium.chrome.browser.layouts.SceneOverlay;
 import org.chromium.chrome.browser.layouts.animation.CompositorAnimationHandler;
 import org.chromium.chrome.browser.layouts.components.VirtualView;
@@ -130,9 +131,9 @@ import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
 import org.chromium.chrome.browser.tab_ui.ActionConfirmationManager;
 import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter.MergeNotificationType;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver.DidRemoveTabGroupReason;
+import org.chromium.chrome.browser.tabmodel.TabGroupMergeNotificationType;
+import org.chromium.chrome.browser.tabmodel.TabGroupObserver;
+import org.chromium.chrome.browser.tabmodel.TabGroupObserver.DidRemoveTabGroupReason;
 import org.chromium.chrome.browser.tabmodel.TabGroupTitleUtils;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelActionListener;
@@ -159,6 +160,7 @@ import org.chromium.components.tab_group_sync.SavedTabGroup;
 import org.chromium.components.tab_group_sync.SavedTabGroupTab;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
 import org.chromium.components.tab_groups.TabGroupColorId;
+import org.chromium.components.tab_groups.TabGroupsFeatureMap;
 import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.dragdrop.DragDropGlobalState;
@@ -182,7 +184,11 @@ import java.util.stream.IntStream;
         manifest = Config.NONE,
         qualifiers = "sw600dp",
         shadows = {ShadowAppCompatResources.class})
-@DisableFeatures({ChromeFeatureList.DATA_SHARING, ChromeFeatureList.GLIC})
+@DisableFeatures({
+    ChromeFeatureList.DATA_SHARING,
+    ChromeFeatureList.GLIC,
+    TabGroupsFeatureMap.UPDATE_TAB_GROUP_COLORS
+})
 @EnableFeatures(ChromeFeatureList.TAB_STRIP_AUTO_SELECT_ON_CLOSE_CHANGE)
 public class StripLayoutHelperTest {
     private static final Token TAB_GROUP_ID_1 = new Token(1L, 1L);
@@ -281,6 +287,7 @@ public class StripLayoutHelperTest {
     /** Reset the environment before each test. */
     @Before
     public void beforeTest() {
+        GlicEnabling.setEnabledForTesting(ChromeFeatureList.isEnabled(ChromeFeatureList.GLIC));
         when(mModel.isTabInTabGroup(any())).thenReturn(false);
         when(mModel.getTabUngrouper()).thenReturn(mTabUngrouper);
         when(mModel.getTabGroupTitle(any(Token.class))).thenReturn(UNSET_TAB_GROUP_TITLE);
@@ -1018,7 +1025,7 @@ public class StripLayoutHelperTest {
         // Notify group removal and verify state.
         when(mModel.isTabInTabGroup(any())).thenReturn(false);
         mStripLayoutHelper
-                .getTabGroupModelFilterObserverForTesting()
+                .getTabGroupObserverForTesting()
                 .didRemoveTabGroup(
                         Tab.INVALID_TAB_ID, TAB_GROUP_ID_1, DidRemoveTabGroupReason.CLOSE);
         int numClosingGroupTitles = mStripLayoutHelper.getClosingGroupTitlesForTesting().size();
@@ -1068,7 +1075,7 @@ public class StripLayoutHelperTest {
         // Notify group removal and verify state.
         when(mModel.isTabInTabGroup(any())).thenReturn(false);
         mStripLayoutHelper
-                .getTabGroupModelFilterObserverForTesting()
+                .getTabGroupObserverForTesting()
                 .didRemoveTabGroup(
                         Tab.INVALID_TAB_ID, TAB_GROUP_ID_1, DidRemoveTabGroupReason.CLOSE);
         int numClosingGroupTitles = mStripLayoutHelper.getClosingGroupTitlesForTesting().size();
@@ -2667,7 +2674,7 @@ public class StripLayoutHelperTest {
         mModel.closeTabs(TabClosureParams.closeTabs(closingTabs).build());
         mStripLayoutHelper.multipleTabsClosed(closingTabs);
         mStripLayoutHelper
-                .getTabGroupModelFilterObserverForTesting()
+                .getTabGroupObserverForTesting()
                 .didRemoveTabGroup(
                         Tab.INVALID_TAB_ID, TAB_GROUP_ID_1, DidRemoveTabGroupReason.CLOSE);
 
@@ -5341,7 +5348,7 @@ public class StripLayoutHelperTest {
         mStripLayoutHelper.onClick(
                 TIMESTAMP, views[0], MotionEventUtils.MOTION_EVENT_BUTTON_NONE, 0);
 
-        // Verify the proper event was sent to the TabGroupModelFilter.
+        // Verify the proper event was sent to the TabModel.
         verify(mModel)
                 .setTabGroupCollapsed(TAB_GROUP_ID_1, /* isCollapsed= */ true, /* animate= */ true);
         // Verify we record the correct metric.
@@ -5366,7 +5373,7 @@ public class StripLayoutHelperTest {
         mStripLayoutHelper.onClick(
                 TIMESTAMP, views[0], MotionEventUtils.MOTION_EVENT_BUTTON_NONE, 0);
 
-        // Verify the proper event was sent to the TabGroupModelFilter.
+        // Verify the proper event was sent to the TabModel.
         verify(mModel)
                 .setTabGroupCollapsed(
                         TAB_GROUP_ID_1, /* isCollapsed= */ false, /* animate= */ true);
@@ -5923,8 +5930,7 @@ public class StripLayoutHelperTest {
     public void testSetTabModel() {
         // Setup and verify initial state.
         initializeTest(false, false, 0);
-        TabGroupModelFilterObserver observer =
-                mStripLayoutHelper.getTabGroupModelFilterObserverForTesting();
+        TabGroupObserver observer = mStripLayoutHelper.getTabGroupObserverForTesting();
         verify(mModel).addTabGroupObserver(observer);
 
         // Set a new TabModel.
@@ -5955,8 +5961,7 @@ public class StripLayoutHelperTest {
     public void testDestroy() {
         // Setup.
         initializeTest(false, false, 0);
-        TabGroupModelFilterObserver observer =
-                mStripLayoutHelper.getTabGroupModelFilterObserverForTesting();
+        TabGroupObserver observer = mStripLayoutHelper.getTabGroupObserverForTesting();
 
         // Destroy the instance.
         mStripLayoutHelper.destroy();
@@ -6696,7 +6701,7 @@ public class StripLayoutHelperTest {
                         mTabListCaptor.capture(),
                         eq(expectedDestinationTab),
                         eq(null),
-                        eq(MergeNotificationType.DONT_NOTIFY));
+                        eq(TabGroupMergeNotificationType.DONT_NOTIFY));
         assertTrue(mTabListCaptor.getValue().contains(mModel.getTabById(4)));
         verify(mTabUngrouper, never()).ungroupTabs(any(), anyBoolean(), anyBoolean(), any());
         verify(mModel, never()).moveTab(anyInt(), anyInt());
@@ -6726,7 +6731,7 @@ public class StripLayoutHelperTest {
                         mTabListCaptor.capture(),
                         eq(expectedDestinationTab),
                         eq(0),
-                        eq(MergeNotificationType.DONT_NOTIFY));
+                        eq(TabGroupMergeNotificationType.DONT_NOTIFY));
         assertTrue(mTabListCaptor.getValue().contains(mModel.getTabById(1)));
         verify(mTabUngrouper, never()).ungroupTabs(any(), anyBoolean(), anyBoolean(), any());
         verify(mModel, never()).moveTab(anyInt(), anyInt());

@@ -57,6 +57,12 @@ TEST(BufferTest, TestConstructEmpty) {
   TestBuf(Buffer(kTestData.data(), 0, 20), 0, 20);
 }
 
+TEST(BufferTest, TestEmptyBuffersAreEqual) {
+  Buffer buf1;
+  Buffer buf2;
+  EXPECT_EQ(buf1, buf2);
+}
+
 TEST(BufferTest, TestConstructData) {
   Buffer buf(kTestData.data(), 7);
   EXPECT_EQ(buf.size(), 7u);

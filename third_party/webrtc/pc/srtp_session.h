@@ -20,6 +20,8 @@
 #include "api/sequence_checker.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/copy_on_write_buffer.h"
+#include "rtc_base/system/no_unique_address.h"
+#include "rtc_base/thread_annotations.h"
 
 // Forward declaration to avoid pulling in libsrtp headers here
 struct srtp_event_data_t;
@@ -41,6 +43,9 @@ class SrtpSession {
 
   SrtpSession(const SrtpSession&) = delete;
   SrtpSession& operator=(const SrtpSession&) = delete;
+
+  // Enable or disable cryptex. May update existing session.
+  bool UseCryptex(bool enabled, bool require, bool sending_session);
 
   // Configures the session for sending data using the specified
   // crypto suite and key. Receiving must be done by a separate session.
@@ -104,20 +109,26 @@ class SrtpSession {
   void HandleEvent(const srtp_event_data_t* ev);
   static void HandleEventThunk(srtp_event_data_t* ev);
 
-  SequenceChecker thread_checker_;
-  srtp_ctx_t_* session_ = nullptr;
+  RTC_NO_UNIQUE_ADDRESS SequenceChecker thread_checker_{
+      SequenceChecker::kDetached};
+  srtp_ctx_t_* session_ RTC_GUARDED_BY(thread_checker_) = nullptr;
 
   // Overhead of the SRTP auth tag for RTP and RTCP in bytes.
   // Depends on the cipher suite used and is usually the same with the exception
   // of the kCsAesCm128HmacSha1_32 cipher suite. The additional four bytes
   // required for RTCP protection are not included.
-  int rtp_auth_tag_len_ = 0;
-  int rtcp_auth_tag_len_ = 0;
+  int rtp_auth_tag_len_ RTC_GUARDED_BY(thread_checker_) = 0;
+  int rtcp_auth_tag_len_ RTC_GUARDED_BY(thread_checker_) = 0;
 
-  bool inited_ = false;
-  int last_send_seq_num_ = -1;
-  int decryption_failure_count_ = 0;
-  bool dump_plain_rtp_ = false;
+  bool inited_ RTC_GUARDED_BY(thread_checker_) = false;
+  int last_send_seq_num_ RTC_GUARDED_BY(thread_checker_) = -1;
+  int decryption_failure_count_ RTC_GUARDED_BY(thread_checker_) = 0;
+
+  // Supported since libsrtp v2.8.0.
+  bool use_cryptex_ RTC_GUARDED_BY(thread_checker_) = false;
+  bool require_cryptex_ RTC_GUARDED_BY(thread_checker_) = false;
+
+  const bool dump_plain_rtp_ = false;
 };
 
 }  //  namespace webrtc

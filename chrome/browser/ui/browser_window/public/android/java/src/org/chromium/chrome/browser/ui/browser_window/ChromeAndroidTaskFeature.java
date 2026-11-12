@@ -60,33 +60,11 @@ public interface ChromeAndroidTaskFeature {
      * <p>This is the start of the feature's lifecycle. Usually a feature would initialize objects
      * it owns in this method.
      *
-     * <p>This is also the moment when the feature can associate itself with the matching native
-     * {@code BrowserWindowInterface} (see documentation for the {@code nativeBrowserWindowPtr}
-     * parameter below).
-     *
-     * @param nativeBrowserWindowPtr The native {@code BrowserWindowInterface} matching this
-     *     feature's {@link ChromeAndroidTaskFeatureKey}. The value 0 will be provided if there is
-     *     no matching {@code BrowserWindowInterface}. For a {@code BrowserWindowInterface} to match
-     *     the {@link ChromeAndroidTaskFeatureKey}, the {@code BrowserWindowInterface} must be
-     *     associated with the same {@code Profile} and {@code ActivityWindowAndroid} in the {@link
-     *     ChromeAndroidTaskFeatureKey}.
-     * @see ChromeAndroidTask#addFeature
-     */
-    // TODO (crbug.com/510525529): Remove API once #onAddedToTask(InitInfo) is made non-default.
-    default void onAddedToTask(long nativeBrowserWindowPtr) {}
-
-    /**
-     * Called by a {@link ChromeAndroidTask} when this feature is added to it.
-     *
-     * <p>This is the start of the feature's lifecycle. Usually a feature would initialize objects
-     * it owns in this method.
-     *
      * @param initInfo The {@link InitInfo} encapsulating the state of the Task when the feature is
      *     added to it.
      * @see ChromeAndroidTask#addFeature
      */
-    // TODO (crbug.com/510525529): Make non-default after downstream is updated.
-    default void onAddedToTask(InitInfo initInfo) {}
+    void onAddedToTask(InitInfo initInfo);
 
     /**
      * Called by a {@link ChromeAndroidTask} when the feature is being removed.
@@ -106,13 +84,8 @@ public interface ChromeAndroidTaskFeature {
     /**
      * Called by a {@link ChromeAndroidTask} when the Task (window) bounds are changed.
      *
-     * @param newBoundsInDp The new Task bounds.
-     */
-    // TODO (crbug.com/505171896): Remove this API after downstream is updated.
-    default void onTaskBoundsChanged(Rect newBoundsInDp) {}
-
-    /**
-     * Called by a {@link ChromeAndroidTask} when the Task (window) bounds are changed.
+     * <p>This will _not_ be invoked to notify features of the Task's initial bounds. It will only
+     * be invoked when the Task already has valid bounds and the bounds are changed.
      *
      * @param displayId The ID of the display containing the task.
      * @param newBoundsInDp The new Task bounds, in dp.

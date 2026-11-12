@@ -450,8 +450,7 @@ class RasterImplementation::PaintOpSerializer {
         transfer_cache_helper_(transfer_cache_helper),
         font_manager_(font_manager),
         max_op_size_hint_(max_op_size_hint) {
-    buffer_ =
-        static_cast<char*>(ri_->MapRasterCHROMIUM(initial_size, &free_bytes_));
+    buffer_ = ri_->MapRasterCHROMIUM(initial_size);
   }
 
   PaintOpSerializer(const PaintOpSerializer&) = delete;
@@ -471,9 +470,8 @@ class RasterImplementation::PaintOpSerializer {
       return 0;
     }
 
-    size_t size =
-        op.Serialize(UNSAFE_TODO(buffer_ + written_bytes_), free_bytes_,
-                     options, flags_to_serialize, current_ctm, original_ctm);
+    size_t size = op.Serialize(buffer_.subspan(written_bytes_), options,
+                               flags_to_serialize, current_ctm, original_ctm);
     size_t block_size = *max_op_size_hint_;
 
     if (!size) {
@@ -485,15 +483,13 @@ class RasterImplementation::PaintOpSerializer {
       const unsigned int max_size = ri_->transfer_buffer_->GetMaxSize();
       DCHECK_LE(block_size, max_size);
       while (true) {
-        buffer_ = static_cast<char*>(
-            ri_->MapRasterCHROMIUM(block_size, &free_bytes_));
-        if (!buffer_) {
+        buffer_ = ri_->MapRasterCHROMIUM(block_size);
+        if (buffer_.empty()) {
           return 0;
         }
 
-        size = op.Serialize(UNSAFE_TODO(buffer_ + written_bytes_), free_bytes_,
-                            options, flags_to_serialize, current_ctm,
-                            original_ctm);
+        size = op.Serialize(buffer_.subspan(written_bytes_), options,
+                            flags_to_serialize, current_ctm, original_ctm);
         if (size) {
           *max_op_size_hint_ = std::max(size, *max_op_size_hint_);
           break;
@@ -514,12 +510,11 @@ class RasterImplementation::PaintOpSerializer {
       }
     }
 
-    DCHECK_LE(size, free_bytes_);
+    DCHECK_LE(size, buffer_.size() - written_bytes_);
     DCHECK(base::CheckAdd<uint32_t>(written_bytes_, size).IsValid());
 
     ri_->paint_cache_->FinalizePendingEntries();
     written_bytes_ += size;
-    free_bytes_ -= size;
     return size;
   }
 
@@ -562,17 +557,16 @@ class RasterImplementation::PaintOpSerializer {
     written_bytes_ = 0;
   }
 
-  bool valid() const { return !!buffer_; }
+  bool valid() const { return !buffer_.empty(); }
 
  private:
   RasterImplementation* const ri_ = nullptr;
-  char* buffer_ = nullptr;
+  base::span<uint8_t> buffer_;
   cc::DecodeStashingImageProvider* const stashing_image_provider_ = nullptr;
   TransferCacheSerializeHelperImpl* const transfer_cache_helper_ = nullptr;
   ClientFontManager* font_manager_ = nullptr;
 
   uint32_t written_bytes_ = 0;
-  uint32_t free_bytes_ = 0;
 
   size_t* max_op_size_hint_ = nullptr;
 };
@@ -1266,21 +1260,18 @@ void RasterImplementation::GetQueryObjectuivEXT(GLuint id,
   }
 }
 
-void* RasterImplementation::MapRasterCHROMIUM(uint32_t size,
-                                              uint32_t* size_allocated) {
-  *size_allocated = 0u;
+base::span<uint8_t> RasterImplementation::MapRasterCHROMIUM(uint32_t size) {
   if (raster_mapped_buffer_) {
     SetGLError(GL_INVALID_OPERATION, "glMapRasterCHROMIUM", "already mapped");
-    return nullptr;
+    return {};
   }
   raster_mapped_buffer_.emplace(size, helper_, transfer_buffer_);
   if (!raster_mapped_buffer_->valid()) {
     SetGLError(GL_INVALID_OPERATION, "glMapRasterCHROMIUM", "size too big");
     raster_mapped_buffer_ = std::nullopt;
-    return nullptr;
+    return {};
   }
-  *size_allocated = raster_mapped_buffer_->size();
-  return raster_mapped_buffer_->address();
+  return raster_mapped_buffer_->as_byte_span();
 }
 
 base::span<uint8_t> RasterImplementation::MapFontBuffer(uint32_t size) {
@@ -1357,10 +1348,9 @@ bool RasterImplementation::RasterCHROMIUMInProcess(
     return false;
   }
 
-  uint32_t size_allocated = 0;
-  void* mem =
-      MapRasterCHROMIUM(sizeof(InProcessRasterPayload*), &size_allocated);
-  if (mem) {
+  base::span<uint8_t> mem =
+      MapRasterCHROMIUM(sizeof(InProcessRasterPayload*));
+  if (!mem.empty()) {
     auto* payload = new InProcessRasterPayload();
     payload->display_item_list = base::WrapRefCounted(list);
     payload->content_size = content_size;
@@ -1376,7 +1366,7 @@ bool RasterImplementation::RasterCHROMIUMInProcess(
     payload->image_to_transfer_cache_id = std::move(image_to_transfer_cache_id);
 
     InProcessRasterPayloadRegistry::GetInstance().Register(payload);
-    UNSAFE_TODO(std::memcpy(mem, &payload, sizeof(payload)));
+    mem.first<sizeof(payload)>().copy_from(base::byte_span_from_ref(payload));
     UnmapRasterCHROMIUM(sizeof(InProcessRasterPayload*),
                         sizeof(InProcessRasterPayload*));
     return true;

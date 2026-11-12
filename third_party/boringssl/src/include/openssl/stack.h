@@ -200,8 +200,7 @@ STACK_OF(SAMPLE) *sk_SAMPLE_dup(const STACK_OF(SAMPLE) *sk);
 
 // sk_SAMPLE_sort sorts the elements of |sk| into ascending order based on the
 // comparison function. The stack maintains a "sorted" flag and sorting an
-// already sorted stack is a no-op. Sorting preserves the relative order of
-// elements that are equivalent under the comparison function.
+// already sorted stack is a no-op.
 void sk_SAMPLE_sort(STACK_OF(SAMPLE) *sk);
 
 // sk_SAMPLE_sort_and_dedup sorts the elements of |sk| based on the comparison

@@ -8,10 +8,10 @@
 #import "base/feature_list.h"
 #import "base/metrics/histogram_functions.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/timer/elapsed_timer.h"
 #import "build/branding_buildflags.h"
 #import "components/application_locale_storage/application_locale_storage.h"
 #import "components/autofill/core/browser/payments/payments_autofill_client.h"
-#import "components/autofill/core/common/autofill_features.h"
 #import "components/grit/components_scaled_resources.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/autofill/ui_bundled/autofill_credit_card_ui_type.h"
@@ -36,8 +36,6 @@ namespace {
 // Constant for section 0.
 const NSInteger kSectionIdentifierEnumZero = 0;
 
-// Point size for the lock symbol in confirmation state.
-const CGFloat kLockSymbolPointSize = 18.0;
 
 // Identifiers for sections in the table view.
 typedef NS_ENUM(NSInteger, SectionIdentifier) {
@@ -58,7 +56,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
 const CGFloat kFooterSpacing = 16.0;
 
 // Margins for the footer view (top, left, bottom, right).
-const UIEdgeInsets kFooterMargins = {8.0, 0.0, 16.0, 0.0};
+const UIEdgeInsets kFooterMargins = {8.0, 16.0, 16.0, 16.0};
 
 // Estimated height of the footer view.
 const CGFloat kEstimatedFooterHeight = 50.0;
@@ -81,6 +79,12 @@ NSString* const kDateSeparator = @"/";
 @end
 
 @implementation PaymentsScanSaveAndFillEditViewController {
+  // The table view.
+  UITableView* _tableView;
+
+  // The bottom sticky container for the save button.
+  UIStackView* _bottomContainerView;
+
   // Stored card details.
   NSString* _cardNumber;
   NSString* _expirationDate;
@@ -114,18 +118,30 @@ NSString* const kDateSeparator = @"/";
 
   // Track if the user action has been logged to avoid duplicate logging.
   BOOL _actionLogged;
+
+  // Timer to track the end-to-end latency of the card scanning session.
+  base::ElapsedTimer _sessionTimer;
 }
 
 #pragma mark - Initialization
 
 - (instancetype)init {
-  return [super initWithStyle:ChromeTableViewStyle()];
+  self = [super initWithNibName:nil bundle:nil];
+  return self;
+}
+
+#pragma mark - Properties
+
+- (UITableView*)tableView {
+  return _tableView;
 }
 
 #pragma mark - UIViewController
 
 - (void)viewDidLoad {
   [super viewDidLoad];
+
+  self.view.backgroundColor = [UIColor colorNamed:kSecondaryBackgroundColor];
 
   // Set title and cancel button.
   self.title = l10n_util::GetNSString(IDS_IOS_AUTOFILL_SAVE_CARD);
@@ -134,9 +150,14 @@ NSString* const kDateSeparator = @"/";
                            target:self
                            action:@selector(didTapCancel)];
 
-  self.tableView.tableHeaderView = [self createHeaderView];
-  self.tableView.sectionFooterHeight = UITableViewAutomaticDimension;
-  self.tableView.estimatedSectionFooterHeight = kEstimatedFooterHeight;
+  _tableView = [[UITableView alloc] initWithFrame:CGRectZero
+                                            style:ChromeTableViewStyle()];
+  _tableView.delegate = self;
+  _tableView.tableHeaderView = [self createHeaderView];
+  _tableView.translatesAutoresizingMaskIntoConstraints = NO;
+  _tableView.separatorStyle = UITableViewCellSeparatorStyleSingleLine;
+  _tableView.sectionFooterHeight = UITableViewAutomaticDimension;
+  _tableView.estimatedSectionFooterHeight = kEstimatedFooterHeight;
 
   UITapGestureRecognizer* tapGesture = [[UITapGestureRecognizer alloc]
       initWithTarget:self
@@ -144,17 +165,12 @@ NSString* const kDateSeparator = @"/";
   tapGesture.cancelsTouchesInView = NO;
   [self.view addGestureRecognizer:tapGesture];
 
-  _saveButton = [[ChromeButton alloc] initWithStyle:ChromeButtonStylePrimary];
-  _saveButton.title =
-      l10n_util::GetNSString(IDS_IOS_AUTOFILL_SAVE_AND_AUTOFILL);
-  [_saveButton addTarget:self
-                  action:@selector(didTapSave)
-        forControlEvents:UIControlEventTouchUpInside];
+  [self setupBottomContainerAndConstraints];
 
-  RegisterTableViewCell<TableViewTextEditCell>(self.tableView);
+  RegisterTableViewCell<TableViewTextEditCell>(_tableView);
 
   _diffableDataSource = [[UITableViewDiffableDataSource alloc]
-      initWithTableView:self.tableView
+      initWithTableView:_tableView
            cellProvider:^UITableViewCell*(UITableView* tableView,
                                           NSIndexPath* indexPath,
                                           TableViewItem* item) {
@@ -167,6 +183,7 @@ NSString* const kDateSeparator = @"/";
            }];
 
   [self loadItemsAndApplySnapshot];
+  [self updateBottomContainerView];
 }
 
 - (void)viewDidDisappear:(BOOL)animated {
@@ -257,33 +274,13 @@ NSString* const kDateSeparator = @"/";
   return headerView;
 }
 
-// Creates and returns the footer view with legal texts and save button.
-- (UIView*)createFooterView {
-  UIStackView* footerView = [[UIStackView alloc] initWithFrame:CGRectZero];
-  footerView.axis = UILayoutConstraintAxisVertical;
-  footerView.spacing = kFooterSpacing;
-  footerView.layoutMargins = kFooterMargins;
-  footerView.layoutMarginsRelativeArrangement = YES;
-
-  // Add legal messages.
-  for (SaveCardMessageWithLinks* message in _legalMessages) {
-    UITextView* legalTextView =
-        [AutofillCreditCardUtil createTextViewForLegalMessage:message];
-    legalTextView.delegate = self;
-    [footerView addArrangedSubview:legalTextView];
+// Updates the bottom container view with the save button.
+- (void)updateBottomContainerView {
+  for (UIView* view in _bottomContainerView.arrangedSubviews) {
+    [view removeFromSuperview];
   }
-
   // Add save button.
-  [footerView addArrangedSubview:_saveButton];
-
-  // Adjust footer frame to fit contents.
-  CGSize size =
-      [footerView systemLayoutSizeFittingSize:UILayoutFittingCompressedSize];
-  footerView.frame =
-      CGRectMake(/*x=*/0, /*y=*/0, /*width=*/self.view.frame.size.width,
-                 /*height=*/size.height);
-
-  return footerView;
+  [_bottomContainerView addArrangedSubview:_saveButton];
 }
 
 #pragma mark - Actions
@@ -343,6 +340,9 @@ NSString* const kDateSeparator = @"/";
 - (void)setCreditCardNumber:(NSString*)cardNumber
             expirationMonth:(NSString*)expirationMonth
              expirationYear:(NSString*)expirationYear {
+  base::UmaHistogramTimes("IOS.ScanCard.EndToEndLatency",
+                          _sessionTimer.Elapsed());
+
   _scannedCardNumber = cardNumber;
   _scannedExpirationMonth = expirationMonth;
   _scannedExpirationYear = expirationYear;
@@ -386,10 +386,7 @@ NSString* const kDateSeparator = @"/";
 - (void)showConfirmationState {
   _saveButton.enabled = NO;
   _saveButton.title = nil;
-  UIButtonConfiguration* config = _saveButton.configuration;
-  config.image = DefaultSymbolWithPointSize(kLockSymbol, kLockSymbolPointSize);
-  _saveButton.configuration = config;
-  _saveButton.primaryButtonImage = PrimaryButtonImageCustom;
+  _saveButton.primaryButtonImage = PrimaryButtonImageCheckmark;
 }
 
 - (void)setField:(AutofillCreditCardUIType)type
@@ -456,6 +453,12 @@ NSString* const kDateSeparator = @"/";
 }
 
 - (void)showLoadingStateWithAccessibilityLabel:(NSString*)accessibilityLabel {
+  _saveButton.enabled = NO;
+  _saveButton.title = nil;
+  _saveButton.primaryButtonImage = PrimaryButtonImageSpinner;
+  if (accessibilityLabel.length > 0) {
+    _saveButton.accessibilityLabel = accessibilityLabel;
+  }
 }
 
 - (void)setLegalMessages:(NSArray<SaveCardMessageWithLinks*>*)legalMessages {
@@ -477,9 +480,21 @@ NSString* const kDateSeparator = @"/";
   NSNumber* sectionIdentifier =
       [_diffableDataSource sectionIdentifierForIndex:section];
   if (sectionIdentifier.integerValue == SectionIdentifierNickname) {
-    return [self createFooterView];
+    UIStackView* footerView = [[UIStackView alloc] initWithFrame:CGRectZero];
+    footerView.axis = UILayoutConstraintAxisVertical;
+    footerView.spacing = kFooterSpacing;
+    footerView.layoutMargins = kFooterMargins;
+    footerView.layoutMarginsRelativeArrangement = YES;
+
+    for (SaveCardMessageWithLinks* message in _legalMessages) {
+      UITextView* legalTextView =
+          [AutofillCreditCardUtil createTextViewForLegalMessage:message];
+      legalTextView.delegate = self;
+      [footerView addArrangedSubview:legalTextView];
+    }
+    return footerView;
   }
-  return [super tableView:tableView viewForFooterInSection:section];
+  return nil;
 }
 
 #pragma mark - TableViewTextEditItemDelegate
@@ -520,6 +535,44 @@ NSString* const kDateSeparator = @"/";
 }
 
 #pragma mark - Private
+
+// Sets up the bottom container view and subview constraints.
+- (void)setupBottomContainerAndConstraints {
+  _saveButton = [[ChromeButton alloc] initWithStyle:ChromeButtonStylePrimary];
+  _saveButton.title =
+      l10n_util::GetNSString(IDS_IOS_AUTOFILL_SAVE_AND_AUTOFILL);
+  [_saveButton addTarget:self
+                  action:@selector(didTapSave)
+        forControlEvents:UIControlEventTouchUpInside];
+
+  _bottomContainerView = [[UIStackView alloc] initWithFrame:CGRectZero];
+  _bottomContainerView.axis = UILayoutConstraintAxisVertical;
+  _bottomContainerView.spacing = kFooterSpacing;
+  _bottomContainerView.layoutMargins = kFooterMargins;
+  _bottomContainerView.layoutMarginsRelativeArrangement = YES;
+  _bottomContainerView.translatesAutoresizingMaskIntoConstraints = NO;
+  _bottomContainerView.backgroundColor =
+      [UIColor colorNamed:kSecondaryBackgroundColor];
+
+  [self.view addSubview:_tableView];
+  [self.view addSubview:_bottomContainerView];
+
+  [NSLayoutConstraint activateConstraints:@[
+    [_tableView.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+    [_tableView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+    [_tableView.trailingAnchor
+        constraintEqualToAnchor:self.view.trailingAnchor],
+    [_tableView.bottomAnchor
+        constraintEqualToAnchor:_bottomContainerView.topAnchor],
+
+    [_bottomContainerView.leadingAnchor
+        constraintEqualToAnchor:self.view.leadingAnchor],
+    [_bottomContainerView.trailingAnchor
+        constraintEqualToAnchor:self.view.trailingAnchor],
+    [_bottomContainerView.bottomAnchor
+        constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor],
+  ]];
+}
 
 // Helper to validate and reconfigure the cells and save button for multiple
 // items.
@@ -588,12 +641,8 @@ NSString* const kDateSeparator = @"/";
 - (UIImage*)aboveTitleImage {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   // Use the optimized high-resolution iOS symbol for branded builds.
-  return MakeSymbolMulticolor(CustomSymbolWithPointSize(
-      base::FeatureList::IsEnabled(
-          autofill::features::kAutofillEnableWalletBranding)
-          ? kGoogleWalletSymbol
-          : kGooglePaySymbol,
-      kGoogleWalletLogoHeight));
+  return MakeSymbolMulticolor(
+      CustomSymbolWithPointSize(kGoogleWalletSymbol, kGoogleWalletLogoHeight));
 #else
   // Fallback to the generic asset for unbranded builds.
   return NativeImage(IDR_AUTOFILL_GOOGLE_PAY);

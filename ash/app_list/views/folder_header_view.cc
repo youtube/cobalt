@@ -123,15 +123,10 @@ class FolderHeaderView::FolderNameView : public views::Textfield,
         GetFolderBackgroundColor(is_active), kFolderNameBorderRadius,
         kFolderNameBorderThickness));
 
-    const ui::ColorProvider* const color_provider = GetColorProvider();
-    set_placeholder_text_color(
-        color_provider->GetColor(kColorAshTextColorSecondary));
-    const SkColor text_color =
-        color_provider->GetColor(kColorAshTextColorPrimary);
-    SetTextColor(text_color);
-    SetSelectionTextColor(text_color);
-    SetSelectionBackgroundColor(
-        color_provider->GetColor(kColorAshFocusAuraColor));
+    SetPlaceholderTextColorId(kColorAshTextColorSecondary);
+    SetTextColorId(kColorAshTextColorPrimary);
+    SetSelectionTextColorId(kColorAshTextColorPrimary);
+    SetSelectionBackgroundColorId(kColorAshFocusAuraColor);
     UpdateBackgroundColor(is_active);
   }
 

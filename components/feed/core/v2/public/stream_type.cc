@@ -12,28 +12,6 @@ std::string StreamType::ToString() const {
       return "Unknown";
     case StreamKind::kForYou:
       return "ForYou";
-    case StreamKind::kFollowing:
-      return "WebFeed";
-  }
-}
-
-// static
-StreamType StreamType::ForTaskId(RefreshTaskId task_id) {
-  switch (task_id) {
-    case RefreshTaskId::kRefreshForYouFeed:
-      return StreamType(StreamKind::kForYou);
-  }
-}
-
-bool StreamType::GetRefreshTaskId(RefreshTaskId& out_id) const {
-  switch (kind_) {
-    case StreamKind::kUnknown:
-      return false;
-    case StreamKind::kForYou:
-      out_id = RefreshTaskId::kRefreshForYouFeed;
-      return true;
-    case StreamKind::kFollowing:
-      return false;
   }
 }
 

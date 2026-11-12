@@ -155,5 +155,90 @@ TEST(CcFeedbackGeneratorTest, InvokesPacketSentCallbackWithDataInflight) {
   EXPECT_GT(last_data_in_flight, feedback.data_in_flight);
 }
 
+TEST(CcFeedbackGeneratorTest, SupportsPacketReordering) {
+  SimulatedClock clock(Timestamp::Seconds(1234));
+  SimulatedNetwork::Config network_config = {
+      .queue_delay_ms = 25,
+      .delay_standard_deviation_ms = 25,
+      .link_capacity = DataRate::KilobitsPerSec(1000),
+      .allow_reordering = true,
+  };
+  CcFeedbackGenerator feedback_generator({
+      .network_config = network_config,
+  });
+
+  int lost_count = 0;
+  int recovered_count = 0;
+  for (int i = 0; i < 50; ++i) {
+    TransportPacketsFeedback feedback =
+        feedback_generator.ProcessUntilNextFeedback(
+            /*send_rate=*/DataRate::KilobitsPerSec(1000), clock, nullptr);
+    for (const PacketResult& result : feedback.packet_feedbacks) {
+      if (result.reported_lost_for_the_first_time) {
+        ++lost_count;
+        EXPECT_FALSE(result.IsReceived());
+        EXPECT_FALSE(result.reported_recovered_for_the_first_time);
+      }
+      if (result.reported_recovered_for_the_first_time) {
+        ++recovered_count;
+        EXPECT_TRUE(result.IsReceived());
+        EXPECT_FALSE(result.reported_lost_for_the_first_time);
+      }
+    }
+  }
+  EXPECT_GT(lost_count, 0);
+  EXPECT_GT(recovered_count, 0);
+
+  // Drain the network to ensure all delayed out-of-order packets are delivered
+  // and recovered.
+  int drain_iterations = 0;
+  while (lost_count > recovered_count && drain_iterations < 5) {
+    ++drain_iterations;
+    TransportPacketsFeedback feedback =
+        feedback_generator.ProcessUntilNextFeedback(
+            /*send_rate=*/DataRate::Zero(), clock, nullptr);
+    for (const PacketResult& result : feedback.packet_feedbacks) {
+      if (result.reported_lost_for_the_first_time) {
+        ++lost_count;
+      }
+      if (result.reported_recovered_for_the_first_time) {
+        ++recovered_count;
+      }
+    }
+  }
+  EXPECT_EQ(lost_count, recovered_count);
+}
+
+TEST(CcFeedbackGeneratorTest, DataInFlightExcludesLostPackets) {
+  SimulatedClock clock(Timestamp::Seconds(1234));
+  SimulatedNetwork::Config network_config = {
+      .queue_length_packets = 1,
+      .queue_delay_ms = 25,
+      .link_capacity = DataRate::KilobitsPerSec(1000),
+  };
+  CcFeedbackGenerator feedback_generator(
+      {.network_config = network_config, .send_as_ect1 = false});
+
+  // Send at a rate higher than capacity to cause packet loss.
+  TransportPacketsFeedback feedback;
+  int lost_packets = 0;
+  for (int i = 0; i < 5; ++i) {
+    feedback = feedback_generator.ProcessUntilNextFeedback(
+        /*send_rate=*/DataRate::KilobitsPerSec(1100), clock, nullptr);
+    lost_packets += feedback.LostWithSendInfo().size();
+  }
+  ASSERT_GT(lost_packets, 0);
+
+  // Now send at a sustainable rate to let the queue stabilize.
+  for (int i = 0; i < 10; ++i) {
+    feedback = feedback_generator.ProcessUntilNextFeedback(
+        /*send_rate=*/DataRate::KilobitsPerSec(500), clock, nullptr);
+  }
+
+  // At 500Kbps, ideal data in flight is around 3 to 4 packets.
+  // The previously lost packets should not be counted in data_in_flight.
+  EXPECT_LE(feedback.data_in_flight, 4 * kPacketSize);
+}
+
 }  // namespace
 }  // namespace webrtc

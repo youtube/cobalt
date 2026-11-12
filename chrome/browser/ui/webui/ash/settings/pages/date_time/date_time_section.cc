@@ -7,19 +7,21 @@
 #include <array>
 
 #include "ash/constants/url_constants.h"
+#include "base/check_deref.h"
 #include "base/containers/span.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/system/timezone_util.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/ash/settings/pages/date_time/date_time_handler.h"
 #include "chrome/browser/ui/webui/ash/settings/search/search_tag_registry.h"
 #include "chrome/grit/generated_resources.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/ash/components/settings/system_settings_provider.h"
 #include "chromeos/ash/components/settings/timezone_settings.h"
+#include "chromeos/ash/components/timezone/timezone_util.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/webui/web_ui_util.h"
@@ -154,7 +156,8 @@ void DateTimeSection::AddLoadTimeData(content::WebUIDataSource* html_source) {
   html_source->AddBoolean(
       "canSetSystemTimezone",
       ash::system::CanSetSystemTimezone(
-          ProfileHelper::Get()->GetUserByProfile(profile())));
+          CHECK_DEREF(g_browser_process->local_state()),
+          BrowserContextHelper::Get()->GetUserByBrowserContext(profile())));
 }
 
 void DateTimeSection::AddHandlers(content::WebUI* web_ui) {

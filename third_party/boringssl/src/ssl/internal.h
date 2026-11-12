@@ -1827,6 +1827,10 @@ struct SSL_HANDSHAKE {
   // the ClientHelloInner.
   uint32_t inner_extensions_sent = 0;
 
+  // early_data_written is the amount of early data that has been written by the
+  // record layer.
+  uint32_t early_data_written = 0;
+
   // error, if |wait| is |ssl_hs_error|, is the error the handshake failed on.
   UniquePtr<ERR_SAVE_STATE> error;
 
@@ -2103,10 +2107,6 @@ struct SSL_HANDSHAKE {
   // early_data_read is the amount of early data that has been read by the
   // record layer.
   uint16_t early_data_read = 0;
-
-  // early_data_written is the amount of early data that has been written by the
-  // record layer.
-  uint16_t early_data_written = 0;
 
   // signature_algorithm is the signature algorithm to be used in signing with
   // the selected credential, or zero if not applicable or not yet selected.

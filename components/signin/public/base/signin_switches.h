@@ -228,10 +228,14 @@ extern const base::FeatureParam<std::string> kCrossDeviceSigninUrl;
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 // If enabled, disables feedback for U18 users on desktop platforms.
-// The iOS version is kDisableU18FeedbackIos flag.
+// The iOS version is kDisableFeedbackForIneligibleUsers flag.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kDisableU18FeedbackDesktop);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+// Enables fetching and storing preview data for signed-in accounts.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kEnableAccountPreviewData);
 
 #if BUILDFLAG(IS_ANDROID)
 // Whether activityless sign-in should be used for all entry points.
@@ -268,6 +272,20 @@ COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kEnableChromeRefreshTokenBinding);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 bool IsChromeRefreshTokenBindingEnabled(const PrefService* profile_prefs);
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kEnableChromeRefreshTokenBindingUpgrade);
+enum class RefreshTokenBindingUpgradeType {
+  kDarkLaunch,
+  kLiveLaunch,
+};
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(bool, kOamlCookieUpgradeEnabled);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(RefreshTokenBindingUpgradeType,
+                           kRefreshTokenBindingUpgradeType);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 #if !defined(NDEBUG)
@@ -472,7 +490,6 @@ BASE_DECLARE_FEATURE(kGlicEligibilitySeparateAccountCapability);
 // Feature to handle mdm errors on Enterprise and EDU accounts
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kHandleMdmErrorsForDasherAccounts);
-
 
 #if BUILDFLAG(IS_IOS)
 // Killswitch for ignoring X-Chrome-Manage-Accounts header in subframes.

@@ -659,18 +659,29 @@ bool CSSShapeInterpolationType::IsShapeNonInterpolableValue(
   return IsA<ShapeNonInterpolableValue>(value);
 }
 
+// TODO(crbug.com/512908979): Remove this bespoke helper when cc clip paths can
+// properly interpolate arcs. static
+bool CSSShapeInterpolationType::HasArcSegments(
+    const NonInterpolableValue* value) {
+  const auto* shape_value = DynamicTo<ShapeNonInterpolableValue>(value);
+  if (!shape_value) {
+    return false;
+  }
+  for (const auto& param : shape_value->GetParams()) {
+    if (param.type == kPathSegArcAbs || param.type == kPathSegArcRel) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // static
 BasicShape* CSSShapeInterpolationType::CreateShape(
     const InterpolableValue& interpolable_value,
-    const NonInterpolableValue* non_interpolable_value,
+    const NonInterpolableValue& non_interpolable_value,
     const CSSToLengthConversionData& conversion_data) {
-  if (!non_interpolable_value) {
-    return nullptr;
-  }
-
   const auto& shape_non_interpolable_value =
-      To<ShapeNonInterpolableValue>(*non_interpolable_value);
-
+      To<ShapeNonInterpolableValue>(non_interpolable_value);
   const auto& value_list = To<InterpolableList>(interpolable_value);
 
   // At the very least, the value list should contain the origin point.
@@ -751,48 +762,33 @@ void CSSShapeInterpolationType::ApplyStandardPropertyValue(
     const InterpolableValue& interpolable_value,
     const NonInterpolableValue* non_interpolable_value,
     StyleResolverState& state) const {
-  BasicShape* shape = CreateShape(interpolable_value, non_interpolable_value,
+  CHECK(non_interpolable_value);
+  BasicShape* shape = CreateShape(interpolable_value, *non_interpolable_value,
                                   state.CssToLengthConversionData());
-  const auto* shape_non_interpolable =
-      non_interpolable_value
-          ? &To<ShapeNonInterpolableValue>(*non_interpolable_value)
-          : nullptr;
+  CHECK(shape);
+  const auto& shape_non_interpolable =
+      To<ShapeNonInterpolableValue>(*non_interpolable_value);
   switch (CssProperty().PropertyID()) {
     case CSSPropertyID::kClipPath: {
-      GeometryBox geometry_box = GeometryBox::kBorderBox;
-      if (shape_non_interpolable) {
-        if (auto maybe_geometry = shape_non_interpolable->GetGeometryBox()) {
-          geometry_box = *maybe_geometry;
-        }
-      }
+      GeometryBox geometry_box =
+          shape_non_interpolable.GetGeometryBox().value_or(
+              GeometryBox::kBorderBox);
       state.StyleBuilder().SetClipPath(
-          shape ? MakeGarbageCollected<ShapeClipPathOperation>(*shape,
-                                                               geometry_box)
-                : nullptr);
+          MakeGarbageCollected<ShapeClipPathOperation>(*shape, geometry_box));
       break;
     }
     case CSSPropertyID::kOffsetPath: {
-      CoordBox coord_box = CoordBox::kBorderBox;
-      if (shape_non_interpolable) {
-        if (auto maybe_coord = shape_non_interpolable->GetCoordBox()) {
-          coord_box = *maybe_coord;
-        }
-      }
+      CoordBox coord_box =
+          shape_non_interpolable.GetCoordBox().value_or(CoordBox::kBorderBox);
       state.StyleBuilder().SetOffsetPath(
-          shape ? MakeGarbageCollected<ShapeOffsetPathOperation>(*shape,
-                                                                 coord_box)
-                : nullptr);
+          MakeGarbageCollected<ShapeOffsetPathOperation>(*shape, coord_box));
       break;
     }
     case CSSPropertyID::kShapeOutside: {
-      ShapeBox css_box = ShapeBox::kMissing;
-      if (shape_non_interpolable) {
-        if (auto maybe_css_box = shape_non_interpolable->GetCssBoxType()) {
-          css_box = *maybe_css_box;
-        }
-      }
+      ShapeBox css_box =
+          shape_non_interpolable.GetCssBoxType().value_or(ShapeBox::kMissing);
       state.StyleBuilder().SetShapeOutside(
-          shape ? MakeGarbageCollected<ShapeValue>(*shape, css_box) : nullptr);
+          MakeGarbageCollected<ShapeValue>(*shape, css_box));
       break;
     }
     default:
@@ -872,7 +868,7 @@ InterpolationValue CSSShapeInterpolationType::MaybeConvertNeutral(
         WriteLength(2);
         values.push_back(*MakeGarbageCollected<InterpolableNumber>(
             0, CSSPrimitiveValue::UnitType::kDegrees));
-        WriteLength(2);
+        WriteLength(3);
         values.push_back(*MakeGarbageCollected<InterpolableNumber>(0));
         values.push_back(*MakeGarbageCollected<InterpolableNumber>(0));
         break;

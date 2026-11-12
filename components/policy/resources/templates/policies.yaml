@@ -1451,7 +1451,8 @@ policies:
   1450: SubAppsWithoutPromptsBlockedForOrigins
   1451: IsolatedModeSettings
   1452: GeminiExperimentalTriggeringSettings
-
+  1453: SmartTabSharingSettings
+  1454: HttpHeaderInjection
 
 atomic_groups:
   1: Homepage

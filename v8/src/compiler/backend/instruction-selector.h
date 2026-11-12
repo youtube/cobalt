@@ -96,7 +96,7 @@ class FlagsContinuation final {
   static FlagsContinuation ForDeoptimize(
       FlagsCondition condition, DeoptimizeReason reason, uint32_t node_id,
       FeedbackSource const& feedback,
-      turboshaft::V<turboshaft::FrameState> frame_state) {
+      turboshaft::V<turboshaft::EagerFrameState> frame_state) {
     DCHECK(frame_state.valid());
     return FlagsContinuation(kFlags_deoptimize, condition, reason, node_id,
                              feedback, frame_state);
@@ -104,7 +104,7 @@ class FlagsContinuation final {
   static FlagsContinuation ForDeoptimizeForTesting(
       FlagsCondition condition, DeoptimizeReason reason, uint32_t node_id,
       FeedbackSource const& feedback,
-      turboshaft::OptionalV<turboshaft::FrameState> frame_state = {}) {
+      turboshaft::OptionalV<turboshaft::EagerFrameState> frame_state = {}) {
     // Tests (e.g. test-instruction-scheduler.cc) may not pass a valid
     // frame_state as that doesn't matter for the test.
     return FlagsContinuation(kFlags_deoptimize, condition, reason, node_id,
@@ -1366,6 +1366,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   // Visit the load node with a value and opcode to replace with.
   void VisitLoad(turboshaft::OpIndex node, turboshaft::OpIndex value,
                  InstructionCode opcode);
+#ifdef V8_ENABLE_SANDBOX
+  void VisitLoadTrustedPointer(turboshaft::OpIndex node);
+#endif
   void VisitParameter(turboshaft::OpIndex node);
   void VisitIfException(turboshaft::OpIndex node);
   void VisitOsrValue(turboshaft::OpIndex node);

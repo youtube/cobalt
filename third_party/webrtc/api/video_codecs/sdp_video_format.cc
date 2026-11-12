@@ -161,6 +161,13 @@ std::string SdpVideoFormat::ToString() const {
     builder << "]";
   }
 
+  if (packetization) {
+    builder << ", packetization: " << *packetization;
+  }
+  if (tx_mode) {
+    builder << ", tx_mode: " << *tx_mode;
+  }
+
   return builder.Release();
 }
 
@@ -183,7 +190,8 @@ bool SdpVideoFormat::IsCodecInList(
 
 bool operator==(const SdpVideoFormat& a, const SdpVideoFormat& b) {
   return a.name == b.name && a.parameters == b.parameters &&
-         a.scalability_modes == b.scalability_modes;
+         a.scalability_modes == b.scalability_modes &&
+         a.packetization == b.packetization && a.tx_mode == b.tx_mode;
 }
 
 const SdpVideoFormat SdpVideoFormat::VP8() {

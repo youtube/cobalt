@@ -61,13 +61,13 @@ class LogScreamSimulation {
     TimeDelta queue_delay_min_avg = TimeDelta::Zero();
     TimeDelta latency_difference_avg = TimeDelta::Zero();
 
-    double queue_delay_dev_norm = 0;
     double ref_window_scale_factor_due_to_avg_min_delay = 0.0;
     double ref_window_scale_factor_due_to_latency_difference = 0.0;
     double ref_window_scale_factor_close_to_ref_window_i = 0.0;
     double ref_window_combined_increase_scale_factor = 0.0;
     double l4s_alpha = 0.0;
     double l4s_alpha_v = 0.0;
+    double loss_event_rate = 0.0;
   };
 
   struct Config {

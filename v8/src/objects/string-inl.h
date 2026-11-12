@@ -1504,6 +1504,8 @@ void ExternalString::SetResourceRefForSerialization(uint32_t ref) {
 }
 
 void ExternalString::DisposeResource(Isolate* isolate) {
+  DisallowGarbageCollection no_gc;
+
   Address value = resource_.load(isolate);
   v8::String::ExternalStringResourceBase* resource =
       reinterpret_cast<v8::String::ExternalStringResourceBase*>(value);
@@ -1513,6 +1515,7 @@ void ExternalString::DisposeResource(Isolate* isolate) {
     if (!IsShared() && !HeapLayout::InWritableSharedSpace(this)) {
       resource->Unaccount(reinterpret_cast<v8::Isolate*>(isolate));
     }
+    DisableGCMole no_gc_mole;
     resource->Dispose();
     resource_.store(isolate, kNullAddress);
   }

@@ -121,6 +121,19 @@ BASE_FEATURE(kWebAuthnAmbientSignin,
              "WebAuthenticationAmbientSignin",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+constexpr base::FeatureParam<WebAuthnAmbientSigninDisplay>::Option
+    kWebAuthnAmbientSigninDisplayOptions[] = {
+        {WebAuthnAmbientSigninDisplay::kSuggestionChip, "suggestion_chip"},
+        {WebAuthnAmbientSigninDisplay::kAnchoredMessage, "anchored_message"},
+};
+
+// Suggestion chip is the default, but can be overridden from chrome://flags.
+const base::FeatureParam<WebAuthnAmbientSigninDisplay>
+    kWebAuthnAmbientSigninDisplayParam{
+        &kWebAuthnAmbientSignin, "display",
+        WebAuthnAmbientSigninDisplay::kSuggestionChip,
+        &kWebAuthnAmbientSigninDisplayOptions};
+
 // Deprecation flag. Disabled by default in M145. Remove in or after M148.
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kWebAuthnPublishPrelinkingInfo,
@@ -235,5 +248,10 @@ BASE_FEATURE(kWebAuthnWinPrfOnCreate, base::FEATURE_ENABLED_BY_DEFAULT);
 // Enabled by default in M150. Remove in or after M153.
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_FEATURE(kWebAuthnSocketMaxPriorityMode, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enabled by default in M151. Remove in or after M154.
+COMPONENT_EXPORT(FIDO_PUBLIC)
+BASE_FEATURE(kWebAuthnStripUnusedEnclaveParameters,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace device

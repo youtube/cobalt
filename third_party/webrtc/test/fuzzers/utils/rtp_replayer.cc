@@ -84,7 +84,12 @@ void RtpReplayer::Replay(
   }
 
   // Setup the video streams based on the configuration.
-  Environment env = CreateTestEnvironment({.time = &time_controller});
+  // Destroying video receive streams does a blocking call using Event class.
+  // TaskQueue implementations that `time_controller` creates can cooperate
+  // with Event class implemented in WebRTC, but not with Event class overridden
+  // by chromium. To avoid blocking when running in chromium, real (default)
+  // task queues are used, while `time_controller` is used only for the Clock.
+  Environment env = CreateTestEnvironment({.time = time_controller.GetClock()});
   CallConfig call_config(env);
   std::unique_ptr<Call> call = Call::Create(std::move(call_config));
   SetupVideoStreams(&receive_stream_configs, stream_state.get(), call.get());

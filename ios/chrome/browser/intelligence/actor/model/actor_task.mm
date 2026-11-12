@@ -17,7 +17,6 @@
 #import "ios/chrome/browser/intelligence/actor/model/aggregated_journal.h"
 #import "ios/chrome/browser/intelligence/actor/public/actor_task_updates_observer.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool.h"
-#import "ios/chrome/browser/intelligence/actor/tools/utils/actor_tool_utils.h"
 #import "ios/web/public/web_state.h"
 
 namespace actor {
@@ -26,9 +25,6 @@ namespace {
 
 // Safety timeout duration to wait for pages to finish loading.
 constexpr base::TimeDelta kPageLoadTimeout = base::Seconds(7);
-
-// The fallback tool name string when an action case cannot be mapped.
-constexpr char kUnknownTool[] = "Unknown tool";
 
 // Returns the string representation of the ActorTaskState.
 std::string ActorTaskStateToString(ActorTaskState state) {
@@ -66,6 +62,19 @@ void LogTaskStateTransition(AggregatedJournal* journal,
       {"new_state", ActorTaskStateToString(new_state)}};
 
   journal->Log(GURL(), task_id, "ActorTask::SetState", std::move(details));
+}
+
+// Logs adding a controlled WebState to the journal.
+void LogAddControlledWebState(AggregatedJournal* journal,
+                              ActorTaskId task_id,
+                              web::WebStateID web_state_id) {
+  CHECK(journal);
+
+  std::vector<JournalDetails> details = {
+      {"web_state_id", base::NumberToString(web_state_id.identifier())}};
+
+  journal->Log(GURL::EmptyGURL(), task_id, "ActorTask::AddControlledWebState",
+               std::move(details));
 }
 
 }  // namespace
@@ -146,17 +155,22 @@ void ActorTask::AddControlledWebStates(
       continue;
     }
 
-    base::WeakPtr<web::WebState> web_state = action->GetTargetWebState();
-    if (!web_state) {
-      continue;
-    }
+    AddControlledWebState(action->GetTargetWebState().get());
+  }
+}
 
-    if (!std::ranges::contains(controlled_web_states_, web_state.get(),
-                               &base::WeakPtr<web::WebState>::get)) {
-      controlled_web_states_.push_back(web_state);
-      [observers_ actorTaskWithID:task_id_
-                   didAddWebState:web_state->GetUniqueIdentifier()];
-    }
+void ActorTask::AddControlledWebState(web::WebState* web_state) {
+  if (!web_state) {
+    return;
+  }
+
+  if (!std::ranges::contains(controlled_web_states_, web_state,
+                             &base::WeakPtr<web::WebState>::get)) {
+    LogAddControlledWebState(journal_, task_id_,
+                             web_state->GetUniqueIdentifier());
+    controlled_web_states_.push_back(web_state->GetWeakPtr());
+    [observers_ actorTaskWithID:task_id_
+                 didAddWebState:web_state->GetUniqueIdentifier()];
   }
 }
 
@@ -270,13 +284,10 @@ void ActorTask::SetState(ActorTaskState new_state) {
                     fromState:old_state];
 }
 
-void ActorTask::OnWillExecuteTool(
-    optimization_guide::proto::Action::ActionCase tool_case,
-    web::WebStateID web_state_id) {
-  std::string tool_name =
-      ActorActionCaseToToolName(tool_case).value_or(kUnknownTool);
+void ActorTask::OnWillExecuteTool(ToolType tool_type,
+                                  web::WebStateID web_state_id) {
   [observers_ actorTaskWithID:task_id_
-              willExecuteTool:base::SysUTF8ToNSString(tool_name)
+              willExecuteTool:tool_type
                    taskUpdate:base::SysUTF8ToNSString(last_task_update_)
                    onWebState:web_state_id];
 }

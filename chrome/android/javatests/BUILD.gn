@@ -463,11 +463,13 @@ android_library("chrome_test_java_org.chromium.chrome.browser.actor") {
   deps = [
     ":chrome_test_java_helper",
     "//chrome/browser/actor/android:java",
+    "//chrome/browser/glic/android:test_support_java",
     "//chrome/test/android:chrome_java_transit",
   ]
 }
 
-# Partition tests into one target per-package to keep incremental build times down.
+# Partition tests into one target per-package to keep incremental build times
+# down.
 android_library("chrome_test_java_org.chromium.chrome.browser") {
   resources_package = "org.chromium.chrome"
 
@@ -575,6 +577,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.autofill") {
   resources_package = "org.chromium.chrome"
 
   sources = [
+    "src/org/chromium/chrome/browser/autofill/AtMemoryBottomSheetRenderTest.java",
     "src/org/chromium/chrome/browser/autofill/AutofillSnackbarControllerTest.java",
     "src/org/chromium/chrome/browser/autofill/TouchToFillCreditCardTest.java",
     "src/org/chromium/chrome/browser/autofill/anchored_dialog/AnchoredDialogTest.java",
@@ -594,7 +597,11 @@ android_library("chrome_test_java_org.chromium.chrome.browser.autofill") {
     "src/org/chromium/chrome/browser/autofill/vcn/AutofillVcnEnrollBottomSheetViewBinderTest.java",
   ]
 
-  deps = [ ":chrome_test_java_helper" ]
+  deps = [
+    ":chrome_test_java_helper",
+    "//chrome/browser/ui/android/autofill/internal:java",
+    "//chrome/browser/ui/android/autofill/internal:javatests",
+  ]
 }
 
 android_library("chrome_test_java_org.chromium.chrome.browser.bottombar") {
@@ -908,6 +915,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.media") {
   deps = [
     ":chrome_test_java_helper",
     "//base:flagged_apis_java",
+    "//chrome/browser/android/customtabs:java",
   ]
 }
 
@@ -1622,7 +1630,6 @@ android_library("chrome_test_java_various") {
     "//chrome/browser/commerce/merchant_viewer/android/javatests/src/org/chromium/chrome/browser/merchant_viewer/PageInfoStoreInfoViewTest.java",
     "//chrome/browser/commerce/price_tracking/android/javatests/src/org/chromium/chrome/browser/price_tracking/PriceDropNotificationManagerTest.java",
     "//chrome/browser/commerce/price_tracking/android/javatests/src/org/chromium/chrome/browser/price_tracking/PriceTrackingFeaturesTest.java",
-    "src/org/chromium/chrome/browser/accessibility_annotator/first_run/AccessibilityAnnotatorFirstRunBottomSheetTest.java",
     "src/org/chromium/chrome/browser/automotive/BackButtonToolbarTest.java",
     "src/org/chromium/chrome/browser/background_sync/BackgroundSyncTest.java",
     "src/org/chromium/chrome/browser/background_sync/PeriodicBackgroundSyncTest.java",
@@ -1671,6 +1678,7 @@ android_library("chrome_test_java_various") {
     "src/org/chromium/chrome/browser/net/connectivitydetector/ConnectivityDetectorTest.java",
     "src/org/chromium/chrome/browser/omaha/UpdateMenuItemHelperTest.java",
     "src/org/chromium/chrome/browser/paint_preview/StartupPaintPreviewHelperTest.java",
+    "src/org/chromium/chrome/browser/personal_context/first_run/PersonalContextFirstRunBottomSheetTest.java",
     "src/org/chromium/chrome/browser/policy/CombinedPolicyProviderTest.java",
     "src/org/chromium/chrome/browser/policy/PolicyAuditorBridgeTest.java",
     "src/org/chromium/chrome/browser/previewtab/PreviewTabTest.java",
@@ -1732,6 +1740,8 @@ android_library("chrome_test_java_various") {
     "//third_party/androidx:androidx_test_ext_junit_java",
     "//third_party/blink/public/mojom:authenticator_mojo_bindings_java",
     "//third_party/blink/public/mojom:credentialmanagement_mojo_bindings_java",
+    "//ui/accessibility:accessibility_features_java",
+    "//ui/accessibility:ax_base_java",
     "//ui/android:ui_java",
     "//ui/android:ui_java_test_support",
   ]
@@ -1867,7 +1877,8 @@ java_group("common_unit_test_deps_java") {
   ]
 }
 
-# Partition tests into one target per-package to keep incremental build times down.
+# Partition tests into one target per-package to keep incremental build times
+# down.
 android_library("chrome_unit_test_java_org.chromium.chrome.browser.actor") {
   resources_package = "org.chromium.chrome"
 
@@ -2012,5 +2023,6 @@ android_library("chrome_unit_test_java_various") {
     "//chrome/browser/ui/android/actions:java",
     "//chrome/browser/ui/android/pdf:pdf_utils_java",
     "//components/omnibox/common:features_java",
+    "//ui/accessibility:ax_base_java",
   ]
 }

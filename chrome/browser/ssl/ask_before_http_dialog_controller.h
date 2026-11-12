@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
+#include "components/security_interstitials/core/https_only_mode_metrics.h"
 #include "components/security_interstitials/core/metrics_helper.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -54,15 +55,24 @@ class AskBeforeHttpDialogController : public content::WebContentsObserver {
   // Show the Ask-before-HTTP dialog. The user can choose to proceed through the
   // warning, or go back to the previous page. If called while a dialog is
   // already showing, this will create a new dialog and replace the old one.
-  void ShowDialog(content::WebContents* web_contents,
-                  const GURL& request_url,
-                  ukm::SourceId navigation_source_id);
+  void ShowDialog(
+      content::WebContents* web_contents,
+      const GURL& request_url,
+      ukm::SourceId navigation_source_id,
+      security_interstitials::https_only_mode::FallbackReason fallback_reason);
 
   // Returns whether there is an associated open dialog.
   bool HasOpenDialog() const;
 
   // Closes the dialog programmatically when not triggered by user interaction.
   void CloseDialog();
+
+  // Test support:
+  void ProceedForTesting();
+  void CancelForTesting();
+  security_interstitials::https_only_mode::InterstitialReason
+  GetInterstitialReasonForTesting() const;
+  void ClickLearnMoreForTesting();
 
 #if !BUILDFLAG(IS_ANDROID)
   // Closes the dialog widget, if one is open.
@@ -81,9 +91,13 @@ class AskBeforeHttpDialogController : public content::WebContentsObserver {
   void OnUserDismissed();
 
   ukm::SourceId navigation_source_id_ = ukm::kInvalidSourceId;
+  security_interstitials::https_only_mode::FallbackReason fallback_reason_ =
+      security_interstitials::https_only_mode::FallbackReason::kNone;
   GURL request_url_;
   bool is_suspended_ = false;
   std::unique_ptr<security_interstitials::MetricsHelper> metrics_helper_;
+  security_interstitials::https_only_mode::InterstitialReason warning_reason_ =
+      security_interstitials::https_only_mode::InterstitialReason::kUnknown;
 
 #if !BUILDFLAG(IS_ANDROID)
   // Pointer to the widget that contains the current open dialog, if any.

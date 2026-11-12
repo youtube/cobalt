@@ -4,6 +4,7 @@
 
 #include "components/autofill/core/browser/ui/payments/omnibox_autofill_delegate.h"
 
+#include <memory>
 #include <set>
 
 #include "base/check_deref.h"
@@ -118,6 +119,38 @@ void OmniboxAutofillDelegate::OnFieldTypesDetermined(
 
   LogOmniboxAutofillShowChipDecisionPart1(
       OmniboxAutofillShowChipDecisionPart1::kSuccess);
+}
+
+void OmniboxAutofillDelegate::OnAutofillManagerStateChanged(
+    autofill::AutofillManager& manager,
+    autofill::AutofillManager::LifecycleState previous,
+    autofill::AutofillManager::LifecycleState current) {
+  switch (previous) {
+    case autofill::AutofillManager::LifecycleState::kActive:
+      client_->GetPaymentsAutofillClient()->HideOmniboxAutofillChip();
+      break;
+    default:
+      break;
+  }
+}
+
+void OmniboxAutofillDelegate::OnAfterFormsSeen(
+    AutofillManager& manager,
+    base::span<const FormGlobalId> updated_forms,
+    base::span<const FormGlobalId> removed_forms) {
+  for (const FormGlobalId& id : removed_forms) {
+    if (id == trigger_form_global_id_) {
+      client_->GetPaymentsAutofillClient()->HideOmniboxAutofillChip();
+      return;
+    }
+  }
+}
+
+void OmniboxAutofillDelegate::OnGetIntersectionObserverInfo(bool is_visible) {
+  if (!is_visible) {
+    return;
+  }
+  client_->GetPaymentsAutofillClient()->ShowOmniboxAutofillChip();
 }
 
 bool OmniboxAutofillDelegate::IsOutermostMainFrameActiveAutofillManager(

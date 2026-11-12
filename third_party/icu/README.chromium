@@ -274,3 +274,7 @@ D. Local Modifications
   - https://bugzilla.mozilla.org/show_bug.cgi?id=2018880
   - https://github.com/mozilla-firefox/firefox/commit/d9a1061bb178
   - https://unicode-org.atlassian.net/browse/CLDR-19362
+
+14. Missing long name in iso8601 calendar.
+    https://unicode-org.atlassian.net/browse/ICU-23262
+  - patches/missing_iso8601_resource.patch

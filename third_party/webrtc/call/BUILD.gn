@@ -80,6 +80,7 @@ rtc_library("call_interfaces") {
     "../rtc_base/network:sent_packet",
     "../system_wrappers",
     "../video/config:encoder_config",
+    "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
@@ -147,8 +148,11 @@ rtc_library("rtp_receiver") {
   ]
   deps = [
     ":rtp_interfaces",
+    "../api:scoped_refptr",
     "../api:sequence_checker",
     "../api/environment",
+    "../api/task_queue",
+    "../api/task_queue:pending_task_safety_flag",
     "../logging:rtc_event_rtp_rtcp",
     "../modules/rtp_rtcp",
     "../modules/rtp_rtcp:rtp_rtcp_format",
@@ -159,6 +163,7 @@ rtc_library("rtp_receiver") {
     "../rtc_base/containers:flat_map",
     "../rtc_base/containers:flat_set",
     "../rtc_base/system:no_unique_address",
+    "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
@@ -342,6 +347,7 @@ rtc_library("call") {
     "../rtc_base:stringutils",
     "../rtc_base:threading",
     "../rtc_base:timeutils",
+    "../rtc_base/containers:flat_set",
     "../rtc_base/experiments:field_trial_parser",
     "../rtc_base/network:sent_packet",
     "../rtc_base/system:no_unique_address",
@@ -352,6 +358,7 @@ rtc_library("call") {
     "../video:decode_synchronizer",
     "../video/config:encoder_config",
     "adaptation:resource_adaptation",
+    "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/functional:bind_front",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
@@ -457,7 +464,8 @@ rtc_library("video_receive_stream_api") {
 }
 
 rtc_library("simulated_network") {
-  # TODO(bugs.webrtc.org/14525): Remove target and directly depend on test/network:simulated_network.
+  # TODO(bugs.webrtc.org/14525): Remove target and directly depend on
+  # test/network:simulated_network.
   sources = [ "simulated_network.h" ]
   deps = [ "../test/network:simulated_network" ]
 }
@@ -656,8 +664,10 @@ if (rtc_include_tests) {
       deps = [
         ":call",
         ":call_interfaces",
+        ":rtp_interfaces",
         ":rtp_receiver",
         "../api:rtp_headers",
+        "../api:scoped_refptr",
         "../api:transport_api",
         "../api/environment:environment_factory",
         "../logging:mocks",

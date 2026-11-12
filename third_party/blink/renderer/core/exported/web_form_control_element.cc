@@ -37,7 +37,6 @@
 #include "third_party/blink/public/mojom/input/focus_type.mojom-blink.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
-#include "third_party/blink/renderer/core/events/email_verified_event.h"
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_control_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_control_element_with_state.h"
@@ -156,17 +155,6 @@ void WebFormControlElement::DispatchBlurEvent() {
       nullptr, mojom::blink::FocusType::kForward, nullptr);
 }
 
-void WebFormControlElement::DispatchEmailVerifiedEvent(
-    const WebString& presentation_token) {
-  if (IsNull()) {
-    return;
-  }
-
-  // Create and dispatch the event.
-  EmailVerifiedEvent* event = EmailVerifiedEvent::Create(
-      AtomicString("emailverified"), presentation_token);
-  Unwrap<HTMLFormControlElement>()->DispatchEvent(*event);
-}
 
 void WebFormControlElement::SetAutofillValue(const WebString& value,
                                              WebAutofillState autofill_state) {

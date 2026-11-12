@@ -24,6 +24,7 @@
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/views/vector_icons.h"
 
 using DownloadUIModelPtr = DownloadUIModel::DownloadUIModelPtr;
@@ -179,31 +180,32 @@ TEST_F(DownloadBubbleSecurityViewInfoTestGM3, InterruptedInfo) {
        false,
        "Your organization blocked this file because it didn't meet a security "
        "policy",
-       &views::kInfoChromeRefreshOldIcon,
+       &(features::IsRoundedIconsEnabled() ? views::kInfoIcon
+                                           : views::kInfoChromeRefreshOldIcon),
        std::optional<DownloadCommands::Command>()},
       {{download::DOWNLOAD_INTERRUPT_REASON_FILE_NAME_TOO_LONG},
        false,
        "Try using a shorter file name or saving to a different folder",
-       &vector_icons::kFileDownloadOffChromeRefreshIcon,
+       &vector_icons::kFileDownloadOffChromeRefreshOldIcon,
        std::optional<DownloadCommands::Command>()},
       {{download::DOWNLOAD_INTERRUPT_REASON_FILE_NO_SPACE},
        false,
        "Free up space on your device. Then, try to download again",
-       &vector_icons::kFileDownloadOffChromeRefreshIcon,
+       &vector_icons::kFileDownloadOffChromeRefreshOldIcon,
        std::optional<DownloadCommands::Command>()},
       {{download::DOWNLOAD_INTERRUPT_REASON_SERVER_UNAUTHORIZED},
        false,
        "Try to sign in to the site. Then, download again",
-       &vector_icons::kFileDownloadOffChromeRefreshIcon,
+       &vector_icons::kFileDownloadOffChromeRefreshOldIcon,
        std::optional<DownloadCommands::Command>()},
       {no_retry_interrupt_reasons, false, "",
-       &vector_icons::kFileDownloadOffChromeRefreshIcon,
+       &vector_icons::kFileDownloadOffChromeRefreshOldIcon,
        std::optional<DownloadCommands::Command>()},
       {retry_interrupt_reasons, false, "",
-       &vector_icons::kFileDownloadOffChromeRefreshIcon,
+       &vector_icons::kFileDownloadOffChromeRefreshOldIcon,
        DownloadCommands::Command::RETRY},
       {retry_interrupt_reasons, true, "",
-       &vector_icons::kFileDownloadOffChromeRefreshIcon,
+       &vector_icons::kFileDownloadOffChromeRefreshOldIcon,
        DownloadCommands::Command::RESUME},
   };
 

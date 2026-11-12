@@ -4,11 +4,13 @@
 
 package org.chromium.chrome.browser.omnibox.fusebox;
 
+import android.app.Activity;
 import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewStub;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.ImageView;
 import android.widget.PopupWindow.OnDismissListener;
 import android.widget.TextView;
@@ -16,16 +18,19 @@ import android.widget.TextView;
 import androidx.core.graphics.Insets;
 import androidx.core.view.WindowInsetsCompat;
 
+import org.chromium.base.ContextUtils;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.R;
-import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.PopupState;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.PopupState;
+import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.insets.InsetObserver.WindowInsetObserver;
 import org.chromium.ui.widget.AnchoredPopupWindow;
+import org.chromium.ui.widget.RectProvider;
 
 import java.util.HashSet;
 import java.util.List;
@@ -54,6 +59,9 @@ class FuseboxPopup {
 
     /* package */ final View mModelsDivider;
     /* package */ final TextView mModelsHeader;
+    /* package */ final @Nullable TextView mRecentTabsHeader;
+    /* package */ final @Nullable ViewGroup mRecentTabsContainer;
+    /* package */ final @Nullable View mRecentTabsDivider;
     /* package */ final List<View> mAttachmentButtons;
     /* package */ final Set<View> mDynamicThemedButtons = new HashSet<>();
     /* package */ final List<View> mDividers;
@@ -63,6 +71,19 @@ class FuseboxPopup {
     private final @Nullable InsetObserver mInsetObserver;
     private final int mInitialScrollPaddingBottom;
     private @PopupState int mCurrentState = PopupState.HIDDEN;
+    private @Nullable Integer mPreviousAccessibilityImportance;
+    private @Nullable View mCachedContentView;
+
+    private final RectProvider.Observer mDynamicRectObserver =
+            new RectProvider.Observer() {
+                @Override
+                public void onRectChanged() {
+                    updateLayout();
+                }
+
+                @Override
+                public void onRectHidden() {}
+            };
 
     private final WindowInsetObserver mWindowInsetObserver =
             new WindowInsetObserver() {
@@ -86,7 +107,9 @@ class FuseboxPopup {
             boolean isBottomSheet) {
         mPopupWindow = popupWindow;
         mPopupWindow.setClippingEnabled(false);
+        mPopupWindow.addOnDismissListener(this::restoreBackgroundAccessibility);
         mDynamicRectProvider = dynamicRectProvider;
+        mDynamicRectProvider.startObserving(mDynamicRectObserver);
         mInsetObserver = windowAndroid.getInsetObserver();
         if (mInsetObserver != null) {
             mInsetObserver.addObserver(mWindowInsetObserver);
@@ -104,6 +127,10 @@ class FuseboxPopup {
                     }
                 });
         mScrollView = contentView.findViewById(R.id.fusebox_scroll_view);
+        mScrollView.setLayoutDirection(
+                LocalizationUtils.isLayoutRtl()
+                        ? View.LAYOUT_DIRECTION_RTL
+                        : View.LAYOUT_DIRECTION_LTR);
         mInitialScrollPaddingBottom = mScrollView.getPaddingBottom();
 
         if (isBottomSheet) {
@@ -161,6 +188,11 @@ class FuseboxPopup {
 
         mModelsDivider = contentView.findViewById(R.id.fusebox_models_divider);
         mModelsHeader = contentView.findViewById(R.id.fusebox_models_header);
+
+        mRecentTabsDivider = contentView.findViewById(R.id.fusebox_recent_tabs_divider);
+        mRecentTabsHeader = contentView.findViewById(R.id.fusebox_recent_tabs_header);
+        mRecentTabsContainer = contentView.findViewById(R.id.fusebox_recent_tabs_container);
+
         mAttachmentButtons =
                 List.of(
                         mAddCurrentTab,
@@ -169,8 +201,15 @@ class FuseboxPopup {
                         mCameraButton,
                         mGalleryButton,
                         mFileButton);
-        mDividers = List.of(mToolsDivider, mModelsDivider);
-        mHeaders = List.of(mToolsHeader, mModelsHeader);
+
+        mDividers =
+                mRecentTabsDivider != null
+                        ? List.of(mRecentTabsDivider, mToolsDivider, mModelsDivider)
+                        : List.of(mToolsDivider, mModelsDivider);
+        mHeaders =
+                mRecentTabsHeader != null
+                        ? List.of(mRecentTabsHeader, mToolsHeader, mModelsHeader)
+                        : List.of(mToolsHeader, mModelsHeader);
     }
 
     void destroy() {
@@ -178,6 +217,7 @@ class FuseboxPopup {
             mInsetObserver.removeObserver(mWindowInsetObserver);
         }
         mScrollView.setOnSwipeDownListener(null);
+        mDynamicRectProvider.stopObserving(mDynamicRectObserver);
     }
 
     /** Show the popup window. */
@@ -201,8 +241,10 @@ class FuseboxPopup {
         mCurrentState = state;
         if (state == PopupState.BOTTOM) {
             mPopupWindow.setAnimationStyle(R.style.FuseboxBottomSheetAnimation);
+            hideBackgroundAccessibility();
         } else {
             mPopupWindow.setAnimationStyle(0);
+            restoreBackgroundAccessibility();
         }
 
         // ALWAYS update the DynamicRectProvider state first.
@@ -216,6 +258,29 @@ class FuseboxPopup {
 
         updateLayout();
         show();
+    }
+
+    private void hideBackgroundAccessibility() {
+        if (mPreviousAccessibilityImportance != null) return;
+        Activity activity = ContextUtils.activityFromContext(mViewGroup.getContext());
+        if (activity != null) {
+            mCachedContentView = activity.findViewById(android.R.id.content);
+            if (mCachedContentView != null) {
+                mPreviousAccessibilityImportance =
+                        mCachedContentView.getImportantForAccessibility();
+                mCachedContentView.setImportantForAccessibility(
+                        View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+            }
+        }
+    }
+
+    private void restoreBackgroundAccessibility() {
+        if (mPreviousAccessibilityImportance == null) return;
+        if (mCachedContentView != null) {
+            mCachedContentView.setImportantForAccessibility(mPreviousAccessibilityImportance);
+            mCachedContentView = null;
+        }
+        mPreviousAccessibilityImportance = null;
     }
 
     /**
@@ -252,22 +317,30 @@ class FuseboxPopup {
      * <p>TODO(crbug.com/470324794): This isn't right. Figure out why AnchoredPopupWindow won't
      * focus views for us.
      */
+    @SuppressWarnings("AccessibilityFocus")
     void focusFirstViewForAccessibility() {
-        View viewForAccessibility = null;
-        for (int viewIndex = 0; viewIndex < mViewGroup.getChildCount(); viewIndex++) {
-            var view = mViewGroup.getChildAt(viewIndex);
-
-            if (view.getVisibility() == View.VISIBLE && view.isImportantForAccessibility()) {
-                viewForAccessibility = view;
-                break;
-            }
-        }
-
+        View viewForAccessibility = findFirstViewForAccessibility(mViewGroup);
         if (viewForAccessibility == null) return;
 
         // Move focus to the view, emitting event.
         viewForAccessibility.requestFocus();
         viewForAccessibility.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
+        viewForAccessibility.performAccessibilityAction(
+                AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null);
+    }
+
+    private @Nullable View findFirstViewForAccessibility(View view) {
+        if (view.getVisibility() != View.VISIBLE) return null;
+        if (view.isImportantForAccessibility()) return view;
+
+        if (view instanceof ViewGroup) {
+            ViewGroup viewGroup = (ViewGroup) view;
+            for (int i = 0; i < viewGroup.getChildCount(); i++) {
+                View result = findFirstViewForAccessibility(viewGroup.getChildAt(i));
+                if (result != null) return result;
+            }
+        }
+        return null;
     }
 
     /** Dismiss the popup window. */

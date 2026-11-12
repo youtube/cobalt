@@ -218,6 +218,25 @@ supplementalData:table(nofallback){
             }
             system{"lunar"}
         }
+        iso8601{
+            eras{
+                0{
+                    end:intvector{
+                        0,
+                        12,
+                        31,
+                    }
+                }
+                1{
+                    start:intvector{
+                        1,
+                        1,
+                        1,
+                    }
+                }
+            }
+            system{"solar"}
+        }
         japanese{
             eras{
                 0{

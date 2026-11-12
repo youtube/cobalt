@@ -17,10 +17,13 @@ interface ToolbarUIObserver {
   // Observes events for navigation controls (e.g. back, forward, reload
   // buttons). |state| contains the state for all navigation controls
   // so that they can update together to avoid visual flicker.
-  OnNavigationControlsStateChanged(NavigationControlsState state);
+  OnNavigationControlsStateChanged(
+    array<IconUpdate> icons,
+    NavigationControlsState state);
 };
 
 struct InitialState {
+    array<IconUpdate> icons;
     NavigationControlsState state;
     pending_receiver<ToolbarUIObserver> update_stream;
 };
@@ -83,12 +86,18 @@ interface ToolbarUIService {
 
   // Called when a collapse animation finishes.
   OnLhsChipCollapseAnimationEnded(LhsChipIdentifier identifier);
-  // Sets the home page to the currently dragged url, if any, and displays the
 
+  // Sets the home page to the currently dragged url, if any, and displays the
   // home page undo bubble.
   OnHomeButtonDropUrl(url.mojom.Url url);
 
   // Sets the home page to the currently dragged file, if any, and displays the
   // home page undo bubble.
   OnHomeButtonDropFile(gfx.mojom.PointF drop_position);
+
+  // Navigates the current tab to the currently dragged file at `drop_position`.
+  OnToolbarDropFile(gfx.mojom.PointF drop_position);
+
+  // Shows the avatar menu bubble.
+  ShowAvatarMenu() => result<mojo_base.mojom.Empty, mojo_base.mojom.Error>;
 };

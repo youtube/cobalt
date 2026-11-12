@@ -229,10 +229,10 @@ class EvpPkeyCtx : public evp_pkey_ctx_st {
  public:
   static constexpr bool kAllowUniquePtr = true;
 
-  // TODO(crbug.com/487376811): This destructor is virtual to confirm that we
-  // can emit vtables in libcrypto. Later we should replace |pmeth| with virtual
-  // methods and subclassing.
-  virtual ~EvpPkeyCtx();
+  // TODO(crbug.com/487376811): Ideally this destructor should be virtual so
+  // that we can emit vtables in libcrypto. In that case we would be able to
+  // replace |pmeth| with virtual methods and subclassing.
+  ~EvpPkeyCtx();
 
   // Method associated with this operation
   const bssl::EVP_PKEY_CTX_METHOD *pmeth = nullptr;

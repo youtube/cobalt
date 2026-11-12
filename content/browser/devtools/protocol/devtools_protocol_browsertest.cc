@@ -1874,6 +1874,32 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
 #endif
 
 IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
+                       DOMGetFileInfoRequiresFileAccess) {
+  NavigateToURLBlockUntilNavigationsComplete(shell(), GURL("about:blank"), 1);
+  Attach();
+
+  base::DictValue params;
+  params.Set("objectId", "dummy-object-id");
+
+  // Should succeed in browser-side check and fall through to renderer,
+  // which will return an error about invalid objectId.
+  ASSERT_FALSE(SendCommandSync("DOM.getFileInfo", params.Clone()));
+  EXPECT_NE(*error()->FindString("message"), "Not allowed");
+
+  Detach();
+  SetMayReadLocalFiles(false);
+
+  Attach();
+
+  // It should fail now in the browser-side check.
+  ASSERT_FALSE(SendCommandSync("DOM.getFileInfo", std::move(params)));
+  EXPECT_THAT(
+      error()->FindInt("code"),
+      testing::Optional(static_cast<int>(crdtp::DispatchCode::SERVER_ERROR)));
+  EXPECT_EQ(*error()->FindString("message"), "Not allowed");
+}
+
+IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
                        DispatchDragEventWithFileUrlRequiresFileAccess) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL test_url = embedded_test_server()->GetURL("/devtools/navigation.html");
@@ -3390,6 +3416,38 @@ class DevToolsProtocolDeviceEmulationPrerenderTest
 #else
 #define MAYBE_DeviceSize DeviceSize
 #endif
+IN_PROC_BROWSER_TEST_F(DevToolsProtocolDeviceEmulationPrerenderTest,
+                       DevicePostureOverrideDuringPrerenderActivation) {
+  content::SetupCrossSiteRedirector(embedded_test_server());
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  GURL test_url = embedded_test_server()->GetURL("/devtools/navigation.html");
+  NavigateToURLBlockUntilNavigationsComplete(shell(), test_url, 1);
+  std::string session_id = AttachToTabTargetAndGetSessionId();
+
+  // Set device posture override.
+  {
+    base::DictValue posture;
+    posture.Set("type", "folded");
+    base::DictValue params;
+    params.Set("devicePosture", std::move(posture));
+    SendSessionCommand("Emulation.setDevicePostureOverride", std::move(params),
+                       session_id, true);
+  }
+
+  // Start a prerender.
+  GURL prerender_url =
+      embedded_test_server()->GetURL("/devtools/navigation.html?prerender");
+  prerender_helper_.AddPrerender(prerender_url);
+
+  // Activate the prerendered page. This should not crash when detaching the
+  // previous session's handlers.
+  prerender_helper_.NavigatePrimaryPage(prerender_url);
+
+  SendSessionCommand("Emulation.clearDevicePostureOverride", base::DictValue(),
+                     session_id, true);
+}
+
 IN_PROC_BROWSER_TEST_F(DevToolsProtocolDeviceEmulationPrerenderTest,
                        MAYBE_DeviceSize) {
   SetupCrossSiteRedirector(embedded_test_server());

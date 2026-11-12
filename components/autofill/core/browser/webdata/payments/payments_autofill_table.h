@@ -6,14 +6,18 @@
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_WEBDATA_PAYMENTS_PAYMENTS_AUTOFILL_TABLE_H_
 
 #include <stddef.h>
+#include <stdint.h>
 
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
+#include "base/containers/flat_set.h"
+#include "build/buildflag.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card_benefit.h"
 #include "components/webdata/common/web_database_table.h"
+#include "url/origin.h"
 
 class WebDatabase;
 

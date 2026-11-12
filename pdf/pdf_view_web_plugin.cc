@@ -322,6 +322,8 @@ class PdfViewWebPlugin::PdfInkModuleClientImpl : public PdfInkModuleClient {
     plugin_->engine_->DiscardStroke(page_index, id);
   }
 
+  void DiscardText(InkTextId id) override { plugin_->engine_->DiscardText(id); }
+
   void DrawText(int page_index,
                 InkTextId id,
                 base::span<const InkTextInfo> text_info,
@@ -474,6 +476,10 @@ class PdfViewWebPlugin::PdfInkModuleClientImpl : public PdfInkModuleClient {
                           InkStrokeId id,
                           bool active) override {
     plugin_->engine_->UpdateStrokeActive(page_index, id, active);
+  }
+
+  void UpdateTextActiveAndInvalidate(InkTextId id, bool active) override {
+    plugin_->engine_->UpdateTextActiveAndInvalidate(id, active);
   }
 
   int VisiblePageIndexFromPoint(const gfx::PointF& point) override {

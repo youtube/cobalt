@@ -153,7 +153,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <variants name="SqlPersistentStoreMethodName">
-  <variant name="CalculateSizeOfEntriesBetween"/>
+  <variant name="CalculateSizeOfEntriesBetween2"/>
   <variant name="CreateEntry"/>
   <variant name="DeleteAllEntries"/>
   <variant name="DeleteDoomedEntries"/>
@@ -171,6 +171,8 @@ chromium-metrics-reviews@google.com.
   <variant name="ReadEntryData"/>
   <variant name="ResumeEviction"/>
   <variant name="ResumeEvictionOnIdleTime"/>
+  <variant name="ResumePendingEviction"/>
+  <variant name="ResumePendingEvictionOnIdleTime"/>
   <variant name="RunNewEviction"/>
   <variant name="RunNewEvictionOnIdleTime"/>
   <variant name="UpdateEntryLastUsedByKey"/>
@@ -1556,7 +1558,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.AlternativeServiceTypeForRequest"
-    enum="AlternativeServiceType" expires_after="2026-09-13">
+    enum="AlternativeServiceType" expires_after="2026-11-15">
   <owner>bashi@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -1627,7 +1629,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.CanPool.CTRequirementStatus" enum="CTRequirementStatus"
-    expires_after="2026-09-13">
+    expires_after="2026-11-15">
   <owner>mattm@chromium.org</owner>
   <owner>chrome-secure-web-and-net@chromium.org</owner>
   <summary>
@@ -1771,7 +1773,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.CertVerifier.CTRequirementStatus"
-    enum="CTRequirementStatus" expires_after="2026-09-13">
+    enum="CTRequirementStatus" expires_after="2026-11-15">
   <owner>mattm@chromium.org</owner>
   <owner>chrome-secure-web-and-net@chromium.org</owner>
   <summary>
@@ -2465,7 +2467,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DNS.DnsConfig.DnsClientCapability"
-    enum="DNS.DnsClientCapability" expires_after="2026-09-06">
+    enum="DNS.DnsClientCapability" expires_after="2026-11-15">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -2653,7 +2655,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DNS.DnsTransaction.AttemptType" enum="DNS.AttemptType"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -2661,6 +2663,46 @@ chromium-metrics-reviews@google.com.
     started DnsAttempt (the representation of an individual network request to a
     DNS server).
   </summary>
+</histogram>
+
+<histogram name="Net.DNS.DnsTransaction.HttpsLookupResult" enum="NetErrorCodes"
+    expires_after="2026-11-01">
+  <owner>stefanoduo@google.com</owner>
+  <owner>src/net/dns/OWNERS</owner>
+  <summary>
+    Net error codes resulting from completed or aborted DnsTransactions querying
+    for HTTPS resource records. Recorded across all resolution modes when a
+    transaction completes or is aborted before completion.
+  </summary>
+</histogram>
+
+<histogram
+    name="Net.DNS.DnsTransaction.HttpsLookupResult.ClassicTruncatedAndTcpRetried"
+    enum="NetErrorCodes" expires_after="2026-11-01">
+  <owner>stefanoduo@google.com</owner>
+  <owner>src/net/dns/OWNERS</owner>
+  <summary>
+    Net error codes resulting from completed or aborted classic (Do53)
+    DnsTransactions querying for HTTPS resource records that experienced UDP
+    truncation (TC bit set) and retried over TCP. Recorded when a classic DNS
+    transaction completes or is aborted after retrying over TCP.
+  </summary>
+</histogram>
+
+<histogram name="Net.DNS.DnsTransaction.HttpsLookupResult.{AttemptMode}"
+    enum="NetErrorCodes" expires_after="2026-11-01">
+  <owner>stefanoduo@google.com</owner>
+  <owner>src/net/dns/OWNERS</owner>
+  <summary>
+    Net error codes resulting from completed or aborted DnsTransactions querying
+    for HTTPS resource records using {AttemptMode}. Recorded when a transaction
+    completes or is aborted before completion.
+  </summary>
+  <token key="AttemptMode">
+    <variant name="Classic" summary="classic DNS (Do53)"/>
+    <variant name="DoH" summary="DNS over HTTPS"/>
+    <variant name="Platform" summary="platform resolver"/>
+  </token>
 </histogram>
 
 <histogram name="Net.DNS.DnsTransaction.Insecure.{DohProviderId}FailureTime"
@@ -3225,6 +3267,17 @@ chromium-metrics-reviews@google.com.
     requests from Chrome) in resolutions that failed. This is the time to
     resolve a hostname from start to finish. Excludes jobs where all requests
     are speculative.
+  </summary>
+</histogram>
+
+<histogram name="Net.DNS.ResolveFallbackPath" enum="ResolveFallbackPath"
+    expires_after="2026-11-08">
+  <owner>bashi@chromium.org</owner>
+  <owner>net-dev@chromium.org</owner>
+  <summary>
+    The complete fallback path taken to achieve a successful host resolution.
+    Emitted when a non-speculative HostResolverManager::Job successfully
+    resolves a host.
   </summary>
 </histogram>
 
@@ -3830,7 +3883,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpStreamFactory.OnStreamReadyCallbackDelay" units="ms"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -4146,7 +4199,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpTimeToFirstByte.TLS13.Google" units="ms"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>davidben@chromium.org</owner>
   <owner>trusty-transport@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -4386,7 +4439,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.NetworkTransaction.RequestStreamCpuTime" units="ms"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -6446,7 +6499,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.QuicSession.PendingStreamsWaitTime" units="ms"
-    expires_after="2026-09-08">
+    expires_after="2026-11-15">
   <owner>bashi@chromium.org</owner>
   <owner>src/net/quic/OWNERS</owner>
   <summary>
@@ -7520,7 +7573,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.RestrictedCookieManager.SiteForCookiesOK.Subsampled"
-    enum="BooleanMatched" expires_after="2025-03-09">
+    enum="BooleanMatched" expires_after="2026-11-14">
   <owner>morlovich@chromium.org</owner>
   <owner>src/net/cookies/OWNERS</owner>
   <summary>
@@ -7529,11 +7582,14 @@ chromium-metrics-reviews@google.com.
 
     Subsampled to 1/1000. See kHistogramSampleProbability in
     net/cookies/cookie_constants.h for details.
+
+    Warning: Histogram was expired from 2025-03-09 to 2026-05-14. Data may be
+    missing.
   </summary>
 </histogram>
 
 <histogram name="Net.RestrictedCookieManager.TopFrameOriginOK.Subsampled"
-    enum="BooleanMatched" expires_after="2025-01-26">
+    enum="BooleanMatched" expires_after="2026-11-14">
   <owner>morlovich@chromium.org</owner>
   <owner>src/net/cookies/OWNERS</owner>
   <summary>
@@ -7542,6 +7598,9 @@ chromium-metrics-reviews@google.com.
 
     Subsampled to 1/1000. See kHistogramSampleProbability in
     net/cookies/cookie_constants.h for details.
+
+    Warning: Histogram was expired from 2025-01-26 to 2026-05-14. Data may be
+    missing.
   </summary>
 </histogram>
 
@@ -7665,7 +7724,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SharedDictionaryManagerOnDisk.CacheMaxSize2" units="MB"
-    expires_after="2026-09-27">
+    expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7679,7 +7738,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SharedDictionaryManagerOnDisk.DictionarySize"
-    units="bytes" expires_after="2026-07-01">
+    units="bytes" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7691,7 +7750,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.SharedDictionaryManagerOnDisk.DiskCacheEntryMissingDictionaryCount"
-    units="count" expires_after="2026-09-06">
+    units="count" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7701,7 +7760,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SharedDictionaryManagerOnDisk.InvalidDiskCacheEntryCount"
-    units="count" expires_after="2026-09-06">
+    units="count" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7712,7 +7771,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.SharedDictionaryManagerOnDisk.MetadataMissingDictionaryCount"
-    units="count" expires_after="2026-09-06">
+    units="count" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7725,7 +7784,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SharedDictionaryManagerOnDisk.PolicySpecifiedCacheMaxSize"
-    units="MB" expires_after="2026-09-06">
+    units="MB" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7738,7 +7797,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.SharedDictionaryManagerOnDisk.TotalDictionaryCountWhenAdded"
-    units="count" expires_after="2026-09-06">
+    units="count" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7750,7 +7809,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.SharedDictionaryManagerOnDisk.TotalDictionarySizeWhenAdded"
-    units="MB" expires_after="2026-09-06">
+    units="MB" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7762,7 +7821,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.SharedDictionaryOnDisk.OpenEntryLatency.{SuccessOrFailure}"
-    units="ms" expires_after="2026-08-30">
+    units="ms" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7773,7 +7832,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SharedDictionaryOnDisk.ReadDataLatency.{SuccessOrFailure}"
-    units="ms" expires_after="2026-11-08">
+    units="ms" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7797,7 +7856,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SharedDictionaryStorageOnDisk.IsMetadataReadyOnFirstUse"
-    enum="Boolean" expires_after="2026-11-01">
+    enum="Boolean" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7847,7 +7906,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SharedDictionaryStorageOnDisk.MetadataReadTime.{Result}"
-    units="ms" expires_after="2026-10-25">
+    units="ms" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7862,7 +7921,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SharedDictionaryStore.DictionaryCountPerSiteWhenAdded"
-    units="count" expires_after="2026-07-01">
+    units="count" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7876,7 +7935,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SharedDictionaryStore.DictionarySizeKBPerSiteWhenAdded"
-    units="KB" expires_after="2026-07-01">
+    units="KB" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7887,7 +7946,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SharedDictionaryStore.{MethodName}.Error"
-    enum="SharedDictionaryStoreError" expires_after="2026-07-01">
+    enum="SharedDictionaryStoreError" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7913,7 +7972,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.SharedDictionaryTransaction.AbortedWhileReadingDictionary.{SuccessOrFailure}"
-    units="ms" expires_after="2026-07-01">
+    units="ms" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7927,7 +7986,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.SharedDictionaryTransaction.DictionaryReadLatency.{RequestType}.{SuccessOrFailure}"
-    units="ms" expires_after="2026-11-08">
+    units="ms" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7943,7 +8002,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SharedDictionaryTransaction.NetResultWithDict.{CertState}"
-    enum="NetErrorCodes" expires_after="2026-08-30">
+    enum="NetErrorCodes" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7960,7 +8019,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.SharedDictionaryUsedByResponseWhenAvailable2.MainFrame.{ConnectionType}.{CertState}"
-    enum="Boolean" expires_after="2026-07-01">
+    enum="Boolean" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7983,7 +8042,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.SharedDictionaryUsedResponseErrorCodes2.{DestinationType}.{CertState}"
-    enum="NetErrorCodes" expires_after="2026-07-01">
+    enum="NetErrorCodes" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -8003,7 +8062,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SharedDictionaryWriterInMemory.DictionarySize"
-    units="bytes" expires_after="2026-07-01">
+    units="bytes" expires_after="2027-01-01">
   <owner>pmeenan@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -8403,7 +8462,42 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="Net.SqlDiskCache.Backend.{EvictionType}.TimeToSelectEntries"
+<histogram
+    name="Net.SqlDiskCache.Backend.{EvictionType}.ScannedEntriesCount.{TimeType}"
+    units="entries" expires_after="2026-09-06">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Records the number of entries scanned in the database during a single
+    eviction candidate selection run in the SQL-based disk cache.
+  </summary>
+  <token key="EvictionType">
+    <variant name="RunEviction"/>
+    <variant name="RunEvictionOnIdleTime"/>
+  </token>
+  <token key="TimeType">
+    <variant name="Abort"/>
+    <variant name="Failure"/>
+    <variant name="Success"/>
+  </token>
+</histogram>
+
+<histogram name="Net.SqlDiskCache.Backend.{EvictionType}.SelectEntriesSqlError"
+    enum="SqliteLoggedResultCode" expires_after="2026-09-06">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Records the SQLite error code when SelectEvictionCandidates fails during a
+    single eviction run in the SQL-based disk cache.
+  </summary>
+  <token key="EvictionType">
+    <variant name="RunEviction"/>
+    <variant name="RunEvictionOnIdleTime"/>
+  </token>
+</histogram>
+
+<histogram
+    name="Net.SqlDiskCache.Backend.{EvictionType}.TimeToSelectEntries.{TimeType}"
     units="microseconds" expires_after="2026-09-06">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
@@ -8416,6 +8510,11 @@ chromium-metrics-reviews@google.com.
   <token key="EvictionType">
     <variant name="RunEviction"/>
     <variant name="RunEvictionOnIdleTime"/>
+  </token>
+  <token key="TimeType">
+    <variant name="Abort"/>
+    <variant name="Failure"/>
+    <variant name="Success"/>
   </token>
 </histogram>
 
@@ -8479,7 +8578,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.DeleteDoomedEntriesCount" units="entries"
-    expires_after="2026-09-13">
+    expires_after="2026-11-15">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -8493,7 +8592,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.ExclusiveOperationDelay" units="microseconds"
-    expires_after="2026-09-13">
+    expires_after="2026-11-15">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -8506,7 +8605,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.FakeIndexFileError"
-    enum="SqlDiskCacheFakeIndexFileError" expires_after="2026-09-13">
+    enum="SqlDiskCacheFakeIndexFileError" expires_after="2026-11-15">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -8516,8 +8615,23 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Net.SqlDiskCache.Init.{SuccessOrFailure}Time"
+    units="microseconds" expires_after="2026-09-13">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Measures the total duration of the SQL disk cache initialization. Recorded
+    when the initialization completes {SuccessOrFailure}. The histogram is not
+    reported on Windows machines without high resolution clocks.
+  </summary>
+  <token key="SuccessOrFailure">
+    <variant name="Failure" summary="with an error"/>
+    <variant name="Success" summary="successfully"/>
+  </token>
+</histogram>
+
 <histogram name="Net.SqlDiskCache.NormalOperationDelay" units="microseconds"
-    expires_after="2026-09-13">
+    expires_after="2026-11-15">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -8530,7 +8644,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.OptimisticWrite.Result"
-    enum="SqlDiskCacheStoreError" expires_after="2026-09-13">
+    enum="SqlDiskCacheStoreError" expires_after="2026-11-15">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -8709,7 +8823,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SSLHandshakeDetails" enum="SSLHandshakeDetails"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>davidben@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -8845,7 +8959,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.TcpConnectAttempt.Latency.Error" units="ms"
-    expires_after="2026-09-13">
+    expires_after="2026-11-15">
   <owner>bashi@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -9071,6 +9185,33 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Net.UDPSocketPosix.RandomBindTime" units="microseconds"
+    expires_after="2026-05-31">
+  <owner>ricea@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    The time it takes to execute UDPSocketPosix::RandomBind() during a Connect()
+    call. Measured for every UDP connect on POSIX platforms and Fuchsia. Emitted
+    by UDPSocketPosix::InternalConnect() after RandomBind() returns.
+
+    Only recorded on systems with high-resolution clocks.
+  </summary>
+</histogram>
+
+<histogram name="Net.UDPSocketPosix.SyncConnectTime" units="microseconds"
+    expires_after="2026-05-31">
+  <owner>ricea@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    The time it takes to execute a the connect() system call in
+    UDPSocketPosix::InternalConnect. This is only the synchronous blocking time,
+    it does not include any network activity. Measured for every UDP connect on
+    POSIX platforms and Fuchsia immediately after connect() returns.
+
+    Only recorded on systems with high-resolution clocks.
+  </summary>
+</histogram>
+
 <histogram name="Net.UDPSocketWinClose" units="ms" expires_after="2024-03-24">
   <owner>dschinazi@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
@@ -9204,7 +9345,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.URLLoaderThrottle.OnReceiveResponseTime" units="ms"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>nidhijaju@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -9331,7 +9472,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.WebSocket.ProtocolHeaderSize" units="bytes"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>ricea@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>

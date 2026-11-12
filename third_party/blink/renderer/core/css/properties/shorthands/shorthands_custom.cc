@@ -733,10 +733,18 @@ bool Border::ParseShorthand(
                                                  *style, important, properties);
   css_parsing_utils::AddExpandedPropertyForValue(CSSPropertyID::kBorderColor,
                                                  *color, important, properties);
-  css_parsing_utils::AddExpandedPropertyForValue(CSSPropertyID::kBorderImage,
-                                                 *CSSInitialValue::Create(),
-                                                 important, properties);
 
+  // `border` resets `border-image` to its initial value. `border-image`
+  // is a shorthand, so each of its longhands is reset to its initial value.
+  // https://drafts.csswg.org/css-backgrounds/#propdef-border
+  // https://drafts.csswg.org/css-backgrounds/#border-image
+  const StylePropertyShorthand& border_image_shorthand = borderImageShorthand();
+  for (const CSSProperty* longhand : border_image_shorthand.properties()) {
+    css_parsing_utils::AddProperty(
+        longhand->PropertyID(), border_image_shorthand.id(),
+        *To<Longhand>(*longhand).InitialValue(), important,
+        css_parsing_utils::IsImplicitProperty::kImplicit, properties);
+  }
   return true;
 }
 
@@ -5196,12 +5204,14 @@ bool LineClamp::ParseShorthand(
     const CSSParserContext& context,
     CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
-  const CSSValue* max_lines = nullptr;
+  const CSSValue* num_lines = nullptr;
+  const CSSValue* auto_keyword = nullptr;
   const CSSValue* block_ellipsis = nullptr;
   const CSSValue* continue_value = nullptr;
 
   if (stream.Peek().Id() == CSSValueID::kNone) {
-    max_lines = css_parsing_utils::ConsumeIdent(stream);
+    css_parsing_utils::ConsumeIdent(stream);
+    auto_keyword = CSSIdentifierValue::Create(CSSValueID::kAuto);
     block_ellipsis = CSSIdentifierValue::Create(CSSValueID::kNoEllipsis);
     continue_value = CSSIdentifierValue::Create(CSSValueID::kNormal);
   } else {
@@ -5211,9 +5221,8 @@ bool LineClamp::ParseShorthand(
         break;
       }
 
-      if (!max_lines && stream.Peek().Id() == CSSValueID::kAuto) {
-        css_parsing_utils::ConsumeIdent(stream);
-        max_lines = CSSIdentifierValue::Create(CSSValueID::kNone);
+      if (!auto_keyword && stream.Peek().Id() == CSSValueID::kAuto) {
+        auto_keyword = css_parsing_utils::ConsumeIdent(stream);
         continue;
       }
 
@@ -5226,30 +5235,39 @@ bool LineClamp::ParseShorthand(
         }
       }
 
-      if (!max_lines) {
-        max_lines = css_parsing_utils::ConsumePositiveInteger(stream, context,
+      if (!num_lines) {
+        num_lines = css_parsing_utils::ConsumePositiveInteger(stream, context,
                                                               local_context);
-        if (max_lines) {
+        if (num_lines) {
           continue;
         }
       }
 
       break;
     } while (!stream.AtEnd());
+  }
 
-    if (!max_lines && !block_ellipsis) {
-      return false;
-    }
+  if (!num_lines && !auto_keyword && !block_ellipsis) {
+    return false;
+  }
 
-    if (!max_lines) {
-      max_lines = CSSIdentifierValue::Create(CSSValueID::kNone);
-    }
-    if (!block_ellipsis) {
-      block_ellipsis = CSSIdentifierValue::Create(CSSValueID::kEllipsis);
-    }
-    if (!continue_value) {
-      continue_value = CSSIdentifierValue::Create(CSSValueID::kCollapse);
-    }
+  const CSSValue* max_lines;
+  if (num_lines && auto_keyword) {
+    max_lines = MakeGarbageCollected<CSSValuePair>(
+        num_lines, auto_keyword, CSSValuePair::kKeepIdenticalValues);
+  } else if (num_lines) {
+    max_lines = num_lines;
+  } else if (auto_keyword) {
+    max_lines = auto_keyword;
+  } else {
+    max_lines = CSSIdentifierValue::Create(CSSValueID::kAuto);
+  }
+
+  if (!block_ellipsis) {
+    block_ellipsis = CSSIdentifierValue::Create(CSSValueID::kEllipsis);
+  }
+  if (!continue_value) {
+    continue_value = CSSIdentifierValue::Create(CSSValueID::kCollapse);
   }
 
   AddProperty(CSSPropertyID::kMaxLines, CSSPropertyID::kLineClamp, *max_lines,
@@ -5270,7 +5288,7 @@ const CSSValue* LineClamp::CSSValueFromComputedStyleInternal(
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
   if (style.Continue() == EContinue::kNormal) {
-    if (style.MaxLines() == 0 &&
+    if (style.MaxLines().IsAutoValue() &&
         style.BlockEllipsis() == EBlockEllipsis::kNoEllipsis) {
       return CSSIdentifierValue::Create(CSSValueID::kNone);
     }
@@ -5279,11 +5297,10 @@ const CSSValue* LineClamp::CSSValueFromComputedStyleInternal(
 
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();
 
-  if (style.MaxLines() != 0) {
+  if (!style.MaxLines().IsAutoValue() ||
+      style.BlockEllipsis() == EBlockEllipsis::kEllipsis) {
     list->Append(*GetCSSPropertyMaxLines().CSSValueFromComputedStyle(
         style, layout_object, allow_visited_style, value_phase));
-  } else if (style.BlockEllipsis() == EBlockEllipsis::kEllipsis) {
-    list->Append(*CSSIdentifierValue::Create(CSSValueID::kAuto));
   }
 
   if (style.BlockEllipsis() != EBlockEllipsis::kEllipsis) {
@@ -5313,7 +5330,8 @@ bool AlternativeWebkitLineClamp::ParseShorthand(
   // `none` is a keyword with a custom mapping, but it's also a valid value of
   // the `block-ellipsis` longhand.
   if (stream.Peek().Id() == CSSValueID::kNone) {
-    max_lines = css_parsing_utils::ConsumeIdent(stream);
+    css_parsing_utils::ConsumeIdent(stream);
+    max_lines = CSSIdentifierValue::Create(CSSValueID::kAuto);
     block_ellipsis = CSSIdentifierValue::Create(CSSValueID::kNoEllipsis);
     continue_value = CSSIdentifierValue::Create(CSSValueID::kNormal);
   } else {
@@ -5347,12 +5365,12 @@ const CSSValue* AlternativeWebkitLineClamp::CSSValueFromComputedStyleInternal(
     CSSValuePhase value_phase) const {
   if (style.Continue() == EContinue::kNormal &&
       style.BlockEllipsis() == EBlockEllipsis::kNoEllipsis &&
-      style.MaxLines() == 0) {
+      style.MaxLines().IsAutoValue()) {
     return CSSIdentifierValue::Create(CSSValueID::kNone);
   }
   if (style.Continue() == EContinue::kWebkitLegacy &&
       style.BlockEllipsis() == EBlockEllipsis::kEllipsis &&
-      style.MaxLines() != 0) {
+      !style.MaxLines().HasAutoKeyword()) {
     return GetCSSPropertyMaxLines().CSSValueFromComputedStyle(
         style, layout_object, allow_visited_style, value_phase);
   }

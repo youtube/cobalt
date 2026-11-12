@@ -59,6 +59,7 @@ _failing_android_targets = [
   "sync_full_proto_unittests",
   "sync_integration_tests",
   "sync_performance_tests",
+  "updater_fuzztests",
   "updater_tests",
   "updater_tests_system",
   "views_perftests",

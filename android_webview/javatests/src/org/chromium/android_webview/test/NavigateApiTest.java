@@ -30,6 +30,8 @@ import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.content_public.browser.NavigationHistory;
+import org.chromium.content_public.browser.test.util.NavigationControllerUtil;
+import org.chromium.content_public.browser.test.util.NavigationEntrySimple;
 import org.chromium.net.test.util.TestWebServer;
 import org.chromium.net.test.util.WebServer.HTTPHeader;
 import org.chromium.net.test.util.WebServer.HTTPRequest;
@@ -48,8 +50,8 @@ public class NavigateApiTest extends AwParameterizedTest {
     private static final String PAGE1_PATH = "/index.html";
     private static final String PAGE2_PATH = "/example.html";
 
-    private static final String HEADER_NAME = "MyHeader";
-    private static final String HEADER_VALUE = "MyValue";
+    private static final String HEADER_NAME = "myheader";
+    private static final String HEADER_VALUE = "myvalue";
 
     @Rule public AwActivityTestRule mActivityTestRule;
 
@@ -389,14 +391,6 @@ public class NavigateApiTest extends AwParameterizedTest {
         TestAwContentsClient restoredStateContentsClient = new TestAwContentsClient();
         AwTestContainerView restoredStateTestView =
                 mActivityTestRule.createAwTestContainerViewOnMainSync(restoredStateContentsClient);
-        CallbackHelper restoredStateOnPageFinishedHelper =
-                restoredStateContentsClient.getOnPageFinishedHelper();
-        int restoredStateCurrentCallCount = restoredStateOnPageFinishedHelper.getCallCount();
-
-        // Disable caches so restore will trigger a network request.
-        mActivityTestRule
-                .getAwSettingsOnUiThread(restoredStateTestView.getAwContents())
-                .setCacheMode(WebSettings.LOAD_NO_CACHE);
 
         // Save and restore state
         InstrumentationRegistry.getInstrumentation()
@@ -407,16 +401,73 @@ public class NavigateApiTest extends AwParameterizedTest {
                             Assert.assertTrue(result);
                             result = restoredStateTestView.getAwContents().restoreState(bundle);
                             Assert.assertTrue(result);
+
+                            NavigationEntrySimple[] navHistory =
+                                    NavigationControllerUtil.getNavigationHistorySimple(
+                                            restoredStateTestView.getAwContents().getWebContents());
+                            Assert.assertEquals(1, navHistory.length);
+                            NavigationEntrySimple restoredEntry = navHistory[0];
+                            Assert.assertNotNull(restoredEntry);
+                            Assert.assertEquals(mPage1Url, restoredEntry.getUrl());
+                            Assert.assertEquals(
+                                    params.extraHeaders, restoredEntry.getExtraHeaders());
                         });
+    }
 
-        restoredStateOnPageFinishedHelper.waitForCallback(restoredStateCurrentCallCount);
+    // crbug:513520883 - Ensure that save/restore state doesn't leak headers
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView"})
+    @CommandLineFlags.Add({"enable-features=WebViewNavigate, WebViewSaveStateIncludeHeaders"})
+    public void extraHeaders_saveRestoreState_redirects() throws Throwable {
+        int currentCallCount = mOnPageLoadFinished.getCallCount();
 
-        // Check for initial and restored network request
-        Assert.assertEquals(2, mWebServer.getRequestCount(PAGE1_PATH));
-        // Check restored network request included headers
-        String restoredStateActualValue =
-                getHeader(mWebServer.getLastRequest(PAGE1_PATH), HEADER_NAME);
-        Assert.assertEquals(HEADER_VALUE, restoredStateActualValue);
+        // Load the page with headers via navigate.
+        AwNavigationParams params = paramsWithExtraHeader(mPage1Url, HEADER_NAME, HEADER_VALUE);
+        ThreadUtils.runOnUiThreadBlocking(() -> mAwContents.navigate(params));
+        mOnPageLoadFinished.waitForCallback(currentCallCount);
+
+        // Create variables to restore state.
+        TestAwContentsClient restoredStateContentsClient = new TestAwContentsClient();
+        AwTestContainerView restoredStateTestView =
+                mActivityTestRule.createAwTestContainerViewOnMainSync(restoredStateContentsClient);
+        CallbackHelper restoredStateOnPageFinishedHelper =
+                restoredStateContentsClient.getOnPageFinishedHelper();
+        int restoredStateCurrentCallCount = restoredStateOnPageFinishedHelper.getCallCount();
+
+        // Disable caches so restore will trigger a network request.
+        mActivityTestRule
+                .getAwSettingsOnUiThread(restoredStateTestView.getAwContents())
+                .setCacheMode(WebSettings.LOAD_NO_CACHE);
+
+        try (TestWebServer serverB = TestWebServer.startAdditional()) {
+            // Save and restore state
+            InstrumentationRegistry.getInstrumentation()
+                    .runOnMainSync(
+                            () -> {
+                                Bundle bundle = new Bundle();
+                                boolean result = mAwContents.saveState(bundle);
+                                Assert.assertTrue(result);
+
+                                // Change the saved page to redirect to a cross origin url
+                                String crossOriginUrl =
+                                        serverB.setResponse(
+                                                PAGE2_PATH, "Done!", Collections.emptyList());
+                                mWebServer.setRedirect(PAGE1_PATH, crossOriginUrl);
+
+                                result = restoredStateTestView.getAwContents().restoreState(bundle);
+                                Assert.assertTrue(result);
+                            });
+
+            restoredStateOnPageFinishedHelper.waitForCallback(restoredStateCurrentCallCount);
+
+            // Check for redirect
+            Assert.assertEquals(1, serverB.getRequestCount(PAGE2_PATH));
+            // Check restored network request excluded headers
+            Assert.assertNull(
+                    "Header leaked to cross-origin redirect target after saveState/restoreState",
+                    getHeader(serverB.getLastRequest(PAGE2_PATH), HEADER_NAME));
+        }
     }
 
     @Nullable

@@ -819,6 +819,22 @@ struct builtin : CallDescriptorBuilder {
     static constexpr OpEffects kEffects = base_effects.RequiredWhenUnused();
   };
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+  struct LoadIC : public Descriptor<LoadIC> {
+    static constexpr auto kFunction = Builtin::kLoadIC;
+    struct Arguments : ArgumentsBase {
+      ARG(V<Object>, object)
+      ARG(V<Name>, name)
+      ARG(V<Object>, slot)
+      ARG(V<HeapObject>, vector)
+    };
+    using returns_t = std::tuple<V<JSAny>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = true;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
 };
 
 // TODO(nicohartmann): These call descriptors are deprecated and shall be
@@ -1050,7 +1066,8 @@ struct BuiltinCallDescriptor {
 
   struct WasmRefFunc : public Descriptor<WasmRefFunc> {
     static constexpr auto kFunction = Builtin::kWasmRefFunc;
-    using arguments_t = std::tuple<V<Word32>, V<Word32>>;
+    using arguments_t =
+        std::tuple<V<WasmTrustedInstanceData>, V<Word32>, V<Word32>>;
     using results_t = std::tuple<V<WasmFuncRef>>;
 
     static constexpr bool kNeedsFrameState = false;

@@ -135,6 +135,8 @@ Codec::Codec(const SdpVideoFormat& c)
     : Codec(Type::kVideo, PayloadType::NotSet(), c.name, kVideoCodecClockrate) {
   params = c.parameters;
   scalability_modes = c.scalability_modes;
+  packetization = c.packetization;
+  tx_mode = c.tx_mode;
 }
 
 Codec::Codec(const Codec& c) = default;

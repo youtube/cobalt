@@ -18,6 +18,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/nullability.h"
 #include "api/frame_transformer_interface.h"
 #include "api/rtp_headers.h"
 #include "api/scoped_refptr.h"
@@ -140,7 +141,7 @@ class TransformableIncomingAudioFrame
 ChannelReceiveFrameTransformerDelegate::ChannelReceiveFrameTransformerDelegate(
     ReceiveFrameCallback receive_frame_callback,
     scoped_refptr<FrameTransformerInterface> frame_transformer,
-    TaskQueueBase* channel_receive_thread)
+    TaskQueueBase* absl_nonnull channel_receive_thread)
     : receive_frame_callback_(receive_frame_callback),
       frame_transformer_(std::move(frame_transformer)),
       channel_receive_thread_(channel_receive_thread) {}

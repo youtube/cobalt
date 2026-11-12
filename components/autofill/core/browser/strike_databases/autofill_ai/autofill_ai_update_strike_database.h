@@ -5,8 +5,11 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_STRIKE_DATABASES_AUTOFILL_AI_AUTOFILL_AI_UPDATE_STRIKE_DATABASE_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_STRIKE_DATABASES_AUTOFILL_AI_AUTOFILL_AI_UPDATE_STRIKE_DATABASE_H_
 
+#include <stddef.h>
+
 #include <string_view>
 
+#include "base/time/time.h"
 #include "components/strike_database/simple_strike_database.h"
 
 namespace autofill {

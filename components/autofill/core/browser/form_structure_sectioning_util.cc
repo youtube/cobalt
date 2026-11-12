@@ -4,13 +4,20 @@
 
 #include "components/autofill/core/browser/form_structure_sectioning_util.h"
 
-#include <algorithm>
-#include <iterator>
-#include <memory>
-#include <utility>
+#include <stddef.h>
 
+#include <algorithm>
+#include <memory>
+
+#include "base/check.h"
+#include "base/compiler_specific.h"
+#include "base/containers/flat_map.h"
+#include "base/containers/span.h"
 #include "components/autofill/core/browser/autofill_field.h"
+#include "components/autofill/core/browser/autofill_type.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/common/dense_set.h"
+#include "components/autofill/core/common/unique_ids.h"
 
 namespace autofill {
 

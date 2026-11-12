@@ -166,6 +166,7 @@ void SpeechRecognition::stopFunction() {
   if (started_ && !stopping_) {
     stopping_ = true;
     session_->StopCapture();
+    ResetAudioSink();
   }
 }
 
@@ -184,6 +185,7 @@ void SpeechRecognition::abort() {
   if (started_ && !stopping_) {
     stopping_ = true;
     session_->Abort();
+    ResetAudioSink();
   }
 }
 
@@ -406,11 +408,24 @@ void SpeechRecognition::AudioEnded() {
   DispatchEvent(*Event::Create(event_type_names::kAudioend));
 }
 
+void SpeechRecognition::ResetAudioSink() {
+  if (audio_sink_) {
+    // WebMediaStreamAudioSink is part of the Blink public API, so it expects a
+    // WebMediaStreamTrack wrapper rather than the internal MediaStreamComponent
+    // object. We create a temporary wrapper to pass the component pointer.
+    WebMediaStreamAudioSink::RemoveFromAudioTrack(
+        audio_sink_.Get(), WebMediaStreamTrack(stream_track_->Component()));
+    stream_track_->UnregisterSink(audio_sink_.Get());
+    audio_sink_ = nullptr;
+  }
+}
+
 void SpeechRecognition::Ended() {
   started_ = false;
   stopping_ = false;
   session_.reset();
   receiver_.reset();
+  ResetAudioSink();
   DispatchEvent(*Event::Create(event_type_names::kEnd));
 }
 
@@ -423,6 +438,7 @@ ExecutionContext* SpeechRecognition::GetExecutionContext() const {
 }
 
 void SpeechRecognition::ContextDestroyed() {
+  ResetAudioSink();
   controller_ = nullptr;
 }
 
@@ -530,6 +546,21 @@ void SpeechRecognition::CheckAvailabilityAndStart(
     return;
   }
 
+  bool can_use_on_device_recognition = DomWindow()->IsFeatureEnabled(
+      network::mojom::PermissionsPolicyFeature::kOnDeviceSpeechRecognition);
+
+  if (process_locally_ && !can_use_on_device_recognition) {
+    if (exception_state) {
+      exception_state->ThrowDOMException(DOMExceptionCode::kNotAllowedError,
+                                         kExceptionMessagePermissionPolicy);
+    } else {
+      ErrorOccurred(media::mojom::blink::SpeechRecognitionError::New(
+          media::mojom::blink::SpeechRecognitionErrorCode::kNotAllowed,
+          media::mojom::blink::SpeechAudioErrorDetails::kNone));
+    }
+    return;
+  }
+
   if (process_locally_ && lang_) {
     controller_->AvailableOnDevice(
         Vector<String>{lang_}, SpeechRecognitionQualityToMojom(quality_),
@@ -579,6 +610,7 @@ void SpeechRecognition::StartInternal() {
     WebMediaStreamAudioSink::AddToAudioTrack(
         sink, WebMediaStreamTrack(stream_track_->Component()));
     stream_track_->RegisterSink(sink);
+    audio_sink_ = sink;
   } else {
     StartController(session_.BindNewPipeAndPassReceiver(task_runner));
   }
@@ -597,6 +629,10 @@ void SpeechRecognition::StartController(
   // the ExecutionContext is destroyed.
   CHECK(GetExecutionContext());
 
+  LocalDOMWindow* window = DomWindow();
+  bool can_use_on_device_recognition = window->IsFeatureEnabled(
+      network::mojom::PermissionsPolicyFeature::kOnDeviceSpeechRecognition);
+
   mojo::PendingRemote<media::mojom::blink::SpeechRecognitionSessionClient>
       session_client;
   // See https://bit.ly/2S0zRAS for task types.
@@ -608,7 +644,7 @@ void SpeechRecognition::StartController(
   auto params = controller_->BuildStartSpeechRecognitionRequestParams(
       std::move(session_receiver), std::move(session_client), *grammars_,
       phrases_.Get(), lang_, continuous_, interim_results_, max_alternatives_,
-      /*on_device=*/true,  // On-device speech recognition is always preferred.
+      can_use_on_device_recognition,
       /*allow_cloud_fallback=*/!process_locally_,
       SpeechRecognitionQualityToMojom(quality_),
       std::move(audio_forwarder_receiver), std::move(audio_parameters));
@@ -633,6 +669,7 @@ SpeechRecognition::~SpeechRecognition() = default;
 
 void SpeechRecognition::Trace(Visitor* visitor) const {
   visitor->Trace(stream_track_);
+  visitor->Trace(audio_sink_);
   visitor->Trace(grammars_);
   visitor->Trace(phrases_);
   visitor->Trace(controller_);

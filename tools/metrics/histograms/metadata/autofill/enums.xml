@@ -232,6 +232,9 @@ chromium-metrics-reviews@google.com.
       label="The user closed the prompt (via the close button or the ESC)"/>
   <int value="4" label="The user did not interact with the prompt"/>
   <int value="5" label="The prompt was closed due to losing focus"/>
+  <int value="6"
+      label="The prompt was closed by pressing 'Done' button in the editor.
+             The editor is only present on Android."/>
 </enum>
 
 <!-- LINT.IfChange(AutofillAiDecryptStatus) -->
@@ -2932,6 +2935,8 @@ Called by update_autofill_enums.py.-->
   <int value="3" label="Name"/>
 </enum>
 
+<!-- LINT.IfChange(AutofillOptionsReferrer) -->
+
 <enum name="AutofillOptionsReferrer">
   <int value="0" label="User entered the autofill options via main settings."/>
   <int value="1" label="User entered the autofill options via deep link."/>
@@ -2943,7 +2948,14 @@ Called by update_autofill_enums.py.-->
   <int value="4"
       label="User entered the autofill options via autofill and passwords
              fragment."/>
+  <int value="5"
+      label="User entered the autofill options via autofill identity docs
+             fragment."/>
+  <int value="6"
+      label="User entered the autofill options via autofill travel fragment."/>
 </enum>
+
+<!-- LINT.ThenChange(//chrome/browser/autofill/android/java/src/org/chromium/chrome/browser/autofill/options/AutofillOptionsFragment.java:AutofillOptionsReferrer) -->
 
 <enum name="AutofillOtpAuthEvent">
   <int value="0" label="Unknown result"/>
@@ -5510,7 +5522,23 @@ Called by update_autofill_enums.py.-->
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h:SaveAndFillPaymentsRequestResult) -->
 
-<!-- LINT.IfChange(SaveAndFillSuggestionNotShownReason) -->
+<!-- LINT.IfChange(SaveAndFillSuggestionEvent) -->
+
+<enum name="SaveAndFillSuggestionEvent">
+  <int value="0" label="The Save and Fill suggestion was shown"/>
+  <int value="1" label="Suggestion not shown: user is in incognito mode"/>
+  <int value="2"
+      label="Suggestion not shown: credit card form is not complete"/>
+  <int value="3"
+      label="Suggestion not shown: strike database required delay not met"/>
+  <int value="4"
+      label="Suggestion not shown: strike database max strike limit reached"/>
+  <int value="5"
+      label="Suggestion not shown: user already has cards saved in profile"/>
+  <int value="6" label="The Save and Fill suggestion was accepted"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h:SaveAndFillSuggestionEvent) -->
 
 <enum name="SaveAndFillSuggestionNotShownReason">
   <int value="0"
@@ -5519,8 +5547,6 @@ Called by update_autofill_enums.py.-->
   <int value="2" label="The user is in incognito mode"/>
   <int value="3" label="The credit card form is not complete"/>
 </enum>
-
-<!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h:SaveAndFillSuggestionNotShownReason) -->
 
 <!-- LINT.IfChange(SaveCreditCardPromptResultIOS) -->
 
@@ -5656,6 +5682,8 @@ Called by update_autofill_enums.py.-->
   <int value="80" label="AtMemory inactivity nudge"/>
   <int value="81" label="Autocomplete AtMemory button"/>
   <int value="82" label="Open Gemini"/>
+  <int value="83" label="AtMemory no connection"/>
+  <int value="84" label="AtMemory search trigger affordance"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/suggestions/suggestion_type.h:SuggestionType) -->

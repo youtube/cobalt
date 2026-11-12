@@ -3121,6 +3121,14 @@ size_t SSL_get_server_random(const SSL *ssl, uint8_t *out, size_t max_out) {
   return max_out;
 }
 
+uint16_t SSL_get_signature_algorithm_used(const SSL *ssl) {
+  SSL_HANDSHAKE *hs = ssl->s3->hs.get();
+  if (hs == nullptr) {
+    return 0;
+  }
+  return hs->signature_algorithm;
+}
+
 const SSL_CIPHER *SSL_get_pending_cipher(const SSL *ssl) {
   SSL_HANDSHAKE *hs = ssl->s3->hs.get();
   if (hs == nullptr) {

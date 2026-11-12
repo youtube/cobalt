@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
+#![no_std]
+
 #[doc(hidden)]
 #[macro_export]
 macro_rules! bssl_enum {

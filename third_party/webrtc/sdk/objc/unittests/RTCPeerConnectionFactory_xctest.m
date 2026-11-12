@@ -543,14 +543,14 @@
               dispatch_semaphore_signal(semaphore);
             }];
 
+      dispatch_semaphore_wait(
+          semaphore, dispatch_time(DISPATCH_TIME_NOW, 15.0 * NSEC_PER_SEC));
+      XCTAssertTrue(completed);
+
       [peerConnection close];
       peerConnection = nil;
       factory = nil;
       tranceiver = nil;
-
-      dispatch_semaphore_wait(
-          semaphore, dispatch_time(DISPATCH_TIME_NOW, 15.0 * NSEC_PER_SEC));
-      XCTAssertTrue(completed);
     }
   }
 }
@@ -632,14 +632,14 @@
               dispatch_semaphore_signal(semaphore);
             }];
 
+      dispatch_semaphore_wait(
+          semaphore, dispatch_time(DISPATCH_TIME_NOW, 15.0 * NSEC_PER_SEC));
+      XCTAssertTrue(completed);
+
       [peerConnection close];
       peerConnection = nil;
       factory = nil;
       tranceiver = nil;
-
-      dispatch_semaphore_wait(
-          semaphore, dispatch_time(DISPATCH_TIME_NOW, 15.0 * NSEC_PER_SEC));
-      XCTAssertTrue(completed);
     }
   }
 }

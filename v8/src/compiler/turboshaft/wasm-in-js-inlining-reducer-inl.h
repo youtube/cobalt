@@ -44,7 +44,7 @@ class WasmInJSInliningReducer : public Next {
   // recovered by REDUCE_INPUT_GRAPH(Call) which has direct access to the input
   // graph CallOp and its arguments.
   V<Object> REDUCE(ProcessWasmArgument)(V<Object> value,
-                                        V<FrameState> frame_state) {
+                                        V<EagerFrameState> frame_state) {
     // TODO(493307329): It would be cleaner to let the ProcessWasmArgument
     // actually perform the argument conversion, and get rid of the weird logic
     // in REDUCE_INPUT_GRAPH(Call). The ProcessWasmArgument should lower to the
@@ -76,18 +76,19 @@ class WasmInJSInliningReducer : public Next {
     return Next::ReduceInputGraphCall(ig_index, op);
   }
 
-  V<Any> REDUCE(Call)(V<CallTarget> callee, OptionalV<FrameState> frame_state,
+  V<Any> REDUCE(Call)(V<CallTarget> callee,
+                      OptionalV<LazyFrameState> frame_state,
                       base::Vector<const OpIndex> arguments,
                       const TSCallDescriptor* descriptor, OpEffects effects) {
     // Consume the caller frame state stashed by REDUCE_INPUT_GRAPH(Call).
-    OptionalV<FrameState> caller_frame_state = pending_caller_frame_state_;
+    OptionalV<EagerFrameState> caller_frame_state = pending_caller_frame_state_;
     pending_caller_frame_state_ = {};
 
     if (descriptor->js_wasm_call_parameters) {
       // TODO(353475584): Wrapper and body inlining in Turboshaft is only
       // implemented for the Turbolev frontend right now.
       CHECK(v8_flags.turbolev);
-      CHECK(v8_flags.turbolev_inline_js_wasm_wrappers);
+      CHECK(v8_flags.wasm_in_js_inlining_wrapper);
 
       // We need a `FrameState` for building correct stack traces when inlining
       // potentially trapping Wasm operations.
@@ -108,7 +109,7 @@ class WasmInJSInliningReducer : public Next {
 
       // Prepare data for the Wasm-in-JS body inlining, if enabled.
       std::optional<WasmInlinedFunctionData> inlined_function_data;
-      if (v8_flags.turboshaft_wasm_in_js_inlining) {
+      if (v8_flags.wasm_in_js_inlining_body) {
         V<AnyOrNone> origin = __ current_operation_origin();
         CHECK(origin.valid());
         SourcePosition call_pos = __ input_graph().source_positions()[origin];
@@ -116,7 +117,7 @@ class WasmInJSInliningReducer : public Next {
         int inlining_id = __ data() -> info()->AddInlinedFunction(
             descriptor->js_wasm_call_parameters->shared_fct_info().object(),
             Handle<BytecodeArray>(), call_pos);
-        V<FrameState> wasm_inlined_frame_state =
+        V<EagerFrameState> wasm_inlined_frame_state =
             CreateWasmInlinedIntoJSFrameState(
                 js_context, frame_state.value(),
                 descriptor->js_wasm_call_parameters->shared_fct_info());
@@ -136,7 +137,7 @@ class WasmInJSInliningReducer : public Next {
       using GraphBuilder = WasmWrapperTSGraphBuilder<assembler_t>;
       GraphBuilder builder(Asm().phase_zone(), Asm(), sig, kInliningIntoJs,
                            inlined_function_data);
-      V<FrameState> continuation_frame_state =
+      V<LazyFrameState> continuation_frame_state =
           CreateJSWasmCallBuiltinContinuationFrameState(
               js_context, frame_state.value(), sig);
       // When inlining into JS, pass the caller frame state (a pre-call Maglev
@@ -178,17 +179,17 @@ class WasmInJSInliningReducer : public Next {
   }
 
  private:
-  V<FrameState> CreateWasmInlinedIntoJSFrameState(
-      V<Context> js_context, V<FrameState> outer_frame_state,
+  V<EagerFrameState> CreateWasmInlinedIntoJSFrameState(
+      V<Context> js_context, V<LazyFrameState> outer_frame_state,
       SharedFunctionInfoRef shared_function_info);
-  V<FrameState> CreateJSWasmCallBuiltinContinuationFrameState(
-      V<Context> js_context, V<FrameState> outer_frame_state,
+  V<LazyFrameState> CreateJSWasmCallBuiltinContinuationFrameState(
+      V<Context> js_context, V<LazyFrameState> outer_frame_state,
       const wasm::CanonicalSig* signature);
 
   // Caller frame state set by REDUCE_INPUT_GRAPH(Call), consumed by the
   // immediately following REDUCE(Call) within the same ReduceInputGraphCall
   // invocation (crbug.com/493307329).
-  OptionalV<FrameState> pending_caller_frame_state_;
+  OptionalV<EagerFrameState> pending_caller_frame_state_;
 
   SourcePosition current_wasm_source_position_ = SourcePosition::Unknown();
 };
@@ -228,7 +229,7 @@ class WasmInJsInliningInterface {
   WasmInJsInliningInterface(Assembler& assembler,
                             base::Vector<const OpIndex> arguments,
                             V<WasmTrustedInstanceData> trusted_instance_data,
-                            V<FrameState> frame_state, int inlining_id)
+                            V<EagerFrameState> frame_state, int inlining_id)
       : asm_(assembler),
         locals_(assembler.phase_zone()),
         arguments_(arguments),
@@ -1019,7 +1020,7 @@ class WasmInJsInliningInterface {
   base::Vector<const OpIndex> arguments_;
   V<WasmTrustedInstanceData> trusted_instance_data_;
 
-  V<turboshaft::FrameState> frame_state_;
+  V<EagerFrameState> frame_state_;
   int inlining_id_;
 
   // Populated only after decoding finished successfully, i.e., didn't bail out.
@@ -1035,7 +1036,7 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
     compiler::LazyDeoptOnThrow lazy_deopt_on_throw) {
   wasm::NativeModule* native_module = inlined_data.native_module;
   uint32_t func_idx = inlined_data.function_index;
-  V<turboshaft::FrameState> frame_state = inlined_data.js_caller_frame_state;
+  V<EagerFrameState> frame_state = inlined_data.js_caller_frame_state;
   int inlining_id = inlined_data.inlining_id;
   const wasm::WasmModule* module = native_module->module();
   const wasm::WasmFunction& func = module->functions[func_idx];
@@ -1102,18 +1103,6 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
   auto env = wasm::CompilationEnv::ForModule(native_module);
   wasm::WasmDetectedFeatures detected{};
 
-  // Before executing compilation, make sure that the function was validated.
-  if (V8_UNLIKELY(!env.module->function_was_validated(func_idx))) {
-    CHECK(v8_flags.wasm_lazy_validation);
-    if (ValidateFunctionBody(Asm().phase_zone(), env.enabled_features,
-                             env.module, &detected, func_body)
-            .failed()) {
-      TRACE("- not inlining: validation failed");
-      return WasmBodyInliningResult::Failed();
-    }
-    env.module->set_function_validated(func_idx);
-  }
-
   // JS-to-Wasm wrapper inlining doesn't support multi-value at the moment,
   // so we should never reach here with more than 1 return value.
   DCHECK_LE(func.sig->return_count(), 1);
@@ -1165,9 +1154,15 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
 }
 
 template <class Next>
-V<turboshaft::FrameState>
+// Note: CreateWasmInlinedIntoJSFrameState takes a LazyFrameState (the outer JS
+// caller frame state) and returns an EagerFrameState (the inlined Wasm frame).
+// This is a bit surprising but ok since the only reason we need a FrameState
+// here is for error location tracking (and in that regard, Lazy vs Eager frame
+// state doesn't change much), and Wasm traps are really closer in spirit to
+// eager deopt than to lazy deopts.
+V<EagerFrameState>
 WasmInJSInliningReducer<Next>::CreateWasmInlinedIntoJSFrameState(
-    V<Context> js_context, V<turboshaft::FrameState> outer_frame_state,
+    V<Context> js_context, V<LazyFrameState> outer_frame_state,
     SharedFunctionInfoRef shared_function_info) {
   // Wasm functions don't have JavaScript parameters or locals.
   // The only important part of the `FrameState` is the `SharedFunctionInfo`
@@ -1201,14 +1196,15 @@ WasmInJSInliningReducer<Next>::CreateWasmInlinedIntoJSFrameState(
   builder.AddUnusedRegister();
 
   constexpr bool kInlined = true;
-  return __ FrameState(builder.Inputs(), kInlined,
-                       builder.AllocateFrameStateData(*frame_state_info, zone));
+  return __ template FrameState<EagerFrameState>(
+      builder.Inputs(), kInlined,
+      builder.AllocateFrameStateData(*frame_state_info, zone));
 }
 
 template <class Next>
-V<turboshaft::FrameState>
+V<LazyFrameState>
 WasmInJSInliningReducer<Next>::CreateJSWasmCallBuiltinContinuationFrameState(
-    V<Context> js_context, V<turboshaft::FrameState> outer_frame_state,
+    V<Context> js_context, V<LazyFrameState> outer_frame_state,
     const wasm::CanonicalSig* signature) {
   constexpr uint16_t kParameterCount = 0;
   constexpr int kLocalCount = 0;
@@ -1233,8 +1229,9 @@ WasmInJSInliningReducer<Next>::CreateJSWasmCallBuiltinContinuationFrameState(
   builder.AddInput(MachineType::AnyTagged(), js_context);
 
   constexpr bool kInlined = true;
-  return __ FrameState(builder.Inputs(), kInlined,
-                       builder.AllocateFrameStateData(*frame_state_info, zone));
+  return __ template FrameState<LazyFrameState>(
+      builder.Inputs(), kInlined,
+      builder.AllocateFrameStateData(*frame_state_info, zone));
 }
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

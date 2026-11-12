@@ -3331,8 +3331,8 @@ TNode<BigInt> CodeStubAssembler::BigIntFromUint64(TNode<UintPtrT> value) {
 TNode<Numeric> CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
     TNode<RawPtrT> data_pointer, TNode<UintPtrT> index,
     ElementsKind elements_kind) {
-  TNode<IntPtrT> offset =
-      ElementOffsetFromIndex(Signed(index), elements_kind, 0);
+  TNode<IntPtrT> offset = ComputeTypedArrayAccessOffset(
+      ElementOffsetFromIndex(Signed(index), elements_kind, 0), elements_kind);
   switch (elements_kind) {
     case UINT8_ELEMENTS: /* fall through */
     case UINT8_CLAMPED_ELEMENTS:
@@ -13735,15 +13735,15 @@ MachineRepresentation ElementsKindToMachineRepresentation(ElementsKind kind) {
 
 }  // namespace
 
-TNode<IntPtrT> CodeStubAssembler::ComputeTypedArrayStoreOffset(
+TNode<IntPtrT> CodeStubAssembler::ComputeTypedArrayAccessOffset(
     TNode<IntPtrT> offset, ElementsKind kind) {
 #if V8_ENABLE_SANDBOX
   // If the ElementsKind is concurrently modified between the bound check and
-  // the store, we might write outside of the sandbox. To prevent this
-  // ElementsKind switcheroo, mask the offset such that it is at most
+  // the access (load/store), we might access outside of the sandbox. To prevent
+  // this ElementsKind switcheroo, mask the offset such that it is at most
   // kMaxSafeBufferSizeForSandbox.
   // For 1-byte elements, the offset is identical to the index and cannot
-  // exceed the checked bounds to cause an out-of-bounds write relative to the
+  // exceed the checked bounds to cause an out-of-bounds access relative to the
   // backing store, so we can skip masking.
   if (ElementsKindToByteSize(kind) != 1) {
     TVARIABLE(IntPtrT, offset_var, offset);
@@ -13776,7 +13776,7 @@ void CodeStubAssembler::StoreElementTypedArrayBigInt(TNode<RawPtrT> elements,
       std::is_same_v<TIndex, UintPtrT> || std::is_same_v<TIndex, IntPtrT>,
       "Only UintPtrT or IntPtrT indices is allowed");
   DCHECK(kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS);
-  TNode<IntPtrT> offset = ComputeTypedArrayStoreOffset(
+  TNode<IntPtrT> offset = ComputeTypedArrayAccessOffset(
       ElementOffsetFromIndex(index, kind, 0), kind);
   TVARIABLE(UintPtrT, var_low);
   // Only used on 32-bit platforms.
@@ -13831,7 +13831,7 @@ void CodeStubAssembler::StoreElementTypedArrayWord32(TNode<RawPtrT> elements,
   if (kind == UINT8_CLAMPED_ELEMENTS) {
     CSA_DCHECK(this, Word32Equal(value, Word32And(Int32Constant(0xFF), value)));
   }
-  TNode<IntPtrT> offset = ComputeTypedArrayStoreOffset(
+  TNode<IntPtrT> offset = ComputeTypedArrayAccessOffset(
       ElementOffsetFromIndex(index, kind, 0), kind);
   // TODO(cbruni): Add OOB check once typed.
   MachineRepresentation rep = ElementsKindToMachineRepresentation(kind);
@@ -13874,7 +13874,7 @@ void CodeStubAssembler::StoreElementTypedArray(TNode<TArray> elements,
       "Only Int32T, Float32T, Float64T or object value "
       "types are allowed");
   DCHECK(IsTypedArrayElementsKind(kind));
-  TNode<IntPtrT> offset = ComputeTypedArrayStoreOffset(
+  TNode<IntPtrT> offset = ComputeTypedArrayAccessOffset(
       ElementOffsetFromIndex(index, kind, 0), kind);
   // TODO(cbruni): Add OOB check once typed.
   MachineRepresentation rep = ElementsKindToMachineRepresentation(kind);
@@ -18169,13 +18169,13 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
   return CAST(result);
 }
 
-TNode<Object> CodeStubAssembler::GetResultValueForHole(TNode<Object> value) {
-  return Select<Object>(
+TNode<JSAny> CodeStubAssembler::GetResultValueForHole(TNode<JSAny> value) {
+  return Select<JSAny>(
       IsTheHole(value), [this] { return UndefinedConstant(); },
       [&] { return value; });
 }
 
-TNode<Object> CodeStubAssembler::CallIteratorNext(
+TNode<UnionOf<JSAny, TheHole>> CodeStubAssembler::CallIteratorNext(
     TNode<Context> context, TNode<Object> iterator, TNode<Object> next_method,
     TNode<Union<FeedbackVector, Undefined>> feedback_vector,
     TNode<UintPtrT> call_slot) {
@@ -18195,7 +18195,7 @@ TNode<Object> CodeStubAssembler::CallIteratorNext(
   int load_slot_size =
       FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kLoadProperty);
   TNode<UintPtrT> value_slot =
-      UintPtrAdd(call_slot, UintPtrConstant(call_slot_size));
+      UintPtrAdd(call_slot, UintPtrConstant(call_slot_size + load_slot_size));
   TNode<UintPtrT> done_slot =
       UintPtrAdd(value_slot, UintPtrConstant(load_slot_size));
   Branch(IsUndefined(feedback_vector), &after_collect_feedback,
@@ -18226,7 +18226,7 @@ TNode<Object> CodeStubAssembler::CallIteratorNext(
   TNode<JSReceiver> result_receiver = CAST(result);
 
   TVARIABLE(Object, var_done);
-  TVARIABLE(Object, var_value);
+  TVARIABLE((UnionOf<JSAny, TheHole>), var_value);
 
   Label return_properties(this);
 
@@ -18258,7 +18258,7 @@ TNode<Object> CodeStubAssembler::CallIteratorNext(
 
   BIND(&if_done_true);
   {
-    var_value = LoadRoot(RootIndex::kTheHoleValue);
+    var_value = TheHoleConstant();
     Goto(&return_properties);
   }
 
@@ -18272,10 +18272,10 @@ TNode<Object> CodeStubAssembler::CallIteratorNext(
 
     BIND(&use_load_ic_for_value);
     {
-      var_value =
-          CallBuiltin(Builtin::kLoadIC, context, result_receiver,
-                      HeapConstantNoHole(factory()->value_string()),
-                      IntPtrToTaggedIndex(Signed(value_slot)), feedback_vector);
+      var_value = CAST(CallBuiltin(
+          Builtin::kLoadIC, context, result_receiver,
+          HeapConstantNoHole(factory()->value_string()),
+          IntPtrToTaggedIndex(Signed(value_slot)), feedback_vector));
       Goto(&value_loaded);
     }
 
@@ -18293,11 +18293,11 @@ TNode<Object> CodeStubAssembler::CallIteratorNext(
   return var_value.value();
 }
 
-TNode<Object> CodeStubAssembler::ForOfNextHelper(
+TNode<UnionOf<JSAny, TheHole>> CodeStubAssembler::ForOfNextHelper(
     TNode<Context> context, TNode<Object> object, TNode<Object> next,
     TNode<Union<FeedbackVector, Undefined>> feedback_vector,
     TNode<UintPtrT> call_slot) {
-  TVARIABLE(Object, var_value);
+  TVARIABLE((UnionOf<JSAny, TheHole>), var_value);
 
   Label slow_path(this), reach_end(this), return_result(this);
 
@@ -18309,17 +18309,56 @@ TNode<Object> CodeStubAssembler::ForOfNextHelper(
   // Check that the array iterator prototype chain is intact.
   GotoIf(IsArrayIteratorProtectorCellInvalid(), &slow_path);
 
+  // Check that there are no elements on the prototype chain.
+  GotoIf(IsNoElementsProtectorCellInvalid(), &slow_path);
+
   // Fast path for JSArrayIterator.
   {
     TNode<JSArrayIterator> array_iterator = CAST(object);
     TNode<JSReceiver> iterated_object = LoadObjectField<JSReceiver>(
         array_iterator, offsetof(JSArrayIterator, iterated_object_));
+    // Collect feedback for the iterated object.
+    int call_slot_size = FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall);
+
+    TNode<UintPtrT> iterated_object_slot =
+        UintPtrAdd(call_slot, UintPtrConstant(call_slot_size));
+
+    Label collect_feedback(this), after_collect_feedback(this);
+    Branch(IsUndefined(feedback_vector), &after_collect_feedback,
+           &collect_feedback);
+    BIND(&collect_feedback);
+    {
+      // TODO(marja): Performing a dummy LoadIC(iterated_object,
+      // Symbol.iterator) here solely to collect the map of the iterated object
+      // is a hack. Maglev reads this slot via GetFeedbackForPropertyAccess to
+      // determine the iterated object's map for its fast path. Ideally the
+      // bytecode would have a dedicated feedback slot for the iterated object's
+      // map instead.
+      CallBuiltin(Builtin::kLoadIC, context, iterated_object,
+                  HeapConstantNoHole(factory()->iterator_symbol()),
+                  IntPtrToTaggedIndex(Signed(iterated_object_slot)),
+                  feedback_vector);
+      Goto(&after_collect_feedback);
+    }
+    BIND(&after_collect_feedback);
+
+    // TODO(marja): Support typed arrays in the fast path below.
     GotoIfNot(IsJSArray(iterated_object), &slow_path);
     TNode<JSArray> iterated_array = CAST(iterated_object);
 
     TNode<Map> map = LoadMap(iterated_array);
     TNode<Int32T> elements_kind = LoadMapElementsKind(map);
     GotoIfNot(IsFastElementsKind(elements_kind), &slow_path);
+
+    Label if_holey(this), if_packed(this);
+    Branch(IsHoleyFastElementsKind(elements_kind), &if_holey, &if_packed);
+    BIND(&if_holey);
+    {
+      TNode<NativeContext> native_context = LoadNativeContext(context);
+      Branch(IsPrototypeInitialArrayPrototype(native_context, map), &if_packed,
+             &slow_path);
+    }
+    BIND(&if_packed);
 
     TNode<Smi> length = LoadFastJSArrayLength(iterated_array);
     TNode<Number> current_index = LoadObjectField<Number>(
@@ -18332,7 +18371,7 @@ TNode<Object> CodeStubAssembler::ForOfNextHelper(
     TNode<Smi> iteration_kind =
         LoadObjectField<Smi>(array_iterator, offsetof(JSArrayIterator, kind_));
 
-    TVARIABLE(Object, var_element_value);
+    TVARIABLE(JSAny, var_element_value);
     TNode<FixedArrayBase> elements = LoadElements(iterated_array);
 
     Label load_key(this), load_entry(this), element_value_resolved(this);
@@ -18343,7 +18382,8 @@ TNode<Object> CodeStubAssembler::ForOfNextHelper(
     Branch(IsDoubleElementsKind(elements_kind), &if_double, &if_smi_or_object);
     BIND(&if_smi_or_object);
     {
-      var_element_value = LoadFixedArrayElement(CAST(elements), smi_index);
+      var_element_value =
+          CAST(LoadFixedArrayElement(CAST(elements), smi_index));
       GotoIf(SmiEqual(iteration_kind, SmiConstant(IterationKind::kEntries)),
              &load_entry);
       Goto(&element_value_resolved);
@@ -18382,7 +18422,7 @@ TNode<Object> CodeStubAssembler::ForOfNextHelper(
 
     BIND(&reach_end);
     {
-      var_value = LoadRoot(RootIndex::kTheHoleValue);
+      var_value = TheHoleConstant();
       Goto(&return_result);
     }
   }

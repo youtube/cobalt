@@ -188,7 +188,7 @@ class ExecutionEngine : public ToolDelegate,
            ActCallback callback);
 
   // Invalidated anytime `action_sequence_` is reset.
-  base::WeakPtr<ExecutionEngine> GetWeakPtr();
+  base::WeakPtr<ExecutionEngine> GetActionSequenceWeakPtr();
 
   bool HasActionSequence() const;
 
@@ -218,6 +218,7 @@ class ExecutionEngine : public ToolDelegate,
       base::WeakPtr<AutofillSelectionDialogEventHandler> event_handler,
       AutofillSuggestionSelectedCallback callback) override;
   void InterruptFromTool() override;
+  void InterruptFromTool(bool retain_user_control) override;
   void UninterruptFromTool() override;
   void EnqueueFollowupAction(std::unique_ptr<ToolRequest> action) override;
   void AddTab(
@@ -237,13 +238,8 @@ class ExecutionEngine : public ToolDelegate,
   void AddWritableMainframeOrigins(
       const absl::flat_hash_set<url::Origin>& added_writable_mainframe_origins);
 
-  // Callback to intercept and handle credential selection for actor login
-  // programmatically.
-  using CredentialSelectionOverrideCallback =
-      base::OnceCallback<void(const std::vector<actor_login::Credential>&,
-                              ToolDelegate::CredentialSelectedCallback)>;
-  void PreHandleCredentialSelectionDialog(
-      CredentialSelectionOverrideCallback callback);
+  void SetActorLoginService(
+      std::unique_ptr<actor_login::ActorLoginService> actor_login_service);
 
   // Callback invoked when ConfirmCrossOriginNavigation, which spawns an IPC to
   // the web client, receives its response. This callback gets a boolean
@@ -304,6 +300,9 @@ class ExecutionEngine : public ToolDelegate,
   ActorContainerConfig& actor_container_config() {
     return actor_container_config_;
   }
+
+  // Invalidated when `this` is destroyed.
+  base::WeakPtr<ExecutionEngine> GetWeakPtr();
 
  protected:
   // Allow derived classes to use the natural constructors.
@@ -477,10 +476,6 @@ class ExecutionEngine : public ToolDelegate,
   // Manages the container config settings that have been sent by the server.
   ActorContainerConfig actor_container_config_;
 
-  // For overwriting the actor login permission, currently only works for the
-  // feature `kPasswordCheckupPrototype` for automated password changes.
-  CredentialSelectionOverrideCallback credential_selection_override_callback_;
-
   // For multi-step login, this is the credential that the user has chosen to
   // allow the actor to use. The key is the
   // `Credential::request_origin`.
@@ -504,9 +499,14 @@ class ExecutionEngine : public ToolDelegate,
   SEQUENCE_CHECKER(sequence_checker_);
 
   // Normally, a WeakPtrFactory only invalidates its WeakPtrs when the object is
-  // destroyed. However, this class invalidates WeakPtrs anytime a new set of
-  // actions is passed in. This effectively cancels any ongoing async actions.
+  // destroyed. However, this class can invalidate WeakPtrs any time a new set
+  // of actions is passed in. This effectively cancels any ongoing async
+  // actions.
   base::WeakPtrFactory<ExecutionEngine> actions_weak_ptr_factory_{this};
+
+  // WeakPtrFactory for consumers that care about the lifetime of this instance,
+  // rather than of a particular action sequence.
+  base::WeakPtrFactory<ExecutionEngine> weak_ptr_factory_{this};
 };
 
 std::ostream& operator<<(std::ostream& o, const ExecutionEngine::State& s);

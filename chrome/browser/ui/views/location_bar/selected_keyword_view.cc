@@ -24,6 +24,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/theme_provider.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/font_list.h"
@@ -102,7 +103,7 @@ void SelectedKeywordView::SetCustomImage(const gfx::Image& image) {
   }
 
   // Use the search icon for most keywords.
-  auto* vector_icon = &vector_icons::kSearchIcon;
+  auto* vector_icon = &vector_icons::kSearchOldIcon;
 
   const TemplateURL* template_url =
       TemplateURLServiceFactory::GetForProfile(profile_)
@@ -114,14 +115,18 @@ void SelectedKeywordView::SetCustomImage(const gfx::Image& image) {
   } else if (template_url &&
              template_url->starter_pack_id() ==
                  template_url_starter_pack_data::StarterPackId::kAiMode) {
-    vector_icon = &omnibox::kSearchSparkIcon;
+    vector_icon =
+        &(features::IsRoundedIconsEnabled() ? omnibox::kSearchSparkIcon
+                                            : omnibox::kSearchSparkOldIcon);
   } else if (history_embeddings::IsHistoryEmbeddingsEnabledForProfile(
                  profile_) &&
              history_embeddings::GetFeatureParameters().omnibox_scoped &&
              template_url &&
              template_url->starter_pack_id() ==
                  template_url_starter_pack_data::StarterPackId::kHistory) {
-    vector_icon = &omnibox::kSearchSparkIcon;
+    vector_icon =
+        &(features::IsRoundedIconsEnabled() ? omnibox::kSearchSparkIcon
+                                            : omnibox::kSearchSparkOldIcon);
   } else if (template_url &&
              template_url->policy_origin() ==
                  TemplateURLData::PolicyOrigin::kSearchAggregator) {

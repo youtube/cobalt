@@ -18,8 +18,17 @@ import {assertStyle} from '../test_support.js';
 
 import {ADD_FILE_CONTEXT_FN, createComposeboxElement, FAKE_TOKEN_STRING, getSubmitContainer, getSubmitIcon, MockInputState, setupComposeboxTest} from './test_support.js';
 
+// ==========================================================
+// 1. BASE SUITE (Runs ONLY on cr-composebox element)
+// ==========================================================
 suite('NewTabPageComposeboxTest', () => {
   const testProxy = setupComposeboxTest();
+
+  setup(() => {
+    loadTimeData.overrideValues({
+      useNtpComposeboxFork: false,
+    });
+  });
 
   test('ntp composebox uses configured forward submit icon', async () => {
     createComposeboxElement(testProxy, {
@@ -55,7 +64,6 @@ suite('NewTabPageComposeboxTest', () => {
     assertTrue(submitIcon.classList.contains('icon-arrow-upward'));
   });
 
-
   test(
       'submit disabled when tool is Deep Search (default entrypoint)',
       async () => {
@@ -65,7 +73,8 @@ suite('NewTabPageComposeboxTest', () => {
             testProxy.searchboxHandler.getCallCount('openAutocompleteMatch'),
             0);
 
-        // Default: submit is disabled with empty input, clicking does nothing.
+        // Default: submit is disabled with empty input, clicking does
+        // nothing.
         getSubmitContainer(testProxy).click();
         await microtasksFinished();
         assertEquals(
@@ -96,8 +105,9 @@ suite('NewTabPageComposeboxTest', () => {
 
     composebox.state = {
       text: 'hello world',
-      files:
-          [{file: new File(['test'], 'test.pdf', {type: 'application/pdf'})}],
+      files: [
+        {file: new File(['test'], 'test.pdf', {type: 'application/pdf'})},
+      ],
       mode: ToolMode.kDeepSearch,
       model: ModelMode.kGeminiRegular,
     };
@@ -162,18 +172,6 @@ suite('NewTabPageComposeboxTest', () => {
         testProxy.element.getInputElement(), '#cancelIcon')!.click();
     await whenCloseComposebox;
     assertEquals(testProxy.searchboxHandler.getCallCount('clearFiles'), 2);
-  });
-
-  test('NotifySessionStarted called on composebox created', () => {
-    // Assert call has not occurred.
-    assertEquals(
-        testProxy.searchboxHandler.getCallCount('notifySessionStarted'), 0);
-
-    createComposeboxElement(testProxy);
-
-    // Assert call occurs.
-    assertEquals(
-        testProxy.searchboxHandler.getCallCount('notifySessionStarted'), 1);
   });
 
   test('lens icon click calls handler', async () => {
@@ -280,73 +278,6 @@ suite('NewTabPageComposeboxTest', () => {
     const removeButton =
         fileThumbnail.shadowRoot.querySelector<HTMLElement>('#removeImgButton');
     assertEquals(null, removeButton);
-  });
-
-  test('session abandoned on esc click', async () => {
-    // Arrange.
-    createComposeboxElement(testProxy, {closeOnEscape: true});
-
-    testProxy.element.getInputElement().$.input.value = 'test';
-    testProxy.element.getInputElement().$.input.dispatchEvent(
-        new Event('input'));
-    await microtasksFinished();
-
-    const whenCloseComposebox =
-        eventToPromise<CustomEvent<{composeboxText: string}>>(
-            'close-composebox', testProxy.element);
-
-    // Assert call occurs.
-    testProxy.element.$.composebox.dispatchEvent(
-        new KeyboardEvent('keydown', {key: 'Escape'}));
-    await microtasksFinished();
-    const event = await whenCloseComposebox;
-    assertEquals(event.detail.composeboxText, 'test');
-    assertEquals(testProxy.searchboxHandler.getCallCount('clearFiles'), 1);
-  });
-
-  test(
-      'esc clears input instead of closing when closeOnEscape is false and has content',
-       async () => {
-        // Arrange.
-        createComposeboxElement(testProxy, {closeOnEscape: false});
-
-        testProxy.element.getInputElement().$.input.value = 'test';
-        testProxy.element.getInputElement().$.input.dispatchEvent(
-            new Event('input'));
-        await microtasksFinished();
-
-        const closePromise =
-            eventToPromise('close-composebox', testProxy.element);
-        let closed = false;
-        closePromise.then(() => closed = true);
-
-        // Act
-        testProxy.element.$.composebox.dispatchEvent(
-            new KeyboardEvent('keydown', {key: 'Escape'}));
-        await microtasksFinished();
-
-        // Assert: the clear branch fired instead of close-composebox.
-        assertFalse(closed);
-        assertEquals('', testProxy.element.getInputElement().$.input.value);
-        assertEquals(testProxy.searchboxHandler.getCallCount('clearFiles'), 1);
-  });
-
-  test('session abandoned on cancel button click', async () => {
-    // Arrange.
-    createComposeboxElement(testProxy);
-
-    await microtasksFinished();
-
-    // Close composebox.
-    const whenCloseComposebox =
-        eventToPromise<CustomEvent<{composeboxText: string}>>(
-            'close-composebox', testProxy.element);
-    const cancelIcon =
-        $$<HTMLElement>(testProxy.element.getInputElement(), '#cancelIcon');
-    cancelIcon!.click();
-    const event = await whenCloseComposebox;
-    assertEquals(event.detail.composeboxText, '');
-    assertEquals(testProxy.searchboxHandler.getCallCount('clearFiles'), 1);
   });
 
   test(
@@ -557,295 +488,6 @@ suite('NewTabPageComposeboxTest', () => {
         testProxy.searchboxHandler.getCallCount('openAutocompleteMatch'), 1);
   });
 
-  test('navigates matches with ArrowDown and ArrowUp', async () => {
-    createComposeboxElement(testProxy);
-    const input = testProxy.element.getInputElement().$.input;
-    const matchesElement = testProxy.element.$.matches;
-
-    // Verify navigation is blocked when no matches are available.
-    testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResultForTesting({matches: []}));
-    await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
-
-    input.dispatchEvent(new KeyboardEvent(
-        'keydown', {key: 'ArrowDown', bubbles: true, composed: true}));
-    await microtasksFinished();
-    assertEquals(-1, matchesElement.selectedMatchIndex);
-
-    // Populate matches for testing.
-    const matches = [
-      createSearchMatchForTesting({fillIntoEdit: 'test1'}),
-      createSearchMatchForTesting({fillIntoEdit: 'test2'}),
-    ];
-    testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResultForTesting({matches}));
-    await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
-    await microtasksFinished();
-
-    // Verify navigation is blocked when focus is in input but dropdown is
-    // hidden.
-    input.focus();
-    testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResultForTesting({matches: []}));
-    await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
-    await microtasksFinished();
-    input.dispatchEvent(new KeyboardEvent(
-        'keydown', {key: 'ArrowDown', bubbles: true, composed: true}));
-    await microtasksFinished();
-    assertEquals(-1, matchesElement.selectedMatchIndex);
-
-    testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResultForTesting({matches}));
-    await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
-    await microtasksFinished();
-
-    // Verify navigation is blocked when key modifiers are present.
-    input.dispatchEvent(new KeyboardEvent(
-        'keydown',
-        {key: 'ArrowDown', ctrlKey: true, bubbles: true, composed: true}));
-    await microtasksFinished();
-    assertEquals(-1, matchesElement.selectedMatchIndex);
-
-    // Verify normal navigation when all guard conditions are met.
-    input.dispatchEvent(new KeyboardEvent(
-        'keydown', {key: 'ArrowDown', bubbles: true, composed: true}));
-    await microtasksFinished();
-    assertEquals(0, matchesElement.selectedMatchIndex);
-
-    input.dispatchEvent(new KeyboardEvent(
-        'keydown', {key: 'ArrowDown', bubbles: true, composed: true}));
-    await microtasksFinished();
-    assertEquals(1, matchesElement.selectedMatchIndex);
-
-    input.dispatchEvent(new KeyboardEvent(
-        'keydown', {key: 'ArrowUp', bubbles: true, composed: true}));
-    await microtasksFinished();
-    assertEquals(0, matchesElement.selectedMatchIndex);
-  });
-
-  test('selects first or last match with PageUp and PageDown', async () => {
-    createComposeboxElement(testProxy);
-    const input = testProxy.element.getInputElement().$.input;
-    const matchesElement = testProxy.element.$.matches;
-
-    // Verify navigation is blocked when no matches are available.
-    testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResultForTesting({matches: []}));
-    await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
-
-    input.dispatchEvent(new KeyboardEvent(
-        'keydown', {key: 'PageDown', bubbles: true, composed: true}));
-    await microtasksFinished();
-    assertEquals(-1, matchesElement.selectedMatchIndex);
-
-    const matches = [
-      createSearchMatchForTesting({fillIntoEdit: 'test1'}),
-      createSearchMatchForTesting({fillIntoEdit: 'test2'}),
-      createSearchMatchForTesting({fillIntoEdit: 'test3'}),
-    ];
-    testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResultForTesting({matches}));
-    await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
-    await microtasksFinished();
-
-    // Verify navigation is blocked when key modifiers are present.
-    input.dispatchEvent(new KeyboardEvent(
-        'keydown',
-        {key: 'PageDown', altKey: true, bubbles: true, composed: true}));
-    await microtasksFinished();
-    assertEquals(-1, matchesElement.selectedMatchIndex);
-
-    // Verify navigation to the last and first match.
-    // PageDown selects the last match.
-    input.dispatchEvent(new KeyboardEvent(
-        'keydown', {key: 'PageDown', bubbles: true, composed: true}));
-    await microtasksFinished();
-    assertEquals(2, matchesElement.selectedMatchIndex);
-
-    // PageUp selects the first match.
-    input.dispatchEvent(new KeyboardEvent(
-        'keydown', {key: 'PageUp', bubbles: true, composed: true}));
-    await microtasksFinished();
-    assertEquals(0, matchesElement.selectedMatchIndex);
-  });
-
-  test('Tab behavior when focus is in input', async () => {
-    createComposeboxElement(testProxy);
-    const input = testProxy.element.getInputElement().$.input;
-    const matchesElement = testProxy.element.$.matches;
-
-    // Populate matches and select the first one.
-    const matches = [createSearchMatchForTesting()];
-    testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResultForTesting({matches}));
-    await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
-
-    matchesElement.selectNext();
-    assertEquals(0, matchesElement.selectedMatchIndex);
-
-    // Ensure focus is in the input.
-    input.focus();
-
-    // Verify Shift+Tab unselects the match.
-    input.dispatchEvent(new KeyboardEvent(
-        'keydown',
-        {key: 'Tab', shiftKey: true, bubbles: true, composed: true}));
-    await microtasksFinished();
-    assertEquals(-1, matchesElement.selectedMatchIndex);
-
-    // Verify Tab accepts the Smart Compose hint when available.
-    loadTimeData.overrideValues({composeboxSmartComposeEnabled: true});
-    (testProxy.element as any).smartComposeEnabled_ = true;
-    input.value = 'tes';
-    input.dispatchEvent(new Event('input'));
-    const hint = 't';
-
-    testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResultForTesting({
-          input: 'tes',
-          matches,
-          smartComposeInlineHint: hint,
-        }));
-    await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
-
-    const tabEvent = new KeyboardEvent(
-        'keydown',
-        {key: 'Tab', bubbles: true, cancelable: true, composed: true});
-    input.dispatchEvent(tabEvent);
-    await microtasksFinished();
-
-    assertEquals('test', input.value);
-    assertTrue(tabEvent.defaultPrevented);
-  });
-
-  test('Smart Compose hint is hidden during backspacing', async () => {
-    createComposeboxElement(testProxy);
-    const inputElement = testProxy.element.getInputElement();
-    const input = inputElement.$.input;
-
-    // Enable Smart Compose.
-    loadTimeData.overrideValues({composeboxSmartComposeEnabled: true});
-    (testProxy.element as any).smartComposeEnabled_ = true;
-
-    // Provide an input and a hint.
-    input.value = 'tes';
-    input.dispatchEvent(new Event('input'));
-    const hint = 't';
-
-    testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResultForTesting({
-          input: 'tes',
-          smartComposeInlineHint: hint,
-        }));
-    await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
-    await microtasksFinished();
-
-    // Verify hint is visible.
-    assertTrue(!!inputElement.shadowRoot.querySelector('#smartCompose'));
-
-    // Simulate backspace.
-    input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Backspace'}));
-    await microtasksFinished();
-
-    // Verify hint is hidden.
-    assertFalse(!!inputElement.shadowRoot.querySelector('#smartCompose'));
-
-    // Simulate typing a character.
-    input.dispatchEvent(new KeyboardEvent('keydown', {key: 'a'}));
-    await microtasksFinished();
-
-    // Verify hint is visible again.
-    assertTrue(!!inputElement.shadowRoot.querySelector('#smartCompose'));
-  });
-
-  test('Tab behavior in matches list bypasses input focus check', async () => {
-    createComposeboxElement(testProxy);
-    const input = testProxy.element.getInputElement().$.input;
-    const matchesElement = testProxy.element.$.matches;
-
-    // Move focus away from the input so it bypasses input focus check.
-    input.blur();
-    matchesElement.focus();
-    assertTrue(input !== testProxy.element.shadowRoot.activeElement);
-
-    // Verify Tab is ignored when no matches are available.
-    testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResultForTesting({matches: []}));
-    await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
-
-    const emptyEvent = new KeyboardEvent(
-        'keydown',
-        {key: 'Tab', bubbles: true, cancelable: true, composed: true});
-    matchesElement.dispatchEvent(emptyEvent);
-    await microtasksFinished();
-    assertFalse(emptyEvent.defaultPrevented);
-
-    // Populate matches.
-    const matches = [
-      createSearchMatchForTesting(
-          {fillIntoEdit: 'match1', supportsDeletion: false}),
-      createSearchMatchForTesting(
-          {fillIntoEdit: 'match2', supportsDeletion: false}),
-    ];
-    testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResultForTesting({matches}));
-    await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
-    await microtasksFinished();
-
-    // Verify Tab is ignored when modifiers are present.
-    const modifierEvent = new KeyboardEvent('keydown', {
-      key: 'Tab',
-      ctrlKey: true,
-      bubbles: true,
-      cancelable: true,
-      composed: true,
-    });
-    matchesElement.dispatchEvent(modifierEvent);
-    await microtasksFinished();
-    assertFalse(modifierEvent.defaultPrevented);
-
-    // Select the last match.
-    input.focus();
-    input.dispatchEvent(new KeyboardEvent(
-        'keydown', {key: 'ArrowUp', bubbles: true, composed: true}));
-    await microtasksFinished();
-    assertEquals(1, matchesElement.selectedMatchIndex);
-
-    // Move focus back to matches element to bypass the input block.
-    input.blur();
-    matchesElement.focus();
-    assertTrue(input !== testProxy.element.shadowRoot.activeElement);
-
-    // Verify normal Tab behavior unselects the last match.
-    const normalTabEvent = new KeyboardEvent(
-        'keydown',
-        {key: 'Tab', bubbles: true, cancelable: true, composed: true});
-    matchesElement.dispatchEvent(normalTabEvent);
-    await microtasksFinished();
-
-    // Verify the match is unselected.
-    assertEquals(-1, matchesElement.selectedMatchIndex);
-    // Default behavior is not prevented, allowing focus to move.
-    assertFalse(normalTabEvent.defaultPrevented);
-  });
-
-
-  test('clear button title changes with input', async () => {
-    createComposeboxElement(testProxy);
-    assertEquals(
-        testProxy.element.getInputElement().$.cancelIcon.getAttribute('title'),
-        loadTimeData.getString('composeboxCancelButtonTitle'));
-    // Arrange.
-    testProxy.element.getInputElement().$.input.value = 'Test';
-    testProxy.element.getInputElement().$.input.dispatchEvent(
-        new Event('input'));
-    await microtasksFinished();
-
-    // Assert.
-    assertEquals(
-        testProxy.element.getInputElement().$.cancelIcon.getAttribute('title'),
-        loadTimeData.getString('composeboxCancelButtonTitleInput'));
-  });
 
   test('isCollapsible attribute sets expanding state when true', async () => {
     createComposeboxElement(testProxy);
@@ -957,8 +599,9 @@ suite('NewTabPageComposeboxTest', () => {
     (collapsibleBox as any).isCollapsible = false;
     await collapsibleBox.updateComplete;
 
-    // Blur the input first, since connectedCallback focuses it by default. This
-    // ensures the component is in a state where it can be collapsed.
+    // Blur the input first, since connectedCallback focuses it by
+    // default. This ensures the component is in a state where it can be
+    // collapsed.
     collapsibleInput.blur();
     await collapsibleBox.updateComplete;
 
@@ -1007,66 +650,6 @@ suite('NewTabPageComposeboxTest', () => {
     // Submit container should be disabled.
     assertStyle(getSubmitContainer(testProxy), 'cursor', 'not-allowed');
     assertEquals('', collapsibleInput.value, 'Input should be cleared');
-  });
-
-  test('onInputStateChanged updates inputState', async () => {
-    createComposeboxElement(testProxy);
-    const inputState = {
-      allowedModels: [],
-      allowedTools: [],
-      allowedInputTypes: [],
-      activeModel: 0,
-      activeTool: 0,
-      disabledModels: [],
-      disabledTools: [],
-      disabledInputTypes: [],
-      inputTypeConfigs: [],
-      toolConfigs: [],
-      modelConfigs: [],
-      toolsSectionConfig: null,
-      modelSectionConfig: null,
-      hintText: '',
-      maxInputsByType: {},
-      maxTotalInputs: 0,
-    } as InputState;
-    testProxy.searchboxCallbackRouterRemote.onInputStateChanged(inputState);
-    await microtasksFinished();
-    assertDeepEquals((testProxy.element as any).inputState, inputState);
-  });
-
-  test('setDefaultModel uses activeModel from backend', async () => {
-    createComposeboxElement(testProxy);
-
-    const inputState = new MockInputState({
-      allowedModels: [ModelMode.kGeminiRegular, ModelMode.kGeminiPro],
-      activeModel: ModelMode.kGeminiPro,
-      modelConfigs: [
-        {
-          model: ModelMode.kGeminiRegular,
-          aimUrlParams: [],
-          menuLabel: 'Regular',
-          hintText: 'Hint Regular',
-        },
-        {
-          model: ModelMode.kGeminiPro,
-          aimUrlParams: [{paramKey: 'xyz', paramValue: '1'}],
-          menuLabel: 'Pro',
-          hintText: 'Hint Pro',
-        },
-      ],
-      modelSectionConfig: null,
-    });
-
-    testProxy.searchboxCallbackRouterRemote.onInputStateChanged(inputState);
-    await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
-    await microtasksFinished();
-
-    testProxy.element.setDefaultModel();
-
-    assertEquals(
-        testProxy.searchboxHandler.getCallCount('setActiveModelMode'), 1);
-    const arg = testProxy.searchboxHandler.getArgs('setActiveModelMode')[0];
-    assertEquals(arg, ModelMode.kGeminiPro);
   });
 
   test('delete tool chip', async () => {
@@ -1254,6 +837,587 @@ suite('NewTabPageComposeboxTest', () => {
   });
 });
 
+// =========================================================================
+// 2. COMMON SUITE (Runs on both ntp-composebox and cr-composebox elements)
+// =========================================================================
+[true, false].forEach(useForked => {
+  suite(`NewTabPageComposeboxTestV2 (useNtpComposeboxFork = ${useForked})`, () => {
+    const testProxy = setupComposeboxTest();
+
+    setup(() => {
+      loadTimeData.overrideValues({
+        useNtpComposeboxFork: useForked,
+      });
+    });
+
+    test('session abandoned on cancel button click', async () => {
+      // Arrange.
+      createComposeboxElement(testProxy);
+
+      await microtasksFinished();
+
+      // Close composebox.
+      const whenCloseComposebox =
+          eventToPromise<CustomEvent<{composeboxText: string}>>(
+              'close-composebox', testProxy.element);
+      const cancelIcon =
+          $$<HTMLElement>(testProxy.element.getInputElement(), '#cancelIcon');
+      cancelIcon!.click();
+      const event = await whenCloseComposebox;
+      assertEquals(event.detail.composeboxText, '');
+      assertEquals(testProxy.searchboxHandler.getCallCount('clearFiles'), 1);
+    });
+
+    test('NotifySessionStarted called on composebox created', () => {
+      // Assert call has not occurred.
+      assertEquals(
+          testProxy.searchboxHandler.getCallCount('notifySessionStarted'), 0);
+
+      createComposeboxElement(testProxy);
+
+      // Assert call occurs.
+      assertEquals(
+          testProxy.searchboxHandler.getCallCount('notifySessionStarted'), 1);
+    });
+
+    test('clear button title changes with input', async () => {
+      createComposeboxElement(testProxy);
+      assertEquals(
+          testProxy.element.getInputElement().$.cancelIcon.getAttribute(
+              'title'),
+          loadTimeData.getString('composeboxCancelButtonTitle'));
+      // Arrange.
+      testProxy.element.getInputElement().$.input.value = 'Test';
+      testProxy.element.getInputElement().$.input.dispatchEvent(
+          new Event('input'));
+      await microtasksFinished();
+
+      // Assert.
+      assertEquals(
+          testProxy.element.getInputElement().$.cancelIcon.getAttribute(
+              'title'),
+          loadTimeData.getString('composeboxCancelButtonTitleInput'));
+    });
+
+    test('Smart Compose hint is hidden during backspacing', async () => {
+      // Enable Smart Compose.
+      loadTimeData.overrideValues({composeboxSmartComposeEnabled: true});
+      createComposeboxElement(testProxy);
+      const inputElement = testProxy.element.getInputElement();
+      const input = inputElement.$.input;
+
+      // Provide an input and a hint.
+      input.value = 'tes';
+      input.dispatchEvent(new Event('input'));
+      const hint = 't';
+
+      testProxy.element.haveReceivedSynchronousAutocompleteResponse = true;
+      testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
+          createAutocompleteResultForTesting({
+            input: 'tes',
+            smartComposeInlineHint: hint,
+          }));
+      await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+      await microtasksFinished();
+
+      // Verify hint is visible.
+      assertTrue(!!inputElement.shadowRoot.querySelector('#smartCompose'));
+
+      // Simulate backspace.
+      input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Backspace'}));
+      await microtasksFinished();
+
+      // Verify hint is hidden.
+      assertFalse(!!inputElement.shadowRoot.querySelector('#smartCompose'));
+
+      // Simulate typing a character.
+      input.dispatchEvent(new KeyboardEvent('keydown', {key: 'a'}));
+      await microtasksFinished();
+
+      // Verify hint is visible again.
+      assertTrue(!!inputElement.shadowRoot.querySelector('#smartCompose'));
+    });
+
+    test(
+        'Smart Compose hint is hidden when it wraps in the middle of a word',
+        async () => {
+          // Enable Smart Compose.
+          loadTimeData.overrideValues({composeboxSmartComposeEnabled: true});
+          createComposeboxElement(testProxy);
+          const inputElement = testProxy.element.getInputElement();
+          const input = inputElement.$.input;
+
+          // Mock Canvas measureText and clientWidth.
+          const originalMeasureText =
+              CanvasRenderingContext2D.prototype.measureText;
+          CanvasRenderingContext2D.prototype.measureText = function(
+              text: string) {
+            if (text.includes('wrap')) {
+              return {width: 150} as TextMetrics;
+            }
+            return {width: 50} as TextMetrics;
+          };
+          Object.defineProperty(
+              input, 'clientWidth', {configurable: true, get: () => 100});
+
+          // Provide an input ending with a non-space character and a hint.
+          input.value = 'tes.';
+          input.dispatchEvent(new Event('input'));
+          const hint = 'wrap';  // This will trigger width = 150
+
+          testProxy.element.haveReceivedSynchronousAutocompleteResponse = true;
+          testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
+              createAutocompleteResultForTesting({
+                input: 'tes.',
+                smartComposeInlineHint: hint,
+              }));
+          await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+          await microtasksFinished();
+
+          // Trigger re-evaluation by requesting update.
+          inputElement.requestUpdate();
+          await microtasksFinished();
+
+          // Verify hint is hidden.
+          assertFalse(!!inputElement.shadowRoot.querySelector('#smartCompose'));
+
+          // Restore mock.
+          CanvasRenderingContext2D.prototype.measureText = originalMeasureText;
+        });
+
+    test(
+        'Smart Compose hint is NOT hidden when only full hint wraps but first word fits',
+        async () => {
+          // Enable Smart Compose.
+          loadTimeData.overrideValues({composeboxSmartComposeEnabled: true});
+          createComposeboxElement(testProxy);
+          const inputElement = testProxy.element.getInputElement();
+          const input = inputElement.$.input;
+
+          // Mock Canvas measureText and clientWidth.
+          const originalMeasureText =
+              CanvasRenderingContext2D.prototype.measureText;
+          CanvasRenderingContext2D.prototype.measureText = function(
+              text: string) {
+            if (text.includes('wraps')) {
+              return {width: 150} as TextMetrics;
+            }
+            return {width: 50} as TextMetrics;
+          };
+          Object.defineProperty(
+              input, 'clientWidth', {configurable: true, get: () => 100});
+
+          // Provide an input ending with a non-space character and a hint.
+          input.value = 'tes.';
+          input.dispatchEvent(new Event('input'));
+          const hint = 'fits wraps';
+
+          testProxy.element.haveReceivedSynchronousAutocompleteResponse = true;
+          testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
+              createAutocompleteResultForTesting({
+                input: 'tes.',
+                smartComposeInlineHint: hint,
+              }));
+          await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+          await microtasksFinished();
+
+          // Trigger re-evaluation by requesting update.
+          inputElement.requestUpdate();
+          await microtasksFinished();
+
+          // Verify hint is visible.
+          assertTrue(!!inputElement.shadowRoot.querySelector('#smartCompose'));
+
+          // Restore mock.
+          CanvasRenderingContext2D.prototype.measureText = originalMeasureText;
+        });
+
+    test(
+        'Smart Compose hint is hidden when cursor is not at the end',
+        async () => {
+          // Enable Smart Compose.
+          loadTimeData.overrideValues({composeboxSmartComposeEnabled: true});
+          createComposeboxElement(testProxy);
+          const inputElement = testProxy.element.getInputElement();
+          const input = inputElement.$.input;
+
+          // Provide an input and a hint.
+          input.value = 'test';
+          input.dispatchEvent(new Event('input'));
+          const hint = 'a';
+
+          testProxy.element.haveReceivedSynchronousAutocompleteResponse = true;
+          testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
+              createAutocompleteResultForTesting({
+                input: 'test',
+                smartComposeInlineHint: hint,
+              }));
+          await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+          await microtasksFinished();
+
+          // Verify hint is visible initially.
+          assertTrue(!!inputElement.shadowRoot.querySelector('#smartCompose'));
+
+          // Move cursor to the middle.
+          input.selectionStart = 2;
+          input.selectionEnd = 2;
+
+          // Trigger re-evaluation.
+          inputElement.requestUpdate();
+          await microtasksFinished();
+
+          // Verify hint is hidden.
+          assertFalse(!!inputElement.shadowRoot.querySelector('#smartCompose'));
+        });
+
+    test('onInputStateChanged updates inputState', async () => {
+      createComposeboxElement(testProxy);
+      const inputState = {
+        allowedModels: [],
+        allowedTools: [],
+        allowedInputTypes: [],
+        activeModel: 0,
+        activeTool: 0,
+        disabledModels: [],
+        disabledTools: [],
+        disabledInputTypes: [],
+        inputTypeConfigs: [],
+        toolConfigs: [],
+        modelConfigs: [],
+        toolsSectionConfig: null,
+        modelSectionConfig: null,
+        hintText: '',
+        maxInputsByType: {},
+        maxTotalInputs: 0,
+      } as InputState;
+      testProxy.searchboxCallbackRouterRemote.onInputStateChanged(inputState);
+      await microtasksFinished();
+      assertDeepEquals((testProxy.element as any).inputState, inputState);
+    });
+
+    test('setDefaultModel uses activeModel from backend', async () => {
+      createComposeboxElement(testProxy);
+
+      const inputState = new MockInputState({
+        allowedModels: [ModelMode.kGeminiRegular, ModelMode.kGeminiPro],
+        activeModel: ModelMode.kGeminiPro,
+        modelConfigs: [
+          {
+            model: ModelMode.kGeminiRegular,
+            aimUrlParams: [],
+            menuLabel: 'Regular',
+            hintText: 'Hint Regular',
+          },
+          {
+            model: ModelMode.kGeminiPro,
+            aimUrlParams: [{paramKey: 'xyz', paramValue: '1'}],
+            menuLabel: 'Pro',
+            hintText: 'Hint Pro',
+          },
+        ],
+        modelSectionConfig: null,
+      });
+
+      testProxy.searchboxCallbackRouterRemote.onInputStateChanged(inputState);
+      await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+      await microtasksFinished();
+
+      testProxy.element.setDefaultModel();
+
+      assertEquals(
+          testProxy.searchboxHandler.getCallCount('setActiveModelMode'), 1);
+      const arg = testProxy.searchboxHandler.getArgs('setActiveModelMode')[0];
+      assertEquals(arg, ModelMode.kGeminiPro);
+    });
+
+    test('navigates matches with ArrowDown and ArrowUp', async () => {
+      createComposeboxElement(testProxy);
+      const input = testProxy.element.getInputElement().$.input;
+      const matchesElement = testProxy.element.$.matches;
+
+      // Verify navigation is blocked when no matches are available.
+      testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
+          createAutocompleteResultForTesting({matches: []}));
+      await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+
+      input.dispatchEvent(new KeyboardEvent(
+          'keydown', {key: 'ArrowDown', bubbles: true, composed: true}));
+      await microtasksFinished();
+      assertEquals(-1, matchesElement.selectedMatchIndex);
+
+      // Populate matches for testing.
+      const matches = [
+        createSearchMatchForTesting({fillIntoEdit: 'test1'}),
+        createSearchMatchForTesting({fillIntoEdit: 'test2'}),
+      ];
+      testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
+          createAutocompleteResultForTesting({matches}));
+      await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+      await microtasksFinished();
+
+      // Verify navigation is blocked when focus is in input but dropdown is
+      // hidden.
+      input.focus();
+      testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
+          createAutocompleteResultForTesting({matches: []}));
+      await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+      await microtasksFinished();
+      input.dispatchEvent(new KeyboardEvent(
+          'keydown', {key: 'ArrowDown', bubbles: true, composed: true}));
+      await microtasksFinished();
+      assertEquals(-1, matchesElement.selectedMatchIndex);
+
+      testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
+          createAutocompleteResultForTesting({matches}));
+      await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+      await microtasksFinished();
+
+      // Verify navigation is blocked when key modifiers are present.
+      input.dispatchEvent(new KeyboardEvent(
+          'keydown',
+          {key: 'ArrowDown', ctrlKey: true, bubbles: true, composed: true}));
+      await microtasksFinished();
+      assertEquals(-1, matchesElement.selectedMatchIndex);
+
+      // Verify normal navigation when all guard conditions are met.
+      input.dispatchEvent(new KeyboardEvent(
+          'keydown', {key: 'ArrowDown', bubbles: true, composed: true}));
+      await microtasksFinished();
+      assertEquals(0, matchesElement.selectedMatchIndex);
+
+      input.dispatchEvent(new KeyboardEvent(
+          'keydown', {key: 'ArrowDown', bubbles: true, composed: true}));
+      await microtasksFinished();
+      assertEquals(1, matchesElement.selectedMatchIndex);
+
+      input.dispatchEvent(new KeyboardEvent(
+          'keydown', {key: 'ArrowUp', bubbles: true, composed: true}));
+      await microtasksFinished();
+      assertEquals(0, matchesElement.selectedMatchIndex);
+    });
+
+    test('selects first or last match with PageUp and PageDown', async () => {
+      createComposeboxElement(testProxy);
+      const input = testProxy.element.getInputElement().$.input;
+      const matchesElement = testProxy.element.$.matches;
+
+      // Verify navigation is blocked when no matches are available.
+      testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
+          createAutocompleteResultForTesting({matches: []}));
+      await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+
+      input.dispatchEvent(new KeyboardEvent(
+          'keydown', {key: 'PageDown', bubbles: true, composed: true}));
+      await microtasksFinished();
+      assertEquals(-1, matchesElement.selectedMatchIndex);
+
+      const matches = [
+        createSearchMatchForTesting({fillIntoEdit: 'test1'}),
+        createSearchMatchForTesting({fillIntoEdit: 'test2'}),
+        createSearchMatchForTesting({fillIntoEdit: 'test3'}),
+      ];
+      testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
+          createAutocompleteResultForTesting({matches}));
+      await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+      await microtasksFinished();
+
+      // Verify navigation is blocked when key modifiers are present.
+      input.dispatchEvent(new KeyboardEvent(
+          'keydown',
+          {key: 'PageDown', altKey: true, bubbles: true, composed: true}));
+      await microtasksFinished();
+      assertEquals(-1, matchesElement.selectedMatchIndex);
+
+      // Verify navigation to the last and first match.
+      // PageDown selects the last match.
+      input.dispatchEvent(new KeyboardEvent(
+          'keydown', {key: 'PageDown', bubbles: true, composed: true}));
+      await microtasksFinished();
+      assertEquals(2, matchesElement.selectedMatchIndex);
+
+      // PageUp selects the first match.
+      input.dispatchEvent(new KeyboardEvent(
+          'keydown', {key: 'PageUp', bubbles: true, composed: true}));
+      await microtasksFinished();
+      assertEquals(0, matchesElement.selectedMatchIndex);
+    });
+
+    test('Tab behavior when focus is in input', async () => {
+      loadTimeData.overrideValues({composeboxSmartComposeEnabled: true});
+      createComposeboxElement(testProxy);
+      const input = testProxy.element.getInputElement().$.input;
+      const matchesElement = testProxy.element.$.matches;
+
+      // Populate matches and select the first one.
+      const matches = [createSearchMatchForTesting()];
+      testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
+          createAutocompleteResultForTesting({matches}));
+      await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+
+      matchesElement.selectNext();
+      assertEquals(0, matchesElement.selectedMatchIndex);
+
+      // Ensure focus is in the input.
+      input.focus();
+
+      // Verify Shift+Tab unselects the match.
+      input.dispatchEvent(new KeyboardEvent(
+          'keydown',
+          {key: 'Tab', shiftKey: true, bubbles: true, composed: true}));
+      await microtasksFinished();
+      assertEquals(-1, matchesElement.selectedMatchIndex);
+
+      // Verify Tab accepts the Smart Compose hint when available.
+      input.value = 'tes';
+      input.dispatchEvent(new Event('input'));
+      const hint = 't';
+
+      testProxy.element.haveReceivedSynchronousAutocompleteResponse = true;
+      testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
+          createAutocompleteResultForTesting({
+            input: 'tes',
+            matches,
+            smartComposeInlineHint: hint,
+          }));
+      await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+
+      const tabEvent = new KeyboardEvent(
+          'keydown',
+          {key: 'Tab', bubbles: true, cancelable: true, composed: true});
+      input.dispatchEvent(tabEvent);
+      await microtasksFinished();
+
+      assertEquals('test', input.value);
+      assertTrue(tabEvent.defaultPrevented);
+    });
+
+    test(
+        'Tab behavior in matches list bypasses input focus check', async () => {
+          createComposeboxElement(testProxy);
+          const input = testProxy.element.getInputElement().$.input;
+          const matchesElement = testProxy.element.$.matches;
+
+          // Move focus away from the input so it bypasses input focus check.
+          input.blur();
+          matchesElement.focus();
+          assertTrue(input !== testProxy.element.shadowRoot.activeElement);
+
+          // Verify Tab is ignored when no matches are available.
+          testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
+              createAutocompleteResultForTesting({matches: []}));
+          await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+
+          const emptyEvent = new KeyboardEvent(
+              'keydown',
+              {key: 'Tab', bubbles: true, cancelable: true, composed: true});
+          matchesElement.dispatchEvent(emptyEvent);
+          await microtasksFinished();
+          assertFalse(emptyEvent.defaultPrevented);
+
+          // Populate matches.
+          const matches = [
+            createSearchMatchForTesting(
+                {fillIntoEdit: 'match1', supportsDeletion: false}),
+            createSearchMatchForTesting(
+                {fillIntoEdit: 'match2', supportsDeletion: false}),
+          ];
+          testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
+              createAutocompleteResultForTesting({matches}));
+          await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+          await microtasksFinished();
+
+          // Verify Tab is ignored when modifiers are present.
+          const modifierEvent = new KeyboardEvent('keydown', {
+            key: 'Tab',
+            ctrlKey: true,
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+          });
+          matchesElement.dispatchEvent(modifierEvent);
+          await microtasksFinished();
+          assertFalse(modifierEvent.defaultPrevented);
+
+          // Select the last match.
+          input.focus();
+          input.dispatchEvent(new KeyboardEvent(
+              'keydown', {key: 'ArrowUp', bubbles: true, composed: true}));
+          await microtasksFinished();
+          assertEquals(1, matchesElement.selectedMatchIndex);
+
+          // Move focus back to matches element to bypass the input block.
+          input.blur();
+          matchesElement.focus();
+          assertTrue(input !== testProxy.element.shadowRoot.activeElement);
+
+          // Verify normal Tab behavior unselects the last match.
+          const normalTabEvent = new KeyboardEvent(
+              'keydown',
+              {key: 'Tab', bubbles: true, cancelable: true, composed: true});
+          matchesElement.dispatchEvent(normalTabEvent);
+          await microtasksFinished();
+
+          // Verify the match is unselected.
+          assertEquals(-1, matchesElement.selectedMatchIndex);
+          // Default behavior is not prevented, allowing focus to move.
+          assertFalse(normalTabEvent.defaultPrevented);
+        });
+
+    test('session abandoned on esc click', async () => {
+      // Arrange.
+      createComposeboxElement(testProxy, {closeOnEscape: true});
+
+      testProxy.element.getInputElement().$.input.value = 'test';
+      testProxy.element.getInputElement().$.input.dispatchEvent(
+          new Event('input'));
+      await microtasksFinished();
+
+      const whenCloseComposebox =
+          eventToPromise<CustomEvent<{composeboxText: string}>>(
+              'close-composebox', testProxy.element);
+
+      // Assert call occurs.
+      testProxy.element.$.composebox.dispatchEvent(
+          new KeyboardEvent('keydown', {key: 'Escape'}));
+      await microtasksFinished();
+      const event = await whenCloseComposebox;
+      assertEquals(event.detail.composeboxText, 'test');
+      assertEquals(testProxy.searchboxHandler.getCallCount('clearFiles'), 1);
+    });
+
+    test(
+        'esc clears input instead of closing when closeOnEscape is false and has content',
+        async () => {
+          // Arrange.
+          createComposeboxElement(testProxy, {closeOnEscape: false});
+
+          testProxy.element.getInputElement().$.input.value = 'test';
+          testProxy.element.getInputElement().$.input.dispatchEvent(
+              new Event('input'));
+          await microtasksFinished();
+
+          const closePromise =
+              eventToPromise('close-composebox', testProxy.element);
+          let closed = false;
+          closePromise.then(() => closed = true);
+
+          // Act
+          testProxy.element.$.composebox.dispatchEvent(
+              new KeyboardEvent('keydown', {key: 'Escape'}));
+          await microtasksFinished();
+
+          // Assert: the clear branch fired instead of close-composebox.
+          assertFalse(closed);
+          assertEquals('', testProxy.element.getInputElement().$.input.value);
+          assertEquals(
+              testProxy.searchboxHandler.getCallCount('clearFiles'), 1);
+        });
+  });
+});
+
+// ==========================================================
+// 3. RESIZE OBSERVER SUITE
+// ==========================================================
 suite('NewTabPageComposeboxResizeObserverTest', () => {
   const testProxy = setupComposeboxTest();
   // Keep this aligned with DEBOUNCE_TIMEOUT_MS in composebox.ts.
@@ -1318,7 +1482,8 @@ suite('NewTabPageComposeboxResizeObserverTest', () => {
     mockTimer.uninstall();
   });
 
-  test('observeResize emits composebox resize events for host and dropdown',
+  test(
+      'observeResize emits composebox resize events for host and dropdown',
       async () => {
         createComposeboxElement(testProxy, {observeResize: true});
         await flushComposebox();
@@ -1351,13 +1516,14 @@ suite('NewTabPageComposeboxResizeObserverTest', () => {
     createComposeboxElement(testProxy, {observeResize: false});
     await flushComposebox();
 
-    const inputWrapper = testProxy.element.getInputElement().shadowRoot
-                               .querySelector<HTMLElement>('#inputWrapper');
+    const inputWrapper =
+        testProxy.element.getInputElement()
+            .shadowRoot.querySelector<HTMLElement>('#inputWrapper');
     assertTrue(!!inputWrapper);
 
     assertEquals(0, getActiveObserversForTarget(testProxy.element).length);
-    assertEquals(0, getActiveObserversForTarget(testProxy.element.$.matches)
-                        .length);
+    assertEquals(
+        0, getActiveObserversForTarget(testProxy.element.$.matches).length);
     assertEquals(1, getActiveObserversForTarget(inputWrapper).length);
   });
 
@@ -1366,15 +1532,15 @@ suite('NewTabPageComposeboxResizeObserverTest', () => {
     await flushComposebox();
 
     assertEquals(0, getActiveObserversForTarget(testProxy.element).length);
-    assertEquals(0, getActiveObserversForTarget(testProxy.element.$.matches)
-                        .length);
+    assertEquals(
+        0, getActiveObserversForTarget(testProxy.element.$.matches).length);
 
     testProxy.element.observeResize = true;
     await flushComposebox();
 
     assertEquals(1, getActiveObserversForTarget(testProxy.element).length);
-    assertEquals(1, getActiveObserversForTarget(testProxy.element.$.matches)
-                        .length);
+    assertEquals(
+        1, getActiveObserversForTarget(testProxy.element.$.matches).length);
 
     const composeboxObservers = [
       ...getObserversForTarget(testProxy.element),
@@ -1385,8 +1551,8 @@ suite('NewTabPageComposeboxResizeObserverTest', () => {
     await flushComposebox();
 
     assertEquals(0, getActiveObserversForTarget(testProxy.element).length);
-    assertEquals(0, getActiveObserversForTarget(testProxy.element.$.matches)
-                        .length);
+    assertEquals(
+        0, getActiveObserversForTarget(testProxy.element.$.matches).length);
     assertTrue(composeboxObservers.every(observer => observer.disconnected));
   });
 });

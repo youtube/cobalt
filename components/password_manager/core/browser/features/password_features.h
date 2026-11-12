@@ -120,9 +120,6 @@ BASE_DECLARE_FEATURE(kEnablePasswordManagerMojoApi);
 // Later change password url is used during password change.
 BASE_DECLARE_FEATURE(kFetchChangePasswordUrlForPasswordChange);
 
-// Enables filling of change password form by typing.
-BASE_DECLARE_FEATURE(kFillChangePasswordFormByTyping);
-
 // Enables the experiment for the password manager to only fill on account
 // selection, rather than autofilling on page load, with highlighting of fields.
 BASE_DECLARE_FEATURE(kFillOnAccountSelect);
@@ -190,12 +187,6 @@ BASE_DECLARE_FEATURE(kPreventPasswordManagerOnFederatedLogin);
 // Prevents offering Automatic Password Change on federated login.
 BASE_DECLARE_FEATURE(kPreventAPCOnFederatedLogin);
 
-// Updates password change flow to await for local ML model availability. The
-// model has a superior performance compared to existing password manager
-// classifications.
-BASE_DECLARE_FEATURE(kProactivelyDownloadModelForPasswordChange);
-
-
 // Triggers password change glow invoking Glic from settings.
 // This flag is only for the prototype version.
 BASE_DECLARE_FEATURE(kPasswordCheckupPrototype);
@@ -204,10 +195,6 @@ BASE_DECLARE_FEATURE(kPasswordCheckupPrototype);
 // Enables "Needs access to keychain, restart chrome" bubble and banner.
 BASE_DECLARE_FEATURE(kRestartToGainAccessToKeychain);
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-
-// Runs the Password Change flow (enabled by kImprovedPasswordChangeService
-// feature flag) in a user-visible background tab.
-BASE_DECLARE_FEATURE(kRunPasswordChangeInBackgroundTab);
 
 // Shows a tab with password change instead of bubble/settings page after
 // successful password change.
@@ -226,9 +213,6 @@ BASE_DECLARE_FEATURE(kTriggerPasswordResyncWhenUndecryptablePasswordsDetected);
 // that requestAnimationFrame() is not fired on a detached WebContents.
 BASE_DECLARE_FEATURE(kUseDetachedWidget);
 
-// Handles user intervention in the Password Change flow for all steps except
-// IS_LOGGED_IN_STEP.
-BASE_DECLARE_FEATURE(kUserInterventionForPasswordChange);
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
 

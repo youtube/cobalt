@@ -11,6 +11,7 @@
 #include "ash/accessibility/ui/focus_ring_controller.h"
 #include "ash/booting/booting_animation_controller.h"
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_login_pref_names.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/public/cpp/locale_update_controller.h"
@@ -44,7 +45,6 @@
 #include "chrome/browser/ash/first_run/first_run.h"
 #include "chrome/browser/ash/login/existing_user_controller.h"
 #include "chrome/browser/ash/login/helper.h"
-#include "chrome/browser/ash/login/login_pref_names.h"
 #include "chrome/browser/ash/login/login_wizard.h"
 #include "chrome/browser/ash/login/oobe_screen.h"
 #include "chrome/browser/ash/login/startup_utils.h"
@@ -57,7 +57,6 @@
 #include "chrome/browser/ash/system/device_disabling_manager.h"
 #include "chrome/browser/ash/system/input_device_settings.h"
 #include "chrome/browser/ash/system/timezone_resolver_manager.h"
-#include "chrome/browser/ash/system/timezone_util.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/global_features.h"
@@ -91,6 +90,7 @@
 #include "chromeos/ash/components/settings/cros_settings_provider.h"
 #include "chromeos/ash/components/settings/timezone_settings.h"
 #include "chromeos/ash/components/timezone/timezone_resolver.h"
+#include "chromeos/ash/components/timezone/timezone_util.h"
 #include "chromeos/ash/grit/ash_resources.h"
 #include "components/account_id/account_id.h"
 #include "components/keep_alive_registry/keep_alive_registry.h"
@@ -103,6 +103,7 @@
 #include "components/user_manager/user_manager.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
+#include "services/audio/public/cpp/sounds/global_sounds_manager.h"
 #include "services/audio/public/cpp/sounds/sounds_manager.h"
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "ui/aura/window.h"
@@ -110,7 +111,6 @@
 #include "ui/base/ime/ash/input_method_manager.h"
 #include "ui/base/ime/ash/input_method_util.h"
 #include "ui/base/mojom/window_show_state.mojom.h"
-#include "ui/base/resource/resource_bundle.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animation_observer.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
@@ -332,7 +332,7 @@ void ShowLoginWizardFinish(
 
   // Restore system timezone.
   std::string timezone;
-  if (system::PerUserTimezoneEnabled()) {
+  if (switches::IsPerUserTimezoneEnabled()) {
     timezone = local_state->GetString(ash::prefs::kSigninScreenTimezone);
   }
 
@@ -353,7 +353,8 @@ void ShowLoginWizardFinish(
     }
   }
   if (!timezone.empty()) {
-    system::SetSystemAndSigninScreenTimezone(timezone);
+    system::SetSystemAndSigninScreenTimezone(CHECK_DEREF(local_state),
+                                             timezone);
   }
 
   // This step requires the session manager to have been initialized and login
@@ -537,11 +538,9 @@ LoginDisplayHostWebUI::LoginDisplayHostWebUI(
   // shown or the login or lock screen to be shown.
   session_observation_.Observe(session_manager::SessionManager::Get());
 
-  audio::SoundsManager* manager = audio::SoundsManager::Get();
-  ui::ResourceBundle& bundle = ui::ResourceBundle::GetSharedInstance();
-  manager->Initialize(std::to_underlying(Sound::kStartup),
-                      bundle.GetRawDataResource(IDR_SOUND_STARTUP_WAV),
-                      media::AudioCodec::kPCM);
+  audio::SoundsManager& manager = audio::GlobalSoundsManager::Get();
+  manager.Initialize(std::to_underlying(Sound::kStartup), IDR_SOUND_STARTUP_WAV,
+                     media::AudioCodec::kPCM, /*loop=*/false);
 }
 
 LoginDisplayHostWebUI::~LoginDisplayHostWebUI() {

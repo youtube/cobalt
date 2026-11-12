@@ -4,9 +4,14 @@
 
 #include "components/autofill/core/browser/data_model/payments/autofill_offer_data.h"
 
+#include <stdint.h>
+
 #include <algorithm>
+#include <string>
+#include <vector>
 
 #include "components/autofill/core/common/autofill_clock.h"
+#include "url/gurl.h"
 
 namespace autofill {
 

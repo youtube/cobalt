@@ -111,7 +111,7 @@
   // Thus, Webview will also become first responder in [BrowserViewController
   // viewDidAppear:].
   if (!GetFirstResponder() && currentWebState) {
-    if (IsVisibleURLNewTabPage(webState)) {
+    if (IsVisibleURLNewTabPage(currentWebState)) {
       // TODO(crbug.com/40233361): Stop lazy loading in NTPCoordinator and
       // remove this dependency.
       UIViewController* viewController = _ntpCoordinator.viewController;

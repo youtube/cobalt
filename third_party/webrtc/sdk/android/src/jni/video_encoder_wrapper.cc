@@ -172,6 +172,12 @@ int32_t VideoEncoderWrapper::Encode(
 
   JNIEnv* jni = AttachCurrentThreadIfNeeded();
 
+  ScopedJavaLocalRef<jobject> j_frame = NativeToJavaVideoFrame(jni, frame);
+  if (!j_frame) {
+    RTC_LOG(LS_WARNING) << "NativeToJavaVideoFrame failed. Dropping frame.";
+    return WEBRTC_VIDEO_CODEC_OK;
+  }
+
   // Construct encode info.
   ScopedJavaLocalRef<jobjectArray> j_frame_types;
   if (frame_types != nullptr) {
@@ -191,7 +197,6 @@ int32_t VideoEncoderWrapper::Encode(
     frame_extra_infos_.push_back(info);
   }
 
-  ScopedJavaLocalRef<jobject> j_frame = NativeToJavaVideoFrame(jni, frame);
   ScopedJavaLocalRef<jobject> ret =
       Java_VideoEncoder_encode(jni, encoder_, j_frame, encode_info);
   ReleaseJavaVideoFrame(jni, j_frame);

@@ -14,6 +14,7 @@ import '../settings_columned_section.css.js';
 import '../settings_page/settings_section.js';
 import '../settings_shared.css.js';
 import './ai_site_add_dialog.js';
+import '/shared/settings/controls/cr_policy_pref_indicator.js';
 
 import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 import type {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
@@ -56,6 +57,11 @@ export class SettingsAiModeSearchPageElement extends
         type: String,
         value: '',
       },
+      enterprisePref_: {
+        type: Object,
+        computed:
+            `computePref(prefs.contextual_tasks.smart_tab_sharing_settings)`,
+      },
     };
   }
 
@@ -68,6 +74,11 @@ export class SettingsAiModeSearchPageElement extends
   declare private siteList_: string[];
   declare private showAddSiteDialog_: boolean;
   declare private siteToEdit_: string;
+  declare private enterprisePref_: chrome.settingsPrivate.PrefObject;
+
+  private isDisabledByPolicy_(): boolean {
+    return this.enterprisePref_ && this.enterprisePref_.value === 1;
+  }
 
   private onSiteExclusionsChanged_() {
     const exclusions = this.getSiteExclusions();
@@ -110,7 +121,8 @@ export class SettingsAiModeSearchPageElement extends
   }
 
   getSiteExclusions(): Record<string, number> {
-    const pref = this.getPref('contextual_tasks.site_exclusions');
+    const pref = this.getPref<Record<string, number>>(
+        'contextual_tasks.site_exclusions');
     return pref ? pref.value : {};
   }
 

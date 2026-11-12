@@ -501,6 +501,9 @@ fuzzer_test("sqlite3_lpm_fuzzer") {
     "len_control=0",
   ]
   seed_corpus = "fuzz/lpm_fuzzer_seed_corpus/"
+
+  # TODO(crbug.com/505034799): Migrate to FUZZ_TEST.
+  is_fuzztest_compatible = false
 }
 
 # FTS3-focused LPM-based fuzzer test.
@@ -523,6 +526,9 @@ fuzzer_test("sqlite3_fts3_lpm_fuzzer") {
     "max_len=2111000",
     "len_control=0",
   ]
+
+  # TODO(crbug.com/505034799): Migrate to FUZZ_TEST.
+  is_fuzztest_compatible = false
 }
 
 fuzzer_test("sqlite3_shadow_table_fuzzer") {
@@ -543,6 +549,9 @@ fuzzer_test("sqlite3_select_printf_lpm_fuzzer") {
     "//third_party/libprotobuf-mutator",
   ]
   libfuzzer_options = [ "max_len=111000" ]
+
+  # TODO(crbug.com/505034799): Migrate to FUZZ_TEST.
+  is_fuzztest_compatible = false
 }
 
 fuzzer_test("sqlite3_select_strftime_lpm_fuzzer") {
@@ -557,6 +566,9 @@ fuzzer_test("sqlite3_select_strftime_lpm_fuzzer") {
     "//third_party/libprotobuf-mutator",
   ]
   libfuzzer_options = [ "max_len=111000" ]
+
+  # TODO(crbug.com/505034799): Migrate to FUZZ_TEST.
+  is_fuzztest_compatible = false
 }
 
 fuzzer_test("sqlite3_select_expr_lpm_fuzzer") {
@@ -574,6 +586,9 @@ fuzzer_test("sqlite3_select_expr_lpm_fuzzer") {
     "max_len=111000",
     "len_control=0",
   ]
+
+  # TODO(crbug.com/505034799): Migrate to FUZZ_TEST.
+  is_fuzztest_compatible = false
 }
 
 config("sqlite3_fts3_lpm_fuzzer_config") {

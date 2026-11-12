@@ -13,6 +13,7 @@
 #include "components/contextual_tasks/public/contextual_task.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
 #include "ui/events/test/event_generator.h"
 #include "ui/views/accessibility/view_accessibility.h"
@@ -61,7 +62,7 @@ TEST_F(ProjectsPanelThreadItemViewTest, DisplaysAimIconAndTitle) {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
       &vector_icons::kGoogleGLogoMonochromeIcon,
 #else
-      &vector_icons::kChatSparkIcon,
+      &vector_icons::kChatSparkOldIcon,
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
       &thread_item_view->chat_type_icon_for_testing());
 
@@ -76,8 +77,9 @@ TEST_F(ProjectsPanelThreadItemViewTest, DisplaysAimIconAndTitle) {
 
   auto* trailing_icon_view = thread_item_view->trailing_icon_for_testing();
   EXPECT_TRUE(trailing_icon_view);
-  EXPECT_EQ(&kOpenInNewIcon,
-            trailing_icon_view->GetImageModel().GetVectorIcon().vector_icon());
+  EXPECT_EQ(
+      &(features::IsRoundedIconsEnabled() ? kOpenInNewIcon : kOpenInNewOldIcon),
+      trailing_icon_view->GetImageModel().GetVectorIcon().vector_icon());
 }
 
 TEST_F(ProjectsPanelThreadItemViewTest, DisplaysGeminiIconAndTitle) {
@@ -92,7 +94,7 @@ TEST_F(ProjectsPanelThreadItemViewTest, DisplaysGeminiIconAndTitle) {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
       &vector_icons::kGoogleAgentspaceMonochromeLogo25Icon,
 #else
-      &vector_icons::kChatSparkIcon,
+      &vector_icons::kChatSparkOldIcon,
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
       &thread_item_view->chat_type_icon_for_testing());
 
@@ -107,8 +109,9 @@ TEST_F(ProjectsPanelThreadItemViewTest, DisplaysGeminiIconAndTitle) {
 
   auto* trailing_icon_view = thread_item_view->trailing_icon_for_testing();
   EXPECT_TRUE(trailing_icon_view);
-  EXPECT_EQ(&kOpenInNewIcon,
-            trailing_icon_view->GetImageModel().GetVectorIcon().vector_icon());
+  EXPECT_EQ(
+      &(features::IsRoundedIconsEnabled() ? kOpenInNewIcon : kOpenInNewOldIcon),
+      trailing_icon_view->GetImageModel().GetVectorIcon().vector_icon());
 }
 
 TEST_F(ProjectsPanelThreadItemViewTest, TriggersCallbackOnPressed) {

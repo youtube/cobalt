@@ -20,6 +20,7 @@
 #include <variant>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/crypto/crypto_options.h"
@@ -78,16 +79,16 @@ class BaseChannel : public ChannelInterface,
 
   // Constructor for use when the MediaChannels are split
   BaseChannel(
-      TaskQueueBase* worker_thread,
-      Thread* network_thread,
-      TaskQueueBase* signaling_thread,
+      TaskQueueBase* absl_nonnull worker_thread,
+      Thread* absl_nonnull network_thread,
+      TaskQueueBase* absl_nonnull signaling_thread,
       std::unique_ptr<MediaSendChannelInterface> media_send_channel,
       std::unique_ptr<MediaReceiveChannelInterface> media_receive_channel,
       absl::string_view mid,
       MediaType media_type,
       bool srtp_required,
       CryptoOptions crypto_options,
-      UniqueRandomIdGenerator* ssrc_generator,
+      UniqueRandomIdGenerator* absl_nonnull ssrc_generator,
       ChannelCallbacks callbacks = {});
   ~BaseChannel() override;
 

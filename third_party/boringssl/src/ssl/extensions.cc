@@ -2876,6 +2876,11 @@ static bool ext_server_padding_add_serverhello(SSL_HANDSHAKE *hs, CBB *out) {
     return true;
   }
 
+  // The extension shouldn't be sent when resuming sessions.
+  if (ssl->s3->session_reused) {
+    return true;
+  }
+
   // Limit max padding; if a client requests more than this, don't return any
   // padding.
   uint16_t padding_len = hs->client_requested_server_padding_size.value();

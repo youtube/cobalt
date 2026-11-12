@@ -19,6 +19,7 @@
 #include "api/environment/environment_factory.h"
 #include "api/rtp_headers.h"
 #include "call/flexfec_receive_stream_impl.h"
+#include "call/rtp_packet_sink_interface.h"
 #include "call/rtp_stream_receiver_controller.h"
 #include "logging/rtc_event_log/mock/mock_rtc_event_log.h"
 #include "modules/rtp_rtcp/mocks/mock_recovered_packet_receiver.h"
@@ -80,10 +81,20 @@ TEST(FlexfecReceiveStreamConfigTest, IsCompleteAndEnabled) {
   EXPECT_FALSE(config.IsCompleteAndEnabled());
 }
 
+class DummySinkValidator : public RtpSinkValidator {
+ public:
+  void OnSinkAdded(RtpPacketSinkInterface* sink) override {}
+  void OnSinkRemoved(RtpPacketSinkInterface* sink) override {}
+  bool IsValidSink(RtpPacketSinkInterface* sink) const override { return true; }
+};
+
 class FlexfecReceiveStreamTest : public ::testing::Test {
  protected:
   FlexfecReceiveStreamTest()
-      : config_(CreateDefaultConfig(&rtcp_send_transport_)) {
+      : config_(CreateDefaultConfig(&rtcp_send_transport_)),
+        rtp_stream_receiver_controller_(main_thread_.task_queue(),
+                                        main_thread_.task_queue(),
+                                        &dummy_validator_) {
     receive_stream_ = std::make_unique<FlexfecReceiveStreamImpl>(
         CreateEnvironment(&log_), config_, &recovered_packet_receiver_,
         /* packet_router= */ nullptr, &rtt_stats_);
@@ -95,6 +106,7 @@ class FlexfecReceiveStreamTest : public ::testing::Test {
   }
 
   test::RunLoop main_thread_;
+  DummySinkValidator dummy_validator_;
   MockTransport rtcp_send_transport_;
   MockRtcEventLog log_;
   FlexfecReceiveStream::Config config_;

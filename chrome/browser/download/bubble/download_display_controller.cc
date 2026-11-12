@@ -19,22 +19,33 @@
 #include "chrome/browser/download/download_item_model.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/download/download_ui_controller.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
+#include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "components/download/public/common/download_danger_type.h"
 #include "components/offline_items_collection/core/offline_item.h"
 #include "components/offline_items_collection/core/offline_item_state.h"
 
-#if BUILDFLAG(IS_MAC)
-#include "chrome/browser/ui/fullscreen_util_mac.h"
-#endif
-
 namespace {
+
+#if BUILDFLAG(IS_MAC)
+// Duplicate of fullscreen_utils::IsInContentFullscreen() in
+// //chrome/browser/ui/fullscreen_util_mac.h. Kept local to avoid a circular
+// dependency with //chrome/browser/ui.
+bool IsInContentFullscreen(BrowserWindowInterface* browser) {
+  ExclusiveAccessManager* const manager = browser->GetExclusiveAccessManager();
+  if (!manager) {
+    return false;
+  }
+  FullscreenController* const controller = manager->fullscreen_controller();
+  return controller && (controller->IsWindowFullscreenForTabOrPending() ||
+                        controller->IsExtensionFullscreenOrPending());
+}
+#endif
 
 using DownloadIconActive = DownloadDisplay::IconActive;
 using DownloadIconState = DownloadDisplay::IconState;
@@ -76,8 +87,7 @@ BrowserWindowInterface* FindMostRecentBrowserForProfileMatchingWebApp(
   BrowserWindowInterface* result = nullptr;
   ProfileBrowserCollection::GetForProfile(profile)
       ->ForEach([&](BrowserWindowInterface* browser) {
-        const webapps::AppId* browser_app_id =
-            GetWebAppIdForBrowser(browser->GetBrowserForMigrationOnly());
+        const webapps::AppId* browser_app_id = GetWebAppIdForBrowser(browser);
         bool app_ids_match =
             (!app_id && !browser_app_id) ||
             (app_id && browser_app_id && *app_id == *browser_app_id);
@@ -94,7 +104,7 @@ BrowserWindowInterface* FindMostRecentBrowserForProfileMatchingWebApp(
 
 DownloadDisplayController::DownloadDisplayController(
     DownloadDisplay* display,
-    Browser* browser,
+    BrowserWindowInterface* browser,
     DownloadBubbleUIController* bubble_controller)
     : display_(display),
       browser_(browser),
@@ -118,7 +128,7 @@ void DownloadDisplayController::SetTaskRunnerForTesting(
 }
 
 void DownloadDisplayController::OnNewItem(bool show_animation) {
-  if (!download::ShouldShowDownloadBubble(browser_->profile())) {
+  if (!download::ShouldShowDownloadBubble(browser_->GetProfile())) {
     return;
   }
 
@@ -141,7 +151,7 @@ void DownloadDisplayController::OnNewItem(bool show_animation) {
 
 void DownloadDisplayController::OnUpdatedItem(bool is_done,
                                               bool may_show_details) {
-  if (!download::ShouldShowDownloadBubble(browser_->profile())) {
+  if (!download::ShouldShowDownloadBubble(browser_->GetProfile())) {
     return;
   }
   HandleAccessibleAlerts();
@@ -168,8 +178,7 @@ void DownloadDisplayController::OnUpdatedItem(bool is_done,
   // show the bubble. So, check our fullscreen state here and avoid showing
   // the bubble if we're in content fullscreen.
 #if BUILDFLAG(IS_MAC)
-  will_show_details =
-      will_show_details && !fullscreen_utils::IsInContentFullscreen(browser_);
+  will_show_details = will_show_details && !IsInContentFullscreen(browser_);
 #endif
 
   if (will_show_details) {
@@ -178,7 +187,7 @@ void DownloadDisplayController::OnUpdatedItem(bool is_done,
 }
 
 void DownloadDisplayController::OnRemovedItem(const ContentId& id) {
-  if (!download::ShouldShowDownloadBubble(browser_->profile())) {
+  if (!download::ShouldShowDownloadBubble(browser_->GetProfile())) {
     return;
   }
   UpdateButtonStateFromUpdateService();
@@ -187,7 +196,7 @@ void DownloadDisplayController::OnRemovedItem(const ContentId& id) {
 void DownloadDisplayController::OnButtonPressed() {
   DownloadUIController* download_ui_controller =
       DownloadCoreServiceFactory::GetForBrowserContext(
-          browser_->profile()->GetOriginalProfile())
+          browser_->GetProfile()->GetOriginalProfile())
           ->GetDownloadUIController();
   if (download_ui_controller) {
     download_ui_controller->OnButtonClicked();
@@ -225,9 +234,13 @@ void DownloadDisplayController::HideBubble() {
 }
 
 void DownloadDisplayController::ListenToFullScreenChanges() {
-  observation_.Observe(browser_->GetFeatures()
-                           .exclusive_access_manager()
-                           ->fullscreen_controller());
+  fullscreen_subscription_ =
+      browser_->GetFeatures()
+          .exclusive_access_manager()
+          ->fullscreen_controller()
+          ->RegisterOnFullscreenStateChanged(base::BindRepeating(
+              &DownloadDisplayController::OnFullscreenStateChanged,
+              weak_factory_.GetWeakPtr()));
 }
 
 void DownloadDisplayController::OnFullscreenStateChanged() {
@@ -239,7 +252,7 @@ void DownloadDisplayController::OnFullscreenStateChanged() {
   fullscreen_notification_shown_ = false;
 
   UpdateButtonStateFromUpdateService();
-  if (download::ShouldShowDownloadBubble(browser_->profile()) &&
+  if (download::ShouldShowDownloadBubble(browser_->GetProfile()) &&
       should_show_details_on_exit_fullscreen_) {
     display_->ShowDetails();
     should_show_details_on_exit_fullscreen_ = false;
@@ -333,7 +346,7 @@ void DownloadDisplayController::HandleAccessibleAlerts() {
   // Don't attempt to announce through more than one browser.
   const webapps::AppId* app_id = GetWebAppIdForBrowser(browser_);
   if (browser_ != FindMostRecentBrowserForProfileMatchingWebApp(
-                      browser_->profile(), app_id)) {
+                      browser_->GetProfile(), app_id)) {
     return;
   }
   for (const std::u16string& alert :
@@ -359,7 +372,7 @@ void DownloadDisplayController::ScheduleToolbarInactive(
 }
 
 void DownloadDisplayController::MaybeShowButtonWhenCreated() {
-  if (!download::ShouldShowDownloadBubble(browser_->profile())) {
+  if (!download::ShouldShowDownloadBubble(browser_->GetProfile())) {
     return;
   }
 

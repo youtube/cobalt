@@ -394,11 +394,6 @@ struct trust_token_issuer_st {
 
   // srr_key is the private key used to sign the SRR.
   EVP_PKEY *srr_key;
-
-  // metadata_key is the secret material used to encode the private metadata bit
-  // in the SRR.
-  uint8_t *metadata_key;
-  size_t metadata_key_len;
 };
 
 BSSL_NAMESPACE_BEGIN

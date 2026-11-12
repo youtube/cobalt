@@ -298,12 +298,14 @@ struct COMPONENT_EXPORT(SQL) DatabaseOptions {
     return *this;
   }
 
-  // If true, disables synchronous writes for the WAL. When this option is true,
-  // `PRAGMA synchronous = OFF` is used. Otherwise,
-  // `PRAGMA synchronous = NORMAL` is used. See
-  // https://www.sqlite.org/pragma.html#pragma_synchronous for more details.
-  DatabaseOptions& set_no_sync_on_wal_mode(bool no_sync_on_wal_mode) {
-    no_sync_on_wal_mode_ = no_sync_on_wal_mode;
+  // If true, disables synchronous writes by setting `PRAGMA synchronous = OFF`.
+  // Otherwise:
+  //   - If WAL mode is enabled, `PRAGMA synchronous = NORMAL` is used.
+  //   - If WAL mode is disabled, the synchronous flag is not set, which means
+  //     SQLite uses its default (FULL).
+  // See https://www.sqlite.org/pragma.html#pragma_synchronous for more details.
+  DatabaseOptions& set_no_sync(bool no_sync) {
+    no_sync_ = no_sync;
     return *this;
   }
 
@@ -364,7 +366,7 @@ struct COMPONENT_EXPORT(SQL) DatabaseOptions {
   bool mmap_enabled_ = true;
   bool read_only_ = false;
   bool enable_triggers_ = false;
-  bool no_sync_on_wal_mode_ = false;
+  bool no_sync_ = false;
   base::RepeatingCallback<void(int)> wal_commit_callback_;
 };
 
@@ -906,7 +908,10 @@ class COMPONENT_EXPORT(SQL) Database {
   // the existence of specific files.
   static base::FilePath SharedMemoryFilePath(const base::FilePath& db_path);
 
-  // Internal state accessed by other classes in //sql.
+  // Returns a `WeakPtr` pointing to this Database instance. The `WeakPtr` is
+  // only valid if the database is open: `GetWeakPtr()` returns `nullptr` if
+  // the database isn't open and all `WeakPtr` returned by `GetWeakPtr()` are
+  // invalidated if the database is closed.
   base::WeakPtr<Database> GetWeakPtr(InternalApiToken);
   sqlite3* db(InternalApiToken) const {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -1251,6 +1256,11 @@ class COMPONENT_EXPORT(SQL) Database {
   // When we get to the outermost transaction, this will determine if we do
   // a rollback instead of a commit.
   bool needs_rollback_ GUARDED_BY_CONTEXT(sequence_checker_) = false;
+
+  // IDs for the "COMMIT" and "ROLLBACK" statements. These are created and
+  // cached by `BeginTransaction` and are retrieved and used by `DoRollback`.
+  static constexpr StatementID commit_statement_id_ = SQL_FROM_HERE;
+  static constexpr StatementID rollback_statement_id_ = SQL_FROM_HERE;
 
   // True if database is open with OpenInMemory(), False if database is open
   // with Open().

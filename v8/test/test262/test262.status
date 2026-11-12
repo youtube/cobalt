@@ -1068,14 +1068,7 @@
 # End roll-watcher patch
 ####
 
-####
-# Roll-watcher patch
-[ALWAYS, {
-  'built-ins/TypedArray/prototype/subarray/BigInt/speciesctor-get-species-custom-ctor-invocation': [SKIP],
-  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-custom-ctor-invocation': [SKIP],
-}],
-# End roll-watcher patch
-####
+
 
 ####
 # Roll-watcher patch
@@ -1097,19 +1090,6 @@
   'language/import/import-bytes/bytes-from-json': [SKIP],
   'language/import/import-bytes/bytes-from-png': [SKIP],
   'language/import/import-bytes/bytes-from-txt': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
-  'language/expressions/dynamic-import/import-attributes/2nd-param-with-type-text': [SKIP],
-  'language/import/import-attributes/text-empty': [SKIP],
-  'language/import/import-attributes/text-javascript': [SKIP],
-  'language/import/import-attributes/text-self': [SKIP],
-  'language/import/import-attributes/text-string': [SKIP],
-  'language/import/import-attributes/text-via-namespace': [SKIP],
 }],
 # End roll-watcher patch
 ####
@@ -1155,8 +1135,6 @@
 # Roll-watcher patch
 [ALWAYS, {
   'built-ins/ArrayBuffer/prototype/sliceToImmutable/argument-coercion': [SKIP],
-  'built-ins/Uint8Array/prototype/setFromBase64/throws-when-target-is-backed-by-immutable-arraybuffer': [SKIP],
-  'built-ins/Uint8Array/prototype/setFromHex/throws-when-target-is-backed-by-immutable-arraybuffer': [SKIP],
 }],
 # End roll-watcher patch
 ####

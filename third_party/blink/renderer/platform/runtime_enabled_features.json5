@@ -332,9 +332,15 @@
       },
     },
     // Strip actionability from popup-like content that is positioned offscreen
-    // and cannot be reached by scrolling.
+    // via position:absolute and cannot be reached by scrolling.
     {
-      name: "AIPageContentAnchoredOffscreenNonActionability",
+      name: "AIPageContentAnchoredAbsoluteOffscreenNonActionability",
+      status: "test",
+    },
+    // Strip actionability from popup-like content that is positioned offscreen
+    // via position:fixed and cannot be reached by scrolling.
+    {
+      name: "AIPageContentAnchoredFixedOffscreenNonActionability",
       status: "stable",
     },
     // Whether to automatically build an APC content_extraction tree on load.
@@ -372,10 +378,10 @@
       name: "AIPageContentPaidContentAnnotation",
       status: "stable"
     },
-    // When enabled, certian element coordinates will be tracked using the
+    // When enabled, iframe element coordinates will be tracked using the
     // Element::SetTrackedElementSubRect() method.
     {
-      name: "AIPageContentTrackedElements",
+      name: "AIPageContentTrackedElementsIframe",
       status: "test"
     },
     // Clamp AIPageContent visible bounding boxes to the local-root viewport
@@ -659,12 +665,21 @@
       base_feature: "none",
     },
     {
+      // Gates the returned accuracyMode parameter upon permissions.query({name: "geolocation"})
+      name: "ApproximateGeolocationPermissionAccuracyMode",
+      depends_on: ["ApproximateGeolocationPermission"],
+      status: "experimental",
+    },
+    {
+      // Gates the new permission "geolocation-approximate".
       name: "ApproximateGeolocationPermissionAPI",
+      depends_on: ["ApproximateGeolocationPermission"],
       status: "experimental",
     },
     {
       name: "ApproximateGeolocationWebVisibleAPI",
       depends_on: ["ApproximateGeolocationPermission"],
+      status: "experimental",
     },
     {
       name: "AppTitle",
@@ -739,6 +754,14 @@
       name: "AutoDarkMode",
       base_feature: "none",
       origin_trial_feature_name: "AutoDarkMode",
+    },
+    {
+      // When enabled, the dark mode filter (Auto Dark / force-dark) skips
+      // applying dark mode to images entirely; all images are kept untouched
+      // as if they are in light mode.
+      // P.N. `AutoDarkMode` needs to be applied separately.
+      name: "AutoDarkModeSkipImages",
+      base_feature: "none",
     },
     {
       name: "Autofill",
@@ -840,6 +863,12 @@
       // preventing it from growing in the inline direction.
       name: "BaseAppearanceInlineSizing",
       status: "stable",
+    },
+    {
+      // closest-corner/farthest-corner in circle()/ellipse().
+      // crbug.com/361617757
+      name: "BasicShapeCornerRadius",
+      status: "experimental",
     },
     {
       name: "BidiCaretAffinity",
@@ -1687,17 +1716,6 @@
       status: "experimental",
     },
     {
-      // This flag makes `(-webkit-)line-clamp: <integer>` clamp by both lines
-      // and height if there's also `(max-)height` set on the element.
-      //
-      // In https://github.com/w3c/csswg-drafts/issues/12041 the CSSWG resolved
-      // that the `line-clamp: <integer>` syntax couldn't have that behavior due
-      // to web compat, but we haven't decided on a new syntax for it yet.
-      // Therefore we keep the behavior under this flag for now.
-      name: "CSSLineClampLinesAndHeight",
-      depends_on: ["CSSLineClamp"],
-    },
-    {
       // Implements `counter-increment` and `counter-set` for the non-<li>
       // elements and the reversed ordered lists.
       //
@@ -1744,7 +1762,7 @@
     },
     {
       name: "CSSOverscrollBehaviorChain",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "CSSPaintAPIArguments",
@@ -1981,7 +1999,7 @@
     {
       // crbug.com/417306102
       name: "CssTextFit",
-      status: "experimental",
+      status: "stable",
     },
     {
       // crbug.com/417306102
@@ -2157,7 +2175,7 @@
     },
     {
       name: "DesktopPWAsAdditionalWindowingControls",
-      status: "test",
+      status: "experimental",
     },
     {
       name: "DesktopPWAsAdditionalWindowingControlsOnMove",
@@ -2461,6 +2479,16 @@
       status: "stable",
     },
     {
+      name: "EditingUseDomPositionApi",
+      status: "test",
+    },
+    {
+      // Uses the original event delta to choose the initial elastic overscroll
+      // axis.
+      name: "ElasticOverscrollUseEventDeltaForAxisSelection",
+      status: "stable",
+    },
+    {
       public: true,
       name: "ElementCapture",
       status: {"Android": "experimental", "iOS": "", "default": "stable"},
@@ -2494,8 +2522,11 @@
     {
       name: "EmailVerificationProtocol",
       public: true,
-      status: "test",
+      origin_trial_feature_name: "EmailVerificationProtocol",
+      origin_trial_allows_third_party: true,
+      status: "experimental",
       base_feature: "none",
+      browser_process_read_access: true,
     },
     {
       // crbug.com/420857717
@@ -3243,8 +3274,10 @@
       status: "stable",
     },
     {
-      // Removed status stable due to https://crbug.com/456164629.
+      // Fixed https://crbug.com/456164629, so this will be shipped in M150
+      // and can be removed in M152.
       name: "HitTestBorderRadiusForStackingContext",
+      status: "stable",
     },
     {
       // Use container_transform_state instead of local_transform_state when
@@ -3570,10 +3603,6 @@
       name: "LayoutIgnoreMarginsForSticky",
     },
     {
-      name: "LayoutImageEmptyNaturalSizeBeforeSizeAvailable",
-      status: "stable",
-    },
-    {
       name: "LayoutTableCellAlignmentSafe",
       status: "stable",
     },
@@ -3812,6 +3841,10 @@
       base_feature: "none",
     },
     {
+      name: "MediaElementMutedDefaultState",
+      status: "experimental",
+    },
+    {
       name: "MediaElementVolumeGreaterThanOne",
     },
     // Set to reflect the kMediaEngagementBypassAutoplayPolicies feature.
@@ -3863,6 +3896,10 @@
       status: "experimental",
       base_feature: "none",
       origin_trial_feature_name: "MediaSourceExtensionsForWebCodecs",
+    },
+    {
+      name: "MediaStreamTrackProcessorStats",
+      status: "experimental",
     },
     {
       name: "MediaStreamTrackTransfer",
@@ -3921,11 +3958,11 @@
       status: "stable",
     },
     // ModulePreloadReferrer enables modulepreload to send proper referrer
-    // headers as specified in the HTML spec. Behind a flag for safer rollout.
+    // headers as specified in the HTML spec.
     // https://crbug.com/441933555
     {
       name: "ModulePreloadReferrer",
-      status: "experimental",
+      status: "stable",
     },
     // https://crbug.com/466888680
     {
@@ -4051,6 +4088,14 @@
       // See https://issues.chromium.org/issues/444065314.
       name: "NormalizeNbspForPasteAndDrop",
       status: "stable",
+    },
+    {
+      // Preserve NBSP in plain-text editing contexts. Only normalize NBSP for
+      // paste/drop in rich-text editing contexts.
+      // See https://issues.chromium.org/issues/513279004.
+      name: "NormalizeNbspRichTextOnly",
+      status: "stable",
+      depends_on: ["NormalizeNbspForPasteAndDrop"],
     },
     {
       name: "NotificationConstructor",
@@ -4583,7 +4628,7 @@
     // https://crbug.com/41406914
     {
       name: "ProgrammaticScrollPromise",
-      status: "experimental",
+      status: "stable",
     },
     {
       // When enabled, setting progress.max enforces a >0 constraint.
@@ -4688,8 +4733,9 @@
     {
       // getType() on a ClipboardItem triggers the
       // clipboard read operation, implementing lazy loading for clipboard data.
+      // Chrome status entry - https://chromestatus.com/feature/5203433409871872
       name: "ReadClipboardDataOnClipboardItemGetType",
-      status: "test",
+      status: "stable",
     },
     {
       // Enables correct reading-flow ordering when slots are involved.
@@ -4829,6 +4875,12 @@
       // The renderpriority attribute feature.
       // https://github.com/WICG/display-locking/blob/main/explainers/update-rendering.md
       name: "RenderPriorityAttribute",
+    },
+    {
+      // Kill switch for painting non-SVG replaced normal-flow stacking
+      // contexts inline with their siblings.
+      name: "ReplacedNormalFlowStackingInlinePaint",
+      status: "stable",
     },
     {
       name: "ReportFirstFrameTimeAsRenderTime",
@@ -5050,6 +5102,11 @@
       // ComputeUniqueSelector()
       name: "ScrollAnchorSerializationUseParentForTextNode",
       status: "stable",
+    },
+    {
+      // https://crbug.com/479472367
+      name: "ScrollAxisLock",
+      status: "experimental",
     },
     {
       name: "ScrollbarColor",
@@ -5722,10 +5779,6 @@
       status: "stable",
     },
     {
-      name: "SvgTransformOnNestedSvgElement",
-      status: "stable",
-    },
-    {
       name: "SvgUseNestedResourceDocuments",
       status: "stable",
     },
@@ -5859,6 +5912,10 @@
     },
     {
       name: "TextAreaScrollTopPreview",
+      status: "stable",
+    },
+    {
+      name: "TextBoxTrimForNestedList",
       status: "stable",
     },
     {
@@ -6117,6 +6174,13 @@
     {
       // The Unbounded Element API. See crbug.com/508672616.
       name: "UnboundedElement",
+      status: "test",
+      implied_by: ["UnboundedElementOnTheOpenWeb"],
+    },
+    {
+      // The Unbounded Element API. See crbug.com/508672616.
+      // Enable Unbounded Element on the open web without privileged context.
+      name: "UnboundedElementOnTheOpenWeb",
       status: "test",
     },
     {
@@ -6466,6 +6530,10 @@
       origin_trial_os: ["android"],
       origin_trial_allows_third_party: true,
     },
+    {
+      name: "WebAuthenticationCmtgKey",
+      status: "experimental",
+    },
     // Enables `uiMode` enumeration field in CredentialRequestOptions struct.
     // and `get()` requests with `uiMode: 'immediate'`.
     // See https://github.com/w3c/webauthn/issues/2228.
@@ -6731,6 +6799,11 @@
       name: "WebTransportCustomCertificates",
       origin_trial_feature_name: "WebTransportCustomCertificates",
       status: "stable",
+      base_feature: "none",
+    },
+    {
+      name: "WebTransportReceiveStream",
+      status: "experimental",
       base_feature: "none",
     },
     {

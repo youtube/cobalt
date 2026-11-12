@@ -5,11 +5,12 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_CROWDSOURCING_RANDOMIZED_ENCODER_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_CROWDSOURCING_RANDOMIZED_ENCODER_H_
 
+#include <stddef.h>
+
 #include <optional>
 #include <string>
 #include <string_view>
 
-#include "base/memory/raw_ptr.h"
 #include "components/autofill/core/browser/proto/server.pb.h"
 #include "components/autofill/core/common/signatures.h"
 

@@ -96,6 +96,12 @@ class PageContext;
 // Whether to show the Gemini image remix in-product help in the Floaty.
 @property(nonatomic, assign) BOOL imageRemixIPHShouldShow;
 
+// Whether to show the Gemini Live onboarding in-product help.
+@property(nonatomic, assign) BOOL geminiLiveIPHShouldShow;
+
+// Whether to show the Gemini Live "new" badge.
+@property(nonatomic, assign) BOOL geminiLiveNewBadgeShouldShow;
+
 // The initial bottom offset of the floaty.
 @property(nonatomic, assign) CGFloat initialBottomOffset;
 
@@ -105,6 +111,9 @@ class PageContext;
 
 // The entry point where the floaty was triggered from.
 @property(nonatomic, assign) gemini::EntryPoint entryPoint;
+
+// Whether the account requires capability-based restriction.
+@property(nonatomic, assign) BOOL needsAccountCapabilityRestriction;
 
 @end
 

@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "ash/webui/boca_ui/mojom/boca.mojom-shared.h"
 #include "ash/webui/boca_ui/mojom/boca.mojom.h"
 #include "ash/webui/boca_ui/provider/classroom_page_handler_impl.h"
 #include "ash/webui/boca_ui/provider/content_settings_handler.h"
@@ -43,6 +44,7 @@ namespace ash::boca {
 
 class StudentScreenPresenter;
 class TeacherScreenPresenter;
+class GeminiStatusFetcher;
 
 // TODO(crbug.com/399923859): Remove `mojom::Page` implementation.
 class BocaAppHandler : public mojom::PageHandler,
@@ -55,8 +57,10 @@ class BocaAppHandler : public mojom::PageHandler,
       content::WebUI* webui,
       std::unique_ptr<ClassroomPageHandlerImpl> classroom_client_impl,
       std::unique_ptr<ContentSettingsHandler> content_settings_handler,
+      std::unique_ptr<TabInfoCollector> tab_info_collector,
       OnTaskSystemWebAppManager* system_web_app_manager,
       SessionClientImpl* session_client_impl,
+      std::unique_ptr<GeminiStatusFetcher> gemini_status_fetcher,
       bool is_producer);
 
   BocaAppHandler(const BocaAppHandler&) = delete;
@@ -130,6 +134,7 @@ class BocaAppHandler : public mojom::PageHandler,
                         PresentOwnScreenCallback callback) override;
   void StopPresentingOwnScreen(
       StopPresentingOwnScreenCallback callback) override;
+  void GetGeminiStatus(GetGeminiStatusCallback callback) override;
 
   // mojom::Page:
   void OnStudentActivityUpdated(
@@ -289,10 +294,12 @@ class BocaAppHandler : public mojom::PageHandler,
   TeacherScreenPresenter* teacher_screen_presenter();
   StudentScreenPresenter* student_screen_presenter();
 
+  std::optional<mojom::UrlType> GetTabUrlType(int32_t tab_id);
+
   SEQUENCE_CHECKER(sequence_checker_);
   const bool is_producer_;
   std::string base_url_;
-  TabInfoCollector tab_info_collector_;
+  const std::unique_ptr<TabInfoCollector> tab_info_collector_;
   std::unique_ptr<ClassroomPageHandlerImpl> class_room_page_handler_;
   const std::unique_ptr<ContentSettingsHandler> content_settings_handler_;
   // Update session requests should run in sequence to avoid race conditions
@@ -312,6 +319,7 @@ class BocaAppHandler : public mojom::PageHandler,
   raw_ptr<PrefService> pref_service_;
   mojom::CaptionConfigPtr producer_current_session_caption_config_;
   raw_ptr<BocaSessionManager> session_manager_;
+  std::unique_ptr<GeminiStatusFetcher> gemini_status_fetcher_;
   base::WeakPtrFactory<BocaAppHandler> weak_ptr_factory_{this};
 };
 

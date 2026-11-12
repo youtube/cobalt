@@ -878,7 +878,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
   }
   OpIndex AssembleOutputGraphCall(const CallOp& op) {
     V<CallTarget> callee = MapToNewGraph(op.callee());
-    OptionalV<FrameState> frame_state = MapToNewGraph(op.frame_state());
+    OptionalV<LazyFrameState> frame_state = MapToNewGraph(op.frame_state());
     auto arguments = MapToNewGraph<16>(op.arguments());
     return Asm().ReduceCall(callee, frame_state, base::VectorOf(arguments),
                             op.descriptor, op.Effects());
@@ -920,6 +920,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
         // handler or both, so the catch block may be empty.
         catch_scope.emplace(Asm(), MapToNewGraph(op.catch_block));
       }
+#if V8_ENABLE_WEBASSEMBLY
       if (!op.effect_handlers.empty()) {
         // Similar logic as the catch scope, but effect handlers cannot be
         // nested, so just set it and clear it after the reduction.
@@ -931,6 +932,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
                     op.effect_handlers.size());
         for (int i = 0; i < op.effect_handlers.length(); ++i) {
           output_handlers[i].tag_and_kind = op.effect_handlers[i].tag_and_kind;
+          output_handlers[i].sig = op.effect_handlers[i].sig;
           if (!op.effect_handlers[i].is_switch()) {
             output_handlers[i].block =
                 MapToNewGraph(op.effect_handlers[i].block);
@@ -940,6 +942,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
         }
         Asm().set_effect_handlers_for_next_call(output_handlers);
       }
+#endif
       DCHECK(Asm().input_graph().Get(*it).template Is<DidntThrowOp>());
       if (!Asm().InlineOp(*it, op.didnt_throw_block)) {
         Asm().clear_effect_handlers();

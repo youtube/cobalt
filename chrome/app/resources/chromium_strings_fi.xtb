@@ -584,7 +584,6 @@ Uusia kirjanmerkkejä ei voi tallentaa tilillesi, ennen kuin poistat joitakin. J
 <translation id="7318036098707714271">Asetustiedostosi on virheellinen.
 
 Chromium ei voi palauttaa asetuksiasi.</translation>
-<translation id="7339898014177206373">Uusi ikkuna</translation>
 <translation id="734373864078049451">Tämä on verkkosi, kirjanmerkkiesi ja muun Chromium-sisältösi koti.</translation>
 <translation id="7347827960336370838">Salattua dataa voi lukea vain tunnuslauseen avulla. Tunnuslausetta ei lähetetä Googlelle eikä Google tallenna sitä. Jos unohdat tunnuslauseen tai haluat muuttaa asetusta, sinun on <ph name="BEGIN_LINK" />poistettava tilin Chromium-data<ph name="END_LINK" />.</translation>
 <translation id="7349591376906416160">Järjestelmänvalvojasi on määrittänyt Chromiumin avaamaan osoitteen <ph name="TARGET_URL_HOSTNAME" /> selaimella <ph name="ALTERNATIVE_BROWSER_NAME" />.</translation>
@@ -593,6 +592,7 @@ Chromium ei voi palauttaa asetuksiasi.</translation>
 <translation id="7376384068949534168">Sivustot, joilla et ole käynyt viime aikoina. Chromium poisti nämä luvat: <ph name="PERMISSION_1" /> ja <ph name="PERMISSION_2" />.</translation>
 <translation id="73786666777299047">Avaa Chrome Web Store</translation>
 <translation id="7384121030444253939">Tätä laajennusta ei enää tueta. Chromium suosittelee sen poistamista.</translation>
+<translation id="7407655596887111931">Chromium on nyt oletusselain</translation>
 <translation id="7413153308467572558">Jatka siitä, mihin jäit: Chromium palauttaa välilehdet aina, kun käynnistät sen uudelleen. Voit laittaa asetuksen pois päältä täältä:</translation>
 <translation id="7427879960656355200">Tuo salasanoja Chromiumiin</translation>
 <translation id="744815265653811511">1. Klikkaa <ph name="BUTTON_LABEL" /> alta
@@ -734,6 +734,7 @@ Chromium ei voi palauttaa asetuksiasi.</translation>
 <translation id="8981150672034878610">Chromiumia ei voi käynnistää, koska jotain meni pieleen profiilia avattaessa. Kokeile käynnistää Chromium uudelleen.</translation>
 <translation id="8988036198400390003">Ylläpidä Chromium-profiileja</translation>
 <translation id="9019929317751753759">Paransimme Chromiumin turvallisuutta poistamalla käytöstä sovelluksia, joita <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> ei tarjoa ja jotka on voitu lisätä ilman lupaasi.</translation>
+<translation id="9022552996538154597">Kirjaudu sisään Chromiumiin</translation>
 <translation id="904366664621834601">Chromium on estänyt tämän latauksen, koska arkistotiedosto sisältää muita tiedostoja, jotka voivat piilottaa haittaohjelmia</translation>
 <translation id="9053882453960391422">Pidä salasanat, kirjanmerkit ja historia synkronoituina kaikilla laitteilla. Päivitä oletusselaimeksi Chromium, niin saat tutut ominaisuudet helposti käyttöösi. Chromium kiinnitetään tehtäväpalkkiin, jotta voit käyttää sitä nopeasti.</translation>
 <translation id="9062666675513499497">Kirjaudu Chromiumiin, kun kirjaudut muihin Googlen palveluihin</translation>

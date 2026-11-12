@@ -127,7 +127,6 @@ struct WebPreferences {
   int32 minimum_font_size;
   int32 minimum_logical_font_size;
   string default_encoding;
-  bool always_show_context_menu_on_touch;
   bool context_menu_on_mouse_up;
   bool javascript_enabled;
   bool web_security_enabled;
@@ -148,6 +147,8 @@ struct WebPreferences {
   // Preference to save data. When enabled, requests will contain the header
   // 'Save-Data: on'.
   bool data_saver_enabled;
+  bool battery_saver_enabled;
+  bool preloading_disabled;
   bool local_storage_enabled;
   bool tabs_to_links;
   bool disable_ipc_flooding_protection;

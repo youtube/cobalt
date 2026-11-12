@@ -227,6 +227,7 @@
 <translation id="3242123554343253302">‏إضافة ملف شخصي على Chrome</translation>
 <translation id="3245429137663807393">‏في حال شاركت أيضًا تقارير استخدام Chrome، ستتضمّن عناوين URL التي تنتقل إليها.</translation>
 <translation id="3259748324892322072">‏تنزيل تطبيق Chrome</translation>
+<translation id="3282568296779691940">‏تسجيل الدخول إلى Chrome</translation>
 <translation id="3286538390144397061">إعادة التشغيل الآن</translation>
 <translation id="3292333338048274092">‏بعد ذلك، عليك إعادة تشغيل Chrome.</translation>
 <translation id="3324218984287646518">‏طرح أسئلة حول هذا الفيديو باستخدام "عدسة Google"</translation>
@@ -330,6 +331,7 @@
 <translation id="4348548358339558429">‏للحصول على خيارات مخصَّصة، يمكنك تضمين متصفّح Chrome في "النشاط على الويب وفي التطبيقات"</translation>
 <translation id="436060642166082913">‏حَظَر Chrome عملية التنزيل هذه لأنّ الملف يمكن أن يضرّ حساباتك الشخصية وحساباتك على شبكات التواصل الاجتماعي</translation>
 <translation id="4367027658822022112">‏يمكنك تثبيت ميزة "عدسة Google" للوصول إليها بسهولة من خلال النقر على الزر "تثبيت" في أعلى اللوحة الجانبية</translation>
+<translation id="4372389195695053189">‏أصبح Chrome الآن متصفّحك التلقائي</translation>
 <translation id="4389991535395284064">‏سيحذرك Chrome قبل تحميل موقع إلكتروني يستخدم اتصالاً غير آمن عند التصفّح في "وضع التصفّح المتخفي".</translation>
 <translation id="4427306783828095590">يؤدي تفعيل إعداد "الحماية المُحسَّنة" إلى حظر التصيّد الاحتيالي والبرامج الضارّة.</translation>
 <translation id="4434353761996769206">خطأ في أداة التثبيت: <ph name="INSTALLER_ERROR" /></translation>
@@ -613,7 +615,6 @@
 <translation id="7302361266603927550">‏لم يتم حفظ بعض بيانات Chrome في حسابك على Google إلى الآن. يُرجى الانتظار بضع دقائق قبل تسجيل الخروج. إذا سجّلت الخروج الآن، فسيتم حذف هذه البيانات.</translation>
 <translation id="7306401458628386911">‏بدء التصفّح على الفور: يمكن الآن فتح Chrome تلقائيًا عند بدء تشغيل Windows.</translation>
 <translation id="7308322188646931570">‏يحتاج Chrome للوصول إلى مساحة التخزين لتنزيل الملفات.</translation>
-<translation id="7339898014177206373">نافذة جديدة</translation>
 <translation id="7352651011704765696">حدث خطأ</translation>
 <translation id="73786666777299047">‏فتح سوق Chrome الإلكتروني</translation>
 <translation id="7386878009611068389">‏للحفاظ على أمانك على الإنترنت من خلال خيارات أحد والدَيك، انتقِل إلى ملفك الشخصي على Chrome الذي سجّلت الدخول إليه من قبل باستخدام الحساب <ph name="USER_EMAIL_ADDRESS" /></translation>
@@ -726,7 +727,7 @@
 <translation id="835927394551949760">‏طرح أسئلة على Google</translation>
 <translation id="8362914115861174987">الترجمة إلى</translation>
 <translation id="8366770919198174997">‏يقلِّل هذا الخيار من مستوى الأداء ويعزِّز من مقاومة Chrome للهجمات</translation>
-<translation id="8367705492654390392">البحث عن أي شيء</translation>
+<translation id="8367705492654390392">يمكنك طرح أي سؤال</translation>
 <translation id="8370517070665726704">‏حقوق الطبع والنشر لعام <ph name="YEAR" /> لشركة Google LLC. جميع الحقوق محفوظة.</translation>
 <translation id="8377158135256176353">‏تفعيل Gemini في Chrome Canary أو إيقافه</translation>
 <translation id="8387459386171870978">‏مواصلة استخدام Chrome</translation>

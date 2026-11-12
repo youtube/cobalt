@@ -141,10 +141,13 @@ class MockView : public IsolatedWebAppInstallerView {
   MOCK_METHOD(void, ShowDisabledScreen, (), (override));
   MOCK_METHOD(void, ShowGetMetadataScreen, (), (override));
   MOCK_METHOD(void, UpdateGetMetadataProgress, (double progress), (override));
-  MOCK_METHOD(void,
-              ShowMetadataScreen,
-              (const SignedWebBundleMetadata& bundle_metadata),
-              (override));
+  MOCK_METHOD(
+      void,
+      ShowMetadataScreen,
+      (const SignedWebBundleMetadata& bundle_metadata,
+       const std::vector<UpdateManifest::ChannelMetadata>& available_channels),
+      (override));
+
   MOCK_METHOD(void,
               ShowInstallScreen,
               (const SignedWebBundleMetadata& bundle_metadata),
@@ -282,7 +285,8 @@ TEST_F(IsolatedWebAppInstallerViewControllerTest,
   EXPECT_CALL(view, ShowGetMetadataScreen());
   EXPECT_CALL(
       view, ShowMetadataScreen(WithMetadata("hoealecpbefphiclhampllbdbdpfmfpi",
-                                            u"test app name", "7.7.7")));
+                                            u"test app name", "7.7.7"),
+                               _));
 
   controller.Start(base::DoNothing(), base::DoNothing());
 
@@ -465,6 +469,9 @@ TEST_F(IsolatedWebAppInstallerViewControllerTest,
 }
 
 TEST_F(IsolatedWebAppInstallerViewControllerTest, CanLaunchAppAfterInstall) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitFromCommandLine("IwaUpdateChannelsInInstaller", "");
+
   base::FilePath bundle_path = CreateBundlePath("test_bundle.swbn");
   IsolatedWebAppUrlInfo url_info = CreateAndWriteTestBundle(bundle_path, "1.0");
   MockIconAndPageState(url_info, "1.0");
@@ -571,6 +578,72 @@ TEST_F(IsolatedWebAppInstallerViewControllerTest,
       Step::kGetMetadata);
 }
 
+TEST_F(IsolatedWebAppInstallerViewControllerTest,
+       SetsDefaultChannelWhenNoUpdateManifestUrl) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitFromCommandLine("IwaUpdateChannelsInInstaller", "");
+
+  base::FilePath bundle_path = CreateBundlePath("test_bundle.swbn");
+
+  // Create a standard test bundle. By default, this does not have an
+  // update_manifest_url configured in the ManifestBuilder.
+  IsolatedWebAppUrlInfo url_info = CreateAndWriteTestBundle(bundle_path, "1.0");
+  MockIconAndPageState(url_info);
+
+  IsolatedWebAppInstallerModel model{IwaSourceBundleProdMode(bundle_path)};
+  IsolatedWebAppInstallerViewController controller(profile(), fake_provider(),
+                                                   &model);
+  testing::StrictMock<MockView> view;
+  controller.SetViewForTesting(&view);
+
+  EXPECT_CALL(view, UpdateGetMetadataProgress(_)).Times(AnyNumber());
+  EXPECT_CALL(view, ShowGetMetadataScreen());
+  EXPECT_CALL(view, ShowMetadataScreen(_, _));
+
+  controller.Start(base::DoNothing(), base::DoNothing());
+
+  // Wait for the installability check to finish and transition to the metadata
+  // screen.
+  TestIsolatedWebAppInstallerModelObserver(&model).WaitForStepChange(
+      Step::kShowMetadata);
+
+  // Verify the fallback logic: There should be exactly 1 channel, and it must
+  // be "default".
+  const std::vector<UpdateManifest::ChannelMetadata>& channels =
+      model.available_channels();
+  ASSERT_EQ(channels.size(), 1u);
+  EXPECT_EQ(channels[0].channel().ToString(), "default");
+}
+
+TEST_F(IsolatedWebAppInstallerViewControllerTest,
+       ChannelsEmptyWhenFeatureDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(kIwaUpdateChannelsInInstaller);
+
+  base::FilePath bundle_path = CreateBundlePath("test_bundle.swbn");
+  IsolatedWebAppUrlInfo url_info = CreateAndWriteTestBundle(bundle_path, "1.0");
+  MockIconAndPageState(url_info);
+
+  IsolatedWebAppInstallerModel model{IwaSourceBundleProdMode(bundle_path)};
+  IsolatedWebAppInstallerViewController controller(profile(), fake_provider(),
+                                                   &model);
+  testing::StrictMock<MockView> view;
+  controller.SetViewForTesting(&view);
+
+  EXPECT_CALL(view, UpdateGetMetadataProgress(_)).Times(AnyNumber());
+  EXPECT_CALL(view, ShowGetMetadataScreen());
+  EXPECT_CALL(view, ShowMetadataScreen(_, _));
+
+  controller.Start(base::DoNothing(), base::DoNothing());
+
+  TestIsolatedWebAppInstallerModelObserver(&model).WaitForStepChange(
+      Step::kShowMetadata);
+
+  const std::vector<UpdateManifest::ChannelMetadata>& channels =
+      model.available_channels();
+  EXPECT_TRUE(channels.empty());
+}
+
 #if BUILDFLAG(IS_CHROMEOS)
 
 TEST_F(IsolatedWebAppInstallerViewControllerTest,
@@ -618,7 +691,8 @@ TEST_F(IsolatedWebAppInstallerViewControllerTest,
   EXPECT_CALL(view, ShowGetMetadataScreen());
   EXPECT_CALL(
       view, ShowMetadataScreen(WithMetadata("hoealecpbefphiclhampllbdbdpfmfpi",
-                                            u"test app name", "7.7.7")));
+                                            u"test app name", "7.7.7"),
+                               _));
 
   controller.Start(base::DoNothing(), base::DoNothing());
 
@@ -659,7 +733,8 @@ TEST_F(IsolatedWebAppInstallerViewControllerTest,
   EXPECT_CALL(view, ShowGetMetadataScreen());
   EXPECT_CALL(
       view, ShowMetadataScreen(WithMetadata("hoealecpbefphiclhampllbdbdpfmfpi",
-                                            u"test app name", "7.7.7")));
+                                            u"test app name", "7.7.7"),
+                               _));
 
   profile()->GetPrefs()->SetBoolean(ash::prefs::kIsolatedWebAppsEnabled, true);
 
@@ -732,5 +807,6 @@ TEST_F(IsolatedWebAppInstallerViewControllerTest, DisabledViewAccessibility) {
   // Prevent dangling pointer (the view is destroyed first)
   controller.SetViewForTesting(nullptr);
 }
+
 #endif  // BUILDFLAG(IS_CHROMEOS)
 }  // namespace web_app

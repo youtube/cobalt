@@ -219,8 +219,7 @@ BASE_FEATURE(kSlimDirectReceiverIpc, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kOverscrollEffectOnNonRootScrollers,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kSkipFinishDuringReleaseLayerTreeFrameSink,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kSnapFlingNearExtremes, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kScrollJankV4Metric, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -271,6 +270,13 @@ BASE_FEATURE(kSelectionEdgeVisibilityUsesFullEdge,
 
 BASE_FEATURE(kResourcePoolPreferExactSizeReuse,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Killswitch for disabling SendEarlyBeginMainFrame function in cc/scheduler.
+BASE_FEATURE(kSendEarlyFinalBeginMainFrame, base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool SendEarlyFinalBeginMainFrameIsEnabled() {
+  return base::FeatureList::IsEnabled(kSendEarlyFinalBeginMainFrame);
+}
 
 #if BUILDFLAG(IS_COBALT)
 BASE_FEATURE(kCobaltTileMemoryMetrics,

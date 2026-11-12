@@ -3,14 +3,8 @@
   "direct": [
     {
       "build_file": "//bazel/external/dawn:BUILD.bazel",
-      "commit": "294c85cfb313808261ebc2ed183fb938f5376d0d",
+      "commit": "a4511bd8cfb9ce22b75042b55f94fb1fa19fb221",
       "name": "dawn",
-      "patch_args": [
-        "-p1"
-      ],
-      "patches": [
-        "//bazel/external/dawn:fix_tint_conditional_deps.patch"
-      ],
       "remote": "https://dawn.googlesource.com/dawn.git"
     },
     {
@@ -186,12 +180,12 @@
       "remote": "https://chromium.googlesource.com/external/github.com/KhronosGroup/SPIRV-Cross"
     },
     {
-      "commit": "98c842bd561ac67c5ff98d599c8c960ba9edb7fd",
+      "commit": "82dfca37143878c848d8df1f9e4d746f65e6827e",
       "name": "spirv_headers",
       "remote": "https://skia.googlesource.com/external/github.com/KhronosGroup/SPIRV-Headers.git"
     },
     {
-      "commit": "0bb521870594a00a7079381e119da2b4e1a2f859",
+      "commit": "83876d92207829cc16f1c93d7354ee376d9c8241",
       "name": "spirv_tools",
       "remote": "https://skia.googlesource.com/external/github.com/KhronosGroup/SPIRV-Tools.git"
     },
@@ -239,7 +233,7 @@
       "remote": "https://skia.googlesource.com/external/github.com/google/brotli.git"
     },
     {
-      "commit": "204ad6277cf961a6551b437e9c32ac3c528a3649",
+      "commit": "5c3e051186c88b1e7ee66750eda59096a51abc73",
       "name": "abseil_cpp",
       "remote": "https://chromium.googlesource.com/chromium/src/third_party/abseil-cpp"
     },

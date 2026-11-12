@@ -144,6 +144,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   DirectHandle<Hole> NewHole();
 
+  JSDispatchHandle NewJSDispatchHandle(uint16_t parameter_count,
+                                       DirectHandle<Code> code,
+                                       JSDispatchTable::Space* space);
+
   // Allocates a property array initialized with undefined values.
   DirectHandle<PropertyArray> NewPropertyArray(
       uint32_t length, AllocationType allocation = AllocationType::kYoung);
@@ -866,7 +870,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       wasm::Promise promise);
   DirectHandle<WasmImportData> NewWasmImportData(
       DirectHandle<HeapObject> callable, wasm::Suspend suspend,
-      MaybeDirectHandle<WasmTrustedInstanceData> instance_data,
+      MaybeDirectHandle<WasmTrustedInstanceData> importing_instance_data,
       const wasm::CanonicalSig* sig, SharedFlag shared);
   DirectHandle<WasmImportData> NewWasmImportData(
       DirectHandle<WasmImportData> ref, SharedFlag shared);

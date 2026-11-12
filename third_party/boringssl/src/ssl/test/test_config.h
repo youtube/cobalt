@@ -110,6 +110,8 @@ struct TestConfig {
   bool enable_channel_id = false;
   std::string send_channel_id;
   bool shim_writes_first = false;
+  std::string shim_initial_write = "hello";
+  int repeat_shim_initial_write = 1;
   std::string host_name;
   std::string advertise_alpn;
   std::string expect_alpn;

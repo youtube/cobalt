@@ -1620,12 +1620,14 @@ void BytecodeGenerator::AllocateDeferredConstants(IsolateT* isolate,
   for (std::pair<Call*, Scope*> call : eval_calls_) {
     Tagged<ScopeInfo> current;
     int index = call.first->eval_scope_info_index();
-    if (script->infos()->get(index).GetHeapObjectIfWeak(&current) &&
+    if (script->infos()
+            ->get(index, kAcquireLoad)
+            .GetHeapObjectIfWeak(&current) &&
         v8_flags.reuse_scope_infos) {
       CHECK_EQ(current, *call.second->scope_info());
     } else {
       script->infos()->set(call.first->eval_scope_info_index(),
-                           MakeWeak(*call.second->scope_info()));
+                           MakeWeak(*call.second->scope_info()), kReleaseStore);
     }
   }
 
@@ -3386,6 +3388,7 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
           if (v8_flags.for_of_optimization &&
               iterator.type() != IteratorType::kAsync) {
             FeedbackSlot call_slot = feedback_spec()->AddCallICSlot();
+            feedback_spec()->AddLoadICSlot();  // iterated_object_slot
             feedback_spec()->AddLoadICSlot();  // value_slot
             feedback_spec()->AddLoadICSlot();  // done_slot
 

@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "api/audio/audio_frame.h"
 #include "api/audio/audio_mixer.h"
@@ -96,8 +97,8 @@ std::unique_ptr<voe::ChannelReceiveInterface> CreateChannelReceive(
 
 AudioReceiveStreamImpl::AudioReceiveStreamImpl(
     const Environment& env,
-    PacketRouter* packet_router,
-    NetEqFactory* neteq_factory,
+    PacketRouter* absl_nonnull packet_router,
+    NetEqFactory* absl_nullable neteq_factory,
     const AudioReceiveStreamInterface::Config& config,
     const scoped_refptr<AudioState>& audio_state)
     : AudioReceiveStreamImpl(
@@ -110,10 +111,10 @@ AudioReceiveStreamImpl::AudioReceiveStreamImpl(
 
 AudioReceiveStreamImpl::AudioReceiveStreamImpl(
     const Environment& env,
-    PacketRouter* packet_router,
+    PacketRouter* absl_nonnull packet_router,
     const AudioReceiveStreamInterface::Config& config,
     const scoped_refptr<AudioState>& audio_state,
-    std::unique_ptr<voe::ChannelReceiveInterface> channel_receive)
+    absl_nonnull std::unique_ptr<voe::ChannelReceiveInterface> channel_receive)
     : env_(env),
       config_(config),
       audio_state_(audio_state),

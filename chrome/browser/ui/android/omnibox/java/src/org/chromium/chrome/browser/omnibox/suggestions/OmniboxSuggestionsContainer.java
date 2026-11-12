@@ -15,8 +15,6 @@ import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
 import android.widget.FrameLayout;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Callback;
@@ -25,12 +23,13 @@ import org.chromium.base.metrics.TimingMetric;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.OmniboxMetrics;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.suggestions.OmniboxSuggestionsDropdownEmbedder.OmniboxAlignment;
 import org.chromium.chrome.browser.omnibox.suggestions.base.BaseSuggestionViewBinder;
 import org.chromium.components.browser_ui.widget.RoundedCornerOutlineProvider;
-import org.chromium.components.omnibox.OmniboxFeatures;
+import org.chromium.components.omnibox.OmniboxCapabilities;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.ViewUtils;
@@ -52,7 +51,7 @@ public class OmniboxSuggestionsContainer extends FrameLayout {
     private final Callback<OmniboxAlignment> mOmniboxAlignmentObserver =
             this::onOmniboxAlignmentChanged;
 
-    public OmniboxSuggestionsContainer(@NonNull Context context, @Nullable AttributeSet attrs) {
+    public OmniboxSuggestionsContainer(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
     }
 
@@ -229,7 +228,7 @@ public class OmniboxSuggestionsContainer extends FrameLayout {
             mEmbedder.removeAlignmentObserver(mOmniboxAlignmentObserver);
         }
 
-        if (!OmniboxFeatures.shouldPreWarmRecyclerViewPool()) {
+        if (!OmniboxCapabilities.shouldPreWarmRecyclerViewPool()) {
             mDropdown.getRecycledViewPool().clear();
         }
     }
@@ -295,5 +294,10 @@ public class OmniboxSuggestionsContainer extends FrameLayout {
     @VisibleForTesting
     void setSuggestionsDropdownForTest(OmniboxSuggestionsDropdown dropdown) {
         mDropdown = dropdown;
+    }
+
+    public OmniboxSuggestionsDropdown takeDropdownView() {
+        removeView(mDropdown);
+        return mDropdown;
     }
 }

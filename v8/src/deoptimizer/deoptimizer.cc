@@ -996,24 +996,6 @@ CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
   wasm::ForDebugging for_debugging = v8_flags.wasm_code_coverage
                                          ? wasm::ForDebugging::kForDebugging
                                          : wasm::ForDebugging::kNotForDebugging;
-  if (V8_UNLIKELY(v8_flags.wasm_lazy_validation &&
-                  !env.module->function_was_validated(function_index))) {
-    // This can only happen for inlined functions whose caller was deserialized
-    // from a code cache. Example: A statically calls B, B dynamically calls C,
-    // B was inlined into A (and had no standalone code), A was restored from
-    // cache, the call to C causes a deopt. In that case, the deserializer will
-    // mark A as validated, but it won't know anything about B. When we deopt,
-    // we need to compile code for B here. B must have been validated before
-    // (in the instance that created the code cache), so this can't fail.
-    wasm::WasmDetectedFeatures unused_detected_features;
-    Zone validation_zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME);
-    wasm::DecodeResult validation_result =
-        ValidateFunctionBody(&validation_zone, env.enabled_features, env.module,
-                             &unused_detected_features, body);
-    CHECK_WITH_MSG(validation_result.ok(),
-                   validation_result.error().message().c_str());
-    env.module->set_function_validated(function_index);
-  }
   wasm::WasmCompilationResult result = ExecuteLiftoffCompilation(
       &env, body,
       wasm::LiftoffOptions{.func_index = function_index,
@@ -2044,12 +2026,15 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   {
     AllowSandboxAccess sandbox_access(
         "Fetching DebugBytecodeArray via SFI. This is probably unsafe but we "
-        "only do it when debugging is enabled. See the TODO below");
+        "only do it when debugging is enabled. Just in case the defence in "
+        "depth checks below should protect against swaps.");
     std::optional<Tagged<DebugInfo>> debug_info =
         translated_frame->raw_shared_info()->TryGetDebugInfo(isolate());
     if (debug_info.has_value() && debug_info.value()->HasBreakInfo()) {
-      // TODO(leszeks): Validate this bytecode.
       bytecode_array = debug_info.value()->DebugBytecodeArray(isolate());
+      // Defence-in-depth in case bytecode is swapped.
+      SBXCHECK_EQ(bytecode_array->parameter_count(), parameters_count);
+      SBXCHECK_EQ(bytecode_array->register_count(), locals_count);
     }
   }
 

@@ -2,23 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// <if expr="not is_android">
+// <if expr="not is_android or enable_webui_contextual_tasks_composebox">
 import './composebox.js';
+
+import type {ContextualTasksComposeboxElement} from './composebox.js';
+// </if>
+// <if expr="is_android and not enable_webui_contextual_tasks_composebox">
+// ContextualTasksComposeboxElement is not compiled on standard Android.
+type ContextualTasksComposeboxElement = any;
+// </if>
+
+// <if expr="not is_android">
+// TODO(crbug.com/511383725): Support onboarding tooltip on Android.
 import './onboarding_tooltip.js';
+import './banner_promo.js';
 import '//resources/cr_components/composebox/contextual_entrypoint_and_menu.js';
+import '//resources/cr_elements/cr_button/cr_button.js';
 
 import type {ContextualActionMenuElement} from '//resources/cr_components/composebox/contextual_action_menu.js';
 import type {ContextualEntrypointAndMenuElement} from '//resources/cr_components/composebox/contextual_entrypoint_and_menu.js';
 import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
 
-import type {ContextualTasksComposeboxElement} from './composebox.js';
 import type {ContextualTasksOnboardingTooltipElement} from './onboarding_tooltip.js';
 // </if>
 
-// <if expr="is_android">
-// ContextualTasksComposeboxElement is not compiled on Android.
-type ContextualTasksComposeboxElement = any;
-// </if>
 
 import './error_dialog.js';
 import './error_page.js';
@@ -45,6 +52,9 @@ import {PostMessageHandler} from './post_message_handler.js';
 import type {Rect} from './post_message_handler.js';
 import {getNonOccludedClipPath} from './utils/clip_path.js';
 import {recordAction} from './utils.js';
+// <if expr="not is_android">
+import {WindowManager} from './window_manager.js';
+// </if>
 
 declare global {
   interface HTMLElementEventMap {
@@ -91,8 +101,14 @@ export interface ContextualTasksAppElement {
     composeboxHeader: HTMLElement,
     flexCenterContainer: HTMLElement,
     nameShimmer: HTMLElement,
-    // <if expr="not is_android">
+    // <if expr="not is_android or enable_webui_contextual_tasks_composebox">
     composebox: ContextualTasksComposeboxElement,
+    // </if>
+    // <if expr="is_android and not enable_webui_contextual_tasks_composebox">
+    composebox?: ContextualTasksComposeboxElement,
+    // </if>
+    // <if expr="not is_android">
+    // TODO(crbug.com/511383725): Support onboarding tooltip on Android.
     onboardingTooltip?: ContextualTasksOnboardingTooltipElement,
     // </if>
   };
@@ -249,6 +265,12 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
         type: Boolean,
         reflect: true,
       },
+      showSmartTabSharingTryItIph_: {type: Boolean},
+      showSmartTabSharingDefaultOnIph_: {type: Boolean},
+      composeboxHovered_: {
+        type: Boolean,
+        reflect: true,
+      },
     };
   }
 
@@ -256,6 +278,8 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
       loadTimeData.getBoolean('energyEffectEnabled');
   protected accessor showOnboardingTooltip_: boolean =
       loadTimeData.getBoolean('showOnboardingTooltip');
+  protected accessor showSmartTabSharingTryItIph_: boolean = false;
+  protected accessor showSmartTabSharingDefaultOnIph_: boolean = false;
   protected accessor userName_: string =
       loadTimeData.getString('friendlyZeroStateGaiaName');
   protected accessor friendlyZeroStateTitleBeforeName_: string =
@@ -311,6 +335,7 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
   // embedded page, which allows the client to keep track and know which parts
   // of the composebox are not visible to the user, and therefore not clickable.
   protected accessor occluders_: Rect[]|null = null;
+  protected accessor composeboxHovered_: boolean = false;
 
   protected accessor friendlyZeroStateSubtitle: string =
       loadTimeData.getString('friendlyZeroStateSubtitle');
@@ -370,10 +395,10 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
     this.updateCommonSearchParams();
   }
   private get composebox_(): ContextualTasksComposeboxElement|null {
-    // <if expr="not is_android">
+    // <if expr="not is_android or enable_webui_contextual_tasks_composebox">
     return this.$.composebox || null;
     // </if>
-    // <if expr="is_android">
+    // <if expr="is_android and not enable_webui_contextual_tasks_composebox">
     return null;
     // </if>
   }
@@ -500,6 +525,12 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
       callbackRouter.unlockInput.addListener(() => {
         this.isInputLocked_ = false;
       }),
+      callbackRouter.showSmartTabSharingTryItIph.addListener(() => {
+        this.showSmartTabSharingTryItIph_ = true;
+      }),
+      callbackRouter.showSmartTabSharingDefaultOnIph.addListener(() => {
+        this.showSmartTabSharingDefaultOnIph_ = true;
+      }),
     ];
 
     // Track the tooltip visibility events fired from the composebox.
@@ -557,6 +588,11 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
 
     // Setup the webview request overrides before loading the first URL.
     this.setupWebviewRequestOverrides();
+
+    // <if expr="not is_android">
+    // Handle newwindow events with mock webviews.
+    new WindowManager(this.$.threadFrame);
+    // </if>
 
     // Check if the URL that loaded this page has a task attached to it. If it
     // does, we'll use the tasks URL to load the embedded page.
@@ -657,6 +693,13 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
         composebox, 'context-menu-opened',
         () => this.onComposeboxContextMenuOpened_());
 
+    this.eventTracker_.add(composebox, 'mouseenter', () => {
+      this.composeboxHovered_ = true;
+    });
+
+    this.eventTracker_.add(composebox, 'mouseleave', () => {
+      this.composeboxHovered_ = false;
+    });
     this.eventTracker_.add(
         composebox, 'composebox-height-update',
         (e: CustomEvent<{height: number}>) => {
@@ -762,7 +805,9 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
     // <if expr="not is_android">
     setTimeout(() => {
       const menu = this.getContextualActionMenu();
-      if (menu) {
+      // Since a separate IPH "Try It" promo may turn the STS feature on, make
+      // sure it is not already on before promoting with the help bubble.
+      if (menu && !menu.smartTabSharingActive) {
         const menuItem = menu.shadowRoot?.querySelector('#smartTabSharingItem');
         if (menuItem) {
           const rect = menuItem.getBoundingClientRect();
@@ -774,13 +819,18 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
             floatingAnchor.style.width = `${rect.width}px`;
             floatingAnchor.style.height = `${rect.height}px`;
 
-            this.registerHelpBubble(
-                'ContextualTasksUI::kSmartTabSharingMenuItemElementId',
-                '#iphMenuSmartTabSharingAnchor', {
-                  fixed: true,
-                  containerElement: menu.getDialog(),
-                });
-            this.browserProxy_.handler.onContextMenuOpened();
+            // This is necessary to give the floating anchor time for layout
+            // when the chrome://user-education-internals Launch button has
+            // been pressed. Without the wait, it pops too soon out of place.
+            setTimeout(() => {
+              this.registerHelpBubble(
+                  'ContextualTasksUI::kSmartTabSharingMenuItemElementId',
+                  '#iphMenuSmartTabSharingAnchor', {
+                    fixed: true,
+                    containerElement: menu.getDialog(),
+                  });
+              this.browserProxy_.handler.onContextMenuOpened();
+            }, 100);
           }
         }
       }
@@ -1108,6 +1158,27 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
       `min-width: 0;`,
     ];
     return style.join(' ');
+  }
+
+  protected getBannerPromoBoundsStyles_() {
+    if ((this.isZeroState_ && !this.inNlm_) || !this.forcedComposeboxBounds_) {
+      return '';
+    }
+    const frameRect = this.$.threadFrame.getBoundingClientRect();
+    const relativeRectTop = frameRect.top + this.forcedComposeboxBounds_.top;
+    const relativeRectLeft = frameRect.left + this.forcedComposeboxBounds_.left;
+    const width = this.forcedComposeboxBounds_.width;
+    const bottomGap = 8;
+
+    return [
+      `position: ${this.inNlm_ ? 'fixed' : 'absolute'};`,
+      `bottom: ${window.innerHeight - relativeRectTop + bottomGap}px;`,
+      `left: ${relativeRectLeft}px;`,
+      `width: ${width}px;`,
+      `margin: 0;`,
+      `max-width: none;`,
+      `min-width: 0;`,
+    ].join(' ');
   }
 
   getThreadFrameStyles(): string {
@@ -1462,6 +1533,46 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
     } else {
       document.body.style.backgroundColor = 'rgba(255, 255, 255, 1)';
     }
+  }
+
+  protected onStsTryItDismiss_() {
+    this.hideStsTryItPromo_();
+    this.browserProxy_.handler.notifySmartTabSharingTryItIphResult(false);
+  }
+
+  protected onStsTryItAccept_() {
+    this.hideStsTryItPromo_();
+    this.browserProxy_.handler.notifySmartTabSharingTryItIphResult(true);
+    // <if expr="not is_android">
+    const menu = this.getContextualActionMenu();
+    if (menu) {
+      menu.setSmartTabSharingToggle(true);
+    }
+    // </if>
+  }
+
+  private hideStsTryItPromo_() {
+    this.showSmartTabSharingTryItIph_ = false;
+  }
+
+  protected onStsDefaultOnDismiss_() {
+    this.hideStsDefaultOnPromo_();
+    this.browserProxy_.handler.notifySmartTabSharingDefaultOnIphResult(false);
+  }
+
+  protected onStsDefaultOnAccept_() {
+    this.hideStsDefaultOnPromo_();
+    this.browserProxy_.handler.notifySmartTabSharingDefaultOnIphResult(true);
+    // <if expr="not is_android">
+    const menu = this.getContextualActionMenu();
+    if (menu) {
+      menu.setSmartTabSharingToggle(true);
+    }
+    // </if>
+  }
+
+  private hideStsDefaultOnPromo_() {
+    this.showSmartTabSharingDefaultOnIph_ = false;
   }
 }
 

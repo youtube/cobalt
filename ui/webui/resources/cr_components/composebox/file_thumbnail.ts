@@ -44,6 +44,7 @@ export class ComposeboxFileThumbnailElement extends CrLitElement {
         type: Boolean,
         reflect: true,
       },
+      tabFaviconChipsToCoinsEnabled_: {type: Boolean},
     };
   }
 
@@ -69,6 +70,9 @@ export class ComposeboxFileThumbnailElement extends CrLitElement {
 
   protected lensSendRawFileMediaTypesEnabled_: boolean =
       loadTimeData.getBoolean('lensSendRawFileMediaTypesEnabled');
+
+  protected accessor tabFaviconChipsToCoinsEnabled_: boolean =
+      loadTimeData.getBoolean('tabFaviconChipsToCoinsEnabled');
 
   protected accessor isUploading_: boolean = false;
 

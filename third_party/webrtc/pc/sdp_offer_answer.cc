@@ -2740,22 +2740,26 @@ void SdpOfferAnswerHandler::DoSetLocalDescription(
       DetermineSdpMungingType(desc.get(), last_created_desc);
 
   if (!disable_sdp_munging_checks_) {
-    bool reject_error = false;
-    if (HasUfragSdpMunging(desc.get(), last_created_desc)) {
+    bool reject_with_error =
+        !IsSdpMungingAllowed(sdp_munging_type, pc_->trials());
+    if (!reject_with_error &&
+        HasUfragSdpMunging(desc.get(), last_created_desc)) {
+      // ice-ufrag munging may still trigger rejection for other reasons
+      // guarded by this variable.
       has_sdp_munged_ufrag_ = true;
+
       if (pc_->trials().IsEnabled("WebRTC-NoSdpMangleUfrag")) {
         RTC_LOG(LS_ERROR) << "Rejecting SDP because of ufrag modification";
-        reject_error = true;
+        reject_with_error = true;
       }
-    } else {
-      reject_error = !IsSdpMungingAllowed(sdp_munging_type, pc_->trials());
     }
-    SdpMungingOutcome outcome = reject_error ? SdpMungingOutcome::kRejected
-                                             : SdpMungingOutcome::kAccepted;
+    SdpMungingOutcome outcome = reject_with_error
+                                    ? SdpMungingOutcome::kRejected
+                                    : SdpMungingOutcome::kAccepted;
     RTC_HISTOGRAM_ENUMERATION("WebRTC.PeerConnection.SdpMunging.Outcome",
                               static_cast<int>(outcome),
                               static_cast<int>(SdpMungingOutcome::kMaxValue));
-    if (reject_error) {
+    if (reject_with_error) {
       observer->OnSetLocalDescriptionComplete(
           RTCError(RTCErrorType::INVALID_MODIFICATION,
                    "SDP is modified in a non-acceptable way"));

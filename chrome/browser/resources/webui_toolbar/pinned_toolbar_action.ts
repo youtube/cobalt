@@ -4,12 +4,11 @@
 
 import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import './pinned_toolbar_action_icons.html.js';
-
 // <if expr="_google_chrome">
 import './internal/icons.html.js';
 // </if>
 
-import {assertNotReached, assertNotReachedCase} from '//resources/js/assert.js';
+import {assertNotReachedCase} from '//resources/js/assert.js';
 import {TrackedElementManager} from '//resources/js/tracked_element/tracked_element_manager.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
@@ -17,6 +16,7 @@ import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import {BrowserProxyImpl} from './browser_proxy.js';
 import type {BrowserProxy} from './browser_proxy.js';
 import {ContextMenuType} from './browser_proxy.js';
+import {IconTable} from './icon_table.js';
 import {getCss} from './pinned_toolbar_action.css.js';
 import {getHtml} from './pinned_toolbar_action.html.js';
 import {getContextMenuPosition, getContextMenuSourceType} from './toolbar_button.js';
@@ -39,6 +39,7 @@ export class PinnedToolbarActionElement extends CrLitElement {
   static override get properties() {
     return {
       state: {type: Object},
+      trackedHighlighted: {type: Boolean},
     };
   }
 
@@ -46,14 +47,19 @@ export class PinnedToolbarActionElement extends CrLitElement {
     action: PinnedToolbarAction.kUnspecified,
     highlighted: false,
     enabled: true,
+    activated: false,
     tooltip: '',
     accessibilityText: '',
     elementId: null,
+    icon: {handleId: 0n},
   };
 
   private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
   private trackedElementManager_: TrackedElementManager =
       TrackedElementManager.getInstance();
+  private iconTable_: IconTable = IconTable.getInstance();
+
+  protected accessor trackedHighlighted: boolean = false;
 
   override disconnectedCallback() {
     super.disconnectedCallback();
@@ -73,72 +79,26 @@ export class PinnedToolbarActionElement extends CrLitElement {
           this.trackedElementManager_.stopTracking(this);
         }
         if (newId) {
-          this.trackedElementManager_.startTracking(this, newId);
+          this.trackedElementManager_.startTracking(this, newId, {
+            onHighlightChanged: (highlighted: boolean) => {
+              this.trackedHighlighted = highlighted;
+            },
+          });
         }
       }
     }
   }
 
-  protected getIcon_(): {ironIcon?: string, className?: string} {
-    const type = this.state.action;
+  protected getIronIcon_(): string|undefined {
+    return this.iconTable_.getIconName(this.state.icon);
+  }
 
-    // TODO(crbug.com/474061420): Fill this in.
-    switch (type) {
-      case PinnedToolbarAction.kUnspecified:
-      case PinnedToolbarAction.kDivider:
-        assertNotReached();
-      case PinnedToolbarAction.kShowPasswordsBubbleOrPage:
-        return {className: 'icon-password-manager'};
-      case PinnedToolbarAction.kShowAddressesBubbleOrPage:
-        return {className: 'icon-location-on-chrome-refresh'};
-      case PinnedToolbarAction.kNewIncognitoWindow:
-      case PinnedToolbarAction.kShowPaymentsBubbleOrPage:
-      case PinnedToolbarAction.kSidePanelShowBookmarks:
-      case PinnedToolbarAction.kSidePanelShowReadingList:
-      case PinnedToolbarAction.kSidePanelShowHistoryCluster:
-      case PinnedToolbarAction.kShowDownloads:
-      case PinnedToolbarAction.kClearBrowsingData:
-      case PinnedToolbarAction.kPrint:
-      case PinnedToolbarAction.kShowTranslate:
-      case PinnedToolbarAction.kQrCodeGenerator:
-      case PinnedToolbarAction.kRouteMedia:
-      case PinnedToolbarAction.kRouteMediaIdle:
-      case PinnedToolbarAction.kRouteMediaWarning:
-      case PinnedToolbarAction.kRouteMediaPaused:
-      case PinnedToolbarAction.kRouteMediaActive:
-      case PinnedToolbarAction.kSidePanelShowReadAnything:
-      case PinnedToolbarAction.kCopyUrl:
-      case PinnedToolbarAction.kSendTabToSelf:
-      case PinnedToolbarAction.kTaskManager:
-      case PinnedToolbarAction.kDevTools:
-      case PinnedToolbarAction.kTabSearch:
-      case PinnedToolbarAction.kSidePanelShowContextualTasks:
-      case PinnedToolbarAction.kSidePanelShowLens:
-      case PinnedToolbarAction.kSidePanelShowCustomizeChrome:
-      case PinnedToolbarAction.kSidePanelShowShoppingInsights:
-      case PinnedToolbarAction.kSidePanelShowMerchantTrust:
-      case PinnedToolbarAction.kSendSharedTabGroupFeedback:
-      case PinnedToolbarAction.kSidePanelShowComments: {
-        const iconName = PinnedToolbarAction[type].slice(1);
-        return {ironIcon: `pinned-toolbar-action:${iconName}`};
-      }
-      case PinnedToolbarAction.kSidePanelShowAboutThisSite:
-        // <if expr="_google_chrome">
-        return {ironIcon: 'internal-icons:page_insights'};
-        // </if>
-        // <if expr="not _google_chrome">
-        return {ironIcon: 'pinned-toolbar-action:SidePanelShowAboutThisSite'};
-        // </if>
-      case PinnedToolbarAction.kSidePanelShowLensOverlayResults:
-        // <if expr="_google_chrome">
-        return {ironIcon: 'internal-icons:google_lens_monochrome_logo'};
-        // </if>
-        // <if expr="not _google_chrome">
-        return {ironIcon: 'pinned-toolbar-action:SidePanelShowLensOverlayResults'};
-        // </if>
-      default:
-        assertNotReachedCase(type);
+  protected getIconStyle_(): string|undefined {
+    const providedIconUrl = this.iconTable_.getIconMaskUrl(this.state.icon);
+    if (providedIconUrl) {
+      return `--cr-icon-image: url(${providedIconUrl})`;
     }
+    return undefined;
   }
 
   protected onActionClick_() {
@@ -175,10 +135,6 @@ export class PinnedToolbarActionElement extends CrLitElement {
       case PinnedToolbarAction.kQrCodeGenerator:
         return ContextMenuType.kPinnedActionQrCodeGenerator;
       case PinnedToolbarAction.kRouteMedia:
-      case PinnedToolbarAction.kRouteMediaIdle:
-      case PinnedToolbarAction.kRouteMediaWarning:
-      case PinnedToolbarAction.kRouteMediaPaused:
-      case PinnedToolbarAction.kRouteMediaActive:
         return ContextMenuType.kPinnedActionRouteMedia;
       case PinnedToolbarAction.kSidePanelShowReadAnything:
         return ContextMenuType.kPinnedActionSidePanelShowReadAnything;

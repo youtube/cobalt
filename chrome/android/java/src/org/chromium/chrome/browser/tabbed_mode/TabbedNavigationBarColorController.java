@@ -162,6 +162,7 @@ class TabbedNavigationBarColorController
                 overviewColorSupplier,
                 edgeToEdgeSystemBarColorHelper,
                 new BottomAttachedUiObserver(
+                        context,
                         bottomControlsStacker,
                         browserControlsStateProvider,
                         contextualSearchManagerSupplier,
@@ -308,8 +309,8 @@ class TabbedNavigationBarColorController
                     @Override
                     public void onStartedShowing(@LayoutType int layoutType) {
                         if (layoutType == LayoutType.TAB_SWITCHER) {
-                            updateNavigationBarColor();
                             enableOverviewMode();
+                            updateNavigationBarColor();
                         } else if (layoutType == LayoutType.TOOLBAR_SWIPE
                                 && ChromeFeatureList.sNavBarColorAnimation.isEnabled()
                                 && isBottomChinEnabled()) {
@@ -325,8 +326,8 @@ class TabbedNavigationBarColorController
                     @Override
                     public void onStartedHiding(@LayoutType int layoutType) {
                         if (layoutType != LayoutType.TAB_SWITCHER) return;
-                        updateNavigationBarColor();
                         disableOverviewMode();
+                        updateNavigationBarColor();
                     }
 
                     @Override

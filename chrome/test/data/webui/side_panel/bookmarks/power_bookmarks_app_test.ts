@@ -8,7 +8,9 @@ import 'chrome://bookmarks-side-panel.top-chrome/power_bookmarks_app.js';
 import {SortOrder, ViewType} from 'chrome://bookmarks-side-panel.top-chrome/bookmarks.mojom-webui.js';
 import {BookmarksApiProxyImpl} from 'chrome://bookmarks-side-panel.top-chrome/bookmarks_api_proxy.js';
 import type {PowerBookmarkRowElement} from 'chrome://bookmarks-side-panel.top-chrome/power_bookmark_row.js';
+import type {PowerBookmarksAddFolderButtonElement} from 'chrome://bookmarks-side-panel.top-chrome/power_bookmarks_add_folder_button.js';
 import type {PowerBookmarksAppElement} from 'chrome://bookmarks-side-panel.top-chrome/power_bookmarks_app.js';
+import type {PowerBookmarksListHeaderElement} from 'chrome://bookmarks-side-panel.top-chrome/power_bookmarks_list_header.js';
 import {PageCallbackRouter} from 'chrome://resources/cr_components/commerce/price_tracking.mojom-webui.js';
 import type {PageRemote} from 'chrome://resources/cr_components/commerce/price_tracking.mojom-webui.js';
 import {PriceTrackingBrowserProxyImpl} from 'chrome://resources/cr_components/commerce/price_tracking_browser_proxy.js';
@@ -43,13 +45,14 @@ suite('General', () => {
   let metrics: MetricsTracker;
 
   function getAddTabButton(): CrButtonElement {
-    return powerBookmarksApp.shadowRoot!.querySelector<CrButtonElement>(
+    return powerBookmarksApp.shadowRoot.querySelector<CrButtonElement>(
         '#addCurrentTabButton')!;
   }
 
   function getAddNewFolderButton() {
-    return powerBookmarksApp.shadowRoot!.querySelector<CrButtonElement>(
-        '.new-folder-row')!;
+    return powerBookmarksApp.$.bookmarksList.shadowRoot!
+        .querySelector<PowerBookmarksAddFolderButtonElement>(
+            'power-bookmarks-add-folder-button')!;
   }
 
   function getCrUrlListItemElementWithId(id: string): CrUrlListItemElement|
@@ -68,22 +71,27 @@ suite('General', () => {
 
   async function performSearch(query: string) {
     const searchField =
-        powerBookmarksApp.shadowRoot!.querySelector('cr-toolbar-search-field')!;
+        powerBookmarksApp.shadowRoot.querySelector('cr-toolbar-search-field')!;
     const searchChanged = eventToPromise('search-changed', searchField);
+    const metricsLogged = eventToPromise(
+        'bookmark-count-recorded', powerBookmarksApp.$.bookmarksList);
     searchField.$.searchInput.value = query;
     searchField.onSearchTermInput();
     searchField.onSearchTermSearch();
 
     await searchChanged;
-    await flushTasks();
+    await metricsLogged;
   }
 
   async function openBookmark(id: string) {
+    const metricsLogged = eventToPromise(
+        'bookmark-count-recorded', powerBookmarksApp.$.bookmarksList);
+
     const bookmark = getBookmarkWithId(powerBookmarksApp, id);
     assertTrue(!!bookmark);
     powerBookmarksApp.$.bookmarksList.clickBookmarkRowForTests(bookmark);
 
-    await flushTasks();
+    await metricsLogged;
   }
 
   async function selectBookmark(id: string) {
@@ -145,6 +153,8 @@ suite('General', () => {
     });
 
     powerBookmarksApp = await initializeAppUi(bookmarksApi);
+    await eventToPromise(
+        'bookmark-count-recorded', powerBookmarksApp.$.bookmarksList);
   });
 
   suite('Part1', function() {
@@ -156,10 +166,6 @@ suite('General', () => {
     });
 
     test('RebuildsKeyboardNavigationOnBookmarkNodeAdded', async () => {
-      await flushTasks();
-      powerBookmarksApp.$.bookmarksList
-          .flushNavigationElementsDebouncerForTesting();
-
       assertArrayEquals(
           [
             'bookmark-SIDE_PANEL_BOOKMARK_BAR_ID',
@@ -202,11 +208,8 @@ suite('General', () => {
               .map((el: HTMLElement) => el.id));
     });
 
-    test('RebuildsKeyboardNavigationOnRemoved', async () => {
-      await flushTasks();
-      powerBookmarksApp.$.bookmarksList
-          .flushNavigationElementsDebouncerForTesting();
-
+    // TODO(crbug.com/489813344): Flaky test.
+    test.skip('RebuildsKeyboardNavigationOnRemoved', async () => {
       assertArrayEquals(
           [
             'bookmark-SIDE_PANEL_BOOKMARK_BAR_ID',
@@ -238,10 +241,6 @@ suite('General', () => {
     });
 
     test('RebuildsKeyboardNavigationFiltered', async () => {
-      await flushTasks();
-      powerBookmarksApp.$.bookmarksList
-          .flushNavigationElementsDebouncerForTesting();
-
       assertArrayEquals(
           [
             'bookmark-SIDE_PANEL_BOOKMARK_BAR_ID',
@@ -255,10 +254,6 @@ suite('General', () => {
               .map((el: HTMLElement) => el.id));
 
       await performSearch('child');
-      await microtasksFinished();
-      await flushTasks();
-      powerBookmarksApp.$.bookmarksList
-          .flushNavigationElementsDebouncerForTesting();
 
       assertArrayEquals(
           [
@@ -273,10 +268,6 @@ suite('General', () => {
     });
 
     test('RebuildsKeyboardNavigationMoved', async () => {
-      await flushTasks();
-      powerBookmarksApp.$.bookmarksList
-          .flushNavigationElementsDebouncerForTesting();
-
       assertArrayEquals(
           [
             'bookmark-SIDE_PANEL_BOOKMARK_BAR_ID',
@@ -774,8 +765,8 @@ suite('General', () => {
 
     test('RenamesBookmark', async () => {
       const renamedBookmarkId = '4';
-      powerBookmarksApp.$.bookmarksList.setRenamingIdForTests(
-          renamedBookmarkId);
+      powerBookmarksApp.$.contextMenu.fire(
+          'rename-clicked', {id: renamedBookmarkId});
 
       await flushTasks();
 
@@ -808,8 +799,8 @@ suite('General', () => {
 
     test('BlursRenameInput', async () => {
       const renamedBookmarkId = '4';
-      powerBookmarksApp.$.bookmarksList.setRenamingIdForTests(
-          renamedBookmarkId);
+      powerBookmarksApp.$.contextMenu.fire(
+          'rename-clicked', {id: renamedBookmarkId});
 
       await flushTasks();
 
@@ -874,7 +865,7 @@ suite('General', () => {
       flush();
 
       const deleteButton: HTMLButtonElement =
-          powerBookmarksApp.shadowRoot!.querySelector('#deleteButton')!;
+          powerBookmarksApp.shadowRoot.querySelector('#deleteButton')!;
       assertFalse(deleteButton.disabled);
       deleteButton.click();
 
@@ -949,7 +940,7 @@ suite('General', () => {
       flush();
 
       const deleteButton: HTMLButtonElement =
-          powerBookmarksApp.shadowRoot!.querySelector('#deleteButton')!;
+          powerBookmarksApp.shadowRoot.querySelector('#deleteButton')!;
       assertFalse(deleteButton.disabled);
       deleteButton.click();
 
@@ -1029,10 +1020,7 @@ suite('General', () => {
       assertTrue(editDialog.$.dialog.open);
     });
 
-    // TODO(crbug.com/511960512): Flaky test.
-    test.skip('LogsBookmarkCountMetric', async () => {
-      await flushTasks();
-
+    test('LogsBookmarkCountMetric', async () => {
       // Initially should have 4 bookmarks shown.
       assertEquals(
           1, metrics.count('PowerBookmarks.SidePanel.BookmarksShown', 4));
@@ -1081,8 +1069,8 @@ suite('General', () => {
       assertFalse(isHidden(footer));
 
       // A search with no results.
-      const searchField = powerBookmarksApp.shadowRoot!.querySelector(
-          'cr-toolbar-search-field');
+      const searchField =
+          powerBookmarksApp.shadowRoot.querySelector('cr-toolbar-search-field');
       assertTrue(!!searchField);
       searchField.$.searchInput.value = 'abcdef';
       searchField.onSearchTermSearch();
@@ -1160,6 +1148,34 @@ suite('General', () => {
       // Cleanup: restore document state.
       Object.defineProperty(
           document, 'visibilityState', {value: originalVisibilityState});
+    });
+
+    test('SortMenuClosesOnFocusout', async () => {
+      const header = powerBookmarksApp.$.bookmarksList.shadowRoot!
+                         .querySelector<PowerBookmarksListHeaderElement>(
+                             'power-bookmarks-list-header');
+      assertTrue(!!header);
+
+      // Open sort menu.
+      const sortButton =
+          header.shadowRoot.querySelector<HTMLElement>('.sort-menu-button');
+      assertTrue(!!sortButton);
+      sortButton.click();
+      await microtasksFinished();
+
+      const sortMenu = header.$.sortMenu;
+      assertTrue(sortMenu.open);
+
+      // Simulate blur by dispatching focusout event with relatedTarget outside
+      // the menu.
+      const event = new FocusEvent('focusout', {
+        relatedTarget: document.body,
+      });
+      sortMenu.dispatchEvent(event);
+
+      await microtasksFinished();
+
+      assertFalse(sortMenu.open);
     });
 
     test('ShowUiOnlyCalledOnce', async () => {

@@ -17,6 +17,7 @@ import androidx.annotation.ColorInt;
 import androidx.annotation.Nullable;
 import androidx.core.graphics.Insets;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.test.core.app.ApplicationProvider;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -132,6 +133,7 @@ public class BottomAttachedUiObserverTest {
 
         mBottomAttachedUiObserver =
                 new BottomAttachedUiObserver(
+                        ApplicationProvider.getApplicationContext(),
                         mBottomControlsStacker,
                         mBrowserControlsStateProvider,
                         mContextualSearchManagerSupplier,
@@ -176,6 +178,9 @@ public class BottomAttachedUiObserverTest {
         mColorChangeObserver.assertState(BROWSER_CONTROLS_COLOR, false, false);
 
         // Hide bottom controls.
+        when(mBottomControlsStacker.hasVisibleLayersOtherThan(
+                        eq(BottomControlsStacker.LayerType.BOTTOM_CHIN)))
+                .thenReturn(false);
         mBottomAttachedUiObserver.onBottomControlsHeightChanged(0, 0);
         mColorChangeObserver.assertState(null, false, false);
     }
@@ -203,7 +208,9 @@ public class BottomAttachedUiObserverTest {
         when(mBottomControlsStacker.isLayerNonScrollable(
                         eq(BottomControlsStacker.LayerType.BOTTOM_CHIN)))
                 .thenReturn(true);
-        when(mBottomControlsStacker.hasMultipleNonScrollableLayer()).thenReturn(false);
+        when(mBottomControlsStacker.hasNonScrollableLayersOtherThan(
+                        eq(BottomControlsStacker.LayerType.BOTTOM_CHIN)))
+                .thenReturn(false);
 
         // Show bottom controls, bottom chin is non-scrollable.
         mBottomAttachedUiObserver.onBottomControlsBackgroundColorChanged(BROWSER_CONTROLS_COLOR);
@@ -234,7 +241,9 @@ public class BottomAttachedUiObserverTest {
         when(mBottomControlsStacker.isLayerNonScrollable(
                         eq(BottomControlsStacker.LayerType.BOTTOM_CHIN)))
                 .thenReturn(true);
-        when(mBottomControlsStacker.hasMultipleNonScrollableLayer()).thenReturn(true);
+        when(mBottomControlsStacker.hasNonScrollableLayersOtherThan(
+                        eq(BottomControlsStacker.LayerType.BOTTOM_CHIN)))
+                .thenReturn(true);
 
         // Show bottom controls, but only with the bottom chin. Color should be null.
         mBottomAttachedUiObserver.onBottomControlsBackgroundColorChanged(BROWSER_CONTROLS_COLOR);
@@ -265,7 +274,9 @@ public class BottomAttachedUiObserverTest {
         when(mBottomControlsStacker.isLayerNonScrollable(
                         eq(BottomControlsStacker.LayerType.BOTTOM_CHIN)))
                 .thenReturn(false);
-        when(mBottomControlsStacker.hasMultipleNonScrollableLayer()).thenReturn(false);
+        when(mBottomControlsStacker.hasNonScrollableLayersOtherThan(
+                        eq(BottomControlsStacker.LayerType.BOTTOM_CHIN)))
+                .thenReturn(false);
 
         // Show bottom controls. Color should be BROWSER_CONTROLS_COLOR.
         mBottomAttachedUiObserver.onBottomControlsBackgroundColorChanged(BROWSER_CONTROLS_COLOR);
@@ -284,7 +295,9 @@ public class BottomAttachedUiObserverTest {
         when(mBottomControlsStacker.isLayerNonScrollable(
                         eq(BottomControlsStacker.LayerType.BOTTOM_CHIN)))
                 .thenReturn(true);
-        when(mBottomControlsStacker.hasMultipleNonScrollableLayer()).thenReturn(false);
+        when(mBottomControlsStacker.hasNonScrollableLayersOtherThan(
+                        eq(BottomControlsStacker.LayerType.BOTTOM_CHIN)))
+                .thenReturn(false);
 
         // Assume some other browser controls were visible, but then is removed.
         when(mBottomControlsStacker.hasVisibleLayersOtherThan(
@@ -302,6 +315,32 @@ public class BottomAttachedUiObserverTest {
         mBottomAttachedUiObserver.onBottomControlsHeightChanged(
                 BOTTOM_CHIN_HEIGHT, BOTTOM_CHIN_HEIGHT);
         mColorChangeObserver.assertState(null, false, false);
+    }
+
+    @Test
+    public void
+            testAdaptsColorToBrowserControls_bottomChinConstraint_otherNonScrollableLayerOnly() {
+        mColorChangeObserver.assertState(null, false, false);
+        when(mBottomControlsStacker.hasVisibleLayersOtherThan(
+                        eq(BottomControlsStacker.LayerType.BOTTOM_CHIN)))
+                .thenReturn(true);
+
+        when(mBottomControlsStacker.isLayerNonScrollable(
+                        eq(BottomControlsStacker.LayerType.BOTTOM_CHIN)))
+                .thenReturn(false);
+        when(mBottomControlsStacker.hasNonScrollableLayersOtherThan(
+                        eq(BottomControlsStacker.LayerType.BOTTOM_CHIN)))
+                .thenReturn(true);
+
+        // Show bottom controls. Color should be BROWSER_CONTROLS_COLOR.
+        mBottomAttachedUiObserver.onBottomControlsBackgroundColorChanged(BROWSER_CONTROLS_COLOR);
+        mBottomAttachedUiObserver.onBottomControlsHeightChanged(BOTTOM_CONTROLS_HEIGHT, 80);
+        mColorChangeObserver.assertState(BROWSER_CONTROLS_COLOR, false, false);
+
+        // Scroll off bottom controls fully (simulating offset change before height sync). Browser
+        // controls should still be used.
+        mBottomAttachedUiObserver.onControlsOffsetChanged(0, 0, false, 20, 80, false, false, false);
+        mColorChangeObserver.assertState(BROWSER_CONTROLS_COLOR, false, false);
     }
 
     @Test
@@ -354,6 +393,48 @@ public class BottomAttachedUiObserverTest {
         mBottomAttachedUiObserver.onOverlayPanelStateChanged(
                 PanelState.CLOSED, OVERLAY_PANEL_COLOR);
         mColorChangeObserver.assertState(null, false, false);
+    }
+
+    @Test
+    public void testOverlayPanelColor_overriddenByBottomControls() {
+        mColorChangeObserver.assertState(null, false, false);
+
+        // Show overlay panel.
+        mBottomAttachedUiObserver.onOverlayPanelStateChanged(
+                PanelState.PEEKED, OVERLAY_PANEL_COLOR);
+        mColorChangeObserver.assertState(OVERLAY_PANEL_COLOR, false, false);
+
+        // Show bottom controls with layers other than chin.
+        when(mBottomControlsStacker.hasVisibleLayersOtherThan(
+                        eq(BottomControlsStacker.LayerType.BOTTOM_CHIN)))
+                .thenReturn(true);
+        doReturn(ControlsPosition.BOTTOM).when(mBrowserControlsStateProvider).getControlsPosition();
+        mBottomAttachedUiObserver.onBottomControlsBackgroundColorChanged(BROWSER_CONTROLS_COLOR);
+        mBottomAttachedUiObserver.onBottomControlsHeightChanged(BOTTOM_CONTROLS_HEIGHT, 0);
+
+        // Overlay panel color is overridden by browser controls.
+        mColorChangeObserver.assertState(BROWSER_CONTROLS_COLOR, false, false);
+    }
+
+    @Test
+    public void testOverlayPanelColor_notOverriddenByBottomChinOnly() {
+        mColorChangeObserver.assertState(null, false, false);
+
+        // Show overlay panel.
+        mBottomAttachedUiObserver.onOverlayPanelStateChanged(
+                PanelState.PEEKED, OVERLAY_PANEL_COLOR);
+        mColorChangeObserver.assertState(OVERLAY_PANEL_COLOR, false, false);
+
+        // Show bottom controls with only chin.
+        when(mBottomControlsStacker.hasVisibleLayersOtherThan(
+                        eq(BottomControlsStacker.LayerType.BOTTOM_CHIN)))
+                .thenReturn(false);
+        doReturn(ControlsPosition.BOTTOM).when(mBrowserControlsStateProvider).getControlsPosition();
+        mBottomAttachedUiObserver.onBottomControlsBackgroundColorChanged(BROWSER_CONTROLS_COLOR);
+        mBottomAttachedUiObserver.onBottomControlsHeightChanged(BOTTOM_CHIN_HEIGHT, 0);
+
+        // Overlay panel color is NOT overridden because only chin is visible.
+        mColorChangeObserver.assertState(OVERLAY_PANEL_COLOR, false, false);
     }
 
     @Test
@@ -556,6 +637,36 @@ public class BottomAttachedUiObserverTest {
     }
 
     @Test
+    public void testAdaptsColorToBottomSheet_anchorToBrowserControls_peekedWithOtherControls() {
+        when(mBottomSheetController.isFullWidth()).thenReturn(true);
+        when(mBottomControlsStacker.isLayerVisible(eq(LayerType.BOTTOM_CHIN))).thenReturn(true);
+        when(mBottomControlsStacker.hasVisibleLayersOtherThan(eq(LayerType.BOTTOM_CHIN)))
+                .thenReturn(true);
+        when(mBottomControlsStacker.hasVisibleLayersOtherThan(
+                        eq(Set.of(LayerType.BOTTOM_CHIN, LayerType.BOTTOM_SHEET))))
+                .thenReturn(true);
+
+        mBottomAttachedUiObserver.onBottomControlsBackgroundColorChanged(BROWSER_CONTROLS_COLOR);
+        mBottomAttachedUiObserver.onBottomControlsHeightChanged(BOTTOM_CONTROLS_HEIGHT, 0);
+        mBottomAttachedUiObserver.onControlsOffsetChanged(
+                0, 0, false, BOTTOM_CONTROLS_HEIGHT, 0, false, false, false);
+        mColorChangeObserver.assertColor(null).assertForceShowDivider(false);
+
+        doReturn(BOTTOM_SHEET_YELLOW).when(mBottomSheetController).getSheetBackgroundColor();
+        mBottomAttachedUiObserver.onSheetContentChanged(mSheetContent);
+
+        peekBottomSheet();
+        mColorChangeObserver.assertColor(BROWSER_CONTROLS_COLOR).assertForceShowDivider(false);
+
+        openBottomSheet();
+        mColorChangeObserver.assertColor(BOTTOM_SHEET_YELLOW).assertForceShowDivider(false);
+
+        mBottomAttachedUiObserver.onControlsOffsetChanged(0, 0, false, 0, 0, false, false, false);
+        dismissBottomSheet();
+        mColorChangeObserver.assertColor(BROWSER_CONTROLS_COLOR).assertForceShowDivider(false);
+    }
+
+    @Test
     public void testAdaptsToInsetChanges() {
         verify(mInsetObserver).addObserver(eq(mBottomAttachedUiObserver));
 
@@ -668,7 +779,7 @@ public class BottomAttachedUiObserverTest {
         // Show overlay panel.
         mBottomAttachedUiObserver.onOverlayPanelStateChanged(
                 PanelState.PEEKED, OVERLAY_PANEL_COLOR);
-        mColorChangeObserver.assertState(OVERLAY_PANEL_COLOR, false, false);
+        mColorChangeObserver.assertState(BROWSER_CONTROLS_COLOR, false, false);
 
         // Show bottom sheet.
         doReturn(BOTTOM_SHEET_YELLOW).when(mBottomSheetController).getSheetBackgroundColor();
@@ -696,7 +807,7 @@ public class BottomAttachedUiObserverTest {
 
         // Hide bottom sheet.
         dismissBottomSheet();
-        mColorChangeObserver.assertState(OVERLAY_PANEL_COLOR, false, false);
+        mColorChangeObserver.assertState(BROWSER_CONTROLS_COLOR, false, false);
 
         // Hide overlay panel.
         mBottomAttachedUiObserver.onOverlayPanelStateChanged(
@@ -704,17 +815,27 @@ public class BottomAttachedUiObserverTest {
         mColorChangeObserver.assertState(BROWSER_CONTROLS_COLOR, false, false);
 
         // Hide bottom controls.
+        when(mBottomControlsStacker.hasVisibleLayersOtherThan(
+                        eq(BottomControlsStacker.LayerType.BOTTOM_CHIN)))
+                .thenReturn(false);
         mBottomAttachedUiObserver.onBottomControlsHeightChanged(0, 0);
         mColorChangeObserver.assertState(KEYBOARD_ACCESSORY_COLOR, false, false);
     }
 
     @Test
     public void testColorPrioritization_bottomToolbar() {
+        when(mOverlayPanelStateProvider.isFullWidthSizePanel()).thenReturn(true);
         doReturn(ControlsPosition.BOTTOM).when(mBrowserControlsStateProvider).getControlsPosition();
         doReturn(0.0f).when(mBrowserControlsStateProvider).getBrowserControlHiddenRatio();
 
         when(mBottomControlsStacker.hasVisibleLayersOtherThan(
                         eq(BottomControlsStacker.LayerType.BOTTOM_CHIN)))
+                .thenReturn(true);
+        when(mBottomControlsStacker.hasVisibleLayersOtherThan(
+                        eq(
+                                Set.of(
+                                        BottomControlsStacker.LayerType.BOTTOM_CHIN,
+                                        BottomControlsStacker.LayerType.BOTTOM_SHEET))))
                 .thenReturn(true);
         mBottomAttachedUiObserver.onBottomControlsBackgroundColorChanged(BROWSER_CONTROLS_COLOR);
         mBottomAttachedUiObserver.onBottomControlsHeightChanged(BOTTOM_CONTROLS_HEIGHT, 0);
@@ -737,6 +858,8 @@ public class BottomAttachedUiObserverTest {
         mColorChangeObserver.assertState(BROWSER_CONTROLS_COLOR, false, false);
 
         doReturn(1.0f).when(mBrowserControlsStateProvider).getBrowserControlHiddenRatio();
+        mBottomAttachedUiObserver.onControlsOffsetChanged(
+                0, 0, false, BOTTOM_CONTROLS_HEIGHT, 0, false, false, false);
 
         doReturn(BOTTOM_SHEET_YELLOW).when(mBottomSheetController).getSheetBackgroundColor();
         mBottomAttachedUiObserver.onSheetContentChanged(mSheetContent);
@@ -745,9 +868,10 @@ public class BottomAttachedUiObserverTest {
 
         doReturn(0.0f).when(mBrowserControlsStateProvider).getBrowserControlHiddenRatio();
         doReturn(ControlsPosition.TOP).when(mBrowserControlsStateProvider).getControlsPosition();
+        mBottomAttachedUiObserver.onControlsOffsetChanged(0, 0, false, 0, 0, false, false, false);
 
         dismissBottomSheet();
-        mColorChangeObserver.assertState(OVERLAY_PANEL_COLOR, false, false);
+        mColorChangeObserver.assertState(BROWSER_CONTROLS_COLOR, false, false);
 
         mBottomAttachedUiObserver.onOverlayPanelStateChanged(
                 PanelState.CLOSED, OVERLAY_PANEL_COLOR);
@@ -837,6 +961,9 @@ public class BottomAttachedUiObserverTest {
         mColorChangeObserver.assertState(BROWSER_CONTROLS_COLOR, false, false);
 
         // Hide bottom controls.
+        when(mBottomControlsStacker.hasVisibleLayersOtherThan(
+                        eq(BottomControlsStacker.LayerType.BOTTOM_CHIN)))
+                .thenReturn(false);
         mBottomAttachedUiObserver.onBottomControlsHeightChanged(0, 0);
         // Nav bar color animations enabled on disappearance.
         mColorChangeObserver.assertState(null, false, false);
@@ -871,9 +998,10 @@ public class BottomAttachedUiObserverTest {
         mBottomAttachedUiObserver.onBottomControlsBackgroundColorChanged(BROWSER_CONTROLS_COLOR);
         mBottomAttachedUiObserver.onBottomControlsHeightChanged(BOTTOM_CONTROLS_HEIGHT, 0);
         mBottomAttachedUiObserver.onSheetContentChanged(mSheetContent);
-        openBottomSheet();
+        peekBottomSheet();
+        mColorChangeObserver.assertState(BROWSER_CONTROLS_COLOR, false, false);
 
-        // Color should be BROWSER_CONTROLS_COLOR, not BOTTOM_SHEET_YELLOW.
+        openBottomSheet();
         mColorChangeObserver.assertState(BROWSER_CONTROLS_COLOR, false, false);
     }
 

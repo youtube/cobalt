@@ -28,6 +28,7 @@
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager_test_utils.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_i18n_api.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/browser/webdata/autocomplete/autocomplete_entry.h"
@@ -338,11 +339,6 @@ std::set<AutocompleteKey> GetAllKeys(int profile) {
 
 bool KeysMatch(int profile_a, int profile_b) {
   return GetAllKeys(profile_a) == GetAllKeys(profile_b);
-}
-
-void SetCreditCards(int profile, std::vector<CreditCard>* credit_cards) {
-  GetPersonalDataManager(profile)->payments_data_manager().SetCreditCards(
-      credit_cards);
 }
 
 void AddProfile(int profile, const AutofillProfile& autofill_profile) {

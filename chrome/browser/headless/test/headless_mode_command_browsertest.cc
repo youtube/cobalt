@@ -16,7 +16,6 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/run_loop.h"
-#include "content/public/common/content_features.h"
 #include "base/strings/string_util.h"
 #include "base/strings/to_string.h"
 #include "base/test/test_timeouts.h"
@@ -24,7 +23,10 @@
 #include "base/threading/platform_thread.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "base/scoped_observation.h"
 #include "chrome/browser/headless/test/headless_mode_browsertest.h"
+#include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/common/chrome_switches.h"
 #include "components/headless/command_handler/headless_command_handler.h"
 #include "components/headless/command_handler/headless_command_switches.h"
@@ -43,9 +45,29 @@
 
 namespace headless {
 
-class HeadlessModeCommandBrowserTest : public HeadlessModeBrowserTest {
+class HeadlessModeCommandBrowserTest : public HeadlessModeBrowserTest,
+                                       public BrowserCollectionObserver {
  public:
   HeadlessModeCommandBrowserTest() = default;
+
+  void PreRunTestOnMainThread() override {
+    if (auto* collection = GlobalBrowserCollection::GetInstance()) {
+      browser_collection_observation_.Observe(collection);
+    }
+    HeadlessModeBrowserTest::PreRunTestOnMainThread();
+  }
+
+  void TearDownOnMainThread() override {
+    browser_collection_observation_.Reset();
+    HeadlessModeBrowserTest::TearDownOnMainThread();
+  }
+
+  void OnBrowserClosed(BrowserWindowInterface* browser) override {
+    // Unconditionally clear browser_ because Headless mode command tests
+    // shouldn't depend on the default browser. This avoids MSAN use-after-free
+    // if the browser is closed during PreRunTestOnMainThread's message loop.
+    SetBrowser(nullptr);
+  }
 
   void SetUp() override {
     ASSERT_TRUE(embedded_test_server()->Start());
@@ -86,6 +108,8 @@ class HeadlessModeCommandBrowserTest : public HeadlessModeBrowserTest {
   std::unique_ptr<base::RunLoop> run_loop_;
   bool test_complete_ = false;
   std::optional<HeadlessCommandHandler::Result> result_;
+  base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
+      browser_collection_observation_{this};
 };
 
 #define HEADLESS_MODE_COMMAND_BROWSER_TEST_WITH_TARGET_URL(                \
@@ -157,20 +181,14 @@ INSTANTIATE_TEST_SUITE_P(/* no prefix */,
                          ::testing::Bool());
 
 // TODO(crbug.com/40266323): Reenable once deflaked.
-#if BUILDFLAG(IS_MAC)
+// TODO(crbug.com/514143472): Reenable once deflaked.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 #define MAYBE_HeadlessDumpDom DISABLED_HeadlessDumpDom
 #else
 #define MAYBE_HeadlessDumpDom HeadlessDumpDom
 #endif
 IN_PROC_BROWSER_TEST_P(HeadlessModeDumpDomCommandBrowserTest,
                        MAYBE_HeadlessDumpDom) {
-#if defined(MEMORY_SANITIZER)
-  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
-    GTEST_SKIP() << "Skipping test on MSAN with InitialWebUI enabled. "
-                    "See crbug.com/477426026.";
-  }
-#endif
-
   ASSERT_THAT(ProcessCommands(),
               testing::Eq(HeadlessCommandHandler::Result::kSuccess));
 
@@ -308,7 +326,8 @@ INSTANTIATE_TEST_SUITE_P(
     HeadlessModeDumpDomCommandBrowserTestWithSubResourceTimeout,
     testing::Bool());
 
-#if BUILDFLAG(IS_MAC)
+// TODO(crbug.com/514143472): Reenable once deflaked.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 #define MAYBE_HeadlessDumpDomWithSubResourceTimeout \
   DISABLED_HeadlessDumpDomWithSubResourceTimeout
 #else
@@ -318,13 +337,6 @@ INSTANTIATE_TEST_SUITE_P(
 IN_PROC_BROWSER_TEST_P(
     HeadlessModeDumpDomCommandBrowserTestWithSubResourceTimeout,
     MAYBE_HeadlessDumpDomWithSubResourceTimeout) {
-#if defined(MEMORY_SANITIZER)
-  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
-    GTEST_SKIP() << "Skipping test on MSAN with InitialWebUI enabled. "
-                    "See crbug.com/477426026.";
-  }
-#endif
-
   std::optional<HeadlessCommandHandler::Result> result = ProcessCommands();
 
   capture_stdout_.StopCapture();
@@ -348,7 +360,8 @@ IN_PROC_BROWSER_TEST_P(
 }
 
 // TODO(crbug.com/505163310): Reenable once deflaked.
-#if BUILDFLAG(IS_MAC)
+// TODO(crbug.com/514143472): Reenable once deflaked.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 #define MAYBE_DumpDomWithBeforeUnloadPreventDefault \
   DISABLED_DumpDomWithBeforeUnloadPreventDefault
 #else
@@ -359,13 +372,6 @@ HEADLESS_MODE_COMMAND_BROWSER_TEST_WITH_TARGET_URL(
     HeadlessModeDumpDomCommandBrowserTestBase,
     MAYBE_DumpDomWithBeforeUnloadPreventDefault,
     "/before_unload_prevent_default.html") {
-#if defined(MEMORY_SANITIZER)
-  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
-    GTEST_SKIP() << "Skipping test on MSAN with InitialWebUI enabled. "
-                    "See crbug.com/477426026.";
-  }
-#endif
-
   // Make sure that 'beforeunload' that prevents default action does not stall
   // the command processing. The "Leave site" popup should not appear because
   // command target was not user activated.
@@ -406,13 +412,6 @@ class HeadlessModeScreenshotCommandBrowserTest
 
 IN_PROC_BROWSER_TEST_F(HeadlessModeScreenshotCommandBrowserTest,
                        HeadlessScreenshot) {
-#if defined(MEMORY_SANITIZER)
-  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
-    GTEST_SKIP() << "Skipping test on MSAN with InitialWebUI enabled. "
-                    "See crbug.com/477426026.";
-  }
-#endif
-
   ASSERT_THAT(ProcessCommands(),
               testing::Eq(HeadlessCommandHandler::Result::kSuccess));
 
@@ -478,13 +477,6 @@ class HeadlessModeScreenshotCommandWithBackgroundBrowserTest
 
 IN_PROC_BROWSER_TEST_F(HeadlessModeScreenshotCommandWithBackgroundBrowserTest,
                        HeadlessScreenshotWithBackground) {
-#if defined(MEMORY_SANITIZER)
-  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
-    GTEST_SKIP() << "Skipping test on MSAN with InitialWebUI enabled. "
-                    "See crbug.com/477426026.";
-  }
-#endif
-
   ASSERT_THAT(ProcessCommands(),
               testing::Eq(HeadlessCommandHandler::Result::kSuccess));
 
@@ -533,20 +525,14 @@ class HeadlessModePrintToPdfCommandBrowserTest
 };
 
 // TODO(crbug.com/40266323): Reenable once deflaked.
-#if BUILDFLAG(IS_MAC)
+// TODO(crbug.com/514143472): Reenable once deflaked.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 #define MAYBE_HeadlessPrintToPdf DISABLED_HeadlessPrintToPdf
 #else
 #define MAYBE_HeadlessPrintToPdf HeadlessPrintToPdf
 #endif
 IN_PROC_BROWSER_TEST_F(HeadlessModePrintToPdfCommandBrowserTest,
                        MAYBE_HeadlessPrintToPdf) {
-#if defined(MEMORY_SANITIZER)
-  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
-    GTEST_SKIP() << "Skipping test on MSAN with InitialWebUI enabled. "
-                    "See crbug.com/477426026.";
-  }
-#endif
-
   ASSERT_THAT(ProcessCommands(),
               testing::Eq(HeadlessCommandHandler::Result::kSuccess));
 

@@ -26,6 +26,7 @@
 #include "chrome/browser/ui/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/toolbar_controller_util.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/contextual_tasks/contextual_tasks_button.h"
 #include "chrome/browser/ui/views/toolbar/overflow_button.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_button_status_indicator.h"
@@ -37,6 +38,7 @@
 #include "ui/actions/actions.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/mojom/menu_source_type.mojom.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/menus/simple_menu_model.h"
 #include "ui/views/controls/menu/menu_item_view.h"
@@ -228,18 +230,23 @@ ToolbarController::GetDefaultResponsiveElements(Browser* browser) {
           ToolbarController::ElementIdInfo{
               kToolbarForwardButtonElementId,
               IDS_OVERFLOW_MENU_ITEM_TEXT_FORWARD,
-              &vector_icons::kForwardArrowChromeRefreshIcon,
+              &vector_icons::kForwardArrowChromeRefreshOldIcon,
               kToolbarForwardButtonElementId},
           /*is_section_end=*/false),
       ToolbarController::ResponsiveElementInfo(
           ToolbarController::ElementIdInfo{
               kToolbarHomeButtonElementId, IDS_OVERFLOW_MENU_ITEM_TEXT_HOME,
-              &kNavigateHomeChromeRefreshIcon, kToolbarHomeButtonElementId},
+              &(features::IsRoundedIconsEnabled()
+                    ? kHomeIcon
+                    : kNavigateHomeChromeRefreshOldIcon),
+              kToolbarHomeButtonElementId},
           /*is_section_end=*/false),
       ToolbarController::ResponsiveElementInfo(
           ToolbarController::ElementIdInfo{
               kToolbarSplitTabsToolbarButtonElementId,
-              IDS_OVERFLOW_MENU_ITEM_TEXT_SPLIT_TABS, &kSplitSceneIcon,
+              IDS_OVERFLOW_MENU_ITEM_TEXT_SPLIT_VIEW,
+              &(features::IsRoundedIconsEnabled() ? kSplitSceneIcon
+                                                  : kSplitSceneOldIcon),
               kToolbarSplitTabsToolbarButtonElementId},
           /*is_section_end=*/false),
       ToolbarController::ResponsiveElementInfo(
@@ -287,29 +294,31 @@ ToolbarController::GetDefaultResponsiveElements(Browser* browser) {
            ToolbarController::ElementIdInfo(
                kToolbarBatterySaverButtonElementId,
                IDS_OVERFLOW_MENU_ITEM_TEXT_ENERGY_SAVER,
-               &kBatterySaverRefreshIcon, kToolbarBatterySaverButtonElementId,
+               &(features::IsRoundedIconsEnabled()
+                     ? kEnergySavingsLeafIcon
+                     : kBatterySaverRefreshOldIcon),
+               kToolbarBatterySaverButtonElementId,
                kToolbarBatterySaverBubbleElementId),
-           /*is_section_end=*/false),
-       ToolbarController::ResponsiveElementInfo(
-           ToolbarController::ElementIdInfo(kToolbarChromeLabsButtonElementId,
-                                            IDS_OVERFLOW_MENU_ITEM_TEXT_LABS,
-                                            &kScienceIcon,
-                                            kToolbarChromeLabsButtonElementId,
-                                            kToolbarChromeLabsBubbleElementId),
            /*is_section_end=*/false),
        ToolbarController::ResponsiveElementInfo(
            ToolbarController::ElementIdInfo(
                kToolbarMediaButtonElementId,
                IDS_OVERFLOW_MENU_ITEM_TEXT_MEDIA_CONTROLS,
-               &kMediaToolbarButtonChromeRefreshIcon,
+               &(features::IsRoundedIconsEnabled()
+                     ? kQueueMusicIcon
+                     : kMediaToolbarButtonChromeRefreshOldIcon),
                kToolbarMediaButtonElementId, kToolbarMediaBubbleElementId),
            /*is_section_end=*/true),
        ToolbarController::ResponsiveElementInfo(
            ToolbarController::ElementIdInfo(
                kToolbarAvatarButtonElementId,
                IDS_OVERFLOW_MENU_ITEM_TEXT_PROFILE,
-               is_incognito ? (&kIncognitoRefreshMenuIcon)
-                            : (&kUserAccountAvatarRefreshIcon),
+               is_incognito ? (&(features::IsRoundedIconsEnabled()
+                                     ? kIncognitoIcon
+                                     : kIncognitoRefreshMenuOldIcon))
+                            : (&(features::IsRoundedIconsEnabled()
+                                     ? kAccountCircleIcon
+                                     : kUserAccountAvatarRefreshOldIcon)),
                kToolbarAvatarButtonElementId, kToolbarAvatarBubbleElementId),
            /*is_section_end=*/false)});
   return elements;
@@ -318,10 +327,9 @@ ToolbarController::GetDefaultResponsiveElements(Browser* browser) {
 std::vector<ui::ElementIdentifier>
 ToolbarController::GetDefaultOverflowOrder() {
   return std::vector<ui::ElementIdentifier>(
-      {kToolbarHomeButtonElementId, kToolbarChromeLabsButtonElementId,
-       kToolbarMediaButtonElementId, kToolbarForwardButtonElementId,
-       kToolbarBatterySaverButtonElementId, kToolbarAvatarButtonElementId,
-       kToolbarSplitTabsToolbarButtonElementId,
+      {kToolbarMediaButtonElementId, kToolbarBatterySaverButtonElementId,
+       kToolbarHomeButtonElementId, kToolbarForwardButtonElementId,
+       kToolbarAvatarButtonElementId, kToolbarSplitTabsToolbarButtonElementId,
        ContextualTasksButton::kContextualTasksToolbarButton});
 }
 
@@ -334,7 +342,6 @@ std::string ToolbarController::GetActionNameFromElementIdentifier(
       identifier_to_action_name_map(
           {{kToolbarAvatarButtonElementId, "AvatarButton"},
            {kToolbarBatterySaverButtonElementId, "BatterySaverButton"},
-           {kToolbarChromeLabsButtonElementId, "ChromeLabsButton"},
            {kExtensionsMenuButtonElementId, "ExtensionsMenuButton"},
            {kToolbarForwardButtonElementId, "ForwardButton"},
            {kToolbarHomeButtonElementId, "HomeButton"},
@@ -407,7 +414,20 @@ bool ToolbarController::PopOut(ui::ElementIdentifier identifier) {
   auto& original = it->second->original_spec;
 
   if (original.has_value()) {
-    element->SetProperty(views::kFlexBehaviorKey, original.value());
+    if (base::FeatureList::IsEnabled(features::kToolbarProfileChipResizing)) {
+      // Some elements (e.g. profile chip) use flex rules that allow
+      // snapping/scaling to zero. When popping out, elements should never be
+      // below the mininmum size.
+      element->SetProperty(
+          views::kFlexBehaviorKey,
+          views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToMinimum,
+                                   views::MaximumFlexSizeRule::kPreferred)
+              .WithOrder((*original).order())
+              .WithWeight((*original).weight())
+              .WithAlignment((*original).alignment()));
+    } else {
+      element->SetProperty(views::kFlexBehaviorKey, original.value());
+    }
   } else {
     element->ClearProperty(views::kFlexBehaviorKey);
   }
@@ -774,12 +794,7 @@ void ToolbarController::ShowStatusIndicator() {
           action_item->GetProperty(kActionItemUnderlineIndicatorKey)) {
         const ui::ImageModel& pinned_icon_image = action_item->GetImage();
         if (!pinned_icon_image.IsEmpty() && pinned_icon_image.IsVectorIcon()) {
-          ui::VectorIconModel vector_icon_model =
-              pinned_icon_image.GetVectorIcon();
-
-          menu_item->icon_view()->SetImage(ui::ImageModel::FromVectorIcon(
-              *vector_icon_model.vector_icon(), kColorToolbarActionItemEngaged,
-              ui::SimpleMenuModel::kDefaultIconSize));
+          menu_item->SetIconColor(kColorToolbarActionItemEngaged);
         }
         status_indicator->Show();
       }
@@ -827,21 +842,13 @@ void ToolbarController::ActionItemChanged(actions::ActionItem* action_item) {
   if (action_item->GetProperty(kActionItemUnderlineIndicatorKey)) {
     const ui::ImageModel& pinned_icon_image = action_item->GetImage();
     if (!pinned_icon_image.IsEmpty() && pinned_icon_image.IsVectorIcon()) {
-      ui::VectorIconModel vector_icon_model = pinned_icon_image.GetVectorIcon();
-
-      menu_item->icon_view()->SetImage(ui::ImageModel::FromVectorIcon(
-          *vector_icon_model.vector_icon(), kColorToolbarActionItemEngaged,
-          ui::SimpleMenuModel::kDefaultIconSize));
+      menu_item->SetIconColor(kColorToolbarActionItemEngaged);
     }
     status_indicator->Show();
   } else {
     const ui::ImageModel& pinned_icon_image = action_item->GetImage();
     if (!pinned_icon_image.IsEmpty() && pinned_icon_image.IsVectorIcon()) {
-      ui::VectorIconModel vector_icon_model = pinned_icon_image.GetVectorIcon();
-
-      menu_item->icon_view()->SetImage(ui::ImageModel::FromVectorIcon(
-          *vector_icon_model.vector_icon(), vector_icon_model.color(),
-          ui::SimpleMenuModel::kDefaultIconSize));
+      menu_item->SetIconColor(std::nullopt);
     }
     status_indicator->Hide();
   }

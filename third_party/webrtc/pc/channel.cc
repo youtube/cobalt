@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/base/nullability.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
@@ -171,16 +172,16 @@ RTCError MaybeIgnorePacketization(const MediaChannelParameters& new_params,
 }  // namespace
 
 BaseChannel::BaseChannel(
-    TaskQueueBase* worker_thread,
-    Thread* network_thread,
-    TaskQueueBase* signaling_thread,
+    TaskQueueBase* absl_nonnull worker_thread,
+    Thread* absl_nonnull network_thread,
+    TaskQueueBase* absl_nonnull signaling_thread,
     std::unique_ptr<MediaSendChannelInterface> send_media_channel_impl,
     std::unique_ptr<MediaReceiveChannelInterface> receive_media_channel_impl,
     absl::string_view mid,
     MediaType media_type,
     bool srtp_required,
     CryptoOptions crypto_options,
-    UniqueRandomIdGenerator* ssrc_generator,
+    UniqueRandomIdGenerator* absl_nonnull ssrc_generator,
     ChannelCallbacks callbacks)
     : media_send_channel_(std::move(send_media_channel_impl)),
       media_receive_channel_(std::move(receive_media_channel_impl)),

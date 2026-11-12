@@ -38,6 +38,19 @@ rtc_library("scream_v2_parameters") {
   ]
 }
 
+rtc_library("loss_rate_estimator") {
+  sources = [
+    "loss_rate_estimator.cc",
+    "loss_rate_estimator.h",
+  ]
+  deps = [
+    ":scream_v2_parameters",
+    "../../../api/transport:network_control",
+    "../../../api/units:time_delta",
+    "../../../api/units:timestamp",
+  ]
+}
+
 rtc_library("scream_v2") {
   sources = [
     "scream_v2.cc",
@@ -45,6 +58,7 @@ rtc_library("scream_v2") {
   ]
   deps = [
     ":delay_based_congestion_control",
+    ":loss_rate_estimator",
     ":scream_v2_parameters",
     "../../../api/environment",
     "../../../api/transport:ecn_marking",
@@ -85,11 +99,13 @@ if (rtc_include_tests) {
     testonly = true
     sources = [
       "delay_based_congestion_control_unittest.cc",
+      "loss_rate_estimator_unittest.cc",
       "scream_network_controller_unittest.cc",
       "scream_v2_unittest.cc",
     ]
     deps = [
       ":delay_based_congestion_control",
+      ":loss_rate_estimator",
       ":scream_network_controller",
       ":scream_v2",
       ":scream_v2_parameters",

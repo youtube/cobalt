@@ -960,6 +960,7 @@ MaybeHandle<String> NewStringFromUtf8Variant(Isolate* isolate,
           MessageTemplate::kWasmTrapStringInvalidWtf8);
 #endif
   }
+  UNREACHABLE();
 }
 
 }  // namespace
@@ -2165,7 +2166,7 @@ DirectHandle<WasmTypeInfo> Factory::NewWasmTypeInfo(
 
 DirectHandle<WasmImportData> Factory::NewWasmImportData(
     DirectHandle<HeapObject> callable, wasm::Suspend suspend,
-    MaybeDirectHandle<WasmTrustedInstanceData> instance_data,
+    MaybeDirectHandle<WasmTrustedInstanceData> importing_instance_data,
     const wasm::CanonicalSig* sig, SharedFlag shared) {
   DirectHandle<Cell> wrapper_budget_cell =
       NewCell(Smi::FromInt(v8_flags.wasm_wrapper_tiering_budget));
@@ -2179,10 +2180,11 @@ DirectHandle<WasmImportData> Factory::NewWasmImportData(
   result->set_native_context(*isolate()->native_context());
   result->set_callable(Cast<UnionOf<Undefined, JSReceiver>>(*callable));
   result->set_suspend(suspend);
-  if (instance_data.is_null()) {
-    result->clear_instance_data();
+  if (importing_instance_data.is_null()) {
+    result->clear_importing_instance_data();
   } else {
-    result->set_instance_data(*instance_data.ToHandleChecked());
+    result->set_importing_instance_data(
+        *importing_instance_data.ToHandleChecked());
   }
   result->set_wrapper_budget(*wrapper_budget_cell);
   result->clear_call_origin();
@@ -2193,10 +2195,10 @@ DirectHandle<WasmImportData> Factory::NewWasmImportData(
 
 DirectHandle<WasmImportData> Factory::NewWasmImportData(
     DirectHandle<WasmImportData> import_data, SharedFlag shared) {
-  return NewWasmImportData(handle(import_data->callable(), isolate()),
-                           import_data->suspend(),
-                           handle(import_data->instance_data(), isolate()),
-                           import_data->sig(), shared);
+  return NewWasmImportData(
+      handle(import_data->callable(), isolate()), import_data->suspend(),
+      handle(import_data->importing_instance_data(), isolate()),
+      import_data->sig(), shared);
 }
 
 Handle<AsmWasmData> Factory::NewAsmWasmData(
@@ -5524,6 +5526,24 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
   }
 
   return function_handle;
+}
+
+JSDispatchHandle Factory::NewJSDispatchHandle(uint16_t parameter_count,
+                                              DirectHandle<Code> code,
+                                              JSDispatchTable::Space* space) {
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  if (v8_flags.dispatch_table_gc_interval > 0) [[unlikely]] {
+    if (isolate()->heap()->increment_dispatch_table_allocations() %
+            v8_flags.dispatch_table_gc_interval ==
+        0) {
+      isolate()->heap()->CollectAllGarbage(GCFlag::kNoFlags,
+                                           GarbageCollectionReason::kTesting);
+    }
+  }
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
+
+  return FactoryBase<Factory>::NewJSDispatchHandle(parameter_count, code,
+                                                   space);
 }
 
 }  // namespace internal

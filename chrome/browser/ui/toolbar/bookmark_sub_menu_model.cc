@@ -72,7 +72,9 @@ void BookmarkSubMenuModel::Build(Browser* browser) {
   AddSubMenuWithStringIdAndIcon(
       IDC_READING_LIST_MENU, IDS_READING_LIST_MENU,
       reading_list_sub_menu_model_.get(),
-      ui::ImageModel::FromVectorIcon(kReadingListIcon));
+      ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
+                                         ? kListAltIcon
+                                         : kReadingListOldIcon));
   SetElementIdentifierAt(GetIndexOfCommandId(IDC_READING_LIST_MENU).value(),
                          kReadingListMenuItem);
 
@@ -84,10 +86,23 @@ void BookmarkSubMenuModel::Build(Browser* browser) {
     }
   };
 
-  set_icon(IDC_BOOKMARK_THIS_TAB, kBookmarksListsMenuIcon);
-  set_icon(IDC_BOOKMARK_ALL_TABS, kBookmarkAllTabsChromeRefreshIcon);
-  set_icon(IDC_SHOW_BOOKMARK_BAR, kToolbarChromeRefreshIcon);
-  set_icon(IDC_SHOW_BOOKMARK_MANAGER, kBookmarksManagerIcon);
-  set_icon(IDC_SHOW_BOOKMARK_SIDE_PANEL, kBookmarksSidePanelRefreshIcon);
-  set_icon(IDC_IMPORT_SETTINGS, kMenuBookChromeRefreshIcon);
+  set_icon(IDC_BOOKMARK_THIS_TAB, features::IsRoundedIconsEnabled()
+                                      ? kStarIcon
+                                      : kBookmarksListsMenuOldIcon);
+  set_icon(IDC_BOOKMARK_ALL_TABS, features::IsRoundedIconsEnabled()
+                                      ? kHotelClassIcon
+                                      : kBookmarkAllTabsChromeRefreshOldIcon);
+  set_icon(IDC_SHOW_BOOKMARK_BAR, features::IsRoundedIconsEnabled()
+                                      ? kToolbarIcon
+                                      : kToolbarChromeRefreshOldIcon);
+  set_icon(IDC_SHOW_BOOKMARK_MANAGER, features::IsRoundedIconsEnabled()
+                                          ? kBookmarkManagerIcon
+                                          : kBookmarksManagerOldIcon);
+  set_icon(IDC_SHOW_BOOKMARK_SIDE_PANEL,
+           features::IsRoundedIconsEnabled()
+               ? kHotelClassIcon
+               : kBookmarksSidePanelRefreshOldIcon);
+  set_icon(IDC_IMPORT_SETTINGS, features::IsRoundedIconsEnabled()
+                                    ? kMenuBookIcon
+                                    : kMenuBookChromeRefreshOldIcon);
 }

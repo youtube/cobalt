@@ -27,6 +27,7 @@
 #include "third_party/skia/include/core/SkPaint.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/codec/jpeg_codec.h"
+#include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/views/controls/webview/webview.h"
@@ -427,10 +428,12 @@ OverlayBaseController::PreselectionUIConfig
 SelectionOverlayController::GetPreselectionBubbleConfig() {
   return {
       .message_string_id = IDS_GLIC_SELECTION_OVERLAY_PRESELECTION_BUBBLE_TEXT,
-      .show_cancel_button = true,
-      .cancel_button_color = kColorGlicSelectionOverlayToastCancelButton,
       .bubble_background_color = kColorGlicSelectionOverlayToast,
-      .icon = &vector_icons::kCropFreeIcon};
+      .icon = &vector_icons::kCropFreeOldIcon,
+      .cancel_button_config = CancelButtonConfig{
+          .color = kColorGlicSelectionOverlayToastCancelButton,
+          .padding = gfx::Insets::VH(8, 16),
+          .bubble_margins = gfx::Insets::VH(6, 14)}};
 }
 
 bool SelectionOverlayController::IsOverlayViewShared() const {
@@ -561,18 +564,11 @@ void SelectionOverlayController::RenderRegions() {
   if (GlicInstance* instance = service->GetInstanceForTab(tab_)) {
     mojom::AdditionalContextPtr additional_context =
         CreateAdditionalContext(std::move(captured_regions));
-    service->SendAdditionalContext(tab_->GetHandle(),
-                                   std::move(additional_context));
+    instance->SendAdditionalContext(std::move(additional_context));
     instance->OnSelectionAreasChanged(selected_regions_.size());
     instance->OnPolylinePointsChanged(polyline_counts);
-    if (instance->IsActive()) {
-      if (content::WebContents* web_contents =
-              instance->host().webui_contents()) {
-        web_contents->Focus();
-      }
-    }
+    instance->FocusIfActive();
   }
-
 }
 
 glic::mojom::AdditionalContextPtr

@@ -19,18 +19,19 @@
 #include "chrome/browser/password_manager/actor_login/actor_login_permission_cleaning_service_factory.h"
 #include "chrome/browser/password_manager/actor_login/actor_login_permission_service_factory.h"
 #include "chrome/browser/password_manager/actor_login/internal/actor_login_federated_credentials_fetcher.h"
-#include "chrome/browser/password_manager/actor_login/internal/actor_login_metrics_helper.h"
 #include "chrome/browser/password_manager/actor_login/internal/actor_login_siwg_controller.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/common/buildflags.h"
+#include "components/autofill/core/common/autofill_prefs.h"
 #include "components/password_manager/content/browser/content_password_manager_driver.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_quality_logger_interface.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_types.h"
 #include "components/password_manager/core/browser/actor_login/internal/actor_login_credential_filler.h"
 #include "components/password_manager/core/browser/actor_login/internal/actor_login_credentials_fetcher.h"
 #include "components/password_manager/core/browser/actor_login/internal/actor_login_get_credentials_helper.h"
+#include "components/password_manager/core/browser/actor_login/internal/actor_login_metrics_helper.h"
 #include "components/password_manager/core/browser/actor_login/internal/actor_login_password_credentials_fetcher.h"
 #include "components/password_manager/core/browser/actor_login/internal/actor_login_permission_cleaning_service.h"
 #include "components/password_manager/core/browser/features/password_features.h"
@@ -38,6 +39,7 @@
 #include "components/password_manager/core/browser/password_manager.h"
 #include "components/password_manager/core/browser/password_manager_driver.h"
 #include "components/password_manager/core/browser/password_manager_util.h"
+#include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents_user_data.h"
@@ -131,9 +133,6 @@ void ActorLoginDelegateImpl::GetCredentials(
       GetWebContents().GetPrimaryMainFrame()->GetPageUkmSourceId());
   metrics_helper_->OnGetCredentialsStarted();
 
-  PasswordManagerDriver* driver = driver_supplier_.Run(&GetWebContents());
-  CHECK(driver);
-
   const url::Origin request_origin =
       GetWebContents().GetPrimaryMainFrame()->GetLastCommittedOrigin();
   mqls_logger->SetDomainAndLanguage(
@@ -141,8 +140,26 @@ void ActorLoginDelegateImpl::GetCredentials(
       request_origin.GetURL());
 
   std::vector<std::unique_ptr<ActorLoginCredentialsFetcher>> fetchers;
-  fetchers.push_back(std::make_unique<ActorLoginPasswordCredentialsFetcher>(
-      request_origin, client_, driver->GetPasswordManager(), mqls_logger));
+
+  bool can_fetch_passwords = true;
+#if BUILDFLAG(IS_ANDROID)
+  // `client_` can be null on Android when using third-party password manager.
+  // In this case we can still support FedCM. Checking
+  // kAutofillUsingPlatformAutofill is currently redundant but it's possible
+  // that in the future we start supporting third-party password manager through
+  // password manager client, so check the pref for future-proofing.
+  can_fetch_passwords =
+      client_ &&
+      !Profile::FromBrowserContext(GetWebContents().GetBrowserContext())
+           ->GetPrefs()
+           ->GetBoolean(autofill::prefs::kAutofillUsingPlatformAutofill);
+#endif
+  if (can_fetch_passwords) {
+    PasswordManagerDriver* driver = driver_supplier_.Run(&GetWebContents());
+    CHECK(driver);
+    fetchers.push_back(std::make_unique<ActorLoginPasswordCredentialsFetcher>(
+        request_origin, client_, driver->GetPasswordManager(), mqls_logger));
+  }
 
   if (has_sign_in_with_google_button) {
     ActorLoginPermissionService* permission_service =
@@ -264,6 +281,9 @@ void ActorLoginDelegateImpl::AttemptLogin(
   CHECK(driver);
   PasswordManagerInterface* password_manager = driver->GetPasswordManager();
   CHECK(password_manager);
+  // Attempting to fill a password means that we have client because
+  // `GetCredentials` returned a password credential.
+  CHECK(client_);
   credential_filler_ = std::make_unique<ActorLoginCredentialFiller>(
       origin, credential, should_store_permission, client_, mqls_logger,
       attempt_login_tool_start_time,
@@ -313,7 +333,7 @@ void ActorLoginDelegateImpl::OnFederatedLoginCompletedPostButtonClick(
     return;
   }
   if (success && found_conflicting_permissions_ &&
-      siwg_controller_->should_store_permission()) {
+      siwg_controller_->ShouldStorePermission()) {
     ClearConflictingPermissions();
   }
 
@@ -417,7 +437,7 @@ void ActorLoginDelegateImpl::ProcessFederatedResult(
   if (result.has_value() &&
       result.value() == LoginStatusResult::kSuccessFederated &&
       found_conflicting_permissions_ &&
-      siwg_controller_->should_store_permission()) {
+      siwg_controller_->ShouldStorePermission()) {
     ClearConflictingPermissions();
   }
   // This is the end of the federated login flow if it didn't require a button
@@ -449,6 +469,8 @@ void ActorLoginDelegateImpl::ProcessPasswordResult(
            LoginStatusResult::kSuccessUsernameAndPasswordFilled)) {
     return;
   }
+  // Since we attempted to fill the password fields, we should have a client.
+  CHECK(client_);
   // Don't reset state here. The password login flow ends when
   // `OnLoginSucceeded` is called or if that doesn't happen, at the latest
   // when a new request comes in.

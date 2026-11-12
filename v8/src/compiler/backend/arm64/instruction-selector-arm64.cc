@@ -173,7 +173,7 @@ class Arm64OperandGenerator final : public OperandGenerator {
       case kUImm8:
         return is_uint8(value);
     }
-    return false;
+    UNREACHABLE();
   }
 
   bool CanBeLoadStoreShiftImmediate(OpIndex node, MemoryRepresentation rep) {
@@ -2909,12 +2909,13 @@ void VisitWideAddSub(InstructionSelector* selector, OpIndex node, bool is_add) {
   InstructionCode opcode = is_add ? kArm64Add128 : kArm64Sub128;
   InstructionCode opcode_no_high = is_add ? kArm64Add : kArm64Sub;
 
-  DCHECK(out_low.valid() && out_high.valid());
-
-  if (!selector->IsUsed(out_high.value())) {
-    InstructionOperand b_low_op = g.UseOperand(op.right_low(), kArithmeticImm);
-    selector->Emit(opcode_no_high, g.DefineAsRegister(out_low.value()),
-                   g.UseRegister(op.left_low()), b_low_op);
+  if (!out_high.valid() || !selector->IsUsed(out_high.value())) {
+    if (out_low.valid()) {
+      InstructionOperand b_low_op =
+          g.UseOperand(op.right_low(), kArithmeticImm);
+      selector->Emit(opcode_no_high, g.DefineAsRegister(out_low.value()),
+                     g.UseRegister(op.left_low()), b_low_op);
+    }
     return;
   }
 
@@ -2929,7 +2930,8 @@ void VisitWideAddSub(InstructionSelector* selector, OpIndex node, bool is_add) {
   inputs[input_count++] = g.UseUniqueRegister(op.left_high());
   inputs[input_count++] = g.UseUniqueRegister(op.right_high());
 
-  outputs[output_count++] = g.DefineAsRegister(out_low.value());
+  outputs[output_count++] =
+      g.DefineAsRegister(out_low.valid() ? out_low.value() : node);
   outputs[output_count++] = g.DefineAsRegister(out_high.value());
 
   selector->Emit(opcode, output_count, outputs, input_count, inputs);
@@ -5190,14 +5192,14 @@ void InstructionSelector::VisitInt64AbsWithOverflow(OpIndex node) {
   V(I16x8ShrU, IShrU, LaneSize::kL16) \
   V(I8x16ShrU, IShrU, LaneSize::kL8)
 
-#define SIMD_BINOP_LIST(V)                        \
-  V(I32x4Mul, kArm64I32x4Mul)                     \
-  V(I16x8SConvertI32x4, kArm64I16x8SConvertI32x4) \
-  V(I16x8Mul, kArm64I16x8Mul)                     \
-  V(I16x8UConvertI32x4, kArm64I16x8UConvertI32x4) \
-  V(I16x8Q15MulRSatS, kArm64I16x8Q15MulRSatS)     \
-  V(I16x8RelaxedQ15MulRS, kArm64I16x8Q15MulRSatS) \
-  V(I8x16SConvertI16x8, kArm64I8x16SConvertI16x8) \
+#define SIMD_BINOP_LIST(V)                                        \
+  V(I32x4Mul, kArm64IMul | LaneSizeField::encode(LaneSize::kL32)) \
+  V(I16x8SConvertI32x4, kArm64I16x8SConvertI32x4)                 \
+  V(I16x8Mul, kArm64IMul | LaneSizeField::encode(LaneSize::kL16)) \
+  V(I16x8UConvertI32x4, kArm64I16x8UConvertI32x4)                 \
+  V(I16x8Q15MulRSatS, kArm64I16x8Q15MulRSatS)                     \
+  V(I16x8RelaxedQ15MulRS, kArm64I16x8Q15MulRSatS)                 \
+  V(I8x16SConvertI16x8, kArm64I8x16SConvertI16x8)                 \
   V(I8x16UConvertI16x8, kArm64I8x16UConvertI16x8)
 
 #define SIMD_BINOP_LANE_SIZE_LIST(V)                               \
@@ -5752,9 +5754,69 @@ void InstructionSelector::VisitF64x2Mul(OpIndex node) {
 void InstructionSelector::VisitI64x2Mul(OpIndex node) {
   Arm64OperandGenerator g(this);
   const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
-  Emit(kArm64I64x2Mul, g.DefineAsRegister(node), g.UseRegister(op.left()),
-       g.UseRegister(op.right()), arraysize(temps), temps);
+  OpIndex left = op.left();
+  OpIndex right = op.right();
+
+  // This 2x64-bit multiplication is performed with several 32-bit
+  // multiplications.
+
+  // 64-bit numbers x and y, can be represented as:
+  //   x = a + 2^32(b)
+  //   y = c + 2^32(d)
+
+  // A 64-bit multiplication is:
+  //   x * y = ac + 2^32(ad + bc) + 2^64(bd)
+  // note: `2^64(bd)` can be ignored, the value is too large to fit in
+  // 64-bits.
+
+  // This sequence implements a 2x64bit multiply, where the registers
+  // `left` and `right` are split up into 32-bit components:
+  //   left = |d|c|b|a|
+  //   right = |h|g|f|e|
+  //
+  //   left * right = |cg + 2^32(ch + dg)|ae + 2^32(af + be)|
+
+  // Reverse the 32-bit elements in the 64-bit words.
+  //   |g|h|e|f|
+  InstructionOperand rev64 = g.TempSimd128Register();
+  Emit(kArm64S128Rev64 | LaneSizeField::encode(LaneSize::kL32), rev64,
+       g.UseRegister(right));
+
+  // Calculate the high half components.
+  //   |dg|ch|be|af|
+  InstructionOperand mul = g.TempSimd128Register();
+  Emit(kArm64IMul | LaneSizeField::encode(LaneSize::kL32), mul, rev64,
+       g.UseRegister(left));
+
+  // Extract the low half components of left.
+  // |c|a|
+  InstructionOperand xtn1 = g.TempSimd128Register();
+  Emit(kArm64S128ExtractNarrow | LaneSizeField::encode(LaneSize::kL32) |
+           VectorLengthField::encode(VectorLength::kV64),
+       xtn1, g.UseRegister(left));
+
+  // Sum the respective high half components.
+  // |dg+ch|be+af||dg+ch|be+af|
+  InstructionOperand addp = g.TempSimd128Register();
+  Emit(kArm64IAddp | LaneSizeField::encode(LaneSize::kL32), addp, mul, mul);
+
+  // Extract the low half components of right.
+  // |g|e|
+  InstructionOperand xtn2 = g.TempSimd128Register();
+  Emit(kArm64S128ExtractNarrow | LaneSizeField::encode(LaneSize::kL32) |
+           VectorLengthField::encode(VectorLength::kV64),
+       xtn2, g.UseRegister(right));
+
+  // Shift the high half components, into the high half.
+  // dst = |dg+ch << 32|be+af << 32|
+  InstructionOperand dst = g.TempSimd128Register();
+  Emit(kArm64IShll | LaneSizeField::encode(LaneSize::kL64), dst, addp);
+
+  // Multiply the low components together, and accumulate with the high
+  // half.
+  // dst = |dst[1] + cg|dst[0] + ae|
+  Emit(kArm64Umlal | LaneSizeField::encode(LaneSize::kL64),
+       g.DefineSameAsFirst(node), dst, xtn2, xtn1);
 }
 
 namespace {

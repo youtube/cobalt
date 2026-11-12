@@ -69,6 +69,7 @@ inline constexpr base::FeatureParam<int>
     kOmniboxWebUIDeferShowUntilVisualStateReadyTimeoutMs{
         &kOmniboxWebUIDeferShowUntilVisualStateReady,
         "omnibox_webui_defer_show_until_visual_state_ready_timeout_ms", 250};
+BASE_DECLARE_FEATURE(kOmniboxWebUIPopupStabilizeStartupShow);
 BASE_DECLARE_FEATURE(kOmniboxAimDetachWebContentsOnHide);
 BASE_DECLARE_FEATURE(kOmniboxWebUIDetachWebContentsOnHide);
 BASE_DECLARE_FEATURE(kOmniboxWebUIPopupMarkAsHidden);
@@ -216,6 +217,22 @@ BASE_DECLARE_FEATURE(kPlatformAgnosticXGeo);
 // If enabled, Inline Location Signaling is enabled gating all development
 // and experimentation for the feature.
 BASE_DECLARE_FEATURE(kInlineLocationSignaling);
+
+enum class InlineLocationSignalingDisplayOrder {
+  kDisplayBelow = 0,
+  kDisplayAbove = 1,
+};
+
+enum class InlineLocationSignalingWording {
+  kUseApproximateLocation = 0,
+  kUseLocation = 1,
+};
+
+extern const base::FeatureParam<InlineLocationSignalingDisplayOrder>
+    kInlineLocationSignalingDisplayOrder;
+
+extern const base::FeatureParam<InlineLocationSignalingWording>
+    kInlineLocationSignalingWording;
 
 // Note: no new flags beyond this point.
 

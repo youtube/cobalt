@@ -11,6 +11,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ui_base_features.h"
 
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(SplitViewLayoutMenuModel,
                                       kVerticalMenuItem);
@@ -18,19 +19,17 @@ DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(SplitViewLayoutMenuModel,
                                       kHorizontalMenuItem);
 
 SplitViewLayoutMenuModel::SplitViewLayoutMenuModel(
-    TabStripModel* tab_strip_model,
-    tabs::TabHandle tab_handle)
+    ExecuteCommandCallback execute_command_callback)
     : ui::SimpleMenuModel(this),
-      tab_strip_model_(tab_strip_model),
-      tab_handle_(tab_handle) {
-  AddItem(static_cast<int>(CommandId::kVertical), std::u16string());
-  AddItem(static_cast<int>(CommandId::kHorizontal), std::u16string());
+      execute_command_callback_(std::move(execute_command_callback)) {
+  AddItem(static_cast<int>(CommandId::kSideBySide), std::u16string());
+  AddItem(static_cast<int>(CommandId::kStacked), std::u16string());
 
   SetElementIdentifierAt(
-      GetIndexOfCommandId(static_cast<int>(CommandId::kVertical)).value(),
+      GetIndexOfCommandId(static_cast<int>(CommandId::kSideBySide)).value(),
       kVerticalMenuItem);
   SetElementIdentifierAt(
-      GetIndexOfCommandId(static_cast<int>(CommandId::kHorizontal)).value(),
+      GetIndexOfCommandId(static_cast<int>(CommandId::kStacked)).value(),
       kHorizontalMenuItem);
 }
 
@@ -38,16 +37,16 @@ SplitViewLayoutMenuModel::~SplitViewLayoutMenuModel() = default;
 
 bool SplitViewLayoutMenuModel::IsItemForCommandIdDynamic(int command_id) const {
   const CommandId id = static_cast<CommandId>(command_id);
-  return id == CommandId::kVertical || id == CommandId::kHorizontal;
+  return id == CommandId::kSideBySide || id == CommandId::kStacked;
 }
 
 std::u16string SplitViewLayoutMenuModel::GetLabelForCommandId(
     int command_id) const {
   const CommandId id = static_cast<CommandId>(command_id);
   switch (id) {
-    case CommandId::kVertical:
+    case CommandId::kSideBySide:
       return l10n_util::GetStringUTF16(IDS_SPLIT_TAB_NEW_VERTICAL);
-    case CommandId::kHorizontal:
+    case CommandId::kStacked:
       return l10n_util::GetStringUTF16(IDS_SPLIT_TAB_NEW_HORIZONTAL);
     default:
       NOTREACHED();
@@ -59,10 +58,11 @@ ui::ImageModel SplitViewLayoutMenuModel::GetIconForCommandId(
   const CommandId id = static_cast<CommandId>(command_id);
   const gfx::VectorIcon* icon = nullptr;
   switch (id) {
-    case CommandId::kVertical:
-      icon = &kSplitSceneIcon;
+    case CommandId::kSideBySide:
+      icon = &(features::IsRoundedIconsEnabled() ? kSplitSceneIcon
+                                                 : kSplitSceneOldIcon);
       break;
-    case CommandId::kHorizontal:
+    case CommandId::kStacked:
       icon = &kSplitSceneHorizontalIcon;
       break;
     default:
@@ -74,23 +74,18 @@ ui::ImageModel SplitViewLayoutMenuModel::GetIconForCommandId(
 }
 
 void SplitViewLayoutMenuModel::ExecuteCommand(int command_id, int event_flags) {
-  if (!tab_handle_.Get()) {
-    return;
-  }
-
-  int context_index = tab_strip_model_->GetIndexOfTab(tab_handle_.Get());
   const CommandId id = static_cast<CommandId>(command_id);
   split_tabs::SplitTabLayout split_layout;
   switch (id) {
-    case CommandId::kVertical:
-      split_layout = split_tabs::SplitTabLayout::kVertical;
+    case CommandId::kSideBySide:
+      split_layout = split_tabs::SplitTabLayout::kSideBySide;
       break;
-    case CommandId::kHorizontal:
-      split_layout = split_tabs::SplitTabLayout::kHorizontal;
+    case CommandId::kStacked:
+      split_layout = split_tabs::SplitTabLayout::kStacked;
       break;
     default:
       NOTREACHED();
   }
 
-  tab_strip_model_->ExecuteAddToNewSplitCommand(context_index, split_layout);
+  std::move(execute_command_callback_).Run(split_layout);
 }

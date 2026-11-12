@@ -732,20 +732,17 @@ std::unique_ptr<EnclaveLocalState> ParseStateFile(
 
 base::flat_set<GaiaId> GetGaiaIDs(
     const std::vector<gaia::ListedAccount>& listed_accounts) {
-  base::flat_set<GaiaId> result;
-  for (const gaia::ListedAccount& listed_account : listed_accounts) {
-    result.insert(listed_account.gaia_id);
-  }
-  return result;
+  return base::MakeFlatSet<GaiaId>(
+      listed_accounts, /*comp=*/{},
+      [](const gaia::ListedAccount& listed_account) {
+        return listed_account.gaia_id;
+      });
 }
 
 base::flat_set<GaiaId> GetGaiaIDs(
     const google::protobuf::Map<std::string, EnclaveLocalState::User>& users) {
-  base::flat_set<GaiaId> result;
-  for (const auto& it : users) {
-    result.insert(GaiaId(it.first));
-  }
-  return result;
+  return base::MakeFlatSet<GaiaId>(
+      users, /*comp=*/{}, [](const auto& it) { return GaiaId(it.first); });
 }
 
 std::string UserVerifyingLabelToString(crypto::UserVerifyingKeyLabel label) {
@@ -2666,8 +2663,13 @@ class EnclaveManager::StateMachine {
           Stop(ActionOutcome::kDoRenewingPINFailedCohortNotYetDeprecated);
           return;
         case device::enclave::RequestError::kRecoveryKeyStoreDowngrade:
-          FIDO_LOG(ERROR) << "Not renewing PIN because it would result in "
+          // This is expected when a client moves from a Finch keychain cohort
+          // experiment group to a control group.
+          FIDO_LOG(EVENT) << "Not renewing PIN because it would result in "
                              "downgrading the recovery store";
+          user_->set_last_refreshed_pin_epoch_secs(
+              base::Time::Now().InSecondsFSinceUnixEpoch());
+          manager_->WriteState(&local_state_);
           Stop(ActionOutcome::kDoRenewingPINFailedRecoveryStoreDowngrade);
           return;
         default:

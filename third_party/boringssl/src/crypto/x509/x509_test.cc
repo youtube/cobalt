@@ -8434,6 +8434,36 @@ TEST(X509Test, ParamInheritance) {
     // The new value is used.
     EXPECT_EQ(X509_VERIFY_PARAM_get_depth(dest.get()), 10);
   }
+
+  // |X509_VERIFY_PARAM_inherit| and |X509_VERIFY_PARAM_set1| must fail if the
+  // source parameter is poisoned.
+  {
+    UniquePtr<X509_VERIFY_PARAM> dest(X509_VERIFY_PARAM_new());
+    ASSERT_TRUE(dest);
+    UniquePtr<X509_VERIFY_PARAM> src(X509_VERIFY_PARAM_new());
+    ASSERT_TRUE(src);
+
+    // Poison the source parameter (using an embedded NUL in hostname).
+    ASSERT_FALSE(X509_VERIFY_PARAM_set1_host(src.get(), "a", 2));
+
+    EXPECT_FALSE(X509_VERIFY_PARAM_inherit(dest.get(), src.get()));
+    EXPECT_FALSE(X509_VERIFY_PARAM_set1(dest.get(), src.get()));
+  }
+
+  // |X509_VERIFY_PARAM_inherit| and |X509_VERIFY_PARAM_set1| must fail if the
+  // destination parameter is poisoned.
+  {
+    UniquePtr<X509_VERIFY_PARAM> dest(X509_VERIFY_PARAM_new());
+    ASSERT_TRUE(dest);
+    UniquePtr<X509_VERIFY_PARAM> src(X509_VERIFY_PARAM_new());
+    ASSERT_TRUE(src);
+
+    // Poison the destination parameter (using an embedded NUL in hostname).
+    ASSERT_FALSE(X509_VERIFY_PARAM_set1_host(dest.get(), "a", 2));
+
+    EXPECT_FALSE(X509_VERIFY_PARAM_inherit(dest.get(), src.get()));
+    EXPECT_FALSE(X509_VERIFY_PARAM_set1(dest.get(), src.get()));
+  }
 }
 
 TEST(X509Test, PublicKeyCache) {
@@ -9990,7 +10020,8 @@ TEST(X509Test, X509StoreGet1IssuerMultipleMatches) {
     ASSERT_TRUE(X509_STORE_add_cert(store.get(), issuer_wrong.get()));
   }
 
-  // Verify a certificate using the store. It should find the correct issuer.
+  // Verify a certificate using the store. It should find the correct issuer by
+  // matching SKID.
   UniquePtr<X509_STORE_CTX> ctx(X509_STORE_CTX_new());
   ASSERT_TRUE(ctx);
   ASSERT_TRUE(X509_STORE_CTX_init(ctx.get(), store.get(), cert.get(), nullptr));
@@ -9999,20 +10030,8 @@ TEST(X509Test, X509StoreGet1IssuerMultipleMatches) {
       << "Certificate verification failed: "
       << X509_STORE_CTX_get_error(ctx.get());
 
-  // Validate that a lookup by issuer name will not return |issuer_ok|,
-  // otherwise the test may flakily fail to flag a regression. It is not
-  // well-defined which issuer should be returned, but we use a stable sort, so
-  // this is currently reliable. If we ever change this, we can remove this
-  // check and rely on there being several bad certificates.
-  X509_OBJECT obj;
-  ASSERT_EQ(
-      1, X509_STORE_CTX_get_by_subject(ctx.get(), X509_LU_X509,
-                                       X509_get_issuer_name(cert.get()), &obj));
-  EXPECT_NE(0, X509_cmp(X509_OBJECT_get0_X509(&obj), issuer_ok.get()));
-  X509_OBJECT_free_contents(&obj);
-
-  // Check that by actually looking up using the certificate and not just its
-  // issuer name, we can do better and get |issuer_ok|.
+  // X509_STORE_CTX_get1_issuer, which takes the certificate and not just the
+  // issuer name, should also find the one with a matching SKID.
   X509 *found_issuer = nullptr;
   int get1_ret =
       X509_STORE_CTX_get1_issuer(&found_issuer, ctx.get(), cert.get());

@@ -1015,7 +1015,9 @@ class TryTableIterator {
   const uint32_t table_count_;  // the count of entries, not including default.
 };
 
-using EffectHandlerTableImmediate = BranchTableImmediate;
+struct EffectHandlerTableImmediate : BranchTableImmediate {
+  using BranchTableImmediate::BranchTableImmediate;
+};
 
 struct HandlerCase {
   SwitchKind kind;        // Regular handler or a switch site.
@@ -2175,6 +2177,15 @@ class WasmDecoder : public Decoder {
   bool Validate(const uint8_t* pc, BranchTableImmediate& imm) {
     if (!VALIDATE(imm.table_count <= kV8MaxWasmFunctionBrTableSize)) {
       DecodeError(pc, "invalid table count (> max br_table size): %u",
+                  imm.table_count);
+      return false;
+    }
+    return checkAvailable(imm.table_count);
+  }
+
+  bool Validate(const uint8_t* pc, EffectHandlerTableImmediate& imm) {
+    if (!VALIDATE(imm.table_count <= kV8MaxWasmEffectHandlers)) {
+      DecodeError(pc, "invalid handler count (> max WasmFX handlers): %u",
                   imm.table_count);
       return false;
     }
@@ -4880,24 +4891,24 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return handler_iterator.length();
   }
 
-  void HandleEffects(base::Vector<HandlerCase> handlers,
-                     ContIndexImmediate imm) {
+  void HandleEffects(base::Vector<HandlerCase> handlers) {
     CALL_INTERFACE_IF_OK_AND_REACHABLE(BeginEffectHandlers);
     for (int i = 0; i < handlers.length(); ++i) {
       if (handlers[i].kind == kOnSuspend) {
+        Control* target = control_at(handlers[i].maybe_depth.br.depth);
+        Value& val = (*target->br_merge())[target->br_merge()->arity - 1];
+        ValueType type = val.type;
+
         int push_count =
             static_cast<int>(handlers[i].tag.tag->sig->parameter_count()) + 1;
         stack_.EnsureMoreCapacity(push_count, this->zone_);
         Value* tag_params =
             PushValueTypes(handlers[i].tag.tag->sig->parameters());
-        Value* suspend_cont =
-            Push(ValueType::Ref(imm.index, SharedFlag::kNo, RefTypeKind::kCont)
-                     .AsExactIfEnabled(this->enabled_));
+        Value* suspend_cont = Push(type);
         const HandlerCase& handler = handlers[i];
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ResumeHandler, handler, i,
                                            suspend_cont, tag_params);
         Drop(push_count);
-        Control* target = control_at(handlers[i].maybe_depth.br.depth);
         target->br_merge()->reached = true;
       }
     }
@@ -4935,7 +4946,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                        args.data(), returns);
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
       MarkMightThrow();
-      HandleEffects(handlers, imm);
+      HandleEffects(handlers);
     }
     return 1 + imm.length + table_length;
   }
@@ -4979,7 +4990,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                        cont, args.data(), returns);
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
       MarkMightThrow();
-      HandleEffects(handlers, cont_imm);
+      HandleEffects(handlers);
     }
     return 1 + exc_imm.length + cont_imm.length + table_length;
   }
@@ -5016,7 +5027,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
       MarkMightThrow();
-      HandleEffects(handlers, cont_imm);
+      HandleEffects(handlers);
     }
     return 1 + cont_imm.length + table_length;
   }
@@ -5103,6 +5114,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Switch, tagimm, contimm, cont_ref,
                                        args.data(), returns);
+    if (V8_LIKELY(this->current_code_reachable_and_ok_)) {
+      this->MarkMightThrow();
+    }
 
     return 1 + contimm.length + tagimm.length;
   }
@@ -7883,8 +7897,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       case kExprI64Add128: {
         CHECK_PROTOTYPE_OPCODE(wide_arithmetic);
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || \
-    V8_TARGET_ARCH_ARM64
         auto [a_lo, a_hi, b_lo, b_hi] =
             Pop(kWasmI64, kWasmI64, kWasmI64, kWasmI64);
         Value* result_l = Push(kWasmI64);
@@ -7892,27 +7904,16 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         CALL_INTERFACE_IF_OK_AND_REACHABLE(WideOp4, opcode, a_lo, a_hi, b_lo,
                                            b_hi, result_l, result_h);
         return opcode_length;
-#else
-        this->DecodeError("Wide arithmetic opcodes are not yet implemented.");
-        return 0;
-#endif
       }
       case kExprI64MulWideS:
       case kExprI64MulWideU: {
         CHECK_PROTOTYPE_OPCODE(wide_arithmetic);
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 || \
-    V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_RISCV64
-
         auto [a, b] = Pop(kWasmI64, kWasmI64);
         Value* result_l = Push(kWasmI64);
         Value* result_h = Push(kWasmI64);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(WideOp2, opcode, a, b, result_l,
                                            result_h);
         return opcode_length;
-#else
-        this->DecodeError("Wide arithmetic opcodes are not yet implemented.");
-        return 0;
-#endif
       }
       case kExprI64Sub128: {
         CHECK_PROTOTYPE_OPCODE(wide_arithmetic);

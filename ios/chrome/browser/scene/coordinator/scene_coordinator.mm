@@ -17,6 +17,7 @@
 #import "components/infobars/core/infobar_manager.h"
 #import "components/password_manager/core/browser/ui/credential_ui_entry.h"
 #import "components/signin/public/base/consent_level.h"
+#import "components/signin/public/identity_manager/account_capabilities.h"
 #import "components/signin/public/identity_manager/account_info.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "components/supervised_user/core/browser/kids_management_api_fetcher.h"
@@ -749,6 +750,25 @@ void OnListFamilyMembersResponse(
                                  sender:(UserFeedbackSender)sender
                     specificProductData:(NSDictionary<NSString*, NSString*>*)
                                             specificProductData {
+  if (IsFeedbackEntryPointsRequireCanSubmitFeedbackCapabilityEnabled()) {
+    ProfileIOS* originalProfile = self.profile->GetOriginalProfile();
+    signin::IdentityManager* identityManager =
+        IdentityManagerFactory::GetForProfile(originalProfile);
+    CoreAccountInfo primaryAccountInfo =
+        identityManager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
+    AccountInfo info = identityManager->FindExtendedAccountInfoByAccountId(
+        primaryAccountInfo.account_id);
+    if (info.capabilities.can_submit_feedback() == signin::Tribool::kFalse) {
+      // TODO(crbug.com/512043635): Remove this test once Chrome uses Aloha
+      // feedback. Aloha feedback is responsible for checking the capability.
+      base::UmaHistogramEnumeration("IOS.Feedback.ReportAnIssue.NotDisplayed",
+                                    sender);
+      return;
+    }
+  }
+
+  base::UmaHistogramEnumeration("IOS.Feedback.ReportAnIssue.Displayed", sender);
+
   DCHECK(baseViewController);
   // This dispatch is necessary to give enough time for the tools menu to
   // disappear before taking a screenshot.
@@ -1850,7 +1870,7 @@ void OnListFamilyMembersResponse(
   configuration.sceneHandler = self;
   configuration.singleSignOnService =
       GetApplicationContext()->GetSingleSignOnService();
-  if (IsDisableU18FeedbackIosEnabled()) {
+  if (IsDisableFeedbackForIneligibleUsersEnabled()) {
     AuthenticationService* authenticationService =
         AuthenticationServiceFactory::GetForProfile(self.profile);
     configuration.primaryIdentity = authenticationService->GetPrimaryIdentity();

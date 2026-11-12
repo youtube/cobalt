@@ -10,6 +10,10 @@
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/menus/simple_menu_model.h"
 
+namespace split_tabs {
+enum class SplitTabLayout;
+}
+
 class SplitViewLayoutMenuModel : public ui::SimpleMenuModel,
                                  public ui::SimpleMenuModel::Delegate {
  public:
@@ -18,12 +22,16 @@ class SplitViewLayoutMenuModel : public ui::SimpleMenuModel,
 
   // Start command IDs at 1901 to avoid conflicts with other submenus.
   enum class CommandId {
-    kVertical = ExistingBaseSubMenuModel::kMinSplitViewLayoutMenuModelCommandId,
-    kHorizontal,
+    kSideBySide =
+        ExistingBaseSubMenuModel::kMinSplitViewLayoutMenuModelCommandId,
+    kStacked,
   };
 
-  explicit SplitViewLayoutMenuModel(TabStripModel* tab_strip_model,
-                                    tabs::TabHandle tab_handle);
+  using ExecuteCommandCallback =
+      base::OnceCallback<void(split_tabs::SplitTabLayout)>;
+
+  explicit SplitViewLayoutMenuModel(
+      ExecuteCommandCallback execute_command_callback);
   ~SplitViewLayoutMenuModel() override;
 
   // ui::SimpleMenuModel::Delegate override
@@ -33,8 +41,7 @@ class SplitViewLayoutMenuModel : public ui::SimpleMenuModel,
   void ExecuteCommand(int command_id, int event_flags) override;
 
  private:
-  raw_ptr<TabStripModel> tab_strip_model_ = nullptr;
-  tabs::TabHandle tab_handle_;
+  ExecuteCommandCallback execute_command_callback_;
 };
 
 #endif  // CHROME_BROWSER_UI_TABS_SPLIT_VIEW_LAYOUT_MENU_MODEL_H_

@@ -280,6 +280,19 @@ void RtpDemuxer::AddSink(absl::string_view rsid, RtpPacketSinkInterface* sink) {
   AddSink(criteria, sink);
 }
 
+void RtpDemuxer::RemoveAllSinks() {
+  sink_by_mid_.clear();
+  sink_by_ssrc_.clear();
+  sinks_by_pt_.clear();
+  sink_by_mid_and_rsid_.clear();
+  sink_by_rsid_.clear();
+  signaled_ssrcs_.clear();
+  known_mids_.clear();
+  match_any_sink_ = nullptr;
+  mid_by_ssrc_.clear();
+  rsid_by_ssrc_.clear();
+}
+
 bool RtpDemuxer::RemoveSink(const RtpPacketSinkInterface* sink) {
   RTC_DCHECK(sink);
   flat_set<uint32_t> ssrcs = GetSsrcsForSink(sink);

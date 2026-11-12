@@ -64,7 +64,7 @@ base::OnceClosure PuffOperation(
       patch_operation_result,
 #endif  // BUILDFLAG(IS_STARBOARD)
       std::move(callback))
-      ->Operation(base::BindOnce(&Patcher::PatchPuffPatch, patcher));
+      ->Operation(base::BindOnce(&Patcher::PatchPuffPatch, patcher, is_foreground));
 #endif  // defined(IN_MEMORY_UPDATES)
   return base::DoNothing();
 }

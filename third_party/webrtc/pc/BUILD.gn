@@ -103,6 +103,7 @@ rtc_library("channel") {
     "../rtc_base/containers:flat_set",
     "../rtc_base/network:sent_packet",
     "//third_party/abseil-cpp/absl/algorithm:container",
+    "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/cleanup",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
     "//third_party/abseil-cpp/absl/strings:str_format",
@@ -347,7 +348,6 @@ rtc_library("media_session") {
     ":rtp_media_utils",
     ":session_description",
     ":simulcast_description",
-    ":used_ids",
     "../api:field_trials_view",
     "../api:rtc_error",
     "../api:rtp_parameters",
@@ -412,7 +412,6 @@ rtc_library("codec_vendor") {
     ":rtp_media_utils",
     ":session_description",
     ":typed_codec_vendor",
-    ":used_ids",
     "../api:field_trials_view",
     "../api:payload_type",
     "../api:rtc_error",
@@ -431,6 +430,7 @@ rtc_library("codec_vendor") {
     "../rtc_base:macromagic",
     "../rtc_base:stringutils",
     "../rtc_base:threading",
+    "../rtc_base/containers:flat_map",
     "../rtc_base/system:no_unique_address",
     "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/base:nullability",
@@ -458,7 +458,6 @@ rtc_library("typed_codec_vendor") {
     "../media:media_constants",
     "../media:media_engine",
     "../rtc_base:checks",
-    "../rtc_base:logging",
     "../rtc_base/containers:flat_set",
     "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/strings",
@@ -723,6 +722,7 @@ rtc_library("srtp_session") {
     "../rtc_base:text2pcap",
     "../rtc_base:timeutils",
     "../rtc_base/synchronization:mutex",
+    "../rtc_base/system:no_unique_address",
     "../system_wrappers:metrics",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
@@ -767,16 +767,6 @@ rtc_library("transport_stats") {
     "../p2p:ice_transport_internal",
     "../rtc_base:ssl_adapter",
     "//third_party/abseil-cpp/absl/strings:string_view",
-  ]
-}
-
-rtc_source_set("used_ids") {
-  visibility = [ ":*" ]
-  sources = [ "used_ids.h" ]
-  deps = [
-    "../api:rtp_parameters",
-    "../media:codec",
-    "../rtc_base:checks",
   ]
 }
 
@@ -2295,7 +2285,6 @@ if (rtc_include_tests && !build_with_chromium) {
       ":srtp_transport",
       ":transport_stats",
       ":typed_codec_vendor",
-      ":used_ids",
       ":video_rtp_receiver",
       "../api:audio_options_api",
       "../api:candidate",

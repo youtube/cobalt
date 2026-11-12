@@ -69,6 +69,7 @@
 <translation id="1253032109800629289">Peida valik „Hankige hinnajälgimise märguanded”</translation>
 <translation id="1254424942107648268">Eelmise vaste otsimine</translation>
 <translation id="1258491128795710625">Mis on uut?</translation>
+<translation id="126093867734601535">Lehe kõrguse uuesti kohandamine</translation>
 <translation id="1262724000444746916">Peida valik Lisa järjehoidjatesse</translation>
 <translation id="1263231323834454256">Lugemisloend</translation>
 <translation id="1263433075299269530">Teie viimane avatud vaheleht</translation>
@@ -177,6 +178,7 @@
 <translation id="1582732959743469162">See peatab praeguse allalaadimise edenemise.</translation>
 <translation id="1594034544529347967">Algus</translation>
 <translation id="1598751033135758830">Ava rakenduses …</translation>
+<translation id="1600571977391127696">Osa sisust ei pruugi kõigile sobida.</translation>
 <translation id="1601560923496285236">Rakenda</translation>
 <translation id="1603718000246404895">{COUNT,plural, =1{1 aadress}other{# aadressi}}</translation>
 <translation id="1605405588277479165">Väljas – Ei soovitata</translation>
@@ -201,6 +203,7 @@
 <translation id="1657011748321897393">Jagamine ebaõnnestus võrguühenduse puudumise tõttu.</translation>
 <translation id="1668001730617725852">Ava uues vahelehegrupis</translation>
 <translation id="1670861525135254448">Salvesta sõiduk</translation>
+<translation id="1671568970992212376">Salvestage fotod teenusesse Google Photos, et pääseda neile igal ajal juurde.</translation>
 <translation id="1674504678466460478"><ph name="SOURCE_LANGUAGE" /> &gt; <ph name="TARGET_LANGUAGE" /></translation>
 <translation id="1678855624321223424">Teie organisatsiooni eeskirjade kohaselt võib see fail sisaldada delikaatset teavet.</translation>
 <translation id="168389590065701766">Nüüd saate aadressiribalt Google Lensi avada ja otsida kõike, mida näete</translation>
@@ -310,6 +313,7 @@
 <translation id="2012723204723845092">Tere tulemast tagasi!</translation>
 <translation id="2015722694326466240">Paroolide nägemiseks peate oma seadmes esmalt pääsukoodi seadistama.</translation>
 <translation id="201759455285471444">Vahelehegrupi laiendamine.</translation>
+<translation id="2031515492007104071">Level Up</translation>
 <translation id="2044394949148788042">Avage vahelehtede ruudustik</translation>
 <translation id="2044681667265133332">Kontot <ph name="USER_EMAIL" /> haldab <ph name="HOSTED_DOMAIN" />, millel võib olla võimalik teatud teavet vaadata. <ph name="BEGIN_LINK" />Lisateave<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">uus üksus</translation>
@@ -335,7 +339,6 @@
 <translation id="2119962645034852864">Mõned teenused pole teie konto jaoks saadaval.</translation>
 <translation id="2120553909046681540">Teie organisatsioon lülitas privaatse sirvimise välja.</translation>
 <translation id="2122754583996902531">Teie brauserit hallatakse. <ph name="BEGIN_LINK" />Lisateave<ph name="END_LINK" /></translation>
-<translation id="21243612977487926">Teie organisatsiooni vestlusi ei kasutata meie mudelite täiustamiseks. Gemini võib kuvada ebatäpset teavet (sh inimeste kohta), seetõttu kontrollige see üle. <ph name="YOUR_PRIVACY_GEMINI" /></translation>
 <translation id="2139867232736819575">Otsi kopeeritud teksti</translation>
 <translation id="2147127444698817042">Saadaval ainult iPhone'is</translation>
 <translation id="2148799636999124959">Salvestatud paroolide abil saate saitidele ja rakendustesse kiiresti sisse logida.</translation>
@@ -441,6 +444,7 @@
 <translation id="2496626742194544812">Esimesele vahelehele liikumine</translation>
 <translation id="2499505845365628575">Kogu oma sirvimisajaloo leiate, kui vajutate nuppu <ph name="HISTORY_BUTTON_ACCESSIBILITY_LABEL" />.</translation>
 <translation id="2511117522375201202">Teil on <ph name="NUMBER_OF_PASSWORDS" /> ohustatud parooli, mis võivad teie turvalisuse ohtu seada.</translation>
+<translation id="2512709994717613803"><ph name="LEVEL_NUMBER" />. tase</translation>
 <translation id="2513103768503127042">Siit leiate oma vahelegrupid</translation>
 <translation id="251837347827266434">Teid logitakse välja, vahelehed suletakse ja sirvimisandmed kustutatakse</translation>
 <translation id="2520787026086861736">Väljalülitamiseks avage <ph name="BEGIN_LINK" />Automaattäide ja paroolid<ph name="END_LINK" /></translation>
@@ -604,7 +608,6 @@
 <translation id="3132345256151444894">Salvesta õiguskaitsenumber</translation>
 <translation id="3132584647087998639">Andmete importimine</translation>
 <translation id="313283613037595347">Looge uus inkognito vaheleht.</translation>
-<translation id="3136739222562075778">Sellel kaardil kuvatakse teie avatud vahekaartidel olevate toodete hinnalangused</translation>
 <translation id="3138611310073113613">Loobu valikust</translation>
 <translation id="3140825265190223781">Salvestatud paroolid ja pääsuvõtmed</translation>
 <translation id="3143515551205905069">Tühista sünkroonimine</translation>
@@ -677,6 +680,7 @@
 <translation id="340669334496430859">Viimati muudetud</translation>
 <translation id="3409785640040772790">Maps</translation>
 <translation id="3416023309465857378">25. oktoober 2023</translation>
+<translation id="3426715535827854458">Peida menüü-üksus Peida tööriistariba</translation>
 <translation id="3435738964857648380">Turvalisus</translation>
 <translation id="3441673211568148613">Hoidke oma sirvimine privaatsena</translation>
 <translation id="3443810440409579745">Vaheleht võeti vastu.</translation>
@@ -721,7 +725,6 @@
 <translation id="3565012355885596568">Pilte ei õnnestunud laadida</translation>
 <translation id="3565930036634619844">Vaheleht. <ph name="TAB_INDEX" />/<ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3567168891086460374">Salvesta muul viisil</translation>
-<translation id="3571703298474554279">Kiirem viis rakenduse kasutamiseks</translation>
 <translation id="3572503683475187385">Uue vestluse alustamisel jagatakse praegust vahelehte Geminiga. Kui jagate vahelehte Geminiga, saadetakse selle sisu ja URL Google'ile. <ph name="BEGIN_LINK" />Lisateave<ph name="END_LINK" /></translation>
 <translation id="3572607909481582402">Teie Google’i kontol</translation>
 <translation id="3575234738189584619">Otsi Lensiga</translation>
@@ -763,6 +766,7 @@
 <translation id="372676576864368480">Numbritega <ph name="LAST_DIGITS" /> lõppeva kaardinumbri automaatne sisestamine</translation>
 <translation id="3738428049780661523">Loodi <ph name="DATE" /></translation>
 <translation id="3742498336182910186">Kaamera album</translation>
+<translation id="3743545564993953213">See sait üritab avada rakendust „Shortcuts“.</translation>
 <translation id="3746269120925354434">Google Walletisse salvestatud teave</translation>
 <translation id="3750225824417196283">Uue inkognito vahelehe leht</translation>
 <translation id="3751873026576444885">Lõpetage Google Lensiga ekraanil kuvatu otsimine</translation>
@@ -844,6 +848,7 @@
 <translation id="3994911892367422121">SELGE</translation>
 <translation id="3995521777587992544">Lehe laadimise edenemisriba, <ph name="EMAIL" /> on laaditud.</translation>
 <translation id="3997522473364371632">Teie administraator on paroolide jagamise keelanud.</translation>
+<translation id="4000707564769984863">Vaadake: <ph name="WATCH_LINK" /></translation>
 <translation id="4002066346123236978">Pealkiri</translation>
 <translation id="4004204301268239848">Paroolid salvestatakse teie Google'i kontole, et saaksite neid kasutada mis tahes seadmes.</translation>
 <translation id="4007463141047732631">Grupi muutmine</translation>
@@ -852,7 +857,6 @@
 <translation id="4018440314314549819">Kasutage salvestatud paroolide puhul automaatset täitmist</translation>
 <translation id="4021447724486050609">Värskendage oma brauserit</translation>
 <translation id="4021931095789478915">Lisa ${url} lugemisloendisse</translation>
-<translation id="4026496154402824012">Väljalülitamiseks avage <ph name="BEGIN_LINK" />Paroolivalikud<ph name="END_LINK" /></translation>
 <translation id="4028871427853484857">Salvesta kontole …</translation>
 <translation id="4038354071007134711">Seadme ükski rakendus ei saa seda faili avada.</translation>
 <translation id="4042870976416480368">Otsi lehelt</translation>
@@ -875,6 +879,7 @@
 <translation id="4129768137228347731">Kas salvestada <ph name="ENTITY_TYPE" />?</translation>
 <translation id="4133139945030148655">Kõik on valmis</translation>
 <translation id="4133265950310064865">Täiustatud kaitse</translation>
+<translation id="4142372594294312814">Viis asja, mida peaksite generatiivse AI kohta teadma.</translation>
 <translation id="4145507240503767005"><ph name="SEARCH_ENGINE_NAME" />, <ph name="SEARCH_ENGINE_DOMAIN" /></translation>
 <translation id="4147897805161313378">Google Photos</translation>
 <translation id="4148023517926189160">See veebisait soovib faili alla laadida ja lisada selle teie kalendrisse.</translation>
@@ -980,6 +985,7 @@
 <translation id="4489536976005181779">{count,plural, =1{Leht lisati teie kontol {email} lugemisloendisse}other{Lehed lisati teie kontol {email} lugemisloendisse}}</translation>
 <translation id="4493604894403585654">Olete logitud sisse kontole <ph name="USER_EMAIL" />. Sünkroonimise võite seadetes igal ajal lõpetada. Google võib Otsingut ja muid teenuseid teie ajaloo alusel isikupärastada.</translation>
 <translation id="4502423230170890588">Eemalda sellest seadmest</translation>
+<translation id="4508486880075514067">Laienda täisekraanile</translation>
 <translation id="4508750114462689118">Sule sisselogimisviip</translation>
 <translation id="4509345063551561634">Asukoht:</translation>
 <translation id="4517684186578051919">Seadme teave</translation>
@@ -996,6 +1002,7 @@
 <translation id="456502772933839252">Jagatakse lehte <ph name="PAGE_TITLE" />.</translation>
 <translation id="4565377596337484307">Peida parool</translation>
 <translation id="4568230126482344545">Peida valik „Hiljutised vahelehed“</translation>
+<translation id="4571490460651837010">Aadresside ja muu haldamine…</translation>
 <translation id="4578835633387306383">Lülitage sisse …</translation>
 <translation id="4580621046861724270">Mõnda järjehoidjat ei salvestata</translation>
 <translation id="4580716718466706433">Avage „Paroolihaldur“</translation>
@@ -1084,6 +1091,7 @@
 <translation id="4840495572919996524">Teie järjehoidjaid, ajalugu, paroole ja muud sisu ei sünkroonita enam teie Google'i kontoga.</translation>
 <translation id="484280513275854557">Teid logiti välja; sirvimisandmed kustutati</translation>
 <translation id="484462545196658690">Automaatne</translation>
+<translation id="4846662396507502151">Uus tööriistariba aitab kiiremini sirvida.</translation>
 <translation id="4850886885716139402">Kuva</translation>
 <translation id="4854068532375923088">Geminile kaameraloa andmine</translation>
 <translation id="4860895144060829044">Helista</translation>
@@ -1212,6 +1220,7 @@
 <translation id="5242899254250321823">Muutke veebisaidil parool ära</translation>
 <translation id="5248640482715684545">See sait proovib teist rakendust avada.</translation>
 <translation id="5250371859659394278">Tundmatust allikast</translation>
+<translation id="525510229763628836">Minimeeritud</translation>
 <translation id="5269913829202614649">Avalehe kohandamine</translation>
 <translation id="5271265092610673171">{count,plural, =1{Kohustuslik väli on tühi. Täitke see enne salvestamist.}other{Mõned kohustuslikud väljad on tühjad. Täitke need enne salvestamist.}}</translation>
 <translation id="5271549068863921519">Salvesta parool</translation>
@@ -1232,6 +1241,7 @@
 <translation id="5329451663851195956">Värskendamiseks tõmmake alla.</translation>
 <translation id="5336910966955551309">Lemmiksaitide kinnitamiseks puudutage pikalt.</translation>
 <translation id="5338512273860059533">Sisselogimine on pooleli.</translation>
+<translation id="5340148832014094861">Kohalduvad <ph name="GOOGLE_TERMS" /> ja <ph name="GEMINI_APPS_PRIVACY" />. Gemini on tehisintellekt ja võib teha vigu, sh inimestega seotud vigu.</translation>
 <translation id="5343472494710226394">Teie huvidel põhinevad uudised, sport ja sisu.</translation>
 <translation id="5352128922772839949">Faili salvestamine</translation>
 <translation id="5355191726083956201">Täiustatud kaitse on sisse lülitatud</translation>
@@ -1323,7 +1333,6 @@ Handoff peab olema lubatud seadete jaotises General ja seadmed peavad kasutama s
 <translation id="5652623411397330904">Sinu jälgitavad tooted ilmuvad siin.</translation>
 <translation id="5656431592348714536">Täiustatud kalender</translation>
 <translation id="5659593005791499971">E-post</translation>
-<translation id="5665739277590037307">Kohalduvad <ph name="GOOGLE_TERMS" /> ja <ph name="GEMINI_APPS_PRIVACY" />. Gemini võib teha vigu, seega kontrollige see teave üle.</translation>
 <translation id="5666313630530585305">Logige veebisaidile sisse.</translation>
 <translation id="5669335982068190158">Teid logiti iPhone'i lähtestamise käigus välja. Sisselogimiseks puudutage allpool käsku Jätka.</translation>
 <translation id="5669528293118408608">www</translation>
@@ -1421,6 +1430,7 @@ Handoff peab olema lubatud seadete jaotises General ja seadmed peavad kasutama s
 <translation id="5988097621740394599">Näete vahelehtedel hinnalangusi.</translation>
 <translation id="5988851877894965432">Avage URL-id Chrome'is</translation>
 <translation id="599343768974649785">Kuvatav tekst</translation>
+<translation id="6004988584831654445">Valmis! Saate märguandeid uute ülesannete saabumise kohta.</translation>
 <translation id="6006672969046233841">Uus vaheleht</translation>
 <translation id="6011308810877101166">Otsingusoovituste täiustamine</translation>
 <translation id="6012140227487808125">Krüpteerimine …</translation>
@@ -1576,6 +1586,7 @@ Handoff peab olema lubatud seadete jaotises General ja seadmed peavad kasutama s
 <translation id="647867789226964031">Muutke oma paroole</translation>
 <translation id="6480363549849064919">Kliendi autentimine</translation>
 <translation id="6489174933860678546">Avage inkognito vahelehed, et veebis privaatsemalt sirvida.</translation>
+<translation id="6489775505977274806">Peida Level Up</translation>
 <translation id="6494931198667773526">Lõpp</translation>
 <translation id="6503077044568424649">Populaarsed</translation>
 <translation id="6503763061813913607">Ohutuskontrolli märguanded</translation>
@@ -1605,7 +1616,6 @@ Handoff peab olema lubatud seadete jaotises General ja seadmed peavad kasutama s
 <translation id="6571070086367343653">Muuda krediitkaarti</translation>
 <translation id="6574092468346088891">Lülitage ohutuskontrolli märguanded sisse</translation>
 <translation id="6579867704846662339">Soovi korral võite muudest rakendustest sissetulevad URL-id avada inkognito režiimis.</translation>
-<translation id="6583087784430677195">Väljalülitamiseks avage rakendus <ph name="BEGIN_LINK" />Seaded<ph name="END_LINK" /> ja jaotis Paroolide automaattäide.</translation>
 <translation id="6585618849026997638">Saate enda jaoks olulisele lehele naasta, lisades järjehoidja</translation>
 <translation id="6589001036857939353">Duplikaatide liitmine</translation>
 <translation id="659407965921887085">Sellel kaardil kuvatakse praegu jälgitavate toodete hinnalangused veebis</translation>
@@ -1652,6 +1662,7 @@ Handoff peab olema lubatud seadete jaotises General ja seadmed peavad kasutama s
 <translation id="6685259053455152195">Otseteed kiirelt seadete muutmiseks ja funktsioonide kasutamiseks aadressiribalt.</translation>
 <translation id="6689342293888598653">Valge taustavärv</translation>
 <translation id="6689685206615181381">Saadaval on ainult inkognito režiim</translation>
+<translation id="6705491067826837934">Kõik vajalikud nupud seal, kus vaja</translation>
 <translation id="6708501134077648845">Paroolivalikud</translation>
 <translation id="6709964700841491574">Lukustamisrežiim</translation>
 <translation id="6710079714193676716">Haldab teie organisatsioon. Mõni funktsioon ei pruugi olla saadaval. <ph name="BEGIN_LINK" />Lisateave<ph name="END_LINK" /></translation>
@@ -1667,7 +1678,7 @@ Handoff peab olema lubatud seadete jaotises General ja seadmed peavad kasutama s
 <translation id="6746338529702829275">Konto andmete ülevaatamine</translation>
 <translation id="6750456911389438250">{count,plural, =1{{count} ajalooüksus imporditi}other{{count} ajalooüksust imporditi}}</translation>
 <translation id="6755200887046212842">Kontode haldamine</translation>
-<translation id="6755733078693946548">Võimalda juurdepääs paroolidele ja pääsuvõtmetele igast rakendusest</translation>
+<translation id="6757899787818440812">Keskmine kõrgus</translation>
 <translation id="6759709389246683070">Võite seda vahelehte pikalt puudutada, et seada meeldetuletus selle hiljem külastamise kohta</translation>
 <translation id="6761393919622941301">Heli</translation>
 <translation id="6770452996697898492">[BRONEERITUD]</translation>
@@ -1712,6 +1723,7 @@ Handoff peab olema lubatud seadete jaotises General ja seadmed peavad kasutama s
 <translation id="6903282483217634857">Liiguta paremale</translation>
 <translation id="6903907808598579934">Lülita sünkroonimine sisse</translation>
 <translation id="6906448540340261898">Veenduge, et saaksite alati kasutada oma Google'i kontol paroole</translation>
+<translation id="6906978870282539723">Aitab vahelehtede ja ülesannetega.</translation>
 <translation id="6908734251759299256">Värskendage oma brauserit</translation>
 <translation id="6913136913033237761"><ph name="FOLDER_NAME" />. Ainult selles seadmes.</translation>
 <translation id="6914583639806229067">Otsi kopeeritud pilti</translation>
@@ -1744,6 +1756,7 @@ Handoff peab olema lubatud seadete jaotises General ja seadmed peavad kasutama s
 <translation id="7015418667643980944">Poolitatud vaade</translation>
 <translation id="7016070607649558507">Teil on 1 nõrk parool. Turvalisuse tagamiseks parandage see kohe.</translation>
 <translation id="7016958933495968912">Funktsiooni Discover valikud</translation>
+<translation id="7019477124580742994">Teenusepakkuja <ph name="SEARCH_PROVIDER" /> otsing</translation>
 <translation id="7029809446516969842">Paroolid</translation>
 <translation id="7035825883570480307">Kas lülitada märguanded sisse?</translation>
 <translation id="7039345315346323556">Hiljutised</translation>
@@ -1753,7 +1766,6 @@ Handoff peab olema lubatud seadete jaotises General ja seadmed peavad kasutama s
 <translation id="7063811929043357292">Sinu kontot haldab vanem.
 <ph name="BEGIN_LINK" />Lisateave<ph name="END_LINK" /></translation>
 <translation id="7067780033517902110">Kõik failid</translation>
-<translation id="707086654079606593">Aadresside haldamine …</translation>
 <translation id="7080806333218412752">Saadab URL-id kontrollimiseks teenusesse Google'i ohutu sirvimine. Saadab ka lehtede, allalaadimiste, laienduste tegevuse ja süsteemiteabe näidiseid, et aidata uusi ohte tuvastada. Kui olete sisse logitud, lingitakse andmed ajutiselt teie Google'i kontoga, et kaitsta teid kõigis Google'i rakendustes.</translation>
 <translation id="7082853213442715471">Kui see on sisse lülitatud, on teatud veebitehnoloogiad blokeeritud, mistõttu võib juhtuda, et veebisaitide laadimine võtab kauem aega või veebisaidid ei tööta õigesti.</translation>
 <translation id="7091023926159231962">{count,plural, =1{{count} parooli ei saanud importida}other{{count} parooli ei saanud importida}}</translation>
@@ -1803,7 +1815,6 @@ Handoff peab olema lubatud seadete jaotises General ja seadmed peavad kasutama s
 <translation id="7275307913765547631">Korea asukohatingimused</translation>
 <translation id="728025568708172005">Alusta tutvustust</translation>
 <translation id="7280980607183752256">Seda faili ei saa importida.</translation>
-<translation id="7281202269687163394">Teie privaatsus ja Gemini.</translation>
 <translation id="7282197670900591579">Sidrunikollane teema</translation>
 <translation id="7293429513719260019">Valige keel</translation>
 <translation id="7300448350764260141">Lisage täiendav kaitsekiht võrguohtude eest.</translation>
@@ -1815,7 +1826,6 @@ Handoff peab olema lubatud seadete jaotises General ja seadmed peavad kasutama s
 <translation id="7345061034321640811">Importimine pole lubatud</translation>
 <translation id="7347998088283246662">Importige paroole, ajalugu, järjehoidjaid ja muud.</translation>
 <translation id="7352651011704765696">Midagi läks valesti</translation>
-<translation id="7363497636543208734">Rakenduses navigeerimine on nüüd lihtsam.</translation>
 <translation id="7364796246159120393">Vali fail</translation>
 <translation id="736564850024123010">Kohandatud kasutuskogemuse saamiseks saate vahetada oma aadressiriba asukohta.</translation>
 <translation id="7366909168761621528">Sirvimisandmed</translation>
@@ -2010,7 +2020,6 @@ Handoff peab olema lubatud seadete jaotises General ja seadmed peavad kasutama s
 <translation id="797588153137233716">Menüü → Ajalugu → Sirvimisandmete kustutamine</translation>
 <translation id="7977451675950311423">Hoiatab teid, kui kasutate parooli, mis on andmetega seotud rikkumise tõttu ohtu sattunud.</translation>
 <translation id="797824194429476746">Vahelehed jäävad selles seadmes avatuks, aga grupp kustutatakse jäädavalt.</translation>
-<translation id="797874245254030665">Pääsege oma paroolidele ja pääsuvõtmetele juurde igast rakendusest</translation>
 <translation id="7982789257301363584">Võrk</translation>
 <translation id="798299424881500862">Oranž teema</translation>
 <translation id="7987685713885608670">Turvalisuse suurendamiseks krüpteerige paroolid oma seadmes, enne kui need salvestatakse Google'i paroolihaldurisse.</translation>
@@ -2075,6 +2084,7 @@ Handoff peab olema lubatud seadete jaotises General ja seadmed peavad kasutama s
 <translation id="8182037667962849780">{count,plural, =1{Saidi {website_1} jaoks}=2{Saitide {website_1} ja {website_2} jaoks}=3{Saitide {website_1} ja {website_2} ning veel ühe jaoks}other{Saitide {website_1} ja {website_2} ning veel {more_count} jaoks}}</translation>
 <translation id="8184895727539791845">Et lubada Geminil teie kaamerat kasutada, lülitage iOS-i seadetes sisse kaameraluba.</translation>
 <translation id="8185076488803799132">Impordi</translation>
+<translation id="8187200657863701733">Praegune Chrome'i tase</translation>
 <translation id="8189615296021678665">Puudutage valikut „Salvesta“, et järgmisel sisselogimiskorral sellele paroolile hõlpsasti juurde pääseda.</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />Teie seadmed<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
 <translation id="8195191503358432289">Parooli lisamine</translation>
@@ -2118,6 +2128,7 @@ Handoff peab olema lubatud seadete jaotises General ja seadmed peavad kasutama s
 <translation id="8325455175867928593">Valiku „Teie huvidel põhinevad arvustused” peitmine</translation>
 <translation id="833647236762414178">Looge, salvestage ja hallake oma paroole ning pääsuvõtmeid, et saaksite hõlpsalt saitidele ja rakendustesse sisse logida. <ph name="BEGIN_LINK" />Lisateave<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">Varundage oma sisu ja kasutage seda mis tahes seadmes.</translation>
+<translation id="8345328955902001853">{count,plural, =1{Taseme tõstmiseks täitke veel 1 ülesanne.}other{Taseme tõstmiseks täitke veel {count} ülesannet.}}</translation>
 <translation id="8348530355586151720">Puudutage kolme punktiga menüüd</translation>
 <translation id="8349305172487531364">Järjehoidjariba</translation>
 <translation id="8361189290032177785">{count,plural, =1{{count} järjehoidja imporditi}other{{count} järjehoidjat imporditi}}</translation>
@@ -2128,6 +2139,7 @@ Handoff peab olema lubatud seadete jaotises General ja seadmed peavad kasutama s
 <translation id="8368001212524806591">Jälgi hinda</translation>
 <translation id="8368198938968349418">Automaattäite sisselülitamine…</translation>
 <translation id="8370406443343902172">Ava seaded ...</translation>
+<translation id="8370929854657845191">Laienda keskmisele kõrgusele</translation>
 <translation id="8372471489238799313">{count,plural, =1{Kustuta aadress}other{Kustuta aadressid}}</translation>
 <translation id="8378714024927312812">Haldab teie organisatsioon</translation>
 <translation id="8385363453480067273">Kasutage nähtava otsimiseks Google Lensi</translation>

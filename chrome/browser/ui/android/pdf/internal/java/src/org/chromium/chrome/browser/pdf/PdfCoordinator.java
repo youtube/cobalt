@@ -22,6 +22,8 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
+import androidx.pdf.PdfDocument;
+import androidx.pdf.PdfDocument.PageInfo;
 import androidx.pdf.PdfPoint;
 import androidx.pdf.PdfSandboxHandle;
 import androidx.pdf.SandboxedPdfLoader;
@@ -29,6 +31,11 @@ import androidx.pdf.content.ExternalLink;
 import androidx.pdf.view.PdfView;
 import androidx.pdf.viewer.fragment.PdfViewerFragment;
 
+import kotlin.coroutines.Continuation;
+import kotlin.coroutines.CoroutineContext;
+import kotlin.coroutines.EmptyCoroutineContext;
+
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -49,7 +56,6 @@ import org.chromium.ui.base.PageTransition;
 import org.chromium.url.GURL;
 import org.chromium.url.Origin;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
@@ -110,11 +116,7 @@ public class PdfCoordinator
 
     private final @Nullable PdfToolbarCoordinator mToolbarCoordinator;
 
-    /**
-     * Temporarily holds PdfViewerFragment's Views object that were added to current Tab's PdfPage
-     * Views.
-     */
-    private final List<View> mPdfFragmentViews;
+    private final PdfFragmentViewTracker mPdfFragmentViewTracker;
 
     /** The filepath of the pdf. It is null before download complete. */
     private @Nullable String mPdfFilePath;
@@ -154,7 +156,7 @@ public class PdfCoordinator
             String title,
             int tabId,
             String url,
-            List<View> pdfFragmentViews) {
+            PdfFragmentViewTracker pdfFragmentViewTracker) {
         mActivity = activity;
         mTabId = String.valueOf(tabId);
         mNativePageHost = host;
@@ -164,7 +166,7 @@ public class PdfCoordinator
         Context contextForInflation =
                 BundleUtils.createContextForInflation(activity, OnDemandModule.SPLIT_NAME);
         mView = LayoutInflater.from(contextForInflation).inflate(R.layout.pdf_page, null);
-        mPdfFragmentViews = pdfFragmentViews;
+        mPdfFragmentViewTracker = pdfFragmentViewTracker;
         mProgressBar = mView.findViewById(R.id.progress_bar);
         mView.setBackgroundColor(
                 ChromeColors.getPrimaryBackgroundColor(activity, profile.isOffTheRecord()));
@@ -172,13 +174,13 @@ public class PdfCoordinator
                 new View.OnAttachStateChangeListener() {
                     @Override
                     public void onViewAttachedToWindow(View view) {
-                        relocatePdfPageViews();
                         loadPdfFile();
                     }
 
                     @Override
                     public void onViewDetachedFromWindow(View view) {}
                 });
+        relocateMisplacedFragmentViews();
         mFragmentContainerViewId = R.id.pdf_fragment_container;
         mFragmentManager = ((FragmentActivity) activity).getSupportFragmentManager();
         Fragment fragment = mFragmentManager.findFragmentByTag(mTabId);
@@ -200,28 +202,21 @@ public class PdfCoordinator
                 PdfUtils.isInlinePdfV2Enabled() ? new PdfToolbarCoordinator(mView, this) : null;
     }
 
-    /**
-     * Move the PdfViewerFragment's views wrongly added to the current PdfPage view to the right one
-     * using the Tab ID as unique identifier.
-     */
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    void relocatePdfPageViews() {
-        ViewGroup fcv = mView.findViewById(R.id.pdf_fragment_container);
-        if (fcv.getChildCount() == 1) return;
+    private void relocateMisplacedFragmentViews() {
+        ViewGroup container = mView.findViewById(R.id.pdf_fragment_container);
+        if (container.getChildCount() > 0) {
+            mPdfFragmentViewTracker.maybeRelocateViews(container, mTabId);
+        } else {
+            container.setOnHierarchyChangeListener(
+                    new ViewGroup.OnHierarchyChangeListener() {
+                        @Override
+                        public void onChildViewAdded(View parent, View child) {
+                            mPdfFragmentViewTracker.maybeRelocateViews(container, mTabId);
+                        }
 
-        for (int i = fcv.getChildCount() - 1; i >= 0; i--) {
-            View child = fcv.getChildAt(i);
-            if (!mTabId.equals(child.getTag())) {
-                fcv.removeView(child);
-                mPdfFragmentViews.add(child);
-            }
-        }
-        for (int i = mPdfFragmentViews.size() - 1; i >= 0; i--) {
-            View child = mPdfFragmentViews.get(i);
-            if (mTabId.equals(child.getTag())) {
-                fcv.addView(child);
-                mPdfFragmentViews.remove(child);
-            }
+                        @Override
+                        public void onChildViewRemoved(View parent, View child) {}
+                    });
         }
     }
 
@@ -369,10 +364,72 @@ public class PdfCoordinator
             }
         }
 
+        void setPagesPerRow(boolean twoPagesPerRowEnabled) {
+            if (mPdfView != null) {
+                mPdfView.setPagesPerRow(twoPagesPerRowEnabled ? 2 : 1);
+            }
+        }
+
         void zoomTo(float zoomLevel) {
             if (mPdfView != null) {
                 mPdfView.setZoom(zoomLevel);
             }
+        }
+
+        @VisibleForTesting
+        float calculateFitToPageZoom(PageInfo info, boolean fitToPageHeight, PdfView pdfView) {
+            int contentSize = fitToPageHeight ? info.getHeight() : info.getWidth();
+            if (contentSize <= 0) return 0f;
+
+            int viewportSize =
+                    fitToPageHeight
+                            ? pdfView.getHeight()
+                                    - pdfView.getPaddingTop()
+                                    - pdfView.getPaddingBottom()
+                            : pdfView.getWidth()
+                                    - pdfView.getPaddingLeft()
+                                    - pdfView.getPaddingRight();
+            if (viewportSize <= 0) return 0f;
+
+            float newZoom = (float) viewportSize / contentSize;
+            return Math.max(pdfView.getMinZoom(), Math.min(newZoom, pdfView.getMaxZoom()));
+        }
+
+        void fitToPage(boolean fitToPageHeight, int pageIndex) {
+            PdfView pdfView = mPdfView;
+            if (pdfView == null) return;
+
+            PdfDocument pdfDocument = pdfView.getPdfDocument();
+            assert pdfDocument != null;
+
+            pdfDocument.getPageInfo(
+                    pageIndex,
+                    new Continuation<PageInfo>() {
+                        @NotNull
+                        @Override
+                        public CoroutineContext getContext() {
+                            return EmptyCoroutineContext.INSTANCE;
+                        }
+
+                        @Override
+                        public void resumeWith(@NotNull Object result) {
+                            PageInfo pageInfo =
+                                    result instanceof PageInfo ? (PageInfo) result : null;
+                            if (pageInfo == null) {
+                                Log.e(TAG, "Failed to get PageInfo for fitToPage.");
+                                return;
+                            }
+                            float newZoom =
+                                    calculateFitToPageZoom(pageInfo, fitToPageHeight, pdfView);
+                            // We use  post() to ensure UI updates happen on the Main thread.
+                            pdfView.post(
+                                    () -> {
+                                        pdfView.setZoom(newZoom);
+                                        // Scroll to the top of the page after zooming.
+                                        if (fitToPageHeight) scrollToPage(pageIndex);
+                                    });
+                        }
+                    });
         }
     }
 
@@ -613,6 +670,17 @@ public class PdfCoordinator
         mChromePdfViewerFragment.zoomTo(zoomLevel);
     }
 
+    /**
+     * Toggles between "fit to page height" and "fit to page width" modes.
+     *
+     * @param fitToPageHeight Whether to fit to page height or fit to page width.
+     * @param pageIndex The 0-based index of page to update scaling.
+     */
+    @Override
+    public void toggleFitToPage(boolean fitToPageHeight, int pageIndex) {
+        mChromePdfViewerFragment.fitToPage(fitToPageHeight, pageIndex);
+    }
+
     // Implementation of PdfActionsDelegate
 
     @Override
@@ -649,5 +717,14 @@ public class PdfCoordinator
     public void onViewportChanged(int pageIndex, float zoomLevel) {
         assert mToolbarCoordinator != null;
         mToolbarCoordinator.onViewportChanged(pageIndex, zoomLevel);
+    }
+
+    @Override
+    public void toggleTwoPagesPerRow(
+            boolean twoPagesPerRowEnabled, float zoomLevel, int currentPageIndex) {
+        assert mToolbarCoordinator != null;
+        mChromePdfViewerFragment.setPagesPerRow(twoPagesPerRowEnabled);
+        mChromePdfViewerFragment.zoomTo(zoomLevel);
+        mChromePdfViewerFragment.scrollToPage(currentPageIndex);
     }
 }

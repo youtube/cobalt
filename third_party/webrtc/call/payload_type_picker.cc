@@ -317,7 +317,8 @@ RTCError PayloadTypeRecorder::AddMapping(PayloadType payload_type,
 
 std::vector<std::pair<PayloadType, Codec>> PayloadTypeRecorder::GetMappings()
     const {
-  return std::vector<std::pair<PayloadType, Codec>>{};
+  return std::vector<std::pair<PayloadType, Codec>>(
+      payload_type_to_codec_.begin(), payload_type_to_codec_.end());
 }
 
 RTCErrorOr<PayloadType> PayloadTypeRecorder::LookupPayloadType(

@@ -28,6 +28,7 @@
 #include "chrome/browser/devtools/devtools_ui_controller.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_ui_controller.h"
 #include "chrome/browser/extensions/browser_extension_window_controller.h"
+#include "chrome/browser/glic/browser_ui/glic_actor_nudge_controller.h"
 #include "chrome/browser/glic/browser_ui/glic_button_controller.h"
 #include "chrome/browser/glic/browser_ui/glic_iph_controller.h"
 #include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
@@ -69,7 +70,8 @@
 #include "chrome/browser/ui/find_bar/find_bar.h"
 #include "chrome/browser/ui/find_bar/find_bar_controller.h"
 #include "chrome/browser/ui/focus/browser_focus_controller.h"
-#include "chrome/browser/ui/focus/browser_focus_controller_delegate_views.h"
+#include "chrome/browser/ui/focus/browser_focus_controller_views.h"
+#include "chrome/browser/ui/focus/browser_focus_controller_webui.h"
 #include "chrome/browser/ui/fullscreen/browser_window_fullscreen_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
 #include "chrome/browser/ui/omnibox/ai_mode_page_action_controller.h"
@@ -81,7 +83,6 @@
 #include "chrome/browser/ui/sync/browser_synced_window_delegate.h"
 #include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/tabs/features.h"
-#include "chrome/browser/ui/tabs/glic_actor_nudge_controller.h"
 #include "chrome/browser/ui/tabs/projects/projects_panel_state_controller.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/most_recent_shared_tab_update_store.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
@@ -117,7 +118,6 @@
 #include "chrome/browser/ui/views/frame/find_bar_owner_views.h"
 #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
-#include "chrome/browser/ui/views/frame/immersive_mode_controller_stub.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/frame/scrim_view_controller.h"
 #include "chrome/browser/ui/views/fullscreen_control/fullscreen_control_host.h"
@@ -165,6 +165,7 @@
 #include "chrome/browser/ui/webui_browser/webui_browser_side_panel_ui.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_window.h"
 #include "chrome/browser/ui/webui_browser/zoom_bubble_manager_webui_browser.h"
+#include "chrome/browser/ui/window_feature_controller/window_feature_controller.h"
 #include "chrome/browser/ui/zoom/browser_window_zoom_observer.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
@@ -230,31 +231,6 @@
 #include "chrome/browser/ui/overscroll_pref_manager.h"
 #endif  // defined(USE_AURA)
 
-namespace {
-
-class ExtensionKeybindingRegistryDelegateTabStrip final
-    : public extensions::ExtensionKeybindingRegistry::Delegate {
- public:
-  explicit ExtensionKeybindingRegistryDelegateTabStrip(
-      TabStripModel& tab_strip_model)
-      : tab_strip_model_(tab_strip_model) {}
-  ~ExtensionKeybindingRegistryDelegateTabStrip() override = default;
-
-  ExtensionKeybindingRegistryDelegateTabStrip(
-      const ExtensionKeybindingRegistryDelegateTabStrip& other) = delete;
-  ExtensionKeybindingRegistryDelegateTabStrip& operator=(
-      const ExtensionKeybindingRegistryDelegateTabStrip& other) = delete;
-
-  content::WebContents* GetWebContentsForExtension() override {
-    return tab_strip_model_->GetActiveWebContents();
-  }
-
- private:
-  const raw_ref<TabStripModel> tab_strip_model_;
-};
-
-}  // namespace
-
 BrowserWindowFeatures::BrowserWindowFeatures() = default;
 BrowserWindowFeatures::~BrowserWindowFeatures() = default;
 
@@ -281,6 +257,22 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
       std::make_unique<BrowserWindowFullscreenController>(*browser);
 
   browser_actions_ = std::make_unique<BrowserActions>(browser);
+
+  window_feature_controller_ =
+      GetUserDataFactory().CreateInstance<WindowFeatureController>(
+          *browser, fullscreen_controller_.get(), app_browser_controller_.get(),
+          browser->GetType(),
+          browser->GetBrowserForMigrationOnly()->is_trusted_source(),
+          browser->GetUnownedUserDataHost());
+
+  immersive_mode_controller_ =
+      GetUserDataFactory()
+          .CreateInstanceWithFactoryMethod<ImmersiveModeController,
+                                           WindowFeatureController*,
+                                           ui::UnownedUserDataHost&>(
+              *browser_, &chrome::CreateImmersiveModeController,
+              window_feature_controller_.get(),
+              browser->GetUnownedUserDataHost());
 
   browser_command_controller_ =
       std::make_unique<chrome::BrowserCommandController>(browser);
@@ -579,14 +571,20 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
           unload_controller_.get(), browser->window(),
           browser->GetUnownedUserDataHost());
 
-  browser_focus_controller_ =
-      GetUserDataFactory().CreateInstance<BrowserFocusController>(
-          *browser, browser->GetWindow(), browser->GetUnownedUserDataHost());
   if (browser_view) {
-    browser_focus_controller_->SetDelegate(
-        std::make_unique<BrowserFocusControllerDelegateViews>(
+    browser_focus_controller_ =
+        GetUserDataFactory().CreateInstance<BrowserFocusControllerViews>(
+            *browser, browser->GetWindow(), browser->GetUnownedUserDataHost(),
             profile, browser_elements_.get(),
-            ToolbarButtonProvider::From(browser)));
+            ToolbarButtonProvider::From(browser));
+  } else if (WebUIBrowserWindow::FromBrowser(browser)) {
+    browser_focus_controller_ =
+        GetUserDataFactory().CreateInstance<BrowserFocusControllerWebUI>(
+            *browser, browser->GetWindow(), browser->GetUnownedUserDataHost());
+  } else {
+    browser_focus_controller_ =
+        GetUserDataFactory().CreateInstance<StubBrowserFocusController>(
+            *browser, browser->GetWindow(), browser->GetUnownedUserDataHost());
   }
 
   if (WebUIBrowserWindow* webui_browser_window =
@@ -803,22 +801,15 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
     zoom_bubble_coordinator_ =
         GetUserDataFactory().CreateInstance<ZoomBubbleCoordinator>(
             *browser_, *browser_, zoom_bubble_manager_.get());
-
-    // Provide a stub immersive mode controller so things that use it don't
-    // crash. This will need to be changed to use a proper one on platforms
-    // that support it.
-    immersive_mode_controller_ =
-        std::make_unique<ImmersiveModeControllerStub>(browser);
   }
 
   // Focus manager can be null in tests.
   if (focus_manager) {
     extension_keybinding_registry_ =
         std::make_unique<ExtensionKeybindingRegistryViews>(
-            profile, focus_manager,
+            profile, TabListInterface::From(browser),
             extensions::ExtensionKeybindingRegistry::ALL_EXTENSIONS,
-            std::make_unique<ExtensionKeybindingRegistryDelegateTabStrip>(
-                *browser->GetTabStripModel()));
+            focus_manager);
   }
 
   // Initialize post-window dependent embedder features last.
@@ -873,10 +864,6 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
             *browser_view->browser(), browser_view->browser());
   }
 
-  immersive_mode_controller_ =
-      GetUserDataFactory().CreateInstanceWithFactoryMethod(
-          *browser_, &chrome::CreateImmersiveModeController, browser_view);
-
   if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks)) {
     contextual_tasks_active_task_context_provider_ =
         std::make_unique<contextual_tasks::ActiveTaskContextProviderImpl>(
@@ -923,14 +910,19 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
     glic::GlicKeyedService* glic_service =
         glic::GlicKeyedService::Get(browser_view->GetProfile());
     if (glic_service) {
-      glic_button_controller_ = std::make_unique<glic::GlicButtonController>(
-          browser_view->GetProfile(), *browser_,
+      auto* tab_strip_container =
           BrowserElementsViews::From(browser_view->browser())
               ->GetViewAs<TabStripActionContainer>(
-                  kTabStripActionContainerElementId),
+                  kTabStripActionContainerElementId);
+      auto* toolbar_view =
           BrowserElementsViews::From(browser_view->browser())
-              ->GetViewAs<ToolbarView>(ToolbarView::kToolbarElementId),
-          glic_service);
+              ->GetViewAs<ToolbarView>(ToolbarView::kToolbarElementId);
+
+      if (tab_strip_container && toolbar_view) {
+        glic_button_controller_ = std::make_unique<glic::GlicButtonController>(
+            browser_view->GetProfile(), *browser_, tab_strip_container,
+            toolbar_view, glic_service);
+      }
 
       if (base::FeatureList::IsEnabled(features::kGlicActor) &&
           base::FeatureList::IsEnabled(features::kGlicActorUi) &&
@@ -943,13 +935,8 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
                 *browser_, browser_);
         // Includes browser twice to enable injecting for testing.
         glic_actor_nudge_controller_ =
-            GetUserDataFactory().CreateInstance<tabs::GlicActorNudgeController>(
-                *browser_, browser_,
-                BrowserElementsViews::From(browser_view->browser())
-                    ->GetViewAs<TabStripActionContainer>(
-                        kTabStripActionContainerElementId),
-                BrowserElementsViews::From(browser_view->browser())
-                    ->GetViewAs<ToolbarView>(ToolbarView::kToolbarElementId));
+            GetUserDataFactory().CreateInstance<glic::GlicActorNudgeController>(
+                *browser_, browser_, tab_strip_container, toolbar_view);
       }
     }
 

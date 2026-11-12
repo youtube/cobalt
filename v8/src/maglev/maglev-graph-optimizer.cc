@@ -1192,11 +1192,34 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
   // Promote to CallKnownJSFunction.
   size_t input_count =
       positional_arg_count + CallKnownJSFunction::kFixedInputCount;
+
+#if V8_ENABLE_WEBASSEMBLY
+  // LINT.IfChange(WasmWrapperInliningConditions)
+  bool wrap_args_for_wasm = false;
+  if (reducer_.is_turbolev() && v8_flags.wasm_in_js_inlining_wrapper &&
+      shared.object()->HasWasmExportedFunctionData(
+          broker()->local_isolate_or_isolate())) {
+    Tagged<Code> code =
+        broker()->local_isolate_or_isolate()->js_dispatch_table().GetCode(
+            target_function->dispatch_handle());
+    wrap_args_for_wasm = (code->builtin_id() == Builtin::kJSToWasmWrapper) ||
+                         (code->kind() == CodeKind::JS_TO_WASM_FUNCTION);
+  }
+  // LINT.ThenChange(src/maglev/maglev-graph-builder.cc:WasmWrapperInliningConditions)
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   ReduceResult new_call = reducer_.AddNewNode<CallKnownJSFunction>(
       input_count,
       [&](CallKnownJSFunction* call) {
         for (int i = 0; i < positional_arg_count; i++) {
-          call->set_arg(i, node->arg(i + 1).node());
+          ValueNode* arg = node->arg(i + 1).node();
+#if V8_ENABLE_WEBASSEMBLY
+          if (wrap_args_for_wasm) {
+            arg = reducer_.AddNewNodeNoInputConversion<ProcessWasmArgument>(
+                {arg});
+          }
+#endif  // V8_ENABLE_WEBASSEMBLY
+          call->set_arg(i, arg);
         }
         return ReduceResult::Done();
       },
@@ -1205,6 +1228,12 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
   DCHECK(new_call.IsDoneWithValue());
   CallKnownJSFunction* new_call_node =
       new_call.value()->Cast<CallKnownJSFunction>();
+
+  compiler::FeedbackCellRef feedback_cell =
+      target_function->raw_feedback_cell(broker());
+  if (!feedback_cell.feedback_vector(broker())) {
+    return ReplaceWith(new_call_node);
+  }
 
   // TODO(victorgomes): Should we propagate call frequency from feedback?
   float call_frequency = 1.0f;
@@ -1228,9 +1257,12 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
 
   CatchBlockDetails catch_details;
   if (node->exception_handler_info()->HasExceptionHandler()) {
+    int depth = node->exception_handler_info()->ShouldLazyDeopt()
+                    ? 0
+                    : node->exception_handler_info()->depth() + 1;
     catch_details = {node->exception_handler_info()->catch_block_ref_address(),
                      !node->exception_handler_info()->ShouldLazyDeopt(), true,
-                     0};
+                     depth};
   }
 
   int bytecode_length = shared.GetBytecodeArray(broker()).length();
@@ -1246,8 +1278,7 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
   MaglevCallSiteInfo* call_site = reducer_.zone()->New<MaglevCallSiteInfo>(
       MaglevCallerDetails{
           base::VectorOf(arguments),
-          &new_call_node->lazy_deopt_info()->top_frame(),
-          call_aspects,
+          &new_call_node->lazy_deopt_info()->top_frame(), call_aspects,
           nullptr,  // loop_effects
           ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>(
               reducer_.zone()),  // unobserved_context_slot_stores
@@ -1255,11 +1286,8 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
           0,      // peeled_iteration_count
           false,  // is_eager_inline
           is_small_function, call_frequency,
-          nullptr  // TOD(victorgomes): Propagate
-                   // parent_inlining_tree_debug_info?
-      },
-      new_call_node, target_function->raw_feedback_cell(broker()), score,
-      bytecode_length);
+          reducer_.graph()->inlining_tree_debug_info()},
+      new_call_node, feedback_cell, score, bytecode_length);
 
   reducer_.PushInlineCandidate(call_site);
 

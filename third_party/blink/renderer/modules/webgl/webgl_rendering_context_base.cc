@@ -6440,11 +6440,6 @@ BASE_FEATURE(kAllowGpuUploadForTexSubImageOnAndroid,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
-// Killswitch guarding WebGL not caching the SkSurface used for
-// VideoFrame->StaticBitmapImage software draws.
-BASE_FEATURE(kWebGLVideoFrameDrawCacheSkSurface,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 void WebGLRenderingContextBase::TexImageHelperMediaVideoFrame(
     TexImageParams params,
     WebGLTexture* texture,
@@ -6658,13 +6653,8 @@ void WebGLRenderingContextBase::TexImageHelperMediaVideoFrame(
   const bool kPreferTaggedOrientation = false;
   scoped_refptr<StaticBitmapImage> image;
   if (snapshot_provider->IsExternalBitmapProvider()) {
-    sk_sp<SkSurface> draw_surface =
-        base::FeatureList::IsEnabled(kWebGLVideoFrameDrawCacheSkSurface)
-            ? static_cast<CanvasNon2DSnapshotProviderBitmap*>(snapshot_provider)
-                  ->GetCachedSurface()
-            : nullptr;
     image = CreateUnacceleratedImageFromVideoFrame(
-        std::move(media_video_frame), info, draw_surface, video_renderer,
+        std::move(media_video_frame), info, video_renderer,
         kPreferTaggedOrientation, reinterpret_video_as_srgb);
   } else {
     image = CreateAcceleratedImageFromVideoFrame(

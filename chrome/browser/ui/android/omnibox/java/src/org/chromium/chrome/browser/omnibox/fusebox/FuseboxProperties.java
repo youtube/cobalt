@@ -11,7 +11,9 @@ import androidx.annotation.IntDef;
 import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxLayoutMode;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxState;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.PopupState;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.ui.modelutil.PropertyKey;
@@ -19,43 +21,28 @@ import org.chromium.ui.modelutil.PropertyModel.WritableBooleanPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
 import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
 
-import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 import java.util.List;
 
 /** The properties associated with the Fusebox bar. */
 @NullMarked
 class FuseboxProperties {
-    @IntDef({PopupButtonType.ATTACHMENT, PopupButtonType.TOOL, PopupButtonType.MODEL})
+    @IntDef({PopupButtonType.RECENT_TAB, PopupButtonType.TOOL, PopupButtonType.MODEL})
     @Retention(RetentionPolicy.SOURCE)
     public @interface PopupButtonType {
-        int ATTACHMENT = 0;
+        int RECENT_TAB = 0;
         int TOOL = 1;
         int MODEL = 2;
-    }
-
-    /** The possible states of the Fusebox popup. */
-    @IntDef({PopupState.HIDDEN, PopupState.FLOATING, PopupState.BOTTOM})
-    @Retention(RetentionPolicy.SOURCE)
-    @Target({ElementType.TYPE_USE})
-    public @interface PopupState {
-        /** The popup is hidden. */
-        int HIDDEN = 0;
-
-        /** The popup is floating near the anchor. */
-        int FLOATING = 1;
-
-        /** The popup is anchored at the bottom of the screen. */
-        int BOTTOM = 2;
     }
 
     /** Encapsulates the state for a button in the Fusebox popup. */
     public static class PopupButtonData {
         public final Runnable onClicked;
         public final String text;
+        // Either iconId (predefined vector drawable) or customIcon (bitmap favicon) is set.
         public final /*IconResourceIds*/ int iconId;
+        public final @Nullable Bitmap customIcon;
         public final boolean enabled;
         public final boolean selected;
         public final @PopupButtonType int type;
@@ -74,6 +61,27 @@ class FuseboxProperties {
             this.onClicked = onClicked.bind(this);
             this.text = text;
             this.iconId = iconId;
+            this.customIcon = null;
+            this.enabled = enabled;
+            this.selected = selected;
+            this.type = type;
+            this.protoId = protoId;
+            this.hasColor = hasColor;
+        }
+
+        public PopupButtonData(
+                Callback<PopupButtonData> onClicked,
+                String text,
+                @Nullable Bitmap customIcon,
+                boolean enabled,
+                boolean selected,
+                @PopupButtonType int type,
+                int protoId,
+                boolean hasColor) {
+            this.onClicked = onClicked.bind(this);
+            this.text = text;
+            this.iconId = 0;
+            this.customIcon = customIcon;
             this.enabled = enabled;
             this.selected = selected;
             this.type = type;
@@ -110,7 +118,11 @@ class FuseboxProperties {
     public static final WritableObjectPropertyKey<@BrandedColorScheme Integer> COLOR_SCHEME =
             new WritableObjectPropertyKey<>();
 
-    /** The state the the UI of the fusebox should currently be in. */
+    /** The layout mode of fusebox views; see {@link FuseboxLayoutMode}. */
+    public static final WritableObjectPropertyKey<@FuseboxLayoutMode Integer> FUSEBOX_LAYOUT_MODE =
+            new WritableObjectPropertyKey<>();
+
+    /** The state of the UI of the fusebox should currently be in. */
     public static final WritableObjectPropertyKey<@FuseboxState Integer> FUSEBOX_STATE =
             new WritableObjectPropertyKey<>();
 
@@ -236,6 +248,22 @@ class FuseboxProperties {
     public static final WritableBooleanPropertyKey SHOW_REQUEST_TYPE_BUTTON =
             new WritableBooleanPropertyKey();
 
+    /** Holds button data objects for each recent tab that is to be shown. */
+    public static final WritableObjectPropertyKey<List<PopupButtonData>>
+            POPUP_RECENT_TABS_BUTTON_DATA_LIST = new WritableObjectPropertyKey<>();
+
+    /** Whether the recent tabs divider in the popup is visible. */
+    public static final WritableBooleanPropertyKey POPUP_RECENT_TABS_DIVIDER_VISIBLE =
+            new WritableBooleanPropertyKey();
+
+    /** Whether the recent tabs header in the popup is visible. */
+    public static final WritableBooleanPropertyKey POPUP_RECENT_TABS_HEADER_VISIBLE =
+            new WritableBooleanPropertyKey();
+
+    /** Whether the recent tab buttons in the popup are enabled. */
+    public static final WritableBooleanPropertyKey POPUP_RECENT_TABS_ENABLED =
+            new WritableBooleanPropertyKey();
+
     public static final PropertyKey[] ALL_KEYS = {
         // go/keep-sorted start
         ADAPTER,
@@ -245,6 +273,7 @@ class FuseboxProperties {
         AUTOCOMPLETE_REQUEST_TYPE_CLICKED,
         BUTTON_ADD_CLICKED,
         COLOR_SCHEME,
+        FUSEBOX_LAYOUT_MODE,
         FUSEBOX_STATE,
         POPUP_ATTACH_CAMERA_CLICKED,
         POPUP_ATTACH_CAMERA_ENABLED,
@@ -269,6 +298,10 @@ class FuseboxProperties {
         POPUP_MODEL_DIVIDER_VISIBLE,
         POPUP_MODEL_HEADER_TEXT,
         POPUP_MODEL_HEADER_VISIBLE,
+        POPUP_RECENT_TABS_BUTTON_DATA_LIST,
+        POPUP_RECENT_TABS_DIVIDER_VISIBLE,
+        POPUP_RECENT_TABS_ENABLED,
+        POPUP_RECENT_TABS_HEADER_VISIBLE,
         POPUP_STATE,
         POPUP_TOOL_BUTTON_DATA_LIST,
         POPUP_TOOL_DIVIDER_VISIBLE,

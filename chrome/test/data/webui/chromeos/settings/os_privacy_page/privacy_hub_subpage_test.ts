@@ -54,7 +54,6 @@ function overriddenValues(privacyHubVersion: string) {
       return {
         showPrivacyHubLocationControl: false,
         showSpeakOnMuteDetectionPage: true,
-        shouldUseMetricsConsentRestructure: false,
       };
     }
     case PrivacyHubVersion.V0AndLocation: {
@@ -239,7 +238,8 @@ suite('<settings-privacy-hub-subpage> AllBuilds app permissions', () => {
     await waitAfterNextRender(privacyHubSubpage);
 
     const cameraToggle = getCameraCrToggle();
-    const cameraPref = privacyHubSubpage.prefs.ash.user.camera_allowed;
+    const cameraPref =
+        privacyHubSubpage.getPref<boolean>('ash.user.camera_allowed');
 
     // Pref and toggle should be in sync and not disabled.
     assertTrue(cameraToggle.checked);
@@ -340,7 +340,8 @@ suite('<settings-privacy-hub-subpage> AllBuilds app permissions', () => {
     await waitAfterNextRender(privacyHubSubpage);
 
     const microphoneToggle = getMicrophoneCrToggle();
-    const microphonePref = privacyHubSubpage.prefs.ash.user.microphone_allowed;
+    const microphonePref =
+        privacyHubSubpage.getPref<boolean>('ash.user.microphone_allowed');
 
     // Pref and toggle should be in sync and not disabled.
     assertTrue(microphoneToggle.checked);
@@ -545,7 +546,7 @@ suite('<settings-privacy-hub-subpage> AllBuilds app permissions', () => {
   test('Geolocation row subtext', async () => {
     // Location should be allowed by default
     assertEquals(
-        privacyHubSubpage.prefs.ash.user.geolocation_access_level.value,
+        privacyHubSubpage.getPref('ash.user.geolocation_access_level').value,
         GeolocationAccessLevel.ALLOWED);
     assertEquals(
         privacyHubSubpage.i18n('geolocationAreaAllowedSubtext'),
@@ -555,7 +556,7 @@ suite('<settings-privacy-hub-subpage> AllBuilds app permissions', () => {
     setGeolocationAccessLevel(GeolocationAccessLevel.ONLY_ALLOWED_FOR_SYSTEM);
     await waitAfterNextRender(privacyHubSubpage);
     assertEquals(
-        privacyHubSubpage.prefs.ash.user.geolocation_access_level.value,
+        privacyHubSubpage.getPref('ash.user.geolocation_access_level').value,
         GeolocationAccessLevel.ONLY_ALLOWED_FOR_SYSTEM);
     assertEquals(
         privacyHubSubpage.i18n('geolocationAreaOnlyAllowedForSystemSubtext'),
@@ -565,7 +566,7 @@ suite('<settings-privacy-hub-subpage> AllBuilds app permissions', () => {
     setGeolocationAccessLevel(GeolocationAccessLevel.DISALLOWED);
     await waitAfterNextRender(privacyHubSubpage);
     assertEquals(
-        privacyHubSubpage.prefs.ash.user.geolocation_access_level.value,
+        privacyHubSubpage.getPref('ash.user.geolocation_access_level').value,
         GeolocationAccessLevel.DISALLOWED);
     assertEquals(
         privacyHubSubpage.i18n('geolocationAreaDisallowedSubtext'),
@@ -606,9 +607,6 @@ function testsuiteForMetricsConsentToggle() {
   let metricsConsentBrowserProxy: TestMetricsConsentBrowserProxy;
 
   setup(() => {
-    loadTimeData.overrideValues({
-      shouldUseMetricsConsentRestructure: false,
-    });
     metricsConsentBrowserProxy = new TestMetricsConsentBrowserProxy();
     MetricsConsentBrowserProxyImpl.setInstanceForTesting(
         metricsConsentBrowserProxy);
@@ -648,19 +646,6 @@ function testsuiteForMetricsConsentToggle() {
             'Send usage toggle should only be visible here when privacy hub' +
                 ' is hidden.');
       });
-
-  test('hidden when metrics consent restructure is enabled', async () => {
-    loadTimeData.overrideValues({shouldUseMetricsConsentRestructure: true});
-    settingsPage.remove();
-    await setUpPage(USER_METRICS_CONSENT_PREF_NAME, true);
-
-    const element =
-        settingsPage.shadowRoot!.querySelector('#metricsConsentToggle');
-    assertEquals(
-        null, element,
-        'Send usage toggle should not be visible when metrics consent' +
-            ' restructure is enabled.');
-  });
 
   test(
       'Send usage stats toggle visibility in settings-privacy-hub-subpage',

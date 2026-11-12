@@ -8,17 +8,7 @@
 #include "chrome/app_shim/app_shim_delegate.h"
 #include "chrome/common/mac/app_shim.mojom.h"
 
-@implementation AppShimApplication {
-  BOOL _handlingSendEvent;
-}
-
-- (BOOL)isHandlingSendEvent {
-  return _handlingSendEvent;
-}
-
-- (void)setHandlingSendEvent:(BOOL)handlingSendEvent {
-  _handlingSendEvent = handlingSendEvent;
-}
+@implementation AppShimApplication
 
 - (void)enableScreenReaderCompleteModeAfterDelay:(BOOL)enable {
   [NSObject cancelPreviousPerformRequestsWithTarget:self

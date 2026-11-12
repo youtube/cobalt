@@ -4,9 +4,12 @@
 
 package org.chromium.base;
 
+import androidx.annotation.VisibleForTesting;
+
 import org.chromium.build.annotations.NullMarked;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -27,6 +30,10 @@ import javax.annotation.concurrent.NotThreadSafe;
  * <p>This class is not threadsafe. Observers MUST be added, removed and will be notified on the
  * same thread this is created.
  *
+ * <p>WARNING: Stopping iteration early without calling {@link RewindableIterator#rewind()} will
+ * permanently prevent compaction of the underlying list. This shouldn't happen in normal enhanced
+ * for loop usage over all observers which is the typical use case.
+ *
  * @param <E> The type of observers that this list should hold.
  */
 @NullMarked
@@ -43,7 +50,7 @@ public class ObserverList<E> implements Iterable<E> {
         void rewind();
     }
 
-    public final List<E> mObservers = new ArrayList<E>();
+    @VisibleForTesting final List<E> mObservers = new ArrayList<E>();
     private final ThreadUtils.ThreadChecker mThreadChecker;
     private int mIterationDepth;
     private int mCount;
@@ -178,6 +185,8 @@ public class ObserverList<E> implements Iterable<E> {
      * <p>mThreadChecker.assertOnValidThread() asserts false if the thread is not "valid", but its
      * error message is confusing. This method simply catches the AssertionError and produces a more
      * informative one.
+     *
+     * <p>This is stripped in non-assert release builds.
      */
     private void assertSameThreadUsed() {
         if (!mEnableThreadAsserts) return;
@@ -198,11 +207,7 @@ public class ObserverList<E> implements Iterable<E> {
      */
     private void compact() {
         assert mIterationDepth == 0;
-        for (int i = mObservers.size() - 1; i >= 0; i--) {
-            if (mObservers.get(i) == null) {
-                mObservers.remove(i);
-            }
-        }
+        mObservers.removeAll(Collections.singleton(null));
     }
 
     private void incrementIterationDepth() {
@@ -232,7 +237,18 @@ public class ObserverList<E> implements Iterable<E> {
 
     private class ObserverListIterator implements RewindableIterator<E> {
         private int mListEndMarker;
-        private int mIndex;
+        private int mNextValidIndex;
+
+        /**
+         * Used to denote whether we have exhausted the iterator so we correctly reset {@link
+         * mIterationDepth}. Without this guard
+         *
+         * <ul>
+         *   <li>Additional calls to {@link #compactListIfNeeded()} would cause the depth to be
+         *       decremented too many times.
+         *   <li>Early calls to {@link #rewind()} would cause the depth to not reset correctly.
+         * </ul>
+         */
         private boolean mIsExhausted;
 
         private ObserverListIterator() {
@@ -248,19 +264,22 @@ public class ObserverList<E> implements Iterable<E> {
             ObserverList.this.incrementIterationDepth();
             mListEndMarker = ObserverList.this.capacity();
             mIsExhausted = false;
-            mIndex = 0;
+            mNextValidIndex = 0;
         }
 
         @Override
         public boolean hasNext() {
             assertSameThreadUsed();
 
-            int lookupIndex = mIndex;
-            while (lookupIndex < mListEndMarker
-                    && ObserverList.this.getObserverAt(lookupIndex) == null) {
-                lookupIndex++;
+            int nextIndex = mNextValidIndex;
+            while (nextIndex < mListEndMarker
+                    && ObserverList.this.getObserverAt(nextIndex) == null) {
+                nextIndex++;
             }
-            if (lookupIndex < mListEndMarker) return true;
+            mNextValidIndex = nextIndex;
+            if (nextIndex < mListEndMarker) {
+                return true;
+            }
 
             // We have reached the end of the list, allow for compaction.
             compactListIfNeeded();
@@ -271,15 +290,11 @@ public class ObserverList<E> implements Iterable<E> {
         public E next() {
             assertSameThreadUsed();
 
-            // Advance if the current element is null.
-            while (mIndex < mListEndMarker && ObserverList.this.getObserverAt(mIndex) == null) {
-                mIndex++;
+            if (!hasNext()) {
+                throw new NoSuchElementException();
             }
-            if (mIndex < mListEndMarker) return ObserverList.this.getObserverAt(mIndex++);
 
-            // We have reached the end of the list, allow for compaction.
-            compactListIfNeeded();
-            throw new NoSuchElementException();
+            return ObserverList.this.getObserverAt(mNextValidIndex++);
         }
 
         @Override

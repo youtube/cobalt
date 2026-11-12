@@ -1166,7 +1166,6 @@ static bool DoExchange(bssl::UniquePtr<SSL_SESSION> *out_session,
       }
     }
   } else {
-    static const char kInitialWrite[] = "hello";
     bool pending_initial_write = false;
     if (config->read_with_unfinished_write) {
       if (!config->async) {
@@ -1181,15 +1180,19 @@ static bool DoExchange(bssl::UniquePtr<SSL_SESSION> *out_session,
 
       // Let only one byte of the record through.
       AsyncBioAllowWrite(test_state->async_bio, 1);
-      int write_ret = SSL_write(ssl, kInitialWrite, strlen(kInitialWrite));
+      int write_ret = SSL_write(ssl, config->shim_initial_write.data(),
+                                config->shim_initial_write.size());
       if (SSL_get_error(ssl, write_ret) != SSL_ERROR_WANT_WRITE) {
         fprintf(stderr, "Failed to leave unfinished write.\n");
         return false;
       }
       pending_initial_write = true;
     } else if (config->shim_writes_first) {
-      if (WriteAll(ssl, kInitialWrite, strlen(kInitialWrite)) < 0) {
-        return false;
+      for (int i = 0; i < config->repeat_shim_initial_write; i++) {
+        if (WriteAll(ssl, config->shim_initial_write.data(),
+                     config->shim_initial_write.size()) < 0) {
+          return false;
+        }
       }
     }
     if (!config->shim_shuts_down) {
@@ -1247,7 +1250,8 @@ static bool DoExchange(bssl::UniquePtr<SSL_SESSION> *out_session,
 
         // Clear the initial write, if unfinished.
         if (pending_initial_write) {
-          if (WriteAll(ssl, kInitialWrite, strlen(kInitialWrite)) < 0) {
+          if (WriteAll(ssl, config->shim_initial_write.data(),
+                       config->shim_initial_write.size()) < 0) {
             return false;
           }
           pending_initial_write = false;

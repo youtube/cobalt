@@ -5,17 +5,16 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_FORM_PARSING_PHONE_FIELD_PARSER_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_FORM_PARSING_PHONE_FIELD_PARSER_H_
 
+#include <stddef.h>
+
 #include <array>
 #include <memory>
-#include <string>
+#include <optional>
 #include <string_view>
+#include <vector>
 
-#include "base/compiler_specific.h"
-#include "components/autofill/core/browser/autofill_type.h"
-#include "components/autofill/core/browser/country_type.h"
-#include "components/autofill/core/browser/data_model/addresses/phone_number.h"
+#include "components/autofill/core/browser/form_parsing/field_candidates.h"
 #include "components/autofill/core/browser/form_parsing/form_field_parser.h"
-#include "components/autofill/core/common/language_code.h"
 
 namespace autofill {
 

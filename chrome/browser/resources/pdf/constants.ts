@@ -18,6 +18,12 @@ export enum AnnotationBrushType {
   PEN = 'pen',
 }
 
+export enum TextAnnotationSource {
+  USER = 'user',
+  UNDO = 'undo',
+  REDO = 'redo',
+}
+
 export interface Color {
   r: number;
   g: number;
@@ -34,13 +40,10 @@ export interface AnnotationBrush {
 
 export interface TextAnnotation {
   id: number;
-  isEdited: boolean;
+  // Stored because the backend requires it to be re-sent with every update.
+  // Not used by frontend code.
   mojoTextInfo: ArrayBuffer;
-  // Serialized SkTypeface font data that the backend needs. Only contains
-  // fonts that the backend has never seen before.
-  newTypefaces: Typeface[];
   pageIndex: number;
-  pdfZoom: number;
   text: string;
   textAttributes: TextAttributes;
   // Location of the text box relative to the top left corner of the page
@@ -51,6 +54,15 @@ export interface TextAnnotation {
   // Orientation of the text in the box relative to the PDF page, in number of
   // clockwise rotations from 0 to 3.
   textOrientation: number;
+}
+
+export interface TextAnnotationMessageData extends TextAnnotation {
+  isEdited: boolean;
+  // Serialized SkTypeface font data that the backend needs. Only contains
+  // fonts that the backend has never seen before.
+  newTypefaces: Typeface[];
+  pdfZoom: number;
+  source: TextAnnotationSource;
 }
 
 export enum TextAlignment {

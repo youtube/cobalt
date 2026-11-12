@@ -64,6 +64,11 @@ gfx::Size ToolbarGlicButton::CalculatePreferredSize(
   return size;
 }
 
+gfx::Size ToolbarGlicButton::GetMinimumSize() const {
+  return gfx::Size(kCollapsedWidth,
+                   GetLayoutConstant(LayoutConstant::kToolbarButtonHeight));
+}
+
 void ToolbarGlicButton::AddedToWidget() {
   split_rounded_edge_radius_ = GetRoundedCornerRadius();
   SetLeftRightCornerRadii(GetRoundedCornerRadius(), GetRoundedCornerRadius());
@@ -148,7 +153,7 @@ void ToolbarGlicButton::AddCloseButton(PressedCallback pressed_callback) {
       l10n_util::GetStringUTF16(IDS_TOOLTIP_GLIC_CLOSE));
 
   const ui::ImageModel icon_image_model = ui::ImageModel::FromVectorIcon(
-      vector_icons::kCloseChromeRefreshIcon,
+      vector_icons::kCloseChromeRefreshOldIcon,
       kColorTabSearchButtonCRForegroundFrameActive, kCloseButtonSize);
 
   close_button->SetImageModel(views::Button::STATE_NORMAL, icon_image_model);

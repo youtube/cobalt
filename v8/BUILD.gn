@@ -2538,12 +2538,16 @@ group("v8_abseil") {
     "//third_party/abseil-cpp:absl_define_config",
     "//third_party/abseil-cpp:absl_include_config",
   ]
+
+  visibility = [ "./*" ]
 }
 
 group("zoslib") {
   if (current_os == "zos") {
     deps = [ "//third_party/zoslib" ]
   }
+
+  visibility = [ "./*" ]
 }
 
 v8_header_set("torque_runtime_support") {
@@ -3111,6 +3115,7 @@ action("v8_dump_build_config") {
     "temporal=$v8_enable_temporal_support",
     "is_android=$is_android",
     "is_ios=$is_ios",
+    "is_linux=$is_linux",
     "js_shared_memory=$js_shared_memory",
     "lite_mode=$v8_enable_lite_mode",
     "local_off_stack_check=$v8_enable_local_off_stack_check",

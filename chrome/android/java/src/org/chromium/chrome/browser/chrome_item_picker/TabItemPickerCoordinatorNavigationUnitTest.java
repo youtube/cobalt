@@ -47,6 +47,7 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabObserver;
+import org.chromium.chrome.browser.tab.utilities.TabLoadingService;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorImpl;
@@ -86,6 +87,7 @@ public class TabItemPickerCoordinatorNavigationUnitTest {
 
     @Before
     public void setUp() {
+        TabLoadingService.getInstance().clearForTesting();
         OneshotSupplierImpl<Profile> profileSupplierImpl = new OneshotSupplierImpl<>();
         ViewGroup rootView = Mockito.mock(ViewGroup.class);
         ViewGroup containerView = Mockito.mock(ViewGroup.class);
@@ -276,12 +278,60 @@ public class TabItemPickerCoordinatorNavigationUnitTest {
         verify(tab).addObserver(mTabObserverCaptor.capture());
         TabObserver observer = mTabObserverCaptor.getValue();
 
+        var watcher =
+                HistogramWatcher.newBuilder()
+                        .expectAnyRecord("Android.TabItemPicker.OnDemandLoadDuration.Success")
+                        .build();
+
         observer.onPageLoadFinished(tab, JUnitTestGURLs.URL_1);
 
+        watcher.assertExpected();
         verify(tab).removeObserver(observer);
         verify(mTabContentManager)
                 .cacheTabThumbnailWithCallback(eq(tab), eq(false), mCallbackCaptor.capture());
+
+        var thumbnailWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectAnyRecord("Android.TabItemPicker.OnDemandThumbnailFetchDuration")
+                        .build();
+
         mCallbackCaptor.getValue().onResult(null);
+
+        thumbnailWatcher.assertExpected();
+        verify(mTabListEditorController).setThumbnailSpinnerVisibility(tab, false);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ON_DEMAND_BACKGROUND_TAB_CONTEXT_CAPTURE)
+    public void testTabLoadFailed() {
+        int tabId = 101;
+        Tab tab = mockTabActiveState(tabId, false);
+        when(tab.getUrl()).thenReturn(JUnitTestGURLs.URL_1);
+        when(tab.loadIfNeeded(anyBoolean())).thenReturn(true);
+        when(tab.isLoading()).thenReturn(true);
+
+        captureAndSpyNavigationProvider();
+
+        TabListEditorItemSelectionId id = TabListEditorItemSelectionId.createTabId(tabId);
+        Set<TabListEditorItemSelectionId> selection = new HashSet<>();
+        selection.add(id);
+
+        mNavigationProvider.onSelectionStateChange(selection);
+
+        verify(tab).addObserver(mTabObserverCaptor.capture());
+        TabObserver observer = mTabObserverCaptor.getValue();
+
+        var watcher =
+                HistogramWatcher.newBuilder()
+                        .expectAnyRecord("Android.TabItemPicker.OnDemandLoadDuration.Failure")
+                        .build();
+
+        observer.onPageLoadFailed(tab, 0);
+
+        watcher.assertExpected();
+        verify(tab).removeObserver(observer);
+        verify(mTabContentManager, never())
+                .cacheTabThumbnailWithCallback(any(), anyBoolean(), any());
         verify(mTabListEditorController).setThumbnailSpinnerVisibility(tab, false);
     }
 
@@ -343,7 +393,7 @@ public class TabItemPickerCoordinatorNavigationUnitTest {
         mNavigationProvider.onSelectionStateChange(selection);
         mNavigationProvider.onSelectionStateChange(selection);
 
-        verify(tab, times(2)).loadIfNeeded(anyBoolean());
+        verify(tab, times(1)).loadIfNeeded(anyBoolean());
     }
 
     @Test
@@ -406,7 +456,7 @@ public class TabItemPickerCoordinatorNavigationUnitTest {
         mNavigationProvider.onSelectionStateChange(selection);
         mNavigationProvider.onSelectionStateChange(selection);
 
-        verify(tab, times(2)).loadIfNeeded(anyBoolean());
+        verify(tab, times(1)).loadIfNeeded(anyBoolean());
         // cacheTabThumbnailWithCallback is not called yet because the tab is still loading.
         verify(mTabContentManager, never())
                 .cacheTabThumbnailWithCallback(any(), anyBoolean(), any());

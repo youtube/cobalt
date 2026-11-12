@@ -40,8 +40,9 @@ void MultiContentsViewDelegateImpl::WebContentsFocused(
   // split. There could be a race condition between when the focus happens and
   // when the contents of MultiContentsView are swapped out. See
   // crbug.com/485670308.
-  if (std::find(tabs.begin(), tabs.end(), tab_strip_model_->GetActiveTab()) !=
-      tabs.end()) {
+  if (tab_strip_model_->GetActiveTab() != tab &&
+      std::find(tabs.begin(), tabs.end(), tab_strip_model_->GetActiveTab()) !=
+          tabs.end()) {
     tab_strip_model_->ActivateTabAt(tab_strip_model_->GetIndexOfTab(tab));
   }
 }
@@ -107,7 +108,7 @@ void MultiContentsViewDelegateImpl::HandleLinkDrop(
 
   // TODO(crbug.com/406792273): Support entrypoint for horizontal splits.
   const split_tabs::SplitTabVisualData split_data(
-      split_tabs::SplitTabLayout::kVertical);
+      split_tabs::SplitTabLayout::kSideBySide);
 
   // We currently only support creating a split with one link; i.e., the first
   // link in the provided list.
@@ -143,7 +144,7 @@ void MultiContentsViewDelegateImpl::HandleTabDrop(
 
   // TODO(crbug.com/406792273): Support entrypoint for horizontal splits.
   const split_tabs::SplitTabVisualData split_data(
-      split_tabs::SplitTabLayout::kVertical);
+      split_tabs::SplitTabLayout::kSideBySide);
 
   std::unique_ptr<tabs::TabModel> detached_tab =
       drag_controller.DetachTabAtForInsertion(

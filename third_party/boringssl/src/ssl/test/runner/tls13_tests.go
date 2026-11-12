@@ -116,6 +116,7 @@ func addTLS13HandshakeTests() {
 		},
 		shouldFail:    true,
 		expectedError: ":MISSING_KEY_SHARE:",
+		expectedLocalError: "remote error: missing extension",
 	})
 
 	testCases = append(testCases, testCase{

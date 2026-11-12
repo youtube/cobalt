@@ -73,13 +73,6 @@ class TrustTokenFixture : public benchmark::Fixture {
 
     TRUST_TOKEN_CLIENT_set_srr_key(client_.get(), pub_.get());
     TRUST_TOKEN_ISSUER_set_srr_key(issuer_.get(), priv_.get());
-    uint8_t metadata_key[32];
-    RAND_bytes(metadata_key, sizeof(metadata_key));
-    if (!TRUST_TOKEN_ISSUER_set_metadata_key(issuer_.get(), metadata_key,
-                                             sizeof(metadata_key))) {
-      state.SkipWithError("failed to generate trust token metadata key.");
-      return false;
-    }
     return true;
   }
 

@@ -90,6 +90,7 @@
 #include "third_party/icu/source/common/unicode/utypes.h"
 #include "third_party/icu/source/i18n/unicode/coll.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/gfx/text_elider.h"
 #include "url/scheme_host_port.h"
@@ -150,11 +151,14 @@ constexpr const gfx::VectorIcon& GetTransportIcon(
     AuthenticatorTransport transport) {
   switch (transport) {
     case AuthenticatorTransport::kUsbHumanInterfaceDevice:
-      return kUsbSecurityKeyIcon;
+      return features::IsRoundedIconsEnabled() ? kSecurityKeyIcon
+                                               : kUsbSecurityKeyOldIcon;
     case AuthenticatorTransport::kInternal:
-      return kLaptopIcon;
+      return features::IsRoundedIconsEnabled() ? kLaptopWindowsIcon
+                                               : kLaptopOldIcon;
     case AuthenticatorTransport::kHybrid:
-      return kSmartphoneIcon;
+      return features::IsRoundedIconsEnabled() ? kMobileIcon
+                                               : kSmartphoneOldIcon;
     case AuthenticatorTransport::kDeprecatedAoa:
     case AuthenticatorTransport::kBluetoothLowEnergy:
     case AuthenticatorTransport::kNearFieldCommunication:
@@ -200,9 +204,9 @@ bool WebAuthnApiSupportsHybrid() {
 
 const gfx::VectorIcon& GetCredentialIcon(AuthenticatorType type) {
   if (type == AuthenticatorType::kPhone) {
-    return kSmartphoneIcon;
+    return features::IsRoundedIconsEnabled() ? kMobileIcon : kSmartphoneOldIcon;
   }
-  return vector_icons::kPasskeyIcon;
+  return vector_icons::kPasskeyOldIcon;
 }
 
 int GetHybridButtonLabel(bool has_security_key) {
@@ -380,10 +384,10 @@ const gfx::VectorIcon& GetMechanismIcon(
           },
           [](const Mechanism::Enclave&) -> const gfx::VectorIcon& {
             // Always use the standard password manager icon here.
-            return vector_icons::kPasswordManagerIcon;
+            return vector_icons::kPasswordManagerOldIcon;
           },
           [](const Mechanism::SignInAgain&) -> const gfx::VectorIcon& {
-            return vector_icons::kSyncIcon;
+            return vector_icons::kSyncOldIcon;
           }},
       type);
 }

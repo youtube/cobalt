@@ -453,16 +453,16 @@ uint32_t AlgorithmIdForWireFormat(WebCryptoAlgorithmId id) {
   NOTREACHED() << "Unknown algorithm ID " << id;
 }
 
-uint32_t AsymmetricKeyTypeForWireFormat(WebCryptoKeyType key_type) {
+uint32_t KeyTypeForWireFormat(WebCryptoKeyType key_type) {
   switch (key_type) {
     case kWebCryptoKeyTypePublic:
       return kPublicKeyType;
     case kWebCryptoKeyTypePrivate:
       return kPrivateKeyType;
     case kWebCryptoKeyTypeSecret:
-      break;
+      return kSecretKeyType;
   }
-  NOTREACHED() << "Unknown asymmetric key type " << key_type;
+  NOTREACHED() << "Unknown key type " << key_type;
 }
 
 uint32_t NamedCurveForWireFormat(WebCryptoNamedCurve named_curve) {
@@ -546,7 +546,7 @@ bool V8ScriptValueSerializerForModules::WriteCryptoKey(
       const auto& params = *algorithm.RsaHashedParams();
       WriteOneByte(kRsaHashedKeyTag);
       WriteUint32(AlgorithmIdForWireFormat(algorithm.Id()));
-      WriteUint32(AsymmetricKeyTypeForWireFormat(key.GetType()));
+      WriteUint32(KeyTypeForWireFormat(key.GetType()));
       WriteUint32(params.ModulusLengthBits());
 
       if (params.PublicExponent().size() >
@@ -566,11 +566,14 @@ bool V8ScriptValueSerializerForModules::WriteCryptoKey(
       const auto& params = *algorithm.EcParams();
       WriteOneByte(kEcKeyTag);
       WriteUint32(AlgorithmIdForWireFormat(algorithm.Id()));
-      WriteUint32(AsymmetricKeyTypeForWireFormat(key.GetType()));
+      WriteUint32(KeyTypeForWireFormat(key.GetType()));
       WriteUint32(NamedCurveForWireFormat(params.NamedCurve()));
       break;
     }
     case kWebCryptoKeyAlgorithmParamsTypeNone:
+      // Ed25519, X25519, HKDF, and PBKDF2 are special-cased because they
+      // pre-dated the kNoParamsWithKeyTypeKeyTag. New algorithms that have no
+      // params for the key should use the default case.
       switch (algorithm.Id()) {
         case kWebCryptoAlgorithmIdEd25519:
         case kWebCryptoAlgorithmIdX25519: {
@@ -579,14 +582,21 @@ bool V8ScriptValueSerializerForModules::WriteCryptoKey(
                                     : kX25519KeyTag;
           WriteOneByte(tag);
           WriteUint32(AlgorithmIdForWireFormat(algorithm.Id()));
-          WriteUint32(AsymmetricKeyTypeForWireFormat(key.GetType()));
+          WriteUint32(KeyTypeForWireFormat(key.GetType()));
           break;
         }
-        default:
-          DCHECK(WebCryptoAlgorithm::IsKdf(algorithm.Id()) ||
-                 algorithm.Id() == kWebCryptoAlgorithmIdChaCha20Poly1305);
+        case kWebCryptoAlgorithmIdHkdf:
+        case kWebCryptoAlgorithmIdPbkdf2: {
           WriteOneByte(kNoParamsKeyTag);
           WriteUint32(AlgorithmIdForWireFormat(algorithm.Id()));
+          break;
+        }
+        default: {
+          WriteOneByte(kNoParamsWithKeyTypeKeyTag);
+          WriteUint32(AlgorithmIdForWireFormat(algorithm.Id()));
+          WriteUint32(KeyTypeForWireFormat(key.GetType()));
+          break;
+        }
       }
       break;
   }

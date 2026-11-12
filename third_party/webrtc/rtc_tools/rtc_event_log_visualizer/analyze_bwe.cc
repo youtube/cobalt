@@ -809,9 +809,9 @@ void CreateScreamSimulationRefWindowGraph(const ParsedRtcEventLog& parsed_log,
 void CreateScreamSimulationRatiosGraph(const ParsedRtcEventLog& parsed_log,
                                        const AnalyzerConfig& config,
                                        Plot* plot) {
-  TimeSeries queue_delay_dev_norm_series("QueueDelayDevNorm", LineStyle::kStep);
   TimeSeries l4s_alpha_series("L4sAlpha", LineStyle::kStep);
   TimeSeries l4s_alpha_v_series("L4sAlphaV", LineStyle::kStep);
+  TimeSeries loss_event_rate_series("LossEventRate", LineStyle::kStep);
   TimeSeries ref_window_scale_factor_due_to_min_delay_variation(
       "RefWindowScaleFactorDueToAvgMinQueueDelay", LineStyle::kStep);
   TimeSeries ref_window_scale_factor_due_to_latency_difference(
@@ -826,12 +826,12 @@ void CreateScreamSimulationRatiosGraph(const ParsedRtcEventLog& parsed_log,
   simulation.ProcessEventsInLog(parsed_log);
 
   for (const LogScreamSimulation::State& state : simulation.updates()) {
-    queue_delay_dev_norm_series.points.emplace_back(
-        config.GetCallTimeSec(state.time), state.queue_delay_dev_norm);
     l4s_alpha_series.points.emplace_back(config.GetCallTimeSec(state.time),
                                          state.l4s_alpha);
     l4s_alpha_v_series.points.emplace_back(config.GetCallTimeSec(state.time),
                                            state.l4s_alpha_v);
+    loss_event_rate_series.points.emplace_back(
+        config.GetCallTimeSec(state.time), state.loss_event_rate);
     ref_window_scale_factor_due_to_min_delay_variation.points.emplace_back(
         config.GetCallTimeSec(state.time),
         state.ref_window_scale_factor_due_to_avg_min_delay);
@@ -845,9 +845,9 @@ void CreateScreamSimulationRatiosGraph(const ParsedRtcEventLog& parsed_log,
         config.GetCallTimeSec(state.time),
         state.ref_window_combined_increase_scale_factor);
   }
-  plot->AppendTimeSeries(std::move(queue_delay_dev_norm_series));
   plot->AppendTimeSeries(std::move(l4s_alpha_series));
   plot->AppendTimeSeries(std::move(l4s_alpha_v_series));
+  plot->AppendTimeSeries(std::move(loss_event_rate_series));
   plot->AppendTimeSeries(
       std::move(ref_window_scale_factor_due_to_min_delay_variation));
   plot->AppendTimeSeries(

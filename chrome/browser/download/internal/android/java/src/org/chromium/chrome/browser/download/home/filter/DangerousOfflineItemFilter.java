@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.download.home.filter;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.download.home.DownloadManagerUiConfig;
+import org.chromium.components.browser_ui.util.DownloadUtils;
 import org.chromium.components.offline_items_collection.OfflineItem;
 
 /**
@@ -27,6 +28,9 @@ public class DangerousOfflineItemFilter extends OfflineItemFilter {
     // OfflineItemFilter implementation.
     @Override
     protected boolean isFilteredOut(OfflineItem item) {
+        if (DownloadUtils.isBlockedSensitiveDownload(item)) {
+            return false; // Handled independently by BlockedSensitiveOfflineItemFilter
+        }
         return !mIncludeDangerousItems && item.isDangerous;
     }
 }

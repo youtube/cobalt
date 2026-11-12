@@ -1201,7 +1201,9 @@ class CallSiteBuilder {
   bool AppendDeferredFrame(JavaScriptFrame* frame, int deferred_flag) {
     if (Full()) return false;
     DirectHandle<JSFunction> function(frame->function(), isolate_);
-    if (!IsVisibleInStackTrace(function)) {
+    if (!function->native_context()->HasSameSecurityTokenAs(
+            isolate_->context()) ||
+        !IsVisibleInStackTrace(function)) {
       skipped_prev_frame_ = true;
       return true;
     }
@@ -1520,7 +1522,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, CallSiteBuilder* builder) {
 template <typename Visitor>
 void VisitStack(Isolate* isolate, Visitor* visitor,
                 StackTrace::StackTraceOptions options = StackTrace::kDetailed,
-                bool never_allocate = false) {
+                AllowAllocation allow_allocation = AllowAllocation::kYes) {
   DisallowJavascriptExecution no_js(isolate);
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     StackFrame* frame = it.frame();
@@ -1547,7 +1549,7 @@ void VisitStack(Isolate* isolate, Visitor* visitor,
         // A standard frame may include many summarized frames (due to
         // inlining).
         FrameSummaries summaries =
-            CommonFrame::cast(frame)->Summarize(never_allocate);
+            CommonFrame::cast(frame)->Summarize(allow_allocation);
         for (auto& summary : base::Reversed(summaries.frames)) {
           // Skip frames from other origins when asked to do so.
           if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
@@ -1848,6 +1850,41 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
   return frame->pc();
 }
 
+Address Isolate::GetAbstractPCNoGC(int* line, int* column,
+                                   DisallowGarbageCollection& no_gc) {
+  JavaScriptStackFrameIterator it(this);
+
+  if (it.done()) {
+    *line = -1;
+    *column = -1;
+    return kNullAddress;
+  }
+  JavaScriptFrame* frame = it.frame();
+  DCHECK(!frame->is_builtin());
+
+  int position = frame->position();
+
+  Tagged<Object> maybe_script = frame->function()->shared()->script();
+  if (Tagged<Script> script; TryCast(maybe_script, &script)) {
+    Script::PositionInfo info;
+    script->GetPositionInfo(position, &info);
+    *line = info.line + 1;
+    *column = info.column + 1;
+  } else {
+    *line = position;
+    *column = -1;
+  }
+
+  if (frame->is_unoptimized()) {
+    UnoptimizedJSFrame* iframe = static_cast<UnoptimizedJSFrame*>(frame);
+    Address bytecode_start =
+        iframe->GetBytecodeArray()->GetFirstBytecodeAddress();
+    return bytecode_start + iframe->GetBytecodeOffset();
+  }
+
+  return frame->pc();
+}
+
 namespace {
 
 class StackFrameBuilder {
@@ -2106,7 +2143,7 @@ size_t Isolate::CurrentScriptData(
 
   CurrentScriptDataStackVisitor visitor(this, frame_data);
   // CurrentScriptData should only expose frames from the same origin.
-  VisitStack(this, &visitor, StackTrace::kDetailed, true);
+  VisitStack(this, &visitor, StackTrace::kDetailed, AllowAllocation::kNo);
   return visitor.FrameCount();
 }
 
@@ -2142,14 +2179,15 @@ bool Isolate::GetStackTraceLimit(Isolate* isolate, int* result) {
   return true;
 }
 
-void Isolate::PrintStack(FILE* out, PrintStackMode mode) {
+void Isolate::PrintStack(FILE* out, PrintStackMode mode,
+                         AllowAllocation allow_allocation) {
   if (stack_trace_nesting_level_ == 0) {
     stack_trace_nesting_level_++;
     StringStream::ClearMentionedObjectCache(this);
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
     incomplete_message_ = &accumulator;
-    PrintStack(&accumulator, mode);
+    PrintStack(&accumulator, mode, allow_allocation);
     accumulator.OutputToFile(out);
     InitializeLoggingAndCounters();
     accumulator.Log(this);
@@ -2165,15 +2203,17 @@ void Isolate::PrintStack(FILE* out, PrintStackMode mode) {
   }
 }
 
-static void PrintFrames(Isolate* isolate, StringStream* accumulator,
-                        StackFrame::PrintMode mode) {
+static void PrintFrames(
+    Isolate* isolate, StringStream* accumulator, StackFrame::PrintMode mode,
+    AllowAllocation allow_allocation = AllowAllocation::kYes) {
   StackFrameIterator it(isolate);
   for (int i = 0; !it.done(); it.Advance()) {
-    it.frame()->Print(accumulator, mode, i++);
+    it.frame()->Print(accumulator, mode, i++, allow_allocation);
   }
 }
 
-void Isolate::PrintStack(StringStream* accumulator, PrintStackMode mode) {
+void Isolate::PrintStack(StringStream* accumulator, PrintStackMode mode,
+                         AllowAllocation allow_allocation) {
   HandleScope scope(this);
   DCHECK(accumulator->IsMentionedObjectCacheClear(this));
 
@@ -2185,11 +2225,11 @@ void Isolate::PrintStack(StringStream* accumulator, PrintStackMode mode) {
 
   accumulator->Add(
       "\n==== JS stack trace =========================================\n\n");
-  PrintFrames(this, accumulator, StackFrame::OVERVIEW);
+  PrintFrames(this, accumulator, StackFrame::OVERVIEW, allow_allocation);
   if (mode == kPrintStackVerbose) {
     accumulator->Add(
         "\n==== Details ================================================\n\n");
-    PrintFrames(this, accumulator, StackFrame::DETAILS);
+    PrintFrames(this, accumulator, StackFrame::DETAILS, allow_allocation);
     accumulator->PrintMentionedObjectCache(this);
   }
   accumulator->Add("=====================\n\n");
@@ -2304,7 +2344,7 @@ std::string Isolate::BuildMinimalStack(size_t max_length) {
           v8::StackTrace::kExposeFramesAcrossSecurityOrigins);
 
   MinimalStackPrinter printer(max_length);
-  VisitStack(this, &printer, stackTraceOptions, true);
+  VisitStack(this, &printer, stackTraceOptions, AllowAllocation::kNo);
   return printer.Build();
 }
 
@@ -3896,7 +3936,7 @@ bool TouchesRegister(const interpreter::BytecodeArrayIterator& iterator,
   for (int i = 0; i < num_operands; ++i) {
     if (Bytecodes::IsRegisterOperandType(operand_types[i])) {
       int base_index = iterator.GetRegisterOperand(i).index();
-      int num_registers;
+      uint32_t num_registers;
       if (Bytecodes::IsRegisterListOperandType(operand_types[i])) {
         num_registers = iterator.GetRegisterCountOperand(++i);
       } else {
@@ -3904,7 +3944,8 @@ bool TouchesRegister(const interpreter::BytecodeArrayIterator& iterator,
             Bytecodes::GetNumberOfRegistersRepresentedBy(operand_types[i]);
       }
 
-      if (base_index <= index && index < base_index + num_registers) {
+      if (base_index <= index &&
+          index < base_index + base::checked_cast<int>(num_registers)) {
         return true;
       }
     }
@@ -6386,7 +6427,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   }
 
   if ((v8_flags.trace_turbo || v8_flags.trace_turbo_graph ||
-       v8_flags.turbo_profiling || v8_flags.print_turbolev_frontend) &&
+       v8_flags.turbo_profiling || v8_flags.print_turbolev_frontend ||
+       v8_flags.print_turbolev_inline_functions) &&
       !v8_flags.concurrent_turbo_tracing) {
     PrintF("Concurrent recompilation has been disabled for tracing.\n");
   } else if (OptimizingCompileDispatcher::Enabled()) {

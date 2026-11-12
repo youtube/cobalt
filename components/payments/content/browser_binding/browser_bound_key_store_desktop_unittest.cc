@@ -9,15 +9,17 @@
 #include "base/time/time.h"
 #include "components/payments/content/browser_binding/browser_bound_key.h"
 #include "components/payments/content/browser_binding/browser_bound_key_desktop.h"
-#include "components/unexportable_keys/mock_unexportable_key.h"
-#include "components/unexportable_keys/mock_unexportable_key_provider.h"
 #include "content/public/test/browser_task_environment.h"
+#include "crypto/mock_unexportable_key.h"
+#include "crypto/mock_unexportable_key_provider.h"
 #include "crypto/signature_verifier.h"
 #include "device/fido/public/public_key_credential_params.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
+using crypto::MockUnexportableKeyProvider;
+using crypto::MockUnexportableSigningKey;
 using crypto::SignatureVerifier;
 using device::CoseAlgorithmIdentifier;
 using device::PublicKeyCredentialParams;
@@ -27,8 +29,6 @@ using testing::ElementsAre;
 using testing::IsNull;
 using testing::NotNull;
 using testing::Return;
-using unexportable_keys::MockUnexportableKey;
-using unexportable_keys::MockUnexportableKeyProvider;
 }  // namespace
 
 namespace payments {
@@ -70,12 +70,12 @@ class BrowserBoundKeyStoreDesktopTest : public ::testing::Test {
 
 TEST_F(BrowserBoundKeyStoreDesktopTest,
        GetOrCreateBrowserBoundKeyForCredentialId_Get) {
-  std::unique_ptr<MockUnexportableKey> key =
-      std::make_unique<MockUnexportableKey>();
+  std::unique_ptr<MockUnexportableSigningKey> key =
+      std::make_unique<MockUnexportableSigningKey>();
   EXPECT_CALL(*key, Algorithm())
       .WillRepeatedly(
           Return(SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256));
-  MockUnexportableKey* key_ptr = key.get();
+  MockUnexportableSigningKey* key_ptr = key.get();
 
   EXPECT_CALL(*key_provider(), FromWrappedSigningKeySlowly(
                                    base::span<const uint8_t>(kCredentialId)))
@@ -92,15 +92,15 @@ TEST_F(BrowserBoundKeyStoreDesktopTest,
 
 TEST_F(BrowserBoundKeyStoreDesktopTest,
        GetOrCreateBrowserBoundKeyForCredentialId_Create) {
-  std::unique_ptr<MockUnexportableKey> key =
-      std::make_unique<MockUnexportableKey>();
+  std::unique_ptr<MockUnexportableSigningKey> key =
+      std::make_unique<MockUnexportableSigningKey>();
   EXPECT_CALL(*key, Algorithm())
       .WillRepeatedly(
           Return(SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256));
   const std::vector<crypto::SignatureVerifier::SignatureAlgorithm> algorithms =
       {SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256,
        SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256};
-  MockUnexportableKey* key_ptr = key.get();
+  MockUnexportableSigningKey* key_ptr = key.get();
 
   EXPECT_CALL(*key_provider(), FromWrappedSigningKeySlowly(
                                    base::span<const uint8_t>(kCredentialId)))
@@ -187,8 +187,8 @@ TEST_F(BrowserBoundKeyStoreDesktopTest,
   base::HistogramTester histogram_tester;
   base::TimeDelta get_key_latency = base::Microseconds(10);
 
-  std::unique_ptr<MockUnexportableKey> key =
-      std::make_unique<MockUnexportableKey>();
+  std::unique_ptr<MockUnexportableSigningKey> key =
+      std::make_unique<MockUnexportableSigningKey>();
 
   EXPECT_CALL(*key, Algorithm())
       .WillRepeatedly(
@@ -228,8 +228,8 @@ TEST_F(BrowserBoundKeyStoreDesktopTest,
   const std::vector<crypto::SignatureVerifier::SignatureAlgorithm> algorithms =
       {SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256,
        SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256};
-  std::unique_ptr<MockUnexportableKey> key =
-      std::make_unique<MockUnexportableKey>();
+  std::unique_ptr<MockUnexportableSigningKey> key =
+      std::make_unique<MockUnexportableSigningKey>();
 
   EXPECT_CALL(*key, Algorithm())
       .WillRepeatedly(

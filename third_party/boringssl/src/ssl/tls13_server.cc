@@ -670,7 +670,13 @@ static enum ssl_hs_wait_t do_select_session(SSL_HANDSHAKE *hs) {
   if (hs->pake_verifier == nullptr) {
     if (!tls1_get_shared_group(hs, &hs->new_session->group_id)) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_NO_SHARED_GROUP);
-      ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_HANDSHAKE_FAILURE);
+      // RFC 8446, section 9.2 specifies that the "missing extension" alert
+      // should be sent if the ClientHello does not have both or neither of
+      // "key_share" and "supported_groups".
+      ssl_send_alert(ssl, SSL3_AL_FATAL,
+                     hs->peer_supported_group_list.empty()
+                         ? SSL_AD_MISSING_EXTENSION
+                         : SSL_AD_HANDSHAKE_FAILURE);
       return ssl_hs_error;
     }
     bool found_key_share;

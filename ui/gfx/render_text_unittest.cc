@@ -42,6 +42,7 @@
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "third_party/skia/include/core/SkFontStyle.h"
+#include "third_party/skia/include/core/SkString.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/core/SkTextBlob.h"
 #include "third_party/skia/include/core/SkTypeface.h"
@@ -7044,6 +7045,98 @@ TEST_F(RenderTextTest, HarfBuzz_BreakRunsByEmojiVariationSelectors) {
   EXPECT_EQ(gfx::Range(4, 4), render_text->selection());
   EXPECT_EQ(3 * kGlyphWidth, render_text->GetUpdatedCursorBounds().x());
 #endif
+}
+
+// Verifies that text-default emoji (codepoints with the `Emoji` property but
+// not `Emoji_Presentation`) followed by VS-16 still produce a well-formed
+// run with non-zero glyphs. The native gfx::RenderText path explicitly tries
+// the platform color emoji font for these sequences (see ShapeRuns), but if
+// that font is unavailable shaping must fall through to the system text font
+// rather than producing an empty/zero-width run.
+TEST_F(RenderTextTest, HarfBuzz_TextDefaultEmojiVS16ProducesGlyphs) {
+  RenderTextHarfBuzz* render_text = GetRenderText();
+
+  // U+2666 (BLACK DIAMOND SUIT) + U+FE0F: text-default emoji + VS-16.
+  // U+00A9 (COPYRIGHT SIGN) + U+FE0F: same pattern with a BMP symbol.
+  // U+260E (BLACK TELEPHONE) + U+FE0F: covered by another test for run breaks,
+  // here we just assert glyph presence for completeness.
+  for (const char16_t* sequence :
+       {u"\u2666\uFE0F", u"\u00A9\uFE0F", u"\u260E\uFE0F"}) {
+    SCOPED_TRACE(sequence);
+    render_text->SetText(sequence);
+    render_text->SetDisplayRect(Rect(1000, 50));
+    const internal::TextRunList* run_list = GetHarfBuzzRunList();
+    ASSERT_GE(run_list->size(), 1U);
+    size_t total_glyphs = 0;
+    for (const auto& run : run_list->runs()) {
+      total_glyphs += run->shape.glyph_count;
+      EXPECT_EQ(0U, run->CountMissingGlyphs());
+    }
+    EXPECT_GT(total_glyphs, 0U);
+  }
+}
+
+// Verifies that emoji-default codepoints followed by VS-15 (U+FE0E) route
+// through a non-color-emoji typeface. This is the dual of the VS-16
+// pre-pass: VS-15 explicitly requests text presentation, so the native
+// gfx::RenderText path must refuse to shape such runs with a color-emoji
+// typeface even when one of the system fallback fonts happens to be one.
+TEST_F(RenderTextTest, HarfBuzz_EmojiDefaultVS15PrefersTextPresentation) {
+  // Same color-emoji table set used by render_text_harfbuzz.cc, plus the
+  // known platform color emoji family. The family check covers platform
+  // typefaces where table probing is unavailable or incomplete.
+  auto typeface_may_render_color_emoji = [](SkTypeface* typeface) {
+    if (!typeface) {
+      return false;
+    }
+
+    const bool has_color_emoji_table =
+        typeface->getTableSize(SkSetFourByteTag('C', 'O', 'L', 'R')) > 0 ||
+        typeface->getTableSize(SkSetFourByteTag('C', 'B', 'D', 'T')) > 0 ||
+        typeface->getTableSize(SkSetFourByteTag('s', 'b', 'i', 'x')) > 0;
+
+#if BUILDFLAG(IS_WIN)
+    constexpr const char* kPlatformColorEmojiFontName = "Segoe UI Emoji";
+#elif BUILDFLAG(IS_APPLE)
+    constexpr const char* kPlatformColorEmojiFontName = "Apple Color Emoji";
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+    constexpr const char* kPlatformColorEmojiFontName = "Noto Color Emoji";
+#else
+    constexpr const char* kPlatformColorEmojiFontName = nullptr;
+#endif
+
+    SkString family_name;
+    typeface->getFamilyName(&family_name);
+    return has_color_emoji_table ||
+           (kPlatformColorEmojiFontName &&
+            base::EqualsCaseInsensitiveASCII(family_name.c_str(),
+                                             kPlatformColorEmojiFontName));
+  };
+
+  RenderTextHarfBuzz* render_text = GetRenderText();
+
+  // U+1F310 GLOBE WITH MERIDIANS: emoji-default; the canonical case from
+  //   https://crbug.com/40800376 / crbug.com/1263737.
+  // U+2600 BLACK SUN WITH RAYS: BMP, text-default in Unicode but routinely
+  //   colored by platform font fallback; VS-15 must still steer away from
+  //   color.
+  // U+2764 HEAVY BLACK HEART: BMP, common in UI strings.
+  for (const char16_t* sequence :
+       {u"\xD83C\xDF10\uFE0E", u"\u2600\uFE0E", u"\u2764\uFE0E"}) {
+    SCOPED_TRACE(sequence);
+    render_text->SetText(sequence);
+    render_text->SetDisplayRect(Rect(1000, 50));
+    const internal::TextRunList* run_list = GetHarfBuzzRunList();
+    ASSERT_GE(run_list->size(), 1U);
+    for (const auto& run : run_list->runs()) {
+#if BUILDFLAG(IS_WIN)
+      EXPECT_EQ(0U, run->CountMissingGlyphs()) << "VS-15 run rendered as tofu";
+#endif
+      EXPECT_FALSE(
+          typeface_may_render_color_emoji(run->font_params.skia_face.get()))
+          << "VS-15 run was shaped with a color-emoji typeface";
+    }
+  }
 }
 
 TEST_F(RenderTextTest, HarfBuzz_OrphanedVariationSelector) {

@@ -82,6 +82,25 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildToJSFunctionRef(
 }
 
 template <typename Assembler>
+void WasmWrapperTSGraphBuilder<Assembler>::CheckAndConvertSharedString(
+    V<Object> ret, ScopedVar<Object>& result) {
+  IF (__ IsSmi(ret)) {
+    result = ret;
+  } ELSE {
+    V<Word32> instance_type = __ LoadInstanceTypeField(__ LoadMapField(ret));
+    V<Word32> is_string = __ Uint32LessThan(
+        instance_type, __ Word32Constant(FIRST_NONSTRING_TYPE));
+    IF (is_string) {
+      // Since this is a shared externref, the string will be shared.
+      result = __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmWasmToJSObject,
+                                  {ret}, __ NoContextConstant());
+    } ELSE {
+      result = ret;
+    }
+  }
+}
+
+template <typename Assembler>
 auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
                                                 CanonicalValueType type,
                                                 V<Context> context)
@@ -131,20 +150,21 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
   if (wasm::IsSubtypeOf(type, wasm::kWasmSharedExternRef)) {
     // We have to unshare shared strings before passing them to JS.
     ScopedVar<Object> result(this, OpIndex::Invalid());
-    IF (__ IsSmi(ret)) {
-      result = ret;
-    } ELSE {
-      OpIndex instance_type = LoadInstanceType(LoadMap(ret));
-      V<Word32> is_string = __ Uint32LessThan(
-          instance_type, __ Word32Constant(FIRST_NONSTRING_TYPE));
-      IF (is_string) {
-        // Since this is a shared externref, the string will be shared.
-        result =
-            __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmWasmToJSObject,
-                               {ret}, __ NoContextConstant());
+    CheckAndConvertSharedString(ret, result);
+    return result;
+  }
+
+  if (type.is_reference_to(GenericKind::kAny) &&
+      type.is_shared() == SharedFlag::kYes) {
+    ScopedVar<Object> result(this, OpIndex::Invalid());
+    if (type.is_nullable()) {
+      IF (__ TaggedEqual(ret, __ template LoadRoot<RootIndex::kWasmNull>())) {
+        result = __ template LoadRoot<RootIndex::kNullValue>();
       } ELSE {
-        result = ret;
+        CheckAndConvertSharedString(ret, result);
       }
+    } else {
+      CheckAndConvertSharedString(ret, result);
     }
     return result;
   }
@@ -168,7 +188,7 @@ template <typename Assembler>
 void WasmWrapperTSGraphBuilder<Assembler>::BuildCallWasmFromWrapper(
     Zone* zone, const wasm::CanonicalSig* sig, V<Word32> callee,
     const base::Vector<OpIndex> args, base::Vector<OpIndex> returns,
-    OptionalV<FrameState> frame_state,
+    OptionalV<LazyFrameState> frame_state,
     compiler::LazyDeoptOnThrow lazy_deopt_on_throw) {
   const bool needs_frame_state = frame_state.valid();
 
@@ -229,9 +249,9 @@ template <typename Assembler>
 auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
     V<JSFunction> js_closure, V<Context> js_context,
     base::Vector<const OpIndex> arguments,
-    OptionalV<FrameState> lazy_frame_state,
+    OptionalV<LazyFrameState> lazy_frame_state,
     compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
-    OptionalV<FrameState> caller_frame_state) -> V<Any> {
+    OptionalV<EagerFrameState> caller_frame_state) -> V<Any> {
   // JS-to-Wasm wrappers are compiled per isolate, so they can emit
   // isolate-dependent code.
   DCHECK_NOT_NULL(__ data()->isolate());
@@ -324,7 +344,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
   compiler::turboshaft::WasmBodyInliningResult inlining_result;
   if constexpr (requires { &Assembler::TryInlineWasmBody; }) {
     if (inlined_function_data_.has_value()) {
-      CHECK(v8_flags.turboshaft_wasm_in_js_inlining);
+      CHECK(v8_flags.wasm_in_js_inlining_body);
       inlining_result = __ TryInlineWasmBody(
           inlined_function_data_.value(), VectorOf(args), lazy_deopt_on_throw);
       // If the body inlining traps unconditionally (e.g., due to an
@@ -771,7 +791,8 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCWasmEntryWrapper() {
   OpIndex call;
   {
     typename Assembler::CatchScope scope(Asm(), catch_block);
-    OpIndex frame_state = OpIndex::Invalid();
+    OptionalV<LazyFrameState> frame_state =
+        OptionalV<LazyFrameState>::Nullopt();
     call = __ Call(code_entry, frame_state, base::VectorOf(args), descriptor,
                    OpEffects().CanCallAnything());
   }

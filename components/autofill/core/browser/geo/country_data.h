@@ -5,7 +5,11 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_GEO_COUNTRY_DATA_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_GEO_COUNTRY_DATA_H_
 
+#include <stddef.h>
+
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "base/containers/fixed_flat_map.h"
@@ -60,7 +64,7 @@ enum RequiredFieldsForAddressImport {
 // Maps country codes to address import requirements.
 // This list is comprised of countries appearing in both
 // //third_party/icu/source/data/region/en.txt and
-// //third_party/libaddressinput/src/cpp/src/region_data_constants.cc.
+// //third_party/libaddressinput/src/cpp/src/region_metadata_constants.cc.
 inline constexpr auto kCountryAddressImportRequirementsData =
     base::MakeFixedFlatMap<std::string_view, RequiredFieldsForAddressImport>(
         {{"AC", ADDRESS_REQUIRES_LINE1_CITY},

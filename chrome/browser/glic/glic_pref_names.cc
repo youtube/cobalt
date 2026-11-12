@@ -100,13 +100,16 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
       prefs::kGlicFocusToggleHotkey,
       ui::Command::AcceleratorToString(
           LocalHotkeyManager::GetDefaultAccelerator(
-              LocalHotkeyManager::Hotkey::kFocusToggle)));
+              LocalHotkeyManager::Command::kFocusToggle)));
   registry->RegisterStringPref(prefs::kGlicGuestUrlPresetAutopush, "");
   registry->RegisterStringPref(prefs::kGlicGuestUrlPresetStaging, "");
   registry->RegisterStringPref(prefs::kGlicGuestUrlPresetPreprod, "");
   registry->RegisterStringPref(prefs::kGlicGuestUrlPresetProd, "");
   registry->RegisterStringPref(
       prefs::kGlicWebContinuityOriginatingHostUrlPreset, "");
+#if BUILDFLAG(IS_MAC)
+  registry->RegisterBooleanPref(prefs::kGlicUseAltOSIcon, false);
+#endif
 }
 
 }  // namespace glic::prefs

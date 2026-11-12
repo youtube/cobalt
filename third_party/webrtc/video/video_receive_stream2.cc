@@ -182,6 +182,25 @@ std::string OptionalDelayToLogString(std::optional<TimeDelta> opt) {
   return opt.has_value() ? absl::StrCat(*opt) : "<unset>";
 }
 
+std::unique_ptr<VideoStreamBufferController> CreateBuffer(
+    const Environment& env,
+    Call* call,
+    VCMTiming* timing,
+    ReceiveStatisticsProxy* stats_proxy,
+    FrameSchedulingReceiver* receiver,
+    TimeDelta max_wait_for_keyframe,
+    TimeDelta max_wait_for_frame,
+    DecodeSynchronizer* decode_sync) {
+  std::unique_ptr<FrameDecodeScheduler> scheduler =
+      decode_sync ? decode_sync->CreateSynchronizedFrameScheduler()
+                  : std::make_unique<TaskQueueFrameDecodeScheduler>(
+                        &env.clock(), call->worker_thread());
+  return std::make_unique<VideoStreamBufferController>(
+      &env.clock(), call->worker_thread(), timing, stats_proxy, receiver,
+      max_wait_for_keyframe, max_wait_for_frame, std::move(scheduler),
+      env.field_trials());
+}
+
 }  // namespace
 
 TimeDelta DetermineMaxWaitForFrame(TimeDelta rtp_history, bool is_keyframe) {
@@ -240,6 +259,14 @@ VideoReceiveStream2::VideoReceiveStream2(
       max_wait_for_frame_(DetermineMaxWaitForFrame(
           TimeDelta::Millis(config_.rtp.nack.rtp_history_ms),
           false)),
+      buffer_(CreateBuffer(env_,
+                           call_,
+                           timing_.get(),
+                           &stats_proxy_,
+                           this,
+                           max_wait_for_keyframe_,
+                           max_wait_for_frame_,
+                           decode_sync)),
       frame_evaluator_(FrameInstrumentationEvaluation::Create(&stats_proxy_)),
       post_decode_queue_(
           CorruptionDetectionFrameSelectorSettings(env.field_trials())
@@ -271,15 +298,6 @@ VideoReceiveStream2::VideoReceiveStream2(
   }
 
   timing_->set_render_delay(TimeDelta::Millis(config_.render_delay_ms));
-
-  std::unique_ptr<FrameDecodeScheduler> scheduler =
-      decode_sync ? decode_sync->CreateSynchronizedFrameScheduler()
-                  : std::make_unique<TaskQueueFrameDecodeScheduler>(
-                        &env_.clock(), call_->worker_thread());
-  buffer_ = std::make_unique<VideoStreamBufferController>(
-      &env_.clock(), call_->worker_thread(), timing_.get(), &stats_proxy_, this,
-      max_wait_for_keyframe_, max_wait_for_frame_, std::move(scheduler),
-      env_.field_trials());
 
   if (!config_.rtp.rtx_associated_payload_types.empty()) {
     rtx_receive_stream_ = std::make_unique<RtxReceiveStream>(

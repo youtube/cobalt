@@ -51,8 +51,6 @@ public class AutoPipPermissionDialogViewRenderTest {
     public static BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
-    private static Activity sActivity;
-
     private final @ColorInt int mFakeBgColor;
     private FrameLayout mContentView;
     private AutoPipPermissionDialogView mView;
@@ -73,7 +71,7 @@ public class AutoPipPermissionDialogViewRenderTest {
 
     @BeforeClass
     public static void setupSuite() {
-        sActivity = sActivityTestRule.launchActivity(null);
+        sActivityTestRule.launchActivity(null);
     }
 
     // This helper function waits until the view is rendered trying to prevent flakiness.
@@ -98,7 +96,7 @@ public class AutoPipPermissionDialogViewRenderTest {
     private void setUpViews() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    Activity activity = sActivity;
+                    Activity activity = sActivityTestRule.getActivity();
                     mContentView = new FrameLayout(activity);
                     mView =
                             new AutoPipPermissionDialogView(

@@ -218,7 +218,7 @@ std::unique_ptr<webrtc::VideoEncoder> GetObjCEncoder(
   webrtc::ObjCVideoEncoderFactory encoder_factory(fakeEncoderFactory);
 
   webrtc::VideoEncoderFactory::CodecSupport s =
-      encoder_factory.QueryCodecSupport(codec, std::nullopt);
+      encoder_factory.QueryCodecSupport(codec, std::nullopt, std::nullopt);
 
   EXPECT_TRUE(s.is_supported);
 }
@@ -229,7 +229,8 @@ std::unique_ptr<webrtc::VideoEncoder> GetObjCEncoder(
   webrtc::SdpVideoFormat codec("VP8");
   webrtc::ObjCVideoEncoderFactory encoder_factory(fakeEncoderFactory);
 
-  EXPECT_FALSE(encoder_factory.QueryCodecSupport(codec, "S2T1").is_supported);
+  EXPECT_FALSE(encoder_factory.QueryCodecSupport(codec, "S2T1", std::nullopt)
+                   .is_supported);
 }
 
 - (void)testQueryCodecSupportDelegatesToObjcFactoryIncludesPowerEfficientFlag {
@@ -240,7 +241,7 @@ std::unique_ptr<webrtc::VideoEncoder> GetObjCEncoder(
   webrtc::ObjCVideoEncoderFactory encoder_factory(fakeEncoderFactory);
 
   webrtc::VideoEncoderFactory::CodecSupport s =
-      encoder_factory.QueryCodecSupport(codec, "L1T2");
+      encoder_factory.QueryCodecSupport(codec, "L1T2", std::nullopt);
   EXPECT_TRUE(s.is_supported);
   EXPECT_TRUE(s.is_power_efficient);
 }

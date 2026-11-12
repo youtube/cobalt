@@ -44,6 +44,7 @@
 #include "media/base/codec.h"
 #include "media/base/media_channel.h"
 #include "media/base/media_config.h"
+#include "media/base/media_constants.h"
 #include "media/base/media_engine.h"
 #include "media/base/stream_params.h"
 #include "rtc_base/checks.h"
@@ -722,19 +723,27 @@ FakeVideoEngine::CreateReceiveChannel(
 std::vector<Codec> FakeVideoEngine::LegacySendCodecs(bool use_rtx) const {
   if (use_rtx) {
     return send_codecs_;
-  } else {
-    std::vector<Codec> non_rtx_codecs;
-    for (auto& codec : send_codecs_) {
-      if (codec.name != "rtx") {
-        non_rtx_codecs.push_back(codec);
-      }
-    }
-    return non_rtx_codecs;
   }
+  std::vector<Codec> out;
+  for (const auto& codec : send_codecs_) {
+    if (codec.name != kRtxCodecName) {
+      out.push_back(codec);
+    }
+  }
+  return out;
 }
 
-std::vector<Codec> FakeVideoEngine::LegacyRecvCodecs(bool /* use_rtx */) const {
-  return recv_codecs_;
+std::vector<Codec> FakeVideoEngine::LegacyRecvCodecs(bool use_rtx) const {
+  if (use_rtx) {
+    return recv_codecs_;
+  }
+  std::vector<Codec> out;
+  for (const auto& codec : recv_codecs_) {
+    if (codec.name != kRtxCodecName) {
+      out.push_back(codec);
+    }
+  }
+  return out;
 }
 
 std::vector<SdpVideoFormat> FakeVideoEngine::GetSupportedFormats(

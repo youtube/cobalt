@@ -13,6 +13,7 @@
 #include <jni.h>
 
 #include "api/video/video_frame.h"
+#include "rtc_base/logging.h"
 #include "sdk/android/generated_video_jni/VideoSink_jni.h"
 #include "sdk/android/native_api/jni/jvm.h"
 #include "sdk/android/native_api/jni/scoped_java_ref.h"
@@ -29,6 +30,10 @@ VideoSinkWrapper::~VideoSinkWrapper() {}
 void VideoSinkWrapper::OnFrame(const VideoFrame& frame) {
   JNIEnv* jni = AttachCurrentThreadIfNeeded();
   ScopedJavaLocalRef<jobject> j_frame = NativeToJavaVideoFrame(jni, frame);
+  if (!j_frame) {
+    RTC_LOG(LS_WARNING) << "NativeToJavaVideoFrame failed. Dropping frame.";
+    return;
+  }
   Java_VideoSink_onFrame(jni, j_sink_, j_frame);
   ReleaseJavaVideoFrame(jni, j_frame);
 }

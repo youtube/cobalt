@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
 #include "api/audio/audio_device.h"
 #include "api/audio/audio_mixer.h"
@@ -142,11 +143,10 @@ std::unique_ptr<ModuleRtpRtcpImpl2> CreateRtpRtcpModule(
 class ChannelReceive : public ChannelReceiveInterface,
                        public RtcpPacketTypeCounterObserver {
  public:
-  // Used for receive streams.
   ChannelReceive(const Environment& env,
-                 NetEqFactory* neteq_factory,
-                 AudioDeviceModule* audio_device_module,
-                 Transport* rtcp_send_transport,
+                 NetEqFactory* absl_nullable neteq_factory,
+                 AudioDeviceModule* absl_nonnull audio_device_module,
+                 Transport* absl_nonnull rtcp_send_transport,
                  uint32_t remote_ssrc,
                  size_t jitter_buffer_max_packets,
                  bool jitter_buffer_fast_playout,
@@ -574,9 +574,9 @@ int ChannelReceive::PreferredSampleRate() const {
 
 ChannelReceive::ChannelReceive(
     const Environment& env,
-    NetEqFactory* neteq_factory,
-    AudioDeviceModule* audio_device_module,
-    Transport* rtcp_send_transport,
+    NetEqFactory* absl_nullable neteq_factory,
+    AudioDeviceModule* absl_nonnull audio_device_module,
+    Transport* absl_nonnull rtcp_send_transport,
     uint32_t remote_ssrc,
     size_t jitter_buffer_max_packets,
     bool jitter_buffer_fast_playout,
@@ -1218,9 +1218,9 @@ std::vector<RtpSource> ChannelReceive::GetSources() const {
 
 std::unique_ptr<ChannelReceiveInterface> CreateChannelReceive(
     const Environment& env,
-    NetEqFactory* neteq_factory,
-    AudioDeviceModule* audio_device_module,
-    Transport* rtcp_send_transport,
+    NetEqFactory* absl_nullable neteq_factory,
+    AudioDeviceModule* absl_nonnull audio_device_module,
+    Transport* absl_nonnull rtcp_send_transport,
     uint32_t remote_ssrc,
     size_t jitter_buffer_max_packets,
     bool jitter_buffer_fast_playout,

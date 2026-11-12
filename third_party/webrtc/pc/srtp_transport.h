@@ -55,6 +55,9 @@ class SrtpTransport : public RtpTransport {
 
   bool IsWritable(bool rtcp) const override;
 
+  // Enable or disable cryptex.
+  bool UseCryptex(bool enable, bool require);
+
   // Create new send/recv sessions and set the negotiated crypto keys for RTP
   // packet encryption. The keys can either come from SDES negotiation or DTLS
   // handshake.
@@ -127,6 +130,9 @@ class SrtpTransport : public RtpTransport {
   bool writable_ = false;
 
   int decryption_failure_count_ = 0;
+
+  bool enable_cryptex_ = false;
+  bool require_cryptex_ = false;
 
   const FieldTrialsView& field_trials_;
 };

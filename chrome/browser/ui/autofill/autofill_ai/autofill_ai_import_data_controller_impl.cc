@@ -175,11 +175,13 @@ void AutofillAiImportDataControllerImpl::OnGoToWalletLinkClicked() {
               web_contents())) {
     reopen_bubble_when_web_contents_becomes_visible_ = true;
     const EntityInstance& new_entity = GetSaveUpdateState().new_entity;
-    bool is_private_pass =
-        IsMaskedStorageSupported(new_entity.type(), new_entity.record_type());
-    ShowSingletonTab(
-        browser, GURL(is_private_pass ? chrome::kWalletPrivatePassHelpCenterURL
-                                      : chrome::kWalletPassesPageURL));
+    EntityInstance::WalletPassType pass_type =
+        GetWalletPassType(new_entity.type(), new_entity.record_type());
+    CHECK_NE(pass_type, EntityInstance::WalletPassType::kUnsupported);
+    GURL wallet_url(pass_type == EntityInstance::WalletPassType::kPublic
+                        ? chrome::kWalletPassesPageURL
+                        : chrome::kWalletPrivatePassHelpCenterURL);
+    ShowSingletonTab(browser, wallet_url);
   }
 }
 

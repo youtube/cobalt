@@ -1,0 +1,422 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "components/sharing_message/sharing_channel_sender.h"
+
+#include "base/check_is_test.h"
+#include "base/feature_list.h"
+#include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
+#include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/notimplemented.h"
+#include "base/notreached.h"
+#include "base/trace_event/trace_event.h"
+#include "base/uuid.h"
+#include "base/version.h"
+#include "components/gcm_driver/crypto/gcm_encryption_result.h"
+#include "components/gcm_driver/gcm_driver.h"
+#include "components/sharing_message/ios_push/ios_push_notification_util.h"
+#include "components/sharing_message/proto/sharing_message_type.pb.h"
+#include "components/sharing_message/sharing_constants.h"
+#include "components/sharing_message/sharing_message_bridge.h"
+#include "components/sharing_message/sharing_metrics.h"
+#include "components/sharing_message/sharing_sync_preference.h"
+#include "components/sharing_message/sharing_utils.h"
+#include "components/sync/protocol/sync_enums.pb.h"
+#include "components/sync/protocol/unencrypted_sharing_message.pb.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_user_settings.h"
+#include "components/sync_device_info/device_info_tracker.h"
+#include "components/sync_device_info/local_device_info_provider.h"
+
+namespace {
+
+// When enabled, sharing messages sent using sync may be postponed until sync
+// is active.
+BASE_FEATURE(kSharingPostponeFcmMessageSending,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+}  // namespace
+
+SharingChannelSender::SharingChannelSender(
+    SharingMessageBridge* sharing_message_bridge,
+    SharingSyncPreference* sync_preference,
+    gcm::GCMDriver* gcm_driver,
+    const syncer::DeviceInfoTracker* device_info_tracker,
+    const syncer::LocalDeviceInfoProvider* local_device_info_provider,
+    syncer::SyncService* sync_service,
+    syncer::SyncableService::StartSyncFlare start_sync_flare)
+    : sharing_message_bridge_(sharing_message_bridge),
+      sync_preference_(sync_preference),
+      gcm_driver_(gcm_driver),
+      device_info_tracker_(device_info_tracker),
+      local_device_info_provider_(local_device_info_provider),
+      sync_service_(sync_service),
+      start_sync_flare_(std::move(start_sync_flare)) {
+  // `sync_service_` can be null in tests.
+  if (sync_service_) {
+    sync_service_observation_.Observe(sync_service_);
+  } else {
+    CHECK_IS_TEST();
+  }
+}
+
+SharingChannelSender::~SharingChannelSender() = default;
+
+void SharingChannelSender::SendFcmMessageToDevice(
+    const SharingTargetDeviceInfo& device,
+    base::TimeDelta time_to_live,
+    SharingMessage message,
+    SendMessageCallback callback) {
+  TRACE_EVENT0("sharing", "SharingChannelSender::SendFcmMessageToDevice");
+
+  const syncer::DeviceInfo* device_info =
+      device_info_tracker_->GetDeviceInfo(device.guid());
+  if (!device_info) {
+    std::move(callback).Run(SharingSendMessageResult::kDeviceNotFound,
+                            /*message_id=*/std::nullopt,
+                            SharingChannelType::kUnknown);
+    return;
+  }
+
+  auto fcm_configuration = GetFCMChannel(*device_info);
+  if (!fcm_configuration) {
+    std::move(callback).Run(SharingSendMessageResult::kDeviceNotFound,
+                            /*message_id=*/std::nullopt,
+                            SharingChannelType::kUnknown);
+    return;
+  }
+
+  if (!SetMessageSenderInfo(&message)) {
+    std::move(callback).Run(SharingSendMessageResult::kInternalError,
+                            /*message_id=*/std::nullopt,
+                            SharingChannelType::kUnknown);
+    return;
+  }
+
+  SendMessageToFcmTarget(*fcm_configuration, time_to_live, std::move(message),
+                         std::move(callback));
+}
+
+void SharingChannelSender::SendIosPushMessageToDevice(
+    const SharingTargetDeviceInfo& device,
+    sync_pb::UnencryptedSharingMessage message,
+    SendMessageCallback callback) {
+  TRACE_EVENT0("sharing", "SharingChannelSender::SendIosPushMessageToDevice");
+
+  const syncer::DeviceInfo* target_device_info =
+      device_info_tracker_->GetDeviceInfo(device.guid());
+
+  sharing_message::MessageType message_type =
+      SharingPayloadCaseToMessageType(message.payload_case());
+
+  // Double check that device info is not null since the list of devices could
+  // have been updated.
+  if (!target_device_info) {
+    std::move(callback).Run(
+        SharingSendMessageResult::kDeviceNotFound,
+        /*message_id=*/SharingMessageTypeToString(message_type),
+        SharingChannelType::kIosPush);
+    return;
+  }
+
+  const std::optional<syncer::DeviceInfo::SharingInfo>& sharing_info =
+      target_device_info->sharing_info();
+  if (!sharing_info.has_value() ||
+      sharing_info.value().chime_representative_target_id.empty()) {
+    std::move(callback).Run(
+        SharingSendMessageResult::kDeviceNotFound,
+        /*message_id=*/SharingMessageTypeToString(message_type),
+        SharingChannelType::kIosPush);
+    return;
+  }
+
+  if (message_type == sharing_message::SEND_TAB_TO_SELF_PUSH_NOTIFICATION &&
+      !CanSendSendTabPushMessage(*target_device_info)) {
+    std::move(callback).Run(
+        SharingSendMessageResult::kInternalError,
+        /*message_id=*/SharingMessageTypeToString(message_type),
+        SharingChannelType::kIosPush);
+    return;
+  }
+
+  std::string type_id = sharing_message::GetIosPushMessageTypeIdForChannel(
+      message_type, local_device_info_provider_->GetChannel());
+
+  auto specifics = std::make_unique<sync_pb::SharingMessageSpecifics>();
+  sync_pb::SharingMessageSpecifics::ChannelConfiguration::
+      ChimeChannelConfiguration* chime_configuration =
+          specifics->mutable_channel_configuration()->mutable_chime();
+  chime_configuration->set_channel_type(
+      sync_pb::SharingMessageSpecifics::ChannelConfiguration::
+          ChimeChannelConfiguration::APPLE_PUSH);
+  chime_configuration->set_representative_target_id(
+      sharing_info.value().chime_representative_target_id);
+  chime_configuration->set_type_id(type_id);
+  specifics->mutable_unencrypted_payload()->CopyFrom(message);
+
+  sharing_message_bridge_->SendSharingMessage(
+      std::move(specifics),
+      base::BindOnce(&SharingChannelSender::OnMessageSentViaSync,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback),
+                     /*message_id=*/SharingMessageTypeToString(message_type),
+                     SharingChannelType::kIosPush));
+}
+
+void SharingChannelSender::SendMessageToFcmTarget(
+    const components_sharing_message::FCMChannelConfiguration&
+        fcm_configuration,
+    base::TimeDelta time_to_live,
+    SharingMessage message,
+    SendMessageCallback callback) {
+  TRACE_EVENT0("sharing", "SharingChannelSender::SendMessageToFcmTarget");
+
+  bool can_send_via_sync = !fcm_configuration.sender_id_fcm_token().empty() &&
+                           !fcm_configuration.sender_id_p256dh().empty() &&
+                           !fcm_configuration.sender_id_auth_secret().empty();
+
+  base::UmaHistogramBoolean(
+      "Sharing.SendMessageUsingSync",
+      can_send_via_sync &&
+          sync_service_->GetActiveDataTypes().Has(syncer::SHARING_MESSAGE));
+
+  if (can_send_via_sync) {
+    message.set_message_id(base::Uuid::GenerateRandomV4().AsLowercaseString());
+
+    sync_pb::SharingMessageSpecifics::ChannelConfiguration
+        channel_configuration;
+    auto* fcm = channel_configuration.mutable_fcm();
+    fcm->set_token(fcm_configuration.sender_id_fcm_token());
+    fcm->set_ttl(time_to_live.InSeconds());
+    fcm->set_priority(10);
+
+    EncryptMessage(
+        kSharingSenderID, fcm_configuration.sender_id_p256dh(),
+        fcm_configuration.sender_id_auth_secret(), message,
+        SharingChannelType::kFcmSenderId, std::move(callback),
+        base::BindOnce(&SharingChannelSender::SendMessageViaSync,
+                       weak_ptr_factory_.GetWeakPtr(),
+                       std::move(channel_configuration),
+                       SharingChannelType::kFcmSenderId, message.message_id()));
+    return;
+  }
+
+  std::move(callback).Run(SharingSendMessageResult::kDeviceNotFound,
+                          /*message_id=*/std::nullopt,
+                          SharingChannelType::kUnknown);
+}
+
+void SharingChannelSender::SendMessageToServerTarget(
+    const components_sharing_message::ServerChannelConfiguration&
+        server_channel,
+    SharingMessage message,
+    SendMessageCallback callback) {
+  TRACE_EVENT0("sharing", "SharingChannelSender::SendMessageToServerTarget");
+
+  message.set_message_id(base::Uuid::GenerateRandomV4().AsLowercaseString());
+
+  sync_pb::SharingMessageSpecifics::ChannelConfiguration channel_configuration;
+  channel_configuration.set_server(server_channel.configuration());
+
+  EncryptMessage(
+      kSharingSenderID, server_channel.p256dh(), server_channel.auth_secret(),
+      message, SharingChannelType::kServer, std::move(callback),
+      base::BindOnce(&SharingChannelSender::SendMessageViaSync,
+                     weak_ptr_factory_.GetWeakPtr(),
+                     std::move(channel_configuration),
+                     SharingChannelType::kServer, message.message_id()));
+}
+
+void SharingChannelSender::ClearPendingMessages() {
+  pending_messages_.clear();
+}
+
+void SharingChannelSender::OnStateChanged(syncer::SyncService* sync_service) {
+  // Replay pending messages once SHARING_MESSAGE is active.
+  if (pending_messages_.empty() ||
+      !sync_service->GetActiveDataTypes().Has(syncer::SHARING_MESSAGE)) {
+    return;
+  }
+
+  std::vector<PendingMessage> pending_messages = std::move(pending_messages_);
+  pending_messages_.clear();
+
+  for (PendingMessage& pending_message : pending_messages) {
+    SendMessageViaSync(std::move(pending_message.channel_configuration),
+                       pending_message.channel_type,
+                       std::move(pending_message.message_id),
+                       std::move(pending_message.payload),
+                       std::move(pending_message.callback));
+  }
+}
+
+void SharingChannelSender::OnSyncShutdown(syncer::SyncService* sync_service) {
+  sync_service_observation_.Reset();
+}
+
+void SharingChannelSender::EncryptMessage(const std::string& authorized_entity,
+                                          const std::string& p256dh,
+                                          const std::string& auth_secret,
+                                          const SharingMessage& message,
+                                          SharingChannelType channel_type,
+                                          SendMessageCallback callback,
+                                          MessageSender message_sender) {
+  std::string payload;
+  message.SerializeToString(&payload);
+  gcm_driver_->EncryptMessage(
+      kSharingFCMAppID, authorized_entity, p256dh, auth_secret, payload,
+      base::BindOnce(&SharingChannelSender::OnMessageEncrypted,
+                     weak_ptr_factory_.GetWeakPtr(), channel_type,
+                     std::move(callback), std::move(message_sender)));
+}
+
+void SharingChannelSender::OnMessageEncrypted(SharingChannelType channel_type,
+                                              SendMessageCallback callback,
+                                              MessageSender message_sender,
+                                              gcm::GCMEncryptionResult result,
+                                              std::string message) {
+  if (result != gcm::GCMEncryptionResult::ENCRYPTED_DRAFT_08) {
+    LOG(ERROR) << "Unable to encrypt message";
+    std::move(callback).Run(SharingSendMessageResult::kEncryptionError,
+                            /*message_id=*/std::nullopt, channel_type);
+    return;
+  }
+
+  std::move(message_sender).Run(std::move(message), std::move(callback));
+}
+
+void SharingChannelSender::SendMessageViaSync(
+    sync_pb::SharingMessageSpecifics::ChannelConfiguration
+        channel_configuration,
+    SharingChannelType channel_type,
+    std::string message_id,
+    std::string payload,
+    SendMessageCallback callback) {
+  // Double check that SHARING_MESSAGE is syncing.
+  if (!sync_service_->GetActiveDataTypes().Has(syncer::SHARING_MESSAGE)) {
+    if (base::FeatureList::IsEnabled(kSharingPostponeFcmMessageSending)) {
+      pending_messages_.emplace_back(std::move(channel_configuration),
+                                     channel_type, std::move(message_id),
+                                     std::move(payload), std::move(callback));
+      if (start_sync_flare_) {
+        start_sync_flare_.Run(syncer::SHARING_MESSAGE);
+        start_sync_flare_.Reset();
+      }
+      return;
+    }
+
+    std::move(callback).Run(SharingSendMessageResult::kInternalError,
+                            /*message_id=*/std::nullopt, channel_type);
+    return;
+  }
+
+  auto specifics = std::make_unique<sync_pb::SharingMessageSpecifics>();
+  *specifics->mutable_channel_configuration() =
+      std::move(channel_configuration);
+  specifics->set_payload(std::move(payload));
+
+  sharing_message_bridge_->SendSharingMessage(
+      std::move(specifics),
+      base::BindOnce(&SharingChannelSender::OnMessageSentViaSync,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback),
+                     std::move(message_id), channel_type));
+}
+
+void SharingChannelSender::OnMessageSentViaSync(
+    SendMessageCallback callback,
+    const std::string& message_id,
+    SharingChannelType channel_type,
+    const sync_pb::SharingMessageCommitError& error) {
+  TRACE_EVENT1("sharing", "SharingChannelSender::OnMessageSentViaSync", "error",
+               error.error_code());
+
+  SharingSendMessageResult send_message_result;
+  switch (error.error_code()) {
+    case sync_pb::SharingMessageCommitError::NONE:
+      send_message_result = SharingSendMessageResult::kSuccessful;
+      break;
+    case sync_pb::SharingMessageCommitError::NOT_FOUND:
+      send_message_result = SharingSendMessageResult::kDeviceNotFound;
+      break;
+    case sync_pb::SharingMessageCommitError::INVALID_ARGUMENT:
+      send_message_result = SharingSendMessageResult::kPayloadTooLarge;
+      break;
+    case sync_pb::SharingMessageCommitError::INTERNAL:
+    case sync_pb::SharingMessageCommitError::UNAVAILABLE:
+    case sync_pb::SharingMessageCommitError::RESOURCE_EXHAUSTED:
+    case sync_pb::SharingMessageCommitError::UNAUTHENTICATED:
+    case sync_pb::SharingMessageCommitError::PERMISSION_DENIED:
+    case sync_pb::SharingMessageCommitError::SYNC_TURNED_OFF:
+    case sync_pb::SharingMessageCommitError::
+        DEPRECATED_SYNC_SERVER_OR_AUTH_ERROR:
+    case sync_pb::SharingMessageCommitError::SYNC_SERVER_ERROR:
+    case sync_pb::SharingMessageCommitError::SYNC_AUTH_ERROR:
+      send_message_result = SharingSendMessageResult::kInternalError;
+      break;
+    case sync_pb::SharingMessageCommitError::SYNC_NETWORK_ERROR:
+      send_message_result = SharingSendMessageResult::kNetworkError;
+      break;
+    case sync_pb::SharingMessageCommitError::SYNC_TIMEOUT:
+      send_message_result = SharingSendMessageResult::kCommitTimeout;
+      break;
+  }
+
+  std::move(callback).Run(send_message_result, message_id, channel_type);
+}
+
+bool SharingChannelSender::SetMessageSenderInfo(SharingMessage* message) {
+  std::optional<syncer::DeviceInfo::SharingInfo> sharing_info =
+      local_device_info_provider_->GetLocalDeviceInfo()->sharing_info();
+  if (!sharing_info) {
+    return false;
+  }
+
+  auto* fcm_configuration = message->mutable_fcm_channel_configuration();
+  fcm_configuration->set_sender_id_fcm_token(
+      sharing_info->sender_id_target_info.fcm_token);
+  fcm_configuration->set_sender_id_p256dh(
+      sharing_info->sender_id_target_info.p256dh);
+  fcm_configuration->set_sender_id_auth_secret(
+      sharing_info->sender_id_target_info.auth_secret);
+  return true;
+}
+
+bool SharingChannelSender::CanSendSendTabPushMessage(
+    const syncer::DeviceInfo& target_device_info) {
+  bool custom_passphrase_enabled =
+      sync_service_->GetUserSettings()->IsUsingExplicitPassphrase();
+  return target_device_info.send_tab_to_self_receiving_enabled() &&
+         target_device_info.send_tab_to_self_receiving_type() ==
+             syncer::DeviceInfo::SendTabReceivingType::
+                 kChromeAndPushNotification &&
+         !custom_passphrase_enabled;
+}
+
+void SharingChannelSender::SetSharingMessageBridgeForTesting(
+    SharingMessageBridge* sharing_message_bridge) {
+  sharing_message_bridge_ = sharing_message_bridge;
+}
+
+SharingChannelSender::PendingMessage::PendingMessage(
+    sync_pb::SharingMessageSpecifics::ChannelConfiguration
+        channel_configuration,
+    SharingChannelType channel_type,
+    std::string message_id,
+    std::string payload,
+    SendMessageCallback callback)
+    : channel_configuration(std::move(channel_configuration)),
+      channel_type(channel_type),
+      message_id(std::move(message_id)),
+      payload(std::move(payload)),
+      callback(std::move(callback)) {}
+
+SharingChannelSender::PendingMessage::~PendingMessage() = default;
+
+SharingChannelSender::PendingMessage::PendingMessage(PendingMessage&& other) =
+    default;
+
+SharingChannelSender::PendingMessage&
+SharingChannelSender::PendingMessage::operator=(PendingMessage&& other) =
+    default;

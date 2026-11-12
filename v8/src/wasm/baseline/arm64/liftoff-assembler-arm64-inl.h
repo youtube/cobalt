@@ -1753,9 +1753,39 @@ void LiftoffAssembler::emit_i64_muli(LiftoffRegister dst, LiftoffRegister lhs,
   Mul(dst.gp().X(), lhs.gp().X(), scratch);
 }
 
-void LiftoffAssembler::emit_i64_mul_wide_s() { UNIMPLEMENTED(); }
+void LiftoffAssembler::emit_i64_mul_wide_s() {
+  DCHECK(!cache_state()->frozen);
+  LiftoffRegList pinned;
+  LiftoffRegister rhs = pinned.set(PopToRegister(pinned));
+  LiftoffRegister lhs = pinned.set(PopToRegister(pinned));
 
-void LiftoffAssembler::emit_i64_mul_wide_u() { UNIMPLEMENTED(); }
+  LiftoffRegister high_result = pinned.set(GetUnusedRegister(kGpReg, pinned));
+  LiftoffRegister low_result =
+      GetUnusedRegister(kGpReg, {lhs, rhs}, LiftoffRegList{high_result});
+
+  Smulh(high_result.gp().X(), lhs.gp().X(), rhs.gp().X());
+  Mul(low_result.gp().X(), lhs.gp().X(), rhs.gp().X());
+
+  PushRegister(kI64, low_result);
+  PushRegister(kI64, high_result);
+}
+
+void LiftoffAssembler::emit_i64_mul_wide_u() {
+  DCHECK(!cache_state()->frozen);
+  LiftoffRegList pinned;
+  LiftoffRegister rhs = pinned.set(PopToRegister(pinned));
+  LiftoffRegister lhs = pinned.set(PopToRegister(pinned));
+
+  LiftoffRegister high_result = pinned.set(GetUnusedRegister(kGpReg, pinned));
+  LiftoffRegister low_result =
+      GetUnusedRegister(kGpReg, {lhs, rhs}, LiftoffRegList{high_result});
+
+  Umulh(high_result.gp().X(), lhs.gp().X(), rhs.gp().X());
+  Mul(low_result.gp().X(), lhs.gp().X(), rhs.gp().X());
+
+  PushRegister(kI64, low_result);
+  PushRegister(kI64, high_result);
+}
 
 void LiftoffAssembler::emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
@@ -4375,7 +4405,8 @@ void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t max_index,
                                              Label* trap_label) {
   DCHECK_LE(max_index, kMaxMemory64Size);
 
-  if (kMaxMemory64Size - max_index <= AllocatePageSize()) {
+  if (kMaxMemory64Size - max_index <= kMinExpectedOSPageSize) {
+    DCHECK_GE(AllocatePageSize(), kMinExpectedOSPageSize);
     // We have reserved an extra guard page, so that more accesses with small
     // offset values can rely on the trap handler. As a result, `index` can be
     // compared directly with `kMaxMemory64Size`, which is a power of 2 and thus

@@ -472,6 +472,7 @@ TEST(ScreamTest, MaybeTest(LinkCapacity1000KbpsRtt100msEcn)) {
 
   SendMediaTestResult result = SendMediaInOneDirection(std::move(params), s);
   // Ignore result first 2s since ramp up is rather slow at higher RTT.
+  ASSERT_GT(result.caller().subspan(2).size(), 0u);
   EXPECT_THAT(result.caller().subspan(2), Each(AvailableSendBitrateIsBetween(
                                               DataRate::KilobitsPerSec(600),
                                               DataRate::KilobitsPerSec(1000))));
@@ -820,6 +821,70 @@ TEST(ScreamTest,
                                               DataRate::KilobitsPerSec(1100))));
 }
 
+TEST(ScreamTest, MaybeTest(LowBweOnLinkWith3PercentUniformLoss)) {
+  PeerScenario s(*testing::UnitTest::GetInstance()->current_test_info());
+  SendMediaTestParams params;
+  NetworkEmulationManager::SimulatedNetworkNode::Builder network_builder =
+      s.net()->NodeBuilder().capacity_Mbps(3).delay_ms(40);
+  params.callee_to_caller_path =
+      CreateNetworkPath(network_builder, /*use_dual_pi= */ false);
+  params.caller_to_callee_path =
+      CreateNetworkPath(network_builder.loss(0.03), /*use_dual_pi= */ false);
+
+  SendMediaTestResult result = SendMediaInOneDirection(std::move(params), s);
+
+  ASSERT_GE(GetPacketsLost(result.callee_stats.back()),
+            0.01 * GetPacketsSent(result.caller_stats.back()));
+
+  // Ignore estimate during rampup.
+  ASSERT_GT(result.caller().subspan(2).size(), 0u);
+  EXPECT_THAT(result.caller().subspan(2), Each(AvailableSendBitrateIsBetween(
+                                              DataRate::KilobitsPerSec(100),
+                                              DataRate::KilobitsPerSec(1100))));
+}
+
+TEST(ScreamTest, MaybeTest(Ignores1PercentUniformLossOnLinkWith80msRtt)) {
+  PeerScenario s(*testing::UnitTest::GetInstance()->current_test_info());
+  SendMediaTestParams params;
+  NetworkEmulationManager::SimulatedNetworkNode::Builder network_builder =
+      s.net()->NodeBuilder().capacity_Mbps(3).delay_ms(40);
+  params.callee_to_caller_path =
+      CreateNetworkPath(network_builder, /*use_dual_pi= */ false);
+  params.caller_to_callee_path =
+      CreateNetworkPath(network_builder.loss(0.01), /*use_dual_pi= */ false);
+
+  SendMediaTestResult result = SendMediaInOneDirection(std::move(params), s);
+
+  ASSERT_GE(GetPacketsLost(result.callee_stats.back()),
+            0.005 * GetPacketsSent(result.caller_stats.back()));
+
+  // Ignore estimate during rampup.
+  ASSERT_GT(result.caller().subspan(2).size(), 0u);
+  EXPECT_THAT(result.caller().subspan(2), Each(AvailableSendBitrateIsBetween(
+                                              DataRate::KilobitsPerSec(1000),
+                                              DataRate::KilobitsPerSec(3000))));
+}
+
+TEST(ScreamTest, MaybeTest(IgnoresPacketReorderingOnLinkWith80msRtt)) {
+  PeerScenario s(*testing::UnitTest::GetInstance()->current_test_info());
+  SendMediaTestParams params;
+  NetworkEmulationManager::SimulatedNetworkNode::Builder network_builder =
+      s.net()->NodeBuilder().capacity_Mbps(3).delay_ms(40);
+  params.callee_to_caller_path =
+      CreateNetworkPath(network_builder, /*use_dual_pi= */ false);
+  params.caller_to_callee_path = CreateNetworkPath(
+      network_builder.allow_reordering().delay_standard_deviation_ms(5),
+      /*use_dual_pi= */ false);
+
+  SendMediaTestResult result = SendMediaInOneDirection(std::move(params), s);
+
+  // Ignore estimate during rampup.
+  ASSERT_GT(result.caller().subspan(2).size(), 0u);
+  EXPECT_THAT(result.caller().subspan(2), Each(AvailableSendBitrateIsBetween(
+                                              DataRate::KilobitsPerSec(1000),
+                                              DataRate::KilobitsPerSec(3000))));
+}
+
 TEST(ScreamTest, MaybeTest(ReturnLinkWithBurstLoss)) {
   PeerScenario s(*testing::UnitTest::GetInstance()->current_test_info());
   SendMediaTestParams params{.test_duration = TimeDelta::Seconds(20)};
@@ -839,6 +904,7 @@ TEST(ScreamTest, MaybeTest(ReturnLinkWithBurstLoss)) {
   EXPECT_GT(GetPacketsSent(result.caller_stats.back()),
             GetPacketsSent(result.caller_stats[5]));
 
+  ASSERT_GT(result.caller().subspan(1).size(), 0u);
   EXPECT_THAT(result.caller().subspan(1), Each(AvailableSendBitrateIsBetween(
                                               DataRate::KilobitsPerSec(300),
                                               DataRate::KilobitsPerSec(1300))));
@@ -865,6 +931,7 @@ TEST(ScreamTest, MaybeTest(SendVideoOnlyReturnLinkWithBurstLoss)) {
   EXPECT_GT(GetPacketsSent(result.caller_stats.back()),
             GetPacketsSent(result.caller_stats[5]));
 
+  ASSERT_GT(result.caller().subspan(1).size(), 0u);
   EXPECT_THAT(result.caller().subspan(1), Each(AvailableSendBitrateIsBetween(
                                               DataRate::KilobitsPerSec(10),
                                               DataRate::KilobitsPerSec(1200))));

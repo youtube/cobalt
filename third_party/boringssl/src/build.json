@@ -896,8 +896,7 @@
             "crypto/x509/x509_test.cc",
             "crypto/x509/x509_time_test.cc",
             "crypto/xwing/xwing_test.cc",
-            "third_party/fiat/bedrock_platform_test.cc",
-            "third_party/fiat/bedrock_polyfill_platform.c.inc"
+            "third_party/fiat/bedrock_platform_test.cc"
         ],
         "data": [
             "crypto/blake2/blake2b256_tests.txt",
@@ -955,6 +954,9 @@
             "crypto/x509/test/*.pem",
             "crypto/x509/test/*.pk8",
             "third_party/wycheproof_testvectors/*.txt"
+        ],
+        "internal_hdrs": [
+            "third_party/fiat/bedrock_polyfill_platform.c.inc"
         ]
     },
     "urandom_test": {

@@ -41,26 +41,6 @@
           'isolated_scripts': 'isolated_scripts_group_perf',
         },
       },
-      'linux-intel-perf': {
-        'os_type': 'linux',
-        'mixins': [
-          'linux_intel_uhd_630_stable',
-          'timeout_120m',
-        ],
-        'test_suites': {
-          'isolated_scripts': 'isolated_scripts_group_perf',
-        },
-      },
-      'linux-nvidia-perf': {
-        'os_type': 'linux',
-        'mixins': [
-          'linux_nvidia_gtx_1660_stable',
-          'timeout_120m',
-        ],
-        'test_suites': {
-          'isolated_scripts': 'isolated_scripts_group_perf',
-        },
-      },
       'win10-x64-swiftshader': {
         'os_type': 'win',
         'mixins': [
@@ -187,6 +167,16 @@
         'test_suites': {
         },
       },
+      'angle-linux-x64-intel-uhd630-perf': {
+        'os_type': 'linux',
+        'mixins': [
+          'linux_intel_uhd_630_stable',
+          'timeout_120m',
+        ],
+        'test_suites': {
+          'isolated_scripts': 'isolated_scripts_group_perf',
+        },
+      },
       'angle-linux-x64-intel-uhd630-rel': {
         'os_type': 'linux',
         'mixins': [
@@ -203,6 +193,16 @@
           'linux_nvidia_gtx_1660_experimental',
         ],
         'test_suites': {
+        },
+      },
+      'angle-linux-x64-nvidia-gtx1660-perf': {
+        'os_type': 'linux',
+        'mixins': [
+          'linux_nvidia_gtx_1660_stable',
+          'timeout_120m',
+        ],
+        'test_suites': {
+          'isolated_scripts': 'isolated_scripts_group_perf',
         },
       },
       'angle-linux-x64-nvidia-gtx1660-rel': {
@@ -311,6 +311,12 @@
           'gtest_tests': 'mac_amd_and_intel_gtests',
         },
       },
+      'angle-win-x64-builder-dbg': {
+        'os_type': 'win',
+        'additional_compile_targets': [
+          'all',
+        ],
+      },
       'angle-win-x64-intel-uhd630-exp-rel': {
         'os_type': 'win',
         'mixins': [
@@ -381,6 +387,12 @@
         'os_type': 'win',
         'additional_compile_targets': [
           'noop_target',
+        ],
+      },
+      'angle-win-x86-builder-dbg': {
+        'os_type': 'win',
+        'additional_compile_targets': [
+          'all',
         ],
       },
       'angle-win-x86-sws-rel': {

@@ -43,15 +43,6 @@ DataSize DataUnitsAckedAndNotMarked(const TransportPacketsFeedback& msg) {
   return acked_not_marked;
 }
 
-bool HasLostPackets(const TransportPacketsFeedback& msg) {
-  for (const auto& packet : msg.PacketsWithFeedback()) {
-    if (!packet.IsReceived() && packet.reported_lost_for_the_first_time) {
-      return true;
-    }
-  }
-  return false;
-}
-
 TimeDelta FeedbackHoldTime(const TransportPacketsFeedback& msg) {
   std::vector<PacketResult> sorted_packets = msg.SortedByReceiveTime();
   return sorted_packets.back().receive_time +
@@ -65,6 +56,7 @@ ScreamV2::ScreamV2(const Environment& env)
     : env_(env),
       params_(env_.field_trials()),
       ref_window_(params_.min_ref_window.Get()),
+      loss_rate_estimator_(params_),
       delay_based_congestion_control_(params_) {}
 
 void ScreamV2::SetTargetBitrateConstraints(DataRate min,
@@ -100,6 +92,7 @@ void ScreamV2::OnTransportPacketsFeedback(const TransportPacketsFeedback& msg) {
 
   delay_based_congestion_control_.OnTransportPacketsFeedback(
       msg, is_application_limited_);
+
   if (!is_application_limited_) {
     UpdateFeedbackHoldTime(msg);
   }
@@ -161,10 +154,19 @@ void ScreamV2::UpdateL4SAlpha(const TransportPacketsFeedback& msg) {
 
 void ScreamV2::UpdateRefWindow(const TransportPacketsFeedback& msg) {
   bool is_ce = msg.HasPacketWithEcnCe();
-  bool is_loss = HasLostPackets(msg);
+  bool is_loss =
+      loss_rate_estimator_.Update(msg, delay_based_congestion_control_.rtt());
   bool is_virtual_ce = false;
   if (delay_based_congestion_control_.IsQueueDelayDetected()) {
     is_virtual_ce = true;
+  }
+  if (is_loss) {
+    if (loss_rate_estimator_.loss_event_rate() <
+            params_.loss_event_rate_threshold_discard.Get() &&
+        delay_based_congestion_control_.queue_delay() <
+            params_.queue_delay_target.Get() / 4) {
+      is_loss = false;
+    }
   }
 
   DataSize previous_ref_window = ref_window_;
@@ -224,7 +226,9 @@ void ScreamV2::UpdateRefWindow(const TransportPacketsFeedback& msg) {
 
   // Increase ref_window.
   // 4.2.2.2.  Reference Window Increase
-  if ((!is_ce && !is_loss && !is_virtual_ce) ||
+  if ((!is_ce &&
+       loss_event_rate() < params_.loss_event_rate_threshold_increase.Get() &&
+       !is_virtual_ce) ||
       last_reaction_to_congestion_time_ == msg.feedback_time) {
     // Allow increase if no event has occurred, or we are at the same time
     // backing off.

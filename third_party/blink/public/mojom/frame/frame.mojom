@@ -6,6 +6,7 @@ module blink.mojom;
 
 import "cc/mojom/browser_controls_state.mojom";
 import "cc/mojom/browser_controls_offset_tag_modifications.mojom";
+import "mojo/public/mojom/base/byte_size.mojom";
 import "mojo/public/mojom/base/byte_string.mojom";
 import "mojo/public/mojom/base/shared_memory.mojom";
 import "mojo/public/mojom/base/string16.mojom";
@@ -255,10 +256,36 @@ struct LegacyTechEventCodeLocation {
   uint64 column;
 };
 
+// Amount of data received during a subframe load, for
+// AddResourceTimingEntryForFailedSubframeNavigation().
+struct SubframeResourceLengths {
+  // Total amount of data received from the network.
+  mojo_base.mojom.ByteSize encoded_data_length;
+  // The length of the response body before removing any content encodings.
+  mojo_base.mojom.ByteSize encoded_body_length;
+  // The length of the response body after decoding.
+  mojo_base.mojom.ByteSize decoded_body_length;
+};
+
 // The maximum allowed size of a crash report storage shared memory buffer. This
 // is used when the renderer requests a shared memory buffer for crash report
 // data; see `CreateCrashReportContext()`.
 const uint64 kMaxCrashReportContextSize = 65536;
+
+// Implemented on the browser side, this interface manages lifetime
+// operations and window resizing actions for unbounded elements.
+// Note: This interface should only be exposed to trusted renderers.
+interface UnboundedSurfaceHost {
+};
+
+// Implemented on the renderer side, this interface receives events
+// from the browser process when an unbounded element's display
+// surface is dismissed.
+interface UnboundedSurfaceClient {
+  // Notification from the browser that the unbounded element window has been
+  // dismissed. E.g. by light dismiss or user hitting ESC.
+  OnDismissed();
+};
 
 // Implemented in Browser, this interface defines frame-specific methods that
 // will be invoked from the render process (e.g. content::RenderFrameHostImpl).
@@ -787,6 +814,11 @@ interface LocalFrameHost {
   // instead of using the two synchronous IPCs below.
   InitializeCrashReportContext(uint64 length)
       => (mojo_base.mojom.UnsafeSharedMemoryRegion region);
+
+  // Request the instantiation of an overlay host container.
+  RequestUnboundedSurface(
+      pending_associated_receiver<UnboundedSurfaceHost> host,
+      pending_associated_remote<UnboundedSurfaceClient> client);
 };
 
 // Implemented in Browser, this interface defines frame-specific methods
@@ -1215,7 +1247,9 @@ interface LocalFrame {
 
   // Allows the browser to add a resource timing entry for a subframe
   // navigation that has failed before committing - a non-ok object navigation
-  // or a no-content response (204/205).
+  // or a no-content response (204/205). `resource_lengths` contains the amount
+  // of data received before the failure (which may be 0 for a response with no
+  // body) or null if the navigation failed before reading data.
   AddResourceTimingEntryForFailedSubframeNavigation(
     blink.mojom.FrameToken subframe_token,
     url.mojom.Url initial_url,
@@ -1223,6 +1257,7 @@ interface LocalFrame {
     mojo_base.mojom.TimeTicks redirect_time,
     mojo_base.mojom.TimeTicks request_start,
     mojo_base.mojom.TimeTicks response_start,
+    mojo_base.mojom.TimeTicks completion_time,
     uint32 response_code,
     string mime_type,
     network.mojom.LoadTimingInfo load_timing_info,
@@ -1231,7 +1266,7 @@ interface LocalFrame {
     bool is_secure_transport,
     bool is_validated,
     string normalized_server_timing,
-    network.mojom.URLLoaderCompletionStatus completion_status
+    SubframeResourceLengths? resource_lengths
   );
 
   // Retrieves the scroll position of the frame.

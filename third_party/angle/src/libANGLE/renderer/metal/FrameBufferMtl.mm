@@ -338,12 +338,9 @@ angle::Result FramebufferMtl::readPixels(const gl::Context *context,
     const gl::InternalFormat &sizedFormatInfo = gl::GetInternalFormatInfo(format, type);
 
     GLuint outputPitch = 0;
-    ANGLE_CHECK_GL_MATH(contextMtl,
-                        sizedFormatInfo.computeRowPitch(type, area.width, pack.alignment,
-                                                        pack.rowLength, &outputPitch));
     GLuint outputSkipBytes = 0;
-    ANGLE_CHECK_GL_MATH(contextMtl, sizedFormatInfo.computeSkipBytes(type, outputPitch, 0, pack,
-                                                                     false, &outputSkipBytes));
+    ANGLE_CHECK_GL_MATH(contextMtl, sizedFormatInfo.computeRowSkipBytes(
+                                        type, area.width, pack, &outputPitch, &outputSkipBytes));
 
     outputSkipBytes += (clippedArea.x - area.x) * sizedFormatInfo.pixelBytes +
                        (clippedArea.y - area.y) * outputPitch;
@@ -754,12 +751,14 @@ angle::Result FramebufferMtl::syncState(const gl::Context *context,
                 {
                     ASSERT(dirtyBit >= gl::Framebuffer::DIRTY_BIT_COLOR_BUFFER_CONTENTS_0 &&
                            dirtyBit < gl::Framebuffer::DIRTY_BIT_COLOR_BUFFER_CONTENTS_MAX);
-                    // NOTE: might need to notify context.
 
-                    // Restore color attachment load action as its content may have been updated
-                    // after framebuffer invalidation.
+                    // The drawable may have been released by swap. Re-fetch the render
+                    // target to ensure dimensions reflect the current drawable size.
                     size_t colorIndexGL = static_cast<size_t>(
                         dirtyBit - gl::Framebuffer::DIRTY_BIT_COLOR_BUFFER_CONTENTS_0);
+                    ANGLE_TRY(updateCachedRenderTarget(context,
+                                                       mState.getColorAttachment(colorIndexGL),
+                                                       &mColorRenderTargets[colorIndexGL]));
                     mRenderPassDesc.colorAttachments[colorIndexGL].loadAction = MTLLoadActionLoad;
                 }
                 break;

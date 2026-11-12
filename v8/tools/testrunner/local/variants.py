@@ -159,9 +159,8 @@ ALL_VARIANT_FLAGS = {
     "stress_instruction_scheduling": [
         "--turbo-stress-instruction-scheduling", "--no-liftoff"
     ],
-    # Google3 variants.
-    "google3_icu": [],
-    "google3_noicu": [],
+    # Google3 variant.
+    "google3": [],
 }
 
 # Note these are specifically for the case when Turbofan is either fully
@@ -209,7 +208,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     "nooptimization": [
         "--turbofan",
         "--turboshaft",
-        "--turboshaft-wasm-in-js-inlining",
+        "--wasm-in-js-inlining-body",
         "--turbolev",
         "--turbolev-future",
         "--maglev",
@@ -288,11 +287,11 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     "stress_maglev_tests_with_turbofan": ["--jitless"],
     "turbolev_future": [
         "--no-turbolev",
-        "--no-turbolev-inline-js-wasm-wrappers",
+        "--no-wasm-in-js-inlining-wrapper",
     ],
     "stress_turbolev_future": [
         "--no-turbolev",
-        "--no-turbolev-inline-js-wasm-wrappers",
+        "--no-wasm-in-js-inlining-wrapper",
     ],
     "always_sparkplug": ["--jitless", "--no-sparkplug"],
     "always_sparkplug_and_stress_regexp_jit": ["--jitless", "--no-sparkplug"],
@@ -393,7 +392,6 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
 # The conflicts might be directly contradictory flags or be caused by the
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
-    "--flush-bytecode": ["--jit-fuzzing"],
     "--concurrent-recompilation": [
         "--predictable", "--assert-types", "--turboshaft-assert-types",
         "--single-threaded"

@@ -780,8 +780,9 @@ void SharedScreenCastStreamPrivate::ProcessBuffer(pw_buffer* buffer) {
             bitmap->size.height <= kMaxCursorSize &&
             bitmap->stride >=
                 static_cast<int32_t>(bitmap->size.width * kBytesPerPixel) &&
-            bitmap->stride * bitmap->size.height <=
-                kMaxCursorSize * kMaxCursorSize * kBytesPerPixel) {
+            static_cast<uint64_t>(bitmap->stride) * bitmap->size.height <=
+                static_cast<uint64_t>(kMaxCursorSize) * kMaxCursorSize *
+                    kBytesPerPixel) {
           const uint8_t* bitmap_data =
               SPA_MEMBER(bitmap, bitmap->offset, uint8_t);
           // TODO(bugs.webrtc.org/436974448): Convert `spa_video_format` to

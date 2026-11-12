@@ -1165,10 +1165,19 @@ bool IsAimCobrowseEnabled() {
          base::FeatureList::IsEnabled(kAimCobrowse);
 }
 
-BASE_FEATURE(kDisableU18FeedbackIos, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kFeedbackEntryPointsRequireCanSubmitFeedbackCapability,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
-bool IsDisableU18FeedbackIosEnabled() {
-  return base::FeatureList::IsEnabled(kDisableU18FeedbackIos);
+bool IsFeedbackEntryPointsRequireCanSubmitFeedbackCapabilityEnabled() {
+  return base::FeatureList::IsEnabled(
+      kFeedbackEntryPointsRequireCanSubmitFeedbackCapability);
+}
+
+BASE_FEATURE(kDisableFeedbackForIneligibleUsers,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsDisableFeedbackForIneligibleUsersEnabled() {
+  return base::FeatureList::IsEnabled(kDisableFeedbackForIneligibleUsers);
 }
 
 BASE_FEATURE(kFullscreenRefactoring, base::FEATURE_DISABLED_BY_DEFAULT);

@@ -215,6 +215,15 @@ angle_mac_functional_cq_tester(
 )
 
 angle_win_functional_cq_tester(
+    name = "angle-cq-win-x64-dbg",
+    description_html = "Compiles all debug ANGLE targets for Win/x64. Blocks CL submission.",
+    mirrors = [
+        "ci/angle-win-x64-builder-dbg",
+    ],
+    gn_args = "ci/angle-win-x64-builder-dbg",
+)
+
+angle_win_functional_cq_tester(
     name = "angle-cq-win-x64-rel",
     description_html = "Tests release ANGLE on Win/x64 on multiple hardware configs. Blocks CL submission.",
     mirrors = [
@@ -223,6 +232,15 @@ angle_win_functional_cq_tester(
         "ci/angle-win-x64-nvidia-gtx1660-rel",
     ],
     gn_args = "ci/angle-win-x64-builder-rel",
+)
+
+angle_win_functional_cq_tester(
+    name = "angle-cq-win-x86-dbg",
+    description_html = "Compiles all debug ANGLE targets for Win/x86. Blocks CL submission.",
+    mirrors = [
+        "ci/angle-win-x86-builder-dbg",
+    ],
+    gn_args = "ci/angle-win-x86-builder-dbg",
 )
 
 angle_win_functional_cq_tester(

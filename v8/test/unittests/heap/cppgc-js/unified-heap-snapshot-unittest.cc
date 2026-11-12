@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstring>
+#include <string_view>
 #include <vector>
 
 #include "include/cppgc/allocation.h"
@@ -524,17 +525,14 @@ TEST_F(UnifiedHeapSnapshotTest, EphemeronContainerReachableFromStack) {
 
   HeapSnapshot* heap_snapshot =
       reinterpret_cast<HeapSnapshot*>(const_cast<v8::HeapSnapshot*>(snapshot));
-  const HeapEntry* stack_roots_entry =
-      GetEntryByName(heap_snapshot, kExpectedCppStackRootsName);
-  ASSERT_NE(nullptr, stack_roots_entry);
 
   const HeapEntry* backing_entry =
       GetEntryFor(isolate(), heap_snapshot, backing);
   ASSERT_NE(nullptr, backing_entry);
-  EXPECT_NE(nullptr, FindFirstEdgeTo(*stack_roots_entry, *backing_entry));
+  EXPECT_TRUE(IsRetainedByCppStackRoot(heap_snapshot, *backing_entry));
   // Because the backing is reachable from stack, the backing object has an edge
-  // to each key in it.
-  EXPECT_EQ(static_cast<int>(EphemeronContainerBacking::kEphemeronCount),
+  // to each key in it, as well as an ephemeron edge to each value.
+  EXPECT_EQ(static_cast<int>(2 * EphemeronContainerBacking::kEphemeronCount),
             backing_entry->children_count());
 
   for (size_t i = 0; i < EphemeronContainerBacking::kEphemeronCount; ++i) {
@@ -550,13 +548,29 @@ TEST_F(UnifiedHeapSnapshotTest, EphemeronContainerReachableFromStack) {
     const HeapGraphEdge* backing_to_key =
         FindFirstEdgeTo(*backing_entry, *key_entry);
     ASSERT_NE(nullptr, backing_to_key);
+    EXPECT_EQ(HeapGraphEdge::kElement, backing_to_key->type());
+
+    std::stringstream expected_name;
+    expected_name << " / part of key (" << key_entry->name() << " @"
+                  << key_entry->id() << ") -> value (" << value_entry->name()
+                  << " @" << value_entry->id() << ") pair in WeakMap (table @"
+                  << backing_entry->id() << ")";
 
     // Each key has an edge to its linked ephemeron value.
     const HeapGraphEdge* key_to_value =
         FindFirstEdgeTo(*key_entry, *value_entry);
     ASSERT_NE(nullptr, key_to_value);
-    EXPECT_STREQ("part of key -> value pair in ephemeron table",
-                 key_to_value->name());
+    EXPECT_EQ(HeapGraphEdge::kInternal, key_to_value->type());
+    EXPECT_TRUE(
+        std::string_view(key_to_value->name()).ends_with(expected_name.str()));
+
+    // The backing also has an edge to the linked ephemeron value.
+    const HeapGraphEdge* backing_to_value =
+        FindFirstEdgeTo(*backing_entry, *value_entry);
+    ASSERT_NE(nullptr, backing_to_value);
+    EXPECT_EQ(HeapGraphEdge::kInternal, backing_to_value->type());
+    EXPECT_TRUE(std::string_view(backing_to_value->name())
+                    .ends_with(expected_name.str()));
   }
 }
 
@@ -575,9 +589,10 @@ TEST_F(UnifiedHeapSnapshotTest, EphemeronContainerNotReachableFromStack) {
   const HeapEntry* backing_entry =
       GetEntryFor(isolate(), heap_snapshot, container->backing());
   ASSERT_NE(nullptr, backing_entry);
-  // Currently the ephemeron container backing doesn't have any edges when not
-  // reachable from stack.
-  EXPECT_EQ(0, backing_entry->children_count());
+  // The ephemeron container backing now gets ephemeron edges to values even
+  // when not reachable from stack.
+  EXPECT_EQ(static_cast<int>(EphemeronContainerBacking::kEphemeronCount),
+            backing_entry->children_count());
 
   for (size_t i = 0; i < EphemeronContainerBacking::kEphemeronCount; ++i) {
     const HeapEntry* key_entry =
@@ -587,12 +602,27 @@ TEST_F(UnifiedHeapSnapshotTest, EphemeronContainerNotReachableFromStack) {
         GetEntryFor(isolate(), heap_snapshot, container->value(i));
     ASSERT_NE(nullptr, value_entry);
 
+    std::stringstream expected_name;
+    expected_name << " / part of key (" << key_entry->name() << " @"
+                  << key_entry->id() << ") -> value (" << value_entry->name()
+                  << " @" << value_entry->id() << ") pair in WeakMap (table @"
+                  << backing_entry->id() << ")";
+
     // Each key has an edge to its linked ephemeron value.
     const HeapGraphEdge* key_to_value =
         FindFirstEdgeTo(*key_entry, *value_entry);
     ASSERT_NE(nullptr, key_to_value);
-    EXPECT_STREQ("part of key -> value pair in ephemeron table",
-                 key_to_value->name());
+    EXPECT_EQ(HeapGraphEdge::kInternal, key_to_value->type());
+    EXPECT_TRUE(
+        std::string_view(key_to_value->name()).ends_with(expected_name.str()));
+
+    // The backing also has an edge to the linked ephemeron value.
+    const HeapGraphEdge* backing_to_value =
+        FindFirstEdgeTo(*backing_entry, *value_entry);
+    ASSERT_NE(nullptr, backing_to_value);
+    EXPECT_EQ(HeapGraphEdge::kInternal, backing_to_value->type());
+    EXPECT_TRUE(std::string_view(backing_to_value->name())
+                    .ends_with(expected_name.str()));
   }
 }
 
@@ -1293,6 +1323,68 @@ TEST_F(UnifiedHeapSnapshotTest, MergeNodeDoesNotHaveCppgcObject) {
   EXPECT_TRUE(HasNamedEdge(*wrapper_entry, "link"));
 }
 
+TEST_F(UnifiedHeapSnapshotTest, NonMergedWrapperPointsToMergedNode) {
+  cppgc::Persistent<ExternalDataWithJSRef> cpp_object =
+      cppgc::MakeGarbageCollected<ExternalDataWithJSRef>(allocation_handle());
+  v8::Global<v8::Object> merged_wrapper(
+      v8_isolate(), WrapperHelper::CreateWrapper(v8_context(), cpp_object.Get(),
+                                                 "MergedJSApiWrapper"));
+  v8::Global<v8::Object> non_merged_wrapper(
+      v8_isolate(), WrapperHelper::CreateWrapper(v8_context(), cpp_object.Get(),
+                                                 "NonMergedJSApiWrapper"));
+  cpp_object->SetWrapper(v8_isolate(), merged_wrapper.Get(v8_isolate()));
+
+  const v8::HeapSnapshot* snapshot =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kNoHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+
+  HeapSnapshot* heap_snapshot =
+      reinterpret_cast<HeapSnapshot*>(const_cast<v8::HeapSnapshot*>(snapshot));
+  const HeapEntry* merged_wrapper_entry = GetEntryFor(
+      isolate(), heap_snapshot,
+      *v8::Utils::OpenDirectHandle(*merged_wrapper.Get(v8_isolate())));
+  const HeapEntry* non_merged_wrapper_entry = GetEntryFor(
+      isolate(), heap_snapshot,
+      *v8::Utils::OpenDirectHandle(*non_merged_wrapper.Get(v8_isolate())));
+  ASSERT_NE(nullptr, merged_wrapper_entry);
+  ASSERT_NE(nullptr, non_merged_wrapper_entry);
+
+  EXPECT_FALSE(HasNamedEdge(*merged_wrapper_entry, "cppgc_object"));
+  // Multiple JS objects may point to the same cppgc object, e.g. with
+  // non-main-world wrapper pairs. The main world will be a proper merged
+  // wrapper pair but non-main world wrapper (those that lack the direct back
+  // reference from cppgc) should point to the merged node.
+  const HeapGraphEdge* edge =
+      GetNamedEdge(*non_merged_wrapper_entry, "cppgc_object");
+  ASSERT_NE(nullptr, edge);
+  EXPECT_EQ(merged_wrapper_entry, edge->to());
+}
+
+TEST_F(UnifiedHeapSnapshotTest, MergedNodeRetainedByCppStack) {
+  auto* volatile cpp_object =
+      cppgc::MakeGarbageCollected<ExternalDataWithJSRef>(allocation_handle());
+  v8::Global<v8::Object> wrapper(
+      v8_isolate(), WrapperHelper::CreateWrapper(v8_context(), cpp_object,
+                                                 "MergedStackJSApiWrapper"));
+  cpp_object->SetWrapper(v8_isolate(), wrapper.Get(v8_isolate()));
+
+  const v8::HeapSnapshot* snapshot =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kMayContainHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+
+  HeapSnapshot* heap_snapshot =
+      reinterpret_cast<HeapSnapshot*>(const_cast<v8::HeapSnapshot*>(snapshot));
+  const HeapEntry* wrapper_entry =
+      GetEntryFor(isolate(), heap_snapshot,
+                  *v8::Utils::OpenDirectHandle(*wrapper.Get(v8_isolate())));
+  ASSERT_NE(nullptr, wrapper_entry);
+
+  EXPECT_FALSE(HasNamedEdge(*wrapper_entry, "cppgc_object"));
+  // Stack iteration already knows about wrappers, so reaching the cppgc object
+  // from the stack must retain the merged wrapper entry.
+  EXPECT_TRUE(IsRetainedByCppStackRoot(heap_snapshot, *wrapper_entry));
+}
+
 TEST_F(UnifiedHeapSnapshotTest, CppHeapExternalTracedReference) {
   cppgc::Persistent<GCedWithCppHeapExternalJSRef> root =
       cppgc::MakeGarbageCollected<GCedWithCppHeapExternalJSRef>(
@@ -1311,6 +1403,51 @@ TEST_F(UnifiedHeapSnapshotTest, CppHeapExternalTracedReference) {
       {kExpectedGCRootsName, kExpectedCppRootsName,
        GetExpectedName<GCedWithCppHeapExternalJSRef>(),
        "system / CppHeapExternal", GetExpectedName<ExternalData>()}));
+}
+
+class GCedWithWeakMember final
+    : public cppgc::GarbageCollected<GCedWithWeakMember>,
+      public cppgc::NameProvider {
+ public:
+  static constexpr const char kExpectedName[] = "GCedWithWeakMember";
+
+  explicit GCedWithWeakMember(cppgc::AllocationHandle& allocation_handle) {}
+
+  void Trace(cppgc::Visitor* v) const { v->Trace(weak_member); }
+  const char* GetHumanReadableName() const final {
+    return "GCedWithWeakMember";
+  }
+
+  cppgc::WeakMember<GCed> weak_member;
+};
+
+TEST_F(UnifiedHeapSnapshotTest, WeakMember) {
+  cppgc::Persistent<GCedWithWeakMember> holder =
+      cppgc::MakeGarbageCollected<GCedWithWeakMember>(allocation_handle(),
+                                                      allocation_handle());
+  cppgc::Persistent<GCed> target =
+      cppgc::MakeGarbageCollected<GCed>(allocation_handle());
+
+  holder->weak_member = target.Get();
+
+  const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+
+  HeapSnapshot* heap_snapshot =
+      reinterpret_cast<HeapSnapshot*>(const_cast<v8::HeapSnapshot*>(snapshot));
+
+  const HeapEntry* holder_entry =
+      GetEntryFor(isolate(), heap_snapshot, holder.Get());
+  const HeapEntry* target_entry =
+      GetEntryFor(isolate(), heap_snapshot, target.Get());
+
+  ASSERT_NE(nullptr, holder_entry);
+  ASSERT_NE(nullptr, target_entry);
+
+  const HeapGraphEdge* edge = GetNamedEdge(*holder_entry, "1");
+  ASSERT_NE(nullptr, edge);
+  EXPECT_EQ(HeapGraphEdge::kWeak, edge->type());
+  EXPECT_EQ(target_entry, edge->to());
 }
 
 }  // namespace internal

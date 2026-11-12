@@ -55,6 +55,7 @@
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_overlay_commands.h"
+#import "ios/chrome/browser/shared/public/commands/level_up_commands.h"
 #import "ios/chrome/browser/shared/public/commands/omnibox_commands.h"
 #import "ios/chrome/browser/shared/public/commands/overflow_menu_customization_commands.h"
 #import "ios/chrome/browser/shared/public/commands/page_info_commands.h"
@@ -78,6 +79,7 @@
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
+#import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/supervised_user/model/supervised_user_service_factory.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
@@ -305,6 +307,7 @@ using base::UserMetricsAction;
   mediator.quickDeleteHandler =
       HandlerForProtocol(dispatcher, QuickDeleteCommands);
   mediator.whatsNewHandler = HandlerForProtocol(dispatcher, WhatsNewCommands);
+  mediator.levelUpHandler = HandlerForProtocol(dispatcher, LevelUpCommands);
   mediator.webStateList = browser->GetWebStateList();
   mediator.navigationAgent = WebNavigationBrowserAgent::FromBrowser(browser);
   mediator.baseViewController = self.baseViewController;
@@ -327,6 +330,8 @@ using base::UserMetricsAction;
   // ProfileIOS as the incognito one doesn't have that service.
   mediator.authenticationService = AuthenticationServiceFactory::GetForProfile(
       profile->GetOriginalProfile());
+  mediator.identityManager =
+      IdentityManagerFactory::GetForProfile(profile->GetOriginalProfile());
   mediator.tabBasedIPHBrowserAgent =
       TabBasedIPHBrowserAgent::FromBrowser(browser);
   mediator.hasSettingsBlueDot =

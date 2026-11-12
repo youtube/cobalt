@@ -1,3 +1,4 @@
 include_rules = [
   "+media/base/media_constants.h",
+  "+modules/video_coding/include/video_error_codes.h",
 ]

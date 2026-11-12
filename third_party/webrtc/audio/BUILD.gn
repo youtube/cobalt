@@ -118,6 +118,7 @@ rtc_library("audio") {
     "../system_wrappers",
     "../system_wrappers:metrics",
     "utility:audio_frame_operations",
+    "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings",

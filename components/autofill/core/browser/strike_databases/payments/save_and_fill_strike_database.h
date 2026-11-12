@@ -5,12 +5,13 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_STRIKE_DATABASES_PAYMENTS_SAVE_AND_FILL_STRIKE_DATABASE_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_STRIKE_DATABASES_PAYMENTS_SAVE_AND_FILL_STRIKE_DATABASE_H_
 
-#include <cstddef>
+#include <stddef.h>
+
+#include <optional>
 #include <string_view>
 
 #include "base/time/time.h"
 #include "components/strike_database/simple_strike_database.h"
-#include "components/strike_database/strike_database.h"
 
 namespace autofill {
 

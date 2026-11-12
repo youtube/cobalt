@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "ash/constants/ash_pref_names.h"
+#include "ash/constants/ash_switches.h"
 #include "ash/public/cpp/stylus_utils.h"
 #include "base/check_deref.h"
 #include "base/compiler_specific.h"
@@ -38,6 +39,7 @@
 #include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/ash/components/system/statistics_provider.h"
+#include "chromeos/ash/components/timezone/timezone_util.h"
 #include "chromeos/ash/experiences/arc/arc_util.h"
 #include "chromeos/constants/devicetype.h"
 #include "components/metrics/metrics_service.h"
@@ -426,7 +428,7 @@ std::unique_ptr<base::Value> GetValue(const std::string& property_name) {
   }
 
   if (property_name == kPropertyTimezone) {
-    if (ash::system::PerUserTimezoneEnabled()) {
+    if (ash::switches::IsPerUserTimezoneEnabled()) {
       const PrefService::Preference* timezone =
           ProfileManager::GetPrimaryUserProfile()->GetPrefs()->FindPreference(
               ash::prefs::kUserTimezone);
@@ -467,7 +469,7 @@ base::Value GetSystemProperties(
 }
 
 void SetTimezone(const std::string& value) {
-  if (ash::system::PerUserTimezoneEnabled()) {
+  if (ash::switches::IsPerUserTimezoneEnabled()) {
     ProfileManager::GetPrimaryUserProfile()->GetPrefs()->SetString(
         ash::prefs::kUserTimezone, value);
   } else {
@@ -475,7 +477,8 @@ void SetTimezone(const std::string& value) {
         ash::ProfileHelper::Get()->GetUserByProfile(
             ProfileManager::GetPrimaryUserProfile());
     if (user) {
-      ash::system::SetSystemTimezone(user, value);
+      ash::system::SetSystemTimezone(
+          CHECK_DEREF(g_browser_process->local_state()), user, value);
     }
   }
 }

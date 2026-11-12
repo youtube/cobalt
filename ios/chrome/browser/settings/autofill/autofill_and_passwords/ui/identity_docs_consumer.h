@@ -7,13 +7,26 @@
 
 #import <Foundation/Foundation.h>
 
+#import <vector>
+
 @class TableViewItem;
+
+namespace autofill {
+class EntityType;
+}  // namespace autofill
 
 // Consumer protocol for the Identity Docs settings page.
 @protocol IdentityDocsConsumer <NSObject>
 
-// Sets the list of identity docs items.
-- (void)setIdentityDocsItems:(NSArray<TableViewItem*>*)identityDocsItems;
+// Sets the lists of identity documents.
+- (void)
+    setIdentityDocsWithDriversLicenses:(NSArray<TableViewItem*>*)driversLicenses
+                       nationalIdCards:(NSArray<TableViewItem*>*)nationalIdCards
+                             passports:(NSArray<TableViewItem*>*)passports;
+
+// Sets the writable entity types that can be added.
+- (void)setWritableEntityTypes:
+    (const std::vector<autofill::EntityType>&)writableEntityTypes;
 
 @end
 

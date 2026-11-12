@@ -141,19 +141,10 @@ export class CollapsibleCardElement extends SettingsViewMixin
         },
       },
 
-      enableYourSavedInfoPolicyAndExtentionToggleIndicators_: {
+      showPersonalContextSettingsLink_: {
         type: Boolean,
         value() {
-          return loadTimeData.getBoolean(
-              'enableYourSavedInfoPolicyAndExtentionToggleIndicators');
-        },
-      },
-
-      showAccessibilityAnnotatorSettingsLink_: {
-        type: Boolean,
-        value() {
-          return loadTimeData.getBoolean(
-              'showAccessibilityAnnotatorSettingsLink');
+          return loadTimeData.getBoolean('showPersonalContextSettingsLink');
         },
       },
     };
@@ -176,26 +167,12 @@ export class CollapsibleCardElement extends SettingsViewMixin
   declare private isUserEligibleForWalletablePassDetection_: boolean;
   declare private autofillAddOtherDatatypesPrefIsEnabled_: boolean;
   declare private autofillAiAvailableByDefault_: boolean;
-  declare private enableYourSavedInfoPolicyAndExtentionToggleIndicators_:
-      boolean;
-  declare private showAccessibilityAnnotatorSettingsLink_: boolean;
+  declare private showPersonalContextSettingsLink_: boolean;
 
   private entityInstancesChangedListener_: EntityInstancesChangedListener|null =
       null;
   private entityDataManager_: EntityDataManagerProxy =
       EntityDataManagerProxyImpl.getInstance();
-
-  override connectedCallback() {
-    super.connectedCallback();
-
-    if (!this.enableYourSavedInfoPolicyAndExtentionToggleIndicators_) {
-      this.entityDataManager_.getOptInStatus().then(enhancedAutofillOptedIn => {
-        this.set(
-            'enhancedAutofillOptedIn_.value',
-            this.enhancedAutofillEligibleUser_ && enhancedAutofillOptedIn);
-      });
-    }
-  }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
@@ -239,11 +216,11 @@ export class CollapsibleCardElement extends SettingsViewMixin
     this.entityDataManager_.toggleAutofillAiReauthRequirement();
   }
 
-  private onAccessibilityAnnotatorSettingsLinkClick_() {
+  private onPersonalContextSettingsLinkClick_() {
     OpenWindowProxyImpl.getInstance().openUrl(
-        loadTimeData.getString('accessibilityAnnotatorSettingsUrl'));
+        loadTimeData.getString('personalContextSettingsUrl'));
     MetricsBrowserProxyImpl.getInstance().recordAction(
-        'Autofill.Settings.AccessibilityAnnotatorSettingsLinkRowClick');
+        'Autofill.Settings.PersonalContextSettingsLinkRowClick');
   }
 
   /**
@@ -268,27 +245,25 @@ export class CollapsibleCardElement extends SettingsViewMixin
     // initialization check
     const addressAutofillEnabled = this.get('prefs.autofill.profile_enabled');
 
-    if (this.enableYourSavedInfoPolicyAndExtentionToggleIndicators_ &&
-        !this.autofillAddOtherDatatypesPrefIsEnabled_) {
-      if (!!addressAutofillEnabled &&
-          addressAutofillEnabled.enforcement ===
-              chrome.settingsPrivate.Enforcement.ENFORCED &&
-          !addressAutofillEnabled.value) {
-        this.set(
-            'enhancedAutofillOptedIn_.enforcement',
-            addressAutofillEnabled.enforcement);
-        this.set(
-            'enhancedAutofillOptedIn_.controlledBy',
-            addressAutofillEnabled.controlledBy);
-        // We need to check addressAutofillEnabled.value here.
-        // this.enhancedAutofillEligibleUser_ does consider
-        // addressAutofillEnabled.value, but loadTimeData constants are
-        // refreshed only after page reload.
-        this.set(
-            'enhancedAutofillOptedIn_.value',
-            this.enhancedAutofillEligibleUser_ && addressAutofillEnabled.value);
-        return;
-      }
+    if (!this.autofillAddOtherDatatypesPrefIsEnabled_ &&
+        !!addressAutofillEnabled &&
+        addressAutofillEnabled.enforcement ===
+            chrome.settingsPrivate.Enforcement.ENFORCED &&
+        !addressAutofillEnabled.value) {
+      this.set(
+          'enhancedAutofillOptedIn_.enforcement',
+          addressAutofillEnabled.enforcement);
+      this.set(
+          'enhancedAutofillOptedIn_.controlledBy',
+          addressAutofillEnabled.controlledBy);
+      // We need to check addressAutofillEnabled.value here.
+      // this.enhancedAutofillEligibleUser_ does consider
+      // addressAutofillEnabled.value, but loadTimeData constants are
+      // refreshed only after page reload.
+      this.set(
+          'enhancedAutofillOptedIn_.value',
+          this.enhancedAutofillEligibleUser_ && addressAutofillEnabled.value);
+      return;
     }
 
     await CrSettingsPrefs.initialized;
@@ -328,10 +303,6 @@ export class CollapsibleCardElement extends SettingsViewMixin
   }
 
   private showExtensionControlledIndicator_() {
-    if (!this.enableYourSavedInfoPolicyAndExtentionToggleIndicators_) {
-      return false;
-    }
-
     // TODO(crbug.com/490338056): replace undefined check with pref
     // initialization check
     const addressAutofillEnabled = this.get('prefs.autofill.profile_enabled');
@@ -344,23 +315,17 @@ export class CollapsibleCardElement extends SettingsViewMixin
   private optInToggleDisabled_(
       addressAutofillEnabled?: chrome.settingsPrivate.PrefObject<boolean>):
       boolean {
-    if (this.enableYourSavedInfoPolicyAndExtentionToggleIndicators_) {
-      if (addressAutofillEnabled === undefined) {
-        return true;
-      }
-      const addressAutofillEnforcedFalse =
-          addressAutofillEnabled.enforcement ===
-              chrome.settingsPrivate.Enforcement.ENFORCED &&
-          !addressAutofillEnabled.value;
-      // We need to check addressAutofillEnabled.value here.
-      // this.enhancedAutofillEligibleUser_ does consider
-      // addressAutofillEnabled.value, but loadTimeData constants are refreshed
-      // only after page reload.
-      return !this.enhancedAutofillEligibleUser_ ||
-          addressAutofillEnforcedFalse;
-    } else {
-      return !this.enhancedAutofillEligibleUser_;
+    if (addressAutofillEnabled === undefined) {
+      return true;
     }
+    const addressAutofillEnforcedFalse = addressAutofillEnabled.enforcement ===
+            chrome.settingsPrivate.Enforcement.ENFORCED &&
+        !addressAutofillEnabled.value;
+    // We need to check addressAutofillEnabled.value here.
+    // this.enhancedAutofillEligibleUser_ does consider
+    // addressAutofillEnabled.value, but loadTimeData constants are refreshed
+    // only after page reload.
+    return !this.enhancedAutofillEligibleUser_ || addressAutofillEnforcedFalse;
   }
 }
 
