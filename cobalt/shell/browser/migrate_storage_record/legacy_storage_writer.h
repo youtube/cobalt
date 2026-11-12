@@ -25,8 +25,11 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
+#include "base/files/file_path.h"
+#include "base/functional/callback_forward.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
@@ -47,6 +50,12 @@ class StoragePartition;
 }  // namespace content
 
 namespace cobalt {
+namespace storage {
+class Storage;
+}  // namespace storage
+}  // namespace cobalt
+
+namespace cobalt {
 namespace migrate_storage_record {
 
 // localStorage keys (on the origin of the initial URL) that make up the
@@ -56,6 +65,53 @@ inline constexpr const char* kLegacyCredentialKeys[] = {
     "yt.leanback.default::available-identities",
     "yt.leanback.default::last-identity-used",
 };
+
+// Kabuki's CredentialCache (OAuth access tokens minted from the refresh tokens
+// above). Not copied to C25; dropped when credentials are reconciled from a
+// C25-modified record so that no access token outlives its identity.
+inline constexpr char kCachedAccessTokensKey[] =
+    "yt.leanback.default::cached-access-tokens";
+
+// File in base::DIR_CACHE (next to migration_completed.txt) holding the hex
+// SHA-256 of the last record payload C27 wrote. A record whose digest differs
+// was rewritten by someone else, i.e. C25 ran after a rollback.
+inline constexpr char kLegacyRecordDigestFileName[] =
+    "legacy_record_sha256.txt";
+
+// Hex SHA-256 of a record payload (as returned by starboard::StorageRecord).
+std::string ComputeLegacyRecordDigest(std::string_view bytes);
+
+// <base::DIR_CACHE>/kLegacyRecordDigestFileName, or empty on failure.
+base::FilePath GetLegacyRecordDigestPath();
+
+// The allowlisted credential entries of |origin| (https, same origin) in a
+// parsed C25 record. Missing keys are absent from the result.
+std::map<std::string, std::string> ExtractLegacyCredentialEntries(
+    const url::Origin& origin,
+    const cobalt::storage::Storage& storage);
+
+// Encodes UTF-8 as Blink's kLocalStorageDetectFormat bytes (Latin-1 if
+// possible, else UTF-16). Inverse of DecodeLocalStorageString().
+std::vector<uint8_t> EncodeLocalStorageString(const std::string& utf8);
+
+// Rollback re-upgrade (C25 -> C27 -> C25 -> C27): runs on launches after the
+// first migration, before LegacyStorageWriter starts. If the C25 record's
+// digest differs from the stored one (or none is stored), C25 changed the
+// credential after the rollback, so C27 makes |origin|'s credential keys match
+// the record: Put the ones present, Delete the ones absent (a C25 sign-out),
+// and Delete kCachedAccessTokensKey. Leaves localStorage untouched if the
+// record is missing, matches, or does not parse. Runs |done| when finished, or
+// after kReconcileTimeout.
+inline constexpr base::TimeDelta kReconcileTimeout = base::Seconds(2);
+void ReconcileCredentialsFromLegacyRecord(content::StoragePartition* partition,
+                                          const url::Origin& origin,
+                                          const std::string& record_name,
+                                          const base::FilePath& digest_path,
+                                          base::OnceClosure done);
+// Same, for the --url origin, its C25 record and GetLegacyRecordDigestPath().
+void ReconcileCredentialsFromLegacyRecordForInitialUrl(
+    content::StoragePartition* partition,
+    base::OnceClosure done);
 
 // Inverse of blink::CachedStorageArea's kLocalStorageDetectFormat encoding
 // (and of MigrationManager's FormatStringForLocalStorage()): byte 0 is 1
@@ -86,7 +142,11 @@ class LegacyStorageWriter : public blink::mojom::StorageAreaObserver {
   static std::unique_ptr<LegacyStorageWriter> CreateForInitialUrl(
       content::StoragePartition* partition);
 
-  LegacyStorageWriter(const url::Origin& origin, std::string record_name);
+  // After each successful record write, the payload digest is written to
+  // |digest_path| (skipped if empty).
+  LegacyStorageWriter(const url::Origin& origin,
+                      std::string record_name,
+                      base::FilePath digest_path = base::FilePath());
   LegacyStorageWriter(const LegacyStorageWriter&) = delete;
   LegacyStorageWriter& operator=(const LegacyStorageWriter&) = delete;
   // Flushes a pending write from the cached entries (BLOCK_SHUTDOWN task).
@@ -119,6 +179,7 @@ class LegacyStorageWriter : public blink::mojom::StorageAreaObserver {
 
   const url::Origin origin_;
   const std::string record_name_;
+  const base::FilePath digest_path_;
   scoped_refptr<base::SequencedTaskRunner> io_task_runner_;
   mojo::Remote<blink::mojom::StorageArea> area_;
   mojo::Receiver<blink::mojom::StorageAreaObserver> observer_receiver_{this};

@@ -38,6 +38,7 @@
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/shell/browser/migrate_storage_record/legacy_storage_writer.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/services/storage/public/mojom/local_storage_control.mojom.h"
 #include "components/url_matcher/url_util.h"
@@ -493,7 +494,11 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
                             elapsed_timer->Elapsed());
     base::UmaHistogramEnumeration(kOutcomeHistogram,
                                   MigrationOutcome::kFastPath);
-    std::move(done_callback).Run();
+    // Rollback PoC (option B): if C25 ran after a rollback and changed the
+    // sign-in record, adopt its credential before LegacyStorageWriter starts
+    // and overwrites the record.
+    ReconcileCredentialsFromLegacyRecordForInitialUrl(partition,
+                                                      std::move(done_callback));
     return;
   }
 

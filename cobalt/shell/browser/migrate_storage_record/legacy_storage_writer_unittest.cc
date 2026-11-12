@@ -24,6 +24,7 @@
 
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_environment_variable_override.h"
 #include "base/test/scoped_command_line.h"
@@ -84,12 +85,16 @@ class FakeStorageArea : public blink::mojom::StorageArea {
            const std::optional<std::vector<uint8_t>>& client_old_value,
            const std::string& source,
            PutCallback callback) override {
+    ++write_ops_;
+    data_[key] = value;
     std::move(callback).Run(true);
   }
   void Delete(const std::vector<uint8_t>& key,
               const std::optional<std::vector<uint8_t>>& client_old_value,
               const std::string& source,
               DeleteCallback callback) override {
+    ++write_ops_;
+    data_.erase(key);
     std::move(callback).Run(true);
   }
   void DeleteAll(
@@ -134,6 +139,7 @@ class FakeStorageArea : public blink::mojom::StorageArea {
 
   std::map<std::vector<uint8_t>, std::vector<uint8_t>> data_;
   int get_all_count_ = 0;
+  int write_ops_ = 0;  // Put() + Delete() calls from the code under test.
 
  private:
   mojo::Receiver<blink::mojom::StorageArea> receiver_{this};
@@ -213,6 +219,45 @@ class LegacyStorageWriterTest : public testing::Test {
       }
     }
     return out;
+  }
+
+  // Writes ~/.starboard.<name>.storage in the fake HOME.
+  void WriteRecordFile(const std::string& name, const std::string& bytes) {
+    ASSERT_TRUE(base::WriteFile(
+        home_.GetPath().Append(".starboard." + name + ".storage"), bytes));
+  }
+
+  base::FilePath DigestPath() {
+    return home_.GetPath().Append("cache").Append(kLegacyRecordDigestFileName);
+  }
+
+  // Runs the reconcile and returns whether |done| ran before any timeout.
+  bool Reconcile(FakeStorageArea* area, const base::FilePath& digest_path) {
+    FakeStoragePartition partition(area);
+    bool done = false;
+    ReconcileCredentialsFromLegacyRecord(
+        &partition, kOrigin, "test", digest_path,
+        base::BindOnce([](bool* d) { *d = true; }, &done));
+    env_.RunUntilIdle();
+    return done;
+  }
+
+  // Area as C27 has it before the re-upgrade: signed in, plus a cached access
+  // token and an unrelated preference.
+  void FillSignedInArea(FakeStorageArea* area) {
+    area->data_[Latin1(kIds)] = Latin1("ids-c27");
+    area->data_[Latin1(kLast)] = Latin1("last-c27");
+    area->data_[Latin1(kCachedAccessTokensKey)] = Latin1("tokens");
+    area->data_[Latin1(kOther)] = Latin1("pref");
+  }
+
+  std::optional<std::string> AreaValue(FakeStorageArea& area,
+                                       const std::string& key) {
+    auto it = area.data_.find(Latin1(key));
+    if (it == area.data_.end()) {
+      return std::nullopt;
+    }
+    return DecodeLocalStorageString(it->second);
   }
 
   const url::Origin kOrigin =
@@ -433,6 +478,138 @@ TEST_F(LegacyStorageWriterTest, CreateForInitialUrlRejectsInvalidUrl) {
   FakeStoragePartition partition(&area);
   EXPECT_FALSE(LegacyStorageWriter::CreateForInitialUrl(&partition));
   EXPECT_FALSE(LegacyStorageWriter::CreateForInitialUrl(nullptr));
+}
+
+TEST_F(LegacyStorageWriterTest, EncodeRoundTripsThroughDecode) {
+  for (const std::string s : {"", "ab", "\xC3\xA9", "a\xE2\x82\xAC"}) {
+    EXPECT_EQ(s, DecodeLocalStorageString(EncodeLocalStorageString(s)));
+  }
+  EXPECT_EQ(Latin1("ab"), EncodeLocalStorageString("ab"));
+  EXPECT_EQ(Utf16(u"a\u20AC"), EncodeLocalStorageString("a\xE2\x82\xAC"));
+}
+
+TEST_F(LegacyStorageWriterTest, ExtractCredentialEntriesFiltersOriginAndKeys) {
+  cobalt::storage::Storage storage;
+  auto add = [&](const std::string& origin, const std::string& key,
+                 const std::string& value) {
+    auto* ls = storage.add_local_storages();
+    ls->set_serialized_origin(origin);
+    auto* e = ls->add_local_storage_entries();
+    e->set_key(key);
+    e->set_value(value);
+  };
+  add("https://127.0.0.1:8443", kIds, "ids");
+  add("https://127.0.0.1:8443", kOther, "pref");
+  add("http://127.0.0.1:8443", kLast, "insecure");
+  add("https://other.example", kLast, "other-origin");
+  EXPECT_EQ((std::map<std::string, std::string>{{kIds, "ids"}}),
+            ExtractLegacyCredentialEntries(kOrigin, storage));
+}
+
+TEST_F(LegacyStorageWriterTest, WriterStoresDigestOfEachRecord) {
+  FakeStorageArea area;
+  area.data_[Latin1(kIds)] = Latin1("ids-v1");
+  LegacyStorageWriter writer(kOrigin, "test", DigestPath());
+  writer.Start(area.BindNewRemote());
+  env_.RunUntilIdle();
+
+  std::string digest;
+  ASSERT_TRUE(base::ReadFileToString(DigestPath(), &digest));
+  EXPECT_EQ(ComputeLegacyRecordDigest(ReadRecordFile("test")), digest);
+  EXPECT_EQ(64u, digest.size());
+
+  area.SimulateDelete(kIds);
+  env_.FastForwardBy(LegacyStorageWriter::kWriteDelay);
+  env_.RunUntilIdle();
+  ASSERT_TRUE(base::ReadFileToString(DigestPath(), &digest));
+  EXPECT_EQ(ComputeLegacyRecordDigest("SAV1"), digest);
+}
+
+TEST_F(LegacyStorageWriterTest, ReconcileNoRecordLeavesStorageAlone) {
+  FakeStorageArea area;
+  FillSignedInArea(&area);
+  EXPECT_TRUE(Reconcile(&area, DigestPath()));
+  EXPECT_EQ(0, area.write_ops_);
+}
+
+TEST_F(LegacyStorageWriterTest, ReconcileUnchangedRecordLeavesStorageAlone) {
+  // C27 relaunch with no C25 run in between: the record is C27's own.
+  const std::string record = SerializeLegacyStorageRecord(
+      kOrigin, {{kIds, "ids-c27"}, {kLast, "last-c27"}});
+  WriteRecordFile("test", record);
+  ASSERT_TRUE(base::CreateDirectory(DigestPath().DirName()));
+  ASSERT_TRUE(base::WriteFile(DigestPath(), ComputeLegacyRecordDigest(record)));
+  FakeStorageArea area;
+  FillSignedInArea(&area);
+  EXPECT_TRUE(Reconcile(&area, DigestPath()));
+  EXPECT_EQ(0, area.write_ops_);
+}
+
+TEST_F(LegacyStorageWriterTest, ReconcileAdoptsC25SignOut) {
+  // C27 wrote a signed-in record; C25 then signed out and rewrote it with
+  // its full store (here: a cookie-free store without the credential keys).
+  const std::string c27_record = SerializeLegacyStorageRecord(
+      kOrigin, {{kIds, "ids-c27"}, {kLast, "last-c27"}});
+  ASSERT_TRUE(base::CreateDirectory(DigestPath().DirName()));
+  ASSERT_TRUE(
+      base::WriteFile(DigestPath(), ComputeLegacyRecordDigest(c27_record)));
+  WriteRecordFile("test",
+                  SerializeLegacyStorageRecord(kOrigin, {{kOther, "c25"}}));
+  FakeStorageArea area;
+  FillSignedInArea(&area);
+
+  EXPECT_TRUE(Reconcile(&area, DigestPath()));
+  EXPECT_EQ(std::nullopt, AreaValue(area, kIds));
+  EXPECT_EQ(std::nullopt, AreaValue(area, kLast));
+  EXPECT_EQ(std::nullopt, AreaValue(area, kCachedAccessTokensKey));
+  // Only credential keys are reconciled.
+  EXPECT_EQ("pref", AreaValue(area, kOther));
+}
+
+TEST_F(LegacyStorageWriterTest, ReconcileAdoptsC25HeaderOnlyRecord) {
+  ASSERT_TRUE(base::CreateDirectory(DigestPath().DirName()));
+  ASSERT_TRUE(base::WriteFile(DigestPath(), ComputeLegacyRecordDigest("x")));
+  WriteRecordFile("test", "SAV1");
+  FakeStorageArea area;
+  FillSignedInArea(&area);
+  EXPECT_TRUE(Reconcile(&area, DigestPath()));
+  EXPECT_EQ(std::nullopt, AreaValue(area, kIds));
+  EXPECT_EQ(std::nullopt, AreaValue(area, kLast));
+}
+
+TEST_F(LegacyStorageWriterTest, ReconcileAdoptsC25CredentialChange) {
+  ASSERT_TRUE(base::CreateDirectory(DigestPath().DirName()));
+  ASSERT_TRUE(base::WriteFile(DigestPath(), ComputeLegacyRecordDigest("x")));
+  WriteRecordFile("test", SerializeLegacyStorageRecord(
+                              kOrigin, {{kIds, "ids-c25-\xE2\x82\xAC"},
+                                        {kLast, "last-c25"}}));
+  FakeStorageArea area;
+  FillSignedInArea(&area);
+  EXPECT_TRUE(Reconcile(&area, DigestPath()));
+  EXPECT_EQ("ids-c25-\xE2\x82\xAC", AreaValue(area, kIds));
+  EXPECT_EQ("last-c25", AreaValue(area, kLast));
+  EXPECT_EQ(std::nullopt, AreaValue(area, kCachedAccessTokensKey));
+}
+
+TEST_F(LegacyStorageWriterTest, ReconcileWithoutStoredDigestAdoptsRecord) {
+  // E.g. the first C27 run died before its first record write.
+  WriteRecordFile("test", SerializeLegacyStorageRecord(
+                              kOrigin, {{kIds, "ids-c25"}, {kLast, "last"}}));
+  FakeStorageArea area;
+  FillSignedInArea(&area);
+  EXPECT_TRUE(Reconcile(&area, DigestPath()));
+  EXPECT_EQ("ids-c25", AreaValue(area, kIds));
+}
+
+TEST_F(LegacyStorageWriterTest, ReconcileCorruptRecordKeepsCredentials) {
+  WriteRecordFile("test", "SAV1\xFF\xFF\xFF");
+  FakeStorageArea area;
+  FillSignedInArea(&area);
+  EXPECT_TRUE(Reconcile(&area, DigestPath()));
+  EXPECT_EQ(0, area.write_ops_);
+  WriteRecordFile("test", "NOPE");
+  EXPECT_TRUE(Reconcile(&area, DigestPath()));
+  EXPECT_EQ(0, area.write_ops_);
 }
 
 }  // namespace migrate_storage_record
