@@ -9,6 +9,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "ui/gfx/swap_result.h"
 #include "ui/gl/gl_export.h"
 #include "ui/gl/gl_surface.h"
@@ -116,6 +117,11 @@ class GL_EXPORT GLSurfacePresentationHelper {
   bool gl_fence_supported_ = false;
   raw_ptr<EGLTimestampClient> egl_timestamp_client_ = nullptr;
   bool update_vsync_pending_ = false;
+#if BUILDFLAG(IS_STARBOARD)
+  // Number of short re-checks already issued for the oldest pending frame's
+  // GL fence; see ScheduleCheckPendingFrames().
+  int fence_fast_polls_ = 0;
+#endif
 
   base::WeakPtrFactory<GLSurfacePresentationHelper> weak_ptr_factory_{this};
 };
