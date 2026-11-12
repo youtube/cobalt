@@ -242,10 +242,7 @@ void DecoderBufferAllocator::UpdateAllocatorStrategy(
 base::expected<void, std::string> DecoderBufferAllocator::SetSetting(
     const std::string& name,
     int value) {
-  // Temporarily accept both setting names to support backward-compatible
-  // experiment rollouts before transitioning to the V2 format.
-  if (name == "DecoderBuffer.EnableConfigurableDecommitStrategy" ||
-      name == "DecoderBuffer.EnableConfigurableDecommitStrategyV2") {
+  if (name == "DecoderBuffer.EnableConfigurableDecommitStrategyV3") {
     if (value <= 0) {
       // Explicitly allow non-positive values as placebo.
       return base::ok();
@@ -274,7 +271,7 @@ base::expected<void, std::string> DecoderBufferAllocator::SetSetting(
     //     uses MADV_COLD on reclaimed blocks.
     //   - periodic_decommit (bit 29): Legacy bit for background periodic
     //     decommit via base::ThreadPool. Now always enabled whenever
-    //     `enable_decommit_on_idle` is true (i.e. for all positive V2 setting
+    //     `enable_decommit_on_idle` is true (i.e. for all positive V3 setting
     //     values), so bit 29 is effectively a no-op.
     // - block_size (8 bits): Specifies both the initial pool capacity and the
     //   fallback allocation increment.
