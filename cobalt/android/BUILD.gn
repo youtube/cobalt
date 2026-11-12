@@ -23,6 +23,15 @@ jinja_template("cobalt_manifest") {
     "manifest_package=dev.cobalt.coat",
     "build_type=$build_type",
   ]
+
+  # This manifest is shared by the 1P Android TV dev shell (CoAT, where
+  # production uses Kimono) and 3P AOSP builds (cobalt_apk). Keep 1P CoAT
+  # debuggable, but disable debuggable on 3P AOSP release (gold) builds.
+  if (cobalt_is_release_build && !is_androidtv) {
+    variables += [ "debuggable=false" ]
+  } else {
+    variables += [ "debuggable=true" ]
+  }
 }
 
 java_cpp_features("java_features_srcjar") {
