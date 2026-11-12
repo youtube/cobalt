@@ -40,7 +40,8 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
   // Constructs a strategy with explicit decommit configurations.
   explicit BidirectionalFitDecoderBufferAllocatorStrategy(
       const DecoderBufferAllocator::Strategy::ExperimentConfig& config)
-      : fallback_allocator_(config.enable_decommit_on_idle,
+      : fallback_allocator_(config.enable_decommit_on_idle ||
+                                config.enable_decommit_only_on_memory_pressure,
                             config.allocate_with_page_alignment),
         bidirectional_fit_allocator_(&fallback_allocator_,
                                      config.initial_capacity,
@@ -51,7 +52,8 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
                                      config.conservative_decommit_blocks,
                                      config.aggressive_decommit_on_suspend,
                                      config.memset_on_reclaim,
-                                     config.mark_as_cold_on_reclaim) {}
+                                     config.mark_as_cold_on_reclaim,
+                                     config.enable_decommit_only_on_memory_pressure) {}
 
   void* Allocate(DemuxerStream::Type type, size_t size) override {
     return bidirectional_fit_allocator_.Allocate(size);
@@ -68,8 +70,9 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
     return bidirectional_fit_allocator_.GetAllocated();
   }
 
-  void DecommitAllDecommitableBlocks() override {
-    bidirectional_fit_allocator_.DecommitAllDecommitableBlocks();
+  void DecommitAllDecommitableBlocks(bool include_retained_blocks) override {
+    bidirectional_fit_allocator_.DecommitAllDecommitableBlocks(
+        include_retained_blocks);
   }
 
   void TryToDecommitOneBlock(int cadence) override {

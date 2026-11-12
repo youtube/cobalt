@@ -36,6 +36,7 @@
 // Licensed under UNICODE LICENSE V3 and the ICU License from https://github.com/unicode-org/icu/blob/main/LICENSE
 
 #include <limits.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -90,11 +91,15 @@ const char* SbTimeZoneGetName() {
   */
 
   if (gTimeZoneBufferPtr == NULL) {
-    int32_t ret = (int32_t)readlink(TZDEFAULT, gTimeZoneBuffer,
-                                    sizeof(gTimeZoneBuffer) - 1);
-    if (0 < ret) {
+    // /etc/localtime may be a chain of symlinks (e.g. on RDK:
+    // /etc/localtime -> /opt/persistent/localtime -> /usr/share/zoneinfo/<TZ>),
+    // so resolve the whole chain instead of reading a single link.
+    char* resolved_path = realpath(TZDEFAULT, NULL);
+    if (resolved_path != NULL) {
+      strncpy(gTimeZoneBuffer, resolved_path, sizeof(gTimeZoneBuffer) - 1);
+      gTimeZoneBuffer[sizeof(gTimeZoneBuffer) - 1] = 0;
+      free(resolved_path);
       int32_t tzZoneInfoTailLen = strlen(TZZONEINFOTAIL);
-      gTimeZoneBuffer[ret] = 0;
       char* tzZoneInfoTailPtr = strstr(gTimeZoneBuffer, TZZONEINFOTAIL);
 
       if (tzZoneInfoTailPtr != NULL &&

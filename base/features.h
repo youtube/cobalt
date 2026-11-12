@@ -56,10 +56,9 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltForceGpuMemAvailableMb);
 // discardable texture managers. Enabled by default on 3P/Starboard platforms.
 // Disabled by default on Android TV, where Cobalt runs in low-end device mode
 // and the upstream limit is already 1 MB. The parameter is the limit in MB and
-// defaults to 1, the upstream low-end Android value. Values above 256 MB, the
-// largest upstream default, are capped. Disabling the feature restores the
-// upstream per-platform defaults. --force-gpu-mem-discardable-limit-mb still
-// takes precedence over both.
+// defaults to 32. Values above 256 MB, the largest upstream default, are
+// capped. Disabling the feature restores the upstream per-platform defaults.
+// --force-gpu-mem-discardable-limit-mb still takes precedence over both.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltGpuDiscardableCacheLimit);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltGpuDiscardableCacheLimitMb);
 

@@ -113,6 +113,8 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   // C25 Storage Migration
   void StartStorageMigration();
   void OnMigrationComplete();
+  // Deletes the cached splash assets in Finch's crash safe mode.
+  void MaybeClearCachedSplashFiles();
   void PostOrRunIfStorageMigrationFinished(base::OnceClosure task) override;
 
  protected:
