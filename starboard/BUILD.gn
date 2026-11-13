@@ -270,6 +270,7 @@ if (current_toolchain == starboard_toolchain) {
         "//starboard/loader_app:memory_tracker_thread",
         "//starboard/loader_app:read_evergreen_version_test",
         "//starboard/loader_app:slot_management_test",
+        "//starboard/testing/compiler_compliance",
       ]
     }
     if (build_with_separate_cobalt_toolchain && use_contrib_cast) {

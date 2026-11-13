@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cstdint>
 #include <iostream>
-#include <memory>
 #include <numeric>
 #include <string>
-#include <string_view>
 #include <utility>
 #include <vector>
 
-namespace nplb {
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace starboard {
 namespace {
 
 // These examples are taken after referring to
@@ -29,33 +30,37 @@ namespace {
 // 2) cpp reference : https://en.cppreference.com/w/cpp
 
 // Test std::string ends_with support
-void test_string_ends_with() {
-  bool result = std::string("foobar").ends_with("bar");
+TEST(Cpp20Support, StringEndsWith) {
+  EXPECT_TRUE(std::string("foobar").ends_with("bar"));
 }
 
 // Test std::erase_if support
-void test_erase_if() {
+TEST(Cpp20Support, EraseIf) {
   std::vector<char> cnt(10);
   std::iota(cnt.begin(), cnt.end(), '0');
-  std::erase(cnt, '3');
-  std::erase_if(cnt, [](char x) { return (x - '0') % 2 == 0; });
+  EXPECT_EQ(1U, std::erase(cnt, '3'));
+  EXPECT_EQ(5U, std::erase_if(cnt, [](char x) { return (x - '0') % 2 == 0; }));
+  ASSERT_EQ(4U, cnt.size());
+  EXPECT_EQ(std::vector<char>({'1', '5', '7', '9'}), cnt);
 }
 
 // Test std::midpoint support
-void test_midpoint() {
+TEST(Cpp20Support, MidPoint) {
   std::uint32_t a = std::numeric_limits<std::uint32_t>::max();
   std::uint32_t b = std::numeric_limits<std::uint32_t>::max() - 2;
-  std::midpoint(a, b);
+  EXPECT_EQ(std::midpoint(a, b), std::numeric_limits<std::uint32_t>::max() - 1);
 }
 
 // Test designated initializers
-void test_designated_initializer() {
+TEST(Cpp20Support, DesignatedInitializer) {
   struct S {
     int x = 1;
     int y = 2;
   };
   S s{.y = 3};  // OK, s.x == 1, s.y == 3
+  EXPECT_EQ(s.x, 1);
+  EXPECT_EQ(s.y, 3);
 }
 
 }  // namespace
-}  // namespace nplb
+}  // namespace starboard

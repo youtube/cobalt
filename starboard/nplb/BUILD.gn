@@ -378,14 +378,6 @@ test("nplb") {
         "//starboard/android/shared/testing/AndroidManifest.xml.jinja2"
   }
 
-  if (sb_enable_cpp17_audit) {
-    deps += [ "//starboard/nplb/compiler_compliance:cpp17_supported" ]
-  }
-
-  if (sb_enable_cpp20_audit) {
-    deps += [ "//starboard/nplb/compiler_compliance:cpp20_supported" ]
-  }
-
   data_deps = [ "//starboard/nplb/testdata/file_tests:nplb_file_tests_data" ]
 
   if (is_cobalt_hermetic_build) {
