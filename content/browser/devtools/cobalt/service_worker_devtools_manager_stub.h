@@ -110,7 +110,11 @@ class CONTENT_EXPORT ServiceWorkerDevToolsManager {
       mojo::PendingRemote<network::mojom::DocumentIsolationPolicyReporter>
           dip_reporter,
       base::UnguessableToken* devtools_worker_token,
-      bool* pause_on_start) {}
+      bool* pause_on_start) {
+    // Mojo rejects an empty token, which breaks service worker startup.
+    *devtools_worker_token = base::UnguessableToken::Create();
+    *pause_on_start = false;
+  }
   void WorkerReadyForInspection(
       int worker_process_id,
       int worker_route_id,
