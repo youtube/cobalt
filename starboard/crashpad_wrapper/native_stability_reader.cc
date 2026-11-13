@@ -24,13 +24,18 @@
 #include <string>
 #include <vector>
 
+#include "build/build_config.h"
 #include "third_party/crashpad/crashpad/client/annotation.h"
 #include "third_party/crashpad/crashpad/client/crash_report_database.h"
 #include "third_party/crashpad/crashpad/snapshot/annotation_snapshot.h"
 #include "third_party/crashpad/crashpad/snapshot/minidump/process_snapshot_minidump.h"
 #include "third_party/crashpad/crashpad/snapshot/module_snapshot.h"
 #include "third_party/crashpad/crashpad/util/file/file_reader.h"
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "third_party/crashpad/crashpad/util/mach/mach_extensions.h"
+#else
 #include "third_party/crashpad/crashpad/util/posix/signals.h"
+#endif
 
 namespace crashpad {
 
@@ -48,9 +53,10 @@ std::string FindAnnotationValue(
     return it->second;
   }
 
-  // On 1P Android TV, CobaltCrashAnnotations uses crashpad::StringAnnotation,
-  // which registers an Annotation object on libchrobalt.so's CrashpadInfo and
-  // is serialized into the module snapshot's AnnotationObjects list.
+  // On 1P Android TV and tvOS, CobaltCrashAnnotations uses
+  // crashpad::StringAnnotation, which registers an Annotation object on the
+  // module's CrashpadInfo and is serialized into the module snapshot's
+  // AnnotationObjects list.
   for (const ::crashpad::ModuleSnapshot* module : snapshot.Modules()) {
     for (const ::crashpad::AnnotationSnapshot& annotation :
          module->AnnotationObjects()) {
@@ -82,11 +88,16 @@ std::optional<SbNativeStabilityReport> ParseReportFromMinidump(
 
   const ::crashpad::ExceptionSnapshot* exception = snapshot.Exception();
   // Non-crashing minidumps captured for hangs via DumpWithoutCrashing have the
-  // exception code set to kSimulatedSigno, distinguishing them from actual
-  // signal-driven process crashes.
-  bool is_hang = exception && exception->Exception() ==
-                                  static_cast<uint32_t>(
-                                      ::crashpad::Signals::kSimulatedSigno);
+  // exception code set to kMachExceptionSimulated on tvOS or kSimulatedSigno
+  // on POSIX, distinguishing them from actual process crashes.
+#if BUILDFLAG(IS_IOS_TVOS)
+  constexpr uint32_t kSimulatedExceptionCode =
+      static_cast<uint32_t>(::crashpad::kMachExceptionSimulated);
+#else
+  constexpr uint32_t kSimulatedExceptionCode =
+      static_cast<uint32_t>(::crashpad::Signals::kSimulatedSigno);
+#endif
+  bool is_hang = exception && exception->Exception() == kSimulatedExceptionCode;
 
   std::string event_uuid;
   SbNativeStabilityReportType report_type = kSbNativeStabilityReportUnknown;
