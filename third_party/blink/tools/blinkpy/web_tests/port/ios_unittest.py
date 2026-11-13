@@ -79,5 +79,7 @@ class IOSPortTest(port_testcase.PortTestCase):
                                       'StaleTestExpectations'),
             port.host.filesystem.join(port.web_tests_dir(), 'SlowTests'),
             port.host.filesystem.join(port.web_tests_dir(),
+                                      'CobaltTestExpectations'),
+            port.host.filesystem.join(port.web_tests_dir(),
                                       'IOSTestExpectations'),
         ])

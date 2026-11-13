@@ -2749,7 +2749,9 @@ class Port(object):
             self._filesystem.join(self.web_tests_dir(), 'NeverFixTests'),
             self._filesystem.join(self.web_tests_dir(),
                                   'StaleTestExpectations'),
-            self._filesystem.join(self.web_tests_dir(), 'SlowTests')
+            self._filesystem.join(self.web_tests_dir(), 'SlowTests'),
+            self._filesystem.join(self.web_tests_dir(),
+                                  'CobaltTestExpectations')
         ])
 
     def used_expectations_files(self):
