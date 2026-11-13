@@ -23,6 +23,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "base/timer/timer.h"
 #include "build/build_config.h"
 #include "media/base/cdm_context.h"
 #include "media/base/decoder_buffer.h"
@@ -242,6 +243,22 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   void OnBufferingStateChange(BufferingState state);
 
+  // Underflow detection (behind kMediaReportPlaybackUnderflow). While
+  // presenting, periodically compares the media time against the end of the
+  // audio/video data written to the SbPlayer. When the media time reaches the
+  // end of written data for a stream that is waiting on the demuxer, reports
+  // BUFFERING_HAVE_NOTHING and pauses the SbPlayer, so the media clock stops
+  // (as RendererImpl does for other renderers). Playback resumes and
+  // BUFFERING_HAVE_ENOUGH is reported once enough data has been written.
+  void StartUnderflowCheck();
+  void StopUnderflowCheck();
+  void CheckForUnderflow();
+  // Returns how far the written data of a stream extends beyond |media_time|,
+  // or std::nullopt if the stream is absent or has reached end of stream.
+  std::optional<TimeDelta> GetWrittenDataAhead(DemuxerStream* stream,
+                                               TimeDelta written_end,
+                                               bool eos_written,
+                                               TimeDelta media_time) const;
   void NotifyError(PipelineStatus status);
   void OnConcealFallbackSuspend();
 
@@ -328,6 +345,22 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   bool audio_read_delayed_ = false;
 
+  // Underflow detection state. See CheckForUnderflow().
+  // Set from kMediaReportPlaybackUnderflow in the constructor.
+  bool report_underflow_ = false;
+  // Interval of the underflow check while presenting.
+  static constexpr TimeDelta kUnderflowCheckInterval = base::Milliseconds(100);
+  // How far written data must extend beyond the media time on every stream
+  // before playback resumes after an underflow.
+  static constexpr TimeDelta kUnderflowRecoveryThreshold =
+      base::Milliseconds(500);
+  // End timestamp (timestamp + duration) of the last written non-EOS buffer.
+  TimeDelta timestamp_of_last_written_audio_end_ = kNoTimestamp;
+  TimeDelta timestamp_of_last_written_video_end_ = kNoTimestamp;
+  bool is_audio_eos_written_ = false;
+  // True while the SbPlayer is paused because of an underflow.
+  bool paused_for_underflow_ = false;
+  base::RepeatingTimer underflow_check_timer_;
   SbDrmSystem drm_system_{kSbDrmSystemInvalid};
 
   std::unique_ptr<SbPlayerBridge> player_bridge_;

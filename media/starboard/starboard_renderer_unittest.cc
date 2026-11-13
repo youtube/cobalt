@@ -32,6 +32,7 @@
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_util.h"
 #include "media/base/mock_filters.h"
+#include "media/base/starboard/experimental_features.h"
 #include "media/base/test_helpers.h"
 #include "media/starboard/mock_sbplayer_interface.h"
 #include "media/starboard/sbplayer_interface.h"
@@ -80,7 +81,22 @@ size_t GetTotalCountAcrossOccurrences(
 
 class StarboardRendererTest : public testing::Test {
  protected:
-  StarboardRendererTest() {
+  explicit StarboardRendererTest(bool report_underflow = false) {
+    CreateRenderer(report_underflow);
+
+    EXPECT_CALL(media_resource_, GetAllStreams())
+        .WillRepeatedly(Invoke(this, &StarboardRendererTest::GetAllStreams));
+  }
+
+  ~StarboardRendererTest() override = default;
+
+  void CreateRenderer(bool report_underflow = false) {
+    StarboardRendererConfig::ExperimentalFeatures experimental_features;
+    if (report_underflow) {
+      experimental_features = StarboardRendererConfig::ExperimentalFeatures(
+          {{std::string(kMediaReportPlaybackUnderflow.key()), int64_t{1}}});
+    }
+    renderer_.reset();
     renderer_ = std::make_unique<StarboardRenderer>(
         task_environment_.GetMainThreadTaskRunner(),
         std::make_unique<NullMediaLog>(),
@@ -88,8 +104,7 @@ class StarboardRendererTest : public testing::Test {
         /*audio_write_duration_local=*/base::Seconds(1),
         /*audio_write_duration_remote=*/base::Seconds(1),
         /*max_video_capabilities=*/"",
-        /*max_video_resolution=*/"",
-        StarboardRendererConfig::ExperimentalFeatures{},
+        /*max_video_resolution=*/"", experimental_features,
         /*viewport_size=*/gfx::Size()
 #if BUILDFLAG(IS_ANDROID)
             ,
@@ -111,12 +126,7 @@ class StarboardRendererTest : public testing::Test {
             base::Unretained(this));
     renderer_->set_decode_target_graphics_context_provider(
         get_decode_target_graphics_context_provider_func);
-
-    EXPECT_CALL(media_resource_, GetAllStreams())
-        .WillRepeatedly(Invoke(this, &StarboardRendererTest::GetAllStreams));
   }
-
-  ~StarboardRendererTest() override = default;
 
   void AddStream(DemuxerStream::Type type, bool encrypted) {
     streams_.push_back(CreateMockDemuxerStream(type, encrypted));
@@ -273,7 +283,8 @@ class StarboardRendererTest : public testing::Test {
   }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
-  base::test::TaskEnvironment task_environment_;
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   base::MockOnceCallback<void(bool)> set_cdm_cb_;
   base::MockOnceCallback<void(PipelineStatus)> renderer_init_cb_;
   NiceMock<MockCdmContext> cdm_context_;
@@ -1017,6 +1028,154 @@ TEST_F(StarboardRendererTest, UrlPlayerSrcNotSupportedAfterInitialization) {
       "item failed");
 }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
+
+class StarboardRendererUnderflowTest : public StarboardRendererTest {
+ protected:
+  StarboardRendererUnderflowTest()
+      : StarboardRendererTest(/*report_underflow=*/true) {}
+
+  // Initializes, starts playback at 0 and reaches kSbPlayerStatePresenting
+  // with audio written up to |audio_end| and video written up to |video_end|.
+  // A second video read is left pending to simulate a starved demuxer.
+  SbPlayer StartPresenting(base::TimeDelta audio_end,
+                           base::TimeDelta video_end) {
+    SbPlayer player = InitializeWithAudioAndVideo();
+    player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                      SB_PLAYER_INITIAL_TICKET);
+    task_environment_.RunUntilIdle();
+
+    EXPECT_CALL(mock_sbplayer_interface_, Seek(player, base::TimeDelta(), _))
+        .WillOnce(SaveArg<2>(&ticket_));
+    EXPECT_CALL(mock_sbplayer_interface_, WriteSamples(player, _, _, _))
+        .Times(testing::AnyNumber());
+    EXPECT_CALL(mock_sbplayer_interface_, GetInfo(player, _))
+        .WillRepeatedly(Invoke([this](SbPlayer, SbPlayerInfo* info) {
+          *info = {};
+          info->current_media_timestamp = media_time_.InMicroseconds();
+          info->duration = base::Seconds(60).InMicroseconds();
+        }));
+    renderer_->StartPlayingFrom(base::TimeDelta());
+    renderer_->SetPlaybackRate(1.0);
+    task_environment_.RunUntilIdle();
+
+    WriteOne(player, kSbMediaTypeAudio, *streams_[0], base::TimeDelta(),
+             audio_end);
+    WriteOne(player, kSbMediaTypeVideo, *streams_[1], base::TimeDelta(),
+             video_end);
+
+    // Starboard asks for more video, which the demuxer cannot provide yet.
+    EXPECT_CALL(*streams_[1], OnRead(_))
+        .WillOnce(Invoke([this](DemuxerStream::ReadCB& cb) {
+          pending_video_read_cb_ = std::move(cb);
+        }));
+    decoder_status_cb_(player, context_, kSbMediaTypeVideo,
+                       kSbPlayerDecoderStateNeedsData, ticket_);
+    task_environment_.RunUntilIdle();
+    EXPECT_FALSE(pending_video_read_cb_.is_null());
+
+    EXPECT_CALL(renderer_client_,
+                OnBufferingStateChange(BUFFERING_HAVE_ENOUGH,
+                                       BUFFERING_CHANGE_REASON_UNKNOWN));
+    player_status_cb_(player, context_, kSbPlayerStatePresenting, ticket_);
+    task_environment_.RunUntilIdle();
+    testing::Mock::VerifyAndClearExpectations(&renderer_client_);
+    return player;
+  }
+
+  // Serves one read on |stream| with a buffer spanning [start, end).
+  void WriteOne(SbPlayer player,
+                SbMediaType type,
+                StrictMock<MockDemuxerStream>& stream,
+                base::TimeDelta start,
+                base::TimeDelta end) {
+    EXPECT_CALL(stream, OnRead(_))
+        .WillOnce(Invoke([start, end](DemuxerStream::ReadCB& cb) {
+          const uint8_t kData[] = {0x00, 0x00, 0x00, 0x01};
+          scoped_refptr<DecoderBuffer> buffer = DecoderBuffer::CopyFrom(kData);
+          buffer->set_timestamp(start);
+          buffer->set_duration(end - start);
+          buffer->set_is_key_frame(true);
+          std::move(cb).Run(DemuxerStream::kOk, {buffer});
+        }));
+    decoder_status_cb_(player, context_, type, kSbPlayerDecoderStateNeedsData,
+                       ticket_);
+    task_environment_.RunUntilIdle();
+  }
+
+  // Advances mock time by one underflow check interval.
+  void RunUnderflowCheck() {
+    task_environment_.FastForwardBy(base::Milliseconds(100));
+  }
+
+  base::TimeDelta media_time_;
+  int ticket_ = SB_PLAYER_INITIAL_TICKET;
+  DemuxerStream::ReadCB pending_video_read_cb_;
+};
+
+TEST_F(StarboardRendererUnderflowTest, NoUnderflowWhileDataIsAhead) {
+  StartPresenting(/*audio_end=*/base::Seconds(10),
+                  /*video_end=*/base::Seconds(5));
+
+  EXPECT_CALL(renderer_client_, OnBufferingStateChange(_, _)).Times(0);
+  for (media_time_ = base::TimeDelta(); media_time_ < base::Seconds(4.5);
+       media_time_ += base::Milliseconds(500)) {
+    RunUnderflowCheck();
+  }
+}
+
+TEST_F(StarboardRendererUnderflowTest, VideoUnderflowPausesAndResumes) {
+  SbPlayer player = StartPresenting(/*audio_end=*/base::Seconds(10),
+                                    /*video_end=*/base::Seconds(5));
+
+  // The playback position reaches the end of the written video while audio
+  // is still buffered: report HAVE_NOTHING and pause the SbPlayer.
+  EXPECT_CALL(mock_sbplayer_interface_, SetPlaybackRate(player, 0.0));
+  EXPECT_CALL(renderer_client_,
+              OnBufferingStateChange(BUFFERING_HAVE_NOTHING,
+                                     BUFFERING_CHANGE_REASON_UNKNOWN));
+  media_time_ = base::Seconds(5);
+  RunUnderflowCheck();
+  testing::Mock::VerifyAndClearExpectations(&renderer_client_);
+
+  // Media time keeps reporting the playback position, not the seek time.
+  EXPECT_EQ(renderer_->GetMediaTime(), base::Seconds(5));
+
+  // Staying starved does not report again.
+  EXPECT_CALL(renderer_client_, OnBufferingStateChange(_, _)).Times(0);
+  RunUnderflowCheck();
+  testing::Mock::VerifyAndClearExpectations(&renderer_client_);
+
+  // The app rate change while paused for underflow must not resume playback.
+  EXPECT_CALL(mock_sbplayer_interface_, SetPlaybackRate(player, 2.0)).Times(0);
+  renderer_->SetPlaybackRate(2.0);
+  task_environment_.RunUntilIdle();
+
+  // More video arrives: resume at the latest app rate and report HAVE_ENOUGH.
+  const uint8_t kData[] = {0x00, 0x00, 0x00, 0x01};
+  scoped_refptr<DecoderBuffer> buffer = DecoderBuffer::CopyFrom(kData);
+  buffer->set_timestamp(base::Seconds(5));
+  buffer->set_duration(base::Seconds(5));
+  std::move(pending_video_read_cb_).Run(DemuxerStream::kOk, {buffer});
+  task_environment_.RunUntilIdle();
+
+  EXPECT_CALL(mock_sbplayer_interface_, SetPlaybackRate(player, 2.0));
+  EXPECT_CALL(renderer_client_,
+              OnBufferingStateChange(BUFFERING_HAVE_ENOUGH,
+                                     BUFFERING_CHANGE_REASON_UNKNOWN));
+  RunUnderflowCheck();
+}
+
+TEST_F(StarboardRendererUnderflowTest, NoUnderflowCheckWhenFeatureDisabled) {
+  // Recreate the renderer with the experimental feature unset.
+  CreateRenderer(/*report_underflow=*/false);
+
+  SbPlayer player = StartPresenting(/*audio_end=*/base::Seconds(10),
+                                    /*video_end=*/base::Seconds(5));
+  EXPECT_CALL(mock_sbplayer_interface_, SetPlaybackRate(player, 0.0)).Times(0);
+  EXPECT_CALL(renderer_client_, OnBufferingStateChange(_, _)).Times(0);
+  media_time_ = base::Seconds(6);
+  RunUnderflowCheck();
+}
 
 }  // namespace
 
