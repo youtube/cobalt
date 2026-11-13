@@ -69,7 +69,11 @@ ASSERT_SIZE(HarfBuzzRunGlyphData, SameSizeAsHarfBuzzRunGlyphData);
 struct SameSizeAsRunInfo {
   struct GlyphDataCollection {
     Vector<int> glyphs;
+#if BUILDFLAG(IS_COBALT)
+    Member<void*> offsets;
+#else
     Vector<int> offsets;
+#endif
   } glyph_data;
   Member<void*> pointer2[2];
   int integers[5];
