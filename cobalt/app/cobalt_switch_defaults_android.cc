@@ -35,6 +35,12 @@
 
 namespace cobalt {
 
+namespace {
+// features::kSmallerInterestArea with its "size_in_pixels" parameter.
+constexpr char kSmallerInterestAreaWithSize[] =
+    "SmallerInterestArea:size_in_pixels/1200";
+}  // namespace
+
 const std::vector<const char*>&
 CommandLinePreprocessor::GetCobaltToggleSwitches() {
   // ==========
@@ -93,7 +99,15 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                features::kDefaultPassthroughCommandDecoder.name,
 #endif
                // Compositor switches to reduce prepaint tile cache size.
-               features::kSmallerInterestArea.name,
+               // The interest area is 1200 px instead of the 500 px
+               // SmallerInterestArea default: with 500 px the next Home row
+               // (~690 px) is rasterized just-in-time during the row-to-row
+               // slide, on the GPU thread that also draws the frames, which
+               // drops frames. 900-1600 px removes that jank at no measurable
+               // memory cost (sabrina: row-to-row missed vsync 7.6% -> 5.5%,
+               // PSS within noise). Experiments can still override the size
+               // through the InterestAreaSizeInPixels Android TV flag.
+               kSmallerInterestAreaWithSize,
                features::kReclaimPrepaintTilesWhenIdle.name,
                features::kReclaimOldPrepaintTiles.name,
                blink::features::kWebAudioRemoveAudioDestinationResampler.name,

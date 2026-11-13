@@ -56,7 +56,7 @@ TEST(CobaltSwitchDefaultsAndroidTest, DefaultSwitchesApplied) {
 #if BUILDFLAG(ENABLE_VALIDATING_COMMAND_DECODER)
       "DefaultPassthroughCommandDecoder,"
 #endif
-      "SmallerInterestArea,"
+      "SmallerInterestArea:size_in_pixels/1200,"
       "ReclaimPrepaintTilesWhenIdle,"
       "ReclaimOldPrepaintTiles,"
       "WebAudioRemoveAudioDestinationResampler,"
@@ -89,7 +89,7 @@ TEST(CobaltSwitchDefaultsAndroidTest, MergeFeaturesAndFlagsWithUserOverrides) {
 #if BUILDFLAG(ENABLE_VALIDATING_COMMAND_DECODER)
       "DefaultPassthroughCommandDecoder,"
 #endif
-      "SmallerInterestArea,"
+      "SmallerInterestArea:size_in_pixels/1200,"
       "ReclaimPrepaintTilesWhenIdle,"
       "ReclaimOldPrepaintTiles,"
       "WebAudioRemoveAudioDestinationResampler,"
