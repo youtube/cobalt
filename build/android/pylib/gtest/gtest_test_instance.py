@@ -393,9 +393,13 @@ class GtestTestInstance(test_instance.TestInstance):
       if args.timeout_scale and args.timeout_scale != 1:
         self._extras[_EXTRA_RUN_IN_SUB_THREAD] = 1
 
-      if self._suite in RUN_IN_SUB_THREAD_TEST_SUITES:
+      # Run non-browser gtest suites off the Android UI thread and give host adb
+      # a 60s buffer past the on-device ShardMonitor timeout.
+      if self._suite not in BROWSER_TEST_SUITES:
         self._extras[_EXTRA_RUN_IN_SUB_THREAD] = 1
-      if self._suite in BROWSER_TEST_SUITES:
+        self._extras[EXTRA_SHARD_NANO_TIMEOUT] = int(1e9 * self._shard_timeout)
+        self._shard_timeout += 60
+      else:
         self._extras[_EXTRA_SHARD_SIZE_LIMIT] = 1
         self._extras[EXTRA_SHARD_NANO_TIMEOUT] = int(1e9 * self._shard_timeout)
         self._shard_timeout = 10 * self._shard_timeout

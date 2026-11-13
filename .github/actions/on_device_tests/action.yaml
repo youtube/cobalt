@@ -224,7 +224,7 @@ runs:
               # Double-check the result XML for failures. ODT service has been known to report incorrect status.
               echo "::error::Found failures in the test xml."
               target_failed=1
-            elif [[ "${test_target}" == *"cobalt_browsertests"* ]] && ! grep -q '<testcase' "${xml_files[@]}"; then
+            elif ! grep -q '<testcase' "${xml_files[@]}"; then
               echo "::error::Test result xml has no test cases for ${test_target}."
               rm -f "${xml_files[@]}"
               log_paths=("${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt)
