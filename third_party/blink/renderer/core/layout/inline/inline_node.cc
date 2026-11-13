@@ -12,6 +12,7 @@
 #include "base/debug/dump_without_crashing.h"
 #include "base/not_fatal_until.h"
 #include "base/trace_event/trace_event.h"
+#include "build/build_config.h"
 #include "third_party/blink/renderer/core/dom/text_diff_range.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/layout/block_break_token.h"
@@ -614,6 +615,12 @@ void InlineNode::PrepareLayout(InlineNodeData* previous_data) const {
 
   AssociateItemsWithInlines(data);
   DCHECK_EQ(data, MutableData());
+
+#if BUILDFLAG(IS_COBALT)
+  // `EstimateInlineItemsCount` may have over-reserved. It's now safe to shrink.
+  data->items.shrink_to_fit();
+  data->LogCapacity();
+#endif
 
   LayoutBlockFlow* block_flow = GetLayoutBlockFlow();
   block_flow->ClearNeedsCollectInlines();
