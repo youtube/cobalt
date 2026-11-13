@@ -82,8 +82,9 @@ DecoderBufferAllocator::DecoderBufferAllocator(
     // process, and the listener is destroyed first in the destructor, so
     // base::Unretained() is safe.
     memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
-        FROM_HERE, base::BindRepeating(&DecoderBufferAllocator::OnMemoryPressure,
-                                       base::Unretained(this)));
+        FROM_HERE,
+        base::BindRepeating(&DecoderBufferAllocator::OnMemoryPressure,
+                            base::Unretained(this)));
     LOG(INFO) << "DecoderBufferAllocator decommits idle blocks on memory "
                  "pressure.";
   }
@@ -437,15 +438,16 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
     strategy_config.allocate_with_page_alignment = true;
     // Idle blocks are released only from OnMemoryPressure().
     strategy_config.enable_decommit_only_on_memory_pressure = true;
-    strategy_ = std::make_unique<DefaultReuseAllocatorStrategy>(strategy_config);
+    strategy_ =
+        std::make_unique<DefaultReuseAllocatorStrategy>(strategy_config);
     is_decommit_on_pressure_strategy_ = true;
-    LOG(INFO) << "DecoderBufferAllocator is using DefaultReuseAllocatorStrategy "
-                 "with decommit on memory pressure. initial_capacity: "
-              << initial_capacity_ << ", allocation_increment: "
-              << allocation_unit_
-              << ", retain_blocks: " << strategy_config.retain_blocks
-              << ", conservative_decommit_blocks: "
-              << strategy_config.conservative_decommit_blocks;
+    LOG(INFO)
+        << "DecoderBufferAllocator is using DefaultReuseAllocatorStrategy "
+           "with decommit on memory pressure. initial_capacity: "
+        << initial_capacity_ << ", allocation_increment: " << allocation_unit_
+        << ", retain_blocks: " << strategy_config.retain_blocks
+        << ", conservative_decommit_blocks: "
+        << strategy_config.conservative_decommit_blocks;
     return;
   }
 
