@@ -27,8 +27,6 @@
 #include "rtc_base/win/windows_version.h"
 
 using Microsoft::WRL::ComPtr;
-using webrtc::AudioDeviceName;
-using webrtc::AudioParameters;
 
 namespace webrtc {
 namespace webrtc_win {

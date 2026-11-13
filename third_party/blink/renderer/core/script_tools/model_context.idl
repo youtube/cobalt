@@ -22,9 +22,27 @@ dictionary ModelContextRegisterToolOptions {
 };
 
 dictionary RegisteredTool : RegisteredToolDeprecated {
+  // `title` can be exposed as a `DOMString` since it was taken in by a
+  // `USVString`, meaning all unmatched surrogate processing has already been
+  // done, and there's no need to do it again on tool exposure.
+  DOMString title;
   required Window window;
   required USVString origin;
   ToolAnnotations annotations;
+};
+
+dictionary ModelContextGetToolOptions {
+  // A list of origins, controlling which documents have their tools included
+  // in the list
+  //
+  // In short:
+  //   1. When this array is empty or omitted, only tools exposed to
+  //      documents that are same-origin with the one calling getTools() are
+  //      included in the result.
+  //   2. When it is provided and non-empty, tools in documents whose origins
+  //      match at least one in the list are included. In addition, same-origin
+  //      tools are included as in (1).
+  sequence<USVString> fromOrigins;
 };
 
 [
@@ -33,7 +51,7 @@ dictionary RegisteredTool : RegisteredToolDeprecated {
     RuntimeEnabled=WebMCP
 ] interface ModelContext : EventTarget {
   [CallWith=ScriptState, RaisesException, MeasureAs=ModelContextRegisterTool] undefined registerTool(ModelContextTool tool, optional ModelContextRegisterToolOptions options = {});
-  [CallWith=ScriptState] Promise<sequence<RegisteredTool>> getTools();
+  [CallWith=ScriptState] Promise<sequence<RegisteredTool>> getTools(optional ModelContextGetToolOptions options = {});
   [CallWith=ScriptState] Promise<DOMString?> executeTool(
       RegisteredTool tool,
       DOMString input_arguments,
@@ -41,3 +59,4 @@ dictionary RegisteredTool : RegisteredToolDeprecated {
   );
   attribute EventHandler ontoolchange;
 };
+

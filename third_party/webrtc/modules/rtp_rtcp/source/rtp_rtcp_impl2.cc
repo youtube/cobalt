@@ -21,6 +21,7 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
@@ -583,7 +584,8 @@ void ModuleRtpRtcpImpl2::SetExtmapAllowMixed(bool extmap_allow_mixed) {
 }
 
 void ModuleRtpRtcpImpl2::RegisterRtpHeaderExtension(absl::string_view uri,
-                                                    int id) {
+                                                    RtpHeaderExtensionId id) {
+  RTC_CHECK(rtp_sender_ != nullptr);
   bool registered =
       rtp_sender_->packet_generator.RegisterRtpHeaderExtension(uri, id);
   RTC_CHECK(registered);
@@ -691,12 +693,6 @@ void ModuleRtpRtcpImpl2::SetRemoteSSRC(const uint32_t ssrc) {
   // Inform about the incoming SSRC.
   rtcp_sender_.SetRemoteSSRC(ssrc);
   rtcp_receiver_.SetRemoteSSRC(ssrc);
-}
-
-void ModuleRtpRtcpImpl2::SetLocalSsrc(uint32_t local_ssrc) {
-  RTC_DCHECK_RUN_ON(&rtcp_thread_checker_);
-  rtcp_receiver_.set_local_media_ssrc(local_ssrc);
-  rtcp_sender_.SetSsrc(local_ssrc);
 }
 
 RtpSendRates ModuleRtpRtcpImpl2::GetSendRates() const {

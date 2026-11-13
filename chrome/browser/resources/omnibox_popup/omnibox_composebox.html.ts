@@ -11,6 +11,19 @@ import type {OmniboxComposeboxElement} from './omnibox_composebox.js';
 export function getHtml(this: OmniboxComposeboxElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
+    <search-animated-glow id="animatedSearchElement"
+        animation-state="${this.animationState}"
+        .coloredTicTacVoiceAnimationEnabled=
+            "${this.voiceSearchCoherenceEnabled}"
+        .isListening="${this.isListening}"
+        .entrypointName="${this.entrypointName}"
+        .requiresVoice="${this.shouldShowVoiceSearchAnimation()}"
+        .transcript="${this.transcript}"
+        .receivedSpeech="${this.receivedSpeech}"
+        .energyEffectAnimationEnabled="${false}"
+        .isZeroState="${false}"
+        exportparts="composebox-background">
+    </search-animated-glow>
     <ntp-error-scrim id="errorScrim" part="error-scrim"
         ?compact-mode="${this.searchboxLayoutMode === 'Compact' &&
                          this.files.size === 0}"
@@ -20,7 +33,6 @@ export function getHtml(this: OmniboxComposeboxElement) {
     <div id="composebox" part="composebox" ?inert="${!!this.errorMessage}"
       @keydown="${this.onKeydown}">
       <div id="inputContainer" part="input-container">
-        <!-- TODO(crbug.com/486706573): Add back cancel button title and cancel click handler once added to mixin. -->
         <cr-composebox-input id="composeboxInput"
             exportparts="text-container, icon-container, mirror, input, smart-compose, cancel, action-icon, cancel-icon"
             .disableCaretColorAnimation="${this.disableCaretColorAnimation}"
@@ -30,8 +42,10 @@ export function getHtml(this: OmniboxComposeboxElement) {
             .smartComposeInlineHint="${this.smartComposeInlineHint}"
             .submitEnabled="${this.submitEnabled}"
             .entrypointName="${this.entrypointName}"
+            .cancelButtonTitle="${this.computeCancelButtonTitle()}"
             @input-input="${this.onInputInput}"
-            @input-focusin="${this.onInputFocusin}">
+            @input-focusin="${this.onInputFocusin}"
+            @cancel-click="${this.onCancelClick}">
         </cr-composebox-input>
         <div id="context" part="context-entrypoint">
           <div id="carouselContainer" part="carousel-container">
@@ -94,9 +108,43 @@ export function getHtml(this: OmniboxComposeboxElement) {
               ` : ''}
             </div>
           ` : ''}
+          ${this.shouldShowVoiceSearchAtBottom() ? html`
+            <cr-icon-button id="voiceSearchButton" class="voice-icon" part="voice-icon"
+                iron-icon="cr:mic" @click="${this.onVoiceSearchButtonClick}"
+                title="${this.i18n('voiceSearchButtonLabel')}">
+            </cr-icon-button>
+          ` : ''}
+          ${this.shouldShowSubmitButton() &&
+                this.searchboxLayoutMode === 'TallBottomContext' ? html`
+              <cr-composebox-submit
+                exportparts="action-icon, submit, submit-icon, submit-overlay"
+                ?disabled="${!this.canSubmitFilesAndInput}"
+                .iconType="${this.submitButtonIconType}"
+                .submitButtonTitle="${this.i18n('composeboxSubmitButtonTitle')}"
+                @submit-click="${this.onSubmitClick}"
+                @submit-focusin="${this.onSubmitFocusin}">
+              </cr-composebox-submit>
+          ` : ''}
         </div>
       </div>
     </div>
+    ${this.shouldShowVoiceSearch() ? html`
+      <cr-composebox-voice-search id="voiceSearch"
+          @voice-permission-changed="${this.onVoicePermissionChanged}"
+          @voice-search-cancel="${this.onVoiceSearchCancel}"
+          @voice-search-final-result="${this.onVoiceSearchFinalResult}"
+          @voice-search-error="${this.onVoiceSearchError}"
+          @transcript-update="${this.onTranscriptUpdate}"
+          @speech-received="${this.onSpeechReceived}"
+          @recording-stopped="${this.onRecordingStopped}"
+          .submitStopButtonsEnabled="${this.voiceSearchCoherenceEnabled}"
+          .liveTranscriptEnabled="${!this.voiceSearchCoherenceEnabled}"
+          .submitButtonIconType="${this.submitButtonIconType}"
+          .dynamicTimeoutEnabled="${false}"
+          .pageCallbackRouter="${this.getSearchboxCallbackRouter()}"
+          exportparts="voice-close-button, voice-details-link, voice-stop-button, voice-submit-button">
+      </cr-composebox-voice-search>
+    ` : ''}
 <!--_html_template_end_-->`;
   // clang-format on
 }

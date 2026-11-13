@@ -581,14 +581,16 @@ scoped_refptr<AudioState> WebRtcVoiceEngine::GetAudioState() const {
 }
 
 std::unique_ptr<VoiceMediaSendChannelInterface>
-WebRtcVoiceEngine::CreateSendChannel(const Environment& env,
-                                     Call* call,
-                                     const MediaConfig& config,
-                                     const AudioOptions& options,
-                                     const CryptoOptions& crypto_options) {
-  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-  return std::make_unique<WebRtcVoiceSendChannel>(env, this, config, options,
-                                                  crypto_options, call);
+WebRtcVoiceEngine::CreateSendChannel(
+    const Environment& env,
+    Call* call,
+    const MediaConfig& config,
+    const AudioOptions& options,
+    const CryptoOptions& crypto_options,
+    absl::AnyInvocable<void()> parameters_changed_callback) {
+  return std::make_unique<WebRtcVoiceSendChannel>(
+      env, this, config, options, crypto_options, call,
+      std::move(parameters_changed_callback));
 }
 
 std::unique_ptr<VoiceMediaReceiveChannelInterface>
@@ -597,7 +599,6 @@ WebRtcVoiceEngine::CreateReceiveChannel(const Environment& env,
                                         const MediaConfig& config,
                                         const AudioOptions& options,
                                         const CryptoOptions& crypto_options) {
-  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   return std::make_unique<WebRtcVoiceReceiveChannel>(env, this, config, options,
                                                      crypto_options, call);
 }
@@ -609,8 +610,11 @@ void WebRtcVoiceEngine::ApplyOptions(const AudioOptions& options_in) {
   AudioOptions options = options_in;  // The options are modified below.
 
 #if defined(WEBRTC_IOS)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   if (options.ios_force_software_aec_HACK &&
       *options.ios_force_software_aec_HACK) {
+#pragma clang diagnostic pop
     // EC may be forced on for a device known to have non-functioning platform
     // AEC.
     options.echo_cancellation = true;
@@ -1264,17 +1268,19 @@ WebRtcVoiceSendChannel::WebRtcVoiceSendChannel(
     const MediaConfig& config,
     const AudioOptions& options,
     const CryptoOptions& crypto_options,
-    Call* call)
+    Call* call,
+    absl::AnyInvocable<void()> parameters_changed_callback)
     : MediaChannelUtil(call->network_thread(), config.enable_dscp),
       env_(env),
       worker_thread_(call->worker_thread()),
       engine_(engine),
+      options_(options),
       call_(call),
       audio_config_(config.audio),
-      crypto_options_(crypto_options) {
+      crypto_options_(crypto_options),
+      parameters_changed_callback_(std::move(parameters_changed_callback)) {
   RTC_LOG(LS_VERBOSE) << "WebRtcVoiceSendChannel::WebRtcVoiceSendChannel";
   RTC_DCHECK(call);
-  SetOptions(options);
 }
 
 WebRtcVoiceSendChannel::~WebRtcVoiceSendChannel() {
@@ -2163,12 +2169,12 @@ WebRtcVoiceReceiveChannel::WebRtcVoiceReceiveChannel(
           /*alive=*/true,
           call->network_thread())),
       engine_(engine),
+      options_(options),
       call_(call),
       audio_config_(config.audio),
       crypto_options_(crypto_options) {
   RTC_LOG(LS_VERBOSE) << "WebRtcVoiceReceiveChannel::WebRtcVoiceReceiveChannel";
   RTC_DCHECK(call);
-  SetOptions(options);
 }
 
 WebRtcVoiceReceiveChannel::~WebRtcVoiceReceiveChannel() {
@@ -2624,11 +2630,16 @@ void WebRtcVoiceReceiveChannel::OnPacketReceived(RtpPacketReceived packet) {
 bool WebRtcVoiceReceiveChannel::MaybeCreateDefaultReceiveStream(
     const RtpPacketReceived& packet) {
   RTC_DCHECK_RUN_ON(worker_thread_);
+  uint32_t ssrc = packet.Ssrc();
+
+  if (absl::c_linear_search(unsignaled_recv_ssrcs_, ssrc)) {
+    RTC_LOG(LS_INFO) << "Unsignaled stream already exists for SSRC=" << ssrc;
+    return true;
+  }
+
   // Create an unsignaled receive stream for this previously not received
   // ssrc. If there already is N unsignaled receive streams, delete the
   // oldest. See: https://bugs.chromium.org/p/webrtc/issues/detail?id=5208
-  uint32_t ssrc = packet.Ssrc();
-  RTC_DCHECK(!absl::c_linear_search(unsignaled_recv_ssrcs_, ssrc));
 
   // Add new stream.
   StreamParams sp = unsignaled_stream_params_;

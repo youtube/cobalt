@@ -33,8 +33,8 @@
   if (self) {
     _uri = [NSString stringForStdString:nativeRtpHeaderExtensionCapability.uri];
     if (nativeRtpHeaderExtensionCapability.preferred_id) {
-      _preferredId = [NSNumber
-          numberWithInt:*nativeRtpHeaderExtensionCapability.preferred_id];
+      _preferredId = [NSNumber numberWithInt:nativeRtpHeaderExtensionCapability
+                                                 .preferred_id->value()];
     }
     _preferredEncrypted = nativeRtpHeaderExtensionCapability.preferred_encrypt;
     _direction = [RTC_OBJC_TYPE(RTCRtpTransceiver)
@@ -59,7 +59,7 @@
   rtpHeaderExtensionCapability.uri = [NSString stdStringForString:_uri];
   if (_preferredId != nil) {
     rtpHeaderExtensionCapability.preferred_id =
-        std::optional<int>(_preferredId.intValue);
+        std::optional<webrtc::RtpHeaderExtensionId>(_preferredId.intValue);
   }
   rtpHeaderExtensionCapability.preferred_encrypt = _preferredEncrypted;
   rtpHeaderExtensionCapability.direction = [RTC_OBJC_TYPE(RTCRtpTransceiver)

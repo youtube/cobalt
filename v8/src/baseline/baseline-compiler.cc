@@ -9,6 +9,7 @@
 #include <type_traits>
 
 #include "src/base/bits.h"
+#include "src/base/logging.h"
 #include "src/baseline/baseline-assembler-inl.h"
 #include "src/baseline/baseline-assembler.h"
 #include "src/builtins/builtins-constructor.h"
@@ -23,6 +24,7 @@
 #include "src/execution/frame-constants.h"
 #include "src/execution/local-isolate-inl.h"
 #include "src/heap/local-factory-inl.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/logging/runtime-call-stats-scope.h"
@@ -1462,6 +1464,7 @@ constexpr Builtin ConvertReceiverModeToCompactBuiltin(
     case ConvertReceiverMode::kNotNullOrUndefined:
       return Builtin::kCall_ReceiverIsNotNullOrUndefined_Baseline_Compact;
   }
+  UNREACHABLE();
 }
 constexpr Builtin ConvertReceiverModeToBuiltin(ConvertReceiverMode mode) {
   switch (mode) {
@@ -1472,6 +1475,7 @@ constexpr Builtin ConvertReceiverModeToBuiltin(ConvertReceiverMode mode) {
     case ConvertReceiverMode::kNotNullOrUndefined:
       return Builtin::kCall_ReceiverIsNotNullOrUndefined_Baseline;
   }
+  UNREACHABLE();
 }
 }  // namespace
 

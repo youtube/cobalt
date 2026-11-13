@@ -74,6 +74,7 @@
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/mock_render_process_host.h"
 #include "content/public/test/navigation_simulator.h"
 #include "content/public/test/test_renderer_host.h"
 #include "crypto/evp.h"
@@ -120,6 +121,7 @@
 #include "mojo/public/cpp/base/big_buffer.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/system/functions.h"
+#include "mojo/public/cpp/test_support/test_utils.h"
 #include "services/data_decoder/gzipper.h"
 #include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
@@ -9183,7 +9185,6 @@ class ICloudKeychainAuthenticatorImplTest : public AuthenticatorImplTest {
         std::optional<device::ResidentKeyRequirement> resident_key_requirement,
         device::UserVerificationRequirement user_verification_requirement,
         std::optional<std::string_view> user_name,
-        base::span<const device::CableDiscoveryData> pairings_from_extension,
         bool is_enclave_authenticator_available,
         device::FidoDiscoveryFactory* fido_discovery_factory) override {
       fido_discovery_factory->set_allow_no_nswindow_for_testing(true);
@@ -9641,7 +9642,6 @@ class AuthenticatorCableV2Test : public AuthenticatorImplRequestDelegateTest {
         base::BindLambdaForTesting([&]() { return network_context_.get(); }),
         qr_generator_key_,
         /*contact_device_stream=*/nullptr,
-        /*extension_contents=*/std::vector<device::CableDiscoveryData>(),
         GetPairingCallback(), GetInvalidatedPairingCallback(),
         GetEventCallback(), /*must_support_ctap=*/true);
 
@@ -9680,7 +9680,6 @@ class AuthenticatorCableV2Test : public AuthenticatorImplRequestDelegateTest {
         request_type,
         base::BindLambdaForTesting([&]() { return network_context_.get(); }),
         qr_generator_key_, std::move(callback_and_event_stream.second),
-        /*extension_contents=*/std::vector<device::CableDiscoveryData>(),
         GetPairingCallback(), GetInvalidatedPairingCallback(),
         GetEventCallback(), /*must_support_ctap=*/true);
 
@@ -9788,7 +9787,6 @@ TEST_F(AuthenticatorCableV2Test, QRBasedWithNoPairing) {
       base::BindLambdaForTesting([&]() { return network_context_.get(); }),
       qr_generator_key_,
       /*contact_device_stream=*/nullptr,
-      /*extension_contents=*/std::vector<device::CableDiscoveryData>(),
       GetPairingCallback(), GetInvalidatedPairingCallback(), GetEventCallback(),
       /*must_support_ctap=*/true);
 
@@ -9819,7 +9817,6 @@ TEST_F(AuthenticatorCableV2Test, HandshakeError) {
       device::FidoRequestType::kGetAssertion, network_context_factory,
       qr_generator_key_,
       /*contact_device_stream=*/nullptr,
-      /*extension_contents=*/std::vector<device::CableDiscoveryData>(),
       GetPairingCallback(), GetInvalidatedPairingCallback(), GetEventCallback(),
       /*must_support_ctap=*/true);
 
@@ -9861,7 +9858,6 @@ TEST_F(AuthenticatorCableV2Test, NetworkServiceCrash) {
       base::BindLambdaForTesting([&]() { return network_context_.get(); }),
       qr_generator_key_,
       /*contact_device_stream=*/nullptr,
-      /*extension_contents=*/std::vector<device::CableDiscoveryData>(),
       GetPairingCallback(), GetInvalidatedPairingCallback(), GetEventCallback(),
       /*must_support_ctap=*/true);
 
@@ -9939,7 +9935,6 @@ TEST_F(AuthenticatorCableV2Test, ContactIDDisabled) {
       device::FidoRequestType::kGetAssertion,
       base::BindLambdaForTesting([&]() { return network_context_.get(); }),
       qr_generator_key_, std::move(callback_and_event_stream.second),
-      /*extension_contents=*/std::vector<device::CableDiscoveryData>(),
       GetPairingCallback(), GetInvalidatedPairingCallback(), GetEventCallback(),
       /*must_support_ctap=*/true);
 
@@ -9963,85 +9958,6 @@ TEST_F(AuthenticatorCableV2Test, ContactIDDisabled) {
   ASSERT_EQ(pairings_.size(), 0u);
 }
 
-// ServerLinkValues contains keys that mimic those created by a site doing
-// caBLEv2 server-link.
-struct ServerLinkValues {
-  // This value would be provided by the site to the desktop, in a caBLE
-  // extension in the get() call.
-  device::CableDiscoveryData desktop_side;
-
-  // These values would be provided to the phone via a custom mechanism.
-  std::array<uint8_t, device::cablev2::kQRSecretSize> secret;
-  std::array<uint8_t, device::kP256X962Length> peer_identity;
-};
-
-// CreateServerLink simulates a site doing caBLEv2 server-link and calculates
-// server-link values that could be sent to the desktop and phone sides of a
-// transaction.
-static ServerLinkValues CreateServerLink() {
-  std::vector<uint8_t> seed(device::cablev2::kQRSeedSize);
-  base::RandBytes(seed);
-
-  bssl::UniquePtr<EC_GROUP> p256(
-      EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
-  bssl::UniquePtr<EC_KEY> ec_key(
-      EC_KEY_derive_from_secret(p256.get(), seed.data(), seed.size()));
-
-  ServerLinkValues ret;
-  base::RandBytes(ret.secret);
-  CHECK_EQ(ret.peer_identity.size(),
-           EC_POINT_point2oct(p256.get(), EC_KEY_get0_public_key(ec_key.get()),
-                              POINT_CONVERSION_UNCOMPRESSED,
-                              ret.peer_identity.data(),
-                              ret.peer_identity.size(), /*ctx=*/nullptr));
-
-  ret.desktop_side.version = device::CableDiscoveryData::Version::V2;
-  ret.desktop_side.v2.emplace(seed, std::vector<uint8_t>());
-  ret.desktop_side.v2->server_link_data.insert(
-      ret.desktop_side.v2->server_link_data.end(), ret.secret.begin(),
-      ret.secret.end());
-
-  return ret;
-}
-
-TEST_F(AuthenticatorCableV2Test, ServerLink) {
-  const ServerLinkValues server_link_1 = CreateServerLink();
-  const ServerLinkValues server_link_2 = CreateServerLink();
-  const std::vector<device::CableDiscoveryData> extension_values = {
-      server_link_1.desktop_side, server_link_2.desktop_side};
-
-  auto discovery = std::make_unique<device::cablev2::Discovery>(
-      device::FidoRequestType::kGetAssertion,
-      base::BindLambdaForTesting([&]() { return network_context_.get(); }),
-      qr_generator_key_,
-      /*contact_device_stream=*/nullptr, extension_values, GetPairingCallback(),
-      GetInvalidatedPairingCallback(), GetEventCallback(),
-      /*must_support_ctap=*/true);
-
-  ReplaceDiscoveryFactory(
-      std::make_unique<DiscoveryFactory>(std::move(discovery)));
-  MaybeExpectDiscoveryWithScanCallback();
-
-  // Both extension values should work, but we can only do a single
-  // transaction per test because a lot of state is setup for a test.
-  // Therefore pick one of the two to check, at random.
-  const auto& server_link =
-      (base::RandUint64() & 1) ? server_link_1 : server_link_2;
-
-  std::unique_ptr<device::cablev2::authenticator::Transaction> transaction =
-      device::cablev2::authenticator::TransactFromQRCode(
-          device::cablev2::authenticator::NewMockPlatform(
-              &virtual_device_, mock_bluetooth_adapter_,
-              /*observer=*/nullptr),
-          base::BindLambdaForTesting([&]() { return network_context_.get(); }),
-          root_secret_, "Test Authenticator", server_link.secret,
-          server_link.peer_identity,
-          /*contact_id=*/std::nullopt);
-
-  EXPECT_EQ(AuthenticatorMakeCredential().status, AuthenticatorStatus::SUCCESS);
-  EXPECT_EQ(pairings_.size(), 0u);
-}
-
 TEST_F(AuthenticatorCableV2Test, LateLinking) {
   auto network_context_factory =
       base::BindLambdaForTesting([&]() { return network_context_.get(); });
@@ -10049,7 +9965,6 @@ TEST_F(AuthenticatorCableV2Test, LateLinking) {
       device::FidoRequestType::kGetAssertion, network_context_factory,
       qr_generator_key_,
       /*contact_device_stream=*/nullptr,
-      /*extension_contents=*/std::vector<device::CableDiscoveryData>(),
       GetPairingCallback(), GetInvalidatedPairingCallback(), GetEventCallback(),
       /*must_support_ctap=*/true);
 
@@ -10093,7 +10008,6 @@ class AuthenticatorCableV2AuthenticatorTest
         base::BindLambdaForTesting([&]() { return network_context_.get(); }),
         qr_generator_key_,
         /*contact_device_stream=*/nullptr,
-        /*extension_contents=*/std::vector<device::CableDiscoveryData>(),
         GetPairingCallback(), GetInvalidatedPairingCallback(),
         GetEventCallback(), /*must_support_ctap=*/true);
 
@@ -10628,6 +10542,171 @@ TEST_F(AuthenticatorImplWithRequestProxyTest,
   EXPECT_EQ(request_proxy().observations().num_isuvpaa, 0u);
   EXPECT_TRUE(AuthenticatorIsConditionalMediationAvailable());
   EXPECT_EQ(request_proxy().observations().num_isuvpaa, 0u);
+}
+
+TEST_F(AuthenticatorImplTest, CrossDeviceFallbackUrl_Valid) {
+  base::test::ScopedFeatureList feature_list(
+      device::kWebAuthnCrossDeviceFallbackUrl);
+  NavigateAndCommit(GURL(kTestOrigin1));
+
+  device::VirtualCtap2Device::Config config;
+  virtual_device_factory_->SetCtap2Config(config);
+  virtual_device_factory_->mutable_state()->transport =
+      device::FidoTransportProtocol::kHybrid;
+
+  auto options = GetTestGetCredentialOptions();
+  options->public_key->extensions->cross_device_fallback_url =
+      GURL("https://a.google.com/fallback");
+
+  ASSERT_TRUE(virtual_device_factory_->mutable_state()->InjectRegistration(
+      options->public_key->allow_credentials[0].id, kTestRelyingPartyId));
+
+  GetAssertionResult result = AuthenticatorGetCredential(std::move(options));
+  EXPECT_EQ(result.status, AuthenticatorStatus::SUCCESS);
+  ASSERT_TRUE(result.response);
+  ASSERT_TRUE(result.response->extensions);
+  ASSERT_TRUE(
+      result.response->extensions->cross_device_fallback_url.has_value());
+  EXPECT_TRUE(*result.response->extensions->cross_device_fallback_url);
+
+  auto last_request =
+      virtual_device_factory_->mutable_state()->last_get_assertion_request;
+  ASSERT_TRUE(last_request.has_value());
+  ASSERT_TRUE(last_request->cross_device_fallback_url.has_value());
+  EXPECT_EQ(*last_request->cross_device_fallback_url,
+            "https://a.google.com/fallback");
+}
+
+TEST_F(AuthenticatorImplTest, CrossDeviceFallbackUrl_InvalidOrigin) {
+  base::test::ScopedFeatureList feature_list(
+      device::kWebAuthnCrossDeviceFallbackUrl);
+  NavigateAndCommit(GURL(kTestOrigin1));
+
+  device::VirtualCtap2Device::Config config;
+  virtual_device_factory_->SetCtap2Config(config);
+  virtual_device_factory_->mutable_state()->transport =
+      device::FidoTransportProtocol::kHybrid;
+
+  auto options = GetTestGetCredentialOptions();
+  options->public_key->extensions->cross_device_fallback_url =
+      GURL("https://other.com/fallback");
+
+  ASSERT_TRUE(virtual_device_factory_->mutable_state()->InjectRegistration(
+      options->public_key->allow_credentials[0].id, kTestRelyingPartyId));
+
+  AuthenticatorGetCredential(std::move(options));
+
+  auto last_request =
+      virtual_device_factory_->mutable_state()->last_get_assertion_request;
+  ASSERT_TRUE(last_request.has_value());
+  EXPECT_FALSE(last_request->cross_device_fallback_url.has_value());
+}
+
+TEST_F(AuthenticatorImplTest, CrossDeviceFallbackUrl_InvalidScheme) {
+  base::test::ScopedFeatureList feature_list(
+      device::kWebAuthnCrossDeviceFallbackUrl);
+  NavigateAndCommit(GURL(kTestOrigin1));
+
+  device::VirtualCtap2Device::Config config;
+  virtual_device_factory_->SetCtap2Config(config);
+  virtual_device_factory_->mutable_state()->transport =
+      device::FidoTransportProtocol::kHybrid;
+
+  auto options = GetTestGetCredentialOptions();
+  options->public_key->extensions->cross_device_fallback_url =
+      GURL("http://a.google.com/fallback");
+
+  ASSERT_TRUE(virtual_device_factory_->mutable_state()->InjectRegistration(
+      options->public_key->allow_credentials[0].id, kTestRelyingPartyId));
+
+  AuthenticatorGetCredential(std::move(options));
+
+  auto last_request =
+      virtual_device_factory_->mutable_state()->last_get_assertion_request;
+  ASSERT_TRUE(last_request.has_value());
+  EXPECT_FALSE(last_request->cross_device_fallback_url.has_value());
+}
+
+TEST_F(AuthenticatorImplTest, CrossDeviceFallbackUrl_BlockedByCSP) {
+  base::test::ScopedFeatureList feature_list(
+      device::kWebAuthnCrossDeviceFallbackUrl);
+  NavigateAndCommit(GURL(kTestOrigin1));
+
+  // Set CSP to block the fallback URL.
+  auto policies = network::ParseContentSecurityPolicies(
+      "connect-src https://allowed.com",
+      network::mojom::ContentSecurityPolicyType::kEnforce,
+      network::mojom::ContentSecurityPolicySource::kHTTP, GURL(kTestOrigin1));
+  static_cast<RenderFrameHostImpl*>(main_rfh())
+      ->policy_container_host()
+      ->AddContentSecurityPolicies(std::move(policies));
+
+  device::VirtualCtap2Device::Config config;
+  virtual_device_factory_->SetCtap2Config(config);
+  virtual_device_factory_->mutable_state()->transport =
+      device::FidoTransportProtocol::kHybrid;
+
+  auto options = GetTestGetCredentialOptions();
+  options->public_key->extensions->cross_device_fallback_url =
+      GURL("https://a.google.com/fallback");
+
+  ASSERT_TRUE(virtual_device_factory_->mutable_state()->InjectRegistration(
+      options->public_key->allow_credentials[0].id, kTestRelyingPartyId));
+
+  AuthenticatorGetCredential(std::move(options));
+
+  auto last_request =
+      virtual_device_factory_->mutable_state()->last_get_assertion_request;
+  ASSERT_TRUE(last_request.has_value());
+  EXPECT_FALSE(last_request->cross_device_fallback_url.has_value());
+}
+
+TEST_F(AuthenticatorImplTest, CrossDeviceFallbackUrl_FlagDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(device::kWebAuthnCrossDeviceFallbackUrl);
+  NavigateAndCommit(GURL(kTestOrigin1));
+
+  device::VirtualCtap2Device::Config config;
+  virtual_device_factory_->SetCtap2Config(config);
+  virtual_device_factory_->mutable_state()->transport =
+      device::FidoTransportProtocol::kHybrid;
+
+  auto options = GetTestGetCredentialOptions();
+  options->public_key->extensions->cross_device_fallback_url =
+      GURL("https://a.google.com/fallback");
+
+  ASSERT_TRUE(virtual_device_factory_->mutable_state()->InjectRegistration(
+      options->public_key->allow_credentials[0].id, kTestRelyingPartyId));
+
+  mojo::Remote<blink::mojom::Authenticator> authenticator =
+      ConnectToAuthenticator();
+
+  mojo::test::BadMessageObserver bad_message_observer;
+  authenticator->GetCredential(std::move(options), base::DoNothing());
+  EXPECT_EQ(bad_message_observer.WaitForBadMessage(),
+            "crossDeviceFallbackUrl extension sent but feature disabled");
+}
+
+TEST_F(AuthenticatorImplTest, CrossDeviceFallbackUrl_Processed) {
+  base::test::ScopedFeatureList feature_list(
+      device::kWebAuthnCrossDeviceFallbackUrl);
+  NavigateAndCommit(GURL(kTestOrigin1));
+
+  device::VirtualCtap2Device::Config config;
+  config.override_response_map
+      [device::CtapRequestCommand::kAuthenticatorGetAssertion] = std::make_pair(
+      device::CtapDeviceResponseCode::kCtap2ErrFallbackUrlProcessed,
+      std::nullopt);
+  virtual_device_factory_->SetCtap2Config(config);
+  virtual_device_factory_->mutable_state()->transport =
+      device::FidoTransportProtocol::kHybrid;
+
+  auto options = GetTestGetCredentialOptions();
+  options->public_key->extensions->cross_device_fallback_url =
+      GURL("https://a.google.com/fallback");
+
+  GetAssertionResult result = AuthenticatorGetCredential(std::move(options));
+  EXPECT_EQ(result.status, AuthenticatorStatus::CROSS_DEVICE_FALLBACK);
 }
 
 }  // namespace content

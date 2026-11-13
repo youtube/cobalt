@@ -31,7 +31,7 @@ BSSL_NAMESPACE_BEGIN
 // TODO(crbug.com/42290480): Raise this limit. 512-bit RSA was factored in 1999.
 #define OPENSSL_RSA_MIN_MODULUS_BITS 512
 
-// TODO(davidben): This is inside BCM because |RSA| is inside BCM, but BCM never
+// TODO(davidben): This is inside BCM because `RSA` is inside BCM, but BCM never
 // uses this. Split the RSA type in two.
 enum rsa_pss_params_t {
   // No parameters.
@@ -67,19 +67,19 @@ class RSAImpl : public rsa_st, public RefCounted<RSAImpl> {
   Mutex lock;
 
   // Used to cache montgomery values. The creation of these values is protected
-  // by |lock|.
+  // by `lock`.
   UniquePtr<BN_MONT_CTX> mont_n;
   UniquePtr<BN_MONT_CTX> mont_p;
   UniquePtr<BN_MONT_CTX> mont_q;
 
-  // The following fields are copies of |d|, |dmp1|, and |dmq1|, respectively,
+  // The following fields are copies of `d`, `dmp1`, and `dmq1`, respectively,
   // but with the correct widths to prevent side channels. These must use
   // separate copies due to threading concerns caused by OpenSSL's API
   // mistakes. See https://github.com/openssl/openssl/issues/5158 and
-  // the |freeze_private_key| implementation.
+  // the `freeze_private_key` implementation.
   UniquePtr<BIGNUM> d_fixed, dmp1_fixed, dmq1_fixed;
 
-  // iqmp_mont is q^-1 mod p in Montgomery form, using |mont_p|.
+  // iqmp_mont is q^-1 mod p in Montgomery form, using `mont_p`.
   UniquePtr<BIGNUM> iqmp_mont;
 
   // pss_params is the RSA-PSS parameters associated with the key. This is not
@@ -118,26 +118,26 @@ int RSA_padding_check_PKCS1_type_1(uint8_t *out, size_t *out_len,
 int RSA_padding_add_none(uint8_t *to, size_t to_len, const uint8_t *from,
                          size_t from_len);
 
-// rsa_check_public_key checks that |rsa|'s public modulus and exponent are
+// rsa_check_public_key checks that `rsa`'s public modulus and exponent are
 // within DoS bounds.
 int rsa_check_public_key(const RSA *rsa);
 
 // rsa_private_transform_no_self_test calls either the method-specific
-// |private_transform| function (if given) or the generic one. See the comment
-// for |private_transform| in |rsa_meth_st|.
+// `private_transform` function (if given) or the generic one. See the comment
+// for `private_transform` in `rsa_meth_st`.
 int rsa_private_transform_no_self_test(RSA *rsa, uint8_t *out,
                                        const uint8_t *in, size_t len);
 
-// rsa_private_transform acts the same as |rsa_private_transform_no_self_test|
+// rsa_private_transform acts the same as `rsa_private_transform_no_self_test`
 // but, in FIPS mode, performs an RSA self test before calling the default RSA
 // implementation.
 int rsa_private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
                           size_t len);
 
-// rsa_invalidate_key is called after |rsa| has been mutated, to invalidate
+// rsa_invalidate_key is called after `rsa` has been mutated, to invalidate
 // fields derived from the original structure. This function assumes exclusive
-// access to |rsa|. In particular, no other thread may be concurrently signing,
-// etc., with |rsa|.
+// access to `rsa`. In particular, no other thread may be concurrently signing,
+// etc., with `rsa`.
 void rsa_invalidate_key(RSA *rsa);
 
 

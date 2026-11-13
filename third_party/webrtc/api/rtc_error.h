@@ -265,10 +265,10 @@ inline RTCError LogErrorImpl(RTCError error,
 // Example usage:
 //
 // if (failed) {
-//   return LOG_ERROR(RTCError(RTCErrorType::INVALID_STATE) << "Yikes");
+//   return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_STATE) << "Yikes");
 // }
 //
-#define LOG_ERROR(x) LogErrorImpl(x, LS_ERROR, __FILE__, __LINE__)
+#define RTC_LOG_ERROR(x) LogErrorImpl(x, LS_ERROR, __FILE__, __LINE__)
 
 // RTCErrorOr<T> is the union of an RTCError object and a T object. RTCErrorOr
 // models the concept of an object that is either a usable value, or an error

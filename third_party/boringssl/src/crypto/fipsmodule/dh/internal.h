@@ -36,7 +36,7 @@ class DHImpl : public dh_st, public RefCounted<DHImpl> {
   UniquePtr<BIGNUM> priv_key;  // x
 
   // priv_length contains the length, in bits, of the private value. If zero,
-  // the private value will be the same length as |p|.
+  // the private value will be the same length as `p`.
   unsigned priv_length = 0;
 
   mutable Mutex method_mont_p_lock;
@@ -47,12 +47,12 @@ class DHImpl : public dh_st, public RefCounted<DHImpl> {
   ~DHImpl() = default;
 };
 
-// dh_check_params_fast checks basic invariants on |dh|'s domain parameters. It
-// does not check that |dh| forms a valid group, only that the sizes are within
+// dh_check_params_fast checks basic invariants on `dh`'s domain parameters. It
+// does not check that `dh` forms a valid group, only that the sizes are within
 // DoS bounds.
 int dh_check_params_fast(const DH *dh);
 
-// dh_compute_key_padded_no_self_test does the same as |DH_compute_key_padded|,
+// dh_compute_key_padded_no_self_test does the same as `DH_compute_key_padded`,
 // but doesn't try to run the self-test first. This is for use in the self tests
 // themselves, to prevent an infinite loop.
 int dh_compute_key_padded_no_self_test(unsigned char *out,

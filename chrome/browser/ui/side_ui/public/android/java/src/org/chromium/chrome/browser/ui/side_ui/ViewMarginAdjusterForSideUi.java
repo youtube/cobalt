@@ -14,6 +14,7 @@ import android.view.ViewGroup.MarginLayoutParams;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.AnchorSide;
 import org.chromium.ui.base.ViewUtils;
 
 import java.util.ArrayList;
@@ -28,8 +29,8 @@ import java.util.Set;
 @NullMarked
 public class ViewMarginAdjusterForSideUi implements SideUiObserver {
     private final View mView;
-    private final int mBaseStartMargin;
-    private final int mBaseEndMargin;
+    private final int mBaseLeftMargin;
+    private final int mBaseRightMargin;
 
     /**
      * Constructs an observer to adjust a View's margins to account for side UI.
@@ -43,8 +44,8 @@ public class ViewMarginAdjusterForSideUi implements SideUiObserver {
         // UI will be added onto these base margins to avoid overwriting pre-existing values.
         assert mView.getLayoutParams() instanceof MarginLayoutParams;
         MarginLayoutParams layoutParams = (MarginLayoutParams) mView.getLayoutParams();
-        mBaseStartMargin = layoutParams.getMarginStart();
-        mBaseEndMargin = layoutParams.getMarginEnd();
+        mBaseLeftMargin = layoutParams.leftMargin;
+        mBaseRightMargin = layoutParams.rightMargin;
     }
 
     /**
@@ -74,8 +75,8 @@ public class ViewMarginAdjusterForSideUi implements SideUiObserver {
     @Override
     public void onSideUiSpecsChanged(SideUiCoordinator.SideUiSpecs sideUiSpecs) {
         MarginLayoutParams params = (MarginLayoutParams) mView.getLayoutParams();
-        params.setMarginStart(mBaseStartMargin + sideUiSpecs.mStartContainerWidth);
-        params.setMarginEnd(mBaseEndMargin + sideUiSpecs.mEndContainerWidth);
+        params.leftMargin = mBaseLeftMargin + sideUiSpecs.getWidth(AnchorSide.LEFT);
+        params.rightMargin = mBaseRightMargin + sideUiSpecs.getWidth(AnchorSide.RIGHT);
         mView.setLayoutParams(params);
     }
 

@@ -55,6 +55,11 @@ void CreateScreamSimulationRatiosGraph(const ParsedRtcEventLog& parsed_log,
                                        const AnalyzerConfig& config,
                                        Plot* plot);
 
+void CreateScreamSimulationFeedbackEventsPerRttGraph(
+    const ParsedRtcEventLog& parsed_log,
+    const AnalyzerConfig& config,
+    Plot* plot);
+
 void CreateScreamRefWindowGraph(const ParsedRtcEventLog& parsed_log,
                                 const AnalyzerConfig& config,
                                 Plot* plot);

@@ -20,6 +20,7 @@
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/find_bar/find_bar.h"
+#include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui_base.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/views/find_bar_host.h"
@@ -174,6 +175,13 @@ WebUIBrowserWindow::WebUIBrowserWindow(Browser* browser) : browser_(browser) {
                             base::Unretained(this)));
   }
 
+  contents_element_shown_subscription_ =
+      ui::ElementTracker::GetElementTracker()->AddElementShownCallback(
+          kContentsContainerViewElementId,
+          views::ElementTrackerViews::GetContextForWidget(widget_.get()),
+          base::BindRepeating(&WebUIBrowserWindow::OnContentsElementShown,
+                              base::Unretained(this)));
+
   LoadAccelerators();
 }
 
@@ -274,7 +282,7 @@ bool WebUIBrowserWindow::IsVisible() const {
 }
 
 void WebUIBrowserWindow::SetBounds(const gfx::Rect& bounds) {
-  NOTIMPLEMENTED_LOG_ONCE();
+  widget_->SetBounds(bounds);
 }
 
 void WebUIBrowserWindow::Close() {
@@ -697,8 +705,32 @@ gfx::Size WebUIBrowserWindow::GetContentsSize() const {
   return GetContentsBoundsInScreen().size();
 }
 
+bool WebUIBrowserWindow::IsContentsElementReady() const {
+  BrowserElements* elements = BrowserElements::From(browser_);
+  return elements && elements->GetElement(kContentsContainerViewElementId);
+}
+
 void WebUIBrowserWindow::SetContentsSize(const gfx::Size& size) {
-  NOTIMPLEMENTED_LOG_ONCE();
+  if (!IsContentsElementReady()) {
+    deferred_contents_size_ = size;
+    return;
+  }
+
+  if (size == GetContentsSize()) {
+    deferred_contents_size_.reset();
+    return;
+  }
+
+  gfx::Rect bounds = GetBounds();
+  bounds.set_size(bounds.size() + size - GetContentsSize());
+  SetBounds(bounds);
+  deferred_contents_size_.reset();
+}
+
+void WebUIBrowserWindow::OnContentsElementShown(ui::TrackedElement* element) {
+  if (deferred_contents_size_.has_value()) {
+    SetContentsSize(deferred_contents_size_.value());
+  }
 }
 
 void WebUIBrowserWindow::UpdatePageActionIcon(PageActionIconType type) {
@@ -833,12 +865,6 @@ ShowTranslateBubbleResult WebUIBrowserWindow::ShowTranslateBubble(
   return ShowTranslateBubbleResult::kBrowserWindowNotValid;
 }
 
-void WebUIBrowserWindow::StartPartialTranslate(
-    const std::string& source_language,
-    const std::string& target_language,
-    const std::u16string& text_selection) {
-  NOTIMPLEMENTED_LOG_ONCE();
-}
 
 DownloadBubbleUIController*
 WebUIBrowserWindow::GetDownloadBubbleUIController() {

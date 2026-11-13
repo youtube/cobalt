@@ -37,6 +37,7 @@ source_set("ui_bundled") {
     "//components/strings",
     "//ios/chrome/app/strings",
     "//ios/chrome/app/theme",
+    "//ios/chrome/browser/aim/model:aim_availability",
     "//ios/chrome/browser/autocomplete/model",
     "//ios/chrome/browser/badges/ui_bundled",
     "//ios/chrome/browser/badges/ui_bundled:public",
@@ -241,9 +242,11 @@ source_set("unit_tests") {
   sources = [
     "location_bar_coordinator_unittest.mm",
     "location_bar_mediator_unittest.mm",
+    "location_bar_model_delegate_ios_unittest.mm",
     "location_bar_steady_view_mediator_unittest.mm",
   ]
   deps = [
+    ":location_bar_model_delegate",
     ":ui_bundled",
     "//base",
     "//base/test:test_support",

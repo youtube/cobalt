@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "api/field_trials.h"
+#include "api/rtp_header_extension_id.h"
 #include "media/base/fake_rtp.h"
 #include "pc/test/srtp_test_util.h"
 #include "rtc_base/buffer.h"
@@ -36,7 +37,7 @@ using ::testing::SizeIs;
 
 namespace webrtc {
 
-std::vector<int> kEncryptedHeaderExtensionIds;
+std::vector<RtpHeaderExtensionId> kEncryptedHeaderExtensionIds;
 
 class SrtpSessionTest : public ::testing::Test {
  public:
@@ -47,11 +48,11 @@ class SrtpSessionTest : public ::testing::Test {
  protected:
   void SetUp() override {
     rtp_len_ = sizeof(kPcmuFrame);
-    rtcp_len_ = sizeof(kRtcpReport);
+    rtcp_len_ = sizeof(kFakeRtcpReport);
     rtp_packet_.EnsureCapacity(rtp_len_ + 10);
     rtp_packet_.SetData(kPcmuFrame, rtp_len_);
     rtcp_packet_.EnsureCapacity(rtcp_len_ + 4 + 10);
-    rtcp_packet_.SetData(kRtcpReport, rtcp_len_);
+    rtcp_packet_.SetData(kFakeRtcpReport, rtcp_len_);
   }
   void TestProtectRtp(int crypto_suite) {
     EXPECT_TRUE(s1_.ProtectRtp(rtp_packet_));
@@ -65,7 +66,7 @@ class SrtpSessionTest : public ::testing::Test {
     EXPECT_EQ(rtcp_packet_.size(),
               rtcp_len_ + 4 + rtcp_auth_tag_len(crypto_suite));
     // Check that Protect changed the content (up to the original length).
-    EXPECT_NE(0, std::memcmp(kRtcpReport, rtcp_packet_.data(), rtcp_len_));
+    EXPECT_NE(0, std::memcmp(kFakeRtcpReport, rtcp_packet_.data(), rtcp_len_));
     rtcp_len_ = rtcp_packet_.size();
   }
   void TestUnprotectRtp(int crypto_suite) {
@@ -76,9 +77,9 @@ class SrtpSessionTest : public ::testing::Test {
   }
   void TestUnprotectRtcp(int crypto_suite) {
     EXPECT_TRUE(s2_.UnprotectRtcp(rtcp_packet_));
-    EXPECT_EQ(rtcp_packet_.size(), sizeof(kRtcpReport));
-    EXPECT_EQ(
-        0, std::memcmp(kRtcpReport, rtcp_packet_.data(), rtcp_packet_.size()));
+    EXPECT_EQ(rtcp_packet_.size(), sizeof(kFakeRtcpReport));
+    EXPECT_EQ(0, std::memcmp(kFakeRtcpReport, rtcp_packet_.data(),
+                             rtcp_packet_.size()));
   }
   FieldTrials field_trials_ = CreateTestFieldTrials();
   SrtpSession s1_;

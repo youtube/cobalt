@@ -638,6 +638,7 @@ if (!build_with_chromium) {
     ]
     deps = [
       "../../../api:jsep",
+      "../../../api:rtp_header_extension_id",
       "../../../api:rtp_parameters",
       "../../../api:rtp_transceiver_direction",
       "../../../api/test/pclf:media_configuration",

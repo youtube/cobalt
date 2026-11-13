@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "api/rtp_header_extension_id.h"
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "rtc_base/copy_on_write_buffer.h"
@@ -196,15 +197,16 @@ class RtpPacket {
 
   // Returns pointer to extension info for a given id. Returns nullptr if not
   // found.
-  const ExtensionInfo* FindExtensionInfo(int id) const;
+  const ExtensionInfo* FindExtensionInfo(RtpHeaderExtensionId id) const;
 
   // Returns reference to extension info for a given id. Creates a new entry
   // with the specified id if not found.
-  ExtensionInfo& FindOrCreateExtensionInfo(int id);
+  ExtensionInfo& FindOrCreateExtensionInfo(RtpHeaderExtensionId id);
 
   // Allocates and returns place to store rtp header extension.
   // Returns empty std::span on failure.
-  std::span<uint8_t> AllocateRawExtension(int id, size_t length);
+  std::span<uint8_t> AllocateRawExtension(RtpHeaderExtensionId id,
+                                          size_t length);
 
   // Promotes existing one-byte header extensions to two-byte header extensions
   // by rewriting the data and updates the corresponding extension offsets.

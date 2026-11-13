@@ -768,7 +768,7 @@ void PasswordManager::DidNavigateMainFrame(bool form_may_be_submitted) {
       // May be null in tests.
       if (reuse_manager) {
         reuse_manager->MaybeSavePasswordHash(manager->GetSubmittedForm(),
-                                             client_);
+                                             client_, std::nullopt);
       }
     }
   }
@@ -1011,9 +1011,16 @@ void PasswordManager::OnUserModifiedNonPasswordField(
 
 void PasswordManager::OnInformAboutUserInput(PasswordManagerDriver* driver,
                                              const FormData& form_data) {
-  PasswordFormManager* manager = ProvisionallySaveForm(form_data, driver, true);
+  PasswordFormManager* manager =
+      GetMatchedManagerForForm(driver, form_data.renderer_id());
 
-  if (manager) {
+  const bool had_manually_filled_password_before =
+      manager && manager->GetSubmittedForm() &&
+      HasManuallyFilledPassword(*(manager->GetSubmittedForm()));
+
+  manager = ProvisionallySaveForm(form_data, driver, true);
+
+  if (manager && !had_manually_filled_password_before) {
     if (const PasswordForm* form = manager->GetSubmittedForm();
         form && HasManuallyFilledPassword(*form)) {
       manager->OnPasswordFilledManually();
@@ -1643,7 +1650,7 @@ void PasswordManager::OnLoginSuccessful() {
   // May be null in tests.
   if (reuse_manager) {
     reuse_manager->MaybeSavePasswordHash(submitted_manager->GetSubmittedForm(),
-                                         client_);
+                                         client_, std::nullopt);
   }
 
   RecordMetricsForLoginWithChangedPassword(client_, *submitted_manager,
@@ -1788,9 +1795,8 @@ void PasswordManager::ProcessAutofillPredictions(
   // Update the `server_predictions_` stored as a member.
   const FormPredictions& form_predictions =
       server_predictions_
-          .insert_or_assign(
-              {CalculateFormSignature(form), driver_id},
-              ConvertToFormPredictions(driver_id, form, predictions))
+          .insert_or_assign({CalculateFormSignature(form), driver_id},
+                            ConvertToFormPredictions(form, predictions))
           .first->second;
 
   if (PasswordGenerationFrameHelper* password_generation_manager =

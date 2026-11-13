@@ -37,7 +37,7 @@
 - (webrtc::RtpExtension)nativeParameters {
   webrtc::RtpExtension extension;
   extension.uri = [NSString stdStringForString:_uri];
-  extension.id = _id;
+  extension.id = webrtc::RtpHeaderExtensionId(_id);
   extension.encrypt = _encrypted;
   return extension;
 }

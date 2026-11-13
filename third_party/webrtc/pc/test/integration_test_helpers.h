@@ -40,6 +40,7 @@
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/rtc_event_log_output.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/rtp_sender_interface.h"
 #include "api/rtp_transceiver_interface.h"
@@ -633,7 +634,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
   void OnIceCandidateRemoved(const IceCandidate* candidate) override {}
 
   void OnDataChannel(scoped_refptr<DataChannelInterface> data_channel) override;
-  bool IdExists(const RtpHeaderExtensions& extensions, int id);
+  bool IdExists(const RtpHeaderExtensions& extensions, RtpHeaderExtensionId id);
 
  private:
   std::string debug_name_;

@@ -14,6 +14,7 @@
 #include "src/base/container-utils.h"
 #include "src/base/division-by-constant.h"
 #include "src/base/ieee754.h"
+#include "src/base/logging.h"
 #include "src/common/scoped-modification.h"
 #include "src/compiler/processed-feedback.h"
 #include "src/maglev/maglev-ir-inl.h"
@@ -264,6 +265,7 @@ void MaglevReducer<BaseT>::AddInitializedNodeToGraph(Node* node) {
         std::make_pair(current_block_position_.index(), node));
   }
   node->set_owner(current_block());
+  if (node->properties().can_throw()) period_added_throwing_node_ = true;
   if (V8_UNLIKELY(has_graph_labeller())) RegisterNode(node);
   TRACE(TraceNewNode{node});
 #ifdef DEBUG
@@ -295,6 +297,7 @@ ReduceResult MaglevReducer<BaseT>::ConvertInputTo(
         // These conversion should be explicitly done beforehand.
         UNREACHABLE();
     }
+    UNREACHABLE();
   } else {
     // If the input's value representation is not equal to the expected one,
     // it must be because of HoleyFloats.
@@ -559,10 +562,8 @@ ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
     }
     case ValueRepresentation::kFloat64: {
       if (node_info->is_smi()) {
-        // TODO(victorgomes): Add UnsafeSmiTagFloat64.
         return alternative.set_tagged(
-            AddNewNodeNoInputConversion<UnsafeSmiTagInt32>(
-                {AddNewNodeNoInputConversion<UnsafeFloat64ToInt32>({value})}));
+            AddNewNodeNoInputConversion<UnsafeSmiTagFloat64>({value}));
       }
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<Float64ToTagged>(
@@ -570,11 +571,8 @@ ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
     }
     case ValueRepresentation::kHoleyFloat64: {
       if (node_info->is_smi()) {
-        // TODO(victorgomes): Add UnsafeSmiTagHoleyFloat64.
         return alternative.set_tagged(
-            AddNewNodeNoInputConversion<UnsafeSmiTagInt32>(
-                {AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToInt32>(
-                    {value})}));
+            AddNewNodeNoInputConversion<UnsafeSmiTagHoleyFloat64>({value}));
       }
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<HoleyFloat64ToTagged>(
@@ -621,8 +619,7 @@ ReduceResult MaglevReducer<BaseT>::GetInt32(ValueNode* value,
             AddNewNodeNoInputConversion<CheckedNumberToInt32>({value}));
       }
       ValueNode* untagged;
-      GET_VALUE_OR_ABORT(untagged,
-                         BuildSmiUntag(value, AllowWideningSmiToInt32::kAllow));
+      GET_VALUE_OR_ABORT(untagged, BuildSmiUntag(value));
       return alternative.set_int32(untagged);
     }
     case ValueRepresentation::kUint32: {
@@ -1381,20 +1378,17 @@ ReduceResult MaglevReducer<BaseT>::BuildCheckMaps(
   // Emit checks.
   if (merger.emit_check_with_migration() && !migration_done_outside) {
     RETURN_IF_ABORT(AddNewNode<CheckMapsWithMigration>(
-        {object}, merger.intersect_set(),
-        GetCheckType(known_info->type(), object)));
+        {object}, merger.intersect_set(), GetCheckType(known_info->type())));
   } else if (has_deprecated_map_without_migration_target &&
              !migration_done_outside) {
     RETURN_IF_ABORT(AddNewNode<CheckMapsWithMigrationAndDeopt>(
-        {object}, merger.intersect_set(),
-        GetCheckType(known_info->type(), object)));
+        {object}, merger.intersect_set(), GetCheckType(known_info->type())));
   } else if (map) {
     RETURN_IF_ABORT(AddNewNode<CheckMapsWithAlreadyLoadedMap>(
         {object, *map}, merger.intersect_set()));
   } else {
-    RETURN_IF_ABORT(
-        AddNewNode<CheckMaps>({object}, merger.intersect_set(),
-                              GetCheckType(known_info->type(), object)));
+    RETURN_IF_ABORT(AddNewNode<CheckMaps>({object}, merger.intersect_set(),
+                                          GetCheckType(known_info->type())));
   }
 
   merger.UpdateKnownNodeAspects(object, known_node_aspects());
@@ -1784,13 +1778,8 @@ template <bool flip>
 ReduceResult MaglevReducer<BaseT>::BuildToBoolean(ValueNode* value) {
   RETURN_IF_DONE(TryFoldToBoolean<flip>(value));
 
-  // Note that we don't pass {value} to GetCheckType since
-  // PhiRepresentationSelection has a special-case to optimize
-  // ToBoolean/ToBooleanLogicalNot whose inputs are untagged phis, and thus we
-  // don't need to preserve HeapObjectness here.
-  constexpr ValueNode* kTargetForCheckType = nullptr;
   return AddNewNode<std::conditional_t<flip, ToBooleanLogicalNot, ToBoolean>>(
-      {value}, GetCheckType(GetType(value), kTargetForCheckType));
+      {value}, GetCheckType(GetType(value)));
 }
 
 template <typename BaseT>
@@ -1941,20 +1930,14 @@ MaybeReduceResult MaglevReducer<BaseT>::TryBuildFastInstanceOfWithFeedback(
 }
 
 template <typename BaseT>
-ReduceResult MaglevReducer<BaseT>::BuildSmiUntag(
-    ValueNode* node, AllowWideningSmiToInt32 allow_widening_smi_to_int32) {
+ReduceResult MaglevReducer<BaseT>::BuildSmiUntag(ValueNode* node) {
   // This is called when converting inputs in AddNewNode. We might already have
   // an empty type for `node` here. Make sure we don't add unsafe conversion
   // nodes in that case by checking for the empty node type explicitly.
-  if (IsEmptyNodeType(GetType(node, allow_widening_smi_to_int32))) {
+  if (IsEmptyNodeType(GetType(node))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotASmi);
   }
   if (EnsureType(node, NodeType::kSmi)) {
-    if (SmiValuesAre31Bits()) {
-      if (auto phi = node->TryCast<Phi>()) {
-        phi->SetUseRequiresSmi();
-      }
-    }
     return AddNewNodeNoInputConversion<UnsafeSmiUntag>({node});
   } else {
     return AddNewNodeNoInputConversion<CheckedSmiUntag>({node});

@@ -52,7 +52,7 @@ static const bssl::fe d2 = {{
 // one. The standard table is 30,720 bytes while this one is just 960.
 //
 // This table contains 15 pairs of group elements, (x, y), where each field
-// element is serialised with |fe_tobytes|. If |i| is the index of the group
+// element is serialised with `fe_tobytes`. If `i` is the index of the group
 // element then consider i+1 as a four-bit number: (i₀, i₁, i₂, i₃) (where i₀
 // is the most significant bit). The value of the group element is then:
 // (i₀×2^192 + i₁×2^128 + i₂×2^64 + i₃)G, where G is the generator.

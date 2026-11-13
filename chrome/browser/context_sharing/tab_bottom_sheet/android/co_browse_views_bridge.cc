@@ -8,6 +8,7 @@
 #include "base/check.h"
 #include "base/logging.h"
 #include "chrome/browser/android/tab_android.h"
+#include "chrome/browser/context_sharing/tab_bottom_sheet/android/co_browse_container_type.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/android/window_android.h"
@@ -35,8 +36,13 @@ CoBrowseViewsBridge::GetViewFromCoBrowseViews(
 
 CoBrowseViewsBridge::CoBrowseViewsBridge(
     tabs::TabInterface& tab,
-    context_sharing::TabBottomSheetClientType client_type)
-    : tab_(tab), client_type_(client_type) {}
+    context_sharing::TabBottomSheetClientType client_type,
+    context_sharing::CoBrowseContainerType container_type,
+    const base::android::JavaRef<jobject>& bottom_sheet_content_provider)
+    : tab_(tab),
+      client_type_(client_type),
+      container_type_(container_type),
+      bottom_sheet_content_provider_(bottom_sheet_content_provider) {}
 
 CoBrowseViewsBridge::~CoBrowseViewsBridge() {
   DestroyCoBrowseViews();
@@ -69,12 +75,14 @@ bool CoBrowseViewsBridge::CreateCoBrowseViews(
 
   JNIEnv* env = AttachCurrentThread();
   java_co_browse_views_.Reset(Java_CoBrowseViewFactory_buildCoBrowseViews(
-      env, window_android, web_contents, static_cast<int>(client_type_)));
+      env, window_android, web_contents, static_cast<int>(client_type_),
+      static_cast<int>(container_type_), bottom_sheet_content_provider_));
 
   return !java_co_browse_views_.is_null();
 }
 
-void CoBrowseViewsBridge::SetWebContents(content::WebContents* web_contents) {
+void CoBrowseViewsBridge::SetWebContents(content::WebContents* web_contents,
+                                         bool request_focus) {
   if (web_contents) {
     web_contents->SetIgnoreZoomGestures(true);
   }
@@ -99,7 +107,8 @@ void CoBrowseViewsBridge::SetWebContents(content::WebContents* web_contents) {
   }
 
   JNIEnv* env = AttachCurrentThread();
-  Java_CoBrowseViews_setWebContents(env, java_co_browse_views_, web_contents);
+  Java_CoBrowseViews_setWebContents(env, java_co_browse_views_, web_contents,
+                                    request_focus);
 }
 
 base::android::ScopedJavaLocalRef<jobject>
@@ -116,7 +125,8 @@ void CoBrowseViewsBridge::DestroyCoBrowseViews() {
     return;
   }
   JNIEnv* env = AttachCurrentThread();
-  Java_CoBrowseViews_setWebContents(env, java_co_browse_views_, nullptr);
+  Java_CoBrowseViews_setWebContents(env, java_co_browse_views_, nullptr,
+                                    /*request_focus=*/false);
   Java_CoBrowseViews_destroy(env, java_co_browse_views_);
   java_co_browse_views_.Reset();
   window_android_ = nullptr;

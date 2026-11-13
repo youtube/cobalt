@@ -827,6 +827,16 @@ rtc_library("priority") {
   ]
 }
 
+rtc_source_set("rtp_header_extension_id") {
+  visibility = [ "*" ]
+  sources = [ "rtp_header_extension_id.h" ]
+  deps = [
+    "../rtc_base:checks",
+    "../rtc_base:strong_alias",
+    "//third_party/abseil-cpp/absl/strings:str_format",
+  ]
+}
+
 rtc_library("rtp_parameters") {
   visibility = [ "*" ]
   sources = [
@@ -838,11 +848,13 @@ rtc_library("rtp_parameters") {
   deps = [
     ":priority",
     ":rtc_error",
+    ":rtp_header_extension_id",
     ":rtp_transceiver_direction",
     "../media:media_constants",
     "../rtc_base:checks",
     "../rtc_base:logging",
     "../rtc_base:stringutils",
+    "../rtc_base:strong_alias",
     "../rtc_base/system:rtc_export",
     "video:resolution",
     "video_codecs:scalability_mode",
@@ -1853,6 +1865,7 @@ if (rtc_include_tests) {
       ":peer_connection_interface",
       ":rtc_error",
       ":rtc_event_log_output_file",
+      ":rtp_header_extension_id",
       ":rtp_headers",
       ":rtp_packet_info",
       ":rtp_parameters",

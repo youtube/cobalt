@@ -6,6 +6,7 @@
 
 #include <string_view>
 
+#include "base/byte_size.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/logging.h"
@@ -534,7 +535,11 @@ bool IsUsingVulkan() {
   }
 #endif
 
+#if BUILDFLAG(ENABLE_VULKAN)
   return base::FeatureList::IsEnabled(kVulkan);
+#else
+  return false;
+#endif
 }
 
 bool IsUsingThreadSafeMediaForWebView() {
@@ -888,12 +893,12 @@ bool IncreaseBufferCountForHighFrameRate() {
   // of buffers. So these checks, espeically the RAM one, is to limit the impact
   // of more buffers to devices that can handle them.
   // 8GB of ram with large margin for error.
-  constexpr base::ByteCount RAM_8GB_CUTOFF = base::MiB(7200);
+  constexpr base::ByteSize RAM_8GB_CUTOFF = base::MiBU(7200);
   static bool increase =
       base::android::android_info::sdk_int() >=
           base::android::android_info::SDK_VERSION_R &&
       IsAndroidSurfaceControlEnabled() &&
-      base::SysInfo::AmountOfPhysicalMemory() > RAM_8GB_CUTOFF;
+      base::SysInfo::AmountOfTotalPhysicalMemory() > RAM_8GB_CUTOFF;
   return increase;
 }
 

@@ -263,6 +263,7 @@ rtc_library("media_engine") {
     "../rtc_base:stringutils",
     "../rtc_base/system:file_wrapper",
     "//third_party/abseil-cpp/absl/algorithm:container",
+    "//third_party/abseil-cpp/absl/functional:any_invocable",
   ]
 }
 
@@ -847,6 +848,7 @@ if (rtc_include_tests) {
       "../api:frame_transformer_interface",
       "../api:make_ref_counted",
       "../api:rtc_error",
+      "../api:rtp_header_extension_id",
       "../api:rtp_headers",
       "../api:rtp_parameters",
       "../api:rtp_sender_interface",
@@ -1001,6 +1003,7 @@ if (rtc_include_tests) {
         "../api:priority",
         "../api:ref_count",
         "../api:rtc_error",
+        "../api:rtp_header_extension_id",
         "../api:rtp_headers",
         "../api:rtp_parameters",
         "../api:rtp_transceiver_direction",

@@ -67,6 +67,7 @@ void CBB_cleanup(CBB *cbb) {
 
   if (cbb->u.base.can_resize) {
     OPENSSL_free(cbb->u.base.buf);
+    cbb->u.base.buf = nullptr;
   }
 }
 

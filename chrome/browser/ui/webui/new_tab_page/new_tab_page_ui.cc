@@ -136,6 +136,7 @@
 #include "ui/native_theme/native_theme.h"
 #include "ui/webui/resources/grit/webui_resources.h"
 #include "ui/webui/resources/grit/webui_resources_map.h"
+#include "ui/webui/tracked_element/tracked_element_handler_document_singleton.h"
 #include "ui/webui/webui_allowlist.h"
 #include "ui/webui/webui_util.h"
 #include "url/origin.h"
@@ -260,7 +261,6 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
   source->AddBoolean(
       "energyEffectAnimationEnabled",
       base::FeatureList::IsEnabled(ntp_features::kEnergyEffectAnimation));
-// TODO(b/502297163): Implement for Android.
   source->AddBoolean(
       "ntpNextFeaturesEnabled",
       ntp_realbox::IsNtpRealboxNextEnabled(profile) &&
@@ -285,15 +285,10 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
   source->AddBoolean(
       "doodleMuralsEnabled",
       base::FeatureList::IsEnabled(ntp_features::kNtpDoodleMurals));
-// TODO(b/502297163): Implement for Android.
-#if BUILDFLAG(IS_ANDROID)
-  source->AddBoolean("middleSlotPromoEnabled", false);
-#else
   source->AddBoolean(
       "middleSlotPromoEnabled",
       base::FeatureList::IsEnabled(ntp_features::kNtpMiddleSlotPromo) &&
           profile->GetPrefs()->GetBoolean(prefs::kNtpPromoVisible));
-#endif
   source->AddBoolean(
       "middleSlotPromoDismissalEnabled",
       base::FeatureList::IsEnabled(ntp_features::kNtpMiddleSlotPromoDismissal));
@@ -623,26 +618,16 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
       "calendarModuleDismissHours",
       base::NumberToString(
           ntp_features::kNtpCalendarModuleWindowEndDeltaParam.Get().InHours()));
-// TODO(b/502297163): Implement for Android.
-#if BUILDFLAG(IS_ANDROID)
-  source->AddString("fileSuggestionDismissHours", "168");
-#else
   source->AddString(
       "fileSuggestionDismissHours",
       base::NumberToString(DriveService::kDismissDuration.InHours()));
-#endif
   source->AddString(
       "tabGroupsModuleDismissHours",
       base::NumberToString(
           ntp_features::kNtpTabGroupsModuleWindowEndDeltaParam.Get()
               .InHours()));
 
-// TODO(b/502297163): Implement for Android.
-#if BUILDFLAG(IS_ANDROID)
-  bool microsoft_module_enabled = false;
-#else
   bool microsoft_module_enabled = IsMicrosoftModuleEnabledForProfile(profile);
-#endif
   source->AddBoolean("microsoftModuleEnabled", microsoft_module_enabled);
   source->AddBoolean("modulesReloadable", microsoft_module_enabled);
   source->AddBoolean("waitToLoadModules", microsoft_module_enabled);
@@ -709,7 +694,10 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
                      ntp_composebox::kContextMenuEnableMultiTabSelection.Get());
   source->AddBoolean("contextManagementInComposeboxEnabled",
   base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox));
-  source->AddBoolean("tabFaviconChipsToCoinsEnabled", false);
+  source->AddBoolean(
+      "tabFaviconChipsToCoinsEnabled",
+      base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox) &&
+          base::FeatureList::IsEnabled(omnibox::kTabFaviconChipsToCoins));
   source->AddBoolean("searchboxShowComposebox",
                      ntp_composebox::IsNtpComposeboxEnabled(profile));
   source->AddBoolean("composeboxShowZps", true);
@@ -977,6 +965,14 @@ NewTabPageUI::NewTabPageUI(content::WebUI* web_ui)
   OnColorProviderChanged();
   OnCustomBackgroundImageUpdated();
   OnLoad();
+
+  // TODO(b/502297163): Implement for Android.
+#if !BUILDFLAG(IS_ANDROID)
+  ui::TrackedElementHandlerDocumentSingleton::Register(
+      this, std::vector<ui::ElementIdentifier>{
+                CustomizeButtonsHandler::kCustomizeChromeButtonElementId,
+                NewTabPageUI::kRealboxContextualEntrypointElementId});
+#endif
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(NewTabPageUI)
@@ -1013,10 +1009,7 @@ void NewTabPageUI::RegisterProfilePrefs(PrefRegistrySimple* registry) {
                                 false);
   registry->RegisterBooleanPref(ntp_prefs::kNtpPersonalShortcutsVisible, true);
   registry->RegisterBooleanPref(ntp_prefs::kNtpShowAllMostVisitedTiles, false);
-// TODO(b/502297163): Implement for Android.
-#if !BUILDFLAG(IS_ANDROID)
   registry->RegisterBooleanPref(prefs::kNtpPromoVisible, true);
-#endif
   registry->RegisterTimePref(ntp_prefs::kNtpLastModuleStalenessUpdate,
                              base::Time());
   registry->RegisterDictionaryPref(ntp_prefs::kNtpModuleStalenessCountDict);
@@ -1368,10 +1361,9 @@ void NewTabPageUI::CreateHelpBubbleHandler(
 // TODO(b/502297163): Implement for Android.
 #if !BUILDFLAG(IS_ANDROID)
   help_bubble_handler_ = std::make_unique<user_education::HelpBubbleHandler>(
-      std::move(handler), std::move(client), this,
-      std::vector<ui::ElementIdentifier>{
-          CustomizeButtonsHandler::kCustomizeChromeButtonElementId,
-          NewTabPageUI::kRealboxContextualEntrypointElementId});
+      std::move(handler), std::move(client),
+      ui::TrackedElementHandlerDocumentSingleton::GetOrCreate(
+          web_ui()->GetRenderFrameHost()));
 #endif
 }
 

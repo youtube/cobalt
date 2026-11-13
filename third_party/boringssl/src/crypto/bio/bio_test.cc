@@ -55,6 +55,7 @@ static int closesocket(int sock) { return close(sock); }
 static std::string LastSocketError() { return strerror(errno); }
 static const int kOpenReadOnlyBinary = O_RDONLY;
 static const int kOpenReadOnlyText = O_RDONLY;
+static const int kOpenWriteOnlyBinary = O_WRONLY;
 #else
 using Socket = SOCKET;
 static std::string LastSocketError() {
@@ -63,7 +64,8 @@ static std::string LastSocketError() {
   return buf;
 }
 static const int kOpenReadOnlyBinary = _O_RDONLY | _O_BINARY;
-static const int kOpenReadOnlyText = O_RDONLY | _O_TEXT;
+static const int kOpenReadOnlyText = _O_RDONLY | _O_TEXT;
+static const int kOpenWriteOnlyBinary = _O_WRONLY | _O_BINARY;
 #endif
 
 class OwnedSocket {
@@ -944,6 +946,120 @@ TEST(BIOTest, FileMode) {
   bio.reset(BIO_new_fd(fd.get(), BIO_NOCLOSE));
   ASSERT_TRUE(bio);
   expect_text_mode(bio.get());
+}
+
+// Test basic I/O on file and fd BIOs.
+TEST(BIOTest, FileIO) {
+  if (SkipTempFileTests()) {
+    GTEST_SKIP();
+  }
+
+  for (bool use_fd : {false, true}) {
+    SCOPED_TRACE(use_fd);
+
+    TemporaryFile temp;
+    ASSERT_TRUE(temp.Init());
+
+    // Open the file writable.
+    UniquePtr<BIO> bio;
+    ScopedFD fd;
+    if (use_fd) {
+      fd = temp.OpenFD(kOpenWriteOnlyBinary);
+      ASSERT_TRUE(fd.is_valid());
+      bio.reset(BIO_new_fd(fd.get(), BIO_NOCLOSE));
+      ASSERT_TRUE(bio);
+    } else {
+      bio.reset(BIO_new_file(temp.path().c_str(), "wb"));
+      ASSERT_TRUE(bio);
+    }
+
+    // Write something to the file with BIO APIs.
+    EXPECT_EQ(BIO_tell(bio.get()), 0);
+    EXPECT_EQ(BIO_write(bio.get(), "hello world", 11), 11);
+    EXPECT_EQ(BIO_tell(bio.get()), 11);
+
+    // Open the file readable.
+    bio = nullptr;
+    if (use_fd) {
+      fd = temp.OpenFD(kOpenReadOnlyBinary);
+      ASSERT_TRUE(fd.is_valid());
+      bio.reset(BIO_new_fd(fd.get(), BIO_NOCLOSE));
+      ASSERT_TRUE(bio);
+    } else {
+      bio.reset(BIO_new_file(temp.path().c_str(), "rb"));
+      ASSERT_TRUE(bio);
+    }
+
+    // Seek to "world". Note |BIO_seek|'s return values are wildly inconsistent
+    // between BIOs.
+    EXPECT_EQ(BIO_tell(bio.get()), 0);
+    if (use_fd) {
+      EXPECT_EQ(BIO_seek(bio.get(), 6), 6);
+    } else {
+      EXPECT_EQ(BIO_seek(bio.get(), 6), 0);
+    }
+    EXPECT_EQ(BIO_tell(bio.get()), 6);
+
+    // Read the data in three parts, to test full, partial, and EOF reads.
+    char buf[3];
+    EXPECT_EQ(BIO_read(bio.get(), buf, 3), 3);
+    EXPECT_EQ(Bytes(buf, 3), Bytes("wor"));
+    EXPECT_EQ(BIO_read(bio.get(), buf, 3), 2);
+    EXPECT_EQ(Bytes(buf, 2), Bytes("ld"));
+    EXPECT_EQ(BIO_read(bio.get(), buf, 3), 0);
+    EXPECT_EQ(BIO_tell(bio.get()), 11);
+  }
+}
+
+// Test that file and fd BIOs correctly handle errors. Simulate errors by trying
+// to write to an unreadable handle and vice versa.
+TEST(BIOTest, FileFDError) {
+  if (SkipTempFileTests()) {
+    GTEST_SKIP();
+  }
+
+  TemporaryFile temp;
+  ASSERT_TRUE(temp.Init());
+
+  // File write error.
+  {
+    UniquePtr<BIO> bio(BIO_new_file(temp.path().c_str(), "rb"));
+    ASSERT_TRUE(bio);
+    // TODO(crbug.com/42290372): File BIOs currently return zero instead of -1
+    // on write error.
+    EXPECT_EQ(BIO_write(bio.get(), "foo", 3), 0);
+    EXPECT_FALSE(BIO_should_retry(bio.get()));
+  }
+
+  // FD write error.
+  {
+    ScopedFD fd = temp.OpenFD(kOpenReadOnlyBinary);
+    ASSERT_TRUE(fd.is_valid());
+    UniquePtr<BIO> bio(BIO_new_fd(fd.get(), BIO_NOCLOSE));
+    ASSERT_TRUE(bio);
+    EXPECT_EQ(BIO_write(bio.get(), "foo", 3), -1);
+    EXPECT_FALSE(BIO_should_retry(bio.get()));
+  }
+
+  // File read error.
+  {
+    UniquePtr<BIO> bio(BIO_new_file(temp.path().c_str(), "wb"));
+    ASSERT_TRUE(bio);
+    char buf[3];
+    EXPECT_EQ(BIO_read(bio.get(), buf, sizeof(buf)), -1);
+    EXPECT_FALSE(BIO_should_retry(bio.get()));
+  }
+
+  // FD read error.
+  {
+    ScopedFD fd = temp.OpenFD(kOpenWriteOnlyBinary);
+    ASSERT_TRUE(fd.is_valid());
+    UniquePtr<BIO> bio(BIO_new_fd(fd.get(), BIO_NOCLOSE));
+    ASSERT_TRUE(bio);
+    char buf[3];
+    EXPECT_EQ(BIO_read(bio.get(), buf, sizeof(buf)), -1);
+    EXPECT_FALSE(BIO_should_retry(bio.get()));
+  }
 }
 
 // Run through the tests twice, swapping |bio1| and |bio2|, for symmetry.

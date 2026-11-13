@@ -94,25 +94,25 @@ namespace {
 developer::ExtensionType GetExtensionType(Manifest::Type manifest_type) {
   developer::ExtensionType type = developer::ExtensionType::kExtension;
   switch (manifest_type) {
-    case Manifest::TYPE_EXTENSION:
+    case Manifest::Type::kExtension:
       type = developer::ExtensionType::kExtension;
       break;
-    case Manifest::TYPE_THEME:
+    case Manifest::Type::kTheme:
       type = developer::ExtensionType::kTheme;
       break;
-    case Manifest::TYPE_HOSTED_APP:
+    case Manifest::Type::kHostedApp:
       type = developer::ExtensionType::kHostedApp;
       break;
-    case Manifest::TYPE_LEGACY_PACKAGED_APP:
+    case Manifest::Type::kLegacyPackagedApp:
       type = developer::ExtensionType::kLegacyPackagedApp;
       break;
-    case Manifest::TYPE_PLATFORM_APP:
+    case Manifest::Type::kPlatformApp:
       type = developer::ExtensionType::kPlatformApp;
       break;
-    case Manifest::TYPE_SHARED_MODULE:
+    case Manifest::Type::kSharedModule:
       type = developer::ExtensionType::kSharedModule;
       break;
-    case Manifest::TYPE_CHROMEOS_SYSTEM_EXTENSION:
+    case Manifest::Type::kChromeOSSystemExtension:
       type = developer::ExtensionType::kExtension;
       break;
     default:
@@ -871,8 +871,6 @@ void ExtensionInfoGenerator::FillExtensionInfo(const Extension& extension,
   CHECK(mv2_experiment_manager);
   info.is_affected_by_mv2_deprecation =
       mv2_experiment_manager->IsExtensionAffected(extension);
-  info.did_acknowledge_mv2_deprecation_notice =
-      mv2_experiment_manager->DidUserAcknowledgeNotice(extension.id());
   if (info.web_store_url.length() > 0) {
     info.recommendations_url =
         extension_urls::GetNewWebstoreItemRecommendationsUrl(extension.id())

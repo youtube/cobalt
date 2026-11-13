@@ -529,6 +529,7 @@ func (hs *clientHandshakeState) createClientHello(innerHello *clientHelloMsg, ec
 		isDTLS:                     c.isDTLS,
 		compressionMethods:         []uint8{compressionNone},
 		random:                     make([]byte, 32),
+		cookie:                     c.config.Bugs.SendLegacyDTLSCookie,
 		ocspStapling:               !c.config.Bugs.NoOCSPStapling,
 		sctListSupported:           !c.config.Bugs.NoSignedCertificateTimestamps,
 		supportedCurves:            c.config.curvePreferences(),

@@ -9,7 +9,6 @@
 #include "base/functional/bind.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/win/registry.h"
-#include "chrome/browser/background/glic/glic_controller.h"
 #include "chrome/browser/background/glic/glic_status_icon.h"
 #include "chrome/browser/glic/resources/glic_resources.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
@@ -21,9 +20,9 @@
 
 namespace glic {
 
-GlicStatusIconWin::GlicStatusIconWin(GlicController* controller,
+GlicStatusIconWin::GlicStatusIconWin(GlicBackgroundDelegate* delegate,
                                      StatusTray* status_tray)
-    : GlicStatusIcon(controller, status_tray) {}
+    : GlicStatusIcon(delegate, status_tray) {}
 
 GlicStatusIconWin::~GlicStatusIconWin() = default;
 

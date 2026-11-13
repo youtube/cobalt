@@ -569,6 +569,14 @@ void UsbDeviceHandleImpl::SetConfiguration(int configuration_value,
   for (Transfer* transfer : transfers_) {
     transfer->Cancel();
   }
+
+  // Release all claimed interfaces on the blocking thread. This ensures
+  // that the final reference is released on the right thread and avoids
+  // concurrent calls to libusb_release_interface and libusb_set_configuration
+  // on the same device.
+  for (auto& map_entry : claimed_interfaces_) {
+    blocking_task_runner_->ReleaseSoon(FROM_HERE, std::move(map_entry.second));
+  }
   claimed_interfaces_.clear();
 
   blocking_task_runner_->PostTask(
@@ -590,35 +598,16 @@ void UsbDeviceHandleImpl::ClaimInterface(int interface_number,
     return;
   }
 
-  if (base::FeatureList::IsEnabled(features::kWebUsbHardenEndpointAliasing)) {
-    // Prevent claiming interfaces that contain endpoints already present in
-    // other claimed interfaces. See crbug.com/513167952.
-    const mojom::UsbConfigurationInfo* config =
-        device_->GetActiveConfiguration();
-    if (config) {
-      for (const auto& interface : config->interfaces) {
-        if (interface->interface_number == interface_number) {
-          for (const auto& alternate : interface->alternates) {
-            for (const auto& endpoint : alternate->endpoints) {
-              uint8_t endpoint_address =
-                  ConvertEndpointNumberToAddress(*endpoint);
-              const auto it = endpoint_map_.find(endpoint_address);
-              if (it != endpoint_map_.end() &&
-                  it->second.interface->interface_number != interface_number) {
-                USB_LOG(ERROR) << "Cannot claim interface " << interface_number
-                               << " because it shares endpoint "
-                               << static_cast<int>(endpoint_address)
-                               << " with an already claimed interface.";
-                task_runner_->PostTask(
-                    FROM_HERE, base::BindOnce(std::move(callback), false));
-                return;
-              }
-            }
-          }
-          break;
-        }
-      }
-    }
+  const std::optional<uint8_t> colliding_address =
+      FindFirstCollidingEndpointAddress(interface_number, std::nullopt);
+  if (colliding_address) {
+    USB_LOG(ERROR) << "Cannot claim interface " << interface_number
+                   << " because it shares endpoint "
+                   << static_cast<int>(*colliding_address)
+                   << " with an already claimed interface.";
+    task_runner_->PostTask(FROM_HERE,
+                           base::BindOnce(std::move(callback), false));
+    return;
   }
 
   blocking_task_runner_->PostTask(
@@ -660,6 +649,19 @@ void UsbDeviceHandleImpl::SetInterfaceAlternateSetting(
 
   if (!device_ || !claimed_interfaces_.contains(interface_number)) {
     std::move(callback).Run(false);
+    return;
+  }
+
+  const std::optional<uint8_t> colliding_address =
+      FindFirstCollidingEndpointAddress(interface_number, alternate_setting);
+  if (colliding_address) {
+    USB_LOG(ERROR) << "Cannot set interface " << interface_number
+                   << " to alternate setting " << alternate_setting
+                   << " because it would share endpoint "
+                   << static_cast<int>(*colliding_address)
+                   << " with an already claimed interface.";
+    task_runner_->PostTask(FROM_HERE,
+                           base::BindOnce(std::move(callback), false));
     return;
   }
 
@@ -775,6 +777,15 @@ void UsbDeviceHandleImpl::IsochronousTransferIn(
 
   uint8_t endpoint_address =
       ConvertTransferDirection(UsbTransferDirection::INBOUND) | endpoint_number;
+  if (!endpoint_map_.contains(endpoint_address)) {
+    USB_LOG(ERROR) << "Failed to submit isochronous transfer because endpoint "
+                   << static_cast<int>(endpoint_address)
+                   << " is not part of a claimed interface.";
+    ReportIsochronousTransferError(std::move(callback), packet_lengths,
+                                   UsbTransferStatus::TRANSFER_ERROR);
+    return;
+  }
+
   size_t length =
       std::accumulate(packet_lengths.begin(), packet_lengths.end(), 0u);
   auto buffer = base::MakeRefCounted<base::RefCountedBytes>(length);
@@ -802,6 +813,15 @@ void UsbDeviceHandleImpl::IsochronousTransferOut(
   uint8_t endpoint_address =
       ConvertTransferDirection(UsbTransferDirection::OUTBOUND) |
       endpoint_number;
+  if (!endpoint_map_.contains(endpoint_address)) {
+    USB_LOG(ERROR) << "Failed to submit isochronous transfer because endpoint "
+                   << static_cast<int>(endpoint_address)
+                   << " is not part of a claimed interface.";
+    ReportIsochronousTransferError(std::move(callback), packet_lengths,
+                                   UsbTransferStatus::TRANSFER_ERROR);
+    return;
+  }
+
   size_t length =
       std::accumulate(packet_lengths.begin(), packet_lengths.end(), 0u);
   std::unique_ptr<Transfer> transfer = Transfer::CreateIsochronousTransfer(
@@ -830,9 +850,9 @@ void UsbDeviceHandleImpl::GenericTransfer(
       ConvertTransferDirection(direction) | endpoint_number;
   const auto endpoint_it = endpoint_map_.find(endpoint_address);
   if (endpoint_it == endpoint_map_.end()) {
-    USB_LOG(DEBUG) << "Failed to submit transfer because endpoint "
+    USB_LOG(ERROR) << "Failed to submit transfer because endpoint "
                    << static_cast<int>(endpoint_address)
-                   << " not part of a claimed interface.";
+                   << " is not part of a claimed interface.";
     task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(std::move(callback), UsbTransferStatus::TRANSFER_ERROR,
@@ -1074,6 +1094,41 @@ UsbDeviceHandleImpl::GetClaimedInterfaceForEndpoint(uint8_t endpoint_address) {
   if (endpoint_it != endpoint_map_.end())
     return claimed_interfaces_[endpoint_it->second.interface->interface_number];
   return nullptr;
+}
+
+std::optional<uint8_t> UsbDeviceHandleImpl::FindFirstCollidingEndpointAddress(
+    int interface_number,
+    std::optional<int> alternate_setting) {
+  if (!base::FeatureList::IsEnabled(features::kWebUsbHardenEndpointAliasing)) {
+    return std::nullopt;
+  }
+  const mojom::UsbConfigurationInfo* config =
+      device_ ? device_->GetActiveConfiguration() : nullptr;
+  if (!config) {
+    return std::nullopt;
+  }
+
+  for (const auto& interface : config->interfaces) {
+    if (interface->interface_number == interface_number) {
+      for (const auto& alternate : interface->alternates) {
+        if (alternate_setting.has_value() &&
+            alternate->alternate_setting != *alternate_setting) {
+          continue;
+        }
+
+        for (const auto& endpoint : alternate->endpoints) {
+          uint8_t endpoint_address = ConvertEndpointNumberToAddress(*endpoint);
+          const auto it = endpoint_map_.find(endpoint_address);
+          if (it != endpoint_map_.end() &&
+              it->second.interface->interface_number != interface_number) {
+            return endpoint_address;
+          }
+        }
+      }
+      break;
+    }
+  }
+  return std::nullopt;
 }
 
 void UsbDeviceHandleImpl::ReportIsochronousTransferError(

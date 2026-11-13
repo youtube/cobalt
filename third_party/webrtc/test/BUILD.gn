@@ -1519,6 +1519,7 @@ rtc_library("video_codec_tester") {
     "../api:make_ref_counted",
     "../api:scoped_refptr",
     "../api/environment",
+    "../api/environment:environment_factory",
     "../api/numerics",
     "../api/test/metrics:metric",
     "../api/test/metrics:metrics_logger",

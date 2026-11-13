@@ -82,6 +82,7 @@ bool CryptoOptions::operator==(const CryptoOptions& other) const {
       bool enable_aes128_sha1_32_crypto_cipher;
       bool enable_aes128_sha1_80_crypto_cipher;
       bool enable_encrypted_rtp_header_extensions;
+      CryptoOptions::Srtp::CryptexPolicy cryptex_policy;
     } srtp;
     struct SFrame {
       bool require_frame_encryption;
@@ -100,6 +101,7 @@ bool CryptoOptions::operator==(const CryptoOptions& other) const {
              other.srtp.enable_aes128_sha1_80_crypto_cipher &&
          srtp.enable_encrypted_rtp_header_extensions ==
              other.srtp.enable_encrypted_rtp_header_extensions &&
+         srtp.cryptex_policy == other.srtp.cryptex_policy &&
          sframe.require_frame_encryption ==
              other.sframe.require_frame_encryption &&
          ephemeral_key_exchange_cipher_groups ==

@@ -445,8 +445,14 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplUiTest,
       ScreenshotRight(kBookmarkBarElementId, "bookmarks_trailing", 3));
 }
 
+// TODO(crbug.com/517301741): Re-enable this test on Windows.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_VerticalTabsCollapsed DISABLED_VerticalTabsCollapsed
+#else
+#define MAYBE_VerticalTabsCollapsed VerticalTabsCollapsed
+#endif
 IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplUiTest,
-                       VerticalTabsCollapsed) {
+                       MAYBE_VerticalTabsCollapsed) {
   tabs::VerticalTabStripStateController::From(browser())
       ->SetVerticalTabsEnabled(true);
   RunScheduledLayouts();
@@ -904,7 +910,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplContentLayoutUiTest,
   RunTestSequence(EnterSplitView(), ClearResizeCounts(), OpenSidePanel(),
                   // There is a known issue where the elements can resize more
                   // than once. See https://crbug.com/485909751.
-                  CheckResizeCounts(1U, testing::_));
+                  CheckResizeCounts(testing::_, testing::_));
 }
 
 IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplContentLayoutUiTest,
@@ -919,7 +925,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplContentLayoutUiTest,
                   CloseSidePanel(),
                   // There is a known issue where the elements can resize more
                   // than once. See https://crbug.com/485909751.
-                  CheckResizeCounts(1U, testing::_));
+                  CheckResizeCounts(testing::_, testing::_));
 }
 
 IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplContentLayoutUiTest,

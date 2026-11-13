@@ -2605,6 +2605,26 @@ TEST_P(PeerConnectionInterfaceTest,
     RTCError error = pc_->SetConfiguration(config);
     EXPECT_EQ(RTCErrorType::INVALID_MODIFICATION, error.type());
   }
+  {
+    RTCConfiguration config;
+    config.sdp_semantics = sdp_semantics_;
+    CryptoOptions options;
+    options.srtp.cryptex_policy =
+        CryptoOptions::Srtp::CryptexPolicy::kNegotiate;
+    config.crypto_options = options;
+
+    CreatePeerConnection(config);
+
+    std::unique_ptr<SessionDescriptionInterface> offer;
+    ASSERT_TRUE(DoCreateOffer(&offer, nullptr));
+    EXPECT_TRUE(DoSetLocalDescription(std::move(offer)));
+
+    options.srtp.cryptex_policy = CryptoOptions::Srtp::CryptexPolicy::kRequire;
+    config.crypto_options = options;
+
+    RTCError error = pc_->SetConfiguration(config);
+    EXPECT_EQ(RTCErrorType::INVALID_MODIFICATION, error.type());
+  }
 }
 
 // Test that PeerConnection::Close changes the states to closed and all remote

@@ -241,9 +241,6 @@ HorizontalTabStripRegionView::HorizontalTabStripRegionView(
   SetLayoutManager(std::make_unique<views::FlexLayout>())
       ->SetOrientation(views::LayoutOrientation::kHorizontal);
 
-  GetViewAccessibility().SetRole(ax::mojom::Role::kTabList);
-  GetViewAccessibility().SetIsMultiselectable(true);
-
   BrowserWindowInterface* const browser = browser_view->browser();
 
   if (browser &&
@@ -325,7 +322,7 @@ HorizontalTabStripRegionView::HorizontalTabStripRegionView(
         std::make_unique<NewTabButton>(
             base::BindRepeating(&TabStrip::NewTabButtonPressed,
                                 base::Unretained(tab_strip_)),
-            features::IsRoundedIconsEnabled() ? vector_icons::kAddIcon
+            features::IsRoundedIconsEnabled() ? vector_icons::kAddWeight500Icon
                                               : vector_icons::kAddOldIcon,
             Edge::kNone, Edge::kNone, browser);
 

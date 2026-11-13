@@ -4,11 +4,14 @@
 
 import '//resources/cr_components/composebox/composebox_dropdown.js';
 import '//resources/cr_components/composebox/composebox_input.js';
+import '//resources/cr_components/composebox/composebox_submit.js';
 import '//resources/cr_components/composebox/composebox_tool_chip.js';
+import '//resources/cr_components/composebox/composebox_voice_search.js';
 import '//resources/cr_components/composebox/contextual_entrypoint_button.js';
-import type {ContextualEntrypointButtonElement} from '//resources/cr_components/composebox/contextual_entrypoint_button.js';
 import '//resources/cr_components/composebox/error_scrim.js';
 import '//resources/cr_components/composebox/file_carousel.js';
+import '//resources/cr_components/search/animated_glow.js';
+import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 
 import {ComposeboxFile, mapUploadErrorToProcessFilesError, ProcessFilesError, TabUploadOrigin} from '//resources/cr_components/composebox/common.js';
 import type {TabUpload} from '//resources/cr_components/composebox/common.js';
@@ -19,6 +22,8 @@ import {ComposeboxEmbedderMixin} from '//resources/cr_components/composebox/comp
 import {ComposeboxProxyImpl} from '//resources/cr_components/composebox/composebox_proxy.js';
 import type {ContextUploadErrorType} from '//resources/cr_components/composebox/composebox_query.mojom-webui.js';
 import {ContextUploadStatus} from '//resources/cr_components/composebox/composebox_query.mojom-webui.js';
+import type {ContextualEntrypointButtonElement} from '//resources/cr_components/composebox/contextual_entrypoint_button.js';
+import {GlowAnimationState} from '//resources/cr_components/search/constants.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import type {FileAttachment, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, SearchContext, TabAttachment} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
@@ -56,6 +61,14 @@ export class OmniboxComposeboxElement extends ComposeboxEmbedderMixin
         reflect: true,
         type: Boolean,
       },
+      expanding_: {
+        reflect: true,
+        type: Boolean,
+      },
+      animationState: {
+        type: String,
+        reflect: true,
+      },
       entrypointName: {type: String, reflect: true},
       enableCarouselScrolling: {type: Boolean},
     };
@@ -64,6 +77,9 @@ export class OmniboxComposeboxElement extends ComposeboxEmbedderMixin
   accessor entrypointName: string = 'Omnibox';
   accessor applyContextButtonBackground: boolean = false;
   accessor enableCarouselScrolling: boolean = false;
+  override accessor animationState: GlowAnimationState =
+      GlowAnimationState.NONE;
+  protected accessor expanding_: boolean = true;
   private pageHandler_: PageHandlerRemote;
   private searchboxCallbackRouter_: SearchboxPageCallbackRouter;
   private searchboxHandler_: SearchboxPageHandlerRemote;
@@ -74,6 +90,11 @@ export class OmniboxComposeboxElement extends ComposeboxEmbedderMixin
     this.searchboxCallbackRouter_ =
         ComposeboxProxyImpl.getInstance().searchboxCallbackRouter;
     this.searchboxHandler_ = ComposeboxProxyImpl.getInstance().searchboxHandler;
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+    this.animationState = GlowAnimationState.EXPANDING;
   }
 
   override willUpdate(changedProperties: PropertyValues<this>) {
@@ -143,6 +164,35 @@ export class OmniboxComposeboxElement extends ComposeboxEmbedderMixin
     return super.shouldShowDivider();
   }
 
+  override computeSubmitEnabled(): boolean {
+    // `submitEnabled` controls the visibility of the submit button.
+    // Since files can be added but technically not be submittable (like
+    // injected inputs), this needs to check if any files are present to show
+    // the submit button. The button will still appear disabled because that is
+    // controlled by `canSubmitFilesAndInput`.
+    return this.hasValidQuery() || this.files.size > 0;
+  }
+
+  override hasValidQuery(): boolean {
+    // If there is at least one file that supports unimodal search, query is
+    // valid.
+    for (const file of this.files.values()) {
+      if (file.supportsUnimodal) {
+        return true;
+      }
+    }
+
+    // If an autocomplete match is selected, it's a valid query.
+    if (this.selectedMatchIndex >= 0 && !!this.result) {
+      return true;
+    }
+
+    if (this.input.trim().length > 0) {
+      return true;
+    }
+    return false;
+  }
+
   addSearchContext(context: SearchContext|null) {
     if (context) {
       if (context.input.length > 0) {
@@ -166,9 +216,25 @@ export class OmniboxComposeboxElement extends ComposeboxEmbedderMixin
     }
   }
 
-  // TODO(crbug.com/486707998): Remove once this is added to mixin.
   playGlowAnimation() {
-    return;
+    // If |animationState_| were still EXPANDING, this function would have no
+    // effect because nothing changes in CSS and therefore animations wouldn't
+    // be re-trigered. Resetting it to NONE forces the animation related styles
+    // to reset before switching to EXPANDING.
+    this.animationState = GlowAnimationState.NONE;
+    // Wait for the style change for NONE to commit. This ensures the browser
+    // detects a state change when we switch to EXPANDING.
+
+    // If the composebox is not submittable, trigger the animation.
+    if (!this.submitEnabled) {
+      requestAnimationFrame(() => {
+        this.animationState = GlowAnimationState.EXPANDING;
+      });
+    }
+  }
+
+  isExpanded(): boolean {
+    return this.expanding_;
   }
 
   private addFileFromAttachment_(fileAttachment: FileAttachment) {

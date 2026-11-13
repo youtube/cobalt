@@ -3161,6 +3161,51 @@ TEST_F(WindowTest, DeleteWindowFromOnWindowDestroyed) {
 }
 
 // WindowObserver implementation that deletes a window in
+// OnWindowBoundsChanged().
+class DeleteOnBoundsChangedObserver : public WindowObserver {
+ public:
+  explicit DeleteOnBoundsChangedObserver(Window* window) : window_(window) {
+    window_->AddObserver(this);
+  }
+
+  DeleteOnBoundsChangedObserver(const DeleteOnBoundsChangedObserver&) = delete;
+  DeleteOnBoundsChangedObserver& operator=(
+      const DeleteOnBoundsChangedObserver&) = delete;
+
+  ~DeleteOnBoundsChangedObserver() override {
+    CHECK(window_);
+    window_->RemoveObserver(this);
+  }
+
+  // WindowObserver:
+  void OnWindowBoundsChanged(Window* window,
+                             const gfx::Rect& old_bounds,
+                             const gfx::Rect& new_bounds,
+                             ui::PropertyChangeReason reason) override {
+    // This will fail with CHECK.
+    delete window_;
+    NOTREACHED();
+  }
+
+  void OnWindowDestroyed(Window* window) override { NOTREACHED(); }
+
+ private:
+  raw_ptr<Window> window_;
+};
+
+using WindowDeathTest = WindowTest;
+
+TEST_F(WindowDeathTest, DeleteWindowInBoundsChange) {
+  std::unique_ptr<Window> window = std::make_unique<Window>(nullptr);
+  window->Init(ui::LAYER_NOT_DRAWN);
+  auto weak_window = window->GetWeakPtr();
+  DeleteOnBoundsChangedObserver observer(window.get());
+  EXPECT_DEATH(window->SetBounds(gfx::Rect(10, 10, 300, 300)), "");
+  // Deletion fails with CHECK.
+  EXPECT_TRUE(weak_window);
+}
+
+// WindowObserver implementation that deletes a window in
 // OnWindowVisibilityChanged().
 class DeleteOnVisibilityChangedObserver : public WindowObserver {
  public:
@@ -3195,6 +3240,24 @@ class DeleteOnVisibilityChangedObserver : public WindowObserver {
   raw_ptr<Window> to_observe_;
   raw_ptr<Window> to_delete_;
 };
+
+TEST_F(WindowTest, DeleteWindowFromOnWindowVisibilityChanged) {
+  std::unique_ptr<Window> root =
+      CreateTestWindow({.bounds = {100, 100}, .window_id = 0});
+  Window* child =
+      CreateTestWindow(
+          {.parent = root.get(), .bounds = {100, 100}, .window_id = 0})
+          .release();
+  auto weak_root = root->GetWeakPtr();
+  auto weak_child = child->GetWeakPtr();
+
+  // This deletes |child| when OnWindowVisibilityChanged() is
+  // received by |child|.
+  DeleteOnVisibilityChangedObserver deletion_observer(child, child);
+  child->Hide();
+  EXPECT_FALSE(weak_child);
+  EXPECT_TRUE(weak_root);
+}
 
 TEST_F(WindowTest, DeleteParentWindowFromOnWindowVisibiltyChanged) {
   WindowTracker tracker;

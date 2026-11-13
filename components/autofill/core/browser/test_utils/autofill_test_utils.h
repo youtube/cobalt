@@ -386,6 +386,10 @@ void GenerateTestAutofillPopup(
 std::string ObfuscatedCardDigitsAsUTF8(const std::string& str,
                                        int obfuscation_length);
 
+// Creates a GUID for testing. For example,
+// MakeGuid(123) = "00000000-4000-8000-0000-000000000123";
+std::string MakeGuid(size_t last_digit);
+
 // Returns 2-digit month string, like "02", "10".
 std::string NextMonth();
 std::string LastYear();
@@ -472,6 +476,11 @@ BnplIssuer GetTestUnlinkedBnplIssuer();
 // fake data using `id` as the `PaymentInstrumentCreationOption.id`.
 sync_pb::PaymentInstrumentCreationOption
 CreatePaymentInstrumentCreationOptionWithBnplIssuer(const std::string& id);
+
+// Returns a payment instrument creation option with an eWallet filled with
+// fake data using `id` as the `PaymentInstrumentCreationOption.id`.
+sync_pb::PaymentInstrumentCreationOption
+CreatePaymentInstrumentCreationOptionWithEwallet(const std::string& id);
 
 // For the key metrics as used for different data types, this struct allows to
 // define expectations. The values are marked optional. `std::nullopt` means

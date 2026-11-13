@@ -42,7 +42,10 @@ AudioOptions::~AudioOptions() = default;
 void AudioOptions::SetAll(const AudioOptions& change) {
   SetFrom(&echo_cancellation, change.echo_cancellation);
 #if defined(WEBRTC_IOS)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   SetFrom(&ios_force_software_aec_HACK, change.ios_force_software_aec_HACK);
+#pragma clang diagnostic pop
 #endif
   SetFrom(&auto_gain_control, change.auto_gain_control);
   SetFrom(&noise_suppression, change.noise_suppression);
@@ -62,7 +65,10 @@ void AudioOptions::SetAll(const AudioOptions& change) {
 bool AudioOptions::operator==(const AudioOptions& o) const {
   return echo_cancellation == o.echo_cancellation &&
 #if defined(WEBRTC_IOS)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
          ios_force_software_aec_HACK == o.ios_force_software_aec_HACK &&
+#pragma clang diagnostic pop
 #endif
          auto_gain_control == o.auto_gain_control &&
          noise_suppression == o.noise_suppression &&
@@ -83,8 +89,11 @@ std::string AudioOptions::ToString() const {
   result << "AudioOptions {";
   ToStringIfSet(&result, "aec", echo_cancellation);
 #if defined(WEBRTC_IOS)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   ToStringIfSet(&result, "ios_force_software_aec_HACK",
                 ios_force_software_aec_HACK);
+#pragma clang diagnostic pop
 #endif
   ToStringIfSet(&result, "agc", auto_gain_control);
   ToStringIfSet(&result, "ns", noise_suppression);

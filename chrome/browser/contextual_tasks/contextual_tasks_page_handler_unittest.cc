@@ -755,12 +755,11 @@ TEST_F(ContextualTasksPageHandlerTest,
   page_handler_->OnWebviewMessage(serialized);
 }
 
-TEST_F(ContextualTasksPageHandlerTest, OnWebviewMessage_NotifyLinkClicked) {
+TEST_F(ContextualTasksPageHandlerTest,
+       OnWebviewMessage_OpenLinkInSidePanelMode) {
   lens::AimToClientMessage message;
-  auto* notify_link_clicked = message.mutable_notify_link_clicked();
-  notify_link_clicked->set_url("https://example.com");
-  notify_link_clicked->set_link_behavior(
-      lens::NotifyLinkClicked::LINK_BEHAVIOR_COBROWSE);
+  auto* open_link = message.mutable_open_link_in_side_panel_mode();
+  open_link->set_url("https://example.com");
 
   size_t size = message.ByteSizeLong();
   std::vector<uint8_t> serialized(size);
@@ -770,6 +769,25 @@ TEST_F(ContextualTasksPageHandlerTest, OnWebviewMessage_NotifyLinkClicked) {
               OnThreadLinkClicked(GURL("https://example.com"), base::Uuid(),
                                   testing::Eq(nullptr), testing::Eq(nullptr)))
       .Times(1);
+
+  page_handler_->OnWebviewMessage(serialized);
+}
+
+// Link click events where the URL is not HTTP or HTTPS should not trigger the
+// thread link click event.
+TEST_F(ContextualTasksPageHandlerTest,
+       OnWebviewMessage_NotifyLinkClicked_InvalidScheme) {
+  lens::AimToClientMessage message;
+  auto* open_link = message.mutable_open_link_in_side_panel_mode();
+  open_link->set_url("chrome://settings");
+
+  size_t size = message.ByteSizeLong();
+  std::vector<uint8_t> serialized(size);
+  message.SerializeToArray(serialized.data(), size);
+
+  EXPECT_CALL(*mock_contextual_tasks_ui_service_,
+              OnThreadLinkClicked(_, _, _, _))
+      .Times(0);
 
   page_handler_->OnWebviewMessage(serialized);
 }

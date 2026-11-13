@@ -34,6 +34,7 @@
 #include "pc/datagram_connection_internal.h"
 #include "pc/test/fake_rtc_certificate_generator.h"
 #include "rtc_base/copy_on_write_buffer.h"
+#include "rtc_base/network/sent_packet.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_fingerprint.h"
@@ -540,6 +541,37 @@ TEST_F(DatagramConnectionTest, SingleBytePacketsAreSent) {
   // DTLS overhead.
   EXPECT_GT(ice1_->last_sent_packet().size(), data.size());
   loop_.Run();
+  EXPECT_TRUE(callback_called);
+}
+
+TEST_F(DatagramConnectionTest, InternalSentPacketsAreIgnored) {
+  CreateConnections();
+  EXPECT_CALL(*observer1_ptr_, OnSendOutcome(_)).Times(0);
+
+  SentPacketInfo internal_packet;
+  internal_packet.packet_id = -1;
+
+  conn1_->OnSentPacket(internal_packet);
+}
+
+TEST_F(DatagramConnectionTest, UserSentPacketsTriggerOnSendOutcome) {
+  CreateConnections();
+  bool callback_called = false;
+  EXPECT_CALL(*observer1_ptr_, OnSendOutcome(_))
+      .WillOnce([&](const SendOutcome& outcome) {
+        EXPECT_EQ(outcome.id, 123u);
+        EXPECT_EQ(outcome.status, SendOutcome::Status::kSuccess);
+        EXPECT_EQ(outcome.send_time, Timestamp::Millis(456));
+        EXPECT_EQ(outcome.bytes_sent, 100u);
+        callback_called = true;
+      });
+
+  SentPacketInfo user_packet;
+  user_packet.packet_id = 123;
+  user_packet.send_time_ms = 456;
+  user_packet.info.packet_size_bytes = 100;
+
+  conn1_->OnSentPacket(user_packet);
   EXPECT_TRUE(callback_called);
 }
 

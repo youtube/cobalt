@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "api/field_trials_view.h"
+#include "api/rtp_header_extension_id.h"
 #include "call/rtp_demuxer.h"
 #include "p2p/base/packet_transport_internal.h"
 #include "pc/rtp_transport.h"
@@ -61,22 +62,24 @@ class SrtpTransport : public RtpTransport {
   // Create new send/recv sessions and set the negotiated crypto keys for RTP
   // packet encryption. The keys can either come from SDES negotiation or DTLS
   // handshake.
-  bool SetRtpParams(int send_crypto_suite,
-                    const ZeroOnFreeBuffer<uint8_t>& send_key,
-                    const std::vector<int>& send_extension_ids,
-                    int recv_crypto_suite,
-                    const ZeroOnFreeBuffer<uint8_t>& recv_key,
-                    const std::vector<int>& recv_extension_ids);
+  bool SetRtpParams(
+      int send_crypto_suite,
+      const ZeroOnFreeBuffer<uint8_t>& send_key,
+      const std::vector<RtpHeaderExtensionId>& send_extension_ids,
+      int recv_crypto_suite,
+      const ZeroOnFreeBuffer<uint8_t>& recv_key,
+      const std::vector<RtpHeaderExtensionId>& recv_extension_ids);
 
   // Create new send/recv sessions and set the negotiated crypto keys for RTCP
   // packet encryption. The keys can either come from SDES negotiation or DTLS
   // handshake.
-  bool SetRtcpParams(int send_crypto_suite,
-                     const ZeroOnFreeBuffer<uint8_t>& send_key,
-                     const std::vector<int>& send_extension_ids,
-                     int recv_crypto_suite,
-                     const ZeroOnFreeBuffer<uint8_t>& recv_key,
-                     const std::vector<int>& recv_extension_ids);
+  bool SetRtcpParams(
+      int send_crypto_suite,
+      const ZeroOnFreeBuffer<uint8_t>& send_key,
+      const std::vector<RtpHeaderExtensionId>& send_extension_ids,
+      int recv_crypto_suite,
+      const ZeroOnFreeBuffer<uint8_t>& recv_key,
+      const std::vector<RtpHeaderExtensionId>& recv_extension_ids);
 
   void ResetParams();
 

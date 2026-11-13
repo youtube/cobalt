@@ -1582,6 +1582,12 @@ static MutableCSSPropertyValueSet* StyleFromMatchedRulesForElement(
   return style;
 }
 
+const CSSPropertyValueSet* EditingStyle::MatchedRulesStyleForElement(
+    Element* element,
+    unsigned rules_to_include) {
+  return StyleFromMatchedRulesForElement(element, rules_to_include);
+}
+
 void EditingStyle::MergeStyleFromRules(Element* element) {
   MutableCSSPropertyValueSet* style_from_matched_rules =
       StyleFromMatchedRulesForElement(element, StyleResolver::kAuthorCSSRules);
@@ -1800,9 +1806,10 @@ StyleChange::StyleChange(EditingStyle* style, const Position& position)
 
   ReconcileTextDecorationProperties(
       mutable_style, document->GetExecutionContext()->GetSecureContextMode());
-  if (!document->GetFrame()->GetEditor().ShouldStyleWithCSS())
+  if (!document->GetFrame()->GetEditor().ShouldStyleWithCss()) {
     ExtractTextStyles(document, mutable_style,
                       computed_style->IsMonospaceFont());
+  }
 
   // If unicode-bidi is present in mutableStyle and direction is not, then add
   // direction to mutableStyle.

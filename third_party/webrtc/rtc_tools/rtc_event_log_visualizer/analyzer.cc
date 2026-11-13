@@ -190,6 +190,10 @@ void EventLogAnalyzer::InitializeMapOfNamedGraphs(bool show_detector_state,
   plots_.RegisterPlot("simulated_scream_ratios", [this](Plot* plot) {
     this->CreateScreamSimulationRatiosGraph(plot);
   });
+  plots_.RegisterPlot(
+      "simulated_scream_feedback_events_per_rtt", [this](Plot* plot) {
+        this->CreateScreamSimulationFeedbackEventsPerRttGraph(plot);
+      });
   plots_.RegisterPlot("outgoing_loss", [this](Plot* plot) {
     this->CreateOutgoingLossRateGraph(plot);
   });
@@ -426,6 +430,12 @@ void EventLogAnalyzer::CreateScreamSimulationRefWindowGraph(Plot* plot) const {
 
 void EventLogAnalyzer::CreateScreamSimulationRatiosGraph(Plot* plot) const {
   webrtc::CreateScreamSimulationRatiosGraph(parsed_log_, config_, plot);
+}
+
+void EventLogAnalyzer::CreateScreamSimulationFeedbackEventsPerRttGraph(
+    Plot* plot) const {
+  webrtc::CreateScreamSimulationFeedbackEventsPerRttGraph(parsed_log_, config_,
+                                                          plot);
 }
 
 void EventLogAnalyzer::CreateScreamRefWindowGraph(Plot* plot) const {

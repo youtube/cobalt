@@ -135,6 +135,7 @@ class EventLogAnalyzer {
   void CreateScreamSimulationBitrateGraph(Plot* plot) const;
   void CreateScreamSimulationRefWindowGraph(Plot* plot) const;
   void CreateScreamSimulationRatiosGraph(Plot* plot) const;
+  void CreateScreamSimulationFeedbackEventsPerRttGraph(Plot* plot) const;
   void CreateSendSideBweSimulationGraph(Plot* plot) const;
   void CreateReceiveSideBweSimulationGraph(Plot* plot) const;
 

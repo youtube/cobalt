@@ -3763,7 +3763,7 @@ class PacingFactorObserver : public test::SendTest {
       UniqueNumberGenerator<int> unique_id_generator;
       unique_id_generator.AddKnownId(0);  // First valid RTP extension ID is 1.
       for (const RtpExtension& extension : send_config->rtp.extensions) {
-        unique_id_generator.AddKnownId(extension.id);
+        unique_id_generator.AddKnownId(extension.id.value());
       }
       // Want send side, not present by default, so add it.
       send_config->rtp.extensions.emplace_back(

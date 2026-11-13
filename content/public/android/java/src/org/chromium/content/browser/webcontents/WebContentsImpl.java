@@ -960,7 +960,7 @@ public class WebContentsImpl
     }
 
     @Override
-    public void setOverscrollRefreshHandler(OverscrollRefreshHandler handler) {
+    public void setOverscrollRefreshHandler(@Nullable OverscrollRefreshHandler handler) {
         checkNotDestroyed();
         WebContentsImplJni.get().setOverscrollRefreshHandler(mNativeWebContentsAndroid, handler);
     }
@@ -1496,7 +1496,7 @@ public class WebContentsImpl
 
         void setOverscrollRefreshHandler(
                 long nativeWebContentsAndroid,
-                OverscrollRefreshHandler nativeOverscrollRefreshHandler);
+                @Nullable OverscrollRefreshHandler nativeOverscrollRefreshHandler);
 
         void setSpatialNavigationDisabled(long nativeWebContentsAndroid, boolean disabled);
 

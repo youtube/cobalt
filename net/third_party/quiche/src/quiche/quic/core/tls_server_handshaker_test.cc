@@ -72,6 +72,7 @@ namespace {
 
 const char kServerHostname[] = "test.example.com";
 const uint16_t kServerPort = 443;
+constexpr absl::string_view kTlsVersion = "TLS_VERSION_1_3";
 
 struct TestParams {
   ParsedQuicVersion version;
@@ -152,6 +153,10 @@ class TestTlsServerHandshaker : public TlsServerHandshaker {
 
   MOCK_METHOD(void, OnSelectCertificateDone,
               (bool, bool, SSLConfig, absl::string_view, bool), (override));
+
+  MOCK_METHOD(void, InfoCallback, (int, int), (override));
+
+  void EnableInfoCallback() { tls_connection().EnableInfoCallback(); }
 
   // Makes the next call to `MaybeCreateProofSourceHandle()` return a
   // `FakeProofSourceHandle` instead of a real `ProofSourceHandle`.
@@ -551,6 +556,11 @@ TEST_P(TlsServerHandshakerTest, ConnectedAfterTlsHandshake) {
   CompleteCryptoHandshake();
   EXPECT_TRUE(server_stream()->version().IsIetfQuic());
   ExpectHandshakeSuccessful();
+
+  EXPECT_EQ(server_stream()->Sni(), kServerHostname);
+  EXPECT_EQ(server_stream()->Alpn(),
+            AlpnForVersion(server_stream()->version()));
+  EXPECT_NE(server_stream()->Ciphersuite(), nullptr);
 }
 
 TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertSuccess) {
@@ -1706,6 +1716,82 @@ TEST_P(TlsServerHandshakerTest, CompliancePolicyWithAsynchronousSelectCert) {
   // https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#Compliance-policy-configurations
   EXPECT_EQ(SSL_CIPHER_get_id(SSL_get_current_cipher(server_ssl())),
             TLS1_3_CK_AES_256_GCM_SHA384);
+}
+
+TEST_P(TlsServerHandshakerTest, GetCredentialExData) {
+  InitializeServerWithFakeProofSourceHandle();
+
+  server_handshaker_->EnableInfoCallback();
+
+  bool credential_ex_data_verified = false;
+  EXPECT_CALL(*server_handshaker_, InfoCallback(_, _))
+      .WillRepeatedly([&](int type, int /*value*/) {
+        if (type & SSL_CB_HANDSHAKE_DONE) {
+          SSL* ssl = server_ssl();
+
+          // Get the selected credential used for this connection.
+          const SSL_CREDENTIAL* cred = SSL_get0_selected_credential(ssl);
+          ASSERT_NE(cred, nullptr);
+
+          // Verify that the extension data is present and non-null.
+          const CredentialExData* ex_data = GetCredentialExData(*cred);
+
+          if (GetQuicRestartFlag(quic_set_credential_ex_data)) {
+            ASSERT_NE(ex_data, nullptr);
+          } else {
+            ASSERT_EQ(ex_data, nullptr);
+          }
+          credential_ex_data_verified = true;
+        }
+      });
+
+  server_handshaker_->SetupProofSourceHandle(
+      /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_SYNC,
+      /*compute_signature_action=*/FakeProofSourceHandle::Action::
+          DELEGATE_SYNC);
+
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+
+  ASSERT_TRUE(credential_ex_data_verified);
+}
+
+TEST_P(TlsServerHandshakerTest, CachedSslInfoAfterResetSsl) {
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+
+  EXPECT_EQ(server_stream()->Sni(), kServerHostname);
+  EXPECT_EQ(server_stream()->Alpn(),
+            AlpnForVersion(server_stream()->version()));
+  const SSL_CIPHER* cipher = server_stream()->Ciphersuite();
+  uint16_t cipher_id = server_stream()->CiphersuiteId();
+  std::string cipher_string(server_stream()->CiphersuiteString());
+  uint16_t tls_group_id = server_stream()->TlsGroupId();
+  std::string tls_group_string(server_stream()->TlsGroupString());
+
+  EXPECT_NE(cipher, nullptr);
+  EXPECT_NE(cipher_id, 0);
+  EXPECT_NE(cipher_string, "");
+  EXPECT_NE(tls_group_id, 0);
+  EXPECT_NE(tls_group_string, "");
+  EXPECT_EQ(server_stream()->TlsVersion(), kTlsVersion);
+
+  // Call ResetSsl. This should cache the SSL info.
+  TlsServerHandshaker* handshaker =
+      static_cast<TlsServerHandshaker*>(server_stream());
+  handshaker->ResetSsl();
+
+  // Verify that the info is still available from the cache.
+  EXPECT_EQ(server_stream()->Sni(), kServerHostname);
+  EXPECT_EQ(server_stream()->Alpn(),
+            AlpnForVersion(server_stream()->version()));
+  EXPECT_EQ(server_stream()->Ciphersuite(), cipher);
+  EXPECT_EQ(server_stream()->CiphersuiteId(), cipher_id);
+  EXPECT_EQ(server_stream()->CiphersuiteString(), cipher_string);
+  EXPECT_EQ(server_stream()->TlsGroupId(), tls_group_id);
+  EXPECT_EQ(server_stream()->TlsGroupString(), tls_group_string);
+  EXPECT_EQ(server_stream()->TlsVersion(), kTlsVersion);
 }
 
 }  // namespace

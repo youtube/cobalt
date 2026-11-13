@@ -9299,40 +9299,53 @@ TEST(X509Test, DirHashSeparator) {
   ASSERT_TRUE(X509_sign(ca2.get(), key.get(), EVP_sha256()));
   ASSERT_TRUE(dir1.AddCert(ca2.get(), kNewHash));
 
-  // Make an |X509_STORE| that gets CAs from |dir1| and |dir2|.
-  UniquePtr<X509_STORE> store(X509_STORE_new());
-  ASSERT_TRUE(store);
-  std::string paths = dir1.path() + kSeparator + dir2.path();
-  ASSERT_TRUE(
-      X509_STORE_load_locations(store.get(), /*file=*/nullptr, paths.c_str()));
+  for (bool duplicates : {false, true}) {
+    SCOPED_TRACE(duplicates);
 
-  // Both CAs should work.
-  {
-    UniquePtr<X509> cert =
-        MakeTestCert("Test CA 1", "Leaf", key.get(), /*is_ca=*/false);
-    ASSERT_TRUE(cert);
-    ASSERT_TRUE(X509_sign(cert.get(), key.get(), EVP_sha256()));
-    UniquePtr<X509_STORE_CTX> ctx(X509_STORE_CTX_new());
-    ASSERT_TRUE(ctx);
-    ASSERT_TRUE(X509_STORE_CTX_init(ctx.get(), store.get(), cert.get(),
-                                    /*chain=*/nullptr));
-    X509_STORE_CTX_set_time_posix(ctx.get(), /*flags=*/0, kReferenceTime);
-    EXPECT_TRUE(X509_verify_cert(ctx.get()))
-        << X509_verify_cert_error_string(X509_STORE_CTX_get_error(ctx.get()));
-  }
+    // Make an |X509_STORE| that gets CAs from |dir1| and |dir2|.
+    UniquePtr<X509_STORE> store(X509_STORE_new());
+    ASSERT_TRUE(store);
+    std::string paths = dir1.path() + kSeparator + dir2.path();
+    if (duplicates) {
+      // Within a path, duplicates are silently ignored.
+      paths += kSeparator + paths;
+    }
+    ASSERT_TRUE(X509_STORE_load_locations(store.get(), /*file=*/nullptr,
+                                          paths.c_str()));
+    if (duplicates) {
+      // Across calls, duplicates are silently ignored.
+      ASSERT_TRUE(X509_STORE_load_locations(store.get(), /*file=*/nullptr,
+                                            paths.c_str()));
+    }
 
-  {
-    UniquePtr<X509> cert =
-        MakeTestCert("Test CA 2", "Leaf", key.get(), /*is_ca=*/false);
-    ASSERT_TRUE(cert);
-    ASSERT_TRUE(X509_sign(cert.get(), key.get(), EVP_sha256()));
-    UniquePtr<X509_STORE_CTX> ctx(X509_STORE_CTX_new());
-    ASSERT_TRUE(ctx);
-    ASSERT_TRUE(X509_STORE_CTX_init(ctx.get(), store.get(), cert.get(),
-                                    /*chain=*/nullptr));
-    X509_STORE_CTX_set_time_posix(ctx.get(), /*flags=*/0, kReferenceTime);
-    EXPECT_TRUE(X509_verify_cert(ctx.get()))
-        << X509_verify_cert_error_string(X509_STORE_CTX_get_error(ctx.get()));
+    // Both CAs should work.
+    {
+      UniquePtr<X509> cert =
+          MakeTestCert("Test CA 1", "Leaf", key.get(), /*is_ca=*/false);
+      ASSERT_TRUE(cert);
+      ASSERT_TRUE(X509_sign(cert.get(), key.get(), EVP_sha256()));
+      UniquePtr<X509_STORE_CTX> ctx(X509_STORE_CTX_new());
+      ASSERT_TRUE(ctx);
+      ASSERT_TRUE(X509_STORE_CTX_init(ctx.get(), store.get(), cert.get(),
+                                      /*chain=*/nullptr));
+      X509_STORE_CTX_set_time_posix(ctx.get(), /*flags=*/0, kReferenceTime);
+      EXPECT_TRUE(X509_verify_cert(ctx.get()))
+          << X509_verify_cert_error_string(X509_STORE_CTX_get_error(ctx.get()));
+    }
+
+    {
+      UniquePtr<X509> cert =
+          MakeTestCert("Test CA 2", "Leaf", key.get(), /*is_ca=*/false);
+      ASSERT_TRUE(cert);
+      ASSERT_TRUE(X509_sign(cert.get(), key.get(), EVP_sha256()));
+      UniquePtr<X509_STORE_CTX> ctx(X509_STORE_CTX_new());
+      ASSERT_TRUE(ctx);
+      ASSERT_TRUE(X509_STORE_CTX_init(ctx.get(), store.get(), cert.get(),
+                                      /*chain=*/nullptr));
+      X509_STORE_CTX_set_time_posix(ctx.get(), /*flags=*/0, kReferenceTime);
+      EXPECT_TRUE(X509_verify_cert(ctx.get()))
+          << X509_verify_cert_error_string(X509_STORE_CTX_get_error(ctx.get()));
+    }
   }
 }
 

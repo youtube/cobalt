@@ -73,54 +73,48 @@ inline bcm_status_t bcm_as_not_approved_status(int result) {
 
 #endif  // BORINGSSL_FIPS
 
-// BCM_rand_load_entropy supplies |entropy_len| bytes of entropy to the BCM
-// module. The |want_additional_input| parameter is true iff the entropy was
-// obtained from a source other than the system, e.g. directly from the CPU.
-bcm_infallible BCM_rand_load_entropy(const uint8_t *entropy, size_t entropy_len,
-                                     int want_additional_input);
-
-// BCM_rand_bytes is the same as the public |RAND_bytes| function, other
+// BCM_rand_bytes is the same as the public `RAND_bytes` function, other
 // than returning a bcm_infallible status indicator.
 bcm_infallible BCM_rand_bytes(uint8_t *out, size_t out_len);
 
-// BCM_rand_bytes_hwrng attempts to fill |out| with |len| bytes of entropy from
+// BCM_rand_bytes_hwrng attempts to fill `out` with `len` bytes of entropy from
 // the CPU hardware random number generator if one is present.
 // bcm_status_approved is returned on success, and a failure status is
 // returned otherwise.
 bcm_status BCM_rand_bytes_hwrng(uint8_t *out, size_t len);
 
 // BCM_rand_bytes_with_additional_data samples from the RNG after mixing 32
-// bytes from |user_additional_data| in.
+// bytes from `user_additional_data` in.
 bcm_infallible BCM_rand_bytes_with_additional_data(
     uint8_t *out, size_t out_len, const uint8_t user_additional_data[32]);
 
 
 // SHA-1
 
-// BCM_sha1_init initialises |sha|.
+// BCM_sha1_init initialises `sha`.
 bcm_infallible BCM_sha1_init(SHA_CTX *sha);
 
 // SHA1_transform is a low-level function that performs a single, SHA-1
-// block transformation using the state from |sha| and |SHA_CBLOCK| bytes from
-// |block|.
+// block transformation using the state from `sha` and `SHA_CBLOCK` bytes from
+// `block`.
 bcm_infallible BCM_sha1_transform(SHA_CTX *c, const uint8_t data[SHA_CBLOCK]);
 
-// BCM_sha1_update adds |len| bytes from |data| to |sha|.
+// BCM_sha1_update adds `len` bytes from `data` to `sha`.
 bcm_infallible BCM_sha1_update(SHA_CTX *c, const void *data, size_t len);
 
-// BCM_sha1_final adds the final padding to |sha| and writes the resulting
-// digest to |out|, which must have at least |SHA_DIGEST_LENGTH| bytes of space.
+// BCM_sha1_final adds the final padding to `sha` and writes the resulting
+// digest to `out`, which must have at least `SHA_DIGEST_LENGTH` bytes of space.
 bcm_infallible BCM_sha1_final(uint8_t out[SHA_DIGEST_LENGTH], SHA_CTX *c);
 
 
-// BCM_fips_186_2_prf derives |out_len| bytes from |xkey| using the PRF
+// BCM_fips_186_2_prf derives `out_len` bytes from `xkey` using the PRF
 // defined in FIPS 186-2, Appendix 3.1, with change notice 1 applied. The b
 // parameter is 160 and seed, XKEY, is also 160 bits. The optional XSEED user
 // input is all zeros.
 //
 // The PRF generates a sequence of 320-bit numbers. Each number is encoded as a
-// 40-byte string in big-endian and then concatenated to form |out|. If
-// |out_len| is not a multiple of 40, the result is truncated. This matches the
+// 40-byte string in big-endian and then concatenated to form `out`. If
+// `out_len` is not a multiple of 40, the result is truncated. This matches the
 // construction used in Section 7 of RFC 4186 and Section 7 of RFC 4187.
 //
 // This PRF is based on SHA-1, a weak hash function, and should not be used
@@ -132,14 +126,14 @@ bcm_infallible BCM_fips_186_2_prf(uint8_t *out, size_t out_len,
 
 // SHA-224
 
-// BCM_sha224_unit initialises |sha|.
+// BCM_sha224_unit initialises `sha`.
 bcm_infallible BCM_sha224_init(SHA256_CTX *sha);
 
-// BCM_sha224_update adds |len| bytes from |data| to |sha|.
+// BCM_sha224_update adds `len` bytes from `data` to `sha`.
 bcm_infallible BCM_sha224_update(SHA256_CTX *sha, const void *data, size_t len);
 
-// BCM_sha224_final adds the final padding to |sha| and writes the resulting
-// digest to |out|, which must have at least |SHA224_DIGEST_LENGTH| bytes of
+// BCM_sha224_final adds the final padding to `sha` and writes the resulting
+// digest to `out`, which must have at least `SHA224_DIGEST_LENGTH` bytes of
 // space. It aborts on programmer error.
 bcm_infallible BCM_sha224_final(uint8_t out[SHA224_DIGEST_LENGTH],
                                 SHA256_CTX *sha);
@@ -147,27 +141,27 @@ bcm_infallible BCM_sha224_final(uint8_t out[SHA224_DIGEST_LENGTH],
 
 // SHA-256
 
-// BCM_sha256_init initialises |sha|.
+// BCM_sha256_init initialises `sha`.
 bcm_infallible BCM_sha256_init(SHA256_CTX *sha);
 
-// BCM_sha256_update adds |len| bytes from |data| to |sha|.
+// BCM_sha256_update adds `len` bytes from `data` to `sha`.
 bcm_infallible BCM_sha256_update(SHA256_CTX *sha, const void *data, size_t len);
 
-// BCM_sha256_final adds the final padding to |sha| and writes the resulting
-// digest to |out|, which must have at least |SHA256_DIGEST_LENGTH| bytes of
+// BCM_sha256_final adds the final padding to `sha` and writes the resulting
+// digest to `out`, which must have at least `SHA256_DIGEST_LENGTH` bytes of
 // space. It aborts on programmer error.
 bcm_infallible BCM_sha256_final(uint8_t out[SHA256_DIGEST_LENGTH],
                                 SHA256_CTX *sha);
 
 // BCM_sha256_transform is a low-level function that performs a single, SHA-256
-// block transformation using the state from |sha| and |SHA256_CBLOCK| bytes
-// from |block|.
+// block transformation using the state from `sha` and `SHA256_CBLOCK` bytes
+// from `block`.
 bcm_infallible BCM_sha256_transform(SHA256_CTX *sha,
                                     const uint8_t block[SHA256_CBLOCK]);
 
-// BCM_sha256_transform_blocks is a low-level function that takes |num_blocks| *
-// |SHA256_CBLOCK| bytes of data and performs SHA-256 transforms on it to update
-// |state|.
+// BCM_sha256_transform_blocks is a low-level function that takes `num_blocks` *
+// `SHA256_CBLOCK` bytes of data and performs SHA-256 transforms on it to update
+// `state`.
 bcm_infallible BCM_sha256_transform_blocks(uint32_t state[8],
                                            const uint8_t *data,
                                            size_t num_blocks);
@@ -175,14 +169,14 @@ bcm_infallible BCM_sha256_transform_blocks(uint32_t state[8],
 
 // SHA-384.
 
-// BCM_sha384_init initialises |sha|.
+// BCM_sha384_init initialises `sha`.
 bcm_infallible BCM_sha384_init(SHA512_CTX *sha);
 
-// BCM_sha384_update adds |len| bytes from |data| to |sha|.
+// BCM_sha384_update adds `len` bytes from `data` to `sha`.
 bcm_infallible BCM_sha384_update(SHA512_CTX *sha, const void *data, size_t len);
 
-// BCM_sha384_final adds the final padding to |sha| and writes the resulting
-// digest to |out|, which must have at least |SHA384_DIGEST_LENGTH| bytes of
+// BCM_sha384_final adds the final padding to `sha` and writes the resulting
+// digest to `out`, which must have at least `SHA384_DIGEST_LENGTH` bytes of
 // space. It may abort on programmer error.
 bcm_infallible BCM_sha384_final(uint8_t out[SHA384_DIGEST_LENGTH],
                                 SHA512_CTX *sha);
@@ -190,21 +184,21 @@ bcm_infallible BCM_sha384_final(uint8_t out[SHA384_DIGEST_LENGTH],
 
 // SHA-512.
 
-// BCM_sha512_init initialises |sha|.
+// BCM_sha512_init initialises `sha`.
 bcm_infallible BCM_sha512_init(SHA512_CTX *sha);
 
-// BCM_sha512_update adds |len| bytes from |data| to |sha|.
+// BCM_sha512_update adds `len` bytes from `data` to `sha`.
 bcm_infallible BCM_sha512_update(SHA512_CTX *sha, const void *data, size_t len);
 
-// BCM_sha512_final adds the final padding to |sha| and writes the resulting
-// digest to |out|, which must have at least |SHA512_DIGEST_LENGTH| bytes of
+// BCM_sha512_final adds the final padding to `sha` and writes the resulting
+// digest to `out`, which must have at least `SHA512_DIGEST_LENGTH` bytes of
 // space.
 bcm_infallible BCM_sha512_final(uint8_t out[SHA512_DIGEST_LENGTH],
                                 SHA512_CTX *sha);
 
 // BCM_sha512_transform is a low-level function that performs a single, SHA-512
-// block transformation using the state from |sha| and |SHA512_CBLOCK| bytes
-// from |block|.
+// block transformation using the state from `sha` and `SHA512_CBLOCK` bytes
+// from `block`.
 bcm_infallible BCM_sha512_transform(SHA512_CTX *sha,
                                     const uint8_t block[SHA512_CBLOCK]);
 
@@ -213,15 +207,15 @@ bcm_infallible BCM_sha512_transform(SHA512_CTX *sha,
 //
 // See https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf section 5.3.6
 
-// BCM_sha512_256_init initialises |sha|.
+// BCM_sha512_256_init initialises `sha`.
 bcm_infallible BCM_sha512_256_init(SHA512_CTX *sha);
 
-// BCM_sha512_256_update adds |len| bytes from |data| to |sha|.
+// BCM_sha512_256_update adds `len` bytes from `data` to `sha`.
 bcm_infallible BCM_sha512_256_update(SHA512_CTX *sha, const void *data,
                                      size_t len);
 
-// BCM_sha512_256_final adds the final padding to |sha| and writes the resulting
-// digest to |out|, which must have at least |SHA512_256_DIGEST_LENGTH| bytes of
+// BCM_sha512_256_final adds the final padding to `sha` and writes the resulting
+// digest to `out`, which must have at least `SHA512_256_DIGEST_LENGTH` bytes of
 // space. It may abort on programmer error.
 bcm_infallible BCM_sha512_256_final(uint8_t out[SHA512_256_DIGEST_LENGTH],
                                     SHA512_CTX *sha);
@@ -250,7 +244,7 @@ OPENSSL_EXPORT bcm_status BCM_mldsa65_private_key_from_seed(
 OPENSSL_EXPORT bcm_status BCM_mldsa65_public_from_private(
     MLDSA65_public_key *out_public_key, const MLDSA65_private_key *private_key);
 
-// BCM_mldsa65_public_of_private returns the public half of |private_key|.
+// BCM_mldsa65_public_of_private returns the public half of `private_key`.
 const MLDSA65_public_key *BCM_mldsa65_public_of_private(
     const MLDSA65_private_key *private_key);
 
@@ -305,7 +299,7 @@ BCM_mldsa65_parse_private_key(MLDSA65_private_key *private_key, CBS *in);
 
 // BCM_mldsa65_generate_key_external_entropy generates a public/private key pair
 // using the given seed, writes the encoded public key to
-// |out_encoded_public_key| and sets |out_private_key| to the private key.
+// `out_encoded_public_key` and sets `out_private_key` to the private key.
 OPENSSL_EXPORT bcm_status BCM_mldsa65_generate_key_external_entropy(
     uint8_t out_encoded_public_key[MLDSA65_PUBLIC_KEY_BYTES],
     MLDSA65_private_key *out_private_key,
@@ -316,11 +310,11 @@ OPENSSL_EXPORT bcm_status BCM_mldsa65_generate_key_external_entropy_fips(
     MLDSA65_private_key *out_private_key,
     const uint8_t entropy[MLDSA_SEED_BYTES]);
 
-// BCM_mldsa5_sign_internal signs |msg| using |private_key| and writes the
-// signature to |out_encoded_signature|. The |context_prefix| and |context| are
-// prefixed to the message, in that order, before signing. The |randomizer|
+// BCM_mldsa5_sign_internal signs `msg` using `private_key` and writes the
+// signature to `out_encoded_signature`. The `context_prefix` and `context` are
+// prefixed to the message, in that order, before signing. The `randomizer`
 // value can be set to zero bytes in order to make a deterministic signature, or
-// else filled with entropy for the usual |MLDSA_sign| behavior.
+// else filled with entropy for the usual `MLDSA_sign` behavior.
 OPENSSL_EXPORT bcm_status BCM_mldsa65_sign_internal(
     uint8_t out_encoded_signature[MLDSA65_SIGNATURE_BYTES],
     const MLDSA65_private_key *private_key, const uint8_t *msg, size_t msg_len,
@@ -334,8 +328,8 @@ OPENSSL_EXPORT bcm_status BCM_mldsa65_sign_mu_internal(
     const uint8_t msg_rep[MLDSA_MU_BYTES],
     const uint8_t randomizer[BCM_MLDSA_SIGNATURE_RANDOMIZER_BYTES]);
 
-// BCM_mldsa5_verify_internal verifies that |encoded_signature| is a valid
-// signature of |msg| by |public_key|. The |context_prefix| and |context| are
+// BCM_mldsa5_verify_internal verifies that `encoded_signature` is a valid
+// signature of `msg` by `public_key`. The `context_prefix` and `context` are
 // prefixed to the message before verification, in that order.
 OPENSSL_EXPORT bcm_status BCM_mldsa65_verify_internal(
     const MLDSA65_public_key *public_key,
@@ -343,12 +337,12 @@ OPENSSL_EXPORT bcm_status BCM_mldsa65_verify_internal(
     const uint8_t *msg, size_t msg_len, const uint8_t *context_prefix,
     size_t context_prefix_len, const uint8_t *context, size_t context_len);
 
-// BCM_mldsa65_marshal_private_key serializes |private_key| to |out| in the
+// BCM_mldsa65_marshal_private_key serializes `private_key` to `out` in the
 // NIST format for ML-DSA-65 private keys.
 OPENSSL_EXPORT bcm_status BCM_mldsa65_marshal_private_key(
     CBB *out, const MLDSA65_private_key *private_key);
 
-// BCM_mldsa65_public_keys_equal returns one if |a| and |b| are equal and zero
+// BCM_mldsa65_public_keys_equal returns one if `a` and `b` are equal and zero
 // otherwise.
 int BCM_mldsa65_public_keys_equal(const MLDSA65_public_key *a,
                                   const MLDSA65_public_key *b);
@@ -368,7 +362,7 @@ OPENSSL_EXPORT bcm_status BCM_mldsa87_private_key_from_seed(
 OPENSSL_EXPORT bcm_status BCM_mldsa87_public_from_private(
     MLDSA87_public_key *out_public_key, const MLDSA87_private_key *private_key);
 
-// BCM_mldsa87_public_of_private returns the public half of |private_key|.
+// BCM_mldsa87_public_of_private returns the public half of `private_key`.
 const MLDSA87_public_key *BCM_mldsa87_public_of_private(
     const MLDSA87_private_key *private_key);
 
@@ -423,7 +417,7 @@ BCM_mldsa87_parse_private_key(MLDSA87_private_key *private_key, CBS *in);
 
 // BCM_mldsa87_generate_key_external_entropy generates a public/private key pair
 // using the given seed, writes the encoded public key to
-// |out_encoded_public_key| and sets |out_private_key| to the private key.
+// `out_encoded_public_key` and sets `out_private_key` to the private key.
 OPENSSL_EXPORT bcm_status BCM_mldsa87_generate_key_external_entropy(
     uint8_t out_encoded_public_key[MLDSA87_PUBLIC_KEY_BYTES],
     MLDSA87_private_key *out_private_key,
@@ -434,11 +428,11 @@ OPENSSL_EXPORT bcm_status BCM_mldsa87_generate_key_external_entropy_fips(
     MLDSA87_private_key *out_private_key,
     const uint8_t entropy[MLDSA_SEED_BYTES]);
 
-// BCM_mldsa87_sign_internal signs |msg| using |private_key| and writes the
-// signature to |out_encoded_signature|. The |context_prefix| and |context| are
-// prefixed to the message, in that order, before signing. The |randomizer|
+// BCM_mldsa87_sign_internal signs `msg` using `private_key` and writes the
+// signature to `out_encoded_signature`. The `context_prefix` and `context` are
+// prefixed to the message, in that order, before signing. The `randomizer`
 // value can be set to zero bytes in order to make a deterministic signature, or
-// else filled with entropy for the usual |MLDSA_sign| behavior.
+// else filled with entropy for the usual `MLDSA_sign` behavior.
 OPENSSL_EXPORT bcm_status BCM_mldsa87_sign_internal(
     uint8_t out_encoded_signature[MLDSA87_SIGNATURE_BYTES],
     const MLDSA87_private_key *private_key, const uint8_t *msg, size_t msg_len,
@@ -452,8 +446,8 @@ OPENSSL_EXPORT bcm_status BCM_mldsa87_sign_mu_internal(
     const uint8_t msg_rep[MLDSA_MU_BYTES],
     const uint8_t randomizer[BCM_MLDSA_SIGNATURE_RANDOMIZER_BYTES]);
 
-// BCM_mldsa87_verify_internal verifies that |encoded_signature| is a valid
-// signature of |msg| by |public_key|. The |context_prefix| and |context| are
+// BCM_mldsa87_verify_internal verifies that `encoded_signature` is a valid
+// signature of `msg` by `public_key`. The `context_prefix` and `context` are
 // prefixed to the message before verification, in that order.
 OPENSSL_EXPORT bcm_status BCM_mldsa87_verify_internal(
     const MLDSA87_public_key *public_key,
@@ -461,12 +455,12 @@ OPENSSL_EXPORT bcm_status BCM_mldsa87_verify_internal(
     const uint8_t *msg, size_t msg_len, const uint8_t *context_prefix,
     size_t context_prefix_len, const uint8_t *context, size_t context_len);
 
-// BCM_mldsa87_marshal_private_key serializes |private_key| to |out| in the
+// BCM_mldsa87_marshal_private_key serializes `private_key` to `out` in the
 // NIST format for ML-DSA-87 private keys.
 OPENSSL_EXPORT bcm_status BCM_mldsa87_marshal_private_key(
     CBB *out, const MLDSA87_private_key *private_key);
 
-// BCM_mldsa87_public_keys_equal returns one if |a| and |b| are equal and zero
+// BCM_mldsa87_public_keys_equal returns one if `a` and `b` are equal and zero
 // otherwise.
 int BCM_mldsa87_public_keys_equal(const MLDSA87_public_key *a,
                                   const MLDSA87_public_key *b);
@@ -485,7 +479,7 @@ OPENSSL_EXPORT bcm_status BCM_mldsa44_private_key_from_seed(
 OPENSSL_EXPORT bcm_status BCM_mldsa44_public_from_private(
     MLDSA44_public_key *out_public_key, const MLDSA44_private_key *private_key);
 
-// BCM_mldsa44_public_of_private returns the public half of |private_key|.
+// BCM_mldsa44_public_of_private returns the public half of `private_key`.
 const MLDSA44_public_key *BCM_mldsa44_public_of_private(
     const MLDSA44_private_key *private_key);
 
@@ -540,7 +534,7 @@ BCM_mldsa44_parse_private_key(MLDSA44_private_key *private_key, CBS *in);
 
 // BCM_mldsa44_generate_key_external_entropy generates a public/private key pair
 // using the given seed, writes the encoded public key to
-// |out_encoded_public_key| and sets |out_private_key| to the private key.
+// `out_encoded_public_key` and sets `out_private_key` to the private key.
 OPENSSL_EXPORT bcm_status BCM_mldsa44_generate_key_external_entropy(
     uint8_t out_encoded_public_key[MLDSA44_PUBLIC_KEY_BYTES],
     MLDSA44_private_key *out_private_key,
@@ -551,11 +545,11 @@ OPENSSL_EXPORT bcm_status BCM_mldsa44_generate_key_external_entropy_fips(
     MLDSA44_private_key *out_private_key,
     const uint8_t entropy[MLDSA_SEED_BYTES]);
 
-// BCM_mldsa44_sign_internal signs |msg| using |private_key| and writes the
-// signature to |out_encoded_signature|. The |context_prefix| and |context| are
-// prefixed to the message, in that order, before signing. The |randomizer|
+// BCM_mldsa44_sign_internal signs `msg` using `private_key` and writes the
+// signature to `out_encoded_signature`. The `context_prefix` and `context` are
+// prefixed to the message, in that order, before signing. The `randomizer`
 // value can be set to zero bytes in order to make a deterministic signature, or
-// else filled with entropy for the usual |MLDSA_sign| behavior.
+// else filled with entropy for the usual `MLDSA_sign` behavior.
 OPENSSL_EXPORT bcm_status BCM_mldsa44_sign_internal(
     uint8_t out_encoded_signature[MLDSA44_SIGNATURE_BYTES],
     const MLDSA44_private_key *private_key, const uint8_t *msg, size_t msg_len,
@@ -569,8 +563,8 @@ OPENSSL_EXPORT bcm_status BCM_mldsa44_sign_mu_internal(
     const uint8_t msg_rep[MLDSA_MU_BYTES],
     const uint8_t randomizer[BCM_MLDSA_SIGNATURE_RANDOMIZER_BYTES]);
 
-// BCM_mldsa44_verify_internal verifies that |encoded_signature| is a valid
-// signature of |msg| by |public_key|. The |context_prefix| and |context| are
+// BCM_mldsa44_verify_internal verifies that `encoded_signature` is a valid
+// signature of `msg` by `public_key`. The `context_prefix` and `context` are
 // prefixed to the message before verification, in that order.
 OPENSSL_EXPORT bcm_status BCM_mldsa44_verify_internal(
     const MLDSA44_public_key *public_key,
@@ -578,12 +572,12 @@ OPENSSL_EXPORT bcm_status BCM_mldsa44_verify_internal(
     const uint8_t *msg, size_t msg_len, const uint8_t *context_prefix,
     size_t context_prefix_len, const uint8_t *context, size_t context_len);
 
-// BCM_mldsa44_marshal_private_key serializes |private_key| to |out| in the
+// BCM_mldsa44_marshal_private_key serializes `private_key` to `out` in the
 // NIST format for ML-DSA-44 private keys.
 OPENSSL_EXPORT bcm_status BCM_mldsa44_marshal_private_key(
     CBB *out, const MLDSA44_private_key *private_key);
 
-// BCM_mldsa44_public_keys_equal returns one if |a| and |b| are equal and zero
+// BCM_mldsa44_public_keys_equal returns one if `a` and `b` are equal and zero
 // otherwise.
 int BCM_mldsa44_public_keys_equal(const MLDSA44_public_key *a,
                                   const MLDSA44_public_key *b);
@@ -600,11 +594,11 @@ int BCM_mldsa44_public_keys_equal(const MLDSA44_public_key *a,
 #define BCM_MLKEM_ENCAP_ENTROPY 32
 
 // BCM_MLKEM768_PRIVATE_KEY_BYTES is the length of the data produced by
-// |BCM_mlkem768_marshal_private_key|.
+// `BCM_mlkem768_marshal_private_key`.
 #define BCM_MLKEM768_PRIVATE_KEY_BYTES 2400
 
 // BCM_MLKEM1024_PRIVATE_KEY_BYTES is the length of the data produced by
-// |BCM_mlkem1024_marshal_private_key|.
+// `BCM_mlkem1024_marshal_private_key`.
 #define BCM_MLKEM1024_PRIVATE_KEY_BYTES 3168
 
 OPENSSL_EXPORT bcm_infallible BCM_mlkem768_generate_key(
@@ -644,7 +638,7 @@ BCM_mlkem768_decap(uint8_t out_shared_secret[MLKEM_SHARED_SECRET_BYTES],
 OPENSSL_EXPORT bcm_status BCM_mlkem768_marshal_public_key(
     CBB *out, const MLKEM768_public_key *public_key);
 
-// BCM_mlkem768_public_keys_equal returns one if |a| and |b| are equal and zero
+// BCM_mlkem768_public_keys_equal returns one if `a` and `b` are equal and zero
 // otherwise.
 int BCM_mlkem768_public_keys_equal(const MLKEM768_public_key *a,
                                    const MLKEM768_public_key *b);
@@ -653,37 +647,37 @@ OPENSSL_EXPORT bcm_status
 BCM_mlkem768_parse_public_key(MLKEM768_public_key *out_public_key, CBS *in);
 
 // BCM_mlkem768_parse_private_key parses a private key, in NIST's format for
-// private keys, from |in| and writes the result to |out_private_key|. It
+// private keys, from `in` and writes the result to `out_private_key`. It
 // returns one on success or zero on parse error or if there are trailing bytes
-// in |in|. This format is verbose and should be avoided. Private keys should be
-// stored as seeds and parsed using |BCM_mlkem768_private_key_from_seed|.
+// in `in`. This format is verbose and should be avoided. Private keys should be
+// stored as seeds and parsed using `BCM_mlkem768_private_key_from_seed`.
 OPENSSL_EXPORT bcm_status
 BCM_mlkem768_parse_private_key(MLKEM768_private_key *out_private_key, CBS *in);
 
 // BCM_mlkem768_generate_key_external_seed is a deterministic function to create
 // a pair of ML-KEM-768 keys, using the supplied seed. The seed needs to be
 // uniformly random. This function should only be used for tests; regular
-// callers should use the non-deterministic |BCM_mlkem768_generate_key|
+// callers should use the non-deterministic `BCM_mlkem768_generate_key`
 // directly.
 OPENSSL_EXPORT bcm_infallible BCM_mlkem768_generate_key_external_seed(
     uint8_t out_encoded_public_key[MLKEM768_PUBLIC_KEY_BYTES],
     MLKEM768_private_key *out_private_key,
     const uint8_t seed[MLKEM_SEED_BYTES]);
 
-// BCM_mlkem768_encap_external_entropy behaves like |MLKEM768_encap|, but uses
-// |MLKEM_ENCAP_ENTROPY| bytes of |entropy| for randomization. The decapsulating
-// side will be able to recover |entropy| in full. This function should only be
+// BCM_mlkem768_encap_external_entropy behaves like `MLKEM768_encap`, but uses
+// `MLKEM_ENCAP_ENTROPY` bytes of `entropy` for randomization. The decapsulating
+// side will be able to recover `entropy` in full. This function should only be
 // used for tests, regular callers should use the non-deterministic
-// |BCM_mlkem768_encap| directly.
+// `BCM_mlkem768_encap` directly.
 OPENSSL_EXPORT bcm_infallible BCM_mlkem768_encap_external_entropy(
     uint8_t out_ciphertext[MLKEM768_CIPHERTEXT_BYTES],
     uint8_t out_shared_secret[MLKEM_SHARED_SECRET_BYTES],
     const MLKEM768_public_key *public_key,
     const uint8_t entropy[BCM_MLKEM_ENCAP_ENTROPY]);
 
-// BCM_mlkem768_marshal_private_key serializes |private_key| to |out| in the
+// BCM_mlkem768_marshal_private_key serializes `private_key` to `out` in the
 // NIST format for ML-KEM-768 private keys. (Note that one can also save just
-// the seed value produced by |BCM_mlkem768_generate_key|, which is
+// the seed value produced by `BCM_mlkem768_generate_key`, which is
 // significantly smaller.)
 OPENSSL_EXPORT bcm_status BCM_mlkem768_marshal_private_key(
     CBB *out, const MLKEM768_private_key *private_key);
@@ -725,7 +719,7 @@ BCM_mlkem1024_decap(uint8_t out_shared_secret[MLKEM_SHARED_SECRET_BYTES],
 OPENSSL_EXPORT bcm_status BCM_mlkem1024_marshal_public_key(
     CBB *out, const MLKEM1024_public_key *public_key);
 
-// BCM_mlkem1024_public_keys_equal returns one if |a| and |b| are equal and zero
+// BCM_mlkem1024_public_keys_equal returns one if `a` and `b` are equal and zero
 // otherwise.
 int BCM_mlkem1024_public_keys_equal(const MLKEM1024_public_key *a,
                                     const MLKEM1024_public_key *b);
@@ -734,37 +728,37 @@ OPENSSL_EXPORT bcm_status
 BCM_mlkem1024_parse_public_key(MLKEM1024_public_key *out_public_key, CBS *in);
 
 // BCM_mlkem1024_parse_private_key parses a private key, in NIST's format for
-// private keys, from |in| and writes the result to |out_private_key|. It
+// private keys, from `in` and writes the result to `out_private_key`. It
 // returns one on success or zero on parse error or if there are trailing bytes
-// in |in|. This format is verbose and should be avoided. Private keys should be
-// stored as seeds and parsed using |BCM_mlkem1024_private_key_from_seed|.
+// in `in`. This format is verbose and should be avoided. Private keys should be
+// stored as seeds and parsed using `BCM_mlkem1024_private_key_from_seed`.
 OPENSSL_EXPORT bcm_status BCM_mlkem1024_parse_private_key(
     MLKEM1024_private_key *out_private_key, CBS *in);
 
 // BCM_mlkem1024_generate_key_external_seed is a deterministic function to
 // create a pair of ML-KEM-1024 keys, using the supplied seed. The seed needs to
 // be uniformly random. This function should only be used for tests, regular
-// callers should use the non-deterministic |BCM_mlkem1024_generate_key|
+// callers should use the non-deterministic `BCM_mlkem1024_generate_key`
 // directly.
 OPENSSL_EXPORT bcm_infallible BCM_mlkem1024_generate_key_external_seed(
     uint8_t out_encoded_public_key[MLKEM1024_PUBLIC_KEY_BYTES],
     MLKEM1024_private_key *out_private_key,
     const uint8_t seed[MLKEM_SEED_BYTES]);
 
-// BCM_mlkem1024_encap_external_entropy behaves like |MLKEM1024_encap|, but uses
-// |MLKEM_ENCAP_ENTROPY| bytes of |entropy| for randomization. The
-// decapsulating side will be able to recover |entropy| in full. This function
+// BCM_mlkem1024_encap_external_entropy behaves like `MLKEM1024_encap`, but uses
+// `MLKEM_ENCAP_ENTROPY` bytes of `entropy` for randomization. The
+// decapsulating side will be able to recover `entropy` in full. This function
 // should only be used for tests, regular callers should use the
-// non-deterministic |BCM_mlkem1024_encap| directly.
+// non-deterministic `BCM_mlkem1024_encap` directly.
 OPENSSL_EXPORT bcm_infallible BCM_mlkem1024_encap_external_entropy(
     uint8_t out_ciphertext[MLKEM1024_CIPHERTEXT_BYTES],
     uint8_t out_shared_secret[MLKEM_SHARED_SECRET_BYTES],
     const MLKEM1024_public_key *public_key,
     const uint8_t entropy[BCM_MLKEM_ENCAP_ENTROPY]);
 
-// BCM_mlkem1024_marshal_private_key serializes |private_key| to |out| in the
+// BCM_mlkem1024_marshal_private_key serializes `private_key` to `out` in the
 // NIST format for ML-KEM-1024 private keys. (Note that one can also save just
-// the seed value produced by |BCM_mlkem1024_generate_key|, which is
+// the seed value produced by `BCM_mlkem1024_generate_key`, which is
 // significantly smaller.)
 OPENSSL_EXPORT bcm_status BCM_mlkem1024_marshal_private_key(
     CBB *out, const MLKEM1024_private_key *private_key);
@@ -796,8 +790,8 @@ OPENSSL_EXPORT bcm_status BCM_mlkem1024_marshal_private_key(
 #define BCM_SLHDSA_SHAKE_256F_SIGNATURE_BYTES 49856
 
 // BCM_slhdsa_sha2_128s_generate_key_from_seed generates an SLH-DSA-SHA2-128s
-// key pair from a 48-byte seed and writes the result to |out_public_key| and
-// |out_secret_key|.
+// key pair from a 48-byte seed and writes the result to `out_public_key` and
+// `out_secret_key`.
 OPENSSL_EXPORT bcm_infallible BCM_slhdsa_sha2_128s_generate_key_from_seed(
     uint8_t out_public_key[BCM_SLHDSA_SHA2_128S_PUBLIC_KEY_BYTES],
     uint8_t out_secret_key[BCM_SLHDSA_SHA2_128S_PRIVATE_KEY_BYTES],
@@ -821,11 +815,11 @@ OPENSSL_EXPORT bcm_status BCM_slhdsa_shake_256f_generate_key_from_seed_fips(
     uint8_t out_secret_key[BCM_SLHDSA_SHAKE_256F_PRIVATE_KEY_BYTES],
     const uint8_t seed[3 * BCM_SLHDSA_SHAKE_256F_N]);
 
-// BCM_slhdsa_sha2_128s_sign_internal acts like |SLHDSA_SHA2_128S_sign| but
+// BCM_slhdsa_sha2_128s_sign_internal acts like `SLHDSA_SHA2_128S_sign` but
 // accepts an explicit entropy input, which can be PK.seed (bytes 32..48 of
 // the private key) to generate deterministic signatures. It also takes the
 // input message in three parts so that the "internal" version of the signing
-// function, from section 9.2, can be implemented. The |header| argument may be
+// function, from section 9.2, can be implemented. The `header` argument may be
 // NULL to omit it.
 OPENSSL_EXPORT bcm_infallible BCM_slhdsa_sha2_128s_sign_internal(
     uint8_t out_signature[BCM_SLHDSA_SHA2_128S_SIGNATURE_BYTES],
@@ -841,9 +835,9 @@ OPENSSL_EXPORT bcm_infallible BCM_slhdsa_shake_256f_sign_internal(
     size_t context_len, const uint8_t *msg, size_t msg_len,
     const uint8_t entropy[BCM_SLHDSA_SHAKE_256F_N]);
 
-// BCM_slhdsa_sha2_128s_verify_internal acts like |SLHDSA_SHA2_128S_verify| but
+// BCM_slhdsa_sha2_128s_verify_internal acts like `SLHDSA_SHA2_128S_verify` but
 // takes the input message in three parts so that the "internal" version of the
-// verification function, from section 9.3, can be implemented. The |header|
+// verification function, from section 9.3, can be implemented. The `header`
 // argument may be NULL to omit it.
 OPENSSL_EXPORT bcm_status BCM_slhdsa_sha2_128s_verify_internal(
     const uint8_t *signature, size_t signature_len,
@@ -932,24 +926,24 @@ OPENSSL_EXPORT bcm_status BCM_slhdsa_shake_256f_prehash_verify(
 
 // AES
 
-// BCM_aes_encrypt encrypts a single block from |in| to |out| with |key|. The
-// |in| and |out| pointers may overlap.
+// BCM_aes_encrypt encrypts a single block from `in` to `out` with `key`. The
+// `in` and `out` pointers may overlap.
 bcm_infallible BCM_aes_encrypt(const uint8_t *in, uint8_t *out,
                                const AES_KEY *key);
-// BCM_aes_decrypt decrypts a single block from |in| to |out| with |key|. The
-// |in| and |out| pointers may overlap.
+// BCM_aes_decrypt decrypts a single block from `in` to `out` with `key`. The
+// `in` and `out` pointers may overlap.
 bcm_infallible BCM_aes_decrypt(const uint8_t *in, uint8_t *out,
                                const AES_KEY *key);
 
-// BCM_aes_set_encrypt_key configures |aeskey| to encrypt with the |bits|-bit
-// key, |key|. |key| must point to |bits|/8 bytes. It will return failure if
-// |bits| is an invalid AES key size.
+// BCM_aes_set_encrypt_key configures `aeskey` to encrypt with the `bits`-bit
+// key, `key`. `key` must point to `bits`/8 bytes. It will return failure if
+// `bits` is an invalid AES key size.
 bcm_status BCM_aes_set_encrypt_key(const uint8_t *key, unsigned bits,
                                    AES_KEY *aeskey);
 
-// BCM_aes_set_decrypt_key configures |aeskey| to decrypt with the |bits|-bit
-// key, |key|. |key| must point to |bits|/8 bytes. It will return failure if
-// |bits| is an invalid AES key size.
+// BCM_aes_set_decrypt_key configures `aeskey` to decrypt with the `bits`-bit
+// key, `key`. `key` must point to `bits`/8 bytes. It will return failure if
+// `bits` is an invalid AES key size.
 bcm_status BCM_aes_set_decrypt_key(const uint8_t *key, unsigned bits,
                                    AES_KEY *aeskey);
 

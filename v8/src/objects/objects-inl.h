@@ -32,6 +32,7 @@
 #include "src/objects/allocation-site.h"
 #include "src/objects/casting.h"
 #include "src/objects/deoptimization-data.h"
+#include "src/objects/descriptor-array.h"
 #include "src/objects/field-type.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number-inl.h"
@@ -593,7 +594,7 @@ ElementsKind Object::OptimalElementsKind(Tagged<Object> obj) {
   //   return PACKED_SMI_ELEMENTS;
   // }
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
-  if (IsUndefined(heap_object, GetReadOnlyRoots())) {
+  if (IsUndefined(heap_object)) {
     return HOLEY_DOUBLE_ELEMENTS;
   }
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE

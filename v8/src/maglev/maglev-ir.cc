@@ -253,33 +253,6 @@ void Phi::RecordUseReprHint(UseRepresentationSet repr_mask,
   }
 }
 
-void Phi::SetUseRequiresSmi() {
-  if (uses_require_smi()) return;
-  set_uses_require_smi();
-  auto inputs =
-      is_loop_phi() ? merge_state_->predecessors_so_far() : input_count();
-  for (uint32_t i = 0; i < inputs; ++i) {
-    ValueNode* input_node = input(i).node();
-    DCHECK(input_node);
-    if (auto phi = input_node->TryCast<Phi>()) {
-      phi->SetUseRequiresSmi();
-    }
-  }
-}
-void Phi::SetUseRequiresHeapObject() {
-  if (uses_require_heap_object()) return;
-  set_uses_require_heap_object();
-  auto inputs =
-      is_loop_phi() ? merge_state_->predecessors_so_far() : input_count();
-  for (uint32_t i = 0; i < inputs; ++i) {
-    ValueNode* input_node = input(i).node();
-    DCHECK(input_node);
-    if (auto phi = input_node->TryCast<Phi>()) {
-      phi->SetUseRequiresHeapObject();
-    }
-  }
-}
-
 InitialValue::InitialValue(uint64_t bitfield, interpreter::Register source)
     : Base(bitfield), source_(source) {}
 
@@ -747,6 +720,7 @@ ExternalReference Float64Ieee754Unary::ieee_function_ref() const {
     IEEE_754_UNARY_LIST(CASE)
 #undef CASE
   }
+  UNREACHABLE();
 }
 
 ExternalReference Float64Ieee754Binary::ieee_function_ref() const {
@@ -757,6 +731,7 @@ ExternalReference Float64Ieee754Binary::ieee_function_ref() const {
     IEEE_754_BINARY_LIST(CASE)
 #undef CASE
   }
+  UNREACHABLE();
 }
 
 // ---
@@ -899,12 +874,12 @@ void CallBuiltin::MarkTaggedInputsAsDecompressing() {
 
 void StoreTaggedFieldNoWriteBarrier::VerifyInputs() const {
   Base::VerifyInputs();
-  if (auto host_alloc =
-          input(kObjectIndex).node()->TryCast<InlinedAllocation>()) {
-    if (input(kValueIndex).node()->Is<InlinedAllocation>()) {
-      CHECK_EQ(host_alloc->allocation_block()->allocation_type(),
-               AllocationType::kYoung);
-    }
+  auto host_alloc = input(kObjectIndex).node()->TryCast<InlinedAllocation>();
+  auto value_alloc = input(kValueIndex).node()->TryCast<InlinedAllocation>();
+  if (host_alloc && value_alloc &&
+      host_alloc->allocation_block() == value_alloc->allocation_block()) {
+    CHECK_EQ(host_alloc->allocation_block()->allocation_type(),
+             AllocationType::kYoung);
   }
 }
 
@@ -1807,6 +1782,46 @@ void UnsafeSmiTagInt32::SetValueLocationConstraints() {
 void UnsafeSmiTagInt32::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
   __ UncheckedSmiTagInt32(ToRegister(ValueInput()));
+}
+
+void UnsafeSmiTagFloat64::SetValueLocationConstraints() {
+  UseRegister(ValueInput());
+  DefineAsRegister(this);
+#ifdef DEBUG
+  set_temporaries_needed(1);
+#endif
+}
+void UnsafeSmiTagFloat64::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(ValueInput());
+  Register object = ToRegister(result());
+
+#ifdef DEBUG
+  __ AssertFloat64IsSmi(value);
+#endif
+
+  __ TruncateDoubleToInt32(object, value);
+  __ UncheckedSmiTagInt32(object);
+}
+
+void UnsafeSmiTagHoleyFloat64::SetValueLocationConstraints() {
+  UseRegister(ValueInput());
+  DefineAsRegister(this);
+#ifdef DEBUG
+  set_temporaries_needed(1);
+#endif
+}
+void UnsafeSmiTagHoleyFloat64::GenerateCode(MaglevAssembler* masm,
+                                            const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(ValueInput());
+  Register object = ToRegister(result());
+
+#ifdef DEBUG
+  __ AssertHoleyFloat64IsSmi(value);
+#endif
+
+  __ TruncateDoubleToInt32(object, value);
+  __ UncheckedSmiTagInt32(object);
 }
 
 void UnsafeSmiTagUint32::SetValueLocationConstraints() {
@@ -3975,10 +3990,8 @@ void CheckMaglevType::SetValueLocationConstraints() {
 
 void CheckMaglevType::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
-  __ CallBuiltin<Builtin::kCheckMaglevType>(
-      ValueInput(), Smi::FromEnum(expected_type_),
-      Smi::FromInt(allow_widening_smi_to_int32_ ==
-                   AllowWideningSmiToInt32::kAllow));
+  __ CallBuiltin<Builtin::kCheckMaglevType>(ValueInput(),
+                                            Smi::FromEnum(expected_type_));
 }
 
 int StoreContextSlotWithWriteBarrier::MaxCallStackArgs() const {
@@ -8736,9 +8749,7 @@ void CheckMapsWithMigration::PrintParams(std::ostream& os) const {
 }
 
 void CheckMaglevType::PrintParams(std::ostream& os) const {
-  os << "(" << expected_type_ << ", allow_widening_smi_to_int32 = "
-     << (allow_widening_smi_to_int32_ == AllowWideningSmiToInt32::kAllow)
-     << ")";
+  os << "(" << expected_type_ << ")";
 }
 
 void StoreContextSlotWithWriteBarrier::PrintParams(std::ostream& os) const {

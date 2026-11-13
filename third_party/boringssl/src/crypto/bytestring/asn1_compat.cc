@@ -34,7 +34,6 @@ int bssl::CBB_finish_i2d(CBB *cbb, uint8_t **outp) {
   uint8_t *der;
   size_t der_len;
   if (!CBB_finish(cbb, &der, &der_len)) {
-    CBB_cleanup(cbb);
     return -1;
   }
   if (der_len > INT_MAX) {

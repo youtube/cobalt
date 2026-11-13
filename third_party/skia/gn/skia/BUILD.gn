@@ -81,6 +81,10 @@ config("default") {
     cflags += [
       "/bigobj",  # Some of our files are bigger than the regular limits.
       "/utf-8",  # Set Source and Executable character sets to UTF-8.
+
+      # Without fp:precise, MSVC makes some assumptions about NANs and Infinities that break us.
+      # https://learn.microsoft.com/en-us/cpp/build/reference/fp-specify-floating-point-behavior
+      "/fp:precise",
     ]
     cflags_cc += [ "/std:c++20" ]
 
@@ -353,11 +357,31 @@ config("default") {
       ]
 
       assert(clang_win != "")
-      libs += [ "$clang_win/lib/clang/$clang_win_version/lib/windows/clang_rt.asan-x86_64.lib" ]
+
+      # Chromium's clang toolchain uses dynamic dependencies for ASAN.
+      # They use clang_rt.asan_dynamic-x86_64.dll.
+      # https://chromium.googlesource.com/chromium/src/+/85202d981e0c257f8f941e24b9baae38000d5019
+      #
+      # We do what they do and link against the dynamic runtime (clang_rt.asan_dynamic-x86_64.lib)
+      # and its associated thunk. Then, we copy the .dll into the out/ASAN (or whatever) directory.
+      # We use /WHOLEARCHIVE for the thunk to ensure all ASan hooks are correctly linked.
+      libs += [ "$clang_win/lib/clang/$clang_win_version/lib/windows/clang_rt.asan_dynamic-x86_64.lib" ]
+      if (is_component_build) {
+        ldflags += [ "/WHOLEARCHIVE:$clang_win/lib/clang/$clang_win_version/lib/windows/clang_rt.asan_dynamic_runtime_thunk-x86_64.lib" ]
+      } else {
+        ldflags += [ "/WHOLEARCHIVE:$clang_win/lib/clang/$clang_win_version/lib/windows/clang_rt.asan_static_runtime_thunk-x86_64.lib" ]
+      }
     } else {
       cflags += [ "-fno-omit-frame-pointer" ]
 
       ldflags += [ "-fsanitize=$sanitizers" ]
+    }
+
+    if (is_win && sanitize == "ASAN") {
+      copy("copy_asan_runtime") {
+        sources = [ "$clang_win/lib/clang/$clang_win_version/lib/windows/clang_rt.asan_dynamic-x86_64.dll" ]
+        outputs = [ "$root_out_dir/clang_rt.asan_dynamic-x86_64.dll" ]
+      }
     }
 
     if (is_linux) {
@@ -527,6 +551,10 @@ config("warnings") {
       "-Wno-unused-member-function",
       "-Wno-non-c-typedef-for-linkage",  # Dawn, not Skia per se.
 
+      "-Wno-lifetime-safety",
+      "-Wno-lifetime-safety-suggestions",
+      "-Wno-lifetime-safety-validations",
+
       # We would like to fix this, otherwise it could cause runtime issues
       # when compiled for WASM.
       # https://github.com/emscripten-core/emscripten/issues/16126
@@ -542,9 +570,12 @@ config("warnings") {
       "-Wno-covered-switch-default",
       "-Wno-deprecated",
       "-Wno-missing-noreturn",
-      "-Wno-old-style-cast",
       "-Wno-newline-eof",
+      "-Wno-old-style-cast",
       "-Wno-padded",
+      "-Wno-pessimizing-move",
+      "-Wno-nrvo",
+      "-Wno-unique-object-duplication",
       "-Wno-return-std-move-in-c++11",  # we no longer support C++11, and don't
                                         # need C++11-only performance warnings
       "-Wno-shadow-field-in-constructor",
@@ -658,7 +689,7 @@ config("debug_symbols") {
       cflags += [ "-gcodeview-ghash" ]
       ldflags = [ "/DEBUG:GHASH" ]
     } else {
-      ldflags = [ "/DEBUG:FASTLINK" ]
+      ldflags = [ "/DEBUG:FULL" ]
     }
   } else {
     cflags = [

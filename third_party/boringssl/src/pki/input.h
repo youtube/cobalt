@@ -69,22 +69,22 @@ class OPENSSL_EXPORT Input {
   constexpr Input() = default;
 
   // Creates an Input from a span. The constructed Input is only valid as long
-  // as |data| points to live memory. If constructed from, say, a
-  // |std::vector<uint8_t>|, mutating the vector will invalidate the Input.
+  // as `data` points to live memory. If constructed from, say, a
+  // `std::vector<uint8_t>`, mutating the vector will invalidate the Input.
   constexpr Input(bssl::Span<const uint8_t> data) : data_(data) {}
 
-  // Creates an Input from the given |data| and |len|.
+  // Creates an Input from the given `data` and `len`.
   constexpr explicit Input(const uint8_t *data, size_t len)
       : data_(Span(data, len)) {}
 
   // Deprecated: Use StringAsBytes.
   //
   // Creates an Input from a std::string_view. The constructed Input is only
-  // valid as long as |data| points to live memory. If constructed from, say, a
-  // |std::string|, mutating the vector will invalidate the Input.
+  // valid as long as `data` points to live memory. If constructed from, say, a
+  // `std::string`, mutating the vector will invalidate the Input.
   explicit Input(std::string_view str) : data_(StringAsBytes(str)) {}
 
-  // The following APIs have the same semantics as in |bssl::Span|.
+  // The following APIs have the same semantics as in `bssl::Span`.
   constexpr Span<const uint8_t>::iterator begin() const {
     return data_.begin();
   }
@@ -109,13 +109,13 @@ class OPENSSL_EXPORT Input {
   Span<const uint8_t> data_;
 };
 
-// Return true if |lhs|'s data and |rhs|'s data are byte-wise equal.
+// Return true if `lhs`'s data and `rhs`'s data are byte-wise equal.
 OPENSSL_EXPORT bool operator==(Input lhs, Input rhs);
 
-// Return true if |lhs|'s data and |rhs|'s data are not byte-wise equal.
+// Return true if `lhs`'s data and `rhs`'s data are not byte-wise equal.
 OPENSSL_EXPORT bool operator!=(Input lhs, Input rhs);
 
-// Returns true if |lhs|'s data is lexicographically less than |rhs|'s data.
+// Returns true if `lhs`'s data is lexicographically less than `rhs`'s data.
 OPENSSL_EXPORT constexpr bool operator<(Input lhs, Input rhs) {
   // This is `std::lexicographical_compare`, but that's not `constexpr` until
   // C++-20.
@@ -156,11 +156,11 @@ class OPENSSL_EXPORT ByteReader {
   explicit ByteReader(Input in);
 
   // Reads a single byte from the input source, putting the byte read in
-  // |*byte_p|. If a byte cannot be read from the input (because there is
+  // `*byte_p`. If a byte cannot be read from the input (because there is
   // no input left), then this method returns false.
   [[nodiscard]] bool ReadByte(uint8_t *out);
 
-  // Reads |len| bytes from the input source, and initializes an Input to
+  // Reads `len` bytes from the input source, and initializes an Input to
   // point to that data. If there aren't enough bytes left in the input source,
   // then this method returns false.
   [[nodiscard]] bool ReadBytes(size_t len, Input *out);

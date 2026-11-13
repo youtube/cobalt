@@ -19,6 +19,18 @@ def __platform_properties(ctx):
             "container-image": container_image,
             "label:action_default": "1",
         },
+        # Unused, but fails siso checks if this entry is not set.
+        # Large workers are usually used for Python actions like generate bindings, mojo generators etc
+        # They can run on Linux workers.
+        "large": {
+            "OSFamily": "Linux",
+            "container-image": container_image,
+            # As of Jul 2023, the action_large pool uses n2-highmem-8 with 200GB of pd-ssd.
+            # The pool is intended for the following actions.
+            #  - slow actions that can benefit from multi-cores and/or faster disk I/O. e.g. link, mojo, generate bindings etc.
+            #  - actions that fail for OOM.
+            "label:action_large": "1",
+        },
     }
 
 backend = module(

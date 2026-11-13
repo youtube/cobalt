@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test MediaStreamAudioDestinationNode with renderSizeHint
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../resources/rendersizehint-probe.js"></script>
+  </head>
+  <body>
+    <script>
+      const processorPath = '../resources/rendersizehint-processor.js';
+
+      const TEST_CASES = [
+        {hint: 256, label: 'power-of-two (256)'},
+        {hint: 480, label: '10ms @ 48kHz (480)'},
+        {hint: 441, label: '10ms @ 44.1kHz (441)'},
+        {hint: 500, label: 'non-power-of-two (500)'}
+      ];
+
+      for (const {hint, label} of TEST_CASES) {
+        // Verify MediaStreamAudioDestinationNode with custom renderSizeHint.
+        // This ensures that WebAudioMediaStreamAudioSink and the destination
+        // node correctly handle custom render quantum sizes in a loopback
+        // configuration without crashes.
+        promise_test(async (t) => {
+          const context = new AudioContext({renderSizeHint: hint});
+          t.add_cleanup(() => context.close());
+
+          const srcNode = new ConstantSourceNode(context);
+          const dest = new MediaStreamAudioDestinationNode(context);
+          srcNode.connect(dest);
+          srcNode.start();
+
+          const mediaStreamSource = new MediaStreamAudioSourceNode(context, {
+            mediaStream: dest.stream
+          });
+
+          const result = await probeRenderSizeHint(
+              context, mediaStreamSource, processorPath);
+
+          assert_equals(
+              result.probedRenderQuantumSize,
+              hint,
+              'Render quantum size in GlobalScope should match hint');
+
+          assert_equals(
+              result.processBlockSize,
+              hint,
+              'Process block size should match negotiated size');
+        }, `MediaStreamAudioDestinationNode block size matches custom ` +
+           `renderSizeHint: ${label}`);
+      }
+    </script>
+  </body>
+</html>

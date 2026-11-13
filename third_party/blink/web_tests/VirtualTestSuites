@@ -540,6 +540,17 @@
     "expires": "Jun 30, 2026"
   },
   {
+    "prefix": "declarative-performance-observer",
+    "owners": ["sisidovski@chromium.org"],
+    "platforms": ["Linux", "Mac", "Win", "Android"],
+    "bases": [
+      "wpt_internal/declarative-performance-observer"
+    ],
+    "exclusive_tests": "ALL",
+    "args": ["--enable-features=DeclarativePerformanceObserver"],
+    "expires": "Nov 27, 2026"
+  },
+  {
     "prefix": "cross-partition-blob-url",
     "platforms": [
       "Linux"
@@ -1046,25 +1057,6 @@
     "expires": "Aug 1, 2026"
   },
   {
-    "prefix": "enable-purpose-prefetch-header",
-    "owners": [
-      "stevenwei@microsoft.com"
-    ],
-    "platforms": [
-      "Mac",
-      "Win",
-      "Linux"
-    ],
-    "bases": [
-      "http/tests/misc/prefetch-purpose.html"
-    ],
-    "exclusive_tests": "ALL",
-    "args": [
-      "--disable-features=RemovePurposeHeaderForPrefetch"
-    ],
-    "expires": "Aug 1, 2026"
-  },
-  {
     "prefix": "enable-system-cursor-size-for-svg",
     "owners": [
       "gerchiko@microsoft.com"
@@ -1352,7 +1344,7 @@
       "--test-third-party-cookie-phaseout",
       "--use-related-website-set={\"primary\":\"https://firstparty.test\",\"associatedSites\":[\"https://cookie.test\"]}"
     ],
-    "expires": "Jun 1, 2026",
+    "expires": "Jan 1, 2027",
     "owners": [
       "chrome-first-party-sets@chromium.org"
     ]
@@ -2729,6 +2721,21 @@
     "expires": "Jan 1, 2027"
   },
   {
+    "prefix": "prefetch-cancel-unrelated-prefetch",
+    "platforms": [
+      "Linux"
+    ],
+    "bases": ["external/wpt/speculation-rules", "http/tests/inspector-protocol"],
+    "exclusive_tests": [],
+    "args": [
+      "--enable-features=PrefetchCancelUnrelatedPrefetch"
+    ],
+    "owners": [
+      "kenoss@chromium.org"
+    ],
+    "expires": "Jan 1, 2027"
+  },
+  {
     "prefix": "presentation",
     "owners": [
       "mfoltz@chromium.org",
@@ -2880,10 +2887,10 @@
       "fast/hidpi/static",
       "external/wpt/css/css-ui/caret-shape-block-zoom.html",
       "external/wpt/css/css-ui/caret-shape-block-color-001.html",
-      "wpt_internal/html/canvas/drawElementImage/ink-overflow.html",
-      "wpt_internal/html/canvas/drawElementImage/scale.html",
-      "wpt_internal/html/canvas/drawElementImage/get-element-transform.html",
-      "wpt_internal/html/canvas/drawElementImage/draw-element-image-returned-matrix.html",
+      "external/wpt/html/canvas/element/manual/draw-element-image/ink-overflow.tentative.html",
+      "external/wpt/html/canvas/element/manual/draw-element-image/scale.tentative.html",
+      "external/wpt/html/canvas/element/manual/draw-element-image/get-element-transform.tentative.html",
+      "external/wpt/html/canvas/element/manual/draw-element-image/draw-element-image-returned-matrix.tentative.html",
       "wpt_internal/webgl/draw-element-image/webgl-css-transform-on-div.html",
       "wpt_internal/webgl/draw-element-image/webgl-ink-overflow.html",
       "wpt_internal/webgl/draw-element-image/webgl-scaling.html"
@@ -2926,10 +2933,10 @@
       "inspector-protocol/emulation/device-emulation-no-size.js",
       "external/wpt/css/css-ui/caret-shape-block-zoom.html",
       "external/wpt/css/css-ui/caret-shape-block-color-001.html",
-      "wpt_internal/html/canvas/drawElementImage/ink-overflow.html",
-      "wpt_internal/html/canvas/drawElementImage/scale.html",
-      "wpt_internal/html/canvas/drawElementImage/get-element-transform.html",
-      "wpt_internal/html/canvas/drawElementImage/draw-element-image-returned-matrix.html",
+      "external/wpt/html/canvas/element/manual/draw-element-image/ink-overflow.tentative.html",
+      "external/wpt/html/canvas/element/manual/draw-element-image/scale.tentative.html",
+      "external/wpt/html/canvas/element/manual/draw-element-image/get-element-transform.tentative.html",
+      "external/wpt/html/canvas/element/manual/draw-element-image/draw-element-image-returned-matrix.tentative.html",
       "wpt_internal/webgl/draw-element-image/webgl-css-transform-on-div.html",
       "wpt_internal/webgl/draw-element-image/webgl-ink-overflow.html",
       "wpt_internal/webgl/draw-element-image/webgl-scaling.html",
@@ -3662,6 +3669,9 @@
       "external/wpt/css/cssom-view/scroll-behavior-smooth-after-hiding-iframe.html",
       "external/wpt/fetch/compression-dictionary/dictionary-fetch-with-link-element.tentative.https.html",
       "external/wpt/fetch/compression-dictionary/dictionary-fetch-with-link-header.tentative.https.html",
+      "external/wpt/html/canvas/element/manual/draw-element-image/invalidation-during-onpaint.tentative.html",
+      "external/wpt/html/canvas/element/manual/draw-element-image/onpaint-invalidation-crash.tentative.html",
+      "external/wpt/html/canvas/element/manual/draw-element-image/onpaint-outside-invalidation-crash.tentative.html",
       "external/wpt/html/canvas/offscreen/manual/convert-to-blob",
       "external/wpt/html/semantics/embedded-content/the-img-element/decode",
       "external/wpt/intersection-observer/animating.html",
@@ -3685,9 +3695,6 @@
       "synthetic_gestures",
       "transitions",
       "view-transition",
-      "wpt_internal/html/canvas/drawElementImage/invalidation-during-onpaint.html",
-      "wpt_internal/html/canvas/drawElementImage/onpaint-invalidation-crash.html",
-      "wpt_internal/html/canvas/drawElementImage/onpaint-outside-invalidation-crash.html",
       "wpt_internal/html/script-execution",
       "wpt_internal/scheduler/integration_tests",
       "wpt_internal/view-transition",
@@ -5333,7 +5340,7 @@
       "wpt_internal/svg/svg-filter-render.sub.https.html"
     ],
     "args": [
-      "--enable-features=PreventSvgFilterPaint:PreventSvgFilterPaintOnRemoteFrame/true/PreventSvgFilterPaintOnWebPlugin/true"
+      "--enable-features=PreventSvgFilterPaint:PreventSvgFilterPaintOnLocalFrameRestricted/true/PreventSvgFilterPaintOnRemoteFrame/true/PreventSvgFilterPaintOnWebPlugin/true"
     ],
     "expires": "Nov 1, 2026"
   },
@@ -5406,7 +5413,7 @@
     "owners": ["paint-dev@chromium.org"],
     "platforms": ["Linux", "Mac", "Win"],
     "bases": [
-      "wpt_internal/html/canvas/drawElementImage/video.html",
+      "external/wpt/html/canvas/element/manual/draw-element-image/video.tentative.html",
       "external/wpt/html/canvas/offscreen/manual/draw-element-image/video-worker.tentative.html"
     ],
     "args": ["--use-gpu-in-tests", "--enable-threaded-compositing"],

@@ -780,7 +780,7 @@ scoped_refptr<StaticBitmapImage> DrawingBuffer::TransferToStaticBitmapImage() {
   DCHECK(release_callback);
 
   return AcceleratedStaticBitmapImage::CreateFromCanvasSharedImage(
-      std::move(shared_image), sync_token, kPremul_SkAlphaType,
+      std::move(shared_image), sync_token, kPremul_SkAlphaType, hdr_metadata_,
       context_provider_->GetWeakPtr(), base::PlatformThread::CurrentRef(),
       ThreadScheduler::Current()->CleanupTaskRunner(),
       std::move(release_callback));
@@ -1537,6 +1537,9 @@ void DrawingBuffer::ClearNewlyAllocatedFramebuffers(ClearOption clear_option) {
 
   state_restorer_->SetClearStateDirty();
   gl_->Disable(GL_SCISSOR_TEST);
+  if (IsWebGL2()) {
+    gl_->Disable(GL_RASTERIZER_DISCARD);
+  }
   gl_->ClearColor(0, 0, 0,
                   DefaultBufferRequiresAlphaChannelToBePreserved() ? 1 : 0);
   gl_->ColorMask(true, true, true, true);
@@ -1934,6 +1937,7 @@ DrawingBuffer::GetUnacceleratedStaticBitmapImage(
       SkImageInfo::Make(SkISize::Make(Size().width(), Size().height()),
                         ToClosestSkColorType(format), alpha_type,
                         color_space_.ToSkColorSpace()),
+      hdr_metadata_,
       origin == kTopLeft_GrSurfaceOrigin
           ? ImageOrientationEnum::kOriginTopLeft
           : ImageOrientationEnum::kOriginBottomLeft);
@@ -2275,6 +2279,7 @@ DrawingBuffer::ScopedStateRestorer::~ScopedStateRestorer() {
 
   if (clear_state_dirty_) {
     client->DrawingBufferClientRestoreScissorTest();
+    client->DrawingBufferClientRestoreRasterizerDiscard();
     client->DrawingBufferClientRestoreMaskAndClearValues();
   }
   if (pixel_pack_parameters_dirty_)

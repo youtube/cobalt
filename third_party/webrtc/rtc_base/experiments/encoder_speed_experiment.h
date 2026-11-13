@@ -39,7 +39,7 @@ class EncoderSpeedExperiment {
                           ComplexitySettings& settings,
                           bool use_low_complexity_for_vp9);
 
-  bool dynamic_speed_enabled_ = false;
+  bool dynamic_speed_enabled_;
   ComplexitySettings av1_complexity_;
   ComplexitySettings vp8_complexity_;
   ComplexitySettings vp9_complexity_;

@@ -17,6 +17,7 @@
 #include <span>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "api/audio/audio_device.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_encoder_factory.h"
@@ -83,7 +84,65 @@ class RtpHeaderExtensionQueryInterface {
       const FieldTrialsView* field_trials) const = 0;
 };
 
-class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface {
+// Interface for creating voice media channels.
+//
+// Methods on this interface only perform thread-safe initialization and do not
+// mutate engine-level state. Consequently, it is safe to call these methods
+// from any thread, including the signaling thread.
+class VoiceChannelFactoryInterface {
+ public:
+  virtual ~VoiceChannelFactoryInterface() = default;
+
+  // Safe to be called from the signaling thread.
+  virtual std::unique_ptr<VoiceMediaSendChannelInterface> CreateSendChannel(
+      const Environment& env,
+      Call* call,
+      const MediaConfig& config,
+      const AudioOptions& options,
+      const CryptoOptions& crypto_options,
+      absl::AnyInvocable<void()> parameters_changed_callback = nullptr) = 0;
+
+  // Safe to be called from the signaling thread.
+  virtual std::unique_ptr<VoiceMediaReceiveChannelInterface>
+  CreateReceiveChannel(const Environment& env,
+                       Call* call,
+                       const MediaConfig& config,
+                       const AudioOptions& options,
+                       const CryptoOptions& crypto_options) = 0;
+};
+
+// Interface for creating video media channels.
+//
+// Methods on this interface only perform thread-safe initialization and do not
+// mutate engine-level state. Consequently, it is safe to call these methods
+// from any thread, including the signaling thread.
+class VideoChannelFactoryInterface {
+ public:
+  virtual ~VideoChannelFactoryInterface() = default;
+
+  // Safe to be called from the signaling thread.
+  virtual std::unique_ptr<VideoMediaSendChannelInterface> CreateSendChannel(
+      const Environment& env,
+      Call* call,
+      const MediaConfig& config,
+      const VideoOptions& options,
+      const CryptoOptions& crypto_options,
+      VideoBitrateAllocatorFactory* video_bitrate_allocator_factory,
+      VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
+          video_encoder_switch_request_callback,
+      absl::AnyInvocable<void()> parameters_changed_callback) = 0;
+
+  // Safe to be called from the signaling thread.
+  virtual std::unique_ptr<VideoMediaReceiveChannelInterface>
+  CreateReceiveChannel(const Environment& env,
+                       Call* call,
+                       const MediaConfig& config,
+                       const VideoOptions& options,
+                       const CryptoOptions& crypto_options) = 0;
+};
+
+class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface,
+                             public VoiceChannelFactoryInterface {
  public:
   VoiceEngineInterface() = default;
   ~VoiceEngineInterface() override = default;
@@ -100,19 +159,22 @@ class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface {
   // TODO(solenberg): Remove once VoE API refactoring is done.
   virtual scoped_refptr<AudioState> GetAudioState() const = 0;
 
-  virtual std::unique_ptr<VoiceMediaSendChannelInterface> CreateSendChannel(
+  // VoiceChannelFactoryInterface overrides.
+  std::unique_ptr<VoiceMediaSendChannelInterface> CreateSendChannel(
       const Environment& env,
       Call* call,
       const MediaConfig& config,
       const AudioOptions& options,
-      const CryptoOptions& crypto_options) = 0;
+      const CryptoOptions& crypto_options,
+      absl::AnyInvocable<void()> parameters_changed_callback =
+          nullptr) override = 0;
 
-  virtual std::unique_ptr<VoiceMediaReceiveChannelInterface>
-  CreateReceiveChannel(const Environment& env,
-                       Call* call,
-                       const MediaConfig& config,
-                       const AudioOptions& options,
-                       const CryptoOptions& crypto_options) = 0;
+  std::unique_ptr<VoiceMediaReceiveChannelInterface> CreateReceiveChannel(
+      const Environment& env,
+      Call* call,
+      const MediaConfig& config,
+      const AudioOptions& options,
+      const CryptoOptions& crypto_options) override = 0;
 
   // Legacy: Retrieve list of supported codecs.
   // + protection codecs, and assigns PT numbers that may have to be
@@ -139,7 +201,8 @@ class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface {
   virtual bool NeedsAuxiliaryCodecsAdded() const { return false; }
 };
 
-class VideoEngineInterface : public RtpHeaderExtensionQueryInterface {
+class VideoEngineInterface : public RtpHeaderExtensionQueryInterface,
+                             public VideoChannelFactoryInterface {
  public:
   VideoEngineInterface() = default;
   ~VideoEngineInterface() override = default;
@@ -147,7 +210,8 @@ class VideoEngineInterface : public RtpHeaderExtensionQueryInterface {
   VideoEngineInterface(const VideoEngineInterface&) = delete;
   VideoEngineInterface& operator=(const VideoEngineInterface&) = delete;
 
-  virtual std::unique_ptr<VideoMediaSendChannelInterface> CreateSendChannel(
+  // VideoChannelFactoryInterface overrides.
+  std::unique_ptr<VideoMediaSendChannelInterface> CreateSendChannel(
       const Environment& env,
       Call* call,
       const MediaConfig& config,
@@ -155,14 +219,15 @@ class VideoEngineInterface : public RtpHeaderExtensionQueryInterface {
       const CryptoOptions& crypto_options,
       VideoBitrateAllocatorFactory* video_bitrate_allocator_factory,
       VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
-          video_encoder_switch_request_callback = nullptr) = 0;
+          video_encoder_switch_request_callback,
+      absl::AnyInvocable<void()> parameters_changed_callback) override = 0;
 
-  virtual std::unique_ptr<VideoMediaReceiveChannelInterface>
-  CreateReceiveChannel(const Environment& env,
-                       Call* call,
-                       const MediaConfig& config,
-                       const VideoOptions& options,
-                       const CryptoOptions& crypto_options) = 0;
+  std::unique_ptr<VideoMediaReceiveChannelInterface> CreateReceiveChannel(
+      const Environment& env,
+      Call* call,
+      const MediaConfig& config,
+      const VideoOptions& options,
+      const CryptoOptions& crypto_options) override = 0;
 
   // Legacy: Retrieve list of supported codecs.
   // + protection codecs, and assigns PT numbers that may have to be

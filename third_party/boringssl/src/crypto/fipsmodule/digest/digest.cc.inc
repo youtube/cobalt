@@ -149,14 +149,12 @@ int EVP_MD_CTX_reset(EVP_MD_CTX *ctx) {
 }
 
 int EVP_DigestInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, ENGINE *engine) {
-  if (ctx->digest != type) {
-    assert(type->ctx_size != 0);
-    assert(type->ctx_size <= sizeof(ctx->md_data));
-    ctx->digest = type;
-  }
+  EVP_MD_CTX_cleanup(ctx);
 
-  assert(ctx->pctx == nullptr || ctx->pctx_ops != nullptr);
-
+  assert(ctx->pctx == nullptr);
+  assert(type->ctx_size != 0);
+  assert(type->ctx_size <= sizeof(ctx->md_data));
+  ctx->digest = type;
   ctx->digest->init(ctx);
   return 1;
 }

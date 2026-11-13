@@ -28,13 +28,9 @@ BSSL_NAMESPACE_BEGIN
 // from the operating system, if the operating system requires initialization.
 void CRYPTO_init_sysrand();
 
-// CRYPTO_sysrand fills |len| bytes at |buf| with entropy from the operating
+// CRYPTO_sysrand fills `len` bytes at `buf` with entropy from the operating
 // system.
 void CRYPTO_sysrand(uint8_t *buf, size_t len);
-
-// RAND_need_entropy is called whenever the BCM module has stopped because it
-// has run out of entropy.
-void RAND_need_entropy(size_t bytes_needed);
 
 // crypto_get_fork_generation returns the fork generation number for the current
 // process, or zero if not supported on the platform. The fork generation number
@@ -48,7 +44,7 @@ void RAND_need_entropy(size_t bytes_needed);
 // the save fork generation. Note this logic transparently handles platforms
 // which always return zero.
 //
-// This is not reliably supported on all platforms which implement |fork|, so it
+// This is not reliably supported on all platforms which implement `fork`, so it
 // should only be used as a hardening measure.
 OPENSSL_EXPORT uint64_t CRYPTO_get_fork_generation();
 

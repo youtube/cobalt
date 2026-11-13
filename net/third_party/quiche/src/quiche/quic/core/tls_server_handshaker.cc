@@ -1129,7 +1129,7 @@ void TlsServerHandshaker::OnSelectCertificateDone(
              local_config->chains) {
           if (!chain->certs.empty()) {
             QUIC_CODE_COUNT(quic_tls_server_chain_with_certs_nonempty);
-            tls_connection_.AddCertChain(chain->ToCryptoBuffers().value,
+            tls_connection_.AddCertChain(chain->ToCryptoBuffers(),
                                          chain->trust_anchor_id);
           } else {
             QUIC_CODE_COUNT(quic_tls_server_chain_with_certs_empty);
@@ -1320,11 +1320,42 @@ void TlsServerHandshaker::ResetSsl() {
   cached_ssl_info_.emplace(CachedSSLInfo{
       .is_resumption = IsResumption(),
       .is_zero_rtt = IsZeroRtt(),
+      .tls_group_id = TlsGroupId(),
       .early_data_reason = EarlyDataReason(),
       .cipher = GetCipher(),
+      .alpn = std::string(Alpn()),
+      .sni = std::string(Sni()),
   });
   tls_connection_.ResetSsl();
   ResetCryptoSubstreams();
+}
+
+absl::string_view TlsServerHandshaker::Sni() const {
+  if (cached_ssl_info_.has_value()) {
+    return cached_ssl_info_->sni;
+  }
+  return QuicCryptoStream::Sni();
+}
+
+const SSL_CIPHER* TlsServerHandshaker::Ciphersuite() const {
+  if (cached_ssl_info_.has_value()) {
+    return cached_ssl_info_->cipher;
+  }
+  return QuicCryptoStream::Ciphersuite();
+}
+
+absl::string_view TlsServerHandshaker::Alpn() const {
+  if (cached_ssl_info_.has_value()) {
+    return cached_ssl_info_->alpn;
+  }
+  return QuicCryptoStream::Alpn();
+}
+
+uint16_t TlsServerHandshaker::TlsGroupId() const {
+  if (cached_ssl_info_.has_value()) {
+    return cached_ssl_info_->tls_group_id;
+  }
+  return QuicCryptoStream::TlsGroupId();
 }
 
 bool TlsServerHandshaker::IsCryptoFrameExpectedForEncryptionLevel(

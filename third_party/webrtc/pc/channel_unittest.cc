@@ -26,6 +26,7 @@
 #include "api/jsep.h"
 #include "api/media_types.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
@@ -662,11 +663,13 @@ class ChannelTest : public ::testing::Test {
     ASSERT_TRUE(channel1_->SetRemoteContent(&remote, SdpType::kAnswer).ok());
 
     EXPECT_THAT(media_receive_channel1_impl()->recv_extensions(),
-                ElementsAre(AllOf(Field("id", &RtpExtension::id, 2),
+                ElementsAre(AllOf(Field("id", &RtpExtension::id,
+                                        webrtc::RtpHeaderExtensionId(2)),
                                   Field("uri", &RtpExtension::uri,
                                         RtpExtension::kVideoRotationUri))));
     EXPECT_THAT(media_send_channel1_impl()->send_extensions(),
-                ElementsAre(AllOf(Field("id", &RtpExtension::id, 2),
+                ElementsAre(AllOf(Field("id", &RtpExtension::id,
+                                        webrtc::RtpHeaderExtensionId(2)),
                                   Field("uri", &RtpExtension::uri,
                                         RtpExtension::kVideoRotationUri))));
   }
@@ -688,11 +691,13 @@ class ChannelTest : public ::testing::Test {
     ASSERT_TRUE(channel1_->SetLocalContent(&local, SdpType::kAnswer).ok());
 
     EXPECT_THAT(media_receive_channel1_impl()->recv_extensions(),
-                ElementsAre(AllOf(Field("id", &RtpExtension::id, 1),
+                ElementsAre(AllOf(Field("id", &RtpExtension::id,
+                                        webrtc::RtpHeaderExtensionId(1)),
                                   Field("uri", &RtpExtension::uri,
                                         RtpExtension::kVideoRotationUri))));
     EXPECT_THAT(media_send_channel1_impl()->send_extensions(),
-                ElementsAre(AllOf(Field("id", &RtpExtension::id, 1),
+                ElementsAre(AllOf(Field("id", &RtpExtension::id,
+                                        webrtc::RtpHeaderExtensionId(1)),
                                   Field("uri", &RtpExtension::uri,
                                         RtpExtension::kVideoRotationUri))));
   }
@@ -1865,14 +1870,20 @@ class VoiceChannelSingleThreadTest : public ChannelTest<VoiceTraits> {
  public:
   using Base = ChannelTest<VoiceTraits>;
   VoiceChannelSingleThreadTest()
-      : Base(true, kPcmuFrame, kRtcpReport, NetworkIsWorker::Yes) {}
+      : Base(true,
+             webrtc::kPcmuFrame,
+             webrtc::kFakeRtcpReport,
+             NetworkIsWorker::Yes) {}
 };
 
 class VoiceChannelDoubleThreadTest : public ChannelTest<VoiceTraits> {
  public:
   using Base = ChannelTest<VoiceTraits>;
   VoiceChannelDoubleThreadTest()
-      : Base(true, kPcmuFrame, kRtcpReport, NetworkIsWorker::No) {}
+      : Base(true,
+             webrtc::kPcmuFrame,
+             webrtc::kFakeRtcpReport,
+             NetworkIsWorker::No) {}
 };
 
 class VoiceChannelWithEncryptedRtpHeaderExtensionsSingleThreadTest
@@ -1881,8 +1892,8 @@ class VoiceChannelWithEncryptedRtpHeaderExtensionsSingleThreadTest
   using Base = ChannelTest<VoiceTraits>;
   VoiceChannelWithEncryptedRtpHeaderExtensionsSingleThreadTest()
       : Base(true,
-             kPcmuFrameWithExtensions,
-             kRtcpReport,
+             webrtc::kPcmuFrameWithExtensions,
+             webrtc::kFakeRtcpReport,
              NetworkIsWorker::Yes) {}
 };
 
@@ -1891,8 +1902,10 @@ class VoiceChannelWithEncryptedRtpHeaderExtensionsDoubleThreadTest
  public:
   using Base = ChannelTest<VoiceTraits>;
   VoiceChannelWithEncryptedRtpHeaderExtensionsDoubleThreadTest()
-      : Base(true, kPcmuFrameWithExtensions, kRtcpReport, NetworkIsWorker::No) {
-  }
+      : Base(true,
+             webrtc::kPcmuFrameWithExtensions,
+             webrtc::kFakeRtcpReport,
+             NetworkIsWorker::No) {}
 };
 
 // override to add NULL parameter
@@ -1945,14 +1958,20 @@ class VideoChannelSingleThreadTest : public ChannelTest<VideoTraits> {
  public:
   using Base = ChannelTest<VideoTraits>;
   VideoChannelSingleThreadTest()
-      : Base(false, kH264Packet, kRtcpReport, NetworkIsWorker::Yes) {}
+      : Base(false,
+             webrtc::kH264Packet,
+             webrtc::kFakeRtcpReport,
+             NetworkIsWorker::Yes) {}
 };
 
 class VideoChannelDoubleThreadTest : public ChannelTest<VideoTraits> {
  public:
   using Base = ChannelTest<VideoTraits>;
   VideoChannelDoubleThreadTest()
-      : Base(false, kH264Packet, kRtcpReport, NetworkIsWorker::No) {}
+      : Base(false,
+             webrtc::kH264Packet,
+             webrtc::kFakeRtcpReport,
+             NetworkIsWorker::No) {}
 };
 
 TEST_F(VoiceChannelSingleThreadTest, TestInit) {
@@ -2108,8 +2127,7 @@ TEST_F(VoiceChannelSingleThreadTest,
        RtpHeaderExtensionIdOutOfRangeHighDeathTest) {
 #if RTC_DCHECK_IS_ON
   // Note - EXPECT_DEBUG_DEATH does not work as expected here.
-  EXPECT_DEATH(Base::TestRtpHeaderExtensionIdOutOfRangeHigh(),
-               "not in valid range");
+  EXPECT_DEATH(Base::TestRtpHeaderExtensionIdOutOfRangeHigh(), "Check failed:");
 #else
   Base::TestRtpHeaderExtensionIdOutOfRangeHigh();
 #endif
@@ -2119,8 +2137,7 @@ TEST_F(VoiceChannelSingleThreadTest,
        RtpHeaderExtensionIdOutOfRangeLowDeathTest) {
 #if RTC_DCHECK_IS_ON
   // Note - EXPECT_DEBUG_DEATH does not work as expected here.
-  EXPECT_DEATH(Base::TestRtpHeaderExtensionIdOutOfRangeLow(),
-               "not in valid range");
+  EXPECT_DEATH(Base::TestRtpHeaderExtensionIdOutOfRangeLow(), "Check failed:");
 #else
   Base::TestRtpHeaderExtensionIdOutOfRangeLow();
 #endif
@@ -2449,8 +2466,7 @@ TEST_F(VideoChannelSingleThreadTest,
        RtpHeaderExtensionIdOutOfRangeHighDeathTest) {
 #if RTC_DCHECK_IS_ON
   // Note - EXPECT_DEBUG_DEATH does not work as expected here.
-  EXPECT_DEATH(Base::TestRtpHeaderExtensionIdOutOfRangeHigh(),
-               "not in valid range");
+  EXPECT_DEATH(Base::TestRtpHeaderExtensionIdOutOfRangeHigh(), "Check failed:");
 #else
   Base::TestRtpHeaderExtensionIdOutOfRangeHigh();
 #endif
@@ -2460,8 +2476,7 @@ TEST_F(VideoChannelSingleThreadTest,
        RtpHeaderExtensionIdOutOfRangeLowDeathTest) {
 #if RTC_DCHECK_IS_ON
   // Note - EXPECT_DEBUG_DEATH does not work as expected here.
-  EXPECT_DEATH(Base::TestRtpHeaderExtensionIdOutOfRangeLow(),
-               "not in valid range");
+  EXPECT_DEATH(Base::TestRtpHeaderExtensionIdOutOfRangeLow(), "Check failed:");
 #else
   Base::TestRtpHeaderExtensionIdOutOfRangeLow();
 #endif

@@ -99,6 +99,8 @@ std::string ToString(SearchEngineChoiceScreenConditions condition) {
       return "Managed";
     case SearchEngineChoiceScreenConditions::kEligibleForRestore:
       return "EligibleForRestore";
+    case SearchEngineChoiceScreenConditions::kUnavailableCurrentLocation:
+      return "UnavailableCurrentLocation";
   }
   NOTREACHED();
 }
@@ -126,6 +128,7 @@ bool IsEligible(SearchEngineChoiceScreenConditions condition) {
     case SearchEngineChoiceScreenConditions::kAlreadyBeingShown:
     case SearchEngineChoiceScreenConditions::kUsingPersistedGuestSessionChoice:
     case SearchEngineChoiceScreenConditions::kIncompatibleCurrentLocation:
+    case SearchEngineChoiceScreenConditions::kUnavailableCurrentLocation:
     case SearchEngineChoiceScreenConditions::kAccountNotEligible:
     case SearchEngineChoiceScreenConditions::kIneligibleSurface:
     case SearchEngineChoiceScreenConditions::
@@ -238,6 +241,16 @@ void RecordActiveRegionalProgramPerProfile(
 void RecordProgramSpecificExclusion(ProgramSpecificExclusion exclusion) {
   base::UmaHistogramEnumeration(
       "RegionalCapabilities.Debug.ProgramSpecificExclusion", exclusion);
+}
+
+void RecordDebugTriggeringEligibility(
+    SearchEngineChoiceScreenConditions conditions,
+    bool is_first_run) {
+  auto* histogram_name =
+      is_first_run
+          ? "RegionalCapabilities.Debug.TriggeringEligibility.FirstRun"
+          : "RegionalCapabilities.Debug.TriggeringEligibility.NotFirstRun";
+  base::UmaHistogramEnumeration(histogram_name, conditions);
 }
 
 }  // namespace regional_capabilities

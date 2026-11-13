@@ -784,12 +784,6 @@
     "quiche/quic/tools/simple_ticket_crypter.cc",
     "quiche/quic/tools/web_transport_only_backend.cc"
   ],
-  "quiche_fuzz_support_hdrs": [
-    "quiche/balsa/balsa_fuzz_util.h"
-  ],
-  "quiche_fuzz_support_srcs": [
-    "quiche/balsa/balsa_fuzz_util.cc"
-  ],
   "quiche_test_support_hdrs": [
     "quiche/common/platform/api/quiche_expect_bug.h",
     "quiche/common/platform/api/quiche_fuzztest.h",
@@ -1608,9 +1602,11 @@
     "quiche/quic/moqt/moqt_session_callbacks.h",
     "quiche/quic/moqt/moqt_session_interface.h",
     "quiche/quic/moqt/moqt_stream_map.h",
+    "quiche/quic/moqt/moqt_subscription.h",
     "quiche/quic/moqt/moqt_trace_recorder.h",
     "quiche/quic/moqt/moqt_track.h",
     "quiche/quic/moqt/moqt_types.h",
+    "quiche/quic/moqt/moqt_uni_stream.h",
     "quiche/quic/moqt/relay_namespace_tree.h",
     "quiche/quic/moqt/session_namespace_tree.h",
     "quiche/quic/moqt/tools/chat_client.h",
@@ -1620,6 +1616,7 @@
     "quiche/quic/moqt/tools/moqt_server.h"
   ],
   "moqt_srcs": [
+    "quiche/quic/moqt/moqt_bidi_stream.cc",
     "quiche/quic/moqt/moqt_bitrate_adjuster.cc",
     "quiche/quic/moqt/moqt_error.cc",
     "quiche/quic/moqt/moqt_framer.cc",
@@ -1639,8 +1636,10 @@
     "quiche/quic/moqt/moqt_relay_track_publisher.cc",
     "quiche/quic/moqt/moqt_session.cc",
     "quiche/quic/moqt/moqt_stream_map.cc",
+    "quiche/quic/moqt/moqt_subscription.cc",
     "quiche/quic/moqt/moqt_trace_recorder.cc",
     "quiche/quic/moqt/moqt_track.cc",
+    "quiche/quic/moqt/moqt_uni_stream.cc",
     "quiche/quic/moqt/relay_namespace_tree.cc",
     "quiche/quic/moqt/tools/chat_client.cc",
     "quiche/quic/moqt/tools/moq_chat.cc",
@@ -1660,6 +1659,7 @@
     "quiche/quic/moqt/moqt_messages_test.cc",
     "quiche/quic/moqt/moqt_names_test.cc",
     "quiche/quic/moqt/moqt_namespace_stream_test.cc",
+    "quiche/quic/moqt/moqt_object_test.cc",
     "quiche/quic/moqt/moqt_outgoing_queue_test.cc",
     "quiche/quic/moqt/moqt_outstanding_objects_test.cc",
     "quiche/quic/moqt/moqt_parser_fuzz_test.cc",
@@ -1670,7 +1670,9 @@
     "quiche/quic/moqt/moqt_relay_track_publisher_test.cc",
     "quiche/quic/moqt/moqt_session_test.cc",
     "quiche/quic/moqt/moqt_stream_map_test.cc",
+    "quiche/quic/moqt/moqt_subscription_test.cc",
     "quiche/quic/moqt/moqt_track_test.cc",
+    "quiche/quic/moqt/moqt_uni_stream_test.cc",
     "quiche/quic/moqt/relay_namespace_tree_test.cc",
     "quiche/quic/moqt/session_namespace_tree_test.cc",
     "quiche/quic/moqt/test_tools/moqt_simulator_test.cc",

@@ -15,6 +15,7 @@
 #include <string>
 
 #include "api/priority.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "rtc_base/checks.h"
 #include "sdk/android/generated_peerconnection_jni/RtpParameters_jni.h"
@@ -89,7 +90,7 @@ ScopedJavaLocalRef<jobject> NativeToJavaRtpHeaderExtensionParameter(
     JNIEnv* env,
     const RtpExtension& extension) {
   return Java_HeaderExtension_Constructor(
-      env, NativeToJavaString(env, extension.uri), extension.id,
+      env, NativeToJavaString(env, extension.uri), extension.id.value(),
       extension.encrypt);
 }
 
@@ -164,7 +165,8 @@ RtpParameters JavaToNativeRtpParameters(JNIEnv* jni,
     RtpExtension header_extension;
     header_extension.uri = JavaToStdString(
         jni, Java_HeaderExtension_getUri(jni, j_header_extension));
-    header_extension.id = Java_HeaderExtension_getId(jni, j_header_extension);
+    header_extension.id = RtpHeaderExtensionId(
+        Java_HeaderExtension_getId(jni, j_header_extension));
     header_extension.encrypt =
         Java_HeaderExtension_getEncrypted(jni, j_header_extension);
     parameters.header_extensions.push_back(header_extension);

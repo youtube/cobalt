@@ -22,6 +22,7 @@
 #include "absl/strings/string_view.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
 #include "api/test/pclf/media_configuration.h"
@@ -164,8 +165,8 @@ void SignalingInterceptor::FillSimulcastContext(
           info.rrid_extension = extension;
         }
       }
-      RTC_CHECK_NE(info.rid_extension.id, 0);
-      RTC_CHECK_NE(info.mid_extension.id, 0);
+      RTC_CHECK(info.rid_extension.id.IsSet());
+      RTC_CHECK(info.mid_extension.id.IsSet());
       bool transport_description_found = false;
       for (auto& transport_info : offer->description()->transport_infos()) {
         if (transport_info.content_name == info.mid) {

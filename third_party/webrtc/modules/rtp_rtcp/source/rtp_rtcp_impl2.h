@@ -24,6 +24,7 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
@@ -101,7 +102,6 @@ class ModuleRtpRtcpImpl2 final : public RtpRtcpInterface,
 
   void SetRemoteSSRC(uint32_t ssrc) override;
 
-  void SetLocalSsrc(uint32_t local_ssrc) override;
 
   // Sender part.
   void RegisterSendPayloadFrequency(int payload_type,
@@ -111,7 +111,8 @@ class ModuleRtpRtcpImpl2 final : public RtpRtcpInterface,
 
   void SetExtmapAllowMixed(bool extmap_allow_mixed) override;
 
-  void RegisterRtpHeaderExtension(absl::string_view uri, int id) override;
+  void RegisterRtpHeaderExtension(absl::string_view uri,
+                                  RtpHeaderExtensionId id) override;
   void DeregisterSendRtpHeaderExtension(absl::string_view uri) override;
 
   bool SupportsPadding() const override;
@@ -358,15 +359,14 @@ class ModuleRtpRtcpImpl2 final : public RtpRtcpInterface,
 
   // The function for getting the right SSRC for sending RTCP reports
   // Must outlive rtcp_sender_, so placed before it.
-  absl::AnyInvocable<uint32_t() const> recv_ssrc_callback_
-      RTC_GUARDED_BY(rtcp_module_checker_);
+  const absl::AnyInvocable<uint32_t() const> recv_ssrc_callback_;
 
   // These three classes contain their own thread checking.
   const std::unique_ptr<RtpSenderContext> rtp_sender_;
   RTCPSender rtcp_sender_;
   RTCPReceiver rtcp_receiver_;
 
-  uint16_t packet_overhead_ RTC_GUARDED_BY(rtcp_module_checker_);
+  const uint16_t packet_overhead_;
 
   // Send side
   int64_t nack_last_time_sent_full_ms_ RTC_GUARDED_BY(rtcp_module_checker_);

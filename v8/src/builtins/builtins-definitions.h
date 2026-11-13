@@ -486,6 +486,8 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFS(DeleteProperty, NeedsContext::kYes, kObject, kKey, kLanguageMode)        \
   TFS(CopyDataProperties, NeedsContext::kYes, kTarget, kSource)                \
   TFS(SetDataProperties, NeedsContext::kYes, kTarget, kSource)                 \
+  TFS(ProxyGetPropertyFastPath, NeedsContext::kYes, kProxy, kName, kReceiver,  \
+      kHandler)                                                                \
   TFC(CopyDataPropertiesWithExcludedPropertiesOnStack,                         \
       CopyDataPropertiesWithExcludedPropertiesOnStack)                         \
   TFC(CopyDataPropertiesWithExcludedProperties,                                \
@@ -1515,8 +1517,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFC(FindNonDefaultConstructorOrConstruct,                                    \
       FindNonDefaultConstructorOrConstruct)                                    \
   TFS(OrdinaryGetOwnPropertyDescriptor, NeedsContext::kYes, kReceiver, kKey)   \
-  TFS(CheckMaglevType, NeedsContext::kNo, kObject, kType,                      \
-      kAllowWideningSmiToInt32)                                                \
+  TFS(CheckMaglevType, NeedsContext::kNo, kObject, kType)                      \
   IF_SHADOW_STACK(ASM, AdaptShadowStackForDeopt, Void)                         \
                                                                                \
   /* Trace */                                                                  \

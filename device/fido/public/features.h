@@ -35,10 +35,6 @@ extern const base::FeatureParam<PasskeyUnlockErrorUiExperimentArm>
 COMPONENT_EXPORT(FIDO_PUBLIC) BASE_DECLARE_FEATURE(kWebAuthUseNativeWinApi);
 #endif  // BUILDFLAG(IS_WIN)
 
-// Support the caBLE extension in assertion requests from any origin.
-COMPONENT_EXPORT(FIDO_PUBLIC)
-BASE_DECLARE_FEATURE(kWebAuthCableExtensionAnywhere);
-
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kWebAuthnActorCheck);
 
@@ -109,6 +105,10 @@ BASE_DECLARE_FEATURE(kWebAuthnEnclaveAttestation);
 // Enables rate limiting of immediate requests based on main frame's eTLD+1.
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kWebAuthnImmediateRequestRateLimit);
+
+// Support the WebAuthn Cross-device ("hybrid") fallback URL extension.
+COMPONENT_EXPORT(FIDO_PUBLIC)
+BASE_DECLARE_FEATURE(kWebAuthnCrossDeviceFallbackUrl);
 
 // Parameter controlling the maximum number of immediate requests allowed per
 // origin (eTLD+1) within the time window. This applies to the longer of the

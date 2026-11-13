@@ -8,9 +8,11 @@ import android.content.Context;
 import android.view.ViewStub;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.ntp.NewTabPageManager;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.ui.base.WindowAndroid;
 
 /** Factory for creating {@link NtpSearchBox} instances. */
@@ -24,15 +26,22 @@ public class NtpSearchBoxFactory {
             boolean isIncognito,
             WindowAndroid windowAndroid,
             NewTabPageManager newTabPageManager,
-            Profile profile) {
-        return new SearchBoxCoordinator(
-                context,
-                viewStub,
-                isTablet,
-                activityLifecycleDispatcher,
-                isIncognito,
-                windowAndroid,
-                newTabPageManager,
-                profile);
+            Profile profile,
+            BackPressManager backPressManager) {
+        // TODO(https://crbug.com/507131334): || with OmniboxCapabilities.isDesktopPlatform() when
+        // more functional.
+        if (OmniboxFeatures.sForceAndroidRealbox.isEnabled()) {
+            return new RealboxCoordinator(viewStub, backPressManager);
+        } else {
+            return new SearchBoxCoordinator(
+                    context,
+                    viewStub,
+                    isTablet,
+                    activityLifecycleDispatcher,
+                    isIncognito,
+                    windowAndroid,
+                    newTabPageManager,
+                    profile);
+        }
     }
 }

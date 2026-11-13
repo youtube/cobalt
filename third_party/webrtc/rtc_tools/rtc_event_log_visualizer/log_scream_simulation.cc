@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "api/environment/environment.h"
+#include "api/transport/ecn_marking.h"
 #include "api/transport/network_types.h"
 #include "api/units/data_rate.h"
 #include "api/units/data_size.h"
@@ -123,10 +124,11 @@ void LogScreamSimulation::OnIceConfig(
       // ScreamNetworkController::OnNetworkRouteChange.
       scream_.emplace(env_);
       scream_->SetTargetBitrateConstraints(
-          /*min=*/DataRate::Zero() /*max=*/, DataRate::PlusInfinity(),
+          /*min=*/DataRate::Zero(), /*max=*/DataRate::PlusInfinity(),
           /*start=*/DataRate::KilobitsPerSec(300));
       local_candidate_type_ = candidate.local_candidate_type;
       remote_candidate_type_ = candidate.remote_candidate_type;
+      feedback_history_.clear();
     }
   }
 }
@@ -160,6 +162,43 @@ void LogScreamSimulation::ProcessEventsInLog(
 }
 
 void LogScreamSimulation::LogState(const TransportPacketsFeedback& msg) {
+  int lost_count = 0;
+  int recovered_count = 0;
+  int ce_marked_count = 0;
+  for (const auto& packet : msg.packet_feedbacks) {
+    if (packet.reported_lost_for_the_first_time) {
+      lost_count++;
+    }
+    if (packet.reported_recovered_for_the_first_time) {
+      recovered_count++;
+    }
+    if (packet.ecn == EcnMarking::kCe) {
+      ce_marked_count++;
+    }
+  }
+
+  feedback_history_.push_back(FeedbackEvent{
+      .time = msg.feedback_time,
+      .lost_count = lost_count,
+      .recovered_count = recovered_count,
+      .ce_marked_count = ce_marked_count,
+  });
+
+  TimeDelta rtt = scream_->rtt();
+  while (!feedback_history_.empty() &&
+         feedback_history_.front().time < msg.feedback_time - rtt) {
+    feedback_history_.pop_front();
+  }
+
+  int total_lost = 0;
+  int total_recovered = 0;
+  int total_ce_marked = 0;
+  for (const auto& event : feedback_history_) {
+    total_lost += event.lost_count;
+    total_recovered += event.recovered_count;
+    total_ce_marked += event.ce_marked_count;
+  }
+
   state_.emplace_back(State{
       .time = msg.feedback_time,
       .target_rate = scream_->target_rate(),
@@ -191,7 +230,13 @@ void LogScreamSimulation::LogState(const TransportPacketsFeedback& msg) {
           scream_->last_ref_window_increase_scale_factor(),
       .l4s_alpha = scream_->l4s_alpha(),
       .l4s_alpha_v = scream_->delay_based_congestion_control().l4s_alpha_v(),
-      .loss_event_rate = scream_->loss_event_rate(),
+      .loss_congestion_level = scream_->loss_congestion_level(),
+      .packets_lost_per_rtt = total_lost,
+      .packets_recovered_per_rtt = total_recovered,
+      .ce_marked_per_rtt = total_ce_marked,
+      .packets_lost_per_feedback = lost_count,
+      .packets_recovered_per_feedback = recovered_count,
+      .ce_marked_per_feedback = ce_marked_count,
   });
 }
 

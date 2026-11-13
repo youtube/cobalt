@@ -15,6 +15,7 @@
 #import "ios/chrome/browser/app_bar/ui/app_bar_constants.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_iph_background_view.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_mutator.h"
+#import "ios/chrome/browser/app_bar/ui/app_bar_view.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_animator.h"
 #import "ios/chrome/browser/intents/model/intents_donation_helper.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
@@ -111,7 +112,8 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
 
 }  // namespace
 
-@interface AppBarViewController () <LayoutStateObserver,
+@interface AppBarViewController () <AppBarViewDelegate,
+                                    LayoutStateObserver,
                                     UIContextMenuInteractionDelegate>
 @end
 
@@ -169,6 +171,8 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   AppBarIPHBackgroundView* _IPHBackgroundView;
   // Whether the App Bar content is rotated.
   BOOL _isRotated;
+  // The current rotation angle.
+  CGFloat _angle;
   // Constraints to make buttons square in landscape so that long press
   // animation does not leak beyond bounds of app bar.
   NSArray<NSLayoutConstraint*>* _buttonWidthConstraints;
@@ -199,6 +203,7 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
 - (void)layoutState:(LayoutState*)layoutState
     didChangeAppBarPosition:(AppBarPosition)appBarPosition {
   [self updateButtonsTitleAlpha];
+  [self updateTabSwitcherGuide];
 }
 
 #pragma mark - Accessors & Mutators
@@ -221,6 +226,11 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
 - (void)updateForAngle:(CGFloat)angle {
   [self loadViewIfNeeded];
 
+  if (_angle == angle) {
+    return;
+  }
+  _angle = angle;
+
   _isRotated = (angle != 0);
 
   CGAffineTransform transform = CGAffineTransformMakeRotation(angle);
@@ -239,6 +249,8 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
     _leadingSpacer.hidden = YES;
     _trailingSpacer.hidden = YES;
   }
+  [_stackView setNeedsLayout];
+  [_stackView layoutIfNeeded];
 }
 
 - (void)toggleSpotlightView:(BOOL)shouldShow {
@@ -276,9 +288,16 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
 
 #pragma mark - UIViewController
 
+- (void)loadView {
+  AppBarView* view = [[AppBarView alloc] init];
+  view.delegate = self;
+  self.view = view;
+}
+
 - (void)viewDidLoad {
   [super viewDidLoad];
 
+  _angle = CGFLOAT_MAX;
   _backgroundView = [[AppBarBackgroundView alloc] init];
   _backgroundView.translatesAutoresizingMaskIntoConstraints = NO;
   [self.view insertSubview:_backgroundView atIndex:0];
@@ -293,6 +312,8 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   _tabGridButton = [self createTabGridButton];
   [self updateTabGridButtonForTabGridVisibility];
   [self updateNewTabButtonAccessibilityLabel];
+  [self updateNewTabButtonAccessibilityHint];
+  [self updateTabSwitcherGuide];
 
   // When rotated in landscape, add spacers at the beginning and end of the
   // stack view so that the buttons width match the "height" of the stack view,
@@ -371,6 +392,7 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   [self updateTabGridButtonForTabGridVisibility];
   [self updateNewTabButtonForTabGroupsVisibility];
   [self updateNewTabButtonAccessibilityLabel];
+  [self updateNewTabButtonAccessibilityHint];
 }
 
 - (void)setIncognito:(BOOL)incognito {
@@ -446,6 +468,12 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   [self updateAssistantButton];
 }
 
+#pragma mark - AppBarViewDelegate
+
+- (void)appBarViewDidMoveToWindow:(AppBarView*)view {
+  [self updateTabSwitcherGuide];
+}
+
 #pragma mark - FullscreenUIElement
 
 - (void)updateForFullscreenProgress:(CGFloat)progress {
@@ -483,6 +511,20 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
           ? _fullscreenProgress
           : 1.0;
   [self setButtonsTitleAlpha:targetAlpha animationDuration:0];
+}
+
+// Conditionally registers the Tab Switcher layout guide.
+// It should only be registered to the App Bar if the App Bar is visible.
+- (void)updateTabSwitcherGuide {
+  if (!self.view.window) {
+    return;
+  }
+  if (self.layoutState.appBarPosition == AppBarPosition::kNone) {
+    [self.layoutGuideCenter referenceView:nil underName:kTabSwitcherGuide];
+  } else {
+    [self.layoutGuideCenter referenceView:_tabGridButton
+                                underName:kTabSwitcherGuide];
+  }
 }
 
 // Returns `fullTitle` if it fits within the available width for the
@@ -891,10 +933,6 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
         NSDirectionalEdgeInsetsMake(
             kSpotlightViewVerticalInset, kSpotlightViewHorizontalInset,
             kSpotlightViewVerticalInset, kSpotlightViewHorizontalInset));
-    [self.layoutGuideCenter referenceView:_spotlightView
-                                underName:kTabSwitcherGuide];
-  } else {
-    [self.layoutGuideCenter referenceView:button underName:kTabSwitcherGuide];
   }
 
   [button
@@ -974,8 +1012,19 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
     }
   } else {
     _openNewTabButton.accessibilityLabel =
-        l10n_util::GetNSString(IDS_IOS_TOOLBAR_ACCESSIBILITY_HINT_NEW_TAB);
+        _backgroundView.incognito
+            ? l10n_util::GetNSString(IDS_IOS_TOOLBAR_OPEN_NEW_TAB_INCOGNITO)
+            : l10n_util::GetNSString(IDS_IOS_TOOLBAR_OPEN_NEW_TAB);
   }
+}
+
+// Updates the accessibility hint for the new tab button based on the current
+// state.
+- (void)updateNewTabButtonAccessibilityHint {
+  _openNewTabButton.accessibilityHint =
+      _isTabGridVisible
+          ? nil
+          : l10n_util::GetNSString(IDS_IOS_TOOLBAR_ACCESSIBILITY_HINT_NEW_TAB);
 }
 
 // Updates the Tab Grid button for the given Tab Grid showing state.
@@ -1011,6 +1060,10 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
                     label.textColor = labelColor;
                   }
                   completion:nil];
+  _tabGridButton.accessibilityHint =
+      _isTabGridVisible
+          ? nil
+          : l10n_util::GetNSString(IDS_IOS_TOOLBAR_ACCESSIBILITY_HINT_TAB_GRID);
 }
 
 // Calls the button's setNeedsUpdateConfiguration, either immediately or in an

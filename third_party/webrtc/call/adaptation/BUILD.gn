@@ -120,6 +120,7 @@ if (rtc_include_tests) {
       "../../api:scoped_refptr",
       "../../api/adaptation:resource_adaptation_api",
       "../../api/video:video_adaptation",
+      "../../api/video:video_frame",
       "../../api/video_codecs:video_codecs_api",
       "../../rtc_base:checks",
       "../../test:create_test_field_trials",

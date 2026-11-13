@@ -33,24 +33,24 @@ BSSL_NAMESPACE_BEGIN
 // Internal allocation-dependent functions.
 //
 // This header is separate from crypto/internal.h because there are some files
-// which must avoid |OPENSSL_malloc|, to avoid a circular dependency, but
+// which must avoid `OPENSSL_malloc`, to avoid a circular dependency, but
 // need other support routines in crypto/internal.h. (See
-// |_BORINGSSL_PROHIBIT_OPENSSL_MALLOC|.)
+// `_BORINGSSL_PROHIBIT_OPENSSL_MALLOC`.)
 
 
 // Memory allocation.
 
-// New behaves like |new| but uses |OPENSSL_malloc| for memory allocation. It
+// New behaves like `new` but uses `OPENSSL_malloc` for memory allocation. It
 // returns nullptr on allocation error. It only implements single-object
 // allocation and not new T[n].
 //
 // When called with no arguments, it performs value-initialization, not
 // default-initialization. This means that, if selects a non-user-provided
 // constructor, the object will be zero-initialized. (As in any C++ type, once
-// |T| gains a user-provided constructors, it is responsible for initializing
+// `T` gains a user-provided constructors, it is responsible for initializing
 // all fields explicitly.)
 //
-// Note: unlike |new|, this does not support non-public constructors.
+// Note: unlike `new`, this does not support non-public constructors.
 template <typename T, typename... Args>
 T *New(Args &&...args) {
   void *t = OPENSSL_malloc(sizeof(T));
@@ -60,9 +60,9 @@ T *New(Args &&...args) {
   return new (t) T(std::forward<Args>(args)...);
 }
 
-// Delete behaves like |delete| but uses |OPENSSL_free| to release memory.
+// Delete behaves like `delete` but uses `OPENSSL_free` to release memory.
 //
-// Note: unlike |delete| this does not support non-public destructors.
+// Note: unlike `delete` this does not support non-public destructors.
 template <typename T>
 void Delete(T *t) {
   if (t != nullptr) {
@@ -74,9 +74,9 @@ void Delete(T *t) {
 namespace internal {
 
 // All types with kAllowUniquePtr set may be used with UniquePtr. Other types
-// may be C structs which require a |BORINGSSL_MAKE_DELETER| registration. Where
+// may be C structs which require a `BORINGSSL_MAKE_DELETER` registration. Where
 // an internal type cannot be annotated (e.g. an alias of std::variant), use
-// |BORINGSSL_MAKE_DELETER(T, Delete)|.
+// `BORINGSSL_MAKE_DELETER(T, Delete)`.
 template <typename T>
 struct DeleterImpl<T, std::enable_if_t<T::kAllowUniquePtr>> {
   static void Free(T *t) { Delete(t); }
@@ -93,7 +93,7 @@ struct DeleterImpl<T, std::enable_if_t<T::kAllowRefCountedUniquePtr>> {
 
 // All types with kAllowRefCountedUniquePtr types also automatically get an
 // UpRef function. Other types may be C structs which require a
-// |BORINGSSL_MAKE_UP_REF| registration.
+// `BORINGSSL_MAKE_UP_REF` registration.
 template <typename T, typename = std::enable_if_t<T::kAllowRefCountedUniquePtr>>
 inline UniquePtr<T> UpRef(const T *v) {
   if (v != nullptr) {
@@ -106,7 +106,7 @@ inline UniquePtr<T> UpRef(const UniquePtr<T> &ptr) {
   return UpRef(ptr.get());
 }
 
-// MakeUnique behaves like |std::make_unique| but returns nullptr on allocation
+// MakeUnique behaves like `std::make_unique` but returns nullptr on allocation
 // error.
 template <typename T, typename... Args>
 UniquePtr<T> MakeUnique(Args &&...args) {
@@ -128,7 +128,7 @@ class RefCounted {
 
   // These methods are intentionally named differently from `bssl::UpRef` to
   // avoid a collision. Only the implementations of `FOO_up_ref` and `FOO_free`
-  // should call these. |DecRefInternal| returns true if the object was freed
+  // should call these. `DecRefInternal` returns true if the object was freed
   // and false if there are still references.
   void UpRefInternal() const {
     // Safety: the folowing call does not mutate anything other than the atomic
@@ -168,7 +168,7 @@ class RefCounted {
 
 // Containers.
 
-// Array<T> is an owning array of elements of |T|.
+// Array<T> is an owning array of elements of `T`.
 template <typename T>
 class Array {
  public:
@@ -244,9 +244,9 @@ class Array {
     size_ = 0;
   }
 
-  // Init replaces the array with a newly-allocated array of |new_size|
-  // value-constructed copies of |T|. It returns true on success and false on
-  // error. If |T| is a primitive type like |uint8_t|, value-construction means
+  // Init replaces the array with a newly-allocated array of `new_size`
+  // value-constructed copies of `T`. It returns true on success and false on
+  // error. If `T` is a primitive type like `uint8_t`, value-construction means
   // it will be zero-initialized.
   [[nodiscard]] bool Init(size_t new_size) {
     if (!InitUninitialized(new_size)) {
@@ -256,8 +256,8 @@ class Array {
     return true;
   }
 
-  // InitForOverwrite behaves like |Init| but it default-constructs each element
-  // instead. This means that, if |T| is a primitive type, the array will be
+  // InitForOverwrite behaves like `Init` but it default-constructs each element
+  // instead. This means that, if `T` is a primitive type, the array will be
   // uninitialized and thus must be filled in by the caller.
   [[nodiscard]] bool InitForOverwrite(size_t new_size) {
     if (!InitUninitialized(new_size)) {
@@ -267,10 +267,10 @@ class Array {
     return true;
   }
 
-  // CopyFrom replaces the array with a newly-allocated copy of |in|. It returns
+  // CopyFrom replaces the array with a newly-allocated copy of `in`. It returns
   // true on success and false on error.
   //
-  // |in| may not alias |this|.
+  // `in` may not alias `this`.
   [[nodiscard]] bool CopyFrom(Span<const T> in) {
     BSSL_CHECK(!spans_alias(MakeConstSpan(*this), in));
     if (!InitUninitialized(in.size())) {
@@ -280,7 +280,7 @@ class Array {
     return true;
   }
 
-  // Shrink shrinks the stored size of the array to |new_size|. It crashes if
+  // Shrink shrinks the stored size of the array to `new_size`. It crashes if
   // the new size is larger. Note this does not shrink the allocation itself.
   void Shrink(size_t new_size) {
     if (new_size > size_) {
@@ -292,7 +292,7 @@ class Array {
 
  private:
   // InitUninitialized replaces the array with a newly-allocated array of
-  // |new_size| elements, but whose constructor has not yet run. On success, the
+  // `new_size` elements, but whose constructor has not yet run. On success, the
   // elements must be constructed before returning control to the caller.
   bool InitUninitialized(size_t new_size) {
     Reset();
@@ -316,7 +316,7 @@ class Array {
   size_t size_ = 0;
 };
 
-// Vector<T> is a resizable array of elements of |T|.
+// Vector<T> is a resizable array of elements of `T`.
 template <typename T>
 class Vector {
  public:
@@ -384,7 +384,7 @@ class Vector {
     size_--;
   }
 
-  // Push adds |elem| at the end of the internal array, growing if necessary. It
+  // Push adds `elem` at the end of the internal array, growing if necessary. It
   // returns false when allocation fails.
   [[nodiscard]] bool Push(T elem) {
     if (!MaybeGrow(1)) {
@@ -395,7 +395,7 @@ class Vector {
     return true;
   }
 
-  // CopyFrom replaces the contents of the array with a copy of |in|. It returns
+  // CopyFrom replaces the contents of the array with a copy of `in`. It returns
   // true on success and false on allocation error.
   [[nodiscard]] bool CopyFrom(Span<const T> in) {
     Array<T> copy;
@@ -409,7 +409,7 @@ class Vector {
     return true;
   }
 
-  // Append appends the contents of |in| to the array. It returns true on
+  // Append appends the contents of `in` to the array. It returns true on
   // success and false on allocation error.
   [[nodiscard]] bool Append(Span<const T> in) {
     if (!MaybeGrow(in.size())) {
@@ -420,7 +420,7 @@ class Vector {
     return true;
   }
 
-  // AppendMove moves the contents of |in| and appends them to the array. It
+  // AppendMove moves the contents of `in` and appends them to the array. It
   // returns true on success and false on allocation error.
   [[nodiscard]] bool AppendMove(Span<T> in) {
     if (!MaybeGrow(in.size())) {
@@ -431,7 +431,7 @@ class Vector {
     return true;
   }
 
-  // EraseIf removes all elements that satisfy the predicate |pred|.
+  // EraseIf removes all elements that satisfy the predicate `pred`.
   template <typename Pred>
   void EraseIf(Pred pred) {
     auto it = std::remove_if(begin(), end(), pred);
@@ -440,7 +440,7 @@ class Vector {
   }
 
  private:
-  // If there is no room for |num| elements, creates a new backing array with
+  // If there is no room for `num` elements, creates a new backing array with
   // double the size of the old one and copies elements over.
   [[nodiscard]] bool MaybeGrow(size_t num) {
     constexpr size_t kDefaultSize = 16;
@@ -475,12 +475,12 @@ class Vector {
     return true;
   }
 
-  // data_ is a pointer to |capacity_| objects of size |T|, the first |size_| of
+  // data_ is a pointer to `capacity_` objects of size `T`, the first `size_` of
   // which are constructed.
   T *data_ = nullptr;
-  // |size_| is the number of elements stored in this Vector.
+  // `size_` is the number of elements stored in this Vector.
   size_t size_ = 0;
-  // |capacity_| is the number of elements allocated in this Vector.
+  // `capacity_` is the number of elements allocated in this Vector.
   size_t capacity_ = 0;
 };
 
@@ -560,8 +560,8 @@ class InplaceVector {
     Shrink(size_ - 1);
   }
 
-  // Shrink resizes the vector to |new_size|, which must not be larger than the
-  // current size. Unlike |Resize|, this can be called when |T| is not
+  // Shrink resizes the vector to `new_size`, which must not be larger than the
+  // current size. Unlike `Resize`, this can be called when `T` is not
   // default-constructible.
   void Shrink(size_t new_size) {
     BSSL_CHECK(new_size <= size_);
@@ -569,8 +569,8 @@ class InplaceVector {
     size_ = static_cast<PackedSize<N>>(new_size);
   }
 
-  // TryResize resizes the vector to |new_size| and returns true, or returns
-  // false if |new_size| is too large. Any newly-added elements are
+  // TryResize resizes the vector to `new_size` and returns true, or returns
+  // false if `new_size` is too large. Any newly-added elements are
   // value-initialized.
   [[nodiscard]] bool TryResize(size_t new_size) {
     if (new_size <= size_) {
@@ -585,7 +585,7 @@ class InplaceVector {
     return true;
   }
 
-  // TryResizeForOverwrite behaves like |TryResize|, but newly-added elements
+  // TryResizeForOverwrite behaves like `TryResize`, but newly-added elements
   // are default-initialized, so POD types may contain uninitialized values that
   // the caller is responsible for filling in.
   [[nodiscard]] bool TryResizeForOverwrite(size_t new_size) {
@@ -601,10 +601,10 @@ class InplaceVector {
     return true;
   }
 
-  // TryCopyFrom sets the vector to a copy of |in| and returns true, or returns
-  // false if |in| is too large.
+  // TryCopyFrom sets the vector to a copy of `in` and returns true, or returns
+  // false if `in` is too large.
   //
-  // |in| may not alias |this|.
+  // `in` may not alias `this`.
   [[nodiscard]] bool TryCopyFrom(Span<const T> in) {
     BSSL_CHECK(!spans_alias(MakeConstSpan(*this), in));
     if (in.size() > capacity()) {
@@ -616,8 +616,8 @@ class InplaceVector {
     return true;
   }
 
-  // TryAppend appends the vector by a copy of |in| and returns true, or
-  // returns false if |in| is too large.
+  // TryAppend appends the vector by a copy of `in` and returns true, or
+  // returns false if `in` is too large.
   [[nodiscard]] bool TryAppend(Span<const T> in) {
     if (in.size() > capacity() - size()) {
       return false;
@@ -627,7 +627,7 @@ class InplaceVector {
     return true;
   }
 
-  // TryPushBack appends |val| to the vector and returns a pointer to the
+  // TryPushBack appends `val` to the vector and returns a pointer to the
   // newly-inserted value, or nullptr if the vector is at capacity.
   [[nodiscard]] T *TryPushBack(T val) {
     if (size() >= capacity()) {
@@ -639,7 +639,7 @@ class InplaceVector {
     return ret;
   }
 
-  // The following methods behave like their |Try*| counterparts, but abort the
+  // The following methods behave like their `Try*` counterparts, but abort the
   // program on failure.
   void Resize(size_t size) { BSSL_CHECK(TryResize(size)); }
   void ResizeForOverwrite(size_t size) {
@@ -653,7 +653,7 @@ class InplaceVector {
     return *ret;
   }
 
-  // EraseIf removes all elements that satisfy the predicate |pred|.
+  // EraseIf removes all elements that satisfy the predicate `pred`.
   template <typename Pred>
   void EraseIf(Pred pred) {
     auto it = std::remove_if(begin(), end(), pred);

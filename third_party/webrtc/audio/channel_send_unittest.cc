@@ -30,6 +30,7 @@
 #include "api/field_trials.h"
 #include "api/frame_transformer_interface.h"
 #include "api/make_ref_counted.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/scoped_refptr.h"
 #include "api/test/mock_frame_transformer.h"
@@ -226,7 +227,7 @@ TEST_F(ChannelSendTest, FrameTransformerGetsCorrectTimestamp) {
 // Ensure that AudioLevel calculations are performed correctly per-packet even
 // if there's an async Encoded Frame Transform happening.
 TEST_F(ChannelSendTest, AudioLevelsAttachedToCorrectTransformedFrame) {
-  channel_->SetSendAudioLevelIndicationStatus(true, /*id=*/1);
+  channel_->SetSendAudioLevelIndicationStatus(RtpHeaderExtensionId(1));
   RtpPacketReceived::ExtensionManager extension_manager;
   extension_manager.RegisterByType(1, kRtpExtensionAudioLevel);
 
@@ -290,7 +291,7 @@ TEST_F(ChannelSendTest, AudioLevelsAttachedToCorrectTransformedFrame) {
 // Ensure that AudioLevels are attached to frames injected into the
 // Encoded Frame transform.
 TEST_F(ChannelSendTest, AudioLevelsAttachedToInsertedTransformedFrame) {
-  channel_->SetSendAudioLevelIndicationStatus(true, /*id=*/1);
+  channel_->SetSendAudioLevelIndicationStatus(RtpHeaderExtensionId(1));
   RtpPacketReceived::ExtensionManager extension_manager;
   extension_manager.RegisterByType(1, kRtpExtensionAudioLevel);
 

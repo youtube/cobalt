@@ -122,7 +122,7 @@ std::unique_ptr<ModuleRtpRtcpImpl2> CreateRtpRtcpModule(
     RtcpPacketTypeCounterObserver* rtcp_packet_type_counter_observer,
     bool enable_non_sender_rtt,
     uint32_t remote_ssrc,
-    absl::AnyInvocable<uint32_t() const> fallback_ssrc_callback) {
+    PacketRouter* absl_nonnull packet_router) {
   RtpRtcpInterface::Configuration configuration = {
       .audio = true,
       .receiver_only = true,
@@ -136,7 +136,10 @@ std::unique_ptr<ModuleRtpRtcpImpl2> CreateRtpRtcpModule(
 
   std::unique_ptr<ModuleRtpRtcpImpl2> rtp_rtcp =
       ModuleRtpRtcpImpl2::CreateReceiveModule(
-          env, configuration, std::move(fallback_ssrc_callback));
+          env, configuration, [packet_router]() {
+            return packet_router->SsrcOfFirstSender().value_or(
+                kFallbackRtcpSsrcForAudio);
+          });
   return rtp_rtcp;
 }
 
@@ -155,7 +158,8 @@ class ChannelReceive : public ChannelReceiveInterface,
                  scoped_refptr<AudioDecoderFactory> decoder_factory,
                  scoped_refptr<FrameDecryptorInterface> frame_decryptor,
                  const CryptoOptions& crypto_options,
-                 scoped_refptr<FrameTransformerInterface> frame_transformer);
+                 scoped_refptr<FrameTransformerInterface> frame_transformer,
+                 PacketRouter* absl_nonnull packet_router);
   ~ChannelReceive() override;
 
   void SetSink(AudioSinkInterface* sink) override;
@@ -206,10 +210,6 @@ class ChannelReceive : public ChannelReceiveInterface,
 
   // Produces the transport-related timestamps; current_delay_ms is left unset.
   std::optional<Syncable::Info> GetSyncInfo() const override;
-
-  void RegisterReceiverCongestionControlObjects(
-      PacketRouter* packet_router) override;
-  void ResetReceiverCongestionControlObjects() override;
 
   ChannelReceiveStatistics GetRTCPStatistics() const override;
   void SetNACKStatus(bool enable, int max_packets) override;
@@ -326,7 +326,7 @@ class ChannelReceive : public ChannelReceiveInterface,
   AudioDeviceModule* const audio_device_module_;
   std::atomic<float> output_gain_;
 
-  PacketRouter* packet_router_ = nullptr;
+  PacketRouter* const packet_router_;
 
   SequenceChecker construction_thread_;
 
@@ -585,24 +585,18 @@ ChannelReceive::ChannelReceive(
     scoped_refptr<AudioDecoderFactory> decoder_factory,
     scoped_refptr<FrameDecryptorInterface> frame_decryptor,
     const CryptoOptions& crypto_options,
-    scoped_refptr<FrameTransformerInterface> frame_transformer)
+    scoped_refptr<FrameTransformerInterface> frame_transformer,
+    PacketRouter* absl_nonnull packet_router)
     : env_(env),
       worker_thread_(TaskQueueBase::Current()),
       rtp_receive_statistics_(ReceiveStatistics::Create(&env_.clock())),
-      rtp_rtcp_(CreateRtpRtcpModule(
-          env,
-          rtp_receive_statistics_.get(),
-          rtcp_send_transport,
-          this,
-          enable_non_sender_rtt,
-          remote_ssrc,
-          [this] {
-            if (packet_router_ == nullptr) {
-              return kFallbackRtcpSsrcForAudio;
-            }
-            return packet_router_->SsrcOfFirstSender().value_or(
-                kFallbackRtcpSsrcForAudio);
-          })),
+      rtp_rtcp_(CreateRtpRtcpModule(env,
+                                    rtp_receive_statistics_.get(),
+                                    rtcp_send_transport,
+                                    this,
+                                    enable_non_sender_rtt,
+                                    remote_ssrc,
+                                    packet_router)),
       remote_ssrc_(remote_ssrc),
       source_tracker_(&env_.clock()),
       neteq_(CreateNetEq(neteq_factory,
@@ -617,12 +611,17 @@ ChannelReceive::ChannelReceive(
       capture_start_ntp_time_ms_(-1),
       audio_device_module_(audio_device_module),
       output_gain_(1.0f),
+      packet_router_(packet_router),
       frame_decryptor_(frame_decryptor),
       crypto_options_(crypto_options),
       absolute_capture_time_interpolator_(&env_.clock()) {
   RTC_DCHECK(audio_device_module);
+  RTC_DCHECK(packet_router_);
 
   rtp_receive_statistics_->EnableRetransmitDetection(remote_ssrc_, true);
+
+  constexpr bool remb_candidate = false;
+  packet_router_->AddReceiveRtpModule(rtp_rtcp_.get(), remb_candidate);
 
   if (frame_transformer)
     InitFrameTransformerDelegate(std::move(frame_transformer));
@@ -630,6 +629,8 @@ ChannelReceive::ChannelReceive(
 
 ChannelReceive::~ChannelReceive() {
   RTC_DCHECK_RUN_ON(&construction_thread_);
+
+  packet_router_->RemoveReceiveRtpModule(rtp_rtcp_.get());
 
   // Resets the delegate's callback to ChannelReceive::OnReceivedPayloadData.
   if (frame_transformer_delegate_)
@@ -845,23 +846,6 @@ double ChannelReceive::GetTotalOutputDuration() const {
 void ChannelReceive::SetChannelOutputVolumeScaling(float scaling) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   output_gain_.store(scaling);
-}
-
-void ChannelReceive::RegisterReceiverCongestionControlObjects(
-    PacketRouter* packet_router) {
-  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-  RTC_DCHECK(packet_router);
-  RTC_DCHECK(!packet_router_);
-  constexpr bool remb_candidate = false;
-  packet_router->AddReceiveRtpModule(rtp_rtcp_.get(), remb_candidate);
-  packet_router_ = packet_router;
-}
-
-void ChannelReceive::ResetReceiverCongestionControlObjects() {
-  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-  RTC_DCHECK(packet_router_);
-  packet_router_->RemoveReceiveRtpModule(rtp_rtcp_.get());
-  packet_router_ = nullptr;
 }
 
 ChannelReceiveStatistics ChannelReceive::GetRTCPStatistics() const {
@@ -1229,12 +1213,14 @@ std::unique_ptr<ChannelReceiveInterface> CreateChannelReceive(
     scoped_refptr<AudioDecoderFactory> decoder_factory,
     scoped_refptr<FrameDecryptorInterface> frame_decryptor,
     const CryptoOptions& crypto_options,
-    scoped_refptr<FrameTransformerInterface> frame_transformer) {
+    scoped_refptr<FrameTransformerInterface> frame_transformer,
+    PacketRouter* absl_nonnull packet_router) {
   return std::make_unique<ChannelReceive>(
       env, neteq_factory, audio_device_module, rtcp_send_transport, remote_ssrc,
       jitter_buffer_max_packets, jitter_buffer_fast_playout,
       jitter_buffer_min_delay_ms, enable_non_sender_rtt, decoder_factory,
-      std::move(frame_decryptor), crypto_options, std::move(frame_transformer));
+      std::move(frame_decryptor), crypto_options, std::move(frame_transformer),
+      packet_router);
 }
 
 }  // namespace voe

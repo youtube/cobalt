@@ -202,6 +202,16 @@ void SetRtpParametersOnWorkerThread(
                                       std::move(callback));
 }
 
+std::vector<std::string> GetUniqueStreamIds(
+    const std::vector<std::string>& stream_ids) {
+  std::vector<std::string> unique_ids;
+  absl::c_copy_if(stream_ids, std::back_inserter(unique_ids),
+                  [&](const std::string& id) {
+                    return !absl::c_linear_search(unique_ids, id);
+                  });
+  return unique_ids;
+}
+
 }  // namespace
 
 // Returns true if any RtpParameters member that isn't implemented contains a
@@ -229,13 +239,18 @@ RtpSenderBase::RtpSenderBase(
     MediaType media_type,
     SetStreamsObserver* set_streams_observer,
     absl::AnyInvocable<RTCError()> enable_sframe_at_owner,
-    MediaSendChannelInterface* media_channel)
+    MediaSendChannelInterface* media_channel,
+    std::vector<std::string> stream_ids,
+    std::vector<RtpEncodingParameters> init_send_encodings,
+    std::vector<Codec> send_codecs)
     : env_(env),
       signaling_thread_(signaling_thread),
       worker_thread_(worker_thread),
       id_(id),
       media_type_(media_type),
-      media_channel_(nullptr),  // Will be set in SetMediaChannel().
+      stream_ids_(GetUniqueStreamIds(stream_ids)),
+      send_codecs_(std::move(send_codecs)),
+      media_channel_(media_channel),
       set_streams_observer_(set_streams_observer),
       worker_safety_(PendingTaskSafetyFlag::CreateAttachedToTaskQueue(
           /*alive=*/media_channel != nullptr,
@@ -245,16 +260,7 @@ RtpSenderBase::RtpSenderBase(
                                                            signaling_thread_)),
       enable_sframe_at_owner_(std::move(enable_sframe_at_owner)) {
   RTC_DCHECK(worker_thread_);
-  init_parameters_.encodings.emplace_back();
-  if (media_channel) {
-    // When initialized with a valid media channel, we need to be running on the
-    // worker thread in order to set things up properly.
-    RTC_DCHECK_RUN_ON(worker_thread_);
-    SetMediaChannel(media_channel);
-  } else {
-    // Otherwise, we're less picky (but probably running on the signaling
-    // thread).
-  }
+  init_parameters_.encodings = std::move(init_send_encodings);
 }
 
 RtpSenderBase::~RtpSenderBase() {
@@ -325,31 +331,19 @@ void RtpSenderBase::SetMediaChannel(MediaSendChannelInterface* media_channel) {
     return;
   }
 
-  if (media_channel_) {
-    media_channel_->SetParametersChangedCallback(nullptr);
-  }
-
   // Note that setting the media_channel_ to nullptr and clearing the send state
   // via ClearSend_w, are separate operations. Stopping the actual send
   // operation, needs to be done via any of the paths that end up with a call to
   // ClearSend_w(), such as DetachTrackAndGetStopTask().
   media_channel_ = media_channel;
-  if (media_channel_) {
-    media_channel_->SetParametersChangedCallback(
-        [this] { OnParametersChanged(); });
-  }
   media_channel_ ? worker_safety_->SetAlive() : worker_safety_->SetNotAlive();
 }
 
 void RtpSenderBase::OnParametersChanged() {
-  RTC_DCHECK_RUN_ON(worker_thread_);
-  RTC_LOG(LS_INFO) << "RtpSender: OnParametersChanged signaled.";
-  signaling_thread_->PostTask(SafeTask(signaling_safety_.flag(), [this] {
-    RTC_DCHECK_RUN_ON(signaling_thread_);
-    cached_parameters_.reset();
-    last_transaction_id_.reset();
-    RTC_LOG(LS_INFO) << "RtpSender: OnParametersChanged cache cleared.";
-  }));
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+  cached_parameters_.reset();
+  last_transaction_id_.reset();
+  RTC_LOG(LS_INFO) << "RtpSender: OnParametersChanged cache cleared.";
 }
 
 RtpParameters RtpSenderBase::GetParametersInternal(bool may_use_cache,
@@ -445,9 +439,9 @@ RtpParameters RtpSenderBase::GetParameters() const {
 std::optional<RTCError> RtpSenderBase::ValidateAndMaybeUpdateInitParameters(
     const RtpParameters& parameters) {
   if (UnimplementedRtpParameterHasValue(parameters)) {
-    return LOG_ERROR(RTCError::UnsupportedParameter()
-                     << "Attempted to set an unimplemented parameter of "
-                        "RtpParameters.");
+    return RTC_LOG_ERROR(RTCError::UnsupportedParameter()
+                         << "Attempted to set an unimplemented parameter of "
+                            "RtpParameters.");
   }
   if (ssrc_ == 0) {
     auto result = CheckRtpParametersInvalidModificationAndValues(
@@ -633,20 +627,21 @@ RTCError RtpSenderBase::SetParametersInternalWithAllLayers(
 RTCError RtpSenderBase::CheckSetParameters(const RtpParameters& parameters) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
   if (stopped_) {
-    return LOG_ERROR(RTCError::InvalidState()
-                     << "Cannot set parameters on a stopped sender.");
+    return RTC_LOG_ERROR(RTCError::InvalidState()
+                         << "Cannot set parameters on a stopped sender.");
   }
   if (!last_transaction_id_) {
-    return LOG_ERROR(RTCError::InvalidState()
-                     << "Failed to set parameters since getParameters() has "
-                        "never been called"
-                        " on this sender");
+    return RTC_LOG_ERROR(
+        RTCError::InvalidState()
+        << "Failed to set parameters since getParameters() has "
+           "never been called"
+           " on this sender");
   }
   if (last_transaction_id_ != parameters.transaction_id) {
-    return LOG_ERROR(RTCError::InvalidModification()
-                     << "Failed to set parameters since the transaction_id "
-                        "doesn't match"
-                        " the last value returned from getParameters()");
+    return RTC_LOG_ERROR(RTCError::InvalidModification()
+                         << "Failed to set parameters since the transaction_id "
+                            "doesn't match"
+                            " the last value returned from getParameters()");
   }
 
   return RTCError::OK();
@@ -703,11 +698,7 @@ void RtpSenderBase::NotifyFirstPacketSent() {
 }
 
 void RtpSenderBase::set_stream_ids(const std::vector<std::string>& stream_ids) {
-  stream_ids_.clear();
-  absl::c_copy_if(stream_ids, std::back_inserter(stream_ids_),
-                  [this](const std::string& stream_id) {
-                    return !absl::c_linear_search(stream_ids_, stream_id);
-                  });
+  stream_ids_ = GetUniqueStreamIds(stream_ids);
 }
 
 void RtpSenderBase::SetStreams(const std::vector<std::string>& stream_ids) {
@@ -1002,8 +993,8 @@ RTCError RtpSenderBase::DisableEncodingLayers(
     const std::vector<std::string>& rids) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
   if (stopped_) {
-    return LOG_ERROR(RTCError::InvalidState()
-                     << "Cannot disable encodings on a stopped sender.");
+    return RTC_LOG_ERROR(RTCError::InvalidState()
+                         << "Cannot disable encodings on a stopped sender.");
   }
 
   bool all_already_disabled = true;
@@ -1024,9 +1015,9 @@ RTCError RtpSenderBase::DisableEncodingLayers(
                         [&rid](const RtpEncodingParameters& encoding) {
                           return encoding.rid == rid;
                         })) {
-      return LOG_ERROR(RTCError::InvalidParameter()
-                       << "RID: " << rid
-                       << " does not refer to a valid layer.");
+      return RTC_LOG_ERROR(RTCError::InvalidParameter()
+                           << "RID: " << rid
+                           << " does not refer to a valid layer.");
     }
   }
 
@@ -1133,10 +1124,14 @@ scoped_refptr<AudioRtpSender> AudioRtpSender::Create(
     LegacyStatsCollectorInterface* stats,
     SetStreamsObserver* set_streams_observer,
     absl::AnyInvocable<RTCError()> enable_sframe_at_owner,
-    MediaSendChannelInterface* media_channel) {
+    MediaSendChannelInterface* media_channel,
+    std::vector<std::string> stream_ids,
+    std::vector<RtpEncodingParameters> init_send_encodings,
+    std::vector<Codec> send_codecs) {
   return make_ref_counted<AudioRtpSender>(
       env, signaling_thread, worker_thread, id, stats, set_streams_observer,
-      std::move(enable_sframe_at_owner), media_channel);
+      std::move(enable_sframe_at_owner), media_channel, std::move(stream_ids),
+      std::move(init_send_encodings), std::move(send_codecs));
 }
 
 AudioRtpSender::AudioRtpSender(
@@ -1147,7 +1142,10 @@ AudioRtpSender::AudioRtpSender(
     LegacyStatsCollectorInterface* stats,
     SetStreamsObserver* set_streams_observer,
     absl::AnyInvocable<RTCError()> enable_sframe_at_owner,
-    MediaSendChannelInterface* media_channel)
+    MediaSendChannelInterface* media_channel,
+    std::vector<std::string> stream_ids,
+    std::vector<RtpEncodingParameters> init_send_encodings,
+    std::vector<Codec> send_codecs)
     : RtpSenderBase(env,
                     signaling_thread,
                     worker_thread,
@@ -1155,7 +1153,10 @@ AudioRtpSender::AudioRtpSender(
                     MediaType::AUDIO,
                     set_streams_observer,
                     std::move(enable_sframe_at_owner),
-                    media_channel),
+                    media_channel,
+                    std::move(stream_ids),
+                    std::move(init_send_encodings),
+                    std::move(send_codecs)),
       legacy_stats_(stats),
       dtmf_sender_(DtmfSender::Create(signaling_thread, this)),
       dtmf_sender_proxy_(
@@ -1312,11 +1313,14 @@ scoped_refptr<VideoRtpSender> VideoRtpSender::Create(
     MediaSendChannelInterface* media_channel,
     const std::vector<RtpEncodingParameters>& init_send_encodings,
     bool simulcast_rejected,
-    const std::vector<SimulcastLayer>& initial_simulcast_layers) {
+    const std::vector<SimulcastLayer>& initial_simulcast_layers,
+    std::vector<std::string> stream_ids,
+    std::vector<Codec> send_codecs) {
   return make_ref_counted<VideoRtpSender>(
       env, signaling_thread, worker_thread, id, set_streams_observer,
       std::move(enable_sframe_at_owner), media_channel, init_send_encodings,
-      simulcast_rejected, initial_simulcast_layers);
+      simulcast_rejected, initial_simulcast_layers, std::move(stream_ids),
+      std::move(send_codecs));
 }
 
 VideoRtpSender::VideoRtpSender(
@@ -1329,19 +1333,24 @@ VideoRtpSender::VideoRtpSender(
     MediaSendChannelInterface* media_channel,
     const std::vector<RtpEncodingParameters>& init_send_encodings,
     bool simulcast_rejected,
-    const std::vector<SimulcastLayer>& initial_simulcast_layers)
-    : RtpSenderBase(env,
-                    signaling_thread,
-                    worker_thread,
-                    id,
-                    MediaType::VIDEO,
-                    set_streams_observer,
-                    std::move(enable_sframe_at_owner),
-                    media_channel) {
-  set_init_send_encodings(
-      CalculateInitialEncodings(init_parameters_.encodings, init_send_encodings,
-                                initial_simulcast_layers, simulcast_rejected));
-}
+    const std::vector<SimulcastLayer>& initial_simulcast_layers,
+    std::vector<std::string> stream_ids,
+    std::vector<Codec> send_codecs)
+    : RtpSenderBase(
+          env,
+          signaling_thread,
+          worker_thread,
+          id,
+          MediaType::VIDEO,
+          set_streams_observer,
+          std::move(enable_sframe_at_owner),
+          media_channel,
+          std::move(stream_ids),
+          CalculateInitialEncodings(std::vector<RtpEncodingParameters>(1),
+                                    init_send_encodings,
+                                    initial_simulcast_layers,
+                                    simulcast_rejected),
+          std::move(send_codecs)) {}
 
 VideoRtpSender::~VideoRtpSender() {
   Stop();
@@ -1385,15 +1394,15 @@ RTCError VideoRtpSender::GenerateKeyFrame(
   const auto parameters = GetParametersInternal();
   for (const auto& rid : rids) {
     if (rid.empty()) {
-      return LOG_ERROR(RTCError::InvalidParameter()
-                       << "Attempted to specify an empty rid.");
+      return RTC_LOG_ERROR(RTCError::InvalidParameter()
+                           << "Attempted to specify an empty rid.");
     }
     if (!absl::c_any_of(parameters.encodings,
                         [&rid](const RtpEncodingParameters& parameters) {
                           return parameters.rid == rid;
                         })) {
-      return LOG_ERROR(RTCError::InvalidParameter()
-                       << "Attempted to specify a rid not configured.");
+      return RTC_LOG_ERROR(RTCError::InvalidParameter()
+                           << "Attempted to specify a rid not configured.");
     }
   }
   worker_thread_->PostTask(SafeTask(worker_safety_, [this, rids, ssrc = ssrc_] {

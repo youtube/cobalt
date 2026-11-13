@@ -34,6 +34,7 @@
 #include "base/auto_reset.h"
 #include "base/containers/adapters.h"
 #include "base/feature_list.h"
+#include "base/functional/function_ref.h"
 #include "base/hash/hash.h"
 #include "base/rand_util.h"
 #include "third_party/blink/public/common/features.h"
@@ -1262,17 +1263,18 @@ void StyleEngine::MarkViewportUnitDirty(ViewportUnitFlag flag) {
 
 namespace {
 
-template <typename Func>
-void MarkElementsForRecalc(TreeScope& tree_scope,
-                           const StyleChangeReasonForTracing& reason,
-                           Func predicate) {
+void MarkElementsForRecalc(
+    TreeScope& tree_scope,
+    const StyleChangeReasonForTracing& reason,
+    base::FunctionRef<bool(const ComputedStyle&)> predicate) {
   for (Element* element = ElementTraversal::FirstWithin(tree_scope.RootNode());
        element; element = ElementTraversal::NextIncludingPseudo(*element)) {
     if (ShadowRoot* root = element->GetShadowRoot()) {
       MarkElementsForRecalc(*root, reason, predicate);
     }
     const ComputedStyle* style = element->GetComputedStyle();
-    if (style && predicate(*style)) {
+    if (style && (predicate(*style) ||
+                  element->PseudoElementStylesDependOnFunc(predicate))) {
       element->SetNeedsStyleRecalc(kLocalStyleChange, reason);
     }
   }
@@ -1298,11 +1300,10 @@ void StyleEngine::InvalidateViewportUnitStylesIfNeeded() {
 
   const auto& reason =
       StyleChangeReasonForTracing::Create(style_change_reason::kViewportUnits);
-  MarkElementsForRecalc(
-      GetDocument(), reason, [dirty_flags](const ComputedStyle& style) {
-        return (style.ViewportUnitFlags() & dirty_flags) ||
-               style.HighlightPseudoElementStylesDependOnViewportUnits();
-      });
+  MarkElementsForRecalc(GetDocument(), reason,
+                        [dirty_flags](const ComputedStyle& style) {
+                          return (style.ViewportUnitFlags() & dirty_flags) != 0;
+                        });
 }
 
 void StyleEngine::InvalidateStyleAndLayoutForFontUpdates() {
@@ -5006,26 +5007,26 @@ void StyleEngine::NavigationsMayHaveChanged() {
   DCHECK(RuntimeEnabledFeatures::RouteMatchingEnabled());
   SetNeedsActiveStyleUpdate(GetDocument());
 
-  // Navigation changes may affect how navigation-param() expressions inside
-  // :link-to() pseudo selectors match. Do a PseudoStateChanged() on each link
-  // in the document, which will mark every element potentially affected by the
-  // navigation for style recalc.
+  // Navigation changes may affect how :active-navigation() selectors match. Do
+  // a PseudoStateChanged() on each link in the document, which will mark every
+  // element potentially affected by the navigation for style recalc.
   //
-  // TODO(crbug.com/436805487): Should come up with something less brutal (spec
-  // changes should be considered, too - this is somewhat unusual).
+  // TODO(crbug.com/436805487): Should come up with something less brutal.
   //
   // A plain lambda won't do because they cannot be invoked recursively. And I
   // want the code to stay here in this function, at least for now, so here we
   // go:
   struct Marker {
     static void MarkAllLinks(Node& root) {
+      // TODO(crbug.com/436805487): If we really have to traverse, there should
+      // be no need to visit subtrees that have no ComputedStyle.
       for (Node& node : NodeTraversal::StartsAt(root)) {
         if (node.IsLink()) {
           // TODO(crbug.com/436805487): This is in order to implement
-          // :link-to(--route with navigation-param()), but it's a rather heavy
-          // hammer. Maybe there are better ways (spec changes should be
-          // considered, too).
-          To<Element>(node).PseudoStateChanged(CSSSelector::kPseudoLinkTo);
+          // :active-navigation(), but it's a rather heavy hammer. Maybe there
+          // are better ways (spec changes should be considered, too).
+          To<Element>(node).PseudoStateChanged(
+              CSSSelector::kPseudoActiveNavigation);
         }
         if (ShadowRoot* shadow_root = node.GetShadowRoot()) {
           MarkAllLinks(*shadow_root);

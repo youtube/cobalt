@@ -506,7 +506,7 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
   void AddSctpDataChannel(const std::string& label,
                           const InternalDataChannelInit& init) {
     AddSctpDataChannel(SctpDataChannel::Create(
-        data_channel_controller_.weak_ptr(), label, false, init,
+        data_channel_controller_.weak_ptr(), label, false, init, std::nullopt,
         signaling_safety_.flag(), signaling_thread_, network_thread_));
   }
 

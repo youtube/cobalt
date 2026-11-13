@@ -19,6 +19,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/data_channel_interface.h"
@@ -36,7 +37,6 @@
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/ssl_stream_adapter.h"
-#include "rtc_base/system/unused.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/weak_ptr.h"
@@ -161,6 +161,11 @@ void SctpSidAllocator::ReleaseSid(StreamId sid) {
   used_sids_.erase(sid);
 }
 
+struct SctpDataChannel::CachedState {
+  DataChannelInterface::DataState state;
+  RTCError error;
+};
+
 // A DataChannelObserver implementation that offers backwards compatibility with
 // implementations that aren't yet ready to be called back on the network
 // thread. This implementation posts events to the signaling thread where
@@ -182,109 +187,51 @@ class SctpDataChannel::ObserverAdapter : public DataChannelObserver {
   explicit ObserverAdapter(SctpDataChannel* channel)
       : channel_(channel), controller_safety_(channel->controller_safety_) {}
 
-  bool IsInsideCallback() const {
-    RTC_DCHECK_RUN_ON(signaling_thread());
-    return cached_getters_ != nullptr;
-  }
-
-  DataChannelInterface::DataState cached_state() const {
-    RTC_DCHECK_RUN_ON(signaling_thread());
-    RTC_DCHECK(IsInsideCallback());
-    return cached_getters_->state();
-  }
-
-  RTCError cached_error() const {
-    RTC_DCHECK_RUN_ON(signaling_thread());
-    RTC_DCHECK(IsInsideCallback());
-    return cached_getters_->error();
-  }
-
   void SetDelegate(DataChannelObserver* delegate) {
     RTC_DCHECK_RUN_ON(signaling_thread());
     delegate_ = delegate;
     safety_.reset(PendingTaskSafetyFlag::CreateDetached());
   }
 
-  static void DeleteOnSignalingThread(
-      std::unique_ptr<ObserverAdapter> observer) {
-    auto* signaling_thread = observer->signaling_thread();
-    if (!signaling_thread->IsCurrent())
-      signaling_thread->PostTask([observer = std::move(observer)]() {});
-  }
-
  private:
-  class CachedGetters {
-   public:
-    explicit CachedGetters(ObserverAdapter* adapter)
-        : adapter_(adapter),
-          cached_state_(adapter_->channel_->state()),
-          cached_error_(adapter_->channel_->error()) {
-      RTC_DCHECK_RUN_ON(adapter->network_thread());
-    }
-
-    ~CachedGetters() {
-      if (!was_dropped_) {
-        RTC_DCHECK_RUN_ON(adapter_->signaling_thread());
-        RTC_DCHECK_EQ(adapter_->cached_getters_, this);
-        adapter_->cached_getters_ = nullptr;
-      }
-    }
-
-    bool PrepareForCallback() {
-      RTC_DCHECK_RUN_ON(adapter_->signaling_thread());
-      RTC_DCHECK(was_dropped_);
-      was_dropped_ = false;
-      adapter_->cached_getters_ = this;
-      return adapter_->delegate_ && adapter_->controller_safety_->alive();
-    }
-
-    RTCError error() { return cached_error_; }
-    DataChannelInterface::DataState state() { return cached_state_; }
-
-   private:
-    ObserverAdapter* const adapter_;
-    bool was_dropped_ = true;
-    const DataChannelInterface::DataState cached_state_;
-    const RTCError cached_error_;
-  };
-
   void OnStateChange() override {
     RTC_DCHECK_RUN_ON(network_thread());
-    signaling_thread()->PostTask(
-        SafeTask(safety_.flag(),
-                 [this, cached_state = std::make_unique<CachedGetters>(this)] {
-                   RTC_DCHECK_RUN_ON(signaling_thread());
-                   if (cached_state->PrepareForCallback())
-                     delegate_->OnStateChange();
-                 }));
+    RTC_DCHECK_EQ(signaling_thread(), channel_->signaling_thread_);
+    channel_->CacheStateAndCallBackOnSignalingThread(
+        SafeTask(safety_.flag(), [this] {
+          RTC_DCHECK_RUN_ON(signaling_thread());
+          if (delegate_ && controller_safety_->alive()) {
+            delegate_->OnStateChange();
+          }
+        }));
   }
 
   void OnMessage(const DataBuffer& buffer) override {
     RTC_DCHECK_RUN_ON(network_thread());
-    signaling_thread()->PostTask(SafeTask(
-        safety_.flag(), [this, buffer = buffer,
-                         cached_state = std::make_unique<CachedGetters>(this)] {
+    channel_->CacheStateAndCallBackOnSignalingThread(
+        SafeTask(safety_.flag(), [this, buffer = buffer] {
           RTC_DCHECK_RUN_ON(signaling_thread());
-          if (cached_state->PrepareForCallback())
+          if (delegate_ && controller_safety_->alive()) {
             delegate_->OnMessage(buffer);
+          }
         }));
   }
 
   void OnBufferedAmountChange(uint64_t sent_data_size) override {
     RTC_DCHECK_RUN_ON(network_thread());
-    signaling_thread()->PostTask(SafeTask(
-        safety_.flag(), [this, sent_data_size,
-                         cached_state = std::make_unique<CachedGetters>(this)] {
+    channel_->CacheStateAndCallBackOnSignalingThread(
+        SafeTask(safety_.flag(), [this, sent_data_size] {
           RTC_DCHECK_RUN_ON(signaling_thread());
-          if (cached_state->PrepareForCallback())
+          if (delegate_ && controller_safety_->alive()) {
             delegate_->OnBufferedAmountChange(sent_data_size);
+          }
         }));
   }
 
   bool IsOkToCallOnTheNetworkThread() override { return true; }
 
   Thread* signaling_thread() const { return signaling_thread_; }
-  Thread* network_thread() const { return channel_->network_thread_; }
+  Thread* network_thread() const { return network_thread_; }
 
   DataChannelObserver* delegate_ RTC_GUARDED_BY(signaling_thread()) = nullptr;
   SctpDataChannel* const channel_;
@@ -294,27 +241,29 @@ class SctpDataChannel::ObserverAdapter : public DataChannelObserver {
   // Make sure to keep our own signaling_thread_ pointer to avoid dereferencing
   // `channel_` in the `RTC_DCHECK_RUN_ON` checks on the signaling thread.
   Thread* const signaling_thread_{channel_->signaling_thread_};
+  Thread* const network_thread_{channel_->network_thread_};
   ScopedTaskSafety safety_;
-  CachedGetters* cached_getters_ RTC_GUARDED_BY(signaling_thread()) = nullptr;
 };
 
 // static
-scoped_refptr<SctpDataChannel> SctpDataChannel::Create(
+absl_nonnull scoped_refptr<SctpDataChannel> SctpDataChannel::Create(
     WeakPtr<SctpDataChannelControllerInterface> controller,
     absl::string_view label,
     bool connected_to_transport,
     const InternalDataChannelInit& config,
+    std::optional<int> max_message_size,
     scoped_refptr<PendingTaskSafetyFlag> controller_safety,
     Thread* signaling_thread,
     Thread* network_thread) {
   RTC_DCHECK(config.IsValid());
   return make_ref_counted<SctpDataChannel>(
       config, std::move(controller), label, connected_to_transport,
-      std::move(controller_safety), signaling_thread, network_thread);
+      max_message_size, std::move(controller_safety), signaling_thread,
+      network_thread);
 }
 
 // static
-scoped_refptr<DataChannelInterface> SctpDataChannel::CreateProxy(
+absl_nonnull scoped_refptr<DataChannelInterface> SctpDataChannel::CreateProxy(
     scoped_refptr<SctpDataChannel> channel) {
   // Copy thread params to local variables before `std::move()`.
   auto* signaling_thread = channel->signaling_thread_;
@@ -329,6 +278,7 @@ SctpDataChannel::SctpDataChannel(
     WeakPtr<SctpDataChannelControllerInterface> controller,
     absl::string_view label,
     bool connected_to_transport,
+    std::optional<int> max_message_size,
     scoped_refptr<PendingTaskSafetyFlag> controller_safety,
     Thread* signaling_thread,
     Thread* network_thread)
@@ -344,13 +294,13 @@ SctpDataChannel::SctpDataChannel(
       negotiated_(config.negotiated),
       ordered_(config.ordered),
       observer_(nullptr),
+      max_message_size_(max_message_size),
       controller_(std::move(controller)),
       connected_to_transport_(connected_to_transport),
       controller_safety_(std::move(controller_safety)) {
   RTC_DCHECK_RUN_ON(network_thread_);
   // Since we constructed on the network thread we can't (yet) check the
   // `controller_` pointer since doing so will trigger a thread check.
-  RTC_UNUSED(network_thread_);
   RTC_DCHECK(config.IsValid());
 
   switch (config.open_handshake_role) {
@@ -367,8 +317,14 @@ SctpDataChannel::SctpDataChannel(
 }
 
 SctpDataChannel::~SctpDataChannel() {
-  if (observer_adapter_)
-    ObserverAdapter::DeleteOnSignalingThread(std::move(observer_adapter_));
+  if (signaling_thread_->IsCurrent()) {
+    observer_adapter_.reset();
+  } else {
+    signaling_thread_->PostTask(
+        [observer_adapter = std::move(observer_adapter_)]() mutable {
+          observer_adapter.reset();
+        });
+  }
 }
 
 void SctpDataChannel::RegisterObserver(DataChannelObserver* observer) {
@@ -524,9 +480,11 @@ SctpDataChannel::DataState SctpDataChannel::state() const {
   // fetch a different state value (since pending messages might cause the
   // state to change in the meantime).
   const auto* current_thread = Thread::Current();
-  if (current_thread == signaling_thread_ && observer_adapter_ &&
-      observer_adapter_->IsInsideCallback()) {
-    return observer_adapter_->cached_state();
+  if (current_thread == signaling_thread_) {
+    RTC_DCHECK_RUN_ON(signaling_thread_);
+    if (cached_state_) {
+      return cached_state_->state;
+    }
   }
 
   auto return_state = [&] {
@@ -541,9 +499,11 @@ SctpDataChannel::DataState SctpDataChannel::state() const {
 
 RTCError SctpDataChannel::error() const {
   const auto* current_thread = Thread::Current();
-  if (current_thread == signaling_thread_ && observer_adapter_ &&
-      observer_adapter_->IsInsideCallback()) {
-    return observer_adapter_->cached_error();
+  if (current_thread == signaling_thread_) {
+    RTC_DCHECK_RUN_ON(signaling_thread_);
+    if (cached_state_) {
+      return cached_state_->error;
+    }
   }
 
   auto return_error = [&] {
@@ -707,6 +667,21 @@ DataChannelStats SctpDataChannel::GetStats() const {
                          .bytes_sent = bytes_sent(),
                          .bytes_received = bytes_received()};
   return stats;
+}
+
+void SctpDataChannel::CacheStateAndCallBackOnSignalingThread(
+    absl::AnyInvocable<void() &&> callback) {
+  RTC_DCHECK_RUN_ON(network_thread_);
+  scoped_refptr<SctpDataChannel> me(this);
+  signaling_thread_->PostTask([me = std::move(me),
+                               cache = CachedState{state_, error_},
+                               callback = std::move(callback)]() mutable {
+    RTC_DCHECK_RUN_ON(me->signaling_thread_);
+    RTC_DCHECK(!me->cached_state_);
+    me->cached_state_ = &cache;
+    std::move(callback)();
+    me->cached_state_ = nullptr;
+  });
 }
 
 void SctpDataChannel::OnDataReceived(DataMessageType type,

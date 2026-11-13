@@ -1056,7 +1056,7 @@ ci.thin_tester(
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
-            config = "angle_v2",
+            config = "angle_v2_nointernal",
         ),
         chromium_config = builder_config.chromium_config(
             config = "angle_v2_clang",
@@ -1065,6 +1065,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.MAC,
         ),
+        no_history = True,
         run_tests_serially = True,
     ),
     console_view_entry = consoles.console_view_entry(
@@ -1204,7 +1205,7 @@ ci.thin_tester(
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
-            config = "angle_v2",
+            config = "angle_v2_nointernal",
         ),
         chromium_config = builder_config.chromium_config(
             config = "angle_v2_clang",
@@ -1213,6 +1214,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.WIN,
         ),
+        no_history = True,
         run_tests_serially = True,
     ),
     # Uncomment this entry when this experimental tester is actually in use.
@@ -1254,7 +1256,7 @@ ci.thin_tester(
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
-            config = "angle_v2",
+            config = "angle_v2_nointernal",
         ),
         chromium_config = builder_config.chromium_config(
             config = "angle_v2_clang",
@@ -1263,6 +1265,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.WIN,
         ),
+        no_history = True,
         run_tests_serially = True,
     ),
     console_view_entry = consoles.console_view_entry(
@@ -1278,7 +1281,7 @@ ci.thin_tester(
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
-            config = "angle_v2",
+            config = "angle_v2_nointernal",
         ),
         chromium_config = builder_config.chromium_config(
             config = "angle_v2_clang",
@@ -1287,6 +1290,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.WIN,
         ),
+        no_history = True,
         run_tests_serially = True,
     ),
     console_view_entry = consoles.console_view_entry(
@@ -1302,7 +1306,7 @@ ci.thin_tester(
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
-            config = "angle_v2",
+            config = "angle_v2_nointernal",
         ),
         chromium_config = builder_config.chromium_config(
             config = "angle_v2_clang",
@@ -1311,6 +1315,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.WIN,
         ),
+        no_history = True,
         run_tests_serially = True,
     ),
     # Uncomment this entry when this experimental tester is actually in use.
@@ -1352,7 +1357,7 @@ ci.thin_tester(
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
         gclient_config = builder_config.gclient_config(
-            config = "angle_v2",
+            config = "angle_v2_nointernal",
         ),
         chromium_config = builder_config.chromium_config(
             config = "angle_v2_clang",
@@ -1361,6 +1366,7 @@ ci.thin_tester(
             target_bits = 64,
             target_platform = builder_config.target_platform.WIN,
         ),
+        no_history = True,
         run_tests_serially = True,
     ),
     console_view_entry = consoles.console_view_entry(

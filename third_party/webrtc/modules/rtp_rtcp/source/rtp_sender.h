@@ -22,6 +22,7 @@
 
 #include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_packet_sender.h"
 #include "modules/rtp_rtcp/include/flexfec_sender.h"
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
@@ -73,7 +74,8 @@ class RTPSender {
       RTC_LOCKS_EXCLUDED(send_mutex_);
 
   // RTP header extension
-  bool RegisterRtpHeaderExtension(absl::string_view uri, int id)
+  bool RegisterRtpHeaderExtension(absl::string_view uri,
+                                  RtpHeaderExtensionId id)
       RTC_LOCKS_EXCLUDED(send_mutex_);
   bool IsRtpHeaderExtensionRegistered(RTPExtensionType type) const
       RTC_LOCKS_EXCLUDED(send_mutex_);

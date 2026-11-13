@@ -156,6 +156,17 @@ class MockAuthenticatorInterface : public mojom::blink::Authenticator {
     std::move(get_callback_).Run(std::move(credential_response));
   }
 
+  void InvokeGetCallbackWithCrossDeviceFallback() {
+    EXPECT_TRUE(receiver_.is_bound());
+    auto assertion_response = mojom::blink::GetAssertionResponse::New(
+        blink::mojom::blink::AuthenticatorStatus::CROSS_DEVICE_FALLBACK,
+        nullptr, nullptr);
+    auto credential_response =
+        mojom::blink::GetCredentialResponse::NewGetAssertionResponse(
+            std::move(assertion_response));
+    std::move(get_callback_).Run(std::move(credential_response));
+  }
+
   void Reset() {
     loop_ = std::make_unique<base::RunLoop>();
     last_mediation_ = std::nullopt;
@@ -244,6 +255,32 @@ class MockAuthenticatorInterface : public mojom::blink::Authenticator {
     response->extensions =
         mojom::blink::AuthenticationExtensionsClientOutputs::New();
     response->extensions->cmtg_key = std::move(cmtg_response);
+
+    auto assertion_response = mojom::blink::GetAssertionResponse::New(
+        blink::mojom::blink::AuthenticatorStatus::SUCCESS, std::move(response),
+        nullptr);
+    auto credential_response =
+        mojom::blink::GetCredentialResponse::NewGetAssertionResponse(
+            std::move(assertion_response));
+    std::move(get_callback_).Run(std::move(credential_response));
+  }
+
+  void InvokeGetAssertionSuccessWithCrossDeviceFallbackUrlCallback(
+      bool cross_device_fallback_val) {
+    EXPECT_TRUE(receiver_.is_bound());
+    auto info = mojom::blink::CommonCredentialInfo::New();
+    info->id = "id";
+    info->raw_id = Vector<uint8_t>{1, 2, 3, 4};
+    info->client_data_json = Vector<uint8_t>{5, 6, 7, 8};
+    info->authenticator_data = Vector<uint8_t>{9, 10, 11, 12};
+
+    auto response = mojom::blink::GetAssertionAuthenticatorResponse::New();
+    response->info = std::move(info);
+    response->signature = Vector<uint8_t>{13, 14, 15, 16};
+
+    response->extensions =
+        mojom::blink::AuthenticationExtensionsClientOutputs::New();
+    response->extensions->cross_device_fallback_url = cross_device_fallback_val;
 
     auto assertion_response = mojom::blink::GetAssertionResponse::New(
         blink::mojom::blink::AuthenticatorStatus::SUCCESS, std::move(response),
@@ -1244,6 +1281,105 @@ TEST(AuthenticationCredentialsContainerTest, PublicKeyGetCmtgKeyExtension) {
   DOMArrayBuffer* signature_buffer = cmtg_outputs->signature();
   EXPECT_EQ(signature_buffer->ByteSpan(),
             base::as_byte_span(expected_signature));
+}
+
+TEST(AuthenticationCredentialsContainerTest, PublicKeyCrossDeviceFallbackUrl) {
+  test::TaskEnvironment task_environment;
+  ScopedWebAuthenticationCrossDeviceFallbackUrlForTest enabled(true);
+
+  MockAuthenticatorInterface mock_authenticator;
+  CredentialManagerTestingContext context(/*mock_credential_manager=*/nullptr,
+                                          &mock_authenticator);
+
+  mock_authenticator.Reset();
+  auto* request_options = CredentialRequestOptions::Create();
+  auto* public_key_request_options =
+      PublicKeyCredentialRequestOptions::Create();
+  public_key_request_options->setRpId("example.test");
+  const Vector<uint8_t> challenge = {1, 2, 3, 4};
+  public_key_request_options->setChallenge(
+      MakeGarbageCollected<V8UnionArrayBufferOrArrayBufferView>(
+          DOMArrayBuffer::Create(challenge)));
+
+  auto* extensions = AuthenticationExtensionsClientInputs::Create();
+  extensions->setCrossDeviceFallbackUrl("https://allowed.com/fallback");
+  public_key_request_options->setExtensions(extensions);
+  request_options->setPublicKey(public_key_request_options);
+
+  auto promise = AuthenticationCredentialsContainer::credentials(
+                     *context.DomWindow().navigator())
+                     ->get(context.GetScriptState(), request_options,
+                           IGNORE_EXCEPTION_FOR_TESTING);
+  mock_authenticator.WaitForCallToGet();
+  mock_authenticator
+      .InvokeGetAssertionSuccessWithCrossDeviceFallbackUrlCallback(
+          /*cross_device_fallback_val=*/true);
+
+  const auto& last_options = mock_authenticator.last_get_options();
+  ASSERT_TRUE(last_options);
+  ASSERT_TRUE(last_options->public_key);
+  ASSERT_TRUE(last_options->public_key->extensions);
+  ASSERT_TRUE(last_options->public_key->extensions->cross_device_fallback_url
+                  .has_value());
+  EXPECT_EQ((*last_options->public_key->extensions->cross_device_fallback_url)
+                .GetString(),
+            "https://allowed.com/fallback");
+
+  ScriptPromiseTester tester(context.GetScriptState(), promise);
+  tester.WaitUntilSettled();
+  ASSERT_TRUE(tester.IsFulfilled());
+  auto* credential = To<PublicKeyCredential>(V8PublicKeyCredential::ToWrappable(
+      context.GetScriptState()->GetIsolate(), tester.Value().V8Value()));
+  ASSERT_TRUE(
+      credential->getClientExtensionResults()->hasCrossDeviceFallbackUrl());
+  EXPECT_TRUE(
+      credential->getClientExtensionResults()->crossDeviceFallbackUrl());
+}
+
+TEST(AuthenticationCredentialsContainerTest,
+     PublicKeyCrossDeviceFallbackUrl_Processed) {
+  test::TaskEnvironment task_environment;
+  ScopedWebAuthenticationCrossDeviceFallbackUrlForTest enabled(true);
+
+  MockAuthenticatorInterface mock_authenticator;
+  CredentialManagerTestingContext context(/*mock_credential_manager=*/nullptr,
+                                          &mock_authenticator);
+
+  mock_authenticator.Reset();
+  auto* request_options = CredentialRequestOptions::Create();
+  auto* public_key_request_options =
+      PublicKeyCredentialRequestOptions::Create();
+  public_key_request_options->setRpId("example.test");
+  const Vector<uint8_t> challenge = {1, 2, 3, 4};
+  public_key_request_options->setChallenge(
+      MakeGarbageCollected<V8UnionArrayBufferOrArrayBufferView>(
+          DOMArrayBuffer::Create(challenge)));
+
+  auto* extensions = AuthenticationExtensionsClientInputs::Create();
+  extensions->setCrossDeviceFallbackUrl("https://allowed.com/fallback");
+  public_key_request_options->setExtensions(extensions);
+  request_options->setPublicKey(public_key_request_options);
+
+  auto promise = AuthenticationCredentialsContainer::credentials(
+                     *context.DomWindow().navigator())
+                     ->get(context.GetScriptState(), request_options,
+                           IGNORE_EXCEPTION_FOR_TESTING);
+  mock_authenticator.WaitForCallToGet();
+  mock_authenticator.InvokeGetCallbackWithCrossDeviceFallback();
+
+  ScriptPromiseTester tester(context.GetScriptState(), promise);
+  tester.WaitUntilSettled();
+  ASSERT_TRUE(tester.IsRejected());
+
+  v8::Local<v8::Value> error = tester.Value().V8Value();
+  ASSERT_TRUE(error->IsObject());
+  auto* exception = V8DOMException::ToWrappable(
+      context.GetScriptState()->GetIsolate(), error);
+  ASSERT_TRUE(exception);
+  EXPECT_EQ(exception->name(), "OperationError");
+  EXPECT_EQ(
+      exception->message(),
+      "crossDeviceFallbackUrl: The authenticator processed the fallback URL.");
 }
 
 }  // namespace blink

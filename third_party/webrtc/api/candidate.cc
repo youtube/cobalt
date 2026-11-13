@@ -31,8 +31,6 @@
 #include "rtc_base/string_encode.h"
 #include "rtc_base/strings/string_builder.h"
 
-using webrtc::IceCandidateType;
-
 namespace webrtc {
 namespace {
 constexpr char kLineTypeAttributes = 'a';

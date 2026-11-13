@@ -147,6 +147,8 @@ struct TransportDescription {
   ConnectionRole connection_role;
 
   std::unique_ptr<SSLFingerprint> identity_fingerprint;
+
+  bool cryptex;
 };
 
 }  //  namespace webrtc

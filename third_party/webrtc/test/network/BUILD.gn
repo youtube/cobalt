@@ -187,6 +187,7 @@ if (rtc_include_tests) {
       ":simulated_network",
       "../../api:create_network_emulation_manager",
       "../../api:network_emulation_manager_api",
+      "../../api:rtp_header_extension_id",
       "../../api:rtp_parameters",
       "../../api:simulated_network_api",
       "../../api/environment",

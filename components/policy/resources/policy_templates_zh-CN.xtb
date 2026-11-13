@@ -454,13 +454,6 @@
 <translation id="1340053691042184658">禁止通过浏览器访客模式登录</translation>
 <translation id="1342918903685430097">为设备配置允许使用的最低 <ph name="PRODUCT_OS_NAME" /> 版本。</translation>
 <translation id="1343128241903870688">停用设备应用信息报告功能</translation>
-<translation id="1347198119056266798">此政策已被弃用，请改用 <ph name="FORCE_GOOGLE_SAFE_SEARCH_POLICY_NAME" /> 和 <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" />。如果设置了 <ph name="FORCE_GOOGLE_SAFE_SEARCH_POLICY_NAME" /> 政策、<ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" /> 政策或（已弃用的）<ph name="FORCE_YOUTUBE_SAFETY_MODE_POLICY_NAME" /> 政策，则系统会忽略此政策。
-
-      强制启用安全搜索功能来处理 Google 网页搜索中的查询，并禁止用户更改此设置。此设置还会强制启用 YouTube“适中”受限模式。
-
-      如果您启用此设置，则 Google 搜索中的安全搜索功能和 YouTube 中的“适中”受限模式将始终处于启用状态。
-
-      如果您停用此设置或未设置值，则系统不会在 Google 搜索中强制启用安全搜索功能，也不会在 YouTube 中强制启用受限模式。</translation>
 <translation id="134745581157553029">如果您设置了“DeviceArcDataSnapshotHours”政策，系统会开启 ARC 数据快照机制，并可在指定的时间间隔内自动启动 ARC 数据快照更新。当某个时间间隔已开始且 ARC 数据快照需要更新时，如果任何用户均未登录，系统会直接启动 ARC 数据快照更新过程，而不通知用户；如果用户会话正在进行中，系统会显示界面通知，且会等到用户接受通知后才重启设备并启动 ARC 数据快照更新过程。注意：在 ARC 数据快照更新过程中，用户无法使用设备。</translation>
 <translation id="1348603614848418219">禁止将 <ph name="MS_AD_NAME" /> 管理的设备迁移到云管理服务。</translation>
 <translation id="1352799151662469739">当使用交流电源供电时系统应在设备闲置多久（以毫秒为单位）后锁定屏幕</translation>
@@ -1409,7 +1402,6 @@ Chrome 政策的优先级高于此政策，例如：如果某个扩展程序已�
 <translation id="1963986268950915756">允许用户从浏览器安装 Web 应用</translation>
 <translation id="1964191545419036999">媒体库（自 117 版起受支持）</translation>
 <translation id="1964634611280150550">隐身模式已停用</translation>
-<translation id="1964802606569741174">此政策对 Android 版 YouTube 应用没有任何影响。如果应在 YouTube 中强制启用安全模式，则应禁止安装 Android 版 YouTube 应用。</translation>
 <translation id="1964985353230379667">此政策旨在为手动创建的新票据指定建议的 <ph name="KRB5_CONFIG" /> 配置。
 
       如果“KerberosUseCustomPrefilledConfig”政策已启用：系统会使用此政策的值作为建议的配置，并会将其显示在 Kerberos 身份验证对话框内的“高级”部分中。如果此政策设为空字符串或未设置，系统会删除建议的 <ph name="PRODUCT_OS_NAME" /> 配置。
@@ -1766,7 +1758,6 @@ Chrome 政策的优先级高于此政策，例如：如果某个扩展程序已�
 
       如需详细了解“安全浏览”功能，请访问 https://support.google.com/chrome?p=safe_browsing_preferences。</translation>
 <translation id="2177696016354404697">始终停用隐私保护屏幕</translation>
-<translation id="2178899310296064282">至少强制启用 YouTube“适中”受限模式</translation>
 <translation id="2180260434916939385">允许使用“AI 历史记录搜索”功能并改进 AI 模型。</translation>
 <translation id="2180795125410219364">Home/End 设置已停用</translation>
 <translation id="2180958780733364832">控制对无头模式的使用权限</translation>
@@ -2143,6 +2134,7 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
 
 如果您未设置此政策，那么隐私保护屏最初会处于停用状态，但用户可以控制该功能。</translation>
 <translation id="2413899611035194909">在登录屏幕的系统任务栏菜单中显示无障碍选项</translation>
+<translation id="2414712434655365347">为特定网址格式配置 HTTP 标头注入</translation>
 <translation id="2415715982424988916">探索（自 91 版起受支持）</translation>
 <translation id="2420958105721932612">指定相应应用的安装方式。AVAILABLE：系统不会自动安装该应用，但用户可以安装它。如果您未指定此政策，该选项即是默认设置。FORCE_INSTALLED：系统会自动安装该应用，而且用户无法卸载它。BLOCKED：该应用已被屏蔽且无法安装。如果已根据先前的政策安装了该应用，系统会卸载它。</translation>
 <translation id="2421400544595297401">不允许独立用户使用 Android 应用</translation>
@@ -2867,6 +2859,7 @@ PAC 样式的字符串：
 <translation id="2853757230661166968">允许应用捕获和覆盖默认系统快捷键。</translation>
 <translation id="285480231336205327">启用高反差模式</translation>
 <translation id="285627849510728211">设定日间高级电池充电模式配置</translation>
+<translation id="2856348870384508185">停用 Chrome 建议</translation>
 <translation id="2856932965866813330">允许与其他用户共享用户凭证</translation>
 <translation id="28600673996840076">允许使用 Google 个人资料图片或本地图片自定义用户头像图片。</translation>
 <translation id="2864207379891420023">配置扩展程序安装许可名单</translation>
@@ -2973,6 +2966,7 @@ PAC 样式的字符串：
 
 如需详细了解每个级别对 PIN 码和密码的要求，请参阅帮助中心内的相关文章。</translation>
 <translation id="2926813071464307947">停用渲染程序应用容器沙盒</translation>
+<translation id="2930792103747180259">已停用：允许 Service Worker 在后台不受限制地提取数据。</translation>
 <translation id="2931888116345994552">如果此政策未设置或已启用，即意味着允许更新 <ph name="PRODUCT_NAME" /> 中的所有组件。
 
       如果此政策已停用，则无法更新组件。不过，某些组件不受此政策限制：只要相应组件不含可执行的代码，并且对浏览器的安全性至关重要，系统就不会禁止更新该组件。
@@ -3087,6 +3081,7 @@ PAC 样式的字符串：
 <translation id="2976033779241323433">基于默认系统启发法启用触摸虚拟键盘</translation>
 <translation id="2976429807269247880">旧版 <ph name="ATTRIBUTE_SAMESITE_NAME" /> Cookie 行为设置</translation>
 <translation id="2979696534869541158">强制使用旧实现</translation>
+<translation id="2984696342503554732">已启用：限制 Service Worker 在后台提取数据。</translation>
 <translation id="2985927503455169394">使用 Google 助理新手入门体验的默认模式</translation>
 <translation id="2987155890997901449">启用 ARC</translation>
 <translation id="2987227569419001736">控制对 Web Bluetooth API 的使用</translation>
@@ -4005,6 +4000,21 @@ SwiftShader 曾用于在没有 GPU 加速的系统（例如无头系统或虚拟
 如果此政策已停用或未设置，当硬件 GPU 加速不可用时，WebGL 上下文创建操作可能会失败。如果网页无法优雅地处理 WebGL 上下文创建失败的情况，则可能会出现异常行为。
 
 此政策只是暂时性政策，日后会被移除。</translation>
+<translation id="3607939601300521364">控制是否允许 <ph name="GEMINI_SPARK_PRODUCT_NAME" /> 智能体连接到 <ph name="PRODUCT_NAME" /> 并使用自动浏览功能。
+
+0 = 允许 <ph name="GEMINI_SPARK_PRODUCT_NAME" /> 连接到 <ph name="PRODUCT_NAME" /> 并使用自动浏览功能
+
+1 = 不允许 <ph name="GEMINI_SPARK_PRODUCT_NAME" /> 连接到 <ph name="PRODUCT_NAME" /> 或使用自动浏览功能
+
+警告：如果允许 <ph name="GEMINI_SPARK_PRODUCT_NAME" /> 连接到 <ph name="PRODUCT_NAME" /> 并使用自动浏览功能，<ph name="GEMINI_SPARK_PRODUCT_NAME" /> 智能体将能够使用活跃的浏览器会话在 <ph name="PRODUCT_NAME" /> 客户端上执行自主的多步操作。这涉及重大的安全风险，包括凭证泄露风险、本地网络入站流量风险以及情境感知信号的丢失。现有的管理和安全控制措施可能无法得到遵守。
+
+建议管理员在启用此功能之前，仔细评估组织的网络威胁模型、合规性和隐私权准则。
+
+如果 <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> 应用或 <ph name="PRODUCT_NAME" /> 自动浏览政策已停用，则此政策不会生效。例如，可通过 <ph name="GEMINI_SETTINGS_POLICY_NAME" /> 政策停用 <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> 应用。如需详细了解 <ph name="PRODUCT_NAME" /> 中的 <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />，请访问 https://support.google.com/chrome/a?p=gemini_in_chrome。
+
+<ph name="PRODUCT_NAME" /> 自动浏览和 <ph name="GEMINI_SPARK_PRODUCT_NAME" /> 仅在部分国家/地区推出，且仅支持部分语言。将此政策设为 0（即已启用）并不能保证该功能会生效，其仍受可用性限制。如需详细了解推出情况，请查看企业版版本说明：https://chromeenterprise.google/resources/release-notes/
+
+如果此政策未设置，其行为将由 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策决定。</translation>
 <translation id="3608206578291537084">启用加密报告管道</translation>
 <translation id="3608281460204780443">在 <ph name="PRODUCT_OS_NAME" /> 启动器和新标签页中显示 Chrome 应用商店的图标</translation>
 <translation id="3612482251405108708">在锁屏上自动启动在线重新身份验证</translation>
@@ -4038,14 +4048,6 @@ SwiftShader 曾用于在没有 GPU 加速的系统（例如无头系统或虚拟
 <translation id="3647212518036289905">通过设置此政策，您可以指定要用于 HTTP 身份验证的 GSSAPI 库。您可以将此政策设为库名称或完整路径。
 
       如果您不设置此政策，<ph name="PRODUCT_NAME" /> 便会使用默认库名称。</translation>
-<translation id="3647756189889410780">https://github.com/WICG/service-worker-auto-preload
-ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时，分派对主要资源的网络请求。
-
-如果此政策已启用或未设置，<ph name="PRODUCT_NAME" /> 会启用 ServiceWorkerAutoPreload。在某些情况下（例如 ServiceWorker 未正在运行），系统会在 ServiceWorker 启动期间自动分派导航请求。
-
-如果此政策已停用，<ph name="PRODUCT_NAME" /> 将不会启用 ServiceWorkerAutoPreload。系统始终会在启动 ServiceWorker 后分派导航请求。
-
-此政策只是用于控制该功能的一项暂时性措施，将在 M144 中移除。</translation>
 <translation id="3650122925429054129">禁止在登录屏幕上使用光标突出显示</translation>
 <translation id="365093517647222762">针对已关联的用户，报告 <ph name="REPORT_WEBSITE_TELEMETRY_ALLOWLIST_POLICY_NAME" /> 政策所指定的许可网址的网站遥测数据。
 
@@ -5023,6 +5025,7 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
 用户无法覆盖管理员的选择。如果未设置此政策，用户将获得消费者体验，即可以自由修改系统位置信息设置，并且默认值为 <ph name="GLS_ALLOWED" />。
 
 注意：此政策已弃用 <ph name="ARC_GLS_POLICY_NAME" /> 政策。此外，如果您设置了此政策，<ph name="DEFAULT_GEO_SETTING_POLICY_NAME" /> 将不再影响 <ph name="PRODUCT_OS_NAME" /> 上的 <ph name="ANDROID_NAME" /> 位置偏好设置。</translation>
+<translation id="4340826578810728651">允许 <ph name="GEMINI_SPARK_PRODUCT_NAME" /> 连接到 <ph name="PRODUCT_NAME" /> 并使用自动浏览功能</translation>
 <translation id="4341199399451274159">如果 <ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" /> 已开启，您便可通过设置 <ph name="DEFAULT_SEARCH_PROVIDER_ENCODINGS_POLICY_NAME" /> 来指定搜索服务提供商支持的字符编码。编码是 UTF-8、GB2312 和 ISO-8859-1 之类的代码页名称。系统会按照您指定的顺序尝试这些编码。
 
       如果您不设置 <ph name="DEFAULT_SEARCH_PROVIDER_ENCODINGS_POLICY_NAME" />，系统将使用 UTF-8。</translation>
@@ -5278,7 +5281,6 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
 <translation id="4510923771103268849">允许用户拥有 Crostini 容器的 root 权限</translation>
 <translation id="4511848671760711978">禁止教师远程查看学生的屏幕。</translation>
 <translation id="4512407512989846472">允许禁止指定网址向剪贴板中复制数据</translation>
-<translation id="4513691822411041977">不强制在 Google 搜索中使用安全搜索功能，也不强制使用 YouTube 受限模式</translation>
 <translation id="4515404363392014383">针对可信来源启用安全浏览功能</translation>
 <translation id="4517327050150780380">“帮我读”功能的设置</translation>
 <translation id="4518251772179446575">每次网站尝试跟踪用户的地理位置时都询问我</translation>
@@ -5757,6 +5759,13 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 <translation id="4789450349513792856">禁止这些网站显示弹出式窗口</translation>
 <translation id="4790391579868456557">在搜索中使用必需 Cookie 和非必需 Cookie。</translation>
 <translation id="4790588245699320140">允许 Google 助理访问屏幕上的内容</translation>
+<translation id="4797001637482545491">此设置允许 Chrome 在适当的时候推荐 AI 功能。
+
+0/未设置 = 为用户启用 Chrome 建议。
+
+1 = 为用户停用 Chrome 建议。
+
+如需了解详情，请参阅这篇帮助中心文章：https://support.google.com/chrome/a?p=chrome_suggestions</translation>
 <translation id="4799820756794591883">TLS 1.3 Early Data 是 TLS 1.3 的扩展，用于在 TLS 握手时同时发送 HTTP 请求。
 
       如果此政策未配置，<ph name="PRODUCT_NAME" /> 将会遵循 TLS 1.3 Early Data 的默认分阶段发布流程。
@@ -5906,6 +5915,7 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
       - 如果此政策设为 <ph name="SKIP_TOS_DIALOG" />，浏览器的功能会受到限制。
 
       - 如果此政策设为 <ph name="SKIP_TOS_DIALOG" />，管理员必须将这项设置告知设备的最终用户。</translation>
+<translation id="4896469165628792802"><ph name="GEMINI_SPARK_PRODUCT_NAME" /> 可以连接到 <ph name="PRODUCT_NAME" /> 并使用自动浏览功能。</translation>
 <translation id="489760181463331251">此政策用于更改省内存模式的节省级别。
 
 此政策仅在通过设置或 <ph name="HIGH_EFFICIENCY_MODE_ENABLED_POLICY_NAME" /> 政策启用省内存模式后才会生效，并且会影响系统如何使用启发法来确定何时舍弃标签页。例如，在舍弃之前缩短闲置标签页的生命周期可以节省内存，但这也意味着标签页会更频繁地重新加载，从而导致用户体验不佳并消耗更多网络流量。
@@ -6400,13 +6410,6 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 <translation id="5182483318861266793">将文件架放置到屏幕右侧</translation>
 <translation id="51859390023061147">停用“完全还原”功能。</translation>
 <translation id="5189360528842591274">仅允许连接到此列表中的蓝牙服务</translation>
-<translation id="5190426551516379357">通过设置此政策，您可以强制启用最基本的 YouTube 受限模式，并禁止用户选择限制条件更加宽松的模式。如果此政策设为：
-
-      *“严格”- YouTube“严格”受限模式将始终处于启用状态。
-
-      *“适中”- 用户只可选择启用 YouTube“适中”受限模式和 YouTube“严格”受限模式，但无法关闭受限模式。
-
-      *“关闭”或未设置值 - Chrome 不会强制启用 YouTube 受限模式。但是，外部政策（例如 YouTube 政策）仍有可能会强制启用受限模式。</translation>
 <translation id="5191007233343702012">使用标准标签页优先级</translation>
 <translation id="5191476996923842491">setTimeout() 函数延迟的默认行为。</translation>
 <translation id="519247340330463721">配置与安全浏览功能相关的政策。</translation>
@@ -6721,6 +6724,7 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 如果此政策的值设为 true 或未设置，所选教师可以为语音添加字幕并将转写内容发送给学生。
 
 如果此政策的值设为 false，教师将无法使用该功能。</translation>
+<translation id="5377484655498931153">不允许 <ph name="GEMINI_SPARK_PRODUCT_NAME" /> 连接到 <ph name="PRODUCT_NAME" /> 或使用自动浏览功能。</translation>
 <translation id="5377606826822211923">控制用户对来源不受信任的 Android 应用的使用</translation>
 <translation id="537786648513450280">控制设备对来源不受信任的 Android 应用的使用</translation>
 <translation id="5378885577701865339">停用“共享剪贴板”功能</translation>
@@ -7964,6 +7968,26 @@ IP 地址空间覆盖有两种形式：
 <translation id="624219423122512710">浏览器闲置时运行的操作</translation>
 <translation id="6244061205361004687">允许用户手动断开或修改 VPN</translation>
 <translation id="6244210204546589761">启动时打开的网址</translation>
+<translation id="6244263962918757383">Chrome 建议设置</translation>
+<translation id="6245828368576563662">此政策支持定义一系列规则，以便将自定义 HTTP 标头注入与特定网址格式匹配的 Web 请求中。此政策设置的标头优先于请求中最初存在的标头，以及用户或扩展程序尝试进行的修改。
+
+此政策的常见使用场景是通过注入自定义标头（例如 <ph name="EXAMPLE_HEADER_NAME" />）来强制执行租户访问权限控制。
+
+此政策接受规则列表。每条规则都包含：
+
+* <ph name="PATTERNS_KEY" />：要匹配的网址格式列表。了解如何设置网址格式 (https://support.google.com/chrome/a?p=url_blocklist_filter_format)。
+
+* <ph name="HEADERS_KEY" />：表示要注入的标头的对象列表，每个对象包含：
+
+  * <ph name="HEADER_NAME_KEY" />：要注入的标头的名称。
+
+  * <ph name="HEADER_VALUE_KEY" />：要注入的标头的值。
+
+如果有多条规则与请求匹配，系统将应用所有匹配规则中的标头。如果多个标头同名，系统将应用网址格式最具体的标头。如果网址格式的具体程度相同，系统将应用列表中最后出现的标头。
+
+标头名称必须符合 RFC 2616 ( https://www.rfc-editor.org/rfc/rfc2616 )。标头值不得包含 NUL、CR 或 LF 符号。单个标头的大小不得超过 8KB。系统会忽略无效的标头和网址格式。
+
+此政策中所有规则的网址格式总数限制为 500 个。每条规则最多可包含 20 个标头。超出这些阈值的格式和标头将被忽略。</translation>
 <translation id="624595269193747921">是否要将相符打印机的搜索范围限定为一组特定的打印机。</translation>
 <translation id="6246290059248303618">显示由本地网络中的其他设备启动的 <ph name="PRODUCT_NAME" /> 会话的媒体控件</translation>
 <translation id="6247316685259031374">此政策用于控制音频进程是否会采用沙盒机制。
@@ -8415,13 +8439,6 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
 <translation id="6483115462650732746">在自助服务终端模式下显示悬浮式无障碍菜单</translation>
 <translation id="6491139795995924304">允许在设备上使用蓝牙功能</translation>
 <translation id="6491305972928809525">不在自助服务终端模式下显示悬浮式无障碍菜单</translation>
-<translation id="6491872498385040936">此政策已被弃用。请考虑使用替换此政策的 <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" />；借助该政策，您可以进行更加精确的微调。
-
-      强制启用 YouTube“适中”受限模式，并禁止用户更改此设置。
-
-      如果您启用了此设置，则系统会始终强制启用 YouTube 受限模式，且至少启用“适中”受限模式。
-
-      如果您停用此设置或未设置值，则 <ph name="PRODUCT_NAME" /> 不会强制启用 YouTube 受限模式。但是，外部政策（例如 YouTube 政策）仍有可能会强制启用受限模式。</translation>
 <translation id="6492177700737407141">注册“高级保护计划”的用户将只能获享标准的消费者级别保护功能</translation>
 <translation id="6492737559291967859">通过设置此政策，您可以指定要让 <ph name="PRODUCT_NAME" /> 使用的语言区域。
 
@@ -8916,6 +8933,7 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
 如果此政策已启用或未设置，用户将可以通过上下文菜单将图片保存到 <ph name="GOOGLE_PHOTOS_PRODUCT_NAME" />。如果此政策已停用，用户将无法在上下文菜单中看到此选项。
 此政策不会阻止用户使用上下文菜单之外的其他方式将图片保存到 <ph name="GOOGLE_PHOTOS_PRODUCT_NAME" />。</translation>
 <translation id="6823711520976094072">如果此政策设为小于 1 MB 或未设置，<ph name="PRODUCT_OS_NAME" />会使用默认大小 (256 MiB) 缓存应用和扩展程序，以供同一部设备上的多位用户安装，从而避免重新为每位用户下载。</translation>
+<translation id="6828918560681256273">限制从 Service Worker 调用 Background Fetch API</translation>
 <translation id="6829632070341067746">此政策用于控制 PPAPI 插件中 Graphics3D API 的近期重构。
 
 迁移只会影响内部实现细节，应该不会改变任何行为。不过，如有任何 PPAPI 应用无法正常运行，可以使用此政策。
@@ -8979,7 +8997,6 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
 <translation id="6857240169209507953">禁止 <ph name="BOREALIS_NAME" /> 在设备上运行</translation>
 <translation id="6857372417233723544">通过设置此政策，您可为 <ph name="PRODUCT_OS_NAME" /> 启用印地语 Inscript 布局。
 如果此政策设为 false 或未设置，布局将不可用。需要重新启动才能生效。</translation>
-<translation id="685769593149966548">强制启用 YouTube“严格”受限模式</translation>
 <translation id="686079137349561371">Microsoft Windows 7 或更高版本</translation>
 <translation id="6863927303509860338">设置要在“新标签页”页面上显示的快捷方式</translation>
 <translation id="6866755486434471318">允许 <ph name="PEPPER_NAME" /> 使用共享图片进行视频解码。</translation>
@@ -9305,12 +9322,6 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
       如果未设置此政策，工具栏将默认放置在屏幕底部，但用户可以更改工具栏的位置。</translation>
 <translation id="7039815268521168329">在初始设置期间显示 Google 助理 Voice Match 流程</translation>
 <translation id="7040229947030068419">值示例：</translation>
-<translation id="7044626519138840387">这是一个远程桌面客户端应用的源列表，这些应用可执行来自远程主机浏览会话的 WebAuthn API 请求。
-
-此政策中配置的任何源都可以针对依赖方 ID (RP ID) 发出 WebAuthn 请求。通常，系统不允许源发出此类请求。
-
-仅允许使用有效的 HTTPS 源。不支持通配符。
-系统会忽略所有无效条目。</translation>
 <translation id="7044883996351280650">控制 Android 备份和恢复服务</translation>
 <translation id="7045221780834308118">如果已启用此政策，第三方 Web 应用将能使用 Desk API 来控制 <ph name="PRODUCT_OS_NAME" /> 桌面。如果未设置或已停用此政策，<ph name="DESK_API_NAME" /> 将不可用。此政策仅适用于已注册的设备。</translation>
 <translation id="7046113122884041950">不允许使用 Smart Lock</translation>
@@ -9324,6 +9335,13 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 <translation id="7055022222176591388">禁止使用已过时的 <ph name="FLASH_PLUGIN_NAME" /></translation>
 <translation id="7056040036973126753">系统可能会根据 Chrome 用户指标 (UMA) 政策将网域可靠性数据发送给 Google</translation>
 <translation id="7062803946218028349">允许启用 Phone Hub</translation>
+<translation id="7063646777978847358">此政策用于控制是否限制来自 Service Worker 的后台提取请求。如果某项在后台下载文件的功能受到影响，此政策可能适用。
+
+如果此政策已启用或未设置，该限制将生效，系统可能会屏蔽来自 Service Worker 上下文的后台提取请求。
+
+如果此政策已停用，系统会绕过限制，允许所有 Service Worker 发出后台提取请求。
+
+这项企业政策只是暂时性政策，将在 M152 之后移除。</translation>
 <translation id="7066292150801784098">禁止远程用户在远程协助会话中操控提权后的窗口</translation>
 <translation id="706669471845501145">允许网站显示桌面通知</translation>
 <translation id="7067419518071223152">通过设置此政策，您可以罗列一些网址格式，从而指定授权哪些 Web 应用访问各类文件。
@@ -9679,7 +9697,6 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 <translation id="7238335422094660594">启用<ph name="UIA_NAME" />提供程序。</translation>
 <translation id="7241007908714447207">允许独立式 Web 应用 (IWA) 源请求连接到智能卡读卡器。</translation>
 <translation id="7241016798422122577">在登录屏幕上启用人脸操控</translation>
-<translation id="7242191282517459095">YouTube（自 135 版起受支持）</translation>
 <translation id="7244600351241637530">如果启用此设置，已选择启用 Phone Hub 功能的用户将能够在 Chrome 操作系统中查看和下载其手机上近期拍摄的照片和视频。
 
       如果停用此设置，用户将无法使用该功能。如果停用 <ph name="PHONE_HUB_ALLOWED_POLICY_NAME" /> 政策，用户也将无法使用该功能。
@@ -10932,7 +10949,6 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 
 如果 <ph name="SCREENSAVER_LOCK_SCREEN_ENABLED_POLICY_NAME" /> 政策设为 false，此政策将不会产生任何影响。</translation>
 <translation id="8113731369695819720">为登录屏幕停用单声道音频</translation>
-<translation id="8114382167597081590">不强制启用 YouTube 受限模式</translation>
 <translation id="8117662664312039036">不允许设备使用 PluginVm</translation>
 <translation id="8117921351531866504">该政策让您能够设置是否允许网站检查用户有无已保存的付款方式。
 
@@ -11427,6 +11443,7 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 
       如果设置了此政策，系统便会酌情删除旧快照以遵守此限制。如果此政策设为 0，系统将不会创建任何快照</translation>
 <translation id="8446679541472571487">在用户登录期间显示 AI 介绍界面</translation>
+<translation id="8451205236854734195">允许 Chrome 提供建议</translation>
 <translation id="8451988835943702790">使用“新标签页”作为主页</translation>
 <translation id="8452787853105404870">向 Google 发送硬件数据，协助改进 ChromeOS Flex</translation>
 <translation id="8453218444172088993">为您的用户停用 <ph name="PRIVACY_SANDBOX_NAME" /> 广告主题设置。</translation>
@@ -11446,7 +11463,6 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 <translation id="846994437739309080">如果此政策已启用（或未设置），在进行 TLS 服务器身份验证路径构建时，将会使用平台受信任证书存储区中用户添加的 TLS 证书。
 
 如果此政策已停用，在进行 TLS 服务器身份验证路径构建时，将不会使用平台受信任证书存储区中用户添加的 TLS 证书。</translation>
-<translation id="8470317291588703478">不强制使用 YouTube 受限模式</translation>
 <translation id="8471117881949952479">此政策已被弃用，最终将被 DataControlsRules 取代。
 
 此政策用于禁止特定网址向剪贴板中复制数据。
@@ -11558,7 +11574,6 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 
       警告：最好不要配置版本限制，因为这些限制可能会妨碍用户接收软件更新以及重要的安全性修补程序。限制设备更新为特定版本可能会将用户置于风险之中。</translation>
 <translation id="8519617069657262768">启用 Google 云端硬盘同步</translation>
-<translation id="8520064498689833152">强制在 Google 搜索中使用级别至少为“中等”的安全搜索功能，也强制使用级别至少为“中等”的 YouTube 受限模式</translation>
 <translation id="8520950040439618600">允许远程访问主机使用 PIN 码和配对身份验证方法</translation>
 <translation id="8524334245528364388">包含一系列打印服务器的 JSON 文件的网址。</translation>
 <translation id="8525282442896658040">允许该应用在 iOS 上使用临时通知授权</translation>
@@ -11800,7 +11815,6 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 <translation id="8676959842615154675">如果此政策已启用，远程访问主机会对比这两个名称：与主机关联的本地用户的名称，以及注册为主机所有者的 Google 账号的名称（如果主机归“johndoe@example.com”所有，Google 账号的名称就是“johndoe”）。如果主机所有者的名称不同于与主机关联的本地用户的名称，该主机将不会启动。若要强制将所有者的 Google 账号与特定网域关联，请将此政策与 <ph name="REMOTE_ACCESS_HOST_DOMAIN_POLICY_NAME" /> 搭配使用。
 
       如果此政策已停用或未设置，远程访问主机便能与任何本地用户关联。</translation>
-<translation id="867708016260789630">强制使用级别至少为“中等”的 YouTube 受限模式</translation>
 <translation id="8677853537025397834">允许在这些网站上使用 WebHID API</translation>
 <translation id="8684000025871334499">在 <ph name="PRODUCT_OS_NAME" /> 上为 Bruschetta 虚拟机配置安装政策和运行时政策。这样一来，用户便能安装第三方虚拟机。此功能默认处于停用状态。
 
@@ -11865,7 +11879,6 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
       “http://acme.com/ABC”仅在“IESiteListMode”下匹配。</translation>
 <translation id="8728854710675158426">已允许在 TLS 握手时使用不安全哈希</translation>
 <translation id="8734543507835977857">在会话启动后才开始实施电源管理延迟和会话时长限制</translation>
-<translation id="8736538322216687231">强制启用最低级别的 YouTube 受限模式</translation>
 <translation id="873800217865395140">网站遥测数据收集时间间隔（以毫秒为单位）。</translation>
 <translation id="8742596277791362306">此政策用于控制是否启用 Related Website Set 功能。
 
@@ -11891,6 +11904,14 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 <translation id="8757552286070680084">Wilco DTC 配置</translation>
 <translation id="8758831693895931466">启用强制性云管理注册</translation>
 <translation id="8759829385824155666">允许的 Kerberos 加密类型</translation>
+<translation id="8762128467207353085">这是一个远程桌面客户端应用的源列表，这些应用可执行来自远程主机浏览会话的 WebAuthn API 请求。
+
+在此政策中配置的任何源，都可以为那些它通常无权声明代表的依赖方 ID (RP ID) 发起 WebAuthn 请求。
+
+仅允许使用有效的 HTTPS 源。不支持通配符。
+系统会忽略所有无效条目。
+
+此政策仅适用于已关联的用户。</translation>
 <translation id="8765401957266318536">在 <ph name="PRODUCT_OS_NAME" /> 上启用智能镜头/媒体库应用集成</translation>
 <translation id="8766308369516978190">如果此政策已启用，用户便可在网页上使用 <ph name="ASSISTANT_PRODUCT_NAME" />来实现诸多目的（例如更快捷地结账和更改密码）。使用 <ph name="ASSISTANT_PRODUCT_NAME" />需要额外征得用户的同意，而且只有在用户选择同意后，<ph name="ASSISTANT_PRODUCT_NAME" />才会运行，即使此政策已启用也不例外。
 
@@ -12018,7 +12039,6 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 如果此政策已启用或未设置，系统将允许以更高保护级别通过代理进行查询。
 
 如果此政策已停用，系统将禁止以更高保护级别通过代理进行查询。网址的部分哈希值被直接上传到 Google 的频率会大大降低，这会削弱保护效果。</translation>
-<translation id="8858642179038618439">强制启用 YouTube 安全模式</translation>
 <translation id="8860342862142842017">对于指定的一系列 subjectPublicKeyInfo 哈希，不强制执行证书透明化要求</translation>
 <translation id="8860894781631833477">用户可以配置 <ph name="PRODUCT_OS_NAME" /> 发布渠道</translation>
 <translation id="8862086508140571198">此政策可用于设置一系列要尽快下载的 DLC（可下载的内容）。然后，相应设备的所有用户便都能使用已下载的 DLC。

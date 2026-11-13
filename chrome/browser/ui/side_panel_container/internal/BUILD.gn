@@ -96,11 +96,16 @@ android_library("javatests") {
     ":java",
     "//base:base_java",
     "//base:base_java_test_support",
+    "//base/test:public_transit_java",
     "//chrome/android:chrome_java",
     "//chrome/browser/flags:java",
+    "//chrome/browser/tab:java",
     "//chrome/browser/ui/side_panel_container/public:java",
+    "//chrome/test/android:chrome_java_integration_test_support",
     "//chrome/test/android:chrome_java_transit",
     "//chrome/test/android:chrome_java_unit_test_support",
+    "//content/public/android:content_full_java",
+    "//net/android:net_java_test_support",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/androidx:androidx_window_window_java",
@@ -108,6 +113,7 @@ android_library("javatests") {
     "//ui/android:ui_java_test_support",
     "//ui/android:ui_no_recycler_view_java",
   ]
+  data = [ "//chrome/browser/ui/side_panel_container/test/data/" ]
   resources_package = "org.chromium.chrome.browser.ui.side_panel_container"
 }
 

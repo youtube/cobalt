@@ -38,6 +38,7 @@
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/browsing_topics/browsing_topics_document_host.h"  // nogncheck
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/contacts/contacts_manager_impl.h"
 #include "content/browser/content_index/content_index_service_impl.h"
 #include "content/browser/cookie_store/cookie_store_manager.h"
@@ -96,6 +97,8 @@
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/device_service.h"
 #include "content/public/browser/global_routing_id.h"
+#include "content/public/browser/permission_controller.h"
+#include "content/public/browser/permission_descriptor_util.h"
 #include "content/public/browser/service_worker_context.h"
 #include "content/public/browser/service_worker_version_base_info.h"
 #include "content/public/browser/shape_detection_service.h"
@@ -290,20 +293,6 @@ namespace content {
 namespace internal {
 
 namespace {
-
-#if !BUILDFLAG(IS_COBALT)
-// Skip language detector initialization for top chrome ui when Initial WebUI
-// feature is enabled for optimizing browser startup by removing unnecessary
-// work.
-bool ShouldSkipLanguageDetectionInitialization(RenderProcessHost* process) {
-  if (!process) {
-    return false;
-  }
-  return base::FeatureList::IsEnabled(features::kInitialWebUI) &&
-         features::kInitialWebUIWithoutLanguageDetection.Get() &&
-         process->IsForTopChromeWebUI();
-}
-#endif
 
 void BindBarcodeDetectionProvider(
     mojo::PendingReceiver<shape_detection::mojom::BarcodeDetectionProvider>
@@ -777,6 +766,44 @@ void BindRenderFrameHostImpl(RenderFrameHost* host,
   (RenderFrameHostImpl::From(host)->*Method)(std::move(receiver));
 }
 
+void BindMidiSessionProvider(
+    RenderFrameHost* host,
+    mojo::PendingReceiver<midi::mojom::MidiSessionProvider> receiver) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+  BrowserContext* browser_context = host->GetBrowserContext();
+  PermissionController* permission_controller =
+      browser_context->GetPermissionController();
+
+  auto midi_descriptor =
+      PermissionDescriptorUtil::CreatePermissionDescriptorForPermissionType(
+          blink::PermissionType::MIDI);
+  if (permission_controller->GetPermissionStatusForCurrentDocument(
+          midi_descriptor, host) ==
+      blink::mojom::PermissionStatus::GRANTED) {
+    ChildProcessSecurityPolicyImpl::GetInstance()->GrantSendMidiMessage(
+        host->GetProcess()->GetID().GetUnsafeValue());
+  }
+
+  auto midi_sysex_descriptor =
+      PermissionDescriptorUtil::CreatePermissionDescriptorForPermissionType(
+          blink::PermissionType::MIDI_SYSEX);
+  if (permission_controller->GetPermissionStatusForCurrentDocument(
+          midi_sysex_descriptor, host) ==
+      blink::mojom::PermissionStatus::GRANTED) {
+    ChildProcessSecurityPolicyImpl::GetInstance()->GrantSendMidiSysExMessage(
+        host->GetProcess()->GetID().GetUnsafeValue());
+  }
+
+  if (BrowserMainLoop::GetInstance()) {
+    GetIOThreadTaskRunner({})->PostTask(
+        FROM_HERE,
+        base::BindOnce(&MidiHost::BindReceiver, host->GetProcess()->GetID(),
+                       BrowserMainLoop::GetInstance()->midi_service(),
+                       std::move(receiver)));
+  }
+}
+
 }  // namespace
 
 // Documents/frames
@@ -892,8 +919,19 @@ void PopulateBinderMapWithContext(
         &BindRenderFrameHostImpl<&RenderFrameHostImpl::GetFontAccessManager>);
   }
 
-  map->Add<device::mojom::GamepadHapticsManager>(
-      &device::GamepadHapticsManager::Create);
+  map->Add<device::mojom::GamepadHapticsManager>(base::BindRepeating(
+      [](RenderFrameHost* host,
+         mojo::PendingReceiver<device::mojom::GamepadHapticsManager> receiver) {
+        if (!host->IsFeatureEnabled(
+                network::mojom::PermissionsPolicyFeature::kGamepad)) {
+          bad_message::ReceivedBadMessage(
+              host->GetProcess(),
+              bad_message::BadMessageReason::
+                  BIBI_BIND_GAMEPAD_HAPTICS_MANAGER_BLOCKED_BY_PERMISSIONS_POLICY);
+          return;
+        }
+        device::GamepadHapticsManager::Create(host, std::move(receiver));
+      }));
 
   map->Add<blink::mojom::GeolocationService>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::GetGeolocationService>);
@@ -909,10 +947,7 @@ void PopulateBinderMapWithContext(
   // BrowserMainLoop::GetInstance() may be null on unit tests.
   if (BrowserMainLoop::GetInstance()) {
     map->Add<midi::mojom::MidiSessionProvider>(
-        base::BindRepeating(&MidiHost::BindReceiver,
-                            host->GetProcess()->GetID(),
-                            BrowserMainLoop::GetInstance()->midi_service()),
-        GetIOThreadTaskRunner({}));
+        base::BindRepeating(&BindMidiSessionProvider));
   }
 
   map->Add<media::mojom::MediaPlayerObserverClient>(
@@ -1004,7 +1039,19 @@ void PopulateBinderMapWithContext(
       base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::USER_VISIBLE}));
 
-  map->Add<device::mojom::GamepadMonitor>(&device::GamepadMonitor::Create);
+  map->Add<device::mojom::GamepadMonitor>(base::BindRepeating(
+      [](RenderFrameHost* host,
+         mojo::PendingReceiver<device::mojom::GamepadMonitor> receiver) {
+        if (!host->IsFeatureEnabled(
+                network::mojom::PermissionsPolicyFeature::kGamepad)) {
+          bad_message::ReceivedBadMessage(
+              host->GetProcess(),
+              bad_message::BadMessageReason::
+                  BIBI_BIND_GAMEPAD_MONITOR_BLOCKED_BY_PERMISSIONS_POLICY);
+          return;
+        }
+        device::GamepadMonitor::Create(host, std::move(receiver));
+      }));
 
   map->Add<blink::mojom::WebSensorProvider>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::GetSensorProvider>);
@@ -1252,19 +1299,17 @@ void PopulateBinderMapWithContext(
       }));
 
 #if !BUILDFLAG(IS_COBALT)
-  if (!ShouldSkipLanguageDetectionInitialization(host->GetProcess())) {
-    map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
-        base::BindRepeating(
-            [](RenderFrameHost* host,
-               mojo::PendingReceiver<
-                   language_detection::mojom::ContentLanguageDetectionDriver>
-                   receiver) {
-              GetContentClient()->browser()->BindLanguageDetectionDriver(
-                  host->GetBrowserContext(),
-                  &RenderFrameHostImpl::From(host)->document_associated_data(),
-                  std::move(receiver));
-            }));
-  }
+  map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
+      base::BindRepeating(
+          [](RenderFrameHost* host,
+             mojo::PendingReceiver<
+                 language_detection::mojom::ContentLanguageDetectionDriver>
+                 receiver) {
+            GetContentClient()->browser()->BindLanguageDetectionDriver(
+                host->GetBrowserContext(),
+                &RenderFrameHostImpl::From(host)->document_associated_data(),
+                std::move(receiver));
+          }));
 #endif  // !BUILDFLAG(IS_COBALT)
 
   map->Add<blink::mojom::BackgroundFetchService>(
@@ -1536,19 +1581,17 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
       },
       base::Unretained(host)));
 #if !BUILDFLAG(IS_COBALT)
-  if (!ShouldSkipLanguageDetectionInitialization(host->GetProcessHost())) {
-    map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
-        base::BindRepeating(
-            [](DedicatedWorkerHost* host,
-               mojo::PendingReceiver<
-                   language_detection::mojom::ContentLanguageDetectionDriver>
-                   receiver) {
-              GetContentClient()->browser()->BindLanguageDetectionDriver(
-                  host->GetProcessHost()->GetBrowserContext(), host,
-                  std::move(receiver));
-            },
-            base::Unretained(host)));
-  }
+  map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
+      base::BindRepeating(
+          [](DedicatedWorkerHost* host,
+             mojo::PendingReceiver<
+                 language_detection::mojom::ContentLanguageDetectionDriver>
+                 receiver) {
+            GetContentClient()->browser()->BindLanguageDetectionDriver(
+                host->GetProcessHost()->GetBrowserContext(), host,
+                std::move(receiver));
+          },
+          base::Unretained(host)));
 #endif  // !BUILDFLAG(IS_COBALT)
 }
 
@@ -1663,19 +1706,17 @@ void PopulateSharedWorkerBinders(SharedWorkerHost* host, mojo::BinderMap* map) {
       },
       base::Unretained(host)));
 #if !BUILDFLAG(IS_COBALT)
-  if (!ShouldSkipLanguageDetectionInitialization(host->GetProcessHost())) {
-    map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
-        base::BindRepeating(
-            [](SharedWorkerHost* host,
-               mojo::PendingReceiver<
-                   language_detection::mojom::ContentLanguageDetectionDriver>
-                   receiver) {
-              GetContentClient()->browser()->BindLanguageDetectionDriver(
-                  host->GetProcessHost()->GetBrowserContext(), host,
-                  std::move(receiver));
-            },
-            base::Unretained(host)));
-  }
+  map->Add<language_detection::mojom::ContentLanguageDetectionDriver>(
+      base::BindRepeating(
+          [](SharedWorkerHost* host,
+             mojo::PendingReceiver<
+                 language_detection::mojom::ContentLanguageDetectionDriver>
+                 receiver) {
+            GetContentClient()->browser()->BindLanguageDetectionDriver(
+                host->GetProcessHost()->GetBrowserContext(), host,
+                std::move(receiver));
+          },
+          base::Unretained(host)));
 #endif  // !BUILDFLAG(IS_COBALT)
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -1858,12 +1899,6 @@ void PopulateServiceWorkerBinders(ServiceWorkerHost* host,
                  receiver) {
             if (auto* process_host = static_cast<RenderProcessHostImpl*>(
                     RenderProcessHost::FromID(host->worker_process_id()))) {
-              // The process ID is not yet populated at the time
-              // PopulateInterfaceBinders is called, so we must check this
-              // condition dynamically.
-              if (ShouldSkipLanguageDetectionInitialization(process_host)) {
-                return;
-              }
               GetContentClient()->browser()->BindLanguageDetectionDriver(
                   process_host->GetBrowserContext(), host, std::move(receiver));
             }

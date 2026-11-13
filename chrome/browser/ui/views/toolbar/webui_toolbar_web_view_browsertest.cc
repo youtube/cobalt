@@ -133,6 +133,8 @@
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/any_widget_observer.h"
 #include "ui/views/widget/widget.h"
+#include "ui/webui/tracked_element/tracked_element_handler.h"
+#include "ui/webui/tracked_element/tracked_element_handler_document_singleton.h"
 
 namespace {
 constexpr int kNumMaxRecoveryTime = 2;
@@ -1152,8 +1154,14 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
 // Either button, if clicked, triggers a navigation, but neither button should
 // treat this as a click. Since this test moves the pointer horizontally and
 // does so instantly, it should not trigger the long press logic.
+// TODO(crbug.com/514610392): Flaky on Mac 13.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_PointerDownOnOneUpOnAnother DISABLED_PointerDownOnOneUpOnAnother
+#else
+#define MAYBE_PointerDownOnOneUpOnAnother PointerDownOnOneUpOnAnother
+#endif
 IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
-                       PointerDownOnOneUpOnAnother) {
+                       MAYBE_PointerDownOnOneUpOnAnother) {
   WebUIToolbarWebView* webui_toolbar_view = SetUpAndPinHomeButton(browser());
   views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
 
@@ -1407,13 +1415,14 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewRaceTest,
               return;
             }
             auto* rfh = weak_wc->GetPrimaryMainFrame();
-            auto* web_ui = rfh ? rfh->GetWebUI() : nullptr;
-            auto* ui = web_ui ? web_ui->GetController()->GetAs<WebUIToolbarUI>()
-                              : nullptr;
-            if (ui) {
+            if (rfh) {
               mojo::PendingRemote<tracked_element::mojom::TrackedElementHandler>
                   remote;
-              ui->BindInterface(remote.InitWithNewPipeAndPassReceiver());
+              auto handler =
+                  ui::TrackedElementHandlerDocumentSingleton::GetOrCreate(rfh);
+              if (handler) {
+                handler->BindInterface(remote.InitWithNewPipeAndPassReceiver());
+              }
             }
           },
           webui_contents->GetWeakPtr()));

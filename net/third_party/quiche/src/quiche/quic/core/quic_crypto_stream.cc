@@ -10,8 +10,11 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "openssl/base.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/frames/quic_crypto_frame.h"
 #include "quiche/quic/core/quic_connection.h"
@@ -27,6 +30,7 @@
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_flag_utils.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 
 namespace quic {
@@ -611,6 +615,84 @@ void QuicCryptoStream::ResetCryptoSubstreams() {
   substreams_.clear();
   std::vector<CryptoSubstream>().swap(substreams_);
   QUICHE_CODE_COUNT(quic_crypto_stream_reset_crypto_substreams);
+}
+
+absl::string_view QuicCryptoStream::Sni() const {
+  if (!VersionIsIetfQuic(session()->transport_version())) {
+    return {};
+  }
+  const SSL* ssl = GetSsl();
+  if (ssl == nullptr) {
+    return {};
+  }
+  const char* sni = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
+  if (sni != nullptr) {
+    return sni;
+  }
+  return {};
+}
+
+const SSL_CIPHER* absl_nullable QuicCryptoStream::Ciphersuite() const {
+  QUICHE_DCHECK(VersionIsIetfQuic(session()->transport_version()));
+  SSL* ssl = GetSsl();
+  if (ssl == nullptr) {
+    return nullptr;
+  }
+  return SSL_get_current_cipher(ssl);
+}
+
+uint16_t QuicCryptoStream::CiphersuiteId() const {
+  const SSL_CIPHER* cipher = Ciphersuite();
+  if (cipher == nullptr) {
+    return 0xffff;
+  }
+  return static_cast<uint16_t>(SSL_CIPHER_get_id(cipher));
+}
+
+absl::string_view QuicCryptoStream::CiphersuiteString() const {
+  const SSL_CIPHER* cipher = Ciphersuite();
+  if (cipher == nullptr) {
+    return {};
+  }
+
+  return SSL_CIPHER_get_name(cipher);
+}
+
+absl::string_view QuicCryptoStream::Alpn() const {
+  QUICHE_DCHECK(VersionIsIetfQuic(session()->transport_version()));
+  SSL* ssl = GetSsl();
+  if (ssl == nullptr) {
+    return {};
+  }
+  const unsigned char* data = nullptr;
+  unsigned int data_len = 0;
+  SSL_get0_alpn_selected(ssl, &data, &data_len);
+  if (data == nullptr) {
+    return {};
+  }
+  return absl::string_view(reinterpret_cast<const char*>(data), data_len);
+}
+
+uint16_t QuicCryptoStream::TlsGroupId() const {
+  QUICHE_DCHECK(VersionIsIetfQuic(session()->transport_version()));
+  SSL* ssl = GetSsl();
+  if (ssl == nullptr) {
+    return 0;
+  }
+  return SSL_get_group_id(ssl);
+}
+
+absl::string_view QuicCryptoStream::TlsGroupString() const {
+  const char* group = SSL_get_group_name(TlsGroupId());
+  if (group == nullptr) {
+    return {};
+  }
+  return group;
+}
+
+// IETF QUIC only uses TLS 1.3.
+absl::string_view QuicCryptoStream::TlsVersion() const {
+  return "TLS_VERSION_1_3";
 }
 
 #undef ENDPOINT  // undef for jumbo builds

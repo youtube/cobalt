@@ -8,6 +8,7 @@
 #include "third_party/blink/public/web/web_render_theme.h"
 #include "third_party/blink/renderer/platform/fonts/font_description.h"
 #include "third_party/blink/renderer/platform/fonts/font_selection_types.h"
+#include "third_party/blink/renderer/platform/fonts/mac/font_matcher_mac.h"
 #include "third_party/blink/renderer/platform/testing/font_test_base.h"
 
 namespace blink {
@@ -86,6 +87,23 @@ TEST_F(FontCacheMacTest, InvalidateOnRegisteredFontsChanged) {
 
   // Verify the cache is cleared.
   EXPECT_EQ(PlatformDataCacheSize(), 0u);
+}
+
+TEST_F(FontCacheMacTest, UnavailableFontCaching) {
+  FontCache& font_cache = FontCache::Get();
+  AtomicString non_existent_family("NonExistentFontFamilyXYZ");
+
+  // The font should not initially be marked as unavailable.
+  EXPECT_FALSE(font_cache.IsFontFamilyUnavailable(non_existent_family));
+
+  // A failed match attempt should mark the font as unavailable.
+  MatchFontFamily(non_existent_family, kNormalWeightValue, kNormalSlopeValue,
+                  kNormalWidthValue, 12.0f);
+  EXPECT_TRUE(font_cache.IsFontFamilyUnavailable(non_existent_family));
+
+  // The font should no longer be marked as unavailable after invalidation.
+  font_cache.Invalidate();
+  EXPECT_FALSE(font_cache.IsFontFamilyUnavailable(non_existent_family));
 }
 
 }  // namespace blink

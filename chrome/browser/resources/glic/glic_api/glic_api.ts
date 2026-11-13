@@ -76,6 +76,8 @@ export declare interface AdditionalContextPart {
    * to read it as a stream if the data is large.
    */
   data?: Blob;
+  /** The filename of the data, if available. */
+  filename?: string;
   /**
    * The following four fields can be contained by `tabContext` and are
    * deprecated
@@ -87,6 +89,13 @@ export declare interface AdditionalContextPart {
   tabContext?: TabContextResult;
   region?: CapturedRegion;
   pendingRegion?: PendingCapturedRegion;
+  parentConversationMetadata?: ParentConversationMetadata;
+}
+
+/** Metadata of the parent conversation. */
+export declare interface ParentConversationMetadata {
+  conversationId?: string;
+  conversationTitle?: string;
 }
 
 /** Payload for Universal Cart invocation. */
@@ -103,6 +112,13 @@ export declare interface InvocationPayload {
 export declare interface ZssConfig {
   /** Additional content to inject into the body of the ZSS message. */
   additionalContent?: string;
+}
+
+/** Settings for Gemini Enterprise. */
+export declare interface GeminiEnterpriseSettings {
+  projectId: string;
+  appId: string;
+  location: string;
 }
 
 /** Options for invoking Glic. */
@@ -308,6 +324,13 @@ export declare interface GlicBrowserHost {
    * this method can be unsafe to call even when it's defined.
    */
   getModelQualityClientId?(): Promise<string>;
+
+  /**
+   * Returns the Gemini Enterprise settings if available.
+   * New in May 2026.
+   */
+  getGeminiEnterpriseSettings?
+      (): ObservableValue<GeminiEnterpriseSettings|undefined>;
 
   /**
    * Fetches page context for the currently focused tab, optionally including
@@ -1143,6 +1166,11 @@ export declare interface GlicBrowserHost {
    *     https://abseil.io/docs/cpp/guides/status-codes.
    */
   reportClientTransientError?(abslStatus: number): void;
+
+  /**
+   * Notifies the host of a counter-abuse verdict received from the server.
+   */
+  processCounterAbuseVerdict?(tabId: string, verdict: CounterAbuseVerdict): void;
 }
 
 /** Information about a conversation. */
@@ -1162,6 +1190,22 @@ export declare interface ConversationInfo {
   clientData?: string;
   /** Optional turn ID to open this conversation at. */
   turnId?: string;
+}
+
+/**
+ * The type of counter abuse verdict that was received.
+ */
+export declare interface SafeBrowsingVerdict {
+  url: string;
+  threatType: SbThreatType;
+  showInterstitial: boolean;
+}
+
+/**
+ * The type of counter abuse verdict that was received.
+ */
+export declare interface CounterAbuseVerdict {
+  sbVerdictResult: SafeBrowsingVerdict;
 }
 
 /** Fields of interest from the system settings page. */
@@ -2707,6 +2751,17 @@ export enum CaptureScreenshotErrorReason {
 
 ///////////////////////////////////////////////
 // WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
+// Safe Browsing Threat Type.
+export enum SbThreatType {
+  // Default value.
+  UNSPECIFIED = 0,
+  SOCIAL_ENGINEERING = 1,
+  MALWARE = 2,
+  UNWANTED_SOFTWARE = 3,
+}
+
+///////////////////////////////////////////////
+// WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
 // The platform glic is running on.
 export enum Platform {
   UNKNOWN = 0,
@@ -3011,6 +3066,10 @@ export enum InvocationSource {
   TOOLBAR_BUTTON = 31,
   // User clicked on an Indigo page action.
   INDIGO_PAGE_ACTION = 32,
+  // User dropped a file/image onto the GLIC panel.
+  WEB_DRAG_DROP = 33,
+  // From the promotion page.
+  PROMOTION_PAGE = 34,
 }
 
 ///////////////////////////////////////////////
@@ -3067,6 +3126,7 @@ export enum WebUseCounter {
   TASK_INTERRUPTED_FOR_USER_CLARIFICATION = 3,
   SELECTION_TOGGLED_VIA_SHARED_MENU = 4,
   SELECTION_TOGGLED_VIA_HOT_KEY = 5,
+  SUBMIT_PROMPT_WITH_TEXT_SELECTION_CUE = 6,
 }
 
 ///////////////////////////////////////////////
@@ -3088,6 +3148,8 @@ export enum AdditionalContextSource {
   SHARE_CONTEXT_MENU = 0,
   REGION_SELECTION = 1,
   TEXT_SELECTION = 3,
+  WEB_DRAG_DROP = 4,
+  EXPERIMENTAL_TRIGGERING = 5,
 }
 
 ///////////////////////////////////////////////
@@ -3172,6 +3234,8 @@ export enum HostCapability {
   SHARE_IMAGE_VIA_INVOKE = 11,
   // Indicates that the host supports image drag and drop from the web
   IMG_WEB_DRAG_DROP = 12,
+  // Indicates that the host does not show the WebUi preloader.
+  NO_WEB_UI_LOADER = 13,
 }
 
 ///////////////////////////////////////////////
@@ -3234,6 +3298,8 @@ export enum FeatureMode {
   EXPERIMENTAL_TRIGGERING = 3,
   // Client feature mode to initiate actuation for Universal Cart.
   UNIVERSAL_CART = 4,
+  // Client feature mode for Promotion Page.
+  PROMOTION_PAGE = 5,
 }
 
 

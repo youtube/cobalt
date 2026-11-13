@@ -106,6 +106,7 @@ struct TestConfig {
   bool no_tls11 = false;
   bool no_tls1 = false;
   bool no_ticket = false;
+  bool no_legacy_server_connect = false;
   std::vector<uint8_t> expect_channel_id;
   bool enable_channel_id = false;
   std::string send_channel_id;

@@ -29,7 +29,7 @@ std::ostream& operator<<(std::ostream& os, const MemoryAddress& mem) {
   return os << "MemoryAddress{base=" << mem.base << ", index=" << mem.index
             << ", offset=" << mem.offset << ", elem_size_log2="
             << static_cast<uint32_t>(mem.element_size_log2)
-            << ", size=" << static_cast<uint32_t>(mem.size) << "}";
+            << ", repr=" << mem.representation << "}";
 }
 
 void LateLoadEliminationAnalyzer::Run() {
@@ -333,6 +333,13 @@ bool RepIsCompatible(RegisterRepresentation actual,
     return false;
   }
 
+  // Ideally, this should be a DCHECK, since MemoryRepresentation is part of
+  // MemoryAddress, and compatible MemoryRepresentations imply compatible
+  // RegisterRerpesentations. However, Turbofan sometimes creates an
+  // Int64Constant/Int32Constant to represent a Smi, and then stores it with
+  // Tagged MemoryRepresentation; thus we reach this point with incompatible
+  // RegisterRepresentations.
+  // TODO(manoskouk): Make this into a DCHECK in ProcessLoad when possible.
   return expected_reg_repr == actual;
 }
 
@@ -362,10 +369,6 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
 
   if (OpIndex existing = memory_.Find(load); existing.valid()) {
     const Operation& replacement = graph_.Get(existing);
-    // We need to make sure that {load} and {replacement} have the same output
-    // representation. In particular, in unreachable code, it's possible that
-    // the two of them have incompatible representations (like one could be
-    // Tagged and the other one Float64).
     DCHECK_EQ(replacement.outputs_rep().size(), 1);
     DCHECK_EQ(load.outputs_rep().size(), 1);
     TRACE(">> Found potential replacement at offset " << existing);

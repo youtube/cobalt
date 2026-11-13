@@ -83,8 +83,7 @@ class RTC_EXPORT RtpReceiverInterface : public RefCountInterface,
   virtual std::string id() const = 0;
 
   // The WebRTC specification only defines RTCRtpParameters in terms of senders,
-  // but this API also applies them to receivers, similar to ORTC:
-  // http://ortc.org/wp-content/uploads/2016/03/ortc.html#rtcrtpparameters*.
+  // but this API also applies them to receivers.
   virtual RtpParameters GetParameters() const = 0;
   // TODO(dinosaurav): Delete SetParameters entirely after rolling to Chromium.
   // Currently, doesn't support changing any parameters.

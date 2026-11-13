@@ -312,6 +312,7 @@ class ReadAnythingAppController
                          ui::AXNodeID focus_node_id,
                          int focus_offset);
   void OnCollapseSelection();
+  void AttemptLogEarlySelection(bool from_side_panel);
   void OnDistilled(int word_count);
   void OnRenderedTextBlocksAvailable(const std::vector<std::u16string>& blocks);
   v8::Local<v8::Value> GetAXMapping(int index);
@@ -571,6 +572,13 @@ class ReadAnythingAppController
   std::set<ui::AXNodeID> displayed_nodes_pending_deletion_;
 
   bool waiting_for_tree_id_ = false;
+
+  // Tracks whether the rendered text blocks ready metric has been recorded for
+  // the current active tree ID.
+  bool rendered_text_blocks_ready_recorded_ = false;
+
+  // Tracks the time since the active tree ID was last changed.
+  base::TimeTicks active_tree_changed_start_time_;
 
   // Model that holds Reading mode state for this controller.
   ReadAnythingAppModel model_;

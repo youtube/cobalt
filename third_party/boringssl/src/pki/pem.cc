@@ -111,7 +111,7 @@ bool PEMTokenizer::GetNext() {
     }
 
     // If the block did not match any acceptable type, move past it and
-    // continue the search. Otherwise, |pos_| has been updated to the most
+    // continue the search. Otherwise, `pos_` has been updated to the most
     // appropriate search position to continue searching from and should not
     // be adjusted.
     if (it == block_types_.end()) {

@@ -12,6 +12,7 @@
 
 #include <jni.h>
 
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "sdk/android/generated_peerconnection_jni/RtpCapabilities_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
@@ -41,7 +42,8 @@ ScopedJavaLocalRef<jobject> NativeToJavaRtpHeaderExtensionParameter(
     const RtpHeaderExtensionCapability& extension) {
   return Java_HeaderExtensionCapability_Constructor(
       env, NativeToJavaString(env, extension.uri),
-      extension.preferred_id.value(), extension.preferred_encrypt);
+      extension.preferred_id.value_or(RtpHeaderExtensionId()).value(),
+      extension.preferred_encrypt);
 }
 }  // namespace
 
@@ -57,8 +59,8 @@ RtpCapabilities JavaToNativeRtpCapabilities(
     RtpHeaderExtensionCapability header_extension;
     header_extension.uri = JavaToStdString(
         jni, Java_HeaderExtensionCapability_getUri(jni, j_header_extension));
-    header_extension.preferred_id =
-        Java_HeaderExtensionCapability_getPreferredId(jni, j_header_extension);
+    header_extension.preferred_id = RtpHeaderExtensionId(
+        Java_HeaderExtensionCapability_getPreferredId(jni, j_header_extension));
     header_extension.preferred_encrypt =
         Java_HeaderExtensionCapability_getPreferredEncrypted(
             jni, j_header_extension);

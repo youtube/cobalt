@@ -5,22 +5,30 @@
 package org.chromium.chrome.browser.tab_bottom_sheet;
 
 import android.content.Context;
+import android.view.LayoutInflater;
 import android.view.View;
 
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackController;
 import org.chromium.base.ResettersForTesting;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.context_sharing.R;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider.LayoutStateObserver;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
+import org.chromium.chrome.browser.tabmodel.TabModelSelectorSupplier;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.widget.TouchEventProvider;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 
 /** Implementation of {@link TabBottomSheetManager}. */
 @NullMarked
@@ -92,6 +100,31 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
     private boolean mIsSuppressedOnTabSwitcher;
     private boolean mIsSuppressedOnToolbarSwipe;
     private boolean mIsSuppressedByReadAloud;
+    private boolean mIsSuppressedByIncognito;
+
+    private final TabModelSelectorObserver mTabModelSelectorObserver =
+            new TabModelSelectorObserver() {
+                @Override
+                public void onChange() {
+                    TabModelSelector selector =
+                            TabModelSelectorSupplier.getValueOrNullFrom(mWindowAndroid);
+                    if (selector == null) return;
+
+                    boolean isIncognito = selector.isIncognitoSelected();
+
+                    if (isIncognito) {
+                        if (!mIsSuppressedByIncognito) {
+                            mIsSuppressedByIncognito = true;
+                            maybeCloseBottomSheet();
+                        }
+                    } else {
+                        if (mIsSuppressedByIncognito) {
+                            mIsSuppressedByIncognito = false;
+                            maybeShowBottomSheet();
+                        }
+                    }
+                }
+            };
 
     private @Nullable View mPeekView;
     private @Nullable NullableObservableSupplier<Tab> mActivePlaybackTabSupplier;
@@ -135,6 +168,18 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
                 mCallbackController.makeCancelable(
                         (provider) -> provider.addObserver(mLayoutStateObserver)));
 
+        MonotonicObservableSupplier<TabModelSelector> selectorSupplier =
+                TabModelSelectorSupplier.from(mWindowAndroid);
+        if (selectorSupplier != null) {
+            selectorSupplier.addSyncObserverAndCallIfNonNull(
+                    mCallbackController.makeCancelable(
+                            (TabModelSelector selector) -> {
+                                if (selector != null) {
+                                    selector.addObserver(mTabModelSelectorObserver);
+                                }
+                            }));
+        }
+
         TabBottomSheetUtils.attachManagerToWindow(windowAndroid, this);
     }
 
@@ -169,7 +214,10 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
             mTabBottomSheetCoordinator.attachPeekView(mPeekView);
         }
 
-        if (mIsSuppressedOnTabSwitcher || mIsSuppressedOnToolbarSwipe || mIsSuppressedByReadAloud) {
+        if (mIsSuppressedOnTabSwitcher
+                || mIsSuppressedOnToolbarSwipe
+                || mIsSuppressedByReadAloud
+                || mIsSuppressedByIncognito) {
             // We are currently suppressed, save this sheet to be shown when suppression ends.
             mNativeInterfaceDelegate = nativeInterfaceDelegate;
             return true;
@@ -206,15 +254,13 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
     }
 
     @Override
-    public void setCanNotBeSuppressed(boolean canNotBeSuppressed) {
-        if (mTabBottomSheetCoordinator != null) {
-            mTabBottomSheetCoordinator.setCanNotBeSuppressed(canNotBeSuppressed);
-        }
-    }
-
-    @Override
-    public void setPeekView(View peekView) {
+    public void setPeekViewModel(PropertyModel model) {
         assert mPeekView == null : "Peek view is already set.";
+        TabBottomSheetPeekView peekView =
+                (TabBottomSheetPeekView)
+                        LayoutInflater.from(mContext)
+                                .inflate(R.layout.tab_bottom_sheet_peek_layout, null, false);
+        PropertyModelChangeProcessor.create(model, peekView, TabBottomSheetPeekViewBinder::bind);
         mPeekView = peekView;
 
         if (mTabBottomSheetCoordinator != null) {
@@ -223,8 +269,10 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
     }
 
     @Override
-    public void removePeekView(View peekView) {
-        if (mPeekView == peekView) {
+    public void removePeekViewModel() {
+        // We only support one peek view at a time, so we just remove it if it exists.
+        if (mPeekView != null) {
+            View peekView = mPeekView;
             mPeekView = null;
             if (mTabBottomSheetCoordinator != null) {
                 mTabBottomSheetCoordinator.removePeekView(peekView);
@@ -281,6 +329,11 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
             mTabBottomSheetCoordinator = null;
         }
 
+        TabModelSelector selector = TabModelSelectorSupplier.getValueOrNullFrom(mWindowAndroid);
+        if (selector != null) {
+            selector.removeObserver(mTabModelSelectorObserver);
+        }
+
         var layoutStateProvider = mLayoutStateProviderOneShotSupplier.get();
         if (layoutStateProvider != null) {
             layoutStateProvider.removeObserver(mLayoutStateObserver);
@@ -324,7 +377,8 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
     private void maybeShowBottomSheet() {
         if (!mIsSuppressedOnTabSwitcher
                 && !mIsSuppressedOnToolbarSwipe
-                && !mIsSuppressedByReadAloud) {
+                && !mIsSuppressedByReadAloud
+                && !mIsSuppressedByIncognito) {
 
             if (mTabBottomSheetCoordinator != null && mNativeInterfaceDelegate != null) {
                 if (!mTabBottomSheetCoordinator.tryToShowBottomSheet(

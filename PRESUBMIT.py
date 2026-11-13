@@ -2285,7 +2285,7 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
         treat_as_error=False,
     ),
     BanRule(
-        pattern='WebContentsDestroyed',
+        pattern=r'/\bWebContentsDestroyed\b',
         explanation=
         ('Do not use WebContentsDestroyed. It is invoked half-way through the '
          'destructor of WebContentsImpl and using it often results in crashes '
@@ -2482,6 +2482,7 @@ _BANNED_GN_PATTERNS: Sequence[BanRule] = (BanRule(
     ),
     treat_as_error=False,
     surface_as_gerrit_lint=True,
+    excluded_paths=(r'^ui/webui/resources/', ),
 ), )
 
 _IPC_ENUM_TRAITS_DEPRECATED = (
@@ -2529,6 +2530,7 @@ _ANDROID_SPECIFIC_PYDEPS_FILES = [
 _GENERIC_PYDEPS_FILES = [
     'android_webview/tools/pinlist/generate_pinlist.pydeps',
     'android_webview/tools/run_cts.pydeps',
+    'base/win/embedded_i18n/create_string_rc.pydeps',
     'build/android/apk_operations.pydeps',
     'build/android/devil_chromium.pydeps',
     'build/android/gyp/aar.pydeps',
@@ -2601,12 +2603,14 @@ _GENERIC_PYDEPS_FILES = [
     'components/cronet/tools/check_combined_proguard_file.pydeps',
     'components/cronet/tools/generate_proguard_file.pydeps',
     'components/cronet/tools/jar_src.pydeps',
+    'components/language/content/browser/ulp_language_code_locator/ulp_serialized_to_static_c.pydeps',
     'components/module_installer/android/module_desc_java.pydeps',
     'components/policy/tools/template_writers/template_formatter.pydeps',
     'content/public/android/generate_child_service.pydeps',
     'fuchsia_web/av_testing/av_sync_tests.pydeps',
     'remoting/tools/build/remoting_copy_locales.pydeps',
     'remoting/tools/build/remoting_localize.pydeps',
+    'testing/libfuzzer/research/fuzzilli_idl_fuzzing/generator.pydeps',
     'testing/scripts/run_isolated_script_test.pydeps',
     'testing/merge_scripts/standard_isolated_script_merge.pydeps',
     'testing/merge_scripts/standard_gtest_merge.pydeps',
@@ -2624,6 +2628,7 @@ _GENERIC_PYDEPS_FILES = [
     'tools/binary_size/sizes.pydeps',
     'tools/binary_size/supersize.pydeps',
     'tools/cygprofile/generate_orderfile.pydeps',
+    'tools/flags/generate_expired_list.pydeps',
     'tools/grit/grit_info.pydeps',
     'tools/grit/grit.pydeps',
     "tools/metrics/histograms/generate_allowlist_from_histograms_file.pydeps",
@@ -7636,7 +7641,6 @@ def CheckConsistentGrdChanges(input_api, output_api):
 def CheckAssertAshOnlyCode(input_api, output_api):
     """Errors if a BUILD.gn file in an ash/ directory doesn't include
     assert(is_chromeos).
-    For a transition period, assert(is_chromeos_ash) is also accepted.
     """
 
     def FileFilter(affected_file):
@@ -7649,7 +7653,7 @@ def CheckAssertAshOnlyCode(input_api, output_api):
             files_to_skip=(input_api.DEFAULT_FILES_TO_SKIP))
 
     errors = []
-    pattern = input_api.re.compile(r'assert\(is_chromeos(_ash)?\b')
+    pattern = input_api.re.compile(r'assert\(is_chromeos\b')
     for f in input_api.AffectedFiles(include_deletes=False,
                                      file_filter=FileFilter):
         if (not pattern.search(input_api.ReadFile(f))):
@@ -8221,6 +8225,118 @@ def CheckBaseFeatureMacro(input_api, output_api):
     return [
         output_api.PresubmitPromptWarning('BASE_FEATURE() macro naming:',
                                           warnings)
+    ]
+
+
+def CheckBaseFeatureParamMacro(input_api, output_api):
+    """Checks for correct usage of BASE_FEATURE_PARAM/ENUM_PARAM macros."""
+    # Helpers mirroring testing/variations/presubmit/find_features.py so the
+    # macro arguments are tokenized consistently (e.g. commas inside quoted
+    # string literals or template arguments do not split args incorrectly).
+    # Matches a single C++ double-quoted string literal, handling backslash
+    # escape sequences such as \" or \\.
+    quote_str = r'"(?:\\.|[^"\\])*"'
+    # Matches a single macro argument, handling commas inside quoted strings,
+    # balanced parentheses (nested function calls), or balanced angle brackets
+    # (template types). quote_str is listed first in each alternation so
+    # quoted strings are matched atomically and any parens/angle brackets
+    # inside them are not counted as structural delimiters.
+    arg = (r'(?:' + quote_str + r'|[^,()<>"]'
+           r'|\((?:' + quote_str + r'|[^()"])*\)'
+           r'|<(?:' + quote_str + r'|[^<>"])*>)*')
+
+    # 5-arg BASE_FEATURE_PARAM(type, var, &feature, "name", default);
+    # The 4th arg is a string literal followed by a comma (discouraged form).
+    param_5_args_re = input_api.re.compile(
+        r'\bBASE_FEATURE_PARAM\(' + arg + r',\s*(\w+)\s*,' + arg + r','
+        r'\s*' + quote_str + r'\s*,(?:[^;"]|' + quote_str + r')*?\);',
+        input_api.re.MULTILINE | input_api.re.DOTALL)
+
+    # 4-arg BASE_FEATURE_PARAM(type, kVar, &feature, default);
+    # The 4th arg is NOT a string literal followed by a comma.
+    param_4_args_re = input_api.re.compile(
+        r'\bBASE_FEATURE_PARAM\(' + arg + r',\s*(\w+)\s*,' + arg + r','
+        r'\s*(?!' + quote_str + r'\s*,)(?:[^;,"]|' + quote_str + r')*?\);',
+        input_api.re.MULTILINE | input_api.re.DOTALL)
+
+    # 6-arg BASE_FEATURE_ENUM_PARAM(type, var, &feature, "name", default,
+    # &opts); The 4th arg is a string literal (discouraged form).
+    enum_param_6_args_re = input_api.re.compile(
+        r'\bBASE_FEATURE_ENUM_PARAM\(' + arg + r',\s*(\w+)\s*,' + arg + r','
+        r'\s*' + quote_str + r'\s*,' + arg
+        + r',(?:[^;"]|' + quote_str + r')*?\);',
+        input_api.re.MULTILINE | input_api.re.DOTALL)
+
+    # 5-arg BASE_FEATURE_ENUM_PARAM(type, kVar, &feature, default, &opts);
+    # The 4th arg is NOT a string literal.
+    enum_param_5_args_re = input_api.re.compile(
+        r'\bBASE_FEATURE_ENUM_PARAM\(' + arg + r',\s*(\w+)\s*,' + arg + r','
+        r'\s*(?!' + quote_str + r'\s*,)' + arg
+        + r',(?:[^;"]|' + quote_str + r')*?\);',
+        input_api.re.MULTILINE | input_api.re.DOTALL)
+
+    warnings = []
+
+    def _check_matches(f, contents, lines, changed_line_numbers, regex,
+                       discouraged_msg):
+        for match in regex.finditer(contents):
+            start_line = contents.count('\n', 0, match.start()) + 1
+            end_line = contents.count('\n', 0, match.end()) + 1
+
+            if not changed_line_numbers.intersection(
+                    range(start_line, end_line + 1)):
+                continue
+
+            if lines[start_line - 1].strip().startswith('//'):
+                continue
+
+            identifier = match.group(1).strip()
+
+            if discouraged_msg:
+                warnings.append('    %s:%d: %s' %
+                                (f.LocalPath(), start_line, discouraged_msg))
+
+            if not input_api.re.match(r'^k[A-Z]', identifier):
+                warnings.append(
+                    '    %s:%d: Feature param identifier "%s" should start '
+                    'with "k" followed by an uppercase letter.' %
+                    (f.LocalPath(), start_line, identifier))
+
+    for f in input_api.AffectedFiles():
+        if not f.LocalPath().endswith(('.cc', '.mm')):
+            continue
+
+        changed_line_numbers = {
+            line_num
+            for line_num, _ in f.ChangedContents()
+        }
+        if not changed_line_numbers:
+            continue
+
+        lines = list(f.NewContents())
+        contents = '\n'.join(lines)
+
+        _check_matches(
+            f, contents, lines, changed_line_numbers, param_5_args_re,
+            'The 5-argument BASE_FEATURE_PARAM macro with a string literal '
+            'name is discouraged. Use the 4-argument version instead.')
+        _check_matches(f, contents, lines, changed_line_numbers,
+                       param_4_args_re, None)
+        _check_matches(
+            f, contents, lines, changed_line_numbers, enum_param_6_args_re,
+            'The 6-argument BASE_FEATURE_ENUM_PARAM macro with a string '
+            'literal name is discouraged. Use the 5-argument version '
+            'instead.')
+        _check_matches(f, contents, lines, changed_line_numbers,
+                       enum_param_5_args_re, None)
+
+    if not warnings:
+        return []
+
+    return [
+        output_api.PresubmitPromptWarning(
+            'BASE_FEATURE_PARAM()/BASE_FEATURE_ENUM_PARAM() macro naming:',
+            warnings)
     ]
 
 

@@ -8,6 +8,7 @@
 
 #include "hwy/highway.h"
 #include "include/v8config.h"
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
@@ -336,7 +337,7 @@ bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
       InternalizeJsonProperty<reviver_mode>(holder, name, val_node, snapshot),
       false);
   Maybe<bool> change_result = Nothing<bool>();
-  if (IsUndefined(*result, isolate_)) {
+  if (IsUndefined(*result)) {
     change_result = JSReceiver::DeletePropertyOrElement(isolate_, holder, name,
                                                         LanguageMode::kSloppy);
   } else {
@@ -972,6 +973,7 @@ V8_INLINE MaybeHandle<Object> JsonParser<Char>::ParseJsonValueRecursive(
     case JsonToken::WHITESPACE:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 template <typename Char>

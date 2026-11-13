@@ -50,7 +50,7 @@ namespace {
 #if BUILDFLAG(IS_FUZZILLI)
 // Fuzzilli handles timeouts by itself so that it detects when there are
 // infinite loops.
-constexpr std::optional<base::TimeDelta> kJsExecutionTimeout = std::nullopt;
+constexpr std::optional<base::TimeDelta> kJsExecutionTimeout;
 constexpr RunLoopTimeoutBehavior kJsRunLoopTimeoutBehavior =
     RunLoopTimeoutBehavior::kDefault;
 #else
@@ -58,9 +58,14 @@ constexpr std::optional<base::TimeDelta> kJsExecutionTimeout = base::Seconds(8);
 constexpr RunLoopTimeoutBehavior kJsRunLoopTimeoutBehavior =
     RunLoopTimeoutBehavior::kDeclareInfiniteLoop;
 #endif
-
 constexpr char kMojoFuzzerHtml[] = R"(
 <script src="gen/mojo/public/js/mojo_bindings_lite.js"></script>
+<script src="gen/mojo/public/mojom/base/string16.mojom-lite.js"></script>
+<script src="gen/url/mojom/scheme_host_port.mojom-lite.js"></script>
+<script src="gen/url/mojom/url.mojom-lite.js"></script>
+<script
+ src="gen/third_party/blink/public/mojom/credentialmanagement/credential_manager.mojom-lite.js">
+</script>
 <script
  src="gen/third_party/blink/public/mojom/locks/lock_manager.mojom-lite.js">
 </script>
@@ -154,6 +159,10 @@ int JsInProcessFuzzer::Fuzz(const uint8_t* data, size_t size) {
   // etc.)
   testing::AssertionResult res = content::ExecJs(rfh, js_str);
 #if BUILDFLAG(IS_FUZZILLI)
+  if (js_str.contains("EXPERIMENTAL_lock_manager_crash")) {
+    raise(SIGTERM);
+  }
+
   // Fuzzilli needs to know when an exception was uncaught.
   if (!res) {
     return -1;

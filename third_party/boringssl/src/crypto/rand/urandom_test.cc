@@ -640,10 +640,10 @@ out:
 // |GetTrace| will observe the real code making.
 static std::vector<Event> TestFunctionPRNGModel(unsigned flags) {
   std::vector<Event> ret;
-  bool used_daemon = false;
 
-  if (have_fork_detection()) {
-    used_daemon = kUsesDaemon && AppendDaemonEvents(&ret, flags);
+  bool daemon_failed = false;
+  if (have_fork_detection() && kUsesDaemon) {
+    daemon_failed = !AppendDaemonEvents(&ret, flags);
   }
 
   // Probe for getrandom support
@@ -683,8 +683,10 @@ static std::vector<Event> TestFunctionPRNGModel(unsigned flags) {
     };
   }
 
-  const size_t kSeedLength =
-      CTR_DRBG_SEED_LEN * (kIsFIPS ? 10 : 1) + (kIsFIPS ? 16 : 0);
+  if (daemon_failed && !sysrand(48)) {
+    return ret;
+  }
+
   const size_t kAdditionalDataLength = 32;
 
   if (!have_rdrand()) {
@@ -692,12 +694,16 @@ static std::vector<Event> TestFunctionPRNGModel(unsigned flags) {
       if (!sysrand(kAdditionalDataLength)) {
         return ret;
       }
-      used_daemon = kUsesDaemon && AppendDaemonEvents(&ret, flags);
+      if (kUsesDaemon && !AppendDaemonEvents(&ret, flags) &&
+          !sysrand(48)) {
+        return ret;
+      }
     }
-    if (// Initialise CRNGT. If the daemon is used, the OS is used for the
-        // personalisation data of length |CTR_DRBG_SEED_LEN|. Otherwise, it
-        // used for the seed itself, including FIPS overread.
-        !sysrand(used_daemon ? CTR_DRBG_SEED_LEN : kSeedLength) ||
+    if (  // Initialise thread-local DRBG. In FIPS mode, the jitter source
+          // will be used, but we cannot observe that. Either way,
+          // CTR_DRBG_SEED_LEN will be drawn from sysrand, either as the
+          // additional data in FIPS mode, or as the seed otherwise.
+        !sysrand(CTR_DRBG_SEED_LEN) ||
         // Second additional data, when other fork-safety measures have failed.
         (!have_fork_detection() && !sysrand(kAdditionalDataLength))) {
       return ret;

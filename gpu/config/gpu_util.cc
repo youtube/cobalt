@@ -362,18 +362,11 @@ void AdjustGpuFeatureStatusToWorkarounds(GpuFeatureInfo* gpu_feature_info,
   }
   // If disable_webnn_for_gpu workaround is enabled for the GPU device, we need
   // to check to see if there is a NPU device available before setting the WebNN
-  // gpu feature status. If there is a NPU device, check the
-  // disable_webnn_for_npu workaround.
-  if (gpu_feature_info->IsWorkaroundEnabled(DISABLE_WEBNN_FOR_GPU)) {
-    if (gpu_info.npus.size() > 0) {
-      if (gpu_feature_info->IsWorkaroundEnabled(DISABLE_WEBNN_FOR_NPU)) {
-        gpu_feature_info->status_values[GPU_FEATURE_TYPE_WEBNN] =
-            kGpuFeatureStatusSoftware;
-      }
-    } else {
-      gpu_feature_info->status_values[GPU_FEATURE_TYPE_WEBNN] =
-          kGpuFeatureStatusSoftware;
-    }
+  // gpu feature status to software.
+  if (gpu_feature_info->IsWorkaroundEnabled(DISABLE_WEBNN_FOR_GPU) &&
+      gpu_info.npus.empty()) {
+    gpu_feature_info->status_values[GPU_FEATURE_TYPE_WEBNN] =
+        kGpuFeatureStatusSoftware;
   }
 }
 
@@ -1068,8 +1061,8 @@ IntelGpuGeneration GetIntelGpuGeneration(const GPUInfo& gpu_info) {
 void CollectDevicePerfInfo(DevicePerfInfo* device_perf_info,
                            bool in_browser_process) {
   DCHECK(device_perf_info);
-  device_perf_info->total_physical_memory_mb =
-      static_cast<uint32_t>(base::SysInfo::AmountOfPhysicalMemory().InMiB());
+  device_perf_info->total_physical_memory_mb = static_cast<uint32_t>(
+      base::SysInfo::AmountOfTotalPhysicalMemory().InMiB());
   if (!in_browser_process)
     device_perf_info->total_disk_space_mb = EstimateAmountOfTotalDiskSpaceMB();
   device_perf_info->hardware_concurrency =

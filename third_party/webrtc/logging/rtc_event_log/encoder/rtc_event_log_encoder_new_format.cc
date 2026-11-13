@@ -148,17 +148,17 @@ bool ConvertToProtoFormat(const std::vector<RtpExtension>& extensions,
   size_t unknown_extensions = 0;
   for (auto& extension : extensions) {
     if (extension.uri == RtpExtension::kAudioLevelUri) {
-      proto_config->set_audio_level_id(extension.id);
+      proto_config->set_audio_level_id(extension.id.value());
     } else if (extension.uri == RtpExtension::kTimestampOffsetUri) {
-      proto_config->set_transmission_time_offset_id(extension.id);
+      proto_config->set_transmission_time_offset_id(extension.id.value());
     } else if (extension.uri == RtpExtension::kAbsSendTimeUri) {
-      proto_config->set_absolute_send_time_id(extension.id);
+      proto_config->set_absolute_send_time_id(extension.id.value());
     } else if (extension.uri == RtpExtension::kTransportSequenceNumberUri) {
-      proto_config->set_transport_sequence_number_id(extension.id);
+      proto_config->set_transport_sequence_number_id(extension.id.value());
     } else if (extension.uri == RtpExtension::kVideoRotationUri) {
-      proto_config->set_video_rotation_id(extension.id);
+      proto_config->set_video_rotation_id(extension.id.value());
     } else if (extension.uri == RtpExtension::kDependencyDescriptorUri) {
-      proto_config->set_dependency_descriptor_id(extension.id);
+      proto_config->set_dependency_descriptor_id(extension.id.value());
     } else {
       ++unknown_extensions;
     }

@@ -34,7 +34,9 @@
 #include "api/function_view.h"
 #include "api/make_ref_counted.h"
 #include "api/media_types.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
+#include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
@@ -181,7 +183,7 @@ class ChannelSend : public ChannelSendInterface,
                                         int payload_frequency) override;
 
   // RTP+RTCP
-  void SetSendAudioLevelIndicationStatus(bool enable, int id) override;
+  void SetSendAudioLevelIndicationStatus(RtpHeaderExtensionId id) override;
 
   void RegisterSenderCongestionControlObjects(
       RtpTransportControllerSendInterface* transport) override;
@@ -763,10 +765,10 @@ void ChannelSend::SetSendTelephoneEventPayloadType(int payload_type,
                                           payload_frequency, 0, 0);
 }
 
-void ChannelSend::SetSendAudioLevelIndicationStatus(bool enable, int id) {
+void ChannelSend::SetSendAudioLevelIndicationStatus(RtpHeaderExtensionId id) {
   RTC_DCHECK_RUN_ON(worker_thread_);
-  include_audio_level_indication_.store(enable);
-  if (enable) {
+  include_audio_level_indication_.store(id.IsSet());
+  if (id.IsSet()) {
     rtp_rtcp_->RegisterRtpHeaderExtension(AudioLevelExtension::Uri(), id);
   } else {
     rtp_rtcp_->DeregisterSendRtpHeaderExtension(AudioLevelExtension::Uri());

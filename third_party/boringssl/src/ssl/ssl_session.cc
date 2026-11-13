@@ -42,8 +42,8 @@ static const char g_pending_session_magic = 0;
 
 static ExDataClass g_ex_data_class(/*with_app_data=*/true);
 
-static void SSL_SESSION_list_remove(SSL_CTX *ctx, SSL_SESSION *session);
-static void SSL_SESSION_list_add(SSL_CTX *ctx, SSL_SESSION *session);
+static void SSL_SESSION_list_remove(SSLContext *ctx, SSL_SESSION *session);
+static void SSL_SESSION_list_add(SSLContext *ctx, SSL_SESSION *session);
 
 UniquePtr<SSL_SESSION> ssl_session_new(const SSL_X509_METHOD *x509_method) {
   return MakeUnique<SSL_SESSION>(x509_method);
@@ -265,7 +265,7 @@ bool ssl_get_new_session(SSL_HANDSHAKE *hs) {
   return true;
 }
 
-bool ssl_ctx_rotate_ticket_encryption_key(SSL_CTX *ctx) {
+bool ssl_ctx_rotate_ticket_encryption_key(SSLContext *ctx) {
   OPENSSL_timeval now = ssl_ctx_get_current_time(ctx);
   {
     // Avoid acquiring a write lock in the common case (i.e. a non-default key
@@ -329,7 +329,7 @@ static int ssl_encrypt_ticket_with_cipher_ctx(SSL_HANDSHAKE *hs, CBB *out,
 
   // Initialize HMAC and cipher contexts. If callback present it does all the
   // work otherwise use generated values from parent ctx.
-  SSL_CTX *tctx = hs->ssl->session_ctx.get();
+  SSLContext *tctx = hs->ssl->session_ctx.get();
   uint8_t iv[EVP_MAX_IV_LENGTH];
   uint8_t key_name[16];
   if (tctx->ticket_key_cb != nullptr) {
@@ -628,7 +628,7 @@ enum ssl_hs_wait_t ssl_get_prev_session(SSL_HANDSHAKE *hs,
   return ssl_hs_ok;
 }
 
-static bool remove_session(SSL_CTX *ctx, SSL_SESSION *session, bool lock) {
+static bool remove_session(SSLContext *ctx, SSL_SESSION *session, bool lock) {
   if (session == nullptr || session->session_id.empty()) {
     return false;
   }
@@ -669,7 +669,7 @@ void ssl_set_session(SSL *ssl, SSL_SESSION *session) {
 }
 
 // locked by SSL_CTX in the calling function
-static void SSL_SESSION_list_remove(SSL_CTX *ctx, SSL_SESSION *session) {
+static void SSL_SESSION_list_remove(SSLContext *ctx, SSL_SESSION *session) {
   if (session->next == nullptr || session->prev == nullptr) {
     return;
   }
@@ -697,7 +697,7 @@ static void SSL_SESSION_list_remove(SSL_CTX *ctx, SSL_SESSION *session) {
   session->prev = session->next = nullptr;
 }
 
-static void SSL_SESSION_list_add(SSL_CTX *ctx, SSL_SESSION *session) {
+static void SSL_SESSION_list_add(SSLContext *ctx, SSL_SESSION *session) {
   if (session->next != nullptr && session->prev != nullptr) {
     SSL_SESSION_list_remove(ctx, session);
   }
@@ -715,7 +715,7 @@ static void SSL_SESSION_list_add(SSL_CTX *ctx, SSL_SESSION *session) {
   }
 }
 
-static bool add_session_locked(SSL_CTX *ctx, UniquePtr<SSL_SESSION> session) {
+static bool add_session_locked(SSLContext *ctx, UniquePtr<SSL_SESSION> session) {
   SSL_SESSION *new_session = session.get();
   SSL_SESSION *old_session;
   if (!lh_SSL_SESSION_insert(ctx->sessions, &old_session, new_session)) {
@@ -761,7 +761,7 @@ static bool add_session_locked(SSL_CTX *ctx, UniquePtr<SSL_SESSION> session) {
 }
 
 void ssl_update_cache(SSL *ssl) {
-  SSL_CTX *ctx = ssl->session_ctx.get();
+  SSLContext *ctx = ssl->session_ctx.get();
   SSL_SESSION *session = ssl->s3->established_session.get();
   int mode = SSL_is_server(ssl) ? SSL_SESS_CACHE_SERVER : SSL_SESS_CACHE_CLIENT;
   if (!SSL_SESSION_is_resumable(session) ||
@@ -838,7 +838,7 @@ ssl_session_st::~ssl_session_st() {
 }
 
 SSL_SESSION *SSL_SESSION_new(const SSL_CTX *ctx) {
-  return ssl_session_new(ctx->x509_method).release();
+  return ssl_session_new(FromOpaque(ctx)->x509_method).release();
 }
 
 int SSL_SESSION_up_ref(SSL_SESSION *session) {
@@ -1099,13 +1099,14 @@ void *SSL_SESSION_get_ex_data(const SSL_SESSION *session, int idx) {
 }
 
 int SSL_CTX_add_session(SSL_CTX *ctx, SSL_SESSION *session) {
+  auto *ctx_impl = FromOpaque(ctx);
   UniquePtr<SSL_SESSION> owned_session = UpRef(session);
-  MutexWriteLock lock(&ctx->lock);
-  return add_session_locked(ctx, std::move(owned_session));
+  MutexWriteLock lock(&ctx_impl->lock);
+  return add_session_locked(ctx_impl, std::move(owned_session));
 }
 
 int SSL_CTX_remove_session(SSL_CTX *ctx, SSL_SESSION *session) {
-  return remove_session(ctx, session, /*lock=*/true);
+  return remove_session(FromOpaque(ctx), session, /*lock=*/true);
 }
 
 int SSL_set_session(SSL *ssl, SSL_SESSION *session) {
@@ -1130,9 +1131,7 @@ uint32_t SSL_CTX_set_timeout(SSL_CTX *ctx, uint32_t timeout) {
     timeout = SSL_DEFAULT_SESSION_TIMEOUT;
   }
 
-  uint32_t old_timeout = ctx->session_timeout;
-  ctx->session_timeout = timeout;
-  return old_timeout;
+  return std::exchange(FromOpaque(ctx)->session_timeout, timeout);
 }
 
 uint32_t SSL_CTX_get_timeout(const SSL_CTX *ctx) {
@@ -1140,15 +1139,15 @@ uint32_t SSL_CTX_get_timeout(const SSL_CTX *ctx) {
     return 0;
   }
 
-  return ctx->session_timeout;
+  return FromOpaque(ctx)->session_timeout;
 }
 
 void SSL_CTX_set_session_psk_dhe_timeout(SSL_CTX *ctx, uint32_t timeout) {
-  ctx->session_psk_dhe_timeout = timeout;
+  FromOpaque(ctx)->session_psk_dhe_timeout = timeout;
 }
 
 typedef struct timeout_param_st {
-  SSL_CTX *ctx;
+  SSLContext *ctx;
   uint64_t time;
   LHASH_OF(SSL_SESSION) *cache;
 } TIMEOUT_PARAM;
@@ -1172,53 +1171,53 @@ static void timeout_doall_arg(SSL_SESSION *session, void *void_param) {
 }
 
 void SSL_CTX_flush_sessions(SSL_CTX *ctx, uint64_t time) {
+  auto *ctx_impl = FromOpaque(ctx);
   TIMEOUT_PARAM tp;
-
-  tp.ctx = ctx;
-  tp.cache = ctx->sessions;
+  tp.ctx = ctx_impl;
+  tp.cache = ctx_impl->sessions;
   if (tp.cache == nullptr) {
     return;
   }
   tp.time = time;
-  MutexWriteLock lock(&ctx->lock);
+  MutexWriteLock lock(&ctx_impl->lock);
   lh_SSL_SESSION_doall_arg(tp.cache, timeout_doall_arg, &tp);
 }
 
 void SSL_CTX_sess_set_new_cb(SSL_CTX *ctx,
                              int (*cb)(SSL *ssl, SSL_SESSION *session)) {
-  ctx->new_session_cb = cb;
+  FromOpaque(ctx)->new_session_cb = cb;
 }
 
 int (*SSL_CTX_sess_get_new_cb(SSL_CTX *ctx))(SSL *ssl, SSL_SESSION *session) {
-  return ctx->new_session_cb;
+  return FromOpaque(ctx)->new_session_cb;
 }
 
 void SSL_CTX_sess_set_remove_cb(SSL_CTX *ctx,
                                 void (*cb)(SSL_CTX *ctx,
                                            SSL_SESSION *session)) {
-  ctx->remove_session_cb = cb;
+  FromOpaque(ctx)->remove_session_cb = cb;
 }
 
 void (*SSL_CTX_sess_get_remove_cb(SSL_CTX *ctx))(SSL_CTX *ctx,
                                                  SSL_SESSION *session) {
-  return ctx->remove_session_cb;
+  return FromOpaque(ctx)->remove_session_cb;
 }
 
 void SSL_CTX_sess_set_get_cb(SSL_CTX *ctx,
                              SSL_SESSION *(*cb)(SSL *ssl, const uint8_t *id,
                                                 int id_len, int *out_copy)) {
-  ctx->get_session_cb = cb;
+  FromOpaque(ctx)->get_session_cb = cb;
 }
 
 SSL_SESSION *(*SSL_CTX_sess_get_get_cb(SSL_CTX *ctx))(SSL *ssl,
                                                       const uint8_t *id,
                                                       int id_len,
                                                       int *out_copy) {
-  return ctx->get_session_cb;
+  return FromOpaque(ctx)->get_session_cb;
 }
 
 void SSL_CTX_set_resumption_across_names_enabled(SSL_CTX *ctx, int enabled) {
-  ctx->resumption_across_names_enabled = !!enabled;
+  FromOpaque(ctx)->resumption_across_names_enabled = !!enabled;
 }
 
 void SSL_set_resumption_across_names_enabled(SSL *ssl, int enabled) {
@@ -1227,10 +1226,10 @@ void SSL_set_resumption_across_names_enabled(SSL *ssl, int enabled) {
 
 void SSL_CTX_set_info_callback(SSL_CTX *ctx, void (*cb)(const SSL *ssl,
                                                         int type, int value)) {
-  ctx->info_callback = cb;
+  FromOpaque(ctx)->info_callback = cb;
 }
 
 void (*SSL_CTX_get_info_callback(SSL_CTX *ctx))(const SSL *ssl, int type,
                                                 int value) {
-  return ctx->info_callback;
+  return FromOpaque(ctx)->info_callback;
 }

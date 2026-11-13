@@ -76,6 +76,21 @@ TEST_F(DrivePickerSanitizerTest, SanitizeValidPhotoWithThumbnail) {
   EXPECT_EQ(sanitized->thumbnail_url.value(), valid_url);
 }
 
+TEST_F(DrivePickerSanitizerTest, SanitizeValidPhotoWithDThumbnail) {
+  auto file = CreateValidFile();
+  file->type = "photo";
+  GURL valid_url(
+      "https://lh3.googleusercontent.com/d/"
+      "1aBcD2eFgH3iJkL4mN-oPqR5sTuvWxYz0=s220");
+  file->thumbnail_url = valid_url;
+
+  auto sanitized = DrivePickerSanitizer::Sanitize(file);
+
+  ASSERT_TRUE(sanitized.has_value());
+  ASSERT_TRUE(sanitized->thumbnail_url.has_value());
+  EXPECT_EQ(sanitized->thumbnail_url.value(), valid_url);
+}
+
 TEST_F(DrivePickerSanitizerTest, BlocksInvalidThumbnailUrl) {
   {
     auto file = CreateValidFile();
@@ -107,7 +122,7 @@ TEST_F(DrivePickerSanitizerTest, BlocksInvalidThumbnailUrl) {
   }
 }
 
-TEST_F(DrivePickerSanitizerTest, BlocksThumbnailForNonPhoto) {
+TEST_F(DrivePickerSanitizerTest, BlocksThumbnailForNonPhotoOrVideo) {
   auto file = CreateValidFile();
   file->type = "document";
   file->thumbnail_url = GURL(
@@ -122,6 +137,69 @@ TEST_F(DrivePickerSanitizerTest, BlocksThumbnailForNonPhoto) {
 
   ASSERT_TRUE(sanitized.has_value());
   EXPECT_FALSE(sanitized->thumbnail_url.has_value());
+}
+
+TEST_F(DrivePickerSanitizerTest, SanitizeValidVideoWithThumbnail) {
+  auto file = CreateValidFile();
+  file->type = "video";
+  GURL valid_url(
+      "https://lh3.googleusercontent.com/drive-storage/"
+      "AJQWtBOI_xcNPWAVolLfcNDZGWus_ELL8GP-ZYLdkxOcPlUxsVOMr5jn-"
+      "i261zxtYVcpA0kZeP"
+      "sVWT2Ghrxdg03aoJYX7t9vlc4ojecNyW7QNrP6muY9-"
+      "wvmO77SsiXHrwnU2GbRCt2V9NDv62u2"
+      "R96rpvI=s220");
+  file->thumbnail_url = valid_url;
+
+  auto sanitized = DrivePickerSanitizer::Sanitize(file);
+
+  ASSERT_TRUE(sanitized.has_value());
+  ASSERT_TRUE(sanitized->thumbnail_url.has_value());
+  EXPECT_EQ(sanitized->thumbnail_url.value(), valid_url);
+}
+
+TEST_F(DrivePickerSanitizerTest, BlocksInvalidThumbnailUrlForVideo) {
+  auto file = CreateValidFile();
+  file->type = "video";
+  file->thumbnail_url = GURL("https://malicious.com/not-drive-storage/AJQWt");
+  auto sanitized = DrivePickerSanitizer::Sanitize(file);
+  ASSERT_TRUE(sanitized.has_value());
+  EXPECT_FALSE(sanitized->thumbnail_url.has_value());
+}
+
+TEST_F(DrivePickerSanitizerTest, AllowsCorrectDriveGoogleComUrls) {
+  auto valid_cases = {"https://drive.google.com/thumbnail",
+                      "https://drive.google.com/thumbnail?id=123"};
+
+  for (const auto* url : valid_cases) {
+    auto file = CreateValidFile();
+    file->type = "photo";
+    file->thumbnail_url = GURL(url);
+    auto sanitized = DrivePickerSanitizer::Sanitize(file);
+    ASSERT_TRUE(sanitized.has_value());
+    EXPECT_TRUE(sanitized->thumbnail_url.has_value()) << "Failed for: " << url;
+  }
+}
+
+TEST_F(DrivePickerSanitizerTest, BlocksInvalidDriveGoogleComUrls) {
+  auto invalid_cases = {
+      "https://drive.google.com/thumbnail_abc",
+      "https://drive.google.com/file/d/ABC-123_xyz=/edit",
+      "https://drive.google.com/file/d//view",
+      "https://drive.google.com/file/d/abc^def/view",
+      "https://drive.google.com/file/d/ABC-123_xyz=/view",
+      "https://drive.google.com/file/d/ABC-123_xyz=/preview",
+      "https://drive.google.com/file/d/ABC-123_xyz=/view?usp=sharing"};
+
+  for (const auto* url : invalid_cases) {
+    auto file = CreateValidFile();
+    file->type = "photo";
+    file->thumbnail_url = GURL(url);
+    auto sanitized = DrivePickerSanitizer::Sanitize(file);
+    ASSERT_TRUE(sanitized.has_value());
+    EXPECT_FALSE(sanitized->thumbnail_url.has_value())
+        << "Should have failed for: " << url;
+  }
 }
 
 TEST_F(DrivePickerSanitizerTest, ThrowsOnInvalidId) {
@@ -150,6 +228,44 @@ TEST_F(DrivePickerSanitizerTest, SanitizesInvalidResourceKey) {
 
   ASSERT_TRUE(sanitized.has_value());
   EXPECT_FALSE(sanitized->resource_key.has_value());
+}
+
+TEST_F(DrivePickerSanitizerTest, SanitizeDriveIconUrl) {
+  // Valid hosts and paths.
+  EXPECT_EQ(DrivePickerSanitizer::SanitizeDriveIconUrl(
+                "https://drive-thirdparty.googleusercontent.com/16/type/pdf"),
+            GURL("https://drive-thirdparty.googleusercontent.com/16/type/pdf"));
+  EXPECT_EQ(DrivePickerSanitizer::SanitizeDriveIconUrl(
+                "https://lh3.googleusercontent.com/16/hype/image/png"),
+            GURL("https://lh3.googleusercontent.com/16/hype/image/png"));
+  EXPECT_EQ(DrivePickerSanitizer::SanitizeDriveIconUrl(
+                "https://lh6.googleusercontent.com/16/type/video/mp4"),
+            GURL("https://lh6.googleusercontent.com/16/type/video/mp4"));
+
+  // Invalid hosts
+  EXPECT_TRUE(DrivePickerSanitizer::SanitizeDriveIconUrl(
+                  "https://malicious.com/16/type/pdf")
+                  .is_empty());
+  EXPECT_TRUE(DrivePickerSanitizer::SanitizeDriveIconUrl(
+                  "https://lh7.googleusercontent.com/16/type/pdf")
+                  .is_empty());
+
+  // Invalid URL string
+  EXPECT_TRUE(
+      DrivePickerSanitizer::SanitizeDriveIconUrl("not-a-url").is_empty());
+}
+
+TEST_F(DrivePickerSanitizerTest, SanitizeCopiesSanitizedIconUrl) {
+  auto file = CreateValidFile();
+  GURL valid_icon_url(
+      "https://drive-thirdparty.googleusercontent.com/16/type/pdf");
+  file->icon_url = valid_icon_url;
+
+  auto sanitized = DrivePickerSanitizer::Sanitize(file);
+
+  ASSERT_TRUE(sanitized.has_value());
+  ASSERT_TRUE(sanitized->icon_url.has_value());
+  EXPECT_EQ(sanitized->icon_url.value(), valid_icon_url);
 }
 
 TEST_F(DrivePickerSanitizerTest, ThrowsOnInvalidMetadata) {

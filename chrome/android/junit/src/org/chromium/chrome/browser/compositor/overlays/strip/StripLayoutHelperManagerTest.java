@@ -62,6 +62,7 @@ import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.back_press.BackPressManager;
+import org.chromium.chrome.browser.bookmarks.TabBookmarker;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.collaboration.CollaborationServiceFactory;
 import org.chromium.chrome.browser.compositor.LayerTitleCache;
@@ -116,6 +117,7 @@ import org.chromium.components.prefs.PrefService;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.components.user_prefs.UserPrefsJni;
+import org.chromium.ui.base.ActivityResultTracker;
 import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.dragdrop.DragAndDropDelegate;
@@ -173,6 +175,8 @@ public class StripLayoutHelperManagerTest {
     @Mock private BackPressManager mBackPressManager;
     @Mock private SnackbarManager mSnackbarManager;
     @Mock private GlicKeyedService mGlicKeyedService;
+    @Mock private TabBookmarker mTabBookmarker;
+    @Mock private ActivityResultTracker mActivityResultTracker;
     @Mock private PrefService mPrefService;
     @Mock private UserPrefs.Natives mUserPrefsJniMock;
     @Mock private PrefChangeRegistrar.Natives mPrefChangeRegistrarJniMock;
@@ -277,10 +281,12 @@ public class StripLayoutHelperManagerTest {
                         mDataSharingTabManager,
                         mBottomSheetController,
                         ObservableSuppliers.createMonotonic(mShareDelegate),
+                        () -> mTabBookmarker,
                         /* xrSpaceModeObservableSupplier= */ null,
                         mBackPressManager,
                         mSnackbarManager,
-                        CallbackUtils.emptyCallback(),
+                        mActivityResultTracker,
+                        (preventClose, invocationSource) -> {},
                         mGlicKeyedService);
         mStripLayoutHelperManager.setTabStripTreeProviderForTesting(mTabStripTreeProvider);
         mStripLayoutHelperManager.setTabModelSelector(mTabModelSelector, mTabCreatorManager);

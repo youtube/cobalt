@@ -60,6 +60,7 @@ source_set("sync_integration_tests_impl") {
     "//components/sync_bookmarks",
     "//components/sync_device_info:test_support",
     "//components/sync_preferences:common_syncable_prefs_database",
+    "//components/sync_preferences:features",
     "//components/undo",
     "//components/version_info",
     "//components/webauthn:features",
@@ -123,6 +124,7 @@ source_set("sync_integration_tests_impl") {
     # (upstream) and android_live_sync_integration_tests (downstream).
     deps += [
       "//chrome:chrome_android_core",
+      "//chrome/browser/android",
       "//chrome/browser/android/webapk:webapk_sources",
       "//chrome/browser/ui:ui_features",
       "//chrome/test:chrome_test_launcher",
@@ -542,6 +544,7 @@ source_set("sync_integration_test_support") {
     ]
 
     deps += [
+      "//chrome/browser/android",
       "//chrome/browser/android:tabs_public",
       "//chrome/browser/android/webapk:webapk_sources",
       "//chrome/browser/password_manager/android:utils",
@@ -562,10 +565,6 @@ source_set("sync_integration_test_support") {
       "fake_sync_signin_delegate_desktop.h",
       "live_sync_signin_delegate_desktop.cc",
       "live_sync_signin_delegate_desktop.h",
-      "migration_waiter.cc",
-      "migration_waiter.h",
-      "migration_watcher.cc",
-      "migration_watcher.h",
       "sessions_helper.cc",
       "sessions_helper.h",
       "sync_app_helper.cc",

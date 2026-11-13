@@ -563,7 +563,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.Bookmarks.BulkAddURLsCount" units="count"
-    expires_after="2026-06-30">
+    expires_after="2027-03-30">
   <owner>nicolasmacbeth@google.com</owner>
   <owner>bling-mony-pod@google.com</owner>
   <summary>
@@ -3550,6 +3550,79 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="IOS.InputLatency.{ClassName}.{Gesture}.DroppedFrames"
+    units="count" expires_after="never">
+<!-- expires-never: Input latency is a guardrail metric -->
+
+  <owner>junov@chromium.org</owner>
+  <owner>bling-fundamentals@google.com</owner>
+  <summary>
+    Records the number of dropped frames for {Gesture} gestures on {ClassName}.
+    This metric is subsampled to 1% of occurrences. This metric only captures
+    the propagation of immediate UI updates. Delayed effects, such as future
+    updates after network responses to requests triggered by a gesture, are not
+    captured.
+
+    Note: The dropped frame count is estimated and the reliability of these
+    estimates on variable refresh rate displays (ProMotion) is not yet well
+    understood.
+  </summary>
+  <token key="ClassName">
+    <variant name="AssistantAIMViewController"/>
+    <variant name="BrowserViewController"/>
+    <variant name="IncognitoViewController"/>
+    <variant name="NewTabPageViewController"/>
+    <variant name="SceneViewController"/>
+    <variant name="TabGridViewController"/>
+    <variant name="TestUIViewControllerWithDisplayTracing"/>
+  </token>
+  <token key="Gesture">
+    <variant name="Pan" summary="pan"/>
+    <variant name="Tap" summary="tap"/>
+  </token>
+</histogram>
+
+<histogram name="IOS.InputLatency.{ClassName}.{Gesture}.{MeasurementType}"
+    units="ms" expires_after="never">
+<!-- expires-never: Input latency is a guardrail metric -->
+
+  <owner>junov@chromium.org</owner>
+  <owner>bling-fundamentals@google.com</owner>
+  <summary>
+    Records {MeasurementType} for {Gesture} gestures on {ClassName}. This metric
+    is subsampled to 1% of occurrences. This metric only captures the
+    propagation of immediate UI updates. Delayed effects, such as future updates
+    after network responses to requests triggered by a gesture, are not
+    captured.
+
+    Note: Scanout delays are estimated and the reliability of these estimates on
+    variable refresh rate displays (ProMotion) is not yet well understood.
+  </summary>
+  <token key="ClassName">
+    <variant name="AssistantAIMViewController"/>
+    <variant name="BrowserViewController"/>
+    <variant name="IncognitoViewController"/>
+    <variant name="NewTabPageViewController"/>
+    <variant name="SceneViewController"/>
+    <variant name="TabGridViewController"/>
+    <variant name="TestUIViewControllerWithDisplayTracing"/>
+  </token>
+  <token key="Gesture">
+    <variant name="Pan" summary="pan"/>
+    <variant name="Tap" summary="tap"/>
+  </token>
+  <token key="MeasurementType">
+    <variant name="CommitToDisplay"
+        summary="the display latency from CoreAnimation transaction commit to
+                 display scanout"/>
+    <variant name="InputToCommit"
+        summary="the input latency from event dispatch to CoreAnimation
+                 transaction commit"/>
+    <variant name="InputToDisplay"
+        summary="the input latency from event dispatch to display scanout"/>
+  </token>
+</histogram>
+
 <histogram name="IOS.IsDefaultBrowser" enum="Boolean" expires_after="never">
 <!-- expires-never: used internally for filtering -->
 
@@ -5303,7 +5376,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.PasswordManager.TrustedVaultNotification.Events"
-    enum="IOSTipsTrustedVaultNotificationEvents" expires_after="2026-06-01">
+    enum="IOSTipsTrustedVaultNotificationEvents" expires_after="2027-01-01">
   <owner>ylahodiuk@google.com</owner>
   <owner>rgod@google.com</owner>
   <summary>
@@ -6186,8 +6259,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.ReadingList.BulkAddURLsCount" units="count"
-    expires_after="2026-06-01">
-  <owner>nicolasmacbeth@google.com</owner>
+    expires_after="2027-03-30">
+  <owner>gujen@google.com</owner>
   <owner>bling-mony-pod@google.com</owner>
   <summary>
     The number of URLs a user has successfully added to Chrome Reading List via
@@ -7196,7 +7269,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SiriShortcuts.Count" units="shortcuts"
-    expires_after="2026-06-25">
+    expires_after="2027-03-30">
   <owner>gujen@google.com</owner>
   <owner>bling-mony-pod@google.com</owner>
   <summary>
@@ -8132,6 +8205,18 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="IOS.WelcomeBack.DaysSinceActiveNotFeatureFlagGuarded"
+    units="days" expires_after="2027-04-01">
+  <owner>joemerramos@google.com</owner>
+  <owner>bling-mony-pod@google.com</owner>
+  <summary>
+    Records the number of days since the user was last active in the app,
+    calculated unconditionally on cold start for the entire user population.
+    Recorded once per cold start if there is a valid previous session end time.
+    Uses 1-day buckets up to 50 days.
+  </summary>
+</histogram>
+
 <histogram name="IOS.WelcomeBack.DetailScreen.Impression"
     enum="IOSBestFeaturesItemType" expires_after="2026-08-02">
   <owner>cheickcisse@google.com</owner>
@@ -8150,6 +8235,41 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the number of features clicked by the user within the Welcome Back
     screen. Recorded when the Welcome Back screen is dismissed or closed.
+  </summary>
+</histogram>
+
+<histogram name="IOS.WelcomeBack.PromoRegistration.MissingFeature"
+    enum="IOSBestFeaturesItemType" expires_after="2027-04-01">
+  <owner>joemerramos@google.com</owner>
+  <owner>bling-mony-pod@google.com</owner>
+  <summary>
+    Tracks which promoted features were missing/already-used when the Welcome
+    Back promo registration failed because the minimum number of eligible
+    features (2) was not met. Logged once per missing feature when the
+    registration fails.
+  </summary>
+</histogram>
+
+<histogram name="IOS.WelcomeBack.PromoRegistrationResult"
+    enum="WelcomeBackPromoRegistrationResult" expires_after="2027-04-01">
+  <owner>joemerramos@google.com</owner>
+  <owner>bling-mony-pod@google.com</owner>
+  <summary>
+    Records the success and failure reasons when registering the Welcome Back
+    promo. Recorded on profile startup when checking if the promo should be
+    registered.
+  </summary>
+</histogram>
+
+<histogram name="IOS.WelcomeBack.SuppressedInFavorOfPromo"
+    enum="IOSPromosManagerPromo" expires_after="2027-04-01">
+  <owner>joemerramos@google.com</owner>
+  <owner>bling-mony-pod@google.com</owner>
+  <summary>
+    Tracks which other promo was selected for display instead of the Welcome
+    Back promo when the Welcome Back promo was registered, in the display queue,
+    and otherwise fully eligible to trigger. Logged once per session when a
+    promo is displayed.
   </summary>
 </histogram>
 

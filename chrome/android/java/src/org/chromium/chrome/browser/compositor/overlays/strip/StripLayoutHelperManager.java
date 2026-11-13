@@ -44,6 +44,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.actor.ui.ActorUiTabController;
 import org.chromium.chrome.browser.back_press.BackPressManager;
+import org.chromium.chrome.browser.bookmarks.TabBookmarker;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsOffsetTagsInfo;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.compositor.LayerTitleCache;
@@ -64,6 +65,7 @@ import org.chromium.chrome.browser.compositor.overlays.strip.reorder.TabStripDra
 import org.chromium.chrome.browser.compositor.scene_layer.TabStripSceneLayer;
 import org.chromium.chrome.browser.data_sharing.DataSharingTabManager;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.glic.GlicButtonDelegate;
 import org.chromium.chrome.browser.glic.GlicKeyedService;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.layouts.EventFilter;
@@ -114,6 +116,7 @@ import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateMa
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.content_public.browser.LoadUrlParams;
+import org.chromium.ui.base.ActivityResultTracker;
 import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.ui.base.WindowAndroid;
@@ -128,6 +131,7 @@ import org.chromium.url.GURL;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * This class handles managing which StripLayoutHelper is currently active and dispatches all input
@@ -485,11 +489,13 @@ public class StripLayoutHelperManager
      * @param dataSharingTabManager The {@link DataSharingTabManager} for shared groups.
      * @param bottomSheetController The {@link BottomSheetController} used to show bottom sheets.
      * @param shareDelegateSupplier Supplies {@link ShareDelegate} to share tab URLs.
+     * @param tabBookmarkerSupplier Supplies {@link TabBookmarker} to add/edit bookmarks.
      * @param xrSpaceModeObservableSupplier Supplies current XR space mode status. True for XR full
      *     space mode, false otherwise.
      * @param backPressManager The {@link BackPressManager} for handling back press.
      * @param snackbarManager The {@link SnackbarManager} used to show snackbar UI.
-     * @param glicClickHandler The {@link Callback<Boolean>} for the Glic button.
+     * @param activityResultTracker The {@link ActivityResultTracker}.
+     * @param glicClickHandler The {@link GlicButtonDelegate} for the Glic button.
      */
     // TODO(crbug.com/484116872): Suppressing to observe SharedPreferences, which is discouraged;
     // should use another messaging channel instead.
@@ -517,10 +523,12 @@ public class StripLayoutHelperManager
             DataSharingTabManager dataSharingTabManager,
             BottomSheetController bottomSheetController,
             MonotonicObservableSupplier<ShareDelegate> shareDelegateSupplier,
+            Supplier<TabBookmarker> tabBookmarkerSupplier,
             @Nullable NonNullObservableSupplier<Boolean> xrSpaceModeObservableSupplier,
             BackPressManager backPressManager,
             SnackbarManager snackbarManager,
-            Callback<Boolean> glicClickHandler,
+            @Nullable ActivityResultTracker activityResultTracker,
+            GlicButtonDelegate glicClickHandler,
             @Nullable GlicKeyedService glicKeyedService) {
         mContext = context;
         mWindowAndroid = windowAndroid;
@@ -687,8 +695,10 @@ public class StripLayoutHelperManager
                         bottomSheetController,
                         multiInstanceManager,
                         shareDelegateSupplier,
+                        tabBookmarkerSupplier,
                         TabGroupListBottomSheetCoordinator::new,
-                        snackbarManager);
+                        snackbarManager,
+                        activityResultTracker);
         mIncognitoHelper =
                 new StripLayoutHelper(
                         context,
@@ -710,8 +720,10 @@ public class StripLayoutHelperManager
                         bottomSheetController,
                         multiInstanceManager,
                         shareDelegateSupplier,
+                        tabBookmarkerSupplier,
                         TabGroupListBottomSheetCoordinator::new,
-                        snackbarManager);
+                        snackbarManager,
+                        activityResultTracker);
 
         tabHoverCardViewStub.setOnInflateListener(
                 (viewStub, view) -> {

@@ -16,7 +16,6 @@
 #include "test/gtest.h"
 
 using Microsoft::WRL::ComPtr;
-using webrtc::AudioDeviceName;
 
 namespace webrtc {
 namespace webrtc_win {

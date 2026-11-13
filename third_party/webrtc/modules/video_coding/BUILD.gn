@@ -125,6 +125,22 @@ rtc_library("h26x_packet_buffer") {
   ]
 }
 
+rtc_library("sframe_packet_buffer") {
+  sources = [
+    "sframe_packet_buffer.cc",
+    "sframe_packet_buffer.h",
+  ]
+  deps = [
+    "../../rtc_base:checks",
+    "../../rtc_base:logging",
+    "../../rtc_base:rtc_numerics",
+    "../rtp_rtcp:rtp_rtcp_format",
+    "../rtp_rtcp:sframe_descriptor",
+    "../rtp_rtcp:sframe_rtp_packet_received",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
+}
+
 rtc_library("frame_helpers") {
   sources = [
     "frame_helpers.cc",
@@ -877,8 +893,11 @@ if (rtc_include_tests) {
       "../../api:videocodec_test_stats_api",
       "../../api/environment",
       "../../api/environment:environment_factory",
+      "../../api/task_queue",
       "../../api/test/metrics:global_metrics_logger_and_exporter",
       "../../api/test/metrics:metric",
+      "../../api/units:time_delta",
+      "../../api/units:timestamp",
       "../../api/video:encoded_image",
       "../../api/video:resolution",
       "../../api/video:video_codec_constants",
@@ -904,6 +923,7 @@ if (rtc_include_tests) {
       "../../rtc_base:task_queue_for_test",
       "../../rtc_base:threading",
       "../../rtc_base:timeutils",
+      "../../system_wrappers",
       "../../test:create_test_field_trials",
       "../../test:fileutils",
       "../../test:test_support",
@@ -1106,6 +1126,7 @@ if (rtc_include_tests) {
       "rtp_frame_reference_finder_unittest.cc",
       "rtp_vp8_ref_finder_unittest.cc",
       "rtp_vp9_ref_finder_unittest.cc",
+      "sframe_packet_buffer_unittest.cc",
       "utility/av1_qp_parser_unittest.cc",
       "utility/bandwidth_quality_scaler_unittest.cc",
       "utility/decoded_frames_history_unittest.cc",
@@ -1138,6 +1159,7 @@ if (rtc_include_tests) {
       ":h26x_packet_buffer",
       ":nack_requester",
       ":packet_buffer",
+      ":sframe_packet_buffer",
       ":video_codec_interface",
       ":video_codecs_test_framework",
       ":video_coding",
@@ -1221,6 +1243,8 @@ if (rtc_include_tests) {
       "../rtp_rtcp",
       "../rtp_rtcp:rtp_rtcp_format",
       "../rtp_rtcp:rtp_video_header",
+      "../rtp_rtcp:sframe_descriptor",
+      "../rtp_rtcp:sframe_rtp_packet_received",
       "codecs/av1:video_coding_codecs_av1_tests",
       "svc:scalability_structure_tests",
       "svc:simulcast_to_svc_converter_tests",

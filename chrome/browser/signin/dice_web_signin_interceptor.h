@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "base/cancelable_callback.h"
 #include "base/functional/callback_forward.h"
@@ -115,6 +116,10 @@ class DiceWebSigninInterceptor : public KeyedService,
                                        bool is_new_account,
                                        bool is_sync_signin);
 
+  void OnDiceSigninSessionComplete(
+      const CoreAccountId& initiator_account_id,
+      std::vector<CoreAccountId> secondary_accounts);
+
   // Called after the new profile was created during a signin interception.
   // The token has been moved to the new profile, but the account is not yet in
   // the cookies.
@@ -151,6 +156,13 @@ class DiceWebSigninInterceptor : public KeyedService,
   bool has_interception_bubble_handle_for_testing() const {
     return state_->interception_bubble_handle_.get();
   }
+
+  bool has_dice_signed_in_profile_creator_for_testing() const {
+    return state_->dice_signed_in_profile_creator_.get() != nullptr;
+  }
+
+  std::vector<CoreAccountId>
+  dice_signed_in_profile_creator_accounts_for_testing() const;
 
   content::WebContents* web_contents() const {
     return state_->web_contents_.get();
@@ -305,6 +317,10 @@ class DiceWebSigninInterceptor : public KeyedService,
       std::optional<ProfilePresets> profile_presets,
       Profile* new_profile);
 
+  void ProceedWithProfileCreation(const AccountInfo& account_info,
+                                  SkColor profile_color);
+  void ProceedWithProfileSwitch(const base::FilePath& profile_path);
+
   // Called after the user choses whether the session should continue in a new
   // work profile or not. If the user choses not to continue in a work profile,
   // the account is signed out.
@@ -417,6 +433,11 @@ class DiceWebSigninInterceptor : public KeyedService,
         intercepted_account_profile_separation_policies_;
 
     base::ScopedClosureRunner disable_management_disclaimer_until_reset_;
+
+    std::vector<CoreAccountId> secondary_accounts_;
+    bool dice_signin_session_complete_ = false;
+    bool waiting_for_dice_signin_session_completion_ = false;
+    base::OnceClosure deferred_action_callback_;
   };
 
   const raw_ptr<Profile> profile_;

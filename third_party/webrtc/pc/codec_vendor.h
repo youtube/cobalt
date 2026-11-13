@@ -85,6 +85,16 @@ class CodecVendor {
   // and the second element is the codec to replace it with.
   void ModifyVideoCodecs(const std::vector<std::pair<Codec, Codec>>& changes);
 
+  // Workaround for issues.webrtc.org/412904801.
+  // Specifically sets packetization to "raw" for the matching codec in
+  // configurations_, to support the packetization=raw hack applied via SDP
+  // munging.
+  void SetRawPacketization(const Codec& codec);
+
+  bool payload_types_in_transport() const {
+    return payload_types_in_transport_;
+  }
+
   // Functions exposed for testing
   CodecList audio_sendrecv_codecs() const;
   const CodecList& audio_send_codecs() const;

@@ -17,6 +17,7 @@
 #include <optional>
 #include <string>
 
+#include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/data_channel_interface.h"
@@ -145,18 +146,19 @@ class SctpDataChannel : public DataChannelInterface {
   // such callbacks after the peerconnection has been closed. The data
   // controller will update the flag when closed, which will cancel any pending
   // event notifications.
-  static scoped_refptr<SctpDataChannel> Create(
+  static absl_nonnull scoped_refptr<SctpDataChannel> Create(
       WeakPtr<SctpDataChannelControllerInterface> controller,
       absl::string_view label,
       bool connected_to_transport,
       const InternalDataChannelInit& config,
+      std::optional<int> max_message_size,
       scoped_refptr<PendingTaskSafetyFlag> controller_safety,
       Thread* signaling_thread,
       Thread* network_thread);
 
   // Instantiates an API proxy for a SctpDataChannel instance that will be
   // handed out to external callers.
-  static scoped_refptr<DataChannelInterface> CreateProxy(
+  static absl_nonnull scoped_refptr<DataChannelInterface> CreateProxy(
       scoped_refptr<SctpDataChannel> channel);
 
   void RegisterObserver(DataChannelObserver* observer) override;
@@ -244,12 +246,25 @@ class SctpDataChannel : public DataChannelInterface {
                   WeakPtr<SctpDataChannelControllerInterface> controller,
                   absl::string_view label,
                   bool connected_to_transport,
+                  std::optional<int> max_message_size,
                   scoped_refptr<PendingTaskSafetyFlag> controller_safety,
                   Thread* signaling_thread,
                   Thread* network_thread);
   ~SctpDataChannel() override;
 
  private:
+  // Caches the current state on the network thread and makes a call back to the
+  // `callback` object on the signaling thread while applying the cached state
+  // to specific getter functions.
+  // This is useful when a callback to the application is needed and during that
+  // callback, it's expected that this state will be queried (e.g. the
+  // `state()`), but a thread hop should not be required for querying that
+  // state.
+  // Must be called on the network thread.
+  void CacheStateAndCallBackOnSignalingThread(
+      absl::AnyInvocable<void() &&> callback);
+
+  struct CachedState;
   class ObserverAdapter;
 
   // The OPEN(_ACK) signaling state.
@@ -294,6 +309,7 @@ class SctpDataChannel : public DataChannelInterface {
 
   DataChannelObserver* observer_ RTC_GUARDED_BY(network_thread_) = nullptr;
   std::unique_ptr<ObserverAdapter> observer_adapter_;
+  CachedState* cached_state_ RTC_GUARDED_BY(signaling_thread_) = nullptr;
   DataState state_ RTC_GUARDED_BY(network_thread_) = kConnecting;
   RTCError error_ RTC_GUARDED_BY(network_thread_);
   uint32_t messages_sent_ RTC_GUARDED_BY(network_thread_) = 0;

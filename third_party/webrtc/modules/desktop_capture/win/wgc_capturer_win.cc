@@ -214,7 +214,6 @@ bool WgcCapturerWin::SelectSource(DesktopCapturer::SourceId id) {
   selected_source_id_ = id;
 
   if (full_screen_window_detector_ &&
-      full_screen_window_detector_->UseHeuristicForFindingEditor() &&
       editor_id_ == 0) {
     // Use `full_screen_window_detector_` to check if the selected `id` is a
     // full screen window, in which case we would like the `selected_source_id_`
@@ -468,12 +467,10 @@ bool WgcCapturerWin::IsSourceBeingCaptured(DesktopCapturer::SourceId id) {
 
 void WgcCapturerWin::SetUpFullScreenDetectorForTest(
     DesktopCapturer::SourceId source_id,
-    bool fullscreen_slide_show_started_after_capture_start,
-    bool use_heuristic_for_finding_editor) {
+    bool fullscreen_slide_show_started_after_capture_start) {
   if (full_screen_window_detector_) {
     full_screen_window_detector_->CreateFullScreenApplicationHandlerForTest(
-        source_id, fullscreen_slide_show_started_after_capture_start,
-        use_heuristic_for_finding_editor);
+        source_id, fullscreen_slide_show_started_after_capture_start);
   }
 }
 

@@ -1278,7 +1278,7 @@ uint32_t BuiltinExitFrame::ComputeParametersCount() const {
 }
 
 bool BuiltinExitFrame::IsConstructor() const {
-  return !IsUndefined(new_target_slot_object(), isolate());
+  return !IsUndefined(new_target_slot_object());
 }
 
 // Ensure layout of v8::FunctionCallbackInfo is in sync with
@@ -3654,6 +3654,9 @@ int WasmFrame::position() const {
 }
 
 int WasmFrame::GetInnermostFunctionIndex() const {
+  if (auto* code = wasm_code(); code != nullptr && code->is_liftoff()) {
+    return code->index();
+  }
   return std::get<1>(GetInnermostSourcePositionAndFunctionIndex());
 }
 

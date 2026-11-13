@@ -294,9 +294,9 @@ class CookieOSCryptAsyncDelegate : public net::CookieCryptoDelegate {
  private:
   void InitCallback(
       mojo::Remote<network::mojom::CookieEncryptionProvider> lifetime,
-      os_crypt_async::Encryptor encryptor);
+      scoped_refptr<os_crypt_async::Encryptor> encryptor);
 
-  std::optional<os_crypt_async::Encryptor> instance_;
+  scoped_refptr<os_crypt_async::Encryptor> instance_;
   mojo::PendingRemote<network::mojom::CookieEncryptionProvider> provider_
       GUARDED_BY_CONTEXT(sequence_checker_);
   base::OnceClosureList callbacks_ GUARDED_BY_CONTEXT(sequence_checker_);
@@ -326,12 +326,12 @@ bool CookieOSCryptAsyncDelegate::DecryptString(const std::string& ciphertext,
 
 void CookieOSCryptAsyncDelegate::InitCallback(
     mojo::Remote<network::mojom::CookieEncryptionProvider> lifetime,
-    os_crypt_async::Encryptor encryptor) {
+    scoped_refptr<os_crypt_async::Encryptor> encryptor) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // The Encryptor is moved between sequences here. Verify that it's only moved
   // once.
-  CHECK(!instance_.has_value());
-  instance_.emplace(std::move(encryptor));
+  CHECK(!instance_);
+  instance_ = std::move(encryptor);
   is_initialized_ = true;
   callbacks_.Notify();
 }
@@ -1077,12 +1077,6 @@ void NetworkContext::ActivateDohProbes() {
   doh_probes_request_ =
       url_request_context_->host_resolver()->CreateDohProbeRequest();
   doh_probes_request_->Start();
-
-  net::HostResolver* primary_resolver = url_request_context_->host_resolver();
-  canary_domain_service_ = primary_resolver->CreateCanaryDomainService();
-  if (canary_domain_service_) {
-    canary_domain_service_->Start();
-  }
 }
 
 void NetworkContext::SetClient(

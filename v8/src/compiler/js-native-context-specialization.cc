@@ -1893,16 +1893,24 @@ Reduction JSNativeContextSpecialization::ReduceHomomorphicAccess(
   FieldAccess field_access =
       AccessBuilder::ForJSObjectOffset(kTaggedSize * offset_in_words);
   if (is_double) {
-    field_access.type = Type::OtherInternal();
+    // A mutable HeapNumber should be typed as Type::OtherInternal(). However,
+    // with in-place field representation changes, this might no longer be a
+    // HeapNumber (it could have been generalized to Tagged in-place and now
+    // contain any JS value), and the type would then be Type::NonInternal(). We
+    // therefore type as the union of the two, and a few lines down emit checks
+    // that the value is actually a HeapNumber.
+    //
+    // TODO(leszeks): This only happens on a homomorphic cache hit, otherwise on
+    // a cache miss we would have verified the representation in the descriptor
+    // array. We could elide this check in cases where we already verified the
+    // representation.
+    field_access.type =
+        Type::Union(Type::NonInternal(), Type::OtherInternal(), zone());
   }
   Node* result = effect = graph()->NewNode(
       simplified()->LoadField(field_access), holder, effect, control);
 
   if (is_double) {
-    // With in-place field representation changes it is possible that this is
-    // no longer a heap number without map transitions (generalized from Double
-    // to Tagged in-place). So we need to verify the loaded value is a heap
-    // number.
     result = effect = graph()->NewNode(simplified()->CheckHeapObject(), result,
                                        effect, control);
     Node* map = effect =
@@ -4058,7 +4066,7 @@ JSNativeContextSpecialization::
     // Load the base pointer for the {receiver}. This will always be Smi
     // zero unless we allow on-heap TypedArrays, which is only the case
     // for Chrome. Node and Electron both set this limit to 0. Setting
-    // the base to Smi zero here allows the EffectControlLinearizer to
+    // the base to Smi zero here allows the MachineLoweringReducer to
     // optimize away the tricky part of the access later.
     if (JSTypedArray::kMaxSizeInHeap == 0) {
       base_pointer = jsgraph()->ZeroConstant();

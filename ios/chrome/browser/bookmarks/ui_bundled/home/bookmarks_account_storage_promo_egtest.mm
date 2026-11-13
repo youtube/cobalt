@@ -39,6 +39,11 @@ using chrome_test_util::PrimarySignInButton;
 
 @implementation BookmarksAccountStoragePromoTestCase
 
+- (AppLaunchConfiguration)appConfigurationForTestCase {
+  AppLaunchConfiguration config = [super appConfigurationForTestCase];
+  return config;
+}
+
 - (void)setUp {
   [super setUp];
   [BookmarkEarlGrey waitForBookmarkModelLoaded];

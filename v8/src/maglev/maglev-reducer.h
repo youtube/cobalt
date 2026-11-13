@@ -573,11 +573,8 @@ class MaglevReducer {
     DCHECK(new_nodes_at_end_.empty());
   }
 
-  static enum CheckType GetCheckType(NodeType type, ValueNode* target) {
+  static enum CheckType GetCheckType(NodeType type) {
     if (NodeTypeIs(type, NodeType::kAnyHeapObject)) {
-      if (target && target->Is<Phi>()) {
-        target->Cast<Phi>()->SetUseRequiresHeapObject();
-      }
       return CheckType::kOmitHeapObjectCheck;
     } else {
       return CheckType::kCheckHeapObject;
@@ -681,9 +678,7 @@ class MaglevReducer {
       ValueNode* context, ValueNode* object, ValueNode* callable,
       compiler::FeedbackSource feedback_source);
 
-  ReduceResult BuildSmiUntag(
-      ValueNode* node, AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
-                           AllowWideningSmiToInt32::kDontAllow);
+  ReduceResult BuildSmiUntag(ValueNode* node);
 
   ReduceResult BuildNumberOrOddballToFloat64OrHoleyFloat64(
       ValueNode* node, UseRepresentation use_rep, NodeType allowed_input_type);
@@ -921,12 +916,6 @@ class MaglevReducer {
   void RecordPendingSplice(BasicBlock* entry, BasicBlock* exit,
                            ZoneVector<BasicBlock*> all_blocks) {
     DCHECK(!pending_splice_.has_value());
-    // // Copy `all_blocks` into the zone — the Subgraph that produced it may go
-    // // out of scope before the GraphProcessor consumes the splice, and we
-    // // don't want to depend on its internal storage outliving it.
-    // size_t n = all_blocks.size();
-    // BasicBlock** copy = zone()->template AllocateArray<BasicBlock*>(n);
-    // for (size_t i = 0; i < n; ++i) copy[i] = all_blocks[i];
     pending_splice_ = PendingSplice{entry, exit, all_blocks};
   }
   bool HasPendingSplice() const { return pending_splice_.has_value(); }
@@ -974,6 +963,16 @@ class MaglevReducer {
     return std::prev(it_upper)->second;
   }
 #endif  // DEBUG
+
+  // Tracks whether any node that can throw was emitted since the last
+  // ResetPeriodThrowingNode(). Used by the optimizer to decide whether a
+  // reduced node's exception handler is still reachable: a reduction can lower
+  // a throwing node into several nodes where an intermediate throws but the
+  // returned value does not.
+  void ResetPeriodThrowingNode() { period_added_throwing_node_ = false; }
+  bool period_added_throwing_node() const {
+    return period_added_throwing_node_;
+  }
 
   void PushInlineCandidate(MaglevCallSiteInfo* call_site) {
     graph()->inlineable_calls().push(call_site);
@@ -1096,9 +1095,7 @@ class MaglevReducer {
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
     return known_node_aspects().EnsureType(broker(), node, type, old);
   }
-  NodeType GetType(ValueNode* node,
-                   AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
-                       AllowWideningSmiToInt32::kAllow) {
+  NodeType GetType(ValueNode* node) {
     NodeType type = known_node_aspects().GetTypeUnchecked(broker(), node);
     if (v8_flags.maglev_assert_types && type != NodeType::kUnknown)
         [[unlikely]] {
@@ -1110,8 +1107,7 @@ class MaglevReducer {
         // TODO(marja): Consider adding different CheckMaglevType variants
         // based on node->value_representation(). Then we wouldn't need to
         // convert the value to tagged.
-        ReduceResult result = AddNewNode<CheckMaglevType>(
-            {node}, type, allow_widening_smi_to_int32);
+        ReduceResult result = AddNewNode<CheckMaglevType>({node}, type);
         CHECK(result.IsDoneWithPayload());
       }
     }
@@ -1230,10 +1226,17 @@ class MaglevReducer {
   ZoneVector<std::pair<int, Node*>> new_nodes_at_;
   ZoneVector<Node*> new_nodes_at_end_;
 
+  bool period_added_throwing_node_ = false;
+
   compiler::FeedbackSource current_speculation_feedback_ = {};
   SpeculationMode current_speculation_mode_ =
       SpeculationMode::kDisallowSpeculation;
   std::optional<PendingSplice> pending_splice_;
+
+  // The innermost optimizer-side Subgraph currently being built, or nullptr.
+  // Lets a nested Subgraph splice directly into its enclosing subgraph instead
+  // of recording a separate top-level pending splice.
+  Subgraph<BaseT>* active_subgraph_ = nullptr;
 };
 
 template <typename DerivedT, typename BaseT>

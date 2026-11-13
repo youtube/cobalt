@@ -3381,9 +3381,9 @@ std::optional<int> GetSupportedGoogPingVersion(const StunMessage* msg) {
   }
 
   if (msg->type() == STUN_BINDING_REQUEST) {
-    if (goog_misc->Size() <
-        static_cast<int>(IceGoogMiscInfoBindingRequestAttributeIndex::
-                             SUPPORT_GOOG_PING_VERSION)) {
+    if (goog_misc->Size() <=
+        static_cast<size_t>(IceGoogMiscInfoBindingRequestAttributeIndex::
+                                SUPPORT_GOOG_PING_VERSION)) {
       return std::nullopt;
     }
 
@@ -3393,9 +3393,9 @@ std::optional<int> GetSupportedGoogPingVersion(const StunMessage* msg) {
   }
 
   if (msg->type() == STUN_BINDING_RESPONSE) {
-    if (goog_misc->Size() <
-        static_cast<int>(IceGoogMiscInfoBindingResponseAttributeIndex::
-                             SUPPORT_GOOG_PING_VERSION)) {
+    if (goog_misc->Size() <=
+        static_cast<size_t>(IceGoogMiscInfoBindingResponseAttributeIndex::
+                                SUPPORT_GOOG_PING_VERSION)) {
       return std::nullopt;
     }
 
@@ -3670,6 +3670,158 @@ TEST_F(PortTest, TestGoogPingUnsupportedVersionInStunBindingResponse) {
   modified_response->Write(&buf);
 
   // Feeding the modified respone message back.
+  ch1.conn()->OnReadPacket(ReceivedIpPacket::CreateFromLegacy(
+      buf.Data(), buf.Length(), /*packet_time_us=*/-1));
+
+  port1->Reset();
+  port2->Reset();
+
+  ch1.Ping();
+  ASSERT_THAT(
+      WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
+                {.timeout = kDefaultTimeout, .clock = &time_controller_}),
+      IsRtcOk());
+
+  // This should now be a STUN_BINDING...without a kGoogPingVersion
+  const IceMessage* request2 = port1->last_stun_msg();
+  EXPECT_EQ(request2->type(), STUN_BINDING_REQUEST);
+  EXPECT_FALSE(GetSupportedGoogPingVersion(request2));
+
+  ch1.Stop();
+}
+
+// Test that we don't crash if we receive a STUN_BINDING request with an empty
+// STUN_ATTR_GOOG_MISC_INFO attribute.
+TEST_F(PortTest, TestGoogPingEmptyMiscInfoInStunBindingRequest) {
+  IceFieldTrials trials;
+  trials.announce_goog_ping = true;
+  trials.enable_goog_ping = true;
+
+  auto port1_unique = CreateTestPort(kLocalAddr1, "lfrag", "lpass",
+                                     ICEROLE_CONTROLLING, kTiebreaker1);
+  auto* port1 = port1_unique.get();
+  auto port2 = CreateTestPort(kLocalAddr2, "rfrag", "rpass", ICEROLE_CONTROLLED,
+                              kTiebreaker2);
+
+  TestChannel ch1(std::move(port1_unique), time_controller_);
+  ch1.SetIceMode(ICEMODE_LITE);
+  ch1.Start();
+  port2->PrepareAddress();
+
+  ASSERT_THAT(
+      WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
+                {.timeout = kDefaultTimeout, .clock = &time_controller_}),
+      IsRtcOk());
+  ASSERT_FALSE(port2->Candidates().empty());
+
+  ch1.CreateConnection(GetCandidate(port2.get()));
+  ASSERT_TRUE(ch1.conn() != nullptr);
+  ch1.conn()->SetIceFieldTrials(&trials);
+
+  ch1.Ping();
+
+  ASSERT_THAT(
+      WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
+                {.timeout = kDefaultTimeout, .clock = &time_controller_}),
+      IsRtcOk());
+  const IceMessage* request1 = port1->last_stun_msg();
+
+  // Modify the STUN message request1 to send empty STUN_ATTR_GOOG_MISC_INFO
+  auto modified_request1 = request1->Clone();
+  ASSERT_TRUE(modified_request1->RemoveAttribute(STUN_ATTR_MESSAGE_INTEGRITY) !=
+              nullptr);
+  ASSERT_TRUE(modified_request1->RemoveAttribute(STUN_ATTR_GOOG_MISC_INFO) !=
+              nullptr);
+  {
+    auto list =
+        StunAttribute::CreateUInt16ListAttribute(STUN_ATTR_GOOG_MISC_INFO);
+    modified_request1->AddAttribute(std::move(list));
+    modified_request1->AddMessageIntegrity("rpass");
+    modified_request1->AddFingerprint();
+  }
+  auto* con =
+      port2->CreateConnection(port1->Candidates()[0], Port::ORIGIN_MESSAGE);
+  con->SetIceFieldTrials(&trials);
+
+  // This should not crash.
+  con->SendStunBindingResponse(modified_request1.get());
+
+  // The response should not contain GOOG_PING_VERSION because request was
+  // empty/invalid.
+  const auto* response = port2->last_stun_msg();
+  EXPECT_EQ(response->type(), STUN_BINDING_RESPONSE);
+  EXPECT_FALSE(GetSupportedGoogPingVersion(response));
+
+  ch1.Stop();
+}
+
+// Test that we don't crash if we receive a STUN_BINDING response with an empty
+// STUN_ATTR_GOOG_MISC_INFO attribute.
+TEST_F(PortTest, TestGoogPingEmptyMiscInfoInStunBindingResponse) {
+  IceFieldTrials trials;
+  trials.announce_goog_ping = true;
+  trials.enable_goog_ping = true;
+
+  auto port1_unique = CreateTestPort(kLocalAddr1, "lfrag", "lpass",
+                                     ICEROLE_CONTROLLING, kTiebreaker1);
+  auto* port1 = port1_unique.get();
+  auto port2 = CreateTestPort(kLocalAddr2, "rfrag", "rpass", ICEROLE_CONTROLLED,
+                              kTiebreaker2);
+
+  TestChannel ch1(std::move(port1_unique), time_controller_);
+  ch1.SetIceMode(ICEMODE_LITE);
+  ch1.Start();
+  port2->PrepareAddress();
+
+  ASSERT_THAT(
+      WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
+                {.timeout = kDefaultTimeout, .clock = &time_controller_}),
+      IsRtcOk());
+  ASSERT_FALSE(port2->Candidates().empty());
+
+  ch1.CreateConnection(GetCandidate(port2.get()));
+  ASSERT_TRUE(ch1.conn() != nullptr);
+  ch1.conn()->SetIceFieldTrials(&trials);
+
+  ch1.Ping();
+
+  ASSERT_THAT(
+      WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
+                {.timeout = kDefaultTimeout, .clock = &time_controller_}),
+      IsRtcOk());
+  const IceMessage* request1 = port1->last_stun_msg();
+
+  auto* con =
+      port2->CreateConnection(port1->Candidates()[0], Port::ORIGIN_MESSAGE);
+  con->SetIceFieldTrials(&trials);
+
+  con->SendStunBindingResponse(request1);
+
+  const auto* response = port2->last_stun_msg();
+  EXPECT_EQ(response->type(), STUN_BINDING_RESPONSE);
+  EXPECT_TRUE(GetSupportedGoogPingVersion(response));
+
+  // Modify the STUN message response to contain empty STUN_ATTR_GOOG_MISC_INFO
+  auto modified_response = response->Clone();
+  ASSERT_TRUE(modified_response->RemoveAttribute(STUN_ATTR_GOOG_MISC_INFO) !=
+              nullptr);
+  ASSERT_TRUE(modified_response->RemoveAttribute(STUN_ATTR_MESSAGE_INTEGRITY) !=
+              nullptr);
+  ASSERT_TRUE(modified_response->RemoveAttribute(STUN_ATTR_FINGERPRINT) !=
+              nullptr);
+  {
+    auto list =
+        StunAttribute::CreateUInt16ListAttribute(STUN_ATTR_GOOG_MISC_INFO);
+    ASSERT_EQ(0U, list->Size());
+    modified_response->AddAttribute(std::move(list));
+    modified_response->AddMessageIntegrity("rpass");
+    modified_response->AddFingerprint();
+  }
+
+  ByteBufferWriter buf;
+  modified_response->Write(&buf);
+
+  // Feeding the modified response message back. This should not crash.
   ch1.conn()->OnReadPacket(ReceivedIpPacket::CreateFromLegacy(
       buf.Data(), buf.Length(), /*packet_time_us=*/-1));
 

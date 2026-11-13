@@ -23,6 +23,7 @@
 #include "api/payload_type.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "call/payload_type.h"
 #include "call/payload_type_picker.h"
@@ -53,7 +54,7 @@ class SdpPayloadTypeSuggester : public PayloadTypeSuggester {
                            PayloadType payload_type,
                            const Codec& codec) override;
   // Suggest an ID for a given RTP header extension on a given media section.
-  RTCErrorOr<int> SuggestRtpHeaderExtensionId(
+  RTCErrorOr<RtpHeaderExtensionId> SuggestRtpHeaderExtensionId(
       absl::string_view mid,
       const RtpExtension& extension,
       RtpTransceiverIdDomain id_domain) override;

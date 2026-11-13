@@ -386,6 +386,8 @@ const Flag<TestConfig> *FindFlag(const char *name) {
         BoolFlag("-no-tls11", &TestConfig::no_tls11),
         BoolFlag("-no-tls1", &TestConfig::no_tls1),
         BoolFlag("-no-ticket", &TestConfig::no_ticket),
+        BoolFlag("-no-legacy-server-connect",
+                 &TestConfig::no_legacy_server_connect),
         Base64Flag("-expect-channel-id", &TestConfig::expect_channel_id),
         BoolFlag("-enable-channel-id", &TestConfig::enable_channel_id),
         StringFlag("-send-channel-id", &TestConfig::send_channel_id),
@@ -2443,6 +2445,9 @@ bssl::UniquePtr<SSL> TestConfig::NewSSL(
   }
   if (no_ticket) {
     SSL_set_options(ssl.get(), SSL_OP_NO_TICKET);
+  }
+  if (no_legacy_server_connect) {
+    SSL_clear_options(ssl.get(), SSL_OP_LEGACY_SERVER_CONNECT);
   }
   if (!expect_channel_id.empty() || enable_channel_id) {
     SSL_set_tls_channel_id_enabled(ssl.get(), 1);

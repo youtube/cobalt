@@ -11,6 +11,7 @@
 #include <ranges>
 #include <type_traits>
 
+#include "src/objects/descriptor-array-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/slots.h"
@@ -235,8 +236,7 @@ bool TransitionArray::GetTargetIfExists(int transition_number, Isolate* isolate,
     DCHECK_EQ(raw.ToSmi(), Smi::uninitialized_deserialization_value());
     return false;
   }
-  if (raw.GetHeapObjectIfStrong(&heap_object) &&
-      IsUndefined(heap_object, isolate)) {
+  if (raw.GetHeapObjectIfStrong(&heap_object) && IsUndefined(heap_object)) {
     return false;
   }
   *target = TransitionsAccessor::GetTargetFromRaw(raw);

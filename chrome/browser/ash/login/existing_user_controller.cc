@@ -622,7 +622,8 @@ void ExistingUserController::PerformLogin(
       !new_user_context.GetChallengeResponseKeys().empty();
 
   if (new_user_context.IsUsingPin()) {
-    const quick_unlock::PinSaltStorageImpl pin_salt_storage;
+    const quick_unlock::PinSaltStorageImpl pin_salt_storage(
+        &local_state_.get());
 
     std::optional<Key> key =
         quick_unlock::PinStorageCryptohome::TransformPinKey(
@@ -750,7 +751,7 @@ void ExistingUserController::OnAuthFailure(const AuthFailure& failure) {
   } else if (is_known_user &&
              failure.reason() == AuthFailure::MISSING_CRYPTOHOME) {
     ForceOnlineLoginForAccountId(last_login_attempt_account_id_);
-    RecordReauthReason(last_login_attempt_account_id_,
+    RecordReauthReason(local_state_.get(), last_login_attempt_account_id_,
                        ReauthReason::kMissingCryptohome);
   } else if (is_known_user &&
              failure.reason() == AuthFailure::UNRECOVERABLE_CRYPTOHOME) {
@@ -759,7 +760,7 @@ void ExistingUserController::OnAuthFailure(const AuthFailure& failure) {
     // the condition met. We should surface that up and deal with it on the
     // chromium level, including making the decision user-driven.
     ForceOnlineLoginForAccountId(last_login_attempt_account_id_);
-    RecordReauthReason(last_login_attempt_account_id_,
+    RecordReauthReason(local_state_.get(), last_login_attempt_account_id_,
                        ReauthReason::kUnrecoverableCryptohome);
   } else {
     // Check networking after trying to login in case user is

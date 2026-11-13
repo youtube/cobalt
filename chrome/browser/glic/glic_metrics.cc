@@ -262,15 +262,10 @@ GlicMetrics::GlicMetrics(Profile* profile, GlicEnabling* enabling)
   }
 
   is_enabled_ = enabling_->IsEnabledAndConsentForProfile(profile_);
-  is_pinned_ = profile_->GetPrefs()->GetBoolean(prefs::kGlicPinnedToTabstrip);
-  pref_registrar_.Init(profile_->GetPrefs());
   subscriptions_.push_back(
       enabling_->RegisterOnConsentChanged(base::BindRepeating(
           &GlicMetrics::OnMaybeEnabledAndConsentForProfileChanged,
           base::Unretained(this))));
-  pref_registrar_.Add(prefs::kGlicPinnedToTabstrip,
-                      base::BindRepeating(&GlicMetrics::OnPinningPrefChanged,
-                                          base::Unretained(this)));
 }
 
 GlicMetrics::~GlicMetrics() = default;
@@ -303,7 +298,7 @@ void GlicMetrics::RecordGlicProfilePreferences() {
 
 void GlicMetrics::OnTrustFirstOnboardingAccept() {
   OnFreAccepted();
-  base::RecordAction(base::UserMetricsAction("Glic.Fre.Accept"));
+  OnOptInAccepted(OptInFlow::kGlicFre);
   base::RecordAction(base::UserMetricsAction("Glic.Fre.Accept.Onboarding"));
   base::UmaHistogramEnumeration("Glic.Fre.Accept.InvocationSource",
                                 invocation_source_);
@@ -322,7 +317,7 @@ void GlicMetrics::OnInstanceOpened() {
   }
 
   if (!enabling_->HasConsented()) {
-    base::RecordAction(base::UserMetricsAction("Glic.Fre.Shown"));
+    OnOptInShown(OptInFlow::kGlicFre);
     base::RecordAction(base::UserMetricsAction("Glic.Fre.Shown.Onboarding"));
     base::UmaHistogramEnumeration("Glic.Fre.Shown.InvocationSource",
                                   invocation_source_);
@@ -335,6 +330,7 @@ void GlicMetrics::OnInstanceClosed() {
     return;
   }
 
+  OnOptInDismissed(OptInFlow::kGlicFre);
   base::RecordAction(base::UserMetricsAction("Glic.Fre.Dismissed.Onboarding"));
   base::UmaHistogramEnumeration("Glic.Fre.Dismissed.InvocationSource",
                                 invocation_source_);
@@ -347,6 +343,33 @@ void GlicMetrics::OnFreAccepted() {
   // Store the current time in a instance variable.
   fre_accepted_time_ = base::TimeTicks::Now();
   onboarding_invocation_source_ = invocation_source_;
+}
+
+void GlicMetrics::OnOptInShown(OptInFlow flow) {
+  base::RecordAction(base::UserMetricsAction("Glic.Fre.Shown"));
+  base::UmaHistogramEnumeration("Glic.Fre.Shown.FlowSource", flow);
+}
+
+void GlicMetrics::OnOptInImpression(OptInFlow flow) {
+  base::RecordAction(
+      base::UserMetricsAction("Glic.Onboarding.OptInImpression"));
+  base::UmaHistogramEnumeration("Glic.Onboarding.OptInImpression.FlowSource",
+                                flow);
+}
+
+void GlicMetrics::OnOptInAccepted(OptInFlow flow) {
+  base::RecordAction(base::UserMetricsAction("Glic.Fre.Accept"));
+  base::UmaHistogramEnumeration("Glic.Fre.Accept.FlowSource", flow);
+}
+
+void GlicMetrics::OnOptInDismissed(OptInFlow flow) {
+  base::RecordAction(base::UserMetricsAction("Glic.Fre.Dismissed"));
+  base::UmaHistogramEnumeration("Glic.Fre.Dismissed.FlowSource", flow);
+}
+
+void GlicMetrics::OnOptInRejected(OptInFlow flow) {
+  base::RecordAction(base::UserMetricsAction("Glic.Fre.NoThanks"));
+  base::UmaHistogramEnumeration("Glic.Fre.NoThanks.FlowSource", flow);
 }
 
 void GlicMetrics::OnUserInputSubmitted(mojom::WebClientMode mode) {
@@ -771,12 +794,14 @@ void GlicMetrics::OnImpressionTimerFired() {
   if (enablement.anchor_entrypoint_override_active) {
     impression = EntryPointStatus::kAfterFreAnchoredButIneligible;
   } else {
+    bool is_pinned =
+        profile_->GetPrefs()->GetBoolean(prefs::kGlicPinnedToTabstrip);
     bool is_os_entrypoint_enabled =
         g_browser_process->local_state()->GetBoolean(
             prefs::kGlicLauncherEnabled);
-    if (is_pinned_ && is_os_entrypoint_enabled) {
+    if (is_pinned && is_os_entrypoint_enabled) {
       impression = EntryPointStatus::kAfterFreBrowserAndOs;
-    } else if (is_pinned_) {
+    } else if (is_pinned) {
       impression = EntryPointStatus::kAfterFreBrowserOnly;
     } else if (is_os_entrypoint_enabled) {
       impression = EntryPointStatus::kAfterFreOsOnly;
@@ -822,21 +847,6 @@ void GlicMetrics::OnMaybeEnabledAndConsentForProfileChanged() {
     base::RecordAction(base::UserMetricsAction("Glic.Enabled"));
   } else {
     base::RecordAction(base::UserMetricsAction("Glic.Disabled"));
-  }
-}
-
-void GlicMetrics::OnPinningPrefChanged() {
-  bool is_pinned =
-      profile_->GetPrefs()->GetBoolean(prefs::kGlicPinnedToTabstrip);
-  if (is_pinned == is_pinned_) {
-    // No change, early exit.
-    return;
-  }
-  is_pinned_ = is_pinned;
-  if (is_pinned_) {
-    base::RecordAction(base::UserMetricsAction("Glic.Pinned"));
-  } else {
-    base::RecordAction(base::UserMetricsAction("Glic.Unpinned"));
   }
 }
 

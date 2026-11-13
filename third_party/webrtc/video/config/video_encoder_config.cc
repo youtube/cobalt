@@ -14,6 +14,7 @@
 #include <string>
 
 #include "api/video/video_codec_type.h"
+#include "api/video_codecs/scalability_mode.h"
 #include "api/video_codecs/sdp_video_format.h"
 #include "api/video_codecs/video_codec.h"
 #include "rtc_base/checks.h"
@@ -51,6 +52,9 @@ std::string VideoStream::ToString() const {
   if (scale_resolution_down_to.has_value()) {
     ss << ", scale_down_to: " << scale_resolution_down_to->width << "x"
        << scale_resolution_down_to->height;
+  }
+  if (scalability_mode.has_value()) {
+    ss << ", scalability_mode: " << ScalabilityModeToString(*scalability_mode);
   }
   ss << '}';
   return ss.Release();

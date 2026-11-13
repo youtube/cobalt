@@ -33,7 +33,7 @@
 extern "C" {
 
 
-// EVP_CIPH_MODE_MASK contains the bits of |flags| that represent the mode.
+// EVP_CIPH_MODE_MASK contains the bits of `flags` that represent the mode.
 #define EVP_CIPH_MODE_MASK 0x3f
 
 // EVP_AEAD represents a specific AEAD algorithm.
@@ -43,8 +43,8 @@ struct evp_aead_st {
   uint8_t overhead;
   uint8_t max_tag_len;
 
-  // init initialises an |EVP_AEAD_CTX|. If this call returns zero then
-  // |cleanup| will not be called for that context.
+  // init initialises an `EVP_AEAD_CTX`. If this call returns zero then
+  // `cleanup` will not be called for that context.
   int (*init)(EVP_AEAD_CTX *, const uint8_t *key, size_t key_len,
               size_t tag_len);
   int (*init_with_direction)(EVP_AEAD_CTX *, const uint8_t *key, size_t key_len,
@@ -96,16 +96,16 @@ struct evp_cipher_st {
   // cipher.
   unsigned ctx_size;
 
-  // flags contains the OR of a number of flags. See |EVP_CIPH_*|.
+  // flags contains the OR of a number of flags. See `EVP_CIPH_*`.
   uint32_t flags;
 
   int (*init)(EVP_CIPHER_CTX *ctx, const uint8_t *key, const uint8_t *iv,
               int enc);
 
-  // cipher encrypts/decrypts |in|, write output to |out|. Writes exactly |len|
-  // bytes, which must be a multiple of the |block_size|.
+  // cipher encrypts/decrypts `in`, write output to `out`. Writes exactly `len`
+  // bytes, which must be a multiple of the `block_size`.
   //
-  // For ciphers where encryption and decryption operations differ, |init|
+  // For ciphers where encryption and decryption operations differ, `init`
   // shall set an internal state for this.
   //
   // Returns 1 on success, or 0 on error.
@@ -115,22 +115,22 @@ struct evp_cipher_st {
   // cipher_final finalizes the cipher, performing possible final
   // authentication checks.
   //
-  // Only used for |EVP_CIPH_FLAG_CUSTOM_CIPHER| ciphers.
+  // Only used for `EVP_CIPH_FLAG_CUSTOM_CIPHER` ciphers.
   //
   // Returns 1 on success, or 0 on error. When decrypting, if an error is
   // returned, the decrypted data must not be used.
   int (*cipher_final)(EVP_CIPHER_CTX *ctx);
 
-  // update_aad adds |in| (of length |inl|) to the authenticated data for the
+  // update_aad adds `in` (of length `inl`) to the authenticated data for the
   // encryption operation.
   //
-  // Only used for |EVP_CIPH_FLAG_CUSTOM_CIPHER| ciphers.
+  // Only used for `EVP_CIPH_FLAG_CUSTOM_CIPHER` ciphers.
   //
   // Returns 1 on success, or 0 on error.
   int (*update_aad)(EVP_CIPHER_CTX *ctx, const uint8_t *in, size_t inl);
 
   // cleanup, if non-NULL, releases memory associated with the context. It is
-  // called if |EVP_CTRL_INIT| succeeds. Note that |init| may not have been
+  // called if `EVP_CTRL_INIT` succeeds. Note that `init` may not have been
   // called at this point.
   void (*cleanup)(EVP_CIPHER_CTX *);
 
@@ -141,7 +141,7 @@ struct evp_cipher_st {
 
 BSSL_NAMESPACE_BEGIN
 
-// CopySpan copies an entire span of bytes from |from| to |to|.
+// CopySpan copies an entire span of bytes from `from` to `to`.
 //
 // The spans need to have the same length.
 inline void CopySpan(Span<const uint8_t> from, Span<uint8_t> to) {
@@ -149,7 +149,7 @@ inline void CopySpan(Span<const uint8_t> from, Span<uint8_t> to) {
   std::copy(from.begin(), from.end(), to.begin());
 }
 
-// CopyToPrefix copies a span of bytes from |from| into |to|. It aborts
+// CopyToPrefix copies a span of bytes from `from` into `to`. It aborts
 // if there is not enough space.
 //
 // TODO(crbug.com/404286922): Can we simplify this in a C++20 world (e.g.
@@ -161,9 +161,9 @@ inline void CopyToPrefix(Span<const uint8_t> from, Span<uint8_t> to) {
 // Generic CRYPTO_IOVEC/CRYPTO_IVEC helpers.
 namespace iovec {
 
-// IsValid returns whether the given |CRYPTO_IVEC| or |CRYPTO_IOVEC| is
-// valid for use with public APIs, i.e. does not contain more than |SIZE_MAX|
-// bytes and not more than |CRYPTO_IOVEC_MAX| chunks. Note that the `EVP_AEAD`
+// IsValid returns whether the given `CRYPTO_IVEC` or `CRYPTO_IOVEC` is
+// valid for use with public APIs, i.e. does not contain more than `SIZE_MAX`
+// bytes and not more than `CRYPTO_IOVEC_MAX` chunks. Note that the `EVP_AEAD`
 // methods need to accept an arbitrary number of chunks.
 template <typename IVec>
 inline bool IsValid(Span<IVec> ivecs) {
@@ -181,8 +181,8 @@ inline bool IsValid(Span<IVec> ivecs) {
   return true;
 }
 
-// Length returns the total length in bytes of a given |CRYPTO_IVEC| or
-// |CRYPTO_IOVEC|.
+// Length returns the total length in bytes of a given `CRYPTO_IVEC` or
+// `CRYPTO_IOVEC`.
 template <typename IVec>
 inline size_t TotalLength(Span<IVec> ivecs) {
   size_t total = 0;
@@ -192,15 +192,15 @@ inline size_t TotalLength(Span<IVec> ivecs) {
   return total;
 }
 
-// GetAndRemoveSuffix takes |suffix_buf.size()| final bytes from the given
-// |CRYPTO_IVEC| or |CRYPTO_IOVEC| (mutating said iovec to no longer contain
+// GetAndRemoveSuffix takes `suffix_buf.size()` final bytes from the given
+// `CRYPTO_IVEC` or `CRYPTO_IOVEC` (mutating said iovec to no longer contain
 // those bytes) and returns them.
 //
-// If the byte range is contained in a single chunk of |ivecs|, it will just
-// return that span pointing into |ivecs|; otherwise, it will copy the bytes
-// into |out| and return that.
+// If the byte range is contained in a single chunk of `ivecs`, it will just
+// return that span pointing into `ivecs`; otherwise, it will copy the bytes
+// into `out` and return that.
 //
-// If |ivecs| is too short, returns |nullopt|.
+// If `ivecs` is too short, returns `nullopt`.
 template <typename IVec, typename ReadFromT = const uint8_t *,
           ReadFromT IVec::*ReadFrom = &IVec::in>
 inline std::optional<Span<const uint8_t>> GetAndRemoveSuffix(
@@ -221,7 +221,7 @@ inline std::optional<Span<const uint8_t>> GetAndRemoveSuffix(
     ivecs.back().len -= suffix_buf.size();
     return Span(ivecs.back().*ReadFrom + ivecs.back().len, suffix_buf.size());
   }
-  // Otherwise, collect it into the buffer while trimming |ivecs|.
+  // Otherwise, collect it into the buffer while trimming `ivecs`.
   Span<uint8_t> remaining = suffix_buf;
   while (!ivecs.empty()) {
     Span<const uint8_t> src(ivecs.back().*ReadFrom, ivecs.back().len);
@@ -238,8 +238,8 @@ inline std::optional<Span<const uint8_t>> GetAndRemoveSuffix(
   return std::nullopt;
 }
 
-// GetAndRemoveOutSuffix is like |GetAndRemoveSuffix| but takes from a
-// |CRYPTO_IOVEC|'s |out| member instead.
+// GetAndRemoveOutSuffix is like `GetAndRemoveSuffix` but takes from a
+// `CRYPTO_IOVEC`'s `out` member instead.
 inline std::optional<Span<const uint8_t>> GetAndRemoveOutSuffix(
     Span<uint8_t> out, Span<CRYPTO_IOVEC> iovecs) {
   return GetAndRemoveSuffix<CRYPTO_IOVEC, /*ReadFromT=*/uint8_t *,
@@ -262,20 +262,20 @@ inline void CopySpanToIOVec(Span<const uint8_t> out, CRYPTO_IOVEC head,
 }
 }  // namespace internal
 
-// ForEachBlockRange iterates over the |ivecs| as follows:
+// ForEachBlockRange iterates over the `ivecs` as follows:
 //
-// - |f_whole| gets called on whole blocks crossing |ivecs| chunk boundaries, or
+// - `f_whole` gets called on whole blocks crossing `ivecs` chunk boundaries, or
 //   ranges of whole blocks that are entirely in chunks.
-// - |f| gets called exactly once, on the last block range which may
+// - `f` gets called exactly once, on the last block range which may
 //   end up with a partial block.
-// - Both functions receive an |in| pointer that either points into |ivecs| or
-//   into a chunk assembly buffer and a |len| which indicates the number of
-//   bytes from |in| that can be accessed. If the function returns 0,
+// - Both functions receive an `in` pointer that either points into `ivecs` or
+//   into a chunk assembly buffer and a `len` which indicates the number of
+//   bytes from `in` that can be accessed. If the function returns 0,
 //   iteration stops.
-// - If |WriteOut| is set, |f_whole| and |f| receive an extra |out|
+// - If `WriteOut` is set, `f_whole` and `f` receive an extra `out`
 //   argument to which they can write output. This output will be placed into
-//   the |ivecs|'s |out| members either during or after the call. If iteration
-//   was stopped, the contents of |out| are indeterminate.
+//   the `ivecs`'s `out` members either during or after the call. If iteration
+//   was stopped, the contents of `out` are indeterminate.
 // - The return value is true if iteration was not stopped by the callbacks.
 template <
     size_t BlockSize, bool WriteOut = false, typename IVec,
@@ -310,8 +310,8 @@ inline bool ForEachBlockRange(Span<IVec> ivecs, const FWhole &f_whole,
     }
   };
 
-  // Ensure the last item in |ivecs| is nonempty. This is necessary for
-  // detecting being at the end and calling |f_final| at the appropriate time.
+  // Ensure the last item in `ivecs` is nonempty. This is necessary for
+  // detecting being at the end and calling `f_final` at the appropriate time.
   Span<IVec> ivecs_trimmed = ivecs;
   while (!ivecs_trimmed.empty() && ivecs_trimmed.back().len == 0) {
     ivecs_trimmed = ivecs_trimmed.first(ivecs_trimmed.size() - 1);
@@ -320,7 +320,7 @@ inline bool ForEachBlockRange(Span<IVec> ivecs, const FWhole &f_whole,
     return call_func(f_final, IVec{});
   }
 
-  // Now there are at least two non-empty |ivecs|, and neither the first nor the
+  // Now there are at least two non-empty `ivecs`, and neither the first nor the
   // last can be empty.
 
   MutableIVec current_range_head = ivecs_trimmed.front();
@@ -356,7 +356,7 @@ inline bool ForEachBlockRange(Span<IVec> ivecs, const FWhole &f_whole,
         remove_prefix(collect_from_head, remaining);
         break;
       }
-      // Consume all of |ivec| and advance.
+      // Consume all of `ivec` and advance.
       in.Append(Span(collect_from_head.*ReadFrom, collect_from_head.len));
       if (collect_from_rest.empty()) {
         // Nothing left - so this is the final block.
@@ -378,12 +378,12 @@ inline bool ForEachBlockRange(Span<IVec> ivecs, const FWhole &f_whole,
     }
     assert(in.size() == BlockSize);
 
-    // The above loop ensures this condition by the |break| only happening if
-    // |collect_from_head| has at least one byte remaining, and the loop
+    // The above loop ensures this condition by the `break` only happening if
+    // `collect_from_head` has at least one byte remaining, and the loop
     // otherwise ensuring as an invariant that the final chunk - which is
-    // nonempty - is among |collect_from_head| and |collect_from_rest|.
+    // nonempty - is among `collect_from_head` and `collect_from_rest`.
     //
-    // As such, at least one byte is remaining, and thus calling |f_whole| is
+    // As such, at least one byte is remaining, and thus calling `f_whole` is
     // appropriate.
     assert(collect_from_head.len != 0 || !collect_from_rest.empty());
 
@@ -406,15 +406,15 @@ inline bool ForEachBlockRange(Span<IVec> ivecs, const FWhole &f_whole,
   }
 
   // If current_range_head.len is zero, then the last item of ivecs is empty.
-  // That however was excluded at the start of the function to ensure |f_final|
+  // That however was excluded at the start of the function to ensure `f_final`
   // is always used for the last call.
   assert(current_range_head.len != 0);
 
   return call_func(f_final, current_range_head);
 }
 
-// ForEachOutBlockRange is like |ForEachBlockRange| but reads from a
-// |CRYPTO_IOVEC|'s |out| member instead.
+// ForEachOutBlockRange is like `ForEachBlockRange` but reads from a
+// `CRYPTO_IOVEC`'s `out` member instead.
 template <
     size_t BlockSize,
     typename /* int(const uint8_t *in, [uint8_t *out,] size_t len) */ FWhole,
@@ -428,7 +428,7 @@ inline int ForEachOutBlockRange(Span<const CRYPTO_IOVEC> iovecs,
                                                             f_final);
 }
 
-// ForEachBlockRange_Dynamic is simply |ForEachBlockRange| with a
+// ForEachBlockRange_Dynamic is simply `ForEachBlockRange` with a
 // runtime dispatch on the block size.
 template <
     bool WriteOut = false, typename IVec, typename ReadFromT = const uint8_t *,

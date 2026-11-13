@@ -666,9 +666,10 @@ TEST(SSLTest, CurveRules) {
     ASSERT_TRUE(ctx);
 
     ASSERT_TRUE(SSL_CTX_set1_groups_list(ctx.get(), t.rule));
-    ASSERT_EQ(t.expected.size(), ctx->supported_group_list.size());
+    ASSERT_EQ(t.expected.size(),
+              FromOpaque(ctx.get())->supported_group_list.size());
     for (size_t i = 0; i < t.expected.size(); i++) {
-      EXPECT_EQ(t.expected[i], ctx->supported_group_list[i]);
+      EXPECT_EQ(t.expected[i], FromOpaque(ctx.get())->supported_group_list[i]);
     }
   }
 
@@ -691,13 +692,15 @@ TEST(SSLTest, DefaultCurves) {
     bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
     ASSERT_TRUE(ctx);
     // The new context is populated with the default group list.
-    EXPECT_THAT(ctx->supported_group_list, ElementsAreArray(kDefaults));
+    EXPECT_THAT(FromOpaque(ctx.get())->supported_group_list,
+                ElementsAreArray(kDefaults));
 
     // Set some other list to check that it is set away from the default.
     const uint16_t kArbitraryGroupIds[] = {SSL_GROUP_X25519};
     ASSERT_TRUE(SSL_CTX_set1_group_ids(ctx.get(), kArbitraryGroupIds,
                                        std::size(kArbitraryGroupIds)));
-    EXPECT_THAT(ctx->supported_group_list, Not(ElementsAreArray(kDefaults)));
+    EXPECT_THAT(FromOpaque(ctx.get())->supported_group_list,
+                Not(ElementsAreArray(kDefaults)));
 
     bssl::UniquePtr<SSL> ssl(SSL_new(ctx.get()));
     ASSERT_TRUE(ssl);
@@ -708,7 +711,8 @@ TEST(SSLTest, DefaultCurves) {
     ASSERT_TRUE(SSL_set1_group_ids(ssl.get(), nullptr, 0));
     EXPECT_THAT(ssl->config->supported_group_list, ElementsAreArray(kDefaults));
     ASSERT_TRUE(SSL_CTX_set1_group_ids(ctx.get(), nullptr, 0));
-    EXPECT_THAT(ctx->supported_group_list, ElementsAreArray(kDefaults));
+    EXPECT_THAT(FromOpaque(ctx.get())->supported_group_list,
+                ElementsAreArray(kDefaults));
   }
 
   // Test the NID APIs.
@@ -716,13 +720,15 @@ TEST(SSLTest, DefaultCurves) {
     bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
     ASSERT_TRUE(ctx);
     // The new context is populated with the default group list.
-    EXPECT_THAT(ctx->supported_group_list, ElementsAreArray(kDefaults));
+    EXPECT_THAT(FromOpaque(ctx.get())->supported_group_list,
+                ElementsAreArray(kDefaults));
 
     // Set some other list to check that it is set away from the default.
     const int kArbitraryNids[] = {NID_X9_62_prime256v1};
     ASSERT_TRUE(SSL_CTX_set1_groups(ctx.get(), kArbitraryNids,
                                     std::size(kArbitraryNids)));
-    EXPECT_THAT(ctx->supported_group_list, Not(ElementsAreArray(kDefaults)));
+    EXPECT_THAT(FromOpaque(ctx.get())->supported_group_list,
+                Not(ElementsAreArray(kDefaults)));
 
     bssl::UniquePtr<SSL> ssl(SSL_new(ctx.get()));
     ASSERT_TRUE(ssl);
@@ -733,7 +739,8 @@ TEST(SSLTest, DefaultCurves) {
     ASSERT_TRUE(SSL_set1_groups(ssl.get(), nullptr, 0));
     EXPECT_THAT(ssl->config->supported_group_list, ElementsAreArray(kDefaults));
     ASSERT_TRUE(SSL_CTX_set1_groups(ctx.get(), nullptr, 0));
-    EXPECT_THAT(ctx->supported_group_list, ElementsAreArray(kDefaults));
+    EXPECT_THAT(FromOpaque(ctx.get())->supported_group_list,
+                ElementsAreArray(kDefaults));
   }
 }
 
@@ -3119,15 +3126,16 @@ static void AppendSession(SSL_SESSION *session, void *arg) {
 // order.
 static bool CacheEquals(SSL_CTX *ctx,
                         const std::vector<SSL_SESSION *> &expected) {
+  auto *ctx_impl = FromOpaque(ctx);
   // Check the linked list.
-  SSL_SESSION *ptr = ctx->session_cache_head;
+  SSL_SESSION *ptr = ctx_impl->session_cache_head;
   for (SSL_SESSION *session : expected) {
     if (ptr != session) {
       return false;
     }
     // TODO(davidben): This is an absurd way to denote the end of the list.
     if (ptr->next ==
-        reinterpret_cast<SSL_SESSION *>(&ctx->session_cache_tail)) {
+        reinterpret_cast<SSL_SESSION *>(&ctx_impl->session_cache_tail)) {
       ptr = nullptr;
     } else {
       ptr = ptr->next;
@@ -3139,7 +3147,7 @@ static bool CacheEquals(SSL_CTX *ctx,
 
   // Check the hash table.
   std::vector<SSL_SESSION *> actual, expected_copy;
-  lh_SSL_SESSION_doall_arg(ctx->sessions, AppendSession, &actual);
+  lh_SSL_SESSION_doall_arg(ctx_impl->sessions, AppendSession, &actual);
   expected_copy = expected;
 
   std::sort(actual.begin(), actual.end());
@@ -6974,7 +6982,8 @@ TEST(SSLTest, SigAlgs) {
       continue;
     }
 
-    ExpectSigAlgsEqual(test.expected, ctx->cert->legacy_credential->sigalgs);
+    ExpectSigAlgsEqual(test.expected,
+                       FromOpaque(ctx.get())->cert->legacy_credential->sigalgs);
   }
 }
 
@@ -7035,7 +7044,8 @@ TEST(SSLTest, SigAlgsList) {
       continue;
     }
 
-    ExpectSigAlgsEqual(test.expected, ctx->cert->legacy_credential->sigalgs);
+    ExpectSigAlgsEqual(test.expected,
+                       FromOpaque(ctx.get())->cert->legacy_credential->sigalgs);
   }
 }
 

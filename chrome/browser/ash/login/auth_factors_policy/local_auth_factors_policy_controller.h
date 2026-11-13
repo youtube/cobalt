@@ -9,6 +9,7 @@
 
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "chromeos/ash/components/login/auth/auth_factor_editor.h"
 #include "chromeos/ash/components/login/auth/public/user_context.h"
 #include "chromeos/ash/components/osauth/public/common_types.h"
@@ -70,7 +71,8 @@ class LocalAuthFactorsPolicyController
   std::optional<ash::AuthFactorsSet> GetAllowedAuthFactors();
 
   // ash::auth::mojom::FactorObserver:
-  void OnFactorChanged(ash::auth::mojom::AuthFactor factor) override;
+  void OnFactorChanged(ash::auth::mojom::AuthFactor factor,
+                       ash::auth::mojom::ConfigureResult result) override;
 
   void OnComplexityPrefUpdated();
   void ShowComplexityUpdateNotification();
@@ -81,6 +83,7 @@ class LocalAuthFactorsPolicyController
 
   friend class LocalAuthFactorsPolicyControllerTest;
 
+  const raw_ref<PrefService> local_state_;
   PrefChangeRegistrar pref_change_registrar_;
   std::unique_ptr<ash::AuthFactorEditor> auth_factor_editor_;
   const raw_ptr<Profile> profile_;

@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/chrome_pref_names.h"
 #include "ash/constants/webui_url_constants.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
@@ -26,6 +27,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/path_service.h"
 #include "base/process/launch.h"
+#include "base/scoped_observation.h"
 #include "base/strings/pattern.h"
 #include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
@@ -42,7 +44,6 @@
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/file_util_service.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/grit/drive_internals_resources.h"
 #include "chrome/grit/drive_internals_resources_map.h"
 #include "chrome/services/file_util/public/cpp/zip_file_creator.h"
@@ -477,9 +478,9 @@ class DriveInternalsWebUIHandler : public content::WebUIMessageHandler,
     }
 
     const char* const kPathPreferences[] = {
-        prefs::kSelectFileLastDirectory,
-        prefs::kSaveFileDefaultDirectory,
-        prefs::kDownloadDefaultDirectory,
+        ash::chrome_prefs::kSelectFileLastDirectory,
+        ash::chrome_prefs::kSaveFileDefaultDirectory,
+        ash::chrome_prefs::kDownloadDefaultDirectory,
     };
 
     for (const char* key : kPathPreferences) {
@@ -606,7 +607,7 @@ class DriveInternalsWebUIHandler : public content::WebUIMessageHandler,
       return;
     }
 
-    Observe(service);
+    drive_observation_.Observe(service);
 
     FireWebUIListenerIfAllowed(
         "updateBulkPinning",
@@ -655,6 +656,10 @@ class DriveInternalsWebUIHandler : public content::WebUIMessageHandler,
                  drivefs::pinning::ToString(progress.remaining_time));
     FireWebUIListenerIfAllowed("onBulkPinningProgress",
                                base::Value(std::move(dict)));
+  }
+
+  void OnDriveIntegrationServiceDestroyed() override {
+    drive_observation_.Reset();
   }
 
   // Called when GetDeveloperMode() is complete.
@@ -1010,6 +1015,10 @@ class DriveInternalsWebUIHandler : public content::WebUIMessageHandler,
 
     return service;
   }
+
+  base::ScopedObservation<drive::DriveIntegrationService,
+                          drive::DriveIntegrationService::Observer>
+      drive_observation_{this};
 
   // The last event sent to the JavaScript side.
   int last_sent_event_id_ = -1;

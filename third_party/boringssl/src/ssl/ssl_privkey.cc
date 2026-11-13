@@ -456,8 +456,8 @@ int SSL_CTX_use_PrivateKey(SSL_CTX *ctx, EVP_PKEY *pkey) {
     return 0;
   }
 
-  return SSL_CREDENTIAL_set1_private_key(ctx->cert->legacy_credential.get(),
-                                         pkey);
+  return SSL_CREDENTIAL_set1_private_key(
+      FromOpaque(ctx)->cert->legacy_credential.get(), pkey);
 }
 
 int SSL_CTX_use_PrivateKey_ASN1(int type, SSL_CTX *ctx, const uint8_t *der,
@@ -489,7 +489,7 @@ void SSL_set_private_key_method(SSL *ssl,
 void SSL_CTX_set_private_key_method(SSL_CTX *ctx,
                                     const SSL_PRIVATE_KEY_METHOD *key_method) {
   BSSL_CHECK(SSL_CREDENTIAL_set_private_key_method(
-      ctx->cert->legacy_credential.get(), key_method));
+      FromOpaque(ctx)->cert->legacy_credential.get(), key_method));
 }
 
 static constexpr size_t kMaxSignatureAlgorithmNameLen = 24;
@@ -654,7 +654,7 @@ int SSL_CREDENTIAL_set1_signing_algorithm_prefs(SSL_CREDENTIAL *cred,
 int SSL_CTX_set_signing_algorithm_prefs(SSL_CTX *ctx, const uint16_t *prefs,
                                         size_t num_prefs) {
   return SSL_CREDENTIAL_set1_signing_algorithm_prefs(
-      ctx->cert->legacy_credential.get(), prefs, num_prefs);
+      FromOpaque(ctx)->cert->legacy_credential.get(), prefs, num_prefs);
 }
 
 int SSL_set_signing_algorithm_prefs(SSL *ssl, const uint16_t *prefs,
@@ -947,7 +947,8 @@ int SSL_set1_sigalgs_list(SSL *ssl, const char *str) {
 
 int SSL_CTX_set_verify_algorithm_prefs(SSL_CTX *ctx, const uint16_t *prefs,
                                        size_t num_prefs) {
-  return set_sigalg_prefs(&ctx->verify_sigalgs, Span(prefs, num_prefs));
+  return set_sigalg_prefs(&FromOpaque(ctx)->verify_sigalgs,
+                          Span(prefs, num_prefs));
 }
 
 int SSL_set_verify_algorithm_prefs(SSL *ssl, const uint16_t *prefs,

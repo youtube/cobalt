@@ -65,7 +65,6 @@ class AudioReceiveStreamImpl final : public webrtc::AudioReceiveStreamInterface,
   // For unit tests, which need to supply a mock channel receive.
   AudioReceiveStreamImpl(
       const Environment& env,
-      PacketRouter* absl_nonnull packet_router,
       const webrtc::AudioReceiveStreamInterface::Config& config,
       const scoped_refptr<webrtc::AudioState>& audio_state,
       absl_nonnull std::unique_ptr<voe::ChannelReceiveInterface>

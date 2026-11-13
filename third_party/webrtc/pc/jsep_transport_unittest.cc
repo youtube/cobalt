@@ -22,10 +22,12 @@
 #include <vector>
 
 #include "api/candidate.h"
+#include "api/crypto/crypto_options.h"
 #include "api/field_trials.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/scoped_refptr.h"
 #include "media/base/fake_rtp.h"
 #include "p2p/base/ice_transport_internal.h"
@@ -150,7 +152,8 @@ class JsepTransport2Test : public ::testing::Test {
         /*local_certificate=*/nullptr, std::move(rtp_transport),
         std::move(rtp_dtls_transport_wrapper),
         /*sctp_transport=*/nullptr,
-        /*rtcp_mux_active_callback=*/[&]() { OnRtcpMuxActive(); });
+        /*rtcp_mux_active_callback=*/[&]() { OnRtcpMuxActive(); },
+        /*cryptex_policy=*/CryptoOptions::Srtp::CryptexPolicy::kDisabled);
 
     signal_rtcp_mux_active_received_ = false;
     return jsep_transport;
@@ -1260,8 +1263,8 @@ class JsepTransport2HeaderExtensionTest
   int received_packet_count_ = 0;
   std::unique_ptr<JsepTransport> jsep_transport1_;
   std::unique_ptr<JsepTransport> jsep_transport2_;
-  std::vector<int> recv_encrypted_headers1_;
-  std::vector<int> recv_encrypted_headers2_;
+  std::vector<RtpHeaderExtensionId> recv_encrypted_headers1_;
+  std::vector<RtpHeaderExtensionId> recv_encrypted_headers2_;
 };
 
 // Test that the encrypted header extension works and can be changed in

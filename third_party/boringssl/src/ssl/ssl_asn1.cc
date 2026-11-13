@@ -835,10 +835,11 @@ int i2d_SSL_SESSION(SSL_SESSION *in, uint8_t **pp) {
 
 SSL_SESSION *SSL_SESSION_from_bytes(const uint8_t *in, size_t in_len,
                                     const SSL_CTX *ctx) {
+  auto *ctx_impl = FromOpaque(ctx);
   CBS cbs;
   CBS_init(&cbs, in, in_len);
   UniquePtr<SSL_SESSION> ret =
-      SSL_SESSION_parse(&cbs, ctx->x509_method, ctx->pool.get());
+      SSL_SESSION_parse(&cbs, ctx_impl->x509_method, ctx_impl->pool.get());
   if (!ret) {
     return nullptr;
   }

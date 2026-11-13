@@ -57,6 +57,7 @@
 
 
 DECLARE_OPAQUE_STRUCT(ssl_credential_st, SSLCredential)
+DECLARE_OPAQUE_STRUCT(ssl_ctx_st, SSLContext)
 DECLARE_OPAQUE_STRUCT(ssl_ech_keys_st, SSLECHKeys)
 
 BSSL_NAMESPACE_BEGIN
@@ -2739,11 +2740,11 @@ struct SSL_X509_METHOD {
   bool (*ssl_auto_chain_if_needed)(SSL_HANDSHAKE *hs);
   // ssl_ctx_new does any necessary initialisation of |ctx|. It returns true on
   // success or false on error.
-  bool (*ssl_ctx_new)(SSL_CTX *ctx);
+  bool (*ssl_ctx_new)(SSLContext *ctx);
   // ssl_ctx_free frees anything created by |ssl_ctx_new|.
-  void (*ssl_ctx_free)(SSL_CTX *ctx);
+  void (*ssl_ctx_free)(SSLContext *ctx);
   // ssl_ctx_flush_cached_client_CA drops any cached |X509_NAME|s from |ctx|.
-  void (*ssl_ctx_flush_cached_client_CA)(SSL_CTX *ssl);
+  void (*ssl_ctx_flush_cached_client_CA)(SSLContext *ssl);
 };
 
 // ssl_crypto_x509_method provides the |SSL_X509_METHOD| functions using
@@ -3573,7 +3574,7 @@ bool ssl_get_new_session(SSL_HANDSHAKE *hs);
 bool ssl_encrypt_ticket(SSL_HANDSHAKE *hs, CBB *out,
                         const SSL_SESSION *session);
 
-bool ssl_ctx_rotate_ticket_encryption_key(SSL_CTX *ctx);
+bool ssl_ctx_rotate_ticket_encryption_key(SSLContext *ctx);
 
 // ssl_session_new returns a newly-allocated blank |SSL_SESSION| or nullptr on
 // error.
@@ -3847,7 +3848,7 @@ bool ssl_can_write(const SSL *ssl);
 // ssl_can_read returns whether |ssl| is allowed to read.
 bool ssl_can_read(const SSL *ssl);
 
-OPENSSL_timeval ssl_ctx_get_current_time(const SSL_CTX *ctx);
+OPENSSL_timeval ssl_ctx_get_current_time(const SSLContext *ctx);
 
 // ssl_reset_error_state resets state for |SSL_get_error|.
 void ssl_reset_error_state(SSL *ssl);
@@ -3880,16 +3881,18 @@ struct ssl_method_st {
   const bssl::SSL_X509_METHOD *x509_method;
 };
 
-struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
-  explicit ssl_ctx_st(const SSL_METHOD *ssl_method);
-  ssl_ctx_st(const ssl_ctx_st &) = delete;
-  ssl_ctx_st &operator=(const ssl_ctx_st &) = delete;
+BSSL_NAMESPACE_BEGIN
+class SSLContext : public ssl_ctx_st, public RefCounted<SSLContext> {
+ public:
+  explicit SSLContext(const SSL_METHOD *ssl_method);
+  SSLContext(const SSLContext &) = delete;
+  SSLContext &operator=(const SSLContext &) = delete;
 
-  const bssl::SSL_PROTOCOL_METHOD *method = nullptr;
-  const bssl::SSL_X509_METHOD *x509_method = nullptr;
+  const SSL_PROTOCOL_METHOD *method = nullptr;
+  const SSL_X509_METHOD *x509_method = nullptr;
 
   // lock is used to protect various operations on this object.
-  mutable bssl::Mutex lock;
+  mutable Mutex lock;
 
   // conf_max_version is the maximum acceptable protocol version configured by
   // |SSL_CTX_set_max_proto_version|. Note this version is normalized in DTLS
@@ -3909,7 +3912,7 @@ struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
   // quic_method is the method table corresponding to the QUIC hooks.
   const SSL_QUIC_METHOD *quic_method = nullptr;
 
-  bssl::UniquePtr<bssl::SSLCipherPreferenceList> cipher_list;
+  UniquePtr<SSLCipherPreferenceList> cipher_list;
 
   X509_STORE *cert_store = nullptr;
   LHASH_OF(SSL_SESSION) *sessions = nullptr;
@@ -3974,28 +3977,29 @@ struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
   void (*info_callback)(const SSL *ssl, int type, int value) = nullptr;
 
   // what we put in client cert requests
-  bssl::UniquePtr<STACK_OF(CRYPTO_BUFFER)> client_CA;
+  UniquePtr<STACK_OF(CRYPTO_BUFFER)> client_CA;
 
   // cached_x509_client_CA is a cache of parsed versions of the elements of
   // |client_CA|.
   STACK_OF(X509_NAME) *cached_x509_client_CA = nullptr;
 
   // What we put in client hello in the CA extension.
-  bssl::UniquePtr<STACK_OF(CRYPTO_BUFFER)> CA_names;
+  UniquePtr<STACK_OF(CRYPTO_BUFFER)> CA_names;
 
   // What we request in the trust_anchors extension.
-  std::optional<bssl::Array<uint8_t>> requested_trust_anchors;
+  std::optional<Array<uint8_t>> requested_trust_anchors;
 
   // Default values to use in SSL structures follow (these are copied by
   // SSL_new)
 
-  uint32_t options = 0;
+  // TODO(crbug.com/41393419): Disable SSL_OP_LEGACY_SERVER_CONNECT by default.
+  uint32_t options = SSL_OP_LEGACY_SERVER_CONNECT;
   // Disable the auto-chaining feature by default. wpa_supplicant relies on this
   // feature, but require callers opt into it.
   uint32_t mode = SSL_MODE_NO_AUTO_CHAIN;
   uint32_t max_cert_list = SSL_MAX_CERT_LIST_DEFAULT;
 
-  bssl::UniquePtr<bssl::CERT> cert;
+  UniquePtr<CERT> cert;
 
   // callback that allows applications to peek at protocol messages
   void (*msg_callback)(int is_write, int version, int content_type,
@@ -4037,8 +4041,8 @@ struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
   // first handshake and |ticket_key_prev| may be NULL at any time.
   // Automatically generated ticket keys are rotated as needed at handshake
   // time. Hence, all access must be synchronized through |lock|.
-  bssl::UniquePtr<bssl::TicketKey> ticket_key_current;
-  bssl::UniquePtr<bssl::TicketKey> ticket_key_prev;
+  UniquePtr<TicketKey> ticket_key_current;
+  UniquePtr<TicketKey> ticket_key_prev;
 
   // Callback to support customisation of ticket key setting
   int (*ticket_key_cb)(SSL *ssl, uint8_t *name, uint8_t *iv,
@@ -4046,7 +4050,7 @@ struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
 
   // Server-only: psk_identity_hint is the default identity hint to send in
   // PSK-based key exchanges.
-  bssl::UniquePtr<char> psk_identity_hint;
+  UniquePtr<char> psk_identity_hint;
 
   unsigned (*psk_client_callback)(SSL *ssl, const char *hint, char *identity,
                                   unsigned max_identity_len, uint8_t *psk,
@@ -4088,26 +4092,26 @@ struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
 
   // For a client, this contains the list of supported protocols in wire
   // format.
-  bssl::Array<uint8_t> alpn_client_proto_list;
+  Array<uint8_t> alpn_client_proto_list;
 
   // SRTP profiles we are willing to do from RFC 5764
-  bssl::UniquePtr<STACK_OF(SRTP_PROTECTION_PROFILE)> srtp_profiles;
+  UniquePtr<STACK_OF(SRTP_PROTECTION_PROFILE)> srtp_profiles;
 
   // Defined compression algorithms for certificates.
-  bssl::Vector<bssl::CertCompressionAlg> cert_compression_algs;
+  Vector<CertCompressionAlg> cert_compression_algs;
 
   // Supported group values and flags inherited by SSL structure
-  bssl::Array<uint16_t> supported_group_list;
-  bssl::Array<uint32_t> supported_group_list_flags;
+  Array<uint16_t> supported_group_list;
+  Array<uint32_t> supported_group_list_flags;
 
   // channel_id_private is the client's Channel ID private key, or null if
   // Channel ID should not be offered on this connection.
-  bssl::UniquePtr<EVP_PKEY> channel_id_private;
+  UniquePtr<EVP_PKEY> channel_id_private;
 
   // ech_keys contains the server's list of ECHConfig values and associated
   // private keys. This list may be swapped out at any time, so all access must
   // be synchronized through |lock|.
-  bssl::UniquePtr<bssl::SSLECHKeys> ech_keys;
+  UniquePtr<SSLECHKeys> ech_keys;
 
   // keylog_callback, if not NULL, is the key logging callback. See
   // |SSL_CTX_set_keylog_callback|.
@@ -4120,7 +4124,7 @@ struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
 
   // pool is used for all |CRYPTO_BUFFER|s in case we wish to share certificate
   // memory.
-  bssl::UniquePtr<CRYPTO_BUFFER_POOL> pool;
+  UniquePtr<CRYPTO_BUFFER_POOL> pool;
 
   // ticket_aead_method contains function pointers for opening and sealing
   // session tickets.
@@ -4137,13 +4141,13 @@ struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
 
   // verify_sigalgs, if not empty, is the set of signature algorithms
   // accepted from the peer in decreasing order of preference.
-  bssl::Array<uint16_t> verify_sigalgs;
+  Array<uint16_t> verify_sigalgs;
 
   // accepted_peer_cert_types inherited by SSL struct.
-  bssl::InplaceVector<uint8_t, bssl::kNumCertTypes> accepted_peer_cert_types;
+  InplaceVector<uint8_t, kNumCertTypes> accepted_peer_cert_types;
 
   // available_client_cert_types inherited by SSL struct.
-  bssl::InplaceVector<uint8_t, bssl::kNumCertTypes> available_client_cert_types;
+  InplaceVector<uint8_t, kNumCertTypes> available_client_cert_types;
 
   // retain_only_sha256_of_client_certs is true if we should compute the SHA256
   // hash of the peer's certificate and then discard it to save memory and
@@ -4203,11 +4207,12 @@ struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
 
  private:
   friend RefCounted;
-  ~ssl_ctx_st();
+  ~SSLContext();
 };
+BSSL_NAMESPACE_END
 
 struct ssl_st {
-  explicit ssl_st(SSL_CTX *ctx_arg);
+  explicit ssl_st(bssl::SSLContext *ctx_arg);
   ssl_st(const ssl_st &) = delete;
   ssl_st &operator=(const ssl_st &) = delete;
   ~ssl_st();
@@ -4257,11 +4262,11 @@ struct ssl_st {
 
   void (*info_callback)(const SSL *ssl, int type, int value) = nullptr;
 
-  bssl::UniquePtr<SSL_CTX> ctx;
+  bssl::UniquePtr<bssl::SSLContext> ctx;
 
-  // session_ctx is the |SSL_CTX| used for the session cache and related
+  // session_ctx is the |SSLContext| used for the session cache and related
   // settings.
-  bssl::UniquePtr<SSL_CTX> session_ctx;
+  bssl::UniquePtr<bssl::SSLContext> session_ctx;
 
   // extra application data
   CRYPTO_EX_DATA ex_data;

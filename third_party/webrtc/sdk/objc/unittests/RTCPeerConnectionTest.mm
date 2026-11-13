@@ -60,7 +60,9 @@
   config.activeResetSrtpParams = YES;
   config.cryptoOptions = [[RTC_OBJC_TYPE(RTCCryptoOptions) alloc]
            initWithSrtpEnableGcmCryptoSuites:YES
+                   srtpPreferGcmCryptoSuites:NO
          srtpEnableAes128Sha1_32CryptoCipher:YES
+         srtpEnableAes128Sha1_80CryptoCipher:NO
       srtpEnableEncryptedRtpHeaderExtensions:NO
                 sframeRequireFrameEncryption:NO];
 
@@ -114,8 +116,12 @@
   EXPECT_EQ(config.activeResetSrtpParams, newConfig.activeResetSrtpParams);
   EXPECT_EQ(config.cryptoOptions.srtpEnableGcmCryptoSuites,
             newConfig.cryptoOptions.srtpEnableGcmCryptoSuites);
+  EXPECT_EQ(config.cryptoOptions.srtpPreferGcmCryptoSuites,
+            newConfig.cryptoOptions.srtpPreferGcmCryptoSuites);
   EXPECT_EQ(config.cryptoOptions.srtpEnableAes128Sha1_32CryptoCipher,
             newConfig.cryptoOptions.srtpEnableAes128Sha1_32CryptoCipher);
+  EXPECT_EQ(config.cryptoOptions.srtpEnableAes128Sha1_80CryptoCipher,
+            newConfig.cryptoOptions.srtpEnableAes128Sha1_80CryptoCipher);
   EXPECT_EQ(config.cryptoOptions.srtpEnableEncryptedRtpHeaderExtensions,
             newConfig.cryptoOptions.srtpEnableEncryptedRtpHeaderExtensions);
   EXPECT_EQ(config.cryptoOptions.sframeRequireFrameEncryption,

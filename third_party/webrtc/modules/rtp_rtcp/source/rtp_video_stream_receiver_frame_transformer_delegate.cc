@@ -79,7 +79,7 @@ class TransformableVideoReceiverFrame
     // dependencies.
     VideoFrameMetadata new_metadata = Metadata();
     new_metadata.SetFrameId(metadata.GetFrameId());
-    new_metadata.SetFrameDependencies(metadata.GetFrameDependencies());
+    new_metadata.SetDependencies(metadata.GetDependencies());
     RTC_DCHECK(new_metadata == metadata)
         << "TransformableVideoReceiverFrame::SetMetadata can be only used to "
            "change frameID and dependencies";

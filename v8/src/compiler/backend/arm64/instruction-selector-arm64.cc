@@ -966,6 +966,9 @@ std::tuple<InstructionCode, ImmediateMode> GetStoreOpcodeAndImmediate(
     case MemoryRepresentation::ProtectedPointer():
       // We never store directly to protected pointers from generated code.
       UNREACHABLE();
+    case MemoryRepresentation::TrustedPointer():
+      // Only LoadTrustedPointer uses this representation.
+      UNREACHABLE();
     case MemoryRepresentation::IndirectPointer():
       return {kArm64StrIndirectPointer, kLoadStoreImm32};
     case MemoryRepresentation::SandboxedPointer():
@@ -1343,6 +1346,9 @@ std::tuple<InstructionCode, ImmediateMode> GetLoadOpcodeAndImmediate(
       CHECK(V8_ENABLE_SANDBOX_BOOL);
       return {kArm64LdrDecompressProtected, kNoImmediate};
     case MemoryRepresentation::IndirectPointer():
+      UNREACHABLE();
+    case MemoryRepresentation::TrustedPointer():
+      // Only LoadTrustedPointer uses this representation.
       UNREACHABLE();
     case MemoryRepresentation::SandboxedPointer():
       return {kArm64LdrDecodeSandboxedPointer, kLoadStoreImm64};
@@ -7108,6 +7114,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
                MachineOperatorBuilder::kFloat64RoundTiesAway |
                MachineOperatorBuilder::kFloat32RoundTiesEven |
                MachineOperatorBuilder::kFloat64RoundTiesEven |
+               MachineOperatorBuilder::kFloat16MemAccess |
+               MachineOperatorBuilder::kFloat16RawBitsConversion |
                MachineOperatorBuilder::kWord32Popcnt |
                MachineOperatorBuilder::kWord64Popcnt |
                MachineOperatorBuilder::kWord32ShiftIsSafe |
@@ -7122,8 +7130,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
                MachineOperatorBuilder::kWord64Select |
                MachineOperatorBuilder::kLoadStorePairs;
   if (CpuFeatures::IsSupported(FP16)) {
-    flags |= MachineOperatorBuilder::kFloat16 |
-             MachineOperatorBuilder::kFloat16RawBitsConversion;
+    flags |= MachineOperatorBuilder::kFloat16Arithmetic;
   }
   if (CpuFeatures::IsSupported(CSSC)) {
     flags |=

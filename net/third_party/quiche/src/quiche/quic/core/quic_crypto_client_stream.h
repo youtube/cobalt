@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
@@ -244,6 +245,10 @@ class QUICHE_EXPORT QuicCryptoClientStream : public QuicCryptoClientStreamBase {
     // (https://tlswg.org/tls-trust-anchor-ids/draft-ietf-tls-trust-anchor-ids.html#name-overview).
     virtual bool MatchedTrustAnchorIdForTesting() const = 0;
 
+    // Returns true if the server indicated during the handshake that it
+    // sent the requested amount of padding.
+    virtual bool ServerPaddingSentForTesting() const = 0;
+
     // Returns the SSL compliance policy configured for the connection, if any.
     virtual std::optional<ssl_compliance_policy_t>
     SslCompliancePolicyForTesting() const = 0;
@@ -266,6 +271,14 @@ class QUICHE_EXPORT QuicCryptoClientStream : public QuicCryptoClientStreamBase {
     // will only be called for secure QUIC connections.
     virtual void OnProofVerifyDetailsAvailable(
         const ProofVerifyDetails& verify_details) = 0;
+
+    // Called when the server requests a client certificate. |cert_authorities|
+    // contains the DER-encoded requested CAs. Returns true if the handshake
+    // should be suspended to provide the certificate asynchronously.
+    virtual bool OnCertificateRequested(
+        const std::vector<std::string>& /*cert_authorities*/) {
+      return false;
+    }
   };
 
   QuicCryptoClientStream(const QuicServerId& server_id, QuicSession* session,
@@ -320,6 +333,7 @@ class QUICHE_EXPORT QuicCryptoClientStream : public QuicCryptoClientStreamBase {
   std::string chlo_hash() const;
 
   bool MatchedTrustAnchorIdForTesting() const;
+  bool ServerPaddingSentForTesting() const;
   std::optional<ssl_compliance_policy_t> SslCompliancePolicyForTesting() const;
 
  protected:

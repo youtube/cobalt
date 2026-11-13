@@ -22,9 +22,6 @@
 
 namespace blink {
 
-// Allow all fields to be set when calling RTCEncodedVideoFrame.setMetadata.
-BASE_FEATURE(kAllowRTCEncodedVideoFrameSetMetadataAllFields,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 namespace {
 constexpr size_t kMaxNumDependencies = 8;
@@ -198,11 +195,11 @@ RTCEncodedVideoFrameMetadata* RTCEncodedVideoFrame::getMetadata(
     metadata->setFrameId(*webrtc_metadata->GetFrameId());
   }
 
-  Vector<int64_t> dependencies;
-  for (const auto& dependency : webrtc_metadata->GetFrameDependencies()) {
-    dependencies.push_back(dependency);
+  if (auto webrtc_deps = webrtc_metadata->GetDependencies()) {
+    Vector<int64_t> dependencies;
+    dependencies.append_range(*webrtc_deps);
+    metadata->setDependencies(std::move(dependencies));
   }
-  metadata->setDependencies(dependencies);
   metadata->setWidth(webrtc_metadata->GetWidth());
   metadata->setHeight(webrtc_metadata->GetHeight());
   metadata->setSpatialIndex(webrtc_metadata->GetSpatialIndex());
@@ -255,9 +252,7 @@ base::expected<void, String> RTCEncodedVideoFrame::SetMetadata(
   if (!original_metadata) {
     return base::unexpected("internal error when calling getMetadata().");
   }
-  if (!IsAllowedSetMetadataChange(original_metadata, metadata) &&
-      !base::FeatureList::IsEnabled(
-          kAllowRTCEncodedVideoFrameSetMetadataAllFields)) {
+  if (!IsAllowedSetMetadataChange(original_metadata, metadata)) {
     return base::unexpected(
         "invalid modification of RTCEncodedVideoFrameMetadata.");
   }
@@ -276,7 +271,7 @@ base::expected<void, String> RTCEncodedVideoFrame::SetMetadata(
     webrtc_metadata.SetFrameId(metadata->frameId());
   }
   if (metadata->hasDependencies()) {
-    webrtc_metadata.SetFrameDependencies(metadata->dependencies());
+    webrtc_metadata.SetDependencies(metadata->dependencies());
   }
   webrtc_metadata.SetWidth(metadata->width());
   webrtc_metadata.SetHeight(metadata->height());

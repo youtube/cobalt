@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/side_panel/side_panel_entry_key.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/accelerators/accelerator.h"
+#include "ui/base/interaction/element_tracker.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 #include "ui/color/color_provider_key.h"
 #include "ui/color/color_provider_source.h"
@@ -126,9 +127,7 @@ class WebUIBrowserWindow : public BrowserWindow,
       const std::string& target_language,
       translate::TranslateErrors error_type,
       bool is_user_gesture) override;
-  void StartPartialTranslate(const std::string& source_language,
-                             const std::string& target_language,
-                             const std::u16string& text_selection) override;
+
   DownloadBubbleUIController* GetDownloadBubbleUIController() override;
   void ConfirmBrowserCloseWithPendingDownloads(
       int download_count,
@@ -272,6 +271,13 @@ class WebUIBrowserWindow : public BrowserWindow,
   void PaintAsActiveChanged();
 
   void OnWindowCloseRequested(views::Widget::ClosedReason close_reason);
+
+  bool IsContentsElementReady() const;
+
+  void OnContentsElementShown(ui::TrackedElement* element);
+
+  std::optional<gfx::Size> deferred_contents_size_;
+  ui::ElementTracker::Subscription contents_element_shown_subscription_;
 
   const raw_ptr<Browser> browser_;
   std::unique_ptr<WebUIBrowserWebContentsDelegate> web_contents_delegate_;

@@ -30,6 +30,7 @@
 #include "api/local_network_access_permission.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_transport_factory.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
@@ -330,12 +331,12 @@ class JsepTransportController final {
   JsepTransportDescription CreateJsepTransportDescription(
       const ContentInfo& content_info,
       const TransportInfo& transport_info,
-      const std::vector<int>& encrypted_extension_ids);
+      const std::vector<RtpHeaderExtensionId>& encrypted_extension_ids);
 
-  std::map<const ContentGroup*, std::vector<int>>
+  std::map<const ContentGroup*, std::vector<RtpHeaderExtensionId>>
   MergeEncryptedHeaderExtensionIdsForBundles(
       const SessionDescription* description);
-  std::vector<int> GetEncryptedHeaderExtensionIds(
+  std::vector<RtpHeaderExtensionId> GetEncryptedHeaderExtensionIds(
       const ContentInfo& content_info);
 
   // This method takes the BUNDLE group into account. If the JsepTransport is

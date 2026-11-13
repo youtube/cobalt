@@ -109,12 +109,14 @@ class RecomputeKnownNodeAspectsProcessor {
   void PostProcessBasicBlock(BasicBlock* block) {}
   void PostPhiProcessing() {}
 
-  void ProcessThrowingNode(NodeBase* node) {
+  void ProcessThrowingNode(NodeBase* node, bool mark_handler_reachable = true) {
     DCHECK(node->properties().can_throw());
     ExceptionHandlerInfo* info = node->exception_handler_info();
     if (info->HasExceptionHandler() && !info->ShouldLazyDeopt()) {
       BasicBlock* exception_handler = info->catch_block();
-      reachable_exception_handlers_.insert(exception_handler);
+      if (mark_handler_reachable) {
+        reachable_exception_handlers_.insert(exception_handler);
+      }
       Merge(exception_handler);
     }
   }
@@ -296,6 +298,8 @@ class RecomputeKnownNodeAspectsProcessor {
   PROCESS_SAFE_CONV(CheckedSmiTagIntPtr, tagged, Smi)
   PROCESS_UNSAFE_CONV(UnsafeSmiTagIntPtr, tagged, Smi)
   PROCESS_SAFE_CONV(CheckedSmiTagFloat64, tagged, Smi)
+  PROCESS_UNSAFE_CONV(UnsafeSmiTagFloat64, tagged, Smi)
+  PROCESS_UNSAFE_CONV(UnsafeSmiTagHoleyFloat64, tagged, Smi)
   PROCESS_SAFE_CONV(TruncateCheckedNumberOrOddballToInt32,
                     truncated_int32_to_number, NumberOrOddball)
   PROCESS_UNSAFE_CONV(TruncateUnsafeNumberOrOddballToInt32,

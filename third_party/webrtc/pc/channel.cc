@@ -506,7 +506,7 @@ RTCError BaseChannel::MaybeUpdateDemuxerAndRtpExtensions_w(
             : (RTCError::InvalidState() << "No transport assigned.");
     if (!error.ok()) {
       error.string_builder() << " (mid=" << mid() << ")";
-      return LOG_ERROR(error);
+      return RTC_LOG_ERROR(error);
     }
 
     if (payload_types) {

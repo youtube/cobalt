@@ -21,10 +21,12 @@
 #include "absl/algorithm/container.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
+#include "api/crypto/crypto_options.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "api/media_types.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
 #include "api/sctp_transport_interface.h"
@@ -58,7 +60,8 @@ namespace {
 
 RtpExtension RtpExtensionFromCapability(
     const RtpHeaderExtensionCapability& capability) {
-  return RtpExtension(capability.uri, capability.preferred_id.value_or(1),
+  return RtpExtension(capability.uri,
+                      capability.preferred_id.value_or(RtpHeaderExtensionId(1)),
                       capability.preferred_encrypt);
 }
 
@@ -400,8 +403,8 @@ RTCError CreateMediaContentOffer(
   if (!AddStreamParams(media_description_options.sender_options,
                        session_options.rtcp_cname, ssrc_generator,
                        current_streams, offer, field_trials)) {
-    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
-                     << "Failed to add stream parameters");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                         << "Failed to add stream parameters");
   }
 
   return CreateContentOffer(media_description_options, session_options,
@@ -630,6 +633,16 @@ bool CreateMediaContentAnswer(
       extensions_filter, &negotiated_rtp_extensions, suggester,
       media_description_options.mid, id_domain);
   answer->set_rtp_header_extensions(negotiated_rtp_extensions);
+  // Cryptex is declarative, i.e. does not depend on the offer.
+  // If present in the offer we match the level (session/media)
+  // and put it at session level otherwise.
+  if (session_options.crypto_options.srtp.cryptex_policy !=
+      CryptoOptions::Srtp::CryptexPolicy::kDisabled) {
+    answer->set_cryptex_level(
+        offer->cryptex_level() != MediaContentDescription::AttributeLevel::kNone
+            ? offer->cryptex_level()
+            : MediaContentDescription::AttributeLevel::kSession);
+  }
 
   answer->set_rtcp_mux(session_options.rtcp_mux_enabled && offer->rtcp_mux());
   answer->set_rtcp_reduced_size(offer->rtcp_reduced_size());
@@ -841,7 +854,7 @@ MediaSessionDescriptionFactory::CreateOfferOrError(
     if (!offer_bundle.content_names().empty()) {
       offer->AddGroup(offer_bundle);
       if (!UpdateTransportInfoForBundle(offer_bundle, offer.get())) {
-        return LOG_ERROR(
+        return RTC_LOG_ERROR(
             RTCError(RTCErrorType::INTERNAL_ERROR)
             << "CreateOffer failed to UpdateTransportInfoForBundle");
       }
@@ -864,6 +877,8 @@ MediaSessionDescriptionFactory::CreateOfferOrError(
   }
 
   offer->set_extmap_allow_mixed(session_options.offer_extmap_allow_mixed);
+  offer->set_cryptex(session_options.crypto_options.srtp.cryptex_policy !=
+                     CryptoOptions::Srtp::CryptexPolicy::kDisabled);
 
   return offer;
 }
@@ -874,8 +889,8 @@ MediaSessionDescriptionFactory::CreateAnswerOrError(
     const MediaSessionOptions& session_options,
     const SessionDescription* current_description) const {
   if (!offer) {
-    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
-                     << "Called without offer.");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                         << "Called without offer.");
   }
 
   // Must have options for exactly as many sections as in the offer.
@@ -938,6 +953,17 @@ MediaSessionDescriptionFactory::CreateAnswerOrError(
   }
 
   answer->set_extmap_allow_mixed(offer->extmap_allow_mixed());
+  // Cryptex is declarative: advertise support when policy allows. If the
+  // offer used cryptex at media level, answer at media level.
+  bool use_session_level_cryptex =
+      offer->cryptex() ||
+      absl::c_find_if(offer->contents(), [](const ContentInfo& content) {
+        return content.media_description()->cryptex_level() ==
+               MediaContentDescription::AttributeLevel::kMedia;
+      }) == offer->contents().end();
+  answer->set_cryptex(session_options.crypto_options.srtp.cryptex_policy !=
+                          CryptoOptions::Srtp::CryptexPolicy::kDisabled &&
+                      use_session_level_cryptex);
 
   // Iterate through the media description options, matching with existing
   // media descriptions in `current_description`.
@@ -1034,7 +1060,7 @@ MediaSessionDescriptionFactory::CreateAnswerOrError(
         // Share the same ICE credentials and crypto params across all contents,
         // as BUNDLE requires.
         if (!UpdateTransportInfoForBundle(answer_bundle, answer.get())) {
-          return LOG_ERROR(
+          return RTC_LOG_ERROR(
               RTCError(RTCErrorType::INTERNAL_ERROR)
               << "CreateAnswer failed to UpdateTransportInfoForBundle.");
         }
@@ -1381,7 +1407,7 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForAnswer(
       media_description_options.transport_options, current_description,
       !offer_content->rejected && bundle_transport == nullptr, ice_credentials);
   if (!transport) {
-    return LOG_ERROR(
+    return RTC_LOG_ERROR(
         RTCError(RTCErrorType::INTERNAL_ERROR)
         << "Failed to create transport answer, transport is missing");
   }
@@ -1436,8 +1462,8 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForAnswer(
                          ssrc_generator(), current_streams,
                          answer_content.get(),
                          transport_desc_factory_->trials())) {
-    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
-                     << "Failed to set codecs in answer");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                         << "Failed to set codecs in answer");
   }
   RTC_DCHECK(codec_lookup_helper_->PayloadTypeSuggester());
   if (!CreateMediaContentAnswer(
@@ -1449,8 +1475,8 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForAnswer(
           offer_description->extmap_allow_mixed()
               ? RtpTransceiverIdDomain::kTwoByteAllowed
               : RtpTransceiverIdDomain::kOneByteOnly)) {
-    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
-                     << "Failed to create answer");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                         << "Failed to create answer");
   }
 
   bool secure = bundle_transport ? bundle_transport->description.secure()
@@ -1491,7 +1517,7 @@ RTCError MediaSessionDescriptionFactory::AddDataContentForAnswer(
       media_description_options.transport_options, current_description,
       !offer_content->rejected && bundle_transport == nullptr, ice_credentials);
   if (!data_transport) {
-    return LOG_ERROR(
+    return RTC_LOG_ERROR(
         RTCError(RTCErrorType::INTERNAL_ERROR)
         << "Failed to create transport answer, data transport is missing");
   }
@@ -1528,8 +1554,8 @@ RTCError MediaSessionDescriptionFactory::AddDataContentForAnswer(
             offer_description->extmap_allow_mixed()
                 ? RtpTransceiverIdDomain::kTwoByteAllowed
                 : RtpTransceiverIdDomain::kOneByteOnly)) {
-      return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
-                       << "Failed to create answer");
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                           << "Failed to create answer");
     }
     // Respond with sctpmap if the offer uses sctpmap.
     bool offer_uses_sctpmap = offer_data_description->use_sctpmap();
@@ -1588,9 +1614,9 @@ RTCError MediaSessionDescriptionFactory::AddUnsupportedContentForAnswer(
           !offer_content->rejected && bundle_transport == nullptr,
           ice_credentials);
   if (!unsupported_transport) {
-    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
-                     << "Failed to create transport answer, unsupported "
-                        "transport is missing");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                         << "Failed to create transport answer, unsupported "
+                            "transport is missing");
   }
   RTC_CHECK(IsMediaContentOfType(offer_content, MediaType::UNSUPPORTED));
 

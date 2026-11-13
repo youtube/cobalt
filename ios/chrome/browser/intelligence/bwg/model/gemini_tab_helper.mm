@@ -39,7 +39,7 @@
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_utils.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
-#import "ios/chrome/browser/intelligence/zero_state_suggestions/model/model_led_suggestions_service_impl.h"
+#import "ios/chrome/browser/intelligence/zero_state_suggestions/zero_state_suggestions_service.h"
 #import "ios/chrome/browser/location_bar/badge/model/badge_type.h"
 #import "ios/chrome/browser/location_bar/badge/model/location_bar_badge_configuration.h"
 #import "ios/chrome/browser/location_bar/badge/ui/location_bar_badge_constants.h"
@@ -57,7 +57,7 @@
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/grit/ios_strings.h"
-#import "ios/public/provider/chrome/browser/bwg/bwg_api.h"
+#import "ios/public/provider/chrome/browser/bwg/gemini_api.h"
 #import "ios/web/public/navigation/navigation_context.h"
 #import "ios/web/public/web_state.h"
 #import "mojo/public/cpp/bindings/remote.h"
@@ -82,16 +82,6 @@ bool IsExtractableMimeType(const std::string& mime_type) {
          base::EqualsCaseInsensitiveASCII(mime_type, kXMLMimeType);
 }
 
-NSMutableArray<NSString*>* ZeroStateSuggestionsAsNSArray(
-    std::vector<std::string> suggestions) {
-  NSMutableArray<NSString*>* ns_suggestions =
-      [NSMutableArray arrayWithCapacity:suggestions.size()];
-  for (const std::string& suggestion : suggestions) {
-    [ns_suggestions addObject:base::SysUTF8ToNSString(suggestion)];
-  }
-  return ns_suggestions;
-}
-
 // Helper to convert PageContextWrapperError to
 // GeminiPageContextComputationState.
 ios::provider::GeminiPageContextComputationState
@@ -109,9 +99,6 @@ GeminiPageContextComputationStateFromPageContextWrapperError(
 
 }  // namespace
 
-GeminiTabHelper::ModelLedSuggestions::ModelLedSuggestions() = default;
-GeminiTabHelper::ModelLedSuggestions::~ModelLedSuggestions() = default;
-
 GeminiTabHelper::GeminiTabHelper(web::WebState* web_state)
     : web_state_(web_state) {
   ProfileIOS* profile =
@@ -121,13 +108,8 @@ GeminiTabHelper::GeminiTabHelper(web::WebState* web_state)
   web_state_observation_.Observe(web_state);
 
   if (IsZeroStateSuggestionsEnabled()) {
-    model_led_suggestions_ = std::make_unique<ModelLedSuggestions>();
-    mojo::PendingReceiver<ai::mojom::ModelLedSuggestionsService>
-        model_led_suggestions_receiver =
-            model_led_suggestions_->service.BindNewPipeAndPassReceiver();
-    model_led_suggestions_->service_impl =
-        std::make_unique<ai::ModelLedSuggestionsServiceImpl>(
-            std::move(model_led_suggestions_receiver), web_state);
+    zero_state_suggestions_service_ =
+        std::make_unique<ai::ZeroStateSuggestionsService>(web_state);
   }
 }
 
@@ -203,37 +185,8 @@ void GeminiTabHelper::CancelPageContextGeneration() {
 void GeminiTabHelper::ExecuteZeroStateSuggestions(
     base::OnceCallback<void(NSArray<NSString*>*)> callback) {
   CHECK(IsZeroStateSuggestionsEnabled());
-
-  if (!model_led_suggestions_->can_apply) {
-    std::move(callback).Run(nil);
-    return;
-  }
-
-  if (model_led_suggestions_->suggestions.has_value()) {
-    // Ensure the cached suggestions are for the current URL.
-    if (web_state_->GetVisibleURL().GetWithoutRef() ==
-        current_url_.GetWithoutRef()) {
-      std::move(callback).Run(ZeroStateSuggestionsAsNSArray(
-          model_led_suggestions_->suggestions.value()));
-    } else {
-      // The cached suggestions are stale and thus obsolete.
-      std::move(callback).Run(nil);
-    }
-    return;
-  }
-
-  if (!model_led_suggestions_->service) {
-    std::move(callback).Run(nil);
-    return;
-  }
-
-  base::OnceCallback<void(ai::mojom::ModelLedSuggestionsResponseResultPtr)>
-      service_callback =
-          base::BindOnce(&GeminiTabHelper::ParseSuggestionsResponse,
-                         weak_ptr_factory_.GetWeakPtr(), std::move(callback));
-
-  model_led_suggestions_->service->FetchModelLedSuggestions(
-      std::move(service_callback));
+  zero_state_suggestions_service_->FetchZeroStateSuggestions(
+      std::move(callback));
 }
 
 void GeminiTabHelper::SetIsFirstRun(bool is_first_run) {
@@ -399,12 +352,23 @@ void GeminiTabHelper::SetLocationBarBadgeCommandsHandler(
 }
 
 bool GeminiTabHelper::IsGeminiAvailableForWebState() {
+  if (IsInGeminiLiveMode()) {
+    return true;
+  }
+  return IsGeminiChatAvailableForWebState();
+}
+
+bool GeminiTabHelper::IsGeminiChatAvailableForWebState() {
   // With NextIA, all URLs are eligible, including when there's no web state.
   if (IsChromeNextIaEnabled()) {
     return true;
   }
 
   if (!web_state_) {
+    return false;
+  }
+
+  if (!web_state_->IsVisible()) {
     return false;
   }
 
@@ -454,7 +418,10 @@ IOSGeminiInvocationPageType GeminiTabHelper::GetCurrentPageType() {
 #pragma mark - WebStateObserver
 
 void GeminiTabHelper::WasShown(web::WebState* web_state) {
-  if (IsChromeNextIaEnabled()) {
+  // In NextIA or Live mode, the floaty remains persistently visible across tab
+  // switches, but the page context needs to be updated to match the newly
+  // visible tab.
+  if (IsNextIaOrLiveMode()) {
     NotifyPageContextUpdated(web_state);
   } else if (IsGeminiCopresenceEnabled()) {
     [gemini_commands_handler_
@@ -465,7 +432,10 @@ void GeminiTabHelper::WasShown(web::WebState* web_state) {
 }
 
 void GeminiTabHelper::WasHidden(web::WebState* web_state) {
-  if (IsChromeNextIaEnabled()) {
+  // In NextIA or Live mode, the floaty remains persistently visible when a tab
+  // is hidden (e.g., during a tab switch), but we must update the page context
+  // immediately to ensure the hidden tab's content is detached and blocked.
+  if (IsNextIaOrLiveMode()) {
     NotifyPageContextUpdated(web_state);
   } else if (IsGeminiCopresenceEnabled()) {
     [gemini_commands_handler_
@@ -495,7 +465,7 @@ void GeminiTabHelper::DidStartNavigation(
   }
 
   if (IsZeroStateSuggestionsEnabled()) {
-    ClearModelLedSuggestions();
+    zero_state_suggestions_service_->ClearCachedSuggestions();
   }
 
   ProfileIOS* profile =
@@ -691,15 +661,6 @@ void GeminiTabHelper::OnPageContextWrapperResponse(
   }
 }
 
-void GeminiTabHelper::ClearModelLedSuggestions() {
-  if (!IsZeroStateSuggestionsEnabled()) {
-    return;
-  }
-
-  model_led_suggestions_->suggestions.reset();
-  model_led_suggestions_->can_apply = false;
-}
-
 void GeminiTabHelper::NotifyPageContextUpdated(web::WebState* web_state) {
   // Cancel any ongoing page context generation which is now obsolete.
   CancelPageContextGeneration();
@@ -839,7 +800,7 @@ void GeminiTabHelper::OnGeminiEligibilityDecision(
 
   const bool eligible = ComputeGeminiEligibility(decision, metadata);
   if (IsZeroStateSuggestionsEnabled()) {
-    model_led_suggestions_->can_apply = eligible;
+    zero_state_suggestions_service_->SetCanApply(eligible);
   }
 
   ProfileIOS* profile =
@@ -881,35 +842,16 @@ void GeminiTabHelper::OnGeminiEligibilityOnDemandDecision(
                               it->second.metadata);
 }
 
-void GeminiTabHelper::ParseSuggestionsResponse(
-    base::OnceCallback<void(NSArray<NSString*>*)> callback,
-    ai::mojom::ModelLedSuggestionsResponseResultPtr result) {
-  if (!result || result->is_error()) {
-    std::move(callback).Run(nil);
-    return;
-  }
-
-  std::optional<optimization_guide::proto::ZeroStateSuggestionsResponse>
-      response_proto_optional =
-          result->get_response()
-              .As<optimization_guide::proto::ZeroStateSuggestionsResponse>();
-  if (!response_proto_optional.has_value()) {
-    std::move(callback).Run(nil);
-    return;
-  }
-  optimization_guide::proto::ZeroStateSuggestionsResponse response_proto =
-      response_proto_optional.value();
-
-  model_led_suggestions_->suggestions.emplace();
-  for (const auto& suggestion : response_proto.suggestions()) {
-    model_led_suggestions_->suggestions->push_back(suggestion.label());
-  }
-
-  std::move(callback).Run(ZeroStateSuggestionsAsNSArray(
-      model_led_suggestions_->suggestions.value()));
-}
-
 bool GeminiTabHelper::CanExtractPageContextForGemini() {
   return CanExtractPageContextForWebState(web_state_) &&
-         (!IsChromeNextIaEnabled() || web_state_->IsVisible());
+         (!IsNextIaOrLiveMode() || web_state_->IsVisible());
+}
+
+bool GeminiTabHelper::IsInGeminiLiveMode() const {
+  return IsGeminiLiveEnabled() && ios::provider::GetCurrentMode() ==
+                                      ios::provider::GeminiViewMode::kLive;
+}
+
+bool GeminiTabHelper::IsNextIaOrLiveMode() const {
+  return IsChromeNextIaEnabled() || IsInGeminiLiveMode();
 }

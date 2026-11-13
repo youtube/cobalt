@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "api/field_trials_view.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/units/timestamp.h"
 #include "call/rtp_demuxer.h"
 #include "media/base/rtp_utils.h"
@@ -170,12 +171,13 @@ bool SrtpTransport::UseCryptex(bool enable, bool require) {
   return true;
 }
 
-bool SrtpTransport::SetRtpParams(int send_crypto_suite,
-                                 const ZeroOnFreeBuffer<uint8_t>& send_key,
-                                 const std::vector<int>& send_extension_ids,
-                                 int recv_crypto_suite,
-                                 const ZeroOnFreeBuffer<uint8_t>& recv_key,
-                                 const std::vector<int>& recv_extension_ids) {
+bool SrtpTransport::SetRtpParams(
+    int send_crypto_suite,
+    const ZeroOnFreeBuffer<uint8_t>& send_key,
+    const std::vector<RtpHeaderExtensionId>& send_extension_ids,
+    int recv_crypto_suite,
+    const ZeroOnFreeBuffer<uint8_t>& recv_key,
+    const std::vector<RtpHeaderExtensionId>& recv_extension_ids) {
   // If parameters are being set for the first time, we should create new SRTP
   // sessions and call "SetSend/SetReceive". Otherwise we should call
   // "UpdateSend"/"UpdateReceive" on the existing sessions, which will
@@ -224,12 +226,13 @@ bool SrtpTransport::SetRtpParams(int send_crypto_suite,
   return true;
 }
 
-bool SrtpTransport::SetRtcpParams(int send_crypto_suite,
-                                  const ZeroOnFreeBuffer<uint8_t>& send_key,
-                                  const std::vector<int>& send_extension_ids,
-                                  int recv_crypto_suite,
-                                  const ZeroOnFreeBuffer<uint8_t>& recv_key,
-                                  const std::vector<int>& recv_extension_ids) {
+bool SrtpTransport::SetRtcpParams(
+    int send_crypto_suite,
+    const ZeroOnFreeBuffer<uint8_t>& send_key,
+    const std::vector<RtpHeaderExtensionId>& send_extension_ids,
+    int recv_crypto_suite,
+    const ZeroOnFreeBuffer<uint8_t>& recv_key,
+    const std::vector<RtpHeaderExtensionId>& recv_extension_ids) {
   // This can only be called once, but can be safely called after
   // SetRtpParams
   if (send_rtcp_session_ || recv_rtcp_session_) {

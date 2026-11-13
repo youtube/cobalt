@@ -298,11 +298,13 @@ void FrameSinkManagerImpl::CreateCompositorDisplayLink(
           update_vsync_displays_cb);
 }
 
-void FrameSinkManagerImpl::UpdateVSyncDisplays(int64_t display_id) {
+void FrameSinkManagerImpl::UpdateVSyncDisplays(
+    int64_t display_id,
+    bool is_browser_vsync_supported) {
   for (auto& root_frame_sink : root_sink_map_) {
     if (root_frame_sink.second->external_begin_frame_source()) {
       root_frame_sink.second->external_begin_frame_source()->UpdateVSyncDisplay(
-          display_id);
+          display_id, is_browser_vsync_supported);
     }
   }
 }
@@ -1061,16 +1063,6 @@ void FrameSinkManagerImpl::DiscardPendingCopyOfOutputRequests(
       queue.push(child);
   }
 }
-
-#if BUILDFLAG(IS_ANDROID)
-void FrameSinkManagerImpl::SetPreferEfficientScheduling(
-    bool prefer_efficient_scheduling) const {
-  if (hint_session_factory_) {
-    hint_session_factory_->SetPreferPowerEfficientScheduling(
-        prefer_efficient_scheduling);
-  }
-}
-#endif
 
 void FrameSinkManagerImpl::OnCaptureStarted(const FrameSinkId& id) {
   if (captured_frame_sink_ids_.insert(id).second) {

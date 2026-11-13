@@ -42,6 +42,7 @@
 #include "api/priority.h"
 #include "api/ref_count.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
@@ -599,7 +600,7 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
     EXPECT_EQ(0u, GetSendStreamConfig(kSsrcX).rtp.extensions.size());
 
     // Ensure extension is set properly.
-    const int id = 1;
+    const RtpHeaderExtensionId id(1);
     send_parameters_.extensions.push_back(RtpExtension(ext, id));
     SetSenderParameters(send_parameters_);
     EXPECT_EQ(1u, GetSendStreamConfig(kSsrcX).rtp.extensions.size());

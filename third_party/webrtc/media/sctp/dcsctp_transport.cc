@@ -744,6 +744,7 @@ void DcSctpTransport::OnTransportReadPacket(
     PacketTransportInternal* /* transport */,
     const ReceivedIpPacket& packet) {
   RTC_DCHECK_RUN_ON(network_thread_);
+  // TODO: bugs.webrtc.org/517079993 - follow RFC 7983 design.
   if (packet.decryption_info() != ReceivedIpPacket::kDtlsDecrypted) {
     // We are only interested in SCTP packets.
     return;

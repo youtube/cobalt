@@ -30,6 +30,7 @@ chromium-metrics-reviews@google.com.
   <int value="-2093401879" label="SafetyCheckSettingsFragment"/>
   <int value="-2054907175" label="GroupedWebsitesSettings"/>
   <int value="-2049922448" label="NeverTranslateListFragment"/>
+  <int value="-2037155894" label="AutofillShoppingFragment"/>
   <int value="-1989639959" label="AdMeasurementFragment"/>
   <int value="-1897035940" label="ThemeSettingsFragment"/>
   <int value="-1806481374" label="ConfirmImportantSitesDialogFragment"/>
@@ -381,6 +382,7 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Autofill AI row click"/>
   <int value="6" label="Automated Password Change"/>
   <int value="7" label="Suggestions row click"/>
+  <int value="8" label="Skills row click"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/resources/settings/metrics_browser_proxy.ts:AiPageInteractions) -->

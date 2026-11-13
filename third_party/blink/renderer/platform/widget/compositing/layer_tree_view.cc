@@ -140,8 +140,7 @@ void LayerTreeView::ClearPreviousDelegateAndReattachIfNeeded(
     layer_tree_host_->SetVisible(false);
   }
   layer_tree_host_->DetachInputDelegateAndRenderFrameObserver();
-  layer_tree_host_->StopDeferringCommits(
-      cc::PaintHoldingCommitTrigger::kWidgetSwapped);
+  layer_tree_host_->StopDeferringCommits();
   for (uint32_t i = 0;
        i <= static_cast<uint32_t>(cc::EventListenerClass::kLast); ++i) {
     layer_tree_host_->SetEventListenerProperties(
@@ -288,13 +287,11 @@ void LayerTreeView::OnCommitRequested() {
   delegate_->OnCommitRequested();
 }
 
-void LayerTreeView::OnDeferCommitsChanged(
-    bool status,
-    cc::PaintHoldingReason reason,
-    std::optional<cc::PaintHoldingCommitTrigger> trigger) {
+void LayerTreeView::OnDeferCommitsChanged(bool status,
+                                          cc::PaintHoldingReason reason) {
   if (!delegate_)
     return;
-  delegate_->OnDeferCommitsChanged(status, reason, trigger);
+  delegate_->OnDeferCommitsChanged(status, reason);
 }
 
 void LayerTreeView::BeginMainFrameNotExpectedSoon() {

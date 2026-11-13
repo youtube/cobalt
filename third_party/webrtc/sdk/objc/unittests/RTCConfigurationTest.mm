@@ -50,7 +50,9 @@
   config.shouldPruneTurnPorts = YES;
   config.cryptoOptions = [[RTC_OBJC_TYPE(RTCCryptoOptions) alloc]
            initWithSrtpEnableGcmCryptoSuites:YES
+                   srtpPreferGcmCryptoSuites:YES
          srtpEnableAes128Sha1_32CryptoCipher:YES
+         srtpEnableAes128Sha1_80CryptoCipher:YES
       srtpEnableEncryptedRtpHeaderExtensions:YES
                 sframeRequireFrameEncryption:YES];
   config.rtcpAudioReportIntervalMs = 2500;
@@ -82,9 +84,13 @@
             nativeConfig->continual_gathering_policy);
   EXPECT_EQ(true, nativeConfig->prune_turn_ports);
   EXPECT_EQ(true, nativeConfig->crypto_options.srtp.enable_gcm_crypto_suites);
+  EXPECT_EQ(true, nativeConfig->crypto_options.srtp.prefer_gcm_crypto_suites);
   EXPECT_EQ(
       true,
       nativeConfig->crypto_options.srtp.enable_aes128_sha1_32_crypto_cipher);
+  EXPECT_EQ(
+      true,
+      nativeConfig->crypto_options.srtp.enable_aes128_sha1_80_crypto_cipher);
   EXPECT_EQ(
       true,
       nativeConfig->crypto_options.srtp.enable_encrypted_rtp_header_extensions);
@@ -118,7 +124,9 @@
   config.shouldPruneTurnPorts = YES;
   config.cryptoOptions = [[RTC_OBJC_TYPE(RTCCryptoOptions) alloc]
            initWithSrtpEnableGcmCryptoSuites:YES
+                   srtpPreferGcmCryptoSuites:NO
          srtpEnableAes128Sha1_32CryptoCipher:NO
+         srtpEnableAes128Sha1_80CryptoCipher:NO
       srtpEnableEncryptedRtpHeaderExtensions:NO
                 sframeRequireFrameEncryption:NO];
   config.rtcpAudioReportIntervalMs = 1500;
@@ -154,8 +162,12 @@
   EXPECT_EQ(config.shouldPruneTurnPorts, newConfig.shouldPruneTurnPorts);
   EXPECT_EQ(config.cryptoOptions.srtpEnableGcmCryptoSuites,
             newConfig.cryptoOptions.srtpEnableGcmCryptoSuites);
+  EXPECT_EQ(config.cryptoOptions.srtpPreferGcmCryptoSuites,
+            newConfig.cryptoOptions.srtpPreferGcmCryptoSuites);
   EXPECT_EQ(config.cryptoOptions.srtpEnableAes128Sha1_32CryptoCipher,
             newConfig.cryptoOptions.srtpEnableAes128Sha1_32CryptoCipher);
+  EXPECT_EQ(config.cryptoOptions.srtpEnableAes128Sha1_80CryptoCipher,
+            newConfig.cryptoOptions.srtpEnableAes128Sha1_80CryptoCipher);
   EXPECT_EQ(config.cryptoOptions.srtpEnableEncryptedRtpHeaderExtensions,
             newConfig.cryptoOptions.srtpEnableEncryptedRtpHeaderExtensions);
   EXPECT_EQ(config.cryptoOptions.sframeRequireFrameEncryption,

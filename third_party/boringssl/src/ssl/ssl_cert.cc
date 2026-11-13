@@ -28,6 +28,7 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/mem.h>
+#include <openssl/pool.h>
 #include <openssl/sha2.h>
 #include <openssl/x509.h>
 
@@ -551,8 +552,8 @@ int SSL_set_chain_and_key(SSL *ssl, CRYPTO_BUFFER *const *certs,
 int SSL_CTX_set_chain_and_key(SSL_CTX *ctx, CRYPTO_BUFFER *const *certs,
                               size_t num_certs, EVP_PKEY *privkey,
                               const SSL_PRIVATE_KEY_METHOD *privkey_method) {
-  return cert_set_chain_and_key(ctx->cert.get(), certs, num_certs, privkey,
-                                privkey_method);
+  return cert_set_chain_and_key(FromOpaque(ctx)->cert.get(), certs, num_certs,
+                                privkey, privkey_method);
 }
 
 void SSL_certs_clear(SSL *ssl) {
@@ -567,7 +568,7 @@ void SSL_certs_clear(SSL *ssl) {
 }
 
 const STACK_OF(CRYPTO_BUFFER) *SSL_CTX_get0_chain(const SSL_CTX *ctx) {
-  return ctx->cert->legacy_credential->chain.get();
+  return FromOpaque(ctx)->cert->legacy_credential->chain.get();
 }
 
 const STACK_OF(CRYPTO_BUFFER) *SSL_get0_chain(const SSL *ssl) {
@@ -584,7 +585,7 @@ int SSL_CTX_use_certificate_ASN1(SSL_CTX *ctx, size_t der_len,
     return 0;
   }
 
-  return ssl_set_cert(ctx->cert.get(), std::move(buffer));
+  return ssl_set_cert(FromOpaque(ctx)->cert.get(), std::move(buffer));
 }
 
 int SSL_use_certificate_ASN1(SSL *ssl, const uint8_t *der, size_t der_len) {
@@ -598,7 +599,7 @@ int SSL_use_certificate_ASN1(SSL *ssl, const uint8_t *der, size_t der_len) {
 
 void SSL_CTX_set_cert_cb(SSL_CTX *ctx, int (*cb)(SSL *ssl, void *arg),
                          void *arg) {
-  ssl_cert_set_cert_cb(ctx->cert.get(), cb, arg);
+  ssl_cert_set_cert_cb(FromOpaque(ctx)->cert.get(), cb, arg);
 }
 
 void SSL_set_cert_cb(SSL *ssl, int (*cb)(SSL *ssl, void *arg), void *arg) {
@@ -627,8 +628,9 @@ const STACK_OF(CRYPTO_BUFFER) *SSL_get0_server_requested_CAs(const SSL *ssl) {
 int SSL_CTX_set_signed_cert_timestamp_list(SSL_CTX *ctx, const uint8_t *list,
                                            size_t list_len) {
   UniquePtr<CRYPTO_BUFFER> buf(CRYPTO_BUFFER_new(list, list_len, nullptr));
-  return buf != nullptr && SSL_CREDENTIAL_set1_signed_cert_timestamp_list(
-                               ctx->cert->legacy_credential.get(), buf.get());
+  return buf != nullptr &&
+         SSL_CREDENTIAL_set1_signed_cert_timestamp_list(
+             FromOpaque(ctx)->cert->legacy_credential.get(), buf.get());
 }
 
 int SSL_set_signed_cert_timestamp_list(SSL *ssl, const uint8_t *list,
@@ -646,8 +648,9 @@ int SSL_CTX_set_ocsp_response(SSL_CTX *ctx, const uint8_t *response,
                               size_t response_len) {
   UniquePtr<CRYPTO_BUFFER> buf(
       CRYPTO_BUFFER_new(response, response_len, nullptr));
-  return buf != nullptr && SSL_CREDENTIAL_set1_ocsp_response(
-                               ctx->cert->legacy_credential.get(), buf.get());
+  return buf != nullptr &&
+         SSL_CREDENTIAL_set1_ocsp_response(
+             FromOpaque(ctx)->cert->legacy_credential.get(), buf.get());
 }
 
 int SSL_set_ocsp_response(SSL *ssl, const uint8_t *response,
@@ -663,12 +666,15 @@ int SSL_set_ocsp_response(SSL *ssl, const uint8_t *response,
 }
 
 void SSL_CTX_set0_client_CAs(SSL_CTX *ctx, STACK_OF(CRYPTO_BUFFER) *name_list) {
-  ctx->x509_method->ssl_ctx_flush_cached_client_CA(ctx);
-  ctx->client_CA.reset(name_list);
+  auto *ctx_impl = FromOpaque(ctx);
+  ctx_impl->x509_method->ssl_ctx_flush_cached_client_CA(ctx_impl);
+  ctx_impl->client_CA.reset(name_list);
 }
 
 void SSL_set0_client_CAs(SSL *ssl, STACK_OF(CRYPTO_BUFFER) *name_list) {
   if (!ssl->config) {
+    // |SSL_set0_client_CAs| is expected to take ownership of |name_list|.
+    sk_CRYPTO_BUFFER_pop_free(name_list, CRYPTO_BUFFER_free);
     return;
   }
   ssl->ctx->x509_method->ssl_flush_cached_client_CA(ssl->config.get());

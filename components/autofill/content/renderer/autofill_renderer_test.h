@@ -99,7 +99,10 @@ class MockAutofillDriver : public mojom::AutofillDriver {
               (override));
   MOCK_METHOD(void, DidAutofillForm, (const FormData& form), (override));
   MOCK_METHOD(void, DidEndTextFieldEditing, (), (override));
-  MOCK_METHOD(void, OnEmailVerificationTokenShared, (), (override));
+  MOCK_METHOD(void,
+              OnEmailVerificationTokenShared,
+              (FieldRendererId field_id),
+              (override));
 
  private:
   mojo::AssociatedReceiverSet<mojom::AutofillDriver> receivers_;
@@ -163,7 +166,7 @@ class AutofillRendererTest : public content::RenderViewTest {
 
  protected:
   AutofillAgent& autofill_agent() { return *autofill_agent_; }
-  PasswordAutofillAgent& password_autofill_agent() {
+  PasswordAutofillAgent* password_autofill_agent() {
     return test_api(*autofill_agent_).password_autofill_agent();
   }
   MockAutofillDriver& autofill_driver() { return autofill_driver_; }

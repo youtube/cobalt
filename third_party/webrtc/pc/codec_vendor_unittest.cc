@@ -11,6 +11,7 @@
 #include "pc/codec_vendor.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
@@ -445,6 +446,37 @@ TEST(CodecVendorMergeTest, MergeWithCollisionPicksFromTop) {
   EXPECT_THAT(merged_codecs.codecs(),
               Contains(AllOf(Field("name", &Codec::name, "bar"),
                              Field("id", &Codec::id, 127))));
+}
+
+TEST(CodecVendorTest, ModifyVideoCodecsReplacesCodec) {
+  FieldTrials trials("WebRTC-PayloadTypesInTransport/Disabled/");
+  FakeMediaEngine media_engine;
+  std::vector<Codec> video_codecs({
+      CreateVideoCodec(97, "vp8"),
+      CreateVideoCodec(99, "vp9"),
+  });
+  media_engine.SetVideoSendCodecs(video_codecs);
+  media_engine.SetVideoRecvCodecs(video_codecs);
+
+  CodecVendor codec_vendor(&media_engine, false, trials);
+
+  Codec original_codec = video_codecs[0];
+  Codec modified_codec = original_codec;
+  modified_codec.name = "modified_name";
+
+  Codec second_codec = video_codecs[1];
+
+  std::vector<std::pair<Codec, Codec>> changes;
+  changes.push_back({original_codec, modified_codec});
+
+  codec_vendor.ModifyVideoCodecs(changes);
+
+  const CodecList& new_send_codecs = codec_vendor.video_send_codecs();
+  EXPECT_THAT(new_send_codecs.codecs(), Contains(modified_codec));
+  EXPECT_THAT(new_send_codecs.codecs(), Not(Contains(original_codec)));
+
+  // Check that the second codec is NOT changed.
+  EXPECT_THAT(new_send_codecs.codecs(), Contains(second_codec));
 }
 
 }  // namespace

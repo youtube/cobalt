@@ -101,15 +101,19 @@ constexpr ValueRepresentation ValueRepresentationFromUse(
 
 Subgraph<MaglevGraphOptimizer>::Subgraph(
     MaglevReducer<MaglevGraphOptimizer>* reducer, int variable_count)
-    : Base(reducer,
-           MaglevCompilationUnit::NewDummy(
-               reducer->zone(), reducer->current_provenance().unit,
-               variable_count, /*parameter_count=*/0, /*max_arguments=*/0)),
+    : Base(
+          reducer,
+          MaglevCompilationUnit::NewDummy(
+              reducer->zone(),
+              reducer->graph()->compilation_info()->toplevel_compilation_unit(),
+              variable_count, /*parameter_count=*/0, /*max_arguments=*/0)),
       zone_(reducer->zone()),
       blocks_(zone_),
       saved_block_(reducer->current_block()),
       saved_position_(reducer->current_block_position()),
-      saved_kna_(&reducer->known_node_aspects()) {
+      saved_kna_(&reducer->known_node_aspects()),
+      parent_(reducer->active_subgraph_) {
+  reducer_->active_subgraph_ = this;
   reducer_->FlushNodesToBlock();
 
   // Create entry block.
@@ -133,12 +137,50 @@ Subgraph<MaglevGraphOptimizer>::Subgraph(
 }
 
 Subgraph<MaglevGraphOptimizer>::~Subgraph() {
+  // Pop self off the active-subgraph stack; parent_ is the enclosing subgraph.
+  reducer_->active_subgraph_ = parent_;
+
   BasicBlock* exit_block = reducer_->current_block();
   CHECK_NOT_NULL(exit_block);
   DCHECK_GT(blocks_.size(), 0);
   BasicBlock* entry_block = blocks_[0];
-  if (entry_block != exit_block || !entry_block->nodes().empty()) {
-    reducer_->RecordPendingSplice(entry_block, exit_block, blocks_);
+  bool is_empty = entry_block == exit_block && entry_block->nodes().empty();
+
+  // Jumps `from` (which must be live and control-less) into this subgraph's
+  // entry block.
+  auto connect = [&](BasicBlock* from) {
+    DCHECK_NOT_NULL(from);
+    BasicBlockRef* jump_ref = zone_->New<BasicBlockRef>();
+    Jump* jump = NodeBase::New<Jump>(zone_, /*input_count=*/0, jump_ref);
+    jump_ref->Bind(entry_block);
+    jump->set_owner(from);
+    from->set_control_node(jump);
+    entry_block->set_predecessor(from);
+  };
+
+  if (!is_empty) {
+    if (parent_ != nullptr) {
+      // Nested subgraph: splice directly into the enclosing subgraph, which
+      // continues building from our exit.
+      connect(saved_block_);
+      parent_->blocks_.insert(parent_->blocks_.end(), blocks_.begin(),
+                              blocks_.end());
+      reducer_->set_current_block(exit_block);
+      reducer_->SetNewNodePosition(BasicBlockPosition::End());
+      // KNA stays as exit_block's merged aspects (set during Bind).
+      return;
+    }
+    if (reducer_->pending_splice_.has_value()) {
+      // Sequential sibling within the same reduced node: chain onto the pending
+      // splice so it remains a single splice with one insertion point.
+      auto& pending = *reducer_->pending_splice_;
+      connect(pending.exit);
+      pending.all_blocks.insert(pending.all_blocks.end(), blocks_.begin(),
+                                blocks_.end());
+      pending.exit = exit_block;
+    } else {
+      reducer_->RecordPendingSplice(entry_block, exit_block, blocks_);
+    }
   }
   reducer_->set_current_block(saved_block_);
   reducer_->SetNewNodePosition(saved_position_);
@@ -274,6 +316,7 @@ void MaglevGraphOptimizer::PreProcessNode(Node* node,
                                           const ProcessingState& state) {
   TRACE(TraceColor::kDarkCyan << "Processing " << PrintNodeLabel(node) << ": "
                               << PrintNode(node));
+  reducer_.ResetPeriodThrowingNode();
 #ifdef DEBUG
   reducer_.StartNewPeriod();
 #endif  // DEBUG
@@ -329,7 +372,14 @@ ProcessResult MaglevGraphOptimizer::ReplaceWith(ValueNode* node) {
                                  << PrintNodeLabel(current_node()));
   }
   if (current_node()->properties().can_throw()) {
-    kna_processor_.ProcessThrowingNode(current_node());
+    // Merge the throwing-edge known-node-aspects into the catch handler, which
+    // may still be reachable via other throwing nodes. But only keep it
+    // reachable through this reduction if a node emitted while lowering can
+    // still throw to it (e.g. lowering to `if (c) { throw } return Bar`).
+    // Otherwise it is now dead and must not be force-kept reachable.
+    kna_processor_.ProcessThrowingNode(
+        current_node(),
+        /*mark_handler_reachable=*/reducer_.period_added_throwing_node());
   }
   ValueNode* current_value = current_node()->Cast<ValueNode>();
   TRACE(TraceColor::kDarkGreen << "Replacing " << PrintNodeLabel(current_value)
@@ -810,7 +860,7 @@ ProcessResult MaglevGraphOptimizer::ProcessCheckMaps(NodeT* node,
                 std::is_same_v<NodeT, CheckMapsWithMigrationAndDeopt>) {
     NodeInfo* known_info =
         known_node_aspects().GetOrCreateInfoFor(broker(), object);
-    node->set_check_type(reducer_.GetCheckType(known_info->type(), object));
+    node->set_check_type(reducer_.GetCheckType(known_info->type()));
   }
 
   merger.UpdateKnownNodeAspects(object, known_node_aspects());
@@ -1168,6 +1218,7 @@ ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfHole(
     case Tribool::kMaybe:
       return ProcessResult::kContinue;
   }
+  UNREACHABLE();
 }
 
 ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfHole(
@@ -1197,6 +1248,7 @@ ProcessResult MaglevGraphOptimizer::VisitThrowSuperAlreadyCalledIfNotHole(
     case Tribool::kMaybe:
       return ProcessResult::kContinue;
   }
+  UNREACHABLE();
 }
 
 ProcessResult MaglevGraphOptimizer::VisitThrowIfNotCallable(
@@ -1996,6 +2048,18 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagIntPtr(
 
 ProcessResult MaglevGraphOptimizer::VisitUnsafeSmiTagInt32(
     UnsafeSmiTagInt32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitUnsafeSmiTagFloat64(
+    UnsafeSmiTagFloat64* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitUnsafeSmiTagHoleyFloat64(
+    UnsafeSmiTagHoleyFloat64* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }

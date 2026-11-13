@@ -19,6 +19,7 @@
 #include "chrome/browser/ui/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "components/tabs/public/tab_interface.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 class BrowserWindowInterface;
 class SidePanelEntry;
@@ -29,7 +30,7 @@ class SidePanelEntryWaiter;
 class SidePanelUIBase : public SidePanelUI {
  public:
   explicit SidePanelUIBase(BrowserWindowInterface* browser);
-  virtual ~SidePanelUIBase();
+  ~SidePanelUIBase() override;
 
   SidePanelUIBase(const SidePanelUIBase&) = delete;
   SidePanelUIBase& operator=(const SidePanelUIBase&) = delete;
@@ -95,7 +96,7 @@ class SidePanelUIBase : public SidePanelUI {
     // The side-panel is showing if and only if current_key_ is set. That means
     // it must only be set in one place: PopulateSidePanel() and unset in one
     // place: OnViewVisibilityChanged()
-    std::optional<SidePanelUIBase::UniqueKey> current_key = std::nullopt;
+    std::optional<SidePanelUIBase::UniqueKey> current_key;
 
     // Inner class that waits for side panel entries to load.
     std::unique_ptr<SidePanelEntryWaiter> waiter;
@@ -165,6 +166,7 @@ class SidePanelUIBase : public SidePanelUI {
  private:
   const raw_ptr<BrowserWindowInterface> browser_;
   std::unique_ptr<PanelData> panel_data_;
+  ui::ScopedUnownedUserData<SidePanelUI> scoped_unowned_user_data_;
 };
 
 #endif  // CHROME_BROWSER_UI_SIDE_PANEL_SIDE_PANEL_UI_BASE_H_

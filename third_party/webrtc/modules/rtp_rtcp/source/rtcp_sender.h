@@ -133,7 +133,6 @@ class RTCPSender final {
       RTC_LOCKS_EXCLUDED(mutex_rtcp_sender_);
 
   uint32_t SSRC() const;
-  void SetSsrc(uint32_t ssrc);
 
   void SetRemoteSSRC(uint32_t ssrc) RTC_LOCKS_EXCLUDED(mutex_rtcp_sender_);
 
@@ -236,13 +235,9 @@ class RTCPSender final {
   const Environment env_;
   const bool is_rtp_sender_;
   const bool audio_;
-  // TODO(bugs.webrtc.org/11581): `mutex_rtcp_sender_` shouldn't be required if
-  // we consistently run network related operations on the network thread.
-  // This is currently not possible due to callbacks from the process thread in
-  // ModuleRtpRtcpImpl2.
   // The SSRC used for sending when is_rtp_sender_ is true
   // and sending_ is true.
-  uint32_t send_ssrc_ RTC_GUARDED_BY(mutex_rtcp_sender_);
+  const uint32_t send_ssrc_;
   // The function used for getting the right SSRC to send from
   // when the RTCPSender is used with a ModuleRtpRtcp that is not
   // configured for sending RTP (is_rtp_sender_ is false).

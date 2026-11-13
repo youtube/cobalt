@@ -356,7 +356,7 @@ ScopedCFTypeRef<CTFontRef> BestStyleMatchForFamily(
   ScopedCFTypeRef<CFArrayRef> fonts_in_family(
       CTFontCollectionCreateMatchingFontDescriptorsForFamily(
           all_system_fonts.get(), family_name, NULL));
-  if (!fonts_in_family) {
+  if (!fonts_in_family || CFArrayGetCount(fonts_in_family.get()) == 0) {
     return ScopedCFTypeRef<CTFontRef>(nullptr);
   }
 
@@ -584,6 +584,11 @@ ScopedCFTypeRef<CTFontRef> MatchFontFamily(
   if (!desired_family_string) {
     return ScopedCFTypeRef<CTFontRef>(nullptr);
   }
+
+  if (FontCache::Get().IsFontFamilyUnavailable(desired_family_string)) {
+    return ScopedCFTypeRef<CTFontRef>(nullptr);
+  }
+
   ScopedCFTypeRef<CFStringRef> desired_name(
       desired_family_string.Impl()->CreateCFString());
 
@@ -671,6 +676,11 @@ ScopedCFTypeRef<CTFontRef> MatchFontFamily(
       }
     }
   }
+
+  if (!match_in_family) {
+    FontCache::Get().MarkFontFamilyAsUnavailable(desired_family_string);
+  }
+
   return match_in_family;
 }
 
@@ -775,13 +785,15 @@ NSFont* MatchNSFontFamily(const AtomicString& desired_family_string,
     }
   }
 
-  if (!chose_font)
+  if (!chose_font) {
     return nil;
+  }
 
   NSFont* font = [NSFont fontWithName:chosen_full_name size:size];
 
-  if (!font)
+  if (!font) {
     return nil;
+  }
 
   return font;
 }

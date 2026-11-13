@@ -215,8 +215,8 @@ Where not constrained by legacy code, parameter order should be:
 
 For example,
 
-    /* CBB_add_asn sets |*out_contents| to a |CBB| into which the contents of an
-     * ASN.1 object can be written. The |tag| argument will be used as the tag for
+    /* CBB_add_asn sets `*out_contents` to a `CBB` into which the contents of an
+     * ASN.1 object can be written. The `tag` argument will be used as the tag for
      * the object. It returns one on success or zero on error. */
     OPENSSL_EXPORT int CBB_add_asn1(CBB *cbb, CBB *out_contents, unsigned tag);
 
@@ -227,15 +227,15 @@ All public symbols must have a documentation comment in their header
 file. The style is based on that of Go. The first sentence begins with
 the symbol name, optionally prefixed with "A" or "An". Apart from the
 initial mention of symbol, references to other symbols or parameter
-names should be surrounded by |pipes|.
+names should be surrounded by `` `backticks` ``.
 
 Documentation should be concise but completely describe the exposed
 behavior of the function. Pay special note to success/failure behaviors
 and caller obligations on object lifetimes. If this sacrifices
 conciseness, consider simplifying the function's behavior.
 
-    // EVP_DigestVerifyUpdate appends |len| bytes from |data| to the data which
-    // will be verified by |EVP_DigestVerifyFinal|. It returns one on success and
+    // EVP_DigestVerifyUpdate appends `len` bytes from `data` to the data which
+    // will be verified by `EVP_DigestVerifyFinal`. It returns one on success and
     // zero otherwise.
     OPENSSL_EXPORT int EVP_DigestVerifyUpdate(EVP_MD_CTX *ctx, const void *data,
                                               size_t len);
@@ -243,14 +243,14 @@ conciseness, consider simplifying the function's behavior.
 Explicitly mention any surprising edge cases or deviations from common
 return value patterns in legacy functions.
 
-    // RSA_private_encrypt encrypts |flen| bytes from |from| with the private key in
-    // |rsa| and writes the encrypted data to |to|. The |to| buffer must have at
-    // least |RSA_size| bytes of space. It returns the number of bytes written, or
-    // -1 on error. The |padding| argument must be one of the |RSA_*_PADDING|
-    // values. If in doubt, |RSA_PKCS1_PADDING| is the most common.
+    // RSA_private_encrypt encrypts `flen` bytes from `from` with the private key in
+    // `rsa` and writes the encrypted data to `to`. The `to` buffer must have at
+    // least `RSA_size` bytes of space. It returns the number of bytes written, or
+    // -1 on error. The `padding` argument must be one of the `RSA_*_PADDING`
+    // values. If in doubt, `RSA_PKCS1_PADDING` is the most common.
     //
     // WARNING: this function is dangerous because it breaks the usual return value
-    // convention. Use |RSA_sign_raw| instead.
+    // convention. Use `RSA_sign_raw` instead.
     OPENSSL_EXPORT int RSA_private_encrypt(int flen, const uint8_t *from,
                                            uint8_t *to, RSA *rsa, int padding);
 

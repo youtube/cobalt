@@ -25,6 +25,7 @@ Neke funkcije su možda nedostupne i promene podešavanja neće biti sačuvane.
 <translation id="1203500561924088507">Hvala vam na instalaciji. Potrebno je da restartujete pregledač pre nego što počnete da koristite <ph name="BUNDLE_NAME" />.</translation>
 <translation id="1232234696885483911">Kada otvorite pretragu slika, naslov, URL i sadržaj stranice, uključujući PDF-ove, automatski se šalju na server. <ph name="LEARN_MORE" /></translation>
 <translation id="123265588161106468">Dok ste prijavljeni, možete da koristite lozinke i drugo sa Google naloga u Chromium-u. Da biste to promenili, idite na Nalog u Chromium-u.</translation>
+<translation id="1257483544893909270">Da biste izabrali deo ekrana u Gemini-ju u Chromium-u, koristite tastersku prečicu.</translation>
 <translation id="1262876892872089030">Dok je ova kartica bila neaktivna, memorija je oslobođena da bi Chromium bio brz. Možete da odaberete da uvek izuzmete ovaj sajt iz neaktivnosti.</translation>
 <translation id="1265577313130862557">Chromium je blokirao ovo preuzimanje jer je ovaj fajl opasan</translation>
 <translation id="126567311906253476">Kada se prijavljujete u Google usluge kao što su Gmail ili YouTube pomoću naloga <ph name="USER_EMAIL" />, možete automatski da se prijavite u Chromium pomoću istog naloga</translation>
@@ -156,9 +157,11 @@ Neke funkcije su možda nedostupne i promene podešavanja neće biti sačuvane.
 <translation id="2620436844016719705">Sistem</translation>
 <translation id="2629740064077610681">Organizacija može da vidi podatke pregledanja, poput obeleživača, istorije i lozinki, i da upravlja njima. Ne može da vidi podatke pregledanja na drugim Chromium profilima</translation>
 <translation id="2635452620547538388">Potvrdite identitet da biste koristili i sačuvali Chromium podatke na nalogu, <ph name="ACCOUNT_EMAIL" /></translation>
+<translation id="2636783171884046627">Da biste izašli iz Gemini-ja u Chromium-u ili se vratili u njega, koristite tastersku prečicu.</translation>
 <translation id="2637732208198500597">{COUNT,plural, =0{Napredna zaštita zahteva da ponovo pokrenete Chromium da biste primenili ažuriranje}=1{Napredna zaštita zahteva da ponovo pokrenete Chromium kako biste primenili ažuriranje. Prozor bez arhiviranja se neće ponovo otvoriti.}one{Napredna zaštita zahteva da ponovo pokrenete Chromium kako biste primenili ažuriranje. # prozor bez arhiviranja se neće ponovo otvoriti.}few{Napredna zaštita zahteva da ponovo pokrenete Chromium kako biste primenili ažuriranje. # prozora bez arhiviranja se neće ponovo otvoriti.}other{Napredna zaštita zahteva da ponovo pokrenete Chromium kako biste primenili ažuriranje. # prozora bez arhiviranja se neće ponovo otvoriti.}}</translation>
 <translation id="2648074677641340862">Tokom instalacije je došlo do greške u operativnom sistemu. Preuzmite Chromium ponovo.</translation>
 <translation id="2661879430930417727">Ako delite uređaj, prijatelji i porodica mogu zasebno da pregledaju i da podese Chromium baš onako kako žele</translation>
+<translation id="2676569452213089702">Jednostavan pristup za korišćenje Gemini-ja u Chromium-u na uređaju, čak i ako je Chromium minimizovan.</translation>
 <translation id="2711502716910134313">Kartica Chromium</translation>
 <translation id="2718390899429598676">Chromium će šifrovati podatke radi dodatne sigurnosti.</translation>
 <translation id="2721354645805494590">Da biste uklonili Google nalog iz Chromium-a, odjavite se</translation>
@@ -177,7 +180,6 @@ Neke funkcije su možda nedostupne i promene podešavanja neće biti sačuvane.
 <translation id="2885378588091291677">Menadžer zadataka</translation>
 <translation id="2910007522516064972">O &amp;Chromium-u</translation>
 <translation id="2915996080311180594">Restartuj kasnije</translation>
-<translation id="2928420929544864228">Instalacija je dovršena.</translation>
 <translation id="2933336679234709858">Podaci se šifruju pomoću pristupne fraze. Unesite je da biste koristili i sačuvali Chromium podatke na Google nalogu.</translation>
 <translation id="2945997411976714835">Greška pri instalaciji: Proces instalacije nije uspeo.</translation>
 <translation id="2948852018303413228">Brže se prijavljujte na sajtove pomoću sačuvanih lozinki za Chromium na iOS-u</translation>
@@ -274,6 +276,7 @@ Neke funkcije su možda nedostupne i promene podešavanja neće biti sačuvane.
 <translation id="3954172517175569325">Lozinke, načini plaćanja i adrese koje ste sačuvali na Google nalogu biće uklonjeni sa ovog uređaja. Da biste ih ponovo koristili u Chromium-u, ponovo se prijavite.</translation>
 <translation id="395904275706073188">Zaštićene stranice ne mogu da se čitaju. Probajte sa drugom stranicom.</translation>
 <translation id="3962647064319009959">Saznajte kako vas Chromium štiti</translation>
+<translation id="3967822245660637423">Preuzimanje je dovršeno</translation>
 <translation id="3971865010372729242">Kada unosite tekst u traku za adresu ili u okvir za pretragu, Chromium šalje ono što unosite u alatke za pretragu, veštačku inteligenciju i agenta organizacije da biste dobijali predloge.</translation>
 <translation id="3975724895399328945">O verziji Google Chrome for Testing</translation>
 <translation id="3997429360543082038">O Chromium OS-u</translation>
@@ -309,10 +312,9 @@ Neke funkcije su možda nedostupne i promene podešavanja neće biti sačuvane.
 <translation id="4298125729853015961">Izvezite lozinke iz Chromium-a</translation>
 <translation id="4304713468139749426">Menadžer lozinki</translation>
 <translation id="4334241893986177674">Pretražite ovaj snimak ekrana</translation>
-<translation id="4334294535648607276">Preuzimanje je dovršeno.</translation>
 <translation id="4384331407722351213">Pokreni Chromium kada se Windows pokrene</translation>
 <translation id="4384993550046411228">Podesite Chromium kao podrazumevani pregledač da biste lako pristupali funkcijama koje znate, volite i kojima verujete. Chromium će biti zakačen na traku zadataka radi brzog pristupa.</translation>
-<translation id="439358628917130594"><ph name="MANAGER" /> zahteva da pročitate i prihvatite sledeće Uslove korišćenja usluge pre korišćenja ovog uređaja. Ovi uslovi ne proširuju, menjaju niti ograničavaju Uslove za Chromium OS.</translation>
+<translation id="4400772909124543403">Nema dostupnih ažuriranja</translation>
 <translation id="4407044323746248786">Želite li ipak da zatvorite Chromium?</translation>
 <translation id="4413205837991854510">Uvek prikazuj prečicu za pretragu slika</translation>
 <translation id="4415566066719264597">Neka Chromium radi u pozadini</translation>
@@ -351,6 +353,7 @@ Neke funkcije su možda nedostupne i promene podešavanja neće biti sačuvane.
 <translation id="4746050847053251315">Želite li ipak da zatvorite Chromium?</translation>
 <translation id="4748217263233248895">Posebno bezbednosno ažuriranje za Chromium je upravo primenjeno. Restartujte ga i vratićemo vam kartice.</translation>
 <translation id="4771701986670315895">Niste skoro posećivali sajt. Chromium je uklonio dozvole <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i još <ph name="COUNT" />.</translation>
+<translation id="4786083865378785874">Ako je Gemini u Chromium-u otvoren, bočna tabla ostaje otvorena kada pravite nove kartice</translation>
 <translation id="479167709087336770">Koristi istu proveru pravopisa kao Google pretraga. Tekst koji unesete u pregledač se šalje Google-u. To uvek možete da promenite u podešavanjima.</translation>
 <translation id="4814736265800133385">Koristite Chromium bez naloga</translation>
 <translation id="4888717733111232871">Pravilo za dolazni saobraćaj za Chromium da bi se omogućio mDNS saobraćaj.</translation>
@@ -363,7 +366,6 @@ Neke funkcije su možda nedostupne i promene podešavanja neće biti sačuvane.
 <translation id="4987820182225656817">Gosti mogu da koriste Chromium a da ne ostavljaju nikakve tragove.</translation>
 <translation id="4992938037305302429">Vaš nalog u Chromium-u</translation>
 <translation id="4994636714258228724">Dodajte sebe u Chromium</translation>
-<translation id="5083712646171654472">Gemini u Chromium-u koristi automatsko pregledanje za rad na karticama i obavljanje zadataka koje mu dodelite. <ph name="LINK_BEGIN" />Saznajte više<ph name="LINK_END" /></translation>
 <translation id="5123973130450702873">Chromium-u treba dozvola za praćenje ruku</translation>
 <translation id="5141988424377517949">Niste skoro posećivali sajt. Chromium je uklonio dozvole <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, <ph name="PERMISSION_3" />.</translation>
 <translation id="5174969993834422967">Obično blokirate obaveštenja. Da biste dozvolili ovom sajtu da vas obaveštava, kliknite na ikonu obaveštenja u desnom uglu trake za lokaciju.</translation>
@@ -371,6 +373,7 @@ Neke funkcije su možda nedostupne i promene podešavanja neće biti sačuvane.
 <translation id="5187123684706427865">Chromium nalog zahteva ponovnu potvrdu identiteta</translation>
 <translation id="5231355151045086930">Odjavite se iz Chromium-a</translation>
 <translation id="5234764350956374838">Odbaci</translation>
+<translation id="5249261924633168472">Otvori link u Chromium prozoru bez arhi&amp;viranja</translation>
 <translation id="5254739261293693943">Postavite pitanje o ovom videu</translation>
 <translation id="5276305953263010518">Preuzmite aplikaciju Chromium da biste sačuvali lozinke u pokretu</translation>
 <translation id="5277894862589591112">Da biste primenili promene, ponovo pokrenite Chromium</translation>
@@ -403,6 +406,7 @@ Neke funkcije su možda nedostupne i promene podešavanja neće biti sačuvane.
 <translation id="555970465369471303">Iz bezbednosnih razloga, Chromium isključuje optimizaciju JavaScript-a kad prvi put posetite sajt.
 
 Ako ova stranica ne radi na očekivani način, dozvolite optimizaciju.</translation>
+<translation id="5575874067957905201">Prikaži Gemini u Chromium-u na traci menija Mac-a i uključi tastersku prečicu</translation>
 <translation id="5579324208890605088">Greška pri pokretanju: pokrenite program za instalaciju kao redovan korisnik, a ne kao administrator.</translation>
 <translation id="5580770360767802657">Podrazumevano koristite Chromium i zakačite ga</translation>
 <translation id="5596627076506792578">Još opcija</translation>
@@ -474,7 +478,6 @@ Ako ova stranica ne radi na očekivani način, dozvolite optimizaciju.</translat
 <translation id="6294831894865512704">Dodatak želi da se prijavite u Chromium</translation>
 <translation id="6295779123002464101">Datoteka <ph name="FILE_NAME" /> je možda opasna, pa ju je Chromium blokirao.</translation>
 <translation id="6309712487085796862">Chromium koristi kameru.</translation>
-<translation id="6327105987658262776">Nema dostupnih ažuriranja.</translation>
 <translation id="6333502561965082103">Druga radnja u Chromium-u je u toku. Probajte ponovo kasnije.</translation>
 <translation id="6334986366598267305">Sada možete lakše da koristite Chromium sa Google nalogom i na deljenim računarima.</translation>
 <translation id="6347002662287820329">Podesite Chromium kao podrazumevani pregledač da biste lako pristupali funkcijama koje znate, volite i kojima verujete.</translation>
@@ -550,7 +553,6 @@ Ne možete da sačuvate nove obeleživače na nalogu dok ne izbrišete neke. Ako
 <translation id="7003299027384820442">Unesite pristupnu frazu da biste koristili i sačuvali Chromium podatke na nalogu, <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="7011190694940573312">Instaliranje nije uspelo zato što ova verzija operativnog sistema nije podržana.</translation>
 <translation id="7024536598735240744">Greška pri otpakivanju: <ph name="UNPACK_ERROR" />.</translation>
-<translation id="7025789849649390912">Instalacija je prekinuta.</translation>
 <translation id="7045244423563602563">Prilagodite Chromium sebi</translation>
 <translation id="7047386856539490735">Da li su ovi rezultati korisni?</translation>
 <translation id="705851970750939768">Ažuriraj Chromium</translation>
@@ -606,7 +608,6 @@ Chromium ne može da vrati podešavanja.</translation>
 <translation id="7624307931717240213">Informacije koristimo da bismo poboljšali ovu uslugu. Pogledajte politiku privatnosti i uslove korišćenja usluge.</translation>
 <translation id="7649070708921625228">Pomoć</translation>
 <translation id="7650134251917003571">Preuzmi aplikaciju Chromium</translation>
-<translation id="7656340475565475526">Dozvolite da Chromium pregleda za vas</translation>
 <translation id="7658239707568436148">Otkaži</translation>
 <translation id="7686590090926151193">Chromium nije podrazumevani pregledač</translation>
 <translation id="7689606757190482937">Sinhronizujte i personalizujte Chromium na svim uređajima</translation>
@@ -629,6 +630,7 @@ Chromium ne može da vrati podešavanja.</translation>
 <translation id="7867198900892795913">Chromium nije uspeo da se ažurira na najnoviju verziju, pa propuštate nove funkcije i bezbednosne ispravke.</translation>
 <translation id="7872446069773932638">Preuzima se... Još <ph name="SECONDS" /> sek</translation>
 <translation id="7873537467422636035">Ako ste zaboravili pristupnu frazu ili želite da promenite ovo podešavanje, <ph name="BEGIN_LINK" />izbrišite Chromium podatke na nalogu<ph name="END_LINK" />.</translation>
+<translation id="7874369989024033742">Brzo otvorite Gemini u Chromium-u kad god vam zatreba</translation>
 <translation id="7877212753140190672">Postavite pitanje o ovoj slici</translation>
 <translation id="7888981273428720788">Podesite Chromium kao podrazumevani pregledač</translation>
 <translation id="7934340546140346950">Chromium automatski nadograđuje nebezbedne veze na HTTPS kada je to moguće</translation>
@@ -650,6 +652,7 @@ Chromium ne može da vrati podešavanja.</translation>
 <translation id="8118331347066725040">Pošaljite povratne informacije za pretragu pomoću Objektiva</translation>
 <translation id="8133124826068723441">Chromium OS ne može da sinhronizuje podatke jer Sinhronizacija nije dostupna za domen.</translation>
 <translation id="813913629614996137">Pokreće se…</translation>
+<translation id="8161503455832158203">Otvorite Gemini u Chromium-u pomoću tasterske prečice.</translation>
 <translation id="8164014945047474187">Dodatni uslovi korišćenja usluge za Chromium</translation>
 <translation id="81770708095080097">Ova datoteka je opasna, pa ju je Chromium blokirao.</translation>
 <translation id="8177472873527554730">Ne možemo da pronađemo sadržaj na stranici</translation>
@@ -659,6 +662,7 @@ Chromium ne može da vrati podešavanja.</translation>
 <translation id="8232193495299001329">Chromium ne može da potvrdi odakle potiče ovaj dodatak i možda nije bezbedan. Uklonite ga iz Chromium-a da više ne bi mogao da vidi i menja podatke na sajtovima koje posećujete, uključujući lične podatke.</translation>
 <translation id="8248265253516264921">Ako slika nema koristan opis, Chromium će probati da vam ga pruži. Slike se šalju Google-u radi pravljenja opisa. To možete da isključite u podešavanjima u svakom trenutku.</translation>
 <translation id="8254601181414348851">Želite li da se prijavite u Chromium na novom profilu?</translation>
+<translation id="8277334259226003205">Prikaži Gemini u Chromium-u na sistemskoj paleti i uključi tastersku prečicu</translation>
 <translation id="8286943863733751221"><ph name="BEGIN_LINK" />Chromium vas upozorava<ph name="END_LINK" /> na nebezbedne sajtove i preuzimanja</translation>
 <translation id="8295827201165805317">Niste skoro posećivali sajt. Chromium je uklonio dozvolu <ph name="PERMISSION" />.</translation>
 <translation id="8296236834352487533">Kupujte, prevodite i identifikujte ono što vidite pomoću kamere u iOS aplikaciji Chromium</translation>
@@ -687,6 +691,7 @@ Chromium ne može da vrati podešavanja.</translation>
 <translation id="8493179195440786826">Chromium je zastareo</translation>
 <translation id="850264194101621529">Hvala vam što ste odabrali Chromium kao podrazumevani pregledač.</translation>
 <translation id="8522801943730206384">Chromium može da proverava lozinke kada ih sačuvate</translation>
+<translation id="8525579356836940628">Instalacija je prekinuta</translation>
 <translation id="8548787790260785208">Dobijajte upozorenja ako Chromium pronađe neku od lozinki u javnoj povredi podataka</translation>
 <translation id="8555465886620020932">Greška u usluzi: <ph name="SERVICE_ERROR" />.</translation>
 <translation id="8556055872671007529">Neke Chromium funkcije i dodaci imaju prečice. Možete ponovo da ih uključite.</translation>
@@ -720,6 +725,7 @@ Chromium ne može da vrati podešavanja.</translation>
 <translation id="897581876605952338">Logotip Chromium-a za preduzeća</translation>
 <translation id="8981150672034878610">Ne možete da pokrenete Chromium jer je došlo do greške pri otvaranju profila. Probajte da restartujete Chromium.</translation>
 <translation id="8988036198400390003">Upravljaj Chromium profilima</translation>
+<translation id="9018218886431812662">Instalacija je završena</translation>
 <translation id="9019929317751753759">Da bismo učinili Chromium bezbednijim, onemogućili smo sledeći dodatak koji <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> ne navodi i koji je možda dodat bez vašeg znanja.</translation>
 <translation id="9022552996538154597">Prijavljivanje na Chromium</translation>
 <translation id="904366664621834601">Chromium je blokirao ovo preuzimanje jer fajl arhive sadrži druge fajlove koji mogu da kriju malver</translation>

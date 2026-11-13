@@ -761,6 +761,8 @@ BASE_FEATURE(kDevToolsImprovedNetworkError, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDevToolsWebMCPSupport, base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kDevToolsAdsPanel, base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kDirectCompositorThreadIpc,
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
     BUILDFLAG(IS_WIN)
@@ -908,9 +910,6 @@ BASE_FEATURE(kFetchDestinationJsonCssModules,
 BASE_FEATURE(kFileHandlingIcons, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kFileSystemUrlNavigation, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kFileSystemUrlNavigationForChromeAppsOnly,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kFilteringScrollPrediction,
 #if BUILDFLAG(IS_ANDROID)
@@ -2319,10 +2318,6 @@ BASE_FEATURE(kReleaseResourceDecodedDataOnMemoryPressure,
 // array of URLs in the renderer process.
 BASE_FEATURE(kRemoveCommitRedirectUrlsArray, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Disables sending the Purpose: "prefetch" header for prefetches and
-// prerenders.
-BASE_FEATURE(kRemovePurposeHeaderForPrefetch, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Allows same-document available-image reuse for no-store images.
 BASE_FEATURE(kReuseNoStoreImageOnSameSrcReassignment,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -2761,9 +2756,6 @@ BASE_FEATURE(kWebBluetoothCancelConnect,
 
 BASE_FEATURE(kWebRtcUseCaptureBeginTimestamp, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kWebRtcAudioSinkUseTimestampAligner,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kWebRtcPqcForDtls, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kWebRtcUseMediaThreadTypes, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2806,7 +2798,7 @@ BASE_FEATURE(kWebAppManifestLocalization, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kWebAppManifestLockScreen, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables web apps to be migrated from one manifest id to another.
-BASE_FEATURE(kWebAppMigrationApi, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWebAppMigrationApi, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Use deferred pull status update instead of updating the status directly
 // on audio thread. See https://crbug.com/40249972.

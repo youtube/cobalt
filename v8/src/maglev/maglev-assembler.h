@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_ASSEMBLER_H_
 #define V8_MAGLEV_MAGLEV_ASSEMBLER_H_
 
+#include "src/base/logging.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/common/globals.h"
@@ -552,6 +553,10 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                       InstanceType lower_limit,
                                       InstanceType higher_limit,
                                       AbortReason reason);
+#ifdef DEBUG
+  inline void AssertFloat64IsSmi(DoubleRegister value);
+  inline void AssertHoleyFloat64IsSmi(DoubleRegister value);
+#endif
   inline void BranchOnObjectTypeInRange(
       Register heap_object, InstanceType lower_limit, InstanceType higher_limit,
       Label* if_true, Label::Distance true_distance, bool fallthrough_when_true,
@@ -1168,6 +1173,7 @@ inline Condition ToCondition(AssertCondition cond) {
     ASSERT_CONDITION(CASE)
 #undef CASE
   }
+  UNREACHABLE();
 }
 
 constexpr Condition ConditionFor(Operation operation) {

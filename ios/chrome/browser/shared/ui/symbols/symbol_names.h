@@ -27,10 +27,14 @@ extern NSString* const kGoogleIconSymbol;
 extern NSString* const kGoogleShieldSymbol;
 extern NSString* const kGoogleMapsSymbol;
 extern NSString* const kGooglePaySymbol;
+extern NSString* const kGooglePayV2Symbol;
 extern NSString* const kGooglePhotosSymbol;
 extern NSString* const kGoogleWalletIconSymbol;
+extern NSString* const kGoogleWalletIconV2Symbol;
 extern NSString* const kGoogleWalletSymbol;
+extern NSString* const kGoogleWalletV2Symbol;
 extern NSString* const kGPayPillIconSymbol;
+extern NSString* const kGPayPillIconV2Symbol;
 extern NSString* const kMulticolorChromeballSymbol;
 extern NSString* const kPageInsightsSymbol;
 #else
@@ -298,7 +302,6 @@ extern NSString* const kArrowUpTrashSymbol;
 extern NSString* const kRectangleGroupBubble;
 extern NSString* const kHomeSymbol;
 extern NSString* const kWorkSymbol;
-extern NSString* const kShieldedEnvelope;
 extern NSString* const kReaderModeSymbolPreIOS18;
 extern NSString* const kReaderModeSymbolPostIOS18;
 extern NSString* const kCircleBadgeFill;
@@ -318,6 +321,7 @@ extern NSString* const kSparkles2Symbol;
 extern NSString* const kEnvelopeSymbol;
 extern NSString* const kSquareAndPencilSymbol;
 extern NSString* const kCreditCardFinderActionSymbol;
+extern NSString* const kPuzzlePieceExtensionSymbol;
 
 // Names of the default symbol being non-monochrome by default. When using them,
 // you probably want to set their color to monochrome.

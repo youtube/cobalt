@@ -199,11 +199,8 @@ class CC_EXPORT LayerTreeImpl {
   OwnedLayerImplList DetachLayersKeepingRootLayerForTesting();
   OwnedLayerImplList SwapLayers(OwnedLayerImplList new_layers);
 
-  void SetPropertyTrees(const PropertyTrees& property_trees,
-                        PropertyTreesChangeState& change_state,
-                        bool preserve_change_tracking);
-
   void SetPropertyTrees(PropertyTrees& property_trees,
+                        const ViewportPropertyIds& viewport_property_ids,
                         bool preserve_change_tracking = false);
 
   PropertyTrees* property_trees() {

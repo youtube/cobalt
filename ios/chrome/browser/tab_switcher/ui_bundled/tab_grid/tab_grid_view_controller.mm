@@ -247,6 +247,10 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
   }
 
   [self scrollToPage:self.currentPage animated:NO];
+
+  if (IsChromeNextIaEnabled() && !IsFullscreenRefactoringEnabled()) {
+    [self setContentVisible:self.viewVisible];
+  }
 }
 
 - (void)viewDidLoad {
@@ -459,6 +463,9 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
   _backgroundedSinceEntering = NO;
   [self resetIdlePageStatus];
   self.viewVisible = YES;
+  if (IsChromeNextIaEnabled() && !IsFullscreenRefactoringEnabled()) {
+    [self setContentVisible:YES];
+  }
   [self.topToolbar.pageControl setSelectedPage:self.currentPage animated:NO];
   [self configureViewControllerForCurrentSizeClassesAndPage];
 
@@ -514,6 +521,19 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
   self.tabGridEnterTime = base::TimeTicks();
 }
 
+- (void)setContentVisible:(BOOL)visible {
+  CHECK(IsChromeNextIaEnabled());
+  CHECK(!IsFullscreenRefactoringEnabled());
+  if (!_childViewsAreSetUp) {
+    return;
+  }
+
+  self.scrollView.hidden = !visible;
+  self.topToolbar.hidden = !visible;
+  self.bottomToolbar.hidden = !visible;
+  self.pinnedTabsViewController.view.hidden = !visible;
+}
+
 - (void)setCurrentPageAndPageControl:(TabGridPage)page animated:(BOOL)animated {
   if (self.topToolbar.pageControl.selectedPage != page) {
     [self.topToolbar.pageControl setSelectedPage:page animated:animated];
@@ -536,7 +556,7 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
 
   [self.mutator pageChanged:newActivePage
                 interaction:TabSwitcherPageChangeInteraction::kNone];
-  self.activePage = newActivePage;
+  [self setActivePage:newActivePage behavior:TabGridScrollBehaviorNone];
 }
 
 #pragma mark - Public Properties
@@ -699,7 +719,22 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
 }
 
 - (void)setActivePage:(TabGridPage)activePage {
-  [self scrollToPage:activePage animated:YES];
+  [self setActivePage:activePage behavior:TabGridScrollBehaviorAnimated];
+}
+
+- (void)setActivePage:(TabGridPage)activePage
+             behavior:(TabGridScrollBehavior)behavior {
+  switch (behavior) {
+    case TabGridScrollBehaviorAnimated:
+      [self scrollToPage:activePage animated:YES];
+      break;
+    case TabGridScrollBehaviorInstant:
+      [self scrollToPage:activePage animated:NO];
+      break;
+    case TabGridScrollBehaviorNone:
+      // Don't scroll.
+      break;
+  }
   [self.activityObserver updateLastActiveTabPage:activePage];
   if (activePage != _activePage) {
     // Usually, an active page change is a result of an in-page action happening
@@ -2201,8 +2236,9 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
 
 #pragma mark - GridConsumer
 
-- (void)setActivePageFromPage:(TabGridPage)page {
-  self.activePage = page;
+- (void)setActivePageFromPage:(TabGridPage)page
+                     behavior:(TabGridScrollBehavior)behavior {
+  [self setActivePage:page behavior:behavior];
 }
 
 - (void)prepareForDismissal {

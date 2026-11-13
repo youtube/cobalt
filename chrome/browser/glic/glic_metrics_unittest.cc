@@ -844,16 +844,6 @@ TEST_F(GlicMetricsFeaturesEnabledTest, EnablingChanged) {
   EXPECT_EQ(user_action_tester().GetActionCount("Glic.Enabled"), 3);
 }
 
-TEST_F(GlicMetricsFeaturesEnabledTest, PinnedChanged) {
-  EXPECT_EQ(user_action_tester().GetActionCount("Glic.Pinned"), 0);
-  EXPECT_EQ(user_action_tester().GetActionCount("Glic.Unpinned"), 0);
-  profile()->GetPrefs()->SetBoolean(prefs::kGlicPinnedToTabstrip, false);
-  EXPECT_EQ(user_action_tester().GetActionCount("Glic.Pinned"), 0);
-  EXPECT_EQ(user_action_tester().GetActionCount("Glic.Unpinned"), 1);
-  profile()->GetPrefs()->SetBoolean(prefs::kGlicPinnedToTabstrip, true);
-  EXPECT_EQ(user_action_tester().GetActionCount("Glic.Pinned"), 1);
-  EXPECT_EQ(user_action_tester().GetActionCount("Glic.Unpinned"), 1);
-}
 
 TEST_F(GlicMetricsFeaturesEnabledTest, ShortcutStatus) {
   task_environment().FastForwardBy(base::Minutes(16));
@@ -1023,9 +1013,12 @@ TEST_F(GlicMetricsTrustFirstOnboardingTest, ShownAndDismissed) {
   EXPECT_EQ(user_action_tester().GetActionCount("Glic.Fre.Shown"), 1);
   EXPECT_EQ(user_action_tester().GetActionCount("Glic.Fre.Shown.Onboarding"),
             1);
+  histogram_tester().ExpectUniqueSample("Glic.Fre.Shown.FlowSource",
+                                        OptInFlow::kGlicFre, 1);
 
   // Closing without accept triggers "Dismissed".
   metrics()->OnInstanceClosed();
+  EXPECT_EQ(user_action_tester().GetActionCount("Glic.Fre.Dismissed"), 1);
   EXPECT_EQ(
       user_action_tester().GetActionCount("Glic.Fre.Dismissed.Onboarding"), 1);
   histogram_tester().ExpectTotalCount("Glic.Fre.TotalTime.Dismissed.Onboarding",
@@ -1034,6 +1027,8 @@ TEST_F(GlicMetricsTrustFirstOnboardingTest, ShownAndDismissed) {
                                         mojom::InvocationSource::kOsButton, 1);
   histogram_tester().ExpectUniqueSample("Glic.Fre.Dismissed.InvocationSource",
                                         mojom::InvocationSource::kOsButton, 1);
+  histogram_tester().ExpectUniqueSample("Glic.Fre.Dismissed.FlowSource",
+                                        OptInFlow::kGlicFre, 1);
 }
 
 TEST_F(GlicMetricsTrustFirstOnboardingTest, ShownAndAccepted) {
@@ -1042,6 +1037,8 @@ TEST_F(GlicMetricsTrustFirstOnboardingTest, ShownAndAccepted) {
   EXPECT_EQ(user_action_tester().GetActionCount("Glic.Fre.Shown"), 1);
   EXPECT_EQ(user_action_tester().GetActionCount("Glic.Fre.Shown.Onboarding"),
             1);
+  histogram_tester().ExpectUniqueSample("Glic.Fre.Shown.FlowSource",
+                                        OptInFlow::kGlicFre, 1);
 
   metrics()->OnTrustFirstOnboardingAccept();
   EXPECT_EQ(user_action_tester().GetActionCount("Glic.Fre.Accept"), 1);
@@ -1052,12 +1049,15 @@ TEST_F(GlicMetricsTrustFirstOnboardingTest, ShownAndAccepted) {
 
   // Closing after accept should NOT trigger "Dismissed".
   metrics()->OnGlicWindowClose(nullptr, std::nullopt, gfx::Rect());
+  EXPECT_EQ(user_action_tester().GetActionCount("Glic.Fre.Dismissed"), 0);
   EXPECT_EQ(
       user_action_tester().GetActionCount("Glic.Fre.Dismissed.Onboarding"), 0);
   histogram_tester().ExpectUniqueSample("Glic.Fre.Shown.InvocationSource",
                                         mojom::InvocationSource::kOsButton, 1);
   histogram_tester().ExpectUniqueSample("Glic.Fre.Accept.InvocationSource",
                                         mojom::InvocationSource::kOsButton, 1);
+  histogram_tester().ExpectUniqueSample("Glic.Fre.Accept.FlowSource",
+                                        OptInFlow::kGlicFre, 1);
   histogram_tester().ExpectTotalCount("Glic.Fre.Dismissed.InvocationSource", 0);
 }
 

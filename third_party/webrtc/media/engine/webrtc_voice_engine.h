@@ -99,7 +99,9 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
       Call* call,
       const MediaConfig& config,
       const AudioOptions& options,
-      const CryptoOptions& crypto_options) override;
+      const CryptoOptions& crypto_options,
+      absl::AnyInvocable<void()> parameters_changed_callback =
+          nullptr) override;
 
   std::unique_ptr<VoiceMediaReceiveChannelInterface> CreateReceiveChannel(
       const Environment& env,
@@ -170,12 +172,14 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
 class WebRtcVoiceSendChannel final : public MediaChannelUtil,
                                      public VoiceMediaSendChannelInterface {
  public:
-  WebRtcVoiceSendChannel(const Environment& env,
-                         WebRtcVoiceEngine* engine,
-                         const MediaConfig& config,
-                         const AudioOptions& options,
-                         const CryptoOptions& crypto_options,
-                         Call* call);
+  WebRtcVoiceSendChannel(
+      const Environment& env,
+      WebRtcVoiceEngine* engine,
+      const MediaConfig& config,
+      const AudioOptions& options,
+      const CryptoOptions& crypto_options,
+      Call* call,
+      absl::AnyInvocable<void()> parameters_changed_callback = nullptr);
 
   WebRtcVoiceSendChannel() = delete;
   WebRtcVoiceSendChannel(const WebRtcVoiceSendChannel&) = delete;
@@ -304,6 +308,9 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
   // Callback invoked whenever the list of SSRCs changes.
   absl::AnyInvocable<void(const std::set<uint32_t>&)>
       ssrc_list_changed_callback_ RTC_GUARDED_BY(worker_thread_);
+
+  absl::AnyInvocable<void()> parameters_changed_callback_
+      RTC_GUARDED_BY(worker_thread_);
 };
 
 class WebRtcVoiceReceiveChannel final

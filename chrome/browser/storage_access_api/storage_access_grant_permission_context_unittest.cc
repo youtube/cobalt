@@ -5,6 +5,7 @@
 #include "chrome/browser/storage_access_api/storage_access_grant_permission_context.h"
 
 #include <memory>
+#include <utility>
 
 #include "base/check_deref.h"
 #include "base/metrics/metrics_hashes.h"
@@ -47,6 +48,8 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/mock_render_process_host.h"
+#include "content/public/test/navigation_simulator.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/web_contents_tester.h"
 #include "net/base/schemeful_site.h"
@@ -261,10 +264,13 @@ class StorageAccessGrantPermissionContextTest
     EXPECT_EQ(setting, expected_setting);
   }
 
-  permissions::PermissionRequestID CreateFakeID() {
+  permissions::PermissionRequestID CreateFakeID(
+      content::RenderFrameHost* rfh = nullptr) {
+    if (!rfh) {
+      rfh = web_contents()->GetPrimaryMainFrame();
+    }
     return permissions::PermissionRequestID(
-        web_contents()->GetPrimaryMainFrame(),
-        request_id_generator_.GenerateNextId());
+        rfh, request_id_generator_.GenerateNextId());
   }
 
   void WaitUntilPrompt() {
@@ -316,6 +322,112 @@ TEST_F(StorageAccessGrantPermissionContextTest, InsecureOriginsDisallowed) {
   EXPECT_THAT(page_specific_content_settings()->GetTwoSiteRequests(
                   ContentSettingsType::STORAGE_ACCESS),
               IsEmpty());
+}
+
+TEST_F(StorageAccessGrantPermissionContextTest, OpaqueOriginDisallowed) {
+  NavigateAndCommit(GURL("data:text/html,foo"));
+
+  content::PermissionResult result =
+      RequestPermission(MakePermissionRequestData(/*user_gesture=*/true))
+          .Take();
+
+  EXPECT_EQ(PermissionStatus::DENIED, result.status);
+  EXPECT_EQ(content::PermissionStatusSource::UNSPECIFIED, result.source);
+
+  EXPECT_EQ(1, static_cast<content::MockRenderProcessHost*>(
+                   web_contents()->GetPrimaryMainFrame()->GetProcess())
+                   ->bad_msg_count());
+}
+
+TEST_F(StorageAccessGrantPermissionContextTest, FencedFrameDisallowed) {
+  NavigateAndCommit(GetTopLevelURL());
+
+  content::RenderFrameHost* fenced_frame_rfh =
+      content::RenderFrameHostTester::For(main_rfh())->AppendFencedFrame();
+
+  auto request_data = std::make_unique<permissions::PermissionRequestData>(
+      content::PermissionDescriptorUtil::
+          CreatePermissionDescriptorForPermissionType(
+              permissions::PermissionUtil::ContentSettingsTypeToPermissionType(
+                  ContentSettingsType::STORAGE_ACCESS)),
+      CreateFakeID(fenced_frame_rfh), /*user_gesture=*/true, GetRequesterURL(),
+      GetTopLevelURL());
+
+  content::PermissionResult result =
+      RequestPermission(std::move(request_data)).Take();
+
+  EXPECT_EQ(PermissionStatus::DENIED, result.status);
+  EXPECT_EQ(content::PermissionStatusSource::FENCED_FRAME, result.source);
+
+  EXPECT_EQ(1, static_cast<content::MockRenderProcessHost*>(
+                   fenced_frame_rfh->GetProcess())
+                   ->bad_msg_count());
+}
+
+TEST_F(StorageAccessGrantPermissionContextTest,
+       FencedFrameQueryReturnsDeniedEvenWithGrant) {
+  NavigateAndCommit(GetTopLevelURL());
+
+  // Set an explicit grant.
+  HostContentSettingsMap* settings_map =
+      HostContentSettingsMapFactory::GetForProfile(profile());
+  settings_map->SetContentSettingDefaultScope(
+      GetRequesterURL(), GetTopLevelURL(), ContentSettingsType::STORAGE_ACCESS,
+      CONTENT_SETTING_ALLOW);
+
+  content::RenderFrameHost* fenced_frame_rfh =
+      content::RenderFrameHostTester::For(main_rfh())->AppendFencedFrame();
+
+  // The permissions framework transforms all permissions statuses to `DENIED`
+  // within fenced frames.
+  EXPECT_EQ(
+      PermissionStatus::DENIED,
+      permission_context()
+          ->GetPermissionStatus(
+              content::PermissionDescriptorUtil::
+                  CreatePermissionDescriptorForPermissionType(
+                      permissions::PermissionUtil::
+                          ContentSettingsTypeToPermissionType(
+                              permission_context()->content_settings_type())),
+              fenced_frame_rfh, GetRequesterURL(), GetTopLevelURL())
+          .status);
+}
+
+TEST_F(StorageAccessGrantPermissionContextTest,
+       CredentiallessFrameQueryReturnsAskEvenWithGrant) {
+  NavigateAndCommit(GetTopLevelURL());
+
+  // Set an explicit grant.
+  HostContentSettingsMap* settings_map =
+      HostContentSettingsMapFactory::GetForProfile(profile());
+  settings_map->SetContentSettingDefaultScope(
+      GetRequesterURL(), GetTopLevelURL(), ContentSettingsType::STORAGE_ACCESS,
+      CONTENT_SETTING_ALLOW);
+
+  // Create a credentialless child frame.
+  content::RenderFrameHost* child_rfh =
+      content::RenderFrameHostTester::For(main_rfh())
+          ->AppendCredentiallessChild("child");
+  std::unique_ptr<content::NavigationSimulator> navigation =
+      content::NavigationSimulator::CreateRendererInitiated(GetRequesterURL(),
+                                                            child_rfh);
+  navigation->Commit();
+  child_rfh = navigation->GetFinalRenderFrameHost();
+  ASSERT_TRUE(child_rfh->IsCredentialless());
+
+  // Querying permission from a credentialless frame should return ASK (prompt)
+  // even if there is a grant.
+  EXPECT_EQ(
+      PermissionStatus::ASK,
+      permission_context()
+          ->GetPermissionStatus(
+              content::PermissionDescriptorUtil::
+                  CreatePermissionDescriptorForPermissionType(
+                      permissions::PermissionUtil::
+                          ContentSettingsTypeToPermissionType(
+                              permission_context()->content_settings_type())),
+              child_rfh, GetRequesterURL(), GetTopLevelURL())
+          .status);
 }
 
 // Test that after a successful explicit storage access grant, there's a content

@@ -277,6 +277,7 @@
 448658624 NVIDIA OpenGL : GLSLTest_ES31.ConstantPrecisionPropagation/* = SKIP
 448658624 NVIDIA GLES : GLSLTest_ES31.ConstantPrecisionPropagation/* = SKIP
 42265449 LINUX NVIDIA OpenGL : MipmapTestES31.GenerateLowerMipsWithDraw/* = SKIP
+518697706 LINUX NVIDIA OpenGL : MipmapTestES31.MipmapWithMemoryBarrier/* = SKIP
 42265775 LINUX NVIDIA OpenGL : CopyTexImageTest.RGBAToRGB/*_EmulateCopyTexImage2DFromRenderbuffers = SKIP
 42265842 LINUX NVIDIA OpenGL : FramebufferTest_ES3.SurfaceDimensionsChangeAndFragCoord/* = SKIP
 42266866 NVIDIA OPENGL : GLSLTest_ES3.LargeInterfaceBlockArray/* = SKIP
@@ -493,6 +494,7 @@
 494392011 MAC METAL : MipmapTestES3.MismatchingLevelFormats/* = SKIP
 494341324 MAC OPENGL : MipmapTestES3.MismatchingLevelFormats/* = SKIP
 496604559 MAC METAL : RobustResourceInitTestES3.DrawThenInvalidateThenVerifyDepthStencil/* = SKIP
+515709506 MAC METAL : DrawBaseVertexBaseInstanceTest_ES3.BaseInstanceSmallDivisorClientMemory/* = SKIP
 
 // The workaround is not intended to be enabled in this configuration so
 // skip it as the failure is likely a driver bug.
@@ -517,6 +519,8 @@
 
 // Skipped because these tests crash with these backends
 457478042 OPENGL : Texture2DBaseMaxTestES3.BaseExceedsMaxFboAttachAtBase/ES3_OpenGL* = SKIP
+515698969 OPENGL : DrawBaseVertexBaseInstanceTest_ES3.BaseInstanceSmallDivisorClientMemory/* = SKIP
+515698969 GLES : DrawBaseVertexBaseInstanceTest_ES3.BaseInstanceSmallDivisorClientMemory/* = SKIP
 
 40644834 MAC METAL INTEL : Texture2DTest.TextureSizeCase1/* = SKIP
 
@@ -576,6 +580,7 @@
 512896813 WIN D3D11 : LineLoopTestES3.LineLoopDrawArraysInstancedBaseInstance/* = SKIP
 512896813 WIN D3D11 : LineLoopTestES3.LineLoopDrawElementsInstancedBaseVertexBaseInstance/* = SKIP
 514615434 D3D11 : DrawBaseVertexBaseInstanceTest.NegativeBaseVertex/* = SKIP
+515698970 D3D11 : DrawBaseVertexBaseInstanceTest_ES3.BaseInstanceSmallDivisorClientMemory/* = SKIP
 
 // Android
 42264624 ANDROID GLES : GLSLTest_ES3.InitGlobalComplexConstant/* = SKIP
@@ -1292,6 +1297,7 @@
 42265693 PIXEL10 VULKAN : FramebufferFetchES31.MultiSampledWithSampleID/* = SKIP
 489247643 PIXEL10 VULKAN : ImageTest.BindExternalTextureAsImage_R16_UINT/* = SKIP
 489247643 PIXEL10 VULKAN : ImageTest.BindExternalTextureAsImage_R16G16_UINT/* = SKIP
+456812545 PIXEL10 VULKAN : GLSLTest_ES3.DynamicWriteStaticReadVaryingArray/* = SKIP
 
 // Some Metal tests fail on iOS Intel simulator
 40096874 IOS METAL : CubeMapTextureTest.SampleCoordinateTransformGrad/* = SKIP
@@ -2435,6 +2441,7 @@
 42266907 WGPU : LineLoopStateChangeTest.DrawElementsThenDrawArrays/* = SKIP
 42266907 WGPU : LineLoopStateChangeTest.DrawArraysThenDrawElements/* = SKIP
 42266907 WGPU : LineLoopStateChangeTest.DrawElementsThenDrawElements/* = SKIP
+42266907 WGPU : MipmapTestES3.MismatchingLevelFormats2/* = SKIP
 42266907 WGPU : PbufferTest.* = SKIP
 42266907 WGPU : PointSpritesTest.* = SKIP
 42266907 WGPU : RobustResourceInitTest.* = SKIP
@@ -2594,6 +2601,7 @@
 362486580 LINUX NVIDIA OPENGL : LineLoopIndirectTest.UByteIndexIndirectBuffer/* = SKIP
 362486580 LINUX NVIDIA OPENGL : LineLoopIndirectTest.UShortIndexIndirectBuffer/* = SKIP
 362486580 LINUX NVIDIA OPENGL : LineLoopIndirectTest.UseAsUBOThenUpdateThenUByteIndexIndirectBuffer/* = SKIP
+362486580 LINUX NVIDIA OPENGL : LineLoopIndirectTest.UseAsUBOThenUpdateThenUShortIndexIndirectBuffer/* = SKIP
 362486580 LINUX NVIDIA OPENGL : MultiDrawIndirectTest.MultiDrawArraysIndirect/* = SKIP
 362486580 LINUX NVIDIA OPENGL : MultiDrawIndirectTest.MultiDrawElementsIndirect/* = SKIP
 362486580 LINUX NVIDIA OPENGL : SampleMultisampleInterpolationTest31.SampleShadingThenSimpleDraw/* = SKIP
@@ -2777,7 +2785,8 @@
 513536751 VULKAN SWIFTSHADER : TransformFeedbackTest.InstancedOverflowIncompletePrimitive/* = SKIP
 
 // Fails test on Metal
-499091328 MAC AMD METAL : Texture2DArrayTestES3.ReformatStagedBufferUpdatesLayerCountOOB/* = SKIP
+499091328 MAC AMD METAL : Texture2DArrayTestES3.ReformatStagedBufferUpdatesLayerCountOOB_2DArray/* = SKIP
+512995370 MAC AMD METAL : Texture2DArrayTestES3.ReformatStagedBufferUpdatesLayerCountOOB_3D/* = SKIP
 
 // Timeout on Intel
 509829264 VULKAN WIN INTEL : SimpleStateChangeTestES31.TransformFeedbackThenReadWithCompute/* = SKIP
@@ -2792,6 +2801,9 @@
 
 // Likely a SwiftShader bug.
 514397873 SWIFTSHADER : DrawBaseVertexBaseInstanceTest_ES3.BaseInstanceDivisorIndexing/* = SKIP
+
+// Timeout on Intel/Vulkan
+517981272 WIN INTEL VULKAN : EGLMultiContextTest.RepeatedEglInitAndTerminate/* = SKIP
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // Slow tests, should appear last in this file

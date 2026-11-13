@@ -41,6 +41,7 @@
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/video/video_bitrate_allocator_factory.h"
+#include "media/base/codec.h"
 #include "media/base/media_channel.h"
 #include "media/base/media_config.h"
 #include "media/base/media_engine.h"
@@ -145,7 +146,6 @@ class RtpTransceiver : public RtpTransceiverInterface {
       std::vector<RtpHeaderExtensionCapability> header_extensions_to_negotiate,
       bool simulcast_rejected,
       const std::vector<SimulcastLayer>& initial_simulcast_layers,
-      ScopedOperationsBatcher& worker_tasks,
       absl::AnyInvocable<void()> on_negotiation_needed);
   ~RtpTransceiver() override;
 
@@ -436,11 +436,17 @@ class RtpTransceiver : public RtpTransceiverInterface {
   VoiceMediaReceiveChannelInterface* voice_media_receive_channel();
 
  private:
-  MediaEngineInterface* media_engine() RTC_RUN_ON(context()->worker_thread());
+  VoiceChannelFactoryInterface* voice_channel_factory() const {
+    return context_->voice_channel_factory();
+  }
+  VideoChannelFactoryInterface* video_channel_factory() const {
+    return context_->video_channel_factory();
+  }
   ConnectionContext* context() const { return context_; }
   CodecVendor& codec_vendor() {
     return *codec_lookup_helper_->GetCodecVendor();
   }
+  std::vector<Codec> GetSendCodecs();
   void OnFirstPacketReceived(uint32_t ssrc);
   void OnPacketReceived(uint32_t ssrc,
                         scoped_refptr<PendingTaskSafetyFlag> safety)
@@ -468,6 +474,8 @@ class RtpTransceiver : public RtpTransceiverInterface {
 
   VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
   GetEncoderSwitchRequestCallback();
+
+  absl::AnyInvocable<void()> GetParametersChangedCallback();
 
   RTCError UpdateCodecPreferencesCaches(
       const std::vector<RtpCodecCapability>& codecs);
@@ -546,8 +554,6 @@ class RtpTransceiver : public RtpTransceiverInterface {
   // because all access on the network thread is within an invoke()
   // from thread_.
   std::unique_ptr<ChannelInterface> channel_ = nullptr;
-  std::unique_ptr<ConnectionContext::MediaEngineReference> media_engine_ref_
-      RTC_GUARDED_BY(context()->worker_thread());
   ConnectionContext* const context_;
   CodecLookupHelper* const codec_lookup_helper_;
   LegacyStatsCollectorInterface* const legacy_stats_;

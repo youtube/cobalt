@@ -27,6 +27,7 @@
 #include "api/candidate.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
 #include "api/uma_metrics.h"
@@ -5034,7 +5035,7 @@ TEST_F(WebRtcSdpTest, ParseSessionLevelExtmapAttributes) {
   EXPECT_EQ(extensions[0].uri,
             "http://www.ietf.org/id/"
             "draft-holmer-rmcat-transport-wide-cc-extensions-01");
-  EXPECT_EQ(extensions[0].id, 3);
+  EXPECT_EQ(extensions[0].id, RtpHeaderExtensionId(3));
 }
 
 TEST_F(WebRtcSdpTest, RejectSessionLevelMediaLevelExtmapMixedUsage) {

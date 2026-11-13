@@ -479,6 +479,29 @@ struct UserProfileInfo {
 };
 
 // @generate glic_api
+// Safe Browsing Threat Type.
+[Stable, Extensible]
+enum SbThreatType {
+  // Default value.
+  [Default] kUnspecified = 0,
+  kSocialEngineering = 1,
+  kMalware = 2,
+  kUnwantedSoftware = 3,
+};
+
+// The result from checking a page with Safe Browsing.
+struct SafeBrowsingVerdictResult {
+  string url;
+  SbThreatType threat_type;
+  bool show_interstitial;
+};
+
+// The safety signals for determining user treatments and enforcements.
+struct CounterAbuseVerdict {
+  SafeBrowsingVerdictResult? sb_verdict_result;
+};
+
+// @generate glic_api
 // The platform glic is running on.
 enum Platform {
   kUnknown = 0,
@@ -496,6 +519,13 @@ enum FormFactor {
   kDesktop = 1,
   kPhone = 2,
   kTablet = 3,
+};
+
+// @generate glic_api
+struct GeminiEnterpriseSettings {
+  string project_id;
+  string app_id;
+  string location;
 };
 
 // The result of `WebClientCreated()`. Contains information that needs to be
@@ -565,6 +595,10 @@ struct WebClientInitialState {
   bool enable_skills;
   // Whether glic API getTabFaviconById is enabled.
   bool enable_get_tab_favicon_by_id;
+  // Whether the processCounterAbuseVerdict API is enabled.
+  bool enable_process_counter_abuse_verdict;
+  // Settings for Gemini Enterprise.
+  GeminiEnterpriseSettings? gemini_enterprise_settings;
 };
 
 // @generate glic_api
@@ -1377,6 +1411,9 @@ interface WebClientHandler {
   // be presented to the user, but may not prevent further use of Glic.
   ReportClientTransientError(mojo_base.mojom.AbslStatusCode status_code);
 
+  // Processes the counter-abuse verdict from the server.
+  ProcessCounterAbuseVerdict(int32 tab_id, CounterAbuseVerdict? verdict);
+
   // Called when the opt-in CTA is shown.
   OnOptinImpression();
 
@@ -1673,6 +1710,10 @@ enum InvocationSource {
   [MinVersion=22] kToolbarButton = 31,
   // User clicked on an Indigo page action.
   [MinVersion=23] kIndigoPageAction = 32,
+  // User dropped a file/image onto the GLIC panel.
+  [MinVersion=24] kWebDragDrop = 33,
+  // From the promotion page.
+  [MinVersion=25] kPromotionPage = 34,
 };
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicInvocationSource, //chrome/browser/glic/service/metrics/metrics_types.h:ResponseSegmentation)
@@ -1782,6 +1823,7 @@ enum WebUseCounter {
   kTaskInterruptedForUserClarification = 3,
   kSelectionToggledViaSharedMenu = 4,
   kSelectionToggledViaHotKey = 5,
+  kSubmitPromptWithTextSelectionCue = 6,
 };
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicWebUseCounter)
@@ -1833,6 +1875,17 @@ struct ContextData {
   string mime_type;
   // The context data.
   mojo_base.mojom.BigBuffer data;
+  // The filename of the data, if available.
+  string? filename;
+};
+
+// @generate glic_api
+// Metadata of the parent conversation. Some, all, or none, of this information
+// may be available, depending on what context information was available from
+// the server when the parent conversation was initiated.
+struct ParentConversationMetadata {
+  string? conversation_id;
+  string? conversation_title;
 };
 
 // Part of an additional context object.
@@ -1846,6 +1899,7 @@ union AdditionalContextPart {
   TabContext tab_context;
   CapturedRegion region;
   PendingCapturedRegion pending_region;
+  ParentConversationMetadata parent_conversation_metadata;
 };
 
 // @generate glic_api
@@ -1855,6 +1909,8 @@ enum AdditionalContextSource {
   kShareContextMenu = 0,
   kRegionSelection = 1,
   kTextSelection = 3,
+  [MinVersion=1] kWebDragDrop = 4,
+  [MinVersion=2] kExperimentalTriggering = 5,
 };
 
 // An additional context object.
@@ -2028,6 +2084,9 @@ interface WebClient {
 
   // The onboarding completed state has changed.
   NotifyOnboardingCompletedChanged(bool completed);
+
+  // Informs the client that the Gemini Enterprise settings have changed.
+  NotifyGeminiEnterpriseSettingsChanged(GeminiEnterpriseSettings? settings);
 
   // Notifies the client that the user has clicked on a row in the actor task
   // list bubble.
@@ -2285,6 +2344,8 @@ enum HostCapability {
   kShareImageViaInvoke = 11,
   // Indicates that the host supports image drag and drop from the web
   kImgWebDragDrop = 12,
+  // Indicates that the host does not show the WebUi preloader.
+  kNoWebUiLoader = 13,
 };
 
 // @generate glic_api

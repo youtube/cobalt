@@ -29,7 +29,7 @@ namespace bench {
 // Register a function to register benchmarks after the runtime flags are
 // parsed.
 //
-// It is recommended to use |BSSL_BENCH_LAZY_REGISTER| for the registration,
+// It is recommended to use `BSSL_BENCH_LAZY_REGISTER` for the registration,
 // so that you do not have to manually wire up static initialisation with
 // this function.
 int RegisterBenchmark(void (*handle)());
@@ -61,7 +61,7 @@ int RegisterBenchmark(void (*handle)());
 // *Note* that benchmarks must be instantiated after the main function.
 // Otherwise, it will default to the number of available CPUs.
 //
-// This function can only be used in the context of |BSSL_BENCH_LAZY_REGISTER|.
+// This function can only be used in the context of `BSSL_BENCH_LAZY_REGISTER`.
 // Otherwise, the benchmark will be aborted.
 void SetThreads(benchmark::Benchmark *bench);
 
@@ -69,7 +69,7 @@ void SetThreads(benchmark::Benchmark *bench);
 // This is an interim solution, until the next `google/benchmark` release,
 // which contains https://github.com/google/benchmark/pull/2073.
 //
-// This function can only be used in the context of |BSSL_BENCH_LAZY_REGISTER|.
+// This function can only be used in the context of `BSSL_BENCH_LAZY_REGISTER`.
 // Otherwise, the benchmark will be aborted.
 Span<const int64_t> GetInputSizes(benchmark::Benchmark *bench);
 

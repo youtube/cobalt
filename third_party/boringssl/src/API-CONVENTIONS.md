@@ -205,7 +205,7 @@ failure. For example:
              EVP_DigestUpdate(&ctx, "hello ", 6) &&
              EVP_DigestUpdate(&ctx, "world", 5) &&
              EVP_DigestFinal_ex(&ctx, md, &md_len);
-    EVP_MD_CTX_cleanup(&ctx);  /* Release |ctx|. */
+    EVP_MD_CTX_cleanup(&ctx);  /* Release `ctx`. */
 
 Note that `EVP_MD_CTX_cleanup` is called whether or not the `EVP_Digest*`
 operations succeeded. More complex C functions may use the `goto err` pattern:

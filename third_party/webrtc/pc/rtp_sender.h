@@ -122,6 +122,7 @@ class RtpSenderInternal : public RtpSenderInterface {
   virtual std::vector<Codec> GetSendCodecs() const = 0;
 
   virtual void NotifyFirstPacketSent() = 0;
+  virtual void OnParametersChanged() = 0;
 };
 
 // Shared implementation for RtpSenderInternal interface.
@@ -253,6 +254,7 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
   std::vector<Codec> GetSendCodecs() const override { return send_codecs_; }
 
   void NotifyFirstPacketSent() override;
+  void OnParametersChanged() override;
   void SetObserver(RtpSenderObserverInterface* observer) override;
 
  protected:
@@ -261,9 +263,6 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
     cached_parameters_.reset();
   }
 
-  // Called by the media channel when parameters change autonomously on the
-  // worker thread (e.g., encoder fallback).
-  void OnParametersChanged();
   // If `set_streams_observer` is not null, it is invoked when SetStreams()
   // is called. `set_streams_observer` is not owned by this object. If not
   // null, it must be valid at least until this sender becomes stopped.
@@ -274,7 +273,10 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
                 MediaType media_type,
                 SetStreamsObserver* set_streams_observer,
                 absl::AnyInvocable<RTCError()> enable_sframe_at_owner,
-                MediaSendChannelInterface* media_channel);
+                MediaSendChannelInterface* media_channel,
+                std::vector<std::string> stream_ids,
+                std::vector<RtpEncodingParameters> init_send_encodings,
+                std::vector<Codec> send_codecs);
 
   // TODO(bugs.webrtc.org/8694): Since SSRC == 0 is technically valid, figure
   // out some other way to test if we have a valid SSRC.
@@ -415,7 +417,11 @@ class AudioRtpSender : public DtmfProviderInterface, public RtpSenderBase {
       LegacyStatsCollectorInterface* stats,
       SetStreamsObserver* set_streams_observer,
       absl::AnyInvocable<RTCError()> enable_sframe_at_owner,
-      MediaSendChannelInterface* media_channel);
+      MediaSendChannelInterface* media_channel,
+      std::vector<std::string> stream_ids = {},
+      std::vector<RtpEncodingParameters> init_send_encodings =
+          std::vector<RtpEncodingParameters>(1),
+      std::vector<Codec> send_codecs = {});
   ~AudioRtpSender() override;
 
   // DtmfSenderProvider implementation.
@@ -440,7 +446,10 @@ class AudioRtpSender : public DtmfProviderInterface, public RtpSenderBase {
                  LegacyStatsCollectorInterface* legacy_stats,
                  SetStreamsObserver* set_streams_observer,
                  absl::AnyInvocable<RTCError()> enable_sframe_at_owner,
-                 MediaSendChannelInterface* media_channel);
+                 MediaSendChannelInterface* media_channel,
+                 std::vector<std::string> stream_ids,
+                 std::vector<RtpEncodingParameters> init_send_encodings,
+                 std::vector<Codec> send_codecs);
 
   void SetSend() override;
   void ClearSend() override;
@@ -493,7 +502,9 @@ class VideoRtpSender : public RtpSenderBase {
       MediaSendChannelInterface* media_channel,
       const std::vector<RtpEncodingParameters>& init_send_encodings,
       bool simulcast_rejected,
-      const std::vector<SimulcastLayer>& initial_simulcast_layers);
+      const std::vector<SimulcastLayer>& initial_simulcast_layers,
+      std::vector<std::string> stream_ids = {},
+      std::vector<Codec> send_codecs = {});
   ~VideoRtpSender() override;
 
   // ObserverInterface implementation
@@ -516,7 +527,9 @@ class VideoRtpSender : public RtpSenderBase {
                  MediaSendChannelInterface* media_channel,
                  const std::vector<RtpEncodingParameters>& init_send_encodings,
                  bool simulcast_rejected,
-                 const std::vector<SimulcastLayer>& initial_simulcast_layers);
+                 const std::vector<SimulcastLayer>& initial_simulcast_layers,
+                 std::vector<std::string> stream_ids,
+                 std::vector<Codec> send_codecs);
 
   void SetSend() override;
   void ClearSend() override;

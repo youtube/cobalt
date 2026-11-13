@@ -67,7 +67,7 @@ const char kZeroSecondsThreshold[] = "0";
 @implementation StartSurfaceTestCase
 
 - (AppLaunchConfiguration)appConfigurationForTestCase {
-  AppLaunchConfiguration config;
+  AppLaunchConfiguration config = [super appConfigurationForTestCase];
   config.relaunch_policy = ForceRelaunchByCleanShutdown;
 
   config.additional_args.push_back("--test-ios-module-ranker=tab_resumption");
@@ -79,9 +79,7 @@ const char kZeroSecondsThreshold[] = "0";
         {kShowTabGroupInGridOnStart,
          {{{kShowTabGroupInGridInactiveDurationInSeconds,
             kZeroSecondsThreshold}}}});
-    return config;
   }
-
   return config;
 }
 

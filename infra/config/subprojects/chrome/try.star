@@ -62,9 +62,10 @@ chrome_internal_verifier(
 chrome_internal_verifier(
     builder = "android-internal-desktop-x64-rel",
     cq_settings = try_.cq_settings(
-        experiment_percentage = 5,
+        experiment_percentage = 25,
         on_default_cq = True,
     ),
+    owner_whitelist = ["google/chrome-al-eng@google.com"],
 )
 
 chrome_internal_verifier(
@@ -271,6 +272,10 @@ chrome_internal_verifier(
 )
 
 chrome_internal_verifier(
+    builder = "fuchsia-fyi-astro-qemu",
+)
+
+chrome_internal_verifier(
     builder = "fuchsia-fyi-nelson",
 )
 
@@ -304,6 +309,10 @@ chrome_internal_verifier(
 
 chrome_internal_verifier(
     builder = "fuchsia-webgl-astro",
+)
+
+chrome_internal_verifier(
+    builder = "fuchsia-webgl-astro-qemu",
 )
 
 chrome_internal_verifier(

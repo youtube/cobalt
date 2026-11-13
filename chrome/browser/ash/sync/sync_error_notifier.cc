@@ -16,16 +16,19 @@
 #include "chrome/browser/notifications/notification_display_service.h"
 #include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/sync/sync_ui_util.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_util.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/scoped_tabbed_browser_displayer.h"
+#include "chrome/browser/ui/settings_window_manager_chromeos.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service_factory.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
 #include "components/account_id/account_id.h"
+#include "components/sync/base/features.h"
 #include "components/sync/service/sync_service.h"
 #include "components/sync/service/sync_service_utils.h"
 #include "components/sync/service/sync_user_settings.h"
@@ -49,7 +52,24 @@ struct BubbleViewParameters {
   base::RepeatingClosure click_action;
 };
 
-void ShowSyncSetup(Profile* profile) {
+bool IsNewSignInNonSyncingUser(const syncer::SyncService* sync_service) {
+  return sync_service && !sync_service->HasSyncConsent() &&
+         syncer::IsReplaceSyncPromosWithSignInPromosEnabled();
+}
+
+bool ShouldShowSyncDisabledViaDashboardError(
+    const syncer::SyncService* sync_service) {
+  return sync_service &&
+         sync_service->GetUserSettings()->IsSyncFeatureDisabledViaDashboard() &&
+         IsNewSignInNonSyncingUser(sync_service);
+}
+
+void OpenOSSyncSettings(Profile* profile) {
+  chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
+      profile, chromeos::settings::mojom::kSyncControlsSubpagePath);
+}
+
+void OpenSyncSettings(Profile* profile) {
   LoginUIService* login_ui = LoginUIServiceFactory::GetForProfile(profile);
   if (login_ui->current_login_ui()) {
     // TODO(michaelpg): The LoginUI might be on an inactive desktop.
@@ -58,8 +78,9 @@ void ShowSyncSetup(Profile* profile) {
     return;
   }
 
-  chrome::ShowSettingsSubPageForProfile(profile,
-                                        ash::chrome_urls::kSyncSetupSubPage);
+  chrome::ShowSettingsSubPageForProfile(
+      profile, SyncErrorNotifier::GetDestinationSubpage(
+                   SyncServiceFactory::GetForProfile(profile)));
 }
 
 void TriggerSyncKeyRetrieval(Profile* profile) {
@@ -80,15 +101,28 @@ void TriggerSyncRecoverabilityDegradedFix(Profile* profile) {
 BubbleViewParameters GetBubbleViewParameters(
     Profile* profile,
     syncer::SyncService* sync_service) {
+  if (ShouldShowSyncDisabledViaDashboardError(sync_service)) {
+    BubbleViewParameters params;
+    params.title_id = IDS_SYNC_DASHBOARD_DISABLED_BUBBLE_VIEW_TITLE;
+    params.message_id = IDS_SYNC_DASHBOARD_DISABLED_BUBBLE_VIEW_MESSAGE;
+    params.click_action =
+        base::BindRepeating(&OpenOSSyncSettings, base::Unretained(profile));
+    return params;
+  }
+
   if (ShouldShowSyncPassphraseError(sync_service)) {
     BubbleViewParameters params;
-    params.title_id = IDS_SYNC_ERROR_BUBBLE_VIEW_TITLE;
-    params.message_id = IDS_SYNC_PASSPHRASE_ERROR_BUBBLE_VIEW_MESSAGE;
+    params.title_id = IsNewSignInNonSyncingUser(sync_service)
+                          ? IDS_SYNC_ERROR_BUBBLE_VIEW_TITLE_2
+                          : IDS_SYNC_ERROR_BUBBLE_VIEW_TITLE;
+    params.message_id = IsNewSignInNonSyncingUser(sync_service)
+                            ? IDS_SYNC_PASSPHRASE_ERROR_BUBBLE_VIEW_MESSAGE_2
+                            : IDS_SYNC_PASSPHRASE_ERROR_BUBBLE_VIEW_MESSAGE;
     // |profile| is guaranteed to outlive the callback because the ownership of
     // the notification gets transferred to NotificationDisplayService, which is
     // a keyed service that cannot outlive the profile.
     params.click_action =
-        base::BindRepeating(&ShowSyncSetup, base::Unretained(profile));
+        base::BindRepeating(&OpenSyncSettings, base::Unretained(profile));
     return params;
   }
 
@@ -96,13 +130,19 @@ BubbleViewParameters GetBubbleViewParameters(
           ->IsTrustedVaultKeyRequiredForPreferredDataTypes()) {
     BubbleViewParameters params;
     params.title_id =
-        sync_service->GetUserSettings()->IsEncryptEverythingEnabled()
-            ? IDS_SYNC_ERROR_BUBBLE_VIEW_TITLE
-            : IDS_SYNC_ERROR_PASSWORDS_BUBBLE_VIEW_TITLE;
+        IsNewSignInNonSyncingUser(sync_service)
+            ? IDS_SYNC_ERROR_BUBBLE_VIEW_TITLE_2
+            : (sync_service->GetUserSettings()->IsEncryptEverythingEnabled()
+                   ? IDS_SYNC_ERROR_BUBBLE_VIEW_TITLE
+                   : IDS_SYNC_ERROR_PASSWORDS_BUBBLE_VIEW_TITLE);
     params.message_id =
         sync_service->GetUserSettings()->IsEncryptEverythingEnabled()
-            ? IDS_SYNC_NEEDS_KEYS_FOR_EVERYTHING_ERROR_BUBBLE_VIEW_MESSAGE
-            : IDS_SYNC_NEEDS_KEYS_FOR_PASSWORDS_ERROR_BUBBLE_VIEW_MESSAGE;
+            ? (IsNewSignInNonSyncingUser(sync_service)
+                   ? IDS_SYNC_NEEDS_KEYS_FOR_EVERYTHING_ERROR_BUBBLE_VIEW_MESSAGE_2
+                   : IDS_SYNC_NEEDS_KEYS_FOR_EVERYTHING_ERROR_BUBBLE_VIEW_MESSAGE)
+            : (IsNewSignInNonSyncingUser(sync_service)
+                   ? IDS_SYNC_NEEDS_KEYS_FOR_PASSWORDS_ERROR_BUBBLE_VIEW_MESSAGE_2
+                   : IDS_SYNC_NEEDS_KEYS_FOR_PASSWORDS_ERROR_BUBBLE_VIEW_MESSAGE);
 
     params.click_action = base::BindRepeating(&TriggerSyncKeyRetrieval,
                                               base::Unretained(profile));
@@ -113,11 +153,17 @@ BubbleViewParameters GetBubbleViewParameters(
       sync_service->GetUserSettings()->IsTrustedVaultRecoverabilityDegraded());
 
   BubbleViewParameters params;
-  params.title_id = IDS_SYNC_NEEDS_VERIFICATION_BUBBLE_VIEW_TITLE;
+  params.title_id = IsNewSignInNonSyncingUser(sync_service)
+                        ? IDS_SYNC_ERROR_BUBBLE_VIEW_TITLE_2
+                        : IDS_SYNC_NEEDS_VERIFICATION_BUBBLE_VIEW_TITLE;
   params.message_id =
       sync_service->GetUserSettings()->IsEncryptEverythingEnabled()
-          ? IDS_SYNC_RECOVERABILITY_DEGRADED_FOR_EVERYTHING_ERROR_BUBBLE_VIEW_MESSAGE
-          : IDS_SYNC_RECOVERABILITY_DEGRADED_FOR_PASSWORDS_ERROR_BUBBLE_VIEW_MESSAGE;
+          ? (IsNewSignInNonSyncingUser(sync_service)
+                 ? IDS_SYNC_RECOVERABILITY_DEGRADED_FOR_EVERYTHING_ERROR_BUBBLE_VIEW_MESSAGE_2
+                 : IDS_SYNC_RECOVERABILITY_DEGRADED_FOR_EVERYTHING_ERROR_BUBBLE_VIEW_MESSAGE)
+          : (IsNewSignInNonSyncingUser(sync_service)
+                 ? IDS_SYNC_RECOVERABILITY_DEGRADED_FOR_PASSWORDS_ERROR_BUBBLE_VIEW_MESSAGE_2
+                 : IDS_SYNC_RECOVERABILITY_DEGRADED_FOR_PASSWORDS_ERROR_BUBBLE_VIEW_MESSAGE);
 
   params.click_action = base::BindRepeating(
       &TriggerSyncRecoverabilityDegradedFix, base::Unretained(profile));
@@ -125,6 +171,14 @@ BubbleViewParameters GetBubbleViewParameters(
 }
 
 }  // namespace
+
+// static
+std::string SyncErrorNotifier::GetDestinationSubpage(
+    syncer::SyncService* sync_service) {
+  return IsNewSignInNonSyncingUser(sync_service)
+             ? ash::chrome_urls::kAccountSubPage
+             : ash::chrome_urls::kSyncSetupSubPage;
+}
 
 SyncErrorNotifier::SyncErrorNotifier(syncer::SyncService* sync_service,
                                      Profile* profile)
@@ -150,6 +204,7 @@ void SyncErrorNotifier::OnStateChanged(syncer::SyncService* service) {
   DCHECK_EQ(service, sync_service_);
 
   const bool should_display_notification =
+      ShouldShowSyncDisabledViaDashboardError(sync_service_) ||
       ShouldShowSyncPassphraseError(sync_service_) ||
       sync_service_->GetUserSettings()
           ->IsTrustedVaultKeyRequiredForPreferredDataTypes() ||

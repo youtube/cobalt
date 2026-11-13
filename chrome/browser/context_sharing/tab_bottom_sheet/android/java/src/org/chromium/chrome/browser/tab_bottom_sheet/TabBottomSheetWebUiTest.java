@@ -6,9 +6,11 @@ package org.chromium.chrome.browser.tab_bottom_sheet;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.mockito.ArgumentCaptor.captor;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -18,6 +20,7 @@ import android.content.Context;
 import android.graphics.Color;
 import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewTreeObserver;
 import android.view.Window;
@@ -108,23 +111,23 @@ public class TabBottomSheetWebUiTest {
 
     @Test
     public void testSetWebContents_SameWebContents_Noop() {
-        mWebUi.setWebContents(mWebContents);
+        mWebUi.setWebContents(mWebContents, true);
         verify(mWebContents, times(1)).setDelegates(any(), any(), any(), eq(mWindowAndroid), any());
 
-        mWebUi.setWebContents(mWebContents);
+        mWebUi.setWebContents(mWebContents, true);
         // Verify it was not called again.
         verify(mWebContents, times(1)).setDelegates(any(), any(), any(), eq(mWindowAndroid), any());
     }
 
     @Test
     public void testSetWebContents_DifferentWebContents_Updates() {
-        mWebUi.setWebContents(mWebContents);
+        mWebUi.setWebContents(mWebContents, true);
         verify(mWebContents, times(1)).setDelegates(any(), any(), any(), eq(mWindowAndroid), any());
 
         WebContents secondWebContents = mock(WebContents.class);
         Mockito.doReturn(mEventForwarder).when(secondWebContents).getEventForwarder();
 
-        mWebUi.setWebContents(secondWebContents);
+        mWebUi.setWebContents(secondWebContents, true);
         verify(secondWebContents, times(1))
                 .setDelegates(any(), any(), any(), eq(mWindowAndroid), any());
     }
@@ -134,7 +137,7 @@ public class TabBottomSheetWebUiTest {
         ViewAndroidDelegate viewDelegate = ViewAndroidDelegate.createBasicDelegate(null);
         when(mWebContents.getViewAndroidDelegate()).thenReturn(viewDelegate);
 
-        mWebUi.setWebContents(mWebContents);
+        mWebUi.setWebContents(mWebContents, true);
 
         verify(mWebContents, times(0)).setDelegates(any(), any(), any(), any(), any());
         verify(mWebContents, times(1)).setTopLevelNativeWindow(eq(mWindowAndroid));
@@ -146,7 +149,7 @@ public class TabBottomSheetWebUiTest {
         ViewTreeObserver mockViewTreeObserver = mock(ViewTreeObserver.class);
         when(mMockContentView.getViewTreeObserver()).thenReturn(mockViewTreeObserver);
 
-        mWebUi.setWebContents(mWebContents);
+        mWebUi.setWebContents(mWebContents, true);
 
         ArgumentCaptor<View.OnAttachStateChangeListener> attachListenerCaptor =
                 ArgumentCaptor.forClass(View.OnAttachStateChangeListener.class);
@@ -182,8 +185,8 @@ public class TabBottomSheetWebUiTest {
         EventForwarder mockEventForwarder = mock(EventForwarder.class);
         Mockito.doReturn(mockEventForwarder).when(nonNullWebContents).getEventForwarder();
 
-        mWebUi.setWebContents(nonNullWebContents);
-        mWebUi.setWebContents(null);
+        mWebUi.setWebContents(nonNullWebContents, true);
+        mWebUi.setWebContents(null, false);
         verify(mThinWebView, times(1)).destroy();
     }
 
@@ -193,7 +196,7 @@ public class TabBottomSheetWebUiTest {
         EventForwarder mockEventForwarder = mock(EventForwarder.class);
         Mockito.doReturn(mockEventForwarder).when(nonNullWebContents).getEventForwarder();
 
-        mWebUi.setWebContents(nonNullWebContents);
+        mWebUi.setWebContents(nonNullWebContents, true);
 
         Activity mockActivity = mock(Activity.class);
         when(mockActivity.isDestroyed()).thenReturn(true);
@@ -203,7 +206,7 @@ public class TabBottomSheetWebUiTest {
         // Reset verification state of mThinWebView
         Mockito.reset(mThinWebView);
 
-        mWebUi.setWebContents(null);
+        mWebUi.setWebContents(null, false);
 
         // Verify that mThinWebView's destroy was called (the first one is destroyed).
         verify(mThinWebView, times(1)).destroy();
@@ -217,7 +220,7 @@ public class TabBottomSheetWebUiTest {
         EventForwarder mockEventForwarder = mock(EventForwarder.class);
         Mockito.doReturn(mockEventForwarder).when(nonNullWebContents).getEventForwarder();
 
-        mWebUi.setWebContents(nonNullWebContents);
+        mWebUi.setWebContents(nonNullWebContents, true);
 
         WeakReference<Activity> weakActivity = new WeakReference<>(null);
         when(mWindowAndroid.getActivity()).thenReturn(weakActivity);
@@ -225,7 +228,7 @@ public class TabBottomSheetWebUiTest {
         // Reset verification state of mThinWebView
         Mockito.reset(mThinWebView);
 
-        mWebUi.setWebContents(null);
+        mWebUi.setWebContents(null, false);
 
         // Verify that mThinWebView's destroy was called (the first one is destroyed).
         verify(mThinWebView, times(1)).destroy();
@@ -235,7 +238,7 @@ public class TabBottomSheetWebUiTest {
 
     @Test
     public void testDestroy() {
-        mWebUi.setWebContents(mWebContents);
+        mWebUi.setWebContents(mWebContents, true);
         mWebUi.destroy();
         verify(mThinWebView).destroy();
         assertNull(mWebUi.getWebContents());
@@ -249,7 +252,7 @@ public class TabBottomSheetWebUiTest {
 
     @Test
     public void testCreateWebContentsDelegate_ContentsZoomChange() {
-        mWebUi.setWebContents(mWebContents);
+        mWebUi.setWebContents(mWebContents, true);
 
         ArgumentCaptor<ThinWebViewAttachParams> paramsCaptor =
                 ArgumentCaptor.forClass(ThinWebViewAttachParams.class);
@@ -268,7 +271,7 @@ public class TabBottomSheetWebUiTest {
 
     @Test
     public void testSetWebContents_resetsTouchOffset() {
-        mWebUi.setWebContents(mWebContents);
+        mWebUi.setWebContents(mWebContents, true);
 
         verify(mEventForwarder).setCurrentTouchOffsetX(0.0f);
         verify(mEventForwarder).setCurrentTouchOffsetY(0.0f);
@@ -281,9 +284,41 @@ public class TabBottomSheetWebUiTest {
         View focusedView = mock();
         when(mockActivity.getCurrentFocus()).thenReturn(focusedView);
 
-        mWebUi.setWebContents(mWebContents);
+        mWebUi.setWebContents(mWebContents, true);
 
         verify(focusedView, times(1)).clearFocus();
+    }
+
+    @Test
+    public void testSetWebContents_noFocus_doesNotClearActivityFocus() {
+        Activity mockActivity = mMockActivity;
+        assertNotNull(mockActivity);
+        View focusedView = mock();
+        when(mockActivity.getCurrentFocus()).thenReturn(focusedView);
+
+        mWebUi.setWebContents(mWebContents, false);
+
+        verify(focusedView, times(0)).clearFocus();
+    }
+
+    @Test
+    public void testOnTouchListener() {
+        mWebUi.setWebContents(mWebContents, false);
+
+        ArgumentCaptor<View.OnTouchListener> touchListenerCaptor = captor();
+
+        verify(mMockContentView).setOnTouchListener(touchListenerCaptor.capture());
+        View.OnTouchListener touchListener = touchListenerCaptor.getValue();
+        assertNotNull(touchListener);
+
+        MotionEvent eventDown = MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 0f, 0f, 0);
+        touchListener.onTouch(mMockContentView, eventDown);
+        verify(mMockContentView, times(1)).requestFocus();
+
+        reset(mMockContentView);
+        MotionEvent eventUp = MotionEvent.obtain(0, 0, MotionEvent.ACTION_UP, 0f, 0f, 0);
+        touchListener.onTouch(mMockContentView, eventUp);
+        verify(mMockContentView, times(0)).requestFocus();
     }
 
     private static class TestTabBottomSheetWebUi extends TabBottomSheetWebUi {

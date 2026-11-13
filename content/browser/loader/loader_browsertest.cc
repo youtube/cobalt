@@ -1140,16 +1140,14 @@ class URLModifyingThrottle : public blink::URLLoaderThrottle {
       net::RedirectInfo* redirect_info,
       const network::mojom::URLResponseHead& response_head,
       bool* defer,
-      std::vector<std::string>* to_be_removed_request_headers,
-      net::HttpRequestHeaders* modified_request_headers,
-      net::HttpRequestHeaders* modified_cors_exempt_request_headers) override {
+      network::HttpRequestHeadersUpdateParams* headers_update_params) override {
     if (!modify_redirect_) {
       return;
     }
 
-    modified_request_headers->SetHeader("Foo", "BarRedirect");
-    modified_cors_exempt_request_headers->SetHeader("ExemptFoo",
-                                                    "ExemptBarRedirect");
+    headers_update_params->modified_headers.SetHeader("Foo", "BarRedirect");
+    headers_update_params->modified_cors_exempt_headers.SetHeader(
+        "ExemptFoo", "ExemptBarRedirect");
 
     if (modified_redirect_url_) {
       return;  // Only need to do this once.
@@ -1344,14 +1342,14 @@ IN_PROC_BROWSER_TEST_F(LoaderOriginForgeryBrowserTest,
 
   // Now simulate the compromised renderer by calling FollowRedirect with a
   // forged Origin.
-  net::HttpRequestHeaders modified_headers;
-  modified_headers.SetHeader("Origin", "https://evil.test");
+  network::HttpRequestHeadersUpdateParams headers_update_params;
+  headers_update_params.modified_headers.SetHeader("Origin",
+                                                   "https://evil.test");
 
   base::RunLoop disconnect_run_loop;
   loader.set_disconnect_handler(disconnect_run_loop.QuitClosure());
 
-  loader->FollowRedirect(/*removed_headers=*/{}, modified_headers,
-                         /*modified_cors_exempt_headers=*/{},
+  loader->FollowRedirect(std::move(headers_update_params),
                          /*new_url=*/std::nullopt);
 
   // Wait for the request to fail by disconnection.

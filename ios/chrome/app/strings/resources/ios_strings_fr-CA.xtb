@@ -46,6 +46,7 @@
 <translation id="1147031633655575115">Connecté en tant que <ph name="USER" /></translation>
 <translation id="1149401351239820326">Mois d'expiration</translation>
 <translation id="1150989369772528668">Agenda</translation>
+<translation id="1161444134753003495">Se connecter</translation>
 <translation id="1161663161838091892">Synchroniser les onglets et l'historique pour continuer</translation>
 <translation id="1162834932051545794">{count,plural, =1{{count} carte de crédit}one{{count} carte de crédit}other{{count} cartes de crédit}}</translation>
 <translation id="1164891049599601209">Entré sur un site trompeur</translation>
@@ -168,6 +169,7 @@
 <translation id="1554043146674176775">Désactiver le mode IA</translation>
 <translation id="1554477036522844996">Nouvelle fenêtre</translation>
 <translation id="1558391695376153246">Fermer onglets navig. privée</translation>
+<translation id="1560153516220021659">Bouton de la barre d'outils secondaire réduit</translation>
 <translation id="1565371473877914088">Nouvel onglet de navigation privée</translation>
 <translation id="1567960978791353852">Afficher le mode Lecture</translation>
 <translation id="1571780780926010134">Onglets de navigation privée</translation>
@@ -175,6 +177,7 @@
 <translation id="1580783302095112590">Courriel envoyé.</translation>
 <translation id="1582732959743469162">Cette opération entraînera l'arrêt de la progression de votre téléchargement en cours.</translation>
 <translation id="1594034544529347967">Début</translation>
+<translation id="1598485494295307681">Écoute en cours…</translation>
 <translation id="1598751033135758830">Ouvrir dans l'appli…</translation>
 <translation id="1600571977391127696">Certains contenus peuvent ne pas convenir à tout le monde.</translation>
 <translation id="1601560923496285236">Appliquer</translation>
@@ -183,6 +186,7 @@
 <translation id="1605658421715042784">Copier l'image</translation>
 <translation id="1606899876897213121">Fermer le résumé de l'activité récente</translation>
 <translation id="1612754831519568745">Votre Navigation sécurisée est actuellement désactivée. Profitez d'une protection contre les sites, les extensions et les téléchargements dangereux.</translation>
+<translation id="1617300545081951343">Nos <ph name="BEGIN_LINK" />conditions d'utilisation<ph name="END_LINK" />, nos <ph name="BEGIN_LINK" />conditions du service de localisation coréen<ph name="END_LINK" /> et notre <ph name="BEGIN_LINK" />avis de confidentialité<ph name="END_LINK" /> s'appliquent. Gemini est une IA et peut se tromper, même à propos de personnes.</translation>
 <translation id="1620510694547887537">Caméra</translation>
 <translation id="1622717322707146952">Sélectionnez « Ajouter à Google Agenda » ou « Ajouter à Calendrier Apple ».</translation>
 <translation id="1629162218487290695">Confirmer votre identité…</translation>
@@ -328,6 +332,7 @@
 <translation id="2078437078822043850">Vous pouvez faire défiler l'écran vers la droite pour naviguer en mode Navigation privée.</translation>
 <translation id="2079545284768500474">Annuler</translation>
 <translation id="2085876078937250610">Enregistrer…</translation>
+<translation id="2089180529062519164">Activer le microphone</translation>
 <translation id="2096239473850415494">Impossible de télécharger</translation>
 <translation id="2096716221239095980">Supprimer toutes les données</translation>
 <translation id="2104436223719117661">Recherches tendance</translation>
@@ -536,6 +541,7 @@
 <translation id="2829172210806130158">Rechercher sur votre écran</translation>
 <translation id="2831109159746537587">Essayez d'encercler ou de toucher l'image pour effectuer une recherche</translation>
 <translation id="2834399722155632105">3. Appuyez sur Options de mot de passe</translation>
+<translation id="2834418947367581526">Bonjour, je suis Gemini. Nous sommes sur le point de passer en mode Live, où vous pourrez poser des questions sur la page sur laquelle vous vous trouvez simplement en me parlant. Avant de commencer, jetez toutefois un coup d'œil à ces informations importantes.</translation>
 <translation id="2834956026595107950"><ph name="TITLE" />, <ph name="STATE" />, <ph name="URL" /></translation>
 <translation id="2841013758207633010">Heure</translation>
 <translation id="284581348330507117">Créer des mots de passe uniques</translation>
@@ -603,6 +609,7 @@
 <translation id="3119874402040566234">Vous serez déconnecté et les données de navigation seront supprimées</translation>
 <translation id="3124568093781685165">Partager vos mots de passe avec votre famille</translation>
 <translation id="3130863904455712965">Historique et plus</translation>
+<translation id="3130973487775218359">Regarder : <ph name="BEGIN_LINK" />Cinq choses qu'il faut savoir sur l'IA générative<ph name="END_LINK" /></translation>
 <translation id="3132345256151444894">Enregistrez le numéro de recours</translation>
 <translation id="3132584647087998639">Importer vos données</translation>
 <translation id="313283613037595347">Ouvrir un nouvel onglet de navigation privée.</translation>
@@ -687,6 +694,7 @@
 <translation id="3447332786336558089">Une fois que vous serez déconnecté, les onglets seront fermés, et les données de compte non enregistrées seront supprimées de cet appareil. Cela peut inclure les mots de passe, l'historique et plus encore.</translation>
 <translation id="3449029510150690417">Créez votre nouveau groupe d'onglets en lui attribuant un nom et une couleur</translation>
 <translation id="345348365500626747">Adresse trouvée</translation>
+<translation id="3459644598174926977">Accédez à la fonctionnalité Live avec Gemini pour poser des questions sur une page, faire du remue-méninges à haute voix et discuter.</translation>
 <translation id="3464194322481586217">Impossible d'effectuer le suivi du prix.</translation>
 <translation id="3469117812148449995">Options d'enregistrement du mot de passe</translation>
 <translation id="3472469028191701821">S'ouvre dans un nouvel onglet</translation>
@@ -821,6 +829,7 @@
 <translation id="3931215329146376310">{count,plural, =1{Nouveau mot de passe pour ce site}one{Nouveau mot de passe pour ce site}other{Nouveaux mots de passe pour ce site}}</translation>
 <translation id="3933372629914873850">Vous serez connecté à <ph name="URL" /></translation>
 <translation id="3934905113567851655">Pincez l'écran pour effectuer un redimensionnement</translation>
+<translation id="393732545649378031">Compte</translation>
 <translation id="3940195383040445971">Suivi des prix dans des onglets</translation>
 <translation id="3941941395924123592">{COUNT,plural, =1{Fermer {COUNT} onglet}one{Fermer {COUNT} onglet}other{Fermer {COUNT} onglets}}</translation>
 <translation id="3946483119107054883">Télécharger dans un fichier CSV</translation>
@@ -931,6 +940,7 @@
 <translation id="4306349443295056740">Signature OCSP</translation>
 <translation id="4309403553630140242">Touchez l'écran deux fois pour en savoir plus.</translation>
 <translation id="4310738531374808763">Personnaliser votre page d'accueil</translation>
+<translation id="4316794575239200608">Vos conversations avec Gemini et vos <ph name="BEGIN_LINK" />données Google Workspace<ph name="END_LINK" /> ne seront pas examinées par des réviseurs humains ni utilisées pour améliorer les modèles d'IA générative.</translation>
 <translation id="4320848494125124980">Récents</translation>
 <translation id="4322394346347055525">Fermer les autres onglets</translation>
 <translation id="4323122584592971322">OID.</translation>
@@ -1016,6 +1026,7 @@
 <translation id="4631335160486397366"><ph name="COUNT" /> mots de passe réutilisés</translation>
 <translation id="4632655012900268062">Personnaliser les cartes</translation>
 <translation id="4634124774493850572">Utiliser le mot de passe</translation>
+<translation id="4634633632339959267">Les clavardages sont examinés et utilisés pour améliorer l'IA de Google. <ph name="BEGIN_LINK" />Apprenez-en plus au sujet de vos choix.<ph name="END_LINK" /> <ph name="BEGIN_LINK" />Les renseignements sur votre position<ph name="END_LINK" /> sont également stockés avec votre activité.</translation>
 <translation id="4636930964841734540">Renseignements</translation>
 <translation id="4641425577292284174">Déterminez si vos paramètres sont les plus sûrs ou si vous devez modifier quoi que ce soit</translation>
 <translation id="4642472735733036929">Suivi des prix arrêté</translation>
@@ -1122,6 +1133,7 @@
 <translation id="4941089862236492464">Un problème s'est produit lors du partage de votre élément.</translation>
 <translation id="4944543191714094452">Rechercher dans la page…</translation>
 <translation id="4945756290001680296">Accéder aux paramètres des mots de passe</translation>
+<translation id="4946307855175300628">Réponse en cours…</translation>
 <translation id="4949302115427722371">Gérer les paramètres…</translation>
 <translation id="4958444002117714549">Développer la liste</translation>
 <translation id="496392417432935267">Ouvert ailleurs</translation>
@@ -1469,6 +1481,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="6140948187512243695">Afficher les détails</translation>
 <translation id="6144589619057374135">Ouvrir ${url} en mode de navigation privée</translation>
 <translation id="6146563240635539929">Vidéos</translation>
+<translation id="6148392728478209113">Utilisez-vous encore Live? Touchez le bouton Live pour continuer à parler à Gemini</translation>
 <translation id="6151006591088192882">Déverrouiller les onglets de navigation privée avec <ph name="BIOMETRIC_AUTHENITCATION_TYPE" /></translation>
 <translation id="6152340033632117531">Inactifs</translation>
 <translation id="6152406514676263192">Activez la synchronisation pour voir le contenu le plus pertinent en fonction de vos centres d'intérêt.</translation>
@@ -1506,6 +1519,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="6241132809279377987">Débloquez plus de fonctionnalités pour votre iPhone avec les applis Google</translation>
 <translation id="6247557882553405851">Gestionnaire de mots de passe Google</translation>
 <translation id="6251835855431997163">Remplir automatiquement <ph name="VALUE" /></translation>
+<translation id="6253686838150111720">Se connecter à <ph name="URL" /></translation>
 <translation id="6254066287920239840">Ouvrez les liens dans l'application plutôt que dans le navigateur.</translation>
 <translation id="6259928806013786178">Échec du mode Lecture</translation>
 <translation id="6268773951964630964">Rechercher l'image copiée</translation>
@@ -1541,6 +1555,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="6355820183143562453">Masquer la carte Suivi des prix</translation>
 <translation id="6355820205320395730">Les mots de passe faibles sont faciles à deviner. Assurez-vous de créer des mots de passe forts. <ph name="BEGIN_LINK" />Consultez plus d'astuces de sécurité.<ph name="END_LINK" /></translation>
 <translation id="6357455205205567365">Connectez-vous pour accéder à toutes vos données, comme vos mots de passe, vos favoris et plus encore.</translation>
+<translation id="6364268785720100355">Connectez-vous pour accéder à vos mots de passe et plus encore sur tous vos appareils.</translation>
 <translation id="6368038301482806847">Choisissez un moteur de recherche dans la liste.</translation>
 <translation id="6368102751067608420">Pour supprimer toutes les données du gestionnaire de mots de passe</translation>
 <translation id="6372558618707314581">Accédez à la page de votre choix</translation>
@@ -1561,6 +1576,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="6435236283694032571">Ajouter à la liste de lecture</translation>
 <translation id="6435307030888827407">Rester déconnecté</translation>
 <translation id="6436318499800111867">Partagés avec moi : <ph name="SHARED_WITH_ME_DATE" /></translation>
+<translation id="6442327260099531031"><ph name="BEGIN_LINK" />Respectez la confidentialité des autres utilisateurs<ph name="END_LINK" /> et demandez leur autorisation avant de les enregistrer ou de les inclure dans une discussion Live.</translation>
 <translation id="6442697326824312960">Annuler l'épinglage de l'onglet</translation>
 <translation id="6443118737398455446">Date d'expiration non valide</translation>
 <translation id="6444435711855078002">Autres options</translation>
@@ -1669,6 +1685,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="6736243959894955139">Adresse</translation>
 <translation id="6746338529702829275">Vérifiez les données de votre compte</translation>
 <translation id="6750456911389438250">{count,plural, =1{{count} élément de l'historique importé}one{{count} élément de l'historique importé}other{{count} éléments de l'historique importés}}</translation>
+<translation id="6751817018972413719">{count,plural, =1{{count} option d'authentifiant accessible au-dessus de votre clavier.}one{{count} option d'authentifiant accessible au-dessus de votre clavier.}other{{count} options d'authentifiant accessibles au-dessus de votre clavier.}}</translation>
 <translation id="6755200887046212842">Gérer les comptes</translation>
 <translation id="6757899787818440812">Taille moyenne</translation>
 <translation id="6759709389246683070">Vous pouvez maintenir le doigt sur cet onglet pour définir un rappel à revoir plus tard</translation>
@@ -1803,6 +1820,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="7253951228444156601">Vérification des mots de passe en cours…</translation>
 <translation id="7261217796641151584">Partager le groupe</translation>
 <translation id="7266578100016339897">Cela vous aide à rester organisé. Vous pouvez modifier cette option dans les paramètres en tout temps.</translation>
+<translation id="7270491814777319521">Les <ph name="BEGIN_LINK" />conditions de Google<ph name="END_LINK" /> et l‘<ph name="BEGIN_LINK" />avis de confidentialité des applis Gemini<ph name="END_LINK" /> s'appliquent. Gemini est une IA et peut se tromper, même à propos de personnes.</translation>
 <translation id="7272437679830969316">Impossible de vérifier votre identité. Le mot de passe n'a pas été copié.</translation>
 <translation id="728025568708172005">Commencer la visite guidée</translation>
 <translation id="7280980607183752256">Impossible d'importer ce fichier</translation>
@@ -1861,6 +1879,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="7468373585447318060">Tenez-vous au courant des baisses de prix sur tous les produits que vous suivez.</translation>
 <translation id="746872191028309255">Magasinez ce que vous voyez avec votre appareil photo ou dans votre galerie de photos.</translation>
 <translation id="7471557245617580330">Créer un onglet</translation>
+<translation id="7473555040328423550">Ajouter un onglet</translation>
 <translation id="7476548258282096076">Cette carte affiche vos sites les plus visités.</translation>
 <translation id="7484645889979462775">Jamais pour ce site</translation>
 <translation id="7486006552035434095">Garder vos appareils synchronisés</translation>
@@ -2116,11 +2135,13 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="8319282042900445670">Rappel défini à <ph name="TIME" />, le <ph name="DATE" /></translation>
 <translation id="8320212361750431956">Activité récente</translation>
 <translation id="8325455175867928593">Masquer les « Critiques basées sur vos centres d'intérêt »</translation>
+<translation id="8333459276976141586">Live utilisera votre microphone. Cliquer sur le bouton Live permet d'activer le micro. Pour désactiver le micro, cliquez sur le bouton d'arrêt ou fermez Gemini.</translation>
 <translation id="833647236762414178">Créez, enregistrez et gérez vos mots de passe et vos clés d'accès pour vous connecter facilement aux sites et aux applis. <ph name="BEGIN_LINK" />En savoir plus<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">Sauvegardez vos données et utilisez-les sur n'importe quel appareil</translation>
 <translation id="8345328955902001853">{count,plural, =1{Accomplissez 1 tâche de plus pour passer au niveau supérieur}one{Accomplissez {count} tâche de plus pour passer au niveau supérieur}other{Accomplissez {count} tâches de plus pour passer au niveau supérieur}}</translation>
 <translation id="8348530355586151720">Touchez le menu à trois points</translation>
 <translation id="8349305172487531364">Barre de favoris</translation>
+<translation id="8360164927489392419">Les enregistrements de vos interactions avec Live et le contenu que vous partagez avec cette fonctionnalité sont conservés et traités conformément à l‘<ph name="BEGIN_LINK" />avis de confidentialité des applis Gemini<ph name="END_LINK" />. <ph name="BEGIN_LINK" />En savoir plus<ph name="END_LINK" /></translation>
 <translation id="8361189290032177785">{count,plural, =1{{count} favori importé}one{{count} favori importé}other{{count} favoris importés}}</translation>
 <translation id="8363484128299778310">Récupération temporaire en cas de problème</translation>
 <translation id="8364563001733875155">Pour modifier votre NIP, configurez d'abord un code d'accès sur votre appareil.</translation>
@@ -2192,6 +2213,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="8571019948162152515">Supprimer « <ph name="FILENAME" /> »?</translation>
 <translation id="8571213806525832805">Quatre dernières semaines</translation>
 <translation id="8577056989960190117">Remplir automatiquement l'année d'expiration <ph name="YEAR" /></translation>
+<translation id="8582026929965253036">Utiliser la fonctionnalité Live avec Gemini</translation>
 <translation id="8587001564479545614">Créer un NIP de récupération</translation>
 <translation id="8588404856427128947">Désactivée</translation>
 <translation id="8590286732816598906">Groupe d'onglets, <ph name="GROUP_TITLE" />, menu.</translation>
@@ -2215,6 +2237,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="8643403533759285912">Supprimer le groupe</translation>
 <translation id="8647280737650867362">Impossible d'annuler le suivi du prix.</translation>
 <translation id="8654802032646794042">Annuler</translation>
+<translation id="8659875081143553823">Une seconde…</translation>
 <translation id="8660600697590740984">Image copiée de Lentille</translation>
 <translation id="866266761389616183">Zut alors!</translation>
 <translation id="8663764600409216912">Vous utilisez des mots de passe qui semblent difficiles à deviner</translation>
@@ -2266,6 +2289,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="8803526663383843427">Lorsque activée</translation>
 <translation id="8803639129939845298">Sécuritaire</translation>
 <translation id="8813277370772331957">Me le rappeler plus tard</translation>
+<translation id="8814308045751067027">Pour utiliser Live, accordez l'accès à votre microphone à Chrome dans les paramètres</translation>
 <translation id="8814719628147284151">Continuer</translation>
 <translation id="881559332211266856">Mettez à jour le numéro de recours</translation>
 <translation id="8817524703470045896">Suivez les prix et recevez des alertes lorsque le prix baisse sur n'importe quel site</translation>

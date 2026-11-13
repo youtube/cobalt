@@ -387,6 +387,10 @@ BASE_FEATURE(kComposeboxAttachmentsTypedState, DISABLED);
 // Whether to enable Google Drive context menu option in the composebox.
 BASE_FEATURE(kComposeboxDriveContextMenuOption, DISABLED);
 
+// Whether to enable Google Drive context menu option's disclaimer flow in the
+// composebox.
+BASE_FEATURE(kComposeboxDriveContextMenuOptionDisclaimer, DISABLED);
+
 // Whether the composebox should show a verbatim match for context in
 // zero-suggest.
 BASE_FEATURE(kComposeboxVerbatimMatchZeroSuggest, ENABLED);
@@ -451,6 +455,9 @@ BASE_FEATURE(kPostDelayedTaskFocusTab, ENABLED);
 // Controls various Omnibox Diagnostics features.
 BASE_FEATURE(kDiagnostics, "OmniboxDiagnostics", DISABLED);
 
+// Force the realbox on Android regardless of platform/configuration checks.
+BASE_FEATURE(kForceAndroidRealbox, DISABLED);
+
 // When enabled, offer a desktop-like omnibox UI enhancement on large form
 // factors.
 BASE_FEATURE(kOmniboxImprovementForLFF, ENABLED);
@@ -470,6 +477,7 @@ namespace android {
 static int64_t JNI_OmniboxFeatureMap_GetNativeMap(JNIEnv* env) {
   static const base::Feature* const kFeaturesExposedToJava[] = {
       &kDiagnostics,
+      &kForceAndroidRealbox,
       &kOmniboxTouchDownTriggerForPrefetch,
       &kOmniboxAsyncViewInflation,
       &kRichAutocompletion,
@@ -490,7 +498,8 @@ static int64_t JNI_OmniboxFeatureMap_GetNativeMap(JNIEnv* env) {
       &kAIMSuppressVerbatimMatch,
       &kResetSuggestionsScroll,
       &kOmniboxItemDecoration,
-      &kExactMatchFavicons};
+      &kExactMatchFavicons,
+      &kStarterPackExpansion};
   static base::NoDestructor<base::android::FeatureMap> kFeatureMap(
       kFeaturesExposedToJava);
   return reinterpret_cast<int64_t>(kFeatureMap.get());

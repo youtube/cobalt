@@ -89,16 +89,18 @@ TableViewDetailIconItem* AutofillCreditCardItem(BOOL enabled) {
 }
 
 TableViewDetailIconItem* AutofillProfileItem(BOOL enabled) {
-  NSString* title = l10n_util::GetNSString(
-      IsYourSavedInfoSettingsPageIosEnabled()
-          ? IDS_AUTOFILL_CONTACT_INFO_TITLE
-          : IDS_AUTOFILL_ADDRESSES_SETTINGS_TITLE);
+  NSString* title =
+      l10n_util::GetNSString(IsYourSavedInfoSettingsPageIosEnabled()
+                                 ? IDS_AUTOFILL_CONTACT_INFO_TITLE
+                                 : IDS_AUTOFILL_ADDRESSES_SETTINGS_TITLE);
 
-  return DetailItemWithType(
-      SettingsItemTypeAutofillProfile, title,
-      AutofillProfileItemDetailText(enabled),
-      CustomSettingsRootSymbol(kLocationSymbol),
-      kSettingsAddressesAndMoreCellId);
+  UIImage* symbol = IsYourSavedInfoSettingsPageIosEnabled()
+                        ? DefaultSettingsRootSymbol(kEnvelopeSymbol)
+                        : CustomSettingsRootSymbol(kLocationSymbol);
+
+  return DetailItemWithType(SettingsItemTypeAutofillProfile, title,
+                            AutofillProfileItemDetailText(enabled), symbol,
+                            kSettingsAddressesAndMoreCellId);
 }
 
 TableViewDetailIconItem* IdentityDocsItem(BOOL enabled) {
@@ -115,4 +117,11 @@ TableViewDetailIconItem* TravelInfoItem(BOOL enabled) {
   return DetailItemWithType(
       SettingsItemTypeTravelInfo, title, TravelInfoItemDetailText(enabled),
       DefaultSettingsRootSymbol(kSuitcaseSymbol), kSettingsTravelInfoCellId);
+}
+
+TableViewDetailIconItem* AutofillSettingsItem() {
+  NSString* title = l10n_util::GetNSString(IDS_IOS_SETTINGS_AUTOFILL_SETTINGS);
+  return DetailItemWithType(SettingsItemTypeAutofillSettings, title, nil,
+                            DefaultSettingsRootSymbol(kSettingsSymbol),
+                            kSettingsAutofillSettingsCellId);
 }

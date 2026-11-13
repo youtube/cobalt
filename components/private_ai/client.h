@@ -12,6 +12,8 @@
 #include "base/time/time.h"
 #include "base/types/expected.h"
 #include "components/private_ai/phosphor/token_manager.h"
+#include "components/private_ai/private_ai_network_driver.h"
+#include "components/private_ai/private_ai_oak_session_driver.h"
 #include "components/private_ai/proto/private_ai.pb.h"
 #include "components/private_ai/status_code.h"
 #include "url/gurl.h"
@@ -53,6 +55,10 @@ class Client {
   // `network_context`: The network context to use for connections.
   // `token_manager`: Required if `use_token_attestation` is true.
   // `logger`: The logger for the client.
+  // `oak_session_driver`: Interface for platform-specific capabilities related
+  // to Oak sessions.
+  // `network_driver`: Interface for platform-specific capabilities related to
+  // networking.
   static std::unique_ptr<Client> Create(
       const std::string& url,
       const std::string& api_key,
@@ -60,7 +66,9 @@ class Client {
       bool use_token_attestation,
       network::mojom::NetworkContext* network_context,
       phosphor::TokenManager* token_manager,
-      PrivateAiLogger* logger);
+      PrivateAiLogger* logger,
+      PrivateAiOakSessionDriver* oak_session_driver,
+      PrivateAiNetworkDriver* network_driver);
 
   virtual ~Client() = default;
 
@@ -73,7 +81,7 @@ class Client {
   // Establishes a secure connection without sending a request. Calling this
   // function is optional as a connection will be established automatically
   // when needed/first request is sent.
-  virtual void EstablishConnection() = 0;
+  virtual void EstablishConnection(proto::FeatureName feature_name) = 0;
 
   // Sends a request with a single text content.
   virtual void SendTextRequest(proto::FeatureName feature_name,

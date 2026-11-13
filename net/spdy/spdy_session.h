@@ -63,6 +63,7 @@
 namespace net {
 
 namespace test {
+class SpdyHttpStreamTest;
 class SpdyStreamTest;
 }
 
@@ -646,16 +647,16 @@ class NET_EXPORT SpdySession
   }
 
  private:
-  friend class test::SpdyStreamTest;
   friend class base::RefCounted<SpdySession>;
   friend class HttpNetworkTransactionTest;
   friend class HttpProxyClientSocketPoolTest;
-  friend class SpdyHttpStreamTest;
   friend class SpdyNetworkTransactionTest;
   friend class SpdyProxyClientSocketTest;
   friend class SpdySessionPoolTest;
   friend class SpdySessionTest;
   friend class SpdyStreamRequest;
+  friend class test::SpdyHttpStreamTest;
+  friend class test::SpdyStreamTest;
 
   // Represents a pending stream request.
   struct PendingStreamRequest {

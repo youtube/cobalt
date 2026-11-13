@@ -146,6 +146,7 @@ class MockRtpSenderInternal : public RtpSenderInternal {
               (const std::vector<std::string>&),
               (override));
   MOCK_METHOD(void, NotifyFirstPacketSent, (), (override));
+  MOCK_METHOD(void, OnParametersChanged, (), (override));
 };
 
 }  // namespace webrtc

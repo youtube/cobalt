@@ -12,6 +12,7 @@
 #define PC_TEST_FAKE_DATA_CHANNEL_CONTROLLER_H_
 
 #include <cstddef>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -71,7 +72,7 @@ class FakeDataChannelController : public SctpDataChannelControllerInterface {
 
           scoped_refptr<SctpDataChannel> channel = SctpDataChannel::Create(
               std::move(my_weak_ptr), std::string(label), transport_available_,
-              init, signaling_safety_.flag(), signaling_thread_,
+              init, std::nullopt, signaling_safety_.flag(), signaling_thread_,
               network_thread_);
           if (transport_available_ && channel->sid_n().has_value()) {
             AddSctpDataStream(*channel->sid_n(), channel->priority());

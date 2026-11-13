@@ -82,6 +82,9 @@
   # Ensures that %VerifyGetJSBuiltinState() machinery works as expected.
   'regress/regress-435630464-verification-failure': [['mode == release', SKIP], ['mode != release', FAIL]],
 
+  # https://crbug.com/485267831
+  'regress/regress-485267831': [SKIP],
+
   ##############################################################################
   # Tests where variants make no sense.
   'd8/enable-tracing': [PASS, NO_VARIANTS],
@@ -2601,6 +2604,7 @@
   'regress/wasm/regress-395214627': [SKIP],
   'regress/wasm/regress-398439335': [SKIP],
   'regress/wasm/regress-450694568': [SKIP],
+  'regress/wasm/regress-499027764': [SKIP],
   'regress/wasm/regress-504612573': [SKIP],
   'regress/wasm/regress-504711585': [SKIP],
   'regress/wasm/regress-513250424': [SKIP],
@@ -2760,6 +2764,7 @@
 ['not pointer_compression', {
   # Mutable Heap Int32 is not enabled in builds with 32-bit smis.
   'mutable-int32-slot': [SKIP],
+  'turbolev/phi-untagging-call-launder-1': [SKIP],
 }],
 
 ##############################################################################

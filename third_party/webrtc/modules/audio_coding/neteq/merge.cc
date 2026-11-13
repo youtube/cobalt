@@ -16,6 +16,7 @@
 #include <limits>
 #include <memory>
 #include <span>
+#include <vector>
 
 #include "common_audio/signal_processing/dot_product_with_scale.h"
 #include "common_audio/signal_processing/include/signal_processing_library.h"
@@ -334,10 +335,12 @@ size_t Merge::CorrelateAndPeakSearch(size_t start_position,
 
   // Normalize correlation to 14 bits and copy to a 16-bit array.
   const size_t pad_length = expand_->overlap_length() - 1;
-  const size_t correlation_buffer_size = 2 * pad_length + kMaxCorrelationLength;
-  std::unique_ptr<int16_t[]> correlation16(
-      new int16_t[correlation_buffer_size]);
-  memset(correlation16.get(), 0, correlation_buffer_size * sizeof(int16_t));
+  // Adding 1 to the size of `correlation_buffer_size` because of how it is used
+  // by the peak-detection algorithm (it expects one extra element when
+  // num_peaks == 1).
+  const size_t correlation_buffer_size =
+      2 * pad_length + kMaxCorrelationLength + 1;
+  std::vector<int16_t> correlation16(correlation_buffer_size);
   int16_t* correlation_ptr = &correlation16[pad_length];
   int32_t max_correlation =
       WebRtcSpl_MaxAbsValueW32(correlation, stop_position_downsamp);

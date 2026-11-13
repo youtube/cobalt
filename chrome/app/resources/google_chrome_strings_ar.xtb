@@ -9,6 +9,7 @@
 <translation id="1028061813283459617">‏لحذف بيانات التصفّح من هذا الجهاز فقط والاحتفاظ بها في حسابك على Google، يُرجى <ph name="BEGIN_LINK" />تسجيل الخروج من Chrome<ph name="END_LINK" />.</translation>
 <translation id="1042270987544905725">‏انقر لإغلاق مربّع حوار تسجيل الدخول إلى Chrome</translation>
 <translation id="1051793555070215510">لمساعدتنا في تحسين وضع التصفّح المتخفي، يُرجى تخصيص دقيقة واحدة للإجابة عن أسئلة هذا الاستطلاع.</translation>
+<translation id="1055295352198814912">‏عرض "Gemini في Chrome" في شريط قوائم Mac وتفعيل اختصار لوحة المفاتيح</translation>
 <translation id="1059838145689930908">‏لاستخدام هذه الإضافة على الحساب <ph name="USER_EMAIL_ADDRESS" />، يُرجى تسجيل الدخول إلى Chrome.</translation>
 <translation id="1065672644894730302">لا يمكن قراءة إعداداتك المفضّلة. قد تكون بعض الميزات غير متاحة، ولن يتم حفظ التغييرات في الإعدادات المفضّلة.</translation>
 <translation id="1070377999570795893">‏أضاف برنامج آخر بجهاز الكمبيوتر إضافة قد تؤدي إلى تغيير طريقة عمل Chrome.
@@ -32,7 +33,6 @@
 <translation id="1290883685122687410">حدث خطأ أثناء الإعداد: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1302523850133262269">‏يُرجى الانتظار لحين تثبيت Chrome لآخر تحديثات النظام.</translation>
 <translation id="1330562121671411446">رصد اللغة</translation>
-<translation id="1335640173511558774">‏يطلب <ph name="MANAGER" /> منك قراءة بنود الخدمة التالية وقبولها قبل استخدام هذا الجهاز، مع العلم بأنّ هذه البنود لا توسِّع نطاق بنود نظام التشغيل ChromeOS Flex من Google ولا تعدلِّها ولا تفرض قيودًا عليها.</translation>
 <translation id="1341711321000856656">‏يمكنك التبديل للاطّلاع على كلمات المرور من ملف شخصي آخر في Chrome.</translation>
 <translation id="1343830902827845050">‏سجِّل الدخول إلى Chrome</translation>
 <translation id="1356661055722410047">ميزة جديدة: يمكنك ترجمة كل من النص والصور على شاشتك</translation>
@@ -185,7 +185,6 @@
 <translation id="2915996080311180594">إعادة التشغيل لاحقًا</translation>
 <translation id="2916983411556218750">‏حان الوقت لإعداد Chrome</translation>
 <translation id="2926952073016206995">‏يحتاج Chrome إلى إذن للوصول إلى الكاميرا من أجل هذا الموقع الإلكتروني.</translation>
-<translation id="2928420929544864228">اكتمل التثبيت.</translation>
 <translation id="2945997411976714835">خطأ في التثبيت: تعذّر بدء عملية التثبيت.</translation>
 <translation id="2969728957078202736">‏<ph name="PAGE_TITLE" /> - Chrome - تسجيل الدخول إلى الشبكة</translation>
 <translation id="2970681950995291301">‏لإزالة حسابك على Google من Chrome، يجب تسجيل الخروج من Chrome في صفحة "الإعدادات"</translation>
@@ -281,6 +280,8 @@
 <translation id="3892148308691398805">نسخ النص</translation>
 <translation id="3941890832296813527">خطأ في التثبيت: اسم ملف أداة التثبيت غير صالح أو غير متوافق.</translation>
 <translation id="395904275706073188">لا يمكن قراءة الصفحات المحمية. ننصحك بتجربة الميزة على صفحة مختلفة.</translation>
+<translation id="3965532487635448963">‏عرض "Gemini في Chrome" في لوحة النظام وتفعيل اختصار لوحة المفاتيح</translation>
+<translation id="3967822245660637423">اكتمل التنزيل</translation>
 <translation id="3968962723676998462">‏يُرجى إدخال عبارة المرور لاستخدام بيانات Chrome وحفظها في حسابك (<ph name="ACCOUNT_EMAIL" />)</translation>
 <translation id="3973161977468201858">‏يريد متصفّح Google Chrome حذف بياناتك في "مدير كلمات المرور في Google". للسماح بذلك، يُرجى كتابة كلمة المرور المستخدَمة في Windows.</translation>
 <translation id="400161754580828648">‏لمشاركة شاشتك، يجب السماح بتسجيل الشاشة في Chrome ضِمن "إعدادات النظام" (System Settings).</translation>
@@ -315,7 +316,6 @@
 <translation id="4328355335528187361">‏إصدار مطوّري البرامج من Google Chrome ‏(mDNS-In)</translation>
 <translation id="4329315893554541805">‏للحصول على خيارات مخصَّصة والاستفادة من ميزات أخرى، يمكنك تضمين متصفّح Chrome في "النشاط على الويب وفي التطبيقات" وخدمات Google المرتبطة</translation>
 <translation id="4334241893986177674">البحث في لقطة الشاشة هذه</translation>
-<translation id="4334294535648607276">اكتمل التنزيل.</translation>
 <translation id="4343195214584226067">‏تمت إضافة <ph name="EXTENSION_NAME" /> إلى Chrome</translation>
 <translation id="4344128547036991536">‏عند فتح "عدسة Google"، سيتم تلقائيًا إرسال عنوان الصفحة وعنوان URL والمحتوى (بما في ذلك ملفات PDF) إلى Google. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">‏للحصول على خيارات مخصَّصة، يمكنك تضمين متصفّح Chrome في "النشاط على الويب وفي التطبيقات"</translation>
@@ -323,6 +323,7 @@
 <translation id="4367027658822022112">‏يمكنك تثبيت ميزة "عدسة Google" للوصول إليها بسهولة من خلال النقر على الزر "تثبيت" في أعلى اللوحة الجانبية</translation>
 <translation id="4372389195695053189">‏أصبح Chrome الآن متصفّحك التلقائي</translation>
 <translation id="4389991535395284064">‏سيحذرك Chrome قبل تحميل موقع إلكتروني يستخدم اتصالاً غير آمن عند التصفّح في "وضع التصفّح المتخفي".</translation>
+<translation id="4400772909124543403">ما مِن تحديث متاح</translation>
 <translation id="4427306783828095590">يؤدي تفعيل إعداد "الحماية المُحسَّنة" إلى حظر التصيّد الاحتيالي والبرامج الضارّة.</translation>
 <translation id="4434353761996769206">خطأ في أداة التثبيت: <ph name="INSTALLER_ERROR" /></translation>
 <translation id="4450664632294415862">‏Chrome - تسجيل الدخول إلى الشبكة - <ph name="PAGE_TITLE" /></translation>
@@ -361,6 +362,7 @@
 <translation id="4891791193823137474">‏دع Google Chrome يعمل في الخلفية</translation>
 <translation id="4895437082222824641">‏فتح الرابط في علامة تبويب جديدة في Chrome</translation>
 <translation id="4896867431081882115">‏يمكنك الوصول بسهولة إلى الميزات المفضَّلة والموثوقة لديك من خلال ضبط Chrome كمتصفِّحك التلقائي وتثبيته في شريط المهام للوصول إليه بسرعة.</translation>
+<translation id="4904953848704395458">‏يمكنك فتح "Gemini في Chrome" باستخدام اختصار لوحة مفاتيح.</translation>
 <translation id="4918086044614829423">قبول</translation>
 <translation id="4918844574251943176">تم نسخ الصورة.</translation>
 <translation id="4926882258455737990">‏لاستخدام حساب آخر على Google مع "Gemini في Chrome"، يُرجى <ph name="BEGIN_LINK" />إنشاء ملف شخصي جديد<ph name="END_LINK" /> وتسجيل الدخول بالحساب المطلوب</translation>
@@ -510,7 +512,6 @@
 <translation id="6319856120645568262">‏يحتاج Chrome إلى إذن لتتبُّع اليدين وإنشاء خريطة للبيئة المحيطة بك</translation>
 <translation id="6321592572353357376">‏تطلب منك الإضافة "<ph name="EXTENSION_NAME" />" تسجيل الدخول إلى Chrome</translation>
 <translation id="6326175484149238433">‏إزالة من Chrome</translation>
-<translation id="6327105987658262776">ما مِن تحديث متوفّر.</translation>
 <translation id="6334815226785304306">‏يمكنك جعل Google Chrome المتصفّح التلقائي وتثبيته في شريط التطبيقات</translation>
 <translation id="63540178978900677">‏لم يعُد Chrome متصفّحك التلقائي. جعل Chrome المتصفّح التلقائي؟</translation>
 <translation id="6360449101159168105">‏عندما كانت علامة التبويب هذه غير نشطة، تم إخلاء مساحة في الذاكرة للحفاظ على سرعة Chrome. يمكنك اختيار أن يظل هذا الموقع الإلكتروني نشطًا دائمًا.</translation>
@@ -522,6 +523,7 @@
 <translation id="6434035853014503219">‏نشكرك على اختيار Chrome كمتصفِّح تلقائي.</translation>
 <translation id="6438015621983209660">‏بتنزيل Chrome، ستكون "الحماية المحّسنة للتصفح الآمن" متاحة على هاتفك أيضًا</translation>
 <translation id="6442774133615368941">‏باستخدام الكاميرا في تطبيق Chrome على iOS، يمكنك تسوّق ما يظهر لك أو ترجمته أو التعرّف عليه</translation>
+<translation id="6448835208126432197">‏يمكنك استخدام اختصار لوحة المفاتيح لاختيار جزء من الشاشة في "Gemini في Chrome".</translation>
 <translation id="6473905796280459355">‏الانتقال إلى صفحة "لمحة عن Chrome"</translation>
 <translation id="6481963882741794338">‏ربط Chrome وخدمات Google الأخرى لأغراض تخصيص الخيارات وأغراض أخرى</translation>
 <translation id="648319183876919572">تعزِّز ميزة "الحماية المُحسّنة للتصفّح الآمن" حمايتك من المواقع الإلكترونية الضارة وعمليات التنزيل الخطيرة.</translation>
@@ -534,6 +536,7 @@
 <translation id="6520670145826811516">‏لاستخدام الموقع الجغرافي، يجب منح Chrome إذن الوصول في <ph name="BEGIN_LINK" />إعدادات النظام<ph name="END_LINK" /></translation>
 <translation id="652948702951888897">‏سجل Chrome</translation>
 <translation id="6532945796722480006">‏فتح Gemini في Chrome Canary</translation>
+<translation id="6539493053177300926">‏يتيح لك هذا الزر الوصول بسهولة إلى "Gemini في Chrome" واستخدامه على جهازك، حتى إذا كان Chrome مصغّرًا.</translation>
 <translation id="6585124893636629274">‏إغلاق Gemini في Chrome</translation>
 <translation id="659498884637196217">‏يمكن إجراء التعديل في "مدير كلمات المرور في Google" على هذا الجهاز</translation>
 <translation id="6631524303639368205">‏المتابعة من حيث توقفت: استعاد Chrome علامات التبويب من جلستك الأخيرة. يمكنك إيقاف هذه الميزة في</translation>
@@ -576,7 +579,6 @@
 <translation id="6999131147875565462">‏سيعمل Chrome بشكل أسرع ومن المفترض أن تعمل الميزات التي تستخدِم JavaScript على النحو المطلوب</translation>
 <translation id="7011190694940573312">تعذّر تثبيت هذا الإصدار من نظام التشغيل لأنّه غير متوافق.</translation>
 <translation id="7024536598735240744">حدث خطأ في فك ضغط الحزمة: <ph name="UNPACK_ERROR" />.</translation>
-<translation id="7025789849649390912">تم إيقاف التثبيت.</translation>
 <translation id="7025800014283535195">‏يمكنك من هنا التبديل بين الملفات الشخصية على Chrome.</translation>
 <translation id="7047386856539490735">هل هذه النتائج مفيدة؟</translation>
 <translation id="7051685429025310665">‏لم تتم زيارة هذا الموقع الإلكتروني مؤخرًا، لذلك أزال Chrome أذونات <ph name="PERMISSION_1" /> و<ph name="PERMISSION_2" /> و<ph name="PERMISSION_3" />.</translation>
@@ -594,6 +596,7 @@
 <translation id="7161904924553537242">‏مرحبًا بك في Google Chrome</translation>
 <translation id="7193885263065350793">‏تغلق مؤسستك متصفِّح Chrome في حال عدم استخدامه لمدّة <ph name="TIMEOUT_DURATION" />.</translation>
 <translation id="7242029209006116544">‏إنك تسجل الدخول باستخدام حساب مُدار وتمنح المشرف إمكانية التحكم في ملفك الشخصي في Google Chrome. وسيتم ربط بيانات Chrome التابعة لك، مثل التطبيقات والإشارات المرجعية والسجلّ وكلمات المرور والإعدادات الأخرى بالمستخدم <ph name="USER_NAME" />. وستتمكن من حذف هذه البيانات عبر لوحة تحكم حسابات Google، ولكنك لن تتمكن من إقران هذه البيانات بحساب آخر. ويُمكنك اختيار إنشاء ملف شخصي جديد للإبقاء على بياناتك الحالية في Chrome بشكل مستقل. <ph name="LEARN_MORE" /></translation>
+<translation id="7257689164441568409">‏للخروج من "Gemini في Chrome" أو العودة إليه، بإمكانك استخدام اختصار لوحة المفاتيح.</translation>
 <translation id="7274402351400635015">‏يمكنك استخدام Chrome في أي وقت عند النقر على الروابط في الرسائل والمستندات والتطبيقات الأخرى. وسيتم أيضًا تثبيته في شريط التطبيقات.</translation>
 <translation id="7285616922384953075">‏تدير "<ph name="MANAGER" />" متصفِّح Chrome</translation>
 <translation id="7285990705317078173">‏يكفي تنزيل متصفِّح Chrome على هاتفك لتتبُّع الأسعار والحصول على تنبيهات عند انخفاضها على أي موقع إلكتروني</translation>
@@ -632,7 +635,6 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7606334485649076285">‏نظام التشغيل ChromeOS Flex من Google</translation>
-<translation id="7626072681686626474">‏يشترط <ph name="MANAGER" /> قراءة بنود الخدمة التالية وقبولها قبل استخدام هذا الجهاز، مع العلم بأنّ هذه البنود لا توسِّع نطاق بنود نظام التشغيل Chrome من Google ولا تعدِّلها ولا تفرض قيودًا عليها.</translation>
 <translation id="7627609214560473136">‏لحماية بياناتك، يمكنك السماح لمتصفِّح Chrome بإزالة الأذونات من المواقع الإلكترونية التي لم تتم زيارتها مؤخرًا.</translation>
 <translation id="7629695634924605473">‏يتم إعلامك من خلال Chrome في حال تم اختراق كلمات المرور في أي وقت.</translation>
 <translation id="7641148173327520642">‏ضَبَط مشرف النظام Google Chrome لفتح <ph name="ALTERNATIVE_BROWSER_NAME" /> للوصول إلى <ph name="TARGET_URL_HOSTNAME" />.</translation>
@@ -703,6 +705,7 @@
 <translation id="8221491193165283816">أنت تحظر الإشعارات عادةً. للسماح لهذا الموقع الإلكتروني بإرسال إشعارات لك، انقر هنا.</translation>
 <translation id="8253851811470049684">‏يمكنك فتح الروابط من أي تطبيق على Chrome والوصول إلى المتصفّح بسهولة من خلال شريط المهام</translation>
 <translation id="8255190535488645436">‏يستخدم Google Chrome الكاميرا والميكروفون.</translation>
+<translation id="8260086374035800939">‏إذا كان "Gemini في Chrome" مفتوحًا، ستبقى اللوحة الجانبية مفتوحة عند إنشاء علامات تبويب جديدة</translation>
 <translation id="8267953129876836456">‏عثَر Chrome على بعض اقتراحات الأمان المطلوب مراجعتها</translation>
 <translation id="8286862437124483331">‏يحاول Google Chrome عرض كلمات المرور. اكتب كلمة مرور Windows للسماح بذلك.</translation>
 <translation id="829923460755755423">‏أضِف اختصارًا إلى "مدير كلمات المرور في Google".</translation>
@@ -714,6 +717,7 @@
 <translation id="8362914115861174987">الترجمة إلى</translation>
 <translation id="8366770919198174997">‏يقلِّل هذا الخيار من مستوى الأداء ويعزِّز من مقاومة Chrome للهجمات</translation>
 <translation id="8367705492654390392">يمكنك طرح أي سؤال</translation>
+<translation id="8367950957770994118">‏يمكنك فتح "Gemini في Chrome" بسرعة متى احتجت إليه</translation>
 <translation id="8370517070665726704">‏حقوق الطبع والنشر لعام <ph name="YEAR" /> لشركة Google LLC. جميع الحقوق محفوظة.</translation>
 <translation id="8377158135256176353">‏تفعيل Gemini في Chrome Canary أو إيقافه</translation>
 <translation id="8387459386171870978">‏مواصلة استخدام Chrome</translation>
@@ -731,10 +735,12 @@
 <translation id="8498858610309223613">‏تم للتو تطبيق تحديث أمان خاص لمتصفِّح Google Chrome. ويمكنك الآن إعادة التشغيل وستتم استعادة علامات التبويب.</translation>
 <translation id="8521348052903287641">‏قاعدة الوارد إلى إصدار مطوري البرامج من Google Chrome للسماح بحركة مرور mDNS.</translation>
 <translation id="852529348814672339">‏عرض Chrome بهذه اللغة</translation>
+<translation id="8525579356836940628">تم إيقاف التثبيت</translation>
 <translation id="8533056045953418157">‏ضبط Google Chrome كعارض PDF التلقائي</translation>
 <translation id="8555465886620020932">حدث خطأ في الخدمة: <ph name="SERVICE_ERROR" />.</translation>
 <translation id="856656450041460113">البحث في قائمة اللغات</translation>
 <translation id="8575047640889685742">‏لتشفير جميع بيانات Chrome في حسابك على Google، يمكنك استخدام <ph name="BEGIN_LINK" />عبارة المرور الخاصة بك<ph name="END_LINK" />. لن يتم تشفير طُرق الدفع والعناوين من Google Pay. ولن تتم مزامنة سجلّ التصفُّح من Chrome.</translation>
+<translation id="8590782867495422699">‏إعادة فتح "وضع AI" في "بحث Google"</translation>
 <translation id="8601359445272098721">ميزة جديدة: يمكنك ترجمة النص والصور على الشاشة من خلال النقر على زر "ترجمة محتوى الشاشة"</translation>
 <translation id="8614913330719544658">‏لا يستجيب Google Chrome. هل تريد إعادة التشغيل الآن؟</translation>
 <translation id="861702415419836452">‏يحتاج متصفِّح Chrome إلى إذن للوصول إلى الكاميرا من أجل إنشاء خريطة ثلاثية الأبعاد للبيئة المحيطة بك.</translation>
@@ -776,6 +782,8 @@
 <translation id="8999117580775242387">‏سيستخدم Chrome اتصالاً غير آمن بدون تحذيرك في حال عدم توفُّر بروتوكول HTTPS.</translation>
 <translation id="8999208279178790196">{0,plural, =0{‏يتوفر تحديث لمتصفح Chrome}=1{‏يتوفر تحديث لمتصفح Chrome}two{‏يتوفر تحديث لمتصفح Chrome منذ يومين}few{‏يتوفر تحديث لمتصفح Chrome منذ # أيام}many{‏يتوفر تحديث لمتصفح Chrome منذ # يومًا}other{‏يتوفر تحديث لمتصفح Chrome منذ # يوم}}</translation>
 <translation id="9014771989710951291">‏تدير مؤسسات متعدّدة متصفِّح Chrome</translation>
+<translation id="9018218886431812662">اكتمل التثبيت</translation>
+<translation id="9024318700713112071">‏ضبط Chrome كمتصفّح تلقائي</translation>
 <translation id="9066987883552592250">‏إغلاق Gemini في Chrome Canary</translation>
 <translation id="9090566250983691233">‏التعرّف على سبب حظر Chrome لبعض الملفات</translation>
 <translation id="9106236359747881194">حدِّد نصًا للبحث عنه</translation>

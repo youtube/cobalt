@@ -19,8 +19,10 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "api/frame_transformer_interface.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_packet_sender.h"
 #include "api/scoped_refptr.h"
@@ -190,10 +192,6 @@ class RtpRtcpInterface : public RtcpFeedbackSenderInterface {
 
   virtual void SetRemoteSSRC(uint32_t ssrc) = 0;
 
-  // Called when the local ssrc changes (post initialization) for receive
-  // streams to match with send. Called on the packet receive thread/tq.
-  virtual void SetLocalSsrc(uint32_t ssrc) = 0;
-
   // **************************************************************************
   // Sender
   // **************************************************************************
@@ -216,7 +214,14 @@ class RtpRtcpInterface : public RtcpFeedbackSenderInterface {
   virtual void SetExtmapAllowMixed(bool extmap_allow_mixed) = 0;
 
   // Register extension by uri, triggers CHECK on falure.
-  virtual void RegisterRtpHeaderExtension(absl::string_view uri, int id) = 0;
+  virtual void RegisterRtpHeaderExtension(absl::string_view uri,
+                                          RtpHeaderExtensionId id) = 0;
+  // Backwards compatibility overload.
+  // TODO: bugs.webrtc.org/514817938 - Remove when downstream is updated.
+  ABSL_DEPRECATE_AND_INLINE()
+  void RegisterRtpHeaderExtension(absl::string_view uri, int id) {
+    RegisterRtpHeaderExtension(uri, RtpHeaderExtensionId(id));
+  }
 
   virtual void DeregisterSendRtpHeaderExtension(absl::string_view uri) = 0;
 

@@ -32,6 +32,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
+#include "api/audio_options.h"
 #include "api/candidate.h"
 #include "api/crypto/crypto_options.h"
 #include "api/environment/environment.h"
@@ -42,6 +43,7 @@
 #include "api/payload_type.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/rtp_sender_interface.h"
@@ -75,6 +77,7 @@
 #include "pc/jsep_transport_controller.h"
 #include "pc/legacy_stats_collector.h"
 #include "pc/media_options.h"
+#include "pc/media_protocol_names.h"
 #include "pc/media_session.h"
 #include "pc/media_stream.h"
 #include "pc/media_stream_observer.h"
@@ -409,13 +412,13 @@ RTCError VerifyDirectionsInAnswer(const SessionDescription* local_offer,
 
     if (!RtpTransceiverDirectionHasRecv(local_direction) &&
         RtpTransceiverDirectionHasSend(remote_direction)) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                       << "Incompatible receive direction");
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                           << "Incompatible receive direction");
     }
     if (!RtpTransceiverDirectionHasSend(local_direction) &&
         RtpTransceiverDirectionHasRecv(remote_direction)) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                       << "Incompatible send direction");
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                           << "Incompatible send direction");
     }
   }
   return RTCError::OK();
@@ -441,8 +444,8 @@ RTCError VerifySframeInAnswer(const SessionDescription* local_offer,
     const MediaContentDescription* offer_media =
         offer_contents[i].media_description();
     if (answer_media->sframe_enabled() && !offer_media->sframe_enabled()) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                       << kSframeNotInOffer);
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                           << kSframeNotInOffer);
     }
   }
   return RTCError::OK();
@@ -479,17 +482,17 @@ RTCError VerifyCrypto(
     const TransportInfo* tinfo = desc->GetTransportInfoByName(mid);
     if (!media || !tinfo) {
       // Something is not right.
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                       << kInvalidSdp);
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                           << kInvalidSdp);
     }
     if (dtls_enabled) {
       if (!tinfo->description.identity_fingerprint) {
-        return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                         << kSdpWithoutDtlsFingerprint);
+        return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                             << kSdpWithoutDtlsFingerprint);
       }
     } else {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                       << kSdpWithoutCrypto);
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                           << kSdpWithoutCrypto);
     }
   }
   return RTCError::OK();
@@ -537,17 +540,18 @@ RTCError ValidateMids(const SessionDescription& description) {
   flat_set<absl::string_view> mids;
   for (const ContentInfo& content : description.contents()) {
     if (content.mid().empty()) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                       << "A media section is missing a MID attribute.");
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                           << "A media section is missing a MID attribute.");
     }
     if (content.mid().size() > kMidMaxSize) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                       << "The MID attribute exceeds the maximum supported "
-                          "length of 16 characters.");
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                           << "The MID attribute exceeds the maximum supported "
+                              "length of 16 characters.");
     }
     if (!mids.insert(content.mid()).second) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                       << "Duplicate a=mid value '" << content.mid() << "'.");
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                           << "Duplicate a=mid value '" << content.mid()
+                           << "'.");
     }
   }
   return RTCError::OK();
@@ -567,7 +571,8 @@ RTCError FindDuplicateCodecParameters(
        << ". All codecs must share the same type, "
           "encoding name, clock rate and parameters.";
 
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER) << sb.Release());
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                         << sb.Release());
   }
   payload_to_codec_parameters.insert(
       std::make_pair(codec_parameters.payload_type, codec_parameters));
@@ -588,9 +593,9 @@ RTCError ValidateBundledPayloadTypes(const SessionDescription& description) {
       const ContentInfo* content_description =
           description.GetContentByName(content_name);
       if (!content_description) {
-        return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                         << "A BUNDLE group contains a MID='" << content_name
-                         << "' matching no m= section.");
+        return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                             << "A BUNDLE group contains a MID='"
+                             << content_name << "' matching no m= section.");
       }
       const MediaContentDescription* media_description =
           content_description->media_description();
@@ -616,12 +621,12 @@ RTCError ValidateBundledPayloadTypes(const SessionDescription& description) {
 
 RTCError FindDuplicateHeaderExtensionIds(
     const RtpExtension extension,
-    std::map<int, RtpExtension>& id_to_extension) {
+    std::map<RtpHeaderExtensionId, RtpExtension>& id_to_extension) {
   auto existing_extension = id_to_extension.find(extension.id);
   if (existing_extension != id_to_extension.end() &&
       !(extension.uri == existing_extension->second.uri &&
         extension.encrypt == existing_extension->second.encrypt)) {
-    return LOG_ERROR(
+    return RTC_LOG_ERROR(
         RTCError(RTCErrorType::INVALID_PARAMETER)
         << "A BUNDLE group contains a codec collision for "
            "header extension id="
@@ -640,14 +645,14 @@ RTCError ValidateBundledRtpHeaderExtensions(
   std::vector<const ContentGroup*> bundle_groups =
       description.GetGroupsByName(GROUP_TYPE_BUNDLE);
   for (const ContentGroup* bundle_group : bundle_groups) {
-    std::map<int, RtpExtension> id_to_extension;
+    std::map<RtpHeaderExtensionId, RtpExtension> id_to_extension;
     for (const std::string& content_name : bundle_group->content_names()) {
       const ContentInfo* content_description =
           description.GetContentByName(content_name);
       if (!content_description) {
-        return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                         << "A BUNDLE group contains a MID='" << content_name
-                         << "' matching no m= section.");
+        return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                             << "A BUNDLE group contains a MID='"
+                             << content_name << "' matching no m= section.");
       }
       const MediaContentDescription* media_description =
           content_description->media_description();
@@ -684,10 +689,10 @@ RTCError ValidateRtpHeaderExtensionsForSpecSimulcast(
       return ext.uri == RtpExtension::kRidUri;
     });
     if (it == extensions.end()) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                       << "The media section with MID='" << content.mid()
-                       << "' negotiates simulcast but does not negotiate "
-                          "the RID RTP header extension.");
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                           << "The media section with MID='" << content.mid()
+                           << "' negotiates simulcast but does not negotiate "
+                              "the RID RTP header extension.");
     }
   }
   return RTCError::OK();
@@ -708,13 +713,76 @@ RTCError ValidateSsrcGroups(const SessionDescription& description) {
              group.ssrcs.size() != 2) ||
             (group.semantics == kSimSsrcGroupSemantics &&
              group.ssrcs.size() > kMaxSimulcastStreams)) {
-          return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                           << "The media section with MID='" << content.mid()
-                           << "' has a ssrc-group with semantics "
-                           << group.semantics
-                           << " and an unexpected number of SSRCs.");
+          return RTC_LOG_ERROR(
+              RTCError(RTCErrorType::INVALID_PARAMETER)
+              << "The media section with MID='" << content.mid()
+              << "' has a ssrc-group with semantics " << group.semantics
+              << " and an unexpected number of SSRCs.");
         }
       }
+    }
+  }
+  return RTCError::OK();
+}
+
+// Check that cryptex is supported (if required) and consistent within the
+// bundle groups.
+RTCError ValidateCryptex(
+    const SessionDescription* description,
+    const flat_map<std::string, const ContentGroup*>& bundle_groups_by_mid,
+    bool required_to_negotiate) {
+  RTC_DCHECK(description);
+
+  bool session_level_support = description->cryptex();
+  for (const ContentInfo& content_info : description->contents()) {
+    if (content_info.rejected ||
+        !IsRtpProtocol(content_info.media_description()->protocol())) {
+      continue;
+    }
+    const MediaContentDescription* media = content_info.media_description();
+    if (required_to_negotiate && !session_level_support && !media->cryptex()) {
+      return RTC_LOG_ERROR(RTCError::InvalidParameter()
+                           << "cryptex required but not negotiated.");
+    }
+
+    if (media->cryptex_level() ==
+        MediaContentDescription::AttributeLevel::kSession) {
+      // Session level attributes are implicitly consistent.
+      continue;
+    }
+
+    const auto mid = content_info.mid();
+    auto it = bundle_groups_by_mid.find(mid);
+    if (it == bundle_groups_by_mid.end() || it->second == nullptr) {
+      continue;
+    }
+    const ContentGroup* bundle = it->second;
+
+    // Find and compare cryptex at media level of the current content to
+    // cryptex of the first non-datachannel media content.
+    const ContentInfo* first_media_content = nullptr;
+    for (const std::string& name : bundle->content_names()) {
+      const ContentInfo* content = description->GetContentByName(name);
+      if (content && content->media_description()->type() != MediaType::DATA) {
+        first_media_content = content;
+        break;
+      }
+    }
+    if (!first_media_content) {
+      return RTC_LOG_ERROR(RTCError::InvalidParameter()
+                           << "Inconsistent bundle");
+    }
+    // If this content is the first non-datachannel media content in the
+    // bundle, this is implicitly consistent.
+    if (first_media_content->mid() == mid) {
+      continue;
+    }
+    if (first_media_content->media_description()->cryptex_level() !=
+        media->cryptex_level()) {
+      return RTC_LOG_ERROR(
+          RTCError::InvalidParameter()
+          << "The media section with MID='" << content_info.mid()
+          << "' is not consistent with the cryptex level of its bundle");
     }
   }
   return RTCError::OK();
@@ -735,7 +803,7 @@ RTCError ValidatePayloadTypes(const SessionDescription& description) {
     if (type == MediaType::AUDIO || type == MediaType::VIDEO) {
       for (const auto& codec : media_description->codecs()) {
         if (!PayloadType::IsValid(codec.id, media_description->rtcp_mux())) {
-          return LOG_ERROR(
+          return RTC_LOG_ERROR(
               RTCError(RTCErrorType::INVALID_PARAMETER)
               << "The media section with MID='" << content.mid()
               << "' used an invalid payload type " << codec.id << " for codec '"
@@ -1046,7 +1114,7 @@ const ContentInfo* GetContentByIndex(const SessionDescriptionInterface* sdesc,
 }
 
 // From `rtc_options`, fill parts of `session_options` shared by all generated
-// m= sectionss (in other words, nothing that involves a map/array).
+// m= sections (in other words, nothing that involves a map/array).
 void ExtractSharedMediaSessionOptions(
     const PeerConnectionInterface::RTCOfferAnswerOptions& rtc_options,
     MediaSessionOptions* session_options) {
@@ -1623,6 +1691,24 @@ SdpOfferAnswerHandler::SdpOfferAnswerHandler(const Environment& env,
       operations_chain_(OperationsChain::Create()),
       rtcp_cname_(GenerateRtcpCname()),
       local_ice_credentials_to_replace_(new LocalIceCredentialsToReplace()),
+      audio_options_([&]() {
+        AudioOptions options;
+        const auto& configuration = *pc->configuration();
+        options.audio_jitter_buffer_max_packets =
+            configuration.audio_jitter_buffer_max_packets;
+        options.audio_jitter_buffer_fast_accelerate =
+            configuration.audio_jitter_buffer_fast_accelerate;
+        options.audio_jitter_buffer_min_delay_ms =
+            configuration.audio_jitter_buffer_min_delay_ms;
+        return options;
+      }()),
+      video_options_([&]() {
+        VideoOptions options;
+        const auto& configuration = *pc->configuration();
+        options.screencast_min_bitrate_kbps =
+            configuration.screencast_min_bitrate.value_or(100);
+        return options;
+      }()),
       pt_suggester_(pc_->configuration()->bundle_policy, env_),
       weak_ptr_factory_(this) {
   operations_chain_->SetOnChainEmptyCallback(
@@ -1639,21 +1725,19 @@ SdpOfferAnswerHandler::~SdpOfferAnswerHandler() {}
 std::unique_ptr<SdpOfferAnswerHandler> SdpOfferAnswerHandler::Create(
     const Environment& env,
     PeerConnectionSdpMethods* pc,
-    const PeerConnectionInterface::RTCConfiguration& configuration,
     std::unique_ptr<RTCCertificateGeneratorInterface> cert_generator,
     std::unique_ptr<VideoBitrateAllocatorFactory>
         video_bitrate_allocator_factory,
     ConnectionContext* context,
     CodecLookupHelper* codec_lookup_helper) {
   auto handler = absl::WrapUnique(new SdpOfferAnswerHandler(env, pc, context));
-  handler->Initialize(configuration, std::move(cert_generator),
+  handler->Initialize(std::move(cert_generator),
                       std::move(video_bitrate_allocator_factory), context,
                       codec_lookup_helper);
   return handler;
 }
 
 void SdpOfferAnswerHandler::Initialize(
-    const PeerConnectionInterface::RTCConfiguration& configuration,
     std::unique_ptr<RTCCertificateGeneratorInterface> cert_generator,
     std::unique_ptr<VideoBitrateAllocatorFactory>
         video_bitrate_allocator_factory,
@@ -1661,19 +1745,7 @@ void SdpOfferAnswerHandler::Initialize(
     CodecLookupHelper* codec_lookup_helper) {
   RTC_LOG_THREAD_BLOCK_COUNT();
   RTC_DCHECK_RUN_ON(signaling_thread());
-  // 100 kbps is used by default, but can be overriden by a non-standard
-  // RTCConfiguration value (not available on Web).
-  video_options_.screencast_min_bitrate_kbps =
-      configuration.screencast_min_bitrate.value_or(100);
-
-  audio_options_.audio_jitter_buffer_max_packets =
-      configuration.audio_jitter_buffer_max_packets;
-
-  audio_options_.audio_jitter_buffer_fast_accelerate =
-      configuration.audio_jitter_buffer_fast_accelerate;
-
-  audio_options_.audio_jitter_buffer_min_delay_ms =
-      configuration.audio_jitter_buffer_min_delay_ms;
+  const auto& configuration = *pc_->configuration();
 
   // Obtain a certificate from RTCConfiguration if any were provided (optional).
   scoped_refptr<RTCCertificate> certificate;
@@ -2127,7 +2199,7 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
   error = UpdateSessionState(type, CS_LOCAL, local_description()->description(),
                              bundle_groups_by_mid);
   if (!error.ok()) {
-    return LOG_ERROR(error);
+    return RTC_LOG_ERROR(error);
   }
 
   // Now that we have a local description, we can push down remote candidates.
@@ -2135,8 +2207,8 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
 
   pending_ice_restarts_.clear();
   if (session_error() != SessionError::kNone) {
-    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
-                     << GetSessionErrorMsg());
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                         << GetSessionErrorMsg());
   }
 
   // Validate SSRCs, we do not allow duplicates.
@@ -2147,8 +2219,9 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
         for (uint32_t ssrc : stream.ssrcs) {
           auto result = used_ssrcs.insert(ssrc);
           if (!result.second) {
-            return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                             << "Duplicate ssrc " << ssrc << " is not allowed");
+            return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                                 << "Duplicate ssrc " << ssrc
+                                 << " is not allowed");
           }
         }
       }
@@ -2832,8 +2905,16 @@ void SdpOfferAnswerHandler::DoSetLocalDescription(
   // If application was successful, we change the codec vendor's codec
   // tables according to the mangle.
   // Note that this depends on there being a single codec vendor for all MIDs.
-  codec_lookup_helper_->GetCodecVendor()->ModifyVideoCodecs(
-      codecs_mangled_to_raw);
+  // We call SetRawPacketization in the redesign path and ModifyVideoCodecs in
+  // the legacy path to avoid them interfering with each other.
+  if (codec_lookup_helper_->GetCodecVendor()->payload_types_in_transport()) {
+    for (const auto& change : codecs_mangled_to_raw) {
+      codec_lookup_helper_->GetCodecVendor()->SetRawPacketization(change.first);
+    }
+  } else {
+    codec_lookup_helper_->GetCodecVendor()->ModifyVideoCodecs(
+        codecs_mangled_to_raw);
+  }
 
   if (local_description()->GetType() == SdpType::kAnswer) {
     RemoveStoppedTransceivers();
@@ -3562,9 +3643,10 @@ RTCError SdpOfferAnswerHandler::Rollback(SdpType desc_type) {
   auto state = signaling_state();
   if (state != PeerConnectionInterface::kHaveLocalOffer &&
       state != PeerConnectionInterface::kHaveRemoteOffer) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_STATE)
-                     << "Called in wrong signalingState: "
-                     << PeerConnectionInterface::AsString(signaling_state()));
+    return RTC_LOG_ERROR(
+        RTCError(RTCErrorType::INVALID_STATE)
+        << "Called in wrong signalingState: "
+        << PeerConnectionInterface::AsString(signaling_state()));
   }
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(IsUnifiedPlan());
@@ -4040,15 +4122,17 @@ RTCError SdpOfferAnswerHandler::ValidateSessionDescription(
   RTC_DCHECK_EQ(SessionError::kNone, session_error());
 
   if (!sdesc || !sdesc->description()) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER) << kInvalidSdp);
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                         << kInvalidSdp);
   }
 
   SdpType type = sdesc->GetType();
   if ((source == CS_LOCAL && !ExpectSetLocalDescription(type)) ||
       (source == CS_REMOTE && !ExpectSetRemoteDescription(type))) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_STATE)
-                     << "Called in wrong state: "
-                     << PeerConnectionInterface::AsString(signaling_state()));
+    return RTC_LOG_ERROR(
+        RTCError(RTCErrorType::INVALID_STATE)
+        << "Called in wrong state: "
+        << PeerConnectionInterface::AsString(signaling_state()));
   }
 
   RTCError error = ValidateMids(*sdesc->description());
@@ -4065,10 +4149,17 @@ RTCError SdpOfferAnswerHandler::ValidateSessionDescription(
     }
   }
 
+  error = ValidateCryptex(sdesc->description(), bundle_groups_by_mid,
+                          pc_->GetCryptoOptions().srtp.cryptex_policy ==
+                              CryptoOptions::Srtp::CryptexPolicy::kRequire);
+  if (!error.ok()) {
+    return error;
+  }
+
   // Verify ice-ufrag and ice-pwd.
   if (!VerifyIceUfragPwdPresent(sdesc->description(), bundle_groups_by_mid)) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                     << kSdpWithoutIceUfragPwd);
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                         << kSdpWithoutIceUfragPwd);
   }
 
   // Validate that there are no collisions of bundled payload types.
@@ -4097,8 +4188,8 @@ RTCError SdpOfferAnswerHandler::ValidateSessionDescription(
 
   if (!pc_->ValidateBundleSettings(sdesc->description(),
                                    bundle_groups_by_mid)) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                     << kBundleWithoutRtcpMux);
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                         << kBundleWithoutRtcpMux);
   }
 
   error = ValidatePayloadTypes(*sdesc->description());
@@ -4119,8 +4210,8 @@ RTCError SdpOfferAnswerHandler::ValidateSessionDescription(
     if (!MediaSectionsHaveSameCount(*offer_desc, *sdesc->description()) ||
         !MediaSectionsInSameOrder(*offer_desc, nullptr, *sdesc->description(),
                                   type)) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                       << kMlineMismatchInAnswer);
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                           << kMlineMismatchInAnswer);
     }
   } else {
     // The re-offers should respect the order of m= sections in current
@@ -4144,8 +4235,8 @@ RTCError SdpOfferAnswerHandler::ValidateSessionDescription(
     if (current_desc &&
         !MediaSectionsInSameOrder(*current_desc, secondary_current_desc,
                                   *sdesc->description(), type)) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                       << kMlineMismatchInSubsequentOffer);
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                           << kMlineMismatchInSubsequentOffer);
     }
   }
 
@@ -4160,10 +4251,11 @@ RTCError SdpOfferAnswerHandler::ValidateSessionDescription(
       if ((desc.type() == MediaType::AUDIO ||
            desc.type() == MediaType::VIDEO) &&
           desc.streams().size() > 1u) {
-        return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                         << "Media section has more than one track specified "
-                            "with a=ssrc lines which is not supported with "
-                            "Unified Plan.");
+        return RTC_LOG_ERROR(
+            RTCError(RTCErrorType::INVALID_PARAMETER)
+            << "Media section has more than one track specified "
+               "with a=ssrc lines which is not supported with "
+               "Unified Plan.");
       }
     }
     // Validate spec-simulcast which only works if the remote end negotiated the
@@ -4219,9 +4311,10 @@ RTCError SdpOfferAnswerHandler::UpdateTransceiversAndDataChannels(
     if (pc_->configuration()->bundle_policy ==
             PeerConnectionInterface::kBundlePolicyMaxBundle &&
         bundle_groups_by_mid.empty()) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                       << "max-bundle configured but session description has "
-                          "no BUNDLE group");
+      return RTC_LOG_ERROR(
+          RTCError(RTCErrorType::INVALID_PARAMETER)
+          << "max-bundle configured but session description has "
+             "no BUNDLE group");
     }
   }
 
@@ -4258,9 +4351,9 @@ RTCError SdpOfferAnswerHandler::UpdateTransceiversAndDataChannels(
         old_remote_content =
             &old_remote_description->description()->contents()[i];
       }
-      auto transceiver_or_error = AssociateTransceiver(
-          source, new_session.GetType(), i, new_content, old_local_content,
-          old_remote_content, worker_tasks);
+      auto transceiver_or_error =
+          AssociateTransceiver(source, new_session.GetType(), i, new_content,
+                               old_local_content, old_remote_content);
       if (!transceiver_or_error.ok()) {
         // In the case where a transceiver is rejected locally prior to being
         // associated, we don't expect to find a transceiver, but might find it
@@ -4291,16 +4384,9 @@ RTCError SdpOfferAnswerHandler::UpdateTransceiversAndDataChannels(
     } else if (media_type == MediaType::UNSUPPORTED) {
       RTC_LOG(LS_INFO) << "Ignoring unsupported media type";
     } else {
-      return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
-                       << "Unknown section type.");
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                           << "Unknown section type.");
     }
-  }
-
-  // Run transceiver creation tasks to ensure transceivers are fully constructed
-  // before UpdateTransceiverChannel is called.
-  RTCError error = worker_tasks.Run();
-  if (!error.ok()) {
-    return error;
   }
 
   for (TransceiverUpdate& update : transceivers_to_update) {
@@ -4321,7 +4407,7 @@ RTCError SdpOfferAnswerHandler::UpdateTransceiversAndDataChannels(
                                           update.transceiver, worker_tasks);
   }
 
-  error = network_teardown_tasks.Run();
+  RTCError error = network_teardown_tasks.Run();
   RTC_DCHECK(error.ok());  // Teardown tasks cannot fail.
   error = worker_tasks.Run();
   RTC_DCHECK(error.ok());  // Cleanup and construction tasks cannot fail.
@@ -4335,8 +4421,7 @@ SdpOfferAnswerHandler::AssociateTransceiver(
     size_t mline_index,
     const ContentInfo& content,
     const ContentInfo* old_local_content,
-    const ContentInfo* old_remote_content,
-    ScopedOperationsBatcher& worker_tasks) {
+    const ContentInfo* old_remote_content) {
   TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::AssociateTransceiver");
   RTC_DCHECK(IsUnifiedPlan());
 #if RTC_DCHECK_IS_ON
@@ -4373,8 +4458,8 @@ SdpOfferAnswerHandler::AssociateTransceiver(
     }
     if (!transceiver) {
       // This may happen normally when media sections are rejected.
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                       << "Transceiver not found based on m-line index");
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                           << "Transceiver not found based on m-line index");
     }
   } else {
     RTC_DCHECK_EQ(source, CS_REMOTE);
@@ -4412,7 +4497,7 @@ SdpOfferAnswerHandler::AssociateTransceiver(
           pc_->GetCryptoOptions(), video_bitrate_allocator_factory_.get(),
           media_desc->type(), nullptr, {}, send_encodings,
           /*header_extensions_to_negotiate=*/{}, simulcast_rejected,
-          initial_simulcast_layers, worker_tasks, sender_id, receiver_id);
+          initial_simulcast_layers, sender_id, receiver_id);
       transceiver->internal()->set_direction(
           RtpTransceiverDirection::kRecvOnly);
       transceiver->internal()->ApplySframeEnabled(media_desc->sframe_enabled());
@@ -4438,7 +4523,7 @@ SdpOfferAnswerHandler::AssociateTransceiver(
   }
 
   if (transceiver->media_type() != media_desc->type()) {
-    return LOG_ERROR(
+    return RTC_LOG_ERROR(
         RTCError(RTCErrorType::INVALID_PARAMETER)
         << "Transceiver type does not match media description type.");
   }
@@ -4518,8 +4603,8 @@ RTCError SdpOfferAnswerHandler::UpdateDataChannelTransport(
     error.set_error_detail(RTCErrorDetailType::DATA_CHANNEL_FAILURE);
     pc_->DestroyDataChannelTransport(error);
   } else if (!pc_->CreateDataChannelTransport(content.mid())) {
-    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
-                     << "Failed to create data channel.");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                         << "Failed to create data channel.");
   }
   return RTCError::OK();
 }
@@ -5103,8 +5188,8 @@ RTCError SdpOfferAnswerHandler::HandleLegacyOfferOptions(
   } else if (options.offer_to_receive_audio == 1) {
     AddUpToOneReceivingTransceiverOfType(MediaType::AUDIO);
   } else if (options.offer_to_receive_audio > 1) {
-    return LOG_ERROR(RTCError(RTCErrorType::UNSUPPORTED_PARAMETER)
-                     << "offer_to_receive_audio > 1 is not supported.");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::UNSUPPORTED_PARAMETER)
+                         << "offer_to_receive_audio > 1 is not supported.");
   }
 
   if (options.offer_to_receive_video == 0) {
@@ -5112,8 +5197,8 @@ RTCError SdpOfferAnswerHandler::HandleLegacyOfferOptions(
   } else if (options.offer_to_receive_video == 1) {
     AddUpToOneReceivingTransceiverOfType(MediaType::VIDEO);
   } else if (options.offer_to_receive_video > 1) {
-    return LOG_ERROR(RTCError(RTCErrorType::UNSUPPORTED_PARAMETER)
-                     << "offer_to_receive_video > 1 is not supported.");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::UNSUPPORTED_PARAMETER)
+                         << "offer_to_receive_video > 1 is not supported.");
   }
 
   return RTCError::OK();
@@ -5793,7 +5878,7 @@ RTCErrorOr<const ContentInfo*> SdpOfferAnswerHandler::FindContentInfo(
           return content_info.mid() == candidate->sdp_mid();
         });
     if (it == contents.end()) {
-      return LOG_ERROR(
+      return RTC_LOG_ERROR(
           RTCError(RTCErrorType::INVALID_PARAMETER)
           << "Mid " << candidate->sdp_mid()
           << " specified but no media section with that mid found.");
@@ -5807,15 +5892,15 @@ RTCErrorOr<const ContentInfo*> SdpOfferAnswerHandler::FindContentInfo(
     if (mediacontent_index < content_size) {
       return &description->description()->contents()[mediacontent_index];
     } else {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_RANGE)
-                       << "Media line index (" << candidate->sdp_mline_index()
-                       << ") out of range (number of mlines: " << content_size
-                       << ").");
+      return RTC_LOG_ERROR(
+          RTCError(RTCErrorType::INVALID_RANGE)
+          << "Media line index (" << candidate->sdp_mline_index()
+          << ") out of range (number of mlines: " << content_size << ").");
     }
   }
 
-  return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                   << "Neither sdp_mline_index nor sdp_mid specified.");
+  return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                       << "Neither sdp_mline_index nor sdp_mid specified.");
 }
 
 RTCError SdpOfferAnswerHandler::CreateChannels(const SessionDescription& desc) {
@@ -5860,8 +5945,8 @@ RTCError SdpOfferAnswerHandler::CreateChannels(const SessionDescription& desc) {
   const ContentInfo* data = GetFirstDataContent(&desc);
   if (data && !data->rejected &&
       !pc_->CreateDataChannelTransport(data->mid())) {
-    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
-                     << "Failed to create data channel.");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                         << "Failed to create data channel.");
   }
 
   RTCError error = worker_tasks.Run();

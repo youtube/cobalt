@@ -23,19 +23,19 @@ BSSL_NAMESPACE_BEGIN
 // Private error queue functions.
 
 // ERR_SAVE_STATE contains a saved representation of the error queue. It is
-// slightly more compact than |ERR_STATE| as the error queue will typically not
-// contain |ERR_NUM_ERRORS| entries.
+// slightly more compact than `ERR_STATE` as the error queue will typically not
+// contain `ERR_NUM_ERRORS` entries.
 typedef struct err_save_state_st ERR_SAVE_STATE;
 
-// ERR_SAVE_STATE_free releases all memory associated with |state|.
+// ERR_SAVE_STATE_free releases all memory associated with `state`.
 OPENSSL_EXPORT void ERR_SAVE_STATE_free(ERR_SAVE_STATE *state);
 
-// ERR_save_state returns a newly-allocated |ERR_SAVE_STATE| structure
+// ERR_save_state returns a newly-allocated `ERR_SAVE_STATE` structure
 // containing the current state of the error queue or NULL on allocation
-// error. It should be released with |ERR_SAVE_STATE_free|.
+// error. It should be released with `ERR_SAVE_STATE_free`.
 OPENSSL_EXPORT ERR_SAVE_STATE *ERR_save_state();
 
-// ERR_restore_state clears the error queue and replaces it with |state|.
+// ERR_restore_state clears the error queue and replaces it with `state`.
 OPENSSL_EXPORT void ERR_restore_state(const ERR_SAVE_STATE *state);
 
 BORINGSSL_MAKE_DELETER(ERR_SAVE_STATE, ERR_SAVE_STATE_free)

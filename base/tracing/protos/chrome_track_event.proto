@@ -327,7 +327,9 @@ message ChildProcessLauncherPriority {
     IMPORTANCE_NORMAL = 1;
     IMPORTANCE_MODERATE = 2;
     IMPORTANCE_IMPORTANT = 3;
-    IMPORTANCE_PERCEPTIBLE = 4;
+    IMPORTANCE_PERCEPTIBLE =
+        4;  // Deprecated. Use IMPORTANCE_NOT_PERCEPTIBLE instead.
+    IMPORTANCE_NOT_PERCEPTIBLE = 5;
   }
   optional Importance importance = 3;
 }
@@ -1860,6 +1862,9 @@ message StartUp {
     SHARE_INTENT = 17;
     NFC = 18;
     AUTH_TAB = 19;
+    RECREATION = 20;
+    HANDOFF = 21;
+    DEV_TOOLS = 22;
   }
 
   optional int64 activity_id = 1;

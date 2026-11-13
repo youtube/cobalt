@@ -31,7 +31,7 @@ try_.defaults.set(
     siso_keep_going = siso.KEEP_GOING,
     siso_project = siso.project.DEFAULT_UNTRUSTED,
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
-    siso_remote_linking = True,
+    siso_remote_linking = False,
 )
 
 consoles.list_view(
@@ -387,4 +387,39 @@ try_.builder(
     ],
     gn_args = "ci/linux-chromeos-treesinviz-disabled-rel",
     contact_team_email = "chrome-gpu-team@google.com",
+)
+
+try_.builder(
+    name = "linux-chromeos-tsgo-rel",
+    mirrors = [
+        "ci/linux-chromeos-tsgo-rel",
+    ],
+    gn_args = "ci/linux-chromeos-tsgo-rel",
+    contact_team_email = "chrome-webui@google.com",
+)
+
+try_.builder(
+    name = "linux-chromeos-clobber-rel",
+    mirrors = [
+        "ci/linux-chromeos-archive-rel",
+    ],
+    builder_config_settings = builder_config.try_settings(
+        include_all_triggered_testers = True,
+        is_compile_only = True,
+    ),
+    gn_args = "ci/linux-chromeos-archive-rel",
+    contact_team_email = "chrome-browser-infra-team@google.com",
+    properties = {
+        # The format of these properties is defined at archive/properties.proto
+        "$build/archive": {
+            "source_side_spec_path": [
+                "src",
+                "infra",
+                "archive_config",
+                "linux-chromiumos-full.json",
+            ],
+            "verify_paths_only": True,
+        },
+    },
+    siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )

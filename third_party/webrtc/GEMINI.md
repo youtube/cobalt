@@ -24,3 +24,5 @@ prefer high-precision CodeSearch filters over raw text searches:
 @./g3doc/implementation_basics.md
 
 @./g3doc/style-guide.md
+
+@./g3doc/testing.md

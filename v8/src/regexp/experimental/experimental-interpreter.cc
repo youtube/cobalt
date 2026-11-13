@@ -5,6 +5,7 @@
 #include "src/regexp/experimental/experimental-interpreter.h"
 
 #include "include/v8config.h"
+#include "src/base/logging.h"
 #include "src/objects/string-inl.h"
 #include "src/regexp/experimental/experimental.h"
 #include "src/sandbox/check.h"
@@ -29,6 +30,10 @@ bool SatisfiesAssertion(Assertion::Type type,
       return position == 0;
     case Assertion::Type::END_OF_INPUT:
       return position == context.length();
+    case Assertion::Type::END_OF_BUFFER:
+      // \Z requires /u, which the experimental engine doesn't accept,
+      // so this assertion type never reaches the interpreter.
+      UNREACHABLE();
     case Assertion::Type::START_OF_LINE:
       if (position == 0) return true;
       return unibrow::IsLineTerminator(context[position - 1]);
@@ -49,6 +54,7 @@ bool SatisfiesAssertion(Assertion::Type type,
     case Assertion::Type::NON_BOUNDARY:
       return !SatisfiesAssertion(Assertion::Type::BOUNDARY, context, position);
   }
+  UNREACHABLE();
 }
 
 base::Vector<Instruction> ToInstructionVector(
@@ -784,7 +790,7 @@ class NfaInterpreter {
           AllowGarbageCollection yes_gc;
           result = isolate_->stack_guard()->HandleInterrupts();
         }
-        if (IsExceptionHole(result, isolate_)) {
+        if (IsExceptionHole(result)) {
           return RegExp::kInternalRegExpException;
         }
 
@@ -1438,6 +1444,7 @@ class NfaInterpreter {
         return pc_last_input_index_[pc].not_having_consumed_character ==
                input_index_;
     }
+    UNREACHABLE();
   }
 
   // Mark a pc as having been processed since the last increment of

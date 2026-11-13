@@ -24,6 +24,7 @@
 #include "absl/strings/match.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/string_view.h"
+#include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials_view.h"
 #include "api/make_ref_counted.h"
@@ -32,6 +33,8 @@
 #include "api/test/metrics/metric.h"
 #include "api/test/videocodec_test_fixture.h"
 #include "api/test/videocodec_test_stats.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "api/video/encoded_image.h"
 #include "api/video/resolution.h"
 #include "api/video/video_codec_constants.h"
@@ -70,6 +73,7 @@
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
+#include "system_wrappers/include/clock.h"
 #include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
@@ -466,6 +470,10 @@ VideoCodecTestFixtureImpl::VideoCodecTestFixtureImpl(Config config)
                                           OpenH264DecoderTemplateAdapter,
                                           Dav1dDecoderTemplateAdapter>>()),
       config_(std::move(config)),
+      encoder_clock_(
+          RunEncodeInRealTime(config_)
+              ? nullptr
+              : std::make_unique<SimulatedClock>(Timestamp::Seconds(10000))),
       env_(CreateEnvironment(&config_.field_trials)) {}
 
 VideoCodecTestFixtureImpl::VideoCodecTestFixtureImpl(
@@ -475,6 +483,10 @@ VideoCodecTestFixtureImpl::VideoCodecTestFixtureImpl(
     : encoder_factory_(std::move(encoder_factory)),
       decoder_factory_(std::move(decoder_factory)),
       config_(std::move(config)),
+      encoder_clock_(
+          RunEncodeInRealTime(config_)
+              ? nullptr
+              : std::make_unique<SimulatedClock>(Timestamp::Seconds(10000))),
       env_(CreateEnvironment(&config_.field_trials)) {}
 
 VideoCodecTestFixtureImpl::~VideoCodecTestFixtureImpl() = default;
@@ -529,9 +541,16 @@ void VideoCodecTestFixtureImpl::ProcessAllFrames(
       });
     }
 
-    task_queue->PostTask([this] { processor_->ProcessFrame(); });
+    if (encoder_clock_) {
+      task_queue->PostTask([this, rate_profile] {
+        encoder_clock_->AdvanceTime(
+            TimeDelta::Seconds(1.0 / rate_profile->input_fps));
+        processor_->ProcessFrame();
+      });
+    } else {
+      task_queue->PostTask([this] { processor_->ProcessFrame(); });
 
-    if (RunEncodeInRealTime(config_)) {
+      // Since encoder_clock_ is null, RunEncodeInRealTime(config_) is true.
       // Roughly pace the frames.
       const int frame_duration_ms =
           std::ceil(kNumMillisecsPerSec / rate_profile->input_fps);
@@ -729,7 +748,11 @@ bool VideoCodecTestFixtureImpl::CreateEncoderAndDecoder() {
     decoder_format = *config_.decoder_format;
   }
 
-  encoder_ = encoder_factory_->Create(env_, encoder_format);
+  Environment codec_env =
+      CreateEnvironment(&env_.field_trials(),
+                        encoder_clock_ ? encoder_clock_.get() : &env_.clock());
+
+  encoder_ = encoder_factory_->Create(codec_env, encoder_format);
   EXPECT_TRUE(encoder_) << "Encoder not successfully created.";
   if (encoder_ == nullptr) {
     return false;
@@ -739,7 +762,7 @@ bool VideoCodecTestFixtureImpl::CreateEncoderAndDecoder() {
       config_.NumberOfSimulcastStreams(), config_.NumberOfSpatialLayers());
   for (size_t i = 0; i < num_simulcast_or_spatial_layers; ++i) {
     std::unique_ptr<VideoDecoder> decoder =
-        decoder_factory_->Create(env_, decoder_format);
+        decoder_factory_->Create(codec_env, decoder_format);
     EXPECT_TRUE(decoder) << "Decoder not successfully created.";
     if (decoder == nullptr) {
       return false;

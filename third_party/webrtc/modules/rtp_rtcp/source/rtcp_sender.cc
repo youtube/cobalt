@@ -318,11 +318,6 @@ uint32_t RTCPSender::SSRC() const {
   return ComputeSsrc();
 }
 
-void RTCPSender::SetSsrc(uint32_t ssrc) {
-  MutexLock lock(&mutex_rtcp_sender_);
-  send_ssrc_ = ssrc;
-}
-
 void RTCPSender::SetRemoteSSRC(uint32_t ssrc) {
   MutexLock lock(&mutex_rtcp_sender_);
   remote_ssrc_ = ssrc;

@@ -4,7 +4,6 @@
 
 import("//build/config/chrome_build.gni")
 import("//build/config/chromebox_for_meetings/buildflags.gni")
-import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/locales.gni")
 import("//build/config/ozone.gni")
 import("//build/config/ui.gni")
@@ -186,6 +185,7 @@ static_library("test_support") {
 
   if (is_android) {
     deps += [
+      "//chrome/browser/android",
       "//chrome/browser/flags:flags_android",
       "//components/crash/android:crash_android",
     ]

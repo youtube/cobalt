@@ -143,8 +143,8 @@ struct OPENSSL_EXPORT CertificateTrust {
 
 class OPENSSL_EXPORT MTCAnchor {
  public:
-  // Create an MTCAnchor for a trusted log with |log_id| containing the DER
-  // encoding of the relative OID of the log's ID. The |trusted_subtrees| must
+  // Create an MTCAnchor for a trusted log with `log_id` containing the DER
+  // encoding of the relative OID of the log's ID. The `trusted_subtrees` must
   // be sorted by their subtree ranges.
   MTCAnchor(Span<const uint8_t> log_id,
             Span<const TrustedSubtree> trusted_subtrees);
@@ -234,10 +234,10 @@ class OPENSSL_EXPORT TrustStore : public CertIssuerSource {
   TrustStore(const TrustStore &) = delete;
   TrustStore &operator=(const TrustStore &) = delete;
 
-  // Returns the trusted of |cert|, which must be non-null.
+  // Returns the trusted of `cert`, which must be non-null.
   virtual CertificateTrust GetTrust(const ParsedCertificate *cert) = 0;
 
-  // Returns the TrustAnchor that issued |cert|, if one exists.
+  // Returns the TrustAnchor that issued `cert`, if one exists.
   //
   // TODO(nharper): Make this a pure virtual function once all TrustStore
   // implementations have implemented this.

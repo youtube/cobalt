@@ -84,6 +84,10 @@ inline constexpr char
         "Ash.Boca.ScreenShare.PresentOwnScreenOutOfSession.FailureReason";
 inline constexpr char kBocaScreenSharePresentStudentScreenFailureReason[] =
     "Ash.Boca.ScreenShare.PresentStudentScreen.FailureReason";
+inline constexpr char kBocaTeacherGetGeminiStatusEnabled[] =
+    "Ash.Boca.TeacherGetGeminiStatus.Enabled";
+inline constexpr char kBocaStudentGeminiStatusEnabled[] =
+    "Ash.Boca.StudentGeminiStatus.Enabled";
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
@@ -256,6 +260,12 @@ void RecordPresentOwnScreenFailureReason(
 // Records the reason that presenting a student screen failed.
 void RecordPresentStudentScreenFailureReason(
     BocaPresentStudentScreenFailureReason reason);
+
+// Records whether Gemini is enabled/disabled for the teacher.
+void RecordTeacherGetGeminiStatusEnabled(bool enabled);
+
+// Records whether Gemini is enabled/disabled for the student/consumer.
+void RecordStudentGeminiStatusEnabled(bool enabled);
 
 }  // namespace ash::boca
 

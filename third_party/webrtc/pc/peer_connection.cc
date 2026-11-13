@@ -275,9 +275,9 @@ RTCError ValidateIceCandidatePoolSize(
   // in new candidates being gathered.
   if (previous_ice_candidate_pool_size.has_value() &&
       ice_candidate_pool_size != previous_ice_candidate_pool_size.value()) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_MODIFICATION)
-                     << "Can't change candidate pool size after calling "
-                        "SetLocalDescription.");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_MODIFICATION)
+                         << "Can't change candidate pool size after calling "
+                            "SetLocalDescription.");
   }
 
   return RTCError::OK();
@@ -330,8 +330,9 @@ RTCErrorOr<PeerConnectionInterface::RTCConfiguration> ApplyConfiguration(
       configuration.stable_writable_connection_ping_interval_ms;
 
   if (configuration != modified_config) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_MODIFICATION)
-                     << "Modifying the configuration in an unsupported way.");
+    return RTC_LOG_ERROR(
+        RTCError(RTCErrorType::INVALID_MODIFICATION)
+        << "Modifying the configuration in an unsupported way.");
   }
 
   RTCError err = IceConfig(modified_config).IsValid();
@@ -519,7 +520,7 @@ PeerConnection::PeerConnection(
   }
 
   sdp_handler_ = SdpOfferAnswerHandler::Create(
-      env_, this, configuration_, std::move(dependencies.cert_generator),
+      env_, this, std::move(dependencies.cert_generator),
       std::move(dependencies.video_bitrate_allocator_factory), context_.get(),
       codec_lookup_helper_.get());
   sdp_handler_->UpdateCachedIceCredentials(std::move(pooled_credentials));
@@ -847,26 +848,26 @@ RTCErrorOr<scoped_refptr<RtpSenderInterface>> PeerConnection::AddTrack(
   RTC_DCHECK_RUN_ON(signaling_thread());
   TRACE_EVENT0("webrtc", "PeerConnection::AddTrack");
   if (!ConfiguredForMedia()) {
-    return LOG_ERROR(RTCError(RTCErrorType::UNSUPPORTED_OPERATION)
-                     << "Not configured for media");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::UNSUPPORTED_OPERATION)
+                         << "Not configured for media");
   }
   if (!track) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                     << "Track is null.");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                         << "Track is null.");
   }
   if (!(track->kind() == MediaStreamTrackInterface::kAudioKind ||
         track->kind() == MediaStreamTrackInterface::kVideoKind)) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                     << "Track has invalid kind: " << track->kind());
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                         << "Track has invalid kind: " << track->kind());
   }
   if (IsClosed()) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_STATE)
-                     << "PeerConnection is closed.");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_STATE)
+                         << "PeerConnection is closed.");
   }
   if (rtp_manager()->FindSenderForTrack(track.get())) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                     << "Sender already exists for track " << track->id()
-                     << ".");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                         << "Sender already exists for track " << track->id()
+                         << ".");
   }
   RTCErrorOr<scoped_refptr<RtpSenderInterface>> sender_or_error;
   if (IsUnifiedPlan()) {
@@ -892,16 +893,16 @@ RTCError PeerConnection::RemoveTrackOrError(
     scoped_refptr<RtpSenderInterface> sender) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   if (!ConfiguredForMedia()) {
-    return LOG_ERROR(RTCError(RTCErrorType::UNSUPPORTED_OPERATION)
-                     << "Not configured for media");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::UNSUPPORTED_OPERATION)
+                         << "Not configured for media");
   }
   if (!sender) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                     << "Sender is null.");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                         << "Sender is null.");
   }
   if (IsClosed()) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_STATE)
-                     << "PeerConnection is closed.");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_STATE)
+                         << "PeerConnection is closed.");
   }
   if (IsUnifiedPlan()) {
     auto transceiver = FindTransceiverBySender(sender);
@@ -931,9 +932,9 @@ RTCError PeerConnection::RemoveTrackOrError(
     }
     RTC_ALLOW_PLAN_B_DEPRECATION_END();
     if (!removed) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                       << "Couldn't find sender " << sender->id()
-                       << " to remove.");
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                           << "Couldn't find sender " << sender->id()
+                           << " to remove.");
     }
   }
   sdp_handler_->UpdateNegotiationNeeded();
@@ -949,8 +950,8 @@ PeerConnection::FindTransceiverBySender(
 RTCErrorOr<scoped_refptr<RtpTransceiverInterface>>
 PeerConnection::AddTransceiver(scoped_refptr<MediaStreamTrackInterface> track) {
   if (!ConfiguredForMedia()) {
-    return LOG_ERROR(RTCError(RTCErrorType::UNSUPPORTED_OPERATION)
-                     << "Not configured for media");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::UNSUPPORTED_OPERATION)
+                         << "Not configured for media");
   }
 
   return AddTransceiver(track, RtpTransceiverInit());
@@ -961,14 +962,14 @@ PeerConnection::AddTransceiver(scoped_refptr<MediaStreamTrackInterface> track,
                                const RtpTransceiverInit& init) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   if (!ConfiguredForMedia()) {
-    return LOG_ERROR(RTCError(RTCErrorType::UNSUPPORTED_OPERATION)
-                     << "Not configured for media");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::UNSUPPORTED_OPERATION)
+                         << "Not configured for media");
   }
   RTC_CHECK(IsUnifiedPlan())
       << "AddTransceiver is only available with Unified Plan SdpSemantics";
   if (!track) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                     << "track is null");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                         << "track is null");
   }
   MediaType media_type;
   if (track->kind() == MediaStreamTrackInterface::kAudioKind) {
@@ -976,8 +977,8 @@ PeerConnection::AddTransceiver(scoped_refptr<MediaStreamTrackInterface> track,
   } else if (track->kind() == MediaStreamTrackInterface::kVideoKind) {
     media_type = MediaType::VIDEO;
   } else {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                     << "Track kind is not audio or video");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                         << "Track kind is not audio or video");
   }
   return AddTransceiver(media_type, track, init);
 }
@@ -992,14 +993,14 @@ PeerConnection::AddTransceiver(MediaType media_type,
                                const RtpTransceiverInit& init) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   if (!ConfiguredForMedia()) {
-    return LOG_ERROR(RTCError(RTCErrorType::UNSUPPORTED_OPERATION)
-                     << "Not configured for media");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::UNSUPPORTED_OPERATION)
+                         << "Not configured for media");
   }
   RTC_CHECK(IsUnifiedPlan())
       << "AddTransceiver is only available with Unified Plan SdpSemantics";
   if (!(media_type == MediaType::AUDIO || media_type == MediaType::VIDEO)) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                     << "media type is not audio or video");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                         << "media type is not audio or video");
   }
   return AddTransceiver(media_type, nullptr, init);
 }
@@ -1011,8 +1012,8 @@ PeerConnection::AddTransceiver(MediaType media_type,
                                bool update_negotiation_needed) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   if (!ConfiguredForMedia()) {
-    return LOG_ERROR(RTCError(RTCErrorType::UNSUPPORTED_OPERATION)
-                     << "Not configured for media");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::UNSUPPORTED_OPERATION)
+                         << "Not configured for media");
   }
   RTC_DCHECK(
       (media_type == MediaType::AUDIO || media_type == MediaType::VIDEO));
@@ -1028,24 +1029,25 @@ PeerConnection::AddTransceiver(MediaType media_type,
                                        return !encoding.rid.empty();
                                      });
   if (num_rids > 0 && num_rids != init.send_encodings.size()) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                     << "RIDs must be provided for either all or none of the "
-                        "send encodings.");
+    return RTC_LOG_ERROR(
+        RTCError(RTCErrorType::INVALID_PARAMETER)
+        << "RIDs must be provided for either all or none of the "
+           "send encodings.");
   }
 
   if (num_rids > 0 && absl::c_any_of(init.send_encodings,
                                      [](const RtpEncodingParameters& encoding) {
                                        return !IsLegalRsidName(encoding.rid);
                                      })) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                     << "Invalid RID value provided.");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                         << "Invalid RID value provided.");
   }
 
   if (absl::c_any_of(init.send_encodings,
                      [](const RtpEncodingParameters& encoding) {
                        return encoding.ssrc.has_value();
                      })) {
-    return LOG_ERROR(
+    return RTC_LOG_ERROR(
         RTCError(RTCErrorType::UNSUPPORTED_PARAMETER)
         << "Attempted to set an unimplemented parameter of RtpParameters.");
   }
@@ -1083,7 +1085,7 @@ PeerConnection::AddTransceiver(MediaType media_type,
   }
 
   if (UnimplementedRtpParameterHasValue(parameters)) {
-    return LOG_ERROR(
+    return RTC_LOG_ERROR(
         RTCError(RTCErrorType::UNSUPPORTED_PARAMETER)
         << "Attempted to set an unimplemented parameter of RtpParameters.");
   }
@@ -1104,7 +1106,7 @@ PeerConnection::AddTransceiver(MediaType media_type,
     if (result.type() == RTCErrorType::INVALID_MODIFICATION) {
       result.set_type(RTCErrorType::UNSUPPORTED_OPERATION);
     }
-    return LOG_ERROR(RTCError(result.type()) << result.message());
+    return RTC_LOG_ERROR(RTCError(result.type()) << result.message());
   }
 
   RTC_LOG(LS_INFO) << "Adding " << MediaTypeToString(media_type)
@@ -1114,17 +1116,14 @@ PeerConnection::AddTransceiver(MediaType media_type,
   std::string sender_id = (track && !rtp_manager()->FindSenderById(track->id())
                                ? track->id()
                                : CreateRandomUuid());
-  ScopedOperationsBatcher worker_tasks(context_->worker_thread());
   auto transceiver = rtp_manager()->CreateAndAddTransceiver(
       configuration_.media_config, sdp_handler_->audio_options(),
       sdp_handler_->video_options(), configuration_.crypto_options,
       sdp_handler_->video_bitrate_allocator_factory(), media_type, track,
       init.stream_ids, parameters.encodings,
       /*header_extensions_to_negotiate=*/{},
-      /*simulcast_rejected=*/false, /*initial_simulcast_layers=*/{},
-      worker_tasks, sender_id);
-  RTCError error = worker_tasks.Run();
-  RTC_DCHECK(error.ok());
+      /*simulcast_rejected=*/false,
+      /*initial_simulcast_layers=*/{}, sender_id);
   transceiver->internal()->set_direction(init.direction);
 
   if (update_negotiation_needed) {
@@ -1164,12 +1163,16 @@ scoped_refptr<RtpSenderInterface> PeerConnection::CreateSender(
   }
 
   scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>> new_sender;
+  CodecVendor codec_vendor(context_->media_engine(), false, trials());
+
   if (kind == MediaStreamTrackInterface::kAudioKind) {
-    auto audio_sender =
-        AudioRtpSender::Create(env_, signaling_thread(), worker_thread(),
-                               CreateRandomUuid(), legacy_stats_.get(), nullptr,
-                               /*enable_sframe_at_owner=*/nullptr,
-                               rtp_manager()->voice_media_send_channel());
+    auto audio_sender = AudioRtpSender::Create(
+        env_, signaling_thread(), worker_thread(), CreateRandomUuid(),
+        legacy_stats_.get(), nullptr,
+        /*enable_sframe_at_owner=*/nullptr,
+        rtp_manager()->voice_media_send_channel(), stream_ids,
+        /*init_send_encodings=*/std::vector<RtpEncodingParameters>(1),
+        codec_vendor.audio_send_codecs().codecs());
     new_sender = RtpSenderProxyWithInternal<RtpSenderInternal>::Create(
         signaling_thread(), audio_sender);
     rtp_manager()->GetAudioTransceiver()->internal()->AddSenderPlanB(
@@ -1180,7 +1183,8 @@ scoped_refptr<RtpSenderInterface> PeerConnection::CreateSender(
         /*enable_sframe_at_owner=*/nullptr,
         rtp_manager()->video_media_send_channel(),
         /*init_send_encodings=*/{}, /*simulcast_rejected=*/false,
-        /*initial_simulcast_layers=*/{});
+        /*initial_simulcast_layers=*/{}, stream_ids,
+        codec_vendor.video_send_codecs().codecs());
     new_sender = RtpSenderProxyWithInternal<RtpSenderInternal>::Create(
         signaling_thread(), video_sender);
     rtp_manager()->GetVideoTransceiver()->internal()->AddSenderPlanB(
@@ -1188,11 +1192,6 @@ scoped_refptr<RtpSenderInterface> PeerConnection::CreateSender(
   } else {
     RTC_LOG(LS_ERROR) << "CreateSender called with invalid kind: " << kind;
   }
-
-  if (!new_sender) {
-    return nullptr;
-  }
-  new_sender->internal()->set_stream_ids(stream_ids);
 
   return new_sender;
 }
@@ -1389,8 +1388,9 @@ PeerConnection::CreateDataChannelOrError(const std::string& label,
   TRACE_EVENT0("webrtc", "PeerConnection::CreateDataChannel");
 
   if (IsClosed()) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_STATE)
-                     << "CreateDataChannelOrError: PeerConnection is closed.");
+    return RTC_LOG_ERROR(
+        RTCError(RTCErrorType::INVALID_STATE)
+        << "CreateDataChannelOrError: PeerConnection is closed.");
   }
 
   bool first_datachannel = !data_channel_controller_.HasUsedDataChannels();
@@ -1518,8 +1518,8 @@ RTCError PeerConnection::SetConfiguration(
   RTC_DCHECK_RUN_ON(signaling_thread());
   TRACE_EVENT0("webrtc", "PeerConnection::SetConfiguration");
   if (IsClosed()) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_STATE)
-                     << "SetConfiguration: PeerConnection is closed.");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_STATE)
+                         << "SetConfiguration: PeerConnection is closed.");
   }
 
   const bool has_local_description = local_description() != nullptr;
@@ -1535,9 +1535,9 @@ RTCError PeerConnection::SetConfiguration(
 
   if (has_local_description &&
       configuration.crypto_options != configuration_.crypto_options) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_MODIFICATION)
-                     << "Can't change crypto_options after calling "
-                        "SetLocalDescription.");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_MODIFICATION)
+                         << "Can't change crypto_options after calling "
+                            "SetLocalDescription.");
   }
 
   // Create a new, configuration object whose peerconnection config
@@ -1598,8 +1598,8 @@ RTCError PeerConnection::SetConfiguration(
         new_states = transport_controller_n()->GetTransportStates_n();
         return result;
       })) {
-    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
-                     << "Failed to apply configuration to PortAllocator.");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                         << "Failed to apply configuration to PortAllocator.");
   }
 
   transport_controller_s()->SetTransportStates(std::move(new_states));
@@ -1637,36 +1637,36 @@ RTCError PeerConnection::SetBitrate(const BitrateSettings& bitrate) {
   RTC_DCHECK_RUN_ON(worker_thread());
 
   if (!call_) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_STATE)
-                     << "PeerConnection is closed.");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_STATE)
+                         << "PeerConnection is closed.");
   }
 
   const bool has_min = bitrate.min_bitrate_bps.has_value();
   const bool has_start = bitrate.start_bitrate_bps.has_value();
   const bool has_max = bitrate.max_bitrate_bps.has_value();
   if (has_min && *bitrate.min_bitrate_bps < 0) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                     << "min_bitrate_bps <= 0");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                         << "min_bitrate_bps <= 0");
   }
   if (has_start) {
     if (has_min && *bitrate.start_bitrate_bps < *bitrate.min_bitrate_bps) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                       << "start_bitrate_bps < min_bitrate_bps");
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                           << "start_bitrate_bps < min_bitrate_bps");
     } else if (*bitrate.start_bitrate_bps < 0) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                       << "curent_bitrate_bps < 0");
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                           << "start_bitrate_bps < 0");
     }
   }
   if (has_max) {
     if (has_start && *bitrate.max_bitrate_bps < *bitrate.start_bitrate_bps) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                       << "max_bitrate_bps < start_bitrate_bps");
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                           << "max_bitrate_bps < start_bitrate_bps");
     } else if (has_min && *bitrate.max_bitrate_bps < *bitrate.min_bitrate_bps) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                       << "max_bitrate_bps < min_bitrate_bps");
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                           << "max_bitrate_bps < min_bitrate_bps");
     } else if (*bitrate.max_bitrate_bps < 0) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                       << "max_bitrate_bps < 0");
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                           << "max_bitrate_bps < 0");
     }
   }
 
@@ -2043,7 +2043,9 @@ void PeerConnection::ReportFirstConnectUsageMetrics() {
       // Rollback does not have SDP so can not be munged.
       break;
   }
-  bool negotiated_sctp_snap = false;
+
+  // Below this point are features where we check what was negotiated in
+  // SDP. `desc` will contain the answer, i.e. what was negotiated.
   const SessionDescription* desc = nullptr;
   if (local_description()->GetType() == SdpType::kAnswer ||
       local_description()->GetType() == SdpType::kPrAnswer) {
@@ -2058,7 +2060,8 @@ void PeerConnection::ReportFirstConnectUsageMetrics() {
                      << ", remote=" << remote_description()->GetType();
     return;
   }
-  // Below this point, we assume that we have an answer in `desc`
+
+  bool negotiated_sctp_snap = false;
   const ContentInfo* sctp_content = GetFirstDataContent(desc);
   if (sctp_content && !sctp_content->rejected) {
     const SctpDataContentDescription* sctp_desc =
@@ -2069,8 +2072,9 @@ void PeerConnection::ReportFirstConnectUsageMetrics() {
   }
   RTC_HISTOGRAM_BOOLEAN("WebRTC.PeerConnection.NegotiatedSctpSnap",
                         negotiated_sctp_snap);
+
   // Record congestion control mechanism in use, if any.
-  // The information is taken from the last seen Answer SDP.
+  // The information is taken from the last seen answer SDP.
   std::optional<RtcpFeedbackType> feedback_type;
   for (const auto& content : desc->contents()) {
     std::optional<RtcpFeedbackType> this_feedback_type =
@@ -2088,6 +2092,25 @@ void PeerConnection::ReportFirstConnectUsageMetrics() {
   RTC_HISTOGRAM_ENUMERATION("WebRTC.PeerConnection.NegotiatedFeedbackType",
                             static_cast<int>(*feedback_type),
                             static_cast<int>(RtcpFeedbackType::MAX));
+
+  CryptexPolicyUsage cryptex = kCryptexPolicyUsageMax;
+  switch (configuration_.crypto_options.srtp.cryptex_policy) {
+    case CryptoOptions::Srtp::CryptexPolicy::kDisabled:
+      cryptex = kCryptexPolicyUsageDisabled;
+      break;
+    case CryptoOptions::Srtp::CryptexPolicy::kNegotiate:
+      cryptex = kCryptexPolicyUsageNegotiate;
+      // Special-case for when cryptex was not required but negotiated.
+      if (desc->cryptex()) {
+        cryptex = kCryptexPolicyUsageNegotiated;
+      }
+      break;
+    case CryptoOptions::Srtp::CryptexPolicy::kRequire:
+      cryptex = kCryptexPolicyUsageRequire;
+      break;
+  }
+  RTC_HISTOGRAM_ENUMERATION("WebRTC.PeerConnection.CryptexUsage", cryptex,
+                            kCryptexPolicyUsageMax);
 }
 
 void PeerConnection::ReportCloseUsageMetrics() {
@@ -3024,8 +3047,8 @@ RTCError PeerConnection::StartSctpTransport(const SctpOptions& options) {
         transport_controller_n()->GetSctpTransport(mid);
     RTC_DCHECK(sctp_transport);
     if (!sctp_transport || !sctp_transport->Start(options)) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_MODIFICATION)
-                       << "Failed to start SCTP transport.");
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_MODIFICATION)
+                           << "Failed to start SCTP transport.");
     }
     return RTCError::OK();
   });

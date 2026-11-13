@@ -316,7 +316,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #define JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)       \
   V(js_decorators, "decorators")                     \
   V(js_source_phase_imports, "source phase imports") \
-  V(js_defer_import_eval, "defer import eval")
+  V(js_regexp_buffer_boundaries,                     \
+    "RegExp \\A \\z \\Z buffer boundary assertions")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V) \
@@ -335,7 +336,9 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_iterator_join, "Iterator.prototype.join")       \
   V(js_immutable_arraybuffer, "Immutable ArrayBuffer") \
   V(js_joint_iteration, "joint iteration")             \
-  V(js_import_text, "import text")
+  V(js_import_text, "import text")                     \
+  V(js_defer_import_eval, "defer import eval")         \
+  V(js_iterator_includes, "Iterator.prototype.includes")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
@@ -764,9 +767,6 @@ DEFINE_BOOL(turbolev_untagged_phis, false,
             "enable phi untagging in the Turbolev optimizing compiler")
 DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_untagged_phis)
 
-// https://crbug.com/496266449
-DEFINE_NEG_IMPLICATION(maglev_untagged_phis, maglev_assert_types)
-
 DEFINE_BOOL(maglev_hoist_osr_value_phi_untagging, true,
             "enable phi untagging to hoist untagging of osr values")
 DEFINE_EXPERIMENTAL_FEATURE(
@@ -1188,8 +1188,6 @@ DEFINE_VALUE_IMPLICATION(jit_fuzzing, invocation_count_for_turbofan, 20)
 DEFINE_VALUE_IMPLICATION(jit_fuzzing, invocation_count_for_osr, 5)
 DEFINE_VALUE_IMPLICATION(jit_fuzzing, invocation_count_for_maglev_osr, 1)
 DEFINE_VALUE_IMPLICATION(jit_fuzzing, minimum_invocations_after_ic_update, 5)
-// Disable lazy compilation.
-DEFINE_NEG_IMPLICATION(jit_fuzzing, lazy)
 
 #if V8_ENABLE_WEBASSEMBLY
 // Wasm tiering thresholds.
@@ -1755,8 +1753,8 @@ DEFINE_BOOL(turboshaft_enable_debug_features, false,
 DEFINE_BOOL(turboshaft_wasm_load_elimination, true,
             "enable Turboshaft's WasmLoadElimination")
 
-DEFINE_EXPERIMENTAL_FEATURE(
-    wasm_in_js_inlining_body,
+DEFINE_BOOL(
+    wasm_in_js_inlining_body, false,
     "inline Wasm code into JS functions via Turboshaft. This requires "
     "inlining the wrapper, see --wasm-in-js-inlining-wrapper. For controlling "
     "the inlining in the old Turbofan pipeline, see "
@@ -1767,15 +1765,16 @@ DEFINE_IMPLICATION(wasm_in_js_inlining_body, wasm_in_js_inlining_wrapper)
 // Both are staged behind --turbolev-future.
 DEFINE_IMPLICATION(turbolev_future, wasm_in_js_inlining_body)
 
-DEFINE_EXPERIMENTAL_FEATURE(
-    wasm_in_js_inlining_wrapper,
-    "inline JS-to-Wasm wrappers via Turboshaft/Turbolev.")
+DEFINE_BOOL(wasm_in_js_inlining_wrapper, false,
+            "inline JS-to-Wasm wrappers via Turboshaft/Turbolev.")
 DEFINE_IMPLICATION(turbolev_future, wasm_in_js_inlining_wrapper)
 
 DEFINE_BOOL(turboshaft_load_elimination, true,
             "enable Turboshaft's low-level load elimination for JS")
 DEFINE_BOOL(turboshaft_loop_unrolling, true,
             "enable Turboshaft's loop unrolling")
+DEFINE_EXPERIMENTAL_FEATURE(turboshaft_random_rescheduling,
+                            "enable Turboshaft's random rescheduling phase")
 DEFINE_BOOL(turboshaft_string_concat_escape_analysis, true,
             "enable Turboshaft's escape analysis for string concatenation")
 
@@ -2604,8 +2603,6 @@ DEFINE_BOOL(
 // ArrayBuffer::kMaxByteLength.
 DEFINE_INT(maximum_global_heap_limit_factor, 8,
            "Ratio from v8 to global maximum heap size")
-DEFINE_BOOL(ineffective_gcs_forces_last_resort, true,
-            "force a last resort GC when we're near heap limit")
 DEFINE_FLOAT(
     ineffective_gc_size_threshold, 0.95,
     "Threshold on heap size to trigger out-of-memory failure near heap limit.")
@@ -2692,14 +2689,6 @@ DEFINE_REQUIREMENT(v8_flags.memory_reducer_delay_ms > 0)
 DEFINE_INT(gc_memory_reducer_start_delay_ms, 30'000,
            "Delay before memory reducer start")
 DEFINE_REQUIREMENT(v8_flags.gc_memory_reducer_start_delay_ms > 0)
-DEFINE_BOOL(enable_allocation_failures_optimize_memory, true,
-            "Enable eager allocations failures due to memory optimizations")
-DEFINE_BOOL(enable_allocation_failures_optimize_memory_ignoring_priority, false,
-            "Enable eager allocations failures due to memory optimizations "
-            "ignoring isolate being backgrounded")
-DEFINE_NEG_IMPLICATION(
-    enable_allocation_failures_optimize_memory,
-    enable_allocation_failures_optimize_memory_ignoring_priority)
 DEFINE_FLOAT(
     external_memory_max_growing_factor, 1.1,
     "This is the upper bound for growing factor imposed on external memory.")
@@ -4241,6 +4230,9 @@ DEFINE_BOOL(track_array_buffer_views, true,
 DEFINE_EXPERIMENTAL_FEATURE(
     superspreading,
     "Allow arbitrary length spread arguments on supported builtins")
+
+DEFINE_EXPERIMENTAL_FEATURE(fast_proxy_ic, "Support proxy traps in ICs")
+DEFINE_WEAK_IMPLICATION(experimental, fast_proxy_ic)
 
 DEFINE_BOOL(is_standalone_d8_shell, false,
             "Tells V8 it's running as part of the d8. This flag should not be "

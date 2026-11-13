@@ -225,7 +225,7 @@ class BoundedWavFileWriter : public TestAudioDeviceModule::Renderer {
     if (started_writing_) {
       // Cut off silence at the end.
       while (begin < end) {
-        if (*(end - 1) != 0) {
+        if (std::abs(*(end - 1)) > kAmplitudeThreshold) {
           break;
         }
         --end;

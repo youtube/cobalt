@@ -114,8 +114,8 @@ func addTLS13HandshakeTests() {
 				MissingKeyShare: true,
 			},
 		},
-		shouldFail:    true,
-		expectedError: ":MISSING_KEY_SHARE:",
+		shouldFail:         true,
+		expectedError:      ":MISSING_KEY_SHARE:",
 		expectedLocalError: "remote error: missing extension",
 	})
 
@@ -2312,6 +2312,22 @@ func addTLS13HandshakeTests() {
 			"-on-resume-early-write-after-message",
 			strconv.Itoa(int(typeEncryptedExtensions)),
 		},
+	})
+
+	testCases = append(testCases, testCase{
+		protocol: dtls,
+		testType: serverTest,
+		name:     "DTLS13-RejectLegacyCookie",
+		config: Config{
+			MinVersion: VersionTLS13,
+			MaxVersion: VersionTLS13,
+			Bugs: ProtocolBugs{
+				SendLegacyDTLSCookie: []byte("cookie"),
+			},
+		},
+		shouldFail:         true,
+		expectedError:      ":DECODE_ERROR:",
+		expectedLocalError: "remote error: illegal parameter",
 	})
 }
 

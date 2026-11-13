@@ -27,10 +27,12 @@
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/candidate.h"
 #include "api/create_peerconnection_factory.h"
+#include "api/crypto/crypto_options.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
 #include "api/scoped_refptr.h"
@@ -1045,6 +1047,27 @@ TEST_F(SdpMungingTest, VideoCodecsModifiedWithRawPacketization) {
           Pair(SdpMungingType::kVideoCodecsModifiedWithRawPacketization, 1)));
 }
 
+TEST_F(SdpMungingTest, VideoCodecsModifiedWithRawPacketization_Redesign) {
+  auto pc = CreatePeerConnection("WebRTC-PayloadTypesInTransport/Enabled/");
+  pc->AddVideoTrack("video_track", {});
+
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
+  auto& contents = offer->description()->contents();
+  ASSERT_THAT(contents, SizeIs(1));
+  auto* media_description = contents[0].media_description();
+  ASSERT_THAT(media_description, Not(IsNull()));
+  std::vector<Codec> codecs = media_description->codecs();
+  ASSERT_THAT(codecs, Not(SizeIs(0)));
+  codecs[0].packetization = "raw";
+  media_description->set_codecs(codecs);
+  RTCError error;
+  EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(
+          Pair(SdpMungingType::kVideoCodecsModifiedWithRawPacketization, 1)));
+}
+
 TEST_F(SdpMungingTest, MultiOpus) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
@@ -1199,7 +1222,7 @@ TEST_F(SdpMungingTest, HeaderExtensionModified) {
   ASSERT_THAT(media_description, Not(IsNull()));
   auto extensions = media_description->rtp_header_extensions();
   ASSERT_GT(extensions.size(), 0u);
-  extensions[0].id = 42;  // id=42 should be unused.
+  extensions[0].id = RtpHeaderExtensionId(42);  // id=42 should be unused.
   media_description->set_rtp_header_extensions(extensions);
 
   RTCError error;
@@ -1207,6 +1230,49 @@ TEST_F(SdpMungingTest, HeaderExtensionModified) {
   EXPECT_THAT(
       metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
       ElementsAre(Pair(SdpMungingType::kRtpHeaderExtensionModified, 1)));
+}
+
+TEST_F(SdpMungingTest, CryptexModifiedSession) {
+  RTCConfiguration config;
+  config.sdp_semantics = SdpSemantics::kUnifiedPlan;
+  config.crypto_options.srtp.cryptex_policy =
+      CryptoOptions::Srtp::CryptexPolicy::kNegotiate;
+  auto pc = CreatePeerConnection(config, "");
+  pc->AddVideoTrack("video_track", {});
+
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
+  EXPECT_TRUE(offer->description()->cryptex());
+  offer->description()->set_cryptex(false);
+
+  RTCError error;
+  EXPECT_FALSE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kCryptex, 1)));
+}
+
+TEST_F(SdpMungingTest, CryptexModifiedMedia) {
+  RTCConfiguration config;
+  config.sdp_semantics = SdpSemantics::kUnifiedPlan;
+  config.crypto_options.srtp.cryptex_policy =
+      CryptoOptions::Srtp::CryptexPolicy::kNegotiate;
+  auto pc = CreatePeerConnection(config, "");
+  pc->AddVideoTrack("video_track", {});
+
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
+  auto& contents = offer->description()->contents();
+  ASSERT_THAT(contents, SizeIs(1));
+  auto* media_description = contents[0].media_description();
+  ASSERT_THAT(media_description, Not(IsNull()));
+  EXPECT_TRUE(media_description->cryptex());
+  media_description->set_cryptex_level(
+      MediaContentDescription::AttributeLevel::kNone);
+
+  RTCError error;
+  EXPECT_FALSE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kCryptex, 1)));
 }
 
 TEST_F(SdpMungingTest, PayloadTypeChanged) {

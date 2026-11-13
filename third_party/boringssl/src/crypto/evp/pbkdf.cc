@@ -16,6 +16,7 @@
 
 #include <string.h>
 
+#include <openssl/err.h>
 #include <openssl/hmac.h>
 
 #include "../internal.h"
@@ -34,6 +35,10 @@ int PKCS5_PBKDF2_HMAC(const char *password, size_t password_len,
 
   uint32_t i = 1;
   size_t md_len = EVP_MD_size(digest);
+  if (key_len > ((uint64_t{1} << 32) - 1) * md_len) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_INVALID_SECRET_LENGTH);
+    return 0;
+  }
   while (key_len > 0) {
     size_t todo = md_len;
     if (todo > key_len) {

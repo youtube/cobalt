@@ -119,6 +119,7 @@
 #include "net/cert/x509_util.h"
 #include "third_party/blink/public/common/navigation/navigation_params.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "third_party/skia/include/core/SkPicture.h"
 #include "ui/gfx/android/java_bitmap.h"
 #include "ui/gfx/geometry/rect_f.h"
@@ -285,8 +286,9 @@ AwContents::AwContents(std::unique_ptr<WebContents> web_contents)
                              content::GetUIThreadTaskRunner({}),
                              content::GetIOThreadTaskRunner({})),
       web_contents_(std::move(web_contents)) {
-  TRACE_EVENT_BEGIN("android_webview.timeline", "WebView Instance",
-                    perfetto::Track::FromPointer(this));
+  TRACE_EVENT_BEGIN(
+      "android_webview.timeline", "WebView Instance",
+      perfetto::NamedTrack::FromPointer("WebView Instance", this));
   g_instance_count.fetch_add(1, std::memory_order_relaxed);
   icon_helper_ = std::make_unique<IconHelper>(web_contents_.get());
   icon_helper_->SetListener(this);
@@ -446,7 +448,7 @@ AwContents::~AwContents() {
       this);
   // Corresponds to "WebView Instance" in AwContents's constructor.
   TRACE_EVENT_END("android_webview.timeline",
-                  perfetto::Track::FromPointer(this));
+                  perfetto::NamedTrack::FromPointer("WebView Instance", this));
 }
 
 base::android::ScopedJavaLocalRef<jobject> AwContents::GetWebContents(
@@ -488,15 +490,6 @@ ScopedJavaLocalRef<jobject> AwContents::GetRenderProcess(JNIEnv* env) {
 base::android::ScopedJavaLocalRef<jobject> AwContents::GetJavaObject() {
   JNIEnv* env = base::android::AttachCurrentThread();
   return java_ref_.get(env);
-}
-
-SkBitmap AwContents::GetFavicon(JNIEnv* env) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  gfx::Image favicon_image = web_contents_->GetController()
-                                 .GetLastCommittedEntry()
-                                 ->GetFavicon()
-                                 .image;
-  return favicon_image.AsBitmap();
 }
 
 void AwContents::Destroy(JNIEnv* env) {
@@ -904,13 +897,7 @@ void AwContents::OnReceivedIcon(const GURL& icon_url, const SkBitmap& bitmap) {
   entry->GetFavicon().url = icon_url;
   entry->GetFavicon().image = gfx::Image::CreateFrom1xBitmap(bitmap);
 
-  // Experiment: will not store favicon bitmap in java or call onReceivedIcon
-  // unless onReceivedIcon is overridden crbug.com/41027010
-  if (is_on_received_icon_overridden_ ||
-      !base::FeatureList::IsEnabled(
-          features::kWebViewSkipFaviconJavaCopyUntilNeeded)) {
-    Java_AwContents_onReceivedIcon(env, obj, bitmap);
-  }
+  Java_AwContents_onReceivedIcon(env, obj, bitmap);
 }
 
 void AwContents::OnReceivedTouchIconUrl(const std::string& url,
@@ -1370,7 +1357,7 @@ int32_t AwContents::GetEffectivePriority(JNIEnv* env) {
   switch (web_contents_->GetPrimaryMainFrame()
               ->GetProcess()
               ->GetEffectiveImportance()) {
-    case content::ChildProcessImportance::PERCEPTIBLE:
+    case content::ChildProcessImportance::NOT_PERCEPTIBLE:
       NOTREACHED(base::NotFatalUntil::M140);
       [[fallthrough]];
     case content::ChildProcessImportance::NORMAL:
@@ -1615,10 +1602,6 @@ void AwContents::SetJsOnlineProperty(JNIEnv* env, bool network_up) {
           web_contents_->GetPrimaryMainFrame()->GetProcess());
 
   aw_render_process->SetJsOnlineProperty(network_up);
-}
-
-void AwContents::SetOnReceivedIconOverridden(JNIEnv* env, bool is_overridden) {
-  is_on_received_icon_overridden_ = is_overridden;
 }
 
 void AwContents::TrimMemory(JNIEnv* env, int32_t level, bool visible) {

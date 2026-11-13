@@ -260,6 +260,7 @@ targets.mixin(
 targets.mixin(
     name = "tfc-cq-tast",
     skylab = targets.skylab(
+        timeout_sec = 5400,
         cros_test_names_from_file = ["chromeos/tast_control_cq_tests.txt"],
         cros_test_max_in_shard = 20,
     ),
@@ -1724,7 +1725,7 @@ targets.mixin(
             targets.cipd_package(
                 package = "infra/tools/mac_toolchain/${platform}",
                 location = ".",
-                revision = "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab",
+                revision = "git_revision:07e67ff89ff11ed0e3071867ed6bb49319a91b05",
             ),
         ],
     ),

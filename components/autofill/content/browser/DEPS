@@ -9,6 +9,7 @@ include_rules = [
   "+components/services/storage",
   "+components/webauthn",
   "+components/credential_management",
+  "+components/strike_database",
   "+crypto/random.h",
   "+gpu/config/gpu_info.h",
   "+services/device/public",
@@ -21,7 +22,7 @@ include_rules = [
 ]
 
 specific_include_rules = {
-  '(.*_[a-z]*test\.cc|test_.*\.h)': [
+  '(.*_[a-z]*test\\.cc|test_.*\\.h)': [
     "+content/public/test",
   ],
 }

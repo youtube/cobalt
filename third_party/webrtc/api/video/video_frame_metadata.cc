@@ -91,13 +91,27 @@ void VideoFrameMetadata::SetTemporalIndex(int temporal_index) {
 }
 
 std::span<const int64_t> VideoFrameMetadata::GetFrameDependencies() const {
-  return frame_dependencies_;
+  return GetDependencies().value_or(std::span<const int64_t>());
 }
 
 void VideoFrameMetadata::SetFrameDependencies(
     std::span<const int64_t> frame_dependencies) {
-  frame_dependencies_.assign(frame_dependencies.begin(),
-                             frame_dependencies.end());
+  frame_dependencies_.emplace(frame_dependencies.begin(),
+                              frame_dependencies.end());
+}
+
+std::optional<std::span<const int64_t>> VideoFrameMetadata::GetDependencies()
+    const {
+  return frame_dependencies_;
+}
+
+void VideoFrameMetadata::SetDependencies(
+    std::optional<std::span<const int64_t>> dependencies) {
+  if (!dependencies.has_value()) {
+    frame_dependencies_.reset();
+    return;
+  }
+  frame_dependencies_.emplace(dependencies->begin(), dependencies->end());
 }
 
 std::span<const DecodeTargetIndication>

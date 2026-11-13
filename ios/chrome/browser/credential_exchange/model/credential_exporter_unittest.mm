@@ -38,6 +38,7 @@ password_manager::StoredCredential CreateStoredCredential() {
   cred.password_value = u"password";
   cred.signon_realm = "http://www.example.com/";
   cred.url = GURL("http://www.example.com/");
+  cred.date_created = base::Time::FromMillisecondsSinceUnixEpoch(987654321000);
   cred.in_store = password_manager::PasswordForm::Store::kProfileStore;
   cred.notes = {password_manager::PasswordNote(u"note", base::Time::Now())};
   return cred;
@@ -50,6 +51,7 @@ sync_pb::WebauthnCredentialSpecifics CreatePasskeySpecifics() {
   passkey.set_user_id("user_id");
   passkey.set_user_name("userName");
   passkey.set_user_display_name("userDisplayName");
+  passkey.set_creation_time(123456789000);
   std::vector<uint8_t> private_key = {'p', 'r', 'i', 'v', 'a', 't',
                                       'e', '_', 'k', 'e', 'y'};
   sync_pb::WebauthnCredentialSpecifics_Encrypted encrypted;
@@ -61,10 +63,11 @@ sync_pb::WebauthnCredentialSpecifics CreatePasskeySpecifics() {
 
 CredentialExchangePassword* CreateCredentialExchangePassword() {
   return [[CredentialExchangePassword alloc]
-      initWithURL:[NSURL URLWithString:@"http://www.example.com/"]
-         username:@"username"
-         password:@"password"
-             note:@"note"];
+       initWithURL:[NSURL URLWithString:@"http://www.example.com/"]
+          username:@"username"
+          password:@"password"
+              note:@"note"
+      creationDate:[NSDate dateWithTimeIntervalSince1970:987654321.0]];
 }
 
 CredentialExchangePasskey* CreateCredentialExchangePasskey() {
@@ -74,7 +77,8 @@ CredentialExchangePasskey* CreateCredentialExchangePasskey() {
                   userName:@"userName"
            userDisplayName:@"userDisplayName"
                     userId:ToNSData("user_id")
-                privateKey:ToNSData("private_key")];
+                privateKey:ToNSData("private_key")
+              creationDate:[NSDate dateWithTimeIntervalSince1970:123456789.0]];
 }
 
 class CredentialExporterTest : public PlatformTest {

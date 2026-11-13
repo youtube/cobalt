@@ -33,6 +33,7 @@
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
+#include "api/environment/environment_factory.h"
 #include "api/field_trials_view.h"
 #include "api/make_ref_counted.h"
 #include "api/numerics/samples_stats_counter.h"
@@ -865,6 +866,10 @@ class Decoder : public DecodedImageCallback {
           const DecoderSettings& decoder_settings,
           VideoCodecAnalyzer* analyzer)
       : env_(env),
+        decoder_clock_(
+            decoder_settings.pacing_settings.mode == PacingMode::kRealTime
+                ? nullptr
+                : std::make_unique<SimulatedClock>(env.clock().CurrentTime())),
         decoder_factory_(decoder_factory),
         decoder_settings_(decoder_settings),
         analyzer_(analyzer),
@@ -884,7 +889,11 @@ class Decoder : public DecodedImageCallback {
   }
 
   void Initialize(const SdpVideoFormat& sdp_video_format) {
-    decoder_ = decoder_factory_->Create(env_, sdp_video_format);
+    Environment codec_env = env_;
+    if (decoder_clock_) {
+      codec_env = CreateEnvironment(&env_.field_trials(), decoder_clock_.get());
+    }
+    decoder_ = decoder_factory_->Create(codec_env, sdp_video_format);
     RTC_CHECK(decoder_) << "Could not create decoder for video format "
                         << sdp_video_format.ToString();
 
@@ -923,6 +932,13 @@ class Decoder : public DecodedImageCallback {
 
     task_queue_.PostScheduledTask(
         [this, encoded_frame] {
+          if (decoder_clock_) {
+            Timestamp pts =
+                Timestamp::Micros((encoded_frame.RtpTimestamp() / k90kHz).us());
+            if (pts >= decoder_clock_->CurrentTime()) {
+              decoder_clock_->AdvanceTime(pts - decoder_clock_->CurrentTime());
+            }
+          }
           analyzer_->StartDecode(encoded_frame);
           int error = decoder_->Decode(encoded_frame, /*render_time_ms*/ 0);
           if (error != 0) {
@@ -969,6 +985,7 @@ class Decoder : public DecodedImageCallback {
   }
 
   const Environment env_;
+  std::unique_ptr<SimulatedClock> decoder_clock_;
   VideoDecoderFactory* decoder_factory_;
   const DecoderSettings decoder_settings_;
   std::unique_ptr<VideoDecoder> decoder_;
@@ -993,6 +1010,10 @@ class Encoder : public EncodedImageCallback {
           const EncoderSettings& encoder_settings,
           VideoCodecAnalyzer* analyzer)
       : env_(env),
+        encoder_clock_(
+            encoder_settings.pacing_settings.mode == PacingMode::kRealTime
+                ? nullptr
+                : std::make_unique<SimulatedClock>(env.clock().CurrentTime())),
         encoder_factory_(encoder_factory),
         encoder_settings_(encoder_settings),
         analyzer_(analyzer),
@@ -1012,8 +1033,12 @@ class Encoder : public EncodedImageCallback {
   }
 
   void Initialize(const EncodingSettings& encoding_settings) {
+    Environment codec_env = env_;
+    if (encoder_clock_) {
+      codec_env = CreateEnvironment(&env_.field_trials(), encoder_clock_.get());
+    }
     encoder_ =
-        encoder_factory_->Create(env_, encoding_settings.sdp_video_format);
+        encoder_factory_->Create(codec_env, encoding_settings.sdp_video_format);
     RTC_CHECK(encoder_) << "Could not create encoder for video format "
                         << encoding_settings.sdp_video_format.ToString();
 
@@ -1040,6 +1065,13 @@ class Encoder : public EncodedImageCallback {
 
     task_queue_.PostScheduledTask(
         [this, input_frame, encoding_settings] {
+          if (encoder_clock_) {
+            Timestamp pts =
+                Timestamp::Micros((input_frame.rtp_timestamp() / k90kHz).us());
+            if (pts >= encoder_clock_->CurrentTime()) {
+              encoder_clock_->AdvanceTime(pts - encoder_clock_->CurrentTime());
+            }
+          }
           analyzer_->StartEncode(input_frame, encoding_settings);
 
           if (!last_encoding_settings_ ||
@@ -1335,6 +1367,7 @@ class Encoder : public EncodedImageCallback {
   }
 
   const Environment env_;
+  std::unique_ptr<SimulatedClock> encoder_clock_;
   VideoEncoderFactory* const encoder_factory_;
   const EncoderSettings encoder_settings_;
   std::unique_ptr<VideoEncoder> encoder_;

@@ -884,6 +884,10 @@ type ProtocolBugs struct {
 	// an empty cookie in HelloVerifyRequest.
 	EmptyHelloVerifyRequestCookie bool
 
+	// SendLegacyDTLSCookie, if not nil, contains the legacy DTLS 1.2 cookie
+	// to be sent in the ClientHello (not the TLS 1.3 cookie extension).
+	SendLegacyDTLSCookie []byte
+
 	// SkipCertificateStatus, if true, causes the server to skip the
 	// CertificateStatus message. This is legal because CertificateStatus is
 	// optional, even with a status_request in ServerHello.

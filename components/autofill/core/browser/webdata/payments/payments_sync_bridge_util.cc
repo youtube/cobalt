@@ -43,6 +43,7 @@
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/autofill/core/common/autofill_util.h"
 #include "components/autofill/core/common/credit_card_network_identifiers.h"
+#include "components/facilitated_payments/core/features/features.h"
 #include "components/sync/model/entity_change.h"
 #include "components/sync/protocol/autofill_offer_specifics.pb.h"
 #include "components/sync/protocol/autofill_specifics.pb.h"
@@ -549,9 +550,7 @@ void SetAutofillWalletSpecificsFromServerCard(
       case CreditCard::Issuer::kExternalIssuer:
         return sync_pb::CardIssuer::EXTERNAL_ISSUER;
     }
-    // `card.card_issuer()` comes from the database and is not validated
-    // (crbug.com/325043292), so this line may be reached.
-    return sync_pb::CardIssuer::ISSUER_UNKNOWN;
+    NOTREACHED();
   }());
   wallet_card->mutable_card_issuer()->set_issuer_id(card.issuer_id());
 
@@ -570,9 +569,7 @@ void SetAutofillWalletSpecificsFromServerCard(
       case CreditCard::VirtualCardEnrollmentState::kUnspecified:
         return sync_pb::WalletMaskedCreditCard::UNSPECIFIED;
     }
-    // `card.virtual_card_enrollment_state()` comes from the database and is not
-    // validated (crbug.com/325043292), so this line may be reached.
-    return sync_pb::WalletMaskedCreditCard::UNSPECIFIED;
+    NOTREACHED();
   }());
 
   // We should only have a virtual card enrollment type for enrolled cards.
@@ -587,9 +584,7 @@ void SetAutofillWalletSpecificsFromServerCard(
         case CreditCard::VirtualCardEnrollmentType::kNetwork:
           return sync_pb::WalletMaskedCreditCard::NETWORK;
       }
-      // `card.virtual_card_enrollment_type()` comes from the database and is
-      // not validated (crbug.com/325043292), so this line may be reached.
-      return sync_pb::WalletMaskedCreditCard::TYPE_UNSPECIFIED;
+      NOTREACHED();
     }());
   }
 
@@ -619,9 +614,7 @@ void SetAutofillWalletSpecificsFromServerCard(
       case CreditCard::CardInfoRetrievalEnrollmentState::kRetrievalUnspecified:
         return sync_pb::WalletMaskedCreditCard::RETRIEVAL_UNSPECIFIED;
     }
-    // `card.card_info_retrieval_enrollment_state()` comes from the database and
-    // is not validated (crbug.com/325043292), so this line may be reached.
-    return sync_pb::WalletMaskedCreditCard::RETRIEVAL_UNSPECIFIED;
+    NOTREACHED();
   }());
 
   sync_pb::WalletMaskedCreditCard::CardBenefitSource benefit_source =
@@ -645,9 +638,7 @@ void SetAutofillWalletSpecificsFromServerCard(
       case CreditCard::CardCreationSource::kCreationSourceUnspecified:
         return sync_pb::WalletMaskedCreditCard::CREATION_SOURCE_UNSPECIFIED;
     }
-    // `card.card_creation_source()` comes from the database and is not
-    // validated (crbug.com/325043292), so this line may be reached.
-    return sync_pb::WalletMaskedCreditCard::CREATION_SOURCE_UNSPECIFIED;
+    NOTREACHED();
   }());
 }
 
@@ -1310,10 +1301,19 @@ bool IsGenericPaymentInstrumentSupported() {
   return IsEwalletAccountSupported() || IsBnplIssuerSupported();
 }
 
+bool IsEwalletCreationOptionSupported() {
+#if BUILDFLAG(IS_ANDROID)
+  return base::FeatureList::IsEnabled(
+      ::payments::facilitated::kEnableEwalletNewAccountLinking);
+#else
+  return false;
+#endif  // BUILDFLAG(IS_ANDROID)
+}
+
 bool IsPaymentInstrumentCreationOptionSupported() {
-  // Currently only BNPL issuer is using the payment instrument
-  // creation option proto for read/write.
-  return IsBnplIssuerSupported();
+  // Currently only BNPL issuer and eWallet creation options are using the
+  // `PaymentInstrumentCreationOption` proto for read/write.
+  return IsBnplIssuerSupported() || IsEwalletCreationOptionSupported();
 }
 
 }  // namespace autofill

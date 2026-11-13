@@ -221,6 +221,13 @@ static int aead_aes_ctr_hmac_sha256_openv_detached(
     Span<const CRYPTO_IVEC> aadvecs) {
   const struct aead_aes_ctr_hmac_sha256_ctx *aes_ctx =
       (struct aead_aes_ctr_hmac_sha256_ctx *)&ctx->state;
+  const uint64_t in_len_64 = bssl::iovec::TotalLength(iovecs);
+
+  if (in_len_64 >= (UINT64_C(1) << 32) * AES_BLOCK_SIZE) {
+    // This input is so large it would overflow the 32-bit block counter.
+    OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BAD_DECRYPT);
+    return 0;
+  }
 
   if (in_tag.size() != ctx->tag_len) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BAD_DECRYPT);

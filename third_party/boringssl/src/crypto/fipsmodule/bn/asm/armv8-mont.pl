@@ -77,9 +77,9 @@ $code.=<<___;
 bn_mul_mont_words:
 	AARCH64_SIGN_LINK_REGISTER
 	tst	$num,#7
-	b.eq	__bn_sqr8x_mont
+	b.eq	.Lsqr8x_mont
 	tst	$num,#3
-	b.eq	__bn_mul4x_mont
+	b.eq	.Lmul4x_mont
 .Lmul_mont:
 	stp	x29,x30,[sp,#-64]!
 	add	x29,sp,#0
@@ -278,7 +278,6 @@ bn_mul_mont_words:
 	ldr	x29,[sp],#64
 	AARCH64_VALIDATE_LINK_REGISTER
 	ret
-.size	bn_mul_mont_words,.-bn_mul_mont_words
 ___
 {
 ########################################################################
@@ -291,14 +290,14 @@ my ($cnt,$carry,$topmost)=("x27","x28","x30");
 my ($tp,$ap_end,$na0)=($bp,$np,$carry);
 
 $code.=<<___;
-.type	__bn_sqr8x_mont,%function
+.type	.Lsqr8x_mont,%function
 .align	5
-__bn_sqr8x_mont:
-	// Not adding AARCH64_SIGN_LINK_REGISTER here because __bn_sqr8x_mont is jumped to
+.Lsqr8x_mont:
+	// Not adding AARCH64_SIGN_LINK_REGISTER here because .Lsqr8x_mont is jumped to
 	// only from bn_mul_mont_words which has already signed the return address.
 	cmp	$ap,$bp
-	b.ne	__bn_mul4x_mont
-.Lsqr8x_mont:
+	b.ne	.Lmul4x_mont
+
 	stp	x29,x30,[sp,#-128]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -1068,7 +1067,6 @@ $code.=<<___;
 	// x30 is popped earlier
 	AARCH64_VALIDATE_LINK_REGISTER
 	ret
-.size	__bn_sqr8x_mont,.-__bn_sqr8x_mont
 ___
 }
 
@@ -1087,10 +1085,10 @@ my  $bp_end=$rp;
 my  ($carry,$topmost) = ($rp,"x30");
 
 $code.=<<___;
-.type	__bn_mul4x_mont,%function
+.type	.Lmul4x_mont,%function
 .align	5
-__bn_mul4x_mont:
-	// Not adding AARCH64_SIGN_LINK_REGISTER here because __bn_mul4x_mont is jumped to
+.Lmul4x_mont:
+	// Not adding AARCH64_SIGN_LINK_REGISTER here because .Lmul4x_mont is jumped to
 	// only from bn_mul_mont_words or __bn_mul8x_mont which have already signed the
 	// return address.
 	stp	x29,x30,[sp,#-128]!
@@ -1532,10 +1530,10 @@ __bn_mul4x_mont:
 	// x30 is popped earlier
 	AARCH64_VALIDATE_LINK_REGISTER
 	ret
-.size	__bn_mul4x_mont,.-__bn_mul4x_mont
 ___
 }
 $code.=<<___;
+.size	bn_mul_mont_words,.-bn_mul_mont_words
 .asciz	"Montgomery Multiplication for ARMv8, CRYPTOGAMS by <appro\@openssl.org>"
 .align	4
 ___

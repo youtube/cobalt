@@ -23,6 +23,7 @@
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
 #include "api/task_queue/task_queue_base.h"
@@ -237,7 +238,7 @@ class RtpRtcpModule : public RtcpPacketTypeCounterObserver,
     CreateModuleImpl();
   }
   const RtpPacketReceived& last_packet() { return transport_.last_packet_; }
-  void RegisterHeaderExtension(absl::string_view uri, int id) {
+  void RegisterHeaderExtension(absl::string_view uri, RtpHeaderExtensionId id) {
     impl_->RegisterRtpHeaderExtension(uri, id);
     transport_.header_extensions_.RegisterByUri(id, uri);
     transport_.last_packet_.IdentifyExtensions(transport_.header_extensions_);

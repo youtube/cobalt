@@ -5,13 +5,17 @@
 #include "components/autofill/core/common/autofill_prefs.h"
 
 #include "base/feature_list.h"
+#include "base/json/values_util.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/time/time.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
+#include "components/prefs/scoped_user_pref_update.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/device_info.h"
@@ -87,6 +91,8 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 
   // Non-synced prefs. Used for per-device choices, e.g., signin promo.
   registry->RegisterDictionaryPref(kAutofillAiOptInStatus);
+  registry->RegisterBooleanPref(kAutofillEmailVerificationEnabled, true);
+  registry->RegisterDictionaryPref(kAutofillEmailVerificationState);
   registry->RegisterBooleanPref(kAutofillCreditCardFidoAuthEnabled, false);
 #if BUILDFLAG(IS_ANDROID)
   registry->RegisterBooleanPref(kAutofillCreditCardFidoAuthOfferCheckboxState,
@@ -283,13 +289,7 @@ void SetAutofillAiReauthBeforeFillingEnabled(PrefService* prefs, bool enabled) {
 
 bool IsPaymentMethodsMandatoryReauthEnabled(const PrefService* prefs) {
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
-    BUILDFLAG(IS_IOS)
-  return prefs->GetBoolean(kAutofillPaymentMethodsMandatoryReauth);
-#elif BUILDFLAG(IS_CHROMEOS)
-  if (!base::FeatureList::IsEnabled(
-          features::kAutofillEnablePaymentsMandatoryReauthChromeOs)) {
-    return false;
-  }
+    BUILDFLAG(IS_IOS) || BUILDFLAG(IS_CHROMEOS)
   return prefs->GetBoolean(kAutofillPaymentMethodsMandatoryReauth);
 #else
   return false;
@@ -303,26 +303,14 @@ void SetPaymentMethodsMandatoryReauthEnabled(PrefService* prefs, bool enabled) {
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
-    BUILDFLAG(IS_IOS)
-  prefs->SetBoolean(kAutofillPaymentMethodsMandatoryReauth, enabled);
-#elif BUILDFLAG(IS_CHROMEOS)
-  if (!base::FeatureList::IsEnabled(
-          features::kAutofillEnablePaymentsMandatoryReauthChromeOs)) {
-    return;
-  }
+    BUILDFLAG(IS_IOS) || BUILDFLAG(IS_CHROMEOS)
   prefs->SetBoolean(kAutofillPaymentMethodsMandatoryReauth, enabled);
 #endif
 }
 
 bool IsPaymentMethodsMandatoryReauthSetExplicitly(const PrefService* prefs) {
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
-  return prefs->GetUserPrefValue(kAutofillPaymentMethodsMandatoryReauth) !=
-         nullptr;
-#elif BUILDFLAG(IS_CHROMEOS)
-  if (!base::FeatureList::IsEnabled(
-          features::kAutofillEnablePaymentsMandatoryReauthChromeOs)) {
-    return false;
-  }
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
+    BUILDFLAG(IS_CHROMEOS)
   return prefs->GetUserPrefValue(kAutofillPaymentMethodsMandatoryReauth) !=
          nullptr;
 #else
@@ -332,15 +320,8 @@ bool IsPaymentMethodsMandatoryReauthSetExplicitly(const PrefService* prefs) {
 
 bool IsPaymentMethodsMandatoryReauthPromoShownCounterBelowMaxCap(
     const PrefService* prefs) {
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
-  return prefs->GetInteger(
-             kAutofillPaymentMethodsMandatoryReauthPromoShownCounter) <
-         kMaxValueForMandatoryReauthPromoShownCounter;
-#elif BUILDFLAG(IS_CHROMEOS)
-  if (!base::FeatureList::IsEnabled(
-          features::kAutofillEnablePaymentsMandatoryReauthChromeOs)) {
-    return false;
-  }
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
+    BUILDFLAG(IS_CHROMEOS)
   return prefs->GetInteger(
              kAutofillPaymentMethodsMandatoryReauthPromoShownCounter) <
          kMaxValueForMandatoryReauthPromoShownCounter;
@@ -351,24 +332,8 @@ bool IsPaymentMethodsMandatoryReauthPromoShownCounterBelowMaxCap(
 
 void IncrementPaymentMethodsMandatoryReauthPromoShownCounter(
     PrefService* prefs) {
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
-  if (prefs->GetInteger(
-          kAutofillPaymentMethodsMandatoryReauthPromoShownCounter) >=
-      kMaxValueForMandatoryReauthPromoShownCounter) {
-    return;
-  }
-
-  prefs->SetInteger(
-      kAutofillPaymentMethodsMandatoryReauthPromoShownCounter,
-      prefs->GetInteger(
-          kAutofillPaymentMethodsMandatoryReauthPromoShownCounter) +
-          1);
-#elif BUILDFLAG(IS_CHROMEOS)
-  if (!base::FeatureList::IsEnabled(
-          features::kAutofillEnablePaymentsMandatoryReauthChromeOs)) {
-    return;
-  }
-
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
+    BUILDFLAG(IS_CHROMEOS)
   if (prefs->GetInteger(
           kAutofillPaymentMethodsMandatoryReauthPromoShownCounter) >=
       kMaxValueForMandatoryReauthPromoShownCounter) {
@@ -401,6 +366,38 @@ void SetPaymentCardBenefits(PrefService* prefs, bool value) {
 
 void ClearSyncTransportOptIns(PrefService* prefs) {
   prefs->SetDict(kAutofillSyncTransportOptIn, base::DictValue());
+}
+
+void ClearEmailVerificationState(PrefService* prefs,
+                                 const base::Time& delete_begin,
+                                 const base::Time& delete_end) {
+  if (delete_begin.is_null() && (delete_end.is_null() || delete_end.is_max())) {
+    prefs->ClearPref(kAutofillEmailVerificationState);
+    return;
+  }
+
+  const base::DictValue& state =
+      prefs->GetDict(kAutofillEmailVerificationState);
+  std::vector<std::string> keys_to_remove;
+
+  for (auto [email, email_data_value] : state) {
+    if (!email_data_value.is_dict()) {
+      continue;
+    }
+    const base::DictValue& email_dict = email_data_value.GetDict();
+    if (std::optional<base::Time> timestamp =
+            base::ValueToTime(email_dict.Find("timestamp"));
+        timestamp && *timestamp >= delete_begin && *timestamp <= delete_end) {
+      keys_to_remove.push_back(email);
+    }
+  }
+
+  if (!keys_to_remove.empty()) {
+    ScopedDictPrefUpdate update(prefs, kAutofillEmailVerificationState);
+    for (const std::string& key : keys_to_remove) {
+      update->Remove(key);
+    }
+  }
 }
 
 void SetFacilitatedPaymentsEwallet(PrefService* prefs, bool value) {

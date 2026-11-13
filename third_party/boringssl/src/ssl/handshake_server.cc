@@ -655,6 +655,14 @@ static enum ssl_hs_wait_t do_read_client_hello_after_ech(SSL_HANDSHAKE *hs) {
     return ssl_hs_error;
   }
 
+  // The legacy cookie should never be sent in DTLS 1.3.
+  if (ssl_protocol_version(ssl) >= TLS1_3_VERSION &&
+      client_hello.dtls_cookie_len != 0) {
+    ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_ILLEGAL_PARAMETER);
+    OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
+    return ssl_hs_error;
+  }
+
   // TLS extensions.
   if (!ssl_parse_clienthello_tlsext(hs, &client_hello)) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_PARSE_TLSEXT);

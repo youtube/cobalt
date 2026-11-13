@@ -153,16 +153,21 @@
 // Creates a screen coordinator according to `type`.
 - (ChromeCoordinator*)createChildCoordinatorWithScreenType:(ScreenType)type {
   switch (type) {
-    case kSignIn:
-      return [[FullscreenSigninScreenCoordinator alloc]
-           initWithBaseNavigationController:self.navigationController
-                                    browser:self.browser
-                                   delegate:self
-                               contextStyle:_contextStyle
-                                accessPoint:_accessPoint
-                                promoAction:signin_metrics::PromoAction::
-                                                PROMO_ACTION_NO_SIGNIN_PROMO
-          changeProfileContinuationProvider:_changeProfileContinuationProvider];
+    case kSignIn: {
+      FullscreenSigninScreenCoordinator* coordinator =
+          [[FullscreenSigninScreenCoordinator alloc]
+               initWithBaseNavigationController:self.navigationController
+                                        browser:self.browser
+                                       delegate:self
+                                   contextStyle:_contextStyle
+                                    accessPoint:_accessPoint
+                                    promoAction:signin_metrics::PromoAction::
+                                                    PROMO_ACTION_NO_SIGNIN_PROMO
+              changeProfileContinuationProvider:
+                  _changeProfileContinuationProvider];
+      coordinator.identity = self.identity;
+      return coordinator;
+    }
     case kHistorySync:
     case kDefaultBrowserPromo:
     case kChoice:
@@ -191,7 +196,9 @@
 
 // This is called before finishing the presentation of a screen.
 // Stops the child coordinator and prepares the next screen to present.
-- (void)screenWillFinishPresenting {
+- (void)firstRunScreenCoordinatorWantsToBeStopped:
+    (ChromeCoordinator*)coordinator {
+  CHECK_EQ(coordinator, self.childCoordinator, base::NotFatalUntil::M155);
   [self stopChildCoordinator];
   [self presentScreen:[self.screenProvider nextScreenType]];
 }

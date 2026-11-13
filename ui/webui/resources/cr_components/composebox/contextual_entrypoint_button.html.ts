@@ -10,10 +10,13 @@ import type {ContextualEntrypointButtonElement} from './contextual_entrypoint_bu
 export function getHtml(this: ContextualEntrypointButtonElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
-  <div id="${this.getWrapperId_()}" class="${this.getWrapperCssClass_()}">
+  <div id="${this.getWrapperId_()}" class="${this.getWrapperCssClass_()}"
+      @pointerenter="${this.onEntrypointPointerenter_}">
     ${(this.showContextMenuDescription || this.showSuggestionLabel)
         && !this.windowWidthBelowThreshold_ ? html`
-      <cr-button id="entrypoint" class="ai-mode-button" part="entrypoint-button"
+      <cr-button id="entrypoint"
+          class="ai-mode-button"
+          part="entrypoint-button"
           @click="${this.onEntrypointClick_}"
           title="${this.i18n('addContextTitle')}"
           ?disabled="${this.uploadButtonDisabled}" noink
@@ -25,28 +28,40 @@ export function getHtml(this: ContextualEntrypointButtonElement) {
           ${this.showSuggestionLabel ?
              this.i18n('searchBoxHintMultimodal') : this.i18n('addContext')}
         </span>
-        ${this.tabFaviconChipsToCoinsEnabled_ &&
+        ${this.smartTabSharingActive ? html`
+          <cr-icon class="sts-active-coin" icon="composebox:shareTabs"
+              title="${this.i18n('stsMegaplusShareRelevantOpenTabs')}"></cr-icon>
+        ` : this.tabFaviconChipsToCoinsEnabled_ &&
           this.getTabs_().length > 0 ? html`
           <composebox-favicon-group .tabs="${this.getTabs_()}"
           title="${this.i18n('sharingTabsWithGoogle')}">
           </composebox-favicon-group>
         ` : ''}
       </cr-button>
-    ` : (this.tabFaviconChipsToCoinsEnabled_ &&
-          this.getTabs_().length > 0) ? html`
-      <cr-button id="entrypoint" class="ai-mode-button pill-button" part="entrypoint-button"
+    ` : this.smartTabSharingActive ||
+        (this.tabFaviconChipsToCoinsEnabled_ &&
+         this.getTabs_().length > 0) ? html`
+      <cr-button id="entrypoint"
+          class="ai-mode-button pill-button"
+          part="entrypoint-button"
           @click="${this.onEntrypointClick_}"
           title="${this.i18n('addContextTitle')}"
           ?disabled="${this.uploadButtonDisabled}" noink
           aria-label="${this.i18n('addContextTitle')}">
         <cr-icon id="entrypointIcon" icon="cr:add" slot="prefix-icon"
             @animationend="${this.onIconAnimationend_}"></cr-icon>
-        <composebox-favicon-group .tabs="${this.getTabs_()}"
-        title="${this.i18n('sharingTabsWithGoogle')}">
-        </composebox-favicon-group>
+        ${this.smartTabSharingActive ? html`
+          <cr-icon class="sts-active-coin" icon="composebox:shareTabs"
+              title="${this.i18n('stsMegaplusShareRelevantOpenTabs')}"></cr-icon>
+        ` : html`
+          <composebox-favicon-group .tabs="${this.getTabs_()}"
+          title="${this.i18n('sharingTabsWithGoogle')}">
+          </composebox-favicon-group>
+        `}
       </cr-button>
     ` : html`
-      <cr-icon-button id="entrypoint" class="ai-mode-button"
+      <cr-icon-button id="entrypoint"
+          class="ai-mode-button"
           part="context-menu-entrypoint-icon entrypoint-button"
           iron-icon="cr:add"
           @click="${this.onEntrypointClick_}"
@@ -56,14 +71,14 @@ export function getHtml(this: ContextualEntrypointButtonElement) {
           @animationend="${this.onIconAnimationend_}">
       </cr-icon-button>
     `}
-    ${!this.energyEffectAnimationEnabled && this.glifAnimationState !== GlifAnimationState.INELIGIBLE ? html`
+    ${!this.energyEffectAnimationEnabled && !this.disableFallbackGlifAnimation && this.glifAnimationState !== GlifAnimationState.INELIGIBLE ? html`
       <div class="aim-gradient-outer-blur aim-c"></div>
       <div class="aim-gradient-solid aim-c"></div>
       <div class="aim-background aim-c"
           @animationend="${this.onAimBackgroundAnimationend_}">
       </div>
-   ` : ''}
+    ` : ''}
   </div>
 <!--_html_template_end_-->`;
-  // clang-format off
+  // clang-format on
 }

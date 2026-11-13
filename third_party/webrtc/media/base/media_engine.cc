@@ -112,9 +112,9 @@ RTCError CheckScalabilityModeValues(const RtpParameters& rtp_parameters,
         }
       }
       if (!codecFound) {
-        return LOG_ERROR(RTCError(RTCErrorType::INVALID_MODIFICATION)
-                         << "Attempted to use an unsupported codec for layer "
-                         << i);
+        return RTC_LOG_ERROR(
+            RTCError(RTCErrorType::INVALID_MODIFICATION)
+            << "Attempted to use an unsupported codec for layer " << i);
       }
     }
     if (rtp_parameters.encodings[i].scalability_mode) {
@@ -133,7 +133,7 @@ RTCError CheckScalabilityModeValues(const RtpParameters& rtp_parameters,
         }
 
         if (!scalabilityModeFound) {
-          return LOG_ERROR(
+          return RTC_LOG_ERROR(
               RTCError(RTCErrorType::INVALID_MODIFICATION)
               << "Attempted to set RtpParameters scalabilityMode "
                  "to an unsupported value for the current codecs.");
@@ -148,7 +148,7 @@ RTCError CheckScalabilityModeValues(const RtpParameters& rtp_parameters,
           }
         }
         if (!scalabilityModeFound) {
-          return LOG_ERROR(
+          return RTC_LOG_ERROR(
               RTCError(RTCErrorType::INVALID_MODIFICATION)
               << "Attempted to set RtpParameters scalabilityMode "
                  "to an unsupported value for the current codecs.");
@@ -167,39 +167,41 @@ RTCError CheckRtpParametersValues(const RtpParameters& rtp_parameters,
   bool has_scale_resolution_down_to = false;
   for (size_t i = 0; i < rtp_parameters.encodings.size(); ++i) {
     if (rtp_parameters.encodings[i].bitrate_priority <= 0) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_RANGE)
-                       << "Attempted to set RtpParameters bitrate_priority to "
-                          "an invalid number. bitrate_priority must be > 0.");
+      return RTC_LOG_ERROR(
+          RTCError(RTCErrorType::INVALID_RANGE)
+          << "Attempted to set RtpParameters bitrate_priority to "
+             "an invalid number. bitrate_priority must be > 0.");
     }
     if (rtp_parameters.encodings[i].scale_resolution_down_by &&
         *rtp_parameters.encodings[i].scale_resolution_down_by < 1.0) {
-      return LOG_ERROR(
+      return RTC_LOG_ERROR(
           RTCError(RTCErrorType::INVALID_RANGE)
           << "Attempted to set RtpParameters scale_resolution_down_by to an "
              "invalid value. scale_resolution_down_by must be >= 1.0");
     }
     if (rtp_parameters.encodings[i].max_framerate &&
         *rtp_parameters.encodings[i].max_framerate < 0.0) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_RANGE)
-                       << "Attempted to set RtpParameters max_framerate to an "
-                          "invalid value. max_framerate must be >= 0.0");
+      return RTC_LOG_ERROR(
+          RTCError(RTCErrorType::INVALID_RANGE)
+          << "Attempted to set RtpParameters max_framerate to an "
+             "invalid value. max_framerate must be >= 0.0");
     }
     if (rtp_parameters.encodings[i].min_bitrate_bps &&
         rtp_parameters.encodings[i].max_bitrate_bps) {
       if (*rtp_parameters.encodings[i].max_bitrate_bps <
           *rtp_parameters.encodings[i].min_bitrate_bps) {
-        return LOG_ERROR(RTCError(RTCErrorType::INVALID_RANGE)
-                         << "Attempted to set RtpParameters min bitrate "
-                            "larger than max bitrate.");
+        return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_RANGE)
+                             << "Attempted to set RtpParameters min bitrate "
+                                "larger than max bitrate.");
       }
     }
     if (rtp_parameters.encodings[i].num_temporal_layers) {
       if (*rtp_parameters.encodings[i].num_temporal_layers < 1 ||
           SafeGt(*rtp_parameters.encodings[i].num_temporal_layers,
                  kMaxTemporalStreams)) {
-        return LOG_ERROR(RTCError(RTCErrorType::INVALID_RANGE)
-                         << "Attempted to set RtpParameters "
-                            "num_temporal_layers to an invalid number.");
+        return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_RANGE)
+                             << "Attempted to set RtpParameters "
+                                "num_temporal_layers to an invalid number.");
       }
     }
 
@@ -207,32 +209,32 @@ RTCError CheckRtpParametersValues(const RtpParameters& rtp_parameters,
       has_scale_resolution_down_to = true;
       if (rtp_parameters.encodings[i].scale_resolution_down_to->width <= 0 ||
           rtp_parameters.encodings[i].scale_resolution_down_to->height <= 0) {
-        return LOG_ERROR(RTCError(RTCErrorType::INVALID_MODIFICATION)
-                         << "The resolution dimensions must be positive.");
+        return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_MODIFICATION)
+                             << "The resolution dimensions must be positive.");
       }
     }
 
     if (!field_trials.IsEnabled("WebRTC-MixedCodecSimulcast")) {
       if (i > 0 && rtp_parameters.encodings[i - 1].codec !=
                        rtp_parameters.encodings[i].codec) {
-        return LOG_ERROR(RTCError(RTCErrorType::UNSUPPORTED_OPERATION)
-                         << "Attempted to use different codec values for "
-                            "different encodings.");
+        return RTC_LOG_ERROR(RTCError(RTCErrorType::UNSUPPORTED_OPERATION)
+                             << "Attempted to use different codec values for "
+                                "different encodings.");
       }
     }
 
     if (rtp_parameters.encodings[i].csrcs.has_value() &&
         rtp_parameters.encodings[i].csrcs.value().size() > kRtpCsrcSize) {
-      return LOG_ERROR(
+      return RTC_LOG_ERROR(
           RTCError(RTCErrorType::INVALID_RANGE)
           << "Attempted to set more than the maximum allowed number of CSRCs.");
     }
 
     if (i > 0 && rtp_parameters.encodings[i - 1].csrcs !=
                      rtp_parameters.encodings[i].csrcs) {
-      return LOG_ERROR(RTCError(RTCErrorType::INVALID_MODIFICATION)
-                       << "Attempted to set different CSRCs for different "
-                          "encodings.");
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_MODIFICATION)
+                           << "Attempted to set different CSRCs for different "
+                              "encodings.");
     }
   }
 
@@ -242,9 +244,9 @@ RTCError CheckRtpParametersValues(const RtpParameters& rtp_parameters,
                        return encoding.active &&
                               !encoding.scale_resolution_down_to.has_value();
                      })) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_MODIFICATION)
-                     << "If a resolution is specified on any encoding then "
-                        "it must be specified on all encodings.");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_MODIFICATION)
+                         << "If a resolution is specified on any encoding then "
+                            "it must be specified on all encodings.");
   }
 
   // In a mixed codec scenario, we only support scalability modes without
@@ -258,7 +260,7 @@ RTCError CheckRtpParametersValues(const RtpParameters& rtp_parameters,
       auto num_spatial_layers =
           ScalabilityModeStringToNumSpatialLayers(*scalability_mode);
       if (num_spatial_layers && *num_spatial_layers > 1) {
-        return LOG_ERROR(
+        return RTC_LOG_ERROR(
             RTCError(RTCErrorType::UNSUPPORTED_OPERATION)
             << "Attempted to use a scalabilityMode with spatial layers in "
                "a mixed codec scenario.");
@@ -284,18 +286,18 @@ RTCError CheckRtpParametersInvalidModificationAndValues(
     std::optional<Codec> send_codec,
     const FieldTrialsView& field_trials) {
   if (rtp_parameters.encodings.size() != old_rtp_parameters.encodings.size()) {
-    return LOG_ERROR(
+    return RTC_LOG_ERROR(
         RTCError(RTCErrorType::INVALID_MODIFICATION)
         << "Attempted to set RtpParameters with different encoding count");
   }
   if (rtp_parameters.rtcp != old_rtp_parameters.rtcp) {
-    return LOG_ERROR(
+    return RTC_LOG_ERROR(
         RTCError(RTCErrorType::INVALID_MODIFICATION)
         << "Attempted to set RtpParameters with modified RTCP parameters");
   }
   if (rtp_parameters.header_extensions !=
       old_rtp_parameters.header_extensions) {
-    return LOG_ERROR(
+    return RTC_LOG_ERROR(
         RTCError(RTCErrorType::INVALID_MODIFICATION)
         << "Attempted to set RtpParameters with modified header extensions");
   }
@@ -304,16 +306,17 @@ RTCError CheckRtpParametersInvalidModificationAndValues(
                         const RtpEncodingParameters& encoding2) {
                        return encoding1.rid == encoding2.rid;
                      })) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_MODIFICATION)
-                     << "Attempted to change RID values in the encodings.");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_MODIFICATION)
+                         << "Attempted to change RID values in the encodings.");
   }
   if (!absl::c_equal(old_rtp_parameters.encodings, rtp_parameters.encodings,
                      [](const RtpEncodingParameters& encoding1,
                         const RtpEncodingParameters& encoding2) {
                        return encoding1.ssrc == encoding2.ssrc;
                      })) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_MODIFICATION)
-                     << "Attempted to set RtpParameters with modified SSRC");
+    return RTC_LOG_ERROR(
+        RTCError(RTCErrorType::INVALID_MODIFICATION)
+        << "Attempted to set RtpParameters with modified SSRC");
   }
 
   return CheckRtpParametersValues(rtp_parameters, send_codecs, send_codec,

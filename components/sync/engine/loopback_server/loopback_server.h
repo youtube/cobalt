@@ -75,11 +75,12 @@ class LoopbackServer : public base::ImportantFileWriter::DataSerializer {
     bag_of_chips_ = bag_of_chips;
   }
 
-  void TriggerMigrationForTesting(DataTypeSet data_types) {
-    for (const DataType type : data_types) {
-      ++migration_versions_[type];
-    }
-  }
+  void TriggerMigrationForTesting(DataTypeSet data_types);
+
+  int GetMigrationVersion(DataType type) const;
+
+  static int GetMigrationVersionFromProgressTokenForTesting(
+      const std::string& token);
 
   const std::vector<std::vector<uint8_t>>& GetKeystoreKeysForTesting() const {
     return keystore_keys_;
@@ -130,6 +131,11 @@ class LoopbackServer : public base::ImportantFileWriter::DataSerializer {
   // Creates and saves a permanent folder for Bookmarks (e.g., Bookmark Bar).
   bool CreatePermanentBookmarkFolder(const std::string& server_tag,
                                      const std::string& name);
+
+  // Returns a pointer to the permanent bookmark folder with `server_tag` if it
+  // exists, or nullptr otherwise.
+  const LoopbackServerEntity* FindPermanentBookmarkFolder(
+      const std::string& server_tag) const;
 
   // Inserts the default permanent items in `entities_`.
   bool CreateDefaultPermanentItems();

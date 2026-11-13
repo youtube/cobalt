@@ -60,14 +60,14 @@ class Bio : public bio_st, public RefCounted<Bio> {
   const BIO_METHOD *method;
   CRYPTO_EX_DATA ex_data;
 
-  // TODO(crbug.com/412269080): |init| and |shutdown| could be bitfields, or
-  // integrated into |flags|, to save memory.
+  // TODO(crbug.com/412269080): `init` and `shutdown` could be bitfields, or
+  // integrated into `flags`, to save memory.
 
-  // init is non-zero if this |BIO| has been initialised.
+  // init is non-zero if this `BIO` has been initialised.
   int init = 0;
-  // shutdown is often used by specific |BIO_METHOD|s to determine whether
+  // shutdown is often used by specific `BIO_METHOD`s to determine whether
   // they own some underlying resource. This flag can often be controlled by
-  // |BIO_set_close|. For example, whether an fd BIO closes the underlying fd
+  // `BIO_set_close`. For example, whether an fd BIO closes the underlying fd
   // when it, itself, is closed.
   int shutdown = 1;
   int flags = 0;
@@ -76,8 +76,8 @@ class Bio : public bio_st, public RefCounted<Bio> {
   // file descriptor.
   int num = 0;
   void *ptr = nullptr;
-  // next_bio points to the next |BIO| in a chain. This |BIO| owns a reference
-  // to |next_bio|.
+  // next_bio points to the next `BIO` in a chain. This `BIO` owns a reference
+  // to `next_bio`.
   Bio *next_bio = nullptr;  // used by filter BIOs
   uint64_t num_read = 0, num_write = 0;
 
@@ -88,16 +88,16 @@ class Bio : public bio_st, public RefCounted<Bio> {
 
 #if !defined(OPENSSL_NO_SOCK)
 
-// bio_ip_and_port_to_socket_and_addr creates a socket and fills in |*out_addr|
-// and |*out_addr_length| with the correct values for connecting to |hostname|
-// on |port_str|. It returns one on success or zero on error.
+// bio_ip_and_port_to_socket_and_addr creates a socket and fills in `*out_addr`
+// and `*out_addr_length` with the correct values for connecting to `hostname`
+// on `port_str`. It returns one on success or zero on error.
 int bio_ip_and_port_to_socket_and_addr(int *out_sock,
                                        struct sockaddr_storage *out_addr,
                                        socklen_t *out_addr_length,
                                        const char *hostname,
                                        const char *port_str);
 
-// bio_socket_nbio sets whether |sock| is non-blocking. It returns one on
+// bio_socket_nbio sets whether `sock` is non-blocking. It returns one on
 // success and zero otherwise.
 int bio_socket_nbio(int sock, int on);
 
@@ -106,17 +106,17 @@ int bio_socket_nbio(int sock, int on);
 // TODO(fork): remove all callers of this.
 void bio_clear_socket_error();
 
-// bio_sock_error returns the last socket error on |sock|.
+// bio_sock_error returns the last socket error on `sock`.
 int bio_sock_error(int sock);
 
-// bio_socket_should_retry returns non-zero if |return_value| indicates an error
+// bio_socket_should_retry returns non-zero if `return_value` indicates an error
 // and the last socket error indicates that it's non-fatal.
 int bio_socket_should_retry(int return_value);
 
 #endif  // !OPENSSL_NO_SOCK
 
-// bio_errno_should_retry returns non-zero if |return_value| indicates an error
-// and |errno| indicates that it's non-fatal.
+// bio_errno_should_retry returns non-zero if `return_value` indicates an error
+// and `errno` indicates that it's non-fatal.
 int bio_errno_should_retry(int return_value);
 
 BSSL_NAMESPACE_END

@@ -28,19 +28,22 @@
 #include "chrome/browser/indigo/indigo_service.h"
 #include "chrome/browser/indigo/indigo_service_factory.h"
 #include "chrome/browser/indigo/onboarding/indigo_onboarding_dialog.h"
+#include "chrome/browser/indigo/resources/grit/indigo_strings.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/signin/signin_ui_util.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/page_action/page_action_controller.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/common/chrome_features.h"
-#include "chrome/grit/branded_strings.h"
 #include "components/optimization_guide/core/hints/optimization_guide_decider.h"
 #include "components/optimization_guide/core/hints/optimization_guide_decision.h"
+#include "components/signin/public/base/signin_metrics.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/storage_partition.h"
+#include "net/base/url_util.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
@@ -63,6 +66,10 @@ void RecordTransformationResultCannotGenerateImage(
     switch (eligibility.local_eligibility) {
       case LocalEligibility::kNotSignedIn:
         result = IndigoTransformationResult::kNotSignedIn;
+        break;
+      case LocalEligibility::kRefreshTokenInPersistentErrorState:
+        result =
+            IndigoTransformationResult::kRefreshTokenInPersistentErrorState;
         break;
       case LocalEligibility::kMissingCapabilities:
         result = IndigoTransformationResult::kMissingCapabilities;
@@ -168,6 +175,21 @@ void IndigoPageActionController::InvokeAction() {
 
 void IndigoPageActionController::CheckEligibilityForOnboarding(
     const CombinedEligibility& eligibility) {
+  if (eligibility.local_eligibility ==
+      LocalEligibility::kRefreshTokenInPersistentErrorState) {
+    RecordTransformationResultCannotGenerateImage(eligibility);
+    content::WebContents* web_contents = tab().GetContents();
+    if (web_contents) {
+      Profile* profile =
+          Profile::FromBrowserContext(web_contents->GetBrowserContext());
+      // TODO(b/513564094): Consider a gentler UI (e.g. a toast/bubble) if users
+      // are confused by the sudden tab launch.
+      signin_ui_util::ShowReauthForPrimaryAccountWithAuthError(
+          profile, signin_metrics::AccessPoint::kIndigo);
+    }
+    return;
+  }
+
   const base::CommandLine* command_line =
       base::CommandLine::ForCurrentProcess();
   const bool force_onboarding =
@@ -175,23 +197,7 @@ void IndigoPageActionController::CheckEligibilityForOnboarding(
 
   // Show onboarding if the user is ready to onboard, or if it's forced.
   if (eligibility.ReadyToOnboard() || force_onboarding) {
-    base::RecordAction(base::UserMetricsAction("Indigo.Onboarding.Trigger"));
-    std::string onboarding_url =
-        command_line->GetSwitchValueASCII(kForceIndigoOnboardingSwitch);
-    if (onboarding_url.empty()) {
-      onboarding_url = features::kIndigoOnboardingUrl.Get();
-    }
-    if (onboarding_dialog_factory_for_testing_) {
-      onboarding_dialog_ = onboarding_dialog_factory_for_testing_.Run(
-          tab(), GURL(onboarding_url),
-          base::BindOnce(&IndigoPageActionController::OnOnboardingDialogClosed,
-                         invoke_weak_ptr_factory_.GetWeakPtr()));
-    } else {
-      onboarding_dialog_ = IndigoOnboardingDialog::Show(
-          tab(), GURL(onboarding_url),
-          base::BindOnce(&IndigoPageActionController::OnOnboardingDialogClosed,
-                         invoke_weak_ptr_factory_.GetWeakPtr()));
-    }
+    ShowOnboardingDialog(OnboardingDisposition::kDefault);
     return;
   }
 
@@ -263,6 +269,40 @@ void IndigoPageActionController::ContinueInvoke(
   }
 }
 
+void IndigoPageActionController::ShowOnboardingDialog(
+    OnboardingDisposition disposition) {
+  if (onboarding_dialog_) {
+    return;
+  }
+
+  std::string onboarding_url =
+      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+          kForceIndigoOnboardingSwitch);
+  if (onboarding_url.empty()) {
+    onboarding_url = features::kIndigoOnboardingUrl.Get();
+  }
+
+  GURL url(onboarding_url);
+  if (disposition == OnboardingDisposition::kReplacePhoto) {
+    url = net::AppendQueryParameter(url, "toyri", "1");
+    base::RecordAction(base::UserMetricsAction("Indigo.ReplaceImage.Trigger"));
+  } else {
+    base::RecordAction(base::UserMetricsAction("Indigo.Onboarding.Trigger"));
+  }
+
+  auto callback =
+      base::BindOnce(&IndigoPageActionController::OnOnboardingDialogClosed,
+                     invoke_weak_ptr_factory_.GetWeakPtr(), disposition);
+
+  if (onboarding_dialog_factory_for_testing_) {
+    onboarding_dialog_ = onboarding_dialog_factory_for_testing_.Run(
+        tab(), url, std::move(callback));
+  } else {
+    onboarding_dialog_ =
+        IndigoOnboardingDialog::Show(tab(), url, std::move(callback));
+  }
+}
+
 void IndigoPageActionController::ShowToolbarInside(const gfx::Rect& rect) {
   if (!toolbar_) {
     toolbar_ = std::make_unique<IndigoToolbar>(this);
@@ -312,7 +352,14 @@ void IndigoPageActionController::DidFinishNavigation(
     return;
   }
 
-  HideToolbar();
+  // We only listen for same document navigations here because for
+  // cross-document navigations, the previous page gets destroyed (the
+  // replacements will already be reset as part of page destruction).
+  // Note: A page with active IndigoImageReplacements will never enter BFCache
+  // since we don't currently support keeping extension frames in BFCache.
+  if (navigation_handle->IsSameDocument()) {
+    Reset(ResetType::kResetReplacementsAndContentScript);
+  }
 
   if (onboarding_dialog_) {
     onboarding_dialog_->Close();
@@ -359,12 +406,13 @@ void IndigoPageActionController::OnClose(IndigoToolbar* toolbar) {
 }
 
 void IndigoPageActionController::OnRegenerate(IndigoToolbar* toolbar) {
+  // TODO(b/512246764): Implement the regenerate image option.
   NOTIMPLEMENTED();
 }
 
 void IndigoPageActionController::OnReplaceOriginalPhoto(
     IndigoToolbar* toolbar) {
-  NOTIMPLEMENTED();
+  ShowOnboardingDialog(OnboardingDisposition::kReplacePhoto);
 }
 
 void IndigoPageActionController::OnDeleteOriginalPhoto(IndigoToolbar* toolbar) {
@@ -435,8 +483,12 @@ void IndigoPageActionController::UpdateEntryPointsState() {
 }
 
 void IndigoPageActionController::OnOnboardingDialogClosed(
+    OnboardingDisposition disposition,
     const OnboardingResult& result) {
-  if (result.acknowledge_chrome_disclaimer) {
+  const bool acknowledged = result.acknowledge_chrome_disclaimer;
+  onboarding_dialog_.reset();
+
+  if (acknowledged) {
     content::WebContents* web_contents = tab().GetContents();
     if (!web_contents) {
       return;
@@ -445,16 +497,27 @@ void IndigoPageActionController::OnOnboardingDialogClosed(
     Profile* profile =
         Profile::FromBrowserContext(web_contents->GetBrowserContext());
     profile->GetPrefs()->SetBoolean(prefs::kIndigoHasOnboarded, true);
-    base::RecordAction(base::UserMetricsAction("Indigo.Onboarding.Complete"));
 
-    if (indigo_service_) {
+    if (disposition == OnboardingDisposition::kReplacePhoto) {
+      base::RecordAction(
+          base::UserMetricsAction("Indigo.ReplaceImage.Complete"));
+    } else {
+      base::RecordAction(base::UserMetricsAction("Indigo.Onboarding.Complete"));
+    }
+
+    if (!indigo_service_) {
+      return;
+    }
+
+    if (disposition == OnboardingDisposition::kReplacePhoto) {
+      // TODO(b/516859835, b/512246764): Reset old replacements and trigger
+      // regeneration.
+    } else {
       indigo_service_->GetCombinedEligibility(
           base::BindOnce(&IndigoPageActionController::ContinueInvoke,
                          invoke_weak_ptr_factory_.GetWeakPtr()));
     }
   }
-  // Onboarding dialog must be reset after reading its result.
-  onboarding_dialog_.reset();
 }
 
 void IndigoPageActionController::OnLocalEligibilityChanged(

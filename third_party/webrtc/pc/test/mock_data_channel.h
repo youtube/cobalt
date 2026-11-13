@@ -12,6 +12,7 @@
 #define PC_TEST_MOCK_DATA_CHANNEL_H_
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -54,6 +55,7 @@ class MockSctpDataChannel : public SctpDataChannel {
                         std::move(controller),
                         label,
                         false,
+                        std::nullopt,
                         PendingTaskSafetyFlag::Create(),
                         signaling_thread,
                         network_thread) {

@@ -7,7 +7,6 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/syslog_logging.h"
-#include "chrome/browser/browser_process.h"
 #include "components/user_manager/known_user.h"
 
 namespace ash {
@@ -23,10 +22,12 @@ ReauthReason GetReauthReason(const user_manager::KnownUser& known_user,
 
 }  // namespace
 
-void RecordReauthReason(const AccountId& account_id, ReauthReason reason) {
+void RecordReauthReason(PrefService& local_state,
+                        const AccountId& account_id,
+                        ReauthReason reason) {
   if (reason == ReauthReason::kNone)
     return;
-  user_manager::KnownUser known_user(g_browser_process->local_state());
+  user_manager::KnownUser known_user(&local_state);
   if (GetReauthReason(known_user, account_id) == reason)
     return;
 
@@ -34,8 +35,10 @@ void RecordReauthReason(const AccountId& account_id, ReauthReason reason) {
   known_user.UpdateReauthReason(account_id, static_cast<int>(reason));
 }
 
-void SendReauthReason(const AccountId& account_id, bool password_changed) {
-  user_manager::KnownUser known_user(g_browser_process->local_state());
+void SendReauthReason(PrefService& local_state,
+                      const AccountId& account_id,
+                      bool password_changed) {
+  user_manager::KnownUser known_user(&local_state);
   ReauthReason reauth_reason = GetReauthReason(known_user, account_id);
   if (reauth_reason == ReauthReason::kNone)
     return;

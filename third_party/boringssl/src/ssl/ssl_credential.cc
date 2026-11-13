@@ -664,7 +664,7 @@ int SSL_CTX_add1_credential(SSL_CTX *ctx, const SSL_CREDENTIAL *cred) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
     return 0;
   }
-  return ctx->cert->credentials.Push(UpRef(cred_impl));
+  return FromOpaque(ctx)->cert->credentials.Push(UpRef(cred_impl));
 }
 
 int SSL_add1_credential(SSL *ssl, const SSL_CREDENTIAL *cred) {

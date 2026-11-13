@@ -47,7 +47,7 @@ class DSAImpl : public dsa_st, public RefCounted<DSAImpl> {
   ~DSAImpl();
 };
 
-// dsa_check_key performs cheap self-checks on |dsa|, and ensures it is within
+// dsa_check_key performs cheap self-checks on `dsa`, and ensures it is within
 // DoS bounds. It returns one on success and zero on error.
 int dsa_check_key(const DSAImpl *dsa);
 

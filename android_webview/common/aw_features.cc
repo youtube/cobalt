@@ -32,6 +32,9 @@ BASE_FEATURE(kWebViewBypassHttpCacheForPrefetchFromHeader,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 
+// Enables C++ UMA metrics filtering.
+BASE_FEATURE(kWebViewCppMetricsFiltering, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables content restriction support in WebView.
 BASE_FEATURE(kWebViewContentRestrictionSupport,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -47,9 +50,9 @@ BASE_FEATURE(kWebViewFileSystemAccess, base::FEATURE_DISABLED_BY_DEFAULT);
 // Force the default WebAuthn state to be APP mode.
 BASE_FEATURE(kWebViewForceWebAuthn, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Fetch Hand Writing icon lazily.
-BASE_FEATURE(kWebViewLazyFetchHandWritingIcon,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+// Enables lazy profile creation in WebView.
+BASE_FEATURE(kWebViewProfileStoreNotTriggerStartup,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, cookie policy settings are captured at RestrictedCookieManager
 // creation time and used throughout its lifetime. This enables shared memory
@@ -192,9 +195,6 @@ const base::FeatureParam<double> kWebViewCodeCacheSizeLimitMultiplier{
     &kWebViewCacheSizeLimitDerivedFromAppCacheQuota,
     "WebViewCodeCacheSizeLimitMultiplier", 0.5};
 
-// Connect to the non-embedded components provider from a background thread.
-BASE_FEATURE(kWebViewConnectToComponentProviderInBackground,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables phase 2 of using startup tasks logic for webview chromium
 // initialization which also starts browser process asynchronously, when
@@ -273,10 +273,6 @@ const base::FeatureParam<base::TimeDelta> kWebViewRendererKeepAliveDuration{
     &kWebViewRendererKeepAlive, "webview_renderer_keep_alive_duration",
     base::Seconds(30)};
 
-// Enables fetching the Origin Trials configuration update component in the
-// embedded WebView.
-BASE_FEATURE(kWebViewFetchOriginTrialsComponent,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables recording user actions for API calls.
 BASE_FEATURE(kWebViewEnableApiCallUserActions,
@@ -307,11 +303,6 @@ BASE_FEATURE(kWebViewFasterGetDefaultUserAgent,
 BASE_FEATURE(kWebViewSaveStateIncludeHeaders,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// When enabled, the downloaded favicon in native will not be passed through
-// the jni unless needed / when onReceivedIcon is overridden.
-BASE_FEATURE(kWebViewSkipFaviconJavaCopyUntilNeeded,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // When enabled, certain static methods in SharedStatics do not trigger startup.
 BASE_FEATURE(kWebViewStaticMethodsNotTriggerStartup,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -334,6 +325,10 @@ BASE_FEATURE(kWebViewPersistHttpServerProperties,
 // targeting that interface, and any other interfaces passed through it to
 // arrive without the intermediate I/O thread hop.
 BASE_FEATURE(kWebViewVizDirectCompositorThreadIpcFrameSinkManager,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, WebView support for Instant Apps is removed.
+BASE_FEATURE(kWebViewRemoveInstantAppSupport,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Kill switch for the WebView Navigate method.

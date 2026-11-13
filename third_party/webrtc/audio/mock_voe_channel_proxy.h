@@ -31,6 +31,7 @@
 #include "api/crypto/frame_encryptor_interface.h"
 #include "api/frame_transformer_interface.h"
 #include "api/function_view.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/scoped_refptr.h"
 #include "api/transport/rtp/rtp_source.h"
@@ -55,11 +56,6 @@ class MockChannelReceive : public voe::ChannelReceiveInterface {
   MOCK_METHOD(void, SetNACKStatus, (bool enable, int max_packets), (override));
   MOCK_METHOD(void, SetRtcpMode, (RtcpMode mode), (override));
   MOCK_METHOD(void, SetNonSenderRttMeasurement, (bool enabled), (override));
-  MOCK_METHOD(void,
-              RegisterReceiverCongestionControlObjects,
-              (PacketRouter*),
-              (override));
-  MOCK_METHOD(void, ResetReceiverCongestionControlObjects, (), (override));
   MOCK_METHOD(ChannelReceiveStatistics,
               GetRTCPStatistics,
               (),
@@ -153,7 +149,7 @@ class MockChannelSend : public voe::ChannelSendInterface {
   MOCK_METHOD(void, SetRTCP_CNAME, (absl::string_view c_name), (override));
   MOCK_METHOD(void,
               SetSendAudioLevelIndicationStatus,
-              (bool enable, int id),
+              (RtpHeaderExtensionId id),
               (override));
   MOCK_METHOD(void,
               RegisterSenderCongestionControlObjects,

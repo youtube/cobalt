@@ -184,6 +184,7 @@
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
+#include "content/public/test/test_renderer_host.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/process_map.h"
 #include "extensions/browser/script_injection_tracker.h"
@@ -376,7 +377,7 @@ TEST_F(ChromeContentBrowserClientTest, OverrideNavigationParams) {
   ui::PageTransition transition;
   bool is_renderer_initiated;
   content::Referrer referrer = content::Referrer();
-  std::optional<url::Origin> initiator_origin = std::nullopt;
+  std::optional<url::Origin> initiator_origin;
 
   GURL remote_ntp_url("chrome-search://remote-ntp");
   transition = ui::PAGE_TRANSITION_LINK;
@@ -1618,10 +1619,171 @@ TEST_F(DisableWebAuthnWithBrokenCertsTest, ExtensionSupported) {
       net::ImportCertFromFile(net::GetTestCertsDirectory(), "ok_cert.pem");
   simulator->SetSSLInfo(std::move(ssl_info));
   simulator->Commit();
+  content::OverrideLastCommittedOrigin(main_rfh(), url::Origin::Create(url));
   EXPECT_TRUE(client.IsSecurityLevelAcceptableForWebAuthn(
       main_rfh(), url::Origin::Create(url)));
 }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+TEST_F(DisableWebAuthnWithBrokenCertsTest,
+       HttpsIframeInsideExtensionSupported) {
+  // Navigate main frame to an extension page.
+  GURL extension_url("chrome-extension://extensionid/popup.html");
+  auto main_simulator = content::NavigationSimulator::CreateBrowserInitiated(
+      extension_url, web_contents());
+  main_simulator->Commit();
+  // Explicitly set the committed origin since the test environment may not
+  // register the extension, resulting in an opaque origin.
+  content::OverrideLastCommittedOrigin(main_rfh(),
+                                       url::Origin::Create(extension_url));
+
+  // Create a child iframe and navigate it to an HTTPS page.
+  content::RenderFrameHostTester::For(main_rfh())
+      ->InitializeRenderFrameIfNeeded();
+  content::RenderFrameHost* child_rfh =
+      content::RenderFrameHostTester::For(main_rfh())->AppendChild("iframe");
+  GURL https_url("https://example.com");
+  auto child_simulator = content::NavigationSimulator::CreateRendererInitiated(
+      https_url, child_rfh);
+  child_simulator->Commit();
+  child_rfh = child_simulator->GetFinalRenderFrameHost();
+
+  TestChromeContentBrowserClient client;
+  EXPECT_TRUE(client.IsSecurityLevelAcceptableForWebAuthn(
+      child_rfh, url::Origin::Create(https_url)));
+}
+
+TEST_F(DisableWebAuthnWithBrokenCertsTest, HttpIframeInsideExtensionRejected) {
+  // Navigate main frame to an extension page.
+  GURL extension_url("chrome-extension://extensionid/popup.html");
+  auto main_simulator = content::NavigationSimulator::CreateBrowserInitiated(
+      extension_url, web_contents());
+  main_simulator->Commit();
+
+  // Create a child iframe and navigate it to an HTTP page.
+  content::RenderFrameHostTester::For(main_rfh())
+      ->InitializeRenderFrameIfNeeded();
+  content::RenderFrameHost* child_rfh =
+      content::RenderFrameHostTester::For(main_rfh())->AppendChild("iframe");
+  GURL http_url("http://example.com");
+  auto child_simulator = content::NavigationSimulator::CreateRendererInitiated(
+      http_url, child_rfh);
+  child_simulator->Commit();
+  child_rfh = child_simulator->GetFinalRenderFrameHost();
+
+  // Set extension origin after child navigation to avoid bad IPC.
+  content::OverrideLastCommittedOrigin(main_rfh(),
+                                       url::Origin::Create(extension_url));
+
+  TestChromeContentBrowserClient client;
+  EXPECT_FALSE(client.IsSecurityLevelAcceptableForWebAuthn(
+      child_rfh, url::Origin::Create(http_url)));
+}
+
+TEST_F(DisableWebAuthnWithBrokenCertsTest,
+       NestedHttpsIframesInsideExtensionSupported) {
+  // Navigate main frame to an extension page.
+  GURL extension_url("chrome-extension://extensionid/popup.html");
+  auto main_simulator = content::NavigationSimulator::CreateBrowserInitiated(
+      extension_url, web_contents());
+  main_simulator->Commit();
+  content::OverrideLastCommittedOrigin(main_rfh(),
+                                       url::Origin::Create(extension_url));
+
+  // Create first child iframe (HTTPS).
+  content::RenderFrameHostTester::For(main_rfh())
+      ->InitializeRenderFrameIfNeeded();
+  content::RenderFrameHost* first_child =
+      content::RenderFrameHostTester::For(main_rfh())->AppendChild("outer");
+  GURL outer_url("https://outer.example.com");
+  auto outer_sim = content::NavigationSimulator::CreateRendererInitiated(
+      outer_url, first_child);
+  outer_sim->Commit();
+  first_child = outer_sim->GetFinalRenderFrameHost();
+
+  // Create nested child iframe (HTTPS) inside the first.
+  content::RenderFrameHostTester::For(first_child)
+      ->InitializeRenderFrameIfNeeded();
+  content::RenderFrameHost* nested_child =
+      content::RenderFrameHostTester::For(first_child)->AppendChild("inner");
+  GURL inner_url("https://inner.example.com");
+  auto inner_sim = content::NavigationSimulator::CreateRendererInitiated(
+      inner_url, nested_child);
+  inner_sim->Commit();
+  nested_child = inner_sim->GetFinalRenderFrameHost();
+
+  TestChromeContentBrowserClient client;
+  EXPECT_TRUE(client.IsSecurityLevelAcceptableForWebAuthn(
+      nested_child, url::Origin::Create(inner_url)));
+}
+
+TEST_F(DisableWebAuthnWithBrokenCertsTest,
+       HttpAncestorInsideExtensionRejected) {
+  // Navigate main frame to an extension page.
+  GURL extension_url("chrome-extension://extensionid/popup.html");
+  auto main_simulator = content::NavigationSimulator::CreateBrowserInitiated(
+      extension_url, web_contents());
+  main_simulator->Commit();
+
+  // Create first child iframe (HTTP - insecure).
+  content::RenderFrameHostTester::For(main_rfh())
+      ->InitializeRenderFrameIfNeeded();
+  content::RenderFrameHost* first_child =
+      content::RenderFrameHostTester::For(main_rfh())->AppendChild("outer");
+  GURL http_url("http://insecure.example.com");
+  auto outer_sim = content::NavigationSimulator::CreateRendererInitiated(
+      http_url, first_child);
+  outer_sim->Commit();
+  first_child = outer_sim->GetFinalRenderFrameHost();
+
+  // Create nested child iframe (HTTPS) inside the HTTP frame.
+  content::RenderFrameHostTester::For(first_child)
+      ->InitializeRenderFrameIfNeeded();
+  content::RenderFrameHost* nested_child =
+      content::RenderFrameHostTester::For(first_child)->AppendChild("inner");
+  GURL https_url("https://secure.example.com");
+  auto inner_sim = content::NavigationSimulator::CreateRendererInitiated(
+      https_url, nested_child);
+  inner_sim->Commit();
+  nested_child = inner_sim->GetFinalRenderFrameHost();
+
+  // Set extension origin after all child navigations to avoid bad IPC.
+  content::OverrideLastCommittedOrigin(main_rfh(),
+                                       url::Origin::Create(extension_url));
+
+  // Even though the caller is HTTPS, the HTTP ancestor makes it insecure.
+  TestChromeContentBrowserClient client;
+  EXPECT_FALSE(client.IsSecurityLevelAcceptableForWebAuthn(
+      nested_child, url::Origin::Create(https_url)));
+}
+
+TEST_F(DisableWebAuthnWithBrokenCertsTest,
+       LocalhostIframeInsideExtensionSupported) {
+  // Navigate main frame to an extension page.
+  GURL extension_url("chrome-extension://extensionid/popup.html");
+  auto main_simulator = content::NavigationSimulator::CreateBrowserInitiated(
+      extension_url, web_contents());
+  main_simulator->Commit();
+  content::OverrideLastCommittedOrigin(main_rfh(),
+                                       url::Origin::Create(extension_url));
+
+  // Create a child iframe and navigate it to localhost.
+  content::RenderFrameHostTester::For(main_rfh())
+      ->InitializeRenderFrameIfNeeded();
+  content::RenderFrameHost* child_rfh =
+      content::RenderFrameHostTester::For(main_rfh())->AppendChild("iframe");
+  GURL localhost_url("http://localhost:8080");
+  auto child_simulator = content::NavigationSimulator::CreateRendererInitiated(
+      localhost_url, child_rfh);
+  child_simulator->Commit();
+  child_rfh = child_simulator->GetFinalRenderFrameHost();
+
+  TestChromeContentBrowserClient client;
+  EXPECT_TRUE(client.IsSecurityLevelAcceptableForWebAuthn(
+      child_rfh, url::Origin::Create(localhost_url)));
+}
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 TEST_F(DisableWebAuthnWithBrokenCertsTest, EnterpriseOverride) {
   PrefService* prefs =
@@ -2121,9 +2283,6 @@ TEST_F(ChromeContentBrowserClientOopifPdfTest,
 #endif  // BUILDFLAG(ENABLE_PDF)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_ANDROID)
-constexpr char kMimeHandlerViewerUrl[] =
-    "chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/viewer.html";
-
 class ChromeContentBrowserClientMimeHandlerFilePickerTest
     : public ChromeRenderViewHostTestHarness {
  public:
@@ -2131,6 +2290,10 @@ class ChromeContentBrowserClientMimeHandlerFilePickerTest
   ~ChromeContentBrowserClientMimeHandlerFilePickerTest() override = default;
 
  protected:
+  static constexpr char kMimeHandlerViewerUrl[] =
+      "chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/viewer.html";
+  static constexpr char kOriginalUrl[] = "https://original_url1";
+
   content::RenderFrameHost* CreateChild(content::RenderFrameHost* parent,
                                         const std::string& name) {
     auto* parent_tester = content::RenderFrameHostTester::For(parent);
@@ -2171,7 +2334,7 @@ class ChromeContentBrowserClientMimeHandlerFilePickerTest
 // file picker.
 TEST_F(ChromeContentBrowserClientMimeHandlerFilePickerTest,
        FullPageMimeHandlerExtensionFrameAllowed) {
-  NavigateAndCommit(GURL("https://example.test/document"));
+  NavigateAndCommit(GURL(kOriginalUrl));
   content::RenderFrameHost* extension_host =
       CreateMimeHandlerExtensionHost(main_rfh(), GURL(kMimeHandlerViewerUrl));
 
@@ -2189,7 +2352,7 @@ TEST_F(ChromeContentBrowserClientMimeHandlerFilePickerTest,
   content::RenderFrameHost* embedder_host =
       CreateChild(main_rfh(), "embedded-mime-handler");
   embedder_host = content::NavigationSimulator::NavigateAndCommitFromDocument(
-      GURL("https://embedder.test/file.foo"), embedder_host);
+      GURL(kOriginalUrl), embedder_host);
   content::RenderFrameHost* extension_host = CreateMimeHandlerExtensionHost(
       embedder_host, GURL(kMimeHandlerViewerUrl));
 
@@ -2204,7 +2367,7 @@ TEST_F(ChromeContentBrowserClientMimeHandlerFilePickerTest,
 // extension origin, is allowed to show a file picker.
 TEST_F(ChromeContentBrowserClientMimeHandlerFilePickerTest,
        DescendantOfMimeHandlerExtensionFrameAllowed) {
-  NavigateAndCommit(GURL("https://example.test/document"));
+  NavigateAndCommit(GURL(kOriginalUrl));
   content::RenderFrameHost* extension_host =
       CreateMimeHandlerExtensionHost(main_rfh(), GURL(kMimeHandlerViewerUrl));
   content::RenderFrameHost* descendant =
@@ -2238,7 +2401,7 @@ TEST_F(ChromeContentBrowserClientMimeHandlerFilePickerTest,
 // extension host's committed origin is denied a file picker.
 TEST_F(ChromeContentBrowserClientMimeHandlerFilePickerTest,
        MimeHandlerExtensionFrameWithMismatchedOriginDenied) {
-  NavigateAndCommit(GURL("https://example.test/document"));
+  NavigateAndCommit(GURL(kOriginalUrl));
   content::RenderFrameHost* extension_host =
       CreateMimeHandlerExtensionHost(main_rfh(), GURL(kMimeHandlerViewerUrl));
 

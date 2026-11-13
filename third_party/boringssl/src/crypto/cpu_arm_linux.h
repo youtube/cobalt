@@ -41,8 +41,8 @@ namespace armcap {
 #define CRYPTO_HWCAP2_SHA1 (1 << 2)
 #define CRYPTO_HWCAP2_SHA2 (1 << 3)
 
-// SplitStringView finds the first occurrence of |sep| in |in| and, if found,
-// sets |*out_left| and |*out_right| to |in| split before and after |sep|, and
+// SplitStringView finds the first occurrence of `sep` in `in` and, if found,
+// sets `*out_left` and `*out_right` to `in` split before and after `sep`, and
 // returns true. If not found, it returns false.
 inline bool SplitStringView(std::string_view *out_left,
                             std::string_view *out_right, std::string_view in,
@@ -56,23 +56,23 @@ inline bool SplitStringView(std::string_view *out_left,
   return true;
 }
 
-// GetDelimited reads a |sep|-delimited entry from |s|, writing it to |out| and
-// updating |s| to point beyond it. It returns true on success and false if |s|
-// is empty. If |s| has no copies of |sep| and is non-empty, it reads the entire
-// string to |out|.
+// GetDelimited reads a `sep`-delimited entry from `s`, writing it to `out` and
+// updating `s` to point beyond it. It returns true on success and false if `s`
+// is empty. If `s` has no copies of `sep` and is non-empty, it reads the entire
+// string to `out`.
 inline bool GetDelimited(std::string_view *s, std::string_view *out, char sep) {
   if (s->empty()) {
     return false;
   }
   if (!SplitStringView(out, s, *s, sep)) {
-    // |s| had no instances of |sep|. Return the entire string.
+    // `s` had no instances of `sep`. Return the entire string.
     *out = *s;
     *s = std::string_view();
   }
   return true;
 }
 
-// TrimStringView removes leading and trailing whitespace from |s|.
+// TrimStringView removes leading and trailing whitespace from `s`.
 inline std::string_view TrimStringView(std::string_view s) {
   size_t pos = s.find_first_not_of(" \t");
   if (pos == std::string_view::npos) {
@@ -84,11 +84,11 @@ inline std::string_view TrimStringView(std::string_view s) {
   return s.substr(0, pos + 1);
 }
 
-// ExtractCpuinfoField extracts a /proc/cpuinfo field named |field| from |in|.
+// ExtractCpuinfoField extracts a /proc/cpuinfo field named `field` from `in`.
 // If found, it returns the value. Otherwise, it returns the empty string.
 inline std::string_view ExtractCpuinfoField(std::string_view in,
                                             std::string_view field) {
-  // Process |in| one line at a time.
+  // Process `in` one line at a time.
   std::string_view line;
   while (GetDelimited(&in, &line, '\n')) {
     std::string_view key, value;
@@ -103,8 +103,8 @@ inline std::string_view ExtractCpuinfoField(std::string_view in,
   return {};
 }
 
-// HasListItem treats |list| as a space-separated list of items and returns
-// whether |item| is contained in |list|.
+// HasListItem treats `list` as a space-separated list of items and returns
+// whether `item` is contained in `list`.
 inline bool HasListItem(std::string_view list, std::string_view item) {
   std::string_view feature;
   while (GetDelimited(&list, &feature, ' ')) {
@@ -115,8 +115,8 @@ inline bool HasListItem(std::string_view list, std::string_view item) {
   return false;
 }
 
-// GetHWCAP2FromCpuinfo returns an equivalent ARM |AT_HWCAP2| value from
-// |cpuinfo|.
+// GetHWCAP2FromCpuinfo returns an equivalent ARM `AT_HWCAP2` value from
+// `cpuinfo`.
 inline unsigned long GetHWCAP2FromCpuinfo(std::string_view cpuinfo) {
   std::string_view features = ExtractCpuinfoField(cpuinfo, "Features");
   unsigned long ret = 0;

@@ -136,7 +136,7 @@ class RtpSenderReceiverTest
         env_, &fake_call_, MediaConfig(), AudioOptions(), CryptoOptions());
     video_media_send_channel_ = media_engine_->video().CreateSendChannel(
         env_, &fake_call_, MediaConfig(), VideoOptions(), CryptoOptions(),
-        video_bitrate_allocator_factory_.get());
+        video_bitrate_allocator_factory_.get(), nullptr, nullptr);
     voice_media_receive_channel_ = media_engine_->voice().CreateReceiveChannel(
         env_, &fake_call_, MediaConfig(), AudioOptions(), CryptoOptions());
     video_media_receive_channel_ = media_engine_->video().CreateReceiveChannel(
@@ -1376,7 +1376,7 @@ TEST(RtpSenderReceiverDeathTest,
           CreateBuiltinVideoBitrateAllocatorFactory();
   auto video_media_send_channel = media_engine->video().CreateSendChannel(
       env, &fake_call, MediaConfig(), VideoOptions(), CryptoOptions(),
-      video_bitrate_allocator_factory.get());
+      video_bitrate_allocator_factory.get(), nullptr, nullptr);
 
   scoped_refptr<MediaStreamInterface> local_stream =
       MediaStream::Create(kStreamId1);

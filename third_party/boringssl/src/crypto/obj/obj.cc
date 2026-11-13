@@ -57,63 +57,48 @@ static int obj_next_nid() {
 }
 
 ASN1_OBJECT *OBJ_dup(const ASN1_OBJECT *o) {
-  ASN1_OBJECT *r;
-  unsigned char *data = nullptr;
-  char *sn = nullptr, *ln = nullptr;
-
   if (o == nullptr) {
     return nullptr;
   }
 
   if (!(o->flags & ASN1_OBJECT_FLAG_DYNAMIC)) {
     // TODO(fork): this is a little dangerous.
-    return (ASN1_OBJECT *)o;
+    return const_cast<ASN1_OBJECT *>(o);
   }
 
-  r = ASN1_OBJECT_new();
+  UniquePtr<ASN1_OBJECT> r(ASN1_OBJECT_new());
   if (r == nullptr) {
     OPENSSL_PUT_ERROR(OBJ, ERR_R_ASN1_LIB);
     return nullptr;
   }
-  r->ln = r->sn = nullptr;
 
-  // once data is attached to an object, it remains const
+  // All fields of the object will be allocated.
+  r->flags = o->flags | ASN1_OBJECT_FLAG_DYNAMIC |
+             ASN1_OBJECT_FLAG_DYNAMIC_STRINGS | ASN1_OBJECT_FLAG_DYNAMIC_DATA;
+
   r->data = reinterpret_cast<uint8_t *>(OPENSSL_memdup(o->data, o->length));
   if (o->length != 0 && r->data == nullptr) {
-    goto err;
+    return nullptr;
   }
 
   r->length = o->length;
   r->nid = o->nid;
 
   if (o->ln != nullptr) {
-    ln = OPENSSL_strdup(o->ln);
-    if (ln == nullptr) {
-      goto err;
+    r->ln = OPENSSL_strdup(o->ln);
+    if (r->ln == nullptr) {
+      return nullptr;
     }
   }
 
   if (o->sn != nullptr) {
-    sn = OPENSSL_strdup(o->sn);
-    if (sn == nullptr) {
-      goto err;
+    r->sn = OPENSSL_strdup(o->sn);
+    if (r->sn == nullptr) {
+      return nullptr;
     }
   }
 
-  r->sn = sn;
-  r->ln = ln;
-
-  r->flags =
-      o->flags | (ASN1_OBJECT_FLAG_DYNAMIC | ASN1_OBJECT_FLAG_DYNAMIC_STRINGS |
-                  ASN1_OBJECT_FLAG_DYNAMIC_DATA);
-  return r;
-
-err:
-  OPENSSL_free(ln);
-  OPENSSL_free(sn);
-  OPENSSL_free(data);
-  OPENSSL_free(r);
-  return nullptr;
+  return r.release();
 }
 
 int OBJ_cmp(const ASN1_OBJECT *a, const ASN1_OBJECT *b) {

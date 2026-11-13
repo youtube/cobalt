@@ -15,6 +15,7 @@
 #include "absl/strings/string_view.h"
 #include "api/payload_type.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "media/base/codec.h"
 
@@ -43,7 +44,7 @@ class PayloadTypeSuggester {
   // Suggest an ID for a given RTP header extension on a given media section.
   // The function will either return an ID already in use on the connection
   // or a newly suggested one.
-  virtual RTCErrorOr<int> SuggestRtpHeaderExtensionId(
+  virtual RTCErrorOr<RtpHeaderExtensionId> SuggestRtpHeaderExtensionId(
       absl::string_view mid,
       const RtpExtension& extension,
       RtpTransceiverIdDomain id_domain) = 0;

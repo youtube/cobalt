@@ -31,18 +31,30 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.search_engines.AimEligibilityServiceFactory;
+import org.chromium.chrome.browser.search_engines.AimEligibilityServiceFactoryJni;
 import org.chromium.chrome.browser.search_engines.R;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.components.favicon.LargeIconBridge;
 import org.chromium.components.favicon.LargeIconBridgeJni;
+import org.chromium.components.omnibox.OmniboxFeatureList;
+import org.chromium.components.prefs.PrefService;
+import org.chromium.components.search_engines.StarterPackId;
 import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.search_engines.TemplateUrlService;
+import org.chromium.components.user_prefs.UserPrefs;
+import org.chromium.components.user_prefs.UserPrefsJni;
 import org.chromium.ui.listmenu.ListMenuDelegate;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.url.GURL;
+
+import java.util.List;
 
 /** Unit tests for {@link BaseSiteSearchMediator}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -54,6 +66,9 @@ public class BaseSiteSearchMediatorUnitTest {
     @Mock private LargeIconBridgeJni mLargeIconBridgeJni;
     @Mock private TemplateUrl mTemplateUrl;
     @Mock private ListMenuDelegate mMenuDelegate;
+    @Mock private AimEligibilityServiceFactory.Natives mAimEligibilityNativesMock;
+    @Mock private UserPrefs.Natives mUserPrefsJniMock;
+    @Mock private PrefService mPrefServiceMock;
 
     private Context mContext;
     private ModelList mModelList;
@@ -61,6 +76,12 @@ public class BaseSiteSearchMediatorUnitTest {
 
     @Before
     public void setUp() {
+        UserPrefsJni.setInstanceForTesting(mUserPrefsJniMock);
+        doReturn(mPrefServiceMock).when(mUserPrefsJniMock).get(any(Profile.class));
+
+        AimEligibilityServiceFactoryJni.setInstanceForTesting(mAimEligibilityNativesMock);
+        doReturn(true).when(mAimEligibilityNativesMock).isAimStarterPackEnabled(mProfile);
+
         mContext =
                 new ContextThemeWrapper(
                         ApplicationProvider.getApplicationContext(),
@@ -176,5 +197,97 @@ public class BaseSiteSearchMediatorUnitTest {
         assertEquals(
                 SiteSearchProperties.ItemPosition.BOTTOM,
                 model3.get(SiteSearchProperties.POSITION));
+    }
+
+    @Test
+    @EnableFeatures(OmniboxFeatureList.STARTER_PACK_EXPANSION)
+    public void testFilterTemplateUrls_AimStarterPackDisabled() {
+        doReturn(false).when(mAimEligibilityNativesMock).isAimStarterPackEnabled(mProfile);
+
+        TemplateUrl normalEngine = mock(TemplateUrl.class);
+        doReturn(StarterPackId.NONE).when(normalEngine).getStarterPackId();
+
+        TemplateUrl aimEngine = mock(TemplateUrl.class);
+        doReturn(StarterPackId.AI_MODE).when(aimEngine).getStarterPackId();
+
+        List<TemplateUrl> urls = List.of(normalEngine, aimEngine);
+        List<TemplateUrl> filtered = mMediator.filterTemplateUrls(urls);
+
+        assertEquals(1, filtered.size());
+        assertEquals(normalEngine, filtered.get(0));
+    }
+
+    @Test
+    @EnableFeatures(OmniboxFeatureList.STARTER_PACK_EXPANSION)
+    public void testFilterTemplateUrls_AimStarterPackEnabled() {
+        TemplateUrl normalEngine = mock(TemplateUrl.class);
+        doReturn(StarterPackId.NONE).when(normalEngine).getStarterPackId();
+
+        TemplateUrl aimEngine = mock(TemplateUrl.class);
+        doReturn(StarterPackId.AI_MODE).when(aimEngine).getStarterPackId();
+
+        List<TemplateUrl> urls = List.of(normalEngine, aimEngine);
+        List<TemplateUrl> filtered = mMediator.filterTemplateUrls(urls);
+
+        assertEquals(2, filtered.size());
+        assertEquals(normalEngine, filtered.get(0));
+        assertEquals(aimEngine, filtered.get(1));
+    }
+
+    @Test
+    @DisableFeatures(OmniboxFeatureList.STARTER_PACK_EXPANSION)
+    public void testFilterTemplateUrls_GeminiStarterPackDisabled_FeatureFlag() {
+        doReturn(0).when(mPrefServiceMock).getInteger(Pref.GEMINI_SETTINGS);
+
+        TemplateUrl normalEngine = mock(TemplateUrl.class);
+        doReturn(StarterPackId.NONE).when(normalEngine).getStarterPackId();
+
+        TemplateUrl geminiEngine = mock(TemplateUrl.class);
+        doReturn(StarterPackId.GEMINI).when(geminiEngine).getStarterPackId();
+
+        List<TemplateUrl> urls = List.of(normalEngine, geminiEngine);
+        List<TemplateUrl> filtered = mMediator.filterTemplateUrls(urls);
+
+        assertEquals(1, filtered.size());
+        assertEquals(normalEngine, filtered.get(0));
+    }
+
+    @Test
+    @EnableFeatures(OmniboxFeatureList.STARTER_PACK_EXPANSION)
+    public void testFilterTemplateUrls_GeminiStarterPackDisabled_PrefSetting() {
+        // Disable via pref (non-zero value).
+        doReturn(1).when(mPrefServiceMock).getInteger(Pref.GEMINI_SETTINGS);
+
+        TemplateUrl normalEngine = mock(TemplateUrl.class);
+        doReturn(StarterPackId.NONE).when(normalEngine).getStarterPackId();
+
+        TemplateUrl geminiEngine = mock(TemplateUrl.class);
+        doReturn(StarterPackId.GEMINI).when(geminiEngine).getStarterPackId();
+
+        List<TemplateUrl> urls = List.of(normalEngine, geminiEngine);
+        List<TemplateUrl> filtered = mMediator.filterTemplateUrls(urls);
+
+        assertEquals(1, filtered.size());
+        assertEquals(normalEngine, filtered.get(0));
+    }
+
+    @Test
+    @EnableFeatures(OmniboxFeatureList.STARTER_PACK_EXPANSION)
+    public void testFilterTemplateUrls_GeminiStarterPackEnabled() {
+        // Enable via pref (0 value).
+        doReturn(0).when(mPrefServiceMock).getInteger(Pref.GEMINI_SETTINGS);
+
+        TemplateUrl normalEngine = mock(TemplateUrl.class);
+        doReturn(StarterPackId.NONE).when(normalEngine).getStarterPackId();
+
+        TemplateUrl geminiEngine = mock(TemplateUrl.class);
+        doReturn(StarterPackId.GEMINI).when(geminiEngine).getStarterPackId();
+
+        List<TemplateUrl> urls = List.of(normalEngine, geminiEngine);
+        List<TemplateUrl> filtered = mMediator.filterTemplateUrls(urls);
+
+        assertEquals(2, filtered.size());
+        assertEquals(normalEngine, filtered.get(0));
+        assertEquals(geminiEngine, filtered.get(1));
     }
 }

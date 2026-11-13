@@ -8,6 +8,7 @@
 #include <string_view>
 
 #include "base/memory/weak_ptr.h"
+#include "components/sync_device_info/device_info.h"
 #include "url/gurl.h"
 
 namespace content {
@@ -17,6 +18,7 @@ class WebContents;
 namespace send_tab_to_self {
 
 class SendTabToSelfEntry;
+enum class SendTabToSelfResult;
 
 }  // namespace send_tab_to_self
 
@@ -39,16 +41,19 @@ base::WeakPtr<content::WebContents> OpenEntryInNewBackgroundTab(
 // Shows a success toast confirming that the tab was successfully sent, if
 // `kSendTabToSelfPostSendToast` is enabled.
 void ShowTabSentSuccessToast(content::WebContents* web_contents,
-                             std::string_view device_name);
+                             std::string_view device_name,
+                             syncer::DeviceInfo::FormFactor form_factor);
 
 // Shows a toast confirming that the tab was already sent to the device
 // recently, if `kSendTabToSelfPostSendToast` is enabled.
 void ShowTabSentThrottledToast(content::WebContents* web_contents,
-                               std::string_view device_name);
+                               std::string_view device_name,
+                               syncer::DeviceInfo::FormFactor form_factor);
 
 // Shows a failure toast (or notification if the feature flag is disabled)
 // when the tab failed to send.
 void ShowTabSentFailure(content::WebContents* web_contents,
+                        SendTabToSelfResult result,
                         const GURL& url = GURL());
 
 }  // namespace send_tab_to_self

@@ -177,9 +177,7 @@ media types:
 3.  Links redundancy codecs to the primary PT (e.g., setting the `apt` parameter
     for RTX).
 
-**Current Status:** RTX linking is fully unified. RED linking for audio still
-partially relies on a legacy `LinkRed` helper, which will be refactored into the
-unified expansion logic in a future step.
+**Current Status:** RTX and RED linking are fully unified. RED linking for audio has been refactored into the unified expansion logic in `MergeRedCodec`.
 
 ## Testing Strategy
 

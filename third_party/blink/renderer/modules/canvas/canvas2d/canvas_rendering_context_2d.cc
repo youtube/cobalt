@@ -242,7 +242,7 @@ bool CanvasRenderingContext2D::IsComposited() const {
     return false;
   }
 
-  if (!resource_provider_->As2DSharedImageProvider()) {
+  if (!resource_provider_->AsSharedImageProvider()) {
     return false;
   }
 
@@ -736,7 +736,7 @@ CanvasRenderingContext2D::PaintRenderingResultsToResource(
   }
 
   // Only CRPSI can produce CanvasResources.
-  auto* si_provider = resource_provider_->As2DSharedImageProvider();
+  auto* si_provider = resource_provider_->AsSharedImageProvider();
   if (!si_provider) {
     return nullptr;
   }
@@ -872,8 +872,7 @@ void CanvasRenderingContext2D::PageVisibilityChanged() {
   // whether resource recycling is enabled based on page visibility.
   auto* resource_provider = GetResourceProvider();
   auto* resource_provider_si =
-      resource_provider ? resource_provider->As2DSharedImageProvider()
-                        : nullptr;
+      resource_provider ? resource_provider->AsSharedImageProvider() : nullptr;
   if (resource_provider_si) {
     resource_provider_si->SetResourceRecyclingEnabled(page_is_visible);
   }
@@ -1261,8 +1260,7 @@ void CanvasRenderingContext2D::DropAndRecreateExistingResourceProvider() {
     return;
   }
 
-  resource_provider_->RestoreBackBufferForCanvas2D(
-      image->PaintImageForCurrentFrame());
+  resource_provider_->RestoreBackBuffer(image->PaintImageForCurrentFrame());
   resource_provider_->SetRecorder(std::move(recorder));
 
   canvas()->UpdateMemoryUsage();
@@ -1320,7 +1318,7 @@ void CanvasRenderingContext2D::WakeUpFromHibernation() {
   builder.set_image(hibernation_handler->GetImage(),
                     PaintImage::GetNextContentId());
   builder.set_id(PaintImage::GetNextId());
-  resource_provider_->RestoreBackBufferForCanvas2D(builder.TakePaintImage());
+  resource_provider_->RestoreBackBuffer(builder.TakePaintImage());
   resource_provider_->SetRecorder(hibernation_handler->ReleaseRecorder());
   // The hibernation image is no longer valid, clear it.
   hibernation_handler->Clear();

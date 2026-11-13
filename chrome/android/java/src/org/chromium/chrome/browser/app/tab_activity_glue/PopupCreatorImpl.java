@@ -40,7 +40,6 @@ import org.chromium.chrome.browser.customtabs.CustomTabIntentDataProvider;
 import org.chromium.chrome.browser.customtabs.IncognitoCustomTabIntentDataProvider;
 import org.chromium.chrome.browser.customtabs.PopupCreator;
 import org.chromium.chrome.browser.customtabs.features.desktop_popup_header.DesktopPopupHeaderUtils;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.media.AutoPictureInPictureTabHelper;
 import org.chromium.chrome.browser.media.DocumentPictureInPictureActivity;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -56,6 +55,8 @@ import org.chromium.ui.display.DisplayAndroid;
 import org.chromium.ui.display.DisplayUtil;
 import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.insets.WindowInsetsUtils;
+import org.chromium.url.GURL;
+import org.chromium.url.Origin;
 
 /** Handles launching new popup windows as CCTs and Document Picture-in-Picture windows. */
 @NullMarked
@@ -420,14 +421,9 @@ public class PopupCreatorImpl implements PopupCreator {
      */
     private static int predictBrowserTopControlsTotalHeightBelowTopInsetPx(
             Context targetDisplayContext, int topInsetPx) {
-        // Without edge-to-edge drawing the caption bar is precisely the top inset.
-        int captionBarOverflowOverTopInsetPx = 0;
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.ANDROID_WINDOW_POPUP_CUSTOM_TAB_UI)) {
-            final int customTabsE2EHeaderHeightPx =
-                    DesktopPopupHeaderUtils.getFinalHeaderHeightPx(
-                            targetDisplayContext, topInsetPx);
-            captionBarOverflowOverTopInsetPx = customTabsE2EHeaderHeightPx - topInsetPx;
-        }
+        final int customTabsE2EHeaderHeightPx =
+                DesktopPopupHeaderUtils.getFinalHeaderHeightPx(targetDisplayContext, topInsetPx);
+        final int captionBarOverflowOverTopInsetPx = customTabsE2EHeaderHeightPx - topInsetPx;
 
         final int customTabsHeaderHeightPx =
                 targetDisplayContext
@@ -508,6 +504,17 @@ public class PopupCreatorImpl implements PopupCreator {
         intent.putExtra(
                 DocumentPictureInPictureActivity.WINDOW_OPTIONS_KEY, windowOptions.toBundle());
 
+        // Record the opener's origin at the time of the request to prevent origin spoofing
+        // if the opener navigates before the Activity completes its launch.
+        WebContents opener = webContents.getDocumentPictureInPictureOpener();
+        if (opener != null) {
+            GURL openerUrl = opener.getLastCommittedUrl();
+            Origin openerOrigin = Origin.create(openerUrl != null ? openerUrl : GURL.emptyGURL());
+            intent.putExtra(
+                    DocumentPictureInPictureActivity.INITIAL_OPENER_ORIGIN_KEY,
+                    openerOrigin.toString());
+        }
+
         intent.setAction(Intent.ACTION_VIEW);
 
         return intent;
@@ -528,10 +535,7 @@ public class PopupCreatorImpl implements PopupCreator {
     private static @Nullable ActivityOptions createPopupActivityOptions(
             @Nullable Rect windowBounds, @Nullable WindowAndroid sourceWindow) {
         return createPopupActivityOptions(
-                windowBounds,
-                sourceWindow,
-                ChromeFeatureList.isEnabled(
-                        ChromeFeatureList.ANDROID_WINDOW_POPUP_PREDICT_FINAL_BOUNDS));
+                windowBounds, sourceWindow, /* predictFinalBounds= */ true);
     }
 
     private static @Nullable ActivityOptions createDocumentPipActivityOptions(

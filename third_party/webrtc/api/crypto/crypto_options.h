@@ -69,6 +69,13 @@ struct RTC_EXPORT CryptoOptions {
     // requested. For this to work the Chromium field trial
     // `kWebRtcEncryptedRtpHeaderExtensions` must be enabled.
     bool enable_encrypted_rtp_header_extensions = true;
+
+    // Enable cryptex, a modern take on encrypting header extensions:
+    // https://www.rfc-editor.org/rfc/rfc9335.html
+    // Supported as of libsrtp v2.8.0.
+    enum class CryptexPolicy { kDisabled, kNegotiate, kRequire };
+    // TODO: bugs.webrtc.org/455813732 - the default should be `negotiate`.
+    CryptexPolicy cryptex_policy = CryptexPolicy::kDisabled;
   } srtp;
 
   // Options to be used when the FrameEncryptor / FrameDecryptor APIs are used.

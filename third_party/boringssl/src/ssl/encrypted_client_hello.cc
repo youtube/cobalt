@@ -1064,6 +1064,7 @@ int SSL_ECH_KEYS_marshal_retry_configs(const SSL_ECH_KEYS *keys, uint8_t **out,
 }
 
 int SSL_CTX_set1_ech_keys(SSL_CTX *ctx, SSL_ECH_KEYS *keys) {
+  auto *ctx_impl = FromOpaque(ctx);
   bool has_retry_config = false;
   for (const auto &config : FromOpaque(keys)->configs) {
     if (config->is_retry_config()) {
@@ -1076,8 +1077,8 @@ int SSL_CTX_set1_ech_keys(SSL_CTX *ctx, SSL_ECH_KEYS *keys) {
     return 0;
   }
   UniquePtr<SSLECHKeys> owned_keys = UpRef(FromOpaque(keys));
-  MutexWriteLock lock(&ctx->lock);
-  ctx->ech_keys.swap(owned_keys);
+  MutexWriteLock lock(&ctx_impl->lock);
+  ctx_impl->ech_keys.swap(owned_keys);
   return 1;
 }
 

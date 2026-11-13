@@ -114,7 +114,6 @@ class RtpTransmissionManager : public RtpSenderBase::SetStreamsObserver {
           header_extensions_to_negotiate,
       bool simulcast_rejected,
       const std::vector<SimulcastLayer>& initial_simulcast_layers,
-      ScopedOperationsBatcher& worker_tasks,
       absl::string_view sender_id,
       absl::string_view receiver_id = "");
 

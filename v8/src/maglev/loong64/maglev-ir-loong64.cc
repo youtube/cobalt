@@ -286,7 +286,7 @@ void CheckFloat64SameValue::GenerateCode(MaglevAssembler* masm,
   } else if (value().get_scalar() == 0) {  // If value is +0.0 or -0.0.
     Register scratch = temps.AcquireScratch();
     __ Move(double_scratch, value().get_scalar());
-    __ CompareF64(target, double_scratch, CUN);
+    __ CompareF64(target, double_scratch, CUNE);
     __ BranchTrueF(fail);
     __ movfr2gr_d(scratch, target);
     if (value().get_bits() == 0) {
@@ -620,12 +620,12 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   //   deopt if lhs < 0  // Minus zero.
   //   0
   //
-  // Using same algorithm as in EffectControlLinearizer:
+  // Using same algorithm as in MachineLoweringReducer:
   //   if rhs <= 0 then
   //     rhs = -rhs
   //     deopt if rhs == 0
   //   if lhs < 0 then
-  //     // Different from EffectControlLinearizer, using mod.w directly.
+  //     // Different from MachineLoweringReducer, using mod.w directly.
   //     let out = lhs_abs % rhs in
   //     deopt if out == 0
   //   else

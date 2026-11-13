@@ -82,7 +82,11 @@ ExternalBeginFrameSourceMac::ExternalBeginFrameSourceMac(
     base::PowerMonitor::GetInstance()->AddPowerSuspendObserver(this);
   }
 
-  SetVSyncDisplayID(display_id, /*force_update=*/true);
+  // The |display_id_| default is display::kInvalidDisplayId. If the incoming
+  // display_id happens to be invalid, force SetVSyncDisplayID() to set up the
+  // timer correctly.
+  bool force_update = display_id == display_id_;
+  SetVSyncDisplayID(display_id, force_update);
 }
 
 ExternalBeginFrameSourceMac::~ExternalBeginFrameSourceMac() {
@@ -110,10 +114,48 @@ void ExternalBeginFrameSourceMac::CreateDelayBasedTimeSourceIfNeeded() {
 // Forces an update of the DisplayLinkMac for the specified display. This is
 // called when the browser-side CADisplayLink state changes (e.g., becomes
 // valid or invalid) or when a display is added or removed.
-void ExternalBeginFrameSourceMac::UpdateVSyncDisplay(int64_t display_id) {
+void ExternalBeginFrameSourceMac::UpdateVSyncDisplay(
+    int64_t display_id,
+    bool is_browser_vsync_supported) {
   if (display_id_ == display_id) {
+    // If the browser-side DisplayLink becomes valid and we haven't deferred a
+    // VSync update yet, defer the update to ensure a smooth transition.
+    // If the browser-side DisplayLink fails (|is_browser_vsync_supported| is
+    // false), call SetVSyncDisplayID() immediately to update display_link_
+    // for a fallback.
+    if (is_browser_vsync_supported && !did_defer_vsync_update_once_) {
+      did_defer_vsync_update_once_ = true;
+      vsync_display_id_update_deferred_ = true;
+      return;
+    }
+
+    vsync_display_id_update_deferred_ = false;
     SetVSyncDisplayID(display_id_, /*force_update=*/true);
   }
+}
+
+void ExternalBeginFrameSourceMac::DidReceiveNewCALayerParams() {
+  has_swapped_frame_ = true;
+
+  // Switch to External BeginFrame source in a few seconds if using a timer.
+  // Don't wait for no NeedsBeginFrames if it's a nonstop rendering.
+  if (!display_link_mac_) {
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(
+            &ExternalBeginFrameSourceMac::UpdateDeferredVSyncDisplayIfNeeded,
+            weak_ptr_factory_.GetWeakPtr()),
+        base::Seconds(2));
+  }
+}
+
+void ExternalBeginFrameSourceMac::UpdateDeferredVSyncDisplayIfNeeded() {
+  if (!vsync_display_id_update_deferred_ || !has_swapped_frame_) {
+    return;
+  }
+
+  vsync_display_id_update_deferred_ = false;
+  SetVSyncDisplayID(display_id_, /*force_update=*/true);
 }
 
 void ExternalBeginFrameSourceMac::SetVSyncDisplayID(int64_t display_id,
@@ -286,6 +328,8 @@ void ExternalBeginFrameSourceMac::OnNeedsBeginFrames(bool needs_begin_frames) {
     StartBeginFrame();
   } else {
     StopBeginFrame(/*force_stop=*/false);
+
+    UpdateDeferredVSyncDisplayIfNeeded();
   }
 }
 

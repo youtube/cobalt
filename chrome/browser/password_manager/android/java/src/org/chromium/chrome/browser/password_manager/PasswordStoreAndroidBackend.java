@@ -162,12 +162,29 @@ public interface PasswordStoreAndroidBackend {
      *
      * @param pwdSpecificsData Serialized PasswordSpecificsData identifying the login to be deleted.
      * @param syncingAccount Account used to sync passwords. If Nullopt was provided local account
-     *         will be used.
+     *     will be used.
      * @param successCallback Callback that is called on success.
      * @param failureCallback A callback that is called on failure for any reason. May return sync.
      */
     void removeLogin(
             byte[] pwdSpecificsData,
+            Optional<Account> syncingAccount,
+            Runnable successCallback,
+            Callback<Exception> failureCallback);
+
+    /**
+     * Triggers an async call to remove a login from store with DeletionOrigin.
+     *
+     * @param pwdSpecificsData Serialized PasswordSpecificsData identifying the login to be deleted.
+     * @param deletionOriginData Serialized DeletionOrigin identifying what requested the deletion.
+     * @param syncingAccount Account used to sync passwords. If Nullopt was provided local account
+     *     will be used.
+     * @param successCallback Callback that is called on success.
+     * @param failureCallback A callback that is called on failure for any reason. May return sync.
+     */
+    void removeLogin(
+            byte[] pwdSpecificsData,
+            byte[] deletionOriginData,
             Optional<Account> syncingAccount,
             Runnable successCallback,
             Callback<Exception> failureCallback);

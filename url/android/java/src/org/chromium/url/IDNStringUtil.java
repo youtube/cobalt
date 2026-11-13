@@ -20,19 +20,24 @@ import java.util.StringJoiner;
 @JNINamespace("url::android")
 @NullMarked
 public class IDNStringUtil {
-    private static final @Nullable IDNA sIDNA;
+    private static final @Nullable IDNA sIDNA = getIDNA();
 
-    static {
+    // We suppress "Unnecessary; SDK_INT is never < 24 [ObsoleteSdkInt]" warnings that occur in
+    // some, but not all, build configs because these build configs set their min SDK version to
+    // 24+. See https://crrev.com/c/7874650.
+    @SuppressWarnings("ObsoleteSdkInt")
+    private static @Nullable IDNA getIDNA() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-            sIDNA = null;
-        } else {
-            sIDNA =
-                    IDNA.getUTS46Instance(
-                            IDNA.NONTRANSITIONAL_TO_ASCII | IDNA.NONTRANSITIONAL_TO_UNICODE);
-            if (sIDNA == null) {
-                throw new IllegalStateException("Failed to create IDNA instance");
-            }
+            return null;
         }
+
+        var sIDNA =
+                IDNA.getUTS46Instance(
+                        IDNA.NONTRANSITIONAL_TO_ASCII | IDNA.NONTRANSITIONAL_TO_UNICODE);
+        if (sIDNA == null) {
+            throw new IllegalStateException("Failed to create IDNA instance");
+        }
+        return sIDNA;
     }
 
     /**

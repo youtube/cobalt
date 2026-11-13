@@ -140,7 +140,7 @@ TEST(VerifyTest, DepthLimit) {
   opts.leaf_cert = leaf;
   opts.intermediates = {intermediate1, intermediate2};
   opts.time = 1499727444;
-  // Set the |max_path_building_depth| explicitly to test the non-default case.
+  // Set the `max_path_building_depth` explicitly to test the non-default case.
   // Depth of 5 is enough to successfully find a path.
   opts.max_path_building_depth = 5;
   std::unique_ptr<VerifyTrustStore> roots = MozillaRootStore();
@@ -254,12 +254,12 @@ class VerifyMTCTest : public ::testing::Test {
   std::string leaf_b_;
   std::string leaf_c_;
 
-  // the trusted subtree for [8, 13) that is used in |generic_cert_|,
-  // |bitflip_cert_|.
+  // the trusted subtree for [8, 13) that is used in `generic_cert_`,
+  // `bitflip_cert_`.
   TrustedSubtree generic_cert_subtree_;
-  // Subtree for |leaf_b_| which overlaps with |generic_cert_subtree_|.
+  // Subtree for `leaf_b_` which overlaps with `generic_cert_subtree_`.
   TrustedSubtree leaf_b_subtree_;
-  // Subtree for |leaf_c_| which does not overlap with any other subtrees.
+  // Subtree for `leaf_c_` which does not overlap with any other subtrees.
   TrustedSubtree leaf_c_subtree_;
 
   // Relative OID encoding of 32473.1, the log ID used for the MTC Anchor that
@@ -270,7 +270,7 @@ class VerifyMTCTest : public ::testing::Test {
 
 TEST_F(VerifyMTCTest, SignaturelessMTC) {
   // Configure the trust store to trust the MTC anchor with the landmark subtree
-  // for |generic_cert_|.
+  // for `generic_cert_`.
   std::unique_ptr<VerifyTrustStore> trust_store = EmptyTrustStore();
   std::vector<TrustedSubtree> trusted_subtrees = {generic_cert_subtree_};
   auto mtc_anchor = std::make_shared<MTCAnchor>(MakeSpan(kAnchorLogId),
@@ -284,7 +284,7 @@ TEST_F(VerifyMTCTest, SignaturelessMTC) {
 }
 
 TEST_F(VerifyMTCTest, ExplicitlyTrustedLeaf) {
-  // Configure the trust store to directly trust the |generic_cert_| leaf.
+  // Configure the trust store to directly trust the `generic_cert_` leaf.
   std::unique_ptr<VerifyTrustStore> trust_store = EmptyTrustStore();
   trust_store->trust_store->AddCertificate(CertFromString(generic_cert_),
                                            CertificateTrust::ForTrustedLeaf());
@@ -296,7 +296,7 @@ TEST_F(VerifyMTCTest, ExplicitlyTrustedLeaf) {
 }
 
 TEST_F(VerifyMTCTest, ExplicitlyDistrustedLeaf) {
-  // Configure the trust store to trust the MTC anchor for |generic_cert_|, but
+  // Configure the trust store to trust the MTC anchor for `generic_cert_`, but
   // also to explicitly distrust that leaf.
   std::unique_ptr<VerifyTrustStore> trust_store = EmptyTrustStore();
   trust_store->trust_store->AddCertificate(CertFromString(generic_cert_),
@@ -344,7 +344,7 @@ TEST_F(VerifyMTCTest, UnusedBit) {
 }
 
 TEST_F(VerifyMTCTest, WrongLogID) {
-  // Trust the correct subtree for |generic_cert_| but with the wrong log ID.
+  // Trust the correct subtree for `generic_cert_` but with the wrong log ID.
   // Verifying the cert should fail because even though the proof evaluates to a
   // valid hash, the hash is for the wrong issuer.
   std::unique_ptr<VerifyTrustStore> trust_store = EmptyTrustStore();
@@ -362,7 +362,7 @@ TEST_F(VerifyMTCTest, WrongLogID) {
 
 TEST_F(VerifyMTCTest, ExpiredMTC) {
   // Configure the trust store to trust the MTC anchor with the landmark subtree
-  // for |generic_cert_|.
+  // for `generic_cert_`.
   std::unique_ptr<VerifyTrustStore> trust_store = EmptyTrustStore();
   std::vector<TrustedSubtree> trusted_subtrees = {generic_cert_subtree_};
   auto mtc_anchor = std::make_shared<MTCAnchor>(MakeSpan(kAnchorLogId),
@@ -400,7 +400,7 @@ TEST_F(VerifyMTCTest, TrustStoreConfiguration) {
 TEST_F(VerifyMTCTest, BadMTCAnchorHash) {
   // Test that an MTC isn't trusted if the MTCAnchor's TrustedSubtree has the
   // wrong hash. Configure the trust store to trust the MTC anchor with the
-  // landmark subtree for |generic_cert_|.
+  // landmark subtree for `generic_cert_`.
   std::unique_ptr<VerifyTrustStore> trust_store = EmptyTrustStore();
   std::vector<TrustedSubtree> trusted_subtrees = {generic_cert_subtree_};
   trusted_subtrees[0].hash[0] ^= 1;

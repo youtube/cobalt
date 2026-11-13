@@ -9,6 +9,7 @@
 
 #include <array>
 #include <iterator>
+#include <string_view>
 
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
@@ -22,6 +23,10 @@
 #include "pdf/buildflags.h"
 #include "printing/buildflags/buildflags.h"
 #include "rlz/buildflags/buildflags.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/chrome_pref_names.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace prefs {
 
@@ -39,10 +44,18 @@ inline constexpr char kPreinstalledApps[] = "default_apps";
 inline constexpr char kSafeBrowsingForTrustedSourcesEnabled[] =
     "safebrowsing_for_trusted_sources_enabled";
 
+// Restrict YouTube cookies deletion.
+inline constexpr char kRestrictYouTubeCookiesDeletion[] =
+    "restrict_youtube_cookies_deletion";
+
 // Disables screenshot accelerators and extension APIs.
 // This setting resides both in profile prefs and local state. Accelerator
 // handling code reads local state, while extension APIs use profile pref.
 inline constexpr char kDisableScreenshots[] = "disable_screenshots";
+#if BUILDFLAG(IS_CHROMEOS)
+static_assert(std::string_view(kDisableScreenshots) ==
+              std::string_view(ash::chrome_prefs::kDisableScreenshots));
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // A boolean specifying whether the partial download bubble (which shows up
 // automatically when downloads are complete) should be enabled. True (partial
@@ -83,6 +96,11 @@ inline constexpr char kHttpsOnlyModeEnabled[] = "https_only_mode_enabled";
 // A boolean specifying whether HTTPS-First Mode is enabled in Balanced Mode.
 inline constexpr char kHttpsFirstBalancedMode[] =
     "https_first_balanced_mode_enabled";
+
+// A boolean specifying whether the HTTPS-First Mode settings bundle upgrade
+// Toast has been queued.
+inline constexpr char kHttpsFirstModeBundleToastQueued[] =
+    "https_first_mode_bundle_toast_queued";
 
 // A boolean specifying whether HTTPS-First Mode (aka "HTTPS-Only Mode") is
 // enabled in Incognito Mode.
@@ -151,6 +169,10 @@ inline constexpr char kSessionExitType[] = "profile.exit_type";
 // 4: restore the URLs defined in kURLsToRestoreOnStartup.
 // 5: open the New Tab Page on startup.
 inline constexpr char kRestoreOnStartup[] = "session.restore_on_startup";
+#if BUILDFLAG(IS_CHROMEOS)
+static_assert(std::string_view(kRestoreOnStartup) ==
+              std::string_view(ash::chrome_prefs::kRestoreOnStartup));
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // The URLs to restore on startup or when the home button is pressed. The URLs
 // are only restored on startup if kRestoreOnStartup is 4.
@@ -158,6 +180,10 @@ inline constexpr char kURLsToRestoreOnStartup[] = "session.startup_urls";
 
 // Boolean that is true when user feedback to Google is allowed.
 inline constexpr char kUserFeedbackAllowed[] = "feedback_allowed";
+#if BUILDFLAG(IS_CHROMEOS)
+static_assert(std::string_view(kUserFeedbackAllowed) ==
+              std::string_view(ash::chrome_prefs::kUserFeedbackAllowed));
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(ENABLE_RLZ)
 // Integer. RLZ ping delay in seconds.
@@ -461,12 +487,6 @@ inline constexpr char kLabsAdvancedFilesystemEnabled[] =
 // A boolean pref which turns on the mediaplayer.
 inline constexpr char kLabsMediaplayerEnabled[] = "settings.labs.mediaplayer";
 
-// A boolean pref of whether to show mobile data first-use warning notification.
-// Note: 3g in the name is for legacy reasons. The pref was added while only 3G
-// mobile data was supported.
-inline constexpr char kShowMobileDataNotification[] =
-    "settings.internet.mobile.show_3g_promo_notification";
-
 // A string pref that contains version where "What's new" promo was shown.
 inline constexpr char kChromeOSReleaseNotesVersion[] =
     "settings.release_notes.version";
@@ -480,14 +500,6 @@ inline constexpr char kFirstRunTutorialShown[] =
 // restore them after a reboot.
 inline constexpr char kFileSystemProviderMounted[] =
     "file_system_provider.mounted";
-
-// A boolean pref set to true if the virtual keyboard should be enabled.
-inline constexpr char kTouchVirtualKeyboardEnabled[] =
-    "ui.touch_virtual_keyboard_enabled";
-
-// A boolean pref to enable virtual keyboard smart visibility.
-inline constexpr char kVirtualKeyboardSmartVisibilityEnabled[] =
-    "ui.virtual_keyboard_smart_visibility_enabled";
 
 // A boolean pref. If set to true, the Unified Desktop feature is made
 // available and turned on by default, which allows applications to span
@@ -983,6 +995,10 @@ inline constexpr char kInvertNotificationShown[] =
 // A pref holding the list of printer types to be disabled.
 inline constexpr char kPrinterTypeDenyList[] =
     "printing.printer_type_deny_list";
+#if BUILDFLAG(IS_CHROMEOS)
+static_assert(std::string_view(kPrinterTypeDenyList) ==
+              std::string_view(ash::chrome_prefs::kPrinterTypeDenyList));
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // The allowed/default value for the 'Headers and footers' checkbox, in Print
 // Preview.
@@ -1234,6 +1250,10 @@ inline constexpr char kProjectsPanelEntrypointEnabled[] =
 // True when the side panel is aligned to the right.
 inline constexpr char kSidePanelHorizontalAlignment[] =
     "side_panel.is_right_aligned";
+// Dictionary determining the side panel alignment overrides for specific
+// side panel entries.
+inline constexpr char kSidePanelAlignmentOverrides[] =
+    "side_panel.alignment_overrides";
 // Boolean determining whether the companion side panel should be pinned to have
 // a button in the toolbar.
 inline constexpr char kSidePanelCompanionEntryPinnedToToolbar[] =
@@ -1431,11 +1451,6 @@ inline constexpr char kStabilitySystemUncleanShutdownCount[] =
 inline constexpr char kBrowserSuppressDefaultBrowserPrompt[] =
     "browser.suppress_default_browser_prompt_for_version";
 
-// String that refers to the study group in which this install was enrolled.
-// Used to implement the sticky experiment tracking.
-inline constexpr char kDefaultBrowserPromptRefreshStudyGroup[] =
-    "browser.default_browser_prompt_refresh_study_group";
-
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 // The time at which the default-PDF-viewer infobar was last shown.
 inline constexpr char kPdfInfoBarLastShown[] = "browser.pdf_infobar_last_shown";
@@ -1493,6 +1508,10 @@ inline constexpr char kAppWindowPlacement[] = "browser.app_window_placement";
 // String which specifies where to download files to by default.
 inline constexpr char kDownloadDefaultDirectory[] =
     "download.default_directory";
+#if BUILDFLAG(IS_CHROMEOS)
+static_assert(std::string_view(kDownloadDefaultDirectory) ==
+              std::string_view(ash::chrome_prefs::kDownloadDefaultDirectory));
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // Boolean that records if the download directory was changed by an
 // upgrade a unsafe location to a safe location.
@@ -1528,6 +1547,10 @@ inline constexpr char kIncognitoReauthenticationForAndroid[] =
 // String which specifies where to save html files to by default.
 inline constexpr char kSaveFileDefaultDirectory[] =
     "savefile.default_directory";
+#if BUILDFLAG(IS_CHROMEOS)
+static_assert(std::string_view(kSaveFileDefaultDirectory) ==
+              std::string_view(ash::chrome_prefs::kSaveFileDefaultDirectory));
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // The type used to save the page. See the enum SavePackage::SavePackageType in
 // the chrome/browser/download/save_package.h for the possible values.
@@ -1536,6 +1559,10 @@ inline constexpr char kSaveFileType[] = "savefile.type";
 // String which specifies the last directory that was chosen for uploading
 // or opening a file.
 inline constexpr char kSelectFileLastDirectory[] = "selectfile.last_directory";
+#if BUILDFLAG(IS_CHROMEOS)
+static_assert(std::string_view(kSelectFileLastDirectory) ==
+              std::string_view(ash::chrome_prefs::kSelectFileLastDirectory));
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // Boolean that specifies if file selection dialogs are shown.
 inline constexpr char kAllowFileSelectionDialogs[] =
@@ -1610,6 +1637,15 @@ inline constexpr char kSuppressUnsupportedOSWarning[] =
 
 // Set before autorestarting Chrome, cleared on clean exit.
 inline constexpr char kWasRestarted[] = "was.restarted";
+#if BUILDFLAG(IS_CHROMEOS)
+static_assert(std::string_view(kWasRestarted) ==
+              std::string_view(ash::chrome_prefs::kWasRestarted));
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+// Dictionary containing the number of tabs and windows before a restart.
+inline constexpr char kPreSmartRestartSessionState[] =
+    "session.pre_smart_restart_session_state";
+
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 // Whether Extensions are enabled.
@@ -1733,6 +1769,10 @@ inline constexpr char kDevToolsAdbKey[] = "devtools.adb_key";
 
 // Defines administrator-set availability of developer tools.
 inline constexpr char kDevToolsAvailability[] = "devtools.availability";
+#if BUILDFLAG(IS_CHROMEOS)
+static_assert(std::string_view(kDevToolsAvailability) ==
+              std::string_view(ash::chrome_prefs::kDevToolsAvailability));
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // List of developer tools availability allowlist.
 inline constexpr char kDeveloperToolsAvailabilityAllowlist[] =
@@ -2144,12 +2184,20 @@ inline constexpr char kBuiltInDnsClientEnabled[] = "async_dns.enabled";
 // String specifying the secure DNS mode to use. Any string other than
 // "secure" or "automatic" will be mapped to the default "off" mode.
 inline constexpr char kDnsOverHttpsMode[] = "dns_over_https.mode";
+#if BUILDFLAG(IS_CHROMEOS)
+static_assert(std::string_view(kDnsOverHttpsMode) ==
+              std::string_view(ash::chrome_prefs::kDnsOverHttpsMode));
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // String containing a space-separated list of DNS over HTTPS templates to use
 // in secure mode or automatic mode. If no templates are specified in automatic
 // mode, we will attempt discovery of DoH servers associated with the configured
 // insecure resolvers.
 inline constexpr char kDnsOverHttpsTemplates[] = "dns_over_https.templates";
+#if BUILDFLAG(IS_CHROMEOS)
+static_assert(std::string_view(kDnsOverHttpsTemplates) ==
+              std::string_view(ash::chrome_prefs::kDnsOverHttpsTemplates));
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // Boolean that specifies whether Secure DNS in automatic mode should prefer to
 // fallback to DoH with Google DNS instead of using insecure DNS.
@@ -2167,6 +2215,11 @@ inline constexpr char kAdditionalDnsQueryTypesEnabled[] =
 // is not allowed and no prompt will be shown.
 // See also kAudioCaptureAllowedUrls.
 inline constexpr char kAudioCaptureAllowed[] = "hardware.audio_capture_enabled";
+#if BUILDFLAG(IS_CHROMEOS)
+static_assert(std::string_view(kAudioCaptureAllowed) ==
+              std::string_view(ash::chrome_prefs::kAudioCaptureAllowed));
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 // Holds URL patterns that specify URLs that will be granted access to audio
 // capture devices without prompt.
 inline constexpr char kAudioCaptureAllowedUrls[] =
@@ -2177,10 +2230,19 @@ inline constexpr char kAudioCaptureAllowedUrls[] =
 // prompted for device access.  When disabled, access to video capture devices
 // is not allowed and no prompt will be shown.
 inline constexpr char kVideoCaptureAllowed[] = "hardware.video_capture_enabled";
+#if BUILDFLAG(IS_CHROMEOS)
+static_assert(std::string_view(kVideoCaptureAllowed) ==
+              std::string_view(ash::chrome_prefs::kVideoCaptureAllowed));
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 // Holds URL patterns that specify URLs that will be granted access to video
 // capture devices without prompt.
 inline constexpr char kVideoCaptureAllowedUrls[] =
     "hardware.video_capture_allowed_urls";
+#if BUILDFLAG(IS_CHROMEOS)
+static_assert(std::string_view(kVideoCaptureAllowedUrls) ==
+              std::string_view(ash::chrome_prefs::kVideoCaptureAllowedUrls));
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // A pref holding the value of the policy used to explicitly allow or deny
 // access to screen capture.  This includes all APIs that allow capturing
@@ -2254,7 +2316,6 @@ inline constexpr char kReportingUsers[] = "reporting_users";
 // Whether to log events for Android app installs.
 inline constexpr char kArcAppInstallEventLoggingEnabled[] =
     "arc.app_install_event_logging_enabled";
-
 
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -2839,7 +2900,6 @@ inline constexpr char kCaretBrowsingEnabled[] =
 inline constexpr char kShowCaretBrowsingDialog[] =
     "settings.a11y.caretbrowsing.show_dialog";
 
-
 #if BUILDFLAG(IS_ANDROID)
 // Boolean pref controlling whether immersive AR sessions are enabled
 // in WebXR Device API.
@@ -3223,31 +3283,6 @@ inline constexpr char kOriginKeyedProcessesEnabled[] =
 inline constexpr char kNonMilestoneUpdateToastVersion[] =
     "toast.non_milestone_update_toast_version";
 #endif  // !BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(IS_ANDROID)
-
-// LINT.IfChange(TipsShownPrefs)
-// Boolean prefs indicating whether a tip notification has already been shown.
-inline constexpr char kAndroidTipNotificationShownESB[] =
-    "android.tips.notifications.esb_shown";
-inline constexpr char kAndroidTipNotificationShownQuickDelete[] =
-    "android.tips.notifications.quick_delete_shown";
-inline constexpr char kAndroidTipNotificationShownLens[] =
-    "android.tips.notifications.lens_shown";
-inline constexpr char kAndroidTipNotificationShownBottomOmnibox[] =
-    "android.tips.notifications.bottom_omnibox_shown";
-inline constexpr char kAndroidTipNotificationShownPasswordAutofill[] =
-    "android.tips.notifications.password_autofill_shown";
-inline constexpr char kAndroidTipNotificationShownSignin[] =
-    "android.tips.notifications.signin_shown";
-inline constexpr char kAndroidTipNotificationShownCreateTabGroups[] =
-    "android.tips.notifications.create_tab_group_shown";
-inline constexpr char kAndroidTipNotificationShownCustomizeMVT[] =
-    "android.tips.notifications.customize_mvt_shown";
-inline constexpr char kAndroidTipNotificationShownRecentTabs[] =
-    "android.tips.notifications.recent_tabs_shown";
-// LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/notifications/tips/TipsUtils.java:TipsShownPrefs)
-#endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID)
 // Time pref indicating the timestamp of the most recently visited browsing

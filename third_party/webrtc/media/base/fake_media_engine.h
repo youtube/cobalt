@@ -160,7 +160,6 @@ class RtpReceiveChannelHelper : public Base, public MediaChannelUtil {
     return clear_receive_sinks_calls_;
   }
 
-  virtual bool SetLocalSsrc(const StreamParams& /* sp */) { return true; }
   void OnDemuxerCriteriaUpdatePending() override {}
   void OnDemuxerCriteriaUpdateComplete() override {}
 
@@ -827,7 +826,9 @@ class FakeVoiceEngine : public VoiceEngineInterface {
       Call* call,
       const MediaConfig& config,
       const AudioOptions& options,
-      const CryptoOptions& crypto_options) override;
+      const CryptoOptions& crypto_options,
+      absl::AnyInvocable<void()> parameters_changed_callback =
+          nullptr) override;
   std::unique_ptr<VoiceMediaReceiveChannelInterface> CreateReceiveChannel(
       const Environment& env,
       Call* call,
@@ -954,7 +955,8 @@ class FakeVideoEngine : public VideoEngineInterface {
       const CryptoOptions& crypto_options,
       VideoBitrateAllocatorFactory* video_bitrate_allocator_factory,
       VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
-          video_encoder_switch_request_callback = nullptr) override;
+          video_encoder_switch_request_callback,
+      absl::AnyInvocable<void()> parameters_changed_callback) override;
   std::unique_ptr<VideoMediaReceiveChannelInterface> CreateReceiveChannel(
       const Environment& env,
       Call* call,

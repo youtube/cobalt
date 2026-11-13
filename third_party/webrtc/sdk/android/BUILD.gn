@@ -157,7 +157,8 @@ if (is_android) {
 
   # Core targets.
 
-  # TODO(sakal): Extract files from this target to releveant subtargets, video, audio etc.
+  # TODO(sakal): Extract files from this target to relevant subtargets, video,
+  # audio etc.
   rtc_android_library("base_java") {
     visibility = [ "*" ]
     sources = [
@@ -765,8 +766,8 @@ if (current_os == "linux" || is_android) {
 
   rtc_library("peerconnection_jni") {
     # Do not depend on this target externally unless you absolute have to. It is
-    # made public because we don't have a proper NDK yet. Header APIs here are not
-    # considered public and are subject to change.
+    # made public because we don't have a proper NDK yet. Header APIs here are
+    # not considered public and are subject to change.
     visibility = [ "*" ]
     allow_poison = [ "environment_construction" ]
 
@@ -849,6 +850,7 @@ if (current_os == "linux" || is_android) {
       "../../api:rtc_error",
       "../../api:rtc_event_log_output_file",
       "../../api:rtc_stats_api",
+      "../../api:rtp_header_extension_id",
       "../../api:rtp_parameters",
       "../../api:rtp_sender_interface",
       "../../api:rtp_transceiver_direction",
@@ -1043,8 +1045,8 @@ if (current_os == "linux" || is_android) {
 
   # Core targets.
 
-  # JNI helpers that are also needed from internal JNI code. Cannot depend on any
-  # other JNI targets than internal_jni.
+  # JNI helpers that are also needed from internal JNI code. Cannot depend on
+  # any other JNI targets than internal_jni.
   rtc_library("native_api_jni") {
     visibility = [ "*" ]
     sources = [

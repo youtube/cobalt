@@ -27,9 +27,7 @@
 #include "test/time_controller/simulated_time_controller.h"
 #include "test/wait_until.h"
 
-using webrtc::DtmfProviderInterface;
-using webrtc::DtmfSender;
-using webrtc::DtmfSenderObserverInterface;
+namespace webrtc {
 
 // TODO(deadbeef): Even though this test now uses a fake clock, it has a
 // generous 3-second timeout for every test case. The timeout could be tuned
@@ -400,3 +398,5 @@ TEST_F(DtmfSenderTest, InsertDtmfSendsAfterWait) {
               webrtc::IsRtcOk());
   VerifyExpectedState("BC", duration, inter_tone_gap);
 }
+
+}  // namespace webrtc

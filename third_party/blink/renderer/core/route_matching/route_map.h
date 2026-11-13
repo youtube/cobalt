@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_ROUTE_MATCHING_ROUTE_MAP_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/route_matching/navigation_phase.h"
 #include "third_party/blink/renderer/core/route_matching/navigation_preposition.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
@@ -114,12 +115,17 @@ class CORE_EXPORT RouteMap final : public ScriptWrappable,
 
   void OnNavigationTraverse(HistoryTraverseType type);
 
-  // The current URL has changed. This is used to match @route "at" rules.
-  void OnNavigationCommitted() { UpdateActiveRoutes(); }
+  // The current URL has changed. This is used to match @route "at" and "with"
+  // rules. What was "at" is now "with", and vice versa.
+  void OnNavigationCommitted();
 
   // Clear the URL that we're navigating between when the navigation is
   // complete.
   void OnNavigationDone();
+
+  bool IsActiveNavigation() const {
+    return !previous_url_.IsNull() && !next_url_.IsNull();
+  }
 
   void OnPreviewStart();
   void OnPreviewFinished();
@@ -129,13 +135,32 @@ class CORE_EXPORT RouteMap final : public ScriptWrappable,
   // Return the "from" URL of the current navigation, if any.
   KURL GetFromURL() const { return previous_url_; }
 
-  // Return the "from" URL of the current navigation, if any.
+  // Return the "to" URL of the current navigation, if any.
   KURL GetToURL() const { return next_url_; }
+
+  // Return the "with" URL of the current navigation, if any.
+  KURL GetWithURL() const;
+
+  // Return the "at" URL of the current navigation, if any.
+  KURL GetAtURL() const;
+
+  NavigationPhase GetPhase() const { return navigation_phase_; }
+
+  // Get the "active navigation URL", given the specified preposition.
+  //
+  // https://drafts.csswg.org/css-navigation-1/#active-navigation-url
+  KURL GetActiveNavigationURL(NavigationPreposition) const;
 
  private:
   ParseResult AddPatternToRoute(Route&, const JSONValue&);
-  bool UpdateMatchStatus(Route&,
-                         HeapVector<Member<Route>>* routes_needing_event);
+
+  // Update the match status of the route, given the current "at", "from",
+  // "with" and "to" URLs. `routes_needing_event`, if set, will be populated by
+  // the routes whose "at" match status changed, which may be used to fire
+  // "activate" or "deactivate" events if the match status changes.
+  bool UpdateMatchStatus(
+      Route&,
+      HeapVector<Member<Route>>* routes_needing_event = nullptr);
 
   HeapHashMap<String, Member<Route>> routes_;
   HeapHashMap<String, Member<Route>> anonymous_routes_;
@@ -145,6 +170,7 @@ class CORE_EXPORT RouteMap final : public ScriptWrappable,
   KURL next_url_;
 
   HistoryTraverseType history_traverse_type_ = kNotTraversing;
+  NavigationPhase navigation_phase_ = NavigationPhase::kInactive;
   bool has_history_rules_ = false;
   bool in_preview_ = false;
 

@@ -90,7 +90,7 @@ bool IsHandledCriticalExtension(const ParsedExtension &extension) {
   return false;
 }
 
-// Adds errors to |errors| if the certificate contains unconsumed _critical_
+// Adds errors to `errors` if the certificate contains unconsumed _critical_
 // extensions.
 void VerifyNoUnconsumedCriticalExtensions(const ParsedCertificate &cert,
                                           CertErrors *errors,
@@ -125,7 +125,7 @@ void VerifyNoUnconsumedCriticalExtensions(const ParsedCertificate &cert,
   }
 }
 
-// Returns true if |cert| was self-issued. The definition of self-issuance
+// Returns true if `cert` was self-issued. The definition of self-issuance
 // comes from RFC 5280 section 6.1:
 //
 //    A certificate is self-issued if the same DN appears in the subject
@@ -140,7 +140,7 @@ void VerifyNoUnconsumedCriticalExtensions(const ParsedCertificate &cert,
   return cert.normalized_subject() == cert.normalized_issuer();
 }
 
-// Adds errors to |errors| if |cert| is not valid at time |time|.
+// Adds errors to `errors` if `cert` is not valid at time `time`.
 //
 // The certificate's validity requirements are described by RFC 5280 section
 // 4.1.2.5:
@@ -158,7 +158,7 @@ void VerifyTimeValidity(const ParsedCertificate &cert,
   }
 }
 
-// Adds errors to |errors| if |cert| has internally inconsistent signature
+// Adds errors to `errors` if `cert` has internally inconsistent signature
 // algorithms.
 //
 // X.509 certificates contain two different signature algorithms:
@@ -218,7 +218,7 @@ bool VerifySignatureAlgorithmsMatch(const ParsedCertificate &cert,
   return false;
 }
 
-// Verify that |cert| can be used for |required_key_purpose|.
+// Verify that `cert` can be used for `required_key_purpose`.
 void VerifyExtendedKeyUsage(const ParsedCertificate &cert,
                             KeyPurpose required_key_purpose, CertErrors *errors,
                             bool is_target_cert, bool is_target_cert_issuer) {
@@ -600,7 +600,7 @@ class ValidPolicyGraph {
 
   // Gets the set of policies (in terms of root authority's policy domain) that
   // are valid at the bottom level of the policy graph, intersected with
-  // |user_initial_policy_set|. This is what X.509 calls
+  // `user_initial_policy_set`. This is what X.509 calls
   // "user-constrained-policy-set".
   //
   // This method may only be called once, after the policy graph is constructed.
@@ -635,7 +635,7 @@ class ValidPolicyGraph {
           continue;
         }
         if (node.parent_policies.empty()) {
-          // |node|'s parent is anyPolicy, so this is in the root policy domain.
+          // `node`'s parent is anyPolicy, so this is in the root policy domain.
           // Add it to the set if it is also in user's list.
           if (user_has_any_policy ||
               user_initial_policy_set.count(policy) > 0) {
@@ -661,7 +661,7 @@ class ValidPolicyGraph {
     current_level_.has_any_policy = true;
   }
 
-  // Adds a node to the current level which is a child of |parent_policies| with
+  // Adds a node to the current level which is a child of `parent_policies` with
   // the specified policy.
   void AddNode(der::Input policy, std::vector<der::Input> parent_policies) {
     assert(policy != der::Input(kAnyPolicyOid));
@@ -675,7 +675,7 @@ class ValidPolicyGraph {
     AddNode(policy, {});
   }
 
-  // Maps |issuer_policy| to |subject_policy|, as in RFC 5280, section 6.1.4,
+  // Maps `issuer_policy` to `subject_policy`, as in RFC 5280, section 6.1.4,
   // step b.1.
   void AddPolicyMapping(der::Input issuer_policy, der::Input subject_policy) {
     assert(issuer_policy != der::Input(kAnyPolicyOid));
@@ -684,7 +684,7 @@ class ValidPolicyGraph {
       return;
     }
 
-    // The mapping only applies if |issuer_policy| exists in the current level.
+    // The mapping only applies if `issuer_policy` exists in the current level.
     auto issuer_policy_iter = levels_.back().find(issuer_policy);
     if (issuer_policy_iter == levels_.back().end()) {
       // If there is no match, it can instead match anyPolicy.
@@ -710,7 +710,7 @@ class ValidPolicyGraph {
     // in at StartLevel().
     issuer_policy_iter->second.mapped = true;
 
-    // Add |subject_policy| to |issuer_policy|'s "expected_policy_set".
+    // Add `subject_policy` to `issuer_policy`'s "expected_policy_set".
     current_level_.expected_policy_map[subject_policy].push_back(issuer_policy);
   }
 
@@ -781,7 +781,7 @@ class PathVerifier {
                                   bool *shortcircuit_chain_validation);
 
   // This function corresponds to RFC 5280 section 6.1.4's "Preparation for
-  // Certificate i+1" procedure. |cert| is expected to be an intermediate.
+  // Certificate i+1" procedure. `cert` is expected to be an intermediate.
   void PrepareForNextCertificate(const ParsedCertificate &cert,
                                  KeyPurpose key_purpose, CertErrors *errors);
 
@@ -817,9 +817,9 @@ class PathVerifier {
                               KeyPurpose required_key_purpose,
                               CertErrors *errors);
 
-  // Parses |spki| to an EVP_PKEY and checks whether the public key is accepted
-  // by |delegate_|. On failure parsing returns nullptr. If either parsing the
-  // key or key policy failed, adds a high-severity error to |errors|.
+  // Parses `spki` to an EVP_PKEY and checks whether the public key is accepted
+  // by `delegate_`. On failure parsing returns nullptr. If either parsing the
+  // key or key policy failed, adds a high-severity error to `errors`.
   bssl::UniquePtr<EVP_PKEY> ParseAndCheckPublicKey(der::Input spki,
                                                    CertErrors *errors);
 
@@ -832,7 +832,7 @@ class PathVerifier {
   // excluded_subtrees state variables from RFC 5280.
   std::vector<const NameConstraints *> name_constraints_list_;
 
-  // |explicit_policy_| corresponds with the same named variable from RFC 5280
+  // `explicit_policy_` corresponds with the same named variable from RFC 5280
   // section 6.1.2:
   //
   //   explicit_policy:  an integer that indicates if a non-NULL
@@ -845,7 +845,7 @@ class PathVerifier {
   //   initial value is 0, otherwise the initial value is n+1.
   size_t explicit_policy_;
 
-  // |inhibit_any_policy_| corresponds with the same named variable from RFC
+  // `inhibit_any_policy_` corresponds with the same named variable from RFC
   // 5280 section 6.1.2:
   //
   //   inhibit_anyPolicy:  an integer that indicates whether the
@@ -861,7 +861,7 @@ class PathVerifier {
   //   initial value is n+1.
   size_t inhibit_any_policy_;
 
-  // |policy_mapping_| corresponds with the same named variable from RFC 5280
+  // `policy_mapping_` corresponds with the same named variable from RFC 5280
   // section 6.1.2:
   //
   //   policy_mapping:  an integer that indicates if policy mapping
@@ -875,7 +875,7 @@ class PathVerifier {
   //   otherwise the initial value is n+1.
   size_t policy_mapping_;
 
-  // |working_public_key_| is an amalgamation of 3 separate variables from RFC
+  // `working_public_key_` is an amalgamation of 3 separate variables from RFC
   // 5280:
   //    * working_public_key
   //    * working_public_key_algorithm
@@ -883,30 +883,30 @@ class PathVerifier {
   //
   // They are combined for simplicity since the signature verification takes an
   // EVP_PKEY, and the parameter inheritance is not applicable for the supported
-  // key types. |working_public_key_| may be null if parsing failed.
+  // key types. `working_public_key_` may be null if parsing failed.
   //
-  // An approximate explanation of |working_public_key_| is this description
+  // An approximate explanation of `working_public_key_` is this description
   // from RFC 5280 section 6.1.2:
   //
   //    working_public_key:  the public key used to verify the
   //    signature of a certificate.
   bssl::UniquePtr<EVP_PKEY> working_public_key_;
 
-  // |working_normalized_issuer_name_| is the normalized value of the
+  // `working_normalized_issuer_name_` is the normalized value of the
   // working_issuer_name variable in RFC 5280 section 6.1.2:
   //
   //    working_issuer_name:  the issuer distinguished name expected
   //    in the next certificate in the chain.
   der::Input working_normalized_issuer_name_;
 
-  // |working_mtc_anchor_| is the trusted MTC Anchor that the chain-to-verify
+  // `working_mtc_anchor_` is the trusted MTC Anchor that the chain-to-verify
   // claims issued the next certificate in the chain, and should be used to
-  // verify that certificate. It is analogous to |working_public_key_|, except
+  // verify that certificate. It is analogous to `working_public_key_`, except
   // that MTCs don't have an EVP_PKEY that can be used to verify their
   // "signature" and instead have an MTCAnchor used for verification.
   const MTCAnchor *working_mtc_anchor_ = nullptr;
 
-  // |max_path_length_| corresponds with the same named variable in RFC 5280
+  // `max_path_length_` corresponds with the same named variable in RFC 5280
   // section 6.1.2.
   //
   //    max_path_length:  this integer is initialized to n, is
@@ -1157,8 +1157,8 @@ static bool VerifyMTC(const ParsedCertificate &cert,
   // responsible for performing revocation checks.
 
   // Steps 5 and 4 are done in reverse order. Step 4 builds a value that gets
-  // embedded in step 5's MerkleTreeCertEntry |entry|, and then step 5 proceeds
-  // to prepend a value to |entry| and run all of that through a hash function.
+  // embedded in step 5's MerkleTreeCertEntry `entry`, and then step 5 proceeds
+  // to prepend a value to `entry` and run all of that through a hash function.
   // The input to the hash function is built up in a single buffer, which means
   // steps 5 and 4 are effectively done in reverse order.
   //
@@ -1319,7 +1319,7 @@ void PathVerifier::BasicCertificateProcessing(
   }
 
   // Check the time range for the certificate's validity, ensuring it is valid
-  // at |time|.
+  // at `time`.
   // (RFC 5280 section 6.1.3 step a.2)
   VerifyTimeValidity(cert, time, errors);
 
@@ -1373,8 +1373,8 @@ void PathVerifier::PrepareForNextCertificate(const ParsedCertificate &cert,
   working_mtc_anchor_ = nullptr;
 
   // Note that steps e and f are omitted as they are handled by
-  // the assignment to |working_spki| above. See the definition
-  // of |working_spki|.
+  // the assignment to `working_spki` above. See the definition
+  // of `working_spki`.
 
   // From RFC 5280 section 6.1.4 step g:
   if (cert.has_name_constraints()) {
@@ -1466,7 +1466,7 @@ void PathVerifier::PrepareForNextCertificate(const ParsedCertificate &cert,
 }
 
 // Checks if the target certificate has the CA bit set. If it does, add
-// the appropriate error or warning to |errors|.
+// the appropriate error or warning to `errors`.
 void VerifyTargetCertIsNotCA(const ParsedCertificate &cert,
                              KeyPurpose required_key_purpose,
                              CertErrors *errors) {
@@ -1583,7 +1583,7 @@ void PathVerifier::ApplyTrustAnchorConstraints(const ParsedCertificate &cert,
   // policyConstraints and inhibitAnyPolicy extensions.
   ApplyPolicyConstraints(cert);
 
-  // If keyUsage is present, verify that |cert| has correct keyUsage bits for a
+  // If keyUsage is present, verify that `cert` has correct keyUsage bits for a
   // CA. This matches the handling for intermediates from RFC 5280 section
   // 6.1.4 step n.
   if (cert.has_key_usage() &&
@@ -1836,7 +1836,7 @@ void PathVerifier::Run(
   for (size_t i = 0; i < certs.size(); ++i) {
     const size_t index_into_certs = certs.size() - i - 1;
 
-    // |is_target_cert| is true if the current certificate is the target
+    // `is_target_cert` is true if the current certificate is the target
     // certificate being verified. The target certificate isn't necessarily an
     // end-entity certificate.
     const bool is_target_cert = index_into_certs == 0;

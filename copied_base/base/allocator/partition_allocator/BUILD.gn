@@ -231,7 +231,7 @@ component("partition_alloc") {
       "partition_alloc_base/time/time_conversion_posix.cc",
     ]
 
-    if (is_android || is_chromeos_ash) {
+    if (is_android || is_chromeos) {
       sources += [ "partition_alloc_base/time/time_android.cc" ]
     }
     if (is_apple) {
@@ -477,7 +477,7 @@ buildflag_header("chromecast_buildflags") {
 buildflag_header("chromeos_buildflags") {
   header = "chromeos_buildflags.h"
 
-  flags = [ "PA_IS_CHROMEOS_ASH=$is_chromeos_ash" ]
+  flags = [ "PA_IS_CHROMEOS_ASH=$is_chromeos" ]
 }
 
 buildflag_header("logging_buildflags") {

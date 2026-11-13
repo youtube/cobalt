@@ -6798,6 +6798,7 @@ TEST_P(QuicConnectionTest, IetfStatelessReset) {
   QuicConfig config;
   QuicConfigPeer::SetReceivedStatelessResetToken(&config,
                                                  kTestStatelessResetToken);
+  SetQuicReloadableFlag(quic_check_alternate_reset_token, true);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
@@ -6814,6 +6815,73 @@ TEST_P(QuicConnectionTest, IetfStatelessReset) {
   EXPECT_EQ(1, connection_close_frame_count_);
   EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
               IsError(QUIC_PUBLIC_RESET));
+}
+
+TEST_P(QuicConnectionTest, StatelessResetIgnoredIfFromUnknownAddress) {
+  if (!VersionIsIetfQuic(connection_.version().transport_version)) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_check_alternate_reset_token, true);
+  PathProbeTestInit(Perspective::IS_CLIENT);
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedStatelessResetToken(&config,
+                                                 kTestStatelessResetToken);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+
+  // Start validating alternative path to set up alternative_path_.
+  const QuicSocketAddress kNewSelfAddress(QuicIpAddress::Any4(), 12345);
+  EXPECT_NE(kNewSelfAddress, connection_.self_address());
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+  EXPECT_CALL(*send_algorithm_, OnPacketSent).Times(AtLeast(1u));
+  bool success = true;
+  connection_.ValidatePath(
+      std::make_unique<TestQuicPathValidationContext>(
+          kNewSelfAddress, connection_.peer_address(), &new_writer),
+      std::make_unique<TestValidationResultDelegate>(
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success),
+      PathValidationReason::kReasonUnknown);
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+  // Verify both default path and alternative path have set up stateless reset
+  // tokens.
+  EXPECT_TRUE(QuicConnectionPeer::GetAlternativePath(&connection_)
+                  ->stateless_reset_token.has_value());
+
+  // A packet with the default path's valid stateless reset token arrives from a
+  // third address (unknown address) that is neither the default peer address
+  // nor the alternative peer address.
+  std::unique_ptr<QuicEncryptedPacket> packet(
+      QuicFramer::BuildIetfStatelessResetPacket(connection_id_,
+                                                /*received_packet_length=*/100,
+                                                kTestStatelessResetToken));
+  std::unique_ptr<QuicReceivedPacket> received(
+      ConstructReceivedPacket(*packet, QuicTime::Zero()));
+  const QuicSocketAddress kThirdAddress(kPeerAddress.host(),
+                                        kPeerAddress.port() + 10);
+  EXPECT_CALL(visitor_, OnConnectionClosed).Times(0);
+  connection_.ProcessUdpPacket(kSelfAddress, kThirdAddress, *received);
+  // Should be ignored. The connection remains connected.
+  EXPECT_TRUE(connection_.connected());
+
+  // Same should apply if a packet with the alternative path's valid stateless
+  // reset token arrives from an unknown address.
+  std::unique_ptr<QuicEncryptedPacket> packet2(
+      QuicFramer::BuildIetfStatelessResetPacket(
+          QuicConnectionPeer::GetAlternativePath(&connection_)
+              ->server_connection_id,
+          /*received_packet_length=*/100,
+          *QuicConnectionPeer::GetAlternativePath(&connection_)
+               ->stateless_reset_token));
+  std::unique_ptr<QuicReceivedPacket> received2(
+      ConstructReceivedPacket(*packet2, QuicTime::Zero()));
+  connection_.ProcessUdpPacket(kSelfAddress, kThirdAddress, *received2);
+  // Should also be ignored. The connection remains connected, and the alternate
+  // path is unaffected.
+  EXPECT_TRUE(connection_.connected());
+  EXPECT_EQ(connection_.mutable_stats().num_stateless_resets_on_alternate_path,
+            0);
 }
 
 TEST_P(QuicConnectionTest, GoAway) {
@@ -8711,6 +8779,10 @@ TEST_P(QuicConnectionTest, ValidStatelessResetToken) {
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _)).Times(2);
   EXPECT_CALL(*send_algorithm_, EnableECT1()).WillRepeatedly(Return(false));
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillRepeatedly(Return(false));
+  QuicConnectionPeer::GetLastReceivedPacketInfo(&connection_)
+      .destination_address = connection_.self_address();
+  QuicConnectionPeer::GetLastReceivedPacketInfo(&connection_).source_address =
+      connection_.peer_address();
   // Token is different from received token.
   QuicConfigPeer::SetReceivedStatelessResetToken(&config, kTestToken);
   connection_.SetFromConfig(config);
@@ -12085,6 +12157,7 @@ TEST_P(QuicConnectionTest, PathValidationReceivesStatelessReset) {
   if (!VersionIsIetfQuic(connection_.version().transport_version)) {
     return;
   }
+  SetQuicReloadableFlag(quic_check_alternate_reset_token, true);
   PathProbeTestInit(Perspective::IS_CLIENT);
   QuicConfig config;
   QuicConfigPeer::SetReceivedStatelessResetToken(&config,
@@ -12118,9 +12191,12 @@ TEST_P(QuicConnectionTest, PathValidationReceivesStatelessReset) {
   EXPECT_TRUE(connection_.HasPendingPathValidation());
 
   std::unique_ptr<QuicEncryptedPacket> packet(
-      QuicFramer::BuildIetfStatelessResetPacket(connection_id_,
-                                                /*received_packet_length=*/100,
-                                                kTestStatelessResetToken));
+      QuicFramer::BuildIetfStatelessResetPacket(
+          QuicConnectionPeer::GetAlternativePath(&connection_)
+              ->server_connection_id,
+          /*received_packet_length=*/100,
+          *QuicConnectionPeer::GetAlternativePath(&connection_)
+               ->stateless_reset_token));
   std::unique_ptr<QuicReceivedPacket> received(
       ConstructReceivedPacket(*packet, QuicTime::Zero()));
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(0);
@@ -13867,6 +13943,7 @@ TEST_P(QuicConnectionTest, MultiPortPathReceivesStatelessReset) {
   if (!version().IsIetfQuic()) {
     return;
   }
+  SetQuicReloadableFlag(quic_check_alternate_reset_token, true);
   connection_.CreateConnectionIdManager();
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   connection_.OnHandshakeComplete();
@@ -13904,9 +13981,9 @@ TEST_P(QuicConnectionTest, MultiPortPathReceivesStatelessReset) {
                 ->GetPathValidationReason());
 
   std::unique_ptr<QuicEncryptedPacket> packet(
-      QuicFramer::BuildIetfStatelessResetPacket(connection_id_,
+      QuicFramer::BuildIetfStatelessResetPacket(frame.connection_id,
                                                 /*received_packet_length=*/100,
-                                                kTestStatelessResetToken));
+                                                frame.stateless_reset_token));
   std::unique_ptr<QuicReceivedPacket> received(
       ConstructReceivedPacket(*packet, QuicTime::Zero()));
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_PEER))
@@ -17213,7 +17290,6 @@ TEST_P(QuicConnectionTest, ClientFailedToValidateServerPreferredAddress) {
   // Verify client retires connection ID with sequence number 1.
   EXPECT_CALL(visitor_, SendRetireConnectionId(/*sequence_number=*/1u));
   retire_peer_issued_cid_alarm->Fire();
-  EXPECT_TRUE(connection_.IsValidStatelessResetToken(kTestStatelessResetToken));
   EXPECT_FALSE(connection_.GetStats().server_preferred_address_validated);
   EXPECT_TRUE(
       connection_.GetStats().failed_to_validate_server_preferred_address);

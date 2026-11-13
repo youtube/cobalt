@@ -86,7 +86,7 @@
     Search Tabs button, activate to search tabs
   </message>
 
-  <message name="IDS_STARTER_PACK_AI_MODE_ACTION_HINT" desc="The button label for an omnibox action that invokes the AI mode keyword.">
+  <message name="IDS_STARTER_PACK_AI_MODE_ACTION_HINT" desc="The button label for an omnibox action that invokes the AI mode keyword." formatter_data="android_java">
     Ask AI Mode in Google Search
   </message>
   <message name="IDS_STARTER_PACK_AI_MODE_ACTION_SUGGESTION_CONTENTS" desc="The button hover tooltip text to describe omnibox action that invokes the AI mode keyword.">
@@ -523,7 +523,7 @@
     Remove Suggestion button, press Enter to remove this suggestion
   </message>
   <!-- Accessibility labels for the omnibox AI Mode button. -->
-  <message name="IDS_ACC_AI_MODE_PLACEHOLDER_TEXT" desc="Announcement when omnibox text field is empty and AI Mode is available.">
+  <message name="IDS_ACC_AI_MODE_PLACEHOLDER_TEXT" desc="The text shown and announced, prompting the user to use the AI mode button, conditionally displayed in the Omnibox when it is focused with no input and AI Mode is enabled.">
     Press tab then enter to ask AI Mode
   </message>
   <message name="IDS_ACC_AI_MODE_BUTTON_FOCUSED" desc="Announcement when AI Mode button is focused.">

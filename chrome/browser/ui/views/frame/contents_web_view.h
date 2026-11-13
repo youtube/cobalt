@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
+#include "build/build_config.h"
 #include "chrome/browser/ui/views/frame/web_contents_close_handler_delegate.h"
 #include "chrome/common/buildflags.h"
 #include "ui/base/interaction/element_identifier.h"
@@ -51,6 +52,9 @@ class ContentsWebView : public views::WebView,
 
   void SetIsAnimatingBounds(bool is_animating);
 
+  // Update the blocked state based on the tab's modal dialog status.
+  void UpdateIsBlockedByModal();
+
   // WebView overrides:
   bool GetNeedsNotificationWhenVisibleBoundsChange() const override;
   void OnVisibleBoundsChanged() override;
@@ -58,6 +62,15 @@ class ContentsWebView : public views::WebView,
   void RenderViewReady() override;
   void OnLetterboxingChanged() override;
   void SetWebContents(content::WebContents* web_contents) override;
+
+  // content::WebContentsObserver overrides:
+  // Overridden to track physical interactions (mouse/touch) on the WebContents.
+  // This allows the browser to force focus synchronization in split view even
+  // when native OS focus gets stuck on a different window (like a permission
+  // prompt).
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+  void DidGetUserInteraction(const blink::WebInputEvent& event) override;
+#endif
 
   // ui::View overrides:
   std::unique_ptr<ui::Layer> RecreateLayer() override;

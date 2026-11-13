@@ -11,6 +11,8 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/metrics/user_action_tester.h"
 #include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
@@ -31,6 +33,8 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
+#include "chrome/browser/signin/signin_ui_delegate.h"
+#include "chrome/browser/signin/signin_ui_util.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/page_action/test_support/fake_tab_interface.h"
 #include "chrome/browser/ui/page_action/test_support/mock_page_action_controller.h"
@@ -40,6 +44,7 @@
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/optimization_guide/core/hints/optimization_guide_decision.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
+#include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "content/public/test/browser_task_environment.h"
@@ -66,6 +71,27 @@ auto HasGlicPrompt(std::string_view prompt) {
                           ::testing::ElementsAre(prompt));
 }
 
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+class MockSigninUiDelegate : public signin_ui_util::SigninUiDelegate {
+ public:
+  MOCK_METHOD(void,
+              ShowSigninUI,
+              (Profile*,
+               bool,
+               signin_metrics::AccessPoint,
+               signin_metrics::PromoAction),
+              (override));
+  MOCK_METHOD(void,
+              ShowReauthUI,
+              (Profile*,
+               const std::string&,
+               bool,
+               signin_metrics::AccessPoint,
+               signin_metrics::PromoAction),
+              (override));
+};
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
 #if BUILDFLAG(IS_CHROMEOS)
 constexpr bool kSignOutSupportedOnPlatform = false;
 #else
@@ -79,7 +105,9 @@ struct CreateControllerOptions {
 class IndigoPageActionControllerTest : public testing::Test {
  protected:
   void SetUp() override {
-    feature_list_.InitAndEnableFeature(features::kIndigo);
+    feature_list_.InitAndEnableFeatureWithParameters(
+        features::kIndigo,
+        {{"indigo_onboarding_url", "https://example.com/onboard"}});
     scoped_command_line_.GetProcessCommandLine()->AppendSwitchASCII(
         "indigo-script", "/dummy/path");
     glic::GlicEnabling::SetBypassEnablementChecksForTesting(true);
@@ -542,6 +570,8 @@ TEST_F(IndigoPageActionControllerTest, OnboardingSuccessTriggersContinuation) {
   // Explicitly set the initial state for onboarding preference.
   profile_->GetPrefs()->SetBoolean(prefs::kIndigoHasOnboarded, false);
 
+  base::UserActionTester user_action_tester;
+
   OnboardingResult result;
   result.acknowledge_chrome_disclaimer = true;
 
@@ -574,6 +604,7 @@ TEST_F(IndigoPageActionControllerTest, OnboardingSuccessTriggersContinuation) {
       .CheckEligibilityForOnboarding(eligibility);
 
   ASSERT_TRUE(!captured_callback.is_null());
+  EXPECT_EQ(user_action_tester.GetActionCount("Indigo.Onboarding.Trigger"), 1);
 
   // Now simulate the dialog closing with success.
   std::move(captured_callback).Run(result);
@@ -581,6 +612,7 @@ TEST_F(IndigoPageActionControllerTest, OnboardingSuccessTriggersContinuation) {
   // Closing with success set the pref and trigger a re-fetch for continuation.
   EXPECT_TRUE(profile_->GetPrefs()->GetBoolean(prefs::kIndigoHasOnboarded));
   EXPECT_TRUE(fetcher_called.Wait());
+  EXPECT_EQ(user_action_tester.GetActionCount("Indigo.Onboarding.Complete"), 1);
 }
 
 TEST_F(IndigoPageActionControllerTest, OnboardingCancelledDoesNotTrigger) {
@@ -588,6 +620,8 @@ TEST_F(IndigoPageActionControllerTest, OnboardingCancelledDoesNotTrigger) {
 
   // Explicitly set the initial state for onboarding preference.
   profile_->GetPrefs()->SetBoolean(prefs::kIndigoHasOnboarded, false);
+
+  base::UserActionTester user_action_tester;
 
   OnboardingResult result;
   result.acknowledge_chrome_disclaimer = false;
@@ -601,10 +635,48 @@ TEST_F(IndigoPageActionControllerTest, OnboardingCancelledDoesNotTrigger) {
           }));
 
   IndigoPageActionController::TestApi(controller_.get())
-      .CheckOnboardingResult(result);
+      .CheckOnboardingResult(OnboardingDisposition::kDefault, result);
 
   EXPECT_FALSE(fetcher_called.IsReady());
   EXPECT_FALSE(profile_->GetPrefs()->GetBoolean(prefs::kIndigoHasOnboarded));
+  EXPECT_EQ(user_action_tester.GetActionCount("Indigo.Onboarding.Complete"), 0);
+}
+
+TEST_F(IndigoPageActionControllerTest,
+       OnReplaceOriginalPhotoTriggersOnboardingWithParam) {
+  CreateController();
+
+  profile_->GetPrefs()->SetBoolean(prefs::kIndigoHasOnboarded, true);
+
+  base::UserActionTester user_action_tester;
+
+  GURL captured_url;
+  base::OnceCallback<void(const OnboardingResult&)> captured_callback;
+  IndigoPageActionController::TestApi(controller_.get())
+      .SetOnboardingDialogFactory(base::BindLambdaForTesting(
+          [&](tabs::TabInterface& tab, const GURL& url,
+              base::OnceCallback<void(const OnboardingResult&)> callback)
+              -> std::unique_ptr<IndigoOnboardingDialog> {
+            captured_url = url;
+            captured_callback = std::move(callback);
+            return nullptr;
+          }));
+
+  controller_->OnReplaceOriginalPhoto(nullptr);
+
+  EXPECT_EQ(captured_url, GURL("https://example.com/onboard?toyri=1"));
+  EXPECT_EQ(user_action_tester.GetActionCount("Indigo.ReplaceImage.Trigger"),
+            1);
+  EXPECT_EQ(user_action_tester.GetActionCount("Indigo.Onboarding.Trigger"), 0);
+
+  // Simulate success.
+  OnboardingResult result;
+  result.acknowledge_chrome_disclaimer = true;
+  std::move(captured_callback).Run(result);
+
+  EXPECT_EQ(user_action_tester.GetActionCount("Indigo.ReplaceImage.Complete"),
+            1);
+  EXPECT_EQ(user_action_tester.GetActionCount("Indigo.Onboarding.Complete"), 0);
 }
 
 TEST_F(IndigoPageActionControllerTest, OnCloseResetsReplacements) {
@@ -699,6 +771,37 @@ TEST_F(IndigoPageActionControllerTest, InvokeActionOpensGlicForSuggestionChip) {
 
   controller_->InvokeAction();
 }
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+TEST_F(IndigoPageActionControllerTest, InvokeActionTriggerReauthWhenPaused) {
+  CreateController();
+
+  // Set the account in paused state.
+  identity_test_env_adaptor_->identity_test_env()
+      ->SetInvalidRefreshTokenForPrimaryAccount();
+
+  base::HistogramTester histogram_tester;
+
+  // We expect ShowReauthUI to be called on the mock delegate.
+  testing::StrictMock<MockSigninUiDelegate> mock_signin_ui_delegate;
+  base::AutoReset<signin_ui_util::SigninUiDelegate*> delegate_auto_reset =
+      signin_ui_util::SetSigninUiDelegateForTesting(&mock_signin_ui_delegate);
+
+  EXPECT_CALL(
+      mock_signin_ui_delegate,
+      ShowReauthUI(profile_.get(), "user@example.com",
+                   /*enable_sync=*/false, signin_metrics::AccessPoint::kIndigo,
+                   signin_metrics::PromoAction::PROMO_ACTION_NO_SIGNIN_PROMO));
+
+  controller_->InvokeAction();
+
+  histogram_tester.ExpectUniqueSample(
+      "Indigo.Transformation.Result",
+      static_cast<int>(
+          IndigoTransformationResult::kRefreshTokenInPersistentErrorState),
+      1);
+}
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 TEST_F(IndigoPageActionControllerTest, InvokeActionOpensGlicWithProtoPrompt) {
   base::ScopedTempDir temp_dir;

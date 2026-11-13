@@ -286,7 +286,7 @@ bool VerifySignedData(SignatureAlgorithm algorithm, der::Input signed_data,
   OpenSSLErrStackTracer err_tracer;
 
   bssl::ScopedEVP_MD_CTX ctx;
-  EVP_PKEY_CTX *pctx = nullptr;  // Owned by |ctx|.
+  EVP_PKEY_CTX *pctx = nullptr;  // Owned by `ctx`.
 
   if (!EVP_DigestVerifyInit(ctx.get(), &pctx, digest, nullptr, public_key)) {
     return false;

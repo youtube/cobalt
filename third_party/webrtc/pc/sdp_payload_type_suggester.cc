@@ -18,6 +18,7 @@
 #include "api/jsep.h"
 #include "api/payload_type.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "call/payload_type.h"
 #include "call/payload_type_picker.h"
@@ -89,14 +90,16 @@ RTCError SdpPayloadTypeSuggester::AddLocalMapping(absl::string_view mid,
   return recorder.AddMapping(payload_type, codec);
 }
 
-RTCErrorOr<int> SdpPayloadTypeSuggester::SuggestRtpHeaderExtensionId(
+RTCErrorOr<RtpHeaderExtensionId>
+SdpPayloadTypeSuggester::SuggestRtpHeaderExtensionId(
     absl::string_view mid,
     const RtpExtension& extension,
     RtpTransceiverIdDomain id_domain) {
   RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
   BundleTypeRecorder& bundle_recorder = LookupBundleRecorder(mid);
-  RTCErrorOr<int> result = bundle_recorder.header_extensions().LookupId(
-      extension.uri, extension.encrypt);
+  RTCErrorOr<RtpHeaderExtensionId> result =
+      bundle_recorder.header_extensions().LookupId(extension.uri,
+                                                   extension.encrypt);
   if (result.ok()) {
     return result;
   }

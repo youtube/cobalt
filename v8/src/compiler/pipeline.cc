@@ -311,10 +311,10 @@ class V8_NODISCARD LocalIsolateScope {
 void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
                          int source_id,
                          DirectHandle<SharedFunctionInfo> shared) {
-  if (!IsUndefined(shared->script(), isolate)) {
+  if (!IsUndefined(shared->script())) {
     DirectHandle<Script> script(Cast<Script>(shared->script()), isolate);
 
-    if (!IsUndefined(script->source(), isolate)) {
+    if (!IsUndefined(script->source())) {
       CodeTracer::StreamScope tracing_scope(isolate->GetCodeTracer());
       Tagged<Object> source_name = script->name();
       auto& os = tracing_scope.stream();
@@ -607,7 +607,7 @@ void PrintCode(Isolate* isolate, DirectHandle<Code> code,
     if (print_source) {
       DirectHandle<SharedFunctionInfo> shared = info->shared_info();
       if (IsScript(shared->script()) &&
-          !IsUndefined(Cast<Script>(shared->script())->source(), isolate)) {
+          !IsUndefined(Cast<Script>(shared->script())->source())) {
         os << "--- Raw source ---\n";
         StringCharacterStream stream(
             Cast<String>(Cast<Script>(shared->script())->source()),
@@ -3065,11 +3065,11 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
   turboshaft_data.InitializeGraphComponent(
       data.source_positions(), turboshaft::Graph::Origin::kPureTurboshaft);
 
-  wasm::BuildTSGraph(&turboshaft_data, env, detected, turboshaft_data.graph(),
-                     compilation_data.func_body,
-                     compilation_data.wire_bytes_storage,
-                     &compilation_data.assumptions, &inlining_positions,
-                     compilation_data.func_index, function_coverage_data);
+  wasm::BuildTSGraph(
+      &turboshaft_data, env, detected, turboshaft_data.graph(),
+      compilation_data.func_body, compilation_data.wire_bytes_storage,
+      compilation_data.validate_callees, &compilation_data.assumptions,
+      &inlining_positions, compilation_data.func_index, function_coverage_data);
   CodeTracer* code_tracer = nullptr;
   if (turboshaft_data.info()->trace_turbo_graph()) {
     // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,

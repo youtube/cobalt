@@ -4,6 +4,7 @@
 
 #include "components/signin/public/base/signin_switches.h"
 
+#include "base/feature.h"
 #include "base/feature_list.h"
 #include "base/time/time.h"
 #include "components/prefs/pref_service.h"
@@ -25,6 +26,10 @@ const char kClearTokenService[] = "clear-token-service";
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 // Force enable the default browser step in the first run experience on Desktop.
 const char kForceFreDefaultBrowserStep[] = "force-fre-default-browser-step";
+
+// Overrides the eligible steps in the Feature Showcase step of the first run
+// experience. Step names should be valid values separated by commas.
+const char kForceFreFeatureShowcaseSteps[] = "force-fre-feature-showcase-steps";
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
@@ -343,7 +348,7 @@ BASE_FEATURE_ENUM_PARAM(RefreshTokenBindingUpgradeType,
                         &kRefreshTokenBindingUpgradeTypeOptions);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) && !BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kEnableFakeCapabilityForTesting,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
@@ -469,6 +474,16 @@ const base::FeatureParam<base::TimeDelta>
         base::Hours(8)};
 #endif
 
+#if BUILDFLAG(IS_IOS)
+BASE_FEATURE(kEnforceMustFetchAppleAgeRangeInChromeCapability,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
+#if BUILDFLAG(IS_IOS)
+BASE_FEATURE(kEnforceMustSkipAppleAgeRangeInChromeCapability,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kFirstRunDesktopRefresh, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kFirstRunDesktopChoiceScreenRefresh,
@@ -545,7 +560,7 @@ BASE_FEATURE(kIgnoreChromeManageAccountsInSubframes,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Feature flag to ignore invalid grant errors in AuthenticationService.
-BASE_FEATURE(kIgnoreInvalidGrantError, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kIgnoreInvalidGrantError, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -567,9 +582,13 @@ BASE_FEATURE(kNoAccountWebSignin, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kNonDefaultGaiaOriginCheck, base::FEATURE_ENABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
 BASE_FEATURE(kPasswordUploadUiUpdate, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kProfileCreationDeclineSigninCTAExperiment,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)

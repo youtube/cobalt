@@ -15,7 +15,11 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/common/url_constants.h"
+#include "components/omnibox/browser/autocomplete_result.h"
+#include "components/omnibox/browser/omnibox_log.h"
 #include "components/prefs/pref_service.h"
+#include "components/sessions/content/session_tab_helper.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
 
@@ -23,34 +27,21 @@ namespace finds {
 
 namespace {
 
+// Evaluates whether the URL is the native Android New Tab Page.
+// We perform this check instead of calling search::IsNTPURL() because
+// importing //chrome/browser/search introduces a dependency cycle.
+bool IsAndroidNTP(const GURL& url) {
+  return url.SchemeIs(chrome::kChromeNativeScheme) &&
+         url.host() == chrome::kChromeUINewTabHost;
+}
+
 bool IsValidNavigation(content::NavigationHandle* navigation_handle) {
   return navigation_handle->HasCommitted() &&
          navigation_handle->IsInPrimaryMainFrame() &&
          !navigation_handle->IsSameDocument() &&
          navigation_handle->GetURL().is_valid() &&
-         navigation_handle->GetURL().SchemeIsHTTPOrHTTPS();
-}
-
-bool IsFindsOptInPromoCooldownPassed(const PrefService* pref_service) {
-  const int64_t last_timestamp_value =
-      pref_service->GetInt64(prefs::kFindsOptInPromoLastShownTimestamp);
-  if (last_timestamp_value == 0) {
-    return true;
-  }
-
-  const base::Time last_interacted_time =
-      base::Time::FromMillisecondsSinceUnixEpoch(last_timestamp_value);
-  return (base::Time::Now() - last_interacted_time) >=
-         base::Days(finds::features::kFindsOptInPromoCooldownInDays.Get());
-}
-
-bool IsFindsOptInPromoMaxCountExceeded(const PrefService* pref_service) {
-  return pref_service->GetInteger(prefs::kFindsOptInPromoShownCount) >=
-         finds::features::kFindsOptInPromoMaxInteractedCount.Get();
-}
-
-bool IsFindsOptInPromoAlreadyInteracted(const PrefService* pref_service) {
-  return pref_service->GetBoolean(prefs::kFindsOptInPromoUserInteracted);
+         (navigation_handle->GetURL().SchemeIsHTTPOrHTTPS() ||
+          IsAndroidNTP(navigation_handle->GetURL()));
 }
 
 }  // namespace
@@ -86,15 +77,35 @@ FindsTabHelper::FindsTabHelper(content::WebContents* web_contents,
     opt_guide_service_->RegisterOptimizationTypes(
         {optimization_guide::proto::FINDS_PAGE_THEME});
   }
+
+  omnibox_tracker_observation_ =
+      OmniboxEventGlobalTracker::GetInstance()->RegisterCallback(
+          base::BindRepeating(&FindsTabHelper::OnURLOpenedFromOmnibox,
+                              base::Unretained(this)));
 }
 
 FindsTabHelper::~FindsTabHelper() = default;
 
 void FindsTabHelper::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
+  // Reset the Finds opt-in pending states on any new committed primary
+  // main-frame navigation to prevent previous state leaking to new navigations.
+  if (navigation_handle->HasCommitted() &&
+      navigation_handle->IsInPrimaryMainFrame() &&
+      !navigation_handle->IsSameDocument()) {
+    is_srp_return_opt_in_pending_ = false;
+    is_recent_search_suggestion_opt_in_pending_ = false;
+  }
+
   if (!IsValidNavigation(navigation_handle)) {
     return;
   }
+
+  // Store in a temporary variable and immediately reset the pending state so
+  // it isn't leaked if checks below do not pass.
+  bool was_recent_search_suggestion_navigation_pending =
+      pending_omnibox_recent_search_suggestion_navigation_;
+  pending_omnibox_recent_search_suggestion_navigation_ = false;
 
   if (!IsSupportedPlatform()) {
     return;
@@ -102,6 +113,18 @@ void FindsTabHelper::DidFinishNavigation(
 
   if (!finds_service_->IsFindsFeatureAllowedForUser()) {
     return;
+  }
+
+  // Ensure navigation was indeed a recent search suggestion to SRP.
+  if (was_recent_search_suggestion_navigation_pending &&
+      features::kEnableOmniboxRecentSearchSuggestionOptIn.Get() &&
+      template_url_service_ &&
+      template_url_service_->IsSearchResultsPageFromDefaultSearchProvider(
+          navigation_handle->GetURL())) {
+    if (finds_service_
+            ->RecordRecentSearchSuggestionClickAndCheckThresholdReached()) {
+      is_recent_search_suggestion_opt_in_pending_ = true;
+    }
   }
 
   // Early exit if the opt in promo has already been interacted with enough
@@ -113,8 +136,13 @@ void FindsTabHelper::DidFinishNavigation(
     return;
   }
 
+  if (IsAndroidNTP(navigation_handle->GetURL())) {
+    finds_service_->RecordNTPVisited();
+    return;
+  }
+
   if (features::kEnableSrpReturnCountOptIn.Get()) {
-    CheckSRPReturnCountAndMaybeTriggerOptIn(navigation_handle);
+    CheckSRPReturnCount(navigation_handle);
   }
 
   if (!opt_guide_service_ || !features::kEnableThemeUrlVisitCountOptIn.Get()) {
@@ -127,7 +155,23 @@ void FindsTabHelper::DidFinishNavigation(
                      weak_ptr_factory_.GetWeakPtr()));
 }
 
-void FindsTabHelper::CheckSRPReturnCountAndMaybeTriggerOptIn(
+void FindsTabHelper::DidFirstVisuallyNonEmptyPaint() {
+  if (is_srp_return_opt_in_pending_) {
+    is_srp_return_opt_in_pending_ = false;
+    if (finds_service_) {
+      finds_service_->SRPBackNavigationCountForOptInReached();
+    }
+  }
+
+  if (is_recent_search_suggestion_opt_in_pending_) {
+    is_recent_search_suggestion_opt_in_pending_ = false;
+    if (finds_service_) {
+      finds_service_->RecentSearchSuggestionCountForOptInReached();
+    }
+  }
+}
+
+void FindsTabHelper::CheckSRPReturnCount(
     content::NavigationHandle* navigation_handle) {
   if (!template_url_service_) {
     return;
@@ -143,10 +187,31 @@ void FindsTabHelper::CheckSRPReturnCountAndMaybeTriggerOptIn(
     srp_return_count_++;
 
     if (srp_return_count_ >= finds::features::kSRPReturnCountThreshold.Get()) {
-      if (finds_service_) {
-        finds_service_->SRPBackNavigationCountForOptInReached();
-      }
+      is_srp_return_opt_in_pending_ = true;
     }
+  }
+}
+
+void FindsTabHelper::OnURLOpenedFromOmnibox(OmniboxLog* log) {
+  if (!finds_service_ || !finds_service_->IsFindsFeatureAllowedForUser()) {
+    return;
+  }
+  if (!features::kEnableOmniboxRecentSearchSuggestionOptIn.Get()) {
+    return;
+  }
+  // Verify that the omnibox event occurred in this tab.
+  if (log->tab_id != sessions::SessionTabHelper::IdForTab(web_contents())) {
+    return;
+  }
+  if (log->selection.line >= log->result->size()) {
+    return;
+  }
+  const AutocompleteMatch& match = log->result->match_at(log->selection.line);
+  // Identify recent search suggestions styled with the history clock icon.
+  if (match.type == AutocompleteMatchType::SEARCH_HISTORY ||
+      match.type == AutocompleteMatchType::SEARCH_SUGGEST_PERSONALIZED) {
+    // Signal that a recent search suggestion navigation is pending.
+    pending_omnibox_recent_search_suggestion_navigation_ = true;
   }
 }
 

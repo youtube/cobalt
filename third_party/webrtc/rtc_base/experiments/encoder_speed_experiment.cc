@@ -76,7 +76,10 @@ EncoderSpeedExperiment::EncoderSpeedExperiment(
 
 EncoderSpeedExperiment::EncoderSpeedExperiment(
     const FieldTrialsView& field_trials,
-    bool use_low_complexity_for_vp9) {
+    bool use_low_complexity_for_vp9)
+    : dynamic_speed_enabled_(true),
+      av1_complexity_({.camera = VideoCodecComplexity::kComplexityHigh,
+                       .screenshare = VideoCodecComplexity::kComplexityLow}) {
   std::string trial_string = field_trials.Lookup(kFieldTrialName);
   if (trial_string.empty()) {
     if (use_low_complexity_for_vp9) {
@@ -86,7 +89,7 @@ EncoderSpeedExperiment::EncoderSpeedExperiment(
     return;
   }
 
-  FieldTrialParameter<bool> dynamic_speed_enabled("dynamic_speed", false);
+  FieldTrialParameter<bool> dynamic_speed_enabled("dynamic_speed", true);
   ParseFieldTrial({&dynamic_speed_enabled}, trial_string);
   dynamic_speed_enabled_ = dynamic_speed_enabled.Get();
 

@@ -45,7 +45,7 @@ std::string GetFilePath(const std::string &file_name) {
   return std::string("testdata/parse_certificate_unittest/") + file_name;
 }
 
-// Loads certificate data and expectations from the PEM file |file_name|.
+// Loads certificate data and expectations from the PEM file `file_name`.
 // Verifies that parsing the Certificate matches expectations:
 //   * If expected to fail, emits the expected errors
 //   * If expected to succeeds, the parsed fields match expectations
@@ -138,11 +138,11 @@ TEST(ParseCertificateTest, AlgorithmNotSequence) {
   RunCertificateTest("cert_algorithm_not_sequence.pem");
 }
 
-// Loads tbsCertificate data and expectations from the PEM file |file_name|.
+// Loads tbsCertificate data and expectations from the PEM file `file_name`.
 // Verifies that parsing the TBSCertificate succeeds, and each parsed field
 // matches the expectations.
 //
-// TODO(eroman): Get rid of the |expected_version| parameter -- this should be
+// TODO(eroman): Get rid of the `expected_version` parameter -- this should be
 // encoded in the test expectations file.
 void RunTbsCertificateTestGivenVersion(const std::string &file_name,
                                        CertificateVersion expected_version) {

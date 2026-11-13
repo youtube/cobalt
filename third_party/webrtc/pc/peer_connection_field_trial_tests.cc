@@ -159,7 +159,7 @@ TEST_F(PeerConnectionFieldTrialTest, MAYBE_InjectDependencyDescriptor) {
 
   std::set<int> existing_ids;
   for (const RtpExtension& rtp_extension : rtp_header_extensions1) {
-    existing_ids.insert(rtp_extension.id);
+    existing_ids.insert(rtp_extension.id.value());
   }
 
   // Find the currently unused RTP header extension ID.

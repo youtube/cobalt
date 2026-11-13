@@ -64,7 +64,7 @@ uint8_t kRtpMsgWithTwoByteAbsSendTimeExtension[] = {
 
 TEST(RtpUtilsTest, GetRtcp) {
   int pt;
-  EXPECT_TRUE(GetRtcpType(kRtcpReport, sizeof(kRtcpReport), &pt));
+  EXPECT_TRUE(GetRtcpType(kFakeRtcpReport, sizeof(kFakeRtcpReport), &pt));
   EXPECT_EQ(0xc9, pt);
 
   EXPECT_FALSE(GetRtcpType(kInvalidPacket, sizeof(kInvalidPacket), &pt));
@@ -80,7 +80,7 @@ TEST(RtpUtilsTest, GetRtcp) {
 
 TEST(RtpUtilsTest, InferRtpPacketType) {
   EXPECT_EQ(RtpPacketType::kRtp, InferRtpPacketType(kPcmuFrame));
-  EXPECT_EQ(RtpPacketType::kRtcp, InferRtpPacketType(kRtcpReport));
+  EXPECT_EQ(RtpPacketType::kRtcp, InferRtpPacketType(kFakeRtcpReport));
   EXPECT_EQ(RtpPacketType::kUnknown, InferRtpPacketType(kInvalidPacket));
 }
 

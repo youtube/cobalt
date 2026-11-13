@@ -19,6 +19,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/string_view.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_transceiver_direction.h"
 #include "media/base/media_constants.h"
 #include "rtc_base/checks.h"
@@ -147,34 +148,37 @@ RtpHeaderExtensionCapability::RtpHeaderExtensionCapability(
     : uri(uri) {}
 RtpHeaderExtensionCapability::RtpHeaderExtensionCapability(
     absl::string_view uri,
-    int preferred_id)
+    RtpHeaderExtensionId preferred_id)
     : uri(uri), preferred_id(preferred_id) {}
 RtpHeaderExtensionCapability::RtpHeaderExtensionCapability(
     absl::string_view uri,
-    int preferred_id,
+    RtpHeaderExtensionId preferred_id,
     RtpTransceiverDirection direction)
     : uri(uri), preferred_id(preferred_id), direction(direction) {}
 RtpHeaderExtensionCapability::RtpHeaderExtensionCapability(
     absl::string_view uri,
-    int preferred_id,
+    RtpHeaderExtensionId preferred_id,
     bool preferred_encrypt,
     RtpTransceiverDirection direction)
     : uri(uri),
       preferred_id(preferred_id),
       preferred_encrypt(preferred_encrypt),
       direction(direction) {}
+
 RtpHeaderExtensionCapability::~RtpHeaderExtensionCapability() = default;
 
 RtpExtension::RtpExtension() = default;
-RtpExtension::RtpExtension(absl::string_view uri, int id) : uri(uri), id(id) {
-  RTC_DCHECK(id >= kMinId && id <= kMaxId)
-      << "Extension ID " << id << " is not in valid range";
+RtpExtension::RtpExtension(absl::string_view uri, RtpHeaderExtensionId id)
+    : uri(uri), id(id) {
+  RTC_DCHECK(id.Valid()) << "Extension ID " << id << " is not in valid range";
 }
-RtpExtension::RtpExtension(absl::string_view uri, int id, bool encrypt)
+RtpExtension::RtpExtension(absl::string_view uri,
+                           RtpHeaderExtensionId id,
+                           bool encrypt)
     : uri(uri), id(id), encrypt(encrypt) {
-  RTC_DCHECK(id >= kMinId && id <= kMaxId)
-      << "Extension ID " << id << " is not in valid range";
+  RTC_DCHECK(id.Valid()) << "Extension ID " << id << " is not in valid range";
 }
+
 RtpExtension::~RtpExtension() = default;
 
 RtpFecParameters::RtpFecParameters() = default;

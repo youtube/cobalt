@@ -559,12 +559,30 @@ New bookmarks can’t be saved in your account until you delete some. If you sig
           Uninstall Google Chrome
         </message>
       </if>
+      <!-- Default Browser messages -->
       <message name="IDS_FR_CUSTOMIZE_DEFAULT_BROWSER" desc="Default browser checkbox label">
         Make Google Chrome the default browser
       </message>
       <message name="IDS_DEFAULT_BROWSER_CHANGED_MESSAGE" desc="Body of the notification shown when Chrome is no longer the default browser.">
         Chrome is no longer your default browser. Make Chrome the default browser?
       </message>
+      <if expr="is_win">
+        <message name="IDS_DEFAULT_BROWSER_VISUAL_GUIDED_SETTER_PAGE_TITLE" desc="Title of the default browser visual guided setter page.">
+          Set Chrome as your default browser
+        </message>
+        <message name="IDS_DEFAULT_BROWSER_VISUAL_GUIDED_SETTER_HEADER_TITLE" desc="Header text of the default browser visual guided setter.">
+          Use Google recommended browser settings
+        </message>
+        <message name="IDS_DEFAULT_BROWSER_VISUAL_GUIDED_SETTER_CONTENT_TITLE" desc="Content title of the default browser visual guided setter.">
+          Set Chrome as your default
+        </message>
+        <message name="IDS_DEFAULT_BROWSER_VISUAL_GUIDED_SETTER_CONTENT_DESCRIPTION" desc="Body text of the default browser visual guided setter.">
+          Get easy access to the features you know, love, and trust by setting Chrome as your default browser.
+        </message>
+        <message name="IDS_DEFAULT_BROWSER_VISUAL_GUIDED_SETTER_INSTRUCTION_STEP_2" desc="Instruction step 2 of the default browser visual guided setter. $1 is the bold button name.">
+          Click <ph name="BEGIN_BOLD">&lt;strong&gt;</ph>Yes<ph name="END_BOLD">&lt;/strong&gt;</ph> in the Windows notification to pin Chrome to your taskbar for quick access.
+        </message>
+      </if>
       <if expr="use_titlecase">
         <message name="IDS_STATUS_TRAY_KEEP_CHROME_RUNNING_IN_BACKGROUND" desc="In Title Case: The checkbox in the status tray context menu that controls whether chrome keeps running in the background after the last window is closed">
           Let Google Chrome Run in the Background
@@ -781,6 +799,11 @@ Google Chrome is unable to recover your settings.
       <if expr="is_win or is_macosx">
         <message name="IDS_PDF_INFOBAR_TEXT" desc="Text to show in an infobar when Google Chrome is not the default PDF viewer.">
           Set Google Chrome as your default PDF viewer
+        </message>
+      </if>
+      <if expr="enable_pdf">
+        <message name="IDS_PDF_GLIC_SUMMARIZE_IPH_TEXT" desc="Text of the In Product Help message shown for the button to summarize PDF.">
+          Get a quick overview of this document and ask questions with Gemini in Chrome
         </message>
       </if>
       <!-- Download Bubble Items -->
@@ -1352,15 +1375,6 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_CLOSE_WARNING_FOR_CLEAR_COOKIES_ON_EXIT_TEXT" desc="Body of a notice displayed when closing the last Chrome window, to inform the user about a change in the way the 'Clear cookie on exit' setting works.">
           You’ll be signed out of most sites when you close all Chrome windows, except your Google Account if you’re signed in to Chrome. To let sites remember you, <ph name="SETTINGS_LINK">$1<ex>go to settings</ex></ph>.
         </message>
-        <message name="IDS_SYNC_PASSPHRASE_DIALOG_FOOTER" desc="Dialog footer of the passphrase dialog.">
-          If you forgot your passphrase or want to change this setting, <ph name="SETTINGS_LINK">$1<ex>clear</ex></ph> the Chrome data in your account
-        </message>
-        <message name="IDS_SYNC_PASSPHRASE_DIALOG_FOOTER_LINK_ACC" desc="Accessibility label for the link in the footer of the sync passhprase dialog">
-          Clear the Chrome data in your account
-        </message>
-        <message name="IDS_SYNC_PASSPHRASE_DIALOG_BODY" desc="Body of the sync passphrase dialog.">
-          Your data is encrypted with your passphrase. Enter it to use and save Chrome data in your Google Account.
-        </message>
         <message name="IDS_AVATAR_BUTTON_INTERCEPT_BUBBLE_CHROME_SIGNIN_ACCESSIBILITY_LABEL"
           desc="Accessibility label (read by the accessibility tools) of the avatar button when the Chrome Signin bubble is shown. The text implies that the expanded bubble underneath the button is closable by clicking on the button. The actual text is 'Sign in to Chrome?' with a bubble shown under it.">
           Click to close the Chrome sign-in dialog
@@ -1378,6 +1392,16 @@ Google Chrome is unable to recover your settings.
           To get your addresses and more on all your devices, sign in to Chrome. This address will be saved in your Google Account after you sign in.
         </message>
       </if>
+
+      <message name="IDS_SYNC_PASSPHRASE_DIALOG_FOOTER" desc="Dialog footer of the passphrase dialog.">
+        If you forgot your passphrase or want to change this setting, <ph name="SETTINGS_LINK">$1<ex>clear</ex></ph> the Chrome data in your account
+      </message>
+      <message name="IDS_SYNC_PASSPHRASE_DIALOG_FOOTER_LINK_ACC" desc="Accessibility label for the link in the footer of the sync passphrase dialog">
+        Clear the Chrome data in your account
+      </message>
+      <message name="IDS_SYNC_PASSPHRASE_DIALOG_BODY" desc="Body of the sync passphrase dialog.">
+        Your data is encrypted with your passphrase. Enter it to use and save Chrome data in your Google Account.
+      </message>
 
       <if expr="not is_chromeos and not is_android">
         <!-- Profile Customization Web UI -->
@@ -1398,11 +1422,17 @@ Google Chrome is unable to recover your settings.
           <message name="IDS_SYNC_SIGN_IN_ERROR_BUBBLE_VIEW_MESSAGE" desc="Message in the sign-in error notification when the user's sign-in credentials are out of date.">
             ChromeOS Flex could not sync your data because your account sign-in details are out of date.
           </message>
+          <message name="IDS_SYNC_SIGN_IN_ERROR_BUBBLE_VIEW_MESSAGE_2" desc="Message in the sign-in error notification when the user's sign-in credentials are out of date.">
+            ChromeOS Flex could not save Chrome data in your Google Account because your account sign-in details are out of date
+          </message>
           <message name="IDS_SYNC_UNAVAILABLE_ERROR_BUBBLE_VIEW_MESSAGE" desc="Message in the sign-in error notification when sync is not available for their domain.">
             ChromeOS Flex could not sync your data because Sync is not available for your domain.
           </message>
           <message name="IDS_SYNC_OTHER_SIGN_IN_ERROR_BUBBLE_VIEW_MESSAGE" desc="Message in the sign-in error notification when there's an error signing in.">
             ChromeOS Flex could not sync your data due to an error signing in.
+          </message>
+          <message name="IDS_SYNC_OTHER_SIGN_IN_ERROR_BUBBLE_VIEW_MESSAGE_2" desc="Message in the sign-in error notification when there's an error signing in.">
+            ChromeOS Flex could not save Chrome data in your Google Account due to an error signing in
           </message>
         </if>
         <if expr="not reven">
@@ -1412,13 +1442,28 @@ Google Chrome is unable to recover your settings.
           <message name="IDS_SYNC_SIGN_IN_ERROR_BUBBLE_VIEW_MESSAGE" desc="Message in the sign-in error notification when the user's sign-in credentials are out of date.">
             ChromeOS could not sync your data because your account sign-in details are out of date.
           </message>
+          <message name="IDS_SYNC_SIGN_IN_ERROR_BUBBLE_VIEW_MESSAGE_2" desc="Message in the sign-in error notification when the user's sign-in credentials are out of date.">
+            ChromeOS could not save Chrome data in your Google Account because your account sign-in details are out of date
+          </message>
           <message name="IDS_SYNC_UNAVAILABLE_ERROR_BUBBLE_VIEW_MESSAGE" desc="Message in the sign-in error notification when sync is not available for their domain.">
             ChromeOS could not sync your data because Sync is not available for your domain.
           </message>
           <message name="IDS_SYNC_OTHER_SIGN_IN_ERROR_BUBBLE_VIEW_MESSAGE" desc="Message in the sign-in error notification when there's an error signing in.">
             ChromeOS could not sync your data due to an error signing in.
           </message>
+          <message name="IDS_SYNC_OTHER_SIGN_IN_ERROR_BUBBLE_VIEW_MESSAGE_2" desc="Message in the sign-in error notification when there's an error signing in.">
+            ChromeOS could not save Chrome data in your Google Account due to an error signing in
+          </message>
         </if>
+        <message name="IDS_SYNC_PASSPHRASE_ERROR_BUBBLE_VIEW_MESSAGE_2" desc="Message in the sync error bubble view when the user needs to enter their sync passphrase.">
+          To use and save Chrome data in your Google Account, enter your passphrase
+        </message>
+        <message name="IDS_SYNC_NEEDS_KEYS_FOR_EVERYTHING_ERROR_BUBBLE_VIEW_MESSAGE_2" desc="Message in the sync error notification when the user needs to reauth to retrieve the sync encryption keys and resume sync.">
+          To use and save Chrome data in your Google Account, verify it's you
+        </message>
+        <message name="IDS_SYNC_RECOVERABILITY_DEGRADED_FOR_EVERYTHING_ERROR_BUBBLE_VIEW_MESSAGE_2" desc="Message in the sync error notification when the user needs to reauth to add recovery options, affecting all sync data.">
+          To make sure you can always use and save Chrome data in your Google Account, verify it's you
+        </message>
       </if>
 
       <!-- Profile Menu -->
@@ -1488,20 +1533,6 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_APP_SHORTCUTS_SUBDIR_NAME_DEV" desc="Name for the Chrome Apps Start Menu folder name for the Dev channel.">
           Chrome Dev Apps
         </message>
-      </if>
-
-      <!-- ChromeOS OOBE Terms of Service screen-->
-      <if expr="is_chromeos">
-        <if expr="reven">
-          <message name="IDS_TERMS_OF_SERVICE_SCREEN_SUBHEADING" desc="Subheading at the top of the Terms of Service screen. MANAGER can be a domain or an email address.">
-            <ph name="MANAGER">$1<ex>example.com</ex></ph> requires that you read and accept the following Terms of Service before using this device. These terms do not expand, modify or limit the Google ChromeOS Flex Terms.
-          </message>
-        </if>
-        <if expr="not reven">
-          <message name="IDS_TERMS_OF_SERVICE_SCREEN_SUBHEADING" desc="Subheading at the top of the Terms of Service screen. MANAGER can be a domain or an email address.">
-            <ph name="MANAGER">$1<ex>example.com</ex></ph> requires that you read and accept the following Terms of Service before using this device. These terms do not expand, modify or limit the Google ChromeOS Terms.
-          </message>
-        </if>
       </if>
 
       <!-- MediaStream capture status tray icon -->
@@ -1672,12 +1703,18 @@ Google Chrome is unable to recover your settings.
           <message name="IDS_CONTENT_CONTEXT_OPENLINKOFFTHERECORD_INAPP" desc="The name of the command to open a link in an Incognito browser window when the user is in an app window">
             Open link in Chrome inco&amp;gnito window
           </message>
+          <message name="IDS_CONTENT_CONTEXT_OPENLINKOFFTHERECORD_INAPP_V2" desc="The name of the command to open a link in an Incognito browser window when the user is in an app window">
+            Open link in Chrome Inco&amp;gnito window
+          </message>
         </if>
         <if expr="use_titlecase">
           <message name="IDS_CONTENT_CONTEXT_OPENLINKNEWTAB_INAPP" desc="In Title Case: The name of the command to open a link in a newly created browser tab when the user is in an app window">
             Open Link in New Chrome &amp;tab
           </message>
           <message name="IDS_CONTENT_CONTEXT_OPENLINKOFFTHERECORD_INAPP" desc="In Title Case: The name of the command to open a link in an Incognito browser window when the user is in an app window">
+            Open Link in Chrome Inco&amp;gnito Window
+          </message>
+          <message name="IDS_CONTENT_CONTEXT_OPENLINKOFFTHERECORD_INAPP_V2" desc="In Title Case: The name of the command to open a link in an Incognito browser window when the user is in an app window">
             Open Link in Chrome Inco&amp;gnito Window
           </message>
         </if>
@@ -2186,6 +2223,10 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_LENS_OVERLAY_TAB_ENTRYPOINT_LABEL"
           desc="Label for the Lens overlay command, through which the current tab will be searched using Google Lens.">
           Search this tab with Google Lens
+        </message>
+        <message name="IDS_LENS_OVERLAY_TAB_ENTRYPOINT_LABEL_V2"
+          desc="Label for the Lens overlay command, through which the current tab will be searched using Google Lens.">
+          Search with Google Lens
         </message>
         <message name="IDS_LENS_OVERLAY_VIDEO_ENTRYPOINT_LABEL_ALT1"
           desc="Label for the Lens overlay command, through which the user can ask Google questions about the video.">
@@ -2705,7 +2746,7 @@ Google Chrome is unable to recover your settings.
           Google
         </message>
         <message name="IDS_NO_UPDATE_RESPONSE" desc="Updater response for no updates when handling install result.">
-          No update is available.
+          No update is available
         </message>
         <message name="IDS_INSTALL_UPDATER_FAILED" desc="Updater response for failure when handling install result.">
           Installation failed. Please try again.
@@ -2735,7 +2776,7 @@ Google Chrome is unable to recover your settings.
           Downloading... <ph name="HOURS">$1<ex>0</ex></ph> hour(s) remaining
         </message>
         <message name="IDS_DOWNLOADING_COMPLETED" desc="For when donwload is completed.">
-          Download complete.
+          Download complete
         </message>
         <message name="IDS_DOWNLOADING" desc="For when time remaining is less than 0.">
           Downloading...
@@ -2771,7 +2812,7 @@ Google Chrome is unable to recover your settings.
           Help
         </message>
         <message name="IDS_INSTALLATION_STOPPED_WINDOW_TITLE" desc="For dialog when user chooses to close the installation window.">
-          Installation Stopped.
+          Installation Stopped
         </message>
         <message name="IDS_INSTALL_STOPPED" desc="Message of the dialog when user chooses to close the installation window.">
           Installation not complete. Are you sure you want to cancel?
@@ -2783,7 +2824,7 @@ Google Chrome is unable to recover your settings.
           Cancel Installation
         </message>
         <message name="IDS_BUNDLE_INSTALLED_SUCCESSFULLY" desc="Installation complete message.">
-          Installation complete.
+          Installation complete
         </message>
         <message name="IDS_UPDATER_OS_NOT_SUPPORTED" desc="Error displayed if the OS is not supported">
           Installation failed because your version of Windows is not supported.
@@ -3084,16 +3125,44 @@ Google Chrome is unable to recover your settings.
         To use Gemini in Chrome, sign in with a different Google Account
       </message>
 
-        <!-- Experimental Glic settings -->
-        <message name="IDS_SETTINGS_GLIC_PAGE_TITLE" desc="Title of the Gemini settings subpage. Also shown in tab strip.">
-          Gemini in Chrome
+      <!-- Experimental Glic settings -->
+      <message name="IDS_SETTINGS_GLIC_PAGE_TITLE" desc="Title of the Gemini settings subpage. Also shown in tab strip.">
+        Gemini in Chrome
+      </message>
+      <message name="IDS_SETTINGS_GLIC_SECTION_TITLE" desc="Text of the Gemini section header on the AI settings page.">
+        Gemini in Chrome
+      </message>
+      <message name="IDS_SETTINGS_GLIC_ROW_LABEL" desc="Label of the Gemini row button on the AI settings page leading to the Gemini subpage.">
+        Gemini in Chrome
+      </message>
+      <message name="IDS_SETTINGS_GLIC_BUTTON_TOGGLE_SUBLABEL" desc="Sublabel of the toggle that controls whether the Gemini icon is shown in the tabstrip." formatter_data="android_java">
+        Quickly open Gemini in Chrome whenever you need it
+      </message>
+      <if expr="is_macosx">
+        <message name="IDS_SETTINGS_GLIC_OS_WIDGET_TOGGLE" desc="Name of the toggle that controls whether the Gemini icon is shown in the MacOS menu bar (on Mac only).">
+          Show Gemini in Chrome in Mac menu bar and turn on keyboard shortcut
         </message>
-        <message name="IDS_SETTINGS_GLIC_SECTION_TITLE" desc="Text of the Gemini section header on the AI settings page.">
-          Gemini in Chrome
+      </if>
+      <if expr="is_win or is_linux or is_chromeos">
+        <message name="IDS_SETTINGS_GLIC_OS_WIDGET_TOGGLE" desc="Name of the toggle that controls whether the Gemini icon is shown in the system tray (on ChromeOS, Windows and Linux).">
+          Show Gemini in Chrome in system tray and turn on keyboard shortcut
         </message>
-        <message name="IDS_SETTINGS_GLIC_ROW_LABEL" desc="Label of the Gemini row button on the AI settings page leading to the Gemini subpage.">
-          Gemini in Chrome
-        </message>
+      </if>
+      <message name="IDS_SETTINGS_GLIC_OS_WIDGET_TOGGLE_SUBLABEL" desc="Sublabel of the toggle that controls whether the Gemini icon is shown in the menu bar (on Mac) / system tray (on Windows and Linux).">
+        Easy access to use Gemini in Chrome across your device, even if Chrome is minimized.
+      </message>
+      <message name="IDS_SETTINGS_GLIC_KEYBOARD_SHORTCUT_SUBLABEL" desc="Sublabel describing the keyboard shortcut that's used to globally invoke Gemini.">
+        Open Gemini in Chrome with a keyboard shortcut.
+      </message>
+      <message name="IDS_SETTINGS_GLIC_NAVIGATION_SHORTCUT_SUBLABEL" desc="Sublabel describing the keyboard shortcut navigate between Chrome and Gemini.">
+        To leave or return to Gemini in Chrome, use keyboard shortcut.
+      </message>
+      <message name="IDS_SETTINGS_GLIC_KEEP_SIDEPANEL_OPEN_ON_NEW_TABS_SUBLABEL" desc="Sublabel describing the setting to keep side panel open when new tabs are opened.">
+        If Gemini in Chrome is open, the side panel stays open when creating new tabs
+      </message>
+      <message name="IDS_SETTINGS_GLIC_SELECTION_SHORTCUT_SUBLABEL" desc="Sublabel describing the selection shortcut triggering in Gemini.">
+        To select part of the screen in Gemini in Chrome, use keyboard shortcut.
+      </message>
 
       <!-- Profile Picker Glic version-->
       <message name="IDS_PROFILE_PICKER_MAIN_VIEW_TITLE_GLIC" desc="Heading describing that the section below choosing a Chrome profile to use with Gemini. 'Gemini' has a special styling.">
@@ -3241,35 +3310,6 @@ Google Chrome is unable to recover your settings.
       </message>
       <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_FOOTER" desc="Explanatory text in dialog footer describing what other information is sent to Google as part of the unsafe-site-report.">
           We use info to improve this service. See <ph name="BEGIN_LINK1">&lt;a href="https://policies.google.com/privacy" target="_blank"&gt;</ph>Privacy Policy<ph name="END_LINK1">&lt;/a&gt;</ph> and <ph name="BEGIN_LINK2">&lt;a href="https://policies.google.com/terms" target="_blank"&gt;</ph>Terms of Service<ph name="END_LINK2">&lt;/a&gt;</ph>.
-      </message>
-
-      <!-- Indigo Strings -->
-      <message name="IDS_INDIGO_ENTRYPOINT_CHIP_TEXT" desc="The text on the Indigo entry point chip in the omnibox." translateable="false">
-        Indigo
-      </message>
-      <message name="IDS_INDIGO_ENTRYPOINT_CHIP_TOOLTIP_TEXT" desc="The tooltip text of the Indigo entry point chip in the omnibox in the hover state." translateable="false">
-        Indigo tooltip text
-      </message>
-      <message name="IDS_INDIGO_ENTRYPOINT_ANCHORED_MESSAGE_TEXT" desc="The text shown in the anchored message bubble for the Indigo page action." translateable="false">
-        Indigo is available for this page
-      </message>
-      <message name="IDS_INDIGO_TITLE" desc="Title for the Indigo page." translateable="false">
-        Indigo
-      </message>
-      <message name="IDS_INDIGO_TEXT_LAYER_STEP_1" desc="The text for step 1 of the Indigo text layer." translateable="false">
-        Loading (1/3)...
-      </message>
-      <message name="IDS_INDIGO_TEXT_LAYER_STEP_2" desc="The text for step 2 of the Indigo text layer." translateable="false">
-        Loading (2/3)...
-      </message>
-      <message name="IDS_INDIGO_TEXT_LAYER_STEP_3" desc="The text for step 3 of the Indigo text layer." translateable="false">
-        Loading (3/3)...
-      </message>
-      <message name="IDS_INDIGO_DISCLAIMER_LINE_1" desc="First line of disclaimer in text overlay." translateable="false">
-        Generative AI can make mistakes.
-      </message>
-      <message name="IDS_INDIGO_DISCLAIMER_LINE_2" desc="Second line of disclaimer in text overlay." translateable="false">
-        Appearance won't be exact
       </message>
 
       <!-- JS optimizations bubble -->

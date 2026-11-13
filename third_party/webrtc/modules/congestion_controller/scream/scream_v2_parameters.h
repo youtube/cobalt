@@ -28,18 +28,16 @@ struct ScreamV2Parameters {
   FieldTrialParameter<double> l4s_avg_g_up;
   FieldTrialParameter<double> l4s_avg_g_down;
 
-  // Exponentially Weighted Moving Average (EWMA) factor for loss_event_rate.
-  FieldTrialParameter<double> loss_event_rate_avg_g_loss;
-  FieldTrialParameter<double> loss_event_rate_avg_g_no_loss;
+  // The number of consecutive RTTs with loss required to trigger a backoff.
+  // Used as the step-up value (1.0 / rtts_with_loss_before_backoff) in the
+  // short-term congestion level step filter.
+  FieldTrialParameter<int> rtts_with_loss_before_backoff;
 
-  // Thresholds for loss_event_rate.
-  // If the estimated loss rate is below `loss_event_rate_threshold_discard`
-  // (and queue delay is low), newly reported packet losses are ignored as
-  // isolated/spurious events.
-  // Conversely, reference window increase is allowed only if the loss rate
-  // remains below `loss_event_rate_threshold_increase`.
-  FieldTrialParameter<double> loss_event_rate_threshold_discard;
-  FieldTrialParameter<double> loss_event_rate_threshold_increase;
+  // The number of consecutive lossless RTTs required to fully clear the
+  // congestion level from maximum congestion (1.0) back to 0.0.
+  // Used as the step-down value (1.0 / lossless_rtts_before_clear) in the
+  // short-term congestion level step filter.
+  FieldTrialParameter<int> lossless_rtts_before_clear;
 
   // Exponentially Weighted Moving Average (EWMA) factor for smoothed rtt.
   FieldTrialParameter<double> smoothed_rtt_avg_g;

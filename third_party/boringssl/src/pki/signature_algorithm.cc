@@ -28,7 +28,7 @@ namespace {
 
 // These OIDs do not reference libcrypto's OBJ table, as that table is very
 // large and includes many more OIDs than we need. However, where OIDs are
-// already in the table, we reuse the |OBJ_ENC_*| constants to avoid needing to
+// already in the table, we reuse the `OBJ_ENC_*` constants to avoid needing to
 // specify them a second time.
 
 // From RFC 5912:

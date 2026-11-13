@@ -96,7 +96,8 @@ import Foundation
                 url: optionalUrl,
                 username: basicAuth.userName?.value ?? "",
                 password: basicAuth.password?.value ?? "",
-                note: note
+                note: note,
+                creationDate: nil
               ))
           case .passkey(let passkey):
             stats.passkeyCount += 1
@@ -107,7 +108,8 @@ import Foundation
                 userName: passkey.userName,
                 userDisplayName: passkey.userDisplayName,
                 userId: passkey.userHandle,
-                privateKey: passkey.key))
+                privateKey: passkey.key,
+                creationDate: nil))
           case .address:
             stats.addressCount += 1
           case .apiKey:

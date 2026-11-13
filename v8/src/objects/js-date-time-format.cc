@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "src/base/bit-field.h"
+#include "src/base/logging.h"
 #include "src/date/date.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
@@ -315,6 +316,7 @@ Handle<String> GetPropertyString(Factory& factory, DateTimeProperty property) {
     case DateTimeProperty::kTimeZoneName:
       return factory.timeZoneName_string();
   }
+  UNREACHABLE();
 }
 
 const std::vector<PatternData> CreateCommonData(const PatternData& hour_data) {
@@ -1851,6 +1853,7 @@ Isolate::ICUObjectCacheType ConvertToCacheType(
     case JSDateTimeFormat::DefaultsOption::kAll:
       return Isolate::ICUObjectCacheType::kDefaultSimpleDateFormat;
   }
+  UNREACHABLE();
 }
 
 }  // namespace
@@ -1877,8 +1880,8 @@ MaybeDirectHandle<String> JSDateTimeFormat::ToLocaleDateTime(
   // We only cache the instance when locales is a string/undefined and
   // options is undefined, as that is the only case when the specified
   // side-effects of examining those arguments are unobservable.
-  bool can_cache = (IsString(*locales) || IsUndefined(*locales, isolate)) &&
-                   IsUndefined(*options, isolate);
+  bool can_cache =
+      (IsString(*locales) || IsUndefined(*locales)) && IsUndefined(*options);
   if (can_cache) {
     // Both locales and options are undefined, check the cache.
     icu::SimpleDateFormat* cached_icu_simple_date_format =
@@ -2387,6 +2390,7 @@ icu::DateFormat::EStyle DateTimeStyleToEStyle(
     case JSDateTimeFormat::DateTimeStyle::kUndefined:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 icu::UnicodeString ReplaceSkeleton(const icu::UnicodeString input,
@@ -2745,7 +2749,7 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
 
   std::unique_ptr<icu::TimeZone> tz;
   // 28. If timeZone is undefined, then
-  if (IsUndefined(*time_zone_obj, isolate)) {
+  if (IsUndefined(*time_zone_obj)) {
     // a. If toLocaleStringTimeZone is present, then
     if (!toLocaleStringTimeZone.IsEmpty()) {
       //    i. Set timeZone to toLocaleStringTimeZone.
@@ -3228,7 +3232,7 @@ MaybeDirectHandle<JSArray> JSDateTimeFormat::FormatToParts(
                                             output_source, method_name);
   }
 
-  if (IsUndefined(*x, isolate)) {
+  if (IsUndefined(*x)) {
     x = factory->NewNumberFromInt64(JSDate::CurrentTimeValue(isolate));
   } else {
     ASSIGN_RETURN_ON_EXCEPTION(isolate, x, Object::ToNumber(isolate, x));

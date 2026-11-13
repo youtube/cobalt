@@ -62,26 +62,33 @@ class FakeWebLaunchService : public blink::mojom::WebLaunchService {
       std::vector<blink::mojom::FileSystemAccessEntryPtr> files) override {
     launched_url_ = launch_url;
     enqueue_called_ = true;
+    files_ = std::move(files);
   }
 
   bool enqueue_called() const { return enqueue_called_; }
   const GURL& launched_url() const { return launched_url_; }
+  const std::vector<blink::mojom::FileSystemAccessEntryPtr>& files() const {
+    return files_;
+  }
 
   void Reset() {
     enqueue_called_ = false;
     launched_url_ = GURL();
+    files_.clear();
   }
 
  private:
   mojo::AssociatedReceiver<blink::mojom::WebLaunchService> receiver_{this};
   bool enqueue_called_ = false;
   GURL launched_url_;
+  std::vector<blink::mojom::FileSystemAccessEntryPtr> files_;
 };
 
 class LaunchQueueTest : public content::RenderViewHostTestHarness {
  public:
   void SetUp() override {
     content::RenderViewHostTestHarness::SetUp();
+
     auto delegate =
         std::make_unique<testing::NiceMock<MockLaunchQueueDelegate>>();
     delegate_ = delegate.get();
@@ -126,81 +133,35 @@ class LaunchQueueTest : public content::RenderViewHostTestHarness {
   FakeWebLaunchService fake_launch_service_;
 };
 
-TEST_F(LaunchQueueTest, EnqueueAndCommit) {
+TEST_F(LaunchQueueTest, EnqueueImmediatelyDispatches) {
   GURL launch_url("https://example.com/launch");
-  LaunchParams params = CreateLaunchParams(launch_url);
+  LaunchParams params =
+      CreateLaunchParams(launch_url, /*started_new_navigation=*/false);
 
   launch_queue_->Enqueue(std::move(params));
-  EXPECT_TRUE(launch_queue_->GetPendingLaunchAppId());
+  launch_queue_->FlushForTesting();
 
-  // Simulate successful navigation commit using NavigationSimulator.
+  EXPECT_TRUE(fake_launch_service_.enqueue_called());
+  EXPECT_EQ(fake_launch_service_.launched_url(), launch_url);
+}
+
+TEST_F(LaunchQueueTest, EnqueueInvalidParams) {
+  GURL launch_url("https://example.com/launch");
+  LaunchParams params = CreateLaunchParams(launch_url);
+  params.paths.push_back(
+      base::FilePath(FILE_PATH_LITERAL("sensitive_file.txt")));
+
+  EXPECT_CALL(*delegate_, IsValidLaunchParams(testing::_))
+      .WillOnce(testing::Return(false));
+
+  launch_queue_->Enqueue(std::move(params));
   content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
                                                              launch_url);
 
   launch_queue_->FlushForTesting();
 
   EXPECT_TRUE(fake_launch_service_.enqueue_called());
-  EXPECT_EQ(fake_launch_service_.launched_url(), launch_url);
-  EXPECT_FALSE(launch_queue_->GetPendingLaunchAppId());
-}
-
-TEST_F(LaunchQueueTest, EnqueueAndAbort) {
-  GURL launch_url("https://example.com/launch");
-  LaunchParams params = CreateLaunchParams(launch_url);
-
-  launch_queue_->Enqueue(std::move(params));
-  EXPECT_TRUE(launch_queue_->GetPendingLaunchAppId());
-
-  // Simulate aborted navigation (does not commit).
-  content::NavigationSimulator::NavigateAndFailFromBrowser(
-      web_contents(), launch_url, net::ERR_ABORTED);
-
-  launch_queue_->FlushForTesting();
-
-  EXPECT_FALSE(fake_launch_service_.enqueue_called());
-  EXPECT_FALSE(
-      launch_queue_->GetPendingLaunchAppId());  // Queue should be reset
-}
-
-TEST_F(LaunchQueueTest, EnqueueAndError) {
-  GURL launch_url("https://example.com/launch");
-  LaunchParams params = CreateLaunchParams(launch_url);
-
-  launch_queue_->Enqueue(std::move(params));
-  EXPECT_TRUE(launch_queue_->GetPendingLaunchAppId());
-
-  // Simulate navigation that commits an error page.
-  content::NavigationSimulator::NavigateAndFailFromBrowser(
-      web_contents(), launch_url, net::ERR_CONNECTION_RESET);
-
-  launch_queue_->FlushForTesting();
-
-  EXPECT_FALSE(fake_launch_service_.enqueue_called());
-  EXPECT_FALSE(
-      launch_queue_->GetPendingLaunchAppId());  // Queue should be reset
-}
-
-TEST_F(LaunchQueueTest, EnqueueAndOutOfScope) {
-  GURL launch_url("https://example.com/launch");
-  GURL out_of_scope_url("https://attacker.com/");
-  LaunchParams params = CreateLaunchParams(launch_url);
-
-  launch_queue_->Enqueue(std::move(params));
-  EXPECT_TRUE(launch_queue_->GetPendingLaunchAppId());
-
-  // Delegate says it is out of scope.
-  EXPECT_CALL(*delegate_, IsInScope(testing::_, out_of_scope_url))
-      .WillOnce(testing::Return(false));
-
-  // Simulate navigation to out of scope URL.
-  content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
-                                                             out_of_scope_url);
-
-  launch_queue_->FlushForTesting();
-
-  EXPECT_FALSE(fake_launch_service_.enqueue_called());
-  EXPECT_FALSE(
-      launch_queue_->GetPendingLaunchAppId());  // Queue should be reset
+  EXPECT_TRUE(fake_launch_service_.files().empty());
 }
 
 }  // namespace webapps

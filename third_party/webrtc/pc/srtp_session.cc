@@ -17,6 +17,7 @@
 
 #include "absl/strings/string_view.h"
 #include "api/field_trials_view.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/sequence_checker.h"
 #include "modules/rtp_rtcp/source/rtp_util.h"
 #include "rtc_base/buffer.h"
@@ -181,27 +182,31 @@ bool SrtpSession::UseCryptex(bool enable, bool require, bool sending_session) {
   return true;
 }
 
-bool SrtpSession::SetSend(int crypto_suite,
-                          const ZeroOnFreeBuffer<uint8_t>& key,
-                          const std::vector<int>& extension_ids) {
+bool SrtpSession::SetSend(
+    int crypto_suite,
+    const ZeroOnFreeBuffer<uint8_t>& key,
+    const std::vector<RtpHeaderExtensionId>& extension_ids) {
   return SetKey(ssrc_any_outbound, crypto_suite, key, extension_ids);
 }
 
-bool SrtpSession::UpdateSend(int crypto_suite,
-                             const ZeroOnFreeBuffer<uint8_t>& key,
-                             const std::vector<int>& extension_ids) {
+bool SrtpSession::UpdateSend(
+    int crypto_suite,
+    const ZeroOnFreeBuffer<uint8_t>& key,
+    const std::vector<RtpHeaderExtensionId>& extension_ids) {
   return UpdateKey(ssrc_any_outbound, crypto_suite, key, extension_ids);
 }
 
-bool SrtpSession::SetReceive(int crypto_suite,
-                             const ZeroOnFreeBuffer<uint8_t>& key,
-                             const std::vector<int>& extension_ids) {
+bool SrtpSession::SetReceive(
+    int crypto_suite,
+    const ZeroOnFreeBuffer<uint8_t>& key,
+    const std::vector<RtpHeaderExtensionId>& extension_ids) {
   return SetKey(ssrc_any_inbound, crypto_suite, key, extension_ids);
 }
 
-bool SrtpSession::UpdateReceive(int crypto_suite,
-                                const ZeroOnFreeBuffer<uint8_t>& key,
-                                const std::vector<int>& extension_ids) {
+bool SrtpSession::UpdateReceive(
+    int crypto_suite,
+    const ZeroOnFreeBuffer<uint8_t>& key,
+    const std::vector<RtpHeaderExtensionId>& extension_ids) {
   return UpdateKey(ssrc_any_inbound, crypto_suite, key, extension_ids);
 }
 
@@ -379,10 +384,11 @@ bool SrtpSession::GetSendStreamPacketIndex(CopyOnWriteBuffer& buffer,
   return true;
 }
 
-bool SrtpSession::DoSetKey(int type,
-                           int crypto_suite,
-                           const ZeroOnFreeBuffer<uint8_t>& key,
-                           const std::vector<int>& extension_ids) {
+bool SrtpSession::DoSetKey(
+    int type,
+    int crypto_suite,
+    const ZeroOnFreeBuffer<uint8_t>& key,
+    const std::vector<RtpHeaderExtensionId>& extension_ids) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
 
   srtp_policy_t policy;
@@ -413,9 +419,14 @@ bool SrtpSession::DoSetKey(int type,
   // If both encrypted extension ids and cryptex are in use,
   // cryptex takes precedence and encrypted extensions remain
   // empty for libSRTP.
+  std::vector<int> extension_ids_int;
   if (!extension_ids.empty() && !use_cryptex_) {
-    policy.enc_xtn_hdr = const_cast<int*>(&extension_ids[0]);
-    policy.enc_xtn_hdr_count = static_cast<int>(extension_ids.size());
+    extension_ids_int.reserve(extension_ids.size());
+    for (RtpHeaderExtensionId id : extension_ids) {
+      extension_ids_int.push_back(id.value());
+    }
+    policy.enc_xtn_hdr = &extension_ids_int[0];
+    policy.enc_xtn_hdr_count = static_cast<int>(extension_ids_int.size());
   }
   policy.next = nullptr;
 
@@ -445,10 +456,11 @@ bool SrtpSession::DoSetKey(int type,
   return true;
 }
 
-bool SrtpSession::SetKey(int type,
-                         int crypto_suite,
-                         const ZeroOnFreeBuffer<uint8_t>& key,
-                         const std::vector<int>& extension_ids) {
+bool SrtpSession::SetKey(
+    int type,
+    int crypto_suite,
+    const ZeroOnFreeBuffer<uint8_t>& key,
+    const std::vector<RtpHeaderExtensionId>& extension_ids) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
   if (session_) {
     RTC_LOG(LS_ERROR) << "Failed to create SRTP session: "
@@ -468,10 +480,11 @@ bool SrtpSession::SetKey(int type,
   return DoSetKey(type, crypto_suite, key, extension_ids);
 }
 
-bool SrtpSession::UpdateKey(int type,
-                            int crypto_suite,
-                            const ZeroOnFreeBuffer<uint8_t>& key,
-                            const std::vector<int>& extension_ids) {
+bool SrtpSession::UpdateKey(
+    int type,
+    int crypto_suite,
+    const ZeroOnFreeBuffer<uint8_t>& key,
+    const std::vector<RtpHeaderExtensionId>& extension_ids) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
   if (!session_) {
     RTC_LOG(LS_ERROR) << "Failed to update non-existing SRTP session";

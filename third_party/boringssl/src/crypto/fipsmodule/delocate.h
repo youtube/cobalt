@@ -29,7 +29,7 @@
 #if !defined(BORINGSSL_SHARED_LIBRARY) && defined(BORINGSSL_FIPS) && \
     !defined(OPENSSL_ASAN) && !defined(OPENSSL_MSAN)
 #define DEFINE_BSS_GET(type, name, init_expr)                                  \
-  /* delocate needs C linkage and for |name| to be unique across BCM. */       \
+  /* delocate needs C linkage and for `name` to be unique across BCM. */       \
   extern "C" {                                                                 \
   extern type BCM_ADD_PREFIX(name);                                            \
   type BCM_ADD_PREFIX(name) init_expr;                                         \
@@ -67,12 +67,12 @@
   }                                                                       \
   static void name##_do_init(type *out)
 
-// DEFINE_METHOD_FUNCTION defines a function named |name| which returns a
-// method table of type const |type|*. In FIPS mode, to avoid rel.ro data, it
+// DEFINE_METHOD_FUNCTION defines a function named `name` which returns a
+// method table of type const `type`*. In FIPS mode, to avoid rel.ro data, it
 // is split into a CRYPTO_once_t-guarded initializer in the module and
 // unhashed, non-module accessor functions to space reserved in the BSS. The
 // method table is initialized by a caller-supplied function which takes a
-// parameter named |out| of type |type|*. The caller should follow the macro
+// parameter named `out` of type `type`*. The caller should follow the macro
 // invocation with the body of this function:
 //
 //     DEFINE_METHOD_FUNCTION(EVP_MD, EVP_md4) {

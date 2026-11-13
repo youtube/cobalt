@@ -320,21 +320,22 @@ bool DataChannelController::HandleOpenMessage_n(
   if (!ParseDataChannelOpenMessage(buffer, &label, &config)) {
     RTC_LOG(LS_WARNING) << "Failed to parse the OPEN message for sid "
                         << channel_id;
+    // Return `true` since the open message must be consumed and discarded.
+    return true;
+  }
+  config.open_handshake_role = InternalDataChannelInit::kAcker;
+  auto channel_or_error = CreateDataChannel(label, config);
+  if (channel_or_error.ok()) {
+    signaling_thread()->PostTask(
+        SafeTask(signaling_safety_.flag(),
+                 [this, channel = channel_or_error.MoveValue(),
+                  ready_to_send = data_channel_transport_->IsReadyToSend()] {
+                   RTC_DCHECK_RUN_ON(signaling_thread());
+                   OnDataChannelOpenMessage(std::move(channel), ready_to_send);
+                 }));
   } else {
-    config.open_handshake_role = InternalDataChannelInit::kAcker;
-    auto channel_or_error = CreateDataChannel(label, config);
-    if (channel_or_error.ok()) {
-      signaling_thread()->PostTask(SafeTask(
-          signaling_safety_.flag(),
-          [this, channel = channel_or_error.MoveValue(),
-           ready_to_send = data_channel_transport_->IsReadyToSend()] {
-            RTC_DCHECK_RUN_ON(signaling_thread());
-            OnDataChannelOpenMessage(std::move(channel), ready_to_send);
-          }));
-    } else {
-      RTC_LOG(LS_ERROR) << "Failed to create DataChannel from the OPEN message."
-                        << ToString(channel_or_error.error().type());
-    }
+    RTC_LOG(LS_ERROR) << "Failed to create DataChannel from the OPEN message. "
+                      << channel_or_error;
   }
   return true;
 }
@@ -406,23 +407,22 @@ DataChannelController::CreateDataChannel(absl::string_view label,
     config.id = sid->stream_id_int();
   }
 
-  scoped_refptr<SctpDataChannel> channel = SctpDataChannel::Create(
-      weak_factory_.GetWeakPtr(), label, data_channel_transport_ != nullptr,
-      config, signaling_safety_.flag(), signaling_thread(), network_thread());
-  RTC_DCHECK(channel);
-
   // If we have an id already, notify the transport.
   if (sid.has_value()) {
-    RTCError error = AddSctpDataStream(
+    err = AddSctpDataStream(
         *sid, config.priority.value_or(PriorityValue(Priority::kLow)));
-    if (!error.ok()) {
-      return error;
+    if (!err.ok()) {
+      sid_allocator_.ReleaseSid(*sid);
+      return err;
     }
   }
+
+  scoped_refptr<SctpDataChannel> channel = SctpDataChannel::Create(
+      weak_factory_.GetWeakPtr(), label, data_channel_transport_ != nullptr,
+      config, max_message_size_, signaling_safety_.flag(), signaling_thread(),
+      network_thread());
+
   sctp_data_channels_n_.push_back(channel);
-  if (max_message_size_.has_value()) {
-    channel->OnMaxMessageSize(*max_message_size_);
-  }
   return channel;
 }
 
@@ -433,7 +433,7 @@ DataChannelController::InternalCreateDataChannelWithProxy(
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(!pc_->IsClosed());
   if (!config.IsValid()) {
-    return LOG_ERROR(RTCError::InvalidParameter("Invalid DataChannelInit"));
+    return RTC_LOG_ERROR(RTCError::InvalidParameter("Invalid DataChannelInit"));
   }
 
   bool ready_to_send = false;

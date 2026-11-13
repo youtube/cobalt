@@ -445,7 +445,7 @@ std::string RtcEventLogEncoderLegacy::EncodeAudioReceiveStreamConfig(
     rtclog::RtpHeaderExtension* extension =
         receiver_config->add_header_extensions();
     extension->set_name(e.uri);
-    extension->set_id(e.id);
+    extension->set_id(e.id.value());
   }
 
   return Serialize(&rtclog_event);
@@ -466,7 +466,7 @@ std::string RtcEventLogEncoderLegacy::EncodeAudioSendStreamConfig(
     rtclog::RtpHeaderExtension* extension =
         sender_config->add_header_extensions();
     extension->set_name(e.uri);
-    extension->set_id(e.id);
+    extension->set_id(e.id.value());
   }
 
   return Serialize(&rtclog_event);
@@ -644,7 +644,7 @@ std::string RtcEventLogEncoderLegacy::EncodeVideoReceiveStreamConfig(
     rtclog::RtpHeaderExtension* extension =
         receiver_config->add_header_extensions();
     extension->set_name(e.uri);
-    extension->set_id(e.id);
+    extension->set_id(e.id.value());
   }
 
   for (const auto& d : event.config().codecs) {
@@ -681,7 +681,7 @@ std::string RtcEventLogEncoderLegacy::EncodeVideoSendStreamConfig(
     rtclog::RtpHeaderExtension* extension =
         sender_config->add_header_extensions();
     extension->set_name(e.uri);
-    extension->set_id(e.id);
+    extension->set_id(e.id.value());
   }
 
   // TODO(perkj): rtclog::VideoSendConfig should contain many possible codec

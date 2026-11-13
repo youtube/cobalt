@@ -51,9 +51,6 @@ DumpAccessibilityTreeTest::~DumpAccessibilityTreeTest() {}
 void DumpAccessibilityTreeTest::SetUpCommandLine(
     base::CommandLine* command_line) {
   DumpAccessibilityTestBase::SetUpCommandLine(command_line);
-  // Enable AccessibilityAriaVirtualContent.
-  command_line->AppendSwitchASCII(switches::kEnableBlinkFeatures,
-                                  "AccessibilityAriaVirtualContent");
   // Enable ComputedAccessibilityInfo.
   command_line->AppendSwitchASCII(switches::kEnableBlinkFeatures,
                                   "ComputedAccessibilityInfo");
@@ -105,10 +102,6 @@ std::vector<std::string> DumpAccessibilityTreeTest::Dump() {
 void DumpAccessibilityTreeTest::ChooseFeatures(
     std::vector<base::test::FeatureRef>* enabled_features,
     std::vector<base::test::FeatureRef>* disabled_features) {
-  // http://crbug.com/1063155 - temporary until this is enabled
-  // everywhere.
-  enabled_features->emplace_back(
-      features::kEnableAccessibilityAriaVirtualContent);
   // crbug.com/339418716 - temporary until enabled by default
   enabled_features->emplace_back(blink::features::kUserMediaElement);
   enabled_features->emplace_back(blink::features::kInstallElement);
@@ -742,6 +735,27 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
                        AccessibilityAriaActionsNoNameTarget) {
   RunAriaTest(FILE_PATH_LITERAL("aria-actions-no-name-target.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
+                       AccessibilityAriaActionsProhibitedRoles) {
+  base::CommandLine::ForCurrentProcess()->AppendSwitch(
+      switches::kEnableExperimentalWebPlatformFeatures);
+  RunAriaTest(FILE_PATH_LITERAL("aria-actions-prohibited-roles.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
+                       AccessibilityAriaActionsNoClickTarget) {
+  base::CommandLine::ForCurrentProcess()->AppendSwitch(
+      switches::kEnableExperimentalWebPlatformFeatures);
+  RunAriaTest(FILE_PATH_LITERAL("aria-actions-no-click-target.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
+                       AccessibilityAriaActionsNoKeyboardTarget) {
+  base::CommandLine::ForCurrentProcess()->AppendSwitch(
+      switches::kEnableExperimentalWebPlatformFeatures);
+  RunAriaTest(FILE_PATH_LITERAL("aria-actions-no-keyboard-target.html"));
 }
 
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
@@ -1515,6 +1529,11 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
 }
 
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
+                       AccessibilityMenuListInvokerHasPopup) {
+  RunHtmlTest(FILE_PATH_LITERAL("menulist-invoker-haspopup.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
                        AccessibilityMenuListAriaLabelledbyOverridesLabel) {
   RunHtmlTest(
       FILE_PATH_LITERAL("menulist-aria-labelledby-overrides-label.html"));
@@ -2035,11 +2054,6 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest, AccessibilityAriaValueNow) {
 
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest, AccessibilityAriaValueText) {
   RunAriaTest(FILE_PATH_LITERAL("aria-valuetext.html"));
-}
-
-IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
-                       AccessibilityAriaVirtualContent) {
-  RunAriaTest(FILE_PATH_LITERAL("aria-virtualcontent.html"));
 }
 
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,

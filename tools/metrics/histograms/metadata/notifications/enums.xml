@@ -75,6 +75,7 @@ chromium-metrics-reviews@google.com.
 <enum name="FindsOptInTriggerReason">
   <int value="0" label="Theme URL Visit Count"/>
   <int value="1" label="SRP Back Navigation Count"/>
+  <int value="2" label="Omnibox Recent Search Suggestion Count"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/finds/core/finds_metrics.h:FindsOptInTriggerReason) -->
@@ -164,6 +165,11 @@ chromium-metrics-reviews@google.com.
   <int value="13" label="PENDING_JOB_REASON_JOB_SCHEDULER_OPTIMIZATION"/>
   <int value="14" label="PENDING_JOB_REASON_QUOTA"/>
   <int value="15" label="PENDING_JOB_REASON_USER"/>
+</enum>
+
+<enum name="NotificationsAndroidTrampolineActivityEvent">
+  <int value="0" label="Created"/>
+  <int value="1" label="Destroyed"/>
 </enum>
 
 <enum name="NotificationSchedulerNotificationLifeCycleEvent">

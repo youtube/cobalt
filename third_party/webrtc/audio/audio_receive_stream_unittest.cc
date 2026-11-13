@@ -35,7 +35,6 @@
 #include "modules/audio_coding/include/audio_coding_module_typedefs.h"
 #include "modules/audio_device/include/mock_audio_device.h"
 #include "modules/audio_processing/include/mock_audio_processing.h"
-#include "modules/pacing/packet_router.h"
 #include "modules/rtp_rtcp/source/byte_io.h"
 #include "rtc_base/time_utils.h"
 #include "test/create_test_environment.h"
@@ -155,11 +154,6 @@ struct ConfigHelper {
     channel_receive_ = new ::testing::StrictMock<MockChannelReceive>();
     EXPECT_CALL(*channel_receive_, SetNACKStatus(true, 15)).Times(1);
     EXPECT_CALL(*channel_receive_, SetRtcpMode(_)).Times(1);
-    EXPECT_CALL(*channel_receive_,
-                RegisterReceiverCongestionControlObjects(&packet_router_))
-        .Times(1);
-    EXPECT_CALL(*channel_receive_, ResetReceiverCongestionControlObjects())
-        .Times(1);
     EXPECT_CALL(*channel_receive_, SetReceiveCodecs(_))
         .WillRepeatedly([](const std::map<int, SdpAudioFormat>& codecs) {
           EXPECT_THAT(codecs, ::testing::IsEmpty());
@@ -176,7 +170,7 @@ struct ConfigHelper {
 
   std::unique_ptr<AudioReceiveStreamImpl> CreateAudioReceiveStream() {
     auto ret = std::make_unique<AudioReceiveStreamImpl>(
-        CreateTestEnvironment(), &packet_router_, stream_config_, audio_state_,
+        CreateTestEnvironment(), stream_config_, audio_state_,
         std::unique_ptr<voe::ChannelReceiveInterface>(channel_receive_));
     ret->RegisterWithTransport(&rtp_stream_receiver_controller_);
     return ret;
@@ -212,7 +206,6 @@ struct ConfigHelper {
   }
 
  private:
-  PacketRouter packet_router_;
   scoped_refptr<AudioState> audio_state_;
   scoped_refptr<MockAudioMixer> audio_mixer_;
   AudioReceiveStreamInterface::Config stream_config_;

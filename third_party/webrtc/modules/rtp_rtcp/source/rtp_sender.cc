@@ -23,6 +23,7 @@
 
 #include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_packet_sender.h"
 #include "api/units/time_delta.h"
@@ -215,7 +216,8 @@ void RTPSender::SetExtmapAllowMixed(bool extmap_allow_mixed) {
   rtp_header_extension_map_.SetExtmapAllowMixed(extmap_allow_mixed);
 }
 
-bool RTPSender::RegisterRtpHeaderExtension(absl::string_view uri, int id) {
+bool RTPSender::RegisterRtpHeaderExtension(absl::string_view uri,
+                                           RtpHeaderExtensionId id) {
   MutexLock lock(&send_mutex_);
   bool registered = rtp_header_extension_map_.RegisterByUri(id, uri);
   supports_bwe_extension_ = HasBweExtension(rtp_header_extension_map_);

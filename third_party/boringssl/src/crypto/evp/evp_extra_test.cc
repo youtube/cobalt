@@ -1870,5 +1870,98 @@ TEST(EVPExtraTest, NewRawKey) {
   }
 }
 
+// Test that an |EVP_MD_CTX| can be reconfigured across operations of the same
+// and different type.
+TEST(EVPExtraTest, ReconfigureMDContext) {
+  UniquePtr<EVP_PKEY> rsa = LoadExampleRSAKey();
+  ASSERT_TRUE(rsa);
+  UniquePtr<EVP_PKEY> ed25519(EVP_PKEY_generate_from_alg(EVP_pkey_ed25519()));
+  ASSERT_TRUE(ed25519);
+
+  struct Operation {
+    const char *name;
+    std::function<void(EVP_MD_CTX *ctx)> init;
+    std::function<void(EVP_MD_CTX *ctx, std::vector<uint8_t> *out)> finish;
+    std::vector<uint8_t> expected = {};
+  };
+  Operation operations[] = {
+      {"SHA-384",
+       [](EVP_MD_CTX *ctx) {
+         ASSERT_TRUE(EVP_DigestInit_ex(ctx, EVP_sha384(), nullptr));
+         EXPECT_EQ(EVP_MD_CTX_md(ctx), EVP_sha384());
+         EXPECT_FALSE(EVP_MD_CTX_pkey_ctx(ctx));
+       },
+       [](EVP_MD_CTX *ctx, std::vector<uint8_t> *out) {
+         unsigned len = 0;
+         out->resize(EVP_MAX_MD_SIZE);
+         ASSERT_TRUE(EVP_DigestFinal_ex(ctx, out->data(), &len));
+         out->resize(len);
+       }},
+      // A non-prehash-based signing algorithm.
+      {"Sign Ed25519",
+       [&](EVP_MD_CTX *ctx) {
+         ASSERT_TRUE(
+             EVP_DigestSignInit(ctx, nullptr, nullptr, nullptr, ed25519.get()));
+         EXPECT_FALSE(EVP_MD_CTX_md(ctx));
+         EXPECT_TRUE(EVP_MD_CTX_pkey_ctx(ctx));
+       },
+       [](EVP_MD_CTX *ctx, std::vector<uint8_t> *out) {
+         size_t sig_len = 0;
+         ASSERT_TRUE(EVP_DigestSign(ctx, nullptr, &sig_len, nullptr, 0));
+         out->resize(sig_len);
+         ASSERT_TRUE(EVP_DigestSign(ctx, out->data(), &sig_len, nullptr, 0));
+         out->resize(sig_len);
+       }},
+      // A prehash-based signing algorithm.
+      {"Sign RSA PKCS#1",
+       [&](EVP_MD_CTX *ctx) {
+         ASSERT_TRUE(EVP_DigestSignInit(ctx, nullptr, EVP_sha256(), nullptr,
+                                        rsa.get()));
+         EXPECT_EQ(EVP_MD_CTX_md(ctx), EVP_sha256());
+         EXPECT_TRUE(EVP_MD_CTX_pkey_ctx(ctx));
+       },
+       [](EVP_MD_CTX *ctx, std::vector<uint8_t> *out) {
+         size_t sig_len = 0;
+         ASSERT_TRUE(EVP_DigestSign(ctx, nullptr, &sig_len, nullptr, 0));
+         out->resize(sig_len);
+         ASSERT_TRUE(EVP_DigestSign(ctx, out->data(), &sig_len, nullptr, 0));
+         out->resize(sig_len);
+       }},
+  };
+
+  // Fill in the expected values. All the tests are deterministic.
+  for (Operation &op : operations) {
+    SCOPED_TRACE(op.name);
+    ScopedEVP_MD_CTX ctx;
+    ASSERT_NO_FATAL_FAILURE(op.init(ctx.get()));
+    ASSERT_NO_FATAL_FAILURE(op.finish(ctx.get(), &op.expected));
+  }
+
+  for (const Operation &first_op : operations) {
+    SCOPED_TRACE(first_op.name);
+    for (const Operation &second_op : operations) {
+      SCOPED_TRACE(second_op.name);
+      for (bool finish_first_op : {false, true}) {
+        SCOPED_TRACE(finish_first_op);
+
+        // Configure |ctx| for |first_op|.
+        ScopedEVP_MD_CTX ctx;
+        ASSERT_NO_FATAL_FAILURE(first_op.init(ctx.get()));
+        if (finish_first_op) {
+          std::vector<uint8_t> out;
+          ASSERT_NO_FATAL_FAILURE(first_op.finish(ctx.get(), &out));
+          EXPECT_EQ(Bytes(first_op.expected), Bytes(out));
+        }
+
+        // Reconfigure it for |second_op|.
+        ASSERT_NO_FATAL_FAILURE(second_op.init(ctx.get()));
+        std::vector<uint8_t> out;
+        ASSERT_NO_FATAL_FAILURE(second_op.finish(ctx.get(), &out));
+        EXPECT_EQ(Bytes(second_op.expected), Bytes(out));
+      }
+    }
+  }
+}
+
 }  // namespace
 BSSL_NAMESPACE_END

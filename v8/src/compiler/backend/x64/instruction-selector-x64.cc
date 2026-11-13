@@ -592,13 +592,14 @@ class X64OperandGenerator final : public OperandGenerator {
       case kAVXFloat64Add:
       case kAVXFloat64Sub:
       case kAVXFloat64Mul:
-        DCHECK_EQ(MachineRepresentation::kFloat64, rep);
-        return true;
+        // This is currently always true; it's a condition for symmetry with
+        // the Float32 case.
+        return rep == MachineRepresentation::kFloat64;
       case kAVXFloat32Add:
       case kAVXFloat32Sub:
       case kAVXFloat32Mul:
-        DCHECK_EQ(MachineRepresentation::kFloat32, rep);
-        return true;
+        // Representation can be different for f16-to-f32 promoting loads.
+        return rep == MachineRepresentation::kFloat32;
       case kX64Cmp16:
       case kX64Test16:
         return rep == MachineRepresentation::kWord16;
@@ -902,6 +903,9 @@ ArchOpcode GetLoadOpcode(MemoryRepresentation loaded_rep,
       return kX64MovqDecompressProtected;
     case MemoryRepresentation::IndirectPointer():
       UNREACHABLE();
+    case MemoryRepresentation::TrustedPointer():
+      // Only LoadTrustedPointer uses this representation.
+      UNREACHABLE();
     case MemoryRepresentation::SandboxedPointer():
       return kX64MovqDecodeSandboxedPointer;
     case MemoryRepresentation::Simd128():
@@ -911,6 +915,7 @@ ArchOpcode GetLoadOpcode(MemoryRepresentation loaded_rep,
       DCHECK_EQ(result_rep, RegisterRepresentation::Simd256());
       return kX64Movdqu256;
   }
+  UNREACHABLE();
 }
 
 ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
@@ -1012,6 +1017,9 @@ ArchOpcode GetStoreOpcode(MemoryRepresentation stored_rep) {
     case MemoryRepresentation::ProtectedPointer():
       // We never store directly to protected pointers from generated code.
       UNREACHABLE();
+    case MemoryRepresentation::TrustedPointer():
+      // Only LoadTrustedPointer uses this representation.
+      UNREACHABLE();
     case MemoryRepresentation::IndirectPointer():
       return kX64MovqStoreIndirectPointer;
     case MemoryRepresentation::SandboxedPointer():
@@ -1021,6 +1029,7 @@ ArchOpcode GetStoreOpcode(MemoryRepresentation stored_rep) {
     case MemoryRepresentation::Simd256():
       return kX64Movdqu256;
   }
+  UNREACHABLE();
 }
 
 ArchOpcode GetSeqCstStoreOpcode(StoreRepresentation store_rep) {
@@ -6228,7 +6237,9 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
   if (CpuFeatures::IsSupported(F16C)) {
-    flags |= MachineOperatorBuilder::kFloat16;
+    // TODO(wasm): Support vector f16 operations with AVX512 or AVX10.2.
+    flags |= MachineOperatorBuilder::kFloat16Arithmetic |
+             MachineOperatorBuilder::kFloat16MemAccess;
     if (CpuFeatures::IsSupported(AVX)) {
       flags |= MachineOperatorBuilder::kFloat16RawBitsConversion;
     }

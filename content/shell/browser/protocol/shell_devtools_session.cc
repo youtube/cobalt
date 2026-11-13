@@ -34,18 +34,17 @@ ShellDevToolsSession::~ShellDevToolsSession() {
 void ShellDevToolsSession::HandleCommand(
     base::span<const uint8_t> message,
     content::DevToolsManagerDelegate::NotHandledCallback callback) {
-  crdtp::Dispatchable dispatchable(crdtp::SpanFrom(message));
+  crdtp::Dispatchable dispatchable(
+      crdtp::SpanFrom(message), std::string_view(),
+      [cb = std::move(callback)](int call_id, crdtp::span<uint8_t> method,
+                                 crdtp::span<uint8_t> message,
+                                 std::string_view fallthrough_data) {
+        cb.Run(message);
+      });
   // content::DevToolsSession receives this message first, so we may
   // assume it's ok.
   CHECK(dispatchable.ok());
-  crdtp::UberDispatcher::DispatchResult dispatched =
-      dispatcher_.Dispatch(dispatchable);
-  if (!dispatched.MethodFound()) {
-    std::move(callback).Run(message);
-    return;
-  }
-  pending_commands_[dispatchable.CallId()] = std::move(callback);
-  dispatched.Run();
+  dispatcher_.Dispatch(dispatchable);
 }
 
 void ShellDevToolsSession::AddHandler(
@@ -60,8 +59,6 @@ void ShellDevToolsSession::AddHandler(
 void ShellDevToolsSession::SendProtocolResponse(
     int call_id,
     std::unique_ptr<Serializable> message) {
-  pending_commands_.erase(call_id);
-
   client_channel_->DispatchProtocolMessageToClient(message->Serialize());
 }
 
@@ -72,11 +69,4 @@ void ShellDevToolsSession::SendProtocolNotification(
 
 void ShellDevToolsSession::FlushProtocolNotifications() {}
 
-void ShellDevToolsSession::FallThrough(int call_id,
-                                       crdtp::span<uint8_t> method,
-                                       crdtp::span<uint8_t> message) {
-  auto callback = std::move(pending_commands_[call_id]);
-  pending_commands_.erase(call_id);
-  std::move(callback).Run(message);
-}
 }  // namespace content::shell::protocol

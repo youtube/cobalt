@@ -136,9 +136,6 @@ BASE_DECLARE_FEATURE(kTabGridNewTransitions);
 // Whether the new tab grid tabs transitions should be enabled.
 bool IsNewTabGridTransitionsEnabled();
 
-// When enabled, a Tab Group button will appear in the overflow menu.
-BASE_DECLARE_FEATURE(kTabGroupInOverflowMenu);
-
 // When enabled, an overflow menu will replace the edit menu on the GTS.
 BASE_DECLARE_FEATURE(kTabSwitcherOverflowMenu);
 
@@ -597,6 +594,9 @@ BASE_DECLARE_FEATURE(kIOSMiniMapUniversalLink);
 // experiment.
 BASE_DECLARE_FEATURE(kIOSMiniMapUniversalLinkCounterfactual);
 
+// Feature flag to open linkified address in Maps native preview.
+BASE_DECLARE_FEATURE(kIOSMiniMapLinkifiedAddress);
+
 // Returns whether notification collision management is enabled.
 bool IsNotificationCollisionManagementEnabled();
 
@@ -1052,5 +1052,11 @@ BASE_DECLARE_FEATURE(kIOSDarkModeDetection);
 
 // Returns true if the Native Dark Mode Detection feature is enabled.
 bool IsIOSDarkModeDetectionEnabled();
+
+// Enables sign-in/account menu button in the overflow menu.
+BASE_DECLARE_FEATURE(kIdentityAwareness);
+
+// Returns true if the IdentityAwareness feature is enabled.
+bool IsIdentityAwarenessEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

@@ -143,10 +143,6 @@ class ChannelReceiveInterface : public RtpPacketSinkInterface {
   // Produces the transport-related timestamps; current_delay_ms is left unset.
   virtual std::optional<Syncable::Info> GetSyncInfo() const = 0;
 
-  virtual void RegisterReceiverCongestionControlObjects(
-      PacketRouter* packet_router) = 0;
-  virtual void ResetReceiverCongestionControlObjects() = 0;
-
   virtual ChannelReceiveStatistics GetRTCPStatistics() const = 0;
   virtual void SetNACKStatus(bool enable, int max_packets) = 0;
   virtual void SetRtcpMode(webrtc::RtcpMode mode) = 0;
@@ -184,7 +180,8 @@ std::unique_ptr<ChannelReceiveInterface> CreateChannelReceive(
     scoped_refptr<AudioDecoderFactory> decoder_factory,
     scoped_refptr<FrameDecryptorInterface> frame_decryptor,
     const webrtc::CryptoOptions& crypto_options,
-    scoped_refptr<FrameTransformerInterface> frame_transformer);
+    scoped_refptr<FrameTransformerInterface> frame_transformer,
+    PacketRouter* absl_nonnull packet_router);
 
 }  // namespace voe
 }  // namespace webrtc

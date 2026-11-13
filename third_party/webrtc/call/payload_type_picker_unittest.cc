@@ -15,6 +15,8 @@
 #include "absl/strings/str_cat.h"
 #include "api/payload_type.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
+#include "api/rtp_parameters.h"
 #include "api/video_codecs/sdp_video_format.h"
 #include "call/payload_type.h"
 #include "media/base/codec.h"
@@ -271,28 +273,28 @@ TEST(PayloadTypePicker, AbslStringify) {
 
 TEST(RtpHeaderExtensionRecorder, StoreAndRecall) {
   RtpHeaderExtensionRecorder recorder(CreateTestEnvironment());
-  RTCError error = recorder.AddMapping(1, "uri", false);
+  RTCError error = recorder.AddMapping(RtpHeaderExtensionId(1), "uri", false);
   EXPECT_TRUE(error.ok());
-  RTCErrorOr<int> result = recorder.LookupId("uri", false);
+  RTCErrorOr<RtpHeaderExtensionId> result = recorder.LookupId("uri", false);
   ASSERT_TRUE(result.ok());
-  EXPECT_EQ(result.value(), 1);
+  EXPECT_EQ(result.value(), RtpHeaderExtensionId(1));
 }
 
 TEST(RtpHeaderExtensionRecorder, RedefinitionReturnsOkByDefault) {
   RtpHeaderExtensionRecorder recorder(CreateTestEnvironment());
-  recorder.AddMapping(1, "uri", false);
-  RTCError error = recorder.AddMapping(2, "uri", false);
+  recorder.AddMapping(RtpHeaderExtensionId(1), "uri", false);
+  RTCError error = recorder.AddMapping(RtpHeaderExtensionId(2), "uri", false);
   EXPECT_TRUE(error.ok());
-  EXPECT_EQ(recorder.LookupId("uri", false).value(), 2);
+  EXPECT_EQ(recorder.LookupId("uri", false).value(), RtpHeaderExtensionId(2));
 }
 
 TEST(RtpHeaderExtensionRecorder, RedefinitionReturnsErrorWithFieldTrial) {
   RtpHeaderExtensionRecorder recorder(CreateTestEnvironment(
       {.field_trials = "WebRTC-ErrorOnRtpExtensionRedefinition/Enabled/"}));
-  recorder.AddMapping(1, "uri", false);
-  RTCError error = recorder.AddMapping(2, "uri", false);
+  recorder.AddMapping(RtpHeaderExtensionId(1), "uri", false);
+  RTCError error = recorder.AddMapping(RtpHeaderExtensionId(2), "uri", false);
   EXPECT_FALSE(error.ok());
-  EXPECT_EQ(recorder.LookupId("uri", false).value(), 1);
+  EXPECT_EQ(recorder.LookupId("uri", false).value(), RtpHeaderExtensionId(1));
 }
 
 }  // namespace webrtc

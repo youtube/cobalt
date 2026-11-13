@@ -272,7 +272,6 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 
 - (instancetype)initWithBrowser:(Browser*)browser {
   CHECK(browser, base::NotFatalUntil::M152);
-
   UITableViewStyle style = ChromeTableViewStyle();
   self = [super initWithStyle:style];
   if (self) {
@@ -1109,6 +1108,12 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
     BookmarksHomeViewController* controller =
         [self createControllerWithDisplayedFolderNode:folder];
     [self.navigationController pushViewController:controller animated:YES];
+    if (![self.navigationController.viewControllers
+            containsObject:controller]) {
+      // This push can fail if the navigation controller’s list of VC is
+      // currently changing. See crbug.com/515121885.
+      [controller shutdown];
+    }
     return;
   }
   [self jumpToFolder:folder];
@@ -2121,7 +2126,8 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
       bookmarks::prefs::kEditBookmarksEnabled);
 }
 
-// Returns the bookmark node associated with `indexPath`.
+// Returns the bookmark node associated with `indexPath`. Returns nil if the
+// node has been deleted.
 - (const BookmarkNode*)nodeAtIndexPath:(NSIndexPath*)indexPath {
   if (!_bookmarkModel) {
     return nullptr;
@@ -3081,6 +3087,10 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
   if (IsABookmarkNodeSectionForIdentifier(sectionIdentifier)) {
     const BookmarkNode* node = [self nodeAtIndexPath:indexPath];
     CHECK(node, base::NotFatalUntil::M152);
+    if (!node) {
+      [tableView deselectRowAtIndexPath:indexPath animated:YES];
+      return;
+    }
     // If table is in edit mode, record all the nodes added to edit set.
     if (self.mediator.currentlyInEditMode) {
       if ([self isNodeEditableByUser:node]) {
@@ -3133,6 +3143,9 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
       self.mediator.currentlyInEditMode) {
     const BookmarkNode* node = [self nodeAtIndexPath:indexPath];
     CHECK(node, base::NotFatalUntil::M152);
+    if (!node) {
+      return;
+    }
     self.mediator.selectedNodesForEditMode.erase(node);
     [self handleSelectEditNodes:self.mediator.selectedNodesForEditMode];
   }

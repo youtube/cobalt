@@ -115,6 +115,7 @@ rtc_library("rtp_rtcp_format") {
     "..:module_api_public",
     "../../api:function_view",
     "../../api:refcountedbase",
+    "../../api:rtp_header_extension_id",
     "../../api:rtp_headers",
     "../../api:rtp_parameters",
     "../../api:scoped_refptr",
@@ -279,6 +280,7 @@ rtc_library("rtp_rtcp") {
     "../../api:frame_transformer_interface",
     "../../api:function_view",
     "../../api:make_ref_counted",
+    "../../api:rtp_header_extension_id",
     "../../api:rtp_headers",
     "../../api:rtp_packet_info",
     "../../api:rtp_packet_sender",
@@ -468,7 +470,9 @@ rtc_library("mock_rtp_rtcp") {
     ":rtp_rtcp",
     ":rtp_rtcp_format",
     "..:module_fec_api",
+    "../../api:rtp_header_extension_id",
     "../../api:rtp_headers",
+    "../../api:rtp_parameters",
     "../../api/transport:network_control",
     "../../api/units:data_rate",
     "../../api/units:time_delta",
@@ -484,6 +488,18 @@ rtc_library("rtp_packetizer_av1_test_helper") {
   sources = [
     "source/rtp_packetizer_av1_test_helper.cc",
     "source/rtp_packetizer_av1_test_helper.h",
+  ]
+}
+
+rtc_source_set("sframe_descriptor") {
+  sources = [ "source/sframe_descriptor.h" ]
+}
+
+rtc_source_set("sframe_rtp_packet_received") {
+  sources = [ "source/sframe_rtp_packet_received.h" ]
+  deps = [
+    ":rtp_rtcp_format",
+    ":sframe_descriptor",
   ]
 }
 
@@ -639,6 +655,7 @@ if (rtc_include_tests) {
       "../../api:mock_frame_encryptor",
       "../../api:mock_frame_transformer",
       "../../api:mock_transformable_video_frame",
+      "../../api:rtp_header_extension_id",
       "../../api:rtp_headers",
       "../../api:rtp_packet_info",
       "../../api:rtp_packet_sender",

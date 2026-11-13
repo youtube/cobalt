@@ -175,8 +175,8 @@ TEST(ScreamV2Test, ReferenceWindowDecreaseOnConsecutiveLossEvents) {
   DataSize ref_window = scream.ref_window();
   clock.AdvanceTime(TimeDelta::Millis(25));
 
-  // Send consecutive loss reports until loss_event_rate exceeds the 0.25
-  // threshold to trigger the reference window decrease.
+  // Send consecutive loss reports until congestion_level reaches 1.0
+  // to trigger the reference window decrease.
   for (int i = 0; i < 3; ++i) {
     TransportPacketsFeedback loss_feedback =
         CreateFeedback(clock.CurrentTime(), /*rtt=*/TimeDelta::Millis(10),
@@ -507,6 +507,106 @@ TEST(ScreamV2Test, DisableAlrViaFieldTrial) {
 
   // ALR is disabled, so it should still not be in application-limited state.
   EXPECT_FALSE(scream.is_application_limited());
+}
+
+TEST(ScreamV2Test, SpuriousLossEventsAreIgnoredIfQueueDelayIsNotDetected) {
+  SimulatedClock clock(Timestamp::Seconds(1'234));
+  Environment env = CreateTestEnvironment({.time = &clock});
+  ScreamV2 scream(env);
+
+  // Set up target rate and initial ref window
+  scream.SetTargetBitrateConstraints(DataRate::Zero(),
+                                     DataRate::KilobitsPerSec(2000),
+                                     DataRate::KilobitsPerSec(300));
+
+  // Send initial feedback to establish baseline with low RTT (no queue delay)
+  TransportPacketsFeedback feedback =
+      CreateFeedback(clock.CurrentTime(), /*rtt=*/TimeDelta::Millis(10),
+                     /*number_of_ect1_packets=*/20,
+                     /*number_of_packets_in_flight=*/20);
+  scream.OnTransportPacketsFeedback(feedback);
+  DataSize ref_window = scream.ref_window();
+  clock.AdvanceTime(TimeDelta::Millis(25));
+
+  // Send feedback with a single lost packet (spurious loss, below the 0.25
+  // threshold) queue delay remains 0 (not detected)
+  TransportPacketsFeedback loss_feedback =
+      CreateFeedback(clock.CurrentTime(), /*rtt=*/TimeDelta::Millis(10),
+                     /*number_of_ect1_packets=*/19,
+                     /*number_of_packets_in_flight=*/20);
+  // Add 1 lost packet
+  PacketResult lost_packet;
+  lost_packet.sent_packet.send_time =
+      clock.CurrentTime() - TimeDelta::Millis(10);
+  lost_packet.sent_packet.size = kPacketSize;
+  lost_packet.receive_time = Timestamp::PlusInfinity();  // Lost
+  lost_packet.sent_packet.sequence_number = 20;
+  lost_packet.reported_lost_for_the_first_time = true;
+  loss_feedback.packet_feedbacks.push_back(lost_packet);
+
+  scream.OnTransportPacketsFeedback(loss_feedback);
+  // Since queue delay is not detected, the loss event is ignored, and
+  // ref_window should NOT decrease.
+  EXPECT_GE(scream.ref_window(), ref_window);
+}
+
+TEST(ScreamV2Test, LossEventsAreNotIgnoredIfQueueDelayIsDetected) {
+  SimulatedClock clock(Timestamp::Seconds(1'234));
+  Environment env = CreateTestEnvironment({.time = &clock});
+  ScreamV2 scream(env);
+
+  scream.SetTargetBitrateConstraints(DataRate::Zero(),
+                                     DataRate::KilobitsPerSec(2000),
+                                     DataRate::KilobitsPerSec(300));
+
+  // Send initial feedback to establish base delay (5ms one-way delay)
+  TransportPacketsFeedback feedback =
+      CreateFeedback(clock.CurrentTime(), /*rtt=*/TimeDelta::Millis(10),
+                     /*number_of_ect1_packets=*/20,
+                     /*number_of_packets_in_flight=*/20);
+  scream.OnTransportPacketsFeedback(feedback);
+  clock.AdvanceTime(TimeDelta::Millis(25));
+
+  // Send first high delay feedback to build queue delay (rtt=170ms -> owd=85ms)
+  // queue_delay = 85ms - 5ms = 80ms.
+  // queue_delay_avg_ = 0.25 * 80ms = 20ms.
+  TransportPacketsFeedback high_delay_feedback1 =
+      CreateFeedback(clock.CurrentTime(), /*rtt=*/TimeDelta::Millis(170),
+                     /*number_of_ect1_packets=*/20,
+                     /*number_of_packets_in_flight=*/20);
+  scream.OnTransportPacketsFeedback(high_delay_feedback1);
+  clock.AdvanceTime(TimeDelta::Millis(25));
+
+  // Send second high delay feedback to build queue delay above target/2 (30ms)
+  // queue_delay = 85ms - 5ms = 80ms.
+  // queue_delay_avg_ = 0.25 * 80ms + 0.75 * 20ms = 35ms.
+  // 35ms > 30ms, so IsQueueDelayDetected() is true.
+  TransportPacketsFeedback high_delay_feedback2 =
+      CreateFeedback(clock.CurrentTime(), /*rtt=*/TimeDelta::Millis(170),
+                     /*number_of_ect1_packets=*/20,
+                     /*number_of_packets_in_flight=*/20);
+  scream.OnTransportPacketsFeedback(high_delay_feedback2);
+  DataSize ref_window_before_loss = scream.ref_window();
+  clock.AdvanceTime(TimeDelta::Millis(25));
+
+  // Now send a feedback containing a loss event
+  TransportPacketsFeedback loss_feedback =
+      CreateFeedback(clock.CurrentTime(), /*rtt=*/TimeDelta::Millis(170),
+                     /*number_of_ect1_packets=*/19,
+                     /*number_of_packets_in_flight=*/20);
+  PacketResult lost_packet;
+  lost_packet.sent_packet.send_time =
+      clock.CurrentTime() - TimeDelta::Millis(170);
+  lost_packet.sent_packet.size = kPacketSize;
+  lost_packet.receive_time = Timestamp::PlusInfinity();  // Lost
+  lost_packet.sent_packet.sequence_number = 60;
+  lost_packet.reported_lost_for_the_first_time = true;
+  loss_feedback.packet_feedbacks.push_back(lost_packet);
+
+  scream.OnTransportPacketsFeedback(loss_feedback);
+  // Since queue delay is detected, the loss event is NOT ignored, and
+  // ref_window should decrease!
+  EXPECT_LT(scream.ref_window(), ref_window_before_loss);
 }
 
 }  // namespace

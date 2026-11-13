@@ -52,6 +52,7 @@ using ::testing::_;
 using ::testing::ElementsAre;
 using ::testing::NiceMock;
 using ::testing::NotNull;
+using ::testing::Optional;
 using ::testing::Return;
 using ::testing::SaveArg;
 
@@ -215,7 +216,7 @@ TEST(RtpVideoStreamReceiverFrameTransformerDelegateTest,
         EXPECT_EQ(metadata.GetFrameId(), 10);
         EXPECT_EQ(metadata.GetTemporalIndex(), 3);
         EXPECT_EQ(metadata.GetSpatialIndex(), 2);
-        EXPECT_THAT(metadata.GetFrameDependencies(), ElementsAre(5));
+        EXPECT_THAT(metadata.GetDependencies(), Optional(ElementsAre(5)));
         EXPECT_THAT(metadata.GetDecodeTargetIndications(),
                     ElementsAre(DecodeTargetIndication::kSwitch));
         EXPECT_EQ(metadata.GetCsrcs(), csrcs);
@@ -313,11 +314,11 @@ TEST(RtpVideoStreamReceiverFrameTransformerDelegateTest,
             *transformable_frame);
         VideoFrameMetadata metadata = video_frame.Metadata();
         EXPECT_EQ(metadata.GetFrameId(), 10);
-        EXPECT_THAT(metadata.GetFrameDependencies(), ElementsAre(5));
+        EXPECT_THAT(metadata.GetDependencies(), Optional(ElementsAre(5)));
         EXPECT_EQ(metadata.GetCsrcs(), csrcs);
 
         metadata.SetFrameId(20);
-        metadata.SetFrameDependencies(std::vector<int64_t>{15});
+        metadata.SetDependencies(std::vector<int64_t>{15});
         video_frame.SetMetadata(metadata);
         callback->OnTransformedFrame(std::move(transformable_frame));
       });

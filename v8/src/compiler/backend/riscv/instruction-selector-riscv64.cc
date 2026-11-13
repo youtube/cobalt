@@ -642,6 +642,9 @@ ArchOpcode GetLoadOpcode(MemoryRepresentation loaded_rep,
       return kRiscvLoadDecompressTrapping;
     case MemoryRepresentation::IndirectPointer():
       UNREACHABLE();
+    case MemoryRepresentation::TrustedPointer():
+      // Only LoadTrustedPointer uses this representation.
+      UNREACHABLE();
     case MemoryRepresentation::SandboxedPointer():
       return kRiscvLoadDecodeSandboxedPointer;
     case MemoryRepresentation::Simd128():
@@ -681,6 +684,9 @@ ArchOpcode GetStoreOpcode(MemoryRepresentation stored_rep) {
       return kRiscvSd;
     case MemoryRepresentation::ProtectedPointer():
       // We never store directly to protected pointers from generated code.
+      UNREACHABLE();
+    case MemoryRepresentation::TrustedPointer():
+      // Only LoadTrustedPointer uses this representation.
       UNREACHABLE();
     case MemoryRepresentation::IndirectPointer():
       return kRiscvStoreIndirectPointer;
@@ -2749,7 +2755,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kWord64Popcnt;
   }
   if (CpuFeatures::IsSupported(ZFH)) {
-    flags |= MachineOperatorBuilder::kFloat16 |
+    flags |= MachineOperatorBuilder::kFloat16Arithmetic |
+             MachineOperatorBuilder::kFloat16MemAccess |
              MachineOperatorBuilder::kFloat16RawBitsConversion;
   }
   return flags;

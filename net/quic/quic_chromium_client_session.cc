@@ -1709,6 +1709,8 @@ quic::QuicSSLConfig QuicChromiumClientSession::GetSSLConfig() const {
     config.trust_anchor_ids = base::as_string_view(
         ssl_context_config.SelectTrustAnchorIDs(trust_anchor_ids_));
   }
+  // TODO(crbug.com/515272365) add server padding flag to QUIC config once its
+  // there.
   return config;
 }
 
@@ -2782,6 +2784,11 @@ void QuicChromiumClientSession::OnNetworkDisconnectedV2(
 
 void QuicChromiumClientSession::OnNetworkMadeDefault(
     handles::NetworkHandle new_network) {
+  if (base::FeatureList::IsEnabled(
+          features::kQuicIgnoreRedundantOnNetworkMadeDefault) &&
+      default_network_ == new_network) {
+    return;
+  }
   migration_info_.event_count.default_network_changed_num++;
   migration_info_.event_count.default_network_changed_num =
       base::CheckAdd(migration_info_.event_count.default_network_changed_num, 1)

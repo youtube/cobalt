@@ -26,8 +26,54 @@
 #include "quiche/oblivious_http/buffers/oblivious_http_request.h"
 #include "quiche/oblivious_http/common/oblivious_http_chunk_handler.h"
 #include "quiche/oblivious_http/oblivious_http_client.h"
+#include <zlib.h>
 
 namespace quic {
+
+// A class that decompresses gzip encoded data using zlib. This also supports
+// incremental decompression, enabling the caller to feed a stream of compressed
+// chunks into the decompressor one by one.
+class QUICHE_NO_EXPORT GzipDecompressor {
+ public:
+  // Not copyable.
+  GzipDecompressor(const GzipDecompressor&) = delete;
+  GzipDecompressor& operator=(const GzipDecompressor&) = delete;
+
+  // Destructor is needed to free the internal state
+  // allocated by zlib during `inflateInit2`.
+  ~GzipDecompressor() { EndDecompression(); }
+
+  static absl::StatusOr<std::unique_ptr<GzipDecompressor>> Create();
+
+  // Can be called multiple times with continuous input chunks. `end_stream`
+  // should be set to true when the input is confirmed to have the final chunk.
+  absl::StatusOr<std::string> Decompress(absl::string_view input,
+                                         bool end_stream);
+
+  bool IsFinished() const { return finished_; }
+
+  // This will free the internal state allocated by zlib. The decompressor
+  // should not be used after this is called.
+  void EndDecompression();
+
+ private:
+  struct DecompressedData {
+    int status_code;
+    std::string data;
+  };
+
+  explicit GzipDecompressor(std::unique_ptr<z_stream> stream)
+      : stream_(std::move(stream)) {}
+
+  // Decompresses data from the zlib stream.
+  // `flush` determines the flushing behavior for zlib (e.g., Z_NO_FLUSH for
+  // chunks, Z_FINISH for single non-chunked). Returns the decompressed data and
+  // the zlib return code (e.g., Z_OK, Z_STREAM_END).
+  absl::StatusOr<DecompressedData> InflateLoop(int flush);
+
+  std::unique_ptr<z_stream> stream_;
+  bool finished_ = false;
+};
 
 // A client that sends OHTTP requests through a relay/gateway to target URLs.
 class QUICHE_EXPORT MasqueOhttpClient
@@ -169,6 +215,7 @@ class QUICHE_EXPORT MasqueOhttpClient
       return key_fetch_headers_;
     }
     bool handle_gzip_response() const { return handle_gzip_response_; }
+    bool skip_ohttp() const;
 
    private:
     std::string key_fetch_url_;
@@ -200,7 +247,7 @@ class QUICHE_EXPORT MasqueOhttpClient
 
   // Starts by fetching the HPKE keys and then runs the client until all
   // requests are complete or aborted.
-  static absl::Status Run(Config config);
+  static absl::Status Run(Config config, absl::string_view info_string);
 
   // Sends a body chunk for a chunked OHTTP request.
   absl::Status SendBodyChunk(RequestId request_id, absl::string_view chunk,
@@ -213,9 +260,11 @@ class QUICHE_EXPORT MasqueOhttpClient
   void OnPoolData(quic::MasqueConnectionPool* /*pool*/, RequestId request_id,
                   absl::string_view data, bool end_stream) override;
 
+  const std::string& info() const { return info_; }
+
  private:
   // Fetch key from the key URL.
-  absl::Status StartKeyFetch(const std::string& url_string);
+  absl::Status StartKeyFetch();
 
   // Handles the key response.
   absl::Status HandleKeyResponse(const absl::StatusOr<Message>& response);
@@ -225,6 +274,10 @@ class QUICHE_EXPORT MasqueOhttpClient
 
   // Sends the OHTTP request for the given URL.
   absl::Status SendOhttpRequest(
+      const Config::PerRequestConfig& per_request_config);
+
+  // Sends a direct HTTP request (without OHTTP) for the given URL.
+  absl::Status SendDirectRequest(
       const Config::PerRequestConfig& per_request_config);
 
   // Signals the client to abort.
@@ -237,7 +290,11 @@ class QUICHE_EXPORT MasqueOhttpClient
    public:
     using ResponseChunkCallback = std::function<void(absl::string_view)>;
 
-    explicit ChunkHandler();
+    explicit ChunkHandler(bool handle_gzip_response,
+                          absl::string_view info_string)
+        : decoder_(this),
+          handle_gzip_response_(handle_gzip_response),
+          info_(info_string) {}
     void SetResponseChunkCallback(ResponseChunkCallback callback) {
       response_chunk_callback_ = std::move(callback);
     }
@@ -293,6 +350,11 @@ class QUICHE_EXPORT MasqueOhttpClient
     std::optional<bool> is_chunked_response_;
     size_t decrypted_chunk_count_ = 0;
     size_t body_chunk_count_ = 0;
+    bool handle_gzip_response_ = false;
+    bool is_gzipped_ = false;
+    bool last_chunk_ended_without_newline_ = false;
+    std::unique_ptr<GzipDecompressor> decompressor_;
+    const std::string info_;
   };
 
   struct PendingRequest {
@@ -310,7 +372,8 @@ class QUICHE_EXPORT MasqueOhttpClient
         encoder;
   };
 
-  explicit MasqueOhttpClient(Config config, quic::QuicEventLoop* event_loop);
+  explicit MasqueOhttpClient(Config config, quic::QuicEventLoop* event_loop,
+                             absl::string_view info_string);
 
   // Starts fetching for the key and sends the OHTTP request.
   absl::Status Start();
@@ -322,13 +385,17 @@ class QUICHE_EXPORT MasqueOhttpClient
       RequestId request_id, quiche::ObliviousHttpRequest::Context& context,
       const Message& response);
   absl::Status ProcessOhttpResponse(RequestId request_id,
-                                    const absl::StatusOr<Message>& response,
+                                    absl::StatusOr<Message>& response,
                                     bool end_stream);
+  absl::Status ProcessEncapsulatedResponse(
+      RequestId request_id, Message& response,
+      const Config::PerRequestConfig& per_request_config);
   absl::Status CheckStatusAndContentType(
       const Message& response, const std::string& content_type,
       std::optional<uint16_t> expected_status_code);
 
   Config config_;
+  const std::string info_;
   quic::MasqueConnectionPool connection_pool_;
   std::optional<RequestId> key_fetch_request_id_;
   absl::Status status_ = absl::OkStatus();

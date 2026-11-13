@@ -35,7 +35,7 @@ class OPENSSL_EXPORT TrustStoreCollection : public TrustStore {
 
   ~TrustStoreCollection() override;
 
-  // Includes results from |store| in the combined output. |store| must
+  // Includes results from `store` in the combined output. `store` must
   // outlive the TrustStoreCollection.
   void AddTrustStore(TrustStore *store);
 

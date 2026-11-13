@@ -4,6 +4,8 @@
 
 module glic.mojom;
 
+import "url/mojom/url.mojom";
+
 // Page handler for the glic experimental opt-in dialog.
 interface ExperimentalOptInPageHandler {
   // Accepts the experimental opt-in.
@@ -11,4 +13,16 @@ interface ExperimentalOptInPageHandler {
 
   // Rejects the experimental opt-in.
   Reject();
+
+  // Called when the webview successfully completes its content load.
+  OnWebviewLoaded();
+
+  // Sync necessary cookies to the webview partition. Returns true if cookies
+  // were synced successfully, false otherwise. When false is returned, it's not
+  // appropriate to show the webview.
+  SyncCookies() => (bool success);
+
+  // Validates that `url` uses the Google domain and opens it in a new
+  // foreground tab.
+  ValidateAndOpenLinkInNewTab(url.mojom.Url url);
 };

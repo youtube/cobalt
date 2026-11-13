@@ -66,11 +66,11 @@ Handle<FixedArray> CallSiteInfo::ExpandDeferredFrames(
       Tagged<Object> code_obj = raw_data->get(base + Fields::kCode);
       CHECK(IsCodeWrapper(code_obj));
       Tagged<Code> code = Cast<CodeWrapper>(code_obj)->code(isolate);
-      int pc_offset = Smi::ToInt(raw_data->get(base + Fields::kOffset));
-      Tagged<BytecodeArray> bytecode_array =
-          Cast<JSFunction>(raw_data->get(base + Fields::kFunction))
-              ->shared()
-              ->GetBytecodeArray(isolate);
+      uint32_t pc_offset = Smi::ToUInt(raw_data->get(base + Fields::kOffset));
+      // pc_offset is not trusted, make sure it matches the code.
+      SBXCHECK_LT(pc_offset, code->instruction_size());
+
+      Tagged<BytecodeArray> bytecode_array = code->GetBaselineBytecodeArray();
       int bytecode_offset = code->GetBytecodeOffsetForBaselinePC(
           code->instruction_start() + pc_offset, bytecode_array);
 
@@ -449,7 +449,7 @@ Tagged<PrimitiveHeapObject> InferMethodNameFromFastObject(
       if (pair->getter() != fun && pair->setter() != fun) continue;
     }
     if (name != key) {
-      name = IsUndefined(name, isolate)
+      name = IsUndefined(name)
                  ? key
                  : Tagged<PrimitiveHeapObject>(roots.null_value());
     }
@@ -475,7 +475,7 @@ Tagged<PrimitiveHeapObject> InferMethodNameFromDictionary(
       if (pair->getter() != fun && pair->setter() != fun) continue;
     }
     if (name != key) {
-      name = IsUndefined(name, isolate)
+      name = IsUndefined(name)
                  ? Cast<PrimitiveHeapObject>(key)
                  : Tagged<PrimitiveHeapObject>(roots.null_value());
     }
@@ -513,7 +513,7 @@ Tagged<PrimitiveHeapObject> InferMethodName(Isolate* isolate,
           isolate, object->property_dictionary(), fun, name);
     }
   }
-  if (IsUndefined(name, isolate)) return roots.null_value();
+  if (IsUndefined(name)) return roots.null_value();
   return name;
 }
 
@@ -528,7 +528,7 @@ DirectHandle<Object> CallSiteInfo::GetMethodName(
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) return isolate->factory()->null_value();
 #endif  // V8_ENABLE_WEBASSEMBLY
-  if (IsNullOrUndefined(*receiver_or_instance, isolate)) {
+  if (IsNullOrUndefined(*receiver_or_instance)) {
     return isolate->factory()->null_value();
   }
 

@@ -10,6 +10,8 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "net/base/net_errors.h"
+#include "net/url_request/redirect_info.h"
+#include "services/network/public/cpp/http_request_headers_update_params.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "url/url_constants.h"
 
@@ -192,7 +194,31 @@ void URLLoaderThrottle::WillStartRequest(network::ResourceRequest* request,
 
   for (const auto& rule : rules_->data->rules)
     ApplyRule(request, rule);
+
+  if (!added_headers_.empty()) {
+    original_origin_ = url::Origin::Create(request->url);
+  }
+
   *defer = false;
+}
+
+void URLLoaderThrottle::WillRedirectRequest(
+    net::RedirectInfo* redirect_info,
+    const network::mojom::URLResponseHead& response_head,
+    bool* defer,
+    network::HttpRequestHeadersUpdateParams* headers_update_params) {
+  if (added_headers_.empty()) {
+    return;
+  }
+
+  if (!url::Origin::Create(redirect_info->new_url)
+           .IsSameOriginWith(original_origin_)) {
+    headers_update_params->removed_headers.insert(
+        headers_update_params->removed_headers.end(),
+        std::make_move_iterator(added_headers_.begin()),
+        std::make_move_iterator(added_headers_.end()));
+    added_headers_.clear();
+  }
 }
 
 void URLLoaderThrottle::ApplyRule(network::ResourceRequest* request,
@@ -251,6 +277,7 @@ void URLLoaderThrottle::ApplyAddHeaders(
     } else {
       request->headers.SetHeader(header->name, header->value);
     }
+    added_headers_.push_back(header->name);
   }
 }
 

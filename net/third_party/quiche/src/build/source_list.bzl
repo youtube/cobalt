@@ -785,12 +785,6 @@ quiche_tool_support_srcs = [
     "quic/tools/simple_ticket_crypter.cc",
     "quic/tools/web_transport_only_backend.cc",
 ]
-quiche_fuzz_support_hdrs = [
-    "balsa/balsa_fuzz_util.h",
-]
-quiche_fuzz_support_srcs = [
-    "balsa/balsa_fuzz_util.cc",
-]
 quiche_test_support_hdrs = [
     "common/platform/api/quiche_expect_bug.h",
     "common/platform/api/quiche_fuzztest.h",
@@ -1605,9 +1599,11 @@ moqt_hdrs = [
     "quic/moqt/moqt_session_callbacks.h",
     "quic/moqt/moqt_session_interface.h",
     "quic/moqt/moqt_stream_map.h",
+    "quic/moqt/moqt_subscription.h",
     "quic/moqt/moqt_trace_recorder.h",
     "quic/moqt/moqt_track.h",
     "quic/moqt/moqt_types.h",
+    "quic/moqt/moqt_uni_stream.h",
     "quic/moqt/relay_namespace_tree.h",
     "quic/moqt/session_namespace_tree.h",
     "quic/moqt/tools/chat_client.h",
@@ -1617,6 +1613,7 @@ moqt_hdrs = [
     "quic/moqt/tools/moqt_server.h",
 ]
 moqt_srcs = [
+    "quic/moqt/moqt_bidi_stream.cc",
     "quic/moqt/moqt_bitrate_adjuster.cc",
     "quic/moqt/moqt_error.cc",
     "quic/moqt/moqt_framer.cc",
@@ -1636,8 +1633,10 @@ moqt_srcs = [
     "quic/moqt/moqt_relay_track_publisher.cc",
     "quic/moqt/moqt_session.cc",
     "quic/moqt/moqt_stream_map.cc",
+    "quic/moqt/moqt_subscription.cc",
     "quic/moqt/moqt_trace_recorder.cc",
     "quic/moqt/moqt_track.cc",
+    "quic/moqt/moqt_uni_stream.cc",
     "quic/moqt/relay_namespace_tree.cc",
     "quic/moqt/tools/chat_client.cc",
     "quic/moqt/tools/moq_chat.cc",
@@ -1656,6 +1655,7 @@ moqt_test_srcs = [
     "quic/moqt/moqt_messages_test.cc",
     "quic/moqt/moqt_names_test.cc",
     "quic/moqt/moqt_namespace_stream_test.cc",
+    "quic/moqt/moqt_object_test.cc",
     "quic/moqt/moqt_outgoing_queue_test.cc",
     "quic/moqt/moqt_outstanding_objects_test.cc",
     "quic/moqt/moqt_parser_fuzz_test.cc",
@@ -1666,7 +1666,9 @@ moqt_test_srcs = [
     "quic/moqt/moqt_relay_track_publisher_test.cc",
     "quic/moqt/moqt_session_test.cc",
     "quic/moqt/moqt_stream_map_test.cc",
+    "quic/moqt/moqt_subscription_test.cc",
     "quic/moqt/moqt_track_test.cc",
+    "quic/moqt/moqt_uni_stream_test.cc",
     "quic/moqt/relay_namespace_tree_test.cc",
     "quic/moqt/session_namespace_tree_test.cc",
     "quic/moqt/test_tools/moqt_simulator_test.cc",

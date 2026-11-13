@@ -48,6 +48,20 @@ class Loong64OperandGenerator final : public OperandGenerator {
     return UseRegister(node);
   }
 
+  InstructionOperand UseRegisterAtEndOrImmediateZero(OpIndex node) {
+    if (const ConstantOp* constant =
+            selector()->Get(node).TryCast<ConstantOp>()) {
+      if ((constant->IsIntegral() && constant->integral() == 0) ||
+          (constant->kind == ConstantOp::Kind::kFloat32 &&
+           constant->float32().get_bits() == 0) ||
+          (constant->kind == ConstantOp::Kind::kFloat64 &&
+           constant->float64().get_bits() == 0)) {
+        return UseImmediate(node);
+      }
+    }
+    return UseRegisterAtEnd(node);
+  }
+
   bool IsIntegerConstant(OpIndex node) {
     int64_t unused;
     return selector()->MatchSignedIntegralConstant(node, &unused);
@@ -307,7 +321,7 @@ static void VisitBinop(InstructionSelector* selector, turboshaft::OpIndex node,
                        InstructionCode reverse_opcode,
                        FlagsContinuation* cont) {
   Loong64OperandGenerator g(selector);
-  InstructionOperand inputs[2];
+  InstructionOperand inputs[4];
   size_t input_count = 0;
   InstructionOperand outputs[1];
   size_t output_count = 0;
@@ -329,6 +343,13 @@ static void VisitBinop(InstructionSelector* selector, turboshaft::OpIndex node,
   } else {
     inputs[input_count++] = g.UseRegister(left_node);
     inputs[input_count++] = g.UseOperand(right_node, opcode);
+  }
+
+  if (cont->IsSelect()) {
+    inputs[input_count++] =
+        g.UseRegisterAtEndOrImmediateZero(cont->true_value());
+    inputs[input_count++] =
+        g.UseRegisterAtEndOrImmediateZero(cont->false_value());
   }
 
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -634,6 +655,9 @@ ArchOpcode GetLoadOpcode(turboshaft::MemoryRepresentation loaded_rep,
       return kLoong64LoadDecompressProtected;
     case MemoryRepresentation::IndirectPointer():
       UNREACHABLE();
+    case MemoryRepresentation::TrustedPointer():
+      // Only LoadTrustedPointer uses this representation.
+      UNREACHABLE();
     case MemoryRepresentation::SandboxedPointer():
       return kLoong64LoadDecodeSandboxedPointer;
     case MemoryRepresentation::Simd128():
@@ -673,6 +697,9 @@ ArchOpcode GetStoreOpcode(MemoryRepresentation stored_rep) {
       return kLoong64St_d;
     case MemoryRepresentation::ProtectedPointer():
       // We never store directly to protected pointers from generated code.
+      UNREACHABLE();
+    case MemoryRepresentation::TrustedPointer():
+      // Only LoadTrustedPointer uses this representation.
       UNREACHABLE();
     case MemoryRepresentation::IndirectPointer():
       return kLoong64StoreIndirectPointer;
@@ -1059,8 +1086,6 @@ void VisitWideAddSub(InstructionSelector* selector, OpIndex node, bool is_add) {
   InstructionCode opcode = is_add ? kLoong64Add128 : kLoong64Sub128;
   InstructionCode opcode_no_high = is_add ? kLoong64Add_d : kLoong64Sub_d;
 
-  DCHECK(out_low.valid());
-
   if (!out_high.valid() || !selector->IsUsed(out_high.value())) {
     InstructionOperand b_low_op = g.UseOperand(op.right_low(), opcode_no_high);
     selector->Emit(opcode_no_high, g.DefineAsRegister(out_low.value()),
@@ -1080,7 +1105,8 @@ void VisitWideAddSub(InstructionSelector* selector, OpIndex node, bool is_add) {
   inputs[input_count++] = g.UseUniqueRegister(op.left_high());
   inputs[input_count++] = g.UseUniqueRegister(op.right_high());
 
-  outputs[output_count++] = g.DefineAsRegister(out_low.value());
+  outputs[output_count++] =
+      g.DefineAsRegister(out_low.valid() ? out_low.value() : node);
   outputs[output_count++] = g.DefineAsRegister(out_high.value());
 
   selector->Emit(opcode, output_count, outputs, input_count, inputs);
@@ -2222,9 +2248,14 @@ void InstructionSelector::VisitStackPointerGreaterThan(
                                  ? OperandGenerator::kUniqueRegister
                                  : OperandGenerator::kRegister;
 
-  InstructionOperand inputs[] = {g.UseRegisterWithMode(value, register_mode)};
-  static constexpr int input_count = arraysize(inputs);
+  InstructionOperand inputs[3];
+  int input_count = 0;
+  inputs[input_count++] = g.UseRegisterWithMode(value, register_mode);
 
+  if (cont->IsSelect()) {
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->true_value());
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->false_value());
+  }
   EmitWithContinuation(opcode, output_count, outputs, input_count, inputs,
                        temp_count, temps, cont);
 }

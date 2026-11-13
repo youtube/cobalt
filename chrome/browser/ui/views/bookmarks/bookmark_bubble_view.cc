@@ -38,7 +38,6 @@
 #include "chrome/browser/ui/views/commerce/price_tracking_view.h"
 #include "chrome/browser/ui/views/commerce/shopping_collection_iph_view.h"
 #include "chrome/browser/ui/views/location_bar/star_view.h"
-#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/browser/bookmark_utils.h"
@@ -454,7 +453,7 @@ void BookmarkBubbleView::ShowBubble(views::View* anchor_view,
   auto dialog_model_builder =
       ui::DialogModel::Builder(std::move(bubble_delegate_unique));
 
-  std::optional<commerce::ProductInfo> product_info = std::nullopt;
+  std::optional<commerce::ProductInfo> product_info;
   if (shopping_service->IsShoppingListEligible()) {
     product_info = shopping_service->GetAvailableProductInfoForUrl(url);
   }

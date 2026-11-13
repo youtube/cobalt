@@ -25,6 +25,7 @@
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/create_peerconnection_factory.h"
+#include "api/crypto/crypto_options.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
@@ -3163,5 +3164,311 @@ TEST_F(SdpOfferAnswerTest,
   EXPECT_TRUE(caller->SetRemoteDescription(std::move(answer)));
   EXPECT_TRUE(caller_transceiver->stopped());
 }
+
+TEST_F(SdpOfferAnswerTest, CryptexOffInOffer) {
+  CryptoOptions crypto_options;
+  crypto_options.srtp.cryptex_policy =
+      CryptoOptions::Srtp::CryptexPolicy::kDisabled;
+  PeerConnectionInterface::RTCConfiguration config;
+  config.crypto_options = crypto_options;
+  auto pc = CreatePeerConnection(config, "");
+
+  auto offer = pc->CreateOfferAndSetAsLocal();
+  EXPECT_FALSE(offer->description()->cryptex());
+}
+
+TEST_F(SdpOfferAnswerTest, CryptexOffInAnswer) {
+  CryptoOptions crypto_options;
+  crypto_options.srtp.cryptex_policy =
+      CryptoOptions::Srtp::CryptexPolicy::kDisabled;
+  PeerConnectionInterface::RTCConfiguration config;
+  config.crypto_options = crypto_options;
+  auto pc = CreatePeerConnection(config, "");
+
+  std::string sdp_offer =
+      "v=0\r\n"
+      "o=- 0 0 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "a=group:BUNDLE 0\r\n"
+      "a=ice-ufrag:TESTUFRAG\r\n"
+      "a=ice-pwd:ThisIsATestIcePasswordThatIsLongEnough\r\n"
+      "a=fingerprint:sha-256 "
+      "AD:52:52:E0:B1:37:34:21:0E:15:8E:B7:56:56:7B:B4:39:0E:6D:1C:F5:84:A7:EE:"
+      "B5:27:3E:30:B1:7D:69:42\r\n"
+      "a=cryptex\r\n"
+      "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=mid:0\r\n"
+      "a=sendrecv\r\n"
+      "a=rtcp-mux\r\n"
+      "a=rtpmap:111 opus/48000/2\r\n"
+      "a=rtcp-fb:111 transport-cc\r\n";
+  auto offer = CreateSessionDescription(SdpType::kOffer, sdp_offer);
+  ASSERT_THAT(offer, NotNull());
+  EXPECT_TRUE(pc->SetRemoteDescription(std::move(offer)));
+
+  auto answer = pc->CreateAnswerAndSetAsLocal();
+  ASSERT_THAT(answer, NotNull());
+  auto* desc = answer->description();
+  EXPECT_FALSE(desc->cryptex());
+}
+
+TEST_F(SdpOfferAnswerTest, CryptexNotOfferedAnswerDeclaresSupport) {
+  CryptoOptions crypto_options;
+  crypto_options.srtp.cryptex_policy =
+      CryptoOptions::Srtp::CryptexPolicy::kNegotiate;
+  PeerConnectionInterface::RTCConfiguration config;
+  config.crypto_options = crypto_options;
+  auto pc = CreatePeerConnection(config, "");
+
+  std::string sdp_offer =
+      "v=0\r\n"
+      "o=- 0 0 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "a=group:BUNDLE 0\r\n"
+      "a=ice-ufrag:TESTUFRAG\r\n"
+      "a=ice-pwd:ThisIsATestIcePasswordThatIsLongEnough\r\n"
+      "a=fingerprint:sha-256 "
+      "AD:52:52:E0:B1:37:34:21:0E:15:8E:B7:56:56:7B:B4:39:0E:6D:1C:F5:84:A7:EE:"
+      "B5:27:3E:30:B1:7D:69:42\r\n"
+      // No a=cryptex at session level.
+      "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=mid:0\r\n"
+      "a=sendrecv\r\n"
+      "a=rtcp-mux\r\n"
+      // No a=cryptex at media level.
+      "a=rtpmap:111 opus/48000/2\r\n"
+      "a=rtcp-fb:111 transport-cc\r\n";
+  auto offer = CreateSessionDescription(SdpType::kOffer, sdp_offer);
+  ASSERT_THAT(offer, NotNull());
+  EXPECT_TRUE(pc->SetRemoteDescription(std::move(offer)));
+
+  auto answer = pc->CreateAnswerAndSetAsLocal();
+  ASSERT_THAT(answer, NotNull());
+  auto* desc = answer->description();
+  EXPECT_TRUE(desc->cryptex());
+
+  auto* content = desc->GetContentByName("0");
+  ASSERT_THAT(content, NotNull());
+  EXPECT_EQ(content->media_description()->cryptex_level(),
+            MediaContentDescription::AttributeLevel::kSession);
+}
+
+TEST_F(SdpOfferAnswerTest, CryptexSessionLevel) {
+  CryptoOptions crypto_options;
+  crypto_options.srtp.cryptex_policy =
+      CryptoOptions::Srtp::CryptexPolicy::kNegotiate;
+  PeerConnectionInterface::RTCConfiguration config;
+  config.crypto_options = crypto_options;
+  auto pc = CreatePeerConnection(config, "");
+
+  std::string sdp_offer =
+      "v=0\r\n"
+      "o=- 0 0 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "a=group:BUNDLE 0\r\n"
+      "a=ice-ufrag:TESTUFRAG\r\n"
+      "a=ice-pwd:ThisIsATestIcePasswordThatIsLongEnough\r\n"
+      "a=fingerprint:sha-256 "
+      "AD:52:52:E0:B1:37:34:21:0E:15:8E:B7:56:56:7B:B4:39:0E:6D:1C:F5:84:A7:EE:"
+      "B5:27:3E:30:B1:7D:69:42\r\n"
+      "a=cryptex\r\n"
+      "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=mid:0\r\n"
+      "a=sendrecv\r\n"
+      "a=rtcp-mux\r\n"
+      "a=rtpmap:111 opus/48000/2\r\n"
+      "a=rtcp-fb:111 transport-cc\r\n";
+
+  auto offer = CreateSessionDescription(SdpType::kOffer, sdp_offer);
+  ASSERT_THAT(offer, NotNull());
+  EXPECT_TRUE(pc->SetRemoteDescription(std::move(offer)));
+
+  auto answer = pc->CreateAnswerAndSetAsLocal();
+  ASSERT_THAT(answer, NotNull());
+  auto* desc = answer->description();
+  EXPECT_TRUE(desc->cryptex());
+
+  auto* content = desc->GetContentByName("0");
+  ASSERT_THAT(content, NotNull());
+  EXPECT_TRUE(content->media_description()->cryptex());
+  EXPECT_EQ(content->media_description()->cryptex_level(),
+            MediaContentDescription::AttributeLevel::kSession);
+}
+
+TEST_F(SdpOfferAnswerTest, CryptexMediaLevel) {
+  CryptoOptions crypto_options;
+  crypto_options.srtp.cryptex_policy =
+      CryptoOptions::Srtp::CryptexPolicy::kNegotiate;
+  PeerConnectionInterface::RTCConfiguration config;
+  config.crypto_options = crypto_options;
+  auto pc = CreatePeerConnection(config, "");
+
+  std::string sdp_offer =
+      "v=0\r\n"
+      "o=- 0 0 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "a=group:BUNDLE 0 1\r\n"
+      "a=ice-ufrag:TESTUFRAG\r\n"
+      "a=ice-pwd:ThisIsATestIcePasswordThatIsLongEnough\r\n"
+      "a=fingerprint:sha-256 "
+      "AD:52:52:E0:B1:37:34:21:0E:15:8E:B7:56:56:7B:B4:39:0E:6D:1C:F5:84:A7:EE:"
+      "B5:27:3E:30:B1:7D:69:42\r\n"
+      "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=mid:0\r\n"
+      "a=sendrecv\r\n"
+      "a=rtcp-mux\r\n"
+      "a=cryptex\r\n"
+      "a=rtpmap:111 opus/48000/2\r\n"
+      "a=rtcp-fb:111 transport-cc\r\n"
+      // cryptex is not required for non-rtp content.
+      "m=application 0 UDP/DTLS/SCTP webrtc-datachannel\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=sctp-port:5000\r\n"
+      "a=max-message-size:262144\r\n"
+      "a=mid:1\r\n";
+
+  auto offer = CreateSessionDescription(SdpType::kOffer, sdp_offer);
+  ASSERT_THAT(offer, NotNull());
+  EXPECT_TRUE(pc->SetRemoteDescription(std::move(offer)));
+
+  auto answer = pc->CreateAnswerAndSetAsLocal();
+  ASSERT_THAT(answer, NotNull());
+  auto* desc = answer->description();
+  EXPECT_FALSE(desc->cryptex());
+
+  auto* content = desc->GetContentByName("0");
+  ASSERT_THAT(content, NotNull());
+  EXPECT_TRUE(content->media_description()->cryptex());
+  EXPECT_EQ(content->media_description()->cryptex_level(),
+            MediaContentDescription::AttributeLevel::kMedia);
+}
+
+TEST_F(SdpOfferAnswerTest, CryptexBundleInconsistency) {
+  CryptoOptions crypto_options;
+  crypto_options.srtp.cryptex_policy =
+      CryptoOptions::Srtp::CryptexPolicy::kNegotiate;
+  PeerConnectionInterface::RTCConfiguration config;
+  config.crypto_options = crypto_options;
+  auto pc = CreatePeerConnection(config, "");
+
+  // First m-line in the BUNDLE has cryptex, second does not.
+  std::string sdp_offer =
+      "v=0\r\n"
+      "o=- 0 0 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "a=group:BUNDLE 0 1\r\n"
+      "a=ice-ufrag:TESTUFRAG\r\n"
+      "a=ice-pwd:ThisIsATestIcePasswordThatIsLongEnough\r\n"
+      "a=fingerprint:sha-256 "
+      "AD:52:52:E0:B1:37:34:21:0E:15:8E:B7:56:56:7B:B4:39:0E:6D:1C:F5:84:A7:EE:"
+      "B5:27:3E:30:B1:7D:69:42\r\n"
+      "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=mid:0\r\n"
+      "a=sendrecv\r\n"
+      "a=rtcp-mux\r\n"
+      "a=cryptex\r\n"
+      "a=rtpmap:111 opus/48000/2\r\n"
+      "a=rtcp-fb:111 transport-cc\r\n"
+      "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=mid:1\r\n"
+      "a=sendrecv\r\n"
+      "a=rtcp-mux\r\n"
+      // "a=cryptex\r\n"
+      "a=rtpmap:111 opus/48000/2\r\n"
+      "a=rtcp-fb:111 transport-cc\r\n";
+
+  auto offer = CreateSessionDescription(SdpType::kOffer, sdp_offer);
+  ASSERT_NE(offer, nullptr);
+  RTCError error;
+  pc->SetRemoteDescription(std::move(offer), &error);
+  EXPECT_FALSE(error.ok());
+  EXPECT_EQ(error.type(), RTCErrorType::INVALID_PARAMETER);
+}
+
+TEST_F(SdpOfferAnswerTest, CryptexNegotiated) {
+  CryptoOptions crypto_options;
+  crypto_options.srtp.cryptex_policy =
+      CryptoOptions::Srtp::CryptexPolicy::kNegotiate;
+  PeerConnectionInterface::RTCConfiguration config;
+  config.crypto_options = crypto_options;
+  auto pc1 = CreatePeerConnection(config, "");
+  pc1->AddAudioTrack("audio_track", {});
+  auto pc2 = CreatePeerConnection(config, "");
+
+  auto offer = pc1->CreateOfferAndSetAsLocal();
+  ASSERT_EQ(offer->description()->contents().size(), 1u);
+  EXPECT_TRUE(pc2->SetRemoteDescription(std::move(offer)));
+
+  auto answer = pc2->CreateAnswerAndSetAsLocal();
+  EXPECT_TRUE(answer->description()->cryptex());
+}
+
+TEST_F(SdpOfferAnswerTest, CryptexRequired) {
+  CryptoOptions crypto_options1;
+  crypto_options1.srtp.cryptex_policy =
+      CryptoOptions::Srtp::CryptexPolicy::kRequire;
+  PeerConnectionInterface::RTCConfiguration config1;
+  config1.crypto_options = crypto_options1;
+  auto pc1 = CreatePeerConnection(config1, "");
+  pc1->AddAudioTrack("audio_track", {});
+
+  CryptoOptions crypto_options2;
+  crypto_options2.srtp.cryptex_policy =
+      CryptoOptions::Srtp::CryptexPolicy::kDisabled;
+  PeerConnectionInterface::RTCConfiguration config2;
+  config2.crypto_options = crypto_options2;
+  auto pc2 = CreatePeerConnection(config2, "");
+
+  auto offer = pc1->CreateOfferAndSetAsLocal();
+  EXPECT_TRUE(pc2->SetRemoteDescription(std::move(offer)));
+
+  auto answer = pc2->CreateAnswerAndSetAsLocal();
+  EXPECT_FALSE(answer->description()->cryptex());
+
+  RTCError error;
+  pc1->SetRemoteDescription(std::move(answer), &error);
+  EXPECT_FALSE(error.ok());
+  EXPECT_EQ(error.type(), RTCErrorType::INVALID_PARAMETER);
+}
+
+#ifdef WEBRTC_HAVE_SCTP
+TEST_F(SdpOfferAnswerTest, CryptexRequiredDatachannelOnly) {
+  CryptoOptions crypto_options1;
+  crypto_options1.srtp.cryptex_policy =
+      CryptoOptions::Srtp::CryptexPolicy::kRequire;
+  PeerConnectionInterface::RTCConfiguration config1;
+  config1.crypto_options = crypto_options1;
+  auto pc1 = CreatePeerConnection(config1, "");
+  EXPECT_TRUE(pc1->pc()->CreateDataChannelOrError("dc", nullptr).ok());
+
+  CryptoOptions crypto_options2;
+  crypto_options2.srtp.cryptex_policy =
+      CryptoOptions::Srtp::CryptexPolicy::kDisabled;
+  PeerConnectionInterface::RTCConfiguration config2;
+  config2.crypto_options = crypto_options2;
+  auto pc2 = CreatePeerConnection(config2, "");
+
+  auto offer = pc1->CreateOfferAndSetAsLocal();
+  EXPECT_TRUE(pc2->SetRemoteDescription(std::move(offer)));
+
+  auto answer = pc2->CreateAnswerAndSetAsLocal();
+  EXPECT_FALSE(answer->description()->cryptex());
+
+  RTCError error;
+  pc1->SetRemoteDescription(std::move(answer), &error);
+  EXPECT_TRUE(error.ok());
+}
+#endif  // WEBRTC_HAVE_SCTP
 
 }  // namespace webrtc

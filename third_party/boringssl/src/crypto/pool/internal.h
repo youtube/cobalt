@@ -73,11 +73,11 @@ class CryptoBufferPool : public crypto_buffer_pool_st,
  public:
   CryptoBufferPool();
 
-  // Hash returns the hash of |data|.
+  // Hash returns the hash of `data`.
   uint32_t Hash(Span<const uint8_t> data) const;
 
-  // FindBufferLocked looks for a buffer with hash |hash| and contents |data|.
-  // It returns it if found and nullptr otherwise. |handle_->lock_| must be
+  // FindBufferLocked looks for a buffer with hash `hash` and contents `data`.
+  // It returns it if found and nullptr otherwise. `handle_->lock_` must be
   // locked for reading or writing before calling this.
   CryptoBuffer *FindBufferLocked(uint32_t hash, Span<const uint8_t> data);
 

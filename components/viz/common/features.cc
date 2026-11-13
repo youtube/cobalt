@@ -53,6 +53,12 @@ BASE_FEATURE(kBackForwardTransitionsSameDocSharedImage,
 // compositing, where no root render pass is present.
 BASE_FEATURE(kBufferQueuePerRenderPass, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When the viz::Display visibility changes, whether to destroy all the buffers
+// in the various BufferQueues associated with it. This saves memory, at the
+// cost of recreating the buffers when becoming visible again.
+BASE_FEATURE(kVizBufferQueueDiscardOnVisibilityChange,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kUseDrmBlackFullscreenOptimization,
 #if BUILDFLAG(IS_CHROMEOS)
              base::FEATURE_ENABLED_BY_DEFAULT
@@ -223,32 +229,6 @@ BASE_FEATURE(kEnableADPFRendererMain, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableADPFSeparateRendererMainSession,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// If enabled, Chrome uses notifyWorkloadIncrease ADPF(Android Dynamic
-// Performance Framework) method before CrRendererMain starts running a heavy
-// workload during page load.
-// Supported only on Android >= 16.
-BASE_FEATURE(kEnableADPFWorkloadIncreaseOnPageLoad,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// If enabled, Chrome uses ADPF's setPreferPowerEfficiency API to try and save
-// energy at the cost of performance. Supported only on Android >= 16.
-BASE_FEATURE(kEnableAdpfEfficiencyMode, base::FEATURE_DISABLED_BY_DEFAULT);
-constexpr base::FeatureParam<AdpfEfficiencyMode>::Option
-    kAdpfEfficiencyModeOption[] = {
-        // ADPF sessions are always configured for performance.
-        {AdpfEfficiencyMode::kNever, "never"},
-        // ADPF sessions switch between performance and efficiency mode based on
-        // context. TODO(crbug.com/464505581): implement this.
-        {AdpfEfficiencyMode::kAdaptive, "adaptive"},
-        // ADPF sessions are always configured for efficiency.
-        {AdpfEfficiencyMode::kAlwaysEfficient, "always_efficient"}};
-const base::FeatureParam<AdpfEfficiencyMode> kAdpfEfficiencyModeParam{
-    &kEnableAdpfEfficiencyMode,
-    "mode",
-    AdpfEfficiencyMode::kNever,
-    &kAdpfEfficiencyModeOption,
-};
-
 // If enabled, Chrome uses notifyWorkloadReset method on viz wakeup instead of
 // sending a timing report with a fake actual duration > target duration.
 // Supported only on Android >= 16.
@@ -280,6 +260,13 @@ const base::FeatureParam<int>
 // If enabled, DisplayScheduler will attempt to select a future deadline if the
 // preferred deadline is not achievable.
 BASE_FEATURE(kSelectFutureFrameDeadline, base::FEATURE_DISABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_ANDROID)
+// If enabled, DisplayScheduler will use a custom FrameDeadlineDecider to
+// dynamically select VSync deadlines based on input timestamps.
+BASE_FEATURE(kUseAndroidCustomFrameDeadlines,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 // When enabled, SDR maximum luminance nits of then current display will be used
 // as the HDR metadata NDWL nits for PQ content (if none was specified). This
@@ -555,5 +542,10 @@ bool ShouldUseAdpfForSoc(std::string_view soc_allowlist,
   return std::ranges::contains(allowlist, soc);
 }
 #endif  // BUILDFLAG(IS_ANDROID)
+
+bool ShouldDiscardVizBufferQueueOnVisibilityChange() {
+  return kAllowVizBufferQueueDiscardOnVisibilityChange &&
+         base::FeatureList::IsEnabled(kVizBufferQueueDiscardOnVisibilityChange);
+}
 
 }  // namespace features

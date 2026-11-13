@@ -19,6 +19,7 @@
 #include "absl/strings/string_view.h"
 #include "api/payload_type.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "call/payload_type.h"
 #include "call/payload_type_picker.h"
@@ -83,7 +84,7 @@ class FakePayloadTypeSuggester : public PayloadTypeSuggester {
     return pt_picker_.AddMapping(payload_type, codec);
   }
 
-  RTCErrorOr<int> SuggestRtpHeaderExtensionId(
+  RTCErrorOr<RtpHeaderExtensionId> SuggestRtpHeaderExtensionId(
       absl::string_view mid,
       const RtpExtension& extension,
       RtpTransceiverIdDomain id_domain) override {

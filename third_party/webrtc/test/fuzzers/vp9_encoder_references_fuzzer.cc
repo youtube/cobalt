@@ -576,8 +576,9 @@ void FuzzOneInput(FuzzDataHelper fuzz_data) {
                                   int{codec.width}, int{codec.height}))
                               .build();
 
-  // Start producing frames at random.
-  while (fuzz_data.CanReadBytes(1)) {
+  // Restrict max number of actions to prevent timeout on large inputs.
+  int num_actions = 0;
+  while (fuzz_data.CanReadBytes(1) && ++num_actions <= 1000) {
     uint8_t action = fuzz_data.Read<uint8_t>();
     switch (action & 0b11) {
       case kEncode: {

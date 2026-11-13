@@ -4,6 +4,7 @@
 
 #import "base/ios/ios_util.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/test/ios/wait_util.h"
 #import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
 #import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_storage_type.h"
@@ -33,6 +34,11 @@ using chrome_test_util::TappableBookmarkNodeWithLabel;
 @end
 
 @implementation BookmarksInteractionTestCase
+
+- (AppLaunchConfiguration)appConfigurationForTestCase {
+  AppLaunchConfiguration config = [super appConfigurationForTestCase];
+  return config;
+}
 
 - (void)setUp {
   [super setUp];
@@ -222,6 +228,8 @@ using chrome_test_util::TappableBookmarkNodeWithLabel;
   [[EarlGrey
       selectElementWithMatcher:TappableBookmarkNodeWithLabel(@"Second URL")]
       performAction:grey_tap()];
+
+  [ChromeEarlGrey waitForMatcher:chrome_test_util::ToolsMenuButton()];
 
   [ChromeEarlGreyUI openToolsMenu];
   [[[EarlGrey

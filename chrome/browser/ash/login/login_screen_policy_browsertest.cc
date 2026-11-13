@@ -26,7 +26,6 @@
 #include "chrome/browser/net/profile_network_context_service.h"
 #include "chrome/browser/net/profile_network_context_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
@@ -227,7 +226,8 @@ IN_PROC_BROWSER_TEST_F(LoginScreenLocalePolicyWithVPDTest,
   profile_network_context->ConfigureNetworkContextParams(
       /*in_memory=*/true, empty_relative_partition_path,
       &network_context_params, &cert_verifier_creation_params);
-  EXPECT_EQ(network_context_params.accept_language, "fr-FR,fr;q=0.9");
+  EXPECT_EQ(network_context_params.accept_language,
+            "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7");
 }
 
 class LoginScreenButtonsLocalePolicy : public LoginScreenLocalePolicyTestBase {

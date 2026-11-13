@@ -96,6 +96,7 @@ import org.chromium.components.browser_ui.widget.TouchEventObserver;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.signin.SigninFeatures;
 import org.chromium.ui.base.TestActivity;
+import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.resources.dynamics.ViewResourceAdapter;
 import org.chromium.url.GURL;
 import org.chromium.url.JUnitTestGURLs;
@@ -140,6 +141,7 @@ public class ToolbarControlContainerTest {
     @Mock private OptionalButtonCoordinator mOptionalButtonCoordinator;
     @Mock private BrowserControlsStateProvider mBrowserControlsStateProvider;
     @Mock private ViewTreeObserver mViewTreeObserver;
+    @Mock private WindowAndroid mWindowAndroid;
     @Captor private ArgumentCaptor<CoordinatorLayout.LayoutParams> mToolbarLayoutParamsCaptor;
     @Captor private ArgumentCaptor<CoordinatorLayout.LayoutParams> mHairlineLayoutParamsCaptor;
     @Captor private ArgumentCaptor<ViewTreeObserver.OnPreDrawListener> mOnPreDrawCaptor;
@@ -531,7 +533,7 @@ public class ToolbarControlContainerTest {
     @EnableFeatures(ChromeFeatureList.TOOLBAR_CAPTURE_FIX_FOR_SPAS)
     public void testInvalidate_whileHidden_producesCapture() {
         makeAndInitAdapter();
-        when(mBrowserControlsStateProvider.getBrowserControlHiddenRatio()).thenReturn(1f);
+        when(mBrowserControlsStateProvider.getTopControlHiddenRatio()).thenReturn(1f);
 
         mAdapter.invalidate(null);
         pumpFrame();
@@ -543,7 +545,7 @@ public class ToolbarControlContainerTest {
     @EnableFeatures(ChromeFeatureList.TOOLBAR_CAPTURE_FIX_FOR_SPAS)
     public void testInvalidate_whileHidden_coalescesMultipleInvalidationsPerFrame() {
         makeAndInitAdapter();
-        when(mBrowserControlsStateProvider.getBrowserControlHiddenRatio()).thenReturn(1f);
+        when(mBrowserControlsStateProvider.getTopControlHiddenRatio()).thenReturn(1f);
 
         mAdapter.invalidate(null);
         mAdapter.invalidate(null);
@@ -557,7 +559,7 @@ public class ToolbarControlContainerTest {
     @EnableFeatures(ChromeFeatureList.TOOLBAR_CAPTURE_FIX_FOR_SPAS)
     public void testInvalidate_whileVisible_doesNotCapture() {
         makeAndInitAdapter();
-        when(mBrowserControlsStateProvider.getBrowserControlHiddenRatio()).thenReturn(0.5f);
+        when(mBrowserControlsStateProvider.getTopControlHiddenRatio()).thenReturn(0.5f);
 
         mAdapter.invalidate(null);
 
@@ -568,13 +570,13 @@ public class ToolbarControlContainerTest {
     @EnableFeatures(ChromeFeatureList.TOOLBAR_CAPTURE_FIX_FOR_SPAS)
     public void testInvalidate_stopsCapturingAfterReveal() {
         makeAndInitAdapter();
-        when(mBrowserControlsStateProvider.getBrowserControlHiddenRatio()).thenReturn(1f);
+        when(mBrowserControlsStateProvider.getTopControlHiddenRatio()).thenReturn(1f);
         mAdapter.invalidate(null);
         pumpFrame();
         assertEquals(1, mTriggerBitmapCaptureCount.get());
 
         // Toolbar starts revealing; subsequent frames must not produce captures.
-        when(mBrowserControlsStateProvider.getBrowserControlHiddenRatio()).thenReturn(0.5f);
+        when(mBrowserControlsStateProvider.getTopControlHiddenRatio()).thenReturn(0.5f);
         mOnPreDrawCaptor.getValue().onPreDraw();
         mOnPreDrawCaptor.getValue().onPreDraw();
 
@@ -585,7 +587,7 @@ public class ToolbarControlContainerTest {
     @EnableFeatures(ChromeFeatureList.TOOLBAR_CAPTURE_FIX_FOR_SPAS)
     public void testInvalidate_afterDestroy_doesNotCapture() {
         makeAndInitAdapter();
-        when(mBrowserControlsStateProvider.getBrowserControlHiddenRatio()).thenReturn(1f);
+        when(mBrowserControlsStateProvider.getTopControlHiddenRatio()).thenReturn(1f);
         mAdapter.destroy();
 
         mAdapter.invalidate(null);
@@ -774,7 +776,8 @@ public class ToolbarControlContainerTest {
                 /* signinButtonCoordinator= */ null,
                 mThemeColorProvider,
                 mIncognitoStateProvider,
-                /* incognitoWindowCountSupplier= */ null);
+                /* incognitoWindowCountSupplier= */ null,
+                mWindowAndroid);
 
         controlContainer.toggleLocationBarOnlyMode(true);
         verify(mProgressBar).setVisibility(View.GONE);
@@ -1036,17 +1039,22 @@ public class ToolbarControlContainerTest {
     }
 
     @Test
-    public void testDoSynchronousLayoutAndCapture() {
+    public void testDoSynchronousLayout() {
         initControlContainer(R.layout.toolbar_phone);
         ViewResourceAdapter mockAdapter = mock(ViewResourceAdapter.class);
 
         ToolbarControlContainer spyContainer = spy(mControlContainer);
         doReturn(mockAdapter).when(spyContainer).getToolbarResourceAdapter();
 
-        spyContainer.doSynchronousLayoutAndCapture();
-
+        // Test with forceCaptureAfterLayout = false
+        spyContainer.doSynchronousLayout(false);
         verify(spyContainer).measure(anyInt(), anyInt());
         verify(spyContainer).layout(anyInt(), anyInt(), anyInt(), anyInt());
+        verify(mockAdapter, never()).invalidate(null);
+        verify(mockAdapter, never()).triggerBitmapCapture();
+
+        // Test with forceCaptureAfterLayout = true
+        spyContainer.doSynchronousLayout(true);
         verify(mockAdapter).invalidate(null);
         verify(mockAdapter).triggerBitmapCapture();
     }
@@ -1072,6 +1080,7 @@ public class ToolbarControlContainerTest {
     public void testUpdateOptionalButton_TransitionsNtp() {
         initControlContainer(R.layout.toolbar_phone);
         ToolbarPhone toolbarPhone = mControlContainer.findViewById(R.id.toolbar);
+        toolbarPhone.setThemeColorProvider(mThemeColorProvider);
         toolbarPhone.setOptionalButtonCoordinatorForTesting(mOptionalButtonCoordinator);
 
         ButtonData buttonData = mock(ButtonData.class);
@@ -1085,6 +1094,7 @@ public class ToolbarControlContainerTest {
     public void testUpdateOptionalButton_DelegatesToLocationBar() {
         initControlContainer(R.layout.toolbar_phone);
         ToolbarPhone toolbarPhone = mControlContainer.findViewById(R.id.toolbar);
+        toolbarPhone.setThemeColorProvider(mThemeColorProvider);
         toolbarPhone.setLocationBarCoordinator(mLocationBarCoordinator);
 
         // NOTE: In this test mOptionalButtonCoordinator is never created.
@@ -1107,6 +1117,7 @@ public class ToolbarControlContainerTest {
     public void testUpdateOptionalButton_OnNtp_UpdatesToolbarButton() {
         initControlContainer(R.layout.toolbar_phone);
         ToolbarPhone toolbarPhone = mControlContainer.findViewById(R.id.toolbar);
+        toolbarPhone.setThemeColorProvider(mThemeColorProvider);
         toolbarPhone.setOptionalButtonCoordinatorForTesting(mOptionalButtonCoordinator);
         toolbarPhone.setLocationBarCoordinator(mLocationBarCoordinator);
 

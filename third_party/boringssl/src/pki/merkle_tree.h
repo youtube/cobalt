@@ -165,14 +165,14 @@ OPENSSL_EXPORT std::optional<TreeHash> EvaluateMerkleSubtreeInclusionProof(
     TreeHashConstSpan entry_hash, const Subtree &subtree);
 
 // Helper function to compute the hash value of a leaf in a Merkle tree, i.e.
-// HASH(0x00 || entry). 32 bytes of output are written to |out|. This function
+// HASH(0x00 || entry). 32 bytes of output are written to `out`. This function
 // is intended for internal use only and only exists here for the convenience of
 // merkle_tree_unittest.cc.
 OPENSSL_EXPORT void HashLeaf(Span<const uint8_t> entry, TreeHashSpan out);
 
 // Helper function to compute the hash value of an interior node in a Merkle
 // tree, i.e. HASH(0x01 || left || right). 32 bytes of output are written to
-// |out|. This function is intended for internal use only and only exists here
+// `out`. This function is intended for internal use only and only exists here
 // for the convenience of merkle_tree_unittest.cc.
 OPENSSL_EXPORT void HashNode(TreeHashConstSpan left, TreeHashConstSpan right,
                              TreeHashSpan out);

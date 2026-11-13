@@ -103,9 +103,10 @@ VideoCodec VideoCodecInitializer::SetupCodec(
 
   int max_framerate = 0;
 
-  std::optional<ScalabilityMode> scalability_mode = streams[0].scalability_mode;
+  std::optional<ScalabilityMode> scalability_mode;
   const size_t num_streams =
       std::min(streams.size(), static_cast<size_t>(kMaxSimulcastStreams));
+  int num_active_streams = 0;
   for (size_t i = 0; i < num_streams; ++i) {
     SimulcastStream* sim_stream = &video_codec.simulcastStream[i];
     RTC_DCHECK_GT(streams[i].width, 0);
@@ -149,14 +150,14 @@ VideoCodec VideoCodecInitializer::SetupCodec(
     // TODO(bugs.webrtc.org/11607): Since scalability mode is a top-level
     // setting on VideoCodec, setting it makes sense only if it is the same for
     // all active simulcast streams.
-    if (streams[i].active &&
-        streams[0].scalability_mode != streams[i].scalability_mode) {
-      scalability_mode.reset();
-      // For VP8, top-level scalability mode doesn't matter, since configuration
-      // is based on the per-simulcast stream configuration of temporal layers.
-      if (video_codec.codecType != kVideoCodecVP8) {
+    if (streams[i].active) {
+      if (num_active_streams == 0) {
+        scalability_mode = streams[i].scalability_mode;
+      } else if (scalability_mode != streams[i].scalability_mode) {
         RTC_LOG(LS_WARNING) << "Inconsistent scalability modes configured.";
+        scalability_mode.reset();
       }
+      ++num_active_streams;
     }
   }
 

@@ -47,7 +47,7 @@ size_t TrailingOnes(uint64_t n) {
 
 }  // namespace
 
-// Computes HASH(0x01 || left || right) and saves the result to |out|.
+// Computes HASH(0x01 || left || right) and saves the result to `out`.
 void HashNode(TreeHashConstSpan left, TreeHashConstSpan right,
               TreeHashSpan out) {
   static const uint8_t header = 0x01;
@@ -229,7 +229,7 @@ std::optional<TreeHash> EvaluateMerkleSubtreeInclusionProof(
   if (!subtree.IsValid() || !subtree.Contains(index)) {
     return std::nullopt;
   }
-  // Re-root |index| inside of |subtree|.
+  // Re-root `index` inside of `subtree`.
   index -= subtree.start;
   return EvaluateMerkleSubtreeConsistencyProof(
       subtree.Size(), {index, index + 1}, inclusion_proof, entry_hash);

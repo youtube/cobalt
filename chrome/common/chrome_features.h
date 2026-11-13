@@ -157,6 +157,9 @@ COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<double> kGlicActorApcComparisonSamplingRate;
 
 COMPONENT_EXPORT(CHROME_FEATURES)
+BASE_DECLARE_FEATURE(kGlicIgnoreDogfoodClient);
+
+COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kGlicExperimentalTriggering);
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kGlicExperimentalTriggeringSuppressDoneNotification);
@@ -342,6 +345,9 @@ COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<int> kGlicMinRequiredRamMb;
 
 COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<bool> kGlicAdaptiveToolbarAutoPin;
+
+COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kGlicDevelopmentSyncGoogleCookies);
 COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<bool> kGlicStatusIconOpenMenuWithSecondaryClick;
@@ -365,9 +371,6 @@ COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<std::string> kGlicDefaultHotkey;
 
 COMPONENT_EXPORT(CHROME_FEATURES) BASE_DECLARE_FEATURE(kGlicURLConfig);
-#if BUILDFLAG(IS_CHROMEOS)
-COMPONENT_EXPORT(CHROME_FEATURES) BASE_DECLARE_FEATURE(kGlicShowStatusTrayIcon);
-#endif
 COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<std::string> kGlicGuestURL;
 
@@ -435,6 +438,12 @@ extern const base::FeatureParam<std::string> kGlicExtensionsManagementUrl;
 COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<std::string>
     kGlicWebActuationToggleLearnMoreURL;
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<std::string>
+    kGlicExperimentalTriggeringLearnMoreURL;
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<std::string>
+    kGlicExperimentalTriggeringSafetyURL;
 COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<std::string>
     kGlicWebActuationToggleConsiderSafelyURL;
@@ -824,10 +833,14 @@ BASE_DECLARE_FEATURE(kHttpsFirstBalancedModeAutoEnable);
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kHttpsFirstModeForAdvancedProtectionUsers);
 COMPONENT_EXPORT(CHROME_FEATURES)
+BASE_DECLARE_FEATURE(kHttpsFirstModeDefaultSettingPairsWithEsb);
+COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kHttpsFirstModeV2ForEngagedSites);
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kHttpsFirstModeV2ForTypicallySecureUsers);
 COMPONENT_EXPORT(CHROME_FEATURES) BASE_DECLARE_FEATURE(kHttpsUpgrades);
+COMPONENT_EXPORT(CHROME_FEATURES)
+BASE_DECLARE_FEATURE(kHttpsUpgradesTypedSchemelessNavigationNoTimeoutFallback);
 COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<base::TimeDelta> kHttpsUpgradesFallbackDelay;
 COMPONENT_EXPORT(CHROME_FEATURES)
@@ -1342,6 +1355,9 @@ extern const base::FeatureParam<int> kSmartRestartLockScreenDisruptionThreshold;
 
 COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<base::TimeDelta> kSmartRestartLockScreenDelay;
+
+COMPONENT_EXPORT(CHROME_FEATURES)
+BASE_DECLARE_FEATURE(kRecordTabWindowDiffOnRestart);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 bool PrefServiceEnabled();

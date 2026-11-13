@@ -46,7 +46,6 @@
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_utils.h"
 #import "ios/chrome/browser/bubble/ui_bundled/bubble_view_controller_presenter.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_availability.h"
-#import "ios/chrome/browser/composebox/menu/coordinator/composebox_menu_coordinator.h"
 #import "ios/chrome/browser/content_suggestions/coordinator/content_suggestions_coordinator.h"
 #import "ios/chrome/browser/content_suggestions/coordinator/content_suggestions_delegate.h"
 #import "ios/chrome/browser/content_suggestions/coordinator/content_suggestions_mediator.h"
@@ -90,7 +89,7 @@
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_delegate.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_commands.h"
-#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_view_controller.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_view.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_mediator.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_shortcuts_handler.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_url_loader_delegate.h"
@@ -160,7 +159,6 @@
 
 @interface NewTabPageCoordinator () <AccountMenuCoordinatorDelegate,
                                      AuthenticationServiceObserving,
-                                     ComposeboxMenuCoordinatorDelegate,
                                      ContentSuggestionsDelegate,
                                      DiscoverFeedObserverBridgeDelegate,
                                      DiscoverFeedPreviewDelegate,
@@ -259,9 +257,8 @@
 // Metrics recorder for actions relating to the feed.
 @property(nonatomic, weak) FeedMetricsRecorder* feedMetricsRecorder;
 
-// The header view controller containing the fake omnibox and logo.
-@property(nonatomic, strong)
-    NewTabPageHeaderViewController* headerViewController;
+// The header view containing the fake omnibox and logo.
+@property(nonatomic, strong) NewTabPageHeaderView* headerView;
 
 // Coordinator for Feed top section.
 @property(nonatomic, strong)
@@ -304,8 +301,6 @@
   SearchEngineLogoMediator* _searchEngineLogoMediator;
   // The Safari data import used by the content suggestions.
   SafariDataImportExportCoordinator* _safariDataImportExportCoordinator;
-  // The coordinator showing the multimodal composebox menu.
-  ComposeboxMenuCoordinator* _composeboxMenuCoordinator;
 }
 
 // Synthesize NewTabPageConfiguring properties.
@@ -366,6 +361,17 @@
 
   [self initializeServices];
   [self initializeNTPComponents];
+
+  [self configureHeaderView];
+  [self configureNTPMediator];
+  if ([self.NTPMediator isFeedHeaderVisible]) {
+    [self configureFeedAndHeader];
+  }
+  [self configureContentSuggestionsCoordinator];
+  self.feedMetricsRecorder.NTPActionsDelegate = self;
+  [self configureNTPViewController];
+  [self configureTabGroupIndicator];
+
   [self startObservers];
 
   ProfileState* profileState = sceneState.profileState;
@@ -383,16 +389,6 @@
       supervised_user::IsPrimaryAccountSubjectToParentalControls(
           _identityManager);
   [self updateFeedWithIsSupervisedUser:(capability == signin::Tribool::kTrue)];
-
-  [self configureNTPMediator];
-  if ([self.NTPMediator isFeedHeaderVisible]) {
-    [self configureFeedAndHeader];
-  }
-  [self configureHeaderViewController];
-  [self configureContentSuggestionsCoordinator];
-  self.feedMetricsRecorder.NTPActionsDelegate = self;
-  [self configureNTPViewController];
-  [self configureTabGroupIndicator];
 
   if (IsNTPBackgroundCustomizationEnabled()) {
     // Ensure the initial background is applied after all components have been
@@ -436,7 +432,7 @@
 
   [self.contentSuggestionsCoordinator stop];
   self.contentSuggestionsCoordinator = nil;
-  self.headerViewController = nil;
+  self.headerView = nil;
   // Remove before nil to ensure View Hierarchy doesn't hold last strong
   // reference.
   [self.containedViewController willMoveToParentViewController:nil];
@@ -567,7 +563,7 @@
     return;
   }
   [LayoutGuideCenterForBrowser(self.browser)
-      referenceView:[self.headerViewController customizationMenuButton]
+      referenceView:self.headerView.customizationMenuButton
           underName:kFeedIPHNamedGuide];
 }
 
@@ -650,7 +646,7 @@
 // Starts all NTP observers.
 - (void)startObservers {
   DCHECK(self.prefService);
-  DCHECK(self.headerViewController);
+  DCHECK(self.headerView);
 
   // Start observing IdentityManager.
   _identityObserverBridge =
@@ -700,11 +696,9 @@
       feature_engagement::TrackerFactory::GetForProfile(self.profile);
   self.NTPViewController.incognitoDisabled =
       IsIncognitoModeDisabled(self.prefService);
-  self.headerViewController =
-      [componentFactory headerViewControllerForProfile:self.profile];
-  self.NTPMediator =
-      [componentFactory NTPMediatorForBrowser:browser
-                     identityDiscImageUpdater:self.headerViewController];
+  self.headerView = [componentFactory headerViewForProfile:self.profile];
+  self.NTPMediator = [componentFactory NTPMediatorForBrowser:browser
+                                    identityDiscImageUpdater:nil];
   self.NTPViewController.mutator = self.NTPMediator;
   self.contentSuggestionsCoordinator =
       [componentFactory contentSuggestionsCoordinatorForBrowser:browser];
@@ -745,34 +739,30 @@
   }
 }
 
-// Configures `self.headerViewController`.
-- (void)configureHeaderViewController {
-  NewTabPageHeaderViewController* headerViewController =
-      self.headerViewController;
-  DCHECK(headerViewController);
+// Configures `self.headerView`.
+- (void)configureHeaderView {
+  NewTabPageHeaderView* headerView = self.headerView;
+  DCHECK(headerView);
   DCHECK(self.NTPMediator);
   DCHECK(self.NTPMetricsRecorder);
 
-  headerViewController.isGoogleDefaultSearchEngine =
-      [self isGoogleDefaultSearchEngine];
+  headerView.isGoogleDefaultSearchEngine = [self isGoogleDefaultSearchEngine];
 
   CommandDispatcher* dispatcher = self.browser->GetCommandDispatcher();
-  headerViewController.fakeboxFocuserHandler =
+  headerView.fakeboxFocuserHandler =
       HandlerForProtocol(dispatcher, FakeboxFocuser);
-  headerViewController.helpHandler =
-      HandlerForProtocol(dispatcher, HelpCommands);
+  headerView.helpHandler = HandlerForProtocol(dispatcher, HelpCommands);
 
-  headerViewController.NTPShortcutsHandler = self;
+  headerView.NTPShortcutsHandler = self;
 
-  headerViewController.commandHandler = self;
-  headerViewController.delegate = self.NTPViewController;
-  headerViewController.layoutGuideCenter =
-      LayoutGuideCenterForBrowser(self.browser);
-  headerViewController.toolbarDelegate = self.toolbarDelegate;
-  headerViewController.baseViewController = self.baseViewController;
-  headerViewController.NTPMetricsRecorder = self.NTPMetricsRecorder;
-  headerViewController.mutator = self.NTPMediator;
-  [headerViewController setSearchEngineLogoMediator:_searchEngineLogoMediator];
+  headerView.commandHandler = self;
+  headerView.delegate = self.NTPViewController;
+  self.NTPViewController.headerView = headerView;
+  headerView.layoutGuideCenter = LayoutGuideCenterForBrowser(self.browser);
+  headerView.toolbarDelegate = self.toolbarDelegate;
+  headerView.mutator = self.NTPMediator;
+  [headerView setupSubviews];
+  [headerView setSearchEngineLogoMediator:_searchEngineLogoMediator];
 }
 
 // Configures `self.contentSuggestionsCoordinator`.
@@ -793,11 +783,12 @@
   NTPMediator.feedVisibilityObserver = self;
   NTPMediator.feedControlDelegate = self;
   NTPMediator.NTPContentDelegate = self;
-  NTPMediator.headerConsumer = self.headerViewController;
+  NTPMediator.headerConsumer = self.headerView;
   NTPMediator.consumer = self.NTPViewController;
   PlaceholderService* placeholderService =
       ios::PlaceholderServiceFactory::GetForProfile(self.profile);
   NTPMediator.placeholderService = placeholderService;
+  NTPMediator.imageUpdater = self.headerView;
 
   [NTPMediator setUp];
 }
@@ -832,8 +823,6 @@
   self.NTPViewController.overscrollDelegate = self;
   self.NTPViewController.NTPContentDelegate = self;
 
-  self.NTPViewController.headerViewController = self.headerViewController;
-
   [self configureMainViewControllerUsing:self.NTPViewController];
   self.NTPViewController.feedMetricsRecorder = self.feedMetricsRecorder;
   self.NTPViewController.helpHandler =
@@ -851,8 +840,7 @@
   _tabGroupIndicatorCoordinator.toolbarHeightDelegate = nil;
   _tabGroupIndicatorCoordinator.displayedOnNTP = YES;
   [_tabGroupIndicatorCoordinator start];
-  [self.headerViewController
-      setTabGroupIndicatorView:_tabGroupIndicatorCoordinator.view];
+  self.headerView.tabGroupIndicatorView = _tabGroupIndicatorCoordinator.view;
 }
 
 // Configures the main ViewController managed by this Coordinator.
@@ -961,7 +949,7 @@
   }
 
   // Hide the 'new' badge for the current session after being tapped.
-  [self.headerViewController hideBadgeOnCustomizationMenu];
+  [self.headerView hideBadgeOnCustomizationMenu];
 
   [self.NTPMetricsRecorder recordHomeCustomizationMenuOpenedFromEntrypoint:
                                HomeCustomizationEntrypoint::kMain];
@@ -1064,7 +1052,7 @@
   [self cancelOmniboxEdit];
   [self.NTPViewController setContentOffsetToTop];
 
-  _headerViewController.isGoogleDefaultSearchEngine =
+  self.headerView.isGoogleDefaultSearchEngine =
       [self isGoogleDefaultSearchEngine];
 }
 
@@ -1242,7 +1230,7 @@
         self.browser->GetCommandDispatcher(), FakeboxFocuser);
     [fakeboxFocuserHandler focusOmniboxFromFakebox:_fakeboxTapped
                                             pinned:[self isFakeboxPinned]
-                    fakeboxButtonsSnapshotProvider:self.headerViewController];
+                    fakeboxButtonsSnapshotProvider:self.headerView];
   }
 }
 
@@ -1434,7 +1422,7 @@
 
 - (CGFloat)headerHeightForOverscrollActionsController:
     (OverscrollActionsController*)controller {
-  CGFloat height = [self.headerViewController toolBarView].bounds.size.height;
+  CGFloat height = [self.headerView toolBarView].bounds.size.height;
   CGFloat topInset = self.feedWrapperViewController.view.safeAreaInsets.top;
   return height + topInset;
 }
@@ -1463,7 +1451,7 @@
                fromInitStage:(ProfileInitStage)fromInitStage {
   if (nextInitStage == ProfileInitStage::kFinal) {
     self.NTPViewController.focusAccessibilityOmniboxWhenViewAppears = YES;
-    [self.headerViewController focusAccessibilityOnOmnibox];
+    [self.headerView focusAccessibilityOnOmnibox];
 
     [profileState removeObserver:self];
   }
@@ -1547,14 +1535,6 @@
     (AccountMenuCoordinator*)coordinator {
   CHECK_EQ(_accountMenuCoordinator, coordinator, base::NotFatalUntil::M140);
   [self stopAccountMenuCoordinator];
-}
-
-#pragma mark - ComposeboxMenuCoordinatorDelegate
-
-- (void)composeboxMenuCoordinatorDidDismissMenu:
-    (ComposeboxMenuCoordinator*)composeboxMenuCoordinator {
-  [_composeboxMenuCoordinator stop];
-  _composeboxMenuCoordinator = nil;
 }
 
 #pragma mark - Private
@@ -1995,21 +1975,8 @@
       !_aimEligibilityService->IsFuseboxEligible()) {
     [self openAIMWeb];
   }
-
-  if (IsComposeboxPlusButtonBottomSheet()) {
-    [_composeboxMenuCoordinator stop];
-    _composeboxMenuCoordinator = [[ComposeboxMenuCoordinator alloc]
-        initWithBaseViewController:self.viewController
-                           browser:self.browser
-                        entrypoint:ComposeboxEntrypoint::kNTPPlusButton];
-    _composeboxMenuCoordinator.delegate = self;
-    [_composeboxMenuCoordinator start];
-  } else if (MaybeShowComposebox(self.browser,
-                                 ComposeboxEntrypoint::kNTPPlusButton)) {
-    return;
-  } else {
-    [self openAIMWeb];
-  }
+  [HandlerForProtocol(self.browser->GetCommandDispatcher(),
+                      BrowserCoordinatorCommands) showMultimodalActionsMenu];
 }
 
 #pragma mark - TabGridStateObserver
@@ -2053,7 +2020,7 @@
   }
 
   // Hide the 'new' badge for the current session after being tapped.
-  [self.headerViewController hideBadgeOnCustomizationMenu];
+  [self.headerView hideBadgeOnCustomizationMenu];
 
   [self.NTPMetricsRecorder recordHomeCustomizationMenuOpenedFromEntrypoint:
                                HomeCustomizationEntrypoint::kPromo];

@@ -108,6 +108,10 @@ V8OffscreenRenderingContext* GPUCanvasContext::AsV8OffscreenRenderingContext() {
   return MakeGarbageCollected<V8OffscreenRenderingContext>(this);
 }
 
+bool GPUCanvasContext::IsOpaque() const {
+  return GetAlphaType() == kOpaque_SkAlphaType;
+}
+
 SkAlphaType GPUCanvasContext::GetAlphaType() const {
   if (!swap_buffers_) {
     return kPremul_SkAlphaType;
@@ -375,7 +379,8 @@ ImageBitmap* GPUCanvasContext::TransferToImageBitmap(
   return MakeGarbageCollected<ImageBitmap>(
       AcceleratedStaticBitmapImage::CreateFromCanvasSharedImage(
           std::move(client_si), sk_image_sync_token, kPremul_SkAlphaType,
-          GetContextProviderWeakPtr(), base::PlatformThread::CurrentRef(),
+          swap_buffers_->GetHDRMetadata(), GetContextProviderWeakPtr(),
+          base::PlatformThread::CurrentRef(),
           ThreadScheduler::Current()->CleanupTaskRunner(),
           std::move(release_callback)));
 }

@@ -77,6 +77,13 @@ public class WebSigninRedirectCoordinator {
      */
     public void initializeWebSigninAndRedirect(
             Tab tab, String email, GURL continueUrl, GURL initialTabURL) {
+        // If we are forcing the dialog to be shown (e.g. for testing), don't destroy it if
+        // initialize is called again.
+        if (SigninFeatureMap.isEnabled(SigninFeatures.FORCE_SHOW_WEB_SIGNIN_LOADING_DIALOG)
+                && mDialogState == DialogState.SHOWN) {
+            return;
+        }
+
         mInitializeStartTime = SystemClock.elapsedRealtime();
         mTab = tab;
         mContinueUrl = continueUrl;
@@ -100,6 +107,13 @@ public class WebSigninRedirectCoordinator {
      */
     public void initializeWebSigninAndRedirect(
             Tab tab, CoreAccountId accountId, GURL continueUrl, GURL initialTabURL) {
+        // If we are forcing the dialog to be shown (e.g. for testing), don't destroy it if
+        // initialize is called again.
+        if (SigninFeatureMap.isEnabled(SigninFeatures.FORCE_SHOW_WEB_SIGNIN_LOADING_DIALOG)
+                && mDialogState == DialogState.SHOWN) {
+            return;
+        }
+
         mInitializeStartTime = SystemClock.elapsedRealtime();
         mTab = tab;
         mContinueUrl = continueUrl;
@@ -136,12 +150,17 @@ public class WebSigninRedirectCoordinator {
                         DialogState.DISMISSED,
                         DialogState.NUM_ENTRIES);
             }
-            mDialogState = DialogState.DISMISSED;
+            // Reset dialog state to NOT_SHOWN in case the same coordinator is reused.
+            mDialogState = DialogState.NOT_SHOWN;
             if (mModel != null && mDialogManager != null) {
                 mDialogManager.dismissDialog(mModel, DialogDismissalCause.ACTION_ON_CONTENT);
                 mModel = null;
             }
         }
+        // Reset these outside the if block to ensure state is cleared even if dialog was not shown,
+        // in case the coordinator is reused.
+        mIsSigninResultReceived = false;
+        mMinShowTimePassed = false;
     }
 
     public void setTabForTesting(Tab tab) {
@@ -252,11 +271,17 @@ public class WebSigninRedirectCoordinator {
                         + getWebSigninTrackerResultString(result),
                 SystemClock.elapsedRealtime() - mInitializeStartTime);
 
+        if (SigninFeatureMap.isEnabled(SigninFeatures.FORCE_SHOW_WEB_SIGNIN_LOADING_DIALOG)) {
+            return;
+        }
+
         destroy();
 
         switch (result) {
             case WebSigninTrackerResult.SUCCESS:
-                if (!mTab.isDestroyed() && mTab.getUrl().equals(mInitialTabURL)) {
+                if (!mTab.isDestroyed()
+                        && mTab.getWebContents() != null
+                        && mTab.getWebContents().getLastCommittedUrl().equals(mInitialTabURL)) {
                     mTab.loadUrl(new LoadUrlParams(mContinueUrl));
                 }
                 break;

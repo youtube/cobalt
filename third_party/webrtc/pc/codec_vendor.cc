@@ -214,6 +214,7 @@ RTCError MergeRtxCodec(const CodecConfiguration& config,
 }
 
 RTCError MergeRedCodec(const CodecConfiguration& config,
+                       const Codec& primary_codec,
                        absl::string_view mid,
                        CodecList& offered_codecs,
                        PayloadTypeSuggester& pt_suggester,
@@ -224,16 +225,36 @@ RTCError MergeRedCodec(const CodecConfiguration& config,
   auto red_it = absl::c_find_if(offered_codecs, [&](const Codec& c) {
     return c.name == kRedCodecName && c.type == config.codec.type;
   });
+
+  Codec red;
+  bool newly_created = false;
   if (red_it == offered_codecs.end()) {
-    Codec red = (config.codec.type == Codec::Type::kAudio)
-                    ? CreateAudioCodec({kRedCodecName, 48000, 2})
-                    : CreateVideoCodec(kRedCodecName);
+    red = (config.codec.type == Codec::Type::kAudio)
+              ? CreateAudioCodec({kRedCodecName, 48000, 2})
+              : CreateVideoCodec(kRedCodecName);
     RTCErrorOr<PayloadType> result =
         pt_suggester.SuggestPayloadType(mid, red, pick_from_top_of_range);
     if (!result.ok()) {
       return result.MoveError();
     }
     red.id = result.value();
+    newly_created = true;
+  } else {
+    red = *red_it;
+  }
+
+  if (config.codec.type == Codec::Type::kAudio &&
+      absl::EqualsIgnoreCase(config.codec.name, kOpusCodecName)) {
+    if (red.params.empty()) {
+      StringBuilder param;
+      // Opus RED uses Opus as both the primary payload and
+      // the redundancy payload, with different timestamp offsets.
+      param << primary_codec.id.value() << "/" << primary_codec.id.value();
+      red.SetParam(kCodecParamNotInNameValueFormat, param.str());
+    }
+  }
+
+  if (newly_created) {
     offered_codecs.push_back(red);
 
     if (config.codec.type == Codec::Type::kVideo) {
@@ -254,6 +275,9 @@ RTCError MergeRedCodec(const CodecConfiguration& config,
         RTC_DCHECK(rtx_res.error().type() == RTCErrorType::RESOURCE_EXHAUSTED);
       }
     }
+  } else if (red_it != offered_codecs.end()) {
+    // Update the codec in the list if it was modified
+    *red_it = red;
   }
   return RTCError::OK();
 }
@@ -320,7 +344,9 @@ RTCError MergeCodecsFromConfigurations(
     const FieldTrialsView& trials,
     bool pick_from_top_of_range = false) {
   RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
-  for (const auto& config : configurations) {
+
+  // Pass 1: Primary and RTX
+  for (const CodecConfiguration& config : configurations) {
     // 1. Find or add primary codec
     auto primary_it = absl::c_find_if(offered_codecs, [&](const Codec& c) {
       return MatchesWithCodecRules(config.codec, c);
@@ -346,16 +372,39 @@ RTCError MergeCodecsFromConfigurations(
       return error;
     }
 
-    // 3. Handle RED
-    error = MergeRedCodec(config, mid, offered_codecs, pt_suggester,
-                          pick_from_top_of_range);
+    // Handle Audio RED immediately after the primary codec.
+    if (config.codec.type == Codec::Type::kAudio && config.resiliency.red) {
+      error = MergeRedCodec(config, primary_codec, mid, offered_codecs,
+                            pt_suggester, pick_from_top_of_range);
+      if (!error.ok()) {
+        return error;
+      }
+    }
+  }
+
+  // Pass 2: RED for Video
+  for (const CodecConfiguration& config : configurations) {
+    if (!config.resiliency.red || config.codec.type == Codec::Type::kAudio) {
+      continue;
+    }
+    // Find the primary codec in offered_codecs to pass to MergeRedCodec.
+    auto primary_it = absl::c_find_if(offered_codecs, [&](const Codec& c) {
+      return MatchesWithCodecRules(config.codec, c);
+    });
+    RTC_DCHECK(primary_it != offered_codecs.end());
+
+    RTCError error = MergeRedCodec(config, *primary_it, mid, offered_codecs,
+                                   pt_suggester, pick_from_top_of_range);
     if (!error.ok()) {
       return error;
     }
+  }
 
+  // Pass 3: FEC (ULPFEC + FlexFEC)
+  for (const CodecConfiguration& config : configurations) {
     // 4. Handle ULPFEC
-    error = MergeUlpfecCodec(config, mid, offered_codecs, pt_suggester,
-                             pick_from_top_of_range);
+    RTCError error = MergeUlpfecCodec(config, mid, offered_codecs, pt_suggester,
+                                      pick_from_top_of_range);
     if (!error.ok()) {
       return error;
     }
@@ -367,6 +416,7 @@ RTCError MergeCodecsFromConfigurations(
       return error;
     }
   }
+
   return RTCError::OK();
 }
 
@@ -771,6 +821,8 @@ void LinkRed(std::vector<Codec>& codecs) {
           absl::EqualsIgnoreCase(codec.name, kRedCodecName)) {
         if (codec.params.empty()) {
           StringBuilder param;
+          // Opus RED uses Opus as both the primary payload and
+          // the redundancy payload, with different timestamp offsets.
           param << first_opus_pt << "/" << first_opus_pt;
           codec.SetParam(kCodecParamNotInNameValueFormat, param.str());
         }
@@ -835,7 +887,6 @@ RTCError AssignCodecIdsAndLinkRedRefactored(
     }
   }
 
-  LinkRed(codecs);
   return RTCError::OK();
 }
 
@@ -991,10 +1042,10 @@ RTCErrorOr<std::vector<Codec>> CodecVendor::GetNegotiatedCodecsForOffer(
         if (!IsMediaContentOfType(current_content,
                                   media_description_options.type)) {
           // Can happen if the remote side re-uses a MID while recycling.
-          return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
-                           << "Media type for content with mid='"
-                           << current_content->mid()
-                           << "' does not match expected type.");
+          return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                               << "Media type for content with mid='"
+                               << current_content->mid()
+                               << "' does not match expected type.");
         }
         const MediaContentDescription* mcd =
             current_content->media_description();
@@ -1157,10 +1208,10 @@ RTCErrorOr<Codecs> CodecVendor::GetNegotiatedCodecsForAnswer(
         if (!IsMediaContentOfType(current_content,
                                   media_description_options.type)) {
           // Can happen if the remote side re-uses a MID while recycling.
-          return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
-                           << "Media type for content with mid='"
-                           << current_content->mid()
-                           << "' does not match expected type.");
+          return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                               << "Media type for content with mid='"
+                               << current_content->mid()
+                               << "' does not match expected type.");
         }
         const MediaContentDescription* mcd =
             current_content->media_description();
@@ -1387,9 +1438,9 @@ void CodecVendor::ModifyVideoCodecs(
     const std::vector<std::pair<Codec, Codec>>& changes) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
+  RTC_DCHECK(!payload_types_in_transport_);
   // For each codec in the first element that occurs in our supported codecs,
   // replace it with the codec in the second element. Exact matches only.
-  // Note: This needs further work to work with PT late assignment.
   for (const std::pair<Codec, Codec>& change : changes) {
     {
       CodecList send_codecs = video_send_codecs_.codecs();
@@ -1418,6 +1469,14 @@ void CodecVendor::ModifyVideoCodecs(
       }
     }
   }
+}
+
+void CodecVendor::SetRawPacketization(const Codec& codec) {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
+  RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
+  RTC_DCHECK(payload_types_in_transport_);
+  video_send_codecs_.SetRawPacketization(codec);
+  video_recv_codecs_.SetRawPacketization(codec);
 }
 
 }  // namespace webrtc

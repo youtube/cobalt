@@ -11,6 +11,7 @@
 #define RTC_TOOLS_RTC_EVENT_LOG_VISUALIZER_LOG_SCREAM_SIMULATION_H_
 
 #include <cstdint>
+#include <deque>
 #include <optional>
 #include <vector>
 
@@ -67,7 +68,13 @@ class LogScreamSimulation {
     double ref_window_combined_increase_scale_factor = 0.0;
     double l4s_alpha = 0.0;
     double l4s_alpha_v = 0.0;
-    double loss_event_rate = 0.0;
+    double loss_congestion_level = 0.0;
+    int packets_lost_per_rtt = 0;
+    int packets_recovered_per_rtt = 0;
+    int ce_marked_per_rtt = 0;
+    int packets_lost_per_feedback = 0;
+    int packets_recovered_per_feedback = 0;
+    int ce_marked_per_feedback = 0;
   };
 
   struct Config {
@@ -104,6 +111,14 @@ class LogScreamSimulation {
   int64_t next_ccfb_packet_id_ = 0;
   std::optional<IceCandidateType> local_candidate_type_;
   std::optional<IceCandidateType> remote_candidate_type_;
+
+  struct FeedbackEvent {
+    Timestamp time;
+    int lost_count = 0;
+    int recovered_count = 0;
+    int ce_marked_count = 0;
+  };
+  std::deque<FeedbackEvent> feedback_history_;
 
   std::vector<State> state_;
 };

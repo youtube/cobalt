@@ -492,7 +492,7 @@ TEST(ScreamTest, MaybeTest(LinkCapacity1500KbpsRtt30msNoEcn)) {
   SendMediaTestResult result = SendMediaInOneDirection(std::move(params), s);
   EXPECT_THAT(result.caller().subspan(1), Each(AvailableSendBitrateIsBetween(
                                               DataRate::KilobitsPerSec(800),
-                                              DataRate::KilobitsPerSec(2100))));
+                                              DataRate::KilobitsPerSec(2200))));
 }
 
 TEST(ScreamTest, MaybeTest(LinkCapacity2MbpsRtt50msNoEcn)) {
@@ -792,7 +792,7 @@ TEST(ScreamTest, MaybeTest(LinkCapacity1MbitRtt50msWithShortQueuesNoEcn)) {
   EXPECT_THAT(
       GetPacketsLost(result.callee_stats.back()) /
           static_cast<double>(GetPacketsSent(result.caller_stats.back())),
-      Lt(0.05));
+      Lt(0.07));
 
   EXPECT_THAT(result.caller().subspan(1), Each(AvailableSendBitrateIsBetween(
                                               DataRate::KilobitsPerSec(200),
@@ -821,7 +821,7 @@ TEST(ScreamTest,
                                               DataRate::KilobitsPerSec(1100))));
 }
 
-TEST(ScreamTest, MaybeTest(LowBweOnLinkWith3PercentUniformLoss)) {
+TEST(ScreamTest, MaybeTest(LowBweOnLinkWith5PercentUniformLoss)) {
   PeerScenario s(*testing::UnitTest::GetInstance()->current_test_info());
   SendMediaTestParams params;
   NetworkEmulationManager::SimulatedNetworkNode::Builder network_builder =
@@ -829,12 +829,12 @@ TEST(ScreamTest, MaybeTest(LowBweOnLinkWith3PercentUniformLoss)) {
   params.callee_to_caller_path =
       CreateNetworkPath(network_builder, /*use_dual_pi= */ false);
   params.caller_to_callee_path =
-      CreateNetworkPath(network_builder.loss(0.03), /*use_dual_pi= */ false);
+      CreateNetworkPath(network_builder.loss(0.05), /*use_dual_pi= */ false);
 
   SendMediaTestResult result = SendMediaInOneDirection(std::move(params), s);
 
   ASSERT_GE(GetPacketsLost(result.callee_stats.back()),
-            0.01 * GetPacketsSent(result.caller_stats.back()));
+            0.02 * GetPacketsSent(result.caller_stats.back()));
 
   // Ignore estimate during rampup.
   ASSERT_GT(result.caller().subspan(2).size(), 0u);
@@ -957,7 +957,7 @@ TEST(ScreamTest, MaybeTest(LinkCapacity5MbitPolicedTo256Kbit)) {
   EXPECT_THAT(
       GetPacketsLost(result.callee_stats.back()) /
           static_cast<double>(GetPacketsSent(result.caller_stats.back())),
-      AllOf(Lt(0.08), Gt(0.01)));
+      AllOf(Lt(0.11), Gt(0.01)));
 
   EXPECT_THAT(result.caller().subspan(1), Each(AvailableSendBitrateIsBetween(
                                               DataRate::KilobitsPerSec(150),

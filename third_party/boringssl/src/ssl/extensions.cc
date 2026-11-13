@@ -726,9 +726,12 @@ static bool ext_ri_add_clienthello(const SSL_HANDSHAKE *hs, CBB *out,
 static bool ext_ri_parse_serverhello(SSL_HANDSHAKE *hs, uint8_t *out_alert,
                                      CBS *contents) {
   SSL *const ssl = hs->ssl;
-  if (contents != nullptr && ssl_protocol_version(ssl) >= TLS1_3_VERSION) {
-    *out_alert = SSL_AD_ILLEGAL_PARAMETER;
-    return false;
+  if (ssl_protocol_version(ssl) >= TLS1_3_VERSION) {
+    if (contents != nullptr) {
+      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
+      return false;
+    }
+    return true;
   }
 
   // Servers may not switch between omitting the extension and supporting it.
@@ -744,10 +747,13 @@ static bool ext_ri_parse_serverhello(SSL_HANDSHAKE *hs, uint8_t *out_alert,
     // Strictly speaking, if we want to avoid an attack we should *always* see
     // RI even on initial ServerHello because the client doesn't see any
     // renegotiation during an attack. However this would mean we could not
-    // connect to any server which doesn't support RI.
-    //
-    // OpenSSL has |SSL_OP_LEGACY_SERVER_CONNECT| to control this, but in
-    // practical terms every client sets it so it's just assumed here.
+    // connect to any server which doesn't support RI. See RFC 5746,
+    // section 4.1.
+    if (!(ssl->options & SSL_OP_LEGACY_SERVER_CONNECT)) {
+      OPENSSL_PUT_ERROR(SSL, SSL_R_UNSAFE_LEGACY_RENEGOTIATION_DISABLED);
+      *out_alert = SSL_AD_HANDSHAKE_FAILURE;
+      return false;
+    }
     return true;
   }
 
@@ -808,6 +814,7 @@ static bool ext_ri_parse_clienthello(SSL_HANDSHAKE *hs, uint8_t *out_alert,
   }
 
   if (contents == nullptr) {
+    // Permit clients to omit the extension. We never renegotiate as a server.
     return true;
   }
 
@@ -3329,7 +3336,7 @@ static bool cert_compression_parse_clienthello(SSL_HANDSHAKE *hs,
     return true;
   }
 
-  const SSL_CTX *ctx = hs->ssl->ctx.get();
+  const SSLContext *ctx = hs->ssl->ctx.get();
   const size_t num_algs = ctx->cert_compression_algs.size();
 
   CBS alg_ids;
@@ -4918,7 +4925,7 @@ static enum ssl_ticket_aead_result_t ssl_decrypt_ticket_with_cb(
 static enum ssl_ticket_aead_result_t ssl_decrypt_ticket_with_ticket_keys(
     SSL_HANDSHAKE *hs, Array<uint8_t> *out, Span<const uint8_t> ticket) {
   assert(ticket.size() >= SSL_TICKET_KEY_NAME_LEN + EVP_MAX_IV_LENGTH);
-  SSL_CTX *ctx = hs->ssl->session_ctx.get();
+  SSLContext *ctx = hs->ssl->session_ctx.get();
 
   // Rotate the ticket key if necessary.
   if (!ssl_ctx_rotate_ticket_encryption_key(ctx)) {

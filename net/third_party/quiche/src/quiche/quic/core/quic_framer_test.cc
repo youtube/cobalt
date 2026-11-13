@@ -611,10 +611,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     return token == kTestStatelessResetToken;
   }
 
-  void OnAuthenticatedIetfStatelessResetPacket(
-      const QuicIetfStatelessResetPacket& packet) override {
-    stateless_reset_packet_ =
-        std::make_unique<QuicIetfStatelessResetPacket>(packet);
+  void OnAuthenticatedIetfStatelessResetPacket() override {
     EXPECT_EQ(0u, framer_->current_received_frame_type());
   }
 
@@ -657,7 +654,6 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   bool accept_public_header_;
 
   std::unique_ptr<QuicPacketHeader> header_;
-  std::unique_ptr<QuicIetfStatelessResetPacket> stateless_reset_packet_;
   std::unique_ptr<QuicVersionNegotiationPacket> version_negotiation_packet_;
   std::unique_ptr<QuicConnectionId> retry_original_connection_id_;
   std::unique_ptr<QuicConnectionId> retry_new_connection_id_;
@@ -3617,7 +3613,7 @@ TEST_P(QuicFramerTest, AckFrameTwoTimeStampsMultipleAckBlocks) {
        // Receive Timestamps.
        { "Unable to read receive timestamp range count.",
          { kVarInt62OneByte + 0x01 }},
-       { "Unable to read receive timestamp gap.",
+       { "Unable to read receive timestamp delta largest acked.",
          { kVarInt62OneByte + 0x01 }},
        { "Unable to read receive timestamp count.",
          { kVarInt62OneByte + 0x02 }},
@@ -3690,7 +3686,7 @@ TEST_P(QuicFramerTest, AckFrameMultipleReceiveTimestampRanges) {
          { kVarInt62OneByte + 0x03 }},
 
        // Timestamp range 1 (three packets).
-       { "Unable to read receive timestamp gap.",
+       { "Unable to read receive timestamp delta largest acked.",
          { kVarInt62OneByte + 0x02 }},
        { "Unable to read receive timestamp count.",
          { kVarInt62OneByte + 0x03 }},
@@ -3702,16 +3698,16 @@ TEST_P(QuicFramerTest, AckFrameMultipleReceiveTimestampRanges) {
          { kVarInt62OneByte + 0x01}},
 
        // Timestamp range 2 (one packet).
-       { "Unable to read receive timestamp gap.",
-         { kVarInt62OneByte + 0x05 }},
+       { "Unable to read receive timestamp delta largest acked.",
+         { kVarInt62OneByte + 0x0b }},
        { "Unable to read receive timestamp count.",
          { kVarInt62OneByte + 0x01 }},
        { "Unable to read receive timestamp delta.",
          { kVarInt62TwoBytes + 0x10, 0x00 }},
 
        // Timestamp range 3 (two packets).
-       { "Unable to read receive timestamp gap.",
-         { kVarInt62OneByte + 0x08 }},
+       { "Unable to read receive timestamp delta largest acked.",
+         { kVarInt62OneByte + 0x15 }},
        { "Unable to read receive timestamp count.",
          { kVarInt62OneByte + 0x02 }},
        { "Unable to read receive timestamp delta.",
@@ -3780,7 +3776,7 @@ TEST_P(QuicFramerTest, AckFrameReceiveTimestampWithExponent) {
        // Receive Timestamps.
        { "Unable to read receive timestamp range count.",
          { kVarInt62OneByte + 0x01 }},
-       { "Unable to read receive timestamp gap.",
+       { "Unable to read receive timestamp delta largest acked.",
          { kVarInt62OneByte + 0x00 }},
        { "Unable to read receive timestamp count.",
          { kVarInt62OneByte + 0x03 }},
@@ -3848,7 +3844,7 @@ TEST_P(QuicFramerTest, AckFrameReceiveTimestampGapTooHigh) {
        // Receive Timestamps.
        { "Unable to read receive timestamp range count.",
          { kVarInt62OneByte + 0x01 }},
-       { "Unable to read receive timestamp gap.",
+       { "Unable to read receive timestamp delta largest acked.",
          { kVarInt62FourBytes + 0x12, 0x34, 0x56, 0x79 }},
        { "Unable to read receive timestamp count.",
          { kVarInt62OneByte + 0x01 }},
@@ -3863,7 +3859,7 @@ TEST_P(QuicFramerTest, AckFrameReceiveTimestampGapTooHigh) {
   framer_.set_process_timestamps(true);
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
   EXPECT_TRUE(absl::StartsWith(framer_.detailed_error(),
-                               "Receive timestamp gap too high."));
+                               "Receive delta largest acked too high."));
 }
 
 TEST_P(QuicFramerTest, AckFrameReceiveTimestampCountTooHigh) {
@@ -3902,7 +3898,7 @@ TEST_P(QuicFramerTest, AckFrameReceiveTimestampCountTooHigh) {
        // Receive Timestamps.
        { "Unable to read receive timestamp range count.",
          { kVarInt62OneByte + 0x01 }},
-       { "Unable to read receive timestamp gap.",
+       { "Unable to read receive timestamp delta largest acked.",
          { kVarInt62OneByte + 0x02 }},
        { "Unable to read receive timestamp count.",
          { kVarInt62OneByte + 0x02 }},
@@ -3958,7 +3954,7 @@ TEST_P(QuicFramerTest, AckFrameReceiveTimestampDeltaTooHigh) {
        // Receive Timestamps.
        { "Unable to read receive timestamp range count.",
          { kVarInt62OneByte + 0x01 }},
-       { "Unable to read receive timestamp gap.",
+       { "Unable to read receive timestamp delta largest acked.",
          { kVarInt62OneByte + 0x02 }},
        { "Unable to read receive timestamp count.",
          { kVarInt62FourBytes + 0x12, 0x34, 0x56, 0x77 }},
@@ -5287,9 +5283,6 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacket) {
   QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
   ASSERT_THAT(framer_.error(), IsQuicNoError());
-  ASSERT_TRUE(visitor_.stateless_reset_packet_.get());
-  EXPECT_EQ(kTestStatelessResetToken,
-            visitor_.stateless_reset_packet_->stateless_reset_token);
 }
 
 TEST_P(QuicFramerTest, IetfStatelessResetPacketInvalidStatelessResetToken) {
@@ -5325,7 +5318,6 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacketInvalidStatelessResetToken) {
   QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
   EXPECT_THAT(framer_.error(), IsError(QUIC_DECRYPTION_FAILURE));
-  ASSERT_FALSE(visitor_.stateless_reset_packet_);
 }
 
 TEST_P(QuicFramerTest, VersionNegotiationPacketClient) {
@@ -6473,7 +6465,7 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameMultipleRanges) {
       kVarInt62OneByte + 0x03,
 
       // Timestamp range 1 (three packets).
-      // Gap
+      // Delta Largest Acknowledged
       kVarInt62OneByte + 0x02,
       // Timestamp Range Count
       kVarInt62OneByte + 0x03,
@@ -6489,8 +6481,8 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameMultipleRanges) {
       kVarInt62OneByte + 0x01,
 
       // Timestamp range 2 (one packet).
-      // Gap
-      kVarInt62OneByte + 0x05,
+      // Delta Largest Acknowledged
+      kVarInt62OneByte + 0x0b,
       // Timestamp Range Count
       kVarInt62OneByte + 0x01,
       // Timestamp Delta
@@ -6498,8 +6490,8 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameMultipleRanges) {
       0x00,
 
       // Timestamp range 3 (two packets).
-      // Gap
-      kVarInt62OneByte + 0x08,
+      // Delta Largest Acknowledged
+      kVarInt62OneByte + 0x15,
       // Timestamp Range Count
       kVarInt62OneByte + 0x02,
       // Timestamp Delta
@@ -6583,7 +6575,7 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameExceedsMaxTimestamps) {
       kVarInt62OneByte + 0x02,
 
       // Timestamp range 1 (three packets).
-      // Gap
+      // Delta Largest Acknowledged
       kVarInt62OneByte + 0x00,
       // Timestamp Range Count
       kVarInt62OneByte + 0x03,
@@ -6599,8 +6591,8 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameExceedsMaxTimestamps) {
       kVarInt62OneByte + 0x01,
 
       // Timestamp range 2 (one packet).
-      // Gap
-      kVarInt62OneByte + 0x05,
+      // Delta Largest Acknowledged
+      kVarInt62OneByte + 0x09,
       // Timestamp Range Count
       kVarInt62OneByte + 0x01,
       // Timestamp Delta
@@ -6682,7 +6674,7 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameWithExponentEncoding) {
       kVarInt62OneByte + 0x02,
 
       // Timestamp range 1 (three packets).
-      // Gap
+      // Delta Largest Acknowledged
       kVarInt62OneByte + 0x02,
       // Timestamp Range Count
       kVarInt62OneByte + 0x04,
@@ -6699,8 +6691,8 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameWithExponentEncoding) {
       kVarInt62OneByte + 0x01,
 
       // Timestamp range 2 (one packet).
-      // Gap
-      kVarInt62OneByte + 0x04,
+      // Delta Largest Acknowledged
+      kVarInt62OneByte + 0x0b,
       // Timestamp Range Count
       kVarInt62OneByte + 0x02,
       // Timestamp Delta

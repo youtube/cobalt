@@ -41,8 +41,6 @@ ci/Linux Tests
 ci/Linux Tests (dbg)(1)
 ci/Linux UBSan Builder
 ci/Linux UBSan Tests
-ci/MSAN Release (chained origins)
-ci/MSAN Release (no origins)
 ci/Mac ASAN Release
 ci/Mac ASAN Release Media
 ci/Mac ASan 64 Builder
@@ -104,6 +102,7 @@ ci/linux-chromeos-dbg
 ci/linux-chromeos-rel
 ci/linux-extended-tracing-rel
 ci/linux-gcc-rel
+ci/linux-no-initial-webui-rel
 ci/linux-oi-rel
 ci/linux-presubmit
 ci/linux-v4l2-codec-rel

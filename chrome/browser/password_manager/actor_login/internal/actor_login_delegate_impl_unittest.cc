@@ -19,7 +19,8 @@
 #include "chrome/browser/password_manager/actor_login/actor_login_permission_cleaning_service_factory.h"
 #include "chrome/browser/password_manager/actor_login/actor_login_permission_service_factory.h"
 #include "chrome/browser/password_manager/actor_login/internal/actor_login_siwg_controller.h"
-#include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
+#include "chrome/browser/password_manager/actor_login/internal/fake_actor_login_delegate_client.h"
+#include "chrome/common/buildflags.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
@@ -27,6 +28,8 @@
 #include "components/autofill/core/common/autofill_test_utils.h"
 #include "components/device_reauth/device_authenticator.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_types.h"
+#include "components/password_manager/core/browser/actor_login/internal/actor_login_credentials_fetcher.h"
+#include "components/password_manager/core/browser/actor_login/internal/actor_login_delegate_client.h"
 #include "components/password_manager/core/browser/actor_login/internal/actor_login_metrics_helper.h"
 #include "components/password_manager/core/browser/actor_login/internal/actor_login_permission_cleaning_service.h"
 #include "components/password_manager/core/browser/actor_login/test/actor_login_test_util.h"
@@ -225,27 +228,19 @@ class ActorLoginDelegateImplTest : public ChromeRenderViewHostTestHarness {
     content::NavigationSimulator::NavigateAndCommitFromBrowser(
         web_contents_.get(), GURL(kTestUrl));
 
+    delegate_client_ = std::make_unique<FakeActorLoginDelegateClient>(
+        profile(), web_contents_.get(), test_origin_, &mock_driver_);
+
     mock_tab_interface_ = std::make_unique<tabs::MockTabInterface>();
     tabs::TabLookupFromWebContents::CreateForWebContents(
         web_contents_.get(), mock_tab_interface_.get());
 
-    ON_CALL(*mock_tab_interface_, GetBrowserWindowInterface())
-        .WillByDefault(Return(&mock_browser_window_interface_));
-    ON_CALL(*mock_tab_interface_, IsActivated).WillByDefault(Return(true));
-
     delegate_ = static_cast<ActorLoginDelegateImpl*>(
-        ActorLoginDelegateImpl::GetOrCreateForTesting(
-            web_contents_.get(), &client_,
-            base::BindRepeating(
-                [](MockPasswordManagerDriver* driver, content::WebContents*)
-                    -> PasswordManagerDriver* { return driver; },
-                base::Unretained(&mock_driver_))));
+        ActorLoginDelegateImpl::GetOrCreate(web_contents_.get(),
+                                            delegate_client_.get(), &client_));
 
     client_.profile_store()->Init();
     client_.account_store()->Init();
-
-    ON_CALL(mock_browser_window_interface_, GetUnownedUserDataHost)
-        .WillByDefault(::testing::ReturnRef(user_data_host_));
   }
 
   void TearDown() override {
@@ -255,7 +250,11 @@ class ActorLoginDelegateImplTest : public ChromeRenderViewHostTestHarness {
 
     // Reset the raw pointer before it becomes dangling in
     // ChromeRenderViewHostTestHarness::TearDown()
+    if (delegate_) {
+      delegate_->OnContextDestroyed();
+    }
     delegate_ = nullptr;
+    delegate_client_.reset();
     web_contents_.reset();
     mock_tab_interface_.reset();
     ChromeRenderViewHostTestHarness::TearDown();
@@ -319,6 +318,7 @@ class ActorLoginDelegateImplTest : public ChromeRenderViewHostTestHarness {
 
  protected:
   FakePasswordManagerClient client_;
+  std::unique_ptr<FakeActorLoginDelegateClient> delegate_client_;
   // `raw_ptr` because `WebContentsUserData` owns it
   raw_ptr<ActorLoginDelegateImpl> delegate_ = nullptr;
   NiceMock<MockPasswordManager> mock_password_manager_;
@@ -335,11 +335,9 @@ class ActorLoginDelegateImplTest : public ChromeRenderViewHostTestHarness {
   NiceMock<MockActorLoginQualityLogger> mock_mqls_logger;
 
   // Tab setup
-  NiceMock<MockBrowserWindowInterface> mock_browser_window_interface_;
   base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<content::WebContents> web_contents_;
   std::unique_ptr<tabs::MockTabInterface> mock_tab_interface_;
-  ui::UnownedUserDataHost user_data_host_;
 };
 
 TEST_F(ActorLoginDelegateImplTest, GetCredentialsSuccess_FeatureOn) {
@@ -366,11 +364,8 @@ TEST_F(ActorLoginDelegateImplTest, GetCredentials_NullClient) {
   web_contents_->RemoveUserData(ActorLoginDelegateImpl::UserDataKey());
 
   // Create a delegate with nullptr client and nullptr driver.
-  auto* delegate = ActorLoginDelegateImpl::GetOrCreateForTesting(
-      web_contents_.get(), nullptr,
-      base::BindRepeating([](content::WebContents*) -> PasswordManagerDriver* {
-        return nullptr;
-      }));
+  auto* delegate = ActorLoginDelegateImpl::GetOrCreate(
+      web_contents_.get(), delegate_client_.get(), nullptr);
 
   base::test::TestFuture<CredentialsOrError> future;
   delegate->GetCredentials(/*has_sign_in_with_google_button=*/false,
@@ -393,13 +388,9 @@ TEST_F(ActorLoginDelegateImplTest, GetCredentials_NullClient_HasPasswords) {
   web_contents_->RemoveUserData(ActorLoginDelegateImpl::UserDataKey());
 
   // Create a delegate with nullptr client and nullptr driver.
-  auto* delegate = static_cast<ActorLoginDelegateImpl*>(
-      ActorLoginDelegateImpl::GetOrCreateForTesting(
-          web_contents_.get(), nullptr,
-          base::BindRepeating(
-              [](content::WebContents*) -> PasswordManagerDriver* {
-                return nullptr;
-              })));
+  auto* delegate =
+      static_cast<ActorLoginDelegateImpl*>(ActorLoginDelegateImpl::GetOrCreate(
+          web_contents_.get(), delegate_client_.get(), nullptr));
 
   base::test::TestFuture<CredentialsOrError> future;
   delegate->GetCredentials(/*has_sign_in_with_google_button=*/false,
@@ -661,7 +652,7 @@ TEST_F(ActorLoginDelegateImplTest,
   ASSERT_TRUE(future.Get().has_value());
 }
 
-TEST_F(ActorLoginDelegateImplTest, WebContentsDestroyedDuringAttemptLogin) {
+TEST_F(ActorLoginDelegateImplTest, ContextDestroyedDuringAttemptLogin) {
   base::test::ScopedFeatureList feature_list(
       password_manager::features::kActorLogin);
   GURL url = GURL(kTestUrl);
@@ -676,9 +667,8 @@ TEST_F(ActorLoginDelegateImplTest, WebContentsDestroyedDuringAttemptLogin) {
                           base::TimeTicks::Now(), future.GetCallback(),
                           /*action_sequence_delegate=*/nullptr);
 
+  delegate_->OnContextDestroyed();
   delegate_ = nullptr;
-  // This should invoke `WebContentsDestroyed`.
-  web_contents_.reset();
   task_environment()->RunUntilIdle();
   // The callback should never be invoked because the
   // delegate was destroyed.
@@ -719,8 +709,6 @@ TEST_F(ActorLoginDelegateImplTest, FillingReauthRequiredWindowNotActive) {
   EXPECT_CALL(mock_form_cache_, GetFormManagers)
       .WillRepeatedly(Return(base::span(form_managers)));
   EXPECT_CALL(client_, IsReauthBeforeFillingRequired).WillOnce(Return(true));
-
-  EXPECT_CALL(mock_browser_window_interface_, IsActive).WillOnce(Return(false));
 
   base::test::TestFuture<LoginStatusResultOrError> future;
   delegate_->AttemptLogin(credential, false, mqls_logger(),
@@ -1389,16 +1377,20 @@ TEST_F(ActorLoginDelegateImplTest,
   SetUpGetCredentialsDeps();
   EXPECT_CALL(mock_form_cache_, GetFormManagers());
 
-  auto* mock_permission_service = static_cast<MockActorLoginPermissionService*>(
-      ActorLoginPermissionServiceFactory::GetForProfile(profile()));
-  EXPECT_CALL(*mock_permission_service,
-              ListPermissions(An<const url::Origin&>(), _));
-
   base::test::TestFuture<CredentialsOrError> future;
   delegate_->GetCredentials(/*has_sign_in_with_google_button=*/true,
                             mqls_logger(), future.GetCallback());
 
   ASSERT_TRUE(future.Get().has_value());
+  ASSERT_EQ(future.Get().value().size(), 1u);
+
+  const Credential expected =
+      delegate_client_->GetExpectedFederatedCredentials()[0];
+  const Credential actual = future.Get().value()[0];
+  EXPECT_EQ(actual.username, expected.username);
+  EXPECT_EQ(actual.type, expected.type);
+  EXPECT_EQ(actual.source_site_or_app, expected.source_site_or_app);
+  EXPECT_EQ(actual.federation_detail, expected.federation_detail);
 }
 
 TEST_F(ActorLoginDelegateImplTest,
@@ -1411,17 +1403,12 @@ TEST_F(ActorLoginDelegateImplTest,
   SetUpGetCredentialsDeps();
   EXPECT_CALL(mock_form_cache_, GetFormManagers());
 
-  auto* mock_permission_service = static_cast<MockActorLoginPermissionService*>(
-      ActorLoginPermissionServiceFactory::GetForProfile(profile()));
-  EXPECT_CALL(*mock_permission_service,
-              ListPermissions(An<const url::Origin&>(), _))
-      .Times(0);
-
   base::test::TestFuture<CredentialsOrError> future;
   delegate_->GetCredentials(/*has_sign_in_with_google_button=*/false,
                             mqls_logger(), future.GetCallback());
 
   ASSERT_TRUE(future.Get().has_value());
+  EXPECT_TRUE(future.Get().value().empty());
 }
 
 TEST_F(ActorLoginDelegateImplTest, RemovedOnUserTakeover) {
@@ -1464,24 +1451,35 @@ TEST_F(ActorLoginDelegateImplTest, RemovedOnUserTakeover) {
       url::Origin::Create(GURL("https://accounts.google.com"));
   federation_detail.account_id = "12345";
 
+  EXPECT_FALSE(delegate_client_->has_on_released_callback());
+  EXPECT_FALSE(
+      delegate_client_->remove_federated_embedder_login_request_called());
+
   base::test::TestFuture<LoginStatusResultOrError> attempt_login_future;
   delegate_->AttemptLogin(credential, /*should_store_permission=*/false,
                           mqls_logger(), base::TimeTicks::Now(),
                           attempt_login_future.GetCallback(),
                           /*action_sequence_delegate=*/nullptr);
 
-  // Check that a FederatedEmbedderLoginRequest was set.
-  EXPECT_NE(nullptr,
-            content::webid::FederatedEmbedderLoginRequest::Get(test_contents));
+  // Verify that the delegate client's `RemoveFederatedEmbedderLoginRequest` has
+  // not been called yet.
+  ASSERT_TRUE(delegate_client_->has_on_released_callback());
+  EXPECT_FALSE(
+      delegate_client_->remove_federated_embedder_login_request_called());
+
+  // Simulate control state change to trigger the callback.
+  delegate_client_->TriggerControlStateReleasedCallback();
 
   // Stop the task, which should invoke the callback.
   actor_service->StopTaskForTesting(
       task_id, actor::ActorTask::StoppedReason::kStoppedByUser);
   ASSERT_TRUE(attempt_login_future.Wait());
 
-  // Verify that the FederatedEmbedderLoginRequest is no longer set.
-  EXPECT_EQ(nullptr,
-            content::webid::FederatedEmbedderLoginRequest::Get(test_contents));
+  // Verify that the delegate client's `RemoveFederatedEmbedderLoginRequest` has
+  // been called.
+  EXPECT_TRUE(
+      delegate_client_->remove_federated_embedder_login_request_called());
+  testing::Mock::VerifyAndClearExpectations(delegate_client_.get());
 }
 
 TEST_F(ActorLoginDelegateImplTest,
@@ -1586,8 +1584,8 @@ TEST_F(ActorLoginDelegateImplTest,
   EXPECT_EQ(attempt_login_future.Get().value(),
             LoginStatusResult::kRequiresButtonClick);
 
-  auto* request = content::webid::FederatedEmbedderLoginRequest::Get(
-      delegate_->web_contents());
+  auto* request =
+      content::webid::FederatedEmbedderLoginRequest::Get(web_contents_.get());
   ASSERT_TRUE(request);
   request->OnFederatedResultReceived(
       content::webid::FederatedLoginResult::kContinuation);
@@ -1704,8 +1702,8 @@ TEST_F(ActorLoginDelegateImplTest, FailedFederatedLoginDoesntClearPermissions) {
   EXPECT_EQ(attempt_login_future.Get().value(),
             LoginStatusResult::kRequiresButtonClick);
 
-  auto* request = content::webid::FederatedEmbedderLoginRequest::Get(
-      delegate_->web_contents());
+  auto* request =
+      content::webid::FederatedEmbedderLoginRequest::Get(web_contents_.get());
   ASSERT_TRUE(request);
   request->OnFederatedResultReceived(
       content::webid::FederatedLoginResult::kAccountIsSignUp);
@@ -1745,8 +1743,8 @@ TEST_F(ActorLoginDelegateImplTest,
                           base::TimeTicks::Now(), future.GetCallback(),
                           /*action_sequence_delegate=*/nullptr);
 
-  // Trigger `PrimaryPageChanged` before the message loop runs.
-  delegate_->PrimaryPageChanged(delegate_->web_contents()->GetPrimaryPage());
+  // Trigger page navigation event.
+  delegate_->OnPrimaryPageChanged();
 
   ASSERT_TRUE(future.Get().has_value());
   EXPECT_EQ(future.Get().value(),

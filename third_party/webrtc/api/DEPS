@@ -245,9 +245,15 @@ specific_include_rules = {
     "+modules/video_coding/include/video_codec_interface.h"
   ],
 
+  "rtp_header_extension_id\\.h": [
+    "+absl/strings/str_format.h",
+    "+rtc_base/strong_alias.h"
+  ],
+
   "rtp_parameters\\.h": [
     "+absl/strings/str_format.h",
-    "+rtc_base/strings/str_join.h"
+    "+rtc_base/strings/str_join.h",
+    "+rtc_base/strong_alias.h"
   ],
 
   "sequence_checker\\.h": [

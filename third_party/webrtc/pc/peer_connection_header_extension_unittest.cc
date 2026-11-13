@@ -23,6 +23,7 @@
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/rtc_event_log/rtc_event_log_factory.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
 #include "api/rtp_transceiver_interface.h"
@@ -617,7 +618,7 @@ TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
                                       Field(&RtpExtension::uri, "uri3"),
                                       Field(&RtpExtension::uri, "uri4")));
   // Check uri1's id still matches the remote id.
-  EXPECT_EQ(extensions[0].id, 5);
+  EXPECT_EQ(extensions[0].id, RtpHeaderExtensionId(5));
 }
 
 TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
@@ -673,7 +674,7 @@ TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
                         ->rtp_header_extensions();
   EXPECT_THAT(extensions, ElementsAre(Field(&RtpExtension::uri, "uri1")));
   // Check uri1's id still matches the remote id.
-  EXPECT_EQ(extensions[0].id, 5);
+  EXPECT_EQ(extensions[0].id, RtpHeaderExtensionId(5));
 }
 
 TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,

@@ -1362,11 +1362,11 @@ const FeatureEntry::FeatureParam kAutoSubmissionDismissThenBlockThenSubmit[] = {
 const FeatureEntry::FeatureParam
     kAutoSubmissionDismissThenBlockThenSubmitWithWait[] = {
         {"auto-submission-type", "DismissThenBlockThenSubmit"},
-        {"auto-submission-use-wait-period", "true"},
+        {"auto-submission-use-wait-period", "100"},
 };
 const FeatureEntry::FeatureParam kAutoSubmissionDismissThenSubmitWithWait[] = {
     {"auto-submission-type", "DismissThenSubmit"},
-    {"auto-submission-use-wait-period", "true"},
+    {"auto-submission-use-wait-period", "100"},
 };
 const FeatureEntry::FeatureParam kAutoSubmissionScriptSubmit[] = {
     {"auto-submission-type", "ScriptSubmit"},
@@ -1701,6 +1701,10 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"shopping-list", commerce::flag_descriptions::kShoppingListName,
      commerce::flag_descriptions::kShoppingListDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(commerce::kShoppingList)},
+    {"ios-bottom-sheet-migration",
+     flag_descriptions::kIOSBottomSheetMigrationName,
+     flag_descriptions::kIOSBottomSheetMigrationDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kIOSBottomSheetMigration)},
     {"ios-browser-edit-menu-metrics",
      flag_descriptions::kIOSBrowserEditMenuMetricsName,
      flag_descriptions::kIOSBrowserEditMenuMetricsDescription, flags_ui::kOsIos,
@@ -2338,10 +2342,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kIOSCustomFileUploadMenuName,
      flag_descriptions::kIOSCustomFileUploadMenuDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kIOSCustomFileUploadMenu)},
-    {"ios-tab-group-entry-point-overflow-menu",
-     flag_descriptions::kTabGroupInOverflowMenuName,
-     flag_descriptions::kTabGroupInOverflowMenuDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kTabGroupInOverflowMenu)},
     {"ios-tab-group-entry-point-tab-switcher",
      flag_descriptions::kTabSwitcherOverflowMenuName,
      flag_descriptions::kTabSwitcherOverflowMenuDescription, flags_ui::kOsIos,
@@ -2848,9 +2848,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"cross-device-signin", flag_descriptions::kCrossDeviceSigninName,
      flag_descriptions::kCrossDeviceSigninDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(switches::kCrossDeviceSignin)},
-    {"app-store-in-app-events", flag_descriptions::kAppStoreInAppEventsName,
-     flag_descriptions::kAppStoreInAppEventsDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kAppStoreInAppEvents)},
     {"use-ui-graphics-image-renderer-for-fallback-icons",
      flag_descriptions::kUseUIGraphicsImageRendererForFallbackIconsName,
      flag_descriptions::kUseUIGraphicsImageRendererForFallbackIconsDescription,
@@ -2887,6 +2884,24 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"actor-service-logging", flag_descriptions::kActorServiceLoggingName,
      flag_descriptions::kActorServiceLoggingDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kActorServiceLogging)},
+    {"identity-awareness", flag_descriptions::kIdentityAwarenessName,
+     flag_descriptions::kIdentityAwarenessDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kIdentityAwareness)},
+    {"autofill-enable-gradient-google-logos",
+     flag_descriptions::kAutofillEnableGradientGoogleLogosName,
+     flag_descriptions::kAutofillEnableGradientGoogleLogosDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(
+         autofill::features::kAutofillEnableGradientGoogleLogos)},
+    {"autofill-ai-wallet-pass-branding-2026",
+     flag_descriptions::kAutofillAiWalletPassBranding2026Name,
+     flag_descriptions::kAutofillAiWalletPassBranding2026Description,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(autofill::features::kAutofillAiWalletPassBranding2026)},
+    {"ios-mini-map-linkified-address",
+     flag_descriptions::kIOSMiniMapLinkifiedAddressName,
+     flag_descriptions::kIOSMiniMapLinkifiedAddressDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kIOSMiniMapLinkifiedAddress)},
 });
 
 bool SkipConditionalFeatureEntry(const flags_ui::FeatureEntry& entry) {

@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "base/build_time.h"
+#include "base/byte_size.h"
 #include "base/command_line.h"
 #include "base/cpu.h"
 #include "base/logging.h"
@@ -430,7 +431,8 @@ void MetricsLog::RecordCoreSystemProfile(
   if (!app_os_arch.empty()) {
     hardware->set_app_cpu_architecture(app_os_arch);
   }
-  hardware->set_system_ram_mb(base::SysInfo::AmountOfPhysicalMemory().InMiB());
+  hardware->set_system_ram_mb(
+      base::SysInfo::AmountOfTotalPhysicalMemory().InMiB());
   hardware->set_hardware_class(base::SysInfo::HardwareModelName());
 #if BUILDFLAG(IS_WIN)
   hardware->set_dll_base(reinterpret_cast<uint64_t>(CURRENT_MODULE()));
@@ -452,6 +454,8 @@ void MetricsLog::RecordCoreSystemProfile(
 
 #if BUILDFLAG(IS_ANDROID)
   os->set_build_fingerprint(base::android::android_info::android_build_fp());
+  system_profile->mutable_hardware()->set_manufacturer(
+      base::SysInfo::HardwareManufacturer());
   if (!package_name.empty() && package_name != "com.android.chrome") {
     system_profile->set_app_package_name(package_name);
   }
@@ -472,9 +476,10 @@ void MetricsLog::RecordCoreSystemProfile(
 void MetricsLog::RecordHistogramDelta(std::string_view histogram_name,
                                       const base::HistogramSamples& snapshot) {
   DCHECK(!closed_);
-  log_metadata_.AddSampleCount(snapshot.TotalCount());
-  EncodeHistogramDelta(histogram_name, snapshot,
-                       uma_proto_.add_histogram_event());
+  if (EncodeHistogramDelta(histogram_name, snapshot,
+                           [&] { return uma_proto_.add_histogram_event(); })) {
+    log_metadata_.AddSampleCount(snapshot.TotalCount());
+  }
 }
 
 void MetricsLog::RecordPreviousSessionData(

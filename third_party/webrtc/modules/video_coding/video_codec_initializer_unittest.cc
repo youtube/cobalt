@@ -756,4 +756,54 @@ TEST_F(VideoCodecInitializerTest,
 }
 #endif
 
+TEST_F(VideoCodecInitializerTest,
+       SimulcastInconsistentScalabilityModesWithFirstInactive) {
+  VideoEncoderConfig config;
+  config.simulcast_layers.resize(3);
+  config.simulcast_layers[0].active = false;
+  config.simulcast_layers[1].active = true;
+  config.simulcast_layers[2].active = true;
+  config.codec_type = VideoCodecType::kVideoCodecVP8;
+
+  streams_ = {DefaultStream(), DefaultStream(), DefaultStream()};
+  streams_[0].active = false;
+  streams_[0].scalability_mode = ScalabilityMode::kL1T3;
+  streams_[1].active = true;
+  streams_[1].scalability_mode = ScalabilityMode::kL1T2;
+  streams_[2].active = true;
+  streams_[2].scalability_mode = ScalabilityMode::kL1T1;
+
+  VideoCodec codec =
+      VideoCodecInitializer::SetupCodec(env_.field_trials(), config, streams_);
+
+  // Top level scalability mode should be cleared since active streams have
+  // different scalability modes.
+  EXPECT_EQ(codec.GetScalabilityMode(), std::nullopt);
+}
+
+TEST_F(VideoCodecInitializerTest,
+       SimulcastConsistentScalabilityModesWithFirstInactive) {
+  VideoEncoderConfig config;
+  config.simulcast_layers.resize(3);
+  config.simulcast_layers[0].active = false;
+  config.simulcast_layers[1].active = true;
+  config.simulcast_layers[2].active = true;
+  config.codec_type = VideoCodecType::kVideoCodecVP8;
+
+  streams_ = {DefaultStream(), DefaultStream(), DefaultStream()};
+  streams_[0].active = false;
+  streams_[0].scalability_mode = ScalabilityMode::kL1T3;
+  streams_[1].active = true;
+  streams_[1].scalability_mode = ScalabilityMode::kL1T2;
+  streams_[2].active = true;
+  streams_[2].scalability_mode = ScalabilityMode::kL1T2;
+
+  VideoCodec codec =
+      VideoCodecInitializer::SetupCodec(env_.field_trials(), config, streams_);
+
+  // Top level scalability mode should be kL1T2 since active streams have the
+  // same scalability mode.
+  EXPECT_EQ(codec.GetScalabilityMode(), ScalabilityMode::kL1T2);
+}
+
 }  // namespace webrtc

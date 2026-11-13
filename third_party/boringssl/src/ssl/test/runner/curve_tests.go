@@ -271,8 +271,8 @@ func addCurveTests() {
 				NoSupportedCurves: true,
 			},
 		},
-		shouldFail:    true,
-		expectedError: ":NO_SHARED_GROUP:",
+		shouldFail:         true,
+		expectedError:      ":NO_SHARED_GROUP:",
 		expectedLocalError: "remote error: missing extension",
 	})
 

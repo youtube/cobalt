@@ -4,15 +4,21 @@
 
 package org.chromium.chrome.browser.ui.actions.glic;
 
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.content.Context;
+import android.graphics.drawable.Animatable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.LayerDrawable;
 import android.widget.ImageView;
 
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.RuntimeEnvironment;
@@ -24,6 +30,12 @@ import org.chromium.ui.modelutil.PropertyModel;
 @RunWith(BaseRobolectricTestRunner.class)
 public class GlicActionButtonBinderTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+
+    private abstract static class AnimatableDrawable extends Drawable implements Animatable {}
+
+    @Mock private Drawable mDrawable;
+    @Mock private LayerDrawable mLayerDrawable;
+    @Mock private AnimatableDrawable mAnimatableDrawable;
 
     private Context mContext;
     private ImageView mImageView;
@@ -37,35 +49,19 @@ public class GlicActionButtonBinderTest {
     }
 
     @Test
-    public void testBind_WorkingState_SetsDrawable() {
-        mModel.set(GlicActionProperties.GLIC_STATE, GlicActionProperties.GlicState.WORKING);
-        GlicActionButtonBinder.bind(mModel, mImageView, GlicActionProperties.GLIC_STATE);
-
-        // Verify that a drawable was set.
-        assertNotNull(mImageView.getDrawable());
+    public void testBind_SetsDrawable() {
+        mModel.set(GlicActionProperties.GLIC_DRAWABLE, mDrawable);
+        GlicActionButtonBinder.bind(mModel, mImageView, GlicActionProperties.GLIC_DRAWABLE);
+        assertEquals(mDrawable, mImageView.getDrawable());
     }
 
     @Test
-    public void testBind_NeedsReviewState_SetsDrawable() {
-        mModel.set(GlicActionProperties.GLIC_STATE, GlicActionProperties.GlicState.NEEDS_REVIEW);
-        GlicActionButtonBinder.bind(mModel, mImageView, GlicActionProperties.GLIC_STATE);
+    public void testBind_StartsAnimation() {
+        when(mLayerDrawable.getNumberOfLayers()).thenReturn(1);
+        when(mLayerDrawable.getDrawable(0)).thenReturn(mAnimatableDrawable);
 
-        assertNotNull(mImageView.getDrawable());
-    }
-
-    @Test
-    public void testBind_DoneState_SetsDrawable() {
-        mModel.set(GlicActionProperties.GLIC_STATE, GlicActionProperties.GlicState.DONE);
-        GlicActionButtonBinder.bind(mModel, mImageView, GlicActionProperties.GLIC_STATE);
-
-        assertNotNull(mImageView.getDrawable());
-    }
-
-    @Test
-    public void testBind_OtherState_SetsDrawable() {
-        mModel.set(GlicActionProperties.GLIC_STATE, 999); // Some other state
-        GlicActionButtonBinder.bind(mModel, mImageView, GlicActionProperties.GLIC_STATE);
-
-        assertNotNull(mImageView.getDrawable());
+        mModel.set(GlicActionProperties.GLIC_DRAWABLE, mLayerDrawable);
+        GlicActionButtonBinder.bind(mModel, mImageView, GlicActionProperties.GLIC_DRAWABLE);
+        verify(mAnimatableDrawable).start();
     }
 }

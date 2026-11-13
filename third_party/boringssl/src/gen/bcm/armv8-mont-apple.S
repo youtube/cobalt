@@ -13,9 +13,9 @@
 _bn_mul_mont_words:
 	AARCH64_SIGN_LINK_REGISTER
 	tst	x5,#7
-	b.eq	__bn_sqr8x_mont
+	b.eq	Lsqr8x_mont
 	tst	x5,#3
-	b.eq	__bn_mul4x_mont
+	b.eq	Lmul4x_mont
 Lmul_mont:
 	stp	x29,x30,[sp,#-64]!
 	add	x29,sp,#0
@@ -215,14 +215,13 @@ Lcond_copy:
 	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
-
 .align	5
-__bn_sqr8x_mont:
-	// Not adding AARCH64_SIGN_LINK_REGISTER here because __bn_sqr8x_mont is jumped to
+Lsqr8x_mont:
+	// Not adding AARCH64_SIGN_LINK_REGISTER here because .Lsqr8x_mont is jumped to
 	// only from bn_mul_mont_words which has already signed the return address.
 	cmp	x1,x2
-	b.ne	__bn_mul4x_mont
-Lsqr8x_mont:
+	b.ne	Lmul4x_mont
+
 	stp	x29,x30,[sp,#-128]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -990,10 +989,9 @@ Lsqr8x_done:
 	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
-
 .align	5
-__bn_mul4x_mont:
-	// Not adding AARCH64_SIGN_LINK_REGISTER here because __bn_mul4x_mont is jumped to
+Lmul4x_mont:
+	// Not adding AARCH64_SIGN_LINK_REGISTER here because .Lmul4x_mont is jumped to
 	// only from bn_mul_mont_words or __bn_mul8x_mont which have already signed the
 	// return address.
 	stp	x29,x30,[sp,#-128]!

@@ -2750,7 +2750,7 @@ void RasterDecoderImpl::DoReadbackYUVImagePixelsINTERNAL(
   if (graphite_shared_context()) {
     // SkImage/SkSurface asyncRescaleAndReadPixels methods won't be implemented
     // for Graphite. Instead the equivalent methods will be on Graphite Context.
-    graphite_shared_context()->asyncRescaleAndReadPixelsYUV420(
+    graphite_shared_context()->asyncRescaleAndReadPixelsYUV420AndSubmit(
         sk_image.get(), kJPEG_Full_SkYUVColorSpace, SkColorSpace::MakeSRGB(),
         src_rect, dst_size, SkImage::RescaleGamma::kSrc,
         SkImage::RescaleMode::kRepeatedLinear,
@@ -2772,10 +2772,10 @@ void RasterDecoderImpl::DoReadbackYUVImagePixelsINTERNAL(
           shared_context_state_->vk_context_provider(), &flush_info);
       gr_context()->flush(flush_info);
     }
-  }
 
-  // TODO(crbug.com/40106956): Use COMMANDS_COMPLETED query for async readback.
-  DoFinish();
+    // TODO(crbug.com/40106956): Use COMMANDS_COMPLETED query for async readback.
+    DoFinish();
+  }
 
   // The call above will sync up gpu and CPU, resulting in callback being run
   // during DoFinish(). To prevent UAF make sure it indeed happened.
@@ -3062,13 +3062,14 @@ error::Error RasterDecoderImpl::DoRasterCHROMIUM(GLuint raster_shm_id,
   }
   DCHECK(transfer_cache());
 
-  base::span<uint8_t> paint_buffer =
+  auto paint_buffer_opt =
       GetSharedMemoryAsSpan(raster_shm_id, raster_shm_offset, raster_shm_size);
-  if (paint_buffer.empty()) {
+  if (paint_buffer_opt.value_or({}).empty()) {
     LOCAL_SET_GL_ERROR(GL_INVALID_VALUE, "glRasterCHROMIUM",
                        "Can not read paint buffer.");
     return error::kNoError;
   }
+  base::span<uint8_t> paint_buffer = *paint_buffer_opt;
 
   if (!base::IsAligned(paint_buffer.data(), 16u)) {
     LOCAL_SET_GL_ERROR(GL_INVALID_VALUE, "glRasterCHROMIUM",
@@ -3127,13 +3128,14 @@ error::Error RasterDecoderImpl::DoRasterCHROMIUM(GLuint raster_shm_id,
   } else {
     if (font_shm_size > 0) {
       // Deserialize fonts before raster.
-      base::span<volatile uint8_t> font_buffer =
-          GetSharedMemoryAsSpan(font_shm_id, font_shm_offset, font_shm_size);
-      if (font_buffer.empty()) {
+      auto font_buffer_opt = GetSharedMemoryAsSpan<volatile uint8_t>(
+          font_shm_id, font_shm_offset, font_shm_size);
+      if (font_buffer_opt.value_or({}).empty()) {
         LOCAL_SET_GL_ERROR(GL_INVALID_VALUE, "glRasterCHROMIUM",
                            "Can not read font buffer.");
         return error::kNoError;
       }
+      base::span<volatile uint8_t> font_buffer = *font_buffer_opt;
 
       std::vector<SkDiscardableHandleId> new_locked_handles;
       if (!font_manager_->Deserialize(font_buffer, &new_locked_handles)) {

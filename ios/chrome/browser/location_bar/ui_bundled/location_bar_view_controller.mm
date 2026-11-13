@@ -58,6 +58,7 @@
 #import "ios/chrome/browser/sharing/ui_bundled/sharing_metrics.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/toolbar_type.h"
 #import "ios/chrome/common/NSString+Chromium.h"
+#import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/common/ui/util/pointer_interaction_util.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -87,6 +88,9 @@ const NSString* kScribbleOmniboxElementId = @"omnibox";
 // The padding to be added to the bottom of the system share icon to balance
 // the white space on top.
 const CGFloat kShareIconBalancingHeightPadding = 1;
+
+// The minimum width of the plus button.
+const CGFloat kPlusButtonMinimumWidth = 44.0;
 
 }  // namespace
 
@@ -157,6 +161,9 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   // Bar and anchored to the trailing edge during focus transitions (when it is
   // faded out) and defocus transitions (when it is faded in).
   UIView* _fakeboxButtonsSnapshot;
+
+  // The AIM plus button.
+  ExtendedTouchTargetButton* _plusButton;
 
   // The location bar button to access Lens.
   LensOverlayEntrypointButton* _lensOverlayPlaceholderView;
@@ -327,6 +334,8 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
         forControlEvents:UIControlEventTouchUpInside];
   }
 
+  [self createAIMPlusButton];
+
   [_locationBarSteadyView.locationButton
              addTarget:self
                 action:@selector(locationBarSteadyViewTapped)
@@ -389,7 +398,8 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   self.locationBarSteadyView.trailingButton.alpha = alphaValue;
   self.locationBarSteadyView.badgesContainerView.placeholderView.alpha =
       alphaValue;
-  if (IsProactiveSuggestionsFrameworkEnabled() && !self.incognito) {
+  if (IsProactiveSuggestionsFrameworkEnabled() &&
+      (!self.incognito || IsChromeNextIaEnabled())) {
     self.locationBarSteadyView.badgesContainerView.alpha = alphaValue;
   }
   BOOL badgeViewShouldCollapse = progress <= kFullscreenProgressThreshold;
@@ -828,6 +838,26 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
       setLocationLabelPlaceholderText:self.placeholderText];
 }
 
+- (void)createAIMPlusButton {
+  _plusButton = [ExtendedTouchTargetButton buttonWithType:UIButtonTypeSystem];
+  [_plusButton
+      setImage:DefaultSymbolWithPointSize(kPlusSymbol, kSymbolActionPointSize)
+      forState:UIControlStateNormal];
+  _plusButton.translatesAutoresizingMaskIntoConstraints = NO;
+  _plusButton.imageView.contentMode = UIViewContentModeScaleAspectFit;
+  _plusButton.tintColor = [UIColor colorNamed:kToolbarButtonColor];
+  _plusButton.accessibilityLabel = l10n_util::GetNSString(
+      IDS_IOS_COMPOSEBOX_ADD_ATTACHMENT_BUTTON_ACCESSIBILITY_LABEL);
+  [NSLayoutConstraint activateConstraints:@[
+    [_plusButton.widthAnchor
+        constraintGreaterThanOrEqualToConstant:kPlusButtonMinimumWidth]
+  ]];
+
+  [_plusButton addTarget:self
+                  action:@selector(handlePlusButtonPressed)
+        forControlEvents:UIControlEventTouchUpInside];
+}
+
 #pragma mark - UIContextMenuInteractionDelegate
 
 - (UIMenu*)contextMenuUIMenu:(NSArray<UIMenuElement*>*)suggestedActions {
@@ -1155,6 +1185,12 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   [self.delegate locationBarHideToolbarTapped];
 }
 
+- (void)handlePlusButtonPressed {
+  RecordAction(UserMetricsAction("MobileToolbarPlusButtonTap"));
+  TriggerHapticFeedbackForSelectionChange();
+  [self.dispatcher showMultimodalActionsMenu];
+}
+
 - (void)handleLensEntrypointPressed {
   RecordAction(UserMetricsAction("MobileToolbarLensOverlayTap"));
   if (self.lensOverlayVisible) {
@@ -1222,6 +1258,10 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   switch (_placeholderType) {
     case LocationBarPlaceholderType::kNone:
       [self.locationBarSteadyView setPlaceholderView:nil type:_placeholderType];
+      break;
+    case LocationBarPlaceholderType::kPlusButton:
+      [self.locationBarSteadyView setPlaceholderView:_plusButton
+                                                type:_placeholderType];
       break;
     case LocationBarPlaceholderType::kLensOverlay:
       [self.locationBarSteadyView setPlaceholderView:_lensOverlayPlaceholderView

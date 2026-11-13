@@ -1301,6 +1301,14 @@ TEST(CBBTest, Zero) {
   CBB_cleanup(&cbb);
 }
 
+TEST(CBBTest, ScopedCBBCleanup) {
+  // It is valid to |CBB_cleanup| a |ScopedCBB|.
+  ScopedCBB cbb;
+  ASSERT_TRUE(CBB_init(cbb.get(), 32));
+  CBB_cleanup(cbb.get());
+  // ASAN should not detect a double free here.
+}
+
 TEST(CBBTest, Reserve) {
   uint8_t buf[10];
   uint8_t *ptr;

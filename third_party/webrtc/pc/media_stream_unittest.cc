@@ -27,7 +27,6 @@ static const char kVideoTrackId[] = "dummy_video_cam_1";
 static const char kAudioTrackId[] = "dummy_microphone_1";
 
 using ::testing::Exactly;
-using webrtc::scoped_refptr;
 
 namespace webrtc {
 

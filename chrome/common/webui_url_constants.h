@@ -59,7 +59,7 @@ inline constexpr char kChromeUIAppsWithForceInstalledDeprecationDialogURL[] =
 inline constexpr char kChromeUIAutofillAiPath[] = "/enhancedAutofill";
 inline constexpr char kChromeUIAutofillPath[] = "/autofill";
 inline constexpr char kChromeUIAutofillInternalsHost[] = "autofill-internals";
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+#if BUILDFLAG(ENABLE_DICE_SUPPORT) || BUILDFLAG(IS_CHROMEOS)
 inline constexpr char kChromeUIBatchUploadHost[] = "batch-upload";
 inline constexpr char kChromeUIBatchUploadURL[] = "chrome://batch-upload/";
 #endif
@@ -96,6 +96,8 @@ inline constexpr char kChromeUIContentAnnotatorInternalsHost[] =
 inline constexpr char kChromeUIContentAnnotatorInternalsURL[] =
     "chrome://content-annotator-internals/";
 #endif
+inline constexpr char kChromeUIContextHubHost[] = "context-hub";
+inline constexpr char kChromeUIContextHubURL[] = "chrome://context-hub/";
 inline constexpr char kChromeUIContextualTasksHost[] = "contextual-tasks";
 inline constexpr char kChromeUIContextualTasksURL[] =
     "chrome://contextual-tasks/";
@@ -481,6 +483,13 @@ inline constexpr char kChromeUIWhatsNewHost[] = "whats-new";
 inline constexpr char kChromeUIWhatsNewURL[] = "chrome://whats-new/";
 #endif
 
+#if BUILDFLAG(IS_WIN)
+inline constexpr char kChromeUIDefaultBrowserVisualGuidedSetterURL[] =
+    "chrome://default-browser/";
+inline constexpr char kChromeUIDefaultBrowserVisualGuidedSetterHost[] =
+    "default-browser";
+#endif
+
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
 inline constexpr char kChromeUILinuxProxyConfigHost[] = "linux-proxy-config";
 #endif
@@ -496,6 +505,8 @@ inline constexpr char kChromeUIBrowserSwitchURL[] = "chrome://browser-switch/";
 inline constexpr char kChromeUIIntroDefaultBrowserSubPage[] = "default-browser";
 inline constexpr char kChromeUIIntroDefaultBrowserURL[] =
     "chrome://intro/default-browser";
+inline constexpr char kChromeUIIntroFinishOrContinueSubPage[] =
+    "finish-or-continue";
 inline constexpr char kChromeUIIntroSignInCelebrationSubPage[] =
     "sign-in-celebration";
 inline constexpr char kChromeUIIntroSignInCelebrationURL[] =

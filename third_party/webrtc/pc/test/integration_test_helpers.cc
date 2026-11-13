@@ -42,6 +42,7 @@
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/rtc_event_log/rtc_event_log_factory.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/rtp_sender_interface.h"
@@ -1139,7 +1140,7 @@ void PeerConnectionIntegrationWrapper::OnDataChannel(
 
 bool PeerConnectionIntegrationWrapper::IdExists(
     const RtpHeaderExtensions& extensions,
-    int id) {
+    RtpHeaderExtensionId id) {
   for (const auto& extension : extensions) {
     if (extension.id == id) {
       return true;
@@ -1813,11 +1814,11 @@ RTCError FindDuplicateCodecParameters(
       payload_to_codec_parameters.find(codec_parameters.payload_type);
   if (existing_codec_parameters != payload_to_codec_parameters.end() &&
       codec_parameters != existing_codec_parameters->second) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                     << "A BUNDLE group contains a codec collision for "
-                     << "payload_type='" << codec_parameters.payload_type
-                     << ". All codecs must share the same type, "
-                     << "encoding name, clock rate and parameters.");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                         << "A BUNDLE group contains a codec collision for "
+                         << "payload_type='" << codec_parameters.payload_type
+                         << "'. All codecs must share the same type, "
+                         << "encoding name, clock rate and parameters.");
   }
   payload_to_codec_parameters.try_emplace(codec_parameters.payload_type,
                                           codec_parameters);
@@ -1841,9 +1842,9 @@ RTCError ValidateBundledPayloadTypes(const SessionDescription& description) {
       const ContentInfo* content_description =
           description.GetContentByName(content_name);
       if (content_description == nullptr) {
-        return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                         << "A BUNDLE group contains a MID='" << content_name
-                         << "' matching no m= section.");
+        return RTC_LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
+                             << "A BUNDLE group contains a MID='"
+                             << content_name << "' matching no m= section.");
       }
       const MediaContentDescription* media_description =
           content_description->media_description();

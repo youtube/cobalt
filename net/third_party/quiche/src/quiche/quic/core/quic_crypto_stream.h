@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/crypto_framer.h"
@@ -174,8 +175,26 @@ class QUICHE_EXPORT QuicCryptoStream : public QuicStream {
 
   // Return the SSL struct object created by BoringSSL if the stream is using
   // TLS1.3. Otherwise, return nullptr.
-  // This method is used in Envoy.
+  // Note this method may return a nullptr after the TLS handshake is completed.
   virtual SSL* GetSsl() const = 0;
+
+  virtual absl::string_view Sni() const;
+
+  // These methods should only be called with IETF QUIC.
+  // Returns the cipher suite in use.
+  virtual const SSL_CIPHER* absl_nullable Ciphersuite() const;
+  // Returns the ALPN in use.
+  virtual absl::string_view Alpn() const;
+  // Returns the TLS group ID in use.
+  virtual uint16_t TlsGroupId() const;
+  // Returns the ciphersuite ID in use.
+  uint16_t CiphersuiteId() const;
+  // Returns the ciphersuite string in use.
+  absl::string_view CiphersuiteString() const;
+  // Returns the TLS group string in use.
+  absl::string_view TlsGroupString() const;
+  // Returns the TLS version in use.
+  absl::string_view TlsVersion() const;
 
   // Called to cancel retransmission of unencrypted crypto stream data.
   void NeuterUnencryptedStreamData();

@@ -738,7 +738,7 @@ TEST_F(PathBuilderMultiRootTest, TestIterationLimit) {
       // building is expected to fail in this case.
       path_builder.SetIterationLimit(1);
     } else {
-      // The other tests in this file exercise the case that |SetIterationLimit|
+      // The other tests in this file exercise the case that `SetIterationLimit`
       // isn't called. Therefore set a sufficient limit for the path to be
       // found.
       path_builder.SetIterationLimit(5);
@@ -924,7 +924,7 @@ TEST_F(PathBuilderMultiRootTest, TestDepthLimit) {
       // Therefore, building is expected to fail.
       path_builder.SetDepthLimit(2);
     } else {
-      // The other tests in this file exercise the case that |SetDepthLimit|
+      // The other tests in this file exercise the case that `SetDepthLimit`
       // isn't called. Therefore, set a sufficient limit for the path to be
       // found.
       path_builder.SetDepthLimit(5);
@@ -1726,8 +1726,8 @@ TEST_F(PathBuilderKeyRolloverTest, TestDuplicateIntermediates) {
   TrustStoreInMemory trust_store;
   trust_store.AddTrustAnchor(newroot_);
 
-  // The oldintermediate is supplied synchronously by |sync_certs1| and
-  // another copy of oldintermediate is supplied synchronously by |sync_certs2|.
+  // The oldintermediate is supplied synchronously by `sync_certs1` and
+  // another copy of oldintermediate is supplied synchronously by `sync_certs2`.
   // The path target <- oldintermediate <- newroot  should be built first,
   // though it won't verify. It should not be attempted again even though
   // oldintermediate was supplied twice.
@@ -1796,7 +1796,7 @@ TEST_F(PathBuilderKeyRolloverTest, TestDuplicateIntermediateAndRoot) {
   TrustStoreInMemory trust_store;
   trust_store.AddTrustAnchor(newroot_);
 
-  // The oldintermediate and newroot are supplied synchronously by |sync_certs|.
+  // The oldintermediate and newroot are supplied synchronously by `sync_certs`.
   CertIssuerSourceStatic sync_certs;
   sync_certs.AddCert(oldintermediate_);
   sync_certs.AddCert(newroot_dupe);
@@ -2065,13 +2065,13 @@ class PathBuilderSimpleChainTest : public ::testing::Test {
     ASSERT_EQ(3u, test_.chain.size());
   }
 
-  // Runs the path builder for the target certificate while |distrusted_cert| is
-  // blocked, and |delegate| if non-null.
+  // Runs the path builder for the target certificate while `distrusted_cert` is
+  // blocked, and `delegate` if non-null.
   CertPathBuilder::Result RunPathBuilder(
       const std::shared_ptr<const ParsedCertificate> &distrusted_cert,
       CertPathBuilderDelegate *optional_delegate) {
-    // Set up the trust store such that |distrusted_cert| is blocked, and
-    // the root is trusted (except if it was |distrusted_cert|).
+    // Set up the trust store such that `distrusted_cert` is blocked, and
+    // the root is trusted (except if it was `distrusted_cert`).
     TrustStoreInMemory trust_store;
     if (distrusted_cert != test_.chain.back()) {
       trust_store.AddTrustAnchor(test_.chain.back());
@@ -2117,7 +2117,7 @@ class PathBuilderDistrustTest : public PathBuilderSimpleChainTest {
   PathBuilderDistrustTest() = default;
 
  protected:
-  // Runs the path builder for the target certificate while |distrusted_cert| is
+  // Runs the path builder for the target certificate while `distrusted_cert` is
   // blocked.
   CertPathBuilder::Result RunPathBuilderWithDistrustedCert(
       const std::shared_ptr<const ParsedCertificate> &distrusted_cert) {
@@ -3047,8 +3047,8 @@ TEST(PathBuilderPrioritizationTest, SelfIssuedPrioritization) {
   // Path builder should have built paths to both trusted roots.
   ASSERT_EQ(2U, result.paths.size());
 
-  // |root1| should have been preferred because it is self-issued, even though
-  // the notBefore date is older than |root1_cross|.
+  // `root1` should have been preferred because it is self-issued, even though
+  // the notBefore date is older than `root1_cross`.
   EXPECT_TRUE(result.paths[0]->IsValid());
   ASSERT_EQ(2U, result.paths[0]->certs.size());
   EXPECT_EQ(target, result.paths[0]->certs[0]);

@@ -43,7 +43,7 @@ namespace {
 
 using CertIssuerSources = std::vector<CertIssuerSource *>;
 
-// Returns a hex-encoded sha256 of the DER-encoding of |cert|.
+// Returns a hex-encoded sha256 of the DER-encoding of `cert`.
 std::string FingerPrintParsedCertificate(const bssl::ParsedCertificate *cert) {
   uint8_t digest[SHA256_DIGEST_LENGTH];
   SHA256(cert->der_cert().data(), cert->der_cert().size(), digest);
@@ -73,7 +73,7 @@ std::string PathDebugString(const ParsedCertificateList &certs) {
   return s;
 }
 
-// This structure describes a certificate and its trust level. Note that |cert|
+// This structure describes a certificate and its trust level. Note that `cert`
 // may be null to indicate an "empty" entry.
 struct IssuerEntry {
   std::shared_ptr<const ParsedCertificate> cert;
@@ -82,19 +82,19 @@ struct IssuerEntry {
 };
 
 enum KeyIdentifierMatch {
-  // |target| has a keyIdentifier and it matches |issuer|'s
+  // `target` has a keyIdentifier and it matches `issuer`'s
   // subjectKeyIdentifier.
   kMatch = 0,
-  // |target| does not have authorityKeyIdentifier or |issuer| does not have
+  // `target` does not have authorityKeyIdentifier or `issuer` does not have
   // subjectKeyIdentifier.
   kNoData = 1,
-  // |target|'s authorityKeyIdentifier does not match |issuer|.
+  // `target`'s authorityKeyIdentifier does not match `issuer`.
   kMismatch = 2,
 };
 
-// Returns an integer that represents the relative ordering of |issuer| for
-// prioritizing certificates in path building based on |issuer|'s
-// subjectKeyIdentifier and |target|'s authorityKeyIdentifier. Lower return
+// Returns an integer that represents the relative ordering of `issuer` for
+// prioritizing certificates in path building based on `issuer`'s
+// subjectKeyIdentifier and `target`'s authorityKeyIdentifier. Lower return
 // values indicate higher priority.
 KeyIdentifierMatch CalculateKeyIdentifierMatch(
     const ParsedCertificate *target, const ParsedCertificate *issuer) {
@@ -118,8 +118,8 @@ KeyIdentifierMatch CalculateKeyIdentifierMatch(
   return kNoData;
 }
 
-// Returns an integer that represents the relative ordering of |issuer| based
-// on |issuer_trust| and authorityKeyIdentifier matching for prioritizing
+// Returns an integer that represents the relative ordering of `issuer` based
+// on `issuer_trust` and authorityKeyIdentifier matching for prioritizing
 // certificates in path building. Lower return values indicate higher priority.
 int TrustAndKeyIdentifierMatchToOrder(const ParsedCertificate *target,
                                       const ParsedCertificate *issuer,
@@ -175,12 +175,12 @@ int TrustAndKeyIdentifierMatchToOrder(const ParsedCertificate *target,
   return -1;
 }
 
-// CertIssuersIter iterates through the intermediates from |cert_issuer_sources|
-// which may be issuers of |cert|.
+// CertIssuersIter iterates through the intermediates from `cert_issuer_sources`
+// which may be issuers of `cert`.
 class CertIssuersIter {
  public:
-  // Constructs the CertIssuersIter. |*cert_issuer_sources|, and
-  // |*trust_store| must be valid for the lifetime of the CertIssuersIter.
+  // Constructs the CertIssuersIter. `*cert_issuer_sources`, and
+  // `*trust_store` must be valid for the lifetime of the CertIssuersIter.
   CertIssuersIter(std::shared_ptr<const ParsedCertificate> cert,
                   CertIssuerSources *cert_issuer_sources,
                   TrustStore *trust_store);
@@ -188,18 +188,18 @@ class CertIssuersIter {
   CertIssuersIter(const CertIssuersIter &) = delete;
   CertIssuersIter &operator=(const CertIssuersIter &) = delete;
 
-  // Gets the next candidate issuer, or clears |*out| when all issuers have been
+  // Gets the next candidate issuer, or clears `*out` when all issuers have been
   // exhausted.
   void GetNextIssuer(IssuerEntry *out);
 
-  // Returns true if candidate issuers were found for |cert_|.
+  // Returns true if candidate issuers were found for `cert_`.
   bool had_non_skipped_issuers() const {
     return issuers_.size() > skipped_issuer_count_;
   }
 
   void increment_skipped_issuer_count() { skipped_issuer_count_++; }
 
-  // Returns the |cert| for which issuers are being retrieved.
+  // Returns the `cert` for which issuers are being retrieved.
   const ParsedCertificate *cert() const { return cert_.get(); }
   std::shared_ptr<const ParsedCertificate> reference_cert() const {
     return cert_;
@@ -210,10 +210,10 @@ class CertIssuersIter {
   void MaybeAddMTCIssuer();
   void DoAsyncIssuerQuery();
 
-  // Returns true if |issuers_| contains unconsumed certificates.
+  // Returns true if `issuers_` contains unconsumed certificates.
   bool HasCurrentIssuer() const { return cur_issuer_ < issuers_.size(); }
 
-  // Sorts the remaining entries in |issuers_| in the preferred order to
+  // Sorts the remaining entries in `issuers_` in the preferred order to
   // explore. Does not change the ordering for indices before cur_issuer_.
   void SortRemainingIssuers();
 
@@ -221,15 +221,15 @@ class CertIssuersIter {
   CertIssuerSources *cert_issuer_sources_;
   TrustStore *trust_store_;
 
-  // The list of issuers for |cert_|. This is added to incrementally (first
+  // The list of issuers for `cert_`. This is added to incrementally (first
   // synchronous results, then possibly multiple times as asynchronous results
   // arrive.) The issuers may be re-sorted each time new issuers are added, but
-  // only the results from |cur_| onwards should be sorted, since the earlier
+  // only the results from `cur_` onwards should be sorted, since the earlier
   // results were already returned.
-  // Elements should not be removed from |issuers_| once added, since
-  // |present_issuers_| will point to data owned by the certs.
+  // Elements should not be removed from `issuers_` once added, since
+  // `present_issuers_` will point to data owned by the certs.
   std::vector<IssuerEntry> issuers_;
-  // The index of the next cert in |issuers_| to return.
+  // The index of the next cert in `issuers_` to return.
   size_t cur_issuer_ = 0;
   // The number of issuers that were skipped due to the loop checker.
   size_t skipped_issuer_count_ = 0;
@@ -237,10 +237,10 @@ class CertIssuersIter {
   // ordering needs to be checked.
   bool issuers_needs_sort_ = false;
 
-  // Set of DER-encoded values for the certs in |issuers_|. Used to prevent
+  // Set of DER-encoded values for the certs in `issuers_`. Used to prevent
   // duplicates. This is based on the full DER of the cert to allow different
   // versions of the same certificate to be tried in different candidate paths.
-  // This points to data owned by |issuers_|.
+  // This points to data owned by `issuers_`.
   std::unordered_set<std::string_view> present_issuers_;
 
   // Tracks which requests have been made yet.
@@ -300,7 +300,7 @@ void CertIssuersIter::GetNextIssuer(IssuerEntry *out) {
 
     // Still have issuers that haven't been returned yet, return the highest
     // priority one (head of remaining list). A reference to the returned issuer
-    // is retained, since |present_issuers_| points to data owned by it.
+    // is retained, since `present_issuers_` points to data owned by it.
     *out = issuers_[cur_issuer_++];
     return;
   }
@@ -377,8 +377,8 @@ void CertIssuersIter::SortRemainingIssuers() {
         return std::tie(issuer1.trust_and_key_id_match_ordering,
                         issuer2_self_issued,
                         // Newer(larger) notBefore & notAfter dates are
-                        // preferred, hence |issuer2| is on the LHS of
-                        // the comparison and |issuer1| on the RHS.
+                        // preferred, hence `issuer2` is on the LHS of
+                        // the comparison and `issuer1` on the RHS.
                         issuer2.cert->tbs().validity_not_before,
                         issuer2.cert->tbs().validity_not_after) <
                std::tie(issuer2.trust_and_key_id_match_ordering,
@@ -398,13 +398,13 @@ void CertIssuersIter::SortRemainingIssuers() {
 // section 2.4.2.)
 class CertIssuerIterPath {
  public:
-  // Returns true if |cert| is already present in the path.
+  // Returns true if `cert` is already present in the path.
   bool IsPresent(const ParsedCertificate *cert) const {
     return present_certs_.find(GetKey(cert)) != present_certs_.end();
   }
 
-  // Appends |cert_issuers_iter| to the path. The cert referred to by
-  // |cert_issuers_iter| must not be present in the path already.
+  // Appends `cert_issuers_iter` to the path. The cert referred to by
+  // `cert_issuers_iter` must not be present in the path already.
   void Append(std::unique_ptr<CertIssuersIter> cert_issuers_iter) {
     bool added =
         present_certs_.insert(GetKey(cert_issuers_iter->cert())).second;
@@ -419,7 +419,7 @@ class CertIssuerIterPath {
     cur_path_.pop_back();
   }
 
-  // Copies the ParsedCertificate elements of the current path to |*out_path|.
+  // Copies the ParsedCertificate elements of the current path to `*out_path`.
   void CopyPath(ParsedCertificateList *out_path) {
     out_path->clear();
     for (const auto &node : cur_path_) {
@@ -464,7 +464,7 @@ class CertIssuerIterPath {
 
   std::vector<std::unique_ptr<CertIssuersIter>> cur_path_;
 
-  // This refers to data owned by |cur_path_|.
+  // This refers to data owned by `cur_path_`.
   // TODO(mattm): use unordered_set. Requires making a hash function for Key.
   std::set<Key> present_certs_;
 };
@@ -490,8 +490,8 @@ const ParsedCertificate *CertPathBuilderResultPath::GetTrustedCert() const {
   return nullptr;
 }
 
-// CertPathIter generates possible paths from |cert| to a trust anchor in
-// |trust_store|, using intermediates from the |cert_issuer_source| objects if
+// CertPathIter generates possible paths from `cert` to a trust anchor in
+// `trust_store`, using intermediates from the `cert_issuer_source` objects if
 // necessary.
 class CertPathIter {
  public:
@@ -502,18 +502,18 @@ class CertPathIter {
   CertPathIter &operator=(const CertPathIter &) = delete;
 
   // Adds a CertIssuerSource to provide intermediates for use in path building.
-  // The |*cert_issuer_source| must remain valid for the lifetime of the
+  // The `*cert_issuer_source` must remain valid for the lifetime of the
   // CertPathIter.
   void AddCertIssuerSource(CertIssuerSource *cert_issuer_source);
 
-  // Gets the next candidate path, and fills it into |out_certs| and
-  // |out_last_cert_trust|. Note that the returned path is unverified and must
+  // Gets the next candidate path, and fills it into `out_certs` and
+  // `out_last_cert_trust`. Note that the returned path is unverified and must
   // still be run through a chain validator. If a candidate path could not be
-  // built, a partial path will be returned and |out_errors| will have an error
+  // built, a partial path will be returned and `out_errors` will have an error
   // added.
   // If the return value is true, GetNextPath may be called again to backtrack
   // and continue path building. Once all paths have been exhausted returns
-  // false. If deadline or iteration limit is exceeded, sets |out_certs| to the
+  // false. If deadline or iteration limit is exceeded, sets `out_certs` to the
   // current path being explored and returns false.
   bool GetNextPath(ParsedCertificateList *out_certs,
                    TrustAnchor *out_last_cert_trust, CertPathErrors *out_errors,
@@ -538,7 +538,7 @@ class CertPathIter {
 CertPathIter::CertPathIter(std::shared_ptr<const ParsedCertificate> cert,
                            TrustStore *trust_store)
     : trust_store_(trust_store) {
-  // Initialize |next_issuer_| to the target certificate.
+  // Initialize `next_issuer_` to the target certificate.
   next_issuer_.cert = std::move(cert);
   next_issuer_.trust =
       TrustAnchor(trust_store_->GetTrust(next_issuer_.cert.get()));
@@ -1068,8 +1068,8 @@ void CertPathBuilder::AddResultPath(
   if (!out_result_.HasValidPath()) {
     const CertPathBuilderResultPath *old_best_path =
         out_result_.GetBestPathPossiblyInvalid();
-    // If |result_path| is a valid path or if the previous best result did not
-    // end in a trust anchor but the |result_path| does, then update the best
+    // If `result_path` is a valid path or if the previous best result did not
+    // end in a trust anchor but the `result_path` does, then update the best
     // result to the new result.
     if (result_path->IsValid() ||
         (!result_path->last_cert_trust.HasUnspecifiedTrust() && old_best_path &&

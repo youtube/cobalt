@@ -390,20 +390,25 @@ void DatagramConnectionInternal::OnDtlsPacket(CopyOnWriteBuffer packet,
 }
 
 void DatagramConnectionInternal::OnSentPacket(const SentPacketInfo& sent_info) {
-  Observer::SendOutcome outcome{};
-  outcome.id = sent_info.packet_id;
-  outcome.status = Observer::SendOutcome::Status::kSuccess;
-  outcome.send_time = Timestamp::Millis(sent_info.send_time_ms);
-  outcome.bytes_sent = sent_info.info.packet_size_bytes;
+  // Ignore internal transport packets (e.g. DTLS handshakes, session tickets,
+  // STUN connectivity checks) which are sent with the default packet ID of -1.
+  if (sent_info.packet_id == -1) {
+    return;
+  }
+  Observer::SendOutcome outcome{
+      .id = static_cast<DatagramConnection::PacketId>(sent_info.packet_id),
+      .status = Observer::SendOutcome::Status::kSuccess,
+      .send_time = sent_info.send_time_ms >= 0
+                       ? Timestamp::Millis(sent_info.send_time_ms)
+                       : Timestamp::MinusInfinity(),
+      .bytes_sent = sent_info.info.packet_size_bytes};
   observer_->OnSendOutcome(outcome);
 }
 
 void DatagramConnectionInternal::DispatchSendOutcome(
     PacketId id,
     Observer::SendOutcome::Status status) {
-  Observer::SendOutcome outcome{};
-  outcome.id = id;
-  outcome.status = status;
+  Observer::SendOutcome outcome{.id = id, .status = status};
   observer_->OnSendOutcome(outcome);
 }
 

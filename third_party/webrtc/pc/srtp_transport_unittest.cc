@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "api/field_trials.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/transport/ecn_marking.h"
 #include "api/units/timestamp.h"
 #include "call/rtp_demuxer.h"
@@ -149,12 +150,12 @@ class SrtpTransportTest : public ::testing::Test {
   }
 
   void TestSendRecvRtcpPacket(int crypto_suite) {
-    size_t rtcp_len = sizeof(::kRtcpReport);
+    size_t rtcp_len = sizeof(kFakeRtcpReport);
     size_t packet_size = rtcp_len + 4 + rtcp_auth_tag_len(crypto_suite);
     Buffer rtcp_packet_buffer =
         Buffer::CreateUninitializedWithSize(packet_size);
     char* rtcp_packet_data = rtcp_packet_buffer.data<char>();
-    memcpy(rtcp_packet_data, ::kRtcpReport, rtcp_len);
+    memcpy(rtcp_packet_data, kFakeRtcpReport, rtcp_len);
 
     CopyOnWriteBuffer rtcp_packet1to2(rtcp_packet_data, rtcp_len, packet_size);
     CopyOnWriteBuffer rtcp_packet2to1(rtcp_packet_data, rtcp_len, packet_size);
@@ -190,7 +191,7 @@ class SrtpTransportTest : public ::testing::Test {
                           const ZeroOnFreeBuffer<uint8_t>& key1,
                           const ZeroOnFreeBuffer<uint8_t>& key2) {
     EXPECT_EQ(key1.size(), key2.size());
-    std::vector<int> extension_ids;
+    std::vector<RtpHeaderExtensionId> extension_ids;
     EXPECT_TRUE(srtp_transport1_->SetRtpParams(
         crypto_suite, key1, extension_ids, crypto_suite, key2, extension_ids));
     EXPECT_TRUE(srtp_transport2_->SetRtpParams(
@@ -207,7 +208,7 @@ class SrtpTransportTest : public ::testing::Test {
 
   void TestSendRecvPacketWithEncryptedHeaderExtension(
       int crypto_suite,
-      const std::vector<int>& encrypted_header_ids) {
+      const std::vector<RtpHeaderExtensionId>& encrypted_header_ids) {
     size_t rtp_len = sizeof(kPcmuFrameWithExtensions);
     size_t packet_size = rtp_len + rtp_auth_tag_len(crypto_suite);
     Buffer rtp_packet_buffer = Buffer::CreateUninitializedWithSize(packet_size);
@@ -264,7 +265,7 @@ class SrtpTransportTest : public ::testing::Test {
       int crypto_suite,
       const ZeroOnFreeBuffer<uint8_t>& key1,
       const ZeroOnFreeBuffer<uint8_t>& key2) {
-    std::vector<int> encrypted_headers;
+    std::vector<RtpHeaderExtensionId> encrypted_headers;
     encrypted_headers.push_back(kHeaderExtensionIDs[0]);
     // Don't encrypt header ids 2 and 3.
     encrypted_headers.push_back(kHeaderExtensionIDs[1]);
@@ -337,7 +338,7 @@ TEST_F(SrtpTransportTest,
 
 // Test directly setting the params with bogus keys.
 TEST_F(SrtpTransportTest, TestSetParamsKeyTooShort) {
-  std::vector<int> extension_ids;
+  std::vector<RtpHeaderExtensionId> extension_ids;
   EXPECT_FALSE(srtp_transport1_->SetRtpParams(
       kSrtpAes128CmSha1_80,
       ZeroOnFreeBuffer<uint8_t>(kTestKey1.data(), kTestKey1.size() - 1),
@@ -366,7 +367,7 @@ TEST_F(SrtpTransportTest, RemoveSrtpReceiveStream) {
 
   TransportObserver rtp_sink;
 
-  std::vector<int> extension_ids;
+  std::vector<RtpHeaderExtensionId> extension_ids;
   EXPECT_TRUE(srtp_transport->SetRtpParams(kSrtpAeadAes128Gcm, kTestKeyGcm128_1,
                                            extension_ids, kSrtpAeadAes128Gcm,
                                            kTestKeyGcm128_1, extension_ids));

@@ -10248,6 +10248,27 @@
           }
         ]
       },
+      "linux-chromeos-tsgo-rel": {
+        "contact_team_email": "chrome-webui@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
       "linux-code-coverage": {
         "problem_specs": [
           {
@@ -10539,6 +10560,27 @@
       },
       "linux-multiscreen-fyi-rel": {
         "contact_team_email": "web-windowing-team@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
+      "linux-no-initial-webui-rel": {
+        "contact_team_email": "chrome-webium-product-eng@google.com",
         "problem_specs": [
           {
             "name": "Unhealthy",
@@ -10917,6 +10959,27 @@
           }
         ]
       },
+      "linux-tsgo-rel": {
+        "contact_team_email": "chrome-webui@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
       "linux-updater-builder-dbg": {
         "contact_team_email": "omaha-core@google.com",
         "problem_specs": [
@@ -11064,27 +11127,6 @@
       },
       "linux-wayland-weston-rel-tests": {
         "contact_team_email": "chrome-linux-engprod@google.com",
-        "problem_specs": [
-          {
-            "name": "Unhealthy",
-            "period_days": 7,
-            "score": 5,
-            "thresholds": {
-              "_default": "_default"
-            }
-          },
-          {
-            "name": "Low Value",
-            "period_days": 90,
-            "score": 1,
-            "thresholds": {
-              "_default": "_default"
-            }
-          }
-        ]
-      },
-      "linux-webium-product-rel": {
-        "contact_team_email": "chrome-webium-product-eng@google.com",
         "problem_specs": [
           {
             "name": "Unhealthy",
@@ -13754,6 +13796,27 @@
       },
       "win32-updater-builder-rel": {
         "contact_team_email": "omaha-core@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
+      "windows-no-initial-webui-rel": {
+        "contact_team_email": "chrome-webium-product-eng@google.com",
         "problem_specs": [
           {
             "name": "Unhealthy",

@@ -11,13 +11,12 @@
 #include "modules/congestion_controller/scream/delay_based_congestion_control.h"
 
 #include <algorithm>
-#include <vector>
 
-#include "api/transport/network_types.h"
 #include "api/units/data_rate.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "modules/congestion_controller/scream/scream_feedback.h"
 #include "modules/congestion_controller/scream/scream_v2_parameters.h"
 #include "rtc_base/checks.h"
 
@@ -30,40 +29,15 @@ DelayBasedCongestionControl::DelayBasedCongestionControl(
   ResetQueueDelay();
 }
 
-void DelayBasedCongestionControl::OnTransportPacketsFeedback(
-    const TransportPacketsFeedback& msg,
-    bool alr) {
-  if (msg.PacketsWithFeedback().empty()) {
-    return;
-  }
-  std::vector<PacketResult> received_packets = msg.SortedByReceiveTime();
-  if (received_packets.empty()) {
-    return;
-  }
+void DelayBasedCongestionControl::Update(const ScreamFeedback& feedback,
+                                         bool alr) {
+  next_base_delay_ = std::min(next_base_delay_, feedback.min_one_way_delay);
+  UpdateSmoothedRtt(feedback.rtt_sample, alr);
 
-  TimeDelta min_one_way_delay = TimeDelta::PlusInfinity();
-  TimeDelta max_one_way_delay = TimeDelta::Zero();
-
-  for (const PacketResult& packet : received_packets) {
-    TimeDelta one_way_delay =
-        packet.receive_time - packet.sent_packet.send_time;
-    next_base_delay_ = std::min(next_base_delay_, one_way_delay);
-    min_one_way_delay = std::min(min_one_way_delay, one_way_delay);
-    max_one_way_delay = std::max(max_one_way_delay, one_way_delay);
-  }
-  // `arrival_time_offset` is null if TWCC is used. We assume feedback was sent
-  // when the last sent packet was received.
-  TimeDelta rtt_sample = std::max(
-      msg.feedback_time - received_packets.back().sent_packet.send_time -
-          received_packets.back().arrival_time_offset.value_or(
-              TimeDelta::Zero()),
-      TimeDelta::Zero());
-  UpdateSmoothedRtt(rtt_sample, alr);
-
-  TimeDelta min_queue_delay = min_one_way_delay - min_base_delay();
+  TimeDelta min_queue_delay = feedback.min_one_way_delay - min_base_delay();
   if (min_queue_delay > params_.queue_delay_drain_threshold.Get()) {
     if (min_queue_delay_above_threshold_start_.IsInfinite()) {
-      min_queue_delay_above_threshold_start_ = msg.feedback_time;
+      min_queue_delay_above_threshold_start_ = feedback.feedback_time;
     }
   } else {
     min_queue_delay_above_threshold_start_ = Timestamp::MinusInfinity();
@@ -71,14 +45,15 @@ void DelayBasedCongestionControl::OnTransportPacketsFeedback(
   UpdateQueueDelayAverage(std::min(min_queue_delay, last_queue_delay_sample_));
   last_queue_delay_sample_ = min_queue_delay;
   UpdateQueueDelayMinAverage(min_queue_delay);
-  UpdateLatencyDifferenceAverage(min_one_way_delay.IsFinite()
-                                     ? max_one_way_delay - min_one_way_delay
+  UpdateLatencyDifferenceAverage(feedback.min_one_way_delay.IsFinite()
+                                     ? feedback.max_one_way_delay -
+                                           feedback.min_one_way_delay
                                      : TimeDelta::Zero());
 
-  if (msg.feedback_time - last_base_delay_update_ >=
+  if (feedback.feedback_time - last_base_delay_update_ >=
       params_.base_delay_history_update_interval.Get()) {
     base_delay_history_.Insert(next_base_delay_);
-    last_base_delay_update_ = msg.feedback_time;
+    last_base_delay_update_ = feedback.feedback_time;
     next_base_delay_ = TimeDelta::PlusInfinity();
   }
 }
@@ -161,21 +136,7 @@ DelayBasedCongestionControl::ref_window_scale_factor_due_to_latency_difference()
                     1.0);
 }
 
-DataSize DelayBasedCongestionControl::UpdateReferenceWindow(
-    DataSize ref_window,
-    double ref_window_mss_ratio) const {
-  // `min_delay_based_bwe_`put a lower bound on the reference window.
-  DataSize min_allowed_reference_window =
-      min_delay_based_bwe_ * last_smoothed_rtt_;
 
-  if (ref_window < min_allowed_reference_window) {
-    return min_allowed_reference_window;
-  }
-
-  double backoff = l4s_alpha_v() / 2.0;  // Reduce by 50% if l4s_alpha_v = 1.0;
-  backoff /= std::max(1.0, last_smoothed_rtt_ / params_.virtual_rtt);
-  return std::max(min_allowed_reference_window, (1 - backoff) * ref_window);
-}
 
 double DelayBasedCongestionControl::l4s_alpha_v() const {
   // 4.2.2.1

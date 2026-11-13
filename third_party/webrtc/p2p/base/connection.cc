@@ -805,7 +805,7 @@ void Connection::SendStunBindingResponse(const StunMessage* message) {
     // Check if message contains a announce-request.
     auto goog_misc = message->GetUInt16List(STUN_ATTR_GOOG_MISC_INFO);
     if (goog_misc != nullptr &&
-        goog_misc->Size() >= kSupportGoogPingVersionRequestIndex &&
+        goog_misc->Size() > kSupportGoogPingVersionRequestIndex &&
         // Which version can we handle...currently any >= 1
         goog_misc->GetType(kSupportGoogPingVersionRequestIndex) >= 1) {
       auto list =
@@ -1547,7 +1547,7 @@ void Connection::OnConnectionRequestResponse(StunRequest* request,
     if (!remote_support_goog_ping_.has_value()) {
       auto goog_misc = response->GetUInt16List(STUN_ATTR_GOOG_MISC_INFO);
       if (goog_misc != nullptr &&
-          goog_misc->Size() >= kSupportGoogPingVersionResponseIndex) {
+          goog_misc->Size() > kSupportGoogPingVersionResponseIndex) {
         // The remote peer has indicated that it {does/does not} supports
         // GOOG_PING.
         remote_support_goog_ping_ =

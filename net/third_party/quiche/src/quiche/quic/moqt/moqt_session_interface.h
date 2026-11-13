@@ -41,6 +41,8 @@ struct QUICHE_EXPORT MoqtSessionParameters {
   MoqtSessionParameters() = default;
   explicit MoqtSessionParameters(quic::Perspective perspective)
       : perspective(perspective), using_webtrans(true) {}
+  explicit MoqtSessionParameters(bool deliver_partial_objects)
+      : deliver_partial_objects(deliver_partial_objects) {}
   MoqtSessionParameters(quic::Perspective perspective, std::string path,
                         std::string authority)
       : perspective(perspective),
@@ -88,9 +90,7 @@ struct SubscribeOkData {
 class SubscribeVisitor {
  public:
   virtual ~SubscribeVisitor() = default;
-  // Called when the session receives a response to the SUBSCRIBE, unless it's
-  // a REQUEST_ERROR with a new track_alias. In that case, the session will
-  // automatically retry.
+  // Called when the session receives a response to the SUBSCRIBE.
   virtual void OnReply(
       const FullTrackName& full_track_name,
       std::variant<SubscribeOkData, MoqtRequestErrorInfo> response) = 0;
@@ -101,8 +101,9 @@ class SubscribeVisitor {
   // Called when an object fragment (or an entire object) is received.
   virtual void OnObjectFragment(const FullTrackName& full_track_name,
                                 const PublishedObjectMetadata& metadata,
-                                absl::string_view object,
-                                bool end_of_message) = 0;
+                                absl::string_view object, uint64_t offset) = 0;
+  // Called when the subscription state goes away, regardless of whether or not
+  // there was a PUBLISH_DONE message.
   virtual void OnPublishDone(FullTrackName full_track_name) = 0;
   // Called when the track is malformed per Section 2.5 of
   // draft-ietf-moqt-moq-transport-12. If the application is a relay, it MUST

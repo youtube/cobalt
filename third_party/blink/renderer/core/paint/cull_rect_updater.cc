@@ -9,6 +9,8 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/frame/pagination_state.h"
+#include "third_party/blink/renderer/core/html/html_element.h"
+#include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/layout/layout_embedded_content.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
@@ -20,7 +22,6 @@
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
 #include "third_party/blink/renderer/core/paint/paint_property_tree_builder.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_supplement.h"
-#include "third_party/blink/renderer/platform/instrumentation/histogram.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
@@ -95,6 +96,10 @@ bool ShouldUseInfiniteCullRect(
     return true;
 
   const LayoutObject& object = layer.GetLayoutObject();
+  if (object.IsInclusiveDescendantOfUnboundedElement()) {
+    DCHECK(RuntimeEnabledFeatures::UnboundedElementEnabled());
+    return true;
+  }
   bool is_printing = object.GetDocument().Printing();
   if (IsA<LayoutView>(object) && !object.GetFrame()->ClipsContent() &&
       // We use custom top cull rect per page when printing.
@@ -211,8 +216,6 @@ CullRectUpdater::CullRectUpdater(PaintLayer& starting_layer,
 void CullRectUpdater::Update() {
   DCHECK(starting_layer_.IsRootLayer());
   TRACE_EVENT0("blink,benchmark", "CullRectUpdate");
-  SCOPED_BLINK_UMA_HISTOGRAM_TIMER_HIGHRES("Blink.CullRect.UpdateTime");
-
   UpdateInternal(CullRect::Infinite());
 }
 

@@ -601,6 +601,13 @@ SdpMungingType DetermineContentsModification(
       }
     }
 
+    // Validate media level cryptex.
+    if (last_created_media_description->cryptex() !=
+        media_description_to_set->cryptex()) {
+      RTC_LOG(LS_WARNING) << "SDP munging: cryptex changed at media level.";
+      return SdpMungingType::kCryptex;
+    }
+
     // Validate b= (which does not have an effect in the local description).
     if (last_created_media_description->bandwidth() !=
         media_description_to_set->bandwidth()) {
@@ -700,6 +707,13 @@ SdpMungingType DetermineSdpMungingType(
     }
   }
 
+  // Validate cryptex setting.
+  if (sdesc->description()->cryptex() !=
+      last_created_desc->description()->cryptex()) {
+    RTC_LOG(LS_WARNING) << "SDP munging: cryptex changed at session level.";
+    return SdpMungingType::kCryptex;
+  }
+
   // TODO: crbug.com/40567530 - this serializes the descriptions back to a SDP
   // string which is very complex and we not should be be forced to rely on
   // string equality.
@@ -756,6 +770,8 @@ bool IsSdpMungingAllowed(SdpMungingType sdp_munging_type,
     case SdpMungingType::kSframe:
       return false;
     case SdpMungingType::kDataChannelSctpInit:
+      return false;
+    case SdpMungingType::kCryptex:
       return false;
     default:
       // Handled below.

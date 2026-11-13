@@ -218,7 +218,7 @@ TEST_P(CreateOCSPGetURLTest, Basic) {
       CreateOCSPGetURL(cert.get(), issuer.get(), GetParam());
   ASSERT_TRUE(url);
 
-  // Try to extract the encoded data and compare against |request_data|.
+  // Try to extract the encoded data and compare against `request_data`.
   //
   // A known answer output test would be better as this just reverses the logic
   // from the implementation file.

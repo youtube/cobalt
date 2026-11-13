@@ -93,16 +93,14 @@ scoped_refptr<RtpTransceiver> CreateAudioTransceiverWithChannel(
     absl::AnyInvocable<RtpTransportInternal*() &&> transport_lookup = []() {
       return nullptr;
     }) {
-  ScopedOperationsBatcher worker_tasks(context->worker_thread());
   auto transceiver = make_ref_counted<RtpTransceiver>(
       env, call, MediaConfig(), "sender", "receiver", MediaType::AUDIO, nullptr,
       std::vector<std::string>(), std::vector<RtpEncodingParameters>(), context,
       codec_lookup_helper, nullptr, nullptr, audio_options, VideoOptions(),
       CryptoOptions(), nullptr, std::vector<RtpHeaderExtensionCapability>(),
-      false, std::vector<SimulcastLayer>(), worker_tasks, [] {});
+      false, std::vector<SimulcastLayer>(), [] {});
 
-  RTC_CHECK(worker_tasks.Run().ok());
-
+  ScopedOperationsBatcher worker_tasks(context->worker_thread());
   ScopedOperationsBatcher network_tasks(context->network_thread());
   transceiver->CreateChannel("0", call, MediaConfig(), false, CryptoOptions(),
                              audio_options, VideoOptions(), nullptr,
@@ -124,16 +122,14 @@ scoped_refptr<RtpTransceiver> CreateVideoTransceiverWithChannel(
     absl::AnyInvocable<RtpTransportInternal*() &&> transport_lookup = []() {
       return nullptr;
     }) {
-  ScopedOperationsBatcher worker_tasks(context->worker_thread());
   auto transceiver = make_ref_counted<RtpTransceiver>(
       env, call, MediaConfig(), "sender", "receiver", MediaType::VIDEO, nullptr,
       std::vector<std::string>(), std::vector<RtpEncodingParameters>(), context,
       codec_lookup_helper, nullptr, nullptr, AudioOptions(), video_options,
       CryptoOptions(), nullptr, std::vector<RtpHeaderExtensionCapability>(),
-      false, std::vector<SimulcastLayer>(), worker_tasks, [] {});
+      false, std::vector<SimulcastLayer>(), [] {});
 
-  RTC_CHECK(worker_tasks.Run().ok());
-
+  ScopedOperationsBatcher worker_tasks(context->worker_thread());
   ScopedOperationsBatcher network_tasks(context->network_thread());
   transceiver->CreateChannel("0", call, MediaConfig(), false, CryptoOptions(),
                              AudioOptions(), video_options, nullptr,

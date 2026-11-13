@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.ui.side_ui;
 
+import android.util.ArrayMap;
+
 import androidx.annotation.IntDef;
 import androidx.annotation.Px;
 
@@ -11,6 +13,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Coordinator for "side UI," with "side UI" referring to views that will anchor to either the left
@@ -19,17 +22,32 @@ import java.util.Locale;
 @NullMarked
 public interface SideUiCoordinator extends SideUiStateProvider {
 
-    /** Minimum width for {@code WebContents}, regardless of side panel visibility. */
+    /**
+     * Minimum width (in dp) reserved for {@code WebContents} when calculating {@link SideUiSpecs}
+     * and determining {@link SideUiContainer}s' visibility.
+     */
     int MIN_WEB_CONTENTS_WIDTH_DP = 412;
 
     /**
-     * The side of the window ({@link #START} or {@link #END}) that a {@link SideUiContainer} will
-     * anchor to.
+     * The IDs assigned to known {@link SideUiContainer}s listed in descending order of their
+     * priorities by which they consume available space. The smaller number indicates higher
+     * priority.
      */
-    @IntDef({AnchorSide.START, AnchorSide.END})
+    @IntDef({SideUiId.SIDE_PANEL, SideUiId.VERTICAL_TABS})
+    @interface SideUiId {
+        int VERTICAL_TABS = 0;
+        int SIDE_PANEL = 1;
+        int NUM_ENTRIES = 2;
+    }
+
+    /**
+     * The sides of the window that a {@link SideUiContainer} will anchor to. Each value should have
+     * a corresponding container view in main_forked_with_secondary_ui_container.xml.
+     */
+    @IntDef({AnchorSide.LEFT, AnchorSide.RIGHT})
     @interface AnchorSide {
-        int START = 0;
-        int END = 1;
+        int LEFT = 0;
+        int RIGHT = 1;
         int NUM_ENTRIES = 2;
     }
 
@@ -37,11 +55,13 @@ public interface SideUiCoordinator extends SideUiStateProvider {
      * POD-type that holds the info for a request to reposition or resize a {@link SideUiContainer}.
      */
     final class SideUiContainerProperties {
+        final @SideUiId int mSideUiId;
         final @AnchorSide int mAnchorSide;
         final @Px int mWidth;
 
-        public SideUiContainerProperties(@AnchorSide int anchorSide, @Px int width) {
-            mAnchorSide = anchorSide;
+        public SideUiContainerProperties(@SideUiId int id, @AnchorSide int side, @Px int width) {
+            mSideUiId = id;
+            mAnchorSide = side;
             mWidth = width;
         }
     }
@@ -57,32 +77,41 @@ public interface SideUiCoordinator extends SideUiStateProvider {
      * SideUiStateProvider} instead.
      */
     final class SideUiSpecs {
-        /** A {@link SideUiSpecs} with a startContainerWidth and endContainerWidth of 0. */
+        /** A {@link SideUiSpecs} with a leftContainerWidth and rightContainerWidth of 0. */
         public static final SideUiSpecs EMPTY_SIDE_UI_SPECS =
-                new SideUiSpecs(/* startContainerWidth= */ 0, /* endContainerWidth= */ 0);
+                new SideUiSpecs(/* leftContainerWidth= */ 0, /* rightContainerWidth= */ 0);
 
-        public final @Px int mStartContainerWidth;
-        public final @Px int mEndContainerWidth;
+        /** Maps @AnchorSide to ContainerWidth. */
+        private final Map<Integer, Integer> mSideUiWidths = new ArrayMap<>();
 
-        public SideUiSpecs(@Px int startContainerWidth, @Px int endContainerWidth) {
-            mStartContainerWidth = startContainerWidth;
-            mEndContainerWidth = endContainerWidth;
+        public SideUiSpecs(Map<Integer, Integer> sideUiWidths) {
+            mSideUiWidths.putAll(sideUiWidths);
+        }
+
+        public SideUiSpecs(@Px int leftContainerWidth, @Px int rightContainerWidth) {
+            assert leftContainerWidth >= 0;
+            assert rightContainerWidth >= 0;
+            mSideUiWidths.put(AnchorSide.LEFT, leftContainerWidth);
+            mSideUiWidths.put(AnchorSide.RIGHT, rightContainerWidth);
+        }
+
+        public int getWidth(@AnchorSide int side) {
+            return mSideUiWidths.getOrDefault(side, 0);
         }
 
         @Override
         public boolean equals(@Nullable Object obj) {
             if (!(obj instanceof SideUiSpecs that)) return false;
-            return (this.mStartContainerWidth == that.mStartContainerWidth)
-                    && (this.mEndContainerWidth == that.mEndContainerWidth);
+            return this.mSideUiWidths.equals(that.mSideUiWidths);
         }
 
         @Override
         public String toString() {
             return String.format(
                     Locale.ENGLISH,
-                    "[StartContainerWidth: %d, EndContainerWidth: %d]",
-                    mStartContainerWidth,
-                    mEndContainerWidth);
+                    "[LeftContainerWidth: %d, RightContainerWidth: %d]",
+                    mSideUiWidths.get(AnchorSide.LEFT),
+                    mSideUiWidths.get(AnchorSide.RIGHT));
         }
     }
 
@@ -90,6 +119,8 @@ public interface SideUiCoordinator extends SideUiStateProvider {
      * Registers a {@link SideUiContainer} to be maintained by this coordinator.
      *
      * @param sideUiContainer The {@link SideUiContainer} to register.
+     * @throw IllegalArgumentException if the given sideUiContainer has conflicts with the existing
+     *     ones, such as duplicated {@link SideUiId} or {@link AnchorSide}.
      */
     void registerSideUiContainer(SideUiContainer sideUiContainer);
 
@@ -110,6 +141,9 @@ public interface SideUiCoordinator extends SideUiStateProvider {
      *     position for the registered {@link SideUiContainer}.
      * @param suppressAnimations Whether animations should be suppressed for the container update.
      *     If true, the update will happen immediately, without animations.
+     * @throw IllegalArgumentException if the given properties comes with an invalid {@link
+     *     SideUiId} not found in the registered containers, such as duplicated {@link SideUiId} or
+     *     {@link AnchorSide}.
      */
     void requestUpdateContainer(SideUiContainerProperties properties, boolean suppressAnimations);
 

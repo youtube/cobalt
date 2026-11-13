@@ -98,7 +98,6 @@ class DebugRectHistory;
 class EvictionTilePriorityQueue;
 class ImageAnimationController;
 class ImageDecodeCache;
-class LCDTextMetricsReporter;
 class LatencyInfoSwapPromiseMonitor;
 class LayerContext;
 class LayerImpl;
@@ -1232,10 +1231,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   // <meta name="viewport" content="initial-scale=1.0">
   bool is_viewport_mobile_optimized_ = false;
 
-  // If true, forwards a request to viz/ to use ADPF's
-  // setPreferEfficientScheduling API on Android. No-op for other platforms.
-  bool prefer_efficient_scheduling_ = false;
-
   bool prefers_reduced_motion_ = false;
 
   bool may_throttle_if_undrawn_frames_ = true;
@@ -1307,8 +1302,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   AverageLagTrackingManager lag_tracking_manager_;
 
   EventsMetricsManager events_metrics_manager_;
-
-  std::unique_ptr<LCDTextMetricsReporter> lcd_text_metrics_reporter_;
 
   bool has_input_for_frame_interval_ = false;
   DelayedUniqueNotifier has_input_resetter_;

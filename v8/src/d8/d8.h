@@ -16,6 +16,8 @@
 #include <vector>
 
 #include "include/v8-array-buffer.h"
+#include "include/v8-data.h"
+#include "include/v8-external.h"
 #include "include/v8-isolate.h"
 #include "include/v8-script.h"
 #include "include/v8-value-serializer.h"
@@ -373,6 +375,7 @@ class PerIsolateData {
   bool ignore_unhandled_promises_;
   std::vector<std::tuple<Global<Promise>, Global<Message>, Global<Value>>>
       unhandled_promises_;
+  std::vector<int> realm_stack_;
   AsyncHooks* async_hooks_wrapper_;
   std::unordered_set<DynamicImportData*> import_data_;
   Global<FunctionTemplate> test_api_object_ctor_;
@@ -741,7 +744,8 @@ class Shell : public i::AllStatic {
   static void FreeUnicodeFilenameArgs();
 #endif
   static void SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void ReadCodeTypeAndArguments(
+  // Returns false if any exception occurred. Otherwise returns true.
+  static bool ReadCodeTypeAndArguments(
       const v8::FunctionCallbackInfo<v8::Value>& info, int index,
       CodeType* code_type, Local<Value>* arguments = nullptr);
   static bool FunctionAndArgumentsToString(Local<Function> function,
@@ -828,10 +832,8 @@ class Shell : public i::AllStatic {
   static void Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& info);
 #endif  // V8_FUZZILLI
 
-  // Data is of type DynamicImportData*. We use void* here to be able
-  // to conform with MicrotaskCallback interface and enqueue this
-  // function in the microtask queue.
-  static void DoHostImportModuleDynamically(void* data);
+  // Data is of type DynamicImportData* wrapped in v8::External.
+  static void DoHostImportModuleDynamically(v8::Local<v8::Data> data);
   static void AddOSMethods(v8::Isolate* isolate,
                            Local<ObjectTemplate> os_template);
 

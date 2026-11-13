@@ -188,6 +188,13 @@ bool TlsClientHandshaker::CryptoConnect() {
     }
   }
 
+#if BORINGSSL_API_VERSION >= 41
+  if (tls_connection_.ssl_config().server_padding_to_request.has_value()) {
+    SSL_set_server_padding_request(
+        ssl(), tls_connection_.ssl_config().server_padding_to_request.value());
+  }
+#endif
+
   // The compliance policy must be the last thing configured before the
   // handshake in order to have defined behavior.
   if (ssl_compliance_policy_.has_value()) {
@@ -425,6 +432,10 @@ bool TlsClientHandshaker::MatchedTrustAnchorIdForTesting() const {
   return matched_trust_anchor_id_;
 }
 
+bool TlsClientHandshaker::ServerPaddingSentForTesting() const {
+  return server_sent_padding_;
+}
+
 std::optional<ssl_compliance_policy_t>
 TlsClientHandshaker::SslCompliancePolicyForTesting() const {
   return ssl_compliance_policy_;
@@ -629,6 +640,10 @@ void TlsClientHandshaker::FinishHandshake() {
     }
   }
 
+#if BORINGSSL_API_VERSION >= 41
+  server_sent_padding_ = SSL_server_sent_requested_padding(ssl());
+#endif
+
   state_ = HANDSHAKE_COMPLETE;
   handshaker_delegate()->OnTlsHandshakeComplete();
 }
@@ -704,6 +719,32 @@ void TlsClientHandshaker::InsertSession(bssl::UniquePtr<SSL_SESSION> session) {
   session_cache_->Insert(server_id_, std::move(session),
                          *received_transport_params_,
                          received_application_state_.get());
+}
+
+int TlsClientHandshaker::OnClientCertRequested(SSL* ssl) {
+  QUICHE_DCHECK(GetQuicRestartFlag(quic_client_cert_support));
+  if (SSL_get0_chain(ssl) != nullptr) {
+    QUIC_DVLOG(1) << "Client certificate already set, continuing handshake.";
+    return 1;
+  }
+  const STACK_OF(CRYPTO_BUFFER)* ca_names = SSL_get0_server_requested_CAs(ssl);
+  std::vector<std::string> cert_authorities;
+  if (ca_names != nullptr) {
+    for (size_t i = 0; i < sk_CRYPTO_BUFFER_num(ca_names); ++i) {
+      CRYPTO_BUFFER* buffer = sk_CRYPTO_BUFFER_value(ca_names, i);
+      cert_authorities.push_back(
+          std::string(reinterpret_cast<const char*>(CRYPTO_BUFFER_data(buffer)),
+                      CRYPTO_BUFFER_len(buffer)));
+    }
+  }
+
+  // OnCertificateRequested returns true if the implementation intends to
+  // provide the client certificate asynchronously, in which case we suspend the
+  // handshake.
+  if (proof_handler_->OnCertificateRequested(cert_authorities)) {
+    return -1;
+  }
+  return 1;
 }
 
 void TlsClientHandshaker::WriteMessage(EncryptionLevel level,

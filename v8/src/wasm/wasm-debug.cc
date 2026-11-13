@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <unordered_map>
 
+#include "src/base/logging.h"
 #include "src/common/assert-scope.h"
 #include "src/common/simd128.h"
 #include "src/compiler/wasm-compiler.h"
@@ -716,6 +717,7 @@ class DebugInfoImpl {
       case kBottom:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   // After installing a Liftoff code object with a different set of breakpoints,
@@ -1042,7 +1044,7 @@ namespace {
 
 int GetBreakpointPos(Isolate* isolate,
                      Tagged<Object> break_point_info_or_undef) {
-  if (IsUndefined(break_point_info_or_undef, isolate)) return kMaxInt;
+  if (IsUndefined(break_point_info_or_undef)) return kMaxInt;
   return Cast<BreakPointInfo>(break_point_info_or_undef)->source_position();
 }
 
@@ -1101,7 +1103,7 @@ bool WasmScript::ClearBreakPoint(DirectHandle<Script> script, int position,
     for (uint32_t i = pos; i < breakpoint_infos_len - 1; i++) {
       Tagged<Object> entry = breakpoint_infos->get(i + 1);
       breakpoint_infos->set(i, entry);
-      if (IsUndefined(entry, isolate)) break;
+      if (IsUndefined(entry)) break;
     }
     // Make sure last array element is empty as a result.
     breakpoint_infos->set(breakpoint_infos_len - 1,
@@ -1140,7 +1142,7 @@ bool WasmScript::ClearBreakPointById(DirectHandle<Script> script,
 
   for (uint32_t i = 0, e = breakpoint_infos_len; i < e; ++i) {
     DirectHandle<Object> obj(breakpoint_infos->get(i), isolate);
-    if (IsUndefined(*obj, isolate)) {
+    if (IsUndefined(*obj)) {
       continue;
     }
     auto breakpoint_info = Cast<BreakPointInfo>(obj);
@@ -1193,7 +1195,7 @@ void WasmScript::AddBreakpointToInfo(DirectHandle<Script> script, int position,
 
   // Enlarge break positions array if necessary.
   bool need_realloc =
-      !IsUndefined(breakpoint_infos->get(breakpoint_infos_len - 1), isolate);
+      !IsUndefined(breakpoint_infos->get(breakpoint_infos_len - 1));
   DirectHandle<FixedArray> new_breakpoint_infos = breakpoint_infos;
   if (need_realloc) {
     new_breakpoint_infos = isolate->factory()->NewFixedArray(
@@ -1209,7 +1211,7 @@ void WasmScript::AddBreakpointToInfo(DirectHandle<Script> script, int position,
   for (int i = static_cast<int>(breakpoint_infos_len) - 1; i >= insert_pos;
        --i) {
     Tagged<Object> entry = breakpoint_infos->get(i);
-    if (IsUndefined(entry, isolate)) continue;
+    if (IsUndefined(entry)) continue;
     new_breakpoint_infos->set(i + 1, entry);
   }
 
@@ -1331,7 +1333,7 @@ MaybeDirectHandle<FixedArray> WasmScript::CheckBreakPoints(
 
   DirectHandle<Object> maybe_breakpoint_info(breakpoint_infos->get(insert_pos),
                                              isolate);
-  if (IsUndefined(*maybe_breakpoint_info, isolate)) return {};
+  if (IsUndefined(*maybe_breakpoint_info)) return {};
   auto breakpoint_info = Cast<BreakPointInfo>(maybe_breakpoint_info);
   if (breakpoint_info->source_position() != position) return {};
 

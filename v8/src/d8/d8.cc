@@ -26,6 +26,8 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/libplatform/v8-tracing.h"
+#include "include/v8-data.h"
+#include "include/v8-external.h"
 #include "include/v8-function.h"
 #include "include/v8-initialization.h"
 #include "include/v8-inspector.h"
@@ -1747,7 +1749,9 @@ MaybeLocal<Promise> Shell::HostImportModuleWithPhaseDynamically(
         new DynamicImportData(isolate, context, resource_name, specifier, phase,
                               import_attributes, resolver);
     PerIsolateData::Get(isolate)->AddDynamicImportData(data);
-    isolate->EnqueueMicrotask(Shell::DoHostImportModuleDynamically, data);
+    isolate->EnqueueMicrotask(
+        Shell::DoHostImportModuleDynamically,
+        External::New(isolate, data, v8::kExternalPointerTypeTagDefault));
   }
   return resolver->GetPromise();
 }
@@ -1839,10 +1843,12 @@ Maybe<bool> ChainDynamicImportPromise(Isolate* isolate, Local<Context> realm,
 }
 }  // namespace
 
-void Shell::DoHostImportModuleDynamically(void* data) {
+void Shell::DoHostImportModuleDynamically(v8::Local<v8::Data> data) {
   Isolate* current_isolate = reinterpret_cast<Isolate*>(i::Isolate::Current());
+  void* raw_data =
+      data.As<v8::External>()->Value(v8::kExternalPointerTypeTagDefault);
   DynamicImportData* import_data =
-      PerIsolateData::Get(current_isolate)->LookupImportData(data);
+      PerIsolateData::Get(current_isolate)->LookupImportData(raw_data);
   CHECK_EQ(current_isolate, import_data->isolate);
 
   Isolate* isolate(import_data->isolate);
@@ -2303,9 +2309,12 @@ PerIsolateData::ExplicitRealmScope::ExplicitRealmScope(PerIsolateData* data,
   realm_->Enter();
   previous_index_ = data->realm_current_;
   data->realm_current_ = data->realm_switch_ = index_;
+  data->realm_stack_.push_back(index_);
 }
 
 PerIsolateData::ExplicitRealmScope::~ExplicitRealmScope() {
+  DCHECK_EQ(data_->realm_stack_.back(), index_);
+  data_->realm_stack_.pop_back();
   realm_->Exit();
   data_->realm_current_ = data_->realm_switch_ = previous_index_;
 }
@@ -2657,9 +2666,12 @@ bool Shell::ValidateRealmIndex(Isolate* isolate, PerIsolateData* data,
 bool Shell::ValidateRestrictedRealmIndex(Isolate* isolate, PerIsolateData* data,
                                          int index) {
   if (index == PerIsolateData::kMainRealmIndex ||
-      index == data->realm_current_ || index == data->realm_switch_) {
+      index == data->realm_current_ || index == data->realm_switch_ ||
+      std::find(data->realm_stack_.begin(), data->realm_stack_.end(), index) !=
+          data->realm_stack_.end()) {
     // We cannot dispose or navigate away from the main realm, the current
-    // realm, or the realm we are currently switching to.
+    // realm, the realm we are currently switching to, or any realm on the
+    // stack.
     ThrowError(isolate, "Invalid realm index");
     return false;
   }
@@ -2868,6 +2880,7 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   Local<String> source;
   if (!ReadSource(info, 1, CodeType::kString).ToLocal(&source)) {
+    if (reinterpret_cast<i::Isolate*>(isolate)->has_exception()) return;
     if (!ValidateRealmIndex(isolate, data, index)) return;
     ThrowError(isolate, "Invalid argument");
     return;
@@ -3692,21 +3705,23 @@ void Shell::GetExtrasBindingObject(
   info.GetReturnValue().Set(context->GetExtrasBindingObject());
 }
 
-void Shell::ReadCodeTypeAndArguments(
+bool Shell::ReadCodeTypeAndArguments(
     const v8::FunctionCallbackInfo<v8::Value>& info, int index,
     CodeType* code_type, Local<Value>* arguments) {
   Isolate* isolate = info.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   if (info.Length() > index && info[index]->IsObject()) {
     Local<Object> object = info[index].As<Object>();
     Local<Context> context = isolate->GetCurrentContext();
     Local<Value> value;
     if (!TryGetValue(isolate, context, object, "type").ToLocal(&value)) {
+      if (i_isolate->has_exception()) return false;
       *code_type = CodeType::kNone;
-      return;
+      return true;
     }
     if (!value->IsString()) {
       *code_type = CodeType::kInvalid;
-      return;
+      return true;
     }
     Local<String> worker_type_string =
         value->ToString(context).ToLocalChecked();
@@ -3721,13 +3736,15 @@ void Shell::ReadCodeTypeAndArguments(
       *code_type = CodeType::kInvalid;
     }
     if (arguments != nullptr) {
-      bool got_arguments =
-          TryGetValue(isolate, context, object, "arguments").ToLocal(arguments);
-      USE(got_arguments);
+      if (!TryGetValue(isolate, context, object, "arguments")
+               .ToLocal(arguments)) {
+        if (i_isolate->has_exception()) return false;
+      }
     }
   } else {
     *code_type = CodeType::kNone;
   }
+  return true;
 }
 
 bool Shell::FunctionAndArgumentsToString(Local<Function> function,
@@ -3809,7 +3826,9 @@ MaybeLocal<String> Shell::ReadSource(
     CodeType default_type) {
   CodeType code_type;
   Local<Value> arguments;
-  ReadCodeTypeAndArguments(info, index + 1, &code_type, &arguments);
+  if (!ReadCodeTypeAndArguments(info, index + 1, &code_type, &arguments)) {
+    return MaybeLocal<String>();
+  }
 
   Isolate* isolate = info.GetIsolate();
   Local<String> source;
@@ -3861,6 +3880,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   Local<String> source;
   if (!ReadSource(info, 0, CodeType::kFileName).ToLocal(&source)) {
+    if (reinterpret_cast<i::Isolate*>(isolate)->has_exception()) return;
     ThrowError(isolate, "Invalid argument");
     return;
   }
@@ -6135,6 +6155,7 @@ void SourceGroup::ExecuteInThread() {
     Shell::ResetOnProfileEndListener(isolate);
   }
 
+  platform::NotifyIsolateShutdown(g_default_platform, isolate);
   isolate->Dispose();
 }
 

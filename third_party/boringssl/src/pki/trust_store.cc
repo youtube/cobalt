@@ -279,7 +279,7 @@ void MTCAnchor::CreateSyntheticCert(bssl::Span<const uint8_t> log_id) {
   // Section 5.2's note for initial experimentation also says to use UTF8String
   // to represent the attribute's value rather than RELATIVE-OID.
 
-  //  Convert the relative OID |log_id| to a string. This can fail.
+  //  Convert the relative OID `log_id` to a string. This can fail.
   CBS log_id_oid(log_id);
   bssl::UniquePtr<char> log_id_text(CBS_asn1_relative_oid_to_text(&log_id_oid));
   if (!log_id_text) {

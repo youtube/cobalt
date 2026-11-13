@@ -96,6 +96,16 @@ void CroppingWindowCapturer::OnCaptureResult(
     return;
   }
 
+  // We don't know when capture has occurred, so if the window moved we can't
+  // assert which pixels we should capture. Capture again and we'll return a
+  // frame once the window is stationary between the two calls.
+  DesktopRect current_window_rect = GetWindowRectInVirtualScreen();
+  if (!current_window_rect.equals(last_window_rect_)) {
+    RTC_LOG(LS_INFO) << "Window moved during capture";
+    window_capturer_->CaptureFrame();
+    return;
+  }
+
   if (result != Result::SUCCESS) {
     RTC_LOG(LS_WARNING) << "ScreenCapturer failed to capture a frame";
     callback_->OnCaptureResult(result, nullptr);

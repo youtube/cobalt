@@ -20,6 +20,7 @@
 #import "ios/chrome/browser/contextual_panel/model/contextual_panel_tab_helper_observer_bridge.h"
 #import "ios/chrome/browser/infobars/model/infobar_badge_tab_helper.h"
 #import "ios/chrome/browser/infobars/model/infobar_badge_tab_helper_observer_bridge.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_browser_agent.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
@@ -79,6 +80,8 @@ constexpr base::TimeDelta kStartCollapseTransitionTime = base::Seconds(5);
   raw_ptr<PrefService> _prefService;
   // Gemini service
   raw_ptr<GeminiService> _geminiService;
+  // Gemini browser agent
+  raw_ptr<GeminiBrowserAgent> _geminiBrowserAgent;
   // Bridge for the InfobarBadgeTabHelper observation.
   std::unique_ptr<InfobarBadgeTabHelperObserverBridge>
       _infobarBadgeObserverBridge;
@@ -100,7 +103,8 @@ constexpr base::TimeDelta kStartCollapseTransitionTime = base::Seconds(5);
 - (instancetype)initWithWebStateList:(WebStateList*)webStateList
                              tracker:(feature_engagement::Tracker*)tracker
                          prefService:(PrefService*)prefService
-                       geminiService:(GeminiService*)geminiService {
+                       geminiService:(GeminiService*)geminiService
+                  geminiBrowserAgent:(GeminiBrowserAgent*)geminiBrowserAgent {
   self = [super init];
   if (self) {
     _webStateList = webStateList;
@@ -135,6 +139,7 @@ constexpr base::TimeDelta kStartCollapseTransitionTime = base::Seconds(5);
     _tracker = tracker;
     _prefService = prefService;
     _geminiService = geminiService;
+    _geminiBrowserAgent = geminiBrowserAgent;
   }
   return self;
 }
@@ -162,6 +167,7 @@ constexpr base::TimeDelta kStartCollapseTransitionTime = base::Seconds(5);
   _tracker = nil;
   _prefService = nil;
   _geminiService = nil;
+  _geminiBrowserAgent = nullptr;
 }
 
 #pragma mark - WebStateListObserving
@@ -687,10 +693,13 @@ constexpr base::TimeDelta kStartCollapseTransitionTime = base::Seconds(5);
   if (IsChromeNextIaEnabled() && !self.active) {
     return NO;
   }
+  if (_geminiBrowserAgent && _geminiBrowserAgent->is_floaty_invoked()) {
+    return NO;
+  }
   GeminiTabHelper* tabHelper = GeminiTabHelper::FromWebState(_activeWebState);
-  BOOL isPageEligible = tabHelper &&
-                        tabHelper->IsGeminiAvailableForWebState() &&
-                        _geminiService->IsProfileEligibleForGemini();
+  BOOL isPageEligible =
+      tabHelper && tabHelper->IsGeminiAvailableForWebState() &&
+      _geminiService && _geminiService->IsProfileEligibleForGemini();
   // TODO(crbug.com/465766925): Remove when feature is enabled by default.
   BOOL isConsentEligible = IsAskGeminiChipAllowNonconsentedUsersEnabled() ||
                            _prefService->GetBoolean(prefs::kIOSBwgConsent);

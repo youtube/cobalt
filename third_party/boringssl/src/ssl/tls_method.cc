@@ -165,9 +165,9 @@ static void ssl_noop_x509_ssl_flush_cached_client_CA(SSL_CONFIG *cfg) {}
 static bool ssl_noop_x509_ssl_auto_chain_if_needed(SSL_HANDSHAKE *hs) {
   return true;
 }
-static bool ssl_noop_x509_ssl_ctx_new(SSL_CTX *ctx) { return true; }
-static void ssl_noop_x509_ssl_ctx_free(SSL_CTX *ctx) {}
-static void ssl_noop_x509_ssl_ctx_flush_cached_client_CA(SSL_CTX *ctx) {}
+static bool ssl_noop_x509_ssl_ctx_new(SSLContext *ctx) { return true; }
+static void ssl_noop_x509_ssl_ctx_free(SSLContext *ctx) {}
+static void ssl_noop_x509_ssl_ctx_flush_cached_client_CA(SSLContext *ctx) {}
 
 const SSL_X509_METHOD ssl_noop_x509_method = {
     ssl_noop_x509_check_client_CA_names,

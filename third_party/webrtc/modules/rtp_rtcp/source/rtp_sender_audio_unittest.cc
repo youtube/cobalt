@@ -18,6 +18,7 @@
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/units/timestamp.h"
 #include "modules/audio_coding/include/audio_coding_module_typedefs.h"
@@ -34,10 +35,8 @@
 namespace webrtc {
 
 namespace {
-enum : int {  // The first valid value is 1.
-  kAudioLevelExtensionId = 1,
-  kAbsoluteCaptureTimeExtensionId = 2,
-};
+constexpr RtpHeaderExtensionId kAudioLevelExtensionId(1);
+constexpr RtpHeaderExtensionId kAbsoluteCaptureTimeExtensionId(2);
 
 constexpr uint16_t kSeqNum = 33;
 constexpr uint32_t kSsrc = 725242;

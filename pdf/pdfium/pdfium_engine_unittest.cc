@@ -20,6 +20,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/bind.h"
 #include "base/test/gmock_move_support.h"
 #include "base/test/gtest_util.h"
 #include "base/test/mock_callback.h"
@@ -40,6 +41,7 @@
 #include "pdf/pdfium/pdfium_engine_client.h"
 #include "pdf/pdfium/pdfium_page.h"
 #include "pdf/pdfium/pdfium_test_base.h"
+#include "pdf/pdfium/pdfium_test_helpers.h"
 #include "pdf/test/input_event_util.h"
 #include "pdf/test/mouse_event_builder.h"
 #include "pdf/test/test_client.h"
@@ -72,7 +74,6 @@
 #include "pdf/pdf_ink_brush.h"
 #include "pdf/pdf_ink_constants.h"
 #include "pdf/pdf_ink_metrics_handler.h"
-#include "pdf/pdfium/pdfium_test_helpers.h"
 #include "pdf/test/pdf_ink_test_helpers.h"
 #include "third_party/ink/src/ink/strokes/input/stroke_input_batch.h"
 #include "third_party/ink/src/ink/strokes/stroke.h"
@@ -100,7 +101,9 @@ constexpr gfx::PointF kHelloWorldStartPosition{35.0f, 110.0f};
 constexpr gfx::PointF kHelloWorldEndPosition{100.0f, 110.0f};
 
 const base::FilePath kBlankPngFilePath(FILE_PATH_LITERAL("blank.png"));
+#if BUILDFLAG(ENABLE_PDF_INK2)
 constexpr gfx::Size kBlankPageSizeInPoints(200, 200);
+#endif  // BUILDFLAG(ENABLE_PDF_INK2)
 
 MATCHER_P2(LayoutWithSize, width, height, "") {
   return arg.size() == gfx::Size(width, height);
@@ -128,6 +131,7 @@ std::string GetPlatformTextExpectation(std::string expectation) {
   return expectation;
 }
 
+#if BUILDFLAG(ENABLE_PDF_INK2)
 void CheckPdfRenderingIsBlank200x200(FPDF_PAGE page) {
   CheckPdfRendering(page, kBlankPageSizeInPoints, kBlankPngFilePath);
 }
@@ -139,6 +143,7 @@ void CheckSavedPdfRenderingIsBlank200x200(PDFiumEngine* engine) {
   CheckPdfRendering(saved_pdf_data, kPageIndex, kBlankPageSizeInPoints,
                     kBlankPngFilePath);
 }
+#endif  // BUILDFLAG(ENABLE_PDF_INK2)
 
 class MockTestClient : public TestClient {
  public:
@@ -3675,8 +3680,10 @@ TEST_P(PDFiumEngineInkDrawTextTest, LoadTextAnnotationsFromPdfMultiPages) {
   ASSERT_TRUE(engine);
   ASSERT_EQ(3, engine->GetNumberOfPages());
 
+  size_t next_id = 0;
   DocumentInkTextBoxesMap document_textboxes =
-      engine->LoadTextAnnotationsFromPdf();
+      engine->LoadTextAnnotationsFromPdf(base::BindLambdaForTesting(
+          [&next_id]() { return InkTextId(next_id++); }));
   ASSERT_EQ(2u, document_textboxes.size());
 
   // Page 0 and Page 2 have text annotations; Page 1 is empty and should be
@@ -3715,7 +3722,9 @@ TEST_P(PDFiumEngineInkDrawTextTest, DrawTextAvoidsTextboxIdCollisions) {
 
   // Load existing annotations to populate `existing_textbox_ids_`.
   // ink_text_multi_textboxes.pdf has textbox IDs 0 and 42.
-  engine->LoadTextAnnotationsFromPdf();
+  size_t next_id = 0;
+  engine->LoadTextAnnotationsFromPdf(base::BindLambdaForTesting(
+      [&next_id]() { return InkTextId(next_id++); }));
 
   constexpr int kPageIndex = 0;
   PDFiumPage& page = GetPDFiumPage(*engine, kPageIndex);

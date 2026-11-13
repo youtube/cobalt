@@ -31,6 +31,7 @@
 #include "api/fec_controller.h"
 #include "api/field_trials_view.h"
 #include "api/frame_transformer_interface.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
@@ -447,7 +448,7 @@ RtpVideoSender::RtpVideoSender(
 
   for (size_t i = 0; i < rtp_config_.extensions.size(); ++i) {
     const std::string& extension = rtp_config_.extensions[i].uri;
-    int id = rtp_config_.extensions[i].id;
+    RtpHeaderExtensionId id = rtp_config_.extensions[i].id;
     RTC_DCHECK(RtpExtension::IsSupportedForVideo(extension));
     for (const RtpStreamSender& stream : rtp_streams_) {
       stream.rtp_rtcp->RegisterRtpHeaderExtension(extension, id);

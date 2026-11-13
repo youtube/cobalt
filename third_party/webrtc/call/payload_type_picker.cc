@@ -22,6 +22,7 @@
 #include "api/audio_codecs/audio_format.h"
 #include "api/payload_type.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "call/payload_type.h"
 #include "media/base/codec.h"
@@ -366,7 +367,7 @@ void PayloadTypeRecorder::Rollback() {
   payload_type_to_codec_ = checkpoint_payload_type_to_codec_;
 }
 
-RTCError RtpHeaderExtensionRecorder::AddMapping(int id,
+RTCError RtpHeaderExtensionRecorder::AddMapping(RtpHeaderExtensionId id,
                                                 absl::string_view uri,
                                                 bool encrypt) {
   auto it = uri_to_id_.find(std::pair{uri, encrypt});
@@ -389,8 +390,9 @@ RTCError RtpHeaderExtensionRecorder::AddMapping(int id,
   return RTCError::OK();
 }
 
-RTCErrorOr<int> RtpHeaderExtensionRecorder::LookupId(absl::string_view uri,
-                                                     bool encrypt) const {
+RTCErrorOr<RtpHeaderExtensionId> RtpHeaderExtensionRecorder::LookupId(
+    absl::string_view uri,
+    bool encrypt) const {
   auto it = uri_to_id_.find(std::pair{uri, encrypt});
   if (it == uri_to_id_.end()) {
     return RTCError(RTCErrorType::INVALID_PARAMETER,
@@ -407,10 +409,10 @@ void RtpHeaderExtensionRecorder::Rollback() {
   uri_to_id_ = checkpoint_uri_to_id_;
 }
 
-RTCErrorOr<int> RtpHeaderExtensionPicker::SuggestMapping(
+RTCErrorOr<RtpHeaderExtensionId> RtpHeaderExtensionPicker::SuggestMapping(
     absl::string_view uri,
     bool encrypt,
-    int preferred_id,
+    RtpHeaderExtensionId preferred_id,
     RtpTransceiverIdDomain id_domain,
     const RtpHeaderExtensionRecorder* excluder) {
   // If we already have a mapping for this (uri, encrypt), use it.
@@ -427,16 +429,15 @@ RTCErrorOr<int> RtpHeaderExtensionPicker::SuggestMapping(
   }
 
   // Test compatibility: If preferred_id is provided and free, use it.
-  if (preferred_id >= 1 && preferred_id <= 255 &&
-      !seen_ids_.contains(preferred_id)) {
-    if (preferred_id <= 14) {
+  if (preferred_id.Valid() && !seen_ids_.contains(preferred_id)) {
+    if (preferred_id <= RtpHeaderExtensionId::kOneByteHeaderExtensionMaxId) {
       AddMapping(preferred_id, uri, encrypt);
       return preferred_id;
     }
     // We allow preferred_id >= 15 even if id_domain is kOneByteOnly because
     // it might be a re-negotiation or a test where the ID was explicitly
     // assigned. Automatic allocation below will still respect id_domain.
-    if (preferred_id >= 15) {
+    if (preferred_id > RtpHeaderExtensionId::kOneByteHeaderExtensionMaxId) {
       AddMapping(preferred_id, uri, encrypt);
       return preferred_id;
     }
@@ -445,7 +446,9 @@ RTCErrorOr<int> RtpHeaderExtensionPicker::SuggestMapping(
   // Find a free ID.
   // One-byte range: 1-14.
   // We prefer to allocate from the top of the range (14 down to 1).
-  for (int id = 14; id >= 1; --id) {
+  for (RtpHeaderExtensionId id =
+           RtpHeaderExtensionId::kOneByteHeaderExtensionMaxId;
+       id >= RtpHeaderExtensionId::kMinId; id = id.value() - 1) {
     if (!seen_ids_.contains(id)) {
       AddMapping(id, uri, encrypt);
       return id;
@@ -456,9 +459,9 @@ RTCErrorOr<int> RtpHeaderExtensionPicker::SuggestMapping(
     // TODO: issues.webrtc.org/334925828 - add unit tests for this case.
     // Two-byte range: 16-255. (Avoid 15, which is special in RFC 8285)
     for (int id = 16; id <= 255; ++id) {
-      if (!seen_ids_.contains(id)) {
-        AddMapping(id, uri, encrypt);
-        return id;
+      if (!seen_ids_.contains(RtpHeaderExtensionId(id))) {
+        AddMapping(RtpHeaderExtensionId(id), uri, encrypt);
+        return RtpHeaderExtensionId(id);
       }
     }
   }
@@ -467,14 +470,13 @@ RTCErrorOr<int> RtpHeaderExtensionPicker::SuggestMapping(
                   "No free RTP extension IDs");
 }
 
-RTCError RtpHeaderExtensionPicker::AddMapping(int id,
+RTCError RtpHeaderExtensionPicker::AddMapping(RtpHeaderExtensionId id,
                                               absl::string_view uri,
                                               bool encrypt) {
-  RTC_DCHECK_GT(id, 0);
-  RTC_DCHECK_LE(id, 255);
+  RTC_DCHECK(id.Valid());
   // 15 is special and should be avoided, but allowed in the two-byte form
   // according to RFC 8285. But still, it's unexpected to see it used.
-  if (id == 15) {
+  if (id == RtpHeaderExtensionId(15)) {
     RTC_LOG(LS_WARNING) << "Use of special URI extension id 15 encountered.";
   }
   for (const auto& entry : entries_) {

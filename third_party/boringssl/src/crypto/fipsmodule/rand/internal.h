@@ -25,7 +25,7 @@
 BSSL_NAMESPACE_BEGIN
 
 // rand_fork_unsafe_buffering_enabled returns whether fork-unsafe buffering has
-// been enabled via |RAND_enable_fork_unsafe_buffering|.
+// been enabled via `RAND_enable_fork_unsafe_buffering`.
 int rand_fork_unsafe_buffering_enabled();
 
 BSSL_NAMESPACE_END
@@ -43,18 +43,28 @@ struct ctr_drbg_state_st {
 
 BSSL_NAMESPACE_BEGIN
 
-// CTR_DRBG_init initialises |*drbg| given |entropy_len| bytes of entropy in
-// |entropy| and, optionally, a personalization string up to
-// |CTR_DRBG_SEED_LEN| bytes in length. It returns one on success and zero on
+// CTR_DRBG_init initialises `*drbg` given `entropy_len` bytes of entropy in
+// `entropy` and, optionally, a personalization string up to
+// `CTR_DRBG_SEED_LEN` bytes in length. It returns one on success and zero on
 // error.
 //
-// If `df` is false then `entropy_len` must be |CTR_DRBG_ENTROPY_LEN| and
-// |nonce| must be nullptr.
+// If `df` is false then `entropy_len` must be `CTR_DRBG_ENTROPY_LEN` and
+// `nonce` must be nullptr.
 OPENSSL_EXPORT int CTR_DRBG_init(CTR_DRBG_STATE *drbg, int df,
                                  const uint8_t *entropy, size_t entropy_len,
                                  const uint8_t nonce[CTR_DRBG_NONCE_LEN],
                                  const uint8_t *personalization,
                                  size_t personalization_len);
+
+// BSSL_ENTROPY_DAEMON_RESPONSE_LEN is the number of bytes that the Android
+// entropy daemon replies with.
+#define BSSL_ENTROPY_DAEMON_RESPONSE_LEN (48 * 10 + 16)
+
+// bssl_get_seed_from_daemon fetches up to `*inout_entropy_len` bytes of
+// entropy from the Android entropy daemon, writing them to `*out_entropy`.
+// On successful exit, `*inout_entropy_len` contains the number of bytes
+// written. Returns one on success and zero on error.
+int bssl_get_seed_from_daemon(uint8_t *out_entropy, size_t *inout_entropy_len);
 
 #if defined(OPENSSL_X86_64) && !defined(OPENSSL_NO_ASM)
 
@@ -68,11 +78,11 @@ inline int have_fast_rdrand() {
 }
 
 // CRYPTO_rdrand writes eight bytes of random data from the hardware RNG to
-// |out|. It returns one on success or zero on hardware failure.
+// `out`. It returns one on success or zero on hardware failure.
 extern "C" int CRYPTO_rdrand(uint8_t out[8]);
 
-// CRYPTO_rdrand_multiple8_buf fills |len| bytes at |buf| with random data from
-// the hardware RNG. The |len| argument must be a multiple of eight. It returns
+// CRYPTO_rdrand_multiple8_buf fills `len` bytes at `buf` with random data from
+// the hardware RNG. The `len` argument must be a multiple of eight. It returns
 // one on success and zero on hardware failure.
 extern "C" int CRYPTO_rdrand_multiple8_buf(uint8_t *buf, size_t len);
 

@@ -92,8 +92,12 @@ using OldTypeName ABSL_DEPRECATE_AND_INLINE() = NewTypeName;
 NOTE 1: The annotation goes on the declaration in the `.h` file, not the
 definition in the `.cc` file!
 
-NOTE 2: In order to have unit tests that use the deprecated function without
-getting errors, do something like this:
+NOTE 2: In Chromium and WebRTC [ABSL_DEPRECATE_AND_INLINE] macro is patched not
+to add [[deprecated]] attribute. That allows to use the macro before all usage
+in Chromium and WebRTC are cleaned up to a non-deprecated variant.
+
+NOTE 3: In order to use the [[deprecated]] function without getting errors,
+for example in a unit test, do something like this:
 
 ```cpp
 std::pony DEPRECATED_PonyPlz(const std::pony_spec& ps);
@@ -103,18 +107,18 @@ inline std::pony PonyPlz(const std::pony_spec& ps) {
 }
 ```
 
-or wrap the test with
+In other words, rename the existing function, and provide an inline wrapper
+using the original name that calls it. That way, callers who are willing to call
+it using the `DEPRECATED_`-prefixed name don't get the warning.
+
+Alternatively, wrap the code with
 
 ```cpp
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  TEST_...
+  PonyPlz(...);
 #pragma clang diagnostic pop
 ```
-
-In other words, rename the existing function, and provide an inline wrapper
-using the original name that calls it. That way, callers who are willing to call
-it using the `DEPRECATED_`-prefixed name don't get the warning.
 
 ### std::span
 

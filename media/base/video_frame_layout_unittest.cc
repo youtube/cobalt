@@ -89,12 +89,14 @@ TEST(VideoFrameLayout, CreateWithStrides) {
   EXPECT_EQ(layout->coded_size(), coded_size);
   EXPECT_EQ(layout->num_planes(), 3u);
   EXPECT_EQ(layout->is_multi_planar(), false);
+  size_t expected_offset = 0;
   for (size_t i = 0; i < 3; ++i) {
     EXPECT_EQ(layout->planes()[i].stride, strides[i]);
-    EXPECT_EQ(layout->planes()[i].offset, 0u);
+    EXPECT_EQ(layout->planes()[i].offset, expected_offset);
     size_t size =
         strides[i] * (i > 0 ? coded_size.height() / 2 : coded_size.height());
     EXPECT_EQ(layout->planes()[i].size, size);
+    expected_offset += size;
   }
 }
 
@@ -220,11 +222,12 @@ TEST(VideoFrameLayout, ToStringWithPlanes) {
       ModifierToHexString(gfx::NativePixmapHandle::kNoModifier);
   const std::string kAlignment =
       base::NumberToString(layout->buffer_addr_align());
-  EXPECT_EQ(ostream.str(),
-            "VideoFrameLayout(format: PIXEL_FORMAT_I420, coded_size: 320x180, "
-            "planes (stride, offset, size): [(384, 0, 69120), (192, 0, 17280), "
-            "(192, 0, 17280)], is_multi_planar: 0, buffer_addr_align: " +
-                kAlignment + ", modifier: " + kNoModifier + ")");
+  EXPECT_EQ(
+      ostream.str(),
+      "VideoFrameLayout(format: PIXEL_FORMAT_I420, coded_size: 320x180, "
+      "planes (stride, offset, size): [(384, 0, 69120), (192, 69120, 17280), "
+      "(192, 86400, 17280)], is_multi_planar: 0, buffer_addr_align: " +
+          kAlignment + ", modifier: " + kNoModifier + ")");
 }
 
 TEST(VideoFrameLayout, ToStringMultiPlanar) {
@@ -382,6 +385,25 @@ TEST(VideoFrameLayout, FitsInContiguousBufferOfSize) {
     EXPECT_TRUE(exact_layout->FitsInContiguousBufferOfSize(exact_data_size));
     EXPECT_FALSE(
         exact_layout->FitsInContiguousBufferOfSize(exact_data_size - 1));
+  }
+
+  // Validate out-of-order planes.
+  {
+    std::vector<ColorPlaneLayout> ooo_planes(2);
+    ooo_planes[0].stride = 512;
+    ooo_planes[0].offset = 5046272;
+    ooo_planes[0].size = 512 * 112;
+
+    ooo_planes[1].stride = 512;
+    ooo_planes[1].offset = 0;
+    ooo_planes[1].size = 512 * 56;
+
+    auto ooo_layout = VideoFrameLayout::CreateWithPlanes(
+        PIXEL_FORMAT_NV12, gfx::Size(112, 112), ooo_planes);
+    ASSERT_TRUE(ooo_layout.has_value());
+    // Max end is 5046272 + 57344 = 5103616.
+    // It should fit in a buffer of size 12582912.
+    EXPECT_TRUE(ooo_layout->FitsInContiguousBufferOfSize(12582912));
   }
 }
 

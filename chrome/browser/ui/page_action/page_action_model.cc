@@ -134,6 +134,10 @@ bool PageActionModel::GetShouldAnimateChipIn() const {
   return should_animate_ && !did_show_chip_;
 }
 
+bool PageActionModel::GetShouldAnimateImage() const {
+  return image_animation_resource_id_.has_value() && !did_animate_image_;
+}
+
 bool PageActionModel::GetShouldAnnounceChip() const {
   return should_announce_chip_;
 }
@@ -141,6 +145,11 @@ bool PageActionModel::GetShouldAnnounceChip() const {
 const ui::ImageModel& PageActionModel::GetImage() const {
   return override_image_.has_value() ? override_image_.value()
                                      : action_item_image_;
+}
+
+int PageActionModel::GetImageAnimationResourceId() const {
+  CHECK(image_animation_resource_id_.has_value());
+  return image_animation_resource_id_.value();
 }
 
 const std::u16string& PageActionModel::GetText() const {
@@ -193,12 +202,16 @@ void PageActionModel::SetOverrideAccessibleName(
 void PageActionModel::SetOverrideImage(
     PageActionPassKey,
     const std::optional<ui::ImageModel>& override_image,
-    PageActionColorSource color_source) {
-  if (override_image_ == override_image && color_source == color_source_) {
+    PageActionColorSource color_source,
+    std::optional<int> animation_resource_id) {
+  if (override_image_ == override_image && color_source == color_source_ &&
+      image_animation_resource_id_ == animation_resource_id) {
     return;
   }
   override_image_ = override_image;
   color_source_ = color_source;
+  image_animation_resource_id_ = animation_resource_id;
+  did_animate_image_ = false;
   NotifyChange(Property::kOverrideImage);
 }
 
@@ -318,6 +331,16 @@ void PageActionModel::SetAnchoredMessageIcon(
   NotifyChange(Property::kAnchoredMessageIcon);
 }
 
+void PageActionModel::SetAnchoredMessageExpandableContent(
+    PageActionPassKey,
+    std::optional<AnchoredMessageExpandableContent> expandable_content) {
+  if (expandable_content_ == expandable_content) {
+    return;
+  }
+  expandable_content_ = std::move(expandable_content);
+  NotifyChange(Property::kAnchoredMessageExpandableContent);
+}
+
 bool PageActionModel::ShouldShowAnchoredMessage() const {
   return should_show_anchored_message_;
 }
@@ -336,6 +359,10 @@ void PageActionModel::SetIsAnchoredMessageShowing(
   NotifyChange(Property::kIsAnchoredMessageShowing);
 }
 
+void PageActionModel::SetDidAnimateImage(PageActionPassKey pass_key) {
+  did_animate_image_ = true;
+}
+
 const std::u16string& PageActionModel::GetAnchoredMessageText() const {
   return anchored_message_text_;
 }
@@ -352,6 +379,11 @@ ui::SimpleMenuModel* PageActionModel::GetAnchoredMessageMenuModel() const {
 const std::optional<ui::ImageModel>& PageActionModel::GetAnchoredMessageIcon()
     const {
   return anchored_message_icon_;
+}
+
+const std::optional<AnchoredMessageExpandableContent>&
+PageActionModel::GetAnchoredMessageExpandableContent() const {
+  return expandable_content_;
 }
 
 }  // namespace page_actions

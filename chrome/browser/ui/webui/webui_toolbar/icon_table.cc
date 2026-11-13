@@ -49,6 +49,8 @@ const base::flat_map<const gfx::VectorIcon*, IconInfo>& KnownIcons() {
            {"rhs_icons/password_manager.svg", IconType::kMaskUrl}},
           {{&vector_icons::kLocationOnChromeRefreshOldIcon},
            {"rhs_icons/location_on_chrome_refresh.svg", IconType::kMaskUrl}},
+          {{&omnibox::kStarActiveChromeRefreshOldIcon},
+           {"rhs_icons/star_active_chrome_refresh.svg", IconType::kMaskUrl}},
 
           // Post-rounding, used by pinned toolbar actions and omnibox:
           {{&kIncognitoIcon}, {"webui-toolbar:incognito", IconType::kIconSet}},
@@ -86,6 +88,15 @@ const base::flat_map<const gfx::VectorIcon*, IconInfo>& KnownIcons() {
            {"webui-toolbar:omnibox_page_info", IconType::kIconSet}},
           {{&omnibox::kStarIcon},
            {"webui-toolbar:omnibox_star", IconType::kIconSet}},
+          {{&vector_icons::kSearchIcon},
+           {"webui-toolbar:vector_icons_search", IconType::kIconSet}},
+
+          // Old, that is, current, versions of omnibox icons.
+          {{&omnibox::kBookmarkChromeRefreshOldIcon},
+           {"webui-toolbar:omnibox_bookmark_chrome_refresh_old",
+            IconType::kIconSet}},
+          {{&vector_icons::kSearchOldIcon},
+           {"webui-toolbar:vector_icons_search_old", IconType::kIconSet}},
 
           // LHS icons:
           {{&vector_icons::kDangerousChromeRefreshOldIcon},
@@ -261,7 +272,7 @@ class IconTable::ProviderImpl : public toolbar_ui_api::IconHandle::Provider {
 
   std::optional<ui::ImageModel> image_model_;
   // Set if `image_model_` got rendered to `name_or_url_`.
-  std::optional<float> rasterized_scale_ = std::nullopt;
+  std::optional<float> rasterized_scale_;
 };
 
 class IconTable::IconTableFetcherImpl
@@ -299,13 +310,15 @@ IconTable::~IconTable() {
   registered_icons_.clear();
 }
 
-toolbar_ui_api::IconHandle IconTable::RegisterVectorIcon(
+std::optional<toolbar_ui_api::IconHandle> IconTable::RegisterVectorIcon(
     const gfx::VectorIcon& icon,
     std::optional<ui::ImageModel> model_info) {
   const auto& known_icons = KnownIcons();
   auto it = known_icons.find(&icon);
   if (it == known_icons.end()) {
-    return toolbar_ui_api::IconHandle();
+    return &icon == &gfx::VectorIcon::EmptyIcon()
+               ? std::optional(toolbar_ui_api::IconHandle())
+               : std::nullopt;
   }
 
   return AddRegistration(/*need_rasterize=*/false,
@@ -321,11 +334,11 @@ toolbar_ui_api::IconHandle IconTable::RegisterImageModel(ui::ImageModel icon) {
   if (icon.IsVectorIcon()) {
     const auto& vector_icon_model = icon.GetVectorIcon();
     if (vector_icon_model.vector_icon() && !vector_icon_model.badge_icon()) {
-      const gfx::VectorIcon& vector_icon = *icon.GetVectorIcon().vector_icon();
-      toolbar_ui_api::IconHandle maybe_icon =
+      const gfx::VectorIcon& vector_icon = *vector_icon_model.vector_icon();
+      std::optional<toolbar_ui_api::IconHandle> maybe_icon =
           RegisterVectorIcon(vector_icon, icon);
-      if (!maybe_icon.is_null()) {
-        return maybe_icon;
+      if (maybe_icon.has_value()) {
+        return *maybe_icon;
       } else {
         // If this hit, please add a WebUI version of the icon
         // (via iconset or SVG to chrome/browser/resources/webui_toolbar/ if
@@ -333,7 +346,9 @@ toolbar_ui_api::IconHandle IconTable::RegisterImageModel(ui::ImageModel icon) {
         // TODO(crbug.com/511760342): probably want to DWoC here when more
         // mature.
         DCHECK(permit_fallback_vector_rasterization_for_testing_)
-            << "Don't know how to map:" << vector_icon.name;
+            << "Don't know how to map:"
+            << (vector_icon.name ? std::string_view(vector_icon.name)
+                                 : std::string_view("(null name)"));
       }
     }
   }

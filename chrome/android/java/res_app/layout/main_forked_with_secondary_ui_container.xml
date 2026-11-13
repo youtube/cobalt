@@ -103,11 +103,18 @@ TODO(http://crbug.com/485940935): Delete this.
             android:layout="@layout/actor_overlay" />
 
         <org.chromium.ui.AsyncViewStub
-            android:id="@+id/omnibox_results_container_stub"
+            android:id="@+id/omnibox_suggestions_container_stub"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:inflatedId="@+id/omnibox_results_container"
-            app:layout="@layout/omnibox_results_container" />
+            app:inflatedId="@+id/omnibox_suggestions_container"
+            app:layout="@layout/suggestions_result_container" />
+
+        <org.chromium.ui.AsyncViewStub
+            android:id="@+id/ntp_realbox_results_container_stub"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:inflatedId="@+id/ntp_realbox_results_container"
+            app:layout="@layout/suggestions_result_container" />
 
         <org.chromium.chrome.browser.ui.BottomContainer
             android:id="@+id/bottom_container"
@@ -204,25 +211,25 @@ TODO(http://crbug.com/485940935): Delete this.
                 added to the following container. The added views' positions/sizes
                 will be maintained by SideUiCoordinator. -->
             <ViewStub
-                android:id="@+id/side_ui_start_anchor_container_stub"
+                android:id="@+id/side_ui_left_anchor_container_stub"
                 android:layout_width="wrap_content"
                 android:layout_height="0dp"
-                android:inflatedId="@+id/side_ui_start_anchor_container"
+                android:inflatedId="@+id/side_ui_left_anchor_container"
                 android:layout="@layout/side_ui_anchor_container"
-                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintLeft_toLeftOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent" />
 
             <!-- Please do not add anything in between
-                side_ui_start_anchor_container_stub and
-                side_ui_end_anchor_container_stub. -->
+                side_ui_left_anchor_container_stub and
+                side_ui_right_anchor_container_stub. -->
             <ViewStub
-                android:id="@+id/side_ui_end_anchor_container_stub"
+                android:id="@+id/side_ui_right_anchor_container_stub"
                 android:layout_width="wrap_content"
                 android:layout_height="0dp"
-                android:inflatedId="@+id/side_ui_end_anchor_container"
+                android:inflatedId="@+id/side_ui_right_anchor_container"
                 android:layout="@layout/side_ui_anchor_container"
-                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent" />
 

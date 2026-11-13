@@ -175,6 +175,17 @@ enum RtcpMuxPolicyUsage {
   kRtcpMuxPolicyUsageMax
 };
 
+// Metrics for RTCRtpHeaderEncryptionPolicy (which enables cryptex).
+// https://w3c.github.io/webrtc-extensions/#rtp-header-extension-encryption
+enum CryptexPolicyUsage {
+  kCryptexPolicyUsageDisabled = 0,  // Non-spec.
+  kCryptexPolicyUsageNegotiate = 1,
+  // Policy was `negotiate` and it was negotiated at session level.
+  kCryptexPolicyUsageNegotiated = 2,
+  kCryptexPolicyUsageRequire = 3,
+  kCryptexPolicyUsageMax
+};
+
 // Metrics for SDP munging.
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused. Keep in (loose) sync with
@@ -210,6 +221,7 @@ enum SdpMungingType {
   kRtpHeaderExtensionRemoved = 40,
   kRtpHeaderExtensionAdded = 41,
   kRtpHeaderExtensionModified = 42,
+  kCryptex = 43,
   // Audio-related munging.
   kAudioCodecsRemoved = 60,
   kAudioCodecsAdded = 61,

@@ -102,9 +102,6 @@ AX_BASE_EXPORT BASE_DECLARE_FEATURE(kImageDescriptionsAlternateRouting);
 AX_BASE_EXPORT bool IsImageDescriptionsAlternateRoutingEnabled();
 
 
-// Recognize "aria-virtualcontent" as a valid aria property.
-AX_BASE_EXPORT BASE_DECLARE_FEATURE(kEnableAccessibilityAriaVirtualContent);
-AX_BASE_EXPORT bool IsAccessibilityAriaVirtualContentEnabled();
 
 // Expose <summary>" as a heading instead of a button.
 // Two reasons to try this:
@@ -147,6 +144,17 @@ AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityOnScreenMode);
 
 // Returns true if the on screen AXMode is enabled.
 AX_BASE_EXPORT bool IsAccessibilityOnScreenAXModeEnabled();
+
+// Controls canvas accessibility mode.
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityCanvas);
+
+enum class CanvasAccessibilityMode {
+  kDisabled,
+  kBasic,     // Only rendered text.
+  kAdvanced,  // Rendered text + OCR.
+};
+
+AX_BASE_EXPORT CanvasAccessibilityMode GetCanvasAccessibilityMode();
 
 #if BUILDFLAG(IS_WIN)
 // This is a killswitch. Controls whether

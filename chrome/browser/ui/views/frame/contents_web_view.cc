@@ -5,13 +5,16 @@
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 
 #include "base/debug/dump_without_crashing.h"
+#include "build/build_config.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/views/frame/web_contents_close_handler.h"
 #include "chrome/browser/ui/views/status_bubble_views.h"
 #include "components/search/ntp_features.h"
+#include "components/tabs/public/tab_interface.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_provider.h"
@@ -98,6 +101,16 @@ void ContentsWebView::SetIsAnimatingBounds(bool is_animating) {
   }
 }
 
+void ContentsWebView::UpdateIsBlockedByModal() {
+  bool is_blocked = false;
+  if (web_contents()) {
+    if (auto* tab = tabs::TabInterface::MaybeGetFromContents(web_contents())) {
+      is_blocked = tab->IsBlocked();
+    }
+  }
+  holder()->SetProperty(views::kIsBlockedByModalKey, is_blocked);
+}
+
 bool ContentsWebView::GetNeedsNotificationWhenVisibleBoundsChange() const {
   return true;
 }
@@ -135,11 +148,14 @@ void ContentsWebView::SetWebContents(content::WebContents* web_contents) {
   views::WebView::SetWebContents(web_contents);
   if (web_contents == nullptr) {
     status_bubble_.reset();
+    holder()->SetProperty(views::kIsBlockedByModalKey, false);
     // Early exit: Without web contents, views dependent on ContentsWebView's
     // bounds cannot be properly created or positioned. These views will
     // initialize later when valid web contents exist.
     return;
   }
+
+  UpdateIsBlockedByModal();
 
   if (!status_bubble_) {
     status_bubble_ = std::make_unique<StatusBubbleViews>(this);
@@ -154,6 +170,22 @@ void ContentsWebView::SetWebContents(content::WebContents* web_contents) {
     dialog_manager->UpdateDialogHost();
   }
 }
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+void ContentsWebView::DidGetUserInteraction(const blink::WebInputEvent& event) {
+  // If the user interacts with the web contents, ensure it is activated.
+  // This handles cases where the native window does not receive a focus
+  // event, such as when a permission prompt is open in another split view.
+  if (event.GetType() == blink::WebInputEvent::Type::kMouseDown ||
+      event.GetType() == blink::WebInputEvent::Type::kTouchStart) {
+    // RequestFocus() ensures the container view receives focus,
+    // which is sufficient to update the browser UI.
+    if (!HasFocus()) {
+      RequestFocus();
+    }
+  }
+}
+#endif
 
 void ContentsWebView::UpdateBackgroundColor() {
   const SkColor color = GetColorProvider()->GetColor(

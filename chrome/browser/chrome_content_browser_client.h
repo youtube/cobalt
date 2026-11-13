@@ -604,8 +604,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   bool ShouldEnableAudioProcessHighPriority() override;
   bool ShouldRestrictCoreSharingOnRenderer() override;
   std::optional<std::wstring> GetWindowsSecurityAttributeName() const override;
-  std::vector<uintptr_t> GetAslrBeaconAddresses(
-      sandbox::mojom::Sandbox sandbox_type) override;
 #endif
   void ExposeInterfacesToRenderer(
       service_manager::BinderRegistry* registry,
@@ -638,7 +636,8 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       content::RenderFrameHost& render_frame_host,
       blink::AssociatedInterfaceRegistry& associated_registry) override;
   void BindGpuHostReceiver(mojo::GenericPendingReceiver receiver) override;
-  void BindUtilityHostReceiver(mojo::GenericPendingReceiver receiver) override;
+  void BindUtilityHostReceiver(const std::string& service_name,
+                               mojo::GenericPendingReceiver receiver) override;
   void BindHostReceiverForRenderer(
       content::RenderProcessHost* render_process_host,
       mojo::GenericPendingReceiver receiver) override;

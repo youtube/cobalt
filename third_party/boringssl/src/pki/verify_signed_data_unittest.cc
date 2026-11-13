@@ -39,7 +39,7 @@ enum VerifyResult {
   FAILURE,
 };
 
-// Reads test data from |file_name| and runs VerifySignedData() over its
+// Reads test data from `file_name` and runs VerifySignedData() over its
 // inputs.
 //
 // If expected_result was SUCCESS then the test will only succeed if

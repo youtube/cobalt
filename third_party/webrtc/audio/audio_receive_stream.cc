@@ -81,7 +81,8 @@ std::unique_ptr<voe::ChannelReceiveInterface> CreateChannelReceive(
     const Environment& env,
     AudioState* audio_state,
     NetEqFactory* neteq_factory,
-    const AudioReceiveStreamInterface::Config& config) {
+    const AudioReceiveStreamInterface::Config& config,
+    PacketRouter* packet_router) {
   RTC_DCHECK(audio_state);
   internal::AudioState* internal_audio_state =
       static_cast<internal::AudioState*>(audio_state);
@@ -91,7 +92,8 @@ std::unique_ptr<voe::ChannelReceiveInterface> CreateChannelReceive(
       config.jitter_buffer_max_packets, config.jitter_buffer_fast_accelerate,
       config.jitter_buffer_min_delay_ms, config.enable_non_sender_rtt,
       config.decoder_factory, std::move(config.frame_decryptor),
-      config.crypto_options, std::move(config.frame_transformer));
+      config.crypto_options, std::move(config.frame_transformer),
+      packet_router);
 }
 }  // namespace
 
@@ -101,17 +103,17 @@ AudioReceiveStreamImpl::AudioReceiveStreamImpl(
     NetEqFactory* absl_nullable neteq_factory,
     const AudioReceiveStreamInterface::Config& config,
     const scoped_refptr<AudioState>& audio_state)
-    : AudioReceiveStreamImpl(
-          env,
-          packet_router,
-          config,
-          audio_state,
-          CreateChannelReceive(env, audio_state.get(), neteq_factory, config)) {
-}
+    : AudioReceiveStreamImpl(env,
+                             config,
+                             audio_state,
+                             CreateChannelReceive(env,
+                                                  audio_state.get(),
+                                                  neteq_factory,
+                                                  config,
+                                                  packet_router)) {}
 
 AudioReceiveStreamImpl::AudioReceiveStreamImpl(
     const Environment& env,
-    PacketRouter* absl_nonnull packet_router,
     const AudioReceiveStreamInterface::Config& config,
     const scoped_refptr<AudioState>& audio_state,
     absl_nonnull std::unique_ptr<voe::ChannelReceiveInterface> channel_receive)
@@ -125,10 +127,6 @@ AudioReceiveStreamImpl::AudioReceiveStreamImpl(
   RTC_DCHECK(audio_state_);
   RTC_DCHECK(channel_receive_);
   RTC_DCHECK_EQ(config_.rtp.remote_ssrc, channel_receive_->remote_ssrc());
-
-  RTC_DCHECK(packet_router);
-  // Configure bandwidth estimation.
-  channel_receive_->RegisterReceiverCongestionControlObjects(packet_router);
 
   // Complete configuration.
   // TODO(solenberg): Config NACK history window (which is a packet count),
@@ -145,7 +143,6 @@ AudioReceiveStreamImpl::~AudioReceiveStreamImpl() {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   RTC_LOG(LS_INFO) << "~AudioReceiveStreamImpl: " << remote_ssrc();
   Stop();
-  channel_receive_->ResetReceiverCongestionControlObjects();
 }
 
 void AudioReceiveStreamImpl::RegisterWithTransport(

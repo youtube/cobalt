@@ -131,6 +131,7 @@ class GlicInstanceImpl : public GlicInstance,
   void NotifyInstanceActivationChanged(bool is_active);
   base::Time GetLastActivationTimestamp() const override;
   base::TimeDelta GetTimeSinceLastActive() const override;
+  base::TimeDelta GetTimeSinceLastPromptSubmission() const override;
   bool IsHibernated() const;
   void Hibernate();
   void Shutdown();
@@ -173,8 +174,7 @@ class GlicInstanceImpl : public GlicInstance,
   // Returns true when toggle shows the instance and false when it is closed.
   bool Toggle(ShowOptions&& options,
               bool prevent_close,
-              glic::mojom::InvocationSource source,
-              std::optional<std::string> prompt_suggestion);
+              glic::mojom::InvocationSource source);
 
   // NOTE: This method may result in the deletion of `this`.
   void UnbindEmbedder(EmbedderKey key);
@@ -233,8 +233,7 @@ class GlicInstanceImpl : public GlicInstance,
   glic::GlicInstanceMetricsBackwardsCompatibility&
   instance_metrics_backwards_compatibility() override;
   GlicSkillsManager& skills_manager() override;
-  void OnSelectionAreasChanged(int count) override;
-  void OnPolylinePointsChanged(const std::vector<int>& counts) override;
+
   std::unique_ptr<WebUIContentsContainer> CreateWebUIContentsContainer()
       override;
   void CreateActorHandler(
@@ -413,6 +412,7 @@ class GlicInstanceImpl : public GlicInstance,
   base::OneShotTimer inactivity_timer_;
   base::Time last_activation_timestamp_;
   base::TimeTicks last_deactivation_timestamp_;
+  base::TimeTicks last_prompt_submission_time_;
 
   base::OneShotTimer remove_blank_instance_timer_;
   base::OneShotTimer maybe_activate_foreground_embedder_timer_;

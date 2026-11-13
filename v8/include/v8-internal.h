@@ -1064,7 +1064,7 @@ class Internals {
   static const int kBuiltinTier0EntryTableSize = 7 * kApiSystemPointerSize;
   static const int kBuiltinTier0TableSize = 7 * kApiSystemPointerSize;
   static const int kLinearAllocationAreaSize = 3 * kApiSystemPointerSize;
-  static const int kThreadLocalTopSize = 29 * kApiSystemPointerSize;
+  static const int kThreadLocalTopSize = 30 * kApiSystemPointerSize;
   static const int kHandleScopeDataSize =
       2 * kApiSystemPointerSize + 2 * kApiInt32Size;
 
@@ -1681,6 +1681,11 @@ template <typename Iterator>
 struct MaybeDefineIteratorConcept<Iterator> {
   using iterator_concept =
       typename std::iterator_traits<Iterator>::iterator_concept;
+};
+
+template <typename T>
+struct MaybeDefineIteratorConcept<T*> {
+  using iterator_concept = std::contiguous_iterator_tag;
 };
 
 // A class of iterators that wrap some different iterator type.

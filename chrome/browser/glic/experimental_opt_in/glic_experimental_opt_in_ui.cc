@@ -6,15 +6,18 @@
 
 #include "base/command_line.h"
 #include "base/feature_list.h"
+#include "chrome/browser/glic/experimental_opt_in/glic_experimental_opt_in_metrics.h"
 #include "chrome/browser/glic/experimental_opt_in/glic_experimental_opt_in_page_handler.h"
-#include "chrome/browser/glic/fre/fre_util.h"
+#include "chrome/browser/glic/experimental_opt_in/glic_experimental_opt_in_util.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/generated_resources.h"
 #include "chrome/grit/glic_experimental_opt_in_resources.h"
 #include "chrome/grit/glic_experimental_opt_in_resources_map.h"
 #include "content/public/browser/web_contents.h"
@@ -60,7 +63,7 @@ GURL GetExperimentalTriggeringOptInURL(Profile* profile,
   url = net::AppendOrReplaceQueryParameter(
       url, "experimental_triggering_opt_in", state_str);
 
-  return DecorateGlicFreUrl(profile, url);
+  return DecorateGlicOptInUrl(profile, url);
 }
 
 }  // namespace
@@ -88,9 +91,13 @@ GlicExperimentalOptInUI::GlicExperimentalOptInUI(content::WebUI* web_ui)
       source, kGlicExperimentalOptInResources,
       IDR_GLIC_EXPERIMENTAL_OPT_IN_EXPERIMENTAL_OPT_IN_HTML);
 
-  required_state_ = GlicKeyedServiceFactory::GetGlicKeyedService(profile)
-                        ->enabling()
-                        .GetRequiredExperimentalOptIn();
+  GlicKeyedService* service =
+      GlicKeyedServiceFactory::GetGlicKeyedService(profile);
+  required_state_ = service->enabling().GetRequiredExperimentalOptIn();
+  RecordExperimentalOptInShown(required_state_);
+  if (required_state_ == RequiredExperimentalOptIn::kGlic) {
+    service->metrics()->OnOptInShown(OptInFlow::kExperimentalTriggering);
+  }
 
   if (required_state_ == RequiredExperimentalOptIn::kNotNeeded) {
     // It's theoretically possible that between the decision by the controller
@@ -98,12 +105,19 @@ GlicExperimentalOptInUI::GlicExperimentalOptInUI(content::WebUI* web_ui)
     // executes, opt-in is no longer required (e.g. changing toggle in a
     // different tab). That case should be very rare, and we can fallback to the
     // experimental opt-in.
-    // TODO(b/511184397): Add metrics for how often this happens.
     required_state_ = RequiredExperimentalOptIn::kExperimental;
   }
 
   GURL url = GetExperimentalTriggeringOptInURL(profile, required_state_);
   source->AddString("glicExperimentalTriggeringOptInURL", url.spec());
+
+  static constexpr webui::LocalizedString kStrings[] = {
+      {"offlineNoticeHeader", IDS_GLIC_OFFLINE_NOTICE_HEADER},
+      {"experimentalOptInOfflineNoticeMessage",
+       IDS_GLIC_EXPERIMENTAL_OPT_IN_OFFLINE_NOTICE_MESSAGE},
+      {"closeButtonLabel", IDS_GLIC_NOTICE_CLOSE_BUTTON_LABEL},
+  };
+  source->AddLocalizedStrings(kStrings);
 }
 
 GlicExperimentalOptInUI::~GlicExperimentalOptInUI() = default;

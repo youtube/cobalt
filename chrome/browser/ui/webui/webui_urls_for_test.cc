@@ -27,7 +27,7 @@ base::span<const std::string_view> GetChromeUrlsForTest() {
       // TODO(crbug.com/487113801): Investigate why tests are flaky on dbg bots.
       "chrome://accessibility",
 #endif
-      "chrome://accessibility-annotator-info",
+      "chrome://personal-context-notice",
 // TODO:(https://crbug.com/40265685): Flakily crashes on ChromeOS.
 #if !BUILDFLAG(IS_CHROMEOS)
       "chrome://app-service-internals",
@@ -38,9 +38,7 @@ base::span<const std::string_view> GetChromeUrlsForTest() {
       "chrome://autofill-ml-internals",
       "chrome://autofill-internals",
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
       "chrome://batch-upload",
-#endif
 
       "chrome://bookmarks",
       "chrome://bookmarks-side-panel.top-chrome",
@@ -57,6 +55,7 @@ base::span<const std::string_view> GetChromeUrlsForTest() {
 #if !BUILDFLAG(IS_ANDROID)
       "chrome://content-annotator-internals",
 #endif
+      "chrome://context-hub",
       "chrome://crashes",
 // TODO(crbug.com/40913109): Re-enable this test
 #if !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_CHROMEOS)
@@ -67,6 +66,10 @@ base::span<const std::string_view> GetChromeUrlsForTest() {
 
 #if !BUILDFLAG(IS_CHROMEOS)
       "chrome://default-browser-modal",
+#endif
+
+#if BUILDFLAG(IS_WIN)
+      "chrome://default-browser",
 #endif
 
       "chrome://debug-webuis-disabled",
