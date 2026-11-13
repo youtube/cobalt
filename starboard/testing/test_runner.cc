@@ -22,6 +22,8 @@ void RunTestBlockingAction(std::function<void()> action) {
   action();
 }
 
+void InitializePlatformTestSuite() {}
+
 void RegisterPlatformTestEnvironments(int argc, char** argv) {}
 
 int RunPlatformTestSuite(int argc, char** argv, RunTestsCallback run_tests_cb) {
