@@ -469,27 +469,28 @@ Always run the pretty print utility on this file after editing:
   <owner>johneocampo@google.com</owner>
   <owner>cobalt-media-team@google.com</owner>
   <summary>
-    Wall-clock time taken by the SbPlayerDestroy() call that destroys a valid
-    platform player in SbPlayerBridge, when the bridge is destroyed or when the
-    player is suspended. SbPlayerDestroy() blocks until the pending work of the
-    player is done, so its latency depends on the state of the player, which is
-    why it is recorded separately for each state. Players that weren't
-    initialized yet, i.e. didn't report kSbPlayerStateInitialized, include the
-    rest of their initialization. Initialized players without any sample written
-    to them are the closest to the Starboard BM_PlayerDestroy benchmark. The
-    state is as observed by SbPlayerBridge on its media thread, which receives
-    player statuses asynchronously. So a player whose kSbPlayerStateInitialized
-    status is still queued when it is destroyed is recorded as not initialized
-    yet. Not recorded if player creation failed. Recorded for {State}. See also
-    Cobalt.Media.LatencyTiming.SbPlayerCreate{Occurrence}.
+    Wall-clock time of the blocking SbPlayerDestroy() call in SbPlayerBridge,
+    recorded for {State}, as SbPlayerDestroy() waits for the pending work of the
+    player. Includes players destroyed with the bridge, which may be playing,
+    and on suspend, which are always paused. The state is as seen by the media
+    thread, so a status that is still queued when the player is destroyed isn't
+    taken into account. Not recorded if player creation failed.
   </summary>
   <token key="State">
-    <variant name=".Active"
-        summary="players with samples written to them, e.g. during playback"/>
     <variant name=".BeforeInitialized"
-        summary="players that weren't initialized yet"/>
-    <variant name=".Idle"
-        summary="initialized players without any sample written to them"/>
+        summary="players that didn't report any state yet, which may include
+                 the rest of their initialization"/>
+    <variant name=".EndOfStream"
+        summary="players that last reported kSbPlayerStateEndOfStream"/>
+    <variant name=".Initialized"
+        summary="players that last reported kSbPlayerStateInitialized,
+                 closest to the Starboard BM_PlayerDestroy benchmark. Rare,
+                 as SbPlayerBridge seeks right away"/>
+    <variant name=".Prerolling"
+        summary="players that last reported kSbPlayerStatePrerolling"/>
+    <variant name=".Presenting"
+        summary="players that last reported kSbPlayerStatePresenting,
+                 including paused and suspended players"/>
   </token>
 </histogram>
 

@@ -1020,6 +1020,27 @@ TEST_F(StarboardRendererTest, RecordsSbPlayerCreateLatenciesForUrlPlayer) {
             1u);
 }
 
+TEST_F(StarboardRendererTest, RecordsSbPlayerDestroyLatencyForUrlPlayer) {
+  constexpr char kSbPlayerDestroyPresentingHistogram[] =
+      "Cobalt.Media.LatencyTiming.SbPlayerDestroy.Presenting";
+  base::HistogramTester histogram_tester;
+  SbPlayer player = InitializeUrlPlayer();
+  ASSERT_TRUE(player_status_cb_);
+  for (SbPlayerState state :
+       {kSbPlayerStateInitialized, kSbPlayerStatePrerolling,
+        kSbPlayerStatePresenting}) {
+    player_status_cb_(player, context_, state,
+                      /*ticket=*/SB_PLAYER_INITIAL_TICKET);
+  }
+  task_environment_.RunUntilIdle();
+
+  renderer_.reset();
+  task_environment_.RunUntilIdle();
+  // URL players are recorded by their last reported state, like other players.
+  EXPECT_EQ(GetTotalDestroyCount(histogram_tester), 1u);
+  histogram_tester.ExpectTotalCount(kSbPlayerDestroyPresentingHistogram, 1);
+}
+
 TEST_F(StarboardRendererTest, UrlPlayerSrcNotSupportedDuringInitialization) {
   SbPlayer player = InitializeUrlPlayer();
   ASSERT_FALSE(init_status_.has_value());

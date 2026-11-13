@@ -109,16 +109,42 @@ constexpr std::string_view kSubsequentCallSuffix = ".Subsequent";
 // Records the latency of the SbPlayerDestroy() call that destroys a valid
 // player, when SbPlayerBridge is destroyed or on Suspend(). The name is
 // extended with a state suffix below, e.g.
-// "Cobalt.Media.LatencyTiming.SbPlayerDestroy.Active".
+// "Cobalt.Media.LatencyTiming.SbPlayerDestroy.Presenting".
 constexpr std::string_view kSbPlayerDestroyHistogram =
     "Cobalt.Media.LatencyTiming.SbPlayerDestroy";
 // State suffixes, for players destroyed before they reported
-// kSbPlayerStateInitialized, after it but before any sample was written to
-// them, and after samples were written to them.
+// kSbPlayerStateInitialized, and for the last state they reported otherwise.
 constexpr std::string_view kSbPlayerDestroyBeforeInitializedSuffix =
     ".BeforeInitialized";
-constexpr std::string_view kSbPlayerDestroyIdleSuffix = ".Idle";
-constexpr std::string_view kSbPlayerDestroyActiveSuffix = ".Active";
+constexpr std::string_view kSbPlayerDestroyInitializedSuffix = ".Initialized";
+constexpr std::string_view kSbPlayerDestroyPrerollingSuffix = ".Prerolling";
+constexpr std::string_view kSbPlayerDestroyPresentingSuffix = ".Presenting";
+constexpr std::string_view kSbPlayerDestroyEndOfStreamSuffix = ".EndOfStream";
+
+// Returns the state suffix of the SbPlayerDestroy histogram for a player whose
+// last reported state is |last_player_state|.
+std::string_view GetSbPlayerDestroyStateSuffix(
+    std::optional<SbPlayerState> last_player_state) {
+  if (!last_player_state) {
+    return kSbPlayerDestroyBeforeInitializedSuffix;
+  }
+  switch (*last_player_state) {
+    case kSbPlayerStateInitialized:
+      // The closest to the Starboard BM_PlayerDestroy benchmark. Rare, as
+      // SbPlayerBridge seeks as soon as the player is initialized.
+      return kSbPlayerDestroyInitializedSuffix;
+    case kSbPlayerStatePrerolling:
+      return kSbPlayerDestroyPrerollingSuffix;
+    case kSbPlayerStatePresenting:
+      return kSbPlayerDestroyPresentingSuffix;
+    case kSbPlayerStateEndOfStream:
+      return kSbPlayerDestroyEndOfStreamSuffix;
+    case kSbPlayerStateDestroyed:
+      // Never stored by SbPlayerBridge::OnPlayerStatus().
+      break;
+  }
+  NOTREACHED();
+}
 
 // Records |elapsed| to |histogram_name|.
 void RecordLatency(std::string_view histogram_name, base::TimeDelta elapsed) {
@@ -134,10 +160,12 @@ void RecordLatency(std::string_view histogram_name, base::TimeDelta elapsed) {
 void RecordSbPlayerLatency(std::string_view histogram_name,
                            base::TimeDelta elapsed,
                            bool is_first_call) {
-  RecordLatency(is_first_call
-                    ? std::string(histogram_name)
-                    : base::StrCat({histogram_name, kSubsequentCallSuffix}),
-                elapsed);
+  if (is_first_call) {
+    RecordLatency(histogram_name, elapsed);
+  } else {
+    RecordLatency(base::StrCat({histogram_name, kSubsequentCallSuffix}),
+                  elapsed);
+  }
 }
 
 // Removes the buffer at |index| of |buffer_queue| if it has |handle|. Returns
@@ -227,7 +255,7 @@ GetStarboardExtensionExperimentalFeatures(
 template <typename CreateFn>
 SbPlayer SbPlayerBridge::CreateWithUmaLatency(CreateFn&& create_fn) {
   is_first_sb_player_create_ = IsFirstSbPlayerCreateInProcess();
-  has_written_samples_ = false;
+  last_player_state_.reset();
   const base::ElapsedTimer timer;
   sb_player_create_start_time_ = timer.start_time();
   SbPlayer player = std::forward<CreateFn>(create_fn)();
@@ -238,15 +266,11 @@ SbPlayer SbPlayerBridge::CreateWithUmaLatency(CreateFn&& create_fn) {
 
 void SbPlayerBridge::DestroyPlayer() {
   DCHECK(SbPlayerIsValid(player_));
-  // The state is as observed on |task_runner_|. |sb_player_create_start_time_|
-  // is only reset when OnPlayerStatus() handles kSbPlayerStateInitialized, and
-  // player statuses are posted to |task_runner_|. So a player that already
-  // reported kSbPlayerStateInitialized, but whose status is still queued, is
-  // recorded as before initialized.
+  // The state is as observed on |task_runner_|. Player statuses are posted to
+  // it, so a status that is still queued when the player is destroyed isn't
+  // taken into account.
   const std::string_view state_suffix =
-      sb_player_create_start_time_ ? kSbPlayerDestroyBeforeInitializedSuffix
-      : has_written_samples_       ? kSbPlayerDestroyActiveSuffix
-                                   : kSbPlayerDestroyIdleSuffix;
+      GetSbPlayerDestroyStateSuffix(last_player_state_);
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   cval_stats_->StartTimer(MediaTiming::SbPlayerDestroy, pipeline_identifier_);
@@ -1095,7 +1119,6 @@ void SbPlayerBridge::WriteBuffersInternal(
     cval_stats_->StartTimer(MediaTiming::SbPlayerWriteSamples,
                             pipeline_identifier_);
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
-    has_written_samples_ = true;
     sbplayer_interface_->WriteSamples(player_, sample_type,
                                       gathered_sbplayer_sample_infos.data(),
                                       gathered_sbplayer_sample_infos.size());
@@ -1255,6 +1278,11 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player,
 
   if (ticket != SB_PLAYER_INITIAL_TICKET && ticket != ticket_) {
     return;
+  }
+
+  // kSbPlayerStateDestroyed is only reported once the player is destroyed.
+  if (state != kSbPlayerStateDestroyed) {
+    last_player_state_ = state;
   }
 
   if (state == kSbPlayerStateInitialized) {
