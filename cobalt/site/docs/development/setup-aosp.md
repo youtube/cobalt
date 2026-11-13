@@ -233,7 +233,8 @@ tests through the APK's instrumentation with `adb`:
 
    ```bash
    mkdir nplb && tar xzf nplb_loader_deps.tar.gz -C nplb
-   adb install -r nplb/nplb_loader_apk/nplb_loader-debug.apk
+   # -t installs even when the APK is flagged testOnly
+   adb install -r -t nplb/nplb_loader_apk/nplb_loader-debug.apk
    adb shell appops set dev.cobalt.coat MANAGE_EXTERNAL_STORAGE allow
    adb shell rm -rf /sdcard/chromium_tests_root/
    adb push nplb/test/ /sdcard/chromium_tests_root/test/
@@ -241,21 +242,57 @@ tests through the APK's instrumentation with `adb`:
 
 3. Run the tests. `-w` waits until the run ends. The test output goes to the
    given file, which is appended to, so remove it first. The default timeout
-   is 60 seconds, too short for a full run:
+   is 60 seconds, too short for a full run, so pass a one-hour value in
+   nanoseconds:
 
    ```bash
-   TIMEOUT_NS=$((60 * 60 * 1000000000))  # 1 hour
    adb shell rm -f /sdcard/nplb.txt
    adb shell am instrument -w \
      -e org.chromium.native_test.NativeTest.GtestFilter "'*Memory*'" \
      -e org.chromium.native_test.NativeTestInstrumentationTestRunner.StdoutFile /sdcard/nplb.txt \
-     -e org.chromium.native_test.NativeTestInstrumentationTestRunner.ShardNanoTimeout $TIMEOUT_NS \
+     -e org.chromium.native_test.NativeTestInstrumentationTestRunner.ShardNanoTimeout 3600000000000 \
      dev.cobalt.coat/dev.cobalt.testing.CobaltInstrumentationTestRunner
    ```
 
+   The doubled quotes around the filter are bash syntax; if the filter has
+   no effect, check how your shell quotes the value. The instrumentation
+   class is registered in the test APK's manifest, and
+   `adb shell pm list instrumentation dev.cobalt.coat` prints the component
+   to use: `dev.cobalt.testing.CobaltInstrumentationTestRunner` in 27.lts.11
+   and later, `dev.cobalt.app.NplbInstrumentationTestRunner` in 27.lts.10
+   and earlier.
+
    For a full run, exclude the tests listed in
    `cobalt/testing/filters/evergreen-arm-softfp-aosp/nplb_loader_filter.json`
-   with a negative filter, e.g. `"'-*SbPlayer*:*MultiplePlayer*'"`.
+   and pass `--gtest_output` through the `NativeTest.CommandLineFlags` extra
+   (the plain `NativeTest.CommandLine` extra is not consumed by the test
+   activity) to also write the JUnit XML result file that the NPLB
+   test-report flow expects:
+
+   ```bash
+   FILTER="-$(jq -r '.failing_tests | join(":")' \
+     cobalt/testing/filters/evergreen-arm-softfp-aosp/nplb_loader_filter.json)"
+   adb shell rm -f /sdcard/nplb.txt
+   adb shell am instrument -w \
+     -e org.chromium.native_test.NativeTest.GtestFilter "$FILTER" \
+     -e org.chromium.native_test.NativeTest.CommandLineFlags \
+       "--gtest_output=xml:/sdcard/nplb_testResult.xml" \
+     -e org.chromium.native_test.NativeTestInstrumentationTestRunner.StdoutFile /sdcard/nplb.txt \
+     -e org.chromium.native_test.NativeTestInstrumentationTestRunner.ShardNanoTimeout 3600000000000 \
+     dev.cobalt.coat/dev.cobalt.testing.CobaltInstrumentationTestRunner
+   adb pull /sdcard/nplb_testResult.xml ./
+   ```
+
+   All exclusion patterns must sit behind the single leading `-`, joined by
+   `:`: googletest splits the filter at the first `-` only, so prefixing
+   every pattern (`-*A*:-*B*`) silently applies only the first one. Do not
+   drop the exclusions either: the player tests reference testdata that is
+   not shipped in `nplb_loader_deps.tar.gz`, and running them aborts the
+   whole run before any summary is printed. gtest writes the XML file only
+   when the run ends normally; after a crash or a shard timeout it is
+   missing or stale, and the stdout summary plus logcat are the source of
+   truth. The XML `tests=` count includes `DISABLED_` tests, so it can be
+   slightly higher than the number of tests that ran.
 
 4. Read the results:
 
@@ -266,7 +303,8 @@ tests through the APK's instrumentation with `adb`:
    `am instrument` reports `INSTRUMENTATION_CODE: -1` whatever the outcome.
    A finished run ends with gtest's `[  PASSED  ]` or `[  FAILED  ]` summary;
    if it is missing, the tests crashed or timed out, and logcat has the
-   details.
+   details. The summary line and the `<testsuites>` header of the JUnit XML
+   written in the previous step should agree.
 
 ## Debugging
 
