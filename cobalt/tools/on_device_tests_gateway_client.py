@@ -67,14 +67,6 @@ _DEPS_ARCH_MAP = {
 }
 _GCS_ARCHIVE_DEVICE_FAMILIES = ('rdk',)
 _MAX_SHARDS = 10
-_ANDROID_HOST_RUNNER_PILOT_TARGETS = (
-    'url_unittests',
-    'base_unittests',
-    'net_unittests',
-    'nplb',
-    'boringssl_crypto_tests',
-    'nplb_loader',
-)
 
 
 def _is_android_gtest_target(args: argparse.Namespace,
@@ -327,11 +319,8 @@ def process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
                                                     target_test_attempts)
       effective_test_attempts = target_test_attempts or args.test_attempts
       target_name = test_target.split(':')[-1]
-      use_host_runner = _is_android_gtest_target(
-          args,
-          target_name) and ('cobalt_browsertests' in target_name or
-                            target_name in _ANDROID_HOST_RUNNER_PILOT_TARGETS)
-      if 'cobalt_browsertests' in target_name or use_host_runner:
+      use_host_runner = _is_android_gtest_target(args, target_name)
+      if 'cobalt_browsertests' in target_name:
         test_type = 'browser_test'
       if num_shards > 1 and test_type != 'browser_test' and not use_host_runner:
         raise ValueError(

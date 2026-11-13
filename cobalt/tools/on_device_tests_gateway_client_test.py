@@ -123,7 +123,7 @@ class ProcessTestRequestsTest(unittest.TestCase):
 
     self.assertEqual(len(requests), 3)
     self.assertEqual(requests[0]['test_target'], 'base:base_unittests')
-    self.assertEqual(requests[0]['test_type'], 'browser_test')
+    self.assertEqual(requests[0]['test_type'], 'unit_test')
     self.assertEqual(
         requests[0]['test_args'].count('test_attempts=1'),
         1,
@@ -324,13 +324,13 @@ class ProcessTestRequestsTest(unittest.TestCase):
                   explicit_requests[0]['test_cmd_args'][0])
 
   def test_sharded_non_browser_test_raises_value_error(self):
-    pilot = process_test_requests(
+    sharded_unit = process_test_requests(
         self._make_args([{
-            'target': 'base:base_unittests',
+            'target': 'cobalt:cobalt_unittests',
             'shards': 2
         }]))
-    self.assertEqual([r['test_type'] for r in pilot], ['browser_test'] * 2)
-    self.assertIn('--disable-test-server', pilot[0]['test_cmd_args'][0])
+    self.assertEqual([r['test_type'] for r in sharded_unit], ['unit_test'] * 2)
+    self.assertIn('--disable-test-server', sharded_unit[0]['test_cmd_args'][0])
 
     for bad_args in (
         self._make_args([{
@@ -345,13 +345,6 @@ class ProcessTestRequestsTest(unittest.TestCase):
     ):
       with self.assertRaises(ValueError):
         process_test_requests(bad_args)
-
-    unit_args = self._make_args([{
-        'target': 'cobalt:cobalt_unittests',
-        'shards': 2,
-    }])
-    with self.assertRaises(ValueError):
-      process_test_requests(unit_args)
 
     e2e_args = self._make_args(
         [{
@@ -432,14 +425,11 @@ class ProcessTestRequestsTest(unittest.TestCase):
             'crypto:crypto_unittests',
             'cobalt/android:cobalt_coat_junit_tests',
         ]))
-    self.assertEqual([r['test_type'] for r in requests], [
-        'browser_test', 'browser_test', 'browser_test', 'unit_test', 'unit_test'
-    ])
+    self.assertEqual([r['test_type'] for r in requests],
+                     ['browser_test'] + ['unit_test'] * 4)
     for req in requests[:4]:
       self.assertIn(expected_host_dep, req['files'])
-    for req in requests[:3]:
       self.assertIn('--disable-test-server', req['test_cmd_args'][0])
-    self.assertNotIn('--disable-test-server', requests[3]['test_cmd_args'][0])
     self.assertFalse(
         any(f.startswith('host_deps=') for f in requests[4]['files']))
 
