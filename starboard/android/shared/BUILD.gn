@@ -117,6 +117,8 @@ static_library("starboard_platform") {
     "aaudio_audio_sink.h",
     "aaudio_loader.cc",
     "aaudio_loader.h",
+    "aaudio_presented_frame_tracker.cc",
+    "aaudio_presented_frame_tracker.h",
     "accessibility_extension.cc",
     "accessibility_extension.h",
     "accessibility_get_caption_settings.cc",
@@ -464,6 +466,8 @@ test("starboard_platform_tests") {
 
   sources = media_tests_sources + player_tests_sources + [
               "//starboard/common/test_main.cc",
+              "aaudio_audio_sink_test.cc",
+              "aaudio_presented_frame_tracker_test.cc",
               "audio_renderer_passthrough_test.cc",
               "audio_renderer_sink_android_test.cc",
               "audio_track_audio_sink_type_test.cc",
