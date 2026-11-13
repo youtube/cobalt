@@ -9,6 +9,7 @@ import static dev.cobalt.shell.Shell.TAG;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.PixelFormat;
+import android.graphics.Rect;
 import android.os.Build;
 import android.view.AttachedSurfaceControl;
 import android.view.MotionEvent;
@@ -23,6 +24,7 @@ import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.EventForwarder;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.display.DisplayAndroid;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
@@ -44,6 +46,8 @@ public class ContentViewRenderView extends FrameLayout {
 
   private int mWidth;
   private int mHeight;
+  private int mSurfaceWidth;
+  private int mSurfaceHeight;
 
   /**
    * Constructs a new ContentViewRenderView. This should be called and the {@link
@@ -74,6 +78,8 @@ public class ContentViewRenderView extends FrameLayout {
           @Override
           public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
             assert mNativeContentViewRenderView != 0;
+            mSurfaceWidth = width;
+            mSurfaceHeight = height;
             // TODO: b/511379756 - Pass InputTransferToken instead of null for Android 15+
             // "Transfer Input to Viz" optimization, similar to upstream ContentViewRenderView.
             ContentViewRenderViewJni.get()
@@ -86,7 +92,7 @@ public class ContentViewRenderView extends FrameLayout {
                     holder.getSurface(),
                     mSurfaceBridge.getSurfaceControl(),
                     /* hostInputToken= */ null);
-            if (mWebContents != null) {
+            if (mWebContents != null && width > 0 && height > 0) {
               ContentViewRenderViewJni.get()
                   .onPhysicalBackingSizeChanged(
                       mNativeContentViewRenderView,
@@ -109,6 +115,8 @@ public class ContentViewRenderView extends FrameLayout {
           @Override
           public void surfaceDestroyed(SurfaceHolder holder) {
             assert mNativeContentViewRenderView != 0;
+            mSurfaceWidth = 0;
+            mSurfaceHeight = 0;
             ContentViewRenderViewJni.get()
                 .surfaceDestroyed(mNativeContentViewRenderView, ContentViewRenderView.this);
           }
@@ -118,9 +126,14 @@ public class ContentViewRenderView extends FrameLayout {
 
   @Override
   protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+    if (w <= 0 || h <= 0) {
+      return;
+    }
     mWidth = w;
     mHeight = h;
-    if (mWebContents != null) mWebContents.setSize(w, h);
+    if (mWebContents != null) {
+      mWebContents.setSize(w, h);
+    }
   }
 
   /** View's method override to notify WindowAndroid about changes in its visibility. */
@@ -128,7 +141,9 @@ public class ContentViewRenderView extends FrameLayout {
   protected void onWindowVisibilityChanged(int visibility) {
     super.onWindowVisibilityChanged(visibility);
 
-    if (mWindowAndroid == null) return;
+    if (mWindowAndroid == null) {
+      return;
+    }
 
     if (visibility == View.GONE) {
       mWindowAndroid.onVisibilityChanged(false);
@@ -151,6 +166,8 @@ public class ContentViewRenderView extends FrameLayout {
    */
   public void destroy() {
     mSurfaceBridge.disconnect();
+    mSurfaceWidth = 0;
+    mSurfaceHeight = 0;
     mWindowAndroid = null;
     ContentViewRenderViewJni.get()
         .destroy(mNativeContentViewRenderView, ContentViewRenderView.this);
@@ -162,18 +179,51 @@ public class ContentViewRenderView extends FrameLayout {
     mWebContents = webContents;
 
     if (webContents != null) {
-      webContents.setSize(mWidth, mHeight);
-      ContentViewRenderViewJni.get()
-          .onPhysicalBackingSizeChanged(
-              mNativeContentViewRenderView,
-              ContentViewRenderView.this,
-              webContents,
-              mWidth,
-              mHeight);
+      maybeInitializeDimensionsFromWindow();
+      // Defer sizing until positive dimensions are available so WebContents is not initialized at
+      // (0, 0) before the first layout pass, which would emit a spurious startup window.resize.
+      if (mWidth > 0 && mHeight > 0) {
+        webContents.setSize(mWidth, mHeight);
+      }
+      boolean hasSurfaceSize = mSurfaceWidth > 0 && mSurfaceHeight > 0;
+      int physicalWidth = hasSurfaceSize ? mSurfaceWidth : mWidth;
+      int physicalHeight = hasSurfaceSize ? mSurfaceHeight : mHeight;
+      if (physicalWidth > 0 && physicalHeight > 0) {
+        ContentViewRenderViewJni.get()
+            .onPhysicalBackingSizeChanged(
+                mNativeContentViewRenderView,
+                ContentViewRenderView.this,
+                webContents,
+                physicalWidth,
+                physicalHeight);
+      }
     }
     ContentViewRenderViewJni.get()
         .setCurrentWebContents(
             mNativeContentViewRenderView, ContentViewRenderView.this, webContents);
+  }
+
+  private void maybeInitializeDimensionsFromWindow() {
+    if (mWidth > 0 && mHeight > 0) {
+      return;
+    }
+    if (mWindowAndroid == null) {
+      return;
+    }
+    Window window = WindowSurfaceBridge.getWindow(mWindowAndroid);
+    if (window != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      Rect bounds = window.getWindowManager().getCurrentWindowMetrics().getBounds();
+      if (bounds.width() > 0 && bounds.height() > 0) {
+        mWidth = bounds.width();
+        mHeight = bounds.height();
+        return;
+      }
+    }
+    DisplayAndroid display = mWindowAndroid.getDisplay();
+    if (display != null && display.getDisplayWidth() > 0 && display.getDisplayHeight() > 0) {
+      mWidth = display.getDisplayWidth();
+      mHeight = display.getDisplayHeight();
+    }
   }
 
   /**
