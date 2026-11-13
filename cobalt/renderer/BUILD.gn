@@ -20,6 +20,8 @@ source_set("renderer") {
     "cobalt_content_renderer_client.h",
     "cobalt_render_frame_observer.cc",
     "cobalt_render_frame_observer.h",
+    "renderer_thread_parker.cc",
+    "renderer_thread_parker.h",
   ]
 
   deps = [
@@ -55,6 +57,7 @@ test("cobalt_renderer_unittests") {
   sources = [
     "cobalt_content_renderer_client_unittest.cc",
     "cobalt_render_frame_observer_unittest.cc",
+    "renderer_thread_parker_unittest.cc",
   ]
   deps = [
     ":renderer",
