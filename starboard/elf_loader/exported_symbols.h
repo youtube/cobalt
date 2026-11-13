@@ -28,8 +28,11 @@ namespace elf_loader {
 class ExportedSymbols {
  public:
   ExportedSymbols();
-  // Returns the address of the symbol |name|. If it's not found, returns NULL.
-  const void* Lookup(const char* name);
+  // Returns the address of the symbol |name|. If the symbol is not registered
+  // in the Starboard ABI, returns nullptr for weak symbols (or in official
+  // builds) and falls back to host dlsym for strong symbols in non-official
+  // builds.
+  const void* Lookup(const char* name, bool is_weak = false) const;
 
  private:
   std::map<std::string, const void*> map_;
