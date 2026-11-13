@@ -100,6 +100,7 @@ class AVSBVideoRenderer : public VideoRenderer, private JobQueue::JobOwner {
   size_t GetNumberOfCachedFrames() const;
   void CheckIfStreamEnded();
   void OnDecodeError(NSError* error);
+  void OnRequiresFlushToResumeDecodingChanged();
   void OnStatusChanged(NSString* key_path);
 
   const VideoStreamInfo video_stream_info_;
@@ -127,6 +128,9 @@ class AVSBVideoRenderer : public VideoRenderer, private JobQueue::JobOwner {
   int64_t pts_of_last_output_buffer_ = 0;
   size_t total_written_frames_ = 0;
   size_t total_dropped_frames_ = 0;
+  size_t total_encrypted_frames_ = 0;
+  Rect last_bounds_;
+  int last_z_index_ = 0;
   int frames_per_second_ = 0;
   bool seeking_ = false;
   bool error_occurred_ = false;
