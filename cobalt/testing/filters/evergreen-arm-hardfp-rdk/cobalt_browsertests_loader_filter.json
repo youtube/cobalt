@@ -18,6 +18,8 @@
     "H5vccSchemeURLLoaderFactoryBrowserTest.*",
     "H5vccSchemeURLLoaderFactoryCacheBrowserTest.*",
     "SplashCacheBrowserTest.*",
+    "H5vccSchemeURLLoaderFactoryWasmPolicyBrowserTest.*",
+    "H5vccSchemeURLLoaderFactoryWasmPolicyCacheDisabledBrowserTest.*",
     "H5vccRuntimeBrowserTest.*",
     "H5vccMemoryBrowserTest.*",
     "H5vccSystemBrowserTest.*",

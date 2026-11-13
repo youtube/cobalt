@@ -15,6 +15,9 @@
 #ifndef COBALT_SHELL_BROWSER_H5VCC_SCHEME_URL_LOADER_FACTORY_H_
 #define COBALT_SHELL_BROWSER_H5VCC_SCHEME_URL_LOADER_FACTORY_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <optional>
 #include <string>
 
@@ -41,6 +44,27 @@ enum class SplashScreenFetchedState {
   // cache miss.
   kSkippedCachedAssets = 6,
   kMaxValue = kSkippedCachedAssets,
+};
+
+// The outcome of splash.html's WebAssembly policy (kSplashWasmPolicy), which
+// the page reports in the "policy" query param of its request for the asset
+// that it shows. These values are persisted to logs. Entries should not be
+// renumbered and numeric values should never be reused. Keep in sync with
+// SplashWasmPolicyOutcome in
+// tools/metrics/histograms/metadata/cobalt/enums.xml.
+enum class SplashWasmPolicyOutcome {
+  // The policy chose a built-in asset ("builtin").
+  kChoseBuiltIn = 0,
+  // The policy chose an asset that the WebApp cached ("cached").
+  kChoseCached = 1,
+  // The page couldn't get the splash asset list, e.g., as the cached assets
+  // couldn't be listed in time, and made its own choice ("list_unavailable").
+  kListUnavailable = 2,
+  // The policy failed, e.g., its module didn't load, or it made no choice, or
+  // not the asset that the page chooses itself, and the page made its own
+  // choice ("failed").
+  kFailed = 3,
+  kMaxValue = kFailed,
 };
 
 // H5vccSchemeURLLoaderFactory is a URLLoaderFactory implementation that handles
@@ -83,9 +107,17 @@ class H5vccSchemeURLLoaderFactory final
   // kEnableCachedSplashFile, unless overridden for testing.
   static bool IsCachedSplashFileEnabled();
 
+  // Returns the size of the built-in resource `name`, e.g., "splash.webm", or
+  // 0 if there's none, from the resource map that the loaders serve.
+  static size_t GetBuiltInResourceSize(const std::string& name);
+
   // The origin of the WebApp that caches the splash assets, unless overridden
   // for testing.
   static std::string GetSplashDomain();
+
+  // The largest splash screen asset that the WebApp cached that the loaders
+  // serve, in bytes. They serve the built-in asset instead of a larger one.
+  static uint64_t GetSplashContentSizeLimit();
 
   // Testing seam to inject a resource map.
   static void SetResourceMapForTesting(
